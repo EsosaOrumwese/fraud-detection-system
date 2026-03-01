@@ -1,7 +1,7 @@
 # Dev Substrate Deep Plan - M5 (P3 ORACLE_READY + P4 INGEST_READY)
 _Status source of truth: `platform.build_plan.md`_
 _This document provides orchestration-level deep planning detail for M5._
-_Last updated: 2026-02-25_
+_Last updated: 2026-02-28_
 
 ## 0) Purpose
 M5 closes:
@@ -10,10 +10,11 @@ M5 closes:
 
 M5 must prove:
 1. oracle source-of-stream posture is read-only from platform runtime and contract-valid,
-2. required stream-view outputs are present and pass manifest/materialization checks,
-3. ingest edge boundary (health + auth + bus topics + envelope controls) is ready fail-closed,
-4. P3/P4 gate verdicts and M6 handoff are deterministic and auditable,
-5. M5 phase-budget and cost-outcome posture is explicit and pass-gated.
+2. oracle raw inputs are uploaded to S3 under canonical oracle input prefix and stream-view is produced by managed distributed sort (no local sort path),
+3. required stream-view outputs are present and pass manifest/materialization checks,
+4. ingest edge boundary (health + auth + bus topics + envelope controls) is ready fail-closed,
+5. P3/P4 gate verdicts and M6 handoff are deterministic and auditable,
+6. M5 phase-budget and cost-outcome posture is explicit and pass-gated.
 
 ## 1) Authority Inputs
 Primary:
@@ -31,6 +32,8 @@ Supporting:
 In scope:
 1. P3 oracle readiness closure:
    - source boundary checks,
+   - raw upload to canonical oracle input prefix,
+   - managed distributed stream-sort execution + receipt,
    - required output presence,
    - stream-view/manifest contract checks.
 2. P4 ingress readiness closure:
@@ -80,6 +83,7 @@ M5 is not execution-ready unless these capability lanes are explicit:
 | --- | --- | --- |
 | Authority + handle closure | M5.A | no unresolved required P3/P4 handles |
 | Oracle source boundary + ownership | M5.B | read-only platform posture proof |
+| Oracle raw upload + managed sort | M5.R1 | raw upload receipt + managed sort receipt + parity report |
 | Required outputs + manifest readability | M5.C | required-output matrix pass |
 | Stream-view contract + materialization | M5.D | stream-view contract snapshot pass |
 | P3 gate rollup + verdict | M5.E | blocker-free P3 verdict artifact |
@@ -135,16 +139,31 @@ Goal:
 Tasks:
 1. validate oracle source namespace/run-id handles and active prefixes.
 2. validate platform runtime write-deny posture for oracle source paths.
-3. validate oracle inlet mode boundary (`external_pre_staged`) and ownership.
+3. validate oracle inlet mode boundary (`external_raw_upload_then_managed_sort`) and ownership.
 4. validate oracle bucket binding posture:
-   - `ORACLE_STORE_BUCKET` resolves to canonical external oracle source bucket,
-   - dev_full platform object-store is not used as a duplicate oracle copy lane.
+   - `ORACLE_STORE_BUCKET` resolves to the canonical dev_full oracle source bucket,
+   - no cross-track copy lane is used for active oracle refresh.
 5. publish oracle boundary posture snapshot.
 
 DoD:
 - [x] oracle boundary posture is explicit and read-only.
 - [x] ownership posture is explicit and producer-owned.
 - [x] oracle boundary snapshot is committed locally and durably.
+
+### M5.R Oracle Refresh Reopen Lane (Required Before Next P3 Certification)
+This lane is mandatory for the repinned oracle source (`local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1`) and must run before any new P3 closure claim.
+
+Execution sequence:
+1. `M5.R1`: high-throughput raw upload to `S3_ORACLE_INPUT_PREFIX_PATTERN`.
+2. `M5.R2`: trigger managed distributed stream-sort (`ORACLE_STREAM_SORT_ENGINE`).
+3. `M5.R3`: verify stream-view manifests, readback, and object-count parity.
+4. `M5.R4`: issue refreshed P3 rollup/verdict from refreshed evidence set.
+
+DoD (reopen lane):
+- [ ] raw upload receipt exists locally and durably.
+- [ ] managed stream-sort receipt exists locally and durably.
+- [ ] parity report confirms manifest/readback/object-count consistency for required outputs.
+- [ ] refreshed P3 verdict is emitted from refreshed evidence artifacts (no reuse of legacy copy-remediation evidence).
 
 ### M5.C Required Outputs and Manifest Readability (P3)
 Goal:
@@ -166,7 +185,8 @@ M5.C execution closure (2026-02-24):
    - `runs/dev_substrate/dev_full/m5/m5c_20260224T190532Z/m5c_execution_summary.json`
    - outcome: `overall_pass=false`, blockers=`P3B-B2,P3B-B3`.
 2. Remediation:
-   - copied required oracle stream-view output prefixes/manifests from dev-min authoritative source to pinned dev-full oracle source path.
+   - legacy (superseded) copy-remediation path copied required oracle stream-view output prefixes/manifests from dev-min source into dev-full oracle path.
+   - this path is retained only as historical evidence and is not the active standard for future oracle refresh runs.
 3. Probe-fix:
    - corrected prefix probe contract from `--max-items` to `--max-keys` to avoid false-negative prefix presence.
 4. Authoritative green run:

@@ -1,15 +1,21 @@
 # Dev Substrate Deep Plan - M5.P3 (P3 ORACLE_READY)
 _Parent phase: `platform.M5.build_plan.md`_
-_Last updated: 2026-02-24_
+_Last updated: 2026-02-28_
 
 ## 0) Purpose
 This document carries execution-grade planning for M5 `P3 ORACLE_READY`.
 
 P3 must prove:
 1. oracle source boundary is read-only to platform runtime,
-2. required output_id surfaces are present and readable,
-3. stream-view materialization and contract checks pass fail-closed,
-4. deterministic P3 verdict is emitted for M5.P4 entry.
+2. oracle raw inputs are uploaded under canonical oracle input prefix,
+3. managed distributed stream-sort produces stream-view surfaces (no local sort path),
+4. required output_id surfaces are present and readable,
+5. stream-view materialization and contract checks pass fail-closed,
+6. deterministic P3 verdict is emitted for M5.P4 entry.
+
+Legacy note:
+1. Historical 2026-02-24 pass evidence remains valid as history.
+2. Active standard for all new oracle refresh runs is raw-upload + managed-sort in place; copy-remediation from dev-min source is retired.
 
 ## 1) Authority Inputs
 1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M5.build_plan.md`
@@ -61,7 +67,7 @@ P3.A verification command templates (operator lane):
    - `aws s3api list-objects-v2 --bucket <S3_EVIDENCE_BUCKET> --prefix <S3_EVIDENCE_ROOT_PREFIX> --max-items 10`
 3. Overlap/drift check:
    - assert oracle root does not start with any evidence/archive/quarantine root token.
-   - assert `ORACLE_STORE_BUCKET` is the canonical external oracle bucket for the track and is not an ad-hoc duplicate copy target.
+   - assert `ORACLE_STORE_BUCKET` is the canonical dev_full oracle bucket for the track and no cross-track copy lane is active.
 4. Ownership/read-only check:
    - assert `ORACLE_STORE_PLATFORM_ACCESS_MODE == read_only`.
    - assert `ORACLE_STORE_WRITE_OWNER != platform_runtime`.
@@ -99,6 +105,29 @@ P3.A execution closure (2026-02-24):
 4. Invalidated attempt marker:
    - `runs/dev_substrate/dev_full/m5/m5b_20260224T184949Z/INVALIDATED.txt`
 
+### P3.A1 (M5.R1/M5.R2) Oracle Raw Upload + Managed Stream-Sort
+Goal:
+1. materialize raw oracle input in S3 and produce stream-view via managed distributed sort before required-output checks.
+
+Tasks:
+1. upload raw oracle input objects to `S3_ORACLE_INPUT_PREFIX_PATTERN` with high-throughput sync posture.
+2. trigger managed stream-sort job using `ORACLE_STREAM_SORT_ENGINE` and `ORACLE_STREAM_SORT_JOB_REF`.
+3. verify stream-sort completion receipt and readback.
+4. emit parity report (required outputs discovered, manifest readability, object-count sanity).
+
+DoD:
+- [ ] raw upload receipt exists locally and durably.
+- [ ] managed stream-sort receipt exists locally and durably.
+- [ ] parity report exists locally and durably and is blocker-free.
+- [ ] no active `P3A1-B*` blocker remains.
+
+P3.A1 scoped blocker mapping:
+1. `P3A1-B1` -> `M5P3-B9`: raw upload contract failed/incomplete.
+2. `P3A1-B2` -> `M5P3-B10`: managed stream-sort job failed/not found.
+3. `P3A1-B3` -> `M5P3-B10`: stream-sort receipt missing/unreadable.
+4. `P3A1-B4` -> `M5P3-B11`: parity report mismatch.
+5. `P3A1-B5` -> `M5P3-B8`: transition attempted with unresolved `P3A1-B*`.
+
 ### P3.B (M5.C) Required Outputs + Manifest Readability
 Goal:
 1. prove required output set is present/readable for current oracle source.
@@ -117,7 +146,8 @@ DoD:
 
 P3.B precheck:
 1. P3.A is green.
-2. required output list is non-empty and deterministic.
+2. P3.A1 is green (raw upload + managed stream-sort receipt/parity).
+3. required output list is non-empty and deterministic.
 
 P3.B capability-lane coverage (execution gate):
 | Lane | Required handles/surfaces | Verification posture | Fail-closed condition |
@@ -159,7 +189,8 @@ P3.B execution closure (2026-02-24):
    - execution id: `m5c_20260224T190532Z`
    - result: `overall_pass=false`, blockers `P3B-B2/P3B-B3` (no outputs/manifests in dev-full oracle path at that time).
 2. Remediation applied:
-   - materialized required output prefixes from authoritative dev-min oracle source into pinned dev-full oracle source path.
+   - legacy (superseded) copy-remediation materialized required output prefixes from dev-min oracle source into dev-full oracle path.
+   - this remediation path is retained as history only and is not valid for future oracle refresh closure.
 3. Probe-fix note:
    - one interim rerun used `--max-items` for prefix probe and produced false-negative prefix checks;
    - non-authoritative run folder was pruned and probe contract corrected to `--max-keys`.
@@ -339,10 +370,12 @@ P3.D execution closure (2026-02-25):
 | --- | --- | --- |
 | `P3-V1-HANDLE-CLOSURE` | `rg -n \"ORACLE_STORE_|S3_ORACLE_|S3_STREAM_VIEW_|ORACLE_REQUIRED_OUTPUT_IDS|ORACLE_SORT_KEY_BY_OUTPUT_ID\" docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` | verifies required oracle handle presence |
 | `P3-V2-BOUNDARY-CHECK` | build oracle boundary snapshot from handle resolution + prefix checks | validates source-of-stream posture |
-| `P3-V3-OUTPUT-MATRIX` | enumerate required output_id prefixes/manifests and emit matrix | validates required output presence |
-| `P3-V4-CONTRACT-CHECK` | validate sort/materialization/readability and emit contract snapshot | validates stream-view contract |
-| `P3-V5-ROLLUP-VERDICT` | build P3 rollup + blocker register + verdict | emits deterministic P3 gate result |
-| `P3-V6-DURABLE-PUBLISH` | `aws s3 cp <artifact> s3://<S3_EVIDENCE_BUCKET>/evidence/dev_full/run_control/<m5x_execution_id>/...` | commits durable P3 evidence |
+| `P3-V3-RAW-UPLOAD` | sync raw oracle inputs to `S3_ORACLE_INPUT_PREFIX_PATTERN` and emit upload receipt | validates pre-sort raw input materialization |
+| `P3-V4-MANAGED-SORT` | trigger managed sort job and collect completion receipt | validates managed stream-sort completion |
+| `P3-V5-OUTPUT-MATRIX` | enumerate required output_id prefixes/manifests and emit matrix | validates required output presence |
+| `P3-V6-CONTRACT-CHECK` | validate sort/materialization/readability and emit contract snapshot | validates stream-view contract |
+| `P3-V7-ROLLUP-VERDICT` | build P3 rollup + blocker register + verdict | emits deterministic P3 gate result |
+| `P3-V8-DURABLE-PUBLISH` | `aws s3 cp <artifact> s3://<S3_EVIDENCE_BUCKET>/evidence/dev_full/run_control/<m5x_execution_id>/...` | commits durable P3 evidence |
 
 ## 4) P3 Blocker Taxonomy (Fail-Closed)
 1. `M5P3-B1`: required oracle handles missing/inconsistent.
@@ -353,6 +386,9 @@ P3.D execution closure (2026-02-25):
 6. `M5P3-B6`: deterministic verdict build failure.
 7. `M5P3-B7`: durable publish/readback failure.
 8. `M5P3-B8`: advance verdict emitted despite unresolved blockers.
+9. `M5P3-B9`: raw upload contract failure/incomplete input staging.
+10. `M5P3-B10`: managed stream-sort execution/receipt failure.
+11. `M5P3-B11`: stream-sort parity/readback mismatch.
 
 ## 5) P3 Evidence Contract
 1. `m5b_oracle_boundary_snapshot.json`

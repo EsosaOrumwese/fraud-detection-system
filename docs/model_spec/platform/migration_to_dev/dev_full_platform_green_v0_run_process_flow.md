@@ -5,7 +5,7 @@
 ### 0.1 Status
 
 * **Status:** v0 (active authority draft; run-process closure pass aligned to dev_full design-authority pins)
-* **As-of:** 2026-02-22 (Europe/London)
+* **As-of:** 2026-02-28 (Europe/London)
 * **Scope:** full-platform green on `dev_full` (Spine + Learning/Evolution) with managed runtime and no laptop compute.
 
 ### 0.2 Roles and audience
@@ -70,7 +70,7 @@
 11. Telemetry baseline: `OpenTelemetry` + CloudWatch-backed operational signals
 12. Learning tabular format: `Apache Iceberg v2` on S3 with `AWS Glue Data Catalog` (Delta is not default in v0).
 13. S3 lifecycle posture: regular S3 for active windows with transition policy to IA/Glacier IR by age.
-14. Oracle Store posture: warm source-of-stream S3 zone (`oracle-store/`), platform read-only, producer write-owned, and sourced from a canonical external bucket that may be shared across tracks (no duplicate copy policy).
+14. Oracle Store posture: warm source-of-stream S3 zone (`oracle-store/`), platform read-only, producer write-owned; for dataset refresh, raw outputs are uploaded to the oracle input prefix first and stream-view is produced by managed distributed sort (no local sort path).
 15. Production-pattern law: managed-service-first execution; no local/toy substitutes in pinned dev_full lanes.
 
 ### 1.4 Budget and teardown posture
@@ -252,14 +252,19 @@ For every phase below:
 
 ### P3 ORACLE_READY
 
-* Entry gate: oracle inputs and stream-view roots declared.
+* Entry gate:
+  1. oracle raw input prefix is declared and readable,
+  2. managed stream-sort handles are resolved,
+  3. stream-view roots are declared.
 * PASS gate:
-  1. required outputs present,
-  2. stream-view materialization checks pass,
-  3. manifest/contract checks pass fail-closed,
-  4. oracle source bucket binding resolves to canonical external source (not an ad-hoc duplicated copy).
+  1. raw upload receipt is committed and readback-valid,
+  2. managed stream-sort receipt is committed and successful,
+  3. required outputs present,
+  4. stream-view materialization checks pass,
+  5. manifest/contract checks pass fail-closed,
+  6. oracle source bucket binding resolves to canonical external source (not an ad-hoc duplicated copy).
 * Commit evidence: oracle readiness snapshot + required-output matrix.
-* Blockers: `DFULL-RUN-B3` (missing output), `DFULL-RUN-B3.1` (stream-view contract failure).
+* Blockers: `DFULL-RUN-B3` (missing output), `DFULL-RUN-B3.1` (stream-view contract failure), `DFULL-RUN-B3.2` (raw upload/sort receipt/parity failure).
 
 ### P4 INGEST_READY
 

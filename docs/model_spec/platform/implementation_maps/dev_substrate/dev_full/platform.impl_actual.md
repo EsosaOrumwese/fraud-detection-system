@@ -17680,3 +17680,49 @@ uns/dev_substrate/dev_full/m11/<m11e_execution_id>/...,
 ### Residual posture statement
 1. Runtime compute is idle-safe (no active workers/jobs/endpoints).
 2. Control-plane/persistent services still exist (for example EKS cluster object, MSK serverless cluster, other provisioned infrastructure) and can continue accruing baseline cost until full destroy is executed.
+
+## Entry: 2026-02-28 19:39:41 +00:00 - Oracle refresh repin and planning-standard update (pre-execution)
+
+### Trigger
+1. USER requested repin + plan update before execution so oracle onboarding is explicitly `upload raw to S3 -> managed sort -> parity` and not copy/sort locally.
+2. USER also requested this to be established as the active standard before any next certification run.
+
+### Decision process and rationale
+1. Drift identified:
+   - `dev_full` handles still pointed at `dev-min` oracle bucket and old `local_full_run-5/c25...` source.
+   - `P3` run-process gate did not require raw upload receipt + managed sort receipt.
+   - M5 plans still carried copy-remediation history as if active posture.
+2. Selected resolution:
+   - repin handles to `local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1`,
+   - set canonical oracle bucket to `fraud-platform-dev-full-object-store`,
+   - pin oracle inlet mode to `external_raw_upload_then_managed_sort`,
+   - pin managed sort as required (`EMR_EKS_SPARK`) and local sort as forbidden for dev_full runtime path.
+3. Why this is correct:
+   - preserves oracle ownership boundary (producer write-owned, platform read-only at runtime),
+   - removes legacy copy-based ambiguity,
+   - makes `P3` fail-closed on missing upload/sort/parity receipts,
+   - aligns with production-pattern law and no-laptop-runtime posture.
+
+### Exact contract updates
+1. Handles registry (`dev_full_handles.registry.v0.md`):
+   - repinned source namespace/run-id to `local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1`,
+   - repinned oracle store bucket to `fraud-platform-dev-full-object-store`,
+   - changed input prefix to `oracle-store/{oracle_source_namespace}/{oracle_engine_run_id}/input/`,
+   - introduced managed-sort contract handles (`ORACLE_STREAM_SORT_*`) and receipt/parity evidence path handles,
+   - marked `ENTRYPOINT_ORACLE_STREAM_SORT` as deprecated local compatibility only.
+2. Run-process authority (`dev_full_platform_green_v0_run_process_flow.md`):
+   - P3 entry now requires raw input readability + managed sort handles,
+   - P3 PASS now requires raw upload receipt + managed sort receipt before output/materialization checks,
+   - added blocker `DFULL-RUN-B3.2` for upload/sort receipt/parity failure.
+3. M5 orchestration/deep plans:
+   - added explicit oracle refresh reopen lane (`M5.R1..M5.R4`) in `platform.M5.build_plan.md`,
+   - added deep P3 lane `P3.A1` for raw upload + managed stream-sort in `platform.M5.P3.build_plan.md`,
+   - marked old dev-min copy remediation as historical/superseded, not active standard.
+4. Main platform plan:
+   - updated M5 posture in `platform.build_plan.md` to include `raw -> managed sort -> parity` as the active standard,
+   - tracked pending `M5.R1` prep lane for next certification cycle without mutating historical `M5 DONE` status.
+
+### Execution boundary for this pass
+1. This pass is planning/authority only.
+2. No runtime stack action, no data upload, no sort execution, and no certification rerun were performed.
+3. Next execution entrypoint is `M5.R1` under `platform.M5.build_plan.md` and `P3.A1` under `platform.M5.P3.build_plan.md`.

@@ -562,13 +562,15 @@ Entry gate:
 - M4 is `DONE`.
 
 Planned lanes:
-- oracle contract checks, stream-view checks, topic readiness, IG boundary preflight.
+- oracle raw-upload + managed-sort + stream-view contract checks, topic readiness, IG boundary preflight.
 - phase-budget envelope and cost-outcome receipt (fail-closed for phase advancement).
 
 M5 planning posture:
 - M5 deep plan has been materialized with explicit `P3` and `P4` closure sequencing.
-- Capability lanes are explicit (authority/handles, oracle boundary, stream-view contract, IG health/auth, MSK readiness, envelope conformance, rollup/handoff).
-- Oracle source-of-stream is pinned to a canonical external bucket handle (shared oracle source allowed); dev_full object-store remains platform-owned and is not the authoritative oracle source bucket.
+- Capability lanes are explicit (authority/handles, oracle boundary, raw upload, managed stream-sort, stream-view contract, IG health/auth, MSK readiness, envelope conformance, rollup/handoff).
+- Active oracle standard is now repinned to `local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1` in `fraud-platform-dev-full-object-store` with `raw -> managed sort -> parity` required before refreshed P3 verdict.
+- Legacy copy-remediation from dev-min source is retained as historical evidence only and is not valid for future oracle refresh runs.
+- Historical M5 gate closure remains `DONE` for the prior certified run; `M5.R1` is tracked as mandatory prep for the next certification cycle and is intentionally pending.
 - `M5.P3.A` (oracle boundary/ownership) has been expanded to execution-grade capability-lane checks, blocker mapping, and exit rule.
 - `M5.P3.B` was remediated and closed green (`m5c_p3b_required_outputs_20260224T191554Z`) with durable evidence; baseline fail run retained as blocker trail.
 - `M5.P3.C` is closed green (`m5d_p3c_stream_view_contract_20260224T192457Z`) with stream-view contract/materialization evidence.
@@ -589,6 +591,7 @@ DoD anchors:
 - [x] required oracle outputs/manifest checks pass.
 - [x] ingress boundary + MSK readiness evidence committed.
 - [x] M5 phase-budget and cost-outcome artifacts are committed and blocker-free.
+- [ ] refreshed oracle lane (`raw upload + managed sort + parity`) completed for repinned `local_full_run-7` source before next certification cycle.
 
 M5 sub-phase progress:
 - [x] `M5.A` authority + handle closure (`m5a_20260224T182433Z`, blocker-free, durable evidence committed).
@@ -601,6 +604,7 @@ M5 sub-phase progress:
 - [x] `M5.H` MSK topic readiness (`m5h_p4c_msk_topic_readiness_20260225T015352Z`, blocker-free after remediation sequence).
 - [x] `M5.I` ingress envelope conformance (`m5i_p4d_ingress_envelope_20260225T020758Z`, blocker-free after runtime envelope materialization).
 - [x] `M5.J` P4 rollup + M6 handoff (`m5j_p4e_gate_rollup_20260225T021715Z`, verdict `ADVANCE_TO_M6`).
+- [ ] `M5.R1` oracle refresh lane (`raw upload -> managed stream-sort -> parity -> refreshed P3 verdict`) for repinned source `local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1`.
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M5.build_plan.md`

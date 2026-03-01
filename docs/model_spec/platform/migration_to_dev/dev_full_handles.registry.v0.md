@@ -5,7 +5,7 @@
 ### 0.1 Status
 
 * **Status:** v0 (draft-initial; execution-grade for naming/path/ID surfaces)
-* **As-of:** 2026-02-22 (Europe/London)
+* **As-of:** 2026-02-28 (Europe/London)
 * **Purpose:** pin all concrete handles required to provision and run `dev_full` full-platform flow (`P(-1)..P17`) without naming drift.
 
 ### 0.2 Audience
@@ -179,28 +179,36 @@ Allowed tokens in pattern handles:
 
 ### 3.4 Oracle store (external input boundary)
 
-* `ORACLE_STORE_BUCKET = "fraud-platform-dev-min-object-store"`
+* `ORACLE_STORE_BUCKET = "fraud-platform-dev-full-object-store"`
 * `ORACLE_STORE_ZONE = "warm_source_of_stream"`
 * `ORACLE_STORE_PLATFORM_ACCESS_MODE = "read_only"`
 * `ORACLE_STORE_WRITE_OWNER = "data_engine_or_upstream_producer"`
-* `ORACLE_STORE_CANONICAL_TRACK = "dev_min_shared_oracle_source"`
-* `ORACLE_STORE_DUPLICATION_POLICY = "no_copy_reuse_canonical_source"`
+* `ORACLE_STORE_CANONICAL_TRACK = "dev_full_oracle_source"`
+* `ORACLE_STORE_DUPLICATION_POLICY = "no_copy_raw_then_managed_sort_in_place"`
 * `ORACLE_STORE_BUCKET_RENAME_POLICY = "not_supported_repin_handles_instead"`
 * `ORACLE_ACTIVE_STORAGE_CLASS = "STANDARD"`
-* `ORACLE_SOURCE_NAMESPACE = "local_full_run-5"`
-* `ORACLE_ENGINE_RUN_ID = "c25a2675fbfbacd952b13bb594880e92"`
+* `ORACLE_SOURCE_NAMESPACE = "local_full_run-7"`
+* `ORACLE_ENGINE_RUN_ID = "a3bd8cac9a4284cd36072c6b9624a0c1"`
 * `S3_ORACLE_ROOT_PREFIX = "oracle-store/"`
 * `S3_ORACLE_RUN_PREFIX_PATTERN = "oracle-store/{oracle_source_namespace}/{oracle_engine_run_id}/"`
-* `S3_ORACLE_INPUT_PREFIX_PATTERN = "oracle-store/{oracle_source_namespace}/{oracle_engine_run_id}/"`
+* `S3_ORACLE_INPUT_PREFIX_PATTERN = "oracle-store/{oracle_source_namespace}/{oracle_engine_run_id}/input/"`
 * `S3_STREAM_VIEW_PREFIX_PATTERN = "oracle-store/{oracle_source_namespace}/{oracle_engine_run_id}/stream_view/ts_utc/"`
 * `S3_STREAM_VIEW_OUTPUT_PREFIX_PATTERN = "oracle-store/{oracle_source_namespace}/{oracle_engine_run_id}/stream_view/ts_utc/output_id={output_id}/"`
 * `S3_STREAM_VIEW_MANIFEST_KEY_PATTERN = "oracle-store/{oracle_source_namespace}/{oracle_engine_run_id}/stream_view/ts_utc/output_id={output_id}/_stream_view_manifest.json"`
 
 ### 3.5 Oracle inlet policy handles
 
-* `ORACLE_INLET_MODE = "external_pre_staged"`
+* `ORACLE_INLET_MODE = "external_raw_upload_then_managed_sort"`
 * `ORACLE_INLET_PLATFORM_OWNERSHIP = "outside_platform_runtime_scope"`
 * `ORACLE_INLET_ASSERTION_REQUIRED = true`
+* `ORACLE_RAW_UPLOAD_REQUIRED = true`
+* `ORACLE_STREAM_SORT_EXECUTION_MODE = "managed_distributed"`
+* `ORACLE_STREAM_SORT_ENGINE = "EMR_EKS_SPARK"`
+* `ORACLE_STREAM_SORT_TRIGGER_SURFACE = "github_actions_managed"`
+* `ORACLE_STREAM_SORT_LOCAL_EXECUTION_ALLOWED = false`
+* `ORACLE_STREAM_SORT_REQUIRED_BEFORE_P3B = true`
+* `ORACLE_STREAM_SORT_RECEIPT_REQUIRED = true`
+* `ORACLE_STREAM_SORT_PARITY_CHECK_REQUIRED = true`
 
 ### 3.6 Archive and quarantine prefixes
 
@@ -226,6 +234,9 @@ Allowed tokens in pattern handles:
 * `P2_RUNTIME_BINDING_MATRIX_PATH_PATTERN = "evidence/runs/{platform_run_id}/operate/runtime_binding_matrix.json"`
 * `M4_EXECUTION_SUMMARY_PATH_PATTERN = "evidence/dev_full/run_control/{phase_execution_id}/m4_execution_summary.json"`
 * `M5_HANDOFF_PACK_PATH_PATTERN = "evidence/dev_full/run_control/{phase_execution_id}/m5_handoff_pack.json"`
+* `ORACLE_RAW_UPLOAD_RECEIPT_PATH_PATTERN = "evidence/dev_full/run_control/{phase_execution_id}/oracle/raw_upload_receipt.json"`
+* `ORACLE_STREAM_SORT_RECEIPT_PATH_PATTERN = "evidence/dev_full/run_control/{phase_execution_id}/oracle/stream_sort_receipt.json"`
+* `ORACLE_STREAM_SORT_PARITY_REPORT_PATH_PATTERN = "evidence/dev_full/run_control/{phase_execution_id}/oracle/stream_sort_parity_report.json"`
 * `M6_HANDOFF_PACK_PATH_PATTERN = "evidence/dev_full/run_control/{phase_execution_id}/m6_handoff_pack.json"`
 * `M7_HANDOFF_PACK_PATH_PATTERN = "evidence/dev_full/run_control/{phase_execution_id}/m7_handoff_pack.json"`
 * `RECEIPT_SUMMARY_PATH_PATTERN = "evidence/runs/{platform_run_id}/ingest/receipt_summary.json"`
@@ -374,7 +385,7 @@ Allowed tokens in pattern handles:
 
 ### 6.4 Runtime entrypoint contract
 
-* `ENTRYPOINT_ORACLE_STREAM_SORT`
+* `ENTRYPOINT_ORACLE_STREAM_SORT` (deprecated local compatibility only; not valid for dev_full runtime path)
 * `ENTRYPOINT_ORACLE_CHECKER`
 * `ENTRYPOINT_SR`
 * `ENTRYPOINT_WSP`
@@ -435,6 +446,9 @@ Allowed tokens in pattern handles:
 * `EMR_EKS_VIRTUAL_CLUSTER_ID = "3cfszbpz28ixf1wmmd2roj571"`
 * `EMR_EKS_EXECUTION_ROLE_ARN = "arn:aws:iam::230372904534:role/fraud-platform-dev-full-flink-execution"`
 * `EMR_EKS_RELEASE_LABEL = "emr-6.15.0-latest"`
+* `ORACLE_STREAM_SORT_RUNTIME_PATH = "EMR_ON_EKS_SPARK"`
+* `ORACLE_STREAM_SORT_EMR_RELEASE_LABEL = "emr-6.15.0-latest"`
+* `ORACLE_STREAM_SORT_JOB_REF = "fraud-platform-dev-full-oracle-stream-sort-v0"`
 * `FLINK_EKS_WSP_STREAM_REF = "fraud-platform-dev-full-wsp-stream-v0"` (EKS/EMR-on-EKS job or FlinkDeployment reference)
 * `FLINK_EKS_SR_READY_REF = "fraud-platform-dev-full-sr-ready-v0"` (EKS/EMR-on-EKS job or FlinkDeployment reference)
 * `FLINK_EKS_RTDL_IEG_REF = "fraud-platform-dev-full-rtdl-ieg-v0"` (EKS/EMR-on-EKS job or FlinkDeployment reference)
