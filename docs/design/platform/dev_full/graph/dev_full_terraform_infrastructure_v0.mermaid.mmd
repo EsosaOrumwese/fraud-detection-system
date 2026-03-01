@@ -1,4 +1,4 @@
-%% Dev Full Terraform Infrastructure (Stack Topology + Key Resources)
+%% Dev Full Terraform Infrastructure (Stack Topology + Key Resources + Handle Surfaces)
 flowchart LR
 
   GHA[GitHub Actions / Operator CLI<br/>terraform init plan apply by stack]
@@ -32,6 +32,7 @@ flowchart LR
   subgraph DATAML[Stack dev_full/data_ml]
     DML_ROLES[IAM roles<br/>sagemaker_execution<br/>databricks_cross_account_access]
     DML_SSM[(SSM parameters<br/>databricks URL/token<br/>mlflow URI sagemaker role arn)]
+    DML_NOTE[[Handle surface only<br/>no direct Databricks jobs/workspace<br/>or SageMaker pipeline/endpoint provisioning]]
     DML_STATE[[state key<br/>dev_full/data_ml/terraform.tfstate]]
   end
 
@@ -39,7 +40,8 @@ flowchart LR
     OPS_ROLE[IAM role<br/>mwaa_execution]
     OPS_SSM[(SSM parameters<br/>mwaa webserver aurora endpoints/creds redis endpoint)]
     OPS_CW[(CloudWatch log group<br/>runtime_bootstrap)]
-    OPS_GHA[GitHub Actions remote policy<br/>github_actions_m6f_remote]
+    OPS_GHA[GitHub Actions remote policy bridge<br/>github_actions_m6f_remote<br/>covers M6 + M10 + M11 + M12 lanes]
+    OPS_NOTE[[Handle surface only<br/>no direct MWAA env, Aurora cluster,<br/>or Redis cluster provisioning]]
     OPS_STATE[[state key<br/>dev_full/ops/terraform.tfstate]]
   end
 
@@ -67,11 +69,13 @@ flowchart LR
   RT_EDGE -. writes state .-> RT_STATE
 
   DML_ROLES --> DML_SSM
+  DML_ROLES --> DML_NOTE
   DML_ROLES -. writes state .-> DML_STATE
 
   OPS_ROLE --> OPS_SSM
   OPS_ROLE --> OPS_CW
   OPS_ROLE --> OPS_GHA
+  OPS_ROLE --> OPS_NOTE
   OPS_ROLE -. writes state .-> OPS_STATE
 
   CORE_STATE -. remote_state input<br/>subnets + msk SG .-> STREAM_MSK
@@ -82,7 +86,7 @@ flowchart LR
   CORE_KMS -. encryption context .-> RT_EDGE
   CORE_IAM -. node/runtime role baseline .-> RT_EKS
   STREAM_MSK -. runtime stream substrate .-> RT_EKS
-  STREAM_GLUE -. schema authority context .-> RT_SFN
+  STREAM_GLUE -. logical schema-contract context<br/>(not direct terraform reference) .-> RT_SFN
 
   OPS_SSM -. ops/runtime handle consumers .-> RT_EDGE
-  DML_SSM -. learning handle surfaces .-> RT_SFN
+  DML_SSM -. logical learning-handle context<br/>(not direct terraform reference) .-> RT_SFN

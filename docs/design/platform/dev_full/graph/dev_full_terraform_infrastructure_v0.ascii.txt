@@ -1,5 +1,5 @@
-DEV_FULL TERRAFORM INFRASTRUCTURE (STACK TOPOLOGY + KEY RESOURCES)
-==================================================================
+DEV_FULL TERRAFORM INFRASTRUCTURE (STACK TOPOLOGY + KEY RESOURCES + HANDLE SURFACES)
+=====================================================================================
 
 Stacks
 ------
@@ -110,6 +110,10 @@ Major resources:
   - mlflow tracking URI
   - sagemaker model exec role arn
 
+Explicit scope note:
+- This stack currently materializes integration/identity handles only.
+- It does not provision Databricks workspace/jobs or SageMaker pipelines/endpoints directly.
+
 Role in topology:
 - control-surface materialization for learning/ML integrations.
 
@@ -124,7 +128,11 @@ Major resources:
   - aurora endpoint/reader/username/password
   - redis endpoint
 - aws_cloudwatch_log_group.runtime_bootstrap
-- aws_iam_role_policy.github_actions_m6f_remote
+- aws_iam_role_policy.github_actions_m6f_remote (policy now covers M6 + M10 + M11 + M12 lanes)
+
+Explicit scope note:
+- This stack currently materializes ops/control handles (SSM, IAM policy bridge, log group).
+- It does not provision MWAA environment, Aurora cluster, or Redis cluster directly.
 
 Role in topology:
 - operations/control-surface handles and CI remote policy bridge.
@@ -140,7 +148,7 @@ CROSS-STACK DEPENDENCY MAP
   - core VPC/subnets/role/storage baseline
   - streaming MSK/bootstrap/schema handles
 
-3) ops + data_ml -> runtime control surfaces
+3) ops + data_ml -> runtime/learning control surfaces (logical handle dependencies)
 - ops/data_ml materialize SSM/role handles consumed by downstream runtime/learning lanes.
 
 
@@ -148,4 +156,5 @@ INFRA TRUTH NOTES
 -----------------
 - This visualization reflects Terraform resources declared in:
   - dev_full/core|streaming|runtime|data_ml|ops main.tf
+- Edges from Glue/SSM into runtime orchestration are logical contract dependencies unless a direct Terraform reference is present.
 - It is infrastructure topology only, not end-to-end application data semantics.
