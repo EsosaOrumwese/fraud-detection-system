@@ -8,7 +8,9 @@ with no laptop compute, no ownership drift, and run-scoped evidence closure.
 
 Active runtime split (current pinned posture)
 ---------------------------------------------
-- Flink host path is currently EKS_EMR_ON_EKS under blocker window M6P6-B2.
+- Flink host-path truth:
+  - latest green P6 execution evidence used EKS_FLINK_OPERATOR under blocker window M6P6-B2,
+  - handles target remains EKS_EMR_ON_EKS pending substitution proof/repin closure.
 - IG edge path remains API Gateway + Lambda + DynamoDB as primary.
 - IG service on EKS remains fallback only.
 
@@ -23,6 +25,10 @@ LAYER 0: DELIVERY, ORCHESTRATION, IDENTITY
   - phase-gate authority for P(-1)..P17
   - commit authority for SR READY closure
   - writes run-control evidence (runtime path, phase receipts, cost envelopes)
+
+[Teardown + Cost Guardrail]
+  - P17 teardown orchestration and residual scan closure
+  - post-teardown cost guardrail snapshot + fail-closed enforcement
 
 [MWAA Airflow]
   - schedules learning jobs (OFS/MF)
@@ -50,6 +56,11 @@ LAYER 2: ORACLE BOUNDARY (EXTERNAL)
   - warm source-of-stream
   - read-only from platform runtime
   - writer remains Data Engine/upstream producer
+
+[M5 stream-sort lane, EMR on EKS Spark]
+  - reads oracle source tree from Oracle Store S3 zone
+  - publishes stream_view materialization surfaces
+  - emits stream-sort/parity receipts to run-control evidence
 
 
 LAYER 3: CONTROL + INGRESS (MANAGED-FIRST)

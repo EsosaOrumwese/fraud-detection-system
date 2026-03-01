@@ -8,6 +8,7 @@ flowchart LR
     SFN[Step Functions<br/>phase gates P-1 to P17<br/>run-state commit authority]
     MWAA[MWAA Airflow<br/>learning schedules]
     RUNCTL[[Run Control Evidence<br/>runtime_path, cost envelopes,<br/>phase receipts]]
+    TD[Unified Teardown + Cost Guardrail<br/>residual scan + post-teardown posture]
   end
 
   subgraph ID[Run Identity + Correlation Law]
@@ -23,11 +24,12 @@ flowchart LR
     GLUE[(Glue Catalog + Iceberg v2<br/>learning table authority)]
     CW[(CloudWatch<br/>metrics, logs, alerts)]
     SM[(Secrets Manager + SSM + KMS<br/>runtime identity + secret handles)]
-    SPLIT[Active Runtime Path Split<br/>Flink lanes: EKS_EMR_ON_EKS M6P6-B2<br/>IG edge: APIGW + Lambda + DDB primary<br/>IG on EKS: fallback only]
+    SPLIT[Active Runtime Path Split<br/>Flink lanes: latest green = EKS_FLINK_OPERATOR (M6P6-B2)<br/>handles target = EKS_EMR_ON_EKS (pending repin)<br/>IG edge: APIGW + Lambda + DDB primary<br/>IG on EKS: fallback only]
   end
 
   subgraph ORACLE[External Oracle Boundary Read Only]
     ORACLESTORE[[Oracle Store S3 Zone<br/>warm source-of-stream<br/>writer owned by Data Engine/upstream]]
+    M5SORT[M5 Stream-Sort Lane (EMR on EKS Spark)<br/>read source tree + publish stream_view + receipts]
   end
 
   subgraph INGRESS[Control + Ingress Plane Managed First]
@@ -81,6 +83,7 @@ flowchart LR
 
   GHA -->|apply infra + deploy| TF
   GHA -->|build and push| ECR
+  GHA -->|dispatch teardown + guardrail| TD
   TF -->|provision| MSK
   TF -->|provision| S3OBJ
   TF -->|provision| AURORA
@@ -92,6 +95,8 @@ flowchart LR
   TF -->|pin runtime path| SPLIT
   TF -->|provision| MWAA
   TF -->|provision| SFN
+  TD -->|post-teardown residual scan + cost posture| RUNCTL
+  TD -. teardown receipts .-> S3OBJ
 
   SFN -->|phase evidence| RUNCTL
   SPLIT -. active host path .-> SR
@@ -105,6 +110,9 @@ flowchart LR
   MWAA -->|schedule OFS runs| OFS
   MWAA -->|schedule MF runs| MF
 
+  ORACLESTORE -->|source tree read| M5SORT
+  M5SORT -->|publish stream_view surfaces| ORACLESTORE
+  M5SORT -->|stream-sort/parity receipts| RUNCTL
   ORACLESTORE -->|resolve required outputs| SR
   ORACLESTORE -->|read stream_view parts| WSP
   SR -->|publish READY| TCTRL
