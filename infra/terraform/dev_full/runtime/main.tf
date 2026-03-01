@@ -58,6 +58,10 @@ locals {
 
   role_eks_runtime_platform_base_arn = var.use_core_remote_state ? try(data.terraform_remote_state.core[0].outputs.role_eks_runtime_platform_base_arn, "") : ""
   role_eks_nodegroup_dev_full_arn    = var.use_core_remote_state ? try(data.terraform_remote_state.core[0].outputs.role_eks_nodegroup_dev_full_arn, "") : ""
+  core_object_store_bucket           = var.use_core_remote_state ? try(data.terraform_remote_state.core[0].outputs.s3_bucket_names.object_store, "fraud-platform-dev-full-object-store") : "fraud-platform-dev-full-object-store"
+  core_evidence_bucket               = var.use_core_remote_state ? try(data.terraform_remote_state.core[0].outputs.s3_bucket_names.evidence, "fraud-platform-dev-full-evidence") : "fraud-platform-dev-full-evidence"
+  core_artifacts_bucket              = var.use_core_remote_state ? try(data.terraform_remote_state.core[0].outputs.s3_bucket_names.artifacts, "fraud-platform-dev-full-artifacts") : "fraud-platform-dev-full-artifacts"
+  core_kms_key_arn                   = var.use_core_remote_state ? try(data.terraform_remote_state.core[0].outputs.kms_key_arn, "") : ""
 
   msk_cluster_arn           = var.use_streaming_remote_state ? try(data.terraform_remote_state.streaming[0].outputs.msk_cluster_arn, var.msk_cluster_arn_fallback) : var.msk_cluster_arn_fallback
   ig_integration_timeout_ms = min(30000, floor(var.ig_request_timeout_seconds * 1000))
@@ -282,14 +286,52 @@ resource "aws_iam_role_policy" "flink_execution" {
         Action = [
           "s3:GetObject"
         ]
-        Resource = "arn:aws:s3:::fraud-platform-dev-full-artifacts/*"
+        Resource = "arn:aws:s3:::${local.core_artifacts_bucket}/*"
       },
       {
         Effect = "Allow"
         Action = [
           "s3:ListBucket"
         ]
-        Resource = "arn:aws:s3:::fraud-platform-dev-full-artifacts"
+        Resource = "arn:aws:s3:::${local.core_artifacts_bucket}"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket",
+          "s3:GetBucketLocation"
+        ]
+        Resource = [
+          "arn:aws:s3:::${local.core_object_store_bucket}",
+          "arn:aws:s3:::${local.core_evidence_bucket}",
+          "arn:aws:s3:::${local.core_artifacts_bucket}"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject",
+          "s3:AbortMultipartUpload",
+          "s3:ListBucketMultipartUploads"
+        ]
+        Resource = [
+          "arn:aws:s3:::${local.core_object_store_bucket}/*",
+          "arn:aws:s3:::${local.core_evidence_bucket}/*",
+          "arn:aws:s3:::${local.core_artifacts_bucket}/*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:Encrypt",
+          "kms:ReEncrypt*",
+          "kms:GenerateDataKey",
+          "kms:DescribeKey"
+        ]
+        Resource = local.core_kms_key_arn
       }
     ]
   })

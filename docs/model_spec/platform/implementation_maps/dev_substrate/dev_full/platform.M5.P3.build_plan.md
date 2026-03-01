@@ -107,19 +107,25 @@ P3.A execution closure (2026-02-24):
 
 ### P3.A1 (M5.R1/M5.R2) Oracle Raw Upload + Managed Stream-Sort
 Goal:
-1. materialize raw oracle input in S3 and produce stream-view via managed distributed sort before required-output checks.
+1. mirror full oracle run tree in S3 and produce stream-view via managed distributed sort before required-output checks.
 
 Tasks:
-1. upload raw oracle input objects to `S3_ORACLE_INPUT_PREFIX_PATTERN` with high-throughput sync posture.
+1. upload full source tree from `runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/` to canonical oracle-store run prefix with high-throughput sync posture.
 2. trigger managed stream-sort job using `ORACLE_STREAM_SORT_ENGINE` and `ORACLE_STREAM_SORT_JOB_REF`.
 3. verify stream-sort completion receipt and readback.
-4. emit parity report (required outputs discovered, manifest readability, object-count sanity).
+4. emit parity report (full-tree count/bytes parity + required outputs discovered + manifest readability).
 
 DoD:
-- [ ] raw upload receipt exists locally and durably.
+- [x] raw upload receipt exists locally and durably.
 - [ ] managed stream-sort receipt exists locally and durably.
-- [ ] parity report exists locally and durably and is blocker-free.
+- [x] parity report exists locally and durably and is blocker-free.
 - [ ] no active `P3A1-B*` blocker remains.
+
+P3.A1 full-tree upload DoD (`M5.R1`):
+- [x] raw upload receipt exists locally and durably.
+- [x] parity report exists locally and durably and is blocker-free.
+- [x] no active raw-upload blocker (`M5R1-B*`) remains.
+- [ ] managed stream-sort receipt exists locally and durably (`M5.R2` pending).
 
 P3.A1 scoped blocker mapping:
 1. `P3A1-B1` -> `M5P3-B9`: raw upload contract failed/incomplete.
@@ -127,6 +133,80 @@ P3.A1 scoped blocker mapping:
 3. `P3A1-B3` -> `M5P3-B10`: stream-sort receipt missing/unreadable.
 4. `P3A1-B4` -> `M5P3-B11`: parity report mismatch.
 5. `P3A1-B5` -> `M5P3-B8`: transition attempted with unresolved `P3A1-B*`.
+
+P3.A1 execution contract (for `M5.R1` full-tree upload portion):
+1. canonical source root:
+   - `runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/`
+2. canonical destination:
+   - `s3://<ORACLE_STORE_BUCKET>/oracle-store/<ORACLE_SOURCE_NAMESPACE>/<ORACLE_ENGINE_RUN_ID>/`
+3. required proof set:
+   - source tree inventory snapshot (top-level and recursive count/bytes),
+   - destination tree inventory snapshot (top-level and recursive count/bytes),
+   - local + durable raw upload receipt,
+   - blocker register (must be empty).
+
+P3.A1 verification command templates (operator lane):
+1. source check:
+   - `Test-Path runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/`
+2. run-prefix cleanup:
+   - `aws s3 rm s3://<ORACLE_STORE_BUCKET>/oracle-store/<ORACLE_SOURCE_NAMESPACE>/<ORACLE_ENGINE_RUN_ID>/ --recursive`
+3. upload:
+   - `aws s3 sync runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/ s3://<ORACLE_STORE_BUCKET>/oracle-store/<ORACLE_SOURCE_NAMESPACE>/<ORACLE_ENGINE_RUN_ID>/ --delete --no-progress --only-show-errors`
+4. parity:
+   - local: `Get-ChildItem runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/ -Recurse -File` -> object count + bytes
+   - s3: `aws s3 ls s3://<ORACLE_STORE_BUCKET>/oracle-store/<ORACLE_SOURCE_NAMESPACE>/<ORACLE_ENGINE_RUN_ID>/ --recursive --summarize` -> object count + bytes
+5. durable receipt:
+   - `aws s3 cp <local_m5r1_raw_upload_receipt.json> s3://<S3_EVIDENCE_BUCKET>/evidence/dev_full/run_control/<m5r1_execution_id>/oracle/m5r1_raw_upload_receipt.json`
+   - `aws s3 ls s3://<S3_EVIDENCE_BUCKET>/evidence/dev_full/run_control/<m5r1_execution_id>/oracle/m5r1_raw_upload_receipt.json`
+
+P3.A1 (`M5.R1`) execution status note (scope-corrected):
+1. prior run `m5r1_raw_upload_20260301T004342Z` uploaded subset `input/output_id=*` only.
+2. this is invalid for the authoritative contract (full-tree mirror).
+3. `M5.R1` authoritative re-execution `m5r1_full_tree_upload_20260301T073206Z` completed full-tree mirror upload with blocker-free parity.
+4. parity summary:
+   - local: `11,465 files`, `92,622,942,077 bytes`
+   - s3: `11,465 files`, `92,622,942,077 bytes`
+5. transition:
+   - `M5.R1` is closed; `M5.R2` remains required for managed stream-sort closure.
+
+P3.A1 (`M5.R2`) managed stream-sort execution contract:
+1. managed trigger surface:
+   - `EMR_EKS_SPARK` via pinned virtual cluster + execution role,
+   - no local sort path is allowed for this lane.
+2. required trigger inputs:
+   - `ORACLE_STORE_BUCKET`,
+   - `ORACLE_SOURCE_NAMESPACE`,
+   - `ORACLE_ENGINE_RUN_ID`,
+   - `ORACLE_REQUIRED_OUTPUT_IDS`,
+   - `ORACLE_SORT_KEY_BY_OUTPUT_ID`,
+   - `EMR_EKS_VIRTUAL_CLUSTER_ID`,
+   - `EMR_EKS_EXECUTION_ROLE_ARN`,
+   - `ORACLE_STREAM_SORT_EMR_RELEASE_LABEL`.
+3. required completion proof:
+   - terminal managed-job state is `COMPLETED`,
+   - `_stream_sort_receipt.json` exists for each required output,
+   - `_stream_view_manifest.json` exists for each required output,
+   - required output stream-view prefixes are non-empty.
+4. lane artifacts:
+   - `m5r2_stream_sort_receipt.json`,
+   - `m5r2_stream_sort_parity_report.json`,
+   - `m5r2_blocker_register.json`,
+   - `m5r2_execution_summary.json`,
+   - durable mirror under `evidence/dev_full/run_control/<m5r2_execution_id>/oracle/`.
+
+P3.A1 (`M5.R2`) blocker expansion:
+1. `P3A1-B2a` -> `M5P3-B10`: managed trigger handle set incomplete.
+2. `P3A1-B2b` -> `M5P3-B10`: managed job submit/poll failed or non-success terminal state.
+3. `P3A1-B3a` -> `M5P3-B10`: required per-output stream-sort receipt missing/unreadable.
+4. `P3A1-B3b` -> `M5P3-B10`: required per-output stream-view manifest missing/unreadable.
+5. `P3A1-B4a` -> `M5P3-B11`: required output prefix empty after managed sort.
+6. `P3A1-B5` -> `M5P3-B8`: transition attempted with unresolved `P3A1-B*`.
+
+P3.A1 (`M5.R2`) DoD:
+- [ ] managed stream-sort terminal state is `COMPLETED`.
+- [ ] required outputs `4/4` have stream-view parquet materialization.
+- [ ] required per-output receipt/manifest surfaces are complete and readable.
+- [ ] local + durable `m5r2_stream_sort_receipt.json` exists and is blocker-free.
 
 ### P3.B (M5.C) Required Outputs + Manifest Readability
 Goal:

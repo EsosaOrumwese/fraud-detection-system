@@ -17726,3 +17726,168 @@ uns/dev_substrate/dev_full/m11/<m11e_execution_id>/...,
 1. This pass is planning/authority only.
 2. No runtime stack action, no data upload, no sort execution, and no certification rerun were performed.
 3. Next execution entrypoint is `M5.R1` under `platform.M5.build_plan.md` and `P3.A1` under `platform.M5.P3.build_plan.md`.
+
+## Entry: 2026-03-01 00:42:04 +00:00 - M5.R1 execution design lock (raw upload lane)
+
+### Objective
+1. Execute `M5.R1` fully: upload raw oracle inputs from `local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1` into the repinned dev_full oracle input prefix, publish deterministic receipt artifacts, and fail-closed on any upload/parity inconsistency.
+
+### Decision trail before execution
+1. Source mapping decision:
+   - `arrival_events_5B` <- `data/layer2/5B/arrival_events`
+   - `s1_arrival_entities_6B` <- `data/layer3/6B/s1_arrival_entities_6B`
+   - `s3_event_stream_with_fraud_6B` <- `data/layer3/6B/s3_event_stream_with_fraud_6B`
+   - `s3_flow_anchor_with_fraud_6B` <- `data/layer3/6B/s3_flow_anchor_with_fraud_6B`
+2. Destination layout decision:
+   - `s3://fraud-platform-dev-full-object-store/oracle-store/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/input/output_id=<output_id>/...`
+3. Clutter/remediation decision:
+   - clear the exact input prefix before upload to avoid stale/partial residue from prior attempts.
+4. Throughput/posture decision:
+   - use `aws s3 sync` per output_id path with `--delete` and quiet output to reduce terminal overhead.
+5. Verification decision:
+   - compute local vs S3 object-count and total-bytes per output_id and fail-closed if mismatch.
+6. Evidence decision:
+   - materialize `m5r1_raw_upload_receipt.json`, blocker register, and summary under:
+     - local run root `runs/dev_substrate/dev_full/m5/<m5r1_execution_id>/`
+     - durable control root `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/<m5r1_execution_id>/oracle/`.
+
+### Fail-closed blockers for this lane
+1. `P3A1-B1` / `M5P3-B9`: source mapping missing/unreadable.
+2. `P3A1-B1` / `M5P3-B9`: upload command failure on any required output.
+3. `P3A1-B4` / `M5P3-B11`: local/S3 count or bytes mismatch.
+4. `P3A1-B5` / `M5P3-B8`: missing durable readback for receipt artifacts.
+
+## Entry: 2026-03-01 02:08:15 +00:00 - M5.R1 executed green (raw upload + parity + durable receipt)
+
+### Execution summary
+1. Execution id:
+   - `m5r1_raw_upload_20260301T004342Z`
+2. Runtime identity:
+   - `arn:aws:iam::230372904534:user/fraud-dev`
+3. Target:
+   - `s3://fraud-platform-dev-full-object-store/oracle-store/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/input/`
+4. Lane verdict:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `next_gate=M5.R2_READY`
+
+### What was executed
+1. Cleared target input prefix to remove stale clutter before upload.
+2. Synced four mapped sources with `aws s3 sync --delete`:
+   - `arrival_events_5B`
+   - `s1_arrival_entities_6B`
+   - `s3_event_stream_with_fraud_6B`
+   - `s3_flow_anchor_with_fraud_6B`
+3. Computed local and S3 object-count/byte totals per output and enforced fail-closed parity.
+4. Emitted and published:
+   - `m5r1_raw_upload_receipt.json`
+   - `m5r1_blocker_register.json`
+   - `m5r1_execution_summary.json`
+   - `m5r1_parity_matrix.json`
+
+### Measured outcomes
+1. Per-output sync times:
+   - `arrival_events_5B`: `1038.52s`
+   - `s1_arrival_entities_6B`: `1027.89s`
+   - `s3_event_stream_with_fraud_6B`: `1363.20s`
+   - `s3_flow_anchor_with_fraud_6B`: `1555.66s`
+2. Per-output parity:
+   - `arrival_events_5B`: `1302`, `8,855,527,915 bytes` (match)
+   - `s1_arrival_entities_6B`: `1302`, `8,782,566,477 bytes` (match)
+   - `s3_event_stream_with_fraud_6B`: `1`, `11,751,430,386 bytes` (match)
+   - `s3_flow_anchor_with_fraud_6B`: `1302`, `13,334,362,072 bytes` (match)
+3. Aggregate input prefix:
+   - `3907 objects`, `42,723,886,850 bytes`
+
+### Artifact locations
+1. Local:
+   - `runs/dev_substrate/dev_full/m5/m5r1_raw_upload_20260301T004342Z/`
+2. Durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5r1_raw_upload_20260301T004342Z/oracle/`
+
+### Transition decision
+1. `M5.R1` is closed green and blocker-free.
+2. `M5.R2` (managed distributed stream-sort trigger + receipt) is unblocked and is the next required lane before refreshed P3 certification.
+
+## Entry: 2026-03-01 02:15:56 +00:00 - M5.R2 pre-execution design lock (managed distributed stream-sort)
+
+### Objective
+1. Execute M5.R2 end-to-end on managed compute (EMR_EKS_SPARK) for repinned oracle source local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1.
+2. Emit deterministic run-control evidence proving managed job success and stream-view materialization for all required outputs.
+
+### Decision trail before execution
+1. Trigger path decision:
+   - use EMR on EKS virtual cluster 3cfszbpz28ixf1wmmd2roj571 with execution role raud-platform-dev-full-flink-execution.
+   - no local stream-sort execution is allowed for this lane.
+2. Scope decision:
+   - execute sort for all required outputs in one managed run:
+     - rrival_events_5B,
+     - s1_arrival_entities_6B,
+     - s3_event_stream_with_fraud_6B,
+     - s3_flow_anchor_with_fraud_6B.
+3. Verification decision:
+   - gate on per-output existence/readability of:
+     - parquet materialization,
+     - _stream_sort_receipt.json,
+     - _stream_view_manifest.json.
+   - fail-closed if any required output misses one surface.
+4. Evidence decision:
+   - publish local + durable artifacts:
+     - m5r2_stream_sort_receipt.json,
+     - m5r2_stream_sort_parity_report.json,
+     - m5r2_blocker_register.json,
+     - m5r2_execution_summary.json.
+
+### Fail-closed blockers for this lane
+1. M5R2-B1: required handle missing/unresolved before trigger.
+2. M5R2-B2: managed job submit/poll failure or non-success terminal state.
+3. M5R2-B3: per-output stream-sort receipt missing/unreadable.
+4. M5R2-B4: per-output manifest missing/unreadable.
+5. M5R2-B5: required output materialization incomplete.
+6. M5R2-B6: durable evidence publish/readback failure.
+
+## Entry: 2026-03-01 03:03:20 +00:00 - M5.R2 blocker triage and remediation path pin
+
+### Observed blockers during managed sort execution
+1. m5r2_managed_stream_sort_20260301T021815Z failed with scheduler capacity error (
+o nodes available).
+2. After nodegroup scale-up, m5r2_managed_stream_sort_20260301T023534Z failed with driver-pod materialization timeout due EMR pre-validation + monitoring path behavior.
+3. Monitoring override removal unblocked driver materialization, but m5r2_managed_stream_sort_20260301T025822Z failed with hard auth error:
+   - kms:Decrypt denied for role raud-platform-dev-full-flink-execution on KMS key 29a7acf2-da57-4b3f-8dd1-d9172d845a5c.
+
+### Pinned remediation decision
+1. Apply IaC remediation in infra/terraform/dev_full/runtime/main.tf (not ad-hoc IAM mutation):
+   - extend ws_iam_role_policy.flink_execution to include S3 read/write on oracle/evidence/artifacts surfaces required by M5.R2,
+   - extend same policy with KMS decrypt/encrypt/data-key permissions on platform KMS key.
+2. Keep managed trigger payload without monitoring overrides for this lane until monitoring-path reliability is re-pinned.
+3. Re-run M5.R2 after runtime apply and require blocker-free receipt before plan closure.
+
+## Entry: 2026-03-01 07:43:04 +00:00 - M5.R1 scope correction + live full-tree upload execution (authoritative)
+
+### Scope correction (fail-closed)
+1. USER clarified authoritative instruction: mirror full source tree uns/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/ into dev_full oracle-store run prefix.
+2. Prior subset upload (input/output_id=*) is explicitly invalid for this lane and cannot be used for closure.
+3. M5.R1 is reopened and executed under full-tree mirror contract.
+
+### Execution lock for live run
+1. execution_id: m5r1_full_tree_upload_20260301T073206Z.
+2. source_root: uns/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/.
+3. target_prefix: s3://fraud-platform-dev-full-object-store/oracle-store/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/.
+4. source snapshot at launch: 11,465 files, 92,622,942,077 bytes.
+5. runtime posture: background ws s3 sync --delete with periodic S3 count/size polling for operator-visible progress.
+
+### Live progress checkpoints (as executed)
+1. checkpoint: 142 objects / 179,564,633 bytes (process alive).
+2. checkpoint: 579 objects / 953,457,527 bytes (process alive).
+3. checkpoint: 951 objects / 1,775,223,759 bytes (process alive).
+4. checkpoint: 1,250 objects / 3,857,723,108 bytes (process alive).
+5. checkpoint: 1,427 objects / 5,040,079,576 bytes (process alive).
+
+### Performance note
+1. measured throughput during live polling window was ~8.05 MB/s with estimated remaining wall-clock around 177 minutes at that point.
+2. no lane closure claim is made until sync exits + parity receipts are generated.
+- 2026-03-01 08:11:24 +00:00 checkpoint: 2,729 objects / 19,587,992,866 bytes (~21.1%), process_alive=true for execution m5r1_full_tree_upload_20260301T073206Z.
+- 2026-03-01 08:38:48 +00:00 checkpoint: 4,108 objects / 29,987,233,002 bytes (~32.4%), process_alive=true for execution m5r1_full_tree_upload_20260301T073206Z.
+- 2026-03-01 09:01:35 +00:00 checkpoint: 4,887 objects / 36,762,414,991 bytes (~40.0%), process_alive=true for execution m5r1_full_tree_upload_20260301T073206Z.
+- 2026-03-01 09:26:00 +00:00 checkpoint: 6,074 objects / 57,264,739,120 bytes (~61.83%), process_alive=true for execution m5r1_full_tree_upload_20260301T073206Z.
+- 2026-03-01 09:52:12 +00:00 checkpoint: 6,926 objects / 65,978,842,251 bytes (~71.23%), process_alive=true for execution m5r1_full_tree_upload_20260301T073206Z.

@@ -570,7 +570,7 @@ M5 planning posture:
 - Capability lanes are explicit (authority/handles, oracle boundary, raw upload, managed stream-sort, stream-view contract, IG health/auth, MSK readiness, envelope conformance, rollup/handoff).
 - Active oracle standard is now repinned to `local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1` in `fraud-platform-dev-full-object-store` with `raw -> managed sort -> parity` required before refreshed P3 verdict.
 - Legacy copy-remediation from dev-min source is retained as historical evidence only and is not valid for future oracle refresh runs.
-- Historical M5 gate closure remains `DONE` for the prior certified run; `M5.R1` is tracked as mandatory prep for the next certification cycle and is intentionally pending.
+- Historical M5 gate closure remains `DONE` for the prior certified run; `M5.R1` has now been re-executed and closed under the full-tree mirror contract for the next certification cycle.
 - `M5.P3.A` (oracle boundary/ownership) has been expanded to execution-grade capability-lane checks, blocker mapping, and exit rule.
 - `M5.P3.B` was remediated and closed green (`m5c_p3b_required_outputs_20260224T191554Z`) with durable evidence; baseline fail run retained as blocker trail.
 - `M5.P3.C` is closed green (`m5d_p3c_stream_view_contract_20260224T192457Z`) with stream-view contract/materialization evidence.
@@ -604,7 +604,8 @@ M5 sub-phase progress:
 - [x] `M5.H` MSK topic readiness (`m5h_p4c_msk_topic_readiness_20260225T015352Z`, blocker-free after remediation sequence).
 - [x] `M5.I` ingress envelope conformance (`m5i_p4d_ingress_envelope_20260225T020758Z`, blocker-free after runtime envelope materialization).
 - [x] `M5.J` P4 rollup + M6 handoff (`m5j_p4e_gate_rollup_20260225T021715Z`, verdict `ADVANCE_TO_M6`).
-- [ ] `M5.R1` oracle refresh lane (`raw upload -> managed stream-sort -> parity -> refreshed P3 verdict`) for repinned source `local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1`.
+- [x] `M5.R1` full-tree mirror upload for repinned source `local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1` closed via `m5r1_full_tree_upload_20260301T073206Z` (`11,465 files`, `92,622,942,077 bytes`, local==S3, blocker-free).
+- [ ] `M5.R2..M5.R4` managed sort, parity rollup confirmation, and refreshed P3 verdict for next certification cycle.
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M5.build_plan.md`

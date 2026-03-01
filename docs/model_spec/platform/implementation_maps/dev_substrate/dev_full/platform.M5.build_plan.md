@@ -154,16 +154,137 @@ DoD:
 This lane is mandatory for the repinned oracle source (`local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1`) and must run before any new P3 closure claim.
 
 Execution sequence:
-1. `M5.R1`: high-throughput raw upload to `S3_ORACLE_INPUT_PREFIX_PATTERN`.
+1. `M5.R1`: high-throughput full-tree mirror upload from local source root to canonical oracle-store run prefix.
 2. `M5.R2`: trigger managed distributed stream-sort (`ORACLE_STREAM_SORT_ENGINE`).
 3. `M5.R3`: verify stream-view manifests, readback, and object-count parity.
 4. `M5.R4`: issue refreshed P3 rollup/verdict from refreshed evidence set.
 
 DoD (reopen lane):
-- [ ] raw upload receipt exists locally and durably.
+- [x] raw upload receipt exists locally and durably.
 - [ ] managed stream-sort receipt exists locally and durably.
-- [ ] parity report confirms manifest/readback/object-count consistency for required outputs.
+- [ ] parity report confirms manifest/readback/object-count consistency for full oracle source tree and required outputs.
 - [ ] refreshed P3 verdict is emitted from refreshed evidence artifacts (no reuse of legacy copy-remediation evidence).
+
+#### M5.R1 Execution Expansion (Raw Upload)
+Goal:
+1. mirror the full local oracle run tree into canonical dev_full oracle-store prefix (no subset upload).
+
+Pinned source root:
+1. `runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/`
+2. mirror scope is the full source tree exactly as present at execution time (no subset filtering, no assumed folder set).
+
+Target prefix:
+1. `s3://fraud-platform-dev-full-object-store/oracle-store/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/`
+
+Execution steps:
+1. verify pinned source root exists/readable and capture source tree inventory snapshot (top-level + recursive count/bytes).
+2. clear existing target run prefix to remove stale/cluttered residue.
+3. sync full source root to target run prefix with `aws s3 sync --delete`.
+4. compute local object-count + byte totals across full tree.
+5. compute S3 object-count + byte totals across full tree.
+6. fail-closed on any parity mismatch.
+7. publish lane artifacts:
+   - `m5r1_raw_upload_receipt.json`
+   - `m5r1_blocker_register.json`
+   - `m5r1_execution_summary.json`
+   - `m5r1_tree_parity_matrix.json`
+8. upload artifacts to durable evidence prefix:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/<m5r1_execution_id>/oracle/`
+
+M5.R1 DoD:
+- [x] full source tree uploaded successfully (no subset-only upload).
+- [x] local/S3 parity checks pass (count + bytes for full tree).
+- [x] `m5r1_raw_upload_receipt.json` exists locally.
+- [x] `m5r1_raw_upload_receipt.json` exists durably and readback passes.
+- [x] blocker register is empty.
+
+M5.R1 blocker map:
+1. `M5R1-B1` -> `M5P3-B9`: source root missing/unreadable.
+2. `M5R1-B2` -> `M5P3-B9`: full-tree upload command failure.
+3. `M5R1-B3` -> `M5P3-B11`: local vs S3 parity mismatch for full tree.
+4. `M5R1-B4` -> `M5P3-B7`: durable evidence publish/readback failure.
+5. `M5R1-B5` -> `M5P3-B8`: attempted transition with unresolved blocker.
+
+M5.R1 prior closure note (superseded by scope correction):
+1. prior run `m5r1_raw_upload_20260301T004342Z` uploaded only `input/output_id=*` subset.
+2. this does not satisfy the current authoritative instruction to mirror the full source tree.
+3. re-execution `m5r1_full_tree_upload_20260301T073206Z` completed against full-tree contract with blocker-free parity.
+
+M5.R1 authoritative closure (full-tree mirror):
+1. execution id:
+   - `m5r1_full_tree_upload_20260301T073206Z`
+2. source and destination:
+   - source: `runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/`
+   - destination: `s3://fraud-platform-dev-full-object-store/oracle-store/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/`
+3. parity results:
+   - local: `11,465 files`, `92,622,942,077 bytes`
+   - s3: `11,465 files`, `92,622,942,077 bytes`
+4. lane verdict:
+   - `overall_pass=true`, `blocker_count=0`, `next_gate=M5.R2_READY`
+5. local artifacts:
+   - `runs/dev_substrate/dev_full/m5/m5r1_full_tree_upload_20260301T073206Z/m5r1_raw_upload_receipt.json`
+   - `runs/dev_substrate/dev_full/m5/m5r1_full_tree_upload_20260301T073206Z/m5r1_tree_parity_matrix.json`
+   - `runs/dev_substrate/dev_full/m5/m5r1_full_tree_upload_20260301T073206Z/m5r1_blocker_register.json`
+   - `runs/dev_substrate/dev_full/m5/m5r1_full_tree_upload_20260301T073206Z/m5r1_execution_summary.json`
+6. durable artifacts:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5r1_full_tree_upload_20260301T073206Z/oracle/m5r1_raw_upload_receipt.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5r1_full_tree_upload_20260301T073206Z/oracle/m5r1_tree_parity_matrix.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5r1_full_tree_upload_20260301T073206Z/oracle/m5r1_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5r1_full_tree_upload_20260301T073206Z/oracle/m5r1_execution_summary.json`
+
+#### M5.R2 Execution Expansion (Managed Distributed Stream-Sort)
+Goal:
+1. materialize stream-view outputs from the uploaded raw oracle inputs using managed compute (`EMR_EKS_SPARK`) and publish deterministic closure receipts.
+
+Pinned runtime path for this lane:
+1. `ORACLE_STREAM_SORT_EXECUTION_MODE=managed_distributed`
+2. `ORACLE_STREAM_SORT_ENGINE=EMR_EKS_SPARK`
+3. `ORACLE_STREAM_SORT_TRIGGER_SURFACE=github_actions_managed` (operator-run managed trigger)
+4. `ORACLE_STREAM_SORT_RUNTIME_PATH=EMR_ON_EKS_SPARK`
+
+Execution steps:
+1. generate `m5r2_execution_id` and local run root under `runs/dev_substrate/dev_full/m5/<m5r2_execution_id>/`.
+2. resolve and verify required handles before trigger:
+   - `ORACLE_STORE_BUCKET`,
+   - `ORACLE_SOURCE_NAMESPACE`,
+   - `ORACLE_ENGINE_RUN_ID`,
+   - `ORACLE_REQUIRED_OUTPUT_IDS`,
+   - `ORACLE_SORT_KEY_BY_OUTPUT_ID`,
+   - `EMR_EKS_VIRTUAL_CLUSTER_ID`,
+   - `EMR_EKS_EXECUTION_ROLE_ARN`,
+   - `ORACLE_STREAM_SORT_EMR_RELEASE_LABEL`,
+   - `S3_EVIDENCE_BUCKET`.
+3. submit EMR-on-EKS Spark job for stream-sort using pinned virtual cluster + execution role.
+4. poll job state to terminal status; fail-closed on non-`COMPLETED` terminal states.
+5. verify per required output under `S3_STREAM_VIEW_OUTPUT_PREFIX_PATTERN`:
+   - parquet object presence (`>0`),
+   - `_stream_sort_receipt.json` exists and `status=OK`,
+   - `_stream_view_manifest.json` exists and is readable,
+   - manifest/receipt output_id and stream_view_root are consistent.
+6. build lane receipts:
+   - `m5r2_stream_sort_receipt.json`,
+   - `m5r2_stream_sort_parity_report.json`,
+   - `m5r2_blocker_register.json`,
+   - `m5r2_execution_summary.json`.
+7. publish lane receipts to:
+   - local run root,
+   - `s3://<S3_EVIDENCE_BUCKET>/evidence/dev_full/run_control/<m5r2_execution_id>/oracle/`.
+
+M5.R2 DoD:
+- [ ] managed job reached terminal `COMPLETED`.
+- [ ] required outputs `4/4` have parquet materialization under stream-view prefix.
+- [ ] required receipts/manifests `4/4` are present and readable.
+- [ ] local + durable `m5r2_stream_sort_receipt.json` exists with `overall_pass=true`.
+- [ ] blocker register is empty.
+
+M5.R2 blocker map:
+1. `M5R2-B1` -> `M5P3-B1`: required handle missing/unresolved for managed trigger.
+2. `M5R2-B2` -> `M5P3-B10`: EMR job submit/poll failed or terminal non-success state.
+3. `M5R2-B3` -> `M5P3-B10`: required stream-view receipt missing/unreadable.
+4. `M5R2-B4` -> `M5P3-B10`: required stream-view manifest missing/unreadable.
+5. `M5R2-B5` -> `M5P3-B11`: output materialization parity mismatch/incomplete required output set.
+6. `M5R2-B6` -> `M5P3-B7`: durable evidence publish/readback failed.
+7. `M5R2-B7` -> `M5P3-B8`: attempted transition with unresolved `M5R2-B*`.
 
 ### M5.C Required Outputs and Manifest Readability (P3)
 Goal:
