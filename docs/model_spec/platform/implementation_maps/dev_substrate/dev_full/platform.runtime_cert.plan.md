@@ -131,10 +131,56 @@ RC0 closure snapshot:
 Goal:
 1. Build authoritative inventory of available runtime evidence and missing pieces.
 
+Execution strategy (expanded):
+1. `RC1.A` entry validation:
+   - load latest RC0 artifacts (`runtime_claim_matrix.json`, `runtime_metric_dictionary.json`),
+   - verify RC0 next gate is `RC1_READY`.
+2. `RC1.B` evidence surface crawl:
+   - inventory local runtime evidence under `runs/dev_substrate/dev_full/**`,
+   - inventory durable evidence under `s3://fraud-platform-dev-full-evidence/evidence/dev_full/**`.
+3. `RC1.C` claim/metric evidence indexing:
+   - map each RC0 metric to inspectable artifact refs (local and/or durable),
+   - attach coverage status (`EVIDENCED` or `MISSING`) per metric.
+4. `RC1.D` gap/blocker register:
+   - register every missing Tier-0 evidence surface as `RC-B3` blocker candidate,
+   - register Tier-1/2 missing surfaces as explicit non-silent gaps for downstream lanes.
+5. `RC1.E` deterministic publication + readback:
+   - publish `runtime_evidence_inventory.json`, `runtime_evidence_gap_register.json`, `rc1_execution_snapshot.json`,
+   - publish durable mirror and verify readback.
+6. `RC1.F` lane verdict posture:
+   - RC1 passes when inventory and gap register are complete and deterministic,
+   - open gap blockers remain active for downstream RC lanes and final verdict rollup.
+
+RC1 outputs (deterministic):
+1. `runtime_evidence_inventory.json`
+2. `runtime_evidence_gap_register.json`
+3. `rc1_execution_snapshot.json`
+
+RC1 artifact paths:
+1. local:
+   - `runs/dev_substrate/dev_full/cert/runtime/<runtime_cert_execution_id>/`
+2. durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/<runtime_cert_execution_id>/`
+
 DoD:
-- [ ] evidence index for existing dev_full runs is produced.
-- [ ] missing evidence surfaces are registered as blockers.
-- [ ] no claim is marked pass without inspectable artifact refs.
+- [x] evidence index for existing dev_full runs is produced.
+- [x] missing evidence surfaces are registered as blockers.
+- [x] no claim is marked pass without inspectable artifact refs.
+
+RC1 closure snapshot:
+1. `runtime_cert_execution_id=rc1_runtime_evidence_inventory_20260302T144531Z`
+2. `platform_run_id=platform_20260302T080146Z`
+3. `scenario_run_id=scenario_9de27c0bd83aed3a4aea4d0063c981f1`
+4. local artifact root:
+   - `runs/dev_substrate/dev_full/cert/runtime/rc1_runtime_evidence_inventory_20260302T144531Z/`
+5. durable artifact root:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc1_runtime_evidence_inventory_20260302T144531Z/`
+6. lane verdict:
+   - `overall_pass=true`
+   - `lane_blockers=[]`
+   - `next_gate=RC2_READY_WITH_GAP_REGISTER`
+7. assertion posture:
+   - all claim rows remain `evaluation_status=NOT_EVALUATED` and `pass_asserted=false` in RC1 outputs (inventory-only lane).
 
 ### RC2 - Tier 0 runtime scorecard certification (steady/burst/soak)
 Goal:
@@ -157,11 +203,64 @@ Mandatory profiles:
    - replay window: `24 h logical window` equivalent
    - minimum replayed sample: `>= 10,000,000 events`.
 
+Execution strategy (expanded):
+1. `RC2.A` entry validation:
+   - require `RC1` lane pass (`next_gate=RC2_READY_WITH_GAP_REGISTER`),
+   - load RC0 claim/metric dictionary and RC1 inventory.
+2. `RC2.B` profile evidence resolution:
+   - resolve scorecard evidence candidate(s) for mandatory profiles (steady/burst/soak/replay-window),
+   - require explicit source execution IDs per profile.
+3. `RC2.C` metric extraction and distribution synthesis:
+   - compute/collect `p50/p95/p99` for latency, lag, availability, and error posture per profile,
+   - enforce sample-size and duration constraints before threshold checks.
+4. `RC2.D` threshold evaluation:
+   - evaluate Tier-0 threshold map from Section 4.1 per profile,
+   - mark profile verdict `PASS` only if all required checks pass.
+5. `RC2.E` fail-closed blocker registration:
+   - missing mandatory profile evidence or insufficient profile samples -> `RC-B4`,
+   - missing/unreadable profile evidence surfaces -> `RC-B3`,
+   - uncomputable required metric distributions -> `RC-B2`.
+6. `RC2.F` deterministic artifact publication + readback:
+   - publish `runtime_scorecard_profiles.json`, `runtime_blocker_register.json`, `runtime_certification_verdict.json`, and `rc2_execution_snapshot.json`,
+   - publish durable mirror and verify readback.
+
+RC2 outputs (deterministic):
+1. `runtime_scorecard_profiles.json`
+2. `runtime_blocker_register.json`
+3. `runtime_certification_verdict.json`
+4. `rc2_execution_snapshot.json`
+
+RC2 artifact paths:
+1. local:
+   - `runs/dev_substrate/dev_full/cert/runtime/<runtime_cert_execution_id>/`
+2. durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/<runtime_cert_execution_id>/`
+
 DoD:
 - [ ] scorecard metrics meet pinned thresholds for all profiles.
 - [ ] latency/availability/lag/error posture is recorded with `p50/p95/p99` distributions.
 - [ ] per-profile sample size is recorded and passes minimum accepted sample.
 - [ ] profile verdicts are deterministic and blocker-aware.
+
+RC2 execution snapshot (latest):
+1. `runtime_cert_execution_id=rc2_tier0_scorecard_20260302T153633Z`
+2. `platform_run_id=platform_20260302T080146Z`
+3. `scenario_run_id=scenario_9de27c0bd83aed3a4aea4d0063c981f1`
+4. local artifact root:
+   - `runs/dev_substrate/dev_full/cert/runtime/rc2_tier0_scorecard_20260302T153633Z/`
+5. durable artifact root:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc2_tier0_scorecard_20260302T153633Z/`
+6. lane verdict:
+   - `overall_pass=false`
+   - `verdict=HOLD`
+   - `next_gate=RC2_REMEDIATION_REQUIRED`
+7. active blockers:
+   - `RC-B4` steady profile evidence below required floor (`target=500 eps`, `min_sample=900,000`, best available `49.49 eps`, sample `11,878`).
+   - `RC-B4` burst profile evidence below required floor (`target=1,500 eps`, `min_sample=900,000`, best available `49.49 eps`, sample `11,878`).
+   - `RC-B4` soak profile evidence below required floor (`target=300 eps for 6h`, `min_sample=6,480,000`, best available sample `11,878`).
+   - `RC-B4` replay-window profile evidence below required floor (`min_sample=10,000,000`, best available sample `11,878`).
+8. superseded pass:
+   - `rc2_tier0_scorecard_20260302T153540Z` is superseded by `...153633Z` due best-candidate ranking correction in blocker reporting.
 
 ### RC3 - Tier 0 runtime drill pack certification
 Goal:

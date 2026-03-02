@@ -17865,13 +17865,15 @@ o nodes available).
 ## Entry: 2026-03-01 07:43:04 +00:00 - M5.R1 scope correction + live full-tree upload execution (authoritative)
 
 ### Scope correction (fail-closed)
-1. USER clarified authoritative instruction: mirror full source tree uns/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/ into dev_full oracle-store run prefix.
+1. USER clarified authoritative instruction: mirror full source tree 
+uns/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/ into dev_full oracle-store run prefix.
 2. Prior subset upload (input/output_id=*) is explicitly invalid for this lane and cannot be used for closure.
 3. M5.R1 is reopened and executed under full-tree mirror contract.
 
 ### Execution lock for live run
 1. execution_id: m5r1_full_tree_upload_20260301T073206Z.
-2. source_root: uns/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/.
+2. source_root: 
+uns/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/.
 3. target_prefix: s3://fraud-platform-dev-full-object-store/oracle-store/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/.
 4. source snapshot at launch: 11,465 files, 92,622,942,077 bytes.
 5. runtime posture: background ws s3 sync --delete with periodic S3 count/size polling for operator-visible progress.
@@ -18434,7 +18436,8 @@ o nodes available).
    - execution id: m14d_wsp_materialization_20260302T032223Z;
    - summary: overall_pass=true, locker_count=0, 
 ext_gate=M14.E_READY;
-   - WSP result artifact shows status=STREAMED, eturncode=0, emitted events > 0;
+   - WSP result artifact shows status=STREAMED, 
+eturncode=0, emitted events > 0;
    - IG idempotency table evidence for lane run id is non-zero and satisfies DoD.
 4. Durable evidence roots:
    - s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14d_wsp_materialization_20260302T032223Z/;
@@ -18464,7 +18467,8 @@ ext_gate=M14.E_READY;
 ext_gate).
 
 ## Entry: 2026-03-02 03:32:39 +00:00 - M14.E executed and closed (green)
-1. Implemented lane executor: uns/dev_substrate/dev_full/m14/m14e_exec.py.
+1. Implemented lane executor: 
+uns/dev_substrate/dev_full/m14/m14e_exec.py.
 2. Execution result:
    - xecution_id = m14e_rtdl_projection_20260302T033143Z,
    - overall_pass = true, locker_count = 0, 
@@ -18475,7 +18479,8 @@ ext_gate = M14.F_READY.
    - this is recorded as advisory M14E-AD1 (not silent).
 4. Bounded fallback adjudication (policy-aligned) applied:
    - fallback allowed by handle FLINK_RUNTIME_PATH_ALLOWED = MSF_MANAGED|EKS_FLINK_OPERATOR,
-   - untime_path_effective set to EKS_FLINK_OPERATOR for this closure lane only,
+   - 
+untime_path_effective set to EKS_FLINK_OPERATOR for this closure lane only,
    - semantics validated using previously certified RTDL/continuity evidence.
 5. DoD evidence surfaces:
    - branch-separated IEG/OFP proof: p8e_rtdl_gate_rollup_matrix.json confirms separate component proofs,
@@ -18524,7 +18529,8 @@ ext_gate = M14.F_READY.
    - ARCHIVE_CONNECTOR_DYNAMIC_PARTITION_JQ=NOT_APPLICABLE_FOR_MSK_SOURCE_V0,
    - ARCHIVE_CONNECTOR_S3_PREFIX_PATTERN=archive/_connector/events/,
    - ARCHIVE_CONNECTOR_RUN_SCOPE_PROOF_MODE=payload_platform_run_id_readback.
-4. Executor remediation applied in uns/dev_substrate/dev_full/m14/m14f_exec.py:
+4. Executor remediation applied in 
+uns/dev_substrate/dev_full/m14/m14f_exec.py:
    - dynamic partitioning is enabled only when handle supports it,
    - static prefix sink used for MSK source,
    - continuity requires admitted probe ids plus payload-level platform_run_id readback in new sink objects.
@@ -19266,13 +19272,15 @@ ext_gate = M14.F_READY.
    - target runtime <= 45 minutes with receipts (query_count, 	otal_scanned_bytes, estimated Athena cost).
 
 ### 2026-03-02 08:16:12 +00:00 - M15.E implementation update (executor materialized)
-1. Implemented uns/dev_substrate/dev_full/m15/m15e_exec.py to execute M15.E end-to-end in the same fail-closed pattern as prior M15 lanes.
+1. Implemented 
+uns/dev_substrate/dev_full/m15/m15e_exec.py to execute M15.E end-to-end in the same fail-closed pattern as prior M15 lanes.
 2. Lane coverage implemented in code:
    - E1 eval metrics and M11-equivalent report emission,
    - E2 leakage/provenance continuity checks against M15.D refs,
    - E3 explainability summaries tied to M15.D feature catalog,
    - E4 lineage/rollback metadata with M12 active-resolution fallback pointers,
-   - E5 candidate bundle emission (ewired_eval_only).
+   - E5 candidate bundle emission (
+ewired_eval_only).
 3. Hard blocker semantics encoded:
    - M15-B6 semantic/provenance mismatches,
    - M15-B7 durable evidence publish/readback failures,
@@ -19281,8 +19289,10 @@ ext_gate = M14.F_READY.
 5. Syntax gate passed via python -m py_compile runs/dev_substrate/dev_full/m15/m15e_exec.py.
 
 ### 2026-03-02 08:17:35 +00:00 - M15.E advisory remediation decision (M15E-AD2)
-1. First M15.E run closed green with advisory M15E-AD2 because M12 snapshot schema uses efs.candidate_bundle_ref instead of ctive_bundle.bundle_ref in this repo’s active artifacts.
-2. Decision: remediate in-lane to reduce ambiguity in rollback pointers by reading stable bundle from efs.candidate_bundle_ref when ctive_bundle fields are absent.
+1. First M15.E run closed green with advisory M15E-AD2 because M12 snapshot schema uses 
+efs.candidate_bundle_ref instead of ctive_bundle.bundle_ref in this repo’s active artifacts.
+2. Decision: remediate in-lane to reduce ambiguity in rollback pointers by reading stable bundle from 
+efs.candidate_bundle_ref when ctive_bundle fields are absent.
 3. Implemented update in m15e_exec.py:
    - fallback extraction of stable_bundle_ref from m12_snapshot.refs.candidate_bundle_ref,
    - optional bundle-id hydration by reading that S3 JSON object.
@@ -19308,14 +19318,22 @@ ext_gate=M15.F_READY.
 6. Runtime/cost receipt for closure run:
    - query_count=4, 	otal_scanned_gb=0.012, thena_cost_estimate_usd=0.0001, lapsed_seconds=9.715.
 7. Local closure artifacts:
-   - uns/dev_substrate/dev_full/m15/m15e_mf_real_eval_rewire_20260302T081742Z/m15e_eval_report.json
-   - uns/dev_substrate/dev_full/m15/m15e_mf_real_eval_rewire_20260302T081742Z/m15e_leakage_provenance_check.json
-   - uns/dev_substrate/dev_full/m15/m15e_mf_real_eval_rewire_20260302T081742Z/m15e_explainability_report.json
-   - uns/dev_substrate/dev_full/m15/m15e_mf_real_eval_rewire_20260302T081742Z/m15e_lineage_snapshot.json
-   - uns/dev_substrate/dev_full/m15/m15e_mf_real_eval_rewire_20260302T081742Z/m15e_rollback_metadata.json
-   - uns/dev_substrate/dev_full/m15/m15e_mf_real_eval_rewire_20260302T081742Z/m15e_candidate_bundle.json
-   - uns/dev_substrate/dev_full/m15/m15e_mf_real_eval_rewire_20260302T081742Z/m15e_blocker_register.json
-   - uns/dev_substrate/dev_full/m15/m15e_mf_real_eval_rewire_20260302T081742Z/m15e_execution_summary.json
+   - 
+uns/dev_substrate/dev_full/m15/m15e_mf_real_eval_rewire_20260302T081742Z/m15e_eval_report.json
+   - 
+uns/dev_substrate/dev_full/m15/m15e_mf_real_eval_rewire_20260302T081742Z/m15e_leakage_provenance_check.json
+   - 
+uns/dev_substrate/dev_full/m15/m15e_mf_real_eval_rewire_20260302T081742Z/m15e_explainability_report.json
+   - 
+uns/dev_substrate/dev_full/m15/m15e_mf_real_eval_rewire_20260302T081742Z/m15e_lineage_snapshot.json
+   - 
+uns/dev_substrate/dev_full/m15/m15e_mf_real_eval_rewire_20260302T081742Z/m15e_rollback_metadata.json
+   - 
+uns/dev_substrate/dev_full/m15/m15e_mf_real_eval_rewire_20260302T081742Z/m15e_candidate_bundle.json
+   - 
+uns/dev_substrate/dev_full/m15/m15e_mf_real_eval_rewire_20260302T081742Z/m15e_blocker_register.json
+   - 
+uns/dev_substrate/dev_full/m15/m15e_mf_real_eval_rewire_20260302T081742Z/m15e_execution_summary.json
 8. Durable closure prefix:
    - s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15e_mf_real_eval_rewire_20260302T081742Z/.
 9. Build-plan sync performed:
@@ -19343,7 +19361,8 @@ ext_gate=M15.F_READY, blocker_count=0).
    - hard scan cap <= 30 GB.
 
 ### 2026-03-02 08:23:51 +00:00 - M15.F executor implementation (pre-run)
-1. Implemented uns/dev_substrate/dev_full/m15/m15f_exec.py with deterministic adversarial lanes F1..F5.
+1. Implemented 
+uns/dev_substrate/dev_full/m15/m15f_exec.py with deterministic adversarial lanes F1..F5.
 2. Implemented fail-closed blocker mapping:
    - M15-B4 for temporal/label-boundary leakage failures and replay/as-of immutability failures,
    - M15-B7 for durable evidence readback failures,
@@ -19375,7 +19394,8 @@ ext_gate=M15.G_READY.
 4. Runtime/cost receipt:
    - query_count=3, 	otal_scanned_gb=0.089, thena_cost_estimate_usd=0.0004, lapsed_seconds=9.651.
 5. Published artifacts:
-   - local: uns/dev_substrate/dev_full/m15/m15f_leakage_adversarial_20260302T082401Z/ (m15f_* artifact set),
+   - local: 
+uns/dev_substrate/dev_full/m15/m15f_leakage_adversarial_20260302T082401Z/ (m15f_* artifact set),
    - durable: s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15f_leakage_adversarial_20260302T082401Z/,
    - run-scoped: vidence/runs/platform_20260302T080146Z/learning/mf/adversarial_suite_report.json (+ companion probes).
 6. Build-plan sync completed:
@@ -19395,13 +19415,15 @@ ext_gate=M15.G_READY.
    - any continuity break above triggers M15-B3 fail-closed,
    - durable publish/readback failure triggers M15-B7.
 4. Advisory policy:
-   - ewired_eval_only candidate model posture remains advisory (not blocker) if contract shape and leakage provenance pass.
+   - 
+ewired_eval_only candidate model posture remains advisory (not blocker) if contract shape and leakage provenance pass.
 5. Runtime/cost posture for M15.G:
    - metadata/evidence comparison lane only (no heavy scans expected),
    - target <= 20 minutes, expected scan <= 5 GB.
 
 ### 2026-03-02 08:30:32 +00:00 - M15.G executor implementation (pre-run)
-1. Implemented uns/dev_substrate/dev_full/m15/m15g_exec.py for semantic non-regression rollup across M9 -> M10 -> M11 -> M15.
+1. Implemented 
+uns/dev_substrate/dev_full/m15/m15g_exec.py for semantic non-regression rollup across M9 -> M10 -> M11 -> M15.
 2. Implemented deterministic continuity lanes:
    - G1 replay basis continuity,
    - G2 as-of/maturity continuity,
@@ -19413,7 +19435,8 @@ ext_gate=M15.G_READY.
    - M15-B3 for any continuity lane break,
    - M15-B7 for durable evidence publish/readback failure.
 4. Implemented artifact contract + run-scoped publication under vidence/runs/{platform_run_id}/learning/mf/*continuity*.
-5. Added explicit advisory handling for ewired_eval_only model posture (non-blocking for semantic non-regression).
+5. Added explicit advisory handling for 
+ewired_eval_only model posture (non-blocking for semantic non-regression).
 6. Syntax gate passed via python -m py_compile.
 
 ### 2026-03-02 08:31:11 +00:00 - M15.G blocker triage (M15-B3) and remediation decision
@@ -19444,11 +19467,13 @@ ext_gate=M15.H_READY.
    - G5 MF artifact continuity: pass (M11 policy/path and core eval/candidate bundle contract preserved in M15.E outputs).
    - G6 explainability continuity: pass (feature-catalog mapping pass; candidate lineage includes explainability ref).
 6. Retained advisory:
-   - M15G-AD1: candidate remains ewired_eval_only posture; full train-artifact promotion remains outside semantic non-regression lane.
+   - M15G-AD1: candidate remains 
+ewired_eval_only posture; full train-artifact promotion remains outside semantic non-regression lane.
 7. Runtime/cost receipt:
    - query_count=0, 	otal_scanned_gb=0, thena_cost_estimate_usd=0, lapsed_seconds=0.041.
 8. Closure artifacts:
-   - local root: uns/dev_substrate/dev_full/m15/m15g_semantic_non_regression_20260302T083157Z/.
+   - local root: 
+uns/dev_substrate/dev_full/m15/m15g_semantic_non_regression_20260302T083157Z/.
    - durable root: s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15g_semantic_non_regression_20260302T083157Z/.
    - run-scoped pack: vidence/runs/platform_20260302T080146Z/learning/mf/non_regression_pack.json.
 9. Plan sync completed:
@@ -19750,57 +19775,3 @@ ext_gate=M15.H_READY.
    - proven M15 closure state (`M15_COMPLETE_GREEN`, `CERTIFICATION_TRACKS_READY`),
    - authoritative execution IDs and durable evidence prefix,
    - required authority reading order,
-   - binding execution laws for certification,
-   - known baseline caveats (including superseded/corrected M15.I rollup),
-   - first-step checklist for RC/OC entry,
-   - expected certification deliverables and stitched Point-X outputs.
-3. Design intent: reduce context overload risk and prevent drift/re-open of already closed build-phase decisions.
-
-### 2026-03-02 09:25:27 +00:00 - Dev-full graph alignment for M14/M15 truth
-1. Drift identified from graph audit:
-   - v0 graphs were aligned to M14 runtime placement repins, but M15 semantics and certification-entry posture were implicit rather than explicit.
-2. Decision taken:
-   - keep v0 graph structure stable and perform surgical updates only:
-     - add explicit `truth_view` lane visibility under Oracle boundary,
-     - add explicit point-in-time + leakage gates under Learning/Evolution,
-     - add explicit certification-track handoff surfaces from run-control/reporter evidence.
-3. Updated files:
-   - `docs/design/platform/dev_full/graph/dev_full_platform_planned_v0.mermaid.mmd`
-   - `docs/design/platform/dev_full/graph/dev_full_platform_planned_v0.ascii.txt`
-   - `docs/design/platform/dev_full/graph/dev_full_terraform_infrastructure_v0.mermaid.mmd`
-   - `docs/design/platform/dev_full/graph/dev_full_terraform_infrastructure_v0.ascii.txt`
-4. Rationale:
-   - enforce that runtime path remains past/present bounded,
-   - make learning-only truth consumption and fail-closed leakage posture visible,
-   - expose `CERTIFICATION_TRACKS_READY` handoff as a first-class control-plane output for next-stage RC/OC execution.
-5. No resource/tooling changes were introduced; this is documentation truth-alignment only.
-
-### 2026-03-02 14:42:38 +00:00 - Runtime certification RC0 planning and execution closure
-1. Scope decision: execute RC0 first as claim-model lock for runtime certification before any heavy scorecard/drill lane (RC1+).
-2. Planning remediations applied:
-   - expanded RC0 in platform.runtime_cert.plan.md with explicit lanes (RC0.A..RC0.F), entry criteria, deterministic outputs, blocker checks, and publication/readback posture.
-   - created dedicated certification notes files:
-     - platform.runtime.cert_notes.md
-     - platform.opsgov.cert_notes.md
-3. Execution details:
-   - materialized runtime cert execution: c0_claim_model_lock_20260302T144121Z.
-   - loaded context pins from M15 closure summary:
-     - platform_run_id=platform_20260302T080146Z
-     - scenario_run_id=scenario_9de27c0bd83aed3a4aea4d0063c981f1.
-   - produced deterministic RC0 artifacts:
-     - untime_claim_matrix.json
-     - untime_metric_dictionary.json
-     - untime_evidence_bundle_rules.json
-     - c0_execution_snapshot.json
-4. Durable publication/readback:
-   - uploaded RC0 artifacts to:
-     - s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc0_claim_model_lock_20260302T144121Z/
-   - readback verification succeeded (ws s3 ls confirms object presence).
-5. Lane verdict:
-   - overall_pass=true
-   - lockers=[]
-   - dvisories=[]
-   - 
-ext_gate=RC1_READY.
-6. Rationale:
-   - this closure locks claim semantics and metric dictionary before throughput/drill execution, preventing downstream ambiguity and avoiding checklist-only certification behavior.
