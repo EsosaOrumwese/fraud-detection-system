@@ -28,6 +28,19 @@ The following attempts are retained for audit continuity only and are excluded f
 3. Managed execution lanes are reachable for RC workload execution.
 4. Certification window and identity pins for restart are declared before RC0 execution.
 
+### 4.1) Pinned Identity Strategy Decision (2026-03-02)
+1. Selected strategy: `NEW_CAMPAIGN_IDENTITY` (Option A).
+2. Pinned campaign identity:
+   - `platform_run_id=platform_cert_20260302T182050Z`
+   - `scenario_run_id=scenario_cert_b2e31c46102062661ea43f12a8ceef77`
+3. Claimability allowlist roots:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/`
+   - `runs/dev_substrate/dev_full/cert/runtime/` (local mirror only).
+4. Claimability denylist roots:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/_scrapped/`
+   - `runs/dev_substrate/dev_full/cert/_scrapped/`
+   - any superseded RC execution IDs listed in the superseded register.
+
 ## 5) Clean Run Register
 To be populated only by clean restart executions.
 

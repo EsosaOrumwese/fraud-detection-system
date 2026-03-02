@@ -123,9 +123,18 @@ Execution plan (expanded):
 
 Pre-execution decision gate (mandatory before RC0 execution):
 1. Certification identity strategy must be explicitly pinned:
-   - option A: mint new campaign identity (`platform_run_id` + `scenario_run_id`) for clean certification window,
-   - option B: reuse existing identity with explicit rationale and freshness constraints.
-2. RC0 execution remains blocked until this decision is recorded.
+   - selected option: `A` (`NEW_CAMPAIGN_IDENTITY`) on `2026-03-02`.
+2. Pinned clean campaign identity values:
+   - `platform_run_id=platform_cert_20260302T182050Z`
+   - `scenario_run_id=scenario_cert_b2e31c46102062661ea43f12a8ceef77`
+3. Allowed evidence roots for this campaign:
+   - durable authoritative root: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/`
+   - local mirror root: `runs/dev_substrate/dev_full/cert/runtime/`
+4. Forbidden roots for claimability:
+   - any path under `.../cert/_scrapped/`
+   - any superseded runtime-cert execution IDs from scrapped attempt register in `platform.runtime.cert_notes.md`
+   - direct `runs/dev_substrate/dev_full/m*/` evidence paths for Tier-0 pass assertions
+5. RC0 execution remains blocked until artifacts reference the pinned campaign identity and allowed roots only.
 
 Runtime budget gate:
 1. Target RC0 wall time: `<= 20 min`.

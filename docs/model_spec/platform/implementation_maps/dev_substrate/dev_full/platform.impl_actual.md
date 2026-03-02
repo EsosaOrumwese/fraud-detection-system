@@ -19918,3 +19918,18 @@ uns/dev_substrate/dev_full/m15/m15g_semantic_non_regression_20260302T083157Z/.
 4. Added RC0 runtime budget gates and hard-stop conditions.
 5. Expanded RC0 DoD to include durable readback success and blocker-free adjudication.
 6. This was a plan-only change; no RC0 runtime execution occurred.
+
+## Entry: 2026-03-02 18:21 +00:00 - RC0 identity strategy gate pinned to new campaign identity
+
+1. USER selected the recommended identity strategy for RC0: `NEW_CAMPAIGN_IDENTITY`.
+2. Pinned certification campaign IDs:
+   - `platform_run_id=platform_cert_20260302T182050Z`
+   - `scenario_run_id=scenario_cert_b2e31c46102062661ea43f12a8ceef77`
+3. Updated runtime cert authority files:
+   - `platform.runtime_cert.plan.md` RC0 pre-execution gate now carries selected strategy + pinned IDs + allow/deny evidence roots.
+   - `platform.runtime.cert_notes.md` now includes identity decision record under clean restart entry gates.
+4. Claimability controls pinned with this decision:
+   - allowlist roots limited to clean runtime-cert durable/local roots,
+   - denylist includes all `_scrapped` roots and superseded execution IDs,
+   - direct `m*` paths remain non-claimable for Tier-0 pass assertions.
+5. RC0 remains execution-ready with decision-completeness now satisfied for identity gate.
