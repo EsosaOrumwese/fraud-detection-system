@@ -38,6 +38,21 @@ on:
         required: false
         default: ""
         type: string
+      upstream_rc0_execution:
+        description: "Authoritative RC0 execution id used as RC1 upstream"
+        required: false
+        default: "rc0_claim_model_lock_20260302T182859Z"
+        type: string
+      rc1_cert_window_start_utc:
+        description: "Optional RC1 cert-window start override (ISO-8601 UTC)"
+        required: false
+        default: ""
+        type: string
+      rc1_non_claimable_execution_ids:
+        description: "Comma-separated runtime execution ids excluded from claimability"
+        required: false
+        default: "rc0_claim_model_lock_20260302T182821Z,rc0_claim_model_lock_20260302T182833Z"
+        type: string
       evidence_bucket:
         description: "S3 evidence bucket"
         required: true
@@ -123,7 +138,13 @@ jobs:
               echo "lane_supported=false" >> "$GITHUB_OUTPUT"
               echo "unsupported_reason=Base workflow scaffold is in place, but RC0 handler is not yet repository-tracked. Add lane implementation before execution." >> "$GITHUB_OUTPUT"
               ;;
-            rc1|rc2|rc3|rc4|rc5|rc6)
+            rc1)
+              echo "lane_supported=true" >> "$GITHUB_OUTPUT"
+              echo "handler_path=" >> "$GITHUB_OUTPUT"
+              echo "snapshot_path=${{ steps.run_meta.outputs.run_dir }}/rc1_execution_snapshot.json" >> "$GITHUB_OUTPUT"
+              echo "expected_next_gate=RC2_READY_WITH_GAP_REGISTER" >> "$GITHUB_OUTPUT"
+              ;;
+            rc2|rc3|rc4|rc5|rc6)
               echo "lane_supported=false" >> "$GITHUB_OUTPUT"
               echo "unsupported_reason=Handler for ${PHASE} is not implemented yet. Add a lane handler and extend this workflow mapping." >> "$GITHUB_OUTPUT"
               ;;
@@ -142,7 +163,7 @@ jobs:
           exit 1
 
       - name: Validate lane handler path
-        if: ${{ steps.lane.outputs.lane_supported == 'true' }}
+        if: ${{ steps.lane.outputs.lane_supported == 'true' && steps.lane.outputs.handler_path != '' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -163,6 +184,446 @@ jobs:
             -ScenarioRunId "${{ inputs.scenario_run_id }}" \
             -RuntimeCertExecutionId "${{ steps.run_meta.outputs.runtime_cert_execution_id }}" \
             -EvidenceBucket "${{ inputs.evidence_bucket }}"
+
+      - name: Execute RC1 lane handler (managed inline)
+        if: ${{ inputs.phase_mode == 'rc1' && steps.lane.outputs.lane_supported == 'true' }}
+        shell: bash
+        env:
+          AWS_REGION: ${{ inputs.aws_region }}
+          EVIDENCE_BUCKET: ${{ inputs.evidence_bucket }}
+          PLATFORM_RUN_ID: ${{ inputs.platform_run_id }}
+          SCENARIO_RUN_ID: ${{ inputs.scenario_run_id }}
+          RUNTIME_CERT_EXECUTION_ID: ${{ steps.run_meta.outputs.runtime_cert_execution_id }}
+          RUN_DIR: ${{ steps.run_meta.outputs.run_dir }}
+          UPSTREAM_RC0_EXECUTION: ${{ inputs.upstream_rc0_execution }}
+          RC1_CERT_WINDOW_START_UTC: ${{ inputs.rc1_cert_window_start_utc }}
+          RC1_NON_CLAIMABLE_EXECUTION_IDS: ${{ inputs.rc1_non_claimable_execution_ids }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          import sys
+          from datetime import datetime, timezone
+          from pathlib import Path
+          from typing import Dict, List, Optional
+
+          import boto3
+          from botocore.exceptions import ClientError
+
+          def utc_now() -> str:
+              return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+          def parse_utc(value: str) -> datetime:
+              return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(timezone.utc)
+
+          def dump_json(path: Path, payload: dict) -> bytes:
+              text = json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=True) + "\n"
+              data = text.encode("utf-8")
+              path.write_bytes(data)
+              return data
+
+          def sha256_bytes(data: bytes) -> str:
+              return hashlib.sha256(data).hexdigest()
+
+          def list_objects(s3, bucket: str, prefix: str) -> List[dict]:
+              out: List[dict] = []
+              paginator = s3.get_paginator("list_objects_v2")
+              for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+                  for obj in page.get("Contents", []):
+                      out.append(obj)
+              return out
+
+          def s3_get_json(s3, bucket: str, key: str) -> dict:
+              body = s3.get_object(Bucket=bucket, Key=key)["Body"].read()
+              return json.loads(body.decode("utf-8"))
+
+          def s3_get_bytes(s3, bucket: str, key: str) -> bytes:
+              return s3.get_object(Bucket=bucket, Key=key)["Body"].read()
+
+          def s3_put_bytes(s3, bucket: str, key: str, payload: bytes) -> None:
+              s3.put_object(Bucket=bucket, Key=key, Body=payload, ContentType="application/json")
+
+          def execution_from_key(runtime_root_prefix: str, key: str) -> str:
+              rel = key[len(runtime_root_prefix):]
+              return rel.split("/", 1)[0] if "/" in rel else rel
+
+          phase_mode = "rc1"
+          bucket = os.environ["EVIDENCE_BUCKET"]
+          platform_run_id = os.environ["PLATFORM_RUN_ID"]
+          scenario_run_id = os.environ["SCENARIO_RUN_ID"]
+          runtime_cert_execution_id = os.environ["RUNTIME_CERT_EXECUTION_ID"]
+          run_dir = Path(os.environ["RUN_DIR"])
+          upstream_rc0_execution = os.environ["UPSTREAM_RC0_EXECUTION"].strip()
+          cert_window_override = os.environ.get("RC1_CERT_WINDOW_START_UTC", "").strip()
+          non_claimable_ids = sorted({
+              part.strip() for part in os.environ.get("RC1_NON_CLAIMABLE_EXECUTION_IDS", "").split(",") if part.strip()
+          })
+
+          if not runtime_cert_execution_id.startswith("rc1_"):
+              print("RC1 fail-closed: runtime_cert_execution_id must start with 'rc1_'.")
+              sys.exit(1)
+          if not upstream_rc0_execution:
+              print("RC1 fail-closed: upstream_rc0_execution is required.")
+              sys.exit(1)
+
+          run_dir.mkdir(parents=True, exist_ok=True)
+          runtime_root_prefix = "evidence/dev_full/cert/runtime/"
+          scrapped_root_prefix = "evidence/dev_full/cert/_scrapped/"
+          rc1_prefix = f"{runtime_root_prefix}{runtime_cert_execution_id}/"
+
+          s3 = boto3.client("s3", region_name=os.environ["AWS_REGION"])
+
+          blockers: List[dict] = []
+          blocker_ids_added = set()
+
+          def add_blocker(blocker_id: str, severity: str, detail: str) -> None:
+              if blocker_id in blocker_ids_added:
+                  return
+              blocker_ids_added.add(blocker_id)
+              blockers.append({"blocker_id": blocker_id, "severity": severity, "detail": detail})
+
+          rc0_snapshot_key = f"{runtime_root_prefix}{upstream_rc0_execution}/rc0_execution_snapshot.json"
+          rc0_claim_key = f"{runtime_root_prefix}{upstream_rc0_execution}/runtime_claim_matrix.json"
+          rc0_metric_key = f"{runtime_root_prefix}{upstream_rc0_execution}/runtime_metric_dictionary.json"
+
+          rc0_snapshot = None
+          rc0_claim = None
+          rc0_metric = None
+
+          try:
+              rc0_snapshot = s3_get_json(s3, bucket, rc0_snapshot_key)
+          except ClientError:
+              add_blocker("RC-B3", "high", f"Missing/unreadable upstream RC0 snapshot: {rc0_snapshot_key}")
+          try:
+              rc0_claim = s3_get_json(s3, bucket, rc0_claim_key)
+          except ClientError:
+              add_blocker("RC-B3", "high", f"Missing/unreadable upstream RC0 claim matrix: {rc0_claim_key}")
+          try:
+              rc0_metric = s3_get_json(s3, bucket, rc0_metric_key)
+          except ClientError:
+              add_blocker("RC-B3", "high", f"Missing/unreadable upstream RC0 metric dictionary: {rc0_metric_key}")
+
+          cert_window_start_utc: Optional[str] = None
+          cert_window_start_dt: Optional[datetime] = None
+
+          if rc0_snapshot is not None:
+              if not bool(rc0_snapshot.get("overall_pass")):
+                  add_blocker("RC-B3", "high", "Upstream RC0 snapshot is not PASS.")
+              if str(rc0_snapshot.get("next_gate", "")).strip() != "RC1_READY":
+                  add_blocker("RC-B3", "high", "Upstream RC0 next_gate is not RC1_READY.")
+              if str(rc0_snapshot.get("platform_run_id", "")).strip() != platform_run_id:
+                  add_blocker("RC-B9", "critical", "RC0 platform_run_id does not match RC1 identity.")
+              if str(rc0_snapshot.get("scenario_run_id", "")).strip() != scenario_run_id:
+                  add_blocker("RC-B9", "critical", "RC0 scenario_run_id does not match RC1 identity.")
+
+          if cert_window_override:
+              cert_window_start_utc = cert_window_override
+          elif rc0_snapshot is not None:
+              cert_window_start_utc = str(rc0_snapshot.get("cert_window_start_utc", "")).strip()
+
+          if not cert_window_start_utc:
+              add_blocker("RC-B2", "high", "Missing cert_window_start_utc for RC1 fresh lineage classification.")
+              cert_window_start_utc = utc_now()
+
+          try:
+              cert_window_start_dt = parse_utc(cert_window_start_utc)
+          except Exception:
+              add_blocker("RC-B2", "high", f"Invalid cert_window_start_utc format: {cert_window_start_utc}")
+              cert_window_start_dt = datetime.now(timezone.utc)
+
+          claim_rows = []
+          metric_rows = []
+          if rc0_claim is not None:
+              claim_rows = rc0_claim.get("claim_rows", [])
+          if rc0_metric is not None:
+              metric_rows = rc0_metric.get("metric_rows", [])
+
+          if not claim_rows or not isinstance(claim_rows, list):
+              add_blocker("RC-B1", "high", "RC0 claim_rows missing or empty.")
+          if not metric_rows or not isinstance(metric_rows, list):
+              add_blocker("RC-B1", "high", "RC0 metric_rows missing or empty.")
+
+          metric_to_claim: Dict[str, dict] = {}
+          claim_mapping_incomplete = False
+          for claim in sorted(claim_rows, key=lambda c: str(c.get("claim_id", ""))):
+              claim_id = str(claim.get("claim_id", "")).strip()
+              tier = str(claim.get("tier", "")).strip()
+              metric_ids = claim.get("metric_ids", [])
+              required_artifacts = claim.get("required_artifacts", [])
+              if not claim_id or not tier or not isinstance(metric_ids, list) or not metric_ids:
+                  claim_mapping_incomplete = True
+                  continue
+              if not isinstance(required_artifacts, list) or not required_artifacts:
+                  claim_mapping_incomplete = True
+              default_artifact = str(required_artifacts[0]).strip() if required_artifacts else ""
+              for metric_id in metric_ids:
+                  m = str(metric_id).strip()
+                  if not m:
+                      claim_mapping_incomplete = True
+                      continue
+                  metric_to_claim[m] = {
+                      "claim_id": claim_id,
+                      "tier": tier,
+                      "default_required_artifact": default_artifact,
+                  }
+          if claim_mapping_incomplete:
+              add_blocker("RC-B1", "high", "Claim mapping incompleteness detected in RC1 upstream mapping.")
+
+          active_objects = list_objects(s3, bucket, runtime_root_prefix)
+          active_index: Dict[str, List[dict]] = {}
+          deny_in_active = []
+          for obj in active_objects:
+              key = obj["Key"]
+              if key.endswith("/"):
+                  continue
+              filename = key.rsplit("/", 1)[-1]
+              execution_id = execution_from_key(runtime_root_prefix, key)
+              rec = {
+                  "key": key,
+                  "execution_id": execution_id,
+                  "last_modified": obj["LastModified"].astimezone(timezone.utc),
+              }
+              active_index.setdefault(filename, []).append(rec)
+              if execution_id in non_claimable_ids:
+                  deny_in_active.append(key)
+
+          if deny_in_active:
+              add_blocker("RC-B9", "critical", "Non-claimable execution ids still appear in active runtime root.")
+
+          scrapped_objects = list_objects(s3, bucket, scrapped_root_prefix)
+          scrapped_filenames = {obj["Key"].rsplit("/", 1)[-1] for obj in scrapped_objects if not obj["Key"].endswith("/")}
+
+          metric_ambiguity = False
+          inventory_rows = []
+          tier0_gap_rows = []
+          seen_metric_ids = set()
+
+          required_metric_fields = ("metric_id", "unit", "statistic", "window", "threshold", "source")
+          for metric in sorted(metric_rows, key=lambda m: str(m.get("metric_id", ""))):
+              missing_field = any(not str(metric.get(field, "")).strip() for field in required_metric_fields)
+              metric_id = str(metric.get("metric_id", "")).strip()
+              if missing_field or not metric_id:
+                  metric_ambiguity = True
+                  continue
+              if metric_id in seen_metric_ids:
+                  metric_ambiguity = True
+                  continue
+              seen_metric_ids.add(metric_id)
+
+              mapping = metric_to_claim.get(metric_id)
+              if mapping is None:
+                  add_blocker("RC-B1", "high", f"Metric {metric_id} has no claim mapping in RC1.")
+                  claim_id = "UNMAPPED"
+                  tier = "UNKNOWN"
+              else:
+                  claim_id = mapping["claim_id"]
+                  tier = mapping["tier"]
+
+              required_artifact = str(metric.get("source", "")).strip()
+              candidates = sorted(
+                  active_index.get(required_artifact, []),
+                  key=lambda r: (r["last_modified"], r["key"]),
+                  reverse=True,
+              )
+              candidates_non_claimable = [c for c in candidates if c["execution_id"] in non_claimable_ids]
+              candidates_claimable = [c for c in candidates if c["execution_id"] not in non_claimable_ids]
+              fresh_candidates = [c for c in candidates_claimable if c["last_modified"] >= cert_window_start_dt]
+
+              lineage_class = "MISSING"
+              evidence_ref = ""
+              evidence_execution_id = ""
+              evidence_captured_at_utc = ""
+              readability_status = "NOT_FOUND"
+
+              if fresh_candidates:
+                  winner = fresh_candidates[0]
+                  lineage_class = "EVIDENCED_FRESH"
+                  evidence_ref = f"s3://{bucket}/{winner['key']}"
+                  evidence_execution_id = winner["execution_id"]
+                  evidence_captured_at_utc = winner["last_modified"].strftime("%Y-%m-%dT%H:%M:%SZ")
+                  readability_status = "READABLE"
+                  if winner["execution_id"] in non_claimable_ids:
+                      add_blocker("RC-B9", "critical", f"Fresh evidence selected from non-claimable execution id: {winner['execution_id']}")
+              elif candidates_claimable:
+                  winner = candidates_claimable[0]
+                  lineage_class = "HISTORICAL_CONTEXT_ONLY"
+                  evidence_ref = f"s3://{bucket}/{winner['key']}"
+                  evidence_execution_id = winner["execution_id"]
+                  evidence_captured_at_utc = winner["last_modified"].strftime("%Y-%m-%dT%H:%M:%SZ")
+                  readability_status = "READABLE"
+              elif candidates_non_claimable or required_artifact in scrapped_filenames:
+                  winner = candidates_non_claimable[0] if candidates_non_claimable else None
+                  lineage_class = "SCRAPPED_NON_CLAIMABLE"
+                  if winner is not None:
+                      evidence_ref = f"s3://{bucket}/{winner['key']}"
+                      evidence_execution_id = winner["execution_id"]
+                      evidence_captured_at_utc = winner["last_modified"].strftime("%Y-%m-%dT%H:%M:%SZ")
+                      readability_status = "READABLE_NON_CLAIMABLE"
+                  else:
+                      readability_status = "SCRAPPED_ONLY_REFERENCE"
+
+              row = {
+                  "metric_id": metric_id,
+                  "claim_id": claim_id,
+                  "tier": tier,
+                  "required_artifact": required_artifact,
+                  "evidence_ref": evidence_ref,
+                  "evidence_execution_id": evidence_execution_id,
+                  "evidence_captured_at_utc": evidence_captured_at_utc,
+                  "lineage_class": lineage_class,
+                  "execution_posture": "MANAGED_CONTROL_PLANE_ORCHESTRATION",
+                  "readability_status": readability_status,
+                  "claim_status": "NOT_EVALUATED_IN_RC1",
+              }
+              inventory_rows.append(row)
+
+              if tier == "T0" and lineage_class != "EVIDENCED_FRESH":
+                  if lineage_class == "MISSING":
+                      gap_reason = "MISSING"
+                  elif lineage_class == "SCRAPPED_NON_CLAIMABLE":
+                      gap_reason = "SCRAPPED_ONLY"
+                  else:
+                      gap_reason = "HISTORICAL_ONLY"
+                  remediation_lane = "RC3" if "drill" in required_artifact.lower() else "RC2"
+                  tier0_gap_rows.append({
+                      "metric_id": metric_id,
+                      "claim_id": claim_id,
+                      "tier": tier,
+                      "required_artifact": required_artifact,
+                      "lineage_class": lineage_class,
+                      "gap_reason": gap_reason,
+                      "remediation_lane": remediation_lane,
+                      "evidence_ref": evidence_ref,
+                  })
+
+          if metric_ambiguity:
+              add_blocker("RC-B2", "high", "Metric definition ambiguity detected in RC1 inventory inputs.")
+
+          if os.environ.get("GITHUB_ACTIONS", "").lower() != "true":
+              add_blocker("RC-B8", "critical", "RC1 execution posture is not managed GitHub workflow.")
+
+          cert_window_end_utc = utc_now()
+          inventory_rows = sorted(inventory_rows, key=lambda r: (r["claim_id"], r["metric_id"]))
+          tier0_gap_rows = sorted(tier0_gap_rows, key=lambda r: (r["claim_id"], r["metric_id"]))
+
+          inventory_payload = {
+              "schema_version": "1.0",
+              "lane": phase_mode.upper(),
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "runtime_cert_execution_id": runtime_cert_execution_id,
+              "captured_at_utc": utc_now(),
+              "cert_window_start_utc": cert_window_start_utc,
+              "cert_window_end_utc": cert_window_end_utc,
+              "upstream_rc0_execution_id": upstream_rc0_execution,
+              "inventory_row_count": len(inventory_rows),
+              "inventory_rows": inventory_rows,
+          }
+
+          gap_payload = {
+              "schema_version": "1.0",
+              "lane": phase_mode.upper(),
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "runtime_cert_execution_id": runtime_cert_execution_id,
+              "captured_at_utc": utc_now(),
+              "cert_window_start_utc": cert_window_start_utc,
+              "cert_window_end_utc": cert_window_end_utc,
+              "tier0_gap_count": len(tier0_gap_rows),
+              "tier0_gap_rows": tier0_gap_rows,
+          }
+
+          inventory_path = run_dir / "runtime_evidence_inventory.json"
+          gap_path = run_dir / "runtime_fresh_gap_register.json"
+          snapshot_path = run_dir / "rc1_execution_snapshot.json"
+
+          inventory_bytes = dump_json(inventory_path, inventory_payload)
+          gap_bytes = dump_json(gap_path, gap_payload)
+
+          readback_checks = []
+          for name, payload in (
+              ("runtime_evidence_inventory.json", inventory_bytes),
+              ("runtime_fresh_gap_register.json", gap_bytes),
+          ):
+              key = f"{rc1_prefix}{name}"
+              s3_put_bytes(s3, bucket, key, payload)
+              rb = s3_get_bytes(s3, bucket, key)
+              local_hash = sha256_bytes(payload)
+              s3_hash = sha256_bytes(rb)
+              matched = local_hash == s3_hash
+              if not matched:
+                  add_blocker("RC-B3", "high", f"Durable readback hash mismatch for {name}.")
+              readback_checks.append({
+                  "artifact_name": name,
+                  "local_sha256": local_hash,
+                  "s3_sha256": s3_hash,
+                  "hash_match": matched,
+                  "s3_key": key,
+              })
+
+          blocker_count = len(blockers)
+          overall_pass = blocker_count == 0
+          verdict = "PASS" if overall_pass else "HOLD"
+          next_gate = "RC2_READY_WITH_GAP_REGISTER" if overall_pass else "RC1_REMEDIATION_REQUIRED"
+
+          snapshot_payload = {
+              "schema_version": "1.0",
+              "lane": phase_mode.upper(),
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "runtime_cert_execution_id": runtime_cert_execution_id,
+              "captured_at_utc": utc_now(),
+              "cert_window_start_utc": cert_window_start_utc,
+              "cert_window_end_utc": cert_window_end_utc,
+              "execution_posture": {
+                  "mode": "MANAGED_WORKFLOW_ORCHESTRATION_ONLY",
+                  "managed_runtime_compute": "NOT_EXECUTED_IN_RC1",
+                  "policy": "RC1_INVENTORY_AND_GAP_CLASSIFICATION_ONLY",
+              },
+              "precheck": {
+                  "upstream_rc0_execution_id": upstream_rc0_execution,
+                  "upstream_rc0_pass_verified": rc0_snapshot is not None and bool(rc0_snapshot.get("overall_pass")),
+                  "identity_match_with_rc0": rc0_snapshot is not None
+                  and str(rc0_snapshot.get("platform_run_id", "")).strip() == platform_run_id
+                  and str(rc0_snapshot.get("scenario_run_id", "")).strip() == scenario_run_id,
+                  "non_claimable_active_root_exclusions_verified": len(deny_in_active) == 0,
+              },
+              "blocker_ids_checked": ["RC-B1", "RC-B2", "RC-B3", "RC-B8", "RC-B9"],
+              "blocker_count": blocker_count,
+              "blockers": blockers,
+              "artifact_readback_checks": readback_checks,
+              "overall_pass": overall_pass,
+              "verdict": verdict,
+              "next_gate": next_gate,
+              "durable_root": f"s3://{bucket}/{rc1_prefix}",
+              "local_root": str(run_dir.resolve()),
+              "tier0_gap_count": len(tier0_gap_rows),
+          }
+
+          snapshot_bytes = dump_json(snapshot_path, snapshot_payload)
+          snapshot_key = f"{rc1_prefix}rc1_execution_snapshot.json"
+          s3_put_bytes(s3, bucket, snapshot_key, snapshot_bytes)
+          snapshot_rb = s3_get_bytes(s3, bucket, snapshot_key)
+          if sha256_bytes(snapshot_bytes) != sha256_bytes(snapshot_rb):
+              print("RC1 fail-closed: snapshot readback hash mismatch.")
+              sys.exit(1)
+
+          print(json.dumps({
+              "runtime_cert_execution_id": runtime_cert_execution_id,
+              "upstream_rc0_execution_id": upstream_rc0_execution,
+              "verdict": verdict,
+              "next_gate": next_gate,
+              "blocker_count": blocker_count,
+              "tier0_gap_count": len(tier0_gap_rows),
+              "durable_root": f"s3://{bucket}/{rc1_prefix}",
+              "local_root": str(run_dir.resolve()),
+          }, ensure_ascii=True))
+
+          if not overall_pass:
+              sys.exit(1)
+          PY
 
       - name: RC0 fail-closed verdict gate
         if: ${{ inputs.phase_mode == 'rc0' && steps.lane.outputs.lane_supported == 'true' }}
@@ -200,6 +661,59 @@ jobs:
               "verdict": verdict,
               "next_gate": next_gate,
               "blocker_count": blocker_count,
+          }, ensure_ascii=True))
+
+          if str(snap.get("runtime_cert_execution_id", "")).strip() != os.environ["EXPECTED_EXECUTION_ID"]:
+              sys.exit(1)
+          if str(snap.get("platform_run_id", "")).strip() != os.environ["EXPECTED_PLATFORM_RUN_ID"]:
+              sys.exit(1)
+          if str(snap.get("scenario_run_id", "")).strip() != os.environ["EXPECTED_SCENARIO_RUN_ID"]:
+              sys.exit(1)
+          if (not overall_pass) or blocker_count != 0:
+              sys.exit(1)
+          if verdict != "PASS":
+              sys.exit(1)
+          if next_gate != os.environ["EXPECTED_NEXT_GATE"]:
+              sys.exit(1)
+          PY
+
+      - name: RC1 fail-closed verdict gate
+        if: ${{ inputs.phase_mode == 'rc1' && steps.lane.outputs.lane_supported == 'true' }}
+        shell: bash
+        env:
+          SNAPSHOT_PATH: ${{ steps.lane.outputs.snapshot_path }}
+          EXPECTED_NEXT_GATE: ${{ steps.lane.outputs.expected_next_gate }}
+          EXPECTED_EXECUTION_ID: ${{ steps.run_meta.outputs.runtime_cert_execution_id }}
+          EXPECTED_PLATFORM_RUN_ID: ${{ inputs.platform_run_id }}
+          EXPECTED_SCENARIO_RUN_ID: ${{ inputs.scenario_run_id }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          snapshot_path = Path(os.environ["SNAPSHOT_PATH"])
+          if not snapshot_path.exists():
+              print(f"Missing snapshot artifact: {snapshot_path}")
+              sys.exit(1)
+
+          snap = json.loads(snapshot_path.read_text(encoding="utf-8"))
+          blocker_count = int(snap.get("blocker_count", 0))
+          overall_pass = bool(snap.get("overall_pass"))
+          verdict = str(snap.get("verdict", "")).strip()
+          next_gate = str(snap.get("next_gate", "")).strip()
+
+          print(json.dumps({
+              "runtime_cert_execution_id": snap.get("runtime_cert_execution_id"),
+              "platform_run_id": snap.get("platform_run_id"),
+              "scenario_run_id": snap.get("scenario_run_id"),
+              "overall_pass": overall_pass,
+              "verdict": verdict,
+              "next_gate": next_gate,
+              "blocker_count": blocker_count,
+              "tier0_gap_count": int(snap.get("tier0_gap_count", 0)),
           }, ensure_ascii=True))
 
           if str(snap.get("runtime_cert_execution_id", "")).strip() != os.environ["EXPECTED_EXECUTION_ID"]:
