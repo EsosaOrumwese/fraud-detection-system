@@ -1,6 +1,6 @@
 # Dev Full Runtime Certification Plan
 
-Status: `NOT_STARTED`
+Status: `RC0_PASS_RC1_READY`
 Reset baseline as of: `2026-03-02`
 
 ## 1) Purpose
@@ -142,12 +142,29 @@ Runtime budget gate:
 3. No infrastructure mutation is allowed in RC0.
 
 DoD:
-- [ ] claim matrix for Tier 0..2 runtime slice is published.
-- [ ] minimum evidence bundle rules are pinned per claim.
-- [ ] metric dictionary (units, windows, statistics, thresholds) is unambiguous.
-- [ ] durable publication + readback succeeds for all RC0 artifacts.
-- [ ] blocker adjudication is complete with `blocker_count=0`.
-- [ ] blocker register is empty.
+- [x] claim matrix for Tier 0..2 runtime slice is published.
+- [x] minimum evidence bundle rules are pinned per claim.
+- [x] metric dictionary (units, windows, statistics, thresholds) is unambiguous.
+- [x] durable publication + readback succeeds for all RC0 artifacts.
+- [x] blocker adjudication is complete with `blocker_count=0`.
+- [x] blocker register is empty.
+
+RC0 execution closure snapshot (`2026-03-02`):
+1. authoritative pass execution:
+   - `runtime_cert_execution_id=rc0_claim_model_lock_20260302T182859Z`
+   - `verdict=PASS`, `next_gate=RC1_READY`, `blocker_count=0`
+2. identity contract used:
+   - `platform_run_id=platform_cert_20260302T182050Z`
+   - `scenario_run_id=scenario_cert_b2e31c46102062661ea43f12a8ceef77`
+3. local mirror root:
+   - `runs/dev_substrate/dev_full/cert/runtime/rc0_claim_model_lock_20260302T182859Z/`
+4. durable authoritative root:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc0_claim_model_lock_20260302T182859Z/`
+5. deterministic RC0 artifact set:
+   - `runtime_claim_matrix.json`
+   - `runtime_metric_dictionary.json`
+   - `runtime_evidence_bundle_rules.json`
+   - `rc0_execution_snapshot.json`
 
 ### RC1 - Runtime evidence inventory and fresh-gap register
 Goal:

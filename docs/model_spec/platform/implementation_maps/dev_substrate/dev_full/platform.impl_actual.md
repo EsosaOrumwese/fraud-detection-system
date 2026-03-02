@@ -19933,3 +19933,47 @@ uns/dev_substrate/dev_full/m15/m15g_semantic_non_regression_20260302T083157Z/.
    - denylist includes all `_scrapped` roots and superseded execution IDs,
    - direct `m*` paths remain non-claimable for Tier-0 pass assertions.
 5. RC0 remains execution-ready with decision-completeness now satisfied for identity gate.
+
+## Entry: 2026-03-02 18:30 +00:00 - RC0 clean execution started (new campaign identity)
+
+1. RC0 execution authorized by USER after identity-gate pin closure.
+2. Execution identity and campaign pins:
+   - `runtime_cert_execution_id=rc0_claim_model_lock_20260302T183000Z`
+   - `platform_run_id=platform_cert_20260302T182050Z`
+   - `scenario_run_id=scenario_cert_b2e31c46102062661ea43f12a8ceef77`
+3. RC0 output contract for this execution:
+   - `runtime_claim_matrix.json`
+   - `runtime_metric_dictionary.json`
+   - `runtime_evidence_bundle_rules.json`
+   - `rc0_execution_snapshot.json`
+4. Publication order pinned:
+   - durable S3 authoritative write + readback first,
+   - local mirror write second.
+5. RC0 blocker adjudication set for this run:
+   - `RC-B1`, `RC-B2`, `RC-B3`, `RC-B8`, `RC-B9`.
+6. Fail-closed rule for this run:
+   - any artifact/readback/schema/identity-root violation holds RC0 and blocks `RC1`.
+
+### 2026-03-02 18:29:42 +00:00 - RC0 execution script hardened and lane closed PASS
+1. Implemented reusable RC0 runner script at `runs/dev_substrate/dev_full/cert/runtime/rc0_exec.ps1` to enforce deterministic artifact generation, durable publish/readback, and blocker adjudication (`RC-B1/B2/B3/B8/B9`).
+2. Script hardening adjustments applied during execution:
+   - fixed durable precheck from `length(Contents)` query to JSON parse of `list-objects-v2` output when `Contents=null`,
+   - fixed snapshot S3 URI construction to avoid argument-splitting during `aws s3 cp`.
+3. RC0 attempts during this clean campaign:
+   - `rc0_claim_model_lock_20260302T182821Z` failed precheck command path (script error before artifact publication); treated as non-claimable failed attempt.
+   - `rc0_claim_model_lock_20260302T182833Z` failed snapshot upload arg-construction stage after partial artifact publication; treated as non-claimable failed attempt.
+   - `rc0_claim_model_lock_20260302T182859Z` closed PASS with `next_gate=RC1_READY`, `blocker_count=0`.
+4. PASS execution identity contract:
+   - `platform_run_id=platform_cert_20260302T182050Z`
+   - `scenario_run_id=scenario_cert_b2e31c46102062661ea43f12a8ceef77`
+5. PASS artifact set (local + durable readback-verified):
+   - `runtime_claim_matrix.json`
+   - `runtime_metric_dictionary.json`
+   - `runtime_evidence_bundle_rules.json`
+   - `rc0_execution_snapshot.json`
+6. PASS evidence roots:
+   - local: `runs/dev_substrate/dev_full/cert/runtime/rc0_claim_model_lock_20260302T182859Z/`
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc0_claim_model_lock_20260302T182859Z/`
+7. RC0 closure effect:
+   - lane status advanced to `RC1_READY`;
+   - runtime-cert plan and notes updated to reflect RC0 DoD closure and run register/evidence index state.
