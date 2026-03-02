@@ -488,6 +488,10 @@ jobs:
         env:
           IG_BRIDGE_EVENT_COUNT: ${{ inputs.iterations }}
           IG_BRIDGE_SLEEP_SECONDS: ${{ inputs.sleep_seconds }}
+          IG_BRIDGE_MAX_WORKERS: "192"
+          IG_BRIDGE_TIMEOUT_SECONDS: "3.0"
+          IG_BRIDGE_RETRY_MAX_ATTEMPTS: "3"
+          IG_BRIDGE_RETRY_BACKOFF_MS: "50"
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -498,6 +502,7 @@ jobs:
           import urllib.error
           import urllib.request
           from pathlib import Path
+          from random import random
 
           base_url = os.environ.get("IG_BASE_URL", "").rstrip("/")
           ingest_path = os.environ.get("IG_INGEST_PATH", "")
@@ -506,8 +511,12 @@ jobs:
           ingest_url = f"{base_url}{ingest_path}"
           api_key = os.environ.get("IG_API_KEY", "")
           event_count = max(1, int(os.environ.get("IG_BRIDGE_EVENT_COUNT", "12")))
-          worker_count = max(1, min(64, event_count))
+          max_workers = max(1, int(os.environ.get("IG_BRIDGE_MAX_WORKERS", "64")))
+          worker_count = max(1, min(max_workers, event_count))
           sleep_seconds = max(0.0, float(os.environ.get("IG_BRIDGE_SLEEP_SECONDS", "0.2")))
+          timeout_seconds = max(0.5, float(os.environ.get("IG_BRIDGE_TIMEOUT_SECONDS", "10.0")))
+          retry_max_attempts = max(1, int(os.environ.get("IG_BRIDGE_RETRY_MAX_ATTEMPTS", "1")))
+          retry_backoff_ms = max(0.0, float(os.environ.get("IG_BRIDGE_RETRY_BACKOFF_MS", "0")))
           platform_run_id = "${{ inputs.platform_run_id }}"
           scenario_run_id = "${{ inputs.scenario_run_id }}"
           phase_id = "P6.B"
@@ -539,21 +548,33 @@ jobs:
                       "X-IG-Api-Key": api_key,
                   },
               )
-              try:
-                  with urllib.request.urlopen(req, timeout=10) as resp:
-                      status = int(resp.status)
-                  if status == 202:
-                      ok = True
-                      reason = ""
-                  else:
-                      ok = False
+
+              ok = False
+              reason = "unknown_failure"
+              for attempt in range(1, retry_max_attempts + 1):
+                  try:
+                      with urllib.request.urlopen(req, timeout=timeout_seconds) as resp:
+                          status = int(resp.status)
+                      if status == 202:
+                          ok = True
+                          reason = ""
+                          break
                       reason = f"unexpected_status:{status}"
-              except urllib.error.HTTPError as exc:
-                  ok = False
-                  reason = f"http_{exc.code}"
-              except Exception as exc:  # pragma: no cover - runtime guard
-                  ok = False
-                  reason = f"{type(exc).__name__}:{exc}"
+                      if attempt >= retry_max_attempts:
+                          break
+                  except urllib.error.HTTPError as exc:
+                      reason = f"http_{exc.code}"
+                      # 5xx is treated as transient in bounded retries.
+                      if exc.code < 500 or attempt >= retry_max_attempts:
+                          break
+                  except Exception as exc:  # pragma: no cover - runtime guard
+                      reason = f"{type(exc).__name__}:{exc}"
+                      if attempt >= retry_max_attempts:
+                          break
+                  base_backoff = (retry_backoff_ms / 1000.0) * (2 ** (attempt - 1))
+                  jitter = min(0.05, random() * 0.05)
+                  time.sleep(base_backoff + jitter)
+
               if sleep_seconds > 0:
                   time.sleep(sleep_seconds)
               return ok, reason
@@ -585,6 +606,9 @@ jobs:
               "failed": failed,
               "workers": worker_count,
               "sleep_seconds": sleep_seconds,
+              "timeout_seconds": timeout_seconds,
+              "retry_max_attempts": retry_max_attempts,
+              "retry_backoff_ms": retry_backoff_ms,
               "failure_samples": failures[:8],
           }
           out = Path("${{ steps.run_meta.outputs.run_dir }}") / "m6f_ig_bridge_summary.json"
@@ -615,6 +639,7 @@ jobs:
             --sr-ready-ref "${{ inputs.sr_ready_ref }}" \
             --lane-window-start-utc "${{ steps.submit.outputs.lane_window_start_utc }}" \
             --ig-idempotency-table "${{ inputs.ig_idempotency_table }}" \
+            --ddb-scan-page-limit "5000" \
             --lag-threshold "${{ inputs.lag_threshold }}" \
             --evidence-bucket "${{ inputs.evidence_bucket }}" \
             --local-output-root "runs/dev_substrate/dev_full/m6"
