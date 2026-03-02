@@ -125,3 +125,55 @@ RC2 can move from `RC2_REMEDIATION_REQUIRED` to `RC3_READY_WITH_SCORECARD` only 
 1. all four required profiles satisfy sample/eps/duration thresholds,
 2. `blocker_count=0`,
 3. Tier-0 claims no longer hold.
+
+### 2026-03-02 17:31:40 +00:00 - RC2 strict remediation plan update (production-envelope, no floor downgrade)
+1. Decision pinned: keep RC2 floors unchanged (`steady=500eps/30m/900k`, `burst=1500eps/10m/900k`, `soak=300eps/6h/6.48M`, `replay_window=10M`).
+2. RC2 remediation path updated in runtime-cert plan with explicit sequence `RC2.R1..RC2.R6`:
+   - `R1` evidence-shape correctness gate,
+   - `R2` managed bottleneck-localization ramp,
+   - `R3` lane-specific remediation loop,
+   - `R4` full profile campaigns,
+   - `R5` replay-window campaign,
+   - `R6` RC2 rollup closure.
+3. Current proven bottleneck facts (from latest authoritative RC2 surfaces):
+   - profile evidence exists but all four profiles are below threshold (`RC-B4 x4`),
+   - sample/eps posture remains far below floor (`sample_size_events=4783`, `observed_eps~0.5703`),
+   - upstream managed probe was low-volume (`attempted=5000`, `admitted=4783`),
+   - run-window admission counting surfaced truncation posture in upstream lane (`dynamodb_scan_page_limit_reached`) and is treated as non-claimable for production scorecard attribution until corrected.
+4. Execution posture reaffirmed:
+   - managed orchestration only,
+   - no local compute,
+   - no threshold downgrade,
+   - no historical evidence substitution for RC2 closure.
+
+### 2026-03-02 21:50:24 +00:00 - RC2.R1 implementation start (managed lane enforcement)
+1. Problem observed in existing RC2 handler:
+   - profile evidence generation used a shared cert-window count posture and did not enforce per-profile window distinctness as a hard gate.
+2. Decision implemented:
+   - enforce `RC2.R1` directly in managed workflow logic (`dev_full_runtime_cert_managed.yml` RC2 lane),
+   - require bounded per-profile admission windows with explicit `start_epoch/end_epoch`,
+   - require unique `rc2_profile_<profile_id>_<ts>` execution ids and distinct campaign windows across `steady|burst|soak|replay_window`,
+   - require explicit count-completeness proof for profile probe rows,
+   - fail-closed with `RC-B10` and mark execution `NON_CLAIMABLE` when evidence-shape checks fail.
+3. Why this implementation:
+   - removes manual interpretation drift and makes RC2.R1 auditable by artifact content.
+4. Next action:
+   - dispatch fresh managed RC2 run and adjudicate `r1_evidence_shape_gate.passed` from new durable artifacts.
+
+### 2026-03-02 22:01:09 +00:00 - RC2.R1 implementation execution outcome
+1. Managed execution trail:
+   - dispatch 1: run `22597329751` (baseline after pre-patch dispatch); RC2 remained on old evidence-shape behavior.
+   - dispatch 2: run `22597417989` (first patched run) failed with workflow code defect: missing RC2-lane `timedelta` import.
+   - dispatch 3: run `22597480463` (import fixed) executed RC2.R1 checks and failed correctly with `RC-B10` (`R1_CAMPAIGN_WINDOWS_NOT_DISTINCT`), classifying execution non-claimable.
+   - dispatch 4: run `22597588836` (window derivation corrected) passed RC2.R1 evidence-shape gate.
+2. Authoritative RC2.R1 pass evidence:
+   - `runtime_cert_execution_id=rc2_tier0_scorecard_20260302T215921Z`
+   - durable root: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc2_tier0_scorecard_20260302T215921Z/`
+   - `r1_evidence_shape_gate.passed=true`
+   - `execution_claimability=CLAIMABLE` (R1 perspective).
+3. RC2 lane status after R1 closure:
+   - lane verdict remains `HOLD`,
+   - blockers now cleanly reduced to `RC-B4 x4` only (profile thresholds), no `RC-B10`.
+4. Decision:
+   - RC2.R1 is considered implemented and closed.
+   - next immediate work moves to `RC2.R2` bottleneck-localization ramp (managed-only).

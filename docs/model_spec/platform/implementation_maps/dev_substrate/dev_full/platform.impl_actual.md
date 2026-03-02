@@ -19866,3 +19866,42 @@ Context:
 - We should not continue small probe loops as if they can close RC2.
 - Next productive move is a capacity-grade managed load plan (or explicit threshold/governance decision) before attempting RC2 closure again.
 - This keeps execution honest under fail-closed certification semantics.
+
+### 2026-03-02 21:50:24 +00:00 - RC2.R1 workflow enforcement change (platform behavior change)
+1. Scope:
+- Runtime certification orchestration behavior (`.github/workflows/dev_full_runtime_cert_managed.yml`, RC2 inline lane handler).
+
+2. Implementation decision:
+- Convert RC2 profile probe posture from shared-window counting to per-profile bounded-window counting.
+- Add explicit RC2.R1 evidence-shape gate checks:
+  - complete profile coverage across all required profiles,
+  - unique profile execution ids,
+  - distinct campaign windows,
+  - bounded window markers present on each profile,
+  - probe count-completeness asserted.
+- Add fail-closed blocker `RC-B10` when RC2.R1 checks fail and classify execution as `NON_CLAIMABLE`.
+
+3. Rationale:
+- RC2.R1 was pinned as mandatory pre-scale gate; without hard enforcement in workflow code, execution could look green structurally while still non-claimable.
+
+4. Expected runtime effect:
+- RC2 now deterministically blocks progression on evidence-shape defects before throughput remediation phases.
+
+### 2026-03-02 22:01:09 +00:00 - RC2.R1 enforcement execution hardening + closure
+1. Managed execution defects encountered and remediated:
+- first patched RC2 run failed with `NameError: timedelta` in RC2 inline handler.
+- remediation: added RC2-lane import and reran managed lane.
+
+2. RC2.R1 logic hardening applied:
+- removed profile-window clamp-to-cert-start for duration-based profiles so each profile window remains distinct by construction.
+- retained bounded counting and completeness checks.
+
+3. Verified behavior:
+- RC2 run `22597480463` showed intended R1 fail-closed behavior (`RC-B10`) when windows were not distinct.
+- RC2 run `22597588836` showed R1 pass:
+  - `r1_evidence_shape_gate.passed=true`,
+  - `execution_claimability=CLAIMABLE`,
+  - no `RC-B10` remained.
+
+4. Current boundary:
+- RC2 is still `HOLD` due to throughput/volume blockers (`RC-B4 x4`), but evidence-shape gate (`RC2.R1`) is now implemented and closed.

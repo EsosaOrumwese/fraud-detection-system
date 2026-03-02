@@ -339,6 +339,42 @@ DoD:
 - [ ] blocker register and next gate are explicit and deterministic.
 - [ ] durable publication + hash readback passes for all RC2 artifacts.
 
+RC2 strict remediation sequence (production-envelope, no floor downgrade):
+1. `RC2.R1` evidence-shape correctness gate (must pass before load scale):
+   - each profile (`steady|burst|soak|replay_window`) must have its own campaign execution id and distinct campaign window,
+   - profile metrics must be computed from campaign-bounded windows (no shared-window reuse across profiles),
+   - admission counting must be complete (no scan truncation posture such as fixed page limits),
+   - if evidence shape fails, classify run `NON_CLAIMABLE` and stop.
+2. `RC2.R2` managed bottleneck-localization ramp:
+   - run managed-only ramp campaigns at `100 -> 250 -> 500 -> 1000 -> 1500 eps`,
+   - fixed short duration per ramp stage (`>=5 min`) with deterministic receipts,
+   - capture lane metrics per stage:
+     - IG edge admit/error posture,
+     - run-window admissions and ingestion lag,
+     - downstream bus and core-lane progression,
+   - identify first failing stage and pin explicit bottleneck owner (`IG_EDGE`, `BUS`, `CORE_RUNTIME`, `COUNTING_SURFACE`).
+3. `RC2.R3` lane remediation loop (fail-closed):
+   - remediate only identified bottleneck lane(s),
+   - rerun `RC2.R2` from failed stage upward until target stage is stable,
+   - no threshold edits, no waiver, no historical substitution.
+4. `RC2.R4` mandatory profile campaigns at pinned floors:
+   - `steady`: `500 eps`, `30 min`, sample `>=900,000`,
+   - `burst`: `1,500 eps`, `10 min`, sample `>=900,000`,
+   - `soak`: `300 eps`, `6 h`, sample `>=6,480,000`.
+5. `RC2.R5` replay-window campaign:
+   - managed replay-window campaign with sample `>=10,000,000`,
+   - explicit replay integrity and duplicate-side-effect surfaces included in profile evidence.
+6. `RC2.R6` RC2 scorecard closure:
+   - execute RC2 rollup using only `RC2.R4/R5` fresh campaign execution ids,
+   - pass criteria: `blocker_count=0`, Tier-0 holds cleared, next gate `RC3_READY_WITH_SCORECARD`.
+
+RC2 strict remediation DoD:
+- [x] `RC2.R1` evidence-shape correctness gate passes.
+- [ ] bottleneck owner is explicitly identified from `RC2.R2` stage evidence.
+- [ ] all required profile campaigns meet pinned floors with fresh managed evidence.
+- [ ] replay-window campaign meets pinned sample floor.
+- [ ] RC2 rollup closes with `overall_pass=true` and `blocker_count=0`.
+
 RC2 execution closure snapshot (`2026-03-02`):
 1. managed execution:
    - workflow run `22592516146` (branch `cert-platform`, head `7c996d1b7`)
@@ -362,6 +398,21 @@ RC2 execution closure snapshot (`2026-03-02`):
    - `runtime_blocker_register.json`
    - `runtime_cost_outcome_receipt.json`
    - `rc2_execution_snapshot.json`
+6. RC2.R1 managed enforcement + verification refresh (`2026-03-02`):
+   - workflow implementation commits:
+     - `9232c705a` (`ci: enforce rc2 r1 evidence-shape gate`)
+     - `c9f027467` (`fix: import timedelta in rc2 runtime-cert lane`)
+     - `e737f67fb` (`fix: keep rc2 profile windows distinct for r1 gate`)
+   - authoritative run:
+     - workflow run `22597588836` (`cert-platform`)
+     - `runtime_cert_execution_id=rc2_tier0_scorecard_20260302T215921Z`
+     - durable root: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc2_tier0_scorecard_20260302T215921Z/`
+   - RC2.R1 gate result:
+     - `r1_evidence_shape_gate.passed=true`
+     - checks passed: profile coverage complete, execution ids unique, campaign windows distinct + bounded, probe count completeness true.
+   - remaining blockers after RC2.R1 closure:
+     - `RC-B4 x4` (steady, burst, soak, replay_window thresholds not met),
+     - next gate remains `RC2_REMEDIATION_REQUIRED`.
 
 ### RC2 Remediation Program - Close `RC-B4` Before RC3/RC6
 Goal:
