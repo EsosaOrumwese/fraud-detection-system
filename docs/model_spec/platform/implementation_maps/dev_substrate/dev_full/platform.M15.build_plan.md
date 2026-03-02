@@ -523,67 +523,330 @@ Goal:
 1. Ensure MF train/eval consumes OFS datasets directly and preserves provenance chain.
 
 DoD:
-- [ ] M11-equivalent eval report is tied to OFS dataset refs.
-- [ ] lineage and rollback metadata remain complete.
-- [ ] synthetic-generation path is not used for authoritative closure.
-- [ ] explainability artifact set (feature importance/SHAP-equivalent) is tied to the real feature catalog.
+- [x] M11-equivalent eval report is tied to OFS dataset refs.
+- [x] lineage and rollback metadata remain complete.
+- [x] synthetic-generation path is not used for authoritative closure.
+- [x] explainability artifact set (feature importance/SHAP-equivalent) is tied to the real feature catalog.
 
 Blockers:
 1. `M15-B6` MF semantics mismatch to OFS input contract.
+
+M15.E execution strategy (locked):
+1. Authority and entry inputs:
+   - `M15.D` green artifacts:
+     - manifest,
+     - fingerprint,
+     - time-bound/leakage audit,
+     - feature catalog,
+     - materialization receipt.
+   - `M11` reference semantics (eval/lineage/rollback schema shape) for M11-equivalent reporting.
+2. M15.E v1 execution posture:
+   - objective is rewire correctness to real OFS dataset refs first,
+   - managed compute for evaluation metrics uses Athena over M15.D table,
+   - no synthetic/bootstrap dataset source is allowed.
+3. Eval lane (`E1`):
+   - compute confusion metrics from OFS realized table using available candidate signal columns,
+   - emit M11-equivalent eval report with:
+     - accuracy/precision/recall,
+     - policy thresholds from handles,
+     - explicit pass/fail fields for each metric.
+4. Provenance/leakage lane (`E2`):
+   - enforce that eval report references M15.D manifest/fingerprint and OFS table,
+   - enforce M15.D leakage/time audit pass continuity,
+   - enforce `MF_EVAL_LEAKAGE_HARD_FAIL` semantics in report.
+5. Explainability lane (`E3`):
+   - produce explainability artifact tied to M15.D feature catalog:
+     - numeric feature behavior summaries,
+     - categorical fraud-rate summaries,
+     - explicit mapping from explainability entries to feature-catalog feature names.
+6. Lineage/rollback lane (`E4`):
+   - publish lineage snapshot for the rewired MF pass:
+     - M15.D refs + prior stable model lineage refs,
+   - publish rollback metadata referencing active stable bundle and rollback drill surfaces.
+7. Candidate packaging lane (`E5`):
+   - emit run-scoped MF candidate bundle payload for this rewire execution,
+   - bundle must carry:
+     - OFS manifest/fingerprint refs,
+     - eval + explainability refs,
+     - rollback pointers,
+     - explicit model mode (`rewired_eval_only` if no new model artifact).
+8. Fail-closed checks:
+   - missing OFS refs or unresolved lineage pointers,
+   - leakage provenance continuity failure,
+   - synthetic/bootstrap source detected,
+   - explainability artifact not tied to feature catalog,
+   - durable evidence publish/readback failure.
+9. Verdict:
+   - `ADVANCE_TO_M15_F` when blocker count is zero,
+   - `BLOCKED_M15_E` otherwise.
+
+M15.E artifact contract (phase-local):
+1. `m15e_eval_report.json`
+2. `m15e_leakage_provenance_check.json`
+3. `m15e_explainability_report.json`
+4. `m15e_lineage_snapshot.json`
+5. `m15e_rollback_metadata.json`
+6. `m15e_candidate_bundle.json`
+7. `m15e_blocker_register.json`
+8. `m15e_execution_summary.json`
+
+M15.E runtime/cost guardrails:
+1. Target runtime <= 45 minutes.
+2. Hard scan cap for M15.E v1 lane: `50 GB`.
+3. Emit query-count, scanned-bytes, and estimated Athena cost in execution summary.
 
 ### M15.F - Leakage Adversarial Validation
 Goal:
 1. Prove guardrails hold under intentionally challenging temporal and truth-leak scenarios.
 
 DoD:
-- [ ] adversarial suite executed with deterministic verdicts.
-- [ ] zero unresolved leakage blocker for closure path.
-- [ ] leakage checks cover both feature engineering and label-join boundaries.
+- [x] adversarial suite executed with deterministic verdicts.
+- [x] zero unresolved leakage blocker for closure path.
+- [x] leakage checks cover both feature engineering and label-join boundaries.
 
 Blockers:
 1. `M15-B4` leakage/future-boundary breach.
+
+M15.F execution strategy (locked):
+1. Authority and entry inputs:
+   - latest green `M15.E` artifacts:
+     - `m15e_eval_report.json`,
+     - `m15e_leakage_provenance_check.json`,
+     - `m15e_explainability_report.json`,
+     - `m15e_candidate_bundle.json`,
+     - `m15e_execution_summary.json`.
+   - latest green `M15.D` audit + manifest + feature catalog.
+2. M15.F v1 adversarial suite (deterministic lanes):
+   - `F1 baseline continuity`: re-check M15.D time-bound invariants (`feature_asof`, `label_asof`, `maturity`) on realized OFS table.
+   - `F2 feature-surface contamination probe`: assert feature catalog + explainability surfaces have zero label/future-only fields.
+   - `F3 label-join boundary probe`: quantify delayed truth fields relative to event time and prove they are excluded from feature surfaces.
+   - `F4 replay/as-of immutability`: enforce single-valued `replay_basis_mode`, `feature_asof_utc`, `label_asof_utc`, `label_maturity_days` in M15.D realized table.
+   - `F5 unsafe-signal uplift challenge`: compute adversarial metric profile using `bank_is_fraud` as an unsafe predictor and require explicit leakage-risk signaling if uplift appears.
+3. Fail-closed checks:
+   - any future-boundary breach on canonical lane,
+   - any feature contamination with truth/future-only fields,
+   - replay/as-of immutability drift,
+   - durability/readback failure for M15.F artifacts.
+4. Verdict:
+   - `ADVANCE_TO_M15_G` when blocker count is zero,
+   - `BLOCKED_M15_F` otherwise.
+
+M15.F artifact contract (phase-local):
+1. `m15f_adversarial_suite_report.json`
+2. `m15f_feature_leakage_probe.json`
+3. `m15f_label_join_boundary_probe.json`
+4. `m15f_replay_asof_guardrail_probe.json`
+5. `m15f_unsafe_signal_uplift_probe.json`
+6. `m15f_blocker_register.json`
+7. `m15f_execution_summary.json`
+
+M15.F runtime/cost guardrails:
+1. Target runtime <= 30 minutes.
+2. Hard scan cap for M15.F v1 lane: `30 GB`.
+3. Emit query-count, scanned-bytes, and estimated Athena cost in execution summary.
 
 ### M15.G - Semantic Non-Regression Pack
 Goal:
 1. Verify real-data realization does not regress M9/M10/M11 contracts.
 
 DoD:
-- [ ] replay/as-of/maturity continuity preserved.
-- [ ] contract continuity pass across M9->M10->M11 semantic checkpoints.
-- [ ] decision/evidence explainability payload continuity is validated against pre-M15 contracts.
+- [x] replay/as-of/maturity continuity preserved.
+- [x] contract continuity pass across M9->M10->M11 semantic checkpoints.
+- [x] decision/evidence explainability payload continuity is validated against pre-M15 contracts.
 
 Blockers:
 1. `M15-B3` semantic continuity break.
+
+M15.G execution strategy (locked):
+1. Authority and entry inputs:
+   - latest green `M15.F` non-leakage posture,
+   - latest green `M15.E` MF rewire artifacts,
+   - canonical pre-M15 checkpoints from `M9`, `M10`, and `M11`.
+2. M15.G v1 non-regression lanes (deterministic):
+   - `G1 replay continuity`: confirm `replay_basis_mode` and selector semantics remain aligned from `M9.C` through `M15.D/M15.F`.
+   - `G2 as-of/maturity continuity`: verify `feature_asof`, `label_asof`, and `label_maturity_days` contracts remain policy-consistent from `M9.D`.
+   - `G3 leakage policy continuity`: verify forbidden truth/future field policy and fail-closed leakage posture remain intact (`M9.E` -> `M15.E/F`).
+   - `G4 OFS contract continuity`: verify M10 input/fingerprint contract remains satisfied by M15.D realized dataset and fingerprints.
+   - `G5 MF artifact continuity`: verify M11 policy-path contracts and core eval/candidate bundle shapes are preserved in M15.E outputs.
+   - `G6 explainability continuity`: verify M15 explainability outputs are feature-catalog bound and referenced in candidate lineage payload.
+3. Fail-closed checks:
+   - any continuity lane failure (`G1..G6`) is `M15-B3`,
+   - any durable evidence publish/readback failure is `M15-B7`.
+4. Verdict:
+   - `ADVANCE_TO_M15_H` when blocker count is zero,
+   - `BLOCKED_M15_G` otherwise.
+
+M15.G artifact contract (phase-local):
+1. `m15g_non_regression_pack.json`
+2. `m15g_replay_asof_continuity_report.json`
+3. `m15g_leakage_continuity_report.json`
+4. `m15g_contract_continuity_report.json`
+5. `m15g_explainability_continuity_report.json`
+6. `m15g_blocker_register.json`
+7. `m15g_execution_summary.json`
+
+M15.G runtime/cost guardrails:
+1. Target runtime <= 20 minutes.
+2. Expected scan <= 5 GB (metadata/contract lane).
+3. Emit query-count, scanned-bytes, and estimated Athena cost in execution summary.
 
 ### M15.H - Cost and Performance Closure
 Goal:
 1. Publish semantic-workload cost/performance receipts and enforce envelope.
 
 DoD:
-- [ ] phase budget receipt published.
-- [ ] cost-to-outcome map present and attributable.
-- [ ] runtime/perf posture within pinned envelope or approved waiver.
+- [x] phase budget receipt published.
+- [x] cost-to-outcome map present and attributable.
+- [x] runtime/perf posture within pinned envelope or approved waiver.
 
 Blockers:
 1. `M15-B8` cost/performance envelope breach.
+2. `M15-B7` durable evidence parity/readback failure.
+
+Execution strategy (H1..H5, fail-closed):
+1. H1 upstream aggregation:
+   - Resolve latest green `M15.A..M15.G` execution summaries from `runs/dev_substrate/dev_full/m15/*`.
+   - Require each upstream summary `overall_pass=true`; otherwise fail closed (`M15-B8`).
+2. H2 phase budget envelope:
+   - Materialize `m15_phase_budget_envelope.json` with deterministic envelope references:
+     - runtime targets from Section 9 (`A-C=90m`, `D-E=240m`, `F-G=120m`, `H-I-J=90m`),
+     - scan hard caps from phase contracts (`M15.B=300GB`, `M15.D=250GB`, `M15.E=50GB`, `M15.F=30GB`, `M15.G=5GB`).
+   - Publish via `PHASE_BUDGET_ENVELOPE_PATH_PATTERN`.
+3. H3 cost-to-outcome receipt:
+   - Materialize `m15_phase_cost_outcome_receipt.json` from aggregated per-phase runtime/cost receipts.
+   - Compute attributable spend from per-phase Athena scan estimates (`$5/TB` convention already used in M15.B..F).
+   - Include explicit outcome mapping: artifact names and risk retired.
+   - Publish via `PHASE_COST_OUTCOME_RECEIPT_PATH_PATTERN`.
+4. H4 perf envelope adjudication:
+   - Compare observed totals (`elapsed_seconds`, `total_scanned_gb`, estimated spend) against pinned envelope.
+   - Emit `m15h_cost_perf_closure_snapshot.json` with pass/fail matrix and waiver field (`waiver_approved=false` by default).
+   - Any unwaived breach is `M15-B8`.
+5. H5 durable parity/readback:
+   - Publish all M15.H artifacts to run-control prefix and read back each object via `head_object`.
+   - Any publish/readback failure is `M15-B7`.
+
+M15.H artifact contract (phase-local):
+1. `m15_phase_budget_envelope.json`
+2. `m15_phase_cost_outcome_receipt.json`
+3. `m15h_cost_perf_closure_snapshot.json`
+4. `m15h_blocker_register.json`
+5. `m15h_execution_summary.json`
+
+M15.H closure verdict:
+1. `ADVANCE_TO_M15_I` when blocker count is zero.
+2. `BLOCKED_M15_H` otherwise.
 
 ### M15.I - Phase Rollup Verdict
 Goal:
 1. Aggregate `M15.A..M15.H` deterministically and emit gate verdict.
 
 DoD:
-- [ ] rollup matrix complete.
-- [ ] blocker register and summary consistent.
-- [ ] verdict is deterministic and reproducible.
+- [x] rollup matrix complete.
+- [x] blocker register and summary consistent.
+- [x] verdict is deterministic and reproducible.
+
+Blockers:
+1. `M15-B1..M15-B8` mapped from any failed/non-green upstream semantic lane.
+2. `M15-B7` durable evidence parity/readback failure.
+
+Execution strategy (I1..I5, fail-closed):
+1. I1 source resolution:
+   - Resolve latest green execution summary for each phase:
+     - `M15.A`: `m15a_execution_summary.json`
+     - `M15.B`: `m15b_execution_summary.json`
+     - `M15.C`: `m15c_execution_summary.json`
+     - `M15.D`: `m15d_execution_summary.json`
+     - `M15.E`: `m15e_execution_summary.json`
+     - `M15.F`: `m15f_execution_summary.json`
+     - `M15.G`: `m15g_execution_summary.json`
+     - `M15.H`: `m15h_execution_summary.json`
+   - Any unresolved/missing green source is fail-closed blocker.
+2. I2 rollup matrix:
+   - Build ordered matrix rows with `phase_id`, `execution_id`, `overall_pass`, `blocker_count`, `advisory_count`, `verdict`, `next_gate`, and source summary path.
+   - Include aggregate counters (`query_count`, `scanned_bytes`, `scanned_gb`, cost estimate) for audit rollup.
+3. I3 gate-chain consistency:
+   - Enforce transition expectations:
+     - `M15.A -> M15.B_READY`
+     - `M15.B -> M15.C_READY`
+     - `M15.C -> M15.D_READY`
+     - `M15.D -> M15.E_READY`
+     - `M15.E -> M15.F_READY`
+     - `M15.F -> M15.G_READY`
+     - `M15.G -> M15.H_READY`
+     - `M15.H -> M15.I_READY`
+   - Any mismatch is fail-closed blocker (`M15-B3` for semantic chain inconsistency unless lane-specific mapping is stronger).
+4. I4 deterministic verdict:
+   - Emit `m15i_gate_verdict.json` and `m15i_execution_summary.json` where verdict is derived only from blocker-register state:
+     - `ADVANCE_TO_M15_J` when blocker count is zero,
+     - `BLOCKED_M15_I` otherwise.
+   - Emit deterministic rollup fingerprint (`m15i_rollup_fingerprint.json`) from ordered source executions + gate checks + aggregate counters.
+5. I5 durable parity/readback:
+   - Publish all M15.I artifacts to `evidence/dev_full/run_control/{execution_id}/`.
+   - Read back each object; any publish/readback failure is `M15-B7`.
+
+M15.I artifact contract (phase-local):
+1. `m15i_rollup_matrix.json`
+2. `m15i_rollup_fingerprint.json`
+3. `m15i_gate_verdict.json`
+4. `m15i_blocker_register.json`
+5. `m15i_execution_summary.json`
+
+M15.I closure verdict:
+1. `ADVANCE_TO_M15_J` when blocker count is zero.
+2. `BLOCKED_M15_I` otherwise.
 
 ### M15.J - Closure Sync
 Goal:
 1. Publish final M15 closure artifacts and handoff pack.
 
 DoD:
-- [ ] final summary and blocker register are parity-verified.
-- [ ] closure artifacts are readable local + durable.
-- [ ] next-gate handoff pack is emitted.
+- [x] final summary and blocker register are parity-verified.
+- [x] closure artifacts are readable local + durable.
+- [x] next-gate handoff pack is emitted.
+
+Blockers:
+1. `M15-B1..M15-B8` mapped from unresolved/non-green upstream lane closure.
+2. `M15-B7` durable or local parity/readback failure.
+
+Execution strategy (J1..J5, fail-closed):
+1. J1 source closure resolution:
+   - Resolve authoritative source summaries for `M15.A..M15.I` (latest green by prefix + summary filename).
+   - Enforce gate-chain continuity through `M15.I -> M15.J_READY`.
+2. J2 summary/blocker parity:
+   - For each source lane, verify:
+     - summary `overall_pass=true`,
+     - summary `blocker_count=0`,
+     - corresponding blocker-register exists and `blocker_count=0`.
+   - Validate both local refs and durable refs are readable.
+3. J3 final closure synthesis:
+   - Emit:
+     - `m15j_closure_sync_snapshot.json` (source matrix + parity outcomes),
+     - `m15j_execution_summary.json`,
+     - `m15_blocker_register.json`,
+     - `m15_execution_summary.json`.
+   - Final phase verdict:
+     - `M15_COMPLETE_GREEN` when blocker-free,
+     - `M15_BLOCKED` otherwise.
+4. J4 certification handoff pack:
+   - Emit `m15j_handoff_pack.json` with:
+     - runtime-cert plan ref (`platform.runtime_cert.plan.md`) and `RC0` entry anchor,
+     - ops/gov-cert plan ref (`platform.ops_gov_cert.plan.md`) and `OC0` entry anchor,
+     - authoritative M15 closure refs (`M15.I` rollup + `M15.J` final summary).
+5. J5 durable publication/readback:
+   - Publish all M15.J artifacts under run-control prefix and verify readback.
+   - Any publish/readback failure is `M15-B7`.
+
+M15.J artifact contract (phase-local):
+1. `m15j_closure_sync_snapshot.json`
+2. `m15j_handoff_pack.json`
+3. `m15j_blocker_register.json`
+4. `m15j_execution_summary.json`
+5. `m15_blocker_register.json`
+6. `m15_execution_summary.json`
+
+M15.J closure verdict:
+1. `ADVANCE_TO_CERTIFICATION_TRACKS` when blocker count is zero.
+2. `BLOCKED_M15_J` otherwise.
 
 ## 8) Global M15 Blocker Taxonomy
 1. `M15-B1` contract ambiguity.
@@ -617,8 +880,8 @@ Minimum closure artifacts:
 6. `m15_cost_outcome_receipt.json`
 
 ## 11) Initial Status
-1. M15 is active and `M15.A` + `M15.B` + `M15.C` + `M15.D` are closed green.
-2. Next active entry gate is `M15.E`.
+1. M15 is active and `M15.A` + `M15.B` + `M15.C` + `M15.D` + `M15.E` + `M15.F` + `M15.G` + `M15.H` + `M15.I` + `M15.J` are closed green.
+2. Next active entry gate is `CERTIFICATION_TRACKS_READY`.
 
 ## 12) M15.A Closure Snapshot
 1. Execution:
@@ -638,3 +901,217 @@ Minimum closure artifacts:
    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15a_contract_mapping_20260302T070156Z/m15a_ieg_entity_map_candidates.json`
    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15a_contract_mapping_20260302T070156Z/m15a_blocker_register.json`
    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15a_contract_mapping_20260302T070156Z/m15a_execution_summary.json`
+
+## 13) M15.E Closure Snapshot
+1. Execution:
+   - `m15e_mf_real_eval_rewire_20260302T081742Z`
+2. Verdict:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `advisory_count=1`
+   - `verdict=ADVANCE_TO_M15_F`
+   - `next_gate=M15.F_READY`
+3. Advisory explicitly recorded:
+   - `M15E-AD1`: recall below policy floor for rewire-v1 (`candidate=0.001413`, `floor=0.8500`).
+4. Runtime/cost receipt:
+   - `query_count=4`
+   - `total_scanned_gb=0.012`
+   - `athena_cost_estimate_usd=0.0001`
+   - `elapsed_seconds=9.715`
+5. Local artifacts:
+   - `runs/dev_substrate/dev_full/m15/m15e_mf_real_eval_rewire_20260302T081742Z/m15e_eval_report.json`
+   - `runs/dev_substrate/dev_full/m15/m15e_mf_real_eval_rewire_20260302T081742Z/m15e_leakage_provenance_check.json`
+   - `runs/dev_substrate/dev_full/m15/m15e_mf_real_eval_rewire_20260302T081742Z/m15e_explainability_report.json`
+   - `runs/dev_substrate/dev_full/m15/m15e_mf_real_eval_rewire_20260302T081742Z/m15e_lineage_snapshot.json`
+   - `runs/dev_substrate/dev_full/m15/m15e_mf_real_eval_rewire_20260302T081742Z/m15e_rollback_metadata.json`
+   - `runs/dev_substrate/dev_full/m15/m15e_mf_real_eval_rewire_20260302T081742Z/m15e_candidate_bundle.json`
+   - `runs/dev_substrate/dev_full/m15/m15e_mf_real_eval_rewire_20260302T081742Z/m15e_blocker_register.json`
+   - `runs/dev_substrate/dev_full/m15/m15e_mf_real_eval_rewire_20260302T081742Z/m15e_execution_summary.json`
+6. Durable artifacts:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15e_mf_real_eval_rewire_20260302T081742Z/m15e_eval_report.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15e_mf_real_eval_rewire_20260302T081742Z/m15e_leakage_provenance_check.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15e_mf_real_eval_rewire_20260302T081742Z/m15e_explainability_report.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15e_mf_real_eval_rewire_20260302T081742Z/m15e_lineage_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15e_mf_real_eval_rewire_20260302T081742Z/m15e_rollback_metadata.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15e_mf_real_eval_rewire_20260302T081742Z/m15e_candidate_bundle.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15e_mf_real_eval_rewire_20260302T081742Z/m15e_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15e_mf_real_eval_rewire_20260302T081742Z/m15e_execution_summary.json`
+
+## 14) M15.F Closure Snapshot
+1. Execution:
+   - `m15f_leakage_adversarial_20260302T082401Z`
+2. Verdict:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `advisory_count=0`
+   - `verdict=ADVANCE_TO_M15_G`
+   - `next_gate=M15.G_READY`
+3. Runtime/cost receipt:
+   - `query_count=3`
+   - `total_scanned_gb=0.089`
+   - `athena_cost_estimate_usd=0.0004`
+   - `elapsed_seconds=9.651`
+4. Adversarial suite highlights:
+   - F1 baseline continuity pass: no feature/label/as-of maturity boundary breaches.
+   - F2 feature-surface contamination pass: no label/future-only fields admitted in feature or explainability surfaces.
+   - F3 label-join boundary pass: canonical lane maintains zero post-as-of leakage rows.
+   - F4 replay/as-of immutability pass: single-valued replay basis/as-of/maturity contract preserved.
+   - F5 unsafe-signal uplift challenge pass: leakage-risk signal emitted with measured recall uplift (`+0.236638`) when using unsafe predictor `bank_is_fraud`.
+5. Local artifacts:
+   - `runs/dev_substrate/dev_full/m15/m15f_leakage_adversarial_20260302T082401Z/m15f_adversarial_suite_report.json`
+   - `runs/dev_substrate/dev_full/m15/m15f_leakage_adversarial_20260302T082401Z/m15f_feature_leakage_probe.json`
+   - `runs/dev_substrate/dev_full/m15/m15f_leakage_adversarial_20260302T082401Z/m15f_label_join_boundary_probe.json`
+   - `runs/dev_substrate/dev_full/m15/m15f_leakage_adversarial_20260302T082401Z/m15f_replay_asof_guardrail_probe.json`
+   - `runs/dev_substrate/dev_full/m15/m15f_leakage_adversarial_20260302T082401Z/m15f_unsafe_signal_uplift_probe.json`
+   - `runs/dev_substrate/dev_full/m15/m15f_leakage_adversarial_20260302T082401Z/m15f_blocker_register.json`
+   - `runs/dev_substrate/dev_full/m15/m15f_leakage_adversarial_20260302T082401Z/m15f_execution_summary.json`
+6. Durable artifacts:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15f_leakage_adversarial_20260302T082401Z/m15f_adversarial_suite_report.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15f_leakage_adversarial_20260302T082401Z/m15f_feature_leakage_probe.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15f_leakage_adversarial_20260302T082401Z/m15f_label_join_boundary_probe.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15f_leakage_adversarial_20260302T082401Z/m15f_replay_asof_guardrail_probe.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15f_leakage_adversarial_20260302T082401Z/m15f_unsafe_signal_uplift_probe.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15f_leakage_adversarial_20260302T082401Z/m15f_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15f_leakage_adversarial_20260302T082401Z/m15f_execution_summary.json`
+
+## 15) M15.G Closure Snapshot
+1. Execution:
+   - blocked first pass: `m15g_semantic_non_regression_20260302T083043Z` (`M15-B3` artifact-discovery mismatch on M11 path assumptions).
+   - green remediation rerun: `m15g_semantic_non_regression_20260302T083157Z`.
+2. Verdict:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `advisory_count=1`
+   - `verdict=ADVANCE_TO_M15_H`
+   - `next_gate=M15.H_READY`
+3. Runtime/cost receipt:
+   - `query_count=0`
+   - `total_scanned_gb=0`
+   - `athena_cost_estimate_usd=0`
+   - `elapsed_seconds=0.041`
+4. Advisory explicitly recorded:
+   - `M15G-AD1`: candidate remains `rewired_eval_only`; full train-artifact promotion remains outside semantic non-regression lane.
+5. Non-regression continuity outcomes:
+   - `G1` replay continuity pass (`origin_offset_ranges` preserved from M9.C through M15.D/F).
+   - `G2` as-of/maturity continuity pass (fail-closed as-of policy and maturity-days parity preserved).
+   - `G3` leakage policy continuity pass (forbidden truth/future sets preserved and leakage checks pass).
+   - `G4` OFS contract continuity pass (M10 fingerprint contract and run-scoped OFS evidence shape preserved).
+   - `G5` MF artifact continuity pass (M11 path/policy and core eval/candidate shapes preserved in M15.E).
+   - `G6` explainability continuity pass (feature-catalog mapping pass, explainability ref carried in candidate lineage).
+6. Local artifacts:
+   - `runs/dev_substrate/dev_full/m15/m15g_semantic_non_regression_20260302T083157Z/m15g_non_regression_pack.json`
+   - `runs/dev_substrate/dev_full/m15/m15g_semantic_non_regression_20260302T083157Z/m15g_replay_asof_continuity_report.json`
+   - `runs/dev_substrate/dev_full/m15/m15g_semantic_non_regression_20260302T083157Z/m15g_leakage_continuity_report.json`
+   - `runs/dev_substrate/dev_full/m15/m15g_semantic_non_regression_20260302T083157Z/m15g_contract_continuity_report.json`
+   - `runs/dev_substrate/dev_full/m15/m15g_semantic_non_regression_20260302T083157Z/m15g_explainability_continuity_report.json`
+   - `runs/dev_substrate/dev_full/m15/m15g_semantic_non_regression_20260302T083157Z/m15g_blocker_register.json`
+   - `runs/dev_substrate/dev_full/m15/m15g_semantic_non_regression_20260302T083157Z/m15g_execution_summary.json`
+7. Durable artifacts:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15g_semantic_non_regression_20260302T083157Z/m15g_non_regression_pack.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15g_semantic_non_regression_20260302T083157Z/m15g_replay_asof_continuity_report.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15g_semantic_non_regression_20260302T083157Z/m15g_leakage_continuity_report.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15g_semantic_non_regression_20260302T083157Z/m15g_contract_continuity_report.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15g_semantic_non_regression_20260302T083157Z/m15g_explainability_continuity_report.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15g_semantic_non_regression_20260302T083157Z/m15g_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15g_semantic_non_regression_20260302T083157Z/m15g_execution_summary.json`
+
+## 16) M15.H Closure Snapshot
+1. Execution:
+   - `m15h_cost_perf_closure_20260302T084018Z`
+2. Verdict:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `advisory_count=0`
+   - `verdict=ADVANCE_TO_M15_I`
+   - `next_gate=M15.I_READY`
+3. Cost/perf closure outcomes:
+   - runtime envelope pass (`observed_window_seconds=5400.383845`, `budget_seconds=27000`).
+   - scan envelope pass (`observed_scanned_gb=109.11127322074026`, `budget_gb_total=635`).
+   - cost envelope pass (`observed_cost_estimate_usd_from_scan=0.5327698887731457944028079510`, `budget_usd=3.1005859375`).
+4. Aggregated semantic workload receipt:
+   - `query_count_total=43`
+   - `total_scanned_bytes=117157337527`
+   - `total_scanned_gb=109.11127322074026`
+   - `athena_cost_estimate_usd=0.5327698887731457944028079510`
+5. Local artifacts:
+   - `runs/dev_substrate/dev_full/m15/m15h_cost_perf_closure_20260302T084018Z/m15_phase_budget_envelope.json`
+   - `runs/dev_substrate/dev_full/m15/m15h_cost_perf_closure_20260302T084018Z/m15_phase_cost_outcome_receipt.json`
+   - `runs/dev_substrate/dev_full/m15/m15h_cost_perf_closure_20260302T084018Z/m15_daily_cost_posture.json`
+   - `runs/dev_substrate/dev_full/m15/m15h_cost_perf_closure_20260302T084018Z/m15h_cost_perf_closure_snapshot.json`
+   - `runs/dev_substrate/dev_full/m15/m15h_cost_perf_closure_20260302T084018Z/m15h_blocker_register.json`
+   - `runs/dev_substrate/dev_full/m15/m15h_cost_perf_closure_20260302T084018Z/m15h_execution_summary.json`
+6. Durable artifacts:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15h_cost_perf_closure_20260302T084018Z/phase_budget_envelope.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15h_cost_perf_closure_20260302T084018Z/phase_cost_outcome_receipt.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15h_cost_perf_closure_20260302T084018Z/daily_cost_posture.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15h_cost_perf_closure_20260302T084018Z/cost_guardrail_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15h_cost_perf_closure_20260302T084018Z/m15h_cost_perf_closure_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15h_cost_perf_closure_20260302T084018Z/m15h_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15h_cost_perf_closure_20260302T084018Z/m15h_execution_summary.json`
+
+## 17) M15.I Closure Snapshot
+1. Execution:
+   - initial pass: `m15i_phase_rollup_20260302T084528Z` (green verdict, superseded due aggregate-counter double-count fix).
+   - closure run: `m15i_phase_rollup_20260302T084631Z`.
+2. Verdict:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `advisory_count=0`
+   - `verdict=ADVANCE_TO_M15_J`
+   - `next_gate=M15.J_READY`
+3. Rollup closure outcomes:
+   - gate chain is fully consistent from `M15.A -> M15.B_READY` through `M15.H -> M15.I_READY`.
+   - deterministic fingerprint: `188df18899aef73d179fece10887e7aec3bddb2f610284d5227d955d80815971`.
+   - corrected aggregate economics (no double-count of M15.H aggregate lane):
+     - `query_count=43`
+     - `total_scanned_bytes=117157337527`
+     - `total_scanned_gb=109.111`
+     - `athena_cost_estimate_usd=0.5328`
+4. Local artifacts:
+   - `runs/dev_substrate/dev_full/m15/m15i_phase_rollup_20260302T084631Z/m15i_rollup_matrix.json`
+   - `runs/dev_substrate/dev_full/m15/m15i_phase_rollup_20260302T084631Z/m15i_rollup_fingerprint.json`
+   - `runs/dev_substrate/dev_full/m15/m15i_phase_rollup_20260302T084631Z/m15i_gate_verdict.json`
+   - `runs/dev_substrate/dev_full/m15/m15i_phase_rollup_20260302T084631Z/m15i_blocker_register.json`
+   - `runs/dev_substrate/dev_full/m15/m15i_phase_rollup_20260302T084631Z/m15i_execution_summary.json`
+5. Durable artifacts:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15i_phase_rollup_20260302T084631Z/m15i_rollup_matrix.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15i_phase_rollup_20260302T084631Z/m15i_rollup_fingerprint.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15i_phase_rollup_20260302T084631Z/m15i_gate_verdict.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15i_phase_rollup_20260302T084631Z/m15i_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15i_phase_rollup_20260302T084631Z/m15i_execution_summary.json`
+
+## 18) M15.J Closure Snapshot
+1. Execution:
+   - `m15j_closure_sync_20260302T085244Z`
+2. Verdict:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `advisory_count=0`
+   - `verdict=ADVANCE_TO_CERTIFICATION_TRACKS`
+   - `next_gate=CERTIFICATION_TRACKS_READY`
+3. Closure sync outcomes:
+   - full source matrix parity pass (`M15.A..M15.I`):
+     - local summary + local blocker registers readable,
+     - durable summary + durable blocker registers readable,
+     - gate-chain continuity preserved through `M15.I -> M15.J_READY`.
+   - final M15 closure verdict emitted:
+     - `M15_COMPLETE_GREEN`
+     - `next_gate=CERTIFICATION_TRACKS_READY`.
+4. Certification handoff pack:
+   - `m15j_handoff_pack.json` published with explicit entry refs for:
+     - runtime certification: `platform.runtime_cert.plan.md` (`entry_gate=RC0_READY`),
+     - ops/governance certification: `platform.ops_gov_cert.plan.md` (`entry_gate=OC0_READY`).
+5. Local artifacts:
+   - `runs/dev_substrate/dev_full/m15/m15j_closure_sync_20260302T085244Z/m15j_closure_sync_snapshot.json`
+   - `runs/dev_substrate/dev_full/m15/m15j_closure_sync_20260302T085244Z/m15j_handoff_pack.json`
+   - `runs/dev_substrate/dev_full/m15/m15j_closure_sync_20260302T085244Z/m15j_blocker_register.json`
+   - `runs/dev_substrate/dev_full/m15/m15j_closure_sync_20260302T085244Z/m15j_execution_summary.json`
+   - `runs/dev_substrate/dev_full/m15/m15j_closure_sync_20260302T085244Z/m15_blocker_register.json`
+   - `runs/dev_substrate/dev_full/m15/m15j_closure_sync_20260302T085244Z/m15_execution_summary.json`
+6. Durable artifacts:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15j_closure_sync_20260302T085244Z/m15j_closure_sync_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15j_closure_sync_20260302T085244Z/m15j_handoff_pack.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15j_closure_sync_20260302T085244Z/m15j_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15j_closure_sync_20260302T085244Z/m15j_execution_summary.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15j_closure_sync_20260302T085244Z/m15_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15j_closure_sync_20260302T085244Z/m15_execution_summary.json`

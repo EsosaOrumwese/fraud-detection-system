@@ -2058,23 +2058,23 @@ M15 blocker families (fail-closed):
 - `M15-B8` cost/performance envelope breach without approved waiver.
 
 M15 DoD anchors (planning contract, to be checked on activation):
-- [ ] real-data semantic contract is explicit and unambiguous.
-- [ ] OFS and MF lanes no longer depend on bootstrap/synthetic placeholders.
-- [ ] as-of/maturity/leakage policies are enforced on real dataset builds.
-- [ ] semantic validation pack is green with reproducible evidence.
-- [ ] cost-to-outcome receipt and closure summary are committed and parity-verified.
+- [x] real-data semantic contract is explicit and unambiguous.
+- [x] OFS and MF lanes no longer depend on bootstrap/synthetic placeholders.
+- [x] as-of/maturity/leakage policies are enforced on real dataset builds.
+- [x] semantic validation pack is green with reproducible evidence.
+- [x] cost-to-outcome receipt and closure summary are committed and parity-verified.
 
 M15 sub-phase progress:
 - [x] `M15.A` canonical data-contract mapping.
 - [x] `M15.B` managed semantic profiling.
 - [x] `M15.C` point-in-time policy realization.
 - [x] `M15.D` OFS real dataset build.
-- [ ] `M15.E` MF real-data train/eval rewire.
-- [ ] `M15.F` leakage adversarial validation.
-- [ ] `M15.G` semantic non-regression pack.
-- [ ] `M15.H` cost/performance closure.
-- [ ] `M15.I` phase rollup verdict.
-- [ ] `M15.J` closure sync.
+- [x] `M15.E` MF real-data train/eval rewire.
+- [x] `M15.F` leakage adversarial validation.
+- [x] `M15.G` semantic non-regression pack.
+- [x] `M15.H` cost/performance closure.
+- [x] `M15.I` phase rollup verdict.
+- [x] `M15.J` closure sync.
 
 M15 progress snapshot:
 1. `M15.A` is closed green:
@@ -2105,6 +2105,41 @@ M15 progress snapshot:
    - materialization receipt: `row_count=1838137`, `distinct_flows=1838137`,
    - runtime/cost receipt: `query_count=4`, `total_scanned_gb=13.902`, `athena_cost_estimate_usd=0.0679`,
    - run-scoped OFS contract artifacts published under `evidence/runs/platform_20260302T080146Z/learning/ofs/`.
+7. `M15.E` is closed green with advisory posture explicitly recorded:
+   - first green run `m15e_mf_real_eval_rewire_20260302T081624Z`: `overall_pass=true`, `blocker_count=0`, `advisory_count=2`, `next_gate=M15.F_READY`,
+   - remediation rerun `m15e_mf_real_eval_rewire_20260302T081742Z`: `overall_pass=true`, `blocker_count=0`, `advisory_count=1`, `next_gate=M15.F_READY`,
+   - remaining advisory `M15E-AD1`: recall below policy floor for rewire-v1 (`candidate=0.001413`, `floor=0.8500`),
+   - runtime/cost receipt: `query_count=4`, `total_scanned_gb=0.012`, `athena_cost_estimate_usd=0.0001`,
+   - run-scoped MF contract artifacts published under `evidence/runs/platform_20260302T080146Z/learning/mf/`.
+8. `M15.F` is closed green (first pass) with deterministic adversarial suite:
+   - run `m15f_leakage_adversarial_20260302T082401Z`: `overall_pass=true`, `blocker_count=0`, `advisory_count=0`, `next_gate=M15.G_READY`,
+   - F1/F2/F3/F4 temporal + contamination + replay/as-of probes all pass,
+   - F5 unsafe-signal challenge emits explicit leakage-risk signal (unsafe `bank_is_fraud` recall uplift `+0.236638` vs baseline predictor),
+   - runtime/cost receipt: `query_count=3`, `total_scanned_gb=0.089`, `athena_cost_estimate_usd=0.0004`,
+   - run-scoped adversarial receipt: `evidence/runs/platform_20260302T080146Z/learning/mf/adversarial_suite_report.json`.
+9. `M15.G` is closed green after one fail-closed remediation cycle:
+   - blocked first pass `m15g_semantic_non_regression_20260302T083043Z`: `M15-B3` (M11 artifact discovery path mismatch),
+   - green rerun `m15g_semantic_non_regression_20260302T083157Z`: `overall_pass=true`, `blocker_count=0`, `advisory_count=1`, `next_gate=M15.H_READY`,
+   - continuity outcomes: `G1..G6` all pass (replay/as-of/maturity/leakage/OFS contract/MF artifact/explainability),
+   - runtime/cost receipt: `query_count=0`, `total_scanned_gb=0`, `athena_cost_estimate_usd=0`,
+   - retained advisory `M15G-AD1`: candidate remains `rewired_eval_only` posture.
+10. `M15.H` is closed green on first execution:
+   - run `m15h_cost_perf_closure_20260302T084018Z`: `overall_pass=true`, `blocker_count=0`, `advisory_count=0`, `next_gate=M15.I_READY`,
+   - envelope adjudication: runtime/scan/cost all within pinned semantic workload envelope (no waiver),
+   - aggregated semantic receipt: `query_count=43`, `total_scanned_gb=109.11127322074026`, `athena_cost_estimate_usd=0.5327698887731457944028079510`,
+   - budget + cost/outcome receipts published under run-control prefix and handle-bound keys (`phase_budget_envelope.json`, `phase_cost_outcome_receipt.json`, `daily_cost_posture.json`, `cost_guardrail_snapshot.json`).
+11. `M15.I` is closed green after one quality remediation rerun:
+   - initial green run `m15i_phase_rollup_20260302T084528Z` superseded due aggregate-counter double-count (M15.H aggregate lane included in additive sums),
+   - closure run `m15i_phase_rollup_20260302T084631Z`: `overall_pass=true`, `blocker_count=0`, `advisory_count=0`, `next_gate=M15.J_READY`,
+   - deterministic rollup fingerprint: `188df18899aef73d179fece10887e7aec3bddb2f610284d5227d955d80815971`,
+   - corrected aggregate receipt: `query_count=43`, `total_scanned_gb=109.111`, `athena_cost_estimate_usd=0.5328`,
+   - durable rollup artifacts published under `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15i_phase_rollup_20260302T084631Z/`.
+12. `M15.J` is closed green on first execution:
+   - run `m15j_closure_sync_20260302T085244Z`: `overall_pass=true`, `blocker_count=0`, `advisory_count=0`, `next_gate=CERTIFICATION_TRACKS_READY`,
+   - final M15 phase verdict emitted: `M15_COMPLETE_GREEN`,
+   - closure parity matrix over `M15.A..M15.I` passed for local+durable summary/blocker surfaces,
+   - certification handoff pack published (`m15j_handoff_pack.json`) with explicit runtime-cert (`RC0_READY`) and ops/gov-cert (`OC0_READY`) entry refs,
+   - durable closure artifacts published under `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15j_closure_sync_20260302T085244Z/`.
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M15.build_plan.md`
