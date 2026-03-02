@@ -19775,3 +19775,82 @@ uns/dev_substrate/dev_full/m15/m15g_semantic_non_regression_20260302T083157Z/.
    - proven M15 closure state (`M15_COMPLETE_GREEN`, `CERTIFICATION_TRACKS_READY`),
    - authoritative execution IDs and durable evidence prefix,
    - required authority reading order,
+
+## Entry: 2026-03-02 17:56 +00:00 - Certification fail-closed reset authorized by USER
+
+1. USER explicitly directed full scrap of the current runtime certification attempt and restart from clean baseline.
+2. Drift severity classified CRITICAL due law violations in prior attempt:
+   - no-local-compute law breach in certification execution posture,
+   - fresh-run certification intent violated by historical-path reuse,
+   - production-standard/senior-grade certification posture degraded by non-closure-grade evidence use.
+3. Fail-closed decision:
+   - stop using current runtime-cert attempt outputs for any claimability posture,
+   - quarantine current runtime-cert artifacts and notes as superseded/scrapped,
+   - rewrite runtime-cert and ops/gov-cert plans to clean pre-execution posture with explicit managed-only + fresh-only gates.
+4. Execution scope approved for this reset pass:
+   - documentation reset (`platform.runtime_cert.plan.md`, `platform.runtime.cert_notes.md`, `platform.ops_gov_cert.plan.md` if needed),
+   - local cert artifact tree reset under `runs/dev_substrate/dev_full/cert/runtime`,
+   - no branch-history operations and no claim advancement until clean baseline is established.
+5. Required post-reset posture:
+   - certification restarts at entry gates (`RC0_READY`, `OC0_READY`) only,
+   - all prior RC run IDs treated as non-claimable historical scrap material.
+
+## Entry: 2026-03-02 18:03 +00:00 - Reset execution paused by USER clarification (plan-first)
+
+1. USER clarified ordering requirement: review certification plans first (decide scrap vs improve) before scrapping runtime-cert artifacts.
+2. No runtime-cert artifact move/delete was executed.
+3. Active task pivoted to plan-quality review for:
+   - `platform.runtime_cert.plan.md`
+   - `platform.ops_gov_cert.plan.md`
+4. Next action: produce explicit scrap/improve recommendation per plan, then execute only after USER confirmation.
+
+## Entry: 2026-03-02 18:08 +00:00 - Plan rewrite scope locked before reset implementation
+
+1. USER approved plan-level action set:
+   - scrap/rebuild runtime cert plan,
+   - reset runtime cert notes,
+   - improve ops/gov cert plan with same guardrails,
+   - then quarantine current runtime-cert artifact tree.
+2. Rewrite policy for this pass:
+   - preserve Tier-0/1/2 claim intent and threshold semantics,
+   - remove contaminated execution snapshots and historical-attempt references from plan authority files,
+   - enforce explicit `managed-only` + `fresh-only` + `no local compute` certification posture.
+3. Runtime-plan treatment:
+   - rebuild as clean `NOT_STARTED` certification authority doc,
+   - keep lane topology (`RC0..RC6`) but reset all lane DoD checkboxes and execution snapshots.
+4. Runtime-notes treatment:
+   - convert to clean reset ledger with explicit superseded attempt register (non-claimable),
+   - restart execution ledger from clean entry prechecks only.
+5. Ops/gov-plan treatment:
+   - keep existing lane model (`OC0..OC6`) but add missing hard guardrails:
+     - managed-only execution posture,
+     - fresh-evidence window law,
+     - historical-lineage exclusion from claimability,
+     - deterministic blocker-first closure rules.
+
+## Entry: 2026-03-02 18:15 +00:00 - Runtime cert artifact scrap method pinned (quarantine move)
+
+1. Artifact scrap implementation method selected: `quarantine move`, not hard delete.
+2. Rationale:
+   - preserves audit trail for superseded attempt while enforcing non-claimable posture,
+   - supports deterministic clean restart root without historical contamination.
+3. Planned filesystem actions:
+   - move `runs/dev_substrate/dev_full/cert/runtime` to `runs/dev_substrate/dev_full/cert/_scrapped/runtime_attempt_<timestamp>/`.
+   - recreate empty `runs/dev_substrate/dev_full/cert/runtime/` for clean RC restart.
+4. Certification authority after move remains plan files + reset notes; quarantined artifacts are excluded from claimability.
+
+## Entry: 2026-03-02 18:02 +00:00 - Runtime cert artifacts quarantined and clean root recreated
+
+1. Executed scrap/quarantine move:
+   - source: `runs/dev_substrate/dev_full/cert/runtime`
+   - archive: `runs/dev_substrate/dev_full/cert/_scrapped/runtime_attempt_20260302T180203Z/`
+2. Recreated clean runtime cert root:
+   - `runs/dev_substrate/dev_full/cert/runtime/` (empty)
+3. Archived tree includes superseded runtime-cert outputs and helper script (`rc2_profile_exec.py`), retained only for audit continuity.
+4. Claimability posture after move:
+   - archived runtime-cert attempt is excluded from certification pass assertions,
+   - clean restart must emit new execution IDs under fresh runtime root.
+5. Plan file reset/hardening now complete:
+   - `platform.runtime_cert.plan.md` rebuilt as clean `NOT_STARTED` baseline.
+   - `platform.runtime.cert_notes.md` reset to `RESET_BASELINE` with superseded-attempt register.
+   - `platform.ops_gov_cert.plan.md` hardened with managed-only/fresh-only/no-local-compute guardrails.
