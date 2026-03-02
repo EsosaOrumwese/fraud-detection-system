@@ -19703,3 +19703,15 @@ ext_gate=M15.H_READY.
    - M15 DoD anchors marked complete,
    - M15 sub-phase progress marks `M15.J` complete,
    - progress snapshot appended with M15.J closure summary and certification-handoff posture.
+
+### 2026-03-02 09:10:04 +00:00 - Certification handoff artifact drafted
+1. Created `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/cert_handoff.md` as the clean start packet for next-chat certification execution.
+2. Handoff content explicitly captures:
+   - proven M15 closure state (`M15_COMPLETE_GREEN`, `CERTIFICATION_TRACKS_READY`),
+   - authoritative execution IDs and durable evidence prefix,
+   - required authority reading order,
+   - binding execution laws for certification,
+   - known baseline caveats (including superseded/corrected M15.I rollup),
+   - first-step checklist for RC/OC entry,
+   - expected certification deliverables and stitched Point-X outputs.
+3. Design intent: reduce context overload risk and prevent drift/re-open of already closed build-phase decisions.
