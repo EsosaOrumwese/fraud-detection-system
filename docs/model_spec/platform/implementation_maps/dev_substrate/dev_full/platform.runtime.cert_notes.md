@@ -1,5 +1,5 @@
 # Dev Full Runtime Certification Notes
-Status: `RC0_PASS_RC1_READY`
+Status: `RC1_PASS_RC2_READY_WITH_GAP_REGISTER`
 Last updated: `2026-03-02`
 
 ## 1) Purpose
@@ -26,7 +26,7 @@ The following attempts are retained for audit continuity only and are excluded f
 1. `M15_COMPLETE_GREEN` and `CERTIFICATION_TRACKS_READY` are revalidated from handoff artifacts.
 2. Runtime cert plan status transition for clean campaign:
    - entry state: `NOT_STARTED`,
-   - current state: `RC0_PASS_RC1_READY`.
+   - current state: `RC1_PASS_RC2_READY_WITH_GAP_REGISTER`.
 3. Managed execution lanes are reachable for RC workload execution.
 4. Certification window and identity pins for restart are declared before RC0 execution.
 
@@ -61,6 +61,10 @@ To be populated only by clean restart executions.
 | rc0_claim_model_lock_20260302T182821Z | RC0 | 2026-03-02T18:28:21Z | N/A (no durable objects materialized) | FAILED_NON_CLAIMABLE_NO_ARTIFACTS |
 | rc0_claim_model_lock_20260302T182833Z | RC0 | 2026-03-02T18:28:33Z | s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/_scrapped/runtime_failed_rc0_20260302T183432Z/rc0_claim_model_lock_20260302T182833Z/ | FAILED_NON_CLAIMABLE_QUARANTINED |
 | rc0_claim_model_lock_20260302T182859Z | RC0 | 2026-03-02T18:28:59Z | s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc0_claim_model_lock_20260302T182859Z/ | PASS_RC1_READY |
+| rc1_runtime_evidence_inventory_20260302T191046Z | RC1 | 2026-03-02T19:10:46Z | N/A (no durable objects materialized) | FAILED_NON_CLAIMABLE_IAM_S3_LIST_DENIED |
+| rc1_runtime_evidence_inventory_20260302T191353Z | RC1 | 2026-03-02T19:13:53Z | N/A (no durable objects materialized) | FAILED_NON_CLAIMABLE_IAM_S3_PUT_DENIED |
+| rc1_runtime_evidence_inventory_20260302T191532Z | RC1 | 2026-03-02T19:15:32Z | s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc1_runtime_evidence_inventory_20260302T191532Z/ | PASS_RC2_READY_WITH_GAP_REGISTER |
+| rc1_runtime_evidence_inventory_20260302T192109Z | RC1 | 2026-03-02T19:21:09Z | s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc1_runtime_evidence_inventory_20260302T192109Z/ | PASS_RC2_READY_WITH_GAP_REGISTER_REVALIDATED |
 
 ## 6) Clean Evidence Index
 To be populated only by clean restart executions.
@@ -68,16 +72,23 @@ To be populated only by clean restart executions.
 2. `rc0_claim_model_lock_20260302T182859Z/runtime_metric_dictionary.json`
 3. `rc0_claim_model_lock_20260302T182859Z/runtime_evidence_bundle_rules.json`
 4. `rc0_claim_model_lock_20260302T182859Z/rc0_execution_snapshot.json`
+5. `rc1_runtime_evidence_inventory_20260302T191532Z/runtime_evidence_inventory.json`
+6. `rc1_runtime_evidence_inventory_20260302T191532Z/runtime_fresh_gap_register.json`
+7. `rc1_runtime_evidence_inventory_20260302T191532Z/rc1_execution_snapshot.json`
+8. `rc1_runtime_evidence_inventory_20260302T192109Z/runtime_evidence_inventory.json`
+9. `rc1_runtime_evidence_inventory_20260302T192109Z/runtime_fresh_gap_register.json`
+10. `rc1_runtime_evidence_inventory_20260302T192109Z/rc1_execution_snapshot.json`
 
 ## 7) Active Blockers (Clean Baseline)
-1. none at RC0 closure (`blocker_count=0`).
+1. no structural blockers at RC1 closure (`blocker_count=0`).
+2. `tier0_gap_count=15` is open remediation input (non-blocking for RC1 lane verdict, blocking for Tier-0 final closure until addressed in RC2/RC3).
 
 ## 8) Phase Verdict Log (Clean Baseline)
 | Lane | Verdict | Notes |
 | --- | --- | --- |
 | RC0 | PASS | rc0_claim_model_lock_20260302T182859Z, next_gate=RC1_READY |
-| RC1 | NOT_STARTED | gate open (`RC1_READY`) |
-| RC2 | NOT_STARTED | waiting for clean restart |
+| RC1 | PASS | rc1_runtime_evidence_inventory_20260302T192109Z (revalidated; prior pass rc1_runtime_evidence_inventory_20260302T191532Z), next_gate=RC2_READY_WITH_GAP_REGISTER |
+| RC2 | NOT_STARTED | gate open (`RC2_READY_WITH_GAP_REGISTER`) |
 | RC3 | NOT_STARTED | waiting for clean restart |
 | RC4 | NOT_STARTED | waiting for clean restart |
 | RC5 | NOT_STARTED | waiting for clean restart |
@@ -96,3 +107,15 @@ To be populated only by clean restart executions.
    - pin exact discovery roots for evidence inventory query,
    - pin cert-window bounds for fresh-lineage classification,
    - pin remediation routing map for each gap reason.
+
+## 10) RC1 Managed Revalidation Receipt (`2026-03-02`)
+1. workflow run: `22591814086` (branch `cert-platform`, commit `bac709f31`).
+2. execution identity:
+   - `runtime_cert_execution_id=rc1_runtime_evidence_inventory_20260302T192109Z`
+   - `platform_run_id=platform_cert_20260302T182050Z`
+   - `scenario_run_id=scenario_cert_b2e31c46102062661ea43f12a8ceef77`
+3. verdict summary:
+   - `overall_pass=true`, `verdict=PASS`, `next_gate=RC2_READY_WITH_GAP_REGISTER`
+   - `blocker_count=0`, `tier0_gap_count=15`
+4. durable root:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc1_runtime_evidence_inventory_20260302T192109Z/`

@@ -20200,3 +20200,44 @@ uns/dev_substrate/dev_full/m15/m15g_semantic_non_regression_20260302T083157Z/.
 2. Pushed commit to `origin/cert-platform`:
    - `497d469f6 -> 60b5ac00c`.
 3. RC1 managed lane is now available for workflow dispatch on `cert-platform`.
+
+### 2026-03-02 19:16:40 +00:00 - RC1 managed execution: IAM remediation cycle and successful closure
+1. First managed RC1 attempt failed (`run_id=22591502316`, execution `rc1_runtime_evidence_inventory_20260302T191046Z`):
+   - blocker surface: IAM denied `s3:ListBucket` on `fraud-platform-dev-full-evidence` for runtime cert prefix discovery.
+2. RC1 workflow remediated to tolerate missing `ListBucket` visibility:
+   - list-operations now return `None` on `AccessDenied` and route to deterministic fallback posture,
+   - precheck records list-visibility status explicitly.
+3. Second managed RC1 attempt failed (`run_id=22591620440`, execution `rc1_runtime_evidence_inventory_20260302T191353Z`):
+   - blocker surface: IAM denied `s3:PutObject` on `evidence/dev_full/cert/runtime/*`.
+4. IAM role remediation applied to `GitHubAction-AssumeRoleWithAction` inline policy `GitHubActionsM10ABEvidenceKmsDevFull`:
+   - added `s3:ListBucket` prefix coverage for `evidence/dev_full/cert/*`,
+   - added object RW coverage for `arn:aws:s3:::fraud-platform-dev-full-evidence/evidence/dev_full/cert/*`.
+5. Third managed RC1 attempt succeeded (`run_id=22591679591`, execution `rc1_runtime_evidence_inventory_20260302T191532Z`):
+   - `overall_pass=true`, `verdict=PASS`, `next_gate=RC2_READY_WITH_GAP_REGISTER`, `blocker_count=0`, `tier0_gap_count=15`.
+6. Authoritative durable artifacts published and readback-verified:
+   - `runtime_evidence_inventory.json`
+   - `runtime_fresh_gap_register.json`
+   - `rc1_execution_snapshot.json`
+   under `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc1_runtime_evidence_inventory_20260302T191532Z/`.
+7. Runtime plan/notes synchronized to `RC1_PASS_RC2_READY_WITH_GAP_REGISTER` with non-claimable failed RC1 attempts recorded.
+
+### 2026-03-02 19:21:13 +00:00 - RC1 managed revalidation run executed and passed
+1. USER-directed execution proceeded immediately without waiting on non-workflow local doc state.
+2. Dispatched managed runtime-cert workflow on `cert-platform`:
+   - workflow: `dev_full_runtime_cert_managed.yml`
+   - run id: `22591814086`
+   - dispatch inputs pinned:
+     - `phase_mode=rc1`
+     - `aws_role_to_assume=arn:aws:iam::230372904534:role/GitHubAction-AssumeRoleWithAction`
+     - `platform_run_id=platform_cert_20260302T182050Z`
+     - `scenario_run_id=scenario_cert_b2e31c46102062661ea43f12a8ceef77`
+     - `upstream_rc0_execution=rc0_claim_model_lock_20260302T182859Z`
+3. Run closure summary (from workflow log + fail-closed gate):
+   - `runtime_cert_execution_id=rc1_runtime_evidence_inventory_20260302T192109Z`
+   - `overall_pass=true`, `verdict=PASS`, `next_gate=RC2_READY_WITH_GAP_REGISTER`
+   - `blocker_count=0`, `tier0_gap_count=15`
+4. Durable artifact root confirmed:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc1_runtime_evidence_inventory_20260302T192109Z/`.
+5. Resulting posture unchanged at gate level:
+   - runtime cert status remains `RC1_PASS_RC2_READY_WITH_GAP_REGISTER`,
+   - RC2 remains open and pending implementation/execution.

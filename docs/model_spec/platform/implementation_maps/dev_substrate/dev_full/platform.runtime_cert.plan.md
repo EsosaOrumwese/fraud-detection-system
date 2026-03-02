@@ -1,6 +1,6 @@
 # Dev Full Runtime Certification Plan
 
-Status: `RC0_PASS_RC1_READY`
+Status: `RC1_PASS_RC2_READY_WITH_GAP_REGISTER`
 Reset baseline as of: `2026-03-02`
 
 ## 1) Purpose
@@ -218,11 +218,33 @@ Deterministic RC1 artifacts:
 3. `rc1_execution_snapshot.json`
 
 DoD:
-- [ ] evidence inventory is complete and deterministic.
-- [ ] fresh-gap register explicitly lists all Tier-0 missing metrics.
-- [ ] no claim row is marked pass in RC1.
-- [ ] durable publication + readback succeeds for all RC1 artifacts.
-- [ ] blocker adjudication and next gate are explicit.
+- [x] evidence inventory is complete and deterministic.
+- [x] fresh-gap register explicitly lists all Tier-0 missing metrics.
+- [x] no claim row is marked pass in RC1.
+- [x] durable publication + readback succeeds for all RC1 artifacts.
+- [x] blocker adjudication and next gate are explicit.
+
+RC1 execution closure snapshot (`2026-03-02`):
+1. authoritative pass execution:
+   - `runtime_cert_execution_id=rc1_runtime_evidence_inventory_20260302T191532Z`
+   - `verdict=PASS`, `next_gate=RC2_READY_WITH_GAP_REGISTER`, `blocker_count=0`
+2. identity contract used:
+   - `platform_run_id=platform_cert_20260302T182050Z`
+   - `scenario_run_id=scenario_cert_b2e31c46102062661ea43f12a8ceef77`
+3. local run root:
+   - `runs/dev_substrate/dev_full/cert/runtime/rc1_runtime_evidence_inventory_20260302T191532Z/`
+4. durable authoritative root:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc1_runtime_evidence_inventory_20260302T191532Z/`
+5. deterministic RC1 artifact set:
+   - `runtime_evidence_inventory.json`
+   - `runtime_fresh_gap_register.json`
+   - `rc1_execution_snapshot.json`
+6. RC1 outcome posture:
+   - `tier0_gap_count=15` captured as explicit remediation input for RC2/RC3.
+7. managed revalidation pass:
+   - workflow run `22591814086` produced `runtime_cert_execution_id=rc1_runtime_evidence_inventory_20260302T192109Z`
+   - verdict unchanged: `PASS`, `next_gate=RC2_READY_WITH_GAP_REGISTER`, `blocker_count=0`, `tier0_gap_count=15`
+   - durable root: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc1_runtime_evidence_inventory_20260302T192109Z/`
 
 ### RC2 - Tier 0 runtime scorecard certification (steady/burst/soak + replay-window)
 Goal:
