@@ -177,3 +177,46 @@ RC2 can move from `RC2_REMEDIATION_REQUIRED` to `RC3_READY_WITH_SCORECARD` only 
 4. Decision:
    - RC2.R1 is considered implemented and closed.
    - next immediate work moves to `RC2.R2` bottleneck-localization ramp (managed-only).
+
+### 2026-03-02 22:22:14 +00:00 - RC2.R2 stage-1 managed bottleneck-localization execution
+1. Execution command posture:
+   - used managed workflow `dev_full_m6f_streaming_active.yml` with `phase_mode=m6f`,
+   - pinned identity:
+     - `platform_run_id=platform_cert_20260302T182050Z`,
+     - `scenario_run_id=scenario_cert_b2e31c46102062661ea43f12a8ceef77`,
+   - stage load params:
+     - `iterations=30000`,
+     - `sleep_seconds=0.0`,
+     - stage target interpreted as `R2_STAGE_100_EPS`.
+2. Authoritative managed run:
+   - workflow run: `22597880983`,
+   - source lane execution id: `m6f_p6b_streaming_active_20260302T220724Z`,
+   - runtime duration window from evidence:
+     - `lane_window_start_epoch=1772489252`,
+     - `observation_epoch=1772490041`,
+     - `lane_window_seconds=789` (`>=300s` pass).
+3. Stage metrics captured (fresh evidence):
+   - IG edge bridge:
+     - `attempted=30000`,
+     - `admitted=28440`,
+     - `failed=1560`,
+     - `bridge_admit_rate=94.8%`,
+     - `observed_eps=36.0456` (`28440/789`).
+   - lag posture:
+     - `measured_lag=24s`,
+     - threshold `10s`,
+     - `within_threshold=false`.
+   - downstream runtime progression:
+     - `WSP=RUNNING`,
+     - `SR_READY=RUNNING`.
+   - run-window counting surface:
+     - `ig_idempotency_count_error=dynamodb_scan_page_limit_reached` (`scan_pages=200`).
+4. RC2.R2 decision outcome:
+   - first failing stage identified at `R2_STAGE_100_EPS` (target not met),
+   - pinned bottleneck owner: `IG_EDGE` (primary),
+   - secondary signal retained: `COUNTING_SURFACE` warning only.
+5. Progression decision:
+   - stop ramp escalation at first failing stage (cost-control aligned),
+   - move to `RC2.R3` remediation loop on IG edge path, then rerun `RC2.R2` from stage-100 upward.
+6. Generated deterministic local receipt:
+   - `runs/dev_substrate/dev_full/cert/runtime/rc2_r2/rc2_r2_bottleneck_localization_20260302T222214Z/rc2_r2_bottleneck_snapshot.json`.

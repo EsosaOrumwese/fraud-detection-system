@@ -370,7 +370,7 @@ RC2 strict remediation sequence (production-envelope, no floor downgrade):
 
 RC2 strict remediation DoD:
 - [x] `RC2.R1` evidence-shape correctness gate passes.
-- [ ] bottleneck owner is explicitly identified from `RC2.R2` stage evidence.
+- [x] bottleneck owner is explicitly identified from `RC2.R2` stage evidence.
 - [ ] all required profile campaigns meet pinned floors with fresh managed evidence.
 - [ ] replay-window campaign meets pinned sample floor.
 - [ ] RC2 rollup closes with `overall_pass=true` and `blocker_count=0`.
@@ -413,6 +413,27 @@ RC2 execution closure snapshot (`2026-03-02`):
    - remaining blockers after RC2.R1 closure:
      - `RC-B4 x4` (steady, burst, soak, replay_window thresholds not met),
      - next gate remains `RC2_REMEDIATION_REQUIRED`.
+7. RC2.R2 managed bottleneck-localization stage execution (`2026-03-02`):
+   - stage executed (first ramp stage):
+     - target stage: `100 eps` (`R2_STAGE_100_EPS`)
+     - workflow run: `22597880983` (`dev-full-m6f-streaming-active`, branch `cert-platform`)
+     - source execution id: `m6f_p6b_streaming_active_20260302T220724Z`
+     - local receipt: `runs/dev_substrate/dev_full/cert/runtime/rc2_r2/rc2_r2_bottleneck_localization_20260302T222214Z/rc2_r2_bottleneck_snapshot.json`
+   - measured lane metrics:
+     - lane window: `789s` (`>=5 min` satisfied),
+     - IG edge bridge: `attempted=30000`, `admitted=28440`, `failed=1560`, `observed_eps=36.0456`,
+     - lag posture: `24s` vs threshold `10s` (`within_threshold=false`),
+     - downstream lane states: `WSP=RUNNING`, `SR_READY=RUNNING`,
+     - run-window admission count probe: `ig_idempotency_count_error=dynamodb_scan_page_limit_reached` (counting-surface warning).
+   - first failing stage:
+     - `R2_STAGE_100_EPS` (did not meet stage target).
+   - pinned bottleneck owner:
+     - `IG_EDGE` (primary).
+   - secondary diagnostic signal:
+     - `COUNTING_SURFACE` (`dynamodb_scan_page_limit_reached`) recorded as non-primary.
+   - progression decision:
+     - stop ramp escalation at first failing stage to avoid unnecessary spend,
+     - proceed to `RC2.R3` remediation loop focused on IG edge path.
 
 ### RC2 Remediation Program - Close `RC-B4` Before RC3/RC6
 Goal:
