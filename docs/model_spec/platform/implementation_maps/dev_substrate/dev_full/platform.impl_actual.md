@@ -20027,3 +20027,114 @@ uns/dev_substrate/dev_full/m15/m15g_semantic_non_regression_20260302T083157Z/.
    - `runtime_fresh_gap_register.json`
    - `rc1_execution_snapshot.json`
 2. Rationale: avoid plan/notes drift before RC1 execution.
+
+### 2026-03-02 18:37:20 +00:00 - Base managed runtime-cert workflow design lock (pre-implementation)
+1. USER direction: create base managed runtime-cert workflow first; discuss cert-platform -> dev -> main merge path after workflow exists.
+2. Branch posture: stay on active `cert-platform`; no branch-history operations in this step.
+3. Design selected for base workflow:
+   - single `workflow_dispatch` managed orchestrator for runtime cert,
+   - lane selector input (`rc0..rc6`) with fail-closed routing,
+   - only `rc0` mapped initially (implemented handler exists),
+   - `rc1..rc6` return explicit fail-closed `NOT_IMPLEMENTED` until lane handlers are added.
+4. Security posture:
+   - OIDC role assumption only,
+   - reject static AWS credentials,
+   - explicit permissions (`contents:read`, `id-token:write`).
+5. Execution posture:
+   - deterministic execution-id generation with optional override,
+   - lane run directory standardization under `runs/dev_substrate/dev_full/cert/runtime/<execution_id>`,
+   - fail-closed lane verdict gate for `rc0` from generated snapshot artifact.
+6. Compatibility adjustment required:
+   - parameterize `runs/dev_substrate/dev_full/cert/runtime/rc0_exec.ps1` so workflow can pass identity + execution + bucket inputs deterministically.
+7. Deliverable scope in this step:
+   - add `.github/workflows/dev_full_runtime_cert_managed.yml`,
+   - patch `rc0_exec.ps1` for managed-input compatibility.
+
+### 2026-03-02 18:39:10 +00:00 - Base managed runtime-cert workflow delivered
+1. Added `.github/workflows/dev_full_runtime_cert_managed.yml`.
+2. Workflow characteristics:
+   - managed `workflow_dispatch` lane selector (`rc0..rc6`),
+   - OIDC-only AWS auth guard (static-key rejection + `configure-aws-credentials`),
+   - deterministic execution-id generation with optional override,
+   - fail-closed routing (`rc0` implemented, `rc1..rc6` explicit `NOT_IMPLEMENTED` failure),
+   - RC0 verdict gate from `rc0_execution_snapshot.json` (`overall_pass=true`, `blocker_count=0`, `verdict=PASS`, `next_gate=RC1_READY`),
+   - artifact upload for lane run directory.
+3. Patched `runs/dev_substrate/dev_full/cert/runtime/rc0_exec.ps1` for managed compatibility:
+   - added optional parameters/env support (`PlatformRunId`, `ScenarioRunId`, `RuntimeCertExecutionId`, `EvidenceBucket`),
+   - preserved defaults for continuity,
+   - added fail-closed guard that rc0 execution IDs must start with `rc0_`.
+4. Verification performed:
+   - PowerShell parse check passed for `rc0_exec.ps1`.
+5. No branch-history operations executed.
+
+### 2026-03-02 18:40:20 +00:00 - Correction: base runtime-cert workflow is scaffold-only (no lane enabled)
+1. Corrected lane routing posture in `.github/workflows/dev_full_runtime_cert_managed.yml`:
+   - `rc0..rc6` currently fail-closed as `NOT_IMPLEMENTED` scaffold state.
+2. Reason for correction:
+   - previously drafted `rc0` mapping depended on handler under `runs/...`, and `runs/` is git-ignored; handler is not repository-tracked for managed checkout.
+3. Final base-workflow truth:
+   - workflow establishes managed/OIDC corridor, deterministic execution-id envelope, and fail-closed routing,
+   - lane execution remains blocked until handlers are introduced in repository-tracked form.
+4. Branch/commit safety effect:
+   - enables "workflow-only" promotion path (`cert-platform -> dev -> main`) without requiring non-workflow file commits.
+
+### 2026-03-02 18:51:13 +00:00 - Branch-governed workflow promotion executed (cert-platform -> dev; main blocked by repo rule)
+1. USER explicitly approved branch operation sequence for workflow-only promotion.
+2. Workflow-only commit created on `cert-platform`:
+   - commit: `978379939`
+   - file scope: `.github/workflows/dev_full_runtime_cert_managed.yml` only.
+3. Pushed `cert-platform` to origin:
+   - `origin/cert-platform` advanced from `26b473a90` to `978379939`.
+4. Promotion to `dev` executed via temp branch cherry-pick + FF merge:
+   - temp branch: `chore/runtime-cert-workflow-promote-20260302`
+   - promoted commit on `dev`: `36c87b63e`
+   - `origin/dev` advanced from `61d0fbb96` to `36c87b63e`.
+5. Promotion to `main`:
+   - local `main` fast-forwarded to `36c87b63e`.
+   - push to `origin/main` was rejected by repository rule: "Changes must be made through a pull request." (GH013).
+   - fail-closed posture applied: no bypass attempted.
+6. FF-path preservation action:
+   - merged `dev` into `cert-platform` on approved path, producing merge commit `e0d6ecc71`.
+   - pushed `origin/cert-platform` to `e0d6ecc71`.
+   - ancestry verified: `dev` is ancestor of `cert-platform` (`YES`).
+7. Remote head state after sequence:
+   - `origin/cert-platform = e0d6ecc71`
+   - `origin/dev = 36c87b63e`
+   - `origin/main = 61d0fbb96` (awaiting PR-based update).
+8. Temporary promotion worktree removed after completion.
+
+### 2026-03-02 18:52:00 +00:00 - dev->main PR handoff created for workflow promotion
+1. Created PR from `dev` to `main`:
+   - PR: `#73`
+   - URL: `https://github.com/EsosaOrumwese/fraud-detection-system/pull/73`
+   - title: `ci: add base managed runtime certification workflow scaffold`
+2. PR diff scope confirms workflow-only change:
+   - `.github/workflows/dev_full_runtime_cert_managed.yml`
+3. Remote branch state at PR creation:
+   - `origin/dev=36c87b63e`
+   - `origin/main=61d0fbb96`
+   - `origin/cert-platform=e0d6ecc71`
+4. Repository-rule/merge-mode implications recorded:
+   - direct push to `main` is blocked (PR-required rule),
+   - GitHub PR merge methods available: merge/squash/rebase (no true ff-only PR merge mode),
+   - to preserve future `cert-platform -> dev` fast-forward path, keep syncing `main -> dev -> cert-platform` after each main PR merge.
+
+### 2026-03-02 18:57:40 +00:00 - Post-PR branch sync executed (main -> dev -> cert-platform)
+1. USER confirmed PR #73 merged and approved post-merge sync sequence.
+2. Synced `dev` to merged `main` using fast-forward ref update:
+   - command path: `git push origin origin/main:dev`
+   - remote change: `origin/dev` advanced `36c87b63e -> 5f3aaf760`.
+3. Synced `cert-platform` with updated `origin/dev`:
+   - merge executed on `cert-platform`: `git merge --no-edit origin/dev`
+   - produced merge commit: `943160497`
+   - pushed `origin/cert-platform` `e0d6ecc71 -> 943160497`.
+4. Final remote head state:
+   - `origin/main = 5f3aaf760`
+   - `origin/dev = 5f3aaf760`
+   - `origin/cert-platform = 943160497`.
+5. Ancestry receipts:
+   - `origin/main` ancestor of `origin/dev`: `YES` (equal heads),
+   - `origin/dev` ancestor of `origin/cert-platform`: `YES`.
+6. Outcome:
+   - branch posture restored for continued `cert-platform -> dev` fast-forward promotions,
+   - `main` remains policy-governed via PRs.
