@@ -866,8 +866,6 @@ jobs:
                           profile_start_dt = cert_window_start_dt
                       else:
                           profile_start_dt = cert_window_end_dt - timedelta(minutes=float(req["duration_minutes"]))
-                          if profile_start_dt < cert_window_start_dt:
-                              profile_start_dt = cert_window_start_dt
                       profile_end_dt = cert_window_end_dt
                       profile_start_epoch = int(profile_start_dt.timestamp())
                       profile_end_epoch = int(profile_end_dt.timestamp())
