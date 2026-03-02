@@ -952,6 +952,12 @@ jobs:
                   scope="sequence",
               )
 
+          # Re-pin cert window end at adjudication time so same-run remediation
+          # profile snapshots are considered in discovery.
+          cert_window_end_utc = utc_now()
+          cert_window_end_dt = parse_utc(cert_window_end_utc) or datetime.now(timezone.utc)
+          cert_window_seconds = max(1.0, (cert_window_end_dt - cert_window_start_dt).total_seconds())
+
           objs = list_objects(s3, bucket, runtime_root)
           if objs is None:
               add_blocker("RC-B3", "Missing list visibility for runtime root; profile discovery incomplete.", scope="discovery")
