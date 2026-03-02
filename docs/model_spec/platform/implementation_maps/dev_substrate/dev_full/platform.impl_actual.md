@@ -19774,3 +19774,33 @@ ext_gate=M15.H_READY.
    - make learning-only truth consumption and fail-closed leakage posture visible,
    - expose `CERTIFICATION_TRACKS_READY` handoff as a first-class control-plane output for next-stage RC/OC execution.
 5. No resource/tooling changes were introduced; this is documentation truth-alignment only.
+
+### 2026-03-02 14:42:38 +00:00 - Runtime certification RC0 planning and execution closure
+1. Scope decision: execute RC0 first as claim-model lock for runtime certification before any heavy scorecard/drill lane (RC1+).
+2. Planning remediations applied:
+   - expanded RC0 in platform.runtime_cert.plan.md with explicit lanes (RC0.A..RC0.F), entry criteria, deterministic outputs, blocker checks, and publication/readback posture.
+   - created dedicated certification notes files:
+     - platform.runtime.cert_notes.md
+     - platform.opsgov.cert_notes.md
+3. Execution details:
+   - materialized runtime cert execution: c0_claim_model_lock_20260302T144121Z.
+   - loaded context pins from M15 closure summary:
+     - platform_run_id=platform_20260302T080146Z
+     - scenario_run_id=scenario_9de27c0bd83aed3a4aea4d0063c981f1.
+   - produced deterministic RC0 artifacts:
+     - untime_claim_matrix.json
+     - untime_metric_dictionary.json
+     - untime_evidence_bundle_rules.json
+     - c0_execution_snapshot.json
+4. Durable publication/readback:
+   - uploaded RC0 artifacts to:
+     - s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc0_claim_model_lock_20260302T144121Z/
+   - readback verification succeeded (ws s3 ls confirms object presence).
+5. Lane verdict:
+   - overall_pass=true
+   - lockers=[]
+   - dvisories=[]
+   - 
+ext_gate=RC1_READY.
+6. Rationale:
+   - this closure locks claim semantics and metric dictionary before throughput/drill execution, preventing downstream ambiguity and avoiding checklist-only certification behavior.

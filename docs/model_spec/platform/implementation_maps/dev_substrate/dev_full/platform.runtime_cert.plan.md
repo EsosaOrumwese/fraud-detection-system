@@ -1,6 +1,6 @@
 # Dev Full Runtime Certification Plan
 
-Status: `NOT_STARTED`
+Status: `ACTIVE`
 
 ## 1) Purpose
 This plan certifies runtime behavior against the production truth anchor:
@@ -70,10 +70,62 @@ Tier 2 claims to certify (best-effort):
 Goal:
 1. Pin exact claim->metric->artifact->drill mappings for runtime claims.
 
+Execution strategy (expanded):
+1. `RC0.A` entry-gate validation:
+   - confirm `M15_COMPLETE_GREEN` and `CERTIFICATION_TRACKS_READY` from handoff artifacts.
+   - confirm authority inputs in Section 3 are readable.
+2. `RC0.B` runtime claim-matrix materialization:
+   - publish Tier 0/1/2 runtime claim rows with gate class (`hard_gate` vs `advisory`),
+   - pin claim-to-drill mapping (`DR-02/03/04/05/07` where applicable),
+   - pin claim-to-metric mapping to metric IDs (no free-text-only claims).
+3. `RC0.C` metric dictionary lock:
+   - publish metric IDs with unit, statistic (`p50/p95/p99/count/rate`), window, and canonical source surface.
+   - for Tier-0 metrics, include exact thresholds from Section 4.1.
+4. `RC0.D` minimum evidence bundle rules:
+   - publish per-claim minimum artifact bundle requirement (inspectable refs mandatory),
+   - require deterministic artifact names and fail-closed if any required artifact pointer is missing.
+5. `RC0.E` publication and readback:
+   - publish RC0 artifacts to local cert run path,
+   - publish durable mirror under runtime cert S3 prefix when AWS credential context is available,
+   - readback check for published artifacts.
+6. `RC0.F` blocker evaluation + lane verdict:
+   - evaluate `RC-B1/RC-B2/RC-B3`,
+   - lane passes only if blocker set is empty and RC0 DoD is fully satisfied.
+
+RC0 entry criteria:
+1. `cert_handoff.md` confirms `CERTIFICATION_TRACKS_READY`.
+2. Runtime cert plan is `ACTIVE`.
+3. Runtime cert notes file exists and is writable.
+
+RC0 outputs (deterministic):
+1. `runtime_claim_matrix.json`
+2. `runtime_metric_dictionary.json`
+3. `runtime_evidence_bundle_rules.json`
+4. `rc0_execution_snapshot.json`
+
+RC0 artifact paths:
+1. local:
+   - `runs/dev_substrate/dev_full/cert/runtime/<runtime_cert_execution_id>/`
+2. durable (when AWS session is present):
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/<runtime_cert_execution_id>/`
+
 DoD:
-- [ ] claim matrix for Tier 0..2 runtime slice is published.
-- [ ] each runtime claim has minimum evidence bundle rule pinned.
-- [ ] metric definitions and windows are unambiguous.
+- [x] claim matrix for Tier 0..2 runtime slice is published.
+- [x] each runtime claim has minimum evidence bundle rule pinned.
+- [x] metric definitions and windows are unambiguous.
+
+RC0 closure snapshot:
+1. `runtime_cert_execution_id=rc0_claim_model_lock_20260302T144121Z`
+2. `platform_run_id=platform_20260302T080146Z`
+3. `scenario_run_id=scenario_9de27c0bd83aed3a4aea4d0063c981f1`
+4. local artifact root:
+   - `runs/dev_substrate/dev_full/cert/runtime/rc0_claim_model_lock_20260302T144121Z/`
+5. durable artifact root:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc0_claim_model_lock_20260302T144121Z/`
+6. lane verdict:
+   - `overall_pass=true`
+   - `blockers=[]`
+   - `next_gate=RC1_READY`
 
 ### RC1 - Runtime evidence inventory and gap register
 Goal:
