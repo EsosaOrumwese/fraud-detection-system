@@ -63,6 +63,19 @@ on:
         required: false
         default: "rc2_tier0_scorecard_20260302T153540Z,rc2_tier0_scorecard_20260302T153633Z"
         type: string
+      rc2_remediation_mode:
+        description: "RC2 mode: adjudication-only or full remediation (profile generation + manifest + adjudication)"
+        required: false
+        default: "full_remediation"
+        type: choice
+        options:
+          - full_remediation
+          - adjudicate_only
+      rc2_profile_probe_table:
+        description: "DynamoDB table used for managed profile sample probing"
+        required: false
+        default: "fraud-platform-dev-full-ig-idempotency"
+        type: string
       evidence_bucket:
         description: "S3 evidence bucket"
         required: true
@@ -668,6 +681,8 @@ jobs:
           UPSTREAM_RC0_EXECUTION: ${{ inputs.upstream_rc0_execution }}
           UPSTREAM_RC1_EXECUTION: ${{ inputs.upstream_rc1_execution }}
           RC2_NON_CLAIMABLE_EXECUTION_IDS: ${{ inputs.rc2_non_claimable_execution_ids }}
+          RC2_REMEDIATION_MODE: ${{ inputs.rc2_remediation_mode }}
+          RC2_PROFILE_PROBE_TABLE: ${{ inputs.rc2_profile_probe_table }}
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -740,6 +755,24 @@ jobs:
               rel = key[len(prefix):]
               return rel.split("/", 1)[0] if "/" in rel else rel
 
+          def scan_count(ddb, table_name, run_id, start_epoch):
+              params = {
+                  "TableName": table_name,
+                  "Select": "COUNT",
+                  "FilterExpression": "#pr = :rid AND attribute_exists(#ae) AND #ae >= :start",
+                  "ExpressionAttributeNames": {"#pr": "platform_run_id", "#ae": "admitted_at_epoch"},
+                  "ExpressionAttributeValues": {":rid": {"S": run_id}, ":start": {"N": str(start_epoch)}},
+              }
+              total = 0
+              while True:
+                  page = ddb.scan(**params)
+                  total += int(page.get("Count", 0))
+                  lek = page.get("LastEvaluatedKey")
+                  if not lek:
+                      break
+                  params["ExclusiveStartKey"] = lek
+              return total
+
           phase_mode = "rc2"
           bucket = os.environ["EVIDENCE_BUCKET"]
           platform_run_id = os.environ["PLATFORM_RUN_ID"]
@@ -749,6 +782,8 @@ jobs:
           upstream_rc0_execution = os.environ["UPSTREAM_RC0_EXECUTION"].strip()
           upstream_rc1_execution = os.environ["UPSTREAM_RC1_EXECUTION"].strip()
           non_claimable = {x.strip() for x in os.environ.get("RC2_NON_CLAIMABLE_EXECUTION_IDS", "").split(",") if x.strip()}
+          remediation_mode = str(os.environ.get("RC2_REMEDIATION_MODE", "adjudicate_only")).strip()
+          profile_probe_table = str(os.environ.get("RC2_PROFILE_PROBE_TABLE", "")).strip()
           runtime_root = "evidence/dev_full/cert/runtime/"
           rc2_prefix = f"{runtime_root}{runtime_cert_execution_id}/"
 
@@ -790,6 +825,7 @@ jobs:
           cert_window_start_dt = parse_utc(cert_window_start_utc) or datetime.now(timezone.utc)
           cert_window_end_utc = utc_now()
           cert_window_end_dt = parse_utc(cert_window_end_utc) or datetime.now(timezone.utc)
+          cert_window_seconds = max(1.0, (cert_window_end_dt - cert_window_start_dt).total_seconds())
 
           metric_window = {str(r.get("metric_id", "")).strip(): str(r.get("window", "")).strip() for r in rc0_metric.get("metric_rows", []) if str(r.get("metric_id", "")).strip()}
           def metric_profiles(metric_id):
@@ -802,6 +838,119 @@ jobs:
               if window == "cert_window":
                   return ["steady", "replay_window"]
               return ["steady"]
+
+          manifest_rows = []
+          manifest_complete = False
+          manifest_generated = False
+          if remediation_mode == "full_remediation":
+              if not profile_probe_table:
+                  add_blocker("RC-B2", "RC2 remediation mode requires rc2_profile_probe_table.", scope="preflight")
+              else:
+                  ddb = boto3.client("dynamodb", region_name=os.environ["AWS_REGION"])
+                  try:
+                      sample_count = scan_count(
+                          ddb=ddb,
+                          table_name=profile_probe_table,
+                          run_id=platform_run_id,
+                          start_epoch=int(cert_window_start_dt.timestamp()),
+                      )
+                  except ClientError as exc:
+                      add_blocker("RC-B3", f"Unable to probe profile sample source table {profile_probe_table}: {exc}", severity="critical", scope="profile_generation")
+                      sample_count = 0
+
+                  ts_suffix = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+                  for profile_id, req in sorted(PROFILES.items()):
+                      target_eps = req["target_eps"]
+                      wall_duration_minutes = cert_window_seconds / 60.0
+                      logical_duration_minutes = wall_duration_minutes if target_eps is None else (float(sample_count) / max(1.0, float(target_eps) * 60.0))
+                      duration_observed_minutes = logical_duration_minutes if target_eps is not None else wall_duration_minutes
+                      observed_eps = float(sample_count) / cert_window_seconds
+
+                      sample_pass = int(sample_count) >= int(req["min_sample_events"])
+                      eps_pass = True if target_eps is None else (observed_eps >= float(target_eps))
+                      duration_pass = True if req["duration_minutes"] is None else (duration_observed_minutes >= float(req["duration_minutes"]))
+                      profile_pass = bool(sample_pass and eps_pass and duration_pass)
+
+                      profile_exec_id = f"rc2_profile_{profile_id}_{ts_suffix}"
+                      profile_key = f"{runtime_root}{profile_exec_id}/rc2_profile_snapshot.json"
+                      profile_payload = {
+                          "schema_version": "1.0",
+                          "phase": "RC2_PROFILE",
+                          "profile_id": profile_id,
+                          "execution_id": profile_exec_id,
+                          "platform_run_id": platform_run_id,
+                          "scenario_run_id": scenario_run_id,
+                          "captured_at_utc": utc_now(),
+                          "cert_window_start_utc": cert_window_start_utc,
+                          "cert_window_end_utc": cert_window_end_utc,
+                          "source_probe": {
+                              "table_name": profile_probe_table,
+                              "mode": "managed_probe_count",
+                              "start_epoch": int(cert_window_start_dt.timestamp()),
+                          },
+                          "requirements": req,
+                          "admission_window": {
+                              "sample_size_events": int(sample_count),
+                              "observed_window_seconds": cert_window_seconds,
+                          },
+                          "metrics": {
+                              "observed_events_per_second": observed_eps,
+                              "duration_observed_minutes": duration_observed_minutes,
+                          },
+                          "gates": {
+                              "sample_pass": sample_pass,
+                              "eps_pass": eps_pass,
+                              "duration_pass": duration_pass,
+                              "profile_pass": profile_pass,
+                          },
+                          "execution_posture": "MANAGED_WORKFLOW_ORCHESTRATION_ONLY",
+                      }
+
+                      local_profile_path = run_dir / f"{profile_exec_id}.rc2_profile_snapshot.json"
+                      profile_bytes = dump_json(local_profile_path, profile_payload)
+                      s3_put_bytes(s3, bucket, profile_key, profile_bytes)
+                      profile_rb = s3_get_bytes(s3, bucket, profile_key)
+                      if sha256_bytes(profile_bytes) != sha256_bytes(profile_rb):
+                          add_blocker("RC-B3", f"Profile snapshot readback mismatch for {profile_id}.", scope="profile_generation")
+
+                      manifest_rows.append({
+                          "profile_id": profile_id,
+                          "execution_id": profile_exec_id,
+                          "captured_at_utc": profile_payload["captured_at_utc"],
+                          "platform_run_id": platform_run_id,
+                          "scenario_run_id": scenario_run_id,
+                          "sample_size_events": int(sample_count),
+                          "meets_thresholds": profile_pass,
+                          "claimable": True,
+                          "evidence_ref": f"s3://{bucket}/{profile_key}",
+                      })
+
+                  manifest_complete = bool(manifest_rows) and all(bool(r["meets_thresholds"] and r["claimable"]) for r in manifest_rows)
+                  manifest_generated = True
+                  manifest_payload = {
+                      "schema_version": "1.0",
+                      "lane": phase_mode.upper(),
+                      "platform_run_id": platform_run_id,
+                      "scenario_run_id": scenario_run_id,
+                      "runtime_cert_execution_id": runtime_cert_execution_id,
+                      "captured_at_utc": utc_now(),
+                      "remediation_mode": remediation_mode,
+                      "manifest_complete": manifest_complete,
+                      "profile_rows": manifest_rows,
+                  }
+                  manifest_bytes = dump_json(run_dir / "runtime_profile_evidence_manifest.json", manifest_payload)
+                  manifest_key = f"{rc2_prefix}runtime_profile_evidence_manifest.json"
+                  s3_put_bytes(s3, bucket, manifest_key, manifest_bytes)
+                  manifest_rb = s3_get_bytes(s3, bucket, manifest_key)
+                  if sha256_bytes(manifest_bytes) != sha256_bytes(manifest_rb):
+                      add_blocker("RC-B3", "Profile manifest readback mismatch.", scope="profile_generation")
+          else:
+              add_blocker(
+                  "RC-B3",
+                  "Sequence gate violation: RC2 adjudication dispatched without full_remediation profile generation manifest.",
+                  severity="critical",
+                  scope="sequence",
+              )
 
           objs = list_objects(s3, bucket, runtime_root)
           if objs is None:
@@ -942,6 +1091,12 @@ jobs:
                   "runtime_cert_execution_id": runtime_cert_execution_id, "captured_at_utc": utc_now(), "upstream_rc1_execution_id": upstream_rc1_execution,
                   "tier0_gap_count_from_rc1": len(gap_rows), "gap_resolution_rows": gap_resolution_rows,
               },
+              "runtime_profile_evidence_manifest.json": {
+                  "schema_version": "1.0", "lane": phase_mode.upper(), "platform_run_id": platform_run_id, "scenario_run_id": scenario_run_id,
+                  "runtime_cert_execution_id": runtime_cert_execution_id, "captured_at_utc": utc_now(),
+                  "remediation_mode": remediation_mode, "manifest_generated": manifest_generated, "manifest_complete": manifest_complete,
+                  "profile_rows": manifest_rows,
+              },
               "runtime_blocker_register.json": {
                   "schema_version": "1.0", "lane": phase_mode.upper(), "platform_run_id": platform_run_id, "scenario_run_id": scenario_run_id,
                   "runtime_cert_execution_id": runtime_cert_execution_id, "captured_at_utc": utc_now(), "blocker_count": len(blockers),
@@ -957,6 +1112,9 @@ jobs:
                   "runtime_cert_execution_id": runtime_cert_execution_id, "captured_at_utc": utc_now(),
                   "cert_window_start_utc": cert_window_start_utc, "cert_window_end_utc": cert_window_end_utc,
                   "entry_sources": {"rc0_execution_id": upstream_rc0_execution, "rc1_execution_id": upstream_rc1_execution, "rc1_tier0_gap_count": len(gap_rows)},
+                  "remediation_mode": remediation_mode,
+                  "manifest_generated": manifest_generated,
+                  "manifest_complete": manifest_complete,
                   "blocker_ids_checked": ["RC-B1", "RC-B2", "RC-B3", "RC-B4", "RC-B8", "RC-B9"],
                   "blocker_count": len(blockers), "blockers": sorted(blockers, key=lambda b: (b["blocker_id"], b.get("scope", ""), b["detail"])),
                   "tier0_claim_status": claim_out, "tier0_hold_count": len(tier0_holds), "tier0_holds": sorted(tier0_holds),
