@@ -220,6 +220,11 @@ To be populated during RC0 materialization and updated as RC2+ runs execute.
    - `RC-B5` `DR-07` breach-response cost guardrail drill proof missing.
 3. Active (`RC1 fresh-only`):
    - `RC-B3` Tier-0 metrics currently lack fresh evidence (`15` blockers total; see fresh gap register).
+   - explicit metric set:
+     - `T0.2`: `decision_latency_p95_ms`, `decision_latency_p99_ms`, `decision_success_availability_pct`, `decision_non_retryable_error_rate_pct`
+     - `T0.3`: `replay_integrity_mismatch_count`, `duplicate_side_effect_count`, `ingress_to_core_lag_p95_seconds`, `ingress_to_core_lag_p99_seconds`, `publish_unknown_unresolved_count`
+     - `T0.4`: `runtime_correlation_id_coverage_pct`, `runtime_ttd_p95_minutes`, `runtime_ttdiag_p95_minutes`
+     - `T0.6`: `runtime_unattributed_spend_count`, `runtime_cost_attribution_coverage_pct`, `runtime_budget_alert_level`
 
 ## 7) Phase Verdict Log
 | Lane | Verdict | Notes |
