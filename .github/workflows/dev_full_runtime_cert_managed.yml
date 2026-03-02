@@ -234,7 +234,7 @@ jobs:
           import json
           import os
           import sys
-          from datetime import datetime, timezone
+          from datetime import datetime, timedelta, timezone
           from pathlib import Path
           from typing import Dict, List, Optional
 
@@ -755,23 +755,29 @@ jobs:
               rel = key[len(prefix):]
               return rel.split("/", 1)[0] if "/" in rel else rel
 
-          def scan_count(ddb, table_name, run_id, start_epoch):
+          def scan_count(ddb, table_name, run_id, start_epoch, end_epoch):
               params = {
                   "TableName": table_name,
                   "Select": "COUNT",
-                  "FilterExpression": "#pr = :rid AND attribute_exists(#ae) AND #ae >= :start",
+                  "FilterExpression": "#pr = :rid AND attribute_exists(#ae) AND #ae >= :start AND #ae <= :end",
                   "ExpressionAttributeNames": {"#pr": "platform_run_id", "#ae": "admitted_at_epoch"},
-                  "ExpressionAttributeValues": {":rid": {"S": run_id}, ":start": {"N": str(start_epoch)}},
+                  "ExpressionAttributeValues": {
+                      ":rid": {"S": run_id},
+                      ":start": {"N": str(start_epoch)},
+                      ":end": {"N": str(end_epoch)},
+                  },
               }
               total = 0
+              page_count = 0
               while True:
                   page = ddb.scan(**params)
+                  page_count += 1
                   total += int(page.get("Count", 0))
                   lek = page.get("LastEvaluatedKey")
                   if not lek:
                       break
                   params["ExclusiveStartKey"] = lek
-              return total
+              return {"count": total, "page_count": page_count, "truncated": False}
 
           phase_mode = "rc2"
           bucket = os.environ["EVIDENCE_BUCKET"]
@@ -842,31 +848,47 @@ jobs:
           manifest_rows = []
           manifest_complete = False
           manifest_generated = False
+          r1_gate = {
+              "required": True,
+              "passed": False,
+              "checks": {},
+              "failures": [],
+          }
           if remediation_mode == "full_remediation":
               if not profile_probe_table:
                   add_blocker("RC-B2", "RC2 remediation mode requires rc2_profile_probe_table.", scope="preflight")
               else:
                   ddb = boto3.client("dynamodb", region_name=os.environ["AWS_REGION"])
-                  try:
-                      sample_count = scan_count(
-                          ddb=ddb,
-                          table_name=profile_probe_table,
-                          run_id=platform_run_id,
-                          start_epoch=int(cert_window_start_dt.timestamp()),
-                      )
-                  except ClientError as exc:
-                      add_blocker("RC-B3", f"Unable to probe profile sample source table {profile_probe_table}: {exc}", severity="critical", scope="profile_generation")
-                      sample_count = 0
-
                   ts_suffix = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
                   for profile_id, req in sorted(PROFILES.items()):
                       target_eps = req["target_eps"]
-                      wall_duration_minutes = cert_window_seconds / 60.0
-                      logical_duration_minutes = wall_duration_minutes if target_eps is None else (float(sample_count) / max(1.0, float(target_eps) * 60.0))
-                      duration_observed_minutes = logical_duration_minutes if target_eps is not None else wall_duration_minutes
-                      observed_eps = float(sample_count) / cert_window_seconds
+                      if req["duration_minutes"] is None:
+                          profile_start_dt = cert_window_start_dt
+                      else:
+                          profile_start_dt = cert_window_end_dt - timedelta(minutes=float(req["duration_minutes"]))
+                          if profile_start_dt < cert_window_start_dt:
+                              profile_start_dt = cert_window_start_dt
+                      profile_end_dt = cert_window_end_dt
+                      profile_start_epoch = int(profile_start_dt.timestamp())
+                      profile_end_epoch = int(profile_end_dt.timestamp())
+                      profile_window_seconds = max(1.0, float(profile_end_epoch - profile_start_epoch))
+                      profile_window_minutes = profile_window_seconds / 60.0
+                      try:
+                          probe_count = scan_count(
+                              ddb=ddb,
+                              table_name=profile_probe_table,
+                              run_id=platform_run_id,
+                              start_epoch=profile_start_epoch,
+                              end_epoch=profile_end_epoch,
+                          )
+                      except ClientError as exc:
+                          add_blocker("RC-B3", f"Unable to probe profile window for {profile_id}: {exc}", severity="critical", scope="profile_generation")
+                          probe_count = {"count": 0, "page_count": 0, "truncated": True}
+                      profile_sample_count = int(probe_count.get("count", 0) or 0)
+                      duration_observed_minutes = profile_window_minutes
+                      observed_eps = float(profile_sample_count) / profile_window_seconds
 
-                      sample_pass = int(sample_count) >= int(req["min_sample_events"])
+                      sample_pass = profile_sample_count >= int(req["min_sample_events"])
                       eps_pass = True if target_eps is None else (observed_eps >= float(target_eps))
                       duration_pass = True if req["duration_minutes"] is None else (duration_observed_minutes >= float(req["duration_minutes"]))
                       profile_pass = bool(sample_pass and eps_pass and duration_pass)
@@ -885,13 +907,18 @@ jobs:
                           "cert_window_end_utc": cert_window_end_utc,
                           "source_probe": {
                               "table_name": profile_probe_table,
-                              "mode": "managed_probe_count",
-                              "start_epoch": int(cert_window_start_dt.timestamp()),
+                              "mode": "managed_probe_count_window_bounded",
+                              "start_epoch": profile_start_epoch,
+                              "end_epoch": profile_end_epoch,
+                              "scan_page_count": int(probe_count.get("page_count", 0) or 0),
+                              "count_complete": bool(not probe_count.get("truncated", False)),
                           },
                           "requirements": req,
                           "admission_window": {
-                              "sample_size_events": int(sample_count),
-                              "observed_window_seconds": cert_window_seconds,
+                              "window_start_utc": profile_start_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                              "window_end_utc": profile_end_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                              "sample_size_events": profile_sample_count,
+                              "observed_window_seconds": profile_window_seconds,
                           },
                           "metrics": {
                               "observed_events_per_second": observed_eps,
@@ -919,11 +946,65 @@ jobs:
                           "captured_at_utc": profile_payload["captured_at_utc"],
                           "platform_run_id": platform_run_id,
                           "scenario_run_id": scenario_run_id,
-                          "sample_size_events": int(sample_count),
+                          "sample_size_events": profile_sample_count,
                           "meets_thresholds": profile_pass,
                           "claimable": True,
+                          "campaign_window_start_utc": profile_payload["admission_window"]["window_start_utc"],
+                          "campaign_window_end_utc": profile_payload["admission_window"]["window_end_utc"],
+                          "probe_count_complete": profile_payload["source_probe"]["count_complete"],
                           "evidence_ref": f"s3://{bucket}/{profile_key}",
                       })
+
+                  required_profiles = set(PROFILES.keys())
+                  observed_profiles = {str(r.get("profile_id", "")).strip() for r in manifest_rows if str(r.get("profile_id", "")).strip()}
+                  unique_execution_ids = len({str(r.get("execution_id", "")).strip() for r in manifest_rows}) == len(manifest_rows) and len(manifest_rows) == len(required_profiles)
+                  unique_windows = len({
+                      (
+                          str(r.get("campaign_window_start_utc", "")).strip(),
+                          str(r.get("campaign_window_end_utc", "")).strip(),
+                      )
+                      for r in manifest_rows
+                  }) == len(manifest_rows) and len(manifest_rows) == len(required_profiles)
+                  bounded_windows = all(
+                      bool(str(r.get("campaign_window_start_utc", "")).strip()) and bool(str(r.get("campaign_window_end_utc", "")).strip())
+                      for r in manifest_rows
+                  )
+                  complete_counts = all(bool(r.get("probe_count_complete")) for r in manifest_rows)
+                  profile_coverage = observed_profiles == required_profiles
+
+                  r1_failures = []
+                  if not profile_coverage:
+                      r1_failures.append("R1_PROFILE_COVERAGE_INCOMPLETE")
+                  if not unique_execution_ids:
+                      r1_failures.append("R1_EXECUTION_IDS_NOT_UNIQUE")
+                  if not unique_windows:
+                      r1_failures.append("R1_CAMPAIGN_WINDOWS_NOT_DISTINCT")
+                  if not bounded_windows:
+                      r1_failures.append("R1_CAMPAIGN_WINDOWS_UNBOUNDED")
+                  if not complete_counts:
+                      r1_failures.append("R1_COUNT_COMPLETENESS_UNVERIFIED")
+
+                  r1_gate = {
+                      "required": True,
+                      "passed": len(r1_failures) == 0,
+                      "checks": {
+                          "profile_coverage_complete": profile_coverage,
+                          "execution_ids_unique": unique_execution_ids,
+                          "campaign_windows_distinct": unique_windows,
+                          "campaign_windows_bounded": bounded_windows,
+                          "probe_count_complete": complete_counts,
+                      },
+                      "failures": r1_failures,
+                  }
+                  if not r1_gate["passed"]:
+                      add_blocker(
+                          "RC-B10",
+                          f"RC2.R1 evidence-shape gate failed: {', '.join(r1_failures)}",
+                          severity="critical",
+                          scope="sequence",
+                      )
+                      for row in manifest_rows:
+                          row["claimable"] = False
 
                   manifest_complete = bool(manifest_rows) and all(bool(r["meets_thresholds"] and r["claimable"]) for r in manifest_rows)
                   manifest_generated = True
@@ -935,6 +1016,7 @@ jobs:
                       "runtime_cert_execution_id": runtime_cert_execution_id,
                       "captured_at_utc": utc_now(),
                       "remediation_mode": remediation_mode,
+                      "r1_evidence_shape_gate": r1_gate,
                       "manifest_complete": manifest_complete,
                       "profile_rows": manifest_rows,
                   }
@@ -1101,6 +1183,7 @@ jobs:
                   "schema_version": "1.0", "lane": phase_mode.upper(), "platform_run_id": platform_run_id, "scenario_run_id": scenario_run_id,
                   "runtime_cert_execution_id": runtime_cert_execution_id, "captured_at_utc": utc_now(),
                   "remediation_mode": remediation_mode, "manifest_generated": manifest_generated, "manifest_complete": manifest_complete,
+                  "r1_evidence_shape_gate": r1_gate,
                   "profile_rows": manifest_rows,
               },
               "runtime_blocker_register.json": {
@@ -1119,9 +1202,11 @@ jobs:
                   "cert_window_start_utc": cert_window_start_utc, "cert_window_end_utc": cert_window_end_utc,
                   "entry_sources": {"rc0_execution_id": upstream_rc0_execution, "rc1_execution_id": upstream_rc1_execution, "rc1_tier0_gap_count": len(gap_rows)},
                   "remediation_mode": remediation_mode,
+                  "r1_evidence_shape_gate": r1_gate,
+                  "execution_claimability": "CLAIMABLE" if r1_gate.get("passed") else "NON_CLAIMABLE",
                   "manifest_generated": manifest_generated,
                   "manifest_complete": manifest_complete,
-                  "blocker_ids_checked": ["RC-B1", "RC-B2", "RC-B3", "RC-B4", "RC-B8", "RC-B9"],
+                  "blocker_ids_checked": ["RC-B1", "RC-B2", "RC-B3", "RC-B4", "RC-B8", "RC-B9", "RC-B10"],
                   "blocker_count": len(blockers), "blockers": sorted(blockers, key=lambda b: (b["blocker_id"], b.get("scope", ""), b["detail"])),
                   "tier0_claim_status": claim_out, "tier0_hold_count": len(tier0_holds), "tier0_holds": sorted(tier0_holds),
                   "overall_pass": overall_pass, "verdict": verdict, "next_gate": next_gate,
