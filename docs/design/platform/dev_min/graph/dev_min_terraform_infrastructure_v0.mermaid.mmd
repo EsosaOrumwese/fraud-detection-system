@@ -1,0 +1,78 @@
+%% Dev Min Terraform Infrastructure (Stack + Module Topology)
+flowchart LR
+
+  GHA[GitHub Actions / Operator CLI<br/>terraform init plan apply destroy]
+
+  subgraph CORE[Stack dev_min/core]
+    CORE_ROOT[root module call<br/>module.core]
+    CORE_S3[(module/core S3 buckets<br/>object-store evidence quarantine archive tfstate)]
+    CORE_DDB[(module/core DynamoDB<br/>control_runs ig_admission_state ig_publish_state tf_lock)]
+    CORE_BUDGET[(module/core AWS Budget<br/>dev_min_monthly + thresholds)]
+  end
+
+  subgraph CONFLUENT[Stack dev_min/confluent]
+    CONF_ROOT[root module call<br/>module.confluent]
+    CONF_CC[(module/confluent Confluent Cloud<br/>environment cluster topics service accounts ACLs API keys)]
+    CONF_SSM[(aws_ssm_parameter<br/>bootstrap api_key api_secret)]
+    CONF_CATALOG[[aws_s3_object.topic_catalog<br/>confluent topic catalog artifact]]
+  end
+
+  subgraph DEMO[Stack dev_min/demo]
+    DEMO_ROOT[root module call<br/>module.demo<br/>remote_state confluent optional]
+    DEMO_NET[(module/demo network<br/>VPC public subnets route table IGW app/db SG)]
+    DEMO_ECS[(module/demo ECS<br/>cluster + daemon service<br/>13 mapped services)]
+    DEMO_TASKS[module/demo task definitions<br/>runtime_probe db_migrations daemon oracle_job control_job reporter]
+    DEMO_BUS[(module/demo bus<br/>aws_kinesis_stream.ig_event_bus)]
+    DEMO_DB[(module/demo DB<br/>RDS instance + db subnet group)]
+    DEMO_IAM[module/demo IAM<br/>execution role app role lane roles + policies]
+    DEMO_SSM[(module/demo SSM parameters<br/>confluent creds db creds/dsn ig_api_key heartbeat)]
+    DEMO_ART[[module/demo artifacts<br/>manifest + topic_catalog objects]]
+  end
+
+  subgraph STATE[State + Handle Dependencies]
+    STATE_CORE[[TF state key<br/>dev_min/core/terraform.tfstate]]
+    STATE_CONF[[TF state key<br/>dev_min/confluent/terraform.tfstate]]
+    STATE_DEMO[[TF state key<br/>dev_min/demo/terraform.tfstate]]
+  end
+
+  GHA -->|apply| CORE_ROOT
+  GHA -->|apply| CONF_ROOT
+  GHA -->|apply| DEMO_ROOT
+
+  CORE_ROOT --> CORE_S3
+  CORE_ROOT --> CORE_DDB
+  CORE_ROOT --> CORE_BUDGET
+
+  CONF_ROOT --> CONF_CC
+  CONF_CC -->|materialize runtime credentials| CONF_SSM
+  CONF_CC -->|topic map| CONF_CATALOG
+
+  DEMO_ROOT --> DEMO_NET
+  DEMO_ROOT --> DEMO_ECS
+  DEMO_ROOT --> DEMO_TASKS
+  DEMO_ROOT --> DEMO_BUS
+  DEMO_ROOT --> DEMO_DB
+  DEMO_ROOT --> DEMO_IAM
+  DEMO_ROOT --> DEMO_SSM
+  DEMO_ROOT --> DEMO_ART
+
+  CORE_ROOT -. writes state .-> STATE_CORE
+  CONF_ROOT -. writes state .-> STATE_CONF
+  DEMO_ROOT -. writes state .-> STATE_DEMO
+  STATE_CONF -. remote_state input<br/>confluent_credentials_source=remote_state .-> DEMO_ROOT
+
+  CORE_S3 -. catalog target bucket .-> CONF_CATALOG
+  CORE_S3 -. manifest/catalog target .-> DEMO_ART
+  CORE_S3 -. evidence/object roots consumed by runtime .-> DEMO_TASKS
+
+  CONF_SSM -. shared handle surface .-> DEMO_SSM
+  CONF_SSM -. runtime secret injection .-> DEMO_TASKS
+  DEMO_SSM -. runtime secret injection .-> DEMO_TASKS
+
+  DEMO_ECS -->|runs tasks/services| DEMO_TASKS
+  DEMO_TASKS -->|publish and consume control path| DEMO_BUS
+  DEMO_TASKS -->|app + checkpoint data plane| DEMO_DB
+  DEMO_TASKS -->|object/evidence read-write| CORE_S3
+  DEMO_TASKS -. control/admission surfaces .-> CORE_DDB
+
+  CORE_BUDGET -. M9 cost guardrail posture .-> GHA

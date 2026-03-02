@@ -1,0 +1,54 @@
+version: 1
+pack_id: dev_full_learning_jobs_v0
+description: "Learning-plane OFS + MF worker pack for dev_full managed runtime."
+active_run:
+  required: true
+  source_path: runs/fraud-platform/ACTIVE_RUN_ID
+defaults:
+  cwd: .
+  env:
+    PYTHONUNBUFFERED: "1"
+    PYTHONPATH: src
+    RUN_OPERATE_PYTHON: ${RUN_OPERATE_PYTHON:-.venv/Scripts/python.exe}
+    PLATFORM_STORE_ROOT: ${PLATFORM_STORE_ROOT:-s3://fraud-platform-dev-full-object-store}
+    PLATFORM_RUN_ID: ${ACTIVE_PLATFORM_RUN_ID}
+    OFS_REQUIRED_PLATFORM_RUN_ID: ${OFS_REQUIRED_PLATFORM_RUN_ID:-${ACTIVE_PLATFORM_RUN_ID}}
+    OFS_RUN_LEDGER_DSN: ${OFS_RUN_LEDGER_DSN:-}
+    OFS_REQUEST_PREFIX: ${OFS_REQUEST_PREFIX:-${ACTIVE_PLATFORM_RUN_ID}/ofs/job_requests}
+    OFS_REQUEST_POLL_SECONDS: ${OFS_REQUEST_POLL_SECONDS:-2.0}
+    OFS_REQUEST_BATCH_LIMIT: ${OFS_REQUEST_BATCH_LIMIT:-20}
+    OFS_MAX_PUBLISH_RETRY_ATTEMPTS: ${OFS_MAX_PUBLISH_RETRY_ATTEMPTS:-3}
+    MF_REQUIRED_PLATFORM_RUN_ID: ${MF_REQUIRED_PLATFORM_RUN_ID:-${ACTIVE_PLATFORM_RUN_ID}}
+    MF_RUN_LEDGER_DSN: ${MF_RUN_LEDGER_DSN:-}
+    MF_REQUEST_PREFIX: ${MF_REQUEST_PREFIX:-${ACTIVE_PLATFORM_RUN_ID}/mf/job_requests}
+    MF_REQUEST_POLL_SECONDS: ${MF_REQUEST_POLL_SECONDS:-2.0}
+    MF_REQUEST_BATCH_LIMIT: ${MF_REQUEST_BATCH_LIMIT:-20}
+    MF_MAX_PUBLISH_RETRY_ATTEMPTS: ${MF_MAX_PUBLISH_RETRY_ATTEMPTS:-3}
+    MF_SERVICE_RELEASE_ID: ${MF_SERVICE_RELEASE_ID:-git:dev_full}
+    LABEL_STORE_LOCATOR: ${LABEL_STORE_LOCATOR:-}
+    OBJECT_STORE_ENDPOINT: ${OBJECT_STORE_ENDPOINT:-}
+    OBJECT_STORE_REGION: ${OBJECT_STORE_REGION:-}
+    OBJECT_STORE_PATH_STYLE: ${OBJECT_STORE_PATH_STYLE:-false}
+processes:
+  - id: ofs_job_worker
+    command:
+      - ${RUN_OPERATE_PYTHON}
+      - -m
+      - fraud_detection.offline_feature_plane.worker
+      - --profile
+      - config/platform/profiles/dev_full.yaml
+      - run
+      - --once
+    readiness:
+      type: process_alive
+  - id: mf_job_worker
+    command:
+      - ${RUN_OPERATE_PYTHON}
+      - -m
+      - fraud_detection.model_factory.worker
+      - --profile
+      - config/platform/profiles/dev_full.yaml
+      - run
+      - --once
+    readiness:
+      type: process_alive

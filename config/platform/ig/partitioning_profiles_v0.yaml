@@ -135,7 +135,7 @@ profiles:
   ig.partitioning.v0.case.trigger:
     description: >
       Deterministic routing for CaseTrigger events into the case/labels lane.
-    stream: fp.bus.case.v1
+    stream: fp.bus.case.triggers.v1
     key_precedence:
       - payload.case_id
       - payload.case_subject_key.event_id

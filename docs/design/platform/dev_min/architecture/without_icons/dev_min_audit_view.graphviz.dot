@@ -1,0 +1,67 @@
+digraph DevMinAuditNoIcons {
+  graph [rankdir=LR, fontname="Helvetica", fontsize=11, label="Dev_min Architecture - Audit/Governance View (No Icons)", labelloc=t, labeljust=l, pad="0.2"];
+  node  [shape=box, style="rounded,filled", fillcolor="#F8FAFC", color="#CBD5E1", fontname="Helvetica", fontsize=9];
+  edge  [color="#334155", penwidth=1.1, arrowsize=0.75, fontname="Helvetica", fontsize=8];
+
+  subgraph cluster_authority {
+    label="Authority Surfaces";
+    color="#1D4ED8"; style="rounded,dashed";
+    auth_tf_state [label="Terraform state bucket"];
+    auth_tf_lock [label="Terraform lock table"];
+    auth_config [label="Terraform roots\ncore + confluent + demo"];
+  }
+
+  subgraph cluster_truth {
+    label="Runtime Truth Surfaces";
+    color="#059669"; style="rounded,dashed";
+    truth_rds [label="RDS runtime state"];
+    truth_ddb_admission [label="DynamoDB admission state"];
+    truth_ddb_publish [label="DynamoDB publish state"];
+    truth_control_runs [label="DynamoDB run control"];
+    truth_s3_evidence [label="S3 evidence bundle"];
+    truth_s3_object [label="S3 object-store outputs"];
+    truth_s3_quarantine [label="S3 quarantine artifacts"];
+    truth_s3_archive [label="S3 archive artifacts"];
+  }
+
+  subgraph cluster_transport {
+    label="Transport Surfaces (Not Source of Truth)";
+    color="#7C3AED"; style="rounded,dashed";
+    trans_kafka [label="Confluent Kafka topics"];
+    trans_kinesis [label="Kinesis control bus"];
+    trans_ssm [label="SSM runtime credentials"];
+  }
+
+  subgraph cluster_gates {
+    label="Fail-Closed Certification Gates";
+    color="#B45309"; style="rounded,dashed";
+    gate_readiness [label="Readiness Gate\nmanaged data-plane viability"];
+    gate_integrity [label="Closure Integrity Gate\nevidence coherence + refs complete"];
+    gate_cert [label="Certification Matrix Gate\nsemantic, incident, scale,\nrecovery, reproducibility"];
+    gate_outcome [label="Outcome\nadvance only when\nblockers empty"];
+  }
+
+  auth_config -> auth_tf_state [label="apply/update"];
+  auth_tf_state -> auth_tf_lock [label="lock discipline"];
+
+  trans_ssm -> trans_kafka [style=dashed, label="auth material"];
+  trans_ssm -> truth_rds [style=dashed, label="db auth material"];
+
+  trans_kafka -> gate_readiness [label="probe + readback checks"];
+  trans_kinesis -> gate_readiness [label="control bus checks"];
+  truth_s3_evidence -> gate_integrity [label="bundle index + receipt checks"];
+  truth_s3_object -> gate_integrity [label="required output checks"];
+  truth_s3_quarantine -> gate_integrity [label="reason-code checks"];
+  truth_control_runs -> gate_integrity [label="run scope coherence"];
+
+  truth_rds -> gate_cert [label="semantic + safety counters"];
+  truth_ddb_admission -> gate_cert [label="idempotent admission state"];
+  truth_ddb_publish -> gate_cert [label="publish ambiguity state"];
+  truth_s3_evidence -> gate_cert [label="lane snapshots + rollup"];
+
+  gate_readiness -> gate_cert [label="must pass first", color="#DC2626"];
+  gate_integrity -> gate_cert [label="must pass first", color="#DC2626"];
+  gate_cert -> gate_outcome [label="blocker_union == empty"];
+
+  gate_outcome -> truth_s3_evidence [style=dashed, label="publish certification verdict"];
+}

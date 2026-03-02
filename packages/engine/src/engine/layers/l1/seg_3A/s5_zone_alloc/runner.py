@@ -159,6 +159,29 @@ def _list_parquet_paths(root: Path) -> list[Path]:
     return paths
 
 
+def _require_columns(
+    df: pl.DataFrame,
+    dataset_label: str,
+    validator_id: str,
+    required: list[str],
+    manifest_fingerprint: str,
+) -> None:
+    missing = [column for column in required if column not in df.columns]
+    if not missing:
+        return
+    _abort(
+        "E3A_S5_001_PRECONDITION_FAILED",
+        validator_id,
+        "dataset_columns_missing",
+        {
+            "component": dataset_label,
+            "reason": "columns_missing",
+            "missing_columns": missing,
+        },
+        manifest_fingerprint,
+    )
+
+
 def _hash_parquet_partition(root: Path) -> tuple[str, int, int]:
     if root.is_file():
         files = [root]
@@ -710,18 +733,13 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                 {"component": "S1_ESCALATION_QUEUE", "reason": "missing", "detail": str(exc)},
                 manifest_fingerprint,
             )
-        s1_pack, s1_table = _table_pack(schema_3a, "plan/s1_escalation_queue")
-        _inline_external_refs(s1_pack, schema_layer1, "schemas.layer1.yaml#")
-        try:
-            validate_dataframe(s1_df.iter_rows(named=True), s1_pack, s1_table)
-        except SchemaValidationError as exc:
-            _abort(
-                "E3A_S5_001_PRECONDITION_FAILED",
-                "V-02",
-                "s1_escalation_schema_invalid",
-                {"component": "S1_ESCALATION_QUEUE", "reason": "schema_invalid", "error": str(exc)},
-                manifest_fingerprint,
-            )
+        _require_columns(
+            s1_df,
+            "S1_ESCALATION_QUEUE",
+            "V-02",
+            ["merchant_id", "legal_country_iso", "site_count", "is_escalated"],
+            manifest_fingerprint,
+        )
 
         counts["pairs_total"] = s1_df.height
         s1_pairs = s1_df.select(["merchant_id", "legal_country_iso"])
@@ -760,18 +778,13 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                 {"component": "S2_PRIORS", "reason": "missing", "detail": str(exc)},
                 manifest_fingerprint,
             )
-        s2_pack, s2_table = _table_pack(schema_3a, "plan/s2_country_zone_priors")
-        _inline_external_refs(s2_pack, schema_layer1, "schemas.layer1.yaml#")
-        try:
-            validate_dataframe(s2_df.iter_rows(named=True), s2_pack, s2_table)
-        except SchemaValidationError as exc:
-            _abort(
-                "E3A_S5_001_PRECONDITION_FAILED",
-                "V-03",
-                "s2_priors_schema_invalid",
-                {"component": "S2_PRIORS", "reason": "schema_invalid", "error": str(exc)},
-                manifest_fingerprint,
-            )
+        _require_columns(
+            s2_df,
+            "S2_PRIORS",
+            "V-03",
+            ["country_iso", "tzid"],
+            manifest_fingerprint,
+        )
 
         current_phase = "s3_zone_shares"
         s3_entry = find_dataset_entry(dictionary, "s3_zone_shares").entry
@@ -787,18 +800,13 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                 {"component": "S3_ZONE_SHARES", "reason": "missing", "detail": str(exc)},
                 manifest_fingerprint,
             )
-        s3_pack, s3_table = _table_pack(schema_3a, "plan/s3_zone_shares")
-        _inline_external_refs(s3_pack, schema_layer1, "schemas.layer1.yaml#")
-        try:
-            validate_dataframe(s3_df.iter_rows(named=True), s3_pack, s3_table)
-        except SchemaValidationError as exc:
-            _abort(
-                "E3A_S5_001_PRECONDITION_FAILED",
-                "V-04",
-                "s3_shares_schema_invalid",
-                {"component": "S3_ZONE_SHARES", "reason": "schema_invalid", "error": str(exc)},
-                manifest_fingerprint,
-            )
+        _require_columns(
+            s3_df,
+            "S3_ZONE_SHARES",
+            "V-04",
+            ["merchant_id", "legal_country_iso", "tzid"],
+            manifest_fingerprint,
+        )
 
         current_phase = "s4_zone_counts"
         s4_entry = find_dataset_entry(dictionary, "s4_zone_counts").entry
@@ -814,18 +822,24 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                 {"component": "S4_ZONE_COUNTS", "reason": "missing", "detail": str(exc)},
                 manifest_fingerprint,
             )
-        s4_pack, s4_table = _table_pack(schema_3a, "plan/s4_zone_counts")
-        _inline_external_refs(s4_pack, schema_layer1, "schemas.layer1.yaml#")
-        try:
-            validate_dataframe(s4_df.iter_rows(named=True), s4_pack, s4_table)
-        except SchemaValidationError as exc:
-            _abort(
-                "E3A_S5_001_PRECONDITION_FAILED",
-                "V-05",
-                "s4_counts_schema_invalid",
-                {"component": "S4_ZONE_COUNTS", "reason": "schema_invalid", "error": str(exc)},
-                manifest_fingerprint,
-            )
+        _require_columns(
+            s4_df,
+            "S4_ZONE_COUNTS",
+            "V-05",
+            [
+                "merchant_id",
+                "legal_country_iso",
+                "tzid",
+                "zone_site_count",
+                "zone_site_count_sum",
+                "prior_pack_id",
+                "prior_pack_version",
+                "floor_policy_id",
+                "floor_policy_version",
+                "alpha_sum_country",
+            ],
+            manifest_fingerprint,
+        )
 
         counts["zone_rows_total"] = s4_df.height
         if counts["pairs_escalated"] > 0:

@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Optional
 
+import duckdb
 import polars as pl
 import pyarrow.parquet as pq
 import yaml
@@ -53,6 +54,16 @@ class S4Result:
     case_count: int
 
 
+@dataclass(frozen=True)
+class _TruthRule:
+    rule_id: str
+    fraud_pattern_type: str
+    overlay_anomaly_any: Optional[bool]
+    requires_campaign_id: bool
+    truth_label: str
+    truth_subtype: str
+
+
 class _StepTimer:
     def __init__(self, logger) -> None:
         self._logger = logger
@@ -70,7 +81,7 @@ class _StepTimer:
 
 
 class _ProgressTracker:
-    def __init__(self, total: int, logger, label: str, cadence_seconds: float = 5.0) -> None:
+    def __init__(self, total: int, logger, label: str, cadence_seconds: float = 10.0) -> None:
         self._total = max(int(total), 0)
         self._logger = logger
         self._label = label
@@ -604,28 +615,93 @@ def _load_templates_map(catalogue_config: dict, logger) -> dict[str, str]:
     return mapping
 
 
-def _load_truth_maps(truth_policy: dict, logger) -> tuple[dict[str, str], dict[str, str]]:
-    mapping_label: dict[str, str] = {}
-    mapping_subtype: dict[str, str] = {}
+def _parse_optional_bool(value: object) -> Optional[bool]:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"true", "1", "yes", "y"}:
+            return True
+        if lowered in {"false", "0", "no", "n"}:
+            return False
+    return None
+
+
+def _load_truth_rules(truth_policy: dict, logger) -> list[_TruthRule]:
+    parsed: list[_TruthRule] = []
     rules = truth_policy.get("direct_pattern_map") if isinstance(truth_policy, dict) else None
     rules = rules if isinstance(rules, list) else []
-    for rule in rules:
+    for index, rule in enumerate(rules):
         if not isinstance(rule, dict):
             continue
         match = rule.get("match") if isinstance(rule, dict) else None
         if not isinstance(match, dict):
             continue
-        pattern = match.get("fraud_pattern_type")
+        pattern = str(match.get("fraud_pattern_type") or "").strip()
         if not pattern:
             continue
-        truth_label = rule.get("truth_label")
-        truth_subtype = rule.get("truth_subtype") or pattern
-        if truth_label:
-            mapping_label[str(pattern)] = str(truth_label)
-            mapping_subtype[str(pattern)] = str(truth_subtype)
-    if not mapping_label:
-        logger.warning("S4: direct_pattern_map missing fraud_pattern_type rules; defaulting to LEGIT")
-    return mapping_label, mapping_subtype
+        truth_label = str(rule.get("truth_label") or "").strip()
+        if not truth_label:
+            continue
+        truth_subtype = str(rule.get("truth_subtype") or pattern).strip()
+        rule_id = str(rule.get("rule_id") or f"rule_{index}").strip()
+        overlay_anomaly_any = _parse_optional_bool(match.get("overlay_anomaly_any"))
+        requires_campaign_id = bool(rule.get("requires_campaign_id"))
+        parsed.append(
+            _TruthRule(
+                rule_id=rule_id,
+                fraud_pattern_type=pattern,
+                overlay_anomaly_any=overlay_anomaly_any,
+                requires_campaign_id=requires_campaign_id,
+                truth_label=truth_label,
+                truth_subtype=truth_subtype,
+            )
+        )
+    if not parsed:
+        logger.warning("S4: direct_pattern_map missing usable rules; defaulting to LEGIT/NONE")
+    return parsed
+
+
+def _truth_rule_condition_expr(rule: _TruthRule) -> pl.Expr:
+    condition = pl.col("campaign_type") == pl.lit(rule.fraud_pattern_type)
+    if rule.overlay_anomaly_any is not None:
+        condition = condition & (pl.col("overlay_anomaly_any") == pl.lit(bool(rule.overlay_anomaly_any)))
+    if rule.requires_campaign_id:
+        condition = condition & pl.col("campaign_id").is_not_null()
+    return condition
+
+
+def _build_truth_rule_exprs(truth_rules: list[_TruthRule]) -> tuple[pl.Expr, pl.Expr, pl.Expr]:
+    if not truth_rules:
+        return (
+            pl.lit("LEGIT"),
+            pl.lit("NONE"),
+            pl.lit(0, dtype=pl.Int64),
+        )
+
+    label_expr = None
+    subtype_expr = None
+    match_count_expr = pl.lit(0, dtype=pl.Int64)
+    for rule in truth_rules:
+        condition = _truth_rule_condition_expr(rule)
+        if label_expr is None:
+            label_expr = pl.when(condition).then(pl.lit(rule.truth_label))
+        else:
+            label_expr = label_expr.when(condition).then(pl.lit(rule.truth_label))
+        if subtype_expr is None:
+            subtype_expr = pl.when(condition).then(pl.lit(rule.truth_subtype))
+        else:
+            subtype_expr = subtype_expr.when(condition).then(pl.lit(rule.truth_subtype))
+        match_count_expr = match_count_expr + pl.when(condition).then(pl.lit(1, dtype=pl.Int64)).otherwise(
+            pl.lit(0, dtype=pl.Int64)
+        )
+    return (
+        label_expr.otherwise(pl.lit("LEGIT")),
+        subtype_expr.otherwise(pl.lit("NONE")),
+        match_count_expr,
+    )
 
 
 def _load_min_delay_seconds(delay_models: dict, logger) -> dict[str, float]:
@@ -643,6 +719,24 @@ def _load_min_delay_seconds(delay_models: dict, logger) -> dict[str, float]:
             result[model_id] = float(value)
         except (TypeError, ValueError):
             logger.warning("S4: invalid min_seconds for delay_model_id=%s", model_id)
+    return result
+
+
+def _load_max_delay_seconds(delay_models: dict, logger) -> dict[str, float]:
+    models = delay_models.get("delay_models") if isinstance(delay_models, dict) else None
+    models = models if isinstance(models, list) else []
+    result: dict[str, float] = {}
+    for model in models:
+        if not isinstance(model, dict):
+            continue
+        model_id = str(model.get("delay_model_id") or "").strip()
+        if not model_id:
+            continue
+        value = model.get("max_seconds")
+        try:
+            result[model_id] = float(value)
+        except (TypeError, ValueError):
+            logger.warning("S4: invalid max_seconds for delay_model_id=%s", model_id)
     return result
 
 
@@ -685,6 +779,147 @@ def _prob_map_from_policy(policy: dict, key: str) -> dict[str, float]:
     return mapping
 
 
+def _float_map_from_policy(raw: object) -> dict[str, float]:
+    result: dict[str, float] = {}
+    if not isinstance(raw, dict):
+        return result
+    for key, value in raw.items():
+        try:
+            result[str(key)] = float(value)
+        except (TypeError, ValueError):
+            continue
+    return result
+
+
+def _class_multiplier_expr(class_col: str, mapping: dict[str, float], default: float = 1.0) -> pl.Expr:
+    if not mapping:
+        return pl.lit(float(default))
+    expr = None
+    for class_name, multiplier in mapping.items():
+        if expr is None:
+            expr = pl.when(pl.col(class_col) == pl.lit(str(class_name))).then(pl.lit(float(multiplier)))
+        else:
+            expr = expr.when(pl.col(class_col) == pl.lit(str(class_name))).then(pl.lit(float(multiplier)))
+    if expr is None:
+        return pl.lit(float(default))
+    return expr.otherwise(pl.lit(float(default)))
+
+
+def _resolve_merchant_class_profile_files(
+    run_root: Path,
+    external_roots: Iterable[Path],
+    repo_root: Path,
+    manifest_fingerprint: str,
+    parameter_hash: str,
+    preferred_globs: list[str],
+    logger,
+) -> list[Path]:
+    resolved_patterns: list[str] = []
+    tokenized_globs = preferred_globs or []
+    roots = [run_root, *list(external_roots), repo_root]
+
+    for raw_pattern in tokenized_globs:
+        rendered = (
+            str(raw_pattern)
+            .replace("{manifest_fingerprint}", str(manifest_fingerprint))
+            .replace("{parameter_hash}", str(parameter_hash))
+        )
+        pattern_path = Path(rendered)
+        if pattern_path.is_absolute():
+            resolved_patterns.append(str(pattern_path))
+        else:
+            for root in roots:
+                resolved_patterns.append(str((root / rendered)))
+
+    default_rel_patterns = [
+        f"data/layer2/5A/merchant_class_profile/**/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/**/*.parquet",
+        f"data/layer2/5A/merchant_class_profile/**/manifest_fingerprint={manifest_fingerprint}/**/*.parquet",
+        (
+            f"runs/local_full_run-*/**/data/layer2/5A/merchant_class_profile/**/"
+            f"parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/**/*.parquet"
+        ),
+        (
+            f"runs/local_full_run-*/**/data/layer2/5A/merchant_class_profile/**/"
+            f"manifest_fingerprint={manifest_fingerprint}/**/*.parquet"
+        ),
+    ]
+    for rel in default_rel_patterns:
+        for root in roots:
+            resolved_patterns.append(str((root / rel)))
+
+    files: list[Path] = []
+    for pattern in resolved_patterns:
+        for matched in glob.glob(pattern, recursive=True):
+            path = Path(matched)
+            if path.is_file() and path.suffix.lower() == ".parquet":
+                files.append(path.resolve())
+
+    seen: set[str] = set()
+    deduped: list[Path] = []
+    for path in sorted(files):
+        key = path.as_posix()
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(path)
+
+    logger.info("S4: merchant-class profile candidate files=%s", len(deduped))
+    return deduped
+
+
+def _load_merchant_class_profile_df(
+    run_root: Path,
+    external_roots: Iterable[Path],
+    repo_root: Path,
+    manifest_fingerprint: str,
+    parameter_hash: str,
+    preferred_globs: list[str],
+    logger,
+) -> pl.DataFrame:
+    files = _resolve_merchant_class_profile_files(
+        run_root=run_root,
+        external_roots=external_roots,
+        repo_root=repo_root,
+        manifest_fingerprint=manifest_fingerprint,
+        parameter_hash=parameter_hash,
+        preferred_globs=preferred_globs,
+        logger=logger,
+    )
+    if not files:
+        return pl.DataFrame(schema={"merchant_id": pl.UInt64, "primary_demand_class": pl.Utf8})
+
+    try:
+        class_df = (
+            pl.scan_parquet([path.as_posix() for path in files], hive_partitioning=True)
+            .select(
+                [
+                    pl.col("merchant_id").cast(pl.UInt64, strict=False).alias("merchant_id"),
+                    pl.col("primary_demand_class").cast(pl.Utf8, strict=False).alias("primary_demand_class"),
+                ]
+            )
+            .filter(pl.col("merchant_id").is_not_null())
+            .group_by("merchant_id")
+            .agg(pl.col("primary_demand_class").drop_nulls().first().alias("primary_demand_class"))
+            .with_columns(pl.col("primary_demand_class").fill_null("__UNK__"))
+            .collect()
+        )
+    except Exception as exc:
+        logger.warning("S4: failed loading merchant_class_profile (%s)", exc)
+        return pl.DataFrame(schema={"merchant_id": pl.UInt64, "primary_demand_class": pl.Utf8})
+
+    class_count = (
+        class_df.select(pl.col("primary_demand_class").n_unique().cast(pl.Int64).alias("class_count"))
+        .to_dicts()[0]
+        .get("class_count", 0)
+    )
+    logger.info(
+        "S4: loaded merchant-class profile rows=%s classes=%s",
+        class_df.height,
+        int(class_count),
+    )
+    return class_df
+
+
 def _choice_expr(choices: list[tuple[str, float]], uniform_expr: pl.Expr) -> pl.Expr:
     cumulative = 0.0
     expr = None
@@ -697,6 +932,60 @@ def _choice_expr(choices: list[tuple[str, float]], uniform_expr: pl.Expr) -> pl.
     if expr is None:
         return pl.lit(choices[-1][0] if choices else "APPROVE")
     return expr.otherwise(pl.lit(choices[-1][0]))
+
+
+def _merchant_legit_fp_prob_expr(merchant_id_col: str = "merchant_id") -> pl.Expr:
+    merchant_bucket = (pl.col(merchant_id_col).cast(pl.UInt64) % pl.lit(128, dtype=pl.UInt64)).cast(pl.Int64)
+    return (
+        pl.when(merchant_bucket < 16)
+        .then(pl.lit(0.0002))
+        .when(merchant_bucket < 48)
+        .then(pl.lit(0.002))
+        .when(merchant_bucket < 96)
+        .then(pl.lit(0.030))
+        .when(merchant_bucket < 120)
+        .then(pl.lit(0.150))
+        .otherwise(pl.lit(0.450))
+    )
+
+
+def _overlay_anomaly_prob_expr(merchant_id_col: str = "merchant_id", amount_col: str = "amount") -> pl.Expr:
+    merchant_bucket = (pl.col(merchant_id_col).cast(pl.UInt64) % pl.lit(128, dtype=pl.UInt64)).cast(pl.Int64)
+    base_prob = (
+        pl.when(merchant_bucket < 16)
+        .then(pl.lit(0.007))
+        .when(merchant_bucket < 48)
+        .then(pl.lit(0.016))
+        .when(merchant_bucket < 96)
+        .then(pl.lit(0.030))
+        .when(merchant_bucket < 120)
+        .then(pl.lit(0.050))
+        .otherwise(pl.lit(0.090))
+    )
+    amount_factor = ((pl.col(amount_col).clip(pl.lit(5.0), pl.lit(5000.0)) / pl.lit(160.0)).sqrt()).clip(
+        pl.lit(0.8), pl.lit(3.0)
+    )
+    return (base_prob * amount_factor).clip(pl.lit(0.003), pl.lit(0.20))
+
+
+def _merchant_risk_factor_expr(merchant_id_col: str = "merchant_id") -> pl.Expr:
+    merchant_bucket = (pl.col(merchant_id_col).cast(pl.UInt64) % pl.lit(128, dtype=pl.UInt64)).cast(pl.Int64)
+    return (
+        pl.when(merchant_bucket < 16)
+        .then(pl.lit(0.30))
+        .when(merchant_bucket < 48)
+        .then(pl.lit(0.60))
+        .when(merchant_bucket < 96)
+        .then(pl.lit(1.20))
+        .when(merchant_bucket < 120)
+        .then(pl.lit(2.00))
+        .otherwise(pl.lit(3.50))
+    )
+
+
+def _ts_plus_seconds_expr(ts_expr: pl.Expr, seconds_expr: pl.Expr) -> pl.Expr:
+    milliseconds_expr = (seconds_expr * pl.lit(1000.0)).round(0).cast(pl.Int64)
+    return (ts_expr + pl.duration(milliseconds=milliseconds_expr)).dt.strftime("%Y-%m-%dT%H:%M:%S%.6fZ")
 
 
 def _normalize_outcome_choices(outcome_map: dict) -> dict[str, list[tuple[str, float]]]:
@@ -722,6 +1011,102 @@ def _normalize_outcome_choices(outcome_map: dict) -> dict[str, list[tuple[str, f
         if choices:
             normalized[str(key)] = choices
     return normalized
+
+
+def _sql_quote(value: str) -> str:
+    return "'" + str(value).replace("'", "''") + "'"
+
+
+def _duckdb_parquet_relation(paths: list[Path]) -> str:
+    literals = ", ".join(_sql_quote(path.resolve().as_posix()) for path in paths)
+    return f"read_parquet([{literals}], union_by_name=true)"
+
+
+def _build_event_labels_via_duckdb(
+    event_files: list[Path],
+    flow_truth_files: list[Path],
+    flow_bank_files: list[Path],
+    output_file: Path,
+    parquet_compression: str,
+    seed: int,
+    manifest_fingerprint: str,
+    parameter_hash: str,
+    scenario_id: str,
+    expected_rows: int,
+    logger,
+) -> int:
+    if output_file.exists():
+        output_file.unlink()
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+
+    compression_sql = {
+        "zstd": "zstd",
+        "snappy": "snappy",
+        "lz4": "lz4",
+        "uncompressed": "uncompressed",
+    }.get(str(parquet_compression).lower().strip(), "zstd")
+
+    events_rel = _duckdb_parquet_relation(event_files)
+    flow_truth_rel = _duckdb_parquet_relation(flow_truth_files)
+    flow_bank_rel = _duckdb_parquet_relation(flow_bank_files)
+
+    output_sql = _sql_quote(output_file.resolve().as_posix())
+    manifest_sql = _sql_quote(manifest_fingerprint)
+    parameter_sql = _sql_quote(parameter_hash)
+    scenario_sql = _sql_quote(str(scenario_id))
+
+    query = f"""
+COPY (
+    WITH events AS (
+        SELECT
+            CAST(flow_id AS BIGINT) AS flow_id,
+            CAST(event_seq AS BIGINT) AS event_seq
+        FROM {events_rel}
+    ),
+    flow_truth AS (
+        SELECT
+            CAST(flow_id AS BIGINT) AS flow_id,
+            CAST(is_fraud_truth AS BOOLEAN) AS is_fraud_truth
+        FROM {flow_truth_rel}
+    ),
+    flow_bank AS (
+        SELECT
+            CAST(flow_id AS BIGINT) AS flow_id,
+            CAST(is_fraud_bank_view AS BOOLEAN) AS is_fraud_bank_view
+        FROM {flow_bank_rel}
+    )
+    SELECT
+        e.flow_id,
+        e.event_seq,
+        t.is_fraud_truth,
+        b.is_fraud_bank_view,
+        CAST({int(seed)} AS BIGINT) AS seed,
+        {manifest_sql} AS manifest_fingerprint,
+        {parameter_sql} AS parameter_hash,
+        {scenario_sql} AS scenario_id
+    FROM events e
+    JOIN flow_truth t USING (flow_id)
+    JOIN flow_bank b USING (flow_id)
+) TO {output_sql} (FORMAT PARQUET, COMPRESSION {compression_sql})
+"""
+
+    start = time.monotonic()
+    conn = duckdb.connect(database=":memory:")
+    try:
+        conn.execute("PRAGMA preserve_insertion_order=false")
+        conn.execute(query)
+    finally:
+        conn.close()
+    elapsed = time.monotonic() - start
+    logger.info(
+        "S4: event-label join lane completed scenario_id=%s expected_rows=%s elapsed=%.2fs",
+        scenario_id,
+        expected_rows,
+        elapsed,
+    )
+
+    output_rows = _count_parquet_rows([output_file])
+    return int(output_rows)
 
 
 def run_s4(
@@ -953,8 +1338,9 @@ def run_s4(
     _ = case_policy
 
     template_map = _load_templates_map(catalogue_config, logger)
-    truth_label_map, truth_subtype_map = _load_truth_maps(truth_policy, logger)
+    truth_rules = _load_truth_rules(truth_policy, logger)
     fail_on_unknown = bool((truth_policy.get("constraints") or {}).get("fail_on_unknown_fraud_pattern_type"))
+    logger.info("S4: loaded %s direct truth rules (fail_on_unknown=%s)", len(truth_rules), fail_on_unknown)
 
     auth_choices = _extract_auth_mixture(bank_view_policy)
     detection_model = bank_view_policy.get("detection_model") if isinstance(bank_view_policy, dict) else {}
@@ -966,12 +1352,59 @@ def run_s4(
     p_detect_at_auth_map = _prob_map_from_policy(detection_model, "p_detect_at_auth_given_detect")
     p_dispute_map = _prob_map_from_policy(dispute_model, "p_dispute_by_truth_subtype")
     p_chargeback_map = _prob_map_from_policy(chargeback_model, "p_chargeback_given_dispute")
+    class_conditioning = detection_model.get("class_conditioning") if isinstance(detection_model, dict) else {}
+    class_conditioning = class_conditioning if isinstance(class_conditioning, dict) else {}
+    class_conditioning_enabled = bool(class_conditioning.get("enabled", False))
+    class_profile_required = bool(class_conditioning.get("fail_on_missing_profile", False))
+    class_profile_globs_raw = class_conditioning.get("merchant_class_globs")
+    class_profile_globs = (
+        [str(item) for item in class_profile_globs_raw if str(item).strip()]
+        if isinstance(class_profile_globs_raw, list)
+        else []
+    )
+    p_detect_class_multiplier_map = _float_map_from_policy(detection_model.get("p_detect_class_multiplier"))
+    p_dispute_class_multiplier_map = _float_map_from_policy(dispute_model.get("p_dispute_class_multiplier"))
+    p_chargeback_class_multiplier_map = _float_map_from_policy(chargeback_model.get("p_chargeback_class_multiplier"))
+    p_legit_fp_class_multiplier_map = _float_map_from_policy(detection_model.get("p_legit_fp_class_multiplier"))
+    merchant_class_df = pl.DataFrame(schema={"merchant_id": pl.UInt64, "primary_demand_class": pl.Utf8})
+    if class_conditioning_enabled:
+        merchant_class_df = _load_merchant_class_profile_df(
+            run_root=run_paths.run_root,
+            external_roots=config.external_roots,
+            repo_root=config.repo_root,
+            manifest_fingerprint=manifest_fingerprint,
+            parameter_hash=parameter_hash,
+            preferred_globs=class_profile_globs,
+            logger=logger,
+        )
+        if merchant_class_df.height == 0 and class_profile_required:
+            _abort(
+                "S4_PRECONDITION_MERCHANT_CLASS_PROFILE_MISSING",
+                "V-01",
+                "merchant_class_profile_missing",
+                {
+                    "manifest_fingerprint": manifest_fingerprint,
+                    "parameter_hash": parameter_hash,
+                    "globs": class_profile_globs,
+                },
+                manifest_fingerprint,
+            )
+    logger.info(
+        "S4: class conditioning enabled=%s profile_rows=%s detect_multipliers=%s dispute_multipliers=%s chargeback_multipliers=%s legit_fp_multipliers=%s",
+        class_conditioning_enabled,
+        merchant_class_df.height,
+        len(p_detect_class_multiplier_map),
+        len(p_dispute_class_multiplier_map),
+        len(p_chargeback_class_multiplier_map),
+        len(p_legit_fp_class_multiplier_map),
+    )
 
     chargeback_outcome_map = chargeback_model.get("pi_chargeback_outcome") if isinstance(chargeback_model, dict) else {}
     chargeback_outcome_map = chargeback_outcome_map if isinstance(chargeback_outcome_map, dict) else {}
     chargeback_outcome_map = _normalize_outcome_choices(chargeback_outcome_map)
 
     delay_min = _load_min_delay_seconds(delay_models, logger)
+    delay_max = _load_max_delay_seconds(delay_models, logger)
     detect_delay_id = detection_model.get("delay_model_id_for_post_auth_detection")
     dispute_delay_id = dispute_model.get("delay_model_id_for_dispute")
     chargeback_delay_id = chargeback_model.get("delay_model_id_for_chargeback")
@@ -981,6 +1414,10 @@ def run_s4(
     dispute_delay_seconds = float(delay_min.get(str(dispute_delay_id), 3600.0))
     chargeback_delay_seconds = float(delay_min.get(str(chargeback_delay_id), 86400.0))
     case_close_delay_seconds = float(delay_min.get(str(case_close_delay_id), 3600.0))
+    detect_delay_max_seconds = float(delay_max.get(str(detect_delay_id), detect_delay_seconds))
+    dispute_delay_max_seconds = float(delay_max.get(str(dispute_delay_id), dispute_delay_seconds))
+    chargeback_delay_max_seconds = float(delay_max.get(str(chargeback_delay_id), chargeback_delay_seconds))
+    case_close_delay_max_seconds = float(delay_max.get(str(case_close_delay_id), case_close_delay_seconds))
 
     compression_map = {
         "zstd": "zstd",
@@ -1183,42 +1620,128 @@ def run_s4(
             validated_case = False
 
             auth_choices_expr = _choice_expr(auth_choices, _uniform_expr(seed, 101, modulus, pl.col("flow_id"), pl.lit("auth_decision")))
+            seed_literal = pl.lit(int(seed)).cast(pl.Int64)
+            manifest_literal = pl.lit(manifest_fingerprint).cast(pl.Utf8)
+            parameter_literal = pl.lit(parameter_hash).cast(pl.Utf8)
+            scenario_literal = pl.lit(str(scenario_id)).cast(pl.Utf8)
+            truth_label_expr, truth_subtype_expr, truth_rule_match_expr = _build_truth_rule_exprs(truth_rules)
 
             for flows in _iter_parquet_batches(
                 flow_files,
                 [
                     "flow_id",
+                    "merchant_id",
                     "campaign_id",
+                    "fraud_flag",
+                    "amount",
                     "ts_utc",
-                    "seed",
-                    "manifest_fingerprint",
-                    "parameter_hash",
-                    "scenario_id",
                 ],
                 batch_rows,
             ):
                 flows = flows.with_columns(
                     pl.col("flow_id").cast(pl.Int64),
+                    pl.col("merchant_id").cast(pl.UInt64),
                     pl.col("campaign_id").cast(pl.Utf8),
+                    pl.col("fraud_flag").cast(pl.Boolean),
+                    pl.col("amount").cast(pl.Float64),
                     pl.col("ts_utc").cast(pl.Utf8),
-                    pl.col("seed").cast(pl.Int64),
-                    pl.col("manifest_fingerprint").cast(pl.Utf8),
-                    pl.col("parameter_hash").cast(pl.Utf8),
-                    pl.col("scenario_id").cast(pl.Utf8),
                 )
 
                 flows = flows.join(campaign_map_df, on="campaign_id", how="left").with_columns(
                     pl.col("campaign_type").fill_null("NONE")
                 )
+                if class_conditioning_enabled and merchant_class_df.height > 0:
+                    flows = flows.join(merchant_class_df, on="merchant_id", how="left")
+                else:
+                    flows = flows.with_columns(pl.lit(None, dtype=pl.Utf8).alias("primary_demand_class"))
+                flows = flows.with_columns(pl.col("primary_demand_class").fill_null("__UNK__"))
+
+                base_overlay_flag = pl.col("fraud_flag") & pl.col("campaign_id").is_null()
+                heuristic_overlay_flag = (
+                    pl.col("campaign_id").is_null()
+                    & (
+                        _uniform_expr(seed, 109, modulus, pl.col("flow_id"), pl.lit("overlay_anomaly"))
+                        < _overlay_anomaly_prob_expr("merchant_id", "amount")
+                    )
+                )
+                flows = flows.with_columns((base_overlay_flag | heuristic_overlay_flag).alias("overlay_anomaly_any"))
 
                 flows = flows.with_columns(
-                    _map_enum_expr("campaign_type", truth_label_map, "LEGIT").alias("truth_label"),
-                    _map_enum_expr("campaign_type", truth_subtype_map, "NONE").alias("truth_subtype"),
+                    truth_label_expr.alias("truth_label"),
+                    truth_subtype_expr.alias("truth_subtype"),
+                    truth_rule_match_expr.alias("truth_rule_match_count"),
                 )
 
                 flows = flows.with_columns(
                     (pl.col("truth_label") != "LEGIT").alias("is_fraud_truth")
                 )
+
+                rule_guard = flows.select(
+                    pl.len().cast(pl.Int64).alias("flow_rows"),
+                    (pl.col("truth_rule_match_count") == 0).sum().cast(pl.Int64).alias("unmatched_rows"),
+                    (pl.col("truth_rule_match_count") > 1).sum().cast(pl.Int64).alias("collision_rows"),
+                ).to_dicts()[0]
+                unmatched_rows = int(rule_guard["unmatched_rows"])
+                collision_rows = int(rule_guard["collision_rows"])
+                if collision_rows > 0:
+                    collision_examples = (
+                        flows.filter(pl.col("truth_rule_match_count") > 1)
+                        .select(
+                            [
+                                "flow_id",
+                                "campaign_id",
+                                "campaign_type",
+                                "fraud_flag",
+                                "overlay_anomaly_any",
+                                "truth_rule_match_count",
+                            ]
+                        )
+                        .head(5)
+                        .to_dicts()
+                    )
+                    _abort(
+                        "S4_TRUTH_RULE_COLLISION",
+                        "V-01",
+                        "truth_rule_collision_detected",
+                        {
+                            "scenario_id": str(scenario_id),
+                            "collision_rows": collision_rows,
+                            "sample_rows": collision_examples,
+                        },
+                        manifest_fingerprint,
+                    )
+                if unmatched_rows > 0 and fail_on_unknown:
+                    unmatched_examples = (
+                        flows.filter(pl.col("truth_rule_match_count") == 0)
+                        .select(
+                            [
+                                "flow_id",
+                                "campaign_id",
+                                "campaign_type",
+                                "fraud_flag",
+                                "overlay_anomaly_any",
+                            ]
+                        )
+                        .head(5)
+                        .to_dicts()
+                    )
+                    _abort(
+                        "S4_TRUTH_RULE_UNMATCHED",
+                        "V-01",
+                        "truth_rule_unmatched_rows_detected",
+                        {
+                            "scenario_id": str(scenario_id),
+                            "unmatched_rows": unmatched_rows,
+                            "sample_rows": unmatched_examples,
+                        },
+                        manifest_fingerprint,
+                    )
+                if unmatched_rows > 0 and not fail_on_unknown:
+                    logger.warning(
+                        "S4: scenario_id=%s truth-rule unmatched rows=%s; LEGIT/NONE fallback applied",
+                        scenario_id,
+                        unmatched_rows,
+                    )
 
                 auth_decision = pl.when(pl.col("truth_subtype") == "CARD_TESTING").then(pl.lit("DECLINE")).otherwise(auth_choices_expr)
 
@@ -1226,6 +1749,30 @@ def run_s4(
                 detect_at_auth_prob = _map_enum_expr("truth_subtype", p_detect_at_auth_map, 0.0)
                 dispute_prob = _map_enum_expr("truth_subtype", p_dispute_map, 0.0)
                 chargeback_prob = _map_enum_expr("truth_subtype", p_chargeback_map, 0.0)
+                merchant_risk_factor = _merchant_risk_factor_expr("merchant_id")
+                detect_class_multiplier = _class_multiplier_expr(
+                    "primary_demand_class",
+                    p_detect_class_multiplier_map,
+                    1.0,
+                )
+                dispute_class_multiplier = _class_multiplier_expr(
+                    "primary_demand_class",
+                    p_dispute_class_multiplier_map,
+                    1.0,
+                )
+                chargeback_class_multiplier = _class_multiplier_expr(
+                    "primary_demand_class",
+                    p_chargeback_class_multiplier_map,
+                    1.0,
+                )
+                legit_fp_class_multiplier = _class_multiplier_expr(
+                    "primary_demand_class",
+                    p_legit_fp_class_multiplier_map,
+                    1.0,
+                )
+                detect_prob = (detect_prob * merchant_risk_factor * detect_class_multiplier).clip(pl.lit(0.0), pl.lit(0.98))
+                dispute_prob = (dispute_prob * merchant_risk_factor * dispute_class_multiplier).clip(pl.lit(0.0), pl.lit(0.98))
+                chargeback_prob = (chargeback_prob * merchant_risk_factor * chargeback_class_multiplier).clip(pl.lit(0.0), pl.lit(0.98))
 
                 detect_flag = _uniform_expr(seed, 111, modulus, pl.col("flow_id"), pl.lit("detect_flag")) < detect_prob
                 detect_at_auth_flag = detect_flag & (
@@ -1234,6 +1781,19 @@ def run_s4(
                 dispute_flag = _uniform_expr(seed, 121, modulus, pl.col("flow_id"), pl.lit("dispute_flag")) < dispute_prob
                 chargeback_flag = dispute_flag & (
                     _uniform_expr(seed, 131, modulus, pl.col("flow_id"), pl.lit("chargeback_flag")) < chargeback_prob
+                )
+                amount_risk_factor = (
+                    (pl.col("amount").clip(pl.lit(1.0), pl.lit(5000.0)) / pl.lit(180.0)).sqrt()
+                ).clip(pl.lit(0.5), pl.lit(5.0))
+                legit_fp_prob = (_merchant_legit_fp_prob_expr("merchant_id") * amount_risk_factor * legit_fp_class_multiplier).clip(
+                    pl.lit(0.0002), pl.lit(0.60)
+                )
+                legit_fp_confirm_flag = (
+                    (pl.col("truth_label") == "LEGIT")
+                    & (
+                        _uniform_expr(seed, 151, modulus, pl.col("flow_id"), pl.lit("legit_fp_confirm"))
+                        < legit_fp_prob
+                    )
                 )
 
                 cb_uniform = _uniform_expr(seed, 141, modulus, pl.col("flow_id"), pl.lit("chargeback_outcome"))
@@ -1254,13 +1814,15 @@ def run_s4(
                     .then(pl.lit("CUSTOMER_DISPUTE_REJECTED"))
                     .when((pl.col("truth_label").is_in(["FRAUD", "ABUSE"])) & detect_flag)
                     .then(pl.lit("BANK_CONFIRMED_FRAUD"))
+                    .when(legit_fp_confirm_flag)
+                    .then(pl.lit("BANK_CONFIRMED_FRAUD"))
                     .when(pl.col("truth_label") == "LEGIT")
                     .then(pl.lit("BANK_CONFIRMED_LEGIT"))
                     .otherwise(pl.lit("NO_CASE_OPENED"))
                 )
 
                 is_fraud_bank_view = bank_label.is_in(["BANK_CONFIRMED_FRAUD", "CHARGEBACK_WRITTEN_OFF"])
-                case_opened = detect_flag | dispute_flag | auth_decision.is_in(["REVIEW", "CHALLENGE"])
+                case_opened = detect_flag | dispute_flag | auth_decision.is_in(["REVIEW", "CHALLENGE"]) | legit_fp_confirm_flag
 
                 flows = flows.with_columns(
                     auth_decision.alias("auth_decision"),
@@ -1279,10 +1841,10 @@ def run_s4(
                         "flow_id",
                         "is_fraud_truth",
                         pl.col("truth_label").alias("fraud_label"),
-                        "seed",
-                        "manifest_fingerprint",
-                        "parameter_hash",
-                        "scenario_id",
+                        seed_literal.alias("seed"),
+                        manifest_literal.alias("manifest_fingerprint"),
+                        parameter_literal.alias("parameter_hash"),
+                        scenario_literal.alias("scenario_id"),
                     ]
                 )
 
@@ -1291,10 +1853,10 @@ def run_s4(
                         "flow_id",
                         "is_fraud_bank_view",
                         "bank_label",
-                        "seed",
-                        "manifest_fingerprint",
-                        "parameter_hash",
-                        "scenario_id",
+                        seed_literal.alias("seed"),
+                        manifest_literal.alias("manifest_fingerprint"),
+                        parameter_literal.alias("parameter_hash"),
+                        scenario_literal.alias("scenario_id"),
                     ]
                 )
 
@@ -1330,7 +1892,16 @@ def run_s4(
                 cases = flows.filter(pl.col("case_opened"))
                 if cases.height > 0:
                     total_cases += int(cases.height)
-                    base_ts = pl.col("ts_utc").str.strptime(pl.Datetime, strict=False).alias("base_ts")
+                    base_ts = (
+                        pl.col("ts_utc")
+                        .str.strptime(
+                            pl.Datetime,
+                            format="%Y-%m-%dT%H:%M:%S%.6fZ",
+                            strict=True,
+                            exact=True,
+                        )
+                        .alias("base_ts")
+                    )
                     case_id_expr = _hash_to_id64(
                         [
                             pl.lit("mlr:6B.case_id.v1"),
@@ -1342,40 +1913,131 @@ def run_s4(
                     )
                     cases = cases.with_columns(case_id_expr.alias("case_id"), base_ts)
 
+                    detect_delay_draw = _uniform_expr(seed, 211, modulus, pl.col("flow_id"), pl.lit("detect_delay"))
+                    dispute_delay_draw = _uniform_expr(seed, 221, modulus, pl.col("flow_id"), pl.lit("dispute_delay"))
+                    chargeback_delay_draw = _uniform_expr(
+                        seed, 231, modulus, pl.col("flow_id"), pl.lit("chargeback_delay")
+                    )
+                    close_delay_draw = _uniform_expr(seed, 241, modulus, pl.col("flow_id"), pl.lit("case_close_delay"))
+                    chargeback_decision_gap_draw = _uniform_expr(
+                        seed, 251, modulus, pl.col("flow_id"), pl.lit("chargeback_decision_gap")
+                    )
+
+                    detect_delay_sample = pl.lit(detect_delay_seconds) + (
+                        detect_delay_draw.pow(1.6) * pl.lit(max(detect_delay_max_seconds - detect_delay_seconds, 0.0))
+                    )
+                    dispute_delay_sample = pl.lit(dispute_delay_seconds) + (
+                        dispute_delay_draw.pow(1.35) * pl.lit(max(dispute_delay_max_seconds - dispute_delay_seconds, 0.0))
+                    )
+                    chargeback_delay_sample = pl.lit(chargeback_delay_seconds) + (
+                        chargeback_delay_draw.pow(1.25)
+                        * pl.lit(max(chargeback_delay_max_seconds - chargeback_delay_seconds, 0.0))
+                    )
+                    close_delay_sample = pl.lit(case_close_delay_seconds) + (
+                        close_delay_draw.pow(1.4) * pl.lit(max(case_close_delay_max_seconds - case_close_delay_seconds, 0.0))
+                    )
+                    chargeback_decision_gap_seconds = pl.lit(1.0) + (chargeback_decision_gap_draw * pl.lit(300.0))
+
+                    detect_offset_seconds = (
+                        pl.when(pl.col("detect_flag"))
+                        .then(
+                            pl.when(pl.col("detect_at_auth_flag"))
+                            .then(pl.lit(0.0))
+                            .otherwise(detect_delay_sample)
+                        )
+                        .otherwise(pl.lit(0.0))
+                    )
+                    dispute_offset_raw = (
+                        pl.when(pl.col("dispute_flag"))
+                        .then(dispute_delay_sample)
+                        .otherwise(pl.lit(0.0))
+                    )
+                    dispute_offset_seconds = (
+                        pl.when(pl.col("dispute_flag"))
+                        .then(
+                            pl.max_horizontal(
+                                [
+                                    dispute_offset_raw,
+                                    pl.when(pl.col("detect_flag"))
+                                    .then(detect_offset_seconds + pl.lit(1.0))
+                                    .otherwise(pl.lit(0.0)),
+                                ]
+                            )
+                        )
+                        .otherwise(pl.lit(0.0))
+                    )
+                    chargeback_offset_raw = (
+                        pl.when(pl.col("chargeback_flag"))
+                        .then(chargeback_delay_sample)
+                        .otherwise(pl.lit(0.0))
+                    )
+                    chargeback_offset_seconds = (
+                        pl.when(pl.col("chargeback_flag"))
+                        .then(
+                            pl.max_horizontal(
+                                [
+                                    chargeback_offset_raw,
+                                    pl.when(pl.col("dispute_flag"))
+                                    .then(dispute_offset_seconds + pl.lit(1.0))
+                                    .otherwise(pl.lit(0.0)),
+                                    pl.when(pl.col("detect_flag"))
+                                    .then(detect_offset_seconds + pl.lit(1.0))
+                                    .otherwise(pl.lit(0.0)),
+                                ]
+                            )
+                        )
+                        .otherwise(pl.lit(0.0))
+                    )
+                    chargeback_decision_offset_seconds = (
+                        pl.when(pl.col("chargeback_flag"))
+                        .then(chargeback_offset_seconds + chargeback_decision_gap_seconds)
+                        .otherwise(pl.lit(0.0))
+                    )
+                    max_case_event_offset = pl.max_horizontal(
+                        [
+                            detect_offset_seconds,
+                            dispute_offset_seconds,
+                            chargeback_offset_seconds,
+                            chargeback_decision_offset_seconds,
+                        ]
+                    )
+                    close_offset_seconds = max_case_event_offset + close_delay_sample
+
                     open_ts = pl.when(pl.col("base_ts").is_not_null()).then(
                         pl.col("base_ts").dt.strftime("%Y-%m-%dT%H:%M:%S%.6fZ")
                     ).otherwise(pl.col("ts_utc"))
                     detect_ts = pl.when(pl.col("base_ts").is_not_null()).then(
-                        (pl.col("base_ts") + pl.duration(seconds=detect_delay_seconds)).dt.strftime("%Y-%m-%dT%H:%M:%S%.6fZ")
+                        _ts_plus_seconds_expr(pl.col("base_ts"), detect_offset_seconds)
                     ).otherwise(pl.col("ts_utc"))
                     dispute_ts = pl.when(pl.col("base_ts").is_not_null()).then(
-                        (pl.col("base_ts") + pl.duration(seconds=dispute_delay_seconds)).dt.strftime("%Y-%m-%dT%H:%M:%S%.6fZ")
+                        _ts_plus_seconds_expr(pl.col("base_ts"), dispute_offset_seconds)
                     ).otherwise(pl.col("ts_utc"))
                     chargeback_ts = pl.when(pl.col("base_ts").is_not_null()).then(
-                        (pl.col("base_ts") + pl.duration(seconds=chargeback_delay_seconds)).dt.strftime("%Y-%m-%dT%H:%M:%S%.6fZ")
+                        _ts_plus_seconds_expr(pl.col("base_ts"), chargeback_offset_seconds)
                     ).otherwise(pl.col("ts_utc"))
                     chargeback_decision_ts = pl.when(pl.col("base_ts").is_not_null()).then(
-                        (pl.col("base_ts") + pl.duration(seconds=chargeback_delay_seconds + 1.0)).dt.strftime("%Y-%m-%dT%H:%M:%S%.6fZ")
+                        _ts_plus_seconds_expr(pl.col("base_ts"), chargeback_decision_offset_seconds)
                     ).otherwise(pl.col("ts_utc"))
                     close_ts = pl.when(pl.col("base_ts").is_not_null()).then(
-                        (pl.col("base_ts") + pl.duration(seconds=case_close_delay_seconds)).dt.strftime("%Y-%m-%dT%H:%M:%S%.6fZ")
+                        _ts_plus_seconds_expr(pl.col("base_ts"), close_offset_seconds)
                     ).otherwise(pl.col("ts_utc"))
 
                     case_base = cases.select(
                         [
                             "case_id",
                             "flow_id",
-                            "seed",
-                            "manifest_fingerprint",
-                            "parameter_hash",
-                            "scenario_id",
                             "detect_flag",
+                            "detect_at_auth_flag",
                             "dispute_flag",
                             "chargeback_flag",
                             "ts_utc",
                             "base_ts",
                         ]
                     ).with_columns(
+                        seed_literal.alias("seed"),
+                        manifest_literal.alias("manifest_fingerprint"),
+                        parameter_literal.alias("parameter_hash"),
+                        scenario_literal.alias("scenario_id"),
                         open_ts.alias("open_ts"),
                         detect_ts.alias("detect_ts"),
                         dispute_ts.alias("dispute_ts"),
@@ -1538,109 +2200,58 @@ def run_s4(
             event_part = event_label_tmp / "part-00000.parquet"
             empty_event_labels.write_parquet(event_part, compression=parquet_compression)
         else:
-            event_progress = _ProgressTracker(
+            logger.info(
+                "S4: scenario_id=%s starting event-label join lane rows=%s",
+                scenario_id,
                 event_rows,
-                logger,
-                f"S4: scenario_id={scenario_id} events_processed",
             )
-            event_part_index = 0
             validated_event = False
-
-            auth_choices_expr = _choice_expr(auth_choices, _uniform_expr(seed, 101, modulus, pl.col("flow_id"), pl.lit("auth_decision")))
-
-            for events in _iter_parquet_batches(
-                event_files,
-                [
-                    "flow_id",
-                    "event_seq",
-                    "campaign_id",
-                    "seed",
-                    "manifest_fingerprint",
-                    "parameter_hash",
-                    "scenario_id",
-                ],
-                batch_rows,
-            ):
-                events = events.with_columns(
-                    pl.col("flow_id").cast(pl.Int64),
-                    pl.col("event_seq").cast(pl.Int64),
-                    pl.col("campaign_id").cast(pl.Utf8),
-                    pl.col("seed").cast(pl.Int64),
-                    pl.col("manifest_fingerprint").cast(pl.Utf8),
-                    pl.col("parameter_hash").cast(pl.Utf8),
-                    pl.col("scenario_id").cast(pl.Utf8),
+            flow_truth_files = sorted(path for path in flow_truth_out_dir.rglob("*.parquet") if path.is_file())
+            flow_bank_files = sorted(path for path in flow_bank_out_dir.rglob("*.parquet") if path.is_file())
+            if not flow_truth_files or not flow_bank_files:
+                _abort(
+                    "S4_EVENT_LABEL_JOIN_INPUT_MISSING",
+                    "V-01",
+                    "event_label_join_inputs_missing",
+                    {
+                        "scenario_id": str(scenario_id),
+                        "flow_truth_parts": len(flow_truth_files),
+                        "flow_bank_parts": len(flow_bank_files),
+                    },
+                    manifest_fingerprint,
+                )
+            event_part = event_label_tmp / "part-00000.parquet"
+            joined_rows = _build_event_labels_via_duckdb(
+                event_files=event_files,
+                flow_truth_files=flow_truth_files,
+                flow_bank_files=flow_bank_files,
+                output_file=event_part,
+                parquet_compression=parquet_compression,
+                seed=seed,
+                manifest_fingerprint=manifest_fingerprint,
+                parameter_hash=parameter_hash,
+                scenario_id=str(scenario_id),
+                expected_rows=int(event_rows),
+                logger=logger,
+            )
+            if int(joined_rows) != int(event_rows):
+                _abort(
+                    "S4_EVENT_LABEL_JOIN_COVERAGE_MISS",
+                    "V-01",
+                    "event_flow_join_rowcount_mismatch",
+                    {
+                        "scenario_id": str(scenario_id),
+                        "event_rows": int(event_rows),
+                        "joined_rows": int(joined_rows),
+                    },
+                    manifest_fingerprint,
                 )
 
-                events = events.join(campaign_map_df, on="campaign_id", how="left").with_columns(
-                    pl.col("campaign_type").fill_null("NONE")
-                )
-                events = events.with_columns(
-                    _map_enum_expr("campaign_type", truth_label_map, "LEGIT").alias("truth_label"),
-                    _map_enum_expr("campaign_type", truth_subtype_map, "NONE").alias("truth_subtype"),
-                )
-
-                events = events.with_columns(
-                    (pl.col("truth_label") != "LEGIT").alias("is_fraud_truth")
-                )
-
-                auth_decision = pl.when(pl.col("truth_subtype") == "CARD_TESTING").then(pl.lit("DECLINE")).otherwise(auth_choices_expr)
-
-                detect_prob = _map_enum_expr("truth_subtype", p_detect_map, 0.0)
-                detect_at_auth_prob = _map_enum_expr("truth_subtype", p_detect_at_auth_map, 0.0)
-                dispute_prob = _map_enum_expr("truth_subtype", p_dispute_map, 0.0)
-                chargeback_prob = _map_enum_expr("truth_subtype", p_chargeback_map, 0.0)
-
-                detect_flag = _uniform_expr(seed, 111, modulus, pl.col("flow_id"), pl.lit("detect_flag")) < detect_prob
-                detect_at_auth_flag = detect_flag & (
-                    _uniform_expr(seed, 112, modulus, pl.col("flow_id"), pl.lit("detect_at_auth")) < detect_at_auth_prob
-                )
-                dispute_flag = _uniform_expr(seed, 121, modulus, pl.col("flow_id"), pl.lit("dispute_flag")) < dispute_prob
-                chargeback_flag = dispute_flag & (
-                    _uniform_expr(seed, 131, modulus, pl.col("flow_id"), pl.lit("chargeback_flag")) < chargeback_prob
-                )
-
-                cb_uniform = _uniform_expr(seed, 141, modulus, pl.col("flow_id"), pl.lit("chargeback_outcome"))
-                cb_fraud = _choice_expr(chargeback_outcome_map.get("FRAUD", [("BANK_LOSS", 1.0)]), cb_uniform)
-                cb_abuse = _choice_expr(chargeback_outcome_map.get("ABUSE", [("BANK_WIN", 1.0)]), cb_uniform)
-                cb_legit = _choice_expr(chargeback_outcome_map.get("LEGIT", [("BANK_WIN", 1.0)]), cb_uniform)
-
-                chargeback_outcome = (
-                    pl.when(chargeback_flag & (pl.col("truth_label") == "FRAUD")).then(cb_fraud)
-                    .when(chargeback_flag & (pl.col("truth_label") == "ABUSE")).then(cb_abuse)
-                    .when(chargeback_flag & (pl.col("truth_label") == "LEGIT")).then(cb_legit)
-                    .otherwise(pl.lit("NONE"))
-                )
-
-                bank_label = (
-                    pl.when(chargeback_outcome == "BANK_LOSS").then(pl.lit("CHARGEBACK_WRITTEN_OFF"))
-                    .when(dispute_flag & chargeback_outcome.is_in(["BANK_WIN", "PARTIAL"]))
-                    .then(pl.lit("CUSTOMER_DISPUTE_REJECTED"))
-                    .when((pl.col("truth_label").is_in(["FRAUD", "ABUSE"])) & detect_flag)
-                    .then(pl.lit("BANK_CONFIRMED_FRAUD"))
-                    .when(pl.col("truth_label") == "LEGIT")
-                    .then(pl.lit("BANK_CONFIRMED_LEGIT"))
-                    .otherwise(pl.lit("NO_CASE_OPENED"))
-                )
-
-                is_fraud_bank_view = bank_label.is_in(["BANK_CONFIRMED_FRAUD", "CHARGEBACK_WRITTEN_OFF"])
-
-                event_labels = events.select(
-                    [
-                        "flow_id",
-                        "event_seq",
-                        "is_fraud_truth",
-                        is_fraud_bank_view.alias("is_fraud_bank_view"),
-                        "seed",
-                        "manifest_fingerprint",
-                        "parameter_hash",
-                        "scenario_id",
-                    ]
-                )
-
-                if not validated_event and event_labels.height > 0:
-                    sample = event_labels.head(1).to_dicts()[0]
+            if not validated_event and joined_rows > 0:
+                sample_rows = pl.read_parquet(event_part, n_rows=1).to_dicts()
+                if sample_rows:
                     _validate_payload(
-                        sample,
+                        sample_rows[0],
                         schema_6b,
                         schema_layer3,
                         "#/s4/event_labels_6B",
@@ -1649,13 +2260,7 @@ def run_s4(
                     )
                     validated_event = True
 
-                event_part = event_label_tmp / f"part-{event_part_index:05d}.parquet"
-                event_labels.write_parquet(event_part, compression=parquet_compression)
-
-                batch_rows_processed = int(event_labels.height)
-                total_events += batch_rows_processed
-                event_part_index += 1
-                event_progress.update(batch_rows_processed)
+            total_events += int(joined_rows)
 
         event_out_dir = _materialize_parquet_path(event_label_path).parent
         _publish_parquet_parts(

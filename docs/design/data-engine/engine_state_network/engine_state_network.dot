@@ -1,0 +1,59 @@
+digraph EngineStateGateLite {
+  graph [rankdir=LR, fontsize=10, fontname="Helvetica", labelloc=t,
+         label="Data Engine State/Gate View (docs-driven, simplified)"];
+  node  [shape=box, style="rounded,filled", fillcolor=white, color="#4b5563", fontname="Helvetica", fontsize=10];
+  edge  [color="#6b7280", fontname="Helvetica", fontsize=8];
+
+  subgraph cluster_layer1 {
+    label="Layer 1 - World and Merchant Realism";
+    style="rounded,filled";
+    color="#e8f0fe";
+    seg_1A [label=<1A<BR/>Merchants to Physical Sites<BR/>10 states>];
+    seg_1B [label=<1B<BR/>Site Geolocation<BR/>10 states>];
+    seg_2A [label=<2A<BR/>Civil Time<BR/>6 states>];
+    seg_2B [label=<2B<BR/>Routing: traffic to sites and edges<BR/>9 states>];
+    seg_3A [label=<3A<BR/>Zone Allocation<BR/>8 states>];
+    seg_3B [label=<3B<BR/>Virtual merchants &amp; CDN surfaces<BR/>6 states>];
+  }
+
+  subgraph cluster_layer2 {
+    label="Layer 2 - Temporal Arrival Surfaces";
+    style="rounded,filled";
+    color="#e6fffa";
+    seg_5A [label=<5A<BR/>Intensity Surfaces<BR/>6 states>];
+    seg_5B [label=<5B<BR/>Arrival Realisation<BR/>6 states>];
+  }
+
+  subgraph cluster_layer3 {
+    label="Layer 3 - Behavior, Fraud, and Labels";
+    style="rounded,filled";
+    color="#fff7ed";
+    seg_6A [label=<6A<BR/>Entity &amp; Product World<BR/>6 states>];
+    seg_6B [label=<6B<BR/>Behaviour, Fraud Overlay &amp; Labelling<BR/>6 states>];
+  }
+
+  // canonical segment progression
+  seg_1A -> seg_1B [color="#334155", penwidth=1.8, label="phase progression"];
+  seg_1B -> seg_2A [color="#334155", penwidth=1.8, label="phase progression"];
+  seg_2A -> seg_2B [color="#334155", penwidth=1.8, label="phase progression"];
+  seg_2B -> seg_3A [color="#334155", penwidth=1.8, label="phase progression"];
+  seg_3A -> seg_3B [color="#334155", penwidth=1.8, label="phase progression"];
+  seg_3B -> seg_5A [color="#334155", penwidth=1.8, label="phase progression"];
+  seg_5A -> seg_5B [color="#334155", penwidth=1.8, label="phase progression"];
+  seg_5B -> seg_6A [color="#334155", penwidth=1.8, label="phase progression"];
+  seg_6A -> seg_6B [color="#334155", penwidth=1.8, label="phase progression"];
+
+  // cross-segment gate dependencies
+  seg_1A -> seg_3A [style=dashed, color="#D97706", penwidth=1.2, label="gate ref"];
+  seg_1A -> seg_3B [style=dashed, color="#D97706", penwidth=1.2, label="gate ref"];
+  seg_1A -> seg_5A [style=dashed, color="#D97706", penwidth=1.2, label="gate ref"];
+  seg_1B -> seg_2B [style=dashed, color="#D97706", penwidth=1.2, label="gate ref"];
+  seg_1B -> seg_3A [style=dashed, color="#D97706", penwidth=1.2, label="gate ref"];
+  seg_1B -> seg_3B [style=dashed, color="#D97706", penwidth=1.2, label="gate ref"];
+  seg_1B -> seg_5A [style=dashed, color="#D97706", penwidth=1.2, label="gate ref"];
+  seg_2A -> seg_3A [style=dashed, color="#D97706", penwidth=1.2, label="gate ref"];
+  seg_2A -> seg_3B [style=dashed, color="#D97706", penwidth=1.2, label="gate ref"];
+  seg_2A -> seg_5A [style=dashed, color="#D97706", penwidth=1.2, label="gate ref"];
+  seg_2B -> seg_5A [style=dashed, color="#D97706", penwidth=1.2, label="gate ref"];
+  seg_3A -> seg_5A [style=dashed, color="#D97706", penwidth=1.2, label="gate ref"];
+}

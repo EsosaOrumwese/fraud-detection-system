@@ -1,0 +1,81 @@
+%% Dev Full Platform Overview (Recruiter-facing, derived from planned v0)
+flowchart LR
+
+  subgraph GOV[Delivery and Governance]
+    GHA[GitHub Actions<br/>build + deploy workflows]
+    TF[Terraform<br/>core streaming runtime data_ml ops]
+    SFN[Step Functions<br/>phase gates + run orchestration]
+    CW[CloudWatch + OpenTelemetry<br/>monitoring + alerts]
+  end
+
+  subgraph INGRESS[Ingestion and Stream Transport]
+    APIGW[API Gateway]
+    IGL[Ingress Lambda]
+    DDB[(DynamoDB idempotency)]
+    MSK[(AWS MSK Serverless Kafka bus)]
+    FLINK[Flink stream transforms<br/>MSF managed primary]
+  end
+
+  subgraph DECISION[Real-Time Decision and Case Flow]
+    DF[Decision Fabric]
+    AL[Action Layer]
+    DLA[Decision Log and Audit]
+    CASE[Case Trigger + Case Management]
+    LABEL[Label Store]
+  end
+
+  subgraph LEARNING[Learning and Model Promotion]
+    OFS[Databricks OFS dataset build]
+    MF[SageMaker train and evaluate]
+    MLF[MLflow experiment and model tracking]
+    MPR[Promotion and rollback corridor]
+  end
+
+  subgraph STATE[State and Evidence Surfaces]
+    S3[(S3 archive receipts evidence)]
+    AURORA[(Aurora operational state)]
+    REDIS[(Redis low-latency feature state)]
+  end
+
+  GHA --> TF
+  TF --> APIGW
+  TF --> MSK
+  TF --> S3
+  TF --> AURORA
+  TF --> REDIS
+  SFN --> APIGW
+  SFN --> DF
+
+  APIGW --> IGL --> DDB
+  IGL --> MSK
+  IGL --> S3
+
+  MSK --> FLINK
+  FLINK --> DF
+  FLINK --> REDIS
+  FLINK --> AURORA
+
+  DF --> AL --> DLA
+  DLA --> S3
+  AL --> CASE --> LABEL
+  CASE --> AURORA
+  LABEL --> AURORA
+
+  S3 --> OFS --> MF --> MLF --> MPR --> DF
+  MPR --> S3
+
+  CW -. run-scoped telemetry and guardrails .-> SFN
+  CW -. operational visibility .-> DF
+  CW -. operational visibility .-> MF
+
+  classDef gov fill:#EEF2FF,stroke:#4F46E5,stroke-width:1.5px,color:#111827;
+  classDef ingress fill:#ECFDF5,stroke:#10B981,stroke-width:1.5px,color:#111827;
+  classDef decision fill:#EFF6FF,stroke:#2563EB,stroke-width:1.5px,color:#111827;
+  classDef learning fill:#FEFCE8,stroke:#CA8A04,stroke-width:1.5px,color:#111827;
+  classDef state fill:#F5F3FF,stroke:#7C3AED,stroke-width:1.5px,color:#111827;
+
+  class GHA,TF,SFN,CW gov;
+  class APIGW,IGL,DDB,MSK,FLINK ingress;
+  class DF,AL,DLA,CASE,LABEL decision;
+  class OFS,MF,MLF,MPR learning;
+  class S3,AURORA,REDIS state;

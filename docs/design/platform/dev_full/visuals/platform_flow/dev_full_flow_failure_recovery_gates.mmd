@@ -1,0 +1,76 @@
+flowchart TB
+
+  subgraph FAILURES[Failure classes]
+    F1[Ingress idempotency mismatch]
+    F2[Publish unknown ambiguity]
+    F3[Stream lag spike]
+    F4[Schema compatibility break]
+    F5[Dependency outage]
+    F6[Learning leakage violation]
+    F7[Promotion regression]
+    F8[Cost threshold breach]
+  end
+
+  subgraph DETECT[Detection surfaces]
+    MTR[Metrics + lag monitors]
+    ALERT[Alert ownership routing]
+    TRACE[OTel trace correlation]
+    RECON[Reconciliation checks]
+  end
+
+  subgraph GATES[Fail-closed gates]
+    GREADY[Readiness gate]
+    GINTEGRITY[Closure integrity gate]
+    GLANE[Lane gate P5-P15]
+    GFINAL[Final verdict gate P16]
+  end
+
+  subgraph ACTIONS[Recovery actions]
+    A1[Retry bounded + quarantine]
+    A2[Degrade mode activation]
+    A3[Replay/backfill controlled rerun]
+    A4[Rollback to last-known-good]
+    A5[Pause promotion]
+    A6[Throttle or teardown]
+  end
+
+  subgraph VERIFY[Verification and closure]
+    V1[Integrity invariants pass]
+    V2[Blocker union empty]
+    V3[Evidence bundle complete]
+    V4[P17 idle-safe confirmed]
+  end
+
+  F1 --> MTR
+  F2 --> RECON
+  F3 --> MTR
+  F4 --> RECON
+  F5 --> ALERT
+  F6 --> RECON
+  F7 --> ALERT
+  F8 --> MTR
+  TRACE --> ALERT
+
+  MTR --> GREADY
+  ALERT --> GREADY
+  RECON --> GINTEGRITY
+  GREADY --> GLANE
+  GINTEGRITY --> GLANE
+  GLANE --> GFINAL
+
+  GLANE --> A1
+  GLANE --> A2
+  GLANE --> A3
+  GLANE --> A4
+  GLANE --> A5
+  GLANE --> A6
+
+  A1 --> V1
+  A2 --> V1
+  A3 --> V1
+  A4 --> V1
+  A5 --> V1
+  A6 --> V4
+
+  V1 --> V2 --> V3 --> GFINAL
+  GFINAL --> V4

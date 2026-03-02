@@ -73,6 +73,10 @@ SEGMENT = "2A"
 STATE = "S1"
 BATCH_SIZE = 200_000
 AMBIGUITY_SAMPLE_LIMIT = 10
+FALLBACK_RATE_CAP = 0.0005
+FALLBACK_COUNTRY_RATE_CAP = 0.0200
+FALLBACK_COUNTRY_MIN_SITES = 100
+OVERRIDE_RATE_CAP = 0.0020
 
 
 @dataclass(frozen=True)
@@ -425,13 +429,68 @@ def _override_active(expiry: Optional[str], cutoff: date) -> bool:
     return date.fromisoformat(expiry_str) >= cutoff
 
 
-def _tree_query_indices(tree: STRtree, geom_index: dict[int, int], point: Point) -> list[int]:
+def _normalize_country(value: object) -> str:
+    if value is None:
+        return "UNK"
+    country = str(value).strip().upper()
+    return country if country else "UNK"
+
+
+def _safe_rate(numerator: int, denominator: int) -> float:
+    if denominator <= 0:
+        return 0.0
+    return float(numerator) / float(denominator)
+
+
+def _tree_query_indices(
+    tree: STRtree,
+    geom_index: dict[int, int],
+    point: Point,
+) -> tuple[list[int], bool]:
     result = tree.query(point)
+    requires_covers = True
     if hasattr(result, "dtype") and np.issubdtype(result.dtype, np.integer):
-        return result.tolist()
+        return result.tolist(), requires_covers
     if result and isinstance(result[0], (int, np.integer)):
-        return list(result)
-    return [geom_index[id(geom)] for geom in result if id(geom) in geom_index]
+        return list(result), requires_covers
+    return [geom_index[id(geom)] for geom in result if id(geom) in geom_index], requires_covers
+
+
+def _resolve_candidate_tzid(
+    tree: STRtree,
+    geoms: list,
+    tzids: list[str],
+    geom_index: dict[int, int],
+    point: Point,
+) -> tuple[Optional[str], bool]:
+    indices, requires_covers = _tree_query_indices(tree, geom_index, point)
+    first: Optional[str] = None
+    for idx in indices:
+        if requires_covers and not geoms[idx].covers(point):
+            continue
+        tzid = tzids[idx]
+        if first is None:
+            first = tzid
+            continue
+        if tzid != first:
+            return None, True
+    return first, False
+
+
+def _candidate_tzids_full(
+    tree: STRtree,
+    geoms: list,
+    tzids: list[str],
+    geom_index: dict[int, int],
+    point: Point,
+) -> list[str]:
+    indices, requires_covers = _tree_query_indices(tree, geom_index, point)
+    matches: set[str] = set()
+    for idx in indices:
+        if requires_covers and not geoms[idx].covers(point):
+            continue
+        matches.add(tzids[idx])
+    return sorted(matches)
 
 
 def _candidate_tzids(
@@ -441,13 +500,15 @@ def _candidate_tzids(
     geom_index: dict[int, int],
     point: Point,
 ) -> set[str]:
-    indices = _tree_query_indices(tree, geom_index, point)
+    indices, requires_covers = _tree_query_indices(tree, geom_index, point)
     if not indices:
         return set()
     matches: set[str] = set()
     for idx in indices:
         geom = geoms[idx]
-        if geom.covers(point):
+        if requires_covers and not geom.covers(point):
+            continue
+        if not requires_covers or geom.covers(point):
             matches.add(tzids[idx])
     return matches
 
@@ -623,6 +684,15 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
     ambiguity_total = 0
     ambiguity_samples: list[dict] = []
     fallback_samples: list[dict] = []
+    fallback_rate = 0.0
+    override_rate = 0.0
+    fallback_by_country: dict[str, dict[str, object]] = {}
+    override_by_country: dict[str, dict[str, object]] = {}
+    fallback_country_violations: list[dict[str, object]] = []
+    country_site_totals: dict[str, int] = {}
+    country_fallback_within: dict[str, int] = {}
+    country_fallback_outside: dict[str, int] = {}
+    country_override_totals: dict[str, int] = {}
 
     try:
         receipt_path, receipt = _resolve_run_receipt(config.runs_root, run_id)
@@ -1012,8 +1082,8 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
             )
             mcc_df = pl.read_parquet(mcc_map_path, columns=["merchant_id", "mcc"])
             mcc_lookup = {
-                int(row["merchant_id"]): f"{int(row['mcc']):04d}"
-                for row in mcc_df.iter_rows(named=True)
+                int(merchant_id): f"{int(mcc):04d}"
+                for merchant_id, mcc in mcc_df.iter_rows()
             }
             if not mcc_lookup:
                 _emit_failure_event(
@@ -1187,21 +1257,13 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
         output_tmp.mkdir(parents=True, exist_ok=True)
 
         created_utc = str(receipt.get("created_utc", started_utc))
-        output_schema = [
-            ("seed", pl.UInt64),
-            ("manifest_fingerprint", pl.Utf8),
-            ("merchant_id", pl.UInt64),
-            ("legal_country_iso", pl.Utf8),
-            ("site_order", pl.Int32),
-            ("lat_deg", pl.Float64),
-            ("lon_deg", pl.Float64),
+        resolved_schema = [
             ("tzid_provisional", pl.Utf8),
             ("tzid_provisional_source", pl.Utf8),
             ("override_scope", pl.Utf8),
             ("override_applied", pl.Boolean),
             ("nudge_lat_deg", pl.Float64),
             ("nudge_lon_deg", pl.Float64),
-            ("created_utc", pl.Utf8),
         ]
 
         columns = ["merchant_id", "legal_country_iso", "site_order", "lat_deg", "lon_deg"]
@@ -1222,12 +1284,14 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
             sites_total += batch.height
             counts["sites_total"] = sites_total
             output_rows: list[tuple] = []
-            for row in batch.iter_rows(named=True):
-                merchant_id = int(row["merchant_id"])
-                legal_country_iso = row["legal_country_iso"]
-                site_order = int(row["site_order"])
-                lat = float(row["lat_deg"])
-                lon = float(row["lon_deg"])
+            for merchant_id_raw, legal_country_iso_raw, site_order_raw, lat_raw, lon_raw in batch.iter_rows():
+                merchant_id = int(merchant_id_raw)
+                legal_country_iso = str(legal_country_iso_raw) if legal_country_iso_raw is not None else ""
+                country_key = _normalize_country(legal_country_iso_raw)
+                site_order = int(site_order_raw)
+                lat = float(lat_raw)
+                lon = float(lon_raw)
+                country_site_totals[country_key] = country_site_totals.get(country_key, 0) + 1
                 key = (merchant_id, legal_country_iso, site_order)
                 if last_key is not None and key < last_key:
                     writer_order_violation = True
@@ -1238,24 +1302,21 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                     pk_seen.add(key)
 
                 point = Point(lon, lat)
-                candidates = _candidate_tzids(tree, geoms, tzids, geom_index, point)
+                tzid, ambiguous = _resolve_candidate_tzid(tree, geoms, tzids, geom_index, point)
                 nudge_lat = None
                 nudge_lon = None
-                tzid = None
                 override_applied = False
                 override_scope = None
-                if len(candidates) == 1:
-                    tzid = next(iter(candidates))
-                else:
+                if tzid is None:
                     nudge_lat, nudge_lon = _apply_nudge(lat, lon, epsilon)
                     border_nudged += 1
                     counts["border_nudged"] = border_nudged
                     point = Point(nudge_lon, nudge_lat)
-                    candidates = _candidate_tzids(tree, geoms, tzids, geom_index, point)
-                    if len(candidates) == 1:
-                        tzid = next(iter(candidates))
-                    else:
-                        candidate_list = sorted(candidates)
+                    tzid, ambiguous = _resolve_candidate_tzid(tree, geoms, tzids, geom_index, point)
+                    if tzid is None:
+                        candidate_list = (
+                            _candidate_tzids_full(tree, geoms, tzids, geom_index, point) if ambiguous else []
+                        )
                         override_tzid = None
                         site_key = f"{merchant_id}|{legal_country_iso}|{site_order}"
                         if site_key in overrides_site:
@@ -1266,14 +1327,11 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                             if mcc_key and mcc_key in overrides_mcc:
                                 override_scope = "mcc"
                                 override_tzid = overrides_mcc[mcc_key]
-                        country_key = None
-                        if legal_country_iso is not None:
-                            country_key = str(legal_country_iso).strip().upper()
                         if override_tzid is None and country_key and country_key in overrides_country:
                             override_scope = "country"
                             override_tzid = overrides_country[country_key]
                         if override_tzid is None:
-                            if not candidates:
+                            if not candidate_list:
                                 country_set = country_tzids.get(country_key) if country_key else None
                                 if country_set and len(country_set) == 1:
                                     tzid = next(iter(country_set))
@@ -1299,6 +1357,9 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                                     tzid, distance_m = nearest
                                     if distance_m <= threshold_meters:
                                         counts["fallback_nearest_within_threshold"] += 1
+                                        country_fallback_within[country_key] = (
+                                            country_fallback_within.get(country_key, 0) + 1
+                                        )
                                         resolution_method = "nearest_within_threshold"
                                         logger.info(
                                             "S1: resolved border ambiguity via nearest polygon (method=within_threshold, country=%s, tzid=%s, distance_m=%.2f, threshold_m=%.2f, key=%s)",
@@ -1310,6 +1371,9 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                                         )
                                     else:
                                         counts["fallback_nearest_outside_threshold"] += 1
+                                        country_fallback_outside[country_key] = (
+                                            country_fallback_outside.get(country_key, 0) + 1
+                                        )
                                         resolution_method = "nearest_outside_threshold"
                                         logger.warning(
                                             "S1: resolved border ambiguity via nearest polygon (method=outside_threshold, country=%s, tzid=%s, distance_m=%.2f, threshold_m=%.2f, key=%s)",
@@ -1423,6 +1487,9 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                                 counts["overrides_mcc"] += 1
                             elif override_scope == "country":
                                 counts["overrides_country"] += 1
+                            country_override_totals[country_key] = (
+                                country_override_totals.get(country_key, 0) + 1
+                            )
                             logger.info(
                                 "S1: resolved border ambiguity via %s override (tzid=%s, key=%s)",
                                 override_scope,
@@ -1492,24 +1559,54 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
 
                 output_rows.append(
                     (
-                        seed,
-                        str(manifest_fingerprint),
-                        merchant_id,
-                        legal_country_iso,
-                        site_order,
-                        lat,
-                        lon,
                         tzid,
                         tzid_provisional_source,
                         override_scope,
                         override_applied,
                         nudge_lat,
                         nudge_lon,
-                        created_utc,
                     )
                 )
 
-            df = pl.DataFrame(output_rows, schema=output_schema, orient="row")
+            resolved_df = pl.DataFrame(output_rows, schema=resolved_schema, orient="row")
+            df = (
+                batch.with_columns(
+                    [
+                        pl.lit(seed, dtype=pl.UInt64).alias("seed"),
+                        pl.lit(str(manifest_fingerprint), dtype=pl.Utf8).alias("manifest_fingerprint"),
+                        pl.col("merchant_id").cast(pl.UInt64),
+                        pl.col("legal_country_iso").cast(pl.Utf8),
+                        pl.col("site_order").cast(pl.Int32),
+                        pl.col("lat_deg").cast(pl.Float64),
+                        pl.col("lon_deg").cast(pl.Float64),
+                        resolved_df["tzid_provisional"],
+                        resolved_df["tzid_provisional_source"],
+                        resolved_df["override_scope"],
+                        resolved_df["override_applied"],
+                        resolved_df["nudge_lat_deg"],
+                        resolved_df["nudge_lon_deg"],
+                        pl.lit(created_utc, dtype=pl.Utf8).alias("created_utc"),
+                    ]
+                )
+                .select(
+                    [
+                        "seed",
+                        "manifest_fingerprint",
+                        "merchant_id",
+                        "legal_country_iso",
+                        "site_order",
+                        "lat_deg",
+                        "lon_deg",
+                        "tzid_provisional",
+                        "tzid_provisional_source",
+                        "override_scope",
+                        "override_applied",
+                        "nudge_lat_deg",
+                        "nudge_lon_deg",
+                        "created_utc",
+                    ]
+                )
+            )
             try:
                 validate_dataframe(df.iter_rows(named=True), output_pack, output_table)
             except SchemaValidationError as exc:
@@ -1615,6 +1712,137 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
             )
         _emit_validation(logger, seed, manifest_fingerprint, "V-12", "pass")
 
+        fallback_total = (
+            counts["fallback_nearest_within_threshold"] + counts["fallback_nearest_outside_threshold"]
+        )
+        fallback_rate = _safe_rate(fallback_total, sites_total)
+        override_rate = _safe_rate(counts["overrides_applied"], sites_total)
+        fallback_by_country = {}
+        override_by_country = {}
+        fallback_country_violations = []
+        for country in sorted(country_site_totals.keys()):
+            total = int(country_site_totals.get(country, 0))
+            fb_within = int(country_fallback_within.get(country, 0))
+            fb_outside = int(country_fallback_outside.get(country, 0))
+            fb_total = fb_within + fb_outside
+            ov_total = int(country_override_totals.get(country, 0))
+            fb_rate = _safe_rate(fb_total, total)
+            ov_rate = _safe_rate(ov_total, total)
+            fallback_by_country[country] = {
+                "sites_total": total,
+                "fallback_total": fb_total,
+                "fallback_within_threshold": fb_within,
+                "fallback_outside_threshold": fb_outside,
+                "fallback_rate": round(fb_rate, 8),
+            }
+            override_by_country[country] = {
+                "sites_total": total,
+                "overrides_total": ov_total,
+                "override_rate": round(ov_rate, 8),
+            }
+            if total >= FALLBACK_COUNTRY_MIN_SITES and fb_rate > FALLBACK_COUNTRY_RATE_CAP:
+                fallback_country_violations.append(
+                    {
+                        "country_iso": country,
+                        "sites_total": total,
+                        "fallback_total": fb_total,
+                        "fallback_rate": round(fb_rate, 8),
+                    }
+                )
+
+        if fallback_rate > FALLBACK_RATE_CAP:
+            _emit_failure_event(
+                logger,
+                "2A-S1-090",
+                seed,
+                manifest_fingerprint,
+                str(parameter_hash),
+                run_id,
+                {
+                    "detail": "fallback_rate_cap_exceeded",
+                    "fallback_rate": round(fallback_rate, 8),
+                    "fallback_rate_cap": FALLBACK_RATE_CAP,
+                    "fallback_total": fallback_total,
+                    "sites_total": sites_total,
+                },
+            )
+            raise EngineFailure(
+                "F4",
+                "2A-S1-090",
+                STATE,
+                MODULE_NAME,
+                {
+                    "detail": "fallback_rate_cap_exceeded",
+                    "fallback_rate": round(fallback_rate, 8),
+                    "fallback_rate_cap": FALLBACK_RATE_CAP,
+                    "fallback_total": fallback_total,
+                    "sites_total": sites_total,
+                },
+            )
+
+        if override_rate > OVERRIDE_RATE_CAP:
+            _emit_failure_event(
+                logger,
+                "2A-S1-092",
+                seed,
+                manifest_fingerprint,
+                str(parameter_hash),
+                run_id,
+                {
+                    "detail": "override_rate_cap_exceeded",
+                    "override_rate": round(override_rate, 8),
+                    "override_rate_cap": OVERRIDE_RATE_CAP,
+                    "overrides_applied": counts["overrides_applied"],
+                    "sites_total": sites_total,
+                },
+            )
+            raise EngineFailure(
+                "F4",
+                "2A-S1-092",
+                STATE,
+                MODULE_NAME,
+                {
+                    "detail": "override_rate_cap_exceeded",
+                    "override_rate": round(override_rate, 8),
+                    "override_rate_cap": OVERRIDE_RATE_CAP,
+                    "overrides_applied": counts["overrides_applied"],
+                    "sites_total": sites_total,
+                },
+            )
+
+        if fallback_country_violations:
+            violations = sorted(
+                fallback_country_violations,
+                key=lambda item: float(item["fallback_rate"]),
+                reverse=True,
+            )
+            _emit_failure_event(
+                logger,
+                "2A-S1-091",
+                seed,
+                manifest_fingerprint,
+                str(parameter_hash),
+                run_id,
+                {
+                    "detail": "fallback_country_cap_exceeded",
+                    "fallback_country_rate_cap": FALLBACK_COUNTRY_RATE_CAP,
+                    "fallback_country_min_sites": FALLBACK_COUNTRY_MIN_SITES,
+                    "violations": violations[:20],
+                },
+            )
+            raise EngineFailure(
+                "F4",
+                "2A-S1-091",
+                STATE,
+                MODULE_NAME,
+                {
+                    "detail": "fallback_country_cap_exceeded",
+                    "fallback_country_rate_cap": FALLBACK_COUNTRY_RATE_CAP,
+                    "fallback_country_min_sites": FALLBACK_COUNTRY_MIN_SITES,
+                    "violations": violations[:20],
+                },
+            )
+
         _emit_validation(logger, seed, manifest_fingerprint, "V-13", "pass")
         _emit_validation(logger, seed, manifest_fingerprint, "V-14", "pass")
 
@@ -1648,6 +1876,8 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
             overrides_country=counts["overrides_country"],
             fallback_nearest_within_threshold=counts["fallback_nearest_within_threshold"],
             fallback_nearest_outside_threshold=counts["fallback_nearest_outside_threshold"],
+            fallback_rate=round(fallback_rate, 8),
+            override_rate=round(override_rate, 8),
         )
 
         _atomic_publish_dir(output_tmp, output_root, logger, "s1_tz_lookup")
@@ -1717,6 +1947,21 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                 "inputs": inputs_block,
                 "counts": counts,
                 "checks": checks,
+                "governance": {
+                    "caps": {
+                        "fallback_rate_cap": FALLBACK_RATE_CAP,
+                        "fallback_country_rate_cap": FALLBACK_COUNTRY_RATE_CAP,
+                        "fallback_country_min_sites": FALLBACK_COUNTRY_MIN_SITES,
+                        "override_rate_cap": OVERRIDE_RATE_CAP,
+                    },
+                    "rates": {
+                        "fallback_rate": round(fallback_rate, 8),
+                        "override_rate": round(override_rate, 8),
+                    },
+                    "fallback_by_country": fallback_by_country,
+                    "override_by_country": override_by_country,
+                    "fallback_country_violations": fallback_country_violations,
+                },
                 "diagnostics": {
                     "border_ambiguity_unresolved": {
                         "total": ambiguity_total,

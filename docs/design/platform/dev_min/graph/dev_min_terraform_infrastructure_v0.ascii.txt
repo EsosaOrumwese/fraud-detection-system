@@ -1,0 +1,126 @@
+DEV_MIN TERRAFORM INFRASTRUCTURE (STACK + MODULE TOPOLOGY)
+===========================================================
+
+Stacks
+------
+1) dev_min/core
+2) dev_min/confluent
+3) dev_min/demo
+
+State keys
+----------
+- dev_min/core/terraform.tfstate
+- dev_min/confluent/terraform.tfstate
+- dev_min/demo/terraform.tfstate
+
+
+FLOW OVERVIEW
+-------------
+[GitHub Actions / Operator CLI]
+  -> apply dev_min/core
+  -> apply dev_min/confluent
+  -> apply dev_min/demo
+
+
+STACK: dev_min/core
+-------------------
+Root:
+- module.core
+
+Major resources from module/core:
+- S3 buckets:
+  - object-store
+  - evidence
+  - quarantine
+  - archive
+  - tfstate
+- DynamoDB tables:
+  - control_runs
+  - ig_admission_state
+  - ig_publish_state
+  - tf_lock
+- AWS Budget:
+  - dev_min_monthly + threshold notifications
+
+Role in topology:
+- persistent substrate for storage, lock/state, and budget guardrails.
+
+
+STACK: dev_min/confluent
+------------------------
+Root:
+- module.confluent
+- aws_ssm_parameter (bootstrap/api_key/api_secret)
+- aws_s3_object.topic_catalog
+
+Major resources from module/confluent:
+- confluent_environment
+- confluent_kafka_cluster
+- confluent_kafka_topic.topics
+- service accounts + role bindings + ACLs + API keys
+
+Role in topology:
+- materializes managed Kafka substrate and exports runtime credentials to SSM.
+- emits topic catalog artifact.
+
+
+STACK: dev_min/demo
+-------------------
+Root:
+- module.demo
+- data.terraform_remote_state.confluent (optional path when source=remote_state)
+
+Major resources from module/demo:
+- Network:
+  - VPC, public subnets, route table, IGW, app/db security groups
+- ECS:
+  - ECS cluster
+  - daemon service (mapped service matrix)
+  - task definitions:
+    - runtime_probe
+    - db_migrations
+    - daemon
+    - oracle_job
+    - control_job
+    - reporter
+- Stream/bus:
+  - aws_kinesis_stream.ig_event_bus
+- Runtime DB:
+  - aws_db_instance.runtime + subnet group
+- IAM:
+  - task execution role
+  - app role
+  - lane roles + data-plane policies
+- SSM params:
+  - confluent bootstrap/key/secret
+  - db user/password/dsn
+  - ig_api_key
+  - heartbeat
+- S3 objects:
+  - manifest
+  - confluent topic catalog
+
+Role in topology:
+- ephemeral runtime substrate for Spine Green v0 lanes and associated control jobs.
+
+
+CROSS-STACK DEPENDENCIES
+------------------------
+1) Confluent -> Demo
+- demo can read confluent outputs through remote state.
+- confluent credentials also converge into SSM handles consumed by demo tasks.
+
+2) Core -> Confluent and Demo
+- core buckets provide object/evidence destinations used by confluent topic catalog and demo artifacts/runtime IO.
+- core DynamoDB tables provide control/admission state surfaces.
+
+3) Budget guardrail
+- core budget is checked in teardown/cost posture phases.
+
+
+INFRA TRUTH NOTES
+-----------------
+- This visualization reflects Terraform resources declared in:
+  - dev_min roots: core/main.tf, confluent/main.tf, demo/main.tf
+  - shared modules: modules/core/main.tf, modules/confluent/main.tf, modules/demo/main.tf
+- It is infrastructure topology only, not application-level event semantics.

@@ -1,0 +1,84 @@
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "fontFamily": "Inter, Segoe UI, Arial",
+    "primaryTextColor": "#0F172A",
+    "lineColor": "#334155",
+    "tertiaryColor": "#F8FAFC",
+    "background": "#FFFFFF"
+  }
+}}%%
+flowchart LR
+  subgraph Internet["Internet Edge"]
+    InternetNode@{ icon: "mdi:web", form: "rounded", label: "Public internet", pos: "b", h: 56 }
+  end
+
+  subgraph VPC["VPC (aws_vpc.demo)"]
+    VpcNode@{ icon: "simple-icons:amazonwebservices", form: "rounded", label: "VPC CIDR", pos: "b", h: 56 }
+    Igw@{ icon: "mdi:access-point-network", form: "rounded", label: "Internet gateway", pos: "b", h: 56 }
+    RtPublic@{ icon: "mdi:routes", form: "rounded", label: "Public route table", pos: "b", h: 56 }
+    RouteDefault["Default route<br/>0.0.0.0/0 -> IGW"]
+    SubnetA@{ icon: "mdi:sitemap-outline", form: "rounded", label: "Public subnet A", pos: "b", h: 56 }
+    SubnetB@{ icon: "mdi:sitemap-outline", form: "rounded", label: "Public subnet B", pos: "b", h: 56 }
+    Rta["Route table associations"]
+
+    SgApp@{ icon: "mdi:shield-lock", form: "rounded", label: "App SG<br/>Ingress: tcp/8080 from 0.0.0.0/0", pos: "b", h: 56 }
+    SgDb@{ icon: "mdi:shield-lock", form: "rounded", label: "DB SG<br/>Ingress: tcp/var.db_port from App SG", pos: "b", h: 56 }
+
+    EcsProbe@{ icon: "simple-icons:amazonecs", form: "rounded", label: "ECS runtime-probe<br/>public IP on", pos: "b", h: 56 }
+    EcsDaemons@{ icon: "simple-icons:amazonecs", form: "rounded", label: "ECS daemons<br/>public IP on", pos: "b", h: 56 }
+
+    DbSubnet@{ icon: "mdi:database-cog", form: "rounded", label: "DB subnet group<br/>(public subnets)", pos: "b", h: 56 }
+    Rds@{ icon: "simple-icons:postgresql", form: "rounded", label: "RDS runtime postgres", pos: "b", h: 56 }
+
+    NoNat@{ icon: "mdi:alert-circle-outline", form: "rounded", label: "No NAT gateway provisioned", pos: "b", h: 56 }
+    NoLb@{ icon: "mdi:alert-circle-outline", form: "rounded", label: "No ALB/NLB provisioned", pos: "b", h: 56 }
+  end
+
+  InternetNode --> Igw
+  VpcNode --> Igw
+  VpcNode --> RtPublic
+  RtPublic --> RouteDefault
+  RouteDefault --> Igw
+  VpcNode --> SubnetA
+  VpcNode --> SubnetB
+  Rta --> SubnetA
+  Rta --> SubnetB
+  Rta --> RtPublic
+
+  VpcNode --> SgApp
+  VpcNode --> SgDb
+
+  SubnetA --> EcsProbe
+  SubnetB --> EcsProbe
+  SubnetA --> EcsDaemons
+  SubnetB --> EcsDaemons
+  SgApp --> EcsProbe
+  SgApp --> EcsDaemons
+
+  SgApp -->|db port access path| SgDb
+  SgDb --> Rds
+  SubnetA --> DbSubnet
+  SubnetB --> DbSubnet
+  DbSubnet --> Rds
+
+  EcsProbe -.->|egress allowed| InternetNode
+  EcsDaemons -.->|egress allowed| InternetNode
+
+  style Internet fill:#F1F5F9,stroke:#64748B,stroke-width:2px
+  style VPC fill:#EFF6FF,stroke:#2563EB,stroke-width:2px
+
+  class VpcNode,SubnetA,SubnetB,RtPublic,RouteDefault,Rta net
+  class Igw edge
+  class SgApp,SgDb security
+  class EcsProbe,EcsDaemons runtime
+  class DbSubnet,Rds db
+  class NoNat,NoLb note
+
+  classDef net fill:#DBEAFE,stroke:#2563EB,stroke-width:1.4px,color:#1E3A8A;
+  classDef edge fill:#E0F2FE,stroke:#0284C7,stroke-width:1.4px,color:#0C4A6E;
+  classDef security fill:#FEE2E2,stroke:#DC2626,stroke-width:1.5px,color:#7F1D1D;
+  classDef runtime fill:#DCFCE7,stroke:#16A34A,stroke-width:1.5px,color:#14532D;
+  classDef db fill:#FFE4E6,stroke:#E11D48,stroke-width:1.5px,color:#881337;
+  classDef note fill:#FEF3C7,stroke:#D97706,stroke-width:1.6px,color:#7C2D12;
+

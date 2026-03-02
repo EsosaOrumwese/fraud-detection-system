@@ -17,6 +17,7 @@ from typing import Any, Mapping
 import yaml
 
 from fraud_detection.event_bus import EventBusReader
+from fraud_detection.event_bus.kafka import build_kafka_reader
 from fraud_detection.event_bus.kinesis import KinesisEventBusReader
 from fraud_detection.platform_runtime import RUNS_ROOT, resolve_platform_run_id, resolve_run_scoped_path
 from fraud_detection.scenario_runner.storage import build_object_store
@@ -109,7 +110,18 @@ class _ConsumerCheckpointStore:
     def advance(self, *, topic: str, partition: int, offset: str, offset_kind: str) -> None:
         next_offset = str(offset)
         if offset_kind in {"file_line", "kafka_offset"}:
-            next_offset = str(int(offset) + 1)
+            try:
+                next_offset = str(int(offset) + 1)
+            except ValueError:
+                logger.warning(
+                    "CaseTrigger checkpoint received non-numeric offset; topic=%s partition=%s kind=%s offset=%r",
+                    topic,
+                    partition,
+                    offset_kind,
+                    offset,
+                )
+                offset_kind = f"{offset_kind}_opaque"
+                next_offset = str(offset)
         with sqlite3.connect(self.path) as conn:
             conn.execute(
                 """
@@ -154,6 +166,7 @@ class CaseTriggerWorker:
             if config.event_bus_kind == "kinesis"
             else None
         )
+        self._kafka_reader = build_kafka_reader(client_id=f"case-trigger-worker-{config.stream_id}") if config.event_bus_kind == "kafka" else None
         self._governance_store = None
         try:
             self._governance_store = build_object_store(
@@ -196,14 +209,26 @@ class CaseTriggerWorker:
         offset = str(row["offset"])
         offset_kind = str(row["offset_kind"])
         envelope = _unwrap_envelope(row.get("payload"))
-        event_type = str(envelope.get("event_type") or "").strip()
+        event_type = str(envelope.get("event_type") or "").strip().lower()
+        payload_value = envelope.get("payload")
+        payload: Mapping[str, Any] | dict[str, Any]
+        if isinstance(payload_value, Mapping):
+            payload = dict(payload_value)
+        else:
+            payload = {}
+        if not event_type:
+            inferred = _infer_rtdl_event_type(envelope)
+            if not inferred and isinstance(payload, Mapping):
+                inferred = _infer_rtdl_event_type(payload)
+            if inferred:
+                event_type = inferred
+                payload = dict(payload) if isinstance(payload, Mapping) and payload else dict(envelope)
         if event_type not in {"decision_response", "action_outcome"}:
             return True
 
-        platform_run_id = str(envelope.get("platform_run_id") or "").strip()
+        platform_run_id = _extract_platform_run_id(envelope)
         if self.config.required_platform_run_id and platform_run_id != self.config.required_platform_run_id:
             return True
-        payload = envelope.get("payload") if isinstance(envelope.get("payload"), Mapping) else {}
         if not isinstance(payload, Mapping):
             return True
 
@@ -276,8 +301,10 @@ class CaseTriggerWorker:
         payload: Mapping[str, Any],
         envelope: Mapping[str, Any],
     ) -> Any:
-        observed_time = str(envelope.get("ts_utc") or "").strip() or _utc_now()
+        # Use source contract timestamps to keep replay payload hashes stable.
+        fallback_observed_time = str(envelope.get("ts_utc") or "").strip() or _utc_now()
         if event_type == "decision_response":
+            observed_time = str(payload.get("decided_at_utc") or "").strip() or fallback_observed_time
             decision_id = str(payload.get("decision_id") or "").strip()
             source_event = payload.get("source_event") if isinstance(payload.get("source_event"), Mapping) else {}
             source_event_id = str((source_event or {}).get("event_id") or "").strip()
@@ -292,6 +319,7 @@ class CaseTriggerWorker:
                 audit_record_id=_audit_ref(payload=payload, event_type=event_type),
             )
 
+        observed_time = str(payload.get("completed_at_utc") or "").strip() or fallback_observed_time
         decision_id = str(payload.get("decision_id") or "").strip()
         source_event_id = self._decision_source_event_ids.get(decision_id)
         if not source_event_id:
@@ -368,7 +396,11 @@ class CaseTriggerWorker:
     def _iter_records(self) -> list[dict[str, Any]]:
         if self.config.event_bus_kind == "kinesis":
             return self._read_kinesis()
-        return self._read_file()
+        if self.config.event_bus_kind == "kafka":
+            return self._read_kafka()
+        if self.config.event_bus_kind == "file":
+            return self._read_file()
+        raise RuntimeError(f"CASE_TRIGGER_EVENT_BUS_KIND_UNSUPPORTED:{self.config.event_bus_kind}")
 
     def _read_file(self) -> list[dict[str, Any]]:
         assert self._file_reader is not None
@@ -419,6 +451,55 @@ class CaseTriggerWorker:
                     )
         return rows
 
+    def _read_kafka(self) -> list[dict[str, Any]]:
+        assert self._kafka_reader is not None
+        rows: list[dict[str, Any]] = []
+        for topic in self.config.admitted_topics:
+            for partition in self._kafka_partitions(topic):
+                checkpoint = self.consumer_checkpoints.next_offset(topic=topic, partition=partition)
+                from_offset: int | None = None
+                if checkpoint and checkpoint[1] == "kafka_offset":
+                    try:
+                        from_offset = int(checkpoint[0])
+                    except ValueError:
+                        from_offset = None
+                start_position = "earliest"
+                if checkpoint is None and self.config.event_bus_start_position == "latest":
+                    start_position = "latest"
+                for record in self._kafka_reader.read(
+                    topic=topic,
+                    partition=partition,
+                    from_offset=from_offset,
+                    limit=self.config.poll_max_records,
+                    start_position=start_position,
+                ):
+                    raw_offset = record.get("offset") if isinstance(record, Mapping) else None
+                    try:
+                        normalized_offset = int(raw_offset) if raw_offset is not None else None
+                    except (TypeError, ValueError):
+                        normalized_offset = None
+                    if normalized_offset is None:
+                        logger.warning(
+                            "CaseTrigger dropping kafka row with invalid offset; topic=%s partition=%s raw_offset=%r",
+                            topic,
+                            partition,
+                            raw_offset,
+                        )
+                        continue
+                    payload = record.get("payload") if isinstance(record.get("payload"), Mapping) else {}
+                    if isinstance(payload.get("payload"), Mapping):
+                        payload = dict(payload.get("payload") or {})
+                    rows.append(
+                        {
+                            "topic": topic,
+                            "partition": int(partition),
+                            "offset": str(normalized_offset),
+                            "offset_kind": "kafka_offset",
+                            "payload": payload,
+                        }
+                    )
+        return rows
+
     def _file_partitions(self, topic: str) -> list[int]:
         root = Path(self.config.event_bus_root) / topic
         if not root.exists():
@@ -430,6 +511,11 @@ class CaseTriggerWorker:
             except ValueError:
                 continue
         return sorted(set(parts)) if parts else [0]
+
+    def _kafka_partitions(self, topic: str) -> list[int]:
+        assert self._kafka_reader is not None
+        partitions = self._kafka_reader.list_partitions(topic)
+        return partitions if partitions else [0]
 
     def _export(self) -> None:
         if self._metrics is None or self._reconciliation is None:
@@ -616,6 +702,39 @@ def _unwrap_envelope(value: Any) -> dict[str, Any]:
 
 def _looks_like_envelope(value: Mapping[str, Any]) -> bool:
     return all(value.get(key) not in (None, "") for key in ("event_id", "event_type", "schema_version"))
+
+
+def _extract_platform_run_id(envelope: Mapping[str, Any]) -> str:
+    direct = str(envelope.get("platform_run_id") or "").strip()
+    if direct:
+        return direct
+    pins = envelope.get("pins")
+    if isinstance(pins, Mapping):
+        scoped = str(pins.get("platform_run_id") or "").strip()
+        if scoped:
+            return scoped
+    payload = envelope.get("payload")
+    if isinstance(payload, Mapping):
+        nested = str(payload.get("platform_run_id") or "").strip()
+        if nested:
+            return nested
+        nested_pins = payload.get("pins")
+        if isinstance(nested_pins, Mapping):
+            scoped = str(nested_pins.get("platform_run_id") or "").strip()
+            if scoped:
+                return scoped
+    return ""
+
+
+def _infer_rtdl_event_type(payload: Mapping[str, Any]) -> str | None:
+    decision_id = str(payload.get("decision_id") or "").strip()
+    source_event = payload.get("source_event")
+    if decision_id and isinstance(source_event, Mapping):
+        return "decision_response"
+    outcome_id = str(payload.get("outcome_id") or payload.get("action_outcome_id") or "").strip()
+    if outcome_id:
+        return "action_outcome"
+    return None
 
 
 def _partition_from_shard(shard_id: str) -> int:

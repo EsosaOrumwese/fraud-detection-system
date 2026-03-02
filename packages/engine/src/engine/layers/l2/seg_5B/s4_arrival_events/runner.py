@@ -72,6 +72,7 @@ MODULE_NAME = "5B.s4_arrival_events"
 SEGMENT = "5B"
 STATE = "S4"
 MICROS_PER_DAY = 86_400_000_000
+DEFAULT_PROGRESS_INTERVAL_SECONDS = 10.0
 
 
 @dataclass(frozen=True)
@@ -105,7 +106,7 @@ class _ProgressTracker:
         total: Optional[int],
         logger,
         label: str,
-        min_interval_seconds: float = 0.5,
+        min_interval_seconds: float = DEFAULT_PROGRESS_INTERVAL_SECONDS,
     ) -> None:
         self._total = int(total) if total is not None else None
         self._logger = logger
@@ -150,6 +151,36 @@ class _ProgressTracker:
 def _env_flag(name: str, default: str = "0") -> bool:
     value = os.environ.get(name, default)
     return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _env_progress_interval_seconds(name: str, default: float = DEFAULT_PROGRESS_INTERVAL_SECONDS) -> float:
+    raw = os.environ.get(name, f"{default}")
+    try:
+        value = float(raw)
+    except ValueError as exc:
+        raise ValueError(f"{name} invalid: {raw}") from exc
+    if not math.isfinite(value) or value < 0.1:
+        raise ValueError(f"{name} invalid: {raw}")
+    return value
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = os.environ.get(name, str(default))
+    try:
+        return int(raw)
+    except ValueError as exc:
+        raise ValueError(f"{name} invalid: {raw}") from exc
+
+
+def _env_float(name: str, default: float) -> float:
+    raw = os.environ.get(name, f"{default}")
+    try:
+        value = float(raw)
+    except ValueError as exc:
+        raise ValueError(f"{name} invalid: {raw}") from exc
+    if not math.isfinite(value):
+        raise ValueError(f"{name} invalid: {raw}")
+    return value
 
 
 def _emit_event(logger, event: str, manifest_fingerprint: Optional[str], severity: str, **fields: object) -> None:
@@ -279,6 +310,25 @@ def _iter_parquet_batches(paths: Iterable[Path], columns: list[str], batch_size:
             yield df
 
 
+def _read_parquet_projected(
+    paths: Iterable[Path],
+    required_columns: list[str],
+    optional_columns: Optional[list[str]] = None,
+) -> pl.DataFrame:
+    path_list = [str(path) for path in paths]
+    if not path_list:
+        raise InputResolutionError("No parquet files provided for projected read.")
+    schema_names = set(pl.scan_parquet(path_list).collect_schema().names())
+    missing_required = [name for name in required_columns if name not in schema_names]
+    if missing_required:
+        raise InputResolutionError(f"Missing required parquet columns: {missing_required}")
+    selected = list(required_columns)
+    for name in optional_columns or []:
+        if name in schema_names and name not in selected:
+            selected.append(name)
+    return pl.read_parquet(path_list, columns=selected)
+
+
 def _count_parquet_rows(paths: Iterable[Path]) -> Optional[int]:
     if not paths:
         return None
@@ -363,6 +413,13 @@ def _site_id_from_key(merchant_id: int, legal_country_iso: str, site_order: int)
     return value if value != 0 else 1
 
 
+def _site_id_from_zone_fallback(merchant_id: int, tzid: str) -> int:
+    payload = f"fallback:{merchant_id}:{tzid}".encode("utf-8")
+    digest = hashlib.sha256(payload).digest()
+    value = int(low64(digest))
+    return value if value != 0 else 1
+
+
 def _parse_tz_cache(cache_path: Path) -> tuple[list[str], np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     data = cache_path.read_bytes()
     if len(data) < 10:
@@ -437,6 +494,7 @@ class EdgeAliasTables:
     prob: np.ndarray
     alias: np.ndarray
     edge_index: np.ndarray
+    edge_weight: np.ndarray
     key_to_table: dict[int, int]
 
 
@@ -499,6 +557,57 @@ def _build_site_alias_tables(
     )
 
 
+def _inject_site_alias_fallbacks(
+    site_alias_tables: SiteAliasTables,
+    merchant_zone_pairs: set[tuple[int, str]],
+    tzid_to_idx: dict[str, int],
+) -> tuple[SiteAliasTables, int]:
+    if not merchant_zone_pairs:
+        return site_alias_tables, 0
+
+    key_to_table = dict(site_alias_tables.key_to_table)
+    table_offsets = site_alias_tables.table_offsets.astype(np.int64).tolist()
+    table_lengths = site_alias_tables.table_lengths.astype(np.int32).tolist()
+    prob_values = site_alias_tables.prob.astype(np.float64).tolist()
+    alias_values = site_alias_tables.alias.astype(np.int64).tolist()
+    site_ids = site_alias_tables.site_ids.astype(np.uint64).tolist()
+    site_tzids = site_alias_tables.site_tzids.astype(np.int32).tolist()
+
+    injected = 0
+    for merchant_id, tzid in sorted(merchant_zone_pairs):
+        tzid_idx = tzid_to_idx.get(str(tzid))
+        if tzid_idx is None:
+            continue
+        key = (int(merchant_id), int(tzid_idx))
+        if key in key_to_table:
+            continue
+        table_idx = len(table_offsets)
+        key_to_table[key] = table_idx
+        table_offsets.append(len(prob_values))
+        table_lengths.append(1)
+        prob_values.append(1.0)
+        alias_values.append(0)
+        site_ids.append(_site_id_from_zone_fallback(int(merchant_id), str(tzid)))
+        site_tzids.append(int(tzid_idx))
+        injected += 1
+
+    if injected == 0:
+        return site_alias_tables, 0
+
+    return (
+        SiteAliasTables(
+            table_offsets=np.asarray(table_offsets, dtype=np.int64),
+            table_lengths=np.asarray(table_lengths, dtype=np.int32),
+            prob=np.asarray(prob_values, dtype=np.float64),
+            alias=np.asarray(alias_values, dtype=np.int64),
+            site_ids=np.asarray(site_ids, dtype=np.uint64),
+            site_tzids=np.asarray(site_tzids, dtype=np.int32),
+            key_to_table=key_to_table,
+        ),
+        injected,
+    )
+
+
 def _build_group_alias_tables(
     group_df: pl.DataFrame,
     tzid_to_idx: dict[str, int],
@@ -553,17 +662,20 @@ def _build_edge_alias_tables(
     edge_catalogue_df = edge_catalogue_df.sort(["merchant_id", "edge_id"])
     edge_ids: list[int] = []
     edge_tzid_idx: list[int] = []
+    edge_weights: list[float] = []
     edges_by_merchant: dict[int, list[int]] = {}
     for row in edge_catalogue_df.iter_rows(named=True):
         merchant_id = int(row["merchant_id"])
         edge_id = str(row["edge_id"])
         tzid_operational = int(row["tzid_operational_idx"])
+        edge_weight = float(row.get("edge_weight") or 0.0)
         edge_index = len(edge_ids)
         edge_value = int(edge_id, 16)
         if edge_value == 0:
             raise InputResolutionError(f"edge_id cannot be 0 for merchant={merchant_id}")
         edge_ids.append(edge_value)
         edge_tzid_idx.append(tzid_operational)
+        edge_weights.append(edge_weight)
         edges_by_merchant.setdefault(merchant_id, []).append(edge_index)
 
     key_to_table: dict[int, int] = {}
@@ -600,10 +712,62 @@ def _build_edge_alias_tables(
             prob=np.array(prob_values, dtype=np.float64),
             alias=np.array(alias_values, dtype=np.int64),
             edge_index=np.array(edge_index_values, dtype=np.int32),
+            edge_weight=np.array(edge_weights, dtype=np.float64),
             key_to_table=key_to_table,
         ),
         np.array(edge_ids, dtype=np.uint64),
         np.array(edge_tzid_idx, dtype=np.int32),
+    )
+
+
+def _build_non_top_edge_alias_tables(
+    edge_alias_tables: EdgeAliasTables,
+    edge_tzid_idx: np.ndarray,
+    top_tzid_idx: set[int],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict[int, int]]:
+    key_to_table: dict[int, int] = {}
+    table_offsets: list[int] = []
+    table_lengths: list[int] = []
+    prob_values: list[float] = []
+    alias_values: list[int] = []
+    edge_index_values: list[int] = []
+
+    for merchant_id, table_index in edge_alias_tables.key_to_table.items():
+        offset = int(edge_alias_tables.table_offsets[table_index])
+        length = int(edge_alias_tables.table_lengths[table_index])
+        if length <= 0:
+            continue
+        non_top_edges: list[int] = []
+        non_top_weights: list[float] = []
+        for idx in range(length):
+            edge_idx = int(edge_alias_tables.edge_index[offset + idx])
+            tz_idx = int(edge_tzid_idx[edge_idx])
+            if tz_idx in top_tzid_idx:
+                continue
+            weight = float(edge_alias_tables.edge_weight[edge_idx])
+            if weight <= 0.0:
+                continue
+            non_top_edges.append(edge_idx)
+            non_top_weights.append(weight)
+        if not non_top_edges:
+            continue
+        prob, alias = _build_alias(non_top_weights)
+        new_table_index = len(table_offsets)
+        key_to_table[merchant_id] = new_table_index
+        table_offsets.append(len(prob_values))
+        table_lengths.append(len(non_top_edges))
+        for idx, edge_idx in enumerate(non_top_edges):
+            edge_index_values.append(edge_idx)
+            prob_values.append(float(prob[idx]))
+            alias_values.append(int(alias[idx]))
+
+    return (
+        np.array(table_offsets, dtype=np.int64),
+        np.array(table_lengths, dtype=np.int32),
+        np.array(prob_values, dtype=np.float64),
+        np.array(alias_values, dtype=np.int64),
+        np.array(edge_index_values, dtype=np.int32),
+        key_to_table,
     )
 
 
@@ -812,6 +976,17 @@ def _format_rfc3339_us(values: np.ndarray) -> np.ndarray:
     return out
 
 
+def _format_local_wall_us(values: np.ndarray) -> np.ndarray:
+    """Render local wall-clock timestamps without UTC marker semantics."""
+    values = values.astype(np.int64, copy=False)
+    out = np.empty(values.shape, dtype=object)
+    mask = values >= 0
+    if mask.any():
+        out[mask] = np.datetime_as_string(values[mask].astype("datetime64[us]"), unit="us")
+    out[~mask] = None
+    return out
+
+
 def _map_indices(values: np.ndarray, lookup: np.ndarray) -> np.ndarray:
     out = np.empty(values.shape, dtype=object)
     mask = values >= 0
@@ -922,6 +1097,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     except ValueError:
         output_sample_rows = 2000
     output_validation_mode = "full" if output_validate_full else "fast_sampled"
+    progress_interval_seconds = _env_progress_interval_seconds("ENGINE_5B_S4_PROGRESS_INTERVAL_SEC")
     strict_ordering = _env_flag("ENGINE_5B_S4_STRICT_ORDERING")
     include_lambda = _env_flag("ENGINE_5B_S4_INCLUDE_LAMBDA")
     require_numba = _env_flag("ENGINE_5B_S4_REQUIRE_NUMBA", "1")
@@ -947,6 +1123,16 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         max_arrivals_chunk = max(int(max_arrivals_env), 1000)
     except ValueError:
         max_arrivals_chunk = 250000
+    domain_cache_max_env = os.environ.get("ENGINE_5B_S4_DOMAIN_CACHE_MAX", "50000")
+    try:
+        domain_cache_max = max(int(domain_cache_max_env), 1000)
+    except ValueError:
+        domain_cache_max = 50000
+    tz_temper_enabled_cfg = _env_flag("ENGINE_5B_S4_TZ_TEMPER_ENABLE")
+    tz_temper_topk_cfg = max(_env_int("ENGINE_5B_S4_TZ_TEMPER_TOPK", 10), 1)
+    tz_temper_redirect_p_cfg = _env_float("ENGINE_5B_S4_TZ_TEMPER_REDIRECT_P", 0.0)
+    if tz_temper_redirect_p_cfg < 0.0 or tz_temper_redirect_p_cfg > 1.0:
+        raise ValueError("ENGINE_5B_S4_TZ_TEMPER_REDIRECT_P must be in [0,1]")
 
     current_phase = "init"
     status = "FAIL"
@@ -976,6 +1162,10 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     rng_events_total = {"arrival_time_jitter": 0, "arrival_site_pick": 0, "arrival_edge_pick": 0}
 
     output_paths: list[Path] = []
+    tz_temper_effective = False
+    tz_temper_topk_names: list[str] = []
+    tz_temper_eligible_merchants = 0
+    tz_temper_redirect_p = 0.0
 
     try:
         current_phase = "run_receipt"
@@ -1031,6 +1221,19 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         logger.info(
             "S4: rng_event logging=%s (set ENGINE_5B_S4_RNG_EVENTS=1 to enable)",
             "on" if enable_rng_events else "off",
+        )
+        logger.info("S4: progress cadence interval=%.2fs", progress_interval_seconds)
+        logger.info(
+            "S4: tz concentration tempering config enabled=%s topk=%d redirect_p=%.4f",
+            str(tz_temper_enabled_cfg).lower(),
+            tz_temper_topk_cfg,
+            tz_temper_redirect_p_cfg,
+        )
+        logger.info(
+            "S4: execution controls batch_rows=%d max_arrivals_chunk=%d domain_cache_max=%d",
+            batch_rows,
+            max_arrivals_chunk,
+            domain_cache_max,
         )
         if include_lambda:
             logger.info("S4: lambda_realised inclusion enabled (may increase memory)")
@@ -1433,12 +1636,40 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         )
         virtual_settlement_exists = virtual_settlement_path.exists()
 
-        site_timezones_df = pl.read_parquet(_list_parquet_files(site_timezones_path))
-        site_weights_df = pl.read_parquet(_list_parquet_files(site_weights_path))
-        group_weights_df = pl.read_parquet(_list_parquet_files(group_weights_path))
-        edge_catalogue_df = pl.read_parquet(_list_parquet_files(edge_catalogue_path))
-        edge_alias_index_df = pl.read_parquet(_list_parquet_files(edge_alias_index_path))
-        virtual_class_df = pl.read_parquet(_list_parquet_files(virtual_class_path))
+        site_timezones_files = _list_parquet_files(site_timezones_path)
+        site_weights_files = _list_parquet_files(site_weights_path)
+        group_weights_files = _list_parquet_files(group_weights_path)
+        edge_catalogue_files = _list_parquet_files(edge_catalogue_path)
+        edge_alias_index_files = _list_parquet_files(edge_alias_index_path)
+        virtual_class_files = _list_parquet_files(virtual_class_path)
+
+        site_timezones_df = _read_parquet_projected(
+            site_timezones_files,
+            ["merchant_id", "legal_country_iso", "site_order", "tzid"],
+        )
+        site_weights_df = _read_parquet_projected(
+            site_weights_files,
+            ["merchant_id", "legal_country_iso", "site_order", "p_weight"],
+        )
+        group_weights_df = _read_parquet_projected(
+            group_weights_files,
+            ["merchant_id", "utc_day", "tz_group_id", "p_group"],
+        )
+        edge_catalogue_df = _read_parquet_projected(
+            edge_catalogue_files,
+            ["merchant_id", "edge_id", "tzid_operational"],
+            optional_columns=["edge_weight"],
+        )
+        if "edge_weight" not in edge_catalogue_df.columns:
+            edge_catalogue_df = edge_catalogue_df.with_columns(pl.lit(0.0).alias("edge_weight"))
+        edge_alias_index_df = _read_parquet_projected(
+            edge_alias_index_files,
+            ["scope", "merchant_id", "blob_offset_bytes", "blob_length_bytes"],
+        )
+        virtual_class_df = _read_parquet_projected(
+            virtual_class_files,
+            ["merchant_id", "virtual_mode"],
+        )
 
         edge_universe_payload = _load_json(edge_universe_path)
         _validate_payload(
@@ -1457,7 +1688,10 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         virtual_settlement_df = None
         if virtual_settlement_exists:
             try:
-                virtual_settlement_df = pl.read_parquet(_list_parquet_files(virtual_settlement_path))
+                virtual_settlement_df = _read_parquet_projected(
+                    _list_parquet_files(virtual_settlement_path),
+                    ["merchant_id", "tzid_settlement"],
+                )
             except Exception:
                 virtual_settlement_df = None
         if virtual_settlement_df is None:
@@ -1470,7 +1704,9 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         alias_layout = alias_layout_policy
         endianness = str(alias_layout.get("endianness") or "little")
         edge_catalogue_df = edge_catalogue_df.with_columns(
-            pl.col("tzid_operational").map_elements(lambda v: tzid_to_idx.get(str(v), -1)).alias(
+            pl.col("tzid_operational").map_elements(
+                lambda v: tzid_to_idx.get(str(v), -1), return_dtype=pl.Int32
+            ).alias(
                 "tzid_operational_idx"
             )
         )
@@ -1484,6 +1720,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         current_phase = "merchant_index"
         counts_entry = find_dataset_entry(dictionary_5b, "s3_bucket_counts_5B").entry
         merchant_ids_set: set[int] = set()
+        merchant_zone_pairs: set[tuple[int, str]] = set()
         for scenario_id in scenario_set:
             counts_path = _resolve_dataset_path(
                 counts_entry,
@@ -1497,9 +1734,30 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                 .collect()
             )
             merchant_ids_set.update(int(mid) for mid in merchant_df.get_column("merchant_id").to_list())
+            zone_df = (
+                pl.scan_parquet(_list_parquet_files(counts_path))
+                .select([pl.col("merchant_id").cast(pl.UInt64), pl.col("zone_representation").cast(pl.Utf8)])
+                .unique()
+                .collect()
+            )
+            for row in zone_df.iter_rows(named=True):
+                merchant_id = int(row["merchant_id"])
+                zone_representation = str(row["zone_representation"])
+                if zone_representation:
+                    merchant_zone_pairs.add((merchant_id, zone_representation))
 
         merchant_ids = sorted(merchant_ids_set)
         merchant_index = {merchant_id: idx for idx, merchant_id in enumerate(merchant_ids)}
+        site_alias_tables, injected_site_aliases = _inject_site_alias_fallbacks(
+            site_alias_tables,
+            merchant_zone_pairs,
+            tzid_to_idx,
+        )
+        if injected_site_aliases:
+            logger.warning(
+                "S4: injected deterministic fallback site aliases count=%d (missing site-weight coverage)",
+                injected_site_aliases,
+            )
 
         virtual_mode_map = {}
         for row in virtual_class_df.iter_rows(named=True):
@@ -1551,6 +1809,63 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             idx = merchant_index.get(int(merchant_id))
             if idx is not None:
                 edge_table_index[idx] = int(table_idx)
+
+        edge_topk_mask = np.zeros(edge_tzid_idx.shape[0], dtype=np.bool_)
+        merchant_non_top_table_index = np.full(len(merchant_ids), -1, dtype=np.int32)
+        non_top_table_offsets = np.zeros(0, dtype=np.int64)
+        non_top_table_lengths = np.zeros(0, dtype=np.int32)
+        non_top_prob = np.zeros(0, dtype=np.float64)
+        non_top_alias = np.zeros(0, dtype=np.int64)
+        non_top_edge_index = np.zeros(0, dtype=np.int32)
+        tz_temper_redirect_p = 0.0
+
+        if tz_temper_enabled_cfg and tz_temper_redirect_p_cfg > 0.0:
+            tz_weight_rows = (
+                edge_catalogue_df.group_by("tzid_operational")
+                .agg(pl.col("edge_weight").sum().alias("weight_sum"))
+                .sort("weight_sum", descending=True)
+                .iter_rows(named=True)
+            )
+            top_tzid_idx: set[int] = set()
+            for row in tz_weight_rows:
+                if len(top_tzid_idx) >= tz_temper_topk_cfg:
+                    break
+                tzid = str(row.get("tzid_operational") or "")
+                tzid_idx = tzid_to_idx.get(tzid)
+                if tzid_idx is None:
+                    continue
+                top_tzid_idx.add(int(tzid_idx))
+                tz_temper_topk_names.append(tzid)
+
+            if top_tzid_idx:
+                edge_topk_mask = np.isin(
+                    edge_tzid_idx.astype(np.int64),
+                    np.array(sorted(top_tzid_idx), dtype=np.int64),
+                )
+                (
+                    non_top_table_offsets,
+                    non_top_table_lengths,
+                    non_top_prob,
+                    non_top_alias,
+                    non_top_edge_index,
+                    non_top_key_to_table,
+                ) = _build_non_top_edge_alias_tables(edge_alias_tables, edge_tzid_idx, top_tzid_idx)
+                for merchant_id, table_idx in non_top_key_to_table.items():
+                    merchant_idx = merchant_index.get(int(merchant_id))
+                    if merchant_idx is not None:
+                        merchant_non_top_table_index[merchant_idx] = int(table_idx)
+                tz_temper_eligible_merchants = int(np.count_nonzero(merchant_non_top_table_index >= 0))
+                tz_temper_effective = tz_temper_eligible_merchants > 0 and bool(np.any(edge_topk_mask))
+                if tz_temper_effective:
+                    tz_temper_redirect_p = float(tz_temper_redirect_p_cfg)
+
+        logger.info(
+            "S4: tz tempering effective=%s topk_tzids=%d eligible_merchants=%d redirect_p=%.4f",
+            str(tz_temper_effective).lower(),
+            len(tz_temper_topk_names),
+            tz_temper_eligible_merchants,
+            tz_temper_redirect_p,
+        )
 
         for merchant_id, idx in merchant_index.items():
             mode = int(merchant_virtual_mode[idx])
@@ -1717,8 +2032,18 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                 rows_total,
                 arrivals_total,
             )
-            tracker_rows = _ProgressTracker(rows_total, logger, f"S4: bucket rows (scenario_id={scenario_id})")
-            tracker_arrivals = _ProgressTracker(arrivals_total, logger, f"S4: arrivals emitted (scenario_id={scenario_id})")
+            tracker_rows = _ProgressTracker(
+                rows_total,
+                logger,
+                f"S4: bucket rows (scenario_id={scenario_id})",
+                min_interval_seconds=progress_interval_seconds,
+            )
+            tracker_arrivals = _ProgressTracker(
+                arrivals_total,
+                logger,
+                f"S4: arrivals emitted (scenario_id={scenario_id})",
+                min_interval_seconds=progress_interval_seconds,
+            )
 
             arrival_entry = find_dataset_entry(dictionary_5b, "arrival_events_5B").entry
             arrival_path = _resolve_dataset_path(
@@ -1901,6 +2226,8 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                     cache_key = (merchant_id, zone_rep)
                     domain_prefix = domain_prefix_cache.get(cache_key)
                     if domain_prefix is None:
+                        if len(domain_prefix_cache) >= domain_cache_max:
+                            domain_prefix_cache.clear()
                         domain_prefix = f"merchant_id={merchant_id}|zone={zone_rep}|bucket_index="
                         domain_prefix_cache[cache_key] = domain_prefix
                     domain_key = f"{domain_prefix}{bucket_index}"
@@ -1990,12 +2317,21 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                         edge_alias_tables.alias,
                         edge_alias_tables.edge_index,
                         edge_tzid_idx,
+                        edge_topk_mask,
+                        merchant_non_top_table_index,
+                        non_top_table_offsets,
+                        non_top_table_lengths,
+                        non_top_prob,
+                        non_top_alias,
+                        non_top_edge_index,
                         merchant_virtual_mode,
                         merchant_settlement_tzid,
                         tz_index_start,
                         tz_index_count,
                         tz_transitions_utc,
                         tz_offsets_minutes,
+                        1 if tz_temper_effective else 0,
+                        float(tz_temper_redirect_p),
                         float(p_virtual_hybrid),
                         out_ts_utc_us,
                         out_arrival_seq,
@@ -2033,13 +2369,29 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                     tracker_arrivals.update(seg_total)
 
                     ts_utc = _format_rfc3339_us(out_ts_utc_us)
-                    ts_local_primary = _format_rfc3339_us(out_ts_local_primary_us)
-                    ts_local_operational = _format_rfc3339_us(out_ts_local_operational_us)
-                    ts_local_settlement = _format_rfc3339_us(out_ts_local_settlement_us)
+                    ts_local_primary = _format_local_wall_us(out_ts_local_primary_us)
+                    if np.array_equal(out_ts_local_operational_us, out_ts_local_primary_us):
+                        ts_local_operational = ts_local_primary
+                    else:
+                        ts_local_operational = _format_local_wall_us(out_ts_local_operational_us)
+                    if np.array_equal(out_ts_local_settlement_us, out_ts_local_primary_us):
+                        ts_local_settlement = ts_local_primary
+                    elif np.array_equal(out_ts_local_settlement_us, out_ts_local_operational_us):
+                        ts_local_settlement = ts_local_operational
+                    else:
+                        ts_local_settlement = _format_local_wall_us(out_ts_local_settlement_us)
 
                     tzid_primary = _map_indices(out_tzid_primary, tzid_lookup)
-                    tzid_operational = _map_indices(out_tzid_operational, tzid_lookup)
-                    tzid_settlement = _map_indices(out_tzid_settlement, tzid_lookup)
+                    if np.array_equal(out_tzid_operational, out_tzid_primary):
+                        tzid_operational = tzid_primary
+                    else:
+                        tzid_operational = _map_indices(out_tzid_operational, tzid_lookup)
+                    if np.array_equal(out_tzid_settlement, out_tzid_primary):
+                        tzid_settlement = tzid_primary
+                    elif np.array_equal(out_tzid_settlement, out_tzid_operational):
+                        tzid_settlement = tzid_operational
+                    else:
+                        tzid_settlement = _map_indices(out_tzid_settlement, tzid_lookup)
                     zone_rep = _map_indices(out_zone_rep_index, tzid_lookup)
 
                     edge_id_raw = np.zeros(out_edge_index.shape, dtype=np.uint64)
@@ -2049,7 +2401,10 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
 
                     site_id_raw = out_site_id
 
-                    channel_repeat = np.array(channel_values[seg_start:seg_end], dtype=object).repeat(seg_counts)
+                    channel_repeat = np.repeat(
+                        np.asarray(channel_values[seg_start:seg_end], dtype=object),
+                        seg_counts.astype(np.int64, copy=False),
+                    )
 
                     output_df = pl.DataFrame(
                         {
@@ -2462,6 +2817,15 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                     "rng_draws_total": rng_draws_total,
                     "rng_blocks_total": rng_blocks_total,
                     "rng_events_total": rng_events_total,
+                    "tz_temper": {
+                        "enabled_requested": bool(tz_temper_enabled_cfg),
+                        "enabled_effective": bool(tz_temper_effective),
+                        "topk_requested": int(tz_temper_topk_cfg),
+                        "redirect_p_requested": float(tz_temper_redirect_p_cfg),
+                        "redirect_p_effective": float(tz_temper_redirect_p),
+                        "topk_tzids": list(tz_temper_topk_names),
+                        "eligible_merchants": int(tz_temper_eligible_merchants),
+                    },
                     "details": scenario_details,
                 }
                 if error_context:

@@ -580,7 +580,7 @@ egress:
     columns:
       - { name: manifest_fingerprint, $ref: '#/$defs/hex64', nullable: false }
       - { name: test_id, type: string, nullable: false }
-      - { name: test_type, type: string, enum: [IP_COUNTRY_MIX, SETTLEMENT_CUTOFF, EDGE_USAGE_VS_WEIGHT, ROUTING_RECEIPT], nullable: false }
+      - { name: test_type, type: string, enum: [IP_COUNTRY_MIX, SETTLEMENT_CUTOFF, EDGE_USAGE_VS_WEIGHT, ROUTING_RECEIPT, EDGE_HETEROGENEITY, SETTLEMENT_COHERENCE, CLASSIFICATION_EXPLAINABILITY, ALIAS_FIDELITY], nullable: false }
       - { name: scope, type: string, enum: [GLOBAL, PER_MERCHANT, PER_CLASS, PER_SCENARIO], nullable: false }
       - name: target_population
         type: object
@@ -632,6 +632,18 @@ egress:
           max_kl_divergence: { type: number, minimum: 0.0 }
           cutoff_tolerance_seconds: { type: integer, minimum: 0 }
           min_coverage_ratio: { type: number, minimum: 0.0, maximum: 1.0 }
+          edge_count_cv_min: { type: number, minimum: 0.0 }
+          country_count_cv_min: { type: number, minimum: 0.0 }
+          top1_share_p50_min: { type: number, minimum: 0.0, maximum: 1.0 }
+          top1_share_p50_max: { type: number, minimum: 0.0, maximum: 1.0 }
+          js_divergence_median_min: { type: number, minimum: 0.0 }
+          settlement_overlap_median_min: { type: number, minimum: 0.0, maximum: 1.0 }
+          settlement_overlap_p75_min: { type: number, minimum: 0.0, maximum: 1.0 }
+          settlement_distance_median_max_km: { type: number, minimum: 0.0 }
+          rule_id_non_null_rate_min: { type: number, minimum: 0.0, maximum: 1.0 }
+          rule_version_non_null_rate_min: { type: number, minimum: 0.0, maximum: 1.0 }
+          active_rule_id_count_min: { type: integer, minimum: 0 }
+          alias_max_abs_delta_max: { type: number, minimum: 0.0 }
       - { name: severity, type: string, enum: [BLOCKING, WARNING, INFO], nullable: false }
       - { name: enabled, type: boolean, nullable: false }
       - { name: description, type: string, nullable: true }
@@ -679,11 +691,41 @@ policy:
   virtual_validation_policy_v1:
     type: object
     additionalProperties: false
-    required: [version, ip_country_tolerance, cutoff_tolerance_seconds]
+    required: [version, ip_country_tolerance, cutoff_tolerance_seconds, realism_enforcement_mode, realism_checks]
     properties:
       version: { type: string, minLength: 1 }
       ip_country_tolerance: { type: number, minimum: 0.0 }
       cutoff_tolerance_seconds: { type: integer, minimum: 0 }
+      realism_enforcement_mode: { type: string, enum: [observe, enforce] }
+      realism_checks:
+        type: object
+        additionalProperties: false
+        required:
+          - edge_count_cv_min
+          - country_count_cv_min
+          - top1_share_p50_min
+          - top1_share_p50_max
+          - js_divergence_median_min
+          - settlement_overlap_median_min
+          - settlement_overlap_p75_min
+          - settlement_distance_median_max_km
+          - rule_id_non_null_rate_min
+          - rule_version_non_null_rate_min
+          - active_rule_id_count_min
+          - alias_max_abs_delta_max
+        properties:
+          edge_count_cv_min: { type: number, minimum: 0.0 }
+          country_count_cv_min: { type: number, minimum: 0.0 }
+          top1_share_p50_min: { type: number, minimum: 0.0, maximum: 1.0 }
+          top1_share_p50_max: { type: number, minimum: 0.0, maximum: 1.0 }
+          js_divergence_median_min: { type: number, minimum: 0.0 }
+          settlement_overlap_median_min: { type: number, minimum: 0.0, maximum: 1.0 }
+          settlement_overlap_p75_min: { type: number, minimum: 0.0, maximum: 1.0 }
+          settlement_distance_median_max_km: { type: number, minimum: 0.0 }
+          rule_id_non_null_rate_min: { type: number, minimum: 0.0, maximum: 1.0 }
+          rule_version_non_null_rate_min: { type: number, minimum: 0.0, maximum: 1.0 }
+          active_rule_id_count_min: { type: integer, minimum: 0 }
+          alias_max_abs_delta_max: { type: number, minimum: 0.0 }
       notes: { type: string }
 
   virtual_routing_fields_v1:

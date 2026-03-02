@@ -3152,3 +3152,1172 @@ Actions taken:
 Expected outcome:
 - Latest receipt selection is stable by created_utc.
 - CRS/tzid parsing issues are visible without changing failure semantics.
+
+---
+
+### Entry: 2026-02-15 07:08
+
+Design element: Segment 2A remediation build-plan drafting kickoff under frozen upstream constraints.
+Summary: Began formal remediation planning for 2A after freezing 1A and 1B. The plan is explicitly constrained by upstream posture (`1A` frozen-certified, `1B` frozen-best-effort-below-B) and focuses on causal 2A governance/scoring improvements without synthetic post-assignment redistribution.
+
+Context absorbed before planning:
+1) Published 2A posture is structurally correct but realism-poor (country-level timezone collapse), graded below B.
+2) Remediation authority identifies upstream spatial representativeness as the primary driver, with 2A governance hardening as secondary but required.
+3) Current program decision is to proceed to 2A without reopening 1A/1B in this cycle.
+
+Planning decisions captured:
+1) Create a dedicated build plan doc:
+   - `docs/model_spec/data-engine/implementation_maps/segment_2A.build_plan.md`.
+2) Use a phased plan with DoDs and explicit fail-closed certification gates:
+   - `P0` baseline/harness lock,
+   - `P1` S1/S2 fallback/override governance hardening,
+   - `P2` cohort-aware realism scoring and gate enforcement,
+   - `P3` bounded targeted correction lane (non-synthetic),
+   - `P4` multi-seed certification or constrained freeze decision.
+3) Lock cycle constraints in plan:
+   - no upstream reopen in active pass,
+   - no synthetic redistribution primary lane,
+   - explicit `FAIL_REALISM` path if B cannot be achieved under frozen upstream ceiling.
+
+Immediate next action:
+1) execute `P0` baseline authority materialization under `runs/fix-data-engine/segment_2A/` and establish scoring artifacts for the hard-gate matrix.
+
+---
+
+### Entry: 2026-02-16 05:58
+
+Design element: 2A performance-program planning kickoff (`POPT.0 -> POPT.4`) with 1B freeze lock.
+Summary: User requested freezing 1B and planning 2A performance optimization using the same method used in 1B. We translated that into a dedicated 2A `POPT` set that runs in parallel with realism phases, with hotspot-first sequencing and strict determinism/contract guards.
+
+Decisions taken:
+1) Freeze posture carried into 2A authority:
+   - 1B locked as `FROZEN_BEST_EFFORT_BELOW_B`.
+   - 1B integrated authority for this cycle set to:
+     - `runs/fix-data-engine/segment_1B/reports/segment1b_p4_integrated_a0ae54639efc4955bc41a2e266224e6e.json`
+     - no-regression anchor run-id `979129e39a89446b942df9a463f09508`.
+2) Added a full 2A performance set to the build plan:
+   - `POPT.0` baseline/hotspot lock.
+   - `POPT.1` primary hotspot rewrite.
+   - `POPT.2` secondary hotspot rewrite.
+   - `POPT.3` validation/closure-path acceleration.
+   - `POPT.4` integrated fast-lane recertification handoff.
+3) Locked phase posture to match 1B method:
+   - no semantic relaxations,
+   - deterministic equivalence required after each optimization lane,
+   - fail-closed no-regression gates before promotion,
+   - run-folder pruning discipline bound into POPT section.
+
+Rationale:
+1) 2A runtime is already known to be expensive in long candidate loops; without a POPT lane, realism tuning will stall on iteration latency.
+2) The 1B method proved effective: hotspot ranking first, then bounded lane-by-lane closure. Reusing that pattern reduces thrash and keeps decisions auditable.
+3) Freezing 1B before 2A POPT avoids causal confusion between upstream movement and local performance changes.
+
+Immediate next action:
+1) execute `2A POPT.0` to build the authoritative runtime/hotspot baseline artifact, then choose the primary hotspot state for `POPT.1`.
+
+---
+
+### Entry: 2026-02-16 21:29
+
+Design element: Execute `2A POPT.0` runtime baseline/hotspot lock from completed authority witness.
+Summary: We need a machine-readable runtime baseline artifact for Segment 2A before any optimization rewrite. Current `runs/fix-data-engine/segment_2A` run (`9ebdd751ab7b4f9da246cc840ddff306`) is incomplete (`S3+` missing), so `POPT.0` authority will be the completed chain in `runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92`.
+
+Reasoning and decisions (pre-implementation):
+1) Authority run choice:
+   - Use `c25a2675fbfbacd952b13bb594880e92` because it contains complete `S0..S5` reports and a full run log.
+   - Do not use `9eb...` for baseline timing because it is incomplete and would bias hotspot ranking.
+2) Baseline generation mechanism:
+   - Add a dedicated tool `tools/score_segment2a_popt0_baseline.py` (mirrors 1B POPT.0 scorer posture).
+   - Tool outputs:
+     - JSON baseline contract in `runs/fix-data-engine/segment_2A/reports/`.
+     - Markdown hotspot map in the same report folder.
+3) Timing source:
+   - Primary: `durations.wall_ms` from `S0..S5` run reports (authoritative per-state wall).
+   - Supplemental evidence: selected counters from S1/S2/S3/S4/S5 run reports and run-log references.
+4) Hotspot ranking posture:
+   - Rank by observed state elapsed descending.
+   - Publish explicit primary/secondary/closure hotspot states and per-state target/stretch budgets.
+   - Emit progression gate for `POPT.1` as explicit `GO` or `HOLD`.
+5) Scope guard:
+   - `POPT.0` is evidence-only; no state runner logic changes in this step.
+
+Planned execution steps:
+1) Implement the 2A POPT.0 scorer script.
+2) Execute scorer against authority run `c25...` and emit artifacts under `runs/fix-data-engine/segment_2A/reports/`.
+3) Update `segment_2A.build_plan.md` with `POPT.0` DoD closure checkmarks + closure record.
+4) Append matching run/action entry in `docs/logbook/02-2026/2026-02-16.md`.
+
+---
+
+### Entry: 2026-02-16 21:30
+
+Design element: `POPT.0` execution complete for Segment 2A (baseline + hotspot contract lock).
+Summary: Implemented and ran the baseline scorer for 2A, published machine-readable artifacts under the fix-data-engine report root, and closed `POPT.0` DoD items in the build plan.
+
+Implementation actions:
+1) Added scorer tool:
+   - `tools/score_segment2a_popt0_baseline.py`
+   - behavior:
+     - reads complete `2A` state reports (`S0..S5`) and run log from an authority run-id,
+     - computes state elapsed table from `durations.wall_ms`,
+     - ranks hotspots (primary/secondary/closure),
+     - pins tight per-state target/stretch budgets,
+     - emits explicit `POPT.1` progression decision (`GO`/`HOLD`).
+2) Executed scorer against authority run:
+   - command:
+     - `python tools/score_segment2a_popt0_baseline.py --runs-root runs/local_full_run-5 --run-id c25a2675fbfbacd952b13bb594880e92 --out-root runs/fix-data-engine/segment_2A/reports`
+3) Published artifacts:
+   - `runs/fix-data-engine/segment_2A/reports/segment2a_popt0_baseline_c25a2675fbfbacd952b13bb594880e92.json`
+   - `runs/fix-data-engine/segment_2A/reports/segment2a_popt0_hotspot_map_c25a2675fbfbacd952b13bb594880e92.md`
+4) Updated build-plan closure in:
+   - `docs/model_spec/data-engine/implementation_maps/segment_2A.build_plan.md`
+
+Observed baseline outcome:
+1) Hotspot ranking:
+   - primary: `S1` (`13.188s`, `41.64%`, budget status `RED`),
+   - secondary: `S3` (`9.360s`, `29.55%`, `AMBER`),
+   - closure: `S2` (`7.641s`, `24.12%`, `AMBER`).
+2) Segment timing:
+   - report wall sum: `31.673s`,
+   - log-window elapsed: `35.347s`.
+3) Progression gate:
+   - `GO`,
+   - selected `POPT.1` target state: `S1`.
+
+Decision:
+1) `POPT.0` is closed.
+2) Next performance action is `POPT.1` on `S1` under semantics-preserving constraints.
+
+---
+
+### Entry: 2026-02-17 04:23
+
+Design element: `POPT.1` kickoff — S1 primary hotspot rewrite (semantics-preserving).
+Summary: Starting `POPT.1` on `2A.S1` after clean local authority run `dd4ba47ab7b942a4930cbeee85eda331` confirmed hotspot order `S1 > S3 > S2`. Goal is to reduce S1 wall time without changing assignment semantics or schema/contract behavior.
+
+Runtime baseline anchor (from clean local authority):
+1) `S1 wall_ms = 14766` (primary).
+2) `S3 wall_ms = 10141` (secondary).
+3) `S2 wall_ms = 7906` (closure).
+
+Authority reviewed before implementation:
+1) `docs/model_spec/data-engine/layer-1/specs/state-flow/2A/state.2A.s1.expanded.md`
+2) `docs/model_spec/data-engine/layer-1/specs/contracts/2A/schemas.2A.yaml`
+
+Observed S1 bottlenecks in current runner:
+1) Per-row polygon candidate resolution builds full tzid sets even for unambiguous rows.
+2) Python-level `geom.covers(point)` loop runs for every candidate index returned by STRtree query.
+3) Per-row named-row dict iteration (`iter_rows(named=True)`) adds avoidable Python overhead in the hot path.
+
+Planned optimization lane (same-output semantics):
+1) Introduce a fast candidate resolver that:
+   - performs early-exit unique/multi detection (no full set construction on common unambiguous rows),
+   - computes full candidate list only on ambiguity branch (diagnostics path).
+2) Use STRtree predicate query path (`predicate=intersects`) when available to reduce Python-level geometry predicate calls; retain fallback path preserving previous behavior when predicate query is unavailable.
+3) Switch hot-loop row iteration from named dict rows to tuple rows with fixed field order.
+
+Invariants that must remain true:
+1) Same schema and output columns for `s1_tz_lookup`.
+2) Same ambiguity/override/fallback decision ordering.
+3) Determinism + contract validation preserved.
+4) No changes to downstream state interfaces (`S2..S5`) or path/identity semantics.
+
+Execution plan:
+1) Patch `packages/engine/src/engine/layers/l1/seg_2A/s1_tz_lookup/runner.py` with the above changes.
+2) Stage a fresh 2A candidate run-id from the clean authority lane.
+3) Run `S1 -> S2 -> S3 -> S4 -> S5` and compare state wall times against `dd4...`.
+4) Classify `POPT.1` as `GREEN/AMBER/RED` with measured evidence and next action.
+
+---
+
+### Entry: 2026-02-17 04:28
+
+Design element: `POPT.1` implementation pass 1 + rollback of regressing variant.
+Summary: Implemented the first S1 optimization pass, ran a full candidate chain, observed regression from the STRtree predicate path, and rolled that path back while preserving the safe hot-loop optimizations.
+
+Code changes applied in `packages/engine/src/engine/layers/l1/seg_2A/s1_tz_lookup/runner.py`:
+1) Added early-exit candidate resolution helpers:
+   - `_resolve_candidate_tzid(...)` for unique/multi detection without building full candidate sets in the common path.
+   - `_candidate_tzids_full(...)` only for ambiguity diagnostics/fallback paths.
+2) Switched hot-loop row iteration to tuple rows (`batch.iter_rows()`).
+3) Switched MCC lookup comprehension to tuple rows (`mcc_df.iter_rows()`).
+4) Trialed STRtree `predicate=intersects` per-point query in `_tree_query_indices(...)` and measured it as slower in this workload.
+5) Rolled back predicate path to the prior `tree.query(point)` + `covers` filtering while keeping items (1)-(3).
+
+Execution evidence:
+1) Staged candidate run-id:
+   - `b65bfe6efaca42e2ac413c059fb88b64`.
+2) First candidate run (with predicate path):
+   - `S1 wall_ms=17281` (regression vs baseline `14766`).
+3) After rollback of predicate path:
+   - `S1 wall_ms` improved to `14062`.
+
+Decision:
+1) Keep early-exit + tuple-loop optimizations.
+2) Keep predicate-query optimization disabled for 2A S1 (data-dependent regression on this workload).
+3) Continue with one more low-risk optimization pass focused on row materialization overhead.
+
+---
+
+### Entry: 2026-02-17 04:31
+
+Design element: `POPT.1` implementation pass 2 (row-materialization overhead reduction).
+Summary: Optimized S1 output assembly by reducing per-row payload construction and using vectorized frame assembly from source batch columns; then reran the candidate chain to capture the best observed runtime in this cycle.
+
+Code changes applied:
+1) Replaced full-row tuple accumulation (14 fields per row) with reduced resolved-field tuples (6 fields):
+   - `tzid_provisional`, `tzid_provisional_source`, `override_scope`, `override_applied`, `nudge_lat_deg`, `nudge_lon_deg`.
+2) Built output dataframe by combining:
+   - source `batch` columns (`merchant_id`, `legal_country_iso`, `site_order`, `lat_deg`, `lon_deg`),
+   - vectorized constants (`seed`, `manifest_fingerprint`, `created_utc`),
+   - resolved columns from the compact `resolved_df`.
+3) Preserved output column order/type contract exactly before validation/publish.
+
+Execution evidence:
+1) Candidate run-id reused:
+   - `b65bfe6efaca42e2ac413c059fb88b64`.
+2) Full downstream smoke remained green:
+   - `S0 -> S1 -> S2 -> S3 -> S4 -> S5` all PASS.
+3) Best observed S1 runtime in this phase:
+   - `S1 wall_ms=13796`.
+4) Baseline comparison:
+   - baseline authority `dd4...` had `S1 wall_ms=14766`.
+   - improvement: `-970ms` (`~6.6%`).
+
+Current classification:
+1) `POPT.1` shows real improvement but remains above stretch budget (`12s`), so phase remains open.
+2) Deterministic/no-regression posture remains intact in candidate lane (identical-bytes reuse logged for unchanged partitions).
+
+---
+
+### Entry: 2026-02-17 04:36
+
+Design element: `POPT.2` kickoff - S3 secondary hotspot rewrite (semantics-preserving, cache-first).
+Summary: Moving to `POPT.2` with `2A.S3` as the locked secondary hotspot. The key runtime waste is repeated `tzdb -> zic -> tzif parse -> index encode` work across iteration runs for the same sealed `tzdb_archive_sha256`. We will introduce a deterministic compiled-index cache keyed by sealed digest, then keep existing coverage and contract checks unchanged.
+
+Authority and evidence reviewed:
+1) `docs/model_spec/data-engine/layer-1/specs/state-flow/2A/state.2A.s3.expanded.md`
+2) `packages/engine/src/engine/layers/l1/seg_2A/s3_timetable/runner.py`
+3) `runs/fix-data-engine/segment_2A/reports/segment2a_popt0_hotspot_map_b65bfe6efaca42e2ac413c059fb88b64.md` (`S3` remains #2 hotspot, `AMBER` near stretch).
+
+Observed bottlenecks in current S3 path:
+1) Recompilation cost repeats every run: `zic` compile from tarball and tzif directory traversal.
+2) Re-parse cost repeats every run: transition extraction + canonical index encoding repeated despite same sealed tzdb digest.
+3) Hot-loop/log overhead is non-trivial but secondary versus repeated compile/parse.
+
+Decision for `POPT.2` implementation:
+1) Add a shared deterministic S3 index cache under runs root, keyed by:
+   - cache schema version,
+   - `tzdb_archive_sha256`.
+2) Cache payload stores:
+   - encoded index bytes (authoritative),
+   - digest/count metadata and compiled tzid list for coverage parity checks.
+3) On cache hit:
+   - skip `zic` compile and tzif parse,
+   - reuse encoded bytes and metadata,
+   - still execute all S3 validation/coverage/path-law checks.
+4) On cache miss:
+   - run current compile path,
+   - compute encoded bytes/metadata,
+   - atomically publish cache entry for future runs.
+5) Apply small safe loop tweaks only where they do not alter output semantics.
+
+Invariants (must remain true):
+1) `tz_timetable_cache` schema, path, and path-embed equality unchanged.
+2) `tz_index_digest` remains digest of emitted cache bytes.
+3) S3 fails closed on any corruption/missing cache components.
+4) Downstream `S4/S5` behavior and PASS/FAIL decisions unchanged.
+
+Execution plan:
+1) Patch `s3_timetable/runner.py` with cache read/write utilities and hit/miss branch.
+2) Run compile checks and then rerun `segment2a-s3`, `segment2a-s4`, `segment2a-s5` on current candidate run-id.
+3) Re-score hotspot artifact and compare `S3 wall_ms` vs POPT baseline.
+4) Classify `POPT.2` (`GREEN/AMBER/RED`) and record evidence in build plan + logbook.
+
+---
+
+### Entry: 2026-02-17 04:40
+
+Design element: `POPT.2` implementation and closure evidence.
+Summary: Implemented deterministic shared-cache acceleration in `2A.S3`, validated `S3->S5` green behavior, and measured a large warm-lane runtime drop for `S3` without contract or output-shape changes.
+
+Code changes applied in `packages/engine/src/engine/layers/l1/seg_2A/s3_timetable/runner.py`:
+1) Added shared S3 index cache utilities:
+   - `_s3_index_cache_root(...)`
+   - `_s3_index_cache_dir(...)`
+   - `_try_load_s3_index_cache(...)`
+   - `_write_s3_index_cache(...)`
+2) Cache key is sealed-input anchored:
+   - `_S3_INDEX_CACHE_SCHEMA` + `tzdb_archive_sha256`.
+3) Cache-hit execution path:
+   - reuses deterministic encoded index bytes + metadata,
+   - still performs coverage/path-law/validation checks and emits run report.
+4) Cache-miss execution path:
+   - keeps existing compile logic,
+   - writes cache atomically for next runs.
+5) Secondary micro-optimizations:
+   - reduced S3 progress-log cadence (`0.5s -> 1.0s`) to cut hot-loop logging overhead,
+   - optimized non-pyarrow tzid-set extraction to avoid named-row iteration overhead.
+6) Run-report correctness fix:
+   - adjustments count is now tracked explicitly (`adjustments_count`) so cached sample emission does not under-report.
+
+Execution evidence (candidate run `b65bfe6efaca42e2ac413c059fb88b64`):
+1) Compile check:
+   - `python -m py_compile packages/engine/src/engine/layers/l1/seg_2A/s3_timetable/runner.py` PASS.
+2) Cold pass (`S3->S5`):
+   - cache miss observed with `CACHE_STORE`,
+   - `S3` log-window wall approximately `~10.145s`.
+3) Warm pass (`S3->S5`):
+   - cache hit observed with `CACHE_HIT`,
+   - `S3` run report `wall_ms=562`.
+4) Baseline comparison anchor:
+   - prior clean baseline (`dd4...`) `S3 wall_ms=10141`,
+   - warm candidate `S3 wall_ms=562`,
+   - delta `-9579ms` (`~94.5%` faster in iteration lane).
+5) Downstream safety:
+   - `S4` PASS,
+   - `S5` PASS,
+   - publish path remained immutable/identical-bytes for unchanged outputs.
+
+Classification and decision:
+1) `POPT.2` DoD met for fast-iteration posture (`S3` now GREEN vs stretch budget on warm lane).
+2) No observed regression in `S1` runtime (`S1` remains the open primary hotspot from `POPT.1`).
+3) Next focus naturally shifts to `POPT.3` (validation/closure path acceleration).
+
+---
+
+### Entry: 2026-02-17 04:48
+
+Design element: `POPT.3` kickoff - validation/closure acceleration for `2A.S5`.
+Summary: The current `S5` lane remains semantically correct but performs avoidable filesystem work on repeated runs: it reconstructs/copies evidence into a temp bundle and executes publish-diff checks even when the existing validation bundle is already byte-identical to current evidence. `POPT.3` will add a deterministic reuse path that keeps all checks full-strength but avoids redundant writes when evidence has not changed.
+
+Observed cost centers:
+1) Repeated temp-bundle construction (`_copy_verbatim` per evidence file) on unchanged reruns.
+2) Repeated bundle byte hashing from disk after files were already read and hashed upstream.
+3) Minor overhead from loading unused schema packs and duplicate-list checks with quadratic pattern.
+
+Decision for implementation:
+1) Keep all existing validation checks and PASS/FAIL rules unchanged.
+2) Introduce a reuse fast path:
+   - compute expected evidence hashes + checks/index payloads in-memory,
+   - if existing bundle partition is present and matches expected evidence/index/checks/flag exactly, skip temp write + publish.
+3) Keep fail-closed posture:
+   - any reuse validation mismatch falls back to current full materialize+publish path.
+4) Add lightweight micro-optimizations:
+   - remove unused schema pack load in S5,
+   - optimize duplicate path detection to linear-time set checks.
+
+Invariants (must remain true):
+1) `S5` decision parity (`PASS`/`FAIL`) must remain unchanged for authority witnesses.
+2) Index/checks/flag schemas and digest semantics remain unchanged.
+3) No weakening of root-scope, hash-format, or partition-purity validations.
+4) Run-report surface remains contract-compatible.
+
+Execution plan:
+1) Patch `packages/engine/src/engine/layers/l1/seg_2A/s5_validation_bundle/runner.py` with reuse matcher + in-memory bundle hash path.
+2) Compile-check runner and execute repeated `segment2a-s5` witnesses on current candidate run-id.
+3) Measure warm-lane `S5` elapsed from logs and confirm decision parity.
+4) Update build-plan/impl notes/logbook with `POPT.3` closure evidence.
+
+---
+
+### Entry: 2026-02-17 05:10
+
+Design element: `POPT.3` implementation and closure evidence (`S5` validation lane).
+Summary: Implemented a deterministic reuse fast path for `2A.S5` that preserves full-strength validations while avoiding redundant temp-bundle materialization on unchanged reruns. Confirmed runtime reduction and decision parity on both candidate and authority witnesses.
+
+Code changes applied:
+1) `packages/engine/src/engine/layers/l1/seg_2A/s5_validation_bundle/runner.py`
+   - added `_bundle_hash_from_payloads(...)` to hash indexed evidence directly from in-memory payloads,
+   - added `_existing_bundle_matches(...)` to verify existing bundle byte-for-byte against expected index/checks/evidence/flag,
+   - switched evidence construction to in-memory payloads first; write-to-temp only when reuse fails,
+   - added explicit `REUSE`/`REUSE_MISS` events for observability,
+   - removed unused `schemas.1B.yaml` load from S5 path,
+   - improved duplicate-index detection from quadratic list counting to linear set pass,
+   - run report now records real wall time (`durations.wall_ms`) and actual start/finish timestamps,
+   - run report bundle section now exposes `reused_existing_bundle` flag.
+2) Compile guard:
+   - `python -m py_compile packages/engine/src/engine/layers/l1/seg_2A/s5_validation_bundle/runner.py` PASS.
+
+Execution evidence:
+1) Candidate witness run-id:
+   - `b65bfe6efaca42e2ac413c059fb88b64`.
+2) Authority witness run-id:
+   - `dd4ba47ab7b942a4930cbeee85eda331`.
+3) Runtime deltas from S5 log-window pairs:
+   - `b65...` pre-change warm S5: `308-318ms`,
+   - `b65...` post-change warm S5: `249-251ms`,
+   - `dd4...`: `309ms -> 248ms`.
+4) Correctness/parity:
+   - `S5` remained `PASS` on both witnesses,
+   - `digest.matches_flag=true` remained unchanged,
+   - integrated `S3->S4->S5` run remained green on candidate lane.
+
+Classification and decision:
+1) `POPT.3` DoD is satisfied: validation lane runtime reduced materially in warm iteration posture.
+2) Hard checks remain fail-closed; no sampling/relaxation path introduced.
+3) Decision parity preserved for authority witnesses.
+4) Move forward to `POPT.4` integrated fast-lane recertification.
+
+---
+
+### Entry: 2026-02-17 05:15
+
+Design element: `POPT.4` kickoff - integrated fast-lane recertification and lock artifact.
+Summary: `POPT.1..POPT.3` optimizations are in place, so `POPT.4` will run a full integrated `S0->S5` witness and publish a machine-readable lock artifact proving two things: (a) end-to-end runtime is materially better than `POPT.0` authority baseline, and (b) structural/governance no-regression posture remains intact.
+
+Authority inputs selected for lock scoring:
+1) `POPT.0` runtime baseline:
+   - `runs/fix-data-engine/segment_2A/reports/segment2a_popt0_baseline_c25a2675fbfbacd952b13bb594880e92.json`
+2) no-regression witness anchor:
+   - run-id `dd4ba47ab7b942a4930cbeee85eda331`.
+3) integrated candidate lane:
+   - run-id `b65bfe6efaca42e2ac413c059fb88b64`.
+
+Decision for scoring artifact:
+1) Add dedicated scorer:
+   - `tools/score_segment2a_popt4_integrated.py`.
+2) Artifact output:
+   - `runs/fix-data-engine/segment_2A/reports/segment2a_popt4_integrated_<run_id>.json`.
+3) Lock checks encoded:
+   - runtime materiality vs POPT.0 baseline (segment report-wall delta),
+   - structural PASS checks (`S0/S1/S2/S4/S5` + S5 digest/index invariants),
+   - governance/no-regression checks from S1/S2 counters vs no-regression anchor.
+
+Execution plan:
+1) Run integrated `make segment2a` on candidate run-id.
+2) Refresh `POPT.0` runtime table artifact for candidate lane.
+3) Run `score_segment2a_popt4_integrated.py` to emit lock artifact and status.
+4) Update build plan + implementation notes + logbook with closure evidence.
+
+---
+
+### Entry: 2026-02-17 05:17
+
+Design element: `POPT.4` execution complete - integrated fast-lane recertification lock.
+Summary: Executed full `S0->S5` witness on the active 2A candidate lane, generated an integrated lock scorer artifact, and confirmed `GREEN_LOCKED` closure for the performance optimization program.
+
+Execution actions:
+1) Integrated chain witness:
+   - command:
+     - `make segment2a RUNS_ROOT=runs/fix-data-engine/segment_2A RUN_ID=b65bfe6efaca42e2ac413c059fb88b64`
+   - result:
+     - all states `S0/S1/S2/S3/S4/S5` completed with PASS posture.
+2) Runtime snapshot refresh:
+   - command:
+     - `python tools/score_segment2a_popt0_baseline.py --runs-root runs/fix-data-engine/segment_2A --run-id b65bfe6efaca42e2ac413c059fb88b64 --out-root runs/fix-data-engine/segment_2A/reports`
+   - artifacts refreshed:
+     - `segment2a_popt0_baseline_b65bfe6efaca42e2ac413c059fb88b64.json`
+     - `segment2a_popt0_hotspot_map_b65bfe6efaca42e2ac413c059fb88b64.md`
+3) Integrated lock scoring:
+   - added scorer:
+     - `tools/score_segment2a_popt4_integrated.py`
+   - command:
+     - `python tools/score_segment2a_popt4_integrated.py --runs-root runs/fix-data-engine/segment_2A --candidate-run-id b65bfe6efaca42e2ac413c059fb88b64 --baseline-popt0-json runs/fix-data-engine/segment_2A/reports/segment2a_popt0_baseline_c25a2675fbfbacd952b13bb594880e92.json --no-regression-run-id dd4ba47ab7b942a4930cbeee85eda331 --output-dir runs/fix-data-engine/segment_2A/reports`
+   - artifact emitted:
+     - `runs/fix-data-engine/segment_2A/reports/segment2a_popt4_integrated_b65bfe6efaca42e2ac413c059fb88b64.json`
+
+Lock evidence:
+1) integrated status:
+   - `GREEN_LOCKED`.
+2) check triad:
+   - `runtime_material=true`,
+   - `structural_all_pass=true`,
+   - `governance_no_regression=true`.
+3) runtime delta vs POPT.0 baseline (`c25...`):
+   - baseline report-wall total: `31.673s`,
+   - candidate report-wall total: `25.857s`,
+   - improvement: `-5.816s` (`~18.36%`).
+
+Decision:
+1) `POPT.4` is closed.
+2) Segment 2A performance authority for this lane is pinned to:
+   - `runs/fix-data-engine/segment_2A/reports/segment2a_popt4_integrated_b65bfe6efaca42e2ac413c059fb88b64.json`.
+
+---
+
+### Entry: 2026-02-17 05:22
+
+Design element: Remediation `P1` full execution lane (S1/S2 governance hardening).
+Summary: We are proceeding with `P1` as a complete phase closure pass. The active gap from the build plan is not structural correctness (already green), but governance observability and fail-closed budget enforcement. The implementation lane is restricted to S1/S2 and must preserve output contracts and downstream legality behavior.
+
+Authority and gap confirmation:
+1) `docs/reports/eda/segment_2A/segment_2A_remediation_report.md`.
+2) `docs/model_spec/data-engine/implementation_maps/segment_2A.build_plan.md` (`P1` DoD open).
+3) Current runner behavior review:
+   - `packages/engine/src/engine/layers/l1/seg_2A/s1_tz_lookup/runner.py`.
+   - `packages/engine/src/engine/layers/l1/seg_2A/s2_overrides/runner.py`.
+4) Confirmed gaps:
+   - rates mostly emitted as aggregate counters/events but not normalized governance rate surfaces by country in run reports.
+   - no explicit fail-closed cap checks for fallback/override rates.
+   - schema-valid override payload exists, but provenance completeness for active override rows is not fail-closed.
+
+Decision and rationale:
+1) Implement caps in runner logic (not policy schema expansion) for this pass:
+   - avoids contract/schema blast radius while still meeting fail-closed behavior.
+2) Add country-level denominators in hot loops:
+   - compute rate maps from emitted rows to keep measurements exact and deterministic.
+3) Add explicit failure codes for governance caps/provenance:
+   - keeps triage auditable and machine-parseable in logs/reports.
+4) Keep all existing structural validations untouched:
+   - preserves determinism and downstream parity while adding governance gates.
+
+Planned implementation steps:
+1) S1:
+   - add global + country fallback rate calculations,
+   - add override rate calculation,
+   - enforce caps with explicit reason codes,
+   - emit governance section in run report.
+2) S2:
+   - enforce active override provenance completeness (`notes || evidence_url`),
+   - add global + country override rate calculations,
+   - enforce override cap with explicit reason code,
+   - emit governance section in run report.
+3) Validate:
+   - compile both runners,
+   - rerun `S1->S5` on existing candidate run-id,
+   - verify governance surfaces and no structural/legality regressions.
+
+---
+
+### Entry: 2026-02-17 05:26
+
+Design element: Remediation `P1` implementation complete and witness results.
+Summary: Implemented `P1` governance hardening in `S1/S2`, executed full downstream witness (`S1->S5`), and confirmed phase DoD closure without structural or legality regressions.
+
+Code changes applied:
+1) `packages/engine/src/engine/layers/l1/seg_2A/s1_tz_lookup/runner.py`
+   - added deterministic governance caps:
+     - `fallback_rate_cap=0.0005`,
+     - `fallback_country_rate_cap=0.02`,
+     - `fallback_country_min_sites=100`,
+     - `override_rate_cap=0.002`.
+   - added per-country counters and rate maps for fallback/override.
+   - added fail-closed governance errors:
+     - `2A-S1-090` fallback cap exceeded,
+     - `2A-S1-091` country fallback cap exceeded,
+     - `2A-S1-092` override cap exceeded.
+   - added `governance` block to S1 run report.
+2) `packages/engine/src/engine/layers/l1/seg_2A/s2_overrides/runner.py`
+   - added active override provenance completeness enforcement:
+     - require non-empty `notes` or `evidence_url` for active entries,
+     - fail-closed code `2A-S2-091` on violation.
+   - added override-rate governance cap:
+     - `override_rate_cap=0.002`,
+     - fail-closed code `2A-S2-090` on breach.
+   - added per-country override rate map and `governance` block to S2 run report.
+
+Execution evidence:
+1) Compile checks:
+   - `python -m py_compile packages/engine/src/engine/layers/l1/seg_2A/s1_tz_lookup/runner.py` PASS.
+   - `python -m py_compile packages/engine/src/engine/layers/l1/seg_2A/s2_overrides/runner.py` PASS.
+2) Storage hygiene pre-run:
+   - `python tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_2A` (no failed sentinels to remove).
+3) Witness command:
+   - `make segment2a-s1 segment2a-s2 segment2a-s3 segment2a-s4 segment2a-s5 RUNS_ROOT='runs/fix-data-engine/segment_2A' RUN_ID='b65bfe6efaca42e2ac413c059fb88b64'`.
+4) Outcome:
+   - `S1/S2/S3/S4/S5` all PASS.
+   - Governance metrics from run reports:
+     - `S1 fallback_rate=3.199e-05`, `S1 override_rate=9.598e-05`, `fallback_country_violations=0`.
+     - `S2 override_rate=9.598e-05`, `provenance_missing=0`.
+   - Structural checks remained zeroed in S1/S2 (`pk_duplicates`, `coverage_mismatch`, `null_tzid`, unknown checks).
+
+Decision:
+1) `P1` DoD is satisfied and can be marked closed in build plan.
+2) Next remediation focus should move to `P2` (cohort-aware realism scoring and gates) on top of this governance baseline.
+
+---
+
+### Entry: 2026-02-17 05:42
+
+Design element: Remediation `P2` full-lane kickoff (cohort-aware scorer + seed-pack certification).
+Summary: Proceeding with `P2` as a full execution phase. Current 2A fix root contains only seed `42` run-ids, so P2 execution must include both (a) scorer/gate implementation and (b) required-seed materialization for `{42, 7, 101, 202}` under frozen 1A/1B code+policy posture.
+
+Authority and context re-check:
+1) `docs/reports/eda/segment_2A/segment_2A_remediation_report.md`.
+2) `docs/reports/eda/segment_2A/segment_2A_published_report.md`.
+3) `docs/model_spec/data-engine/implementation_maps/segment_2A.build_plan.md`.
+4) active run-root seed inventory:
+   - `runs/fix-data-engine/segment_2A`: only seed `42` is currently available.
+
+Decisions (P2 scope lock):
+1) Expand P2 into explicit sub-phases (`P2.1..P2.5`) in the build plan before implementation.
+2) Implement a dedicated 2A certification scorer tool that:
+   - computes cohort-aware realism metrics from `site_timezones`,
+   - consumes structural/governance surfaces from S1/S2/S3/S4/S5 run reports,
+   - emits per-seed artifacts + aggregate certification verdict (`PASS_BPLUS`/`PASS_B`/`FAIL_REALISM`).
+3) Lock deterministic cohort and formula posture:
+   - `C_multi`: `tz_world_support_count >= 2` and `site_count >= 100`.
+   - `C_large`: `site_count >= 500`.
+   - normalized entropy by `tz_world` support (`H / ln(support_count)` for eligible support >= 2).
+4) Required seed protocol:
+   - certify only on `{42,7,101,202}`.
+   - if missing seed run-ids exist, materialize with frozen upstream stack (run-only, no upstream code changes).
+
+Execution plan:
+1) Update build plan with expanded P2.1..P2.5 DoDs.
+2) Implement scorer in `tools/` and validate on existing seed `42`.
+3) Materialize missing required seeds and execute `1A -> 1B -> 2A` chains in `runs/fix-data-engine/segment_2A`.
+4) Run aggregate certification scorer across all required seeds.
+5) Record closure artifacts and verdict in build plan + logbook.
+
+---
+
+### Entry: 2026-02-17 05:45
+
+Design element: P2 scorer implementation (`tools/score_segment2a_p2_certification.py`).
+Summary: Implemented deterministic P2 scorer with per-seed and aggregate certification outputs. Initial run on existing artifacts verified scorer behavior and confirmed immediate fail posture due missing required seed coverage and realism misses on seed `42`.
+
+Implementation details:
+1) Added scorer tool:
+   - `tools/score_segment2a_p2_certification.py`.
+2) Encoded cohort contract:
+   - `C_multi`: `tz_world_support_count >= 2` and `site_count >= 100`.
+   - `C_large`: `site_count >= 500`.
+   - normalized entropy: `H / ln(tz_world_support_count)`.
+3) Encoded B/B+ hard gates:
+   - structural + governance + realism axes.
+4) Encoded cross-seed stability gates:
+   - CV thresholds (`B<=0.30`, `B+<=0.20`).
+5) Output artifacts:
+   - per-seed metrics JSON,
+   - country diagnostics CSV,
+   - aggregate certification JSON with explicit failing gates.
+
+Execution witness (pre-seed-pack materialization):
+1) compile:
+   - `python -m py_compile tools/score_segment2a_p2_certification.py` PASS.
+2) scorer run:
+   - `python tools/score_segment2a_p2_certification.py --runs-root runs/fix-data-engine/segment_2A --output-dir runs/fix-data-engine/segment_2A/reports`.
+3) initial result:
+   - `FAIL_REALISM` with missing required seeds (`7,101,202`) and B realism misses on seed `42`.
+
+---
+
+### Entry: 2026-02-17 07:57
+
+Design element: P2 required-seed execution + final certification.
+Summary: Executed required-seed materialization attempts under frozen code/policy posture and completed full P2 certification pass. Seed `7` completed full `S0..S5`; seeds `101` and `202` failed fail-closed at `S1` governance gates; aggregate verdict remains `FAIL_REALISM`.
+
+Execution sequence and outcomes:
+1) Seed materialization method correction:
+   - first attempt used `SEED` only and unintentionally stayed on seed `42`.
+   - corrected by using `SEG1A_S0_SEED=<seed>` at S0, then pinning `RUN_ID` through downstream states.
+2) Required seed runs:
+   - seed `7`:
+     - run-id `07891eca4e6ea549a4d836db35e203aa`.
+     - full `1A->1B->2A` completed (`S0..S5` PASS in 2A).
+   - seed `101`:
+     - run-id `513f4f2904d1ac97f2396c059a9573da`.
+     - 2A `S1` fail-closed at `2A-S1-091` (`fallback_country_cap_exceeded`, CN fallback concentration).
+   - seed `202`:
+     - run-id `5a8836781dd7524da561ad5aa27f64d6`.
+     - 2A `S1` fail-closed at `2A-S1-090` (`fallback_rate_cap_exceeded`).
+3) Scorer enhancement:
+   - updated `tools/score_segment2a_p2_certification.py` to score incomplete seed attempts as explicit hard failures rather than silent missing seeds.
+4) Final certification run:
+   - `python tools/score_segment2a_p2_certification.py --runs-root runs/fix-data-engine/segment_2A --output-dir runs/fix-data-engine/segment_2A/reports`.
+   - emitted aggregate artifact:
+     - `runs/fix-data-engine/segment_2A/reports/segment2a_p2_certification_42-b65bfe6e_7-07891eca_101-513f4f29_202-5a883678.json`.
+
+Decision:
+1) P2 execution is complete and fail-closed.
+2) Certification verdict is `FAIL_REALISM` with explicit seed-level and gate-level blockers.
+3) Natural next remediation lane is `P3` targeted correction under strict governance veto gates.
+
+---
+
+### Entry: 2026-02-17 17:10
+
+Design element: Remediation `P3` planning expansion (targeted correction lane).
+Summary: Expanded `P3` from a placeholder into explicit sub-phases (`P3.1..P3.5`) with bounded scope and hard DoDs tied directly to P2 failure evidence.
+
+Context and blocker anchor:
+1) P2 certification verdict is `FAIL_REALISM`.
+2) Two blocker classes must be handled in P3:
+   - hard governance failures at `S1` for seeds `101` and `202` (`2A-S1-091`, `2A-S1-090`),
+   - realism concentration failures on completed seeds (`42`, `7`) across `C_multi` and `C_large` metrics.
+3) Upstream freeze posture remains binding in this cycle:
+   - `1A` frozen certified,
+   - `1B` frozen best-effort below B,
+   - no upstream reopen inside P3.
+
+Decisions captured in the plan update:
+1) P3 must be governance-first, then realism-lift:
+   - `P3.1` failure-surface/watchlist lock,
+   - `P3.2` S1 governance rescue for hard-failing seeds,
+   - `P3.3` bounded realism lift on concentration/entropy axes,
+   - `P3.4` integrated seed-pack candidate + veto certification,
+   - `P3.5` explicit closure decision (`GO_P4` vs `FREEZE_PROPOSAL`).
+2) Non-negotiable constraints in P3:
+   - no cap relaxation,
+   - no synthetic post-assignment redistribution,
+   - no fallback/override inflation as score-forcing mechanism.
+3) P3 success criteria before P4 handoff:
+   - all required seeds clear hard governance/structural gates,
+   - aggregate verdict reaches at least `PASS_B`, or residual blockers are explicitly reduced and quantified.
+
+Artifacts updated:
+1) `docs/model_spec/data-engine/implementation_maps/segment_2A.build_plan.md`.
+
+Immediate next execution lane:
+1) Start with `P3.1` watchlist contract extraction from P2 diagnostics artifacts.
+
+---
+
+### Entry: 2026-02-17 17:27
+
+Design element: `P3.1` watchlist extraction and `P3.2` intervention selection.
+Summary: Extracted a P3 baseline watchlist from P2 diagnostics/S1 governance evidence and selected a bounded governance-first correction path for hard-failing seeds.
+
+Evidence extraction completed:
+1) Generated P3 watchlist artifacts:
+   - `runs/fix-data-engine/segment_2A/reports/segment2a_p3_watchlist_baseline.csv`
+   - `runs/fix-data-engine/segment_2A/reports/segment2a_p3_watchlist_baseline.json`
+2) Key governance blockers from watchlist and S1 reports:
+   - seed `101`: `CN` fallback concentration (`fallback_rate=0.03296703`, `sites_total=273`) -> `2A-S1-091`.
+   - seed `202`: `GE` fallback concentration (`fallback_rate=0.05048077`, `sites_total=416`) and elevated global fallback (`fallback_rate=0.00055572`) -> `2A-S1-090/091`.
+   - cross-seed high fallback counts on `PS` (below country min-sites cap but contributes to global fallback volume).
+3) Realism hotspot surface remains broad under frozen upstream posture (`C_multi` and `C_large` concentration failures), consistent with 2A remediation authority constraints.
+
+Alternatives considered:
+1) Relax fallback caps (`fallback_rate_cap` / `fallback_country_rate_cap`).
+   - Rejected: violates fail-closed governance posture and P3 non-negotiable constraint (no cap relaxation).
+2) Broad synthetic redistribution in 2A assignment.
+   - Rejected: explicitly out-of-scope in remediation plan and would sever causal traceability.
+3) Bounded country-targeted override controls for hotspot countries only.
+   - Chosen: directly addresses S1 hard failures with minimal blast radius and preserved deterministic/auditable behavior.
+
+Chosen P3.2 intervention:
+1) Add targeted active country overrides in `tz_overrides` for:
+   - `CN -> Asia/Shanghai`
+   - `GE -> Asia/Tbilisi`
+   - `PS -> Asia/Hebron`
+2) Rationale:
+   - `CN` and `GE` are direct hard-fail countries in required seeds.
+   - `PS` has high fallback counts that inflate global fallback rate in seed `202` despite min-sites exemption.
+   - overrides remain bounded, provenance-visible, and within existing override-rate caps.
+3) Validation plan after patch:
+   - rerun 2A (`S0->S5`) for required seeds `{42,7,101,202}` using existing run-ids,
+   - rerun P2 certification scorer,
+   - evaluate P3.2 gate: seeds `101/202` must clear `2A-S1-090/091` without cap changes.
+
+Performance and safety posture:
+1) Reuse existing run-ids and rerun only segment `2A` to avoid upstream recompute.
+2) Keep deterministic ordering and schema/provenance invariants unchanged.
+3) If hard gates still fail, continue P3 with additional bounded watchlist corrections; no threshold edits.
+
+---
+
+### Entry: 2026-02-17 17:34
+
+Design element: `P3.2 -> P3.5` execution and closure decision.
+Summary: Executed full P3 on a clean 2A candidate lane, closed governance hard-fail blockers for seeds `101/202`, re-certified required seeds, and ended with `FREEZE_PROPOSAL` due persistent realism concentration blockers under frozen upstream posture.
+
+Execution chronology:
+1) Policy intervention applied (bounded watchlist scope):
+   - Updated `config/layer1/2A/timezone/tz_overrides.yaml` with active country overrides:
+     - `CN -> Asia/Shanghai`
+     - `GE -> Asia/Tbilisi`
+     - `PS -> Asia/Hebron`
+2) Initial rerun attempt on existing root (`runs/fix-data-engine/segment_2A`) failed at `S0` with `F4:2A-S0-062` due existing published 2A artefacts in retained run-id folders.
+3) Non-destructive rerun strategy chosen:
+   - created clean candidate root: `runs/fix-data-engine/segment_2A_p3`.
+   - copied only required upstream run surfaces (`run_receipt.json` + `data/layer1/1B`) for run-ids:
+     - `b65bfe6efaca42e2ac413c059fb88b64`
+     - `07891eca4e6ea549a4d836db35e203aa`
+     - `513f4f2904d1ac97f2396c059a9573da`
+     - `5a8836781dd7524da561ad5aa27f64d6`
+4) Ran full `2A S0->S5` for all required seeds in clean root:
+   - all four seeds completed PASS (`S0..S5`).
+5) Certification and diagnostics:
+   - scorer run:
+     - `python tools/score_segment2a_p2_certification.py --runs-root runs/fix-data-engine/segment_2A_p3 --output-dir runs/fix-data-engine/segment_2A_p3/reports`
+   - generated:
+     - `segment2a_p2_seed_metrics_...json`
+     - `segment2a_p2_country_diagnostics_...csv`
+     - `segment2a_p2_certification_...json`
+   - delta evidence:
+     - `runs/fix-data-engine/segment_2A_p3/reports/segment2a_p3_delta_summary.json`
+   - watchlist refresh:
+     - `runs/fix-data-engine/segment_2A_p3/reports/segment2a_p3_watchlist_candidate.csv`
+     - `runs/fix-data-engine/segment_2A_p3/reports/segment2a_p3_watchlist_candidate.json`
+
+Measured movement:
+1) Governance closure achieved:
+   - seeds `101/202` now complete `S0->S5` and no longer fail `2A-S1-090/091`.
+   - fallback-country violations: `1 -> 0` for seeds `101` and `202`.
+   - fallback rate improved materially:
+     - seed `101`: `0.00031126 -> 0.00002918`
+     - seed `202`: `0.00055572 -> 0.00002874`
+2) Realism concentration remained effectively unchanged on primary witness seeds `42/7`:
+   - seed `42`: no movement on `C_multi` or `C_large` axes.
+   - seed `7`: no movement on `C_multi` or `C_large` axes; only fallback/override composition shifted.
+3) P3 residual blocker remains upstream-coupled:
+   - all seeds still miss B realism bands for `C_multi` concentration/entropy and `C_large` representativeness.
+
+Decision (`P3.5`):
+1) `FREEZE_PROPOSAL` for 2A current pass (verdict remains `FAIL_REALISM`).
+2) Recommend upstream reopen at `1B` representativeness lane before further 2A-local realism tuning.
+3) P3 objective partially achieved:
+   - governance hard-fail closure: achieved.
+   - B/B+ realism closure under frozen upstream: not achievable with bounded 2A-only corrections.
+
+---
+
+### Entry: 2026-02-17 21:31
+
+Design element: P4 extension planning after P3 closure (`FAIL_REALISM` with governance fixed).
+Summary: Extended `P4` into an explicit branch structure to avoid ambiguous next steps: `FREEZE_NOW` vs `REOPEN_1B` (recommended), with closure-grade sub-phases and DoDs.
+
+Why this extension was required:
+1) P3 closed governance hard failures (`101/202` now complete and cap-clean), but realism still materially misses B bands.
+2) Residual blockers are upstream-coupled (1B representativeness), so a generic P4 certification placeholder was insufficient.
+3) Decision-completeness and phase-coverage require a pinned branch path before further execution.
+
+What was added to the build plan:
+1) Replaced generic P4 with explicit branch gate:
+   - `P4.A` freeze-now closure lane,
+   - `P4.B` upstream reopen lane (recommended).
+2) Added reopen sub-phases:
+   - `P4.B` reopen contract lock (scope + non-negotiables),
+   - `P4.B1` witness run protocol + runtime-budget gate,
+   - `P4.B2` integrated `1B -> 2A` full-seedpack recertification,
+   - `P4.B3` final decision gate (`LOCK_UPGRADED_AUTHORITY` vs `FREEZE_WITH_BLOCKERS`).
+3) Kept hard constraints explicit:
+   - no 2A cap relaxation,
+   - no synthetic redistribution,
+   - no B/B+ threshold edits.
+
+Execution implication:
+1) Next executable action should start at P4 branch choice pin.
+2) Recommended branch remains `REOPEN_1B` because 2A-local bounded controls already exhausted the governance lane.
+
+---
+
+### Entry: 2026-02-17 21:47
+
+Design element: P4 execution kickoff (`P4.A -> P4.B/B1/B2/B3`).
+Summary: User requested full P4 progression across freeze lane and reopen lane. Execution will close `P4.A` as baseline snapshot, then run `P4.B` upstream reopen with witness gate before full seed-pack recertification.
+
+Decision and execution contract:
+1) `P4.A` baseline freeze snapshot will be recorded first (non-terminal), using P3 authority evidence in `runs/fix-data-engine/segment_2A_p3`.
+2) `P4.B` will be executed as recommended branch:
+   - upstream reopen surface is limited to 1B representativeness policy knobs (`S2/S4`; no 2A threshold/cap edits),
+   - 2A governance caps remain fixed from P1/P3.
+3) `P4.B1` witness protocol:
+   - run seeds `{42,7}` first,
+   - require directional movement on concentration/entropy realism metrics without governance regression,
+   - only then promote to full seed-pack `{42,7,101,202}` in `P4.B2`.
+4) Runtime/efficiency posture:
+   - policy-only first (no algorithm rewrite) to keep loop bounded,
+   - rerun matrix: `1B S2->S9`, then `2A S0->S5` on candidate run-ids.
+5) Candidate lane root selected:
+   - `runs/fix-data-engine/segment_2A_p4b`.
+
+Planned interventions for first witness pass (`R1`):
+1) `1B S2` (`policy.s2.tile_weights.yaml`): tighten concentration controls and raise non-Europe region floor influence.
+2) `1B S4` (`policy.s4.alloc_plan.yaml`): increase deterministic support-diversification window to reduce tile-collapse per (merchant,country).
+3) Keep `S6` jitter policy unchanged for first witness pass to isolate macro-allocation + assignment effects.
+
+Success/fail gate for this pass:
+1) Success-to-expand (`GO_FULL_SEEDPACK`): witness seeds show non-regressive governance and positive 2A concentration/entropy movement.
+2) Hold-to-rework (`HOLD_REWORK`): no witness movement or regression; adjust knobs and rerun witness only.
+
+---
+
+### Entry: 2026-02-17 23:18
+
+Design element: `P4.B1` witness execution + `P4.B2/B3` integrated closure decision.
+Summary: Executed full reopen lane on `runs/fix-data-engine/segment_2A_p4b_r1`, scored witness seeds, then forced full-seed recertification per user direction. Candidate failed governance and realism gates; final disposition is `FREEZE_WITH_BLOCKERS` with `segment_2A_p3` retained as authority.
+
+Execution details:
+1) Candidate staging (clean lane):
+   - root: `runs/fix-data-engine/segment_2A_p4b_r1`.
+   - staged run-ids with `--skip-tile-weights --skip-s3-requirements` to force recompute under reopened `1B` policies:
+     - `b65bfe6efaca42e2ac413c059fb88b64` (seed 42),
+     - `07891eca4e6ea549a4d836db35e203aa` (seed 7),
+     - `513f4f2904d1ac97f2396c059a9573da` (seed 101),
+     - `5a8836781dd7524da561ad5aa27f64d6` (seed 202).
+2) Witness runs (`P4.B1`):
+   - completed `1B S2->S9` then `2A S0->S5` for seeds `{42,7}`.
+   - witness scorer artifact:
+     - `runs/fix-data-engine/segment_2A_p4b_r1/reports/segment2a_p2_certification_42-b65bfe6e_7-07891eca.json`
+3) Witness movement result:
+   - seed `42`: directional improvement but still fails all core realism gates.
+   - seed `7`: regression on concentration/entropy + representativeness.
+   - movement gate set to `HOLD_REWORK`.
+4) Full-seed execution (`P4.B2`) per user instruction:
+   - seed `101`:
+     - `1B S2->S9` PASS,
+     - `2A` fail-closed at `S1` with `2A-S1-091` (`fallback_country_cap_exceeded`, `KZ`).
+   - seed `202`:
+     - `1B S2->S9` PASS,
+     - `2A` fail-closed at `S1` with `2A-S1-092` (`override_rate_cap_exceeded`).
+5) Full-seed certification:
+   - `runs/fix-data-engine/segment_2A_p4b_r1/reports/segment2a_p2_certification_42-b65bfe6e_7-07891eca_101-513f4f29_202-5a883678.json`
+   - status: `FAIL_REALISM`.
+
+Performance evidence emitted:
+1) Runtime table and baseline delta artifacts:
+   - `runs/fix-data-engine/segment_2A_p4b_r1/reports/segment2a_p4b_runtime_by_seed.json`
+   - `runs/fix-data-engine/segment_2A_p4b_r1/reports/segment2a_p4b_runtime_by_seed.csv`
+   - `runs/fix-data-engine/segment_2A_p4b_r1/reports/segment2a_p4b_runtime_delta.json`
+   - `runs/fix-data-engine/segment_2A_p4b_r1/reports/segment2a_p4b_runtime_delta.csv`
+2) 1B runtime observation:
+   - candidate lane regressed vs prior authority on seeds `7/101/202` (about `+12%` to `+18%` on `S2->S9` chain).
+
+Decision:
+1) `P4.B3` final disposition: `FREEZE_WITH_BLOCKERS`.
+2) Rejected candidate:
+   - `runs/fix-data-engine/segment_2A_p4b_r1` is evidence-only and not promoted to authority.
+3) Retained authority:
+   - `runs/fix-data-engine/segment_2A_p3` remains active `2A` best-effort authority for this cycle.
+
+---
+
+### Entry: 2026-02-18 18:26
+
+Design element: Cross-segment upstream reopen support lane for 2B (`P1.REOPEN.2A`).
+Summary: 2B tail-floor closure failed under S1-only reopen; next bounded upstream
+attempt is `2A` topology-first on the same run-id lineage before any `1B`
+reopen escalation.
+
+Execution intent (pre-change):
+1) use run-local (candidate-only) 2A timezone policy deltas so repo-level frozen
+   2A posture remains unchanged during the experiment.
+2) rerun `2A S0->S5` on staged candidate run-id rooted from 2B frozen authority.
+3) rerun `2B S0->S8` on the same run-id and score tail-floor movement.
+
+Bounded change posture:
+1) this first 2A reopen attempt is policy-surface only (`tz_overrides`,
+   `tz_nudge`) with no 2A code rewrite.
+2) if no material movement in `share(n_groups==1)` / `share(max_p_group>=0.95)`,
+   lane closes as `NO_GO_P1_REOPEN_2A_ONLY` and escalates to `1B` topology reopen.
+
+### Entry: 2026-02-18 18:33
+
+Design element: Cross-segment support execution closure for 2B `P1.REOPEN.2A`.
+Summary: Completed one bounded 2A-first reopen candidate for 2B using run-local
+2A timezone policy deltas; lane did not reduce the 2B topology floor and was
+closed as no-go.
+
+Execution notes:
+1) run-local policy isolation worked as intended when external roots were
+   ordered with run-root first:
+   - `S0` sealed `tz_overrides` count as `2` (from baseline `7`),
+   - `S1 INPUTS` resolved `tz_overrides`/`tz_nudge` from candidate run-root.
+2) successful candidate run-id:
+   - `runs/fix-data-engine/segment_2B/867bb5c1cdbb446a8d369b039a52be5a`
+   - `2A S0->S5` completed PASS before downstream `2B` execution.
+3) lane evidence artifacts:
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_floor_867bb5c1cdbb446a8d369b039a52be5a.json`
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_2a_lock_867bb5c1cdbb446a8d369b039a52be5a.json`
+
+Outcome handoff:
+1) 2A-first policy-surface movement did not reduce 2B floor metrics.
+2) handoff decision remains `NO_GO_P1_REOPEN_2A_ONLY` for 2B lane.
+3) next upstream escalation for 2B is `1B` topology reopen.
+
+---
+
+### Entry: 2026-02-18 20:11
+
+Design element: Final bounded `2A` code+policy reopen plan (Option 2 terminal lane).
+Summary: user approved one final Option-2 effort before moving to `3A`; plan is
+to execute a bounded `S2` deterministic topology-rebalance lane with strict caps
+and fail-closed terminal gate.
+
+Decision contract pinned:
+1) immutable constraints:
+   - `1A` and `1B` remain frozen,
+   - no synthetic `2B` local groups.
+2) movement source:
+   - only real upstream `2A site_timezones` topology movement is allowed.
+3) execution budget:
+   - one candidate lane only, then terminal decision (`GO`/`NO_GO`).
+
+Implementation intent:
+1) add bounded rebalance controls (policy + schema, if required) for `S2`.
+2) implement deterministic reassignment only for eligible single-tz merchants:
+   - multi-tz country support,
+   - minimum site count,
+   - geometry signal,
+   - global/per-country/per-merchant caps.
+3) emit explicit `S2` governance counters and samples in run-report.
+4) run one integrated candidate (`2A S0->S5`, `2B S0->S8`) and score floor
+   movement with existing analyzers.
+
+Terminal gate pinned:
+1) material movement required:
+   - `delta share(n_groups==1) <= -0.02`,
+   - `delta share(max_p>=0.95) <= -0.02`.
+2) no governance regressions on protected rails.
+3) else close as `NO_GO_OPTION2_FINAL` and move to `3A`.
+
+---
+
+### Entry: 2026-02-18 20:21
+
+Design element: Option-2 execution and terminal closure for `2A` reopen support.
+Summary: implemented deterministic bounded topology rebalance in `2A S2`, ran two
+candidate attempts, achieved material floor movement on the stronger candidate,
+then executed immediate `2B P3` retry which still failed B/B+ bands; lane closed
+as terminal no-go for further `2A` reopen this cycle.
+
+Code/policy changes executed:
+1) `packages/engine/src/engine/layers/l1/seg_2A/s2_overrides/runner.py`
+   - added deterministic rebalance planner gated by override note token
+     (`[rebalance:auto]`), sourcing alternate tzids from real `tz_world`.
+   - enforced bounded caps (global/per-country/per-merchant) and eligibility
+     guards (country multi-tz, min-sites, lon-span signal).
+   - emitted explicit `topology_rebalance` diagnostics into `s2_run_report`.
+   - separated rebalance accounting from legacy override-cap accounting so
+     `override_rate` remains tied to explicit override rows.
+2) candidate-local policy lane:
+   - `runs/fix-data-engine/segment_2B/<run_id>/config/layer1/2A/timezone/tz_overrides.yaml`
+   - `runs/fix-data-engine/segment_2B/<run_id>/config/layer1/2A/timezone/tz_nudge.yml`
+   - opt-in countries marked with `[rebalance:auto]`.
+
+Execution evidence:
+1) candidate A (`27d6feeac34141f081c6379c8dc797a2`):
+   - `2A S2`: `planned_sites_final=21`, `rebalance_reassigned_total=21`,
+     `distinct_tzids=98`, `override_rate=0.00086381`.
+   - floor scorer:
+     - `delta share_n_groups_eq_1=-0.005654`,
+     - `delta share_max_p_ge_095=-0.005654`.
+   - decision: non-material movement.
+2) candidate B (`fd9b373e9a6a4ae0b2204f00677815f1`):
+   - `2A S2`: `planned_sites_final=424`, `rebalance_reassigned_total=424`,
+     `distinct_tzids=132`, `override_rate=0.00019196`, `overridden_total=6`.
+   - floor scorer:
+     - `delta share_n_groups_eq_1=-0.075121`,
+     - `delta share_max_p_ge_095=-0.075121`.
+   - movement gate and protected non-tail rails passed (`GO_P3_RETRY_FROM_2A_FINAL`).
+3) immediate `2B P3` retry on candidate B:
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p3_candidate_fd9b373e9a6a4ae0b2204f00677815f1.json`
+   - result: `FAIL_P3` (`s4_b_band=false`, `s4_bplus_band=false`).
+
+Terminal disposition and lock:
+1) lane-level gate pass was achieved, but downstream realism target remained
+   unattained after retry.
+2) final closure set to `NO_GO_OPTION2_FINAL` (no further `2A` reopen in this cycle).
+3) lock artifacts:
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_2a_final_lock_fd9b373e9a6a4ae0b2204f00677815f1.json`
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_2a_final_lock_fd9b373e9a6a4ae0b2204f00677815f1.md`.
+
+---
+
+### Entry: 2026-02-18 20:30
+
+Design element: post-closure rollback to frozen `2A` authority posture.
+Summary: after terminal `NO_GO_OPTION2_FINAL`, the experimental `2A S2`
+topology-rebalance code path was intentionally removed from mainline while
+retaining full evidence artifacts and decision trail.
+
+Execution:
+1) reverted code file:
+   - `packages/engine/src/engine/layers/l1/seg_2A/s2_overrides/runner.py`
+   - action: restored to pre-Option-2 repository state.
+2) retained evidence artifacts:
+   - `segment2b_p3_candidate_fd9b373e9a6a4ae0b2204f00677815f1.{json,md}`
+   - `segment2b_p1_reopen_floor_fd9b373e9a6a4ae0b2204f00677815f1.{json,md}`
+   - `segment2b_p1_reopen_2a_final_lock_fd9b373e9a6a4ae0b2204f00677815f1.{json,md}`
+3) storage hygiene:
+   - pruned superseded run folder:
+     - `runs/fix-data-engine/segment_2B/27d6feeac34141f081c6379c8dc797a2`.
+
+Rationale:
+1) lane closure was terminal no-go for this cycle.
+2) keeping experimental logic in code without target closure adds maintenance and
+   regression risk.
+3) evidence remains available for future reopen consideration without carrying the
+   code path forward now.
+
+### Entry: 2026-02-22 17:19
+
+Design element: bounded temporal-horizon reopen for `2A.S3` to support downstream 5B `P1` closure.
+Summary: current `tz_timetable_cache` entries terminate at 2025 transitions for many DST zones, while downstream run horizon is in 2026. This yields deterministic one-hour mismatches in 5B around DST shift windows. Reopen is scoped to extending transition horizon in S3 without changing S1/S2 topology policy.
+
+Root-cause evidence:
+1) decoded cache entries for representative tzids:
+   - `Europe/Berlin` last transition around `2025-10-26`;
+   - `America/Toronto` last transition around `2025-11-02`.
+2) downstream mismatch profile:
+   - one-hour signature concentrated in March 2026 DST lanes.
+
+Chosen implementation:
+1) augment `_compile_tzid_index(...)` with deterministic future-transition synthesis using `ZoneInfo` offset-change detection,
+2) synthesize only when explicit transition horizon is below configured target year,
+3) target year computed from release tag year + bounded extension budget,
+4) maintain existing invariants: monotone transition instants, minute-level offset normalization, deterministic output order.
+
+Performance and safety posture:
+1) bounded search (daily stride + binary search per detected change) keeps cost proportional to actual transition events,
+2) no per-row downstream data scans in S3 reopen,
+3) shared cache schema bump to prevent stale old-format reuse.
+
+Alternatives considered and rejected:
+1) force metadata-only release year uplift:
+   - rejected as non-causal and non-realistic.
+2) topology reassignment in S2:
+   - rejected for this root-cause lane.
+3) leave cache behavior unchanged and tune 5B only:
+   - rejected; upstream ownership is evidenced.
+
+Planned validation:
+1) compile gate for modified S3 runner,
+2) `2A S3->S5` rerun on authority run-id,
+3) decode new cache and verify representative tzids have >=2026 transition horizon,
+4) downstream `5B S4->S5` and P1 rescoring to measure `T1/T2/T3/T11` movement.
+
+### Entry: 2026-02-22 17:21
+
+Execution step: implemented bounded `2A.S3` transition-horizon extension and cache invalidation.
+Summary: patched S3 timetable compilation so tzids with explicit-transition cut-off are deterministically extended beyond release year using ZoneInfo offset-change synthesis; bumped shared-cache schema to avoid stale v1 cache reuse.
+
+Code changes:
+1) `packages/engine/src/engine/layers/l1/seg_2A/s3_timetable/runner.py`
+   - cache schema: `s3_tz_index_v1 -> s3_tz_index_v2`.
+   - added release/horizon controls:
+     - `_release_year_from_tag(...)`,
+     - `_future_transition_years_budget(...)` (`ENGINE_2A_S3_FUTURE_TRANSITION_YEARS`, default `3`, max `8`).
+   - added deterministic future transition synthesizer:
+     - `_offset_seconds_at_utc(...)`,
+     - `_synthesize_future_transitions(...)` (daily stride + binary search per offset change).
+   - extended `_compile_tzid_index(...)` to append synthesized transitions when explicit horizon is below target.
+   - emitted `HORIZON_EXTENSION_POLICY` runtime event and `CACHE_STORE` synthesized-transition count.
+
+Reasoning for chosen patch:
+1) root-cause is horizon truncation, so owner fix belongs in S3 transition index build.
+2) deterministic extension from timezone rules is causal and auditable, unlike metadata-only relabeling.
+3) schema bump is required so archive-digest cache key cannot silently reuse pre-fix payload.
+
+Validation status:
+- compile gate: `python -m py_compile .../seg_2A/s3_timetable/runner.py` -> PASS.
+- next: execute `2A S3->S5` and inspect cache horizon years for representative DST tzids.
+
+### Entry: 2026-02-22 17:32
+
+Execution step: completed upstream reopen witness run (`2A S3->S5`) and validated horizon movement.
+Summary: reran `2A` authority lane on run-id `c25...` with the new S3 logic. S3/S4/S5 all passed, and cache transitions now extend through 2028 for representative DST zones.
+
+Run details:
+1) command lane:
+   - `make segment2a-s3 segment2a-s4 segment2a-s5 RUNS_ROOT=runs/local_full_run-5 RUN_ID=c25... ENGINE_2A_S3_FUTURE_TRANSITION_YEARS=3`.
+2) S3 runtime evidence:
+   - `HORIZON_EXTENSION_POLICY`: `release=2025a`, `future_horizon_year=2028`, `cache_schema=s3_tz_index_v2`.
+   - `CACHE_STORE`: `synthesized_transitions_total=1206`, `rle_cache_bytes=455351`, `transitions_total=36340`.
+3) S4/S5 posture:
+   - `S4 PASS`, `missing_tzids_count=0`.
+   - `S5 PASS` and bundle digest emitted.
+
+Post-run horizon verification:
+1) decoded `tz_cache_v1.bin` confirms representative last transitions now in 2028:
+   - `Europe/Berlin` `2028-10-29T01:00:00Z`,
+   - `Europe/Paris` `2028-10-29T01:00:00Z`,
+   - `America/Toronto` `2028-11-05T06:00:00Z`,
+   - `Europe/London` `2028-10-29T01:00:00Z`.
+
+Decision:
+- upstream `2A` temporal-horizon reopen lane succeeded and is ready for downstream `5B` re-evaluation.

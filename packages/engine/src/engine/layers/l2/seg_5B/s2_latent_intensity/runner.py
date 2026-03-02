@@ -63,6 +63,7 @@ UINT64_MASK = 0xFFFFFFFFFFFFFFFF
 UINT64_MAX = UINT64_MASK
 TWO_NEG_64 = float.fromhex("0x1.0000000000000p-64")
 _HEX64_PATTERN = re.compile(r"^[a-f0-9]{64}$")
+DEFAULT_PROGRESS_INTERVAL_SECONDS = 10.0
 
 
 @dataclass(frozen=True)
@@ -97,7 +98,7 @@ class _ProgressTracker:
         total: Optional[int],
         logger,
         label: str,
-        min_interval_seconds: float = 0.5,
+        min_interval_seconds: float = DEFAULT_PROGRESS_INTERVAL_SECONDS,
     ) -> None:
         self._total = int(total) if total is not None else None
         self._logger = logger
@@ -267,6 +268,17 @@ def _env_flag(name: str) -> bool:
     if value is None:
         return False
     return value.strip().lower() in {"1", "true", "yes", "y"}
+
+
+def _env_progress_interval_seconds(name: str, default: float = DEFAULT_PROGRESS_INTERVAL_SECONDS) -> float:
+    raw = os.environ.get(name, f"{default}")
+    try:
+        value = float(raw)
+    except ValueError as exc:
+        raise ValueError(f"{name} invalid: {raw}") from exc
+    if not math.isfinite(value) or value < 0.1:
+        raise ValueError(f"{name} invalid: {raw}")
+    return value
 
 
 def _schema_items(schema_pack: dict, schema_layer1: dict, schema_layer2: dict, anchor: str) -> dict:
@@ -652,14 +664,18 @@ def _draw_philox_u64(
     manifest_fingerprint: str,
 ) -> tuple[list[int], int, int, int]:
     blocks = int((draws + 1) // 2)
-    values: list[int] = []
+    values: list[int] = [0] * draws
     cur_hi, cur_lo = counter_hi, counter_lo
+    out_idx = 0
     for _ in range(blocks):
         out0, out1 = philox2x64_10(cur_hi, cur_lo, key)
-        values.append(out0)
-        if len(values) < draws:
-            values.append(out1)
-        next_hi, next_lo = add_u128(cur_hi, cur_lo, 1)
+        values[out_idx] = out0
+        out_idx += 1
+        if out_idx < draws:
+            values[out_idx] = out1
+            out_idx += 1
+        next_lo = (cur_lo + 1) & UINT64_MASK
+        next_hi = cur_hi + (1 if next_lo == 0 else 0)
         if _counter_wrapped(cur_hi, cur_lo, next_hi, next_lo):
             _abort(
                 "5B.S2.RNG_ACCOUNTING_MISMATCH",
@@ -762,6 +778,7 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
         output_sample_rows = 5000
     output_validation_mode = "full" if output_validate_full else "fast_sampled"
     enable_rng_events = _env_flag("ENGINE_5B_S2_RNG_EVENTS")
+    progress_interval_seconds = _env_progress_interval_seconds("ENGINE_5B_S2_PROGRESS_INTERVAL_SEC")
     current_phase = "init"
     status = "FAIL"
     error_code: Optional[str] = None
@@ -840,6 +857,7 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
             "S2: rng_event logging=%s (set ENGINE_5B_S2_RNG_EVENTS=1 to enable)",
             "on" if enable_rng_events else "off",
         )
+        logger.info("S2: progress cadence interval=%.2fs", progress_interval_seconds)
 
         tokens = {
             "seed": str(seed),
@@ -1579,7 +1597,12 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                 group_count,
                 bucket_count,
             )
-            tracker = _ProgressTracker(group_count, logger, f"S2: group hyperparams (scenario_id={scenario_id})")
+            tracker = _ProgressTracker(
+                group_count,
+                logger,
+                f"S2: group hyperparams (scenario_id={scenario_id})",
+                min_interval_seconds=progress_interval_seconds,
+            )
             for row in group_features.iter_rows(named=True):
                 tracker.update(1)
                 group_id = str(row.get("group_id"))
@@ -1686,7 +1709,12 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                     group_count,
                     bucket_count,
                 )
-                tracker = _ProgressTracker(group_count, logger, f"S2: latent draw (scenario_id={scenario_id})")
+                tracker = _ProgressTracker(
+                    group_count,
+                    logger,
+                    f"S2: latent draw (scenario_id={scenario_id})",
+                    min_interval_seconds=progress_interval_seconds,
+                )
                 for idx, group_id in enumerate(group_ids):
                     tracker.update(1)
                     sigma = group_sigma[idx]
@@ -1731,24 +1759,24 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                             manifest_fingerprint,
                         )
 
-                    uniforms = [_open_interval_u01(value) for value in values]
-                    normals: list[float] = []
-                    for offset in range(0, len(uniforms), 2):
-                        normals.append(_box_muller(uniforms[offset], uniforms[offset + 1]))
+                    u64_values = np.asarray(values, dtype=np.uint64)
+                    uniforms = (u64_values.astype(np.float64) + 0.5) * TWO_NEG_64
+                    u1 = uniforms[0::2]
+                    u2 = uniforms[1::2]
+                    normals = np.sqrt(-2.0 * np.log(u1)) * np.cos(2.0 * math.pi * u2)
 
-                    latent_values: list[float] = []
                     if latent_model_id == "log_gaussian_iid_v1":
-                        latent_values = [sigma * value for value in normals]
+                        latent_arr = sigma * normals
                     else:
                         phi = math.exp(-1.0 / float(length_scale))
                         sigma_eps = sigma * math.sqrt(max(1.0 - phi * phi, 0.0))
-                        latent_values = [0.0] * bucket_count
-                        if normals:
-                            latent_values[0] = sigma * normals[0]
+                        latent_arr = np.empty(bucket_count, dtype=np.float64)
+                        if normals.size:
+                            latent_arr[0] = sigma * float(normals[0])
                         for t in range(1, bucket_count):
-                            latent_values[t] = phi * latent_values[t - 1] + sigma_eps * normals[t]
+                            latent_arr[t] = phi * latent_arr[t - 1] + sigma_eps * float(normals[t])
 
-                    if len(latent_values) != bucket_count:
+                    if latent_arr.size != bucket_count:
                         _abort(
                             "5B.S2.LATENT_DOMAIN_INCOMPLETE",
                             "V-09",
@@ -1757,25 +1785,22 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                             manifest_fingerprint,
                         )
                     sigma2 = sigma * sigma
-                    factor_values: list[float] = []
-                    clip_min = 0
-                    clip_max = 0
-                    for value in latent_values:
-                        factor = math.exp(value - 0.5 * sigma2)
-                        if factor < min_factor:
-                            factor = min_factor
-                            clip_min += 1
-                        elif factor > max_factor:
-                            factor = max_factor
-                            clip_max += 1
-                        factor_values.append(factor)
+                    factor_arr = np.exp(latent_arr - 0.5 * sigma2)
+                    clip_min_mask = factor_arr < min_factor
+                    clip_max_mask = factor_arr > max_factor
+                    clip_min = int(np.count_nonzero(clip_min_mask))
+                    clip_max = int(np.count_nonzero(clip_max_mask))
+                    if clip_min:
+                        factor_arr[clip_min_mask] = min_factor
+                    if clip_max:
+                        factor_arr[clip_max_mask] = max_factor
 
                     factor_clip_min += clip_min
                     factor_clip_max += clip_max
 
-                    group_factor_lists.append(factor_values)
+                    group_factor_lists.append(factor_arr.tolist())
                     if bool(lgcp_config.get("diagnostics", {}).get("emit_latent_field_diagnostic")):
-                        group_latent_lists.append(latent_values)
+                        group_latent_lists.append(latent_arr.tolist())
 
                     rng_events_total += 1
                     rng_draws_total += draws
@@ -1846,7 +1871,12 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                 len(scenario_local_files),
                 rows_total,
             )
-            tracker = _ProgressTracker(rows_total, logger, f"S2: realised intensity rows (scenario_id={scenario_id})")
+            tracker = _ProgressTracker(
+                rows_total,
+                logger,
+                f"S2: realised intensity rows (scenario_id={scenario_id})",
+                min_interval_seconds=progress_interval_seconds,
+            )
 
             realised_entry = find_dataset_entry(dictionary_5b, "s2_realised_intensity_5B").entry
             realised_path = _resolve_dataset_path(
@@ -1860,7 +1890,14 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
             realised_tmp_path = realised_tmp_dir / realised_path.name
 
             writer = None
-            realised_chunks: list[pl.DataFrame] = []
+            if not _HAVE_PYARROW:
+                _abort(
+                    "5B.S2.IO_WRITE_FAILED",
+                    "V-08",
+                    "pyarrow_required_for_streaming_writer",
+                    {"detail": "pyarrow is required to stream realised-intensity parquet output without in-memory concat fallback"},
+                    manifest_fingerprint,
+                )
             realised_rows = 0
 
             grouping_lookup = grouping_df.select(
@@ -1894,7 +1931,8 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                 if batch_df.is_empty():
                     continue
                 tracker.update(batch_df.height)
-                if batch_df.filter(pl.col("scenario_id") != scenario_id).height:
+                scenario_mismatch = bool(batch_df.select((pl.col("scenario_id") != scenario_id).any()).item())
+                if scenario_mismatch:
                     _abort(
                         "5B.S2.DOMAIN_ALIGN_FAILED",
                         "V-08",
@@ -1902,7 +1940,7 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                         {"scenario_id": scenario_id},
                         manifest_fingerprint,
                     )
-                if batch_df.filter(pl.col("channel_group").is_null()).height:
+                if batch_df.get_column("channel_group").null_count() > 0:
                     _abort(
                         "5B.S2.DOMAIN_ALIGN_FAILED",
                         "V-08",
@@ -1940,7 +1978,10 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                         manifest_fingerprint,
                     )
 
-                if joined.filter((pl.col("bucket_index") < 0) | (pl.col("bucket_index") >= bucket_count)).height:
+                bucket_idx = np.asarray(joined.get_column("bucket_index").to_numpy(), dtype=np.int64)
+                if bucket_idx.size and (
+                    int(bucket_idx.min()) < 0 or int(bucket_idx.max()) >= bucket_count
+                ):
                     _abort(
                         "5B.S2.BUCKET_SET_INCONSISTENT",
                         "V-08",
@@ -1950,7 +1991,7 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                     )
 
                 if latent_model_id != "none":
-                    if joined.filter(pl.col("group_idx").is_null()).height:
+                    if joined.get_column("group_idx").null_count() > 0:
                         _abort(
                             "5B.S2.REALISED_DOMAIN_INCOMPLETE",
                             "V-08",
@@ -1958,8 +1999,7 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                             {"scenario_id": scenario_id},
                             manifest_fingerprint,
                         )
-                    group_idx = joined.get_column("group_idx").to_numpy()
-                    bucket_idx = joined.get_column("bucket_index").to_numpy()
+                    group_idx = np.asarray(joined.get_column("group_idx").to_numpy(), dtype=np.int64)
                     try:
                         lambda_values = factor_matrix[group_idx, bucket_idx]
                     except IndexError as exc:
@@ -1970,10 +2010,11 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                             {"scenario_id": scenario_id, "error": str(exc)},
                             manifest_fingerprint,
                         )
-                    joined = joined.with_columns(pl.Series("lambda_random_component", lambda_values))
                 else:
-                    joined = joined.with_columns(pl.lit(1.0).alias("lambda_random_component"))
-                if joined.filter(pl.col("lambda_baseline") < 0).height:
+                    lambda_values = np.ones(batch_df.height, dtype=np.float64)
+
+                lambda_baseline = np.asarray(joined.get_column("lambda_baseline").to_numpy(), dtype=np.float64)
+                if np.any(lambda_baseline < 0.0):
                     _abort(
                         "5B.S2.REALISED_NUMERIC_INVALID",
                         "V-08",
@@ -1982,21 +2023,14 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                         manifest_fingerprint,
                     )
 
-                realised = joined.with_columns(
-                    (pl.col("lambda_baseline") * pl.col("lambda_random_component")).alias("lambda_realised")
-                )
+                lambda_realised = lambda_baseline * np.asarray(lambda_values, dtype=np.float64)
                 if lambda_max_enabled:
-                    realised = realised.with_columns(
-                        pl.when(pl.col("lambda_realised") > lambda_max_value)
-                        .then(lambda_max_value)
-                        .otherwise(pl.col("lambda_realised"))
-                        .alias("lambda_realised")
-                    )
-                    lambda_max_clipped += int(
-                        realised.filter(pl.col("lambda_realised") == lambda_max_value).height
-                    )
+                    clip_mask = lambda_realised > lambda_max_value
+                    lambda_max_clipped += int(np.count_nonzero(clip_mask))
+                    if np.any(clip_mask):
+                        lambda_realised = np.minimum(lambda_realised, lambda_max_value)
 
-                if realised.filter(~pl.col("lambda_realised").is_finite()).height:
+                if not np.isfinite(lambda_realised).all():
                     _abort(
                         "5B.S2.REALISED_NUMERIC_INVALID",
                         "V-08",
@@ -2004,7 +2038,7 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                         {"scenario_id": scenario_id},
                         manifest_fingerprint,
                     )
-                if realised.filter(pl.col("lambda_realised") < 0).height:
+                if np.any(lambda_realised < 0.0):
                     _abort(
                         "5B.S2.REALISED_NUMERIC_INVALID",
                         "V-08",
@@ -2013,19 +2047,33 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                         manifest_fingerprint,
                     )
 
-                output_df = realised.select(
-                    pl.lit(str(manifest_fingerprint)).alias("manifest_fingerprint"),
-                    pl.lit(str(parameter_hash)).alias("parameter_hash"),
-                    pl.lit(int(seed)).cast(pl.UInt64).alias("seed"),
+                output_df = joined.select(
                     pl.col("scenario_id").cast(pl.Utf8),
                     pl.col("merchant_id").cast(pl.UInt64),
                     pl.col("zone_representation").cast(pl.Utf8),
                     pl.col("channel_group").cast(pl.Utf8),
                     pl.col("bucket_index").cast(pl.Int64),
-                    pl.col("lambda_baseline").cast(pl.Float64),
-                    pl.col("lambda_random_component").cast(pl.Float64),
-                    pl.col("lambda_realised").cast(pl.Float64),
+                ).with_columns(
+                    pl.lit(str(manifest_fingerprint)).alias("manifest_fingerprint"),
+                    pl.lit(str(parameter_hash)).alias("parameter_hash"),
+                    pl.lit(int(seed)).cast(pl.UInt64).alias("seed"),
+                    pl.Series("lambda_baseline", lambda_baseline).cast(pl.Float64),
+                    pl.Series("lambda_random_component", lambda_values).cast(pl.Float64),
+                    pl.Series("lambda_realised", lambda_realised).cast(pl.Float64),
                     pl.lit(spec_version).cast(pl.Utf8).alias("s2_spec_version"),
+                ).select(
+                    "manifest_fingerprint",
+                    "parameter_hash",
+                    "seed",
+                    "scenario_id",
+                    "merchant_id",
+                    "zone_representation",
+                    "channel_group",
+                    "bucket_index",
+                    "lambda_baseline",
+                    "lambda_random_component",
+                    "lambda_realised",
+                    "s2_spec_version",
                 )
 
                 if output_validate_full:
@@ -2068,14 +2116,9 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                     if writer is None:
                         writer = pq.ParquetWriter(realised_tmp_path, table.schema, compression="zstd")
                     writer.write_table(table)
-                else:
-                    realised_chunks.append(output_df)
 
             if writer is not None:
                 writer.close()
-            elif realised_chunks:
-                realised_all = pl.concat(realised_chunks)
-                realised_all.write_parquet(realised_tmp_path, compression="zstd")
 
             if realised_rows == 0:
                 _abort(

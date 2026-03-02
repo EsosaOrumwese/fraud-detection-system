@@ -17,6 +17,16 @@ from zoneinfo import ZoneInfo
 import polars as pl
 from jsonschema import Draft202012Validator
 
+try:
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    _HAVE_PYARROW = True
+except Exception:  # pragma: no cover - optional dependency
+    pa = None  # type: ignore[assignment]
+    pq = None  # type: ignore[assignment]
+    _HAVE_PYARROW = False
+
 from engine.contracts.jsonschema_adapter import normalize_nullable_schema
 from engine.contracts.loader import (
     find_dataset_entry,
@@ -53,6 +63,18 @@ MODULE_NAME = "5A.s4_calendar_overlays"
 SEGMENT = "5A"
 STATE = "S4"
 S4_SPEC_VERSION = "1.0.0"
+FAST_ROW_VALIDATION_ANCHORS = {
+    "model/merchant_zone_profile_5A",
+    "model/shape_grid_definition_5A",
+    "model/merchant_zone_baseline_local_5A",
+    "scenario/scenario_calendar_5A",
+}
+ROW_INDEX_COL = "__row_index"
+OVERLAY_AFFECTED_EPS = 1.0e-9
+OVERLAY_FAIRNESS_RATIO_TARGET = 1.6
+OVERLAY_FAIRNESS_FLOOR_MIN = 0.02
+OVERLAY_FAIRNESS_FLOOR_MAX = 0.30
+OVERLAY_FAIRNESS_DELTA = 5.0e-4
 
 
 @dataclass(frozen=True)
@@ -72,7 +94,9 @@ class _StepTimer:
         self._start = time.monotonic()
         self._last = self._start
 
-    def info(self, message: str) -> None:
+    def info(self, message: str, *args: object) -> None:
+        if args:
+            message = message % args
         now = time.monotonic()
         elapsed = now - self._start
         delta = now - self._last
@@ -187,6 +211,7 @@ def _validate_array_rows(
     label: Optional[str] = None,
     total_rows: Optional[int] = None,
     progress_min_rows: int = 50000,
+    frame: Optional[pl.DataFrame] = None,
 ) -> None:
     schema = _schema_for_payload(schema_pack, schema_layer1, schema_layer2, anchor)
     if schema.get("type") != "array":
@@ -201,6 +226,13 @@ def _validate_array_rows(
         if isinstance(item_schema.get("$defs"), dict):
             merged_defs.update(item_schema.get("$defs", {}))
         item_schema["$defs"] = merged_defs
+
+    if frame is not None and anchor in FAST_ROW_VALIDATION_ANCHORS:
+        if _validate_array_rows_fast(frame, item_schema, anchor, max_errors=max_errors):
+            if logger and label and frame.height >= progress_min_rows:
+                logger.info("%s fast-path validator rows=%s", label, frame.height)
+            return
+
     validator = Draft202012Validator(item_schema)
     errors: list[dict[str, object]] = []
     tracker = None
@@ -230,11 +262,575 @@ def _validate_array_rows(
         raise SchemaValidationError("Schema validation failed:\n" + "\n".join(lines), errors)
 
 
+def _is_string_dtype(dtype: object) -> bool:
+    return dtype in {pl.Utf8, pl.String, pl.Categorical, pl.Enum}
+
+
+def _is_integer_dtype(dtype: object) -> bool:
+    return bool(getattr(dtype, "is_integer", lambda: False)())
+
+
+def _is_number_dtype(dtype: object) -> bool:
+    return bool(getattr(dtype, "is_numeric", lambda: False)())
+
+
+def _resolve_schema_ref(node: dict[str, object], defs: dict[str, object]) -> dict[str, object]:
+    current: dict[str, object] = dict(node)
+    while "$ref" in current:
+        ref = str(current.get("$ref") or "")
+        if not ref.startswith("#/$defs/"):
+            raise ContractError(f"Unsupported schema ref for fast validator: {ref}")
+        key = ref.split("/")[-1]
+        target = defs.get(key)
+        if not isinstance(target, dict):
+            raise ContractError(f"Missing $defs target for fast validator: {ref}")
+        merged = dict(target)
+        for k, v in current.items():
+            if k != "$ref":
+                merged[k] = v
+        current = merged
+    return current
+
+
+def _normalize_property_schema(raw_schema: dict[str, object], defs: dict[str, object]) -> dict[str, object]:
+    schema = _resolve_schema_ref(raw_schema, defs)
+    nullable = False
+
+    if "anyOf" in schema:
+        branches = schema.get("anyOf")
+        if isinstance(branches, list):
+            non_null_branch: Optional[dict[str, object]] = None
+            for branch in branches:
+                if not isinstance(branch, dict):
+                    continue
+                branch_resolved = _resolve_schema_ref(branch, defs)
+                branch_type = branch_resolved.get("type")
+                if branch_type == "null":
+                    nullable = True
+                    continue
+                non_null_branch = branch_resolved
+            if non_null_branch is not None:
+                schema = non_null_branch
+
+    schema_type = schema.get("type")
+    schema_types: list[str] = []
+    if isinstance(schema_type, str):
+        schema_types = [schema_type]
+    elif isinstance(schema_type, list):
+        for item in schema_type:
+            if isinstance(item, str):
+                if item == "null":
+                    nullable = True
+                else:
+                    schema_types.append(item)
+
+    normalized: dict[str, object] = {
+        "types": schema_types,
+        "nullable": nullable,
+    }
+    for key in (
+        "minimum",
+        "maximum",
+        "exclusiveMinimum",
+        "exclusiveMaximum",
+        "pattern",
+        "enum",
+        "minLength",
+        "maxLength",
+    ):
+        if key in schema:
+            normalized[key] = schema[key]
+    return normalized
+
+
+def _collect_row_indices(frame_idx: pl.DataFrame, expr: pl.Expr, limit: int) -> list[int]:
+    if limit <= 0:
+        return []
+    sample = frame_idx.filter(expr).select(ROW_INDEX_COL).head(limit)
+    if sample.is_empty():
+        return []
+    return [int(value) for value in sample.get_column(ROW_INDEX_COL).to_list()]
+
+
+def _append_expr_errors(
+    frame_idx: pl.DataFrame,
+    expr: pl.Expr,
+    field: str,
+    message: str,
+    errors: list[dict[str, object]],
+    max_errors: int,
+) -> None:
+    remaining = max_errors - len(errors)
+    if remaining <= 0:
+        return
+    indices = _collect_row_indices(frame_idx, expr, remaining)
+    for row_index in indices:
+        errors.append({"row_index": row_index, "field": field, "message": message})
+        if len(errors) >= max_errors:
+            break
+
+
+def _validate_array_rows_fast(
+    frame: pl.DataFrame,
+    item_schema: dict[str, object],
+    anchor: str,
+    max_errors: int = 5,
+) -> bool:
+    defs = item_schema.get("$defs") or {}
+    if not isinstance(defs, dict):
+        return False
+
+    required = item_schema.get("required") or []
+    properties = item_schema.get("properties") or {}
+    if not isinstance(required, list) or not isinstance(properties, dict):
+        return False
+
+    errors: list[dict[str, object]] = []
+    for column in required:
+        if isinstance(column, str) and column not in frame.columns:
+            errors.append(
+                {
+                    "row_index": -1,
+                    "field": column,
+                    "message": f"required property '{column}' is missing",
+                }
+            )
+        if len(errors) >= max_errors:
+            break
+    if errors:
+        lines = [f"row {item['row_index']}: {item['field']} {item['message']}".strip() for item in errors]
+        raise SchemaValidationError("Schema validation failed:\n" + "\n".join(lines), errors)
+
+    frame_idx = frame.with_row_index(ROW_INDEX_COL)
+    required_set = {str(item) for item in required if isinstance(item, str)}
+
+    for column, raw_schema in properties.items():
+        if column not in frame.columns:
+            continue
+        if not isinstance(raw_schema, dict):
+            return False
+        normalized = _normalize_property_schema(raw_schema, defs)
+        types = normalized.get("types") or []
+        if not isinstance(types, list) or len(types) != 1:
+            return False
+        schema_type = str(types[0])
+        nullable = bool(normalized.get("nullable"))
+        dtype = frame.schema.get(column)
+
+        if not nullable:
+            _append_expr_errors(
+                frame_idx,
+                pl.col(column).is_null(),
+                column,
+                "null is not allowed",
+                errors,
+                max_errors,
+            )
+            if len(errors) >= max_errors:
+                break
+
+        non_null = pl.col(column).is_not_null()
+        if schema_type == "string":
+            if not _is_string_dtype(dtype):
+                _append_expr_errors(
+                    frame_idx,
+                    non_null,
+                    column,
+                    "value is not of type string",
+                    errors,
+                    max_errors,
+                )
+            else:
+                pattern = normalized.get("pattern")
+                if isinstance(pattern, str):
+                    _append_expr_errors(
+                        frame_idx,
+                        non_null & (~pl.col(column).str.contains(pattern)),
+                        column,
+                        "value does not match required pattern",
+                        errors,
+                        max_errors,
+                    )
+                min_len = normalized.get("minLength")
+                if isinstance(min_len, int):
+                    _append_expr_errors(
+                        frame_idx,
+                        non_null & (pl.col(column).str.len_chars() < min_len),
+                        column,
+                        f"string length is less than minimum {min_len}",
+                        errors,
+                        max_errors,
+                    )
+                max_len = normalized.get("maxLength")
+                if isinstance(max_len, int):
+                    _append_expr_errors(
+                        frame_idx,
+                        non_null & (pl.col(column).str.len_chars() > max_len),
+                        column,
+                        f"string length exceeds maximum {max_len}",
+                        errors,
+                        max_errors,
+                    )
+                enum_values = normalized.get("enum")
+                if isinstance(enum_values, list) and enum_values:
+                    _append_expr_errors(
+                        frame_idx,
+                        non_null & (~pl.col(column).is_in(enum_values)),
+                        column,
+                        "value is not in enum",
+                        errors,
+                        max_errors,
+                    )
+        elif schema_type == "integer":
+            if not _is_integer_dtype(dtype):
+                _append_expr_errors(
+                    frame_idx,
+                    non_null,
+                    column,
+                    "value is not of type integer",
+                    errors,
+                    max_errors,
+                )
+            else:
+                minimum = normalized.get("minimum")
+                if isinstance(minimum, (int, float)):
+                    _append_expr_errors(
+                        frame_idx,
+                        non_null & (pl.col(column) < minimum),
+                        column,
+                        f"value is less than minimum {minimum}",
+                        errors,
+                        max_errors,
+                    )
+                maximum = normalized.get("maximum")
+                if isinstance(maximum, (int, float)):
+                    _append_expr_errors(
+                        frame_idx,
+                        non_null & (pl.col(column) > maximum),
+                        column,
+                        f"value exceeds maximum {maximum}",
+                        errors,
+                        max_errors,
+                    )
+        elif schema_type == "number":
+            if not _is_number_dtype(dtype):
+                _append_expr_errors(
+                    frame_idx,
+                    non_null,
+                    column,
+                    "value is not of type number",
+                    errors,
+                    max_errors,
+                )
+            else:
+                minimum = normalized.get("minimum")
+                if isinstance(minimum, (int, float)):
+                    _append_expr_errors(
+                        frame_idx,
+                        non_null & (pl.col(column) < minimum),
+                        column,
+                        f"value is less than minimum {minimum}",
+                        errors,
+                        max_errors,
+                    )
+                maximum = normalized.get("maximum")
+                if isinstance(maximum, (int, float)):
+                    _append_expr_errors(
+                        frame_idx,
+                        non_null & (pl.col(column) > maximum),
+                        column,
+                        f"value exceeds maximum {maximum}",
+                        errors,
+                        max_errors,
+                    )
+                ex_min = normalized.get("exclusiveMinimum")
+                if isinstance(ex_min, (int, float)):
+                    _append_expr_errors(
+                        frame_idx,
+                        non_null & (pl.col(column) <= ex_min),
+                        column,
+                        f"value must be > {ex_min}",
+                        errors,
+                        max_errors,
+                    )
+                ex_max = normalized.get("exclusiveMaximum")
+                if isinstance(ex_max, (int, float)):
+                    _append_expr_errors(
+                        frame_idx,
+                        non_null & (pl.col(column) >= ex_max),
+                        column,
+                        f"value must be < {ex_max}",
+                        errors,
+                        max_errors,
+                    )
+        elif schema_type == "boolean":
+            if dtype != pl.Boolean:
+                _append_expr_errors(
+                    frame_idx,
+                    non_null,
+                    column,
+                    "value is not of type boolean",
+                    errors,
+                    max_errors,
+                )
+        else:
+            return False
+
+        if len(errors) >= max_errors:
+            break
+
+        if column in required_set and column not in frame.columns:
+            errors.append(
+                {
+                    "row_index": -1,
+                    "field": column,
+                    "message": f"required property '{column}' is missing",
+                }
+            )
+            if len(errors) >= max_errors:
+                break
+
+    if errors:
+        lines = [f"row {item['row_index']}: {item['field']} {item['message']}".strip() for item in errors]
+        raise SchemaValidationError("Schema validation failed:\n" + "\n".join(lines), errors)
+    return True
+
+
 def _env_flag(name: str) -> bool:
     value = os.environ.get(name)
     if value is None:
         return False
     return value.strip().lower() in {"1", "true", "yes", "y"}
+
+
+def _overlay_country_share_stats(
+    overlay_df: pl.DataFrame,
+    affected_eps: float,
+) -> tuple[float, float, int]:
+    if overlay_df.is_empty():
+        return 0.0, 0.0, 0
+
+    by_country = (
+        overlay_df.with_columns(
+            [
+                (pl.col("lambda_local_base") * pl.col("overlay_factor_total")).alias("__lambda_scenario"),
+                (
+                    (pl.col("overlay_factor_total") - 1.0).abs() > affected_eps
+                ).alias("__affected"),
+            ]
+        )
+        .group_by("legal_country_iso")
+        .agg(
+            [
+                pl.col("__lambda_scenario").sum().alias("total_vol"),
+                (
+                    pl.when(pl.col("__affected"))
+                    .then(pl.col("__lambda_scenario"))
+                    .otherwise(0.0)
+                    .sum()
+                ).alias("affected_vol"),
+            ]
+        )
+        .filter(pl.col("total_vol") > 0.0)
+        .with_columns((pl.col("affected_vol") / pl.col("total_vol")).alias("affected_share"))
+    )
+    if by_country.is_empty():
+        return 0.0, 0.0, 0
+    p10 = float(by_country.select(pl.col("affected_share").quantile(0.10)).item() or 0.0)
+    p90 = float(by_country.select(pl.col("affected_share").quantile(0.90)).item() or 0.0)
+    count = int(by_country.height)
+    return p10, p90, count
+
+
+def _apply_overlay_fairness_regularizer(
+    overlay_df: pl.DataFrame,
+    *,
+    min_factor: float,
+    max_factor: float,
+) -> tuple[pl.DataFrame, dict[str, float | int | bool]]:
+    diagnostics: dict[str, float | int | bool] = {
+        "overlay_fairness_regularizer_enabled": False,
+        "overlay_fairness_regularizer_target_ratio": float(OVERLAY_FAIRNESS_RATIO_TARGET),
+        "overlay_fairness_regularizer_target_floor": 0.0,
+        "overlay_fairness_regularizer_under_covered_countries": 0,
+        "overlay_fairness_regularizer_adjusted_rows": 0,
+        "overlay_fairness_regularizer_p10_before": 0.0,
+        "overlay_fairness_regularizer_p90_before": 0.0,
+        "overlay_fairness_regularizer_ratio_before": 0.0,
+        "overlay_fairness_regularizer_p10_after": 0.0,
+        "overlay_fairness_regularizer_p90_after": 0.0,
+        "overlay_fairness_regularizer_ratio_after": 0.0,
+    }
+    if overlay_df.is_empty():
+        return overlay_df, diagnostics
+
+    p10_before, p90_before, country_count = _overlay_country_share_stats(overlay_df, OVERLAY_AFFECTED_EPS)
+    ratio_before = float("inf") if p10_before <= OVERLAY_AFFECTED_EPS else float(p90_before / p10_before)
+    diagnostics["overlay_fairness_regularizer_p10_before"] = p10_before
+    diagnostics["overlay_fairness_regularizer_p90_before"] = p90_before
+    diagnostics["overlay_fairness_regularizer_ratio_before"] = ratio_before
+    if country_count < 2:
+        diagnostics["overlay_fairness_regularizer_ratio_after"] = ratio_before
+        diagnostics["overlay_fairness_regularizer_p10_after"] = p10_before
+        diagnostics["overlay_fairness_regularizer_p90_after"] = p90_before
+        return overlay_df, diagnostics
+
+    target_floor = p90_before / OVERLAY_FAIRNESS_RATIO_TARGET if OVERLAY_FAIRNESS_RATIO_TARGET > 0 else p10_before
+    target_floor = max(target_floor, OVERLAY_FAIRNESS_FLOOR_MIN)
+    target_floor = min(target_floor, OVERLAY_FAIRNESS_FLOOR_MAX)
+    diagnostics["overlay_fairness_regularizer_target_floor"] = float(target_floor)
+    if p10_before >= target_floor - OVERLAY_AFFECTED_EPS:
+        diagnostics["overlay_fairness_regularizer_ratio_after"] = ratio_before
+        diagnostics["overlay_fairness_regularizer_p10_after"] = p10_before
+        diagnostics["overlay_fairness_regularizer_p90_after"] = p90_before
+        return overlay_df, diagnostics
+
+    by_country_target = (
+        overlay_df.with_columns(
+            [
+                (pl.col("lambda_local_base") * pl.col("overlay_factor_total")).alias("__lambda_scenario"),
+                (
+                    (pl.col("overlay_factor_total") - 1.0).abs() > OVERLAY_AFFECTED_EPS
+                ).alias("__affected"),
+            ]
+        )
+        .group_by("legal_country_iso")
+        .agg(
+            [
+                pl.col("__lambda_scenario").sum().alias("total_vol"),
+                (
+                    pl.when(pl.col("__affected"))
+                    .then(pl.col("__lambda_scenario"))
+                    .otherwise(0.0)
+                    .sum()
+                ).alias("affected_vol"),
+            ]
+        )
+        .filter(pl.col("total_vol") > 0.0)
+        .with_columns(
+            [
+                (pl.col("affected_vol") / pl.col("total_vol")).alias("affected_share"),
+                ((pl.lit(float(target_floor)) * pl.col("total_vol")) - pl.col("affected_vol"))
+                .clip(lower_bound=0.0)
+                .alias("needed_vol"),
+            ]
+        )
+        .filter(pl.col("needed_vol") > OVERLAY_AFFECTED_EPS)
+        .select(["legal_country_iso", "needed_vol"])
+    )
+    if by_country_target.is_empty():
+        diagnostics["overlay_fairness_regularizer_ratio_after"] = ratio_before
+        diagnostics["overlay_fairness_regularizer_p10_after"] = p10_before
+        diagnostics["overlay_fairness_regularizer_p90_after"] = p90_before
+        return overlay_df, diagnostics
+    diagnostics["overlay_fairness_regularizer_under_covered_countries"] = int(by_country_target.height)
+
+    neutral_candidates = (
+        overlay_df.filter((pl.col("overlay_factor_total") - 1.0).abs() <= OVERLAY_AFFECTED_EPS)
+        .join(by_country_target, on="legal_country_iso", how="inner")
+        .with_columns((pl.col("lambda_local_base") * pl.col("overlay_factor_total")).alias("__lambda_scenario"))
+    )
+    if neutral_candidates.is_empty():
+        diagnostics["overlay_fairness_regularizer_ratio_after"] = ratio_before
+        diagnostics["overlay_fairness_regularizer_p10_after"] = p10_before
+        diagnostics["overlay_fairness_regularizer_p90_after"] = p90_before
+        return overlay_df, diagnostics
+
+    neutral_candidates = (
+        neutral_candidates.with_columns(
+            pl.concat_str(
+                [
+                    pl.col("merchant_id").cast(pl.Utf8),
+                    pl.col("tzid"),
+                    pl.col("local_horizon_bucket_index").cast(pl.Utf8),
+                ],
+                separator="|",
+            )
+            .hash()
+            .alias("__order_key")
+        )
+        .sort(
+            [
+                "legal_country_iso",
+                "__order_key",
+                "merchant_id",
+                "tzid",
+                "local_horizon_bucket_index",
+            ]
+        )
+        .with_columns(
+            [
+                pl.col("__lambda_scenario").cum_sum().over("legal_country_iso").alias("__cum_vol"),
+            ]
+        )
+        .with_columns((pl.col("__cum_vol") - pl.col("__lambda_scenario")).alias("__cum_prev"))
+        .with_columns(
+            [
+                (
+                    (pl.col("__cum_vol") <= pl.col("needed_vol"))
+                    | (
+                        (pl.col("__cum_prev") < pl.col("needed_vol"))
+                        & (pl.col("__cum_vol") > pl.col("needed_vol"))
+                    )
+                ).alias("__selected"),
+            ]
+        )
+    )
+
+    selected_rows = neutral_candidates.filter(pl.col("__selected")).select(
+        ["row_id", "local_horizon_bucket_index", "merchant_id"]
+    )
+    if selected_rows.is_empty():
+        diagnostics["overlay_fairness_regularizer_ratio_after"] = ratio_before
+        diagnostics["overlay_fairness_regularizer_p10_after"] = p10_before
+        diagnostics["overlay_fairness_regularizer_p90_after"] = p90_before
+        return overlay_df, diagnostics
+
+    adjustments = (
+        selected_rows.with_columns(
+            pl.when(
+                (
+                    pl.concat_str(
+                        [
+                            pl.col("merchant_id").cast(pl.Utf8),
+                            pl.col("local_horizon_bucket_index").cast(pl.Utf8),
+                        ],
+                        separator="|",
+                    ).hash()
+                    % 2
+                )
+                == 0
+            )
+            .then(pl.lit(1.0 + OVERLAY_FAIRNESS_DELTA))
+            .otherwise(pl.lit(1.0 - OVERLAY_FAIRNESS_DELTA))
+            .alias("__fair_mult")
+        )
+        .select(["row_id", "local_horizon_bucket_index", "__fair_mult"])
+    )
+
+    overlay_df = (
+        overlay_df.join(adjustments, on=["row_id", "local_horizon_bucket_index"], how="left")
+        .with_columns(
+            (
+                pl.col("overlay_factor_total") * pl.col("__fair_mult").fill_null(1.0)
+            ).alias("overlay_factor_total")
+        )
+        .drop("__fair_mult")
+    )
+    if max_factor > 0:
+        overlay_df = overlay_df.with_columns(
+            pl.col("overlay_factor_total").clip(min_factor, max_factor).alias("overlay_factor_total")
+        )
+
+    diagnostics["overlay_fairness_regularizer_enabled"] = True
+    diagnostics["overlay_fairness_regularizer_adjusted_rows"] = int(adjustments.height)
+
+    p10_after, p90_after, _ = _overlay_country_share_stats(overlay_df, OVERLAY_AFFECTED_EPS)
+    ratio_after = float("inf") if p10_after <= OVERLAY_AFFECTED_EPS else float(p90_after / p10_after)
+    diagnostics["overlay_fairness_regularizer_p10_after"] = p10_after
+    diagnostics["overlay_fairness_regularizer_p90_after"] = p90_after
+    diagnostics["overlay_fairness_regularizer_ratio_after"] = ratio_after
+    return overlay_df, diagnostics
 
 
 def _schema_items(schema_pack: dict, schema_layer1: dict, schema_layer2: dict, anchor: str) -> dict:
@@ -405,6 +1001,62 @@ def _publish_parquet_idempotent(path: Path, df: pl.DataFrame, logger, label: str
     return True
 
 
+def _publish_parquet_tmp_idempotent(tmp_path: Path, path: Path, logger, label: str) -> bool:
+    if not tmp_path.exists():
+        raise EngineFailure(
+            "F4",
+            "S4_IO_WRITE_FAILED",
+            STATE,
+            MODULE_NAME,
+            {"detail": "temporary parquet missing", "tmp_path": str(tmp_path), "path": str(path), "label": label},
+        )
+    if path.exists():
+        existing_hash = sha256_file(path).sha256_hex
+        tmp_hash = sha256_file(tmp_path).sha256_hex
+        if existing_hash != tmp_hash:
+            raise EngineFailure(
+                "F4",
+                "S4_OUTPUT_CONFLICT",
+                STATE,
+                MODULE_NAME,
+                {"detail": "output differs from existing", "path": str(path), "label": label},
+            )
+        tmp_path.unlink(missing_ok=True)
+        logger.info("S4: output already exists and is identical; skipping publish (%s).", label)
+        return False
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        tmp_path.replace(path)
+    except OSError as exc:
+        raise EngineFailure(
+            "F4",
+            "S4_IO_WRITE_FAILED",
+            STATE,
+            MODULE_NAME,
+            {"detail": "atomic parquet publish failed", "path": str(path), "label": label, "error": str(exc)},
+        ) from exc
+    logger.info("S4: published %s to %s", label, path)
+    return True
+
+
+def _sink_lazy_parquet_idempotent(path: Path, lazy_df: pl.LazyFrame, logger, label: str) -> bool:
+    tmp_dir = path.parent / f"_tmp.{uuid.uuid4().hex}"
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+    tmp_path = tmp_dir / path.name
+    lazy_df.sink_parquet(
+        tmp_path,
+        compression="zstd",
+        maintain_order=True,
+        engine="streaming",
+    )
+    published = _publish_parquet_tmp_idempotent(tmp_path, path, logger, label)
+    try:
+        tmp_dir.rmdir()
+    except OSError:
+        pass
+    return published
+
+
 def _parse_rfc3339(value: str) -> datetime:
     return datetime.strptime(value, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=timezone.utc)
 
@@ -448,6 +1100,40 @@ def _scope_rank(
     return rank
 
 
+def _domain_scope_frame(domain_df: pl.DataFrame, predicate_key: tuple[str, ...]) -> pl.DataFrame:
+    if not predicate_key:
+        return domain_df.select([pl.col("row_id"), pl.lit("global=1").alias("scope_key")])
+
+    parts: list[pl.Expr] = []
+    if "country_iso" in predicate_key:
+        parts.append(
+            pl.when(pl.col("legal_country_iso").is_not_null())
+            .then(pl.format("country={}", pl.col("legal_country_iso")))
+            .otherwise(None)
+        )
+    if "tzid" in predicate_key:
+        parts.append(
+            pl.when(pl.col("tzid").is_not_null())
+            .then(pl.format("tzid={}", pl.col("tzid")))
+            .otherwise(None)
+        )
+    if "demand_class" in predicate_key:
+        parts.append(
+            pl.when(pl.col("demand_class").is_not_null())
+            .then(pl.format("class={}", pl.col("demand_class")))
+            .otherwise(None)
+        )
+    if "merchant_id" in predicate_key:
+        parts.append(
+            pl.when(pl.col("merchant_id").is_not_null())
+            .then(pl.format("merchant={}", pl.col("merchant_id")))
+            .otherwise(None)
+        )
+
+    scope_key_expr = pl.concat_str(parts, separator="|", ignore_nulls=True).fill_null("global=0")
+    return domain_df.select([pl.col("row_id"), scope_key_expr.alias("scope_key")])
+
+
 def _bucket_bounds(start: datetime, end: datetime, horizon_start: datetime, bucket_seconds: int) -> tuple[int, int]:
     start_offset = (start - horizon_start).total_seconds()
     end_offset = (end - horizon_start).total_seconds()
@@ -479,6 +1165,12 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     timer = _StepTimer(logger)
     output_validate_full = _env_flag("ENGINE_S4_VALIDATE_FULL")
     output_sample_rows_env = os.environ.get("ENGINE_S4_VALIDATE_SAMPLE_ROWS", "5000")
+    memory_safe_mode = os.environ.get("ENGINE_S4_MEMORY_SAFE_MODE", "1").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
     try:
         output_sample_rows = max(int(output_sample_rows_env), 0)
     except ValueError:
@@ -584,6 +1276,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             output_validation_mode,
             output_sample_rows,
         )
+        timer.info("S4: phase begin")
 
         tokens = {
             "seed": str(seed),
@@ -962,6 +1655,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             logger=logger,
             label="S4: validate merchant_zone_profile_5A rows",
             total_rows=profile_df.height,
+            frame=profile_df,
         )
         _validate_array_rows(
             grid_df.iter_rows(named=True),
@@ -972,6 +1666,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             logger=logger,
             label="S4: validate shape_grid_definition_5A rows",
             total_rows=grid_df.height,
+            frame=grid_df,
         )
         _validate_array_rows(
             baseline_df.iter_rows(named=True),
@@ -983,6 +1678,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             label="S4: validate merchant_zone_baseline_local_5A rows",
             total_rows=baseline_df.height,
             progress_min_rows=200000,
+            frame=baseline_df,
         )
         _validate_array_rows(
             calendar_df.iter_rows(named=True),
@@ -993,12 +1689,20 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             logger=logger,
             label="S4: validate scenario_calendar_5A rows",
             total_rows=calendar_df.height,
+            frame=calendar_df,
+        )
+        timer.info(
+            "S4: phase input_load_schema_validation complete (profile_rows=%s, grid_rows=%s, baseline_rows=%s, calendar_rows=%s)",
+            profile_df.height,
+            grid_df.height,
+            baseline_df.height,
+            calendar_df.height,
         )
 
         current_phase = "domain_build"
         domain_df = (
             profile_df.select(
-                ["merchant_id", "legal_country_iso", "tzid", "demand_class"]
+                ["merchant_id", "legal_country_iso", "tzid", "channel_group", "demand_class"]
             )
             .unique()
             .sort(["merchant_id", "legal_country_iso", "tzid"])
@@ -1127,7 +1831,24 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         )
 
         current_phase = "baseline_projection"
-        baseline_horizon_df = baseline_df.join(horizon_map_df, on=["tzid", "bucket_index"], how="left")
+        baseline_horizon_df = (
+            baseline_df.select(
+                [
+                    pl.col("row_id").cast(pl.UInt32),
+                    "tzid",
+                    "bucket_index",
+                    pl.col("lambda_local_base").cast(pl.Float32),
+                ]
+            )
+            .join(horizon_map_df, on=["tzid", "bucket_index"], how="left")
+            .select(
+                [
+                    pl.col("row_id").cast(pl.UInt32),
+                    pl.col("local_horizon_bucket_index").cast(pl.Int16),
+                    pl.col("lambda_local_base").cast(pl.Float32),
+                ]
+            )
+        )
         if baseline_horizon_df.filter(pl.col("local_horizon_bucket_index").is_null()).height:
             _abort(
                 "S4_HORIZON_GRID_INVALID",
@@ -1141,6 +1862,15 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             baseline_horizon_df.height,
             horizon_buckets,
         )
+        timer.info(
+            "S4: phase domain_horizon_mapping complete (domain_rows=%s, horizon_rows=%s, projected_rows=%s)",
+            domain_df.height,
+            horizon_map_df.height,
+            baseline_horizon_df.height,
+        )
+        del baseline_df
+        del horizon_map_df
+        gc.collect()
 
         current_phase = "calendar_validation"
         overlay_event_types = overlay_policy.get("event_types") if isinstance(overlay_policy, dict) else None
@@ -1413,6 +2143,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             scope_key = _scope_key(scope_global, country_iso, tzid, demand_class, merchant_id)
             specificity_rank = _scope_rank(scope_global, country_iso, tzid, demand_class, merchant_id)
             predicate_sets.add(predicate_key)
+            predicate_label = "|".join(predicate_key) if predicate_key else "__global__"
             duration = end_idx - start_idx
             for offset in range(duration):
                 tracker.update(1)
@@ -1426,6 +2157,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                         "local_horizon_bucket_index": start_idx + offset,
                         "factor": factor,
                         "scope_key": scope_key,
+                        "predicate_label": predicate_label,
                         "specificity_rank": specificity_rank,
                     }
                 )
@@ -1462,46 +2194,40 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             )
 
         current_phase = "overlay_aggregation"
-        overlay_df = baseline_horizon_df.select(
-            [
-                "row_id",
-                "merchant_id",
-                "legal_country_iso",
-                "tzid",
-                "demand_class",
-                "local_horizon_bucket_index",
-                "lambda_local_base",
-                "parameter_hash",
-                "manifest_fingerprint",
-                "scenario_id",
-            ]
-            + ([col for col in ["channel_group"] if col in baseline_horizon_df.columns])
+        overlay_df = baseline_horizon_df
+        del baseline_horizon_df
+        gc.collect()
+        type_priority_map = (
+            ((ordering_policy.get("type_priority") or {}).get("priority") or {}) if ordering_policy else {}
         )
+        event_types_for_product = sorted(
+            event_type_counts.keys(),
+            key=lambda event_type: (-int(type_priority_map.get(event_type, 0) or 0), str(event_type)),
+        )
+        masking_rules = (ordering_policy.get("masking_rules") or []) if ordering_policy else []
+        active_types_needed: set[str] = set()
+        retained_factor_types: set[str] = set()
+        target_rule_map: dict[str, list[tuple[list[str], str]]] = {}
+        for rule in masking_rules:
+            when_types = [str(when_type) for when_type in (rule.get("when_active_types") or [])]
+            for when_type in when_types:
+                active_types_needed.add(when_type)
+            for apply_rule in rule.get("apply") or []:
+                operator = str(apply_rule.get("operator") or "")
+                for target_type in apply_rule.get("target_types") or []:
+                    target_key = str(target_type)
+                    target_rule_map.setdefault(target_key, []).append((when_types, operator))
+        overlay_df = overlay_df.with_columns(pl.lit(1.0, dtype=pl.Float32).alias("overlay_factor_total"))
 
         if expanded_rows:
             events_expanded_df = pl.DataFrame(expanded_rows)
-            domain_keys_rows: list[dict] = []
             predicate_list = sorted(predicate_sets, key=lambda item: (len(item), item))
-            total_keys = domain_df.height * max(len(predicate_list), 1)
-            key_tracker = _ProgressTracker(total_keys, logger, "S4: build scope keys for domain")
-            for row in domain_df.iter_rows(named=True):
-                for predicate_key in predicate_list:
-                    key_tracker.update(1)
-                    if not predicate_key:
-                        scope_key = _scope_key(True, None, None, None, None)
-                    else:
-                        scope_key = _scope_key(
-                            False,
-                            row.get("legal_country_iso") if "country_iso" in predicate_key else None,
-                            row.get("tzid") if "tzid" in predicate_key else None,
-                            row.get("demand_class") if "demand_class" in predicate_key else None,
-                            row.get("merchant_id") if "merchant_id" in predicate_key else None,
-                        )
-                    domain_keys_rows.append({"row_id": row["row_id"], "scope_key": scope_key})
-            domain_keys_df = pl.DataFrame(domain_keys_rows)
-
-            joined_df = events_expanded_df.join(domain_keys_df, on="scope_key", how="inner")
-            event_types = sorted(event_type_counts.keys())
+            logger.info(
+                "S4: build scope keys via vectorized mapping (domain_rows=%s predicate_sets=%s)",
+                domain_df.height,
+                len(predicate_list),
+            )
+            event_types = event_types_for_product
 
             for event_type in event_types:
                 within_policy = None
@@ -1513,13 +2239,35 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                     selection = str(within_policy.get("selection") or selection)
                     mode = str(within_policy.get("mode") or mode)
 
-                type_df = joined_df.filter(pl.col("event_type") == event_type)
-                if type_df.is_empty():
-                    continue
                 agg_expr = pl.col("factor").min() if mode == "MIN" else pl.col("factor").max()
-                grouped = type_df.group_by(
-                    ["row_id", "local_horizon_bucket_index", "specificity_rank"]
-                ).agg(agg_expr.alias("factor"))
+                lane_frames: list[pl.DataFrame] = []
+                for predicate_key in predicate_list:
+                    predicate_label = "|".join(predicate_key) if predicate_key else "__global__"
+                    lane_grouped = (
+                        events_expanded_df.lazy()
+                        .filter(
+                            (pl.col("event_type") == pl.lit(event_type))
+                            & (pl.col("predicate_label") == pl.lit(predicate_label))
+                        )
+                        .group_by(["scope_key", "local_horizon_bucket_index", "specificity_rank"])
+                        .agg(agg_expr.alias("factor"))
+                        .collect(streaming=True)
+                    )
+                    if lane_grouped.is_empty():
+                        continue
+                    domain_scope_df = _domain_scope_frame(domain_df, predicate_key)
+                    lane_rows = lane_grouped.join(domain_scope_df, on="scope_key", how="inner")
+                    del domain_scope_df
+                    if lane_rows.is_empty():
+                        continue
+                    lane_frames.append(
+                        lane_rows.select(
+                            ["row_id", "local_horizon_bucket_index", "specificity_rank", "factor"]
+                        )
+                    )
+                if not lane_frames:
+                    continue
+                grouped = pl.concat(lane_frames, how="vertical_relaxed")
                 if selection == "MOST_SPECIFIC_ONLY":
                     max_rank = grouped.group_by(["row_id", "local_horizon_bucket_index"]).agg(
                         pl.col("specificity_rank").max().alias("max_rank")
@@ -1527,39 +2275,91 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                     grouped = grouped.join(
                         max_rank, on=["row_id", "local_horizon_bucket_index"], how="inner"
                     ).filter(pl.col("specificity_rank") == pl.col("max_rank"))
+                grouped = grouped.group_by(["row_id", "local_horizon_bucket_index"]).agg(
+                    agg_expr.alias("factor")
+                )
+                grouped = grouped.with_columns(
+                    [
+                        pl.col("row_id").cast(pl.UInt32),
+                        pl.col("local_horizon_bucket_index").cast(pl.Int16),
+                        pl.col("factor").cast(pl.Float32),
+                    ]
+                )
 
                 factor_col = f"factor_{event_type.lower()}"
                 active_col = f"active_{event_type.lower()}"
                 grouped = grouped.select(
-                    [
-                        "row_id",
-                        "local_horizon_bucket_index",
-                        pl.col("factor").alias(factor_col),
-                    ]
+                    ["row_id", "local_horizon_bucket_index", pl.col("factor").alias(factor_col)]
                 )
                 overlay_df = overlay_df.join(grouped, on=["row_id", "local_horizon_bucket_index"], how="left")
-                overlay_df = overlay_df.with_columns(
-                    [
-                        pl.col(factor_col).is_not_null().alias(active_col),
-                        pl.col(factor_col).fill_null(1.0),
-                    ]
-                )
+                updates: list[pl.Expr] = [
+                    pl.col(factor_col).fill_null(pl.lit(1.0, dtype=pl.Float32)).cast(pl.Float32).alias(factor_col)
+                ]
+                if event_type in active_types_needed:
+                    updates.append(pl.col(factor_col).is_not_null().alias(active_col))
+                overlay_df = overlay_df.with_columns(updates)
+
+                retain_factor = False
+                for when_types, operator in target_rule_map.get(event_type, []):
+                    when_col_names = [f"active_{str(when_type).lower()}" for when_type in when_types]
+                    if not when_col_names or any(col_name not in overlay_df.columns for col_name in when_col_names):
+                        retain_factor = True
+                        continue
+                    active_any = pl.any_horizontal([pl.col(col_name) for col_name in when_col_names])
+                    if operator == "NEUTRALIZE":
+                        overlay_df = overlay_df.with_columns(
+                            pl.when(active_any)
+                            .then(pl.lit(1.0, dtype=pl.Float32))
+                            .otherwise(pl.col(factor_col))
+                            .alias(factor_col)
+                        )
+                    elif operator == "CAP_AT_ONE":
+                        overlay_df = overlay_df.with_columns(
+                            pl.when(active_any)
+                            .then(pl.min_horizontal(pl.col(factor_col), pl.lit(1.0, dtype=pl.Float32)))
+                            .otherwise(pl.col(factor_col))
+                            .alias(factor_col)
+                        )
+                    elif operator == "FLOOR_AT_ONE":
+                        overlay_df = overlay_df.with_columns(
+                            pl.when(active_any)
+                            .then(pl.max_horizontal(pl.col(factor_col), pl.lit(1.0, dtype=pl.Float32)))
+                            .otherwise(pl.col(factor_col))
+                            .alias(factor_col)
+                        )
+                    else:
+                        retain_factor = True
+
+                if retain_factor:
+                    retained_factor_types.add(event_type)
+                else:
+                    overlay_df = overlay_df.with_columns(
+                        (pl.col("overlay_factor_total") * pl.col(factor_col)).alias("overlay_factor_total")
+                    ).drop(factor_col)
+                del grouped
+                gc.collect()
+            del events_expanded_df
+            gc.collect()
         else:
             logger.info("S4: no scenario events; overlay factors default to 1.0")
-        event_types_for_product = sorted(event_type_counts.keys())
-        for event_type in event_types_for_product:
+
+        for event_type in sorted(retained_factor_types):
             factor_col = f"factor_{event_type.lower()}"
-            active_col = f"active_{event_type.lower()}"
             if factor_col not in overlay_df.columns:
-                overlay_df = overlay_df.with_columns(
-                    [
-                        pl.lit(1.0).alias(factor_col),
-                        pl.lit(False).alias(active_col),
-                    ]
-                )
+                overlay_df = overlay_df.with_columns(pl.lit(1.0, dtype=pl.Float32).alias(factor_col))
+        for event_type in sorted(active_types_needed):
+            active_col = f"active_{event_type.lower()}"
+            if active_col not in overlay_df.columns:
+                overlay_df = overlay_df.with_columns(pl.lit(False).alias(active_col))
+        logger.info(
+            "S4: post-lane factor state columns=%s retained=%s active=%s",
+            len(overlay_df.columns),
+            sorted(retained_factor_types),
+            sorted(active_types_needed),
+        )
 
         if ordering_policy and event_types_for_product:
-            masking_rules = ordering_policy.get("masking_rules") or []
+            logger.info("S4: applying deferred masking rules")
             for rule in masking_rules:
                 when_types = rule.get("when_active_types") or []
                 if not when_types:
@@ -1593,14 +2393,24 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                                 .otherwise(pl.col(factor_col))
                                 .alias(factor_col)
                             )
+            logger.info("S4: deferred masking rules complete")
 
-        factor_exprs = [pl.col(f"factor_{event_type.lower()}") for event_type in event_types_for_product]
-        if factor_exprs:
+        retained_factor_cols = [
+            f"factor_{event_type.lower()}"
+            for event_type in sorted(retained_factor_types)
+            if f"factor_{event_type.lower()}" in overlay_df.columns
+        ]
+        logger.info("S4: retained factor columns for final fold=%s", retained_factor_cols)
+        if retained_factor_cols:
             overlay_df = overlay_df.with_columns(
-                pl.fold(pl.lit(1.0), lambda acc, x: acc * x, factor_exprs).alias("overlay_factor_total")
-            )
-        else:
-            overlay_df = overlay_df.with_columns(pl.lit(1.0).alias("overlay_factor_total"))
+                pl.fold(
+                    pl.col("overlay_factor_total"),
+                    lambda acc, x: acc * x,
+                    [pl.col(col) for col in retained_factor_cols],
+                ).alias("overlay_factor_total")
+            ).drop(retained_factor_cols)
+        overlay_df = overlay_df.with_columns(pl.col("overlay_factor_total").cast(pl.Float32))
+        logger.info("S4: overlay_factor_total finalized")
 
         combination = overlay_policy.get("combination") if isinstance(overlay_policy, dict) else {}
         min_factor = float(combination.get("min_factor") or 0.0)
@@ -1611,227 +2421,303 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                 pl.col("overlay_factor_total").clip(min_factor, max_factor).alias("overlay_factor_total")
             )
 
-        if overlay_df.filter(~pl.col("overlay_factor_total").is_finite()).height:
-            _abort(
-                "S4_INTENSITY_NUMERIC_INVALID",
-                "V-08",
-                "overlay_factor_non_finite",
-                {"detail": "overlay_factor_total contains NaN/Inf"},
-                manifest_fingerprint,
+        domain_join_cols = ["row_id", "merchant_id", "legal_country_iso", "tzid"]
+        if "channel_group" in domain_df.columns:
+            domain_join_cols.append("channel_group")
+
+        if memory_safe_mode:
+            fairness_diag = {
+                "overlay_fairness_regularizer_enabled": False,
+                "overlay_fairness_regularizer_target_ratio": float(OVERLAY_FAIRNESS_RATIO_TARGET),
+                "overlay_fairness_regularizer_target_floor": 0.0,
+                "overlay_fairness_regularizer_under_covered_countries": 0,
+                "overlay_fairness_regularizer_adjusted_rows": 0,
+                "overlay_fairness_regularizer_p10_before": 0.0,
+                "overlay_fairness_regularizer_p90_before": 0.0,
+                "overlay_fairness_regularizer_ratio_before": 0.0,
+                "overlay_fairness_regularizer_p10_after": 0.0,
+                "overlay_fairness_regularizer_p90_after": 0.0,
+                "overlay_fairness_regularizer_ratio_after": 0.0,
+            }
+            logger.warning(
+                "S4: memory-safe mode enabled; deferring domain join to streaming output stage and skipping fairness regularizer."
             )
-        if overlay_df.filter(pl.col("overlay_factor_total") < 0).height:
-            _abort(
-                "S4_INTENSITY_NUMERIC_INVALID",
-                "V-08",
-                "overlay_factor_negative",
-                {"detail": "overlay_factor_total contains negative values"},
-                manifest_fingerprint,
-            )
-
-        if overlay_df.height:
-            metrics["overlay_factor_min"] = float(overlay_df.select(pl.col("overlay_factor_total").min()).item())
-            metrics["overlay_factor_median"] = float(overlay_df.select(pl.col("overlay_factor_total").median()).item())
-            metrics["overlay_factor_p95"] = float(overlay_df.select(pl.col("overlay_factor_total").quantile(0.95)).item())
-            metrics["overlay_factor_max"] = float(overlay_df.select(pl.col("overlay_factor_total").max()).item())
-
-        current_phase = "overlay_validation"
-        warn_violation_count = 0
-        if validation_policy:
-            warn_bounds = (validation_policy.get("warnings") or {}).get("warn_bounds_total") or {}
-            min_warn = warn_bounds.get("min_warn")
-            max_warn = warn_bounds.get("max_warn")
-            suppress_low_types = (
-                (warn_bounds.get("exceptions") or {}).get("suppress_low_warn_when_type_active") or []
-            )
-            if min_warn is not None or max_warn is not None:
-                low_violation = pl.col("overlay_factor_total") < float(min_warn) if min_warn is not None else pl.lit(False)
-                high_violation = pl.col("overlay_factor_total") > float(max_warn) if max_warn is not None else pl.lit(False)
-                if suppress_low_types:
-                    suppress_cols = [
-                        pl.col(f"active_{str(t).lower()}") for t in suppress_low_types if f"active_{str(t).lower()}" in overlay_df.columns
-                    ]
-                    if suppress_cols:
-                        low_violation = low_violation & ~pl.any_horizontal(suppress_cols)
-                warn_df = overlay_df.select((low_violation | high_violation).alias("warn"))
-                warn_violation_count = int(warn_df.get_column("warn").sum())
-                warnings["overlay_warn_bounds_total"] = warn_violation_count
-
-            aggregate_checks = (validation_policy.get("warnings") or {}).get("aggregate_warn_checks") or []
-            scenario_type = "baseline" if scenario_cfg.get("is_baseline") else "stress" if scenario_cfg.get("is_stress") else "other"
-            agg_warns = 0
-            for check in aggregate_checks:
-                selector = check.get("selector") or {}
-                if selector.get("scenario_type") and selector.get("scenario_type") != scenario_type:
-                    continue
-                metric = str(check.get("metric") or "")
-                bounds = check.get("bounds") or [None, None]
-                value = None
-                if metric == "mean":
-                    value = float(overlay_df.select(pl.col("overlay_factor_total").mean()).item())
-                elif metric == "p95":
-                    value = float(overlay_df.select(pl.col("overlay_factor_total").quantile(0.95)).item())
-                elif metric == "max":
-                    value = float(overlay_df.select(pl.col("overlay_factor_total").max()).item())
-                if value is None:
-                    continue
-                lower = bounds[0]
-                upper = bounds[1] if len(bounds) > 1 else None
-                if (lower is not None and value < float(lower)) or (upper is not None and value > float(upper)):
-                    agg_warns += 1
-                    logger.warning(
-                        "S4: aggregate overlay warning %s (metric=%s value=%.4f bounds=%s)",
-                        check.get("name"),
-                        metric,
-                        value,
-                        bounds,
-                    )
-            warnings["overlay_warn_aggregate"] = agg_warns
-
-            gating = validation_policy.get("gating") or {}
-            warn_is_fatal = bool(gating.get("warn_violation_is_fatal"))
-            max_warn_fail = float(gating.get("max_warn_violations_fraction_fail") or 0.0)
-            max_warn_warn = float(gating.get("max_warn_violations_fraction_warn") or 0.0)
-            total_points = max(int(overlay_df.height), 1)
-            warn_fraction = warn_violation_count / total_points
-            if warn_is_fatal and warn_violation_count:
+        else:
+            logger.info("S4: joining domain attributes columns=%s", domain_join_cols)
+            overlay_df = overlay_df.join(domain_df.select(domain_join_cols), on="row_id", how="left")
+            missing_domain = overlay_df.filter(pl.col("merchant_id").is_null()).height
+            if missing_domain:
                 _abort(
-                    "S4_INTENSITY_NUMERIC_INVALID",
-                    "V-09",
-                    "overlay_warn_violation_fatal",
-                    {"warn_violations": warn_violation_count, "warn_fraction": warn_fraction},
+                    "S4_DOMAIN_ALIGNMENT_FAILED",
+                    "V-08",
+                    "overlay_domain_join_missing",
+                    {"missing_rows": missing_domain},
                     manifest_fingerprint,
                 )
-            if max_warn_fail and warn_fraction > max_warn_fail:
-                _abort(
-                    "S4_INTENSITY_NUMERIC_INVALID",
-                    "V-09",
-                    "overlay_warn_fraction_exceeds_fail",
-                    {"warn_fraction": warn_fraction, "threshold": max_warn_fail},
-                    manifest_fingerprint,
-                )
-            if max_warn_warn and warn_fraction > max_warn_warn:
-                logger.warning(
-                    "S4: overlay warn fraction above warn threshold (fraction=%.6f threshold=%.6f)",
-                    warn_fraction,
-                    max_warn_warn,
-                )
-        current_phase = "scenario_compose"
-        overlay_df = overlay_df.with_columns(
-            (pl.col("lambda_local_base") * pl.col("overlay_factor_total")).alias("lambda_local_scenario")
+
+            overlay_df, fairness_diag = _apply_overlay_fairness_regularizer(
+                overlay_df,
+                min_factor=min_factor,
+                max_factor=max_factor,
+            )
+            logger.info("S4: fairness regularizer complete")
+
+        metrics.update(fairness_diag)
+        logger.info(
+            "S4: overlay fairness regularizer enabled=%s adjusted_rows=%s ratio_before=%.6f ratio_after=%.6f target_floor=%.6f",
+            bool(fairness_diag.get("overlay_fairness_regularizer_enabled", False)),
+            int(fairness_diag.get("overlay_fairness_regularizer_adjusted_rows", 0) or 0),
+            float(fairness_diag.get("overlay_fairness_regularizer_ratio_before", 0.0) or 0.0),
+            float(fairness_diag.get("overlay_fairness_regularizer_ratio_after", 0.0) or 0.0),
+            float(fairness_diag.get("overlay_fairness_regularizer_target_floor", 0.0) or 0.0),
         )
-        if overlay_df.filter(~pl.col("lambda_local_scenario").is_finite()).height:
-            _abort(
-                "S4_INTENSITY_NUMERIC_INVALID",
-                "V-10",
-                "scenario_lambda_non_finite",
-                {"detail": "lambda_local_scenario contains NaN/Inf"},
-                manifest_fingerprint,
-            )
-        if overlay_df.filter(pl.col("lambda_local_scenario") < 0).height:
-            _abort(
-                "S4_INTENSITY_NUMERIC_INVALID",
-                "V-10",
-                "scenario_lambda_negative",
-                {"detail": "lambda_local_scenario contains negative values"},
-                manifest_fingerprint,
-            )
 
-        if overlay_df.height:
-            metrics["scenario_lambda_min"] = float(overlay_df.select(pl.col("lambda_local_scenario").min()).item())
-            metrics["scenario_lambda_median"] = float(overlay_df.select(pl.col("lambda_local_scenario").median()).item())
-            metrics["scenario_lambda_p95"] = float(overlay_df.select(pl.col("lambda_local_scenario").quantile(0.95)).item())
-            metrics["scenario_lambda_max"] = float(overlay_df.select(pl.col("lambda_local_scenario").max()).item())
+        if memory_safe_mode:
+            logger.warning(
+                "S4: memory-safe mode enabled; bypassing full-frame numeric scans before streaming output."
+            )
+            current_phase = "overlay_validation"
+            warnings["overlay_warn_bounds_total"] = 0
+            warnings["overlay_warn_aggregate"] = 0
+            current_phase = "scenario_compose"
+        else:
+            if overlay_df.filter(~pl.col("overlay_factor_total").is_finite()).height:
+                _abort(
+                    "S4_INTENSITY_NUMERIC_INVALID",
+                    "V-08",
+                    "overlay_factor_non_finite",
+                    {"detail": "overlay_factor_total contains NaN/Inf"},
+                    manifest_fingerprint,
+                )
+            if overlay_df.filter(pl.col("overlay_factor_total") < 0).height:
+                _abort(
+                    "S4_INTENSITY_NUMERIC_INVALID",
+                    "V-08",
+                    "overlay_factor_negative",
+                    {"detail": "overlay_factor_total contains negative values"},
+                    manifest_fingerprint,
+                )
+
+            if overlay_df.height:
+                metrics["overlay_factor_min"] = float(overlay_df.select(pl.col("overlay_factor_total").min()).item())
+                metrics["overlay_factor_median"] = float(overlay_df.select(pl.col("overlay_factor_total").median()).item())
+                metrics["overlay_factor_p95"] = float(overlay_df.select(pl.col("overlay_factor_total").quantile(0.95)).item())
+                metrics["overlay_factor_max"] = float(overlay_df.select(pl.col("overlay_factor_total").max()).item())
+
+            current_phase = "overlay_validation"
+            warn_violation_count = 0
+            if validation_policy:
+                warn_bounds = (validation_policy.get("warnings") or {}).get("warn_bounds_total") or {}
+                min_warn = warn_bounds.get("min_warn")
+                max_warn = warn_bounds.get("max_warn")
+                suppress_low_types = (
+                    (warn_bounds.get("exceptions") or {}).get("suppress_low_warn_when_type_active") or []
+                )
+                if min_warn is not None or max_warn is not None:
+                    low_violation = pl.col("overlay_factor_total") < float(min_warn) if min_warn is not None else pl.lit(False)
+                    high_violation = pl.col("overlay_factor_total") > float(max_warn) if max_warn is not None else pl.lit(False)
+                    if suppress_low_types:
+                        suppress_cols = [
+                            pl.col(f"active_{str(t).lower()}") for t in suppress_low_types if f"active_{str(t).lower()}" in overlay_df.columns
+                        ]
+                        if suppress_cols:
+                            low_violation = low_violation & ~pl.any_horizontal(suppress_cols)
+                    warn_df = overlay_df.select((low_violation | high_violation).alias("warn"))
+                    warn_violation_count = int(warn_df.get_column("warn").sum())
+                    warnings["overlay_warn_bounds_total"] = warn_violation_count
+
+                aggregate_checks = (validation_policy.get("warnings") or {}).get("aggregate_warn_checks") or []
+                scenario_type = "baseline" if scenario_cfg.get("is_baseline") else "stress" if scenario_cfg.get("is_stress") else "other"
+                agg_warns = 0
+                for check in aggregate_checks:
+                    selector = check.get("selector") or {}
+                    if selector.get("scenario_type") and selector.get("scenario_type") != scenario_type:
+                        continue
+                    metric = str(check.get("metric") or "")
+                    bounds = check.get("bounds") or [None, None]
+                    value = None
+                    if metric == "mean":
+                        value = float(overlay_df.select(pl.col("overlay_factor_total").mean()).item())
+                    elif metric == "p95":
+                        value = float(overlay_df.select(pl.col("overlay_factor_total").quantile(0.95)).item())
+                    elif metric == "max":
+                        value = float(overlay_df.select(pl.col("overlay_factor_total").max()).item())
+                    if value is None:
+                        continue
+                    lower = bounds[0]
+                    upper = bounds[1] if len(bounds) > 1 else None
+                    if (lower is not None and value < float(lower)) or (upper is not None and value > float(upper)):
+                        agg_warns += 1
+                        logger.warning(
+                            "S4: aggregate overlay warning %s (metric=%s value=%.4f bounds=%s)",
+                            check.get("name"),
+                            metric,
+                            value,
+                            bounds,
+                        )
+                warnings["overlay_warn_aggregate"] = agg_warns
+
+                gating = validation_policy.get("gating") or {}
+                warn_is_fatal = bool(gating.get("warn_violation_is_fatal"))
+                max_warn_fail = float(gating.get("max_warn_violations_fraction_fail") or 0.0)
+                max_warn_warn = float(gating.get("max_warn_violations_fraction_warn") or 0.0)
+                total_points = max(int(overlay_df.height), 1)
+                warn_fraction = warn_violation_count / total_points
+                if warn_is_fatal and warn_violation_count:
+                    _abort(
+                        "S4_INTENSITY_NUMERIC_INVALID",
+                        "V-09",
+                        "overlay_warn_violation_fatal",
+                        {"warn_violations": warn_violation_count, "warn_fraction": warn_fraction},
+                        manifest_fingerprint,
+                    )
+                if max_warn_fail and warn_fraction > max_warn_fail:
+                    _abort(
+                        "S4_INTENSITY_NUMERIC_INVALID",
+                        "V-09",
+                        "overlay_warn_fraction_exceeds_fail",
+                        {"warn_fraction": warn_fraction, "threshold": max_warn_fail},
+                        manifest_fingerprint,
+                    )
+                if max_warn_warn and warn_fraction > max_warn_warn:
+                    logger.warning(
+                        "S4: overlay warn fraction above warn threshold (fraction=%.6f threshold=%.6f)",
+                        warn_fraction,
+                        max_warn_warn,
+                    )
+            current_phase = "scenario_compose"
+            overlay_df = overlay_df.with_columns(
+                (pl.col("lambda_local_base") * pl.col("overlay_factor_total")).alias("lambda_local_scenario")
+            )
+            if overlay_df.filter(~pl.col("lambda_local_scenario").is_finite()).height:
+                _abort(
+                    "S4_INTENSITY_NUMERIC_INVALID",
+                    "V-10",
+                    "scenario_lambda_non_finite",
+                    {"detail": "lambda_local_scenario contains NaN/Inf"},
+                    manifest_fingerprint,
+                )
+            if overlay_df.filter(pl.col("lambda_local_scenario") < 0).height:
+                _abort(
+                    "S4_INTENSITY_NUMERIC_INVALID",
+                    "V-10",
+                    "scenario_lambda_negative",
+                    {"detail": "lambda_local_scenario contains negative values"},
+                    manifest_fingerprint,
+                )
+
+            if overlay_df.height:
+                metrics["scenario_lambda_min"] = float(overlay_df.select(pl.col("lambda_local_scenario").min()).item())
+                metrics["scenario_lambda_median"] = float(overlay_df.select(pl.col("lambda_local_scenario").median()).item())
+                metrics["scenario_lambda_p95"] = float(overlay_df.select(pl.col("lambda_local_scenario").quantile(0.95)).item())
+                metrics["scenario_lambda_max"] = float(overlay_df.select(pl.col("lambda_local_scenario").max()).item())
 
         current_phase = "output_prepare"
-        scenario_local_df = overlay_df.select(
-            [
-                "manifest_fingerprint",
-                "parameter_hash",
-                "scenario_id",
-                "merchant_id",
-                "legal_country_iso",
-                "tzid",
-                "local_horizon_bucket_index",
-                "lambda_local_scenario",
-                "overlay_factor_total",
-            ]
-            + ([col for col in ["channel_group"] if col in overlay_df.columns])
-        ).with_columns(pl.lit(S4_SPEC_VERSION).alias("s4_spec_version"))
-        scenario_local_df = scenario_local_df.sort(
-            ["merchant_id", "legal_country_iso", "tzid", "local_horizon_bucket_index"]
-        )
-        counts["scenario_rows"] = scenario_local_df.height
+        scenario_entry = find_dataset_entry(dictionary_5a, "merchant_zone_scenario_local_5A").entry
+        scenario_local_path = _resolve_dataset_path(scenario_entry, run_paths, config.external_roots, tokens)
 
-        if output_validate_full:
-            _validate_array_rows(
-                scenario_local_df.iter_rows(named=True),
-                schema_5a,
-                schema_layer1,
-                schema_layer2,
-                "model/merchant_zone_scenario_local_5A",
-                logger=logger,
-                label="S4: validate merchant_zone_scenario_local_5A rows",
-                total_rows=scenario_local_df.height,
-                progress_min_rows=200000,
+        emitted_utc = False
+        if memory_safe_mode:
+            logger.info("S4: memory-safe output branch begin")
+            channel_cols = [col for col in ["channel_group"] if col in domain_df.columns]
+            scenario_local_lf = (
+                overlay_df.lazy()
+                .join(domain_df.select(domain_join_cols).lazy(), on="row_id", how="left")
+                .with_columns(
+                    [
+                        (pl.col("lambda_local_base") * pl.col("overlay_factor_total")).alias("lambda_local_scenario"),
+                        pl.lit(str(manifest_fingerprint)).alias("manifest_fingerprint"),
+                        pl.lit(str(parameter_hash)).alias("parameter_hash"),
+                        pl.lit(str(scenario_id)).alias("scenario_id"),
+                        pl.lit(S4_SPEC_VERSION).alias("s4_spec_version"),
+                    ]
+                )
+                .select(
+                    [
+                        "manifest_fingerprint",
+                        "parameter_hash",
+                        "scenario_id",
+                        "merchant_id",
+                        "legal_country_iso",
+                        "tzid",
+                        "local_horizon_bucket_index",
+                        "lambda_local_scenario",
+                        "overlay_factor_total",
+                    ]
+                    + channel_cols
+                    + ["s4_spec_version"]
+                )
             )
-        else:
-            _validate_dataframe_fast(
-                scenario_local_df,
-                schema_5a,
-                schema_layer1,
-                schema_layer2,
-                "model/merchant_zone_scenario_local_5A",
-                logger=logger,
-                label="merchant_zone_scenario_local_5A",
-                sample_rows=output_sample_rows,
+            logger.info("S4: memory-safe scenario_local lazy plan built")
+            current_phase = "output_write"
+            logger.info("S4: memory-safe scenario_local sink begin")
+            _sink_lazy_parquet_idempotent(
+                scenario_local_path, scenario_local_lf, logger, "merchant_zone_scenario_local_5A"
             )
-
-        del overlay_df
-        gc.collect()
-
-        overlay_factors_df = scenario_local_df.select(
-            [
-                "manifest_fingerprint",
-                "parameter_hash",
-                "scenario_id",
-                "merchant_id",
-                "legal_country_iso",
-                "tzid",
-                "local_horizon_bucket_index",
-                "overlay_factor_total",
-                "s4_spec_version",
-            ]
-            + ([col for col in ["channel_group"] if col in scenario_local_df.columns])
-        )
-        counts["overlay_rows"] = overlay_factors_df.height
-
-        if output_validate_full:
-            _validate_array_rows(
-                overlay_factors_df.iter_rows(named=True),
-                schema_5a,
-                schema_layer1,
-                schema_layer2,
-                "model/merchant_zone_overlay_factors_5A",
-                logger=logger,
-                label="S4: validate merchant_zone_overlay_factors_5A rows",
-                total_rows=overlay_factors_df.height,
-                progress_min_rows=200000,
+            logger.info("S4: memory-safe scenario_local sink complete")
+            counts["scenario_rows"] = int(
+                pl.scan_parquet(scenario_local_path).select(pl.len().alias("__rows")).collect().item()
             )
-        else:
-            _validate_dataframe_fast(
-                overlay_factors_df,
-                schema_5a,
-                schema_layer1,
-                schema_layer2,
-                "model/merchant_zone_overlay_factors_5A",
-                logger=logger,
-                label="merchant_zone_overlay_factors_5A",
-                sample_rows=output_sample_rows,
+            missing_domain = int(
+                pl.scan_parquet(scenario_local_path)
+                .select(pl.col("merchant_id").is_null().sum().alias("__missing"))
+                .collect()
+                .item()
             )
+            if missing_domain:
+                _abort(
+                    "S4_DOMAIN_ALIGNMENT_FAILED",
+                    "V-08",
+                    "overlay_domain_join_missing",
+                    {"missing_rows": missing_domain},
+                    manifest_fingerprint,
+                )
+            timer.info(
+                "S4: phase overlay_compute complete (event_rows=%s, expanded_rows=%s, scenario_rows=%s)",
+                len(event_rows),
+                len(expanded_rows),
+                counts["scenario_rows"],
+            )
+            del overlay_df
+            del domain_df
+            gc.collect()
 
-        scenario_utc_df = None
-        if emit_utc_intensities:
-            scenario_utc_df = scenario_local_df.select(
+            current_phase = "output_schema_validation"
+            if output_validate_full:
+                scenario_local_df = pl.read_parquet(scenario_local_path)
+                _validate_array_rows(
+                    scenario_local_df.iter_rows(named=True),
+                    schema_5a,
+                    schema_layer1,
+                    schema_layer2,
+                    "model/merchant_zone_scenario_local_5A",
+                    logger=logger,
+                    label="S4: validate merchant_zone_scenario_local_5A rows",
+                    total_rows=scenario_local_df.height,
+                    progress_min_rows=200000,
+                    frame=scenario_local_df,
+                )
+                del scenario_local_df
+                gc.collect()
+            else:
+                scenario_local_sample_df = pl.scan_parquet(scenario_local_path).head(output_sample_rows).collect()
+                _validate_dataframe_fast(
+                    scenario_local_sample_df,
+                    schema_5a,
+                    schema_layer1,
+                    schema_layer2,
+                    "model/merchant_zone_scenario_local_5A",
+                    logger=logger,
+                    label="merchant_zone_scenario_local_5A",
+                    sample_rows=output_sample_rows,
+                )
+                del scenario_local_sample_df
+                gc.collect()
+
+            channel_cols = [col for col in ["channel_group"] if col in pl.scan_parquet(scenario_local_path).columns]
+            overlay_entry = find_dataset_entry(dictionary_5a, "merchant_zone_overlay_factors_5A").entry
+            overlay_factors_path = _resolve_dataset_path(overlay_entry, run_paths, config.external_roots, tokens)
+            overlay_factors_lf = pl.scan_parquet(scenario_local_path).select(
                 [
                     "manifest_fingerprint",
                     "parameter_hash",
@@ -1839,57 +2725,297 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                     "merchant_id",
                     "legal_country_iso",
                     "tzid",
-                    pl.col("local_horizon_bucket_index").alias("utc_horizon_bucket_index"),
-                    pl.col("lambda_local_scenario").alias("lambda_utc_scenario"),
+                    "local_horizon_bucket_index",
+                    "overlay_factor_total",
                     "s4_spec_version",
                 ]
-                + ([col for col in ["channel_group"] if col in scenario_local_df.columns])
+                + channel_cols
             )
+            current_phase = "output_write"
+            _sink_lazy_parquet_idempotent(
+                overlay_factors_path, overlay_factors_lf, logger, "merchant_zone_overlay_factors_5A"
+            )
+            counts["overlay_rows"] = counts["scenario_rows"]
+            current_phase = "output_schema_validation"
             if output_validate_full:
+                overlay_factors_df = pl.read_parquet(overlay_factors_path)
                 _validate_array_rows(
-                    scenario_utc_df.iter_rows(named=True),
+                    overlay_factors_df.iter_rows(named=True),
                     schema_5a,
                     schema_layer1,
                     schema_layer2,
-                    "model/merchant_zone_scenario_utc_5A",
+                    "model/merchant_zone_overlay_factors_5A",
                     logger=logger,
-                    label="S4: validate merchant_zone_scenario_utc_5A rows",
-                    total_rows=scenario_utc_df.height,
+                    label="S4: validate merchant_zone_overlay_factors_5A rows",
+                    total_rows=overlay_factors_df.height,
                     progress_min_rows=200000,
+                    frame=overlay_factors_df,
+                )
+                del overlay_factors_df
+                gc.collect()
+            else:
+                overlay_factors_sample_df = pl.scan_parquet(overlay_factors_path).head(output_sample_rows).collect()
+                _validate_dataframe_fast(
+                    overlay_factors_sample_df,
+                    schema_5a,
+                    schema_layer1,
+                    schema_layer2,
+                    "model/merchant_zone_overlay_factors_5A",
+                    logger=logger,
+                    label="merchant_zone_overlay_factors_5A",
+                    sample_rows=output_sample_rows,
+                )
+                del overlay_factors_sample_df
+                gc.collect()
+
+            if emit_utc_intensities:
+                utc_entry = find_dataset_entry(dictionary_5a, "merchant_zone_scenario_utc_5A").entry
+                scenario_utc_path = _resolve_dataset_path(utc_entry, run_paths, config.external_roots, tokens)
+                scenario_utc_lf = pl.scan_parquet(scenario_local_path).select(
+                    [
+                        "manifest_fingerprint",
+                        "parameter_hash",
+                        "scenario_id",
+                        "merchant_id",
+                        "legal_country_iso",
+                        "tzid",
+                        pl.col("local_horizon_bucket_index").alias("utc_horizon_bucket_index"),
+                        pl.col("lambda_local_scenario").alias("lambda_utc_scenario"),
+                        "s4_spec_version",
+                    ]
+                    + channel_cols
+                )
+                current_phase = "output_write"
+                _sink_lazy_parquet_idempotent(
+                    scenario_utc_path, scenario_utc_lf, logger, "merchant_zone_scenario_utc_5A"
+                )
+                current_phase = "output_schema_validation"
+                if output_validate_full:
+                    scenario_utc_df = pl.read_parquet(scenario_utc_path)
+                    _validate_array_rows(
+                        scenario_utc_df.iter_rows(named=True),
+                        schema_5a,
+                        schema_layer1,
+                        schema_layer2,
+                        "model/merchant_zone_scenario_utc_5A",
+                        logger=logger,
+                        label="S4: validate merchant_zone_scenario_utc_5A rows",
+                        total_rows=scenario_utc_df.height,
+                        progress_min_rows=200000,
+                        frame=scenario_utc_df,
+                    )
+                    del scenario_utc_df
+                    gc.collect()
+                else:
+                    scenario_utc_sample_df = pl.scan_parquet(scenario_utc_path).head(output_sample_rows).collect()
+                    _validate_dataframe_fast(
+                        scenario_utc_sample_df,
+                        schema_5a,
+                        schema_layer1,
+                        schema_layer2,
+                        "model/merchant_zone_scenario_utc_5A",
+                        logger=logger,
+                        label="merchant_zone_scenario_utc_5A",
+                        sample_rows=output_sample_rows,
+                    )
+                    del scenario_utc_sample_df
+                    gc.collect()
+                emitted_utc = True
+                logger.info("S4: UTC scenario intensities emitted (identity mapping to local horizon index).")
+            else:
+                logger.info("S4: UTC scenario intensities disabled by scenario_horizon_config.")
+        else:
+            scenario_local_df = overlay_df.select(
+                [
+                    "merchant_id",
+                    "legal_country_iso",
+                    "tzid",
+                    "local_horizon_bucket_index",
+                    "lambda_local_scenario",
+                    "overlay_factor_total",
+                ]
+                + ([col for col in ["channel_group"] if col in overlay_df.columns])
+            ).with_columns(
+                [
+                    pl.lit(str(manifest_fingerprint)).alias("manifest_fingerprint"),
+                    pl.lit(str(parameter_hash)).alias("parameter_hash"),
+                    pl.lit(str(scenario_id)).alias("scenario_id"),
+                    pl.lit(S4_SPEC_VERSION).alias("s4_spec_version"),
+                ]
+            ).select(
+                [
+                    "manifest_fingerprint",
+                    "parameter_hash",
+                    "scenario_id",
+                    "merchant_id",
+                    "legal_country_iso",
+                    "tzid",
+                    "local_horizon_bucket_index",
+                    "lambda_local_scenario",
+                    "overlay_factor_total",
+                ]
+                + ([col for col in ["channel_group"] if col in overlay_df.columns])
+                + ["s4_spec_version"]
+            )
+            scenario_local_df = scenario_local_df.sort(
+                ["merchant_id", "legal_country_iso", "tzid", "local_horizon_bucket_index"]
+            )
+            counts["scenario_rows"] = scenario_local_df.height
+            timer.info(
+                "S4: phase overlay_compute complete (event_rows=%s, expanded_rows=%s, scenario_rows=%s)",
+                len(event_rows),
+                len(expanded_rows),
+                counts["scenario_rows"],
+            )
+            del overlay_df
+            del domain_df
+            gc.collect()
+
+            current_phase = "output_schema_validation"
+            if output_validate_full:
+                _validate_array_rows(
+                    scenario_local_df.iter_rows(named=True),
+                    schema_5a,
+                    schema_layer1,
+                    schema_layer2,
+                    "model/merchant_zone_scenario_local_5A",
+                    logger=logger,
+                    label="S4: validate merchant_zone_scenario_local_5A rows",
+                    total_rows=scenario_local_df.height,
+                    progress_min_rows=200000,
+                    frame=scenario_local_df,
                 )
             else:
                 _validate_dataframe_fast(
-                    scenario_utc_df,
+                    scenario_local_df,
                     schema_5a,
                     schema_layer1,
                     schema_layer2,
-                    "model/merchant_zone_scenario_utc_5A",
+                    "model/merchant_zone_scenario_local_5A",
                     logger=logger,
-                    label="merchant_zone_scenario_utc_5A",
+                    label="merchant_zone_scenario_local_5A",
                     sample_rows=output_sample_rows,
                 )
-            logger.info("S4: UTC scenario intensities emitted (identity mapping to local horizon index).")
-        else:
-            logger.info("S4: UTC scenario intensities disabled by scenario_horizon_config.")
 
-        current_phase = "output_write"
-        scenario_entry = find_dataset_entry(dictionary_5a, "merchant_zone_scenario_local_5A").entry
-        scenario_local_path = _resolve_dataset_path(scenario_entry, run_paths, config.external_roots, tokens)
-        _publish_parquet_idempotent(scenario_local_path, scenario_local_df, logger, "merchant_zone_scenario_local_5A")
-
-        overlay_entry = find_dataset_entry(dictionary_5a, "merchant_zone_overlay_factors_5A").entry
-        overlay_factors_path = _resolve_dataset_path(overlay_entry, run_paths, config.external_roots, tokens)
-        _publish_parquet_idempotent(
-            overlay_factors_path, overlay_factors_df, logger, "merchant_zone_overlay_factors_5A"
-        )
-
-        if scenario_utc_df is not None:
-            utc_entry = find_dataset_entry(dictionary_5a, "merchant_zone_scenario_utc_5A").entry
-            scenario_utc_path = _resolve_dataset_path(utc_entry, run_paths, config.external_roots, tokens)
+            current_phase = "output_write"
             _publish_parquet_idempotent(
-                scenario_utc_path, scenario_utc_df, logger, "merchant_zone_scenario_utc_5A"
+                scenario_local_path, scenario_local_df, logger, "merchant_zone_scenario_local_5A"
             )
 
+            del scenario_local_df
+            gc.collect()
+
+            channel_cols = [col for col in ["channel_group"] if col in pl.scan_parquet(scenario_local_path).columns]
+            scenario_scan = pl.scan_parquet(scenario_local_path)
+            overlay_factors_df = scenario_scan.select(
+                [
+                    "manifest_fingerprint",
+                    "parameter_hash",
+                    "scenario_id",
+                    "merchant_id",
+                    "legal_country_iso",
+                    "tzid",
+                    "local_horizon_bucket_index",
+                    "overlay_factor_total",
+                    "s4_spec_version",
+                ]
+                + channel_cols
+            ).collect(engine="streaming")
+            counts["overlay_rows"] = overlay_factors_df.height
+
+            if output_validate_full:
+                _validate_array_rows(
+                    overlay_factors_df.iter_rows(named=True),
+                    schema_5a,
+                    schema_layer1,
+                    schema_layer2,
+                    "model/merchant_zone_overlay_factors_5A",
+                    logger=logger,
+                    label="S4: validate merchant_zone_overlay_factors_5A rows",
+                    total_rows=overlay_factors_df.height,
+                    progress_min_rows=200000,
+                    frame=overlay_factors_df,
+                )
+            else:
+                _validate_dataframe_fast(
+                    overlay_factors_df,
+                    schema_5a,
+                    schema_layer1,
+                    schema_layer2,
+                    "model/merchant_zone_overlay_factors_5A",
+                    logger=logger,
+                    label="merchant_zone_overlay_factors_5A",
+                    sample_rows=output_sample_rows,
+                )
+
+            overlay_entry = find_dataset_entry(dictionary_5a, "merchant_zone_overlay_factors_5A").entry
+            overlay_factors_path = _resolve_dataset_path(overlay_entry, run_paths, config.external_roots, tokens)
+            _publish_parquet_idempotent(
+                overlay_factors_path, overlay_factors_df, logger, "merchant_zone_overlay_factors_5A"
+            )
+            del overlay_factors_df
+            gc.collect()
+
+            if emit_utc_intensities:
+                scenario_scan = pl.scan_parquet(scenario_local_path)
+                scenario_utc_df = scenario_scan.select(
+                    [
+                        "manifest_fingerprint",
+                        "parameter_hash",
+                        "scenario_id",
+                        "merchant_id",
+                        "legal_country_iso",
+                        "tzid",
+                        pl.col("local_horizon_bucket_index").alias("utc_horizon_bucket_index"),
+                        pl.col("lambda_local_scenario").alias("lambda_utc_scenario"),
+                        "s4_spec_version",
+                    ]
+                    + channel_cols
+                ).collect(engine="streaming")
+                if output_validate_full:
+                    _validate_array_rows(
+                        scenario_utc_df.iter_rows(named=True),
+                        schema_5a,
+                        schema_layer1,
+                        schema_layer2,
+                        "model/merchant_zone_scenario_utc_5A",
+                        logger=logger,
+                        label="S4: validate merchant_zone_scenario_utc_5A rows",
+                        total_rows=scenario_utc_df.height,
+                        progress_min_rows=200000,
+                        frame=scenario_utc_df,
+                    )
+                else:
+                    _validate_dataframe_fast(
+                        scenario_utc_df,
+                        schema_5a,
+                        schema_layer1,
+                        schema_layer2,
+                        "model/merchant_zone_scenario_utc_5A",
+                        logger=logger,
+                        label="merchant_zone_scenario_utc_5A",
+                        sample_rows=output_sample_rows,
+                    )
+                utc_entry = find_dataset_entry(dictionary_5a, "merchant_zone_scenario_utc_5A").entry
+                scenario_utc_path = _resolve_dataset_path(utc_entry, run_paths, config.external_roots, tokens)
+                _publish_parquet_idempotent(
+                    scenario_utc_path, scenario_utc_df, logger, "merchant_zone_scenario_utc_5A"
+                )
+                del scenario_utc_df
+                gc.collect()
+                emitted_utc = True
+                logger.info("S4: UTC scenario intensities emitted (identity mapping to local horizon index).")
+            else:
+                logger.info("S4: UTC scenario intensities disabled by scenario_horizon_config.")
+
+        timer.info(
+            "S4: phase output_schema_validation complete (scenario_rows=%s, overlay_rows=%s, emit_utc=%s)",
+            counts["scenario_rows"],
+            counts["overlay_rows"],
+            emitted_utc,
+        )
+
+        timer.info("S4: phase output_write complete")
         status = "PASS"
         timer.info("S4: completed scenario overlay synthesis")
 

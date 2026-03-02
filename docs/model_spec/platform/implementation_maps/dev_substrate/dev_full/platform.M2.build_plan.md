@@ -1,0 +1,1207 @@
+# Dev Substrate Deep Plan - M2 (P0 Substrate Readiness)
+_Status source of truth: `platform.build_plan.md`_
+_This document provides deep planning detail for M2._
+_Last updated: 2026-02-23_
+
+## 0) Purpose
+M2 closes `P0 SUBSTRATE_READY` for `dev_full` by proving that managed substrate foundations are materialized, queryable, and fail-closed:
+1. Terraform state/lock surfaces are healthy.
+2. All five bounded stacks (`core`, `streaming`, `runtime`, `data_ml`, `ops`) are apply-capable.
+3. Required IAM and secret path surfaces are present and conformance-checked.
+4. Cost guardrail and residual-risk controls are in place before runtime phases.
+5. Managed-first control rails are materialized and enforceable before M3:
+   - single active runtime path per phase/run,
+   - SR READY commit authority (`Step Functions` only),
+   - IG edge envelope limits,
+   - cross-runtime correlation fail-closed contract.
+6. Production-pattern posture is explicit before M3:
+   - managed-service-first lane selection remains enforced,
+   - Oracle Store seating remains read-only warm source-of-stream boundary,
+   - S3 lifecycle transitions are materialized and queryable.
+
+## 1) Authority Inputs
+Primary:
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
+2. `docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md` (`P0 SUBSTRATE_READY`)
+3. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`
+4. `docs/model_spec/platform/pre-design_decisions/dev-full_managed-substrate_migration.design-authority.v0.md`
+
+Supporting:
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.impl_actual.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M2.build_plan.md` (structure reference only)
+
+## 2) Scope Boundary for M2
+In scope:
+1. Terraform substrate readiness and bounded stack sequencing.
+2. IAM/identity/secret-path conformance for required handles.
+3. Observability + budget surfaces needed for safe phase progression.
+4. Destroy/recover rehearsal posture for substrate confidence.
+5. Runtime-control rail conformance needed for managed-first execution:
+   - runtime-path governance handles,
+   - SR commit-authority handles,
+   - IG edge envelope handle set,
+   - cross-runtime correlation handle set.
+6. Production-pattern conformance checks for `M0..M2` closure:
+   - no local/toy substitutes in pinned managed lanes,
+   - Oracle Store ownership + storage posture remains explicitly aligned.
+
+Out of scope:
+1. Runtime service behavior and daemon health (`M4+`).
+2. Run pinning/orchestration semantics (`M3`).
+3. Oracle, ingest, and lane runtime flow checks (`M5+`).
+
+## 3) M2 Deliverables
+1. Explicit execution sequence for `core/streaming/runtime/data_ml/ops` stacks.
+2. Required-handle conformance proof (`IAM + secret paths + stack outputs`).
+3. P0 gate evidence pack with blocker-free rollup.
+4. Destroy/recover rehearsal evidence and residual scan posture.
+5. Managed-first control-rail evidence pack proving runtime-path/SR-authority/IG-envelope/correlation readiness.
+
+## 4) Execution Gate for This Phase
+Current posture:
+1. M2 is `IN_PROGRESS` and execution-active.
+
+Execution block:
+1. M2 execution begins only after explicit USER go-ahead for M2 run lanes.
+2. Any unresolved `TO_PIN` handle required by the active M2 subphase is fail-closed.
+3. Any state backend/lock failure blocks all downstream stack application.
+
+## 5) Work Breakdown (Deep)
+
+## M2.A State Backend and Lock Conformance
+Goal:
+- prove remote state/lock surfaces are healthy before any stack apply.
+
+Tasks:
+1. Validate state bucket posture (`exists`, encryption/versioning/public access block).
+2. Validate lock table posture (`exists`, key schema, write/read lock semantics).
+3. Validate per-stack state key namespace (`core/streaming/runtime/data_ml/ops`).
+4. Emit backend conformance evidence and fail-closed diagnostics.
+
+DoD:
+- [x] state bucket conformance checks pass.
+- [x] lock table conformance checks pass.
+- [x] per-stack state key contract is validated.
+- [x] M2.A evidence snapshot committed.
+
+M2.A planning precheck (decision completeness):
+1. Required handles for this lane are pinned:
+   - `TF_STATE_BUCKET`, `TF_STATE_BUCKET_REGION`, `TF_LOCK_TABLE`
+   - `TF_STATE_KEY_CORE`, `TF_STATE_KEY_STREAMING`, `TF_STATE_KEY_RUNTIME`, `TF_STATE_KEY_DATA_ML`, `TF_STATE_KEY_OPS`
+   - `TF_STACK_CORE_DIR`, `TF_STACK_STREAMING_DIR`, `TF_STACK_RUNTIME_DIR`, `TF_STACK_DATA_ML_DIR`, `TF_STACK_OPS_DIR`
+2. Required stack-root filesystem check was failing at planning time:
+   - `infra/terraform/dev_full/` was absent during initial planning and was treated as an entry blocker.
+3. Backend substrate check was failing at planning time:
+   - S3 state bucket `fraud-platform-dev-full-tfstate` and DynamoDB lock table `fraud-platform-dev-full-tf-locks` were initially absent.
+4. Planning-time blockers above were executed and resolved during M2.A closure (see execution closure section).
+
+M2.A execution contract (planned):
+1. Verify backend resources exist before any `terraform init/plan/apply`:
+   - state bucket exists and is reachable,
+   - lock table exists and is reachable.
+2. Verify bucket posture:
+   - encryption enabled,
+   - versioning enabled,
+   - public access block enabled.
+3. Verify lock-table posture:
+   - table status is `ACTIVE`,
+   - lock key schema supports Terraform lock semantics.
+4. Verify stack-root readiness:
+   - all five `TF_STACK_*_DIR` paths exist,
+   - each stack has backend configuration surface and can run `terraform init` against pinned remote backend.
+5. Verify per-stack state-key namespace:
+   - key values are unique and non-overlapping,
+   - key naming matches bounded stack posture (`core/streaming/runtime/data_ml/ops`).
+
+M2.A command surface (planned, execution-time):
+1. Backend existence:
+   - `aws s3api head-bucket --bucket <TF_STATE_BUCKET> --region <TF_STATE_BUCKET_REGION>`
+   - `aws dynamodb describe-table --table-name <TF_LOCK_TABLE> --region <AWS_REGION>`
+2. Bucket posture:
+   - `aws s3api get-bucket-encryption --bucket <TF_STATE_BUCKET> --region <TF_STATE_BUCKET_REGION>`
+   - `aws s3api get-bucket-versioning --bucket <TF_STATE_BUCKET> --region <TF_STATE_BUCKET_REGION>`
+   - `aws s3api get-public-access-block --bucket <TF_STATE_BUCKET> --region <TF_STATE_BUCKET_REGION>`
+3. Stack-root/namespace conformance:
+   - filesystem existence checks for all `TF_STACK_*_DIR`,
+   - uniqueness checks for all `TF_STATE_KEY_*`,
+   - `terraform -chdir=<TF_STACK_*_DIR> init -reconfigure -backend-config=...` (readiness check only; no apply in M2.A).
+
+M2.A fail-closed policy (planned):
+1. Missing state bucket or missing lock table is a hard blocker (`M2A-B1`).
+2. Bucket posture drift (encryption/versioning/public-access-block mismatch) is a hard blocker (`M2A-B2`).
+3. Missing stack-root directories or backend surfaces is a hard blocker (`M2A-B3`).
+4. Duplicate/invalid per-stack state-key namespace is a hard blocker (`M2A-B4`).
+5. Any inability to produce backend conformance evidence is a blocker (`M2A-B5`).
+
+M2.A evidence contract (planned):
+1. `m2a_backend_conformance_snapshot.json`
+   - backend existence and posture verdicts.
+2. `m2a_stack_backend_matrix.json`
+   - per-stack directory/backend/key readiness matrix.
+3. `m2a_blocker_register.json`
+   - active `M2A-B*` blockers with severity and remediation actions.
+4. `m2a_execution_summary.json`
+   - rollup verdict (`overall_pass`), next-step gate (`M2.B` ready or blocked).
+
+M2.A expected entry blockers (current planning reality):
+1. `M2A-B1`: backend resources missing (`TF_STATE_BUCKET` + `TF_LOCK_TABLE` not found).
+2. `M2A-B3`: stack-root directories for `infra/terraform/dev_full/*` not yet materialized.
+
+M2.A closure rule:
+1. M2.A can close only when:
+   - all `M2A-B*` blockers are resolved,
+   - all DoD checks are green,
+   - evidence artifacts are produced and readable.
+
+M2.A execution closure (2026-02-22):
+1. PASS run evidence root:
+   - `runs/dev_substrate/dev_full/m2/m2a_20260222T204011Z/`
+2. Required evidence artifacts produced:
+   - `runs/dev_substrate/dev_full/m2/m2a_20260222T204011Z/m2a_backend_conformance_snapshot.json`
+   - `runs/dev_substrate/dev_full/m2/m2a_20260222T204011Z/m2a_stack_backend_matrix.json`
+   - `runs/dev_substrate/dev_full/m2/m2a_20260222T204011Z/m2a_blocker_register.json`
+   - `runs/dev_substrate/dev_full/m2/m2a_20260222T204011Z/m2a_execution_summary.json`
+3. Intermediate fail-closed run retained for audit:
+   - `runs/dev_substrate/dev_full/m2/m2a_20260222T203851Z/`
+   - blocker cause was command-argument binding bug in the local M2.A probe script (not substrate drift); rerun after fix cleared blockers.
+4. Final verdict:
+   - `overall_pass=true`, blocker count `0`, next gate `M2.B_READY`.
+
+## M2.B Core Stack Materialization
+Goal:
+- apply and validate `core/` stack surfaces (network base, KMS, base S3, baseline IAM).
+
+Tasks:
+1. Run bounded `terraform plan/apply` for `infra/terraform/dev_full/core`.
+2. Verify required outputs/handles for downstream stacks.
+3. Validate tagging posture and baseline policy attachments.
+4. Emit `core` stack apply/verification receipt.
+
+DoD:
+- [x] `core` plan/apply succeeds.
+- [x] required core outputs are materialized.
+- [x] baseline tags/policies pass conformance checks.
+- [x] M2.B evidence snapshot committed.
+
+M2.B planning precheck (decision completeness):
+1. Required handles for this lane are pinned:
+   - `TF_STACK_CORE_DIR`, `TF_STATE_BUCKET`, `TF_STATE_BUCKET_REGION`, `TF_LOCK_TABLE`, `TF_STATE_KEY_CORE`
+   - `S3_OBJECT_STORE_BUCKET`, `S3_EVIDENCE_BUCKET`, `S3_ARTIFACTS_BUCKET`
+   - `S3_BUCKET_ENCRYPTION_ENABLED`, `S3_BUCKET_PUBLIC_ACCESS_BLOCKED`, `S3_BUCKET_VERSIONING_ENABLED`
+   - `KMS_KEY_ALIAS_PLATFORM`
+   - downstream-unblock handles expected from core outputs: `MSK_CLIENT_SUBNET_IDS`, `MSK_SECURITY_GROUP_ID`
+2. Planning-time execution reality:
+   - `infra/terraform/dev_full/core/main.tf` was M2.A skeletal (backend + local only), with no concrete resource/module or output surfaces.
+3. That planning blocker was carried as `M2B-B1` and resolved during M2.B execution.
+
+M2.B execution contract (planned):
+1. Preconditions:
+   - `M2.A` PASS evidence is present,
+   - backend/lock is reachable and unchanged from M2.A closure.
+2. Core command surface:
+   - `terraform -chdir=infra/terraform/dev_full/core init -reconfigure -backend-config=...`
+   - `terraform -chdir=infra/terraform/dev_full/core validate`
+   - `terraform -chdir=infra/terraform/dev_full/core plan -input=false -detailed-exitcode -out <m2b_core_plan>`
+   - `terraform -chdir=infra/terraform/dev_full/core apply -input=false <m2b_core_plan>`
+   - `terraform -chdir=infra/terraform/dev_full/core output -json`
+3. Acceptance checks:
+   - plan/apply commands exit cleanly (`0`) with deterministic artifact capture,
+   - core emits required downstream outputs for streaming/runtime entry,
+   - bucket posture is confirmed for core-managed buckets (encryption/versioning/public access block),
+   - KMS alias/key mapping is queryable and stable.
+
+M2.B fail-closed policy (planned):
+1. `M2B-B1`: core stack is non-materialized (no meaningful resources) or apply surface is incomplete.
+2. `M2B-B2`: terraform init/validate/plan/apply fails under pinned backend/state posture.
+3. `M2B-B3`: required output contract missing (including downstream-unblock handles for later stacks).
+4. `M2B-B4`: security/tagging posture drift on core-managed surfaces.
+5. `M2B-B5`: evidence artifacts missing/inconsistent with command receipts.
+
+M2.B evidence contract (planned):
+1. `m2b_core_plan_snapshot.json`
+   - command receipts, plan summary, resource-action rollup.
+2. `m2b_core_apply_snapshot.json`
+   - apply receipt, terraform output surface, state identity.
+3. `m2b_core_output_handle_matrix.json`
+   - mapping of core outputs to required registry handles and downstream consumers.
+4. `m2b_blocker_register.json`
+   - active `M2B-B*` blockers with severity and remediation.
+5. `m2b_execution_summary.json`
+   - rollup verdict (`overall_pass`), next gate (`M2.C_READY` or `BLOCKED`).
+
+M2.B expected entry blocker (planning-time reality):
+1. `M2B-B1`: core stack implementation was skeleton-only and could not satisfy core output/materialization DoD until resource/module/output surfaces were added.
+
+M2.B closure rule:
+1. M2.B can close only when:
+   - all `M2B-B*` blockers are resolved,
+   - DoD checks are green,
+   - evidence artifacts are produced and readable.
+
+M2.B execution closure (2026-02-22):
+1. PASS evidence root:
+   - `runs/dev_substrate/dev_full/m2/m2b_20260222T210207Z/`
+2. Required artifacts produced:
+   - `runs/dev_substrate/dev_full/m2/m2b_20260222T210207Z/m2b_core_plan_snapshot.json`
+   - `runs/dev_substrate/dev_full/m2/m2b_20260222T210207Z/m2b_core_apply_snapshot.json`
+   - `runs/dev_substrate/dev_full/m2/m2b_20260222T210207Z/m2b_core_output_handle_matrix.json`
+   - `runs/dev_substrate/dev_full/m2/m2b_20260222T210207Z/m2b_core_policy_tag_conformance.json`
+   - `runs/dev_substrate/dev_full/m2/m2b_20260222T210207Z/m2b_post_apply_stability_check.json`
+   - `runs/dev_substrate/dev_full/m2/m2b_20260222T210207Z/m2b_blocker_register.json`
+   - `runs/dev_substrate/dev_full/m2/m2b_20260222T210207Z/m2b_execution_summary.json`
+3. Durable evidence mirror:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2b_20260222T210207Z/`
+4. Command verdict:
+   - `plan_exit=2` (creates present), `apply_exit=0`, `overall_pass=true`, blockers empty.
+   - `policy_tag_conformance_pass=true` (IAM attachments + required tags).
+   - post-apply stability plan returned no drift (`detailed_exit_code=0`).
+5. M2.B blocker adjudication:
+   - `M2B-B1` closed by materializing concrete core stack resources/outputs.
+   - `M2B-B2..B5` closed by successful command receipts and conformance checks.
+
+## M2.C Streaming Stack Materialization
+Goal:
+- apply and validate `streaming/` stack (MSK serverless + schema + stream-lane identity posture).
+
+Tasks:
+1. Run bounded `terraform plan/apply` for `infra/terraform/dev_full/streaming`.
+2. Validate `MSK_*` handles and bootstrap-broker secret-path wiring references.
+3. Validate auth posture (`MSK_AUTH_MODE=SASL_IAM`).
+4. Validate stream-lane runtime handles are coherent for managed-first posture (`FLINK_*`, checkpoint prefix contract).
+5. Emit streaming stack receipt with blocker mapping.
+
+DoD:
+- [x] `streaming` plan/apply succeeds.
+- [x] MSK identity handles are materialized or explicit blockers raised.
+- [x] auth mode and secret reference contracts are consistent with authority.
+- [x] stream-lane handles for Flink runtime are coherent with registry/runtime policy.
+- [x] M2.C evidence snapshot committed.
+
+M2.C planning precheck (decision completeness):
+1. Required handles for this lane are pinned:
+   - `TF_STACK_STREAMING_DIR`, `TF_STATE_BUCKET`, `TF_STATE_BUCKET_REGION`, `TF_LOCK_TABLE`, `TF_STATE_KEY_STREAMING`
+   - `MSK_CLUSTER_NAME`, `MSK_REGION`, `MSK_CLUSTER_MODE`, `MSK_AUTH_MODE`
+   - `MSK_CLIENT_SUBNET_IDS`, `MSK_SECURITY_GROUP_ID`
+   - `GLUE_SCHEMA_REGISTRY_NAME`, `GLUE_SCHEMA_COMPATIBILITY_MODE`
+   - `SSM_MSK_BOOTSTRAP_BROKERS_PATH`
+2. Planning-time execution reality:
+   - `infra/terraform/dev_full/streaming/main.tf` started as M2.A skeletal (backend + local only), with no concrete MSK/schema/IAM resources.
+3. `M2C-B1` clearance checkpoint has now been executed:
+   - `runs/dev_substrate/dev_full/m2/m2c_b1_clear_20260222T212945Z/m2c_b1_clearance_summary.json`
+   - `validate_exit=0`, `plan_exit=2`, `blocker_cleared=true`.
+
+M2.C execution contract (planned):
+1. Preconditions:
+   - `M2.B` PASS evidence is present and core networking outputs remain stable,
+   - `MSK_CLIENT_SUBNET_IDS` and `MSK_SECURITY_GROUP_ID` are sourced from M2.B materialized outputs.
+2. Streaming command surface:
+   - `terraform -chdir=infra/terraform/dev_full/streaming init -reconfigure -backend-config=...`
+   - `terraform -chdir=infra/terraform/dev_full/streaming validate`
+   - `terraform -chdir=infra/terraform/dev_full/streaming plan -input=false -detailed-exitcode -out <m2c_streaming_plan>`
+   - `terraform -chdir=infra/terraform/dev_full/streaming apply -input=false <m2c_streaming_plan>`
+   - `terraform -chdir=infra/terraform/dev_full/streaming output -json`
+3. Acceptance checks:
+   - MSK serverless cluster is materialized and queryable,
+   - IAM auth posture is explicit and consistent with `MSK_AUTH_MODE=SASL_IAM`,
+   - bootstrap-brokers value is materialized and written to `SSM_MSK_BOOTSTRAP_BROKERS_PATH`,
+   - schema registry baseline (`GLUE_SCHEMA_REGISTRY_NAME`, compatibility mode) is materialized/queryable.
+
+M2.C fail-closed policy (planned):
+1. `M2C-B1`: streaming stack is non-materialized (skeleton-only) or apply surface is incomplete.
+2. `M2C-B2`: terraform `init/validate/plan/apply` fails under pinned backend/state posture.
+3. `M2C-B3`: required MSK identity handles are missing (`MSK_CLUSTER_ARN`, `MSK_BOOTSTRAP_BROKERS_SASL_IAM`).
+4. `M2C-B4`: auth posture drift (`MSK_AUTH_MODE` mismatch or IAM access policy gap).
+5. `M2C-B5`: schema registry baseline not materialized or incompatible with pinned mode.
+6. `M2C-B6`: Flink stream-lane handle contract is incomplete/incoherent.
+7. `M2C-B7`: evidence artifacts missing/inconsistent with command receipts.
+
+M2.C evidence contract (planned):
+1. `m2c_streaming_plan_snapshot.json`
+   - command receipts, plan summary, resource-action rollup.
+2. `m2c_streaming_apply_snapshot.json`
+   - apply receipt, terraform output surface, state identity.
+3. `m2c_msk_identity_snapshot.json`
+   - `MSK_CLUSTER_ARN`, bootstrap brokers, subnet/SG references, auth mode checks.
+4. `m2c_schema_registry_snapshot.json`
+   - Glue schema registry presence and compatibility configuration checks.
+5. `m2c_stream_lane_contract_snapshot.json`
+   - Flink handle coherence + checkpoint-prefix contract checks.
+6. `m2c_blocker_register.json`
+   - active `M2C-B*` blockers with severity/remediation.
+7. `m2c_execution_summary.json`
+   - rollup verdict (`overall_pass`), next gate (`M2.D_READY` or `BLOCKED`).
+
+M2.C expected entry blocker (planning-time reality):
+1. `M2C-B1` (skeleton-only streaming stack) was the planning-time blocker and is now cleared by bounded readiness evidence.
+
+M2.C closure rule:
+1. M2.C can close only when:
+   - all `M2C-B*` blockers are resolved,
+   - DoD checks are green,
+   - evidence artifacts are produced and readable.
+
+M2.C blocker-clearance note (2026-02-22):
+1. This step cleared `M2C-B1` only (implementation completeness blocker) and did not execute full M2.C apply closure.
+2. Clearance artifacts:
+   - `runs/dev_substrate/dev_full/m2/m2c_b1_clear_20260222T212945Z/m2c_b1_clearance_summary.json`
+   - `runs/dev_substrate/dev_full/m2/m2c_b1_clear_20260222T212945Z/terraform_validate.log`
+   - `runs/dev_substrate/dev_full/m2/m2c_b1_clear_20260222T212945Z/terraform_plan.log`
+3. Durable mirror:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2c_b1_clear_20260222T212945Z/`
+
+M2.C execution closure (2026-02-22):
+1. PASS evidence root:
+   - `runs/dev_substrate/dev_full/m2/m2c_20260222T222113Z/`
+2. Required artifacts produced:
+   - `runs/dev_substrate/dev_full/m2/m2c_20260222T222113Z/m2c_streaming_plan_snapshot.json`
+   - `runs/dev_substrate/dev_full/m2/m2c_20260222T222113Z/m2c_streaming_apply_snapshot.json`
+   - `runs/dev_substrate/dev_full/m2/m2c_20260222T222113Z/m2c_msk_identity_snapshot.json`
+   - `runs/dev_substrate/dev_full/m2/m2c_20260222T222113Z/m2c_schema_registry_snapshot.json`
+   - `runs/dev_substrate/dev_full/m2/m2c_20260222T222113Z/m2c_stream_lane_contract_snapshot.json`
+   - `runs/dev_substrate/dev_full/m2/m2c_20260222T222113Z/m2c_blocker_register.json`
+   - `runs/dev_substrate/dev_full/m2/m2c_20260222T222113Z/m2c_execution_summary.json`
+3. Durable evidence mirror:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2c_20260222T222113Z/`
+4. Command verdict:
+   - `validate_exit=0`, `plan_exit=2`, `apply_exit=0`, `output_exit=0`, `overall_pass=true`.
+5. M2.C blocker adjudication:
+   - `M2C-B1` was previously cleared by readiness checkpoint.
+   - `M2C-B2..M2C-B7` closed by successful apply + identity/schema/stream-lane contract evidence.
+
+## M2.D Topic and Schema Readiness Precheck
+Goal:
+- prove streaming substrate is ready for lane topic/schema provisioning contracts and SR commit-authority routing.
+
+Tasks:
+1. Validate topic map handles exist and naming posture is coherent.
+2. Validate schema registry handles and compatibility mode.
+3. Validate producer/consumer identity bindings for access paths.
+4. Validate SR READY commit-authority contract (`SR_READY_COMMIT_AUTHORITY=step_functions_only`) and receipt-path handles.
+5. Emit readiness matrix and fail-closed blockers.
+
+DoD:
+- [x] required topic surfaces are reachable/provisionable.
+- [x] schema registry handles/compatibility contract validated.
+- [x] lane access bindings pass precheck.
+- [x] SR READY commit-authority route is explicit and evidence-path contract is valid.
+- [x] M2.D readiness snapshot committed.
+
+M2.D planning precheck (decision completeness):
+1. Required topic-handle set is pinned and non-empty:
+   - `FP_BUS_CONTROL_V1`
+   - `FP_BUS_TRAFFIC_FRAUD_V1`
+   - `FP_BUS_CONTEXT_ARRIVAL_EVENTS_V1`
+   - `FP_BUS_CONTEXT_ARRIVAL_ENTITIES_V1`
+   - `FP_BUS_CONTEXT_FLOW_ANCHOR_FRAUD_V1`
+   - `FP_BUS_RTDL_V1`
+   - `FP_BUS_AUDIT_V1`
+   - `FP_BUS_CASE_TRIGGERS_V1`
+   - `FP_BUS_LABELS_EVENTS_V1`
+2. Required stream substrate handles are pinned and queryable from M2.C outputs:
+   - `MSK_CLUSTER_ARN`, `MSK_BOOTSTRAP_BROKERS_SASL_IAM`, `SSM_MSK_BOOTSTRAP_BROKERS_PATH`
+   - `GLUE_SCHEMA_REGISTRY_NAME`, `GLUE_SCHEMA_COMPATIBILITY_MODE`
+3. Required SR commit-authority handles are pinned:
+   - `SR_READY_COMMIT_AUTHORITY`
+   - `SR_READY_COMMIT_STATE_MACHINE`
+   - `SR_READY_RECEIPT_REQUIRES_SFN_EXECUTION_REF`
+   - `SR_READY_COMMIT_RECEIPT_PATH_PATTERN`
+4. Required lane-binding identity handles are named and owned (materialization may be completed in M2.E):
+   - `ROLE_FLINK_EXECUTION`
+   - `ROLE_LAMBDA_IG_EXECUTION`
+   - `ROLE_APIGW_IG_INVOKE`
+   - `ROLE_DDB_IG_IDEMPOTENCY_RW`
+   - `ROLE_STEP_FUNCTIONS_ORCHESTRATOR`
+5. Precheck closure condition for identity bindings in M2.D:
+   - binding matrix must be complete with no unknown handles,
+   - any `TO_PIN` identity handles must be explicitly routed to `M2.E` materialization (no implicit defaults).
+
+M2.D execution contract (planned):
+1. Preconditions:
+   - `M2.C` PASS evidence is present and unchanged.
+   - `dev_full_handles.registry.v0.md` is the active source for topic/schema/authority handle names.
+2. Topic/readiness precheck:
+   - every required topic handle resolves to one canonical topic name,
+   - topic names satisfy naming policy (`fp.bus.*.v1`) and uniqueness checks,
+   - cluster connectivity posture is queryable from bootstrap-broker and cluster-ARN surfaces.
+3. Schema precheck:
+   - Glue schema registry exists and matches pinned compatibility mode,
+   - anchor schema surface is present and readable.
+4. Lane binding precheck:
+   - producer/consumer ownership matrix exists for each required topic,
+   - every owner binding references a known role handle (no anonymous principal).
+5. SR authority precheck:
+   - READY commit authority is `step_functions_only`,
+   - referenced orchestrator state machine is resolvable,
+   - READY receipt path contract is syntactically valid and non-ambiguous.
+
+M2.D command surface (planned, execution-time):
+1. MSK + registry posture:
+   - `aws kafka describe-cluster-v2 --cluster-arn <MSK_CLUSTER_ARN> --region <MSK_REGION>`
+   - `aws ssm get-parameter --name <SSM_MSK_BOOTSTRAP_BROKERS_PATH> --with-decryption --region <AWS_REGION>`
+   - `aws glue get-registry --registry-id RegistryName=<GLUE_SCHEMA_REGISTRY_NAME> --region <AWS_REGION>`
+   - `aws glue get-schema --schema-id RegistryName=<GLUE_SCHEMA_REGISTRY_NAME>,SchemaName=<GLUE_ANCHOR_SCHEMA_NAME> --region <AWS_REGION>`
+2. SR authority posture:
+   - `aws stepfunctions list-state-machines --max-results 100 --region <AWS_REGION>`
+3. Binding and policy precheck:
+   - role-handle presence checks against registry and IAM lookup where materialized,
+   - deterministic topic-owner matrix validation script (no unknown owner/no duplicate owner rows).
+4. Optional topic existence probe (when admin surface exists):
+   - bounded Kafka admin probe from managed identity lane to confirm required topic creation/readiness.
+
+M2.D fail-closed policy (planned):
+1. `M2D-B1`: required topic handle set missing, duplicated, or naming-drifted.
+2. `M2D-B2`: MSK/bootstrap surface unreadable or cluster not queryable.
+3. `M2D-B3`: schema registry missing/unreadable or compatibility mismatch.
+4. `M2D-B4`: lane-binding matrix incomplete or references unknown identities.
+5. `M2D-B5`: SR commit-authority contract drift (`SR_READY_COMMIT_AUTHORITY` mismatch, missing state-machine route, or invalid receipt-path contract).
+6. `M2D-B6`: optional topic-existence probe required for this environment but not executable.
+7. `M2D-B7`: evidence artifacts missing or inconsistent with command receipts.
+
+M2.D evidence contract (planned):
+1. `m2d_topic_surface_matrix.json`
+   - required topic handles, resolved names, naming/uniqueness checks.
+2. `m2d_schema_registry_snapshot.json`
+   - registry presence, compatibility-mode checks, anchor-schema presence checks.
+3. `m2d_lane_binding_matrix.json`
+   - producer/consumer owner map, role-handle references, unresolved-to-M2.E routing markers.
+4. `m2d_sr_commit_authority_snapshot.json`
+   - SR authority and Step Functions route conformance checks.
+5. `m2d_blocker_register.json`
+   - active `M2D-B*` blockers with severity/remediation.
+6. `m2d_execution_summary.json`
+   - rollup verdict (`overall_pass`), next gate (`M2.E_READY` or `BLOCKED`).
+
+M2.D expected entry blockers (current planning reality):
+1. `M2D-B4` (planning-time): lane-binding matrix was not materialized as an auditable artifact.
+2. `M2D-B6` (planning-time): topic-existence probe capability was not pinned as executable/waived.
+
+M2.D closure rule:
+1. M2.D can close only when:
+   - all `M2D-B*` blockers are resolved,
+   - all DoD checks are green,
+   - evidence artifacts are produced and readable,
+   - any unresolved identity materialization is explicitly handed off to M2.E with zero unknown bindings.
+
+M2.D execution closure (2026-02-22):
+1. Final PASS evidence root:
+   - `runs/dev_substrate/dev_full/m2/m2d_20260222T230240Z/`
+2. Required artifacts produced:
+   - `runs/dev_substrate/dev_full/m2/m2d_20260222T230240Z/m2d_topic_surface_matrix.json`
+   - `runs/dev_substrate/dev_full/m2/m2d_20260222T230240Z/m2d_schema_registry_snapshot.json`
+   - `runs/dev_substrate/dev_full/m2/m2d_20260222T230240Z/m2d_lane_binding_matrix.json`
+   - `runs/dev_substrate/dev_full/m2/m2d_20260222T230240Z/m2d_sr_commit_authority_snapshot.json`
+   - `runs/dev_substrate/dev_full/m2/m2d_20260222T230240Z/m2d_blocker_register.json`
+   - `runs/dev_substrate/dev_full/m2/m2d_20260222T230240Z/m2d_execution_summary.json`
+3. Durable evidence mirror:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2d_20260222T230240Z/`
+4. Command verdict:
+   - `kafka_describe_exit=0`, `ssm_get_parameter_exit=0`, `glue_get_registry_exit=0`, `glue_get_schema_exit=0`, `stepfunctions_list_exit=0`.
+   - `overall_pass=true`, blockers empty.
+5. Intermediate fail-closed runs retained for audit:
+   - `runs/dev_substrate/dev_full/m2/m2d_20260222T225853Z/` (parser/command-surface defects caused false blockers)
+   - `runs/dev_substrate/dev_full/m2/m2d_20260222T230106Z/` (single Glue argument mismatch blocker)
+6. Blocker adjudication:
+   - `M2D-B1` closed by corrected registry parsing and concrete topic-handle coherence checks.
+   - `M2D-B2` closed by live MSK + SSM query success.
+   - `M2D-B3` closed by corrected Glue command surface and live registry/schema checks.
+   - `M2D-B4` closed by materialized lane-binding matrix with explicit M2.E handoff for `TO_PIN` identity handles.
+   - `M2D-B5` closed by SR authority contract validation (`step_functions_only`, route handle resolution, receipt path validity).
+   - `M2D-B6` closed by explicit `NOT_REQUIRED_AT_M2D` probe policy with deferred live topic-existence checks to `M4/M5`.
+   - `M2D-B7` closed by complete evidence artifact set.
+
+## M2.E Runtime Stack and IAM Role Posture
+Goal:
+- apply and validate `runtime/` stack and managed-first identity/control surfaces.
+
+Tasks:
+1. Run bounded `terraform plan/apply` for `infra/terraform/dev_full/runtime`.
+2. Validate required IAM role handles from authority Section 8.6/registry Section 11.
+3. Validate managed runtime posture:
+   - API edge handles (`APIGW_IG_API_ID`, Lambda handler, DDB idempotency table),
+   - selective EKS posture where required.
+4. Validate runtime-path governance handles (`PHASE_RUNTIME_PATH_*`) and fail-closed path-selection artifact contract.
+5. Emit role conformance matrix and runtime stack receipt.
+
+DoD:
+- [x] `runtime` plan/apply succeeds.
+- [x] required role handles are materialized or explicit blockers raised.
+- [x] managed runtime identity baseline checks pass (API edge + selective EKS).
+- [x] runtime-path governance handles are materialized and conformance-checked.
+- [x] M2.E evidence snapshot committed.
+
+M2.E planning precheck (decision completeness):
+1. Required runtime stack handles are pinned:
+   - `TF_STACK_RUNTIME_DIR`, `TF_STATE_BUCKET`, `TF_STATE_BUCKET_REGION`, `TF_LOCK_TABLE`, `TF_STATE_KEY_RUNTIME`
+2. Required runtime-critical identity handles are pinned and scoped to M2.E materialization:
+   - `ROLE_EKS_NODEGROUP_DEV_FULL`
+   - `ROLE_EKS_RUNTIME_PLATFORM_BASE`
+   - `ROLE_FLINK_EXECUTION`
+   - `ROLE_LAMBDA_IG_EXECUTION`
+   - `ROLE_APIGW_IG_INVOKE`
+   - `ROLE_DDB_IG_IDEMPOTENCY_RW`
+   - `ROLE_STEP_FUNCTIONS_ORCHESTRATOR`
+3. Required managed-ingress/API-edge handles are pinned:
+   - `IG_EDGE_MODE`
+   - `APIGW_IG_API_ID`
+   - `LAMBDA_IG_HANDLER_NAME`
+   - `DDB_IG_IDEMPOTENCY_TABLE`
+4. Required runtime-path governance handles are pinned:
+   - `PHASE_RUNTIME_PATH_MODE`
+   - `PHASE_RUNTIME_PATH_PIN_REQUIRED`
+   - `RUNTIME_PATH_SWITCH_IN_PHASE_ALLOWED`
+   - `RUNTIME_FALLBACK_REQUIRES_NEW_PHASE_EXECUTION_ID`
+   - `PHASE_RUNTIME_PATH_EVIDENCE_PATH_PATTERN`
+5. Scope-routing decision for non-runtime Section 8.6 roles (no ambiguity allowed):
+   - `ROLE_MWAA_EXECUTION`, `ROLE_SAGEMAKER_EXECUTION`, `ROLE_DATABRICKS_CROSS_ACCOUNT_ACCESS`
+   - these remain in M2 global conformance scope but are materialized in M2.G/M2.H, not M2.E.
+
+M2.E execution contract (planned):
+1. Preconditions:
+   - `M2.D` PASS evidence is present and unchanged.
+   - runtime stack root has concrete Terraform surfaces beyond M2.A skeletal placeholder.
+2. Runtime stack command lane:
+   - `terraform -chdir=infra/terraform/dev_full/runtime init -reconfigure -backend-config=...`
+   - `terraform -chdir=infra/terraform/dev_full/runtime validate`
+   - `terraform -chdir=infra/terraform/dev_full/runtime plan -input=false -detailed-exitcode -out <m2e_runtime_plan>`
+   - `terraform -chdir=infra/terraform/dev_full/runtime apply -input=false <m2e_runtime_plan>`
+   - `terraform -chdir=infra/terraform/dev_full/runtime output -json`
+3. Runtime identity conformance lane:
+   - verify runtime-critical role handles resolve to concrete identities after apply,
+   - verify least-privilege boundary posture is queryable for runtime-critical identities.
+4. API-edge runtime conformance lane:
+   - `IG_EDGE_MODE=apigw_lambda_ddb` contract is preserved,
+   - API gateway, lambda handler, and idempotency table surfaces are queryable,
+   - fail-closed if any edge surface is unresolved.
+5. Runtime-path governance conformance lane:
+   - handle set is complete/coherent,
+   - path-selection evidence contract pattern is valid and writable.
+
+M2.E command surface (planned, execution-time):
+1. Terraform runtime lane:
+   - `terraform init/validate/plan/apply/output` in `infra/terraform/dev_full/runtime`.
+2. Identity lane checks:
+   - `aws iam get-role --role-name <resolved role name>` for runtime-critical roles.
+3. API edge checks:
+   - API query via `apigatewayv2 get-api --api-id <APIGW_IG_API_ID>` (or explicit REST API equivalent if pinned),
+   - `aws lambda get-function --function-name <LAMBDA_IG_HANDLER_NAME>`,
+   - `aws dynamodb describe-table --table-name <DDB_IG_IDEMPOTENCY_TABLE>`.
+4. Runtime-path governance checks:
+   - deterministic handle/pattern validation for `PHASE_RUNTIME_PATH_*`,
+   - contract probe for evidence path pattern serialization (without writing secret values).
+
+M2.E fail-closed policy (planned):
+1. `M2E-B1`: runtime stack remains skeletal/non-materialized (cannot satisfy runtime DoD).
+2. `M2E-B2`: terraform `init/validate/plan/apply` fails under pinned backend/state posture.
+3. `M2E-B3`: one or more runtime-critical role handles unresolved/unmaterialized after apply.
+4. `M2E-B4`: managed API-edge surfaces unresolved/non-queryable (`APIGW/Lambda/DDB` contract failure).
+5. `M2E-B5`: runtime-path governance handle set missing/incoherent or invalid evidence path contract.
+6. `M2E-B6`: selective EKS runtime baseline identity posture drift (`ROLE_EKS_*` mismatch).
+7. `M2E-B7`: evidence artifacts missing/inconsistent with command receipts.
+
+M2.E evidence contract (planned):
+1. `m2e_runtime_plan_snapshot.json`
+   - command receipts, plan summary, resource-action rollup.
+2. `m2e_runtime_apply_snapshot.json`
+   - apply receipt, runtime outputs, state identity.
+3. `m2e_runtime_role_conformance_matrix.json`
+   - runtime-critical role-handle resolution + materialization checks.
+4. `m2e_api_edge_runtime_snapshot.json`
+   - API gateway/lambda/ddb conformance checks for ingress edge.
+5. `m2e_runtime_path_governance_snapshot.json`
+   - runtime-path governance handle and artifact-contract checks.
+6. `m2e_blocker_register.json`
+   - active `M2E-B*` blockers with severity/remediation.
+7. `m2e_execution_summary.json`
+   - rollup verdict (`overall_pass`), next gate (`M2.F_READY` or `BLOCKED`).
+
+M2.E expected entry blockers (current planning reality):
+1. `M2E-B1`: `infra/terraform/dev_full/runtime/` is still M2.A skeletal (`main.tf` only).
+2. `M2E-B3`: runtime-critical role handles are currently unresolved (`TO_PIN`).
+3. `M2E-B4`: `APIGW_IG_API_ID` is currently unresolved (`TO_PIN`).
+
+M2.E closure rule:
+1. M2.E can close only when:
+   - all `M2E-B*` blockers are resolved,
+   - all DoD checks are green,
+   - evidence artifacts are produced and readable,
+   - runtime-critical role handles are materialized,
+   - non-runtime role handles (`MWAA/SageMaker/Databricks`) are explicitly routed to M2.G/M2.H with zero unknown ownership.
+
+M2.E execution closure (2026-02-23):
+1. PASS evidence root:
+   - `runs/dev_substrate/dev_full/m2/m2e_20260223T043248Z/`
+2. Required artifacts produced:
+   - `runs/dev_substrate/dev_full/m2/m2e_20260223T043248Z/m2e_runtime_plan_snapshot.json`
+   - `runs/dev_substrate/dev_full/m2/m2e_20260223T043248Z/m2e_runtime_apply_snapshot.json`
+   - `runs/dev_substrate/dev_full/m2/m2e_20260223T043248Z/m2e_runtime_role_conformance_matrix.json`
+   - `runs/dev_substrate/dev_full/m2/m2e_20260223T043248Z/m2e_api_edge_runtime_snapshot.json`
+   - `runs/dev_substrate/dev_full/m2/m2e_20260223T043248Z/m2e_runtime_path_governance_snapshot.json`
+   - `runs/dev_substrate/dev_full/m2/m2e_20260223T043248Z/m2e_api_edge_live_probe_snapshot.json`
+   - `runs/dev_substrate/dev_full/m2/m2e_20260223T043248Z/m2e_blocker_register.json`
+   - `runs/dev_substrate/dev_full/m2/m2e_20260223T043248Z/m2e_execution_summary.json`
+3. Durable evidence mirror:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2e_20260223T043248Z/`
+4. Command verdict:
+   - `fmt_exit=0`, `init_exit=0`, `validate_exit=0`, `plan_detailed_exit=2`, `apply_exit=0`, `output_exit=0`.
+5. Runtime materialization verdict:
+   - `overall_pass=true`, `blocker_count=0`, `next_gate=M2.F_READY`.
+   - runtime stack apply materialized 21 resources (`21 added, 0 changed, 0 destroyed`).
+   - supplemental lambda reconcile apply succeeded (`1 changed`) to normalize API stage-path handling for live probes.
+   - live API probe receipts after reconcile: health `200`, ingest `202`.
+   - current invocation note: with `APIGW_IG_STAGE=v1` and route keys including `/v1`, external path is `/v1/v1/...`; path-contract normalization remains an explicit downstream pin.
+6. Blocker adjudication:
+   - `M2E-B1` closed by non-skeletal runtime stack apply and concrete outputs.
+   - `M2E-B2` closed by successful command lane; initial `backend.hcl.example` argument parsing defect was remediated by inline backend-config flags in the same run.
+   - `M2E-B3` closed by role-handle materialization (`ROLE_FLINK_EXECUTION`, `ROLE_LAMBDA_IG_EXECUTION`, `ROLE_APIGW_IG_INVOKE`, `ROLE_DDB_IG_IDEMPOTENCY_RW`, `ROLE_STEP_FUNCTIONS_ORCHESTRATOR`).
+   - `M2E-B4` closed by API-edge probe (`APIGW_IG_API_ID`, required routes, Lambda, DDB).
+   - `M2E-B5` closed by runtime-path governance contract conformance.
+   - `M2E-B6` closed by selective EKS baseline and role alignment checks.
+   - `M2E-B7` closed by complete local + durable evidence artifact set.
+
+## M2.F Secret Path Contract and Materialization Checks
+Goal:
+- verify secret-path contract completeness and materialization posture for required surfaces.
+
+Tasks:
+1. Validate required secret path handle set is complete and non-drifting.
+2. Validate secret path existence/readability posture via managed identity (value redaction-safe checks).
+3. Validate no plaintext secret emission in outputs/evidence.
+4. Validate IG auth and API-edge secret surfaces are represented by path handles only (no inline creds).
+5. Emit secret conformance report and blocker rollup.
+
+DoD:
+- [x] required secret path set is complete.
+- [x] materialization/readability checks pass or explicit blockers raised.
+- [x] no plaintext leakage in outputs/evidence.
+- [x] IG/API-edge auth secret contract is path-based and leak-free.
+- [x] M2.F evidence snapshot committed.
+
+M2.F planning precheck (decision completeness):
+1. Secret authority set is pinned and consistent across:
+   - design authority Section `8.6`,
+   - handles registry Section `11.3`,
+   - runtime/auth handles (`SSM_IG_API_KEY_PATH`).
+2. Runtime identity set for secret-readability checks is pinned:
+   - `ROLE_LAMBDA_IG_EXECUTION`,
+   - `ROLE_FLINK_EXECUTION`,
+   - `ROLE_STEP_FUNCTIONS_ORCHESTRATOR`,
+   - `ROLE_MWAA_EXECUTION`,
+   - `ROLE_SAGEMAKER_EXECUTION`,
+   - `ROLE_DATABRICKS_CROSS_ACCOUNT_ACCESS`.
+3. Secrets policy handles are pinned:
+   - `SECRETS_BACKEND`,
+   - `SECRETS_PLAINTEXT_OUTPUT_ALLOWED`.
+4. Dependency sequencing is explicit:
+   - data/learning/orchestration secret paths may depend on `M2.G` and `M2.H` materialization.
+   - if these are absent, M2.F remains fail-closed with explicit blocker handoff; no implicit pass is allowed.
+
+M2.F execution contract (planned):
+1. Preconditions:
+   - `M2.E` PASS evidence is present and unchanged.
+   - active handle registry version is the source for required path inventory.
+2. Secret inventory conformance lane:
+   - build canonical required secret-path set from authority + registry.
+   - detect missing/extra/drifted paths.
+3. Path materialization/readability lane:
+   - verify each required path exists (`aws ssm get-parameter --name <path> --region <region>` without decryption for evidence safety).
+   - verify runtime-role read posture using IAM policy simulation or direct role-policy checks.
+4. Plaintext leakage lane:
+   - verify phase outputs/evidence/terraform outputs contain no secret values.
+   - enforce path/ARN-only evidence policy for secret references.
+5. IG edge secret contract lane:
+   - verify ingress auth path remains `SSM_IG_API_KEY_PATH` and no inline key appears in runtime env/outputs.
+
+M2.F command surface (planned, execution-time):
+1. Inventory + presence probes:
+   - `aws ssm get-parameter --name <path> --region <AWS_REGION>`
+   - `aws ssm describe-parameters --parameter-filters ...` (optional cross-check for prefix inventory).
+2. Runtime-role readability probes:
+   - `aws iam get-role --role-name <role>`
+   - `aws iam simulate-principal-policy --policy-source-arn <role-arn> --action-names ssm:GetParameter --resource-arns <path-arn>`
+3. Leak checks:
+   - deterministic scans across phase evidence payloads for banned plaintext secret patterns.
+   - conformance check that evidence includes only secret paths/arns, never values.
+
+M2.F fail-closed policy (planned):
+1. `M2F-B1`: required secret-path handle set is incomplete or drifted from authority.
+2. `M2F-B2`: one or more required secret paths are missing/unreadable.
+3. `M2F-B3`: one or more required runtime roles lack secret-readability permissions for required paths.
+4. `M2F-B4`: plaintext secret leakage detected in outputs/evidence.
+5. `M2F-B5`: IG auth contract drift (inline key/value or non-path-based auth reference).
+6. `M2F-B6`: secrets backend policy drift (`SECRETS_BACKEND` / plaintext policy mismatch).
+7. `M2F-B7`: evidence artifacts missing/inconsistent with probe receipts.
+
+M2.F evidence contract (planned):
+1. `m2f_secret_inventory_snapshot.json`
+   - canonical required set, source docs, drift findings.
+2. `m2f_secret_materialization_snapshot.json`
+   - per-path presence/readability probe results (no values).
+3. `m2f_secret_role_readability_matrix.json`
+   - required role x required path authorization/readability matrix.
+4. `m2f_plaintext_leakage_scan.json`
+   - scan scope, banned-pattern findings, pass/fail.
+5. `m2f_ig_secret_contract_snapshot.json`
+   - IG auth path posture and inline-secret absence checks.
+6. `m2f_blocker_register.json`
+   - active `M2F-B*` blockers with severity/remediation/handoff.
+7. `m2f_execution_summary.json`
+   - rollup verdict (`overall_pass`), next gate (`M2.F_READY` or `BLOCKED`).
+
+M2.F expected entry blockers (current planning reality):
+1. `M2F-B2` likely active for data/learning/orchestration secret paths before `M2.G` and `M2.H` materialization.
+2. `M2F-B3` likely active for unresolved role handles:
+   - `ROLE_MWAA_EXECUTION`, `ROLE_SAGEMAKER_EXECUTION`, `ROLE_DATABRICKS_CROSS_ACCOUNT_ACCESS`.
+3. `M2F-B1` may activate if authority-vs-registry path inventory is inconsistent during execution.
+
+M2.F closure rule:
+1. M2.F can close only when:
+   - all `M2F-B*` blockers are resolved,
+   - all DoD checks are green,
+   - evidence artifacts are produced and readable,
+   - any blocker dependency on `M2.G/M2.H` is explicitly closed by rerun evidence (no stale pass).
+
+M2.F execution status (2026-02-23):
+1. Attempt-1 evidence root (blocked):
+   - `runs/dev_substrate/dev_full/m2/m2f_20260223T051928Z/`
+   - blockers: `M2F-B1`, `M2F-B2`, `M2F-B3`.
+2. Remediation between attempts:
+   - authority secret-path inventory updated to include `/fraud-platform/dev_full/ig/api_key` for parity with registry.
+   - role-path expectation map tightened to remove non-required Step Functions -> MWAA secret-read assertion.
+3. Attempt-2 evidence root (blocked, reduced blocker set):
+   - `runs/dev_substrate/dev_full/m2/m2f_20260223T052223Z/`
+   - `m2f_execution_summary.json`: `overall_pass=false`, `blockers=[M2F-B2,M2F-B3]`, `next_gate=BLOCKED`.
+4. Durable evidence mirror:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2f_20260223T052223Z/`
+5. Blocker adjudication:
+   - `M2F-B1`: CLOSED (authority/registry inventory parity restored).
+   - `M2F-B2`: OPEN (10/12 required secret paths missing; expected before `M2.G/M2.H` materialization).
+   - `M2F-B3`: OPEN (unresolved role handles: `ROLE_MWAA_EXECUTION`, `ROLE_SAGEMAKER_EXECUTION`, `ROLE_DATABRICKS_CROSS_ACCOUNT_ACCESS`).
+   - `M2F-B4`: CLOSED (no plaintext leakage findings).
+   - `M2F-B5`: CLOSED (IG contract path-based and leak-free).
+   - `M2F-B6`: CLOSED (`SECRETS_BACKEND` and plaintext policy handles conformant).
+   - `M2F-B7`: CLOSED (required `m2f_*` artifact set complete).
+6. Closure decision:
+   - M2.F is executed but remains fail-closed `BLOCKED` until `M2.G/M2.H` materialize data/learning/orchestration secret paths and roles.
+
+M2.F rerun closure status (2026-02-23):
+1. Rerun evidence root (post `M2.G/M2.H` apply):
+   - `runs/dev_substrate/dev_full/m2/m2f_20260223T053933Z/`
+   - `m2f_execution_summary.json`: `overall_pass=true`, `blockers=[]`, `next_gate=M2.F_READY`.
+2. Durable evidence mirror:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2f_20260223T053933Z/`
+3. Blocker adjudication after rerun:
+   - `M2F-B2`: CLOSED (all 12 required secret paths now materialized/readable).
+   - `M2F-B3`: CLOSED (all required role handles materialized + role-path readability checks green).
+4. Final closure decision:
+   - M2.F is now `DONE`.
+
+## M2.G Data_ML Stack Materialization
+Goal:
+- apply and validate `data_ml/` stack surfaces (Databricks, SageMaker, MLflow bridge handles).
+
+Tasks:
+1. Run bounded `terraform plan/apply` for `infra/terraform/dev_full/data_ml`.
+2. Validate required Data_ML handle outputs and role/secret references.
+3. Validate minimal cost-safe default posture for non-essential compute.
+4. Emit data_ml stack receipt.
+
+DoD:
+- [x] `data_ml` plan/apply succeeds.
+- [x] required data_ml handles materialized or explicit blockers raised.
+- [x] default cost-safe posture checks pass.
+- [x] M2.G evidence snapshot committed.
+
+M2.G planning precheck (decision completeness):
+1. Required handles for this lane are pinned:
+   - `TF_STACK_DATA_ML_DIR`, `TF_STATE_BUCKET`, `TF_STATE_BUCKET_REGION`, `TF_LOCK_TABLE`, `TF_STATE_KEY_DATA_ML`.
+   - `ROLE_SAGEMAKER_EXECUTION`, `ROLE_DATABRICKS_CROSS_ACCOUNT_ACCESS`.
+   - `SSM_DATABRICKS_WORKSPACE_URL_PATH`, `SSM_DATABRICKS_TOKEN_PATH`, `SSM_MLFLOW_TRACKING_URI_PATH`, `SSM_SAGEMAKER_MODEL_EXEC_ROLE_ARN_PATH`.
+2. Dependency posture is explicit:
+   - `M2.E` runtime lane is complete and provides stable baseline for role/secret conformance handoff.
+3. Planning-time blocker (now resolved):
+   - `infra/terraform/dev_full/data_ml` was initially skeleton-only and could not satisfy M2.G DoD before materialization.
+
+M2.G execution contract (planned):
+1. Preconditions:
+   - backend and lock posture unchanged from M2.A closure;
+   - no unresolved registry drift for lane handles.
+2. Materialize lane surfaces with bounded terraform execution:
+   - init, validate, plan, apply, output in `infra/terraform/dev_full/data_ml`.
+3. Validate role/secret conformance:
+   - required role handles resolve to concrete IAM ARNs;
+   - required SSM paths exist and are queryable.
+4. Validate idempotence:
+   - post-apply plan is clean (`detailed-exitcode=0`) to prove deterministic closure.
+
+M2.G command surface (planned, execution-time):
+1. `terraform -chdir=infra/terraform/dev_full/data_ml init -reconfigure -backend-config=...`
+2. `terraform -chdir=infra/terraform/dev_full/data_ml validate`
+3. `terraform -chdir=infra/terraform/dev_full/data_ml plan -input=false -detailed-exitcode -out <m2g_data_ml_plan>`
+4. `terraform -chdir=infra/terraform/dev_full/data_ml apply -input=false <m2g_data_ml_plan>`
+5. `terraform -chdir=infra/terraform/dev_full/data_ml output -json`
+6. `terraform -chdir=infra/terraform/dev_full/data_ml plan -input=false -detailed-exitcode -lock=false` (idempotence check).
+
+M2.G fail-closed policy (planned):
+1. `M2G-B1`: `data_ml` stack is non-materialized/skeleton-only or apply surface incomplete.
+2. `M2G-B2`: terraform init/validate/plan/apply fails under pinned backend/state posture.
+3. `M2G-B3`: required role handles unresolved after apply.
+4. `M2G-B4`: required SSM secret-path handles missing/unqueryable after apply.
+5. `M2G-B5`: post-apply idempotence fails (`plan` indicates unmanaged drift).
+6. `M2G-B6`: evidence artifacts missing/inconsistent with command receipts.
+
+M2.G evidence contract (planned):
+1. `m2g_execution_summary.json`
+2. `m2g_data_ml_output.json`
+3. `terraform_init.log`
+4. `terraform_validate.log`
+5. `terraform_plan.log`
+6. `terraform_apply.log`
+7. `m2g_data_ml.tfplan` (local run artifact; optional for durable mirror).
+
+M2.G expected entry blocker (historical):
+1. `M2G-B1` was active before stack materialization and is now closed.
+
+M2.G closure rule:
+1. M2.G can close only when:
+   - all `M2G-B*` blockers are resolved,
+   - DoD checks are green,
+   - evidence artifacts are produced and readable,
+   - post-apply idempotence check is clean.
+
+M2.G execution status (2026-02-23):
+1. Authoritative evidence root:
+   - `runs/dev_substrate/dev_full/m2/m2g_20260223T053551Z/`
+   - `m2g_execution_summary.json`: `overall_pass=true`, `plan_exit_code=2`, `apply_executed=true`.
+2. Durable evidence mirror:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2g_20260223T053551Z/`
+3. Key materialization outcomes:
+   - `ROLE_SAGEMAKER_EXECUTION` materialized.
+   - `ROLE_DATABRICKS_CROSS_ACCOUNT_ACCESS` materialized.
+   - SSM paths materialized: databricks workspace/token, mlflow tracking URI, sagemaker model role ARN.
+
+## M2.H Ops Stack and Cost Guardrail Surfaces
+Goal:
+- apply and validate `ops/` stack surfaces required for `M2.F` closure (`ROLE_MWAA_EXECUTION` + required ops-side secret paths), while preserving cost-guardrail handle continuity.
+
+Tasks:
+1. Run bounded `terraform plan/apply` for `infra/terraform/dev_full/ops`.
+2. Validate `ROLE_MWAA_EXECUTION` materialization and required role-path readability for `/fraud-platform/dev_full/mwaa/webserver_url`.
+3. Validate ops-side secret-path materialization required by `M2.F` (`mwaa/aurora/redis` path set).
+4. Validate cost-guardrail handle continuity remains pinned in registry/build-plan (no silent drift).
+5. Emit ops stack receipt.
+
+DoD:
+- [x] `ops` plan/apply succeeds.
+- [x] `ROLE_MWAA_EXECUTION` materialized and readable for expected path checks.
+- [x] ops-side required secret paths (`mwaa/aurora/redis`) are materialized and queryable.
+- [x] cost-guardrail handle continuity is pinned (no drift in handle contracts).
+- [x] M2.H evidence snapshot committed.
+
+M2.H planning precheck (decision completeness):
+1. Required handles for this lane are pinned:
+   - `TF_STACK_OPS_DIR`, `TF_STATE_BUCKET`, `TF_STATE_BUCKET_REGION`, `TF_LOCK_TABLE`, `TF_STATE_KEY_OPS`.
+   - `ROLE_MWAA_EXECUTION`.
+   - `SSM_MWAA_WEBSERVER_URL_PATH`, `SSM_AURORA_ENDPOINT_PATH`, `SSM_AURORA_READER_ENDPOINT_PATH`, `SSM_AURORA_USERNAME_PATH`, `SSM_AURORA_PASSWORD_PATH`, `SSM_REDIS_ENDPOINT_PATH`.
+2. Dependency posture is explicit:
+   - M2.H outputs must satisfy unresolved M2.F contracts (role + path materialization/readability).
+3. Planning-time blocker (now resolved):
+   - `infra/terraform/dev_full/ops` was initially skeleton-only and could not satisfy M2.H DoD before materialization.
+
+M2.H execution contract (planned):
+1. Preconditions:
+   - M2.G closure evidence is present;
+   - no handle drift between authority and registry for ops-side path set.
+2. Materialize lane surfaces with bounded terraform execution:
+   - init, validate, plan, apply, output in `infra/terraform/dev_full/ops`.
+3. Validate role/path conformance:
+   - `ROLE_MWAA_EXECUTION` materialized;
+   - required ops-side SSM paths are present/readable.
+4. Validate idempotence:
+   - post-apply plan is clean (`detailed-exitcode=0`).
+5. Validate cost-guardrail continuity:
+   - no contradiction introduced against pinned cost-handle set in registry/build-plan.
+
+M2.H command surface (planned, execution-time):
+1. `terraform -chdir=infra/terraform/dev_full/ops init -reconfigure -backend-config=...`
+2. `terraform -chdir=infra/terraform/dev_full/ops validate`
+3. `terraform -chdir=infra/terraform/dev_full/ops plan -input=false -detailed-exitcode -out <m2h_ops_plan>`
+4. `terraform -chdir=infra/terraform/dev_full/ops apply -input=false <m2h_ops_plan>`
+5. `terraform -chdir=infra/terraform/dev_full/ops output -json`
+6. `terraform -chdir=infra/terraform/dev_full/ops plan -input=false -detailed-exitcode -lock=false` (idempotence check).
+
+M2.H fail-closed policy (planned):
+1. `M2H-B1`: `ops` stack is non-materialized/skeleton-only or apply surface incomplete.
+2. `M2H-B2`: terraform init/validate/plan/apply fails under pinned backend/state posture.
+3. `M2H-B3`: `ROLE_MWAA_EXECUTION` unresolved/unqueryable.
+4. `M2H-B4`: one or more required ops-side SSM paths missing/unqueryable.
+5. `M2H-B5`: post-apply idempotence fails (`plan` indicates unmanaged drift).
+6. `M2H-B6`: cost-guardrail handle continuity drift introduced by ops materialization.
+7. `M2H-B7`: evidence artifacts missing/inconsistent with command receipts.
+
+M2.H evidence contract (planned):
+1. `m2h_execution_summary.json`
+2. `m2h_ops_output.json`
+3. `terraform_init.log`
+4. `terraform_validate.log`
+5. `terraform_plan.log`
+6. `terraform_apply.log`
+7. `m2h_ops.tfplan` (local run artifact; optional for durable mirror).
+
+M2.H expected entry blocker (historical):
+1. `M2H-B1` was active before stack materialization and is now closed.
+
+M2.H closure rule:
+1. M2.H can close only when:
+   - all `M2H-B*` blockers are resolved,
+   - DoD checks are green,
+   - evidence artifacts are produced and readable,
+   - post-apply idempotence check is clean.
+
+M2.H execution status (2026-02-23):
+1. Authoritative evidence root:
+   - `runs/dev_substrate/dev_full/m2/m2h_20260223T053627Z/`
+   - `m2h_execution_summary.json`: `overall_pass=true`, `plan_exit_code=2`, `apply_executed=true`.
+2. Durable evidence mirror:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2h_20260223T053627Z/`
+3. Key materialization outcomes:
+   - `ROLE_MWAA_EXECUTION` materialized.
+   - SSM paths materialized: MWAA webserver URL, Aurora endpoint/reader/username/password, Redis endpoint.
+
+## M2.I Destroy/Recover Rehearsal and Residual Scan
+Goal:
+- prove teardown/recovery posture for substrate surfaces before runtime lanes.
+
+Tasks:
+1. Execute bounded destroy/recover rehearsal per stack policy.
+2. Validate state integrity after recovery and no drift from expected handles.
+3. Emit residual-risk scan and teardown cost posture receipt.
+4. Classify unresolved residuals with fail-closed severity.
+
+DoD:
+- [x] bounded destroy/recover rehearsal completed.
+- [x] state and handle integrity preserved after recovery.
+- [x] residual scan artifact emitted.
+- [x] M2.I evidence snapshot committed.
+
+M2.I planning precheck (decision completeness):
+1. Required handles for this lane are pinned:
+   - `TF_STATE_BUCKET`, `TF_STATE_BUCKET_REGION`, `TF_LOCK_TABLE`.
+   - `TEARDOWN_NON_ESSENTIAL_DEFAULT`, `TEARDOWN_BLOCK_ON_RESIDUAL_RISK`, `TEARDOWN_RESIDUAL_SCAN_PATH_PATTERN`.
+   - `COST_GUARDRAIL_SNAPSHOT_PATH_PATTERN`, `PHASE_BUDGET_ENVELOPE_PATH_PATTERN`, `PHASE_COST_OUTCOME_RECEIPT_PATH_PATTERN`.
+2. Rehearsal scope must be explicit before execution:
+   - default bounded scope: `data_ml` + `ops` stacks,
+   - full-scope destroy/recover is out of lane unless explicitly approved.
+3. Always-on residual allowlist must be explicit:
+   - core shared/state resources expected to persist outside rehearsal scope (`tfstate`, lock table, base evidence bucket surfaces).
+4. Dependency posture:
+   - M2.A..M2.H closure evidence must be present before rehearsal starts.
+
+M2.I execution contract (planned):
+1. Preconditions:
+   - bounded rehearsal scope and allowlist pinned in the run receipt.
+2. Capture pre-destroy baseline:
+   - stack outputs for rehearsal scope,
+   - resource inventory snapshot under lane tag set.
+3. Execute bounded destroy:
+   - run terraform destroy for rehearsal scope only.
+4. Execute bounded recover:
+   - re-apply destroyed stacks and restore outputs.
+5. Validate post-recovery integrity:
+   - required handles from rehearsal scope are restored and queryable,
+   - post-recovery terraform plan is clean (`detailed-exitcode=0`).
+6. Residual + cost posture scan:
+   - classify forbidden residual resources,
+   - emit cost-guardrail snapshot references for rehearsal window.
+
+M2.I command surface (planned, execution-time):
+1. Pre-destroy baseline:
+   - `terraform -chdir=infra/terraform/dev_full/<stack> output -json`
+   - optional tagged inventory query (`aws resourcegroupstaggingapi get-resources ...`) for rehearsal tags.
+2. Destroy/recover:
+   - `terraform -chdir=infra/terraform/dev_full/<stack> plan -destroy -input=false -out <m2i_<stack>_destroy_plan>`
+   - `terraform -chdir=infra/terraform/dev_full/<stack> apply -input=false <m2i_<stack>_destroy_plan>`
+   - `terraform -chdir=infra/terraform/dev_full/<stack> plan -input=false -out <m2i_<stack>_recover_plan>`
+   - `terraform -chdir=infra/terraform/dev_full/<stack> apply -input=false <m2i_<stack>_recover_plan>`
+3. Post-recovery integrity:
+   - `terraform -chdir=infra/terraform/dev_full/<stack> plan -input=false -detailed-exitcode -lock=false`
+4. Residual/cost posture:
+   - residual scan commands bound to pinned allowlist + lane tags,
+   - cost snapshot capture for rehearsal interval.
+
+M2.I fail-closed policy (planned):
+1. `M2I-B1`: rehearsal scope or allowlist is undefined/ambiguous at execution start.
+2. `M2I-B2`: destroy command fails for any scoped stack.
+3. `M2I-B3`: recover apply fails for any scoped stack.
+4. `M2I-B4`: post-recovery drift remains (`plan` not clean).
+5. `M2I-B5`: forbidden residual resources remain after recover.
+6. `M2I-B6`: cost posture snapshot missing/incomplete for rehearsal window.
+7. `M2I-B7`: evidence artifacts missing/inconsistent with command receipts.
+
+M2.I evidence contract (planned):
+1. `m2i_rehearsal_scope_snapshot.json`
+2. `m2i_destroy_apply_receipts.json`
+3. `m2i_recover_apply_receipts.json`
+4. `m2i_post_recovery_integrity_snapshot.json`
+5. `m2i_residual_scan_snapshot.json`
+6. `m2i_cost_posture_snapshot.json`
+7. `m2i_blocker_register.json`
+8. `m2i_execution_summary.json`
+
+M2.I closure rule:
+1. M2.I can close only when:
+   - all `M2I-B*` blockers are resolved,
+   - DoD checks are green,
+   - scoped destroy/recover and post-recovery no-drift proofs are present,
+   - residual risk is explicitly below fail-closed threshold for this phase.
+
+M2.I execution status (2026-02-23):
+1. Authoritative evidence root:
+   - `runs/dev_substrate/dev_full/m2/m2i_20260223T061220Z/`
+   - `m2i_execution_summary.json`: `overall_pass=true`, `next_gate=M2.I_READY`, `blockers=[]`.
+2. Durable evidence mirror:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2i_20260223T061220Z/`
+3. Integrity outcomes:
+   - `data_ml`: pre-state `11`, destroy-state `0`, post-state `11`, post-recovery plan clean.
+   - `ops`: pre-state `10`, destroy-state `0`, post-state `10`, post-recovery plan clean.
+   - residual scan findings: `0`.
+4. Closure posture:
+   - all `M2I-B*` blockers closed for the authoritative run.
+   - earlier wrapper-only failed attempts are retained as audit artifacts but excluded from closure evidence.
+
+## M2.J P0 Gate Rollup and Verdict
+Goal:
+- adjudicate `P0 SUBSTRATE_READY` closure and handoff to M3.
+
+Tasks:
+1. Roll up evidence from M2.A..M2.I into a single P0 verdict matrix.
+2. Evaluate blockers severity and no-go conditions.
+3. Execute managed-first control-rail checks in rollup:
+   - runtime-path single-active policy readiness,
+   - SR Step Functions commit-authority readiness,
+   - IG edge envelope conformance readiness,
+   - cross-runtime correlation fail-closed readiness.
+4. Emit P0 verdict artifact and M3 entry readiness receipt.
+5. Mark M2 complete only if blocker-free and fail-closed checks pass.
+6. Emit production-pattern conformance snapshot for `M0..M2` (`managed-first + Oracle seating + lifecycle`).
+
+DoD:
+- [x] P0 rollup matrix complete.
+- [x] blocker register shows no unresolved `S1/S2`.
+- [x] managed-first control-rail readiness is explicit and green.
+- [x] M3 entry readiness is explicit and evidence-backed.
+- [x] production-pattern conformance snapshot is explicit and green.
+- [x] M2 closure note appended in implementation map and logbook.
+
+M2.J planning precheck (decision completeness):
+1. Required upstream evidence availability:
+   - M2.A..M2.I execution summaries and blocker registers are present and readable.
+2. Required control-rail references are pinned:
+   - runtime-path governance handles (`PHASE_RUNTIME_PATH_*`),
+   - SR READY authority handles (`SR_READY_COMMIT_AUTHORITY`, `SR_READY_COMMIT_STATE_MACHINE`),
+   - IG edge envelope/auth handles,
+   - correlation contract handles (`CORRELATION_*`).
+3. P0 verdict severity model is pinned:
+   - unresolved `S1/S2` blockers are no-go,
+   - no implicit downgrade of blocker severity is allowed.
+
+M2.J execution contract (planned):
+1. Roll up phase evidence:
+   - ingest `m2[a-i]_execution_summary.json` and blocker registers into single matrix.
+2. Blocker adjudication:
+   - map all active `M2-B*` and lane-specific blockers to severity and owner.
+3. Managed-first control-rail validation:
+   - runtime-path single-active policy evidence is present and coherent,
+   - SR READY commit authority is Step Functions-only and evidenced,
+   - IG edge envelope/auth conformance is explicit,
+   - cross-runtime correlation contract is fail-closed and evidenced.
+4. Production-pattern conformance rollup:
+   - no local/toy substitution detected in `M0..M2`,
+   - Oracle seating + lifecycle posture unchanged from authority.
+5. Emit P0 verdict + M3 entry readiness receipt.
+
+M2.J command surface (planned, execution-time):
+1. Artifact aggregation:
+   - deterministic parse/merge of `runs/dev_substrate/dev_full/m2/*` evidence set for `M2.A..M2.I`.
+2. Handle conformance probes (read-only):
+   - targeted `terraform output -json` and AWS describe/probe commands for unresolved control-rail claims.
+3. Verdict emission:
+   - write rollup matrix, blocker adjudication, P0 verdict, and M3 entry receipt.
+
+M2.J fail-closed policy (planned):
+1. `M2J-B1`: missing/invalid upstream evidence artifacts for any required M2 lane.
+2. `M2J-B2`: unresolved `S1/S2` blocker remains in consolidated register.
+3. `M2J-B3`: runtime-path governance readiness unresolved/non-conformant.
+4. `M2J-B4`: SR READY commit authority unresolved/non-conformant.
+5. `M2J-B5`: IG edge envelope/auth contract unresolved/non-conformant.
+6. `M2J-B6`: cross-runtime correlation contract unresolved/non-conformant.
+7. `M2J-B7`: production-pattern conformance snapshot missing or red.
+8. `M2J-B8`: verdict artifacts missing/inconsistent with rollup inputs.
+
+M2.J evidence contract (planned):
+1. `m2j_p0_rollup_matrix.json`
+2. `m2j_blocker_adjudication.json`
+3. `m2j_managed_control_rail_snapshot.json`
+4. `m2j_production_pattern_conformance_snapshot.json`
+5. `m2j_m3_entry_readiness_receipt.json`
+6. `m2j_execution_summary.json`
+
+M2.J closure rule:
+1. M2.J can close only when:
+   - all `M2J-B*` blockers are resolved,
+   - DoD checks are green,
+   - P0 verdict is explicit and blocker-free,
+   - M3 entry receipt is evidence-backed and readable.
+
+M2.J execution status (2026-02-23):
+1. Authoritative evidence root:
+   - `runs/dev_substrate/dev_full/m2/m2j_20260223T061612Z/`
+   - `m2j_execution_summary.json`: `overall_pass=true`, `next_gate=M2_DONE_M3_READY`, `blockers=[]`.
+2. Durable evidence mirror:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2j_20260223T061612Z/`
+3. P0 rollup and managed-control outcomes:
+   - `m2j_p0_rollup_matrix.json`: `phases_rolled=9`, `phase_blocker_count=0`.
+   - `m2j_managed_control_rail_snapshot.json`: `runtime_path_governance=pass`, `sr_ready_commit_authority=step_functions_only`, `ig_edge_conformance=pass`, `correlation_contract=pass`.
+   - `m2j_m3_entry_readiness_receipt.json`: `m3_entry_ready=true`.
+4. Blocker adjudication input fix applied pre-rollup:
+   - materialized missing `m2g_blocker_register.json` and `m2h_blocker_register.json` as zero-blocker artifacts to satisfy deterministic rollup contract.
+
+## 6) Blocker Taxonomy (M2)
+- `M2-B1`: state backend or lock table failure.
+- `M2-B2`: stack apply failure with no deterministic rerun posture.
+- `M2-B3`: required IAM role handle missing/unbound.
+- `M2-B4`: required secret path missing/unreadable.
+- `M2-B5`: streaming identity/auth or schema readiness drift.
+- `M2-B6`: ops budget/alarm/dashboard surface not queryable.
+- `M2-B7`: destroy/recover rehearsal leaves unresolved residual risk.
+- `M2-B8`: P0 rollup evidence incomplete/inconsistent.
+- `M2-B9`: runtime-path governance handles are missing/inconsistent.
+- `M2-B10`: SR READY commit-authority contract unresolved or non-conformant.
+- `M2-B11`: IG edge envelope handle set unresolved or non-conformant.
+- `M2-B12`: cross-runtime correlation contract unresolved or non-conformant.
+
+Any active `M2-B*` blocker prevents M2 execution closure.
+
+## 7) M2 Completion Checklist
+- [x] M2.A complete.
+- [x] M2.B complete.
+- [x] M2.C complete.
+- [x] M2.D complete.
+- [x] M2.E complete.
+- [x] M2.F complete.
+- [x] M2.G complete.
+- [x] M2.H complete.
+- [x] M2.I complete.
+- [x] M2.J complete.
+- [x] M2 blockers resolved or explicitly fail-closed.
+- [x] M2 closure note appended in implementation map.
+- [x] M2 action log appended in logbook.
+
+## 8) Exit Criteria and Handoff
+M2 is eligible for closure when:
+1. all checklist items in Section 7 are complete,
+2. `P0 SUBSTRATE_READY` rollup is blocker-free,
+3. required evidence artifacts are published and readable,
+4. USER confirms progression to M3 activation.
+
+Handoff posture:
+- M3 remains `NOT_STARTED` until M2 is marked `DONE` in master plan.

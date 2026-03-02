@@ -1,0 +1,129 @@
+LOCAL PARITY PLATFORM GRAPH (SPINE GREEN v0) - IMPLEMENTATION-TRUE
+================================================================
+
+Phase spine (closure order)
+---------------------------
+P0-P1 Substrate+RunPin -> P2 DaemonsReady -> P3 OracleReady -> P4-P5 IngestReady+READYPublished
+-> P6-P7 StreamingActive+IngestCommitted -> P8 RTDLCaughtUp -> P9 DecisionChainCommitted
+-> P10 Case+LabelsCommitted -> P11 Obs/GovClosed
+
+
+LAYER 0: RUN IDENTITY + SUBSTRATES
+----------------------------------
+[ACTIVE_RUN_ID]  runs/fraud-platform/ACTIVE_RUN_ID
+     | (required_platform_run_id / active-run match)
+     +--> wsp_ready_consumer, ieg, ofp, csfb, archive_writer, df, al, dla,
+     |    case_trigger, case_mgmt, label_store, reporter, conformance
+     |
+[MinIO S3 root] s3://fraud-platform
+[Kinesis bus]   EVENT_BUS_STREAM=auto/topic
+[Kinesis ctrl]  sr-control-bus
+[Postgres DSN mesh] admission/checkpoints/projections/ledgers
+
+
+LAYER 1: CONTROL + INGRESS (pack: local_parity_control_ingress_v0)
+-------------------------------------------------------------------
+Scenario Runner (SR)
+  - readiness authority, writes sr/run_plan, sr/run_record, sr/ready_signal
+  - publishes READY to sr-control-bus
+
+Oracle stream-view
+  - ORACLE_STREAM_VIEW_ROOT/output_id=.../part-*.parquet + _stream_* receipts
+
+wsp_ready_consumer (fraud_detection.world_streamer_producer.ready_consumer)
+  - consumes READY from sr-control-bus
+  - validates run pin + required packs + run-facts consistency
+  - reads stream_view; bounded by WSP_MAX_EVENTS_PER_OUTPUT (Gate-20/Gate-200 protocol)
+  - pushes envelopes to IG ingest API
+
+ig_service (fraud_detection.ingestion_gate.service)
+  - endpoint: POST /v1/ingest/push (X-IG-Api-Key)
+  - owns admission decision + dedupe + publish outcome state
+  - writes append-only evidence:
+      s3://fraud-platform/<platform_run_id>/ig/receipts/*.json
+      s3://fraud-platform/<platform_run_id>/ig/quarantine/*.json
+  - writes admission index (PARITY_IG_ADMISSION_DSN)
+    state = IN_FLIGHT | ADMITTED | PUBLISH_AMBIGUOUS
+  - publishes ADMITTED traffic/context into EB topics
+
+
+LAYER 2: EVENT BUS TOPIC LANES (local_parity)
+----------------------------------------------
+traffic lane : fp.bus.traffic.{fraud|baseline}.v1
+context lane : fp.bus.context.arrival_events.v1
+               fp.bus.context.arrival_entities.v1
+               fp.bus.context.flow_anchor.{fraud|baseline}.v1
+rtdl lane    : fp.bus.rtdl.v1
+case lane    : fp.bus.case.v1
+audit lane   : fp.bus.audit.v1 (available lane; currently optional/sparse publisher usage)
+
+
+LAYER 3: RTDL CORE (pack: local_parity_rtdl_core_v0)
+-----------------------------------------------------
+ieg_projector  <- traffic + context topics  -> IEG projection store (PARITY_IEG_PROJECTION_DSN)
+ofp_projector  <- traffic topics            -> OFP projection + snapshot index
+csfb_intake    <- context topics            -> CSFB projection store
+archive_writer <- traffic + context + rtdl + case + audit topics
+                -> s3://fraud-platform/<platform_run_id>/archive/events/...
+                -> archive ledger DSN (PARITY_ARCHIVE_WRITER_LEDGER_DSN)
+
+
+LAYER 4: RTDL DECISION LANE (pack: local_parity_rtdl_decision_lane_v0)
+------------------------------------------------------------------------
+dl_worker (Degrade Ladder)
+  - control-loop posture engine; writes DL posture/outbox/ops DSNs
+  - DF reads DL posture as gating signal
+
+df_worker (Decision Fabric)
+  - consumes traffic trigger topics
+  - uses context/projection stores + posture + replay/checkpoint DSNs
+  - emits decision_response + action_intent via IG boundary
+
+al_worker (Action Layer)
+  - consumes fp.bus.rtdl.v1 (action_intent)
+  - writes ledger/outcomes/replay/checkpoint DSNs
+  - emits action_outcome via IG boundary
+
+dla_worker (Decision Log & Audit)
+  - consumes fp.bus.rtdl.v1 (decision/intent/outcome chain)
+  - writes DLA index DSN + append-only records:
+      s3://fraud-platform/<platform_run_id>/decision_log_audit/records/<audit_id>.json
+  - optional audit facts stream publication is lane-available (fp.bus.audit.v1)
+
+
+LAYER 5: CASE + LABELS (pack: local_parity_case_labels_v0)
+-----------------------------------------------------------
+case_trigger_worker
+  - consumes fp.bus.rtdl.v1
+  - writes replay/checkpoint/publish DSNs
+  - emits case_trigger via IG boundary
+
+IG publishes case_trigger ADMITTED events -> fp.bus.case.v1
+
+case_mgmt_worker
+  - consumes fp.bus.case.v1
+  - appends case timeline (PARITY_CASE_MGMT_LOCATOR)
+  - calls LabelStore writer boundary
+
+label_store_worker
+  - appends label assertions/timeline (PARITY_LABEL_STORE_LOCATOR)
+  - idempotent append-only semantics
+
+
+LAYER 6: OBSERVABILITY + GOVERNANCE (pack: local_parity_obs_gov_v0)
+--------------------------------------------------------------------
+platform_run_reporter_worker
+  -> runs/fraud-platform/<platform_run_id>/obs/platform_run_report.json
+  -> s3://fraud-platform/<platform_run_id>/obs/governance/events.jsonl  (single-writer append)
+
+platform_conformance_worker
+  -> runs/fraud-platform/<platform_run_id>/obs/environment_conformance.json
+
+
+OWNERSHIP LAWS REFLECTED IN THE GRAPH
+-------------------------------------
+1) SR is readiness authority and control-bus READY writer.
+2) IG is the admission boundary and only writes ADMITTED traffic/context/case/rtdl from HTTP ingest clients.
+3) DLA owns append-only audit truth records under decision_log_audit/records.
+4) Governance closeout is single-writer append for obs/governance/events.jsonl.
+5) Green closure claims require phase-appropriate commit evidence (not process-alive only).

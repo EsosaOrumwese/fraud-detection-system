@@ -162,12 +162,21 @@ if NUMBA_AVAILABLE:
         edge_alias: np.ndarray,
         edge_edge_index: np.ndarray,
         edge_tzids: np.ndarray,
+        edge_topk_mask: np.ndarray,
+        merchant_non_top_table_index: np.ndarray,
+        non_top_table_offsets: np.ndarray,
+        non_top_table_lengths: np.ndarray,
+        non_top_prob: np.ndarray,
+        non_top_alias: np.ndarray,
+        non_top_edge_index: np.ndarray,
         merchant_virtual_mode: np.ndarray,
         merchant_settlement_tzid: np.ndarray,
         tz_index_start: np.ndarray,
         tz_index_count: np.ndarray,
         tz_transitions_utc: np.ndarray,
         tz_offsets_minutes: np.ndarray,
+        tz_temper_enabled: int,
+        tz_temper_redirect_p: float,
         p_virtual_hybrid: float,
         out_ts_utc_us: np.ndarray,
         out_arrival_seq: np.ndarray,
@@ -274,13 +283,29 @@ if NUMBA_AVAILABLE:
                             continue
                 if is_virtual:
                     e_hi, e_lo = add_u128(edge_hi, edge_lo, np.uint64(edge_offset))
-                    e0, _e1 = philox2x64_10(e_hi, e_lo, edge_key)
+                    e0, e1 = philox2x64_10(e_hi, e_lo, edge_key)
                     u_edge = u01_from_u64(e0)
                     edge_offset += 1
                     table_offset = int(edge_table_offsets[edge_table_idx])
                     table_length = int(edge_table_lengths[edge_table_idx])
                     edge_pick = _alias_pick(edge_prob, edge_alias, u_edge, table_offset, table_length)
                     edge_idx = int(edge_edge_index[table_offset + edge_pick])
+                    if tz_temper_enabled == 1 and bool(edge_topk_mask[edge_idx]):
+                        non_top_idx = int(merchant_non_top_table_index[merchant_idx])
+                        if non_top_idx >= 0:
+                            u_temper = u01_from_u64(e1)
+                            if u_temper < tz_temper_redirect_p:
+                                non_top_offset = int(non_top_table_offsets[non_top_idx])
+                                non_top_length = int(non_top_table_lengths[non_top_idx])
+                                if non_top_length > 0:
+                                    non_top_pick = _alias_pick(
+                                        non_top_prob,
+                                        non_top_alias,
+                                        u_edge,
+                                        non_top_offset,
+                                        non_top_length,
+                                    )
+                                    edge_idx = int(non_top_edge_index[non_top_offset + non_top_pick])
                     tzid_operational = int(edge_tzids[edge_idx])
                     out_edge_index[out_idx] = edge_idx
                     out_site_id[out_idx] = 0

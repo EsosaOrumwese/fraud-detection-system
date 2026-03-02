@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Optional
 
+import numpy as np
 import polars as pl
 import yaml
 from jsonschema import Draft202012Validator
@@ -32,6 +33,7 @@ from engine.core.logging import add_file_handler, get_logger
 from engine.core.paths import RunPaths, resolve_input_path
 from engine.core.time import utc_now_rfc3339_micro
 from engine.core.run_receipt import pick_latest_run_receipt
+from engine.layers.l3.seg_6A.perf import Segment6APerfRecorder
 from engine.layers.l1.seg_1A.s1_hurdle.rng import (
     add_u128,
     low64,
@@ -58,6 +60,9 @@ STATE = "S2"
 _HEX64_PATTERN = re.compile(r"^[a-f0-9]{64}$")
 
 _DEFAULT_BATCH_ROWS = 50_000
+_DETERMINISTIC_PRF_VERSION = "6A_S2_PRF_V2_SPLITMIX64"
+_U64_MASK = (1 << 64) - 1
+_INV_2_POW_53 = 1.0 / 9007199254740992.0
 
 
 @dataclass(frozen=True)
@@ -504,24 +509,50 @@ class _RngStream:
         }
 
 
-def _deterministic_uniform(
-    manifest_fingerprint: str,
-    parameter_hash: str,
-    party_id: int,
-    account_type: str,
-    label: str,
-) -> float:
-    payload = (
-        uer_string("mlr:6A")
-        + uer_string("s2")
-        + uer_string(label)
-        + uer_string(manifest_fingerprint)
-        + uer_string(parameter_hash)
-        + ser_u64(int(party_id))
-        + uer_string(account_type)
-    )
-    digest = hashlib.sha256(payload).digest()
-    return u01(low64(digest))
+def _mix_splitmix64_array(values: np.ndarray) -> np.ndarray:
+    mixed = values.astype(np.uint64, copy=True)
+    with np.errstate(over="ignore"):
+        mixed += np.uint64(0x9E3779B97F4A7C15)
+        mixed = (mixed ^ (mixed >> np.uint64(30))) * np.uint64(0xBF58476D1CE4E5B9)
+        mixed = (mixed ^ (mixed >> np.uint64(27))) * np.uint64(0x94D049BB133111EB)
+        mixed = mixed ^ (mixed >> np.uint64(31))
+    return mixed
+
+
+class _DeterministicUniformGenerator:
+    def __init__(self, manifest_fingerprint: str, parameter_hash: str) -> None:
+        base_digest = hashlib.blake2b(
+            bytes.fromhex(manifest_fingerprint) + bytes.fromhex(parameter_hash),
+            digest_size=16,
+            person=b"6A.S2.PRF",
+        ).digest()
+        self._seed_lo = int.from_bytes(base_digest[:8], "little", signed=False)
+        self._seed_hi = int.from_bytes(base_digest[8:], "little", signed=False)
+        self._stream_cache: dict[tuple[str, str], np.uint64] = {}
+
+    def _stream_seed(self, account_type: str, label: str) -> np.uint64:
+        cache_key = (account_type, label)
+        cached = self._stream_cache.get(cache_key)
+        if cached is not None:
+            return cached
+        stream_digest = hashlib.blake2b(
+            f"{account_type}|{label}".encode("utf-8"),
+            digest_size=8,
+            person=b"6A.S2.STM",
+        ).digest()
+        stream_seed = int.from_bytes(stream_digest, "little", signed=False)
+        rotated_hi = ((self._seed_hi << 1) & _U64_MASK) | (self._seed_hi >> 63)
+        mixed_seed = (stream_seed ^ self._seed_lo ^ rotated_hi ^ 0xD2B74407B1CE6E93) & _U64_MASK
+        seed_value = np.uint64(mixed_seed)
+        self._stream_cache[cache_key] = seed_value
+        return seed_value
+
+    def uniforms(self, party_ids: np.ndarray, account_type: str, label: str) -> np.ndarray:
+        if party_ids.size == 0:
+            return np.empty(0, dtype=np.float64)
+        party_u64 = party_ids.astype(np.uint64, copy=False)
+        mixed = _mix_splitmix64_array(party_u64 ^ self._stream_seed(account_type, label))
+        return ((mixed >> np.uint64(11)).astype(np.float64)) * _INV_2_POW_53
 
 
 def _normal_icdf(p: float) -> float:
@@ -575,6 +606,124 @@ def _normal_icdf(p: float) -> float:
     )
 
 
+def _normal_icdf_array(probabilities: np.ndarray) -> np.ndarray:
+    if probabilities.size == 0:
+        return np.empty(0, dtype=np.float64)
+    if np.any(probabilities <= 0.0) or np.any(probabilities >= 1.0):
+        raise ValueError("p must be in (0,1)")
+    p = probabilities.astype(np.float64, copy=False)
+    out = np.empty_like(p)
+
+    a = np.array(
+        (
+            -3.969683028665376e01,
+            2.209460984245205e02,
+            -2.759285104469687e02,
+            1.383577518672690e02,
+            -3.066479806614716e01,
+            2.506628277459239e00,
+        ),
+        dtype=np.float64,
+    )
+    b = np.array(
+        (
+            -5.447609879822406e01,
+            1.615858368580409e02,
+            -1.556989798598866e02,
+            6.680131188771972e01,
+            -1.328068155288572e01,
+        ),
+        dtype=np.float64,
+    )
+    c = np.array(
+        (
+            -7.784894002430293e-03,
+            -3.223964580411365e-01,
+            -2.400758277161838e00,
+            -2.549732539343734e00,
+            4.374664141464968e00,
+            2.938163982698783e00,
+        ),
+        dtype=np.float64,
+    )
+    d = np.array(
+        (
+            7.784695709041462e-03,
+            3.224671290700398e-01,
+            2.445134137142996e00,
+            3.754408661907416e00,
+        ),
+        dtype=np.float64,
+    )
+
+    plow = 0.02425
+    phigh = 1.0 - plow
+    low = p < plow
+    high = p > phigh
+    mid = ~(low | high)
+
+    if np.any(low):
+        q = np.sqrt(-2.0 * np.log(p[low]))
+        num = (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q) + c[5]
+        den = ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q) + 1.0
+        out[low] = num / den
+    if np.any(high):
+        q = np.sqrt(-2.0 * np.log(1.0 - p[high]))
+        num = (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q) + c[5]
+        den = ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q) + 1.0
+        out[high] = -(num / den)
+    if np.any(mid):
+        q = p[mid] - 0.5
+        r = q * q
+        num = (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q
+        den = (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r) + 1.0
+        out[mid] = num / den
+    return out
+
+
+def _select_top_indices(
+    residuals: np.ndarray,
+    tie_values: np.ndarray,
+    count: int,
+) -> np.ndarray:
+    if count <= 0:
+        return np.empty(0, dtype=np.int64)
+    n = residuals.size
+    if count >= n:
+        return np.arange(n, dtype=np.int64)
+    if n >= 50_000 and count <= n // 4:
+        cutoff = np.partition(residuals, n - count)[n - count]
+        above = np.flatnonzero(residuals > cutoff)
+        needed = count - above.size
+        if needed <= 0:
+            return above[:count]
+        equal = np.flatnonzero(residuals == cutoff)
+        if equal.size <= needed:
+            return np.concatenate((above, equal))
+        order = np.lexsort((equal, -tie_values[equal]))
+        return np.concatenate((above, equal[order[:needed]]))
+    order = np.lexsort((np.arange(n, dtype=np.int64), -tie_values, -residuals))
+    return order[:count]
+
+
+def _select_bottom_indices(residuals: np.ndarray, count: int) -> np.ndarray:
+    if count <= 0:
+        return np.empty(0, dtype=np.int64)
+    n = residuals.size
+    if count >= n:
+        return np.arange(n, dtype=np.int64)
+    if n >= 50_000 and count <= n // 4:
+        cutoff = np.partition(residuals, count - 1)[count - 1]
+        below = np.flatnonzero(residuals < cutoff)
+        needed = count - below.size
+        if needed <= 0:
+            return below[:count]
+        equal = np.flatnonzero(residuals == cutoff)
+        return np.concatenate((below, np.sort(equal)[:needed]))
+    order = np.lexsort((np.arange(n, dtype=np.int64), residuals))
+    return order[:count]
+
+
 def _largest_remainder(
     targets: dict[tuple[str, str, str, str], float],
     total: int,
@@ -623,14 +772,10 @@ def _largest_remainder(
 
 
 def _largest_remainder_list(
-    targets: list[float],
+    targets: list[float] | np.ndarray,
     total: int,
     tie_stream: Optional[_RngStream] = None,
-) -> tuple[list[int], dict]:
-    floors = [int(math.floor(value)) for value in targets]
-    residuals = [float(target - floor) for target, floor in zip(targets, floors)]
-    base_total = sum(floors)
-    remaining = total - base_total
+) -> tuple[np.ndarray, dict]:
     draw_meta = {
         "draws": 0,
         "blocks": 0,
@@ -639,10 +784,17 @@ def _largest_remainder_list(
         "after_hi": None,
         "after_lo": None,
     }
+    targets_arr = np.asarray(targets, dtype=np.float64)
+    if targets_arr.size == 0:
+        return np.empty(0, dtype=np.int64), draw_meta
+    floors = np.floor(targets_arr).astype(np.int64)
+    residuals = targets_arr - floors
+    remaining = int(total) - int(floors.sum())
+    tie_values = np.zeros(targets_arr.size, dtype=np.float64)
+    tie_values_drawn = False
     if remaining > 0:
-        tie_values = [0.0] * len(targets)
         if tie_stream is not None:
-            tie_values, before_hi, before_lo, after_hi, after_lo, draws, blocks = tie_stream.draw_uniforms(len(targets))
+            tie_draws, before_hi, before_lo, after_hi, after_lo, draws, blocks = tie_stream.draw_uniforms(targets_arr.size)
             draw_meta.update(
                 {
                     "draws": draws,
@@ -653,18 +805,260 @@ def _largest_remainder_list(
                     "after_lo": after_lo,
                 }
             )
-        ranked = sorted(
-            range(len(targets)),
-            key=lambda idx: (residuals[idx], tie_values[idx]),
-            reverse=True,
-        )
-        for idx in ranked[:remaining]:
-            floors[idx] += 1
+            tie_values = np.asarray(tie_draws, dtype=np.float64)
+            tie_values_drawn = True
+        selected = _select_top_indices(residuals, tie_values, remaining)
+        floors[selected] += 1
     elif remaining < 0:
-        ranked = sorted(range(len(targets)), key=lambda idx: (residuals[idx], idx))
-        for idx in ranked[: abs(remaining)]:
-            floors[idx] = max(floors[idx] - 1, 0)
+        selected = _select_bottom_indices(residuals, abs(remaining))
+        floors[selected] = np.maximum(floors[selected] - 1, 0)
+    delta = int(total) - int(floors.sum())
+    if delta > 0:
+        if tie_stream is not None and not tie_values_drawn:
+            tie_draws, before_hi, before_lo, after_hi, after_lo, draws, blocks = tie_stream.draw_uniforms(targets_arr.size)
+            draw_meta.update(
+                {
+                    "draws": draws,
+                    "blocks": blocks,
+                    "before_hi": before_hi,
+                    "before_lo": before_lo,
+                    "after_hi": after_hi,
+                    "after_lo": after_lo,
+                }
+            )
+            tie_values = np.asarray(tie_draws, dtype=np.float64)
+        selected = _select_top_indices(residuals, tie_values, delta)
+        floors[selected] += 1
+    elif delta < 0:
+        need = abs(delta)
+        while need > 0:
+            positive_idx = np.flatnonzero(floors > 0)
+            if positive_idx.size == 0:
+                break
+            if positive_idx.size <= need:
+                floors[positive_idx] -= 1
+                need -= positive_idx.size
+                continue
+            order = np.lexsort((positive_idx, residuals[positive_idx]))
+            selected = positive_idx[order[:need]]
+            floors[selected] -= 1
+            need = 0
     return floors, draw_meta
+
+
+def _allocate_with_caps(
+    total: int,
+    weights: np.ndarray,
+    caps: np.ndarray,
+) -> tuple[np.ndarray, int]:
+    total_i = int(total)
+    caps_arr = np.asarray(caps, dtype=np.int64)
+    if total_i <= 0 or caps_arr.size == 0:
+        return np.zeros(caps_arr.size, dtype=np.int64), max(total_i, 0)
+
+    if np.any(caps_arr < 0):
+        raise ValueError("caps must be nonnegative")
+
+    alloc = np.zeros(caps_arr.size, dtype=np.int64)
+    cap_total = int(caps_arr.sum())
+    assign_total = min(total_i, cap_total)
+    dropped = total_i - assign_total
+    remaining = assign_total
+    if remaining <= 0:
+        return alloc, dropped
+
+    weights_arr = np.asarray(weights, dtype=np.float64)
+    if weights_arr.size != caps_arr.size:
+        raise ValueError("weights and caps shape mismatch")
+    weights_arr = np.where(caps_arr > 0, np.maximum(weights_arr, 0.0), 0.0)
+
+    while remaining > 0:
+        headroom = caps_arr - alloc
+        active = np.flatnonzero(headroom > 0)
+        if active.size == 0:
+            dropped += remaining
+            break
+        active_weights = weights_arr[active]
+        if float(active_weights.sum()) <= 0.0:
+            active_weights = headroom[active].astype(np.float64)
+        targets = remaining * active_weights / float(active_weights.sum())
+        add, _ = _largest_remainder_list(targets, remaining, None)
+        add = np.minimum(add.astype(np.int64), headroom[active])
+        moved = int(add.sum())
+        if moved <= 0:
+            dropped += remaining
+            break
+        alloc[active] += add
+        remaining -= moved
+    return alloc, dropped
+
+
+def _enforce_kmax_postmerge(
+    holdings_counts: dict[str, dict[int, int]],
+    rules_map: dict[tuple[str, str], dict],
+    cell_parties: dict[tuple[str, str, str], list[int]],
+    party_region: list[str] | dict[int, str],
+    party_type: list[str] | dict[int, str],
+    party_segment: list[str] | dict[int, str],
+    deterministic_uniforms: "_DeterministicUniformGenerator",
+    max_allowed_kmax_violations: int,
+    manifest_fingerprint: str,
+) -> dict[str, int]:
+    def _party_value(values: list[str] | dict[int, str], pid: int) -> str | None:
+        if isinstance(values, list):
+            if pid < 0 or pid >= len(values):
+                return None
+            value = values[pid]
+            return str(value) if value is not None else None
+        value = values.get(pid)
+        return str(value) if value is not None else None
+
+    kmax_lookup: dict[tuple[str, str], int] = {}
+    for (ptype, account_type_id), rule in rules_map.items():
+        params = rule.get("params") or {}
+        k_max = int(params.get("K_max") or 0)
+        if k_max <= 0:
+            _abort(
+                "6A.S2.PRIOR_PACK_INVALID",
+                "V-09",
+                "invalid_kmax_rule",
+                {"party_type": ptype, "account_type": account_type_id, "k_max": k_max},
+                manifest_fingerprint,
+            )
+        kmax_lookup[(ptype, account_type_id)] = k_max
+
+    kmax_overflow_rows = 0
+    kmax_redistributed_rows = 0
+    kmax_dropped_rows = 0
+
+    for account_type_id, counts_map in holdings_counts.items():
+        if not counts_map:
+            continue
+        cell_nonzero_parties: dict[tuple[str, str, str, str], list[int]] = {}
+        for pid in counts_map.keys():
+            region_id = _party_value(party_region, int(pid))
+            ptype = _party_value(party_type, int(pid))
+            segment_id = _party_value(party_segment, int(pid))
+            if region_id is None or ptype is None or segment_id is None:
+                _abort(
+                    "6A.S2.ALLOCATION_FAILED",
+                    "V-09",
+                    "party_cell_missing",
+                    {"party_id": int(pid), "account_type": account_type_id},
+                    manifest_fingerprint,
+                )
+            cell_nonzero_parties.setdefault((region_id, ptype, segment_id, account_type_id), []).append(int(pid))
+
+        for region_id, ptype, segment_id, acct_type in sorted(cell_nonzero_parties.keys()):
+            k_max = kmax_lookup.get((ptype, acct_type))
+            if k_max is None:
+                _abort(
+                    "6A.S2.PRIOR_PACK_INVALID",
+                    "V-09",
+                    "account_rule_missing",
+                    {"party_type": ptype, "account_type": acct_type},
+                    manifest_fingerprint,
+                )
+            parties_with_nonzero = cell_nonzero_parties[(region_id, ptype, segment_id, acct_type)]
+            overflow_total = 0
+            for pid in parties_with_nonzero:
+                current = int(counts_map.get(pid, 0))
+                if current > k_max:
+                    overflow = current - k_max
+                    overflow_total += overflow
+                    counts_map[pid] = k_max
+            if overflow_total <= 0:
+                continue
+
+            kmax_overflow_rows += int(overflow_total)
+            parties_all = cell_parties.get((region_id, ptype, segment_id)) or []
+            if not parties_all:
+                _abort(
+                    "6A.S2.ALLOCATION_FAILED",
+                    "V-09",
+                    "cell_parties_missing_kmax_pass",
+                    {
+                        "region_id": region_id,
+                        "party_type": ptype,
+                        "segment_id": segment_id,
+                        "account_type": acct_type,
+                    },
+                    manifest_fingerprint,
+                )
+
+            receiver_ids: list[int] = []
+            deficits: list[int] = []
+            for pid in parties_all:
+                current = int(counts_map.get(pid, 0))
+                deficit = k_max - current
+                if deficit > 0:
+                    receiver_ids.append(int(pid))
+                    deficits.append(int(deficit))
+
+            if not receiver_ids:
+                kmax_dropped_rows += int(overflow_total)
+                continue
+
+            receiver_arr = np.asarray(receiver_ids, dtype=np.int64)
+            deficit_arr = np.asarray(deficits, dtype=np.int64)
+            jitter = deterministic_uniforms.uniforms(receiver_arr, acct_type, "kmax_redistribute_weight")
+            weights = deficit_arr.astype(np.float64) * (0.5 + np.clip(jitter, 0.0, 1.0))
+            add_counts, dropped = _allocate_with_caps(overflow_total, weights, deficit_arr)
+            redistributed = int(add_counts.sum())
+            if redistributed > 0:
+                for pid, add in zip(receiver_ids, add_counts.tolist()):
+                    if int(add) <= 0:
+                        continue
+                    counts_map[pid] = int(counts_map.get(pid, 0)) + int(add)
+            kmax_redistributed_rows += redistributed
+            kmax_dropped_rows += int(dropped)
+
+    kmax_postcheck_violations = 0
+    for account_type_id, counts_map in holdings_counts.items():
+        for pid in list(counts_map.keys()):
+            count = int(counts_map.get(pid, 0))
+            if count <= 0:
+                counts_map.pop(pid, None)
+                continue
+            ptype = _party_value(party_type, int(pid))
+            if ptype is None:
+                _abort(
+                    "6A.S2.ALLOCATION_FAILED",
+                    "V-09",
+                    "party_type_missing_postcheck",
+                    {"party_id": int(pid), "account_type": account_type_id},
+                    manifest_fingerprint,
+                )
+            k_max = kmax_lookup.get((ptype, account_type_id))
+            if k_max is None:
+                _abort(
+                    "6A.S2.PRIOR_PACK_INVALID",
+                    "V-09",
+                    "account_rule_missing_postcheck",
+                    {"party_type": ptype, "account_type": account_type_id},
+                    manifest_fingerprint,
+                )
+            if count > k_max:
+                kmax_postcheck_violations += int(count - k_max)
+
+    if kmax_postcheck_violations > int(max_allowed_kmax_violations):
+        _abort(
+            "6A.S2.KMAX_POSTCHECK_FAILED",
+            "V-09",
+            "kmax_postcheck_violations",
+            {
+                "kmax_postcheck_violations": int(kmax_postcheck_violations),
+                "max_allowed_kmax_violations": int(max_allowed_kmax_violations),
+            },
+            manifest_fingerprint,
+        )
+
+    return {
+        "kmax_overflow_rows": int(kmax_overflow_rows),
+        "kmax_redistributed_rows": int(kmax_redistributed_rows),
+        "kmax_dropped_rows": int(kmax_dropped_rows),
+        "kmax_postcheck_violations": int(kmax_postcheck_violations),
+    }
 
 
 def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
@@ -703,7 +1097,17 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
     logger.info(
         "S2: objective=build account base; gated inputs (S0 receipt + sealed inputs + S1 party base + priors/taxonomy) -> outputs s2_account_base_6A + s2_party_product_holdings_6A + optional summary + rng logs"
     )
+    perf = Segment6APerfRecorder(
+        run_paths=run_paths,
+        run_id=run_id_value,
+        seed=int(seed),
+        parameter_hash=parameter_hash,
+        manifest_fingerprint=manifest_fingerprint,
+        state=STATE,
+        logger=logger,
+    )
 
+    step_started = time.monotonic()
     source = ContractSource(config.contracts_root, config.contracts_layout)
     dict_6a_path, dictionary_6a = load_dataset_dictionary(source, "6A")
     reg_6a_path, registry_6a = load_artefact_registry(source, "6A")
@@ -950,6 +1354,7 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
         logger.info("S2: product_eligibility_config_6A loaded (lean mode: no additional constraints applied)")
 
     timer.info("S2: priors and taxonomy loaded + schema-validated")
+    perf.record_elapsed("load_contracts_inputs", step_started)
 
     merchant_mode = product_mix.get("merchant_mode") or {}
     if bool(merchant_mode.get("enabled")):
@@ -961,6 +1366,7 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
             manifest_fingerprint,
         )
 
+    step_started = time.monotonic()
     party_entry = find_dataset_entry(dictionary_6a, "s1_party_base_6A").entry
     party_path = _resolve_dataset_path(party_entry, run_paths, config.external_roots, tokens)
     party_files = _list_parquet_files(party_path)
@@ -1042,19 +1448,19 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
         party_type = [""] + party_df.get_column("party_type").to_list()
         party_segment = [""] + party_df.get_column("segment_id").to_list()
 
-    country_to_party_ids: dict[str, list[int]] = {}
     cell_parties: dict[tuple[str, str, str], list[int]] = {}
-    for pid in range(1, max_party_id + 1):
+    for pid in party_ids:
         country = party_country[pid]
         if not country:
             continue
-        country_to_party_ids.setdefault(country, []).append(pid)
         cell_key = (party_region[pid], party_type[pid], party_segment[pid])
         cell_parties.setdefault(cell_key, []).append(pid)
 
     base_cells = sorted(cell_parties.keys())
     logger.info("S2: loaded party base (total_parties=%d, base_cells=%d)", total_parties, len(base_cells))
+    perf.record_elapsed("load_party_base", step_started)
 
+    step_started = time.monotonic()
     segment_profiles = {
         profile.get("segment_id"): profile
         for profile in segmentation_priors.get("segment_profiles", [])
@@ -1150,7 +1556,26 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
             )
         rules_map[key] = rule
 
-    coverage_mode = (account_per_party.get("constraints") or {}).get("coverage_mode")
+    account_constraints = account_per_party.get("constraints") or {}
+    coverage_mode = account_constraints.get("coverage_mode")
+    cap_enforcement_mode = str(account_constraints.get("cap_enforcement_mode") or "none")
+    max_allowed_kmax_violations = int(account_constraints.get("max_allowed_kmax_violations") or 0)
+    if cap_enforcement_mode not in {"none", "hard_global_postmerge"}:
+        _abort(
+            "6A.S2.PRIOR_PACK_INVALID",
+            "V-07",
+            "invalid_cap_enforcement_mode",
+            {"cap_enforcement_mode": cap_enforcement_mode},
+            manifest_fingerprint,
+        )
+    if max_allowed_kmax_violations < 0:
+        _abort(
+            "6A.S2.PRIOR_PACK_INVALID",
+            "V-07",
+            "invalid_max_allowed_kmax_violations",
+            {"max_allowed_kmax_violations": max_allowed_kmax_violations},
+            manifest_fingerprint,
+        )
     enforce_rule_coverage = coverage_mode == "fail_on_missing_rule"
 
     tag_adjustments_map: dict[tuple[str, str], dict] = {}
@@ -1366,9 +1791,18 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
     allocation_cells = sorted([key for key, value in cell_counts.items() if value > 0])
     alloc_tracker = _ProgressTracker(len(allocation_cells), logger, "S2: allocate accounts to parties")
 
-    holdings_counts: dict[str, list[int]] = {}
+    holdings_counts: dict[str, dict[int, int]] = {}
+    country_account_nonzero: dict[tuple[str, str], list[tuple[int, int]]] = {}
+    party_holdings: dict[int, list[tuple[str, int]]] = {}
+    summary_counts: dict[tuple[str, str, str, str], int] = {}
     holdings_rows_total = 0
+    allocation_party_evaluations = 0
+    allocation_zero_gate_skips = 0
+    allocation_weight_computations = 0
     rng_event_rows_alloc: list[dict] = []
+    tag_multiplier_cache: dict[tuple[str, str], tuple[float, float]] = {}
+    deterministic_uniforms = _DeterministicUniformGenerator(manifest_fingerprint, parameter_hash)
+    logger.info("S2: deterministic uniform PRF active (version=%s)", _DETERMINISTIC_PRF_VERSION)
 
     for region_id, party_type_id, segment_id, account_type_id in allocation_cells:
         n_acc = int(cell_counts.get((region_id, party_type_id, segment_id, account_type_id), 0))
@@ -1413,23 +1847,32 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
 
         tags = segment_tags.get(segment_id) or []
         if tags:
-            for tag in tags:
-                adjustment = tag_adjustments_map.get((tag, account_type_id))
-                if not adjustment:
-                    continue
-                clip = adjustment.get("multipliers_clip") or {}
-                p_mult = float(adjustment.get("p_zero_weight_multiplier") or 1.0)
-                s_mult = float(adjustment.get("sigma_multiplier") or 1.0)
-                clip_min = float(clip.get("min") or 0.0)
-                clip_max = float(clip.get("max") or 0.0)
-                if clip_max:
-                    p_mult = min(p_mult, clip_max)
-                    s_mult = min(s_mult, clip_max)
-                if clip_min:
-                    p_mult = max(p_mult, clip_min)
-                    s_mult = max(s_mult, clip_min)
-                p_zero_weight *= p_mult
-                sigma *= s_mult
+            cache_key = (segment_id, account_type_id)
+            multipliers = tag_multiplier_cache.get(cache_key)
+            if multipliers is None:
+                p_zero_mult = 1.0
+                sigma_mult = 1.0
+                for tag in tags:
+                    adjustment = tag_adjustments_map.get((tag, account_type_id))
+                    if not adjustment:
+                        continue
+                    clip = adjustment.get("multipliers_clip") or {}
+                    p_mult = float(adjustment.get("p_zero_weight_multiplier") or 1.0)
+                    s_mult = float(adjustment.get("sigma_multiplier") or 1.0)
+                    clip_min = float(clip.get("min") or 0.0)
+                    clip_max = float(clip.get("max") or 0.0)
+                    if clip_max:
+                        p_mult = min(p_mult, clip_max)
+                        s_mult = min(s_mult, clip_max)
+                    if clip_min:
+                        p_mult = max(p_mult, clip_min)
+                        s_mult = max(s_mult, clip_min)
+                    p_zero_mult *= p_mult
+                    sigma_mult *= s_mult
+                multipliers = (p_zero_mult, sigma_mult)
+                tag_multiplier_cache[cache_key] = multipliers
+            p_zero_weight *= multipliers[0]
+            sigma *= multipliers[1]
         if p_zero_weight < 0.0:
             p_zero_weight = 0.0
         if p_zero_weight > 1.0:
@@ -1437,24 +1880,14 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
         if sigma < 0.0:
             sigma = 0.0
 
-        eligible_party_ids: list[int] = []
-        weights: list[float] = []
-        for pid in parties:
-            u0 = _deterministic_uniform(manifest_fingerprint, parameter_hash, pid, account_type_id, "zero_gate")
-            if u0 < p_zero_weight:
-                continue
-            u1 = _deterministic_uniform(manifest_fingerprint, parameter_hash, pid, account_type_id, "weight")
-            u1 = min(max(u1, 1.0e-12), 1.0 - 1.0e-12)
-            if sigma > 0:
-                z = _normal_icdf(u1)
-                weight = math.exp(sigma * z - 0.5 * sigma * sigma)
-            else:
-                weight = 1.0
-            weight = max(weight_floor, weight)
-            eligible_party_ids.append(pid)
-            weights.append(weight)
+        party_ids = np.asarray(parties, dtype=np.int64)
+        allocation_party_evaluations += int(party_ids.size)
+        zero_uniforms = deterministic_uniforms.uniforms(party_ids, account_type_id, "zero_gate")
+        eligible_mask = zero_uniforms >= p_zero_weight
+        eligible_party_ids = party_ids[eligible_mask]
+        allocation_zero_gate_skips += int(party_ids.size - eligible_party_ids.size)
 
-        if not eligible_party_ids:
+        if eligible_party_ids.size == 0:
             _abort(
                 "6A.S2.ALLOCATION_FAILED",
                 "V-09",
@@ -1468,7 +1901,17 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                 manifest_fingerprint,
             )
 
-        total_weight = sum(weights)
+        weight_uniforms = deterministic_uniforms.uniforms(eligible_party_ids, account_type_id, "weight")
+        weight_uniforms = np.clip(weight_uniforms, 1.0e-12, 1.0 - 1.0e-12)
+        if sigma > 0:
+            z = _normal_icdf_array(weight_uniforms)
+            weights = np.exp(sigma * z - 0.5 * sigma * sigma)
+        else:
+            weights = np.ones(eligible_party_ids.size, dtype=np.float64)
+        weights = np.maximum(weights, weight_floor)
+        allocation_weight_computations += int(weights.size)
+
+        total_weight = float(weights.sum())
         if total_weight <= 0:
             _abort(
                 "6A.S2.ALLOCATION_FAILED",
@@ -1478,20 +1921,30 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                 manifest_fingerprint,
             )
 
-        targets = [(n_acc * weight) / total_weight for weight in weights]
+        targets = (float(n_acc) * weights) / total_weight
         alloc_counts, alloc_meta = _largest_remainder_list(targets, n_acc, rng_alloc_stream)
         rng_alloc_stream.record_event()
 
-        counts_array = holdings_counts.get(account_type_id)
-        if counts_array is None:
-            counts_array = [0] * (max_party_id + 1)
-            holdings_counts[account_type_id] = counts_array
+        counts_map = holdings_counts.get(account_type_id)
+        if counts_map is None:
+            counts_map = {}
+            holdings_counts[account_type_id] = counts_map
 
-        for pid, count in zip(eligible_party_ids, alloc_counts):
+        for pid, count in zip(eligible_party_ids.tolist(), alloc_counts.tolist()):
             if count <= 0:
                 continue
-            counts_array[pid] = count
-            holdings_rows_total += 1
+            if pid in counts_map:
+                _abort(
+                    "6A.S2.ALLOCATION_FAILED",
+                    "V-09",
+                    "duplicate_party_account_allocation",
+                    {
+                        "party_id": int(pid),
+                        "account_type": account_type_id,
+                    },
+                    manifest_fingerprint,
+                )
+            counts_map[pid] = int(count)
 
         rng_event_rows_alloc.append(
             {
@@ -1514,12 +1967,73 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                     "segment_id": segment_id,
                     "account_type": account_type_id,
                     "party_count": len(parties),
-                    "eligible_party_count": len(eligible_party_ids),
+                    "eligible_party_count": int(eligible_party_ids.size),
                     "n_acc": n_acc,
                 },
             }
         )
         alloc_tracker.update(1)
+
+    kmax_counters = {
+        "kmax_overflow_rows": 0,
+        "kmax_redistributed_rows": 0,
+        "kmax_dropped_rows": 0,
+        "kmax_postcheck_violations": 0,
+    }
+    if cap_enforcement_mode == "hard_global_postmerge":
+        kmax_counters = _enforce_kmax_postmerge(
+            holdings_counts=holdings_counts,
+            rules_map=rules_map,
+            cell_parties=cell_parties,
+            party_region=party_region,
+            party_type=party_type,
+            party_segment=party_segment,
+            deterministic_uniforms=deterministic_uniforms,
+            max_allowed_kmax_violations=max_allowed_kmax_violations,
+            manifest_fingerprint=manifest_fingerprint,
+        )
+
+    country_account_nonzero = {}
+    party_holdings = {}
+    summary_counts = {}
+    holdings_rows_total = 0
+    total_accounts_postmerge = 0
+    for account_type_id, counts_map in holdings_counts.items():
+        for pid in sorted(counts_map.keys()):
+            count = int(counts_map.get(pid, 0))
+            if count <= 0:
+                continue
+            holdings_rows_total += 1
+            total_accounts_postmerge += count
+            country_iso = party_country[pid]
+            country_account_nonzero.setdefault((country_iso, account_type_id), []).append((int(pid), int(count)))
+            party_holdings.setdefault(int(pid), []).append((account_type_id, int(count)))
+            summary_key = (country_iso, party_region[pid], party_type[pid], account_type_id)
+            summary_counts[summary_key] = summary_counts.get(summary_key, 0) + int(count)
+
+    if total_accounts_postmerge != total_accounts:
+        logger.info(
+            "S2: post-merge account total adjusted by Kmax pass (before=%d after=%d)",
+            total_accounts,
+            total_accounts_postmerge,
+        )
+        total_accounts = total_accounts_postmerge
+
+    for rows in country_account_nonzero.values():
+        rows.sort(key=lambda item: item[0])
+    for rows in party_holdings.values():
+        rows.sort(key=lambda item: item[0])
+    logger.info(
+        "S2: allocation counters (party_evaluations=%d, zero_gate_skips=%d, weight_computations=%d, nonzero_party_account_pairs=%d, kmax_overflow_rows=%d, kmax_redistributed_rows=%d, kmax_dropped_rows=%d, kmax_postcheck_violations=%d)",
+        allocation_party_evaluations,
+        allocation_zero_gate_skips,
+        allocation_weight_computations,
+        holdings_rows_total,
+        int(kmax_counters.get("kmax_overflow_rows") or 0),
+        int(kmax_counters.get("kmax_redistributed_rows") or 0),
+        int(kmax_counters.get("kmax_dropped_rows") or 0),
+        int(kmax_counters.get("kmax_postcheck_violations") or 0),
+    )
 
     rng_attr_stream.record_event()
     rng_event_rows_attr = [
@@ -1540,9 +2054,14 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
             "context": {
                 "note": "account attributes not materialized in v1 schema",
                 "total_accounts": total_accounts,
+                "kmax_overflow_rows": int(kmax_counters.get("kmax_overflow_rows") or 0),
+                "kmax_redistributed_rows": int(kmax_counters.get("kmax_redistributed_rows") or 0),
+                "kmax_dropped_rows": int(kmax_counters.get("kmax_dropped_rows") or 0),
+                "kmax_postcheck_violations": int(kmax_counters.get("kmax_postcheck_violations") or 0),
             },
         }
     ]
+    perf.record_elapsed("allocate_accounts", step_started)
 
     account_entry = find_dataset_entry(dictionary_6a, "s2_account_base_6A").entry
     holdings_entry = find_dataset_entry(dictionary_6a, "s2_party_product_holdings_6A").entry
@@ -1564,10 +2083,10 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
     account_buffer: list[tuple] = []
     account_buffer_rows = 0
     account_writer = None
-    buffered_frames: list[pl.DataFrame] = []
 
     account_id = 1
     account_tracker = _ProgressTracker(total_accounts, logger, "S2: emit s2_account_base_6A")
+    step_started = time.monotonic()
 
     def _flush_account_buffer() -> None:
         nonlocal account_buffer_rows, account_writer
@@ -1596,20 +2115,23 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                 account_writer = pq.ParquetWriter(tmp_account, table.schema, compression="zstd")
             account_writer.write_table(table)
         else:
-            buffered_frames.append(frame)
+            _abort(
+                "6A.S2.IO_WRITE_FAILED",
+                "V-10",
+                "pyarrow_required_for_streaming_writer",
+                {"detail": "pyarrow is required to emit s2_account_base_6A without in-memory concat fallback"},
+                manifest_fingerprint,
+            )
         account_buffer_rows = 0
         account_buffer.clear()
 
-    for country in sorted(country_to_party_ids.keys()):
-        party_ids = country_to_party_ids[country]
+    countries_in_use = sorted({key[0] for key in country_account_nonzero.keys()})
+    for country in countries_in_use:
         for account_type_id in account_types_in_use:
-            counts_array = holdings_counts.get(account_type_id)
-            if counts_array is None:
+            pid_counts = country_account_nonzero.get((country, account_type_id))
+            if not pid_counts:
                 continue
-            for pid in party_ids:
-                count = counts_array[pid]
-                if count <= 0:
-                    continue
+            for pid, count in pid_counts:
                 ptype = party_type[pid]
                 segment_id = party_segment[pid]
                 region_id = party_region[pid]
@@ -1635,10 +2157,16 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                 account_tracker.update(count)
 
     _flush_account_buffer()
+    if not _HAVE_PYARROW:
+        _abort(
+            "6A.S2.IO_WRITE_FAILED",
+            "V-10",
+            "pyarrow_required_for_streaming_writer",
+            {"detail": "pyarrow is required to emit s2_account_base_6A without in-memory concat fallback"},
+            manifest_fingerprint,
+        )
     if account_writer is not None:
         account_writer.close()
-    elif buffered_frames:
-        pl.concat(buffered_frames).write_parquet(tmp_account, compression="zstd")
 
     _publish_parquet_file_idempotent(
         tmp_account,
@@ -1648,6 +2176,7 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
         "6A.S2.IO_WRITE_CONFLICT",
         "6A.S2.IO_WRITE_FAILED",
     )
+    perf.record_elapsed("emit_account_base", step_started)
 
     holdings_schema = _schema_from_pack(
         schema_6a,
@@ -1659,7 +2188,7 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
     holdings_buffer: list[tuple] = []
     holdings_buffer_rows = 0
     holdings_writer = None
-    holdings_frames: list[pl.DataFrame] = []
+    step_started = time.monotonic()
 
     holdings_tracker = _ProgressTracker(holdings_rows_total, logger, "S2: emit s2_party_product_holdings_6A")
 
@@ -1679,18 +2208,18 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                 holdings_writer = pq.ParquetWriter(tmp_holdings, table.schema, compression="zstd")
             holdings_writer.write_table(table)
         else:
-            holdings_frames.append(frame)
+            _abort(
+                "6A.S2.IO_WRITE_FAILED",
+                "V-10",
+                "pyarrow_required_for_streaming_writer",
+                {"detail": "pyarrow is required to emit s2_party_product_holdings_6A without in-memory concat fallback"},
+                manifest_fingerprint,
+            )
         holdings_buffer_rows = 0
         holdings_buffer.clear()
 
-    for pid in range(1, max_party_id + 1):
-        for account_type_id in account_types_in_use:
-            counts_array = holdings_counts.get(account_type_id)
-            if counts_array is None:
-                continue
-            count = counts_array[pid]
-            if count <= 0:
-                continue
+    for pid in sorted(party_holdings.keys()):
+        for account_type_id, count in party_holdings[pid]:
             holdings_buffer.append((pid, account_type_id, int(count)))
             holdings_buffer_rows += 1
             if holdings_buffer_rows >= _DEFAULT_BATCH_ROWS:
@@ -1698,10 +2227,16 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
             holdings_tracker.update(1)
 
     _flush_holdings_buffer()
+    if not _HAVE_PYARROW:
+        _abort(
+            "6A.S2.IO_WRITE_FAILED",
+            "V-10",
+            "pyarrow_required_for_streaming_writer",
+            {"detail": "pyarrow is required to emit s2_party_product_holdings_6A without in-memory concat fallback"},
+            manifest_fingerprint,
+        )
     if holdings_writer is not None:
         holdings_writer.close()
-    elif holdings_frames:
-        pl.concat(holdings_frames).write_parquet(tmp_holdings, compression="zstd")
 
     _publish_parquet_file_idempotent(
         tmp_holdings,
@@ -1711,24 +2246,9 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
         "6A.S2.IO_WRITE_CONFLICT",
         "6A.S2.IO_WRITE_FAILED",
     )
+    perf.record_elapsed("emit_holdings", step_started)
 
-    summary_counts: dict[tuple[str, str, str, str], int] = {}
-    for pid in range(1, max_party_id + 1):
-        country = party_country[pid]
-        if not country:
-            continue
-        region_id = party_region[pid]
-        party_type_id = party_type[pid]
-        for account_type_id in account_types_in_use:
-            counts_array = holdings_counts.get(account_type_id)
-            if counts_array is None:
-                continue
-            count = counts_array[pid]
-            if count <= 0:
-                continue
-            key = (country, region_id, party_type_id, account_type_id)
-            summary_counts[key] = summary_counts.get(key, 0) + int(count)
-
+    step_started = time.monotonic()
     summary_final_path: Optional[Path] = None
     if summary_counts:
         summary_rows = [
@@ -1758,11 +2278,13 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
         summary_final_path = summary_path
     else:
         logger.warning("S2: summary rows empty; skipping s2_account_summary_6A output")
+    perf.record_elapsed("emit_summary", step_started)
 
     merchant_base_path = None
     if bool(merchant_entry.get("status") == "optional"):
         logger.info("S2: merchant account base not produced (merchant_mode disabled)")
 
+    step_started = time.monotonic()
     rng_audit_entry = {
         "ts_utc": utc_now_rfc3339_micro(),
         "run_id": run_id_value,
@@ -1854,6 +2376,8 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
         "6A.S2.IO_WRITE_CONFLICT",
         "6A.S2.IO_WRITE_FAILED",
     )
+    perf.record_elapsed("rng_publish", step_started)
+    perf.write_events(raise_on_error=True)
 
     timer.info("S2: account base generation complete")
     return S2Result(

@@ -16,6 +16,7 @@ from typing import Any, Mapping
 import yaml
 
 from fraud_detection.event_bus import EventBusReader
+from fraud_detection.event_bus.kafka import build_kafka_reader
 from fraud_detection.event_bus.kinesis import KinesisEventBusReader
 from fraud_detection.platform_runtime import RUNS_ROOT, resolve_platform_run_id, resolve_run_scoped_path
 from fraud_detection.scenario_runner.storage import LocalObjectStore, ObjectStore, S3ObjectStore, build_object_store
@@ -79,6 +80,7 @@ class ArchiveWriterWorker:
             if config.event_bus_kind == "kinesis"
             else None
         )
+        self._kafka_reader = build_kafka_reader(client_id=f"archive-writer-{config.stream_id}") if config.event_bus_kind == "kafka" else None
         self._store = build_object_store(
             root=config.platform_store_root,
             s3_endpoint_url=config.object_store_endpoint,
@@ -207,7 +209,11 @@ class ArchiveWriterWorker:
     def _iter_records(self) -> list[dict[str, Any]]:
         if self.config.event_bus_kind == "kinesis":
             return self._read_kinesis()
-        return self._read_file()
+        if self.config.event_bus_kind == "kafka":
+            return self._read_kafka()
+        if self.config.event_bus_kind == "file":
+            return self._read_file()
+        raise RuntimeError(f"ARCHIVE_WRITER_EVENT_BUS_KIND_UNSUPPORTED:{self.config.event_bus_kind}")
 
     def _read_file(self) -> list[dict[str, Any]]:
         assert self._file_reader is not None
@@ -261,6 +267,39 @@ class ArchiveWriterWorker:
                     )
         return rows
 
+    def _read_kafka(self) -> list[dict[str, Any]]:
+        assert self._kafka_reader is not None
+        rows: list[dict[str, Any]] = []
+        for topic in self.config.admitted_topics:
+            for partition in self._kafka_partitions(topic):
+                checkpoint = self.ledger.next_offset(topic=topic, partition=partition)
+                from_offset: int | None = None
+                if checkpoint and checkpoint[1] == "kafka_offset":
+                    try:
+                        from_offset = int(checkpoint[0])
+                    except ValueError:
+                        from_offset = None
+                start_position = "earliest"
+                if checkpoint is None and self.config.event_bus_start_position == "latest":
+                    start_position = "latest"
+                for record in self._kafka_reader.read(
+                    topic=topic,
+                    partition=partition,
+                    from_offset=from_offset,
+                    limit=self.config.poll_max_records,
+                    start_position=start_position,
+                ):
+                    rows.append(
+                        {
+                            "topic": topic,
+                            "partition": int(partition),
+                            "offset": str(record.get("offset")) if record.get("offset") is not None else "",
+                            "offset_kind": "kafka_offset",
+                            "payload": record.get("payload") if isinstance(record.get("payload"), Mapping) else {},
+                        }
+                    )
+        return rows
+
     def _file_partitions(self, topic: str) -> list[int]:
         root = Path(self.config.event_bus_root) / topic
         if not root.exists():
@@ -272,6 +311,11 @@ class ArchiveWriterWorker:
             except ValueError:
                 continue
         return sorted(set(parts)) if parts else [0]
+
+    def _kafka_partitions(self, topic: str) -> list[int]:
+        assert self._kafka_reader is not None
+        partitions = self._kafka_reader.list_partitions(topic)
+        return partitions if partitions else [0]
 
     def _export(self) -> None:
         metrics = self._metrics.export()
@@ -328,7 +372,7 @@ def load_worker_config(profile_path: Path) -> ArchiveWriterConfig:
             "fp.bus.context.arrival_entities.v1",
             "fp.bus.context.flow_anchor.fraud.v1",
             "fp.bus.rtdl.v1",
-            "fp.bus.case.v1",
+            "fp.bus.case.triggers.v1",
         )
 
     object_path_style_value = str(_env(object_store.get("path_style") or "true")).strip().lower()
@@ -389,10 +433,30 @@ def _unwrap_envelope(value: Any) -> dict[str, Any]:
     if not isinstance(value, Mapping):
         return {}
     payload = dict(value)
+    if _looks_like_canonical_envelope(payload):
+        return payload
     nested = payload.get("payload")
-    if isinstance(nested, Mapping):
+    if isinstance(nested, Mapping) and _looks_like_canonical_envelope(nested):
         return dict(nested)
     return payload
+
+
+def _looks_like_canonical_envelope(value: Mapping[str, Any]) -> bool:
+    required = (
+        "platform_run_id",
+        "scenario_run_id",
+        "manifest_fingerprint",
+        "parameter_hash",
+        "scenario_id",
+        "event_id",
+        "event_type",
+        "ts_utc",
+    )
+    for key in required:
+        token = str(value.get(key) or "").strip()
+        if not token:
+            return False
+    return True
 
 
 def _locator(value: Any, suffix: str) -> str:

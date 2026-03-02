@@ -119,9 +119,46 @@ class HealthProbe:
     def _bus_describe_ok(self) -> str | None:
         try:
             from fraud_detection.event_bus.kinesis import KinesisEventBusPublisher
+            is_kinesis = isinstance(self.bus, KinesisEventBusPublisher)
         except Exception:
-            return "BUS_HEALTH_UNKNOWN"
-        if not isinstance(self.bus, KinesisEventBusPublisher):
+            is_kinesis = False
+        try:
+            from fraud_detection.event_bus.kafka import KafkaEventBusPublisher
+            is_kafka = isinstance(self.bus, KafkaEventBusPublisher)
+        except Exception:
+            is_kafka = False
+        if not is_kinesis:
+            if is_kafka:
+                try:
+                    producer = getattr(self.bus, "_producer", None)
+                    if producer is None:
+                        return "BUS_HEALTH_UNKNOWN"
+                    streams = list(self._bus_probe_streams)
+                    # kafka-python and confluent-kafka expose different metadata APIs.
+                    if hasattr(producer, "list_topics"):
+                        metadata = producer.list_topics(timeout=5.0)
+                        if streams:
+                            topics = getattr(metadata, "topics", {}) or {}
+                            for stream_name in streams:
+                                topic_meta = topics.get(stream_name)
+                                topic_err = getattr(topic_meta, "error", None) if topic_meta is not None else None
+                                partitions = getattr(topic_meta, "partitions", None) if topic_meta is not None else None
+                                if topic_meta is None or topic_err is not None or not partitions:
+                                    return "BUS_UNHEALTHY"
+                        return None
+                    if streams and hasattr(producer, "partitions_for"):
+                        for stream_name in streams:
+                            partitions = producer.partitions_for(stream_name)
+                            if not partitions:
+                                return "BUS_UNHEALTHY"
+                        return None
+                    if hasattr(producer, "bootstrap_connected"):
+                        return None if bool(producer.bootstrap_connected()) else "BUS_UNHEALTHY"
+                    if streams:
+                        return "BUS_HEALTH_UNKNOWN"
+                    return None
+                except Exception:
+                    return "BUS_UNHEALTHY"
             return "BUS_HEALTH_UNKNOWN"
         streams = list(self._bus_probe_streams)
         if not streams:

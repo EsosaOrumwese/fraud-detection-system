@@ -14,6 +14,9 @@ $defs:
     $ref: 'schemas.layer1.yaml#/$defs/iana_tzid'
   rfc3339_micros:
     $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros'
+  local_wall_timestamp_micros:
+    type: string
+    pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}$
   scenario_id:
     type: string
   seed:
@@ -267,11 +270,11 @@ egress:
         arrival_seq: { type: integer, minimum: 1 }
         ts_utc: { $ref: '#/$defs/rfc3339_micros' }
         tzid_primary: { $ref: '#/$defs/iana_tzid' }
-        ts_local_primary: { $ref: '#/$defs/rfc3339_micros' }
+        ts_local_primary: { $ref: '#/$defs/local_wall_timestamp_micros' }
         tzid_settlement: { $ref: '#/$defs/iana_tzid', nullable: true }
-        ts_local_settlement: { $ref: '#/$defs/rfc3339_micros', nullable: true }
+        ts_local_settlement: { $ref: '#/$defs/local_wall_timestamp_micros', nullable: true }
         tzid_operational: { $ref: '#/$defs/iana_tzid', nullable: true }
-        ts_local_operational: { $ref: '#/$defs/rfc3339_micros', nullable: true }
+        ts_local_operational: { $ref: '#/$defs/local_wall_timestamp_micros', nullable: true }
         tz_group_id: { type: string }
         site_id: { $ref: '#/$defs/id64', nullable: true }
         edge_id: { $ref: '#/$defs/id64', nullable: true }
@@ -922,6 +925,8 @@ config:
       - structural_checks
       - rng_accounting_checks
       - realism_checks
+      - civil_time_gates
+      - calibration_sentinels
       - failure_policy
     properties:
       policy_id: { const: validation_policy_5B }
@@ -1107,6 +1112,56 @@ config:
               require_no_missing_alias_rows: { type: boolean }
               require_country_mix_close_if_virtual: { type: boolean }
               ip_country_max_abs_dev: { type: number, minimum: 0 }
+      civil_time_gates:
+        type: object
+        additionalProperties: false
+        required:
+          - max_civil_mismatch_rate
+          - max_one_hour_shift_rate
+          - dst_window_hour_bin_mae_pp_max
+          - dst_window_min_support
+          - dst_window_min_exposed_windows
+          - dst_window_min_total_support
+        properties:
+          max_civil_mismatch_rate: { type: number, minimum: 0 }
+          max_one_hour_shift_rate: { type: number, minimum: 0 }
+          dst_window_hour_bin_mae_pp_max: { type: number, minimum: 0 }
+          dst_window_min_support: { type: integer, minimum: 1 }
+          dst_window_min_exposed_windows: { type: integer, minimum: 1 }
+          dst_window_min_total_support: { type: integer, minimum: 1 }
+      calibration_sentinels:
+        type: object
+        additionalProperties: false
+        required:
+          - evaluation_mode
+          - min_sample_rows
+          - top10_tz_share_max_b
+          - top10_tz_share_max_bplus
+          - virtual_share_min_b
+          - virtual_share_max_b
+          - virtual_share_min_bplus
+          - virtual_share_max_bplus
+          - weekend_share_delta_pp_max_b
+          - weekend_share_delta_pp_max_bplus
+          - residual_std_min_b
+          - residual_std_max_b
+          - residual_std_min_bplus
+          - residual_std_max_bplus
+        properties:
+          evaluation_mode: { enum: [warn_only, enforce_b, enforce_bplus] }
+          min_sample_rows: { type: integer, minimum: 1 }
+          top10_tz_share_max_b: { type: number, minimum: 0, maximum: 1 }
+          top10_tz_share_max_bplus: { type: number, minimum: 0, maximum: 1 }
+          virtual_share_min_b: { type: number, minimum: 0, maximum: 1 }
+          virtual_share_max_b: { type: number, minimum: 0, maximum: 1 }
+          virtual_share_min_bplus: { type: number, minimum: 0, maximum: 1 }
+          virtual_share_max_bplus: { type: number, minimum: 0, maximum: 1 }
+          weekend_share_delta_pp_max_b: { type: number, minimum: 0 }
+          weekend_share_delta_pp_max_bplus: { type: number, minimum: 0 }
+          residual_std_min_b: { type: number, minimum: 0 }
+          residual_std_max_b: { type: number, minimum: 0 }
+          residual_std_min_bplus: { type: number, minimum: 0 }
+          residual_std_max_bplus: { type: number, minimum: 0 }
       failure_policy:
         type: object
         additionalProperties: false

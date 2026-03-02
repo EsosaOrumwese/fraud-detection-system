@@ -80,6 +80,17 @@ class S1Result:
     run_report_path: Path
 
 
+@dataclass(frozen=True)
+class _S1SmoothingPolicy:
+    enabled: bool
+    zone_count_min: int
+    zone_count_max: int
+    zone_escalation_prob_min: float
+    zone_escalation_prob_max: float
+    site_count_slope: float
+    site_count_cap: float
+
+
 class _StepTimer:
     def __init__(self, logger) -> None:
         self._logger = logger
@@ -198,6 +209,28 @@ def _theta_mix_u(merchant_id: int, country_iso: str, parameter_hash: str) -> flo
     return (value + 0.5) / (2**64)
 
 
+def _smooth_band_u(merchant_id: int, country_iso: str, parameter_hash: str) -> float:
+    msg = f"3A.S1.smooth_band|{merchant_id}|{country_iso}|{parameter_hash}"
+    digest = hashlib.sha256(msg.encode("utf-8")).digest()
+    value = int.from_bytes(digest[:8], "big", signed=False)
+    return (value + 0.5) / (2**64)
+
+
+def _smooth_band_probability(policy: _S1SmoothingPolicy, zone_count_value: int, site_count_value: int) -> float:
+    if not policy.enabled:
+        return 0.0
+    if zone_count_value < policy.zone_count_min:
+        return 0.0
+    zone_capped = min(zone_count_value, policy.zone_count_max)
+    span = max(policy.zone_count_max - policy.zone_count_min, 1)
+    zone_position = float(zone_capped - policy.zone_count_min) / float(span)
+    zone_prob = policy.zone_escalation_prob_min + zone_position * (
+        policy.zone_escalation_prob_max - policy.zone_escalation_prob_min
+    )
+    site_effect = min(max(site_count_value - 1, 0) * policy.site_count_slope, policy.site_count_cap)
+    return min(1.0, max(0.0, zone_prob + site_effect))
+
+
 def _expected_release_tag(tz_world_id: str, tz_world_path: str) -> str:
     parts = tz_world_id.split("_")
     if len(parts) >= 2:
@@ -222,13 +255,23 @@ def _load_policy(policy_path: Path) -> dict:
 
 def _validate_policy_payload(
     policy_payload: dict, policy_digest: str, manifest_fingerprint: Optional[str]
-) -> tuple[str, str, float, list[dict]]:
+) -> tuple[str, str, float, list[dict], _S1SmoothingPolicy]:
     policy_id = str(policy_payload.get("policy_id") or "")
     policy_version = str(policy_payload.get("version") or "")
     theta_mix = float(policy_payload.get("theta_mix") or 0.0)
     rules = policy_payload.get("rules")
+    smoothing_block = policy_payload.get("s1_smoothing")
 
     problems: list[dict] = []
+    smoothing_policy = _S1SmoothingPolicy(
+        enabled=False,
+        zone_count_min=5,
+        zone_count_max=16,
+        zone_escalation_prob_min=0.0,
+        zone_escalation_prob_max=0.0,
+        site_count_slope=0.0,
+        site_count_cap=0.0,
+    )
 
     if policy_id != "zone_mixture_policy_3A":
         problems.append({"detail": "policy_id_invalid", "policy_id": policy_id})
@@ -292,6 +335,75 @@ def _validate_policy_payload(
     if not has_forced_escalation:
         problems.append({"detail": "missing_forced_escalation_rule"})
 
+    if smoothing_block is not None:
+        if not isinstance(smoothing_block, dict):
+            problems.append({"detail": "s1_smoothing_not_object"})
+        else:
+            enabled = smoothing_block.get("enabled")
+            if not isinstance(enabled, bool):
+                problems.append({"detail": "s1_smoothing_enabled_not_bool"})
+                enabled = False
+            try:
+                zone_count_min = int(smoothing_block.get("zone_count_min"))
+                zone_count_max = int(smoothing_block.get("zone_count_max"))
+                zone_prob_min = float(smoothing_block.get("zone_escalation_prob_min"))
+                zone_prob_max = float(smoothing_block.get("zone_escalation_prob_max"))
+                site_count_slope = float(smoothing_block.get("site_count_slope"))
+                site_count_cap = float(smoothing_block.get("site_count_cap"))
+            except (TypeError, ValueError):
+                problems.append({"detail": "s1_smoothing_field_type_invalid"})
+            else:
+                if not (2 <= zone_count_min <= 32):
+                    problems.append({"detail": "s1_smoothing_zone_count_min_out_of_range", "value": zone_count_min})
+                if not (3 <= zone_count_max <= 64):
+                    problems.append({"detail": "s1_smoothing_zone_count_max_out_of_range", "value": zone_count_max})
+                if zone_count_max <= zone_count_min:
+                    problems.append(
+                        {
+                            "detail": "s1_smoothing_zone_count_band_invalid",
+                            "zone_count_min": zone_count_min,
+                            "zone_count_max": zone_count_max,
+                        }
+                    )
+                if not (0.0 <= zone_prob_min <= 1.0):
+                    problems.append(
+                        {"detail": "s1_smoothing_zone_escalation_prob_min_out_of_range", "value": zone_prob_min}
+                    )
+                if not (0.0 <= zone_prob_max <= 1.0):
+                    problems.append(
+                        {"detail": "s1_smoothing_zone_escalation_prob_max_out_of_range", "value": zone_prob_max}
+                    )
+                if zone_prob_max < zone_prob_min:
+                    problems.append(
+                        {
+                            "detail": "s1_smoothing_zone_escalation_prob_band_invalid",
+                            "zone_escalation_prob_min": zone_prob_min,
+                            "zone_escalation_prob_max": zone_prob_max,
+                        }
+                    )
+                if not (0.0 <= site_count_slope <= 1.0):
+                    problems.append({"detail": "s1_smoothing_site_count_slope_out_of_range", "value": site_count_slope})
+                if not (0.0 <= site_count_cap <= 1.0):
+                    problems.append({"detail": "s1_smoothing_site_count_cap_out_of_range", "value": site_count_cap})
+                if site_count_cap < site_count_slope:
+                    problems.append(
+                        {
+                            "detail": "s1_smoothing_site_effect_cap_invalid",
+                            "site_count_slope": site_count_slope,
+                            "site_count_cap": site_count_cap,
+                        }
+                    )
+
+                smoothing_policy = _S1SmoothingPolicy(
+                    enabled=bool(enabled),
+                    zone_count_min=int(zone_count_min),
+                    zone_count_max=int(zone_count_max),
+                    zone_escalation_prob_min=float(zone_prob_min),
+                    zone_escalation_prob_max=float(zone_prob_max),
+                    site_count_slope=float(site_count_slope),
+                    site_count_cap=float(site_count_cap),
+                )
+
     if problems:
         _abort(
             "E3A_S1_005_POLICY_SCHEMA_INVALID",
@@ -301,7 +413,7 @@ def _validate_policy_payload(
             manifest_fingerprint,
         )
 
-    return policy_id, policy_version, theta_mix, list(rules)
+    return policy_id, policy_version, theta_mix, list(rules), smoothing_policy
 
 
 def _resolve_candidate_geoms(tree: STRtree, tz_geoms: list, geom) -> list:
@@ -411,6 +523,15 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
     policy_version = ""
     theta_digest = ""
     theta_mix = 0.0
+    smoothing_policy = _S1SmoothingPolicy(
+        enabled=False,
+        zone_count_min=5,
+        zone_count_max=16,
+        zone_escalation_prob_min=0.0,
+        zone_escalation_prob_max=0.0,
+        site_count_slope=0.0,
+        site_count_cap=0.0,
+    )
     output_root: Optional[Path] = None
     run_report_path: Optional[Path] = None
     segment_state_runs_path: Optional[Path] = None
@@ -420,6 +541,7 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
         "pairs_escalated": 0,
         "pairs_monolithic": 0,
         "countries_total": 0,
+        "pairs_smooth_band_escalated": 0,
     }
     reason_counts: Counter[str] = Counter()
     zone_counts: Counter[int] = Counter()
@@ -686,10 +808,20 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                 manifest_fingerprint,
             )
         theta_digest = _policy_digest(policy_path)
-        policy_id, policy_version, theta_mix, rules = _validate_policy_payload(
+        policy_id, policy_version, theta_mix, rules, smoothing_policy = _validate_policy_payload(
             policy_payload, theta_digest, manifest_fingerprint
         )
         timer.info("S1: mixture policy loaded and validated")
+        logger.info(
+            "S1: smoothing policy enabled=%s zone_count=[%s,%s] zone_prob=[%.3f,%.3f] site_slope=%.3f site_cap=%.3f",
+            smoothing_policy.enabled,
+            smoothing_policy.zone_count_min,
+            smoothing_policy.zone_count_max,
+            smoothing_policy.zone_escalation_prob_min,
+            smoothing_policy.zone_escalation_prob_max,
+            smoothing_policy.site_count_slope,
+            smoothing_policy.site_count_cap,
+        )
 
         current_phase = "outlet_aggregate"
         outlet_scan = pl.scan_parquet(str(outlet_path / "*.parquet")).select(
@@ -820,6 +952,15 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                     decision_reason = str(rule.get("decision_reason") or "")
                     rule_bucket = rule.get("bucket")
                     break
+
+            if decision_reason == "below_min_sites" and smoothing_policy.enabled:
+                smooth_prob = _smooth_band_probability(smoothing_policy, int(zone_count_value), site_count_value)
+                if smooth_prob > 0.0:
+                    u_smooth = _smooth_band_u(merchant_id, country_iso, str(parameter_hash))
+                    if u_smooth < smooth_prob:
+                        decision_reason = "default_escalation"
+                        rule_bucket = "s1_smooth_band"
+                        counts["pairs_smooth_band_escalated"] += 1
 
             if not decision_reason:
                 u_det = _theta_mix_u(merchant_id, country_iso, str(parameter_hash))
@@ -977,6 +1118,15 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                         "mixture_policy_version": policy_version,
                         "theta_mix": theta_mix,
                         "theta_digest": theta_digest,
+                        "s1_smoothing": {
+                            "enabled": smoothing_policy.enabled,
+                            "zone_count_min": smoothing_policy.zone_count_min,
+                            "zone_count_max": smoothing_policy.zone_count_max,
+                            "zone_escalation_prob_min": smoothing_policy.zone_escalation_prob_min,
+                            "zone_escalation_prob_max": smoothing_policy.zone_escalation_prob_max,
+                            "site_count_slope": smoothing_policy.site_count_slope,
+                            "site_count_cap": smoothing_policy.site_count_cap,
+                        },
                     },
                     "counts": counts,
                     "reason_counts": dict(reason_counts),

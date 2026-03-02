@@ -1,0 +1,217 @@
+%% Dev Full Platform Architecture (Planned v0, Authority-Aligned)
+flowchart LR
+
+  subgraph DELIVERY[Delivery + Control Plane]
+    GHA[GitHub Actions<br/>build, deploy, run workflows]
+    TF[Terraform Stacks<br/>core, streaming, runtime, data_ml, ops]
+    ECR[[ECR Immutable Images<br/>git tag -> digest]]
+    SFN[Step Functions<br/>phase gates P-1 to P17<br/>run-state commit authority]
+    MWAA[MWAA Airflow<br/>deferred until schedule complexity threshold]
+    RUNCTL[[Run Control Evidence<br/>runtime_path, cost envelopes,<br/>phase receipts]]
+    CERT[[Certification Tracks<br/>Runtime Cert RC0-RC5<br/>Ops/Gov Cert OC0-OC5]]
+    TD[Unified Teardown + Cost Guardrail<br/>residual scan + post-teardown posture]
+  end
+
+  subgraph ID[Run Identity + Correlation Law]
+    RID[platform_run_id + scenario_run_id<br/>phase_id + event_id + trace_id<br/>preserved across all lanes]
+  end
+
+  subgraph SUBSTRATE[Managed Substrate Backbone]
+    MSK[(AWS MSK Serverless<br/>Kafka bus + control + learning topics)]
+    S3OBJ[(S3 Object Store<br/>archive, receipts, quarantine,<br/>run evidence)]
+    AURORA[(Aurora PostgreSQL Serverless v2<br/>operational state)]
+    REDIS[(ElastiCache Redis<br/>low-latency join/state cache)]
+    DDB[(DynamoDB<br/>IG idempotency boundary)]
+    GLUE[(Glue Catalog + Iceberg v2<br/>learning table authority)]
+    CW[(CloudWatch<br/>metrics, logs, alerts)]
+    SM[(Secrets Manager + SSM + KMS<br/>runtime identity + secret handles)]
+    SPLIT["Active Runtime Path Split<br/>stream lanes canonical = MSF_MANAGED<br/>legacy fallback = EKS_FLINK_OPERATOR (exception only)<br/>IG edge: APIGW + Lambda + DDB primary<br/>IG on EKS: fallback only"]
+  end
+
+  subgraph ORACLE[External Oracle Boundary Read Only]
+    ORACLESTORE[[Oracle Store S3 Zone<br/>warm source-of-stream<br/>writer owned by Data Engine/upstream]]
+    M5SORT["M5 Stream-Sort Lane (EMR Serverless Spark)<br/>read source tree + publish stream_view + receipts"]
+    TRUTHVIEW[[Oracle truth_view surfaces<br/>offline labels + bank truth + case timeline<br/>learning-only consumption]]
+  end
+
+  subgraph INGRESS[Control + Ingress Plane Managed First]
+    SR[SR READY Lane<br/>Step Functions + Lambda/job commit]
+    WSP[WSP Stream Lane<br/>ECS/Fargate ephemeral task]
+    APIGW[API Gateway<br/>IG public edge primary]
+    IGL[IG Lambda Handler<br/>admission boundary + envelope checks primary]
+    IGREC[[IG Receipts + Quarantine<br/>append evidence surfaces]]
+    TCTRL[[fp.bus.control.v1]]
+    TTRAFFIC[[fp.bus.traffic.fraud.v1]]
+    TCTX[[fp.bus.context.*]]
+    TRTDL[[fp.bus.rtdl.v1]]
+    TCASE[[fp.bus.case.triggers.v1]]
+    TLABELS[[fp.bus.labels.events.v1]]
+    TAUDIT[[fp.bus.audit.v1]]
+  end
+
+  subgraph RTDL[RTDL + Decision Plane Hybrid]
+    IEG[IEG Stream Projection<br/>Managed Flink canonical app branch]
+    OFP[OFP Stream Projection<br/>Managed Flink canonical app branch]
+    DF["Decision Fabric<br/>custom runtime, ECS service (conditional review)"]
+    AL[Action Layer<br/>ECS/Fargate execution]
+    DLA[Decision Log and Audit<br/>custom ECS service]
+    ARCH[Archive Sink Connector<br/>managed Kafka->S3 sink path]
+  end
+
+  subgraph CASELBL[Case + Label Plane Hybrid]
+    CT[Case Trigger<br/>ECS/Fargate consume decision/outcome evidence]
+    CM[Case Management<br/>ECS/Fargate append case timeline]
+    LS[Label Store<br/>ECS/Fargate append label assertions]
+  end
+
+  subgraph LEARN[Learning + Evolution Plane]
+    OFS[OFS Dataset Build<br/>Databricks jobs]
+    MF[MF Train + Eval<br/>SageMaker]
+    MLF[MLflow Tracking<br/>experiment + model metadata]
+    MPR[MPR Promotion Corridor<br/>promote/rollback authority]
+    REG[[Active Bundle Resolution<br/>runtime bundle authority]]
+    PIT[Point-in-time policy gate<br/>replay_basis + feature_asof_utc<br/>label_asof_utc + maturity]
+    LEAK[Leakage guardrails<br/>runtime truth/future deny-list<br/>fail-closed policy checks]
+    TOFSREQ[[fp.bus.learning.ofs.requests.v1]]
+    TOFSEVT[[fp.bus.learning.ofs.events.v1]]
+    TMFREQ[[fp.bus.learning.mf.requests.v1]]
+    TMFEVT[[fp.bus.learning.mf.events.v1]]
+    TREG[[fp.bus.learning.registry.events.v1]]
+  end
+
+  subgraph OBS[Observability + Governance]
+    OTEL[OpenTelemetry Correlation<br/>run-scoped traces/metrics/logs]
+    REP[Run Reporter + Conformance<br/>full-platform closure evidence]
+    GOV[[Governance Append<br/>run-scoped immutable events]]
+  end
+
+  GHA -->|apply infra + deploy| TF
+  GHA -->|build and push| ECR
+  GHA -->|dispatch teardown + guardrail| TD
+  TF -->|provision| MSK
+  TF -->|provision| S3OBJ
+  TF -->|provision| AURORA
+  TF -->|provision| REDIS
+  TF -->|provision| DDB
+  TF -->|provision| GLUE
+  TF -->|provision| CW
+  TF -->|provision| SM
+  TF -->|pin runtime path| SPLIT
+  TF -->|provision| MWAA
+  TF -->|provision| SFN
+  TD -->|post-teardown residual scan + cost posture| RUNCTL
+  RUNCTL -->|cert entry evidence + M15 handoff pack| CERT
+  TD -. teardown receipts .-> S3OBJ
+
+  SFN -->|phase evidence| RUNCTL
+  SPLIT -. canonical runtime selection .-> SR
+  SPLIT -. canonical runtime selection .-> WSP
+  SPLIT -. active host path .-> IEG
+  SPLIT -. active host path .-> OFP
+  SPLIT -. primary edge path .-> APIGW
+  SPLIT -. primary edge path .-> IGL
+  SFN -->|P5 READY commit authority| SR
+  SFN -->|final verdict orchestration| REP
+  MWAA -. deferred scheduler path .-> OFS
+  MWAA -. deferred scheduler path .-> MF
+
+  ORACLESTORE -->|source tree read| M5SORT
+  M5SORT -->|publish stream_view surfaces| ORACLESTORE
+  M5SORT -->|publish truth_view surfaces| TRUTHVIEW
+  M5SORT -->|stream-sort/parity receipts| RUNCTL
+  ORACLESTORE -->|resolve required outputs| SR
+  ORACLESTORE -->|read stream_view parts| WSP
+  SR -->|publish READY| TCTRL
+  TCTRL -->|start run-scoped stream| WSP
+  WSP -->|push envelopes| APIGW
+  APIGW -->|invoke| IGL
+  IGL -->|idempotency key check| DDB
+  IGL -->|write receipt/quarantine| IGREC
+  IGL -->|publish ADMITTED traffic| TTRAFFIC
+  IGL -->|publish ADMITTED context| TCTX
+
+  TTRAFFIC -->|consume| IEG
+  TCTX -->|consume| IEG
+  TTRAFFIC -->|consume| OFP
+  TCTX -->|join context| OFP
+  TTRAFFIC -->|decision trigger| DF
+  IEG -->|projection state| AURORA
+  OFP -->|low-latency features| REDIS
+  OFP -->|durable feature state| AURORA
+
+  DF -->|action intent| AL
+  DF -->|decision facts| DLA
+  AL -->|action outcomes| DLA
+  AL -->|publish outcomes via IG| IGL
+  DLA -->|publish audit events| TAUDIT
+  DLA -->|append audit records| S3OBJ
+
+  TRTDL -->|decision/outcome stream| CT
+  CT -->|publish case triggers| TCASE
+  TCASE -->|consume case trigger| CM
+  CM -->|label writer boundary| LS
+  LS -->|publish label events| TLABELS
+  CM -->|case timeline append| AURORA
+  LS -->|label assertion append| AURORA
+
+  TTRAFFIC -->|archive input| ARCH
+  TCTX -->|archive input| ARCH
+  TRTDL -->|archive input| ARCH
+  TCASE -->|archive input| ARCH
+  TLABELS -->|archive input| ARCH
+  TAUDIT -->|archive input| ARCH
+  ARCH -->|immutable archive events| S3OBJ
+
+  TOFSREQ -->|dataset build request| OFS
+  TRUTHVIEW -->|learning truth inputs only| OFS
+  PIT -->|enforce replay_basis + as-of + maturity| OFS
+  PIT -->|enforce eval time boundaries| MF
+  LEAK -->|deny truth/future fields in runtime| DF
+  LEAK -->|fail-closed learning leakage checks| OFS
+  LEAK -->|fail-closed eval leakage checks| MF
+  OFS -->|dataset build events| TOFSEVT
+  OFS -->|dataset manifests/fingerprints| S3OBJ
+  OFS -->|Iceberg table update| GLUE
+  TOFSEVT -->|candidate training input| TMFREQ
+  TMFREQ -->|train/eval request| MF
+  MF -->|eval events| TMFEVT
+  MF -->|log experiment/model| MLF
+  TMFEVT -->|candidate bundle| MPR
+  MPR -->|promote or rollback| REG
+  MPR -->|registry events| TREG
+  REG -->|resolve active model/policy| DF
+
+  IGREC -. evidence storage .-> S3OBJ
+  RUNCTL -. run-control receipts .-> S3OBJ
+  REP -. run report + final verdict .-> S3OBJ
+  REP -->|append governance facts| GOV
+  REP -->|publish certification readiness receipts| CERT
+  GOV -. governance events .-> S3OBJ
+
+  OTEL -->|emit correlated telemetry| CW
+  SR -. trace + run headers .-> OTEL
+  WSP -. trace + run headers .-> OTEL
+  IGL -. trace + run headers .-> OTEL
+  IEG -. trace + run headers .-> OTEL
+  OFP -. trace + run headers .-> OTEL
+  DF -. trace + run headers .-> OTEL
+  AL -. trace + run headers .-> OTEL
+  DLA -. trace + run headers .-> OTEL
+  CM -. trace + run headers .-> OTEL
+  LS -. trace + run headers .-> OTEL
+  OFS -. trace + run headers .-> OTEL
+  MF -. trace + run headers .-> OTEL
+  MPR -. trace + run headers .-> OTEL
+
+  RID -. run scope required .-> SR
+  RID -. run scope required .-> WSP
+  RID -. run scope required .-> IGL
+  RID -. run scope required .-> DF
+  RID -. run scope required .-> AL
+  RID -. run scope required .-> DLA
+  RID -. run scope required .-> CM
+  RID -. run scope required .-> LS
+  RID -. run scope required .-> OFS
+  RID -. run scope required .-> MF
+  RID -. run scope required .-> MPR
+  RID -. run scope required .-> REP

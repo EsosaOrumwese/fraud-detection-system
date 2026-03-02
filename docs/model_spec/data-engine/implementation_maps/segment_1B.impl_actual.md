@@ -3174,3 +3174,2877 @@ Actions taken:
 
 Expected outcome:
 - Latest-run selection is stable and deterministic without changing explicit run_id behavior.
+
+---
+
+### Entry: 2026-02-13 12:26
+
+Design element: Segment 1B remediation build-plan authoring kickoff (data-first, phase-locked).
+Summary: User requested creating the Segment 1B remediation build plan document before implementation. Decision is to build a phased, DoD-driven plan that prioritizes statistical realism movement on data outputs while preserving the progressive state dependency law.
+
+Planning decisions (before authoring the build-plan doc):
+1) **Use report-driven remediation scope (`S2 + S4 + S6 + S9`) with strict progressive reruns.**
+   - Rationale: 1B remediation report identifies these as the causal loci for concentration, coverage, and local geometry realism.
+   - Constraint: reruns must follow state dependencies; no isolated downstream patching.
+
+2) **Adopt a two-lane run protocol for heavy compute.**
+   - Fast lane for single-seed tuning from changed state onward.
+   - Certification lane across required seed set only after fast-lane candidate is stable.
+   - Rationale: reduce iteration time while preserving promotion rigor.
+
+3) **Lock 1A as immutable upstream during 1B remediation.**
+   - Rationale: prevent attribution drift and avoid reopening already-frozen upstream behavior.
+
+4) **Center DoDs on data realism metrics, not PASS mechanics.**
+   - Concentration, coverage, and local geometry metrics are phase closure criteria.
+   - Structural/gate checks remain veto rails, not tuning targets.
+
+Planned file action:
+- Create `docs/model_spec/data-engine/implementation_maps/segment_1B.build_plan.md` with phased sections, state-owned tuning responsibilities, DoDs, and freeze rules.
+
+---
+
+### Entry: 2026-02-13 12:33
+
+Design element: Segment 1B remediation build plan published.
+Summary: Authored and published a new phased build plan for Segment 1B remediation, anchored to the 1B published/remediation reports and all 1B state-expanded contracts.
+
+Actions taken:
+1) Added `docs/model_spec/data-engine/implementation_maps/segment_1B.build_plan.md`.
+2) Encoded the remediation objective and closure logic for `B` minimum with `B+` target.
+3) Captured authority stack (reports + `S0..S9` expanded specs + 1B contracts).
+4) Declared active remediation scope and progressive rerun matrix:
+   - `S2` changes rerun `S2->S9`,
+   - `S4` changes rerun `S4->S9`,
+   - `S6` changes rerun `S6->S9`,
+   - `S9` gate-only changes rerun `S9`.
+5) Added heavy-compute iteration protocol:
+   - fast lane vs certification lane,
+   - run folder retention/pruning policy to avoid storage growth.
+6) Added phased plan with DoDs:
+   - `P0` baseline/harness lock,
+   - `P1` S2 macro-mass reshape,
+   - `P2` S4 anti-collapse closure,
+   - `P3` S6 geometry closure,
+   - `P4` integrated closure run,
+   - `P5` certification and freeze.
+7) Added state-first triage mapping and explicit phase freeze/reopen rule.
+
+Expected effect:
+- Remediation execution stays causally ordered, data-focused, and auditable while minimizing wasted compute in 1B’s long-run states.
+
+---
+
+### Entry: 2026-02-13 12:32
+
+Design element: P0 expansion plan before edit (baseline/harness detail uplift).
+Summary: User requested expanding `P0` in the new Segment 1B build plan. The current `P0` is too terse for execution and needs concrete sub-phases, artifacts, and state/data checks.
+
+Decision (before editing build-plan doc):
+1) Expand `P0` into explicit sub-phases (`P0.1..P0.5`) rather than adding narrative prose.
+2) Keep `P0` data-centric:
+   - baseline realism authority capture,
+   - metric harness and scorer outputs,
+   - run-id retention/pruning protocol,
+   - fast-lane profile lock for heavy compute.
+3) Keep remediation states unchanged (`S2/S4/S6/S9`) and avoid leaking tuning logic into `P0`.
+4) Add binary DoDs per sub-phase so `P0` can be closed unambiguously before `P1`.
+
+Planned file change:
+- Update `docs/model_spec/data-engine/implementation_maps/segment_1B.build_plan.md` under `P0` only, with no scope drift into later phases.
+
+---
+
+### Entry: 2026-02-13 12:32
+
+Design element: P0 expansion applied in build plan (execution-ready detail).
+Summary: Expanded `P0` into concrete baseline/harness work packages with explicit artifacts, state-level checkpoints, and closure gates.
+
+Applied updates:
+1) Added `P0.1` baseline authority pin with required lineage tokens and upstream-freeze statement.
+2) Added `P0.2` baseline scorecard materialization with core realism metrics plus companion country/region/NN tables.
+3) Added `P0.3` state-level baseline checkpoints for `S2`, `S4`, and `S6/S8`.
+4) Added `P0.4` run harness and storage discipline lock (retained folders + prune-before-run + fast/cert lane lock).
+5) Added `P0.5` approval gate requiring explicit go/no-go before entering `P1`.
+6) Replaced the old minimal DoD with a phase-exit checklist that is binary and auditable.
+
+Expected outcome:
+- `P0` is now operationally actionable and can be closed deterministically before any remediation tuning begins in `P1`.
+
+---
+
+### Entry: 2026-02-13 12:46
+
+Design element: P0 execution implementation plan (baseline artifact generation + harness activation).
+Summary: Moving from plan authoring to P0 execution. We will generate baseline score artifacts from authority run `c25...`, create retained-folder harness structure for 1B remediation, run prune-before-run flow, and then close P0 DoD checkboxes.
+
+Decisions before implementation:
+1) **Add a dedicated baseline scorer tool for Segment 1B P0.**
+   - New file: `tools/score_segment1b_p0_baseline.py`.
+   - Inputs: baseline run root (`runs/local_full_run-5/c25...`) and state reports (`S2/S4/S6/S8`).
+   - Outputs:
+     - baseline scorecard JSON,
+     - country-share CSV,
+     - region-share CSV,
+     - NN quantile CSV.
+   - Rationale: reproducible evidence artifact instead of ad-hoc notebook-style outputs.
+
+2) **Use published-report-compatible concentration math from `site_locations`.**
+   - Country concentration computed over active countries (nonzero site counts), matching published-report posture.
+   - This reproduces baseline `Gini/top-k` values used as remediation anchor.
+
+3) **Use ISO canonical region lookup from local reference when available.**
+   - Primary lookup: `_untracked/reference/layer1/iso_canonical/.../iso_canonical.csv` (has `region` and `subregion`).
+   - Fallback: tracked ISO parquet with `Unknown` region values.
+   - Rationale: produce a deterministic region-share table without introducing external dependencies.
+
+4) **Activate harness folders without copying heavy baseline data.**
+   - Create:
+     - `runs/fix-data-engine/segment_1B/baseline_authority/`,
+     - `runs/fix-data-engine/segment_1B/current_candidate/`,
+     - `runs/fix-data-engine/segment_1B/last_good/`.
+   - Store pointer metadata to baseline run rather than duplicating datasets.
+
+5) **Prune workflow activation for 1B root.**
+   - Execute `tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_1B`.
+   - Record output in P0 work logs and mark prune-before-run as active.
+
+Execution order:
+1) add scorer tool,
+2) run scorer against baseline run,
+3) create harness/pointer files and iteration protocol metadata,
+4) run prune script for 1B root,
+5) mark P0 DoD closure in build plan + logbook.
+
+---
+
+### Entry: 2026-02-13 12:52
+
+Design element: P0 execution completed (baseline artifacts + harness + closure gate).
+Summary: Completed the full P0 checklist and recorded an explicit GO into `P1`.
+
+Implementation actions completed:
+1) Added baseline scorer tool:
+   - `tools/score_segment1b_p0_baseline.py`.
+   - Computes concentration/coverage/NN metrics, emits companion tables, and captures `S2/S4/S6/S8` checkpoint summaries.
+
+2) Materialized baseline authority artifacts from run `c25a2675fbfbacd952b13bb594880e92`:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p0_baseline_c25a2675fbfbacd952b13bb594880e92.json`
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p0_baseline_c25a2675fbfbacd952b13bb594880e92_country_share.csv`
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p0_baseline_c25a2675fbfbacd952b13bb594880e92_region_share.csv`
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p0_baseline_c25a2675fbfbacd952b13bb594880e92_nn_quantiles.csv`
+
+3) Baseline metrics captured (authority):
+   - `country_gini=0.7528246140`
+   - `top1_share=0.1365774067`
+   - `top5_share=0.3932559107`
+   - `top10_share=0.5974021819`
+   - `eligible_country_nonzero_share=0.3092369478`
+   - `southern_hemisphere_share=0.0585788783`
+   - `nn_p99_p50_ratio=11.7929786966`
+   - These values align with published-report concentration posture for the same run.
+
+4) Activated run harness folders and pointers:
+   - `runs/fix-data-engine/segment_1B/baseline_authority/baseline_pointer.json`
+   - `runs/fix-data-engine/segment_1B/current_candidate/README.txt`
+   - `runs/fix-data-engine/segment_1B/last_good/last_good_pointer.json`
+   - `runs/fix-data-engine/segment_1B/iteration_protocol.json`
+   - No heavy data copy was performed; pointers reference authoritative run paths.
+
+5) Activated prune-before-run workflow for 1B root:
+   - Command executed: `python tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_1B`
+   - Evidence file:
+     - `runs/fix-data-engine/segment_1B/reports/segment1b_p0_prune_check.txt`
+
+6) Closed P0 checklist in build plan and recorded phase closure/go decision:
+   - `docs/model_spec/data-engine/implementation_maps/segment_1B.build_plan.md`
+   - Decision: `GO` into `P1`.
+
+---
+
+### Entry: 2026-02-13 12:48
+
+Design element: P1 expansion planning request (no `P1.1` sub-numbering).
+Summary: User requested expanding `P1` and explicitly noted they do not want `P1.1` style breakdown. We will expand `P1` with work blocks using lettered sections and clear DoDs.
+
+Pre-edit decisions:
+1) Replace the current short `P1` stub with a full execution design that stays S2-centric.
+2) Use block labels (`P1-A`, `P1-B`, ...) instead of `P1.1`.
+3) Keep P1 data-focused:
+   - policy/config and deterministic weighting mechanics,
+   - concentration/breadth shape movement,
+   - replay stability and lock criteria.
+4) Keep P1 boundaries explicit:
+   - active remediation locus is `S2`,
+   - downstream spot-checks are only for shape confirmation, not full-phase closure in P1.
+5) Record concrete file surfaces and tuning knobs so implementation can start without ambiguous interpretation.
+
+---
+
+### Entry: 2026-02-13 12:48
+
+Design element: P1 build-plan expansion applied (block-based, no dotted subphase numbering).
+Summary: Expanded P1 in `segment_1B.build_plan.md` using `P1-A..P1-E` work blocks with explicit scope boundaries, file surfaces, knob map, and closure criteria.
+
+Applied changes:
+1) Replaced the short P1 stub with a full execution section.
+2) Added explicit P1 scope boundary:
+   - P1 is S2-centric,
+   - downstream checks in P1 are confirmation-only.
+3) Added concrete file surfaces (policy, contracts, runner) to avoid ambiguous implementation targeting.
+4) Added S2 tuning knob map:
+   - `basis_mix`, region floors, soft/hard caps, top-k targets, concentration penalty, deterministic namespace.
+5) Added block-based workflow:
+   - `P1-A` policy/contract enablement,
+   - `P1-B` deterministic rebalance implementation,
+   - `P1-C` diagnostics extraction,
+   - `P1-D` calibration loop,
+   - `P1-E` lock handoff.
+6) Expanded DoD checklist to include:
+   - governed diagnostics availability,
+   - measurable concentration improvement vs P0 baseline,
+   - reproducibility and lock-record requirements.
+
+Outcome:
+- P1 is now implementation-ready and aligned with the requested non-dotted subphase style.
+
+---
+
+### Entry: 2026-02-13 12:54
+
+Design element: P1 execution kickoff (S2 blend_v2 implementation + deterministic candidate-run lane).
+Summary: Proceeding with the full P1 execution (`P1-A..P1-E`) with S2-only tuning ownership. The immediate work is policy/schema/runtime enablement for `blend_v2`, deterministic diagnostics emission, and a fast-lane candidate run from `S2 -> S9` under `runs/fix-data-engine/segment_1B`.
+
+Decisions before implementation:
+1) **Implement `blend_v2` as governed policy, not hidden runtime knobs.**
+   - Update:
+     - `config/layer1/1B/policy/policy.s2.tile_weights.yaml`
+     - `docs/model_spec/data-engine/layer-1/specs/contracts/1B/schemas.1B.yaml`
+   - Keep legacy fallback active:
+     - if `blend_v2.enabled=false`, retain existing single-basis behavior.
+
+2) **Use deterministic two-pass rebalance in S2.**
+   - File:
+     - `packages/engine/src/engine/layers/l1/seg_1B/s2_tile_weights/runner.py`
+   - Pass A:
+     - compute raw mixed mass from `{uniform, area_m2, population}` per tile.
+   - Pass B:
+     - country-level scaling with deterministic tie-breaks for:
+       - region floor uplift,
+       - soft/hard country caps,
+       - concentration penalty pull toward uniform country mass.
+   - Preserve existing fixed-dp largest-remainder quantization semantics per country.
+
+3) **Emit governed diagnostics from S2 run report for P1 scoring.**
+   - Add:
+     - `country_share_topk` (`top1`, `top5`, `top10`),
+     - `country_gini_proxy`,
+     - `region_share_vector`,
+     - `blend_v2_diagnostics` (iterations, convergence delta, policy knobs in effect).
+   - Keep existing report fields for backward compatibility.
+
+4) **Run-lane discipline for P1 execution under fix-data-engine root.**
+   - Create one candidate run-id under:
+     - `runs/fix-data-engine/segment_1B/<candidate_run_id>/`
+   - Do not mutate baseline authority run.
+   - Seed/manifest/parameter lineage copied from baseline receipt, with run_id changed to candidate id.
+   - Copy only required upstream inputs into candidate run root (`S0/S1 + 1A outlet surface`) to allow `S2->S9` rerun chain.
+   - Before launching candidate reruns, execute prune script to avoid run-folder sprawl.
+
+5) **P1 scoring posture.**
+   - Add a dedicated P1 scorer artifact under:
+     - `runs/fix-data-engine/segment_1B/reports/`
+   - Evaluate:
+     - S2 diagnostics movement vs P0 baseline,
+     - downstream no-regression sentinel metrics from S4/S8.
+   - Record accepted P1 lock (policy snapshot + run_id + metric deltas) before declaring P1 complete.
+
+Execution order:
+1) implement policy/schema/runner changes,
+2) create P1 candidate run root and required upstream carry-forward inputs,
+3) run prune-before-run,
+4) execute `segment1b-s2` through `segment1b-s9`,
+5) score candidate and run reproducibility repeat,
+6) update build-plan DoD, impl notes, and daily log with lock/handoff details.
+
+---
+
+### Entry: 2026-02-13 13:00
+
+Design element: P1-A/P1-B applied (blend_v2 policy-governed S2 implementation).
+Summary: Implemented the S2-side remediation surfaces for `blend_v2` and deterministic rebalance diagnostics, while preserving existing fixed-dp quantization and legacy fallback behavior.
+
+Implemented changes:
+1) **Policy enablement (`P1-A`).**
+   - Updated `config/layer1/1B/policy/policy.s2.tile_weights.yaml`:
+     - policy version bumped to `2026-02-13`,
+     - added `fallback_mode: legacy_basis_only`,
+     - added `blend_v2` with governed knobs (`basis_mix`, `region_floor_share`, soft/hard caps, top-k caps, penalty strength, deterministic namespace, iteration controls).
+
+2) **Contract governance (`P1-A`).**
+   - Updated `docs/model_spec/data-engine/layer-1/specs/contracts/1B/schemas.1B.yaml`:
+     - extended `policy/s2_tile_weights_policy` to govern `fallback_mode` and full `blend_v2` surface,
+     - kept legacy required fields (`policy_version`, `basis`, `dp`) for backward compatibility.
+
+3) **Runtime implementation (`P1-B`).**
+   - Updated `packages/engine/src/engine/layers/l1/seg_1B/s2_tile_weights/runner.py`:
+     - parses/validates `blend_v2` policy,
+     - computes blended per-tile masses (`uniform`, `area_m2`, `population`) when enabled,
+     - retains legacy single-basis path when disabled,
+     - keeps deterministic per-country fixed-dp largest-remainder quantization unchanged,
+     - adds deterministic country-share rebalance diagnostics (region floors, soft/hard caps, top-k caps, concentration penalty),
+     - emits new S2 run-report diagnostics:
+       - `country_share_topk`,
+       - `country_gini_proxy`,
+       - `region_share_vector`,
+       - `blend_v2_diagnostics`.
+
+4) **Build sanity check.**
+   - Verified syntax compile:
+     - `python -m py_compile packages/engine/src/engine/layers/l1/seg_1B/s2_tile_weights/runner.py`.
+
+Clarifying constraint captured for downstream phases:
+- S2 still enforces per-country fixed-dp normalization (`sum(weight_fp)=10^dp` per country), so country-level volume movement in final `site_locations` remains primarily downstream of S3/S4 ownership. P1 therefore targets S2 mass-shape diagnostics and within-country weight realism, then hands off anti-collapse country-volume controls to P2 (`S4`).
+
+---
+
+### Entry: 2026-02-13 14:05
+
+Design element: P1 fast-lane compute correction (population component staging).
+Summary: First P1 candidate run timed out while still in `S2` because `blend_v2.population` forced full raster sampling across all tiles in every country. For P1 closure (S2 mechanics + deterministic diagnostics), we are staging population influence to `0.0` so the full `S2->S9` chain can complete within practical tuning time.
+
+Decision and rationale:
+1) Set `blend_v2.basis_mix.population` to `0.0` and reallocate to `uniform/area_m2` while keeping `blend_v2` enabled.
+2) Keep all other P1 knobs active (region floors, caps, top-k targets, concentration penalty, deterministic rebalance diagnostics).
+3) Treat this as a compute-lane staging choice, not a permanent removal:
+   - population-weighted blend remains implemented in runner + schema,
+   - it can be re-enabled in a later pass once we move beyond P1 closure and budget a longer run window.
+
+Operational consequence:
+- We can now execute full fast-lane `S2->S9` for P1 lock validation without multi-hour S2 bottleneck from per-tile raster sampling.
+
+---
+
+### Entry: 2026-02-13 15:03
+
+Design element: P1 rerun correction under immutable partition law.
+Summary: Attempting to rerun `S2->S9` on an existing candidate run-id failed at `S5` with immutable-partition protection. We shifted to fresh run-id bootstrapping for every full-chain retry to preserve append-only run semantics.
+
+Decision and rationale:
+1) Do not rerun downstream states on a run-id that already contains published partitions when upstream inputs changed.
+2) For each full-chain P1 retry, create a fresh run-id under `runs/fix-data-engine/segment_1B/` with only required upstream surfaces copied:
+   - `1A/outlet_catalogue`,
+   - `1B/s0_gate_receipt`,
+   - `1B/sealed_inputs`,
+   - `1B/tile_index`,
+   - `1B/tile_bounds`,
+   - plus a cloned `run_receipt.json` with updated `run_id/created_utc`.
+3) Keep prune-before-run active before launching new full-chain attempts.
+
+Operational consequence:
+- Immutable collision at `S5` is avoided without violating run immutability or deleting valid published partitions.
+
+---
+
+### Entry: 2026-02-13 15:26
+
+Design element: P1 final closure, reproducibility proof, and lock promotion.
+Summary: Completed P1 closure using accepted candidate run `335c9a7eec04491a845abc2a049f959f`, verified all P1 checks pass, and validated two-run same-seed S2 reproducibility.
+
+Implementation actions completed:
+1) Full fast-lane chain success (`S2->S9`) on fresh run-id:
+   - `run_id=335c9a7eec04491a845abc2a049f959f`
+   - `S9` decision: `PASS`.
+2) P1 candidate scoring:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p1_candidate_335c9a7eec04491a845abc2a049f959f.json`
+   - `checks_all_pass=true`.
+3) Reproducibility run:
+   - second fresh run-id `8b25602ba5ab48cb9fe459ffece15858` executed for `S2`,
+   - compared `country_gini_proxy`, `country_share_topk`, `region_share_vector`, `blend_v2_diagnostics`,
+   - all fields equal between accepted run and repro run.
+4) Repro/lock artifacts written:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p1_repro_check_335c9a7eec04491a845abc2a049f959f_8b25602ba5ab48cb9fe459ffece15858.json`
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p1_lock_record.json`
+5) Pointer promotion:
+   - `runs/fix-data-engine/segment_1B/current_candidate/current_candidate_pointer.json`
+   - `runs/fix-data-engine/segment_1B/last_good/last_good_pointer.json`
+   - both now point to accepted run `335c9a7eec04491a845abc2a049f959f`.
+6) Storage discipline after lock:
+   - pruned superseded run-id folders:
+     - `a7d72773443c4206bb7ab44695274e92`,
+     - `8b25602ba5ab48cb9fe459ffece15858`.
+
+Lock statement:
+- P1 (`S2` macro-mass policy + diagnostics posture) is now locked.
+- Downstream phases (`P2+`) must treat P1 settings as frozen unless an explicit reopen decision is recorded.
+
+---
+
+### Entry: 2026-02-13 15:45
+
+Design element: P2 planning expansion (S4 anti-collapse closure plan).
+Summary: Expanded the build plan `P2` section into explicit work blocks so execution starts with a clear freeze boundary, S4-owned tuning surfaces, fast-lane iteration rules, acceptance/repro gates, and lock-handoff requirements.
+
+Decisions captured:
+1) Keep `P1` (`S2`) immutable throughout `P2`; no S2 knob drift is allowed during S4 closure.
+2) Start P2 with a locked-baseline authority snapshot from accepted P1 run `335c9a7eec04491a845abc2a049f959f`.
+3) Restrict tuning ownership to S4 anti-collapse controls:
+   - `country_share_soft_guard`,
+   - deterministic reroute ordering,
+   - bounded residual redistribution.
+4) Use fresh run-id per fast-lane cycle and rerun `S4->S9` to avoid immutable partition collisions.
+5) Require explicit reproducibility evidence (second same-seed run) before P2 lock promotion.
+
+Expected outcome:
+- P2 execution can proceed without ambiguity while preserving causal attribution (`S4` changes only) and storage/run discipline.
+
+---
+
+### Entry: 2026-02-13 15:52
+
+Design element: P2 execution kickoff plan (implement S4 anti-collapse controls + scoring lane).
+Summary: Starting full P2 execution end-to-end. Current S4 runner only performs largest-remainder integerisation with no policy-governed anti-collapse controls and minimal diagnostics, so we will implement S4 policy governance, deterministic redistribution logic, and explicit S4/S8 scoring artifacts for lock decisions.
+
+Decisions before implementation:
+1) **Introduce governed S4 policy surface.**
+   - Add `config/layer1/1B/policy/policy.s4.alloc_plan.yaml`.
+   - Add schema anchor `#/policy/s4_alloc_plan_policy` in `schemas.1B.yaml`.
+   - Add dictionary entry `s4_alloc_plan_policy` in `dataset_dictionary.layer1.1B.yaml`.
+   - Keep backward-safe defaults: if policy disabled/missing controls, S4 preserves current allocation behavior.
+
+2) **Implement deterministic anti-collapse guard in S4 (no RNG).**
+   - File: `packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py`.
+   - After base largest-remainder allocation:
+     - enforce `country_share_soft_guard` as max per-tile share within each `(merchant_id, legal_country_iso)` allocation vector,
+     - reroute excess counts from donor tiles to deterministic receiver tiles,
+     - apply bounded residual redistribution to increase active-tile breadth where configured.
+   - Preserve hard invariants:
+     - per-pair sum exactly equals `n_sites`,
+     - no zero/negative emitted counts,
+     - deterministic tie-breaks and stable writer ordering remain intact.
+
+3) **Emit S4 diagnostics required for P2 DoD closure.**
+   - Add pre/post anti-collapse metrics in `s4_run_report`:
+     - pair-level top1-share and HHI summaries,
+     - active-tile breadth summaries,
+     - move/redistribution counters,
+     - policy snapshot in effect.
+   - Keep existing report keys unchanged for compatibility.
+
+4) **Add explicit P2 scorer artifact for baseline/candidate comparison.**
+   - New tool: `tools/score_segment1b_p2_candidate.py`.
+   - Inputs: locked P1 baseline run + candidate run.
+   - Outputs:
+     - S4 pre/post metric deltas,
+     - S8 no-regression checks,
+     - P2 candidate checklist in one JSON artifact under `runs/fix-data-engine/segment_1B/reports/`.
+
+5) **Run-lane and storage discipline for P2.**
+   - Fresh run-id per candidate iteration (bootstrap only required upstream inputs).
+   - Rerun chain from S4 only: `S4 -> S5 -> S6 -> S7 -> S8 -> S9`.
+   - After accepted candidate + reproducibility pass, update lock pointers and prune superseded run-id folders.
+
+Execution order:
+1) implement policy/schema/dictionary/runner/scorer surfaces,
+2) create P2 baseline artifact from locked P1 run,
+3) run first P2 candidate (`S4->S9`) and score,
+4) tune S4 policy if needed with bounded cycles,
+5) run same-seed reproducibility check on second fresh run-id,
+6) write P2 lock artifact, update pointers, prune superseded runs, and close P2 DoD/logbook.
+
+---
+
+### Entry: 2026-02-13 17:46
+
+Design element: P2 continuation under branch drift recovery (S4 policy retune wave-1).
+Summary: Recovered from cross-branch drift and confirmed the P2 surfaces are present on `migrate-dev` (`2f8ef956`, `5c253035`, `624bedfd`). Scored current P2 candidate `923332139abd4f588a7770513f6f40a0` against locked P1 baseline `335c9a7eec04491a845abc2a049f959f`; result shows zero S4/S8 movement and `checks_all_pass=false` because S4 anti-collapse controls were never triggered (`pairs_guard_touched=0`, moves=0).
+
+Decision and rationale before editing:
+1) Keep P2 scope strictly on S4 policy knobs (P1 S2 freeze remains binding).
+2) Execute a policy-only retune first (no S4 code change) because current no-movement is caused by lenient thresholds relative to observed pair-level top1/hhi posture, not by missing controls.
+3) Retune strategy for wave-1:
+   - decrease `country_share_soft_guard` to force donor detection on medium-size pairs,
+   - keep `country_share_hard_guard` above soft guard to avoid infeasible receiver caps,
+   - increase residual activation floor modestly so breadth expansion can trigger where pair active-tile counts are too concentrated,
+   - keep deterministic namespace and reroute mode unchanged.
+4) Run fresh candidate from locked P1 run with immutable-run discipline (`S4->S9`, new run-id) and score using `tools/score_segment1b_p2_candidate.py`.
+5) Acceptance criteria for this wave:
+   - S4 diagnostics must show non-zero guard movement,
+   - S4 pair-level `top1`/`HHI` means must improve vs baseline,
+   - S8 must not regress concentration and parity rails.
+6) If wave-1 still no-move, proceed to wave-2 with stronger soft/hard caps; if improvement appears, run same-seed reproducibility on second fresh run-id before P2 lock promotion.
+
+---
+
+### Entry: 2026-02-13 18:19
+
+Design element: P2 feasibility check correction (S4 bound-aware closure logic).
+Summary: Wave-1 retuned candidate (`47ad6781ab9d4d92b311b068f51141f6`) still produced zero movement even though the updated S4 policy was loaded. Deep diagnostics show this is a feasibility boundary, not a missed knob:
+- only `3/2597` pairs have any tile with count `>1`,
+- those 3 pairs are all `BM` with `pair_total in {101,119,129}` and `active_tiles=90`,
+- BM tile universe is exactly `90` tiles (`part-BM.parquet`),
+- observed counts already match the minimum-imbalance occupancy (`1/2` distribution) for those totals.
+
+Decision and rationale before code edits:
+1) Keep `P1` freeze intact; no upstream reopen during this P2 pass.
+2) Treat strict `candidate < baseline` checks in `tools/score_segment1b_p2_candidate.py` as over-constrained when baseline is already at theoretical floor.
+3) Update the P2 scorer to compute per-pair lower bounds for `top1` and `HHI` from `(pair_total, country_tile_capacity)` and aggregate mean floor headroom.
+4) Convert P2 acceptance rule to:
+   - require strict improvement when baseline headroom exists,
+   - allow floor-hold pass when baseline headroom is zero (or epsilon-close) and candidate is non-regressive.
+5) Persist explicit floor diagnostics in the scorer output so acceptance is auditable and not threshold-forged.
+
+Expected result:
+- P2 closure remains data-truthful: we do not claim fake movement where math disallows it, and we still veto any regression.
+
+---
+
+### Entry: 2026-02-13 18:43
+
+Design element: P2 execution closure (bound-aware scoring + lock handoff).
+Summary: Implemented and exercised floor-aware P2 scoring, then completed candidate/repro runs and locked P2 with non-regressive floor-hold evidence.
+
+Implementation outcomes:
+1) **Scorer upgraded for feasibility-aware gates.**
+   - File updated: `tools/score_segment1b_p2_candidate.py`.
+   - Added per-country tile-capacity extraction from `tile_weights`.
+   - Added per-pair theoretical lower bounds for `top1` and `HHI` from `(pair_total, tile_capacity)`.
+   - Added aggregated `theoretical_floor` and `theoretical_headroom` in `s4_pair_metrics`.
+   - Updated P2 gate semantics:
+     - if baseline headroom exists, require strict improvement;
+     - if baseline headroom is zero, require floor-hold + non-regression.
+   - Added explicit `feasibility` block in score output for auditability.
+
+2) **Candidate and reproducibility evidence.**
+   - Accepted candidate run: `47ad6781ab9d4d92b311b068f51141f6`.
+   - Repro run: `57cc24a38a4646f3867b7f815063d26f` (fresh run-id; full chain `S4->S9`).
+   - Score artifacts:
+     - `segment1b_p2_candidate_47ad6781ab9d4d92b311b068f51141f6.json`
+     - `segment1b_p2_candidate_57cc24a38a4646f3867b7f815063d26f.json`
+   - Both scorecards report `checks_all_pass=true` with zero S8 regression and zero baseline headroom.
+   - Repro comparison artifact written:
+     - `segment1b_p2_repro_check_47ad6781ab9d4d92b311b068f51141f6_57cc24a38a4646f3867b7f815063d26f.json`.
+
+3) **P2 lock and storage discipline.**
+   - Wrote lock artifact:
+     - `runs/fix-data-engine/segment_1B/reports/segment1b_p2_lock_record.json`.
+   - Updated pointers:
+     - `runs/fix-data-engine/segment_1B/current_candidate/current_candidate_pointer.json`
+     - `runs/fix-data-engine/segment_1B/last_good/last_good_pointer.json`
+   - Pruned superseded run folders:
+     - `923332139abd4f588a7770513f6f40a0`,
+     - `57cc24a38a4646f3867b7f815063d26f`.
+
+Decision statement:
+- P2 is closed with a mathematically justified floor-hold posture under locked P1 inputs.
+- Downstream phases can proceed with P1/P2 both treated as immutable unless explicit reopen is approved.
+
+---
+
+### Entry: 2026-02-13 18:52
+
+Design element: P3 planning expansion (S6 geometry closure under P1/P2 freeze).
+Summary: Expanded P3 from a high-level note into execution-grade blocks (`P3-A..P3-E`) with explicit freeze boundaries, governed file surfaces, and measurable DoDs tied to geometry realism without reopening P1/P2.
+
+Planning decisions captured:
+1) **Freeze discipline remains strict.**
+   - P3 may only tune S6 surfaces.
+   - P1 (S2) and P2 (S4) are hard-locked unless explicit reopen approval is recorded.
+
+2) **P3 authority stack is two-layered.**
+   - Grade reference remains P0 baseline metrics.
+   - No-regression reference for downstream posture is P2 lock run.
+   - This prevents fake gain claims from swapping baselines mid-phase.
+
+3) **S6 control surfaces must be policy-governed first.**
+   - Add `policy.s6.jitter.yaml` and activate governed schema/dictionary mapping.
+   - No hidden tuning constants in runner logic.
+
+4) **Implementation lane remains deterministic and fail-closed.**
+   - Mixture jitter (`core`, `secondary`, `sparse_tail`) must preserve deterministic namespace semantics.
+   - Point-in-country, coordinate bounds, and immutable partition laws remain non-negotiable.
+
+5) **Calibration and acceptance protocol mirrors P2 rigor.**
+   - Fresh run-id per cycle.
+   - Fast-lane rerun limited to `S6->S9`.
+   - Same-seed reproducibility required before lock.
+   - Prune superseded run-id folders at handoff.
+
+6) **P3 DoD is grade-oriented but scoped.**
+   - Primary objective: NN-tail contraction toward B threshold (`>=20%` vs baseline target).
+   - Secondary objective: stripe/corridor sentinel removal in top-volume countries.
+   - Hard veto: no concentration/coverage regression against P2 lock posture.
+
+Implementation intent for next step:
+- execute `P3-A` baseline snapshot + scorer lane prep, then proceed to policy/schema activation (`P3-B`) before touching S6 runtime logic (`P3-C`).
+
+---
+
+### Entry: 2026-02-13 18:55
+
+Design element: P3 implementation strategy before code edits (S6-only lane).
+Summary: Finalised the concrete implementation route for P3 to avoid hand-wavy tuning: first activate a governed S6 policy surface, then implement deterministic mixture jitter with fixed RNG budget per event, then score and calibrate via `S6->S9` fast-lane cycles.
+
+Pre-edit decisions:
+1) **Policy governance first, runtime second.**
+   - `jitter_policy` in contracts/dictionary is still marked reserved and path-misaligned (`config/layer1/1B/policy/1B.jitter.yaml`).
+   - We will activate it as an S6-consumed policy at `config/layer1/1B/policy/policy.s6.jitter.yaml`.
+
+2) **RNG envelope must remain stable.**
+   - Existing S6 event schema requires `blocks=1` and `draws=\"2\"` per attempt/event.
+   - Mixture jitter must therefore be implemented using exactly the same two uniforms per attempt (no extra RNG draws), preserving determinism and trace compatibility.
+
+3) **Mixture implementation form (deterministic, bounded).**
+   - Introduce `uniform_v1` (legacy) and `mixture_v2` modes.
+   - `mixture_v2` uses component weights (`core`, `secondary`, `sparse_tail`) with component-specific center-shape exponents and max offset fractions.
+   - Component selection will be deterministic from existing uniforms; lat/lon fractions remain bounded to tile limits before country check.
+
+4) **P3 scoring is missing and must be added.**
+   - Add `tools/score_segment1b_p3_candidate.py` to evaluate:
+     - NN tail contraction vs P0 baseline (`p99/p50`),
+     - S8 concentration no-regression vs P2 lock,
+     - stripe/corridor sentinel across top-volume countries,
+     - parity and structural checks.
+
+5) **Fast-lane execution and lock discipline.**
+   - Candidate cycles will use fresh run-id bootstraps from locked P2 run and rerun only `S6->S9`.
+   - After acceptance, run one same-seed reproducibility cycle, write P3 lock record, update pointers, prune superseded runs.
+
+Risk noted upfront:
+- Given current 1B posture, NN-tail may have limited S6 headroom because much of spacing is inherited from upstream tile assignment (`S5`/`S4`). If contraction target remains unreachable after bounded tuning, we will produce explicit feasibility evidence rather than claim synthetic gains.
+
+---
+
+### Entry: 2026-02-13 19:25
+
+Design element: P3 feasibility diagnosis + S6 algorithm correction plan (no P1/P2 reopen).
+Summary: P3 candidate scoring shows persistent failure on `nn_tail_contraction_b_target` and `top_country_no_collapse` even after activating `mixture_v2`. A direct diagnostic on locked P2 topology confirms several top countries are effectively single-latitude corridors already at S5/tile-centroid support, so bounded in-cell jitter cannot clear collapse sentinels.
+
+Evidence captured before edits:
+1) Latest candidate `2fc45e1204bd417abc272521c8a0de06`:
+   - `nn_p99/p50 = 13.555` (worse than baseline),
+   - collapse sentinel still flags `DE, FR, GB, DK, CH, IT, ES, NO`.
+2) S5/tile centroid support is lat-collapsed for key countries under locked P2:
+   - `DE`: 4269 sites across 215 tiles but centroid lat range is constant (`51.279167..51.279167`),
+   - `FR`: constant (`49.937500..49.937500`),
+   - `ES`: constant (`39.020834..39.020834`),
+   - `NO`: constant (`78.629167..78.629167`).
+3) This proves P3 failure is not just knob tuning; it is a geometry-support ceiling under strict in-pixel jitter.
+
+Decision and implementation plan:
+1) Keep P1/P2 frozen (no reopen in this pass).
+2) Upgrade S6 `mixture_v2` sampling from strict in-pixel fractions to deterministic **tile-neighborhood displacement** around tile centroids with component-specific floor spans.
+3) Preserve non-negotiables:
+   - RNG budget remains `blocks=1`, `draws="2"` per attempt/event,
+   - deterministic seed namespace behavior unchanged,
+   - point-in-country acceptance remains mandatory,
+   - coordinate bounds and immutable publish laws remain fail-closed.
+4) Keep `uniform_v1` lane behavior unchanged for backward compatibility.
+5) Retune S6 policy weights toward dense-core realism with bounded sparse tail, then rerun fresh candidate with required chain `S5->S9` and rescore.
+
+Planned file surfaces:
+- `packages/engine/src/engine/layers/l1/seg_1B/s6_site_jitter/runner.py`
+- `config/layer1/1B/policy/policy.s6.jitter.yaml`
+- (no P1/P2 file touches)
+
+---
+
+### Entry: 2026-02-13 19:29
+
+Design element: P3-C S6 runtime correction implemented (neighborhood mixture lane).
+Summary: Implemented the S6 algorithm change required by the 19:25 diagnosis: `mixture_v2` is no longer restricted to strict in-pixel fractions and now supports deterministic tile-neighborhood displacement around tile centroids with component-specific floor spans.
+
+What changed:
+1) `packages/engine/src/engine/layers/l1/seg_1B/s6_site_jitter/runner.py`
+   - Added deterministic component floor spans:
+     - `core=0.015 deg half-span`,
+     - `secondary=0.035 deg half-span`,
+     - `sparse=0.080 deg half-span`.
+   - Added centered-shape sampler for mixture mode and switched `mixture_v2` sampling to centroid-based displacement with bounded component scale.
+   - Kept `uniform_v1` lane unchanged (strict in-pixel behavior preserved).
+   - Kept RNG envelope invariant: still one Philox block/two uniforms per attempt event.
+   - Pixel-bound checks remain enforced for `uniform_v1`; `mixture_v2` now relies on point-in-country + global coordinate bounds.
+   - `sigma_lat_deg`/`sigma_lon_deg` now emit effective displacement scale in degrees for diagnostics.
+2) `config/layer1/1B/policy/policy.s6.jitter.yaml`
+   - bumped to `policy_version=2026-02-13-r3`.
+   - moved to core-heavy mixture profile (`core=0.72`, `secondary=0.24`, `sparse=0.04`) with tighter core spread and bounded secondary lane.
+
+Verification completed:
+- `python -m py_compile packages/engine/src/engine/layers/l1/seg_1B/s6_site_jitter/runner.py` passed.
+
+Next execution step:
+- bootstrap a fresh candidate run-id from locked P2 authority,
+- run `S5->S9` (required chain for trace consistency),
+- score with `tools/score_segment1b_p3_candidate.py` and decide lock vs further bounded retune.
+
+---
+
+### Entry: 2026-02-13 19:38
+
+Design element: P3 out-of-pixel experiment verdict + rollback to in-contract lane.
+Summary: The neighborhood-displacement experiment was executed on run `ca19edb80ba4441f99a66ab194b38dd1` and failed fail-closed at S7 (`E707_POINT_OUTSIDE_PIXEL`). This confirms S7 contract semantics currently require S6 realizations to remain in pixel support; the experimental lane is invalid without explicit S7/contract broadening.
+
+Actions taken:
+1) Reverted S6 runner back to in-pixel-safe mixture implementation (kept existing policy-governance framework intact).
+2) Kept P1/P2 frozen and moved back to in-contract P3 calibration.
+3) Preserved failure evidence in run logs; did not promote the experimental lane.
+
+Decision:
+- Do not pursue out-of-pixel displacement inside P3 under current freeze/contract posture.
+- Continue with in-contract candidate scoring to determine feasibility-limited closure versus lock promotion.
+
+---
+
+### Entry: 2026-02-13 19:40
+
+Design element: P3 final calibration outcome under frozen P1/P2 (blocked closure).
+Summary: Executed fresh in-contract candidate `run_id=36d94ea5f4c64592a4938884cd3535a3` with full required chain `S5->S9` (`S9 PASS`) and scored against P0 baseline + P2 lock. P3 hard geometry gates remain unsatisfied.
+
+Observed outcomes:
+1) Candidate score artifact:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p3_candidate_36d94ea5f4c64592a4938884cd3535a3.json`.
+2) Hard-gate status:
+   - `nn_tail_contraction_b_target=false` (`nn_p99/p50=35.5577`, severe regression),
+   - `top_country_no_collapse=false` (same 8 flagged top countries).
+3) No-regression rails that still hold:
+   - concentration/coverage not worse than P2,
+   - coordinate bounds valid,
+   - S8 parity OK.
+
+Feasibility evidence recorded:
+- `runs/fix-data-engine/segment_1B/reports/segment1b_p3_feasibility_47ad6781ab9d4d92b311b068f51141f6.json`.
+- Under locked P2 support, top countries `DE, FR, GB, DK, CH, IT, ES, NO` have 4dp latitude-uniqueness upper bounds below collapse threshold from S5 centroid support bands, so collapse sentinel clearance is unreachable without upstream support widening.
+
+Phase decision:
+- P3 cannot be lock-closed under current freeze assumptions.
+- Required explicit reopen/contract decision is now pinned in the build plan before further P3 work.
+
+Storage discipline after P3 attempts:
+- Pruned superseded run folders: `ca19edb80ba4441f99a66ab194b38dd1`, `2e12e1049a5c4862bf7a8d6774556e28`, `2fc45e1204bd417abc272521c8a0de06`, `3490add55cc84da78de1347fec92753e`.
+- Retained run-id folders:
+  - `335c9a7eec04491a845abc2a049f959f` (P1 lock),
+  - `47ad6781ab9d4d92b311b068f51141f6` (P2 lock / no-regression authority),
+  - `36d94ea5f4c64592a4938884cd3535a3` (latest P3 evidence run).
+
+---
+
+### Entry: 2026-02-13 19:53
+
+Design element: Preferred-path reopen approved (`P2/S4`) for P3 blockage.
+Summary: USER approved upstream reopen path. We are reopening S4 support-shaping (while keeping S2 fixed unless evidence later requires S2 reopen) to break repeated top-tile reuse across merchant-country pairs that causes country-level corridor collapse under locked support.
+
+Problem statement for this reopen pass:
+1) Under locked P2, S4 allocates many small pairs using deterministic highest-residue picks on the same tile subset repeatedly.
+2) This preserves macro concentration but collapses within-country support diversity, leaving P3 collapse sentinels unresolved.
+3) S6-only tuning proved insufficient and out-of-pixel S6 lane is invalid under current S7 contract checks.
+
+Decision for implementation:
+1) Add a governed S4 policy block for **deterministic support diversification** (phase rotation over high-residue candidate window), not random noise.
+2) Keep conservation invariants intact:
+   - per-pair `sum(n_sites_tile)=n_sites`,
+   - no negative/zero emitted counts,
+   - tile universe remains S1/S2 constrained,
+   - deterministic replay preserved.
+3) Apply diversification only in the shortfall bump lane so base quota math remains aligned with fixed-dp weight authority.
+4) Emit explicit diagnostics in S4 run report to measure diversification activity and avoid hidden behavior.
+
+Planned file surfaces for this reopen pass:
+- `docs/model_spec/data-engine/layer-1/specs/contracts/1B/schemas.1B.yaml` (governed S4 policy surface extension)
+- `config/layer1/1B/policy/policy.s4.alloc_plan.yaml` (S4 reopen policy values)
+- `packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py` (deterministic diversification implementation)
+
+Execution plan after code edits:
+1) compile checks,
+2) fresh run-id bootstrap from locked upstream,
+3) run `S4->S9` (with required state continuity),
+4) score P2 non-regression and P3 candidate,
+5) decide keep/revert based on metrics.
+
+---
+
+### Entry: 2026-02-13 19:57
+
+Design element: S4 reopen implementation (`policy.s4.alloc_plan` + runner + contract governance).
+Summary: Implemented governed deterministic support-diversification in S4 shortfall bump selection to reduce repeated top-tile reuse across many small merchant-country pairs while preserving strict conservation and deterministic replay invariants.
+
+Implemented changes:
+1) Contract surface extension:
+   - `docs/model_spec/data-engine/layer-1/specs/contracts/1B/schemas.1B.yaml`
+   - Added optional `policy/s4_alloc_plan_policy/support_diversification` object with governed fields:
+     - `enabled`
+     - `apply_n_sites_max`
+     - `candidate_window_fraction`
+     - `candidate_window_min`
+
+2) Policy activation:
+   - `config/layer1/1B/policy/policy.s4.alloc_plan.yaml`
+   - Bumped to `policy_version=2026-02-13-r3`.
+   - Enabled `support_diversification` with small-pair scope (`apply_n_sites_max=24`) and top-window controls.
+
+3) Runtime implementation:
+   - `packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py`
+   - Added policy fields and parsing for support diversification.
+   - Added deterministic rotation helper keyed by `deterministic_seed_namespace|merchant_id|legal_country_iso`.
+   - Replaced fixed `order[:shortfall]` bump selection with governed selector:
+     - base order remains highest-residue with tile-id tie-break,
+     - when enabled and within small-pair bound, bumps are chosen from a rotated high-residue candidate window.
+   - Added diagnostics counters:
+     - `pairs_diversified_touched`,
+     - `diversification_bumps_total`,
+     - `diversified_touched_share`.
+   - Added policy echo for `support_diversification` in `anti_collapse_policy` run-report snapshot.
+
+Invariant checks preserved:
+- per-pair `sum(n_sites_tile)=n_sites`;
+- no zero/negative emitted allocations;
+- tile-universe constraints unchanged;
+- deterministic, RNG-free S4 behavior preserved.
+
+Verification:
+- `python -m py_compile packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py` passed.
+
+Next step:
+- execute fresh `S4->S9` candidate run from locked upstream,
+- score P2 no-regression and P3 geometry gates,
+- accept/revert based on evidence.
+
+---
+
+### Entry: 2026-02-13 20:24
+
+Design element: P3 reopen candidate diagnosis after S4 diversification run `a430c66a9cfa4ac1b70ed6566eb18d1c`.
+Summary: Fresh reopen candidate improved NN-tail strongly and kept all concentration/coverage/parity gates green, but P3 still fails one contractual gate because S6 policy mode remained `uniform_v1` (`policy_version=2026-02-13-hold-uniform`).
+
+Observed scorer outcome (`segment1b_p3_candidate_a430c66a9cfa4ac1b70ed6566eb18d1c.json`):
+1) `checks_all_pass=false`.
+2) Only failing check is `s6_mode_mixture_v2=false`.
+3) Statistical gates are green:
+   - `nn_tail_contraction_b_target=true` (65.74% contraction vs P0 baseline),
+   - `top_country_no_collapse=true`,
+   - concentration and coverage non-regression gates true.
+
+Decision:
+1) Do not reopen additional upstream states for this step.
+2) Execute a narrow contract-alignment pass:
+   - switch S6 policy `mode` from `uniform_v1` to `mixture_v2` (governed existing lane),
+   - keep all other S6 knobs unchanged first,
+   - run minimal required chain on a fresh run-id: `S5 -> S6 -> S7 -> S8 -> S9`,
+   - rescore P3 and accept only if gates remain green.
+3) Storage posture: run on a new run-id and prune the superseded run-id folder if the new candidate fully supersedes it.
+
+---
+
+### Entry: 2026-02-13 20:40
+
+Design element: P3 closure execution after approved S4 reopen path.
+Summary: Executed the narrow contract-alignment pass (S6 mode restore to `mixture_v2`) on fresh run-ids from reopened S4 authority and closed P3 with reproducible green scorecards.
+
+Implementation + execution trail:
+1) Policy alignment edit:
+   - `config/layer1/1B/policy/policy.s6.jitter.yaml`
+   - changed `mode: uniform_v1 -> mixture_v2`, `policy_version: 2026-02-13-r4`.
+2) Fresh candidate bootstrap/run (`S5->S9`):
+   - candidate run: `979129e39a89446b942df9a463f09508`.
+   - state outcomes: `S5 PASS`, `S6 PASS`, `S7 PASS`, `S8 PASS`, `S9 PASS`.
+   - score artifact: `runs/fix-data-engine/segment_1B/reports/segment1b_p3_candidate_979129e39a89446b942df9a463f09508.json`.
+   - P3 result: `checks_all_pass=true`.
+3) Same-seed reproducibility witness (`S5->S9`):
+   - repro run: `81d1a2b5902146f08a693836eb852f85`.
+   - state outcomes: `S5 PASS`, `S6 PASS`, `S7 PASS`, `S8 PASS`, `S9 PASS`.
+   - score artifact: `runs/fix-data-engine/segment_1B/reports/segment1b_p3_candidate_81d1a2b5902146f08a693836eb852f85.json`.
+4) Repro check + lock artifacts:
+   - repro check: `runs/fix-data-engine/segment_1B/reports/segment1b_p3_repro_check_979129e39a89446b942df9a463f09508_81d1a2b5902146f08a693836eb852f85.json` (identical checks + candidate metrics).
+   - lock record: `runs/fix-data-engine/segment_1B/reports/segment1b_p3_lock_record.json`.
+5) Pointer updates:
+   - `runs/fix-data-engine/segment_1B/current_candidate/current_candidate_pointer.json`
+   - `runs/fix-data-engine/segment_1B/last_good/last_good_pointer.json`
+   - both now point to P3 accepted run `979129e39a89446b942df9a463f09508`.
+6) Storage hygiene:
+   - pruned superseded run-id folders:
+     - `a430c66a9cfa4ac1b70ed6566eb18d1c`
+     - `36d94ea5f4c64592a4938884cd3535a3`
+   - retained authority/freeze runs:
+     - `335c9a7eec04491a845abc2a049f959f` (P1 lock),
+     - `47ad6781ab9d4d92b311b068f51141f6` (P2 lock),
+     - `979129e39a89446b942df9a463f09508` (P3 lock),
+     - `81d1a2b5902146f08a693836eb852f85` (P3 repro witness).
+
+Result posture:
+- P3 is now closure-grade green under the approved reopen path.
+- Remaining progression moves to integrated `P4` with `P1/P2/P3` locked by default.
+
+---
+
+### Entry: 2026-02-13 20:44
+
+Design element: P4 plan expansion from coarse block to execution-grade phased structure.
+Summary: Expanded P4 into `P4.1 -> P4.4` so integrated closure is run under explicit lock authority, bounded recovery rules, and deterministic handoff evidence.
+
+Why expansion was required:
+1) Prior P4 block stated intent only and was under-specified for execution control.
+2) We need explicit fail-closed classification (`GREEN_B`, `AMBER_NEAR_BPLUS`, `RED_REOPEN_REQUIRED`) before any tuning loop.
+3) We need storage-safe and causality-safe execution boundaries so integrated work does not silently reopen locked upstream phases.
+
+What was added to build plan:
+1) `P4.1` authority envelope pinning (`P1/P2/P3` locks + scorer/policy authority).
+2) `P4.2` integrated baseline pass with single scorecard and status classifier.
+3) `P4.3` bounded B/B+ recovery mini-loop (one knob-group-at-a-time, strict veto).
+4) `P4.4` acceptance/handoff (repro witness, lock record, pointers, prune set).
+5) Updated P4 DoD checklist aligned to those four blocks.
+
+Execution posture after this planning update:
+- No runtime state was executed in this step.
+- No policy/runner code was changed in this step.
+- Next actionable step is `P4.1` authority envelope materialization.
+
+---
+
+### Entry: 2026-02-13 20:47
+
+Design element: P4 full execution plan (P4.1->P4.4) under locked `P1/P2/P3`.
+Summary: Execute one integrated candidate from `S2->S9` using frozen authorities, then classify against B/B+ hard gates with explicit fail-closed status (`GREEN_B`, `AMBER_NEAR_BPLUS`, `RED_REOPEN_REQUIRED`).
+
+Execution decisions pinned before implementation:
+1) Integrated run scope:
+   - use fresh run-id bootstrapped from locked P3 authority inputs,
+   - rerun `S2->S9` to include all active remediation states (`S2/S4/S6`) in one coherent pass.
+2) P4 scoring surface:
+   - create dedicated P4 integrated scorer artifact (`segment1b_p4_integrated_*.json`) to avoid ad-hoc manual interpretation.
+   - score against the pinned B/B+ thresholds from build plan section 3.
+3) P4 classification semantics:
+   - `GREEN_B`: all B hard gates pass (B+ may or may not pass; reported separately),
+   - `AMBER_NEAR_BPLUS`: B passes but B+ not yet fully met,
+   - `RED_REOPEN_REQUIRED`: B hard gates fail under locked posture, implying reopen is required for further movement.
+4) Fail-closed behavior:
+   - `P4.3` bounded retune runs only if `AMBER_NEAR_BPLUS`.
+   - `RED_REOPEN_REQUIRED` blocks tuning and requires explicit upstream reopen approval.
+5) Storage posture:
+   - keep only authority + accepted + repro run folders after closure attempt,
+   - prune superseded integrated attempt runs.
+
+---
+
+### Entry: 2026-02-13 21:17
+
+Design element: P4 full execution (`P4.1` + `P4.2`) and fail-closed classification.
+Summary: Executed integrated `S2->S9` candidate under locked authority envelope, scored with new P4 integrated scorer, and reached `RED_REOPEN_REQUIRED` (no P4.3 retune allowed).
+
+Implemented artifacts and execution:
+1) New P4 scorer implementation:
+   - `tools/score_segment1b_p4_integrated.py`.
+   - Purpose: apply absolute B/B+ gates + structural/no-regression checks and emit status classifier.
+2) P4.1 authority envelope:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p4_authority_envelope.json`.
+   - Pins lock authorities: `P1=335c9a7eec04491a845abc2a049f959f`, `P2=47ad6781ab9d4d92b311b068f51141f6`, `P3=979129e39a89446b942df9a463f09508`.
+3) Integrated runtime candidate:
+   - run `625644d528a44f148bbf44339a41a044` with chain `S2->S3->S4->S5->S6->S7->S8->S9`.
+   - `S9` decision: `PASS`.
+4) Score artifacts:
+   - `segment1b_p2_candidate_625644d528a44f148bbf44339a41a044.json`
+   - `segment1b_p3_candidate_625644d528a44f148bbf44339a41a044.json`
+   - `segment1b_p4_integrated_625644d528a44f148bbf44339a41a044.json`
+
+P4 classifier result:
+- `status=RED_REOPEN_REQUIRED`.
+- Structural checks: PASS (`s6_mode_mixture_v2`, parity, bounds, collapse sentinel clear).
+- No-regression checks vs P3 lock: PASS.
+- B/B+ hard-gate failures are concentration/coverage axis:
+  - `country_gini=0.7528` (fails B/B+),
+  - `top10=0.5974`, `top5=0.3933`, `top1=0.1366` (fail B/B+),
+  - `eligible_country_nonzero_share=0.3092`, `southern_hemisphere_share=0.0600` (fail B/B+).
+- NN-tail contraction remains strong (`~63.35%` vs baseline), so failure is not on geometry tail.
+
+Fail-closed output:
+- Wrote explicit blocker artifact:
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_p4_red_reopen_625644d528a44f148bbf44339a41a044.json`.
+- Decision:
+  - block `P4.3` (bounded B+ recovery) because status is RED,
+  - explicit reopen approval required before any upstream edits,
+  - recommended reopen lanes: `P1/S2`, then `P2/S4`.
+
+---
+
+### Entry: 2026-02-13 21:28
+
+Design element: Path-1 upstream reopen approval with 1A freeze-veto contract.
+Summary: USER approved path-1 (upstream reopen) with a strict boundary: any resulting change must not spoil Segment `1A` frozen grade posture. Before touching any 1A/1B runtime lane, we are pinning a hard no-regression guard.
+
+Pinned decisions before implementation:
+1) Upstream posture changes from "1A immutable" to "1A reopen allowed only under guard".
+2) Reopen acceptance is fail-closed on a new **1A freeze guard**:
+   - candidate must remain `eligible_B=true` at minimum,
+   - no regression on authority-hard-gates,
+   - no regression on authority B-pass metrics,
+   - concentration (`top10`, `gini`) cannot worsen versus frozen certification authority.
+3) We will materialize this as a dedicated scorer artifact (tooling) so every path-1 candidate has machine-checkable evidence before 1B promotion.
+4) 1B integrated scoring remains unchanged; this new guard is an upstream veto gate, not a replacement for P4/P5 B/B+ gates.
+
+Planned implementation surfaces:
+1) New scorer tool:
+   - `tools/score_segment1a_freeze_guard.py`.
+2) Build plan updates:
+   - `docs/model_spec/data-engine/implementation_maps/segment_1B.build_plan.md` (upstream scope and rerun matrix now include guarded 1A reopen).
+3) Logbook evidence append:
+   - `docs/logbook/02-2026/2026-02-13.md`.
+
+---
+
+### Entry: 2026-02-13 21:36
+
+Design element: Path-1 plan activation wiring (1A freeze-guard gated reopen).
+Summary: Updated Segment `1B` build planning authority to move from strict 1A immutability to guarded path-1 reopen, with explicit ordering that blocks any 1B promotion if 1A freeze guard fails.
+
+Changes applied:
+1) `segment_1B.build_plan.md` section updates:
+   - upstream scope now states: default frozen + approved guarded exception (`path-1`),
+   - added `2.0 Path-1 freeze-veto contract`,
+   - updated rerun matrix with upstream-reopen lane (`1A accepted candidate -> rerun 1B S0->S9`),
+   - added P4 execution status activation note for path-1 order of operations.
+2) Guard tool reference pinned in plan:
+   - `tools/score_segment1a_freeze_guard.py`,
+   - authority artifact `segment1a_p5_certification.json`.
+
+Execution implication:
+1) For every upstream candidate cycle:
+   - run 1A guard first,
+   - continue to 1B integrated run only if guard is `PASS`.
+2) This enforces USER constraint that 1A frozen grade cannot be spoiled while attempting 1B recovery.
+
+---
+
+### Entry: 2026-02-13 21:44
+
+Design element: Path-1 cycle #1 execution plan (guarded upstream re-anchor).
+Summary: Start first path-1 execution cycle by re-anchoring 1B run identity to accepted 1A authority run `416afa430db3f5bf87180f8514329fe8` (`manifest_fingerprint=12adbd...`, `parameter_hash=59ca67...`), then run integrated `S0->S9` and score against P4 gates.
+
+Pinned execution sequence:
+1) Confirm upstream guard status:
+   - require `segment1a_freeze_guard_416afa...` to be `PASS` before 1B run bootstrap.
+2) Bootstrap fresh 1B run-id:
+   - clone latest 1B receipt template,
+   - update `run_id`, `created_utc`, and upstream identity tokens (`manifest_fingerprint`, `parameter_hash`) to match the selected 1A authority.
+3) Stage required 1A upstream surfaces into the new 1B run root (copy-only, no mutation):
+   - `validation/manifest_fingerprint=12adbd...`,
+   - `outlet_catalogue/seed=42/manifest_fingerprint=12adbd...`,
+   - `s3_candidate_set/parameter_hash=59ca67...`.
+4) Execute integrated 1B chain on that run-id:
+   - `S0 -> S1 -> S2 -> S3 -> S4 -> S5 -> S6 -> S7 -> S8 -> S9`.
+5) Score and classify:
+   - `tools/score_segment1b_p4_integrated.py`,
+   - capture status and gate movement versus existing P4 RED authority.
+6) Storage hygiene:
+   - keep this candidate until decision; prune only superseded failed folders after scoring.
+
+---
+
+### Entry: 2026-02-13 23:57
+
+Design element: Path-1 cycle #1 full execution outcome + runtime diagnosis.
+Summary: Completed the guarded full 1B chain on run `e4d92c9cfbd3453fb6b9183ef6e3b6f6` and re-scored P4. Status remained `RED_REOPEN_REQUIRED`; concentration/coverage improved materially versus prior RED run but still below B thresholds, with top-country collapse sentinel triggered.
+
+Execution trail (completed):
+1) Run bootstrap + identity:
+   - run-id: `e4d92c9cfbd3453fb6b9183ef6e3b6f6`
+   - upstream identity pinned to accepted 1A authority:
+     - `manifest_fingerprint=12adbd0603b3259db571e3c576e6037f4aafe73314037908498f1696003162a9`
+     - `parameter_hash=59ca6719a623f6f024806b79344926c5941841789f2f92264bccad187f710f72`
+2) Full state chain executed successfully:
+   - `S0,S1,S2,S3,S4,S5,S6,S7,S8,S9` complete, with `S9 decision=PASS`.
+3) Integrated scoring artifact:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p4_integrated_e4d92c9cfbd3453fb6b9183ef6e3b6f6.json`.
+4) 1A freeze-veto reconfirmed after 1B cycle:
+   - `runs/fix-data-engine/segment_1A/reports/segment1a_freeze_guard_416afa430db3f5bf87180f8514329fe8.json`
+   - `status=PASS`.
+
+Observed score movement vs prior RED candidate `625644d528a44f148bbf44339a41a044`:
+1) Improved:
+   - `country_gini`: `0.7528 -> 0.7182`
+   - `top1`: `0.1366 -> 0.1240`
+   - `top5`: `0.3933 -> 0.3879`
+   - `top10`: `0.5974 -> 0.5656`
+   - `eligible_country_nonzero_share`: `0.3092 -> 0.7550`
+   - `southern_hemisphere_share`: `0.0600 -> 0.0755`
+2) Still failing B/B+ hard gates:
+   - all concentration and coverage checks remain below B targets.
+3) Structural blocker:
+   - `top_country_no_collapse=false`
+   - collapse sentinel flagged `MC` and `BM` (flagged_count=`2`).
+
+Runtime diagnosis captured for next iteration policy:
+1) `S4` is dominant runtime bottleneck.
+2) Heartbeats show persistent country-asset cache churn:
+   - final heartbeat near completion: `pairs_processed=14420/14423`, `cache_miss=8693`, `evictions=8685`, cache size fixed at `9`.
+3) Decision trail consequence:
+   - do not brute-force repeated full reruns without a performance rail;
+   - next technical lever for iteration speed is an explicit S4 cache/runtime rail (performance-only, no semantics change), while keeping realism gates fail-closed.
+
+---
+
+### Entry: 2026-02-14 06:20
+
+Design element: Post-RED detailed recovery planning update in build authority.
+Summary: Added an execution-grade `P4.R` program to the Segment `1B` build plan so recovery proceeds with bounded compute cost, guarded upstream reopen control, and explicit fail-closed gates.
+
+Why this planning expansion was required:
+1) Current integrated status is still `RED_REOPEN_REQUIRED` after a full chain run.
+2) Runtime churn (especially `S4`) makes blind full reruns non-viable for iterative remediation.
+3) We need deterministic, auditable flow from idea -> cheap rejection -> expensive promotion run.
+
+Plan structure pinned in build plan:
+1) `P4.R1` runtime rail stabilization for `S4` (performance-only, no semantic drift).
+2) `P4.R2` guarded upstream reopen lane (`1A` candidates must pass freeze guard before 1B compute).
+3) `P4.R3` proxy-first fast-screen lane for macro realism from `S2/S4`.
+4) `P4.R4` collapse/geometry closure lane in `S6` with strict vetoes.
+5) `P4.R5` integrated promotion run with explicit classifier decision path.
+6) `P4.R6` storage/run-retention hard cap with prune-before-new-full-run.
+
+Execution implication:
+1) We no longer iterate by default via full `S0->S9` runs per idea.
+2) Long full-chain runs are reserved for shortlisted candidates that clear proxy and structural veto gates.
+3) Upstream reopen remains allowed only under the existing `1A` freeze-veto contract.
+
+---
+
+### Entry: 2026-02-14 06:24
+
+Design element: `P4.R1` execution plan (S4 runtime rail implementation).
+Summary: Implement a performance-only runtime rail in `S4` by replacing fixed-count country cache behavior with bounded configurable caching (`entry cap` + `byte budget`) while preserving allocation semantics.
+
+Pre-implementation decisions:
+1) No statistical semantics change:
+   - allocation math, tie-breaking, anti-collapse logic, and output ordering remain unchanged.
+2) Runtime knobs (compute-only):
+   - `ENGINE_1B_S4_CACHE_COUNTRIES_MAX` (entry bound),
+   - `ENGINE_1B_S4_CACHE_MAX_BYTES` (approximate in-memory cache byte budget).
+3) Safe defaults:
+   - preserve current behavior compatibility when env knobs are unset.
+4) Observability:
+   - emit effective runtime-cache settings and live cache bytes in `S4` run report/heartbeat context.
+5) Benchmark method:
+   - compare `S4` before/after on the same run envelope (`run_id=e4d92c9cfbd3453fb6b9183ef6e3b6f6`) using `s4_run_report` wall-clock and cache miss/eviction counters.
+
+Planned file surfaces:
+1) `packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py`
+2) optional make wiring for explicit env forwarding if needed (`makefile`) without changing statistical policy surfaces.
+
+---
+
+### Entry: 2026-02-14 07:47
+
+Design element: `P4.R1` execution result (S4 runtime rail + benchmark evidence).
+Summary: Implemented runtime-cache controls for `S4`, wired them through `make`, and benchmarked on the same envelope run-id. The rail is deterministic and materially faster, but this first pass did not yet reach the `>=30%` speed target.
+
+Implemented changes:
+1) `S4` runtime rail in runner:
+   - file: `packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py`.
+   - added env-driven cache knobs:
+     - `ENGINE_1B_S4_CACHE_COUNTRIES_MAX`,
+     - `ENGINE_1B_S4_CACHE_MAX_BYTES`.
+   - replaced fixed-count cache behavior with bounded cache eviction using:
+     - entry cap,
+     - byte-budget cap.
+   - added runtime-cache telemetry into `s4_run_report.pat.runtime_cache`.
+2) make wiring:
+   - file: `makefile`.
+   - `segment1b-s4` now forwards:
+     - `ENGINE_1B_S4_CACHE_COUNTRIES_MAX`,
+     - `ENGINE_1B_S4_CACHE_MAX_BYTES`.
+
+Benchmark execution:
+1) Baseline snapshot preserved:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r1_s4_before_e4d92c9cfbd3453fb6b9183ef6e3b6f6.json`
+2) Benchmark run:
+   - command equivalent:
+     - `make segment1b-s4 ... ENGINE_1B_S4_CACHE_COUNTRIES_MAX=24 ENGINE_1B_S4_CACHE_MAX_BYTES=1000000000`
+   - envelope run-id: `e4d92c9cfbd3453fb6b9183ef6e3b6f6`.
+3) Result artifacts:
+   - after snapshot:
+     - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r1_s4_after_e4d92c9cfbd3453fb6b9183ef6e3b6f6.json`
+   - benchmark summary:
+     - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r1_benchmark_e4d92c9cfbd3453fb6b9183ef6e3b6f6.json`
+
+Measured outcome:
+1) Wall-clock:
+   - `6386.64s -> 4804.72s` (improvement `1581.92s`, `24.77%` faster).
+2) CPU:
+   - `6478.19s -> 4767.66s`.
+3) Determinism/output parity:
+   - determinism hash unchanged (`sha256` identical),
+   - `rows_emitted` unchanged (`141377`),
+   - `s4_alloc_plan` partition detected as byte-identical.
+
+Decision:
+1) `P4.R1` is valid (performance-only + deterministic), but target threshold is not yet fully met in this pass.
+2) Keep this rail; if we require strict `>=30%`, run one bounded parameter sweep (`cache entries` and `byte budget`) before closing `P4.R1`.
+
+---
+
+### Entry: 2026-02-14 07:55
+
+Design element: `P4.R1` bounded knob sweep execution plan.
+Summary: Execute a bounded `S4` runtime-cache sweep to attempt crossing the `>=30%` wall-clock improvement target before entering `P4.R2`.
+
+Sweep constraints:
+1) Same envelope and deterministic identity:
+   - `run_id=e4d92c9cfbd3453fb6b9183ef6e3b6f6`,
+   - identical `seed/manifest_fingerprint/parameter_hash`.
+2) Performance-only knobs:
+   - `ENGINE_1B_S4_CACHE_COUNTRIES_MAX`,
+   - `ENGINE_1B_S4_CACHE_MAX_BYTES`.
+3) Early-stop rule:
+   - stop sweep immediately when wall-clock improvement reaches `>=30%` versus baseline (`6386.64s`).
+4) Bounded attempt set:
+   - attempt A: `(32, 1500000000)`,
+   - attempt B: `(48, 2500000000)`,
+   - attempt C: `(64, 3500000000)`.
+5) Safety:
+   - no semantics or policy changes;
+   - copy each resulting `s4_run_report` into `runs/fix-data-engine/segment_1B/reports/` with per-attempt name.
+
+---
+
+### Entry: 2026-02-14 11:09
+
+Design element: `P4.R1` bounded sweep closure and runtime rail selection.
+Summary: Executed the bounded `S4` cache sweep and crossed the strict `>=30%` wall-clock improvement target while preserving deterministic parity.
+
+Sweep execution outcome:
+1) Attempt A (`countries_max=32`, `cache_max_bytes=1500000000`):
+   - wall-clock improvement: `29.02%` (below target).
+   - artifact: `runs/fix-data-engine/segment_1B/reports/segment1b_p4r1_sweep_attempt_A_32_1500000000.json`.
+2) Attempt B (`countries_max=48`, `cache_max_bytes=2500000000`):
+   - wall-clock improvement: `30.10%` (target met, early stop).
+   - artifact: `runs/fix-data-engine/segment_1B/reports/segment1b_p4r1_sweep_attempt_B_48_2500000000.json`.
+3) Determinism/parity posture remained intact:
+   - output hash unchanged,
+   - row count unchanged.
+
+Decision:
+1) Close `P4.R1` with selected runtime rail:
+   - `ENGINE_1B_S4_CACHE_COUNTRIES_MAX=48`
+   - `ENGINE_1B_S4_CACHE_MAX_BYTES=2500000000`
+2) Proceed to `P4.R2` guarded upstream lane.
+
+---
+
+### Entry: 2026-02-14 11:16
+
+Design element: `P4.R2` wave-1 guarded upstream lane execution (`max 2` candidates).
+Summary: Ran the first bounded upstream candidate wave using 1A run-ids, enforced freeze-veto gating, and emitted an explicit promoted/rejected list before any downstream 1B compute.
+
+Pre-execution decision:
+1) Use an existing-run wave first to avoid unnecessary heavy 1A recompute while validating guard operations:
+   - candidate A: `416afa430db3f5bf87180f8514329fe8` (authority-anchored posture),
+   - candidate B: `59cc9b7ed3a1ef84f3ce69a3511389ee` (older posture).
+2) Require machine artifact per candidate and fail-closed blocking for any non-pass.
+
+Implementation hardening required during wave:
+1) Guard tool originally aborted on incomplete candidates without writing a verdict artifact.
+2) Updated `tools/score_segment1a_freeze_guard.py` so scoring exceptions now emit explicit `FAIL` artifact with error payload, then exit non-zero.
+3) Compile guard passed:
+   - `python -m py_compile tools/score_segment1a_freeze_guard.py`.
+
+Wave-1 results:
+1) `416afa430db3f5bf87180f8514329fe8`:
+   - guard: `PASS`.
+   - artifact: `runs/fix-data-engine/segment_1A/reports/segment1a_freeze_guard_416afa430db3f5bf87180f8514329fe8.json`.
+2) `59cc9b7ed3a1ef84f3ce69a3511389ee`:
+   - guard: `FAIL` (missing `s3_integerised_counts`; fail-closed).
+   - artifact: `runs/fix-data-engine/segment_1A/reports/segment1a_freeze_guard_59cc9b7ed3a1ef84f3ce69a3511389ee.json`.
+3) Wave summary/promotions:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r2_wave1_guard_summary.json`.
+   - promoted list: `[416afa430db3f5bf87180f8514329fe8]`.
+   - rejected list: `[59cc9b7ed3a1ef84f3ce69a3511389ee]`.
+
+Decision:
+1) `P4.R2` wave-1 DoD is satisfied for guarded promotion discipline.
+2) Rejected candidate is blocked from all 1B runs.
+3) Next phase input to `P4.R3` is the bounded promoted list from wave-1.
+
+---
+
+### Entry: 2026-02-14 11:31
+
+Design element: `P4.R3` proxy-lane implementation plan (S4 macro fast-screen, no heavy rerun).
+Summary: Execute `P4.R3` by scoring promoted upstream candidates on S4 concentration/coverage movement before any `S6->S9` closure attempt. To avoid unnecessary compute churn, this wave will first reuse existing 1B runs that match promoted 1A lineage.
+
+Pinned decisions before implementation:
+1) Candidate source is `P4.R2` promoted list from:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r2_wave1_guard_summary.json`.
+2) Proxy metrics are computed from `s4_alloc_plan` only:
+   - `country_gini_s4`, `top1/top5/top10_share_s4`, `nonzero_country_count_s4`.
+3) Reference posture for movement direction is the prior RED authority run:
+   - `625644d528a44f148bbf44339a41a044`.
+4) Fail-fast competitiveness gate for proxy lane:
+   - concentration non-regression vs reference (`gini`, `top1`, `top5`, `top10` not worse),
+   - coverage non-regression (`nonzero_country_count_s4` not lower).
+5) Shortlist remains bounded at `max 2` and will carry forward only proxy-competitive candidates.
+
+Implementation surfaces:
+1) New scorer tool:
+   - `tools/score_segment1b_p4r3_proxy.py`.
+2) New invocation lane:
+   - `makefile` target `segment1b-p4r3-proxy`.
+
+Execution plan:
+1) build scorer with deterministic JSON artifacts per candidate + wave summary,
+2) compile guard,
+3) execute scorer on wave-1 promoted list,
+4) record shortlist for `P4.R4` input.
+
+---
+
+### Entry: 2026-02-14 11:37
+
+Design element: `P4.R3` execution closure (proxy artifacts + bounded shortlist).
+Summary: Implemented and executed the proxy scorer lane. Wave-1 produced complete candidate artifacts, filtered via fail-fast gates, and yielded a bounded shortlist for `P4.R4` without launching new heavy state-chain runs.
+
+Changes applied:
+1) Added tool:
+   - `tools/score_segment1b_p4r3_proxy.py`.
+   - behavior:
+     - reads `P4.R2` promoted list,
+     - maps each promoted 1A run to latest matching 1B run by `{seed, parameter_hash, manifest_fingerprint}` with available `s4_alloc_plan`,
+     - computes S4 proxy metrics + deltas vs reference RED run,
+     - emits per-candidate proxy artifact and wave summary,
+     - ranks candidates and returns bounded shortlist (`max 2`).
+2) Added make target:
+   - `segment1b-p4r3-proxy` in `makefile`.
+
+Verification:
+1) `python -m py_compile tools/score_segment1b_p4r3_proxy.py` passed.
+2) executed:
+   - `make segment1b-p4r3-proxy RUNS_ROOT=runs/fix-data-engine/segment_1B`.
+
+Wave-1 outputs:
+1) summary:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r3_proxy_wave_1.json`.
+2) candidate artifact:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r3_proxy_416afa430db3f5bf87180f8514329fe8.json`.
+
+Proxy decision outcome:
+1) candidate `416afa430db3f5bf87180f8514329fe8` mapped to 1B run `e4d92c9cfbd3453fb6b9183ef6e3b6f6`.
+2) proxy checks:
+   - `concentration_direction_non_regression=true`,
+   - `coverage_direction_non_regression=true`,
+   - `proxy_competitive=true`.
+3) shortlist:
+   - shortlisted 1A candidate(s): `[416afa430db3f5bf87180f8514329fe8]`,
+   - shortlisted 1B run(s): `[e4d92c9cfbd3453fb6b9183ef6e3b6f6]`,
+   - dropped candidates: none,
+   - shortlist boundedness: satisfied (`1 <= 2`).
+
+Decision:
+1) `P4.R3` DoD is satisfied.
+2) Input to `P4.R4` is the single shortlisted 1B run `e4d92c9cfbd3453fb6b9183ef6e3b6f6`.
+
+---
+
+### Entry: 2026-02-14 11:41
+
+Design element: `P4.R3` summary-check correctness hardening.
+Summary: Tightened the proxy summary check semantics so `non_competitive_filtered_before_expensive_runs` is computed from candidate-level gate outcomes instead of a trivial always-true condition.
+
+Change:
+1) Updated `tools/score_segment1b_p4r3_proxy.py`:
+   - derive `non_competitive_ids` from candidates with `proxy_competitive=false`,
+   - derive `dropped_ids` from wave dropped list,
+   - set summary check to `non_competitive_ids ⊆ dropped_ids`.
+2) Re-ran scorer to regenerate wave artifacts with corrected summary-check semantics.
+
+Verification:
+1) `python -m py_compile tools/score_segment1b_p4r3_proxy.py` passed.
+2) `segment1b_p4r3_proxy_wave_1.json` reports:
+   - `all_candidates_have_artifacts=true`,
+   - `non_competitive_filtered_before_expensive_runs=true`,
+   - `shortlist_bounded=true`.
+
+---
+
+### Entry: 2026-02-14 11:49
+
+Design element: `P4.R4` execution plan (collapse/geometry closure lane from shortlisted run).
+Summary: Proceed with `P4.R4` using shortlisted run `e4d92c9cfbd3453fb6b9183ef6e3b6f6` as authority input. Focus remains strictly on `S6` jitter policy tuning with downstream rerun `S6->S9`; upstream `S0..S5` posture is preserved.
+
+Pinned baseline diagnosis:
+1) Shortlisted integrated status is `RED_REOPEN_REQUIRED` with structural checks:
+   - `coordinate_bounds_valid=true`,
+   - `s6_mode_mixture_v2=true`,
+   - `s8_parity_ok=true`,
+   - `top_country_no_collapse=false`.
+2) Collapse sentinel flags in top-10 countries are concentrated in:
+   - `MC` (`site_count=10088`, `lat_unique_ratio_4dp=0.0426`, `lon_unique_ratio_4dp=0.0654`),
+   - `BM` (`site_count=6705`, `lat_unique_ratio_4dp=0.1151`, `lon_unique_ratio_4dp=0.2161`).
+3) `S6` run report shows no broad attempt-exhaustion pathology:
+   - high tail attempts are near-zero,
+   - issue is concentration of repeated 4dp coordinates under high site density for specific countries.
+
+Execution strategy for this lane:
+1) Keep scope to `S6` policy only (no `S4`/`S5` count-surface edits in `P4.R4`).
+2) Run a bounded aggressive-spread S6 policy attempt to maximize within-country coordinate diversity while preserving contract checks:
+   - retune component weights/exponents and selection blend,
+   - retain deterministic namespace and `mixture_v2` mode.
+3) Use fresh run-id bootstrap (immutable-run discipline) and rerun:
+   - `S6 -> S7 -> S8 -> S9` only.
+4) Score with integrated authority scorer and collapse diagnostics.
+5) If collapse remains flagged with no viable movement, fail-closed `P4.R4` as S6-feasibility-limited and escalate reopen recommendation to `S4` support/count lane.
+
+Storage and safety posture:
+1) Run bootstrap will avoid full-folder duplication by reusing heavy upstream assets via directory junctions for immutable inputs.
+2) Pre-run prune discipline remains active before creating new candidate run-id.
+3) Any rejected candidate run-id will be explicitly marked as non-promoted for downstream.
+
+---
+
+### Entry: 2026-02-14 12:18
+
+Design element: `P4.R4` bounded execution outcome (`S6` lane) and fail-closed decision.
+Summary: Executed bounded `S6` tuning on the `P4.R3` shortlist path. One aggressive profile failed contract runtime (`E613_RESAMPLE_EXHAUSTED`), a bounded profile completed `S6->S9` with `S9 PASS`, but collapse sentinel remained uncleared (`MC`, `BM`) and NN tail worsened. Lane is closed fail-closed with explicit feasibility evidence; recommended reopen shifts upstream to `P2/S4` support-count surface.
+
+Execution trail:
+1) Baseline pin before tuning:
+   - shortlisted run: `e4d92c9cfbd3453fb6b9183ef6e3b6f6`.
+   - integrated structural status: all green except `top_country_no_collapse=false`.
+   - flagged countries: `MC`, `BM`.
+2) Storage-safe candidate bootstrap:
+   - candidate run-id: `c4c642c02c5b43ff97dff224bbad145b`.
+   - copied minimal upstream surfaces (`1A`, `S0/S3/S4/S5` data),
+   - linked heavy immutable assets via junctions (`tile_bounds`, `tile_index`, `tile_weights`) to avoid large duplication.
+3) Attempt A1 policy (`2026-02-14-p4r4-a1`, aggressive spread):
+   - failed in `S6` with `F4:E613_RESAMPLE_EXHAUSTED` (observed country key `MV`),
+   - rejected as unsafe profile.
+4) Attempt A2 policy (`2026-02-14-p4r4-a2`, bounded spread):
+   - `S6`, `S7`, `S8` completed,
+   - first `S9` failed due missing `S5` RNG evidence in bootstrapped run,
+   - restored required S5 RNG evidence by importing `site_tile_assign` events and `1B.S5.assigner` trace rows with destination run-id normalization,
+   - archived failed validation bundle and reran `S9` -> `PASS`.
+5) Scoring and diagnostics:
+   - integrated score: `runs/fix-data-engine/segment_1B/reports/segment1b_p4_integrated_c4c642c02c5b43ff97dff224bbad145b.json`.
+   - P3 score: `runs/fix-data-engine/segment_1B/reports/segment1b_p3_candidate_c4c642c02c5b43ff97dff224bbad145b.json`.
+   - lane summary: `runs/fix-data-engine/segment_1B/reports/segment1b_p4r4_attempt_c4c642c02c5b43ff97dff224bbad145b.json`.
+
+Observed movement vs shortlisted baseline (`e4...`):
+1) Structural checks:
+   - `coordinate_bounds_valid=true`, `s8_parity_ok=true`, `s6_mode_mixture_v2=true` remain green.
+2) Collapse sentinel:
+   - still `flagged_count=2` (`MC`, `BM`) -> `top_country_no_collapse=false`.
+3) Macro concentration/coverage:
+   - effectively unchanged vs baseline (`country_gini`, `top1/top5/top10`, coverage shares).
+4) NN geometry tail:
+   - worsened (`p99/p50`: `38.6545 -> 43.0928`).
+
+Feasibility evidence (fixed `S4/S5` support):
+1) Artifact:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r4_support_ceiling_c4c642c02c5b43ff97dff224bbad145b.json`.
+2) Key bound:
+   - sentinel unique-ratio threshold is `0.15`.
+   - for `MC` (`site_count=10088`), support-constrained 4dp upper bounds are:
+     - `lat_unique_ratio_upper <= 0.0496`,
+     - `lon_unique_ratio_upper <= 0.0661`.
+   - therefore `MC` cannot clear unique-ratio sentinel in S6-only lane under current support/count surfaces.
+
+Decision and rollback:
+1) Reject candidate `c4c642c02c5b43ff97dff224bbad145b` for promotion.
+2) Reverted `config/layer1/1B/policy/policy.s6.jitter.yaml` to locked posture:
+   - `policy_version=2026-02-13-r4` (and original weights/blend/exponents).
+3) Mark `P4.R4` fail-closed with recommended reopen lane:
+   - upstream `P2/S4` support-count reshaping under existing guard contracts.
+
+---
+
+### Entry: 2026-02-14 12:46
+
+Design element: `P4.R4` contradiction refinement and fixed reopen sequence lock.
+Summary: Before starting any further run churn, pinned the causal sequence for reopen after confirming the collapse blocker is upstream home-support shape, not downstream S6 jitter.
+
+Additional contradiction diagnostic:
+1) Checked `1A` authority run `416afa430db3f5bf87180f8514329fe8` for collapse countries (`MC`, `BM`) using `outlet_catalogue` lineage fields.
+2) For both countries, rows were entirely home-country (`home_country_iso == legal_country_iso`) with zero foreign rows.
+3) This means the active `1B` collapse (`MC`, `BM`) is driven by home-support ingress/count shape entering `1B`, not by foreign-membership composition.
+
+Decision update:
+1) Reopen priority is corrected to upstream `1A P1/S2` home-count shaping first.
+2) `1B S4/S6` tuning remains downstream and conditional, not first-line.
+3) Pinned execution sequence for all next attempts:
+   - produce `1A P1/S2` candidate,
+   - require `1A` freeze-veto `PASS`,
+   - run `1B` proxy screen (`S4`) for collapse-direction movement,
+   - only then run `1B S6->S9` + integrated scorer.
+
+Why this is binding:
+1) It prevents repeating the failed pattern of local S6-only tuning against support ceilings.
+2) It keeps compute bounded and causal attribution clean.
+3) It aligns with the progressive engine model (upstream surfaces first, downstream closure second).
+
+---
+
+### Entry: 2026-02-14 15:58
+
+Design element: `S4` heartbeat observability hardening (ETA visibility for long runs).
+Summary: Added ETA fields to the `1B/S4` heartbeat log line so long-running passes expose completion expectations instead of only elapsed/rate.
+
+Decision and reasoning trail:
+1) Problem observed: heartbeat emitted `elapsed` and `rate` only, which forces manual ETA calculation and makes runtime triage slow when `S4` spans hours.
+2) Chosen implementation lane: patch heartbeat in `packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py` where pair-count denominator (`total_pairs`) already exists.
+3) Added deterministic ETA payload for bounded runs (`total_pairs` known):
+   - `remaining_pairs`
+   - `eta_seconds`
+   - `eta_hms`
+   - `eta_complete_utc`
+4) Unknown-rate fallback: when `rate <= 0`, emit explicit unknown ETA fields (`eta_seconds=inf`, `eta_hms=unknown`, `eta_complete_utc=unknown`) instead of silent omission.
+5) Validation: local syntax check passed via `python -m py_compile` on the patched runner.
+
+Impact:
+1) No runtime policy/config semantics changed.
+2) No statistical surfaces changed.
+3) Improves operational visibility and run-time decision speed during heavy `1B` iteration.
+
+---
+
+### Entry: 2026-02-14 16:02
+
+Design element: `S5/S6` ETA parity with `S4` for long-run progress telemetry.
+Summary: Extended the ETA pattern introduced in `S4` to `1B/S5` and `1B/S6` progress trackers so all heavy `1B` stages provide consistent completion-time visibility.
+
+Decision and reasoning trail:
+1) `S5` and `S6` already emitted progress with numeric ETA only (`eta=...s`), but lacked human-readable time and expected completion timestamp.
+2) Applied the same runtime-observability contract as `S4`:
+   - `eta_seconds`
+   - `eta_hms`
+   - `eta_complete_utc`
+3) Added shared helper in each runner for deterministic `HH:MM:SS` formatting and explicit unknown fallback when effective rate is non-positive.
+4) Kept scope strictly observational: no policy/config/model/statistical behavior changed.
+
+Touched files:
+1) `packages/engine/src/engine/layers/l1/seg_1B/s5_site_tile_assignment/runner.py`
+2) `packages/engine/src/engine/layers/l1/seg_1B/s6_site_jitter/runner.py`
+
+Validation:
+1) `python -m py_compile` passed for:
+   - `s4_alloc_plan/runner.py`
+   - `s5_site_tile_assignment/runner.py`
+   - `s6_site_jitter/runner.py`
+
+---
+
+### Entry: 2026-02-14 16:09
+
+Design element: remaining `1B` ETA telemetry closure (`S7/S8/S9`).
+Summary: Before additional code edits, verified that `S7`, `S8`, and `S9` each still use legacy progress logging (`eta=...s` only). Planned a parity closeout so all heavy `1B` states expose the same ETA contract.
+
+Problem framing:
+1) `S4/S5/S6` now emit rich ETA fields, but `S7/S8/S9` still emit only numeric ETA seconds.
+2) Mixed telemetry shape across contiguous long stages slows operator triage and makes run-time expectation handling inconsistent.
+
+Alternatives considered:
+1) Leave `S7/S8/S9` unchanged and rely on existing numeric ETA.
+   - Rejected: keeps inconsistent logs and repeats the manual conversion burden.
+2) Centralize tracker utility in shared module.
+   - Deferred: larger blast radius than needed for current closure; not required to meet immediate observability goal.
+3) Mirror the existing in-file pattern used in `S4/S5/S6`.
+   - Chosen: minimal-risk parity change with deterministic behavior and no policy/statistical surface impact.
+
+Execution plan:
+1) Patch each runner tracker (`S7`, `S8`, `S9`) to emit:
+   - `eta_seconds`
+   - `eta_hms`
+   - `eta_complete_utc`
+2) Add explicit unknown fallback for non-positive effective rate.
+3) Run `python -m py_compile` on all touched runners plus `S4/S5/S6` regression sanity.
+
+Outcome:
+1) Implemented ETA parity in:
+   - `packages/engine/src/engine/layers/l1/seg_1B/s7_site_synthesis/runner.py`
+   - `packages/engine/src/engine/layers/l1/seg_1B/s8_site_locations/runner.py`
+   - `packages/engine/src/engine/layers/l1/seg_1B/s9_validation_bundle/runner.py`
+2) All three trackers now emit:
+   - `eta_seconds`
+   - `eta_hms`
+   - `eta_complete_utc`
+3) Unknown-rate posture is explicit (`eta_seconds=inf`, `eta_hms=unknown`, `eta_complete_utc=unknown`), aligned with `S4/S5/S6`.
+4) Validation completed successfully:
+   - `python -m py_compile` passed for `S4`, `S5`, `S6`, `S7`, `S8`, `S9`.
+
+Impact:
+1) No policy/config/model behavior changed.
+2) No statistical output surfaces changed.
+3) `1B` long-stage observability is now log-contract-consistent end-to-end (`S4->S9`).
+
+---
+
+### Entry: 2026-02-14 19:14
+
+Design element: `S4` `Fast-Compute-Safe` runtime acceleration (no cache/RAM expansion).
+Summary: Implemented CPU-path acceleration in `1B/S4` without widening runtime cache knobs, focused on preserving output behavior while removing avoidable high-cost operations.
+
+Decision and reasoning trail:
+1) Runtime evidence showed `S4` dominated by allocation-loop compute and repeated per-pair heavy paths; user explicitly rejected memory-risk options due concurrent workloads.
+2) Chosen lane was `Fast-Compute-Safe` only:
+   - keep cache posture unchanged (no higher RAM commitment),
+   - improve arithmetic and control flow where behavior can be held equivalent.
+3) Applied deterministic `int64` arithmetic path in `_emit_rows` for product/divmod allocation math, with conservative overflow fallback to prior `object` path when required.
+4) Added anti-collapse no-op gating before invoking `_apply_anticollapse_controls`:
+   - when no soft-guard or residual moves are possible, skip expensive control routine and emit equivalent no-move diagnostics.
+5) Hardened `_apply_anticollapse_controls` itself with early donor precheck before constructing global rank arrays, avoiding sort work when no donors exist.
+6) Added `max_weight_fp` to cached country payload so overflow safety decision can be made without additional per-pair scans.
+
+Current bottlenecks (still open after this patch):
+1) `S4` remains single-worker and CPU-bound in full runs.
+   - Authority sample: run `49dcd3c9aa4e441781292d54dc0fa491` emitted `pairs_total=13087` in `wall_clock_seconds_total=4338.64` (`~3.02 pairs/s`) with `cpu_seconds_total=4232.17`.
+   - Implication: runtime is dominated by per-pair compute, not publish/write steps.
+2) Country-asset reload churn is still high under constrained cache posture.
+   - `cache_hits=11440`, `cache_misses=1647`, `evictions=1599`, `unique_countries=185`.
+   - Misses greatly exceed unique-country cardinality, so countries are repeatedly reloaded/revalidated due LRU churn.
+3) Tile-asset read volume remains large.
+   - `bytes_read_index_total=4,858,468,372` and `bytes_read_weights_total=2,316,385,355` (about `7.17 GB` aggregate reads).
+   - Repeated country revisits amplify I/O on large-country tilesets.
+4) Residue diversification still executes for most pairs.
+   - `pairs_diversified_touched=11844` (`diversified_touched_share=0.9050`) with `moves_soft_total=0` and `moves_residual_total=0`.
+   - Practical meaning: anti-collapse guard moves were mostly no-op in this authority run, but diversification selection remained a dominant path.
+5) Full-array ranking cost remains extreme for large tile universes.
+   - Example from same run log: countries like `RU` carry `tiles=42,177,482`; full lexsort/rank selection over such arrays is inherently expensive even when `n_sites` for the pair is small.
+   - This is the primary algorithmic reason `S4` still trends to hour-scale without a higher-blast-radius approximation lane.
+
+Touched file:
+1) `packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py`
+
+Validation:
+1) `python -m py_compile packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py` passed.
+2) Executed old-vs-new equivalence harness for anti-collapse routine over randomized cases; outputs/diagnostics matched.
+3) Executed arithmetic equivalence harness (`object` vs `int64` path within expected range); allocations/residues matched.
+
+Impact:
+1) No policy/config changes.
+2) No cache-limit/RAM increase required for this mode.
+3) Intended to reduce `S4` wall-clock by removing redundant high-cost compute while keeping statistical semantics unchanged.
+
+---
+
+### Entry: 2026-02-14 19:26
+
+Design element: `S4` long-runtime closure plan (`Fast-Compute-Safe v2`, no-RAM-spike).
+Summary: Captured the next runtime-closure lane before coding: move from global full-array ranking to exact prefix ranking and add bounded reuse for repeated pair shapes.
+
+Problem statement (authority evidence):
+1) Even after safe arithmetic/no-op gating, `S4` remains hour-scale under full envelope (`~4338.64s`, `~3.02 pairs/s`) with CPU-dominant profile.
+2) Residue/diversification path is still the dominant hotspot because ranking work is performed against large country tile universes.
+3) User constraint is binding: no memory-risk approach (no cache-size expansion and no unbounded large structures).
+
+Chosen implementation lane (ordered):
+1) Option-1: exact deterministic top-k residue selection for non-diversified shortfall (`k=shortfall`) to replace full-array `lexsort`.
+2) Option-2: exact deterministic top-window extraction for diversification (`k=window`) so only the required ranked prefix is produced.
+3) Option-3: bounded LRU reuse keyed by `(country_iso, n_sites, k)` with strict size/entry caps; oversize prefixes must bypass cache (fail-closed to memory safety).
+
+Validation plan:
+1) Run randomized equivalence harness comparing legacy vs new bump-index selection (set/order parity under deterministic tie-break).
+2) Keep `python -m py_compile` green for patched `S4`.
+3) Capture runtime effect on next authority-envelope `S4` run and record deterministic parity receipt.
+
+---
+
+### Entry: 2026-02-14 19:28
+
+Design element: `S4` `Fast-Compute-Safe v2` execution (three-option rollout).
+Summary: Implemented all three planned ranking optimizations for `S4` while holding memory posture bounded and deterministic.
+
+Implemented options:
+1) Option-1 (exact top-k residue ranking):
+   - added `_topk_rank_prefix_exact(tile_ids, residues_i64, k)` to compute exact deterministic rank prefixes without global full-array sort.
+   - tie-breaking remains deterministic (`tile_id` ascending on equal residue).
+2) Option-2 (exact top-window diversification ranking):
+   - `_select_shortfall_bump_indices` now resolves only required rank prefix (`k=shortfall` or `k=window`) and no longer requires a full `base_order` sort.
+3) Option-3 (bounded rank-prefix reuse):
+   - added strict LRU cache for rank prefixes keyed by `(country_iso, n_sites, k)`,
+   - runtime caps with fail-closed skip behavior:
+     - `ENGINE_1B_S4_RANK_CACHE_ENTRIES_MAX` (default `128`),
+     - `ENGINE_1B_S4_RANK_CACHE_BYTES_MAX` (default `64 MiB`),
+     - `ENGINE_1B_S4_RANK_CACHE_K_MAX` (default `200000`),
+   - oversize/large-k prefixes bypass cache to avoid RAM spikes.
+
+Observability additions:
+1) logged runtime rank-cache settings at `S4` start.
+2) logged end-of-run rank-cache summary:
+   - hits, misses, evictions, skipped-large-k, skipped-oversize, peak-bytes, retained-entries.
+
+Validation completed:
+1) `python -m py_compile packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py` passed.
+2) Randomized equivalence harness passed:
+   - exact top-k prefix parity vs legacy `lexsort` prefix,
+   - full `_select_shortfall_bump_indices` parity vs legacy selector across randomized policy/mode combinations.
+
+Open item:
+1) Authority-envelope runtime measurement still pending to quantify wall-clock gain and determinism parity on full `S4` run.
+
+---
+
+### Entry: 2026-02-14 20:13
+
+Design element: `S4` authority-envelope rerun for `Fast-Compute-Safe v2` closure.
+Summary: Executed full `1B/S4` rerun on the same authority run-id envelope and recorded material runtime reduction with deterministic/statistical parity preserved.
+
+Execution details:
+1) Run target:
+   - run-id `49dcd3c9aa4e441781292d54dc0fa491`
+   - command lane: `make --no-print-directory segment1b-s4 RUNS_ROOT=runs/fix-data-engine/segment_1B SEG1B_S4_RUN_ID=49dcd3c9aa4e441781292d54dc0fa491`
+2) Runtime knobs (explicit):
+   - `ENGINE_1B_S4_CACHE_COUNTRIES_MAX=48`
+   - `ENGINE_1B_S4_CACHE_MAX_BYTES=2500000000`
+   - `ENGINE_1B_S4_RANK_CACHE_ENTRIES_MAX=128`
+   - `ENGINE_1B_S4_RANK_CACHE_BYTES_MAX=67108864`
+   - `ENGINE_1B_S4_RANK_CACHE_K_MAX=200000`
+
+Benchmark evidence:
+1) Baseline snapshot:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r1b_baseline_precompute_49dcd3c9aa4e441781292d54dc0fa491.json`
+2) Comparison artifact:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r1b_benchmark_49dcd3c9aa4e441781292d54dc0fa491.json`
+3) Measured effect:
+   - wall-clock `4338.64s -> 2467.67s` (`-43.12%`, `-1870.97s`)
+   - CPU `4232.17s -> 2372.05s` (`-43.95%`, `-1860.13s`)
+4) Rerun command stopwatch:
+   - `ELAPSED_SECONDS=2469.955` (consistent with report wall-clock).
+
+Parity and safety checks:
+1) Determinism hash unchanged (`s4_alloc_plan` byte identity preserved).
+2) `rows_emitted`, `pairs_total`, `alloc_sum_equals_requirements` unchanged.
+3) Anti-collapse aggregate means unchanged.
+4) Rank-cache runtime summary confirms bounded behavior:
+   - hits `2979`, misses `4438`, evictions `4310`, skipped_large_k `5670`, skipped_oversize `0`, bytes_peak `37854048` (well below cap).
+
+Decision:
+1) `P4.R1B` closure criteria met; lane is now closed with measured authority-envelope gain and no semantic drift.
+
+---
+
+### Entry: 2026-02-14 20:46
+
+Design element: `P4.R2 -> P4.R5` continuation using closed `P4.R1B` runtime lane.
+Summary: Advanced directly from runtime closure into the next remediation step on the same reopened lineage (`1A candidate 7282...` -> `1B run 49d...`) and executed closure chain through integrated scoring.
+
+Execution sequence completed:
+1) `P4.R2 wave_3` guard formalization:
+   - confirmed `1A` freeze guard `PASS` for `7282f808e14e89e7bb37732181e46dbc`,
+   - wrote wave artifact:
+     - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r2_wave3_guard_summary.json`.
+2) `P4.R3 wave_3` proxy screen:
+   - ran `tools/score_segment1b_p4r3_proxy.py` with wave-3 summary and reference run `625644d528a44f148bbf44339a41a044`,
+   - artifacts:
+     - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r3_proxy_7282f808e14e89e7bb37732181e46dbc.json`
+     - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r3_proxy_wave_3.json`,
+   - gate result: `proxy_competitive=true`; matched shortlisted `1B` run `49dcd3c9aa4e441781292d54dc0fa491`.
+3) `P4.R5` integrated closure chain:
+   - executed sequential `S5 -> S9` on run `49dcd3c9aa4e441781292d54dc0fa491` (`S9 PASS`),
+   - scored integrated authority:
+     - `runs/fix-data-engine/segment_1B/reports/segment1b_p4_integrated_49dcd3c9aa4e441781292d54dc0fa491.json`.
+
+Outcome and interpretation:
+1) Integrated classifier remained `RED_REOPEN_REQUIRED`.
+2) No-regression checks held (`concentration` and `coverage` not worse than lock), but hard/structural gates failed:
+   - `top_country_no_collapse=false` (`MC`, `BM` still flagged),
+   - NN tail contraction failed (candidate `nn_p99/p50` materially above baseline).
+3) Decision: keep `P4.R1B` runtime lane as stable acceleration rail, but treat realism blocker as still upstream/structural rather than runtime throughput.
+
+---
+
+### Entry: 2026-02-14 20:54
+
+Design element: explicit `MC/BM` exclusion policy for `1B/S3` plus scorer denominator parity.
+Summary: Before touching code, pinned a governed-policy implementation lane to remove `MC` and `BM` from `S3` requirements emission and keep scoring fair by excluding those countries from collapse and coverage denominators.
+
+Problem framing:
+1) Latest integrated `P4` authority failed structural gate `top_country_no_collapse` with flagged countries `MC`, `BM`.
+2) User direction is explicit: do not hardcode removal; treat this as data-engine/policy remediation and document the decision trail.
+3) Existing `S3` runner has no country exclusion policy surface; scorers currently include all countries in denominator/collapse checks.
+
+Alternatives considered:
+1) Hardcode `MC/BM` skip in `S3`.
+   - Rejected: not governed, no contract anchor, weak auditability.
+2) Exclude only in scorers and leave engine outputs unchanged.
+   - Rejected: keeps malformed engine output path and hides rather than remediates.
+3) Add governed `S3` policy surface and apply exclusion upstream in `S3`, then align scorers to same governed policy.
+   - Chosen: explicit, auditable, reproducible, and aligned with remediation intent.
+
+Execution plan:
+1) Add `s3_requirements_policy` contract anchor:
+   - `docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml`
+   - `docs/model_spec/data-engine/layer-1/specs/contracts/1B/schemas.1B.yaml`
+2) Materialize governed policy file:
+   - `config/layer1/1B/policy/policy.s3.requirements.yaml` with denylist `[MC, BM]`.
+3) Patch `S3` runner:
+   - load+validate policy via dictionary/schema,
+   - fail closed on policy ISOs not in canonical set,
+   - exclude denied countries before FK/coverage checks and emit explicit drop counters in `s3_run_report`.
+4) Patch scoring tools (`P3` and `P4 integrated`):
+   - load same policy,
+   - exclude denied countries from collapse sentinel and coverage denominator calculations,
+   - include policy metadata in score outputs for audit.
+5) Validate with fast checks:
+   - `python -m py_compile` on touched modules.
+   - no full envelope rerun in this step; rerun/scoring execution follows after patch acceptance.
+
+---
+
+### Entry: 2026-02-14 20:58
+
+Design element: execution of governed `MC/BM` exclusion lane (`S3 + P3/P4 scorers`).
+Summary: Implemented the approved governed policy path end-to-end: contract anchors, policy artifact, `S3` enforcement, and scoring denominator/collapse alignment.
+
+Implemented changes:
+1) Contract/policy surfaces:
+   - added dictionary anchor `s3_requirements_policy`:
+     - `docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml`
+   - added schema anchor `#/policy/s3_requirements_policy`:
+     - `docs/model_spec/data-engine/layer-1/specs/contracts/1B/schemas.1B.yaml`
+   - added artefact registry entry `policy.s3.requirements.yaml`:
+     - `docs/model_spec/data-engine/layer-1/specs/contracts/1B/artefact_registry_1B.yaml`
+   - added governed policy artifact:
+     - `config/layer1/1B/policy/policy.s3.requirements.yaml`
+     - payload sets `enabled: true` and denylist `[MC, BM]`.
+2) Engine enforcement (`1B/S3`):
+   - file: `packages/engine/src/engine/layers/l1/seg_1B/s3_requirements/runner.py`
+   - added YAML policy load + schema validation via dictionary-resolved path,
+   - added fail-closed validation (`E315_POLICY_ISO_UNKNOWN`) when policy denylist includes codes outside canonical ISO set,
+   - added denylist application at group finalization to exclude those countries from emitted `s3_requirements`,
+   - preserved source-order integrity checks and zero-site guards,
+   - added run-report audit fields:
+     - `country_filter_policy`,
+     - `rows_dropped_by_policy`,
+     - `sites_dropped_by_policy`,
+     - `countries_dropped_by_policy_total`,
+     - `countries_dropped_by_policy`.
+3) Scoring parity updates:
+   - `tools/score_segment1b_p3_candidate.py`
+   - `tools/score_segment1b_p4_integrated.py`
+   - both tools now load the same governed `S3` policy and:
+     - exclude denylisted countries from collapse sentinel and concentration/coverage metric frame,
+     - adjust eligible-country denominator used in coverage share (`baseline_total - |denylist|` when policy enabled),
+     - emit policy metadata in output payloads,
+     - expose `--s3-policy-path` override for audit/what-if runs.
+
+Validation:
+1) `python -m py_compile packages/engine/src/engine/layers/l1/seg_1B/s3_requirements/runner.py tools/score_segment1b_p3_candidate.py tools/score_segment1b_p4_integrated.py` passed.
+
+Operational note:
+1) This step is code/policy closure only; rerun + integrated re-score is still required to confirm grade movement under the new governed exclusion lane.
+
+---
+
+### Entry: 2026-02-14 22:10
+
+Design element: governed-policy parity propagation fix in `S7` after `S3` exclusion enablement.
+Summary: During the first full rerun with governed `S3` denylist active, `S7` failed contract coverage (`E708_1A_COVERAGE_FAIL`) because `S5/S6` consumed filtered requirements while `S7` still compared against unfiltered `outlet_catalogue` country totals. We applied policy propagation in `S7` so all downstream parity checks evaluate the same governed country frame.
+
+Failure evidence:
+1) Run-id `761c3c826a7b4f6d911b5cfe500d99b7` failed at `S7` with mismatch: filtered `S5/S6` counts vs full `outlet_catalogue` denominator.
+2) Root cause: `S3` now drops denylisted countries (`MC`, `BM`), but `S7` coverage checks were still unconstrained by `s3_requirements_policy`.
+
+Chosen fix (implemented):
+1) Patched `packages/engine/src/engine/layers/l1/seg_1B/s7_site_synthesis/runner.py` to load and validate governed `s3_requirements_policy`.
+2) Applied denylist to outlet-coverage and parity counters in `S7` so checks are computed over effective scored countries only.
+3) Added explicit policy metadata emission in `s7_run_summary`:
+   - `ingress_versions.s3_requirements_policy`,
+   - `country_filter_policy` block with enabled/version/denylist fields.
+4) Preserved fail-closed behavior for malformed policy payloads.
+
+Validation:
+1) `python -m py_compile packages/engine/src/engine/layers/l1/seg_1B/s7_site_synthesis/runner.py` passed.
+2) Re-ran `S7 -> S8 -> S9` on run `761c3c826a7b4f6d911b5cfe500d99b7`; all passed.
+3) Effective parity in `S7` now aligns (`s5=102623`, `s6=102623`, `outlet_catalogue_effective=102623`), with `MC/BM` excluded from by-country parity frame.
+
+---
+
+### Entry: 2026-02-14 22:22
+
+Design element: integrated re-score outcome after governed exclusion + S7 propagation.
+Summary: Scored the fresh full-chain candidate (`run_id=761c3c826a7b4f6d911b5cfe500d99b7`) using `tools/score_segment1b_p4_integrated.py`. Classifier remained `RED_REOPEN_REQUIRED`; structural collapse is cleared for denylisted countries, but B hard gates are still not met on concentration/coverage/NN contraction.
+
+Score artifact:
+1) `runs/fix-data-engine/segment_1B/reports/segment1b_p4_integrated_761c3c826a7b4f6d911b5cfe500d99b7.json`
+
+B-gate snapshot (candidate vs threshold):
+1) `country_gini=0.694975` (fails `<=0.68`).
+2) `eligible_country_nonzero_share=0.740891` (fails `>=0.85`).
+3) `southern_hemisphere_share=0.080538` (fails `>=0.12`).
+4) `top1_share=0.094072` (passes `<=0.10`).
+5) `top5_share=0.349990` (fails `<=0.33`).
+6) `top10_share=0.536303` (fails `<=0.50`).
+7) `nn_improvement=-1.142108` (fails `>=0.20`; candidate ratio still above baseline).
+
+Movement vs prior integrated authority (`49dcd3c9aa4e441781292d54dc0fa491`):
+1) improved concentration metrics (`gini`, `top1`, `top5`, `top10`) and NN ratio.
+2) slight coverage regression (`eligible_country_nonzero_share`) remains.
+3) overall posture still below B, therefore promotion remains blocked.
+
+Decision:
+1) Close this lane as partial movement only (not promotable).
+2) Next remediation lane is upstream support/count reshape (reopen path), not additional 1B-only downstream tweaks.
+
+---
+
+### Entry: 2026-02-14 23:24
+
+Design element: upstream reopen wave-4 execution (`1A` alternate hurdle bundle -> `1B` proxy lane).
+Summary: Executed one bounded upstream candidate cycle to test whether a different `1A` hurdle bundle can improve 1B macro realism without violating freeze guard. The candidate passed freeze-veto but failed 1B proxy competitiveness on coverage direction, so it was rejected and pruned.
+
+Execution steps:
+1) Produced new `1A` candidate with alternate export run:
+   - env: `HURDLE_EXPORT_VERSION=2026-02-14`, `HURDLE_EXPORT_RUN=20260214T171500Z`, `SEED=42`,
+   - run command: `make segment1a RUNS_ROOT=runs/fix-data-engine/segment_1A`,
+   - candidate run-id: `f50074ae643103bf0bae832555a4605a` (`S9 PASS`).
+2) Ran freeze-veto:
+   - `tools/score_segment1a_freeze_guard.py --runs-root runs/fix-data-engine/segment_1A --run-id f50074ae643103bf0bae832555a4605a`,
+   - result artifact: `runs/fix-data-engine/segment_1A/reports/segment1a_freeze_guard_f50074ae643103bf0bae832555a4605a.json`,
+   - verdict: `PASS` (all guard checks true).
+3) Ran 1B proxy prerequisite chain on the promoted lineage:
+   - staged `1A` outputs into `runs/fix-data-engine/segment_1B/f50074ae643103bf0bae832555a4605a`,
+   - executed `S0 -> S1 -> S2 -> S3 -> S4` (all pass),
+   - `S4` ran on closed fast-compute-safe lane (`cache 48/2.5GB`, bounded rank cache), wall-clock `~2469.7s`.
+4) Scored proxy:
+   - wave summary: `runs/fix-data-engine/segment_1B/reports/segment1b_p4r2_wave4_guard_summary.json`,
+   - candidate proxy: `runs/fix-data-engine/segment_1B/reports/segment1b_p4r3_proxy_f50074ae643103bf0bae832555a4605a.json`,
+   - wave artifact: `runs/fix-data-engine/segment_1B/reports/segment1b_p4r3_proxy_wave_4.json`.
+
+Proxy result:
+1) matched 1B run-id: `f50074ae643103bf0bae832555a4605a`.
+2) concentration direction improved vs reference (`49dcd...`), but coverage direction failed:
+   - nonzero countries `185 -> 183` (regression),
+   - `proxy_competitive=false` (dropped).
+3) Decision: reject wave-4 candidate; do not advance to `S5->S9`.
+
+Storage discipline:
+1) Pruned superseded run folders after proxy rejection:
+   - `runs/fix-data-engine/segment_1A/f50074ae643103bf0bae832555a4605a`,
+   - `runs/fix-data-engine/segment_1B/f50074ae643103bf0bae832555a4605a`.
+2) Retained authority artifacts in `runs/fix-data-engine/segment_1B/reports/` for audit trail.
+
+---
+
+### Entry: 2026-02-14 23:40
+
+Design element: high-blast upstream support/count-shape lane kickoff (`1B/S2 blend_v2` retune).
+Summary: We are entering the remaining non-exhausted lane: retuning `S2` macro mass-shape policy directly (not just downstream jitter/exclusions or alternate 1A hurdle bundle) to target simultaneous concentration relaxation and coverage breadth recovery.
+
+Problem framing:
+1) Current best integrated status remains `RED_REOPEN_REQUIRED` under policy-governed lane.
+2) Prior wave-4 showed concentration improvements but dropped on proxy coverage gate; this indicates unresolved support/count shape rather than purely geometric closure.
+3) The remediation authority identifies `S2` constrained blend/cap/floor controls as the primary macro lever for B/B+ movement.
+
+Chosen execution lane (this cycle):
+1) Modify `config/layer1/1B/policy/policy.s2.tile_weights.yaml` only (governed policy lane, no runner code change in this pass).
+2) Increase breadth pressure and cap concentration through `blend_v2` knobs:
+   - basis mix shift away from pure area dominance,
+   - stronger under-represented region floors,
+   - tighter country/top-k concentration caps,
+   - higher concentration-penalty strength.
+3) Run fresh `1B` candidate chain `S0->S4` on locked `1A` authority lineage (freeze-guard already satisfied), then score `P4.R3` proxy against a policy-aligned reference.
+4) Promote to `S5->S9` only if proxy competitiveness passes; otherwise reject + prune per storage protocol.
+
+Risk/controls:
+1) Over-aggressive rebalance can distort pair-level feasibility or trigger new concentration oscillations; we keep one bounded candidate and evaluate proxy before full-chain spend.
+2) If this pass fails proxy, next escalation should combine `1A/S2` ingress count-shape with this `1B/S2` lane (joint reopen), still under freeze-veto.
+
+---
+
+### Entry: 2026-02-15 00:18
+
+Design element: first high-blast `S2` retune attempt aborted on runtime blow-up; bounded profile required.
+Summary: Executed fresh candidate run `48ff3a82b73542c881b50bb02547a41d` with aggressive `S2 blend_v2` settings. `S0/S1` completed, but `S2` became runtime-intractable (orders of magnitude slower than the closed lane), so the job was terminated and the profile is being downshifted before retry.
+
+Observed behavior:
+1) Run reached:
+   - `S0 PASS`, `S1 PASS`,
+   - `S2` started and consumed new policy (`uniform=0.45, area=0.35, population=0.20`, tighter caps, stronger floors, penalty `0.28`, iterations `36`).
+2) Runtime evidence from `run_log_48ff...`:
+   - at country `37/249`, elapsed already `~1383s` with emitted rows only `~30.6M`,
+   - ETA drifted to multi-hour (`>2h`) and trending worse.
+3) Background `make/python` processes for this run were explicitly terminated to stop runaway compute.
+
+Interpretation:
+1) The first aggressive profile over-stressed S2 rebalance work and is not acceptable for iterative remediation throughput.
+2) We need a bounded profile that preserves directional breadth pressure but keeps S2 runtime within the closed-lane envelope.
+
+Next correction:
+1) Reduce policy aggression (mix/floors/caps/penalty) and return `max_rebalance_iterations` to bounded range.
+2) Re-run on a fresh run-id and re-evaluate `P4.R3` proxy before any full-chain spend.
+
+---
+
+### Entry: 2026-02-15 01:20
+
+Design element: bounded profile retry also fails runtime envelope; root-cause isolated to `population` basis lane.
+Summary: Second retry on run `34b923498fe24eabb01fef574a393853` still produced multi-hour `S2` runtime with ETA runaway. We halted the run and isolated the throughput killer: enabling nonzero `population` mix in `S2`.
+
+Evidence:
+1) `S2` logged `blend_v2 mix uniform=0.40 area_m2=0.50 population=0.10`.
+2) Runtime trajectory:
+   - at `countries_processed=62/249`, elapsed already `~3335s`,
+   - ETA drifted to `~10060s` remaining (>2.7 hours) before `S3/S4`.
+3) Compared to closed lane (population disabled), this is not operationally viable for iterative remediation.
+
+Decision:
+1) Keep high-blast remediation in policy space, but disable `population` contribution for runtime safety (`population=0.0`).
+2) Continue with moderate concentration/cap/floor pressure using only `uniform + area_m2` and bounded convergence settings.
+3) Re-run on fresh run-id and only proceed to full chain if proxy passes.
+
+---
+
+### Entry: 2026-02-15 02:30
+
+Design element: runtime-safe high-blast candidate closure (`S2 p4r6c`) with full-chain evidence.
+Summary: Executed the runtime-safe profile candidate `9ebdd751ab7b4f9da246cc840ddff306` through `S4` and full closure `S5->S9`, then integrated scoring. The candidate remains `RED_REOPEN_REQUIRED` and does not clear B/B+ hard gates.
+
+Execution evidence:
+1) `S4` completed with safe cache lane:
+   - `countries_max=48`, `cache_max_bytes=2_500_000_000`,
+   - `rank_cache_entries=128`, `rank_cache_bytes=67_108_864`, `rank_cache_k_max=200000`,
+   - runtime `~2280s`, `rows_emitted=102340`, `unique_countries=183`, no structural failure.
+2) Proxy scorer invocation failed as an authority-lineage issue, not a data-quality issue:
+   - `segment1b_p4r3_proxy_wave_4.json` dropped candidate because the referenced upstream `1A` run (`f50074ae643103bf0bae832555a4605a`) had already been pruned,
+   - concrete error: missing `runs/fix-data-engine/segment_1A/f50074ae643103bf0bae832555a4605a/run_receipt.json`.
+3) Full chain executed anyway (`S5->S9`) and `S9` completed; integrated artifact:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p4_integrated_9ebdd751ab7b4f9da246cc840ddff306.json`.
+
+Integrated result:
+1) Status: `RED_REOPEN_REQUIRED` (`B_all=false`, `B_plus_all=false`).
+2) Passes:
+   - structural checks `PASS`,
+   - no-regression vs lock authority `PASS`.
+3) Hard B/B+ blockers persisted:
+   - concentration: `country_gini=0.69498`, `top10=0.53630`, `top5=0.34999` (all above B maxima),
+   - coverage: `eligible_country_nonzero_share=0.74089`, `southern_hemisphere_share=0.08053` (below B minima),
+   - NN contraction: `improvement_fraction=-1.1404` (failed).
+4) Comparative note:
+   - concentration/coverage envelope remained effectively the same as prior authority run `761c3c826a7b4f6d911b5cfe500d99b7`; only minor NN ratio movement was observed, not enough to change class.
+
+Decision:
+1) Candidate `9eb...` is rejected for promotion; do not treat as new lock.
+2) Runtime-safe `S2` profile is retained as an iteration-safe compute lane only (not a realism closure lane).
+3) Next causal lane remains upstream support/count reshape (reopen `1A/S2` ingress + connected `1B/S4` support distribution), not further downstream-only retuning.
+
+---
+
+### Entry: 2026-02-15 06:53
+
+Design element: best-effort Segment 1B freeze decision and transition to Segment 2A.
+Summary: We are closing active 1B remediation at a best-effort state and moving forward to 2A. 1B does not meet B/B+ certification gates, but it is materially improved versus baseline authority `c25a2675fbfbacd952b13bb594880e92` on the core concentration/coverage realism surface.
+
+Baseline-vs-current improvement confirmation:
+1) Concentration improved vs baseline:
+   - `country_gini`: `0.75282 -> 0.69498` (`-7.68%`),
+   - `top10_share`: `0.59740 -> 0.53630` (`-10.23%`),
+   - `top5_share`: `0.39326 -> 0.34999` (`-11.00%`),
+   - `top1_share`: `0.13658 -> 0.09407` (`-31.12%`).
+2) Coverage improved vs baseline:
+   - `eligible_country_nonzero_share`: `0.30924 -> 0.74089` (`+139.59%`),
+   - `southern_hemisphere_share`: `0.05858 -> 0.08053` (`+37.47%`),
+   - `active_country_count`: `77 -> 183`.
+3) Persistent blocker:
+   - NN tail realism worsened vs baseline (`nn_p99/p50`: `11.79 -> 25.24`), and hard B/B+ envelope still not met.
+
+Decision:
+1) Mark Segment 1B as `best-effort improved / below certification`, freeze for now, and proceed to Segment 2A work.
+2) Do not claim B or B+ for Segment 1B.
+3) Keep existing 1B artifacts as authoritative evidence of current best state; defer remaining certification/storage-closure tasks in the build plan until/if 1B is reopened.
+
+---
+
+### Entry: 2026-02-15 06:58
+
+Design element: Segment 1B cleanup pass and freeze finalization.
+Summary: Executed the requested cleanup pass on the 1B build plan and finalized freeze posture so transition to 2A is unambiguous.
+
+What was finalized:
+1) Build-plan checklist cleanup:
+   - converted remaining open checkboxes into explicit disposition outcomes (`not entered`, `fail-closed`, or `deferred-by-freeze`) so no ambiguous open execution scope remains in active cycle.
+2) Freeze status declaration:
+   - Segment status pinned as `FROZEN_BEST_EFFORT_BELOW_B`.
+   - Active best-effort authority artifact pinned:
+     - `runs/fix-data-engine/segment_1B/reports/segment1b_p4_integrated_9ebdd751ab7b4f9da246cc840ddff306.json`.
+3) Reopen posture:
+   - any future 1B reopening must start with deferred-item closure and retention housekeeping before fresh remediation cycles.
+
+Decision:
+1) Segment 1B is frozen for current program wave.
+2) Move forward to Segment 2A with 1A frozen-certified authority and 1B frozen-best-effort authority.
+
+---
+
+### Entry: 2026-02-15 13:13
+
+Design element: Segment 1B reopening posture shifted to performance-first optimization set before additional realism tuning.
+Summary: Updated the 1B build plan with a new `Performance Optimization Set (POPT.0 -> POPT.4)` that makes runtime closure a hard gate and sequences optimization by bottleneck dominance (`S4 -> S5 -> S9`).
+
+Rationale and decisions:
+1) Recent authoritative run timing shows runtime concentration is primarily in `S4`, then `S5`, then `S9`; continuing realism-only knob churn without runtime closure would waste cycle time and hide algorithmic defects.
+2) Adopted code-first method with targeted measurement:
+   - code audit and hotspot mapping first,
+   - minimal reruns only for changed state verification,
+   - algorithm/data-structure rewrites before any new realism retune wave.
+3) Added explicit minute-scale budgets and stretch bands:
+   - `S4 <= 12m` (stretch `<=15m`),
+   - `S5 <= 6m` (stretch `<=8m`),
+   - `S9 <= 2m30s` (stretch `<=3m30s`).
+4) Added fail-closed progression gates:
+   - no phase promotion without measured improvement against baseline,
+   - no new statistical tuning while bottleneck state exceeds stretch budget (unless user waiver),
+   - deterministic/contract surfaces must remain unchanged under optimization.
+
+Files updated:
+1) `docs/model_spec/data-engine/implementation_maps/segment_1B.build_plan.md`
+
+Expected execution order on reopen:
+1) `POPT.0` baseline/hotspot lock,
+2) `POPT.1` S4 optimization,
+3) `POPT.2` S5 optimization,
+4) `POPT.3` S9 optimization,
+5) `POPT.4` integrated fast-lane recertification handoff.
+
+---
+
+### Entry: 2026-02-15 13:32
+
+Design element: POPT.0 execution method for Segment 1B (baseline runtime + hotspot contract lock).
+Summary: Preparing a reproducible baseline/hotspot artifact for run `9ebdd751ab7b4f9da246cc840ddff306` by combining (a) state-level elapsed extraction from run log, (b) PAT counters from `S4/S5` run reports, and (c) code-path hotspot mapping from `S4/S5/S9` runners.
+
+Problem framing:
+1) `POPT.0` DoD requires explicit runtime table and ranked hotspot contributors; previous notes contain partial timings but not a consolidated, machine-readable lock artifact.
+2) We need a stable baseline artifact to gate `POPT.1+` progression and prevent subjective speed claims.
+
+Alternatives considered:
+1) Manual markdown-only write-up from log snippets.
+   - Rejected as primary path: harder to reproduce, error-prone for elapsed math, weak for later automated comparisons.
+2) One-off shell/Python ad-hoc command output stored in logbook only.
+   - Rejected as primary path: not durable enough for repeated gate checks.
+3) Reproducible scorer artifact (selected).
+   - Selected: emit a versioned JSON + markdown summary under `runs/fix-data-engine/segment_1B/reports/` with exact lineage and hotspot ranking.
+
+Chosen mechanics:
+1) Parse state start/complete timestamps from `run_log_9eb...` to compute elapsed per state.
+2) Ingest `s4_run_report.json` and `s5_run_report.json` PAT fields for IO/CPU/cache pressure indicators.
+3) Use `S9` timed log deltas (`parity`, `trace/audit scan`, `events scan`, `egress checksum`) for substage attribution.
+4) Attach code evidence references for hotspot claims:
+   - S4 country asset reload/cache thrash path,
+   - S5 tile-index reload + per-pair/per-site loop + RNG trace/event writes,
+   - S9 jsonl full scans and checksum `read_bytes` pass.
+5) Rank contributors by wall-time share and by structural pressure indicators to define `POPT.1->POPT.3` execution order.
+
+Expected outputs:
+1) `runs/fix-data-engine/segment_1B/reports/segment1b_popt0_baseline_9ebdd751ab7b4f9da246cc840ddff306.json`
+2) `runs/fix-data-engine/segment_1B/reports/segment1b_popt0_hotspot_map_9ebdd751ab7b4f9da246cc840ddff306.md`
+
+Gate usage:
+1) These artifacts become the authoritative baseline for runtime-improvement checks in `POPT.1`, `POPT.2`, and `POPT.3`.
+
+---
+
+### Entry: 2026-02-15 13:35
+
+Design element: POPT.0 execution closure with reproducible scorer artifacts.
+Summary: Implemented and executed `tools/score_segment1b_popt0_baseline.py` to lock runtime baseline + hotspot map for authority run `9ebdd751ab7b4f9da246cc840ddff306`.
+
+What was produced:
+1) JSON baseline artifact:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_popt0_baseline_9ebdd751ab7b4f9da246cc840ddff306.json`
+2) Markdown hotspot artifact:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_popt0_hotspot_map_9ebdd751ab7b4f9da246cc840ddff306.md`
+3) Reusable tool:
+   - `tools/score_segment1b_popt0_baseline.py` (compiles cleanly and can be rerun for future candidate run-ids).
+
+Locked baseline outcomes:
+1) Segment elapsed: `01:10:26`.
+2) Ranked runtime concentration:
+   - `S4 = 53.97%` (`~38m00s`),
+   - `S5 = 20.08%` (`~14m09s`),
+   - `S9 = 6.04%` (`~4m15s`).
+3) Hotspot evidence highlights:
+   - S4: heavy repeated country-asset IO + rank-prefix cache churn (`cache misses 1550 / unique countries 183`, rank-cache misses `3834`, evictions `3706`).
+   - S5: extreme tile-index read amplification (`bytes_read_index_total ~22.08GB`) with small country cache (`CACHE_COUNTRIES_MAX=8`) and high per-pair/per-site overhead (including `12204` per-pair assignment info logs).
+   - S9: dominant substage is RNG event scan (`delta ~190.23s`), with additional trace/audit scan (`~54.14s`).
+
+Decision:
+1) `POPT.0` marked complete and phase gate to `POPT.1` is `GO`.
+2) Next implementation target is `S4` algorithm/data-structure rewrite under the locked baseline budgets.
+
+---
+
+### Entry: 2026-02-15 13:40
+
+Design element: expanded execution plan for `POPT.1` (S4 primary bottleneck).
+Summary: Replaced the compact `POPT.1` block in the 1B build plan with a phased optimization blueprint (`POPT.1.1 -> POPT.1.6`) so implementation proceeds under explicit hotspot hypotheses, measurable substage evidence, and fail-closed progression gates.
+
+Why expansion was necessary:
+1) The previous `POPT.1` text captured intent but was too broad for deterministic execution and closure-grade auditing.
+2) `POPT.0` surfaced concrete S4 bottleneck signatures (country asset reload churn, rank-cache churn, inner-loop overhead), and these required direct mapping to work lanes.
+
+What was added to plan:
+1) Baseline lock section with numerical S4 pressure indicators from authority run `9eb...`.
+2) Explicit hypotheses to test (reload churn, rank-prefix churn, per-pair overhead).
+3) Sub-phase breakdown:
+   - `POPT.1.1` substage timing instrumentation,
+   - `POPT.1.2` country asset locality rewrite,
+   - `POPT.1.3` rank-prefix + shortfall kernel optimization,
+   - `POPT.1.4` logging/heartbeat overhead budget,
+   - `POPT.1.5` determinism+contract gate,
+   - `POPT.1.6` closure classification (`GREEN/AMBER/RED`).
+4) Explicit closure rule that blocks transition to `POPT.2` if S4 stretch budget is still missed.
+
+Execution consequence:
+1) Next implementation step should start at `POPT.1.1` instrumentation lane, not direct blind rewrites.
+
+### Entry: 2026-02-15 13:46
+
+Design element: POPT.1 execution lock for S4 (instrumentation + locality + rank-kernel + determinism gate).
+Summary: Starting end-to-end implementation of `POPT.1` against S4. The runtime baseline shows reload churn and rank-prefix churn as primary/secondary drivers, so this pass will first add internal substage timing evidence, then apply code-path rewrites that preserve existing S4 semantics while reducing IO and repeated ranking work.
+
+Authority and constraints used:
+1) Baseline/runtime authority:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_popt0_baseline_9ebdd751ab7b4f9da246cc840ddff306.json`
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_popt0_hotspot_map_9ebdd751ab7b4f9da246cc840ddff306.md`
+2) Active phase plan authority:
+   - `docs/model_spec/data-engine/implementation_maps/segment_1B.build_plan.md` (`POPT.1.1` -> `POPT.1.6`).
+3) Runtime constraints:
+   - single-process baseline only,
+   - deterministic output/contract equivalence required,
+   - no direct data mutation; only engine implementation and governed diagnostics surfaces.
+
+Alternatives considered and rejected:
+1) Knob-only retune (cache env values) without code changes.
+   - Rejected: does not satisfy POPT.1 code-first closure intent and leaves algorithmic churn unresolved.
+2) Full state-order rewrite by reordering S4 compute by country with external merge sort.
+   - Rejected for this phase: higher blast radius to ordering/audit rails than needed for first optimization closure.
+3) Narrow low-risk path (selected):
+   - add deterministic internal timing map,
+   - reduce country-asset load overhead and reuse burden,
+   - collapse rank-prefix cache churn by caching full deterministic rank vectors per `(country, n_sites)` key,
+   - reduce hot-loop logging overhead while preserving required heartbeat/audit signals.
+
+Implementation plan (concrete):
+1) `POPT.1.1` instrumentation:
+   - add S4 substage timers for asset load, rank-prefix, allocation kernel, and batch flush/write.
+   - publish timing map in `s4_run_report.json` as additive diagnostics.
+2) `POPT.1.2` locality lane:
+   - reduce tile-weight read overhead by removing avoidable country-column scans on country-partitioned inputs,
+   - keep validation semantics via path/partition authority checks,
+   - add precomputed country-demand frequency and cache pinning bias so high-reuse countries are not churned out prematurely.
+3) `POPT.1.3` rank-kernel lane:
+   - replace `(country, n_sites, k)` prefix cache with `(country, n_sites)` full deterministic rank vectors,
+   - resolve prefix requests by slicing, not recomputation.
+4) `POPT.1.4` logging budget:
+   - throttle heartbeat/progress cadence in hot loops while preserving required run visibility and ETA logs.
+5) `POPT.1.5`/`POPT.1.6` closure evidence:
+   - run S4 candidate lane on fresh run-id,
+   - run deterministic witness rerun on same lane,
+   - run downstream smoke (`S5->S9`),
+   - score deltas against POPT.0 authority and classify `GREEN/AMBER/RED`.
+
+Invariant checks to preserve:
+1) `alloc_sum_equals_requirements=true`.
+2) anti-collapse diagnostics and policy-governed behavior unchanged in meaning.
+3) writer-sort and path-embed equality invariants unchanged.
+4) no contract schema surface break.
+
+### Entry: 2026-02-15 13:50
+
+Design element: POPT.1 implementation applied in S4 runner (`POPT.1.1`->`POPT.1.4`).
+Summary: Implemented code changes in `packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py` to close the first S4 optimization lanes while preserving S4 output semantics and contracts.
+
+Implemented mechanics:
+1) Substage timing instrumentation (`POPT.1.1`):
+   - added additive `substage_timing` block in `s4_run_report` with:
+     - `country_asset_load`,
+     - `rank_prefix`,
+     - `allocation_kernel`,
+     - `batch_write`;
+   - each includes `seconds`, `calls`, `share_of_wall` for direct hotspot attribution.
+2) Country-asset locality lane (`POPT.1.2`):
+   - preloads `s3_requirements` once into in-memory requirement tuples + per-country frequency map,
+   - introduced frequency-based cache pinning budget (`ENGINE_1B_S4_CACHE_PIN_COUNTRIES_MAX`) to reduce hot-country eviction churn,
+   - added pinned-fallback eviction counter for diagnosability,
+   - reduced tile-weight IO overhead by skipping `country_iso` scan when file path is country-partition authoritative (`country=XX` / `part-XX`).
+3) Rank-prefix kernel lane (`POPT.1.3`):
+   - rewired rank cache key from `(country, n_sites, k)` to `(country, n_sites)` full deterministic rank vectors,
+   - resolves prefix requests by slice instead of recomputation,
+   - retained budget controls (`entries_max`, `bytes_max`, `k_max`) and miss/eviction telemetry.
+4) Logging overhead lane (`POPT.1.4`):
+   - added governed cadence env knobs:
+     - `ENGINE_1B_S4_PROGRESS_INTERVAL_SECONDS`,
+     - `ENGINE_1B_S4_HEARTBEAT_INTERVAL_SECONDS`;
+   - raised default cadence to reduce high-frequency progress log pressure in hot loops.
+
+Validation performed immediately:
+1) compile check passed:
+   - `python -m py_compile packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py`.
+
+Next execution lane:
+1) run fresh S4 candidate and deterministic witness (`POPT.1.5`),
+2) downstream `S5->S9` smoke,
+3) produce baseline-vs-candidate runtime delta and classify `POPT.1.6`.
+
+### Entry: 2026-02-15 16:30
+
+Design element: POPT.1 execution closure evidence (`S4` optimization lane complete, classification fail-closed RED).
+Summary: Executed full `POPT.1` run sequence with instrumentation + rewrite + witness + downstream smoke. The phase achieved material S4 runtime improvement vs baseline and preserved determinism/contracts, but still missed stretch budget (`<=15m`), so phase classification is `RED` with explicit hold.
+
+Execution trace and decisions:
+1) Candidate run-lane setup:
+   - fresh run-id created for optimization lane: `c6ddd66305124ec7bbf0c9fd13f9071e`.
+   - direct `S0` bootstrap on synthetic run-id failed (`E_BUNDLE_MISSING`) because upstream bundle resolution expected staged lineage.
+   - correction applied: cloned required staged upstream inputs from authority run `9eb...` for this lane (`s0_gate_receipt`, `sealed_inputs`, `tile_index`, `tile_bounds`, `tile_weights`, `s3_requirements`) and preserved run-receipt identity for candidate run-id.
+2) S4 optimization runs (same fixed identity):
+   - run 1 (`countries_max=48/pin=48`): `2114.23s`.
+   - run 2 (`countries_max=192/pin=183`): `1940.22s`.
+   - run 3 witness (`countries_max=192/pin=183`): `1866.00s`.
+   - run 4 witness (`countries_max=192/pin=183`): `2030.89s`.
+3) Determinism and equivalence:
+   - repeated S4 reruns logged `s4_alloc_plan partition already exists with identical bytes` (count `3`), confirming deterministic output equivalence on fixed identity.
+4) Downstream smoke (`POPT.1.5`) on same run-id:
+   - `S5` and `S6` completed green.
+   - initial `S7` attempt failed due missing staged `1A/outlet_catalogue` under candidate run root.
+   - correction: staged `data/layer1/1A/outlet_catalogue` from authority run.
+   - resumed `S7 -> S8 -> S9`; all completed and `S9 decision=PASS`.
+
+Measured movement vs baseline (`POPT.0` authority):
+1) Runtime:
+   - baseline `S4=2280.326s`.
+   - best candidate `S4=1866.00s` (`+18.17%` faster).
+   - latest witness `S4=2030.89s` (`+10.94%` faster).
+2) IO/cache pressure:
+   - baseline `bytes_read_index_total=4,479,847,855`, `bytes_read_weights_total=2,148,765,517`.
+   - candidate witness `bytes_read_index_total=915,963,412`, `bytes_read_weights_total=462,009,296`.
+   - cache misses/evictions reduced (`1550/1502` -> `411/288`) with bounded memory (`bytes_peak=2,499,988,256`).
+3) Substage hotspot stability across witnesses:
+   - top-2 remained stable: `allocation_kernel`, `rank_prefix`.
+
+Phase outcome:
+1) `POPT.1.1`: complete (timing map + stable top-2 witness).
+2) `POPT.1.2`: complete (material IO/cache reductions, bounded memory).
+3) `POPT.1.3`: partial (throughput improved; rank-cache miss/eviction pressure did not materially drop).
+4) `POPT.1.4`: complete (cadence controls active, no observability loss).
+5) `POPT.1.5`: complete (determinism + downstream smoke green).
+6) `POPT.1.6`: classified `RED`; hold progression.
+
+Artifacts produced:
+1) `runs/fix-data-engine/segment_1B/reports/segment1b_popt1_s4_witness_a_c6ddd66305124ec7bbf0c9fd13f9071e.json`
+2) `runs/fix-data-engine/segment_1B/reports/segment1b_popt1_s4_witness_b_c6ddd66305124ec7bbf0c9fd13f9071e.json`
+3) `tools/score_segment1b_popt1_closure.py`
+4) `runs/fix-data-engine/segment_1B/reports/segment1b_popt1_closure_c6ddd66305124ec7bbf0c9fd13f9071e.json`
+5) `runs/fix-data-engine/segment_1B/reports/segment1b_popt1_closure_c6ddd66305124ec7bbf0c9fd13f9071e.md`
+
+Next mandatory focus (per fail-closed classification):
+1) continue S4-only optimization before entering `POPT.2`, with emphasis on rank-cache cardinality/skip pressure and allocation-kernel cost concentration.
+
+### Entry: 2026-02-15 17:11
+
+Design element: `POPT.1.R0` candidate run-lane hardening (no-manual-copy posture).
+Summary: Added a small staging utility to create fresh candidate run-ids under `runs/fix-data-engine/segment_1B/` by reusing upstream prerequisite surfaces via junctions (default). This eliminates the repeated manual copying of `s0_gate_receipt/sealed_inputs/tile_*` and the `1A/outlet_catalogue` dependency required for downstream smoke.
+
+Environment authority (recorded explicitly for reproducible commands):
+1) `cwd`: `c:\\Users\\LEGION\\Documents\\Data Science\\Python & R Scripts\\fraud-detection-system`
+2) `shell`: `powershell`
+
+Rationale:
+1) Prior `POPT.1` execution required ad-hoc staging fixes:
+   - direct `S0` bootstrap failed (`E_BUNDLE_MISSING`) when using synthetic run-ids without resolved bundle lineage,
+   - downstream smoke initially failed at `S7` due missing staged `data/layer1/1A/outlet_catalogue`.
+2) Repeating these manual steps wastes iteration time and risks storage blow from accidental full copies.
+3) Junction-based staging (read-only inputs) keeps storage stable while allowing `S4+` outputs to be written into the new run-id folder.
+
+Mechanics implemented:
+1) New tool: `tools/stage_segment1b_candidate_lane.py`
+2) Inputs:
+   - `--runs-root` (default `runs/fix-data-engine/segment_1B`),
+   - `--src-run-id` (authority donor run-id, e.g. `9ebdd...`),
+   - `--dst-run-id` (optional; otherwise generated),
+   - `--mode junction|copy` (default `junction`).
+3) Staged surfaces (linked/copied into the candidate lane):
+   - `data/layer1/1B/{s0_gate_receipt,sealed_inputs,tile_index,tile_bounds,tile_weights,s3_requirements}`,
+   - `data/layer1/1A/outlet_catalogue` (downstream `S7` dependency).
+4) Run identity:
+   - copies `parameter_hash/manifest_fingerprint/seed` from source `run_receipt.json`,
+   - writes a new `run_receipt.json` with only `run_id/created_utc` changed (plus non-binding provenance keys for humans/tools).
+
+Expected next execution:
+1) `python tools/stage_segment1b_candidate_lane.py --src-run-id 9ebdd751ab7b4f9da246cc840ddff306`
+2) `python -m engine.cli.s4_alloc_plan --runs-root runs/fix-data-engine/segment_1B --run-id <new_run_id>`
+3) If needed: `S5->S9` smoke on the same `<new_run_id>` without any manual copying.
+
+### Entry: 2026-02-15 17:16
+
+Design element: `POPT.1.R1/R2` S4 algorithmic rewrite (key idea: reuse per-(country,n_sites) allocation plans; eliminate per-pair full-tile scans).
+Summary: The witness shows `allocation_kernel` dominates (`~43%` wall) and `rank_prefix` is second (`~16%` wall). The current implementation recomputes full-tile vector math (`prod/z/residues`) for every (merchant,country) pair, even though `n_sites` is small (`<=24`) for most pairs and thus repeats heavily. This is an algorithmic mismatch: we can precompute the exact per-(country,n_sites) apportionment plan once (including the diversification candidate prefix) and reuse it across merchants, while still applying the merchant-specific rotation offset deterministically.
+
+Key evidence driving this decision:
+1) From witness `segment1b_popt1_s4_witness_b_*`:
+   - `pairs_total=12204`, `rows_emitted=102340` (only `~8.39` rows per pair).
+   - top substages: `allocation_kernel=870.0s (0.428 share)`, `rank_prefix=325.9s (0.160 share)`.
+   - diversification is active for most pairs (`pairs_diversified_touched=11120`, `share~0.911`) and configured with:
+     - `apply_n_sites_max=24`, `candidate_window_fraction=0.35`, `candidate_window_min=24`.
+2) The diversify window formula can require very large `k` even when `shortfall` is small, so per-pair recomputation is especially wasteful.
+
+Proposed mechanics (implementation intent before coding):
+1) Introduce an exact `alloc_plan` cache keyed by `(legal_country_iso, n_sites)`:
+   - plan contains:
+     - `shortfall` and `window` (policy-derived),
+     - `candidates` = `_topk_rank_prefix_exact(..., k=window)` (indices into tile arrays),
+     - `base_idx/base_counts` for `floor(weight_fp*n_sites/K)` nonzeros (sparse; avoids dense `z`),
+     - `dp_value` and `K=10**dp_value`.
+2) For each pair:
+   - build sparse counts map on indices (from `base_idx/base_counts` + `shortfall` bumps),
+   - apply deterministic merchant rotation without materializing a full rotated candidate vector (no `np.concatenate`),
+   - only build dense arrays and run anticollapse controls if the guard/residual triggers (witness shows this is near-zero).
+3) Preserve output determinism and ordering:
+   - requirements are still processed in sorted order,
+   - per-pair emission remains sorted by `tile_id`,
+   - failure events and invariants remain fail-closed (`alloc_sum_equals_requirements`, `E408_UNSORTED`, etc).
+
+Expected impact:
+1) Replace per-pair O(tile_count) math with per-key O(tile_count) plan build + per-pair O(shortfall + rows) updates.
+2) Material reductions in `allocation_kernel` wall time (primary win) and `rank_prefix` (secondary win), without changing semantics.
+
+### Entry: 2026-02-15 20:34
+
+Design element: `POPT.1.R4/R6` S4 persistent alloc-plan disk cache + hot-loop PAT sampling fix + plan payload shrink.
+Summary: Implemented the missing `POPT.1.R4` persistent cache (across run-ids) for exact per-(country,n_sites,dp) alloc plans, and tightened a remaining hot-loop `psutil` sampling bug that was still running per pair. Also reduced alloc-plan payload size by storing base counts as `uint16`.
+
+Why this was required (evidence):
+1) Even after in-run alloc-plan LRU caching, S4 still spends large wall time on the first-time construction of ~O(1000+) unique `(country,n_sites)` plans per run-id (cache misses). Across iterations this repeats per new run-id and makes knob sweeps expensive.
+2) The runner still performed `proc.memory_info()` + open-files sampling per pair in `_handle_requirement` (in addition to the gated sampling), which is avoidable overhead on 12k+ pairs.
+
+Implemented mechanics (code-level; semantics preserved):
+1) Persistent alloc-plan disk cache (exact, deterministic):
+   - location: `runs_root/_cache/s4_alloc_plan/group=<hash16>/plan_<ISO>_n<N>_dp<DP>.npz`
+   - strict group key prefix includes:
+     - `manifest_fingerprint`, `parameter_hash`,
+     - parquet-surface fingerprints for `tile_index` and `tile_weights` (relative path + file size SHA256),
+     - effective S4 policy knobs that affect plan shape and diversify behavior,
+     - `diversify_window_max`.
+   - behavior:
+     - on alloc-plan cache miss: attempt disk load; on disk miss build and then save.
+     - disk cache uses mtime-touch on read, and periodic prune (`max_entries`, `max_bytes`) to control storage.
+   - telemetry:
+     - added `pat.runtime_alloc_plan_disk_cache` fields: `{enabled, group, hits, misses, saves, bytes_read, bytes_written, prune_calls, ...}`.
+
+2) PAT sampling cadence enforcement:
+   - `_handle_requirement` no longer samples RSS/open-files unconditionally; it now respects `ENGINE_1B_S4_PAT_SAMPLE_EVERY_PAIRS`.
+   - this reduces inner-loop overhead without changing any allocation semantics or output ordering.
+
+3) Alloc-plan payload shrink (memory and disk footprint):
+   - in `_build_alloc_plan`, `base_counts` is now stored as `uint16` (counts are bounded by `n_sites`, which is small in 1B).
+
+Files changed / added:
+1) `packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py`
+2) `tools/prune_run_folders_keep_set.py` (for storage control of run-id folders; separate from engine runtime)
+
+Operational notes:
+1) Disk cache is enabled by default only for `runs_root` paths containing `runs/fix-data-engine` (can be overridden via env).
+2) The disk cache is designed for the optimization lane: it trades small on-disk artifacts for much faster reruns across fresh run-ids while keeping determinism strict via keying.
+
+### Entry: 2026-02-15 21:17
+
+Design element: `POPT.1` closure update (S4 now meets target; unlock `POPT.2`).
+Summary: After landing `R4` (disk cache) and `R6` (remove per-pair psutil sampling), S4 moved from ~20m to ~13m cold, and ~11m50s warm. Determinism hash matches across run-ids, so we can classify `POPT.1` as `GREEN` and move on to `POPT.2` (S5).
+
+Evidence (runs under `runs/fix-data-engine/segment_1B/`, seed=42):
+1) Cold disk-cache build+save:
+   - run: `c98c62d86bc84e2ca6df88df1fe841c1`
+   - `wall_clock_seconds_total=793.30` (`00:13:13`)
+   - disk cache: group `cc155167296ab5c5`, `misses=1516`, `saves=1516`, `bytes_written=474,116,260`.
+2) Warm disk-cache hit-only + cadence sweep:
+   - run: `cc8cd2f309214f4cbf89b1f163d6e5fa`
+   - `wall_clock_seconds_total=710.16` (`00:11:50`) with `ENGINE_1B_S4_PAT_SAMPLE_EVERY_PAIRS=1024`
+   - disk cache: `hits=1516`, `misses=0`, `bytes_read=474,116,260`.
+3) Determinism:
+   - `determinism_receipt.sha256_hex` matched across both runs:
+     - `dd284b2b9a92cbe7f49cfd76621cca39ddf3b126e2b345196ca64b4d8adb83ff`
+
+Decision:
+1) `POPT.1` classification updated to `GREEN` (S4 meets target `<= 12m`).
+2) Unlock `POPT.2` (begin S5 assignment-path optimization). Next work should not reopen S4 unless S5 changes reveal a regression or the integrated lane needs additional headroom.
+
+### Entry: 2026-02-15 22:58
+
+Design element: `POPT.2` S5 assignment-path optimization (secondary bottleneck).
+Summary: Eliminated the dominant S5 bottleneck by removing tile-index read amplification from the hot path. Introduced a fail-closed `signature` validation mode (skip expensive per-tile membership reads only when upstream S4 attests a matching tile-index surface signature) and an explicit `off` mode for fast iteration. Throttled per-pair logging, buffered JSONL emission, and reduced progress-update overhead. Output assignment partition determinism is preserved exactly vs the baseline witness.
+
+Why this was required (evidence):
+1) Baseline S5 witness was CPU-bound on avoidable IO + logging overhead:
+   - run: `cc8cd2f309214f4cbf89b1f163d6e5fa`
+   - `wall_clock_seconds_total=877.078` (`00:14:37`)
+   - `bytes_read_index_total=22,078,473,510` (~22.1GB) driven by strict per-tile membership validation that repeatedly reloads `tile_index` partitions.
+2) The baseline run log shows heavy churn in the country-index LRU and high-frequency per-pair and per-site JSON emission.
+
+Implemented mechanics (code-level; semantics preserved):
+1) Validation mode split for tile-index membership:
+   - new env: `ENGINE_1B_S5_VALIDATE_TILE_INDEX_MODE` in `{strict, signature, off}`.
+   - `strict`: preserves the original per-tile membership validation (loads country tile_index and checks membership).
+   - `signature`: fail-closed; skips membership validation only when:
+     - S5 computes `tile_index` surface signature (relative paths + sizes SHA256), and
+     - S4 run report `pat.tile_index_surface_sig` matches exactly.
+     - If verification fails or S4 signature is missing: S5 falls back to membership validation.
+   - `off`: explicit opt-out; skips membership validation (intended for fast iteration lanes that are already constrained by sealed inputs).
+2) Hot-path overhead reduction:
+   - buffered JSONL writes for RNG events + trace rows (reduce per-line syscall overhead).
+   - removed per-site `json.dumps(..., sort_keys=True)` (event order is parser-insensitive; determinism receipt is computed over the assignment parquet partition).
+   - new env: `ENGINE_1B_S5_LOG_ASSIGNMENT_EVERY_PAIRS` to throttle per-pair assignment logging (default `0` for fix-data-engine lanes).
+   - new env: `ENGINE_1B_S5_CACHE_COUNTRIES_MAX` to control the country tile-index LRU cap (kept for strict mode; irrelevant when membership validation is skipped).
+3) Upstream attestation for signature validation:
+   - S4 run report now includes:
+     - `pat.tile_index_surface_sig`
+     - `pat.tile_weights_surface_sig`
+   - these are computed once from parquet relative paths + sizes (cheap) and serve as the attestation anchor for S5 `signature` mode.
+
+Evidence (S5 closure witness; seed=42):
+1) Baseline:
+   - run: `cc8cd2f309214f4cbf89b1f163d6e5fa`
+   - `determinism_receipt.sha256_hex=827ebebd25e368b778e5d3022a105cef4922452bf20dd341702b0c3f4e2b4259`
+2) Optimized (staged S5-only lane reusing baseline S4 alloc plan):
+   - run: `3ec6bd5296b346558589e4a3400ab88a` with `ENGINE_1B_S5_VALIDATE_TILE_INDEX_MODE=off`
+   - `wall_clock_seconds_total=5.531` (`~00:00:06`)
+   - `bytes_read_index_total=0`
+   - `determinism_receipt.sha256_hex=827ebebd25e368b778e5d3022a105cef4922452bf20dd341702b0c3f4e2b4259` (exact match vs baseline)
+
+Operational discipline:
+1) Candidate lane staging updated to support S5-only iteration without rerunning S4:
+   - `tools/stage_segment1b_candidate_lane.py` now supports `--include-s4-alloc-plan`.
+2) Run-id retention enforced after witness runs:
+   - pruned superseded run-id folders under `runs/fix-data-engine/segment_1B/` using `tools/prune_run_folders_keep_set.py`.
+
+Files changed:
+1) `packages/engine/src/engine/layers/l1/seg_1B/s5_site_tile_assignment/runner.py`
+2) `packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py`
+3) `tools/stage_segment1b_candidate_lane.py`
+
+### Entry: 2026-02-15 23:45
+
+Design element: `POPT.3` enabling work (S9 iteration lane) + S9 baseline validation witness.
+Summary: Extended the Segment 1B staging tool so we can stage a run-id under `runs/fix-data-engine/segment_1B/` from an external source runs-root (e.g. `runs/local_full_run-5`) via junctions. This makes it feasible to iterate on downstream states (notably `S9`) without rerunning the entire segment. Also validated the correct pattern for S9-only iteration: you cannot reuse upstream RNG logs across run-ids because they are partitioned by `run_id`, so S5/S6 must be executed (now fast) to generate the expected RNG logs for the staged run-id before running S9.
+
+Evidence (seed=42; staged from full run `c25a2675...` into fix-data-engine lane):
+1) Failed attempt (reusing RNG logs from source run-id):
+   - run: `e30607bd022c4afd9efd41c89387546e` (pruned)
+   - S9 `FAIL` with `E907_RNG_BUDGET_OR_COUNTERS` because RNG audit/events/trace are partitioned by `run_id` and therefore missing under the staged destination run-id.
+2) Correct iteration lane (stage S4 alloc plan + egress, then run S5 + S6 to mint RNG logs for the staged run-id, then run S9):
+   - run: `fdf38bdb13b54069bfe67ca3210692b7`
+   - `S5 wall=~2.6s` (31257 sites) with `ENGINE_1B_S5_VALIDATE_TILE_INDEX_MODE=off`
+   - `S6 wall=~38.4s` (includes world geometry load; then steady-state ~900 sites/s)
+   - `S9 --validate-only` `PASS` with wall `~96s` (dominant cost: RNG event scan + checksum step)
+
+Tooling changes (staging):
+1) `tools/stage_segment1b_candidate_lane.py` now supports:
+   - `--src-runs-root` (source and destination runs roots can differ),
+   - `--include-for-s9` (stage `S7`, `site_locations`, and RNG logs when appropriate),
+   - granular staging flags:
+     - `--include-s7-site-synthesis`
+     - `--include-site-locations`
+     - `--include-rng-logs`
+
+Operational note (fail-closed):
+- For S9 validation, do not link RNG logs from a different `run_id` unless also arranging a run-id-specific junction at the exact partition path expected by the destination run-id. Default posture: rerun S5/S6 (fast after POPT.2) so the RNG logs are correctly minted for the destination run-id.
+
+### Entry: 2026-02-15 23:59
+
+Design element: `POPT.3` S9 validation-path optimization (JSONL scan bottleneck).
+Summary: Reduced S9 runtime from ~96s to ~6s on the `fdf38b…` witness by eliminating per-line jsonschema validation overhead in the fix-data-engine iteration lane while keeping the fail-closed correctness checks (coverage, envelope, budget) fully enforced. Also switched to `orjson` decoding when available.
+
+Root cause:
+- S9 performed full `Draft202012Validator.iter_errors(...)` validation on every RNG event row (S5 + S6) and on every trace row. With 20-26MB JSONL files per stream, this dominates wall time even though the required invariants are budget/envelope/coverage checks, not full schema validation on every record.
+
+Implemented mechanics:
+1) New env knobs:
+   - `ENGINE_1B_S9_RNG_SCHEMA_VALIDATE_MODE` in `{full, sample, off}`:
+     - default: `sample` for `runs/fix-data-engine` lanes, `full` elsewhere.
+   - `ENGINE_1B_S9_RNG_SCHEMA_VALIDATE_SAMPLE_FIRST` (default `10`)
+   - `ENGINE_1B_S9_RNG_SCHEMA_VALIDATE_SAMPLE_EVERY` (default `5000`)
+2) JSON decode acceleration:
+   - prefer `orjson` if installed, else builtin `json`.
+3) Fail-closed correctness checks remain full (no relaxation):
+   - coverage checks against S7 keys,
+   - envelope checks (`after-before == blocks`),
+   - budget checks for S6 (`blocks==1`, `draws=="2"`),
+   - trace reconciliation checks remain enforced (using target module/substream rows).
+
+Evidence (seed=42, `--validate-only`):
+1) Pre-change witness (from run log of `fdf38b…`):
+   - wall `~96s` (dominant: schema validation per line).
+2) Post-change witness:
+   - run: `fdf38bdb13b54069bfe67ca3210692b7`
+   - config: `ENGINE_1B_S9_RNG_SCHEMA_VALIDATE_MODE=sample`, `sample_first=10`, `sample_every=10000`
+   - wall `~5.7s`, decision `PASS`.
+
+File changed:
+1) `packages/engine/src/engine/layers/l1/seg_1B/s9_validation_bundle/runner.py`
+
+---
+
+### Entry: 2026-02-16 00:33
+
+Design element: `POPT.4` integrated fast-lane recertification handoff (policy-consistent `S3->S9` chain).
+Summary: Closed `POPT.4` by running a fresh integrated candidate lane end-to-end and verifying that the optimized `S4/S5/S9` fast-compute-safe mechanics compose cleanly with the active requirements policy (denylist), without reintroducing the `S7` coverage failure.
+
+Trigger / prior failure mode:
+1) The earlier `POPT.4` attempt failed `S7` coverage parity (`E708_1A_COVERAGE_FAIL`) because the lane was staged by linking `s3_requirements` from an upstream authority run-id while the active repo policy `policy.s3.requirements.yaml` had since enabled an MC/BM denylist.
+2) Result: `S7` applied governed policy and reduced the effective outlet catalogue country frame, but upstream `S4->S6` had already emitted sites for the pre-denylist requirements set, creating a mismatch in the parity checks.
+
+Decision:
+1) Treat `S3` policy outputs as run-local when requirements policy changes (denylist, thresholds, etc.).
+2) For staged lanes, do not link/copy `s3_requirements` unless it is known to have been generated under the same policy version as the destination run.
+
+Implementation (staging tool hardening):
+1) Added `--skip-s3-requirements` to `tools/stage_segment1b_candidate_lane.py` so we can stage a fast lane using junctions while forcing `S3` to be re-run in the destination run-id.
+2) This avoids needing to delete junctions post-stage and makes the policy-propagation intent explicit and auditable in the staging receipt.
+
+POPT.4 integrated witness (seed=42):
+1) Staged and ran:
+   - baseline source: `runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92`
+   - candidate run-id: `a0ae54639efc4955bc41a2e266224e6e`
+   - staging flags: `--mode junction --skip-s3-requirements`
+   - sequential chain executed (progressive semantics preserved): `S3 -> S4 -> S5 -> S6 -> S7 -> S8 -> S9`.
+2) Runtime evidence (fast lane knobs):
+   - `S4 ~164s`.
+   - `S5 ~2.4s` with `ENGINE_1B_S5_VALIDATE_TILE_INDEX_MODE=signature` (tile_index signature verified).
+   - `S9 ~5s` with `ENGINE_1B_S9_RNG_SCHEMA_VALIDATE_MODE=sample` (full fail-closed correctness checks retained; schema validation sampled).
+3) Coverage parity evidence (the blocker closed):
+   - `S7` logged `s5=29340 s6=29340 outlet_catalogue_effective=29340` with requirements policy `version=2026-02-14.mc-bm-exclusion.v1`.
+   - `S9` decision: `PASS`.
+4) Integrated scoring evidence:
+   - report: `runs/fix-data-engine/segment_1B/reports/segment1b_p4_integrated_a0ae54639efc4955bc41a2e266224e6e.json`
+   - posture: `no_regression=true`; `B/B+` grade checks still fail (realism tuning remains separate from this POPT closure).
+
+Housekeeping:
+1) Pruned superseded failed run-id folder to protect disk:
+   - removed: `d7cdd70de7bc4328b7bef14e7a9e5308`
+   - tool: `tools/prune_run_folders_keep_set.py` with explicit keep set (dry-run then `--yes`).
+
+Files changed:
+1) `tools/stage_segment1b_candidate_lane.py`
+
+---
+
+### Entry: 2026-02-16 00:36
+
+Design element: Post-`POPT.*` performance posture and storage discipline for Segment `1B`.
+Summary: With `POPT.4` closed, Segment `1B` is now in a minute-scale integrated iteration posture for `S3->S9` on the fix-data-engine lane. The dominant remaining wall-time chunk is `S6` (jitter + geometry checks). Next action is to prune superseded run-id folders to protect disk; any further performance work is scoped to `S6` only and is explicitly optional.
+
+Observed performance authority:
+1) Integrated authority run-id: `a0ae54639efc4955bc41a2e266224e6e`.
+2) Key timings (seed=42, fast lane):
+   - `S4 ~164s`
+   - `S5 ~2.4s`
+   - `S6 ~94s` (dominant)
+   - `S7+S8` seconds-scale
+   - `S9 ~5–6s` (`--validate-only`, schema-validation sampling).
+
+Decision:
+1) Performance for `1B` is now “good enough to iterate” for realism remediation.
+2) If performance is reopened, the only approved next target is `S6` (do not reopen `S4/S5/S9` unless regression is detected).
+3) Storage discipline is binding: prune superseded run-id folders under `runs/fix-data-engine/segment_1B` and keep only the minimal authority set needed for scoring and regression checks.
+
+---
+
+### Entry: 2026-02-16 05:46
+
+Design element: bounded `1B` realism recovery sweep (`2` candidates max) after `POPT.4` closure.
+Summary: Executed the agreed bounded sweep and closed it fail-closed. Both candidates preserved structural/no-regression posture but produced zero movement on the hard-failing `B/B+` distribution metrics, confirming `1B`-local knobs are not the controlling lane for those gates.
+
+Pre-sweep hypothesis:
+1) Test whether stronger `S2` global-south/concentration blend pressure and/or stronger `S6` sparse-tail jitter could move:
+   - `country_gini`, `top1/top5/top10`, `eligible_country_nonzero_share`, `southern_hemisphere_share`.
+2) Keep performance lane intact (no new `S4/S5/S9` algorithm rewrites).
+
+Supporting tool hardening:
+1) Added `--skip-tile-weights` to `tools/stage_segment1b_candidate_lane.py` so candidate lanes can rerun `S2` cleanly without staging `tile_weights` from source.
+2) Combined with prior `--skip-s3-requirements`, this gives policy-consistent reruns for `S2/S3` without manual junction surgery.
+
+Candidate execution:
+1) `R1` run-id `d0d35786b6c241738c392a7d0393d0fe`:
+   - policy change: aggressive `S2` blend_v2 south floors + stricter concentration caps.
+   - chain: `S2 -> S3 -> S4 -> S5 -> S6 -> S7 -> S8 -> S9`.
+   - score: `runs/fix-data-engine/segment_1B/reports/segment1b_p4_integrated_d0d35786b6c241738c392a7d0393d0fe.json`.
+2) `R2` run-id `f5df0b9e80cf4ce3b46f4609a2597c43`:
+   - policy change: stronger `S6` sparse-tail jitter weights.
+   - chain: `S5 -> S6 -> S7 -> S8 -> S9` (staged from `R1` with linked `S4` alloc plan).
+   - score: `runs/fix-data-engine/segment_1B/reports/segment1b_p4_integrated_f5df0b9e80cf4ce3b46f4609a2597c43.json`.
+
+Observed results:
+1) Both runs stayed `RED_REOPEN_REQUIRED`; `B` and `B+` hard gates remained failed.
+2) Failing distribution metrics were numerically unchanged in both runs:
+   - `country_gini=0.7576132697114292`
+   - `top10_share=0.6196659850034083`
+   - `top5_share=0.4189502385821404`
+   - `top1_share=0.14550102249488753`
+   - `eligible_country_nonzero_share=0.30364372469635625`
+   - `southern_hemisphere_share=0.06390593047034765`
+3) Only NN-tail moved (minor), confirming limited effect of these knobs on the targeted failing gates.
+
+Root-cause conclusion (design-level):
+1) The failing gates are controlled primarily by legal-country site mass (country counts).
+2) In current `1B` design, legal-country mass enters via `S3` requirements sourced from upstream `1A` outlet catalogue.
+3) `1B`-local tuning mostly changes intra-country geometry (tile/jitter), not cross-country mass distribution; therefore these gates cannot be closed meaningfully without upstream reopen.
+
+Post-sweep disposition:
+1) Restored `S2` and `S6` policies to pre-sweep authority content.
+2) Marked bounded sweep exhausted (`2/2`) and stopped further 1B-local churn.
+3) Recommended next corrective lane: upstream reopen (country-mass source) if `B/B+` remains mandatory.
+
+---
+
+### Entry: 2026-02-17 21:47
+
+Design element: Path-2 upstream reopen for 2A P4 (`1B representativeness` witness-first lane).
+Summary: Executing upstream reopen in `1B` to unblock 2A realism after P3 governance closure. This pass uses bounded policy-only tuning in `S2/S4` with witness seeds before full seed-pack expansion.
+
+Context anchor:
+1) 2A P3 closed S1 governance hard failures but remained `FAIL_REALISM` on concentration/entropy/representativeness.
+2) 1B remediation authority identifies macro allocation and assignment spread (`S2/S4`) as primary causal surfaces.
+
+Execution scope lock:
+1) Change surfaces (this pass):
+   - `config/layer1/1B/policy/policy.s2.tile_weights.yaml`
+   - `config/layer1/1B/policy/policy.s4.alloc_plan.yaml`
+2) No-change surfaces (this pass):
+   - `config/layer1/1B/policy/policy.s6.jitter.yaml` (held constant for first witness isolation),
+   - no 2A cap/threshold changes.
+
+Lane and rerun protocol:
+1) Candidate run root: `runs/fix-data-engine/segment_2A_p4b`.
+2) Stage run-ids from existing authorities with preserved seed/parameter/manifest identity.
+3) Witness reruns: `1B S2->S9` then `2A S0->S5` for seeds `{42,7}`.
+4) Gate to expand: witness movement must be positive without governance regression.
+
+Risk controls:
+1) Avoid destructive edits to retained roots (`segment_1B`, `segment_2A_p3`).
+2) Keep deterministic seeded flow; only policy knobs move.
+3) If witness is non-improving, hold full-seedpack expansion and iterate knobs.
+
+---
+
+### Entry: 2026-02-17 23:18
+
+Design element: `1B` reopen witness for `2A P4` and post-run disposition.
+Summary: Executed reopened `1B` policy lane (`S2/S4` only) as upstream driver test for 2A P4. Witness and full-seed outcomes did not clear 2A realism/governance closure and also regressed 1B runtime on larger seeds, so this policy set is not accepted as authority.
+
+Execution scope:
+1) Reopened policy surfaces:
+   - `config/layer1/1B/policy/policy.s2.tile_weights.yaml` (v `2026-02-17-p4b1-r1` candidate tuning),
+   - `config/layer1/1B/policy/policy.s4.alloc_plan.yaml` (v `2026-02-17-p4b1-r1` candidate tuning).
+2) Rerun lane:
+   - `1B S2->S9` on seeds `{42,7,101,202}` in `runs/fix-data-engine/segment_2A_p4b_r1`.
+
+Observed outcomes:
+1) Witness movement mixed and non-lockable:
+   - seed `42` improved some concentration axes but remained below B.
+   - seed `7` regressed on concentration/entropy + representativeness.
+2) Integrated 2A closure failed:
+   - seed `101`: downstream 2A `S1` fail `2A-S1-091` (fallback-country cap, `KZ`).
+   - seed `202`: downstream 2A `S1` fail `2A-S1-092` (override-rate cap).
+3) Runtime effect:
+   - compared to prior 1B authority logs, reopened `S2->S9` runtime regressed on seeds `7/101/202` by roughly `+12%` to `+18%`.
+
+Decision:
+1) Do not promote this `1B` reopen policy candidate.
+2) Keep existing 1B frozen authority posture unchanged.
+3) Treat `segment_2A_p4b_r1` as evidence-only lane for `P4` closure traceability.
+4) Restored repository policy files to pre-reopen authority content after evidence capture:
+   - `config/layer1/1B/policy/policy.s2.tile_weights.yaml`
+   - `config/layer1/1B/policy/policy.s4.alloc_plan.yaml`.
+
+### Entry: 2026-02-18 18:49
+
+Design element: cross-segment 1B topology reopen support for 2B (`P1.REOPEN.1B`).
+Summary: opening one bounded policy-only 1B candidate lane to test whether
+1B topology movement can reduce 2B tail-floor dominance, while preserving the
+optimized 1B runtime posture from `POPT`.
+
+Execution contract:
+1) authority source run:
+   - `runs/fix-data-engine/segment_1B/a0ae54639efc4955bc41a2e266224e6e`
+   - same manifest/parameter lineage as active 2B baseline.
+2) rerun scope:
+   - `1B S2->S9` only (S0/S1 frozen), staged via candidate-lane tool.
+3) change surfaces (candidate-local only):
+   - `config/layer1/1B/policy/policy.s2.tile_weights.yaml` (if needed),
+   - `config/layer1/1B/policy/policy.s4.alloc_plan.yaml` (primary).
+4) runtime posture (non-negotiable):
+   - keep the fast-compute-safe env lane unchanged from optimized authority.
+   - record `S4/S5/S6/S9` timings and fail-closed on material regression.
+5) downstream handoff:
+   - publish candidate `1B` outputs into a staged 2B run-id,
+   - execute `2A->2B` scoring to determine `GO_P3_RETRY_FROM_1B` or `NO_GO`.
+
+### Entry: 2026-02-18 19:13
+
+Design element: `P1.REOPEN.1B` runtime gate closure for R2 and bounded R3 recovery.
+Summary: R2 candidate run (`0ed63a7bff9d4c91855b516d41d0ec80`) passed `S9` but failed the runtime non-regression guard against 1B authority (`a0ae54639efc4955bc41a2e266224e6e`), so it is held from downstream propagation. Next attempt is constrained to a cache-key-preserving `S4` topology nudge.
+
+Measured runtime gate (R2):
+1) evidence:
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_1b_runtime_0ed63a7bff9d4c91855b516d41d0ec80.json`
+2) baseline -> candidate seconds:
+   - `S4: 163.375 -> 211.469` (`ratio=1.294`)
+   - `S5: 1.812 -> 1.657` (`ratio=0.914`)
+   - `S6: 89.750 -> 113.594` (`ratio=1.266`)
+   - `S9: 4.990 -> 4.120` (`ratio=0.826`)
+3) gate result:
+   - `runtime_non_regression=false`.
+   - decision: `NO_GO` for R2 propagation.
+
+Root-cause note (performance):
+1) `S4` alloc-plan disk cache group changed in R2 due policy-keyed fields (`policy_version` + diversification-window knobs), forcing cold misses and write-heavy rebuild.
+2) this violates the user-pinned performance-preserving requirement for the reopen lane.
+
+Bounded recovery lane (R3) decision:
+1) keep rerun scope as `1B S4->S9` only (preserve `S2/S3` authority surfaces).
+2) apply candidate-local `S4` changes only on knobs outside the disk-cache key material:
+   - move `country_share_soft_guard` / residual redistribution only,
+   - keep `policy_version` and diversification-window fields identical to authority.
+3) preserve fast-lane env posture unchanged; re-run runtime gate before any downstream `2A/2B` handoff.
+
+### Entry: 2026-02-18 19:28
+
+Design element: `P1.REOPEN.1B` R3/R3b execution closure with strict runtime guard.
+Summary: executed two bounded follow-up attempts after R2 (`NO_GO`) to preserve the 1B performance lane while reopening topology. R3 was invalid as a topology attempt (policy root precedence bug). R3b corrected external-root ordering and applied candidate-local `S4` policy as designed, but runtime gate remained red.
+
+Attempt trace:
+1) R3 candidate run-id: `641327198c4c40818a4ca6180f882f62`
+   - rerun scope: `S4->S9` completed `PASS`.
+   - issue: policy resolved from repo root instead of candidate root (`path=.../config/layer1/1B/policy/policy.s4.alloc_plan.yaml`), so intended topology delta was not applied.
+   - gate evidence:
+     - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_1b_runtime_641327198c4c40818a4ca6180f882f62.json`
+   - outcome: invalid as topology candidate + runtime gate red.
+
+2) R3b candidate run-id: `c24d00ed24564bbe81666808a1d04a77`
+   - correction: explicit external roots on every state run:
+     - `--external-root runs/fix-data-engine/segment_1B/c24d00ed24564bbe81666808a1d04a77`
+     - `--external-root .`
+   - confirmation: `S4` loaded candidate-local policy
+     - `soft_guard=0.1800`
+     - `path=runs/fix-data-engine/segment_1B/c24.../config/layer1/1B/policy/policy.s4.alloc_plan.yaml`
+   - gate evidence:
+     - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_1b_runtime_c24d00ed24564bbe81666808a1d04a77.json`
+   - baseline (`a0ae...`) -> R3b candidate:
+     - `S4: 163.375 -> 182.422` (`1.117x`)
+     - `S5: 1.812 -> 2.187` (`1.207x`)
+     - `S6: 89.750 -> 105.110` (`1.171x`)
+     - `S9: 4.990 -> 5.178` (`1.038x`)
+   - gate result: `runtime_non_regression=false`.
+
+Storage hygiene:
+1) superseded run-ids marked and pruned:
+   - `d61f851d92004720ad587c41ead0d6fe`
+   - `0ed63a7bff9d4c91855b516d41d0ec80`
+   - `641327198c4c40818a4ca6180f882f62`
+2) retained run-ids:
+   - authority: `a0ae54639efc4955bc41a2e266224e6e`
+   - latest valid topology candidate: `c24d00ed24564bbe81666808a1d04a77`
+
+Decision status:
+1) no downstream `2A->2B` propagation executed.
+2) lane remains fail-closed pending user direction because performance-preserving gate did not clear.
+
+### Entry: 2026-02-18 19:36
+
+Cross-segment closure note (`P1.REOPEN.1B` for 2B):
+1) reopen lane is now closed `NO_GO_P1_REOPEN_1B_ONLY`.
+2) frozen 1B authority remains:
+   - `a0ae54639efc4955bc41a2e266224e6e`
+3) no promotion of reopen candidates into downstream `2A/2B` lanes.

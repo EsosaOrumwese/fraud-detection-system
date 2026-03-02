@@ -1159,6 +1159,9 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
             manifest_fingerprint,
         )
 
+        hash_entry = find_dataset_entry(dictionary_3b, "edge_universe_hash_3B").entry
+        universe_hash_path = _resolve_dataset_path(hash_entry, run_paths, config.external_roots, tokens)
+
         universe_payload = {
             "manifest_fingerprint": str(manifest_fingerprint),
             "parameter_hash": str(parameter_hash),
@@ -1169,6 +1172,27 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
             "universe_hash": universe_hash,
             "created_at_utc": utc_now_rfc3339_micro(),
         }
+
+        # Keep edge_universe_hash replay-idempotent for a fixed run-id.
+        # If an existing payload has identical deterministic fields, reuse it verbatim
+        # so optional timestamp fields do not trigger rewrite mismatches.
+        deterministic_keys = [
+            "manifest_fingerprint",
+            "parameter_hash",
+            "cdn_weights_digest",
+            "edge_catalogue_index_digest",
+            "edge_alias_index_digest",
+            "virtual_rules_digest",
+            "universe_hash",
+        ]
+        if universe_hash_path.exists():
+            existing_payload = _load_json(universe_hash_path)
+            if isinstance(existing_payload, dict) and all(
+                str(existing_payload.get(key, "")) == str(universe_payload.get(key, ""))
+                for key in deterministic_keys
+            ):
+                universe_payload = existing_payload
+
         try:
             _validate_payload(schema_3b, schema_layer1, "validation/edge_universe_hash_3B", universe_payload)
         except SchemaValidationError as exc:
@@ -1188,12 +1212,10 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
 
         blob_entry = find_dataset_entry(dictionary_3b, "edge_alias_blob_3B").entry
         index_entry = find_dataset_entry(dictionary_3b, "edge_alias_index_3B").entry
-        hash_entry = find_dataset_entry(dictionary_3b, "edge_universe_hash_3B").entry
         gamma_entry = find_dataset_entry(dictionary_3b, "gamma_draw_log_3B").entry
 
         blob_path = _resolve_dataset_path(blob_entry, run_paths, config.external_roots, tokens)
         index_path = _resolve_dataset_path(index_entry, run_paths, config.external_roots, tokens)
-        universe_hash_path = _resolve_dataset_path(hash_entry, run_paths, config.external_roots, tokens)
         gamma_log_path = _resolve_dataset_path(gamma_entry, run_paths, config.external_roots, tokens)
 
         _atomic_publish_file(blob_tmp_path, blob_path, logger, "edge_alias_blob_3B")
@@ -1206,9 +1228,9 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
 
     except EngineFailure as exc:
         status = "FAIL"
-        error_code = exc.error_code
-        error_class = exc.error_class
-        error_context = exc.context
+        error_code = exc.failure_code
+        error_class = exc.failure_class
+        error_context = exc.detail
         if not first_failure_phase:
             first_failure_phase = current_phase
     except (ContractError, HashingError, InputResolutionError, SchemaValidationError, ValueError) as exc:

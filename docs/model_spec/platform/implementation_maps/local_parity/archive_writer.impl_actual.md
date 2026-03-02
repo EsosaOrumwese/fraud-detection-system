@@ -100,3 +100,18 @@ Close the component decision trail with explicit post-fix validation after intro
 
 ### Security note
 - No credentials/tokens added to component docs; only by-ref run artifact paths recorded.
+
+## Entry: 2026-02-18 4:54PM - Env-ladder hardening note for Kafka intake support
+
+### Context
+- Dev-substrate M7 execution exposed a runtime crash in archive writer when `event_bus_kind=kafka`.
+- Root cause was implicit fallback from non-kinesis intake to file reader path.
+
+### Implementation update
+- Added Kafka intake support and explicit bus-kind dispatch in:
+  - `src/fraud_detection/archive_writer/worker.py`
+  - `src/fraud_detection/event_bus/kafka.py` (reader support).
+
+### Local-parity continuity
+- Local parity archive writer remains kinesis-backed and behavior is unchanged.
+- This note is recorded in baseline history because the hardening removes an env-ladder drift class without altering local-parity semantics.

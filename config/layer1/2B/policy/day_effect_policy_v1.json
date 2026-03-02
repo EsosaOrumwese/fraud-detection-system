@@ -6,7 +6,7 @@
   },
   "draws_per_row": 1,
   "policy_id": "day_effect_policy_v1",
-  "policy_version": "1.0.2",
+  "policy_version": "1.0.3",
   "record_fields": [
     "gamma",
     "log_gamma",
@@ -34,7 +34,58 @@
   },
   "rng_engine": "philox2x64-10",
   "rng_stream_id": "2B.day_effects.gamma",
-  "sha256_hex": "f98ca0621eea84fb5f7054e81766b27aaa32f1ace136a256ffddae191dd5406a",
+  "sha256_hex": "75c50e1f6cfabfb0e785b7328870b148a85ea937a77ac98654262cd803a5ab64",
   "sigma_gamma": 0.12,
-  "version_tag": "1.0.2"
+  "sigma_gamma_policy_v2": {
+    "enabled": true,
+    "gamma_clip": {
+      "max": 1.45,
+      "min": 0.65
+    },
+    "sigma_base_by_segment": {
+      "default": 0.09,
+      "large": 0.085,
+      "mid": 0.09,
+      "small": 0.095
+    },
+    "sigma_jitter_by_merchant": {
+      "amplitude": 0.08,
+      "enabled": true,
+      "seed_scope": "merchant_id"
+    },
+    "sigma_max": 0.16,
+    "sigma_min": 0.06,
+    "sigma_multiplier_by_tz_group": {
+      "default": 1.0,
+      "prefix_rules": [
+        {
+          "multiplier": 1.02,
+          "prefix": "Europe/"
+        },
+        {
+          "multiplier": 1.01,
+          "prefix": "America/"
+        },
+        {
+          "multiplier": 0.99,
+          "prefix": "Asia/"
+        },
+        {
+          "multiplier": 1.01,
+          "prefix": "Africa/"
+        },
+        {
+          "multiplier": 0.99,
+          "prefix": "Pacific/"
+        }
+      ]
+    },
+    "weekly_component_amp_by_segment": {
+      "default": 0.01,
+      "large": 0.008,
+      "mid": 0.01,
+      "small": 0.012
+    }
+  },
+  "version_tag": "1.0.3"
 }

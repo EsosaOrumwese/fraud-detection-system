@@ -1,473 +1,154 @@
-# Closed-World Enterprise Fraud Platform — Concept Overview
-
-> **Status:** Data Engine specs sealed; implementation complete; final full-run validation complete. Now to build the other components in the platform.
-> **Mission:** Build a bank-grade, closed-world fraud platform. All data (train/test/stream/labels) comes **only** from the **Data Engine**. No third-party enrichment. Everything is governed by contracts, lineage, validation gates, and reproducible runs.
-> *Refer to `docs/references/closed-world-synthetic-data-engine-with-realism-conceptual-design.md` for more information*
-
----
-
-## Quick TL;DR
-- **Closed world:** the Data Engine is the single source of truth.  
-- **Contracts-first:** JSON-Schema is the authority; consumers must pass validation (**no PASS → no read**).  
-- **Reproducible:** every run is identified by `{ seed, parameter_hash, manifest_fingerprint }`.  
-- **Black-box interface:** platform components integrate via `docs/model_spec/data-engine/interface_pack/` (catalogue + gate map + boundary schemas).  
-- **Two feature planes:** online (low-latency, freshness SLOs) and offline (training/replay) with **identical transforms**.  
-- **Decision fabric:** guardrails → primary ML → optional 2nd stage; returns **ACTION + reasons + provenance** with a **degrade ladder** to keep latency SLOs.  
-- **Auditability:** immutable decision log + label store; deterministic replay/DR from lineage.
-
-### Current build status (2026-01-23)
-| Segment | States | Status | Notes |
-|---------|--------|--------|-------|
-| 1A | S0-S9 | **Implemented** | Authority surface for downstream segments |
-| 1B | S0-S9 | **Implemented** | Production-ready Layer-1 world realism |
-| 2A | S0-S5 | **Implemented** | Gate, TZ pipeline, timetable, legality, bundle |
-| 2B | S0-S8 | **Implemented** | Alias build, router core, audits, PASS bundle |
-| 3A | S0-S7 | **Implemented** | Layer-1 cross-zone merchants; PASS bundle emitted |
-| 3B | S0-S5 | **Implemented** | Layer-1 virtual merchants & CDN; PASS bundle emitted |
-| 5A | S0-S5 | **Implemented** | Layer-2 arrival surfaces & calendar |
-| 5B | S0-S5 | **Implemented** | Layer-2 arrival realisation (LGCP + routing) |
-| 6A | S0-S5 | **Implemented** | Layer-3 entity & product world |
-| 6B | S0-S5 | **Implemented** | Layer-3 behaviour & fraud cascades |
-
-
-### Spec sources (repo layout)
-- **Layer-1** - `docs/model_spec/data-engine/layer-1/.` holds all Layer-1 narratives, contracts, and state-flow docs (Segments 1A-3B) - **sealed**.
-- **Layer-2** - `docs/model_spec/data-engine/layer-2/.` mirrors the same structure for Segments 5A/5B - **sealed**.
-- **Layer-3** - `docs/model_spec/data-engine/layer-3/.` carries Segments 6A/6B - **sealed**.
-
-All layers reference upstream authorities explicitly (via schemas, dataset dictionaries, and artefact registries); no ad-hoc paths.
-
-### Black-box integration (platform-facing)
-Use the interface pack (no segment/state internals):
-- `docs/model_spec/data-engine/interface_pack/data_engine_interface.md`
-- `docs/model_spec/data-engine/interface_pack/engine_outputs.catalogue.yaml`
-- `docs/model_spec/data-engine/interface_pack/engine_gates.map.yaml`
-
----
-
-## Local Stack Overview (v0)
-**Profiles:** `config/platform/profiles/local.yaml` (file‑bus) and `config/platform/profiles/local_parity.yaml` (Kinesis parity).  
-
-**Components (local):**
-- **Oracle Store:** local filesystem dataset under `runs/local_full_run-5` (engine outputs); overridden by `ORACLE_ENGINE_RUN_ROOT`.
-- **WSP:** Python CLI (`fraud_detection.world_streamer_producer.*`), pushes to IG; checkpoints under `runs/fraud-platform/<platform_run_id>/wsp/checkpoints`.
-- **SR:** Python CLI (`fraud_detection.scenario_runner.*`); artifacts under `runs/fraud-platform/<platform_run_id>/sr`.
-- **IG:** Flask service on `http://localhost:8081`; indices under `runs/fraud-platform/<platform_run_id>/ig`.
-- **EB:** file‑bus log under `runs/fraud-platform/<platform_run_id>/eb` (topics `fp.bus.*`).
-
-**Optional local containers:**
-- **Postgres + MinIO** (SR parity) via `infra/local/docker-compose.sr-parity.yaml`.
-- **LocalStack** (Kinesis parity) for `local_parity` profile.
-
----
-
-## Concept Map
-```
-                            CLOSED-WORLD ENTERPRISE FRAUD PLATFORM — DETAILED ASCII MAP
-┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ CROSS-CUTTING RAILS:  CONTRACTS • LINEAGE • VALIDATION • PRIVACY/SECURITY • SLOs/OBSERVABILITY                           │
-│ JSON-Schema is authority · no PASS→no read · parameter_hash + manifest_fingerprint · deterministic replay · RBAC & KMS   │
-└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-
-   ┌──────────────────────┐          drives            ┌──────────────────────────────────────────┐        sidecars (not in flow)
-   │   SCENARIO RUNNER    │ =========================> │               DATA ENGINE                │ ===============================┐
-   │ (traffic & campaigns)│                            │ L1: world/merchant realism  (1A..3B)     │                                │
-   │ rate/seed/manifest   │                            │ L2: temporal arrivals       (2A..)       │                                │
-   │ controlled replays   │                            │ L3: fraud flows/dynamics    (3A..)       │                                │
-   └──────────────────────┘                            │ 4A/4B: reproducibility & validation      │                                │
-                                                       │ sealed, deterministic, lineage-anchored  │                                │
-                                                       └────────────┬─────────────────────────────┘                                │
-                                       emits canonical tx + lineage │                                                              │
-                                                                    ▼                                                              ▼
-                                                         ┌───────────────────────┐                                      ┌────────────────────────────┐
-                                                         │     INGESTION GATE    │                                      │ AUTHORITY SURFACES (RO)    │
-                                                         │ schema+lineage verify │                                      │ sites • zones/DST • order  │
-                                                         │ idempotent • tokenize │                                      │ civil-time legality        │
-                                                         └────────────┬──────────┘                                      │ lineage anchors (read-only)│
-                                                                      │                                                 └────────────────────────────┘
-                                                                      ▼
-                                             (contract-checked stream; lineage preserved)
-                                                         ┌───────────────────────┐
-                                                         │       EVENT BUS       │  (e.g., Kinesis)
-                                                         └────────────┬──────────┘
-                                      features (low latency)          │                       features+labels (batch parity)
-      ┌───────────────────────────────────────────┐                   │                 ┌────────────────────────────────────────┐
-      │        ONLINE FEATURE PLANE               │                   │                 │        OFFLINE FEATURE PLANE           │
-      │ counters, windows, trust, TTL/freshness   │◄──────────────────┘                 │ same transforms • same schemas         │
-      │ p95-safe reads (DynamoDB)                 │                                     │ dataset assembly for train/replay (S3) │
-      └───────────────┬───────────────────────────┘                                     └───────────────────────┬────────────────┘
-                      │                                                                                         │
-                      ▼                                                                                         ▼
-            ┌─────────────────────────────┐                                              ┌──────────────────────────────┐
-            │ IDENTITY & ENTITY GRAPH     │◄──────────────── stream updates ─────────────│      DECISION LOG & AUDIT    │
-            │ link device/person/account  │                                              │  STORE (immutable, queryable)│
-            │ mule rings • collusion      │                                              │ inputs • features • versions │
-            └──────────────┬──────────────┘                                              │ explanations • timings       │
-                           │ features                                                    └───────────────┬──────────────┘
-                           ▼                                                                             │
-                 ┌───────────────────────────────┐                                                       │
-                 │        DECISION FABRIC        │ <========= metrics & labels feedback =================┘
-                 │ 1) guardrails (cheap)         │ ---------------- deploy bundles -------------------->  ┌───────────────────────────┐
-                 │ 2) primary ML (calibrated)    │                                                        │   MODEL/POLICY REGISTRY   │
-                 │ 3) optional 2nd stage         │                                                        │ bundles in S3 + pointers  │
-                 │ reasons + provenance (signed) │                                                        │ in DynamoDB (immutable)   │
-                 └──────────────┬────────────────┘                                                        └──────────────┬────────────┘
-                                │ decisions                                                                     registry │/deploy
-          ┌─────────────────────┴────────────────────┐                                                          ┌────────▼────────────┐
-          │               ACTIONS LAYER              │                                                          │     MODEL FACTORY   │
-          │ APPROVE • STEP-UP • DECLINE • QUEUE      │                                                          │ train • eval • pkg  │
-          │ idempotent • audited (gateway sim)       │                                                          │ shadow→canary→ramp  │
-          └──────────────┬──────────────┬────────────┘                                                          └─────────────────────┘
-                         │ outcomes     │ queued cases
-                         ▼              ▼
-               ┌──────────────────┐   ┌───────────────────────────┐
-               │   LABEL STORE    │   │ CASE MGMT / WORKBENCH     │
-               │ fraud/FP/disputes│   │ queues • playbooks • links│
-               │ lagged states    │   └───────────────────────────┘
-               └──────────────────┘
-
-                                ┌─────────────────────────────────────────────────────────────────────────────────────────┐
-                                │                         DEGRADE LADDER (automatic)                                      │
-                                │ skip 2nd stage → use last-good features → raise STEP-UP → rules-only (keep SLOs)        │
-                                └─────────────────────────────────────────────────────────────────────────────────────────┘
-
-
-      ┌──────────────────────────────────────────────────────── RUN / OPERATE PLANE (AWS-oriented) ────────────────────────────────────────────────────┐
-      │ Orchestrate: Airflow (MWAA) DAGs → ECS Fargate tasks (engine runs, training, deploy, replay)                                                   │
-      │ Containers: ECR images per service (engine, scoring, replayer, feature updaters); healthchecks; blue/green                                     │
-      │ Storage: S3 (KMS) for lake + bundles • DynamoDB for online features & registries • RDS/Aurora for cases/audits                                 │
-      │ Bus: Kinesis streams (contract-checked puts) • Secrets: Secrets Manager/SSM • Access: least-privilege IAM                                      │
-      │ Engine Run Registry: manifests (seed, params, git, digests) • Engine State Registry: DAG of layers/subsegments/states                          │
-      └────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-
-
-┌───────────────────────────────────────────────────────────────────── OBSERVABILITY & GOVERNANCE ───────────────────────────────────────────────────┐
-│ Golden signals: latency p50/95/99, TPS, error rates, saturation • Data health: schema errors, nulls, volume deltas, lineage mismatches             │
-│ Feature freshness & train/serve skew • Model drift & decision-mix deltas • Corridor checks (synthetic probes) • Replay/DR from manifests           │
-│ Change control: contract tests in CI, determinism checks (re-run & byte-diff), dual read/write on risky paths • Security: encryption, redaction,   │
-│ retention policies • Audit: every decision carries {manifest_id, feature_view_hash, model/policy versions, reasons, timings}                       │
-└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-
-Legend (compact):
-• (RO) authority = read-only truth surfaces (never re-derived) • arrows = data/control flow • sealed = closed-world, engine-only data
-```
-
----
-
-## How a day runs (execution flow)
-1. **Scenario Runner → Data Engine.** Emits production-shaped transactions, labels, and **authority surfaces** (sites/zones/DST/order) with lineage.  
-2. **Ingestion Gate.** Verifies schema + lineage, enforces idempotency, and tokenizes sensitive fields by default.  
-3. **Event Bus.** Broadcasts the contract-checked stream; lineage is preserved end-to-end.  
-4. **Features (two planes, one truth).**  
-   - **Online:** low-latency windows/counters with freshness SLOs.  
-   - **Offline:** same transforms/schemas for training and replay; every decision references a **feature snapshot hash**.  
-5. **Decision Fabric.** Guardrails → primary ML → optional 2nd stage; returns **ACTION + reasons + provenance**.  
-6. **Actions & side effects.** Approve / Step-up / Decline / Queue are **idempotent** and audited.  
-7. **Label Store.** Internal outcomes (immediate + delayed) produce rigorous labels inside the closed world.  
-8. **Model Factory & Registry.** Train/evaluate → register immutable bundles → **shadow → canary → ramp** with clear rollback.  
-9. **Observability & Governance.** Golden signals, data health, drift, contract tests in CI, and deterministic replays from manifests.
-
----
-
-## Core tenets
-- **JSON-Schema authority.** Schemas live in `contracts/`; code does not redefine fields.  
-- **No PASS → no read.** Producers publish a validation bundle `_passed.flag`; consumers must check it.  
-- **Lineage anchors.**  
-  - `parameter_hash` — governed parameters that define a run’s semantics.  
-  - `manifest_fingerprint` — digest of **everything opened** (incl. git tree + artefacts).  
-- **Determinism & replay.** Strict RNG mapping; counters/trace envelopes; reproducible runs keyed by `{seed, parameter_hash, manifest_fingerprint}`.  
-- **Separation of concerns.** (suggestion not binding) 
-  - emitters (schema-bound I/O)  
-  - pure kernels  
-  - orchestrators  
-  - validators (read-only proofs)
-
----
-
-## Components at a glance
-- **Data Engine (L1→L3 + 4A/4B).** Generates canonical ledgers, labels, and authority surfaces; publishes validation bundles.  
-- **Ingestion Gate.** First write path; schema + lineage checks; idempotency; tokenization.  
-- **Event Bus.** Contract-checked stream for real-time consumers.  
-- **Identity & Entity Graph.** Deterministic linking (people/devices/accounts/merchants) and cluster features.  
-- **Feature planes.** Online (low-latency; freshness SLOs) and offline (training/replay) with identical logic.  
-- **Decision Fabric.** Rules + ML with explanations & provenance; **degrade ladder** to preserve latency SLOs.  
-- **Actions Layer.** Idempotent approvals/declines/step-ups/queues; audited.  
-- **Label Store.** Ground truth inside the sealed world (fraud/FP/dispute; timing lags modeled).  
-- **Decision Log & Audit Store.** Immutable, queryable record of inputs, feature snapshot, versions, action, explanations, timings.  
-- **Model Factory & Registry.** Trains/evaluates; registers immutable bundles; resolves **active/canary** for deployment.  
-- **Operate/Run plane.** Orchestration of jobs/services; containerized workloads; least-privilege access; secrets outside code.
-
----
-
-## Authority boundaries (never re-derived downstream)
-- **Country order** and **domestic outlet counts `N`** come from the location-realism authority tables (not file order).  
-- **Foreign target `K_target`** is fixed by its sampler; realization/capping is downstream, but **order remains upstream**.  
-- **Civil time legality** (zone/offset/DST) is an upstream authority; runtime only validates.
-
----
-
-## SLO envelope & degrade policy (design targets)
-- End-to-end decision latency protects a strict p99 budget.  
-- Automatic degrade: **skip 2nd stage → use last-good features → raise STEP-UP → rules-only**, while keeping auditability.
-
----
-
-## Interfaces (high-level contracts)
-> Canonical shapes; exact schemas live in `contracts/`.
-
-- **Scoring API (Decision Fabric)**  
-  `POST /score` → `{ action, score, reasons[], model_version, policy_version, manifest_id, feature_view_hash, latency_ms }`
-
-- **Replayer → Bus**  
-  messages include `{ manifest_id, scenario_id, seq_no, idempotency_key }`
-
-- **Model/Policy Registry (read-only)**  
-  `GET /bundles/active/scoring` → `{ model_uri, policy_uri, checksum, promoted_at }`
-
-- **Decision Log row**  
-  `{ ts, tx_id, entity_ids, features_hash, model_version, policy_version, action, reasons, latency_ms, manifest_id }`
-
-- **Run manifest**  
-  `{ fingerprint, seed, parameter_hashes[], git_tree, artefact_digests, created_at }`
-
----
-
-## Current scope & reading order
-- **Current focus:** Data Engine - **Layer-1 / Segment 3A (spec + pre-implementation)**; Segments 1A, 1B, 2A & 2B are sealed authority surfaces feeding downstream work.  
-- **Reading order:** `contracts/` → `packages/engine/` → `services/` (concept) → `orchestration/` (concept).  
-- **Promotion path:** when a service becomes real, it graduates from `services/<name>/` (docs) to `packages/svc-<name>/` (its own package).
-
----
-
-## Repository layout (proposed end‑state)
-```text
-fraud-detection-system/
-├─ src/
-│  └─ fraud_detection/
-│     ├─ scenario_runner/          # SR core (N1–N8), IP1/IP2/IP3/IP5+ later
-│     ├─ ingestion_gate/           # IG core: admission + evidence gating
-│     ├─ event_bus/                # EB control/replay interfaces (adapters)
-│     ├─ decision_fabric/          # DF decision pipeline orchestration
-│     ├─ actions_layer/            # AL side‑effects + outcome tracking
-│     ├─ decision_log_audit/       # DLA immutable audit truth
-│     ├─ label_case/               # Label Store + Case mgmt (future)
-│     ├─ learning_registry/        # Model/feature registry + learning loops
-│     ├─ observability_governance/ # Obs/Gov metrics + policy enforcement
-│     ├─ common/                   # shared models, pins, hashing, errors
-│     └─ adapters/                 # infra adapters (db, bus, object store)
-│
-├─ packages/
-│  └─ engine/                      # sealed engine package (black‑box)
-│
-├─ services/
-│  ├─ scenario_runner/             # SR service entrypoint + Dockerfile
-│  ├─ ingestion_gate/              # IG service entrypoint + Dockerfile
-│  ├─ event_bus/                   # EB service/bridge (if not managed)
-│  ├─ decision_fabric/             # DF service entrypoint + Dockerfile
-│  ├─ actions_layer/               # AL service entrypoint + Dockerfile
-│  ├─ decision_log_audit/          # DLA service entrypoint + Dockerfile
-│  ├─ label_case/                  # Label/Case service entrypoint
-│  ├─ learning_registry/           # Registry service entrypoint
-│  └─ observability_governance/    # Obs/Gov service entrypoint
-│
-├─ docs/
-│  ├─ model_spec/
-│  │  ├─ data-engine/interface_pack/           # engine boundary contract
-│  │  └─ platform/
-│  │     ├─ platform-wide/                     # system‑level notes
-│  │     ├─ component-specific/                # design authority per component
-│  │     ├─ implementation_maps/               # build plans + impl_actual
-│  │     └─ contracts/                         # platform truth schemas
-│  └─ logbook/                                 # execution log (daily)
-│
-├─ config/
-│  └─ platform/
-│     ├─ sr/                    # SR wiring + policy profiles
-│     ├─ ig/                    # IG wiring + policy profiles
-│     ├─ eb/                    # EB wiring
-│     ├─ df/                    # DF wiring
-│     ├─ al/                    # AL wiring
-│     ├─ dla/                   # DLA wiring
-│     ├─ lc/                    # Label/Case wiring
-│     ├─ lr/                    # Learning/Registry wiring
-│     └─ og/                    # Obs/Gov wiring
-│
-├─ orchestration/               # workflow defs, DAGs, or job runners
-├─ infra/                       # IaC (terraform/helm), env bootstrap
-├─ tools/                       # build/deploy scripts
-├─ tests/
-│  ├─ services/                 # component integration tests
-│  └─ unit/                     # shared/unit tests
-├─ contracts/                   # reserved for global contracts (if unlocked)
-└─ pyproject.toml               # monorepo packaging + deps
-```
-
-
----
-
-## Glossary
-- **Closed world** — all data (train/test/stream/labels) is produced internally by the Data Engine.  
-- **Validation bundle / `_passed.flag`** — proof that a dataset/run passed structural & corridor checks.  
-- **`parameter_hash`** — digest of governed parameter sets that define run semantics.  
-- **`manifest_fingerprint`** — digest of everything the run opened (incl. git tree and artefacts).  
-- **Degrade ladder** — automatic path to meet SLOs under pressure (skip 2nd stage → last-good features → STEP-UP → rules-only).
-- The **component logic lives in `src/fraud_detection/*`**, while **deployable services live in `services/*`**.
-- If any component needs independent release cadence later, it can be promoted into `packages/` without breaking service layout.
-
----
-
-## Data Engine Progress
-
-```
-============================ DATA ENGINE (progress) ============================
-[ Merchant-Location Realism ] | [ Arrival Mechanics ] | [ Flow Dynamics ]
-       [  ONLINE  ]           |     [ ONLINE ]        |     [ ONLINE ]
-
--------------------------------------------------------------------------------
-| 4A Reproducibility + 4B Validation = CROSS-CUTTING (baked into every box)   |
-| VALIDATION HARNESS: ON FROM DAY 0 (spans all layers; not a tail-end step)   |
--------------------------------------------------------------------------------
-```
-
-```
-=========== Merchant-Location Realism ===========
-Sub-segments:
-  1A  Merchants → Physical Sites  ............. [ ONLINE ]
-  1B  Place Sites on Planet ................... [ ONLINE ]
-  2A  Civil Time Zone (IANA/DST) .............. [ ONLINE ]
-  2B  Routing Through Sites ................... [ ONLINE ]
-  3A  Cross-Zone Merchants .................... [ ONLINE ]
-  3B  Purely Virtual Merchants ................ [ ONLINE ]
-
-[4A/4B overlay]  >>> applied to every sub-segment above (inputs/outputs, RNG,
-                   manifests, schema checks, and per-state validation gates)
-```
-
-```
-=========== 1A state-flow (10 states; live) ===========
-S0 -> S1 -> S2 -> S3 -> S4 -> S5 -> S6 -> S7 -> S8 -> S9
-
-Where (short labels just to anchor the flow):
-S0 Prep      S1 Hurdle     S2 Domestic N   S3 X-border gate   S4 Foreign K
-S5 Weights   S6 Select K   S7 Allocate N   S8 Egress/IDs      S9 Replay+Gate
-
-
-=========== 1B state-flow (10 states; live) ===========
-S0 -> S1 -> S2 -> S3 -> S4 -> S5 -> S6 -> S7 -> S8 -> S9
-
-Where (short labels just to anchor the flow):
-S0 Gate 1A bundle       S1 Country tiling          S2 Tile priors
-S3 Derive site counts   S4 Integerise shares       S5 Pick cells (RNG)
-S6 Jitter points (RNG)  S7 Synthesize sites        S8 `site_locations`
-S9 Validation bundle
-
-
-=========== 2A state-flow (6 states; live) ===========
-S0 -> S1 -> S2 -> S3 -> S4 -> S5
-
-Where (short labels just to anchor the flow):
-S0 Gate & Sealed Inputs        S1 Provisional TZ Lookup       S2 Overrides & Finalisation
-S3 Timetable Cache             S4 Legality Report             S5 Validation Bundle
-
-
-=========== 2B state-flow (9 states; live) ===========
-S0 -> S1 -> S2 -> S3 -> S4 -> S5 -> S6 -> S7 -> S8
-
-Where (short labels just to anchor the flow):
-S0 Gate & Sealed Inputs        S1 Site Weights                S2 Alias Tables
-S3 Day Effects (γ draws)       S4 Group Weights (Σ=1)         S5 Router Core (group→site)
-S6 Virtual Edge Routing        S7 Audits & CI Gate            S8 Validation Bundle & `_passed.flag`
-
-
-=========== 3A state-flow (8 states; live) ===========
-S0 -> S1 -> S2 -> S3 -> S4 -> S5 -> S6 -> S7
-
-Where (short labels just to anchor the flow):
-S0 Gate & Sealed Inputs        S1 Mixture Policy & Escalation Queue
-S2 Dirichlet Priors            S3 Zone Share Draws (Dirichlet)
-S4 Integerise w/ Floors & Bump S5 Bind Allocation + Universe Hash
-S6 Structural Validation       S7 Validation Bundle & `_passed.flag`
-
-
-=========== 3B state-flow (6 states; live) ===========
-S0 -> S1 -> S2 -> S3 -> S4 -> S5
-
-Where (short labels just to anchor the flow):
-S0 Gate & Sealed Inputs        S1 Virtual ID + Settlement Node
-S2 CDN Edge Catalogue (HRSL)   S3 Alias Tables & Universe Hash
-S4 Dual-TZ Routing Policy + CI S5 Validation Bundle & `_passed.flag`
-
-
-Legend:
-[OPEN]   = exposed/being worked
-[LOCKED] = not yet opened to define
-4A/4B    = reproducibility + validation, cross-cutting across all boxes/states
-```
-
-```markdown
-=========== Arrival Mechanics (Layer 2) ===========
-Sub-segments:
-  5A  Arrival Surfaces & Calendar              [ ONLINE ]
-  5B  Arrival Realisation (LGCP + Routing)     [ ONLINE]
-
-Notes:
-  - 5A defines deterministic intensity surfaces per merchant/zone/time bucket,
-    with calendar/scenario overlays (paydays, holidays, campaigns).
-  - 5B realises arrivals from those surfaces using LGCP-style latent fields
-    plus Poisson draws, then routes each arrival through L1 alias tables and edges to a site.
-
-[4A/4B overlay]  >>> S0 gate + validation bundle pattern reused for 5A/5B
-                   (same run sealing, RNG, and HashGate discipline as Layer 1)
-
-
-=========== Flow Dynamics (Layer 3) ===========
-Sub-segments:
-  6A  Entity & Product World                   [ ONLINE ]
-  6B  Behaviour & Fraud Cascades               [ ONLINE ]
-
-Notes:
-  - 6A builds the entity graph: customers, accounts, instruments, devices, IPs,
-    merchant-side accounts, and static fraud roles (mules, synthetic IDs, risky merchants).
-  - 6B maps arrivals to entities, generates transactional flows (auth/clear/refund/
-    chargeback), overlays fraud and abuse campaigns, and produces truth plus bank-view labels.
-
-[4A/4B overlay]  >>> same governance rails in Layer 3:
-                   sealed inputs, deterministic specs, validation bundles,
-                   and "no PASS -> no read" for all L3 outputs
-```
-
----
-
-## Developer Tooling
-
-We ship a lean pre-commit configuration that focuses on the active engine work:
-
-- `ruff` / `ruff-format` for linting and formatting Python sources.
-- `pre-commit-hooks` + `pretty-format-yaml` for newline, whitespace, and YAML hygiene limited to governed folders.
-- `mypy` scoped to `packages/engine/**` (run manually via `pre-commit run mypy --hook-stage manual`).
-- `gitleaks` runs on pre-push for secrets scanning (config in `gitleaks.toml`).
-
-Install or refresh the hooks locally with:
+# Closed-World Fraud Platform
+
+Production-shaped fraud platform built on a closed-world data contract.
+
+This repository contains:
+1. A sealed Data Engine interface boundary (treated as black-box for platform work).
+2. A multi-plane fraud platform (Control/Ingress, RTDL, Decision/Audit, Case/Labels, Learning/Evolution, Obs/Gov).
+3. Migration and implementation maps from local parity to managed dev substrates.
+
+## Architecture Overview (Dev Full)
+
+![Dev Full Platform Overview](docs/design/platform/dev_full/graph/dev_full_platform_overview_v2.mermaid.png)
+
+Source graph:
+- `docs/design/platform/dev_full/graph/dev_full_platform_overview_v2.mermaid.mmd`
+
+## What This Platform Does
+
+At a high level:
+1. Streams runtime traffic through a governed ingestion boundary.
+2. Projects real-time context/features and executes decision/action/audit flows.
+3. Manages case and labels as append-only operational truth.
+4. Builds learning datasets and model-evaluation artifacts on managed lanes.
+5. Enforces run-scoped evidence, replayability, and fail-closed gates.
+
+## Current Posture
+
+As of March 2, 2026:
+1. Data Engine is sealed for platform work; consume only the interface pack.
+2. `dev_min` migration baseline is completed as the managed spine baseline.
+3. `dev_full` build map is closed through M14 (runtime repin) and M15 (data semantics realization) with certification handoff prepared.
+4. Runtime and Ops/Gov certification tracks exist as separate plans and are the next operational closure step.
+
+Authoritative status files:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.impl_actual.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/cert_handoff.md`
+
+## Environment Ladder
+
+1. `local_parity`: semantic harness and deterministic local validation.
+2. `dev_min`: managed-substrate spine baseline.
+3. `dev_full`: full-platform managed stack and production-shaped operations.
+4. `prod_target`: future hardening/expansion target.
+
+## Repository Map
+
+Core areas:
+1. `src/fraud_detection/`: platform component implementations.
+2. `packages/engine/`: data engine package (black-box boundary for platform track).
+3. `docs/model_spec/platform/`: design authority, migration runbooks, handles, build/impl maps.
+4. `docs/model_spec/data-engine/interface_pack/`: contract boundary from engine to platform.
+5. `infra/terraform/`: substrate IaC stacks.
+6. `.github/workflows/`: managed execution lanes (build/migration/certification workflows).
+7. `runs/`: local run artifacts and generated evidence snapshots.
+
+## Read First (Source-of-Truth Order)
+
+For platform work, start here:
+1. `docs/model_spec/platform/pre-design_decisions/dev-full_managed-substrate_migration.design-authority.v0.md`
+2. `docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md`
+3. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`
+4. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
+5. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.impl_actual.md`
+
+For engine integration boundary:
+1. `docs/model_spec/data-engine/interface_pack/data_engine_interface.md`
+
+## Local Development Quickstart
+
+Prerequisites:
+1. Python `>=3.11,<3.13`
+2. Poetry
+3. Docker (for selected local/parity lanes)
+
+Install:
 
 ```bash
+poetry install
 python -m pre_commit install --install-hooks
 ```
 
-Run them on demand with:
+Useful checks:
 
 ```bash
 python -m pre_commit run --all-files
+pytest -q
 ```
 
-These commands keep the hook environments reproducible without blocking commits for tooling issues outside the governed paths.
+## Useful Make Targets
 
----
+Local/parity orchestration:
+1. `make platform-stack-up`
+2. `make platform-stack-status`
+3. `make platform-stack-down`
+4. `make platform-parity-bootstrap`
+5. `make platform-run-new`
 
-## Local workflow (SR + IG)
-For repeatable local runs (containers, SR reuse runs, IG READY ingestion, audit checks), use the Makefile targets:
-- `make platform-stack-up` / `make platform-stack-down` / `make platform-stack-status`
-- `make platform-sr-run-reuse`
-- `make platform-ig-ready-once` / `make platform-ig-ready-dual`
-- `make platform-ig-audit IG_AUDIT_RUN_ID=<run_id>`
+Platform operate packs:
+1. `make platform-operate-control-ingress-up`
+2. `make platform-operate-rtdl-core-up`
+3. `make platform-operate-rtdl-decision-up`
+4. `make platform-operate-case-labels-up`
+5. `make platform-operate-learning-jobs-up`
+6. `make platform-operate-obs-gov-up`
+7. `make platform-operate-parity-up`
+8. `make platform-operate-parity-down`
 
-Create a gitignored `.env.platform.local` (or `.env.local`) using `.env.example` if you want to keep env vars out of your shell profile.
+Oracle-boundary helpers:
+1. `make platform-oracle-pack`
+2. `make platform-oracle-stream-sort`
+3. `make platform-oracle-check`
+
+Reporting/governance helpers:
+1. `make platform-run-report`
+2. `make platform-governance-query`
+3. `make platform-env-conformance`
+
+## Managed Workflow Lanes
+
+Managed execution is driven from `.github/workflows/` (examples):
+1. `dev_full_m1_packaging.yml`
+2. `dev_full_m6f_streaming_active.yml`
+3. `dev_full_m6h_ingest_commit.yml`
+4. `dev_full_m7k_throughput_cert.yml`
+5. `dev_full_m10_ab_managed.yml`
+6. `dev_full_m11_managed.yml`
+7. `dev_full_m12_managed.yml`
+8. `dev_full_m13_managed.yml`
+
+Dev-min operational lanes remain under `dev_min_*` workflow files.
+
+## Design Laws in Practice
+
+This project is run with strict implementation laws:
+1. Fail-closed gates (no silent pass on missing evidence).
+2. Decision-completeness before phase execution.
+3. Phase-coverage (anti-cram) planning.
+4. Drift sentinel checks against authority docs.
+5. Performance-first and cost-control as acceptance criteria.
+6. Append-only provenance and replay-safe posture.
+
+Primary law router:
+- `AGENTS.md`
+
+## Security and Secrets
+
+1. Do not commit credentials or runtime tokens.
+2. Use GitHub Secrets / AWS SSM / Secrets Manager for managed lanes.
+3. Keep `.env*` files local and gitignored unless explicitly intended.
+
+## License
+
+MIT - see `LICENSE`.

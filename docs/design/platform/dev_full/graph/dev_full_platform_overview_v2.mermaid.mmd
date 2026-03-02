@@ -1,0 +1,74 @@
+flowchart LR
+  %% L0: Fraud Platform Overview (prod-shaped)
+
+  subgraph EXTERNAL[External Boundary]
+    DE[Data Engine]
+    ORACLE[("Oracle Store: S3<br/>(full bundle, read-only to runtime)")]
+  end
+
+  subgraph PREP[Batch Prep Under Oracle Boundary]
+    SORT["Stream-sort / Stream-view materialization<br/>(Spark: EMR Serverless / Glue / Databricks)"]
+  end
+
+  subgraph CONTROL[Delivery + Run Control]
+    CI["CI/CD + IaC<br/>(GitHub Actions + Terraform)"]
+    SFN["Run Orchestration<br/>(Step Functions)"]
+    EVID[(Run Control + Evidence: S3)]
+    COST["Teardown + Cost Guardrail<br/>(residual scan + idle-safe)"]
+  end
+
+  subgraph INGRESS[Ingestion Truth Boundary]
+    PROD["Run start + Stream producer<br/>(SFN + task)"]
+    IG["Ingestion Gate<br/>(API GW + Lambda + DDB idempotency)"]
+  end
+
+  subgraph STREAM[Streaming + RTDL Hot Path]
+    MSK[("MSK Serverless<br/>(control + traffic + learning buses)")]
+    FLINK["RTDL projections<br/>(Managed Flink)"]
+    STATE[(State: Aurora + Redis)]
+  end
+
+  subgraph DECISION[Decision + Audit]
+    DEC["Decision services<br/>(DF/AL/DLA runtime)"]
+    ARCH["Archive/Audit sink<br/>(MSK Connect -> S3)"]
+    CASE["Case + Labels<br/>(ECS/Fargate + Aurora)"]
+  end
+
+  subgraph LEARN[Learning + Promotion Loop]
+    OFS["Dataset build<br/>(Databricks)"]
+    MF["Train/Eval<br/>(SageMaker)"]
+    MLF["Tracking/Registry<br/>(MLflow + MPR)"]
+  end
+
+  subgraph OBS[Observability]
+    OTEL[OTel correlation]
+    CW[CloudWatch]
+  end
+
+  %% Flow
+  DE --> ORACLE
+  ORACLE --> SORT --> ORACLE
+
+  CI --> SFN
+  SFN --> PROD
+  SFN --> EVID
+  SFN --> COST
+
+  ORACLE --> PROD --> IG --> MSK
+  MSK --> FLINK --> STATE
+  MSK --> DEC --> CASE
+  MSK --> ARCH --> EVID
+  DEC --> EVID
+  CASE --> EVID
+
+  %% Learning is delayed supervision (time-causal)
+  MSK --> OFS --> MF --> MLF --> DEC
+
+  %% Telemetry everywhere
+  OTEL --> CW
+  PROD -.-> OTEL
+  IG -.-> OTEL
+  FLINK -.-> OTEL
+  DEC -.-> OTEL
+  OFS -.-> OTEL
+  MF -.-> OTEL

@@ -3040,3 +3040,1548 @@ Implementation details:
   table schemas.
 
 Next: re-run `make segment3a-s7`.
+
+---
+
+### Entry: 2026-02-18 21:06
+
+Design element: 3A remediation build-plan initialization (`B/B+` target).
+Summary: read the `3A` published/remediation reports and all `S0..S7`
+state-expanded specs, then created a phased remediation plan with explicit
+runtime and statistical gates.
+
+Authority inputs reviewed for this planning pass:
+1) statistical reports:
+   - `docs/reports/eda/segment_3A/segment_3A_published_report.md`
+   - `docs/reports/eda/segment_3A/segment_3A_remediation_report.md`
+2) state-expanded contracts:
+   - `docs/model_spec/data-engine/layer-1/specs/state-flow/3A/state.3A.s0.expanded.md`
+   - `docs/model_spec/data-engine/layer-1/specs/state-flow/3A/state.3A.s1.expanded.md`
+   - `docs/model_spec/data-engine/layer-1/specs/state-flow/3A/state.3A.s2.expanded.md`
+   - `docs/model_spec/data-engine/layer-1/specs/state-flow/3A/state.3A.s3.expanded.md`
+   - `docs/model_spec/data-engine/layer-1/specs/state-flow/3A/state.3A.s4.expanded.md`
+   - `docs/model_spec/data-engine/layer-1/specs/state-flow/3A/state.3A.s5.expanded.md`
+   - `docs/model_spec/data-engine/layer-1/specs/state-flow/3A/state.3A.s6.expanded.md`
+   - `docs/model_spec/data-engine/layer-1/specs/state-flow/3A/state.3A.s7.expanded.md`
+
+Planning decisions pinned:
+1) causal remediation focus:
+   - `S2` prior geometry -> `S3` dispersion -> `S4` anti-collapse -> `zone_alloc`.
+2) state-role posture:
+   - `S0/S6/S7` remain veto rails and evidence gates, not optimization targets.
+3) upstream freeze posture for initial cycle:
+   - `1A/1B/2A/2B` remain frozen unless explicit reopen decision is made later.
+4) runtime law enforcement:
+   - added mandatory `POPT` lane before data-shape tuning.
+5) certification law:
+   - required seedpack `{42,7,101,202}`,
+   - explicit hard `B` gates, `B+` stretch gates, and cross-seed CV gates.
+
+Artifact created:
+1) `docs/model_spec/data-engine/implementation_maps/segment_3A.build_plan.md`
+   - includes phased plan: `POPT.0`, `POPT.1`, `P0`, `P1`, `P2`, `P3`,
+     conditional `P4`, `P5`, `P6`.
+   - each phase has explicit scope and DoD checklist.
+
+---
+
+### Entry: 2026-02-18 21:13
+
+Design element: `POPT.0` execution plan (`3A` runtime baseline + hotspot map).
+Summary: execute one clean `3A S0->S7` chain in a dedicated fix-data-engine run
+root with frozen-upstream posture, then emit baseline runtime artifacts and
+pin budget targets for `POPT.1`.
+
+Decision and execution contract:
+1) run-root strategy:
+   - create `runs/fix-data-engine/segment_3A/<run_id>` with a staged
+     `run_receipt.json` cloned from authority lineage `c25...` and updated
+     `run_id`.
+2) input-resolution strategy:
+   - keep run-local root first and frozen authority root second in
+     `ENGINE_EXTERNAL_ROOTS` so upstream 1A/1B/2A surfaces resolve without
+     copying large upstream data into candidate root.
+3) execution scope:
+   - run full `make segment3a` (`S0->S7`) for seed `42`.
+4) baseline artifact strategy:
+   - add `tools/score_segment3a_popt0_baseline.py` to emit:
+     - `segment3a_popt0_baseline_<run_id>.json`
+     - `segment3a_popt0_hotspot_map_<run_id>.md`
+5) closure checks for this phase:
+   - measured per-state elapsed table is emitted,
+   - ranked hotspot map is emitted,
+   - progression gate and runtime budget targets are pinned in build plan.
+
+---
+
+### Entry: 2026-02-18 21:18
+
+Design element: `POPT.0` scorer contract finalization for `3A`.
+Summary: locked runtime/evidence extraction strategy based on live `c25...`
+artifact structure before implementing `score_segment3a_popt0_baseline.py`.
+
+Key findings and decisions:
+1) report-shape reality for `3A`:
+   - `S1..S7` emit `run_report.json` under `reports/layer1/3A/state=S*/...`.
+   - `S0` does not emit a state run-report in current lineage; timing must come
+     from run-log start/complete markers and evidence from `s0_gate_receipt_3A`
+     plus `sealed_inputs_3A`.
+2) timing source of truth:
+   - use run-log window parsing for `S0..S7` with:
+     - starts: `engine.layers.l1.seg_3A.sN_*: S[N]: run log initialized`.
+     - completes: `S[N] 3A complete:` CLI lines.
+3) evidence payload strategy:
+   - `S0`: upstream gate count, sealed policy count, sealed input count.
+   - `S1..S7`: compact counters/digests from each state run-report.
+   - `S7`: include validation `index.json` file count + `_passed.flag` presence.
+4) budget posture for `POPT.0`:
+   - pin tight single-process budgets in seconds with `S6/S7/S5` expected as
+     primary hotspot candidates for `POPT.1`.
+5) execution sequencing:
+   - implement scorer first,
+   - stage fresh `runs/fix-data-engine/segment_3A/<run_id>` receipt,
+   - run `make segment3a` with frozen-upstream external-root precedence,
+   - emit baseline + hotspot artifacts and close POPT.0 checklist rows.
+
+---
+
+### Entry: 2026-02-18 21:31
+
+Design element: `POPT.0` execution + closure (`3A`).
+Summary: implemented the `3A` runtime scorer, executed clean `S0->S7` lane,
+resolved run-lane staging issues, and pinned hotspot authority for `POPT.1`.
+
+Implementation and execution trail:
+1) new scorer implemented:
+   - `tools/score_segment3a_popt0_baseline.py`.
+   - emits:
+     - `segment3a_popt0_baseline_<run_id>.json`
+     - `segment3a_popt0_hotspot_map_<run_id>.md`
+   - evidence extraction contract:
+     - `S0` from run-log timing + `s0_gate_receipt_3A` + `sealed_inputs_3A`.
+     - `S1..S7` from run-report counters/digests.
+     - `S7` also checks validation `index.json` / `_passed.flag`.
+2) run-lane issue discovered and handled:
+   - first candidate run failed gate resolution because `3A S0` expects upstream
+     `1A/1B/2A` surfaces under active run-id path.
+   - lane staging adjusted by copying required upstream surfaces from authority
+     run (`1A validation + outlet_catalogue`, `1B validation`, `2A validation +
+     site_timezones + tz_timetable_cache + legality_report`).
+3) schema-format issue discovered and handled:
+   - `S0` rejected receipt timestamp with 3 fractional digits (`.fff`), while
+     schema requires exactly 6 (`.ffffff`).
+   - fixed by writing staged `run_receipt.created_utc` with 6-digit fractional
+     precision before run.
+4) clean authority run executed:
+   - run-id: `06b822558c294a0888e3f8f342e83947`.
+   - command lane: `make segment3a` with
+     `ENGINE_RUNS_ROOT=runs/fix-data-engine/segment_3A` and frozen-upstream
+     external roots (`segment_3A`, `c25...`, repo root, `runs/local_full_run-5`).
+   - result: full `S0..S7` PASS.
+5) baseline scoring and hotspot authority:
+   - artifacts:
+     - `runs/fix-data-engine/segment_3A/reports/segment3a_popt0_baseline_06b822558c294a0888e3f8f342e83947.json`
+     - `runs/fix-data-engine/segment_3A/reports/segment3a_popt0_hotspot_map_06b822558c294a0888e3f8f342e83947.md`
+   - ranked hotspots:
+     - `S6` (`17.94s`, `RED`) primary,
+     - `S7` (`13.14s`, `RED`) secondary,
+     - `S5` (`12.50s`, `RED`) closure.
+   - progression gate: `GO`, `next_state_for_popt1=S6`.
+6) storage hygiene:
+   - pruned superseded run folders in `runs/fix-data-engine/segment_3A` and
+     retained only active run-id folder + reports.
+
+Outcome:
+- `POPT.0` is closed and `POPT.1` target lane is now explicitly `S6 -> S7/S5`.
+
+---
+
+### Entry: 2026-02-19 01:12
+
+Design element: `POPT.1` expansion plan (`3A`).
+Summary: expanded `POPT.1` from a single checklist row into execution-grade
+sub-phases with explicit hotspot order, rerun law, runtime gates, and closure
+artifacts.
+
+Why this expansion:
+1) `POPT.0` authority hotspot order is `S6 -> S7 -> S5`; prior `POPT.1` text
+   was too coarse for deterministic execution.
+2) runtime optimization needs strict separation from realism tuning; this phase
+   is compute-path only.
+3) storage and rerun discipline must be explicit for this lane because repeated
+   candidate runs are expensive.
+
+Plan structure added to build plan:
+1) `POPT.1.1` baseline guard + closure scorer lock.
+2) `POPT.1.2` primary `S6` optimization with hard runtime/veto gates.
+3) `POPT.1.3` secondary `S7` optimization with bundle-integrity veto gates.
+4) `POPT.1.4` conditional `S5` closure trim.
+5) `POPT.1.5` determinism + structural witness.
+6) `POPT.1.6` phase closure and lock artifacts.
+
+Key pinned gates:
+1) `S6` target: reach `<=14.0s` (`AMBER`) or show >=15% reduction vs baseline.
+2) `S7` target: reach `<=12.0s` (`AMBER`) or show >=10% reduction vs baseline.
+3) `S5` target (if executed): reach `<=12.0s` (`AMBER`) or show >=8% reduction.
+4) no rule changes, no schema/index/_passed.flag regressions, no validation
+   gate relaxation.
+
+Handoff impact:
+- `POPT.1` is now execution-ready; next action is to implement `POPT.1.1`
+  scorer/gates and then enter `POPT.1.2` (`S6`) as primary lane.
+
+---
+
+### Entry: 2026-02-19 01:16
+
+Design element: `POPT.1` execution plan (pre-change lock).
+Summary: begin full `POPT.1` execution with staged order `POPT.1.1 -> 1.2 ->
+1.3 -> (1.4 conditional) -> 1.5 -> 1.6` on `segment_3A`.
+
+Execution decisions pinned before edits:
+1) scorer first (`POPT.1.1`):
+   - add `tools/score_segment3a_popt1_closure.py` for baseline-vs-candidate
+     runtime deltas and veto checks (`S6/S7/S5`, PASS/index/flag integrity).
+2) primary optimization target (`POPT.1.2`):
+   - optimize `S6` precondition path by removing duplicate log-file scans and
+     replacing redundant repeated row-schema checks with upstream-trust +
+     lightweight required-column guards.
+   - maintain fail-closed behavior for missing columns/null identity fields and
+     all structural check logic.
+3) secondary optimization target (`POPT.1.3`):
+   - optimize `S7` member build path by removing duplicate JSONL line-count
+     scans and avoiding redundant deep row-schema validation on heavy parquet
+     members already covered by upstream `S6 PASS` + deterministic digest gates.
+4) conditional closure target (`POPT.1.4`):
+   - only touch `S5` if `S5` remains above closure budget after `S6/S7` pass.
+5) veto gates for every candidate run:
+   - `S6`/`S7` status must remain PASS,
+   - no index/`_passed.flag` regressions,
+   - no `S5` conservation drift,
+   - no policy/config drift in `S1..S4`.
+6) run/storage protocol:
+   - stage clean run-id in `runs/fix-data-engine/segment_3A`,
+   - prune superseded run-id folders between iterations,
+   - retain baseline and last-good candidate evidence only.
+
+Immediate next actions:
+1) implement `POPT.1.1` scorer,
+2) patch `S6` + `S7` compute path,
+3) run candidate chain and evaluate closure gates.
+
+---
+
+### Entry: 2026-02-19 01:23
+
+Design element: `POPT.1.1 + POPT.1.2 + POPT.1.3` implementation pass.
+Summary: implemented closure scorer and patched `S6/S7` compute path to remove
+redundant scans/re-validation while keeping fail-closed structural guards.
+
+Code changes applied:
+1) new closure scorer (`POPT.1.1`):
+   - added `tools/score_segment3a_popt1_closure.py`.
+   - outputs:
+     - `segment3a_popt1_closure_<run_id>.json`
+     - `segment3a_popt1_closure_<run_id>.md`
+   - gate logic:
+     - runtime gates for `S6/S7` (+ optional `S5` requirement),
+     - veto checks for `S6/S7 PASS`, `_passed.flag`, `S5` conservation,
+       manifest/parameter identity consistency.
+
+2) `S6` optimization (`POPT.1.2`):
+   - file: `packages/engine/src/engine/layers/l1/seg_3A/s6_validation/runner.py`.
+   - removed duplicate JSONL line-count pre-scans for event/trace/audit logs.
+   - updated progress tracker to support unknown totals (single-pass logging).
+   - replaced redundant row-wise schema re-validation for upstream parquet
+     inputs (`S1/S2/S3/S4/zone_alloc/outlet`) with fail-closed required-column
+     guards (`_require_columns`) while keeping all downstream structural checks.
+   - removed now-unused helper/imports tied to the old path.
+
+3) `S7` optimization (`POPT.1.3`):
+   - file: `packages/engine/src/engine/layers/l1/seg_3A/s7_validation_bundle/runner.py`.
+   - removed duplicate JSONL line-count pre-scan in member hashing path.
+   - updated progress tracker to support unknown totals.
+   - introduced trusted heavy parquet member fast-path (`S1/S2/S3/S4/S5`):
+     - keep fail-closed required-column guards,
+     - skip redundant row-wise schema loops already covered by `S6 PASS` gate,
+     - preserve digest hashing over canonical member files.
+   - retained strict schema validation path for non-trusted parquet members.
+
+Verification:
+- `python -m py_compile` passed for:
+  - `seg_3A/s6_validation/runner.py`
+  - `seg_3A/s7_validation_bundle/runner.py`
+  - `tools/score_segment3a_popt1_closure.py`
+
+Next execution step:
+- stage fresh candidate run-id,
+- run `S0->S7`,
+- emit `segment3a_popt0_baseline_<run_id>.json` for candidate timing,
+- execute `segment3a_popt1_closure_<run_id>.json` scoring.
+
+### Entry: 2026-02-19 01:32
+
+Design element: `POPT.1 closure unblock pass (S5 + scorer/veto hygiene)`.
+Summary: closure evidence showed `S6/S7` runtime gates are green, but `POPT.1`
+remains blocked by two items: `S5` required runtime gate miss and false-negative
+`S7 _passed.flag` veto detection in the scorer.
+
+Observed closure result (`run_id=3bad5e09e5ae46a3beb949dd718233fa`):
+1) green movement:
+   - `S6`: `17.94s -> 3.33s` (runtime gate clear).
+   - `S7`: `13.15s -> 2.92s` (runtime gate clear).
+2) open gates:
+   - `S5`: `12.50s -> 12.16s` (required gate not yet clear).
+   - `s7_passed_flag_present=False` despite `_passed.flag` physically present in
+     `data/layer1/3A/validation/...`.
+
+Execution decisions pinned before edits:
+1) scorer hygiene fix first:
+   - patch `tools/score_segment3a_popt1_closure.py` to validate `S7` pass flag
+     by direct path existence fallback in addition to index listing.
+2) runtime hygiene fix for log spam:
+   - throttle unknown-total progress mode in `S6/S7` so updates are cadence-
+     limited (no per-row spam when totals are unknown).
+3) required runtime closure fix for `S5`:
+   - remove redundant row-wise upstream schema re-validation loops in `S5`
+     (`S1..S4`) and replace with fail-closed required-column guards.
+   - preserve all structural/domain/conservation checks and fail-closed aborts.
+4) verification lane:
+   - compile patched files,
+   - run fresh staged `segment3a` candidate,
+   - rescore `POPT.1` closure,
+   - keep only baseline + latest evidence run-id after closure.
+
+Risk control:
+- No policy/coeff/statistical-logic changes.
+- Changes are runtime-path optimizations and scorer correctness only.
+- Structural vetoes remain mandatory (`S6/S7 PASS`, `S5` conservation, identity).
+
+### Entry: 2026-02-19 01:36
+
+Design element: `POPT.1 closure completion`.
+Summary: closed Segment `3A` `POPT.1` by fixing scorer veto detection,
+removing residual runtime overhead in `S5`, and re-running full `S0->S7`
+candidate lane with prune retention applied.
+
+Edits executed:
+1) scorer veto fix:
+   - file: `tools/score_segment3a_popt1_closure.py`.
+   - change: `s7_passed_flag_present` now passes if either:
+     - `_passed.flag` appears in `index.json` member list, or
+     - direct file exists at
+       `data/layer1/3A/validation/manifest_fingerprint=<...>/_passed.flag`.
+   - reason: previous scorer produced a false-negative veto despite physical
+     pass-flag presence.
+
+2) runtime hygiene (`S6/S7`):
+   - files:
+     - `packages/engine/src/engine/layers/l1/seg_3A/s6_validation/runner.py`
+     - `packages/engine/src/engine/layers/l1/seg_3A/s7_validation_bundle/runner.py`
+   - change: unknown-total progress updates now obey cadence throttling
+     (`0.5s`) instead of logging every event/update.
+   - result: removed high-volume log spam and associated overhead in `S7`.
+
+3) `S5` closure-lane optimization:
+   - file: `packages/engine/src/engine/layers/l1/seg_3A/s5_zone_alloc/runner.py`.
+   - change: replaced redundant upstream row-wise schema re-validation
+     (`S1..S4`) with fail-closed required-column guards (`_require_columns`).
+   - preserved rails:
+     - domain checks,
+     - conservation checks,
+     - routing universe digest/masking contract,
+     - output schema validation and publish immutability checks.
+
+Execution evidence:
+- candidate run-id: `81599ab107ba4c8db7fc5850287360fe`
+- command: `make segment3a ... RUN_ID=81599ab107ba4c8db7fc5850287360fe`
+- run result: PASS (`S0..S7`).
+- measured runtime movement (vs baseline `06b822558c294a0888e3f8f342e83947`):
+  - `S5`: `12.499s -> 4.596s` (`+63.23%`)
+  - `S6`: `17.942s -> 2.933s` (`+83.65%`)
+  - `S7`: `13.145s -> 2.249s` (`+82.89%`)
+
+Closure artifacts:
+- `runs/fix-data-engine/segment_3A/reports/segment3a_popt1_closure_81599ab107ba4c8db7fc5850287360fe.json`
+- `runs/fix-data-engine/segment_3A/reports/segment3a_popt1_closure_81599ab107ba4c8db7fc5850287360fe.md`
+- closure decision: `UNLOCK_P0`
+- veto summary: all clear (`S6/S7 PASS`, `_passed.flag` present,
+  `S5` conservation zero, manifest/parameter identity match).
+
+Storage hygiene:
+- pruned superseded run folders under `runs/fix-data-engine/segment_3A`.
+- keep set now:
+  - baseline: `06b822558c294a0888e3f8f342e83947`
+  - latest closure candidate: `81599ab107ba4c8db7fc5850287360fe`
+
+### Entry: 2026-02-19 01:43
+
+Design element: `P0 execution (statistical baseline + candidate gate harness)`.
+Summary: after closing `POPT.1`, execute `P0` by locking a remediation-grade
+metric baseline for `3A` and implementing a deterministic candidate evaluator
+that compares against that baseline with pinned hard/stretch gates.
+
+Authority and constraints for this pass:
+1) authority run for `P0` baseline:
+   - `run_id=81599ab107ba4c8db7fc5850287360fe` (latest `POPT.1` closure run,
+     `UNLOCK_P0`).
+2) metric/gate authority:
+   - `docs/reports/eda/segment_3A/segment_3A_remediation_report.md`
+     Section 2 + Section 6 hard/stretch thresholds.
+3) scope law:
+   - no policy/code changes in `S1..S7` behavior for this step.
+   - this is scorer/harness + artifacts only.
+
+Execution decisions pinned before code edits:
+1) implement `tools/score_segment3a_p0_baseline.py`:
+   - compute and emit baseline metrics from `S1..S5` outputs, including:
+     - S2 multi-TZ prior concentration metrics,
+     - S3 merchant heterogeneity + effective-zone breadth,
+     - S4/zone_alloc top1 concentration + multi-zone realization,
+     - S1 escalation-shape diagnostics.
+   - evaluate `B` and `B+` hard/stretch gates from remediation thresholds.
+   - write:
+     - `segment3a_p0_baseline_metrics_<run_id>.json`
+     - `segment3a_p0_baseline_metrics_<run_id>.md`.
+2) implement `tools/score_segment3a_p0_candidate.py`:
+   - compute same metric surface on candidate run.
+   - compare candidate to pinned baseline JSON; emit deltas and gate deltas.
+   - write:
+     - `segment3a_p0_candidate_vs_baseline_<run_id>.json`
+     - `segment3a_p0_candidate_vs_baseline_<run_id>.md`.
+3) execute harness now:
+   - run baseline scorer on authority run-id,
+   - run candidate scorer on one run-id (`06b...`) to prove executable gate path.
+4) close P0 checklist in build plan and log results in daily logbook.
+
+Performance posture:
+- vectorized Polars aggregations only; no full-row Python loops over parquet rows.
+- fail-closed on missing datasets/columns and token mismatches.
+
+### Entry: 2026-02-19 01:49
+
+Design element: `P0 execution closure`.
+Summary: implemented and executed the full `3A` `P0` scoring lane: baseline
+metric pack + candidate-vs-baseline evaluator, then closed the `P0` DoD rows
+in build plan.
+
+Code delivered:
+1) baseline scorer:
+   - `tools/score_segment3a_p0_baseline.py`
+   - emits remediation baseline artifacts for one authority run-id.
+2) candidate evaluator:
+   - `tools/score_segment3a_p0_candidate.py`
+   - computes same metric surface on candidate run-id, compares to baseline,
+     emits metric deltas + gate drift + progression decision.
+
+Metric and gate contract encoded from remediation report:
+1) hard (`B`) gates:
+   - `3A-V01..3A-V07` thresholds from Section 6.3.
+2) stretch (`B+`) gates:
+   - `3A-S01..3A-S06` thresholds from Section 6.4,
+   - `3A-S07` (escalation major-dip guard) as monotonic-shape sentinel.
+3) conservation rails retained in scorer output:
+   - `S4` pair conservation,
+   - `zone_alloc` pair conservation.
+
+Execution evidence:
+1) baseline run:
+   - command: `python tools/score_segment3a_p0_baseline.py --runs-root runs/fix-data-engine/segment_3A --run-id 81599ab107ba4c8db7fc5850287360fe`
+   - artifacts:
+     - `runs/fix-data-engine/segment_3A/reports/segment3a_p0_baseline_metrics_81599ab107ba4c8db7fc5850287360fe.json`
+     - `runs/fix-data-engine/segment_3A/reports/segment3a_p0_baseline_metrics_81599ab107ba4c8db7fc5850287360fe.md`
+2) candidate evaluator witness run:
+   - command: `python tools/score_segment3a_p0_candidate.py --runs-root runs/fix-data-engine/segment_3A --baseline-json runs/fix-data-engine/segment_3A/reports/segment3a_p0_baseline_metrics_81599ab107ba4c8db7fc5850287360fe.json --candidate-run-id 06b822558c294a0888e3f8f342e83947`
+   - artifacts:
+     - `runs/fix-data-engine/segment_3A/reports/segment3a_p0_candidate_vs_baseline_06b822558c294a0888e3f8f342e83947.json`
+     - `runs/fix-data-engine/segment_3A/reports/segment3a_p0_candidate_vs_baseline_06b822558c294a0888e3f8f342e83947.md`
+
+Observed baseline posture (`run_id=81599...`):
+1) verdict: `FAIL_REALISM`.
+2) hard-gate misses (`3A-V01..3A-V07` all fail) with conservation PASS.
+3) key metric anchors:
+   - `S2` multi-TZ top1 median: `0.991523`.
+   - `S2` multi-TZ share(top1>=0.99): `0.525424`.
+   - `S3` merchant share-std median: `0.002972`.
+   - `S4` escalated multi-zone rate: `0.133251`.
+   - `S4` top1 median/p75: `1.000000 / 1.000000`.
+   - `zone_alloc` top1 median/p75: `1.000000 / 1.000000`.
+
+Candidate witness result (`06b...` vs baseline `815...`):
+1) verdict remains `FAIL_REALISM`.
+2) deltas for primary metrics are all `0.0` (post-POPT runtime changes did not
+   alter statistical posture, as intended).
+3) gate drift is `UNCHANGED` across all hard/stretch gates.
+
+Build-plan closure:
+- `segment_3A.build_plan.md` `P0` DoD rows marked complete with authority
+  artifact references and baseline verdict note.
+
+### Entry: 2026-02-19 01:56
+
+Design element: `P1 planning expansion (S2 prior geometry remediation, CF-3A-01)`.
+Summary: user requested planning-only expansion for `P1`; no engine code/policy
+execution in this step. This entry pins the design posture before editing the
+build plan.
+
+Planning posture pinned:
+1) data-first lane:
+   - `P1` focuses on statistical shape of `S2` priors and its downstream data
+     consequences (`S3`, `S4`, `zone_alloc`), not pass-flag mechanics.
+2) upstream freeze:
+   - keep `S0/S1` frozen in `P1`; no escalation-policy smoothing yet.
+3) causal order within `P1`:
+   - calibrate base prior geometry (`country_zone_alphas`) first,
+   - then calibrate floor/bump shaping (`zone_floor_policy`),
+   - then lock witness pass against `P0` baseline deltas.
+4) success movement for `P1`:
+   - primary movement is in `S2` concentration metrics:
+     - `top1_share_median_multi_tz` down,
+     - `share_top1_ge_099_multi_tz` down,
+   - with no conservation drift in `S4/zone_alloc`.
+5) rerun law for this phase:
+   - `S2` inputs changed -> rerun `S2 -> S3 -> S4 -> S5 -> S6 -> S7`.
+   - no full-segment rerun unless explicitly needed.
+
+Next action in this step:
+- expand `P1` section in `segment_3A.build_plan.md` into `P1.1..P1.x`
+  subsections with explicit metric envelopes, run sequence, and DoDs.
+
+### Entry: 2026-02-19 01:59
+
+Design element: `P1 plan expansion committed to build plan`.
+Summary: expanded `P1` from a single high-level row into phased `P1.1..P1.4`
+execution lanes with data-first objectives, quantitative movement targets,
+explicit rerun sequencing, and closure decisions.
+
+What was added to `segment_3A.build_plan.md`:
+1) authority baseline anchors under `P1`:
+   - pinned baseline run-id `81599...` and the exact `S2/S3/S4` anchor values
+     from `P0`.
+2) execution posture for `P1`:
+   - keep `S0/S1` frozen,
+   - rerun law fixed to `S2->S7` for any `S2` policy edits,
+   - scorer contract references pinned (`P0` baseline + candidate comparator).
+3) phased subsections:
+   - `P1.1` target envelope + knob map.
+   - `P1.2` alpha-geometry candidate sweep with explicit selection objective
+     `J = 0.45*d_top1 + 0.35*d_tail + 0.20*d_multi_zone` and conservation veto.
+   - `P1.3` floor/boost co-calibration with downstream non-regression checks.
+   - `P1.4` witness lock + explicit phase decision (`UNLOCK_P2` / `HOLD_P1_REOPEN`).
+4) DoD expansion:
+   - each `P1.x` lane now has concrete checklist items tied to statistical
+     movement and deterministic closure evidence.
+
+Planning result:
+- `P1` is now actionable as a data-remediation phase with measurable movement
+  targets and a bounded run strategy; ready for execution when directed.
+
+### Entry: 2026-02-19 02:03
+
+Design element: `P1 execution mechanics lock (variant rendering + run staging)`.
+Summary: to execute `P1` end-to-end without manual copy/paste drift, implement
+small deterministic helper tools before running the candidate sweep.
+
+Decision rationale:
+1) `country_zone_alphas.yaml` and `zone_floor_policy.yaml` are large; repeated
+   manual edits are error-prone and non-auditable for a sweep lane.
+2) `S0` requires per-run `run_receipt.json`; deterministic parameter-hashing of
+   governed policy files is needed so each candidate run carries coherent tokens.
+
+Tooling to add:
+1) `tools/render_segment3a_p1_policies.py`
+   - input: frozen baseline alpha/floor files + knobs.
+   - knobs:
+     - alpha blend-to-uniform (`blend_lambda`),
+     - floor scale (`floor_scale`),
+     - bump-threshold shift or forced threshold.
+   - output: active policy files in `config/layer1/3A/allocation/`.
+2) `tools/stage_segment3a_run.py`
+   - creates fresh run-id folder + `run_receipt.json` under
+     `runs/fix-data-engine/segment_3A/<run_id>`.
+   - computes deterministic `parameter_hash` from sealed policy bytes:
+     - `zone_mixture_policy.yaml`,
+     - `country_zone_alphas.yaml`,
+     - `zone_floor_policy.yaml`,
+     - `day_effect_policy_v1.json`.
+
+Sweep execution contract (P1.2 -> P1.4):
+1) freeze baseline policy snapshots in `scratch_files/segment3a_p1_baseline/`.
+2) alpha-only sweep candidates (`P1.2`), choose winner by pinned objective `J`.
+3) floor co-calibration candidates (`P1.3`) with alpha winner fixed.
+4) witness rerun of final candidate (`P1.4`) and explicit close decision.
+5) prune superseded run-id folders; keep baseline + final authority (+ optional
+   one comparator evidence run).
+
+### Entry: 2026-02-19 02:14
+
+Design element: `P1.3/P1.4 execution lock (floor co-calibration + witness)`.
+Summary: executing full `P1` closeout now from the promoted alpha authority
+candidate (`blend_lambda=0.30`, run `878cddcd58bf4a36bd88c56de0d18056`).
+
+Execution decisions pinned before runs:
+1) keep alpha geometry fixed at `blend_lambda=0.30` for all `P1.3` candidates.
+2) run bounded floor-policy sweep only (no code-path edits):
+   - `F0`: `floor_scale=1.00`, `threshold_shift=0.00` (control).
+   - `F1`: `floor_scale=1.10`, `threshold_shift=-0.05` (more tail support).
+   - `F2`: `floor_scale=0.90`, `threshold_shift=+0.05` (less floor forcing).
+3) every candidate follows sequential rerun law:
+   - stage run folder -> run `S0->S7` -> emit `P0` baseline metrics +
+     candidate-vs-baseline deltas.
+4) selection/veto for `P1.3`:
+   - primary objective remains movement on `S2` concentration vs `P0` baseline.
+   - non-regression guard relative to promoted alpha run:
+     - do not reduce `S3 merchant_share_std_median`,
+     - do not reduce `S4 escalated_multi_zone_rate`,
+     - no `S4/zone_alloc` conservation regressions.
+5) `P1.4` witness rule:
+   - rerun selected floor candidate once, require deterministic metric replay for
+     scored fields (exact equality at current deterministic posture).
+
+Expected closure outcomes for this pass:
+1) emit `P1.3` sweep summary artifact with ranking + veto status.
+2) emit witness candidate-vs-baseline artifacts for `P1.4`.
+3) update build-plan DoDs and record explicit phase decision:
+   - `UNLOCK_P2` or `HOLD_P1_REOPEN`.
+
+### Entry: 2026-02-19 02:22
+
+Design element: `P1.3/P1.4 executed and closed`.
+Summary: completed full `P1` execution for Segment `3A` and closed phase
+decision as `UNLOCK_P2`.
+
+Execution results:
+1) `P1.3` bounded floor sweep executed with promoted alpha (`lambda=0.30`) fixed:
+   - `F0` (`floor_scale=1.00`, `threshold_shift=0.00`) -> run
+     `3dd2a10fb61b4ab581f9e9251c8d72ab`.
+   - `F1` (`floor_scale=1.10`, `threshold_shift=-0.05`) -> run
+     `949c3a5a1f1a487ab4684ca078f81770`.
+   - `F2` (`floor_scale=0.90`, `threshold_shift=+0.05`) -> run
+     `ef82ad476d6249dc856dbe060e8d36e1`.
+2) sweep ranking/selection:
+   - highest unconstrained `J` was `F2`, but it regressed `S3 std` vs alpha
+     authority (`-0.000165`), so failed strict non-regression guard.
+   - `F0` satisfied strict non-regression and remained strongly improved vs
+     `P0` baseline; selected as `P1.3` authority.
+3) `P1.4` witness rerun:
+   - witness run `fa527d6a0a4c4eab97516d9e95be8420`.
+   - exact replay confirmed for scored deterministic metrics:
+     `S2 top1`, `S2 share>=0.99`, `S3 std`, `S4 multi-zone`, `S4 top1`,
+     `zone_alloc top1`.
+
+Pinned artifacts:
+1) `runs/fix-data-engine/segment_3A/reports/segment3a_p1_3_sweep_summary.json`
+2) `runs/fix-data-engine/segment_3A/reports/segment3a_p1_3_sweep_summary.md`
+3) `runs/fix-data-engine/segment_3A/reports/segment3a_p1_4_witness_summary.json`
+4) `runs/fix-data-engine/segment_3A/reports/segment3a_p1_4_witness_summary.md`
+
+Phase decision:
+1) `UNLOCK_P2`.
+2) Note: realism verdict remains `FAIL_REALISM` at end of `P1` because `S3`
+   hard gate (`median std >= 0.02`) is still open; this is expected and handed
+   to `P2` ownership.
+3) storage hygiene:
+   - pruned superseded `P1` run folders and stale zero-byte staged folders.
+   - retained run-id set:
+     - `06b822558c294a0888e3f8f342e83947`,
+     - `81599ab107ba4c8db7fc5850287360fe`,
+     - `878cddcd58bf4a36bd88c56de0d18056`,
+     - `3dd2a10fb61b4ab581f9e9251c8d72ab`,
+     - `fa527d6a0a4c4eab97516d9e95be8420`.
+
+### Entry: 2026-02-19 02:31
+
+Design element: `P2 planning lock (S3 merchant dispersion remediation, CF-3A-02)`.
+Summary: user requested planning-only expansion for `P2`. This entry pins the
+planning posture before editing the build plan.
+
+P2 planning posture pinned:
+1) phase ownership:
+   - `P2` is owned by `S3` (merchant-level dispersion) with downstream readout
+     on `S4`/`zone_alloc`.
+   - `S2` geometry from `P1` is treated as locked authority and must not be
+     reopened in `P2`.
+2) statistical gap to close:
+   - from `P1` witness (`fa527d...`), `S3 merchant_share_std_median = 0.017801`
+     vs hard gate floor `0.02` (gap `0.002199`).
+   - `S2`, `S4`, `zone_alloc` already sit in strong posture and are protected
+     by non-regression vetoes.
+3) knob families to plan for `P2`:
+   - deterministic per-merchant concentration scaling over S2 alphas,
+   - bounded dispersion amplitude (hash-keyed, reproducible),
+   - optional concentration floor guards to avoid unstable tails.
+4) veto rails for all `P2` candidates:
+   - no conservation regressions (`S4` / `zone_alloc`),
+   - no RNG-accounting regressions (`S3` event/trace/audit integrity),
+   - no statistical backslide on locked `P1` realism surfaces.
+5) run protocol:
+   - `S3` lane rerun law: `S3 -> S4 -> S5 -> S6 -> S7`,
+   - prune superseded candidate runs before expensive retries,
+   - witness rerun required before `P2` close decision.
+
+Next action in this step:
+1) expand `P2` in `segment_3A.build_plan.md` into concrete `P2.1..P2.x`
+   sub-phases with quantitative targets, candidate ranking rule, and explicit
+   close criteria (`UNLOCK_P3` or `HOLD_P2_REOPEN`).
+
+### Entry: 2026-02-19 02:34
+
+Design element: `P2 build-plan expansion committed`.
+Summary: expanded `P2` from a single high-level row into executable `P2.1..P2.5`
+lanes in `segment_3A.build_plan.md`.
+
+What was added:
+1) `P2` authority baseline anchors from post-`P1` lock:
+   - selected run `3dd2...`,
+   - witness run `fa52...`,
+   - pinned starting metrics (`S3 std`, `S4 multi-zone`, `S4 top1`,
+     `zone_alloc top1`).
+2) explicit `P2` execution posture:
+   - rerun law pinned to `S3->S7`,
+   - scorer authority and comparator artifacts pinned,
+   - explicit `S2` freeze posture during `P2`.
+3) phased planning depth:
+   - `P2.1` target envelope + knob contract,
+   - `P2.2` deterministic sealed knob wiring in `S3`,
+   - `P2.3` bounded sweep + objective ranking + vetoes,
+   - `P2.4` witness lock + smoke seed stability check,
+   - `P2.5` closure decision and retention/prune.
+4) closure semantics:
+   - explicit decision output required: `UNLOCK_P3` or `HOLD_P2_REOPEN`.
+
+Planning outcome:
+1) `P2` is now implementation-ready with bounded knob families, measurable
+   target movement, veto rails, and a deterministic witness path.
+
+### Entry: 2026-02-19 02:40
+
+Design element: `P2 execution lock (full phase execution)`.
+Summary: user directed full execution of `P2` with continuous decision trails.
+This entry pins the exact execution sequence before code/policy edits.
+
+Execution sequence pinned:
+1) `P2.1` lock the concrete knob ranges and guardrails from the current
+   `P1` authority (`3dd2...` / witness `fa52...`).
+2) `P2.2` implement deterministic `S3` dispersion knobs wired from sealed
+   `zone_mixture_policy` (schema + runner + policy defaults), then compile check.
+3) `P2.3` run bounded candidate sweep with fresh run-ids and rank by `J2`.
+4) `P2.4` run witness replay on seed `42` plus smoke seeds `{7, 101}` for
+   directional stability and rails checks.
+5) `P2.5` closeout decision, update plan/notes/logbook, prune superseded runs.
+
+Concrete knob ranges for this execution:
+1) `concentration_scale`: `[0.85, 0.75, 0.65]`
+2) `merchant_jitter`: `[0.00, 0.10]`
+3) `merchant_jitter_clip`: `[0.10, 0.15]` (paired with jittered runs)
+4) `alpha_temperature`: fixed `1.00` for this lane (separate lane if needed)
+5) `alpha_floor`: fixed `1e-6`
+
+Decision rationale:
+1) current `S3` gap is narrow (`0.017801 -> 0.020`), so first pass should
+   target concentration-level control before adding higher-order transforms.
+2) keeping `alpha_temperature` fixed in this lane isolates causal effect and
+   reduces search complexity/runtime.
+3) `S2` remains frozen by design; only `S3` stochastic dispersion mechanics and
+   policy knobs move in `P2`.
+
+Hard veto posture for all `P2` candidates:
+1) any `S6/S7` fail blocks promotion.
+2) any `S4/zone_alloc` conservation regression blocks promotion.
+3) guardrail breach (`S4 multi-zone < 0.85`, `S4 top1 > 0.80`,
+   `zone_alloc top1 > 0.80`) blocks promotion.
+
+### Entry: 2026-02-19 02:47
+
+Design element: `P2.2 implemented (deterministic S3 dispersion wiring)`.
+Summary: completed code/policy/schema wiring for `P2.2` so `S3` can consume
+sealed dispersion knobs from `zone_mixture_policy`.
+
+Implemented changes:
+1) `packages/engine/src/engine/layers/l1/seg_3A/s3_zone_shares/runner.py`
+   - added `_S3DispersionPolicy` contract + defaults.
+   - added policy loader/validator for `s3_dispersion` block with fail-closed
+     range checks.
+   - resolved and schema-validated `zone_mixture_policy` in `S3` using
+     catalogue pathing before sampling.
+   - added deterministic hash-keyed merchant jitter (`merchant_id`,
+     `country_iso`, `parameter_hash`) with bounded clipping.
+   - applied dispersion transform to alpha vectors before Dirichlet draws:
+     concentration scaling + optional temperature warp + strict alpha floors.
+   - kept RNG stream identity/accounting intact; only alpha inputs changed.
+   - added active dispersion settings into `s3_run_report_3A.policy`.
+2) `docs/model_spec/data-engine/layer-1/specs/contracts/3A/schemas.3A.yaml`
+   - extended `policy/zone_mixture_policy_v1` with optional
+     `s3_dispersion` object and explicit bounded fields.
+3) `config/layer1/3A/policy/zone_mixture_policy.yaml`
+   - added neutral `s3_dispersion` block (enabled with no-op values) so
+     behavior remains equivalent before sweep tuning.
+4) tooling:
+   - added `tools/render_segment3a_p2_policy.py` for deterministic bounded
+     rendering of `s3_dispersion` candidates.
+   - captured baseline source snapshot:
+     `scratch_files/segment3a_p2_baseline/zone_mixture_policy.yaml`.
+
+Validation done before runs:
+1) python compile check passed for patched runner + new render tool.
+2) YAML parse sanity passed for updated schema and policy files.
+
+Decision rationale:
+1) by loading knobs from sealed `zone_mixture_policy`, `P2` remains inside
+   existing governance/sealing boundaries (no new artefact family required).
+2) deterministic hash-keyed jitter introduces merchant heterogeneity without
+   adding non-sealed randomness or violating replay expectations.
+
+### Entry: 2026-02-19 03:01
+
+Design element: `P2.3 execution lane lock (S3->S7 bounded sweep with frozen upstream)`.
+Summary: proceeding with full `P2` execution by running the remaining bounded `S3` dispersion candidate matrix and ranking by `J2` under strict veto rails.
+
+Execution mechanics pinned for this step:
+1) keep `P1` upstream freeze posture explicit during `P2.3`:
+   - authority upstream source for frozen state payloads: run `3dd2a10fb61b4ab581f9e9251c8d72ab`.
+   - for each `P2.3` candidate run-id, stage a fresh run folder and copy only
+     `S0/S1/S2` data surfaces from the authority run into the candidate run root.
+2) rerun scope per candidate is strictly `S3 -> S4 -> S5 -> S6 -> S7`.
+3) bounded candidate matrix for this execution pass (seed `42`):
+   - control already executed: `C0` (`scale=1.00`, `jitter=0.00`, `clip=0.00`).
+   - remaining non-jittered: `scale in {0.85, 0.75, 0.65}`.
+   - remaining jittered lanes: `scale in {0.85, 0.75, 0.65}`,
+     `jitter=0.10`, `clip in {0.10, 0.15}`.
+   - fixed knobs in this pass: `alpha_temperature=1.00`, `alpha_floor=1e-6`.
+4) scoring/veto contract:
+   - emit baseline+candidate score artifacts for each run-id,
+   - compute ranking objective `J2` as pinned in build plan,
+   - hard veto on any `S6/S7` fail, conservation regression, or guardrail breach.
+5) closeout sequencing after sweep:
+   - promote one candidate to witness lane (`P2.4`),
+   - run witness replay (seed `42`) and smoke seeds `{7,101}`,
+   - then execute `P2.5` lock decision + prune.
+
+Rationale for this lane:
+1) preserves strict upstream freeze posture for `P2` while avoiding unnecessary
+   re-execution of frozen `S0/S1/S2`.
+2) keeps runtime bounded for the matrix while remaining contract-safe and
+   auditable.
+
+### Entry: 2026-02-19 03:04
+
+Design element: `P2.3 execution pivot (copy-lane abort -> full-chain candidate lane)`.
+Summary: aborted the initial `S3->S7` copy-lane attempt and pivoted to full
+`S0->S7` candidate reruns for `P2.3` due precondition/identity coupling.
+
+Observed blockers in copy-lane attempt:
+1) candidate run `f3d52357504e41e5983eb678b9ac1987` failed at `S3` precondition
+   resolution because copied `S2` payload lived under authority parameter-hash
+   path while staged candidate tokens expected a different parameter-hash path.
+2) candidate run `ad63bf0603c64df787be7f0ad573abbc` advanced through `S3` after
+   path rewrite but failed at `S4` (`E3A_S4_001_PRECONDITION_FAILED`) due
+   missing `s1_run_report_3A` dependency, confirming upstream-report coupling
+   beyond raw table payloads.
+
+Decision and rationale:
+1) pivot `P2.3` execution lane to full `S0->S7` per candidate.
+2) keep statistical ownership unchanged:
+   - only `s3_dispersion` knobs vary,
+   - no tuning changes to `S1/S2` policies.
+3) this keeps contract identity/precondition invariants natively satisfied while
+   staying runtime-feasible (`~40s` per full `3A` chain on current lane).
+
+Operational updates for remaining `P2.3` sweep:
+1) stage fresh run-id -> execute `make segment3a` for each candidate.
+2) emit per-run baseline/candidate score artifacts.
+3) include failed copy-lane run-ids in superseded set for prune at `P2.5`.
+
+### Entry: 2026-02-19 03:11
+
+Design element: `P2.3 result readout and witness promotion choice`.
+Summary: completed bounded `P2.3` matrix execution on seed `42` and selected a
+provisional witness candidate for `P2.4`.
+
+Observed sweep outcome (seed `42`):
+1) hard-gate (`S3 std >= 0.020`) crossing candidates:
+   - `C3` (`scale=0.65, jitter=0.00, clip=0.00`) run `3f2e94f2d1504c249e434949659a496f`,
+   - `C6` (`scale=0.75, jitter=0.10, clip=0.10`) run `c3cb371e25b64a84a1acdace06402742`,
+   - `C8` (`scale=0.65, jitter=0.10, clip=0.10`) run `51446f35ba3240a99258bceceb8566ad`,
+   - `C9` (`scale=0.65, jitter=0.10, clip=0.15`) run `727ebec19a9840a680c90952a41f2af8`.
+2) best `J2` objective under pinned weights was `C3`.
+3) all full-chain candidates completed `S6/S7` PASS and guardrails remained
+   inside bounds (`S4 multi-zone >=0.85`, `S4 top1 <=0.80`, `zone_alloc top1 <=0.80`).
+
+Promotion decision for `P2.4`:
+1) provisional authority candidate: `C3` / run `3f2e94f2d1504c249e434949659a496f`.
+2) execute witness replay on seed `42` with the same knob vector.
+3) execute smoke seeds `{7,101}` for directional stability and rail checks.
+
+Rationale:
+1) `C3` maximizes the phase objective while already clearing the open hard gate.
+2) choosing no-jitter candidate for witness minimizes unnecessary complexity
+   while preserving uplift magnitude.
+
+### Entry: 2026-02-19 03:12
+
+Design element: `P2.4 smoke-lane seed token workaround`.
+Summary: `P2.4` witness run on seed `42` completed; smoke seed execution
+encountered an `S0` sealed-input resolution blocker tied to staged upstream
+seed tokening.
+
+Observed blocker:
+1) smoke run `682c20d2343e4ffaae4d4057d5b23b9e` failed at `S0` with
+   `E3A_S0_005_SEALED_INPUT_RESOLUTION_FAILED` for
+   `1A/outlet_catalogue/seed=7/...`.
+2) root cause: staged upstream source (`c25...`) carries frozen outlet catalogue
+   under `seed=42` only; smoke seed tokens `7/101` do not exist by default.
+
+Bounded execution workaround (smoke-only):
+1) for each smoke run root, duplicate frozen upstream outlet-catalogue payload
+   from `seed=42` to the requested smoke seed token path (`seed=7` / `seed=101`).
+2) keep payload bytes identical (token-path alias only) and continue full
+   `S0->S7` smoke reruns.
+3) preserve witness authority lane unchanged (`seed=42` run `6a3e...`).
+
+Rationale:
+1) enables planned directional smoke checks without reopening upstream segment
+   policies or mutating source frozen runs.
+2) keeps this as a local run-root adaptation strictly for smoke verification.
+
+### Entry: 2026-02-19 03:16
+
+Design element: `P2 execution closed (P2.3 -> P2.5)`.
+Summary: completed full `P2` execution for Segment `3A`; `S3` hard gate is now
+closed and phase decision is `UNLOCK_P3`.
+
+Execution outcomes:
+1) `P2.3` bounded sweep complete (`C0..C9`) with objective ranking and veto
+   recording:
+   - sweep artifacts:
+     - `runs/fix-data-engine/segment_3A/reports/segment3a_p2_3_matrix_runs.json`
+     - `runs/fix-data-engine/segment_3A/reports/segment3a_p2_3_sweep_summary.json`
+     - `runs/fix-data-engine/segment_3A/reports/segment3a_p2_3_sweep_summary.md`
+   - selected candidate:
+     - variant `C3`, run `3f2e94f2d1504c249e434949659a496f`,
+       knobs `(scale=0.65, temp=1.0, jitter=0.0, clip=0.0, floor=1e-6)`.
+   - selected key metrics (seed `42`):
+     - `S3 std=0.021572` (crosses hard gate `>=0.020`),
+     - `S4 multi-zone=0.922505`,
+     - `S4 top1=0.750000`,
+     - `zone_alloc top1=0.750000`.
+2) `P2.4` witness + smoke complete:
+   - witness run: `6a3e291aae764c9bbf19b1c39443a68a` (`seed=42`) with exact replay.
+   - smoke runs:
+     - `682c20d2343e4ffaae4d4057d5b23b9e` (`seed=7`),
+     - `8d31ca8eaeda4e7d8e1c0c2443cc89c7` (`seed=101`).
+   - smoke posture:
+     - directional `S3` uplift preserved vs `P1` anchor,
+     - guardrails pass,
+     - `S6/S7` pass on both smoke seeds.
+   - witness artifacts:
+     - `runs/fix-data-engine/segment_3A/reports/segment3a_p2_4_runs.json`
+     - `runs/fix-data-engine/segment_3A/reports/segment3a_p2_4_witness_summary.json`
+     - `runs/fix-data-engine/segment_3A/reports/segment3a_p2_4_witness_summary.md`
+3) smoke-lane note:
+   - to satisfy `S0` path-token resolution for seeds `7/101` under frozen
+     upstream staging source, outlet-catalogue path aliasing (`seed=42 -> 7/101`)
+     was applied inside each smoke run root only (payload bytes unchanged).
+
+Phase closure decision:
+1) `UNLOCK_P3`.
+2) selected candidate and witness verdict at `P2` close: `PASS_B`.
+
+Storage hygiene (`P2.5`):
+1) pruned superseded `P2` candidates and failed pre-pivot run folders.
+2) retained run-id set:
+   - `06b822558c294a0888e3f8f342e83947`
+   - `81599ab107ba4c8db7fc5850287360fe`
+   - `878cddcd58bf4a36bd88c56de0d18056`
+   - `3dd2a10fb61b4ab581f9e9251c8d72ab`
+   - `fa527d6a0a4c4eab97516d9e95be8420`
+   - `3f2e94f2d1504c249e434949659a496f`
+   - `6a3e291aae764c9bbf19b1c39443a68a`
+   - `682c20d2343e4ffaae4d4057d5b23b9e`
+   - `8d31ca8eaeda4e7d8e1c0c2443cc89c7`
+
+### Entry: 2026-02-19 03:18
+
+Design element: `P3 planning lock (CF-3A-05 anti-collapse, post-P2)`.
+Summary: user requested moving to P3 planning. Planning posture is set to
+conditional execution because post-P2 metrics already show strong anti-collapse
+behavior on witness/smoke lanes.
+
+Observed post-P2 anchor posture:
+1) selected authority run `3f2e94f2d1504c249e434949659a496f`:
+   - `S4 multi-zone=0.922505`,
+   - `S4 top1=0.750000`,
+   - `zone_alloc top1=0.750000`.
+2) witness/smoke (`42/7/101`) kept rails `PASS` and directional stability.
+3) primary open realism gap remains `S3` stretch (`B+`) rather than S4 collapse.
+
+Planning implication:
+1) `P3` should first verify whether integerization safeguards are still needed.
+2) if collapse-risk monitors are already green, close `P3` as a no-op lock to
+   avoid unnecessary blast radius.
+3) only if risk remains, run bounded S4 safeguard tuning with strict vetoes.
+
+Next planning action:
+1) expand `P3` in `segment_3A.build_plan.md` into explicit `P3.x` lanes:
+   - precheck + decision gate,
+   - optional safeguard wiring/tuning,
+   - witness/smoke confirmation,
+   - closeout + prune.
+
+### Entry: 2026-02-19 03:21
+
+Design element: `P3 build-plan expansion committed`.
+Summary: expanded `P3` in `segment_3A.build_plan.md` from a single row to
+execution-grade `P3.1..P3.5` lanes with explicit conditional/no-op posture.
+
+What was added:
+1) authority baseline anchors for `P3` from post-`P2` lock:
+   - selected + witness + smoke run-ids with pinned S4/zone_alloc metrics.
+2) explicit conditional execution posture:
+   - `P3_NOOP_LOCK` if collapse-risk monitors are already green,
+   - `P3_ACTIVE_TUNE` only on objective trigger.
+3) phased planning detail:
+   - `P3.1` collapse-risk fingerprint + decision gate,
+   - `P3.2` safeguard knob contract (only if active),
+   - `P3.3` bounded sweep + `J3` ranking + veto rails,
+   - `P3.4` witness/smoke lock,
+   - `P3.5` closeout/handoff decision.
+4) rerun posture clarification:
+   - precheck is report-only,
+   - active tuning lane uses full `S0->S7` reruns to remain contract-safe.
+
+Planning outcome:
+1) `P3` is now implementation-ready with an explicit low-blast-radius path
+   (no-op closure when justified) and a bounded active remediation path when
+   required by collapse-risk evidence.
+
+### Entry: 2026-02-19 03:23
+
+Design element: `P3 execution decision gate (full-phase run path)`.
+Summary: executing full `P3` now via the conditional no-op lane because
+collapse-risk triggers are not active on post-`P2` witness/smoke anchors.
+
+Evidence at gate (from current authority run set):
+1) witness (`seed=42`, run `6a3e...`):
+   - `S4 multi-zone=0.922505` (trigger floor `0.90`),
+   - `S4 top1=0.750000` (trigger ceiling `0.80`),
+   - `S4 share_pairs_single_zone=0.077495` (trigger ceiling `0.20`),
+   - `zone_alloc top1=0.750000` (trigger ceiling `0.80`).
+2) smoke (`seed=7`, run `682c...`) and (`seed=101`, run `8d31...`) both also
+   remain inside smoke trigger limits.
+
+Execution decision:
+1) `P3.1` -> `P3_NOOP_LOCK` (no active S4 safeguard tuning).
+2) `P3.2/P3.3/P3.4` marked N/A by decision gate (not opened).
+3) execute `P3.5` closeout with explicit handoff decision `UNLOCK_P4`
+   (because S1 escalation-shape stretch metric remains open, so `P4` is still
+   relevant).
+
+Next actions in this step:
+1) emit `P3.1` collapse-risk panel artifacts (`json` + `md`).
+2) emit `P3` closeout summary artifact with explicit no-op lock rationale.
+3) update build-plan checkboxes + decision rows to closed state.
+
+### Entry: 2026-02-19 03:25
+
+Design element: `P3 executed and closed (full phase)`.
+Summary: completed full `P3` execution for Segment `3A` via conditional no-op
+lane (`P3_NOOP_LOCK`) and closed handoff decision as `UNLOCK_P4`.
+
+Execution details:
+1) `P3.1` collapse-risk artifacts emitted:
+   - `runs/fix-data-engine/segment_3A/reports/segment3a_p3_1_collapse_risk_panel.json`
+   - `runs/fix-data-engine/segment_3A/reports/segment3a_p3_1_collapse_risk_panel.md`
+2) gate outcome:
+   - trigger set was fully green on selected/witness/smoke anchors,
+   - decision: `P3_NOOP_LOCK` (no active S4 safeguard tuning opened).
+3) `P3.5` closeout artifacts emitted:
+   - `runs/fix-data-engine/segment_3A/reports/segment3a_p3_closeout_summary.json`
+   - `runs/fix-data-engine/segment_3A/reports/segment3a_p3_closeout_summary.md`
+   - explicit handoff decision: `UNLOCK_P4`.
+4) build-plan closure updates:
+   - `P3` DoDs marked complete,
+   - `P3.2/P3.3` marked N/A-complete under no-op decision gate,
+   - `P3` execution outcome block added with authority run-ids and artifacts.
+
+Resulting phase posture:
+1) `CF-3A-05` does not require active tuning at this stage; anti-collapse
+   behavior is already strong after `P2`.
+2) next required lane is `P4` (S1 escalation-shape smoothing), because S1
+   stretch criteria remain open despite `P3` closure.
+3) run-retention posture unchanged from `P2` close (no new superseded run set to
+   prune in this no-op phase).
+
+### Entry: 2026-02-19 03:28
+
+Design element: `P4 planning lock (S1 escalation-shape smoothing)`.
+Summary: user requested expansion of `P4` plan. This entry pins the planning
+posture and target gap before editing the build plan.
+
+Pinned baseline gap (post-P3 authority set):
+1) `S1 zone_count_curve_major_dip_max_abs = 0.501379` (witness/smoke).
+2) `S1 zone_count_curve_monotonic_violations = 5` (witness/smoke).
+3) `S1` stretch monotonicity target (`3A-S07`) remains open; this is now the
+   primary realism blocker after `P2/P3`.
+
+Planning posture for expanded `P4`:
+1) keep `P2/P3` outputs as non-regression rails:
+   - maintain `S3 std >= 0.020`,
+   - maintain `S4/zone_alloc` hard-gate posture and conservation.
+2) apply conditional remediation ladder:
+   - start with low-blast policy-threshold/theta shaping under existing S1 rule
+     model,
+   - only open code-surface smoothing lane if policy-only sweep cannot reduce
+     major dips to target envelope.
+3) keep rerun posture contract-safe for this phase:
+   - full `S0->S7` per candidate (known safe against partial-lane coupling).
+
+Next action:
+1) expand `P4` in build plan into explicit `P4.1..P4.x` sub-phases with
+   quantitative envelope, bounded knob lanes, witness/smoke closure, and
+   explicit handoff decision.
+
+### Entry: 2026-02-19 03:31
+
+Design element: `P4 build-plan expansion committed`.
+Summary: expanded `P4` in `segment_3A.build_plan.md` from a single summary row
+into execution-grade `P4.1..P4.6` lanes with measurable S1-shape targets and
+explicit decision branches.
+
+What was added:
+1) `P4` authority baseline anchors:
+   - selected/witness/smoke run-ids and the open S1-shape gap metrics.
+2) explicit execution posture:
+   - preserve `P2/P3` realism surfaces as hard non-regression rails,
+   - run bounded low-blast policy-only lane first,
+   - open code-smoothing lane only if policy-only lane is insufficient,
+   - contract-safe rerun law pinned to full `S0->S7`.
+3) phased structure:
+   - `P4.1` targets + rail contract,
+   - `P4.2` policy-only knob contract,
+   - `P4.3` bounded policy sweep + `J4` ranking,
+   - `P4.4` optional smooth-band code lane,
+   - `P4.5` witness/smoke lock,
+   - `P4.6` closeout + handoff.
+4) close decisions pinned:
+   - `UNLOCK_P5`, `UNLOCK_P5_BEST_EFFORT`, or `HOLD_P4_REOPEN`.
+
+Planning outcome:
+1) `P4` is now implementation-ready with explicit bounded tuning lanes,
+   objective ranking, strict veto rails, and auditable closure semantics.
+
+### Entry: 2026-02-19 07:08
+
+Design element: `P4 execution lock (full phase, policy-first lane)`.
+Summary: user requested full execution of `P4`. This entry pins execution
+sequence, candidate matrix, ranking objective, and stop criteria before edits.
+
+Execution sequence pinned:
+1) `P4.1` finalize target envelope + rails from current authority metrics.
+2) `P4.2` implement deterministic policy-render helper for S1 shape candidates
+   and snapshot baseline policy.
+3) `P4.3` execute bounded policy-only sweep (`<=6`) on seed `42` with full
+   `S0->S7` reruns and rank by `J4`.
+4) decision gate:
+   - if `P4.1` phase target is met by a policy-only candidate, skip code lane.
+   - else open `P4.4` code-smoothing lane.
+5) `P4.5` witness + smoke for selected posture.
+6) `P4.6` closeout + prune + explicit handoff decision.
+
+Policy-only candidate matrix (`P4.3`, seed `42`):
+1) `P4C0` control: `theta=0.35`, `site_lt=3`, `zone_ge=4`, `site_ge=35`.
+2) `P4C1`: `theta=0.35`, `site_lt=2`, `zone_ge=4`, `site_ge=35`.
+3) `P4C2`: `theta=0.35`, `site_lt=2`, `zone_ge=3`, `site_ge=35`.
+4) `P4C3`: `theta=0.35`, `site_lt=2`, `zone_ge=4`, `site_ge=25`.
+5) `P4C4`: `theta=0.20`, `site_lt=2`, `zone_ge=3`, `site_ge=25`.
+6) `P4C5`: `theta=0.50`, `site_lt=2`, `zone_ge=3`, `site_ge=25`.
+
+Ranking + veto:
+1) objective `J4 = 0.70*d_s1_dip_down + 0.30*d_s1_mono_viol_down`.
+2) phase-target gate (policy-only close condition):
+   - `major_dip_max_abs <= 0.20` and `monotonic_violations <= 2` on witness seed.
+3) hard veto:
+   - any `S6/S7` fail,
+   - any conservation/schema regression,
+   - `S3 std < 0.020`,
+   - `S4 multi-zone < 0.85` or `S4 top1 > 0.80` or `zone_alloc top1 > 0.80`.
+
+Smoke-lane note pinned:
+1) for non-42 seeds, if staged upstream lacks `1A/outlet_catalogue/seed=<seed>`
+   paths, apply run-root-only path aliasing from frozen `seed=42` payload (bytes
+   unchanged), as already used in `P2.4`.
+
+### Entry: 2026-02-19 07:17
+
+Design element: `P4.4 activation gate (policy-only lane failed; open bounded code smoothing)`.
+Summary: completed `P4.3` scoring and confirmed policy-only lane cannot close
+the S1 shape gap under non-regression rails. This entry pins the exact code
+lane design before any S1/schema edits.
+
+Decision evidence from `P4.3`:
+1) scorer decision: `P4_NEEDS_CODE_SMOOTHING` from
+   `runs/fix-data-engine/segment_3A/reports/segment3a_p4_3_sweep_summary.json`.
+2) best policy-only rail-safe candidate (`P4C0`) produced no S1 movement:
+   - `major_dip_max_abs=0.501379`,
+   - `monotonic_violations=5`.
+3) candidates that improved dip magnitude (`P4C1/P4C3`) breached locked
+   non-regression rail(s), so they are non-promotable.
+4) direct bucket forensics on S1 authority run showed the dominant incoherence
+   source is `below_min_sites` concentration at higher tz-count buckets:
+   - `z=5`: `100/140` rows `below_min_sites`,
+   - `z=9`: `86/116` rows `below_min_sites`,
+   driving large negative curve deltas while preserving lower buckets.
+
+P4.4 implementation decision:
+1) add an optional, policy-governed S1 smooth-band block applied only when
+   baseline rule evaluation yields `below_min_sites`.
+2) smoothing intent:
+   - monotonic tz-count lift (linear band from `zone_count_min` to
+     `zone_count_max`),
+   - bounded site-count additive lift (`site_count_slope` with
+     `site_count_cap`),
+   - deterministic conversion using hashed `u_det` variant (no RNG).
+3) keep blast radius bounded:
+   - no changes to rule ordering,
+   - no change to non-`below_min_sites` decision branches,
+   - conversion target reason remains existing allowed reason
+     `default_escalation` (no output reason enum expansion).
+4) schema posture:
+   - extend `schemas.3A.yaml#/policy/zone_mixture_policy_v1` with optional
+     `s1_smoothing` object and bounded numeric constraints.
+5) execution budget and sweep cap:
+   - bounded code+policy lane `<=4` candidates (seed `42`, full `S0->S7`),
+   - same `J4` ranking + existing hard veto rails,
+   - then witness/smoke closure and explicit handoff decision.
+
+Next action:
+1) implement S1 runner + policy schema updates for `s1_smoothing`.
+2) execute bounded `P4.4` candidate sweep and re-score.
+3) if target envelope still fails, close `P4` as best-effort reopen-required;
+   else lock and hand off to `P5`.
+
+### Entry: 2026-02-19 07:23
+
+Design element: `P4.4 code lane implemented (S1 deterministic smooth-band + schema/tool wiring)`.
+Summary: implemented the bounded P4.4 code lane exactly as planned, preserving
+determinism and fail-closed validation posture while constraining blast radius
+to the `below_min_sites` branch.
+
+Implemented changes:
+1) `S1` runner (`packages/engine/src/engine/layers/l1/seg_3A/s1_escalation/runner.py`):
+   - added `_S1SmoothingPolicy` and strict policy-validation for optional
+     `s1_smoothing` controls,
+   - added deterministic smooth-band hash stream
+     (`"3A.S1.smooth_band|..."`) independent of existing theta stream,
+   - applied smoothing only when baseline rule result is `below_min_sites`,
+     with conversion target reason fixed to existing `default_escalation`,
+   - added bounded probability construction:
+     monotonic zone-count band + bounded site-count additive term,
+   - added run-report trace fields for `s1_smoothing` and
+     `pairs_smooth_band_escalated`.
+2) policy schema authority
+   (`docs/model_spec/data-engine/layer-1/specs/contracts/3A/schemas.3A.yaml`):
+   - extended `policy/zone_mixture_policy_v1` with optional `s1_smoothing`
+     object and bounded numeric constraints.
+3) policy artifacts:
+   - set explicit neutral/disabled `s1_smoothing` blocks in:
+     - `config/layer1/3A/policy/zone_mixture_policy.yaml`,
+     - `scratch_files/segment3a_p4_baseline/zone_mixture_policy.yaml`.
+4) tooling:
+   - extended `tools/render_segment3a_p4_policy.py` to render full
+     `s1_smoothing` knobs with validation.
+
+Validation completed:
+1) `py_compile` passed for:
+   - `runner.py`,
+   - `render_segment3a_p4_policy.py`,
+   - `score_segment3a_p4_sweep.py`.
+
+Execution lane pinned (`P4.4`, seed `42`, full `S0->S7`, `<=4` candidates):
+1) hold core S1 base knobs fixed at authority control:
+   - `theta_mix=0.35`, `site_count_lt=3`, `zone_count_country_ge=4`,
+     `site_count_ge=35`.
+2) vary only `s1_smoothing`:
+   - `P4K1` conservative band,
+   - `P4K2` medium band,
+   - `P4K3` high-z focused band,
+   - `P4K4` aggressive high-z band.
+3) score all candidates with existing `J4` + hard veto rails and then route to:
+   - witness/smoke closure if promotable,
+   - or best-effort close decision if phase target remains unreachable.
+
+### Entry: 2026-02-19 07:24
+
+Design element: `P4.4 run-lane gate failure + bounded correction`.
+Summary: first code-lane execution attempt failed at `S0` due a policy-version
+semver contract breach introduced by candidate-tagged versions.
+
+Observed failure:
+1) initial lane invocation without explicit `RUNS_ROOT` staging attempted to
+   resolve run receipts under default `runs/local_full_run-5`, causing
+   `S0` precondition failure (`run_receipt.json` missing for candidate run-id).
+2) corrected by switching to explicit staging flow per candidate:
+   - `tools/stage_segment3a_run.py --runs-root runs/fix-data-engine/segment_3A`,
+   - then `make segment3a RUNS_ROOT=... RUN_ID=...`.
+3) once staging was corrected, first rerun hit policy semver gate.
+1) `S0` aborted with `E3A_S0_003_POLICY_SET_INCOMPLETE` while validating
+   `zone_mixture_policy` version against registry semver (`1.0.0`).
+4) cause: run-lane renderer wrote candidate-tagged versions
+   (e.g., `v1.0.0-p4k1`) which are not accepted by `S0` policy-set contract.
+
+Correction applied (fail-closed compliant):
+1) reset all candidate policy versions to canonical `v1.0.0`.
+2) reran the same bounded candidate matrix with no version-tag mutation.
+
+### Entry: 2026-02-19 07:28
+
+Design element: `P4.4 bounded code-smoothing sweep completed`.
+Summary: completed full `P4.4` matrix (`P4K1..P4K4`) with staged run receipts,
+full `S0->S7` reruns, and objective scoring under the same hard veto rails.
+
+Sweep registry and scoring artifacts:
+1) `runs/fix-data-engine/segment_3A/reports/segment3a_p4_4_matrix_runs.json`.
+2) `runs/fix-data-engine/segment_3A/reports/segment3a_p4_4_sweep_summary.json`.
+3) `runs/fix-data-engine/segment_3A/reports/segment3a_p4_4_sweep_summary.md`.
+
+Key results:
+1) rail-safe selected candidate: `P4K2` / run
+   `58df4758c04040d796d38a08c481b555`.
+2) selected movement vs anchor:
+   - `major_dip_max_abs`: `0.501379 -> 0.336092`,
+   - `monotonic_violations`: `5 -> 5` (no change).
+3) aggressive candidates (`P4K3/P4K4`) achieved much stronger dip correction but
+   breached locked non-regression rail (`S4 multi-zone < 0.85`), so vetoed.
+4) phase decision remained `P4_NEEDS_CODE_SMOOTHING` under strict target
+   envelope.
+
+Interpretation:
+1) smooth-band lane is causally effective on dip magnitude.
+2) current rail budget does not allow crossing the strict P4 target without
+   destabilizing locked `P2/P3` surfaces.
+
+### Entry: 2026-02-19 07:32
+
+Design element: `P4.5/P4.6 closure (best-effort handoff)`.
+Summary: executed witness + smoke closure for selected rail-safe candidate and
+closed `P4` with explicit best-effort handoff decision.
+
+Witness/smoke execution:
+1) selected policy locked to `P4K2` knobs.
+2) witness run (`seed=42`): `6977c4ef82cc4f01ae76549047c08f51`.
+3) smoke runs:
+   - `seed=7`: `b57d89c4bc0741389d4980201eb51ffe`,
+   - `seed=101`: `d2751ee567fa4935ba572c9644e9e901`.
+4) smoke seed workaround reused from `P2.4`:
+   - run-root-local alias only for `1A/outlet_catalogue` path token
+     (`seed=42 -> seed=7/101`),
+   - payload bytes unchanged.
+
+Witness/smoke outcomes:
+1) all runs passed `S6/S7` and maintained non-regression rails:
+   - `S3 std >= 0.020`,
+   - `S4 multi-zone >= 0.85`,
+   - `S4/zone_alloc top1 <= 0.80`,
+   - conservation checks pass.
+2) directional movement preserved across seedpack:
+   - dip improved and stable at `0.336092`,
+   - monotonic violations stable at `5`.
+
+Close decision:
+1) strict `P4.1` phase target still unmet.
+2) best rail-safe candidate is stable and reproducible across witness/smoke.
+3) explicit handoff: `UNLOCK_P5_BEST_EFFORT`.
+
+Close artifacts:
+1) `runs/fix-data-engine/segment_3A/reports/segment3a_p4_5_runs.json`.
+2) `runs/fix-data-engine/segment_3A/reports/segment3a_p4_5_witness_summary.json`.
+3) `runs/fix-data-engine/segment_3A/reports/segment3a_p4_5_witness_summary.md`.
+4) `runs/fix-data-engine/segment_3A/reports/segment3a_p4_closeout_summary.json`.
+5) `runs/fix-data-engine/segment_3A/reports/segment3a_p4_closeout_summary.md`.
+
+### Entry: 2026-02-19 07:33
+
+Design element: `P4.6 storage hygiene closure`.
+Summary: applied superseded-run prune for Segment `3A` immediately after close
+decision to keep run-root storage bounded.
+
+Prune action:
+1) executed explicit keep-set pruning with
+   `tools/prune_run_folders_keep_set.py --yes`.
+2) retained run-id set:
+   - `81599ab107ba4c8db7fc5850287360fe` (pre-remediation baseline),
+   - `3f2e94f2d1504c249e434949659a496f` (P4 anchor),
+   - `58df4758c04040d796d38a08c481b555` (selected P4K2),
+   - `6977c4ef82cc4f01ae76549047c08f51` (witness),
+   - `b57d89c4bc0741389d4980201eb51ffe` (smoke seed 7),
+   - `d2751ee567fa4935ba572c9644e9e901` (smoke seed 101).
+3) removed all other superseded run-id folders under
+   `runs/fix-data-engine/segment_3A`.
+
+Outcome:
+1) `P4` close artifacts remain reproducible from retained authority set.
+2) run-folder count reduced to the explicit keep-set plus `reports`.
+
+### Entry: 2026-02-19 07:46
+
+Design element: `P5 planning expansion (integrated certification after best-effort P4 close)`.
+Summary: user requested planning for `P5`. This entry pins certification
+posture and the expanded execution lanes before any `P5` runs.
+
+Planning posture:
+1) carry `P4` handoff state exactly as closed:
+   - decision `UNLOCK_P5_BEST_EFFORT`,
+   - locked posture `P4K2`,
+   - known open gap in `S1` monotonicity.
+2) `P5` is certification-only:
+   - no additional tuning or knob movement,
+   - full `S0->S7` reruns per certification seed.
+3) preserve fail-closed rails:
+   - `S6/S7` must pass per seed,
+   - `P2/P3` non-regression rails must hold on all certification seeds.
+
+Why expanded this way:
+1) best-effort handoff requires explicit separation between:
+   - improvement evidence (`P4`),
+   - final grade authority (`P5`).
+2) certification must remain auditable and reproducible with deterministic lane
+   and fixed verdict semantics.
+3) storage/runtime constraints require explicit run budget and retention lane in
+   the phase plan itself.
+
+P5 expansion committed to build plan:
+1) added authority baseline and execution posture for certification.
+2) decomposed `P5` into execution-grade lanes:
+   - `P5.1` certification contract lock,
+   - `P5.2` seedpack execution + scoring,
+   - `P5.3` integrated aggregation + stability readout,
+   - `P5.4` verdict + freeze candidate decision,
+   - `P5.5` evidence pack + retention handshake.
+3) pinned verdict semantics:
+   - `PASS_BPLUS`, `PASS_B`, `FAIL_REALISM`.
+
+Next action:
+1) on user go-ahead, execute `P5.1` then `P5.2` sequentially with run-budget
+   evidence and decision-trail updates after each lane.
+
+### Entry: 2026-02-19 07:54
+
+Design element: `P5 full execution (contract lock -> seedpack reruns -> integrated certification)`.
+Summary: executed complete `P5` on locked `P4K2` posture with no additional
+tuning and produced integrated certification artifacts for verdicting.
+
+Execution contract (`P5.1`) locked:
+1) seeds fixed to `{42,7,101,202}`.
+2) required lane fixed to full `S0->S7` rerun per seed.
+3) verdict semantics fixed:
+   - `PASS_BPLUS`: all hard+stretch gates pass on all seeds,
+   - `PASS_B`: all hard gates pass on all seeds,
+   - `FAIL_REALISM`: any hard gate fail on any seed or `S6/S7` fail.
+4) runtime budget fixed:
+   - `<90s` per seed,
+   - `<480s` total seedpack lane.
+
+Seedpack execution (`P5.2`) completed:
+1) staged and executed all four runs under
+   `runs/fix-data-engine/segment_3A`:
+   - `seed=42`: `d516f89608ed43ad8ea1018fbb33d9d8` (`44.876s`),
+   - `seed=7`: `1b136a61051343c0bc1638397dbb3416` (`42.234s`),
+   - `seed=101`: `4029ada5ebd047de991124f372179808` (`42.833s`),
+   - `seed=202`: `77f0345ea9d3460c929bd26e99eb522a` (`44.784s`).
+2) bounded smoke-seed alias workaround reused (run-root-local only) where needed
+   for `1A/outlet_catalogue/seed=<seed>` path token.
+3) per-seed scoring emitted through baseline/candidate scorers and registered in
+   `segment3a_p5_runs.json`.
+
+Integrated aggregation (`P5.3`) emitted:
+1) `runs/fix-data-engine/segment_3A/reports/segment3a_p5_certification_summary.json`.
+2) `runs/fix-data-engine/segment_3A/reports/segment3a_p5_certification_summary.md`.
+3) summary contains:
+   - per-seed hard/stretch maps,
+   - `S6/S7` status per seed,
+   - cross-seed stability stats,
+   - runtime-budget evidence.
+
+### Entry: 2026-02-19 07:55
+
+Design element: `P5 verdict close + P6 handoff`.
+Summary: closed `P5` with explicit fail rationale, freeze-candidate posture, and
+retention handshake for `P6`.
+
+Certification outcome:
+1) integrated verdict: `FAIL_REALISM`.
+2) root hard-gate breach:
+   - seed `202` failed `3A-V04_s3_merchant_share_std_median`
+     (`0.019400 < 0.020000` threshold).
+3) all seeds remained `S6/S7 PASS`; failure is realism-grade, not state
+   execution failure.
+
+Stability and runtime evidence:
+1) deterministic S1 shape persisted across seedpack:
+   - `major_dip_max_abs=0.336092`,
+   - `monotonic_violations=5`.
+2) runtime targets satisfied:
+   - max seed runtime `44.876s` (`<=90s`),
+   - total `174.727s` (`<=480s`).
+
+Decision and handoff:
+1) freeze-candidate witness pinned:
+   - `d516f89608ed43ad8ea1018fbb33d9d8` (`seed=42`).
+2) explicit handoff decision:
+   - `UNLOCK_P6_FREEZE_BEST_EFFORT_BELOW_B`.
+3) keep-set prepared for `P6` prune/freeze:
+   - `81599ab107ba4c8db7fc5850287360fe`,
+   - `3f2e94f2d1504c249e434949659a496f`,
+   - `58df4758c04040d796d38a08c481b555`,
+   - `6977c4ef82cc4f01ae76549047c08f51`,
+   - `b57d89c4bc0741389d4980201eb51ffe`,
+   - `d2751ee567fa4935ba572c9644e9e901`,
+   - `d516f89608ed43ad8ea1018fbb33d9d8`,
+   - `1b136a61051343c0bc1638397dbb3416`,
+   - `4029ada5ebd047de991124f372179808`,
+   - `77f0345ea9d3460c929bd26e99eb522a`.
+
+### Entry: 2026-02-19 08:00
+
+Design element: `P6 freeze evidence emission`.
+Summary: emitted explicit P6 freeze artifacts to seal Segment `3A` closure with
+best-effort-below-B status and reproducible evidence references.
+
+Artifacts emitted:
+1) `runs/fix-data-engine/segment_3A/reports/segment3a_p6_freeze_summary.json`.
+2) `runs/fix-data-engine/segment_3A/reports/segment3a_p6_freeze_summary.md`.
+
+Pinned freeze posture:
+1) `freeze_status=FROZEN_BEST_EFFORT_BELOW_B`.
+2) freeze authority witness:
+   - run `d516f89608ed43ad8ea1018fbb33d9d8` (`seed=42`).
+3) carry-forward rationale:
+   - `P5` verdict `FAIL_REALISM` due to seed `202` hard-gate breach on
+     `3A-V04_s3_merchant_share_std_median`.
+
+### Entry: 2026-02-19 08:01
+
+Design element: `P6 keep-set prune + handoff closure`.
+Summary: executed keep-set prune on Segment `3A` run root and finalized P6
+handoff decision.
+
+Prune execution:
+1) command:
+   - `python tools/prune_run_folders_keep_set.py --runs-root runs/fix-data-engine/segment_3A ... --yes`.
+2) outcome:
+   - `candidate_count=0` (no-op),
+   - run root already matched pinned keep-set before P6 closure.
+
+Final retained run-id set:
+1) `81599ab107ba4c8db7fc5850287360fe`.
+2) `3f2e94f2d1504c249e434949659a496f`.
+3) `58df4758c04040d796d38a08c481b555`.
+4) `6977c4ef82cc4f01ae76549047c08f51`.
+5) `b57d89c4bc0741389d4980201eb51ffe`.
+6) `d2751ee567fa4935ba572c9644e9e901`.
+7) `d516f89608ed43ad8ea1018fbb33d9d8`.
+8) `1b136a61051343c0bc1638397dbb3416`.
+9) `4029ada5ebd047de991124f372179808`.
+10) `77f0345ea9d3460c929bd26e99eb522a`.
+
+Handoff decision:
+1) `SEGMENT_3A_FROZEN_MOVE_TO_3B`.

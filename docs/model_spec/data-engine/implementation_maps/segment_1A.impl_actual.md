@@ -5516,3 +5516,121 @@ Decision:
 1) execute rollback of experimental hurdle bundle edits,
 2) prune exploratory run folders created during sweep,
 3) keep Segment `1A` at current certified `B` closure with existing P5 authority artifact.
+
+### Entry: 2026-02-13 21:29
+
+Design element: Segment 1A freeze-guard contract for downstream (1B path-1) upstream reopen.
+Summary: 1B path-1 requires reopening upstream posture, but USER explicitly constrained that 1A frozen grade cannot be spoiled. We are introducing a dedicated guard scorer so every candidate run-id is vetoed unless it preserves frozen `B` authority posture.
+
+Pinned guard contract before tooling edits:
+1) 1A candidate run must remain `eligible_B=true` against certification metrics.
+2) No regression allowed on previously-passing authority B checks.
+3) Hard gates from frozen certification remain mandatory.
+4) Concentration guardrail (`top10_outlet_share`, `gini_outlets_per_merchant`) must not worsen vs authority snapshot.
+5) Guard result is machine artifact-based (`segment1a_freeze_guard_<run_id>.json`), not manual judgment.
+
+Implementation surfaces to be added:
+1) `tools/score_segment1a_freeze_guard.py` (new).
+2) optional invocation lane in run workflow docs/build plan for path-1 acceptance.
+
+### Entry: 2026-02-13 21:35
+
+Design element: 1A freeze-guard tooling implementation and authority sanity check.
+Summary: Implemented the no-regression guard scorer and validated it on known 1A authority run-id to ensure it can act as an executable veto gate for path-1 upstream reopen.
+
+Implemented artifacts:
+1) New tool:
+   - `tools/score_segment1a_freeze_guard.py`.
+2) Make invocation lane:
+   - `Makefile` target `segment1a-freeze-guard`.
+3) Build-plan contract pin:
+   - `segment_1A.build_plan.md` section `7.6` (downstream reopen veto contract).
+
+Guard logic pinned in implementation:
+1) Candidate must remain `eligible_B=true`.
+2) Authority hard-gates must not regress.
+3) Authority B-pass metrics must remain B-pass.
+4) B pass-count must not drop below authority.
+5) Concentration drift budget is bounded (`top10`/`gini` absolute regression allowance default `0.01`) to avoid false veto from representative-run mismatch noise.
+
+Verification:
+1) `python -m py_compile tools/score_segment1a_freeze_guard.py` passed.
+2) Authority run check:
+   - `python tools/score_segment1a_freeze_guard.py --runs-root runs/fix-data-engine/segment_1A --run-id 416afa430db3f5bf87180f8514329fe8`
+   - output: `runs/fix-data-engine/segment_1A/reports/segment1a_freeze_guard_416afa430db3f5bf87180f8514329fe8.json`
+   - result: `status=PASS`.
+
+### Entry: 2026-02-14 11:15
+
+Design element: Freeze-guard scorer fail-artifact hardening for downstream path-1 gating.
+Summary: During 1B `P4.R2` wave execution, an incomplete 1A candidate (`59cc...`) caused `score_segment1a_freeze_guard.py` to exit before writing a guard artifact. Hardened the scorer to always emit an explicit `FAIL` artifact on scoring exceptions.
+
+Change applied:
+1) File updated: `tools/score_segment1a_freeze_guard.py`.
+2) Main execution path now wraps scoring in fail-closed exception handling and writes:
+   - `status=FAIL`,
+   - candidate run-id,
+   - error type/message,
+   - guard checks set false.
+3) Process still exits non-zero after artifact emission to preserve automation failure semantics.
+
+Verification:
+1) `python -m py_compile tools/score_segment1a_freeze_guard.py` passed.
+2) Rerun on incomplete candidate emitted:
+   - `runs/fix-data-engine/segment_1A/reports/segment1a_freeze_guard_59cc9b7ed3a1ef84f3ce69a3511389ee.json`
+   with explicit `FAIL` and source error details.
+
+Decision:
+1) Freeze-veto now has machine artifacts for both pass and reject outcomes.
+2) This closes the evidence gap for guarded upstream candidate rejection in downstream `1B` path-1 flow.
+
+### Entry: 2026-02-14 12:50
+
+Design element: Upstream reopen candidate plan for `1B P4.R4A` (`1A P1/S2` home-support lane).
+Summary: Start the first bounded upstream reopen attempt by creating a controlled coefficient bundle variation on `beta_mu` (S2 mean block) while keeping hurdle and dispersion posture stable.
+
+Problem framing:
+1) `1B` collapse flags (`MC`, `BM`) were shown to be home-only ingress effects, so the first reopen must target upstream home-count shape entering `1B`.
+2) `1A` freeze constraints remain binding; candidate must preserve `B` posture under freeze guard before any downstream promotion.
+
+Alternatives considered:
+1) Direct `1B S4/S6` retune first:
+   - rejected because `P4.R4` feasibility evidence already showed support ceilings under fixed ingress.
+2) Broad multi-knob `1A` policy edits (`S3/S6/S8`) in first pass:
+   - rejected due high blast radius and weak attribution.
+3) Narrow `S2` coefficient lane (`beta_mu` non-intercept scale):
+   - selected as lowest-blast, highest-causality first pass for home-count concentration movement.
+
+Pinned implementation steps:
+1) Clone frozen authority coefficient pair from:
+   - `config/layer1/1A/models/hurdle/exports/version=2026-02-12/20260212T200823Z/`.
+2) Create a new candidate export timestamp under a newer version folder so resolver picks it deterministically.
+3) Apply bounded `beta_mu` non-intercept downscale only (intercept unchanged on first pass) and annotate remediation metadata.
+4) Keep `nb_dispersion_coefficients.yaml` unchanged except lineage metadata carry-forward.
+5) Run bounded upstream execution:
+   - full `1A` run required for freeze-veto coverage,
+   - run `tools/score_segment1a_freeze_guard.py`,
+   - proceed to `1B` proxy only if guard is `PASS`.
+
+Invariants:
+1) No code-path changes in `1A` states for this pass; config-only coefficient experiment.
+2) `hurdle beta` and `beta_phi` remain unchanged to isolate `S2` mean-shape movement.
+3) All candidate artifacts must be run-id addressed and auditable.
+
+### Entry: 2026-02-15 06:58
+
+Design element: Segment 1A freeze reaffirmation for 2A transition.
+Summary: Per transition decision, Segment 1A is explicitly re-frozen as certified authority while 2A work begins. No additional 1A remediation work is active.
+
+Freeze posture:
+1) Segment status: `FROZEN_CERTIFIED_B`.
+2) Certification authority artifact:
+   - `runs/fix-data-engine/segment_1A/reports/segment1a_p5_certification.json`.
+3) Operational authority run-id remains:
+   - `416afa430db3f5bf87180f8514329fe8`.
+4) Reopen remains fail-closed and must pass:
+   - `tools/score_segment1a_freeze_guard.py`.
+
+Plan cleanup action:
+1) Conditional reopen checklist items in `segment_1A.build_plan.md` were converted to explicit `not entered / not applicable` dispositions for this frozen cycle.
+2) Added explicit freeze declaration section in the build plan so downstream segments can consume 1A as immutable authority.

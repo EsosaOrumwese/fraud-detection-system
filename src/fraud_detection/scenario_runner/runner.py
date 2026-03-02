@@ -1292,7 +1292,8 @@ class ScenarioRunner:
                 else:
                     optional_missing.append(output_id)
                 continue
-            content_digest = self._compute_output_digest(engine_store, matches)
+            fast_digest = self._compute_output_digest_fast(output_id=output_id)
+            content_digest = fast_digest or self._compute_output_digest(engine_store, matches)
             pins = self._locator_pins(entry, intent, plan.run_id)
             locator = EngineOutputLocator(
                 output_id=output_id,
@@ -1836,6 +1837,43 @@ class ScenarioRunner:
         for rel in sorted(relative_paths):
             hasher.update(store.read_bytes(rel))
         return hasher.hexdigest()
+
+    def _compute_output_digest_fast(self, *, output_id: str) -> str | None:
+        """
+        Dev-min optimization: compute a stable digest from stream-sort receipts/manifests
+        instead of hashing every parquet object (very slow over S3).
+
+        This is acceptance-scoped: only enabled for dev_min managed substrate where an
+        oracle stream-view root is pinned and stream-sort artifacts are required.
+        """
+        acceptance_mode = str(self.wiring.acceptance_mode or "local_parity").strip().lower()
+        if acceptance_mode != "dev_min_managed":
+            return None
+        stream_view_root = str(self.wiring.oracle_stream_view_root or "").strip()
+        if not stream_view_root:
+            return None
+        stream_store = self._build_engine_store(stream_view_root)
+        if stream_store is None:
+            return None
+        receipt_path = f"output_id={output_id}/_stream_sort_receipt.json"
+        manifest_path = f"output_id={output_id}/_stream_view_manifest.json"
+        if not (stream_store.exists(receipt_path) and stream_store.exists(manifest_path)):
+            return None
+        receipt = stream_store.read_json(receipt_path)
+        manifest = stream_store.read_json(manifest_path)
+        # created timestamps are not part of content identity; they vary across re-materializations.
+        receipt.pop("created_utc", None)
+        manifest.pop("created_utc", None)
+        digest_payload = {
+            "output_id": output_id,
+            "stream_view_id": receipt.get("stream_view_id") or manifest.get("stream_view_id"),
+            "source_locator_digest": receipt.get("source_locator_digest"),
+            "sorted_stats": receipt.get("sorted_stats"),
+            "sort_keys": receipt.get("sort_keys") or manifest.get("sort_keys"),
+            "world_key": manifest.get("world_key"),
+        }
+        canonical = json.dumps(digest_payload, sort_keys=True, ensure_ascii=True, separators=(",", ":"))
+        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
     def _engine_join(self, engine_root: str | None, relative_path: str) -> str:
         if not engine_root:

@@ -1,0 +1,123 @@
+digraph DevMinTerraformInfraV0 {
+  graph [
+    label="Dev Min Terraform Infrastructure (Stack + Module Topology)",
+    labelloc=t,
+    fontsize=18,
+    fontname="Helvetica",
+    rankdir=LR,
+    splines=true,
+    pad=0.2,
+    nodesep=0.35,
+    ranksep=0.75
+  ];
+
+  node [
+    shape=box,
+    style="rounded,filled",
+    fillcolor="#F8FAFC",
+    color="#334155",
+    fontname="Helvetica",
+    fontsize=10,
+    margin="0.08,0.06"
+  ];
+
+  edge [
+    color="#334155",
+    fontname="Helvetica",
+    fontsize=9,
+    arrowsize=0.8
+  ];
+
+  gha [label="GitHub Actions / Operator CLI\nterraform init/plan/apply/destroy", fillcolor="#EEF2FF"];
+
+  subgraph cluster_core_stack {
+    label="Stack: dev_min/core";
+    color="#C7D2FE";
+    style="rounded";
+
+    core_root [label="root module call\nmodule.core", fillcolor="#E0E7FF"];
+    core_s3 [label="module/core: S3 buckets\nobject-store, evidence, quarantine, archive, tfstate", shape=cylinder, fillcolor="#ECFEFF"];
+    core_ddb [label="module/core: DynamoDB\ncontrol_runs, ig_admission_state,\nig_publish_state, tf_lock", shape=cylinder, fillcolor="#ECFEFF"];
+    core_budget [label="module/core: AWS Budget\ndev_min_monthly + thresholds", shape=cylinder, fillcolor="#ECFEFF"];
+  }
+
+  subgraph cluster_confluent_stack {
+    label="Stack: dev_min/confluent";
+    color="#A7F3D0";
+    style="rounded";
+
+    conf_root [label="root module call\nmodule.confluent", fillcolor="#DCFCE7"];
+    conf_cc [label="module/confluent: Confluent Cloud\nenvironment, kafka cluster, topics,\nservice accounts, ACLs, API keys", shape=cylinder, fillcolor="#D1FAE5"];
+    conf_ssm [label="aws_ssm_parameter\nbootstrap, api_key, api_secret", shape=cylinder, fillcolor="#ECFEFF"];
+    conf_catalog [label="aws_s3_object.topic_catalog\nconfluent topic catalog artifact", shape=folder, fillcolor="#E0F2FE"];
+  }
+
+  subgraph cluster_demo_stack {
+    label="Stack: dev_min/demo";
+    color="#FDE68A";
+    style="rounded";
+
+    demo_root [label="root module call\nmodule.demo\nremote_state(confluent) optional", fillcolor="#FEF3C7"];
+    demo_net [label="module/demo network\nVPC, public subnets, route table,\nIGW, app/db security groups", shape=cylinder, fillcolor="#FEF9C3"];
+    demo_ecs [label="module/demo ECS\ncluster + daemon service\n13 mapped services", shape=cylinder, fillcolor="#FEF9C3"];
+    demo_tasks [label="module/demo task definitions\nruntime_probe, db_migrations,\ndaemon, oracle_job, control_job, reporter", fillcolor="#FEF3C7"];
+    demo_bus [label="module/demo bus\naws_kinesis_stream.ig_event_bus", shape=cylinder, fillcolor="#FEF9C3"];
+    demo_db [label="module/demo DB\nRDS instance + db subnet group", shape=cylinder, fillcolor="#FEF9C3"];
+    demo_iam [label="module/demo IAM\nexecution role, app role,\nlane roles + policies", fillcolor="#FEF3C7"];
+    demo_ssm [label="module/demo SSM params\nconfluent creds, db creds/dsn, ig_api_key, heartbeat", shape=cylinder, fillcolor="#ECFEFF"];
+    demo_art [label="module/demo artifacts\nmanifest + topic_catalog objects", shape=folder, fillcolor="#E0F2FE"];
+  }
+
+  subgraph cluster_state_links {
+    label="State + Handle Dependencies";
+    color="#CBD5E1";
+    style="rounded";
+
+    state_core [label="TF state key\ndev_min/core/terraform.tfstate", shape=folder, fillcolor="#F1F5F9"];
+    state_conf [label="TF state key\ndev_min/confluent/terraform.tfstate", shape=folder, fillcolor="#F1F5F9"];
+    state_demo [label="TF state key\ndev_min/demo/terraform.tfstate", shape=folder, fillcolor="#F1F5F9"];
+  }
+
+  gha -> core_root [label="apply"];
+  gha -> conf_root [label="apply"];
+  gha -> demo_root [label="apply"];
+
+  core_root -> core_s3;
+  core_root -> core_ddb;
+  core_root -> core_budget;
+
+  conf_root -> conf_cc;
+  conf_cc -> conf_ssm [label="materialize runtime credentials"];
+  conf_cc -> conf_catalog [label="topic map"];
+
+  demo_root -> demo_net;
+  demo_root -> demo_ecs;
+  demo_root -> demo_tasks;
+  demo_root -> demo_bus;
+  demo_root -> demo_db;
+  demo_root -> demo_iam;
+  demo_root -> demo_ssm;
+  demo_root -> demo_art;
+
+  conf_root -> state_conf [style=dashed, label="writes state"];
+  core_root -> state_core [style=dashed, label="writes state"];
+  demo_root -> state_demo [style=dashed, label="writes state"];
+
+  state_conf -> demo_root [style=dashed, label="remote_state input\nconfluent_credentials_source=remote_state"];
+
+  core_s3 -> conf_catalog [style=dashed, label="catalog target bucket"];
+  core_s3 -> demo_art [style=dashed, label="manifest/catalog target"];
+  core_s3 -> demo_ssm [style=dashed, label="evidence + object roots consumed by runtime"];
+
+  conf_ssm -> demo_ssm [style=dashed, label="shared handle surface"];
+  conf_ssm -> demo_tasks [style=dashed, label="runtime secret injection"];
+  demo_ssm -> demo_tasks [style=dashed, label="runtime secret injection"];
+
+  demo_ecs -> demo_tasks [label="runs tasks/services"];
+  demo_tasks -> demo_bus [label="publish/consume control path"];
+  demo_tasks -> demo_db [label="app + checkpoint data plane"];
+  demo_tasks -> core_s3 [label="object/evidence read-write"];
+  demo_tasks -> core_ddb [style=dashed, label="control/admission surfaces"];
+
+  core_budget -> gha [style=dashed, label="M9 cost guardrail posture"];
+}

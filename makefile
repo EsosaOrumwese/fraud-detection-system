@@ -40,12 +40,12 @@ ENGINE_5B_S3_VALIDATE_EVENTS_LIMIT ?= 1000
 ENGINE_6A_S4_WORKERS ?=
 ENGINE_6B_S1_BATCH_ROWS ?= 250000
 ENGINE_6B_S1_PARQUET_COMPRESSION ?= zstd
-ENGINE_6B_S2_BATCH_ROWS ?= 250000
-ENGINE_6B_S2_PARQUET_COMPRESSION ?= zstd
-ENGINE_6B_S3_BATCH_ROWS ?= 250000
-ENGINE_6B_S3_PARQUET_COMPRESSION ?= zstd
-ENGINE_6B_S4_BATCH_ROWS ?= 250000
-ENGINE_6B_S4_PARQUET_COMPRESSION ?= zstd
+ENGINE_6B_S2_BATCH_ROWS ?= 300000
+ENGINE_6B_S2_PARQUET_COMPRESSION ?= snappy
+ENGINE_6B_S3_BATCH_ROWS ?= 300000
+ENGINE_6B_S3_PARQUET_COMPRESSION ?= snappy
+ENGINE_6B_S4_BATCH_ROWS ?= 280000
+ENGINE_6B_S4_PARQUET_COMPRESSION ?= snappy
 SEG1A_S0_SEED ?=
 SEG1A_S0_MERCHANT_VERSION ?= $(MERCHANT_VERSION)
 SEG1A_S0_EMIT_VALIDATION ?=
@@ -65,6 +65,9 @@ SEG1B_S6_RUN_ID ?= $(RUN_ID)
 SEG1B_S7_RUN_ID ?= $(RUN_ID)
 SEG1B_S8_RUN_ID ?= $(RUN_ID)
 SEG1B_S9_RUN_ID ?= $(RUN_ID)
+SEG1B_P4R3_R2_SUMMARY ?= runs/fix-data-engine/segment_1B/reports/segment1b_p4r2_wave1_guard_summary.json
+SEG1B_P4R3_REFERENCE_RUN_ID ?= 625644d528a44f148bbf44339a41a044
+SEG1B_P4R3_MAX_SHORTLIST ?= 2
 SEG2A_S0_RUN_ID ?= $(RUN_ID)
 SEG2A_S1_RUN_ID ?= $(RUN_ID)
 SEG2A_S2_RUN_ID ?= $(RUN_ID)
@@ -89,6 +92,9 @@ SEG3A_S7_RUN_ID ?= $(RUN_ID)
 SEG3B_S0_RUN_ID ?= $(RUN_ID)
 SEG3B_S1_RUN_ID ?= $(RUN_ID)
 SEG3B_S2_RUN_ID ?= $(RUN_ID)
+SEG3B_S3_RUN_ID ?= $(RUN_ID)
+SEG3B_S4_RUN_ID ?= $(RUN_ID)
+SEG3B_S5_RUN_ID ?= $(RUN_ID)
 SEG5B_S0_RUN_ID ?= $(RUN_ID)
 SEG5B_S1_RUN_ID ?= $(RUN_ID)
 SEG5B_S2_RUN_ID ?= $(RUN_ID)
@@ -112,7 +118,7 @@ SEG1B_S1_PREDICATE ?= center
 # ---------------------------------------------------------------------------
 # Run defaults
 # ---------------------------------------------------------------------------
-RUNS_ROOT ?= runs/local_full_run-5
+RUNS_ROOT ?= runs/local_full_run-6
 ENGINE_PRUNE_FAILED_RUNS ?= $(if $(findstring runs/fix-data-engine,$(RUNS_ROOT)),1,0)
 RUN_ID ?=
 RUN_ROOT ?= $(if $(strip $(RUN_ID)),$(RUNS_ROOT)/$(RUN_ID),$(RUNS_ROOT))
@@ -127,7 +133,7 @@ SEG5A_RESULT_JSON ?= $(SUMMARY_DIR)/segment5a_result.json
 SEG5B_RESULT_JSON ?= $(SUMMARY_DIR)/segment5b_result.json
 SEG6A_RESULT_JSON ?= $(SUMMARY_DIR)/segment6a_result.json
 SEG6B_RESULT_JSON ?= $(SUMMARY_DIR)/segment6b_result.json
-LOG ?= $(if $(strip $(RUN_ID)),$(RUN_ROOT)/run_log_$(RUN_ID).log,$(RUN_ROOT)/run_log_run-5.log)
+LOG ?= $(if $(strip $(RUN_ID)),$(RUN_ROOT)/run_log_$(RUN_ID).log,$(RUN_ROOT)/run_log_run-6.log)
 SEED ?= 2026011001
 SKIP_SEG1A ?= 0
 SKIP_SEG1B ?= 0
@@ -595,6 +601,8 @@ ifneq ($(strip $(SEG1B_S4_RUN_ID)),)
 SEG1B_S4_ARGS += --run-id $(SEG1B_S4_RUN_ID)
 endif
 SEG1B_S4_CMD = $(PY_ENGINE) -m engine.cli.s4_alloc_plan $(SEG1B_S4_ARGS)
+ENGINE_1B_S4_CACHE_COUNTRIES_MAX ?=
+ENGINE_1B_S4_CACHE_MAX_BYTES ?=
 
 SEG1B_S5_ARGS = --contracts-layout $(ENGINE_CONTRACTS_LAYOUT)
 ifneq ($(strip $(ENGINE_CONTRACTS_ROOT)),)
@@ -1977,7 +1985,7 @@ VIRTUAL_SETTLEMENT_CMD = $(PY_SCRIPT) scripts/build_virtual_settlement_coords_3b
 .PHONY: all preflight-seg1a segment1a-preclean-failed-runs segment1a segment1a-s0 segment1a-s1 segment1a-s2 segment1a-s3 segment1a-s4 segment1a-s5 segment1a-s6 segment1a-s7 segment1a-s8 segment1a-s9 segment1a-s9-archive segment1b segment1b-s0 segment1b-s1 segment1b-s2 segment1b-s3 segment1b-s4 segment1b-s5 segment1b-s6 segment1b-s7 segment1b-s8 segment1b-s9 segment1b-s9-archive segment2a-s0 segment2a-s1 segment2a-s2 segment2a-s3 segment2a-s4 segment2a-s5 segment2b segment2b-s0 segment2b-s1 segment2b-s2 segment2b-s3 segment2b-s4 segment2b-s5 segment2b-s6 segment2b-s7 segment2b-s8 segment2b-arrival-roster segment3a segment3a-s0 segment3a-s1 segment3a-s2 segment3a-s3 segment3a-s4 segment3a-s5 segment3a-s6 segment3a-s7 segment3b-s0 segment3b-s1 segment3b-s2 segment3b-s3 segment3b-s4 segment3b-s5 segment5a segment5a-s0 segment5a-s1 segment5a-s2 segment5a-s3 segment5a-s4 segment5a-s5 segment5b-s0 segment5b-s1 segment5b-s2 segment5b-s3 segment5b-s4 segment5b-s5 segment6a-s0 segment6a-s1 segment6a-s2 segment6a-s3 segment6a-s4 segment6a-s5 segment6b-s0 segment6b-s1 segment6b-s2 segment6b-s3 segment6b-s4 segment6b-s5 segment6b merchant_ids hurdle_exports refresh_merchant_deps currency_refs virtual_edge_policy zone_floor_policy country_zone_alphas crossborder_features merchant_class_policy_5a demand_scale_policy_5a shape_library_5a scenario_calendar_5a policies_5a cdn_weights_ext mcc_channel_rules cdn_country_weights virtual_validation cdn_key_digest hrsl_raster pelias_cached virtual_settlement_coords profile-all profile-seg1b clean-results
 .ONESHELL: segment1a segment1b 
 
-all: segment1a segment1b segment2a segment2b segment3a segment3b segment5a segment5b segment6a
+all: segment1a segment1b segment2a segment2b segment3a segment3b segment5a segment5b segment6a segment6b
 
 merchant_ids:
 	@echo "Building transaction_schema_merchant_ids version $(MERCHANT_VERSION)"
@@ -2243,6 +2251,20 @@ segment1a-p4-check:
 
 engine-seg1a-p4: segment1a-p4
 
+.PHONY: segment1a-freeze-guard
+segment1a-freeze-guard:
+	@$(PY_SCRIPT) tools/score_segment1a_freeze_guard.py --runs-root "$(RUNS_ROOT)" $(if $(strip $(RUN_ID)),--run-id "$(RUN_ID)",)
+
+.PHONY: segment1b-p4r3-proxy
+segment1b-p4r3-proxy:
+	@$(PY_SCRIPT) tools/score_segment1b_p4r3_proxy.py \
+		--runs-root-1a "runs/fix-data-engine/segment_1A" \
+		--runs-root-1b "$(RUNS_ROOT)" \
+		--r2-summary-json "$(SEG1B_P4R3_R2_SUMMARY)" \
+		--reference-run-id "$(SEG1B_P4R3_REFERENCE_RUN_ID)" \
+		--max-shortlist "$(SEG1B_P4R3_MAX_SHORTLIST)" \
+		--output-dir "$(RUNS_ROOT)/reports"
+
 segment1a-s3:
 	@echo "Running Segment 1A S3 cross-border candidate set"
 	@$(SEG1A_S3_CMD)
@@ -2309,7 +2331,9 @@ segment1b-s3:
 
 segment1b-s4:
 	@echo "Running Segment 1B S4 allocation plan"
-	@$(SEG1B_S4_CMD)
+	@ENGINE_1B_S4_CACHE_COUNTRIES_MAX="$(ENGINE_1B_S4_CACHE_COUNTRIES_MAX)" \
+	ENGINE_1B_S4_CACHE_MAX_BYTES="$(ENGINE_1B_S4_CACHE_MAX_BYTES)" \
+	$(SEG1B_S4_CMD)
 
 segment1b-s5:
 	@echo "Running Segment 1B S5 site tile assignment"

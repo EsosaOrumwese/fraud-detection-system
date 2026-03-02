@@ -569,6 +569,57 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                 {"path": str(validation_policy_path)},
                 manifest_fingerprint,
             )
+        realism_mode = str(validation_policy_payload.get("realism_enforcement_mode") or "").strip().lower()
+        if realism_mode not in {"observe", "enforce"}:
+            _abort(
+                "E3B_S4_009_POLICY_INVALID",
+                "V-05",
+                "realism_enforcement_mode_invalid",
+                {"path": str(validation_policy_path), "value": validation_policy_payload.get("realism_enforcement_mode")},
+                manifest_fingerprint,
+            )
+        realism_checks = validation_policy_payload.get("realism_checks")
+        if not isinstance(realism_checks, dict):
+            _abort(
+                "E3B_S4_009_POLICY_INVALID",
+                "V-05",
+                "realism_checks_missing_or_invalid",
+                {"path": str(validation_policy_path)},
+                manifest_fingerprint,
+            )
+        try:
+            edge_count_cv_min = float(realism_checks["edge_count_cv_min"])
+            country_count_cv_min = float(realism_checks["country_count_cv_min"])
+            top1_share_p50_min = float(realism_checks["top1_share_p50_min"])
+            top1_share_p50_max = float(realism_checks["top1_share_p50_max"])
+            js_divergence_median_min = float(realism_checks["js_divergence_median_min"])
+            settlement_overlap_median_min = float(realism_checks["settlement_overlap_median_min"])
+            settlement_overlap_p75_min = float(realism_checks["settlement_overlap_p75_min"])
+            settlement_distance_median_max_km = float(realism_checks["settlement_distance_median_max_km"])
+            rule_id_non_null_rate_min = float(realism_checks["rule_id_non_null_rate_min"])
+            rule_version_non_null_rate_min = float(realism_checks["rule_version_non_null_rate_min"])
+            active_rule_id_count_min = int(realism_checks["active_rule_id_count_min"])
+            alias_max_abs_delta_max = float(realism_checks["alias_max_abs_delta_max"])
+        except (KeyError, TypeError, ValueError) as exc:
+            _abort(
+                "E3B_S4_009_POLICY_INVALID",
+                "V-05",
+                "realism_checks_parse_failed",
+                {"path": str(validation_policy_path), "error": str(exc)},
+                manifest_fingerprint,
+            )
+        if top1_share_p50_min > top1_share_p50_max:
+            _abort(
+                "E3B_S4_009_POLICY_INVALID",
+                "V-05",
+                "realism_top1_range_invalid",
+                {
+                    "top1_share_p50_min": top1_share_p50_min,
+                    "top1_share_p50_max": top1_share_p50_max,
+                    "path": str(validation_policy_path),
+                },
+                manifest_fingerprint,
+            )
 
         routing_policy_id = str(route_policy_payload.get("policy_id") or "route_rng_policy_v1")
         routing_policy_version = str(
@@ -958,6 +1009,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         current_phase = "validation_contract"
         test_rows = []
         target_population = {"virtual_only": True}
+        realism_severity = "BLOCKING" if realism_mode == "enforce" else "WARNING"
 
         ip_country_tolerance = float(validation_policy_payload.get("ip_country_tolerance") or 0.0)
         cutoff_tolerance = int(validation_policy_payload.get("cutoff_tolerance_seconds") or 0)
@@ -1010,6 +1062,126 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                 "enabled": True,
                 "description": "Validate settlement cut-off assignment against tzid_settlement.",
                 "profile": None,
+            }
+        )
+
+        edge_heterogeneity_id = _build_test_id("EDGE_HETEROGENEITY", "GLOBAL", target_population)
+        test_rows.append(
+            {
+                "manifest_fingerprint": str(manifest_fingerprint),
+                "test_id": edge_heterogeneity_id,
+                "test_type": "EDGE_HETEROGENEITY",
+                "scope": "GLOBAL",
+                "target_population": target_population,
+                "inputs": {
+                    "datasets": [
+                        {"logical_id": "edge_catalogue_3B", "role": "edge_surface"},
+                        {"logical_id": "edge_catalogue_index_3B", "role": "merchant_edge_index"},
+                    ],
+                    "fields": [
+                        {"schema_anchor": "edge_weight", "role": "edge_weight"},
+                        {"schema_anchor": "country_iso", "role": "country_code"},
+                    ],
+                    "join_keys": ["merchant_id"],
+                },
+                "thresholds": {
+                    "edge_count_cv_min": edge_count_cv_min,
+                    "country_count_cv_min": country_count_cv_min,
+                    "top1_share_p50_min": top1_share_p50_min,
+                    "top1_share_p50_max": top1_share_p50_max,
+                    "js_divergence_median_min": js_divergence_median_min,
+                },
+                "severity": realism_severity,
+                "enabled": True,
+                "description": "Guard merchant-level edge heterogeneity realism metrics.",
+                "profile": realism_mode,
+            }
+        )
+
+        settlement_coherence_id = _build_test_id("SETTLEMENT_COHERENCE", "GLOBAL", target_population)
+        test_rows.append(
+            {
+                "manifest_fingerprint": str(manifest_fingerprint),
+                "test_id": settlement_coherence_id,
+                "test_type": "SETTLEMENT_COHERENCE",
+                "scope": "GLOBAL",
+                "target_population": target_population,
+                "inputs": {
+                    "datasets": [
+                        {"logical_id": "edge_catalogue_3B", "role": "edge_surface"},
+                        {"logical_id": "virtual_settlement_3B", "role": "settlement_surface"},
+                    ],
+                    "fields": [
+                        {"schema_anchor": "country_iso", "role": "edge_country"},
+                        {"schema_anchor": "lat_deg", "role": "edge_lat"},
+                        {"schema_anchor": "lon_deg", "role": "edge_lon"},
+                    ],
+                    "join_keys": ["merchant_id"],
+                },
+                "thresholds": {
+                    "settlement_overlap_median_min": settlement_overlap_median_min,
+                    "settlement_overlap_p75_min": settlement_overlap_p75_min,
+                    "settlement_distance_median_max_km": settlement_distance_median_max_km,
+                },
+                "severity": realism_severity,
+                "enabled": True,
+                "description": "Guard settlement-to-edge coherence metrics.",
+                "profile": realism_mode,
+            }
+        )
+
+        classification_explainability_id = _build_test_id(
+            "CLASSIFICATION_EXPLAINABILITY", "GLOBAL", target_population
+        )
+        test_rows.append(
+            {
+                "manifest_fingerprint": str(manifest_fingerprint),
+                "test_id": classification_explainability_id,
+                "test_type": "CLASSIFICATION_EXPLAINABILITY",
+                "scope": "GLOBAL",
+                "target_population": target_population,
+                "inputs": {
+                    "datasets": [{"logical_id": "virtual_classification_3B", "role": "classification_surface"}],
+                    "fields": [
+                        {"schema_anchor": "rule_id", "role": "rule_id"},
+                        {"schema_anchor": "rule_version", "role": "rule_version"},
+                    ],
+                    "join_keys": ["merchant_id"],
+                },
+                "thresholds": {
+                    "rule_id_non_null_rate_min": rule_id_non_null_rate_min,
+                    "rule_version_non_null_rate_min": rule_version_non_null_rate_min,
+                    "active_rule_id_count_min": active_rule_id_count_min,
+                },
+                "severity": realism_severity,
+                "enabled": True,
+                "description": "Guard classification lineage completeness and rule diversity.",
+                "profile": realism_mode,
+            }
+        )
+
+        alias_fidelity_id = _build_test_id("ALIAS_FIDELITY", "GLOBAL", target_population)
+        test_rows.append(
+            {
+                "manifest_fingerprint": str(manifest_fingerprint),
+                "test_id": alias_fidelity_id,
+                "test_type": "ALIAS_FIDELITY",
+                "scope": "GLOBAL",
+                "target_population": target_population,
+                "inputs": {
+                    "datasets": [
+                        {"logical_id": "edge_alias_blob_3B", "role": "alias_surface"},
+                        {"logical_id": "edge_alias_index_3B", "role": "alias_index"},
+                        {"logical_id": "edge_catalogue_3B", "role": "edge_surface"},
+                    ],
+                    "fields": [{"schema_anchor": "edge_weight", "role": "edge_weight"}],
+                    "join_keys": ["merchant_id", "edge_id"],
+                },
+                "thresholds": {"alias_max_abs_delta_max": alias_max_abs_delta_max},
+                "severity": realism_severity,
+                "enabled": True,
+                "description": "Guard alias decode fidelity against edge weights.",
+                "profile": realism_mode,
             }
         )
 

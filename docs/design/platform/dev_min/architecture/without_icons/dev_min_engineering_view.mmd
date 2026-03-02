@@ -1,0 +1,68 @@
+flowchart LR
+  subgraph Core["Core Terraform Root"]
+    CS3Obj["S3 object-store"]
+    CS3Ev["S3 evidence"]
+    CS3Qu["S3 quarantine"]
+    CS3Ar["S3 archive"]
+    CRun["DynamoDB control-runs"]
+    CAdm["DynamoDB admission state"]
+    CPub["DynamoDB publish state"]
+    CLock["DynamoDB tf lock"]
+    CBudget["AWS Budget"]
+  end
+
+  subgraph Confluent["Confluent Terraform Root"]
+    CEnv["Confluent environment"]
+    CClu["Confluent kafka cluster"]
+    CTop["Confluent topics"]
+    CApi["Runtime kafka API key/secret"]
+    CSSM["SSM confluent runtime parameters"]
+    CCat["topic_catalog.json"]
+  end
+
+  subgraph Demo["Demo Terraform Root"]
+    DRS["terraform_remote_state.confluent"]
+    DVpc["VPC + subnets + routing"]
+    DEcs["ECS cluster"]
+    DServices["Daemon services<br/>ig, rtdl-core, decision-lane,<br/>case-trigger, case-mgmt,<br/>label-store, env-conformance"]
+    DJobs["One-shot jobs<br/>scenario-runner, world-stream-producer,<br/>oracle-stream-sort, oracle-checker, reporter,<br/>db-migrations"]
+    DKin["Kinesis ig_event_bus"]
+    DRds["RDS runtime postgres"]
+    DSSM["SSM runtime credentials<br/>kafka, db, ingest key"]
+    DManifest["demo manifest + topic catalog"]
+    DLogs["CloudWatch log group"]
+  end
+
+  CEnv --> CClu --> CTop
+  CApi --> CSSM
+  CTop --> CCat --> CS3Ev
+  CClu --> DRS
+  CTop --> DRS
+  DRS --> DSSM
+
+  DVpc --> DEcs
+  DVpc --> DRds
+  DEcs --> DServices
+  DEcs --> DJobs
+  DServices --> DLogs
+  DJobs --> DLogs
+  DSSM --> DServices
+  DSSM --> DJobs
+  DServices --> DKin
+  DJobs --> DKin
+  DServices --> DRds
+  DJobs --> DRds
+  DServices --> CClu
+  DJobs --> CClu
+  DServices --> CS3Obj
+  DServices --> CS3Ar
+  DServices --> CS3Qu
+  DJobs --> CS3Obj
+  DJobs --> CS3Ev
+  DManifest --> CS3Ev
+  DServices --> CAdm
+  DServices --> CPub
+  DJobs --> CRun
+  CLock --- CRun
+  CBudget -.-> DEcs
+  CBudget -.-> CClu

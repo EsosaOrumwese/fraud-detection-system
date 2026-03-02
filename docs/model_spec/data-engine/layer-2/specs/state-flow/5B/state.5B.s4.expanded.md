@@ -429,6 +429,10 @@ Each row carries, at minimum:
     * `ts_local_primary`
     * `tzid_primary`
     * optional secondary local views if virtual dual-clock semantics are enabled
+  * lexical contract for local fields:
+    * `ts_local_*` values are local wall-clock renderings under their paired `tzid_*`; they are not UTC instants.
+    * local fields MUST be serialized without timezone suffixes.
+    * if a legacy producer emits trailing `Z` or `+00:00` in a local field, consumers MUST treat that suffix as lexical-only noise and interpret the value in the paired local tzid.
 
 This dataset is the **only 5B surface** that Layer-3 (6A/6B) and the enterprise shell should treat as “arrival events”. S4 MUST NOT write any alternative event stream for the same scope.
 

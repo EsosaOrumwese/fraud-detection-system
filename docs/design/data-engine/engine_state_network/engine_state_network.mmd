@@ -1,0 +1,43 @@
+flowchart LR
+%% Data Engine state/gate view (docs-driven, simplified)
+
+  subgraph LAYER1["Layer 1 - World and Merchant Realism"]
+    seg_1A["1A - Merchants to Physical Sites<br/>10 states"]
+    seg_1B["1B - Site Geolocation<br/>10 states"]
+    seg_2A["2A - Civil Time<br/>6 states"]
+    seg_2B["2B - Routing: traffic to sites and edges<br/>9 states"]
+    seg_3A["3A - Zone Allocation<br/>8 states"]
+    seg_3B["3B - Virtual merchants & CDN surfaces<br/>6 states"]
+  end
+
+  subgraph LAYER2["Layer 2 - Temporal Arrival Surfaces"]
+    seg_5A["5A - Intensity Surfaces<br/>6 states"]
+    seg_5B["5B - Arrival Realisation<br/>6 states"]
+  end
+
+  subgraph LAYER3["Layer 3 - Behavior, Fraud, and Labels"]
+    seg_6A["6A - Entity & Product World<br/>6 states"]
+    seg_6B["6B - Behaviour, Fraud Overlay & Labelling<br/>6 states"]
+  end
+
+  seg_1A -->|phase progression| seg_1B
+  seg_1B -->|phase progression| seg_2A
+  seg_2A -->|phase progression| seg_2B
+  seg_2B -->|phase progression| seg_3A
+  seg_3A -->|phase progression| seg_3B
+  seg_3B -->|phase progression| seg_5A
+  seg_5A -->|phase progression| seg_5B
+  seg_5B -->|phase progression| seg_6A
+  seg_6A -->|phase progression| seg_6B
+  seg_1A -.->|gate ref| seg_3A
+  seg_1A -.->|gate ref| seg_3B
+  seg_1A -.->|gate ref| seg_5A
+  seg_1B -.->|gate ref| seg_2B
+  seg_1B -.->|gate ref| seg_3A
+  seg_1B -.->|gate ref| seg_3B
+  seg_1B -.->|gate ref| seg_5A
+  seg_2A -.->|gate ref| seg_3A
+  seg_2A -.->|gate ref| seg_3B
+  seg_2A -.->|gate ref| seg_5A
+  seg_2B -.->|gate ref| seg_5A
+  seg_3A -.->|gate ref| seg_5A

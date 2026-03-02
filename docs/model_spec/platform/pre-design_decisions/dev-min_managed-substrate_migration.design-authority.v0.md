@@ -1245,7 +1245,7 @@ The demo bring-up MUST be a reproducible sequence:
 
 ### 13.3 Load sealed inputs (pinned)
 
-* Upload or confirm presence of sealed oracle outputs in S3 under the run-scoped prefix.
+* Upload or confirm presence of sealed oracle outputs in S3 under the engine-run oracle root (platform-run agnostic).
 * Confirm the `stream_view` exists (or is materialized) and is time-sorted per spec expectations. 
 
 ### 13.4 Execute the demo run (pinned)

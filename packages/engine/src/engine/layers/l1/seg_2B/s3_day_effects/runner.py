@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 import platform
 import shutil
 import time
@@ -55,6 +56,9 @@ UINT64_MASK = 0xFFFFFFFFFFFFFFFF
 TWO_NEG_64 = float.fromhex("0x1.0000000000000p-64")
 
 WRITE_BATCH_SIZE = 100_000
+OUTPUT_VALIDATION_SAMPLE_ROWS_DEFAULT = 2_048
+PROGRESS_LOG_INTERVAL_SECONDS_DEFAULT = 0.5
+FIXLANE_PROGRESS_LOG_INTERVAL_SECONDS_DEFAULT = 2.0
 
 OUTPUT_SCHEMA = {
     "merchant_id": pl.UInt64,
@@ -96,18 +100,27 @@ class _StepTimer:
 
 
 class _ProgressTracker:
-    def __init__(self, total: Optional[int], logger, label: str) -> None:
+    def __init__(
+        self,
+        total: Optional[int],
+        logger,
+        label: str,
+        min_interval_seconds: float = PROGRESS_LOG_INTERVAL_SECONDS_DEFAULT,
+    ) -> None:
         self._total = int(total) if total is not None else None
         self._logger = logger
         self._label = label
         self._start = time.monotonic()
         self._last_log = self._start
         self._processed = 0
+        self._min_interval_seconds = (
+            min_interval_seconds if min_interval_seconds > 0 else PROGRESS_LOG_INTERVAL_SECONDS_DEFAULT
+        )
 
     def update(self, count: int) -> None:
         self._processed += int(count)
         now = time.monotonic()
-        if now - self._last_log < 0.5 and not (
+        if now - self._last_log < self._min_interval_seconds and not (
             self._total is not None and self._processed >= self._total
         ):
             return
@@ -245,6 +258,111 @@ def _table_pack(schema_pack: dict, path: str) -> tuple[dict, str]:
     pack[table_name] = table_def
     return pack, table_name
 
+
+def _env_str(name: str, default: str) -> str:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    trimmed = value.strip()
+    return trimmed if trimmed else default
+
+
+def _env_int(name: str, default: int, minimum: int = 1) -> int:
+    value = os.getenv(name)
+    if value is None or not value.strip():
+        return default
+    try:
+        parsed = int(value)
+    except ValueError:
+        return default
+    return parsed if parsed >= minimum else minimum
+
+
+def _env_float(name: str, default: float, minimum: float = 0.1) -> float:
+    value = os.getenv(name)
+    if value is None or not value.strip():
+        return default
+    try:
+        parsed = float(value)
+    except ValueError:
+        return default
+    return parsed if parsed >= minimum else minimum
+
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _required_columns_from_table(schema_pack: dict, table_name: str) -> list[str]:
+    table = schema_pack.get(table_name)
+    if not isinstance(table, dict):
+        raise ContractError(f"Schema table not found for required-column extraction: {table_name}")
+    columns = table.get("columns")
+    if not isinstance(columns, list):
+        raise ContractError(f"Schema table has no columns: {table_name}")
+    required: list[str] = []
+    for column in columns:
+        if not isinstance(column, dict):
+            continue
+        name = column.get("name")
+        if isinstance(name, str) and name:
+            required.append(name)
+    if not required:
+        raise ContractError(f"Schema table has empty column names: {table_name}")
+    return required
+
+
+def _validate_output_batch(
+    dataframe: pl.DataFrame,
+    schema_pack: dict,
+    table_name: str,
+    mode: str,
+    sample_rows: int,
+) -> None:
+    required_columns = _required_columns_from_table(schema_pack, table_name)
+    missing_columns = [name for name in required_columns if name not in dataframe.columns]
+    if missing_columns:
+        raise SchemaValidationError(
+            f"{table_name} missing required columns: {missing_columns}",
+            [{"field": name, "message": "missing required column"} for name in missing_columns],
+        )
+    if mode == "strict":
+        validate_dataframe(dataframe.iter_rows(named=True), schema_pack, table_name)
+        return
+    if mode == "sample":
+        if dataframe.height == 0:
+            return
+        rows_to_validate = min(sample_rows, dataframe.height)
+        validate_dataframe(dataframe.head(rows_to_validate).iter_rows(named=True), schema_pack, table_name)
+        return
+    raise ContractError(f"Unsupported S3 output validation mode: {mode}")
+
+
+def _log_run_report(logger, run_report: dict, log_full_json: bool) -> None:
+    if log_full_json:
+        logger.info("S3 run-report %s", json.dumps(run_report, ensure_ascii=True, sort_keys=True))
+        return
+    summary = run_report.get("summary", {})
+    rng = run_report.get("rng_accounting", {})
+    publish = run_report.get("publish", {})
+    durations = run_report.get("durations_ms", {})
+    logger.info(
+        "S3 run-report summary status=%s warn=%s fail=%s rows=%s/%s bytes=%s draw_ms=%s write_ms=%s publish_ms=%s",
+        summary.get("overall_status", "UNKNOWN"),
+        summary.get("warn_count", 0),
+        summary.get("fail_count", 0),
+        rng.get("rows_written", 0),
+        rng.get("rows_expected", 0),
+        publish.get("bytes_written", 0),
+        durations.get("draw_ms", 0),
+        durations.get("write_ms", 0),
+        durations.get("publish_ms", 0),
+    )
+
+
 def _derive_rng_key_counter(
     manifest_fingerprint_hex: str,
     seed: int,
@@ -319,6 +437,46 @@ def _normal_icdf(p: float) -> float:
         (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r) + 1.0
     )
 
+
+def _deterministic_unit_interval(*parts: object) -> float:
+    payload = "|".join(str(part) for part in parts).encode("utf-8")
+    digest = hashlib.sha256(payload).digest()
+    return _u01(int.from_bytes(digest[:8], "big", signed=False))
+
+
+def _merchant_segment_key(site_count: int) -> str:
+    if site_count <= 8:
+        return "small"
+    if site_count <= 24:
+        return "mid"
+    return "large"
+
+
+def _resolve_segment_value(mapping: dict[str, object], segment_key: str, fallback: float) -> float:
+    if segment_key in mapping:
+        return float(mapping[segment_key])
+    if "default" in mapping:
+        return float(mapping["default"])
+    return float(fallback)
+
+
+def _resolve_tz_multiplier(spec: dict[str, object], tzid: str) -> float:
+    default = float(spec.get("default", 1.0))
+    rules = spec.get("prefix_rules")
+    if not isinstance(rules, list):
+        return default
+    for item in rules:
+        if not isinstance(item, dict):
+            continue
+        prefix = str(item.get("prefix") or "")
+        if prefix and tzid.startswith(prefix):
+            try:
+                return float(item.get("multiplier", default))
+            except (TypeError, ValueError):
+                return default
+    return default
+
+
 def _build_batch_df(rows: list[tuple]) -> pl.DataFrame:
     return pl.DataFrame(rows, schema=OUTPUT_SCHEMA, orient="row")
 
@@ -329,11 +487,19 @@ def _write_batch(
     part_index: int,
     output_pack: dict,
     output_table: str,
+    output_validation_mode: str,
+    output_validation_sample_rows: int,
 ) -> int:
     if not rows:
         return 0
     df = _build_batch_df(rows)
-    validate_dataframe(df.iter_rows(named=True), output_pack, output_table)
+    _validate_output_batch(
+        df,
+        output_pack,
+        output_table,
+        output_validation_mode,
+        output_validation_sample_rows,
+    )
     output_tmp.mkdir(parents=True, exist_ok=True)
     path = output_tmp / f"part-{part_index:05d}.parquet"
     df.write_parquet(path, compression="zstd")
@@ -381,6 +547,43 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
     logger = get_logger("engine.layers.l1.seg_2B.s3_day_effects.l2.runner")
     timer = _StepTimer(logger)
     started_monotonic = time.monotonic()
+    runs_root_norm = str(config.runs_root).replace("\\", "/")
+    output_validation_mode_default = (
+        "sample" if "runs/fix-data-engine" in runs_root_norm else "strict"
+    )
+    output_validation_mode = _env_str(
+        "ENGINE_2B_S3_OUTPUT_VALIDATION_MODE",
+        output_validation_mode_default,
+    ).lower()
+    if output_validation_mode not in ("strict", "sample"):
+        output_validation_mode = output_validation_mode_default
+    output_validation_sample_rows = _env_int(
+        "ENGINE_2B_S3_OUTPUT_VALIDATION_SAMPLE_ROWS",
+        OUTPUT_VALIDATION_SAMPLE_ROWS_DEFAULT,
+        minimum=1,
+    )
+    progress_log_interval_default = (
+        FIXLANE_PROGRESS_LOG_INTERVAL_SECONDS_DEFAULT
+        if "runs/fix-data-engine" in runs_root_norm
+        else PROGRESS_LOG_INTERVAL_SECONDS_DEFAULT
+    )
+    progress_log_interval_seconds = _env_float(
+        "ENGINE_2B_S3_PROGRESS_LOG_INTERVAL_SECONDS",
+        progress_log_interval_default,
+        minimum=0.1,
+    )
+    log_run_report_json_default = "runs/fix-data-engine" not in runs_root_norm
+    log_run_report_json = _env_bool(
+        "ENGINE_2B_S3_LOG_RUN_REPORT_JSON",
+        default=log_run_report_json_default,
+    )
+    logger.info(
+        "S3: output_validation_mode=%s output_validation_sample_rows=%d progress_log_interval_seconds=%.2f log_run_report_json=%s",
+        output_validation_mode,
+        output_validation_sample_rows,
+        progress_log_interval_seconds,
+        str(log_run_report_json).lower(),
+    )
 
     manifest_fingerprint = ""
     parameter_hash = ""
@@ -392,6 +595,7 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
     registry_version = "unknown"
     policy_version_tag = ""
     policy_sha256 = ""
+    sigma_policy_mode = "scalar_v1"
 
     weights_catalog_path = ""
     timezones_catalog_path = ""
@@ -404,7 +608,10 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
     join_misses = 0
     pk_duplicates = 0
     nonpositive_gamma_rows = 0
+    gamma_clipped_rows = 0
     max_abs_log_gamma = 0.0
+    sigma_gamma_min_observed = float("inf")
+    sigma_gamma_max_observed = 0.0
 
     publish_bytes_total = 0
     write_once_verified = False
@@ -635,9 +842,20 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
     rng_stream_id = str(policy_payload.get("rng_stream_id") or "")
     draws_per_row = int(policy_payload.get("draws_per_row") or 0)
     sigma_gamma = float(policy_payload.get("sigma_gamma") or 0.0)
+    sigma_policy_v2 = policy_payload.get("sigma_gamma_policy_v2")
+    sigma_policy_mode = "scalar_v1"
     day_range = policy_payload.get("day_range") or {}
     record_fields = list(policy_payload.get("record_fields") or [])
     rng_derivation = policy_payload.get("rng_derivation") or {}
+    sigma_base_by_segment: dict[str, object] = {}
+    sigma_multiplier_by_tz_group: dict[str, object] = {}
+    sigma_jitter_enabled = False
+    sigma_jitter_amp = 0.0
+    weekly_amp_by_segment: dict[str, object] = {}
+    sigma_min_bound = sigma_gamma
+    sigma_max_bound = sigma_gamma
+    gamma_clip_min = 0.0
+    gamma_clip_max = 0.0
 
     if draws_per_row != 1:
         _abort("2B-S3-032", "V-04", "draws_per_row_invalid", {"draws_per_row": draws_per_row})
@@ -649,6 +867,47 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
         _abort("2B-S3-032", "V-04", "rng_engine_missing", {})
     if rng_engine != "philox2x64-10":
         _abort("2B-S3-060", "V-11", "rng_engine_invalid", {"rng_engine": rng_engine})
+
+    if isinstance(sigma_policy_v2, dict) and bool(sigma_policy_v2.get("enabled", False)):
+        sigma_policy_mode = "sigma_gamma_policy_v2"
+        sigma_base_by_segment = sigma_policy_v2.get("sigma_base_by_segment") or {}
+        sigma_multiplier_by_tz_group = sigma_policy_v2.get("sigma_multiplier_by_tz_group") or {}
+        sigma_jitter = sigma_policy_v2.get("sigma_jitter_by_merchant") or {}
+        weekly_amp_by_segment = sigma_policy_v2.get("weekly_component_amp_by_segment") or {}
+        gamma_clip = sigma_policy_v2.get("gamma_clip") or {}
+        sigma_min_bound = float(sigma_policy_v2.get("sigma_min") or 0.0)
+        sigma_max_bound = float(sigma_policy_v2.get("sigma_max") or 0.0)
+        gamma_clip_min = float(gamma_clip.get("min") or 0.0)
+        gamma_clip_max = float(gamma_clip.get("max") or 0.0)
+        sigma_jitter_enabled = bool(sigma_jitter.get("enabled", False))
+        sigma_jitter_amp = float(sigma_jitter.get("amplitude") or 0.0)
+        if not isinstance(sigma_base_by_segment, dict) or "default" not in sigma_base_by_segment:
+            _abort("2B-S3-032", "V-04", "sigma_base_by_segment_missing_default", {})
+        if not isinstance(sigma_multiplier_by_tz_group, dict) or "default" not in sigma_multiplier_by_tz_group:
+            _abort("2B-S3-032", "V-04", "sigma_multiplier_by_tz_group_missing_default", {})
+        if not isinstance(weekly_amp_by_segment, dict) or "default" not in weekly_amp_by_segment:
+            _abort("2B-S3-032", "V-04", "weekly_component_amp_by_segment_missing_default", {})
+        if sigma_min_bound <= 0.0 or sigma_max_bound <= 0.0 or sigma_max_bound < sigma_min_bound:
+            _abort(
+                "2B-S3-032",
+                "V-04",
+                "sigma_bounds_invalid",
+                {"sigma_min": sigma_min_bound, "sigma_max": sigma_max_bound},
+            )
+        if gamma_clip_min <= 0.0 or gamma_clip_max <= 0.0 or gamma_clip_max < gamma_clip_min:
+            _abort(
+                "2B-S3-032",
+                "V-04",
+                "gamma_clip_invalid",
+                {"gamma_clip_min": gamma_clip_min, "gamma_clip_max": gamma_clip_max},
+            )
+        if sigma_jitter_amp < 0.0 or sigma_jitter_amp > 1.0:
+            _abort(
+                "2B-S3-032",
+                "V-04",
+                "sigma_jitter_amp_invalid",
+                {"amplitude": sigma_jitter_amp},
+            )
 
     required_fields = {
         "gamma",
@@ -726,6 +985,52 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
     tz_groups_total = group_df.height
     days_total = len(days)
     rows_expected = tz_groups_total * days_total
+    merchant_stats_df = (
+        joined_df.group_by("merchant_id")
+        .agg(
+            [
+                pl.col("site_order").n_unique().alias("site_count"),
+                pl.col("tzid").n_unique().alias("tz_count"),
+            ]
+        )
+        .sort("merchant_id")
+    )
+    merchant_profiles: dict[int, dict[str, float | str]] = {}
+    for mrow in merchant_stats_df.iter_rows(named=True):
+        merchant_id = int(mrow["merchant_id"])
+        site_count = int(mrow["site_count"])
+        segment_key = _merchant_segment_key(site_count)
+        base_sigma = _resolve_segment_value(sigma_base_by_segment, segment_key, sigma_gamma)
+        jitter_multiplier = 1.0
+        if sigma_policy_mode == "sigma_gamma_policy_v2" and sigma_jitter_enabled:
+            jitter_u = _deterministic_unit_interval(
+                manifest_fingerprint,
+                seed,
+                "2B.S3.sigma_jitter",
+                merchant_id,
+            )
+            jitter_multiplier = 1.0 + sigma_jitter_amp * ((2.0 * jitter_u) - 1.0)
+        weekly_amp = 0.0
+        weekly_phase = 0.0
+        if sigma_policy_mode == "sigma_gamma_policy_v2":
+            weekly_amp = _resolve_segment_value(weekly_amp_by_segment, segment_key, 0.0)
+            weekly_phase = 2.0 * math.pi * _deterministic_unit_interval(
+                manifest_fingerprint,
+                seed,
+                "2B.S3.weekly_phase",
+                merchant_id,
+            )
+        merchant_profiles[merchant_id] = {
+            "segment_key": segment_key,
+            "base_sigma": float(base_sigma),
+            "jitter_multiplier": float(jitter_multiplier),
+            "weekly_amp": float(weekly_amp),
+            "weekly_phase": float(weekly_phase),
+        }
+    day_features: list[tuple[str, float]] = []
+    for day in days:
+        weekday_phase = 2.0 * math.pi * (date.fromisoformat(day).weekday() / 7.0)
+        day_features.append((day, weekday_phase))
 
     tzid_set = set(timezones_df.get_column("tzid").to_list())
     warn_tzids = sorted({tz for tz in group_df.get_column("tzid").to_list() if tz not in tzid_set})
@@ -761,8 +1066,6 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
 
     _record_validator("V-11", "pass")
 
-    mu_gamma = -0.5 * sigma_gamma * sigma_gamma
-
     output_pack, output_table = _table_pack(schema_2b, "plan/s3_day_effects")
     _inline_external_refs(output_pack, schema_layer1, "schemas.layer1.yaml#/$defs/")
 
@@ -770,14 +1073,20 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
     output_tmp.mkdir(parents=True, exist_ok=True)
 
     logger.info(
-        "S3: generating day-effect rows (merchants=%s tz_groups=%s days=%s rows=%s)",
+        "S3: generating day-effect rows (merchants=%s tz_groups=%s days=%s rows=%s sigma_policy_mode=%s)",
         merchants_total,
         tz_groups_total,
         days_total,
         rows_expected,
+        sigma_policy_mode,
     )
 
-    progress = _ProgressTracker(rows_expected, logger, "S3 day-effect rows")
+    progress = _ProgressTracker(
+        rows_expected,
+        logger,
+        "S3 day-effect rows",
+        min_interval_seconds=progress_log_interval_seconds,
+    )
     part_index = 0
     batch_rows: list[tuple] = []
     prev_key: Optional[tuple] = None
@@ -788,7 +1097,22 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
     for row in groups_per_merchant_df.iter_rows(named=True):
         merchant_id = int(row["merchant_id"])
         tzids = list(row["tzids"])
-        for day in days:
+        merchant_profile = merchant_profiles.get(
+            merchant_id,
+            {
+                "segment_key": "default",
+                "base_sigma": sigma_gamma,
+                "jitter_multiplier": 1.0,
+                "weekly_amp": 0.0,
+                "weekly_phase": 0.0,
+            },
+        )
+        segment_key = str(merchant_profile["segment_key"])
+        base_sigma = float(merchant_profile["base_sigma"])
+        jitter_multiplier = float(merchant_profile["jitter_multiplier"])
+        weekly_amp = float(merchant_profile["weekly_amp"])
+        weekly_phase = float(merchant_profile["weekly_phase"])
+        for day, weekday_phase in day_features:
             for tzid in tzids:
                 row_rank = rows_written
                 counter_int = base_counter_int + row_rank
@@ -811,8 +1135,27 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                 out0, _out1 = philox2x64_10(counter_hi, counter_lo, key)
                 u = _u01(out0)
                 z = _normal_icdf(u)
-                log_gamma = mu_gamma + sigma_gamma * z
+                tz_multiplier = 1.0
+                if sigma_policy_mode == "sigma_gamma_policy_v2":
+                    tz_multiplier = _resolve_tz_multiplier(sigma_multiplier_by_tz_group, tzid)
+                sigma_value = sigma_gamma
+                if sigma_policy_mode == "sigma_gamma_policy_v2":
+                    sigma_value = base_sigma * tz_multiplier * jitter_multiplier
+                    sigma_value = min(max(sigma_value, sigma_min_bound), sigma_max_bound)
+                if sigma_value <= 0.0:
+                    _abort("2B-S3-032", "V-04", "sigma_value_invalid", {"sigma_value": sigma_value})
+                weekly_term = 0.0
+                if sigma_policy_mode == "sigma_gamma_policy_v2" and weekly_amp > 0.0:
+                    weekly_term = weekly_amp * math.sin(weekday_phase + weekly_phase)
+                mu_gamma = -0.5 * sigma_value * sigma_value
+                log_gamma = mu_gamma + sigma_value * z + weekly_term
                 gamma = math.exp(log_gamma)
+                if sigma_policy_mode == "sigma_gamma_policy_v2":
+                    clipped_gamma = min(max(gamma, gamma_clip_min), gamma_clip_max)
+                    if clipped_gamma != gamma:
+                        gamma = clipped_gamma
+                        log_gamma = math.log(gamma)
+                        gamma_clipped_rows += 1
 
                 if not math.isfinite(log_gamma):
                     _abort("2B-S3-057", "V-09", "log_gamma_nonfinite", {"key": row_key})
@@ -821,6 +1164,11 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                     _abort("2B-S3-058", "V-09", "gamma_nonpositive", {"key": row_key})
 
                 max_abs_log_gamma = max(max_abs_log_gamma, abs(log_gamma))
+                sigma_gamma_min_observed = min(sigma_gamma_min_observed, sigma_value)
+                sigma_gamma_max_observed = max(sigma_gamma_max_observed, sigma_value)
+                sigma_source = "sigma_gamma_v1"
+                if sigma_policy_mode == "sigma_gamma_policy_v2":
+                    sigma_source = f"sigma_gamma_policy_v2:{segment_key}"
 
                 batch_rows.append(
                     (
@@ -829,7 +1177,7 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                         tzid,
                         gamma,
                         log_gamma,
-                        sigma_gamma,
+                        sigma_value,
                         rng_stream_id,
                         counter_lo,
                         counter_hi,
@@ -846,7 +1194,10 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                             "tz_group_id": tzid,
                             "gamma": gamma,
                             "log_gamma": log_gamma,
-                            "sigma_gamma": sigma_gamma,
+                            "sigma_gamma": sigma_value,
+                            "sigma_source": sigma_source,
+                            "sigma_value": sigma_value,
+                            "weekly_amp": weekly_amp,
                             "rng_stream_id": rng_stream_id,
                             "rng_counter_hi": counter_hi,
                             "rng_counter_lo": counter_lo,
@@ -867,7 +1218,15 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                 if len(batch_rows) >= WRITE_BATCH_SIZE:
                     write_start = time.monotonic()
                     try:
-                        publish_bytes_total += _write_batch(batch_rows, output_tmp, part_index, output_pack, output_table)
+                        publish_bytes_total += _write_batch(
+                            batch_rows,
+                            output_tmp,
+                            part_index,
+                            output_pack,
+                            output_table,
+                            output_validation_mode,
+                            output_validation_sample_rows,
+                        )
                     except SchemaValidationError as exc:
                         _abort("2B-S3-030", "V-16", "output_schema_invalid", {"error": str(exc)})
                     write_ms += (time.monotonic() - write_start) * 1000
@@ -879,7 +1238,15 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
     if batch_rows:
         write_start = time.monotonic()
         try:
-            publish_bytes_total += _write_batch(batch_rows, output_tmp, part_index, output_pack, output_table)
+            publish_bytes_total += _write_batch(
+                batch_rows,
+                output_tmp,
+                part_index,
+                output_pack,
+                output_table,
+                output_validation_mode,
+                output_validation_sample_rows,
+            )
         except SchemaValidationError as exc:
             _abort("2B-S3-030", "V-16", "output_schema_invalid", {"error": str(exc)})
         write_ms += (time.monotonic() - write_start) * 1000
@@ -974,6 +1341,9 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
 
     warn_count = sum(1 for item in validators.values() if item["status"] == "WARN")
     fail_count = sum(1 for item in validators.values() if item["status"] == "FAIL")
+    if sigma_gamma_min_observed == float("inf"):
+        sigma_gamma_min_observed = sigma_gamma
+        sigma_gamma_max_observed = sigma_gamma
 
     run_report = {
         "component": "2B.S3",
@@ -990,7 +1360,12 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
             "sha256_hex": policy_sha256,
             "rng_engine": rng_engine,
             "rng_stream_id": rng_stream_id,
+            "sigma_policy_mode": sigma_policy_mode,
             "sigma_gamma": sigma_gamma,
+            "sigma_min": sigma_min_bound,
+            "sigma_max": sigma_max_bound,
+            "gamma_clip_min": gamma_clip_min,
+            "gamma_clip_max": gamma_clip_max,
             "day_range": {"start_day": start_day, "end_day": end_day},
         },
         "inputs_summary": {
@@ -1011,7 +1386,10 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
             },
             "max_abs_log_gamma": max_abs_log_gamma,
             "sigma_gamma": sigma_gamma,
+            "sigma_gamma_min_observed": sigma_gamma_min_observed,
+            "sigma_gamma_max_observed": sigma_gamma_max_observed,
             "nonpositive_gamma_rows": nonpositive_gamma_rows,
+            "gamma_clipped_rows": gamma_clipped_rows,
             "pk_duplicates": pk_duplicates,
             "join_misses": join_misses,
         },
@@ -1055,7 +1433,7 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
         },
     }
 
-    logger.info("S3 run-report %s", json.dumps(run_report, ensure_ascii=True, sort_keys=True))
+    _log_run_report(logger, run_report, log_run_report_json)
     if run_report_path is not None:
         _write_json(run_report_path, run_report)
     timer.info("S3: completed")

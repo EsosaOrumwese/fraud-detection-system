@@ -1,0 +1,73 @@
+flowchart LR
+
+  INTERNET[(Public internet)]
+
+  subgraph VPC[VPC domain dev_full]
+    IGW[Internet gateway]
+    PUBA[Public subnet A]
+    PUBB[Public subnet B]
+    PRIA[Private subnet A]
+    PRIB[Private subnet B]
+    NATA[NAT gateway A]
+    NATB[NAT gateway B]
+    RT_PUB[Public route tables]
+    RT_PRI[Private route tables]
+    SG_EDGE[Security group ingress edge]
+    SG_EKS[Security group EKS runtime]
+    SG_MSK[Security group MSK client]
+    SG_DB[Security group Aurora/Redis]
+    VPCE[VPC endpoints<br/>ECR STS S3 CloudWatch]
+  end
+
+  subgraph EDGE[Ingress edge]
+    APIGW[API Gateway]
+    LAMBDA[Ingress Lambda]
+    DDB[(DynamoDB idempotency)]
+  end
+
+  subgraph STREAM[Streaming and compute]
+    MSK[(MSK serverless brokers)]
+    FLINK[Flink jobs<br/>MSF or EKS EMR on EKS]
+    EKS[(EKS runtime services)]
+  end
+
+  subgraph STATE[State and data]
+    AURORA[(Aurora PostgreSQL)]
+    REDIS[(ElastiCache Redis)]
+    S3[(S3 object evidence artifacts)]
+  end
+
+  INTERNET --> IGW
+  IGW --> RT_PUB
+  RT_PUB --> PUBA
+  RT_PUB --> PUBB
+  PUBA --> NATA
+  PUBB --> NATB
+  NATA --> RT_PRI
+  NATB --> RT_PRI
+  RT_PRI --> PRIA
+  RT_PRI --> PRIB
+
+  PRIA --> VPCE
+  PRIB --> VPCE
+
+  APIGW --> LAMBDA --> DDB
+  APIGW --> MSK
+  SG_EDGE --> APIGW
+  SG_EDGE --> LAMBDA
+
+  PRIA --> EKS
+  PRIB --> EKS
+  SG_EKS --> EKS
+  SG_MSK --> MSK
+  EKS --> FLINK --> MSK
+
+  EKS --> AURORA
+  EKS --> REDIS
+  EKS --> S3
+  FLINK --> S3
+  LAMBDA --> S3
+
+  SG_DB --> AURORA
+  SG_DB --> REDIS
+

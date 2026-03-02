@@ -1,0 +1,78 @@
+DATA ENGINE CODE-LEVEL IO OWNERSHIP FLOW (simplified)
+Source basis: engine runner modules + impl-map read/write contracts
+============================================================================================
+
+Layer 1 - World and Merchant Realism
+------------------------------------
+  1A: Merchants to Physical Sites
+    owner: engine.layers.l1.seg_1A.*
+    IO contract counts: R=44 W=32
+  1B: Site Geolocation
+    owner: engine.layers.l1.seg_1B.*
+    IO contract counts: R=25 W=26
+  2A: Civil Time
+    owner: engine.layers.l1.seg_2A.*
+    IO contract counts: R=15 W=9
+  2B: Routing: traffic to sites and edges
+    owner: engine.layers.l1.seg_2B.*
+    IO contract counts: R=24 W=18
+  3A: Zone Allocation
+    owner: engine.layers.l1.seg_3A.*
+    IO contract counts: R=30 W=24
+  3B: Virtual merchants & CDN surfaces
+    owner: engine.layers.l1.seg_3B.*
+    IO contract counts: R=45 W=26
+
+Layer 2 - Temporal Arrival Surfaces
+-----------------------------------
+  5A: Intensity Surfaces
+    owner: engine.layers.l2.seg_5A.*
+    IO contract counts: R=40 W=25
+  5B: Arrival Realisation
+    owner: engine.layers.l2.seg_5B.*
+    IO contract counts: R=65 W=23
+
+Layer 3 - Behavior, Fraud, and Labels
+-------------------------------------
+  6A: Entity & Product World
+    owner: engine.layers.l3.seg_6A.*
+    IO contract counts: R=65 W=49
+  6B: Behaviour, Fraud Overlay & Labelling
+    owner: engine.layers.l3.seg_6B.*
+    IO contract counts: R=71 W=26
+
+Primary code-derived data flows (segment -> segment):
+  1A -> 1B: outlet_catalogue, rng_trace_log, s3_candidate_set (+2)
+  1A -> 3A: outlet_catalogue, rng_trace_log, validation_bundle_1A (+1)
+  1B -> 2A: site_locations, validation_bundle_1B, validation_passed_flag_1B
+  1B -> 2B: rng_audit_log, rng_trace_log, site_locations (+2)
+  1B -> 3B: rng_audit_log, rng_trace_log, site_locations (+2)
+  2A -> 2B: site_timezones, tz_timetable_cache
+  2A -> 3A: s4_legality_report, site_timezones, tz_timetable_cache (+2)
+  2A -> 3B: site_timezones, tz_timetable_cache, validation_bundle_2A (+1)
+  2B -> 3A: rng_audit_log, rng_trace_log
+  2B -> 5B: rng_audit_log, rng_trace_log, s1_site_weights (+6)
+  2B -> 6A: rng_audit_log, rng_trace_log, validation_bundle_2B (+1)
+  3A -> 3B: rng_audit_log, rng_trace_log, validation_bundle_3A (+3)
+  3A -> 5B: rng_audit_log, rng_trace_log, validation_bundle_3A (+3)
+  3B -> 5A: validation_bundle_3B, validation_passed_flag_3B, virtual_classification_3B (+2)
+  3B -> 5B: edge_alias_blob_3B, edge_alias_index_3B, edge_catalogue_3B (+10)
+  3B -> 6A: edge_universe_hash_3B, rng_audit_log, rng_trace_log (+5)
+  5A -> 5B: class_zone_shape_5A, merchant_zone_overlay_factors_5A, merchant_zone_profile_5A (+6)
+  5A -> 6A: merchant_zone_profile_5A, validation_bundle_5A, validation_passed_flag_5A
+  5B -> 6A: arrival_events_5B, rng_audit_log, rng_trace_log (+2)
+  5B -> 6B: arrival_events_5B, rng_audit_log, rng_trace_log (+2)
+  6A -> 6B: rng_audit_log, rng_trace_log, s1_party_base_6A (+13)
+
+External dependencies (unresolved reads in engine scope):
+  EXTERNAL -> 1A: ccy_country_shares_2024Q4, ccy_smoothing_params, crossborder_hyperparams (+17)
+  EXTERNAL -> 1B: iso3166_canonical_2024, math_profile_manifest, numeric_policy_profile (+3)
+  EXTERNAL -> 2A: iso3166_canonical_2024, merchant_mcc_map, tz_nudge (+4)
+  EXTERNAL -> 2B: alias_layout_policy_v1, day_effect_policy_v1, route_rng_policy_v1 (+1)
+  EXTERNAL -> 3A: country_zone_alphas, day_effect_policy_v1, iso3166_canonical_2024 (+3)
+  EXTERNAL -> 3B: alias_layout_policy_v1, cdn_country_weights, cdn_key_digest (+11)
+  EXTERNAL -> 5A: baseline_intensity_policy_5A, demand_scale_policy_5A, merchant_class_policy_5A (+11)
+  EXTERNAL -> 5B: alias_layout_policy_v1, arrival_count_config_5B, arrival_lgcp_config_5B (+8)
+  EXTERNAL -> 6A: device_linkage_rules_6A, graph_linkage_rules_6A, instrument_linkage_rules_6A (+22)
+  EXTERNAL -> 6B: amount_model_6B, attachment_policy_6B, bank_view_policy_6B (+16)
+

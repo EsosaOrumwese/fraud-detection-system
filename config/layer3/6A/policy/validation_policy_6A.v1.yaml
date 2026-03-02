@@ -31,7 +31,7 @@ linkage_checks:
     require_owner_link_present: true
   ip_links:
     max_ips_per_device: 25
-    max_devices_per_ip: 20000
+    max_devices_per_ip: 600
   account_instrument_links:
     max_instruments_per_account: 16
 
@@ -52,9 +52,64 @@ role_distribution_checks:
     min_risky_fraction: 0.002
     max_risky_fraction: 0.99
 
+distribution_checks:
+  ip_prior_alignment:
+    max_abs_error_pp: 15
+  device_ip_coverage:
+    min_fraction: 0.25
+  ip_degree_tail:
+    p99_max: 120
+    max_max: 600
+
 consistency_checks:
   require_role_vocab_match_taxonomy: true
   require_linkage_roles_match_policy: true
+
+role_mapping_contract:
+  require_full_mapping: true
+  ip_group_match_mode: by_ip_or_asn
+  t8_compare_space: canonical_taxonomy
+  device_raw_to_taxonomy:
+    NORMAL_DEVICE: CLEAN_DEVICE
+    RISKY_DEVICE: HIGH_RISK_DEVICE
+    BOT_LIKE_DEVICE: HIGH_RISK_DEVICE
+    SHARED_SUSPICIOUS_DEVICE: REUSED_DEVICE
+  ip_raw_to_taxonomy:
+    NORMAL_IP: CLEAN_IP
+    CORPORATE_NAT_IP: SHARED_IP
+    MOBILE_CARRIER_IP: SHARED_IP
+    PUBLIC_SHARED_IP: SHARED_IP
+    DATACENTRE_IP: HIGH_RISK_IP
+    PROXY_IP: HIGH_RISK_IP
+    HIGH_RISK_IP: HIGH_RISK_IP
+
+risk_propagation:
+  party_risky_roles: [SYNTHETIC_ID, MULE, ASSOCIATE, ORGANISER]
+  account_owner_propagation:
+    enabled: true
+    default_promote_probability: 0.0
+    promote_probability_by_tier:
+      LOW: 0.80
+      STANDARD: 0.75
+      ELEVATED: 0.65
+      HIGH: 0.0
+  device_owner_propagation:
+    enabled: true
+    default_promote_probability: 0.0
+    promote_probability_by_tier:
+      LOW: 0.70
+      STANDARD: 0.65
+      ELEVATED: 0.55
+      HIGH: 0.0
+  ip_sharing_propagation:
+    enabled: false
+    shared_degree_threshold: 40
+    default_promote_probability: 0.0
+    promote_probability_by_tier:
+      LOW: 0.45
+      STANDARD: 0.35
+      ELEVATED: 0.25
+      HIGH: 0.0
 
 failure_policy:
   mode: fail_closed

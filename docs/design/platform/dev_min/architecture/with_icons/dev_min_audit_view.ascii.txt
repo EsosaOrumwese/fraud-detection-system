@@ -1,0 +1,24 @@
+DEV_MIN AUDIT/GOVERNANCE VIEW (ICONS)
+
+Authority Surfaces:
+  Terraform roots -> [S3] state bucket -> [DDB] lock table
+
+Runtime Truth Surfaces:
+  [RDS] RDS runtime state
+  [DDB] DynamoDB admission/publish/control state
+  [S3] S3 evidence/object/quarantine/archive
+
+Transport Surfaces (not source of truth):
+  [KAFKA] Confluent Kafka topics
+  [KINESIS] Kinesis control bus
+  [KEY] SSM runtime credentials
+
+Fail-closed gates:
+  Readiness Gate (managed data-plane viability)
+      +
+  Closure Integrity Gate (evidence coherence + refs complete)
+      ->
+  Certification Matrix Gate (semantic, incident, scale, recovery, reproducibility)
+      ->
+  Outcome: advance only when blockers are empty
+

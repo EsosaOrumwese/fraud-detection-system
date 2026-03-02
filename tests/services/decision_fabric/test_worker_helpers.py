@@ -26,3 +26,16 @@ def test_worker_flow_id_does_not_fallback_to_event_id() -> None:
 def test_worker_utc_now_emits_canonical_zulu_timestamp() -> None:
     stamp = _utc_now()
     assert re.fullmatch(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$", stamp)
+
+
+def test_worker_kafka_partitions_fail_closed_when_metadata_unavailable() -> None:
+    from fraud_detection.decision_fabric.worker import DecisionFabricWorker
+
+    class _Reader:
+        def list_partitions(self, _topic: str) -> list[int]:
+            return []
+
+    worker = DecisionFabricWorker.__new__(DecisionFabricWorker)
+    worker._kafka_reader = _Reader()
+
+    assert worker._kafka_partitions("fp.bus.traffic.fraud.v1") == []

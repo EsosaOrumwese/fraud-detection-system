@@ -80,7 +80,8 @@ These constants apply to **all** dev_min infrastructure and runtime wiring. They
 
 ### 1.3 Cost posture constants
 
-* `MONTHLY_BUDGET_GBP = 30`
+* `MONTHLY_BUDGET_AMOUNT = 30`
+* `MONTHLY_BUDGET_UNIT = "USD"` *(AWS Budgets provider/account constraint)*
 * `DEMO_DESTROY_DEFAULT = true`
 * `FORBID_NAT_GATEWAY = true`
 * `FORBID_ALWAYS_ON_LOAD_BALANCER = true`
@@ -106,8 +107,15 @@ These are the canonical field names used in config and evidence payloads:
 
 * `CONFIG_DIGEST_ALGO = "sha256"`
 * `CONFIG_DIGEST_FIELD = "config_digest"`
-* `SCENARIO_EQUIVALENCE_KEY_INPUT = "<PIN_AT_P1_PHASE_ENTRY>"`
+* `SCENARIO_EQUIVALENCE_KEY_INPUT = "sha256(canonical_json_v1)"`
+* `SCENARIO_EQUIVALENCE_KEY_CANONICAL_FIELDS = "oracle_input_manifest_uri,oracle_input_manifest_sha256,oracle_required_output_ids,oracle_sort_key_by_output_id,config_digest"`
+* `SCENARIO_EQUIVALENCE_KEY_CANONICALIZATION_MODE = "json_sorted_keys_v1"`
 * `SCENARIO_RUN_ID_DERIVATION_MODE = "deterministic_hash_v1"`
+
+`SCENARIO_EQUIVALENCE_KEY_INPUT` is computed at P1 execution from the canonical
+field set above. It must not include run-unique fields (for example
+`platform_run_id` or timestamps) so equivalent reruns resolve to the same
+scenario identity surface.
 
 ### 1.7 Runtime scope enforcement (no drift)
 
@@ -126,7 +134,7 @@ These handles pin how Terraform state is stored and locked for dev_min. This is 
 
 * `TF_STATE_BUCKET`
 
-  * S3 bucket name for all Terraform state (core + demo).
+  * S3 bucket name for all Terraform state (core + confluent + demo).
 
 * `TF_STATE_BUCKET_REGION`
 
@@ -138,9 +146,10 @@ These handles pin how Terraform state is stored and locked for dev_min. This is 
 
 * `TF_STATE_ENCRYPTION_ENABLED = true`
 
-### 2.2 State keys (separate core vs demo)
+### 2.2 State keys (separate core vs confluent vs demo)
 
 * `TF_STATE_KEY_CORE = "dev_min/core/terraform.tfstate"`
+* `TF_STATE_KEY_CONFLUENT = "dev_min/confluent/terraform.tfstate"`
 * `TF_STATE_KEY_DEMO = "dev_min/demo/terraform.tfstate"`
 
 ### 2.3 State lock (DynamoDB)
@@ -154,6 +163,7 @@ These handles pin how Terraform state is stored and locked for dev_min. This is 
 These are the pinned repo locations (used by operator scripts and Codex automation):
 
 * `TF_STACK_CORE_DIR = "infra/terraform/dev_min/core"`
+* `TF_STACK_CONFLUENT_DIR = "infra/terraform/dev_min/confluent"`
 * `TF_STACK_DEMO_DIR = "infra/terraform/dev_min/demo"`
 
 ### 2.5 Terraform apply identity (operator)
@@ -169,7 +179,7 @@ These are the pinned repo locations (used by operator scripts and Codex automati
 
 ## 3. AWS S3 Buckets + Prefix Contracts
 
-These handles pin **where data lives** in dev_min. Buckets are provisioned by Terraform **core** (persistent, low-cost). All prefixes are **run-scoped** unless explicitly marked otherwise.
+These handles pin **where data lives** in dev_min. Buckets are provisioned by Terraform **core** (persistent, low-cost). Evidence/archive/quarantine prefixes are platform-run scoped; oracle prefixes are engine-run scoped and intentionally platform-run agnostic.
 
 ### 3.1 Buckets (names)
 
@@ -200,28 +210,38 @@ These are the only allowed template tokens inside prefix patterns:
 * `{scenario_run_id}` *(optional where relevant)*
 * `{output_id}`
 * `{phase_id}` *(P0..P12)*
+* `{oracle_source_namespace}`
+* `{oracle_engine_run_id}`
 
 ### 3.3 Oracle store prefixes (dev_min)
 
-* `S3_ORACLE_RUN_PREFIX_PATTERN = "oracle/{platform_run_id}/"`
+* `ORACLE_SOURCE_NAMESPACE = "local_full_run-5"`
 
-  * Root prefix for all oracle artifacts for a run.
+  * Oracle lineage namespace emitted by the external data engine.
 
-* `S3_ORACLE_INPUT_PREFIX_PATTERN = "oracle/{platform_run_id}/inputs/"`
+* `ORACLE_ENGINE_RUN_ID = "c25a2675fbfbacd952b13bb594880e92"`
 
-  * Root prefix for sealed oracle inputs copied/written for this run.
+  * External engine run identifier (oracle root key).
 
-* `S3_STREAM_VIEW_PREFIX_PATTERN = "oracle/{platform_run_id}/stream_view/"`
+* `S3_ORACLE_RUN_PREFIX_PATTERN = "oracle-store/{oracle_source_namespace}/{oracle_engine_run_id}/"`
 
-  * Root prefix for all stream_view outputs for this run.
+  * Canonical oracle engine-run root consumed by the platform.
 
-* `S3_STREAM_VIEW_OUTPUT_PREFIX_PATTERN = "oracle/{platform_run_id}/stream_view/output_id={output_id}/"`
+* `S3_ORACLE_INPUT_PREFIX_PATTERN = "oracle-store/{oracle_source_namespace}/{oracle_engine_run_id}/"`
+
+  * Raw/sealed oracle data root (`data/`, `logs/`, `reports/`, run receipts/manifests).
+
+* `S3_STREAM_VIEW_PREFIX_PATTERN = "oracle-store/{oracle_source_namespace}/{oracle_engine_run_id}/stream_view/ts_utc/"`
+
+  * Canonical stream_view base consumed by WSP/SR checks.
+
+* `S3_STREAM_VIEW_OUTPUT_PREFIX_PATTERN = "oracle-store/{oracle_source_namespace}/{oracle_engine_run_id}/stream_view/ts_utc/output_id={output_id}/"`
 
   * Output-specific stream_view prefix.
 
-* `S3_STREAM_VIEW_MANIFEST_KEY_PATTERN = "oracle/{platform_run_id}/stream_view/output_id={output_id}/_stream_view_manifest.json"`
+* `S3_STREAM_VIEW_MANIFEST_KEY_PATTERN = "oracle-store/{oracle_source_namespace}/{oracle_engine_run_id}/stream_view/ts_utc/output_id={output_id}/_stream_view_manifest.json"`
 
-* `S3_STREAM_SORT_RECEIPT_KEY_PATTERN = "oracle/{platform_run_id}/stream_view/output_id={output_id}/_stream_sort_receipt.json"`
+* `S3_STREAM_SORT_RECEIPT_KEY_PATTERN = "oracle-store/{oracle_source_namespace}/{oracle_engine_run_id}/stream_view/ts_utc/output_id={output_id}/_stream_sort_receipt.json"`
 
 ### 3.4 Archive prefixes (dev_min, bounded)
 
@@ -280,16 +300,16 @@ Convenience patterns (must align with Section 6 evidence contract):
 * `S3_ARCHIVE_RETENTION_DAYS = 60`
 * `S3_EVIDENCE_RETENTION_DAYS = null` *(no automatic expiry by default)*
 
-### 3.8 Oracle seed source handles (P3 policy lock)
+### 3.8 Oracle inlet policy handles (P3 boundary lock)
 
-* `ORACLE_SEED_SOURCE_MODE = "s3_to_s3_only"`
-* `ORACLE_SEED_SOURCE_BUCKET`
-* `ORACLE_SEED_SOURCE_PREFIX_PATTERN`
-* `ORACLE_SEED_OPERATOR_PRESTEP_REQUIRED = false`
+* `ORACLE_INLET_MODE = "external_pre_staged"`
+* `ORACLE_INLET_PLATFORM_OWNERSHIP = "outside_platform_runtime_scope"`
+* `ORACLE_INLET_ASSERTION_REQUIRED = true`
 
-`ORACLE_SEED_OPERATOR_PRESTEP_REQUIRED` remains explicit so automation cannot
-quietly reintroduce local bootstrap behavior. Dev_min v0 policy is managed
-object-store-only for P3 seed/sync.
+Policy note:
+* Dev_min P3 does not include a platform seed/sync task.
+* Oracle inputs are expected under the canonical engine-run root (`S3_ORACLE_RUN_PREFIX_PATTERN`) before P3 stream-sort/checker.
+* Temporary operator upload/copy bridges are outside platform runtime scope and must not be modeled as platform jobs.
 
 ---
 
@@ -315,11 +335,18 @@ These handles pin the Confluent Cloud environment, cluster shape, and how runtim
 
 ### 4.2 Confluent bootstrap and API keys (stored in AWS SSM)
 
-These are SSM parameter paths (SecureString where applicable). Values are written by demo Terraform apply and removed by demo destroy.
+These are SSM parameter paths (SecureString where applicable). Values are written by the dedicated Confluent Terraform stack and are managed through that stack lifecycle.
 
 * `SSM_CONFLUENT_BOOTSTRAP_PATH = "/fraud-platform/dev_min/confluent/bootstrap"`
 * `SSM_CONFLUENT_API_KEY_PATH = "/fraud-platform/dev_min/confluent/api_key"`
 * `SSM_CONFLUENT_API_SECRET_PATH = "/fraud-platform/dev_min/confluent/api_secret"`
+
+### 4.2.1 Confluent Terraform management credential input (operator/CI)
+
+* `TF_VAR_CONFLUENT_CLOUD_API_KEY = "TF_VAR_confluent_cloud_api_key"`
+* `TF_VAR_CONFLUENT_CLOUD_API_SECRET = "TF_VAR_confluent_cloud_api_secret"`
+
+These are input variable names for the dedicated Confluent Terraform stack.
 
 ### 4.3 Confluent access model (pinned for v0)
 
@@ -467,7 +494,6 @@ Pick at least one (implementer chooses exact mechanics, but the interface is pin
 
 The image must support these logical entrypoint modes (exact commands pinned later by Codex in task defs):
 
-* `ENTRYPOINT_ORACLE_SEED`
 * `ENTRYPOINT_ORACLE_STREAM_SORT`
 * `ENTRYPOINT_ORACLE_CHECKER`
 * `ENTRYPOINT_SR`
@@ -475,14 +501,25 @@ The image must support these logical entrypoint modes (exact commands pinned lat
 * `ENTRYPOINT_IG_SERVICE`
 * `ENTRYPOINT_RTDL_CORE_WORKER`
 * `ENTRYPOINT_DECISION_LANE_WORKER`
+* `ENTRYPOINT_CASE_TRIGGER_WORKER`
 * `ENTRYPOINT_CM_SERVICE`
 * `ENTRYPOINT_LS_SERVICE`
+* `ENTRYPOINT_ENV_CONFORMANCE_WORKER`
 * `ENTRYPOINT_REPORTER`
 
 ### 6.6 Oracle lane contract knobs (phase-entry pinning)
 
-* `ORACLE_REQUIRED_OUTPUT_IDS = "<PIN_AT_P3_PHASE_ENTRY>"`
-* `ORACLE_SORT_KEY_BY_OUTPUT_ID = "<PIN_AT_P3_PHASE_ENTRY>"`
+* `ORACLE_REQUIRED_OUTPUT_IDS = ["s3_event_stream_with_fraud_6B","arrival_events_5B","s1_arrival_entities_6B","s3_flow_anchor_with_fraud_6B"]`
+* `ORACLE_SORT_KEY_BY_OUTPUT_ID = {"s3_event_stream_with_fraud_6B":"ts_utc","arrival_events_5B":"ts_utc","s1_arrival_entities_6B":"ts_utc","s3_flow_anchor_with_fraud_6B":"ts_utc","s1_session_index_6B":"session_start_utc","s4_event_labels_6B":"flow_id,event_seq","s4_flow_truth_labels_6B":"flow_id","s4_flow_bank_view_6B":"flow_id"}`
+* `ORACLE_SORT_KEY_ACTIVE_SCOPE = "use entries where output_id is in ORACLE_REQUIRED_OUTPUT_IDS for the current run"`
+
+Pin rationale (Spine Green v0 fraud-mode):
+
+* Required output surfaces: traffic.fraud + context arrival/events/entities + flow_anchor.fraud.
+* Primary sort key per output is `ts_utc`; deterministic tie-breakers remain sorter-defined
+  (`filename`, `file_row_number`).
+* Non-`ts_utc` overrides are pinned from local-parity oracle-store implementation and are retained in
+  this registry to prevent drift when future runs expand the required output set.
 
 ---
 
@@ -516,13 +553,12 @@ Optional (only if you introduce an internal LB — not recommended by default):
 
 These are logical identifiers; the real AWS ARNs/names are bound by Terraform outputs.
 
-* `TD_ORACLE_SEED`
-* `TD_ORACLE_STREAM_SORT`
-* `TD_ORACLE_CHECKER`
-* `TD_SR`
-* `TD_WSP`
+* `TD_ORACLE_STREAM_SORT = "fraud-platform-dev-min-oracle-stream-sort"`
+* `TD_ORACLE_CHECKER = "fraud-platform-dev-min-oracle-checker"`
+* `TD_SR = "fraud-platform-dev-min-sr"`
+* `TD_WSP = "fraud-platform-dev-min-wsp"`
 * `TD_DB_MIGRATIONS` *(if needed)*
-* `TD_REPORTER`
+* `TD_REPORTER = "fraud-platform-dev-min-reporter"`
 
 ### 7.4 ECS services (daemons)
 
@@ -550,13 +586,13 @@ Case/Labels pack:
 
 Obs/Gov pack (daemonized parts):
 
-* `SVC_ENV_CONFORMANCE` *(optional if run as daemon; reporter still P11 task)*
+* `SVC_ENV_CONFORMANCE` *(required daemon in P2; reporter remains the P11 task)*
 
 ### 7.5 Runtime service discovery handles
 
 These are how tasks/services locate each other.
 
-* `IG_BASE_URL`
+* `IG_BASE_URL = "http://fraud-platform-dev-min-ig:8080"`
 
   * Reachable URL for WSP → IG calls (e.g., internal DNS, service discovery, or LB DNS if used).
 
@@ -590,8 +626,27 @@ These are how tasks/services locate each other.
 
 ### 7.6 Execution policies (v0 defaults)
 
-* `ECS_SERVICE_DESIRED_COUNT_DEFAULT = 1`
+* `ECS_SERVICE_DESIRED_COUNT_DEFAULT = 0`
 * `ECS_TASK_RETRY_MAX = 1` *(task retries controlled by operator; fail closed by default)*
+
+Phase-aware profile control:
+* `ECS_PHASE_PROFILE_WORKFLOW_FILE = ".github/workflows/dev_min_ecs_phase_profile.yml"`
+* `ECS_PHASE_PROFILE_DEFAULT_START_DESIRED_COUNT = 1`
+* `ECS_PHASE_PROFILE_MAP = {"m6_control_ingress":["ig"],"m7_p8_rtdl_core":["rtdl-core-archive-writer","rtdl-core-ieg","rtdl-core-ofp","rtdl-core-csfb"],"m7_p9_decision_lane":["decision-lane-dl","decision-lane-df","decision-lane-al","decision-lane-dla"],"m7_p10_case_labels":["case-trigger","case-mgmt","label-store"],"m8_obs_gov":["env-conformance"],"all_spine_daemons":["ig","rtdl-core-archive-writer","rtdl-core-ieg","rtdl-core-ofp","rtdl-core-csfb","decision-lane-dl","decision-lane-df","decision-lane-al","decision-lane-dla","case-trigger","case-mgmt","label-store","env-conformance"]}`
+
+Idle guard and teardown posture:
+* `IDLE_TEARDOWN_GUARD_WORKFLOW_FILE = ".github/workflows/dev_min_idle_teardown_guard.yml"`
+* `IDLE_TTL_MINUTES = 90`
+* `IDLE_GUARD_ENFORCEMENT_MODE_DEFAULT = "stop_services"` *(allowed: `observe_only|stop_services|destroy_demo_stack`)*
+
+Rightsizing posture:
+* `ECS_RIGHTSIZING_WORKFLOW_FILE = ".github/workflows/dev_min_ecs_rightsizing_report.yml"`
+* `RIGHTSIZE_LOOKBACK_HOURS = 24`
+* `RIGHTSIZE_CW_PERIOD_SECONDS = 300`
+
+Per-run cost attribution tags:
+* `COST_ATTRIBUTION_TAG_RUN_ID_KEY = "fp_run_id"`
+* `COST_ATTRIBUTION_TAG_PHASE_PROFILE_KEY = "fp_phase_profile"`
 
 ### 7.7 Runtime control knobs (v0 defaults)
 
@@ -611,8 +666,8 @@ These are how tasks/services locate each other.
 
 **Case/labels identity + decision idempotency**
 
-* `CASE_SUBJECT_KEY_FIELDS = "<PIN_AT_P10_PHASE_ENTRY>"`
-* `LABEL_SUBJECT_KEY_FIELDS = "<PIN_AT_P10_PHASE_ENTRY>"`
+* `CASE_SUBJECT_KEY_FIELDS = "platform_run_id,event_class,event_id"`
+* `LABEL_SUBJECT_KEY_FIELDS = "platform_run_id,event_id"`
 * `ACTION_IDEMPOTENCY_KEY_FIELDS = "platform_run_id,event_id,action_type"`
 * `ACTION_OUTCOME_WRITE_POLICY = "append_only"`
 
@@ -674,12 +729,20 @@ Optional:
 * `DB_SECURITY_GROUP_ID = SECURITY_GROUP_ID_DB`
 * `DB_PORT = 5432`
 
+### 8.5.1 WSP checkpoint durability handle (pinned)
+
+* `WSP_CHECKPOINT_DSN` *(runtime env for WSP checkpoint store; v0 resolves from `SSM_DB_DSN_PATH` when DSN mode is used)*.
+* `WSP_CHECKPOINT_FLUSH_EVERY = 100` *(default dev_min checkpoint flush cadence for burst/scale lanes)*.
+
 ### 8.6 DB migrations / bootstrap (if required)
 
 * `DB_MIGRATIONS_REQUIRED = true` *(default until proven otherwise)*
 * `TD_DB_MIGRATIONS`
 
   * ECS one-shot task definition used to apply migrations for dev_min DB.
+  * Materialized via demo Terraform outputs:
+    - `td_db_migrations` (family handle)
+    - `ecs_db_migrations_task_definition_arn` (concrete ARN)
 
 ### 8.7 DB cleanup policy (demo posture)
 
@@ -690,7 +753,7 @@ Optional:
 
 ## 9. AWS Batch Handles (ONLY if used for P3)
 
-Dev_min v0 prefers ECS run-tasks for P3 (oracle jobs). If (and only if) you choose AWS Batch for stream-sort/seed/checker, pin the required handles here. If not used, leave these unset and do not reference them elsewhere.
+Dev_min v0 prefers ECS run-tasks for P3 (oracle jobs). If (and only if) you choose AWS Batch for stream-sort/checker, pin the required handles here. If not used, leave these unset and do not reference them elsewhere.
 
 ### 9.1 Batch usage flag
 
@@ -729,39 +792,46 @@ These handles pin the IAM roles used by Terraform and every ECS task/service. Th
 
 ### 10.2 ECS execution role (pull images + logs only)
 
-* `ROLE_ECS_TASK_EXECUTION`
+* `ROLE_ECS_TASK_EXECUTION = "fraud-platform-dev-min-ecs-task-execution"`
 
 ### 10.3 Task/service roles (application data access)
 
-* `ROLE_ORACLE_JOB`
+* `ROLE_ORACLE_JOB = "fraud-platform-dev-min-rtdl-core"`
 
-  * for `TD_ORACLE_SEED`, `TD_ORACLE_STREAM_SORT`, `TD_ORACLE_CHECKER`
+  * for `TD_ORACLE_STREAM_SORT`, `TD_ORACLE_CHECKER`
+  * v0 posture: reuse existing materialized lane role for M5 bring-up; split to a dedicated oracle role if/when least-privilege policy divergence is required.
 
-* `ROLE_SR_TASK`
+* `ROLE_SR_TASK = "fraud-platform-dev-min-rtdl-core"`
 
   * for `TD_SR`
+  * v0 posture: SR reuses existing materialized RTDL core lane role; split to a dedicated SR role only when policy divergence is pinned.
 
-* `ROLE_WSP_TASK`
+* `ROLE_WSP_TASK = "fraud-platform-dev-min-rtdl-core"`
 
   * for `TD_WSP`
+  * v0 posture: WSP reuses existing materialized RTDL core lane role; split to a dedicated WSP role only when policy divergence is pinned.
 
-* `ROLE_IG_SERVICE`
+* `ROLE_IG_SERVICE = "fraud-platform-dev-min-ig-service"`
 
   * for `SVC_IG`
 
-* `ROLE_RTDL_CORE`
+* `ROLE_RTDL_CORE = "fraud-platform-dev-min-rtdl-core"`
 
   * for all `SVC_RTDL_CORE_*`
 
-* `ROLE_DECISION_LANE`
+* `ROLE_DECISION_LANE = "fraud-platform-dev-min-decision-lane"`
 
   * for all `SVC_DECISION_LANE_*`
 
-* `ROLE_CASE_LABELS`
+* `ROLE_CASE_LABELS = "fraud-platform-dev-min-case-labels"`
 
   * for `SVC_CASE_TRIGGER`, `SVC_CM`, `SVC_LS`
 
-* `ROLE_REPORTER_SINGLE_WRITER`
+* `ROLE_ENV_CONFORMANCE = "fraud-platform-dev-min-env-conformance"`
+
+  * for `SVC_ENV_CONFORMANCE`
+
+* `ROLE_REPORTER_SINGLE_WRITER = "fraud-platform-dev-min-reporter-single-writer"`
 
   * for `TD_REPORTER`
 
@@ -784,13 +854,17 @@ These handles pin the AWS budget guardrails required for dev_min.
 ### 11.1 Budget identity
 
 * `AWS_BUDGET_NAME = "fraud-platform-dev-min-budget"`
-* `AWS_BUDGET_LIMIT_GBP = 30`
+* `AWS_BUDGET_LIMIT_AMOUNT = 30`
+* `AWS_BUDGET_LIMIT_UNIT = "USD"`
 
 ### 11.2 Alert thresholds (pinned)
 
-* `AWS_BUDGET_ALERT_1_GBP = 10`
-* `AWS_BUDGET_ALERT_2_GBP = 20`
-* `AWS_BUDGET_ALERT_3_GBP = 28`
+* `AWS_BUDGET_ALERT_1_AMOUNT = 10`
+* `AWS_BUDGET_ALERT_2_AMOUNT = 20`
+* `AWS_BUDGET_ALERT_3_AMOUNT = 28`
+
+Note:
+* Authority cost posture remains "~£30/month" at policy level; AWS Budgets enforcement in this account/provider is pinned in `USD`.
 
 ### 11.3 Alert delivery
 
@@ -810,6 +884,35 @@ or
 ### 11.4 Cost anomaly detection (optional v0)
 
 * `ENABLE_COST_ANOMALY_DETECTION = true` *(recommended)*
+
+### 11.4.1 Cross-platform cost capture scope (pinned)
+
+* `COST_CAPTURE_SCOPE = "aws_plus_confluent_cloud"`
+* `COST_CAPTURE_ENFORCEMENT_MODE = "fail_closed"`
+* `COST_CAPTURE_PERIOD = "month_to_date_utc"`
+* `CONFLUENT_BILLING_SOURCE_MODE = "managed_control_plane_api_snapshot"`
+* `CONFLUENT_BILLING_CURRENCY = "USD"`
+
+Cross-platform budget rollup handles:
+* `TOTAL_MONTHLY_BUDGET_LIMIT_AMOUNT = 30`
+* `TOTAL_MONTHLY_BUDGET_LIMIT_UNIT = "USD"`
+* `TOTAL_BUDGET_ALERT_1_AMOUNT = 10`
+* `TOTAL_BUDGET_ALERT_2_AMOUNT = 20`
+* `TOTAL_BUDGET_ALERT_3_AMOUNT = 28`
+
+Managed input handles (names only; values remain secret-managed):
+* `CONFLUENT_BILLING_API_KEY_INPUT = "TF_VAR_confluent_cloud_api_key"`
+* `CONFLUENT_BILLING_API_SECRET_INPUT = "TF_VAR_confluent_cloud_api_secret"`
+* `CONFLUENT_BILLING_SECRET_SOURCE = "GitHubActionsSecrets(TF_VAR_CONFLUENT_CLOUD_API_KEY,TF_VAR_CONFLUENT_CLOUD_API_SECRET)"`
+* `M9G_CONFLUENT_BILLING_WORKFLOW_FILE = ".github/workflows/dev_min_m9g_confluent_billing.yml"`
+* `M9G_COST_GUARDRAIL_WORKFLOW_FILE = ".github/workflows/dev_min_m9g_cost_guardrail.yml"`
+
+Evidence handle:
+* `CONFLUENT_BILLING_SNAPSHOT_KEY_PATTERN = "evidence/dev_min/run_control/{m9_execution_id}/confluent_billing_snapshot.json"`
+
+Policy note:
+* Cost capture is not green unless both AWS and Confluent Cloud MTD billing are captured and combined.
+* If Confluent billing is unreadable/unavailable, cost posture is blocker state (no phase advance).
 
 ### 11.5 Tag-based cost visibility (pinned)
 

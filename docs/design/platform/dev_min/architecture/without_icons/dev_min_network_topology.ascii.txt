@@ -1,0 +1,29 @@
+DEV_MIN NETWORK TOPOLOGY (NO ICONS)
+
+Internet Edge:
+  Public internet (0.0.0.0/0)
+
+VPC Layer:
+  - aws_vpc.demo
+  - aws_internet_gateway.demo
+  - aws_route_table.public
+  - aws_route.internet (0.0.0.0/0 -> IGW)
+  - aws_subnet.public[0], aws_subnet.public[1]
+  - aws_route_table_association.public[*]
+
+Security Layer:
+  - App SG: ingress tcp/8080 from 0.0.0.0/0, egress all
+  - DB SG: ingress tcp/var.db_port from App SG, egress all
+
+Runtime Placement:
+  - ECS runtime-probe service on public subnets, App SG, public IP assigned
+  - ECS daemon services on public subnets, App SG, public IP assigned
+
+Database Placement:
+  - DB subnet group uses public subnets
+  - RDS runtime instance uses DB SG and DB subnet group
+  - publicly_accessible is variable-driven (var.db_publicly_accessible)
+
+Current network posture signals:
+  - No NAT gateway provisioned
+  - No ALB/NLB provisioned

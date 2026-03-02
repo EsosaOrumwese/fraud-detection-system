@@ -1,0 +1,64 @@
+flowchart TB
+
+  subgraph INGEST[Ingress decision boundary]
+    APIGW[API Gateway]
+    IGL[Ingress Lambda]
+    IDDB[(DynamoDB idempotency)]
+    REC[(Receipt + quarantine emission)]
+  end
+
+  subgraph BUS[Kafka topics]
+    TTRAFFIC[[traffic]]
+    TCTX[[context]]
+    TRTDL[[rtdl]]
+    TAUDIT[[audit]]
+  end
+
+  subgraph STREAM[Stream transforms]
+    IEG[IEG inlet transform]
+    OFP[OFP feature transform]
+  end
+
+  subgraph DECISION[Decision services]
+    DF[Decision Fabric]
+    AL[Action Layer]
+    DLA[Decision Log and Audit]
+  end
+
+  subgraph CASELBL[Case and labels]
+    CT[Case Trigger]
+    CM[Case Management]
+    LS[Label Store]
+  end
+
+  subgraph STATE[State ownership]
+    AURORA[(Aurora decision/case/label state)]
+    REDIS[(Redis low-latency features)]
+    S3[(S3 receipts archive audit)]
+  end
+
+  APIGW --> IGL --> IDDB
+  IGL --> REC --> S3
+  IGL --> TTRAFFIC
+  IGL --> TCTX
+
+  TTRAFFIC --> IEG
+  TCTX --> IEG
+  TTRAFFIC --> OFP
+  TCTX --> OFP
+  IEG --> AURORA
+  OFP --> REDIS
+  OFP --> AURORA
+
+  TTRAFFIC --> DF
+  IEG --> DF
+  OFP --> DF
+  DF --> AL
+  DF --> DLA
+  AL --> DLA
+  DLA --> TAUDIT
+  DLA --> S3
+
+  AL --> TRTDL --> CT --> CM --> LS
+  CM --> AURORA
+  LS --> AURORA

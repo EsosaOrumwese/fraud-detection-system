@@ -73,3 +73,17 @@ Out of scope for this baseline:
 
 - `addendum_5_concurrency_backpressure_knobs.txt`
   - Addendum 5. Behavior/safety/perf knobs for concurrency and backpressure.
+
+## Graph Assets (Implementation-True)
+
+- `graph/local_parity_spine_green_v0.graphviz.dot`
+  - Detailed Graphviz network of the local parity spine, including pack workers, topic lanes, ownership boundaries, DSN/object-store evidence sinks, and phase-to-lane mapping.
+
+- `graph/local_parity_spine_green_v0.mermaid.mmd`
+  - Mermaid version of the same implementation graph for markdown-native rendering.
+
+- `graph/local_parity_spine_green_v0.ascii.txt`
+  - Plain-text operator-readable version with lane-by-lane flow and ownership laws.
+
+- `scripts/platform_graphs/build_local_parity_spine_graph_assets.py`
+  - Source generator script for the three graph assets above.

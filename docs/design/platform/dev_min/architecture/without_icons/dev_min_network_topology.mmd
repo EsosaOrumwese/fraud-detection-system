@@ -1,0 +1,61 @@
+%%{init: {"theme": "default"}}%%
+flowchart LR
+  subgraph Internet["Internet Edge"]
+    InternetNode["Public internet<br/>0.0.0.0/0"]
+  end
+
+  subgraph VPC["VPC (aws_vpc.demo)"]
+    VpcNode["VPC CIDR<br/>var.vpc_cidr"]
+    Igw["Internet gateway<br/>aws_internet_gateway.demo"]
+    RtPublic["Public route table<br/>aws_route_table.public"]
+    RouteDefault["Default route<br/>0.0.0.0/0 -> IGW<br/>aws_route.internet"]
+    SubnetA["Public subnet A<br/>aws_subnet.public[0]"]
+    SubnetB["Public subnet B<br/>aws_subnet.public[1]"]
+    Rta["Route table associations<br/>aws_route_table_association.public[*]"]
+
+    SgApp["App security group<br/>Ingress: tcp/8080 from 0.0.0.0/0<br/>Egress: all"]
+    SgDb["DB security group<br/>Ingress: tcp/var.db_port from App SG<br/>Egress: all"]
+
+    EcsProbe["ECS runtime-probe service<br/>assign_public_ip=true<br/>subnets=public[*]<br/>sg=app"]
+    EcsDaemons["ECS daemon services<br/>assign_public_ip=true<br/>subnets=public[*]<br/>sg=app"]
+
+    DbSubnet["DB subnet group<br/>aws_db_subnet_group.demo<br/>subnets=public[*]"]
+    Rds["RDS postgres<br/>aws_db_instance.runtime<br/>sg=db<br/>publicly_accessible=var.db_publicly_accessible"]
+
+    NoNat["No NAT gateway provisioned"]
+    NoLb["No ALB/NLB provisioned"]
+  end
+
+  InternetNode --> Igw
+  VpcNode --> Igw
+  VpcNode --> RtPublic
+  RtPublic --> RouteDefault
+  RouteDefault --> Igw
+  VpcNode --> SubnetA
+  VpcNode --> SubnetB
+  Rta --> SubnetA
+  Rta --> SubnetB
+  Rta --> RtPublic
+
+  VpcNode --> SgApp
+  VpcNode --> SgDb
+
+  SubnetA --> EcsProbe
+  SubnetB --> EcsProbe
+  SubnetA --> EcsDaemons
+  SubnetB --> EcsDaemons
+  SgApp --> EcsProbe
+  SgApp --> EcsDaemons
+
+  SgApp -->|db port access path| SgDb
+  SgDb --> Rds
+  SubnetA --> DbSubnet
+  SubnetB --> DbSubnet
+  DbSubnet --> Rds
+
+  EcsProbe -.->|egress allowed| InternetNode
+  EcsDaemons -.->|egress allowed| InternetNode
+
+  classDef note fill:#FEF3C7,stroke:#D97706,color:#7C2D12;
+  class NoNat,NoLb note
+

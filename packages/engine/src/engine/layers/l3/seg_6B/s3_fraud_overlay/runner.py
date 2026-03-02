@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Optional
 
+import duckdb
 import polars as pl
 import pyarrow.parquet as pq
 import yaml
@@ -70,7 +71,7 @@ class _StepTimer:
 
 
 class _ProgressTracker:
-    def __init__(self, total: int, logger, label: str, cadence_seconds: float = 5.0) -> None:
+    def __init__(self, total: int, logger, label: str, cadence_seconds: float = 10.0) -> None:
         self._total = max(int(total), 0)
         self._logger = logger
         self._label = label
@@ -258,6 +259,111 @@ def _iter_parquet_batches(
             if batch.num_rows == 0:
                 continue
             yield pl.from_arrow(batch)
+
+
+def _duckdb_scan_many(paths: Iterable[Path]) -> str:
+    quoted = []
+    for path in paths:
+        normalized = str(path).replace("\\", "/").replace("'", "''")
+        quoted.append(f"'{normalized}'")
+    if not quoted:
+        raise InputResolutionError("No parquet paths supplied for duckdb scan.")
+    if len(quoted) == 1:
+        return f"read_parquet({quoted[0]}, hive_partitioning=true, union_by_name=true)"
+    return f"read_parquet([{', '.join(quoted)}], hive_partitioning=true, union_by_name=true)"
+
+
+def _build_event_overlay_via_duckdb(
+    *,
+    event_files: list[Path],
+    flow_overlay_files: list[Path],
+    output_file: Path,
+    parquet_compression: str,
+    expected_rows: int,
+    logger,
+) -> int:
+    if not event_files:
+        raise InputResolutionError("S3 event overlay lane requires event_files.")
+    if not flow_overlay_files:
+        raise InputResolutionError("S3 event overlay lane requires flow_overlay_files.")
+
+    compression_token = str(parquet_compression).upper()
+    if compression_token == "UNCOMPRESSED":
+        compression_token = "UNCOMPRESSED"
+    elif compression_token not in {"SNAPPY", "ZSTD", "LZ4"}:
+        raise InputResolutionError(f"Unsupported parquet compression for duckdb copy: {parquet_compression}")
+
+    events_scan = _duckdb_scan_many(event_files)
+    flows_scan = _duckdb_scan_many(flow_overlay_files)
+    output_norm = str(output_file).replace("\\", "/").replace("'", "''")
+
+    con = duckdb.connect()
+    try:
+        con.execute("PRAGMA threads=8;")
+        con.execute("PRAGMA enable_progress_bar=false;")
+        query = f"""
+            COPY (
+              WITH e AS (
+                SELECT
+                  CAST(flow_id AS BIGINT) AS flow_id,
+                  CAST(event_seq AS BIGINT) AS event_seq,
+                  CAST(event_type AS VARCHAR) AS event_type,
+                  CAST(ts_utc AS VARCHAR) AS ts_utc,
+                  CAST(amount AS DOUBLE) AS amount,
+                  CAST(seed AS BIGINT) AS seed,
+                  CAST(manifest_fingerprint AS VARCHAR) AS manifest_fingerprint,
+                  CAST(parameter_hash AS VARCHAR) AS parameter_hash,
+                  CAST(scenario_id AS VARCHAR) AS scenario_id
+                FROM {events_scan}
+              ),
+              f AS (
+                SELECT
+                  CAST(flow_id AS BIGINT) AS flow_id,
+                  CAST(amount AS DOUBLE) AS flow_amount,
+                  CAST(fraud_flag AS BOOLEAN) AS flow_fraud_flag,
+                  CAST(campaign_id AS VARCHAR) AS flow_campaign_id
+                FROM {flows_scan}
+              )
+              SELECT
+                e.flow_id,
+                e.event_seq,
+                e.event_type,
+                e.ts_utc,
+                COALESCE(f.flow_amount, e.amount) AS amount,
+                e.seed,
+                e.manifest_fingerprint,
+                e.parameter_hash,
+                e.scenario_id,
+                COALESCE(f.flow_fraud_flag, FALSE) AS fraud_flag,
+                f.flow_campaign_id AS campaign_id
+              FROM e
+              LEFT JOIN f USING(flow_id)
+            )
+            TO '{output_norm}'
+            (FORMAT PARQUET, COMPRESSION '{compression_token}');
+        """
+        con.execute(query)
+        row_count = con.execute(
+            f"SELECT COUNT(*) FROM read_parquet('{output_norm}', hive_partitioning=true, union_by_name=true)"
+        ).fetchone()
+    finally:
+        con.close()
+
+    rows = int(row_count[0] or 0) if row_count else 0
+    if rows != int(expected_rows):
+        raise EngineFailure(
+            "F4",
+            "S3_EVENT_OVERLAY_ROWCOUNT_MISMATCH",
+            STATE,
+            MODULE_NAME,
+            {"expected_rows": int(expected_rows), "actual_rows": int(rows), "output_file": str(output_file)},
+        )
+    logger.info(
+        "S3: event overlay lane completed expected_rows=%s actual_rows=%s",
+        int(expected_rows),
+        int(rows),
+    )
+    return rows
 
 
 def _schema_from_pack(schema_pack: dict, anchor: str) -> dict:
@@ -639,6 +745,7 @@ def _build_campaign_plans(
             logger.warning("S3: skipping template without template_id")
             continue
         campaign_type = str(template.get("campaign_type") or "").strip()
+        filters_id = str(template.get("filters_id") or "").strip()
         max_instances = int(template.get("max_instances_per_seed") or 1)
         instances = max(1, min(max_instances, 1))
         schedule_id = str(template.get("schedule_model_id") or "").strip()
@@ -671,12 +778,34 @@ def _build_campaign_plans(
                 manifest_fingerprint,
                 instance_index,
             )
+            targeting_width_map = {
+                "F_MERCHANT_RISK": 1,
+                "F_ACCOUNT_DIGITAL": 2,
+                "F_ECOM_CARDLIKE": 3,
+                "F_CARDLIKE_ANY": 4,
+            }
+            targeting_bucket_mod = 29
+            targeting_width = int(targeting_width_map.get(filters_id, 3))
+            if targeting_width <= 0:
+                targeting_width = 1
+            if targeting_width > targeting_bucket_mod:
+                targeting_width = targeting_bucket_mod
+            bucket_key = (
+                f"{manifest_fingerprint}:{parameter_hash}:{scenario_id}:{campaign_id}:target_bucket_start"
+            )
+            targeting_bucket_start = (
+                int.from_bytes(hashlib.sha256(bucket_key.encode("utf-8")).digest()[:8], "big")
+                % targeting_bucket_mod
+            )
             plans.append(
                 {
                     "campaign_id": campaign_id,
                     "campaign_label": template_id,
                     "campaign_type": campaign_type,
                     "target_count": max(int(target_count), 0),
+                    "targeting_bucket_mod": targeting_bucket_mod,
+                    "targeting_width": targeting_width,
+                    "targeting_bucket_start": targeting_bucket_start,
                 }
             )
 
@@ -698,22 +827,74 @@ def _build_campaign_plans(
             plan["target_rate"] = 0.0
         else:
             plan["target_rate"] = min(plan["target_count"] / float(total_flows), 1.0)
-        plan["threshold"] = int(plan["target_rate"] * modulus)
+        threshold = int(plan["target_rate"] * modulus)
+        # Keep very low-rate positive-target campaigns from truncating to zero.
+        if plan["target_count"] > 0 and threshold == 0 and total_flows > 0:
+            threshold = 1
+        plan["threshold"] = threshold
     return plans
 
 
-def _assign_campaign_expr(campaigns: list[dict], seed: int, modulus: int) -> pl.Expr:
+def _assign_campaign_expr(
+    campaigns: list[dict],
+    seed: int,
+    modulus: int,
+    *,
+    use_merchant_targeting: bool,
+) -> pl.Expr:
+    merchant_bucket_expr: pl.Expr | None = None
+    if use_merchant_targeting:
+        merchant_bucket_expr = _hash_to_index(
+            [pl.col("merchant_id")],
+            seed=seed + 1500,
+            modulus=29,
+        )
     campaign_expr: pl.Expr = pl.lit(None, dtype=pl.Utf8)
     for idx, campaign in enumerate(campaigns):
         threshold = int(campaign.get("threshold") or 0)
         if threshold <= 0:
             continue
-        hash_expr = _hash_to_index(
+        flow_hash_expr = _hash_to_index(
             [pl.col("flow_id"), pl.lit(campaign["campaign_id"])],
             seed=seed + 1700 + idx,
             modulus=modulus,
         )
-        pick_expr = hash_expr < pl.lit(threshold)
+        pick_expr = flow_hash_expr < pl.lit(threshold)
+        if use_merchant_targeting:
+            bucket_mod = int(campaign.get("targeting_bucket_mod") or 29)
+            width = int(campaign.get("targeting_width") or 3)
+            start = int(campaign.get("targeting_bucket_start") or 0)
+            if bucket_mod <= 1:
+                bucket_mod = 29
+            if width <= 0:
+                width = 1
+            if width > bucket_mod:
+                width = bucket_mod
+            start = start % bucket_mod
+            end = (start + width) % bucket_mod
+
+            if merchant_bucket_expr is None:
+                merchant_bucket_expr = _hash_to_index(
+                    [pl.col("merchant_id")],
+                    seed=seed + 1500,
+                    modulus=bucket_mod,
+                )
+            if width >= bucket_mod:
+                cohort_expr = pl.lit(True)
+            elif start < end:
+                cohort_expr = (merchant_bucket_expr >= pl.lit(start)) & (
+                    merchant_bucket_expr < pl.lit(end)
+                )
+            else:
+                cohort_expr = (merchant_bucket_expr >= pl.lit(start)) | (
+                    merchant_bucket_expr < pl.lit(end)
+                )
+
+            adjusted_threshold = min(
+                modulus,
+                max(1, int(math.ceil(threshold * (bucket_mod / float(width))))),
+            )
+            pick_expr = cohort_expr & (flow_hash_expr < pl.lit(adjusted_threshold))
         campaign_expr = pl.when(pick_expr & campaign_expr.is_null()).then(
             pl.lit(campaign["campaign_id"])
         ).otherwise(campaign_expr)
@@ -1127,7 +1308,12 @@ def run_s3(
             )
             part_index = 0
             validated_flow_schema = False
-            campaign_expr = _assign_campaign_expr(campaigns, seed, modulus)
+            campaign_expr = _assign_campaign_expr(
+                campaigns,
+                seed,
+                modulus,
+                use_merchant_targeting=True,
+            )
             amount_expr = _amount_shift_expr(min_factor, max_factor, max_amount_multiplier, seed, modulus)
 
             for flows in _iter_parquet_batches(
@@ -1250,48 +1436,35 @@ def run_s3(
             event_part = event_tmp_dir / "part-00000.parquet"
             empty_event.write_parquet(event_part, compression=parquet_compression)
         else:
-            event_progress = _ProgressTracker(
+            logger.info(
+                "S3: scenario_id=%s starting event overlay join lane rows=%s",
+                scenario_id,
                 event_rows,
-                logger,
-                f"S3: scenario_id={scenario_id} events_processed",
             )
-            part_index = 0
             validated_event_schema = False
-            campaign_expr = _assign_campaign_expr(campaigns, seed, modulus)
-            amount_expr = _amount_shift_expr(min_factor, max_factor, max_amount_multiplier, seed, modulus)
-
-            for events in _iter_parquet_batches(
-                event_files,
-                [
-                    "flow_id",
-                    "event_seq",
-                    "event_type",
-                    "ts_utc",
-                    "amount",
-                    "seed",
-                    "manifest_fingerprint",
-                    "parameter_hash",
-                    "scenario_id",
-                ],
-                batch_rows,
-            ):
-                events = events.with_columns(
-                    pl.col("flow_id").cast(pl.Int64),
-                    pl.col("event_seq").cast(pl.Int64),
-                    pl.col("event_type").cast(pl.Utf8),
-                    pl.col("ts_utc").cast(pl.Utf8),
-                    pl.col("amount").cast(pl.Float64),
+            flow_overlay_files = sorted(path for path in flow_out_dir.rglob("*.parquet") if path.is_file())
+            if not flow_overlay_files:
+                _abort(
+                    "S3_EVENT_OVERLAY_FLOW_INPUT_MISSING",
+                    "V-01",
+                    "event_overlay_flow_inputs_missing",
+                    {"scenario_id": str(scenario_id)},
+                    manifest_fingerprint,
                 )
-                events = events.with_columns(campaign_expr.alias("campaign_id"))
-                events = events.with_columns(
-                    amount_expr.alias("amount"),
-                    pl.col("campaign_id").is_not_null().alias("fraud_flag"),
-                )
-
-                if not validated_event_schema and events.height > 0:
-                    sample = events.head(1).to_dicts()[0]
+            event_part = event_tmp_dir / "part-00000.parquet"
+            joined_rows = _build_event_overlay_via_duckdb(
+                event_files=event_files,
+                flow_overlay_files=flow_overlay_files,
+                output_file=event_part,
+                parquet_compression=parquet_compression,
+                expected_rows=int(event_rows),
+                logger=logger,
+            )
+            if not validated_event_schema and joined_rows > 0:
+                sample_rows = pl.read_parquet(event_part, n_rows=1).to_dicts()
+                if sample_rows:
                     _validate_payload(
-                        sample,
+                        sample_rows[0],
                         schema_6b,
                         schema_layer3,
                         "#/s3/event_stream_with_fraud_6B",
@@ -1299,28 +1472,7 @@ def run_s3(
                         {"scenario_id": scenario_id},
                     )
                     validated_event_schema = True
-
-                event_part = event_tmp_dir / f"part-{part_index:05d}.parquet"
-                events.select(
-                    [
-                        "flow_id",
-                        "event_seq",
-                        "event_type",
-                        "ts_utc",
-                        "amount",
-                        "seed",
-                        "manifest_fingerprint",
-                        "parameter_hash",
-                        "scenario_id",
-                        "fraud_flag",
-                        "campaign_id",
-                    ]
-                ).write_parquet(event_part, compression=parquet_compression)
-
-                batch_rows_processed = int(events.height)
-                total_events += batch_rows_processed
-                part_index += 1
-                event_progress.update(batch_rows_processed)
+            total_events += int(joined_rows)
 
         event_out_dir = _materialize_parquet_path(event_out_path).parent
         _publish_parquet_parts(

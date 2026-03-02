@@ -1,0 +1,65 @@
+flowchart LR
+
+  subgraph AUTH[Authority and control surfaces]
+    RUNBOOK[Run-process authority<br/>P-1 to P17]
+    HANDLES[Handle registry<br/>runtime + secret contracts]
+    POLICY[Promotion and rollback policy]
+    TFSTATE[(Terraform remote state + lock)]
+  end
+
+  subgraph TRUTH[Runtime truth surfaces]
+    RECEIPTS[(Ingress receipts + quarantine)]
+    ARCHIVE[(Archive event store)]
+    DDBTRUTH[(DynamoDB admission publish control)]
+    AURORATRUTH[(Aurora operational truth)]
+    LEARNART[(Learning artifacts<br/>OFS MF MPR)]
+  end
+
+  subgraph OBS[Observability surfaces]
+    OTEL[OTel correlation context]
+    CW[(CloudWatch metrics logs alarms)]
+    DASH[Operational dashboards]
+    ALERTS[Alert rules + ownership]
+  end
+
+  subgraph GATES[Fail-closed gates]
+    GREADY[Readiness gate<br/>managed data-plane viability]
+    GINTEGRITY[Closure integrity gate<br/>refs complete + coherent]
+    GMATRIX[Certification matrix gate<br/>spine + learning]
+    GOUT[Outcome<br/>advance only if blocker union empty]
+  end
+
+  subgraph COST[Cost governance]
+    BUDGET[Budget envelopes + thresholds]
+    RECEIPTCOST[Cost-to-outcome receipts]
+    IDLESAFE[Teardown and idle-safe proof]
+  end
+
+  RUNBOOK --> GREADY
+  RUNBOOK --> GINTEGRITY
+  RUNBOOK --> GMATRIX
+  HANDLES --> GREADY
+  HANDLES --> GINTEGRITY
+  POLICY --> GMATRIX
+  TFSTATE --> GREADY
+
+  RECEIPTS --> GINTEGRITY
+  ARCHIVE --> GINTEGRITY
+  DDBTRUTH --> GMATRIX
+  AURORATRUTH --> GMATRIX
+  LEARNART --> GMATRIX
+
+  OTEL --> CW --> DASH
+  CW --> ALERTS
+  ALERTS --> GREADY
+  DASH --> GMATRIX
+
+  BUDGET --> GREADY
+  BUDGET --> GMATRIX
+  RECEIPTCOST --> GMATRIX
+  IDLESAFE --> GOUT
+
+  GREADY --> GMATRIX
+  GINTEGRITY --> GMATRIX
+  GMATRIX --> GOUT
+

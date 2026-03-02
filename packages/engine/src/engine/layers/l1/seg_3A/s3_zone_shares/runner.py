@@ -37,6 +37,7 @@ from engine.layers.l1.seg_3A.s0_gate.runner import (
     _append_jsonl,
     _inline_external_refs,
     _load_json,
+    _load_yaml,
     _render_catalog_path,
     _resolve_dataset_path,
     _resolve_run_receipt,
@@ -71,6 +72,26 @@ class S3Result:
     manifest_fingerprint: str
     output_path: Path
     run_report_path: Path
+
+
+@dataclass(frozen=True)
+class _S3DispersionPolicy:
+    enabled: bool
+    concentration_scale: float
+    alpha_temperature: float
+    merchant_jitter: float
+    merchant_jitter_clip: float
+    alpha_floor: float
+
+
+DEFAULT_S3_DISPERSION_POLICY = _S3DispersionPolicy(
+    enabled=False,
+    concentration_scale=1.0,
+    alpha_temperature=1.0,
+    merchant_jitter=0.0,
+    merchant_jitter_clip=0.0,
+    alpha_floor=1.0e-6,
+)
 
 
 class _StepTimer:
@@ -481,6 +502,120 @@ def _rng_stream_id(merchant_id: int, country_iso: str) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
+def _hash_u01(*parts: object) -> float:
+    payload = "|".join(str(part) for part in parts)
+    digest = hashlib.sha256(payload.encode("utf-8")).digest()
+    value = int.from_bytes(digest[:8], "big", signed=False)
+    return (value + 0.5) / float(1 << 64)
+
+
+def _load_s3_dispersion_policy(policy_payload: dict) -> _S3DispersionPolicy:
+    block = policy_payload.get("s3_dispersion")
+    if block is None:
+        return DEFAULT_S3_DISPERSION_POLICY
+    if not isinstance(block, dict):
+        raise ContractError("zone_mixture_policy.s3_dispersion must be an object when present.")
+
+    try:
+        enabled = bool(block.get("enabled", False))
+        concentration_scale = float(block.get("concentration_scale", 1.0))
+        alpha_temperature = float(block.get("alpha_temperature", 1.0))
+        merchant_jitter = float(block.get("merchant_jitter", 0.0))
+        merchant_jitter_clip = float(block.get("merchant_jitter_clip", 0.0))
+        alpha_floor = float(block.get("alpha_floor", 1.0e-6))
+    except (TypeError, ValueError) as exc:
+        raise ContractError("zone_mixture_policy.s3_dispersion has non-numeric values.") from exc
+
+    if not (0.25 <= concentration_scale <= 1.50):
+        raise ContractError("zone_mixture_policy.s3_dispersion.concentration_scale out of range [0.25,1.50].")
+    if not (0.50 <= alpha_temperature <= 1.50):
+        raise ContractError("zone_mixture_policy.s3_dispersion.alpha_temperature out of range [0.50,1.50].")
+    if not (0.0 <= merchant_jitter <= 0.50):
+        raise ContractError("zone_mixture_policy.s3_dispersion.merchant_jitter out of range [0.0,0.50].")
+    if not (0.0 <= merchant_jitter_clip <= 0.50):
+        raise ContractError("zone_mixture_policy.s3_dispersion.merchant_jitter_clip out of range [0.0,0.50].")
+    if merchant_jitter_clip + TOLERANCE < merchant_jitter:
+        raise ContractError(
+            "zone_mixture_policy.s3_dispersion.merchant_jitter_clip must be >= merchant_jitter."
+        )
+    if not (0.0 < alpha_floor <= 0.01):
+        raise ContractError("zone_mixture_policy.s3_dispersion.alpha_floor out of range (0,0.01].")
+
+    return _S3DispersionPolicy(
+        enabled=enabled,
+        concentration_scale=concentration_scale,
+        alpha_temperature=alpha_temperature,
+        merchant_jitter=merchant_jitter,
+        merchant_jitter_clip=merchant_jitter_clip,
+        alpha_floor=alpha_floor,
+    )
+
+
+def _apply_dispersion_transform(
+    alphas: list[float],
+    merchant_id: int,
+    country_iso: str,
+    parameter_hash: str,
+    policy: _S3DispersionPolicy,
+) -> tuple[list[float], float]:
+    if not alphas:
+        raise ValueError("empty alpha vector")
+    clean_alphas = [float(value) for value in alphas]
+    if any((not math.isfinite(value)) or value <= 0.0 for value in clean_alphas):
+        raise ValueError("alpha_values_mismatch")
+
+    alpha_sum_base = float(sum(clean_alphas))
+    if not math.isfinite(alpha_sum_base) or alpha_sum_base <= 0.0:
+        raise ValueError("alpha_sum_mismatch")
+    if not policy.enabled:
+        return clean_alphas, alpha_sum_base
+
+    base_shares = [value / alpha_sum_base for value in clean_alphas]
+    if abs(policy.alpha_temperature - 1.0) > TOLERANCE:
+        warped = [max(share, 1.0e-15) ** policy.alpha_temperature for share in base_shares]
+        warped_sum = float(sum(warped))
+        if not math.isfinite(warped_sum) or warped_sum <= 0.0:
+            raise ValueError("dispersion_temperature_invalid")
+        base_shares = [value / warped_sum for value in warped]
+
+    jitter_u = _hash_u01("3A.S3.dispersion", merchant_id, country_iso, parameter_hash)
+    jitter = ((2.0 * jitter_u) - 1.0) * policy.merchant_jitter
+    if jitter > policy.merchant_jitter_clip:
+        jitter = policy.merchant_jitter_clip
+    if jitter < -policy.merchant_jitter_clip:
+        jitter = -policy.merchant_jitter_clip
+
+    min_scale = (policy.alpha_floor * len(clean_alphas)) / alpha_sum_base
+    concentration_scale = max(policy.concentration_scale * (1.0 + jitter), min_scale)
+    target_sum = float(alpha_sum_base * concentration_scale)
+    if not math.isfinite(target_sum) or target_sum <= 0.0:
+        raise ValueError("dispersion_target_sum_invalid")
+
+    raw = [share * target_sum for share in base_shares]
+    floored = [max(value, policy.alpha_floor) for value in raw]
+    floored_sum = float(sum(floored))
+    if not math.isfinite(floored_sum) or floored_sum <= 0.0:
+        raise ValueError("dispersion_floor_invalid")
+    adjusted = [value * (target_sum / floored_sum) for value in floored]
+
+    adjusted = [max(value, policy.alpha_floor) for value in adjusted]
+    adjusted_sum = float(sum(adjusted))
+    if not math.isfinite(adjusted_sum) or adjusted_sum <= 0.0:
+        raise ValueError("dispersion_adjust_invalid")
+    adjusted = [value * (target_sum / adjusted_sum) for value in adjusted]
+
+    final_sum = float(sum(adjusted))
+    if not math.isfinite(final_sum) or final_sum <= 0.0:
+        raise ValueError("dispersion_final_sum_invalid")
+    if abs(final_sum - target_sum) > 1.0e-9:
+        adjusted = [value * (target_sum / final_sum) for value in adjusted]
+        final_sum = float(sum(adjusted))
+    if abs(final_sum - target_sum) > 1.0e-7:
+        raise ValueError("dispersion_final_sum_mismatch")
+
+    return adjusted, final_sum
+
+
 def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
     logger = get_logger("engine.layers.l1.seg_3A.s3_zone_shares.l2.runner")
     timer = _StepTimer(logger)
@@ -518,6 +653,7 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
     prior_pack_version = ""
     floor_policy_id = ""
     floor_policy_version = ""
+    dispersion_policy = DEFAULT_S3_DISPERSION_POLICY
 
     try:
         _receipt_path, receipt = _resolve_run_receipt(config.runs_root, run_id)
@@ -785,6 +921,49 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
             )
         timer.info("S3: priors loaded and validated")
 
+        current_phase = "s3_dispersion_policy"
+        mixture_entry = find_dataset_entry(dictionary, "zone_mixture_policy").entry
+        mixture_path = _resolve_dataset_path(mixture_entry, run_paths, config.external_roots, tokens)
+        mixture_payload = _load_yaml(mixture_path)
+        if not isinstance(mixture_payload, dict):
+            _abort(
+                "E3A_S3_001_PRECONDITION_FAILED",
+                "V-03A",
+                "zone_mixture_policy_invalid",
+                {"component": "ZONE_MIXTURE_POLICY", "reason": "schema_invalid"},
+                manifest_fingerprint,
+            )
+        mixture_schema = _schema_for_payload(schema_3a, schema_layer1, "policy/zone_mixture_policy_v1")
+        mixture_errors = list(Draft202012Validator(mixture_schema).iter_errors(mixture_payload))
+        if mixture_errors:
+            _abort(
+                "E3A_S3_001_PRECONDITION_FAILED",
+                "V-03A",
+                "zone_mixture_policy_invalid",
+                {"component": "ZONE_MIXTURE_POLICY", "reason": "schema_invalid", "error": str(mixture_errors[0])},
+                manifest_fingerprint,
+            )
+        try:
+            dispersion_policy = _load_s3_dispersion_policy(mixture_payload)
+        except ContractError as exc:
+            _abort(
+                "E3A_S3_001_PRECONDITION_FAILED",
+                "V-03A",
+                "s3_dispersion_policy_invalid",
+                {"component": "ZONE_MIXTURE_POLICY", "reason": "invalid_s3_dispersion", "error": str(exc)},
+                manifest_fingerprint,
+            )
+        logger.info(
+            "S3: dispersion policy loaded (enabled=%s concentration_scale=%.4f alpha_temperature=%.4f "
+            "merchant_jitter=%.4f merchant_jitter_clip=%.4f alpha_floor=%.8f)",
+            dispersion_policy.enabled,
+            dispersion_policy.concentration_scale,
+            dispersion_policy.alpha_temperature,
+            dispersion_policy.merchant_jitter,
+            dispersion_policy.merchant_jitter_clip,
+            dispersion_policy.alpha_floor,
+        )
+
         current_phase = "rng_logs"
         event_entry = find_dataset_entry(dictionary, "rng_event_zone_dirichlet").entry
         trace_entry = find_dataset_entry(dictionary, "rng_trace_log").entry
@@ -902,6 +1081,13 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
             prior = priors_by_country[country_iso]
             tzids = prior["tzids"]
             alphas = prior["alphas"]
+            effective_alphas, effective_alpha_sum = _apply_dispersion_transform(
+                alphas,
+                int(merchant_id),
+                str(country_iso),
+                str(parameter_hash),
+                dispersion_policy,
+            )
             zone_count = len(tzids)
             if zone_count < 1:
                 _abort(
@@ -921,7 +1107,7 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
             gamma_raw: list[float] = []
             blocks_total = 0
             draws_total = 0
-            for alpha in alphas:
+            for alpha in effective_alphas:
                 if not math.isfinite(alpha) or alpha <= 0.0:
                     _abort(
                         "E3A_S3_006_DIRICHLET_ALPHA_MISMATCH",
@@ -1000,9 +1186,9 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                 "merchant_id": int(merchant_id),
                 "country_iso": str(country_iso),
                 "zone_count": int(zone_count),
-                "alpha_sum_country": float(prior["alpha_sum_country"]),
-                "alpha_min": float(min(alphas)),
-                "alpha_max": float(max(alphas)),
+                "alpha_sum_country": float(effective_alpha_sum),
+                "alpha_min": float(min(effective_alphas)),
+                "alpha_max": float(max(effective_alphas)),
                 "notes": None,
             }
 
@@ -1049,7 +1235,7 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                         "tzid": str(tzid),
                         "share_drawn": float(share),
                         "share_sum_country": float(share_sum),
-                        "alpha_sum_country": float(prior["alpha_sum_country"]),
+                        "alpha_sum_country": float(effective_alpha_sum),
                         "prior_pack_id": prior_pack_id,
                         "prior_pack_version": prior_pack_version,
                         "floor_policy_id": floor_policy_id,
@@ -1233,6 +1419,14 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                         "prior_pack_version": prior_pack_version,
                         "floor_policy_id": floor_policy_id,
                         "floor_policy_version": floor_policy_version,
+                        "s3_dispersion": {
+                            "enabled": dispersion_policy.enabled,
+                            "concentration_scale": dispersion_policy.concentration_scale,
+                            "alpha_temperature": dispersion_policy.alpha_temperature,
+                            "merchant_jitter": dispersion_policy.merchant_jitter,
+                            "merchant_jitter_clip": dispersion_policy.merchant_jitter_clip,
+                            "alpha_floor": dispersion_policy.alpha_floor,
+                        },
                     },
                     "counts": counts,
                     "zone_count_buckets": {str(k): v for k, v in zone_count_buckets.items()},

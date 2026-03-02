@@ -717,6 +717,12 @@ def _build_bus(wiring: WiringProfile) -> EventBusPublisher:
     if wiring.event_bus_kind == "file":
         bus_path = wiring.event_bus_path or "runs/fraud-platform/eb"
         return FileEventBusPublisher(Path(bus_path))
+    if wiring.event_bus_kind == "kafka":
+        from fraud_detection.event_bus.kafka import build_kafka_publisher
+
+        # Auth + bootstrap are supplied via env vars (materialized from SSM by ECS secrets).
+        # This keeps the profile transport-agnostic while still being deterministic.
+        return build_kafka_publisher(client_id=f"ig-{wiring.profile_id}")
     if wiring.event_bus_kind == "kinesis":
         from fraud_detection.event_bus.kinesis import build_kinesis_publisher
 
@@ -807,12 +813,19 @@ def _bus_probe_streams(
     partitioning: PartitioningProfiles,
     class_map: ClassMap,
 ) -> list[str]:
-    if wiring.event_bus_kind != "kinesis":
+    if wiring.event_bus_kind not in {"kinesis", "kafka"}:
         return []
     stream_name = wiring.event_bus_path
-    if isinstance(stream_name, str) and stream_name.lower() not in {"", "auto", "topic"}:
+    if wiring.event_bus_kind == "kinesis" and isinstance(stream_name, str) and stream_name.lower() not in {"", "auto", "topic"}:
         return [stream_name]
-    class_names = set(class_map.event_classes.values())
+    if wiring.event_bus_kind == "kafka":
+        class_names = {
+            class_map.class_for(event_type)
+            for event_type in _RTDL_EXPECTED_CLASS_BY_EVENT
+            if class_map.class_for(event_type)
+        }
+    else:
+        class_names = set(class_map.event_classes.values())
     profile_ids = {_profile_id_for_class(name, wiring.partitioning_profile_id) for name in class_names}
     streams = {partitioning.get(profile_id).stream for profile_id in profile_ids if profile_id}
     return sorted(stream for stream in streams if stream)

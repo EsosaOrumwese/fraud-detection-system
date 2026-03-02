@@ -1,0 +1,9 @@
+# dev_min service identity token(s) for IG writer boundary. (non-secret principal names)
+#
+# Transitional note: during migration, `IG_API_KEY` may still be provisioned as `local-parity-wsp` in SSM.
+# Keep it temporarily allowlisted to avoid accidental 401s while we converge on `dev-min-*` identities.
+local-parity-wsp
+dev-min-wsp
+dev-min-df
+dev-min-al
+dev-min-case-trigger

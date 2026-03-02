@@ -6,5 +6,5 @@ topics:
   - fp.bus.context.flow_anchor.fraud.v1
   - fp.bus.context.flow_anchor.baseline.v1
   - fp.bus.rtdl.v1
-  - fp.bus.case.v1
+  - fp.bus.case.triggers.v1
   - fp.bus.audit.v1

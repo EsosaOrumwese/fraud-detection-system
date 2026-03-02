@@ -1,0 +1,48 @@
+flowchart LR
+  subgraph Authority["Authority Surfaces"]
+    AConfig["Terraform roots<br/>core + confluent + demo"]
+    AState["Terraform state bucket"]
+    ALock["Terraform lock table"]
+  end
+
+  subgraph Truth["Runtime Truth Surfaces"]
+    TRds["RDS runtime state"]
+    TAdm["DynamoDB admission state"]
+    TPub["DynamoDB publish state"]
+    TRun["DynamoDB run control"]
+    TEv["S3 evidence bundle"]
+    TObject["S3 object-store outputs"]
+    TQu["S3 quarantine artifacts"]
+    TAr["S3 archive artifacts"]
+  end
+
+  subgraph Transport["Transport Surfaces (Not Source of Truth)"]
+    Tkafka["Confluent Kafka topics"]
+    Tkin["Kinesis control bus"]
+    Tssm["SSM runtime credentials"]
+  end
+
+  subgraph Gates["Fail-Closed Certification Gates"]
+    GReady["Readiness Gate<br/>managed data-plane viability"]
+    GIntegrity["Closure Integrity Gate<br/>evidence coherence + refs complete"]
+    GCert["Certification Matrix Gate<br/>semantic, incident, scale,<br/>recovery, reproducibility"]
+    GOutcome["Outcome<br/>advance only when blockers empty"]
+  end
+
+  AConfig --> AState --> ALock
+  Tssm -.-> Tkafka
+  Tssm -.-> TRds
+  Tkafka --> GReady
+  Tkin --> GReady
+  TEv --> GIntegrity
+  TObject --> GIntegrity
+  TQu --> GIntegrity
+  TRun --> GIntegrity
+  TRds --> GCert
+  TAdm --> GCert
+  TPub --> GCert
+  TEv --> GCert
+  GReady --> GCert
+  GIntegrity --> GCert
+  GCert --> GOutcome
+  GOutcome -.-> TEv

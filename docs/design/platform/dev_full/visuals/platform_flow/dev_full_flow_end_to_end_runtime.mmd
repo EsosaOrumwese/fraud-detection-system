@@ -1,0 +1,55 @@
+flowchart TB
+
+  subgraph GOVERNANCE[Run governance]
+    SFN[Step Functions gate authority]
+    REP[Reporter + conformance]
+  end
+
+  subgraph CONTROL[Control and ingress lane]
+    ORACLE_SRC[(Oracle stream_view source)]
+    SR[Scenario Runner READY lane]
+    WSP[World Stream Producer lane]
+    EDGE[API Gateway + ingress Lambda]
+    IDDB[(DynamoDB idempotency)]
+    ADMIT[[Admitted traffic + context topics]]
+    REC[(Receipts + quarantine)]
+  end
+
+  subgraph DECISION[RTDL and decision lane]
+    RTDL[IEG + OFP stream transforms]
+    DF[Decision Fabric]
+    AL[Action Layer]
+    DLA[Decision Log and Audit]
+    CASELBL[Case Trigger -> Case Mgmt -> Label Store]
+  end
+
+  subgraph LEARNING[Learning and promotion lane]
+    OFS[Databricks OFS]
+    MF[SageMaker MF train/eval]
+    MLF[Managed MLflow]
+    MPR[Promotion + rollback corridor]
+    REG[(Active bundle resolution)]
+  end
+
+  subgraph STATE[Durable state and evidence]
+    S3[(S3 archive + evidence)]
+    AURORA[(Aurora state)]
+    REDIS[(Redis feature state)]
+  end
+
+  ORACLE_SRC --> SR
+  SFN --> SR
+  SR --> WSP --> EDGE --> IDDB
+  EDGE --> ADMIT
+  EDGE --> REC --> S3
+
+  ADMIT --> RTDL --> DF --> AL --> DLA
+  RTDL --> AURORA
+  RTDL --> REDIS
+  DLA --> S3
+  AL --> CASELBL --> AURORA
+
+  ADMIT --> S3
+  S3 --> OFS --> MF --> MLF --> MPR --> REG --> DF
+
+  SFN --> REP --> S3

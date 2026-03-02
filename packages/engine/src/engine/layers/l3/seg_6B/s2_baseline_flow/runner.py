@@ -41,6 +41,7 @@ MODULE_NAME = "6B.s2_baseline_flow"
 SEGMENT = "6B"
 STATE = "S2"
 _HEX64_PATTERN = re.compile(r"^[a-f0-9]{64}$")
+_TS_UTC_FORMAT = "%Y-%m-%dT%H:%M:%S%.6fZ"
 
 
 @dataclass(frozen=True)
@@ -70,7 +71,7 @@ class _StepTimer:
 
 
 class _ProgressTracker:
-    def __init__(self, total: int, logger, label: str, cadence_seconds: float = 5.0) -> None:
+    def __init__(self, total: int, logger, label: str, cadence_seconds: float = 10.0) -> None:
         self._total = max(int(total), 0)
         self._logger = logger
         self._label = label
@@ -575,6 +576,231 @@ def _extract_price_points(amount_model: dict, logger) -> list[int]:
     logger.warning("S2: amount_model_6B missing price_points_minor; using default price points")
     return [199, 499, 999, 1499, 1999, 2999, 4999, 9999]
 
+
+def _extract_purchase_amount_distribution(amount_model: dict, logger) -> dict:
+    families = amount_model.get("amount_families") if isinstance(amount_model, dict) else None
+    families = families if isinstance(families, dict) else {}
+    purchase = families.get("PURCHASE")
+    if isinstance(purchase, dict):
+        base = purchase.get("base_distribution")
+        if isinstance(base, dict):
+            return base
+    logger.warning("S2: PURCHASE amount distribution missing; falling back to discrete defaults")
+    return {
+        "dist_id": "DISCRETE_PRICE_POINTS_V1",
+        "price_points_minor": [199, 499, 999, 1499, 1999, 2999, 4999, 9999],
+        "point_mass_total": 1.0,
+        "tail": {"dist_id": "LOGNORMAL_V1", "mu_log": 7.25, "sigma_log": 0.95},
+    }
+
+
+def _extract_amount_guardrails(amount_model: dict) -> tuple[int, int]:
+    guardrails = amount_model.get("guardrails") if isinstance(amount_model, dict) else None
+    guardrails = guardrails if isinstance(guardrails, dict) else {}
+    max_map = guardrails.get("max_amount_minor_by_currency")
+    min_map = guardrails.get("min_amount_minor_by_currency")
+    max_map = max_map if isinstance(max_map, dict) else {}
+    min_map = min_map if isinstance(min_map, dict) else {}
+    max_minor = int(max_map.get("DEFAULT", 250_000_000))
+    min_minor = int(min_map.get("DEFAULT", 1))
+    if min_minor <= 0:
+        min_minor = 1
+    if max_minor < min_minor:
+        max_minor = min_minor
+    return min_minor, max_minor
+
+
+def _uint64_to_unit_interval(values: np.ndarray) -> np.ndarray:
+    # Convert uint64 to deterministic [0,1) uniforms using high-quality 53-bit mantissa extraction.
+    mantissa = values.astype(np.uint64, copy=False) >> np.uint64(11)
+    return (mantissa.astype(np.float64) + 0.5) / float(1 << 53)
+
+
+def _splitmix64(values: np.ndarray, stream: int) -> np.ndarray:
+    z = values.astype(np.uint64, copy=False) + np.uint64(stream) + np.uint64(0x9E3779B97F4A7C15)
+    z = (z ^ (z >> np.uint64(30))) * np.uint64(0xBF58476D1CE4E5B9)
+    z = (z ^ (z >> np.uint64(27))) * np.uint64(0x94D049BB133111EB)
+    return z ^ (z >> np.uint64(31))
+
+
+def _flow_id_stream_uniform(flow_ids: np.ndarray, stream: int) -> np.ndarray:
+    return _uint64_to_unit_interval(_splitmix64(flow_ids, stream))
+
+
+def _normal_from_uniforms(u1: np.ndarray, u2: np.ndarray) -> np.ndarray:
+    eps = 1e-12
+    u1_safe = np.clip(u1, eps, 1.0 - eps)
+    u2_safe = np.clip(u2, eps, 1.0 - eps)
+    return np.sqrt(-2.0 * np.log(u1_safe)) * np.cos(2.0 * math.pi * u2_safe)
+
+
+def _sample_amount_tail_minor(
+    tail_cfg: dict,
+    u1: np.ndarray,
+    u2: np.ndarray,
+    u3: np.ndarray,
+    min_minor: int,
+    max_minor: int,
+) -> np.ndarray:
+    dist_id = str(tail_cfg.get("dist_id") or "LOGNORMAL_V1")
+    if dist_id == "LOGNORMAL_V1":
+        mu = float(tail_cfg.get("mu_log", 7.25))
+        sigma = max(float(tail_cfg.get("sigma_log", 0.95)), 1e-6)
+        z = _normal_from_uniforms(u1, u2)
+        values = np.exp(mu + sigma * z)
+    elif dist_id == "LOGNORMAL_MIX_V1":
+        comps = tail_cfg.get("components") if isinstance(tail_cfg.get("components"), list) else []
+        if not comps:
+            values = np.exp(7.25 + 0.95 * _normal_from_uniforms(u1, u2))
+        else:
+            weights = np.array([max(float(comp.get("weight", 0.0)), 0.0) for comp in comps], dtype=np.float64)
+            if weights.sum() <= 0:
+                weights = np.ones_like(weights)
+            weights = weights / weights.sum()
+            cumulative = np.cumsum(weights)
+            comp_idx = np.searchsorted(cumulative, np.clip(u3, 1e-12, 1.0 - 1e-12), side="right")
+            comp_idx = np.clip(comp_idx, 0, len(comps) - 1)
+            values = np.empty_like(u1, dtype=np.float64)
+            z = _normal_from_uniforms(u1, u2)
+            for idx, comp in enumerate(comps):
+                mask = comp_idx == idx
+                if not np.any(mask):
+                    continue
+                mu = float(comp.get("mu_log", 7.25))
+                sigma = max(float(comp.get("sigma_log", 0.95)), 1e-6)
+                values[mask] = np.exp(mu + sigma * z[mask])
+    elif dist_id == "GAMMA_V1":
+        shape_k = max(float(tail_cfg.get("shape_k", 2.0)), 0.1)
+        scale_theta = max(float(tail_cfg.get("scale_theta", 1000.0)), 1e-6)
+        z = _normal_from_uniforms(u1, u2)
+        # Wilson-Hilferty approximation for gamma quantiles.
+        base = np.maximum(1.0 - 1.0 / (9.0 * shape_k) + z / (3.0 * np.sqrt(shape_k)), 1e-6)
+        values = shape_k * scale_theta * np.power(base, 3.0)
+    else:
+        values = np.exp(7.25 + 0.95 * _normal_from_uniforms(u1, u2))
+
+    clipped = np.clip(values, float(min_minor), float(max_minor))
+    return np.rint(clipped).astype(np.int64)
+
+
+def _sample_amount_minor_batch(
+    amount_dist_cfg: dict,
+    price_points_fallback: list[int],
+    u_kind: np.ndarray,
+    u_point: np.ndarray,
+    u_tail_1: np.ndarray,
+    u_tail_2: np.ndarray,
+    u_tail_3: np.ndarray,
+    min_minor: int,
+    max_minor: int,
+) -> np.ndarray:
+    dist_id = str(amount_dist_cfg.get("dist_id") or "DISCRETE_PRICE_POINTS_V1")
+    if dist_id == "DISCRETE_PRICE_POINTS_V1":
+        points = amount_dist_cfg.get("price_points_minor")
+        if not isinstance(points, list) or not points:
+            points = price_points_fallback
+        points_array = np.asarray([int(v) for v in points], dtype=np.int64)
+        point_mass_total = float(amount_dist_cfg.get("point_mass_total", 1.0))
+        point_mass_total = min(max(point_mass_total, 0.0), 1.0)
+        use_point_mass = u_kind < point_mass_total
+        point_idx = np.minimum((u_point * len(points_array)).astype(np.int64), len(points_array) - 1)
+        amount_minor = np.empty_like(point_idx, dtype=np.int64)
+        amount_minor[use_point_mass] = points_array[point_idx[use_point_mass]]
+        if np.any(~use_point_mass):
+            tail_cfg = amount_dist_cfg.get("tail") if isinstance(amount_dist_cfg.get("tail"), dict) else {}
+            tail_vals = _sample_amount_tail_minor(
+                tail_cfg=tail_cfg,
+                u1=u_tail_1[~use_point_mass],
+                u2=u_tail_2[~use_point_mass],
+                u3=u_tail_3[~use_point_mass],
+                min_minor=min_minor,
+                max_minor=max_minor,
+            )
+            amount_minor[~use_point_mass] = tail_vals
+    elif dist_id in {"LOGNORMAL_V1", "LOGNORMAL_MIX_V1", "GAMMA_V1"}:
+        amount_minor = _sample_amount_tail_minor(
+            tail_cfg=amount_dist_cfg,
+            u1=u_tail_1,
+            u2=u_tail_2,
+            u3=u_tail_3,
+            min_minor=min_minor,
+            max_minor=max_minor,
+        )
+    else:
+        points_array = np.asarray(price_points_fallback, dtype=np.int64)
+        point_idx = np.minimum((u_point * len(points_array)).astype(np.int64), len(points_array) - 1)
+        amount_minor = points_array[point_idx]
+
+    amount_minor = np.clip(amount_minor, min_minor, max_minor)
+    return amount_minor.astype(np.int64)
+
+
+def _extract_auth_response_timing_model(timing_policy: dict) -> dict:
+    offset_models = timing_policy.get("offset_models") if isinstance(timing_policy, dict) else None
+    offset_models = offset_models if isinstance(offset_models, dict) else {}
+    model = offset_models.get("delta_auth_response_seconds")
+    if isinstance(model, dict):
+        return model
+    return {
+        "dist_id": "LOGNORMAL_V1",
+        "mu_log": -0.35,
+        "sigma_log": 0.50,
+        "min_seconds": 0.02,
+        "cap_seconds": 10.0,
+    }
+
+
+def _sample_latency_seconds(model: dict, u1: np.ndarray, u2: np.ndarray) -> np.ndarray:
+    dist_id = str(model.get("dist_id") or "LOGNORMAL_V1")
+    if dist_id in {"LOGNORMAL_V1", "LOGNORMAL_QF_V1"}:
+        mu = float(model.get("mu_log", -0.35))
+        sigma = max(float(model.get("sigma_log", 0.50)), 1e-6)
+        z = _normal_from_uniforms(u1, u2)
+        vals = np.exp(mu + sigma * z)
+    elif dist_id in {"EXPONENTIAL_V1", "EXPONENTIAL_QF_V1"}:
+        lam = max(float(model.get("rate_lambda", 0.5)), 1e-8)
+        vals = -np.log(np.clip(1.0 - u1, 1e-12, 1.0)) / lam
+    elif dist_id in {"GAMMA_V1", "GAMMA_QF_V1"}:
+        shape_k = max(float(model.get("shape_k", 2.0)), 0.1)
+        scale_theta = max(float(model.get("scale_theta", 1.0)), 1e-8)
+        z = _normal_from_uniforms(u1, u2)
+        base = np.maximum(1.0 - 1.0 / (9.0 * shape_k) + z / (3.0 * np.sqrt(shape_k)), 1e-6)
+        vals = shape_k * scale_theta * np.power(base, 3.0)
+    elif dist_id == "DISCRETE_POINTS_V1":
+        points = model.get("points_seconds")
+        probs = model.get("probs")
+        if isinstance(points, list) and points and isinstance(probs, list) and probs:
+            points_arr = np.asarray([float(p) for p in points], dtype=np.float64)
+            probs_arr = np.asarray([max(float(p), 0.0) for p in probs], dtype=np.float64)
+            if probs_arr.sum() <= 0:
+                probs_arr = np.ones_like(probs_arr)
+            probs_arr = probs_arr / probs_arr.sum()
+            cumulative = np.cumsum(probs_arr)
+            idx = np.searchsorted(cumulative, np.clip(u1, 1e-12, 1.0 - 1e-12), side="right")
+            idx = np.clip(idx, 0, len(points_arr) - 1)
+            vals = points_arr[idx]
+        else:
+            vals = np.full_like(u1, 0.5, dtype=np.float64)
+    else:
+        mu = float(model.get("mu_log", -0.35))
+        sigma = max(float(model.get("sigma_log", 0.50)), 1e-6)
+        z = _normal_from_uniforms(u1, u2)
+        vals = np.exp(mu + sigma * z)
+
+    min_seconds = float(model.get("min_seconds", 0.001))
+    cap_seconds = float(model.get("cap_seconds", max(min_seconds, 60.0)))
+    if cap_seconds < min_seconds:
+        cap_seconds = min_seconds
+    return np.clip(vals, min_seconds, cap_seconds)
+
+
+def _ts_plus_seconds_expr(ts_col: str, seconds_col: str) -> pl.Expr:
+    micros_expr = (pl.col(seconds_col) * pl.lit(1_000_000.0)).round(0).cast(pl.Int64)
+    return (
+        pl.col(ts_col).str.strptime(pl.Datetime, format=_TS_UTC_FORMAT, strict=True, exact=True)
+        + pl.duration(microseconds=micros_expr)
+    ).dt.strftime(_TS_UTC_FORMAT)
+
 def run_s2(
     config: EngineConfig,
     run_id: Optional[str] = None,
@@ -796,7 +1022,6 @@ def run_s2(
     rng_profile = _load_policy("rng_profile_layer3")
     _ = behaviour_prior_pack
     _ = flow_shape_policy
-    _ = timing_policy
     _ = flow_rng_policy
     _ = rng_profile
 
@@ -900,7 +1125,25 @@ def run_s2(
             {"policy_id": "amount_model_6B"},
             manifest_fingerprint,
         )
-    price_points_array = np.asarray(price_points, dtype="int64")
+    amount_dist_cfg = _extract_purchase_amount_distribution(amount_model, logger)
+    amount_min_minor, amount_max_minor = _extract_amount_guardrails(amount_model)
+    auth_timing_model = _extract_auth_response_timing_model(timing_policy)
+    timing_units = timing_policy.get("time_units") if isinstance(timing_policy, dict) else {}
+    timing_units = timing_units if isinstance(timing_units, dict) else {}
+    min_positive_offset_seconds = float(timing_units.get("min_positive_offset_seconds", 0.001))
+    auth_timing_model = dict(auth_timing_model)
+    auth_timing_model["min_seconds"] = max(
+        float(auth_timing_model.get("min_seconds", min_positive_offset_seconds)),
+        min_positive_offset_seconds,
+    )
+    logger.info(
+        "S2: amount_dist=%s amount_minor_guardrails=[%s,%s] auth_timing_model=%s min_offset=%.6fs",
+        str(amount_dist_cfg.get("dist_id") or "unknown"),
+        amount_min_minor,
+        amount_max_minor,
+        str(auth_timing_model.get("dist_id") or "unknown"),
+        min_positive_offset_seconds,
+    )
 
     processed_scenarios: list[str] = []
     total_flows = 0
@@ -990,8 +1233,8 @@ def run_s2(
             logger.info("S2: scenario_id=%s has no arrivals; emitting empty outputs", scenario_id)
             flow_part = flow_tmp_dir / "part-00000.parquet"
             event_part = event_tmp_dir / "part-00000.parquet"
-            empty_flow_anchor.write_parquet(flow_part, compression=parquet_compression)
-            empty_event_stream.write_parquet(event_part, compression=parquet_compression)
+            empty_flow_anchor.write_parquet(flow_part, compression=parquet_compression, statistics=False)
+            empty_event_stream.write_parquet(event_part, compression=parquet_compression, statistics=False)
         else:
             total_rows = _count_parquet_rows(arrivals_files)
             logger.info(
@@ -1005,17 +1248,22 @@ def run_s2(
                 logger.info("S2: scenario_id=%s has zero arrivals; emitting empty outputs", scenario_id)
                 flow_part = flow_tmp_dir / "part-00000.parquet"
                 event_part = event_tmp_dir / "part-00000.parquet"
-                empty_flow_anchor.write_parquet(flow_part, compression=parquet_compression)
-                empty_event_stream.write_parquet(event_part, compression=parquet_compression)
+                empty_flow_anchor.write_parquet(flow_part, compression=parquet_compression, statistics=False)
+                empty_event_stream.write_parquet(event_part, compression=parquet_compression, statistics=False)
             else:
                 progress = _ProgressTracker(
                     total_rows,
                     logger,
                     f"S2: scenario_id={scenario_id} arrivals_processed",
                 )
-                part_index = 0
                 validated_flow_schema = False
                 validated_event_schema = False
+                batch_stage_cast_hash_s = 0.0
+                batch_stage_sampling_s = 0.0
+                batch_stage_ts_s = 0.0
+                batch_stage_frame_build_s = 0.0
+                batch_stage_write_s = 0.0
+                part_index = 0
 
                 for arrivals in _iter_parquet_batches(
                     arrivals_files,
@@ -1032,6 +1280,7 @@ def run_s2(
                     ],
                     batch_rows,
                 ):
+                    stage_t0 = time.perf_counter()
                     arrivals = arrivals.with_columns(
                         pl.col("arrival_seq").cast(pl.Int64),
                         pl.col("merchant_id").cast(pl.UInt64),
@@ -1055,33 +1304,47 @@ def run_s2(
                             ],
                             seed=seed,
                         ).alias("flow_id"),
-                        _hash_to_index(
-                            [
-                                pl.lit(manifest_fingerprint),
-                                pl.lit(parameter_hash),
-                                pl.lit(seed),
-                                pl.lit(scenario_id),
-                                pl.col("merchant_id"),
-                                pl.col("arrival_seq"),
-                                pl.lit("AMOUNT"),
-                            ],
-                            seed=seed + 991,
-                            modulus=len(price_points_array),
-                        ).alias("amount_index"),
                     )
+                    batch_stage_cast_hash_s += time.perf_counter() - stage_t0
 
-                    amount_index = arrivals.get_column("amount_index").to_numpy()
-                    amount_minor = price_points_array[amount_index]
+                    stage_t0 = time.perf_counter()
+                    flow_ids_u64 = arrivals.get_column("flow_id").to_numpy().astype(np.uint64, copy=False)
+                    amount_u_kind = _flow_id_stream_uniform(flow_ids_u64, 0xA11CE001)
+                    amount_u_point = _flow_id_stream_uniform(flow_ids_u64, 0xA11CE002)
+                    amount_u_tail_1 = _flow_id_stream_uniform(flow_ids_u64, 0xA11CE003)
+                    amount_u_tail_2 = _flow_id_stream_uniform(flow_ids_u64, 0xA11CE004)
+                    amount_u_tail_3 = _flow_id_stream_uniform(flow_ids_u64, 0xA11CE005)
+                    amount_minor = _sample_amount_minor_batch(
+                        amount_dist_cfg=amount_dist_cfg,
+                        price_points_fallback=price_points,
+                        u_kind=amount_u_kind,
+                        u_point=amount_u_point,
+                        u_tail_1=amount_u_tail_1,
+                        u_tail_2=amount_u_tail_2,
+                        u_tail_3=amount_u_tail_3,
+                        min_minor=amount_min_minor,
+                        max_minor=amount_max_minor,
+                    )
                     amount_major = amount_minor / 100.0
+                    latency_u_1 = _flow_id_stream_uniform(flow_ids_u64, 0x1A7E11C1)
+                    latency_u_2 = _flow_id_stream_uniform(flow_ids_u64, 0x1A7E11C2)
+                    auth_response_latency_seconds = _sample_latency_seconds(
+                        model=auth_timing_model,
+                        u1=latency_u_1,
+                        u2=latency_u_2,
+                    )
                     arrivals = arrivals.with_columns(
                         pl.Series("amount_minor", amount_minor),
                         pl.Series("amount", amount_major),
+                        pl.Series("auth_response_latency_seconds", auth_response_latency_seconds),
                         pl.lit(seed).cast(pl.Int64).alias("seed"),
                         pl.lit(manifest_fingerprint).alias("manifest_fingerprint"),
                         pl.lit(parameter_hash).alias("parameter_hash"),
                         pl.lit(scenario_id).alias("scenario_id"),
                     )
+                    batch_stage_sampling_s += time.perf_counter() - stage_t0
 
+                    stage_t0 = time.perf_counter()
                     flow_anchor = arrivals.select(
                         [
                             "flow_id",
@@ -1100,10 +1363,14 @@ def run_s2(
                             "scenario_id",
                         ]
                     )
+                    batch_stage_frame_build_s += time.perf_counter() - stage_t0
 
-                    event_base = flow_anchor.select(
+                    stage_t0 = time.perf_counter()
+                    event_request = arrivals.select(
                         [
                             "flow_id",
+                            pl.lit(0).cast(pl.Int64).alias("event_seq"),
+                            pl.lit("AUTH_REQUEST").alias("event_type"),
                             "ts_utc",
                             "amount",
                             "seed",
@@ -1112,20 +1379,17 @@ def run_s2(
                             "scenario_id",
                         ]
                     )
-                    event_request = event_base.with_columns(
-                        pl.lit(0).cast(pl.Int64).alias("event_seq"),
-                        pl.lit("AUTH_REQUEST").alias("event_type"),
-                    )
-                    event_response = event_base.with_columns(
-                        pl.lit(1).cast(pl.Int64).alias("event_seq"),
-                        pl.lit("AUTH_RESPONSE").alias("event_type"),
-                    )
-                    event_stream = pl.concat([event_request, event_response], how="vertical").select(
+                    batch_stage_frame_build_s += time.perf_counter() - stage_t0
+
+                    stage_t0 = time.perf_counter()
+                    event_response = arrivals.with_columns(
+                        _ts_plus_seconds_expr("ts_utc", "auth_response_latency_seconds").alias("auth_response_ts_utc"),
+                    ).select(
                         [
                             "flow_id",
-                            "event_seq",
-                            "event_type",
-                            "ts_utc",
+                            pl.lit(1).cast(pl.Int64).alias("event_seq"),
+                            pl.lit("AUTH_RESPONSE").alias("event_type"),
+                            pl.col("auth_response_ts_utc").alias("ts_utc"),
                             "amount",
                             "seed",
                             "manifest_fingerprint",
@@ -1133,6 +1397,11 @@ def run_s2(
                             "scenario_id",
                         ]
                     )
+                    batch_stage_ts_s += time.perf_counter() - stage_t0
+
+                    stage_t0 = time.perf_counter()
+                    event_stream = pl.concat([event_request, event_response], how="vertical")
+                    batch_stage_frame_build_s += time.perf_counter() - stage_t0
 
                     if not validated_flow_schema and flow_anchor.height > 0:
                         sample = flow_anchor.head(1).to_dicts()[0]
@@ -1158,16 +1427,38 @@ def run_s2(
                         )
                         validated_event_schema = True
 
+                    stage_t0 = time.perf_counter()
                     flow_part = flow_tmp_dir / f"part-{part_index:05d}.parquet"
                     event_part = event_tmp_dir / f"part-{part_index:05d}.parquet"
-                    flow_anchor.write_parquet(flow_part, compression=parquet_compression)
-                    event_stream.write_parquet(event_part, compression=parquet_compression)
+                    flow_anchor.write_parquet(
+                        flow_part,
+                        compression=parquet_compression,
+                        statistics=False,
+                        row_group_size=batch_rows,
+                    )
+                    event_stream.write_parquet(
+                        event_part,
+                        compression=parquet_compression,
+                        statistics=False,
+                        row_group_size=batch_rows * 2,
+                    )
+                    batch_stage_write_s += time.perf_counter() - stage_t0
 
                     batch_rows_processed = int(flow_anchor.height)
                     total_flows += batch_rows_processed
                     total_events += int(event_stream.height)
                     part_index += 1
                     progress.update(batch_rows_processed)
+
+                logger.info(
+                    "S2: scenario_id=%s batch_stage_seconds cast_hash=%.2f sampling=%.2f ts_build=%.2f frame_build=%.2f parquet_write=%.2f",
+                    scenario_id,
+                    batch_stage_cast_hash_s,
+                    batch_stage_sampling_s,
+                    batch_stage_ts_s,
+                    batch_stage_frame_build_s,
+                    batch_stage_write_s,
+                )
 
         flow_out_dir = _materialize_parquet_path(flow_out_path).parent
         event_out_dir = _materialize_parquet_path(event_out_path).parent

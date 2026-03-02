@@ -213,7 +213,7 @@ case_mgmt:
     event_bus_endpoint_url: ${EVENT_BUS_ENDPOINT_URL}
     event_bus_start_position: latest
     admitted_topics:
-      - fp.bus.case.v1
+      - fp.bus.case.triggers.v1
     poll_max_records: 200
     poll_sleep_seconds: 0.5
     locator: ${CASE_MGMT_LOCATOR:-}

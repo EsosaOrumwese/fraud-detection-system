@@ -163,7 +163,7 @@ properties:
         maxLength: 128
       offset_kind:
         type: string
-        enum: [file_line, kinesis_sequence]
+        enum: [file_line, kinesis_sequence, kafka_offset]
       published_at_utc:
         $ref: "#/$defs/rfc3339_micros"
   evidence_refs:

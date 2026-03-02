@@ -1,0 +1,5 @@
+bucket         = "fraud-platform-dev-min-tfstate"
+key            = "dev_min/confluent/terraform.tfstate"
+region         = "eu-west-2"
+dynamodb_table = "fraud-platform-dev-min-tf-locks"
+encrypt        = true

@@ -1,0 +1,389 @@
+EXPERIENCE LAKE ENTRY — CLUSTER 08
+Title: Managed-substrate migration program (dev_min) — guardrails, authority stack, packaging immutability, IaC discipline, secrets least-privilege, and fail-closed IAM materialization incident
+As-of: 2026-02-14
+Status: IN-PROGRESS overall (M0–M3 DONE; M4 active with incident closure proven). Semantics preserved from local_parity baseline; substrate/runtime promotion underway with evidence bundles.
+
+1) Header Block — Identity + Claim
+1.1 One-sentence truth claim (defensible, not a vibe)
+I am executing a governed migration (“dev_min Spine Green v0”) that preserves the exact local_parity spine semantics (P0–P11 + P12 teardown) while swapping substrate and runtime to managed services under strict cost/security constraints; the program is evidence-first (phase closeout packages), drift-resistant (authority stack + stop/log/repin), and fail-closed on missing identity/secret/runtime contracts—demonstrated by a real M4.C IAM materialization failure that blocked progression until Terraform role surfaces were materialized and revalidated PASS.
+
+1.2 Scope (what this entry covers)
+IN-SCOPE:
+- dev_min objective and semantic invariants (preserve baseline scope + phase meaning + run identity + ingress truth + append-only evidence)
+- Non-negotiable guardrails (budget posture, demo→destroy, no NAT, no always-on LB dependency, no laptop runtime compute)
+- Authority stack for migration (what wins when docs conflict)
+- M0–M3 DONE posture (governance lock → packaging immutability → substrate readiness → run pinning)
+- Packaging posture (single-image + entrypoint matrix + provenance binding)
+- IaC posture (Terraform desired state + scripts for verification/evidence; teardown proof)
+- Secrets/bootstrap posture (SSM handles, anti-leak, least privilege verified by IAM simulation)
+- One real migration incident (M4.C IAM role materialization failure) with fail→fix→pass evidence
+
+OUT-OF-SCOPE:
+- Full production environment (this is dev_min proof rung; demo→destroy)
+- Learning/Registry plane closure (out-of-scope for Spine Green v0 baseline)
+- Business/model objectives beyond “spine runs correctly under managed constraints”
+
+1.3 One-line migration goal (interview-safe)
+dev_min Spine Green v0 = run the same proven local_parity spine lifecycle (P0..P11 + P12 teardown) on managed substrate and managed compute with zero semantic drift; change wiring/substrate, not platform laws.
+
+1.4 Core invariants preserved from local_parity (non-negotiable)
+- same baseline scope contract (Control+Ingress, RTDL, Case+Labels, Run/Operate+Obs/Gov; learning out-of-scope)
+- same phase-machine meaning (no shortcut skips)
+- same run identity discipline (platform_run_id + scenario_run_id anchored)
+- same ingress truth laws (fail-closed, idempotency, dedupe, payload-hash anomalies, receipt truth)
+- same append-only evidence posture (no in-place mutation shortcuts)
+- same explicit degrade posture (no silent guessing)
+- same replay basis and closure rigor (no unresolved ambiguity at green close; single-writer governance closeout)
+
+Allowed to change (explicit; “change substrate, not semantics”):
+- broker implementation (LocalStack Kinesis → managed Kafka/Kinesis)
+- object store (MinIO → AWS S3)
+- relational store (local Postgres → managed RDS)
+- runtime packaging/execution (docker compose → ECS tasks/services)
+- auth hardening (API keys → service tokens/mTLS), provided semantics and evidence contracts remain identical
+- perf/partitioning knobs, provided they do not change correctness invariants or truth models
+
+2) Context — Why this mattered
+2.1 The “cloud theatre” trap
+A lot of migrations are “we ran it once in the cloud.” That proves almost nothing.
+This migration is structured as:
+- a credibility rung under constraints (cost, identity, secrets, runtime boundaries)
+- a proof that the platform semantics survive real infra boundaries
+- a program where teardown and cost control are first-class (not afterthoughts)
+
+2.2 Why dev_min exists
+- to prove promotion from local parity to managed substrate without losing meaning
+- to create credible, repeatable “demo-grade” runs with durable evidence
+- to avoid paying for always-on infra while still validating managed constraints
+
+3) Guardrails — Non-negotiable operational laws
+These are hard laws; if violated, migration is invalid:
+
+3.1 Budget posture (low-cost envelope)
+- target: ~£30/month
+- escalation thresholds pinned (example ladder: £10 / £20 / £28)
+- fail condition: cannot show controlled budget posture → phase cannot close green
+
+Budget evidence hook (pinned):
+- primary artifact: runs/dev_substrate/m2_i/20260213T201427Z/budget_guardrail_snapshot.json
+- helper cost snapshot: runs/dev_substrate/cost_guardrail/20260213T201456Z/cost_guardrail_snapshot.json
+- pinned fields:
+  - budget.limit_expected.amount=30.0, budget.limit_expected.unit=USD, budget.thresholds_observed=[10.0,20.0,28.0]
+  - emergency_stop.threshold=28.0, emergency_stop.triggered=false
+  - checks.m2i_a_pass=true, checks.m2i_b_pass=true, checks.m2i_c_pass=true, checks.m2i_e_pass=true, overall_pass=true
+
+3.2 Demo→destroy default posture
+- expensive runtime resources are ephemeral (demo window only)
+- persistence reserved for evidence/core control surfaces
+- teardown is part of lifecycle closure (P12)
+- fail condition: demo resources remain → operationally non-compliant
+
+3.3 No NAT Gateway
+- prohibited as a cost footgun
+- fail condition: NAT presence blocks phase closure until removed
+
+3.4 No always-on LB dependency
+- dev_min must not require permanent ALB/NLB baseline
+- bounded, justified use only
+- fail condition: always-on LB dependency required for “runnable” claim → posture drift
+
+3.5 No laptop runtime compute
+- laptop orchestrates and inspects only
+- runtime compute must execute on managed ephemeral infra (ECS tasks/services)
+- fail condition: any required lane depends on laptop execution → migration closure blocked
+
+Boundary clarification (operational):
+- Allowed on laptop: orchestration, inspection, evidence publication, and dry-run verification commands
+- Forbidden for a dev_min “green” claim: any required lane’s compute path executing on the laptop (even if “just for now”)
+
+4) Authority Stack — What wins when docs conflict (pinned filenames)
+When conflict exists: higher authority wins; if unresolved, STOP/log/repin.
+
+Enforcement locus (executable governance, not vibes):
+- phase verdict snapshots and blocker lists are the progression gate; overall_pass=false or blockers non-empty blocks advancing to the next phase
+- conflicts or ambiguity trigger STOP/log/repin and require an explicit repin decision recorded in platform.impl_actual + logbook before proceeding
+
+4.1 Core platform law
+- docs/model_spec/platform/platform-wide/platform_blueprint_notes_v0.md
+- docs/model_spec/platform/platform-wide/deployment_tooling_notes_v0.md
+
+4.2 Dev-min migration authority (execution + constraints)
+- docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md
+- docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md
+
+4.3 Local-parity semantic source truth (what “green” means)
+- docs/design/platform/local-parity/addendum_1_phase_state_machine_and_gates.txt
+- docs/design/platform/local-parity/addendum_1_operator_gate_checklist.txt
+- docs/design/platform/local-parity/spine_green_v0_run_process_flow.txt
+
+4.4 Execution control documents
+- docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md
+- docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md
+- per-phase build plans (M0–M4)
+
+5) Program Structure — What “DONE” means (M0–M3)
+Definition: DONE = DoD closed, blockers empty, evidence artifacts published, next-phase handoff explicit.
+
+5.1 M0 — Mobilization + Authority Lock (DONE; doc-first)
+- governance model: single status owner, phase transition law, evidence templates, anti-drift stop protocol
+- no runtime runs/dev_substrate/m0 root produced (doc-first closure pinned in):
+  - docs/model_spec/platform/implementation_maps/dev_substrate/platform.M0.build_plan.md
+  - docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md
+  - docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md
+
+Clarification:
+- M0 closure is intentionally doc-only: authority lock + governance + evidence template finalization. No runtime roots are expected for M0.
+
+5.2 M1 — Packaging Readiness (DONE)
+Closeout root:
+- runs/dev_substrate/m1_build_go/20260213T114002Z/
+
+Packaging evidence artifacts:
+- runs/dev_substrate/m1_build_go/20260213T114002Z/packaging_provenance.json
+- runs/dev_substrate/m1_build_go/20260213T114002Z/build_command_surface_receipt.json
+- runs/dev_substrate/m1_build_go/20260213T114002Z/security_secret_injection_checks.json
+- runs/dev_substrate/m1_build_go/20260213T114002Z/ci_m1_outputs.json
+
+Immutable image identity (authoritative example):
+- tag: git-799d398a7daf34857cf363c9a1a629c40ec25d5e
+- digest: sha256:d71cbe335ec0ced59a40721f0e1f6016b276ec17f34e52708d3fd02c04d79f56
+
+Key snapshot (M1; “open JSON not required”):
+- image_tag=git-799d398a7daf34857cf363c9a1a629c40ec25d5e
+- image_digest=sha256:d71cbe335ec0ced59a40721f0e1f6016b276ec17f34e52708d3fd02c04d79f56
+
+5.3 M2 — Substrate Readiness (DONE)
+Closeout root:
+- runs/dev_substrate/m2_j/20260213T205715Z/
+
+Evidence families (examples):
+- m2_exit_readiness_snapshot.json
+- m3_handoff_pack.json
+- handle_resolution_snapshot.json
+- topic_readiness_snapshot.json
+- secret_surface_check.json
+- network_posture_snapshot.json (no-NAT checks)
+- DB readiness/migration snapshots
+- budget guardrail + teardown viability snapshots
+
+Secret/IAM simulation evidence (M2.E):
+- runs/dev_substrate/m2_e/20260213T141419Z/secret_surface_check.json
+  - checks.iam_simulation.app_role_allowed_count = 6
+  - checks.iam_simulation.execution_role_allowed_count = 0 (implicitDeny)
+
+Key snapshot (M2.E; “open JSON not required”):
+- iam_simulation.app_role_allowed_count=6
+- iam_simulation.execution_role_allowed_count=0 (implicitDeny)
+
+5.4 M3 — Run Pinning (DONE)
+Closeout root:
+- runs/dev_substrate/m3/20260213T221631Z/
+
+Pinned run artifacts:
+- pinned run: platform_20260213T214223Z
+- m3_f_verdict_snapshot.json (ADVANCE_TO_M4)
+- m4_runtime_scope_bundle.json
+- m3_run_pinning_snapshot.json
+- m4_handoff_pack.json
+
+Key snapshot (M3; “open JSON not required”):
+- pinned_platform_run_id=platform_20260213T214223Z
+- verdict=ADVANCE_TO_M4
+
+6) Packaging posture — Why it is credible (not “docker build succeeded”)
+6.1 Single-image strategy (deliberate)
+- reduces drift across many lanes
+- simplifies provenance verification (one immutable identity per posture)
+- keeps focus on substrate/runtime correctness over multi-image complexity
+- safety controls: explicit include/exclude contract; no ambiguous COPY . .
+
+6.2 Entrypoint matrix (fully pinned)
+The single image is safe only because entrypoints are explicit and validated:
+- Oracle jobs (seed/pack, stream-sort, checker)
+- Control/Ingress (SR, WSP, IG)
+- RTDL core (ArchiveWriter, IEG, OFP, CSFB)
+- Decision lane (DL, DF, AL, DLA, CaseTrigger)
+- Case/Label (CM, LS)
+- Closure lane (reporter)
+
+Missing/unresolved entrypoints are blockers (fail closed).
+
+6.3 Provenance binding (immutable chain)
+- commit SHA → git-<sha> tag
+- tag → OCI digest
+- CI metadata → packaging evidence artifacts
+- packaging evidence must agree with run.json/run anchors (fail closed on mismatch)
+
+7) IaC posture — Terraform vs scripts, drift prevention, teardown proof
+7.1 Ownership split
+- Terraform owns desired infra state
+- scripts own verification + orchestration glue + evidence publication
+(No “scripts replace Terraform” anti-pattern.)
+
+Repo roots:
+- infra/terraform/dev_min/core
+- infra/terraform/dev_min/confluent
+- infra/terraform/dev_min/demo
+- tools/dev_substrate (evidence scripts / orchestration)
+
+7.2 Drift prevention
+- no manual console drift accepted
+- state partitioning (core/confluent/demo) with locking discipline
+- handle registry is executable contract (unknown/missing handles fail closed)
+- phase blockers explicit; unresolved blockers block progression
+- evidence-backed closure only; one plan owns status transitions
+
+7.3 Teardown proof (not optional cleanup)
+- pre-destroy viability checks recorded
+- destroy surfaces pinned and scoped to demo resources
+- post-destroy checks confirm no cost-bearing demo resources remain
+- teardown evidence is part of lifecycle closure (P12)
+
+8) Secrets/bootstrap posture — least privilege by design and proof
+8.1 Canonical SSM handle model (examples)
+- SSM_CONFLUENT_BOOTSTRAP_PATH
+- SSM_CONFLUENT_API_KEY_PATH / SSM_CONFLUENT_API_SECRET_PATH
+- SSM_IG_API_KEY_PATH
+- SSM_DB_USER_PATH / SSM_DB_PASSWORD_PATH (optional SSM_DB_DSN_PATH)
+
+8.2 Forbidden surfaces (hard fail)
+- secrets in Docker build ARG/ENV
+- copying env files into image
+- printing decrypted secrets in logs/artifacts
+- execution role as secret superuser
+- publishing decrypted values in evidence/logbooks
+
+8.3 Role boundary model + verification
+- ROLE_ECS_TASK_EXECUTION: pull/log only, no secret-read
+- app/runtime roles: path-scoped ssm:GetParameter only for required pinned paths
+- provisioning roles: materialize/update paths; not runtime principals
+Verification proof:
+- IAM simulation snapshot: app role allowed 6/6; execution role allowed 0/6
+
+9) Real migration incident — M4.C IAM role materialization fail-closed
+9.1 Incident summary
+At M4.C, runtime readiness failed closed because service→role handles were pinned in design but not materialized as real IAM roles in substrate yet.
+
+9.2 Failure context
+- working run: m4_20260214T121004Z
+- lane: M4.C (IAM binding validation)
+- failure evidence:
+  - runs/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json
+  - overall_pass=false
+  - blockers included:
+    - M4C-B4 (unmaterialized ROLE_* handles)
+    - M4C-B1 (invalid/unresolved app-role bindings)
+    - M4C-B2 (dependency access posture unverifiable while roles missing)
+
+9.3 Fix (layer-correct)
+A) Terraform demo-stack expansion
+- created lane-role resources for all required handles
+- added lane-scoped secret-read policies (path-scoped)
+- exposed concrete role outputs for validation
+
+B) Registry/handles closure
+- pinned concrete lane role values into migration authority handles
+- explicitly included ROLE_ENV_CONFORMANCE for SVC_ENV_CONFORMANCE to close ambiguity gap
+
+C) Gate discipline preserved
+- did not bypass M4.C
+- reran validation against live Terraform outputs + IAM state
+
+9.4 Closure proof (fail → materialize → pass)
+Fail snapshot:
+- runs/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json (overall_pass=false)
+
+Materialization artifacts:
+- runs/dev_substrate/m4/20260214T133434Z/m4_c_role_materialization.plan.txt
+- runs/dev_substrate/m4/20260214T133434Z/m4_c_role_materialization.apply.txt
+- runs/dev_substrate/m4/20260214T133434Z/m4_c_demo_outputs_after_apply.json
+- runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
+
+Pass snapshot:
+- runs/dev_substrate/m4/20260214T134520Z/m4_c_iam_binding_snapshot.json
+  - overall_pass=true
+  - blockers=[]
+
+Key snapshot (M4.C; “open JSON not required”):
+- FAIL: overall_pass=false; blockers include M4C-B4 (unmaterialized ROLE_* handles) plus app-role binding blockers
+- PASS: overall_pass=true; blockers=[]
+
+Durable mirror:
+- s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T134520Z/m4_c_iam_binding_snapshot.json
+
+Evidence strength label (truth hygiene):
+- Failure evidence: strong (snapshot exists with overall_pass=false + named blockers)
+- Fix evidence: strong (plan/apply outputs + outputs-after-apply + policy surface artifacts)
+- Pass evidence: strong (snapshot overall_pass=true with blockers=[] + durable S3 mirror)
+
+10) Evidence Index (auditor trail)
+10.0 Truth surfaces: authoritative vs derived (anti-drift)
+Authoritative (what actually proves phase closure / guardrail compliance):
+- phase verdict snapshots and blocker lists (e.g., M3 verdict snapshot; M4.C iam_binding_snapshot PASS/FAIL)
+- handles registry resolution + runtime scope bundles (run pinning + wiring truth)
+- Terraform plan/apply outputs + outputs-after-apply JSON (materialization truth)
+- IAM simulation snapshots (least privilege proof)
+- immutable image identity evidence (tag→digest mapping + packaging provenance JSON)
+- evidence-bucket mirrors of the same artifacts (durable audit copy)
+
+Supporting (useful context, not decision authority):
+- build plans + impl_actual notes (decision trail, rationale, operator narrative)
+- logbook entries (diagnostic color; not a substitute for verdict artifacts)
+
+Derived (human-facing summaries that must be backed by authoritative artifacts):
+- prose statements such as “M0–M3 DONE”, “semantics preserved”, “program is evidence-first”
+
+10.1 Authority files
+- docs/model_spec/platform/platform-wide/platform_blueprint_notes_v0.md
+- docs/model_spec/platform/platform-wide/deployment_tooling_notes_v0.md
+- docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md
+- docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md
+- docs/design/platform/local-parity/addendum_1_phase_state_machine_and_gates.txt
+- docs/design/platform/local-parity/addendum_1_operator_gate_checklist.txt
+- docs/design/platform/local-parity/spine_green_v0_run_process_flow.txt
+
+10.2 Closeout roots
+- M1: runs/dev_substrate/m1_build_go/20260213T114002Z/
+- M2: runs/dev_substrate/m2_j/20260213T205715Z/
+- M3: runs/dev_substrate/m3/20260213T221631Z/
+- M4.C: runs/dev_substrate/m4/20260214T121004Z/ and /20260214T134520Z/
+
+10.3 Secrets/IAM evidence
+- runs/dev_substrate/m2_e/20260213T141419Z/secret_surface_check.json
+- runs/dev_substrate/m1_build_go/20260213T114002Z/security_secret_injection_checks.json
+
+10.4 IaC roots
+- infra/terraform/dev_min/core
+- infra/terraform/dev_min/confluent
+- infra/terraform/dev_min/demo
+- tools/dev_substrate
+
+11) Guardrails / Non-regression Controls
+11.1 “Change substrate, not semantics” enforcement
+- local_parity phase meaning wins; dev_min cannot shortcut
+- handles registry is the wiring authority; drift fails closed
+- stop/log/repin protocol enforced on conflicts
+
+11.2 Cost/security/risk controls are part of acceptance, not ops hygiene
+- budget posture required
+- demo→destroy required
+- no NAT / no always-on LB required
+- no laptop compute required
+- secrets least-privilege verified with evidence
+
+12) Residual risks + Next actions
+12.1 What remains open
+- M4 daemon bring-up and subsequent phase closures (P2..P11) on dev_min under ECS runtime.
+- Maintain evidence parity and teardown closure (P12) under demo posture.
+
+12.2 Next actions
+- proceed from M4.C PASS into daemon bring-up with REQUIRED_PLATFORM_RUN_ID injection
+- re-run Spine Green v0 acceptance sequence under dev_min using the same closure bundle logic
+- continue to mirror evidence bundles to dev_min evidence bucket for auditability
+
+13) Extraction notes (for later mining)
+13.1 30-second version (recruiter)
+“I’m migrating a multi-service fraud platform from local parity to a managed dev_min rung under strict cost/security laws. I locked semantics, built an evidence-first phase program, and caught a real IAM materialization failure in M4 that blocked progression until roles and policies were actually created—proven with fail/pass snapshots.”
+
+13.2 2-minute version (hiring manager)
+“I treat migration as semantic preservation under constraints, not rewriting. I pinned an authority stack, built a single-image entrypoint matrix with immutable provenance, used Terraform as desired-state truth with scripts for verifiable evidence, enforced least-privilege secrets via IAM simulation, and fail-closed an M4 IAM binding gate when required roles weren’t materialized. I only advanced after Terraform materialized roles and a rerun snapshot showed overall_pass=true and blockers empty, with durable evidence mirrored to S3.”

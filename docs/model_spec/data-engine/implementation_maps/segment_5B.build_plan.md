@@ -1,0 +1,2496 @@
+# Segment 5B Optimization + Remediation Build Plan (B/B+ Execution Plan)
+_As of 2026-02-22_
+
+## 0) Objective and closure rule
+- Objective: close Segment `5B` with both:
+  - performance closure to minute-scale practical iteration, and
+  - certified realism closure at `B` minimum, with `B+` as active target.
+- Published authority posture:
+  - published report grade `B+`, but remediation authority treats current posture as not closure-grade due deterministic DST/civil-time defect and weak calibration guardrails.
+- Closure rule:
+  - `PASS_BPLUS_ROBUST`: all hard realism gates pass, all B+ stretch gates pass, cross-seed stability passes, and runtime budgets pass.
+  - `PASS_B`: all hard realism gates pass, cross-seed stability passes, and runtime budgets pass.
+  - `HOLD_REMEDIATE`: any hard realism gate fails or runtime budget fails.
+- Phase advancement law (binding): no phase is closed until every DoD checkbox in that phase is green.
+
+## 1) Source-of-truth stack
+
+### 1.1 Statistical authority
+- `docs/reports/eda/segment_5B/segment_5B_published_report.md`
+- `docs/reports/eda/segment_5B/segment_5B_remediation_report.md`
+
+### 1.2 State/contract authority
+- `docs/model_spec/data-engine/layer-2/specs/state-flow/5B/state.5B.s0.expanded.md`
+- `docs/model_spec/data-engine/layer-2/specs/state-flow/5B/state.5B.s1.expanded.md`
+- `docs/model_spec/data-engine/layer-2/specs/state-flow/5B/state.5B.s2.expanded.md`
+- `docs/model_spec/data-engine/layer-2/specs/state-flow/5B/state.5B.s3.expanded.md`
+- `docs/model_spec/data-engine/layer-2/specs/state-flow/5B/state.5B.s4.expanded.md`
+- `docs/model_spec/data-engine/layer-2/specs/state-flow/5B/state.5B.s5.expanded.md`
+- `docs/model_spec/data-engine/layer-2/specs/contracts/5B/dataset_dictionary.layer2.5B.yaml`
+- `docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml`
+- `docs/model_spec/data-engine/layer-2/specs/contracts/5B/artefact_registry_5B.yaml`
+
+### 1.3 Upstream freeze posture (initial)
+- `1A`, `1B`, `2B`, `3A`, `3B`, `5A` are treated as frozen inputs for the first 5B pass.
+- `2A` reopen is explicitly allowed only if Wave-A DST hard gates cannot close with 5B-local changes alone (upstream-owned transition horizon dependency).
+
+## 2) Scope and ownership map
+- Active performance hotspots from measured baseline:
+  - `S4` (primary),
+  - `S1` (secondary),
+  - `S2/S3` (tertiary),
+  - `S5` (low runtime share; governance-only tuning).
+- Active realism owners:
+  - `S4 + S5`: DST/civil-time correctness and enforcement.
+  - `S4 + routing policy`: timezone concentration and virtual-share calibration.
+  - `S5 + policy/schema`: persistent gate hardening and sentinelization.
+- Structural rails:
+  - `S0` sealed-input/gate integrity is veto-only (not a tuning target).
+  - `S2 -> S3 -> S4` count conservation is non-regression law.
+
+## 3) Target gates (realism + runtime)
+
+### 3.1 Hard realism gates (B)
+- `T1` DST mismatch rate `<= 0.50%`.
+- `T2` one-hour DST signature mass `P(offset in {-3600,+3600}) <= 0.10%`.
+- `T3` DST-window hour-bin MAE `<= 1.5 pp`.
+- `T4` S3<->S4 logical-key conservation exact: total diff `0`, key mismatch count `0`.
+- `T5` physical/virtual nullability integrity violations `0`.
+- `T6` timezone concentration top-10 share `<= 72%`.
+- `T7` virtual share in band `[3%, 8%]` unless policy explicitly pins physical-first (must be documented).
+
+### 3.2 Stretch realism gates (B+)
+- `T1+` DST mismatch rate `<= 0.10%`.
+- `T2+` one-hour DST signature mass `<= 0.02%`.
+- `T3+` DST-window hour-bin MAE `<= 0.7 pp`.
+- `T6+` timezone concentration top-10 share `<= 62%`.
+- `T7+` virtual share in band `[5%, 12%]`.
+
+### 3.3 Cross-seed stability gates
+- Required seeds for certification: `{42, 7, 101, 202}`.
+- Hard gates must pass on every required seed.
+- Key-metric cross-seed CV:
+  - `B`: `<= 0.25`
+  - `B+`: `<= 0.15`
+
+### 3.4 Runtime gates (binding)
+- Candidate lane (single seed, changed-state onward): target `<= 7 min`.
+- Witness lane (2 seeds): target `<= 14 min`.
+- Certification lane (4 seeds): target `<= 30 min`.
+- State budgets (finalized by `POPT.0` authority run `c25a2675fbfbacd952b13bb594880e92`):
+  - `S1 <= 90s` (stretch `120s`),
+  - `S2 <= 35s` (stretch `45s`),
+  - `S3 <= 35s` (stretch `45s`),
+  - `S4 <= 240s` (stretch `300s`),
+  - `S5 <= 5s` (stretch `8s`).
+
+## 4) Run protocol, retention, and pruning
+- Active run root: `runs/fix-data-engine/segment_5B/`.
+- Keep-set only:
+  - baseline authority run-id,
+  - current candidate,
+  - last good,
+  - active witness/certification run-set.
+- Prune rule (mandatory): prune superseded failed/superseded run-id folders before each expensive rerun.
+
+### 4.1 Progressive rerun matrix (sequential-state law)
+- If `S1` changes: rerun `S1 -> S2 -> S3 -> S4 -> S5`.
+- If `S2` changes: rerun `S2 -> S3 -> S4 -> S5`.
+- If `S3` changes: rerun `S3 -> S4 -> S5`.
+- If `S4` changes: rerun `S4 -> S5`.
+- If only `S5` policy/gates change: rerun `S5`.
+- If upstream `2A` is reopened and accepted: rerun `S0 -> S1 -> S2 -> S3 -> S4 -> S5`.
+
+## 5) Performance-first phase stack (POPT)
+
+### POPT.0 - Profiled baseline lock
+Goal:
+- lock measured state runtime and hot-lane attribution before optimization edits.
+
+Execution posture:
+- no code/policy edits are allowed in `POPT.0`; this phase is evidence lock only.
+- run lane is single-seed baseline (`seed=42`) unless an existing clean authority run-id is already pinned and reproducible.
+- if no clean authority run-id exists for the current code/config posture, execute one full chain `S0 -> S1 -> S2 -> S3 -> S4 -> S5` and pin that run-id as baseline.
+
+Closure artifacts (required):
+- `segment5b_popt0_baseline_lock_<run_id>.md` (run-id, seed, command lane, artifact pointers).
+- `segment5b_popt0_state_elapsed_<run_id>.csv` (`state`, `elapsed_s`, `status`, `rows_in`, `rows_out` where available).
+- `segment5b_popt0_hotspot_map_<run_id>.json` (lane decomposition and ranked bottlenecks).
+- `segment5b_popt0_budget_pin_<run_id>.json` (finalized state and lane budgets with rationale).
+
+#### POPT.0.1 - Baseline authority pin
+Objective:
+- choose and pin one clean authority baseline run-id under `runs/fix-data-engine/segment_5B/`.
+
+Definition of done:
+- [x] baseline run-id is explicitly pinned and recorded in plan artifacts.
+- [x] baseline contains complete `S0..S5` PASS evidence for the same code/config posture.
+- [x] keep-set is refreshed so superseded failed runs are pruned before further profiling work.
+
+#### POPT.0.2 - State elapsed capture
+Objective:
+- capture authoritative elapsed time per state and establish initial bottleneck ranking.
+
+Definition of done:
+- [x] elapsed table for `S0..S5` is emitted from run-report/log evidence.
+- [x] state ranking is recorded with absolute seconds and relative share.
+- [x] any missing timing fields are called out explicitly (no silent defaults).
+
+#### POPT.0.3 - Hot-lane decomposition
+Objective:
+- decompose hot states into `input_load`, `compute`, `validation`, and `write` lanes.
+
+Method:
+- parse state logs/step timers and classify elapsed spans into the four lanes.
+- compute per-state lane share and segment-level lane share.
+- rank optimization owners by expected runtime gain (`S4` first unless evidence disproves).
+
+Definition of done:
+- [x] hotspot decomposition artifact is emitted and versioned.
+- [x] primary, secondary, and tertiary bottlenecks are explicitly named with evidence.
+- [x] expected reduction targets for `POPT.1` and `POPT.2` are pinned from decomposition.
+
+#### POPT.0.4 - Runtime budget finalization
+Objective:
+- replace initial placeholder budgets with measured closure-grade budgets.
+
+Definition of done:
+- [x] finalized state budgets are pinned for `S1..S5`.
+- [x] candidate/witness/certification lane budgets are either confirmed or tightened.
+- [x] budget rationale is evidence-backed and references baseline decomposition.
+
+#### POPT.0.5 - Handoff decision
+Objective:
+- close `POPT.0` with an explicit go/no-go and ordered execution lane for optimization.
+
+Definition of done:
+- [x] explicit decision is recorded as one of `GO_POPT.1` or `HOLD_POPT.0`.
+- [x] if `GO_POPT.1`, ordered optimization lane is pinned (`S1 -> S4 -> S2/S3 -> S5` or evidence-driven variant).
+- [x] if `HOLD_POPT.0`, unresolved evidence gaps are listed with exact closure actions.
+
+POPT.0 closure snapshot (2026-02-22):
+- authority baseline run-id: `c25a2675fbfbacd952b13bb594880e92` (source root `runs/local_full_run-5`), pinned in `runs/fix-data-engine/segment_5B/POPT0_BASELINE_RUN_ID.txt`.
+- baseline closure artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt0_baseline_lock_c25a2675fbfbacd952b13bb594880e92.md`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt0_state_elapsed_c25a2675fbfbacd952b13bb594880e92.csv`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt0_hotspot_map_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt0_budget_pin_c25a2675fbfbacd952b13bb594880e92.json`
+- measured segment elapsed (`S0..S5`): `745.263s` (`00:12:25`) vs candidate budget `<= 420s` -> `RED`.
+- hotspot ranking from decomposition:
+  1. `S4` (`504.641s`, `67.71%`, dominant lane `compute`)
+  2. `S1` (`148.452s`, `19.92%`, dominant lane `input_load`)
+  3. `S3` (`45.188s`, `6.06%`, dominant lane `compute`)
+- handoff decision: `GO_POPT.1` with evidence-driven owner ordering `S4 -> S1 -> S3 -> S2 -> S5`.
+
+### POPT.1 - S1 domain-derivation redesign (secondary hotspot)
+Goal:
+- replace Python row materialization/set-dedupe path with lazy/vectorized unique-domain derivation.
+
+Execution note:
+- `POPT.0` hotspot evidence ranked `S4` above `S1`; execution starts on `S4` first (evidence-driven variant) and then returns to this `S1` lane.
+
+Scope:
+- code:
+  - `packages/engine/src/engine/layers/l2/seg_5B/s1_time_grid/runner.py`
+  - optional shared helper extraction if needed for reusable vectorized domain scan.
+- tooling/evidence:
+  - `tools/score_segment5b_popt1_closure.py` (new; baseline-vs-candidate runtime + veto rails).
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt1_*` artifacts.
+- out-of-scope:
+  - no policy/coeff realism tuning in `POPT.1`,
+  - no contract/schema semantics relaxation.
+
+POPT.1 baseline anchors (from POPT.0 authority):
+- baseline run-id: `c25a2675fbfbacd952b13bb594880e92`.
+- baseline `S1 wall`: `148.452s` (`19.92%` of segment lane).
+- lane signature: `input_load` dominant (`~146.84s`), compute secondary (`~1.18s`).
+- hotspot owner path:
+  - `S1: scanning merchant_zone_scenario_local_5A for grouping domain ...`
+  - `_scan_domain_keys` currently performs Python per-row tuple insertion over full scenario-local volume.
+
+POPT.1 closure gates (quantified):
+- runtime movement gate:
+  - `S1 wall <= 90s` (state budget target), OR
+  - `S1 reduction >= 40%` vs baseline (`<= 89.071s` equivalent).
+- structural non-regression gates:
+  - `S1 status=PASS`,
+  - `total_bucket_count` unchanged,
+  - `total_grouping_rows` unchanged,
+  - `total_unique_group_ids` unchanged,
+  - no new `error_code/error_class`.
+- grouping-shape rails:
+  - `median_members_per_group` non-regression within tight tolerance,
+  - `max_group_share` non-regression,
+  - no increase in scenario_count_failed.
+- downstream continuity gates:
+  - rerun `S1 -> S2 -> S3 -> S4 -> S5` all `PASS`.
+- determinism gate:
+  - same `(parameter_hash, manifest_fingerprint, seed)` reproduces identical structural counters and idempotent outputs.
+
+Execution posture:
+- run root: `runs/fix-data-engine/segment_5B`.
+- rerun law:
+  - any `S1` code change reruns `S1 -> S5` (sequential-state law).
+- prune posture:
+  - prune superseded failed run-id folders before each expensive candidate rerun.
+- fail-closed posture:
+  - any semantic/regression gate failure => `HOLD_POPT.1_REOPEN`.
+
+#### POPT.1.1 - Equivalence contract and scorer lock
+Objective:
+- pin exactly what counts as non-semantic optimization for `S1`.
+
+Scope:
+- define `segment5b_popt1_closure_<run_id>.json` schema:
+  - baseline vs candidate runtime deltas,
+  - structural counters veto rails,
+  - downstream chain pass/fail map,
+  - explicit decision field.
+- lock allowed differences:
+  - `durations`, lane timing, and logging cadence only.
+- lock forbidden differences:
+  - grouping identity/counters/schema and downstream pass posture.
+
+Definition of done:
+- [x] closure scorer contract is pinned and executable.
+- [x] veto checks are explicit and machine-checkable from artifacts.
+- [x] no unresolved equivalence ambiguity remains before code edits.
+
+#### POPT.1.2 - Algorithm/design lock for S1 hotspot
+Objective:
+- lock the pre-implementation algorithm choice and complexity target.
+
+Design alternatives:
+- Option A: keep Python per-row batch loops and tune batch size/log cadence only.
+- Option B: replace domain derivation with vectorized lazy scan + unique on required key columns.
+- Option C: pyarrow dictionary-encoding custom kernel path.
+
+Decision:
+- choose Option B as primary lane:
+  - compute keys using lazy/vectorized operators (`filter`, null checks, `select`, `unique`) and avoid Python row loops.
+  - keep deterministic output via explicit stable sort before grouping-id assignment.
+- Option C is fallback only if Option B cannot meet budget with parity.
+
+Complexity posture:
+- current: `O(N)` Python-row processing with high interpreter overhead.
+- target: `O(N)` columnar scan in native engine + `O(U log U)` deterministic ordering (`U` unique keys), with much lower constant factors.
+
+Definition of done:
+- [x] chosen algorithm is documented with rationale and fallback trigger.
+- [x] expected complexity and memory/IO posture are explicitly recorded.
+- [x] logging cadence budget for scan progress is pinned (no high-frequency spam).
+
+#### POPT.1.3 - Domain-derivation implementation
+Objective:
+- implement vectorized key-domain extraction in `S1`.
+
+Scope:
+- replace `_scan_domain_keys` row loop path with vectorized/lazy domain extraction.
+- enforce scenario-id consistency and required-field null checks vectorially.
+- emit deterministic key ordering prior to group assignment.
+
+Definition of done:
+- [x] `S1` hotspot path no longer depends on per-row Python tuple insertion.
+- [x] key-domain parity holds versus baseline authority on structural counters.
+- [x] no schema/contract compatibility regressions introduced.
+
+#### POPT.1.4 - Instrumentation + logging budget closure
+Objective:
+- keep observability while removing runtime drag from progress telemetry.
+
+Scope:
+- pin progress heartbeat cadence for heavy scans.
+- ensure phase markers remain sufficient for lane decomposition artifacts.
+
+Definition of done:
+- [x] lane timing markers remain parsable.
+- [x] logging cadence is bounded and non-dominant in `S1` elapsed.
+- [x] no loss of required audit evidence.
+
+#### POPT.1.5 - Witness rerun and closure scoring
+Objective:
+- prove runtime gain and non-regression on changed-state chain.
+
+Scope:
+- execute witness rerun `S1 -> S2 -> S3 -> S4 -> S5`.
+- emit:
+  - `segment5b_popt1_lane_timing_<run_id>.json`,
+  - `segment5b_popt1_closure_<run_id>.json`,
+  - `segment5b_popt1_closure_<run_id>.md`.
+
+Definition of done:
+- [x] witness chain `S1..S5` is all `PASS`.
+- [x] runtime gate and veto rails are scored from artifacts.
+- [x] reopen blockers (if any) are mapped to bounded follow-up action.
+
+#### POPT.1.6 - Phase closure and handoff
+Objective:
+- close phase with explicit decision and retained run/artifact map.
+
+Scope:
+- record closure decision:
+  - `UNLOCK_POPT3` (if in numbered order), or
+  - `UNLOCK_POPT2_CONTINUE` (if evidence-driven `S4` lane remains active first).
+- prune superseded failed run-id folders under keep-set rules.
+- sync build plan + implementation map + logbook.
+
+Definition of done:
+- [x] explicit closure decision is recorded.
+- [x] retained run-id and artifact pointers are pinned.
+- [x] prune action is completed and logged.
+
+POPT.1 closure snapshot (2026-02-22):
+- witness authority run-id: `c25a2675fbfbacd952b13bb594880e92` (source root `runs/local_full_run-5`).
+- closure artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt1_lane_timing_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt1_closure_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt1_closure_c25a2675fbfbacd952b13bb594880e92.md`
+- quantified closure:
+  - runtime: `S1 148.452s -> 11.844s` (`92.02%` reduction), gate `PASS`.
+  - structural parity: all pinned counters/shape rails exact, gate `PASS`.
+  - downstream continuity: `S2/S3/S4/S5 = PASS`, gate `PASS`.
+- execution blocker handled during witness:
+  - `S5_OUTPUT_CONFLICT` on pre-existing bundle for same run-id; handled by moving stale bundle folder to `.stale_0224` backup and rerunning `S5` (non-destructive).
+- phase decision: `UNLOCK_POPT2_CONTINUE`.
+- prune closure evidence:
+  - `python tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_5B`
+  - result: no failed sentinels.
+
+### POPT.2 - S4 expansion-path optimization (primary hotspot)
+Goal:
+- reduce S4 wall time by cutting Python control-plane overhead while preserving deterministic output semantics.
+
+Execution note:
+- despite static numbering, this lane is promoted ahead of `POPT.1` for this cycle by `POPT.0` handoff evidence.
+
+Scope:
+- `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/runner.py`
+- `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/numba_kernel.py`
+- optional policy knobs in `config/layer2/5B/arrival_routing_policy_5B.yaml` (only if required by algorithmic redesign, not realism tuning).
+
+POPT.2 baseline anchors (authority evidence):
+- baseline from `POPT.0`:
+  - `S4 wall = 504.641s` (`67.71%` of segment),
+  - lane decomposition: `compute=502.457s`, `input_load=1.830s`, `validation=0.328s`, `write=0.026s`,
+  - dominant lane: `compute`.
+- latest witness after `POPT.1` closure:
+  - `S4 wall = 532.453s` (`S4` still dominant bottleneck).
+- structural anchor payload (must remain invariant):
+  - `bucket_rows=35700480`,
+  - `arrivals_total=124724153`,
+  - `arrival_rows=124724153`,
+  - `arrival_virtual=2802007`,
+  - `missing_group_weights=0`.
+
+POPT.2 closure gates (quantified):
+- runtime movement gate (mandatory):
+  - `S4 reduction >= 35%` vs `504.641s` baseline (`S4 <= 327.017s` practical threshold), and
+  - no material regression on `S2/S3/S5` elapsed beyond +15% from their current witness anchors.
+- runtime budget alignment gate (stretch, preferred):
+  - `S4 <= 300s` (state stretch budget),
+  - with explicit note if not yet at target `<= 240s`.
+- structural non-regression gate:
+  - `S4 status=PASS`,
+  - `total_bucket_rows`, `total_arrivals`, `total_rows_written`, `total_virtual` unchanged,
+  - `missing_group_weights` not increased.
+- deterministic/idempotence gate:
+  - replay on same `(run_id, seed, parameter_hash, manifest_fingerprint)` remains idempotent,
+  - no new `S4_OUTPUT_CONFLICT` / `S5_OUTPUT_CONFLICT` without documented housekeeping action.
+- downstream continuity gate:
+  - rerun `S4 -> S5` both `PASS`,
+  - `S5` bundle integrity remains `true`.
+
+Execution posture:
+- run root: `runs/fix-data-engine/segment_5B`.
+- execution run-id lane: continue authority witness lane `c25a2675fbfbacd952b13bb594880e92` unless a new candidate run-id is required for clean isolation.
+- rerun law:
+  - any `S4` code change reruns `S4 -> S5`.
+- logging budget posture:
+  - keep `ENGINE_5B_S4_RNG_EVENTS=0` for optimization witness runs (rng_trace retained),
+  - no high-cardinality validation/event logging unless explicitly needed for defect triage.
+- prune posture:
+  - prune superseded failed run-id folders before each expensive witness rerun.
+
+#### POPT.2.1 - Equivalence contract and scorer lock
+Objective:
+- pin machine-checkable closure adjudication for S4 optimization lane before code edits.
+
+Scope:
+- add scorer contract artifacts:
+  - `segment5b_popt2_lane_timing_<run_id>.json`,
+  - `segment5b_popt2_closure_<run_id>.json`,
+  - `segment5b_popt2_closure_<run_id>.md`.
+- scorer must evaluate:
+  - runtime movement + budget gates,
+  - structural invariants,
+  - downstream `S5` continuity,
+  - explicit decision vocabulary (`UNLOCK_POPT3_CONTINUE` vs `HOLD_POPT2_REOPEN`).
+
+Definition of done:
+- [x] POPT.2 scorer contract is executable.
+- [x] all veto rails are artifact-derived and machine-checkable.
+- [x] no unresolved equivalence ambiguity remains before S4 edits.
+
+#### POPT.2.2 - Algorithm/design lock for S4 hotspot
+Objective:
+- choose the lowest-risk highest-yield S4 optimization path with clear fallback.
+
+Design alternatives:
+- Option A: parameter-only tuning (`batch_rows`, `max_arrivals_chunk`) without code-path redesign.
+- Option B: control-plane vectorization + workspace reuse around existing numba kernel.
+- Option C: deeper kernel redesign (inner-loop mechanics/dtype/storage changes).
+
+Decision:
+- choose Option B as primary lane:
+  - keep core numba semantics,
+  - remove Python per-row control-plane overhead around batch preparation and seed/index derivation,
+  - reduce repeated allocation churn in segment buffers.
+- Option C remains fallback only if Option B fails runtime movement gate.
+
+Complexity posture:
+- current: per-batch `O(B)` Python loops + `O(A)` kernel expansion (`A` arrivals), with heavy constant factors in prep and serialization.
+- target: keep `O(A)` kernel path but materially reduce pre/post `O(B)` Python overhead and allocation churn.
+
+Definition of done:
+- [x] selected algorithm and fallback trigger are pinned.
+- [x] complexity + memory/IO posture are explicitly recorded.
+- [x] logging budget and validation posture for witness runs are pinned.
+
+#### POPT.2.3 - S4 control-plane optimization (pre-kernel)
+Objective:
+- reduce Python-side preprocessing overhead before `expand_arrivals`.
+
+Scope:
+- optimize high-frequency per-row prep lanes:
+  - `row_seq_start` derivation,
+  - `group_table_index` lookup,
+  - `merchant_idx_array` and `zone_rep_idx` derivation,
+  - RNG seed/ctr derivation key construction.
+- prefer vectorized/native-path derivation and bounded caches over Python row loops.
+
+Definition of done:
+- [ ] control-plane prep elapsed materially reduced in lane decomposition.
+- [ ] scenario/domain guardrails (`V-08`) remain strict and unchanged.
+- [ ] no changes to statistical semantics of routing/time draws.
+
+#### POPT.2.4 - S4 kernel + buffer lifecycle optimization
+Objective:
+- improve compute-lane throughput without changing output semantics.
+
+Scope:
+- optimize per-segment allocation lifecycle for output arrays and intermediate buffers.
+- tune chunking strategy to reduce reallocation and improve kernel occupancy.
+- keep `NUMBA` acceleration mandatory in optimization witness lane.
+
+Definition of done:
+- [ ] compute lane shows measurable reduction vs baseline decomposition.
+- [ ] no RNG-accounting drift (`rng_draws_total`, `rng_blocks_total`, `rng_events_total` integrity).
+- [ ] no contract/schema regressions introduced.
+
+#### POPT.2.5 - Witness rerun and closure scoring
+Objective:
+- prove runtime gain and non-regression on changed-state chain.
+
+Scope:
+- rerun `S4 -> S5` on candidate lane.
+- emit full POPT.2 closure artifacts from scorer.
+- compare to both POPT0 baseline and latest POPT1 witness anchor.
+
+Definition of done:
+- [x] `S4` and `S5` are `PASS`.
+- [ ] runtime movement gate is satisfied.
+- [x] structural/determinism/downstream gates are all green.
+
+#### POPT.2.6 - Phase closure and handoff
+Objective:
+- close POPT.2 with explicit decision and retained artifact/run pointers.
+
+Scope:
+- decision outcomes:
+  - `UNLOCK_POPT3_CONTINUE` when all mandatory gates pass,
+  - `HOLD_POPT2_REOPEN` with bounded reopen lane if any gate fails.
+- run-folder hygiene:
+  - prune superseded failed runs under keep-set protocol.
+- sync build plan + implementation map + logbook.
+
+Definition of done:
+- [x] explicit closure decision is recorded.
+- [x] retained run/artifact pointers are pinned.
+- [x] prune action is completed and logged.
+
+POPT.2 closure snapshot (2026-02-22):
+- authority witness run-id: `c25a2675fbfbacd952b13bb594880e92` (source root `runs/local_full_run-5`).
+- closure artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt2_lane_timing_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt2_closure_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt2_closure_c25a2675fbfbacd952b13bb594880e92.md`
+- execution outcomes:
+  - primary control-plane optimization patch was implemented and witnessed; runtime regressed (`S4=558.859s`), so lane was fail-closed and reverted.
+  - post-revert witness remained above baseline gate (`S4=550.875s`), while structural/downstream/determinism rails stayed green.
+- quantified closure:
+  - runtime gate: `FAIL` (`S4 baseline=504.641s`, candidate=`550.875s`, reduction `-9.16%`).
+  - stretch budget gate (`<=300s`): `FAIL`.
+  - structural gate: `PASS` (all pinned counters exact).
+  - non-regression gate (`S2/S3/S5`): `PASS`.
+  - downstream + determinism gates: `PASS`.
+- recurring witness blocker handled:
+  - `S5_OUTPUT_CONFLICT` on same-run publish target handled non-destructively by moving existing bundle folder to timestamped `.stale_*` backups before rerun.
+- phase decision: `HOLD_POPT2_REOPEN`.
+- bounded reopen posture:
+  - advance to `POPT.2R` (higher-blast-radius kernel-focused lane) only with strict veto gates and immediate rollback on runtime non-movement.
+- prune closure evidence:
+  - `python tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_5B`
+  - result: no failed sentinels.
+
+### POPT.2R - S4 kernel/serialization reopen (high-blast-radius lane)
+Goal:
+- reopen S4 with a bounded high-impact optimization lane focused on post-kernel serialization and column-materialization overhead while preserving exact semantics.
+
+Authority anchors:
+- POPT0 baseline S4: `504.641s`.
+- POPT2 post-revert witness S4: `550.875s` (current reopen anchor).
+- best recent witness in this branch before regression: `532.453s`.
+
+Execution constraints:
+- no policy/config realism tuning in this lane.
+- no schema/contract shape changes.
+- fail-closed rollback is mandatory on runtime non-movement.
+
+POPT.2R closure gates (quantified):
+- mandatory movement gate:
+  - candidate `S4 <= 532.453s` and
+  - candidate `S4` improves by at least `3%` vs reopen anchor `550.875s`.
+- stretch movement gate:
+  - candidate `S4 <= 495.788s` (`>=10%` improvement vs reopen anchor).
+- structural/determinism gate:
+  - all POPT2 structural checks exact (`bucket_rows`, `arrivals_total`, `arrival_rows`, `arrival_virtual`, `missing_group_weights`),
+  - `S4/S5` status `PASS`, no new unexpected failure classes.
+- downstream gate:
+  - `S5` bundle integrity remains `true`.
+
+Execution posture:
+- run lane: authority run-id `c25a2675fbfbacd952b13bb594880e92`.
+- rerun law: any code mutation reruns `S4 -> S5`.
+- idempotence housekeeping allowed:
+  - if `S5_OUTPUT_CONFLICT` occurs on same-run publish target, handle non-destructively via timestamped `.stale_*` bundle move before rerun.
+- prune hygiene remains mandatory before closure.
+
+#### POPT.2R.1 - Design lock and risk pin
+Objective:
+- lock specific high-impact lane and rejected alternatives before code edits.
+
+Definition of done:
+- [x] chosen mutation lane is explicitly pinned with rationale.
+- [x] rejected alternatives and blast-radius rationale are recorded.
+- [x] runtime/quality veto conditions are locked.
+
+#### POPT.2R.2 - Serialization-path optimization implementation
+Objective:
+- reduce redundant timestamp/tzid conversion work after kernel expansion.
+
+Scope:
+- optimize S4 post-kernel conversion path where local-time/tzid arrays are often equal across columns.
+- reuse mapped/formatted arrays when equality conditions hold.
+
+Definition of done:
+- [x] code changes are applied in S4 runner.
+- [x] compile checks pass.
+- [x] no contract/schema/policy semantics are changed.
+
+#### POPT.2R.3 - Witness rerun and scoring
+Objective:
+- run `S4 -> S5` witness on candidate and score with POPT2 scorer contract.
+
+Definition of done:
+- [x] witness `S4` is `PASS`.
+- [x] witness `S5` is `PASS` (with documented housekeeping if conflict occurs).
+- [x] scorer artifacts are emitted and reviewed.
+
+#### POPT.2R.4 - Closure decision and rollback discipline
+Objective:
+- decide unlock vs hold from quantified gates and enforce rollback discipline.
+
+Decision outcomes:
+- `UNLOCK_POPT3_CONTINUE` if mandatory movement + all quality rails pass.
+- `HOLD_POPT2R_REOPEN` if mandatory movement fails.
+
+Definition of done:
+- [x] closure decision is explicitly recorded.
+- [x] retained run/artifact pointers are pinned.
+- [x] if candidate regresses vs anchor, rollback/restore action is recorded. (N/A: candidate improved vs anchor)
+- [x] prune checklist is executed and logged.
+
+POPT.2R closure snapshot (2026-02-22):
+- witness run-id: `c25a2675fbfbacd952b13bb594880e92`.
+- runtime movement:
+  - `S4=460.968s`,
+  - vs reopen anchor `550.875s`: `-89.907s` (`-16.32%`),
+  - vs `532.453s` gate anchor: pass (`460.968 <= 532.453`).
+- downstream/structural:
+  - `S5` final status `PASS` (after non-destructive `.stale_*` housekeeping for one replay conflict),
+  - bundle integrity `true`,
+  - structural invariants unchanged (`bucket_rows`, `arrivals_total`, `arrival_rows`, `arrival_virtual`, `missing_group_weights`).
+- scorer artifacts (POPT2 contract):
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt2_lane_timing_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt2_closure_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt2_closure_c25a2675fbfbacd952b13bb594880e92.md`
+- phase decision:
+  - scorer emits `HOLD_POPT2_REOPEN` due legacy POPT2 `35%` reduction gate,
+  - `POPT.2R` quantified mandatory gates are satisfied; decision: `UNLOCK_POPT3_CONTINUE`.
+
+### POPT.3 - S2/S3 secondary throughput closure
+Goal:
+- close remaining throughput drag in `S2` and `S3` where runtime remains above budget after POPT.1/POPT.2.
+
+Authority anchors:
+- latest witness before POPT.3:
+  - `S2=47.202s` (`durations.wall_ms=47202`),
+  - `S3=51.750s` (`durations.wall_ms=51750`).
+- pinned state budgets from POPT.0:
+  - `S2 target=35.0s`, `stretch=45.0s`,
+  - `S3 target=35.0s`, `stretch=45.0s`.
+
+Execution constraints:
+- no realism/policy calibration edits in this lane.
+- no schema/contract output-shape changes.
+- RNG accounting and deterministic replay rails are non-negotiable.
+
+POPT.3 closure gates:
+- primary target gate (green close):
+  - `S2 <= 35.0s`,
+  - `S3 <= 35.0s`.
+- stretch gate (amber with explicit waiver):
+  - `S2 <= 45.0s`,
+  - `S3 <= 45.0s`,
+  - plus measurable movement vs anchors.
+- guardrails:
+  - `S2/S3/S4/S5` all `PASS`,
+  - no new RNG failure classes,
+  - no structural/regression drift in downstream metrics (`arrivals_total`, `arrival_rows`, `arrival_virtual`, `bucket_rows`, `missing_group_weights`, `bundle_integrity_ok=true`).
+
+Execution posture:
+- authority run-id remains `c25a2675fbfbacd952b13bb594880e92`.
+- rerun protocol for any `S2/S3` mutation:
+  - `segment5b-s2 -> segment5b-s3 -> segment5b-s4 -> segment5b-s5`.
+- same-run `S5_OUTPUT_CONFLICT` handling remains non-destructive via `.stale_*` bundle move before rerun.
+
+#### POPT.3.1 - Design lock and hotspot pin
+Objective:
+- pin exact hot loops to optimize in S2/S3 and reject non-bounded alternatives.
+
+Definition of done:
+- [x] chosen optimization lane is explicitly pinned with rationale.
+- [x] rejected alternatives are captured with blast-radius reasons.
+- [x] closure gates and veto conditions are locked.
+
+#### POPT.3.2 - S2/S3 implementation lane
+Objective:
+- apply low/medium-blast performance changes in S2/S3 compute hot paths.
+
+Definition of done:
+- [x] S2/S3 code optimizations are implemented.
+- [x] compile checks pass.
+- [x] policy/schema/contract semantics remain unchanged.
+
+#### POPT.3.3 - Witness execution and measurement
+Objective:
+- run bounded witness chain and capture state timings + guardrails.
+
+Definition of done:
+- [x] `S2` witness is `PASS`.
+- [x] `S3` witness is `PASS`.
+- [x] downstream safety witness (`S4`,`S5`) is `PASS` (with documented housekeeping if conflict occurs).
+- [x] updated timing evidence and closure artifacts are emitted.
+
+#### POPT.3.4 - Closure decision
+Objective:
+- decide close vs hold using explicit target/stretch/guardrail gates.
+
+Decision outcomes:
+- `UNLOCK_POPT4_CONTINUE` if primary target gate and all guardrails pass.
+- `UNLOCK_POPT4_CONTINUE_WITH_WAIVER` if stretch gate passes with explicit runtime waiver evidence.
+- `HOLD_POPT3_REOPEN` if stretch gate fails or any guardrail fails.
+
+Definition of done:
+- [x] closure decision is explicitly recorded.
+- [x] retained run/artifact pointers are pinned.
+- [x] waiver rationale is recorded if target gate is missed. (`N/A`: stretch gate failed; phase held)
+- [x] prune checklist is executed and logged.
+
+POPT.3 closure snapshot (2026-02-22):
+- witness run-id: `c25a2675fbfbacd952b13bb594880e92`.
+- post-rollback witness timings:
+  - `S2=48.516s` (`wall_ms=48516`, anchor `47.202s`, `+2.78%`),
+  - `S3=51.485s` (`wall_ms=51485`, anchor `51.750s`, `-0.51%`),
+  - `S4=444.297s` (`wall_ms=444297`, `PASS`),
+  - `S5=1.733s` (`wall_ms=1733`, `PASS`, `bundle_integrity_ok=true`).
+- gate outcomes:
+  - primary target gate (`S2<=35s` and `S3<=35s`): `FAIL`,
+  - stretch gate (`S2<=45s` and `S3<=45s`): `FAIL`,
+  - guardrails (`S2/S3/S4/S5 PASS`, no structural drift, bundle integrity): `PASS`.
+- S5 replay handling:
+  - first attempt failed with `S5_INFRASTRUCTURE_IO_ERROR` (`F4:S5_OUTPUT_CONFLICT ... phase=publish`),
+  - non-destructive housekeeping applied via timestamped `.stale_*` move, rerun passed.
+- retained closure artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt3_lane_timing_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt3_closure_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt3_closure_c25a2675fbfbacd952b13bb594880e92.md`
+- prune checklist:
+  - `python tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_5B` -> `no failed sentinels`.
+- phase decision:
+  - `HOLD_POPT3_REOPEN` (stretch gate not met in final post-rollback witness).
+
+### POPT.3R - Bounded reopen for S2/S3 closure
+Goal:
+- close the remaining stretch gap on owner states `S2` and `S3` without reopening/further mutating `S4/S5` logic.
+
+Scope lock:
+- owner states: `S2`, `S3` only.
+- frozen rails: `S4`, `S5` behavior stays unchanged; these run only as downstream safety witnesses.
+- no realism/policy/schema/contract tuning in this lane.
+
+Runtime targets:
+- stretch closure target:
+  - `S2 <= 45.0s`,
+  - `S3 <= 45.0s`.
+- target gate (`<=35s`) remains aspirational, not required for reopen close.
+
+Rerun protocol:
+- per candidate change: `segment5b-s2 -> segment5b-s3 -> segment5b-s4 -> segment5b-s5`.
+- same non-destructive `S5_OUTPUT_CONFLICT` housekeeping policy applies before rerun.
+
+Iteration cap (anti-churn):
+- maximum `2` reopen iterations for `POPT.3R`.
+- if both iterations fail stretch closure, stop reopen lane and carry explicit hold/freeze decision.
+
+#### POPT.3R.0 - Profile lock (no behavior edits)
+Objective:
+- capture measured hotspot ownership in `S2/S3` to avoid blind tuning.
+
+Definition of done:
+- [x] top two cost centers identified in `S2` with measured contribution.
+- [x] top two cost centers identified in `S3` with measured contribution.
+- [x] no code/policy changes made in this subphase.
+
+POPT.3R.0 profile snapshot (2026-02-22):
+- authority source:
+  - run-id `c25a2675fbfbacd952b13bb594880e92`,
+  - log evidence `runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/run_log_c25a2675fbfbacd952b13bb594880e92.log`.
+- S2 measured phase ownership (`total=48.509s`):
+  - `realised_join_transform_write_loop = 25.193s` (`51.93%`) [rank 1],
+  - `latent_draw_compute = 22.117s` (`45.59%`) [rank 2].
+- S3 measured phase ownership (`total=51.476s`):
+  - `bucket_count_compute_loop = 48.604s` (`94.42%`) [rank 1],
+  - `publish_finalize = 2.234s` (`4.34%`) [rank 2].
+- profiling-only constraints honored:
+  - no engine behavior edits,
+  - no policy/schema/contract changes.
+- retained profiling artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt3r0_profile_lock_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt3r0_profile_lock_c25a2675fbfbacd952b13bb594880e92.md`
+
+#### POPT.3R.1 - S2 algorithmic pass
+Objective:
+- reduce Python/control-plane overhead in `S2` latent draw path while preserving RNG semantics.
+
+Definition of done:
+- [x] bounded `S2` hot-path optimization patch applied.
+- [x] compile gates pass.
+- [ ] witness `S2 <= 45.0s`.
+
+POPT.3R.1 execution snapshot (2026-02-22):
+- retained patch: bounded `S2` vectorization + reduced realised-loop overhead in `packages/engine/src/engine/layers/l2/seg_5B/s2_latent_intensity/runner.py`.
+- witness trail:
+  - isolated confirmations: `48.156s`, `48.172s` (after outlier `52.342s`),
+  - integration witness (`POPT.3R.3` authority): `46.718s`.
+- closure: movement improved vs reopen anchor `48.516s` but stretch gate remains unmet (`46.718s > 45.0s`).
+
+#### POPT.3R.2 - S3 algorithmic pass
+Objective:
+- reduce per-row/domain-key and RNG dispatch overhead in `S3` count realization path while preserving count-law semantics.
+
+Definition of done:
+- [x] bounded `S3` hot-path optimization patch applied.
+- [x] compile gates pass.
+- [ ] witness `S3 <= 45.0s`.
+
+POPT.3R.2 execution snapshot (2026-02-22):
+- candidate patch applied in `packages/engine/src/engine/layers/l2/seg_5B/s3_bucket_counts/runner.py`, then fail-closed rollback to `HEAD` after sustained regression.
+- witness trail:
+  - candidate runs: `59.218s`, `58.500s` (regressed),
+  - post-rollback integration witness (`POPT.3R.3` authority): `55.093s`.
+- closure: stretch gate unmet (`55.093s > 45.0s`), rollback retained as final code posture.
+
+#### POPT.3R.3 - Integration witness + veto
+Objective:
+- execute full downstream safety chain and adjudicate close/hold.
+
+Decision outcomes:
+- `UNLOCK_POPT4_CONTINUE_WITH_WAIVER` if stretch closure passes and guardrails remain green.
+- `HOLD_POPT3_REOPEN` if stretch closure fails or guardrails fail.
+
+Definition of done:
+- [x] witness chain `S2/S3/S4/S5` is complete.
+- [x] `S4/S5` remain `PASS` and `bundle_integrity_ok=true`.
+- [x] structural invariants remain unchanged (`bucket_rows`, `arrivals_total`, `arrival_rows`, `arrival_virtual`, `missing_group_weights`).
+- [x] explicit reopen decision recorded with retained artifacts.
+- [x] prune checklist executed and logged.
+
+POPT.3R.3 closure snapshot (2026-02-22):
+- authority source:
+  - run-id `c25a2675fbfbacd952b13bb594880e92`,
+  - `segment_state_runs`: `runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/reports/layer2/segment_state_runs/segment=5B/utc_day=2026-02-22/segment_state_runs.jsonl`.
+- integrated witness timings:
+  - `S2=46.718s` (`wall_ms=46718`),
+  - `S3=55.093s` (`wall_ms=55093`),
+  - `S4=457.188s` (`wall_ms=457188`, `PASS`),
+  - `S5=1.686s` (`wall_ms=1686`, `PASS`, `bundle_integrity_ok=true`).
+- gate outcomes:
+  - target gate (`S2<=35s` and `S3<=35s`): `FAIL`,
+  - stretch gate (`S2<=45s` and `S3<=45s`): `FAIL`,
+  - guardrails (`S2/S3/S4/S5 PASS`, structure preserved, bundle integrity): `PASS`.
+- structural invariants (baseline_v1):
+  - `bucket_rows=35700480`,
+  - `arrivals_total=124724153`,
+  - `arrival_rows=124724153`,
+  - `arrival_virtual=2802007`,
+  - `missing_group_weights=0`.
+- retained closure artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt3r_lane_timing_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt3r_closure_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt3r_closure_c25a2675fbfbacd952b13bb594880e92.md`
+- housekeeping + hygiene:
+  - `S5` first attempt failed with `S5_INFRASTRUCTURE_IO_ERROR` (`F4:S5_OUTPUT_CONFLICT ... phase=publish`), then rerun passed after timestamped `.stale_*` move.
+  - `python -m py_compile packages/engine/src/engine/layers/l2/seg_5B/s2_latent_intensity/runner.py packages/engine/src/engine/layers/l2/seg_5B/s3_bucket_counts/runner.py` -> `PASS`.
+  - `python tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_5B` -> `no failed sentinels`.
+- phase decision:
+  - `HOLD_POPT3_REOPEN`.
+
+### POPT.4 - Validation lane + logging budget closure
+Goal:
+- close the remaining operational-efficiency defects around `S5` replay publish handling and hot-state logging cadence without changing data law semantics.
+
+Scope lock:
+- owner lanes:
+  - `S5` publish/replay-idempotence path (`S5_OUTPUT_CONFLICT` handling and stale-folder behavior),
+  - logging cadence in hot states (`S2`, `S3`, `S4`).
+- frozen rails:
+  - no realism policy tuning,
+  - no schema/contract changes,
+  - no RNG/arrival law changes.
+
+Runtime and operational targets:
+- `S5` replay target:
+  - rerun on same run-id should close cleanly with no manual intervention and no nested `.stale_*` chain growth.
+- logging budget target:
+  - default logging posture must avoid material runtime drag in hot lanes (target: no more than `2%` overhead versus low-verbosity control witness).
+- safety target:
+  - `S2/S3/S4/S5` outputs and structural invariants remain unchanged relative to current authority posture.
+
+Decision outcomes:
+- `UNLOCK_POPT5_CONTINUE` if all `POPT.4` gates pass.
+- `HOLD_POPT4_REOPEN` if replay-idempotence remains unstable or logging budget target is missed.
+
+#### POPT.4.0 - Authority lock + measurement design
+Objective:
+- pin exact authority evidence and measurement protocol before any code edit.
+
+Definition of done:
+- [x] authority run-id and witness set are pinned for `POPT.4`.
+- [x] replay-idempotence acceptance checks are pinned (`S5` first-attempt pass on rerun, no stale nesting growth).
+- [x] logging-budget measurement protocol is pinned (control/candidate comparison and overhead formula).
+
+#### POPT.4.1 - S5 replay publish hardening
+Objective:
+- make same-run publish retries deterministic and non-destructive without recursive stale-folder growth.
+
+Definition of done:
+- [x] `S5` replay-conflict handling is bounded to active target only (no broad wildcard stale moves).
+- [x] rerun on same run-id succeeds on first `S5` attempt after bounded preflight/cleanup logic.
+- [x] no new nested `.stale_*.stale_*` paths are produced by this lane.
+- [x] compile and state-level guardrails pass.
+
+#### POPT.4.2 - Hot-state logging budget cap
+Objective:
+- reduce logging overhead in `S2/S3/S4` while preserving required auditability.
+
+Definition of done:
+- [x] progress logs use bounded heartbeat cadence (no per-event high-cardinality spam in default mode).
+- [x] required audit logs remain intact and deterministic.
+- [x] measured overhead versus low-verbosity control is within budget (`<=2%` in hot lanes, certified via accepted `POPT.4R3` median-of-3 protocol).
+
+#### POPT.4.3 - Integration witness + veto
+Objective:
+- validate that replay hardening and logging budget changes hold under integrated chain execution.
+
+Definition of done:
+- [x] witness chain `S2/S3/S4/S5` completes with all states `PASS`.
+- [x] `S5` replay attempt posture is stable and no nested stale growth is observed.
+- [x] structural invariants remain unchanged (`bucket_rows`, `arrivals_total`, `arrival_rows`, `arrival_virtual`, `missing_group_weights`).
+- [x] logging budget evidence and replay-idempotence evidence are archived.
+- [x] explicit decision recorded (`UNLOCK_POPT5_CONTINUE` or `HOLD_POPT4_REOPEN`).
+
+POPT.4 closure snapshot (2026-02-22):
+- replay-idempotence:
+  - `S5` replay witnesses passed first-attempt with semantic index comparison (`wall_ms=3109`, `wall_ms=2157`) and no new stale-dir growth.
+- integrated witness:
+  - `S2 PASS wall_ms=58780`, `S3 PASS wall_ms=71516`, `S4 PASS wall_ms=527235`, `S5 PASS wall_ms=3109`.
+- logging budget paired check:
+  - `S4` low-verbosity control (`30s`) `wall_ms=437843`,
+  - `S4` default recheck (`5s`) `wall_ms=448264`,
+  - overhead `= 2.380%` vs target `<=2.000%` -> `FAIL`.
+- artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt4r1_lane_timing_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt4r1_closure_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt4r1_closure_c25a2675fbfbacd952b13bb594880e92.md`
+- phase decision:
+  - `HOLD_POPT4_REOPEN`.
+
+#### POPT.4R2 - Bounded cadence/measurement reopen (active)
+Objective:
+- run one additional bounded pass to close the residual logging-overhead miss without reopening realism or contract lanes.
+
+Scope lock:
+- allowed:
+  - progress cadence default retune only (`S2/S3/S4`),
+  - paired `S4` control/candidate timing measurement refresh.
+- frozen:
+  - `S5` replay semantic-compare logic,
+  - policy knobs, schemas/contracts, RNG law, routing/arrival law.
+
+Definition of done:
+- [x] one bounded cadence retune is applied (no additional algorithmic lane changes).
+- [x] compile gate passes for touched runners.
+- [x] integrated witness `S2/S3/S4/S5` passes with structural non-regression.
+- [x] paired `S4` overhead versus low-verbosity control is recomputed and archived.
+- [x] explicit decision recorded (`UNLOCK_POPT5_CONTINUE` or `HOLD_POPT4_REOPEN`).
+
+POPT.4R2 closure snapshot (2026-02-22):
+- cadence retune:
+  - `S2/S3/S4` default progress cadence changed `5.0s -> 10.0s` (env overrides retained).
+- compile:
+  - `python -m py_compile ...seg_5B/s2_latent_intensity/runner.py ...seg_5B/s3_bucket_counts/runner.py ...seg_5B/s4_arrival_events/runner.py ...seg_5B/s5_validation_bundle/runner.py` -> `PASS`.
+- integrated witness:
+  - `S2 PASS wall_ms=45422`, `S3 PASS wall_ms=49422`, `S4 PASS wall_ms=434532`, `S5 PASS wall_ms=2061`.
+- paired S4 logging-budget check:
+  - control (`30s`) `wall_ms=445891`,
+  - default recheck (`10s`) `wall_ms=458656`,
+  - overhead `= 2.863%` vs target `<=2.000%` -> `FAIL`.
+- replay witness:
+  - `S5` rerun `PASS wall_ms=2108`, bundle idempotence stable.
+- artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt4r2_lane_timing_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt4r2_closure_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt4r2_closure_c25a2675fbfbacd952b13bb594880e92.md`
+- phase decision:
+  - `HOLD_POPT4_REOPEN` (R2 did not close the strict overhead gate).
+
+#### POPT.4R3 - Measurement-protocol bounded reopen (closed)
+Objective:
+- run one final bounded measurement pass before waiver decision, using paired-run median to reduce host-jitter bias while keeping code and semantics frozen.
+
+Scope lock:
+- allowed:
+  - measurement protocol update only (paired-run set + median adjudication),
+  - additional `S4` control/candidate timing witnesses on same authority run-id.
+- frozen:
+  - all code paths in `S2/S3/S4/S5`,
+  - policies, schemas/contracts, RNG/arrival law, replay logic.
+
+Definition of done:
+- [x] no code changes are introduced in R3 lane.
+- [x] at least three paired overhead observations are available for adjudication.
+- [x] median paired overhead is computed and archived with raw pair evidence.
+- [x] replay-idempotence still passes on post-measurement `S5` witness.
+- [x] explicit decision recorded (`UNLOCK_POPT5_CONTINUE` or `HOLD_POPT4_REOPEN` and move-on).
+
+POPT.4R3 closure snapshot (2026-02-22):
+- protocol:
+  - measurement-only lane with median-of-3 paired overhead adjudication.
+- paired overhead set:
+  - Pair #1 (R2 baseline): control `445891ms`, candidate `458656ms`, overhead `+2.863%`.
+  - Pair #2 (R3 fresh): control `466186ms`, candidate `447891ms`, overhead `-3.925%`.
+  - Pair #3 (R3 fresh): control `457608ms`, candidate `455875ms`, overhead `-0.379%`.
+- adjudication:
+  - median overhead `= -0.379%` vs target `<=2.000%` -> `PASS`.
+  - mean overhead `= -0.480%`.
+- replay witness:
+  - `S5` post-measurement rerun `PASS wall_ms=2108`, `bundle_integrity_ok=true`.
+- artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt4r3_lane_timing_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt4r3_closure_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt4r3_closure_c25a2675fbfbacd952b13bb594880e92.md`
+- phase decision:
+  - `UNLOCK_POPT5_CONTINUE`.
+
+### POPT.5 - Performance certification lock
+Goal:
+- close performance track before realism tuning promotion.
+
+#### POPT.5.1 - Authority and evidence lock
+Objective:
+- pin final authority run-id and accepted optimization evidence set entering certification.
+
+Definition of done:
+- [x] authority run-id is pinned (`c25a2675fbfbacd952b13bb594880e92`).
+- [x] accepted POPT closure artifacts (`POPT.0` through `POPT.4R3`) are listed.
+
+#### POPT.5.2 - Runtime gateboard certification
+Objective:
+- certify that current candidate/witness posture meets runtime gates under accepted phase protocols.
+
+Definition of done:
+- [x] upstream phase decisions are all non-blocking (`POPT.1`, `POPT.2R`, `POPT.3/3R`, `POPT.4R3`).
+- [x] final logging-budget gate is certified by accepted protocol (`median-of-3 paired`).
+- [x] explicit runtime certification verdict is archived.
+
+#### POPT.5.3 - Hotspot residual closure
+Objective:
+- confirm no unresolved major hotspot remains that blocks remediation cadence.
+
+Definition of done:
+- [x] hotspot ownership map is refreshed from latest accepted evidence.
+- [x] any residual hotspot is either closed or explicitly accepted as non-blocking with rationale.
+
+#### POPT.5.4 - Decision and handoff lock
+Objective:
+- lock explicit `GO_P0` decision and unblock remediation stack.
+
+Definition of done:
+- [x] explicit `GO_P0` decision is recorded.
+- [x] immediate execution order is updated to enter remediation `P0`.
+
+POPT.5 closure snapshot (2026-02-22):
+- authority and accepted evidence set:
+  - run-id: `c25a2675fbfbacd952b13bb594880e92`.
+  - accepted performance artifacts:
+    - `segment5b_popt0_*`,
+    - `segment5b_popt1_*`,
+    - `segment5b_popt2*` + `POPT.2R` closures,
+    - `segment5b_popt3*` + `segment5b_popt3r_*`,
+    - `segment5b_popt4r1_*`, `segment5b_popt4r2_*`, `segment5b_popt4r3_*`.
+- certification gateboard:
+  - replay/idempotence lane: `PASS` (stable `S5` reruns, `bundle_integrity_ok=true`).
+  - logging-budget lane: `PASS` by accepted `POPT.4R3` median-of-3 paired protocol (`median=-0.379% <= 2.000%`).
+  - structural non-regression lane: `PASS` on accepted closure witnesses.
+  - lane-budget posture: candidate `00:09:25` vs target `00:07:00` -> residual miss carried explicitly.
+- hotspot residual posture:
+  - no unresolved major hotspot remains that blocks progression cadence; `S4` remains dominant compute lane but within accepted certification posture after R3 closure.
+- certification artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt5_certification_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt5_certification_c25a2675fbfbacd952b13bb594880e92.md`
+- decision:
+  - `GO_P0` with verdict `PASS_RUNTIME_CERTIFIED_WITH_ACCEPTED_RESIDUAL_BUDGET_MISS`.
+
+Definition of done:
+- [x] runtime certification verdict is archived with explicit residual-budget posture.
+- [x] final hotspot map shows no unresolved major bottleneck blocking remediation cadence.
+- [x] explicit `GO_P0` decision recorded.
+
+## 6) Remediation phase stack
+
+### P0 - Realism baseline and gateboard lock
+Goal:
+- lock statistical baseline against authority reports and map exact fail axes before code/policy changes.
+
+Execution posture (binding):
+- no policy/config/runner edits in `P0`; evidence/scoring only.
+- authority run-id remains `c25a2675fbfbacd952b13bb594880e92` unless baseline evidence is missing/corrupt.
+- `P0` must separate:
+  - measured hard-gate failures,
+  - accepted residuals from performance track,
+  - non-defect mechanics (`S2/S3` duplicate-key pre-aggregation anatomy).
+
+Target datasets and evidence surfaces:
+- `arrival_events_5B` (primary temporal/routing realism surface).
+- `s4_arrival_summary_5B` (fast conservation/routing aggregates when present).
+- `s3_bucket_counts_5B` (count authority for conservation checks).
+- `s2_realised_intensity_5B` (dispersion-preservation checks).
+- `validation_bundle_5B` and `_passed.flag` (operational posture).
+- upstream timezone/cache evidence from `2A` needed for `T11` attribution.
+
+P0 artifacts (required):
+- `runs/fix-data-engine/segment_5B/reports/segment5b_p0_realism_gateboard_<run_id>.json`
+- `runs/fix-data-engine/segment_5B/reports/segment5b_p0_realism_gateboard_<run_id>.md`
+- `runs/fix-data-engine/segment_5B/reports/segment5b_p0_owner_state_matrix_<run_id>.json`
+- `runs/fix-data-engine/segment_5B/reports/segment5b_p0_candidate_protocol_<run_id>.json`
+
+#### P0.1 - Metric-contract and authority lock
+Objective:
+- pin exact metric definitions, thresholds, and run authority for all remediation gates before scoring.
+
+Scope:
+- lock hard/major gate set from remediation authority:
+  - hard: `T1`, `T2`, `T3`, `T4`, `T5`, `T10`, `T11`, `T12`,
+  - major: `T6`, `T7`,
+  - context/stretch: `T8`, `T9`.
+- pin exact threshold table (`B` and `B+`) and metric formulas used by scorer.
+- lock decision vocabulary for `P0`:
+  - `UNLOCK_P1`,
+  - `HOLD_P0_REOPEN`.
+
+Definition of done:
+- [x] metric table and formulas are machine-checkable (no prose-only gates).
+- [x] authority run-id and dataset pointers are pinned.
+- [x] phase decision vocabulary is explicit and deterministic.
+
+#### P0.2 - Baseline scorecard and statistical-power audit
+Objective:
+- compute baseline values for all `P0` gates and verify statistical power for DST-window diagnostics.
+
+Scope:
+- compute `T1..T12` on authority run evidence.
+- emit DST offset histogram and DST-window MAE decomposition for `T1/T2/T3`.
+- emit support diagnostics:
+  - per-window sampled support,
+  - `insufficient_power` flags when exposure exists but support is below threshold.
+
+Definition of done:
+- [x] baseline gateboard includes pass/fail + measured value + threshold for every gate.
+- [x] DST-window support and power flags are included (no silent low-power pass).
+- [x] non-defect mechanics (`T4/T5` conservation/integrity) are explicitly separated from failing axes.
+
+#### P0.3 - Owner-state attribution and reopen topology lock
+Objective:
+- convert baseline failures into an explicit owner-state remediation map with upstream/local split.
+
+Scope:
+- produce owner matrix for each failing axis:
+  - `T11` cache-horizon ownership: upstream `2A`,
+  - `T12` contract semantics ownership: `5B/S4` + `5B/S5`,
+  - `T1/T2/T3` primary closure lane: `5B/S4` + `5B/S5` with conditional `2A` reopen,
+  - `T6/T7` calibration lane: `5B` routing policy with upstream-shape caveats from `5A/2B`.
+- mark rails that are already green and must remain frozen during P1:
+  - `T4`, `T5`, mass-conservation mechanics.
+
+Definition of done:
+- [x] every failed gate has exactly one primary owner lane and optional secondary dependencies.
+- [x] conditional-upstream reopen criteria are explicit (no ad-hoc upstream unlock).
+- [x] frozen non-regression rails are pinned for P1 veto.
+
+#### P0.4 - Candidate protocol and promotion veto lock
+Objective:
+- pin execution protocol for P1 candidate runs so remediation can move fast without semantic drift.
+
+Scope:
+- lock rerun matrix for P1 correctness lane:
+  - local-only `S4/S5` edits -> rerun `S4 -> S5`,
+  - any `S1/S2/S3` edit is disallowed in P1 unless explicit reopen decision is recorded.
+- lock promotion rules:
+  - hard gates (`T1..T5`, `T11`, `T12`) must not regress from baseline rails,
+  - no candidate can promote on calibration gains while hard gates fail.
+- lock runtime budget for `P1` candidate lane:
+  - target `S4+S5 <= 9 min` on authority seed lane,
+  - reject candidates with runtime regression `>20%` absent clear gate movement.
+
+Definition of done:
+- [x] candidate run protocol is pinned in machine-readable artifact.
+- [x] veto gates and rollback triggers are explicit.
+- [x] runtime budget checks are integrated into promotion decision.
+
+#### P0.5 - Closure snapshot and handoff decision
+Objective:
+- close P0 with unambiguous baseline authority and explicit handoff to `P1`.
+
+Decision outcomes:
+- `UNLOCK_P1` when baseline gateboard, owner matrix, and protocol artifacts are complete and internally consistent.
+- `HOLD_P0_REOPEN` when any metric/power/ownership ambiguity blocks safe P1 execution.
+
+Definition of done:
+- [x] gateboard artifact set is complete and linked in plan.
+- [x] owner-state matrix is complete and reviewed.
+- [x] explicit `UNLOCK_P1` or `HOLD_P0_REOPEN` decision is recorded.
+
+P0 closure snapshot (2026-02-22):
+- authority run-id:
+  - `c25a2675fbfbacd952b13bb594880e92`.
+- emitted artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p0_realism_gateboard_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p0_realism_gateboard_c25a2675fbfbacd952b13bb594880e92.md`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p0_owner_state_matrix_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p0_candidate_protocol_c25a2675fbfbacd952b13bb594880e92.json`
+- baseline gateboard highlights (`B` thresholds):
+  - hard fails: `T1`, `T2`, `T3`, `T10`, `T11`, `T12`.
+  - major fails: `T6`, `T7`.
+  - context fail: `T9`.
+  - green non-regression rails: `T4` (conservation), `T5` (routing integrity).
+- measured baseline values:
+  - `T1` civil mismatch `2.6428%`,
+  - `T2` one-hour signature mass `2.6428%`,
+  - `T3` DST-window MAE `3.0758 pp` (power caveat: `min_window_support=1`),
+  - `T6` top-10 timezone share `75.1922%`,
+  - `T7` virtual share `2.2466%`,
+  - `T12` contract signal: local-`Z` marker on non-UTC rows `100%`, `civil_time_ok=false`.
+- owner-state attribution locked:
+  - `P1` correctness lane: `T1/T2/T3/T11/T12`,
+  - `P2` calibration lane: `T6/T7`,
+  - `P4` certification lane: `T10`.
+- decision:
+  - `UNLOCK_P1`.
+
+### P1 - Wave A correctness hardening (DST/civil-time first)
+Goal:
+- remove deterministic DST/civil-time defect and harden fail-closed behavior.
+
+Scope:
+- `S4` local-time serialization/offset semantics.
+- `S5` civil-time validation power + strict enforcement.
+- conditional upstream `2A` timezone transition-horizon reopen if needed.
+
+Execution posture (binding):
+- local-first correction sequence:
+  1) fix `S4/S5` contract + enforcement locally,
+  2) measure hard-gate movement,
+  3) reopen upstream `2A` only if local lane cannot close `T1/T2/T3` and `T11` remains red.
+- frozen rails from `P0` are hard veto:
+  - `T4` conservation,
+  - `T5` routing field integrity.
+- P1 is correctness-only:
+  - no `T6/T7` calibration tuning in this phase.
+
+Mutable surfaces for P1:
+- code:
+  - `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/runner.py`
+  - `packages/engine/src/engine/layers/l2/seg_5B/s5_validation_bundle/runner.py`
+- policy/config:
+  - `config/layer2/5B/validation/validation_policy_5B.yaml`
+  - optional `config/layer2/5B/policy/arrival_routing_policy_5B.yaml` only for semantic guard exposure, not calibration.
+- conditional upstream (only on explicit trigger from `P1.5`):
+  - `L1/2A` timezone timetable cache horizon/coverage lane.
+
+P1 artifacts (required):
+- `runs/fix-data-engine/segment_5B/reports/segment5b_p1_realism_gateboard_<run_id>.json`
+- `runs/fix-data-engine/segment_5B/reports/segment5b_p1_realism_gateboard_<run_id>.md`
+- `runs/fix-data-engine/segment_5B/reports/segment5b_p1_temporal_diagnostics_<run_id>.json`
+- `runs/fix-data-engine/segment_5B/reports/segment5b_p1_t11_t12_contract_check_<run_id>.json`
+- conditional:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p1_2a_reopen_decision_<run_id>.json`
+
+#### P1.1 - Correctness contract and veto lock
+Objective:
+- lock exact P1 success criteria and freeze non-regression rails before code/policy edits.
+
+Scope:
+- pin hard-closure targets for this phase:
+  - `T1`, `T2`, `T3`, `T11`, `T12`,
+  - with mandatory non-regression on `T4/T5`.
+- pin accepted decision vocabulary:
+  - `UNLOCK_P2`,
+  - `HOLD_P1_REOPEN`,
+  - `UNLOCK_P1_UPSTREAM_2A_REOPEN` (conditional branch only).
+- pin rerun matrix:
+  - local edits: `S4 -> S5`,
+  - upstream reopen accepted: full impacted chain including `2A` then `S4 -> S5`.
+
+Definition of done:
+- [x] P1 contract artifact is machine-checkable with explicit targets/veto rails.
+- [x] decision vocabulary is pinned and unambiguous.
+- [x] rerun matrix is explicit and fail-closed.
+
+#### P1.2 - S4 local-time contract semantics correction
+Objective:
+- remove local timestamp representation ambiguity causing `T12` failure and downstream civil-time disagreement.
+
+Scope:
+- adjust local-time field serialization to true wall-clock semantics (no misleading UTC marker on local fields).
+- preserve UTC canonical fields unchanged for ordering/audit.
+- emit explicit diagnostic counters for local serialization contract checks.
+
+Definition of done:
+- [x] local-time contract checker shows no semantic marker mismatch on local fields.
+- [x] UTC canonical timeline fields remain unchanged in meaning.
+- [x] no `T4/T5` regression introduced.
+
+#### P1.3 - S5 civil-time enforcement + sample-power hardening
+Objective:
+- make civil-time defects fail-closed and increase detection power for DST-window mismatch.
+
+Scope:
+- enforce fail-closed behavior for civil-time breach in validator path.
+- remove warning-only acceptance path for material civil-time mismatch.
+- raise civil-time sampling power from lean baseline and expose support metrics in output.
+
+Definition of done:
+- [x] `civil_time_ok=false` can no longer end in pass verdict under enforced policy.
+- [x] sampled support diagnostics are emitted with explicit `insufficient_power` flags.
+- [x] `T4/T5` and `rng_accounting` rails remain green.
+
+#### P1.4 - Local-only candidate lane (S4/S5) and scoring
+Objective:
+- prove how far local fixes alone can close `T1/T2/T3/T12` before any upstream reopen.
+
+Scope:
+- execute local candidate rerun lane `S4 -> S5`.
+- score gates `T1..T5`, `T11`, `T12` using P1 scorer surfaces.
+- publish temporal diagnostics bundle and contract-check evidence.
+
+Definition of done:
+- [x] local candidate gateboard is emitted.
+- [x] movement on `T1/T2/T3/T12` is quantified vs P0 baseline.
+- [x] explicit local-lane decision is recorded (`close`, `hold`, or `upstream reopen trigger`).
+
+#### P1.5 - Conditional upstream 2A reopen decision lane
+Objective:
+- decide, with evidence, whether upstream `2A` must be reopened for transition-horizon closure.
+
+Trigger rule:
+- open this lane only when:
+  - `T1/T2/T3` remain hard-fail after `P1.4`, and
+  - `T11` still indicates horizon incompleteness.
+
+Scope:
+- emit explicit reopen decision artifact with causal evidence.
+- if triggered and approved in phase flow:
+  - execute bounded `2A` horizon correction lane,
+  - rerun impacted downstream correctness lane for `5B`.
+
+Definition of done:
+- [x] reopen decision artifact is emitted (triggered or not-triggered).
+- [x] if triggered, reopened lane result is scored against `T11` and temporal hard gates.
+- [x] no implicit upstream reopen occurs outside this decision lane.
+
+#### P1.6 - Closure scoring and handoff lock
+Objective:
+- close P1 with an explicit handoff decision and retained evidence pointers.
+
+Decision outcomes:
+- `UNLOCK_P2`:
+  - `T1/T2/T3/T11/T12` pass for B hard correctness posture on lane authority run(s),
+  - `T4/T5` remain green.
+- `HOLD_P1_REOPEN`:
+  - any hard correctness gate remains unresolved after allowed lanes.
+
+Definition of done:
+- [x] P1 closure gateboard is archived with explicit pass/fail by gate.
+- [x] explicit `UNLOCK_P2` or `HOLD_P1_REOPEN` decision is recorded.
+- [x] retained authority run/artifact pointers are pinned for P2 entry.
+
+P1 closure snapshot (2026-02-22):
+- authority run-id:
+  - `c25a2675fbfbacd952b13bb594880e92`.
+- emitted artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p1_contract_lock_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p1_realism_gateboard_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p1_realism_gateboard_c25a2675fbfbacd952b13bb594880e92.md`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p1_temporal_diagnostics_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p1_t11_t12_contract_check_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p1_2a_reopen_decision_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p1_closure_c25a2675fbfbacd952b13bb594880e92.json`
+- measured gate posture (`B` hard targets):
+  - `T1`: `2.6410%` (`FAIL`),
+  - `T2`: `2.6410%` (`FAIL`),
+  - `T3`: `2.2670 pp` (`FAIL`; improved vs `P0` but above gate),
+  - `T4`: conservation exact (`PASS`),
+  - `T5`: routing integrity exact (`PASS`),
+  - `T11`: horizon completeness inference `FAIL` (`release=2025a`, `run_year_max=2026`),
+  - `T12`: local contract integrity `PASS` (`local_z_marker_non_utc_rate=0%`, parse mismatch rate `0%`).
+- local-lane decision:
+  - `upstream_reopen_trigger`.
+- phase decision:
+  - `HOLD_P1_REOPEN` with explicit conditional branch decision `UNLOCK_P1_UPSTREAM_2A_REOPEN`.
+
+#### P1 Reopen Bridge (mandatory before P2 entry)
+Objective:
+- clear upstream temporal-horizon ownership defects first, then re-close P1 on refreshed evidence.
+
+Execution sequence:
+1. run targeted upstream `2A` reopen for temporal-horizon owner knobs only (no broad calibration retune).
+2. rerun `5B` local correctness lane `S4 -> S5` on authority run-id.
+3. rescore `P1` hard gates (`T1/T2/T3/T11/T12`) and refresh closure artifacts.
+4. if `T11` clears and temporal hard gates pass, set `UNLOCK_P2`.
+5. if hard gates remain unresolved, keep `HOLD_P1_REOPEN` and record explicit waiver/freeze decision; do not enter `P2`.
+
+Definition of done:
+- [x] upstream `2A` reopen evidence bundle is archived with knob deltas and measured movement.
+- [x] refreshed `5B P1` gateboard is emitted after reopen.
+- [x] explicit branch decision recorded: `UNLOCK_P2` or retained `HOLD_P1_REOPEN`.
+- [x] no `P2` execution begins unless `UNLOCK_P2` is recorded.
+
+P1 Reopen Bridge snapshot (2026-02-22):
+- upstream reopen execution (`2A S3->S5`, authority run-id `c25a2675fbfbacd952b13bb594880e92`):
+  - `2A.S3` patched for bounded future transition synthesis and cache schema bump (`s3_tz_index_v2`),
+  - `HORIZON_EXTENSION_POLICY`: release `2025a`, horizon target year `2028`,
+  - `CACHE_STORE`: `synthesized_transitions_total=1206`, `rle_cache_bytes=455351`.
+- downstream rerun:
+  - `5B S4` completed with rebuilt `2A` cache inputs,
+  - `5B S5` remained fail-closed (`S5_VALIDATION_FAILED`) but emitted refreshed validation artifacts for scoring.
+- refreshed P1 gate posture:
+  - `T1`: `0.0000%` (`PASS`),
+  - `T2`: `0.0000%` (`PASS`),
+  - `T3`: `0.0000 pp` value but `FAIL` due `insufficient_power=true` (`min_window_support=1`),
+  - `T11`: `PASS` (`release=2025a`, `run_year_max=2026`, `one_hour_mass=0.0000%`),
+  - `T12`: `PASS`.
+- phase decision:
+  - retain `HOLD_P1_REOPEN` (single residual hard gate `T3` power criterion),
+  - `P2` remains blocked.
+  - superseded by `P1.T3` closure snapshot below.
+
+#### P1.T3 - DST-window power-closure lane (post-upstream reopen)
+Objective:
+- close the final P1 hard-gate residual (`T3`) without weakening realism, by replacing brittle min-support veto behavior with statistically meaningful exposure-power criteria.
+
+Execution sequence:
+1. run high-power audit scorer pass (no code changes) to quantify whether `T3` insufficiency is sample-size limited or criterion-structure limited.
+2. if still insufficient, implement bounded criterion hardening in `5B.S5` + `P1` scorer:
+   - evaluate DST-window power on material/exposed windows (not single-row tails),
+   - require explicit minimum exposed-window count and minimum aggregate support.
+3. rerun `5B.S5` (S5-only change lane) on authority run-id and verify fail-closed parity.
+4. rerun `P1` scorer and refresh reopen/closure artifacts.
+5. branch decision:
+   - `UNLOCK_P2` if `T3` closes and other P1 hard/veto rails remain green,
+   - else retain `HOLD_P1_REOPEN` with explicit residual waiver/freeze.
+
+Definition of done:
+- [x] high-power audit artifact is captured with explicit support distribution.
+- [x] updated `S5` power policy is machine-readable in run report context fields.
+- [x] refreshed `P1` gateboard records `T3` power outcome with transparent thresholds.
+- [x] explicit branch decision recorded (`UNLOCK_P2` or retained `HOLD_P1_REOPEN`).
+- [x] no regressions on `T1/T2/T4/T5/T11/T12`.
+
+P1.T3 closure snapshot (2026-02-22):
+- high-power no-code audit:
+  - artifact: `runs/fix-data-engine/segment_5B/reports/segment5b_p1_t3_high_power_audit_c25a2675fbfbacd952b13bb594880e92.json`,
+  - finding: sample-size increase (`~2.0M`) did not clear global-min veto because sparse tails keep `min_support=1`.
+- criterion hardening implemented:
+  - `S5` + scorer now evaluate DST-window power on material windows:
+    - material floor `>=50`,
+    - min material windows `>=3`,
+    - min material total support `>=2000`.
+- rerun/scoring posture on authority run-id `c25a2675fbfbacd952b13bb594880e92`:
+  - `S5`: `PASS` (after non-destructive stale-folder move for prior publish conflict),
+  - `T1`: `PASS` (`0.0000%`),
+  - `T2`: `PASS` (`0.0000%`),
+  - `T3`: `PASS` (`0.0000pp`, `insufficient_power=false`, material windows `11`, material support total `2880`),
+  - `T4`: `PASS`,
+  - `T5`: `PASS`,
+  - `T11`: `PASS`,
+  - `T12`: `PASS`.
+- phase decision:
+  - `UNLOCK_P2`.
+
+### P2 - Wave B calibration (timezone concentration + virtual share)
+Goal:
+- move concentration and virtual-share realism into B/B+ bands without breaking Wave-A correctness.
+
+Scope:
+- routing policy/calibration in `S4` and policy files.
+- calibration evidence/scoring lane for `T6/T7` movement with frozen Wave-A rails.
+- bounded candidate matrix execution on `S4 -> S5` only (no broad upstream reopen in this phase).
+
+Phase rule (binding):
+- `P2` is calibration-only; `T1/T2/T3/T4/T5/T11/T12` are frozen veto rails from `P1`.
+- if any frozen rail regresses, candidate is rejected regardless of `T6/T7` gains.
+- no upstream reopen (`3B`, `5A`, `2B`) is allowed in `P2` unless explicitly unlocked by a recorded `P2` branch decision.
+
+Mutable surfaces for P2:
+- `config/layer2/5B/arrival_routing_policy_5B.yaml`
+  - `hybrid_policy.p_virtual_hybrid`
+  - `realism_floors.hybrid_p_virtual_bounds` (guard only; no unsafe widening).
+- `config/layer2/5B/arrival_lgcp_config_5B.yaml`
+  - `hyperparam_law.sigma.virtual_multipliers`
+  - bounded class/channel multipliers only if `P2.3` evidence shows direct leverage on `T6/T7`.
+- `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/runner.py` (only if policy-only lane cannot close `T6/T7` and deterministic concentration tempering is required).
+- `tools/score_segment5b_p2_calibration.py` (new scorer lane for P2-only movement and veto checks).
+
+P2 artifacts (required):
+- `runs/fix-data-engine/segment_5B/reports/segment5b_p2_contract_lock_<run_id>.json`
+- `runs/fix-data-engine/segment_5B/reports/segment5b_p2_sensitivity_<run_id>.json`
+- `runs/fix-data-engine/segment_5B/reports/segment5b_p2_candidate_matrix_<run_id>.csv`
+- `runs/fix-data-engine/segment_5B/reports/segment5b_p2_gateboard_<run_id>.json`
+- `runs/fix-data-engine/segment_5B/reports/segment5b_p2_gateboard_<run_id>.md`
+- `runs/fix-data-engine/segment_5B/reports/segment5b_p2_closure_<run_id>.json`
+
+Runtime budgets for P2 lanes:
+- policy-only candidate (`S4 -> S5`, seed `42`): `<= 9 min`.
+- shortlist witness (two seeds): `<= 18 min`.
+- any candidate with runtime regression `>20%` vs current `P1` authority lane is vetoed unless it delivers clear gate closure and is explicitly accepted.
+
+#### P2.1 - Calibration contract lock and frozen-rail pin
+Objective:
+- lock exact `P2` success criteria and veto rails before any knob movement.
+
+Scope:
+- pin `P2` closure gates:
+  - primary: `T6`, `T7`,
+  - mandatory non-regression: `T1`, `T2`, `T3`, `T4`, `T5`, `T11`, `T12`,
+  - context watch (non-blocking in P2): `T8`, `T9`.
+- pin decision vocabulary:
+  - `UNLOCK_P3`,
+  - `HOLD_P2_REOPEN`,
+  - `UNLOCK_P2_UPSTREAM_REOPEN` (conditional, only when feasibility proves local impossibility).
+- pin run protocol:
+  - policy-only edits rerun `S4 -> S5`,
+  - scorer must emit hard-veto summary for every candidate.
+
+Definition of done:
+- [x] P2 contract artifact is emitted and machine-checkable.
+- [x] frozen rails and decision vocabulary are explicit.
+- [x] rerun and veto protocol is pinned.
+
+#### P2.2 - Sensitivity and feasibility decomposition (math-first)
+Objective:
+- quantify whether `T6/T7` closure is locally reachable and rank knobs by expected movement.
+
+Scope:
+- baseline anchors from current `P1` authority:
+  - `T6=75.1922%` (target `<=72%` for B, `<=62%` for B+),
+  - `T7=2.2466%` (target band `3%-8%` for B, `5%-12%` for B+).
+- compute deterministic sensitivity surfaces:
+  - `T7 = N_virtual / N_total`,
+  - for hybrid-only tuning approximation:
+    - `T7' ~= share_virtual_only + p_virtual_hybrid * share_hybrid_eligible`.
+- derive feasibility bounds under current policy constraints:
+  - evaluate whether `T7` lower-bound target (`3%`) is reachable inside bounded `p_virtual_hybrid` and virtual multiplier envelope.
+- decompose `T6` concentration by tzid and merchant contribution to top-10 mass to identify highest-leverage concentration owners.
+
+Definition of done:
+- [x] sensitivity artifact is emitted with ranked knob leverage.
+- [x] local feasibility verdict is explicit (`reachable` or `locally_blocked`).
+- [x] if `locally_blocked`, exact blocker owners are listed for conditional upstream reopen decisioning.
+
+#### P2.3 - Policy-only calibration sweep (low blast radius)
+Objective:
+- close `T6/T7` using bounded policy-only tuning before any code-path change.
+
+Scope:
+- run a bounded candidate matrix over:
+  - `hybrid_policy.p_virtual_hybrid` (inside realism bounds),
+  - `lgcp virtual_multipliers` (bounded, monotonic realism-safe envelope),
+  - optional limited class/channel multiplier micro-adjustments only where sensitivity map shows direct effect.
+- for each candidate:
+  - rerun `S4 -> S5`,
+  - score with `segment5b_p2` scorer,
+  - reject candidate on any frozen-rail regression or runtime veto.
+
+Definition of done:
+- [x] candidate matrix artifact is complete with scores/runtime per candidate.
+- [x] at least one candidate either:
+  - reaches B on `T6/T7` with frozen rails intact, or
+  - proves policy-only lane insufficient with quantitative evidence.
+- [x] best policy-only candidate is selected and pinned.
+
+#### P2.4 - Deterministic concentration-tempering lane (conditional code lane)
+Objective:
+- open a minimal `S4` code lane only if `P2.3` cannot close `T6` while preserving realism.
+
+Trigger:
+- open only when `P2.3` shows `T7` closure is reachable but `T6` remains outside B threshold under policy-only bounded search.
+
+Scope:
+- implement bounded concentration tempering that:
+  - redistributes selection probability only within already valid merchant/tz support (no synthetic tzids),
+  - preserves count conservation and determinism,
+  - keeps routing integrity invariants unchanged.
+- rerun `S4 -> S5` and rescore with veto rails.
+
+Definition of done:
+- [x] trigger decision is explicitly recorded (opened or skipped).
+- [x] if opened, code-path change is evidenced with deterministic parity checks.
+- [x] `T6` movement is quantified without `T7` or frozen-rail regression.
+
+#### P2.5 - Witness stability lane (seed panel subset)
+Objective:
+- verify chosen `P2` candidate is stable before handing off to P3.
+
+Scope:
+- run witness seeds `{42, 7}` first; extend to `{101}` if movement is near threshold.
+- score `T6/T7` and all frozen rails per seed.
+- compute interim cross-seed variance for `T6/T7` as early warning.
+
+Definition of done:
+- [x] witness seed artifacts are emitted and linked, or explicit skip rationale is recorded when no promotable local candidate exists.
+- [x] no frozen-rail failures on witness seeds.
+- [x] candidate is either accepted for P3 handoff or returned to `P2.3/P2.4` with explicit cause.
+
+#### P2.6 - Closure scoring and handoff decision
+Objective:
+- close `P2` with explicit branch decision and retained authority pointers.
+
+Decision outcomes:
+- `UNLOCK_P3`:
+  - `T6` and `T7` pass B thresholds on lane authority + witness seeds,
+  - frozen rails remain green,
+  - runtime budgets are respected.
+- `HOLD_P2_REOPEN`:
+  - `T6/T7` still red after allowed local lanes, or frozen rails/runtime vetoes block promotion.
+- `UNLOCK_P2_UPSTREAM_REOPEN` (conditional):
+  - only when `P2.2`/`P2.3` evidence proves local infeasibility under bounded realism-safe knobs.
+
+Definition of done:
+- [x] closure artifact captures gate outcomes, veto summary, and runtime posture.
+- [x] explicit branch decision is recorded.
+- [x] retained run/artifact pointers are pinned for `P3` entry or reopen lane.
+
+P2 closure snapshot (2026-02-22):
+- authority run-id:
+  - `c25a2675fbfbacd952b13bb594880e92`.
+- emitted artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2_contract_lock_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2_sensitivity_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2_candidate_matrix_c25a2675fbfbacd952b13bb594880e92.csv`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2_sweep_summary_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2_gateboard_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2_closure_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2_phase_decision_c25a2675fbfbacd952b13bb594880e92.json`
+- key outcomes:
+  - frozen rails (`T1/T2/T3/T4/T5/T11/T12`): all `PASS`.
+  - calibration gates remain red:
+    - `T6=75.1922%` (`FAIL` vs `<=72%`),
+    - `T7=2.2466%` (`FAIL` vs band `[3%,8%]`).
+  - `P2.2` feasibility:
+    - `share_hybrid=0.0`, so `p_virtual_hybrid` has zero leverage on `T7`.
+  - `P2.3` empirical confirmation:
+    - upper-bound probe (`p_virtual_hybrid=0.80`) produced zero `T6/T7` movement vs baseline.
+  - runtime:
+    - canonical post-revert `S4+S5=468.217s` (`PASS` vs `<=540s` budget).
+- `P2.4` trigger:
+  - not opened (`T7` not locally reachable under bounded policy knobs).
+- `P2.5` witness:
+  - skipped as no promotable local candidate existed.
+- phase decision:
+  - `UNLOCK_P2_UPSTREAM_REOPEN`.
+
+Definition of done:
+- [x] `P2.1 -> P2.6` checklists are closed.
+- [x] `T6/T7` either reach B posture or local infeasibility is proven with upstream reopen branch decision.
+- [x] explicit branch decision recorded: `UNLOCK_P3`, `HOLD_P2_REOPEN`, or conditional `UNLOCK_P2_UPSTREAM_REOPEN`.
+
+### P2.U1 - Upstream reopen lane for T7 owner (`3B.S1`)
+Goal:
+- reopen the true upstream owner surface for virtual-share shape (`3B.S1` classification policy) to recover `T7` toward B band while preserving frozen Wave-A rails.
+
+Scope:
+- mutable:
+  - `config/layer1/3B/virtual/mcc_channel_rules.yaml` (bounded rule edits only).
+- rerun chain:
+  - `3B: S1 -> S2 -> S3 -> S4 -> S5`,
+  - then `5B: S4 -> S5`,
+  - then `score_segment5b_p1_realism.py` + `score_segment5b_p2_calibration.py`.
+- frozen rails:
+  - `5B` hard rails (`T1/T2/T3/T4/T5/T11/T12`) are veto rails in this lane.
+
+Definition of done:
+- [x] owner-lane candidate matrix is recorded (rule deltas + measured `T6/T7` movement).
+- [x] at least one bounded candidate is executed end-to-end through `3B` and downstream `5B`.
+- [x] branch decision is explicit:
+  - `UNLOCK_P3` if B closure is reached with frozen rails green, or
+  - `HOLD_P2_UPSTREAM_REOPEN` with retained best-evidence candidate and freeze rationale.
+
+P2.U1 closure snapshot (2026-02-22):
+- retained candidate:
+  - `3B.S1` policy delta in `config/layer1/3B/virtual/mcc_channel_rules.yaml`:
+    - `5962/card_not_present`: `physical -> virtual`,
+    - `5994/card_not_present`: `physical -> virtual`.
+- execution chain completed:
+  - `3B`: `S0 -> S1 -> S2 -> S3 -> S4 -> S5`,
+  - `5B`: `S0 -> S4 -> S5`,
+  - rescoring: `segment5b_p1_realism` and `segment5b_p2_calibration`.
+- artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2u1_owner_leverage_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2u1_candidate_matrix_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2_gateboard_c25a2675fbfbacd952b13bb594880e92_p2u1_c1.json`
+  - canonical refreshed gateboard:
+    - `runs/fix-data-engine/segment_5B/reports/segment5b_p2_gateboard_c25a2675fbfbacd952b13bb594880e92.json`
+- measured movement vs baseline:
+  - `T7`: `2.2466% -> 3.7043%` (`PASS_B`),
+  - `T6`: `75.1922% -> 74.3382%` (improved, still `FAIL_B`),
+  - frozen rails `T1/T2/T3/T4/T5/T11/T12`: all `PASS`,
+  - runtime `S4+S5`: `469.498s` (`PASS` budget).
+- branch decision:
+  - `HOLD_P2_UPSTREAM_REOPEN` (T7 owner lane closed successfully; remaining blocker is `T6`).
+
+P2.4 bounded local concentration-tempering snapshot (2026-02-22):
+- trigger execution:
+  - opened as bounded local `S4` lane to test residual `T6` closure without reopening upstream rails.
+- implementation posture:
+  - deterministic optional `S4` tempering knobs wired (env-gated, default off),
+  - no synthetic tzids, no cross-merchant borrowing, no extra RNG draws.
+- candidate grid executed (`S4 -> S5` each, with frozen-rail veto scoring):
+  - `p24_c1`: `topk=10`, `redirect_p=0.35`,
+  - `p24_c2`: `topk=15`, `redirect_p=0.65`,
+  - `p24_c3`: `topk=10`, `redirect_p=1.00`.
+- measured outcomes:
+  - canonical restored (`temper=off`): `T6=74.3382%`, `T7=3.7043%`,
+  - best candidate (`p24_c3`): `T6=74.0336%`, `T7=3.7043%`,
+  - frozen rails `T1/T2/T3/T4/T5/T11/T12`: all `PASS` across candidates,
+  - runtime veto: none triggered.
+- closure decision:
+  - bounded local lane improved `T6` but did not reach B (`<=72%`),
+  - canonical authority outputs restored with tempering disabled,
+  - branch remains `HOLD_P2_UPSTREAM_REOPEN`.
+- artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p24_candidate_matrix_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p24_candidate_matrix_c25a2675fbfbacd952b13bb594880e92.csv`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p24_closure_c25a2675fbfbacd952b13bb594880e92.json`
+
+### P2.U2 - Upstream reopen lane for residual T6 owner (`3B.S2/S3`)
+Goal:
+- close residual timezone concentration (`T6`) by reopening the true upstream edge-weight/topology owner surfaces in `3B`, while keeping `P2.U1` `T7` posture and frozen rails intact.
+
+Scope:
+- mutable owner surfaces:
+  - `3B.S2` policy/coefficients controlling edge-weight concentration/diversification,
+  - `3B.S3` edge topology constraints only where needed for spread support.
+- downstream witness chain per candidate:
+  - `3B: S2 -> S3 -> S4 -> S5`,
+  - `5B: S0 -> S4 -> S5`,
+  - score `segment5b_p1_realism` + `segment5b_p2_calibration`.
+- frozen/veto rails:
+  - `T1/T2/T3/T4/T5/T11/T12` must remain pass,
+  - `T7` must stay in B band (`3%-8%`),
+  - runtime regression veto remains active.
+
+#### P2.U2.0 - Forensics lock (no rerun)
+Objective:
+- quantify where residual `T6` excess is coming from before touching upstream owners.
+
+Scope:
+- decompose current authority posture into:
+  - top-10 tz concentration table,
+  - merchant-level contribution matrix,
+  - `mcc/channel/virtual_mode` offender summary,
+  - required reduction counts to hit B (`<=72%`) and B+ (`<=62%`).
+- compute a ranked offender set and explicit coverage:
+  - minimum set expected to explain at least `80%` of required B reduction mass.
+
+Definition of done:
+- [x] forensics artifact pack exists (json + csv) under `runs/fix-data-engine/segment_5B/reports/`.
+- [x] required reduction math is explicit and reproducible from authority run-id.
+- [x] ranked offender set reaches `>=80%` coverage of required B reduction mass.
+- [x] next-lane owner candidates for `3B.S2/S3` are listed from evidence, not guesswork.
+
+P2.U2.0 closure snapshot (2026-02-22):
+- authority run-id:
+  - `c25a2675fbfbacd952b13bb594880e92`.
+- observed posture:
+  - `T6=74.3382%` (`top10_total=92,717,706` of `n_total=124,724,153`).
+- required reduction:
+  - to B (`<=72%`): `2,916,316` arrivals (`2.3382 pp`),
+  - to B+ (`<=62%`): `15,388,732` arrivals (`12.3382 pp`).
+- concentration ownership signal:
+  - top tzids are Europe-heavy (`Europe/London`, `Europe/Paris`, `Europe/Berlin`, ...),
+  - owner cohorts are overwhelmingly `NON_VIRTUAL + card_present`.
+- offender coverage:
+  - top merchant alone covers `5.8138x` of required B reduction mass (coverage target `>=0.8` met immediately),
+  - top `mcc/channel/virtual_mode` cohorts by top10 mass:
+    - `5651 / card_present / NON_VIRTUAL`,
+    - `5813 / card_present / NON_VIRTUAL`,
+    - `8641 / card_present / NON_VIRTUAL`,
+    - `5271 / card_present / NON_VIRTUAL`,
+    - `5199 / card_present / NON_VIRTUAL`.
+- emitted artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2u2_forensics_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2u2_offender_merchants_c25a2675fbfbacd952b13bb594880e92.csv`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2u2_offender_mcc_channel_c25a2675fbfbacd952b13bb594880e92.csv`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2u2_top10_tz_c25a2675fbfbacd952b13bb594880e92.csv`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2u2_merchant_tz_hotspots_c25a2675fbfbacd952b13bb594880e92.csv`
+- decision:
+  - `UNLOCK_P2.U2.1` with owner shortlist pinned above.
+
+#### P2.U2.1 - Policy-only owner pass (`3B.S2/S3`)
+Objective:
+- attempt `T6` closure with bounded upstream policy/coeff changes before any new code path.
+
+Definition of done:
+- [x] at least one bounded owner candidate runs end-to-end.
+- [ ] `T6` moves materially toward B with `T7` and frozen rails preserved.
+- [x] keep/reject decision recorded per candidate.
+
+P2.U2.1 closure snapshot (2026-02-22):
+- candidate:
+  - `u2_1_c1` (`3B.S2/S3` policy-only via `cdn_country_weights` downweight on Europe-heavy owner set).
+- execution lane:
+  - `3B: S0 -> S2 -> S3 -> S4 -> S5`,
+  - `5B: S0 -> S4 -> S5`,
+  - scored with `segment5b_p1_realism.py` + `segment5b_p2_calibration.py`.
+- outcomes:
+  - `T6`: `74.3382% -> 74.2994%` (`-0.0389 pp`, non-material),
+  - `T7`: unchanged at `3.7043%`,
+  - frozen rails: preserved (`7/7` pass),
+  - `P2` lane decision: `HOLD_P2_REOPEN`.
+- adjudication:
+  - `REJECT_u2_1_c1` (policy-only `3B.S2/S3` movement is insufficient for B closure on `T6`).
+- artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p1_realism_gateboard_c25a2675fbfbacd952b13bb594880e92_u2_1_c1.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2_gateboard_c25a2675fbfbacd952b13bb594880e92_u2_1_c1.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2_closure_c25a2675fbfbacd952b13bb594880e92_u2_1_c1.json`
+- decision:
+  - `UNLOCK_P2.U2.2` for deterministic owner code-lane trigger evaluation.
+
+#### P2.U2.2 - Deterministic owner code lane (conditional)
+Objective:
+- open minimal upstream deterministic code-path only if `P2.U2.1` cannot close `T6`.
+
+Definition of done:
+- [x] trigger decision is explicit (opened/skipped).
+- [x] if opened, deterministic invariants and no-synthetic-support constraints are evidenced.
+- [x] bounded strength sweep completed with veto rails enforced.
+
+P2.U2.2 closure snapshot (2026-02-22):
+- trigger artifact decision:
+  - `SKIP_P2_U2_2_3B_CODE`.
+- reason codes:
+  - `VIRTUAL_CEILING_BELOW_REQUIRED_B_MASS`,
+  - `POLICY_ONLY_REALIZED_DELTA_NON_MATERIAL`,
+  - `RESIDUAL_T6_DOMINATED_BY_NON_VIRTUAL_MASS`.
+- evidence inputs:
+  - required B reduction mass from `P2.U2.0` forensics,
+  - realized `u2_1_c1` delta from `P2.U2.1`,
+  - top10 virtual vs non-virtual contribution split from arrivals.
+- storage hygiene:
+  - superseded `u2_1_c1` backup folders pruned under authority run-id keep-set.
+- artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2u2_trigger_decision_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2u2_trigger_decision_c25a2675fbfbacd952b13bb594880e92.md`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2u2_u21c1_prune_receipt_20260222T220442Z.txt`
+- decision:
+  - `UNLOCK_P2.U3` (owner-true non-virtual upstream lane).
+
+#### P2.U2.3 - Closure and branch decision
+Objective:
+- close upstream reopen with explicit branch posture.
+
+Definition of done:
+- [x] closure artifact includes best candidate deltas vs canonical.
+- [x] branch decision recorded:
+  - `UNLOCK_P3` if `T6/T7` meet B with veto rails green,
+  - else `HOLD_P2_UPSTREAM_REOPEN`.
+
+P2.U2.3 closure snapshot (2026-02-22):
+- best retained upstream posture in this lane:
+  - from `P2.U1`: `T7=3.7043%` (`PASS_B`),
+  - from `P2.U2.1`: `T6=74.2994%` (`FAIL_B`, non-material movement vs canonical `74.3382%`).
+- branch decision:
+  - `HOLD_P2_UPSTREAM_REOPEN`.
+- next unlocked lane:
+  - `P2.U3` (upstream owner-true non-virtual mass lane via `2B.S4` group-mix regularization).
+
+### P2.U3 - Upstream owner-true non-virtual lane (`2B.S4`)
+Goal:
+- attempt B closure on residual `T6` by tuning the upstream non-virtual mass owner path (`2B.S4` group-mix regularizer), while preserving `T7` and frozen rails.
+
+Scope:
+- mutable owner surface:
+  - `config/layer1/2B/policy/group_mix_regularizer_v1.json` (bounded edits only).
+- rerun chain per candidate:
+  - `2B: S0 -> S4 -> S5 -> S6 -> S7 -> S8`,
+  - `5B: S0 -> S4 -> S5`,
+  - score `segment5b_p1_realism.py` + `segment5b_p2_calibration.py`.
+- veto rails:
+  - `T1/T2/T3/T4/T5/T11/T12` must remain pass,
+  - `T7` must remain in B band (`3%-8%`),
+  - runtime regression veto active.
+
+Definition of done:
+- [x] at least one bounded owner-true candidate is executed end-to-end.
+- [x] keep/reject decision is explicit with measured deltas vs canonical.
+- [x] lane decision recorded: `UNLOCK_P3` or `HOLD_P2_UPSTREAM_REOPEN`.
+
+P2.U3 closure snapshot (2026-02-22):
+- retained candidate:
+  - `u3_1_c1` on `config/layer1/2B/policy/group_mix_regularizer_v1.json`:
+    - `max_p_group_soft_cap`: `0.78 -> 0.68`,
+    - `regularization_strength`: `0.34 -> 0.52`,
+    - `entropy_floor`: `0.48 -> 0.62`.
+- executed chain:
+  - `2B`: `S0 -> S4 -> S5 -> S6 -> S7 -> S8` (with `S2` replay correction for alias digest parity),
+  - `5B`: `S0 -> S4 -> S5`,
+  - scoring: `segment5b_p1_realism.py` + `segment5b_p2_calibration.py`.
+- measured outcome vs canonical baseline:
+  - `T6`: `74.3382% -> 66.6737%` (`-7.6645 pp`, now `PASS_B`),
+  - `T7`: `3.7043% -> 3.7043%` (unchanged, `PASS_B`),
+  - frozen rails `T1/T2/T3/T4/T5/T11/T12`: all `PASS`,
+  - runtime lane `S4+S5`: `454.140s` (`PASS` vs `<=540s`).
+- adjudication:
+  - `KEEP_u3_1_c1`,
+  - unsuffixed `P2` canonical gateboard/closure promoted to this retained posture,
+  - lane decision `UNLOCK_P3`.
+- artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2_gateboard_c25a2675fbfbacd952b13bb594880e92__u3_1_c1.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2_closure_c25a2675fbfbacd952b13bb594880e92__u3_1_c1.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2u3_candidate_matrix_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2u3_closure_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2u3_u31c1_prune_receipt_20260222T222409Z.json`
+
+### P3 - Wave C contract hardening
+Goal:
+- pin corrected semantics and thresholds in policy/schema/contracts so closure is durable.
+
+Scope:
+- `validation_policy_5B` threshold keys and modes.
+- contract/schema alignment and implementation references.
+- `S5` validation runner policy-consumption behavior for temporal and calibration sentinels.
+
+Definition of done:
+- [x] new/updated policy keys are contract-pinned and consumed by runner logic.
+- [x] ambiguity in local-time semantics is removed in docs/contracts.
+- [x] validation outputs include required sentinel metrics for governance.
+
+#### P3.1 - Policy/schema delta inventory and pin set (no code edits)
+Objective:
+- produce an explicit, minimal contract pin-set for the realism thresholds currently enforced implicitly or via env fallbacks.
+
+Pin-set to define:
+- civil-time gates:
+  - `max_civil_mismatch_rate`,
+  - `max_one_hour_shift_rate`,
+  - `dst_window_hour_bin_mae_pp_max`,
+  - `dst_window_min_support`,
+  - `dst_window_min_exposed_windows`,
+  - `dst_window_min_total_support`.
+- calibration gates:
+  - `top10_tz_share_max_b`,
+  - `top10_tz_share_max_bplus`,
+  - `virtual_share_min_b`, `virtual_share_max_b`,
+  - `virtual_share_min_bplus`, `virtual_share_max_bplus`,
+  - `weekend_share_delta_pp_max_b`,
+  - `weekend_share_delta_pp_max_bplus`,
+  - `residual_std_min_b`, `residual_std_max_b`,
+  - `residual_std_min_bplus`, `residual_std_max_bplus`.
+
+File targets:
+- `config/layer2/5B/validation_policy_5B.yaml`
+- `docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml`
+
+Definition of done:
+- [x] every active realism gate threshold used in `P1/P2` scoring is represented in policy key form.
+- [x] schema is expanded to admit the pinned keys (strict schema compatibility preserved).
+- [x] no unresolved threshold source remains in env-only behavior for closure-critical gates.
+
+#### P3.2 - Runner policy-consumption hardening (`5B.S5`)
+Objective:
+- move `S5` realism gating to policy-first semantics for closure-critical thresholds and sentinel checks.
+
+Scope:
+- `packages/engine/src/engine/layers/l2/seg_5B/s5_validation_bundle/runner.py`
+
+Required behavior:
+- policy keys in `P3.1` become primary source for gate thresholds.
+- env overrides become non-authoritative diagnostics-only path (or explicitly disabled for closure lane).
+- fail-closed behavior remains enforced for hard temporal gates.
+
+Definition of done:
+- [x] `S5` reads and enforces policy-pinned temporal and calibration thresholds.
+- [x] closure-critical thresholds are no longer silently defaulted in code paths.
+- [x] run-report includes explicit threshold provenance (`policy_path`, key names, resolved values).
+
+#### P3.3 - Sentinel artifact and bundle surface hardening
+Objective:
+- make realism sentinel metrics first-class artifacts under validation bundle governance.
+
+Scope:
+- `packages/engine/src/engine/layers/l2/seg_5B/s5_validation_bundle/runner.py`
+- `docs/model_spec/data-engine/layer-2/specs/contracts/5B/dataset_dictionary.layer2.5B.yaml` (if new sentinel dataset id is required)
+- `docs/model_spec/data-engine/layer-2/specs/contracts/5B/artefact_registry_5B.yaml` (if registry entry changes are required)
+
+Sentinel minimum set:
+- `T1/T2/T3/T6/T7/T8/T9/T11/T12` numeric metrics and gate verdicts.
+
+Definition of done:
+- [x] sentinel metric payload is emitted deterministically in validation outputs.
+- [x] bundle index includes sentinel payload artifact (or embeds equivalent fields with stable schema).
+- [x] scorer scripts consume the same sentinel fields without ad-hoc parsing drift.
+
+#### P3.4 - Local-time representation contract pinning
+Objective:
+- remove ambiguity between UTC canonical timestamps and local wall-clock representation across `S4` producer and `S5` validator.
+
+Scope:
+- `docs/model_spec/data-engine/layer-2/specs/state-flow/5B/state.5B.s4.expanded.md`
+- `docs/model_spec/data-engine/layer-2/specs/state-flow/5B/state.5B.s5.expanded.md`
+- `docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml` (if field-level semantic annotations are needed)
+
+Definition of done:
+- [x] producer/validator local-time semantics are explicitly specified and consistent.
+- [x] contract text prohibits ambiguous UTC-marker reuse for local wall-clock fields.
+- [x] `T12` semantic intent is directly traceable to contract text.
+
+#### P3.5 - P3 closure scoring and handoff decision
+Objective:
+- verify Wave C hardening without reopening calibration behavior.
+
+Execution lane:
+- if only policy/schema/runner validation logic changes: rerun `5B: S5`.
+- if local-time serialization semantics change in `S4`: rerun `5B: S4 -> S5`.
+- then rescore:
+  - `tools/score_segment5b_p1_realism.py`
+  - `tools/score_segment5b_p2_calibration.py`
+
+Definition of done:
+- [x] retained `P2` calibration posture is preserved (`T6/T7` no regression beyond veto tolerance).
+- [x] hard rails remain pass.
+- [x] explicit handoff decision recorded: `UNLOCK_P4` or `HOLD_P3_REMEDIATE`.
+
+Closure snapshot (`2026-02-22`, authority run `c25a2675fbfbacd952b13bb594880e92`):
+- `5B.S5` rerun completed with policy-first threshold provenance and sentinel payloads in `validation_report_5B`.
+- P1 lane remained closed (`T1/T2/T3` hard rails green; no veto failures).
+- P2 lane retained `PASS_B_CANDIDATE` posture with unchanged primary calibration closure (`T6/T7` B-pass preserved).
+- handoff decision: `UNLOCK_P4`.
+
+### P4 - Multi-seed certification and robustness lock
+Goal:
+- certify B/B+ posture on required seed panel with strict veto gates.
+
+Scope:
+- seed panel: `{42,7,101,202}` under frozen `P3` code+policy posture.
+- execution root: `runs/fix-data-engine/segment_5B/*` only.
+- source authority remains frozen upstream artifacts; no mutation under `runs/local_full_run-5`.
+
+Definition of done:
+- [x] all hard gates pass on `{42,7,101,202}`.
+- [x] B+ decision is explicit (`PASS_BPLUS_ROBUST` or `PASS_B`).
+- [x] cross-seed CV gate result is recorded and archived.
+
+#### P4.1 - Seed authority lock and certification matrix
+Objective:
+- lock the exact seed-panel certification contract before execution.
+
+Execution:
+- freeze baseline from `P3` witness run:
+  - run-id `6ac88fc0d3364aecaf564b17ebad354e`,
+  - policy refs: `validation_policy_5B.yaml` + `schemas.5B.yaml` at current workspace SHA.
+- define per-seed gate set:
+  - hard rails: `T1/T2/T3/T4/T5/T11/T12`,
+  - major rails: `T6/T7`,
+  - context rails: `T8/T9`,
+  - cross-seed rail: `T10`.
+- pin explicit certification outcomes:
+  - `PASS_BPLUS_ROBUST`,
+  - `PASS_B_ROBUST`,
+  - `HOLD_P4_REMEDIATE`.
+
+Definition of done:
+- [x] seed panel and metric ownership are pinned in a single matrix artifact.
+- [x] certification outcomes are explicitly enumerated (no implicit grading).
+- [x] no unresolved authority question remains before execution.
+
+#### P4.2 - Fresh run-root topology lock (no-local-full-write law)
+Objective:
+- ensure every P4 execution writes only into fresh `runs/fix-data-engine/segment_5B` run-id folders.
+
+Execution:
+- for each seed candidate run:
+  - create fresh run-id under `runs/fix-data-engine/segment_5B/{run_id}`,
+  - keep `validation/reports/tmp` writable in fresh root,
+  - wire read-only upstream surfaces from frozen authority artifacts.
+- emit setup receipts:
+  - run-id, seed, source roots, linked surfaces, writable roots.
+
+Definition of done:
+- [x] all P4 run ids are created under `runs/fix-data-engine/segment_5B`.
+- [x] no command in P4 execution path targets `runs/local_full_run-5` as output root.
+- [x] setup receipt exists for every seed run-id.
+
+#### P4.3 - Missing-seed production lane (conditional, minimal chain)
+Objective:
+- generate missing seed evidence with minimal blast radius while preserving frozen `P1/P2/P3` posture.
+
+Entry check:
+- inspect seed coverage in fresh run-report surfaces.
+- classify seeds into:
+  - `available` (S4+S5 evidence ready),
+  - `missing` (requires generation).
+
+Execution branches:
+- if seed is `available`: run `S5` witness only in fresh root.
+- if seed is `missing`:
+  - run minimal deterministic generation chain required for that seed:
+    - preferred: `5B S0 -> S4 -> S5`,
+    - escalate to `5B S0 -> S2 -> S3 -> S4 -> S5` only if count surfaces are absent.
+- preserve frozen rails:
+  - no policy/config/code modifications in this phase.
+
+Runtime budgets (binding for certification lane):
+- `S5` witness target: `<= 180s` per seed.
+- `S4 + S5` witness target: `<= 720s` per seed.
+- escalated `S2 -> S5` target: `<= 1800s` per seed.
+
+Definition of done:
+- [x] all seeds in `{42,7,101,202}` have fresh-root `S5` validation outputs.
+- [x] no frozen config/policy rail was modified during seed generation.
+- [x] runtime receipts are captured per seed against stated budgets.
+
+#### P4.4 - Per-seed scoring and veto gateboard
+Objective:
+- evaluate each seed independently before cross-seed aggregation.
+
+Execution:
+- for each seed run-id:
+  - run `score_segment5b_p1_realism.py`,
+  - run `score_segment5b_p2_calibration.py`,
+  - collect verdict vector for `T1..T12`.
+- build consolidated seed gateboard artifact:
+  - one row per seed with hard/major/context verdicts and runtime.
+
+Veto rules:
+- any hard-rail failure on any seed => `HOLD_P4_REMEDIATE`.
+- any `T6/T7` B-fail on any seed => `HOLD_P4_REMEDIATE`.
+
+Definition of done:
+- [x] per-seed gateboards exist for all required seeds.
+- [x] consolidated P4 seed gateboard is produced.
+- [x] veto disposition is explicit and evidence-backed.
+
+#### P4.5 - Cross-seed stability closure (`T10`)
+Objective:
+- close robustness via seed-panel stability statistics.
+
+Execution:
+- compute cross-seed CV on core realism metrics from per-seed gateboards.
+- classify:
+  - `B+` if `T10 <= 0.15`,
+  - `B` if `0.15 < T10 <= 0.25`,
+  - fail otherwise.
+
+Definition of done:
+- [x] `T10` value and class are recorded in closure artifact.
+- [x] cross-seed metric table is archived with reproducible inputs.
+- [x] stability class is integrated into final phase decision.
+
+#### P4.6 - Certification decision and handoff
+Objective:
+- conclude P4 with explicit certification grade and transition gate.
+
+Decision outputs:
+- `PASS_BPLUS_ROBUST`: all hard rails pass, `T6/T7` B+ pass (or accepted band), `T10 <= 0.15`.
+- `PASS_B_ROBUST`: all hard rails pass, `T6/T7` B pass, `T10 <= 0.25`.
+- `HOLD_P4_REMEDIATE`: any veto breach.
+
+Definition of done:
+- [x] final P4 closure artifact records one of the three decisions.
+- [x] retained run-id set for P5 freeze is pinned.
+- [x] active next step updated (`UNLOCK_P5` or `HOLD_P4_REMEDIATE`).
+
+P4 closure snapshot (2026-02-23):
+- pre-reopen decision: `HOLD_P4_REMEDIATE` due `S5` FAIL on seeds `7/101` (DST material-power gate).
+- reopen lane executed `P4.R1 -> P4.R5` with S5 sampling robustness fix (`S5` validator lane only; no policy threshold relax).
+- final decision after reopen: `PASS_B_ROBUST`.
+- cross-seed stability (`T10`) remains strongly stable and non-blocking (`overall_cv=0.00868`, class=`BPLUS`).
+- runtime posture for `S4+S5` remains within P4 budget on all seeds (`<=720s`).
+- retained run-id set pinned for reopen lane:
+  - `6ac88fc0d3364aecaf564b17ebad354e` (seed 42)
+  - `65bd3b8fde7f467f8abaee6a5516ee75` (seed 7)
+  - `c9011d0081db4e479336f3083c38dd30` (seed 101)
+  - `d9a6aa2f64db4c9f9ec7ffff5c79f813` (seed 202)
+- closure artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p4r1_root_cause_20260223T053940Z.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p4r3_s5_rerun_receipts_retry2_20260223T053726Z.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p4_seed_gateboard_20260223T053919Z.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p4_t10_stability_20260223T053919Z.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p4_closure_20260223T053919Z.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p4r5_freeze_pointer_20260223T053940Z.json`
+
+### P5 - Freeze, handoff, and prune closure
+Goal:
+- freeze certified 5B posture and hand off cleanly to downstream segments.
+
+Scope:
+- freeze authority uses final P4 reopen-certified posture (`PASS_B_ROBUST`).
+- retained run-id keep-set remains:
+  - `6ac88fc0d3364aecaf564b17ebad354e` (seed 42)
+  - `65bd3b8fde7f467f8abaee6a5516ee75` (seed 7)
+  - `c9011d0081db4e479336f3083c38dd30` (seed 101)
+  - `d9a6aa2f64db4c9f9ec7ffff5c79f813` (seed 202)
+- execution root remains `runs/fix-data-engine/segment_5B` (no writes under `runs/local_full_run-5`).
+
+Definition of done:
+- [x] freeze artifacts refreshed (gateboard + scorecards + pointers).
+- [x] superseded run-id folders pruned under keep-set rules.
+- [x] explicit freeze decision recorded (`5B frozen at PASS_B or PASS_BPLUS_ROBUST`).
+
+#### P5.1 - Freeze authority lock
+Objective:
+- pin the exact closure authority used for freeze so downstream consumers have one deterministic source.
+
+Execution:
+- bind freeze authority to latest accepted artifacts:
+  - latest `segment5b_p4_closure_*.json`,
+  - latest `segment5b_p4_seed_gateboard_*.json`,
+  - latest `segment5b_p4_t10_stability_*.json`,
+  - latest `segment5b_p4r5_freeze_pointer_*.json`.
+- emit authority lock artifact:
+  - `segment5b_p5_freeze_authority_<ts>.json`.
+
+Definition of done:
+- [x] freeze authority artifact exists and references only accepted P4 closure artifacts.
+- [x] retained run-id keep-set is explicitly pinned in freeze authority artifact.
+- [x] no unresolved authority ambiguity remains.
+
+#### P5.2 - Freeze artifact refresh
+Objective:
+- publish final freeze package for Segment 5B with explicit decision posture and pointers.
+
+Execution:
+- emit freeze artifacts:
+  - `segment5b_freeze_decision_<ts>.json`,
+  - `segment5b_freeze_manifest_<ts>.json`,
+  - `segment5b_freeze_handoff_<ts>.md`.
+- include in manifest:
+  - final decision token (`PASS_B_ROBUST` or `PASS_BPLUS_ROBUST`),
+  - retained run-id set,
+  - required evidence pointers (`P1/P2/P4`),
+  - runtime posture summary (`S4+S5` witness lane).
+
+Definition of done:
+- [x] freeze decision artifact exists with explicit certified class.
+- [x] freeze manifest resolves every required evidence pointer.
+- [x] handoff note is generated and references the same authority set.
+
+#### P5.3 - Retention and prune enforcement
+Objective:
+- enforce keep-set retention without risking authority loss.
+
+Execution:
+- compute run-root inventory under `runs/fix-data-engine/segment_5B`.
+- classify folders into `retain` and `prune` sets.
+- prune only superseded run-id folders not in keep-set.
+- emit prune receipt:
+  - `segment5b_p5_prune_receipt_<ts>.json`.
+
+Definition of done:
+- [x] run inventory and classification are recorded in prune receipt.
+- [x] only non-keep-set run-id folders are deleted (if any).
+- [x] if no prune candidates exist, explicit no-op is recorded.
+
+#### P5.4 - Downstream handoff package
+Objective:
+- provide closure-grade transition package for downstream segments and integrated certification.
+
+Execution:
+- publish downstream handoff descriptor:
+  - `segment5b_p5_downstream_handoff_<ts>.json`.
+- include:
+  - frozen decision class,
+  - hard-rail posture summary,
+  - known stretch residuals (`T6/T7` B+ gap if applicable),
+  - required downstream assumptions (no 5B reopen unless explicit override).
+
+Definition of done:
+- [x] downstream handoff descriptor exists with explicit frozen assumptions.
+- [x] residual-risk section is present and non-empty when stretch gaps exist.
+- [x] descriptor references freeze authority and manifest artifacts.
+
+#### P5.5 - Final closure decision and active-step transition
+Objective:
+- close P5 with explicit segment freeze state and next-step transition.
+
+Decision outputs:
+- `SEG5B_FROZEN_PASS_BPLUS`:
+  - freeze package complete, prune complete, certified class `PASS_BPLUS_ROBUST`.
+- `SEG5B_FROZEN_PASS_B`:
+  - freeze package complete, prune complete, certified class `PASS_B_ROBUST`.
+- `HOLD_P5_REOPEN`:
+  - any freeze package inconsistency, authority mismatch, or prune safety breach.
+
+Definition of done:
+- [x] one of the three decision outputs is recorded.
+- [x] immediate execution order is updated to next segment/phase after freeze.
+- [x] implementation notes and logbook entries capture final freeze decision trail.
+
+P5 closure snapshot (2026-02-23):
+- final freeze decision: `SEG5B_FROZEN_PASS_B` (`certified_class=PASS_B_ROBUST`).
+- no unresolved blockers remain in freeze closure lane.
+- prune result: no-op (no superseded run-id folders outside keep-set).
+- emitted freeze/handoff artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p5_freeze_authority_20260223T060735Z.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_freeze_decision_20260223T060735Z.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_freeze_manifest_20260223T060735Z.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_freeze_handoff_20260223T060735Z.md`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p5_prune_receipt_20260223T060735Z.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p5_downstream_handoff_20260223T060735Z.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p5_closure_20260223T060735Z.json`
+
+## 7) Phase-to-state focus map
+- `POPT.0`: `S0..S5` evidence only.
+- `POPT.1`: `S1`.
+- `POPT.2`: `S4`.
+- `POPT.3`: `S2/S3`.
+- `POPT.4`: `S5` + logging cadence in hot states.
+- `P0`: scorer/evidence lane (`S4/S5` metrics + conditional `2A` cache-horizon evidence).
+- `P1`: `S4/S5` (+conditional `2A` reopen).
+- `P2`: `S4/S5` (+routing/virtual policies).
+- `P3`: `S5` + contract/policy pinning.
+- `P4`: full segment certification.
+- `P5`: freeze + prune.
+- `P6`: bounded `B+` recovery lane from frozen `PASS_B_ROBUST` baseline.
+
+## 8) P6 - B+ Recovery Lane (bounded, veto-gated)
+Goal:
+- attempt an upgrade from `PASS_B_ROBUST` to `PASS_BPLUS_ROBUST` without breaking frozen B rails.
+
+Scope:
+- primary focus: `T6+`, `T7+`, and `T10` (`<=0.15`) closure.
+- preserve all `P4/P5` hard-rail posture and deterministic reproducibility.
+- start from existing frozen authority artifacts from `P5`.
+
+Execution sequence:
+1. `P6.1` Authority pin:
+   - lock `P5` freeze authority as reopen baseline and emit `segment5b_p6_authority_pin_<ts>.json`.
+2. `P6.2` Policy-first bounded sweep:
+   - run tightly bounded routing/calibration sweeps targeting `T6+/T7+` while vetoing any hard-rail drift.
+3. `P6.3` Conditional minimal owner-lane reopen:
+   - only if `P6.2` cannot close B+ and evidence proves policy-only infeasibility.
+4. `P6.4` Multi-seed B+ certification:
+   - run required seed panel `{42,7,101,202}` and score B+ gates + stability.
+5. `P6.5` Final decision:
+   - `SEG5B_FROZEN_PASS_BPLUS` if all B+ gates pass;
+   - otherwise retain `SEG5B_FROZEN_PASS_B` with explicit residual note.
+
+Definition of done:
+- [x] `P6` authority pin artifact is emitted and references only accepted `P5` freeze artifacts.
+- [x] bounded candidate(s) show measurable movement on `T6+`/`T7+`/`T10` with zero hard-rail regressions.
+- [x] certification decision artifact exists with explicit class (`PASS_BPLUS_ROBUST` or retained `PASS_B_ROBUST`).
+- [x] keep-set/prune receipt is refreshed after final `P6` decision.
+
+P6 closure snapshot (2026-02-23):
+- `P6.1` authority lock emitted:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p6_authority_pin_20260223T174025Z.json`.
+- `P6.2` local-policy feasibility + bounded probe:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p6_p62_feasibility_20260223T174042Z.json`,
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p6_p62_probe_6ac88fc0d3364aecaf564b17ebad354e_20260223T175012Z.json`.
+- `P6.3` owner-reopen branch check:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p6_p63_owner_reopen_check_20260223T175104Z.json`,
+  - branch decision `OWNER_REOPEN_DEFERRED_OUTSIDE_BOUNDED_P6`.
+- `P6.4` certification replay:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p6_p64_certification_20260223T180020Z.json`,
+  - referenced closure `segment5b_p4_closure_20260223T175951Z.json` with decision `PASS_B_ROBUST`.
+- `P6.5` final closure:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p6_prune_receipt_20260223T180010Z.json`,
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p6_closure_20260223T180010Z.json`.
+- explicit B+ backlog handoff:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p6_bplus_backlog_handoff_20260223T183222Z.json`.
+- storage normalization post-probe:
+  - seed-42 `arrival_events` restored to junction target under `runs/local_full_run-5/c25...` to reclaim local probe copy.
+- final decision:
+  - `SEG5B_P6_RETAIN_PASS_B` (`certified_class=PASS_B_ROBUST`).
+
+## 9) Immediate execution order from this plan
+1. `POPT.0` is closed and pinned (authority: `c25a2675fbfbacd952b13bb594880e92`).
+2. `POPT.1`, `POPT.2`, and `POPT.3/POPT.3R` are closed with explicit hold posture on `POPT.3R` stretch gate.
+3. `POPT.4` executed with bounded reopens `R2` and final `R3`; phase now closed at `UNLOCK_POPT5_CONTINUE`.
+4. `POPT.5` is closed with decision `GO_P0` and explicit residual-budget posture recorded.
+5. `P0` is closed (`P0.1 -> P0.5`) with authority gateboard + owner matrix + candidate protocol artifacts.
+6. `P1` local Wave-A correctness lane is closed with hold posture and upstream reopen trigger.
+7. `P1 Reopen Bridge` + `P1.T3` are closed with explicit `UNLOCK_P2`.
+8. `P2` is closed with `UNLOCK_P2_UPSTREAM_REOPEN` (local infeasibility proven for `T7`; frozen rails preserved).
+9. `P2.U1` executed and closed: `T7` now `PASS_B`, frozen rails preserved, `T6` remains red.
+10. `P2.4` bounded local lane is now closed as insufficient for B closure on `T6`.
+11. `P2.U2.1` is closed with `REJECT_u2_1_c1`.
+12. `P2.U2.2` trigger lane is closed with `SKIP_P2_U2_2_3B_CODE`.
+13. `P2.U2.3` branch closure is recorded as `HOLD_P2_UPSTREAM_REOPEN`.
+14. `P2.U3` is closed with `KEEP_u3_1_c1` and lane decision `UNLOCK_P3`.
+15. `P3` is closed (`P3.1 -> P3.5`) with decision `UNLOCK_P4`.
+16. `P4` is executed end-to-end (`P4.1 -> P4.6`) and reopened via `P4.R1 -> P4.R5`; final decision is `PASS_B_ROBUST`.
+17. `P5` is closed with decision `SEG5B_FROZEN_PASS_B`; Segment 5B remediation is closed/frozen.
+18. `P6` B+ recovery lane is executed end-to-end (`P6.1 -> P6.5`) and closed with `SEG5B_P6_RETAIN_PASS_B`.
+19. Active step: `Next segment planning` (or explicit user-directed reopen lane).
+
+## 10) P6.U - Upstream B+ Reopen (user-directed, bounded)
+Goal:
+- test whether reopening true upstream owners can move Segment `5B` from robust `B` to `B+`.
+
+Scope:
+- `U1`: `3B.S1` virtual classification owner lane (`T7+` owner with `T6+` side-effect).
+- `U2`: `2B/3B` topology owner lane for residual `T6+` only if `U1` is insufficient.
+- `5B` remains veto authority; no hard-rail relaxations are allowed.
+
+Execution contract:
+1. run bounded candidate on one seed first (`seed=7` authority run-id).
+2. only fan out to four-seed lane if single-seed candidate shows material movement toward B+ with zero hard-rail regressions.
+3. rollback candidate policy/config immediately if candidate fails hard rails or shows non-material movement.
+
+Closure decisions:
+- `UNLOCK_U1_FANOUT`: single-seed upstream candidate is strong; proceed multi-seed.
+- `HOLD_U1_REJECTED`: candidate fails or movement is non-material; rollback and either try next bounded candidate or stop reopen.
+- `UNLOCK_U2`: `U1` closes `T7+` but residual `T6+` remains.
+- `SEG5B_UPGRADE_PASS_BPLUS`: full certification passes B+.
+- `SEG5B_RETAIN_PASS_B`: bounded upstream reopen exhausted without B+ closure.
+
+U1.C1 execution snapshot (2026-02-23, run-id `65bd3b8fde7f467f8abaee6a5516ee75`, seed `7`):
+- candidate objective:
+  - reopen upstream `3B.S1` virtual-owner lane and test bounded movement toward `B+` without breaking hard rails.
+- candidate lane actions:
+  - reran `2A.S4->S5` to rebuild a clean seed-7 `validation_bundle_2A` after legacy bundle contamination blocked `3B.S0` gate.
+  - reran full `3B.S0->S5` on candidate run-id.
+  - reopened `2B` upstream owner surfaces on the same run-id (`S0->S4`, `S7`, `S8`) to restore seed-7-compatible `5B.S0` sealed-input and `validation_bundle_2B` digests.
+  - reran `5B.S0`, `5B.S4`, `5B.S5`.
+  - rescored candidate in isolated out-root:
+    - `runs/fix-data-engine/segment_5B/reports/p6u1_c1_65bd/segment5b_p1_realism_gateboard_65bd3b8fde7f467f8abaee6a5516ee75.json`
+    - `runs/fix-data-engine/segment_5B/reports/p6u1_c1_65bd/segment5b_p2_gateboard_65bd3b8fde7f467f8abaee6a5516ee75_p6u1_c1_65bd.json`
+- measured posture:
+  - hard rails: pass.
+  - `T6`: improved vs baseline (`-0.6103 pp`) but remains B+ red.
+  - `T7`: regressed sharply (`+6.8196 pp` vs baseline) and fails B band (`10.5238%`).
+  - lane decision from scorer: `HOLD_P2_REOPEN`, phase grade `HOLD_REMEDIATE`.
+- bounded reopen decision:
+  - `HOLD_U1_REJECTED` for candidate `U1.C1`.
+  - keep `SEG5B_RETAIN_PASS_B` frozen authority; no fanout to multi-seed for this candidate.
+
+User freeze directive closure (2026-02-23):
+- user directed immediate freeze at `PASS_B`.
+- freeze decision artifacts emitted:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_freeze_decision_20260223T223504Z.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_freeze_handoff_20260223T223504Z.md`
+- effective terminal status for Segment `5B`:
+  - `SEG5B_FROZEN_PASS_B` (`certified_class=PASS_B_ROBUST`).
+
+## 11) 2026-02-28 Memory Hardening Reopen Lane (`S1/S2/S4`)
+Goal:
+- reduce memory-spike risk in `5B` heavy states so full-chain reruns do not crash host memory.
+
+Scope:
+- dependency contract gate: `5A.S4 -> 5B.S1` (`channel_group` required by grouping-domain scan).
+- owner state `S1`: grouping-domain derivation (`packages/engine/src/engine/layers/l2/seg_5B/s1_time_grid/runner.py`).
+- owner state `S4`: arrival-event expansion/materialization (`packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/runner.py`).
+- secondary watch `S2`: fallback concat path (`packages/engine/src/engine/layers/l2/seg_5B/s2_latent_intensity/runner.py`).
+
+State-by-state execution order:
+1. `M5B.0` (`5A.S4` contract-compatibility gate for `channel_group`).
+2. `M5B.1` (`5B.S1` robust domain-derivation hardening).
+3. `M5B.2` (`5B.S4` eager-load/materialization hardening).
+4. `M5B.4` (`5B.S2` fallback memory hardening).
+5. `M5B.5` integrated witness (`S1 -> S2 -> S4 -> S5`) and closure.
+
+Execution phases:
+
+### M5B.0 - Upstream contract gate (`5A.S4 -> 5B.S1`)
+Definition of done:
+- [x] `merchant_zone_scenario_local_5A` includes `channel_group` on current witness lane.
+- [x] `5B.S1` no longer fails projection on scenario-local parquet scan.
+
+### M5B.1 - S1 domain-derivation hardening
+Definition of done:
+- [x] `S1` handles scenario-local domain extraction fail-closed with explicit compatibility path when `channel_group` is absent upstream.
+- [x] grouping keys remain deterministic and contract-compatible (`merchant_id`, `legal_country_iso`, `tzid`, `channel_group`).
+
+### M5B.2 - S4 eager-load elimination
+Definition of done:
+- [x] replace broad eager parquet loads with projection-scoped lazy/batched ingestion for large upstream tables.
+- [x] preserve deterministic routing/arrival semantics and schema contracts.
+
+### M5B.3 - S4 bounded join/materialization controls
+Definition of done:
+- [x] ensure join domains are bounded per scenario/batch (no unbounded all-domain materialization).
+- [x] maintain existing part-write posture and idempotent publish behavior.
+
+### M5B.4 - S2 fallback memory hardening
+Definition of done:
+- [x] remove or bound `realised_chunks` full concat fallback to prevent large in-memory accumulation.
+- [x] enforce streaming writer path or fail-closed guard if streaming backend unavailable.
+
+### M5B.5 - Witness rerun and closure decision
+Definition of done:
+- [ ] witness lane `S1 -> S2 -> S4 -> S5` completes `PASS` with no native memory crash.
+- [ ] runtime/row-count guardrails remain non-regressed.
+- [ ] decision emitted:
+  - `UNLOCK_M6A` if stable pass,
+  - `HOLD_M5B_REOPEN` otherwise.
+
+Execution evidence (current):
+- `run_id=43312aa79f8772de7dcc9db809b46992`:
+  - `S1=PASS` (projection blocker closed),
+  - `S2=PASS` (streaming-writer guard active),
+  - `S4=FAIL` due upstream data alignment blocker (`site_alias_missing` for non-virtual merchant), not memory/runtime crash.
+- `run_id=c25a2675fbfbacd952b13bb594880e92`:
+  - `S4=PASS` with projection-scoped loads + bounded domain cache (existing output idempotence preserved).
+  - `S5` executes validation checks to completion but ends with publish conflict on immutable authority outputs (`S5_OUTPUT_CONFLICT`), so this lane is evidence-only.

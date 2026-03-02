@@ -1,0 +1,43 @@
+DATA ENGINE STATE/GATE VIEW (docs-driven, simplified)
+Source basis: state-expanded docs + segment impl maps
+====================================================================================
+Canonical source note: this file is the authoritative naming layout for the
+engine state network. The `engine_state_gate_view.*` files are presentation
+aliases and must remain content-identical to this canonical layout.
+
+Layer 1 - World and Merchant Realism
+------------------------------------
+  1A: Merchants to Physical Sites (10 states)
+  1B: Site Geolocation (10 states)
+  2A: Civil Time (6 states)
+  2B: Routing: traffic to sites and edges (9 states)
+  3A: Zone Allocation (8 states)
+  3B: Virtual merchants & CDN surfaces (6 states)
+
+Layer 2 - Temporal Arrival Surfaces
+-----------------------------------
+  5A: Intensity Surfaces (6 states)
+  5B: Arrival Realisation (6 states)
+
+Layer 3 - Behavior, Fraud, and Labels
+-------------------------------------
+  6A: Entity & Product World (6 states)
+  6B: Behaviour, Fraud Overlay & Labelling (6 states)
+
+Canonical progression:
+  1A -> 1B -> 2A -> 2B -> 3A -> 3B -> 5A -> 5B -> 6A -> 6B
+
+Cross-segment gate refs:
+  1A -> 3A (gate ref)
+  1A -> 3B (gate ref)
+  1A -> 5A (gate ref)
+  1B -> 2B (gate ref)
+  1B -> 3A (gate ref)
+  1B -> 3B (gate ref)
+  1B -> 5A (gate ref)
+  2A -> 3A (gate ref)
+  2A -> 3B (gate ref)
+  2A -> 5A (gate ref)
+  2B -> 5A (gate ref)
+  3A -> 5A (gate ref)
+

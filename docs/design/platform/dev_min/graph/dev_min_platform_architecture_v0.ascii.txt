@@ -1,0 +1,147 @@
+DEV_MIN PLATFORM ARCHITECTURE (AS IMPLEMENTED FROM M2-M10)
+==========================================================
+
+Source basis
+------------
+- platform.build_plan.md (M0-M10 roadmap)
+- platform.M2..M10.build_plan.md (deep lane contracts)
+- dev_min run process flow + handles registry
+
+Design intent
+-------------
+Move Spine Green v0 from local_parity to managed substrate without changing
+truth ownership laws:
+- run-scoped identity everywhere
+- IG owns admission truth
+- append-only evidence
+- fail-closed blockers
+- no laptop runtime compute
+
+
+LAYER 0 - DELIVERY AND CONTROL
+------------------------------
+[GitHub Actions] ---> [Terraform core + confluent + demo]
+       |                       |
+       |                       +--> provision managed runtime and data stores
+       |
+       +--> [ECR immutable image: git tag -> digest]
+       +--> [phase snapshots: M2..M10]
+       +--> [M9 teardown workflows: destroy demo + confluent, preserve core]
+
+
+LAYER 1 - MANAGED SUBSTRATE BACKBONE
+------------------------------------
+[AWS ECS]          runtime services + one-shot tasks
+[Confluent Kafka] control + spine topics
+[S3 Object Store] oracle inputs + archive outputs
+[S3 Evidence]     receipts + run snapshots + closure artifacts
+[RDS Postgres]    state + checkpoints + append stores
+[SSM]             runtime secret handles
+[CloudWatch]      task/service logs
+[AWS Budgets]     post-teardown spend guardrail
+
+Guardrails pinned in plan:
+- no NAT
+- no always-on load balancer dependency
+- no laptop runtime compute
+
+
+LAYER 2 - ORACLE BOUNDARY (EXTERNAL)
+------------------------------------
+[Oracle stream_view inputs]
+- pre-staged
+- read-only from platform runtime in dev_min
+
+
+LAYER 3 - CONTROL + INGRESS (P4-P7)
+-----------------------------------
+[SR one-shot P5] --publish READY--> [fp.bus.control.v1]
+[WSP one-shot P6] <-consume READY-- [fp.bus.control.v1]
+[WSP one-shot P6] --push envelopes--> [Ingestion Gate service P4/P7]
+
+[Ingestion Gate]
+- auth + admit + dedupe at boundary
+- writes receipts/quarantine append artifacts
+- publishes ADMITTED envelopes to:
+  - fp.bus.traffic.*
+  - fp.bus.context.*
+
+[IG receipts/quarantine] ---> [S3 Evidence]
+
+
+LAYER 4 - RTDL + DECISION CHAIN (P8-P9)
+----------------------------------------
+[fp.bus.traffic + fp.bus.context] ---> [RTDL core services]
+RTDL core services:
+- ArchiveWriter
+- IEG
+- OFP
+- CSFB
+
+[RTDL core] --publish--> [fp.bus.rtdl.v1]
+[fp.bus.rtdl.v1] ---> [Decision lane services: DL, DF, AL, DLA]
+
+[Decision lane] --publish--> [fp.bus.audit.v1]
+[Decision lane] --publish--> [fp.bus.case.triggers.v1]
+[Decision lane] --summaries--> [S3 Evidence]
+
+[RTDL core] --archive events--> [S3 Object Store]
+[RTDL core] --projections/checkpoints--> [RDS Postgres]
+
+Archive intake into RTDL archive path also includes:
+- fp.bus.audit.v1
+- fp.bus.case.triggers.v1
+- fp.bus.labels.events.v1
+
+
+LAYER 5 - CASE + LABEL PLANE (P10)
+----------------------------------
+[fp.bus.case.triggers.v1] ---> [Case services: case_trigger + case_mgmt]
+[Case services] ---> [Label service: label_store]
+[Label service] --publish--> [fp.bus.labels.events.v1]
+
+[Case services] --append--> [RDS Postgres case timeline]
+[Label service] --append--> [RDS Postgres label assertions]
+[Case/Label summaries] ---> [S3 Evidence]
+
+
+LAYER 6 - OBS + GOV CLOSEOUT (P11)
+----------------------------------
+[Environment conformance service] ---> [S3 Evidence]
+
+[Reporter one-shot, single-writer]
+- reads run-scoped phase artifacts
+- builds closure bundle
+- writes:
+  - run_report.json
+  - environment_conformance.json
+  - governance/events.jsonl
+  - run_completed.json
+
+[closeout bundle] ---> [S3 Evidence]
+
+
+LAYER 7 - RUN-SCOPED IDENTITY LAW (CROSS-CUTTING)
+--------------------------------------------------
+[platform_run_id + scenario_run_id + REQUIRED_PLATFORM_RUN_ID]
+is required by:
+- SR
+- WSP
+- IG
+- RTDL core
+- decision lane
+- case + label services
+- reporter and closeout artifacts
+
+Run-scope identity must remain coherent across all evidence surfaces.
+
+
+LAYER 8 - P12 TEARDOWN AND COST POSTURE
+---------------------------------------
+[M9 teardown workflows] --destroy--> [demo + confluent stacks]
+[preserve set] keeps:
+- evidence surfaces
+- required control artifacts
+- core substrate posture
+
+[post-teardown budget checks] ensure residual spend stays attributed and bounded.

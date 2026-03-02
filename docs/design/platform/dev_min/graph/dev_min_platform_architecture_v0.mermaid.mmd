@@ -1,0 +1,130 @@
+%% Dev Min Platform Architecture (As Implemented from M2-M10 Plans)
+flowchart LR
+
+  subgraph DELIVERY[Delivery + Phase Control M1-M10]
+    GHA[GitHub Actions<br/>build, deploy, run workflows]
+    TF[Terraform Stacks<br/>core + confluent + demo]
+    ECR[[ECR Immutable Image<br/>git tag to digest]]
+    RUNCTL[[Run-Control Snapshots<br/>phase verdicts + blocker sets<br/>M2 to M10 evidence]]
+    TEARDOWN[Teardown Workflows M9<br/>destroy demo + confluent<br/>preserve core evidence]
+  end
+
+  subgraph ID[Run-Scoped Identity Law]
+    RID[platform_run_id + scenario_run_id<br/>REQUIRED_PLATFORM_RUN_ID<br/>across all runtime lanes]
+  end
+
+  subgraph SUBSTRATE[Managed Substrate Backbone dev_min]
+    ECS[(AWS ECS Cluster<br/>services + one-shot tasks)]
+    KAFKA[(Confluent Cloud Kafka<br/>control + spine topics)]
+    S3OBJ[(S3 Object Store<br/>oracle inputs + archive outputs)]
+    S3EVID[(S3 Evidence Store<br/>run-scoped receipts + snapshots)]
+    RDS[(RDS PostgreSQL<br/>state + checkpoints + append truth)]
+    SSM[(SSM Parameter Store<br/>secret handles only)]
+    CW[(CloudWatch Logs<br/>service and task evidence)]
+    BUDGET[(AWS Budgets<br/>M9 cost guardrail)]
+    GUARD[Guardrails<br/>no NAT, no always-on LB,<br/>no laptop runtime compute]
+  end
+
+  subgraph ORACLE[Oracle Boundary External to Platform Runtime]
+    ORACLESTORE[[Oracle stream_view inputs<br/>pre-staged, read-only in dev_min]]
+  end
+
+  subgraph INGRESS[Control + Ingress P4-P7]
+    SR[SR one-shot task P5<br/>publish READY]
+    WSP[WSP one-shot task P6<br/>stream bounded events]
+    IG[Ingestion Gate service P4 P7<br/>auth + admit + dedupe]
+    TCTRL[[fp.bus.control.v1<br/>READY]]
+    TING[[fp.bus.traffic + fp.bus.context<br/>ADMITTED envelopes]]
+    IGREC[[IG receipts + quarantine<br/>append evidence]]
+  end
+
+  subgraph RTDL[RTDL + Decision Chain P8-P9]
+    RTDLCORE[RTDL core services<br/>ArchiveWriter, IEG, OFP, CSFB]
+    TRTDL[[fp.bus.rtdl.v1<br/>decision chain input]]
+    DECISION[Decision lane services<br/>DL, DF, AL, DLA]
+    TAUDIT[[fp.bus.audit.v1]]
+    TCASE[[fp.bus.case.triggers.v1]]
+  end
+
+  subgraph CASELBL[Case + Label Plane P10]
+    CASEP[Case services<br/>case_trigger + case_mgmt]
+    LABELP[Label service<br/>label_store]
+    TLABELS[[fp.bus.labels.events.v1]]
+  end
+
+  subgraph OBS[Obs + Gov Closeout P11]
+    CONF[Environment conformance service<br/>continuous posture checks]
+    REPORTER[Reporter one-shot task<br/>single-writer closeout]
+    CLOSEOUT[[run_report.json<br/>environment_conformance.json<br/>governance/events.jsonl<br/>run_completed.json]]
+  end
+
+  GHA -->|build and push| ECR
+  GHA -->|apply and rollout| TF
+  GHA -->|publish phase snapshots| RUNCTL
+  GHA -. M9 destroy lanes .-> TEARDOWN
+
+  TF -->|provision| ECS
+  TF -->|provision| KAFKA
+  TF -->|provision| S3OBJ
+  TF -->|provision| S3EVID
+  TF -->|provision| RDS
+  TF -->|provision| SSM
+  TF -->|provision| CW
+  TF -->|provision| BUDGET
+  TF -->|enforce posture| GUARD
+
+  ECR -->|task definitions use image digest| ECS
+  SSM -. runtime secret injection .-> ECS
+  ECS -. logs and failures .-> CW
+
+  ORACLESTORE -->|required output_id metadata| SR
+  ORACLESTORE -->|read stream_view artifacts| WSP
+
+  SR -->|READY published| TCTRL
+  TCTRL -->|run-scoped start| WSP
+  WSP -->|POST /v1/ingest/push| IG
+
+  IG -->|receipt/quarantine decision| IGREC
+  IGREC -->|durable evidence| S3EVID
+  IG -->|publish ADMITTED| TING
+
+  TING -->|consume traffic/context| RTDLCORE
+  RTDLCORE -->|publish decision chain input| TRTDL
+  TRTDL -->|consume| DECISION
+
+  DECISION -->|publish audit| TAUDIT
+  DECISION -->|publish case trigger| TCASE
+  TCASE -->|consume| CASEP
+  CASEP -->|label handoff| LABELP
+  LABELP -->|publish label events| TLABELS
+
+  RTDLCORE -->|archive events| S3OBJ
+  RTDLCORE -->|projections and checkpoints| RDS
+  DECISION -->|decision/action/audit summaries| S3EVID
+  CASEP -->|case timeline append| RDS
+  LABELP -->|label assertion append| RDS
+  CASEP -->|case summaries| S3EVID
+  LABELP -->|label summaries| S3EVID
+
+  CONF -->|conformance artifacts| S3EVID
+  REPORTER -->|single-writer assembly| CLOSEOUT
+  CLOSEOUT -->|P11 closure evidence| S3EVID
+
+  S3EVID -. reads phase artifacts .-> REPORTER
+  RDS -. reads reconciliation state .-> REPORTER
+  TAUDIT -. archive intake .-> RTDLCORE
+  TCASE -. archive intake .-> RTDLCORE
+  TLABELS -. archive intake .-> RTDLCORE
+
+  RID -. run scope required .-> SR
+  RID -. run scope required .-> WSP
+  RID -. run scope required .-> IG
+  RID -. run scope required .-> RTDLCORE
+  RID -. run scope required .-> DECISION
+  RID -. run scope required .-> CASEP
+  RID -. run scope required .-> LABELP
+  RID -. run scope required .-> REPORTER
+  RID -. run scope required .-> CLOSEOUT
+
+  TEARDOWN -. destroy demo + confluent .-> TF
+  TEARDOWN -. post-teardown guardrail .-> BUDGET

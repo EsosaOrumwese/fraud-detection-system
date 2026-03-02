@@ -33,9 +33,9 @@ resource "aws_s3_bucket" "core" {
 }
 
 resource "aws_s3_bucket_public_access_block" "core" {
-  for_each = aws_s3_bucket.core
+  for_each = local.bucket_names
 
-  bucket                  = each.value.id
+  bucket                  = aws_s3_bucket.core[each.key].id
   block_public_acls       = true
   block_public_policy     = true
   ignore_public_acls      = true
@@ -43,18 +43,18 @@ resource "aws_s3_bucket_public_access_block" "core" {
 }
 
 resource "aws_s3_bucket_versioning" "core" {
-  for_each = aws_s3_bucket.core
+  for_each = local.bucket_names
 
-  bucket = each.value.id
+  bucket = aws_s3_bucket.core[each.key].id
   versioning_configuration {
     status = lookup(local.bucket_versioning_status_by_role, each.key, "Enabled")
   }
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "core" {
-  for_each = aws_s3_bucket.core
+  for_each = local.bucket_names
 
-  bucket = each.value.id
+  bucket = aws_s3_bucket.core[each.key].id
   rule {
     apply_server_side_encryption_by_default {
       sse_algorithm = "AES256"
@@ -129,10 +129,10 @@ resource "aws_dynamodb_table" "tf_lock" {
 resource "aws_budgets_budget" "dev_min_monthly" {
   count = var.enable_budget_alert && trimspace(var.budget_alert_email) != "" ? 1 : 0
 
-  name         = "${var.name_prefix}-monthly-cost"
+  name         = trimspace(var.budget_name) != "" ? var.budget_name : "${var.name_prefix}-budget"
   budget_type  = "COST"
-  limit_amount = tostring(var.monthly_budget_usd)
-  limit_unit   = "USD"
+  limit_amount = tostring(var.budget_limit_amount)
+  limit_unit   = var.budget_limit_unit
   time_unit    = "MONTHLY"
 
   cost_filter {
@@ -140,19 +140,14 @@ resource "aws_budgets_budget" "dev_min_monthly" {
     values = ["project$${var.common_tags[\"project\"]}"]
   }
 
-  notification {
-    comparison_operator        = "GREATER_THAN"
-    threshold                  = 80
-    threshold_type             = "PERCENTAGE"
-    notification_type          = "ACTUAL"
-    subscriber_email_addresses = [var.budget_alert_email]
-  }
-
-  notification {
-    comparison_operator        = "GREATER_THAN"
-    threshold                  = 100
-    threshold_type             = "PERCENTAGE"
-    notification_type          = "ACTUAL"
-    subscriber_email_addresses = [var.budget_alert_email]
+  dynamic "notification" {
+    for_each = var.budget_alert_thresholds
+    content {
+      comparison_operator        = "GREATER_THAN"
+      threshold                  = notification.value
+      threshold_type             = "ABSOLUTE_VALUE"
+      notification_type          = "ACTUAL"
+      subscriber_email_addresses = [var.budget_alert_email]
+    }
   }
 }

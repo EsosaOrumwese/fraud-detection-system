@@ -807,17 +807,31 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                 {"path": str(profile_path)},
                 manifest_fingerprint,
             )
-        profile_df = pl.read_parquet(
-            profile_path,
-            columns=[
-                "manifest_fingerprint",
-                "parameter_hash",
-                "merchant_id",
-                "legal_country_iso",
-                "tzid",
-                "demand_class",
-            ],
-        )
+        profile_df = pl.read_parquet(profile_path)
+        if "channel_group" not in profile_df.columns:
+            logger.warning(
+                "S2: merchant_zone_profile_5A missing channel_group; defaulting to mixed for compatibility."
+            )
+            profile_df = profile_df.with_columns(pl.lit("mixed").alias("channel_group"))
+        profile_required_columns = [
+            "manifest_fingerprint",
+            "parameter_hash",
+            "merchant_id",
+            "legal_country_iso",
+            "tzid",
+            "demand_class",
+            "channel_group",
+        ]
+        missing_profile_columns = [column for column in profile_required_columns if column not in profile_df.columns]
+        if missing_profile_columns:
+            _abort(
+                "S2_REQUIRED_INPUT_MISSING",
+                "V-05",
+                "merchant_zone_profile_columns_missing",
+                {"missing_columns": missing_profile_columns},
+                manifest_fingerprint,
+            )
+        profile_df = profile_df.select(profile_required_columns)
         _validate_array_rows(
             profile_df.iter_rows(named=True),
             schema_5a,
@@ -845,17 +859,30 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
             )
 
         domain_df = (
-            profile_df.select(["demand_class", "legal_country_iso", "tzid"])
+            profile_df.select(["demand_class", "legal_country_iso", "tzid", "channel_group"])
             .unique()
-            .sort(["demand_class", "legal_country_iso", "tzid"])
+            .sort(["demand_class", "legal_country_iso", "tzid", "channel_group"])
         )
+        missing_domain_channels = domain_df.filter(pl.col("channel_group").is_null()).height
+        if missing_domain_channels:
+            _abort(
+                "S2_GATE_OR_S1_INVALID",
+                "V-05",
+                "domain_channel_group_missing",
+                {"rows": int(missing_domain_channels)},
+                manifest_fingerprint,
+            )
         domain_rows = domain_df.height
         counts["domain_rows"] = domain_rows
         counts["classes_total"] = domain_df.select("demand_class").unique().height if domain_rows else 0
+        counts["channel_groups_realized"] = (
+            domain_df.select("channel_group").unique().height if domain_rows else 0
+        )
         logger.info(
             "S2: domain derived from merchant_zone_profile_5A "
-            "(classes=%s zones=%s rows=%s)",
+            "(classes=%s channels=%s zones=%s rows=%s)",
             counts["classes_total"],
+            counts["channel_groups_realized"],
             domain_df.select(["legal_country_iso", "tzid"]).unique().height if domain_rows else 0,
             domain_rows,
         )
@@ -871,15 +898,36 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
             )
 
         channel_groups = shape_library.get("channel_groups") or []
-        if "mixed" not in channel_groups:
+        if not isinstance(channel_groups, list) or not channel_groups:
             _abort(
                 "S2_REQUIRED_SHAPE_POLICY_MISSING",
                 "V-06",
-                "shape_library_missing_mixed_channel",
+                "shape_library_channel_groups_invalid",
                 {"channel_groups": channel_groups},
                 manifest_fingerprint,
             )
-        channel_group = "mixed"
+        channel_groups = [str(channel).strip() for channel in channel_groups]
+        if any(not channel for channel in channel_groups):
+            _abort(
+                "S2_REQUIRED_SHAPE_POLICY_MISSING",
+                "V-06",
+                "shape_library_channel_groups_invalid",
+                {"channel_groups": channel_groups},
+                manifest_fingerprint,
+            )
+        policy_channel_groups = set(channel_groups)
+        domain_channel_groups = (
+            set(domain_df.get_column("channel_group").drop_nulls().unique().to_list()) if domain_rows else set()
+        )
+        missing_policy_channels = sorted(domain_channel_groups - policy_channel_groups)
+        if missing_policy_channels:
+            _abort(
+                "S2_TEMPLATE_RESOLUTION_FAILED",
+                "V-06",
+                "domain_channel_group_missing_in_policy",
+                {"missing_channel_groups": missing_policy_channels},
+                manifest_fingerprint,
+            )
 
         zone_group_mode = shape_library.get("zone_group_mode") or {}
         zone_group_mode_name = zone_group_mode.get("mode")
@@ -1011,7 +1059,10 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
             rules_map[rule_key] = {"candidate_ids": candidate_ids, "selection_law": selection_law}
 
         domain_classes = set(domain_df.get_column("demand_class").to_list()) if domain_rows else set()
-        for demand_class in domain_classes:
+        domain_class_channel_pairs = (
+            set(tuple(row) for row in domain_df.select(["demand_class", "channel_group"]).iter_rows()) if domain_rows else set()
+        )
+        for demand_class, channel_group in domain_class_channel_pairs:
             if (demand_class, channel_group) not in rules_map:
                 _abort(
                     "S2_TEMPLATE_RESOLUTION_FAILED",
@@ -1393,6 +1444,7 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
             demand_class = row.get("demand_class")
             legal_country_iso = row.get("legal_country_iso")
             tzid = row.get("tzid")
+            channel_group = row.get("channel_group")
 
             rule = rules_map.get((demand_class, channel_group))
             if not rule:
@@ -1579,7 +1631,7 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
             if emit_adjustment_flags:
                 shape_schema["adjustment_flags"] = pl.Series([], dtype=pl.List(pl.Utf8))
             shape_df = pl.DataFrame(shape_schema)
-        shape_df = shape_df.sort(["demand_class", "legal_country_iso", "tzid", "bucket_index"])
+        shape_df = shape_df.sort(["demand_class", "legal_country_iso", "tzid", "channel_group", "bucket_index"])
         _validate_array_rows(
             shape_df.iter_rows(named=True),
             schema_5a,
@@ -1592,7 +1644,12 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
 
         catalogue_rows: list[dict] = []
         if domain_rows:
-            for demand_class in sorted(domain_classes):
+            catalogue_keys = (
+                domain_df.select(["demand_class", "channel_group"]).unique().sort(["demand_class", "channel_group"])
+            )
+            for key_row in catalogue_keys.iter_rows(named=True):
+                demand_class = key_row.get("demand_class")
+                channel_group = key_row.get("channel_group")
                 rule = rules_map.get((demand_class, channel_group))
                 if not rule:
                     continue
