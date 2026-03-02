@@ -273,10 +273,68 @@ Mandatory drill families (aligned to truth anchor):
 4. `DR-05` dependency outage with degrade/recover.
 5. `DR-07` runtime cost guardrail response.
 
+Execution strategy (expanded):
+1. `RC3.A` entry validation:
+   - require `RC1` PASS artifacts,
+   - load RC0 claim/metric dictionary,
+   - allow `RC2` HOLD to remain open while RC3 is executed (no silent waiver).
+2. `RC3.B` drill evidence resolution:
+   - resolve one deterministic evidence bundle per mandatory drill family,
+   - require local-path readability; durable S3 ref is preferred and readback-checked.
+3. `RC3.C` drill contract extraction:
+   - per drill row, extract and pin:
+     - scenario,
+     - expected behavior,
+     - observed outcomes,
+     - integrity checks,
+     - recovery bound.
+4. `RC3.D` fail-closed drill adjudication:
+   - any missing mandatory drill -> `RC-B3`,
+   - any drill with missing contract fields or unbounded recovery/integrity proof -> `RC-B5`,
+   - no implied pass; evidence must be explicit and inspectable.
+5. `RC3.E` deterministic artifact publication + readback:
+   - publish `runtime_drill_bundle.json`, `runtime_blocker_register.json`, `runtime_certification_verdict.json`, `rc3_execution_snapshot.json`,
+   - publish durable mirror under runtime cert prefix and verify readback for published objects.
+
+RC3 outputs (deterministic):
+1. `runtime_drill_bundle.json`
+2. `runtime_blocker_register.json`
+3. `runtime_certification_verdict.json`
+4. `rc3_execution_snapshot.json`
+
+RC3 artifact paths:
+1. local:
+   - `runs/dev_substrate/dev_full/cert/runtime/<runtime_cert_execution_id>/`
+2. durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/<runtime_cert_execution_id>/`
+
 DoD:
 - [ ] each drill has scenario, expected behavior, observed outcome, integrity checks, recovery bound.
 - [ ] each drill emits durable drill bundle artifact.
 - [ ] no drill pass is accepted with missing integrity proof.
+
+RC3 execution snapshot (latest):
+1. `runtime_cert_execution_id=rc3_tier0_drill_pack_20260302T155517Z`
+2. `platform_run_id=platform_20260302T080146Z`
+3. `scenario_run_id=scenario_9de27c0bd83aed3a4aea4d0063c981f1`
+4. local artifact root:
+   - `runs/dev_substrate/dev_full/cert/runtime/rc3_tier0_drill_pack_20260302T155517Z/`
+5. durable artifact root:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc3_tier0_drill_pack_20260302T155517Z/`
+6. lane verdict:
+   - `overall_pass=false`
+   - `verdict=HOLD`
+   - `next_gate=RC3_REMEDIATION_REQUIRED`
+7. drill-family outcomes:
+   - `DR-02`: pass
+   - `DR-03`: fail-closed (missing explicit lag-spike injection/recovery drill proof)
+   - `DR-04`: fail-closed (missing explicit schema-break injection + quarantine/recovery proof)
+   - `DR-05`: pass
+   - `DR-07`: fail-closed (missing explicit breach->action->idle-safe drill cycle proof)
+8. active blockers:
+   - `RC-B5` `DR-03` lag-spike drill incompleteness.
+   - `RC-B5` `DR-04` schema-evolution drill incompleteness.
+   - `RC-B5` `DR-07` cost-guardrail response drill incompleteness.
 
 ### RC4 - Tier 1 runtime differentiator pack
 Goal:
