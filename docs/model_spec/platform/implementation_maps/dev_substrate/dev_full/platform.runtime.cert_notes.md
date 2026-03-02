@@ -98,6 +98,18 @@ Implementation reasoning and decision process are recorded in:
    - soak: `>=6,480,000` sample, `>=300 eps`, `>=360 min` logical duration
    - replay_window: `>=10,000,000` sample
 
+## 9.1) RC2 Observed vs Required Comparison (Latest Authoritative Run)
+Source:
+- run id `22595073028`
+- execution `rc2_tier0_scorecard_20260302T204844Z`
+
+| Profile | Sample (Observed / Required) | EPS (Observed / Required) | Duration min (Observed / Required) | Result |
+| --- | --- | --- | --- | --- |
+| `steady` | `4,783 / 900,000` (`0.5314%`) | `0.5703 / 500` (`0.1141%`) | `0.1594 / 30` (`0.5314%`) | FAIL |
+| `burst` | `4,783 / 900,000` (`0.5314%`) | `0.5703 / 1500` (`0.0380%`) | `0.0531 / 10` (`0.5314%`) | FAIL |
+| `soak` | `4,783 / 6,480,000` (`0.0738%`) | `0.5703 / 300` (`0.1901%`) | `0.2657 / 360` (`0.0738%`) | FAIL |
+| `replay_window` | `4,783 / 10,000,000` (`0.0478%`) | `N/A` | `N/A` | FAIL |
+
 ## 10) Upstream Managed Volume Probe Receipt
 1. Managed run used to inject fresh campaign admissions before latest RC2 rerun:
    - workflow: `dev_full_m6f_streaming_active.yml`
