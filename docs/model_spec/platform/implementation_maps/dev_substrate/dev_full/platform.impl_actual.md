@@ -20138,3 +20138,65 @@ uns/dev_substrate/dev_full/m15/m15g_semantic_non_regression_20260302T083157Z/.
 6. Outcome:
    - branch posture restored for continued `cert-platform -> dev` fast-forward promotions,
    - `main` remains policy-governed via PRs.
+
+### 2026-03-02 19:00:15 +00:00 - RC1 implementation design lock (workflow-only)
+1. USER directed: proceed with RC1 implementation.
+2. Commit-scope law constraint applied:
+   - implement RC1 in workflow file only (`.github/workflows/...`) to keep commit scope compliant.
+3. Implementation approach selected:
+   - enable `rc1` lane mapping in `dev_full_runtime_cert_managed.yml`,
+   - add managed inline Python RC1 handler (inventory + fresh-gap + snapshot + durable readback),
+   - keep `rc0` and `rc2..rc6` fail-closed placeholders for now.
+4. Inputs/pins for RC1 handler:
+   - add `upstream_rc0_execution` (default authoritative RC0 pass id),
+   - add `rc1_cert_window_start_utc` optional override,
+   - add denylist of non-claimable execution ids for historical/scrapped exclusion.
+5. Data-flow/algorithm design:
+   - read authoritative RC0 artifacts from S3 (`claim matrix`, `metric dictionary`, `snapshot`),
+   - list active runtime-root objects and build deterministic filename index,
+   - materialize metric-level inventory rows in sorted order,
+   - derive Tier-0 fresh-gap register from non-`EVIDENCED_FRESH` rows,
+   - publish deterministic RC1 artifact set and perform hash readback verification.
+6. Complexity and performance posture:
+   - object scan complexity `O(N)` over runtime-root keys,
+   - metric evaluation `O(M)` with indexed lookups (`M`=metric rows),
+   - memory bounded by key index + row sets (minute-scale expected at current N/M).
+7. Blocker model for RC1 implementation:
+   - structural blockers only (`RC-B1/B2/B3/B8/B9`) drive `PASS/HOLD`,
+   - fresh evidence gaps are explicit inventory outcomes and route to `RC2/RC3` remediation.
+8. Planned validation:
+   - workflow YAML structure check via readback and grep,
+   - no local RC1 certification execution in this step.
+
+### 2026-03-02 19:05:00 +00:00 - RC1 managed implementation completed in runtime-cert workflow
+1. Implemented RC1 lane support in `.github/workflows/dev_full_runtime_cert_managed.yml`.
+2. Added RC1-specific workflow inputs:
+   - `upstream_rc0_execution` (default authoritative RC0 pass id),
+   - `rc1_cert_window_start_utc` (optional override),
+   - `rc1_non_claimable_execution_ids` (denylist).
+3. Lane resolver updated:
+   - `rc1` now marked `lane_supported=true` with snapshot path and expected next gate `RC2_READY_WITH_GAP_REGISTER`.
+4. Added managed inline RC1 handler:
+   - reads upstream RC0 snapshot/claim-matrix/metric-dictionary from S3,
+   - builds deterministic runtime evidence inventory (`runtime_evidence_inventory.json`),
+   - derives deterministic Tier-0 fresh-gap register (`runtime_fresh_gap_register.json`),
+   - emits RC1 snapshot (`rc1_execution_snapshot.json`),
+   - publishes artifacts to durable S3 and hash-verifies readback.
+5. Added fail-closed RC1 verdict gate:
+   - enforces identity fields, `overall_pass=true`, `blocker_count=0`, and expected next gate.
+6. Structural blocker handling implemented for RC1:
+   - `RC-B1`, `RC-B2`, `RC-B3`, `RC-B8`, `RC-B9`.
+7. Compatibility fix included:
+   - generic handler-path validation now runs only when a non-empty handler path is declared.
+8. Validation performed:
+   - workflow file contains RC1 inputs, inline handler, and RC1 verdict gate markers.
+9. Execution intentionally not started in this step; this is implementation wiring for managed RC1 runs.
+
+### 2026-03-02 19:09:30 +00:00 - RC1 workflow implementation committed and pushed
+1. Created workflow-only commit on `cert-platform`:
+   - commit: `60b5ac00c`
+   - message: `ci: implement managed RC1 evidence inventory lane`
+   - file scope: `.github/workflows/dev_full_runtime_cert_managed.yml` only.
+2. Pushed commit to `origin/cert-platform`:
+   - `497d469f6 -> 60b5ac00c`.
+3. RC1 managed lane is now available for workflow dispatch on `cert-platform`.
