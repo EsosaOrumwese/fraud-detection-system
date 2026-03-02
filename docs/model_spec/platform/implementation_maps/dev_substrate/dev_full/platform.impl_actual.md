@@ -19715,3 +19715,22 @@ ext_gate=M15.H_READY.
    - first-step checklist for RC/OC entry,
    - expected certification deliverables and stitched Point-X outputs.
 3. Design intent: reduce context overload risk and prevent drift/re-open of already closed build-phase decisions.
+
+### 2026-03-02 09:25:27 +00:00 - Dev-full graph alignment for M14/M15 truth
+1. Drift identified from graph audit:
+   - v0 graphs were aligned to M14 runtime placement repins, but M15 semantics and certification-entry posture were implicit rather than explicit.
+2. Decision taken:
+   - keep v0 graph structure stable and perform surgical updates only:
+     - add explicit `truth_view` lane visibility under Oracle boundary,
+     - add explicit point-in-time + leakage gates under Learning/Evolution,
+     - add explicit certification-track handoff surfaces from run-control/reporter evidence.
+3. Updated files:
+   - `docs/design/platform/dev_full/graph/dev_full_platform_planned_v0.mermaid.mmd`
+   - `docs/design/platform/dev_full/graph/dev_full_platform_planned_v0.ascii.txt`
+   - `docs/design/platform/dev_full/graph/dev_full_terraform_infrastructure_v0.mermaid.mmd`
+   - `docs/design/platform/dev_full/graph/dev_full_terraform_infrastructure_v0.ascii.txt`
+4. Rationale:
+   - enforce that runtime path remains past/present bounded,
+   - make learning-only truth consumption and fail-closed leakage posture visible,
+   - expose `CERTIFICATION_TRACKS_READY` handoff as a first-class control-plane output for next-stage RC/OC execution.
+5. No resource/tooling changes were introduced; this is documentation truth-alignment only.

@@ -138,6 +138,18 @@ Role in topology:
 - operations/control-surface handles and CI remote policy bridge.
 
 
+POST-M15 CERTIFICATION SURFACES (NON-TERRAFORM RESOURCES)
+---------------------------------------------------------
+[Runtime certification track RC0..RC5]
+[Ops/Gov certification track OC0..OC5]
+[M15 handoff + run-control evidence receipts]
+
+Notes:
+- These tracks consume existing run-control/evidence artifacts and M15 handoff outputs.
+- They are execution/certification surfaces, not additional Terraform-provisioned resources in this graph.
+- Managed workflow dispatch can originate from the existing GitHub Actions remote policy bridge in `dev_full/ops`.
+
+
 CROSS-STACK DEPENDENCY MAP
 --------------------------
 1) core -> streaming

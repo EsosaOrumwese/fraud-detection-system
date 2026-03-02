@@ -45,6 +45,12 @@ flowchart LR
     OPS_STATE[[state key<br/>dev_full/ops/terraform.tfstate]]
   end
 
+  subgraph CERT[Post-M15 Certification Surfaces (non-Terraform resources)]
+    CERT_RC[Runtime Certification Track<br/>RC0-RC5]
+    CERT_OC[Ops/Gov Certification Track<br/>OC0-OC5]
+    CERT_NOTE[[Consumes M15 handoff + run-control evidence<br/>no additional terraform resources in this graph]]
+  end
+
   GHA -->|apply core| CORE_NET
   GHA -->|apply streaming| STREAM_MSK
   GHA -->|apply runtime| RT_EDGE
@@ -90,3 +96,9 @@ flowchart LR
 
   OPS_SSM -. ops/runtime handle consumers .-> RT_EDGE
   DML_SSM -. logical learning-handle context<br/>(not direct terraform reference) .-> RT_SFN
+  OPS_GHA -. managed workflow dispatch .-> CERT_RC
+  OPS_GHA -. managed workflow dispatch .-> CERT_OC
+  CORE_S3 -. evidence/readback surfaces .-> CERT_NOTE
+  RT_SFN -. phase-gate/run receipts .-> CERT_NOTE
+  CERT_NOTE -. startup inputs .-> CERT_RC
+  CERT_NOTE -. startup inputs .-> CERT_OC
