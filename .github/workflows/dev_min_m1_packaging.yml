@@ -156,6 +156,7 @@ jobs:
           errors = []
           findings = []
           checks = {}
+          invalid_required_secret_paths = []
 
           # Check A: policy precheck presence in workflow source.
           workflow_text = workflow_path.read_text(encoding="utf-8", errors="ignore") if workflow_path.exists() else ""
@@ -273,7 +274,30 @@ jobs:
 
           # Check D: required secret-path handle mapping (profile-scoped).
           checks["required_secret_path_handles_count"] = len(required_secret_paths)
-          checks["required_secret_path_contract_pass"] = bool(required_secret_paths) if profile == "dev_full" else True
+          if profile == "dev_full":
+              valid_required_secret_paths = 0
+              for entry in required_secret_paths:
+                  if not isinstance(entry, str):
+                      invalid_required_secret_paths.append({"entry": entry, "reason": "non_string"})
+                      continue
+                  path_part = entry.strip()
+                  if not path_part:
+                      invalid_required_secret_paths.append({"entry": entry, "reason": "empty_path"})
+                      continue
+                  if any(ch.isspace() for ch in path_part):
+                      invalid_required_secret_paths.append({"entry": entry, "reason": "contains_whitespace"})
+                      continue
+                  if not path_part.startswith("/fraud-platform/dev_full/"):
+                      invalid_required_secret_paths.append({"entry": entry, "reason": "invalid_prefix"})
+                      continue
+                  valid_required_secret_paths += 1
+              checks["required_secret_path_valid_count"] = valid_required_secret_paths
+              checks["required_secret_path_invalid_count"] = len(invalid_required_secret_paths)
+              checks["required_secret_path_contract_pass"] = (
+                  valid_required_secret_paths > 0 and len(invalid_required_secret_paths) == 0
+              )
+          else:
+              checks["required_secret_path_contract_pass"] = True
 
           overall_pass = (
               checks["static_aws_credentials_rejected_precheck_present"] and
@@ -322,6 +346,7 @@ jobs:
               "secret_contract_profile": profile,
               "secrets_backend": secrets_backend,
               "required_secret_path_handles": required_secret_paths,
+              "invalid_required_secret_paths": invalid_required_secret_paths,
               "runtime_materialization_owner_phase": "M2+",
               "runtime_materialization_note": "M1 validates handle contract only; path existence/value retrieval is executed in substrate/runtime phases.",
               "verdict": "PASS" if checks["required_secret_path_contract_pass"] else "FAIL",

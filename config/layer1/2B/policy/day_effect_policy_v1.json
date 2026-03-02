@@ -34,7 +34,7 @@
   },
   "rng_engine": "philox2x64-10",
   "rng_stream_id": "2B.day_effects.gamma",
-  "sha256_hex": "f98ca0621eea84fb5f7054e81766b27aaa32f1ace136a256ffddae191dd5406a",
+  "sha256_hex": "75c50e1f6cfabfb0e785b7328870b148a85ea937a77ac98654262cd803a5ab64",
   "sigma_gamma": 0.12,
   "sigma_gamma_policy_v2": {
     "enabled": true,

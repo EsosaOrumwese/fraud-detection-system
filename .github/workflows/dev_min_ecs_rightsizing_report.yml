@@ -71,7 +71,7 @@ jobs:
       RESOLVED_CW_PERIOD_SECONDS: ${{ inputs.cloudwatch_period_seconds || vars.DEV_MIN_RIGHTSIZE_CW_PERIOD_SECONDS || '300' }}
       RESOLVED_EVIDENCE_BUCKET: ${{ inputs.evidence_bucket || vars.DEV_MIN_EVIDENCE_BUCKET || 'fraud-platform-dev-min-evidence' }}
       RESOLVED_EVIDENCE_PREFIX: ${{ inputs.evidence_prefix || vars.DEV_MIN_EVIDENCE_PREFIX || 'evidence/dev_min/run_control' }}
-      RESOLVED_UPLOAD_EVIDENCE: ${{ inputs.upload_evidence_to_s3 || 'true' }}
+      RESOLVED_UPLOAD_EVIDENCE: ${{ (github.event_name == 'schedule') || inputs.upload_evidence_to_s3 }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -331,7 +331,7 @@ jobs:
           PY
 
       - name: Upload rightsizing snapshot to S3
-        if: ${{ env.RESOLVED_UPLOAD_EVIDENCE == 'true' }}
+        if: ${{ github.event_name == 'schedule' || inputs.upload_evidence_to_s3 }}
         shell: bash
         run: |
           set -euo pipefail
