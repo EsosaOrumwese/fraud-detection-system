@@ -631,6 +631,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          CAPTURE_START_EPOCH="$(date +%s)"
           python scripts/dev_substrate/m6f_capture.py \
             --execution-id "${{ steps.run_meta.outputs.m6_execution_id }}" \
             --platform-run-id "${{ inputs.platform_run_id }}" \
@@ -654,6 +655,102 @@ jobs:
             --lag-threshold "${{ inputs.lag_threshold }}" \
             --evidence-bucket "${{ inputs.evidence_bucket }}" \
             --local-output-root "runs/dev_substrate/dev_full/m6"
+          export CAPTURE_START_EPOCH
+          export RUN_DIR="${{ steps.run_meta.outputs.run_dir }}"
+          export M6_EXECUTION_ID="${{ steps.run_meta.outputs.m6_execution_id }}"
+          export EVIDENCE_BUCKET="${{ inputs.evidence_bucket }}"
+          export AWS_REGION="${{ inputs.aws_region }}"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          import boto3
+
+          run_dir = Path(os.environ["RUN_DIR"])
+          capture_start_epoch = int(os.environ["CAPTURE_START_EPOCH"])
+          execution_id = str(os.environ["M6_EXECUTION_ID"]).strip()
+          bucket = str(os.environ["EVIDENCE_BUCKET"]).strip()
+          region = str(os.environ["AWS_REGION"]).strip()
+
+          snapshot_path = run_dir / "m6f_streaming_active_snapshot.json"
+          lag_path = run_dir / "m6f_streaming_lag_posture.json"
+          blocker_path = run_dir / "m6f_blocker_register.json"
+          summary_path = run_dir / "m6f_execution_summary.json"
+          ambiguity_path = run_dir / "m6f_publish_ambiguity_register.json"
+
+          snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
+          lag = json.loads(lag_path.read_text(encoding="utf-8"))
+          blockers = json.loads(blocker_path.read_text(encoding="utf-8"))
+          summary = json.loads(summary_path.read_text(encoding="utf-8"))
+          ambiguity = json.loads(ambiguity_path.read_text(encoding="utf-8"))
+
+          latest_admitted = snapshot.get("ig_idempotency_latest_admitted_epoch")
+          threshold = int(lag.get("threshold", 10))
+          if latest_admitted is None:
+              measured_lag = None
+              lag_source = "unavailable_no_latest_admission_epoch"
+              within_threshold = False
+          else:
+              measured_lag = max(0, int(capture_start_epoch) - int(latest_admitted))
+              lag_source = "ig_admission_freshness_seconds_capture_start_epoch"
+              within_threshold = measured_lag <= threshold
+
+          lag["measured_lag"] = measured_lag
+          lag["measurement_source"] = lag_source
+          lag["within_threshold"] = within_threshold
+          lag["capture_start_epoch"] = capture_start_epoch
+
+          existing = blockers.get("blockers", [])
+          filtered = [b for b in existing if str(b.get("code", "")).strip() != "M6P6-B4"]
+          if not within_threshold:
+              filtered.append(
+                  {
+                      "code": "M6P6-B4",
+                      "message": (
+                          "Lag posture unresolved or exceeds threshold "
+                          f"(threshold={threshold}, measured={measured_lag}, source={lag_source})"
+                      ),
+                  }
+              )
+          if int(ambiguity.get("unresolved_publish_ambiguity_count", 0)) > 0 and not any(
+              str(b.get("code", "")).strip() == "M6P6-B5" for b in filtered
+          ):
+              filtered.append(
+                  {
+                      "code": "M6P6-B5",
+                      "message": (
+                          "Unresolved publish ambiguity count is non-zero "
+                          f"({ambiguity.get('unresolved_publish_ambiguity_count')})."
+                      ),
+                  }
+              )
+
+          blockers["blockers"] = filtered
+          blockers["blocker_count"] = len(filtered)
+          overall_pass = len(filtered) == 0
+          summary["overall_pass"] = overall_pass
+          summary["blocker_count"] = len(filtered)
+          summary["next_gate"] = "M6.G_READY" if overall_pass else "HOLD_REMEDIATE"
+
+          snapshot_path.write_text(json.dumps(snapshot, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+          lag_path.write_text(json.dumps(lag, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+          blocker_path.write_text(json.dumps(blockers, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+          summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+
+          s3 = boto3.client("s3", region_name=region)
+          prefix = f"evidence/dev_full/run_control/{execution_id}/"
+          for path in (snapshot_path, lag_path, blocker_path, summary_path):
+              key = prefix + path.name
+              body = path.read_bytes()
+              s3.put_object(
+                  Bucket=bucket,
+                  Key=key,
+                  Body=body,
+                  ContentType="application/json",
+              )
+              s3.head_object(Bucket=bucket, Key=key)
+          PY
 
       - name: Fail-closed verdict gate
         shell: bash
