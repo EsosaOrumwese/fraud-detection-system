@@ -173,6 +173,85 @@ DoD:
 Blockers:
 1. `M15-B2` schema/profile drift beyond policy.
 
+Execution strategy (M15.B, detailed):
+1. Execution objective:
+   - convert M15.A hypotheses into measured facts from managed compute on a bounded representative horizon.
+2. Managed compute path:
+   - primary engine: `ATHENA_GLUE_ICEBERG` for profile SQL and reproducible receipts,
+   - fallback engine: `Databricks SQL/Spark` only if a required query cannot be expressed/performed reliably in Athena.
+3. Bounded-horizon inputs (must be pinned at run start):
+   - `window_start_utc`,
+   - `window_end_utc`,
+   - `window_profile_label` (for example `7d_baseline`),
+   - `max_scan_bytes_gb` hard cap,
+   - `max_rows_per_surface` soft cap for exploratory sub-profiles.
+4. In-scope surfaces for first pass:
+   - runtime/context: `s3_event_stream_with_fraud_6B`, `s3_flow_anchor_with_fraud_6B`, `arrival_events_5B`, `s1_arrival_entities_6B`,
+   - learning/truth: `s4_event_labels_6B`, `s4_flow_truth_labels_6B`, `s4_flow_bank_view_6B`, `s4_case_timeline_6B`,
+   - cautionary learning-only surface: `s1_session_index_6B`.
+5. Profiling lanes (all required):
+   - `B1 schema_profile`: column presence/type/null profile per surface,
+   - `B2 key_integrity`: duplicate/missing-key checks on expected key tuples,
+   - `B3 time_integrity`: coverage window, monotonic/time-gap posture, out-of-order indicators,
+   - `B4 joinability`: measured coverage for canonical join pairs from interface pack,
+   - `B5 entity_stability`: reuse/churn/collision posture for IEG candidate entity keys.
+6. Canonical key tuples (first-pass checks):
+   - event-flow pair: `flow_id,event_seq` (event granularity),
+   - arrival linkage: `merchant_id,arrival_seq`,
+   - flow truth linkage: `flow_id`,
+   - case linkage: `case_id` where applicable.
+7. Canonical join coverage matrix (first-pass):
+   - `s3_event_stream_with_fraud_6B` <-> `s3_flow_anchor_with_fraud_6B` on `flow_id`,
+   - `s3_flow_anchor_with_fraud_6B` <-> `arrival_events_5B` on `merchant_id,arrival_seq`,
+   - `arrival_events_5B` <-> `s1_arrival_entities_6B` on `merchant_id,arrival_seq`,
+   - `s4_event_labels_6B` <-> `s3_event_stream_with_fraud_6B` on `flow_id,event_seq`,
+   - `s4_flow_truth_labels_6B` <-> `s3_flow_anchor_with_fraud_6B` on `flow_id`,
+   - `s4_flow_bank_view_6B` <-> `s3_flow_anchor_with_fraud_6B` on `flow_id`.
+8. Late-arrival and ordering posture:
+   - compute observed delay distributions between event-time fields and label/case observation fields where available,
+   - when explicit observation timestamp is absent, emit explicit unresolved and block closure.
+9. Fail-closed policy for M15.B:
+   - missing required surface in bounded horizon,
+   - key tuple cannot be computed from available columns,
+   - unresolved join coverage for canonical pairs,
+   - scan cap breach without approved rebound run,
+   - durable evidence publish/readback failure.
+10. Classification model for findings:
+   - `PASS`: measured and within pinned policy,
+   - `ADVISORY`: measurable but outside preferred envelope (non-blocking for B only if no semantic risk),
+   - `BLOCKER (M15-B2)`: schema/profile drift that undermines contract assumptions.
+11. Output decision coupling to later phases:
+   - `M15.C` consumes `joinability`, `late-arrival`, and `entity_stability` outputs,
+   - `M15.D` consumes schema/key/time contracts and null policies,
+   - `M15.E` consumes feature-feasibility and label-link confidence outputs.
+
+M15.B execution sequence:
+1. Preflight:
+   - validate run inputs and scan caps,
+   - assert all in-scope surfaces are resolvable,
+   - generate `m15b_profile_manifest.json`.
+2. Run `B1..B5` profiling lanes in deterministic order.
+3. Assemble cross-lane matrix and adjudicate pass/advisory/blocker.
+4. Publish local artifacts and durable mirror.
+5. Emit phase verdict:
+   - `ADVANCE_TO_M15_C` when blocker count is zero,
+   - `BLOCKED_M15_B` otherwise.
+
+M15.B artifact contract:
+1. `m15b_profile_manifest.json`
+2. `m15b_schema_profile.json`
+3. `m15b_key_integrity_report.json`
+4. `m15b_time_integrity_report.json`
+5. `m15b_join_coverage_matrix.json`
+6. `m15b_entity_stability_report.json`
+7. `m15b_blocker_register.json`
+8. `m15b_execution_summary.json`
+
+M15.B runtime and cost guardrails:
+1. Target runtime <= 60 minutes for bounded first-pass window.
+2. Hard fail on `max_scan_bytes_gb` breach unless explicit operator-approved rebounded run is pinned.
+3. Emit `query_count`, `total_scanned_bytes`, `cost_estimate_usd`, and `rows_profiled` in execution summary.
+
 ### M15.C - Point-in-Time Policy Realization
 Goal:
 1. Pin executable policy for as-of joins, maturity lag, and leakage exclusions on real surfaces.

@@ -18982,3 +18982,25 @@ ext_gate = M14.F_READY.
    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15a_contract_mapping_20260302T070156Z/m15a_ieg_entity_map_candidates.json`
    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15a_contract_mapping_20260302T070156Z/m15a_blocker_register.json`
    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15a_contract_mapping_20260302T070156Z/m15a_execution_summary.json`
+
+## Entry: 2026-03-02 07:08:08 +00:00 - M15.B execution strategy lock (detailed planning)
+### Trigger
+1. Operator requested a detailed execution strategy for `M15.B` before running it.
+
+### Planning decisions
+1. M15.B is treated as the first heavy managed-data lane and is split into deterministic profiling lanes (`B1..B5`) with strict scan/cost guardrails.
+2. Primary compute path is pinned to Athena for reproducible contract profiling on Iceberg/Glue surfaces.
+3. Databricks is pinned as fallback only when a required profiling query cannot be reliably expressed/performed in Athena.
+4. First-pass posture is bounded-window only; full-horizon expansion is deferred until post-B findings review.
+
+### Strategy details pinned in deep plan
+1. Explicit in-scope surfaces list (runtime/context + truth + session caution surface).
+2. Canonical join matrix and key tuples from interface-pack join contracts.
+3. Explicit late-arrival and ordering posture checks.
+4. Fail-closed conditions for unresolved surfaces/keys/joins, scan-cap breach, and durable evidence failures.
+5. Artifact contract expanded to eight required outputs plus execution summary metrics.
+6. Runtime/cost guardrails pinned (`<=60m` bounded run, hard scan-cap enforcement, explicit query/bytes/cost metrics).
+
+### Scope boundary
+1. This step is planning-only.
+2. No M15.B execution was started in this entry.

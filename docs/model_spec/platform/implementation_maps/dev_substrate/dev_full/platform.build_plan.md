@@ -2082,6 +2082,10 @@ M15 progress snapshot:
    - summary: `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M15_B`, `next_gate=M15.B_READY`,
    - local evidence root: `runs/dev_substrate/dev_full/m15/m15a_contract_mapping_20260302T070156Z/`,
    - durable evidence root: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15a_contract_mapping_20260302T070156Z/`.
+2. `M15.B` is expanded to execution-grade strategy in deep plan:
+   - managed compute path pinned (`Athena` primary, `Databricks` fallback),
+   - bounded-horizon profiling lanes pinned (`B1 schema`, `B2 key`, `B3 time`, `B4 joinability`, `B5 entity stability`),
+   - fail-closed conditions, artifact contract, and scan/cost guardrails pinned.
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M15.build_plan.md`
