@@ -234,3 +234,43 @@ To be populated during RC0 materialization and updated as RC2+ runs execute.
 | RC2 | HOLD | Scorecard lane executed fail-closed; mandatory profile evidence not yet at pinned scale |
 | RC3 | HOLD | Drill-pack lane executed fail-closed; DR-03/DR-04/DR-07 remain incomplete and blocked |
 | RC1 (fresh) | PASS | Fresh-only inventory lane closed with deterministic gaps; Tier-0 fresh blockers explicit (15x RC-B3) |
+
+### 2026-03-02 16:38:40 +00:00 - RC1 remediation lane restart (OIDC trust drift)
+1. Attempted fresh managed `M6.F` lane dispatch from active branch `cert-platform`:
+   - run id: `22585644818`
+   - execution id: `m6f_p6b_streaming_active_20260302T163640Z`
+   - platform run id: `platform_20260302T163640Z`
+2. Run failed before lane execution at AWS credential bootstrap:
+   - step: `Configure AWS credentials via OIDC`
+   - failure: `Not authorized to perform sts:AssumeRoleWithWebIdentity`
+3. Root cause confirmed from IAM trust policy:
+   - role `GitHubAction-AssumeRoleWithAction` allowed `main/dev/migrate-dev` only,
+   - active runtime-cert branch `cert-platform` was not listed.
+4. Remediation applied directly in IAM trust (no branch operations):
+   - removed stale subject `...:ref:refs/heads/migrate-dev`,
+   - added `...:ref:refs/heads/cert-platform`,
+   - post-change allow-list: `main`, `dev`, `cert-platform`.
+
+### 2026-03-02 16:49:10 +00:00 - Fresh M6.F remediation pass (runtime path switch)
+1. First rerun with OIDC fixed but default runtime path (`EKS_EMR_ON_EKS`) failed fail-closed:
+   - run id: `22585858766`
+   - execution id: `m6f_p6b_streaming_active_20260302T164158Z`
+   - blockers:
+     - `M6P6-B2` lane refs remained `SUBMITTED` (not `RUNNING`),
+     - `M6P6-B3` run-window admission progression zero,
+     - `M6P6-B4` lag posture unresolved.
+2. Decision: switch lane runtime path to `EKS_FLINK_OPERATOR` (already pinned and supported by workflow) to avoid EMR-on-EKS scheduler stall for RC1 fresh evidence generation.
+3. Second rerun succeeded:
+   - run id: `22586052165`
+   - execution id: `m6f_p6b_streaming_active_20260302T164648Z`
+   - platform run id: `platform_20260302T164648Z`
+   - verdict: `overall_pass=true`, `next_gate=M6.G_READY`.
+4. Fresh evidence produced in run-control for this execution:
+   - `m6f_streaming_active_snapshot.json` shows:
+     - `runtime_path=EKS_FLINK_OPERATOR`,
+     - `wsp_state=RUNNING`, `sr_ready_state=RUNNING`,
+     - run-window IG admission count `12`.
+5. RC1 remediation posture after this step:
+   - OIDC branch-trust blocker is closed,
+   - fresh streaming-active evidence surface is now available for current cert window,
+   - next required closure is fresh P7 ingest-commit/rollup surfaces (M6.G/M6.H/M6.I) for full Tier-0 metric coverage.
