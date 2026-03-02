@@ -109,21 +109,6 @@ on:
         required: true
         default: "1.0"
         type: string
-      ig_bridge_event_count:
-        description: "Fallback IG bridge event count (EKS_FLINK_OPERATOR path)"
-        required: true
-        default: "12"
-        type: string
-      ig_bridge_workers:
-        description: "Fallback IG bridge concurrent workers"
-        required: true
-        default: "4"
-        type: string
-      ig_bridge_sleep_seconds:
-        description: "Fallback IG bridge per-request sleep seconds"
-        required: true
-        default: "0.2"
-        type: string
       emr_log_group_name:
         description: "CloudWatch log group for EMR jobs"
         required: true
@@ -500,19 +485,14 @@ jobs:
         if: ${{ inputs.runtime_path == 'EKS_FLINK_OPERATOR' }}
         continue-on-error: true
         shell: bash
-        env:
-          IG_BRIDGE_EVENT_COUNT: ${{ inputs.ig_bridge_event_count }}
-          IG_BRIDGE_WORKERS: ${{ inputs.ig_bridge_workers }}
-          IG_BRIDGE_SLEEP_SECONDS: ${{ inputs.ig_bridge_sleep_seconds }}
         run: |
           set -euo pipefail
           python - <<'PY'
-          from concurrent.futures import ThreadPoolExecutor, as_completed
           import json
-          import os
           import time
           import urllib.error
           import urllib.request
+          import os
           from pathlib import Path
 
           base_url = os.environ.get("IG_BASE_URL", "").rstrip("/")
@@ -521,9 +501,6 @@ jobs:
               ingest_path = "/" + ingest_path
           ingest_url = f"{base_url}{ingest_path}"
           api_key = os.environ.get("IG_API_KEY", "")
-          event_count = max(1, int(os.environ.get("IG_BRIDGE_EVENT_COUNT", "12")))
-          worker_count = max(1, int(os.environ.get("IG_BRIDGE_WORKERS", "4")))
-          sleep_seconds = max(0.0, float(os.environ.get("IG_BRIDGE_SLEEP_SECONDS", "0.2")))
           platform_run_id = "${{ inputs.platform_run_id }}"
           scenario_run_id = "${{ inputs.scenario_run_id }}"
           phase_id = "P6.B"
@@ -531,9 +508,12 @@ jobs:
               "${{ inputs.wsp_ref }}",
               "${{ inputs.sr_ready_ref }}",
           ]
+          admitted = 0
+          failed = 0
+          failures = []
           started_epoch = int(time.time())
 
-          def send_once(idx: int):
+          for idx in range(12):
               lane_ref = lane_refs[idx % len(lane_refs)]
               event_id = f"m6f_bridge:{platform_run_id}:{started_epoch}:{idx}"
               payload = {
@@ -559,34 +539,17 @@ jobs:
                   with urllib.request.urlopen(req, timeout=10) as resp:
                       status = int(resp.status)
                   if status == 202:
-                      ok = True
-                      reason = ""
-                  else:
-                      ok = False
-                      reason = f"unexpected_status:{status}"
-              except urllib.error.HTTPError as exc:
-                  ok = False
-                  reason = f"http_{exc.code}"
-              except Exception as exc:  # pragma: no cover - runtime guard
-                  ok = False
-                  reason = f"{type(exc).__name__}:{exc}"
-              if sleep_seconds > 0:
-                  time.sleep(sleep_seconds)
-              return ok, reason
-
-          admitted = 0
-          failed = 0
-          failures = []
-          with ThreadPoolExecutor(max_workers=worker_count) as pool:
-              futures = [pool.submit(send_once, idx) for idx in range(event_count)]
-              for fut in as_completed(futures):
-                  ok, reason = fut.result()
-                  if ok:
                       admitted += 1
                   else:
                       failed += 1
-                      if len(failures) < 16:
-                          failures.append(reason)
+                      failures.append(f"unexpected_status:{status}")
+              except urllib.error.HTTPError as exc:
+                  failed += 1
+                  failures.append(f"http_{exc.code}")
+              except Exception as exc:  # pragma: no cover - runtime guard
+                  failed += 1
+                  failures.append(f"{type(exc).__name__}:{exc}")
+              time.sleep(0.2)
 
           summary = {
               "captured_at_epoch": int(time.time()),
@@ -596,11 +559,9 @@ jobs:
               "ingest_url": ingest_url,
               "platform_run_id": platform_run_id,
               "scenario_run_id": scenario_run_id,
-              "attempted": event_count,
+              "attempted": 12,
               "admitted": admitted,
               "failed": failed,
-              "workers": worker_count,
-              "sleep_seconds": sleep_seconds,
               "failure_samples": failures[:8],
           }
           out = Path("${{ steps.run_meta.outputs.run_dir }}") / "m6f_ig_bridge_summary.json"
