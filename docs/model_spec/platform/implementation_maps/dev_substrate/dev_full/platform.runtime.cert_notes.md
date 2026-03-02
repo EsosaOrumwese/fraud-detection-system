@@ -176,3 +176,20 @@ To be populated only by clean restart executions.
    - `RC-B4` steady/burst/soak/replay-window profile evidence missing in active cert window.
 5. durable root:
    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc2_tier0_scorecard_20260302T193820Z/`
+
+## 13) RC2 Remediation Planning Lock (`2026-03-02`)
+1. Root cause accepted:
+   - RC2 adjudication was run before fresh profile evidence generation, producing predictable `RC-B4` holds.
+2. Anti-repeat gate pinned (binding):
+   - do not dispatch RC2 adjudication until profile-evidence manifest proves fresh claimable coverage for:
+     - `steady`, `burst`, `soak`, `replay_window`.
+3. Remediation sequence pinned:
+   - implement/execute managed profile generation lanes first,
+   - produce `runtime_profile_evidence_manifest.json`,
+   - run RC2 re-adjudication only after `manifest_complete=true`.
+4. Closure target:
+   - remove current `RC-B4` blockers,
+   - clear Tier-0 holds (`T0.2/T0.3/T0.4/T0.6`),
+   - move gate from `RC2_REMEDIATION_REQUIRED` to `RC3_READY_WITH_SCORECARD`.
+5. Fail-closed reminder:
+   - if any profile remains missing/non-fresh/non-claimable, RC2 remains in remediation posture and RC6 remains blocked.

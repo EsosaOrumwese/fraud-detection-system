@@ -20302,3 +20302,19 @@ uns/dev_substrate/dev_full/m15/m15g_semantic_non_regression_20260302T083157Z/.
    - `runtime_cost_outcome_receipt.json`
    - `rc2_execution_snapshot.json`.
 7. Runtime cert status transitioned to `RC2_HOLD_REMEDIATION_REQUIRED`; RC3 is remediation-only until Tier-0 holds are closed.
+
+### 2026-03-02 19:51:57 +00:00 - RC2 remediation planning correction (anti-repeat sequence gate)
+1. USER challenged the sequencing defect (adjudication before profile generation) and requested remediation planning.
+2. Added explicit RC2 remediation program into `platform.runtime_cert.plan.md`:
+   - dedicated `RC2 Remediation Program - Close RC-B4 Before RC3/RC6`,
+   - phased remediation sequence `RC2R.A..RC2R.F`,
+   - deterministic remediation artifact contract and remediation DoD.
+3. Added anti-repeat law (binding) to runtime plan:
+   - RC2 adjudication is blocked unless profile-evidence manifest confirms fresh claimable managed evidence for all required profiles.
+4. Added runtime-notes planning lock section:
+   - root-cause acknowledgment,
+   - remediation-first sequence pin,
+   - closure targets and fail-closed reminder.
+5. Outcome:
+   - planning posture corrected from "adjudicate-first" to "evidence-generation-first then adjudication",
+   - prevents recurrence of predictable `RC-B4` hold caused by sequence mismatch.

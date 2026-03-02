@@ -363,6 +363,73 @@ RC2 execution closure snapshot (`2026-03-02`):
    - `runtime_cost_outcome_receipt.json`
    - `rc2_execution_snapshot.json`
 
+### RC2 Remediation Program - Close `RC-B4` Before RC3/RC6
+Goal:
+1. Eliminate current RC2 blockers by producing fresh managed profile evidence for all mandatory profiles, then re-run RC2 adjudication to close Tier-0 holds.
+
+Anti-repeat execution law (new, binding):
+1. RC2 adjudication dispatch is blocked unless a preflight manifest proves all four profile families are present as fresh claimable managed evidence in the active campaign window:
+   - `steady`, `burst`, `soak`, `replay_window`.
+2. If manifest completeness is false for any profile, execution must stop at planning/remediation and must not dispatch RC2 adjudication.
+3. Any run violating this gate is classified `NON_CLAIMABLE_SEQUENCE_BREACH`.
+
+Remediation phases:
+1. `RC2R.A` decision closure gate:
+   - pin remediation execution IDs and profile ownership order,
+   - pin managed runner mechanism for profile generation,
+   - pin profile window semantics (logical vs wall-time acceptance for soak/replay).
+2. `RC2R.B` managed profile generation lane implementation:
+   - implement repository-tracked managed handlers for:
+     - `rc2_profile_steady_<timestamp>`
+     - `rc2_profile_burst_<timestamp>`
+     - `rc2_profile_soak_<timestamp>`
+     - `rc2_profile_replay_window_<timestamp>`
+   - each emits deterministic profile snapshot artifacts and publishes durable-first.
+3. `RC2R.C` per-profile threshold verification:
+   - evaluate sample/eps/duration requirements per profile,
+   - fail closed per profile if requirements are not met,
+   - quarantine failed profile attempts as non-claimable.
+4. `RC2R.D` profile-evidence manifest gate:
+   - emit `runtime_profile_evidence_manifest.json` with one row per required profile:
+     - `profile_id`, `execution_id`, `captured_at_utc`, `platform_run_id`, `scenario_run_id`,
+     - `meets_thresholds`, `claimable`, `evidence_ref`.
+   - `manifest_complete=true` only when all four rows are claimable + threshold-pass.
+5. `RC2R.E` RC2 re-adjudication run:
+   - dispatch fresh `rc2_tier0_scorecard_<timestamp>` adjudication only after manifest gate passes,
+   - require `blocker_count=0` and `tier0_hold_count=0` for remediation closure.
+6. `RC2R.F` closure sync and gate transition:
+   - update runtime notes/plan/logbook/impl map with closure receipts,
+   - only then transition next gate to `RC3_READY_WITH_SCORECARD`.
+
+Pre-execution decision gate for remediation (mandatory):
+1. Pin exact managed workflow topology:
+   - profile generation workflow ID (or lane extension) and adjudication workflow ID.
+2. Pin per-profile execution budget and stop conditions.
+3. Pin fallback policy when a profile misses thresholds (`rerun_count`, quarantine rules, escalation trigger).
+4. Pin manifest schema/version and the exact completeness predicate.
+5. Pin RC2 re-adjudication input contract to consume only manifest-approved profile evidence.
+
+Remediation deterministic artifacts:
+1. `rc2_profile_steady_snapshot.json`
+2. `rc2_profile_burst_snapshot.json`
+3. `rc2_profile_soak_snapshot.json`
+4. `rc2_profile_replay_window_snapshot.json`
+5. `runtime_profile_evidence_manifest.json`
+6. `runtime_scorecard_profiles.json` (re-adjudicated)
+7. `runtime_scorecard_claim_adjudication.json` (re-adjudicated)
+8. `runtime_scorecard_gap_resolution.json` (re-adjudicated)
+9. `runtime_blocker_register.json` (re-adjudicated)
+10. `runtime_cost_outcome_receipt.json` (re-adjudicated)
+11. `rc2_execution_snapshot.json` (re-adjudicated)
+
+Remediation DoD:
+- [ ] fresh managed evidence exists for all four mandatory profiles.
+- [ ] manifest completeness gate is true and references only claimable evidence.
+- [ ] RC2 re-adjudication closes with `blocker_count=0`.
+- [ ] Tier-0 claims `T0.2/T0.3/T0.4/T0.6` are no longer `HOLD`.
+- [ ] next gate transitions to `RC3_READY_WITH_SCORECARD`.
+- [ ] anti-repeat sequence gate is recorded as satisfied.
+
 ### RC3 - Tier 0 runtime drill-pack certification
 Goal:
 1. Certify mandatory failure-mode runtime drills.
