@@ -125,6 +125,25 @@ It is separate from implementation remediations; platform implementation adjustm
    - `DR-04` missing explicit schema-break injection + quarantine/recovery drill evidence,
    - `DR-07` missing explicit threshold-breach -> action -> idle-safe drill evidence.
 
+### 2026-03-02 16:10:09 +00:00 - RC1 fresh-only rerun (inventory PASS, Tier-0 fresh gaps explicit)
+1. Executed fresh-only RC1 inventory lane with deterministic id:
+   - `runtime_cert_execution_id=rc1_runtime_evidence_inventory_fresh_20260302T161002Z`.
+2. Freshness posture enforced:
+   - allowed evidence roots restricted to runtime-cert prefixes,
+   - historical lineage from `runs/dev_substrate/dev_full/m*` does not count as fresh.
+3. Outputs published:
+   - `runtime_evidence_inventory.json`
+   - `runtime_evidence_gap_register.json`
+   - `rc1_execution_snapshot.json`
+4. Durable publication/readback succeeded:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc1_runtime_evidence_inventory_fresh_20260302T161002Z/`.
+5. Lane verdict:
+   - `overall_pass=true` (inventory lane),
+   - `next_gate=RC2_READY_WITH_FRESH_GAP_REGISTER`.
+6. Fresh Tier-0 evidence blockers made explicit:
+   - `15` open `RC-B3` blockers across all Tier-0 metrics (`MISSING_FRESH_EVIDENCE` or `HISTORICAL_LINEAGE`).
+7. Prior RC1 (`rc1_runtime_evidence_inventory_20260302T144531Z`) is now treated as superseded for strict fresh-evidence certification posture.
+
 ## 3) Run Register
 | runtime_cert_execution_id | phase | started_utc | local_root | durable_root | status |
 | --- | --- | --- | --- | --- | --- |
@@ -132,6 +151,7 @@ It is separate from implementation remediations; platform implementation adjustm
 | rc1_runtime_evidence_inventory_20260302T144531Z | RC1 | 2026-03-02T14:45:31Z | runs/dev_substrate/dev_full/cert/runtime/rc1_runtime_evidence_inventory_20260302T144531Z | s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc1_runtime_evidence_inventory_20260302T144531Z | PASS |
 | rc2_tier0_scorecard_20260302T153633Z | RC2 | 2026-03-02T15:36:33Z | runs/dev_substrate/dev_full/cert/runtime/rc2_tier0_scorecard_20260302T153633Z | s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc2_tier0_scorecard_20260302T153633Z | HOLD |
 | rc3_tier0_drill_pack_20260302T155517Z | RC3 | 2026-03-02T15:55:17Z | runs/dev_substrate/dev_full/cert/runtime/rc3_tier0_drill_pack_20260302T155517Z | s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc3_tier0_drill_pack_20260302T155517Z | HOLD |
+| rc1_runtime_evidence_inventory_fresh_20260302T161002Z | RC1 (fresh) | 2026-03-02T16:10:02Z | runs/dev_substrate/dev_full/cert/runtime/rc1_runtime_evidence_inventory_fresh_20260302T161002Z | s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc1_runtime_evidence_inventory_fresh_20260302T161002Z | PASS |
 
 ## 4) Metrics Register
 To be populated during RC0 materialization and updated as RC2+ runs execute.
@@ -178,6 +198,15 @@ To be populated during RC0 materialization and updated as RC2+ runs execute.
 14. RC3 execution snapshot:
    - local: `runs/dev_substrate/dev_full/cert/runtime/rc3_tier0_drill_pack_20260302T155517Z/rc3_execution_snapshot.json`
    - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc3_tier0_drill_pack_20260302T155517Z/rc3_execution_snapshot.json`
+15. RC1 fresh evidence inventory:
+   - local: `runs/dev_substrate/dev_full/cert/runtime/rc1_runtime_evidence_inventory_fresh_20260302T161002Z/runtime_evidence_inventory.json`
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc1_runtime_evidence_inventory_fresh_20260302T161002Z/runtime_evidence_inventory.json`
+16. RC1 fresh gap register:
+   - local: `runs/dev_substrate/dev_full/cert/runtime/rc1_runtime_evidence_inventory_fresh_20260302T161002Z/runtime_evidence_gap_register.json`
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc1_runtime_evidence_inventory_fresh_20260302T161002Z/runtime_evidence_gap_register.json`
+17. RC1 fresh execution snapshot:
+   - local: `runs/dev_substrate/dev_full/cert/runtime/rc1_runtime_evidence_inventory_fresh_20260302T161002Z/rc1_execution_snapshot.json`
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc1_runtime_evidence_inventory_fresh_20260302T161002Z/rc1_execution_snapshot.json`
 
 ## 6) Blocker Register
 1. Active (`RC2`):
@@ -189,6 +218,8 @@ To be populated during RC0 materialization and updated as RC2+ runs execute.
    - `RC-B5` `DR-03` lag-spike injection/recovery drill proof missing.
    - `RC-B5` `DR-04` schema-break injection + quarantine/recovery drill proof missing.
    - `RC-B5` `DR-07` breach-response cost guardrail drill proof missing.
+3. Active (`RC1 fresh-only`):
+   - `RC-B3` Tier-0 metrics currently lack fresh evidence (`15` blockers total; see fresh gap register).
 
 ## 7) Phase Verdict Log
 | Lane | Verdict | Notes |
@@ -197,3 +228,4 @@ To be populated during RC0 materialization and updated as RC2+ runs execute.
 | RC1 | PASS | Runtime evidence inventory and gap register materialized with deterministic refs; no claim marked pass |
 | RC2 | HOLD | Scorecard lane executed fail-closed; mandatory profile evidence not yet at pinned scale |
 | RC3 | HOLD | Drill-pack lane executed fail-closed; DR-03/DR-04/DR-07 remain incomplete and blocked |
+| RC1 (fresh) | PASS | Fresh-only inventory lane closed with deterministic gaps; Tier-0 fresh blockers explicit (15x RC-B3) |

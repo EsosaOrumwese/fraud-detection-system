@@ -131,16 +131,26 @@ RC0 closure snapshot:
 Goal:
 1. Build authoritative inventory of available runtime evidence and missing pieces.
 
+Fresh-evidence policy (binding):
+1. RC1 for certification uses `fresh-only` posture:
+   - evidence must be produced within the active runtime-cert window,
+   - evidence lineage must not depend on historical phase artifacts outside the active cert window unless explicitly approved.
+2. Historical evidence is never counted as fresh by default:
+   - if an artifact references historical `M*` executions outside current cert window, mark as `HISTORICAL_LINEAGE` and register as gap/blocker candidate.
+3. RC1 remains an inventory lane:
+   - lane pass means inventory and gap classification are complete and deterministic,
+   - it does not mean Tier-0 evidence sufficiency is achieved.
+
 Execution strategy (expanded):
 1. `RC1.A` entry validation:
    - load latest RC0 artifacts (`runtime_claim_matrix.json`, `runtime_metric_dictionary.json`),
    - verify RC0 next gate is `RC1_READY`.
 2. `RC1.B` evidence surface crawl:
-   - inventory local runtime evidence under `runs/dev_substrate/dev_full/**`,
-   - inventory durable evidence under `s3://fraud-platform-dev-full-evidence/evidence/dev_full/**`.
+   - inventory local runtime evidence under runtime-cert roots for the active cert window,
+   - inventory durable evidence under `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/**` for active cert window.
 3. `RC1.C` claim/metric evidence indexing:
    - map each RC0 metric to inspectable artifact refs (local and/or durable),
-   - attach coverage status (`EVIDENCED` or `MISSING`) per metric.
+   - attach coverage status (`EVIDENCED_FRESH`, `MISSING_FRESH_EVIDENCE`, `HISTORICAL_LINEAGE`) per metric.
 4. `RC1.D` gap/blocker register:
    - register every missing Tier-0 evidence surface as `RC-B3` blocker candidate,
    - register Tier-1/2 missing surfaces as explicit non-silent gaps for downstream lanes.
@@ -163,24 +173,27 @@ RC1 artifact paths:
    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/<runtime_cert_execution_id>/`
 
 DoD:
-- [x] evidence index for existing dev_full runs is produced.
+- [x] evidence index for active cert-window runtime evidence is produced.
 - [x] missing evidence surfaces are registered as blockers.
 - [x] no claim is marked pass without inspectable artifact refs.
 
-RC1 closure snapshot:
-1. `runtime_cert_execution_id=rc1_runtime_evidence_inventory_20260302T144531Z`
+RC1 closure snapshot (latest fresh-only run):
+1. `runtime_cert_execution_id=rc1_runtime_evidence_inventory_fresh_20260302T161002Z`
 2. `platform_run_id=platform_20260302T080146Z`
 3. `scenario_run_id=scenario_9de27c0bd83aed3a4aea4d0063c981f1`
 4. local artifact root:
-   - `runs/dev_substrate/dev_full/cert/runtime/rc1_runtime_evidence_inventory_20260302T144531Z/`
+   - `runs/dev_substrate/dev_full/cert/runtime/rc1_runtime_evidence_inventory_fresh_20260302T161002Z/`
 5. durable artifact root:
-   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc1_runtime_evidence_inventory_20260302T144531Z/`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc1_runtime_evidence_inventory_fresh_20260302T161002Z/`
 6. lane verdict:
    - `overall_pass=true`
    - `lane_blockers=[]`
-   - `next_gate=RC2_READY_WITH_GAP_REGISTER`
+   - `next_gate=RC2_READY_WITH_FRESH_GAP_REGISTER`
 7. assertion posture:
    - all claim rows remain `evaluation_status=NOT_EVALUATED` and `pass_asserted=false` in RC1 outputs (inventory-only lane).
+8. fresh-gap posture:
+   - `15` Tier-0 `RC-B3` open blockers are explicit (`MISSING_FRESH_EVIDENCE` or `HISTORICAL_LINEAGE`),
+   - prior non-fresh inventory run is superseded for strict fresh-evidence certification posture.
 
 ### RC2 - Tier 0 runtime scorecard certification (steady/burst/soak)
 Goal:
@@ -205,7 +218,7 @@ Mandatory profiles:
 
 Execution strategy (expanded):
 1. `RC2.A` entry validation:
-   - require `RC1` lane pass (`next_gate=RC2_READY_WITH_GAP_REGISTER`),
+   - require latest `RC1` lane pass (`next_gate=RC2_READY_WITH_FRESH_GAP_REGISTER`),
    - load RC0 claim/metric dictionary and RC1 inventory.
 2. `RC2.B` profile evidence resolution:
    - resolve scorecard evidence candidate(s) for mandatory profiles (steady/burst/soak/replay-window),
