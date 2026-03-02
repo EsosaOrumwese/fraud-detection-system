@@ -18227,3 +18227,40 @@ o nodes available).
    - added `M14.B Performance Receipt (short)` subsection under closure snapshot.
 2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`:
    - added one-line short performance receipt in M14 progress snapshot.
+
+## Entry: 2026-03-02 01:02:10 +00:00 - M15 data-semantics realization phase is planned and pinned
+
+### Trigger
+1. USER requested a dedicated phase for understanding and implementing real data semantics for platform learning/evolution while continuing M14 realization.
+
+### Decision
+1. Added a dedicated `M15` planning phase rather than blending semantic realization inside active M14 runtime repin.
+2. Kept `M14` as active execution phase and set `M15` to planning-only (`NOT_STARTED`) to avoid execution-lane confusion.
+3. Pinned M15 objective as semantic realization over real data surfaces:
+   - authoritative contract anchored to `data_engine_interface.md`,
+   - point-in-time correctness (`replay_basis`, `as-of`, `maturity`) is mandatory,
+   - fail-closed no-future-leakage remains mandatory,
+   - managed-compute-only closure evidence for semantics.
+
+### Implemented documentation changes
+1. Updated master plan:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
+   - added canonical roadmap row for `M15`,
+   - added deep-plan routing to `platform.M15.build_plan.md`,
+   - expanded phase-stub heading to include M15,
+   - added full M15 stub section with scope, pinned decisions, lanes, blockers, and DoD anchors.
+2. Added deep plan:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M15.build_plan.md`
+   - includes:
+     - purpose and authority inputs,
+     - current baseline gap snapshot,
+     - entry fail-closed contract,
+     - pinned decisions and data-semantics contract,
+     - lane matrix (`M15.A..M15.J`),
+     - blocker taxonomy (`M15-B1..M15-B8`),
+     - initial runtime/cost targets,
+     - deterministic evidence contract.
+
+### Expected effect
+1. M15 now provides a formal path to replace bootstrap learning closures with real semantic closures without destabilizing active M14 runtime repin work.
+2. Upstream M9 guardrails remain the semantic floor for M15 implementation, not optional guidance.

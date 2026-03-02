@@ -195,6 +195,9 @@ Allowed tokens in pattern handles:
 * `S3_STREAM_VIEW_PREFIX_PATTERN = "oracle-store/{oracle_source_namespace}/{oracle_engine_run_id}/stream_view/ts_utc/"`
 * `S3_STREAM_VIEW_OUTPUT_PREFIX_PATTERN = "oracle-store/{oracle_source_namespace}/{oracle_engine_run_id}/stream_view/ts_utc/output_id={output_id}/"`
 * `S3_STREAM_VIEW_MANIFEST_KEY_PATTERN = "oracle-store/{oracle_source_namespace}/{oracle_engine_run_id}/stream_view/ts_utc/output_id={output_id}/_stream_view_manifest.json"`
+* `S3_TRUTH_VIEW_PREFIX_PATTERN = "oracle-store/{oracle_source_namespace}/{oracle_engine_run_id}/truth_view/ts_utc/"`
+* `S3_TRUTH_VIEW_OUTPUT_PREFIX_PATTERN = "oracle-store/{oracle_source_namespace}/{oracle_engine_run_id}/truth_view/ts_utc/output_id={output_id}/"`
+* `S3_TRUTH_VIEW_MANIFEST_KEY_PATTERN = "oracle-store/{oracle_source_namespace}/{oracle_engine_run_id}/truth_view/ts_utc/output_id={output_id}/_stream_view_manifest.json"`
 
 ### 3.5 Oracle inlet policy handles
 
@@ -209,6 +212,13 @@ Allowed tokens in pattern handles:
 * `ORACLE_STREAM_SORT_REQUIRED_BEFORE_P3B = true`
 * `ORACLE_STREAM_SORT_RECEIPT_REQUIRED = true`
 * `ORACLE_STREAM_SORT_PARITY_CHECK_REQUIRED = true`
+* `ORACLE_OFFLINE_TRUTH_OUTPUT_IDS = ["s4_event_labels_6B","s4_flow_truth_labels_6B","s4_flow_bank_view_6B","s4_case_timeline_6B"]`
+* `ORACLE_OFFLINE_TRUTH_SORT_REQUIRED = true`
+* `ORACLE_OFFLINE_TRUTH_SORT_ENGINE = "EMR_SERVERLESS_SPARK"`
+* `ORACLE_OFFLINE_TRUTH_TARGET_PREFIX_PATTERN = "oracle-store/{oracle_source_namespace}/{oracle_engine_run_id}/truth_view/ts_utc/output_id={output_id}/"`
+* `ORACLE_OFFLINE_TRUTH_DERIVED_TS_MODE = "event_join_for_s4_event_labels;flow_anchor_join_for_s4_flow_truth_and_bank_view;native_ts_for_s4_case_timeline"`
+* `ORACLE_OFFLINE_TRUTH_DERIVED_TS_JOIN_EVENT_STREAM_OUTPUT = "s3_event_stream_with_fraud_6B"`
+* `ORACLE_OFFLINE_TRUTH_DERIVED_TS_JOIN_FLOW_ANCHOR_OUTPUT = "s3_flow_anchor_with_fraud_6B"`
 
 ### 3.6 Archive and quarantine prefixes
 

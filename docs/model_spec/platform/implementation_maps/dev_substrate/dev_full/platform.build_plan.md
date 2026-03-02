@@ -1,6 +1,6 @@
 # Dev Substrate Build Plan (dev_full)
 _Track: dev_min certified baseline -> dev_full full-platform managed substrate_
-_Last updated: 2026-02-28_
+_Last updated: 2026-03-02_
 
 ## 0) Purpose
 This is the active execution plan for building `dev_full` from the certified `dev_min` baseline into a full-platform managed stack with:
@@ -116,7 +116,8 @@ Canonical lifecycle key: `phase_id=P#` from dev_full runbook.
 | M11 | P14 | MF train/eval closure | DONE |
 | M12 | P15 | MPR promotion/rollback closure | DONE |
 | M13 | P16-P17 | Full-platform verdict + teardown/idle-safe closure | DONE |
-| M14 | post-P17 | Runtime-placement repin materialization + re-certification | NOT_STARTED |
+| M14 | post-P17 | Runtime-placement repin materialization + re-certification | ACTIVE |
+| M15 | post-P17 | Data semantics realization for learning/evolution | NOT_STARTED |
 
 ---
 
@@ -127,6 +128,7 @@ Per-phase deep planning docs follow:
 - ...
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M13.build_plan.md`
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M14.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M15.build_plan.md`
 
 Control rule:
 - `platform.build_plan.md` is the only file allowed to change phase status.
@@ -233,7 +235,7 @@ M0 revisit snapshot (authority repin pass):
 
 ---
 
-## 8) Phase Plan Stubs (M1..M14)
+## 8) Phase Plan Stubs (M1..M15)
 These are master-plan stubs for all `M#` phases so execution has explicit intent before deep-plan expansion.
 
 ## M1 - Packaging Readiness
@@ -1911,8 +1913,66 @@ M14 progress snapshot:
    - durable evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14b_streamsort_materialization_20260302T002345Z/`,
    - short performance receipt: `totalExecutionDurationSeconds=345`, `total_raw_rows=1,183,458,470`, effective rate `~3,430,314 rows/s`.
 
+## M15 - Data Semantics Realization for Learning/Evolution
+Status: `NOT_STARTED`
+
+Objective:
+- realize data-meaning-correct implementation for learning/evolution lanes so closure is based on real platform data semantics, not bootstrap placeholders.
+
+Entry gate:
+- M14 remains `ACTIVE` and keeps execution priority.
+- M15 is planning-only until explicitly activated.
+- authority set remains aligned:
+  - `docs/model_spec/platform/pre-design_decisions/dev-full_managed-substrate_migration.design-authority.v0.md`,
+  - `docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md`,
+  - `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`,
+  - `docs/model_spec/data-engine/interface_pack/data_engine_interface.md`.
+
+Pinned decisions for M15:
+1. Data contract authority for output semantics is `data_engine_interface.md`.
+2. Runtime path remains past/present-only; truth products (`s4_*`) are learning-only surfaces.
+3. Learning path remains fail-closed on:
+   - replay basis continuity,
+   - as-of boundaries,
+   - maturity lag,
+   - no-future leakage.
+4. Authoritative profiling and closure evidence are managed-compute only (Athena/Databricks SQL/Spark); no local-runtime closure evidence.
+5. OFS and MF closures must consume real data surfaces (stream-view + truth-view contracts), not synthetic bootstrap generation.
+
+Execution scope (M15 lanes):
+1. `M15.A` canonical data-contract mapping per output ID and ownership boundary.
+2. `M15.B` managed data profiling (schema, nullability, key integrity, time coverage, cardinality).
+3. `M15.C` point-in-time rules (as-of join spec, maturity windows, leakage exclusions).
+4. `M15.D` OFS real dataset build implementation over authoritative surfaces.
+5. `M15.E` MF training/eval rewiring to consume OFS datasets and real labels.
+6. `M15.F` semantic validation suite and adversarial leakage probes.
+7. `M15.G` non-regression closure against M9/M10/M11 contracts.
+8. `M15.H` cost/perf calibration for semantic workloads.
+9. `M15.I` rollup verdict with explicit blocker matrix.
+10. `M15.J` closure sync and handoff publication.
+
+M15 blocker families (fail-closed):
+- `M15-B1` data-contract ambiguity or unresolved output ownership.
+- `M15-B2` schema/profile drift beyond pinned policy.
+- `M15-B3` point-in-time/as-of or maturity semantics violation.
+- `M15-B4` leakage/future-boundary breach.
+- `M15-B5` OFS dataset correctness failure.
+- `M15-B6` MF eval semantics mismatch to OFS input contract.
+- `M15-B7` evidence/readback parity failure.
+- `M15-B8` cost/performance envelope breach without approved waiver.
+
+M15 DoD anchors (planning contract, to be checked on activation):
+- [ ] real-data semantic contract is explicit and unambiguous.
+- [ ] OFS and MF lanes no longer depend on bootstrap/synthetic placeholders.
+- [ ] as-of/maturity/leakage policies are enforced on real dataset builds.
+- [ ] semantic validation pack is green with reproducible evidence.
+- [ ] cost-to-outcome receipt and closure summary are committed and parity-verified.
+
+Deep plan:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M15.build_plan.md`
+
 ## 9) Cost-Control Law (Execution Binding)
-For every active phase (`M1..M14`):
+For every active phase (`M1..M15`):
 1. Publish a phase spend envelope before execution.
 2. Keep non-active lanes idle-safe (`desired_count=0` or equivalent stop posture).
 3. Prefer ephemeral/job execution for non-daemon lanes; justify any always-on posture explicitly.
