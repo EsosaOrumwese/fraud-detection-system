@@ -24,12 +24,12 @@ flowchart LR
     GLUE[(Glue Catalog + Iceberg v2<br/>learning table authority)]
     CW[(CloudWatch<br/>metrics, logs, alerts)]
     SM[(Secrets Manager + SSM + KMS<br/>runtime identity + secret handles)]
-    SPLIT[Active Runtime Path Split<br/>stream lanes canonical = MSF_MANAGED<br/>legacy fallback = EKS_FLINK_OPERATOR (exception only)<br/>IG edge: APIGW + Lambda + DDB primary<br/>IG on EKS: fallback only]
+    SPLIT["Active Runtime Path Split<br/>stream lanes canonical = MSF_MANAGED<br/>legacy fallback = EKS_FLINK_OPERATOR (exception only)<br/>IG edge: APIGW + Lambda + DDB primary<br/>IG on EKS: fallback only"]
   end
 
   subgraph ORACLE[External Oracle Boundary Read Only]
     ORACLESTORE[[Oracle Store S3 Zone<br/>warm source-of-stream<br/>writer owned by Data Engine/upstream]]
-    M5SORT[M5 Stream-Sort Lane (EMR Serverless Spark)<br/>read source tree + publish stream_view + receipts]
+    M5SORT["M5 Stream-Sort Lane (EMR Serverless Spark)<br/>read source tree + publish stream_view + receipts"]
   end
 
   subgraph INGRESS[Control + Ingress Plane Managed First]
@@ -50,7 +50,7 @@ flowchart LR
   subgraph RTDL[RTDL + Decision Plane Hybrid]
     IEG[IEG Stream Projection<br/>Managed Flink canonical app branch]
     OFP[OFP Stream Projection<br/>Managed Flink canonical app branch]
-    DF[Decision Fabric<br/>custom runtime, ECS service (conditional review)]
+    DF["Decision Fabric<br/>custom runtime, ECS service (conditional review)"]
     AL[Action Layer<br/>ECS/Fargate execution]
     DLA[Decision Log and Audit<br/>custom ECS service]
     ARCH[Archive Sink Connector<br/>managed Kafka->S3 sink path]
