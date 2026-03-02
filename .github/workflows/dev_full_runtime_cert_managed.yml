@@ -53,6 +53,16 @@ on:
         required: false
         default: "rc0_claim_model_lock_20260302T182821Z,rc0_claim_model_lock_20260302T182833Z"
         type: string
+      upstream_rc1_execution:
+        description: "Authoritative RC1 execution id used as RC2 upstream"
+        required: false
+        default: "rc1_runtime_evidence_inventory_20260302T192109Z"
+        type: string
+      rc2_non_claimable_execution_ids:
+        description: "Comma-separated RC2/profile execution ids excluded from claimability"
+        required: false
+        default: "rc2_tier0_scorecard_20260302T153540Z,rc2_tier0_scorecard_20260302T153633Z"
+        type: string
       evidence_bucket:
         description: "S3 evidence bucket"
         required: true
@@ -144,7 +154,13 @@ jobs:
               echo "snapshot_path=${{ steps.run_meta.outputs.run_dir }}/rc1_execution_snapshot.json" >> "$GITHUB_OUTPUT"
               echo "expected_next_gate=RC2_READY_WITH_GAP_REGISTER" >> "$GITHUB_OUTPUT"
               ;;
-            rc2|rc3|rc4|rc5|rc6)
+            rc2)
+              echo "lane_supported=true" >> "$GITHUB_OUTPUT"
+              echo "handler_path=" >> "$GITHUB_OUTPUT"
+              echo "snapshot_path=${{ steps.run_meta.outputs.run_dir }}/rc2_execution_snapshot.json" >> "$GITHUB_OUTPUT"
+              echo "expected_next_gate=" >> "$GITHUB_OUTPUT"
+              ;;
+            rc3|rc4|rc5|rc6)
               echo "lane_supported=false" >> "$GITHUB_OUTPUT"
               echo "unsupported_reason=Handler for ${PHASE} is not implemented yet. Add a lane handler and extend this workflow mapping." >> "$GITHUB_OUTPUT"
               ;;
@@ -639,6 +655,338 @@ jobs:
               sys.exit(1)
           PY
 
+      - name: Execute RC2 lane handler (managed inline)
+        if: ${{ inputs.phase_mode == 'rc2' && steps.lane.outputs.lane_supported == 'true' }}
+        shell: bash
+        env:
+          AWS_REGION: ${{ inputs.aws_region }}
+          EVIDENCE_BUCKET: ${{ inputs.evidence_bucket }}
+          PLATFORM_RUN_ID: ${{ inputs.platform_run_id }}
+          SCENARIO_RUN_ID: ${{ inputs.scenario_run_id }}
+          RUNTIME_CERT_EXECUTION_ID: ${{ steps.run_meta.outputs.runtime_cert_execution_id }}
+          RUN_DIR: ${{ steps.run_meta.outputs.run_dir }}
+          UPSTREAM_RC0_EXECUTION: ${{ inputs.upstream_rc0_execution }}
+          UPSTREAM_RC1_EXECUTION: ${{ inputs.upstream_rc1_execution }}
+          RC2_NON_CLAIMABLE_EXECUTION_IDS: ${{ inputs.rc2_non_claimable_execution_ids }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          import sys
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          import boto3
+          from botocore.exceptions import ClientError
+
+          PROFILES = {
+              "steady": {"target_eps": 500.0, "min_sample_events": 900000, "duration_minutes": 30.0},
+              "burst": {"target_eps": 1500.0, "min_sample_events": 900000, "duration_minutes": 10.0},
+              "soak": {"target_eps": 300.0, "min_sample_events": 6480000, "duration_minutes": 360.0},
+              "replay_window": {"target_eps": None, "min_sample_events": 10000000, "duration_minutes": None},
+          }
+          CLAIM_PROFILE_REQUIREMENTS = {
+              "T0.2": ["steady", "burst", "soak"],
+              "T0.3": ["steady", "replay_window"],
+              "T0.4": ["steady"],
+              "T0.6": ["steady", "replay_window"],
+          }
+
+          def utc_now():
+              return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+          def parse_utc(value):
+              text = str(value or "").strip()
+              if not text:
+                  return None
+              try:
+                  return datetime.fromisoformat(text.replace("Z", "+00:00")).astimezone(timezone.utc)
+              except Exception:
+                  return None
+
+          def dump_json(path, payload):
+              data = (json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=True) + "\n").encode("utf-8")
+              path.write_bytes(data)
+              return data
+
+          def sha256_bytes(data):
+              return hashlib.sha256(data).hexdigest()
+
+          def s3_get_json(s3, bucket, key):
+              return json.loads(s3.get_object(Bucket=bucket, Key=key)["Body"].read().decode("utf-8"))
+
+          def s3_get_bytes(s3, bucket, key):
+              return s3.get_object(Bucket=bucket, Key=key)["Body"].read()
+
+          def s3_put_bytes(s3, bucket, key, payload):
+              s3.put_object(Bucket=bucket, Key=key, Body=payload, ContentType="application/json")
+
+          def list_objects(s3, bucket, prefix):
+              out = []
+              paginator = s3.get_paginator("list_objects_v2")
+              try:
+                  for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+                      out.extend(page.get("Contents", []))
+              except ClientError as exc:
+                  code = str(exc.response.get("Error", {}).get("Code", ""))
+                  if code in {"AccessDenied", "UnauthorizedOperation"}:
+                      return None
+                  raise
+              return out
+
+          def execution_from_key(prefix, key):
+              rel = key[len(prefix):]
+              return rel.split("/", 1)[0] if "/" in rel else rel
+
+          phase_mode = "rc2"
+          bucket = os.environ["EVIDENCE_BUCKET"]
+          platform_run_id = os.environ["PLATFORM_RUN_ID"]
+          scenario_run_id = os.environ["SCENARIO_RUN_ID"]
+          runtime_cert_execution_id = os.environ["RUNTIME_CERT_EXECUTION_ID"]
+          run_dir = Path(os.environ["RUN_DIR"])
+          upstream_rc0_execution = os.environ["UPSTREAM_RC0_EXECUTION"].strip()
+          upstream_rc1_execution = os.environ["UPSTREAM_RC1_EXECUTION"].strip()
+          non_claimable = {x.strip() for x in os.environ.get("RC2_NON_CLAIMABLE_EXECUTION_IDS", "").split(",") if x.strip()}
+          runtime_root = "evidence/dev_full/cert/runtime/"
+          rc2_prefix = f"{runtime_root}{runtime_cert_execution_id}/"
+
+          if not runtime_cert_execution_id.startswith("rc2_"):
+              print("RC2 fail-closed: runtime_cert_execution_id must start with 'rc2_'.")
+              sys.exit(1)
+          if not upstream_rc0_execution or not upstream_rc1_execution:
+              print("RC2 fail-closed: upstream execution ids are required.")
+              sys.exit(1)
+
+          run_dir.mkdir(parents=True, exist_ok=True)
+          s3 = boto3.client("s3", region_name=os.environ["AWS_REGION"])
+          blockers = []
+          def add_blocker(code, detail, severity="high", scope="lane"):
+              blockers.append({"blocker_id": code, "severity": severity, "scope": scope, "detail": detail})
+
+          try:
+              rc0_snapshot = s3_get_json(s3, bucket, f"{runtime_root}{upstream_rc0_execution}/rc0_execution_snapshot.json")
+              rc0_claim = s3_get_json(s3, bucket, f"{runtime_root}{upstream_rc0_execution}/runtime_claim_matrix.json")
+              rc0_metric = s3_get_json(s3, bucket, f"{runtime_root}{upstream_rc0_execution}/runtime_metric_dictionary.json")
+              rc1_snapshot = s3_get_json(s3, bucket, f"{runtime_root}{upstream_rc1_execution}/rc1_execution_snapshot.json")
+              rc1_gap = s3_get_json(s3, bucket, f"{runtime_root}{upstream_rc1_execution}/runtime_fresh_gap_register.json")
+          except ClientError as exc:
+              add_blocker("RC-B3", f"Missing/unreadable upstream artifacts: {exc}", severity="critical", scope="upstream")
+              rc0_snapshot, rc0_claim, rc0_metric, rc1_snapshot, rc1_gap = {}, {}, {}, {}, {}
+
+          if str(rc0_snapshot.get("platform_run_id", "")).strip() not in {"", platform_run_id}:
+              add_blocker("RC-B9", "RC0 platform_run_id does not match RC2 identity.", severity="critical", scope="identity")
+          if str(rc0_snapshot.get("scenario_run_id", "")).strip() not in {"", scenario_run_id}:
+              add_blocker("RC-B9", "RC0 scenario_run_id does not match RC2 identity.", severity="critical", scope="identity")
+          if str(rc1_snapshot.get("platform_run_id", "")).strip() not in {"", platform_run_id}:
+              add_blocker("RC-B9", "RC1 platform_run_id does not match RC2 identity.", severity="critical", scope="identity")
+          if str(rc1_snapshot.get("scenario_run_id", "")).strip() not in {"", scenario_run_id}:
+              add_blocker("RC-B9", "RC1 scenario_run_id does not match RC2 identity.", severity="critical", scope="identity")
+          if os.environ.get("GITHUB_ACTIONS", "").lower() != "true":
+              add_blocker("RC-B8", "RC2 execution posture is not managed GitHub workflow.", severity="critical", scope="posture")
+
+          cert_window_start_utc = str(rc1_snapshot.get("cert_window_start_utc", "") or rc0_snapshot.get("cert_window_start_utc", "")).strip() or utc_now()
+          cert_window_start_dt = parse_utc(cert_window_start_utc) or datetime.now(timezone.utc)
+          cert_window_end_utc = utc_now()
+          cert_window_end_dt = parse_utc(cert_window_end_utc) or datetime.now(timezone.utc)
+
+          metric_window = {str(r.get("metric_id", "")).strip(): str(r.get("window", "")).strip() for r in rc0_metric.get("metric_rows", []) if str(r.get("metric_id", "")).strip()}
+          def metric_profiles(metric_id):
+              window = metric_window.get(metric_id, "steady")
+              if "|" in window:
+                  out = [p.strip() for p in window.split("|") if p.strip() in PROFILES]
+                  return out or ["steady"]
+              if window in PROFILES:
+                  return [window]
+              if window == "cert_window":
+                  return ["steady", "replay_window"]
+              return ["steady"]
+
+          objs = list_objects(s3, bucket, runtime_root)
+          if objs is None:
+              add_blocker("RC-B3", "Missing list visibility for runtime root; profile discovery incomplete.", scope="discovery")
+              objs = []
+          keys = [str(o.get("Key", "")) for o in objs]
+          profile_rows = []
+          profile_pass = {}
+          for profile_id, req in sorted(PROFILES.items()):
+              matches = []
+              for key in keys:
+                  if not key.endswith("/rc2_profile_snapshot.json"):
+                      continue
+                  exec_id = execution_from_key(runtime_root, key)
+                  if exec_id in non_claimable or exec_id == runtime_cert_execution_id:
+                      continue
+                  if f"rc2_profile_{profile_id}_" not in exec_id:
+                      continue
+                  try:
+                      payload = s3_get_json(s3, bucket, key)
+                  except ClientError:
+                      continue
+                  if str(payload.get("platform_run_id", "")).strip() != platform_run_id:
+                      continue
+                  if str(payload.get("scenario_run_id", "")).strip() != scenario_run_id:
+                      continue
+                  captured = parse_utc(payload.get("captured_at_utc", ""))
+                  if captured is None or captured < cert_window_start_dt or captured > cert_window_end_dt:
+                      continue
+                  metrics = payload.get("metrics", {}) if isinstance(payload.get("metrics", {}), dict) else {}
+                  matches.append({
+                      "execution_id": exec_id,
+                      "artifact_key": key,
+                      "captured_at_utc": payload.get("captured_at_utc", ""),
+                      "sample_size_events": int((payload.get("admission_window", {}) or {}).get("sample_size_events", 0) or 0),
+                      "observed_events_per_second": float(metrics.get("observed_events_per_second", 0.0) or 0.0),
+                      "duration_observed_minutes": float(metrics.get("duration_observed_minutes", 0.0) or 0.0),
+                  })
+              if not matches:
+                  row = {
+                      "profile_id": profile_id,
+                      "required": req,
+                      "profile_pass": False,
+                      "evidence_status": "MISSING_FRESH_EVIDENCE",
+                      "sample_size_events": 0,
+                      "observed_events_per_second": None,
+                      "duration_observed_minutes": None,
+                      "sample_pass": False,
+                      "eps_pass": req["target_eps"] is None,
+                      "duration_pass": req["duration_minutes"] is None,
+                      "profile_reason": "No fresh profile evidence in active cert window.",
+                      "source_execution_id": None,
+                      "source_artifact": None,
+                  }
+                  add_blocker("RC-B4", f"{profile_id}: missing mandatory fresh profile evidence.", scope="profile")
+              else:
+                  best = sorted(matches, key=lambda x: (x["sample_size_events"], x["captured_at_utc"], x["execution_id"]), reverse=True)[0]
+                  sample_pass = best["sample_size_events"] >= int(req["min_sample_events"])
+                  eps_pass = True if req["target_eps"] is None else best["observed_events_per_second"] >= float(req["target_eps"])
+                  duration_pass = True if req["duration_minutes"] is None else best["duration_observed_minutes"] >= float(req["duration_minutes"])
+                  ppass = bool(sample_pass and eps_pass and duration_pass)
+                  row = {
+                      "profile_id": profile_id,
+                      "required": req,
+                      "profile_pass": ppass,
+                      "evidence_status": "FRESH_EVIDENCE_FOUND",
+                      "sample_size_events": best["sample_size_events"],
+                      "observed_events_per_second": best["observed_events_per_second"],
+                      "duration_observed_minutes": best["duration_observed_minutes"],
+                      "sample_pass": sample_pass,
+                      "eps_pass": eps_pass,
+                      "duration_pass": duration_pass,
+                      "profile_reason": "Threshold checks passed." if ppass else "Threshold checks failed.",
+                      "source_execution_id": best["execution_id"],
+                      "source_artifact": best["artifact_key"],
+                  }
+                  if not ppass:
+                      add_blocker("RC-B4", f"{profile_id}: profile evidence present but thresholds not met.", scope="profile")
+              profile_rows.append(row)
+              profile_pass[profile_id] = bool(row["profile_pass"])
+
+          gap_rows = rc1_gap.get("tier0_gap_rows", []) if isinstance(rc1_gap.get("tier0_gap_rows", []), list) else []
+          gap_resolution_rows = []
+          metric_resolution = {}
+          for gap in sorted(gap_rows, key=lambda r: (str(r.get("claim_id", "")), str(r.get("metric_id", "")))):
+              metric_id = str(gap.get("metric_id", "")).strip()
+              lane = str(gap.get("remediation_lane", "RC2")).strip().upper()
+              req_profiles = metric_profiles(metric_id)
+              resolved = all(profile_pass.get(p, False) for p in req_profiles)
+              if resolved:
+                  status = "RESOLVED_BY_RC2_PROFILE_EVIDENCE"
+              elif lane == "RC3":
+                  status = "DEFER_RC3_DRILL_REQUIRED"
+              else:
+                  status = "UNRESOLVED_RC2_EVIDENCE_MISSING"
+              metric_resolution[metric_id] = status
+              gap_resolution_rows.append({
+                  "claim_id": str(gap.get("claim_id", "")).strip(),
+                  "metric_id": metric_id,
+                  "gap_reason": str(gap.get("gap_reason", "")).strip(),
+                  "rc1_remediation_lane": lane,
+                  "rc2_required_profiles": req_profiles,
+                  "resolution_status": status,
+              })
+
+          claim_rows = rc0_claim.get("claim_rows", []) if isinstance(rc0_claim.get("claim_rows", []), list) else []
+          tier0_claims = [c for c in claim_rows if str(c.get("tier", "")).strip() == "T0"]
+          claim_out = []
+          tier0_holds = []
+          for claim in sorted(tier0_claims, key=lambda c: str(c.get("claim_id", ""))):
+              cid = str(claim.get("claim_id", "")).strip()
+              mids = [str(m).strip() for m in claim.get("metric_ids", []) if str(m).strip()]
+              unresolved = [m for m in mids if metric_resolution.get(m, "UNRESOLVED_RC2_EVIDENCE_MISSING") != "RESOLVED_BY_RC2_PROFILE_EVIDENCE"]
+              req_profiles = CLAIM_PROFILE_REQUIREMENTS.get(cid, ["steady"])
+              failing_profiles = [p for p in req_profiles if not profile_pass.get(p, False)]
+              cpass = len(unresolved) == 0 and len(failing_profiles) == 0
+              status = "PASS" if cpass else "HOLD_REMEDIATION_REQUIRED"
+              if not cpass:
+                  tier0_holds.append(cid)
+              claim_out.append({"claim_id": cid, "tier": "T0", "status": status, "required_profiles": req_profiles, "failing_profiles": failing_profiles, "unresolved_metrics": unresolved})
+
+          overall_pass = len(blockers) == 0 and all(c["status"] == "PASS" for c in claim_out)
+          verdict = "PASS" if overall_pass else "HOLD"
+          next_gate = "RC3_READY_WITH_SCORECARD" if overall_pass else "RC2_REMEDIATION_REQUIRED"
+
+          payloads = {
+              "runtime_scorecard_profiles.json": {
+                  "schema_version": "1.0", "lane": phase_mode.upper(), "platform_run_id": platform_run_id, "scenario_run_id": scenario_run_id,
+                  "runtime_cert_execution_id": runtime_cert_execution_id, "captured_at_utc": utc_now(),
+                  "cert_window_start_utc": cert_window_start_utc, "cert_window_end_utc": cert_window_end_utc, "profiles": profile_rows,
+              },
+              "runtime_scorecard_claim_adjudication.json": {
+                  "schema_version": "1.0", "lane": phase_mode.upper(), "platform_run_id": platform_run_id, "scenario_run_id": scenario_run_id,
+                  "runtime_cert_execution_id": runtime_cert_execution_id, "captured_at_utc": utc_now(), "claims": claim_out,
+              },
+              "runtime_scorecard_gap_resolution.json": {
+                  "schema_version": "1.0", "lane": phase_mode.upper(), "platform_run_id": platform_run_id, "scenario_run_id": scenario_run_id,
+                  "runtime_cert_execution_id": runtime_cert_execution_id, "captured_at_utc": utc_now(), "upstream_rc1_execution_id": upstream_rc1_execution,
+                  "tier0_gap_count_from_rc1": len(gap_rows), "gap_resolution_rows": gap_resolution_rows,
+              },
+              "runtime_blocker_register.json": {
+                  "schema_version": "1.0", "lane": phase_mode.upper(), "platform_run_id": platform_run_id, "scenario_run_id": scenario_run_id,
+                  "runtime_cert_execution_id": runtime_cert_execution_id, "captured_at_utc": utc_now(), "blocker_count": len(blockers),
+                  "blockers": sorted(blockers, key=lambda b: (b["blocker_id"], b.get("scope", ""), b["detail"])),
+              },
+              "runtime_cost_outcome_receipt.json": {
+                  "schema_version": "1.0", "lane": phase_mode.upper(), "platform_run_id": platform_run_id, "scenario_run_id": scenario_run_id,
+                  "runtime_cert_execution_id": runtime_cert_execution_id, "captured_at_utc": utc_now(),
+                  "cost_outcome_status": "PASS" if all(c["status"] == "PASS" for c in claim_out if c["claim_id"] == "T0.6") else "HOLD_REMEDIATION_REQUIRED",
+              },
+              "rc2_execution_snapshot.json": {
+                  "schema_version": "1.0", "lane": phase_mode.upper(), "platform_run_id": platform_run_id, "scenario_run_id": scenario_run_id,
+                  "runtime_cert_execution_id": runtime_cert_execution_id, "captured_at_utc": utc_now(),
+                  "cert_window_start_utc": cert_window_start_utc, "cert_window_end_utc": cert_window_end_utc,
+                  "entry_sources": {"rc0_execution_id": upstream_rc0_execution, "rc1_execution_id": upstream_rc1_execution, "rc1_tier0_gap_count": len(gap_rows)},
+                  "blocker_ids_checked": ["RC-B1", "RC-B2", "RC-B3", "RC-B4", "RC-B8", "RC-B9"],
+                  "blocker_count": len(blockers), "blockers": sorted(blockers, key=lambda b: (b["blocker_id"], b.get("scope", ""), b["detail"])),
+                  "tier0_claim_status": claim_out, "tier0_hold_count": len(tier0_holds), "tier0_holds": sorted(tier0_holds),
+                  "overall_pass": overall_pass, "verdict": verdict, "next_gate": next_gate,
+                  "durable_root": f"s3://{bucket}/{rc2_prefix}", "local_root": str(run_dir.resolve()),
+              },
+          }
+
+          for name in sorted(payloads.keys()):
+              body = dump_json(run_dir / name, payloads[name])
+              key = f"{rc2_prefix}{name}"
+              s3_put_bytes(s3, bucket, key, body)
+              rb = s3_get_bytes(s3, bucket, key)
+              if sha256_bytes(body) != sha256_bytes(rb):
+                  print(f"RC2 fail-closed: durable readback hash mismatch for {name}")
+                  sys.exit(1)
+
+          print(json.dumps({
+              "runtime_cert_execution_id": runtime_cert_execution_id,
+              "upstream_rc0_execution_id": upstream_rc0_execution,
+              "upstream_rc1_execution_id": upstream_rc1_execution,
+              "verdict": verdict,
+              "next_gate": next_gate,
+              "blocker_count": len(blockers),
+              "tier0_hold_count": len(tier0_holds),
+              "durable_root": f"s3://{bucket}/{rc2_prefix}",
+              "local_root": str(run_dir.resolve()),
+          }, ensure_ascii=True))
+          PY
+
       - name: RC0 fail-closed verdict gate
         if: ${{ inputs.phase_mode == 'rc0' && steps.lane.outputs.lane_supported == 'true' }}
         shell: bash
@@ -741,6 +1089,61 @@ jobs:
           if verdict != "PASS":
               sys.exit(1)
           if next_gate != os.environ["EXPECTED_NEXT_GATE"]:
+              sys.exit(1)
+          PY
+
+      - name: RC2 fail-closed verdict gate
+        if: ${{ inputs.phase_mode == 'rc2' && steps.lane.outputs.lane_supported == 'true' }}
+        shell: bash
+        env:
+          SNAPSHOT_PATH: ${{ steps.lane.outputs.snapshot_path }}
+          EXPECTED_EXECUTION_ID: ${{ steps.run_meta.outputs.runtime_cert_execution_id }}
+          EXPECTED_PLATFORM_RUN_ID: ${{ inputs.platform_run_id }}
+          EXPECTED_SCENARIO_RUN_ID: ${{ inputs.scenario_run_id }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          snapshot_path = Path(os.environ["SNAPSHOT_PATH"])
+          if not snapshot_path.exists():
+              print(f"Missing snapshot artifact: {snapshot_path}")
+              sys.exit(1)
+
+          snap = json.loads(snapshot_path.read_text(encoding="utf-8"))
+          blocker_count = int(snap.get("blocker_count", 0))
+          overall_pass = bool(snap.get("overall_pass"))
+          verdict = str(snap.get("verdict", "")).strip()
+          next_gate = str(snap.get("next_gate", "")).strip()
+
+          print(json.dumps({
+              "runtime_cert_execution_id": snap.get("runtime_cert_execution_id"),
+              "platform_run_id": snap.get("platform_run_id"),
+              "scenario_run_id": snap.get("scenario_run_id"),
+              "overall_pass": overall_pass,
+              "verdict": verdict,
+              "next_gate": next_gate,
+              "blocker_count": blocker_count,
+              "tier0_hold_count": int(snap.get("tier0_hold_count", 0)),
+          }, ensure_ascii=True))
+
+          if str(snap.get("runtime_cert_execution_id", "")).strip() != os.environ["EXPECTED_EXECUTION_ID"]:
+              sys.exit(1)
+          if str(snap.get("platform_run_id", "")).strip() != os.environ["EXPECTED_PLATFORM_RUN_ID"]:
+              sys.exit(1)
+          if str(snap.get("scenario_run_id", "")).strip() != os.environ["EXPECTED_SCENARIO_RUN_ID"]:
+              sys.exit(1)
+
+          if verdict == "PASS":
+              if (not overall_pass) or blocker_count != 0 or next_gate != "RC3_READY_WITH_SCORECARD":
+                  sys.exit(1)
+          elif verdict == "HOLD":
+              if overall_pass or blocker_count <= 0 or next_gate != "RC2_REMEDIATION_REQUIRED":
+                  sys.exit(1)
+          else:
               sys.exit(1)
           PY
 
