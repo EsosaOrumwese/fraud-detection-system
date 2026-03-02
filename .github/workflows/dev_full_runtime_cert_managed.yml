@@ -1,0 +1,225 @@
+name: dev-full-runtime-cert-managed
+
+on:
+  workflow_dispatch:
+    inputs:
+      phase_mode:
+        description: "Runtime certification lane (rc0..rc6)"
+        required: true
+        default: "rc0"
+        type: choice
+        options:
+          - rc0
+          - rc1
+          - rc2
+          - rc3
+          - rc4
+          - rc5
+          - rc6
+      aws_region:
+        description: "AWS region"
+        required: true
+        default: "eu-west-2"
+        type: string
+      aws_role_to_assume:
+        description: "OIDC role ARN used by GitHub Actions"
+        required: true
+        type: string
+      platform_run_id:
+        description: "Pinned platform run id"
+        required: true
+        type: string
+      scenario_run_id:
+        description: "Pinned scenario run id"
+        required: true
+        type: string
+      runtime_cert_execution_id:
+        description: "Optional fixed runtime-cert execution id"
+        required: false
+        default: ""
+        type: string
+      evidence_bucket:
+        description: "S3 evidence bucket"
+        required: true
+        default: "fraud-platform-dev-full-evidence"
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: dev-full-runtime-cert-${{ inputs.phase_mode }}-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  run_runtime_cert:
+    name: Run runtime certification lane
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject static AWS credential posture
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${AWS_ACCESS_KEY_ID:-}" || -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+            echo "Static AWS credentials are forbidden; use OIDC role assumption."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ inputs.aws_region }}
+          role-to-assume: ${{ inputs.aws_role_to_assume }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install runtime dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install boto3 botocore
+
+      - name: Compute execution metadata
+        id: run_meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          TS="$(date -u +'%Y%m%dT%H%M%SZ')"
+          if [[ -n "${{ inputs.runtime_cert_execution_id }}" ]]; then
+            EXEC_ID="${{ inputs.runtime_cert_execution_id }}"
+          else
+            case "${{ inputs.phase_mode }}" in
+              rc0) EXEC_ID="rc0_claim_model_lock_${TS}" ;;
+              rc1) EXEC_ID="rc1_runtime_evidence_inventory_${TS}" ;;
+              rc2) EXEC_ID="rc2_tier0_scorecard_${TS}" ;;
+              rc3) EXEC_ID="rc3_tier0_drill_pack_${TS}" ;;
+              rc4) EXEC_ID="rc4_tier1_runtime_pack_${TS}" ;;
+              rc5) EXEC_ID="rc5_tier2_runtime_pack_${TS}" ;;
+              rc6) EXEC_ID="rc6_runtime_rollup_${TS}" ;;
+              *) echo "Unsupported phase_mode: ${{ inputs.phase_mode }}" ; exit 1 ;;
+            esac
+          fi
+          RUN_DIR="runs/dev_substrate/dev_full/cert/runtime/${EXEC_ID}"
+          echo "timestamp=${TS}" >> "$GITHUB_OUTPUT"
+          echo "runtime_cert_execution_id=${EXEC_ID}" >> "$GITHUB_OUTPUT"
+          echo "run_dir=${RUN_DIR}" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve lane handler
+        id: lane
+        shell: bash
+        run: |
+          set -euo pipefail
+          PHASE="${{ inputs.phase_mode }}"
+          case "${PHASE}" in
+            rc0)
+              echo "lane_supported=false" >> "$GITHUB_OUTPUT"
+              echo "unsupported_reason=Base workflow scaffold is in place, but RC0 handler is not yet repository-tracked. Add lane implementation before execution." >> "$GITHUB_OUTPUT"
+              ;;
+            rc1|rc2|rc3|rc4|rc5|rc6)
+              echo "lane_supported=false" >> "$GITHUB_OUTPUT"
+              echo "unsupported_reason=Handler for ${PHASE} is not implemented yet. Add a lane handler and extend this workflow mapping." >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "lane_supported=false" >> "$GITHUB_OUTPUT"
+              echo "unsupported_reason=Invalid phase_mode ${PHASE}" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+
+      - name: Fail closed on unsupported lane
+        if: ${{ steps.lane.outputs.lane_supported != 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Runtime cert fail-closed: ${{ steps.lane.outputs.unsupported_reason }}"
+          exit 1
+
+      - name: Validate lane handler path
+        if: ${{ steps.lane.outputs.lane_supported == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          HANDLER="${{ steps.lane.outputs.handler_path }}"
+          if [[ ! -f "${HANDLER}" ]]; then
+            echo "Runtime cert fail-closed: lane handler missing at ${HANDLER}"
+            exit 1
+          fi
+
+      - name: Execute RC0 lane handler
+        if: ${{ inputs.phase_mode == 'rc0' && steps.lane.outputs.lane_supported == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          pwsh -NoProfile -ExecutionPolicy Bypass \
+            -File "${{ steps.lane.outputs.handler_path }}" \
+            -PlatformRunId "${{ inputs.platform_run_id }}" \
+            -ScenarioRunId "${{ inputs.scenario_run_id }}" \
+            -RuntimeCertExecutionId "${{ steps.run_meta.outputs.runtime_cert_execution_id }}" \
+            -EvidenceBucket "${{ inputs.evidence_bucket }}"
+
+      - name: RC0 fail-closed verdict gate
+        if: ${{ inputs.phase_mode == 'rc0' && steps.lane.outputs.lane_supported == 'true' }}
+        shell: bash
+        env:
+          SNAPSHOT_PATH: ${{ steps.lane.outputs.snapshot_path }}
+          EXPECTED_NEXT_GATE: ${{ steps.lane.outputs.expected_next_gate }}
+          EXPECTED_EXECUTION_ID: ${{ steps.run_meta.outputs.runtime_cert_execution_id }}
+          EXPECTED_PLATFORM_RUN_ID: ${{ inputs.platform_run_id }}
+          EXPECTED_SCENARIO_RUN_ID: ${{ inputs.scenario_run_id }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          snapshot_path = Path(os.environ["SNAPSHOT_PATH"])
+          if not snapshot_path.exists():
+              print(f"Missing snapshot artifact: {snapshot_path}")
+              sys.exit(1)
+
+          snap = json.loads(snapshot_path.read_text(encoding="utf-8"))
+          blocker_count = int(snap.get("blocker_count", 0))
+          overall_pass = bool(snap.get("overall_pass"))
+          verdict = str(snap.get("verdict", "")).strip()
+          next_gate = str(snap.get("next_gate", "")).strip()
+
+          print(json.dumps({
+              "runtime_cert_execution_id": snap.get("runtime_cert_execution_id"),
+              "platform_run_id": snap.get("platform_run_id"),
+              "scenario_run_id": snap.get("scenario_run_id"),
+              "overall_pass": overall_pass,
+              "verdict": verdict,
+              "next_gate": next_gate,
+              "blocker_count": blocker_count,
+          }, ensure_ascii=True))
+
+          if str(snap.get("runtime_cert_execution_id", "")).strip() != os.environ["EXPECTED_EXECUTION_ID"]:
+              sys.exit(1)
+          if str(snap.get("platform_run_id", "")).strip() != os.environ["EXPECTED_PLATFORM_RUN_ID"]:
+              sys.exit(1)
+          if str(snap.get("scenario_run_id", "")).strip() != os.environ["EXPECTED_SCENARIO_RUN_ID"]:
+              sys.exit(1)
+          if (not overall_pass) or blocker_count != 0:
+              sys.exit(1)
+          if verdict != "PASS":
+              sys.exit(1)
+          if next_gate != os.environ["EXPECTED_NEXT_GATE"]:
+              sys.exit(1)
+          PY
+
+      - name: Upload runtime-cert lane artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-cert-${{ inputs.phase_mode }}-${{ steps.run_meta.outputs.timestamp }}
+          path: ${{ steps.run_meta.outputs.run_dir }}
+          if-no-files-found: warn
