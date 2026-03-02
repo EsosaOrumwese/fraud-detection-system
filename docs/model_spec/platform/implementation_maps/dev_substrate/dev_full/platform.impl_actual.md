@@ -19064,3 +19064,179 @@ ext_gate = M14.F_READY.
    - `runs/dev_substrate/dev_full/m15/m15b_semantic_profile_20260302T072457Z/`
 2. Durable:
    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15b_semantic_profile_20260302T072457Z/`
+
+## Entry: 2026-03-02 07:40:29 +00:00 - M15.C pre-implementation execution lock (point-in-time policy realization)
+### Trigger
+1. Operator requested detailed M15.C execution strategy and immediate execution.
+
+### Problem framing
+1. M15.C had only high-level DoDs; it did not include executable policy lanes, machine-checkable artifacts, or deterministic verdict rules.
+2. Without explicit point-in-time policy realization, `M15.D..M15.E` could proceed with ambiguous as-of/maturity semantics and silent leakage risk.
+
+### Decision
+1. Execute M15.C as policy-and-evidence closure only (no new heavy profiling scans):
+   - consume M15.A ownership matrix and M15.B profile outputs as authoritative inputs,
+   - emit machine-checkable point-in-time policy spec,
+   - execute boundary/leakage/adversarial validations fail-closed,
+   - emit explicit archive/truth timeliness + maturity routing contract,
+   - pin IEG relationship posture from observed evidence.
+2. Keep any unresolved mismatch as blocker family:
+   - `M15-B3` for point-in-time/maturity semantics,
+   - `M15-B4` for leakage/future-boundary failures,
+   - `M15-B7` for evidence parity/readback failure.
+
+### Planned implementation steps
+1. Patch deep build plan `platform.M15.build_plan.md` with full M15.C execution lanes (`C1..C4`), adversarial probes, artifacts, and verdict rules.
+2. Patch main build plan `platform.build_plan.md` with status/progress alignment.
+3. Implement deterministic executor `runs/dev_substrate/dev_full/m15/m15c_exec.py`:
+   - parse handles and policy pins,
+   - load M15.A + M15.B evidence,
+   - materialize policy spec and validation outputs,
+   - publish local + durable artifacts with readback checks.
+4. Execute M15.C and fail closed on any blocker.
+5. Record closure snapshot and update DoDs in deep/main plans, implementation map, and logbook.
+
+## Entry: 2026-03-02 07:45:31 +00:00 - M15.C execution remediation and green closure
+### Execution chronology
+1. First run:
+   - `m15c_point_in_time_policy_20260302T074331Z`
+   - fail-closed blocker: `M15-B3` (`Required M15.C handles missing: EVIDENCE_BUCKET`).
+2. Remediation:
+   - aligned executor handle key to canonical dev_full registry pin:
+     - from `EVIDENCE_BUCKET`
+     - to `S3_EVIDENCE_BUCKET`.
+3. Green rerun:
+   - `m15c_point_in_time_policy_20260302T074401Z`
+   - `overall_pass=true`, `blocker_count=0`, `advisory_count=1`, `next_gate=M15.D_READY`.
+
+### What M15.C concretely produced
+1. Machine-checkable policy spec:
+   - replay basis mode,
+   - feature/label as-of controls,
+   - maturity cutoff derivation,
+   - runtime-forbidden truth outputs and future-only fields,
+   - fail-closed leakage mode.
+2. Deterministic validation lanes:
+   - runtime boundary (`runtime_max_ts <= feature_asof_utc`),
+   - truth boundary (`truth_max_ts <= label_asof_utc`),
+   - maturity semantics (`label_maturity_cutoff_utc` derivation + readiness posture),
+   - leakage guardrails (truth-runtime segregation + forbidden-field exclusions).
+3. Adversarial suite:
+   - future as-of mutation,
+   - non-positive maturity mutation,
+   - runtime truth-surface injection,
+   - runtime future-field injection,
+   - missing replay-basis mutation.
+4. Archive/truth routing contract:
+   - bank/oracle truth intake surfaces pinned,
+   - measured timeliness pairs and lag checks emitted.
+5. IEG relationship pin:
+   - primary key spine pinned to `flow_id`,
+   - high-confidence relationship edges pinned from measured join coverage,
+   - non-flow relationship hypotheses explicitly deferred with rationale.
+
+### Advisory and downstream implication
+1. `M15-AD3` retained:
+   - bounded 7-day semantic profile contains no mature-label window under 30-day maturity policy.
+2. This is non-blocking for M15.C closure but mandatory input to M15.D:
+   - M15.D must widen historical extraction to materialize mature-label training datasets.
+
+### Evidence
+1. Local:
+   - `runs/dev_substrate/dev_full/m15/m15c_point_in_time_policy_20260302T074401Z/`
+2. Durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15c_point_in_time_policy_20260302T074401Z/`
+
+## Entry: 2026-03-02 07:53:00 +00:00 - M15.D pre-implementation execution lock (real OFS dataset build)
+### Trigger
+1. Operator requested detailed M15.D execution strategy and immediate execution.
+
+### Problem framing
+1. M15.D must replace bootstrap posture with real-data OFS build while preserving strict as-of/maturity/leakage controls.
+2. M15.C closed green with advisory `M15-AD3` (no mature rows in bounded 7-day profile), so M15.D must widen extraction for mature-label eligibility.
+3. Raw full-window materialization would be unnecessarily expensive and slow for first closure pass.
+
+### Decision
+1. Use Athena CTAS managed compute for first real-data OFS materialization lane.
+2. Keep M15.C as-of pins intact and widen historical window specifically for maturity:
+   - `cohort_end_utc = label_maturity_cutoff_utc`,
+   - `cohort_start_utc = cohort_end_utc - 14d`.
+3. Apply deterministic bounded cohort sampling for v1 closure:
+   - `flow_id modulo 20 == 0` (5% sample),
+   - sampling rule must be explicit in manifest + fingerprint.
+4. Build supervised flow-level OFS surface from real runtime + truth joins:
+   - runtime: flow anchor + arrival enrichment,
+   - truth: flow truth labels + bank view labels.
+5. Fail closed on any maturity/as-of leakage breach, zero mature rows, missing fingerprint fields, or durable evidence parity failure.
+
+### Planned implementation steps
+1. Add execution-grade M15.D lane contract in deep plan (completed).
+2. Implement deterministic executor `runs/dev_substrate/dev_full/m15/m15d_exec.py`:
+   - parse handles and source policy artifacts,
+   - materialize dataset via Athena CTAS,
+   - compute audit metrics and feature catalog,
+   - generate manifest + fingerprint,
+   - publish local + durable artifacts with readback checks.
+3. Execute M15.D and remediate blockers fail-closed.
+4. Update deep/main plan statuses, implementation map, and logbook with exact evidence and closure/advisory trail.
+
+## Entry: 2026-03-02 08:02:23 +00:00 - M15.D execution remediation and green closure
+### Execution chronology
+1. First run:
+   - `m15d_ofs_real_build_20260302T080027Z`
+   - fail-closed blocker: `M15-B5` (`Athena CTAS build failed for M15.D`).
+2. Root cause isolation:
+   - Athena error: `COLUMN_NOT_FOUND` on `event_type` from arrival surface.
+   - validated against `M15.B` schema profile: `arrival_events_5B` exposes `channel_group` (not `event_type`).
+3. Remediation:
+   - patched transform/select + feature catalog to use `arrival_channel_group <- arrival_events_5B.channel_group`.
+4. Green rerun:
+   - `m15d_ofs_real_build_20260302T080146Z`
+   - `overall_pass=true`, `blocker_count=0`, `next_gate=M15.E_READY`.
+
+### What M15.D materially closed
+1. Real-data OFS dataset build (no bootstrap/synthetic source):
+   - source surfaces restricted to M15.B real oracle views:
+     - `m15b_s3_flow_anchor_with_fraud_6b`,
+     - `m15b_arrival_events_5b`,
+     - `m15b_s4_flow_truth_labels_6b`,
+     - `m15b_s4_flow_bank_view_6b`.
+2. Policy continuity with M15.C:
+   - replay basis: `origin_offset_ranges`,
+   - feature/label as-of and maturity pins carried into dataset manifest and fingerprint.
+3. Maturity-window remediation (`M15-AD3` closure intent):
+   - extraction widened to mature 14-day window ending at `label_maturity_cutoff_utc`,
+   - deterministic sample rule pinned (`flow_id % 20 == 0`) and recorded in manifest/fingerprint.
+4. Published artifacts:
+   - manifest,
+   - fingerprint,
+   - time-bound/leakage audit,
+   - feature catalog,
+   - materialization receipt.
+5. Run-scoped OFS contract keys were also emitted under:
+   - `evidence/runs/platform_20260302T080146Z/learning/ofs/`.
+
+### Key measured receipts
+1. Dataset:
+   - table: `fraud_platform_dev_full_ofs.ofs_m15d_m15d_ofs_real_build_20260302t080146z`,
+   - location: `s3://fraud-platform-dev-full-object-store/learning/ofs/realized/m15d_ofs_real_build_20260302T080146Z/dataset/`,
+   - rows: `1,838,137`,
+   - distinct flows: `1,838,137`.
+2. Time-bound/leakage checks:
+   - `feature_future_rows=0`,
+   - `label_future_rows=0`,
+   - `immature_label_rows=0`,
+   - `null_labels=0`.
+3. Runtime/cost:
+   - `query_count=4`,
+   - `total_scanned_gb=13.902`,
+   - `athena_cost_estimate_usd=0.0679`,
+   - elapsed `~36.6s`.
+
+### Evidence
+1. Local:
+   - `runs/dev_substrate/dev_full/m15/m15d_ofs_real_build_20260302T080146Z/`
+2. Durable run-control:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15d_ofs_real_build_20260302T080146Z/`
+3. Durable run-scoped:
+   - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260302T080146Z/learning/ofs/`

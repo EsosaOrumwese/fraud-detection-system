@@ -2001,7 +2001,7 @@ M14 progress snapshot:
    - durable run-control evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14j_closure_sync_20260302T055205Z/`.
 
 ## M15 - Data Semantics Realization for Learning/Evolution
-Status: `NOT_STARTED`
+Status: `ACTIVE`
 
 Objective:
 - realize data-meaning-correct implementation for learning/evolution lanes so closure is based on real platform data semantics, not bootstrap placeholders.
@@ -2067,8 +2067,8 @@ M15 DoD anchors (planning contract, to be checked on activation):
 M15 sub-phase progress:
 - [x] `M15.A` canonical data-contract mapping.
 - [x] `M15.B` managed semantic profiling.
-- [ ] `M15.C` point-in-time policy realization.
-- [ ] `M15.D` OFS real dataset build.
+- [x] `M15.C` point-in-time policy realization.
+- [x] `M15.D` OFS real dataset build.
 - [ ] `M15.E` MF real-data train/eval rewire.
 - [ ] `M15.F` leakage adversarial validation.
 - [ ] `M15.G` semantic non-regression pack.
@@ -2092,6 +2092,19 @@ M15 progress snapshot:
    - green run `m15b_semantic_profile_20260302T072457Z`: `overall_pass=true`, `blocker_count=0`, `next_gate=M15.C_READY`,
    - runtime/cost receipt: `query_count=32`, `total_scanned_gb=95.108`, `cost_estimate_usd=0.4644`,
    - non-blocking advisory: optional `s1_session_index_6B` not materialized in this run.
+4. `M15.C` execution strategy is now pinned in deep plan with explicit C1..C4 validation lanes, adversarial probes, archive/truth timeliness contract closure, and IEG relationship pinning from observed profile evidence.
+5. `M15.C` is closed green after one fail-closed remediation:
+   - blocked run `m15c_point_in_time_policy_20260302T074331Z`: handle drift (`EVIDENCE_BUCKET` missing),
+   - remediation: aligned to canonical handle `S3_EVIDENCE_BUCKET`,
+   - green run `m15c_point_in_time_policy_20260302T074401Z`: `overall_pass=true`, `blocker_count=0`, `advisory_count=1`, `next_gate=M15.D_READY`,
+   - advisory `M15-AD3`: bounded 7-day profile has no mature-label window; `M15.D` must widen historical extraction for mature-label closure.
+6. `M15.D` is closed green after one fail-closed remediation:
+   - blocked run `m15d_ofs_real_build_20260302T080027Z`: CTAS column drift on arrival surface (`event_type` missing),
+   - remediation: mapped arrival feature to `channel_group`,
+   - green run `m15d_ofs_real_build_20260302T080146Z`: `overall_pass=true`, `blocker_count=0`, `next_gate=M15.E_READY`,
+   - materialization receipt: `row_count=1838137`, `distinct_flows=1838137`,
+   - runtime/cost receipt: `query_count=4`, `total_scanned_gb=13.902`, `athena_cost_estimate_usd=0.0679`,
+   - run-scoped OFS contract artifacts published under `evidence/runs/platform_20260302T080146Z/learning/ofs/`.
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M15.build_plan.md`

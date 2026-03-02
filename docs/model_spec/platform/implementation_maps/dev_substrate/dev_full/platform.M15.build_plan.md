@@ -297,29 +297,226 @@ Goal:
 1. Pin executable policy for as-of joins, maturity lag, and leakage exclusions on real surfaces.
 
 DoD:
-- [ ] policy spec published and machine-checkable.
-- [ ] adversarial edge cases are enumerated and tested.
-- [ ] future-boundary and truth-surface misuse are fail-closed.
-- [ ] archive/truth routing contract is pinned with timeliness and maturity semantics (bank-truth + oracle-truth intake lanes).
-- [ ] IEG entity-relationship selection is pinned from observed profile evidence (not assumptions).
+- [x] policy spec published and machine-checkable.
+- [x] adversarial edge cases are enumerated and tested.
+- [x] future-boundary and truth-surface misuse are fail-closed.
+- [x] archive/truth routing contract is pinned with timeliness and maturity semantics (bank-truth + oracle-truth intake lanes).
+- [x] IEG entity-relationship selection is pinned from observed profile evidence (not assumptions).
 
 Blockers:
 1. `M15-B3` point-in-time semantics mismatch.
 2. `M15-B4` leakage boundary breach.
+
+M15.C execution strategy (locked):
+1. Authority and evidence inputs:
+   - `runs/dev_substrate/dev_full/m15/m15a_contract_mapping_20260302T070156Z/m15a_semantics_contract_matrix.json`,
+   - `runs/dev_substrate/dev_full/m15/m15a_contract_mapping_20260302T070156Z/m15a_ieg_entity_map_candidates.json`,
+   - `runs/dev_substrate/dev_full/m15/m15b_semantic_profile_20260302T072457Z/m15b_schema_profile.json`,
+   - `runs/dev_substrate/dev_full/m15/m15b_semantic_profile_20260302T072457Z/m15b_time_integrity_report.json`,
+   - `runs/dev_substrate/dev_full/m15/m15b_semantic_profile_20260302T072457Z/m15b_join_coverage_matrix.json`,
+   - `runs/dev_substrate/dev_full/m15/m15b_semantic_profile_20260302T072457Z/m15b_key_integrity_report.json`,
+   - `runs/dev_substrate/dev_full/m15/m15b_semantic_profile_20260302T072457Z/m15b_entity_stability_report.json`,
+   - `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`,
+   - `docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md`,
+   - `docs/model_spec/platform/pre-design_decisions/dev-full_managed-substrate_migration.design-authority.v0.md`.
+2. Policy spec realization:
+   - materialize machine-checkable JSON policy containing:
+     - replay basis mode,
+     - `feature_asof_utc`,
+     - `label_asof_utc`,
+     - `label_maturity_days`,
+     - runtime-forbidden truth surfaces,
+     - runtime-forbidden future-field list,
+     - fail-closed leakage mode.
+   - derive policy timestamps from `M15.B` bounded profile window (`window_end_utc`) and maturity days pin.
+3. Validation lanes:
+   - `C1`: runtime boundary checks (`runtime_max_ts <= feature_asof_utc`) on all runtime-allowed surfaces from `M15.A`,
+   - `C2`: truth boundary checks (`truth_max_ts <= label_asof_utc`) on all offline truth surfaces,
+   - `C3`: maturity envelope semantics check (`label_maturity_cutoff_utc = label_asof_utc - maturity_days`) with explicit readiness posture for downstream `M15.D`,
+   - `C4`: leakage guardrail checks:
+     - truth outputs cannot be runtime-allowed,
+     - runtime surfaces cannot expose forbidden future fields,
+     - learning-only caution surfaces are excluded from runtime path.
+4. Adversarial probe suite (must be executed and pass):
+   - invalid policy mutation probes:
+     - future-valued as-of,
+     - zero/negative maturity days,
+     - runtime inclusion of truth outputs,
+     - runtime inclusion of future-only fields.
+   - each probe must deterministically fail in policy evaluator.
+5. Archive/truth routing contract closure:
+   - emit explicit bank-truth and oracle-truth intake contract with:
+     - source outputs,
+     - timeliness pairing to runtime anchors,
+     - measured max-lag posture from `M15.B` reports,
+     - maturity gating semantics for learning eligibility.
+6. IEG relationship pin from observed evidence:
+   - select primary relationship spine from measured stability/joinability (not schema assumption),
+   - publish explicit selected graph and deferred/non-selected relationships with reason.
+7. Fail-closed conditions:
+   - required policy handles unresolved,
+   - any boundary/leakage check fails,
+   - adversarial probe unexpectedly passes,
+   - durable evidence publish/readback fails.
+8. Verdict rules:
+   - `ADVANCE_TO_M15_D` when blocker count is zero,
+   - `BLOCKED_M15_C` otherwise.
+
+M15.C artifact contract:
+1. `m15c_point_in_time_policy_spec.json`
+2. `m15c_policy_validation_report.json`
+3. `m15c_adversarial_probe_report.json`
+4. `m15c_archive_truth_timeliness_contract.json`
+5. `m15c_ieg_entity_relationship_pin.json`
+6. `m15c_blocker_register.json`
+7. `m15c_execution_summary.json`
+
+M15.C runtime/cost guardrails:
+1. Target runtime <= 30 minutes.
+2. No new heavy data-profile scans are allowed in M15.C; this lane is evidence-closure and policy validation over M15.A/B outputs.
+3. Publish local + durable receipts for all M15.C artifacts.
+
+M15.C closure snapshot:
+1. First attempt failed closed:
+   - execution: `m15c_point_in_time_policy_20260302T074331Z`,
+   - blocker: `M15-B3` (`Required M15.C handles missing: EVIDENCE_BUCKET`),
+   - remediation: align lane handle to canonical key `S3_EVIDENCE_BUCKET`.
+2. Green rerun:
+   - execution: `m15c_point_in_time_policy_20260302T074401Z`,
+   - verdict: `overall_pass=true`, `blocker_count=0`, `advisory_count=1`, `next_gate=M15.D_READY`.
+3. Advisory retained:
+   - `M15-AD3`: no mature-window rows in bounded 7-day profile; `M15.D` must widen historical extraction for mature-label dataset closure.
+4. Local artifacts:
+   - `runs/dev_substrate/dev_full/m15/m15c_point_in_time_policy_20260302T074401Z/m15c_point_in_time_policy_spec.json`
+   - `runs/dev_substrate/dev_full/m15/m15c_point_in_time_policy_20260302T074401Z/m15c_policy_validation_report.json`
+   - `runs/dev_substrate/dev_full/m15/m15c_point_in_time_policy_20260302T074401Z/m15c_adversarial_probe_report.json`
+   - `runs/dev_substrate/dev_full/m15/m15c_point_in_time_policy_20260302T074401Z/m15c_archive_truth_timeliness_contract.json`
+   - `runs/dev_substrate/dev_full/m15/m15c_point_in_time_policy_20260302T074401Z/m15c_ieg_entity_relationship_pin.json`
+   - `runs/dev_substrate/dev_full/m15/m15c_point_in_time_policy_20260302T074401Z/m15c_blocker_register.json`
+   - `runs/dev_substrate/dev_full/m15/m15c_point_in_time_policy_20260302T074401Z/m15c_execution_summary.json`
+5. Durable artifacts:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15c_point_in_time_policy_20260302T074401Z/m15c_point_in_time_policy_spec.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15c_point_in_time_policy_20260302T074401Z/m15c_policy_validation_report.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15c_point_in_time_policy_20260302T074401Z/m15c_adversarial_probe_report.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15c_point_in_time_policy_20260302T074401Z/m15c_archive_truth_timeliness_contract.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15c_point_in_time_policy_20260302T074401Z/m15c_ieg_entity_relationship_pin.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15c_point_in_time_policy_20260302T074401Z/m15c_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15c_point_in_time_policy_20260302T074401Z/m15c_execution_summary.json`
 
 ### M15.D - OFS Real Dataset Build
 Goal:
 1. Replace bootstrap OFS build logic with real data transformations and publish real manifest/fingerprint evidence.
 
 DoD:
-- [ ] OFS build references real stream/truth surfaces.
-- [ ] manifests/fingerprints encode replay/as-of/maturity fields.
-- [ ] no bootstrap-only artifact is used for closure.
-- [ ] feature catalog is published with source lineage, availability horizon, leakage class, and null policy.
+- [x] OFS build references real stream/truth surfaces.
+- [x] manifests/fingerprints encode replay/as-of/maturity fields.
+- [x] no bootstrap-only artifact is used for closure.
+- [x] feature catalog is published with source lineage, availability horizon, leakage class, and null policy.
 
 Blockers:
 1. `M15-B5` OFS dataset correctness failure.
 2. `M15-B7` evidence/readback parity failure.
+
+M15.D execution strategy (locked):
+1. Authority and entry inputs:
+   - `M15.C` green execution summary and policy spec (`m15c_point_in_time_policy_20260302T074401Z`),
+   - `M15.B` profile manifest/time/join/key reports (`m15b_semantic_profile_20260302T072457Z`),
+   - dev_full handle pins for OFS paths/fingerprint requirements.
+2. Compute and materialization lane:
+   - managed compute path: Athena CTAS,
+   - materialize a real supervised OFS dataset to object store under:
+     - `s3://{S3_OBJECT_STORE_BUCKET}/learning/ofs/realized/{m15d_execution_id}/dataset/`.
+3. M15.D v1 extraction policy (pinned):
+   - keep M15.C as-of policy (`feature_asof_utc`, `label_asof_utc`, `label_maturity_days`),
+   - satisfy `M15-AD3` by widening historical extraction to a mature window:
+     - `cohort_end_utc = label_maturity_cutoff_utc`,
+     - `cohort_start_utc = cohort_end_utc - 14 days`,
+   - deterministic sample rule for bounded first-pass build:
+     - `sample_mode = flow_id_modulo`,
+     - `sample_modulus = 20`,
+     - `sample_remainder = 0` (5% cohort),
+   - filters and sample rule must be recorded in manifest/fingerprint.
+4. Dataset semantics:
+   - runtime feature surfaces:
+     - `s3_flow_anchor_with_fraud_6B`,
+     - `arrival_events_5B`,
+   - truth surfaces:
+     - `s4_flow_truth_labels_6B`,
+     - `s4_flow_bank_view_6B`,
+   - join keys:
+     - `flow_id`,
+     - `merchant_id + arrival_seq` for arrival enrichment,
+   - supervised row eligibility requires mature truth label presence.
+5. Required M15.D outputs:
+   - dataset physical materialization (Parquet),
+   - dataset manifest with replay/as-of/maturity/cohort filters,
+   - dataset fingerprint including all `DATASET_FINGERPRINT_REQUIRED_FIELDS`,
+   - time-bound and leakage audit,
+   - feature catalog with lineage/availability horizon/leakage class/null policy.
+6. Fail-closed checks:
+   - zero mature-labeled rows,
+   - any as-of/maturity boundary violation,
+   - missing required fingerprint fields,
+   - bootstrap/synthetic artifact used as source,
+   - durable evidence publish/readback failure.
+7. Verdict:
+   - `ADVANCE_TO_M15_E` when blocker count is zero,
+   - `BLOCKED_M15_D` otherwise.
+
+M15.D artifact contract (phase-local):
+1. `m15d_ofs_dataset_manifest.json`
+2. `m15d_ofs_dataset_fingerprint.json`
+3. `m15d_time_bound_leakage_audit.json`
+4. `m15d_feature_catalog.json`
+5. `m15d_materialization_receipt.json`
+6. `m15d_blocker_register.json`
+7. `m15d_execution_summary.json`
+
+M15.D runtime/cost guardrails:
+1. Target runtime <= 90 minutes.
+2. Hard scan cap for M15.D v1 build: `250 GB`.
+3. Emit query-count, scanned-bytes, and estimated Athena cost in the execution summary.
+
+M15.D closure snapshot:
+1. First attempt failed closed:
+   - execution: `m15d_ofs_real_build_20260302T080027Z`,
+   - blocker: `M15-B5` (`Athena CTAS build failed for M15.D`),
+   - root cause: arrival surface field drift (`event_type` not present; actual field is `channel_group`).
+2. Remediation:
+   - updated M15.D real-data transform to use `arrival_channel_group <- arrival_events_5B.channel_group`.
+3. Green rerun:
+   - execution: `m15d_ofs_real_build_20260302T080146Z`,
+   - verdict: `overall_pass=true`, `blocker_count=0`, `next_gate=M15.E_READY`.
+4. Materialization and audit receipt:
+   - dataset table: `fraud_platform_dev_full_ofs.ofs_m15d_m15d_ofs_real_build_20260302t080146z`,
+   - dataset URI: `s3://fraud-platform-dev-full-object-store/learning/ofs/realized/m15d_ofs_real_build_20260302T080146Z/dataset/`,
+   - row_count: `1,838,137`,
+   - distinct_flows: `1,838,137`,
+   - leakage/time checks: all pass (`feature_future_rows=0`, `label_future_rows=0`, `immature_label_rows=0`),
+   - query_count: `4`,
+   - scanned: `13.902 GB`,
+   - estimated Athena cost: `$0.0679`.
+5. Local artifacts:
+   - `runs/dev_substrate/dev_full/m15/m15d_ofs_real_build_20260302T080146Z/m15d_ofs_dataset_manifest.json`
+   - `runs/dev_substrate/dev_full/m15/m15d_ofs_real_build_20260302T080146Z/m15d_ofs_dataset_fingerprint.json`
+   - `runs/dev_substrate/dev_full/m15/m15d_ofs_real_build_20260302T080146Z/m15d_time_bound_leakage_audit.json`
+   - `runs/dev_substrate/dev_full/m15/m15d_ofs_real_build_20260302T080146Z/m15d_feature_catalog.json`
+   - `runs/dev_substrate/dev_full/m15/m15d_ofs_real_build_20260302T080146Z/m15d_materialization_receipt.json`
+   - `runs/dev_substrate/dev_full/m15/m15d_ofs_real_build_20260302T080146Z/m15d_blocker_register.json`
+   - `runs/dev_substrate/dev_full/m15/m15d_ofs_real_build_20260302T080146Z/m15d_execution_summary.json`
+6. Durable artifacts:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15d_ofs_real_build_20260302T080146Z/m15d_ofs_dataset_manifest.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15d_ofs_real_build_20260302T080146Z/m15d_ofs_dataset_fingerprint.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15d_ofs_real_build_20260302T080146Z/m15d_time_bound_leakage_audit.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15d_ofs_real_build_20260302T080146Z/m15d_feature_catalog.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15d_ofs_real_build_20260302T080146Z/m15d_materialization_receipt.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15d_ofs_real_build_20260302T080146Z/m15d_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15d_ofs_real_build_20260302T080146Z/m15d_execution_summary.json`
+7. Run-scoped OFS contract artifacts:
+   - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260302T080146Z/learning/ofs/dataset_manifest.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260302T080146Z/learning/ofs/dataset_fingerprint.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260302T080146Z/learning/ofs/time_bound_audit.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260302T080146Z/learning/ofs/feature_catalog.json`
 
 ### M15.E - MF Real-Data Train/Eval Rewire
 Goal:
@@ -420,8 +617,8 @@ Minimum closure artifacts:
 6. `m15_cost_outcome_receipt.json`
 
 ## 11) Initial Status
-1. M15 is active and `M15.A` + `M15.B` are closed green.
-2. Next active entry gate is `M15.C`.
+1. M15 is active and `M15.A` + `M15.B` + `M15.C` + `M15.D` are closed green.
+2. Next active entry gate is `M15.E`.
 
 ## 12) M15.A Closure Snapshot
 1. Execution:
