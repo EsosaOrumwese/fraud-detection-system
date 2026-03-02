@@ -45,7 +45,7 @@ flowchart LR
     OPS_STATE[[state key<br/>dev_full/ops/terraform.tfstate]]
   end
 
-  subgraph CERT[Post-M15 Certification Surfaces (non-Terraform resources)]
+  subgraph CERT["Post-M15 Certification Surfaces (non-Terraform resources)"]
     CERT_RC[Runtime Certification Track<br/>RC0-RC5]
     CERT_OC[Ops/Gov Certification Track<br/>OC0-OC5]
     CERT_NOTE[[Consumes M15 handoff + run-control evidence<br/>no additional terraform resources in this graph]]
