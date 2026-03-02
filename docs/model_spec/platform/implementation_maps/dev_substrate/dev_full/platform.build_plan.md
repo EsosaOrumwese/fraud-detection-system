@@ -116,8 +116,8 @@ Canonical lifecycle key: `phase_id=P#` from dev_full runbook.
 | M11 | P14 | MF train/eval closure | DONE |
 | M12 | P15 | MPR promotion/rollback closure | DONE |
 | M13 | P16-P17 | Full-platform verdict + teardown/idle-safe closure | DONE |
-| M14 | post-P17 | Runtime-placement repin materialization + re-certification | ACTIVE |
-| M15 | post-P17 | Data semantics realization for learning/evolution | NOT_STARTED |
+| M14 | post-P17 | Runtime-placement repin materialization + re-certification | DONE |
+| M15 | post-P17 | Data semantics realization for learning/evolution | ACTIVE |
 
 ---
 
@@ -2025,6 +2025,15 @@ Pinned decisions for M15:
    - no-future leakage.
 4. Authoritative profiling and closure evidence are managed-compute only (Athena/Databricks SQL/Spark); no local-runtime closure evidence.
 5. OFS and MF closures must consume real data surfaces (stream-view + truth-view contracts), not synthetic bootstrap generation.
+6. M15 is the mandatory pre-certification semantic hardening phase; certification reruns cannot claim production realism until `M15.A..M15.C` are green.
+7. IEG entity relationship posture must be pinned from observed data behavior (joinability, key stability, late-arrival behavior), not schema assumptions.
+8. Archive/truth routing to offline learning surfaces must have explicit timeliness + maturity contracts with measured receipts.
+9. Feature engineering and explainability surfaces (for example SHAP/importance + operational ML metrics) must be tied to observed data behavior, not schema-only assumptions.
+
+Execution posture lock (M15):
+1. Execute `M15.A..M15.C` first as a bounded representative data-reality sprint.
+2. Only after `M15.A..M15.C` close green may M15 proceed to OFS/MF rewiring (`M15.D..M15.E`) and subsequent closure lanes.
+3. Any unresolved data-contract ambiguity, point-in-time violation, or leakage risk remains fail-closed and blocks certification progression.
 
 Execution scope (M15 lanes):
 1. `M15.A` canonical data-contract mapping per output ID and ownership boundary.
@@ -2054,6 +2063,25 @@ M15 DoD anchors (planning contract, to be checked on activation):
 - [ ] as-of/maturity/leakage policies are enforced on real dataset builds.
 - [ ] semantic validation pack is green with reproducible evidence.
 - [ ] cost-to-outcome receipt and closure summary are committed and parity-verified.
+
+M15 sub-phase progress:
+- [x] `M15.A` canonical data-contract mapping.
+- [ ] `M15.B` managed semantic profiling.
+- [ ] `M15.C` point-in-time policy realization.
+- [ ] `M15.D` OFS real dataset build.
+- [ ] `M15.E` MF real-data train/eval rewire.
+- [ ] `M15.F` leakage adversarial validation.
+- [ ] `M15.G` semantic non-regression pack.
+- [ ] `M15.H` cost/performance closure.
+- [ ] `M15.I` phase rollup verdict.
+- [ ] `M15.J` closure sync.
+
+M15 progress snapshot:
+1. `M15.A` is closed green:
+   - execution: `m15a_contract_mapping_20260302T070156Z`,
+   - summary: `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M15_B`, `next_gate=M15.B_READY`,
+   - local evidence root: `runs/dev_substrate/dev_full/m15/m15a_contract_mapping_20260302T070156Z/`,
+   - durable evidence root: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15a_contract_mapping_20260302T070156Z/`.
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M15.build_plan.md`

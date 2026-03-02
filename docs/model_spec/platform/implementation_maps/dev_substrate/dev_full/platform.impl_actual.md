@@ -18894,3 +18894,91 @@ ext_gate = M14.F_READY.
    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14j_closure_sync_20260302T055205Z/m14j_execution_summary.json`
    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14j_closure_sync_20260302T055205Z/m14_blocker_register.json`
    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14j_closure_sync_20260302T055205Z/m14_execution_summary.json`
+
+## Entry: 2026-03-02 06:52:57 +00:00 - M15 posture repin to data-reality-first semantic hardening
+### Trigger
+1. Operator requested that M15 be set into explicit pre-certification "data reality first" posture while awaiting external review feedback.
+
+### Decision posture
+1. M15 is treated as mandatory semantic hardening, not optional analysis.
+2. `M15.A..M15.C` are now formalized as a bounded data-reality sprint gate that must close before any new certification claim.
+3. Entity modeling for IEG, archive/truth timeliness, feature engineering, and explainability are all pinned to observed data behavior (not schema-only assumptions).
+
+### Applied planning changes
+1. Updated deep plan `platform.M15.build_plan.md` to include:
+   - execution posture lock (`M15.A..M15.C` before certification reruns),
+   - explicit empirical pins for IEG relationships and archive/truth timeliness/maturity contracts,
+   - strengthened DoDs for profiling, policy, OFS feature catalog, MF explainability, and leakage coverage.
+2. Updated main build plan `platform.build_plan.md` to include:
+   - M14 status normalized to `DONE`,
+   - M15 execution posture lock and pinned data-reality decisions.
+
+### Scope boundary
+1. This step is docs/planning only.
+2. No M15 execution lane was started.
+
+## Entry: 2026-03-02 07:00:08 +00:00 - M15.A pre-implementation plan lock (execution-grade + run)
+### Trigger
+1. Operator requested expansion of `M15.A` to execution-grade and immediate execution.
+
+### Problem framing
+1. `M15.A` currently states intent and DoD but lacks explicit execution mechanics, artifact contract by step, and deterministic pass/fail computation.
+2. Without executable closure, `M15` can remain conceptually correct but operationally ambiguous.
+
+### Decision
+1. Execute `M15.A` as a deterministic contract-mapping lane that:
+   - derives runtime/learning ownership map for all in-scope output IDs,
+   - emits explicit IEG entity-map candidate hypotheses,
+   - fails closed on unresolved ownership or missing handle pins,
+   - publishes local and durable receipts when possible.
+2. Keep `M15.A` as data-contract realization only (no managed profiling queries; those remain `M15.B` scope).
+
+### Planned implementation steps
+1. Patch `platform.M15.build_plan.md` to add execution sequence, concrete artifacts, blocker mapping, and runtime budget for `M15.A`.
+2. Patch `platform.build_plan.md` to mark `M15` as active and add `M15.A` progress snapshot placeholders.
+3. Run `M15.A` executor (deterministic local runner) to produce:
+   - `m15a_semantics_contract_matrix.json`,
+   - `m15a_ieg_entity_map_candidates.json`,
+   - `m15a_execution_summary.json`,
+   - `m15a_blocker_register.json`.
+4. Attempt durable mirror under:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/{m15a_execution_id}/`.
+5. Update deep/main plans, impl map, and logbook with exact execution outcome and any blockers.
+
+## Entry: 2026-03-02 07:01:56 +00:00 - M15.A execution (canonical contract mapping) closed green
+### Execution details
+1. Executed deterministic M15.A runner and produced execution:
+   - `m15a_contract_mapping_20260302T070156Z`.
+2. Authority sources used:
+   - `dev_full_handles.registry.v0.md` (required handles + scope sets),
+   - `data_engine_interface.md` (role semantics + join posture),
+   - `platform.M15.build_plan.md` (M15.A contract).
+3. Scope derivation used in runner:
+   - canonical output set = union of `ORACLE_REQUIRED_OUTPUT_IDS`, `ORACLE_SORT_KEY_BY_OUTPUT_ID` keys, `LIVE_RUNTIME_FORBIDDEN_TRUTH_OUTPUT_IDS`, `ORACLE_OFFLINE_TRUTH_OUTPUT_IDS`.
+4. Fail-closed checks executed:
+   - required M15.A handles present and non-placeholder,
+   - all output IDs mapped with deterministic `usage_scope`,
+   - no truth-only output marked runtime-allowed,
+   - unresolved count equals zero.
+
+### Decision rationale
+1. Kept M15.A as semantic-contract closure only; no profiling SQL/Spark execution was introduced in A to preserve A/B scope boundary.
+2. Included IEG candidate entity relationship hypotheses in A because this is required to avoid schema-only assumptions before M15.B empirical profiling.
+3. Included `s1_session_index_6B` as learning-only cautionary surface due future-risk fields (`session_end_utc`, aggregate counts), consistent with existing no-future policy.
+
+### Outcome
+1. `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M15_B`, `next_gate=M15.B_READY`.
+2. Matrix row count: `9`.
+3. Required-handle check: `7/7` present.
+
+### Evidence
+1. Local:
+   - `runs/dev_substrate/dev_full/m15/m15a_contract_mapping_20260302T070156Z/m15a_semantics_contract_matrix.json`
+   - `runs/dev_substrate/dev_full/m15/m15a_contract_mapping_20260302T070156Z/m15a_ieg_entity_map_candidates.json`
+   - `runs/dev_substrate/dev_full/m15/m15a_contract_mapping_20260302T070156Z/m15a_blocker_register.json`
+   - `runs/dev_substrate/dev_full/m15/m15a_contract_mapping_20260302T070156Z/m15a_execution_summary.json`
+2. Durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15a_contract_mapping_20260302T070156Z/m15a_semantics_contract_matrix.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15a_contract_mapping_20260302T070156Z/m15a_ieg_entity_map_candidates.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15a_contract_mapping_20260302T070156Z/m15a_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15a_contract_mapping_20260302T070156Z/m15a_execution_summary.json`

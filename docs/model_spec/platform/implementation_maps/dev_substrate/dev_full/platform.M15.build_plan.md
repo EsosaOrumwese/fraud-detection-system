@@ -12,6 +12,7 @@ M15 is green only when all are true:
 3. No-future leakage posture is proven on real datasets.
 4. OFS and MF evidence ties directly to authoritative stream-view/truth-view contracts.
 5. Cost/performance receipts remain within pinned envelopes.
+6. Data-reality closure (`M15.A..M15.C`) is completed before any runtime/ops-governance certification rerun claims are made.
 
 ## 1) Authority Inputs
 Primary:
@@ -43,6 +44,17 @@ M15 execution cannot start unless all are true:
 3. Required handle set for M15.A is resolved or explicitly listed as unresolved blockers.
 4. Managed query/compute path is available for semantic profiling and dataset builds (Athena/Databricks/EMR).
 
+## 3.1) Execution Posture Lock (Data-Reality First)
+1. M15 is the pre-certification semantic hardening phase; it is not an optional analysis track.
+2. `M15.A`, `M15.B`, and `M15.C` must close green before:
+   - any new runtime certification claim,
+   - any ops/governance certification claim,
+   - any "production-like learning" claim.
+3. Bounded dataset policy for initial closure:
+   - execute on a representative bounded horizon first (for example 2-4 weeks),
+   - then repin sample-size and horizon for broader closure in `M15.H`.
+4. All M15 closure evidence is managed-compute only; local ad-hoc analysis is non-authoritative.
+
 ## 4) Pinned Decisions (Binding for M15)
 1. Data-output semantics and ownership are anchored to `data_engine_interface.md`.
 2. Runtime decision lanes must remain isolated from truth-only outputs (`s4_*`).
@@ -50,6 +62,9 @@ M15 execution cannot start unless all are true:
 4. Label maturity is mandatory and enforced fail-closed.
 5. Learning/evolution closure evidence must come from managed compute only.
 6. Bootstrap-only OFS/MF placeholders cannot be used as closure evidence.
+7. IEG entity-relationship posture must be empirically pinned from observed key stability, joinability, and late-arrival behavior.
+8. Archive/truth routing to offline learning surfaces must have explicit timeliness and maturity contracts with measured receipts.
+9. Feature engineering and explainability surfaces must be derived from observed data behavior; schema-only assumptions are non-authoritative.
 
 ## 5) Data Semantics Contract (Expected Use by Plane)
 Hot path (runtime):
@@ -93,12 +108,45 @@ Required handles:
 6. `LEARNING_LABEL_MATURITY_DAYS_DEFAULT`
 
 DoD:
-- [ ] data contract matrix published with no ambiguous ownership.
-- [ ] every output ID is tagged `runtime`, `learning`, or `both` with explicit rules.
-- [ ] unresolved semantic questions are fail-closed blockers, not assumptions.
+- [x] data contract matrix published with no ambiguous ownership.
+- [x] every output ID is tagged `runtime`, `learning`, or `both` with explicit rules.
+- [x] unresolved semantic questions are fail-closed blockers, not assumptions.
+- [x] initial entity-map candidates for IEG are pinned with key/relationship hypotheses and explicit unresolveds.
 
 Blockers:
 1. `M15-B1` ambiguous ownership or unresolved semantic mapping.
+
+Execution plan (M15.A):
+1. Parse required M15.A handles from `dev_full_handles.registry.v0.md`.
+2. Build canonical output set from:
+   - `ORACLE_REQUIRED_OUTPUT_IDS`,
+   - `ORACLE_SORT_KEY_BY_OUTPUT_ID` keys,
+   - `LIVE_RUNTIME_FORBIDDEN_TRUTH_OUTPUT_IDS`,
+   - `ORACLE_OFFLINE_TRUTH_OUTPUT_IDS`.
+3. Emit deterministic contract matrix rows per output ID with fields:
+   - `output_id`, `usage_scope` (`runtime|learning|both`),
+   - `runtime_allowed`, `learning_allowed`,
+   - `sort_key`, `time_order_mode`,
+   - `entity_keys_candidate`, `future_field_risk`, `notes`.
+4. Emit IEG candidate relationship map with:
+   - candidate entities and link hypotheses,
+   - expected join surfaces and stability assumptions,
+   - unresolved list (must be empty for PASS).
+5. Fail-closed checks:
+   - all required handles present and non-placeholder,
+   - all output IDs mapped exactly once,
+   - no truth-only output has `runtime_allowed=true`,
+   - unresolved list count is zero.
+6. Publish artifact set local and durable (if credentials permit), then emit deterministic summary + blocker register.
+
+M15.A artifact contract:
+1. `m15a_semantics_contract_matrix.json`
+2. `m15a_ieg_entity_map_candidates.json`
+3. `m15a_execution_summary.json`
+4. `m15a_blocker_register.json`
+
+M15.A runtime budget:
+1. Target <= 15 minutes (docs/contract lane).
 
 ### M15.B - Managed Semantic Profiling
 Goal:
@@ -112,10 +160,15 @@ Execution rules:
    - key uniqueness expectations,
    - time-range continuity,
    - cardinality and joinability baselines.
+3. Additional required profiling:
+   - stream progression posture (state growth over time),
+   - late-arrival/ordering behavior,
+   - entity-link stability for IEG candidate relationships.
 
 DoD:
 - [ ] profile report committed local + durable.
 - [ ] all critical integrity checks either pass or are explicit blockers.
+- [ ] profile includes at least one bounded representative horizon with explicit row/event counts.
 
 Blockers:
 1. `M15-B2` schema/profile drift beyond policy.
@@ -128,6 +181,8 @@ DoD:
 - [ ] policy spec published and machine-checkable.
 - [ ] adversarial edge cases are enumerated and tested.
 - [ ] future-boundary and truth-surface misuse are fail-closed.
+- [ ] archive/truth routing contract is pinned with timeliness and maturity semantics (bank-truth + oracle-truth intake lanes).
+- [ ] IEG entity-relationship selection is pinned from observed profile evidence (not assumptions).
 
 Blockers:
 1. `M15-B3` point-in-time semantics mismatch.
@@ -141,6 +196,7 @@ DoD:
 - [ ] OFS build references real stream/truth surfaces.
 - [ ] manifests/fingerprints encode replay/as-of/maturity fields.
 - [ ] no bootstrap-only artifact is used for closure.
+- [ ] feature catalog is published with source lineage, availability horizon, leakage class, and null policy.
 
 Blockers:
 1. `M15-B5` OFS dataset correctness failure.
@@ -154,6 +210,7 @@ DoD:
 - [ ] M11-equivalent eval report is tied to OFS dataset refs.
 - [ ] lineage and rollback metadata remain complete.
 - [ ] synthetic-generation path is not used for authoritative closure.
+- [ ] explainability artifact set (feature importance/SHAP-equivalent) is tied to the real feature catalog.
 
 Blockers:
 1. `M15-B6` MF semantics mismatch to OFS input contract.
@@ -165,6 +222,7 @@ Goal:
 DoD:
 - [ ] adversarial suite executed with deterministic verdicts.
 - [ ] zero unresolved leakage blocker for closure path.
+- [ ] leakage checks cover both feature engineering and label-join boundaries.
 
 Blockers:
 1. `M15-B4` leakage/future-boundary breach.
@@ -176,6 +234,7 @@ Goal:
 DoD:
 - [ ] replay/as-of/maturity continuity preserved.
 - [ ] contract continuity pass across M9->M10->M11 semantic checkpoints.
+- [ ] decision/evidence explainability payload continuity is validated against pre-M15 contracts.
 
 Blockers:
 1. `M15-B3` semantic continuity break.
@@ -242,5 +301,24 @@ Minimum closure artifacts:
 6. `m15_cost_outcome_receipt.json`
 
 ## 11) Initial Status
-1. M15 is planning-only (`NOT_STARTED`) while M14 execution continues.
-2. No M15 subphase is active.
+1. M15 is active and `M15.A` is closed green.
+2. Next active entry gate is `M15.B`.
+
+## 12) M15.A Closure Snapshot
+1. Execution:
+   - `m15a_contract_mapping_20260302T070156Z`
+2. Verdict:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `verdict=ADVANCE_TO_M15_B`
+   - `next_gate=M15.B_READY`
+3. Local artifacts:
+   - `runs/dev_substrate/dev_full/m15/m15a_contract_mapping_20260302T070156Z/m15a_semantics_contract_matrix.json`
+   - `runs/dev_substrate/dev_full/m15/m15a_contract_mapping_20260302T070156Z/m15a_ieg_entity_map_candidates.json`
+   - `runs/dev_substrate/dev_full/m15/m15a_contract_mapping_20260302T070156Z/m15a_blocker_register.json`
+   - `runs/dev_substrate/dev_full/m15/m15a_contract_mapping_20260302T070156Z/m15a_execution_summary.json`
+4. Durable artifacts:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15a_contract_mapping_20260302T070156Z/m15a_semantics_contract_matrix.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15a_contract_mapping_20260302T070156Z/m15a_ieg_entity_map_candidates.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15a_contract_mapping_20260302T070156Z/m15a_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15a_contract_mapping_20260302T070156Z/m15a_execution_summary.json`
