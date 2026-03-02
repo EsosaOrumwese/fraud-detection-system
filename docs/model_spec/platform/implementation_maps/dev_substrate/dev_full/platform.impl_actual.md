@@ -17936,3 +17936,129 @@ o nodes available).
 
 ### Result
 1. Authority, handles, planned graph, build plan, and run-process narrative are now aligned to the approved v0.2 repin set.
+
+## Entry: 2026-03-01 20:36:12 +00:00 - M14 single-phase alignment route materialized (plan-layer)
+
+### Trigger
+1. USER approved one dedicated alignment phase (`M14`) instead of splitting runtime-placement alignment into multiple top-level phases.
+
+### Decision and rationale
+1. Keep master phase ladder stable (`M0..M13` closed history retained) and introduce one post-closure phase (`M14`) for repin materialization + re-certification.
+2. Use subphases (`M14.A..M14.J`) inside deep plan so coverage remains explicit without adding additional top-level governance overhead.
+3. Normalize execution-binding text to include `M14` in active-phase cost law references.
+
+### Changes applied
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
+   - added full `M14` phase section (objective, lanes, blockers, DoD, deep-plan route),
+   - updated cost-control binding line from `M1..M13` to `M1..M14`.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M14.build_plan.md`
+   - created detailed deep plan with authority, scope, capability matrix, subphase contracts (`M14.A..M14.J`), blocker taxonomy, artifact contract, runtime/cost closure rules.
+
+### Execution boundary for this pass
+1. This pass is documentation/planning only.
+2. No runtime rematerialization, no certification rerun, and no infrastructure mutation executed.
+3. Next execution entrypoint is `M14.A` handle freeze + managed lane readiness validation.
+
+## Entry: 2026-03-01 23:58:16 +00:00 - M14.A pre-execution decision lock (repin handle freeze)
+
+### Objective
+1. Execute `M14.A` end-to-end by freezing and validating the repin handle set for approved dev_full v0.2 runtime placements.
+
+### Execution design
+1. Required freeze-set keys are explicitly pinned (M5 sort, SR, WSP, RTDL Flink app, archive connector, AL/Case/CM/LS placements).
+2. Validation posture is fail-closed on any required-handle issue:
+   - missing key,
+   - placeholder (`TO_PIN`),
+   - malformed assignment,
+   - value drift from pinned repin value.
+3. Cross-doc posture checks are mandatory for this lane:
+   - design authority includes repin runtime posture,
+   - run-process includes managed-first repin framing,
+   - handles registry contains canonical placement values.
+4. Artifact contract for this lane:
+   - local: `runs/dev_substrate/dev_full/m14/<execution_id>/...`
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/<execution_id>/...`
+
+### Planned artifacts
+1. `m14a_handle_closure_snapshot.json`
+2. `m14a_handle_matrix.json`
+3. `m14a_blocker_register.json`
+4. `m14a_execution_summary.json`
+
+### Blockers (fail-closed)
+1. `M14-B1` required-handle closure failure.
+2. `M14-B6` artifact publish/readback failure.
+
+### Runtime budget
+1. Target runtime <= 10 minutes.
+
+## Entry: 2026-03-02 00:01:12 +00:00 - M14.A blocker triage (parser false-negative) and remediation
+
+### Observed fail-closed result
+1. Execution `m14a_handle_freeze_20260302T000035Z` returned `BLOCKED_M14_A` with `blocker_count=2`.
+2. Blockers were reported as missing handles:
+   - `FLINK_RUNTIME_PATH_ACTIVE`
+   - `FLINK_APP_RTDL_IEG_OFP_V0`
+
+### Root cause
+1. M14.A parser expected assignment lines to end immediately after closing backtick.
+2. Registry lines include valid inline notes after backtick (for example repin explanatory suffix), which caused false missing-handle detection.
+
+### Remediation decision
+1. Update parser regex to accept optional trailing inline text after assignment/backtick line.
+2. Re-run M14.A with unchanged required freeze-set and unchanged fail-closed rules.
+3. Preserve first run as historical failed attempt; second run is authoritative closure attempt.
+
+## Entry: 2026-03-02 00:03:21 +00:00 - M14.A executed and closed green (repin handle freeze)
+
+### Run chronology
+1. First attempt:
+   - execution id: `m14a_handle_freeze_20260302T000035Z`
+   - verdict: `BLOCKED_M14_A`
+   - blockers: `M14-B1` on `FLINK_RUNTIME_PATH_ACTIVE` and `FLINK_APP_RTDL_IEG_OFP_V0`.
+2. Root cause:
+   - parser regex rejected valid handle lines with trailing inline annotation after backtick.
+3. Remediation:
+   - parser regex widened to accept optional trailing inline text after assignment/bare-handle lines.
+4. Rerun:
+   - execution id: `m14a_handle_freeze_20260302T000213Z`
+   - verdict: `ADVANCE_TO_M14_B`
+   - next gate: `M14.B_READY`
+   - `overall_pass=true`, `blocker_count=0`, `required_handle_count=16`, `unresolved_required_count=0`.
+
+### Validation outcomes (green rerun)
+1. Required freeze-set handles validated with exact-value or non-placeholder checks:
+   - M5 sort runtime pins,
+   - SR/WSP runtime pins,
+   - Flink RTDL projection pins,
+   - archive connector placement pin,
+   - AL/Case/CM/LS runtime placement pins.
+2. Cross-authority consistency checks all passed:
+   - authority includes `M5_STREAM_SORT_RUNTIME_MODE = "EMR_SERVERLESS_SPARK"`,
+   - authority includes `STREAM_ENGINE_HOSTING_MODE_DEFAULT = "MSF_MANAGED"`,
+   - run-process includes managed-first runtime strategy and P2 runtime pin wording.
+3. Global non-blocking observations captured (outside active M14.A freeze-set):
+   - one `TO_PIN` (`AWS_BUDGET_NOTIFICATION_EMAIL`),
+   - multiple bare token/path rows and one bare role handle (`ROLE_EKS_IRSA_LEARNING`).
+
+### Evidence artifacts
+1. Local:
+   - `runs/dev_substrate/dev_full/m14/m14a_handle_freeze_20260302T000213Z/m14a_handle_closure_snapshot.json`
+   - `runs/dev_substrate/dev_full/m14/m14a_handle_freeze_20260302T000213Z/m14a_handle_matrix.json`
+   - `runs/dev_substrate/dev_full/m14/m14a_handle_freeze_20260302T000213Z/m14a_blocker_register.json`
+   - `runs/dev_substrate/dev_full/m14/m14a_handle_freeze_20260302T000213Z/m14a_execution_summary.json`
+2. Durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14a_handle_freeze_20260302T000213Z/m14a_handle_closure_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14a_handle_freeze_20260302T000213Z/m14a_handle_matrix.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14a_handle_freeze_20260302T000213Z/m14a_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14a_handle_freeze_20260302T000213Z/m14a_execution_summary.json`
+
+### Plan updates
+1. `platform.build_plan.md`:
+   - `M14` remains `ACTIVE`,
+   - M14.A DoD anchor marked complete,
+   - M14 progress snapshot appended with fail-closed + rerun closure notes.
+2. `platform.M14.build_plan.md`:
+   - M14.A DoD checkboxes marked complete,
+   - progress tracker marks `M14.A` complete,
+   - M14.A closure snapshot section appended.

@@ -116,6 +116,7 @@ Canonical lifecycle key: `phase_id=P#` from dev_full runbook.
 | M11 | P14 | MF train/eval closure | DONE |
 | M12 | P15 | MPR promotion/rollback closure | DONE |
 | M13 | P16-P17 | Full-platform verdict + teardown/idle-safe closure | DONE |
+| M14 | post-P17 | Runtime-placement repin materialization + re-certification | NOT_STARTED |
 
 ---
 
@@ -125,13 +126,14 @@ Per-phase deep planning docs follow:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M1.build_plan.md`
 - ...
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M13.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M14.build_plan.md`
 
 Control rule:
 - `platform.build_plan.md` is the only file allowed to change phase status.
 - `platform.M*.build_plan.md` documents deep details and blockers but cannot independently advance status.
 
 ## 6.2) Phase Evidence Template (Pinned)
-Each phase (M1..M13) must publish:
+Each phase (M1..M14) must publish:
 - plan phase + canonical `phase_id`
 - `platform_run_id` (or `N/A` if not created yet)
 - authority refs used
@@ -231,7 +233,7 @@ M0 revisit snapshot (authority repin pass):
 
 ---
 
-## 8) Phase Plan Stubs (M1..M13)
+## 8) Phase Plan Stubs (M1..M14)
 These are master-plan stubs for all `M#` phases so execution has explicit intent before deep-plan expansion.
 
 ## M1 - Packaging Readiness
@@ -1779,8 +1781,99 @@ DoD anchors:
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M13.build_plan.md`
 
+## M14 - Runtime-Placement Repin Materialization and Re-Certification
+Status: `ACTIVE`
+
+Objective:
+- materialize approved v0.2 runtime-placement repins on managed lanes and re-certify platform green claims on repinned compute surfaces.
+
+Entry gate:
+- M13 is `DONE`.
+- repin authority set is closed and consistent across:
+  - `dev-full_managed-substrate_migration.design-authority.v0.md`,
+  - `dev_full_platform_green_v0_run_process_flow.md`,
+  - `dev_full_handles.registry.v0.md`.
+
+Planned lanes:
+1. `M14.A` freeze repin handle set + closure contract.
+2. `M14.B` materialize M5 stream-sort move (`EMR_SERVERLESS_SPARK`) and publish parity receipts.
+3. `M14.C` materialize SR move (`Step Functions + Lambda/job`) and preserve READY semantics.
+4. `M14.D` materialize WSP move (`ECS/Fargate` ephemeral task) and preserve envelope/retry semantics.
+5. `M14.E` materialize RTDL projection lane on Managed Flink canonical runtime with branch-separated evidence (`ieg_*`, `ofp_*`).
+6. `M14.F` materialize archive-writer managed connector-to-S3 cutover with offset continuity proof.
+7. `M14.G` materialize AL/CaseTrigger/CM/LS placement on ECS/Fargate and preserve contracts.
+8. `M14.H` run targeted non-regression pack (`P5/P8/P9/P10/P11/P12`) on repinned runtime.
+9. `M14.I` run cost-and-performance re-certification under repinned placement.
+10. `M14.J` publish final repin-cert verdict + rollback posture + closure sync.
+
+Execution sequence:
+1. Execute strictly in order `M14.A -> M14.B -> ... -> M14.J`.
+2. No subphase skipping is allowed.
+3. Any blocker in active subphase pauses progression until resolved or explicitly waived.
+
+M14.A execution contract (active now):
+1. entry checks:
+   - M13 remains `DONE`,
+   - repin authority trio is readable and mutually aligned,
+   - required repin handles are present in registry.
+2. required repin handles (freeze set):
+   - `ORACLE_STREAM_SORT_ENGINE`,
+   - `ORACLE_STREAM_SORT_RUNTIME_PATH`,
+   - `ORACLE_STREAM_SORT_EMR_SERVERLESS_APP`,
+   - `SR_RUNTIME`,
+   - `SR_READY_COMPUTE_MODE`,
+   - `WSP_RUNTIME`,
+   - `WSP_TRIGGER_MODE`,
+   - `FLINK_RUNTIME_PATH_ACTIVE`,
+   - `FLINK_APP_RTDL_IEG_OFP_V0`,
+   - `FLINK_APP_RTDL_IEG_OFP_SPLIT_POLICY`,
+   - `FLINK_APP_RTDL_IEG_OFP_METRIC_NAMESPACES`,
+   - `RUNTIME_WORKLOAD_ARCHIVE`,
+   - `RUNTIME_WORKLOAD_AL`,
+   - `RUNTIME_WORKLOAD_CASE_TRIGGER`,
+   - `RUNTIME_WORKLOAD_CM`,
+   - `RUNTIME_WORKLOAD_LS`.
+3. pass criteria:
+   - required freeze-set handles are non-placeholder and match pinned repin values,
+   - no unresolved required-handle drift,
+   - M14.A artifacts are published locally and durably.
+4. artifacts:
+   - `m14a_handle_closure_snapshot.json`,
+   - `m14a_handle_matrix.json`,
+   - `m14a_blocker_register.json`,
+   - `m14a_execution_summary.json`.
+5. budget:
+   - runtime target `<= 10 minutes` for M14.A closure.
+
+M14 blocker families (fail-closed):
+- `M14-B1` repin handle closure drift.
+- `M14-B2` runtime materialization failure for any repinned lane.
+- `M14-B3` semantic parity failure against existing canonical contracts.
+- `M14-B4` throughput or latency regression outside pinned envelopes.
+- `M14-B5` cost envelope breach without explicit approved waiver.
+- `M14-B6` evidence parity/readability failure.
+- `M14-B7` rollback path missing or non-executable for repinned lane.
+
+DoD anchors:
+- [x] M14.A handle-freeze closure pass (`overall_pass=true`, `next_gate=M14.B_READY`).
+- [ ] all repinned runtime lanes materialized on managed targets with no unresolved blockers.
+- [ ] contract parity and idempotency semantics remain intact for admission/decision/audit/case/label paths.
+- [ ] non-regression pack passes on repinned runtime surfaces.
+- [ ] cost-to-outcome and performance receipts for repin window are committed and within envelope.
+- [ ] final `m14_execution_summary.json` + `m14_blocker_register.json` published and parity-verified.
+
+Deep plan:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M14.build_plan.md`
+
+M14 progress snapshot:
+1. `M14.A` is closed green after one fail-closed remediation cycle:
+   - failed attempt: `m14a_handle_freeze_20260302T000035Z` (`M14-B1`, parser false-negative on trailing inline handle annotations),
+   - green rerun: `m14a_handle_freeze_20260302T000213Z`,
+   - verdict: `ADVANCE_TO_M14_B`, next gate: `M14.B_READY`,
+   - durable evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14a_handle_freeze_20260302T000213Z/`.
+
 ## 9) Cost-Control Law (Execution Binding)
-For every active phase (`M1..M13`):
+For every active phase (`M1..M14`):
 1. Publish a phase spend envelope before execution.
 2. Keep non-active lanes idle-safe (`desired_count=0` or equivalent stop posture).
 3. Prefer ephemeral/job execution for non-daemon lanes; justify any always-on posture explicitly.
