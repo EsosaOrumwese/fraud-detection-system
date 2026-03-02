@@ -517,6 +517,7 @@ jobs:
           timeout_seconds = max(0.5, float(os.environ.get("IG_BRIDGE_TIMEOUT_SECONDS", "10.0")))
           retry_max_attempts = max(1, int(os.environ.get("IG_BRIDGE_RETRY_MAX_ATTEMPTS", "1")))
           retry_backoff_ms = max(0.0, float(os.environ.get("IG_BRIDGE_RETRY_BACKOFF_MS", "0")))
+          target_dispatch_rps = 100.0 if event_count >= 10000 else 0.0
           platform_run_id = "${{ inputs.platform_run_id }}"
           scenario_run_id = "${{ inputs.scenario_run_id }}"
           phase_id = "P6.B"
@@ -582,8 +583,16 @@ jobs:
           admitted = 0
           failed = 0
           failures = []
+          dispatch_started_epoch = time.time()
           with ThreadPoolExecutor(max_workers=worker_count) as pool:
-              futures = [pool.submit(send_once, idx) for idx in range(event_count)]
+              futures = []
+              for idx in range(event_count):
+                  if target_dispatch_rps > 0:
+                      target_dispatch_epoch = dispatch_started_epoch + (idx / target_dispatch_rps)
+                      now = time.time()
+                      if target_dispatch_epoch > now:
+                          time.sleep(min(0.01, target_dispatch_epoch - now))
+                  futures.append(pool.submit(send_once, idx))
               for fut in as_completed(futures):
                   ok, reason = fut.result()
                   if ok:
@@ -609,6 +618,7 @@ jobs:
               "timeout_seconds": timeout_seconds,
               "retry_max_attempts": retry_max_attempts,
               "retry_backoff_ms": retry_backoff_ms,
+              "target_dispatch_rps": target_dispatch_rps,
               "failure_samples": failures[:8],
           }
           out = Path("${{ steps.run_meta.outputs.run_dir }}") / "m6f_ig_bridge_summary.json"
