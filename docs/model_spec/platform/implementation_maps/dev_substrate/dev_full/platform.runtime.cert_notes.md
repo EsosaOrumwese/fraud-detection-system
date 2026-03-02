@@ -43,13 +43,23 @@ The following attempts are retained for audit continuity only and are excluded f
    - `runs/dev_substrate/dev_full/cert/_scrapped/`
    - any superseded RC execution IDs listed in the superseded register.
 
+### 4.2) Failed RC0 Attempt Quarantine Ledger (2026-03-02)
+1. Quarantine root (local):
+   - `runs/dev_substrate/dev_full/cert/_scrapped/runtime_failed_rc0_20260302T183432Z/`
+2. Quarantine root (durable):
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/_scrapped/runtime_failed_rc0_20260302T183432Z/`
+3. Quarantined failed attempt:
+   - `rc0_claim_model_lock_20260302T182833Z` moved from active claim roots to quarantine roots.
+4. Non-materialized failed attempt (no artifacts found):
+   - `rc0_claim_model_lock_20260302T182821Z` (local absent, durable absent).
+
 ## 5) Clean Run Register
 To be populated only by clean restart executions.
 
 | runtime_cert_execution_id | lane | started_utc | durable_root | status |
 | --- | --- | --- | --- | --- |
-| rc0_claim_model_lock_20260302T182821Z | RC0 | 2026-03-02T18:28:21Z | s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc0_claim_model_lock_20260302T182821Z/ | FAILED_NON_CLAIMABLE_SCRIPT_PRECHECK |
-| rc0_claim_model_lock_20260302T182833Z | RC0 | 2026-03-02T18:28:33Z | s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc0_claim_model_lock_20260302T182833Z/ | FAILED_NON_CLAIMABLE_SCRIPT_UPLOAD |
+| rc0_claim_model_lock_20260302T182821Z | RC0 | 2026-03-02T18:28:21Z | N/A (no durable objects materialized) | FAILED_NON_CLAIMABLE_NO_ARTIFACTS |
+| rc0_claim_model_lock_20260302T182833Z | RC0 | 2026-03-02T18:28:33Z | s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/_scrapped/runtime_failed_rc0_20260302T183432Z/rc0_claim_model_lock_20260302T182833Z/ | FAILED_NON_CLAIMABLE_QUARANTINED |
 | rc0_claim_model_lock_20260302T182859Z | RC0 | 2026-03-02T18:28:59Z | s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc0_claim_model_lock_20260302T182859Z/ | PASS_RC1_READY |
 
 ## 6) Clean Evidence Index
@@ -72,3 +82,17 @@ To be populated only by clean restart executions.
 | RC4 | NOT_STARTED | waiting for clean restart |
 | RC5 | NOT_STARTED | waiting for clean restart |
 | RC6 | NOT_STARTED | waiting for clean restart |
+
+## 9) RC1 Planning Lock (Pre-execution)
+1. RC1 lane planning posture updated to execution-grade (`RC1.A..RC1.G`) in runtime cert plan.
+2. Planned deterministic RC1 artifact set:
+   - `runtime_evidence_inventory.json`
+   - `runtime_fresh_gap_register.json`
+   - `rc1_execution_snapshot.json`
+3. Structural blocker adjudication set for RC1:
+   - `RC-B1`, `RC-B2`, `RC-B3`, `RC-B8`, `RC-B9`.
+4. Required decisions before RC1 execution (fail-closed):
+   - pin `runtime_cert_execution_id` for RC1 run,
+   - pin exact discovery roots for evidence inventory query,
+   - pin cert-window bounds for fresh-lineage classification,
+   - pin remediation routing map for each gap reason.

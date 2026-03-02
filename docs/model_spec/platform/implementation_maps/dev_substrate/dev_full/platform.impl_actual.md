@@ -19977,3 +19977,53 @@ uns/dev_substrate/dev_full/m15/m15g_semantic_non_regression_20260302T083157Z/.
 7. RC0 closure effect:
    - lane status advanced to `RC1_READY`;
    - runtime-cert plan and notes updated to reflect RC0 DoD closure and run register/evidence index state.
+
+### 2026-03-02 18:31:10 +00:00 - Failed RC0 attempt quarantine + RC1 planning lock (pre-implementation)
+1. USER directed: quarantine/remove failed RC0 attempts, then proceed with RC1 execution planning.
+2. Discovery results:
+   - `rc0_claim_model_lock_20260302T182821Z`: no local directory and no durable S3 objects found.
+   - `rc0_claim_model_lock_20260302T182833Z`: local + durable artifacts exist (partial/failed attempt) and are non-claimable.
+3. Decision: use `quarantine move` posture (not hard delete) for materialized failed attempt artifacts to preserve audit continuity while enforcing non-claimable posture.
+4. Quarantine targets:
+   - local source: `runs/dev_substrate/dev_full/cert/runtime/rc0_claim_model_lock_20260302T182833Z/`
+   - durable source: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc0_claim_model_lock_20260302T182833Z/`
+   - destination root pattern: `.../cert/_scrapped/runtime_failed_rc0_<timestamp>/`
+5. RC1 planning scope after quarantine:
+   - expand `RC1` lane to execution-grade (`RC1.A..RC1.G`) in runtime cert plan,
+   - pin deterministic RC1 artifact contract + claimability lineage rules,
+   - define fail-closed blocker adjudication and runtime budget gates,
+   - record unresolved decision checklist required before RC1 execution starts.
+6. Cost/performance/security posture:
+   - no compute-lane mutation, storage-only artifact movement and doc updates,
+   - negligible cost delta (S3 copy+delete for single failed attempt prefix),
+   - preserved fail-closed traceability without destructive deletion.
+
+### 2026-03-02 18:35:20 +00:00 - Failed RC0 attempts quarantined + RC1 execution planning expanded
+1. Executed failed-attempt quarantine under timestamped archive roots:
+   - local: `runs/dev_substrate/dev_full/cert/_scrapped/runtime_failed_rc0_20260302T183432Z/`
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/_scrapped/runtime_failed_rc0_20260302T183432Z/`
+2. Quarantine results by failed attempt:
+   - `rc0_claim_model_lock_20260302T182821Z`: no local/durable artifacts existed; marked non-materialized failed attempt.
+   - `rc0_claim_model_lock_20260302T182833Z`: local and durable artifacts moved from active runtime claim roots to quarantine roots.
+3. Post-quarantine verification:
+   - active runtime root no longer contains failed attempt prefixes,
+   - authoritative pass attempt `rc0_claim_model_lock_20260302T182859Z` remains active and unchanged.
+4. Runtime notes synchronized for quarantine truth:
+   - run register statuses updated (`FAILED_NON_CLAIMABLE_NO_ARTIFACTS`, `FAILED_NON_CLAIMABLE_QUARANTINED`),
+   - quarantine ledger appended with exact local/durable archive roots.
+5. Expanded RC1 lane in runtime cert plan to execution-grade contract:
+   - added `RC1.A..RC1.G` execution sequence,
+   - added RC1 pre-execution decision gate,
+   - added RC1 runtime budget gate,
+   - added RC1 DoD additions for durable readback + explicit blocker adjudication.
+6. Added RC1 planning lock in runtime notes:
+   - deterministic RC1 artifact set pinned,
+   - structural blocker set pinned,
+   - required fail-closed decision checklist pinned before RC1 execution.
+
+### 2026-03-02 18:36:05 +00:00 - RC1 artifact-name parity pin
+1. Added explicit deterministic RC1 artifact-name list in runtime cert plan to align plan and notes authority:
+   - `runtime_evidence_inventory.json`
+   - `runtime_fresh_gap_register.json`
+   - `rc1_execution_snapshot.json`
+2. Rationale: avoid plan/notes drift before RC1 execution.

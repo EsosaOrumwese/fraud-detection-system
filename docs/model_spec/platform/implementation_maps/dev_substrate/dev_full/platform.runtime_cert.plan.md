@@ -170,14 +170,59 @@ RC0 execution closure snapshot (`2026-03-02`):
 Goal:
 1. Produce deterministic inventory and classify fresh evidence gaps.
 
-Rules:
-1. Inventory can include historical refs for context.
-2. Tier-0 claimability counts only `EVIDENCED_FRESH` rows.
+Execution plan (expanded):
+1. `RC1.A` entry-gate precheck:
+   - require authoritative `RC0` pass execution (`rc0_claim_model_lock_20260302T182859Z`),
+   - verify failed RC0 attempts are non-claimable and quarantined from runtime claim roots,
+   - verify active campaign identity remains pinned (`platform_run_id`, `scenario_run_id`).
+2. `RC1.B` evidence-discovery scope lock:
+   - lock authoritative discovery roots (durable first) and local mirrors (context only),
+   - classify roots into `claimable_candidate`, `historical_context`, `scrapped_non_claimable`,
+   - deny `_scrapped` and superseded execution IDs for Tier-0 pass eligibility.
+3. `RC1.C` deterministic evidence inventory materialization:
+   - emit metric-level rows for all Tier-0 required metrics,
+   - include row fields: `metric_id`, `required_artifact`, `evidence_ref`, `captured_at_utc`, `lineage_class`, `execution_posture`, `readability_status`,
+   - enforce deterministic row ordering and stable schema versioning.
+4. `RC1.D` fresh-gap register derivation:
+   - for every Tier-0 metric lacking `EVIDENCED_FRESH` lineage, emit explicit gap rows,
+   - include `gap_reason` (`MISSING`, `HISTORICAL_ONLY`, `SCRAPPED_ONLY`, `UNREADABLE`),
+   - map each gap row to intended remediation lane (`RC2` scorecard or `RC3` drill pack).
+5. `RC1.E` no-pass claimability posture lock:
+   - RC1 must not mark any Tier-0 claim as pass/fail final,
+   - RC1 output posture is inventory + gap adjudication only (`NOT_EVALUATED_IN_RC1` claim status).
+6. `RC1.F` authoritative publication + readback:
+   - publish authoritative artifacts to durable S3 first,
+   - publish local mirror second,
+   - hash/readback verify every published RC1 artifact.
+7. `RC1.G` blocker adjudication and lane verdict:
+   - evaluate structural blockers `RC-B1`, `RC-B2`, `RC-B3`, `RC-B8`, `RC-B9`,
+   - fresh-evidence gaps are recorded in gap register and do not bypass blocker semantics,
+   - lane closes only with explicit verdict and next gate (`RC2_READY_WITH_GAP_REGISTER` or `RC1_REMEDIATION_REQUIRED`).
+
+Pre-execution decision gate (mandatory before RC1 execution):
+1. Pin `rc1_runtime_evidence_inventory_<timestamp>` execution id.
+2. Pin certification window for fresh classification:
+   - `cert_window_start_utc` from active campaign,
+   - `cert_window_end_utc` at RC1 snapshot closure.
+3. Pin discovery roots and denylist roots for claimability classification.
+4. Pin remediation routing for each gap reason (`RC2` vs `RC3`).
+
+Runtime budget gate:
+1. Target RC1 wall time: `<= 25 min`.
+2. Hard stop: `> 60 min` without full inventory + gap-register artifacts.
+3. No infrastructure mutation is allowed in RC1.
+
+Deterministic RC1 artifacts:
+1. `runtime_evidence_inventory.json`
+2. `runtime_fresh_gap_register.json`
+3. `rc1_execution_snapshot.json`
 
 DoD:
 - [ ] evidence inventory is complete and deterministic.
 - [ ] fresh-gap register explicitly lists all Tier-0 missing metrics.
 - [ ] no claim row is marked pass in RC1.
+- [ ] durable publication + readback succeeds for all RC1 artifacts.
+- [ ] blocker adjudication and next gate are explicit.
 
 ### RC2 - Tier 0 runtime scorecard certification (steady/burst/soak + replay-window)
 Goal:
