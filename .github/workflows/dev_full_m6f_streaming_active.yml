@@ -109,21 +109,6 @@ on:
         required: true
         default: "1.0"
         type: string
-      ig_bridge_event_count:
-        description: "Fallback IG bridge event count (EKS_FLINK_OPERATOR path)"
-        required: true
-        default: "12"
-        type: string
-      ig_bridge_workers:
-        description: "Fallback IG bridge concurrent workers"
-        required: true
-        default: "4"
-        type: string
-      ig_bridge_sleep_seconds:
-        description: "Fallback IG bridge per-request sleep seconds"
-        required: true
-        default: "0.2"
-        type: string
       emr_log_group_name:
         description: "CloudWatch log group for EMR jobs"
         required: true
@@ -501,9 +486,8 @@ jobs:
         continue-on-error: true
         shell: bash
         env:
-          IG_BRIDGE_EVENT_COUNT: ${{ inputs.ig_bridge_event_count }}
-          IG_BRIDGE_WORKERS: ${{ inputs.ig_bridge_workers }}
-          IG_BRIDGE_SLEEP_SECONDS: ${{ inputs.ig_bridge_sleep_seconds }}
+          IG_BRIDGE_EVENT_COUNT: ${{ inputs.iterations }}
+          IG_BRIDGE_SLEEP_SECONDS: ${{ inputs.sleep_seconds }}
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -522,7 +506,7 @@ jobs:
           ingest_url = f"{base_url}{ingest_path}"
           api_key = os.environ.get("IG_API_KEY", "")
           event_count = max(1, int(os.environ.get("IG_BRIDGE_EVENT_COUNT", "12")))
-          worker_count = max(1, int(os.environ.get("IG_BRIDGE_WORKERS", "4")))
+          worker_count = max(1, min(64, event_count))
           sleep_seconds = max(0.0, float(os.environ.get("IG_BRIDGE_SLEEP_SECONDS", "0.2")))
           platform_run_id = "${{ inputs.platform_run_id }}"
           scenario_run_id = "${{ inputs.scenario_run_id }}"
