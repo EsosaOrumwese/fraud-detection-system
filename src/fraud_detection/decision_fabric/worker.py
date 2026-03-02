@@ -537,7 +537,10 @@ class DecisionFabricWorker:
     def _kafka_partitions(self, topic: str) -> list[int]:
         assert self._kafka_reader is not None
         partitions = self._kafka_reader.list_partitions(topic)
-        return partitions if partitions else [0]
+        if partitions:
+            return partitions
+        logger.warning("DF kafka partition metadata unavailable topic=%s; deferring read", topic)
+        return []
 
     def _export(self) -> None:
         if self._metrics is None or self._reconciliation is None:

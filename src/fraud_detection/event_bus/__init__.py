@@ -2,7 +2,6 @@
 
 from .publisher import EbRef, EventBusPublisher, FileEventBusPublisher
 from .reader import EbRecord, EventBusReader
-from .kafka import KafkaEventBusPublisher
 
 __all__ = [
     "EbRef",
@@ -12,3 +11,11 @@ __all__ = [
     "EbRecord",
     "EventBusReader",
 ]
+
+
+def __getattr__(name: str):
+    if name == "KafkaEventBusPublisher":
+        from .kafka import KafkaEventBusPublisher
+
+        return KafkaEventBusPublisher
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -19655,6 +19655,46 @@ ext_gate=M15.H_READY.
 2. Implemented closure logic:
    - resolves latest green source executions,
    - validates gate-chain continuity through `M15.I -> M15.J_READY`,
+
+### 2026-03-02 12:26:36 +00:00 - PR feedback remediation plan (event bus + decision fabric)
+1. Inputs/authorities reviewed:
+   - PR review feedback identifying three defects (lazy Kafka import, SASL protocol gating, partition fallback behavior).
+   - Current code surfaces in `src/fraud_detection/event_bus/__init__.py`, `src/fraud_detection/event_bus/kafka.py`, and `src/fraud_detection/decision_fabric/worker.py`.
+2. Problem statement:
+   - Importing `fraud_detection.event_bus` currently hard-imports Kafka adapter and transitively requires `confluent_kafka` even for non-Kafka lanes.
+   - Kafka constructor enforces SASL credentials for all protocols, which blocks valid PLAINTEXT/SSL deployments.
+   - Decision Fabric silently falls back to partition `0` when Kafka metadata cannot be resolved, creating potential backlog loss on multi-partition topics.
+3. Alternatives considered:
+   - Lazy import options: (a) move import into every Kafka call-site, (b) package-level `__getattr__` lazy export. Chosen: `__getattr__` for minimal call-site churn and backwards-compatible import surface.
+   - SASL gating options: (a) infer from username/password presence, (b) gate by `security.protocol`. Chosen: gate by protocol (`SASL_*`) to align with Kafka config semantics.
+   - Partition metadata failure options: (a) keep `[0]` fallback with warning, (b) return empty and retry next poll. Chosen: return empty to fail closed and prevent silent data skips.
+4. Implementation steps (DoD):
+   - Patch event bus package export to lazy-load `KafkaEventBusPublisher` only on access.
+   - Patch Kafka publisher/reader constructors to require credentials only for SASL protocols.
+   - Patch Decision Fabric `_kafka_partitions` to return empty list when metadata unavailable.
+   - Add targeted tests for lazy import behavior, SASL gating, and no-partition fallback.
+   - Run focused pytest selection and capture evidence.
+5. Performance/cost/security posture:
+   - Runtime impact expected neutral-to-positive (fewer import-time failures, no additional loops).
+   - No new infrastructure/resource cost.
+   - Security posture tightened by preserving explicit SASL enforcement while allowing non-SASL modes intentionally.
+
+### 2026-03-02 12:28:15 +00:00 - PR feedback remediation implemented + validated
+1. Implemented lazy Kafka export in `src/fraud_detection/event_bus/__init__.py`:
+   - removed eager `from .kafka import KafkaEventBusPublisher`,
+   - added module `__getattr__` hook to import Kafka adapter only when attribute is accessed.
+2. Implemented protocol-aware SASL credential enforcement in `src/fraud_detection/event_bus/kafka.py`:
+   - added `_uses_sasl(security_protocol)` helper,
+   - publisher and reader constructors now enforce `KAFKA_SASL_CREDENTIALS_MISSING` only for `SASL_*` protocols.
+3. Implemented fail-closed Kafka partition behavior in `src/fraud_detection/decision_fabric/worker.py`:
+   - `_kafka_partitions` now returns `[]` when metadata is unavailable,
+   - emits explicit warning and defers read instead of silently forcing partition `0`.
+4. Added regression tests:
+   - `tests/services/event_bus/test_kafka_import_and_auth.py` for lazy import + SASL gating.
+   - `tests/services/decision_fabric/test_worker_helpers.py` appended fail-closed partition test.
+5. Validation executed:
+   - `pytest -q tests/services/event_bus/test_kafka_import_and_auth.py` passed.
+   - full worker-helper pytest run blocked locally by missing `confluent_kafka`; performed targeted functional check via `PYTHONPATH=src python` with injected fake `confluent_kafka` and verified `_kafka_partitions(...) == []`.
    - verifies local summary/blocker parity,
    - verifies durable summary/blocker readability,
    - emits final `M15.J` and `M15` summaries.

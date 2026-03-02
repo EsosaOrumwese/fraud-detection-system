@@ -50,6 +50,10 @@ def _strip_scheme(value: str) -> str:
     return v
 
 
+def _uses_sasl(security_protocol: str) -> bool:
+    return str(security_protocol or "").strip().upper().startswith("SASL_")
+
+
 def _producer_conf(config: KafkaConfig) -> dict[str, Any]:
     return {
         "bootstrap.servers": config.bootstrap_servers,
@@ -94,7 +98,7 @@ class KafkaEventBusPublisher:
             request_timeout_ms=config.request_timeout_ms,
             retries=config.retries,
         )
-        if not (self.config.sasl_username and self.config.sasl_password):
+        if _uses_sasl(self.config.security_protocol) and not (self.config.sasl_username and self.config.sasl_password):
             raise RuntimeError("KAFKA_SASL_CREDENTIALS_MISSING")
         self._producer = Producer(_producer_conf(self.config))
 
@@ -156,7 +160,7 @@ class KafkaEventBusReader:
             poll_timeout_ms=config.poll_timeout_ms,
             max_poll_records=config.max_poll_records,
         )
-        if not (self.config.sasl_username and self.config.sasl_password):
+        if _uses_sasl(self.config.security_protocol) and not (self.config.sasl_username and self.config.sasl_password):
             raise RuntimeError("KAFKA_SASL_CREDENTIALS_MISSING")
         self._consumer = Consumer(_consumer_conf(self.config))
 
