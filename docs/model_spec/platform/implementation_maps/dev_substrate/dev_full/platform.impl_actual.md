@@ -20269,3 +20269,36 @@ uns/dev_substrate/dev_full/m15/m15g_semantic_non_regression_20260302T083157Z/.
    - `RC3_READY_WITH_SCORECARD` only when `blocker_count=0`,
    - `RC2_REMEDIATION_REQUIRED` otherwise.
 7. Synchronized runtime notes with `RC2 Planning Lock` section to keep plan/notes parity before execution.
+
+### 2026-03-02 19:38:24 +00:00 - Managed RC2 lane implemented and executed (hold/remediation posture)
+1. Implemented RC2 support in `.github/workflows/dev_full_runtime_cert_managed.yml` (workflow-only scope):
+   - added RC2 inputs (`upstream_rc1_execution`, `rc2_non_claimable_execution_ids`),
+   - enabled lane resolver mapping for `rc2`,
+   - added managed inline RC2 handler and RC2 fail-closed verdict gate.
+2. RC2 handler behavior implemented:
+   - loads upstream RC0/RC1 artifacts from active cert runtime root,
+   - evaluates mandatory profile evidence presence/threshold posture for `steady/burst/soak/replay_window`,
+   - derives RC1 gap resolution and Tier-0 claim adjudication artifacts,
+   - publishes deterministic RC2 artifact set with S3 readback hash checks.
+3. Workflow-only commit/push receipt:
+   - commit `7c996d1b7` (`ci: implement managed RC2 tier-0 scorecard lane`)
+   - pushed to `origin/cert-platform`.
+4. RC2 managed dispatch/run:
+   - workflow run `22592516146`,
+   - execution `rc2_tier0_scorecard_20260302T193820Z`,
+   - upstream pins:
+     - `rc0_claim_model_lock_20260302T182859Z`,
+     - `rc1_runtime_evidence_inventory_20260302T192109Z`.
+5. RC2 closure summary:
+   - `overall_pass=false`, `verdict=HOLD`, `next_gate=RC2_REMEDIATION_REQUIRED`,
+   - `blocker_count=4` (`RC-B4` for missing fresh profile evidence on steady/burst/soak/replay_window),
+   - `tier0_hold_count=4` (`T0.2/T0.3/T0.4/T0.6`).
+6. Durable root and artifact set:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc2_tier0_scorecard_20260302T193820Z/`
+   - `runtime_scorecard_profiles.json`
+   - `runtime_scorecard_claim_adjudication.json`
+   - `runtime_scorecard_gap_resolution.json`
+   - `runtime_blocker_register.json`
+   - `runtime_cost_outcome_receipt.json`
+   - `rc2_execution_snapshot.json`.
+7. Runtime cert status transitioned to `RC2_HOLD_REMEDIATION_REQUIRED`; RC3 is remediation-only until Tier-0 holds are closed.

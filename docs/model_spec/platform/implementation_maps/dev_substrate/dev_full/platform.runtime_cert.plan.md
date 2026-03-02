@@ -1,6 +1,6 @@
 # Dev Full Runtime Certification Plan
 
-Status: `RC1_PASS_RC2_READY_WITH_GAP_REGISTER`
+Status: `RC2_HOLD_REMEDIATION_REQUIRED`
 Reset baseline as of: `2026-03-02`
 
 ## 1) Purpose
@@ -338,6 +338,30 @@ DoD:
 - [ ] every RC1 gap row is resolved by RC2 evidence or explicitly deferred to RC3 drill evidence.
 - [ ] blocker register and next gate are explicit and deterministic.
 - [ ] durable publication + hash readback passes for all RC2 artifacts.
+
+RC2 execution closure snapshot (`2026-03-02`):
+1. managed execution:
+   - workflow run `22592516146` (branch `cert-platform`, head `7c996d1b7`)
+   - `runtime_cert_execution_id=rc2_tier0_scorecard_20260302T193820Z`
+2. identity contract used:
+   - `platform_run_id=platform_cert_20260302T182050Z`
+   - `scenario_run_id=scenario_cert_b2e31c46102062661ea43f12a8ceef77`
+   - upstream pins:
+     - `rc0_claim_model_lock_20260302T182859Z`
+     - `rc1_runtime_evidence_inventory_20260302T192109Z`
+3. lane verdict:
+   - `overall_pass=false`, `verdict=HOLD`, `next_gate=RC2_REMEDIATION_REQUIRED`
+   - `blocker_count=4` (`RC-B4` for steady, burst, soak, replay-window missing fresh profile evidence)
+   - `tier0_hold_count=4` (`T0.2`, `T0.3`, `T0.4`, `T0.6`)
+4. durable authoritative root:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc2_tier0_scorecard_20260302T193820Z/`
+5. deterministic RC2 artifact set materialized:
+   - `runtime_scorecard_profiles.json`
+   - `runtime_scorecard_claim_adjudication.json`
+   - `runtime_scorecard_gap_resolution.json`
+   - `runtime_blocker_register.json`
+   - `runtime_cost_outcome_receipt.json`
+   - `rc2_execution_snapshot.json`
 
 ### RC3 - Tier 0 runtime drill-pack certification
 Goal:

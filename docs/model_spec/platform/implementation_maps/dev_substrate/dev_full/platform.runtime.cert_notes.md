@@ -1,5 +1,5 @@
 # Dev Full Runtime Certification Notes
-Status: `RC1_PASS_RC2_READY_WITH_GAP_REGISTER`
+Status: `RC2_HOLD_REMEDIATION_REQUIRED`
 Last updated: `2026-03-02`
 
 ## 1) Purpose
@@ -26,7 +26,7 @@ The following attempts are retained for audit continuity only and are excluded f
 1. `M15_COMPLETE_GREEN` and `CERTIFICATION_TRACKS_READY` are revalidated from handoff artifacts.
 2. Runtime cert plan status transition for clean campaign:
    - entry state: `NOT_STARTED`,
-   - current state: `RC1_PASS_RC2_READY_WITH_GAP_REGISTER`.
+   - current state: `RC2_HOLD_REMEDIATION_REQUIRED`.
 3. Managed execution lanes are reachable for RC workload execution.
 4. Certification window and identity pins for restart are declared before RC0 execution.
 
@@ -65,6 +65,7 @@ To be populated only by clean restart executions.
 | rc1_runtime_evidence_inventory_20260302T191353Z | RC1 | 2026-03-02T19:13:53Z | N/A (no durable objects materialized) | FAILED_NON_CLAIMABLE_IAM_S3_PUT_DENIED |
 | rc1_runtime_evidence_inventory_20260302T191532Z | RC1 | 2026-03-02T19:15:32Z | s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc1_runtime_evidence_inventory_20260302T191532Z/ | PASS_RC2_READY_WITH_GAP_REGISTER |
 | rc1_runtime_evidence_inventory_20260302T192109Z | RC1 | 2026-03-02T19:21:09Z | s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc1_runtime_evidence_inventory_20260302T192109Z/ | PASS_RC2_READY_WITH_GAP_REGISTER_REVALIDATED |
+| rc2_tier0_scorecard_20260302T193820Z | RC2 | 2026-03-02T19:38:20Z | s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc2_tier0_scorecard_20260302T193820Z/ | HOLD_REMEDIATION_REQUIRED |
 
 ## 6) Clean Evidence Index
 To be populated only by clean restart executions.
@@ -78,21 +79,35 @@ To be populated only by clean restart executions.
 8. `rc1_runtime_evidence_inventory_20260302T192109Z/runtime_evidence_inventory.json`
 9. `rc1_runtime_evidence_inventory_20260302T192109Z/runtime_fresh_gap_register.json`
 10. `rc1_runtime_evidence_inventory_20260302T192109Z/rc1_execution_snapshot.json`
+11. `rc2_tier0_scorecard_20260302T193820Z/runtime_scorecard_profiles.json`
+12. `rc2_tier0_scorecard_20260302T193820Z/runtime_scorecard_claim_adjudication.json`
+13. `rc2_tier0_scorecard_20260302T193820Z/runtime_scorecard_gap_resolution.json`
+14. `rc2_tier0_scorecard_20260302T193820Z/runtime_blocker_register.json`
+15. `rc2_tier0_scorecard_20260302T193820Z/runtime_cost_outcome_receipt.json`
+16. `rc2_tier0_scorecard_20260302T193820Z/rc2_execution_snapshot.json`
 
 ## 7) Active Blockers (Clean Baseline)
-1. no structural blockers at RC1 closure (`blocker_count=0`).
-2. `tier0_gap_count=15` is open remediation input (non-blocking for RC1 lane verdict, blocking for Tier-0 final closure until addressed in RC2/RC3).
+1. RC2 lane blockers (`blocker_count=4`, all `RC-B4`):
+   - `steady`: missing mandatory fresh profile evidence,
+   - `burst`: missing mandatory fresh profile evidence,
+   - `soak`: missing mandatory fresh profile evidence,
+   - `replay_window`: missing mandatory fresh profile evidence.
+2. Tier-0 claim holds (`tier0_hold_count=4`):
+   - `T0.2`, `T0.3`, `T0.4`, `T0.6` all `HOLD_REMEDIATION_REQUIRED`.
+3. Certification posture is fail-closed:
+   - `next_gate=RC2_REMEDIATION_REQUIRED`,
+   - RC3 may proceed only as remediation evidence lane; RC6 final rollup remains blocked.
 
 ## 8) Phase Verdict Log (Clean Baseline)
 | Lane | Verdict | Notes |
 | --- | --- | --- |
 | RC0 | PASS | rc0_claim_model_lock_20260302T182859Z, next_gate=RC1_READY |
 | RC1 | PASS | rc1_runtime_evidence_inventory_20260302T192109Z (revalidated; prior pass rc1_runtime_evidence_inventory_20260302T191532Z), next_gate=RC2_READY_WITH_GAP_REGISTER |
-| RC2 | NOT_STARTED | gate open (`RC2_READY_WITH_GAP_REGISTER`) |
-| RC3 | NOT_STARTED | waiting for clean restart |
+| RC2 | HOLD | rc2_tier0_scorecard_20260302T193820Z, next_gate=RC2_REMEDIATION_REQUIRED, blocker_count=4 |
+| RC3 | NOT_STARTED | remediation lane pending (`RC2_REMEDIATION_REQUIRED`) |
 | RC4 | NOT_STARTED | waiting for clean restart |
 | RC5 | NOT_STARTED | waiting for clean restart |
-| RC6 | NOT_STARTED | waiting for clean restart |
+| RC6 | BLOCKED | blocked by Tier-0 hold posture |
 
 ## 9) RC1 Planning Lock (Pre-execution)
 1. RC1 lane planning posture updated to execution-grade (`RC1.A..RC1.G`) in runtime cert plan.
@@ -143,3 +158,21 @@ To be populated only by clean restart executions.
    - pin profile input authorities and load model parameters,
    - pin performance and cost envelopes with hard-stop limits,
    - pin rerun/quarantine policy for failed RC2 attempts.
+
+## 12) RC2 Managed Execution Receipt (`2026-03-02`)
+1. workflow run:
+   - run id `22592516146` on branch `cert-platform` (head `7c996d1b7`).
+2. execution identity:
+   - `runtime_cert_execution_id=rc2_tier0_scorecard_20260302T193820Z`
+   - `platform_run_id=platform_cert_20260302T182050Z`
+   - `scenario_run_id=scenario_cert_b2e31c46102062661ea43f12a8ceef77`
+   - upstream pins:
+     - `upstream_rc0_execution=rc0_claim_model_lock_20260302T182859Z`
+     - `upstream_rc1_execution=rc1_runtime_evidence_inventory_20260302T192109Z`
+3. verdict summary:
+   - `overall_pass=false`, `verdict=HOLD`, `next_gate=RC2_REMEDIATION_REQUIRED`
+   - `blocker_count=4`, `tier0_hold_count=4`
+4. blocker details:
+   - `RC-B4` steady/burst/soak/replay-window profile evidence missing in active cert window.
+5. durable root:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc2_tier0_scorecard_20260302T193820Z/`
