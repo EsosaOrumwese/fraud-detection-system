@@ -119,3 +119,27 @@ To be populated only by clean restart executions.
    - `blocker_count=0`, `tier0_gap_count=15`
 4. durable root:
    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc1_runtime_evidence_inventory_20260302T192109Z/`
+
+## 11) RC2 Planning Lock (Pre-execution)
+1. RC2 lane planning posture expanded to execution-grade (`RC2.A..RC2.J`) in runtime cert plan.
+2. Mandatory profile contract pinned:
+   - steady `500 eps / 30 min / >=900,000`,
+   - burst `1,500 eps / 10 min / >=900,000`,
+   - soak `300 eps / 6 h logical window / >=6,480,000`,
+   - replay-window `24 h logical window / >=10,000,000`.
+3. RC2 deterministic artifact set pinned:
+   - `runtime_scorecard_profiles.json`
+   - `runtime_scorecard_claim_adjudication.json`
+   - `runtime_scorecard_gap_resolution.json`
+   - `runtime_blocker_register.json`
+   - `rc2_execution_snapshot.json`
+   - `runtime_cost_outcome_receipt.json`
+4. Lane-critical blocker set for RC2:
+   - `RC-B3`, `RC-B4`, `RC-B8`, `RC-B9`.
+5. Required decisions before RC2 execution (fail-closed):
+   - pin `runtime_cert_execution_id=rc2_tier0_scorecard_<timestamp>`,
+   - pin authoritative upstream RC1 execution ID,
+   - pin managed workflow/handler version and dispatch inputs,
+   - pin profile input authorities and load model parameters,
+   - pin performance and cost envelopes with hard-stop limits,
+   - pin rerun/quarantine policy for failed RC2 attempts.

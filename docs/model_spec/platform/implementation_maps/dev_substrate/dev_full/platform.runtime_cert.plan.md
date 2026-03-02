@@ -250,17 +250,94 @@ RC1 execution closure snapshot (`2026-03-02`):
 Goal:
 1. Certify Tier-0 runtime scorecard against pinned profile floors.
 
-Mandatory profiles:
-1. steady: `500 eps`, `30 min`, sample `>= 900,000`.
-2. burst: `1,500 eps`, `10 min`, sample `>= 900,000`.
-3. soak: `300 eps`, `6 h`, sample `>= 6,480,000`.
-4. replay-window: `24 h logical window`, sample `>= 10,000,000`.
+Execution plan (expanded):
+1. `RC2.A` fail-closed entry gate:
+   - require latest authoritative RC1 pass snapshot (`next_gate=RC2_READY_WITH_GAP_REGISTER`),
+   - load active gap register (`tier0_gap_count=15`) as mandatory remediation input,
+   - reject execution if identity triplet differs from pinned campaign (`platform_run_id`, `scenario_run_id`, `runtime_cert_execution_id` envelope).
+2. `RC2.B` capability-lane exposure and lock (phase-coverage law):
+   - authority/handles: managed workflow name, role ARN, profile runner handles pinned,
+   - identity/IAM: OIDC-only assumption with cert-prefix S3 read/write and no static creds,
+   - network: source/sink endpoints and allowed traffic paths pinned before run,
+   - data stores: S3 evidence roots and any profile input datasets pinned read-only,
+   - messaging: profile ingress stream/topic handles pinned with replay posture declared,
+   - secrets: secret sources declared; no secret values in runtime artifacts/logs,
+   - observability/evidence: metric capture points + scorecard artifact schema pinned,
+   - rollback/rerun: deterministic rerun strategy and non-claimable classification rules pinned,
+   - teardown: post-run cleanup and idle-safe posture pinned (`desired_count=0` where applicable),
+   - budget: performance + cost envelopes pinned before dispatch.
+3. `RC2.C` mandatory profile execution contract:
+   - steady: `500 eps`, `30 min`, sample `>= 900,000`,
+   - burst: `1,500 eps`, `10 min`, sample `>= 900,000`,
+   - soak: `300 eps`, `6 h logical window`, sample `>= 6,480,000`,
+   - replay-window: `24 h logical window`, sample `>= 10,000,000`,
+   - all profiles must run under managed execution posture (`NO_LOCAL_COMPUTE` law).
+4. `RC2.D` deterministic metric capture and aggregation:
+   - capture throughput, success availability, non-retryable errors, decision latency `p50/p95/p99`,
+   - capture replay integrity mismatches, duplicate side effects, ingress->core lag `p50/p95/p99`,
+   - capture observability/diagnostic SLI proxies and runtime cost attribution coverage,
+   - compute profile summaries using fixed window math and deterministic serialization ordering.
+5. `RC2.E` Tier-0 threshold evaluation and claim adjudication:
+   - evaluate `T0.2`, `T0.3`, `T0.4`, `T0.6` against Section 5.1 thresholds,
+   - produce per-claim status: `PASS`, `HOLD_REMEDIATION_REQUIRED`, or `NOT_EVALUABLE`,
+   - map every failed/unknown metric to explicit blocker IDs and remediation owners.
+6. `RC2.F` RC1 gap-to-remediation binding:
+   - for each RC1 gap row, bind either:
+     - `RESOLVED_BY_RC2_PROFILE_EVIDENCE`, or
+     - `DEFER_RC3_DRILL_REQUIRED` with explicit drill family target,
+   - unresolved rows remain open blockers for Tier-0 final closure.
+7. `RC2.G` authoritative publication and readback:
+   - durable-first publication to S3 runtime cert root,
+   - local mirror copy second (non-authoritative),
+   - hash/readback verify each RC2 artifact and fail closed on mismatch.
+8. `RC2.H` blocker adjudication and lane verdict:
+   - evaluate `RC-B3`, `RC-B4`, `RC-B8`, `RC-B9` as lane-critical blockers,
+   - if any Tier-0 claim remains `HOLD`, lane verdict remains remediation posture,
+   - lane next-gate outcomes:
+     - `RC3_READY_WITH_SCORECARD` when `blocker_count=0`,
+     - `RC2_REMEDIATION_REQUIRED` when any blocker persists.
+9. `RC2.I` performance and cost gates (pre-implementation budgets):
+   - complexity target: object/metric scans `O(N + M)` with indexed lookups; no quadratic joins,
+   - runtime targets:
+     - steady `<= 45 min` wall time,
+     - burst `<= 20 min`,
+     - soak logical-window evidence with wall-time target `<= 120 min` (escalate if infeasible),
+     - replay-window evidence wall-time target `<= 120 min`,
+   - hard-stop rule: stop on unexplained stall/regression and complete bottleneck analysis before rerun,
+   - cost envelope must publish planned vs observed spend by profile and lane.
+10. `RC2.J` closure sync:
+   - publish lane snapshot with verdict, next gate, blockers, and open Tier-0 holds,
+   - synchronize runtime cert notes + impl map + logbook with execution receipts and unresolved set.
+
+Pre-execution decision gate (mandatory before RC2 execution):
+1. Pin `runtime_cert_execution_id=rc2_tier0_scorecard_<timestamp>`.
+2. Pin authoritative upstream RC1 execution ID for this run.
+3. Pin managed workflow handler/version and exact dispatch inputs.
+4. Pin profile input authorities (datasets/streams), time-window semantics, and load model parameters.
+5. Pin remediation routing owner for each current gap reason (`RC2` profile evidence vs `RC3` drill evidence).
+6. Pin explicit performance envelope + cost envelope and hard-stop conditions.
+7. Pin rerun/quarantine posture for failed/non-claimable RC2 attempts.
+
+Runtime budget gate:
+1. Target RC2 orchestration wall time: `<= 180 min` (including profile execution + publication + readback).
+2. Hard stop: any profile exceeding `+50%` of its budget without recovery trend.
+3. No unmanaged infrastructure mutation is allowed in RC2.
+
+Deterministic RC2 artifacts:
+1. `runtime_scorecard_profiles.json`
+2. `runtime_scorecard_claim_adjudication.json`
+3. `runtime_scorecard_gap_resolution.json`
+4. `runtime_blocker_register.json`
+5. `rc2_execution_snapshot.json`
+6. `runtime_cost_outcome_receipt.json`
 
 DoD:
 - [ ] all mandatory profiles have fresh managed-run evidence.
-- [ ] each profile meets pinned sample/eps/duration thresholds.
-- [ ] required p50/p95/p99 distributions are present.
-- [ ] blocker register is empty.
+- [ ] each profile meets pinned sample/eps/duration thresholds or is explicitly marked `HOLD_REMEDIATION_REQUIRED`.
+- [ ] required `p50/p95/p99` distributions are present and threshold-adjudicated.
+- [ ] every RC1 gap row is resolved by RC2 evidence or explicitly deferred to RC3 drill evidence.
+- [ ] blocker register and next gate are explicit and deterministic.
+- [ ] durable publication + hash readback passes for all RC2 artifacts.
 
 ### RC3 - Tier 0 runtime drill-pack certification
 Goal:

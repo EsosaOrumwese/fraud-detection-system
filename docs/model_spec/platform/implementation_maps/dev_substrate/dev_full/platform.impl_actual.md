@@ -20241,3 +20241,31 @@ uns/dev_substrate/dev_full/m15/m15g_semantic_non_regression_20260302T083157Z/.
 5. Resulting posture unchanged at gate level:
    - runtime cert status remains `RC1_PASS_RC2_READY_WITH_GAP_REGISTER`,
    - RC2 remains open and pending implementation/execution.
+
+### 2026-03-02 19:29:09 +00:00 - RC2 runtime-cert plan expanded to execution-grade
+1. USER requested moving to RC2 planning expansion (no RC2 execution yet).
+2. Expanded `platform.runtime_cert.plan.md` RC2 section from high-level bullets to full execution map:
+   - phased sequence `RC2.A..RC2.J`,
+   - fail-closed entry gate tied to authoritative RC1 pass + active gap register,
+   - capability-lane exposure lock across authority, IAM, network, stores, messaging, secrets, observability/evidence, rollback/rerun, teardown, budget.
+3. Pinned deterministic RC2 artifact contract:
+   - `runtime_scorecard_profiles.json`,
+   - `runtime_scorecard_claim_adjudication.json`,
+   - `runtime_scorecard_gap_resolution.json`,
+   - `runtime_blocker_register.json`,
+   - `rc2_execution_snapshot.json`,
+   - `runtime_cost_outcome_receipt.json`.
+4. Added pre-execution decision gate set for RC2:
+   - execution-id pin, upstream RC1 pin, managed handler/version pin,
+   - profile input/load-model pin,
+   - performance + cost envelope pin,
+   - rerun/quarantine policy pin.
+5. Added RC2 performance-first framing and budget gates:
+   - explicit complexity target (`O(N + M)` with indexed lookups),
+   - per-profile wall-time targets and hard-stop conditions,
+   - stop-on-regression/bottleneck-analysis rule.
+6. Added RC2 blocker and next-gate semantics:
+   - lane-critical blockers `RC-B3/RC-B4/RC-B8/RC-B9`,
+   - `RC3_READY_WITH_SCORECARD` only when `blocker_count=0`,
+   - `RC2_REMEDIATION_REQUIRED` otherwise.
+7. Synchronized runtime notes with `RC2 Planning Lock` section to keep plan/notes parity before execution.
