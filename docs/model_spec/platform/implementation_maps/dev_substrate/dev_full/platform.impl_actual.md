@@ -19776,3 +19776,93 @@ uns/dev_substrate/dev_full/m15/m15g_semantic_non_regression_20260302T083157Z/.
    - authoritative execution IDs and durable evidence prefix,
    - required authority reading order,
 
+### 2026-03-02 21:07:31 +00:00 - Runtime-cert decision record reconstruction after note trim (RC0->RC2)
+Context:
+- USER trimmed platform.impl_actual.md from line 19779 downward to remove low-value process spam.
+- This entry reconstructs the meaningful decision trail so certification reasoning is not lost.
+
+1. Clean-campaign boundary decision (before execution)
+- Situation:
+  - prior certification attempts existed and could contaminate claimability.
+- Decision:
+  - enforce new campaign identity and quarantine failed/scrapped attempts; only fresh managed evidence is claimable.
+- Why:
+  - preserves fresh-run integrity, no-path reuse drift, and deterministic audit separation.
+- Outcome:
+  - active campaign pinned to platform_run_id=platform_cert_20260302T182050Z, scenario_run_id=scenario_cert_b2e31c46102062661ea43f12a8ceef77.
+
+2. Managed-only execution surface decision
+- Situation:
+  - USER law required no local compute for cert evidence generation.
+- Decision:
+  - implement and run RC lanes through managed GitHub workflow handlers and AWS services only.
+- Why:
+  - keeps certification posture production-shaped and auditable under a single managed control plane.
+- Outcome:
+  - RC1 and RC2 lanes executed through .github/workflows/dev_full_runtime_cert_managed.yml (workflow commits include 7c996d1b7, f14a8a17c, 0d13e6fcb).
+
+3. RC2 sequence-correction decision (evidence generation before adjudication)
+- Situation:
+  - initial RC2 hold showed predictable RC-B4 due missing fresh profile evidence.
+- Alternatives considered:
+  - keep adjudicating and defer remediation, or enforce remediation-first sequencing.
+- Decision:
+  - remediation-first: generate fresh profile snapshots plus manifest, then adjudicate.
+- Why:
+  - adjudicating before evidence generation cannot close RC-B4 and wastes runs.
+- Outcome:
+  - added full_remediation path and manifest gate in RC2 handler (f14a8a17c).
+
+4. RC2 discovery bug decision (false missing-evidence fix)
+- Situation:
+  - remediation run produced manifest/profile refs, but scorecard still labeled profiles as missing.
+- Root cause:
+  - cert_window_end_utc was pinned before same-run profile generation; timestamp filter excluded new snapshots.
+- Decision:
+  - re-pin window end immediately before discovery/adjudication; keep threshold gates unchanged.
+- Why:
+  - fixes false negatives without weakening fail-closed threshold semantics.
+- Outcome:
+  - patch commit 0d13e6fcb; validation run 22594590413 switched all profiles to FRESH_EVIDENCE_FOUND.
+
+5. Upstream volume-remediation decision
+- Situation:
+  - after logic fixes, RC2 still held because sample volume was effectively zero.
+- Alternatives considered:
+  - local synthetic writes (rejected: no-local-compute violation),
+  - repeated RC2 adjudication without new load (rejected: deterministic hold loop),
+  - managed upstream ingestion load (selected).
+- Decision:
+  - use managed M6.F IG bridge path to inject fresh campaign admissions.
+- Why:
+  - this is the only compliant path that increases real claimable evidence.
+- Outcome:
+  - M6.F probe run 22594867808 attempted 5000, admitted 4783, failed 217 (timeouts).
+
+6. Workflow-surface correction decision (GitHub input-cap)
+- Situation:
+  - first M6.F load-control patch added new dispatch inputs and made workflow undispatchable (HTTP 422, above 25 inputs).
+- Decision:
+  - remove new inputs and reuse existing controls (iterations, sleep_seconds) with derived worker concurrency.
+- Why:
+  - restores operability while retaining tunable load control.
+- Outcome:
+  - corrective commit 12fbb176d; workflow dispatch restored.
+
+7. RC2 post-volume adjudication decision and interpretation
+- Situation:
+  - fresh admissions existed; need to confirm whether RC2 blockers moved.
+- Decision:
+  - rerun RC2 immediately after managed volume injection.
+- Outcome:
+  - run 22595073028 (rc2_tier0_scorecard_20260302T204844Z) remained HOLD with 4 blockers, but blocker semantics changed to true threshold failures:
+    - profile evidence present,
+    - sample per profile 4783,
+    - floors still unmet (900,000 to 10,000,000 scale).
+- Interpretation:
+  - logic path is now correct; remaining blocker is throughput/scale capacity, not certification orchestration correctness.
+
+8. Current decision boundary before further RC2 execution
+- We should not continue small probe loops as if they can close RC2.
+- Next productive move is a capacity-grade managed load plan (or explicit threshold/governance decision) before attempting RC2 closure again.
+- This keeps execution honest under fail-closed certification semantics.
