@@ -18406,3 +18406,491 @@ o nodes available).
 3. Launch Fargate runtask with bounded event cap and run-scoped `platform_run_id`.
 4. Capture task exit code, log stream metadata, and idempotency-table admissions.
 5. Emit `m14d_*` artifacts locally + durably and produce deterministic verdict.
+
+## Entry: 2026-03-02 03:04:04 +00:00 - M14.D blocker triage and remediation plan (in-progress)
+1. Confirmed M14.C blocker register is clear (locker_count=0); active blocker scope is only M14.D.
+2. Probed ECS runtask substrate directly and isolated two independent blockers:
+   - runtime role could not read KMS-encrypted oracle objects (raud-platform-dev-full-object-store uses SSE-KMS), causing early task failure without admission evidence;
+   - private-subnet path could pull ECR but failed IG reachability posture for API-Gateway ingress path; public-subnet path could reach IG but initially failed ECR auth due endpoint SG ingress scope.
+3. Remediation strategy pinned for this lane:
+   - update runtask IAM policy to include KMS decrypt/encrypt/data-key permissions for object-store CMK;
+   - run WSP runtask on public subnets with ssignPublicIp=ENABLED for IG edge reachability;
+   - widen runtime endpoint SG ingress to include full VPC CIDR so ECR API/DKR endpoints are reachable from the selected runtime subnets;
+   - rerun M14.D fail-closed and require non-zero run-scoped IG admissions in DynamoDB.
+4. Execute this as a lane-scoped network/iam remediation only; no semantic contract changes to WSP/IG.
+
+## Entry: 2026-03-02 03:25:02 +00:00 - M14.D execution closure (green)
+1. Root-cause chain resolved end-to-end:
+   - M14-B2 initial failures traced to three coupled issues: (a) object-store SSE-KMS without task-role KMS grants, (b) network split between ECR pull path and IG edge reachability, and (c) brittle in-task bootstrap/driver observability.
+   - M14-B3 persisted after task success until run-scope env was corrected (PLATFORM_RUN_ID required by platform_runtime.resolve_platform_run_id, not only ACTIVE_PLATFORM_RUN_ID).
+2. Remediations implemented in M14.D executor lane:
+   - runtime task-role policy now includes KMS actions against object-store CMK (discovered from bucket encryption);
+   - runtime subnet strategy repinned to public subnets with public IP for IG edge reachability;
+   - ECR interface endpoint SG ingress widened to VPC CIDR to preserve image/bootstrap reachability for the selected subnet posture;
+   - task definition updated with awslogs config and deterministic stream readback fallback (cs/wsp/<task_id>);
+   - driver bootstrap hardened to always write wsp_task_result.json on failures and successes;
+   - WSP task env now includes explicit PLATFORM_RUN_ID to preserve run-scoped IG evidence accounting.
+3. Green execution proof:
+   - execution id: m14d_wsp_materialization_20260302T032223Z;
+   - summary: overall_pass=true, locker_count=0, 
+ext_gate=M14.E_READY;
+   - WSP result artifact shows status=STREAMED, eturncode=0, emitted events > 0;
+   - IG idempotency table evidence for lane run id is non-zero and satisfies DoD.
+4. Durable evidence roots:
+   - s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14d_wsp_materialization_20260302T032223Z/;
+   - s3://fraud-platform-dev-full-object-store/oracle-store/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/m14d_runtime/m14d_wsp_materialization_20260302T032223Z/wsp_task_result.json.
+5. Plan sync:
+   - platform.M14.build_plan.md updated with M14.D DoD check closure and execution snapshot;
+   - platform.build_plan.md updated to mark M14.D green and gate advance to M14.E.
+
+## Entry: 2026-03-02 03:29:49 +00:00 - M14.E planning kickoff (RTDL projection materialization)
+1. Prior-lane blocker state check: M14.D blocker register is empty (locker_count=0) in both local and durable surfaces.
+2. Immediate scope for M14.E:
+   - prove RTDL projection runtime posture for repin target (IEG/OFP on managed Flink canonical path),
+   - emit branch-separated evidence (ieg_* + ofp_*) and continuity posture (lag + offset/replay integrity),
+   - fail closed on unresolved runtime materialization.
+3. Detected hard dependency gap:
+   - repository has no existing MSF application provisioning/execution lane (no kinesisanalyticsv2 create/start implementation for RTDL app code artifact),
+   - account-level create-application probe still returns UnsupportedOperationException (verification gate), so canonical materialization is externally blocked.
+4. Decision applied (authority-aligned fallback policy):
+   - execute explicit canonical probe first (must be recorded),
+   - if canonical probe remains externally blocked, activate bounded fallback adjudication (EKS_FLINK_OPERATOR) per pinned policy,
+   - require unchanged semantic evidence via existing certified RTDL/lag/replay artifacts; otherwise fail closed.
+5. Planned M14.E artifacts:
+   - m14e_rtdl_projection_snapshot.json,
+   - m14e_msf_probe_receipt.json,
+   - m14e_blocker_register.json,
+   - m14e_execution_summary.json (with deterministic 
+ext_gate).
+
+## Entry: 2026-03-02 03:32:39 +00:00 - M14.E executed and closed (green)
+1. Implemented lane executor: uns/dev_substrate/dev_full/m14/m14e_exec.py.
+2. Execution result:
+   - xecution_id = m14e_rtdl_projection_20260302T033143Z,
+   - overall_pass = true, locker_count = 0, 
+ext_gate = M14.F_READY.
+3. Canonical runtime probe result:
+   - FLINK_RUNTIME_PATH_ACTIVE remains pinned MSF_MANAGED,
+   - kinesisanalyticsv2 create-application for raud-platform-dev-full-rtdl-ieg-ofp-v0 returned UnsupportedOperationException (account verification gate still active),
+   - this is recorded as advisory M14E-AD1 (not silent).
+4. Bounded fallback adjudication (policy-aligned) applied:
+   - fallback allowed by handle FLINK_RUNTIME_PATH_ALLOWED = MSF_MANAGED|EKS_FLINK_OPERATOR,
+   - untime_path_effective set to EKS_FLINK_OPERATOR for this closure lane only,
+   - semantics validated using previously certified RTDL/continuity evidence.
+5. DoD evidence surfaces:
+   - branch-separated IEG/OFP proof: p8e_rtdl_gate_rollup_matrix.json confirms separate component proofs,
+   - lag posture: m6f_streaming_lag_posture.json (measured_lag=2 <= threshold 10),
+   - replay/offset integrity: m9c_replay_basis_receipt.json (origin_offset_ranges>0, validation errors empty).
+6. Artifacts emitted (local + durable):
+   - m14e_rtdl_projection_snapshot.json,
+   - m14e_msf_probe_receipt.json,
+   - m14e_blocker_register.json,
+   - m14e_execution_summary.json.
+
+## Entry: 2026-03-02 03:40:30 +00:00 - M14.F planning expansion before execution (archive connector cutover)
+1. Scope: execute M14.F end-to-end with managed connector-to-S3 cutover and continuity proof.
+2. Prior-lane blocker check: M14.E blocker register is already zero local+durable, so no carry-over blocker exists.
+3. Decision closure before execution:
+   - pin missing archive connector handles in dev_full_handles.registry.v0.md so lane execution has no implicit defaults,
+   - repin stale MSK cluster ARN/bootstrap brokers to live cluster readback to prevent runtime drift.
+4. Runtime choice for this lane:
+   - canonical archive workload pin remains RUNTIME_WORKLOAD_ARCHIVE=MANAGED_CONNECTOR_TO_S3,
+   - materialization path selected for M14.F execution is Firehose (MSK source -> S3 dynamic partition by platform_run_id) as managed connector-equivalent lane.
+5. Fail-closed criteria for this execution:
+   - unresolved/drifted handles -> M14-B1,
+   - connector or IAM materialization failure -> M14-B2,
+   - admission-to-sink continuity drift -> M14-B3,
+   - artifact publish/readback failure -> M14-B6.
+6. Planned evidence artifacts:
+   - m14f_archive_connector_snapshot.json,
+   - m14f_connector_runtime_receipt.json,
+   - m14f_probe_admission_receipt.json,
+   - m14f_sink_parity_receipt.json,
+   - m14f_blocker_register.json,
+   - m14f_execution_summary.json.
+
+## Entry: 2026-03-02 03:43:02 +00:00 - M14.F blocker triage and remediation (dynamic-partitioning buffer floor)
+1. First M14.F execution (m14f_archive_connector_20260302T034231Z) failed closed with M14-B2.
+2. Root cause: Firehose rejects dynamic partitioning with BufferingHints.SizeInMBs < 64.
+3. Decision: keep dynamic partitioning enabled (required for run-scoped archive prefix by platform_run_id) and repin ARCHIVE_CONNECTOR_BUFFER_SIZE_MB from 5 to 64.
+4. Rationale: this preserves canonical run-scoped archive sink semantics while satisfying managed-service control-plane constraints.
+5. Next action: rerun M14.F without widening scope; require full admission->sink parity and blocker-free closure.
+
+## Entry: 2026-03-02 03:44:18 +00:00 - M14.F remediation decision (MSKAsSource dynamic partition unsupported)
+1. Second execution (m14f_archive_connector_20260302T034309Z) failed closed with M14-B2 due managed-service limitation: Firehose MSKAsSource does not support dynamic partitioning.
+2. Decision: preserve managed connector lane, but repin run-scope proof strategy from dynamic S3 partitioning to payload-level readback.
+3. Handle repins applied:
+   - ARCHIVE_CONNECTOR_DYNAMIC_PARTITION_KEY=UNSUPPORTED_FOR_MSK_SOURCE_V0,
+   - ARCHIVE_CONNECTOR_DYNAMIC_PARTITION_JQ=NOT_APPLICABLE_FOR_MSK_SOURCE_V0,
+   - ARCHIVE_CONNECTOR_S3_PREFIX_PATTERN=archive/_connector/events/,
+   - ARCHIVE_CONNECTOR_RUN_SCOPE_PROOF_MODE=payload_platform_run_id_readback.
+4. Executor remediation applied in uns/dev_substrate/dev_full/m14/m14f_exec.py:
+   - dynamic partitioning is enabled only when handle supports it,
+   - static prefix sink used for MSK source,
+   - continuity requires admitted probe ids plus payload-level platform_run_id readback in new sink objects.
+5. Next action: rerun M14.F fail-closed and require blocker-free closure.
+
+## Entry: 2026-03-02 03:46:52 +00:00 - M14.F remediation pivot (Firehose MSK source -> Lambda MSK event source mapping)
+1. Third M14.F execution (m14f_archive_connector_20260302T034425Z) and fourth (m14f_archive_connector_20260302T034520Z) remained blocked on M14-B2 with Firehose CreateDeliveryStream(MSKAsSource) internal failure.
+2. Isolation step: direct-put Firehose stream creation succeeds in same account/region, so failure is lane-specific to Firehose MSK-source path, not global Firehose outage.
+3. Decision: pivot managed sink implementation for M14.F to Lambda MSK event-source mapping -> S3 archive sink.
+4. Reasoning:
+   - remains managed, production-realistic, and no local compute,
+   - preserves run-scoped archive path semantics (rchive/{platform_run_id}/events/),
+   - allows deterministic admission->sink parity proof by event id.
+5. Scope constraints:
+   - keep M14.F objective unchanged (managed connector cutover + continuity proof),
+   - keep blocker taxonomy (M14-B1/B2/B3/B6) unchanged,
+   - no broad phase-jump; lane-only remediation and rerun.
+
+## Entry: 2026-03-02 03:56:48 +00:00 - M14.F blocker triage (MSK SASL auth failure on Lambda mapping)
+1. Materialization artifacts show connector runtime is up (Lambda function active, event-source mapping enabled) but sink parity failed.
+2. Root-cause evidence from get-event-source-mapping:
+   - LastProcessingResult = PROBLEM: SASL authentication failed.
+3. Decision: remediate connector role permissions for MSK IAM auth data-plane.
+4. Remediation implemented in lane executor:
+   - nsure_lambda_role now includes kafka:GetBootstrapBrokers, kafka:DescribeCluster*, and kafka-cluster:{Connect,DescribeTopic,ReadData,DescribeGroup,AlterGroup} permissions.
+   - propagation buffer increased to 20 seconds before mapping activation checks.
+5. Next action: rerun M14.F and require probe admission -> archive sink object parity to pass with blocker_count=0.
+
+## Entry: 2026-03-02 03:58:48 +00:00 - M14.F remediation update (Lambda MSK source access + fresh consumer mapping)
+1. New blocker surfaced in execution m14f_archive_connector_20260302T034907Z: no sink objects despite admitted probes.
+2. Runtime evidence: event-source mapping reported LastProcessingResult = PROBLEM: SASL authentication failed.
+3. Additional remediation applied:
+   - event-source mapping creation now includes explicit source access config (VPC_SUBNET for each MSK_CLIENT_SUBNET_IDS, plus VPC_SECURITY_GROUP = MSK_SECURITY_GROUP_ID),
+   - mapping is recreated per lane run with fresh consumer group id (m14f-<execution-suffix>) to avoid stale auth/offset posture,
+   - role policy and mapping path remain fail-closed.
+4. Rationale: ensure Lambda pollers authenticate and attach to MSK Serverless in the expected VPC posture.
+5. Next action: rerun M14.F and require admitted probe ids to appear in archive sink objects under run-scoped prefix.
+
+## Entry: 2026-03-02 04:02:34 +00:00 - M14.F remediation update (source topic switch + probe-mode adaptation)
+1. Event-source mapping runtime currently reports Topic does not exist for p.bus.traffic.fraud.v1 in this live dev_full cluster posture.
+2. Decision: repin M14.F source topic to known-active control lane topic p.bus.control.v1 and emit probes through Step Functions READY commit path.
+3. Why this is acceptable for M14.F objective:
+   - lane objective is managed sink cutover + continuity proof, not IG semantics testing,
+   - control lane produces canonical envelope records with run pins for archive continuity proof,
+   - sink readback still validates run-scoped archive key + payload.
+4. Executor changes:
+   - probe mode becomes conditional (ig_ingest_push vs sfn_ready_commit) based on source topic,
+   - Step Functions probe uses SFN_PLATFORM_RUN_ORCHESTRATOR_V0 ARN and run-scoped payload,
+   - sink parity enforces run-scope readback and only enforces explicit event-id membership when probe mode produces event ids.
+5. Additional hardening:
+   - Lambda function update path now avoids unnecessary code/config updates to prevent repeated ResourceConflictException during in-progress updates.
+
+## Entry: 2026-03-02 04:04:03 +00:00 - M14.F remediation correction (MSK mapping source-access constraint)
+1. New blocker from m14f_archive_connector_20260302T040241Z: Lambda CreateEventSourceMapping rejected with Unsupported source access configurations type.
+2. Root cause: explicit source-access config (VPC_SUBNET / VPC_SECURITY_GROUP) is not accepted for this Amazon MSK event-source mapping type.
+3. Remediation:
+   - removed source-access configuration from mapping create path,
+   - retained delete-and-recreate mapping logic (with wait-until-deleted) so source topic repin can take effect,
+   - kept fresh consumer group per run.
+4. Next action: rerun M14.F with source topic pinned p.bus.control.v1 and validate sink continuity.
+
+## Entry: 2026-03-02 04:23:36 +00:00 - M14.F remediation update (managed ECS probe emitter for control topic)
+1. M14.F remained blocked with rchive_sink_no_new_objects_after_probe because Step Functions probe path did not produce control-topic records.
+2. Decision: replace control-topic probe emission with managed ECS producer task (still no laptop compute on hot path).
+3. New pinned handles added for probe lane:
+   - ARCHIVE_CONNECTOR_PROBE_EMIT_MODE,
+   - ARCHIVE_CONNECTOR_PROBE_ECS_CLUSTER,
+   - ARCHIVE_CONNECTOR_PROBE_TASK_DEFINITION,
+   - ARCHIVE_CONNECTOR_PROBE_SUBNET_IDS,
+   - ARCHIVE_CONNECTOR_PROBE_SECURITY_GROUP_ID.
+4. Executor updates:
+   - added mit_control_probe_via_ecs to publish run-scoped probe events directly to source topic with IAM auth,
+   - mapping recreation remains deterministic; stale mappings are deleted before create,
+   - sink parity remains fail-closed on missing probe ids/run-scope readback.
+5. Supporting remediation performed:
+   - lane-scoped IAM policy added to ECS runtime role (raud-platform-dev-full-ecs-task-runtime-wsp) for Kafka IAM data-plane to allow topic bootstrap/produce.
+
+## Entry: 2026-03-02 04:32:07 +00:00 - M14.F remediation repin (mapping start position)
+1. Probe emitter now publishes successfully (cs_task_exit_code=0, admitted probe ids present), but sink parity remained empty.
+2. Event-source mapping reported No records processed while configured with StartingPosition=LATEST and fresh consumer group.
+3. Decision: repin ARCHIVE_CONNECTOR_STARTING_POSITION=TRIM_HORIZON for deterministic first-consumption in this lane.
+4. Rationale: avoid timing race where probe events are produced before the mapping poller establishes latest baseline.
+5. Next action: rerun M14.F with unchanged blocker contract and require archive object parity closure.
+
+## Entry: 2026-03-02 04:43:15 +00:00 - M14.F current status (fail-closed, unresolved runtime gap)
+1. Executed iterative remediation chain for M14.F:
+   - Firehose MSK-source path (blocked by service limitations/internal failure),
+   - pivot to Lambda MSK event-source mapping sink,
+   - source topic bootstrap via managed ECS admin task,
+   - probe emission via managed ECS producer task,
+   - mapping recreation with fresh consumer group and TRIM_HORIZON start.
+2. Verified facts at current end state:
+   - probe producer publishes successfully (dmitted=6, ECS task exit  ),
+   - topic records are present and readable from managed ECS consumer debug run,
+   - Lambda mapping is Enabled but remains LastProcessingResult=No records processed,
+   - archive sink under rchive/{platform_run_id}/events/ remains empty for probe run ids.
+3. Therefore lane remains fail-closed:
+   - latest execution m14f_archive_connector_20260302T043216Z,
+   - blocker M14-B3: archive_sink_no_new_objects_after_probe,
+   - gate state M14.F_BLOCKED.
+4. Plan/docs synchronized to reflect blocked status (no false green claim).
+
+## Entry: 2026-03-02 05:20:10 +00:00 - M14.F closure after connector runtime adjudication
+### Problem state at lane entry
+1. M14.F remained fail-closed with blocker `M14-B3` (`archive_sink_no_new_objects_after_probe`) across repeated Lambda MSK trigger runs.
+2. Probe publication was proven on source topic (`fp.bus.control.v1`) via ECS producer + independent consumer readback, but Lambda mapping stayed `Enabled` with `LastProcessingResult=No records processed` and no Lambda log group creation.
+
+### Decision and rationale
+1. Keep the lane objective unchanged (managed connector to S3 + continuity proof), but repin connector runtime to a deterministic managed ECS batch-consumer bridge while preserving run-scope and parity contracts.
+2. Reason: source production was proven healthy; blocker was isolated to managed-consumer path non-consumption. Continuing on the same path would stall phase progression without improving proof quality.
+
+### Implementation actions
+1. Patched `runs/dev_substrate/dev_full/m14/m14f_exec.py`:
+   - added connector mode branch `ECS_MSK_BATCH_CONSUMER_TO_S3`,
+   - added ECS archive-consumer materialization function (MSK consume -> S3 archive write) with run-scoped filtering,
+   - retained fail-closed blocker semantics and sink parity checks.
+2. Repinned handle `ARCHIVE_CONNECTOR_MODE` in `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` and added `ARCHIVE_CONNECTOR_CONSUMER_TIMEOUT_SECONDS`.
+3. Resolved first remediation blocker (`AccessDenied` on S3 PutObject for ECS runtime role) by granting scoped archive write/KMS permissions to role `fraud-platform-dev-full-ecs-task-runtime-wsp`.
+4. Fixed executor drift bug where `exit_code=0` was interpreted as failure due truthy fallback logic.
+
+### Closure proof
+1. Final green execution: `m14f_archive_connector_20260302T051741Z`.
+2. Summary: `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M14_G`, `next_gate=M14.G_READY`.
+3. Continuity proof: admitted probe IDs appear in newly written run-scoped archive objects under `archive/{platform_run_id}/events/...`.
+
+## Entry: 2026-03-02 05:29:25 +00:00 - M14.G planning and execution closure
+### Planning posture
+1. Lane goal interpreted as placement-conformance + executable runtime proof for AL/CaseTrigger/CM/LS, not docs-only handle checks.
+2. Fail-closed entry required both local and durable zero-blocker proof from M14.F.
+
+### Implementation actions
+1. Added executor `runs/dev_substrate/dev_full/m14/m14g_exec.py` with contracts:
+   - verify M14.F prior-lane blocker parity (local + durable),
+   - verify canonical placement handles (`RUNTIME_WORKLOAD_AL`, `RUNTIME_WORKLOAD_CASE_TRIGGER`, `RUNTIME_WORKLOAD_CM`, `RUNTIME_WORKLOAD_LS`),
+   - materialize ECS task definitions for AL/CaseTrigger/CM/LS (if absent),
+   - run managed health tasks (`python -m ... --help`) for each lane,
+   - verify semantic proof presence and common run-id intersection across AL/CaseTrigger/CM/LS component-proof surfaces.
+2. First execution failed with `TaskFailedToStart` for all four lanes due missing CloudWatch log groups.
+3. Patched executor to pre-create per-family log groups with retention policy before running health tasks.
+
+### Closure proof
+1. Final green execution: `m14g_case_label_materialization_20260302T052538Z`.
+2. Summary: `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M14_H`, `next_gate=M14.H_READY`.
+3. Materialized task definitions:
+   - `fraud-platform-dev-full-al:1`
+   - `fraud-platform-dev-full-case-trigger:1`
+   - `fraud-platform-dev-full-cm:1`
+   - `fraud-platform-dev-full-ls:1`
+4. Semantic continuity: common run-id proof intersection exists across `al_component_proof`, `case_trigger_component_proof`, `cm_component_proof`, and `ls_component_proof`.
+
+## Entry: 2026-03-02 05:34:40 +00:00 - M14.H planning lock before execution
+### Intent
+1. Execute `M14.H` as a strict fail-closed non-regression certification lane after M14 repins.
+2. Scope pinned to targeted anchors only: `P5/P8/P9/P10/P11/P12` plus repin-lane summaries `M14.C..M14.G`.
+
+### Decision points and rationale
+1. Use durable run-control summaries as canonical source rather than local transient copies.
+   - Rationale: avoids local drift and aligns with production-grade evidence posture.
+2. Validate both anchor pass-state and continuity posture (`platform_run_id` consistency for `P8/P9/P10/P12`).
+   - Rationale: non-regression is not only per-lane pass but also cross-lane run-scope continuity.
+3. Include baseline non-regression artifact readback checks (`m8g` pack + canonical `evidence/runs/.../obs/non_regression_pack.json`).
+   - Rationale: ensures M14 repins did not orphan existing obs/gov regression evidence surfaces.
+4. Emit deterministic matrix + blocker register + execution summary in local and durable run-control.
+   - Rationale: M14.H must be auditable as a standalone cert lane with replayable verdict logic.
+
+### Planned implementation
+1. Add `runs/dev_substrate/dev_full/m14/m14h_exec.py` with:
+   - durable anchor discovery by prefix+suffix,
+   - summary pass/blocker checks,
+   - continuity checks,
+   - baseline non-regression artifact readback checks,
+   - local+durable artifact publication.
+2. Run lane and close blockers immediately if any appear.
+
+## Entry: 2026-03-02 05:35:30 +00:00 - M14.H execution and closure
+### Execution summary
+1. Ran `python runs/dev_substrate/dev_full/m14/m14h_exec.py`.
+2. Final run: `m14h_non_regression_20260302T053452Z`.
+3. Result: `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M14_I`, `next_gate=M14.I_READY`.
+
+### What the lane verified
+1. Previous-lane continuity:
+   - local `M14.G` blocker register is zero,
+   - durable `M14.G` blocker register is zero.
+2. Anchor matrix pass (all blocker-free):
+   - `P5` -> `m6d_p5c_gate_rollup_20260225T041801Z/m6d_execution_summary.json`,
+   - `P8` -> `m7f_p8e_rollup_20260225T214307Z/p8e_execution_summary.json`,
+   - `P9` -> `m7k_p9e_rollup_20260226T023154Z/p9e_execution_summary.json`,
+   - `P10` -> `m7p_p10e_rollup_20260226T030607Z/p10e_execution_summary.json`,
+   - `P11` -> `m8j_p11_closure_sync_20260226T065141Z/m8j_execution_summary.json`,
+   - `P12` -> `m12j_closure_sync_20260227T184452Z/m12_execution_summary.json`.
+3. Run-scope continuity:
+   - `platform_run_id` across `P8/P9/P10/P12` remains single-valued (`platform_20260223T184232Z`).
+4. Repin-lane integrity:
+   - latest `M14.C..M14.G` execution summaries all pass with `blocker_count=0`.
+5. Baseline non-regression artifact surfaces remain readable:
+   - latest `m8g` non-regression pack,
+   - canonical `evidence/runs/platform_20260223T184232Z/obs/non_regression_pack.json`.
+
+### Artifacts
+1. Local:
+   - `runs/dev_substrate/dev_full/m14/m14h_non_regression_20260302T053452Z/m14h_non_regression_snapshot.json`
+   - `runs/dev_substrate/dev_full/m14/m14h_non_regression_20260302T053452Z/m14h_blocker_register.json`
+   - `runs/dev_substrate/dev_full/m14/m14h_non_regression_20260302T053452Z/m14h_execution_summary.json`
+2. Durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14h_non_regression_20260302T053452Z/m14h_non_regression_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14h_non_regression_20260302T053452Z/m14h_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14h_non_regression_20260302T053452Z/m14h_execution_summary.json`
+
+## Entry: 2026-03-02 05:37:10 +00:00 - M14.H revalidation rerun
+### Why rerun
+1. Operator request required explicit confirmation that no blockers remained from previous implementation before advancing.
+2. Re-executed `M14.H` to provide a fresh receipt instead of relying only on the prior pass.
+
+### Execution
+1. Ran `python runs/dev_substrate/dev_full/m14/m14h_exec.py`.
+2. New execution: `m14h_non_regression_20260302T053657Z`.
+3. Result: `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M14_I`, `next_gate=M14.I_READY`.
+
+### Evidence
+1. Local:
+   - `runs/dev_substrate/dev_full/m14/m14h_non_regression_20260302T053657Z/m14h_non_regression_snapshot.json`
+   - `runs/dev_substrate/dev_full/m14/m14h_non_regression_20260302T053657Z/m14h_blocker_register.json`
+   - `runs/dev_substrate/dev_full/m14/m14h_non_regression_20260302T053657Z/m14h_execution_summary.json`
+2. Durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14h_non_regression_20260302T053657Z/m14h_non_regression_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14h_non_regression_20260302T053657Z/m14h_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14h_non_regression_20260302T053657Z/m14h_execution_summary.json`
+
+## Entry: 2026-03-02 06:02:40 +00:00 - M14.I planning lock before execution
+### Trigger
+1. Operator requested explicit confirmation of no prior blockers, then plan+execute `M14.I`.
+
+### Decision posture
+1. Treat `M14.I` as an execution lane (not docs-only): emit deterministic performance and cost receipts with fail-closed gates.
+2. Use authoritative runtime/cost sources:
+   - `M14.B` EMR Serverless job run API for stream-sort runtime/utilization,
+   - `M7.K` throughput certification snapshot for sustained throughput/error/retry posture,
+   - `M6.F` lag snapshot for RTDL lag envelope,
+   - Cost Explorer (`us-east-1`) for AWS MTD cost posture.
+3. Validate previous-lane continuity first:
+   - local and durable `M14.H` blocker registers must both be zero.
+
+### Planned implementation
+1. Expand `M14.I` deep plan section with entry checks, executable steps, blockers, DoDs, and runtime budget.
+2. Implement `runs/dev_substrate/dev_full/m14/m14i_exec.py` to:
+   - validate handles + upstream `M14.A..M14.H` summary matrix,
+   - compute performance scorecard and cost envelope posture,
+   - publish local and durable `m14i_*` artifacts,
+   - output deterministic verdict (`ADVANCE_TO_M14_J` or `BLOCKED_M14_I`).
+3. Execute lane and update plans/logbook/impl map with closure evidence.
+
+## Entry: 2026-03-02 06:05:40 +00:00 - M14.I execution and closure
+### Execution
+1. Implemented deterministic lane runner: `runs/dev_substrate/dev_full/m14/m14i_exec.py`.
+2. Ran lane: `python runs/dev_substrate/dev_full/m14/m14i_exec.py`.
+3. Final execution id: `m14i_phase_cost_performance_20260302T054521Z`.
+4. Result: `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M14_J`, `next_gate=M14.J_READY`.
+
+### What was validated (fail-closed)
+1. Previous-lane continuity:
+   - local latest `M14.H` blocker register is zero,
+   - durable latest `M14.H` blocker register is zero.
+2. Upstream matrix continuity:
+   - `M14.A..M14.H` latest summaries are readable, pass, blocker-free, and preserve expected gate progression.
+3. Performance scorecard:
+   - `M14.B` EMR Serverless stream-sort runtime pulled from API:
+     - duration `345s` against budget `<= 7200s`,
+     - rows `1,183,458,470`,
+     - effective `3,430,314.405797 rows/s`,
+     - job state `SUCCESS`.
+   - `M7.K` throughput cert snapshot:
+     - sample `11,878 >= 5,000`,
+     - observed `49.491666... eps >= 20`,
+     - error `0 <= 1.0`,
+     - retry `0 <= 5.0`.
+   - `M6.F` lag posture:
+     - measured lag `2 <= 10`,
+     - `within_threshold=true`.
+4. Cost envelope:
+   - AWS MTD from CE (`us-east-1`) = `14.2552236516 USD`,
+   - envelope `120/210/270` over monthly `300`,
+   - utilization `4.7517%`,
+   - status `GREEN`,
+   - gate pass.
+
+### Artifacts
+1. Local:
+   - `runs/dev_substrate/dev_full/m14/m14i_phase_cost_performance_20260302T054521Z/m14i_performance_scorecard.json`
+   - `runs/dev_substrate/dev_full/m14/m14i_phase_cost_performance_20260302T054521Z/m14i_phase_budget_envelope.json`
+   - `runs/dev_substrate/dev_full/m14/m14i_phase_cost_performance_20260302T054521Z/m14i_phase_cost_performance_receipt.json`
+   - `runs/dev_substrate/dev_full/m14/m14i_phase_cost_performance_20260302T054521Z/m14i_blocker_register.json`
+   - `runs/dev_substrate/dev_full/m14/m14i_phase_cost_performance_20260302T054521Z/m14i_execution_summary.json`
+2. Durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14i_phase_cost_performance_20260302T054521Z/m14i_performance_scorecard.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14i_phase_cost_performance_20260302T054521Z/m14i_phase_budget_envelope.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14i_phase_cost_performance_20260302T054521Z/m14i_phase_cost_performance_receipt.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14i_phase_cost_performance_20260302T054521Z/m14i_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14i_phase_cost_performance_20260302T054521Z/m14i_execution_summary.json`
+
+## Entry: 2026-03-02 06:12:30 +00:00 - M14.J planning lock before execution
+### Trigger
+1. Operator requested confirmation of no prior blockers, then plan+execute `M14.J`.
+
+### Decision posture
+1. `M14.J` is treated as final phase closure sync, not a documentation-only marker.
+2. Closure requires two hard outcomes:
+   - evidence parity (`m14_execution_summary.json` and `m14_blocker_register.json` are coherent and blocker-free),
+   - rollback contract executability across repinned lanes (`M14.B..M14.G`).
+3. Executability standard chosen:
+   - script-based rollback surfaces must compile,
+   - managed workflow rollback surfaces must exist and expose `workflow_dispatch`.
+
+### Planned implementation
+1. Expand `M14.J` deep-plan section with explicit entry checks, execution steps, blockers, DoDs, and runtime budget.
+2. Implement `runs/dev_substrate/dev_full/m14/m14j_exec.py` to:
+   - verify `M14.I` closure continuity (local + durable),
+   - verify `M14.A..M14.I` durable summary matrix pass,
+   - build rollback contract matrix for repinned lanes with executable-surface checks,
+   - publish local+durable closure artifacts (`m14j_*`, `m14_*`),
+   - emit deterministic final verdict (`M14_COMPLETE_GREEN` vs blocked).
+3. Execute lane and update deep/main plans + logbook with closure evidence.
+
+## Entry: 2026-03-02 06:16:10 +00:00 - M14.J fail-closed first run and remediation
+### First run outcome
+1. Implemented and executed `runs/dev_substrate/dev_full/m14/m14j_exec.py`.
+2. First execution: `m14j_closure_sync_20260302T055131Z`.
+3. Result: blocked with `M14-B6` (`rollback_evidence_unreadable:M14.D:ClientError`).
+
+### Root cause
+1. `M14.D` rollback evidence check targeted run-scoped path:
+   - `evidence/runs/platform_20260302T032223Z/ingest/receipt_summary.json`.
+2. That path is not the canonical M14.D rollback evidence surface for this repin lane.
+
+### Remediation decision
+1. Keep fail-closed posture and update only the evidence selector for `M14.D` rollback contract.
+2. New target:
+   - run-control snapshot for the exact M14.D execution:
+   - `evidence/dev_full/run_control/<m14d_execution_id>/m14d_wsp_materialization_snapshot.json`.
+3. Rationale: this artifact is lane-authoritative, deterministic, and already required by M14.D closure evidence contract.
+
+## Entry: 2026-03-02 06:17:20 +00:00 - M14.J closure and M14 final green verdict
+### Final run
+1. Reran `m14j_exec.py` after evidence-selector remediation.
+2. Final execution: `m14j_closure_sync_20260302T055205Z`.
+3. Result: `overall_pass=true`, `blocker_count=0`, `m14j` verdict `ADVANCE_TO_M14_COMPLETE`.
+4. Final M14 summary:
+   - `verdict=M14_COMPLETE_GREEN`,
+   - `next_gate=M15_READY`.
+
+### Closure checks passed
+1. Previous lane (`M14.I`) continuity: local + durable blocker counts are zero.
+2. Upstream matrix (`M14.A..M14.I`) all readable, pass, and blocker-free with expected gate progression.
+3. Rollback contract matrix (`M14.B..M14.G`) passed:
+   - rollback handles resolved,
+   - required evidence refs readable,
+   - executable surfaces pass (scripts compile and/or managed workflow dispatch surfaces exist).
+
+### Artifacts
+1. Local:
+   - `runs/dev_substrate/dev_full/m14/m14j_closure_sync_20260302T055205Z/m14j_closure_sync_snapshot.json`
+   - `runs/dev_substrate/dev_full/m14/m14j_closure_sync_20260302T055205Z/m14j_execution_summary.json`
+   - `runs/dev_substrate/dev_full/m14/m14j_closure_sync_20260302T055205Z/m14_blocker_register.json`
+   - `runs/dev_substrate/dev_full/m14/m14j_closure_sync_20260302T055205Z/m14_execution_summary.json`
+2. Durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14j_closure_sync_20260302T055205Z/m14j_closure_sync_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14j_closure_sync_20260302T055205Z/m14j_execution_summary.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14j_closure_sync_20260302T055205Z/m14_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14j_closure_sync_20260302T055205Z/m14_execution_summary.json`

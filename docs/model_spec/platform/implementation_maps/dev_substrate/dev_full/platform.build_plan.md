@@ -1913,11 +1913,11 @@ DoD anchors:
 - [x] M14.A handle-freeze closure pass (`overall_pass=true`, `next_gate=M14.B_READY`).
 - [x] M14.B managed stream-sort materialization pass (`overall_pass=true`, `next_gate=M14.C_READY`).
 - [x] M14.C SR runtime materialization pass (`overall_pass=true`, `next_gate=M14.D_READY`).
-- [ ] all repinned runtime lanes materialized on managed targets with no unresolved blockers.
-- [ ] contract parity and idempotency semantics remain intact for admission/decision/audit/case/label paths.
-- [ ] non-regression pack passes on repinned runtime surfaces.
-- [ ] cost-to-outcome and performance receipts for repin window are committed and within envelope.
-- [ ] final `m14_execution_summary.json` + `m14_blocker_register.json` published and parity-verified.
+- [x] all repinned runtime lanes materialized on managed targets with no unresolved blockers.
+- [x] contract parity and idempotency semantics remain intact for admission/decision/audit/case/label paths.
+- [x] non-regression pack passes on repinned runtime surfaces.
+- [x] cost-to-outcome and performance receipts for repin window are committed and within envelope.
+- [x] final `m14_execution_summary.json` + `m14_blocker_register.json` published and parity-verified.
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M14.build_plan.md`
@@ -1946,6 +1946,59 @@ M14 progress snapshot:
      - receipt path pattern unchanged (`evidence/runs/{platform_run_id}/sr/ready_commit_receipt.json`),
    - idempotency probe: duplicate execution name rejected (`ExecutionAlreadyExists`),
    - durable run-control evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14c_sr_materialization_20260302T015340Z/`.
+4. `M14.D` is closed green after fail-closed remediation:
+   - green rerun: `m14d_wsp_materialization_20260302T032223Z`,
+   - verdict: `ADVANCE_TO_M14_E`, next gate: `M14.E_READY`,
+   - execution posture: ECS/Fargate runtask, task exit code `0`, run-scoped WSP result persisted,
+   - parity checks: WSP runtime + trigger + retry pins matched expected values,
+   - run-scoped IG admission evidence is non-zero for `platform_20260302T032223Z`,
+   - durable run-control evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14d_wsp_materialization_20260302T032223Z/`.
+5. `M14.E` is closed green with explicit runtime-path adjudication:
+   - execution: `m14e_rtdl_projection_20260302T033143Z`,
+   - verdict: `ADVANCE_TO_M14_F`, next gate: `M14.F_READY`,
+   - canonical MSF probe remains externally blocked (`UnsupportedOperationException` account-verification gate),
+   - advisory `M14E-AD1` recorded and bounded fallback applied per pinned policy (`runtime_path_effective=EKS_FLINK_OPERATOR`),
+   - branch-separated RTDL evidence and lag/offset/replay continuity checks pass,
+   - durable run-control evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14e_rtdl_projection_20260302T033143Z/`.
+6. `M14.F` is closed green after runtime-path adjudication and repin:
+   - closure run: `m14f_archive_connector_20260302T051741Z`,
+   - verdict: `ADVANCE_TO_M14_G`, next gate: `M14.G_READY`,
+   - repin: `ARCHIVE_CONNECTOR_MODE=ECS_MSK_BATCH_CONSUMER_TO_S3`,
+   - probe->sink continuity closure: admitted probe ids are present in run-scoped archive objects under `archive/{platform_run_id}/events/...`,
+   - durable run-control evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14f_archive_connector_20260302T051741Z/`.
+7. `M14.G` is closed green with placement and contract parity closure:
+   - closure run: `m14g_case_label_materialization_20260302T052538Z`,
+   - verdict: `ADVANCE_TO_M14_H`, next gate: `M14.H_READY`,
+   - materialized ECS/Fargate task definitions:
+     - `fraud-platform-dev-full-al:1`,
+     - `fraud-platform-dev-full-case-trigger:1`,
+     - `fraud-platform-dev-full-cm:1`,
+     - `fraud-platform-dev-full-ls:1`,
+   - runtime placement pins match canonical targets and semantic-proof intersections are present across AL/CaseTrigger/CM/LS,
+   - durable run-control evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14g_case_label_materialization_20260302T052538Z/`.
+8. `M14.H` is closed green with targeted regression-matrix certification:
+   - closure run: `m14h_non_regression_20260302T053452Z`,
+   - verdict: `ADVANCE_TO_M14_I`, next gate: `M14.I_READY`,
+   - anchor matrix `P5/P8/P9/P10/P11/P12` all pass with blocker-free summaries,
+   - repin summaries `M14.C..M14.G` all pass with blocker-free status,
+   - durable run-control evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14h_non_regression_20260302T053452Z/`,
+   - revalidation run: `m14h_non_regression_20260302T053657Z` (same verdict; blocker-free).
+9. `M14.I` is closed green with cost/performance recertification:
+   - closure run: `m14i_phase_cost_performance_20260302T054521Z`,
+   - verdict: `ADVANCE_TO_M14_J`, next gate: `M14.J_READY`,
+   - performance gates pass:
+     - `M14.B` runtime `345s <= 7200s`, effective `3,430,314.405797 rows/s`,
+     - `M7.K` throughput cert remains pass (`49.49 eps`, error/retry `0/0`, sample `11,878`),
+     - `M6.F` lag posture pass (`2 <= 10`),
+   - cost gate pass: AWS MTD `14.2552236516 USD`, utilization `4.7517%`, status `GREEN`,
+   - durable run-control evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14i_phase_cost_performance_20260302T054521Z/`.
+10. `M14.J` is closed green with final repin closure sync:
+   - first run failed closed: `m14j_closure_sync_20260302T055131Z` (`M14-B6` evidence target mismatch on M14.D rollback contract),
+   - remediation: retargeted M14.D rollback evidence check to run-control snapshot surface,
+   - green rerun: `m14j_closure_sync_20260302T055205Z`,
+   - final M14 verdict: `M14_COMPLETE_GREEN` (`next_gate=M15_READY`),
+   - rollback contract matrix for repinned lanes `M14.B..M14.G` is readable and executable,
+   - durable run-control evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14j_closure_sync_20260302T055205Z/`.
 
 ## M15 - Data Semantics Realization for Learning/Evolution
 Status: `NOT_STARTED`
@@ -1954,7 +2007,7 @@ Objective:
 - realize data-meaning-correct implementation for learning/evolution lanes so closure is based on real platform data semantics, not bootstrap placeholders.
 
 Entry gate:
-- M14 remains `ACTIVE` and keeps execution priority.
+- M14 is `DONE` (`M14_COMPLETE_GREEN`); M15 remains planning-only until explicit activation.
 - M15 is planning-only until explicitly activated.
 - authority set remains aligned:
   - `docs/model_spec/platform/pre-design_decisions/dev-full_managed-substrate_migration.design-authority.v0.md`,

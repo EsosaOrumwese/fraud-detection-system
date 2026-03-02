@@ -314,8 +314,8 @@ Allowed tokens in pattern handles:
 ### 4.1 MSK cluster identity
 
 * `MSK_CLUSTER_NAME = "fraud-platform-dev-full-msk"`
-* `MSK_CLUSTER_ARN = "arn:aws:kafka:eu-west-2:230372904534:cluster/fraud-platform-dev-full-msk/d09c959e-2fe3-4852-a38b-a2f0b72a0fac-s3"` (repinned in M5.H remediation from streaming outputs)
-* `MSK_BOOTSTRAP_BROKERS_SASL_IAM = "boot-xc4btage.c3.kafka-serverless.eu-west-2.amazonaws.com:9098"` (repinned in M5.H remediation from streaming outputs)
+* `MSK_CLUSTER_ARN = "arn:aws:kafka:eu-west-2:230372904534:cluster/fraud-platform-dev-full-msk/6d6d345b-fb39-4e7b-a245-53525b4648b6-s3"` (repinned in M14.F from live streaming cluster readback)
+* `MSK_BOOTSTRAP_BROKERS_SASL_IAM = "boot-y1yp0gzf.c3.kafka-serverless.eu-west-2.amazonaws.com:9098"` (repinned in M14.F from live bootstrap readback)
 * `MSK_CLIENT_SUBNET_IDS = ["subnet-0a7a35898d0ca31a8","subnet-0e9647425f02e2f27"]` (repinned in M5.H remediation from streaming outputs)
 * `MSK_SECURITY_GROUP_ID = "sg-01bfefedcd75ec4b2"` (repinned in M5.H remediation from streaming outputs)
 
@@ -526,6 +526,25 @@ Allowed tokens in pattern handles:
 * `RUNTIME_WORKLOAD_ARCHIVE = "MANAGED_CONNECTOR_TO_S3"`
 * `RUNTIME_WORKLOAD_ENV_CONFORMANCE = "ECS_FARGATE_JOB"`
 * `RUNTIME_WORKLOAD_IG_EKS_FALLBACK = "DISABLED_BY_DEFAULT"`
+
+### 7.5.2 Archive connector runtime handles (M14.F canonical)
+
+* `ARCHIVE_CONNECTOR_MODE = "ECS_MSK_BATCH_CONSUMER_TO_S3"` (repinned in M14.F remediation after repeated Lambda MSK trigger non-consumption on confirmed-produced control probes)
+* `ARCHIVE_CONNECTOR_FUNCTION_NAME = "fraud-platform-dev-full-archive-sink-v0"`
+* `ARCHIVE_CONNECTOR_IAM_ROLE_NAME = "fraud-platform-dev-full-lambda-archive-role"`
+* `ARCHIVE_CONNECTOR_SOURCE_CLUSTER_ARN = "arn:aws:kafka:eu-west-2:230372904534:cluster/fraud-platform-dev-full-msk/6d6d345b-fb39-4e7b-a245-53525b4648b6-s3"`
+* `ARCHIVE_CONNECTOR_SOURCE_TOPIC = "fp.bus.control.v1"`
+* `ARCHIVE_CONNECTOR_STARTING_POSITION = "TRIM_HORIZON"`
+* `ARCHIVE_CONNECTOR_BATCH_SIZE = 50`
+* `ARCHIVE_CONNECTOR_MAX_BATCH_WINDOW_SECONDS = 5`
+* `ARCHIVE_CONNECTOR_S3_PREFIX_PATTERN = "archive/{platform_run_id}/events/"`
+* `ARCHIVE_CONNECTOR_RUN_SCOPE_PROOF_MODE = "object_path_plus_payload_readback"`
+* `ARCHIVE_CONNECTOR_PROBE_EMIT_MODE = "ECS_MSK_PRODUCER_TASK"`
+* `ARCHIVE_CONNECTOR_PROBE_ECS_CLUSTER = "fraud-platform-dev-full-wsp-ephemeral"`
+* `ARCHIVE_CONNECTOR_PROBE_TASK_DEFINITION = "fraud-platform-dev-full-wsp-ephemeral:17"`
+* `ARCHIVE_CONNECTOR_PROBE_SUBNET_IDS = ["subnet-005205ea65a9027fc","subnet-01fd5f1585bfcca47"]`
+* `ARCHIVE_CONNECTOR_PROBE_SECURITY_GROUP_ID = "sg-01bfefedcd75ec4b2"`
+* `ARCHIVE_CONNECTOR_CONSUMER_TIMEOUT_SECONDS = 180`
 
 ### 7.6 Runtime service/deployment handles (learning)
 

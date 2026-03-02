@@ -5,6 +5,7 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from decimal import Decimal
 import hashlib
 import os
 import json
@@ -772,6 +773,7 @@ class WorldStreamProducer:
     def _push_to_ig(self, envelope: dict[str, Any]) -> None:
         if not envelope.get("schema_version"):
             envelope["schema_version"] = "v1"
+        payload = _json_safe(envelope)
         url = self.profile.wiring.ig_ingest_url.rstrip("/")
         max_attempts = max(1, int(self.profile.wiring.ig_retry_max_attempts))
         base_delay = max(0, int(self.profile.wiring.ig_retry_base_delay_ms)) / 1000.0
@@ -784,7 +786,7 @@ class WorldStreamProducer:
         while attempt < max_attempts:
             attempt += 1
             try:
-                response = requests.post(f"{url}/v1/ingest/push", json=envelope, headers=headers, timeout=30)
+                response = requests.post(f"{url}/v1/ingest/push", json=payload, headers=headers, timeout=30)
             except requests.Timeout:
                 last_error = "timeout"
                 retryable = True
@@ -859,6 +861,16 @@ def _render_path_template(template: str, tokens: dict[str, Any]) -> str | None:
         return template.format(**tokens)
     except KeyError:
         return None
+
+
+def _json_safe(value: Any) -> Any:
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, dict):
+        return {str(k): _json_safe(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_json_safe(v) for v in value]
+    return value
 
 
 def _path_exists(path: str, *, endpoint: str | None, region: str | None, path_style: bool | None) -> bool:
