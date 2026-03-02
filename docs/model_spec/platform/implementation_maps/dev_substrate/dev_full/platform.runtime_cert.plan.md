@@ -170,6 +170,11 @@ DoD:
 - [ ] Tier-1/2 grading is explicit.
 - [ ] final verdict artifact is deterministic and complete.
 
+Tier-0 gate precedence (binding):
+1. If any Tier-0 claim is `HOLD`/blocked, runtime certification is automatically `FAILED_NEEDS_REMEDIATION`.
+2. When `FAILED_NEEDS_REMEDIATION` is active, final rollup execution (`RC6`) is blocked and must not emit a claimable certification completion verdict.
+3. Remediation closure of all active Tier-0 blockers is mandatory before `RC6` may execute.
+
 ## 8) Runtime Artifact Contract (Deterministic)
 Durable authority root (authoritative):
 1. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/<runtime_cert_execution_id>/`
@@ -199,6 +204,7 @@ Required runtime outputs (rollup scope):
 1. Runtime certification is `GREEN` only when all Tier-0 claims are fresh-evidence pass and blocker-free.
 2. Tier-1/Tier-2 may be partial but must be explicit.
 3. Any ambiguity defaults to fail-closed `HOLD`.
+4. Tier-1/Tier-2 execution may continue for maturity evidence while Tier-0 is `HOLD`, but this never overrides Tier-0 failure posture and cannot unlock final rollup.
 
 ## 11) Point-X Stitch Output (Runtime contribution)
 Published only after runtime + ops/gov verdicts are both present:

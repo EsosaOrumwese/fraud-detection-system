@@ -19854,3 +19854,36 @@ uns/dev_substrate/dev_full/m15/m15g_semantic_non_regression_20260302T083157Z/.
    - `platform.runtime_cert.plan.md` rebuilt as clean `NOT_STARTED` baseline.
    - `platform.runtime.cert_notes.md` reset to `RESET_BASELINE` with superseded-attempt register.
    - `platform.ops_gov_cert.plan.md` hardened with managed-only/fresh-only/no-local-compute guardrails.
+
+## Entry: 2026-03-02 18:10 +00:00 - Durable S3 runtime-cert quarantine executed
+
+1. Executed durable evidence quarantine move in bucket `fraud-platform-dev-full-evidence`:
+   - source root: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/`
+   - destination root: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/_scrapped/runtime_attempt_20260302T180851Z/`
+2. Quarantined prefixes:
+   - `rc0_claim_model_lock_20260302T144121Z/`
+   - `rc1_runtime_evidence_inventory_20260302T144531Z/`
+   - `rc1_runtime_evidence_inventory_fresh_20260302T161002Z/`
+   - `rc2_tier0_scorecard_20260302T153540Z/`
+   - `rc2_tier0_scorecard_20260302T153633Z/`
+   - `rc3_tier0_drill_pack_20260302T155517Z/`
+3. Post-move verification:
+   - source root now empty (`list-objects-v2` under `evidence/dev_full/cert/runtime/` returned no contents),
+   - destination root lists all quarantined execution prefixes.
+4. Claimability posture:
+   - quarantined durable artifacts are retained for audit continuity only,
+   - excluded from any certification pass assertion.
+
+## Entry: 2026-03-02 18:12 +00:00 - Tier-0 precedence law added to certification plans
+
+1. USER-directed law pinned in both cert plans:
+   - if any Tier-0 claim is `HOLD`, certification is automatically `FAILED_NEEDS_REMEDIATION`.
+2. Runtime plan update (`platform.runtime_cert.plan.md`):
+   - `RC6` now blocked when Tier-0 has any active blocker,
+   - Tier-1/2 execution can continue for maturity evidence but cannot unlock final rollup.
+3. Ops/Gov plan update (`platform.ops_gov_cert.plan.md`):
+   - `OC6` now blocked when Tier-0 has any active blocker,
+   - Tier-1/2 execution can continue for maturity evidence but cannot unlock final rollup.
+4. Rationale:
+   - enforce strict production-standard truth discipline,
+   - prevent ambiguous "final rollup" claims when Tier-0 core safety posture is unresolved.

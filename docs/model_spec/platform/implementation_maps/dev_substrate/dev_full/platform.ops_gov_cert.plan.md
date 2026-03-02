@@ -177,6 +177,11 @@ DoD:
 - [ ] Tier-1/Tier-2 are explicitly graded (`pass|partial|not_proven`).
 - [ ] unresolved waivers and expiry triggers are explicit.
 
+Tier-0 gate precedence (binding):
+1. If any Tier-0 ops/gov claim is `HOLD`/blocked, ops/gov certification is automatically `FAILED_NEEDS_REMEDIATION`.
+2. When `FAILED_NEEDS_REMEDIATION` is active, final rollup execution (`OC6`) is blocked and must not emit a claimable certification completion verdict.
+3. Remediation closure of all active Tier-0 blockers is mandatory before `OC6` may execute.
+
 ## 8) Ops/Gov Artifact Contract (Deterministic)
 Durable authority root (authoritative):
 1. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/ops_gov/<ops_gov_cert_execution_id>/`
@@ -220,3 +225,4 @@ Published after runtime + ops/gov verdicts both exist:
 1. Ops/Gov certification is `GREEN` only when Tier-0 ops/gov claims are fresh-evidence pass and blocker-free.
 2. Tier-1/Tier-2 may be partial but must be explicit and non-silent.
 3. Any ambiguity defaults to fail-closed `HOLD`.
+4. Tier-1/Tier-2 execution may continue for maturity evidence while Tier-0 is `HOLD`, but this never overrides Tier-0 failure posture and cannot unlock final rollup.
