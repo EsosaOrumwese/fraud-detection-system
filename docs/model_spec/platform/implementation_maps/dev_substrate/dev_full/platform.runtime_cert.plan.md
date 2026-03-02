@@ -94,10 +94,50 @@ Tier 2 claims (best-effort):
 Goal:
 1. Pin claim->metric->artifact->drill mappings.
 
+Execution plan (expanded):
+1. `RC0.A` fail-closed entry-gate precheck:
+   - verify `M15_COMPLETE_GREEN` and `CERTIFICATION_TRACKS_READY`,
+   - verify runtime cert durable root is clean for new `runtime_cert_execution_id`,
+   - verify no superseded runtime-cert attempt artifacts are being referenced in claim rows.
+2. `RC0.B` deterministic claim-matrix materialization:
+   - publish Tier-0/1/2 claim rows with gate class (`hard_gate` vs `advisory`),
+   - map each claim to explicit metric IDs and required drill families,
+   - prohibit free-text-only claim rows.
+3. `RC0.C` metric dictionary lock:
+   - publish each metric with unit, statistic, window, threshold, and canonical evidence source definition,
+   - enforce explicit Tier-0 threshold parity with Section 5.1.
+4. `RC0.D` evidence bundle rule lock:
+   - publish minimum artifact bundle requirements per claim,
+   - enforce deterministic artifact name requirements and required identity fields.
+5. `RC0.E` authoritative publication + readback:
+   - publish authoritative artifacts to durable S3 first,
+   - publish local mirror second for operator convenience,
+   - run durable readback checks over all published objects.
+6. `RC0.F` determinism and integrity validation:
+   - validate artifact schema completeness and identity field presence,
+   - validate deterministic serialization digest stability for unchanged inputs,
+   - validate no secret/token leakage in published artifacts.
+7. `RC0.G` blocker adjudication and lane verdict:
+   - evaluate `RC-B1`, `RC-B2`, `RC-B3`, `RC-B8`, `RC-B9`,
+   - close lane only with `blocker_count=0` and `next_gate=RC1_READY`.
+
+Pre-execution decision gate (mandatory before RC0 execution):
+1. Certification identity strategy must be explicitly pinned:
+   - option A: mint new campaign identity (`platform_run_id` + `scenario_run_id`) for clean certification window,
+   - option B: reuse existing identity with explicit rationale and freshness constraints.
+2. RC0 execution remains blocked until this decision is recorded.
+
+Runtime budget gate:
+1. Target RC0 wall time: `<= 20 min`.
+2. Hard stop: `> 45 min` without full deterministic artifact set.
+3. No infrastructure mutation is allowed in RC0.
+
 DoD:
 - [ ] claim matrix for Tier 0..2 runtime slice is published.
 - [ ] minimum evidence bundle rules are pinned per claim.
 - [ ] metric dictionary (units, windows, statistics, thresholds) is unambiguous.
+- [ ] durable publication + readback succeeds for all RC0 artifacts.
+- [ ] blocker adjudication is complete with `blocker_count=0`.
 - [ ] blocker register is empty.
 
 ### RC1 - Runtime evidence inventory and fresh-gap register

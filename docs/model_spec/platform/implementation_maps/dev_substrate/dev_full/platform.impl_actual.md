@@ -19887,3 +19887,34 @@ uns/dev_substrate/dev_full/m15/m15g_semantic_non_regression_20260302T083157Z/.
 4. Rationale:
    - enforce strict production-standard truth discipline,
    - prevent ambiguous "final rollup" claims when Tier-0 core safety posture is unresolved.
+
+## Entry: 2026-03-02 18:15 +00:00 - RC0 expansion requested by USER (plan-only)
+
+1. USER requested explicit expansion of RC0 planning content inside `platform.runtime_cert.plan.md` before execution.
+2. Scope of this change is plan-authority only (no RC execution).
+3. Expansion set pinned for RC0 section:
+   - fail-closed entry-gate precheck,
+   - deterministic artifact materialization sequence,
+   - determinism/readback validation gates,
+   - blocker adjudication contract (`RC-B1/B2/B3/B8/B9`),
+   - runtime budget and stop conditions,
+   - pre-execution decision gate for certification identity strategy.
+4. Decision-completeness law handling:
+   - RC0 execution cannot start until identity strategy decision is explicitly pinned.
+
+## Entry: 2026-03-02 18:18 +00:00 - RC0 section expanded to execution-grade plan contract
+
+1. Updated `platform.runtime_cert.plan.md` RC0 lane from minimal DoD-only stub to execution-grade contract.
+2. Added RC0 lane sequence `RC0.A..RC0.G`:
+   - entry-gate precheck,
+   - claim-matrix lock,
+   - metric dictionary lock,
+   - evidence bundle rule lock,
+   - durable-first publication + readback,
+   - determinism/integrity validation,
+   - blocker adjudication.
+3. Added explicit pre-execution decision gate:
+   - certification identity strategy (`new campaign identity` vs `reuse existing`) must be pinned before RC0 execution.
+4. Added RC0 runtime budget gates and hard-stop conditions.
+5. Expanded RC0 DoD to include durable readback success and blocker-free adjudication.
+6. This was a plan-only change; no RC0 runtime execution occurred.
