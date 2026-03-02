@@ -1,7 +1,7 @@
 # Dev Substrate Deep Plan - M14 (POST-P17 REPIN MATERIALIZATION_AND_RECERT)
 _Status source of truth: `platform.build_plan.md`_
 _Track: `dev_full`_
-_Last updated: 2026-03-01_
+_Last updated: 2026-03-02_
 
 ## 0) Purpose
 M14 is the single alignment phase for the approved dev_full v0.2 runtime-placement repin.
@@ -172,25 +172,110 @@ Runtime budget:
 Goal:
 1. Materialize SR on `Step Functions + Lambda/job` with READY semantic parity.
 
+Entry conditions:
+1. `M14.B` is pass (`ADVANCE_TO_M14_C`, `M14.C_READY`).
+2. Required SR runtime handles are resolved and non-placeholder:
+   - `SR_RUNTIME`,
+   - `SR_READY_COMPUTE_MODE`,
+   - `SR_READY_COMMIT_AUTHORITY`,
+   - `SR_READY_COMMIT_STATE_MACHINE`,
+   - `SR_READY_RECEIPT_REQUIRES_SFN_EXECUTION_REF`,
+   - `SR_READY_COMMIT_RECEIPT_PATH_PATTERN`,
+   - `SFN_PLATFORM_RUN_ORCHESTRATOR_V0`,
+   - `S3_EVIDENCE_BUCKET`.
+3. Step Functions state machine referenced by SR commit authority exists and is invokable.
+
+Execution steps:
+1. Build deterministic `m14c_execution_id` and local run root under `runs/dev_substrate/dev_full/m14/<execution_id>/`.
+2. Resolve SR commit state-machine indirection:
+   - `SR_READY_COMMIT_STATE_MACHINE` -> concrete handle key -> concrete state-machine name.
+3. Run commit-authority probe:
+   - start Step Functions execution with deterministic name + run-scoped input payload,
+   - wait for terminal status and require `SUCCEEDED`.
+4. Run idempotency probe:
+   - attempt duplicate start with same execution name,
+   - require `ExecutionAlreadyExists` (or equivalent duplicate guard) as pass condition.
+5. Emit run-scoped READY commit receipt to:
+   - `evidence/runs/{platform_run_id}/sr/ready_commit_receipt.json`,
+   - requiring populated `step_functions_execution_arn`.
+6. Emit local + durable control artifacts:
+   - `m14c_sr_materialization_snapshot.json`,
+   - `m14c_blocker_register.json`,
+   - `m14c_execution_summary.json`.
+
 Blockers:
 1. `M14-B2` runtime materialization failure.
 2. `M14-B3` READY semantic drift.
+3. `M14-B6` artifact publication/readback failure.
 
 DoD:
-- [ ] READY commit evidence unchanged.
-- [ ] idempotency and gate semantics preserved.
+- [x] READY commit evidence unchanged (`commit_authority=step_functions_only`, receipt path pattern unchanged, receipt includes SFN execution ARN).
+- [x] idempotency semantics preserved (duplicate execution-name rejected deterministically).
+- [x] local + durable `m14c_*` artifacts are readable.
+- [x] execution summary is pass and advances gate to `M14.D_READY`.
+
+Runtime budget:
+1. Target <= 20 minutes.
 
 ### M14.D - WSP Runtime Materialization
 Goal:
 1. Materialize WSP on `ECS/Fargate` ephemeral task with contract parity.
 
+Entry conditions:
+1. `M14.C` is pass (`ADVANCE_TO_M14_D`, `M14.D_READY`).
+2. Required handles are resolved and non-placeholder:
+   - `WSP_RUNTIME`,
+   - `WSP_TRIGGER_MODE`,
+   - `WSP_MAX_INFLIGHT`,
+   - `WSP_RETRY_MAX_ATTEMPTS`,
+   - `WSP_RETRY_BACKOFF_MS`,
+   - `WSP_STOP_ON_NONRETRYABLE`,
+   - `IG_BASE_URL`,
+   - `IG_AUTH_MODE`,
+   - `IG_AUTH_HEADER_NAME`,
+   - `SSM_IG_API_KEY_PATH`,
+   - `ORACLE_SOURCE_NAMESPACE`,
+   - `ORACLE_ENGINE_RUN_ID`,
+   - `ORACLE_REQUIRED_OUTPUT_IDS`,
+   - `S3_OBJECT_STORE_BUCKET`,
+   - `DDB_IG_IDEMPOTENCY_TABLE`.
+3. Runtime substrate for lane execution is available:
+   - VPC + public subnets discoverable,
+   - ECS/Fargate cluster/task definition can be materialized,
+   - image in ECR is pullable by task execution role.
+
+Execution steps:
+1. Build deterministic `m14d_execution_id` and local run root under `runs/dev_substrate/dev_full/m14/<execution_id>/`.
+2. Materialize/verify ECS ephemeral lane primitives:
+   - ECS cluster,
+   - task-execution role,
+   - task-runtime role,
+   - task definition (WSP entrypoint command override).
+3. Start one Fargate runtask using run-scoped `platform_run_id` and bounded event cap.
+4. Wait terminal task status and capture container exit code + log stream reference.
+5. Validate contract parity and lane outcomes:
+   - WSP runtime pins equal expected (`ECS_FARGATE_RUNTASK_EPHEMERAL`, `READY_EVENT_TRIGGERED`),
+   - retry knobs in launch profile match pinned values,
+   - IG admission evidence exists for run-scoped `platform_run_id` in idempotency table.
+6. Publish local + durable artifacts:
+   - `m14d_wsp_materialization_snapshot.json`,
+   - `m14d_blocker_register.json`,
+   - `m14d_execution_summary.json`.
+
 Blockers:
 1. `M14-B2` runtime materialization failure.
 2. `M14-B3` envelope/retry/dedupe drift.
+3. `M14-B6` artifact publication/readback failure.
 
 DoD:
-- [ ] envelope schema parity pass.
-- [ ] retry and dedupe behavior parity pass.
+- [ ] WSP lane executes on ECS/Fargate runtask and task exits successfully.
+- [ ] envelope/retry contract parity checks pass against pinned handles.
+- [ ] run-scoped IG admission evidence is present and non-zero for the lane run id.
+- [ ] local + durable `m14d_*` artifacts are readable.
+- [ ] execution summary is pass and advances gate to `M14.E_READY`.
+
+Runtime budget:
+1. Target <= 45 minutes.
 
 ### M14.E - RTDL Projection Materialization
 Goal:
@@ -300,7 +385,7 @@ M14 closes only when:
 ## 9) Progress Tracker
 - [x] M14.A
 - [x] M14.B
-- [ ] M14.C
+- [x] M14.C
 - [ ] M14.D
 - [ ] M14.E
 - [ ] M14.F
@@ -386,3 +471,48 @@ M14 closes only when:
 5. Source of truth for this receipt:
    - EMR job metadata: `application_id=00g3qriott52200t`, `job_run_id=00g3qrko3qpk9g0v`,
    - parity artifact: `m14b_streamsort_parity_report.json`.
+
+### M14.B Extension - Offline Truth Sort (no-native-ts tables)
+1. Objective:
+   - extend managed sorting to offline truth outputs that do not carry native `ts_utc` so downstream learning lanes can consume ordered truth views without local compute.
+2. Managed execution:
+   - execution id: `m14c_truth_sort_20260302T012806Z`,
+   - EMR application/job: `00g3qriott52200t` / `00g3qsplb0rfi00v`,
+   - terminal state: `SUCCESS`.
+3. Derived timestamp policy applied (fail-closed):
+   - `s4_event_labels_6B`: derive `ts_utc` from `s3_event_stream_with_fraud_6B` via join keys `(seed, manifest_fingerprint, scenario_id, flow_id, event_seq)`,
+   - `s4_flow_truth_labels_6B` and `s4_flow_bank_view_6B`: derive `ts_utc` from `s3_flow_anchor_with_fraud_6B` via join keys `(seed, manifest_fingerprint, scenario_id, flow_id)`,
+   - `s4_case_timeline_6B`: use native `ts_utc`,
+   - unmatched derived timestamp rows are hard-fail; observed unmatched count: `0`.
+4. Published target surface:
+   - `oracle-store/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/truth_view/ts_utc/output_id=<output_id>/`.
+5. Closure verification:
+   - `s4_event_labels_6B`: parquet `600`, manifest+receipt present,
+   - `s4_flow_truth_labels_6B`: parquet `600`, manifest+receipt present,
+   - `s4_flow_bank_view_6B`: parquet `600`, manifest+receipt present,
+   - `s4_case_timeline_6B`: parquet `300`, manifest+receipt present.
+6. Evidence:
+   - local: `runs/dev_substrate/dev_full/m14/m14c_truth_sort_20260302T012806Z/m14c_truth_sort_summary.json`,
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14c_truth_sort_20260302T012806Z/oracle/offline_truth_sort_receipt.json`.
+
+## 13) M14.C Closure Snapshot
+1. Executed SR runtime materialization with Step Functions commit authority:
+   - execution id: `m14c_sr_materialization_20260302T015340Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `m14c_verdict=ADVANCE_TO_M14_D`, `next_gate=M14.D_READY`.
+2. Commit-authority parity checks passed against baseline M6.C evidence:
+   - `commit_authority`: unchanged (`step_functions_only`),
+   - state-machine name: unchanged (`fraud-platform-dev-full-platform-run-v0`),
+   - receipt path pattern: unchanged (`evidence/runs/{platform_run_id}/sr/ready_commit_receipt.json`).
+3. Idempotency semantics probe passed:
+   - first start-execution succeeded,
+   - duplicate start with same execution name was rejected (`ExecutionAlreadyExists`).
+4. Run-scoped READY receipt written with required SFN execution reference:
+   - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260302T015340Z/sr/ready_commit_receipt.json`.
+5. Local artifacts:
+   - `runs/dev_substrate/dev_full/m14/m14c_sr_materialization_20260302T015340Z/m14c_sr_materialization_snapshot.json`,
+   - `runs/dev_substrate/dev_full/m14/m14c_sr_materialization_20260302T015340Z/m14c_blocker_register.json`,
+   - `runs/dev_substrate/dev_full/m14/m14c_sr_materialization_20260302T015340Z/m14c_execution_summary.json`.
+6. Durable run-control artifacts:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14c_sr_materialization_20260302T015340Z/m14c_sr_materialization_snapshot.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14c_sr_materialization_20260302T015340Z/m14c_blocker_register.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14c_sr_materialization_20260302T015340Z/m14c_execution_summary.json`.

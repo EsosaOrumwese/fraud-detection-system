@@ -1847,7 +1847,7 @@ M14.A execution contract (active now):
 5. budget:
    - runtime target `<= 10 minutes` for M14.A closure.
 
-M14.B execution contract (next active lane):
+M14.B execution contract (closed lane history):
 1. entry checks:
    - M14.A is closed green (`ADVANCE_TO_M14_B`, `M14.B_READY`),
    - stream-sort handles are resolved and non-placeholder,
@@ -1876,6 +1876,30 @@ M14.B execution contract (next active lane):
 5. budget:
    - runtime target `<= 120 minutes` for M14.B closure.
 
+M14.C execution contract (next active lane):
+1. entry checks:
+   - `M14.B` is closed green (`ADVANCE_TO_M14_C`, `M14.C_READY`),
+   - SR runtime handles are resolved and non-placeholder:
+     - `SR_RUNTIME`,
+     - `SR_READY_COMPUTE_MODE`,
+     - `SR_READY_COMMIT_AUTHORITY`,
+     - `SR_READY_COMMIT_STATE_MACHINE`,
+     - `SR_READY_RECEIPT_REQUIRES_SFN_EXECUTION_REF`,
+     - `SR_READY_COMMIT_RECEIPT_PATH_PATTERN`,
+     - `SFN_PLATFORM_RUN_ORCHESTRATOR_V0`,
+     - `S3_EVIDENCE_BUCKET`.
+2. pass criteria:
+   - Step Functions commit probe reaches `SUCCEEDED`,
+   - duplicate execution-name probe is rejected (`ExecutionAlreadyExists`),
+   - run-scoped `ready_commit_receipt.json` is written and contains `step_functions_execution_arn`,
+   - `m14c_*` artifacts are published locally + durably.
+3. artifacts:
+   - `m14c_sr_materialization_snapshot.json`,
+   - `m14c_blocker_register.json`,
+   - `m14c_execution_summary.json`.
+4. budget:
+   - runtime target `<= 20 minutes` for M14.C closure.
+
 M14 blocker families (fail-closed):
 - `M14-B1` repin handle closure drift.
 - `M14-B2` runtime materialization failure for any repinned lane.
@@ -1888,6 +1912,7 @@ M14 blocker families (fail-closed):
 DoD anchors:
 - [x] M14.A handle-freeze closure pass (`overall_pass=true`, `next_gate=M14.B_READY`).
 - [x] M14.B managed stream-sort materialization pass (`overall_pass=true`, `next_gate=M14.C_READY`).
+- [x] M14.C SR runtime materialization pass (`overall_pass=true`, `next_gate=M14.D_READY`).
 - [ ] all repinned runtime lanes materialized on managed targets with no unresolved blockers.
 - [ ] contract parity and idempotency semantics remain intact for admission/decision/audit/case/label paths.
 - [ ] non-regression pack passes on repinned runtime surfaces.
@@ -1912,6 +1937,15 @@ M14 progress snapshot:
    - verdict: `ADVANCE_TO_M14_C`, next gate: `M14.C_READY`,
    - durable evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14b_streamsort_materialization_20260302T002345Z/`,
    - short performance receipt: `totalExecutionDurationSeconds=345`, `total_raw_rows=1,183,458,470`, effective rate `~3,430,314 rows/s`.
+3. `M14.C` is closed green:
+   - execution: `m14c_sr_materialization_20260302T015340Z`,
+   - verdict: `ADVANCE_TO_M14_D`, next gate: `M14.D_READY`,
+   - parity confirmations:
+     - `commit_authority=step_functions_only` unchanged from baseline,
+     - `state_machine_name=fraud-platform-dev-full-platform-run-v0` unchanged from baseline,
+     - receipt path pattern unchanged (`evidence/runs/{platform_run_id}/sr/ready_commit_receipt.json`),
+   - idempotency probe: duplicate execution name rejected (`ExecutionAlreadyExists`),
+   - durable run-control evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14c_sr_materialization_20260302T015340Z/`.
 
 ## M15 - Data Semantics Realization for Learning/Evolution
 Status: `NOT_STARTED`

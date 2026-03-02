@@ -18264,3 +18264,145 @@ o nodes available).
 ### Expected effect
 1. M15 now provides a formal path to replace bootstrap learning closures with real semantic closures without destabilizing active M14 runtime repin work.
 2. Upstream M9 guardrails remain the semantic floor for M15 implementation, not optional guidance.
+
+## Entry: 2026-03-02 01:41:22 +00:00 - Offline truth tables (no native ts_utc) sorted on managed Spark and published to truth_view
+
+### Trigger
+1. Continue sorting offline truth tables that do not carry native `ts_utc` so learning/evolution can consume a time-ordered truth surface without local compute.
+
+### Pre-checks and decision trail
+1. Validated pinned handles in `dev_full_handles.registry.v0.md` before execution:
+   - `ORACLE_OFFLINE_TRUTH_OUTPUT_IDS` = `["s4_event_labels_6B","s4_flow_truth_labels_6B","s4_flow_bank_view_6B","s4_case_timeline_6B"]`.
+   - `ORACLE_OFFLINE_TRUTH_SORT_ENGINE = EMR_SERVERLESS_SPARK`.
+   - join-mode pin for derived timestamps uses event-stream anchor for event labels and flow-anchor for flow truth/bank view.
+2. Confirmed source schemas directly from S3 parquet to avoid assumption drift:
+   - `s4_event_labels_6B`, `s4_flow_truth_labels_6B`, `s4_flow_bank_view_6B` have no `ts_utc` field.
+   - `s4_case_timeline_6B` already has native `ts_utc`.
+3. Chose managed EMR Serverless Spark (same runtime family as stream-view sort) to keep no-local-compute posture and avoid laptop memory bottlenecks.
+
+### Implementation mechanics
+1. Built/ran managed launcher:
+   - local launcher: `runs/dev_substrate/dev_full/m14/m14c_truth_sort_20260302T012650Z/m14c_exec.py`.
+   - execution id emitted by launcher: `m14c_truth_sort_20260302T012806Z`.
+2. Join and derive rules used in Spark job:
+   - `s4_event_labels_6B`: left-join on `(seed, manifest_fingerprint, scenario_id, flow_id, event_seq)` to `s3_event_stream_with_fraud_6B`, derive `ts_utc` from anchor.
+   - `s4_flow_truth_labels_6B` + `s4_flow_bank_view_6B`: left-join on `(seed, manifest_fingerprint, scenario_id, flow_id)` to `s3_flow_anchor_with_fraud_6B`, derive `ts_utc` from anchor.
+   - `s4_case_timeline_6B`: retain native `ts_utc`.
+3. Fail-closed enforcement:
+   - if derived-ts join misses any row (`unmatched_derived_ts_count > 0`) -> hard fail.
+   - if output has zero rows or no parquet output -> hard fail.
+4. Output surface:
+   - `s3://fraud-platform-dev-full-object-store/oracle-store/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/truth_view/ts_utc/output_id=<output_id>/`.
+
+### Runtime and closure
+1. EMR application/job:
+   - `application_id=00g3qriott52200t`.
+   - `job_run_id=00g3qsplb0rfi00v`.
+   - state path: `SUBMITTED -> SCHEDULED -> RUNNING -> SUCCESS`.
+2. Verification summary (`PASS`, blocker-free):
+   - `s4_event_labels_6B`: parquet `600`, manifest/receipt present.
+   - `s4_flow_truth_labels_6B`: parquet `600`, manifest/receipt present.
+   - `s4_flow_bank_view_6B`: parquet `600`, manifest/receipt present.
+   - `s4_case_timeline_6B`: parquet `300`, manifest/receipt present.
+
+### Evidence
+1. Local:
+   - `runs/dev_substrate/dev_full/m14/m14c_truth_sort_20260302T012806Z/m14c_job_status.json`.
+   - `runs/dev_substrate/dev_full/m14/m14c_truth_sort_20260302T012806Z/m14c_truth_sort_summary.json`.
+2. Durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14c_truth_sort_20260302T012806Z/oracle/offline_truth_sort_receipt.json`.
+
+### Notes
+1. This closure is an oracle truth-view preparation step (offline truth ordering), not a certification run.
+2. No platform runtime/certification lanes were executed as part of this step.
+
+## Entry: 2026-03-02 02:00:18 +00:00 - M14.C planning expansion before execution (SR runtime materialization)
+
+### Objective
+1. Expand and execute `M14.C` as a dedicated SR runtime lane closure proving Step Functions commit authority parity and idempotency continuity.
+
+### Why this execution design
+1. `M14.C` contract is about SR control-lane runtime (`Step Functions + Lambda/job`) and READY commit semantics, not stream-sorting or hot-path data movement.
+2. We already have an authoritative prior READY commit shape from `M6.C` (step-functions execution ref + run-scoped receipt path); reusing that shape minimizes drift risk.
+3. For idempotency proof at control lane, duplicate execution-name rejection (`ExecutionAlreadyExists`) is deterministic and directly tied to commit-authority semantics.
+
+### Planned execution contract
+1. Validate required handles (`SR_RUNTIME`, `SR_READY_COMMIT_*`, `SFN_PLATFORM_RUN_ORCHESTRATOR_V0`, `S3_EVIDENCE_BUCKET`) are resolved.
+2. Resolve state machine indirection (`SR_READY_COMMIT_STATE_MACHINE` -> concrete state machine name) and verify AWS presence.
+3. Start one Step Functions execution (`SUCCEEDED` required).
+4. Trigger duplicate start with same execution name and require duplicate guard response.
+5. Write run-scoped `ready_commit_receipt.json` with required `step_functions_execution_arn`.
+6. Publish `m14c_sr_materialization_snapshot.json`, `m14c_blocker_register.json`, `m14c_execution_summary.json` locally and to run-control S3 path.
+
+### Risk and guardrails
+1. If Step Functions invocation fails or receipt publication fails, fail-closed with `M14-B2`/`M14-B6`.
+2. If duplicate guard does not trigger, mark `M14-B3` (idempotency semantic drift).
+3. No certification or downstream lane execution in this step.
+
+## Entry: 2026-03-02 02:04:02 +00:00 - M14.C executed and closed green (SR runtime materialization)
+
+### Execution summary
+1. Lane executed: `M14.C` (SR runtime materialization to Step Functions commit authority path).
+2. Execution ID: `m14c_sr_materialization_20260302T015340Z`.
+3. Verdict: `ADVANCE_TO_M14_D` with `next_gate=M14.D_READY`.
+4. Blockers: none (`blocker_count=0`).
+
+### What was validated
+1. Runtime pins still hold:
+   - `SR_RUNTIME=STEP_FUNCTIONS_PLUS_LAMBDA_JOB`.
+   - `SR_READY_COMPUTE_MODE=control_plane_orchestration_not_flink`.
+   - `SR_READY_COMMIT_AUTHORITY=step_functions_only`.
+2. Commit authority path is active and invokable:
+   - resolved state machine: `fraud-platform-dev-full-platform-run-v0`.
+   - start execution succeeded and terminal status was `SUCCEEDED`.
+3. Idempotency semantics check (control-lane):
+   - duplicate `start_execution` with same execution name returned `ExecutionAlreadyExists`.
+4. READY receipt contract remains intact:
+   - run-scoped receipt path unchanged (`evidence/runs/{platform_run_id}/sr/ready_commit_receipt.json`).
+   - receipt includes required `step_functions_execution_arn`.
+5. Baseline parity check against M6.C snapshot:
+   - commit authority unchanged,
+   - state-machine name unchanged,
+   - receipt path pattern unchanged.
+
+### Evidence
+1. Local:
+   - `runs/dev_substrate/dev_full/m14/m14c_sr_materialization_20260302T015340Z/m14c_sr_materialization_snapshot.json`.
+   - `runs/dev_substrate/dev_full/m14/m14c_sr_materialization_20260302T015340Z/m14c_blocker_register.json`.
+   - `runs/dev_substrate/dev_full/m14/m14c_sr_materialization_20260302T015340Z/m14c_execution_summary.json`.
+2. Durable run-control:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14c_sr_materialization_20260302T015340Z/m14c_sr_materialization_snapshot.json`.
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14c_sr_materialization_20260302T015340Z/m14c_blocker_register.json`.
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14c_sr_materialization_20260302T015340Z/m14c_execution_summary.json`.
+3. Durable READY receipt:
+   - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260302T015340Z/sr/ready_commit_receipt.json`.
+
+### Remediation performed during execution
+1. First attempt failed on JSON serialization of boto3 datetime fields while writing snapshot artifacts.
+2. Patched runner serializer to normalize datetime payloads (`_sanitize`) before JSON emit.
+3. Re-ran lane and obtained full green closure.
+
+## Entry: 2026-03-02 02:12:05 +00:00 - M14.D planning expansion before execution (WSP runtime materialization)
+
+### Objective
+1. Materialize WSP on `ECS/Fargate` ephemeral task and close `M14.D` with concrete parity evidence.
+
+### Pre-execution blocker check
+1. Verified prior lane (`M14.C`) blocker register is zero locally and durably.
+2. No carry-over blocker remains from previous implementation.
+
+### Design choices for M14.D execution
+1. Use bounded one-shot Fargate task for closure evidence (not long-lived service) to match pinned runtime posture (`WSP_RUNTIME=ECS_FARGATE_RUNTASK_EPHEMERAL`).
+2. Keep lane fail-closed:
+   - if ECS primitives cannot materialize -> `M14-B2`,
+   - if task does not exit cleanly -> `M14-B2`,
+   - if WSP retry/envelope parity cannot be proven -> `M14-B3`,
+   - if evidence cannot be published/read back -> `M14-B6`.
+3. Use run-scoped admission evidence in DynamoDB idempotency table for objective runtime proof that WSP->IG ingestion path actually executed.
+
+### Planned execution mechanics
+1. Resolve handles and validate WSP/IG/oracle surfaces.
+2. Discover runtime VPC/public subnet posture and materialize ECS cluster + task roles + task definition.
+3. Launch Fargate runtask with bounded event cap and run-scoped `platform_run_id`.
+4. Capture task exit code, log stream metadata, and idempotency-table admissions.
+5. Emit `m14d_*` artifacts locally + durably and produce deterministic verdict.
