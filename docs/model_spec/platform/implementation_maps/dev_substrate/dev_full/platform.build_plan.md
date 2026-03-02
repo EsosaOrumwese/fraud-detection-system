@@ -1845,6 +1845,35 @@ M14.A execution contract (active now):
 5. budget:
    - runtime target `<= 10 minutes` for M14.A closure.
 
+M14.B execution contract (next active lane):
+1. entry checks:
+   - M14.A is closed green (`ADVANCE_TO_M14_B`, `M14.B_READY`),
+   - stream-sort handles are resolved and non-placeholder,
+   - oracle raw source paths for required output IDs are readable in S3.
+2. required handles:
+   - `ORACLE_STREAM_SORT_ENGINE`,
+   - `ORACLE_STREAM_SORT_RUNTIME_PATH`,
+   - `ORACLE_STREAM_SORT_EMR_SERVERLESS_APP`,
+   - `ORACLE_STREAM_SORT_EXECUTION_ROLE_ARN`,
+   - `ORACLE_STREAM_SORT_EMR_RELEASE_LABEL`,
+   - `ORACLE_REQUIRED_OUTPUT_IDS`,
+   - `ORACLE_SORT_KEY_BY_OUTPUT_ID`,
+   - `ORACLE_SOURCE_NAMESPACE`,
+   - `ORACLE_ENGINE_RUN_ID`,
+   - `S3_OBJECT_STORE_BUCKET`,
+   - `S3_EVIDENCE_BUCKET`.
+3. pass criteria:
+   - managed stream-sort job reaches successful terminal state,
+   - each required output has readable `_stream_sort_receipt.json` and `_stream_view_manifest.json`,
+   - parity checks for required outputs pass and are published.
+4. artifacts:
+   - `m14b_streamsort_materialization_snapshot.json`,
+   - `m14b_streamsort_parity_report.json`,
+   - `m14b_blocker_register.json`,
+   - `m14b_execution_summary.json`.
+5. budget:
+   - runtime target `<= 120 minutes` for M14.B closure.
+
 M14 blocker families (fail-closed):
 - `M14-B1` repin handle closure drift.
 - `M14-B2` runtime materialization failure for any repinned lane.
@@ -1856,6 +1885,7 @@ M14 blocker families (fail-closed):
 
 DoD anchors:
 - [x] M14.A handle-freeze closure pass (`overall_pass=true`, `next_gate=M14.B_READY`).
+- [x] M14.B managed stream-sort materialization pass (`overall_pass=true`, `next_gate=M14.C_READY`).
 - [ ] all repinned runtime lanes materialized on managed targets with no unresolved blockers.
 - [ ] contract parity and idempotency semantics remain intact for admission/decision/audit/case/label paths.
 - [ ] non-regression pack passes on repinned runtime surfaces.
@@ -1871,6 +1901,15 @@ M14 progress snapshot:
    - green rerun: `m14a_handle_freeze_20260302T000213Z`,
    - verdict: `ADVANCE_TO_M14_B`, next gate: `M14.B_READY`,
    - durable evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14a_handle_freeze_20260302T000213Z/`.
+2. `M14.B` is closed green after fail-closed remediation:
+   - failed attempt: `m14b_streamsort_materialization_20260302T002019Z` (`M14-B2` release-label/trust closure failure),
+   - remediations:
+     - handle repin `ORACLE_STREAM_SORT_EMR_RELEASE_LABEL: emr-6.15.0-latest -> emr-6.15.0`,
+     - IaC trust update for `aws_iam_role.flink_execution` to include `emr-serverless.amazonaws.com`,
+   - green rerun: `m14b_streamsort_materialization_20260302T002345Z`,
+   - verdict: `ADVANCE_TO_M14_C`, next gate: `M14.C_READY`,
+   - durable evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14b_streamsort_materialization_20260302T002345Z/`,
+   - short performance receipt: `totalExecutionDurationSeconds=345`, `total_raw_rows=1,183,458,470`, effective rate `~3,430,314 rows/s`.
 
 ## 9) Cost-Control Law (Execution Binding)
 For every active phase (`M1..M14`):

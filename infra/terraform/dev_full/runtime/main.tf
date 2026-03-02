@@ -230,6 +230,14 @@ data "aws_iam_policy_document" "assume_role_flink" {
   }
 
   statement {
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "Service"
+      identifiers = ["emr-serverless.amazonaws.com"]
+    }
+  }
+
+  statement {
     actions = ["sts:AssumeRoleWithWebIdentity"]
     principals {
       type        = "Federated"

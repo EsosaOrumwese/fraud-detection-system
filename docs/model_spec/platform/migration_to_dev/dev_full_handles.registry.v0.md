@@ -451,11 +451,11 @@ Allowed tokens in pattern handles:
 * `EMR_EKS_VIRTUAL_CLUSTER_NAME = "fraud-platform-dev-full-flink-vc"`
 * `EMR_EKS_VIRTUAL_CLUSTER_ID = "3cfszbpz28ixf1wmmd2roj571"`
 * `EMR_EKS_EXECUTION_ROLE_ARN = "arn:aws:iam::230372904534:role/fraud-platform-dev-full-flink-execution"`
-* `EMR_EKS_RELEASE_LABEL = "emr-6.15.0-latest"`
+* `EMR_EKS_RELEASE_LABEL = "emr-6.15.0"`
 * `ORACLE_STREAM_SORT_RUNTIME_PATH = "EMR_SERVERLESS_SPARK"`
 * `ORACLE_STREAM_SORT_EMR_SERVERLESS_APP = "fraud-platform-dev-full-oracle-stream-sort-v0"`
 * `ORACLE_STREAM_SORT_EXECUTION_ROLE_ARN = "arn:aws:iam::230372904534:role/fraud-platform-dev-full-flink-execution"`
-* `ORACLE_STREAM_SORT_EMR_RELEASE_LABEL = "emr-6.15.0-latest"`
+* `ORACLE_STREAM_SORT_EMR_RELEASE_LABEL = "emr-6.15.0"`
 * `ORACLE_STREAM_SORT_JOB_REF = "fraud-platform-dev-full-oracle-stream-sort-v0"`
 * `FLINK_EKS_WSP_STREAM_REF = "fraud-platform-dev-full-wsp-stream-v0"` (EKS/EMR-on-EKS job or FlinkDeployment reference)
 * `FLINK_EKS_SR_READY_REF = "fraud-platform-dev-full-sr-ready-v0"` (EKS/EMR-on-EKS job or FlinkDeployment reference)

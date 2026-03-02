@@ -120,13 +120,53 @@ Runtime budget:
 Goal:
 1. Materialize `EMR_SERVERLESS_SPARK` path for M5 and prove output parity.
 
+Entry conditions:
+1. `M14.A` is pass (`ADVANCE_TO_M14_B`, `M14.B_READY`).
+2. Required handles for managed sort are resolved:
+   - `ORACLE_STREAM_SORT_ENGINE`,
+   - `ORACLE_STREAM_SORT_RUNTIME_PATH`,
+   - `ORACLE_STREAM_SORT_EMR_SERVERLESS_APP`,
+   - `ORACLE_STREAM_SORT_EXECUTION_ROLE_ARN`,
+   - `ORACLE_STREAM_SORT_EMR_RELEASE_LABEL`,
+   - `ORACLE_REQUIRED_OUTPUT_IDS`,
+   - `ORACLE_SORT_KEY_BY_OUTPUT_ID`,
+   - `ORACLE_SOURCE_NAMESPACE`,
+   - `ORACLE_ENGINE_RUN_ID`,
+   - `S3_OBJECT_STORE_BUCKET`,
+   - `S3_EVIDENCE_BUCKET`.
+3. Oracle raw source paths for required output IDs are readable.
+
+Execution steps:
+1. Build deterministic `m14b_execution_id` and run root under `runs/dev_substrate/dev_full/m14/<execution_id>/`.
+2. Resolve source mapping for required outputs under oracle run root:
+   - `arrival_events_5B -> data/layer2/5B/arrival_events/`
+   - `s1_arrival_entities_6B -> data/layer3/6B/s1_arrival_entities_6B/`
+   - `s3_event_stream_with_fraud_6B -> data/layer3/6B/s3_event_stream_with_fraud_6B/`
+   - `s3_flow_anchor_with_fraud_6B -> data/layer3/6B/s3_flow_anchor_with_fraud_6B/`
+3. Ensure EMR Serverless app exists and is started for configured app handle.
+4. Submit managed stream-sort Spark job and wait for terminal state.
+5. Validate per-output materialization under:
+   - `oracle-store/{oracle_source_namespace}/{oracle_engine_run_id}/stream_view/ts_utc/output_id=<output_id>/`
+6. Require per-output `_stream_sort_receipt.json`, `_stream_view_manifest.json`, and parquet presence.
+7. Publish local and durable artifacts:
+   - `m14b_streamsort_materialization_snapshot.json`,
+   - `m14b_streamsort_parity_report.json`,
+   - `m14b_blocker_register.json`,
+   - `m14b_execution_summary.json`.
+
 Blockers:
 1. `M14-B2` runtime materialization failure.
 2. `M14-B3` output parity mismatch.
+3. `M14-B6` artifact publication/readback failure.
 
 DoD:
-- [ ] managed sort executes successfully.
-- [ ] required outputs + manifests + receipts parity-verified.
+- [x] managed sort executes successfully.
+- [x] required outputs + manifests + receipts parity-verified.
+- [x] local + durable `m14b_*` artifacts are readable.
+- [x] execution summary is pass and advances gate to `M14.C_READY`.
+
+Runtime budget:
+1. Target <= 120 minutes.
 
 ### M14.C - SR Runtime Materialization
 Goal:
@@ -259,7 +299,7 @@ M14 closes only when:
 
 ## 9) Progress Tracker
 - [x] M14.A
-- [ ] M14.B
+- [x] M14.B
 - [ ] M14.C
 - [ ] M14.D
 - [ ] M14.E
@@ -293,3 +333,56 @@ M14 closes only when:
    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14a_handle_freeze_20260302T000213Z/m14a_handle_matrix.json`,
    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14a_handle_freeze_20260302T000213Z/m14a_blocker_register.json`,
    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14a_handle_freeze_20260302T000213Z/m14a_execution_summary.json`.
+
+## 12) M14.B Closure Snapshot
+1. First run failed closed:
+   - execution id: `m14b_streamsort_materialization_20260302T002019Z`,
+   - blocker `M14-B2`: invalid pinned release label (`emr-6.15.0-latest`) for EMR Serverless app create,
+   - additional downstream `M14-B3` artifacts absent because job failed before materialization.
+2. Remediation set applied:
+   - repinned handles in registry:
+     - `ORACLE_STREAM_SORT_EMR_RELEASE_LABEL = emr-6.15.0`,
+     - `EMR_EKS_RELEASE_LABEL = emr-6.15.0`,
+   - patched IaC role trust in `infra/terraform/dev_full/runtime/main.tf`:
+     - added `Service: emr-serverless.amazonaws.com` to `assume_role_flink`,
+   - applied runtime Terraform target for `aws_iam_role.flink_execution`.
+3. Green rerun:
+   - execution id: `m14b_streamsort_materialization_20260302T002345Z`,
+   - EMR application: `fraud-platform-dev-full-oracle-stream-sort-v0` (`application_id=00g3qriott52200t`),
+   - job run: `00g3qrko3qpk9g0v` (`state=SUCCESS`),
+   - result: `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M14_C`, `next_gate=M14.C_READY`.
+4. Required output closure (all pass):
+   - `arrival_events_5B`: receipt+manifest present, parquet count `400`, row parity `236,691,694 == 236,691,694`,
+   - `s1_arrival_entities_6B`: receipt+manifest present, parquet count `400`, row parity `236,691,694 == 236,691,694`,
+   - `s3_event_stream_with_fraud_6B`: receipt+manifest present, parquet count `400`, row parity `473,383,388 == 473,383,388`,
+   - `s3_flow_anchor_with_fraud_6B`: receipt+manifest present, parquet count `400`, row parity `236,691,694 == 236,691,694`.
+5. Local evidence:
+   - `runs/dev_substrate/dev_full/m14/m14b_streamsort_materialization_20260302T002345Z/m14b_streamsort_materialization_snapshot.json`,
+   - `runs/dev_substrate/dev_full/m14/m14b_streamsort_materialization_20260302T002345Z/m14b_streamsort_parity_report.json`,
+   - `runs/dev_substrate/dev_full/m14/m14b_streamsort_materialization_20260302T002345Z/m14b_blocker_register.json`,
+   - `runs/dev_substrate/dev_full/m14/m14b_streamsort_materialization_20260302T002345Z/m14b_execution_summary.json`.
+6. Durable evidence:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14b_streamsort_materialization_20260302T002345Z/m14b_streamsort_materialization_snapshot.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14b_streamsort_materialization_20260302T002345Z/m14b_streamsort_parity_report.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14b_streamsort_materialization_20260302T002345Z/m14b_blocker_register.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14b_streamsort_materialization_20260302T002345Z/m14b_execution_summary.json`.
+
+### M14.B Performance Receipt (short)
+1. Managed job runtime:
+   - start: `2026-03-02T00:24:38Z`,
+   - end: `2026-03-02T00:30:23Z`,
+   - `totalExecutionDurationSeconds=345` (EMR Serverless authoritative metric).
+2. Workload size (aggregate across required outputs):
+   - `total_raw_rows=1,183,458,470`,
+   - `total_sorted_rows=1,183,458,470`,
+   - row parity: `PASS` for all required outputs.
+3. Effective processing rate (aggregate rows / execution seconds):
+   - `~3,430,314 rows/second`.
+4. Billed compute utilization:
+   - `vCPUHour=12.226`,
+   - `memoryGBHour=54.054`,
+   - `storageGBHour=0.0` (billed),
+   - `storageGBHour=120.333` (total utilization).
+5. Source of truth for this receipt:
+   - EMR job metadata: `application_id=00g3qriott52200t`, `job_run_id=00g3qrko3qpk9g0v`,
+   - parity artifact: `m14b_streamsort_parity_report.json`.
