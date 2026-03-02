@@ -488,10 +488,10 @@ jobs:
         env:
           IG_BRIDGE_EVENT_COUNT: ${{ inputs.iterations }}
           IG_BRIDGE_SLEEP_SECONDS: ${{ inputs.sleep_seconds }}
-          IG_BRIDGE_MAX_WORKERS: "192"
-          IG_BRIDGE_TIMEOUT_SECONDS: "3.0"
-          IG_BRIDGE_RETRY_MAX_ATTEMPTS: "3"
-          IG_BRIDGE_RETRY_BACKOFF_MS: "50"
+          IG_BRIDGE_MAX_WORKERS: "48"
+          IG_BRIDGE_TIMEOUT_SECONDS: "5.0"
+          IG_BRIDGE_RETRY_MAX_ATTEMPTS: "5"
+          IG_BRIDGE_RETRY_BACKOFF_MS: "200"
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -565,8 +565,8 @@ jobs:
                           break
                   except urllib.error.HTTPError as exc:
                       reason = f"http_{exc.code}"
-                      # 5xx is treated as transient in bounded retries.
-                      if exc.code < 500 or attempt >= retry_max_attempts:
+                      is_retryable_http = (exc.code == 429) or (500 <= exc.code < 600)
+                      if (not is_retryable_http) or attempt >= retry_max_attempts:
                           break
                   except Exception as exc:  # pragma: no cover - runtime guard
                       reason = f"{type(exc).__name__}:{exc}"
@@ -650,6 +650,7 @@ jobs:
             --lane-window-start-utc "${{ steps.submit.outputs.lane_window_start_utc }}" \
             --ig-idempotency-table "${{ inputs.ig_idempotency_table }}" \
             --ddb-scan-page-limit "5000" \
+            --ddb-scan-page-size "1000" \
             --lag-threshold "${{ inputs.lag_threshold }}" \
             --evidence-bucket "${{ inputs.evidence_bucket }}" \
             --local-output-root "runs/dev_substrate/dev_full/m6"
