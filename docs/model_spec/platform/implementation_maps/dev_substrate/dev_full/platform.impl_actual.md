@@ -19004,3 +19004,63 @@ ext_gate = M14.F_READY.
 ### Scope boundary
 1. This step is planning-only.
 2. No M15.B execution was started in this entry.
+
+## Entry: 2026-03-02 07:15:14 +00:00 - M15.B run-input lock and execution approach
+### Trigger
+1. Operator approved concrete M15.B inputs and instructed immediate execution.
+
+### Pinned run inputs
+1. `window_profile_label = 7d_baseline`
+2. `window_end_utc = max(ts_utc)` from `s3_event_stream_with_fraud_6B` at runtime.
+3. `window_start_utc = window_end_utc - 7d`.
+4. `max_scan_bytes_gb = 300`.
+5. `max_rows_per_surface = 50000000`.
+
+### Execution approach chosen
+1. Athena-first profiling is preserved.
+2. Because oracle/truth surfaces are not pre-cataloged in Glue, execution will:
+   - infer primitive column schema from representative parquet samples,
+   - create dedicated M15 external Athena tables for bounded profiling queries,
+   - run deterministic profile lanes `B1..B5`,
+   - enforce scan-cap fail-closed after each query.
+3. This keeps M15.B compute managed (Athena query execution), while local orchestration only handles table DDL generation and receipt assembly.
+
+## Entry: 2026-03-02 07:30:34 +00:00 - M15.B execution closure with blocker remediation
+### Execution chronology
+1. Run `m15b_semantic_profile_20260302T072123Z`:
+   - blocked on optional-surface treatment and timestamp parsing for dynamic window derivation.
+2. Run `m15b_semantic_profile_20260302T072328Z`:
+   - dynamic window derived,
+   - blocked on Athena timestamp literal formatting in windowed row-count queries.
+3. Run `m15b_semantic_profile_20260302T072457Z`:
+   - all planned profiling lanes executed,
+   - blocker-free closure achieved.
+
+### Concrete remediations applied
+1. Catalog materialization path:
+   - replaced Athena DDL table creation with Glue `create_table` external-table API.
+   - reason: deterministic compatibility and reduced parser drift risk.
+2. Optional-surface policy:
+   - `s1_session_index_6B` absence repinned as advisory (`M15-AD2`) for bounded first-pass execution.
+3. Time coercion:
+   - implemented robust ISO timestamp conversion for string columns via:
+     `COALESCE(CAST(try(from_iso8601_timestamp(col)) AS timestamp), try(cast(col AS timestamp)))`.
+4. Window SQL literals:
+   - normalized UTC literals to Athena-compatible `YYYY-MM-DD HH:MM:SS...` format.
+
+### Final outcome
+1. Execution id: `m15b_semantic_profile_20260302T072457Z`.
+2. Verdict: `overall_pass=true`, `blocker_count=0`, `next_gate=M15.C_READY`.
+3. Runtime/cost receipt:
+   - `query_count=32`,
+   - `total_scanned_gb=95.108`,
+   - `cost_estimate_usd=0.4644`,
+   - hard cap respected (`95.108 < 300` GB).
+4. Advisory retained:
+   - `M15-AD2` optional surface `s1_session_index_6B` not materialized for this run.
+
+### Evidence
+1. Local:
+   - `runs/dev_substrate/dev_full/m15/m15b_semantic_profile_20260302T072457Z/`
+2. Durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15b_semantic_profile_20260302T072457Z/`

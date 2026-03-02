@@ -2066,7 +2066,7 @@ M15 DoD anchors (planning contract, to be checked on activation):
 
 M15 sub-phase progress:
 - [x] `M15.A` canonical data-contract mapping.
-- [ ] `M15.B` managed semantic profiling.
+- [x] `M15.B` managed semantic profiling.
 - [ ] `M15.C` point-in-time policy realization.
 - [ ] `M15.D` OFS real dataset build.
 - [ ] `M15.E` MF real-data train/eval rewire.
@@ -2086,6 +2086,12 @@ M15 progress snapshot:
    - managed compute path pinned (`Athena` primary, `Databricks` fallback),
    - bounded-horizon profiling lanes pinned (`B1 schema`, `B2 key`, `B3 time`, `B4 joinability`, `B5 entity stability`),
    - fail-closed conditions, artifact contract, and scan/cost guardrails pinned.
+3. `M15.B` is closed green after remediation reruns:
+   - blocked run `m15b_semantic_profile_20260302T072123Z`: catalog/timestamp preflight blockers,
+   - blocked run `m15b_semantic_profile_20260302T072328Z`: timestamp window-literal query failures,
+   - green run `m15b_semantic_profile_20260302T072457Z`: `overall_pass=true`, `blocker_count=0`, `next_gate=M15.C_READY`,
+   - runtime/cost receipt: `query_count=32`, `total_scanned_gb=95.108`, `cost_estimate_usd=0.4644`,
+   - non-blocking advisory: optional `s1_session_index_6B` not materialized in this run.
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M15.build_plan.md`

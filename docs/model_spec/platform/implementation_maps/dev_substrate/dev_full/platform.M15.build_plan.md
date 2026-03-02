@@ -166,9 +166,9 @@ Execution rules:
    - entity-link stability for IEG candidate relationships.
 
 DoD:
-- [ ] profile report committed local + durable.
-- [ ] all critical integrity checks either pass or are explicit blockers.
-- [ ] profile includes at least one bounded representative horizon with explicit row/event counts.
+- [x] profile report committed local + durable.
+- [x] all critical integrity checks either pass or are explicit blockers.
+- [x] profile includes at least one bounded representative horizon with explicit row/event counts.
 
 Blockers:
 1. `M15-B2` schema/profile drift beyond policy.
@@ -251,6 +251,46 @@ M15.B runtime and cost guardrails:
 1. Target runtime <= 60 minutes for bounded first-pass window.
 2. Hard fail on `max_scan_bytes_gb` breach unless explicit operator-approved rebounded run is pinned.
 3. Emit `query_count`, `total_scanned_bytes`, `cost_estimate_usd`, and `rows_profiled` in execution summary.
+
+M15.B v1 pinned run inputs (approved):
+1. `window_profile_label = "7d_baseline"`
+2. `window_end_utc = max(ts_utc)` from `s3_event_stream_with_fraud_6B` at run start.
+3. `window_start_utc = window_end_utc - 7 days`.
+4. `max_scan_bytes_gb = 300`.
+5. `max_rows_per_surface = 50000000`.
+
+M15.B closure snapshot:
+1. Final green execution:
+   - `m15b_semantic_profile_20260302T072457Z`
+2. Verdict:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `next_gate=M15.C_READY`
+3. Runtime/cost receipt:
+   - `query_count=32`
+   - `total_scanned_gb=95.108`
+   - `cost_estimate_usd=0.4644`
+   - scan cap respected (`95.108 < 300` GB).
+4. Advisory retained (non-blocking):
+   - `M15-AD2` optional surface absent for this run: `s1_session_index_6B`.
+5. Local artifacts:
+   - `runs/dev_substrate/dev_full/m15/m15b_semantic_profile_20260302T072457Z/m15b_profile_manifest.json`
+   - `runs/dev_substrate/dev_full/m15/m15b_semantic_profile_20260302T072457Z/m15b_schema_profile.json`
+   - `runs/dev_substrate/dev_full/m15/m15b_semantic_profile_20260302T072457Z/m15b_key_integrity_report.json`
+   - `runs/dev_substrate/dev_full/m15/m15b_semantic_profile_20260302T072457Z/m15b_time_integrity_report.json`
+   - `runs/dev_substrate/dev_full/m15/m15b_semantic_profile_20260302T072457Z/m15b_join_coverage_matrix.json`
+   - `runs/dev_substrate/dev_full/m15/m15b_semantic_profile_20260302T072457Z/m15b_entity_stability_report.json`
+   - `runs/dev_substrate/dev_full/m15/m15b_semantic_profile_20260302T072457Z/m15b_blocker_register.json`
+   - `runs/dev_substrate/dev_full/m15/m15b_semantic_profile_20260302T072457Z/m15b_execution_summary.json`
+6. Durable artifacts:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15b_semantic_profile_20260302T072457Z/m15b_profile_manifest.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15b_semantic_profile_20260302T072457Z/m15b_schema_profile.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15b_semantic_profile_20260302T072457Z/m15b_key_integrity_report.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15b_semantic_profile_20260302T072457Z/m15b_time_integrity_report.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15b_semantic_profile_20260302T072457Z/m15b_join_coverage_matrix.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15b_semantic_profile_20260302T072457Z/m15b_entity_stability_report.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15b_semantic_profile_20260302T072457Z/m15b_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m15b_semantic_profile_20260302T072457Z/m15b_execution_summary.json`
 
 ### M15.C - Point-in-Time Policy Realization
 Goal:
@@ -380,8 +420,8 @@ Minimum closure artifacts:
 6. `m15_cost_outcome_receipt.json`
 
 ## 11) Initial Status
-1. M15 is active and `M15.A` is closed green.
-2. Next active entry gate is `M15.B`.
+1. M15 is active and `M15.A` + `M15.B` are closed green.
+2. Next active entry gate is `M15.C`.
 
 ## 12) M15.A Closure Snapshot
 1. Execution:
