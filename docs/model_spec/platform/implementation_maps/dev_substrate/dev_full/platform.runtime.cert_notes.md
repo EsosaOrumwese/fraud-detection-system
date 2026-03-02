@@ -274,3 +274,22 @@ To be populated during RC0 materialization and updated as RC2+ runs execute.
    - OIDC branch-trust blocker is closed,
    - fresh streaming-active evidence surface is now available for current cert window,
    - next required closure is fresh P7 ingest-commit/rollup surfaces (M6.G/M6.H/M6.I) for full Tier-0 metric coverage.
+
+### 2026-03-02 17:15:30 +00:00 - RC2 remediation plan lock (fresh-only) and execution start
+1. Remediation objective pinned: close `RC-B4` using fresh profile evidence only (no historical reuse, no threshold edits, no waivers).
+2. Execution contract pinned:
+   - profile runs required: `steady`, `burst`, `soak`, `replay_window`,
+   - each profile must emit deterministic local+durable artifacts under runtime cert prefix,
+   - RC2 rollup must reference only profile execution ids created after this lock.
+3. Managed-lane implementation decision:
+   - use existing managed `dev-full-m6f-streaming-active` workflow as ingress generator,
+   - extend fallback IG bridge step with configurable `ig_bridge_event_count`, `ig_bridge_workers`, `ig_bridge_sleep_seconds`,
+   - preserve default behavior (`12` events, `4` workers, `0.2s`) for non-RC2 paths.
+4. Immediate execution plan:
+   - run `steady` profile first to calibrate sustainable fresh eps/sample posture,
+   - run `burst` second with higher concurrency,
+   - run `soak` + `replay_window` afterwards using bounded managed windows,
+   - execute RC2 rollup once all four profile artifacts exist.
+5. Fail-closed stance retained:
+   - any missing profile artifact/readback -> `RC-B3`,
+   - any profile below pinned floor -> `RC-B4`.

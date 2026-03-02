@@ -280,6 +280,33 @@ RC2 execution snapshot (latest):
 8. superseded pass:
    - `rc2_tier0_scorecard_20260302T153540Z` is superseded by `...153633Z` due best-candidate ranking correction in blocker reporting.
 
+RC2 remediation plan (active, fresh-only):
+1. `RC2.R0` remediation contract lock:
+   - no historical evidence reuse,
+   - all profile rows must reference fresh execution ids generated after remediation start,
+   - no threshold edits or floor waivers.
+2. `RC2.R1` profile load-lane execution:
+   - run dedicated managed ingress profile lanes for `steady`, `burst`, `soak`, `replay_window`,
+   - emit deterministic per-profile snapshot with sample size, observed eps, duration observed, admit/error/retry posture.
+3. `RC2.R2` profile evidence publication:
+   - publish each profile snapshot locally under `runs/dev_substrate/dev_full/cert/runtime/<profile_execution_id>/`,
+   - mirror durable to `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/<profile_execution_id>/` with readback.
+4. `RC2.R3` scorecard rollup:
+   - resolve exactly one fresh profile source per mandatory profile,
+   - synthesize `runtime_scorecard_profiles.json`, `runtime_blocker_register.json`, `runtime_certification_verdict.json`, `rc2_execution_snapshot.json`.
+5. `RC2.R4` fail-closed adjudication:
+   - any missing profile surface -> `RC-B3`,
+   - any profile below pinned floor (`eps`, `min_sample`, duration/replay window) -> `RC-B4`,
+   - any uncomputable required metric distribution -> `RC-B2`.
+6. `RC2.R5` closure policy:
+   - `RC2` closes only when all four profile rows pass with fresh lineage and blocker_count=0.
+
+RC2 remediation DoD:
+- [ ] fresh profile execution ids are pinned for steady/burst/soak/replay-window.
+- [ ] each profile has deterministic local+durable artifact set with successful readback.
+- [ ] RC2 rollup uses only fresh profile sources.
+- [ ] RC2 verdict is `GREEN` (`overall_pass=true`, `next_gate=RC3_OR_RC6_CONTINUE`) or remains explicit HOLD with blocker taxonomy.
+
 ### RC3 - Tier 0 runtime drill pack certification
 Goal:
 1. Prove required runtime failure-mode drills with bounded recovery and integrity checks.
