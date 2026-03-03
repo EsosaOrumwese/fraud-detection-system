@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       phase_mode:
-        description: "Runtime certification lane (rc0..rc6)"
+        description: "Runtime certification lane (rc0..rc6, rc2r2)"
         required: true
         default: "rc0"
         type: choice
@@ -12,6 +12,7 @@ on:
           - rc0
           - rc1
           - rc2
+          - rc2r2
           - rc3
           - rc4
           - rc5
@@ -76,6 +77,41 @@ on:
         required: false
         default: "fraud-platform-dev-full-ig-idempotency"
         type: string
+      rc2r2_apigw_ig_stage_name:
+        description: "RC2.R2 API Gateway stage name"
+        required: false
+        default: "v1"
+        type: string
+      rc2r2_ig_rate_limit_rps:
+        description: "RC2.R2 target IG rate limit (RPS)"
+        required: false
+        default: "3000"
+        type: string
+      rc2r2_ig_rate_limit_burst:
+        description: "RC2.R2 target IG burst limit"
+        required: false
+        default: "6000"
+        type: string
+      rc2r2_eks_nodegroup_instance_types_json:
+        description: "RC2.R2 target nodegroup instance types (JSON list)"
+        required: false
+        default: "[\"t3.xlarge\"]"
+        type: string
+      rc2r2_eks_nodegroup_desired_size:
+        description: "RC2.R2 target nodegroup desired size"
+        required: false
+        default: "4"
+        type: string
+      rc2r2_eks_nodegroup_min_size:
+        description: "RC2.R2 target nodegroup min size"
+        required: false
+        default: "2"
+        type: string
+      rc2r2_eks_nodegroup_max_size:
+        description: "RC2.R2 target nodegroup max size"
+        required: false
+        default: "8"
+        type: string
       evidence_bucket:
         description: "S3 evidence bucket"
         required: true
@@ -118,6 +154,11 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
       - name: Install runtime dependencies
         shell: bash
         run: |
@@ -138,6 +179,7 @@ jobs:
               rc0) EXEC_ID="rc0_claim_model_lock_${TS}" ;;
               rc1) EXEC_ID="rc1_runtime_evidence_inventory_${TS}" ;;
               rc2) EXEC_ID="rc2_tier0_scorecard_${TS}" ;;
+              rc2r2) EXEC_ID="rc2_r2_capacity_envelope_${TS}" ;;
               rc3) EXEC_ID="rc3_tier0_drill_pack_${TS}" ;;
               rc4) EXEC_ID="rc4_tier1_runtime_pack_${TS}" ;;
               rc5) EXEC_ID="rc5_tier2_runtime_pack_${TS}" ;;
@@ -172,6 +214,12 @@ jobs:
               echo "handler_path=" >> "$GITHUB_OUTPUT"
               echo "snapshot_path=${{ steps.run_meta.outputs.run_dir }}/rc2_execution_snapshot.json" >> "$GITHUB_OUTPUT"
               echo "expected_next_gate=" >> "$GITHUB_OUTPUT"
+              ;;
+            rc2r2)
+              echo "lane_supported=true" >> "$GITHUB_OUTPUT"
+              echo "handler_path=" >> "$GITHUB_OUTPUT"
+              echo "snapshot_path=${{ steps.run_meta.outputs.run_dir }}/rc2_r2_execution_summary.json" >> "$GITHUB_OUTPUT"
+              echo "expected_next_gate=READY_FOR_RC2_R5" >> "$GITHUB_OUTPUT"
               ;;
             rc3|rc4|rc5|rc6)
               echo "lane_supported=false" >> "$GITHUB_OUTPUT"
@@ -1234,6 +1282,316 @@ jobs:
           }, ensure_ascii=True))
           PY
 
+      - name: Execute RC2.R2 lane handler (managed inline)
+        if: ${{ inputs.phase_mode == 'rc2r2' && steps.lane.outputs.lane_supported == 'true' }}
+        shell: bash
+        env:
+          AWS_REGION: ${{ inputs.aws_region }}
+          EVIDENCE_BUCKET: ${{ inputs.evidence_bucket }}
+          PLATFORM_RUN_ID: ${{ inputs.platform_run_id }}
+          SCENARIO_RUN_ID: ${{ inputs.scenario_run_id }}
+          RUNTIME_CERT_EXECUTION_ID: ${{ steps.run_meta.outputs.runtime_cert_execution_id }}
+          RUN_DIR: ${{ steps.run_meta.outputs.run_dir }}
+          APIGW_IG_STAGE_NAME: ${{ inputs.rc2r2_apigw_ig_stage_name }}
+          EXPECTED_IG_RATE_LIMIT_RPS: ${{ inputs.rc2r2_ig_rate_limit_rps }}
+          EXPECTED_IG_RATE_LIMIT_BURST: ${{ inputs.rc2r2_ig_rate_limit_burst }}
+          EXPECTED_NODEGROUP_INSTANCE_TYPES_JSON: ${{ inputs.rc2r2_eks_nodegroup_instance_types_json }}
+          EXPECTED_NODEGROUP_DESIRED: ${{ inputs.rc2r2_eks_nodegroup_desired_size }}
+          EXPECTED_NODEGROUP_MIN: ${{ inputs.rc2r2_eks_nodegroup_min_size }}
+          EXPECTED_NODEGROUP_MAX: ${{ inputs.rc2r2_eks_nodegroup_max_size }}
+          TF_DIR: infra/terraform/dev_full/runtime
+        run: |
+          set -euo pipefail
+          terraform -chdir="${TF_DIR}" init -reconfigure -backend-config=backend.hcl
+          terraform -chdir="${TF_DIR}" validate
+          terraform -chdir="${TF_DIR}" output -json > "${RUN_DIR}/terraform_outputs_pre.json"
+
+          python - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+          import boto3
+
+          run_dir = Path(os.environ["RUN_DIR"])
+          outputs = json.loads((run_dir / "terraform_outputs_pre.json").read_text(encoding="utf-8"))
+          apigw_id = str(outputs.get("apigw_ig_api_id", {}).get("value", "")).strip()
+          lambda_name = str(outputs.get("lambda_ig_handler_name", {}).get("value", "")).strip()
+          cluster_arn = str(outputs.get("eks_cluster_arn", {}).get("value", "")).strip()
+          nodegroup_name = str(outputs.get("eks_nodegroup_m6f_name", {}).get("value", "")).strip()
+          cluster_name = cluster_arn.split("cluster/", 1)[1] if "cluster/" in cluster_arn else ""
+
+          apigw = boto3.client("apigatewayv2", region_name=os.environ["AWS_REGION"])
+          lam = boto3.client("lambda", region_name=os.environ["AWS_REGION"])
+          eks = boto3.client("eks", region_name=os.environ["AWS_REGION"])
+
+          stage_name = os.environ["APIGW_IG_STAGE_NAME"]
+          stage = apigw.get_stage(ApiId=apigw_id, StageName=stage_name) if apigw_id else {}
+          route = stage.get("DefaultRouteSettings", {}) if isinstance(stage, dict) else {}
+          lambda_cfg = lam.get_function_configuration(FunctionName=lambda_name) if lambda_name else {}
+          nodegroup = (
+              eks.describe_nodegroup(clusterName=cluster_name, nodegroupName=nodegroup_name).get("nodegroup", {})
+              if cluster_name and nodegroup_name
+              else {}
+          )
+          scaling = nodegroup.get("scalingConfig", {}) if isinstance(nodegroup, dict) else {}
+
+          pre = {
+              "captured_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "phase": "RC2.R2",
+              "execution_id": os.environ["RUNTIME_CERT_EXECUTION_ID"],
+              "platform_run_id": os.environ["PLATFORM_RUN_ID"],
+              "scenario_run_id": os.environ["SCENARIO_RUN_ID"],
+              "apigw": {
+                  "api_id": apigw_id,
+                  "stage_name": stage_name,
+                  "throttling_rate_limit": route.get("ThrottlingRateLimit"),
+                  "throttling_burst_limit": route.get("ThrottlingBurstLimit"),
+              },
+              "lambda": {
+                  "function_name": lambda_name,
+                  "memory_size": lambda_cfg.get("MemorySize"),
+                  "timeout_seconds": lambda_cfg.get("Timeout"),
+                  "reserved_concurrency": lambda_cfg.get("ReservedConcurrentExecutions"),
+              },
+              "eks_m6f_nodegroup": {
+                  "cluster_name": cluster_name,
+                  "nodegroup_name": nodegroup_name,
+                  "instance_types": nodegroup.get("instanceTypes"),
+                  "scaling_config": scaling,
+                  "status": nodegroup.get("status"),
+              },
+          }
+          (run_dir / "rc2_r2_capacity_pre_snapshot.json").write_text(
+              json.dumps(pre, indent=2, ensure_ascii=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+          terraform -chdir="${TF_DIR}" apply -input=false -auto-approve \
+            -var "ig_rate_limit_rps=${EXPECTED_IG_RATE_LIMIT_RPS}" \
+            -var "ig_rate_limit_burst=${EXPECTED_IG_RATE_LIMIT_BURST}" \
+            -var "eks_nodegroup_instance_types=${EXPECTED_NODEGROUP_INSTANCE_TYPES_JSON}" \
+            -var "eks_nodegroup_desired_size=${EXPECTED_NODEGROUP_DESIRED}" \
+            -var "eks_nodegroup_min_size=${EXPECTED_NODEGROUP_MIN}" \
+            -var "eks_nodegroup_max_size=${EXPECTED_NODEGROUP_MAX}"
+          terraform -chdir="${TF_DIR}" output -json > "${RUN_DIR}/terraform_outputs_post.json"
+
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          import sys
+          from datetime import datetime, timezone
+          from pathlib import Path
+          import boto3
+
+          run_dir = Path(os.environ["RUN_DIR"])
+          exec_id = os.environ["RUNTIME_CERT_EXECUTION_ID"]
+          platform_run_id = os.environ["PLATFORM_RUN_ID"]
+          scenario_run_id = os.environ["SCENARIO_RUN_ID"]
+          bucket = os.environ["EVIDENCE_BUCKET"]
+          stage_name = os.environ["APIGW_IG_STAGE_NAME"]
+          expected_rate = float(os.environ["EXPECTED_IG_RATE_LIMIT_RPS"])
+          expected_burst = int(float(os.environ["EXPECTED_IG_RATE_LIMIT_BURST"]))
+          expected_desired = int(os.environ["EXPECTED_NODEGROUP_DESIRED"])
+          expected_min = int(os.environ["EXPECTED_NODEGROUP_MIN"])
+          expected_max = int(os.environ["EXPECTED_NODEGROUP_MAX"])
+
+          def load_json(path: Path) -> dict:
+              return json.loads(path.read_text(encoding="utf-8"))
+
+          pre = load_json(run_dir / "rc2_r2_capacity_pre_snapshot.json")
+          outputs_post = load_json(run_dir / "terraform_outputs_post.json")
+
+          apigw_id = str(outputs_post.get("apigw_ig_api_id", {}).get("value", "")).strip()
+          lambda_name = str(outputs_post.get("lambda_ig_handler_name", {}).get("value", "")).strip()
+          cluster_arn = str(outputs_post.get("eks_cluster_arn", {}).get("value", "")).strip()
+          nodegroup_name = str(outputs_post.get("eks_nodegroup_m6f_name", {}).get("value", "")).strip()
+          cluster_name = cluster_arn.split("cluster/", 1)[1] if "cluster/" in cluster_arn else ""
+
+          apigw = boto3.client("apigatewayv2", region_name=os.environ["AWS_REGION"])
+          lam = boto3.client("lambda", region_name=os.environ["AWS_REGION"])
+          eks = boto3.client("eks", region_name=os.environ["AWS_REGION"])
+          s3 = boto3.client("s3", region_name=os.environ["AWS_REGION"])
+
+          stage = apigw.get_stage(ApiId=apigw_id, StageName=stage_name) if apigw_id else {}
+          route = stage.get("DefaultRouteSettings", {}) if isinstance(stage, dict) else {}
+          lambda_cfg = lam.get_function_configuration(FunctionName=lambda_name) if lambda_name else {}
+          nodegroup = (
+              eks.describe_nodegroup(clusterName=cluster_name, nodegroupName=nodegroup_name).get("nodegroup", {})
+              if cluster_name and nodegroup_name
+              else {}
+          )
+          scaling = nodegroup.get("scalingConfig", {}) if isinstance(nodegroup, dict) else {}
+
+          post = {
+              "captured_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "phase": "RC2.R2",
+              "execution_id": exec_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "apigw": {
+                  "api_id": apigw_id,
+                  "stage_name": stage_name,
+                  "throttling_rate_limit": route.get("ThrottlingRateLimit"),
+                  "throttling_burst_limit": route.get("ThrottlingBurstLimit"),
+              },
+              "lambda": {
+                  "function_name": lambda_name,
+                  "memory_size": lambda_cfg.get("MemorySize"),
+                  "timeout_seconds": lambda_cfg.get("Timeout"),
+                  "reserved_concurrency": lambda_cfg.get("ReservedConcurrentExecutions"),
+              },
+              "eks_m6f_nodegroup": {
+                  "cluster_name": cluster_name,
+                  "nodegroup_name": nodegroup_name,
+                  "instance_types": nodegroup.get("instanceTypes"),
+                  "scaling_config": scaling,
+                  "status": nodegroup.get("status"),
+              },
+          }
+
+          blockers = []
+          rate_live = post["apigw"].get("throttling_rate_limit")
+          burst_live = post["apigw"].get("throttling_burst_limit")
+          if rate_live is None or float(rate_live) < expected_rate:
+              blockers.append({"code": "RC2R2-B1", "message": f"APIGW throttle rate below target ({rate_live} < {expected_rate})."})
+          if burst_live is None or int(burst_live) < expected_burst:
+              blockers.append({"code": "RC2R2-B1", "message": f"APIGW throttle burst below target ({burst_live} < {expected_burst})."})
+
+          desired_live = int(scaling.get("desiredSize", -1))
+          min_live = int(scaling.get("minSize", -1))
+          max_live = int(scaling.get("maxSize", -1))
+          if desired_live < expected_desired or min_live < expected_min or max_live < expected_max:
+              blockers.append({
+                  "code": "RC2R2-B2",
+                  "message": (
+                      "EKS nodegroup scaling below target "
+                      f"(live desired/min/max={desired_live}/{min_live}/{max_live}, "
+                      f"expected>={expected_desired}/{expected_min}/{expected_max})."
+                  ),
+              })
+
+          scale_down_plan = {
+              "captured_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "phase": "RC2.R2",
+              "execution_id": exec_id,
+              "post_cert_trigger": "after RC2 remediation campaign closure or explicit stop",
+              "target_restore_knobs": {
+                  "ig_rate_limit_rps": pre.get("apigw", {}).get("throttling_rate_limit"),
+                  "ig_rate_limit_burst": pre.get("apigw", {}).get("throttling_burst_limit"),
+                  "eks_nodegroup_desired_size": pre.get("eks_m6f_nodegroup", {}).get("scaling_config", {}).get("desiredSize"),
+                  "eks_nodegroup_min_size": pre.get("eks_m6f_nodegroup", {}).get("scaling_config", {}).get("minSize"),
+                  "eks_nodegroup_max_size": pre.get("eks_m6f_nodegroup", {}).get("scaling_config", {}).get("maxSize"),
+              },
+              "execution_posture": "MANAGED_WORKFLOW_ONLY",
+          }
+
+          envelope_snapshot = {
+              "captured_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "phase": "RC2.R2",
+              "execution_id": exec_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "pre_change": pre,
+              "post_change": post,
+              "expected_targets": {
+                  "ig_rate_limit_rps": expected_rate,
+                  "ig_rate_limit_burst": expected_burst,
+                  "eks_nodegroup_desired_size": expected_desired,
+                  "eks_nodegroup_min_size": expected_min,
+                  "eks_nodegroup_max_size": expected_max,
+              },
+          }
+
+          overall_pass = len(blockers) == 0
+          summary = {
+              "captured_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "phase": "RC2.R2",
+              "runtime_cert_execution_id": exec_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "overall_pass": overall_pass,
+              "verdict": "PASS" if overall_pass else "HOLD",
+              "next_gate": "READY_FOR_RC2_R5" if overall_pass else "HOLD_REMEDIATE",
+              "blocker_count": len(blockers),
+          }
+          blocker_register = {
+              "captured_at_utc": summary["captured_at_utc"],
+              "phase": "RC2.R2",
+              "execution_id": exec_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "blocker_count": len(blockers),
+              "blockers": blockers,
+          }
+          change_receipt = {
+              "captured_at_utc": summary["captured_at_utc"],
+              "phase": "RC2.R2",
+              "execution_id": exec_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "change_set": envelope_snapshot["expected_targets"],
+              "verification_ref": f"s3://{bucket}/evidence/dev_full/cert/runtime/{exec_id}/rc2_r2_capacity_envelope_snapshot.json",
+              "execution_posture": "MANAGED_WORKFLOW_TERRAFORM_APPLY_ONLY",
+          }
+
+          files = {
+              "rc2_r2_capacity_envelope_snapshot.json": envelope_snapshot,
+              "rc2_r2_capacity_change_receipt.json": change_receipt,
+              "rc2_r2_scale_down_plan.json": scale_down_plan,
+              "rc2_r2_blocker_register.json": blocker_register,
+              "rc2_r2_execution_summary.json": summary,
+          }
+          prefix = f"evidence/dev_full/cert/runtime/{exec_id}/"
+          publication_rows = []
+
+          for name, payload in files.items():
+              path = run_dir / name
+              data = (json.dumps(payload, indent=2, ensure_ascii=True) + "\n").encode("utf-8")
+              path.write_bytes(data)
+              key = f"{prefix}{name}"
+              s3.put_object(Bucket=bucket, Key=key, Body=data, ContentType="application/json")
+              rb = s3.get_object(Bucket=bucket, Key=key)["Body"].read()
+              publication_rows.append({
+                  "artifact": name,
+                  "s3_key": key,
+                  "sha256_local": hashlib.sha256(data).hexdigest(),
+                  "sha256_readback": hashlib.sha256(rb).hexdigest(),
+                  "readback_ok": hashlib.sha256(data).hexdigest() == hashlib.sha256(rb).hexdigest(),
+              })
+
+          publication_ok = all(bool(r["readback_ok"]) for r in publication_rows)
+          publication = {
+              "captured_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "phase": "RC2.R2",
+              "execution_id": exec_id,
+              "artifact_rows": publication_rows,
+              "overall_readback_ok": publication_ok,
+          }
+          pub_path = run_dir / "rc2_r2_publication_receipt.json"
+          pub_data = (json.dumps(publication, indent=2, ensure_ascii=True) + "\n").encode("utf-8")
+          pub_path.write_bytes(pub_data)
+          pub_key = f"{prefix}rc2_r2_publication_receipt.json"
+          s3.put_object(Bucket=bucket, Key=pub_key, Body=pub_data, ContentType="application/json")
+
+          print(json.dumps({
+              "runtime_cert_execution_id": exec_id,
+              "overall_pass": overall_pass,
+              "blocker_count": len(blockers),
+              "next_gate": "READY_FOR_RC2_R5" if overall_pass else "HOLD_REMEDIATE",
+              "durable_root": f"s3://{bucket}/{prefix}",
+          }, ensure_ascii=True))
+
+          if not publication_ok:
+              print("RC2.R2 fail-closed: publication readback mismatch detected.")
+              sys.exit(1)
+          if not overall_pass:
+              print("RC2.R2 fail-closed: capacity envelope gate is HOLD_REMEDIATE.")
+              sys.exit(1)
+          PY
+
       - name: RC0 fail-closed verdict gate
         if: ${{ inputs.phase_mode == 'rc0' && steps.lane.outputs.lane_supported == 'true' }}
         shell: bash
@@ -1391,6 +1749,58 @@ jobs:
               if overall_pass or blocker_count <= 0 or next_gate != "RC2_REMEDIATION_REQUIRED":
                   sys.exit(1)
           else:
+              sys.exit(1)
+          PY
+
+      - name: RC2.R2 fail-closed verdict gate
+        if: ${{ inputs.phase_mode == 'rc2r2' && steps.lane.outputs.lane_supported == 'true' }}
+        shell: bash
+        env:
+          SNAPSHOT_PATH: ${{ steps.lane.outputs.snapshot_path }}
+          EXPECTED_NEXT_GATE: ${{ steps.lane.outputs.expected_next_gate }}
+          EXPECTED_EXECUTION_ID: ${{ steps.run_meta.outputs.runtime_cert_execution_id }}
+          EXPECTED_PLATFORM_RUN_ID: ${{ inputs.platform_run_id }}
+          EXPECTED_SCENARIO_RUN_ID: ${{ inputs.scenario_run_id }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          snapshot_path = Path(os.environ["SNAPSHOT_PATH"])
+          if not snapshot_path.exists():
+              print(f"Missing snapshot artifact: {snapshot_path}")
+              sys.exit(1)
+
+          snap = json.loads(snapshot_path.read_text(encoding="utf-8"))
+          blocker_count = int(snap.get("blocker_count", 0))
+          overall_pass = bool(snap.get("overall_pass"))
+          verdict = str(snap.get("verdict", "")).strip()
+          next_gate = str(snap.get("next_gate", "")).strip()
+
+          print(json.dumps({
+              "runtime_cert_execution_id": snap.get("runtime_cert_execution_id"),
+              "platform_run_id": snap.get("platform_run_id"),
+              "scenario_run_id": snap.get("scenario_run_id"),
+              "overall_pass": overall_pass,
+              "verdict": verdict,
+              "next_gate": next_gate,
+              "blocker_count": blocker_count,
+          }, ensure_ascii=True))
+
+          if str(snap.get("runtime_cert_execution_id", "")).strip() != os.environ["EXPECTED_EXECUTION_ID"]:
+              sys.exit(1)
+          if str(snap.get("platform_run_id", "")).strip() != os.environ["EXPECTED_PLATFORM_RUN_ID"]:
+              sys.exit(1)
+          if str(snap.get("scenario_run_id", "")).strip() != os.environ["EXPECTED_SCENARIO_RUN_ID"]:
+              sys.exit(1)
+          if (not overall_pass) or blocker_count != 0:
+              sys.exit(1)
+          if verdict != "PASS":
+              sys.exit(1)
+          if next_gate != os.environ["EXPECTED_NEXT_GATE"]:
               sys.exit(1)
           PY
 
