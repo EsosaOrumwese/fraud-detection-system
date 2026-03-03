@@ -45,7 +45,7 @@ This is the program-level overview of what each `M*` phase stress effort is expe
 | --- | --- | --- | --- | --- |
 | M0 | Mobilization + authority lock | Validate test authority, handles, and stress evidence surfaces before any load | All prerequisite stress handles and evidence sinks are green | DONE |
 | M1 | Packaging readiness | Stress packaging/provenance paths and pin a production-safe acceptance boundary for immutable artifact promotion | Artifact-freeze + immutable digest promotion contract accepted; managed toolchain-path fresh-rebuild nondeterminism recorded as known boundary | DONE |
-| M2 | Substrate readiness | Stress core substrate primitives (network/store/bus/runtime) for baseline capacity and failure behavior | Substrate can sustain target baseline load without integrity drift | NOT_STARTED |
+| M2 | Substrate readiness | Stress core substrate primitives (network/store/bus/runtime) for baseline capacity and failure behavior | Substrate can sustain target baseline load without integrity drift | ACTIVE |
 | M3 | Run pinning + orchestrator readiness | Stress run-control/orchestrator behavior under concurrent run activation and retries | Run pinning remains deterministic; no cross-run mixing | NOT_STARTED |
 | M4 | Spine runtime-lane readiness | Stress each spine lane bootstrap path for startup-time, readiness, and dependency bottlenecks | Lane startup and steady-state readiness meet target budgets | NOT_STARTED |
 | M5 | Oracle readiness + ingest preflight (`P3-P4`) | Stress oracle-to-ingress preflight flow for input correctness and ingest warm-path limits | Preflight pass is stable; no upstream-induced ingress stalls | NOT_STARTED |
@@ -208,11 +208,11 @@ For any phase:
    - propose decision change,
    - update authority before proceeding.
 
-## 12) Program Status (Initial)
+## 12) Program Status
 1. Program bootstrapped.
-2. Current phase state: `M1` (`DONE`, inline closure in this file).
-3. Per-phase stress files not yet created.
-4. Next step: activate `M2` Stage-A decision/bottleneck pre-read using M1 immutable artifact-promotion posture as the packaging baseline.
+2. Current phase state: `M2` (`ACTIVE`, dedicated phase file).
+3. Dedicated phase file created: `stress_test/platform.M2.stress_test.md`.
+4. Next step: close `M2` Stage-A pre-read artifacts and then launch `M2-ST-S1` baseline stress window.
 
 ## 13) Closed Phase - M0 (Inline)
 Status:
@@ -437,3 +437,11 @@ M1 Stage-B execution progress:
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T151901Z/stress/m1_blocker_register.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T151901Z/stress/m1_execution_summary.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T151901Z/stress/m1_decision_log.json`
+
+## 15) Active Phase - M2 (Dedicated)
+Status:
+1. `ACTIVE`
+
+Authority routing:
+1. `stress_test/platform.M2.stress_test.md` is now the active execution/planning authority for M2.
+2. Inline M2 detail is intentionally not expanded in this control file to preserve dedicated-file routing discipline.

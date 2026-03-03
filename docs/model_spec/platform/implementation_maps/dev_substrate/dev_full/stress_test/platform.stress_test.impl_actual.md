@@ -914,3 +914,58 @@ _As of 2026-03-03_
 ### Rationale continuity
 1. Historical run evidence and blocker chronology were intentionally preserved unchanged for auditability.
 2. Only current status/acceptance semantics were corrected to align with approved direction.
+
+## Entry: 2026-03-03 15:47 +00:00 - M2 planning activation (pre-implementation design)
+
+### Trigger
+1. User directed: move to planning `M2`.
+2. Program control file currently points to `M2` as next step but no dedicated `platform.M2.stress_test.md` exists yet.
+
+### Design-intent and scope readback
+1. M2 is a heavy substrate phase and must use a dedicated stress file per rule-8 phase-file guidance.
+2. M2 stress target is not re-running old provisioning closure; it is validating substrate throughput/failure behavior under realistic production posture.
+3. M2 build authority (`platform.M2.build_plan.md`) already provides lane decomposition (`M2.A..M2.J`), known historical blockers, and P0 evidence contracts that can be reused as stress handles.
+
+### Planned deliverables
+1. Create `stress_test/platform.M2.stress_test.md` as the active M2 stress authority with:
+   - objective/scope,
+   - Stage-A decision pre-read findings (`PREVENT/OBSERVE/ACCEPT`),
+   - capability-lane coverage (identity, network, stores, messaging, secrets, observability, rollback/rerun, teardown, budget),
+   - component -> plane -> integrated stress topology for substrate surfaces,
+   - fail-closed blocker taxonomy and acceptance gates.
+2. Update `stress_test/platform.stress_test.md` to:
+   - mark M2 as `ACTIVE` (planning/execution authority),
+   - route active work to the new dedicated M2 file,
+   - keep M1 as closed baseline with immutable artifact-promotion policy.
+3. Update `stress_test/README.md` status to reflect first dedicated phase file creation (`M2`).
+
+### Key decisions
+1. Reuse M2 lane names (`A..J`) for stress traceability to existing build evidence and handle contracts.
+2. Define M2 stress success as substrate runtime behavior stability at load, not just Terraform apply success.
+3. Carry forward M1 immutable artifact-promotion contract as prerequisite input to any M2 managed runtime probes.
+
+### Guardrails
+1. Historical evidence references remain intact; planning doc adds stress authority, not retroactive rewrite of M2 build history.
+2. No commits/pushes for docs unless user explicitly requests; edits remain local.
+
+## Entry: 2026-03-03 15:50 +00:00 - M2 planning authority materialized (applied)
+
+### Applied updates
+1. Created dedicated M2 stress file:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M2.stress_test.md`.
+2. Pinned M2 planning content:
+   - objective, scope boundary, entry prerequisites,
+   - Stage-A findings (`M2-ST-F1..F6`) with `PREVENT/OBSERVE/ACCEPT` classification,
+   - stress handle packet (artifact paths, runtime/spend budgets, fail-closed controls),
+   - capability-lane coverage matrix (authority/identity/network/data/messaging/secrets/obs/rollback/teardown/budget),
+   - stress topology and execution sequence (`M2-ST-S0..S5`),
+   - blocker taxonomy (`M2-ST-B1..B9`) and evidence contract.
+3. Updated `platform.stress_test.md` control routing:
+   - M2 overview status set to `ACTIVE`,
+   - program status moved from M1-closed to M2-active dedicated-file posture,
+   - added explicit active-phase routing section pointing to `platform.M2.stress_test.md`.
+4. Updated `stress_test/README.md` status section to reflect active dedicated M2 phase file.
+
+### Rationale
+1. M2 is a heavy coupled substrate phase and violates inline-phase constraints; dedicated-file routing is required by existing phase-file rule.
+2. M2 planning authority now focuses on substrate behavior under load/failure and cost discipline, not repeating provisioning-only closure.
