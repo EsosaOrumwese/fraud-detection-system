@@ -1381,3 +1381,83 @@ _As of 2026-03-03_
 2. Recovery probes return green after injection window.
 3. No new control-rail drift and no secret leakage.
 4. `overall_pass=true` with `open_blockers=0`; else fail-closed with explicit blocker evidence and remediation lane.
+
+## Entry: 2026-03-03 17:20 +00:00 - M2 `S3` first execution completed (fail-closed)
+
+### Implemented changes
+1. Extended `scripts/dev_substrate/m2_stress_runner.py` with explicit `run_s3(...)` lane and CLI stage support (`--stage S3`).
+2. Added controlled injection set:
+   - missing non-critical SSM path,
+   - IAM permission simulation lane,
+   - API-edge invalid route lane.
+3. Added deterministic classification and recovery checks:
+   - injection classification outcomes captured,
+   - immediate/final recovery probes on critical rails,
+   - fail-closed blocker mapping for non-deterministic injection outcomes.
+
+### Executed command
+1. `python scripts/dev_substrate/m2_stress_runner.py --stage S3`
+2. Phase execution id:
+   - `m2_stress_s3_20260303T171020Z`.
+
+### Execution outcome
+1. Window completed:
+   - `window_seconds_observed=603`,
+   - `probe_count=654`,
+   - `error_rate_pct=0.3058`,
+   - `injection_detected=2/3`.
+2. Verdict:
+   - `overall_pass=false`,
+   - `next_gate=M2_ST_S4_REMEDIATE`,
+   - `open_blockers=1`.
+3. Open blocker:
+   - `M2-ST-B7` with `inj_permission_denied_sim:UNEXPECTED_ALLOW`.
+
+### Root cause and remediation decision
+1. Current permission simulation lane (`simulate-principal-policy` on chosen action/path) evaluated as `allowed`.
+2. This means deny fault was not deterministically injected.
+3. Remediation selected:
+   - replace principal-policy lane with deterministic explicit-deny custom-policy simulation (`simulate-custom-policy`) so deny posture is guaranteed when simulation call succeeds.
+
+## Entry: 2026-03-03 17:31 +00:00 - M2 `S3` rerun passed after remediation
+
+### Implemented remediation
+1. Updated `scripts/dev_substrate/m2_stress_runner.py`:
+   - permission injection lane now uses IAM custom-policy simulation with explicit `Deny` on `ssm:GetParameter`.
+2. Preserved bounded missing-path and API invalid-route injections.
+
+### Executed command
+1. `python scripts/dev_substrate/m2_stress_runner.py --stage S3`
+2. Phase execution id:
+   - `m2_stress_s3_20260303T172120Z`.
+
+### Execution outcome
+1. Window completed:
+   - `window_seconds_observed=603`,
+   - `probe_count=654`,
+   - `error_rate_pct=0.3058`,
+   - `injection_detected=3/3`.
+2. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M2_ST_S5_READY`,
+   - `open_blockers=0`.
+3. Injection classification:
+   - missing path: `DETECTED_MISSING_PATH`,
+   - permission simulation: `DETECTED_POLICY_DENY`,
+   - API invalid route: `DETECTED_API_DEGRADE`.
+
+### Evidence paths
+1. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s3_20260303T172120Z/stress/m2_probe_latency_throughput_snapshot.json`
+2. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s3_20260303T172120Z/stress/m2_control_rail_conformance_snapshot.json`
+3. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s3_20260303T172120Z/stress/m2_secret_safety_snapshot.json`
+4. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s3_20260303T172120Z/stress/m2_cost_outcome_receipt.json`
+5. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s3_20260303T172120Z/stress/m2_blocker_register.json`
+6. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s3_20260303T172120Z/stress/m2_execution_summary.json`
+7. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s3_20260303T172120Z/stress/m2_decision_log.json`
+
+### Authority updates applied
+1. `platform.M2.stress_test.md`:
+   - added first-run fail-closed S3 block + rerun pass block,
+   - immediate next actions moved to `S5` closure rollup.
+2. `platform.stress_test.md`:
+   - program next step updated to `M2-ST-S5`.
