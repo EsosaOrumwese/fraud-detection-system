@@ -2005,3 +2005,83 @@ _As of 2026-03-03_
 
 ### Closure decision
 1. M3 closure is now complete with explicit `M4_READY` handoff and `GO` recommendation.
+
+## Entry: 2026-03-03 18:34 +00:00 - M4 planning start (pre-implementation)
+
+### Trigger
+1. User instructed: start planning `M4`.
+
+### Context and decision posture
+1. M3 closure is green and explicit:
+   - latest `S5` gate is `M4_READY`,
+   - `m4_readiness_recommendation=GO`,
+   - no open `M3-ST-B*` blockers.
+2. M4 scope (spine runtime-lane readiness) is multi-lane and coupled:
+   - runtime-path pinning,
+   - lane startup/steady readiness,
+   - IAM/network/dependency surfaces,
+   - correlation/telemetry continuity,
+   - recovery/rollback posture,
+   - closure handoff evidence.
+
+### Planning decision
+1. Create dedicated M4 stress authority:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M4.stress_test.md`.
+2. Route program control to `M4 ACTIVE` in `platform.stress_test.md`.
+3. Update stress-test folder routing in `stress_test/README.md`.
+4. Keep this step planning-only:
+   - no M4 execution window is launched in this action.
+
+### Alternatives considered
+1. Keep M4 inline in `platform.stress_test.md`:
+   - rejected due high coupled-lane complexity and non-trivial blocker topology.
+2. Reuse M3 file for M4:
+   - rejected to avoid phase coupling drift and mixed evidence contracts.
+3. Dedicated M4 file:
+   - selected for closure-grade planning auditability and fail-closed execution routing.
+
+### Planned artifacts and coverage
+1. M4 stress file will pin:
+   - Stage-A findings,
+   - stress handle packet,
+   - capability-lane coverage,
+   - execution-grade runbook (`S0..S5`),
+   - blocker taxonomy + evidence contract,
+   - immediate next actions for `S0`.
+2. Program control file will be updated to:
+   - mark M4 as active phase,
+   - mark M3 as done and preserved as closure evidence.
+
+### Acceptance targets for this planning step
+1. `platform.M4.stress_test.md` exists and is execution-ready at planning level.
+2. program routing points to M4 as current active dedicated phase.
+3. planning/logbook records are updated with explicit rationale and no decision holes.
+
+## Entry: 2026-03-03 18:36 +00:00 - M4 planning authority materialized
+
+### Implemented planning artifacts
+1. Created dedicated M4 stress authority:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M4.stress_test.md`.
+2. M4 file includes:
+   - Stage-A findings (`M4-ST-F1..F7`),
+   - pinned M4 stress handle packet,
+   - capability-lane coverage matrix,
+   - execution-grade runbook (`S0..S5`),
+   - blocker taxonomy (`M4-ST-B1..B9`),
+   - evidence contract, planning DoD, and immediate next actions.
+
+### Program routing updates
+1. Updated `platform.stress_test.md`:
+   - M4 overview status changed to `ACTIVE`,
+   - current phase state switched to `M4` active,
+   - dedicated phase routing now includes `platform.M4.stress_test.md` as active,
+   - next step pinned to `M4-ST-S0` authority/entry-gate closure.
+2. Added explicit `Active Phase - M4 (Dedicated)` routing section.
+3. Updated `stress_test/README.md` status list:
+   - `M3` marked `DONE`,
+   - `M4` marked `ACTIVE`.
+
+### Planning verdict
+1. M4 planning is execution-ready at authority level.
+2. Next executable action is deterministic:
+   - implement and run `M4-ST-S0` from `platform.M4.stress_test.md`.

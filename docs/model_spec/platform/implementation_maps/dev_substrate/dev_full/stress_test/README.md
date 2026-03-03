@@ -21,5 +21,6 @@ This folder contains phase-driven stress testing authorities and execution recor
 1. Program-level file is active: `platform.stress_test.md`.
 2. Dedicated phase files currently in use:
    - `platform.M2.stress_test.md` (`DONE`),
-   - `platform.M3.stress_test.md` (`ACTIVE`).
+   - `platform.M3.stress_test.md` (`DONE`),
+   - `platform.M4.stress_test.md` (`ACTIVE`).
 3. Additional per-phase files are created progressively as each phase becomes active.
