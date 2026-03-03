@@ -90,6 +90,11 @@ jobs:
       - name: Login to ECR
         uses: aws-actions/amazon-ecr-login@v2
 
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          install: true
+
       - name: Compute immutable image metadata
         id: meta
         shell: bash
@@ -115,34 +120,110 @@ jobs:
           echo "ci_run_id=${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
           echo "build_actor=${GITHUB_ACTOR}" >> "$GITHUB_OUTPUT"
 
-      - name: Build immutable image
+      - name: Stage deterministic build context
+        id: stage_context
+        shell: bash
+        env:
+          SOURCE_DATE_EPOCH: ${{ steps.meta.outputs.source_date_epoch }}
+          IMAGE_BUILD_CONTEXT_PATH: ${{ inputs.image_build_context_path }}
+          IMAGE_DOCKERFILE_PATH: ${{ inputs.image_dockerfile_path }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os
+          import shutil
+          from pathlib import Path
+
+          source_date_epoch = int(os.environ["SOURCE_DATE_EPOCH"])
+          image_build_context_path = os.environ["IMAGE_BUILD_CONTEXT_PATH"].strip()
+          image_dockerfile_path = os.environ["IMAGE_DOCKERFILE_PATH"].strip()
+          output_path = Path(os.environ["GITHUB_OUTPUT"])
+          repo_root = Path(".").resolve()
+          if image_build_context_path != ".":
+              raise SystemExit(
+                  f"IMAGE_BUILD_CONTEXT_PATH must remain '.' for deterministic M1 lane, got: {image_build_context_path}"
+              )
+
+          stage_root = Path(os.environ["RUNNER_TEMP"]) / f"m1-dctx-{os.environ['GITHUB_RUN_ID']}-{os.environ['GITHUB_RUN_ATTEMPT']}"
+          if stage_root.exists():
+              shutil.rmtree(stage_root)
+          stage_root.mkdir(parents=True, exist_ok=True)
+
+          include_paths = [
+              image_dockerfile_path,
+              "pyproject.toml",
+              "requirements/m1-image.lock.txt",
+              "src/fraud_detection",
+              "config/platform",
+              "docs/model_spec/platform/contracts",
+              "docs/model_spec/data-engine/interface_pack/engine_outputs.catalogue.yaml",
+              "docs/model_spec/data-engine/interface_pack/engine_gates.map.yaml",
+              "docs/model_spec/data-engine/interface_pack/contracts/canonical_event_envelope.schema.yaml",
+              "docs/model_spec/data-engine/interface_pack/contracts/engine_invocation.schema.yaml",
+              "docs/model_spec/data-engine/interface_pack/contracts/engine_output_locator.schema.yaml",
+              "docs/model_spec/data-engine/interface_pack/contracts/gate_receipt.schema.yaml",
+              "docs/model_spec/data-engine/interface_pack/contracts/instance_proof_receipt.schema.yaml",
+              "docs/model_spec/data-engine/interface_pack/contracts/run_receipt.schema.yaml",
+              "docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml",
+              "docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml",
+          ]
+
+          copied = []
+          for rel in include_paths:
+              src = (repo_root / rel).resolve()
+              if not src.exists():
+                  raise SystemExit(f"Required deterministic context path missing: {rel}")
+              dst = (stage_root / rel).resolve()
+              dst.parent.mkdir(parents=True, exist_ok=True)
+              if src.is_dir():
+                  shutil.copytree(src, dst, symlinks=True)
+              else:
+                  shutil.copy2(src, dst)
+              copied.append(rel)
+
+          def normalize_tree(path: Path) -> None:
+              entries = [path]
+              entries.extend(sorted(path.rglob("*")))
+              for item in entries:
+                  try:
+                      os.utime(item, (source_date_epoch, source_date_epoch), follow_symlinks=False)
+                  except Exception:
+                      os.utime(item, (source_date_epoch, source_date_epoch))
+
+          normalize_tree(stage_root)
+
+          staged_dockerfile = (stage_root / image_dockerfile_path).resolve()
+          if not staged_dockerfile.exists():
+              raise SystemExit(f"Staged Dockerfile missing: {staged_dockerfile}")
+
+          output_lines = [
+              f"staged_context_path={stage_root}",
+              f"staged_dockerfile_path={staged_dockerfile}",
+              f"copied_path_count={len(copied)}",
+          ]
+          with output_path.open("a", encoding="utf-8") as fh:
+              for line in output_lines:
+                  fh.write(f"{line}\n")
+          PY
+
+      - name: Build and push immutable image (deterministic buildx)
         shell: bash
         run: |
           set -euo pipefail
-          if [[ ! -f "${{ inputs.image_dockerfile_path }}" ]]; then
-            echo "Pinned Dockerfile not found: ${{ inputs.image_dockerfile_path }}"
-            exit 1
+          EXTRA_TAG_ARGS=()
+          if [[ "${{ inputs.push_dev_full_latest }}" == "true" ]]; then
+            EXTRA_TAG_ARGS+=(--tag "${{ inputs.ecr_repo_uri }}:dev-full-latest")
           fi
-          export DOCKER_BUILDKIT=1
-          docker build \
-            --file "${{ inputs.image_dockerfile_path }}" \
+          docker buildx build \
+            --file "${{ steps.stage_context.outputs.staged_dockerfile_path }}" \
+            --platform "linux/amd64" \
+            --provenance=false \
+            --sbom=false \
             --build-arg "SOURCE_DATE_EPOCH=${{ steps.meta.outputs.source_date_epoch }}" \
             --tag "${{ steps.meta.outputs.image_ref }}" \
-            "${{ inputs.image_build_context_path }}"
-
-      - name: Push immutable image
-        shell: bash
-        run: |
-          set -euo pipefail
-          docker push "${{ steps.meta.outputs.image_ref }}"
-
-      - name: Push non-authoritative convenience tag
-        if: ${{ inputs.push_dev_full_latest }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          docker tag "${{ steps.meta.outputs.image_ref }}" "${{ inputs.ecr_repo_uri }}:dev-full-latest"
-          docker push "${{ inputs.ecr_repo_uri }}:dev-full-latest"
+            "${EXTRA_TAG_ARGS[@]}" \
+            --push \
+            "${{ steps.stage_context.outputs.staged_context_path }}"
 
       - name: Resolve immutable image digest
         id: digest
@@ -161,6 +242,39 @@ jobs:
           fi
           echo "image_digest=${DIGEST}" >> "$GITHUB_OUTPUT"
 
+      - name: Resolve immutable manifest surfaces
+        id: manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          MANIFEST_JSON="$(aws ecr batch-get-image \
+            --repository-name "${{ inputs.ecr_repo_name }}" \
+            --image-ids imageDigest="${{ steps.digest.outputs.image_digest }}" \
+            --accepted-media-types "application/vnd.docker.distribution.manifest.v2+json" \
+            --region "${{ inputs.aws_region }}" \
+            --query 'images[0].imageManifest' \
+            --output text)"
+          if [[ -z "${MANIFEST_JSON}" || "${MANIFEST_JSON}" == "None" || "${MANIFEST_JSON}" == "null" ]]; then
+            echo "Unable to resolve image manifest for immutable digest."
+            exit 1
+          fi
+          export MANIFEST_JSON
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          import os
+
+          manifest = json.loads(os.environ["MANIFEST_JSON"])
+          config_digest = str(manifest["config"]["digest"])
+          layer_digests = [str(row["digest"]) for row in manifest.get("layers", [])]
+          if not config_digest or not layer_digests:
+              raise SystemExit("Manifest parsing failed: missing config or layer digests.")
+          print(f"config_digest={config_digest}")
+          print(
+              "layer_digests_json="
+              + json.dumps(layer_digests, ensure_ascii=True, separators=(",", ":"))
+          )
+          PY
+
       - name: Emit M1.C evidence artifacts (CI-local)
         id: evidence
         shell: bash
@@ -169,12 +283,15 @@ jobs:
           IMAGE_TAG: ${{ steps.meta.outputs.image_tag }}
           GIT_SHA_CANONICAL_TAG: ${{ steps.meta.outputs.git_sha_canonical_tag }}
           IMAGE_DIGEST: ${{ steps.digest.outputs.image_digest }}
+          IMAGE_CONFIG_DIGEST: ${{ steps.manifest.outputs.config_digest }}
+          IMAGE_LAYER_DIGESTS_JSON: ${{ steps.manifest.outputs.layer_digests_json }}
           GIT_SHA: ${{ steps.meta.outputs.git_sha }}
           BUILD_ACTOR: ${{ steps.run_meta.outputs.build_actor }}
           CI_RUN_ID: ${{ steps.run_meta.outputs.ci_run_id }}
           ECR_REPO_URI: ${{ inputs.ecr_repo_uri }}
           IMAGE_DOCKERFILE_PATH: ${{ inputs.image_dockerfile_path }}
           IMAGE_BUILD_CONTEXT_PATH: ${{ inputs.image_build_context_path }}
+          DETERMINISTIC_CONTEXT_STAGING: "true"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_RUN_ID: ${{ github.run_id }}
@@ -197,12 +314,15 @@ jobs:
           image_tag = os.environ["IMAGE_TAG"]
           git_sha_canonical_tag = os.environ["GIT_SHA_CANONICAL_TAG"]
           image_digest = os.environ["IMAGE_DIGEST"]
+          image_config_digest = os.environ["IMAGE_CONFIG_DIGEST"]
+          image_layer_digests = json.loads(os.environ["IMAGE_LAYER_DIGESTS_JSON"])
           git_sha = os.environ["GIT_SHA"]
           build_actor = os.environ["BUILD_ACTOR"]
           ci_run_id = os.environ["CI_RUN_ID"]
           ecr_repo_uri = os.environ["ECR_REPO_URI"]
           dockerfile_path = os.environ["IMAGE_DOCKERFILE_PATH"]
           build_context_path = os.environ["IMAGE_BUILD_CONTEXT_PATH"]
+          deterministic_context_staging = os.environ["DETERMINISTIC_CONTEXT_STAGING"].strip().lower() == "true"
           written_at_utc = os.environ["WRITTEN_AT_UTC"]
           run_url = (
               f"{os.environ['GITHUB_SERVER_URL']}/"
@@ -227,6 +347,9 @@ jobs:
               "build_actor": build_actor,
               "oci_digest_algo": "sha256",
               "oci_digest_value": image_digest,
+              "oci_config_digest": image_config_digest,
+              "oci_layer_digests": image_layer_digests,
+              "deterministic_context_staging": deterministic_context_staging,
           }
 
           digest_manifest = {
@@ -239,6 +362,8 @@ jobs:
               "image_digest": image_digest,
               "oci_digest_algo": "sha256",
               "digest_source": "aws_ecr_describe_images",
+              "config_digest": image_config_digest,
+              "layer_digests": image_layer_digests,
           }
 
           release_metadata_receipt = {
@@ -272,6 +397,17 @@ jobs:
               "digest_format_sha256",
               bool(re.fullmatch(r"sha256:[0-9a-f]{64}", image_digest or "")),
               f"image_digest={image_digest}",
+          )
+          add_check(
+              "config_digest_format_sha256",
+              bool(re.fullmatch(r"sha256:[0-9a-f]{64}", image_config_digest or "")),
+              f"image_config_digest={image_config_digest}",
+          )
+          add_check(
+              "layer_digests_format_sha256",
+              bool(image_layer_digests)
+              and all(re.fullmatch(r"sha256:[0-9a-f]{64}", value or "") for value in image_layer_digests),
+              f"layer_digest_count={len(image_layer_digests)}",
           )
           add_check(
               "immutable_tag_pattern",

@@ -6,6 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_NO_COMPILE=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PYTHONHASHSEED=0 \
     SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH} \
     PYTHONPATH=/app/src
@@ -29,7 +30,7 @@ COPY docs/model_spec/data-engine/interface_pack/contracts/run_receipt.schema.yam
 COPY docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml /app/docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml
 COPY docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml /app/docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml
 
-RUN python -m pip install --upgrade pip && \
+RUN python -m pip install --no-cache-dir "pip==25.0.1" && \
     python -m pip install --require-hashes -r /app/requirements/m1-image.lock.txt
 
 RUN adduser --disabled-password --gecos "" --home /home/appuser appuser && \

@@ -112,7 +112,9 @@ def _docker_context_lint() -> tuple[dict[str, Any], list[dict[str, str]]]:
         "dockerfile_exists": DOCKERFILE_PATH.exists(),
         "dockerignore_exists": DOCKERIGNORE_PATH.exists(),
         "forbidden_copy_patterns": [],
+        "forbidden_install_patterns": [],
         "required_copy_paths_missing": [],
+        "required_install_patterns_missing": [],
         "dockerignore_required_missing": [],
     }
     if not DOCKERFILE_PATH.exists():
@@ -133,6 +135,20 @@ def _docker_context_lint() -> tuple[dict[str, Any], list[dict[str, str]]]:
     if forbidden_patterns:
         blockers.append({"code": "M1-ST-B3", "message": "Forbidden broad Docker context copy detected."})
 
+    forbidden_install_patterns = []
+    for idx, line in enumerate(docker_lines, start=1):
+        lowered = line.strip().lower()
+        if "pip install --upgrade pip" in lowered:
+            forbidden_install_patterns.append({"line": idx, "value": line.strip()})
+    report["forbidden_install_patterns"] = forbidden_install_patterns
+    if forbidden_install_patterns:
+        blockers.append(
+            {
+                "code": "M1-ST-B3",
+                "message": "Forbidden non-deterministic pip upgrade pattern detected.",
+            }
+        )
+
     required_copy_paths = [
         "pyproject.toml",
         "requirements/m1-image.lock.txt",
@@ -148,6 +164,20 @@ def _docker_context_lint() -> tuple[dict[str, Any], list[dict[str, str]]]:
     report["required_copy_paths_missing"] = missing_copy
     if missing_copy:
         blockers.append({"code": "M1-ST-B3", "message": f"Required Docker COPY paths missing: {missing_copy}"})
+
+    required_install_patterns = [
+        "pip==25.0.1",
+        "pip install --require-hashes -r /app/requirements/m1-image.lock.txt",
+    ]
+    missing_install_patterns = [p for p in required_install_patterns if p not in docker_text]
+    report["required_install_patterns_missing"] = missing_install_patterns
+    if missing_install_patterns:
+        blockers.append(
+            {
+                "code": "M1-ST-B3",
+                "message": f"Required deterministic install patterns missing: {missing_install_patterns}",
+            }
+        )
 
     if DOCKERIGNORE_PATH.exists():
         ignore_text = DOCKERIGNORE_PATH.read_text(encoding="utf-8")

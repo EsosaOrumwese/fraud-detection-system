@@ -630,3 +630,79 @@ _As of 2026-03-03_
 1. Stop further M1 remediation changes until explicit user direction on next deterministic architecture-level lane.
 2. Candidate next lane to propose:
    - move to single-arch Buildx with deterministic output settings (`--provenance=false --sbom=false`) and immutable digest-by-digest comparison against OCI config hash surfaces.
+
+## Entry: 2026-03-03 14:55 +00:00 - M1-ST-B8 architecture-level deterministic lane implementation plan
+
+### Trigger
+1. User directed immediate implementation of the architecture-level deterministic lane and asked for immediate M2 rerun after execution.
+2. Current blocker state remains fail-closed (`M1-ST-B8` open) with confirmed digest drift on managed rerun.
+
+### Root-cause refinement from latest evidence
+1. ECR manifest inspection confirms drift is not limited to top-level tag/index metadata:
+   - config digest differs across repetitions,
+   - layer digest sets differ across repetitions while base layers stay constant.
+2. This indicates true build-byte nondeterminism in generated application layers.
+
+### Selected remediation lane
+1. Replace mutable docker build path in workflow with deterministic Buildx push path:
+   - fixed platform `linux/amd64`,
+   - disable attestation/SBOM emit for this determinism gate (`--provenance=false --sbom=false`),
+   - push directly from build command.
+2. Canonicalize build context before build:
+   - stage only pinned include surfaces,
+   - normalize mtimes to `SOURCE_DATE_EPOCH` recursively.
+3. Remove time-varying pip upgrade behavior:
+   - stop `pip install --upgrade pip`,
+   - pin pip version explicitly in Dockerfile and keep hash-verified dependency install.
+4. Upgrade packaging evidence:
+   - include `config_digest` and ordered `layer_digests` in provenance artifact.
+
+### Scope
+1. `.github/workflows/dev_full_m1_packaging.yml`
+2. `Dockerfile`
+3. Stress docs/logbook updates after rerun
+
+### M2 rerun posture (decision-completeness gate)
+1. M2 immediate rerun is requested by user.
+2. Current stress authority still holds `M2` advancement blocked while `M1-ST-B8` is open.
+3. Execution will therefore proceed in sequence:
+   - implement lane,
+   - rerun M1 determinism gate immediately,
+   - if and only if M1 clears, execute discoverable M2 rerun command surface.
+4. If M2 command surface is unavailable/unpinned for current stress track, fail-closed escalation will be raised with exact missing inputs.
+
+## Entry: 2026-03-03 14:58 +00:00 - Architecture-level deterministic lane implemented (pre-rerun validation)
+
+### Implemented changes
+1. `dev_full_m1_packaging` workflow hardened:
+   - added Buildx setup (`docker/setup-buildx-action@v3`),
+   - introduced deterministic context staging step that:
+     - enforces `IMAGE_BUILD_CONTEXT_PATH='.'`,
+     - copies only pinned Docker include surfaces,
+     - normalizes all staged file mtimes to `SOURCE_DATE_EPOCH`,
+   - replaced docker build/push steps with deterministic buildx push:
+     - `--platform linux/amd64`,
+     - `--provenance=false`,
+     - `--sbom=false`,
+   - added ECR manifest-surface extraction (`config_digest`, ordered `layer_digests`),
+   - enriched emitted evidence with config/layer digest surfaces and deterministic-context flag.
+2. Dockerfile deterministic install hardening:
+   - removed `pip --upgrade` pattern,
+   - pinned pip install to `pip==25.0.1`,
+   - preserved hash-verified dependency install.
+3. Preflight contract hardened:
+   - blocks forbidden `pip install --upgrade pip`,
+   - requires deterministic install patterns (`pip==25.0.1` and hash-locked install command).
+
+### Local validation
+1. Workflow YAML parse: PASS.
+2. M1 preflight run:
+   - execution id `m1_stress_preflight_20260303T145720Z`,
+   - verdict `READY_FOR_M1_STRESS_WINDOW`,
+   - blocker count `0`.
+3. Local docker smoke build with updated Dockerfile: PASS.
+
+### Next action
+1. Commit/push deterministic-lane implementation.
+2. Execute immediate managed M1 rerun for `M1-ST-B8` adjudication.
+3. If and only if M1 clears, proceed to M2 rerun command surface.
