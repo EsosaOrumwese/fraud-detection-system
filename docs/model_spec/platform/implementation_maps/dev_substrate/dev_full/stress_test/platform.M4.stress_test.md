@@ -130,6 +130,74 @@ Pass gate:
 3. M3 handoff evidence is valid and readable.
 4. full S0 artifact set exists and is readable.
 
+S0 required-handle closure checklist:
+1. `PHASE_RUNTIME_PATH_MODE`
+2. `PHASE_RUNTIME_PATH_PIN_REQUIRED`
+3. `RUNTIME_PATH_SWITCH_IN_PHASE_ALLOWED`
+4. `RUNTIME_DEFAULT_STREAM_ENGINE`
+5. `RUNTIME_DEFAULT_INGRESS_EDGE`
+6. `RUNTIME_EKS_USE_POLICY`
+7. `FLINK_RUNTIME_MODE`
+8. `FLINK_APP_RTDL_IEG_OFP_V0`
+9. `MSK_CLUSTER_ARN`
+10. `SSM_MSK_BOOTSTRAP_BROKERS_PATH`
+11. `APIGW_IG_API_ID`
+12. `LAMBDA_IG_HANDLER_NAME`
+13. `DDB_IG_IDEMPOTENCY_TABLE`
+14. `SFN_PLATFORM_RUN_ORCHESTRATOR_V0`
+15. `SR_READY_COMMIT_AUTHORITY`
+16. `REQUIRED_PLATFORM_RUN_ID_ENV_KEY`
+17. `S3_EVIDENCE_BUCKET`
+18. `CLOUDWATCH_LOG_GROUP_PREFIX`
+19. `OTEL_ENABLED`
+20. `CORRELATION_REQUIRED_FIELDS`
+21. `CORRELATION_HEADERS_REQUIRED`
+22. `CORRELATION_ENFORCEMENT_FAIL_CLOSED`
+
+S0 verification command catalog (planned, execution-time):
+| Verify ID | Command template | Purpose |
+| --- | --- | --- |
+| `M4S0-V1-HANDLE-EXISTS` | `rg -n "\\b<HANDLE_KEY>\\b" docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` | confirms required handle key exists in registry |
+| `M4S0-V2-PLACEHOLDER-GUARD` | parse required handle values and fail if any is `TO_PIN` | blocks unresolved required handles |
+| `M4S0-V3-RUNTIME-PATH-LAW` | local handle-law check on `PHASE_RUNTIME_PATH_*` and switch guard | enforces single-active-path runtime posture |
+| `M4S0-V4-M3-S5-LATEST` | read latest successful `m3_stress_s5_*/stress/m3_execution_summary.json` | validates M4 entry dependency surface |
+| `M4S0-V5-M3-HANDOFF-GATE` | assert `next_gate=M4_READY`, `m4_readiness_recommendation=GO` | enforces M3->M4 handoff rule |
+| `M4S0-V6-SFN-SURFACE` | `aws stepfunctions list-state-machines --region eu-west-2 --max-results 100 ...` | verifies orchestrator control-plane queryability |
+| `M4S0-V7-EVIDENCE-BUCKET` | `aws s3api head-bucket --bucket <S3_EVIDENCE_BUCKET> --region eu-west-2` | verifies durable evidence root reachable |
+| `M4S0-V8-RUNTIME-SURFACES` | `aws apigatewayv2 get-api`, `aws lambda get-function`, `aws kafka describe-cluster-v2`, `aws dynamodb describe-table` | verifies active runtime-lane control surfaces are queryable |
+
+S0 blocker mapping (fail-closed):
+1. `M4-ST-B1`:
+   - missing/unresolved required handle or missing required M4 plan key.
+2. `M4-ST-B2`:
+   - runtime-path law drift (`single_active`/pin/switch guard failure).
+3. `M4-ST-B3`:
+   - control-plane surface checks fail (orchestrator/evidence/runtime lane surfaces).
+4. `M4-ST-B4`:
+   - correlation continuity contract anchors unresolved or malformed.
+5. `M4-ST-B9`:
+   - M3 S5 handoff evidence missing/unreadable/invalid,
+   - required S0 artifacts missing/incomplete.
+
+S0 required artifacts:
+1. `m4_stagea_findings.json`
+2. `m4_lane_matrix.json`
+3. `m4_probe_latency_throughput_snapshot.json`
+4. `m4_control_rail_conformance_snapshot.json`
+5. `m4_secret_safety_snapshot.json`
+6. `m4_cost_outcome_receipt.json`
+7. `m4_blocker_register.json`
+8. `m4_execution_summary.json`
+9. `m4_decision_log.json`
+
+S0 closure rule:
+1. `S0` closes only when:
+   - all required handles pass presence + placeholder guard,
+   - runtime-path law checks pass,
+   - latest successful M3 S5 handoff gate is valid (`M4_READY` + `GO`),
+   - control-plane query checks are green or explicitly blocker-classified,
+   - full S0 artifact set is emitted and readable.
+
 ### 7.2 `M4-ST-S1` - Startup and readiness baseline window
 Objective:
 1. validate startup-time and readiness posture for active runtime lanes against pinned budgets.
@@ -232,13 +300,36 @@ Required artifacts for each M4 stress window:
 - [x] Stress topology and execution sequence pinned.
 - [x] Execution-grade runbook for `S0..S5` pinned.
 - [x] Blocker taxonomy and evidence contract pinned.
-- [ ] First M4 managed stress window executed.
+- [x] First M4 managed stress window executed.
 
 ## 11) Immediate Next Actions
-1. Implement `scripts/dev_substrate/m4_stress_runner.py` with `S0` authority/entry-gate stage.
-2. Execute `M4-ST-S0` and open fail-closed blockers on any handle or entry-gate drift.
-3. Advance to `M4-ST-S1` only if `S0` closes with zero open blockers.
+1. Expand M4 runner to `S1` startup/readiness baseline window (`scripts/dev_substrate/m4_stress_runner.py`).
+2. Execute `M4-ST-S1` window and open fail-closed blockers on startup/readiness or dependency drift.
+3. Advance to `M4-ST-S2` only if `S1` closes with zero open blockers.
 
 ## 12) Execution Progress
-1. Planning file created and routed.
-2. No M4 stress window executed yet in this authority.
+### `M4-ST-S0` authority/entry-gate closure execution (2026-03-03)
+1. Phase execution id: `m4_stress_s0_20260303T184138Z`.
+2. Runner:
+   - `python scripts/dev_substrate/m4_stress_runner.py --stage S0`
+3. Verification summary:
+   - required handle and placeholder guards passed,
+   - runtime-path law checks passed (`single_active` + pin required + no switch),
+   - latest successful M3 S5 handoff gate validated (`M4_READY`, `GO`),
+   - control-plane surface checks passed (SFN, S3 evidence bucket, APIGW, Lambda, DDB, MSK).
+4. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M4_ST_S1_READY`,
+   - `open_blockers=0`,
+   - `probe_count=6`,
+   - `error_rate_pct=0.0`.
+5. Artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s0_20260303T184138Z/stress/m4_stagea_findings.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s0_20260303T184138Z/stress/m4_lane_matrix.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s0_20260303T184138Z/stress/m4_probe_latency_throughput_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s0_20260303T184138Z/stress/m4_control_rail_conformance_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s0_20260303T184138Z/stress/m4_secret_safety_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s0_20260303T184138Z/stress/m4_cost_outcome_receipt.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s0_20260303T184138Z/stress/m4_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s0_20260303T184138Z/stress/m4_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s0_20260303T184138Z/stress/m4_decision_log.json`

@@ -2085,3 +2085,91 @@ _As of 2026-03-03_
 1. M4 planning is execution-ready at authority level.
 2. Next executable action is deterministic:
    - implement and run `M4-ST-S0` from `platform.M4.stress_test.md`.
+
+## Entry: 2026-03-03 18:39 +00:00 - M4 `S0` planning and execution lane opened (pre-implementation)
+
+### Trigger
+1. User instructed: proceed with planning `S0` and execute it.
+
+### Scope for this step
+1. Expand `M4-ST-S0` to execution-grade detail in M4 stress authority:
+   - required-handle closure checklist,
+   - verification command catalog,
+   - blocker mapping and closure rule.
+2. Implement `scripts/dev_substrate/m4_stress_runner.py` with `--stage S0`.
+3. Execute `S0` immediately and publish run-control artifacts.
+
+### Performance-first and cost-first posture
+1. `S0` remains a control/authority gate only (no heavy runtime-lane load).
+2. Runtime budget target is minute-scale; spend target effectively zero.
+3. Use read-only control-plane probes to detect drift without triggering expensive runtime actions.
+
+### Design decisions
+1. Use a separate `m4_stress_runner.py` (not extending M3 runner):
+   - keeps phase contracts isolated and reduces accidental cross-phase coupling.
+2. Gate M4 S0 on latest successful M3 S5:
+   - require `next_gate=M4_READY` and `m4_readiness_recommendation=GO`.
+3. Enforce runtime-path law at S0:
+   - `PHASE_RUNTIME_PATH_MODE=single_active_path_per_phase_run`,
+   - `PHASE_RUNTIME_PATH_PIN_REQUIRED=true`,
+   - `RUNTIME_PATH_SWITCH_IN_PHASE_ALLOWED=false`.
+
+### Planned acceptance checks
+1. required M4 handles and plan keys are present and non-placeholder.
+2. runtime-path law checks pass.
+3. latest successful M3 S5 handoff gate is valid.
+4. `overall_pass=true`, `next_gate=M4_ST_S1_READY`, `open_blockers=0`.
+
+## Entry: 2026-03-03 18:42 +00:00 - M4 `S0` executed (pass, zero blockers)
+
+### Implemented changes
+1. Expanded `M4-ST-S0` section in `platform.M4.stress_test.md`:
+   - required-handle closure checklist,
+   - S0 command catalog (`M4S0-V1..V8`),
+   - fail-closed blocker mapping and closure rule.
+2. Implemented runner:
+   - `scripts/dev_substrate/m4_stress_runner.py` with `--stage S0`.
+3. Runner behavior:
+   - validates required plan keys and required handles with placeholder guard,
+   - enforces runtime-path law checks,
+   - validates latest successful M3 S5 handoff gate (`M4_READY`, `GO`),
+   - executes control-plane probes (SFN, S3 evidence bucket, APIGW, Lambda, DDB, MSK),
+   - emits full M4 S0 artifact contract.
+
+### Executed command
+1. `python scripts/dev_substrate/m4_stress_runner.py --stage S0`
+2. Phase execution id:
+   - `m4_stress_s0_20260303T184138Z`.
+
+### Execution outcome
+1. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M4_ST_S1_READY`,
+   - `open_blockers=0`.
+2. Summary:
+   - `probe_count=6`,
+   - `error_rate_pct=0.0`,
+   - `runtime_path_law_issues=[]`,
+   - `correlation_contract_issues=[]`.
+3. Dependency gate:
+   - latest successful M3 S5 summary validated:
+     - `phase_execution_id=m3_stress_s5_20260303T182701Z`,
+     - `next_gate=M4_READY`,
+     - `m4_readiness_recommendation=GO`.
+
+### Evidence paths
+1. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s0_20260303T184138Z/stress/m4_probe_latency_throughput_snapshot.json`
+2. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s0_20260303T184138Z/stress/m4_control_rail_conformance_snapshot.json`
+3. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s0_20260303T184138Z/stress/m4_secret_safety_snapshot.json`
+4. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s0_20260303T184138Z/stress/m4_cost_outcome_receipt.json`
+5. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s0_20260303T184138Z/stress/m4_blocker_register.json`
+6. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s0_20260303T184138Z/stress/m4_execution_summary.json`
+7. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s0_20260303T184138Z/stress/m4_decision_log.json`
+
+### Authority updates applied
+1. `platform.M4.stress_test.md`:
+   - S0 execution progress appended,
+   - DoD updated for first managed window execution,
+   - immediate next actions advanced to `S1`.
+2. `platform.stress_test.md`:
+   - program next-step line updated to `M4-ST-S1`.

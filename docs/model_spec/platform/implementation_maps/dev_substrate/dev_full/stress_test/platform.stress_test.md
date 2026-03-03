@@ -216,7 +216,7 @@ For any phase:
    - `stress_test/platform.M2.stress_test.md` (`DONE`),
    - `stress_test/platform.M3.stress_test.md` (`DONE`),
    - `stress_test/platform.M4.stress_test.md` (`ACTIVE`).
-4. Next step: execute `M4-ST-S0` authority/entry-gate closure in `platform.M4.stress_test.md` using M3 S5 closure receipts (`M4_READY`, `GO`).
+4. Next step: execute `M4-ST-S1` startup/readiness baseline window (`S0` passed with `next_gate=M4_ST_S1_READY`).
 
 ## 13) Closed Phase - M0 (Inline)
 Status:
@@ -456,4 +456,4 @@ Status:
 
 Authority routing:
 1. `stress_test/platform.M4.stress_test.md` is now the active execution/planning authority for M4.
-2. M4 starts at `M4-ST-S0` authority/entry-gate closure using latest successful M3 S5 handoff evidence.
+2. Latest M4 execution state is `M4-ST-S0` pass; next gate is `M4-ST-S1` startup/readiness baseline.
