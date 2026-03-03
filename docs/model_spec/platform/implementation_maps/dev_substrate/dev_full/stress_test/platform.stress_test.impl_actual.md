@@ -1540,3 +1540,82 @@ _As of 2026-03-03_
 2. `platform.stress_test.md`:
    - M2 overview status set to `DONE`,
    - program status advanced to M3-start posture.
+
+## Entry: 2026-03-03 17:39 +00:00 - M3 planning start (pre-implementation)
+
+### Trigger
+1. User instructed: begin planning for `M3`.
+
+### Context and decision posture
+1. M2 closure rollup is green:
+   - `next_gate=M3_READY`,
+   - `m3_readiness_recommendation=GO`,
+   - no open `M2-ST-B*` blockers in latest successful chain.
+2. M3 build authority is deep and multi-lane (`M3.A..M3.J`) with explicit run pinning/orchestrator contracts.
+3. Therefore M3 does not fit inline treatment despite default guidance that M3 is "usually inline unless complexity expands."
+
+### Planning decision
+1. Create dedicated stress authority file:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M3.stress_test.md`.
+2. Keep scope `dev_full` only, run-pinning/orchestrator readiness only (no runtime lane stress here).
+3. Encode phase-level stress windows (`S0..S5`) mapped to M3 risk surfaces:
+   - authority/handle closure,
+   - deterministic run-id/digest baseline,
+   - concurrent orchestrator/lock contention,
+   - controlled failure-injection and recovery,
+   - selective remediation/rerun,
+   - closure rollup with M4 handoff recommendation.
+
+### Alternatives considered
+1. Keep M3 inline in `platform.stress_test.md`:
+   - rejected due coupled identity/orchestrator/evidence/cost lanes and non-trivial blocker topology.
+2. Reuse M2 file for M3:
+   - rejected to avoid cross-phase authority ambiguity and mixed evidence contracts.
+3. Dedicated M3 file:
+   - selected for closure-grade auditability and fail-closed execution governance.
+
+### Planned edits
+1. Add `platform.M3.stress_test.md` with:
+   - Stage-A findings,
+   - M3 stress handle packet,
+   - capability-lane matrix,
+   - execution-grade runbook and blocker taxonomy,
+   - evidence contract, DoD, and immediate next actions.
+2. Update `platform.stress_test.md`:
+   - set M3 status to `ACTIVE`,
+   - set program status to M3 active with dedicated phase routing.
+3. Update `stress_test/README.md` active status line for M3.
+4. Append logbook entry for planning activation.
+
+### Acceptance targets for this planning step
+1. M3 dedicated file exists and is execution-ready.
+2. Program control file routes to M3 as current active phase.
+3. Planning records/logbook are updated with explicit rationale and no missing decision holes.
+
+## Entry: 2026-03-03 17:44 +00:00 - M3 planning authority materialized
+
+### Implemented planning artifacts
+1. Created dedicated M3 stress authority:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M3.stress_test.md`.
+2. M3 file includes:
+   - Stage-A findings (`M3-ST-F1..F7`),
+   - pinned M3 stress handle packet,
+   - capability-lane coverage matrix,
+   - execution-grade runbook (`S0..S5`),
+   - blocker taxonomy (`M3-ST-B1..B9`),
+   - evidence contract and planning DoD,
+   - immediate next actions for `S0` launch.
+
+### Program routing updates
+1. Updated `platform.stress_test.md`:
+   - M3 overview status changed to `ACTIVE`,
+   - current phase state switched to `M3` active,
+   - dedicated-file status now includes `M2 DONE` and `M3 ACTIVE`,
+   - next step pinned to `M3-ST-S0`,
+   - creation-rule note updated to explicitly record why M3 moved out of inline mode.
+2. Updated `stress_test/README.md` to reflect active M3 dedicated file.
+
+### Planning verdict
+1. M3 planning is now execution-ready at authority level.
+2. Next executable action is deterministic:
+   - implement and run `M3-ST-S0` gate from `platform.M3.stress_test.md`.
