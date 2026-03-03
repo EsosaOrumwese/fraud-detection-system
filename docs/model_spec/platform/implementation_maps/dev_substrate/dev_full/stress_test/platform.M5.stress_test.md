@@ -222,11 +222,38 @@ Required artifacts for each M5 parent stress stage:
 - [x] M5 split-subphase routing (`P3` and `P4`) pinned.
 - [x] Parent handle packet and parent blocker taxonomy pinned.
 - [x] Parent orchestration runbook (`S0..S3`) pinned.
-- [ ] M5 parent S0 executed with blocker-free entry closure.
+- [x] M5 parent S0 executed with blocker-free entry closure.
 - [ ] P3 and P4 orchestration gates validated from stress evidence.
 - [ ] M5 closure rollup emitted with deterministic `M6_READY` recommendation.
 
 ## 11) Immediate Next Actions
-1. Execute `M5-ST-S0` parent entry-gate closure.
-2. Keep `M5.P3` and `M5.P4` as independent execution lanes with fail-closed gating.
-3. Do not advance to M5 parent `S1` until `S0` emits blocker-free summary.
+1. Execute `M5P3-ST-S0` authority/entry-gate closure.
+2. Keep targeted-rerun posture: rerun only failed stage windows (`M5P3` or `M5P4`) when blockers open.
+3. Do not advance parent `M5-ST-S1` until `M5P3` emits blocker-free rollup verdict `ADVANCE_TO_P4`.
+
+## 12) Execution Progress
+### `M5-ST-S0` authority/entry-gate closure execution (2026-03-03)
+1. Initial fail-closed run:
+   - `phase_execution_id=m5_stress_s0_20260303T232538Z`,
+   - blocker: `M5-ST-B1` (`missing_handles` detected for stream-view handles).
+2. Root cause and remediation:
+   - registry parser in new runner split on the wrong `=` when values contained `output_id=...`,
+   - remediated parser to split on first `=` token inside backtick handle body.
+3. Authoritative rerun:
+   - `phase_execution_id=m5_stress_s0_20260303T232628Z`,
+   - command: `python scripts/dev_substrate/m5_stress_runner.py --stage S0`,
+   - verdict: `overall_pass=true`,
+   - `next_gate=M5_ST_S1_READY`,
+   - `open_blockers=0`,
+   - `probe_count=1`,
+   - `error_rate_pct=0.0`.
+4. Artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5_stress_s0_20260303T232628Z/stress/m5_stagea_findings.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5_stress_s0_20260303T232628Z/stress/m5_lane_matrix.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5_stress_s0_20260303T232628Z/stress/m5_probe_latency_throughput_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5_stress_s0_20260303T232628Z/stress/m5_control_rail_conformance_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5_stress_s0_20260303T232628Z/stress/m5_secret_safety_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5_stress_s0_20260303T232628Z/stress/m5_cost_outcome_receipt.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5_stress_s0_20260303T232628Z/stress/m5_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5_stress_s0_20260303T232628Z/stress/m5_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5_stress_s0_20260303T232628Z/stress/m5_decision_log.json`

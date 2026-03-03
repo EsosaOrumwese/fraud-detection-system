@@ -2851,3 +2851,95 @@ _As of 2026-03-03_
 2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M5.P3.stress_test.md`
 3. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M5.P4.stress_test.md`
 4. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.stress_test.md`
+
+## Entry: 2026-03-03 23:23 +00:00 - M5 `S0` planning/execution lane opened (pre-implementation)
+
+### Trigger
+1. User instructed: proceed with planning and execution of `M5-ST-S0`.
+
+### Decision-completeness and lane closure check
+1. M5 planning authority is active with split files present:
+   - `platform.M5.stress_test.md`,
+   - `platform.M5.P3.stress_test.md`,
+   - `platform.M5.P4.stress_test.md`.
+2. Entry dependency remains closed:
+   - latest M4 state is `M4-ST-S5` pass with `recommendation=GO`, `next_gate=M5_READY`, `open_blockers=0`.
+3. No existing `m5_stress_runner.py` implementation exists; `S0` execution lane requires a new runner file.
+
+### Performance-first and cost-control design before coding
+1. Implement `S0` as a bounded read-only control lane:
+   - handle/plan key closure checks,
+   - dependency-summary checks,
+   - authority-file presence checks,
+   - minimal evidence-bucket reachability probe.
+2. Keep runtime short (seconds), no managed workload dispatch, no provisioning/mutation commands.
+3. Emit full M5 parent artifact contract in one pass.
+
+### Planned implementation
+1. Create `scripts/dev_substrate/m5_stress_runner.py` with `--stage S0`:
+   - parse M5 stress handle packet + registry handles,
+   - validate latest successful M4 S5 dependency summary/register,
+   - validate split M5 stress authority files exist/readable,
+   - emit fail-closed blocker mapping and M5 parent artifacts.
+2. Execute:
+   - `python -m py_compile scripts/dev_substrate/m5_stress_runner.py`,
+   - `python scripts/dev_substrate/m5_stress_runner.py --stage S0`.
+3. Update M5 parent authority, top-level stress routing, impl map, and logbook with execution receipt.
+
+### Acceptance targets
+1. `overall_pass=true`.
+2. `next_gate=M5_ST_S1_READY`.
+3. `open_blockers=0`.
+
+## Entry: 2026-03-03 23:27 +00:00 - M5 `S0` executed (fail-closed blocker, remediated, rerun pass)
+
+### Implementation executed
+1. Created `scripts/dev_substrate/m5_stress_runner.py` with `--stage S0`:
+   - M5 parent plan-key + handle closure checks,
+   - M4 S5 dependency summary/register gate validation,
+   - split authority-file presence/readability checks,
+   - bounded evidence-bucket probe,
+   - full M5 parent artifact contract emission.
+2. Validation:
+   - `python -m py_compile scripts/dev_substrate/m5_stress_runner.py` (pass).
+3. Initial execution:
+   - `python scripts/dev_substrate/m5_stress_runner.py --stage S0`
+   - `phase_execution_id=m5_stress_s0_20260303T232538Z`
+   - fail-closed blocker raised: `M5-ST-B1`.
+
+### Blocker analysis and remediation
+1. Initial blocker signature:
+   - reported missing handles:
+     - `S3_STREAM_VIEW_OUTPUT_PREFIX_PATTERN`,
+     - `S3_STREAM_VIEW_MANIFEST_KEY_PATTERN`.
+2. Root cause:
+   - registry parser split on the wrong `=` when handle values contained tokens like `output_id=...`,
+   - this misparsed keys with `=` in value content.
+3. Remediation:
+   - updated parser logic in `m5_stress_runner.py` to split on the first `=` inside each backtick entry.
+
+### Authoritative rerun result
+1. Reran:
+   - `python scripts/dev_substrate/m5_stress_runner.py --stage S0`
+   - `phase_execution_id=m5_stress_s0_20260303T232628Z`.
+2. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M5_ST_S1_READY`,
+   - `open_blockers=0`,
+   - `probe_count=1`,
+   - `error_rate_pct=0.0`.
+3. Artifact contract:
+   - complete/readable (`9/9` required artifacts present).
+
+### Governance and routing updates
+1. `platform.M5.stress_test.md` updated:
+   - S0 execution receipt added (including initial fail-closed attempt and remediation),
+   - DoD S0 item marked complete,
+   - immediate next action moved to `M5P3-ST-S0`.
+2. `platform.stress_test.md` updated:
+   - next program step routed to `M5P3-ST-S0`,
+   - active M5 state now records parent S0 pass.
+
+### Evidence paths
+1. Failed baseline: `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5_stress_s0_20260303T232538Z/stress/`
+2. Authoritative pass: `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5_stress_s0_20260303T232628Z/stress/`

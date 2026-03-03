@@ -219,7 +219,7 @@ For any phase:
    - `stress_test/platform.M5.stress_test.md` (`ACTIVE`),
    - `stress_test/platform.M5.P3.stress_test.md` (`PLANNED`),
    - `stress_test/platform.M5.P4.stress_test.md` (`PLANNED`).
-4. Next step: execute `M5-ST-S0` parent authority/entry-gate closure and hold P3/P4 execution behind that gate.
+4. Next step: execute `M5P3-ST-S0` authority/entry-gate closure (`M5-ST-S0` passed with `next_gate=M5_ST_S1_READY`).
 
 ## 13) Closed Phase - M0 (Inline)
 Status:
@@ -463,14 +463,15 @@ Authority routing:
 
 ## 17) Active Phase - M5 (Dedicated)
 Status:
-1. `ACTIVE` (planning authority opened; execution pending `M5-ST-S0`)
+1. `ACTIVE` (parent S0 closed green; subphase execution in progress)
 
 Authority routing:
 1. Parent orchestration authority: `stress_test/platform.M5.stress_test.md`.
 2. Split subphase authorities:
    - `stress_test/platform.M5.P3.stress_test.md` (P3 ORACLE_READY),
    - `stress_test/platform.M5.P4.stress_test.md` (P4 INGEST_READY).
-3. M5 execution is fail-closed in this order:
+3. Latest M5 parent execution state is `M5-ST-S0` pass (`next_gate=M5_ST_S1_READY`, `open_blockers=0`).
+4. M5 execution is fail-closed in this order:
    - parent `M5-ST-S0`,
    - `M5.P3`,
    - `M5.P4`,
