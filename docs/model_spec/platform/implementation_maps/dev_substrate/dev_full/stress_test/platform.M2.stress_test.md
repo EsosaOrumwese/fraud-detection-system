@@ -268,11 +268,25 @@ Required artifacts for each M2 stress window:
 - [x] Execution-grade runbook for `S0..S5` pinned with stage pass gates.
 - [x] Execution control surface pinned (runner + managed dispatch posture).
 - [x] Blocker taxonomy and evidence contract pinned.
-- [ ] Stage-A artifacts emitted to run-control path.
+- [x] Stage-A artifacts emitted to run-control path.
 - [ ] USER go-ahead captured for first M2 managed stress window dispatch.
 
 ## 12) Immediate Next Actions
-1. Implement `scripts/dev_substrate/m2_stress_runner.py` with `S0..S5` execution and artifact emission.
-2. Emit Stage-A artifacts (`m2_stagea_findings.json`, `m2_lane_matrix.json`) using pinned M2 control paths.
-3. Prepare `M2-ST-S1` managed dispatch contract (probe set, concurrency, timeout, window budget).
-4. Execute baseline window only after user confirms run launch.
+1. Prepare `M2-ST-S1` managed dispatch contract (probe set, concurrency, timeout, window budget).
+2. Execute baseline window only after user confirms run launch.
+
+## 13) Execution Progress
+### `M2-ST-S0` execution (2026-03-03)
+1. Phase execution id: `m2_stress_s0_20260303T155942Z`.
+2. Runner:
+   - `python scripts/dev_substrate/m2_stress_runner.py --stage S0`
+3. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M2_ST_S1_READY`,
+   - `open_blockers=0`.
+4. Artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s0_20260303T155942Z/stress/m2_stagea_findings.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s0_20260303T155942Z/stress/m2_lane_matrix.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s0_20260303T155942Z/stress/m2_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s0_20260303T155942Z/stress/m2_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s0_20260303T155942Z/stress/m2_decision_log.json`

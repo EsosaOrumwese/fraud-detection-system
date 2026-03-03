@@ -1019,3 +1019,71 @@ _As of 2026-03-03_
 ### Rationale
 1. User asked that execution approach be included in authority, not only discussed in chat.
 2. This change converts the M2 plan from intent-level to operator-executable without changing prior phase history.
+
+## Entry: 2026-03-03 15:59 +00:00 - M2 `S0` execution start (pre-implementation plan)
+
+### Trigger
+1. User instructed: proceed with `S0`.
+
+### Execution intent
+1. Implement a deterministic runner `scripts/dev_substrate/m2_stress_runner.py` with immediate focus on `M2-ST-S0`.
+2. Emit required `S0` artifacts under:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/{phase_execution_id}/stress/`
+3. Publish required phase-control artifacts:
+   - `m2_stagea_findings.json`,
+   - `m2_lane_matrix.json`,
+   - `m2_blocker_register.json`,
+   - `m2_execution_summary.json`,
+   - `m2_decision_log.json`.
+
+### `S0` pass gate implementation
+1. Validate `M2-ST-F1..F3` closure using current plan authority content:
+   - dedicated M2 file exists,
+   - M2 stress handle packet is present,
+   - capability/lane topology sections are present.
+2. Mark `S0` pass only when all `PREVENT` findings are closed.
+
+### Post-run documentation updates (planned)
+1. Update M2 plan DoD checkbox for Stage-A artifact emission.
+2. Add `S0` execution note with concrete artifact paths and verdict.
+3. Append action/result entries to stress impl map and daily logbook.
+
+## Entry: 2026-03-03 16:00 +00:00 - M2 `S0` execution completed (applied)
+
+### Implemented execution surface
+1. Added runner:
+   - `scripts/dev_substrate/m2_stress_runner.py`.
+2. Current runner scope:
+   - `--stage S0` (Stage-A artifact emission + dispatch hardening gate checks).
+3. Runner output contract:
+   - `m2_stagea_findings.json`,
+   - `m2_lane_matrix.json`,
+   - `m2_blocker_register.json`,
+   - `m2_execution_summary.json`,
+   - `m2_decision_log.json`.
+
+### Executed command
+1. `python scripts/dev_substrate/m2_stress_runner.py --stage S0`
+2. Phase execution id:
+   - `m2_stress_s0_20260303T155942Z`.
+
+### Result
+1. `overall_pass=true`.
+2. `next_gate=M2_ST_S1_READY`.
+3. `open_blockers=0`.
+4. `M2-ST-F1..F3` all closed in emitted findings artifact.
+
+### Evidence paths
+1. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s0_20260303T155942Z/stress/m2_stagea_findings.json`
+2. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s0_20260303T155942Z/stress/m2_lane_matrix.json`
+3. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s0_20260303T155942Z/stress/m2_blocker_register.json`
+4. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s0_20260303T155942Z/stress/m2_execution_summary.json`
+5. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s0_20260303T155942Z/stress/m2_decision_log.json`
+
+### Authority updates applied
+1. `platform.M2.stress_test.md`:
+   - Stage-A DoD artifact checkbox marked complete,
+   - immediate next actions moved to `S1` dispatch preparation,
+   - execution progress section added with concrete artifact references.
+2. `platform.stress_test.md`:
+   - next-step line updated to `S1` dispatch preparation and user go-ahead wait.
