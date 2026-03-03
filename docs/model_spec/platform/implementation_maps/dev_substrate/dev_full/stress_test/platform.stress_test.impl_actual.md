@@ -1240,3 +1240,107 @@ _As of 2026-03-03_
    - immediate next actions moved from repin/remediate to `S2` execution prep.
 2. `platform.stress_test.md`:
    - program next step updated to `M2-ST-S2`.
+
+## Entry: 2026-03-03 16:51 +00:00 - M2 `S2` execution plan (pre-implementation)
+
+### Trigger
+1. User instructed: proceed to `S2` execution and resolve blockers that arise.
+
+### Scope and constraints
+1. Execute `M2-ST-S2` burst window under existing M2 runbook gates.
+2. Preserve fail-closed blocker taxonomy (`M2-ST-B1..B9`) and artifact contract.
+3. Avoid infra/handle repins unless runtime evidence proves a true contract drift.
+
+### Performance-first design for `S2`
+1. Complexity target:
+   - keep runner overhead linear in probe results (`O(P * C)` over probes per cycle and cycle count),
+   - avoid new quadratic joins or unbounded in-memory scans.
+2. Burst mechanics:
+   - run same probe set as `S1`,
+   - increase effective concurrency for burst lane,
+   - apply tighter per-probe timeout defaults.
+3. Detection posture:
+   - add sustained failure-streak detector (`>3` consecutive failing intervals),
+   - compare `S2` metrics/control-issues against latest successful `S1` baseline to detect nonlinear degradation/new drift.
+
+### Alternatives considered
+1. New dedicated `S2` script:
+   - rejected due duplicate probe/control logic and higher drift risk from split implementations.
+2. Reuse `S1` with command-line overrides only:
+   - rejected because `S2` requires explicit stage-specific gates (streak detection + S1 comparison) that should be encoded deterministically in-run.
+3. Inline patch to existing runner with explicit `run_s2(...)` lane:
+   - selected for lowest drift and strongest audit continuity.
+
+### Planned implementation steps
+1. Extend runner CLI stage options to include `S2`.
+2. Add helper to load latest successful `S1` baseline artifacts.
+3. Implement `run_s2(...)` with:
+   - S0 artifact carry-forward,
+   - S1 probe-set reuse,
+   - burst profile (higher concurrency, tighter timeout/interval),
+   - full artifact emission using `M2-ST-S2` stage id,
+   - blocker mapping with `S2` gate thresholds.
+4. Execute `S2` immediately and classify blockers.
+5. If blockers appear, remediate the smallest-lane cause first and rerun `S2`.
+
+### Acceptance targets
+1. `error_rate_pct <= 2.0`.
+2. `max_consecutive_failure_cycles <= 3`.
+3. No new control-rail issues vs baseline `S1`.
+4. No secret leakage and no unattributed spend.
+5. `next_gate=M2_ST_S3_READY` with `open_blockers=0`, else fail-closed with explicit blocker evidence.
+
+## Entry: 2026-03-03 17:03 +00:00 - M2 `S2` burst execution completed
+
+### Implemented changes
+1. Extended `scripts/dev_substrate/m2_stress_runner.py` with explicit `run_s2(...)` lane and CLI stage support (`--stage S2`).
+2. Added deterministic baseline reference loader:
+   - resolves latest successful `S1` artifact pack for comparison.
+3. Added `S2` burst mechanics:
+   - same probe set as `S1`,
+   - increased burst concurrency,
+   - tighter timeout enforcement and faster cycle interval.
+4. Added `S2` pass-gate enforcement:
+   - `error_rate_pct <= 2.0`,
+   - sustained failure streak detector (`max_consecutive_failure_cycles`),
+   - new control-rail drift detection vs `S1` baseline.
+5. Preserved fail-closed blocker mapping (`M2-ST-B1..B9`) and full artifact contract.
+
+### Executed command
+1. `python scripts/dev_substrate/m2_stress_runner.py --stage S2`
+2. Phase execution id:
+   - `m2_stress_s2_20260303T165326Z`.
+
+### Execution outcome
+1. Window completed:
+   - `window_seconds_observed=600`,
+   - `probe_count=1267`,
+   - `error_rate_pct=0.0`,
+   - `max_consecutive_failure_cycles=0`.
+2. Burst profile:
+   - `burst_probe_concurrency=12`,
+   - `burst_interval_seconds=10`.
+3. Baseline comparison:
+   - baseline `S1` phase id `m2_stress_s1_20260303T162908Z`,
+   - `latency_ms_p95_vs_s1_ratio=1.4574`,
+   - `new_issues_vs_s1=[]`.
+4. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M2_ST_S3_READY`,
+   - `open_blockers=0`.
+
+### Evidence paths
+1. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s2_20260303T165326Z/stress/m2_probe_latency_throughput_snapshot.json`
+2. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s2_20260303T165326Z/stress/m2_control_rail_conformance_snapshot.json`
+3. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s2_20260303T165326Z/stress/m2_secret_safety_snapshot.json`
+4. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s2_20260303T165326Z/stress/m2_cost_outcome_receipt.json`
+5. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s2_20260303T165326Z/stress/m2_blocker_register.json`
+6. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s2_20260303T165326Z/stress/m2_execution_summary.json`
+7. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s2_20260303T165326Z/stress/m2_decision_log.json`
+
+### Authority/log updates applied
+1. `platform.M2.stress_test.md`:
+   - added S2 execution block with burst profile + baseline comparison evidence,
+   - immediate next actions advanced to `S3`.
+2. `platform.stress_test.md`:
+   - program next step updated to `M2-ST-S3`.

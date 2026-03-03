@@ -237,6 +237,31 @@ def copy_s0(out_root: Path, out_dir: Path) -> list[str]:
     return errs
 
 
+def load_latest_successful_s1(out_root: Path) -> dict[str, Any]:
+    s1s = sorted(out_root.glob("m2_stress_s1_*/stress"))
+    for d in reversed(s1s):
+        sp = d / "m2_execution_summary.json"
+        if not sp.exists():
+            continue
+        try:
+            summ = json.loads(sp.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if summ.get("overall_pass") is not True:
+            continue
+        out: dict[str, Any] = {"path": d.as_posix(), "summary": summ, "phase_execution_id": summ.get("phase_execution_id", "")}
+        for n in ("m2_probe_latency_throughput_snapshot.json", "m2_control_rail_conformance_snapshot.json"):
+            p = d / n
+            if not p.exists():
+                continue
+            try:
+                out[n] = json.loads(p.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+        return out
+    return {}
+
+
 def run_s1(phase_id: str, out_root: Path, win_override: int | None, interval: int, conc: int) -> int:
     plan_txt = PLAN.read_text(encoding="utf-8")
     pkt = parse_backtick_map(plan_txt)
@@ -381,20 +406,298 @@ def run_s1(phase_id: str, out_root: Path, win_override: int | None, interval: in
     return 0 if summ["overall_pass"] else 2
 
 
+def run_s2(phase_id: str, out_root: Path, win_override: int | None, interval: int, conc: int) -> int:
+    plan_txt = PLAN.read_text(encoding="utf-8")
+    pkt = parse_backtick_map(plan_txt)
+    h = parse_registry(REG)
+    out = out_root / phase_id / "stress"
+    out.mkdir(parents=True, exist_ok=True)
+    blockers: list[dict[str, Any]] = []
+    errs = copy_s0(out_root, out)
+    if errs:
+        blockers.append({"id": "M2-ST-B9", "severity": "S2", "status": "OPEN", "details": {"copy_errors": errs}})
+    probes, missing, probe_meta = build_s1_probes(h)
+    if missing:
+        blockers.append({"id": "M2-ST-B1", "severity": "S2", "status": "OPEN", "details": {"missing_keys": missing}})
+
+    s1ref = load_latest_successful_s1(out_root)
+    if not s1ref:
+        blockers.append({"id": "M2-ST-B9", "severity": "S2", "status": "OPEN", "details": {"missing_baseline": "No successful S1 baseline artifact pack found"}})
+
+    base_eps = float(pkt.get("M2_STRESS_BASELINE_EVENTS_PER_SECOND", 20))
+    burst_eps = float(pkt.get("M2_STRESS_BURST_EVENTS_PER_SECOND", 40))
+    ratio = burst_eps / max(1.0, base_eps)
+    burst_conc = max(int(round(conc * ratio)), conc + 2, 10)
+    burst_conc = min(burst_conc, 24)
+    burst_interval = max(5, min(interval, 10))
+    burst_probes: list[dict[str, Any]] = []
+    for p in probes:
+        q = dict(p)
+        q["timeout"] = min(int(q.get("timeout", 20)), 18)
+        burst_probes.append(q)
+
+    win = int(win_override) if win_override is not None else int(float(pkt.get("M2_STRESS_WINDOW_MINUTES", 10)) * 60)
+    win = max(win, 60)
+    rows: list[dict[str, Any]] = []
+    cycles = 0
+    tstart = time.monotonic()
+    precheck_issues: list[str] = []
+    precheck_fail_closed = False
+    critical = {"state_bucket_head", "state_lock_table", "msk_cluster", "api_get", "lambda_get", "ddb_get", "sr_sfn_lookup"}
+    can_run = (not missing) and bool(s1ref)
+    if can_run:
+        precheck = [p for p in burst_probes if p["id"] in critical]
+        if precheck:
+            cycles += 1
+            with cf.ThreadPoolExecutor(max_workers=max(1, min(burst_conc, len(precheck)))) as ex:
+                futs = [ex.submit(run_probe, p) for p in precheck]
+                for f in cf.as_completed(futs):
+                    r = f.result()
+                    r["cycle_index"] = cycles
+                    r["precheck"] = True
+                    rows.append(r)
+            failed = [r for r in rows if r.get("precheck") and r["status"] != "PASS"]
+            srp = [r for r in rows if r.get("precheck") and r["probe_id"] == "sr_sfn_lookup"]
+            sri = srp[-1] if srp else None
+            if failed:
+                precheck_issues.append(f"critical precheck failures: {len(failed)}")
+            if sri is None or sri["status"] != "PASS" or sri["stdout"] in {"", "None", "null"}:
+                precheck_issues.append("SR state machine lookup failed during precheck")
+            if precheck_issues:
+                precheck_fail_closed = True
+    while (time.monotonic() - tstart < win) and can_run and (not precheck_fail_closed):
+        cycles += 1
+        c0 = time.monotonic()
+        with cf.ThreadPoolExecutor(max_workers=max(1, burst_conc)) as ex:
+            futs = [ex.submit(run_probe, p) for p in burst_probes]
+            for f in cf.as_completed(futs):
+                r = f.result()
+                r["cycle_index"] = cycles
+                rows.append(r)
+        sleep_for = min(max(0.0, burst_interval - (time.monotonic() - c0)), max(0.0, win - (time.monotonic() - tstart)))
+        if sleep_for > 0:
+            time.sleep(sleep_for)
+
+    dur = max(1.0, time.monotonic() - tstart)
+    total = len(rows)
+    fails = [r for r in rows if r["status"] != "PASS"]
+    er = round((len(fails) / total) * 100.0, 4) if total else 100.0
+    lat = [float(r["duration_ms"]) for r in rows]
+
+    cycle_failed: dict[int, bool] = {}
+    for r in rows:
+        idx = int(r["cycle_index"])
+        if idx not in cycle_failed:
+            cycle_failed[idx] = False
+        if r["status"] != "PASS":
+            cycle_failed[idx] = True
+    cur_streak = 0
+    max_streak = 0
+    for idx in sorted(cycle_failed):
+        if cycle_failed[idx]:
+            cur_streak += 1
+            max_streak = max(max_streak, cur_streak)
+        else:
+            cur_streak = 0
+
+    s1probe = s1ref.get("m2_probe_latency_throughput_snapshot.json", {}) if s1ref else {}
+    s1_p95 = float(s1probe.get("latency_ms_p95", 0.0)) if s1probe else 0.0
+    p95 = round(pct(lat, 0.95), 3)
+    p95_ratio = round((p95 / s1_p95), 4) if s1_p95 > 0 else None
+    probe = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M2-ST-S2",
+        "window_seconds_configured": win,
+        "window_seconds_observed": int(round(dur)),
+        "cycle_count": cycles,
+        "probe_count": total,
+        "failure_count": len(fails),
+        "error_rate_pct": er,
+        "probe_eps_observed": round(total / dur, 4),
+        "probe_eps_target": burst_eps,
+        "latency_ms_p50": round(pct(lat, 0.5), 3),
+        "latency_ms_p95": p95,
+        "latency_ms_p99": round(pct(lat, 0.99), 3),
+        "sample_failures": fails[:10],
+        "max_consecutive_failure_cycles": max_streak,
+        "s1_baseline_phase_execution_id": s1ref.get("phase_execution_id", ""),
+        "latency_ms_p95_vs_s1_ratio": p95_ratio,
+    }
+    dumpj(out / "m2_probe_latency_throughput_snapshot.json", probe)
+
+    sr = [r for r in rows if r["probe_id"] == "sr_sfn_lookup"]
+    sri = sr[-1] if sr else None
+    ci: list[str] = []
+    if h.get("PHASE_RUNTIME_PATH_MODE") != "single_active_path_per_phase_run":
+        ci.append("PHASE_RUNTIME_PATH_MODE drift")
+    if h.get("PHASE_RUNTIME_PATH_PIN_REQUIRED") is not True:
+        ci.append("PHASE_RUNTIME_PATH_PIN_REQUIRED not true")
+    if h.get("RUNTIME_PATH_SWITCH_IN_PHASE_ALLOWED") is not False:
+        ci.append("RUNTIME_PATH_SWITCH_IN_PHASE_ALLOWED not false")
+    if h.get("SR_READY_COMMIT_AUTHORITY") != "step_functions_only":
+        ci.append("SR_READY_COMMIT_AUTHORITY drift")
+    if h.get("CORRELATION_ENFORCEMENT_FAIL_CLOSED") is not True:
+        ci.append("CORRELATION_ENFORCEMENT_FAIL_CLOSED not true")
+    if sri is None or sri["status"] != "PASS" or sri["stdout"] in {"", "None", "null"}:
+        ci.append("SR state machine lookup failed")
+    if precheck_issues:
+        ci.extend(precheck_issues)
+
+    s1ctrl = s1ref.get("m2_control_rail_conformance_snapshot.json", {}) if s1ref else {}
+    s1_issues = [str(x) for x in s1ctrl.get("issues", [])] if s1ctrl else []
+    new_ci = sorted(set(ci) - set(s1_issues))
+    ctrl = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M2-ST-S2",
+        "overall_pass": len(new_ci) == 0,
+        "issues": ci,
+        "s1_baseline_issues": s1_issues,
+        "new_issues_vs_s1": new_ci,
+        "sr_lookup_probe": sri,
+    }
+    ctrl["handle_resolution"] = probe_meta
+    ctrl["precheck_fail_closed"] = precheck_fail_closed
+    ctrl["s1_baseline_phase_execution_id"] = s1ref.get("phase_execution_id", "")
+    dumpj(out / "m2_control_rail_conformance_snapshot.json", ctrl)
+
+    srows = [r for r in rows if r["group"] == "secrets"]
+    sf = [r for r in srows if r["status"] != "PASS"]
+    wdec = any("--with-decryption" in r["command"] for r in rows)
+    qval = any("Parameter.Value" in r["command"] or "SecretString" in r["command"] for r in rows)
+    sus = []
+    rx = re.compile(r"(AKIA[0-9A-Z]{16}|BEGIN [A-Z ]*PRIVATE KEY|SECRET_ACCESS_KEY)")
+    for r in rows:
+        if rx.search((r["stdout"] + " " + r["stderr"]).strip()):
+            sus.append(r["probe_id"])
+    leak = wdec or qval or bool(sus)
+    sec = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M2-ST-S2",
+        "overall_pass": len(sf) == 0 and not leak,
+        "secret_probe_count": len(srows),
+        "secret_failure_count": len(sf),
+        "with_decryption_used": wdec,
+        "queried_value_directly": qval,
+        "suspicious_output_probe_ids": sus,
+        "plaintext_leakage_detected": leak,
+    }
+    dumpj(out / "m2_secret_safety_snapshot.json", sec)
+
+    max_sp = float(pkt.get("M2_STRESS_MAX_SPEND_USD", 35))
+    cost = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M2-ST-S2",
+        "window_seconds": int(round(dur)),
+        "estimated_api_call_count": total,
+        "attributed_spend_usd": 0.0,
+        "unattributed_spend_detected": False,
+        "max_spend_usd": max_sp,
+        "within_envelope": True,
+        "method": "readonly_control_plane_probe_estimate_v0",
+    }
+    dumpj(out / "m2_cost_outcome_receipt.json", cost)
+
+    if any(r["group"] in {"state_backend", "messaging"} and r["status"] != "PASS" for r in rows):
+        blockers.append({"id": "M2-ST-B2", "severity": "S2", "status": "OPEN"})
+    if any(r["group"] == "api_edge" and r["status"] != "PASS" for r in rows):
+        blockers.append({"id": "M2-ST-B5", "severity": "S2", "status": "OPEN"})
+    if new_ci:
+        blockers.append({"id": "M2-ST-B3", "severity": "S2", "status": "OPEN", "details": {"issues": new_ci}})
+        if any("SR" in x for x in new_ci):
+            blockers.append({"id": "M2-ST-B4", "severity": "S2", "status": "OPEN"})
+    if sec["overall_pass"] is False:
+        blockers.append({"id": "M2-ST-B6", "severity": "S2", "status": "OPEN"})
+    b7_details: dict[str, Any] = {}
+    if er > 2.0:
+        b7_details["error_rate_pct"] = er
+    if max_streak > 3:
+        b7_details["max_consecutive_failure_cycles"] = max_streak
+    if b7_details:
+        blockers.append({"id": "M2-ST-B7", "severity": "S2", "status": "OPEN", "details": b7_details})
+    if not cost["within_envelope"] or cost["unattributed_spend_detected"]:
+        blockers.append({"id": "M2-ST-B8", "severity": "S2", "status": "OPEN"})
+
+    dlog = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M2-ST-S2",
+        "decisions": [
+            "Executed critical precheck before sustained burst window.",
+            "Executed burst read-only probes with increased concurrency and tightened timeouts.",
+            "Compared S2 control-rail and latency posture against latest successful S1 baseline.",
+            "Applied fail-closed blocker mapping from M2 taxonomy.",
+            "Carried S0 findings/lane matrix artifacts forward for artifact continuity.",
+        ],
+    }
+    dumpj(out / "m2_decision_log.json", dlog)
+    bref = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M2-ST-S2",
+        "overall_pass": len(blockers) == 0,
+        "open_blocker_count": len(blockers),
+        "blockers": blockers,
+    }
+    summ = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M2-ST-S2",
+        "overall_pass": len(blockers) == 0,
+        "next_gate": "M2_ST_S3_READY" if len(blockers) == 0 else "BLOCKED",
+        "error_rate_pct": er,
+        "probe_count": total,
+        "window_seconds_observed": int(round(dur)),
+        "required_artifacts": S1_ARTS,
+        "max_consecutive_failure_cycles": max_streak,
+        "burst_probe_concurrency": burst_conc,
+        "burst_interval_seconds": burst_interval,
+    }
+    dumpj(out / "m2_blocker_register.json", bref)
+    dumpj(out / "m2_execution_summary.json", summ)
+
+    miss = [n for n in S1_ARTS if not (out / n).exists()]
+    if miss:
+        blockers.append({"id": "M2-ST-B9", "severity": "S2", "status": "OPEN", "details": {"missing_artifacts": miss}})
+        bref["overall_pass"] = False
+        bref["open_blocker_count"] = len(blockers)
+        bref["blockers"] = blockers
+        summ["overall_pass"] = False
+        summ["next_gate"] = "BLOCKED"
+        dumpj(out / "m2_blocker_register.json", bref)
+        dumpj(out / "m2_execution_summary.json", summ)
+
+    print(f"[m2_s2] phase_execution_id={phase_id}")
+    print(f"[m2_s2] output_dir={out.as_posix()}")
+    print(f"[m2_s2] overall_pass={summ['overall_pass']}")
+    print(f"[m2_s2] next_gate={summ['next_gate']}")
+    print(f"[m2_s2] probe_count={total}")
+    print(f"[m2_s2] error_rate_pct={er}")
+    print(f"[m2_s2] max_consecutive_failure_cycles={max_streak}")
+    print(f"[m2_s2] open_blockers={bref['open_blocker_count']}")
+    return 0 if summ["overall_pass"] else 2
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="M2 stress runner")
-    ap.add_argument("--stage", default="S0", choices=["S0", "S1"])
+    ap.add_argument("--stage", default="S0", choices=["S0", "S1", "S2"])
     ap.add_argument("--phase-execution-id", default="")
     ap.add_argument("--output-root", default=str(OUT_ROOT))
     ap.add_argument("--window-seconds-override", type=int, default=None)
     ap.add_argument("--cycle-interval-seconds", type=int, default=20)
     ap.add_argument("--probe-concurrency", type=int, default=6)
     a = ap.parse_args()
-    pid = a.phase_execution_id.strip() or f"{'m2_stress_s0' if a.stage=='S0' else 'm2_stress_s1'}_{tok()}"
+    pfx = {"S0": "m2_stress_s0", "S1": "m2_stress_s1", "S2": "m2_stress_s2"}[a.stage]
+    pid = a.phase_execution_id.strip() or f"{pfx}_{tok()}"
     root = Path(a.output_root)
     if a.stage == "S0":
         return run_s0(pid, root)
-    return run_s1(pid, root, a.window_seconds_override, a.cycle_interval_seconds, a.probe_concurrency)
+    if a.stage == "S1":
+        return run_s1(pid, root, a.window_seconds_override, a.cycle_interval_seconds, a.probe_concurrency)
+    return run_s2(pid, root, a.window_seconds_override, a.cycle_interval_seconds, a.probe_concurrency)
 
 
 if __name__ == "__main__":

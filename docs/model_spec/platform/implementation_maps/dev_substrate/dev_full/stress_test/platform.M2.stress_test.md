@@ -272,9 +272,9 @@ Required artifacts for each M2 stress window:
 - [x] USER go-ahead captured for first M2 managed stress window dispatch.
 
 ## 12) Immediate Next Actions
-1. Continue to `M2-ST-S2` burst window using the same runner and fail-closed blocker mapping.
+1. Continue to `M2-ST-S3` controlled failure-injection window using the same fail-closed blocker mapping.
 2. Keep symbolic-handle resolution + critical precheck path enabled for all subsequent windows to avoid avoidable long-window spend on deterministic control-rail misrouting.
-3. Advance to `M2-ST-S3` only if `S2` closes with no open `M2-ST-B*` blockers.
+3. If `S3` opens blockers, execute targeted remediation (`S4`) and rerun only failed windows.
 
 ## 13) Execution Progress
 ### `M2-ST-S0` execution (2026-03-03)
@@ -349,3 +349,33 @@ Required artifacts for each M2 stress window:
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s1_20260303T162908Z/stress/m2_blocker_register.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s1_20260303T162908Z/stress/m2_execution_summary.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s1_20260303T162908Z/stress/m2_decision_log.json`
+
+### `M2-ST-S2` burst execution (2026-03-03)
+1. Phase execution id: `m2_stress_s2_20260303T165326Z`.
+2. Runner:
+   - `python scripts/dev_substrate/m2_stress_runner.py --stage S2`
+3. Burst profile:
+   - `window_seconds_observed=600`,
+   - `probe_count=1267`,
+   - `error_rate_pct=0.0`,
+   - `max_consecutive_failure_cycles=0`,
+   - `burst_probe_concurrency=12`,
+   - `burst_interval_seconds=10`.
+4. Baseline comparison:
+   - baseline reference `S1` phase id: `m2_stress_s1_20260303T162908Z`,
+   - `latency_ms_p95_vs_s1_ratio=1.4574`,
+   - `new_issues_vs_s1=[]`.
+5. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M2_ST_S3_READY`,
+   - `open_blockers=0`.
+6. Artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s2_20260303T165326Z/stress/m2_stagea_findings.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s2_20260303T165326Z/stress/m2_lane_matrix.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s2_20260303T165326Z/stress/m2_probe_latency_throughput_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s2_20260303T165326Z/stress/m2_control_rail_conformance_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s2_20260303T165326Z/stress/m2_secret_safety_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s2_20260303T165326Z/stress/m2_cost_outcome_receipt.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s2_20260303T165326Z/stress/m2_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s2_20260303T165326Z/stress/m2_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s2_20260303T165326Z/stress/m2_decision_log.json`

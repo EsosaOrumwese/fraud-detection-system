@@ -212,7 +212,7 @@ For any phase:
 1. Program bootstrapped.
 2. Current phase state: `M2` (`ACTIVE`, dedicated phase file).
 3. Dedicated phase file created: `stress_test/platform.M2.stress_test.md`.
-4. Next step: execute `M2-ST-S2` burst window (`S1` rerun passed with `next_gate=M2_ST_S2_READY`).
+4. Next step: execute `M2-ST-S3` controlled failure-injection window (`S2` passed with `next_gate=M2_ST_S3_READY`).
 
 ## 13) Closed Phase - M0 (Inline)
 Status:
