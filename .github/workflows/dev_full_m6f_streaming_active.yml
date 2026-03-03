@@ -512,7 +512,6 @@ jobs:
           api_key = os.environ.get("IG_API_KEY", "")
           event_count = max(1, int(os.environ.get("IG_BRIDGE_EVENT_COUNT", "12")))
           max_workers = max(1, int(os.environ.get("IG_BRIDGE_MAX_WORKERS", "64")))
-          worker_count = max(1, min(max_workers, event_count))
           sleep_seconds = max(0.0, float(os.environ.get("IG_BRIDGE_SLEEP_SECONDS", "0.2")))
           timeout_seconds = max(0.5, float(os.environ.get("IG_BRIDGE_TIMEOUT_SECONDS", "10.0")))
           retry_max_attempts = max(1, int(os.environ.get("IG_BRIDGE_RETRY_MAX_ATTEMPTS", "1")))
@@ -537,6 +536,7 @@ jobs:
           else:
               target_dispatch_rps = 0.0
               max_workers = min(max_workers, 32)
+          worker_count = max(1, min(max_workers, event_count))
           platform_run_id = "${{ inputs.platform_run_id }}"
           scenario_run_id = "${{ inputs.scenario_run_id }}"
           phase_id = "P6.B"
