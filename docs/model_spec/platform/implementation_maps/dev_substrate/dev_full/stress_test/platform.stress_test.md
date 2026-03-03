@@ -44,7 +44,7 @@ This is the program-level overview of what each `M*` phase stress effort is expe
 | Stress Phase | Build Scope Anchor | What We Aim to Achieve | Exit Signal | Status |
 | --- | --- | --- | --- | --- |
 | M0 | Mobilization + authority lock | Validate test authority, handles, and stress evidence surfaces before any load | All prerequisite stress handles and evidence sinks are green | DONE |
-| M1 | Packaging readiness | Stress packaging/provenance paths for reproducible deploy artifacts under concurrent operations | No packaging bottleneck or provenance drift under stress | BLOCKED |
+| M1 | Packaging readiness | Stress packaging/provenance paths and pin a production-safe acceptance boundary for immutable artifact promotion | Artifact-freeze + immutable digest promotion contract accepted; managed toolchain-path fresh-rebuild nondeterminism recorded as known boundary | DONE |
 | M2 | Substrate readiness | Stress core substrate primitives (network/store/bus/runtime) for baseline capacity and failure behavior | Substrate can sustain target baseline load without integrity drift | NOT_STARTED |
 | M3 | Run pinning + orchestrator readiness | Stress run-control/orchestrator behavior under concurrent run activation and retries | Run pinning remains deterministic; no cross-run mixing | NOT_STARTED |
 | M4 | Spine runtime-lane readiness | Stress each spine lane bootstrap path for startup-time, readiness, and dependency bottlenecks | Lane startup and steady-state readiness meet target budgets | NOT_STARTED |
@@ -210,9 +210,9 @@ For any phase:
 
 ## 12) Program Status (Initial)
 1. Program bootstrapped.
-2. Active phase: `M1` (`BLOCKED`, inline in this file).
+2. Current phase state: `M1` (`DONE`, inline closure in this file).
 3. Per-phase stress files not yet created.
-4. Next step: user-approved pivot is active - `M1-ST-B8` remains fail-closed and advances only through artifact-freeze + immutable promotion controls before any M2 advancement.
+4. Next step: activate `M2` Stage-A decision/bottleneck pre-read using M1 immutable artifact-promotion posture as the packaging baseline.
 
 ## 13) Closed Phase - M0 (Inline)
 Status:
@@ -274,12 +274,12 @@ M0 immediate actions:
 M0 closure verdict:
 1. `DONE` and handed off to `M1`.
 
-## 14) Active Phase - M1 (Inline)
+## 14) Closed Phase - M1 (Inline)
 Status:
-1. `ACTIVE_BLOCKED` (`M1-ST-B8` open)
+1. `DONE` (policy-closed under approved immutable artifact-promotion acceptance)
 
 M1 stress objective:
-1. validate packaging/provenance decisions under realistic production stress posture before later runtime phases consume these artifacts.
+1. validate packaging/provenance decisions under realistic production stress posture and establish a production-safe immutable artifact-promotion baseline before runtime phases consume artifacts.
 
 M1 stress scope:
 1. packaging decision/bottleneck pre-read against M1 build authority.
@@ -328,22 +328,22 @@ M1 blockers (status):
 2. `M1-ST-B2`: CLOSED - local preflight contract pinned.
 3. `M1-ST-B3`: CLOSED - dockerignore default-deny lint false-fail remediated in local preflight tooling.
 4. `M1-ST-B6`: CLOSED - initial managed-window run failures from optional S3 direct-upload branch remediated by artifact-pack-only rerun posture.
-5. `M1-ST-B8`: OPEN - provenance drift under concurrent managed repetitions (single immutable tag resolved to multiple digests).
+5. `M1-ST-B8`: POLICY_CLOSED - fresh rebuild provenance drift under concurrent managed repetitions is retained as known managed toolchain-path nondeterminism boundary; downstream runtime phases consume only frozen immutable artifact digests.
 
-M1 fail-closed rationale (pinned understanding):
-1. `M1-ST-B8` is retained as fail-closed to preserve trust in immutable packaging provenance before runtime phase advancement.
-2. Observed drift remains after lockfile pinning, base digest pinning, deterministic buildx posture, staged-context timestamp normalization, and offline wheelhouse install lane.
-3. Current technical interpretation is that dominant entropy is in the managed build system/toolchain execution path, not in package-version selection from the current pinned dependency stack.
-4. This is recorded as system understanding (diagnosis maturity), not as a project failure.
+M1 diagnostic rationale (pinned understanding):
+1. During active remediation windows, `M1-ST-B8` was held fail-closed to preserve trust in immutable packaging provenance.
+2. Under the approved acceptance policy, `M1-ST-B8` is now policy-closed with immutable artifact-promotion boundary controls.
+3. Observed drift remains after lockfile pinning, base digest pinning, deterministic buildx posture, staged-context timestamp normalization, and offline wheelhouse install lane.
+4. Current technical interpretation is that dominant entropy is in the managed build system/toolchain execution path, not in package-version selection from the current pinned dependency stack.
+5. This is recorded as system understanding (diagnosis maturity), not as a project failure.
 
-M1 success definition update (proposal, pending explicit approval):
-1. Keep current strict gate active until policy approval:
-   - repeated independent builds must converge (`digest/config/layer` no-drift).
-2. Proposed production-oriented success posture for M1:
-   - freeze one authoritative Linux build artifact/digest per git-sha,
-   - verify once, then promote immutable artifact by digest across downstream phases,
-   - require runtime stress/throughput validation to run only on promoted immutable artifact.
-3. Under this proposal, success shifts from "all fresh rebuilds byte-identical" to "artifact promotion rail is deterministic and runtime behavior is stable on immutable promoted artifacts."
+M1 success definition (approved policy):
+1. Authoritative success posture for M1 is deterministic immutable artifact promotion, not repeated fresh-rebuild byte identity.
+2. Freeze one authoritative Linux build artifact/digest per git-sha.
+3. Verify packaging/provenance contract on the frozen artifact once.
+4. Promote downstream phases by immutable digest only.
+5. Require runtime stress/throughput validation to execute against promoted immutable artifact references.
+6. Track fresh-rebuild drift as managed toolchain-path diagnostic evidence; it is not a phase blocker unless it affects the promoted immutable artifact contract itself.
 
 M1 DoD (stress):
 - [x] Stage A pre-read completed and classified (`PREVENT`/`OBSERVE`/`ACCEPT`).
@@ -351,62 +351,63 @@ M1 DoD (stress):
 - [x] M1 local preflight contract pinned.
 - [x] M1 blocker set closed (`M1-ST-B1`, `M1-ST-B2`).
 - [x] Stage-B packaging component stress executed with required artifacts.
-- [x] M1 stress closure verdict published (`BLOCKED`) with rerun policy.
+- [x] M1 stress closure verdict published (`DONE`) with approved immutable artifact-promotion acceptance policy.
 
 M1 immediate actions:
-1. Keep fail-closed hold on phase advancement (`M2` blocked while `M1-ST-B8` is open).
-2. Open artifact-freeze lane for application-layer reproducibility (sealed Linux wheelhouse bundle or prebuilt environment artifact pinning).
-3. Execute rerun only after explicit approval of next deterministic lane and require `digest_drift=false`, `config_drift=false`, and `layer_drift=false`.
+1. Carry forward M1 packaging baseline as immutable artifact-promotion contract for M2+ stress phases.
+2. Start M2 Stage-A pre-read and identify substrate-lane `PREVENT/OBSERVE/ACCEPT` findings before managed stress execution.
+3. Keep recording fresh-rebuild drift as diagnostic telemetry; reopen blocker only if promoted artifact contract integrity is impacted.
 
 M1 Stage-B execution progress:
-1. Local preflight run `m1_stress_preflight_20260303T060333Z` returned `HOLD_REMEDIATE`:
+1. Historical chronology note: entries below preserve original fail-closed wording from execution time and do not override current M1 closure status.
+2. Local preflight run `m1_stress_preflight_20260303T060333Z` returned `HOLD_REMEDIATE`:
    - blocker `M1-ST-B3` was raised by dockerignore lint logic that required explicit deny tokens even under default-deny posture.
-2. Local preflight lint remediation applied:
+3. Local preflight lint remediation applied:
    - `scripts/dev_substrate/m1_stress_preflight.py` now treats default-deny `.dockerignore` posture (`*` or `**`) as compliant for deny-pattern enforcement.
-3. Local preflight rerun `m1_stress_preflight_20260303T060442Z` returned `READY_FOR_M1_STRESS_WINDOW` with zero blockers.
-4. Published local stress artifacts:
+4. Local preflight rerun `m1_stress_preflight_20260303T060442Z` returned `READY_FOR_M1_STRESS_WINDOW` with zero blockers.
+5. Published local stress artifacts:
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_preflight_20260303T060442Z/stress/m1_preflight_checks.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_preflight_20260303T060442Z/stress/m1_blocker_register.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_preflight_20260303T060442Z/stress/m1_execution_summary.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_preflight_20260303T060442Z/stress/m1_decision_log.json`
-5. Managed stress window attempt-1 `m1_stress_window_20260303T061142Z`:
+6. Managed stress window attempt-1 `m1_stress_window_20260303T061142Z`:
    - run set included `22610789727`, `22610791866`, `22610794341`,
    - two `dev-full-m1-packaging` runs failed at optional direct S3 evidence upload (`HeadBucket 403`),
    - fail-closed verdict `HOLD_REMEDIATE`.
-6. Managed stress window attempt-2 `m1_stress_window_20260303T061619Z` (artifact-pack-only rerun posture):
+7. Managed stress window attempt-2 `m1_stress_window_20260303T061619Z` (artifact-pack-only rerun posture):
    - run set `22610905355`, `22610907538`, `22610910038` all `success`,
    - observed max concurrency `3` (target `2` met),
    - provenance drift detected: same immutable tag `git-e8b010fc47fdae36f4425cba0701459df077b2e0` mapped to three digests,
    - blocker `M1-ST-B8` opened and phase remains fail-closed `HOLD_REMEDIATE`.
-7. Managed-window artifacts:
+8. Managed-window artifacts:
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T061619Z/stress/m1_stress_window_results.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T061619Z/stress/m1_blocker_register.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T061619Z/stress/m1_execution_summary.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T061619Z/stress/m1_decision_log.json`
-8. `M1-ST-B8` remediation attempt applied and rerun in dev_full-only mode:
+9. `M1-ST-B8` remediation attempt applied and rerun in dev_full-only mode:
    - workflow contract repin committed (`b4d819270cd84b27fc3dc2028db3e1b2d49b6a8f`) with run-scoped immutable tag pattern and stress concurrency suffix input,
    - dev_full-only run set `22627099194`, `22627105810`, `22627109900` all `success`,
    - observed max concurrency `3` (target `2` met),
    - run-scoped tag pattern passed (`tag_collision=false`),
    - fail-closed blocker persists: `digest_drift=true` across repetitions (`M1-ST-B8` remains open).
-9. Dev_full-only rerun artifacts:
+10. Dev_full-only rerun artifacts:
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T141816Z/stress/m1_stress_window_results.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T141816Z/stress/m1_blocker_register.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T141816Z/stress/m1_execution_summary.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T141816Z/stress/m1_decision_log.json`
-10. Deterministic lockfile hardening rerun `m1_stress_window_20260303T144031Z`:
+11. Deterministic lockfile hardening rerun `m1_stress_window_20260303T144031Z`:
    - branch head `7d4112bebf7bd2321df4901f01cd42de14834148` (includes digest-pinned base + hash-locked dependency install),
    - dev_full-only run set `22628013765`, `22628020745`, `22628025246` all `success`,
    - observed max concurrency `3` (target `2` met),
    - run-scoped immutable tag checks passed (no tag collision, no git-sha drift),
    - fail-closed blocker persists: `digest_drift=true` (`M1-ST-B8` remains open).
-11. Deterministic lockfile hardening rerun artifacts:
+12. Deterministic lockfile hardening rerun artifacts:
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T144031Z/stress/m1_dispatch_receipt.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T144031Z/stress/m1_stress_window_results.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T144031Z/stress/m1_blocker_register.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T144031Z/stress/m1_execution_summary.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T144031Z/stress/m1_decision_log.json`
-12. Architecture-level deterministic lane rerun `m1_stress_window_20260303T150118Z`:
+13. Architecture-level deterministic lane rerun `m1_stress_window_20260303T150118Z`:
    - branch head `716641e404b3a99db23e1080a6847e6c86e3945e` (deterministic buildx path + staged context mtime normalization + manifest-surface evidence),
    - dev_full-only run set `22628887520`, `22628894768`, `22628902354` all `success`,
    - observed max concurrency `3` (target `2` met),
@@ -415,13 +416,13 @@ M1 Stage-B execution progress:
      - `digest_drift=true`,
      - `config_drift=true`,
      - `layer_drift=true`.
-13. Architecture-level deterministic lane rerun artifacts:
+14. Architecture-level deterministic lane rerun artifacts:
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T150118Z/stress/m1_dispatch_receipt.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T150118Z/stress/m1_stress_window_results.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T150118Z/stress/m1_blocker_register.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T150118Z/stress/m1_execution_summary.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T150118Z/stress/m1_decision_log.json`
-14. Wheelhouse deterministic lane rerun `m1_stress_window_20260303T151901Z`:
+15. Wheelhouse deterministic lane rerun `m1_stress_window_20260303T151901Z`:
    - branch head `87ff4c0fd8c96b332d021b2a627aa1fe4fc20511` (staged offline wheelhouse + offline install path),
    - dev_full-only run set `22629629443`, `22629636090`, `22629640152` all `success`,
    - observed max concurrency `3` (target `2` met),
@@ -430,7 +431,7 @@ M1 Stage-B execution progress:
      - `digest_drift=true`,
      - `config_drift=true`,
      - `layer_drift=true`.
-15. Wheelhouse deterministic lane rerun artifacts:
+16. Wheelhouse deterministic lane rerun artifacts:
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T151901Z/stress/m1_dispatch_receipt.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T151901Z/stress/m1_stress_window_results.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T151901Z/stress/m1_blocker_register.json`

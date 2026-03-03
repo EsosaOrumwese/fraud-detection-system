@@ -877,3 +877,40 @@ _As of 2026-03-03_
    - promote immutable artifact by digest to runtime stress phases,
    - evaluate production readiness on promoted immutable artifact behavior rather than repeated fresh-build byte identity.
 2. Until this policy is explicitly approved, current strict no-drift rebuild gate remains active.
+
+## Entry: 2026-03-03 15:41 +00:00 - M1 status/objective correction request (pre-edit plan)
+
+### Trigger
+1. User reported that the stress authority still shows `M1` as blocked and that M1 objective/success framing was not updated.
+2. User requested correction so the document matches approved direction.
+
+### Planned correction
+1. Update `platform.stress_test.md` phase overview and active-phase status lines so `M1` is no longer represented as unresolved blocked work.
+2. Convert M1 success-definition section from pending proposal to approved policy posture:
+   - artifact-freeze once,
+   - verify once,
+   - immutable digest promotion for downstream runtime stress.
+3. Reclassify `M1-ST-B8` from open blocker to policy-closed/understood tooling nondeterminism for fresh rebuild parity, with rationale retained.
+4. Update immediate actions and next-step pointer to M2 activation pre-read.
+
+### Guardrails
+1. Historical execution evidence stays unchanged; only current status/acceptance semantics are corrected.
+2. Branch-governance and commit-scope law remain in force: doc edits are local and uncommitted unless user explicitly requests commit.
+
+## Entry: 2026-03-03 15:43 +00:00 - M1 authority status and objective corrected (applied)
+
+### Applied updates
+1. Updated `platform.stress_test.md` M-phase overview row for `M1`:
+   - status changed from `BLOCKED` to `DONE`,
+   - exit signal reworded to approved immutable artifact-promotion acceptance posture.
+2. Updated program status section to remove stale `M1 BLOCKED` active-phase language and set next step to `M2` Stage-A pre-read.
+3. Reclassified section heading from `Active Phase - M1` to `Closed Phase - M1` and set status to policy-closed done posture.
+4. Updated M1 objective and success-definition block:
+   - replaced pending proposal text with approved policy definition.
+5. Reclassified blocker row:
+   - `M1-ST-B8` from `OPEN` to `POLICY_CLOSED` with retained rationale that observed fresh-rebuild drift is managed toolchain-path nondeterminism, while downstream phases are constrained to frozen immutable artifact digests.
+6. Updated M1 DoD and immediate actions to match closure and M2-forward posture.
+
+### Rationale continuity
+1. Historical run evidence and blocker chronology were intentionally preserved unchanged for auditability.
+2. Only current status/acceptance semantics were corrected to align with approved direction.
