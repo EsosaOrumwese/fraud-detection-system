@@ -839,3 +839,21 @@ _As of 2026-03-03_
 ### Escalation posture
 1. Hold M1 fail-closed.
 2. Next deterministic lane required is artifact-freeze install surface (prebuilt Linux wheelhouse or sealed venv/image rootfs artifact pin), because runtime fetch/install entropy is no longer the dominant unresolved source.
+
+## Entry: 2026-03-03 15:28 +00:00 - User-approved pivot to artifact-freeze promotion posture
+
+### Trigger
+1. User asked whether continued inline determinism tuning is a losing battle and accepted the proposed pivot.
+2. User explicitly requested that this agreement be noted in authority records.
+
+### Decision (approved)
+1. Keep M1 fail-closed on `M1-ST-B8` until reproducibility gate closes.
+2. Pivot remediation strategy from repeated inline build determinism tweaks to:
+   - artifact-freeze build once,
+   - verify once,
+   - promote immutable digest/artifact across phases.
+3. Treat repeated rebuild-byte identity as secondary once frozen artifact promotion rail is active; prioritize runtime stress realism and throughput validation on promoted immutable artifact.
+
+### Implementation impact
+1. Next lane design must center on sealed Linux artifact surfaces (wheelhouse/venv/image layer) with digest-pinned promotion contract.
+2. M2 remains blocked until M1 gate closure evidence is published under the approved pivot mechanics.

@@ -212,7 +212,7 @@ For any phase:
 1. Program bootstrapped.
 2. Active phase: `M1` (`BLOCKED`, inline in this file).
 3. Per-phase stress files not yet created.
-4. Next step: `M1-ST-B8` remains fail-closed after wheelhouse deterministic lane; escalate to artifact-freeze byte-stability controls before any M2 advancement.
+4. Next step: user-approved pivot is active - `M1-ST-B8` remains fail-closed and advances only through artifact-freeze + immutable promotion controls before any M2 advancement.
 
 ## 13) Closed Phase - M0 (Inline)
 Status:
