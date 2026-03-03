@@ -82,6 +82,11 @@ on:
         required: false
         default: "v1"
         type: string
+      rc2r2_apigw_ig_api_id:
+        description: "RC2.R2 API Gateway API ID (pinned handle; avoids account-wide list requirement)"
+        required: false
+        default: "ehwznd2uw7"
+        type: string
       rc2r2_ig_rate_limit_rps:
         description: "RC2.R2 target IG rate limit (RPS)"
         required: false
@@ -1603,6 +1608,7 @@ jobs:
           RUNTIME_CERT_EXECUTION_ID: ${{ steps.run_meta.outputs.runtime_cert_execution_id }}
           RUN_DIR: ${{ steps.run_meta.outputs.run_dir }}
           APIGW_IG_STAGE_NAME: ${{ inputs.rc2r2_apigw_ig_stage_name }}
+          APIGW_IG_API_ID: ${{ inputs.rc2r2_apigw_ig_api_id }}
           EXPECTED_IG_RATE_LIMIT_RPS: ${{ inputs.rc2r2_ig_rate_limit_rps }}
           EXPECTED_IG_RATE_LIMIT_BURST: ${{ inputs.rc2r2_ig_rate_limit_burst }}
           EXPECTED_NODEGROUP_DESIRED: ${{ inputs.rc2r2_eks_nodegroup_desired_size }}
@@ -1632,6 +1638,7 @@ jobs:
           scenario_run_id = os.environ["SCENARIO_RUN_ID"]
           bucket = os.environ["EVIDENCE_BUCKET"]
           stage_name = os.environ["APIGW_IG_STAGE_NAME"]
+          pinned_api_id = str(os.environ.get("APIGW_IG_API_ID", "") or "").strip()
           expected_rate = float(os.environ["EXPECTED_IG_RATE_LIMIT_RPS"])
           expected_burst = int(float(os.environ["EXPECTED_IG_RATE_LIMIT_BURST"]))
           expected_desired = int(os.environ["EXPECTED_NODEGROUP_DESIRED"])
@@ -1657,16 +1664,34 @@ jobs:
                           return str(item.get("ApiId", "")).strip()
               return ""
 
-          def capture_snapshot(api_id: str) -> dict:
-              stage = apigw.get_stage(ApiId=api_id, StageName=stage_name) if api_id else {}
+          def capture_snapshot(api_id: str) -> tuple[dict, list[str]]:
+              errors: list[str] = []
+              stage = {}
+              lambda_cfg = {}
+              nodegroup = {}
+
+              if api_id:
+                  try:
+                      stage = apigw.get_stage(ApiId=api_id, StageName=stage_name)
+                  except ClientError as exc:
+                      errors.append(f"apigw_get_stage_failed:{type(exc).__name__}")
+
+              try:
+                  lambda_cfg = lam.get_function_configuration(FunctionName=lambda_name)
+              except ClientError as exc:
+                  errors.append(f"lambda_get_function_configuration_failed:{type(exc).__name__}")
+
+              try:
+                  nodegroup = eks.describe_nodegroup(
+                      clusterName=eks_cluster_name,
+                      nodegroupName=eks_nodegroup_name,
+                  ).get("nodegroup", {})
+              except ClientError as exc:
+                  errors.append(f"eks_describe_nodegroup_failed:{type(exc).__name__}")
+
               route = stage.get("DefaultRouteSettings", {}) if isinstance(stage, dict) else {}
-              lambda_cfg = lam.get_function_configuration(FunctionName=lambda_name)
-              nodegroup = eks.describe_nodegroup(
-                  clusterName=eks_cluster_name,
-                  nodegroupName=eks_nodegroup_name,
-              ).get("nodegroup", {})
               scaling = nodegroup.get("scalingConfig", {}) if isinstance(nodegroup, dict) else {}
-              return {
+              snapshot = {
                   "captured_at_utc": utc_now(),
                   "phase": "RC2.R2",
                   "execution_id": exec_id,
@@ -1693,28 +1718,38 @@ jobs:
                       "status": nodegroup.get("status"),
                   },
               }
-
-          api_id = resolve_api_id()
-          if not api_id:
-              print("RC2.R2 fail-closed: unable to resolve APIGW api id by name.")
-              sys.exit(1)
-
-          pre = capture_snapshot(api_id)
+              return snapshot, errors
 
           blockers = []
           apply_errors = []
+          permission_errors = []
 
-          try:
-              apigw.update_stage(
-                  ApiId=api_id,
-                  StageName=stage_name,
-                  DefaultRouteSettings={
-                      "ThrottlingRateLimit": expected_rate,
-                      "ThrottlingBurstLimit": expected_burst,
-                  },
-              )
-          except ClientError as exc:
-              apply_errors.append(f"apigw_update_stage_failed:{type(exc).__name__}")
+          api_id = pinned_api_id
+          if not api_id:
+              try:
+                  api_id = resolve_api_id()
+              except ClientError as exc:
+                  permission_errors.append(f"apigw_get_apis_failed:{type(exc).__name__}")
+          if not api_id:
+              permission_errors.append("apigw_api_id_unresolved")
+
+          pre, pre_capture_errors = capture_snapshot(api_id)
+          permission_errors.extend(pre_capture_errors)
+
+          if api_id:
+              try:
+                  apigw.update_stage(
+                      ApiId=api_id,
+                      StageName=stage_name,
+                      DefaultRouteSettings={
+                          "ThrottlingRateLimit": expected_rate,
+                          "ThrottlingBurstLimit": expected_burst,
+                      },
+                  )
+              except ClientError as exc:
+                  apply_errors.append(f"apigw_update_stage_failed:{type(exc).__name__}")
+          else:
+              apply_errors.append("apigw_update_stage_skipped_missing_api_id")
 
           update_id = ""
           try:
@@ -1751,10 +1786,13 @@ jobs:
               if update_status != "Successful":
                   apply_errors.append(f"eks_update_status_not_successful:{update_status}")
 
-          post = capture_snapshot(api_id)
+          post, post_capture_errors = capture_snapshot(api_id)
+          permission_errors.extend(post_capture_errors)
 
           if apply_errors:
               blockers.append({"code": "RC2R2-B0", "message": "; ".join(apply_errors)})
+          if permission_errors:
+              blockers.append({"code": "RC2R2-BIAM", "message": "; ".join(permission_errors)})
 
           rate_live = post["apigw"].get("throttling_rate_limit")
           burst_live = post["apigw"].get("throttling_burst_limit")
