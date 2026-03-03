@@ -7,9 +7,16 @@ This folder is reserved for `dev_full` planning and implementation notes.
 - `platform.build_plan.md` (dev_full master phase plan and status owner)
 - `platform.impl_actual.md` (dev_full implementation decision trail)
 - `platform.M*.build_plan.md` (deep plans per active phase)
+- `build/` (target home for build-authority docs; migration-safe routing first)
+- `stress_test/` (phase-driven stress-test authorities and evidence plans)
 - `docs/model_spec/platform/pre-design_decisions/dev-full_managed-substrate_migration.design-authority.v0.md` (dev_full migration authority)
 - `docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md` (dev_full phase/gate authority)
 - `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` (dev_full handle authority)
+
+## Stress-test pivot (2026-03-03)
+- Active hardening direction is now stress-testing-first under:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.stress_test.md`
+- Throughput-hardening standalone draft docs were retired in favor of this stress-test authority path.
 
 ## Current posture
 - Phase progression:
