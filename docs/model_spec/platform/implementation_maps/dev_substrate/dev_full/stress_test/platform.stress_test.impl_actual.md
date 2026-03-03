@@ -2943,3 +2943,84 @@ _As of 2026-03-03_
 ### Evidence paths
 1. Failed baseline: `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5_stress_s0_20260303T232538Z/stress/`
 2. Authoritative pass: `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5_stress_s0_20260303T232628Z/stress/`
+
+## Entry: 2026-03-03 23:31 +00:00 - M5.P3 `S0` planning/execution lane opened (pre-implementation)
+
+### Trigger
+1. User instructed: proceed with executing `M5P3-ST-S0`.
+
+### Decision-completeness and lane closure check
+1. Parent dependency is closed and valid:
+   - latest M5 parent state is `M5-ST-S0` pass,
+   - `next_gate=M5_ST_S1_READY`,
+   - `open_blockers=0`.
+2. M5.P3 authority exists and is active for execution:
+   - `platform.M5.P3.stress_test.md` present/readable.
+3. No dedicated M5.P3 stress runner exists yet; execution requires `scripts/dev_substrate/m5p3_stress_runner.py`.
+
+### Performance-first and cost-control design before coding
+1. Implement S0 as bounded read-only closure checks only:
+   - handle/plan-key closure,
+   - parent M5 S0 dependency validation,
+   - managed-sort path guard checks,
+   - minimal evidence-bucket reachability probe.
+2. Keep runtime seconds-level and avoid any managed job dispatch in S0.
+3. Emit full M5.P3 artifact contract in one pass.
+
+### Planned implementation
+1. Create `scripts/dev_substrate/m5p3_stress_runner.py` with `--stage S0`:
+   - parse P3 plan and registry,
+   - enforce parent M5 S0 dependency and split-authority readiness,
+   - enforce managed-sort/no-local-fallback handle posture,
+   - emit fail-closed blocker mapping + full artifact set.
+2. Validate and execute:
+   - `python -m py_compile scripts/dev_substrate/m5p3_stress_runner.py`,
+   - `python scripts/dev_substrate/m5p3_stress_runner.py --stage S0`.
+3. Route next step based on verdict.
+
+### Acceptance targets
+1. `overall_pass=true`.
+2. `next_gate=M5P3_ST_S1_READY`.
+3. `open_blockers=0`.
+
+## Entry: 2026-03-03 23:34 +00:00 - M5.P3 `S0` executed (pass, zero blockers)
+
+### Implementation executed
+1. Created `scripts/dev_substrate/m5p3_stress_runner.py` with `--stage S0`:
+   - M5.P3 plan-key and required-handle closure checks,
+   - parent M5 S0 dependency gate validation,
+   - managed-sort path law checks (`managed_distributed`, `EMR_SERVERLESS_SPARK`, local fallback disabled),
+   - bounded evidence-bucket probe,
+   - full M5.P3 artifact contract emission with fail-closed blocker mapping.
+2. Validation:
+   - `python -m py_compile scripts/dev_substrate/m5p3_stress_runner.py` (pass).
+3. Executed:
+   - `python scripts/dev_substrate/m5p3_stress_runner.py --stage S0`
+   - `phase_execution_id=m5p3_stress_s0_20260303T233332Z`.
+
+### Execution result
+1. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M5P3_ST_S1_READY`,
+   - `open_blockers=0`,
+   - `probe_count=1`,
+   - `error_rate_pct=0.0`.
+2. Dependency closure:
+   - parent dependency resolved to `m5_stress_s0_20260303T232628Z`,
+   - dependency blocker count remained zero.
+3. Artifact contract:
+   - complete/readable (`9/9` required artifacts present).
+
+### Governance and routing updates
+1. `platform.M5.P3.stress_test.md` updated:
+   - S0 execution receipt added,
+   - DoD S0 item marked complete,
+   - immediate next action advanced to `M5P3-ST-S1`.
+2. `platform.M5.stress_test.md` updated:
+   - parent immediate next action advanced to `M5P3-ST-S1`.
+3. `platform.stress_test.md` updated:
+   - next program step routed to `M5P3-ST-S1`,
+   - active M5 block now records latest M5.P3 S0 pass.
+
+### Evidence path
+1. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s0_20260303T233332Z/stress/`

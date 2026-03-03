@@ -219,7 +219,7 @@ For any phase:
    - `stress_test/platform.M5.stress_test.md` (`ACTIVE`),
    - `stress_test/platform.M5.P3.stress_test.md` (`PLANNED`),
    - `stress_test/platform.M5.P4.stress_test.md` (`PLANNED`).
-4. Next step: execute `M5P3-ST-S0` authority/entry-gate closure (`M5-ST-S0` passed with `next_gate=M5_ST_S1_READY`).
+4. Next step: execute `M5P3-ST-S1` oracle boundary/ownership checks (`M5P3-ST-S0` passed with `next_gate=M5P3_ST_S1_READY`).
 
 ## 13) Closed Phase - M0 (Inline)
 Status:
@@ -471,7 +471,8 @@ Authority routing:
    - `stress_test/platform.M5.P3.stress_test.md` (P3 ORACLE_READY),
    - `stress_test/platform.M5.P4.stress_test.md` (P4 INGEST_READY).
 3. Latest M5 parent execution state is `M5-ST-S0` pass (`next_gate=M5_ST_S1_READY`, `open_blockers=0`).
-4. M5 execution is fail-closed in this order:
+4. Latest M5.P3 execution state is `M5P3-ST-S0` pass (`next_gate=M5P3_ST_S1_READY`, `open_blockers=0`).
+5. M5 execution is fail-closed in this order:
    - parent `M5-ST-S0`,
    - `M5.P3`,
    - `M5.P4`,

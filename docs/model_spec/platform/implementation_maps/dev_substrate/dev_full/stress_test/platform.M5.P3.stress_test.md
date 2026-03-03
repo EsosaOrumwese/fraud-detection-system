@@ -230,10 +230,37 @@ Required artifacts for each M5.P3 stage:
 - [x] Dedicated M5.P3 stress authority created.
 - [x] P3 staged runbook (`S0..S5`) pinned with fail-closed transitions.
 - [x] P3 blocker taxonomy and evidence contract pinned.
-- [ ] M5.P3 S0 executed with blocker-free entry closure.
+- [x] M5.P3 S0 executed with blocker-free entry closure.
 - [ ] P3 verdict `ADVANCE_TO_P4` emitted from blocker-free rollup.
 
 ## 11) Immediate Next Actions
-1. Execute `M5P3-ST-S0` authority/entry-gate closure.
+1. Execute `M5P3-ST-S1` oracle source boundary and ownership checks.
 2. Preserve managed-sort-only posture and reject local-sort fallback.
-3. Do not enter `M5P3-ST-S1` until `S0` closes blocker-free.
+3. Do not enter `M5P3-ST-S2` until `S1` closes blocker-free.
+
+## 12) Execution Progress
+### `M5P3-ST-S0` authority/entry-gate closure execution (2026-03-03)
+1. Phase execution id: `m5p3_stress_s0_20260303T233332Z`.
+2. Runner:
+   - `python scripts/dev_substrate/m5p3_stress_runner.py --stage S0`
+3. Verification summary:
+   - parent dependency loaded from latest successful `M5-ST-S0` (`m5_stress_s0_20260303T232628Z`),
+   - required M5.P3 plan keys + handles passed placeholder guard,
+   - managed-sort path law checks passed (`managed_distributed`, `EMR_SERVERLESS_SPARK`, local fallback disabled),
+   - P3 and parent authority files were present/readable.
+4. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M5P3_ST_S1_READY`,
+   - `open_blockers=0`,
+   - `probe_count=1`,
+   - `error_rate_pct=0.0`.
+5. Artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s0_20260303T233332Z/stress/m5p3_stagea_findings.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s0_20260303T233332Z/stress/m5p3_lane_matrix.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s0_20260303T233332Z/stress/m5p3_probe_latency_throughput_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s0_20260303T233332Z/stress/m5p3_control_rail_conformance_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s0_20260303T233332Z/stress/m5p3_secret_safety_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s0_20260303T233332Z/stress/m5p3_cost_outcome_receipt.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s0_20260303T233332Z/stress/m5p3_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s0_20260303T233332Z/stress/m5p3_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s0_20260303T233332Z/stress/m5p3_decision_log.json`

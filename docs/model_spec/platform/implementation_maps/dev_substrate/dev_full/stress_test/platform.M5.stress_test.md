@@ -227,7 +227,7 @@ Required artifacts for each M5 parent stress stage:
 - [ ] M5 closure rollup emitted with deterministic `M6_READY` recommendation.
 
 ## 11) Immediate Next Actions
-1. Execute `M5P3-ST-S0` authority/entry-gate closure.
+1. Execute `M5P3-ST-S1` oracle boundary/ownership stress checks.
 2. Keep targeted-rerun posture: rerun only failed stage windows (`M5P3` or `M5P4`) when blockers open.
 3. Do not advance parent `M5-ST-S1` until `M5P3` emits blocker-free rollup verdict `ADVANCE_TO_P4`.
 
