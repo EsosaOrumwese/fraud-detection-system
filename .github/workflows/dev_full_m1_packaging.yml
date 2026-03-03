@@ -132,6 +132,8 @@ jobs:
           python - <<'PY'
           import os
           import shutil
+          import subprocess
+          import sys
           from pathlib import Path
 
           source_date_epoch = int(os.environ["SOURCE_DATE_EPOCH"])
@@ -180,6 +182,25 @@ jobs:
               else:
                   shutil.copy2(src, dst)
               copied.append(rel)
+
+          wheelhouse_dir = (stage_root / "requirements" / "wheelhouse").resolve()
+          wheelhouse_dir.mkdir(parents=True, exist_ok=True)
+          lock_path = (stage_root / "requirements" / "m1-image.lock.txt").resolve()
+          subprocess.check_call(
+              [
+                  sys.executable,
+                  "-m",
+                  "pip",
+                  "download",
+                  "--require-hashes",
+                  "--no-deps",
+                  "--only-binary=:all:",
+                  "--dest",
+                  str(wheelhouse_dir),
+                  "-r",
+                  str(lock_path),
+              ]
+          )
 
           def normalize_tree(path: Path) -> None:
               entries = [path]
@@ -292,6 +313,7 @@ jobs:
           IMAGE_DOCKERFILE_PATH: ${{ inputs.image_dockerfile_path }}
           IMAGE_BUILD_CONTEXT_PATH: ${{ inputs.image_build_context_path }}
           DETERMINISTIC_CONTEXT_STAGING: "true"
+          OFFLINE_WHEELHOUSE_INSTALL: "true"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_RUN_ID: ${{ github.run_id }}
@@ -323,6 +345,7 @@ jobs:
           dockerfile_path = os.environ["IMAGE_DOCKERFILE_PATH"]
           build_context_path = os.environ["IMAGE_BUILD_CONTEXT_PATH"]
           deterministic_context_staging = os.environ["DETERMINISTIC_CONTEXT_STAGING"].strip().lower() == "true"
+          offline_wheelhouse_install = os.environ["OFFLINE_WHEELHOUSE_INSTALL"].strip().lower() == "true"
           written_at_utc = os.environ["WRITTEN_AT_UTC"]
           run_url = (
               f"{os.environ['GITHUB_SERVER_URL']}/"
@@ -350,6 +373,7 @@ jobs:
               "oci_config_digest": image_config_digest,
               "oci_layer_digests": image_layer_digests,
               "deterministic_context_staging": deterministic_context_staging,
+              "offline_wheelhouse_install": offline_wheelhouse_install,
           }
 
           digest_manifest = {

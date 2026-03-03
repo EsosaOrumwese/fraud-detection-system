@@ -36,6 +36,8 @@ parts/
 sdist/
 var/
 wheels/
+requirements/wheelhouse/*
+!requirements/wheelhouse/.gitkeep
 *.egg-info/
 .installed.cfg
 *.egg

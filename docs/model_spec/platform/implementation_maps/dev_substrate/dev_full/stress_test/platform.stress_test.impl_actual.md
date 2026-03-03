@@ -739,3 +739,70 @@ _As of 2026-03-03_
 ### Scope correction
 1. User corrected follow-up to rerun `M1` (not `M2`).
 2. No M2 rerun was executed in this lane.
+
+## Entry: 2026-03-03 15:09 +00:00 - Wheelhouse deterministic lane plan (offline install surface)
+
+### Trigger
+1. User approved proceeding with the recommended next step: offline wheelhouse lane and immediate M1 rerun.
+2. Current fail-closed blocker persists after architecture-level lane:
+   - `digest_drift=true`,
+   - `config_drift=true`,
+   - `layer_drift=true`.
+
+### Problem framing
+1. Drift persists in application-generated layers despite:
+   - base digest pin,
+   - hash-locked requirement set,
+   - deterministic buildx posture,
+   - staged context mtime normalization.
+2. Remaining likely entropy surface is package retrieval/install path during image build.
+
+### Selected lane
+1. Add wheelhouse pre-materialization in workflow deterministic context stage:
+   - run `pip download --require-hashes -r requirements/m1-image.lock.txt -d requirements/wheelhouse`,
+   - normalize wheelhouse file mtimes to `SOURCE_DATE_EPOCH`.
+2. Switch Dockerfile install path to offline install:
+   - copy `requirements/wheelhouse`,
+   - install with `--no-index --find-links=/app/requirements/wheelhouse --require-hashes`.
+3. Harden preflight lint to enforce wheelhouse copy/install contract.
+4. Extend `.dockerignore` allowlist tokens for wheelhouse path.
+
+### Acceptance gates
+1. Local preflight: PASS (zero blockers).
+2. Managed rerun:
+   - all runs success,
+   - concurrency target met,
+   - `digest_drift=false`, `config_drift=false`, `layer_drift=false`.
+3. If drift persists, keep fail-closed and escalate to artifact-freeze lane (prebuilt venv/wheel bundle digest pinning).
+
+## Entry: 2026-03-03 15:16 +00:00 - Wheelhouse deterministic lane implemented (pre-rerun validation)
+
+### Implemented controls
+1. Workflow wheelhouse materialization:
+   - deterministic context stage now runs `pip download --require-hashes --no-deps --only-binary=:all:` into staged `requirements/wheelhouse`,
+   - wheelhouse files are normalized with `SOURCE_DATE_EPOCH` alongside rest of staged context.
+2. Dockerfile offline install contract:
+   - added `COPY requirements/wheelhouse /app/requirements/wheelhouse`,
+   - dependency install now uses offline wheelhouse:
+     - `pip install --no-index --find-links=/app/requirements/wheelhouse --require-hashes -r /app/requirements/m1-image.lock.txt`.
+3. Preflight deterministic contract updates:
+   - requires wheelhouse copy path in Dockerfile,
+   - requires offline install pattern with `--no-index --find-links`,
+   - requires default-deny `.dockerignore` reopen tokens for `requirements/wheelhouse`.
+4. Repository hygiene:
+   - added `requirements/wheelhouse/.gitkeep`,
+   - `.gitignore` updated so wheelhouse binaries are not tracked.
+
+### Local validation
+1. Workflow YAML parse: PASS.
+2. M1 preflight rerun:
+   - execution id `m1_stress_preflight_20260303T151622Z`,
+   - verdict `READY_FOR_M1_STRESS_WINDOW`,
+   - blocker count `0`.
+3. Local docker wheelhouse smoke was not executed as authoritative validation:
+   - host is Windows and lock includes Linux-target package set for managed runner,
+   - managed GitHub Linux runner rerun is authoritative for this lane.
+
+### Next action
+1. Commit/push wheelhouse deterministic lane.
+2. Execute immediate managed M1 rerun and adjudicate `M1-ST-B8`.

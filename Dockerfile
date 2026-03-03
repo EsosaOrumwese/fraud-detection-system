@@ -16,6 +16,7 @@ WORKDIR /app
 # Pinned M1.A include surfaces only.
 COPY pyproject.toml /app/pyproject.toml
 COPY requirements/m1-image.lock.txt /app/requirements/m1-image.lock.txt
+COPY requirements/wheelhouse /app/requirements/wheelhouse
 COPY src/fraud_detection /app/src/fraud_detection
 COPY config/platform /app/config/platform
 COPY docs/model_spec/platform/contracts /app/docs/model_spec/platform/contracts
@@ -31,7 +32,7 @@ COPY docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml /app
 COPY docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml /app/docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml
 
 RUN python -m pip install --no-cache-dir "pip==25.0.1" && \
-    python -m pip install --require-hashes -r /app/requirements/m1-image.lock.txt
+    python -m pip install --no-index --find-links=/app/requirements/wheelhouse --require-hashes -r /app/requirements/m1-image.lock.txt
 
 RUN adduser --disabled-password --gecos "" --home /home/appuser appuser && \
     chown -R appuser:appuser /app

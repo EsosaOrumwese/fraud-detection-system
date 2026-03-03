@@ -152,6 +152,7 @@ def _docker_context_lint() -> tuple[dict[str, Any], list[dict[str, str]]]:
     required_copy_paths = [
         "pyproject.toml",
         "requirements/m1-image.lock.txt",
+        "requirements/wheelhouse",
         "src/fraud_detection",
         "config/platform",
         "docs/model_spec/platform/contracts",
@@ -167,7 +168,7 @@ def _docker_context_lint() -> tuple[dict[str, Any], list[dict[str, str]]]:
 
     required_install_patterns = [
         "pip==25.0.1",
-        "pip install --require-hashes -r /app/requirements/m1-image.lock.txt",
+        "pip install --no-index --find-links=/app/requirements/wheelhouse --require-hashes -r /app/requirements/m1-image.lock.txt",
     ]
     missing_install_patterns = [p for p in required_install_patterns if p not in docker_text]
     report["required_install_patterns_missing"] = missing_install_patterns
@@ -200,7 +201,12 @@ def _docker_context_lint() -> tuple[dict[str, Any], list[dict[str, str]]]:
                 "message": f"Required .dockerignore patterns missing: {missing_ignore}",
             }
         )
-    required_allowlist_reopens = ["!requirements", "!requirements/m1-image.lock.txt"]
+    required_allowlist_reopens = [
+        "!requirements",
+        "!requirements/m1-image.lock.txt",
+        "!requirements/wheelhouse",
+        "!requirements/wheelhouse/**",
+    ]
     missing_allowlist_reopens = (
         [token for token in required_allowlist_reopens if token not in ignore_tokens]
         if default_deny_detected
