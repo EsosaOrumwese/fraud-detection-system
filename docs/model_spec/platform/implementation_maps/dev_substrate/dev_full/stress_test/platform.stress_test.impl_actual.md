@@ -598,3 +598,35 @@ _As of 2026-03-03_
 ### Next gate
 1. Commit/push deterministic closure controls to `cert-platform`.
 2. Execute dev_full-only 3-run managed M1 stress window and adjudicate `M1-ST-B8` fail-closed.
+
+## Entry: 2026-03-03 14:42 +00:00 - M1-ST-B8 managed rerun after deterministic lockfile hardening
+
+### Execution
+1. Deterministic closure controls were committed and pushed on `cert-platform`:
+   - commit `7d4112bebf7bd2321df4901f01cd42de14834148`.
+2. Dispatched dev_full-only managed stress window:
+   - phase execution id: `m1_stress_window_20260303T144031Z`,
+   - run ids: `22628013765`, `22628020745`, `22628025246`.
+3. All runs completed `success`.
+4. Observed max concurrency: `3` (target `2`, pass).
+5. Run-scoped immutable tag checks passed:
+   - no tag collision,
+   - no git-sha drift.
+
+### Blocker adjudication
+1. `M1-ST-B8` remains OPEN:
+   - `digest_drift=true` across all three repetitions despite lockfile + base digest controls.
+2. Verdict remains fail-closed:
+   - `HOLD_REMEDIATE`.
+
+### Evidence
+1. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T144031Z/stress/m1_dispatch_receipt.json`
+2. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T144031Z/stress/m1_stress_window_results.json`
+3. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T144031Z/stress/m1_blocker_register.json`
+4. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T144031Z/stress/m1_execution_summary.json`
+5. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T144031Z/stress/m1_decision_log.json`
+
+### Fail-closed escalation posture
+1. Stop further M1 remediation changes until explicit user direction on next deterministic architecture-level lane.
+2. Candidate next lane to propose:
+   - move to single-arch Buildx with deterministic output settings (`--provenance=false --sbom=false`) and immutable digest-by-digest comparison against OCI config hash surfaces.

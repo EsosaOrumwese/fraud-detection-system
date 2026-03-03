@@ -212,7 +212,7 @@ For any phase:
 1. Program bootstrapped.
 2. Active phase: `M1` (`BLOCKED`, inline in this file).
 3. Per-phase stress files not yet created.
-4. Next step: apply closure-grade deterministic packaging hardening (base-image digest + dependency lock/hash controls), then rerun M1 managed window to clear `M1-ST-B8`.
+4. Next step: `M1-ST-B8` remains fail-closed after closure-grade hardening; escalate to architecture-level deterministic packaging lane before any M2 advancement.
 
 ## 13) Closed Phase - M0 (Inline)
 Status:
@@ -339,9 +339,9 @@ M1 DoD (stress):
 - [x] M1 stress closure verdict published (`BLOCKED`) with rerun policy.
 
 M1 immediate actions:
-1. Escalate deterministic hardening to closure-grade controls (base-image digest pin + dependency lock/hash posture) for packaging reproducibility.
-2. Rerun M1 managed stress window after deterministic hardening and require zero digest drift across repetitions.
-3. If digest drift persists after closure-grade hardening, open architecture-level packaging repin decision before M2.
+1. Keep fail-closed hold on phase advancement (`M2` blocked while `M1-ST-B8` is open).
+2. Open architecture-level packaging repin decision for deterministic build/export settings in managed lane.
+3. Execute rerun only after explicit approval of next deterministic lane and require `digest_drift=false`.
 
 M1 Stage-B execution progress:
 1. Local preflight run `m1_stress_preflight_20260303T060333Z` returned `HOLD_REMEDIATE`:
@@ -379,3 +379,15 @@ M1 Stage-B execution progress:
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T141816Z/stress/m1_blocker_register.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T141816Z/stress/m1_execution_summary.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T141816Z/stress/m1_decision_log.json`
+10. Deterministic lockfile hardening rerun `m1_stress_window_20260303T144031Z`:
+   - branch head `7d4112bebf7bd2321df4901f01cd42de14834148` (includes digest-pinned base + hash-locked dependency install),
+   - dev_full-only run set `22628013765`, `22628020745`, `22628025246` all `success`,
+   - observed max concurrency `3` (target `2` met),
+   - run-scoped immutable tag checks passed (no tag collision, no git-sha drift),
+   - fail-closed blocker persists: `digest_drift=true` (`M1-ST-B8` remains open).
+11. Deterministic lockfile hardening rerun artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T144031Z/stress/m1_dispatch_receipt.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T144031Z/stress/m1_stress_window_results.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T144031Z/stress/m1_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T144031Z/stress/m1_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T144031Z/stress/m1_decision_log.json`
