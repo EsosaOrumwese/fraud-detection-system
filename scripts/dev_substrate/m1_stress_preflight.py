@@ -45,7 +45,9 @@ def _is_placeholder(value: Any) -> bool:
 
 
 def _parse_handles(path: Path) -> dict[str, Any]:
-    rx = re.compile(r"^\* `([^`]+)\s*=\s*(.+)`$")
+    # Accept optional trailing prose after the closing backtick so annotated
+    # handle lines remain machine-parseable.
+    rx = re.compile(r"^\* `([^`]+)\s*=\s*([^`]+)`(?:\s.*)?$")
     out: dict[str, Any] = {}
     for raw in path.read_text(encoding="utf-8").splitlines():
         line = raw.strip()
@@ -133,6 +135,7 @@ def _docker_context_lint() -> tuple[dict[str, Any], list[dict[str, str]]]:
 
     required_copy_paths = [
         "pyproject.toml",
+        "requirements/m1-image.lock.txt",
         "src/fraud_detection",
         "config/platform",
         "docs/model_spec/platform/contracts",
@@ -165,6 +168,23 @@ def _docker_context_lint() -> tuple[dict[str, Any], list[dict[str, str]]]:
             {
                 "code": "M1-ST-B3",
                 "message": f"Required .dockerignore patterns missing: {missing_ignore}",
+            }
+        )
+    required_allowlist_reopens = ["!requirements", "!requirements/m1-image.lock.txt"]
+    missing_allowlist_reopens = (
+        [token for token in required_allowlist_reopens if token not in ignore_tokens]
+        if default_deny_detected
+        else []
+    )
+    report["dockerignore_required_allowlist_missing"] = missing_allowlist_reopens
+    if missing_allowlist_reopens:
+        blockers.append(
+            {
+                "code": "M1-ST-B3",
+                "message": (
+                    "Default-deny .dockerignore missing required allowlist reopen tokens: "
+                    f"{missing_allowlist_reopens}"
+                ),
             }
         )
 

@@ -3,6 +3,8 @@
 
 !Dockerfile
 !pyproject.toml
+!requirements
+!requirements/m1-image.lock.txt
 
 !src
 !src/fraud_detection

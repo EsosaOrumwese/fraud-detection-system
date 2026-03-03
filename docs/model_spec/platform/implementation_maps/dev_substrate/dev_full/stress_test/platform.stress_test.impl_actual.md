@@ -521,3 +521,80 @@ _As of 2026-03-03_
    - pin base image by digest,
    - pin dependency graph via lock/hash-verified install,
    - rerun M1 window and require `digest_drift=false`.
+
+## Entry: 2026-03-03 14:30 +00:00 - M1-ST-B8 closure-grade deterministic packaging plan (pre-implementation)
+
+### Trigger
+1. User approved immediate continuation of deterministic remediation and rerun.
+2. Current blocker is still fail-closed: `M1-ST-B8` (`digest_drift=true`) after tag-race remediation.
+
+### Drift and law checks
+1. Design-intent drift check: deterministic provenance hardening is aligned with active M1 stress gate and does not alter component ownership boundaries.
+2. Performance-first and cost-control check: this lane is a preflight/build determinism improvement, reducing wasted managed reruns by enforcing deterministic inputs before dispatch.
+3. Scope check: `dev_full` only; no `dev_min` stress dispatches.
+
+### Alternatives considered
+1. Retry managed window without additional hardening:
+   - rejected; this repeats known drift and burns spend.
+2. Introduce remote build cache controls only:
+   - rejected for now; cache tuning does not guarantee dependency graph reproducibility.
+3. Pin deterministic base + lock/hash-verified dependency install:
+   - selected; strongest immediate control with local contract lint enforceability.
+
+### Selected implementation
+1. Update Docker context allowlist to admit `requirements/m1-image.lock.txt` under default-deny `.dockerignore`.
+2. Strengthen `m1_stress_preflight.py` docker context lint:
+   - require Dockerfile to copy lockfile path,
+   - require `.dockerignore` allowlist to reopen lockfile path when default-deny mode is active.
+3. Keep Dockerfile deterministic posture already staged:
+   - digest-pinned `FROM`,
+   - `SOURCE_DATE_EPOCH`,
+   - hash-verified install via `pip --require-hashes -r requirements/m1-image.lock.txt`.
+4. Run local preflight and docker build smoke to prove contract integrity before commit.
+5. Commit/push deterministic packaging files to active branch so managed workflow uses hardened state.
+6. Execute dev_full-only 3-run managed stress window and re-evaluate `M1-ST-B8`.
+
+### Files in scope
+1. `.dockerignore`
+2. `scripts/dev_substrate/m1_stress_preflight.py`
+3. `Dockerfile`
+4. `requirements/m1-image.in`
+5. `requirements/m1-image.lock.txt`
+6. Stress evidence outputs under `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/<execution_id>/stress/`
+
+### Acceptance gates
+1. Local preflight: PASS with zero blockers.
+2. Managed rerun:
+   - three `dev-full-m1-packaging` runs succeed,
+   - max concurrency meets target (`>=2`),
+   - `digest_drift=false`.
+3. If `digest_drift=true` persists, hold fail-closed and escalate next deterministic surfaces.
+
+## Entry: 2026-03-03 14:37 +00:00 - Deterministic closure lane implementation + local validation
+
+### Implemented controls
+1. Docker context/default-deny allowlist updated:
+   - `.dockerignore` now explicitly reopens `requirements/` and `requirements/m1-image.lock.txt`.
+2. Preflight docker lint strengthened:
+   - `m1_stress_preflight.py` now requires Dockerfile copy coverage for `requirements/m1-image.lock.txt`,
+   - enforces required default-deny allowlist reopen tokens for lockfile path.
+3. Handles parser hardened for annotated registry lines:
+   - `_parse_handles` now accepts trailing prose after closing backtick, preserving machine parse for documented handle notes.
+4. Deterministic Docker build posture retained:
+   - digest-pinned base image,
+   - hash-verified dependency install from lockfile.
+
+### Local evidence
+1. Preflight rerun:
+   - execution id `m1_stress_preflight_20260303T143350Z`,
+   - verdict `READY_FOR_M1_STRESS_WINDOW`,
+   - blocker count `0`.
+2. Docker build smoke:
+   - no-cache build completed successfully with lockfile contract and digest-pinned base.
+3. Additional repeated local build comparison showed local image-id drift and one BuildKit extraction error during re-export.
+   - interpreted as local builder/exporter nondeterminism surface (not contract failure in managed lane),
+   - does not invalidate moving to managed rerun gate; managed evidence remains authoritative.
+
+### Next gate
+1. Commit/push deterministic closure controls to `cert-platform`.
+2. Execute dev_full-only 3-run managed M1 stress window and adjudicate `M1-ST-B8` fail-closed.
