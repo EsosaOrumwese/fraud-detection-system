@@ -2772,3 +2772,82 @@ _As of 2026-03-03_
 5. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s5_20260303T200552Z/stress/m4_blocker_register.json`
 6. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s5_20260303T200552Z/stress/m4_execution_summary.json`
 7. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s5_20260303T200552Z/stress/m4_decision_log.json`
+
+## Entry: 2026-03-03 23:15 +00:00 - M5 planning split activation opened (`M5` + `M5.P3` + `M5.P4`) (pre-implementation)
+
+### Trigger
+1. User instructed: proceed with M5 planning and explicitly split planning into dedicated `M5.P3` and `M5.P4` stress documents.
+
+### Decision-completeness and lane closure check
+1. M4 handoff dependency is closed and valid:
+   - latest M4 state is `M4-ST-S5` pass,
+   - `recommendation=GO`,
+   - `next_gate=M5_READY`,
+   - `open_blockers=0`.
+2. Required M5 planning authorities are present:
+   - `platform.M5.build_plan.md`,
+   - `platform.M5.P3.build_plan.md`,
+   - `platform.M5.P4.build_plan.md`.
+3. Planning split decision is explicit:
+   - parent `platform.M5.stress_test.md` will hold orchestration/phase-level gates,
+   - `platform.M5.P3.stress_test.md` will hold oracle-ready stress runbook,
+   - `platform.M5.P4.stress_test.md` will hold ingest-ready stress runbook.
+
+### Performance-first and cost-control design before editing
+1. This step is planning-only and read/write-doc only; no runtime execution or managed workload dispatch.
+2. Runtime/cost posture remains near-zero by avoiding test execution until S0 planning closure is explicitly approved.
+3. All docs will pin fail-closed gates and capability-lane coverage first to avoid wasteful runs.
+
+### Planned implementation
+1. Create `stress_test/platform.M5.stress_test.md`:
+   - M5 parent scope, entry gate, handle packet, lane matrix, blocker taxonomy, and orchestration stages.
+2. Create `stress_test/platform.M5.P3.stress_test.md`:
+   - P3 stage-a findings, oracle boundary/upload/sort/output/contract runbook, and blocker taxonomy.
+3. Create `stress_test/platform.M5.P4.stress_test.md`:
+   - P4 stage-a findings, boundary/auth/topic/envelope runbook, and blocker taxonomy.
+4. Update `stress_test/platform.stress_test.md`:
+   - mark M5 status active for planning,
+   - route next step to `M5-ST-S0`,
+   - add M5 as active dedicated phase while keeping M4 closed.
+5. Append post-update receipts to impl map and logbook.
+
+### Acceptance targets
+1. Parent + split subphase docs exist and are internally consistent with M5 build authorities.
+2. Main stress control file routes to M5 planning (`S0`) with explicit dedicated-file references.
+3. No execution-stage claims are made before runtime evidence exists.
+
+## Entry: 2026-03-03 23:26 +00:00 - M5 planning split materialized (parent + P3 + P4 stress authorities)
+
+### Implementation executed
+1. Created parent M5 stress authority:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M5.stress_test.md`
+   - includes:
+     - M5 orchestration purpose and scope,
+     - stage-a findings,
+     - parent handle packet,
+     - parent lane matrix (`S0..S3`),
+     - blocker taxonomy and evidence contract,
+     - immediate next action pinned to `M5-ST-S0`.
+2. Created split subphase stress authorities:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M5.P3.stress_test.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M5.P4.stress_test.md`
+   - both include execution-grade staged runbooks (`S0..S5`), blocker taxonomies, evidence contracts, and deterministic verdict gates.
+3. Updated program control routing in `platform.stress_test.md`:
+   - M5 overview table state moved to `ACTIVE`,
+   - program status switched to M5 active planning,
+   - dedicated file list now includes parent M5 + split P3/P4 docs,
+   - added `## 17) Active Phase - M5 (Dedicated)` routing block,
+   - next step pinned to parent `M5-ST-S0`.
+
+### Design and governance outcome
+1. Phase-coverage law is satisfied for M5 planning via split-lane explicitness.
+2. Decision-completeness is preserved:
+   - M4 handoff dependency remains explicit and closed,
+   - P3/P4 verdict dependencies are pinned before execution.
+3. No runtime execution was performed in this step (planning-only update).
+
+### Evidence and routing pointers
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M5.stress_test.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M5.P3.stress_test.md`
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M5.P4.stress_test.md`
+4. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.stress_test.md`
