@@ -45,7 +45,7 @@ This is the program-level overview of what each `M*` phase stress effort is expe
 | --- | --- | --- | --- | --- |
 | M0 | Mobilization + authority lock | Validate test authority, handles, and stress evidence surfaces before any load | All prerequisite stress handles and evidence sinks are green | DONE |
 | M1 | Packaging readiness | Stress packaging/provenance paths and pin a production-safe acceptance boundary for immutable artifact promotion | Artifact-freeze + immutable digest promotion contract accepted; managed toolchain-path fresh-rebuild nondeterminism recorded as known boundary | DONE |
-| M2 | Substrate readiness | Stress core substrate primitives (network/store/bus/runtime) for baseline capacity and failure behavior | Substrate can sustain target baseline load without integrity drift | ACTIVE |
+| M2 | Substrate readiness | Stress core substrate primitives (network/store/bus/runtime) for baseline capacity and failure behavior | Substrate can sustain target baseline load without integrity drift | DONE |
 | M3 | Run pinning + orchestrator readiness | Stress run-control/orchestrator behavior under concurrent run activation and retries | Run pinning remains deterministic; no cross-run mixing | NOT_STARTED |
 | M4 | Spine runtime-lane readiness | Stress each spine lane bootstrap path for startup-time, readiness, and dependency bottlenecks | Lane startup and steady-state readiness meet target budgets | NOT_STARTED |
 | M5 | Oracle readiness + ingest preflight (`P3-P4`) | Stress oracle-to-ingress preflight flow for input correctness and ingest warm-path limits | Preflight pass is stable; no upstream-induced ingress stalls | NOT_STARTED |
@@ -210,9 +210,9 @@ For any phase:
 
 ## 12) Program Status
 1. Program bootstrapped.
-2. Current phase state: `M2` (`ACTIVE`, dedicated phase file).
+2. Current phase state: `M2` (`DONE`, dedicated phase file).
 3. Dedicated phase file created: `stress_test/platform.M2.stress_test.md`.
-4. Next step: execute `M2-ST-S5` closure rollup (`S3` rerun passed with `next_gate=M2_ST_S5_READY`).
+4. Next step: start `M3` planning/execution using `S5` rollup recommendation (`M3_READY`, `GO`).
 
 ## 13) Closed Phase - M0 (Inline)
 Status:

@@ -1461,3 +1461,82 @@ _As of 2026-03-03_
    - immediate next actions moved to `S5` closure rollup.
 2. `platform.stress_test.md`:
    - program next step updated to `M2-ST-S5`.
+
+## Entry: 2026-03-03 17:36 +00:00 - M2 `S5` execution plan (pre-implementation)
+
+### Trigger
+1. User instructed proceeding with `S5` execution.
+
+### S5 objective and constraints
+1. Emit M2 closure rollup artifacts:
+   - `m2_execution_summary.json`,
+   - `m2_blocker_register.json`,
+   - `m2_decision_log.json`,
+   - `m2_cost_outcome_receipt.json`.
+2. Produce explicit M3 readiness recommendation (`GO`/`NO_GO`) with rationale.
+3. Enforce S5 pass gates:
+   - no open non-waived blockers,
+   - required artifacts readable,
+   - runtime/spend envelopes within pinned bounds.
+
+### Planned implementation
+1. Extend `scripts/dev_substrate/m2_stress_runner.py` with `run_s5(...)` and CLI stage `S5`.
+2. Load latest successful `S0`, `S1`, `S2`, `S3` runs as closure inputs.
+3. Verify required artifacts exist per required stage and detect missing/invalid packs fail-closed.
+4. Aggregate runtime and spend evidence against pinned envelopes.
+5. Emit closure rollup and M3 readiness recommendation with deterministic rationale.
+6. Execute `S5` immediately and report blocker state.
+
+### Acceptance targets
+1. `overall_pass=true`.
+2. `open_blockers=0`.
+3. `next_gate=M3_READY`.
+
+## Entry: 2026-03-03 17:38 +00:00 - M2 `S5` closure rollup executed (pass)
+
+### Implemented changes
+1. Extended `scripts/dev_substrate/m2_stress_runner.py` with `run_s5(...)` and CLI stage support (`--stage S5`).
+2. Added deterministic closure aggregation:
+   - loads latest successful `S0/S1/S2/S3` runs,
+   - validates required artifact readability per stage,
+   - aggregates runtime + spend envelope checks,
+   - emits explicit M3 readiness recommendation (`GO`/`NO_GO`).
+3. Added S5 rollup artifact emission for full evidence continuity:
+   - probe/control/secret snapshots (aggregated),
+   - cost receipt, blocker register, execution summary, decision log.
+
+### Executed command
+1. `python scripts/dev_substrate/m2_stress_runner.py --stage S5`
+2. Phase execution id:
+   - `m2_stress_s5_20260303T173815Z`.
+
+### Execution outcome
+1. Verdict:
+   - `overall_pass=true`,
+   - `open_blockers=0`,
+   - `next_gate=M3_READY`,
+   - `m3_readiness_recommendation=GO`.
+2. Envelope checks:
+   - runtime observed `1803s` vs budget `10800s`,
+   - spend observed `0.0` vs budget `35.0`,
+   - unattributed spend: `false`.
+3. Stage closure checks:
+   - latest successful runs loaded for `S0/S1/S2/S3`,
+   - latest successful `S1/S2/S3` blocker counts all `0`.
+
+### Evidence paths
+1. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s5_20260303T173815Z/stress/m2_probe_latency_throughput_snapshot.json`
+2. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s5_20260303T173815Z/stress/m2_control_rail_conformance_snapshot.json`
+3. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s5_20260303T173815Z/stress/m2_secret_safety_snapshot.json`
+4. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s5_20260303T173815Z/stress/m2_cost_outcome_receipt.json`
+5. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s5_20260303T173815Z/stress/m2_blocker_register.json`
+6. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s5_20260303T173815Z/stress/m2_execution_summary.json`
+7. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s5_20260303T173815Z/stress/m2_decision_log.json`
+
+### Authority updates applied
+1. `platform.M2.stress_test.md`:
+   - added S5 execution block and closure outcome,
+   - immediate next actions moved to M3.
+2. `platform.stress_test.md`:
+   - M2 overview status set to `DONE`,
+   - program status advanced to M3-start posture.

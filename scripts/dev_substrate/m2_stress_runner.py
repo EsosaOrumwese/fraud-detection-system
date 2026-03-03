@@ -60,6 +60,10 @@ def dumpj(p: Path, o: dict[str, Any]) -> None:
     p.write_text(json.dumps(o, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def load_json(p: Path) -> dict[str, Any]:
+    return json.loads(p.read_text(encoding="utf-8"))
+
+
 def parse_scalar(v: str) -> Any:
     v = v.strip()
     if v.lower() in {"true", "false"}:
@@ -293,6 +297,10 @@ def get_caller_identity() -> tuple[str, str, str]:
     if m:
         role_arn = f"arn:aws:iam::{m.group(1)}:role/{m.group(2)}"
     return role_arn, acct, ""
+
+
+def stage_dir_of(run_ref: dict[str, Any]) -> Path:
+    return Path(str(run_ref.get("path", ".")))
 
 
 def run_s1(phase_id: str, out_root: Path, win_override: int | None, interval: int, conc: int) -> int:
@@ -1084,16 +1092,254 @@ def run_s3(phase_id: str, out_root: Path, win_override: int | None, interval: in
     return 0 if summ["overall_pass"] else 2
 
 
+def run_s5(phase_id: str, out_root: Path) -> int:
+    plan_txt = PLAN.read_text(encoding="utf-8")
+    pkt = parse_backtick_map(plan_txt)
+    out = out_root / phase_id / "stress"
+    out.mkdir(parents=True, exist_ok=True)
+    blockers: list[dict[str, Any]] = []
+    errs = copy_s0(out_root, out)
+    if errs:
+        blockers.append({"id": "M2-ST-B9", "severity": "S5", "status": "OPEN", "details": {"copy_errors": errs}})
+
+    refs = {
+        "S0": load_latest_successful_stage(out_root, "m2_stress_s0_"),
+        "S1": load_latest_successful_s1(out_root),
+        "S2": load_latest_successful_s2(out_root),
+        "S3": load_latest_successful_stage(out_root, "m2_stress_s3_"),
+    }
+    missing_stages = [k for k, v in refs.items() if not v]
+    if missing_stages:
+        blockers.append({"id": "M2-ST-B9", "severity": "S5", "status": "OPEN", "details": {"missing_successful_stage_runs": missing_stages}})
+
+    req_by_stage = {
+        "S0": ["m2_stagea_findings.json", "m2_lane_matrix.json", "m2_blocker_register.json", "m2_execution_summary.json", "m2_decision_log.json"],
+        "S1": S1_ARTS,
+        "S2": S1_ARTS,
+        "S3": S1_ARTS,
+    }
+    missing_artifacts: dict[str, list[str]] = {}
+    stage_pack: dict[str, dict[str, Any]] = {}
+    for stage, ref in refs.items():
+        if not ref:
+            continue
+        d = stage_dir_of(ref)
+        stage_pack[stage] = {"path": d.as_posix()}
+        miss: list[str] = []
+        for n in req_by_stage[stage]:
+            p = d / n
+            if not p.exists():
+                miss.append(n)
+                continue
+            try:
+                stage_pack[stage][n] = load_json(p)
+            except Exception as e:  # noqa: BLE001
+                miss.append(f"{n}(unreadable:{e})")
+        if miss:
+            missing_artifacts[stage] = miss
+    if missing_artifacts:
+        blockers.append({"id": "M2-ST-B9", "severity": "S5", "status": "OPEN", "details": {"missing_or_unreadable_artifacts": missing_artifacts}})
+
+    open_blockers_by_stage: dict[str, int] = {}
+    for stage in ("S1", "S2", "S3"):
+        bp = stage_pack.get(stage, {}).get("m2_blocker_register.json", {})
+        if isinstance(bp, dict):
+            n = int(bp.get("open_blocker_count", 0))
+            open_blockers_by_stage[stage] = n
+            if n > 0:
+                blockers.append({"id": "M2-ST-B7", "severity": "S5", "status": "OPEN", "details": {"stage": stage, "open_blocker_count": n}})
+
+    runtime_sec = 0
+    for stage in ("S1", "S2", "S3"):
+        sp = stage_pack.get(stage, {}).get("m2_execution_summary.json", {})
+        if isinstance(sp, dict):
+            runtime_sec += int(sp.get("window_seconds_observed", 0))
+    max_runtime_min = float(pkt.get("M2_STRESS_MAX_RUNTIME_MINUTES", 180))
+    runtime_within = runtime_sec <= int(max_runtime_min * 60)
+    if not runtime_within:
+        blockers.append(
+            {
+                "id": "M2-ST-B7",
+                "severity": "S5",
+                "status": "OPEN",
+                "details": {"runtime_seconds_observed": runtime_sec, "runtime_budget_seconds": int(max_runtime_min * 60)},
+            }
+        )
+
+    spend = 0.0
+    unattributed = False
+    for stage in ("S1", "S2", "S3"):
+        cp = stage_pack.get(stage, {}).get("m2_cost_outcome_receipt.json", {})
+        if isinstance(cp, dict):
+            spend += float(cp.get("attributed_spend_usd", 0.0))
+            unattributed = unattributed or bool(cp.get("unattributed_spend_detected", False))
+    max_sp = float(pkt.get("M2_STRESS_MAX_SPEND_USD", 35))
+    spend_within = spend <= max_sp and not unattributed
+    if not spend_within:
+        blockers.append(
+            {
+                "id": "M2-ST-B8",
+                "severity": "S5",
+                "status": "OPEN",
+                "details": {"attributed_spend_usd": round(spend, 4), "max_spend_usd": max_sp, "unattributed_spend_detected": unattributed},
+            }
+        )
+
+    # Aggregate snapshots for closure evidence continuity.
+    p95_s1 = float(stage_pack.get("S1", {}).get("m2_probe_latency_throughput_snapshot.json", {}).get("latency_ms_p95", 0.0))
+    p95_s2 = float(stage_pack.get("S2", {}).get("m2_probe_latency_throughput_snapshot.json", {}).get("latency_ms_p95", 0.0))
+    p95_s3 = float(stage_pack.get("S3", {}).get("m2_probe_latency_throughput_snapshot.json", {}).get("latency_ms_p95", 0.0))
+    probe_rollup = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M2-ST-S5",
+        "overall_pass": len(blockers) == 0,
+        "stages": {
+            "S1": stage_pack.get("S1", {}).get("m2_probe_latency_throughput_snapshot.json", {}),
+            "S2": stage_pack.get("S2", {}).get("m2_probe_latency_throughput_snapshot.json", {}),
+            "S3": stage_pack.get("S3", {}).get("m2_probe_latency_throughput_snapshot.json", {}),
+        },
+        "runtime_seconds_total_observed": runtime_sec,
+        "runtime_budget_seconds": int(max_runtime_min * 60),
+        "latency_ms_p95_summary": {"S1": p95_s1, "S2": p95_s2, "S3": p95_s3},
+    }
+    dumpj(out / "m2_probe_latency_throughput_snapshot.json", probe_rollup)
+
+    ctrl_issues: list[str] = []
+    for stage in ("S1", "S2", "S3"):
+        c = stage_pack.get(stage, {}).get("m2_control_rail_conformance_snapshot.json", {})
+        if isinstance(c, dict) and c.get("overall_pass") is not True:
+            ctrl_issues.append(f"{stage} control snapshot not pass")
+    ctrl = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M2-ST-S5",
+        "overall_pass": len(ctrl_issues) == 0,
+        "issues": ctrl_issues,
+        "stage_summaries": {
+            "S1": stage_pack.get("S1", {}).get("m2_control_rail_conformance_snapshot.json", {}),
+            "S2": stage_pack.get("S2", {}).get("m2_control_rail_conformance_snapshot.json", {}),
+            "S3": stage_pack.get("S3", {}).get("m2_control_rail_conformance_snapshot.json", {}),
+        },
+    }
+    if ctrl_issues:
+        blockers.append({"id": "M2-ST-B3", "severity": "S5", "status": "OPEN", "details": {"issues": ctrl_issues}})
+    dumpj(out / "m2_control_rail_conformance_snapshot.json", ctrl)
+
+    sec_issues: list[str] = []
+    for stage in ("S1", "S2", "S3"):
+        s = stage_pack.get(stage, {}).get("m2_secret_safety_snapshot.json", {})
+        if isinstance(s, dict) and s.get("overall_pass") is not True:
+            sec_issues.append(f"{stage} secret snapshot not pass")
+    sec = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M2-ST-S5",
+        "overall_pass": len(sec_issues) == 0,
+        "issues": sec_issues,
+        "stage_summaries": {
+            "S1": stage_pack.get("S1", {}).get("m2_secret_safety_snapshot.json", {}),
+            "S2": stage_pack.get("S2", {}).get("m2_secret_safety_snapshot.json", {}),
+            "S3": stage_pack.get("S3", {}).get("m2_secret_safety_snapshot.json", {}),
+        },
+    }
+    if sec_issues:
+        blockers.append({"id": "M2-ST-B6", "severity": "S5", "status": "OPEN", "details": {"issues": sec_issues}})
+    dumpj(out / "m2_secret_safety_snapshot.json", sec)
+
+    cost = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M2-ST-S5",
+        "attributed_spend_usd": round(spend, 4),
+        "unattributed_spend_detected": unattributed,
+        "max_spend_usd": max_sp,
+        "within_envelope": spend_within,
+        "runtime_seconds_total_observed": runtime_sec,
+        "runtime_budget_seconds": int(max_runtime_min * 60),
+        "runtime_within_envelope": runtime_within,
+        "stage_receipts": {
+            "S1": stage_pack.get("S1", {}).get("m2_cost_outcome_receipt.json", {}),
+            "S2": stage_pack.get("S2", {}).get("m2_cost_outcome_receipt.json", {}),
+            "S3": stage_pack.get("S3", {}).get("m2_cost_outcome_receipt.json", {}),
+        },
+    }
+    dumpj(out / "m2_cost_outcome_receipt.json", cost)
+
+    readiness = "GO" if len(blockers) == 0 else "NO_GO"
+    reasons: list[str] = []
+    reasons.append(f"latest successful runs loaded for stages: {','.join([x for x in ('S0','S1','S2','S3') if refs.get(x)])}")
+    reasons.append(f"open blockers across latest successful S1/S2/S3: {open_blockers_by_stage}")
+    reasons.append(f"runtime envelope check: observed={runtime_sec}s budget={int(max_runtime_min * 60)}s")
+    reasons.append(f"spend envelope check: observed={round(spend, 4)} budget={max_sp}")
+    if readiness == "GO":
+        reasons.append("all S5 pass gates satisfied; M3 can start from current evidence pack.")
+    else:
+        reasons.append("S5 pass gates not satisfied; remediation required before M3.")
+
+    dlog = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M2-ST-S5",
+        "m3_readiness_recommendation": readiness,
+        "decisions": reasons,
+    }
+    dumpj(out / "m2_decision_log.json", dlog)
+    bref = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M2-ST-S5",
+        "overall_pass": len(blockers) == 0,
+        "open_blocker_count": len(blockers),
+        "blockers": blockers,
+    }
+    summ = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M2-ST-S5",
+        "overall_pass": len(blockers) == 0,
+        "next_gate": "M3_READY" if len(blockers) == 0 else "BLOCKED",
+        "m3_readiness_recommendation": readiness,
+        "runtime_seconds_total_observed": runtime_sec,
+        "runtime_budget_seconds": int(max_runtime_min * 60),
+        "attributed_spend_usd": round(spend, 4),
+        "max_spend_usd": max_sp,
+        "required_artifacts": S1_ARTS,
+    }
+    dumpj(out / "m2_blocker_register.json", bref)
+    dumpj(out / "m2_execution_summary.json", summ)
+
+    miss = [n for n in S1_ARTS if not (out / n).exists()]
+    if miss:
+        blockers.append({"id": "M2-ST-B9", "severity": "S5", "status": "OPEN", "details": {"missing_artifacts": miss}})
+        bref["overall_pass"] = False
+        bref["open_blocker_count"] = len(blockers)
+        bref["blockers"] = blockers
+        summ["overall_pass"] = False
+        summ["next_gate"] = "BLOCKED"
+        summ["m3_readiness_recommendation"] = "NO_GO"
+        dumpj(out / "m2_blocker_register.json", bref)
+        dumpj(out / "m2_execution_summary.json", summ)
+
+    print(f"[m2_s5] phase_execution_id={phase_id}")
+    print(f"[m2_s5] output_dir={out.as_posix()}")
+    print(f"[m2_s5] overall_pass={summ['overall_pass']}")
+    print(f"[m2_s5] next_gate={summ['next_gate']}")
+    print(f"[m2_s5] m3_readiness={summ['m3_readiness_recommendation']}")
+    print(f"[m2_s5] open_blockers={bref['open_blocker_count']}")
+    return 0 if summ["overall_pass"] else 2
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="M2 stress runner")
-    ap.add_argument("--stage", default="S0", choices=["S0", "S1", "S2", "S3"])
+    ap.add_argument("--stage", default="S0", choices=["S0", "S1", "S2", "S3", "S5"])
     ap.add_argument("--phase-execution-id", default="")
     ap.add_argument("--output-root", default=str(OUT_ROOT))
     ap.add_argument("--window-seconds-override", type=int, default=None)
     ap.add_argument("--cycle-interval-seconds", type=int, default=20)
     ap.add_argument("--probe-concurrency", type=int, default=6)
     a = ap.parse_args()
-    pfx = {"S0": "m2_stress_s0", "S1": "m2_stress_s1", "S2": "m2_stress_s2", "S3": "m2_stress_s3"}[a.stage]
+    pfx = {"S0": "m2_stress_s0", "S1": "m2_stress_s1", "S2": "m2_stress_s2", "S3": "m2_stress_s3", "S5": "m2_stress_s5"}[a.stage]
     pid = a.phase_execution_id.strip() or f"{pfx}_{tok()}"
     root = Path(a.output_root)
     if a.stage == "S0":
@@ -1102,7 +1348,9 @@ def main() -> int:
         return run_s1(pid, root, a.window_seconds_override, a.cycle_interval_seconds, a.probe_concurrency)
     if a.stage == "S2":
         return run_s2(pid, root, a.window_seconds_override, a.cycle_interval_seconds, a.probe_concurrency)
-    return run_s3(pid, root, a.window_seconds_override, a.cycle_interval_seconds, a.probe_concurrency)
+    if a.stage == "S3":
+        return run_s3(pid, root, a.window_seconds_override, a.cycle_interval_seconds, a.probe_concurrency)
+    return run_s5(pid, root)
 
 
 if __name__ == "__main__":

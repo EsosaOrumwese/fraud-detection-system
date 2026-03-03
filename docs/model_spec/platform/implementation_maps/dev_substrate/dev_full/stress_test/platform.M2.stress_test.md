@@ -272,9 +272,9 @@ Required artifacts for each M2 stress window:
 - [x] USER go-ahead captured for first M2 managed stress window dispatch.
 
 ## 12) Immediate Next Actions
-1. Continue to `M2-ST-S5` closure rollup and M3 handoff recommendation (`GO`/`NO_GO`) using current M2 evidence pack.
+1. M2 closure achieved; move to M3 planning/execution using S5 rollup recommendation.
 2. Keep symbolic-handle resolution + critical precheck path enabled for all subsequent windows to avoid avoidable long-window spend on deterministic control-rail misrouting.
-3. If closure rollup detects unresolved gaps, execute targeted remediation (`S4`) and rerun only failed windows.
+3. If future reruns reopen blockers, execute targeted remediation (`S4`) and rerun only failed windows.
 
 ## 13) Execution Progress
 ### `M2-ST-S0` execution (2026-03-03)
@@ -433,3 +433,29 @@ Required artifacts for each M2 stress window:
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s3_20260303T172120Z/stress/m2_blocker_register.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s3_20260303T172120Z/stress/m2_execution_summary.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s3_20260303T172120Z/stress/m2_decision_log.json`
+
+### `M2-ST-S5` closure rollup execution (2026-03-03)
+1. Phase execution id: `m2_stress_s5_20260303T173815Z`.
+2. Runner:
+   - `python scripts/dev_substrate/m2_stress_runner.py --stage S5`
+3. Closure rollup outcome:
+   - `overall_pass=true`,
+   - `open_blockers=0`,
+   - `next_gate=M3_READY`,
+   - `m3_readiness_recommendation=GO`.
+4. Envelope checks:
+   - runtime observed `1803s` vs budget `10800s` (`M2_STRESS_MAX_RUNTIME_MINUTES=180`),
+   - attributed spend `0.0` vs budget `35.0`.
+5. Stage closure scan:
+   - latest successful stages loaded: `S0`, `S1`, `S2`, `S3`,
+   - latest successful blocker posture for `S1/S2/S3`: all `0`.
+6. Artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s5_20260303T173815Z/stress/m2_stagea_findings.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s5_20260303T173815Z/stress/m2_lane_matrix.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s5_20260303T173815Z/stress/m2_probe_latency_throughput_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s5_20260303T173815Z/stress/m2_control_rail_conformance_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s5_20260303T173815Z/stress/m2_secret_safety_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s5_20260303T173815Z/stress/m2_cost_outcome_receipt.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s5_20260303T173815Z/stress/m2_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s5_20260303T173815Z/stress/m2_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s5_20260303T173815Z/stress/m2_decision_log.json`
