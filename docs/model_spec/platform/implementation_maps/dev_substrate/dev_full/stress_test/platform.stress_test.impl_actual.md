@@ -54,3 +54,41 @@ _As of 2026-03-03_
 ### Result
 1. Throughput draft files removed.
 2. `dev_full/README.md` updated to reflect retirement and stress-test authority activation.
+
+## Entry: 2026-03-03 05:45 +00:00 - Program-level M-phase overview added to main stress authority
+
+### Trigger
+1. User requested build-plan-like overview in main stress authority before deep per-phase files.
+
+### Decision
+1. Add a dedicated roadmap overview section in `platform.stress_test.md` with `M0..M15` rows.
+2. For each phase, pin:
+   - build scope anchor,
+   - intended stress outcome,
+   - exit signal,
+   - stress status.
+3. Keep deep elaboration progressive (phase files created only when activated).
+
+### Result
+1. `platform.stress_test.md` now includes a program-level M-phase overview table.
+2. Section numbering adjusted so methodology/evidence/routing sections remain readable after insertion.
+3. Methodology subsection numbering normalized to `5.1..5.5` for consistency.
+
+## Entry: 2026-03-03 05:50 +00:00 - Dedicated phase-file creation rule added
+
+### Trigger
+1. User requested explicit rule for when an `M*` stress phase needs its own file versus inline control-file handling.
+
+### Decision
+1. Add deterministic thresholds into `platform.stress_test.md`:
+   - inline when low complexity/low spend/single-lane/no repin expected,
+   - dedicated file when any complexity-cost-coupling-repin condition is met.
+2. Add default guidance:
+   - `M0` inline by default,
+   - `M1`/`M3` usually inline unless expanded,
+   - heavy phases expected as dedicated files.
+3. Add re-evaluation trigger:
+   - inline phase must be split into dedicated file if scope expands beyond inline boundaries.
+
+### Result
+1. Main stress authority now includes a deterministic doc-creation rule that guides focus and avoids unnecessary document sprawl.

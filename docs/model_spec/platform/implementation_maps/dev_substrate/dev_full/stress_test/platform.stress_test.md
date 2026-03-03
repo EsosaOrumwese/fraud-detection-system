@@ -38,9 +38,34 @@ Pinned interpretation:
    - local profiling/unit/integration checks.
 3. Workflows are for controlled managed execution, regression gates, and evidence capture, not primary ad-hoc debugging.
 
-## 4) Stress Methodology (Per Phase)
+## 4) M-Phase Stress Overview (Before Deep Plans)
+This is the program-level overview of what each `M*` phase stress effort is expected to achieve before deep `platform.M*.stress_test.md` files are elaborated.
 
-### 4.1 Stage A - Decision/Bottleneck Pre-Read
+| Stress Phase | Build Scope Anchor | What We Aim to Achieve | Exit Signal | Status |
+| --- | --- | --- | --- | --- |
+| M0 | Mobilization + authority lock | Validate test authority, handles, and stress evidence surfaces before any load | All prerequisite stress handles and evidence sinks are green | NOT_STARTED |
+| M1 | Packaging readiness | Stress packaging/provenance paths for reproducible deploy artifacts under concurrent operations | No packaging bottleneck or provenance drift under stress | NOT_STARTED |
+| M2 | Substrate readiness | Stress core substrate primitives (network/store/bus/runtime) for baseline capacity and failure behavior | Substrate can sustain target baseline load without integrity drift | NOT_STARTED |
+| M3 | Run pinning + orchestrator readiness | Stress run-control/orchestrator behavior under concurrent run activation and retries | Run pinning remains deterministic; no cross-run mixing | NOT_STARTED |
+| M4 | Spine runtime-lane readiness | Stress each spine lane bootstrap path for startup-time, readiness, and dependency bottlenecks | Lane startup and steady-state readiness meet target budgets | NOT_STARTED |
+| M5 | Oracle readiness + ingest preflight (`P3-P4`) | Stress oracle-to-ingress preflight flow for input correctness and ingest warm-path limits | Preflight pass is stable; no upstream-induced ingress stalls | NOT_STARTED |
+| M6 | Control + Ingress (`P5-P7`) | Stress SR/WSP/IG/bus at component -> plane -> integrated levels for throughput and correctness | Target ingress throughput + latency met with replay-safe semantics | NOT_STARTED |
+| M7 | RTDL + Case/Labels (`P8-P10`) | Stress decision loop + case/label pathways for sustained throughput and bounded lag | Decision/action/case/label lanes keep pace with ingress without silent degrade | NOT_STARTED |
+| M8 | Spine Obs/Gov (`P11`) | Stress observability/governance paths so evidence remains complete under high event rates | Evidence completeness + low-overhead telemetry proven | NOT_STARTED |
+| M9 | Learning input readiness (`P12`) | Stress replay-basis/as-of/maturity extraction paths for correctness under realistic volume | Learning input lanes produce deterministic, timely, leak-safe outputs | NOT_STARTED |
+| M10 | OFS dataset closure (`P13`) | Stress offline feature dataset generation for throughput, stability, and cost posture | Dataset builds finish within budget with reproducible manifests | NOT_STARTED |
+| M11 | MF train/eval closure (`P14`) | Stress model train/eval orchestration for queueing, runtime, and artifact integrity | Train/eval flow stable with deterministic evidence and bounded runtime | NOT_STARTED |
+| M12 | MPR promotion/rollback (`P15`) | Stress model promotion, rollback, and resolution lanes under repeated activation pressure | Promotion/rollback deterministic and fail-closed under stress | NOT_STARTED |
+| M13 | Full-platform verdict + teardown (`P16-P17`) | Stress full-platform execution windows plus teardown and idle-safe guarantees | Full-lane run + teardown remains stable, complete, and cost-safe | NOT_STARTED |
+| M14 | Runtime-placement repin materialization | Stress any placement repins to validate they improve or preserve performance and reliability | Repinned runtime lanes meet or exceed prior stress baselines | NOT_STARTED |
+| M15 | Data semantics realization | Stress real-data semantics in learning/evolution lanes at production-like volume and quality | Semantic realism + runtime budget + no-leakage gates all green | NOT_STARTED |
+
+Subphase routing note:
+1. Deep stress files may be split (for example `M5.P3`, `M6.P5`, `M7.P8`) when a phase has distinct lanes with different bottleneck signatures.
+
+## 5) Stress Methodology (Per Phase)
+
+### 5.1 Stage A - Decision/Bottleneck Pre-Read
 Before stressing a phase:
 1. read the phase build authority (`platform.M*.build_plan.md` and relevant `impl_actual` entries),
 2. map runtime surfaces for that phase (compute, stores, messaging, IAM, network),
@@ -52,27 +77,27 @@ Before stressing a phase:
 
 No stress run starts if unresolved `PREVENT` items exist.
 
-### 4.2 Stage B - Component Stress
+### 5.2 Stage B - Component Stress
 1. stress each component in the phase independently.
 2. isolate local component limits before cross-component coupling noise.
 3. capture component-specific saturation curves and error boundaries.
 
-### 4.3 Stage C - Plane Stress
+### 5.3 Stage C - Plane Stress
 1. stress integrated plane flow (for example: Control+Ingress or RTDL).
 2. validate count continuity and latency budgets across interfaces.
 3. confirm no hidden queue growth or silent degrade.
 
-### 4.4 Stage D - Full Platform Stress (Scoped to Phase Envelope)
+### 5.4 Stage D - Full Platform Stress (Scoped to Phase Envelope)
 1. execute bounded full-lane workload with phase scope.
 2. run soak + burst windows.
 3. run bounded failure injection.
 
-### 4.5 Stage E - Remediate and Re-Validate
+### 5.5 Stage E - Remediate and Re-Validate
 1. rank bottlenecks by impact and remediation cost.
 2. apply targeted fixes.
 3. rerun same test profile for direct before/after proof.
 
-## 5) Evidence Contract (Required for Every Stress Step)
+## 6) Evidence Contract (Required for Every Stress Step)
 1. target profile and workload definition.
 2. runtime and config digests.
 3. throughput/latency results (`p50`, `p95`, `p99`, error rates).
@@ -82,7 +107,7 @@ No stress run starts if unresolved `PREVENT` items exist.
 
 No stress step is closed without artifact publication and readback verification.
 
-## 6) Program Structure (Mirrors Build Phase Ladder)
+## 7) Program Structure (Mirrors Build Phase Ladder)
 Stress program follows the same canonical ladder:
 1. `M0`
 2. `M1`
@@ -111,7 +136,7 @@ Stress program follows the same canonical ladder:
 
 Per-phase stress files are created only when each phase is activated.
 
-## 7) Phase Activation and Naming Convention
+## 8) Phase Activation and Naming Convention
 Program control file:
 1. `stress_test/platform.stress_test.md` (this file).
 
@@ -120,6 +145,25 @@ Per-phase files (progressive creation):
 2. `stress_test/platform.M1.stress_test.md`
 3. ...
 4. `stress_test/platform.M15.stress_test.md`
+
+Dedicated phase-file creation rule (deterministic):
+1. Keep phase inline in `platform.stress_test.md` when all are true:
+   - single-lane or low-coupling stress scope,
+   - low expected runtime and low spend,
+   - no expected architecture/placement repin,
+   - simple blocker taxonomy.
+2. Create `platform.M*.stress_test.md` when any are true:
+   - multi-lane coupled stress path,
+   - custom load profile + failure matrix required,
+   - moderate/high expected runtime or spend,
+   - likely build-decision bottleneck requiring repin,
+   - non-trivial blocker and rerun topology.
+3. Default focus guidance:
+   - `M0` is inline by default.
+   - `M1` and `M3` are usually inline unless complexity expands.
+   - heavy phases are expected to get dedicated files (`M2`, `M4`, `M5+subphases`, `M6`, `M7+subphases`, `M8`, `M9..M15`).
+4. Re-evaluation rule:
+   - if an inline phase expands beyond rule-1 boundaries during execution, create a dedicated phase file before further stress work.
 
 Each phase file must contain:
 1. scope and dependency map,
@@ -131,7 +175,7 @@ Each phase file must contain:
 7. DoD and blocker taxonomy,
 8. budget envelope and teardown posture.
 
-## 8) Runtime and Cost Gates (Global)
+## 9) Runtime and Cost Gates (Global)
 Global runtime gates:
 1. no phase run is accepted with unexplained stalls/hours-long single-state runtime unless explicitly user-waived.
 2. no unresolved count mismatch across critical producer/consumer boundaries.
@@ -142,14 +186,14 @@ Global cost gates:
 2. non-active lanes remain stopped.
 3. each stress window has deterministic teardown.
 
-## 9) Adaptation Policy (When to Cut/Increase/Change Direction)
+## 10) Adaptation Policy (When to Cut/Increase/Change Direction)
 For any phase:
 1. if measured bottleneck is algorithmic/path-bound, optimize code and data path first.
 2. if bottleneck remains after path optimization, resize runtime resources.
 3. if both fail, repin architecture/placement decision for that lane.
 4. if a test profile is clearly invalid for current known constraints, stop early and remediate first instead of burning cost.
 
-## 10) Relationship to Existing Build Authorities
+## 11) Relationship to Existing Build Authorities
 1. Build authorities remain the design and infrastructure intent source.
 2. Stress authorities validate whether those decisions meet realistic production standards.
 3. When stress evidence contradicts a build decision:
@@ -157,7 +201,7 @@ For any phase:
    - propose decision change,
    - update authority before proceeding.
 
-## 11) Program Status (Initial)
+## 12) Program Status (Initial)
 1. Program bootstrapped.
 2. Per-phase stress files not yet created.
 3. Next step: activate `M0` stress file and run Stage A decision/bottleneck pre-read for M0 surfaces.
