@@ -340,41 +340,107 @@ DoD:
 - [ ] durable publication + hash readback passes for all RC2 artifacts.
 
 RC2 strict remediation sequence (production-envelope, no floor downgrade):
-1. `RC2.R1` evidence-shape correctness gate (must pass before load scale):
-   - each profile (`steady|burst|soak|replay_window`) must have its own campaign execution id and distinct campaign window,
-   - profile metrics must be computed from campaign-bounded windows (no shared-window reuse across profiles),
-   - admission counting must be complete (no scan truncation posture such as fixed page limits),
-   - if evidence shape fails, classify run `NON_CLAIMABLE` and stop.
-2. `RC2.R2` managed bottleneck-localization ramp:
-   - run managed-only ramp campaigns at `100 -> 250 -> 500 -> 1000 -> 1500 eps`,
-   - fixed short duration per ramp stage (`>=5 min`) with deterministic receipts,
-   - capture lane metrics per stage:
-     - IG edge admit/error posture,
-     - run-window admissions and ingestion lag,
-     - downstream bus and core-lane progression,
-   - identify first failing stage and pin explicit bottleneck owner (`IG_EDGE`, `BUS`, `CORE_RUNTIME`, `COUNTING_SURFACE`).
-3. `RC2.R3` lane remediation loop (fail-closed):
-   - remediate only identified bottleneck lane(s),
-   - rerun `RC2.R2` from failed stage upward until target stage is stable,
-   - no threshold edits, no waiver, no historical substitution.
-4. `RC2.R4` mandatory profile campaigns at pinned floors:
+1. `RC2.R1` evidence-shape correctness gate (must pass before any volume scale):
+   - each profile (`steady|burst|soak|replay_window`) must have a unique execution id and distinct bounded campaign window,
+   - profile metrics must be computed from campaign-bounded windows only (no shared-window reuse),
+   - classify run `NON_CLAIMABLE` and stop if shape gate fails.
+2. `RC2.R2` capacity-envelope remediation gate (infra first):
+   - raise IG ingress envelope above RC2 floors with headroom (`rps/burst`, lambda concurrency+memory, cert-time worker pool scale),
+   - pin cert-time scale-up and post-run scale-down path (cost-controlled, deterministic teardown),
+   - publish capacity change receipt before throughput reruns.
+3. `RC2.R3` counting-surface correctness gate (truth first):
+   - replace scan-based run-window counting with a queryable run/time admission surface,
+   - no fixed-page scan posture is allowed for closure metrics (`sample`, `eps`, `duration`),
+   - publish completeness proof for counting surfaces used by RC2 adjudication.
+4. `RC2.R4` ingress idempotency correctness gate:
+   - enforce duplicate-safe idempotency writes with explicit `ADMITTED` vs `DUPLICATE` outcomes,
+   - ensure retry/error ratios are computed from source-consistent numerators/denominators.
+5. `RC2.R5` managed bottleneck-localization ramp:
+   - run managed-only ramp campaigns at `100 -> 250 -> 500 -> 1000 -> 1500 eps` (`>=5 min` per stage),
+   - capture per-stage IG admit/error, run-window admissions, lag posture, and downstream progression,
+   - pin first failing stage with explicit owner (`IG_EDGE`, `BUS`, `CORE_RUNTIME`, `COUNTING_SURFACE`).
+6. `RC2.R6` lane remediation loop (fail-closed):
+   - remediate only the pinned bottleneck owner,
+   - rerun `RC2.R5` from the failing stage upward until stable,
+   - no threshold edits, no waiver, no historical evidence substitution.
+7. `RC2.R7` mandatory profile campaigns at pinned floors:
    - `steady`: `500 eps`, `30 min`, sample `>=900,000`,
    - `burst`: `1,500 eps`, `10 min`, sample `>=900,000`,
    - `soak`: `300 eps`, `6 h`, sample `>=6,480,000`.
-5. `RC2.R5` replay-window campaign:
+8. `RC2.R8` replay-window campaign:
    - managed replay-window campaign with sample `>=10,000,000`,
-   - explicit replay integrity and duplicate-side-effect surfaces included in profile evidence.
-6. `RC2.R6` RC2 scorecard closure:
-   - execute RC2 rollup using only `RC2.R4/R5` fresh campaign execution ids,
-   - pass criteria: `blocker_count=0`, Tier-0 holds cleared, next gate `RC3_READY_WITH_SCORECARD`.
+   - include replay integrity + duplicate side-effect surfaces in evidence pack.
+9. `RC2.R9` scorecard closure:
+   - execute RC2 rollup from only fresh `RC2.R7/R8` execution ids in current cert window,
+   - pass criteria: `overall_pass=true`, `blocker_count=0`, Tier-0 holds cleared, next gate `RC3_READY_WITH_SCORECARD`.
 
 RC2 strict remediation DoD:
-- [x] `RC2.R1` evidence-shape correctness gate passes.
-- [x] bottleneck owner is explicitly identified from `RC2.R2` stage evidence.
-- [x] `RC2.R3` stage-100 rerun is stabilized with `blocker_count=0` on fresh managed evidence.
+- [ ] `RC2.R1` evidence-shape gate passes with unique ids and distinct bounded windows for all profiles.
+- [ ] `RC2.R2` capacity envelope receipt proves cert-time scale up + deterministic scale down.
+- [ ] `RC2.R3` closure metrics are query-backed with completeness proof (no scan-truncation posture).
+- [ ] `RC2.R4` idempotency outcomes are duplicate-safe and cert math is source-consistent.
+- [ ] `RC2.R5/R6` bottleneck owner is pinned and remediated with stable rerun evidence.
 - [ ] all required profile campaigns meet pinned floors with fresh managed evidence.
 - [ ] replay-window campaign meets pinned sample floor.
-- [ ] RC2 rollup closes with `overall_pass=true` and `blocker_count=0`.
+- [ ] RC2 rollup closes with `overall_pass=true`, `blocker_count=0`, and `next_gate=RC3_READY_WITH_SCORECARD`.
+
+RC2.R2 detailed expansion (capacity-envelope remediation gate):
+1. Scope objective:
+   - remove structural ingress ceilings that make RC2 floors unattainable,
+   - publish auditable pre-change vs post-change capacity posture before RC2 ramp/profile reruns.
+2. Required capability lanes (must all close before pass):
+   - authority/handles:
+     - runtime envelope knobs must be explicit and traceable (`IG_RATE_LIMIT_RPS`, `IG_RATE_LIMIT_BURST`, lambda execution envelope, M6 worker pool scale knobs),
+     - no hidden/manual console-only edits are claimable.
+   - identity/IAM:
+     - execution remains OIDC-managed workflow only,
+     - no static credentials and no local profile-driven mutations.
+   - network/edge:
+     - API Gateway stage throttle must be raised above RC2 floors with headroom,
+     - integration timeout posture must remain bounded and explicitly captured.
+   - compute:
+     - IG lambda execution envelope must be right-sized for cert window,
+     - M6 worker pool scaling posture must support sustained pressure generation.
+   - data stores/messaging:
+     - idempotency table health must remain `ACTIVE` after capacity change,
+     - no throughput tuning that weakens durability semantics.
+   - observability/evidence:
+     - emit `rc2_r2_capacity_envelope_snapshot.json` with pre/post values and change source,
+     - emit `rc2_r2_capacity_change_receipt.json` with applied knobs + runtime identity.
+   - rollback/rerun:
+     - deterministic scale-down plan must be rendered with exact knobs and target values,
+     - rerun id policy must enforce fresh execution ids.
+   - budget/cost:
+     - cert-time uplift window must be time-bounded,
+     - cost-outcome receipt must map uplift to expected RC2 decision retirement.
+3. RC2.R2 sections and DoD:
+   - `RC2.R2.S1` pre-change snapshot:
+     - capture live edge/compute envelope and persist durable snapshot,
+     - DoD: pre-change snapshot published and hash-readable.
+   - `RC2.R2.S2` managed capacity apply:
+     - apply uplifted runtime envelope through managed workflow terraform execution only,
+     - DoD: terraform apply success + post-change envelope captured.
+   - `RC2.R2.S3` envelope verification:
+     - verify live API stage throttle and lambda envelope reflect uplift targets,
+     - DoD: verification row is `PASS` for all mandatory knobs.
+   - `RC2.R2.S4` scale-down plan rendering:
+     - render deterministic post-cert scale-down recipe (not optional),
+     - DoD: scale-down plan artifact published with explicit trigger condition.
+    - `RC2.R2.S5` handoff to RC2.R5 ramp:
+      - publish gate decision (`READY_FOR_RC2_R5` or `HOLD_REMEDIATE`) and blocker register,
+      - DoD: next gate is deterministic and references the exact artifact root.
+4. RC2.R2 managed execution contract hardening (`2026-03-03`):
+   - API identity:
+     - use pinned handle `APIGW_IG_API_ID` for RC2.R2 execution to avoid account-wide `GetApis` enumeration dependency,
+     - API name remains evidence metadata only.
+   - IAM fail-closed publication discipline:
+     - permission denials in `apigw/lambda/eks` read or apply surfaces must be captured into deterministic blocker row `RC2R2-BIAM`,
+     - RC2.R2 must still publish blocker register + execution summary + publication receipt before exiting non-zero,
+     - non-publication on permission failure is itself a certification-execution defect.
+   - readiness predicate:
+     - `READY_FOR_RC2_R5` requires zero blockers including zero `RC2R2-BIAM`.
+   - remediation boundary:
+     - if `RC2R2-BIAM` is present, close identity policy gap first; do not continue to RC2.R5 upward ramp.
 
 RC2 execution closure snapshot (`2026-03-02`):
 1. managed execution:
@@ -449,9 +515,31 @@ RC2 execution closure snapshot (`2026-03-02`):
      - bridge posture: `attempted=30000`, `admitted=29873`, `failed=127`
      - lag posture: `measured_lag=1s`, source `ig_admission_freshness_seconds_capture_start_epoch`
      - lane verdict: `overall_pass=true`, `blocker_count=0`, `next_gate=M6.G_READY`
-   - closure decision:
-     - RC2.R3 stage-100 stabilization is complete on fresh managed evidence.
-     - Proceed to RC2.R2 upward stages (`250 -> 500 -> 1000 -> 1500`) and then RC2.R4/R5.
+    - closure decision:
+      - RC2.R3 stage-100 stabilization is complete on fresh managed evidence.
+      - Proceed to RC2.R2 upward stages (`250 -> 500 -> 1000 -> 1500`) and then RC2.R4/R5.
+9. RC2.R2 capacity-envelope execution (`2026-03-03`) after managed lane hardening:
+   - workflow run: `22608736946` (`cert-platform`, head `1103db8c6`),
+   - execution id: `rc2_r2_capacity_envelope_20260303T044658Z`,
+   - durable root: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc2_r2_capacity_envelope_20260303T044658Z/`.
+   - result: `overall_pass=false`, `next_gate=HOLD_REMEDIATE`, `blocker_count=4`.
+   - observed vs required:
+     - APIGW stage throttle required `rate>=3000`, `burst>=6000`; observed `rate=null`, `burst=null` due IAM denies on stage read/update.
+     - EKS nodegroup scaling required `desired/min/max>=4/2/8`; observed post-change `4/2/8` (met).
+   - blocker class pinned:
+     - `RC2R2-B0`, `RC2R2-BIAM`, `RC2R2-B1` tied to APIGW/Lambda IAM gaps under OIDC role `GitHubAction-AssumeRoleWithAction`.
+   - closure rule:
+     - RC2.R2 remains fail-closed until APIGW/Lambda identity surfaces are authorized and rerun returns `blocker_count=0`.
+10. RC2.R2 managed rollback run for cost containment (`2026-03-03`):
+    - workflow run: `22608794482`,
+    - execution id: `rc2_r2_capacity_envelope_20260303T044930Z`,
+    - purpose: revert cert-time EKS uplift after failed gate run.
+    - observed rollback:
+      - EKS nodegroup scaling moved from `4/2/8` back to `2/1/2` (`ACTIVE`).
+    - gate posture:
+      - APIGW/Lambda IAM blockers unchanged, verdict remains `HOLD_REMEDIATE`.
+    - cost posture:
+      - temporary compute uplift removed pending IAM remediation.
 
 ### RC2 Remediation Program - Close `RC-B4` Before RC3/RC6
 Goal:

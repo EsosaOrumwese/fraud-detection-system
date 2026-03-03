@@ -289,3 +289,75 @@ ext_gate=M6.G_READY.
 1. Local closure receipt path:
    - uns/dev_substrate/dev_full/cert/runtime/rc2_r3/rc2_r3_closure_20260302T233600Z/rc2_r3_closure_snapshot.json
 2. Receipt records baseline vs remediation run deltas and pins next action chain (RC2.R2 upward stages then R4/R5/R6).
+
+### 2026-03-03 04:30:12 +00:00 - RC2.R2 expansion + managed execution wiring (capacity-envelope gate)
+1. Planning expansion applied in `platform.runtime_cert.plan.md`:
+   - RC2.R2 broken into explicit sections `S1..S5` with closure criteria per capability lane (authority, identity, network, compute, observability, rollback, budget).
+   - pass condition pinned as `READY_FOR_RC2_R5` only after pre/post envelope evidence and deterministic scale-down plan publication.
+2. Managed execution path implemented:
+   - added workflow `.github/workflows/dev_full_rc2_r2_capacity_envelope.yml` for RC2.R2 gate execution.
+   - workflow behavior:
+     - captures pre-change runtime envelope (APIGW stage throttle, lambda envelope, EKS M6F nodegroup posture),
+     - applies managed terraform uplift in `infra/terraform/dev_full/runtime` with explicit override knobs,
+     - captures post-change envelope and adjudicates pass/fail against requested target values,
+     - emits + publishes deterministic artifacts with S3 readback verification.
+3. Artifact set pinned for RC2.R2 workflow:
+   - `rc2_r2_capacity_envelope_snapshot.json`,
+   - `rc2_r2_capacity_change_receipt.json`,
+   - `rc2_r2_scale_down_plan.json`,
+   - `rc2_r2_blocker_register.json`,
+   - `rc2_r2_execution_summary.json`,
+   - `rc2_r2_publication_receipt.json`.
+4. Execution posture pin:
+   - managed workflow only, OIDC-only AWS auth, no static credentials, fail-closed on either capacity mismatch or publication readback mismatch.
+
+### 2026-03-03 04:45:34 +00:00 - RC2.R2 execution hardening for IAM fail-closed behavior
+1. Trigger for change:
+   - managed RC2.R2 lane failed before artifact publication because APIGW API discovery used account-wide `GetApis`, which is not guaranteed under the current OIDC role policy.
+2. Decision:
+   - pin RC2.R2 APIGW identity to handle-level API ID (`APIGW_IG_API_ID`) and treat account-wide listing as optional fallback only,
+   - preserve strict fail-closed posture while guaranteeing deterministic blocker artifact publication.
+3. Managed workflow changes applied in `.github/workflows/dev_full_runtime_cert_managed.yml`:
+   - added dispatch input `rc2r2_apigw_ig_api_id` (default `ehwznd2uw7`),
+   - RC2.R2 lane now consumes pinned API ID directly,
+   - permission failures across APIGW/Lambda/EKS snapshot/apply paths are captured under blocker code `RC2R2-BIAM`,
+   - lane now writes/publishes blocker register + execution summary + publication receipt even when IAM blockers exist, then exits non-zero.
+4. Gate implication:
+   - `READY_FOR_RC2_R5` remains blocked unless `blocker_count=0` and no `RC2R2-BIAM` rows are present.
+
+### 2026-03-03 04:47:12 +00:00 - RC2.R2 managed execution result (post-hardening)
+1. Authoritative run:
+   - workflow run: `22608736946` (branch `cert-platform`, head `1103db8c6`)
+   - execution id: `rc2_r2_capacity_envelope_20260303T044658Z`
+   - durable root: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/cert/runtime/rc2_r2_capacity_envelope_20260303T044658Z/`
+2. Gate verdict:
+   - `overall_pass=false`, `verdict=HOLD`, `next_gate=HOLD_REMEDIATE`, `blocker_count=4`.
+3. Observed vs required (capacity-envelope gate):
+   - APIGW throttle (`v1` stage, API `ehwznd2uw7`):
+     - required: `rate>=3000`, `burst>=6000`
+     - observed: `rate=null`, `burst=null`
+     - blocker rows: `RC2R2-B0`, `RC2R2-BIAM`, `RC2R2-B1`.
+   - EKS nodegroup (`fraud-platform-dev-full-m6f-workers`):
+     - required: `desired/min/max >= 4/2/8`
+     - observed pre: `2/1/2`
+     - observed post: `4/2/8` (target met)
+     - blocker row: none for EKS scaling.
+4. Root blocker class:
+   - identity/IAM gap for RC2.R2 edge surfaces under OIDC role `GitHubAction-AssumeRoleWithAction`:
+     - `apigw_update_stage_failed:AccessDeniedException`
+     - `apigw_get_stage_failed:AccessDeniedException`
+     - `lambda_get_function_configuration_failed:ClientError`
+5. Execution-quality outcome:
+   - workflow no longer crashes before evidence; blocker register, execution summary, and publication receipt were emitted deterministically, then run exited non-zero as designed.
+
+### 2026-03-03 04:49:43 +00:00 - RC2.R2 cost rollback execution (managed)
+1. Authoritative run:
+   - workflow run: `22608794482`
+   - execution id: `rc2_r2_capacity_envelope_20260303T044930Z`
+   - purpose: deterministic scale-down of EKS nodegroup after failed uplift run.
+2. Observed rollback result:
+   - EKS nodegroup `fraud-platform-dev-full-m6f-workers` moved from `4/2/8` to `2/1/2` (`desired/min/max`) and remained `ACTIVE`.
+3. Gate result:
+   - RC2.R2 still `HOLD_REMEDIATE` because APIGW/Lambda IAM blockers persisted (`RC2R2-B0`, `RC2R2-BIAM`, `RC2R2-B1`).
+4. Cost-control posture:
+   - cert-time compute uplift has been reverted; no RC2.R2 spend-forward escalation should continue until IAM closure.
