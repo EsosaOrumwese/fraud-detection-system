@@ -109,6 +109,16 @@ on:
         required: true
         default: "1.0"
         type: string
+      ig_bridge_target_dispatch_rps:
+        description: "Optional target dispatch rate for IG bridge probes (0 disables pacing)"
+        required: false
+        default: "100"
+        type: string
+      ig_bridge_max_workers:
+        description: "Max worker threads used by IG bridge probes"
+        required: false
+        default: "48"
+        type: string
       emr_log_group_name:
         description: "CloudWatch log group for EMR jobs"
         required: true
@@ -488,7 +498,8 @@ jobs:
         env:
           IG_BRIDGE_EVENT_COUNT: ${{ inputs.iterations }}
           IG_BRIDGE_SLEEP_SECONDS: ${{ inputs.sleep_seconds }}
-          IG_BRIDGE_MAX_WORKERS: "48"
+          IG_BRIDGE_MAX_WORKERS: ${{ inputs.ig_bridge_max_workers }}
+          IG_BRIDGE_TARGET_DISPATCH_RPS: ${{ inputs.ig_bridge_target_dispatch_rps }}
           IG_BRIDGE_TIMEOUT_SECONDS: "5.0"
           IG_BRIDGE_RETRY_MAX_ATTEMPTS: "5"
           IG_BRIDGE_RETRY_BACKOFF_MS: "200"
@@ -517,7 +528,7 @@ jobs:
           timeout_seconds = max(0.5, float(os.environ.get("IG_BRIDGE_TIMEOUT_SECONDS", "10.0")))
           retry_max_attempts = max(1, int(os.environ.get("IG_BRIDGE_RETRY_MAX_ATTEMPTS", "1")))
           retry_backoff_ms = max(0.0, float(os.environ.get("IG_BRIDGE_RETRY_BACKOFF_MS", "0")))
-          target_dispatch_rps = 100.0 if event_count >= 10000 else 0.0
+          target_dispatch_rps = max(0.0, float(os.environ.get("IG_BRIDGE_TARGET_DISPATCH_RPS", "0")))
           platform_run_id = "${{ inputs.platform_run_id }}"
           scenario_run_id = "${{ inputs.scenario_run_id }}"
           phase_id = "P6.B"

@@ -371,6 +371,7 @@ RC2 strict remediation sequence (production-envelope, no floor downgrade):
 RC2 strict remediation DoD:
 - [x] `RC2.R1` evidence-shape correctness gate passes.
 - [x] bottleneck owner is explicitly identified from `RC2.R2` stage evidence.
+- [x] `RC2.R3` stage-100 rerun is stabilized with `blocker_count=0` on fresh managed evidence.
 - [ ] all required profile campaigns meet pinned floors with fresh managed evidence.
 - [ ] replay-window campaign meets pinned sample floor.
 - [ ] RC2 rollup closes with `overall_pass=true` and `blocker_count=0`.
@@ -434,6 +435,23 @@ RC2 execution closure snapshot (`2026-03-02`):
    - progression decision:
      - stop ramp escalation at first failing stage to avoid unnecessary spend,
      - proceed to `RC2.R3` remediation loop focused on IG edge path.
+8. RC2.R3 managed remediation loop closure (`2026-03-02`):
+   - workflow commits (workflow-only remediation):
+     - `524c0028c` (`ci: tune rc2 r3 ig bridge and ddb scan sizing`)
+     - `3b34e72a6` (`ci: reconcile m6f lag at capture start for rc2 r3`)
+   - validation run 1 (`22599864377`):
+     - execution id: `m6f_p6b_streaming_active_20260302T230526Z`
+     - bridge posture: `attempted=30000`, `admitted=29890`, `failed=110`
+     - counting surface: `ig_idempotency_count=29890`, `scan_pages=304`, no truncation error
+     - residual blocker: `M6P6-B4` only (`measured_lag=43s` vs `10s`)
+   - validation run 2 (`22600392998`):
+     - execution id: `m6f_p6b_streaming_active_20260302T232217Z`
+     - bridge posture: `attempted=30000`, `admitted=29873`, `failed=127`
+     - lag posture: `measured_lag=1s`, source `ig_admission_freshness_seconds_capture_start_epoch`
+     - lane verdict: `overall_pass=true`, `blocker_count=0`, `next_gate=M6.G_READY`
+   - closure decision:
+     - RC2.R3 stage-100 stabilization is complete on fresh managed evidence.
+     - Proceed to RC2.R2 upward stages (`250 -> 500 -> 1000 -> 1500`) and then RC2.R4/R5.
 
 ### RC2 Remediation Program - Close `RC-B4` Before RC3/RC6
 Goal:

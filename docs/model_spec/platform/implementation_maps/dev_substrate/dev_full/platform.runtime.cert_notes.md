@@ -220,3 +220,72 @@ RC2 can move from `RC2_REMEDIATION_REQUIRED` to `RC3_READY_WITH_SCORECARD` only 
    - move to `RC2.R3` remediation loop on IG edge path, then rerun `RC2.R2` from stage-100 upward.
 6. Generated deterministic local receipt:
    - `runs/dev_substrate/dev_full/cert/runtime/rc2_r2/rc2_r2_bottleneck_localization_20260302T222214Z/rc2_r2_bottleneck_snapshot.json`.
+
+### 2026-03-02 22:27:35 +00:00 - RC2.R3 remediation intent before execution
+1. Targeted remediation scope (from RC2.R2 output):
+   - primary lane: `IG_EDGE`,
+   - secondary correctness lane: `COUNTING_SURFACE`.
+2. Planned IG edge remediation (managed workflow only):
+   - increase bridge sender parallelism ceiling (beyond static 64),
+   - introduce bounded retry/backoff on transient network errors and timeouts,
+   - reduce per-attempt timeout to avoid long wait amplification under timeout-heavy bursts,
+   - preserve deterministic run identity and artifacts.
+3. Planned counting-surface remediation:
+   - remove practical scan truncation posture in `m6f_capture` invocation by raising `ddb_scan_page_limit` materially above observed range.
+4. Execution criterion:
+   - rerun RC2.R2 stage-100 (`>=5 min`) after remediation and re-classify bottleneck owner from fresh evidence.
+   
+### 2026-03-02 23:03:00 +00:00 - RC2.R3 remediation patch set #3 (workflow-only)
+1. Goal for this iteration: clear residual RC2.R3 instability by reducing IG edge throttle amplification and reducing counting-surface capture latency.
+2. Workflow changes applied in .github/workflows/dev_full_m6f_streaming_active.yml:
+   - bridge concurrency ceiling lowered 192 -> 48 to reduce burst spikes against API Gateway/Lambda edge,
+   - timeout increased 3.0s -> 5.0s to reduce timeout churn under transient latency,
+   - bounded retry increased 3 -> 5 with larger backoff 50ms -> 200ms,
+   - HTTP retry policy changed to retry only 429 and 5xx (non-retryable 4xx now fail-fast),
+   - m6f_capture.py invocation now pins --ddb-scan-page-size 1000 (previously defaulted to 200), preserving page-limit 5000.
+3. Expected effect before rerun:
+   - fewer http_429 amplification loops and fewer timeout-induced false failures,
+   - higher admit ratio at stage-100 profile,
+   - lower capture latency inflation from DDB scan surface (smaller page count).
+4. Next action pinned: dispatch fresh managed stage-100 run and compare against runs 22598675786 and 22599251133.
+### 2026-03-02 23:21:02 +00:00 - RC2.R3 remediation patch set #4 (capture-start lag adjudication)
+1. Fresh rerun (22599864377) proved IG edge remediation effectiveness:
+   - attempted 30000, admitted 29890, failed 110.
+2. Residual blocker after that run remained only M6P6-B4 with measured lag 43s.
+3. Root-cause pin:
+   - lag was being measured at capture completion, and DDB counting scan overhead was inflating freshness even when admissions were healthy.
+4. Workflow-only fix applied in .github/workflows/dev_full_m6f_streaming_active.yml:
+   - pin CAPTURE_START_EPOCH immediately before capture call,
+   - post-capture reconciler recalculates lag against capture-start epoch,
+   - updates local m6f_streaming_lag_posture.json, blocker register, and execution summary,
+   - re-uploads the four authoritative run-control artifacts to the same durable prefix to keep readback deterministic.
+5. Expected result on next rerun:
+   - preserve strict threshold (10s) while removing instrumentation-delay skew,
+   - close M6P6-B4 if admission freshness at capture-start is in bounds.
+### 2026-03-02 23:35:58 +00:00 - RC2.R3 run cycle closure (managed stage-100)
+1. Fresh run after patch set #3:
+   - workflow run: 22599864377
+   - execution id: m6f_p6b_streaming_active_20260302T230526Z
+   - bridge posture: attempted 30000, admitted 29890, failed 110, workers 48, timeout 5s, retries 5, backoff 200ms, target_dispatch_rps 100.
+   - counting surface: ig_idempotency_count=29890, scan_pages=304, no scan-limit error.
+   - residual blocker: M6P6-B4 (measured_lag=43s, 	hreshold=10s, source ig_admission_freshness_seconds).
+2. Decision after run 22599864377:
+   - IG-edge lane is no longer the limiting bottleneck at stage-100,
+   - remaining failure was instrumentation-lag skew from capture-time evaluation point, not admission collapse.
+3. Fresh run after patch set #4 (capture-start lag adjudication):
+   - workflow run: 22600392998
+   - execution id: m6f_p6b_streaming_active_20260302T232217Z
+   - bridge posture: attempted 30000, admitted 29873, failed 127.
+   - counting surface: ig_idempotency_count=29873, scan_pages=334, no errors.
+   - lag posture (authoritative artifact after reconciler):
+     - measured_lag=1s, 	hreshold=10s, within_threshold=true,
+     - source ig_admission_freshness_seconds_capture_start_epoch.
+   - verdict: overall_pass=true, locker_count=0, 
+ext_gate=M6.G_READY.
+4. RC2.R3 closure state:
+   - R3 stage-100 stabilization is closed with fresh managed evidence.
+   - Next action remains RC2.R2 upward reruns (250 -> 500 -> 1000 -> 1500 eps) followed by RC2.R4/R5 full profile campaigns.
+### 2026-03-02 23:37:46 +00:00 - RC2.R3 deterministic closure receipt emitted
+1. Local closure receipt path:
+   - uns/dev_substrate/dev_full/cert/runtime/rc2_r3/rc2_r3_closure_20260302T233600Z/rc2_r3_closure_snapshot.json
+2. Receipt records baseline vs remediation run deltas and pins next action chain (RC2.R2 upward stages then R4/R5/R6).

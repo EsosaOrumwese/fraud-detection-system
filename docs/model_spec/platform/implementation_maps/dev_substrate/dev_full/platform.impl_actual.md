@@ -19905,3 +19905,36 @@ Context:
 
 4. Current boundary:
 - RC2 is still `HOLD` due to throughput/volume blockers (`RC-B4 x4`), but evidence-shape gate (`RC2.R1`) is now implemented and closed.
+
+### 2026-03-02 22:27:35 +00:00 - RC2.R3 platform remediation design (IG edge + counting surface)
+1. Scope:
+- Managed execution lane behavior in `.github/workflows/dev_full_m6f_streaming_active.yml` (`m6f` phase path used for RC2.R2 ramp inputs).
+
+2. Planned behavior changes:
+- IG edge lane:
+  - replace single-attempt send posture with bounded retries for transient timeout/network errors,
+  - cap timeout lower per attempt to reduce stall amplification,
+  - increase controlled sender concurrency ceiling to reduce client-side bottleneck risk.
+- Counting surface:
+  - raise DDB scan page cap passed to `m6f_capture.py` to remove frequent false truncation from run-window count surface.
+
+3. Rationale:
+- RC2.R2 stage-100 failed with observed edge throughput far below target and timeout-heavy bridge failures while downstream lane states remained RUNNING.
+- Counting surface emitted page-cap truncation warning that could undermine deterministic attribution even when primary owner is clear.
+
+4. Validation plan:
+- rerun stage-100 under managed orchestration after patch,
+- compare observed edge EPS, failure mix, lag posture, and count-surface error flag,
+- re-pin bottleneck owner from fresh run evidence.
+
+## 2026-03-02 23:37:09 +00:00 - RC2.R3 lane instrumentation + bridge stabilization (dev_full)
+1. Updated managed lane workflow .github/workflows/dev_full_m6f_streaming_active.yml to stabilize P6.B ingress bridge under stage-100 load:
+   - reduced dispatch concurrency ceiling and tuned retry/backoff classifier,
+   - added --ddb-scan-page-size 1000 to reduce counting-surface latency.
+2. Added capture-start lag adjudication reconciliation in the same workflow:
+   - lag now evaluated against capture-start epoch, then blocker/summary artifacts are recomputed and re-published to the same durable run-control prefix.
+3. Design rationale:
+   - preserve strict lag threshold while removing instrumentation overhead bias,
+   - keep deterministic artifact lineage and fail-closed behavior unchanged.
+4. Fresh managed closure proof:
+   - run 22600392998, execution m6f_p6b_streaming_active_20260302T232217Z, overall_pass=true, locker_count=0.
