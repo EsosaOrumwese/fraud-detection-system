@@ -117,19 +117,122 @@ Integrated sequence:
    - bounded API-edge dependency degradation simulation,
    - verify fail-closed posture and clean recovery.
 
-## 8) Execution Plan (Planning Stage)
-1. `M2-ST-S0` Stage-A closure:
-   - finalize findings and lane matrix artifacts.
-2. `M2-ST-S1` Baseline substrate stress:
-   - run probes on state, MSK, API edge, SSM, IAM lookup surfaces.
-3. `M2-ST-S2` Burst substrate stress:
-   - increase probe/concurrency profile and measure saturation signatures.
-4. `M2-ST-S3` Failure-mode stress:
-   - inject controlled denials/timeouts and verify fail-closed semantics.
-5. `M2-ST-S4` Remediation/rerun:
-   - close blockers, rerun failed windows only.
-6. `M2-ST-S5` M2 stress closure:
-   - publish rollup verdict and M3 handoff recommendation.
+## 8) Execution Plan (Execution-Grade Runbook)
+This section is the authoritative execution method for M2.
+
+### 8.1 `M2-ST-S0` - Stage-A artifact emission and dispatch hardening
+Objective:
+1. Convert planning authority into execution artifacts and pinned dispatch contract.
+
+Actions:
+1. Emit `m2_stagea_findings.json` from Section-4 findings.
+2. Emit `m2_lane_matrix.json` mapping `M2.A..M2.J` to stress probe surfaces.
+3. Build dispatch profile contract for `S1/S2/S3`:
+   - target eps,
+   - concurrency,
+   - timeout budget,
+   - probe list.
+4. Validate run-control output paths and required artifact list serialization.
+
+Pass gate:
+1. Both Stage-A artifacts are written and readable at pinned stress control paths.
+2. Dispatch profile is deterministic and references only pinned handles.
+3. `M2-ST-F1..F3` are all closed in the blocker register.
+
+### 8.2 `M2-ST-S1` - Baseline substrate window
+Objective:
+1. Establish low-risk baseline behavior under realistic sustained load.
+
+Window:
+1. `M2_STRESS_BASELINE_EVENTS_PER_SECOND = 20`.
+2. `M2_STRESS_WINDOW_MINUTES = 10`.
+
+Probe surfaces:
+1. Terraform/state backend reachability (`TF_STATE_BUCKET`, `TF_LOCK_TABLE` read probes).
+2. Messaging substrate (`MSK_CLUSTER_ARN` describe, bootstrap-path read, schema-registry read).
+3. API edge substrate (`APIGW_IG_API_ID` health/readiness probe, lambda + ddb descriptor checks).
+4. Secrets substrate (`SSM_*` required path readability and role simulation checks).
+5. Control rail substrate (`PHASE_RUNTIME_PATH_*`, `SR_READY_*`, `CORRELATION_*` conformance probes).
+
+Pass gate:
+1. Error rate <= `1.0%`.
+2. No unresolved handle/probe-path failures.
+3. No secret plaintext leakage findings.
+4. No control-rail contract drift.
+5. Spend remains within active window envelope.
+
+### 8.3 `M2-ST-S2` - Burst substrate window
+Objective:
+1. Measure saturation behavior and degradation pattern under higher concurrency.
+
+Window:
+1. `M2_STRESS_BURST_EVENTS_PER_SECOND = 40`.
+2. `M2_STRESS_WINDOW_MINUTES = 10`.
+
+Execution rule:
+1. Run same probe set as `S1` with higher concurrency and tighter timeout enforcement.
+2. Compare metrics against `S1` baseline to identify nonlinear failure signatures.
+
+Pass gate:
+1. Error rate <= `2.0%`.
+2. No sustained probe-failure streak > `3` consecutive intervals.
+3. No new control-rail drift vs `S1`.
+4. No secret leakage and no unattributed spend.
+
+### 8.4 `M2-ST-S3` - Controlled failure-injection window
+Objective:
+1. Prove fail-closed behavior and recovery posture under expected substrate faults.
+
+Injection set (bounded):
+1. Missing-path simulation for one non-critical SSM probe target.
+2. Permission-denied simulation via IAM policy simulation on selected action/path.
+3. API-edge dependency degradation simulation via bounded invalid route/auth probe.
+
+Pass gate:
+1. All injected faults are detected and classified deterministically.
+2. System fails closed (no silent pass, no implicit fallback path switch).
+3. Recovery probes return to green after injection window closes.
+4. Evidence artifacts capture fault cause, impact, and recovery outcome.
+
+### 8.5 `M2-ST-S4` - Remediation and selective rerun
+Objective:
+1. Close blockers with minimal-cost reruns.
+
+Execution rule:
+1. Rank open blockers by production impact and closure cost.
+2. Apply targeted remediation only for failed lanes.
+3. Rerun only failed windows (`S1`/`S2`/`S3`) after remediation.
+
+Pass gate:
+1. All open `M2-ST-B*` blockers are closed or explicitly user-waived.
+2. Rerun evidence shows direct before/after improvement on affected metrics.
+
+### 8.6 `M2-ST-S5` - Closure rollup and M3 handoff
+Objective:
+1. Publish closure verdict and explicit handoff posture.
+
+Actions:
+1. Emit final rollup:
+   - `m2_execution_summary.json`,
+   - `m2_blocker_register.json`,
+   - `m2_decision_log.json`,
+   - `m2_cost_outcome_receipt.json`.
+2. Produce explicit `M3` readiness recommendation (`GO`/`NO_GO`) with rationale.
+
+Pass gate:
+1. No open non-waived `M2-ST-B*` blockers.
+2. All required artifacts are present/readable.
+3. Runtime/spend envelopes remained within pinned bounds.
+
+### 8.7 Execution control surface (pinned)
+1. Runner implementation target: `scripts/dev_substrate/m2_stress_runner.py`.
+2. Runner responsibilities:
+   - execute `S0..S5` deterministically,
+   - write all required artifacts into phase execution run-control stress path,
+   - emit blocker/severity rollup with explicit next-gate result.
+3. Managed dispatch posture:
+   - execute from managed lane when user approves run launch,
+   - keep local execution for preflight/static validation and artifact-shape checks only.
 
 ## 9) Blocker Taxonomy (M2 Stress)
 1. `M2-ST-B1`: missing or drifted handle contract for active stress lane.
@@ -162,11 +265,14 @@ Required artifacts for each M2 stress window:
 - [x] M2 stress handle packet pinned.
 - [x] Capability-lane coverage mapped (authority/identity/network/data/messaging/secrets/obs/rollback/teardown/budget).
 - [x] Stress topology and execution sequence pinned.
+- [x] Execution-grade runbook for `S0..S5` pinned with stage pass gates.
+- [x] Execution control surface pinned (runner + managed dispatch posture).
 - [x] Blocker taxonomy and evidence contract pinned.
 - [ ] Stage-A artifacts emitted to run-control path.
 - [ ] USER go-ahead captured for first M2 managed stress window dispatch.
 
 ## 12) Immediate Next Actions
-1. Emit Stage-A artifacts (`m2_stagea_findings.json`, `m2_lane_matrix.json`) using pinned M2 control paths.
-2. Prepare `M2-ST-S1` baseline dispatch command surface with exact probe set and timeout bounds.
-3. Execute baseline window only after user confirms run launch.
+1. Implement `scripts/dev_substrate/m2_stress_runner.py` with `S0..S5` execution and artifact emission.
+2. Emit Stage-A artifacts (`m2_stagea_findings.json`, `m2_lane_matrix.json`) using pinned M2 control paths.
+3. Prepare `M2-ST-S1` managed dispatch contract (probe set, concurrency, timeout, window budget).
+4. Execute baseline window only after user confirms run launch.

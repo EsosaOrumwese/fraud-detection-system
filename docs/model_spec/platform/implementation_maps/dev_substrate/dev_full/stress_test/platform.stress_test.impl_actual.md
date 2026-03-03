@@ -969,3 +969,53 @@ _As of 2026-03-03_
 ### Rationale
 1. M2 is a heavy coupled substrate phase and violates inline-phase constraints; dedicated-file routing is required by existing phase-file rule.
 2. M2 planning authority now focuses on substrate behavior under load/failure and cost discipline, not repeating provisioning-only closure.
+
+## Entry: 2026-03-03 15:55 +00:00 - Request to include execution method in M2 plan (pre-edit design)
+
+### Trigger
+1. User requested that the proposed M2 execution method be explicitly included in the plan.
+
+### Planned update
+1. Expand `platform.M2.stress_test.md` execution section from high-level sequencing to execution-grade runbook details for `S0..S5`.
+2. Pin for each stage:
+   - objective,
+   - probe/command surface,
+   - pass/fail gates,
+   - fail-closed blocker linkage,
+   - required artifacts.
+3. Keep the plan implementation-first and deterministic:
+   - baseline window,
+   - burst window,
+   - controlled failure-injection window,
+   - remediation/rerun loop,
+   - closure rollup.
+
+### Guardrails
+1. No historical evidence rewrite; this is a forward-execution elaboration only.
+2. No commit/push for docs without explicit user request.
+
+## Entry: 2026-03-03 15:57 +00:00 - M2 execution method embedded into plan (applied)
+
+### Applied updates
+1. Expanded Section `8` in `platform.M2.stress_test.md` from high-level sequence to execution-grade runbook:
+   - `M2-ST-S0` Stage-A artifact emission and dispatch hardening,
+   - `M2-ST-S1` baseline window,
+   - `M2-ST-S2` burst window,
+   - `M2-ST-S3` controlled failure-injection,
+   - `M2-ST-S4` remediation/selective rerun,
+   - `M2-ST-S5` closure rollup and M3 handoff.
+2. Pinned stage-level pass gates per window:
+   - explicit error-rate thresholds for baseline and burst,
+   - control-rail/secret-safety/no-unattributed-spend constraints,
+   - deterministic fault-detection and recovery requirements.
+3. Added execution control surface subsection:
+   - runner target `scripts/dev_substrate/m2_stress_runner.py`,
+   - managed dispatch as authoritative run lane,
+   - local use constrained to preflight/artifact-shape validation.
+4. Updated M2 DoD and immediate-next-actions:
+   - runbook and control-surface pinning marked complete,
+   - next implementation step now explicitly includes runner creation.
+
+### Rationale
+1. User asked that execution approach be included in authority, not only discussed in chat.
+2. This change converts the M2 plan from intent-level to operator-executable without changing prior phase history.
