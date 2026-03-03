@@ -212,7 +212,7 @@ For any phase:
 1. Program bootstrapped.
 2. Active phase: `M1` (`BLOCKED`, inline in this file).
 3. Per-phase stress files not yet created.
-4. Next step: remediate `M1-ST-B8` (concurrent immutable-tag provenance drift) and rerun managed window before M1 closure decision.
+4. Next step: apply closure-grade deterministic packaging hardening (base-image digest + dependency lock/hash controls), then rerun M1 managed window to clear `M1-ST-B8`.
 
 ## 13) Closed Phase - M0 (Inline)
 Status:
@@ -299,6 +299,8 @@ M1 stress handle packet (pinned):
 10. `M1_STRESS_MAX_SPEND_USD = 10`.
 11. `M1_STRESS_BUILD_REPETITIONS = 3`.
 12. `M1_STRESS_BUILD_CONCURRENCY_TARGET = 2`.
+13. `M1_STRESS_IMAGE_TAG_IMMUTABLE_PATTERN = "git-{git_sha}-run-{ci_run_id}"`.
+14. `M1_STRESS_GIT_SHA_CANONICAL_TAG_PATTERN = "git-{git_sha}"` (trace marker only).
 
 M1 local preflight contract (pinned):
 1. `M1_LOCAL_PREFLIGHT_REQUIRED = true`.
@@ -337,9 +339,9 @@ M1 DoD (stress):
 - [x] M1 stress closure verdict published (`BLOCKED`) with rerun policy.
 
 M1 immediate actions:
-1. Open remediation decision for concurrent immutable-tag race (`git-{sha}` shared across repetitions) and pin corrected tagging/digest contract.
-2. Rerun M1 managed stress window after remediation and require zero provenance drift across repetitions.
-3. If build-time slope or context overhead breaches target after drift fix, open decision-repin candidate before M2.
+1. Escalate deterministic hardening to closure-grade controls (base-image digest pin + dependency lock/hash posture) for packaging reproducibility.
+2. Rerun M1 managed stress window after deterministic hardening and require zero digest drift across repetitions.
+3. If digest drift persists after closure-grade hardening, open architecture-level packaging repin decision before M2.
 
 M1 Stage-B execution progress:
 1. Local preflight run `m1_stress_preflight_20260303T060333Z` returned `HOLD_REMEDIATE`:
@@ -366,3 +368,14 @@ M1 Stage-B execution progress:
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T061619Z/stress/m1_blocker_register.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T061619Z/stress/m1_execution_summary.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T061619Z/stress/m1_decision_log.json`
+8. `M1-ST-B8` remediation attempt applied and rerun in dev_full-only mode:
+   - workflow contract repin committed (`b4d819270cd84b27fc3dc2028db3e1b2d49b6a8f`) with run-scoped immutable tag pattern and stress concurrency suffix input,
+   - dev_full-only run set `22627099194`, `22627105810`, `22627109900` all `success`,
+   - observed max concurrency `3` (target `2` met),
+   - run-scoped tag pattern passed (`tag_collision=false`),
+   - fail-closed blocker persists: `digest_drift=true` across repetitions (`M1-ST-B8` remains open).
+9. Dev_full-only rerun artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T141816Z/stress/m1_stress_window_results.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T141816Z/stress/m1_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T141816Z/stress/m1_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T141816Z/stress/m1_decision_log.json`

@@ -390,3 +390,134 @@ _As of 2026-03-03_
    - all runs success,
    - no digest drift for immutable claims,
    - concurrency target maintained.
+
+## Entry: 2026-03-03 14:08 +00:00 - M1-ST-B8 remediation design (tag/digest repin + deterministic hardening)
+
+### Trigger
+1. User directed immediate implementation of `M1-ST-B8` remediation and rerun.
+2. Current blocker state: concurrent M1 managed window produced same git-sha tag mapping to multiple digests.
+
+### Root-cause model
+1. Current workflow tags all repetitions with `git-{git_sha}`.
+2. Under concurrent dispatch this creates tag-write race and provenance ambiguity.
+3. Build reproducibility posture is weak (no pinned build timestamp controls; default pip bytecode/build metadata variability surface remains).
+
+### Remediation decision (selected)
+1. Re-pin M1 packaging immutable-tag contract to run-scoped immutable tag:
+   - `git-{git_sha}-run-{ci_run_id}`.
+2. Preserve git-sha traceability by adding canonical marker field:
+   - `git_sha_canonical_tag = git-{git_sha}` (informational, not digest authority).
+3. Harden deterministic build posture in packaging lane:
+   - set deterministic build arg `SOURCE_DATE_EPOCH` from commit timestamp,
+   - pass `SOURCE_DATE_EPOCH` into Docker build,
+   - enable deterministic Python packaging posture (`PIP_NO_COMPILE=1`, `PYTHONHASHSEED=0`) and wire Docker `ARG SOURCE_DATE_EPOCH`.
+4. Provenance checks will validate new run-scoped tag pattern and strict run-id coupling.
+
+### Scope of change
+1. `.github/workflows/dev_full_m1_packaging.yml`
+2. `.github/workflows/dev_min_m1_packaging.yml`
+3. `Dockerfile`
+4. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` (contract repin note)
+5. stress authority/logging updates after rerun.
+
+### Validation plan
+1. Re-run managed 3-repetition M1 window with dual-carrier topology.
+2. Evaluate fail-closed gates:
+   - all runs `success`,
+   - concurrency target met,
+   - no digest drift across repetitions,
+   - no tag collision, and run-scoped tag pattern correctness.
+3. Publish updated blocker register/execution summary.
+
+### Risk posture
+1. If digest drift persists after deterministic hardening, keep `M1-ST-B8` open and escalate next-level deterministic controls (base-image digest pinning + lockfile/hash-verified deps).
+
+## Entry: 2026-03-03 14:12 +00:00 - M1-ST-B8 remediation implementation completed (pre-rerun)
+
+### Implemented changes
+1. Workflow contract repin (`dev_full_m1_packaging.yml`, `dev_min_m1_packaging.yml`):
+   - immutable tag moved to run-scoped pattern `git-{git_sha}-run-{ci_run_id}`,
+   - canonical git-sha marker retained as `git-{git_sha}` (`git_sha_canonical_tag`) for traceability only,
+   - `SOURCE_DATE_EPOCH` derived from commit timestamp and injected into build.
+2. Deterministic build hardening:
+   - workflows now export `DOCKER_BUILDKIT=1` and pass `--build-arg SOURCE_DATE_EPOCH=...`.
+   - `Dockerfile` updated with:
+     - `ARG SOURCE_DATE_EPOCH`,
+     - `ENV SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH}`,
+     - `PIP_NO_COMPILE=1`,
+     - `PYTHONHASHSEED=0`.
+3. Provenance check hardening (dev_full workflow evidence emitter):
+   - validates run-scoped immutable tag format and exact run-id coupling,
+   - validates canonical git-sha marker consistency,
+   - records canonical marker in provenance artifacts.
+4. Handle registry repin:
+   - added `IMAGE_TAG_IMMUTABLE_PATTERN = git-{git_sha}-run-{ci_run_id}`,
+   - retained `IMAGE_TAG_GIT_SHA_PATTERN = git-{git_sha}` as informational trace marker.
+
+### Validation before rerun
+1. Workflow YAML parse check passed for both modified workflow files.
+
+### Next action
+1. Immediate managed rerun of M1 3-repetition stress window using updated workflow contract.
+
+## Entry: 2026-03-03 14:14 +00:00 - Dev_full-only rerun adjustment after user correction
+
+### Trigger
+1. User clarified stress scope is `dev_full` only; `dev_min` is out of scope.
+2. Interrupted command had already dispatched one `dev_full` and one `dev_min` run using previous branch state.
+
+### Constraint
+1. `dev-full-m1-packaging` workflow uses branch-scoped concurrency key (`dev-full-m1-packaging-${ref_name}`), which serializes dev_full runs and prevents proving `concurrency_target=2` without secondary carrier.
+
+### Decision
+1. Keep remediation scope strictly `dev_full`.
+2. Add controlled concurrency suffix input to `dev-full-m1-packaging`:
+   - default keeps existing serialized posture (`shared`),
+   - stress dispatch can set per-repetition suffix (`r1/r2/r3`) to permit concurrent execution within dev_full only.
+3. Rerun M1 window with three `dev-full-m1-packaging` dispatches (no dev_min usage).
+4. Evaluate fail-closed gates using updated tag/digest contract and deterministic controls.
+
+### Guardrails
+1. No branch operations.
+2. No dev_min dispatch for rerun.
+3. Preserve fail-closed blocker posture if digest drift persists.
+
+## Entry: 2026-03-03 14:21 +00:00 - M1-ST-B8 remediation rerun (dev_full-only) results
+
+### Execution adjustment
+1. Implemented dev_full-only stress concurrency control in workflow:
+   - added `concurrency_group_suffix` input to `dev-full-m1-packaging`,
+   - concurrency group now `${ref_name}-${suffix}` (default `shared`, stress runs use per-repetition suffix).
+2. Workflow-only commit created and pushed:
+   - commit: `b4d819270cd84b27fc3dc2028db3e1b2d49b6a8f`.
+
+### Managed rerun details
+1. Phase execution id: `m1_stress_window_20260303T141816Z`.
+2. Dev_full-only run set:
+   - `22627099194`,
+   - `22627105810`,
+   - `22627109900`.
+3. All runs succeeded (`conclusion=success`).
+4. Observed max concurrency: `3` (target `2`, pass).
+5. Run-scoped immutable tag contract checks passed:
+   - unique run tags present,
+   - tag collision not detected,
+   - git-sha drift not detected.
+
+### Blocker adjudication
+1. `M1-ST-B8` remains OPEN due digest drift:
+   - digest set diverged across repetitions for same git sha.
+2. Current phase verdict remains fail-closed:
+   - `HOLD_REMEDIATE`.
+
+### Evidence
+1. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T141816Z/stress/m1_stress_window_results.json`
+2. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T141816Z/stress/m1_blocker_register.json`
+3. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T141816Z/stress/m1_execution_summary.json`
+4. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T141816Z/stress/m1_decision_log.json`
+
+### Next required remediation lane
+1. Closure-grade deterministic packaging controls are now required before another rerun:
+   - pin base image by digest,
+   - pin dependency graph via lock/hash-verified install,
+   - rerun M1 window and require `digest_drift=false`.

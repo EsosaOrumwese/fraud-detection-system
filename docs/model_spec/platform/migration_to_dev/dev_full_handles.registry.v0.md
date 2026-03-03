@@ -383,7 +383,9 @@ Allowed tokens in pattern handles:
 
 ### 6.2 Image identity strategy
 
-* `IMAGE_TAG_GIT_SHA_PATTERN = "git-{git_sha}"`
+* `IMAGE_TAG_IMMUTABLE_PATTERN = "git-{git_sha}-run-{ci_run_id}"` (repinned for M1 stress provenance race remediation)
+* `IMAGE_TAG_GIT_SHA_PATTERN = "git-{git_sha}"` (canonical marker only; not digest authority under concurrent packaging windows)
+* `IMAGE_TAG_GIT_SHA_MARKER_MODE = "informational_trace_only"`
 * `IMAGE_TAG_DEV_FULL_LATEST = "dev-full-latest"`
 * `IMAGE_REFERENCE_MODE = "immutable_preferred"`
 
