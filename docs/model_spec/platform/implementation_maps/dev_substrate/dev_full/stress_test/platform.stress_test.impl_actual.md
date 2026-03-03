@@ -857,3 +857,23 @@ _As of 2026-03-03_
 ### Implementation impact
 1. Next lane design must center on sealed Linux artifact surfaces (wheelhouse/venv/image layer) with digest-pinned promotion contract.
 2. M2 remains blocked until M1 gate closure evidence is published under the approved pivot mechanics.
+
+## Entry: 2026-03-03 15:35 +00:00 - Fail-closed rationale clarification + M1 success-definition proposal
+
+### Trigger
+1. User requested explicit recording that current non-reproducibility evidence points to build system/toolchain path behavior rather than package-stack pinning defects.
+2. User requested this to be captured as understanding of the system, not as a loss.
+3. User additionally requested consideration of redefining M1 success semantics accordingly.
+
+### Pinned interpretation
+1. After successive controls (base digest pin, hash-locked deps, deterministic buildx path, staged context normalization, offline wheelhouse install), drift still persists in digest/config/layer surfaces.
+2. Therefore current dominant entropy is interpreted as managed build system/toolchain execution-path nondeterminism, not dependency version drift from the pinned lockfile.
+3. `M1-ST-B8` remains fail-closed for provenance trust, but the narrative is explicitly diagnostic maturity, not failure to progress.
+
+### Proposed policy adjustment (pending explicit approval)
+1. Candidate M1 success definition:
+   - freeze one authoritative Linux build artifact/digest per git-sha,
+   - verify once,
+   - promote immutable artifact by digest to runtime stress phases,
+   - evaluate production readiness on promoted immutable artifact behavior rather than repeated fresh-build byte identity.
+2. Until this policy is explicitly approved, current strict no-drift rebuild gate remains active.

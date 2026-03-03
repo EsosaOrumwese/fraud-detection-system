@@ -330,6 +330,21 @@ M1 blockers (status):
 4. `M1-ST-B6`: CLOSED - initial managed-window run failures from optional S3 direct-upload branch remediated by artifact-pack-only rerun posture.
 5. `M1-ST-B8`: OPEN - provenance drift under concurrent managed repetitions (single immutable tag resolved to multiple digests).
 
+M1 fail-closed rationale (pinned understanding):
+1. `M1-ST-B8` is retained as fail-closed to preserve trust in immutable packaging provenance before runtime phase advancement.
+2. Observed drift remains after lockfile pinning, base digest pinning, deterministic buildx posture, staged-context timestamp normalization, and offline wheelhouse install lane.
+3. Current technical interpretation is that dominant entropy is in the managed build system/toolchain execution path, not in package-version selection from the current pinned dependency stack.
+4. This is recorded as system understanding (diagnosis maturity), not as a project failure.
+
+M1 success definition update (proposal, pending explicit approval):
+1. Keep current strict gate active until policy approval:
+   - repeated independent builds must converge (`digest/config/layer` no-drift).
+2. Proposed production-oriented success posture for M1:
+   - freeze one authoritative Linux build artifact/digest per git-sha,
+   - verify once, then promote immutable artifact by digest across downstream phases,
+   - require runtime stress/throughput validation to run only on promoted immutable artifact.
+3. Under this proposal, success shifts from "all fresh rebuilds byte-identical" to "artifact promotion rail is deterministic and runtime behavior is stable on immutable promoted artifacts."
+
 M1 DoD (stress):
 - [x] Stage A pre-read completed and classified (`PREVENT`/`OBSERVE`/`ACCEPT`).
 - [x] M1 stress-handle packet pinned.
