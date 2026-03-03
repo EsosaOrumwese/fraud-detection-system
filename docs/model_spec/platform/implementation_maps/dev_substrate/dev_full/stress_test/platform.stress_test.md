@@ -216,7 +216,7 @@ For any phase:
    - `stress_test/platform.M2.stress_test.md` (`DONE`),
    - `stress_test/platform.M3.stress_test.md` (`DONE`),
    - `stress_test/platform.M4.stress_test.md` (`ACTIVE`).
-4. Next step: remediate and rerun `M4-ST-S1` (`M4-ST-B2/B3/B5` are open from first S1 execution).
+4. Next step: execute `M4-ST-S2` steady dependency/contention window (`M4-ST-S1` rerun passed with `next_gate=M4_ST_S2_READY`).
 
 ## 13) Closed Phase - M0 (Inline)
 Status:
@@ -456,4 +456,4 @@ Status:
 
 Authority routing:
 1. `stress_test/platform.M4.stress_test.md` is now the active execution/planning authority for M4.
-2. Latest M4 execution state is `M4-ST-S1` fail-closed (`BLOCKED`); next gate remains `M4-ST-S1` rerun after blocker remediation.
+2. Latest M4 execution state is `M4-ST-S1` pass (`next_gate=M4_ST_S2_READY`); next gate is `M4-ST-S2`.

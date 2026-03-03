@@ -623,7 +623,6 @@ def run_s1(phase_id: str, out_root: Path, win_override: int | None, interval: in
     msk_arn = str(h.get("MSK_CLUSTER_ARN", "")).strip()
     flink_app = str(h.get("FLINK_APP_RTDL_IEG_OFP_V0", "")).strip()
     emr_vc_id = str(h.get("EMR_EKS_VIRTUAL_CLUSTER_ID", "")).strip()
-    emr_vc_name = str(h.get("EMR_EKS_VIRTUAL_CLUSTER_NAME", "")).strip()
     eks_cluster = str(h.get("EKS_CLUSTER_NAME", "")).strip()
 
     probes: list[dict[str, Any]] = [

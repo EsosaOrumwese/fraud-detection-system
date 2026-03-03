@@ -221,7 +221,7 @@ S1 startup/readiness verification checklist:
    - Lambda ingress handler,
    - DDB idempotency table,
    - MSK cluster,
-   - active Flink app handle.
+   - active Flink runtime surface handle.
 4. runtime-path law remains compliant during S1 window.
 5. correlation contract anchors remain fail-closed and complete.
 6. new control/correlation issues versus `S0` are empty.
@@ -339,9 +339,9 @@ Required artifacts for each M4 stress window:
 - [x] First M4 managed stress window executed.
 
 ## 11) Immediate Next Actions
-1. Remediate `M4-ST-S1` fail-closed blockers with focus on stream-lane startup/readiness (`FLINK_APP_RTDL_IEG_OFP_V0` surface).
-2. Rerun `M4-ST-S1` startup/readiness baseline window and require zero open blockers.
-3. Advance to `M4-ST-S2` only after `S1` closes (`next_gate=M4_ST_S2_READY`).
+1. Execute `M4-ST-S2` steady dependency and contention window.
+2. Preserve S1 baseline as comparison source for S2 drift detection.
+3. Open fail-closed blockers immediately on any new dependency/control drift versus S1 baseline.
 
 ## 12) Execution Progress
 ### `M4-ST-S0` authority/entry-gate closure execution (2026-03-03)
@@ -406,3 +406,37 @@ Required artifacts for each M4 stress window:
    - keep fail-closed posture,
    - remediate stream-lane readiness handle/state,
    - rerun `S1` before any `S2` progression.
+
+### `M4-ST-S1` remediation rerun execution (2026-03-03)
+1. Remediation chain:
+   - direct canonical Managed Flink create call was re-attempted:
+     - `aws kinesisanalyticsv2 create-application --application-name fraud-platform-dev-full-rtdl-ieg-ofp-v0 --runtime-environment FLINK-1_18 --service-execution-role arn:aws:iam::230372904534:role/fraud-platform-dev-full-flink-execution --application-mode INTERACTIVE --region eu-west-2`
+     - result: `UnsupportedOperationException` (account verification gate still active),
+   - runtime active-path handle repinned to fallback-managed stream lane:
+     - `FLINK_RUNTIME_PATH_ACTIVE = EKS_FLINK_OPERATOR`,
+   - S1 stream readiness probe set made runtime-path aware (`MSF` vs `EKS`).
+2. Phase execution id: `m4_stress_s1_20260303T190639Z`.
+3. Runner:
+   - `python scripts/dev_substrate/m4_stress_runner.py --stage S1`
+4. Verification summary:
+   - S0 continuity and Stage-A carry-forward passed,
+   - startup/readiness precheck passed (`precheck_fail_closed=false`),
+   - full steady window completed (`window_seconds_observed=600`),
+   - no new control/correlation issues versus S0.
+5. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M4_ST_S2_READY`,
+   - `open_blockers=0`,
+   - `probe_count=549`,
+   - `error_rate_pct=0.0`,
+   - `startup_ready_seconds=2`.
+6. Artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T190639Z/stress/m4_stagea_findings.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T190639Z/stress/m4_lane_matrix.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T190639Z/stress/m4_probe_latency_throughput_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T190639Z/stress/m4_control_rail_conformance_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T190639Z/stress/m4_secret_safety_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T190639Z/stress/m4_cost_outcome_receipt.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T190639Z/stress/m4_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T190639Z/stress/m4_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T190639Z/stress/m4_decision_log.json`

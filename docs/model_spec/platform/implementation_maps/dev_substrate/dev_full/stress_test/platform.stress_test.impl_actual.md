@@ -2335,3 +2335,56 @@ _As of 2026-03-03_
 4. If create fails with account-gate code (`UnsupportedOperationException`) or permission errors:
    - keep fail-closed blockers open,
    - record explicit blocker-cause receipt and stop S2 progression.
+
+## Entry: 2026-03-03 19:17 +00:00 - M4 S1 remediation executed (MSF gate persisted; EKS runtime-path alignment; rerun pass)
+
+### Execution actions
+1. Confirmed active canonical handles and role surface:
+   - `FLINK_APP_RTDL_IEG_OFP_V0=fraud-platform-dev-full-rtdl-ieg-ofp-v0`,
+   - `ROLE_FLINK_EXECUTION=arn:aws:iam::230372904534:role/fraud-platform-dev-full-flink-execution`.
+2. Re-attempted direct canonical Managed Flink materialization:
+   - `aws kinesisanalyticsv2 create-application --application-name fraud-platform-dev-full-rtdl-ieg-ofp-v0 --runtime-environment FLINK-1_18 --service-execution-role arn:aws:iam::230372904534:role/fraud-platform-dev-full-flink-execution --application-mode INTERACTIVE --region eu-west-2`.
+3. Create result:
+   - `UnsupportedOperationException` (account verification gate still active).
+4. Applied fail-closed runtime alignment:
+   - repinned `FLINK_RUNTIME_PATH_ACTIVE` to `EKS_FLINK_OPERATOR` in handles registry.
+5. Updated runner `scripts/dev_substrate/m4_stress_runner.py`:
+   - S1 stream-surface probes are now runtime-path aware:
+     - `MSF_MANAGED` -> `kinesisanalyticsv2 describe-application`,
+     - `EKS_FLINK_OPERATOR` -> `emr-containers describe-virtual-cluster` + `eks describe-cluster` + bounded `list-job-runs` surface.
+6. Fixed immediate patch defect (`NameError`) and reran compile gate:
+   - `python -m py_compile scripts/dev_substrate/m4_stress_runner.py` (pass).
+
+### S1 rerun execution outcome
+1. Executed:
+   - `python scripts/dev_substrate/m4_stress_runner.py --stage S1`
+   - `phase_execution_id=m4_stress_s1_20260303T190639Z`.
+2. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M4_ST_S2_READY`,
+   - `open_blockers=0`,
+   - `probe_count=549`,
+   - `error_rate_pct=0.0`,
+   - `startup_ready_seconds=2`.
+3. Control/drift posture:
+   - `new_issues_vs_s0=[]`,
+   - `probe_failure_counts={}`,
+   - no secret or cost-envelope violations.
+
+### Governance and routing updates
+1. `platform.M4.stress_test.md` updated with:
+   - path-aware S1 command catalog,
+   - remediation rerun execution receipt,
+   - immediate next action advanced to `M4-ST-S2`.
+2. `platform.stress_test.md` updated:
+   - latest M4 state now `M4-ST-S1` pass,
+   - next program step routed to `M4-ST-S2`.
+
+### Evidence paths
+1. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T190639Z/stress/m4_probe_latency_throughput_snapshot.json`
+2. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T190639Z/stress/m4_control_rail_conformance_snapshot.json`
+3. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T190639Z/stress/m4_secret_safety_snapshot.json`
+4. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T190639Z/stress/m4_cost_outcome_receipt.json`
+5. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T190639Z/stress/m4_blocker_register.json`
+6. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T190639Z/stress/m4_execution_summary.json`
+7. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T190639Z/stress/m4_decision_log.json`
