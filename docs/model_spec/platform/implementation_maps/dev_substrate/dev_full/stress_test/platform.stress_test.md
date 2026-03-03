@@ -43,7 +43,7 @@ This is the program-level overview of what each `M*` phase stress effort is expe
 
 | Stress Phase | Build Scope Anchor | What We Aim to Achieve | Exit Signal | Status |
 | --- | --- | --- | --- | --- |
-| M0 | Mobilization + authority lock | Validate test authority, handles, and stress evidence surfaces before any load | All prerequisite stress handles and evidence sinks are green | NOT_STARTED |
+| M0 | Mobilization + authority lock | Validate test authority, handles, and stress evidence surfaces before any load | All prerequisite stress handles and evidence sinks are green | ACTIVE |
 | M1 | Packaging readiness | Stress packaging/provenance paths for reproducible deploy artifacts under concurrent operations | No packaging bottleneck or provenance drift under stress | NOT_STARTED |
 | M2 | Substrate readiness | Stress core substrate primitives (network/store/bus/runtime) for baseline capacity and failure behavior | Substrate can sustain target baseline load without integrity drift | NOT_STARTED |
 | M3 | Run pinning + orchestrator readiness | Stress run-control/orchestrator behavior under concurrent run activation and retries | Run pinning remains deterministic; no cross-run mixing | NOT_STARTED |
@@ -203,5 +203,48 @@ For any phase:
 
 ## 12) Program Status (Initial)
 1. Program bootstrapped.
-2. Per-phase stress files not yet created.
-3. Next step: activate `M0` stress file and run Stage A decision/bottleneck pre-read for M0 surfaces.
+2. Active phase: `M0` (inline in this file).
+3. Per-phase stress files not yet created.
+4. Next step: close M0 `PREVENT` items, then decide `M0 DONE -> M1` transition.
+
+## 13) Active Phase - M0 (Inline)
+Status:
+1. `ACTIVE`
+
+M0 stress objective:
+1. ensure stress program governance is execution-ready before any runtime load is attempted.
+
+M0 stress scope:
+1. authority and precedence readback for stress program.
+2. stress handle and evidence-surface readiness checks.
+3. phase activation control and blocker taxonomy lock.
+
+Stage A pre-read inputs used:
+1. `platform.M0.build_plan.md`
+2. `platform.build_plan.md`
+3. `dev_full_handles.registry.v0.md`
+
+Stage A findings classification:
+
+| ID | Classification | Finding | Required action |
+| --- | --- | --- | --- |
+| `M0-ST-F1` | `PREVENT` | Stress program does not yet pin a dedicated stress-handle packet (targets/profile IDs/window settings) independent of certification knobs. | Define and pin `M0` stress-handle packet before `M1` stress activation. |
+| `M0-ST-F2` | `PREVENT` | Stress evidence contract exists, but M0 has no explicit stress blocker register artifact path yet. | Pin M0 stress blocker register artifact contract in M0 closure step. |
+| `M0-ST-F3` | `OBSERVE` | Handles registry still contains unresolved `TO_PIN` items mapped to later runtime phases (`M2+`). | Track as forward dependency risk; no M0 runtime action required. |
+| `M0-ST-F4` | `ACCEPT` | M0 build phase is docs/control-only with no runtime mutation; this aligns with stress program startup posture. | Continue M0 inline execution and close governance prerequisites. |
+
+M0 blockers (open):
+1. `M0-ST-B1`: stress-handle packet not yet pinned.
+2. `M0-ST-B2`: explicit M0 stress blocker-register artifact contract not yet pinned.
+
+M0 DoD (stress):
+- [x] Stage A pre-read completed and classified (`PREVENT`/`OBSERVE`/`ACCEPT`).
+- [ ] Stress-handle packet pinned for downstream phase activation.
+- [ ] M0 stress blocker-register artifact contract pinned.
+- [ ] M0 blocker set closed (`M0-ST-B1`, `M0-ST-B2`).
+- [ ] M0 closure note written in stress implementation map and logbook.
+
+M0 immediate actions:
+1. Add M0 stress-handle packet section (targets/windows/profile IDs) to this authority or a dedicated handle companion.
+2. Add explicit M0 blocker-register artifact path pattern to evidence contract.
+3. Close `M0-ST-B1/B2`, then mark `M0 DONE` and move to `M1` decision pre-read.

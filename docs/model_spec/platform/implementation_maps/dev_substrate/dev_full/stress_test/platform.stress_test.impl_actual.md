@@ -92,3 +92,27 @@ _As of 2026-03-03_
 
 ### Result
 1. Main stress authority now includes a deterministic doc-creation rule that guides focus and avoids unnecessary document sprawl.
+
+## Entry: 2026-03-03 06:08 +00:00 - M0 stress activation (inline) and Stage-A pre-read
+
+### Trigger
+1. User requested starting stress execution with `M0`.
+
+### Decision
+1. Keep `M0` inline in `platform.stress_test.md` (consistent with inline-default rule).
+2. Activate `M0` status in the program overview and add a dedicated inline `Active Phase - M0` section.
+3. Execute Stage-A pre-read against:
+   - `platform.M0.build_plan.md`,
+   - `platform.build_plan.md`,
+   - `dev_full_handles.registry.v0.md`.
+
+### Findings (classified)
+1. `M0-ST-F1` (`PREVENT`): stress-handle packet for non-cert stress execution is not yet pinned.
+2. `M0-ST-F2` (`PREVENT`): explicit M0 stress blocker-register artifact path contract is not yet pinned.
+3. `M0-ST-F3` (`OBSERVE`): unresolved `TO_PIN` handles remain for later runtime phases (`M2+`) and must be carried as forward dependency risk.
+4. `M0-ST-F4` (`ACCEPT`): docs/control-only M0 posture is aligned with stress startup.
+
+### Result
+1. `M0` is now marked `ACTIVE` in the main stress overview.
+2. M0 stress DoD and blockers (`M0-ST-B1`, `M0-ST-B2`) are now explicit.
+3. Immediate action queue for closing M0 is pinned in the active-phase section.
