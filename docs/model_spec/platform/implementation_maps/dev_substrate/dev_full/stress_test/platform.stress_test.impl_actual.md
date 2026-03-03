@@ -1344,3 +1344,40 @@ _As of 2026-03-03_
    - immediate next actions advanced to `S3`.
 2. `platform.stress_test.md`:
    - program next step updated to `M2-ST-S3`.
+
+## Entry: 2026-03-03 17:07 +00:00 - M2 `S3` execution plan (pre-implementation)
+
+### Trigger
+1. User instructed: proceed with `S3` execution and handle any issues that arise.
+
+### S3 objective and constraints
+1. Execute controlled failure-injection window per M2 runbook:
+   - missing non-critical SSM path,
+   - permission-denied simulation via IAM policy simulation,
+   - API-edge degradation via invalid route probe.
+2. Preserve existing blocker taxonomy and artifact contract (`m2_*` required outputs).
+3. Keep fail-closed posture: any non-deterministic injection outcome or failed recovery probe opens blocker.
+
+### Performance/cost posture
+1. Reuse existing S1/S2 probe builders and artifact writers to avoid duplicate logic drift.
+2. Keep injection set bounded (single deterministic probe each) and use read-only/non-mutating calls.
+3. Keep sustained probe loop budgeted to configured window and existing concurrency controls.
+
+### Planned implementation
+1. Add `run_s3(...)` and extend CLI stage choices.
+2. Build deterministic injection classification rules:
+   - classify expected failure signatures for each injection,
+   - mark unexpected success or unclassified failure as fail-closed issue.
+3. Add pre-injection and post-injection recovery checks on critical probes.
+4. Emit S3 evidence:
+   - injection outcomes/classifications,
+   - recovery status,
+   - control/secrets/cost snapshots,
+   - blocker register and execution summary.
+5. Run `S3` immediately; if blockers open, apply smallest-lane remediation and rerun `S3`.
+
+### Acceptance targets
+1. All injections detected and classified deterministically.
+2. Recovery probes return green after injection window.
+3. No new control-rail drift and no secret leakage.
+4. `overall_pass=true` with `open_blockers=0`; else fail-closed with explicit blocker evidence and remediation lane.

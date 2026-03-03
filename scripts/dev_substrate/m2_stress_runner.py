@@ -237,9 +237,9 @@ def copy_s0(out_root: Path, out_dir: Path) -> list[str]:
     return errs
 
 
-def load_latest_successful_s1(out_root: Path) -> dict[str, Any]:
-    s1s = sorted(out_root.glob("m2_stress_s1_*/stress"))
-    for d in reversed(s1s):
+def load_latest_successful_stage(out_root: Path, stage_prefix: str) -> dict[str, Any]:
+    runs = sorted(out_root.glob(f"{stage_prefix}*/stress"))
+    for d in reversed(runs):
         sp = d / "m2_execution_summary.json"
         if not sp.exists():
             continue
@@ -260,6 +260,39 @@ def load_latest_successful_s1(out_root: Path) -> dict[str, Any]:
                 continue
         return out
     return {}
+
+
+def load_latest_successful_s1(out_root: Path) -> dict[str, Any]:
+    return load_latest_successful_stage(out_root, "m2_stress_s1_")
+
+
+def load_latest_successful_s2(out_root: Path) -> dict[str, Any]:
+    return load_latest_successful_stage(out_root, "m2_stress_s2_")
+
+
+def get_caller_identity() -> tuple[str, str, str]:
+    try:
+        p = subprocess.run(
+            ["aws", "sts", "get-caller-identity", "--output", "json"],
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+    except Exception as e:  # noqa: BLE001
+        return "", "", f"caller-identity-exception: {e}"
+    if int(p.returncode) != 0:
+        return "", "", (p.stderr or p.stdout or "caller-identity-failed").strip()[:300]
+    try:
+        data = json.loads((p.stdout or "").strip() or "{}")
+    except Exception as e:  # noqa: BLE001
+        return "", "", f"caller-identity-json-parse-failed: {e}"
+    arn = str(data.get("Arn", "")).strip()
+    acct = str(data.get("Account", "")).strip()
+    role_arn = arn
+    m = re.match(r"^arn:aws:sts::([0-9]{12}):assumed-role/([^/]+)/[^/]+$", arn)
+    if m:
+        role_arn = f"arn:aws:iam::{m.group(1)}:role/{m.group(2)}"
+    return role_arn, acct, ""
 
 
 def run_s1(phase_id: str, out_root: Path, win_override: int | None, interval: int, conc: int) -> int:
@@ -681,23 +714,395 @@ def run_s2(phase_id: str, out_root: Path, win_override: int | None, interval: in
     return 0 if summ["overall_pass"] else 2
 
 
+def run_s3(phase_id: str, out_root: Path, win_override: int | None, interval: int, conc: int) -> int:
+    plan_txt = PLAN.read_text(encoding="utf-8")
+    pkt = parse_backtick_map(plan_txt)
+    h = parse_registry(REG)
+    out = out_root / phase_id / "stress"
+    out.mkdir(parents=True, exist_ok=True)
+    blockers: list[dict[str, Any]] = []
+    errs = copy_s0(out_root, out)
+    if errs:
+        blockers.append({"id": "M2-ST-B9", "severity": "S3", "status": "OPEN", "details": {"copy_errors": errs}})
+    probes, missing, probe_meta = build_s1_probes(h)
+    if missing:
+        blockers.append({"id": "M2-ST-B1", "severity": "S3", "status": "OPEN", "details": {"missing_keys": missing}})
+
+    s2ref = load_latest_successful_s2(out_root)
+    if not s2ref:
+        blockers.append({"id": "M2-ST-B9", "severity": "S3", "status": "OPEN", "details": {"missing_baseline": "No successful S2 baseline artifact pack found"}})
+
+    r = str(h.get("AWS_REGION", "eu-west-2"))
+    api_id = str(h.get("APIGW_IG_API_ID", "")).strip()
+    _, acct, _ = get_caller_identity()
+
+    def classify_injection(res: dict[str, Any]) -> tuple[str, bool]:
+        pid = str(res.get("probe_id", ""))
+        txt = f"{res.get('stdout', '')} {res.get('stderr', '')}".lower()
+        if pid == "inj_missing_ssm_path":
+            if int(res.get("exit_code", 1)) != 0 and ("parameternotfound" in txt or "parameter not found" in txt):
+                return "DETECTED_MISSING_PATH", True
+            if int(res.get("exit_code", 0)) == 0:
+                return "UNEXPECTED_SUCCESS", False
+            return "UNCLASSIFIED_FAILURE", False
+        if pid == "inj_permission_denied_sim":
+            if int(res.get("exit_code", 1)) == 0 and str(res.get("stdout", "")).strip().lower() in {"implicitdeny", "explicitdeny"}:
+                return "DETECTED_POLICY_DENY", True
+            if int(res.get("exit_code", 1)) != 0 and "accessdenied" in txt:
+                return "DETECTED_ACCESS_DENIED", True
+            if int(res.get("exit_code", 0)) == 0:
+                return "UNEXPECTED_ALLOW", False
+            return "UNCLASSIFIED_FAILURE", False
+        if pid == "inj_api_invalid_route":
+            if int(res.get("exit_code", 1)) != 0 and ("notfoundexception" in txt or "badrequestexception" in txt or "not found" in txt):
+                return "DETECTED_API_DEGRADE", True
+            if int(res.get("exit_code", 0)) == 0:
+                return "UNEXPECTED_SUCCESS", False
+            return "UNCLASSIFIED_FAILURE", False
+        return "UNKNOWN_INJECTION", False
+
+    win = int(win_override) if win_override is not None else int(float(pkt.get("M2_STRESS_WINDOW_MINUTES", 10)) * 60)
+    win = max(win, 60)
+    rows: list[dict[str, Any]] = []
+    cycles = 0
+    tstart = time.monotonic()
+    precheck_issues: list[str] = []
+    precheck_fail_closed = False
+    injection_issues: list[str] = []
+    critical = {"state_bucket_head", "state_lock_table", "msk_cluster", "api_get", "lambda_get", "ddb_get", "sr_sfn_lookup"}
+    can_run = (not missing) and bool(s2ref)
+    if can_run:
+        precheck = [p for p in probes if p["id"] in critical]
+        if precheck:
+            cycles += 1
+            with cf.ThreadPoolExecutor(max_workers=max(1, min(conc, len(precheck)))) as ex:
+                futs = [ex.submit(run_probe, p) for p in precheck]
+                for f in cf.as_completed(futs):
+                    rr = f.result()
+                    rr["cycle_index"] = cycles
+                    rr["precheck"] = True
+                    rows.append(rr)
+            failed = [x for x in rows if x.get("precheck") and x["status"] != "PASS"]
+            srp = [x for x in rows if x.get("precheck") and x["probe_id"] == "sr_sfn_lookup"]
+            sri = srp[-1] if srp else None
+            if failed:
+                precheck_issues.append(f"critical precheck failures: {len(failed)}")
+            if sri is None or sri["status"] != "PASS" or sri["stdout"] in {"", "None", "null"}:
+                precheck_issues.append("SR state machine lookup failed during precheck")
+            if precheck_issues:
+                precheck_fail_closed = True
+
+    injection_results: list[dict[str, Any]] = []
+    if can_run and not precheck_fail_closed:
+        missing_path = f"/fraud-platform/dev_full/stress/s3/noncritical-missing-{phase_id}"
+        acct_for_sim = acct if acct else "000000000000"
+        inj_probes: list[dict[str, Any]] = [
+            {
+                "id": "inj_missing_ssm_path",
+                "group": "injection",
+                "argv": ["aws", "ssm", "get-parameter", "--name", missing_path, "--region", r, "--query", "Parameter.ARN", "--output", "text"],
+                "timeout": 15,
+            },
+            {
+                "id": "inj_permission_denied_sim",
+                "group": "injection",
+                "argv": [
+                    "aws",
+                    "iam",
+                    "simulate-custom-policy",
+                    "--policy-input-list",
+                    "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Deny\",\"Action\":\"ssm:GetParameter\",\"Resource\":\"*\"}]}",
+                    "--action-names",
+                    "ssm:GetParameter",
+                    "--resource-arns",
+                    f"arn:aws:ssm:{r}:{acct_for_sim}:parameter/fraud-platform/dev_full/stress/s3/restricted",
+                    "--query",
+                    "EvaluationResults[0].EvalDecision",
+                    "--output",
+                    "text",
+                ],
+                "timeout": 20,
+            },
+            {
+                "id": "inj_api_invalid_route",
+                "group": "injection",
+                "argv": ["aws", "apigatewayv2", "get-route", "--api-id", api_id, "--route-id", "s3-invalid-route-id", "--region", r, "--query", "RouteId", "--output", "text"],
+                "timeout": 15,
+            },
+        ]
+
+        for p in inj_probes:
+            rr = run_probe(p)
+            cycles += 1
+            rr["cycle_index"] = cycles
+            rr["injection"] = True
+            classification, detected = classify_injection(rr)
+            rr["injection_classification"] = classification
+            rr["injection_detected"] = detected
+            rows.append(rr)
+            injection_results.append(rr)
+            if not detected:
+                injection_issues.append(f"{rr['probe_id']}:{classification}")
+
+        # Immediate recovery pass after injections.
+        recovery = [p for p in probes if p["id"] in critical]
+        rec_failed = 0
+        with cf.ThreadPoolExecutor(max_workers=max(1, min(conc, len(recovery)))) as ex:
+            futs = [ex.submit(run_probe, p) for p in recovery]
+            for f in cf.as_completed(futs):
+                rr = f.result()
+                cycles += 1
+                rr["cycle_index"] = cycles
+                rr["recovery_probe"] = True
+                rows.append(rr)
+                if rr["status"] != "PASS":
+                    rec_failed += 1
+        if rec_failed > 0:
+            injection_issues.append(f"recovery probe failures after injection: {rec_failed}")
+
+    while (time.monotonic() - tstart < win) and can_run and (not precheck_fail_closed):
+        cycles += 1
+        c0 = time.monotonic()
+        with cf.ThreadPoolExecutor(max_workers=max(1, conc)) as ex:
+            futs = [ex.submit(run_probe, p) for p in probes]
+            for f in cf.as_completed(futs):
+                rr = f.result()
+                rr["cycle_index"] = cycles
+                rows.append(rr)
+        sleep_for = min(max(0.0, interval - (time.monotonic() - c0)), max(0.0, win - (time.monotonic() - tstart)))
+        if sleep_for > 0:
+            time.sleep(sleep_for)
+
+    # Final recovery check at window close.
+    final_recovery_failed = 0
+    if can_run and not precheck_fail_closed:
+        recovery = [p for p in probes if p["id"] in critical]
+        with cf.ThreadPoolExecutor(max_workers=max(1, min(conc, len(recovery)))) as ex:
+            futs = [ex.submit(run_probe, p) for p in recovery]
+            for f in cf.as_completed(futs):
+                rr = f.result()
+                cycles += 1
+                rr["cycle_index"] = cycles
+                rr["recovery_probe_final"] = True
+                rows.append(rr)
+                if rr["status"] != "PASS":
+                    final_recovery_failed += 1
+    if final_recovery_failed > 0:
+        injection_issues.append(f"final recovery probe failures: {final_recovery_failed}")
+
+    dur = max(1.0, time.monotonic() - tstart)
+    total = len(rows)
+    fails = [x for x in rows if x["status"] != "PASS"]
+    er = round((len(fails) / total) * 100.0, 4) if total else 100.0
+    lat = [float(x["duration_ms"]) for x in rows]
+    det_count = sum(1 for x in injection_results if bool(x.get("injection_detected")))
+    exp_count = len(injection_results)
+    probe = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M2-ST-S3",
+        "window_seconds_configured": win,
+        "window_seconds_observed": int(round(dur)),
+        "cycle_count": cycles,
+        "probe_count": total,
+        "failure_count": len(fails),
+        "error_rate_pct": er,
+        "probe_eps_observed": round(total / dur, 4),
+        "probe_eps_target": float(pkt.get("M2_STRESS_BASELINE_EVENTS_PER_SECOND", 20)),
+        "latency_ms_p50": round(pct(lat, 0.5), 3),
+        "latency_ms_p95": round(pct(lat, 0.95), 3),
+        "latency_ms_p99": round(pct(lat, 0.99), 3),
+        "sample_failures": fails[:10],
+        "injection_expected_count": exp_count,
+        "injection_detected_count": det_count,
+        "injection_issues": injection_issues,
+    }
+    dumpj(out / "m2_probe_latency_throughput_snapshot.json", probe)
+
+    sr = [x for x in rows if x["probe_id"] == "sr_sfn_lookup"]
+    sri = sr[-1] if sr else None
+    ci: list[str] = []
+    if h.get("PHASE_RUNTIME_PATH_MODE") != "single_active_path_per_phase_run":
+        ci.append("PHASE_RUNTIME_PATH_MODE drift")
+    if h.get("PHASE_RUNTIME_PATH_PIN_REQUIRED") is not True:
+        ci.append("PHASE_RUNTIME_PATH_PIN_REQUIRED not true")
+    if h.get("RUNTIME_PATH_SWITCH_IN_PHASE_ALLOWED") is not False:
+        ci.append("RUNTIME_PATH_SWITCH_IN_PHASE_ALLOWED not false")
+    if h.get("SR_READY_COMMIT_AUTHORITY") != "step_functions_only":
+        ci.append("SR_READY_COMMIT_AUTHORITY drift")
+    if h.get("CORRELATION_ENFORCEMENT_FAIL_CLOSED") is not True:
+        ci.append("CORRELATION_ENFORCEMENT_FAIL_CLOSED not true")
+    if sri is None or sri["status"] != "PASS" or sri["stdout"] in {"", "None", "null"}:
+        ci.append("SR state machine lookup failed")
+    if precheck_issues:
+        ci.extend(precheck_issues)
+
+    s2ctrl = s2ref.get("m2_control_rail_conformance_snapshot.json", {}) if s2ref else {}
+    s2_issues = [str(x) for x in s2ctrl.get("issues", [])] if s2ctrl else []
+    new_ci = sorted(set(ci) - set(s2_issues))
+    ctrl = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M2-ST-S3",
+        "overall_pass": len(new_ci) == 0 and not injection_issues,
+        "issues": ci,
+        "s2_baseline_issues": s2_issues,
+        "new_issues_vs_s2": new_ci,
+        "sr_lookup_probe": sri,
+        "injection_results": [
+            {
+                "probe_id": x["probe_id"],
+                "status": x["status"],
+                "exit_code": x["exit_code"],
+                "classification": x.get("injection_classification", ""),
+                "detected": bool(x.get("injection_detected")),
+            }
+            for x in injection_results
+        ],
+        "injection_issues": injection_issues,
+    }
+    ctrl["handle_resolution"] = probe_meta
+    ctrl["precheck_fail_closed"] = precheck_fail_closed
+    ctrl["s2_baseline_phase_execution_id"] = s2ref.get("phase_execution_id", "")
+    dumpj(out / "m2_control_rail_conformance_snapshot.json", ctrl)
+
+    srows = [x for x in rows if x["group"] == "secrets"]
+    sf = [x for x in srows if x["status"] != "PASS"]
+    wdec = any("--with-decryption" in x["command"] for x in rows)
+    qval = any("Parameter.Value" in x["command"] or "SecretString" in x["command"] for x in rows)
+    sus = []
+    rx = re.compile(r"(AKIA[0-9A-Z]{16}|BEGIN [A-Z ]*PRIVATE KEY|SECRET_ACCESS_KEY)")
+    for rr in rows:
+        if rx.search((rr["stdout"] + " " + rr["stderr"]).strip()):
+            sus.append(rr["probe_id"])
+    leak = wdec or qval or bool(sus)
+    sec = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M2-ST-S3",
+        "overall_pass": len(sf) == 0 and not leak,
+        "secret_probe_count": len(srows),
+        "secret_failure_count": len(sf),
+        "with_decryption_used": wdec,
+        "queried_value_directly": qval,
+        "suspicious_output_probe_ids": sus,
+        "plaintext_leakage_detected": leak,
+    }
+    dumpj(out / "m2_secret_safety_snapshot.json", sec)
+
+    max_sp = float(pkt.get("M2_STRESS_MAX_SPEND_USD", 35))
+    cost = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M2-ST-S3",
+        "window_seconds": int(round(dur)),
+        "estimated_api_call_count": total,
+        "attributed_spend_usd": 0.0,
+        "unattributed_spend_detected": False,
+        "max_spend_usd": max_sp,
+        "within_envelope": True,
+        "method": "readonly_control_plane_probe_estimate_v0",
+    }
+    dumpj(out / "m2_cost_outcome_receipt.json", cost)
+
+    if any(x["group"] in {"state_backend", "messaging"} and x["status"] != "PASS" for x in rows):
+        blockers.append({"id": "M2-ST-B2", "severity": "S3", "status": "OPEN"})
+    if any(x["group"] == "api_edge" and x["status"] != "PASS" for x in rows):
+        blockers.append({"id": "M2-ST-B5", "severity": "S3", "status": "OPEN"})
+    if new_ci:
+        blockers.append({"id": "M2-ST-B3", "severity": "S3", "status": "OPEN", "details": {"issues": new_ci}})
+        if any("SR" in x for x in new_ci):
+            blockers.append({"id": "M2-ST-B4", "severity": "S3", "status": "OPEN"})
+    if sec["overall_pass"] is False:
+        blockers.append({"id": "M2-ST-B6", "severity": "S3", "status": "OPEN"})
+    b7_details: dict[str, Any] = {}
+    if er > 2.0:
+        b7_details["error_rate_pct"] = er
+    if injection_issues:
+        b7_details["injection_issues"] = injection_issues
+    if b7_details:
+        blockers.append({"id": "M2-ST-B7", "severity": "S3", "status": "OPEN", "details": b7_details})
+    if not cost["within_envelope"] or cost["unattributed_spend_detected"]:
+        blockers.append({"id": "M2-ST-B8", "severity": "S3", "status": "OPEN"})
+
+    dlog = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M2-ST-S3",
+        "decisions": [
+            "Executed controlled failure-injection set (missing path, permission simulation, api-edge invalid route).",
+            "Classified injection outcomes and failed closed on non-deterministic outcomes.",
+            "Verified immediate and final recovery probes after injections.",
+            "Applied fail-closed blocker mapping from M2 taxonomy.",
+            "Carried S0 findings/lane matrix artifacts forward for artifact continuity.",
+        ],
+    }
+    dumpj(out / "m2_decision_log.json", dlog)
+    bref = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M2-ST-S3",
+        "overall_pass": len(blockers) == 0,
+        "open_blocker_count": len(blockers),
+        "blockers": blockers,
+    }
+    summ = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M2-ST-S3",
+        "overall_pass": len(blockers) == 0,
+        "next_gate": "M2_ST_S5_READY" if len(blockers) == 0 else "M2_ST_S4_REMEDIATE",
+        "error_rate_pct": er,
+        "probe_count": total,
+        "window_seconds_observed": int(round(dur)),
+        "required_artifacts": S1_ARTS,
+        "injection_expected_count": exp_count,
+        "injection_detected_count": det_count,
+    }
+    dumpj(out / "m2_blocker_register.json", bref)
+    dumpj(out / "m2_execution_summary.json", summ)
+
+    miss = [n for n in S1_ARTS if not (out / n).exists()]
+    if miss:
+        blockers.append({"id": "M2-ST-B9", "severity": "S3", "status": "OPEN", "details": {"missing_artifacts": miss}})
+        bref["overall_pass"] = False
+        bref["open_blocker_count"] = len(blockers)
+        bref["blockers"] = blockers
+        summ["overall_pass"] = False
+        summ["next_gate"] = "M2_ST_S4_REMEDIATE"
+        dumpj(out / "m2_blocker_register.json", bref)
+        dumpj(out / "m2_execution_summary.json", summ)
+
+    print(f"[m2_s3] phase_execution_id={phase_id}")
+    print(f"[m2_s3] output_dir={out.as_posix()}")
+    print(f"[m2_s3] overall_pass={summ['overall_pass']}")
+    print(f"[m2_s3] next_gate={summ['next_gate']}")
+    print(f"[m2_s3] probe_count={total}")
+    print(f"[m2_s3] error_rate_pct={er}")
+    print(f"[m2_s3] injection_detected={det_count}/{exp_count}")
+    print(f"[m2_s3] open_blockers={bref['open_blocker_count']}")
+    return 0 if summ["overall_pass"] else 2
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="M2 stress runner")
-    ap.add_argument("--stage", default="S0", choices=["S0", "S1", "S2"])
+    ap.add_argument("--stage", default="S0", choices=["S0", "S1", "S2", "S3"])
     ap.add_argument("--phase-execution-id", default="")
     ap.add_argument("--output-root", default=str(OUT_ROOT))
     ap.add_argument("--window-seconds-override", type=int, default=None)
     ap.add_argument("--cycle-interval-seconds", type=int, default=20)
     ap.add_argument("--probe-concurrency", type=int, default=6)
     a = ap.parse_args()
-    pfx = {"S0": "m2_stress_s0", "S1": "m2_stress_s1", "S2": "m2_stress_s2"}[a.stage]
+    pfx = {"S0": "m2_stress_s0", "S1": "m2_stress_s1", "S2": "m2_stress_s2", "S3": "m2_stress_s3"}[a.stage]
     pid = a.phase_execution_id.strip() or f"{pfx}_{tok()}"
     root = Path(a.output_root)
     if a.stage == "S0":
         return run_s0(pid, root)
     if a.stage == "S1":
         return run_s1(pid, root, a.window_seconds_override, a.cycle_interval_seconds, a.probe_concurrency)
-    return run_s2(pid, root, a.window_seconds_override, a.cycle_interval_seconds, a.probe_concurrency)
+    if a.stage == "S2":
+        return run_s2(pid, root, a.window_seconds_override, a.cycle_interval_seconds, a.probe_concurrency)
+    return run_s3(pid, root, a.window_seconds_override, a.cycle_interval_seconds, a.probe_concurrency)
 
 
 if __name__ == "__main__":
