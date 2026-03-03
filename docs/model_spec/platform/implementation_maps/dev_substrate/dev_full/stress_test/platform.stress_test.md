@@ -43,8 +43,8 @@ This is the program-level overview of what each `M*` phase stress effort is expe
 
 | Stress Phase | Build Scope Anchor | What We Aim to Achieve | Exit Signal | Status |
 | --- | --- | --- | --- | --- |
-| M0 | Mobilization + authority lock | Validate test authority, handles, and stress evidence surfaces before any load | All prerequisite stress handles and evidence sinks are green | ACTIVE |
-| M1 | Packaging readiness | Stress packaging/provenance paths for reproducible deploy artifacts under concurrent operations | No packaging bottleneck or provenance drift under stress | NOT_STARTED |
+| M0 | Mobilization + authority lock | Validate test authority, handles, and stress evidence surfaces before any load | All prerequisite stress handles and evidence sinks are green | DONE |
+| M1 | Packaging readiness | Stress packaging/provenance paths for reproducible deploy artifacts under concurrent operations | No packaging bottleneck or provenance drift under stress | ACTIVE |
 | M2 | Substrate readiness | Stress core substrate primitives (network/store/bus/runtime) for baseline capacity and failure behavior | Substrate can sustain target baseline load without integrity drift | NOT_STARTED |
 | M3 | Run pinning + orchestrator readiness | Stress run-control/orchestrator behavior under concurrent run activation and retries | Run pinning remains deterministic; no cross-run mixing | NOT_STARTED |
 | M4 | Spine runtime-lane readiness | Stress each spine lane bootstrap path for startup-time, readiness, and dependency bottlenecks | Lane startup and steady-state readiness meet target budgets | NOT_STARTED |
@@ -210,13 +210,13 @@ For any phase:
 
 ## 12) Program Status (Initial)
 1. Program bootstrapped.
-2. Active phase: `M0` (inline in this file).
+2. Active phase: `M1` (inline in this file).
 3. Per-phase stress files not yet created.
-4. Next step: issue `M0 DONE -> M1` transition decision.
+4. Next step: execute first managed `M1` Stage-B packaging stress window (`build repetition=3`, `concurrency target=2`) and publish timing/provenance drift artifacts.
 
-## 13) Active Phase - M0 (Inline)
+## 13) Closed Phase - M0 (Inline)
 Status:
-1. `ACTIVE`
+1. `DONE`
 
 M0 stress objective:
 1. ensure stress program governance is execution-ready before any runtime load is attempted.
@@ -270,3 +270,82 @@ M0 DoD (stress):
 M0 immediate actions:
 1. Validate M0 closure readback against pinned artifact contract.
 2. If no new blocker appears, mark `M0 DONE` and move to `M1` decision pre-read.
+
+M0 closure verdict:
+1. `DONE` and handed off to `M1`.
+
+## 14) Active Phase - M1 (Inline)
+Status:
+1. `ACTIVE`
+
+M1 stress objective:
+1. validate packaging/provenance decisions under realistic production stress posture before later runtime phases consume these artifacts.
+
+M1 stress scope:
+1. packaging decision/bottleneck pre-read against M1 build authority.
+2. local preflight contract for fast engineering loops before managed workflow dispatch.
+3. packaging stress control-handle packet and artifact contract pinning.
+
+M1 stress handle packet (pinned):
+1. `STRESS_ACTIVE_PHASE = "M1"` (active-phase override).
+2. `M1_STRESS_PROFILE_ID = "packaging_repro_profile_v0"`.
+3. `M1_STRESS_BLOCKER_REGISTER_PATH_PATTERN = "evidence/dev_full/run_control/{phase_execution_id}/stress/m1_blocker_register.json"`.
+4. `M1_STRESS_EXECUTION_SUMMARY_PATH_PATTERN = "evidence/dev_full/run_control/{phase_execution_id}/stress/m1_execution_summary.json"`.
+5. `M1_STRESS_DECISION_LOG_PATH_PATTERN = "evidence/dev_full/run_control/{phase_execution_id}/stress/m1_decision_log.json"`.
+6. `M1_STRESS_REQUIRED_ARTIFACTS = "m1_blocker_register.json,m1_execution_summary.json,m1_decision_log.json,m1_preflight_checks.json"`.
+7. `M1_STRESS_FAIL_ON_PROVENANCE_DRIFT = true`.
+8. `M1_STRESS_FAIL_ON_MUTABLE_TAG_EVIDENCE = true`.
+9. `M1_STRESS_MAX_RUNTIME_MINUTES = 120`.
+10. `M1_STRESS_MAX_SPEND_USD = 10`.
+11. `M1_STRESS_BUILD_REPETITIONS = 3`.
+12. `M1_STRESS_BUILD_CONCURRENCY_TARGET = 2`.
+
+M1 local preflight contract (pinned):
+1. `M1_LOCAL_PREFLIGHT_REQUIRED = true`.
+2. `M1_LOCAL_PREFLIGHT_MODE = "local_static_and_entrypoint_smoke_before_managed_runs"`.
+3. `M1_LOCAL_PREFLIGHT_COMMAND_SET = "docker_context_lint,entrypoint_help_matrix,provenance_contract_lint"`.
+4. `M1_LOCAL_PREFLIGHT_ARTIFACT = "m1_preflight_checks.json"`.
+
+Stage A pre-read inputs used:
+1. `platform.M1.build_plan.md`
+2. `platform.build_plan.md`
+3. `dev_full_handles.registry.v0.md`
+
+Stage A findings classification:
+
+| ID | Classification | Finding | Required action |
+| --- | --- | --- | --- |
+| `M1-ST-F1` | `PREVENT` | M1 stress-handle packet and M1-specific control-artifact paths were not pinned. | Pin M1 stress-handle packet before Stage-B execution. |
+| `M1-ST-F2` | `PREVENT` | Packaging verification was historically managed-workflow heavy; local preflight contract for fast iteration was not pinned. | Pin mandatory local preflight contract for M1. |
+| `M1-ST-F3` | `OBSERVE` | `IMAGE_BUILD_CONTEXT_PATH = "."` can become packaging bottleneck as repo grows even with `.dockerignore` controls. | Measure context size and transfer overhead during Stage-B runs. |
+| `M1-ST-F4` | `OBSERVE` | Single-image strategy can increase rebuild blast radius and build duration under frequent changes. | Track build-time slope across 3-run repetition and open repin gate if slope exceeds budget. |
+| `M1-ST-F5` | `ACCEPT` | Immutable digest/provenance/security contracts from M1 deep plan are explicit and fail-closed. | Reuse as baseline and verify under stress repetition. |
+
+M1 blockers (status):
+1. `M1-ST-B1`: CLOSED - M1 stress-handle packet pinned.
+2. `M1-ST-B2`: CLOSED - local preflight contract pinned.
+3. `M1-ST-B3`: CLOSED - dockerignore default-deny lint false-fail remediated in local preflight tooling.
+
+M1 DoD (stress):
+- [x] Stage A pre-read completed and classified (`PREVENT`/`OBSERVE`/`ACCEPT`).
+- [x] M1 stress-handle packet pinned.
+- [x] M1 local preflight contract pinned.
+- [x] M1 blocker set closed (`M1-ST-B1`, `M1-ST-B2`).
+- [ ] Stage-B packaging component stress executed with required artifacts.
+- [ ] M1 stress closure verdict published (`DONE` or `BLOCKED`) with rerun policy.
+
+M1 immediate actions:
+1. Run first M1 packaging stress window (`build repetition = 3`) and capture timing/provenance drift evidence.
+2. If build-time slope or context overhead breaches target, open decision-repin candidate before M2.
+
+M1 Stage-B execution progress:
+1. Local preflight run `m1_stress_preflight_20260303T060333Z` returned `HOLD_REMEDIATE`:
+   - blocker `M1-ST-B3` was raised by dockerignore lint logic that required explicit deny tokens even under default-deny posture.
+2. Local preflight lint remediation applied:
+   - `scripts/dev_substrate/m1_stress_preflight.py` now treats default-deny `.dockerignore` posture (`*` or `**`) as compliant for deny-pattern enforcement.
+3. Local preflight rerun `m1_stress_preflight_20260303T060442Z` returned `READY_FOR_M1_STRESS_WINDOW` with zero blockers.
+4. Published local stress artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_preflight_20260303T060442Z/stress/m1_preflight_checks.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_preflight_20260303T060442Z/stress/m1_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_preflight_20260303T060442Z/stress/m1_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_preflight_20260303T060442Z/stress/m1_decision_log.json`
