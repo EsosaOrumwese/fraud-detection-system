@@ -2388,3 +2388,49 @@ _As of 2026-03-03_
 5. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T190639Z/stress/m4_blocker_register.json`
 6. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T190639Z/stress/m4_execution_summary.json`
 7. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T190639Z/stress/m4_decision_log.json`
+
+## Entry: 2026-03-03 19:23 +00:00 - M4 `S2` planning and execution lane opened (pre-implementation)
+
+### Trigger
+1. User instructed: proceed with planning and executing `M4-ST-S2`.
+
+### Decision-completeness and lane closure check
+1. Entry dependency is closed:
+   - latest successful `M4-ST-S1` exists with:
+     - `phase_execution_id=m4_stress_s1_20260303T190639Z`,
+     - `next_gate=M4_ST_S2_READY`,
+     - `open_blockers=0`.
+2. Required S2 lanes are explicit:
+   - dependency/control probe continuity under steady and burst windows,
+   - S1 baseline comparison for drift/regression detection,
+   - runtime-path pin law continuity (`PHASE_RUNTIME_PATH_*`, `FLINK_RUNTIME_PATH_*`),
+   - secret/cost envelope and artifact-completeness closure.
+
+### Performance-first design before coding
+1. Reuse S1 path-aware probe set to avoid probe-contract divergence.
+2. Add S2-specific windows:
+   - steady window from `M4_STRESS_STEADY_WINDOW_MINUTES`,
+   - burst sub-window from `M4_STRESS_BURST_WINDOW_MINUTES` with tighter probe interval.
+3. Add deterministic S1-baseline comparison:
+   - compare control issues and error/streak metrics against latest successful S1 run.
+4. Keep cost discipline:
+   - read-only probe posture,
+   - bounded window runtime, no unbounded loops.
+
+### Planned implementation
+1. Expand `M4-ST-S2` in `platform.M4.stress_test.md` to execution-grade detail:
+   - checklist,
+   - command catalog,
+   - closure rule.
+2. Extend `scripts/dev_substrate/m4_stress_runner.py` with `--stage S2`:
+   - enforce S1 continuity and Stage-A carry-forward,
+   - execute steady + burst windows,
+   - compare against latest successful S1 baseline,
+   - emit full M4 artifact contract with fail-closed `M4-ST-B*` mapping.
+3. Execute `python scripts/dev_substrate/m4_stress_runner.py --stage S2` immediately.
+4. Update authority routing + logbook based on verdict.
+
+### Acceptance targets
+1. `overall_pass=true`.
+2. `next_gate=M4_ST_S3_READY`.
+3. `open_blockers=0`.

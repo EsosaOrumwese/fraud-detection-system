@@ -260,6 +260,38 @@ Pass gate:
 2. no sustained instability signals (error-rate/failure-streak within policy).
 3. no secret leakage and no unattributed spend.
 
+S2 steady-window verification checklist:
+1. latest successful `S1` baseline exists (`next_gate=M4_ST_S2_READY`).
+2. startup gate remains green at S2 entry (`startup_ready_seconds <= M4_STRESS_STARTUP_BUDGET_SECONDS` from baseline posture).
+3. dependency/runtime probes remain healthy across steady + burst windows:
+   - SFN orchestrator,
+   - evidence bucket,
+   - ingress edge surfaces (APIGW/Lambda/DDB),
+   - MSK surface,
+   - runtime-path stream surface (`MSF_MANAGED` or `EKS_FLINK_OPERATOR` path-aware probes).
+4. no new control/correlation issues versus latest successful S1 baseline.
+5. instability metrics remain within S2 policy thresholds.
+
+S2 verification command catalog (planned, execution-time):
+| Verify ID | Command template | Purpose |
+| --- | --- | --- |
+| `M4S2-V1-S1-CONTINUITY` | read latest successful `m4_stress_s1_*/stress/m4_execution_summary.json` | enforces S1 dependency gate |
+| `M4S2-V2-STEADY-WINDOW` | repeated probe cycles for `M4_STRESS_STEADY_WINDOW_MINUTES` | validates sustained dependency posture |
+| `M4S2-V3-BURST-WINDOW` | tighter interval probes for `M4_STRESS_BURST_WINDOW_MINUTES` | validates contention behavior |
+| `M4S2-V4-SFN-LOOKUP` | `aws stepfunctions list-state-machines --region eu-west-2 --max-results 100 ...` | validates orchestrator continuity |
+| `M4S2-V5-EVIDENCE-BUCKET` | `aws s3api head-bucket --bucket <S3_EVIDENCE_BUCKET> --region eu-west-2` | validates evidence continuity |
+| `M4S2-V6-INGRESS-EDGE` | `aws apigatewayv2 get-api`, `aws lambda get-function`, `aws dynamodb describe-table` | validates ingress continuity |
+| `M4S2-V7-STREAM-SURFACE` | `aws kafka describe-cluster-v2`; runtime-path aware probe: `MSF_MANAGED -> aws kinesisanalyticsv2 describe-application`, `EKS_FLINK_OPERATOR -> aws emr-containers describe-virtual-cluster + aws eks describe-cluster` | validates stream continuity |
+| `M4S2-V8-BASELINE-COMPARE` | compare control issues/error-rate/failure-streak versus latest successful S1 baseline snapshot | detects nonlinear regression |
+| `M4S2-V9-RUNTIME-PATH-LAW` | local checks on `PHASE_RUNTIME_PATH_*` and `FLINK_RUNTIME_PATH_*` handles | enforces pinned runtime-path posture |
+
+S2 closure rule:
+1. `S2` closes only when:
+   - S1 dependency artifacts are present/readable,
+   - steady + burst windows complete within runtime/cost envelope,
+   - no new control/correlation drift versus S1 baseline,
+   - complete S2 artifact set is emitted with zero open blockers.
+
 ### 7.4 `M4-ST-S3` - Controlled failure-injection and recovery window
 Objective:
 1. prove deterministic runtime-lane fault classification and fail-closed recovery behavior.
