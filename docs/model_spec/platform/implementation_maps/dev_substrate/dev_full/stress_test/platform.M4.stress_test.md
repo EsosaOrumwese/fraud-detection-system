@@ -306,15 +306,78 @@ Pass gate:
 2. fail-closed behavior is explicit (no silent fallback).
 3. recovery probes return green within recovery budget.
 
+S3 failure-injection verification checklist:
+1. latest successful `S2` baseline exists (`next_gate=M4_ST_S3_READY`).
+2. precheck probes are green before injections:
+   - SFN orchestrator,
+   - evidence bucket,
+   - ingress edge/runtime dependency probes,
+   - stream runtime-path probes.
+3. bounded injection set executes with explicit expected classifications:
+   - dependency-path unavailable,
+   - runtime binding/correlation mismatch,
+   - stale lock/duplicate activation conflict.
+4. immediate and final recovery probes are green within `M4_STRESS_RECOVERY_BUDGET_SECONDS`.
+5. no new control/correlation drift against S2 baseline.
+
+S3 verification command catalog (planned, execution-time):
+| Verify ID | Command template | Purpose |
+| --- | --- | --- |
+| `M4S3-V1-S2-CONTINUITY` | read latest successful `m4_stress_s2_*/stress/m4_execution_summary.json` | enforces S2 dependency gate |
+| `M4S3-V2-PRECHECK` | SFN + S3 + runtime-path probe set before injections | blocks unsafe injection starts |
+| `M4S3-V3-INJ-DEPENDENCY` | bounded missing dependency-path simulation (`ssm get-parameter` on missing path) | validates dependency failure classification |
+| `M4S3-V4-INJ-BINDING` | bounded runtime-binding/correlation mismatch simulation | validates fail-closed mismatch classification |
+| `M4S3-V5-INJ-LOCK` | stale lock/duplicate activation simulation | validates duplicate activation guardrail |
+| `M4S3-V6-RECOVERY-IMMEDIATE` | immediate post-injection control/runtime probes | validates short-loop recovery |
+| `M4S3-V7-RECOVERY-FINAL` | final recovery probes at window close | validates sustained recovery |
+| `M4S3-V8-BASELINE-COMPARE` | compare S3 control issues against latest successful S2 baseline | detects post-injection drift |
+| `M4S3-V9-INJECTION-CLASSIFIER` | deterministic check: `injection_detected_count == injection_expected_count` | enforces classification determinism |
+
+S3 closure rule:
+1. `S3` closes only when:
+   - S2 dependency artifacts are present/readable,
+   - injection set is fully classified and deterministic,
+   - recovery probes pass within recovery budget with no new baseline drift,
+   - complete S3 artifact set is emitted with zero open blockers.
+
 ### 7.5 `M4-ST-S4` - Remediation and selective rerun
 Objective:
 1. close blockers with minimal-cost targeted reruns.
 
-Execution rule:
-1. rank blockers by severity and closure cost.
-2. map blocker -> remediation lane -> rerun scope.
-3. rerun only failed windows (`S1/S2/S3`) if blockers exist.
-4. emit explicit no-op remediation receipt if blocker set is empty.
+S4 checklist:
+1. load latest successful `S3` execution summary and blocker register.
+2. aggregate unresolved blockers from latest `S1..S3` windows (if any remain open).
+3. compute deterministic remediation matrix:
+   - blocker id,
+   - severity,
+   - proposed remediation lane,
+   - minimal rerun scope (`S1` or `S2` or `S3`),
+   - closure evidence path.
+4. if blocker set is non-empty:
+   - rank by severity and closure cost,
+   - execute no-op or externalized remediation notes only (no implicit infra mutation),
+   - emit rerun recommendation list scoped to failed windows only.
+5. if blocker set is empty:
+   - emit explicit no-op remediation receipt with `rerun_required=false`.
+6. verify full artifact contract exists/readable.
+
+S4 command catalog:
+| Command ID | Command | Purpose |
+| --- | --- | --- |
+| `M4S4-V1-DEPENDENCY` | load latest successful `S3` summary/register | gates S4 entry on S3 continuity |
+| `M4S4-V2-BLOCKER-SCAN` | collect latest `S1..S3` blocker posture | establishes unresolved blocker surface |
+| `M4S4-V3-REMEDIATION-MATRIX` | map blockers to remediation lanes + rerun scope | enforces explicit closure planning |
+| `M4S4-V4-COST-RUNTIME-CHECK` | ensure remediation posture stays bounded | enforces performance/cost law |
+| `M4S4-V5-NOOP-RECEIPT` | generate explicit no-op receipt when no blockers exist | avoids ambiguous closure state |
+| `M4S4-V6-ARTIFACT-CHECK` | verify required S4 artifacts readable | enforces evidence contract completeness |
+
+S4 closure rule:
+1. `S4` closes only when:
+   - latest successful S3 dependency is present/readable,
+   - unresolved blocker posture is explicit (`none` or mapped list),
+   - rerun scope is deterministic and minimal for each open blocker,
+   - no-op remediation receipt is emitted when blocker set is empty,
+   - complete S4 artifact set is emitted with zero open blockers.
 
 Pass gate:
 1. all open non-waived `M4-ST-B*` blockers closed.
@@ -324,10 +387,35 @@ Pass gate:
 Objective:
 1. publish M4 closure verdict and explicit M5 readiness posture.
 
-Actions:
-1. aggregate latest successful `S0..S4` summaries + blocker registers.
-2. enforce artifact, runtime, and spend envelope checks.
-3. emit deterministic `M5` recommendation (`GO`/`NO_GO`) and next gate.
+S5 checklist:
+1. load latest successful `S0..S4` execution summaries and blocker registers.
+2. enforce no-open-blocker closure posture across all loaded stages.
+3. verify evidence contract completeness/readability for each stage pack.
+4. compute closure envelope summary:
+   - total runtime observed (minutes),
+   - total attributed spend (USD),
+   - unattributed spend signal.
+5. compare closure envelope to pinned M4 budgets.
+6. emit deterministic handoff recommendation:
+   - `recommendation=GO` and `next_gate=M5_READY` on full closure,
+   - otherwise `recommendation=NO_GO` and `next_gate=BLOCKED`.
+
+S5 command catalog:
+| Command ID | Command | Purpose |
+| --- | --- | --- |
+| `M4S5-V1-DEPENDENCY` | load latest successful `S0..S4` packs | closes stage-continuity prerequisite |
+| `M4S5-V2-BLOCKER-ROLLUP` | aggregate open blocker posture | enforces fail-closed closure law |
+| `M4S5-V3-ARTIFACT-AUDIT` | verify evidence completeness/readability | enforces artifact contract |
+| `M4S5-V4-ENVELOPE-CHECK` | runtime + spend envelope adjudication | enforces performance/cost law |
+| `M4S5-V5-HANDOFF-DECISION` | emit deterministic `GO/NO_GO` + next gate | finalizes M5 readiness posture |
+
+S5 closure rule:
+1. `S5` closes only when:
+   - latest successful `S0..S4` packs are present/readable,
+   - no open non-waived `M4-ST-B*` blockers remain in closure rollup,
+   - evidence contract is complete/readable for each stage pack,
+   - runtime and spend envelopes remain within pinned bounds,
+   - handoff recommendation is deterministic and evidence-backed.
 
 Pass gate:
 1. no open non-waived `M4-ST-B*` blockers.
@@ -371,9 +459,9 @@ Required artifacts for each M4 stress window:
 - [x] First M4 managed stress window executed.
 
 ## 11) Immediate Next Actions
-1. Execute `M4-ST-S2` steady dependency and contention window.
-2. Preserve S1 baseline as comparison source for S2 drift detection.
-3. Open fail-closed blockers immediately on any new dependency/control drift versus S1 baseline.
+1. Mark `M4` stress closure as complete and retain S5 rollup artifacts as closure authority.
+2. Open `M5` planning lane (`S0`) using `M5_READY` handoff from M4.
+3. Preserve S5 closure envelope metrics as baseline for M5 runtime/cost guardrails.
 
 ## 12) Execution Progress
 ### `M4-ST-S0` authority/entry-gate closure execution (2026-03-03)
@@ -472,3 +560,126 @@ Required artifacts for each M4 stress window:
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T190639Z/stress/m4_blocker_register.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T190639Z/stress/m4_execution_summary.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T190639Z/stress/m4_decision_log.json`
+
+### `M4-ST-S2` steady dependency/contention execution (2026-03-03)
+1. Phase execution id: `m4_stress_s2_20260303T192644Z`.
+2. Runner:
+   - `python scripts/dev_substrate/m4_stress_runner.py --stage S2`
+3. Verification summary:
+   - latest successful S1 dependency loaded (`m4_stress_s1_20260303T190639Z`),
+   - S2 entry precheck passed (`precheck_fail_closed=false`),
+   - steady and burst windows completed:
+     - `steady_window_seconds_configured=600`,
+     - `burst_window_seconds_configured=300`,
+     - `window_cycle_counts={steady:60, burst:60}`,
+   - no new dependency/control drift versus S1 baseline (`new_issues_vs_s1=[]`).
+4. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M4_ST_S3_READY`,
+   - `open_blockers=0`,
+   - `probe_count=1089`,
+   - `error_rate_pct=0.0`,
+   - `entry_ready_seconds=3`.
+5. Artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s2_20260303T192644Z/stress/m4_stagea_findings.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s2_20260303T192644Z/stress/m4_lane_matrix.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s2_20260303T192644Z/stress/m4_probe_latency_throughput_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s2_20260303T192644Z/stress/m4_control_rail_conformance_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s2_20260303T192644Z/stress/m4_secret_safety_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s2_20260303T192644Z/stress/m4_cost_outcome_receipt.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s2_20260303T192644Z/stress/m4_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s2_20260303T192644Z/stress/m4_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s2_20260303T192644Z/stress/m4_decision_log.json`
+
+### `M4-ST-S3` controlled failure-injection and recovery execution (2026-03-03)
+1. Phase execution id: `m4_stress_s3_20260303T195440Z`.
+2. Runner:
+   - `python scripts/dev_substrate/m4_stress_runner.py --stage S3`
+3. Verification summary:
+   - latest successful S2 dependency loaded (`m4_stress_s2_20260303T192644Z`),
+   - precheck passed (`precheck_fail_closed=false`),
+   - bounded injection classifier passed (`injection_detected=3/3`):
+     - dependency-path unavailable (`DETECTED_MISSING_DEPENDENCY_PATH`),
+     - runtime-binding correlation mismatch (`DETECTED_CORRELATION_BINDING_MISMATCH`),
+     - stale lock duplicate activation (`DETECTED_STALE_LOCK_DUPLICATE`),
+   - immediate/final recovery passed within budget:
+     - `recovery_elapsed_seconds=4`,
+     - `recovery_budget_seconds=300`,
+   - no new control/correlation drift versus S2 baseline (`new_issues_vs_s2=[]`).
+4. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M4_ST_S4_READY`,
+   - `open_blockers=0`,
+   - `probe_count=24`,
+   - `error_rate_pct=0.0`.
+5. Artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s3_20260303T195440Z/stress/m4_stagea_findings.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s3_20260303T195440Z/stress/m4_lane_matrix.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s3_20260303T195440Z/stress/m4_probe_latency_throughput_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s3_20260303T195440Z/stress/m4_control_rail_conformance_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s3_20260303T195440Z/stress/m4_secret_safety_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s3_20260303T195440Z/stress/m4_cost_outcome_receipt.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s3_20260303T195440Z/stress/m4_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s3_20260303T195440Z/stress/m4_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s3_20260303T195440Z/stress/m4_decision_log.json`
+
+### `M4-ST-S4` remediation and selective-rerun adjudication execution (2026-03-03)
+1. Phase execution id: `m4_stress_s4_20260303T200131Z`.
+2. Runner:
+   - `python scripts/dev_substrate/m4_stress_runner.py --stage S4`
+3. Verification summary:
+   - latest successful S3 dependency loaded (`m4_stress_s3_20260303T195440Z`),
+   - unresolved blocker scan across latest `S1..S3` windows returned empty set,
+   - explicit remediation receipt emitted in deterministic no-op mode:
+     - `action_mode=NOOP_RECEIPT`,
+     - `remediation_required=false`,
+     - `rerun_required=false`,
+     - `rerun_scopes=[]`.
+4. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M4_ST_S5_READY`,
+   - `open_blockers=0`,
+   - `probe_count=0`,
+   - `error_rate_pct=0.0`.
+5. Artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s4_20260303T200131Z/stress/m4_stagea_findings.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s4_20260303T200131Z/stress/m4_lane_matrix.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s4_20260303T200131Z/stress/m4_probe_latency_throughput_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s4_20260303T200131Z/stress/m4_control_rail_conformance_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s4_20260303T200131Z/stress/m4_secret_safety_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s4_20260303T200131Z/stress/m4_cost_outcome_receipt.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s4_20260303T200131Z/stress/m4_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s4_20260303T200131Z/stress/m4_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s4_20260303T200131Z/stress/m4_decision_log.json`
+
+### `M4-ST-S5` closure rollup and M5 handoff recommendation execution (2026-03-03)
+1. Phase execution id: `m4_stress_s5_20260303T200552Z`.
+2. Runner:
+   - `python scripts/dev_substrate/m4_stress_runner.py --stage S5`
+3. Verification summary:
+   - latest successful `S0..S4` packs loaded and rolled up (`rollup_stage_count=5`),
+   - no open non-waived blockers in closure rollup (`open_blocker_count=0`),
+   - full evidence contract available/readable for each stage pack,
+   - closure envelopes within pinned bounds:
+     - `total_runtime_minutes=25.317` (`<= M4_STRESS_MAX_RUNTIME_MINUTES`),
+     - `total_attributed_spend_usd=0.0`,
+     - `unattributed_spend_detected=false`,
+   - deterministic handoff emitted:
+     - `recommendation=GO`,
+     - `next_gate=M5_READY`.
+4. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M5_READY`,
+   - `open_blockers=0`,
+   - `probe_count=1668`,
+   - `error_rate_pct=0.0`.
+5. Artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s5_20260303T200552Z/stress/m4_stagea_findings.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s5_20260303T200552Z/stress/m4_lane_matrix.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s5_20260303T200552Z/stress/m4_probe_latency_throughput_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s5_20260303T200552Z/stress/m4_control_rail_conformance_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s5_20260303T200552Z/stress/m4_secret_safety_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s5_20260303T200552Z/stress/m4_cost_outcome_receipt.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s5_20260303T200552Z/stress/m4_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s5_20260303T200552Z/stress/m4_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s5_20260303T200552Z/stress/m4_decision_log.json`

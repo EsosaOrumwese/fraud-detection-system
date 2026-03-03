@@ -211,12 +211,12 @@ For any phase:
 
 ## 12) Program Status
 1. Program bootstrapped.
-2. Current phase state: `M4` (`ACTIVE`, dedicated phase file).
+2. Current phase state: `M4` (`DONE`, dedicated phase file; `M5` pending activation).
 3. Dedicated phase files:
    - `stress_test/platform.M2.stress_test.md` (`DONE`),
    - `stress_test/platform.M3.stress_test.md` (`DONE`),
-   - `stress_test/platform.M4.stress_test.md` (`ACTIVE`).
-4. Next step: execute `M4-ST-S2` steady dependency/contention window (`M4-ST-S1` rerun passed with `next_gate=M4_ST_S2_READY`).
+   - `stress_test/platform.M4.stress_test.md` (`DONE`).
+4. Next step: open `M5` planning lane (`S0`) using `M4-ST-S5` handoff (`next_gate=M5_READY`).
 
 ## 13) Closed Phase - M0 (Inline)
 Status:
@@ -450,10 +450,10 @@ Authority routing:
 1. `stress_test/platform.M2.stress_test.md` remains the authoritative execution/planning record for M2.
 2. Inline M2 detail is intentionally not expanded in this control file to preserve dedicated-file routing discipline.
 
-## 16) Active Phase - M4 (Dedicated)
+## 16) Closed Phase - M4 (Dedicated)
 Status:
-1. `ACTIVE`
+1. `DONE`
 
 Authority routing:
-1. `stress_test/platform.M4.stress_test.md` is now the active execution/planning authority for M4.
-2. Latest M4 execution state is `M4-ST-S1` pass (`next_gate=M4_ST_S2_READY`); next gate is `M4-ST-S2`.
+1. `stress_test/platform.M4.stress_test.md` is the closure authority for M4.
+2. Latest M4 execution state is `M4-ST-S5` pass (`recommendation=GO`, `next_gate=M5_READY`); M4 handoff is complete.

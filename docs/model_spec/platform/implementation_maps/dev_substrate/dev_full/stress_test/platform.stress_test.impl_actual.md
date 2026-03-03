@@ -2434,3 +2434,341 @@ _As of 2026-03-03_
 1. `overall_pass=true`.
 2. `next_gate=M4_ST_S3_READY`.
 3. `open_blockers=0`.
+
+## Entry: 2026-03-03 19:42 +00:00 - M4 `S2` executed (pass, zero blockers)
+
+### Implementation executed
+1. Extended `scripts/dev_substrate/m4_stress_runner.py` with `--stage S2`:
+   - S1 continuity gate enforcement,
+   - Stage-A carry-forward from latest successful S1 pack,
+   - runtime-path aware probe set reuse (`MSF_MANAGED`/`EKS_FLINK_OPERATOR`),
+   - bounded steady + burst window execution,
+   - baseline comparison against latest successful S1 control/instability posture,
+   - fail-closed blocker mapping and full artifact publication.
+2. Validation:
+   - `python -m py_compile scripts/dev_substrate/m4_stress_runner.py` (pass).
+3. Executed:
+   - `python scripts/dev_substrate/m4_stress_runner.py --stage S2`
+   - `phase_execution_id=m4_stress_s2_20260303T192644Z`.
+
+### Execution result
+1. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M4_ST_S3_READY`,
+   - `open_blockers=0`,
+   - `probe_count=1089`,
+   - `error_rate_pct=0.0`,
+   - `entry_ready_seconds=3`.
+2. Window profile:
+   - `steady_window_seconds_configured=600`,
+   - `burst_window_seconds_configured=300`,
+   - `window_cycle_counts={steady:60, burst:60}`.
+3. Baseline comparison outcome:
+   - `s1_baseline_phase_execution_id=m4_stress_s1_20260303T190639Z`,
+   - `new_issues_vs_s1=[]`,
+   - `probe_failure_counts={}`.
+
+### Governance and routing updates
+1. `platform.M4.stress_test.md` updated with:
+   - execution-grade S2 plan section details,
+   - S2 execution receipt,
+   - immediate next action advanced to `M4-ST-S3`.
+2. `platform.stress_test.md` updated:
+   - latest M4 state now `M4-ST-S2` pass,
+   - next program step routed to `M4-ST-S3`.
+
+### Evidence paths
+1. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s2_20260303T192644Z/stress/m4_probe_latency_throughput_snapshot.json`
+2. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s2_20260303T192644Z/stress/m4_control_rail_conformance_snapshot.json`
+3. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s2_20260303T192644Z/stress/m4_secret_safety_snapshot.json`
+4. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s2_20260303T192644Z/stress/m4_cost_outcome_receipt.json`
+5. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s2_20260303T192644Z/stress/m4_blocker_register.json`
+6. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s2_20260303T192644Z/stress/m4_execution_summary.json`
+7. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s2_20260303T192644Z/stress/m4_decision_log.json`
+
+## Entry: 2026-03-03 19:51 +00:00 - M4 `S3` planning and execution lane opened (pre-implementation)
+
+### Trigger
+1. User instructed: proceed with planning and executing `M4-ST-S3`.
+
+### Decision-completeness and lane closure check
+1. Entry dependency is closed:
+   - latest successful `M4-ST-S2` exists with:
+     - `phase_execution_id=m4_stress_s2_20260303T192644Z`,
+     - `next_gate=M4_ST_S3_READY`,
+     - `open_blockers=0`.
+2. Required S3 lanes are explicit:
+   - bounded failure-injection set with deterministic classification,
+   - recovery probes and recovery-budget validation,
+   - S2 baseline comparison for post-injection drift detection,
+   - runtime-path law/correlation continuity,
+   - secret/cost envelope and artifact-completeness closure.
+
+### Performance-first design before coding
+1. Reuse S2 path-aware probe set for precheck/recovery to avoid drift between steady and injection lanes.
+2. Keep injection set bounded and mostly synthetic/read-only:
+   - one non-destructive dependency miss probe,
+   - local deterministic mismatch/lock simulations.
+3. Enforce short deterministic windows:
+   - immediate recovery probe after injections,
+   - final recovery probe at window close.
+4. Keep cost bounded:
+   - no provisioning actions,
+   - read-only API calls only.
+
+### Planned implementation
+1. Expand `M4-ST-S3` in `platform.M4.stress_test.md`:
+   - checklist,
+   - command catalog,
+   - closure rule.
+2. Extend `scripts/dev_substrate/m4_stress_runner.py` with `--stage S3`:
+   - enforce S2 continuity and Stage-A carry-forward,
+   - run precheck -> injection -> recovery sequence,
+   - compare control issues against latest successful S2 baseline,
+   - emit full M4 artifact contract with fail-closed blocker mapping.
+3. Execute `python scripts/dev_substrate/m4_stress_runner.py --stage S3` immediately.
+4. Update authority routing + logbook based on verdict.
+
+### Acceptance targets
+1. `overall_pass=true`.
+2. `next_gate=M4_ST_S4_READY`.
+3. `open_blockers=0`.
+
+## Entry: 2026-03-03 19:54 +00:00 - M4 `S3` executed (pass, zero blockers)
+
+### Implementation executed
+1. Extended `scripts/dev_substrate/m4_stress_runner.py` with `--stage S3`:
+   - S2 continuity gate enforcement,
+   - Stage-A carry-forward from latest successful S2 pack,
+   - bounded precheck -> injection -> immediate/final recovery sequence,
+   - deterministic injection classifier (`3` injections),
+   - S2 baseline comparison (`new_issues_vs_s2`) and fail-closed blocker mapping.
+2. Validation:
+   - `python -m py_compile scripts/dev_substrate/m4_stress_runner.py` (pass).
+3. Executed:
+   - `python scripts/dev_substrate/m4_stress_runner.py --stage S3`
+   - `phase_execution_id=m4_stress_s3_20260303T195440Z`.
+
+### Execution result
+1. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M4_ST_S4_READY`,
+   - `open_blockers=0`,
+   - `probe_count=24`,
+   - `error_rate_pct=0.0`.
+2. Injection/recovery posture:
+   - `injection_expected_count=3`,
+   - `injection_detected_count=3`,
+   - `injection_issues=[]`,
+   - `recovery_elapsed_seconds=4`,
+   - `recovery_budget_seconds=300`,
+   - `recovery_issues=[]`.
+3. Baseline comparison outcome:
+   - `s2_baseline_phase_execution_id=m4_stress_s2_20260303T192644Z`,
+   - `new_issues_vs_s2=[]`,
+   - `probe_failure_counts={}`.
+
+### Governance and routing updates
+1. `platform.M4.stress_test.md` updated with:
+   - execution-grade S3 plan section details,
+   - S3 execution receipt,
+   - immediate next action advanced to `M4-ST-S4`.
+2. `platform.stress_test.md` updated:
+   - latest M4 state now `M4-ST-S3` pass,
+   - next program step routed to `M4-ST-S4`.
+
+### Evidence paths
+1. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s3_20260303T195440Z/stress/m4_probe_latency_throughput_snapshot.json`
+2. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s3_20260303T195440Z/stress/m4_control_rail_conformance_snapshot.json`
+3. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s3_20260303T195440Z/stress/m4_secret_safety_snapshot.json`
+4. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s3_20260303T195440Z/stress/m4_cost_outcome_receipt.json`
+5. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s3_20260303T195440Z/stress/m4_blocker_register.json`
+6. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s3_20260303T195440Z/stress/m4_execution_summary.json`
+7. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s3_20260303T195440Z/stress/m4_decision_log.json`
+
+## Entry: 2026-03-03 19:59 +00:00 - M4 `S4` planning and execution lane opened (pre-implementation)
+
+### Trigger
+1. User instructed: remediate S3 blockers if present, then proceed with planning and execution of `M4-ST-S4`.
+
+### Decision-completeness and lane closure check
+1. Latest successful `M4-ST-S3` is present:
+   - `phase_execution_id=m4_stress_s3_20260303T195440Z`,
+   - `next_gate=M4_ST_S4_READY`,
+   - `open_blocker_count=0`.
+2. S3 blocker register confirms empty blocker set:
+   - `blockers=[]`,
+   - no remediation rerun is required for S3 itself.
+3. Required S4 lanes are explicit:
+   - unresolved-blocker scan across latest `S1..S3` windows,
+   - deterministic remediation matrix (blocker -> lane -> rerun scope),
+   - explicit no-op receipt when blocker set is empty,
+   - artifact/evidence contract closure and fail-closed blocker mapping.
+
+### Performance-first and cost-control design before coding
+1. S4 remains analysis-first and read-only:
+   - parse existing summaries/registers,
+   - avoid provisioning/mutation commands.
+2. Keep runtime bounded by single-pass aggregation of latest window artifacts.
+3. Keep spend near-zero by avoiding managed execution reruns when blocker set is empty.
+
+### Planned implementation
+1. Expand `M4-ST-S4` authority section in `platform.M4.stress_test.md`:
+   - S4 checklist,
+   - command catalog,
+   - closure rule.
+2. Extend `scripts/dev_substrate/m4_stress_runner.py` with `--stage S4`:
+   - enforce latest successful S3 dependency,
+   - aggregate unresolved blockers from latest S1/S2/S3 blocker registers,
+   - build remediation matrix and deterministic rerun recommendations,
+   - emit explicit no-op remediation receipt when blocker set is empty,
+   - emit full M4 artifact set and fail-closed summary.
+3. Execute `python scripts/dev_substrate/m4_stress_runner.py --stage S4` immediately.
+4. Update authority routing + logbook after verdict.
+
+### Acceptance targets
+1. `overall_pass=true`.
+2. `next_gate=M4_ST_S5_READY`.
+3. `open_blockers=0`.
+
+## Entry: 2026-03-03 20:01 +00:00 - M4 `S4` executed (pass, no-op remediation receipt)
+
+### Implementation executed
+1. Extended `scripts/dev_substrate/m4_stress_runner.py` with `--stage S4`:
+   - latest successful S3 dependency gate,
+   - aggregation of latest `S1/S2/S3` blocker posture,
+   - deterministic remediation matrix generation (`blocker -> lane -> rerun scope`),
+   - explicit no-op remediation receipt when unresolved blocker set is empty,
+   - fail-closed summary + blocker register emission with full M4 artifact contract.
+2. Validation:
+   - `python -m py_compile scripts/dev_substrate/m4_stress_runner.py` (pass).
+3. Executed:
+   - `python scripts/dev_substrate/m4_stress_runner.py --stage S4`
+   - `phase_execution_id=m4_stress_s4_20260303T200131Z`.
+
+### Execution result
+1. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M4_ST_S5_READY`,
+   - `open_blockers=0`,
+   - `probe_count=0`,
+   - `error_rate_pct=0.0`.
+2. Remediation posture:
+   - `remediation_required=false`,
+   - `rerun_required=false`,
+   - `rerun_scopes=[]`,
+   - `action_mode=NOOP_RECEIPT`.
+3. Dependency and continuity:
+   - `s3_baseline_phase_execution_id=m4_stress_s3_20260303T195440Z`,
+   - unresolved blocker scan across latest `S1..S3` returned empty set.
+
+### Governance and routing updates
+1. `platform.M4.stress_test.md` updated with:
+   - execution-grade `S4` plan section details,
+   - `S4` execution receipt,
+   - immediate next action advanced to `M4-ST-S5`.
+2. `platform.stress_test.md` updated:
+   - latest M4 state now `M4-ST-S4` pass,
+   - next program step routed to `M4-ST-S5`.
+
+### Evidence paths
+1. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s4_20260303T200131Z/stress/m4_probe_latency_throughput_snapshot.json`
+2. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s4_20260303T200131Z/stress/m4_control_rail_conformance_snapshot.json`
+3. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s4_20260303T200131Z/stress/m4_secret_safety_snapshot.json`
+4. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s4_20260303T200131Z/stress/m4_cost_outcome_receipt.json`
+5. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s4_20260303T200131Z/stress/m4_blocker_register.json`
+6. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s4_20260303T200131Z/stress/m4_execution_summary.json`
+7. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s4_20260303T200131Z/stress/m4_decision_log.json`
+
+## Entry: 2026-03-03 20:04 +00:00 - M4 `S5` planning and execution lane opened (pre-implementation)
+
+### Trigger
+1. User instructed: remediate any remaining blockers, then proceed with planning and execution of `M4-ST-S5`.
+
+### Decision-completeness and lane closure check
+1. Latest successful `M4-ST-S4` exists:
+   - `phase_execution_id=m4_stress_s4_20260303T200131Z`,
+   - `next_gate=M4_ST_S5_READY`,
+   - `open_blocker_count=0`.
+2. Remaining blocker check is closed:
+   - latest S4 blocker register contains `blockers=[]`.
+3. Required S5 lanes are explicit:
+   - closure rollup across latest successful `S0..S4` packs,
+   - no-open-blocker enforcement across rollup,
+   - evidence contract completeness/readability audit,
+   - runtime/spend envelope adjudication against pinned budgets,
+   - deterministic handoff recommendation (`GO/NO_GO`) with next gate.
+
+### Performance-first and cost-control design before coding
+1. S5 is read-only rollup and uses existing evidence packs; no runtime load probes are required.
+2. Runtime should remain near-instant by single-pass parsing of latest stage artifacts.
+3. Cost should remain near-zero by avoiding managed service mutation/rerun inside S5.
+
+### Planned implementation
+1. Expand `M4-ST-S5` authority section in `platform.M4.stress_test.md`:
+   - S5 checklist,
+   - command catalog,
+   - closure rule.
+2. Extend `scripts/dev_substrate/m4_stress_runner.py` with `--stage S5`:
+   - enforce latest successful S4 dependency and Stage-A carry-forward,
+   - aggregate latest successful `S0..S4` summary/register pairs,
+   - validate artifact completeness and closure envelope checks,
+   - emit deterministic `recommendation` and `next_gate` in summary/decision log.
+3. Execute `python scripts/dev_substrate/m4_stress_runner.py --stage S5` immediately.
+4. Route program status and M4 closure state based on evidence-backed verdict.
+
+### Acceptance targets
+1. `overall_pass=true`.
+2. `recommendation=GO`.
+3. `next_gate=M5_READY`.
+4. `open_blockers=0`.
+
+## Entry: 2026-03-03 20:07 +00:00 - M4 `S5` executed (pass, GO handoff)
+
+### Implementation executed
+1. Extended `scripts/dev_substrate/m4_stress_runner.py` with `--stage S5`:
+   - latest successful S4 dependency gate,
+   - closure rollup across latest successful `S0..S4` packs,
+   - no-open-blocker enforcement and artifact readability audit,
+   - runtime/spend envelope adjudication against pinned M4 budgets,
+   - deterministic `recommendation` + `next_gate` publication in execution summary/decision log.
+2. Validation:
+   - `python -m py_compile scripts/dev_substrate/m4_stress_runner.py` (pass).
+3. Executed:
+   - `python scripts/dev_substrate/m4_stress_runner.py --stage S5`
+   - `phase_execution_id=m4_stress_s5_20260303T200552Z`.
+
+### Execution result
+1. Verdict:
+   - `overall_pass=true`,
+   - `recommendation=GO`,
+   - `next_gate=M5_READY`,
+   - `open_blockers=0`,
+   - `rollup_stage_count=5`.
+2. Closure envelope:
+   - `total_runtime_minutes=25.317`,
+   - `runtime_within_envelope=true`,
+   - `total_attributed_spend_usd=0.0`,
+   - `spend_within_envelope=true`.
+3. Dependency and continuity:
+   - `s4_baseline_phase_execution_id=m4_stress_s4_20260303T200131Z`,
+   - no unresolved blockers in latest successful `S0..S4` rollup.
+
+### Governance and routing updates
+1. `platform.M4.stress_test.md` updated with:
+   - execution-grade `S5` plan section details,
+   - `S5` execution receipt,
+   - post-M4 next actions routed to M5 planning.
+2. `platform.stress_test.md` updated:
+   - M4 marked closed (`DONE`),
+   - latest M4 state now `M4-ST-S5` pass (`recommendation=GO`, `next_gate=M5_READY`),
+   - next program step routed to M5 `S0` planning lane.
+
+### Evidence paths
+1. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s5_20260303T200552Z/stress/m4_probe_latency_throughput_snapshot.json`
+2. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s5_20260303T200552Z/stress/m4_control_rail_conformance_snapshot.json`
+3. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s5_20260303T200552Z/stress/m4_secret_safety_snapshot.json`
+4. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s5_20260303T200552Z/stress/m4_cost_outcome_receipt.json`
+5. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s5_20260303T200552Z/stress/m4_blocker_register.json`
+6. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s5_20260303T200552Z/stress/m4_execution_summary.json`
+7. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s5_20260303T200552Z/stress/m4_decision_log.json`
