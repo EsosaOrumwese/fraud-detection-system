@@ -269,11 +269,12 @@ Required artifacts for each M2 stress window:
 - [x] Execution control surface pinned (runner + managed dispatch posture).
 - [x] Blocker taxonomy and evidence contract pinned.
 - [x] Stage-A artifacts emitted to run-control path.
-- [ ] USER go-ahead captured for first M2 managed stress window dispatch.
+- [x] USER go-ahead captured for first M2 managed stress window dispatch.
 
 ## 12) Immediate Next Actions
-1. Prepare `M2-ST-S1` managed dispatch contract (probe set, concurrency, timeout, window budget).
-2. Execute baseline window only after user confirms run launch.
+1. Resolve `M2-ST-B3`/`M2-ST-B4` by repinning `SR_READY_COMMIT_STATE_MACHINE` to live state-machine name/ARN and updating authority/registry as needed.
+2. Rerun `M2-ST-S1` baseline window immediately after handle repin.
+3. Advance to `M2-ST-S2` only if rerun closes all open blockers.
 
 ## 13) Execution Progress
 ### `M2-ST-S0` execution (2026-03-03)
@@ -290,3 +291,32 @@ Required artifacts for each M2 stress window:
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s0_20260303T155942Z/stress/m2_blocker_register.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s0_20260303T155942Z/stress/m2_execution_summary.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s0_20260303T155942Z/stress/m2_decision_log.json`
+
+### `M2-ST-S1` baseline execution (2026-03-03)
+1. Phase execution id: `m2_stress_s1_20260303T160937Z`.
+2. Runner:
+   - `python scripts/dev_substrate/m2_stress_runner.py --stage S1`
+3. Window profile:
+   - `window_seconds_observed=600`,
+   - `probe_count=630`,
+   - `error_rate_pct=0.0`.
+4. Verdict:
+   - `overall_pass=false`,
+   - `next_gate=BLOCKED`,
+   - `open_blockers=2`.
+5. Open blockers:
+   - `M2-ST-B3` (`control_rail` drift),
+   - `M2-ST-B4` (`SR` commit-authority route unresolved).
+6. Root cause signal:
+   - Step Functions lookup probe returned `stdout=None` for handle `SR_READY_COMMIT_STATE_MACHINE="SFN_PLATFORM_RUN_ORCHESTRATOR_V0"`,
+   - live state machine list currently contains `fraud-platform-dev-full-platform-run-v0`.
+7. Artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s1_20260303T160937Z/stress/m2_stagea_findings.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s1_20260303T160937Z/stress/m2_lane_matrix.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s1_20260303T160937Z/stress/m2_probe_latency_throughput_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s1_20260303T160937Z/stress/m2_control_rail_conformance_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s1_20260303T160937Z/stress/m2_secret_safety_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s1_20260303T160937Z/stress/m2_cost_outcome_receipt.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s1_20260303T160937Z/stress/m2_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s1_20260303T160937Z/stress/m2_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s1_20260303T160937Z/stress/m2_decision_log.json`

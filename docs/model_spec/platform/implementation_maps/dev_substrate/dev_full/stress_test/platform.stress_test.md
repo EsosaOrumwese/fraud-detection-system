@@ -212,7 +212,7 @@ For any phase:
 1. Program bootstrapped.
 2. Current phase state: `M2` (`ACTIVE`, dedicated phase file).
 3. Dedicated phase file created: `stress_test/platform.M2.stress_test.md`.
-4. Next step: prepare `M2-ST-S1` managed dispatch contract and await user run-launch go-ahead.
+4. Next step: remediate `M2-ST-B3`/`M2-ST-B4` (SR state-machine handle drift), then rerun `M2-ST-S1`.
 
 ## 13) Closed Phase - M0 (Inline)
 Status:

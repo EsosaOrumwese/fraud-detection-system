@@ -1087,3 +1087,85 @@ _As of 2026-03-03_
    - execution progress section added with concrete artifact references.
 2. `platform.stress_test.md`:
    - next-step line updated to `S1` dispatch preparation and user go-ahead wait.
+
+## Entry: 2026-03-03 16:03 +00:00 - M2 `S1` baseline execution start (pre-implementation plan)
+
+### Trigger
+1. User instructed: proceed to `S1` execution.
+
+### Planned implementation
+1. Extend `scripts/dev_substrate/m2_stress_runner.py` to support `--stage S1`.
+2. Implement real read-only substrate probes against pinned handles:
+   - state backend (`s3`, `dynamodb`),
+   - messaging (`kafka`, `ssm`, `glue`),
+   - API edge (`apigatewayv2`, `lambda`, `dynamodb`),
+   - secrets readability (`ssm` path checks),
+   - control rails (`stepfunctions` + runtime/correlation handle conformance).
+3. Execute baseline window using pinned `M2_STRESS_WINDOW_MINUTES` and baseline load profile.
+4. Emit `S1` required artifacts:
+   - `m2_probe_latency_throughput_snapshot.json`,
+   - `m2_control_rail_conformance_snapshot.json`,
+   - `m2_secret_safety_snapshot.json`,
+   - `m2_cost_outcome_receipt.json`,
+   - `m2_blocker_register.json`,
+   - `m2_execution_summary.json`,
+   - `m2_decision_log.json`,
+   - plus copied `m2_stagea_findings.json` and `m2_lane_matrix.json` references for full window artifact contract continuity.
+
+### Pass criteria to enforce
+1. Baseline error-rate <= 1.0%.
+2. No control-rail drift.
+3. No plaintext secret leakage.
+4. No unattributed spend signal.
+5. No open `M2-ST-B*` blockers at window close.
+
+## Entry: 2026-03-03 16:20 +00:00 - M2 `S1` baseline execution completed (fail-closed)
+
+### Implemented changes
+1. Extended runner `scripts/dev_substrate/m2_stress_runner.py`:
+   - added `--stage S1`,
+   - added baseline probe window execution (`600s`),
+   - added probe telemetry, control-rail, secret-safety, and cost receipt artifact emission,
+   - added blocker mapping to `M2-ST-B*` taxonomy.
+
+### Executed command
+1. `python scripts/dev_substrate/m2_stress_runner.py --stage S1`
+2. Phase execution id:
+   - `m2_stress_s1_20260303T160937Z`.
+
+### Execution outcome
+1. Window completed:
+   - `window_seconds_observed=600`,
+   - `probe_count=630`,
+   - `error_rate_pct=0.0`.
+2. Verdict:
+   - `overall_pass=false`,
+   - `next_gate=BLOCKED`,
+   - `open_blockers=2`.
+3. Open blockers:
+   - `M2-ST-B3`,
+   - `M2-ST-B4`.
+
+### Root cause and drift signal
+1. Control-rail snapshot issue:
+   - `SR state machine lookup failed` due unresolved `SR_READY_COMMIT_STATE_MACHINE` handle value at runtime lookup.
+2. Probe evidence:
+   - Step Functions lookup command exited `0` but returned `stdout=None` for handle name `SFN_PLATFORM_RUN_ORCHESTRATOR_V0`.
+3. Live state-machine readback:
+   - current AWS list contains `fraud-platform-dev-full-platform-run-v0`.
+4. Interpretation:
+   - this is handle-to-live-resource naming drift in SR commit-authority routing, not substrate transport failure.
+
+### Evidence paths
+1. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s1_20260303T160937Z/stress/m2_probe_latency_throughput_snapshot.json`
+2. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s1_20260303T160937Z/stress/m2_control_rail_conformance_snapshot.json`
+3. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s1_20260303T160937Z/stress/m2_secret_safety_snapshot.json`
+4. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s1_20260303T160937Z/stress/m2_cost_outcome_receipt.json`
+5. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s1_20260303T160937Z/stress/m2_blocker_register.json`
+6. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s1_20260303T160937Z/stress/m2_execution_summary.json`
+7. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s1_20260303T160937Z/stress/m2_decision_log.json`
+
+### Fail-closed action
+1. `S1` remains blocked.
+2. Required remediation lane before rerun:
+   - repin `SR_READY_COMMIT_STATE_MACHINE` to live state-machine name/arn and revalidate control-rail contract.
