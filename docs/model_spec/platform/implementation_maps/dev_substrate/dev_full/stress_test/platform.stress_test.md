@@ -44,7 +44,7 @@ This is the program-level overview of what each `M*` phase stress effort is expe
 | Stress Phase | Build Scope Anchor | What We Aim to Achieve | Exit Signal | Status |
 | --- | --- | --- | --- | --- |
 | M0 | Mobilization + authority lock | Validate test authority, handles, and stress evidence surfaces before any load | All prerequisite stress handles and evidence sinks are green | DONE |
-| M1 | Packaging readiness | Stress packaging/provenance paths for reproducible deploy artifacts under concurrent operations | No packaging bottleneck or provenance drift under stress | ACTIVE |
+| M1 | Packaging readiness | Stress packaging/provenance paths for reproducible deploy artifacts under concurrent operations | No packaging bottleneck or provenance drift under stress | BLOCKED |
 | M2 | Substrate readiness | Stress core substrate primitives (network/store/bus/runtime) for baseline capacity and failure behavior | Substrate can sustain target baseline load without integrity drift | NOT_STARTED |
 | M3 | Run pinning + orchestrator readiness | Stress run-control/orchestrator behavior under concurrent run activation and retries | Run pinning remains deterministic; no cross-run mixing | NOT_STARTED |
 | M4 | Spine runtime-lane readiness | Stress each spine lane bootstrap path for startup-time, readiness, and dependency bottlenecks | Lane startup and steady-state readiness meet target budgets | NOT_STARTED |
@@ -210,9 +210,9 @@ For any phase:
 
 ## 12) Program Status (Initial)
 1. Program bootstrapped.
-2. Active phase: `M1` (inline in this file).
+2. Active phase: `M1` (`BLOCKED`, inline in this file).
 3. Per-phase stress files not yet created.
-4. Next step: execute first managed `M1` Stage-B packaging stress window (`build repetition=3`, `concurrency target=2`) and publish timing/provenance drift artifacts.
+4. Next step: remediate `M1-ST-B8` (concurrent immutable-tag provenance drift) and rerun managed window before M1 closure decision.
 
 ## 13) Closed Phase - M0 (Inline)
 Status:
@@ -276,7 +276,7 @@ M0 closure verdict:
 
 ## 14) Active Phase - M1 (Inline)
 Status:
-1. `ACTIVE`
+1. `ACTIVE_BLOCKED` (`M1-ST-B8` open)
 
 M1 stress objective:
 1. validate packaging/provenance decisions under realistic production stress posture before later runtime phases consume these artifacts.
@@ -325,18 +325,21 @@ M1 blockers (status):
 1. `M1-ST-B1`: CLOSED - M1 stress-handle packet pinned.
 2. `M1-ST-B2`: CLOSED - local preflight contract pinned.
 3. `M1-ST-B3`: CLOSED - dockerignore default-deny lint false-fail remediated in local preflight tooling.
+4. `M1-ST-B6`: CLOSED - initial managed-window run failures from optional S3 direct-upload branch remediated by artifact-pack-only rerun posture.
+5. `M1-ST-B8`: OPEN - provenance drift under concurrent managed repetitions (single immutable tag resolved to multiple digests).
 
 M1 DoD (stress):
 - [x] Stage A pre-read completed and classified (`PREVENT`/`OBSERVE`/`ACCEPT`).
 - [x] M1 stress-handle packet pinned.
 - [x] M1 local preflight contract pinned.
 - [x] M1 blocker set closed (`M1-ST-B1`, `M1-ST-B2`).
-- [ ] Stage-B packaging component stress executed with required artifacts.
-- [ ] M1 stress closure verdict published (`DONE` or `BLOCKED`) with rerun policy.
+- [x] Stage-B packaging component stress executed with required artifacts.
+- [x] M1 stress closure verdict published (`BLOCKED`) with rerun policy.
 
 M1 immediate actions:
-1. Run first M1 packaging stress window (`build repetition = 3`) and capture timing/provenance drift evidence.
-2. If build-time slope or context overhead breaches target, open decision-repin candidate before M2.
+1. Open remediation decision for concurrent immutable-tag race (`git-{sha}` shared across repetitions) and pin corrected tagging/digest contract.
+2. Rerun M1 managed stress window after remediation and require zero provenance drift across repetitions.
+3. If build-time slope or context overhead breaches target after drift fix, open decision-repin candidate before M2.
 
 M1 Stage-B execution progress:
 1. Local preflight run `m1_stress_preflight_20260303T060333Z` returned `HOLD_REMEDIATE`:
@@ -349,3 +352,17 @@ M1 Stage-B execution progress:
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_preflight_20260303T060442Z/stress/m1_blocker_register.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_preflight_20260303T060442Z/stress/m1_execution_summary.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_preflight_20260303T060442Z/stress/m1_decision_log.json`
+5. Managed stress window attempt-1 `m1_stress_window_20260303T061142Z`:
+   - run set included `22610789727`, `22610791866`, `22610794341`,
+   - two `dev-full-m1-packaging` runs failed at optional direct S3 evidence upload (`HeadBucket 403`),
+   - fail-closed verdict `HOLD_REMEDIATE`.
+6. Managed stress window attempt-2 `m1_stress_window_20260303T061619Z` (artifact-pack-only rerun posture):
+   - run set `22610905355`, `22610907538`, `22610910038` all `success`,
+   - observed max concurrency `3` (target `2` met),
+   - provenance drift detected: same immutable tag `git-e8b010fc47fdae36f4425cba0701459df077b2e0` mapped to three digests,
+   - blocker `M1-ST-B8` opened and phase remains fail-closed `HOLD_REMEDIATE`.
+7. Managed-window artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T061619Z/stress/m1_stress_window_results.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T061619Z/stress/m1_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T061619Z/stress/m1_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T061619Z/stress/m1_decision_log.json`

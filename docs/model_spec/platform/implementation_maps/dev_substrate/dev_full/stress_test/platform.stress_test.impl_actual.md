@@ -313,3 +313,80 @@ _As of 2026-03-03_
 ### Fail-closed conditions
 1. Any run failure, missing artifact pack, digest mismatch, or immutable-tag drift opens blocker and holds M1 closure.
 2. If concurrency evidence does not meet target profile, open explicit blocker and pin remediation path before phase advancement.
+
+## Entry: 2026-03-03 06:15 +00:00 - M1 managed window attempt-1 blocker adjudication and rerun decision
+
+### Attempt-1 execution evidence
+1. Dispatched managed window execution id: `m1_stress_window_20260303T061142Z`.
+2. Run outcomes:
+   - `22610789727` (`dev-full-m1-packaging`) -> `failure`,
+   - `22610794341` (`dev-full-m1-packaging`) -> `failure`,
+   - `22610791866` (`dev-min-m1-packaging`) -> `success`.
+3. Failure log root cause (both dev_full runs):
+   - step: `Optional direct upload to S3 evidence bucket`,
+   - error: `HeadBucket ... Forbidden (403)` on `fraud-platform-dev-full-evidence`.
+4. Packaging build/push lane itself did not fail; failure occurred in optional post-build evidence upload branch.
+
+### Decision
+1. Keep fail-closed posture for attempt-1 (`HOLD_REMEDIATE`).
+2. Apply no-code operational remediation for attempt-2:
+   - disable optional `s3_evidence_bucket` input on `dev-full-m1-packaging` dispatch,
+   - rely on mandatory CI artifact packs + local run-control mirror for stress evidence rollup.
+3. Re-run 3-repetition managed window with same concurrency strategy (dual carrier wave + third repetition).
+
+### Rationale
+1. This avoids IAM/policy mutation for a non-critical optional step and directly tests packaging/provenance behavior under managed concurrency.
+2. Evidence completeness remains satisfiable through run-artifact download and local stress receipt publication.
+
+### Guardrails
+1. No branch/push operations.
+2. No runtime/infra mutation; workflow dispatch-only remediation.
+3. Preserve `aws_region`, `OIDC role`, ECR handles, immutable-tag posture unchanged.
+
+## Entry: 2026-03-03 06:19 +00:00 - M1 managed stress window execution results (attempt-1 and attempt-2)
+
+### Attempt-1 execution (`m1_stress_window_20260303T061142Z`)
+1. Dispatch topology:
+   - `r1`: `dev-full-m1-packaging` (`run_id=22610789727`),
+   - `r2`: `dev-min-m1-packaging` + `secret_contract_profile=dev_full` (`run_id=22610791866`),
+   - `r3`: `dev-full-m1-packaging` (`run_id=22610794341`).
+2. Outcomes:
+   - `r2` success,
+   - `r1/r3` failure at optional `S3 head-bucket` check (`403 Forbidden`) for `fraud-platform-dev-full-evidence`.
+3. Gate verdict:
+   - fail-closed `HOLD_REMEDIATE`.
+4. Closure action:
+   - opened temporary blocker lane (`M1-ST-B6` context),
+   - pinned no-code remediation: disable optional direct S3 upload on `dev-full-m1-packaging` dispatch and rely on mandatory artifact-pack download + local run-control publication.
+
+### Attempt-2 execution (`m1_stress_window_20260303T061619Z`)
+1. Dispatch topology retained with remediation (no `s3_evidence_bucket` input for dev_full workflow).
+2. Run outcomes:
+   - `22610905355` (`dev-full-m1-packaging`) success,
+   - `22610907538` (`dev-min-m1-packaging`) success,
+   - `22610910038` (`dev-full-m1-packaging`) success.
+3. Concurrency evidence:
+   - observed max concurrent managed runs = `3` (target `>=2`, pass).
+4. Provenance evidence:
+   - all runs share immutable tag `git-e8b010fc47fdae36f4425cba0701459df077b2e0` and same git sha,
+   - digest set diverged across repetitions:
+     - `sha256:b5eef8274db36649832998fea9fd255cfcc1a0a7ade88d323a50245d405be649`,
+     - `sha256:95f7edcf5cc6672dab30ec1c4c7731fce29ffe8ac1d9641a98b508bb76d94caa`,
+     - `sha256:e2f36e9369eb48aa9d32adbf3ec1d1b6f1f39aaeac2652ec188fc1c00c769c40`.
+5. Gate verdict:
+   - fail-closed `HOLD_REMEDIATE` with blocker `M1-ST-B8` (provenance drift under concurrent repetitions).
+
+### Published artifacts (attempt-2 authoritative for current blocker state)
+1. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T061619Z/stress/m1_dispatch_receipt.json`
+2. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T061619Z/stress/m1_stress_window_results.json`
+3. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T061619Z/stress/m1_blocker_register.json`
+4. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T061619Z/stress/m1_execution_summary.json`
+5. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T061619Z/stress/m1_decision_log.json`
+
+### Next remediation gate (required before M1 closure)
+1. Resolve concurrent immutable-tag race:
+   - repin packaging tag/digest contract so concurrent repetitions cannot produce digest ambiguity for a single immutable tag claim.
+2. Rerun managed window after contract repin and require:
+   - all runs success,
+   - no digest drift for immutable claims,
+   - concurrency target maintained.
