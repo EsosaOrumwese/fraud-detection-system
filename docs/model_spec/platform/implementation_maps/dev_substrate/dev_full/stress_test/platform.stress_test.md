@@ -104,8 +104,15 @@ No stress run starts if unresolved `PREVENT` items exist.
 4. queue/lag/posture snapshots.
 5. blocker register (`open`, `resolved`, `waived` with explicit user approval only).
 6. cost window snapshot and cost-to-outcome receipt.
+7. control artifacts (`execution_summary`, `decision_log`, `blocker_register`) for each active phase.
 
 No stress step is closed without artifact publication and readback verification.
+
+### 6.1) Stress Control Artifact Path Contract (Pinned)
+1. `STRESS_RUN_CONTROL_PREFIX_PATTERN = "evidence/dev_full/run_control/{phase_execution_id}/stress/"`
+2. `STRESS_BLOCKER_REGISTER_PATH_PATTERN = "evidence/dev_full/run_control/{phase_execution_id}/stress/{phase_id}_blocker_register.json"`
+3. `STRESS_EXECUTION_SUMMARY_PATH_PATTERN = "evidence/dev_full/run_control/{phase_execution_id}/stress/{phase_id}_execution_summary.json"`
+4. `STRESS_DECISION_LOG_PATH_PATTERN = "evidence/dev_full/run_control/{phase_execution_id}/stress/{phase_id}_decision_log.json"`
 
 ## 7) Program Structure (Mirrors Build Phase Ladder)
 Stress program follows the same canonical ladder:
@@ -205,7 +212,7 @@ For any phase:
 1. Program bootstrapped.
 2. Active phase: `M0` (inline in this file).
 3. Per-phase stress files not yet created.
-4. Next step: close M0 `PREVENT` items, then decide `M0 DONE -> M1` transition.
+4. Next step: issue `M0 DONE -> M1` transition decision.
 
 ## 13) Active Phase - M0 (Inline)
 Status:
@@ -218,6 +225,22 @@ M0 stress scope:
 1. authority and precedence readback for stress program.
 2. stress handle and evidence-surface readiness checks.
 3. phase activation control and blocker taxonomy lock.
+
+M0 stress handle packet (pinned):
+1. `STRESS_PROGRAM_ID = "dev_full_stress_v0"`
+2. `STRESS_PROGRAM_MODE = "pre_cert_hardening"`
+3. `STRESS_ACTIVE_PHASE = "M0"`
+4. `STRESS_LOCAL_ENGINEERING_ALLOWED = true`
+5. `STRESS_LOCAL_RUNTIME_ALLOWED = false`
+6. `STRESS_AWS_REGION = "eu-west-2"`
+7. `STRESS_EVIDENCE_BUCKET = "fraud-platform-dev-full-evidence"`
+8. `M0_STRESS_BLOCKER_REGISTER_PATH_PATTERN = "evidence/dev_full/run_control/{phase_execution_id}/stress/m0_blocker_register.json"`
+9. `M0_STRESS_EXECUTION_SUMMARY_PATH_PATTERN = "evidence/dev_full/run_control/{phase_execution_id}/stress/m0_execution_summary.json"`
+10. `M0_STRESS_DECISION_LOG_PATH_PATTERN = "evidence/dev_full/run_control/{phase_execution_id}/stress/m0_decision_log.json"`
+11. `M0_STRESS_REQUIRED_ARTIFACTS = "m0_blocker_register.json,m0_execution_summary.json,m0_decision_log.json"`
+12. `M0_STRESS_FAIL_ON_PLACEHOLDER_HANDLE = true`
+13. `M0_STRESS_MAX_RUNTIME_MINUTES = 60`
+14. `M0_STRESS_MAX_SPEND_USD = 0`
 
 Stage A pre-read inputs used:
 1. `platform.M0.build_plan.md`
@@ -233,18 +256,17 @@ Stage A findings classification:
 | `M0-ST-F3` | `OBSERVE` | Handles registry still contains unresolved `TO_PIN` items mapped to later runtime phases (`M2+`). | Track as forward dependency risk; no M0 runtime action required. |
 | `M0-ST-F4` | `ACCEPT` | M0 build phase is docs/control-only with no runtime mutation; this aligns with stress program startup posture. | Continue M0 inline execution and close governance prerequisites. |
 
-M0 blockers (open):
-1. `M0-ST-B1`: stress-handle packet not yet pinned.
-2. `M0-ST-B2`: explicit M0 stress blocker-register artifact contract not yet pinned.
+M0 blockers (status):
+1. `M0-ST-B1`: CLOSED - stress-handle packet pinned.
+2. `M0-ST-B2`: CLOSED - blocker-register artifact contract pinned.
 
 M0 DoD (stress):
 - [x] Stage A pre-read completed and classified (`PREVENT`/`OBSERVE`/`ACCEPT`).
-- [ ] Stress-handle packet pinned for downstream phase activation.
-- [ ] M0 stress blocker-register artifact contract pinned.
-- [ ] M0 blocker set closed (`M0-ST-B1`, `M0-ST-B2`).
-- [ ] M0 closure note written in stress implementation map and logbook.
+- [x] Stress-handle packet pinned for downstream phase activation.
+- [x] M0 stress blocker-register artifact contract pinned.
+- [x] M0 blocker set closed (`M0-ST-B1`, `M0-ST-B2`).
+- [x] M0 closure note written in stress implementation map and logbook.
 
 M0 immediate actions:
-1. Add M0 stress-handle packet section (targets/windows/profile IDs) to this authority or a dedicated handle companion.
-2. Add explicit M0 blocker-register artifact path pattern to evidence contract.
-3. Close `M0-ST-B1/B2`, then mark `M0 DONE` and move to `M1` decision pre-read.
+1. Validate M0 closure readback against pinned artifact contract.
+2. If no new blocker appears, mark `M0 DONE` and move to `M1` decision pre-read.

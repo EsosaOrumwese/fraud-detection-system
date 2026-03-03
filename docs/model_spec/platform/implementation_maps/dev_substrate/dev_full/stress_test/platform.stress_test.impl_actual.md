@@ -116,3 +116,37 @@ _As of 2026-03-03_
 1. `M0` is now marked `ACTIVE` in the main stress overview.
 2. M0 stress DoD and blockers (`M0-ST-B1`, `M0-ST-B2`) are now explicit.
 3. Immediate action queue for closing M0 is pinned in the active-phase section.
+
+## Entry: 2026-03-03 06:15 +00:00 - M0 stress-handle packet pinned and blockers closed
+
+### Trigger
+1. User approved proceeding with recommended M0 stress pin set.
+
+### Decision
+1. Pin M0 stress-handle packet directly in `platform.stress_test.md`.
+2. Pin control artifact path contract in the evidence section so blocker register location is deterministic.
+3. Close `M0-ST-B1` and `M0-ST-B2` based on pinned values and updated contracts.
+
+### Pinned handle set applied
+1. Program controls:
+   - `STRESS_PROGRAM_ID`, `STRESS_PROGRAM_MODE`, `STRESS_ACTIVE_PHASE`.
+2. Local/runtime posture:
+   - `STRESS_LOCAL_ENGINEERING_ALLOWED=true`,
+   - `STRESS_LOCAL_RUNTIME_ALLOWED=false`.
+3. Region/evidence anchors:
+   - `STRESS_AWS_REGION=eu-west-2`,
+   - `STRESS_EVIDENCE_BUCKET=fraud-platform-dev-full-evidence`.
+4. M0 control artifacts:
+   - `M0_STRESS_BLOCKER_REGISTER_PATH_PATTERN`,
+   - `M0_STRESS_EXECUTION_SUMMARY_PATH_PATTERN`,
+   - `M0_STRESS_DECISION_LOG_PATH_PATTERN`,
+   - `M0_STRESS_REQUIRED_ARTIFACTS`.
+5. M0 guards:
+   - `M0_STRESS_FAIL_ON_PLACEHOLDER_HANDLE=true`,
+   - `M0_STRESS_MAX_RUNTIME_MINUTES=60`,
+   - `M0_STRESS_MAX_SPEND_USD=0`.
+
+### Result
+1. `M0-ST-B1` closed.
+2. `M0-ST-B2` closed.
+3. M0 DoD checklist moved to fully checked state and phase is now transition-ready (`M0 DONE -> M1` decision gate).
