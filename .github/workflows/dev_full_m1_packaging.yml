@@ -43,13 +43,18 @@ on:
         required: false
         default: ""
         type: string
+      concurrency_group_suffix:
+        description: "Concurrency-group suffix (default keeps branch-serialized posture; override for stress windows)"
+        required: false
+        default: "shared"
+        type: string
 
 permissions:
   contents: read
   id-token: write
 
 concurrency:
-  group: dev-full-m1-packaging-${{ github.ref_name }}
+  group: dev-full-m1-packaging-${{ github.ref_name }}-${{ inputs.concurrency_group_suffix }}
   cancel-in-progress: false
 
 jobs:
@@ -91,10 +96,15 @@ jobs:
         run: |
           set -euo pipefail
           GIT_SHA="${GITHUB_SHA}"
-          IMAGE_TAG="git-${GIT_SHA}"
+          CI_RUN_ID="${GITHUB_RUN_ID}"
+          SOURCE_DATE_EPOCH="$(git log -1 --pretty=%ct "${GITHUB_SHA}")"
+          IMAGE_TAG="git-${GIT_SHA}-run-${CI_RUN_ID}"
+          GIT_SHA_CANONICAL_TAG="git-${GIT_SHA}"
           IMAGE_REF="${{ inputs.ecr_repo_uri }}:${IMAGE_TAG}"
           echo "git_sha=${GIT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "source_date_epoch=${SOURCE_DATE_EPOCH}" >> "$GITHUB_OUTPUT"
           echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "git_sha_canonical_tag=${GIT_SHA_CANONICAL_TAG}" >> "$GITHUB_OUTPUT"
           echo "image_ref=${IMAGE_REF}" >> "$GITHUB_OUTPUT"
 
       - name: Record CI run metadata
@@ -113,8 +123,10 @@ jobs:
             echo "Pinned Dockerfile not found: ${{ inputs.image_dockerfile_path }}"
             exit 1
           fi
+          export DOCKER_BUILDKIT=1
           docker build \
             --file "${{ inputs.image_dockerfile_path }}" \
+            --build-arg "SOURCE_DATE_EPOCH=${{ steps.meta.outputs.source_date_epoch }}" \
             --tag "${{ steps.meta.outputs.image_ref }}" \
             "${{ inputs.image_build_context_path }}"
 
@@ -155,6 +167,7 @@ jobs:
         env:
           PLATFORM_RUN_ID: ${{ inputs.platform_run_id }}
           IMAGE_TAG: ${{ steps.meta.outputs.image_tag }}
+          GIT_SHA_CANONICAL_TAG: ${{ steps.meta.outputs.git_sha_canonical_tag }}
           IMAGE_DIGEST: ${{ steps.digest.outputs.image_digest }}
           GIT_SHA: ${{ steps.meta.outputs.git_sha }}
           BUILD_ACTOR: ${{ steps.run_meta.outputs.build_actor }}
@@ -182,6 +195,7 @@ jobs:
           phase_dir = Path(os.environ["PHASE_DIR"])
           platform_run_id = os.environ["PLATFORM_RUN_ID"]
           image_tag = os.environ["IMAGE_TAG"]
+          git_sha_canonical_tag = os.environ["GIT_SHA_CANONICAL_TAG"]
           image_digest = os.environ["IMAGE_DIGEST"]
           git_sha = os.environ["GIT_SHA"]
           build_actor = os.environ["BUILD_ACTOR"]
@@ -206,6 +220,7 @@ jobs:
               "build_driver": "github_actions",
               "image_reference_mode": "immutable_preferred",
               "ecr_repo_uri": ecr_repo_uri,
+              "git_sha_canonical_tag": git_sha_canonical_tag,
               "dockerfile_path": dockerfile_path,
               "build_context_path": build_context_path,
               "build_completed_at_utc": written_at_utc,
@@ -220,6 +235,7 @@ jobs:
               "written_at_utc": written_at_utc,
               "ecr_repo_uri": ecr_repo_uri,
               "image_tag": image_tag,
+              "git_sha_canonical_tag": git_sha_canonical_tag,
               "image_digest": image_digest,
               "oci_digest_algo": "sha256",
               "digest_source": "aws_ecr_describe_images",
@@ -231,6 +247,7 @@ jobs:
               "written_at_utc": written_at_utc,
               "git_sha": git_sha,
               "image_tag": image_tag,
+              "git_sha_canonical_tag": git_sha_canonical_tag,
               "image_digest": image_digest,
               "build_driver": "github_actions",
               "build_actor": build_actor,
@@ -258,8 +275,14 @@ jobs:
           )
           add_check(
               "immutable_tag_pattern",
-              bool(image_tag.startswith("git-") and image_tag == f"git-{git_sha}"),
-              f"image_tag={image_tag}, git_sha={git_sha}",
+              bool(re.fullmatch(r"git-[0-9a-f]{40}-run-[0-9]+", image_tag))
+              and image_tag == f"git-{git_sha}-run-{ci_run_id}",
+              f"image_tag={image_tag}, expected=git-{git_sha}-run-{ci_run_id}",
+          )
+          add_check(
+              "canonical_git_sha_marker",
+              git_sha_canonical_tag == f"git-{git_sha}",
+              f"git_sha_canonical_tag={git_sha_canonical_tag}, git_sha={git_sha}",
           )
           add_check(
               "oci_anchor_match",
@@ -285,6 +308,7 @@ jobs:
                       "build_driver",
                       "image_reference_mode",
                       "ecr_repo_uri",
+                      "git_sha_canonical_tag",
                       "dockerfile_path",
                       "build_context_path",
                       "build_completed_at_utc",
