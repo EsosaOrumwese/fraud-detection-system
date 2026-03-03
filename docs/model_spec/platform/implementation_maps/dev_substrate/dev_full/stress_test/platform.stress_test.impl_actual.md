@@ -3024,3 +3024,86 @@ _As of 2026-03-03_
 
 ### Evidence path
 1. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s0_20260303T233332Z/stress/`
+
+## Entry: 2026-03-03 23:36 +00:00 - M5.P3 `S1` planning/execution lane opened (pre-implementation)
+
+### Trigger
+1. User instructed: proceed with planning and execution of `M5P3-ST-S1`.
+
+### Decision-completeness and lane closure check
+1. `M5P3-ST-S0` dependency is closed:
+   - `phase_execution_id=m5p3_stress_s0_20260303T233332Z`,
+   - `next_gate=M5P3_ST_S1_READY`,
+   - `open_blockers=0`.
+2. Parent M5 dependency remains closed:
+   - latest `M5-ST-S0` remains pass (`m5_stress_s0_20260303T232628Z`).
+3. `m5p3_stress_runner.py` currently supports only `S0`; `S1` lane implementation is required.
+
+### Performance-first and cost-control design before coding
+1. Implement S1 as bounded read-only boundary/ownership checks:
+   - no raw-upload or managed-sort dispatch in this lane,
+   - no mutating infrastructure commands.
+2. Keep runtime short via handle-law checks plus minimal S3 reachability probes.
+3. Preserve fail-closed blocker mapping with targeted-rerun posture.
+
+### Planned implementation
+1. Expand `platform.M5.P3.stress_test.md` S1 section to execution-grade checklist/catalog/closure rule.
+2. Extend `scripts/dev_substrate/m5p3_stress_runner.py` with `--stage S1`:
+   - enforce S0 continuity and Stage-A carry-forward,
+   - validate oracle boundary/ownership semantics and prefix isolation,
+   - run bounded oracle/evidence bucket reachability probes,
+   - emit full `m5p3_*` artifact contract and fail-closed blocker register.
+3. Validate and execute:
+   - `python -m py_compile scripts/dev_substrate/m5p3_stress_runner.py`,
+   - `python scripts/dev_substrate/m5p3_stress_runner.py --stage S1`.
+4. Route next step by evidence-backed verdict.
+
+### Acceptance targets
+1. `overall_pass=true`.
+2. `next_gate=M5P3_ST_S2_READY`.
+3. `open_blockers=0`.
+
+## Entry: 2026-03-03 23:38 +00:00 - M5.P3 `S1` executed (pass, zero blockers)
+
+### Implementation executed
+1. Expanded S1 authority section in `platform.M5.P3.stress_test.md`:
+   - execution checklist,
+   - command catalog,
+   - closure rule.
+2. Extended `scripts/dev_substrate/m5p3_stress_runner.py` with `--stage S1`:
+   - S0 continuity gate enforcement and Stage-A carry-forward,
+   - boundary handle closure checks,
+   - ownership/read-only law checks,
+   - boundary isolation checks (`oracle` vs `run_control` roots),
+   - bounded oracle/evidence S3 probes,
+   - full `m5p3_*` artifact contract emission with fail-closed blocker mapping.
+3. Validation:
+   - `python -m py_compile scripts/dev_substrate/m5p3_stress_runner.py` (pass).
+4. Executed:
+   - `python scripts/dev_substrate/m5p3_stress_runner.py --stage S1`
+   - `phase_execution_id=m5p3_stress_s1_20260303T233818Z`.
+
+### Execution result
+1. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M5P3_ST_S2_READY`,
+   - `open_blockers=0`,
+   - `probe_count=3`,
+   - `error_rate_pct=0.0`.
+2. Dependency closure:
+   - `s0_baseline_phase_execution_id=m5p3_stress_s0_20260303T233332Z`.
+3. Artifact contract:
+   - complete/readable (`9/9` required artifacts present).
+
+### Governance and routing updates
+1. `platform.M5.P3.stress_test.md` updated:
+   - S1 execution receipt added,
+   - immediate next action advanced to `M5P3-ST-S2`.
+2. `platform.M5.stress_test.md` updated:
+   - parent immediate next action advanced to `M5P3-ST-S2`.
+3. `platform.stress_test.md` updated:
+   - next program step routed to `M5P3-ST-S2`,
+   - active M5 state now records latest `M5P3-ST-S1` pass.
+
+### Evidence path
+1. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s1_20260303T233818Z/stress/`

@@ -65,6 +65,8 @@ M5P3_ARTS = [
     "m5p3_execution_summary.json",
     "m5p3_decision_log.json",
 ]
+M5P3_S0_ARTS = M5P3_ARTS
+M5P3_S1_ARTS = M5P3_ARTS
 
 
 def now() -> str:
@@ -166,6 +168,39 @@ def load_latest_successful_m5_s0(out_root: Path) -> dict[str, Any]:
             continue
         return {"path": d, "summary": summ}
     return {}
+
+
+def load_latest_successful_m5p3_s0(out_root: Path) -> dict[str, Any]:
+    runs = sorted(out_root.glob("m5p3_stress_s0_*/stress"))
+    for d in reversed(runs):
+        sp = d / "m5p3_execution_summary.json"
+        if not sp.exists():
+            continue
+        try:
+            summ = json.loads(sp.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if summ.get("overall_pass") is not True:
+            continue
+        if str(summ.get("stage_id", "")) != "M5P3-ST-S0":
+            continue
+        return {"path": d, "summary": summ}
+    return {}
+
+
+def copy_stagea_from_s0(out_root: Path, out_dir: Path) -> list[str]:
+    ref = load_latest_successful_m5p3_s0(out_root)
+    if not ref:
+        return ["No successful M5P3-ST-S0 folder found."]
+    src = Path(str(ref["path"]))
+    errs: list[str] = []
+    for n in ("m5p3_stagea_findings.json", "m5p3_lane_matrix.json"):
+        s = src / n
+        if s.exists():
+            out_dir.joinpath(n).write_bytes(s.read_bytes())
+        else:
+            errs.append(f"Missing {s.as_posix()}")
+    return errs
 
 
 def build_lane_matrix() -> dict[str, Any]:
@@ -453,16 +488,313 @@ def run_s0(phase_id: str, out_root: Path) -> int:
     return 0 if summ["overall_pass"] else 2
 
 
+def run_s1(phase_id: str, out_root: Path) -> int:
+    t0 = time.perf_counter()
+    out = out_root / phase_id / "stress"
+    out.mkdir(parents=True, exist_ok=True)
+
+    txt = PLAN.read_text(encoding="utf-8") if PLAN.exists() else ""
+    pkt = parse_backtick_map(txt) if txt else {}
+    h = parse_registry(REG) if REG.exists() else {}
+    blockers: list[dict[str, Any]] = []
+
+    copy_errs = copy_stagea_from_s0(out_root, out)
+    if copy_errs:
+        blockers.append({"id": "M5P3-B7", "severity": "S1", "status": "OPEN", "details": {"copy_errors": copy_errs}})
+
+    s0 = load_latest_successful_m5p3_s0(out_root)
+    dep_issues: list[str] = []
+    dep_id = ""
+    if not s0:
+        dep_issues.append("missing successful M5P3-ST-S0 dependency")
+    else:
+        dep_summ = s0.get("summary", {})
+        dep_id = str(dep_summ.get("phase_execution_id", ""))
+        if str(dep_summ.get("next_gate", "")) != "M5P3_ST_S1_READY":
+            dep_issues.append("M5P3 S0 next_gate is not M5P3_ST_S1_READY")
+        s0_br = load_json_safe(Path(str(s0["path"])) / "m5p3_blocker_register.json")
+        s0_open = int(s0_br.get("open_blocker_count", len(s0_br.get("blockers", [])))) if s0_br else 0
+        if s0_open != 0:
+            dep_issues.append(f"M5P3 S0 blocker register not closed: {s0_open}")
+    if dep_issues:
+        blockers.append({"id": "M5P3-B8", "severity": "S1", "status": "OPEN", "details": {"issues": dep_issues}})
+
+    req = [
+        "ORACLE_STORE_BUCKET",
+        "ORACLE_STORE_PLATFORM_ACCESS_MODE",
+        "ORACLE_STORE_WRITE_OWNER",
+        "ORACLE_INLET_PLATFORM_OWNERSHIP",
+        "ORACLE_SOURCE_NAMESPACE",
+        "ORACLE_ENGINE_RUN_ID",
+        "S3_ORACLE_ROOT_PREFIX",
+        "S3_ORACLE_RUN_PREFIX_PATTERN",
+        "S3_ORACLE_INPUT_PREFIX_PATTERN",
+        "S3_RUN_CONTROL_ROOT_PATTERN",
+        "S3_EVIDENCE_BUCKET",
+    ]
+    missing_handles = [k for k in req if k not in h]
+    placeholder_handles = [k for k in req if k in h and str(h[k]).strip() in {"", "TO_PIN"}]
+    if missing_handles or placeholder_handles:
+        blockers.append(
+            {
+                "id": "M5P3-B1",
+                "severity": "S1",
+                "status": "OPEN",
+                "details": {"missing_handles": missing_handles, "placeholder_handles": placeholder_handles},
+            }
+        )
+
+    boundary_issues: list[str] = []
+    if str(h.get("ORACLE_STORE_PLATFORM_ACCESS_MODE", "")) != "read_only":
+        boundary_issues.append("ORACLE_STORE_PLATFORM_ACCESS_MODE drift")
+    write_owner = str(h.get("ORACLE_STORE_WRITE_OWNER", ""))
+    if write_owner in {"platform_runtime", "platform"}:
+        boundary_issues.append("ORACLE_STORE_WRITE_OWNER invalid")
+    if str(h.get("ORACLE_INLET_PLATFORM_OWNERSHIP", "")) != "outside_platform_runtime_scope":
+        boundary_issues.append("ORACLE_INLET_PLATFORM_OWNERSHIP drift")
+
+    oracle_root = str(h.get("S3_ORACLE_ROOT_PREFIX", "")).strip()
+    run_control_root = str(h.get("S3_RUN_CONTROL_ROOT_PATTERN", "")).strip()
+    oracle_run_pattern = str(h.get("S3_ORACLE_RUN_PREFIX_PATTERN", "")).strip()
+    if not oracle_root.startswith("oracle-store/"):
+        boundary_issues.append("S3_ORACLE_ROOT_PREFIX must start with oracle-store/")
+    if oracle_root and run_control_root:
+        if oracle_root.startswith(run_control_root) or run_control_root.startswith(oracle_root):
+            boundary_issues.append("oracle and run-control roots overlap")
+    if "{oracle_source_namespace}" not in oracle_run_pattern or "{oracle_engine_run_id}" not in oracle_run_pattern:
+        boundary_issues.append("S3_ORACLE_RUN_PREFIX_PATTERN missing required tokens")
+    if boundary_issues:
+        blockers.append({"id": "M5P3-B2", "severity": "S1", "status": "OPEN", "details": {"issues": boundary_issues}})
+
+    region = str(h.get("AWS_REGION", "eu-west-2"))
+    oracle_bucket = str(h.get("ORACLE_STORE_BUCKET", "")).strip()
+    evidence_bucket = str(h.get("S3_EVIDENCE_BUCKET", "")).strip()
+    probe_rows: list[dict[str, Any]] = []
+
+    if oracle_bucket:
+        r = run_cmd(["aws", "s3api", "head-bucket", "--bucket", oracle_bucket, "--region", region], timeout=25)
+        probe_rows.append({**r, "probe_id": "m5p3_s1_oracle_bucket", "group": "boundary"})
+        r = run_cmd(
+            [
+                "aws",
+                "s3api",
+                "list-objects-v2",
+                "--bucket",
+                oracle_bucket,
+                "--prefix",
+                oracle_root,
+                "--max-keys",
+                "1",
+                "--region",
+                region,
+                "--query",
+                "KeyCount",
+                "--output",
+                "text",
+            ],
+            timeout=30,
+        )
+        probe_rows.append({**r, "probe_id": "m5p3_s1_oracle_prefix", "group": "boundary"})
+    else:
+        probe_rows.append(
+            {
+                "probe_id": "m5p3_s1_oracle_bucket",
+                "group": "boundary",
+                "command": "aws s3api head-bucket",
+                "exit_code": 1,
+                "status": "FAIL",
+                "duration_ms": 0.0,
+                "stdout": "",
+                "stderr": "missing ORACLE_STORE_BUCKET handle",
+                "started_at_utc": now(),
+                "ended_at_utc": now(),
+            }
+        )
+    if evidence_bucket:
+        r = run_cmd(["aws", "s3api", "head-bucket", "--bucket", evidence_bucket, "--region", region], timeout=25)
+        probe_rows.append({**r, "probe_id": "m5p3_s1_evidence_bucket", "group": "control"})
+    else:
+        probe_rows.append(
+            {
+                "probe_id": "m5p3_s1_evidence_bucket",
+                "group": "control",
+                "command": "aws s3api head-bucket",
+                "exit_code": 1,
+                "status": "FAIL",
+                "duration_ms": 0.0,
+                "stdout": "",
+                "stderr": "missing S3_EVIDENCE_BUCKET handle",
+                "started_at_utc": now(),
+                "ended_at_utc": now(),
+            }
+        )
+    probe_failures = [p for p in probe_rows if str(p.get("status", "FAIL")) != "PASS"]
+    if probe_failures:
+        blockers.append(
+            {
+                "id": "M5P3-B2",
+                "severity": "S1",
+                "status": "OPEN",
+                "details": {"probe_failures": [str(x.get("probe_id", "")) for x in probe_failures]},
+            }
+        )
+
+    total = len(probe_rows)
+    er = round((len(probe_failures) / total) * 100.0, 4) if total else 0.0
+    lat = [float(x.get("duration_ms", 0.0)) for x in probe_rows]
+    dur_s = max(1, int(round(time.perf_counter() - t0)))
+    max_sp = float(pkt.get("M5P3_STRESS_MAX_SPEND_USD", 40))
+    cost_within = True
+
+    boundary_snapshot = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M5P3-ST-S1",
+        "oracle_store_bucket": oracle_bucket,
+        "oracle_source_namespace": str(h.get("ORACLE_SOURCE_NAMESPACE", "")),
+        "oracle_engine_run_id": str(h.get("ORACLE_ENGINE_RUN_ID", "")),
+        "oracle_store_platform_access_mode": str(h.get("ORACLE_STORE_PLATFORM_ACCESS_MODE", "")),
+        "oracle_store_write_owner": write_owner,
+        "oracle_inlet_platform_ownership": str(h.get("ORACLE_INLET_PLATFORM_OWNERSHIP", "")),
+        "oracle_root_prefix": oracle_root,
+        "run_control_root_pattern": run_control_root,
+        "boundary_issues": boundary_issues,
+    }
+    dumpj(out / "m5p3_oracle_boundary_snapshot.json", boundary_snapshot)
+
+    probe = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M5P3-ST-S1",
+        "window_seconds_observed": dur_s,
+        "probe_count": total,
+        "failure_count": len(probe_failures),
+        "error_rate_pct": er,
+        "latency_ms_p50": 0.0 if not lat else sorted(lat)[len(lat) // 2],
+        "latency_ms_p95": 0.0 if not lat else max(lat),
+        "latency_ms_p99": 0.0 if not lat else max(lat),
+        "sample_failures": probe_failures[:10],
+        "s0_baseline_phase_execution_id": dep_id,
+    }
+    dumpj(out / "m5p3_probe_latency_throughput_snapshot.json", probe)
+
+    control_issues: list[str] = []
+    if missing_handles:
+        control_issues.append(f"missing handles: {','.join(missing_handles)}")
+    if placeholder_handles:
+        control_issues.append(f"placeholder handles: {','.join(placeholder_handles)}")
+    control_issues.extend(dep_issues)
+    control_issues.extend(boundary_issues)
+    if probe_failures:
+        control_issues.append(f"probe failures: {len(probe_failures)}")
+    ctrl = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M5P3-ST-S1",
+        "overall_pass": len(control_issues) == 0,
+        "issues": control_issues,
+        "s0_dependency_phase_execution_id": dep_id,
+        "boundary_snapshot_ref": "m5p3_oracle_boundary_snapshot.json",
+    }
+    dumpj(out / "m5p3_control_rail_conformance_snapshot.json", ctrl)
+
+    sec = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M5P3-ST-S1",
+        "overall_pass": True,
+        "secret_probe_count": 0,
+        "secret_failure_count": 0,
+        "with_decryption_used": False,
+        "queried_value_directly": False,
+        "suspicious_output_probe_ids": [],
+        "plaintext_leakage_detected": False,
+    }
+    dumpj(out / "m5p3_secret_safety_snapshot.json", sec)
+
+    cost = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M5P3-ST-S1",
+        "window_seconds": dur_s,
+        "estimated_api_call_count": total,
+        "attributed_spend_usd": 0.0,
+        "unattributed_spend_detected": False,
+        "max_spend_usd": max_sp,
+        "within_envelope": cost_within,
+        "method": "read_only_boundary_ownership_validation_v0",
+    }
+    dumpj(out / "m5p3_cost_outcome_receipt.json", cost)
+
+    dlog = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M5P3-ST-S1",
+        "decisions": [
+            "Validated S0 dependency and carried Stage-A artifacts forward.",
+            "Validated oracle boundary and ownership semantics against pinned handles.",
+            "Validated oracle-root and run-control boundary isolation posture.",
+            "Executed bounded oracle/evidence bucket reachability probes.",
+            "Applied fail-closed blocker mapping for M5P3 S1.",
+        ],
+    }
+    dumpj(out / "m5p3_decision_log.json", dlog)
+
+    bref = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M5P3-ST-S1",
+        "overall_pass": len(blockers) == 0,
+        "open_blocker_count": len(blockers),
+        "blockers": blockers,
+    }
+    summ = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M5P3-ST-S1",
+        "overall_pass": len(blockers) == 0,
+        "next_gate": "M5P3_ST_S2_READY" if len(blockers) == 0 else "BLOCKED",
+        "required_artifacts": M5P3_S1_ARTS,
+        "probe_count": total,
+        "error_rate_pct": er,
+        "s0_baseline_phase_execution_id": dep_id,
+    }
+    dumpj(out / "m5p3_blocker_register.json", bref)
+    dumpj(out / "m5p3_execution_summary.json", summ)
+
+    miss = [n for n in M5P3_S1_ARTS if not (out / n).exists()]
+    if miss:
+        blockers.append({"id": "M5P3-B7", "severity": "S1", "status": "OPEN", "details": {"missing_artifacts": miss}})
+        bref["overall_pass"] = False
+        bref["open_blocker_count"] = len(blockers)
+        bref["blockers"] = blockers
+        summ["overall_pass"] = False
+        summ["next_gate"] = "BLOCKED"
+        dumpj(out / "m5p3_blocker_register.json", bref)
+        dumpj(out / "m5p3_execution_summary.json", summ)
+
+    print(f"[m5p3_s1] phase_execution_id={phase_id}")
+    print(f"[m5p3_s1] output_dir={out.as_posix()}")
+    print(f"[m5p3_s1] overall_pass={summ['overall_pass']}")
+    print(f"[m5p3_s1] next_gate={summ['next_gate']}")
+    print(f"[m5p3_s1] probe_count={total}")
+    print(f"[m5p3_s1] error_rate_pct={er}")
+    print(f"[m5p3_s1] open_blockers={bref['open_blocker_count']}")
+    return 0 if summ["overall_pass"] else 2
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="M5.P3 stress runner")
-    ap.add_argument("--stage", default="S0", choices=["S0"])
+    ap.add_argument("--stage", default="S0", choices=["S0", "S1"])
     ap.add_argument("--phase-execution-id", default="")
     ap.add_argument("--output-root", default=str(OUT_ROOT))
     a = ap.parse_args()
-    pfx = {"S0": "m5p3_stress_s0"}[a.stage]
+    pfx = {"S0": "m5p3_stress_s0", "S1": "m5p3_stress_s1"}[a.stage]
     pid = a.phase_execution_id.strip() or f"{pfx}_{tok()}"
     root = Path(a.output_root)
-    return run_s0(pid, root)
+    if a.stage == "S0":
+        return run_s0(pid, root)
+    return run_s1(pid, root)
 
 
 if __name__ == "__main__":

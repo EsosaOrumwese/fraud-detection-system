@@ -131,11 +131,50 @@ Pass gate:
 Objective:
 1. prove oracle boundary remains read-only and ownership semantics are intact.
 
-Actions:
-1. resolve boundary/namespace handles and prefix patterns.
-2. enforce read-only posture for platform runtime on oracle source.
-3. verify boundary isolation versus evidence/archive/quarantine roots.
-4. emit `m5p3_oracle_boundary_snapshot` evidence set.
+S1 checklist:
+1. load latest successful `S0` summary and blocker register.
+2. resolve boundary handles:
+   - `ORACLE_STORE_BUCKET`,
+   - `ORACLE_STORE_PLATFORM_ACCESS_MODE`,
+   - `ORACLE_STORE_WRITE_OWNER`,
+   - `ORACLE_INLET_PLATFORM_OWNERSHIP`,
+   - `ORACLE_SOURCE_NAMESPACE`,
+   - `ORACLE_ENGINE_RUN_ID`,
+   - `S3_ORACLE_ROOT_PREFIX`,
+   - `S3_ORACLE_RUN_PREFIX_PATTERN`,
+   - `S3_ORACLE_INPUT_PREFIX_PATTERN`,
+   - `S3_RUN_CONTROL_ROOT_PATTERN`.
+3. enforce ownership/read-only law:
+   - `ORACLE_STORE_PLATFORM_ACCESS_MODE=read_only`,
+   - `ORACLE_STORE_WRITE_OWNER` not platform-runtime owned,
+   - `ORACLE_INLET_PLATFORM_OWNERSHIP=outside_platform_runtime_scope`.
+4. enforce boundary isolation law:
+   - oracle root starts with `oracle-store/`,
+   - oracle root and run-control evidence roots do not overlap.
+5. run bounded reachability probes:
+   - oracle bucket `head-bucket`,
+   - oracle root prefix list probe,
+   - evidence bucket `head-bucket`.
+6. emit `m5p3_oracle_boundary_snapshot` evidence set and blocker register.
+
+S1 command catalog:
+| Command ID | Command | Purpose |
+| --- | --- | --- |
+| `M5P3S1-V1-S0-CONTINUITY` | read latest successful `m5p3_stress_s0_*/stress/m5p3_execution_summary.json` | enforces S0 dependency gate |
+| `M5P3S1-V2-HANDLE-CLOSURE` | parse registry handle set for boundary keys | validates boundary handle completeness |
+| `M5P3S1-V3-OWNERSHIP-LAW` | local law checks on ownership/read-only handles | enforces oracle ownership semantics |
+| `M5P3S1-V4-BOUNDARY-ISOLATION` | local prefix isolation checks (`oracle` vs `run_control`) | prevents namespace overlap drift |
+| `M5P3S1-V5-ORACLE-BUCKET` | `aws s3api head-bucket --bucket <ORACLE_STORE_BUCKET>` | verifies oracle bucket reachability |
+| `M5P3S1-V6-ORACLE-PREFIX` | `aws s3api list-objects-v2 --bucket <ORACLE_STORE_BUCKET> --prefix <S3_ORACLE_ROOT_PREFIX> --max-keys 1` | verifies oracle prefix queryability |
+| `M5P3S1-V7-EVIDENCE-BUCKET` | `aws s3api head-bucket --bucket <S3_EVIDENCE_BUCKET>` | verifies evidence bucket reachability |
+
+S1 closure rule:
+1. `S1` closes only when:
+   - S0 dependency artifacts are present/readable and blocker-free,
+   - boundary handle closure is complete/non-placeholder,
+   - ownership/read-only and boundary isolation laws pass,
+   - bounded oracle/evidence probes are green,
+   - complete S1 artifact contract is emitted with zero open blockers.
 
 Pass gate:
 1. boundary and ownership checks are blocker-free.
@@ -234,9 +273,9 @@ Required artifacts for each M5.P3 stage:
 - [ ] P3 verdict `ADVANCE_TO_P4` emitted from blocker-free rollup.
 
 ## 11) Immediate Next Actions
-1. Execute `M5P3-ST-S1` oracle source boundary and ownership checks.
+1. Execute `M5P3-ST-S2` raw upload and managed distributed sort checks.
 2. Preserve managed-sort-only posture and reject local-sort fallback.
-3. Do not enter `M5P3-ST-S2` until `S1` closes blocker-free.
+3. Do not enter `M5P3-ST-S3` until `S2` closes blocker-free.
 
 ## 12) Execution Progress
 ### `M5P3-ST-S0` authority/entry-gate closure execution (2026-03-03)
@@ -264,3 +303,34 @@ Required artifacts for each M5.P3 stage:
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s0_20260303T233332Z/stress/m5p3_blocker_register.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s0_20260303T233332Z/stress/m5p3_execution_summary.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s0_20260303T233332Z/stress/m5p3_decision_log.json`
+
+### `M5P3-ST-S1` oracle source boundary and ownership execution (2026-03-03)
+1. Phase execution id: `m5p3_stress_s1_20260303T233818Z`.
+2. Runner:
+   - `python scripts/dev_substrate/m5p3_stress_runner.py --stage S1`
+3. Verification summary:
+   - S0 dependency loaded (`m5p3_stress_s0_20260303T233332Z`) and blocker-free,
+   - boundary handle closure checks passed,
+   - ownership/read-only law checks passed (`read_only` + non-platform write ownership + external inlet ownership),
+   - boundary isolation checks passed (`oracle-store/` root and non-overlap with run-control root),
+   - bounded S3 probes passed:
+     - oracle bucket `head-bucket`,
+     - oracle prefix list probe,
+     - evidence bucket `head-bucket`.
+4. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M5P3_ST_S2_READY`,
+   - `open_blockers=0`,
+   - `probe_count=3`,
+   - `error_rate_pct=0.0`.
+5. Artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s1_20260303T233818Z/stress/m5p3_stagea_findings.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s1_20260303T233818Z/stress/m5p3_lane_matrix.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s1_20260303T233818Z/stress/m5p3_probe_latency_throughput_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s1_20260303T233818Z/stress/m5p3_oracle_boundary_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s1_20260303T233818Z/stress/m5p3_control_rail_conformance_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s1_20260303T233818Z/stress/m5p3_secret_safety_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s1_20260303T233818Z/stress/m5p3_cost_outcome_receipt.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s1_20260303T233818Z/stress/m5p3_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s1_20260303T233818Z/stress/m5p3_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s1_20260303T233818Z/stress/m5p3_decision_log.json`
