@@ -215,7 +215,7 @@ For any phase:
 3. Dedicated phase files:
    - `stress_test/platform.M2.stress_test.md` (`DONE`),
    - `stress_test/platform.M3.stress_test.md` (`ACTIVE`).
-4. Next step: execute `M3-ST-S0` authority/handle gate from `platform.M3.stress_test.md`.
+4. Next step: execute `M3-ST-S2` concurrency/retry contention window (`S1` passed with `next_gate=M3_ST_S2_READY`).
 
 ## 13) Closed Phase - M0 (Inline)
 Status:

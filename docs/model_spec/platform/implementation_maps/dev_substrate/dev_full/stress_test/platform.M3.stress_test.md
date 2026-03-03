@@ -122,6 +122,62 @@ Pass gate:
 2. M2->M3 handoff evidence readable.
 3. `M3-ST-F1..F3` closed in blocker register.
 
+Required-handle closure checklist (S0):
+1. `FIELD_PLATFORM_RUN_ID`
+2. `FIELD_SCENARIO_RUN_ID`
+3. `FIELD_CONFIG_DIGEST`
+4. `CONFIG_DIGEST_ALGO`
+5. `CONFIG_DIGEST_FIELD`
+6. `SCENARIO_EQUIVALENCE_KEY_INPUT`
+7. `SCENARIO_EQUIVALENCE_KEY_CANONICAL_FIELDS`
+8. `SCENARIO_EQUIVALENCE_KEY_CANONICALIZATION_MODE`
+9. `SCENARIO_RUN_ID_DERIVATION_MODE`
+10. `S3_EVIDENCE_BUCKET`
+11. `S3_EVIDENCE_RUN_ROOT_PATTERN`
+12. `RUN_PIN_PATH_PATTERN`
+13. `EVIDENCE_RUN_JSON_KEY`
+14. `SFN_PLATFORM_RUN_ORCHESTRATOR_V0`
+15. `SR_READY_COMMIT_AUTHORITY`
+16. `REQUIRED_PLATFORM_RUN_ID_ENV_KEY`
+17. `ROLE_TERRAFORM_APPLY_DEV_FULL`
+
+S0 verification command catalog (planned, execution-time):
+| Verify ID | Command template | Purpose |
+| --- | --- | --- |
+| `M3S0-V1-HANDLE-EXISTS` | `rg -n "\\b<HANDLE_KEY>\\b" docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` | confirms required handle key exists in registry |
+| `M3S0-V2-PLACEHOLDER-GUARD` | `rg -n "^\\* `<HANDLE_KEY> = \\\"TO_PIN\\\"`" docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` | fail-closed if required handle remains placeholder |
+| `M3S0-V3-M2-S5-LATEST` | read latest successful `m2_stress_s5_*/stress/m2_execution_summary.json` | confirms M2 closure handoff is present |
+| `M3S0-V4-HANDOFF-GATE` | validate `next_gate=M3_READY` and `m3_readiness_recommendation=GO` in M2 S5 summary | confirms phase-entry authority |
+| `M3S0-V5-SFN-SURFACE` | `aws stepfunctions list-state-machines --region eu-west-2 --max-results 100` | verifies orchestrator control-plane surface queryability |
+| `M3S0-V6-EVIDENCE-BUCKET` | `aws s3api head-bucket --bucket <S3_EVIDENCE_BUCKET> --region eu-west-2` | verifies durable evidence root reachable |
+
+S0 blocker mapping (fail-closed):
+1. `M3-ST-B1`:
+   - any required handle missing or unresolved (`TO_PIN`).
+2. `M3-ST-B3`:
+   - orchestrator/evidence control-plane query fails.
+3. `M3-ST-B9`:
+   - M2 handoff artifact missing/unreadable,
+   - S0 required artifacts missing/incomplete.
+
+S0 required artifacts:
+1. `m3_stagea_findings.json`
+2. `m3_lane_matrix.json`
+3. `m3_probe_latency_throughput_snapshot.json`
+4. `m3_control_rail_conformance_snapshot.json`
+5. `m3_secret_safety_snapshot.json`
+6. `m3_cost_outcome_receipt.json`
+7. `m3_blocker_register.json`
+8. `m3_execution_summary.json`
+9. `m3_decision_log.json`
+
+S0 closure rule:
+1. `S0` closes only when:
+   - all required handles pass presence + placeholder guard,
+   - latest successful M2 S5 handoff gate is valid (`M3_READY` + `GO`),
+   - control-plane query checks are green or explicitly blocker-classified,
+   - full S0 artifact set is emitted and readable.
+
 ### 7.2 `M3-ST-S1` - Deterministic baseline window
 Objective:
 1. verify deterministic run-id/digest/orchestrator-entry behavior under baseline concurrency.
@@ -140,6 +196,33 @@ Pass gate:
 2. digest recompute consistency pass.
 3. no control-rail drift and no secret leakage.
 4. spend/runtime within envelope.
+
+S1 deterministic verification checklist:
+1. `platform_run_id` format check against `M3_STRESS_RUN_ID_REGEX`.
+2. collision probe against `S3_EVIDENCE_RUN_ROOT_PATTERN`.
+3. deterministic collision-retry cap enforcement (`M3_STRESS_RUN_ID_COLLISION_RETRY_CAP`).
+4. canonical payload serialization mode check (`json_sorted_keys_v1`).
+5. digest recompute equality check using `CONFIG_DIGEST_ALGO`.
+6. scenario-run deterministic recompute equality using `SCENARIO_RUN_ID_DERIVATION_MODE`.
+7. orchestrator surface query and `SR_READY_COMMIT_AUTHORITY` conformance.
+
+S1 verification command catalog (planned, execution-time):
+| Verify ID | Command template | Purpose |
+| --- | --- | --- |
+| `M3S1-V1-RUNID-FORMAT` | local regex check using `M3_STRESS_RUN_ID_REGEX` | enforces canonical `platform_run_id` shape |
+| `M3S1-V2-COLLISION-PROBE` | `aws s3api list-objects-v2 --bucket <S3_EVIDENCE_BUCKET> --prefix evidence/runs/<platform_run_id>/ --max-keys 1` | detects run-id collisions in durable root |
+| `M3S1-V3-DIGEST-RECOMPUTE` | local canonical-json hashing pass x2 | verifies deterministic digest |
+| `M3S1-V4-SCENARIO-RECOMPUTE` | local deterministic scenario-id derivation pass x2 | verifies deterministic scenario id |
+| `M3S1-V5-SFN-LOOKUP` | `aws stepfunctions list-state-machines --region eu-west-2 --max-results 100 ...` | validates orchestrator lookup path |
+| `M3S1-V6-EVIDENCE-BUCKET` | `aws s3api head-bucket --bucket <S3_EVIDENCE_BUCKET> --region eu-west-2` | validates evidence-root reachability |
+
+S1 closure rule:
+1. `S1` closes only when:
+   - S0 continuity artifacts are present/readable,
+   - run-id format and collision policy checks pass,
+   - digest + scenario derivation recompute checks pass,
+   - control-plane and authority checks pass,
+   - complete S1 artifact set is emitted with zero open blockers.
 
 ### 7.3 `M3-ST-S2` - Concurrency and retry contention window
 Objective:
@@ -238,10 +321,64 @@ Required artifacts for each M3 stress window:
 - [x] Stress topology and execution sequence pinned.
 - [x] Execution-grade runbook for `S0..S5` pinned.
 - [x] Blocker taxonomy and evidence contract pinned.
-- [ ] Stage-A artifacts emitted to run-control path.
-- [ ] First managed M3 stress window executed.
+- [x] Stage-A artifacts emitted to run-control path.
+- [x] First managed M3 stress window executed.
 
 ## 11) Immediate Next Actions
-1. Implement M3 control runner surface (`scripts/dev_substrate/m3_stress_runner.py`) with `--stage S0..S5`.
-2. Execute `M3-ST-S0` authority/handle gate and emit Stage-A artifacts.
-3. Advance to `M3-ST-S1` only if `S0` closes with zero open blockers.
+1. Expand M3 runner to `S2` concurrency/retry contention window (`scripts/dev_substrate/m3_stress_runner.py`).
+2. Execute `M3-ST-S2` window and open fail-closed blockers on any lock/correlation drift.
+3. Advance to `M3-ST-S3` only if `S2` closes with zero open blockers.
+
+## 12) Execution Progress
+### `M3-ST-S0` authority/handle gate execution (2026-03-03)
+1. Phase execution id: `m3_stress_s0_20260303T175048Z`.
+2. Runner:
+   - `python scripts/dev_substrate/m3_stress_runner.py --stage S0`
+3. Verification summary:
+   - required handle and placeholder guards passed,
+   - latest successful M2 S5 handoff gate validated (`M3_READY`, `GO`),
+   - orchestrator surface query passed,
+   - evidence bucket reachability query passed.
+4. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M3_ST_S1_READY`,
+   - `open_blockers=0`.
+5. Artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s0_20260303T175048Z/stress/m3_stagea_findings.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s0_20260303T175048Z/stress/m3_lane_matrix.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s0_20260303T175048Z/stress/m3_probe_latency_throughput_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s0_20260303T175048Z/stress/m3_control_rail_conformance_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s0_20260303T175048Z/stress/m3_secret_safety_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s0_20260303T175048Z/stress/m3_cost_outcome_receipt.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s0_20260303T175048Z/stress/m3_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s0_20260303T175048Z/stress/m3_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s0_20260303T175048Z/stress/m3_decision_log.json`
+
+### `M3-ST-S1` deterministic baseline execution (2026-03-03)
+1. Phase execution id: `m3_stress_s1_20260303T175534Z`.
+2. Runner:
+   - `python scripts/dev_substrate/m3_stress_runner.py --stage S1`
+3. Determinism summary:
+   - `platform_run_id_candidate=platform_20260303T175534Z`,
+   - `platform_run_id_final=platform_20260303T175534Z`,
+   - collision probe attempts `1` (`collision_detected=false`),
+   - `config_digest_match=true`,
+   - `scenario_run_id_match=true`.
+4. Control summary:
+   - orchestrator lookup `PASS`,
+   - evidence bucket reachability `PASS`,
+   - control issues `[]`.
+5. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M3_ST_S2_READY`,
+   - `open_blockers=0`.
+6. Artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s1_20260303T175534Z/stress/m3_stagea_findings.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s1_20260303T175534Z/stress/m3_lane_matrix.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s1_20260303T175534Z/stress/m3_probe_latency_throughput_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s1_20260303T175534Z/stress/m3_control_rail_conformance_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s1_20260303T175534Z/stress/m3_secret_safety_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s1_20260303T175534Z/stress/m3_cost_outcome_receipt.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s1_20260303T175534Z/stress/m3_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s1_20260303T175534Z/stress/m3_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s1_20260303T175534Z/stress/m3_decision_log.json`

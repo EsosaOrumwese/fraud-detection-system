@@ -1619,3 +1619,183 @@ _As of 2026-03-03_
 1. M3 planning is now execution-ready at authority level.
 2. Next executable action is deterministic:
    - implement and run `M3-ST-S0` gate from `platform.M3.stress_test.md`.
+
+## Entry: 2026-03-03 17:45 +00:00 - M3 `S0` expansion and execution plan (pre-implementation)
+
+### Trigger
+1. User instructed: expand `S0` plan and execute it.
+
+### Scope for this step
+1. Expand `M3-ST-S0` in authority to execution-grade detail:
+   - explicit required-handle checklist,
+   - verification command catalog,
+   - blocker mapping to `M3-ST-B1/B3/B9`,
+   - evidence artifacts and pass gates.
+2. Implement `scripts/dev_substrate/m3_stress_runner.py` for `--stage S0`.
+3. Execute `S0` immediately and publish run-control artifacts.
+
+### Performance and cost posture
+1. `S0` is docs/control-plane verification only; no long-running stress window.
+2. Runtime budget target for `S0` is minute-scale; spend target effectively zero.
+3. Reuse deterministic JSON artifact emission pattern from M2 runner to reduce drift and maintenance overhead.
+
+### Design decisions
+1. Separate runner file (`m3_stress_runner.py`) rather than extending `m2_stress_runner.py`:
+   - selected to preserve phase isolation and avoid accidental cross-phase logic coupling.
+2. S0 must verify latest successful M2 S5 handoff, not just hardcoded run id:
+   - selected to keep gating resilient across reruns.
+3. S0 emits full required M3 artifact set to avoid contract holes before S1.
+
+### Planned acceptance checks
+1. Required M3 handles present and non-placeholder.
+2. M2 S5 latest successful evidence is readable and indicates `M3_READY` + `GO`.
+3. `overall_pass=true`, `next_gate=M3_ST_S1_READY`, `open_blockers=0`.
+
+## Entry: 2026-03-03 17:50 +00:00 - M3 `S0` expanded and executed (pass)
+
+### Implemented changes
+1. Expanded `M3-ST-S0` authority section in `platform.M3.stress_test.md`:
+   - required-handle closure checklist,
+   - verification command catalog (`M3S0-V1..V6`),
+   - fail-closed blocker mapping,
+   - explicit S0 artifact set and closure rule.
+2. Implemented runner:
+   - `scripts/dev_substrate/m3_stress_runner.py` (bootstrap `--stage S0`).
+3. Runner behavior:
+   - validates required handles and placeholder guards,
+   - validates latest successful M2 S5 handoff gate (`M3_READY` + `GO`),
+   - executes orchestrator and evidence-bucket control-plane checks,
+   - emits full M3 artifact contract for S0.
+
+### Executed command
+1. `python scripts/dev_substrate/m3_stress_runner.py --stage S0`
+2. Phase execution id:
+   - `m3_stress_s0_20260303T175048Z`.
+
+### Execution outcome
+1. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M3_ST_S1_READY`,
+   - `open_blockers=0`.
+2. Control-plane checks:
+   - Step Functions orchestrator lookup: `PASS`,
+   - evidence bucket reachability: `PASS`.
+3. M2 handoff gate check:
+   - latest successful M2 S5 summary validated (`M3_READY`, `GO`).
+
+### Evidence paths
+1. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s0_20260303T175048Z/stress/m3_stagea_findings.json`
+2. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s0_20260303T175048Z/stress/m3_lane_matrix.json`
+3. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s0_20260303T175048Z/stress/m3_probe_latency_throughput_snapshot.json`
+4. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s0_20260303T175048Z/stress/m3_control_rail_conformance_snapshot.json`
+5. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s0_20260303T175048Z/stress/m3_secret_safety_snapshot.json`
+6. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s0_20260303T175048Z/stress/m3_cost_outcome_receipt.json`
+7. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s0_20260303T175048Z/stress/m3_blocker_register.json`
+8. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s0_20260303T175048Z/stress/m3_execution_summary.json`
+9. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s0_20260303T175048Z/stress/m3_decision_log.json`
+
+### Authority updates applied
+1. `platform.M3.stress_test.md`:
+   - S0 execution progress appended,
+   - DoD checkboxes updated for Stage-A artifact emission and first managed window execution,
+   - immediate next actions moved to `S1`.
+2. `platform.stress_test.md`:
+   - program next-step line updated to `M3-ST-S1`.
+
+## Entry: 2026-03-03 17:52 +00:00 - M3 `S1` planning and execution start (pre-implementation)
+
+### Trigger
+1. User instructed: proceed with planning and execution of `S1`.
+
+### S1 execution design
+1. Expand `M3-ST-S1` authority section with execution-grade verification details:
+   - deterministic run-id format/collision probes,
+   - scenario-id derivation determinism check,
+   - config-digest recompute consistency check,
+   - orchestrator lookup and evidence-root reachability checks.
+2. Extend `scripts/dev_substrate/m3_stress_runner.py` with `--stage S1`.
+3. Preserve phase continuity:
+   - require latest successful `S0` evidence pack before S1 execution,
+   - carry forward `m3_stagea_findings.json` and `m3_lane_matrix.json`.
+
+### Determinism model selected for S1
+1. `platform_run_id` candidate:
+   - canonical UTC shape `platform_<YYYYMMDDTHHMMSSZ>`,
+   - regex-validated against pinned handle `M3_STRESS_RUN_ID_REGEX`.
+2. Collision handling:
+   - probe `S3_EVIDENCE_RUN_ROOT_PATTERN` for candidate id,
+   - resolve collisions via deterministic `_01.._20` suffix cap.
+3. Config digest:
+   - canonical JSON sorted keys encoding,
+   - pinned algo (`sha256`) recomputed twice; values must match.
+4. `scenario_run_id`:
+   - deterministic hash-based derivation from canonical digest input,
+   - recompute must match exactly.
+
+### Planned blocker mapping
+1. `M3-ST-B1`:
+   - required handle/plan key missing or unresolved.
+2. `M3-ST-B2`:
+   - run-id format/collision law failure,
+   - digest or scenario-id non-determinism.
+3. `M3-ST-B3`:
+   - orchestrator/evidence control-plane readiness failure.
+4. `M3-ST-B9`:
+   - missing S0 continuity artifacts or incomplete S1 artifact set.
+
+### Acceptance targets
+1. `overall_pass=true`.
+2. `next_gate=M3_ST_S2_READY`.
+3. `open_blockers=0`.
+
+## Entry: 2026-03-03 17:55 +00:00 - M3 `S1` executed (pass, no blockers)
+
+### Implemented changes
+1. Expanded `M3-ST-S1` in `platform.M3.stress_test.md`:
+   - deterministic verification checklist,
+   - S1 command catalog (`M3S1-V1..V6`),
+   - S1 closure rule.
+2. Extended runner `scripts/dev_substrate/m3_stress_runner.py` with `--stage S1`:
+   - enforces S0 continuity (latest successful S0 required),
+   - performs run-id format and collision checks,
+   - performs config digest and scenario-id recompute checks,
+   - performs orchestrator and evidence-bucket control checks,
+   - emits full M3 S1 artifact contract.
+
+### Executed command
+1. `python scripts/dev_substrate/m3_stress_runner.py --stage S1`
+2. Phase execution id:
+   - `m3_stress_s1_20260303T175534Z`.
+
+### Execution outcome
+1. Determinism posture:
+   - `platform_run_id_candidate=platform_20260303T175534Z`,
+   - `platform_run_id_final=platform_20260303T175534Z`,
+   - `collision_detected=false` (single probe pass),
+   - `config_digest_match=true`,
+   - `scenario_run_id_match=true`.
+2. Control posture:
+   - orchestrator lookup `PASS`,
+   - evidence bucket reachability `PASS`,
+   - control issues `[]`.
+3. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M3_ST_S2_READY`,
+   - `open_blockers=0`.
+4. No remediation lane required for S1.
+
+### Evidence paths
+1. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s1_20260303T175534Z/stress/m3_probe_latency_throughput_snapshot.json`
+2. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s1_20260303T175534Z/stress/m3_control_rail_conformance_snapshot.json`
+3. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s1_20260303T175534Z/stress/m3_secret_safety_snapshot.json`
+4. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s1_20260303T175534Z/stress/m3_cost_outcome_receipt.json`
+5. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s1_20260303T175534Z/stress/m3_blocker_register.json`
+6. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s1_20260303T175534Z/stress/m3_execution_summary.json`
+7. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s1_20260303T175534Z/stress/m3_decision_log.json`
+
+### Authority updates applied
+1. `platform.M3.stress_test.md`:
+   - S1 execution block appended,
+   - immediate next actions advanced to `S2`.
+2. `platform.stress_test.md`:
+   - program next-step line updated to `M3-ST-S2`.
