@@ -806,3 +806,36 @@ _As of 2026-03-03_
 ### Next action
 1. Commit/push wheelhouse deterministic lane.
 2. Execute immediate managed M1 rerun and adjudicate `M1-ST-B8`.
+
+## Entry: 2026-03-03 15:21 +00:00 - Immediate M1 rerun after wheelhouse deterministic lane
+
+### Execution
+1. Wheelhouse deterministic lane commit pushed on `cert-platform`:
+   - `87ff4c0fd8c96b332d021b2a627aa1fe4fc20511`.
+2. Immediate dev_full-only managed M1 rerun executed:
+   - phase execution id: `m1_stress_window_20260303T151901Z`,
+   - run ids: `22629629443`, `22629636090`, `22629640152`.
+3. All runs completed `success`.
+4. Observed max concurrency: `3` (target `2`, pass).
+5. Tag contract checks passed:
+   - no tag collision,
+   - no git-sha drift.
+
+### Blocker adjudication
+1. `M1-ST-B8` remains OPEN despite wheelhouse lane:
+   - `digest_drift=true`,
+   - `config_drift=true`,
+   - `layer_drift=true`.
+2. Verdict remains fail-closed:
+   - `HOLD_REMEDIATE`.
+
+### Evidence
+1. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T151901Z/stress/m1_dispatch_receipt.json`
+2. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T151901Z/stress/m1_stress_window_results.json`
+3. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T151901Z/stress/m1_blocker_register.json`
+4. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T151901Z/stress/m1_execution_summary.json`
+5. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T151901Z/stress/m1_decision_log.json`
+
+### Escalation posture
+1. Hold M1 fail-closed.
+2. Next deterministic lane required is artifact-freeze install surface (prebuilt Linux wheelhouse or sealed venv/image rootfs artifact pin), because runtime fetch/install entropy is no longer the dominant unresolved source.

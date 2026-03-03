@@ -212,7 +212,7 @@ For any phase:
 1. Program bootstrapped.
 2. Active phase: `M1` (`BLOCKED`, inline in this file).
 3. Per-phase stress files not yet created.
-4. Next step: `M1-ST-B8` remains fail-closed after architecture-level deterministic lane; escalate to deeper byte-stability controls before any M2 advancement.
+4. Next step: `M1-ST-B8` remains fail-closed after wheelhouse deterministic lane; escalate to artifact-freeze byte-stability controls before any M2 advancement.
 
 ## 13) Closed Phase - M0 (Inline)
 Status:
@@ -340,7 +340,7 @@ M1 DoD (stress):
 
 M1 immediate actions:
 1. Keep fail-closed hold on phase advancement (`M2` blocked while `M1-ST-B8` is open).
-2. Open deeper byte-stability lane for application-layer reproducibility (artifact/wheelhouse freezing and deterministic unpack/install path).
+2. Open artifact-freeze lane for application-layer reproducibility (sealed Linux wheelhouse bundle or prebuilt environment artifact pinning).
 3. Execute rerun only after explicit approval of next deterministic lane and require `digest_drift=false`, `config_drift=false`, and `layer_drift=false`.
 
 M1 Stage-B execution progress:
@@ -406,3 +406,18 @@ M1 Stage-B execution progress:
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T150118Z/stress/m1_blocker_register.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T150118Z/stress/m1_execution_summary.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T150118Z/stress/m1_decision_log.json`
+14. Wheelhouse deterministic lane rerun `m1_stress_window_20260303T151901Z`:
+   - branch head `87ff4c0fd8c96b332d021b2a627aa1fe4fc20511` (staged offline wheelhouse + offline install path),
+   - dev_full-only run set `22629629443`, `22629636090`, `22629640152` all `success`,
+   - observed max concurrency `3` (target `2` met),
+   - run-scoped tag checks passed (no tag collision, no git-sha drift),
+   - fail-closed blocker persists with unchanged signal:
+     - `digest_drift=true`,
+     - `config_drift=true`,
+     - `layer_drift=true`.
+15. Wheelhouse deterministic lane rerun artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T151901Z/stress/m1_dispatch_receipt.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T151901Z/stress/m1_stress_window_results.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T151901Z/stress/m1_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T151901Z/stress/m1_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T151901Z/stress/m1_decision_log.json`
