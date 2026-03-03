@@ -272,9 +272,9 @@ Required artifacts for each M2 stress window:
 - [x] USER go-ahead captured for first M2 managed stress window dispatch.
 
 ## 12) Immediate Next Actions
-1. Resolve `M2-ST-B3`/`M2-ST-B4` by repinning `SR_READY_COMMIT_STATE_MACHINE` to live state-machine name/ARN and updating authority/registry as needed.
-2. Rerun `M2-ST-S1` baseline window immediately after handle repin.
-3. Advance to `M2-ST-S2` only if rerun closes all open blockers.
+1. Continue to `M2-ST-S2` burst window using the same runner and fail-closed blocker mapping.
+2. Keep symbolic-handle resolution + critical precheck path enabled for all subsequent windows to avoid avoidable long-window spend on deterministic control-rail misrouting.
+3. Advance to `M2-ST-S3` only if `S2` closes with no open `M2-ST-B*` blockers.
 
 ## 13) Execution Progress
 ### `M2-ST-S0` execution (2026-03-03)
@@ -320,3 +320,32 @@ Required artifacts for each M2 stress window:
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s1_20260303T160937Z/stress/m2_blocker_register.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s1_20260303T160937Z/stress/m2_execution_summary.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s1_20260303T160937Z/stress/m2_decision_log.json`
+8. Correction note:
+   - `SR_READY_COMMIT_STATE_MACHINE` is a symbolic registry handle (`SR_READY_COMMIT_STATE_MACHINE -> SFN_PLATFORM_RUN_ORCHESTRATOR_V0 -> fraud-platform-dev-full-platform-run-v0`).
+   - initial runner did not resolve alias chains and had no critical precheck, so the first `S1` consumed full window before fail-closed detection.
+
+### `M2-ST-S1` rerun after runner remediation (2026-03-03)
+1. Phase execution id: `m2_stress_s1_20260303T162908Z`.
+2. Runner:
+   - `python scripts/dev_substrate/m2_stress_runner.py --stage S1`
+3. Remediation applied before rerun:
+   - symbolic handle-chain resolution for `SR_READY_COMMIT_STATE_MACHINE` in probe build path,
+   - critical precheck cycle added before sustained baseline loop.
+4. Window profile:
+   - `window_seconds_observed=600`,
+   - `probe_count=637`,
+   - `error_rate_pct=0.0`.
+5. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M2_ST_S2_READY`,
+   - `open_blockers=0`.
+6. Artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s1_20260303T162908Z/stress/m2_stagea_findings.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s1_20260303T162908Z/stress/m2_lane_matrix.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s1_20260303T162908Z/stress/m2_probe_latency_throughput_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s1_20260303T162908Z/stress/m2_control_rail_conformance_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s1_20260303T162908Z/stress/m2_secret_safety_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s1_20260303T162908Z/stress/m2_cost_outcome_receipt.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s1_20260303T162908Z/stress/m2_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s1_20260303T162908Z/stress/m2_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m2_stress_s1_20260303T162908Z/stress/m2_decision_log.json`

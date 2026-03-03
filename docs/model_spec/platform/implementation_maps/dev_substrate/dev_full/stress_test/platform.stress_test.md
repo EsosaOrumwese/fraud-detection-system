@@ -212,7 +212,7 @@ For any phase:
 1. Program bootstrapped.
 2. Current phase state: `M2` (`ACTIVE`, dedicated phase file).
 3. Dedicated phase file created: `stress_test/platform.M2.stress_test.md`.
-4. Next step: remediate `M2-ST-B3`/`M2-ST-B4` (SR state-machine handle drift), then rerun `M2-ST-S1`.
+4. Next step: execute `M2-ST-S2` burst window (`S1` rerun passed with `next_gate=M2_ST_S2_READY`).
 
 ## 13) Closed Phase - M0 (Inline)
 Status:

@@ -89,6 +89,23 @@ def parse_registry(path: Path) -> dict[str, Any]:
     return out
 
 
+def resolve_handle(h: dict[str, Any], key: str, max_hops: int = 8) -> tuple[Any, list[str]]:
+    chain = [key]
+    if key not in h:
+        return None, chain
+    val: Any = h[key]
+    hops = 0
+    while isinstance(val, str):
+        token = val.strip()
+        if token in h and re.fullmatch(r"[A-Z0-9_]+", token) and token not in chain and hops < max_hops:
+            chain.append(token)
+            val = h[token]
+            hops += 1
+            continue
+        break
+    return val, chain
+
+
 def pct(vals: list[float], q: float) -> float:
     if not vals:
         return 0.0
@@ -176,13 +193,17 @@ def run_s0(phase_id: str, out_root: Path) -> int:
     return 0 if not blockers else 2
 
 
-def build_s1_probes(h: dict[str, Any]) -> tuple[list[dict[str, Any]], list[str]]:
+def build_s1_probes(h: dict[str, Any]) -> tuple[list[dict[str, Any]], list[str], dict[str, Any]]:
     req = ["AWS_REGION", "MSK_REGION", "TF_STATE_BUCKET", "TF_LOCK_TABLE", "MSK_CLUSTER_ARN", "SSM_MSK_BOOTSTRAP_BROKERS_PATH", "GLUE_SCHEMA_REGISTRY_NAME", "APIGW_IG_API_ID", "LAMBDA_IG_HANDLER_NAME", "DDB_IG_IDEMPOTENCY_TABLE", "SR_READY_COMMIT_STATE_MACHINE", "SSM_IG_API_KEY_PATH"]
     missing = [k for k in req if k not in h or str(h[k]).strip() in {"", "TO_PIN"}]
     if missing:
-        return [], missing
+        return [], missing, {}
     r = str(h["AWS_REGION"])
     mr = str(h.get("MSK_REGION", r))
+    sr_state_machine, sr_chain = resolve_handle(h, "SR_READY_COMMIT_STATE_MACHINE")
+    sr_name = str(sr_state_machine).strip() if sr_state_machine is not None else ""
+    if not sr_name or sr_name in {"", "TO_PIN"}:
+        return [], (missing + ["SR_READY_COMMIT_STATE_MACHINE(resolved)"]), {"sr_handle_chain": sr_chain}
     probes: list[dict[str, Any]] = [
         {"id": "state_bucket_head", "group": "state_backend", "argv": ["aws", "s3api", "head-bucket", "--bucket", str(h["TF_STATE_BUCKET"]), "--region", r]},
         {"id": "state_lock_table", "group": "state_backend", "argv": ["aws", "dynamodb", "describe-table", "--table-name", str(h["TF_LOCK_TABLE"]), "--region", r, "--query", "Table.TableStatus", "--output", "text"]},
@@ -192,13 +213,13 @@ def build_s1_probes(h: dict[str, Any]) -> tuple[list[dict[str, Any]], list[str]]
         {"id": "api_get", "group": "api_edge", "argv": ["aws", "apigatewayv2", "get-api", "--api-id", str(h["APIGW_IG_API_ID"]), "--region", r, "--query", "ApiId", "--output", "text"]},
         {"id": "lambda_get", "group": "api_edge", "argv": ["aws", "lambda", "get-function", "--function-name", str(h["LAMBDA_IG_HANDLER_NAME"]), "--region", r, "--query", "Configuration.FunctionName", "--output", "text"]},
         {"id": "ddb_get", "group": "api_edge", "argv": ["aws", "dynamodb", "describe-table", "--table-name", str(h["DDB_IG_IDEMPOTENCY_TABLE"]), "--region", r, "--query", "Table.TableStatus", "--output", "text"]},
-        {"id": "sr_sfn_lookup", "group": "control_rail", "argv": ["aws", "stepfunctions", "list-state-machines", "--max-results", "100", "--region", r, "--query", f"stateMachines[?name=='{h['SR_READY_COMMIT_STATE_MACHINE']}'].stateMachineArn | [0]", "--output", "text"]},
+        {"id": "sr_sfn_lookup", "group": "control_rail", "argv": ["aws", "stepfunctions", "list-state-machines", "--max-results", "100", "--region", r, "--query", f"stateMachines[?name=='{sr_name}'].stateMachineArn | [0]", "--output", "text"]},
     ]
     for k in sorted(x for x in h if x.startswith("SSM_") and x.endswith("_PATH")):
         pv = str(h[k])
         if pv.startswith("/"):
             probes.append({"id": f"secret_{k.lower()}", "group": "secrets", "argv": ["aws", "ssm", "get-parameter", "--name", pv, "--region", r, "--query", "Parameter.ARN", "--output", "text"]})
-    return probes, []
+    return probes, [], {"sr_state_machine_name_resolved": sr_name, "sr_handle_chain": sr_chain}
 
 
 def copy_s0(out_root: Path, out_dir: Path) -> list[str]:
@@ -226,7 +247,7 @@ def run_s1(phase_id: str, out_root: Path, win_override: int | None, interval: in
     errs = copy_s0(out_root, out)
     if errs:
         blockers.append({"id": "M2-ST-B9", "severity": "S1", "status": "OPEN", "details": {"copy_errors": errs}})
-    probes, missing = build_s1_probes(h)
+    probes, missing, probe_meta = build_s1_probes(h)
     if missing:
         blockers.append({"id": "M2-ST-B1", "severity": "S1", "status": "OPEN", "details": {"missing_keys": missing}})
 
@@ -235,7 +256,30 @@ def run_s1(phase_id: str, out_root: Path, win_override: int | None, interval: in
     rows: list[dict[str, Any]] = []
     cycles = 0
     tstart = time.monotonic()
-    while time.monotonic() - tstart < win and not missing:
+    precheck_issues: list[str] = []
+    precheck_fail_closed = False
+    critical = {"state_bucket_head", "state_lock_table", "msk_cluster", "api_get", "lambda_get", "ddb_get", "sr_sfn_lookup"}
+    if not missing:
+        precheck = [p for p in probes if p["id"] in critical]
+        if precheck:
+            cycles += 1
+            with cf.ThreadPoolExecutor(max_workers=max(1, min(conc, len(precheck)))) as ex:
+                futs = [ex.submit(run_probe, p) for p in precheck]
+                for f in cf.as_completed(futs):
+                    r = f.result()
+                    r["cycle_index"] = cycles
+                    r["precheck"] = True
+                    rows.append(r)
+            failed = [r for r in rows if r.get("precheck") and r["status"] != "PASS"]
+            srp = [r for r in rows if r.get("precheck") and r["probe_id"] == "sr_sfn_lookup"]
+            sri = srp[-1] if srp else None
+            if failed:
+                precheck_issues.append(f"critical precheck failures: {len(failed)}")
+            if sri is None or sri["status"] != "PASS" or sri["stdout"] in {"", "None", "null"}:
+                precheck_issues.append("SR state machine lookup failed during precheck")
+            if precheck_issues:
+                precheck_fail_closed = True
+    while (time.monotonic() - tstart < win) and (not missing) and (not precheck_fail_closed):
         cycles += 1
         c0 = time.monotonic()
         with cf.ThreadPoolExecutor(max_workers=max(1, conc)) as ex:
@@ -271,7 +315,11 @@ def run_s1(phase_id: str, out_root: Path, win_override: int | None, interval: in
         ci.append("CORRELATION_ENFORCEMENT_FAIL_CLOSED not true")
     if sri is None or sri["status"] != "PASS" or sri["stdout"] in {"", "None", "null"}:
         ci.append("SR state machine lookup failed")
+    if precheck_issues:
+        ci.extend(precheck_issues)
     ctrl = {"generated_at_utc": now(), "phase_execution_id": phase_id, "stage_id": "M2-ST-S1", "overall_pass": len(ci) == 0, "issues": ci, "sr_lookup_probe": sri}
+    ctrl["handle_resolution"] = probe_meta
+    ctrl["precheck_fail_closed"] = precheck_fail_closed
     dumpj(out / "m2_control_rail_conformance_snapshot.json", ctrl)
 
     srows = [r for r in rows if r["group"] == "secrets"]
@@ -305,8 +353,7 @@ def run_s1(phase_id: str, out_root: Path, win_override: int | None, interval: in
         blockers.append({"id": "M2-ST-B7", "severity": "S1", "status": "OPEN", "details": {"error_rate_pct": er}})
     if not cost["within_envelope"] or cost["unattributed_spend_detected"]:
         blockers.append({"id": "M2-ST-B8", "severity": "S1", "status": "OPEN"})
-
-    dlog = {"generated_at_utc": now(), "phase_execution_id": phase_id, "stage_id": "M2-ST-S1", "decisions": ["Executed baseline read-only probes across substrate surfaces.", "Applied fail-closed blocker mapping from M2 taxonomy.", "Carried S0 findings/lane matrix artifacts forward for artifact continuity."]}
+    dlog = {"generated_at_utc": now(), "phase_execution_id": phase_id, "stage_id": "M2-ST-S1", "decisions": ["Executed critical precheck before sustained baseline window.", "Executed baseline read-only probes across substrate surfaces.", "Applied fail-closed blocker mapping from M2 taxonomy.", "Carried S0 findings/lane matrix artifacts forward for artifact continuity."]}
     dumpj(out / "m2_decision_log.json", dlog)
     bref = {"generated_at_utc": now(), "phase_execution_id": phase_id, "stage_id": "M2-ST-S1", "overall_pass": len(blockers) == 0, "open_blocker_count": len(blockers), "blockers": blockers}
     summ = {"generated_at_utc": now(), "phase_execution_id": phase_id, "stage_id": "M2-ST-S1", "overall_pass": len(blockers) == 0, "next_gate": "M2_ST_S2_READY" if len(blockers) == 0 else "BLOCKED", "error_rate_pct": er, "probe_count": total, "window_seconds_observed": int(round(dur)), "required_artifacts": S1_ARTS}

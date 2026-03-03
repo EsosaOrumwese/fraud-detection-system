@@ -1169,3 +1169,74 @@ _As of 2026-03-03_
 1. `S1` remains blocked.
 2. Required remediation lane before rerun:
    - repin `SR_READY_COMMIT_STATE_MACHINE` to live state-machine name/arn and revalidate control-rail contract.
+
+## Entry: 2026-03-03 16:29 +00:00 - M2 `S1` diagnosis correction and remediation plan (pre-implementation)
+
+### Trigger
+1. User requested that the missed early detection be noted, fixed, and `S1` rerun.
+
+### Drift/performance reassessment
+1. Re-read handle registry authority before changing infra:
+   - `SR_READY_COMMIT_STATE_MACHINE = "SFN_PLATFORM_RUN_ORCHESTRATOR_V0"`,
+   - `SFN_PLATFORM_RUN_ORCHESTRATOR_V0 = "fraud-platform-dev-full-platform-run-v0"`.
+2. Conclusion:
+   - prior `S1` blocker interpretation as registry-to-runtime drift was incorrect,
+   - actual fault was runner behavior: it treated `SR_READY_COMMIT_STATE_MACHINE` as a terminal literal rather than resolving symbolic handle chains.
+3. Cost/runtime implication:
+   - avoidable full `600s` baseline window consumed before deterministic control-rail mismatch surfaced.
+
+### Planned remediation lane
+1. Integrate alias-chain resolution into `S1` probe construction:
+   - resolve `SR_READY_COMMIT_STATE_MACHINE` through registry chain to final Step Functions name.
+2. Add critical precheck cycle before sustained baseline loop:
+   - run critical control probes once,
+   - fail-closed immediately if control-rail mismatch is deterministic.
+3. Emit remediation evidence in control snapshot:
+   - resolved handle chain,
+   - resolved terminal state-machine name,
+   - precheck fail-closed flag.
+4. Rerun `S1` immediately with same window profile and blocker mapping.
+
+### Acceptance targets for remediation
+1. `M2-ST-B3`/`M2-ST-B4` closed if control snapshot has no issues.
+2. `overall_pass=true`, `next_gate=M2_ST_S2_READY`.
+3. No change to infra/registry pins unless rerun disproves runner-rooted diagnosis.
+
+## Entry: 2026-03-03 16:39 +00:00 - M2 `S1` rerun completed after runner remediation
+
+### Implemented changes
+1. Updated `scripts/dev_substrate/m2_stress_runner.py`:
+   - wired `resolve_handle(...)` into `build_s1_probes(...)` for `SR_READY_COMMIT_STATE_MACHINE`,
+   - Step Functions lookup now queries resolved terminal name (`fraud-platform-dev-full-platform-run-v0`),
+   - added critical precheck cycle before full `S1` loop,
+   - added `handle_resolution` + `precheck_fail_closed` evidence fields in control-rail snapshot.
+
+### Executed command
+1. `python scripts/dev_substrate/m2_stress_runner.py --stage S1`
+2. Phase execution id:
+   - `m2_stress_s1_20260303T162908Z`.
+
+### Execution outcome
+1. Window completed:
+   - `window_seconds_observed=600`,
+   - `probe_count=637`,
+   - `error_rate_pct=0.0`.
+2. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M2_ST_S2_READY`,
+   - `open_blockers=0`.
+3. Control-rail evidence:
+   - handle chain resolved: `SR_READY_COMMIT_STATE_MACHINE -> SFN_PLATFORM_RUN_ORCHESTRATOR_V0`,
+   - resolved terminal name: `fraud-platform-dev-full-platform-run-v0`,
+   - SR lookup returned concrete ARN and `PASS`.
+
+### Corrected interpretation
+1. Blockers were caused by runner alias-resolution gap (plus missing early critical precheck), not by live infrastructure handle drift.
+2. Infra/registry repin was not required for this lane.
+
+### Authority/log updates applied
+1. `platform.M2.stress_test.md`:
+   - added correction note and successful rerun execution block,
+   - immediate next actions moved from repin/remediate to `S2` execution prep.
+2. `platform.stress_test.md`:
+   - program next step updated to `M2-ST-S2`.
