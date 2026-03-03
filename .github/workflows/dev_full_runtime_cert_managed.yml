@@ -1302,7 +1302,7 @@ jobs:
           TF_DIR: infra/terraform/dev_full/runtime
         run: |
           set -euo pipefail
-          terraform -chdir="${TF_DIR}" init -reconfigure -backend-config="${TF_DIR}/backend.hcl"
+          terraform -chdir="${TF_DIR}" init -reconfigure -backend-config=backend.hcl.example
           terraform -chdir="${TF_DIR}" validate
           terraform -chdir="${TF_DIR}" output -json > "${RUN_DIR}/terraform_outputs_pre.json"
 
