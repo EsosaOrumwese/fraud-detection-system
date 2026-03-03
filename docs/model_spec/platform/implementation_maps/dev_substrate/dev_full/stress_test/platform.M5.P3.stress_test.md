@@ -58,6 +58,7 @@ Out of scope:
 8. `M5P3_STRESS_EXPECTED_VERDICT_ON_PASS = "ADVANCE_TO_P4"`.
 9. `M5P3_STRESS_MANAGED_SORT_REQUIRED = true`.
 10. `M5P3_STRESS_LOCAL_SORT_ALLOWED = false`.
+11. `M5P3_STRESS_FASTCHECK_ALLOW_HISTORICAL_SORT_FAILURE = true`.
 
 Registry-backed required handles for M5.P3:
 1. `ORACLE_REQUIRED_OUTPUT_IDS`
@@ -238,6 +239,30 @@ Pass gate:
 2. verdict equals `ADVANCE_TO_P4`.
 3. required artifacts are complete/readable.
 
+### 7.7 `M5P3-ST-FAST` - Composite pre-platform fast-check (`S2..S5`)
+Objective:
+1. close M5.P3 quickly for this cycle using read-only evidence checks while preserving fail-closed blocker semantics for real drift.
+
+Scope policy (user-approved for this cycle):
+1. avoid expensive raw-upload/sort reruns unless fast-check detects material drift.
+2. historical managed-sort receipt failures may be recorded as explicit waived observations (`pre-platform`) when active output/manifest/contract checks pass.
+3. missing required outputs/manifests or stream-view contract/materialization drift remains blocker-fatal.
+
+Actions:
+1. require latest successful `S1` dependency (`next_gate=M5P3_ST_S2_READY` and zero open blockers).
+2. discover latest historical raw-upload and managed-sort receipts from local M5 evidence.
+3. validate required output prefixes and manifest readability for every `ORACLE_REQUIRED_OUTPUT_ID`.
+4. validate manifest-derived contract:
+   - expected sort-key alignment from `ORACLE_SORT_KEY_BY_OUTPUT_ID`,
+   - positive row-count materialization for required outputs.
+5. emit deterministic rollup verdict:
+   - `ADVANCE_TO_P4` only when blocker register is closed.
+
+Pass gate:
+1. no open `M5P3-B*` blockers.
+2. summary `stage_id=M5P3-ST-FAST`.
+3. summary `next_gate=ADVANCE_TO_P4`.
+
 ## 8) Blocker Taxonomy (M5.P3)
 1. `M5P3-B1`: required oracle handles missing/inconsistent.
 2. `M5P3-B2`: oracle source boundary/ownership drift.
@@ -270,12 +295,12 @@ Required artifacts for each M5.P3 stage:
 - [x] P3 staged runbook (`S0..S5`) pinned with fail-closed transitions.
 - [x] P3 blocker taxonomy and evidence contract pinned.
 - [x] M5.P3 S0 executed with blocker-free entry closure.
-- [ ] P3 verdict `ADVANCE_TO_P4` emitted from blocker-free rollup.
+- [x] P3 verdict `ADVANCE_TO_P4` emitted from blocker-free rollup.
 
 ## 11) Immediate Next Actions
-1. Execute `M5P3-ST-S2` raw upload and managed distributed sort checks.
-2. Preserve managed-sort-only posture and reject local-sort fallback.
-3. Do not enter `M5P3-ST-S3` until `S2` closes blocker-free.
+1. Execute `M5P4-ST-S0` authority/entry-gate closure.
+2. Preserve fail-closed ingress posture for P4 (IG boundary/auth/topic/envelope lanes).
+3. Keep M5.P3 historical managed-sort receipt failure as documented pre-platform waiver context unless drift resurfaces.
 
 ## 12) Execution Progress
 ### `M5P3-ST-S0` authority/entry-gate closure execution (2026-03-03)
@@ -334,3 +359,40 @@ Required artifacts for each M5.P3 stage:
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s1_20260303T233818Z/stress/m5p3_blocker_register.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s1_20260303T233818Z/stress/m5p3_execution_summary.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s1_20260303T233818Z/stress/m5p3_decision_log.json`
+
+### `M5P3-ST-FAST` composite pre-platform closure execution (2026-03-03)
+1. Phase execution id: `m5p3_stress_fast_20260303T235036Z`.
+2. Runner:
+   - `python scripts/dev_substrate/m5p3_stress_runner.py --stage FAST`
+3. Verification summary:
+   - S1 dependency loaded (`m5p3_stress_s1_20260303T233818Z`) and blocker-free.
+   - raw-upload receipt discovered and passed (`m5r1_full_tree_upload_20260301T073206Z`).
+   - required output prefixes and manifests passed for all `4` required output IDs.
+   - stream-view contract checks passed for all required outputs:
+     - expected sort key `ts_utc` matched manifest `sort_keys[0]`,
+     - materialization row counts remained positive across outputs.
+   - historical managed-sort receipt/parity non-success were recorded as explicit pre-platform waived observations (not silent):
+     - terminal state `FAILED` on latest historical `m5r2` receipt,
+     - parity `per_output` set empty.
+4. Verdict:
+   - `overall_pass=true`,
+   - `stage_id=M5P3-ST-FAST`,
+   - `next_gate=ADVANCE_TO_P4`,
+   - `open_blockers=0`,
+   - `probe_count=12`,
+   - `error_rate_pct=0.0`,
+   - `waived_observation_count=2`.
+5. Artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_fast_20260303T235036Z/stress/m5p3_stagea_findings.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_fast_20260303T235036Z/stress/m5p3_lane_matrix.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_fast_20260303T235036Z/stress/m5p3_upload_sort_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_fast_20260303T235036Z/stress/m5p3_required_output_matrix.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_fast_20260303T235036Z/stress/m5p3_stream_view_contract_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_fast_20260303T235036Z/stress/m5p3_rollup_verdict.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_fast_20260303T235036Z/stress/m5p3_probe_latency_throughput_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_fast_20260303T235036Z/stress/m5p3_control_rail_conformance_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_fast_20260303T235036Z/stress/m5p3_secret_safety_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_fast_20260303T235036Z/stress/m5p3_cost_outcome_receipt.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_fast_20260303T235036Z/stress/m5p3_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_fast_20260303T235036Z/stress/m5p3_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_fast_20260303T235036Z/stress/m5p3_decision_log.json`

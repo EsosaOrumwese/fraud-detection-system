@@ -227,9 +227,9 @@ Required artifacts for each M5 parent stress stage:
 - [ ] M5 closure rollup emitted with deterministic `M6_READY` recommendation.
 
 ## 11) Immediate Next Actions
-1. Execute `M5P3-ST-S2` raw upload and managed-sort stress checks.
+1. Execute `M5P4-ST-S0` authority/entry-gate closure.
 2. Keep targeted-rerun posture: rerun only failed stage windows (`M5P3` or `M5P4`) when blockers open.
-3. Do not advance parent `M5-ST-S1` until `M5P3` emits blocker-free rollup verdict `ADVANCE_TO_P4`.
+3. Do not advance parent `M5-ST-S1` until `M5P4` emits blocker-free verdict `INGEST_READY`.
 
 ## 12) Execution Progress
 ### `M5-ST-S0` authority/entry-gate closure execution (2026-03-03)
@@ -257,3 +257,13 @@ Required artifacts for each M5 parent stress stage:
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5_stress_s0_20260303T232628Z/stress/m5_blocker_register.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5_stress_s0_20260303T232628Z/stress/m5_execution_summary.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5_stress_s0_20260303T232628Z/stress/m5_decision_log.json`
+
+### Subphase status handoff (2026-03-03)
+1. `M5.P3` latest closure:
+   - `phase_execution_id=m5p3_stress_fast_20260303T235036Z`,
+   - `stage_id=M5P3-ST-FAST`,
+   - `overall_pass=true`,
+   - `next_gate=ADVANCE_TO_P4`,
+   - `open_blockers=0`.
+2. Handoff decision:
+   - parent orchestration can proceed to `M5.P4` entry lane (`M5P4-ST-S0`).

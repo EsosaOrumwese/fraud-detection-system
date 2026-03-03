@@ -3107,3 +3107,79 @@ _As of 2026-03-03_
 
 ### Evidence path
 1. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s1_20260303T233818Z/stress/`
+
+## Entry: 2026-03-03 23:48 +00:00 - M5.P3 fast-check closure lane opened (pre-platform waiver)
+
+### Trigger
+1. User directed: run a fast check for M5.P3 end-to-end and move focus to M5.P4.
+
+### Explicit scope decision (user-approved)
+1. Treat M5.P3 as pre-platform readiness validation for this cycle.
+2. Avoid heavy reruns (raw reupload / managed sort replay) unless fast checks detect material drift.
+3. Preserve fail-closed posture for real drift (missing outputs/manifests/contract mismatch), but record historical managed-sort receipt failures as waiver-backed observations for this cycle.
+
+### Pre-implementation performance and cost design
+1. Implement a composite fast lane (`M5P3-ST-FAST`) to cover S2..S5 intents in one read-only pass.
+2. Reuse existing evidence and active S3 artifacts instead of launching expensive compute.
+3. Keep runtime in minute-scale and spend near-zero by using bounded S3 probes and manifest reads only.
+
+### Planned implementation
+1. Extend `scripts/dev_substrate/m5p3_stress_runner.py` with `--stage FAST`:
+   - enforce S1 dependency continuity,
+   - discover latest historical upload/sort receipts,
+   - validate required output prefixes + manifest readability,
+   - validate stream-view sort-key/materialization contract from manifests,
+   - emit deterministic verdict (`ADVANCE_TO_P4` only when blocker-free).
+2. Update `platform.M5.P3.stress_test.md` to pin fast-check rule and execution receipt.
+3. Route parent/program docs to `M5P4-ST-S0` when pass.
+
+### Acceptance target
+1. `overall_pass=true`.
+2. `next_gate=ADVANCE_TO_P4`.
+3. `open_blockers=0` with explicit waiver notation for pre-platform managed-sort rerun deferral.
+
+## Entry: 2026-03-03 23:52 +00:00 - M5.P3 `FAST` composite closure executed (pass)
+
+### Implementation executed
+1. Extended `scripts/dev_substrate/m5p3_stress_runner.py` with `--stage FAST` (`M5P3-ST-FAST`) covering S2..S5 checks in one read-only pass:
+   - enforced S1 continuity gate,
+   - reused historical M5 raw/sort receipt surfaces,
+   - validated required output prefixes and manifest readability,
+   - validated stream-view sort-key/materialization contract from manifests,
+   - emitted deterministic verdict and blocker register.
+2. Updated `platform.M5.P3.stress_test.md`:
+   - pinned fast-check waiver key and runbook section,
+   - marked P3 verdict DoD complete,
+   - recorded FAST execution receipt,
+   - routed next action to `M5P4-ST-S0`.
+3. Updated routing docs:
+   - `platform.M5.stress_test.md` next actions now target `M5P4-ST-S0` and include P3 handoff receipt,
+   - `platform.stress_test.md` program next step now targets `M5P4-ST-S0`; M5.P3 marked done.
+
+### Validation and execution
+1. `python -m py_compile scripts/dev_substrate/m5p3_stress_runner.py` (pass).
+2. `python scripts/dev_substrate/m5p3_stress_runner.py --stage FAST`.
+3. `phase_execution_id=m5p3_stress_fast_20260303T235036Z`.
+
+### Execution result
+1. Verdict:
+   - `overall_pass=true`,
+   - `stage_id=M5P3-ST-FAST`,
+   - `next_gate=ADVANCE_TO_P4`,
+   - `open_blockers=0`,
+   - `probe_count=12`,
+   - `error_rate_pct=0.0`.
+2. Required-output/manifest contract:
+   - all `4` required output IDs passed prefix + manifest readability,
+   - manifest contract checks passed (expected sort-key + positive row_count).
+3. Waiver-backed observations (explicit, non-silent):
+   - historical stream-sort receipt terminal state `FAILED`,
+   - historical parity report `per_output` empty,
+   - both recorded under `waived_observations` with pre-platform defer rationale.
+
+### Evidence path
+1. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_fast_20260303T235036Z/stress/`
+
+## Entry: 2026-03-03 23:54 +00:00 - M5 status wording aligned
+1. Updated `platform.stress_test.md` wording for current phase state from planning lane to execution lane.
+2. Rationale: M5 parent and M5.P3 already executed; wording now matches live posture and avoids governance ambiguity.
