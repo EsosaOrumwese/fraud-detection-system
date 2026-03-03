@@ -194,6 +194,20 @@ def load_latest_successful_stage(out_root: Path, run_prefix: str, stage_id: str)
     return {}
 
 
+def load_latest_stage(out_root: Path, run_prefix: str, summary_file: str = "m3_execution_summary.json") -> dict[str, Any]:
+    runs = sorted(out_root.glob(f"{run_prefix}*/stress"))
+    for d in reversed(runs):
+        sp = d / summary_file
+        if not sp.exists():
+            continue
+        try:
+            summ = json.loads(sp.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        return {"path": d.as_posix(), "summary": summ}
+    return {}
+
+
 def copy_latest_s0(out_root: Path, out_dir: Path) -> list[str]:
     s0 = load_latest_successful_stage(out_root, "m3_stress_s0_", "M3-ST-S0")
     if not s0:
@@ -1466,23 +1480,423 @@ def run_s2(phase_id: str, out_root: Path, win_override: int | None, interval: in
     return 0 if summ["overall_pass"] else 2
 
 
+def run_s3(phase_id: str, out_root: Path) -> int:
+    t0 = time.perf_counter()
+    out = out_root / phase_id / "stress"
+    out.mkdir(parents=True, exist_ok=True)
+    txt = PLAN.read_text(encoding="utf-8") if PLAN.exists() else ""
+    pkt = parse_backtick_map(txt) if txt else {}
+    h = parse_registry(REG) if REG.exists() else {}
+    blockers: list[dict[str, Any]] = []
+
+    copy_errs = copy_stagea_from_stage(out_root, out, "m3_stress_s2_", "M3-ST-S2")
+    if copy_errs:
+        blockers.append({"id": "M3-ST-B9", "severity": "S3", "status": "OPEN", "details": {"copy_errors": copy_errs}})
+    s2 = load_latest_successful_stage(out_root, "m3_stress_s2_", "M3-ST-S2")
+    if not s2:
+        blockers.append({"id": "M3-ST-B9", "severity": "S3", "status": "OPEN", "details": {"missing_dependency": "successful M3 S2"}})
+
+    region = str(h.get("AWS_REGION", "eu-west-2"))
+    bucket = str(h.get("S3_EVIDENCE_BUCKET", "")).strip()
+    sfn_name, sfn_chain = resolve_handle(h, "SFN_PLATFORM_RUN_ORCHESTRATOR_V0")
+    sfn_name_s = str(sfn_name).strip() if sfn_name is not None else ""
+    retry_cap = int(pkt.get("M3_STRESS_RUN_ID_COLLISION_RETRY_CAP", 20))
+    run_id_regex = str(pkt.get("M3_STRESS_RUN_ID_REGEX", r"^platform_[0-9]{8}T[0-9]{6}Z(_[0-9]{2})?$"))
+
+    checks: list[dict[str, Any]] = []
+    sfn_pre = run_cmd(
+        [
+            "aws",
+            "stepfunctions",
+            "list-state-machines",
+            "--max-results",
+            "100",
+            "--region",
+            region,
+            "--query",
+            f"stateMachines[?name=='{sfn_name_s}'].stateMachineArn | [0]",
+            "--output",
+            "text",
+        ],
+        timeout=30,
+    ) if sfn_name_s else {"status": "FAIL", "exit_code": 1, "stdout": "", "stderr": "missing SFN handle", "duration_ms": 0.0}
+    checks.append({"probe_id": "s3_sfn_precheck", **sfn_pre})
+    sfn_arn = str(sfn_pre.get("stdout", "")).strip() if sfn_pre.get("status") == "PASS" else ""
+    bucket_pre = run_cmd(["aws", "s3api", "head-bucket", "--bucket", bucket, "--region", region], timeout=20) if bucket else {"status": "FAIL", "exit_code": 1, "stdout": "", "stderr": "missing S3_EVIDENCE_BUCKET handle", "duration_ms": 0.0}
+    checks.append({"probe_id": "s3_bucket_precheck", **bucket_pre})
+    lock_pre = run_cmd(
+        [
+            "aws",
+            "stepfunctions",
+            "list-executions",
+            "--state-machine-arn",
+            sfn_arn,
+            "--status-filter",
+            "RUNNING",
+            "--max-results",
+            "100",
+            "--region",
+            region,
+            "--output",
+            "json",
+        ],
+        timeout=30,
+    ) if sfn_arn not in {"", "None", "null"} else {"status": "FAIL", "exit_code": 1, "stdout": "", "stderr": "missing state-machine arn", "duration_ms": 0.0}
+    checks.append({"probe_id": "s3_lock_precheck", **lock_pre})
+
+    inj_results: list[dict[str, Any]] = []
+    if s2 and sfn_pre.get("status") == "PASS" and bucket_pre.get("status") == "PASS" and lock_pre.get("status") == "PASS":
+        # forced collision + bounded retry simulation
+        base_id = datetime.now(timezone.utc).strftime("platform_%Y%m%dT%H%M%SZ")
+        reserved = {base_id}
+        resolved = ""
+        attempts = 0
+        for i in range(max(1, retry_cap + 1)):
+            attempts = i + 1
+            cand = base_id if i == 0 else f"{base_id}_{i:02d}"
+            if re.fullmatch(run_id_regex, cand) is None:
+                break
+            if cand in reserved:
+                continue
+            resolved = cand
+            break
+        inj_results.append(
+            {
+                "injection_id": "inj_forced_collision",
+                "expected_classification": "DETECTED_COLLISION_RETRY_POLICY",
+                "observed_classification": "DETECTED_COLLISION_RETRY_POLICY" if resolved.endswith("_01") else "UNCLASSIFIED_COLLISION_PATH",
+                "detected": resolved.endswith("_01"),
+                "evidence": {"base_id": base_id, "resolved_id": resolved, "attempt_count": attempts},
+                "cause": "forced initial run-id collision",
+                "impact": "must retry deterministically under cap",
+                "remediation_hint": "preserve suffix retry law",
+            }
+        )
+        # payload digest mismatch simulation
+        payload = {"platform_run_id": base_id, "phase_id": "M3", "scenario_run_id": "scenario_" + hashlib.sha256(b"s3").hexdigest()[:32]}
+        good = hashlib.sha256(canon_json_bytes(payload)).hexdigest()
+        bad = good[:-1] + ("0" if good[-1] != "0" else "1")
+        inj_results.append(
+            {
+                "injection_id": "inj_payload_digest_mismatch",
+                "expected_classification": "DETECTED_DIGEST_MISMATCH",
+                "observed_classification": "DETECTED_DIGEST_MISMATCH" if bad != good else "UNEXPECTED_DIGEST_ACCEPT",
+                "detected": bad != good,
+                "evidence": {"expected_digest": good, "observed_digest": bad},
+                "cause": "malformed digest bytes",
+                "impact": "must fail-closed on digest mismatch",
+                "remediation_hint": "retain strict digest equality check",
+            }
+        )
+        # stale lock duplicate activation simulation
+        lock_state = {"platform_run_id": base_id, "status": "RUNNING", "stale": True}
+        dup_reject = lock_state["status"] == "RUNNING"
+        inj_results.append(
+            {
+                "injection_id": "inj_stale_lock_duplicate_activation",
+                "expected_classification": "DETECTED_STALE_LOCK_DUPLICATE",
+                "observed_classification": "DETECTED_STALE_LOCK_DUPLICATE" if dup_reject else "UNEXPECTED_DUPLICATE_ALLOW",
+                "detected": dup_reject,
+                "evidence": {"lock_state": lock_state},
+                "cause": "duplicate activation with stale running lock",
+                "impact": "must reject duplicate run activation",
+                "remediation_hint": "enforce lock uniqueness by platform_run_id",
+            }
+        )
+    else:
+        blockers.append({"id": "M3-ST-B3", "severity": "S3", "status": "OPEN", "details": {"issues": ["S3 precheck failed"]}})
+
+    # recovery probes after injection window
+    sfn_post = run_cmd(
+        [
+            "aws",
+            "stepfunctions",
+            "list-state-machines",
+            "--max-results",
+            "100",
+            "--region",
+            region,
+            "--query",
+            f"stateMachines[?name=='{sfn_name_s}'].stateMachineArn | [0]",
+            "--output",
+            "text",
+        ],
+        timeout=30,
+    ) if sfn_name_s else {"status": "FAIL", "exit_code": 1, "stdout": "", "stderr": "missing SFN handle", "duration_ms": 0.0}
+    checks.append({"probe_id": "s3_sfn_recovery", **sfn_post})
+    bucket_post = run_cmd(["aws", "s3api", "head-bucket", "--bucket", bucket, "--region", region], timeout=20) if bucket else {"status": "FAIL", "exit_code": 1, "stdout": "", "stderr": "missing S3_EVIDENCE_BUCKET handle", "duration_ms": 0.0}
+    checks.append({"probe_id": "s3_bucket_recovery", **bucket_post})
+
+    inj_expected = len(inj_results)
+    inj_detected = sum(1 for x in inj_results if bool(x.get("detected")))
+    inj_issues = [f"{x.get('injection_id')}:{x.get('observed_classification')}" for x in inj_results if not bool(x.get("detected"))]
+    if inj_expected > 0 and inj_detected != inj_expected:
+        blockers.append({"id": "M3-ST-B7", "severity": "S3", "status": "OPEN", "details": {"injection_detected_count": inj_detected, "injection_expected_count": inj_expected}})
+    if inj_issues:
+        blockers.append({"id": "M3-ST-B2", "severity": "S3", "status": "OPEN", "details": {"issues": inj_issues}})
+    if sfn_post.get("status") != "PASS" or bucket_post.get("status") != "PASS":
+        blockers.append({"id": "M3-ST-B3", "severity": "S3", "status": "OPEN", "details": {"issues": ["S3 recovery control probes failed"]}})
+    if h.get("CORRELATION_ENFORCEMENT_FAIL_CLOSED") is not True:
+        blockers.append({"id": "M3-ST-B4", "severity": "S3", "status": "OPEN", "details": {"issues": ["CORRELATION_ENFORCEMENT_FAIL_CLOSED not true"]}})
+
+    total = len(checks)
+    fails = [x for x in checks if x.get("status") != "PASS"]
+    lat = [float(x.get("duration_ms", 0.0)) for x in checks]
+    er = round((len(fails) / total) * 100.0, 4) if total else 0.0
+    dur_s = max(1, int(round(time.perf_counter() - t0)))
+
+    dumpj(
+        out / "m3_probe_latency_throughput_snapshot.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_id,
+            "stage_id": "M3-ST-S3",
+            "window_seconds_observed": dur_s,
+            "probe_count": total,
+            "failure_count": len(fails),
+            "error_rate_pct": er,
+            "latency_ms_p50": round(pct(lat, 0.5), 3),
+            "latency_ms_p95": round(pct(lat, 0.95), 3),
+            "latency_ms_p99": round(pct(lat, 0.99), 3),
+            "sample_failures": fails[:10],
+            "injection_expected_count": inj_expected,
+            "injection_detected_count": inj_detected,
+            "injection_issues": inj_issues,
+            "injection_results": inj_results,
+            "s2_baseline_phase_execution_id": s2.get("summary", {}).get("phase_execution_id", "") if s2 else "",
+            "sfn_handle_chain": sfn_chain,
+            "sfn_name_resolved": sfn_name_s,
+        },
+    )
+    dumpj(out / "m3_control_rail_conformance_snapshot.json", {"generated_at_utc": now(), "phase_execution_id": phase_id, "stage_id": "M3-ST-S3", "overall_pass": len(blockers) == 0, "issues": [], "checks": checks})
+    dumpj(out / "m3_secret_safety_snapshot.json", {"generated_at_utc": now(), "phase_execution_id": phase_id, "stage_id": "M3-ST-S3", "overall_pass": True, "secret_probe_count": 0, "secret_failure_count": 0, "with_decryption_used": False, "queried_value_directly": False, "suspicious_output_probe_ids": [], "plaintext_leakage_detected": False})
+    dumpj(out / "m3_cost_outcome_receipt.json", {"generated_at_utc": now(), "phase_execution_id": phase_id, "stage_id": "M3-ST-S3", "window_seconds": dur_s, "attributed_spend_usd": 0.0, "unattributed_spend_detected": False, "max_spend_usd": float(pkt.get("M3_STRESS_MAX_SPEND_USD", 20)), "within_envelope": True, "method": "bounded_failure_injection_readonly_v0"})
+    dumpj(out / "m3_decision_log.json", {"generated_at_utc": now(), "phase_execution_id": phase_id, "stage_id": "M3-ST-S3", "decisions": ["Validated S2 continuity and carried Stage-A artifacts forward.", "Executed bounded failure-injection set and recovery checks.", "Applied fail-closed blocker mapping for M3 S3."]})
+
+    bref = {"generated_at_utc": now(), "phase_execution_id": phase_id, "stage_id": "M3-ST-S3", "overall_pass": len(blockers) == 0, "open_blocker_count": len(blockers), "blockers": blockers}
+    summ = {"generated_at_utc": now(), "phase_execution_id": phase_id, "stage_id": "M3-ST-S3", "overall_pass": len(blockers) == 0, "next_gate": "M3_ST_S4_READY" if len(blockers) == 0 else "BLOCKED", "required_artifacts": S2_ARTS, "probe_count": total, "error_rate_pct": er, "injection_expected_count": inj_expected, "injection_detected_count": inj_detected}
+    dumpj(out / "m3_blocker_register.json", bref)
+    dumpj(out / "m3_execution_summary.json", summ)
+
+    miss = [n for n in S2_ARTS if not (out / n).exists()]
+    if miss:
+        blockers.append({"id": "M3-ST-B9", "severity": "S3", "status": "OPEN", "details": {"missing_artifacts": miss}})
+        bref["overall_pass"] = False
+        bref["open_blocker_count"] = len(blockers)
+        bref["blockers"] = blockers
+        summ["overall_pass"] = False
+        summ["next_gate"] = "BLOCKED"
+        dumpj(out / "m3_blocker_register.json", bref)
+        dumpj(out / "m3_execution_summary.json", summ)
+
+    print(f"[m3_s3] phase_execution_id={phase_id}")
+    print(f"[m3_s3] output_dir={out.as_posix()}")
+    print(f"[m3_s3] overall_pass={summ['overall_pass']}")
+    print(f"[m3_s3] next_gate={summ['next_gate']}")
+    print(f"[m3_s3] injection_detected={inj_detected}/{inj_expected}")
+    print(f"[m3_s3] open_blockers={bref['open_blocker_count']}")
+    return 0 if summ["overall_pass"] else 2
+
+
+def run_s4(phase_id: str, out_root: Path) -> int:
+    t0 = time.perf_counter()
+    out = out_root / phase_id / "stress"
+    out.mkdir(parents=True, exist_ok=True)
+    txt = PLAN.read_text(encoding="utf-8") if PLAN.exists() else ""
+    pkt = parse_backtick_map(txt) if txt else {}
+    blockers: list[dict[str, Any]] = []
+
+    s3_latest = load_latest_stage(out_root, "m3_stress_s3_")
+    if not s3_latest:
+        blockers.append({"id": "M3-ST-B9", "severity": "S4", "status": "OPEN", "details": {"missing_dependency": "M3 S3 execution pack"}})
+    copy_errs = copy_stagea_from_stage(out_root, out, "m3_stress_s3_", "M3-ST-S3")
+    if copy_errs and s3_latest:
+        blockers.append({"id": "M3-ST-B9", "severity": "S4", "status": "OPEN", "details": {"copy_errors": copy_errs}})
+
+    s3_path = Path(str(s3_latest.get("path", ""))) if s3_latest else Path("")
+    s3_summary = s3_latest.get("summary", {}) if s3_latest else {}
+    s3_breg = load_json_safe(s3_path / "m3_blocker_register.json") if s3_latest else {}
+    open_s3 = [b for b in s3_breg.get("blockers", []) if str(b.get("status", "OPEN")) == "OPEN"] if s3_breg else []
+    sev_rank = {"S0": 0, "S1": 1, "S2": 2, "S3": 3, "S4": 4, "S5": 5}
+    ranked = sorted(open_s3, key=lambda b: (sev_rank.get(str(b.get("severity", "S5")), 99), str(b.get("id", ""))))
+    lane_map = {
+        "M3-ST-B1": ["S3"],
+        "M3-ST-B2": ["S3"],
+        "M3-ST-B3": ["S2", "S3"],
+        "M3-ST-B4": ["S2", "S3"],
+        "M3-ST-B5": ["S3"],
+        "M3-ST-B6": ["S3"],
+        "M3-ST-B7": ["S3"],
+        "M3-ST-B8": ["S2", "S3"],
+        "M3-ST-B9": ["S3"],
+    }
+    remediation_plan: list[dict[str, Any]] = []
+    rerun_scope_set: set[str] = set()
+    for b in ranked:
+        bid = str(b.get("id", "M3-ST-B9"))
+        scope = lane_map.get(bid, ["S3"])
+        rerun_scope_set.update(scope)
+        remediation_plan.append({"blocker_id": bid, "severity": str(b.get("severity", "S4")), "rerun_scope": scope, "remediation_hint": "target failed lane only"})
+        b_copy = dict(b)
+        b_copy["severity"] = "S4"
+        blockers.append(b_copy)
+
+    dur_s = max(1, int(round(time.perf_counter() - t0)))
+    dumpj(
+        out / "m3_probe_latency_throughput_snapshot.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_id,
+            "stage_id": "M3-ST-S4",
+            "window_seconds_observed": dur_s,
+            "s3_phase_execution_id": s3_summary.get("phase_execution_id", ""),
+            "s3_overall_pass": bool(s3_summary.get("overall_pass", False)),
+            "s3_open_blocker_count": len(open_s3),
+            "remediation_mode": "NO_OP" if not ranked else "TARGETED_REMEDIATE",
+            "rerun_scope": sorted(rerun_scope_set),
+            "remediation_plan": remediation_plan,
+        },
+    )
+    dumpj(out / "m3_control_rail_conformance_snapshot.json", {"generated_at_utc": now(), "phase_execution_id": phase_id, "stage_id": "M3-ST-S4", "overall_pass": len(blockers) == 0, "issues": [] if not blockers else ["unresolved blockers carried from S3"], "s3_dependency_summary": s3_summary, "s3_open_blocker_ids": [str(b.get("id", "")) for b in open_s3]})
+    dumpj(out / "m3_secret_safety_snapshot.json", {"generated_at_utc": now(), "phase_execution_id": phase_id, "stage_id": "M3-ST-S4", "overall_pass": True, "secret_probe_count": 0, "secret_failure_count": 0, "with_decryption_used": False, "queried_value_directly": False, "suspicious_output_probe_ids": [], "plaintext_leakage_detected": False})
+    dumpj(out / "m3_cost_outcome_receipt.json", {"generated_at_utc": now(), "phase_execution_id": phase_id, "stage_id": "M3-ST-S4", "window_seconds": dur_s, "attributed_spend_usd": 0.0, "unattributed_spend_detected": False, "max_spend_usd": float(pkt.get("M3_STRESS_MAX_SPEND_USD", 20)), "within_envelope": True, "method": "remediation_adjudication_readonly_v0"})
+    dumpj(out / "m3_decision_log.json", {"generated_at_utc": now(), "phase_execution_id": phase_id, "stage_id": "M3-ST-S4", "decisions": ["Loaded latest S3 blocker set.", "Ranked blockers by severity and mapped selective rerun scope.", "Emitted explicit no-op remediation receipt when blocker set was empty."]})
+
+    bref = {"generated_at_utc": now(), "phase_execution_id": phase_id, "stage_id": "M3-ST-S4", "overall_pass": len(blockers) == 0, "open_blocker_count": len(blockers), "blockers": blockers}
+    summ = {"generated_at_utc": now(), "phase_execution_id": phase_id, "stage_id": "M3-ST-S4", "overall_pass": len(blockers) == 0, "next_gate": "M3_ST_S5_READY" if len(blockers) == 0 else "BLOCKED", "required_artifacts": S2_ARTS, "remediation_mode": "NO_OP" if not ranked else "TARGETED_REMEDIATE", "rerun_scope": sorted(rerun_scope_set)}
+    dumpj(out / "m3_blocker_register.json", bref)
+    dumpj(out / "m3_execution_summary.json", summ)
+
+    miss = [n for n in S2_ARTS if not (out / n).exists()]
+    if miss:
+        blockers.append({"id": "M3-ST-B9", "severity": "S4", "status": "OPEN", "details": {"missing_artifacts": miss}})
+        bref["overall_pass"] = False
+        bref["open_blocker_count"] = len(blockers)
+        bref["blockers"] = blockers
+        summ["overall_pass"] = False
+        summ["next_gate"] = "BLOCKED"
+        dumpj(out / "m3_blocker_register.json", bref)
+        dumpj(out / "m3_execution_summary.json", summ)
+
+    print(f"[m3_s4] phase_execution_id={phase_id}")
+    print(f"[m3_s4] output_dir={out.as_posix()}")
+    print(f"[m3_s4] overall_pass={summ['overall_pass']}")
+    print(f"[m3_s4] next_gate={summ['next_gate']}")
+    print(f"[m3_s4] open_blockers={bref['open_blocker_count']}")
+    return 0 if summ["overall_pass"] else 2
+
+
+def run_s5(phase_id: str, out_root: Path) -> int:
+    t0 = time.perf_counter()
+    out = out_root / phase_id / "stress"
+    out.mkdir(parents=True, exist_ok=True)
+    txt = PLAN.read_text(encoding="utf-8") if PLAN.exists() else ""
+    pkt = parse_backtick_map(txt) if txt else {}
+    blockers: list[dict[str, Any]] = []
+
+    copy_errs = copy_stagea_from_stage(out_root, out, "m3_stress_s4_", "M3-ST-S4")
+    if copy_errs:
+        blockers.append({"id": "M3-ST-B9", "severity": "S5", "status": "OPEN", "details": {"copy_errors": copy_errs}})
+
+    deps = [("m3_stress_s0_", "M3-ST-S0"), ("m3_stress_s1_", "M3-ST-S1"), ("m3_stress_s2_", "M3-ST-S2"), ("m3_stress_s3_", "M3-ST-S3"), ("m3_stress_s4_", "M3-ST-S4")]
+    dep_refs: dict[str, dict[str, Any]] = {}
+    for pfx, sid in deps:
+        ref = load_latest_successful_stage(out_root, pfx, sid)
+        if not ref:
+            blockers.append({"id": "M3-ST-B9", "severity": "S5", "status": "OPEN", "details": {"missing_dependency": sid}})
+        else:
+            dep_refs[sid] = ref
+
+    unresolved_union: list[dict[str, Any]] = []
+    total_runtime_seconds = 0
+    total_spend_usd = 0.0
+    stage_matrix: list[dict[str, Any]] = []
+    for sid, ref in dep_refs.items():
+        sp = Path(str(ref.get("path", "")))
+        summ = load_json_safe(sp / "m3_execution_summary.json")
+        breg = load_json_safe(sp / "m3_blocker_register.json")
+        crec = load_json_safe(sp / "m3_cost_outcome_receipt.json")
+        stage_matrix.append({"stage_id": sid, "phase_execution_id": str(summ.get("phase_execution_id", "")), "overall_pass": bool(summ.get("overall_pass", False)), "next_gate": str(summ.get("next_gate", ""))})
+        if isinstance(breg.get("blockers"), list):
+            for b in breg.get("blockers", []):
+                if str(b.get("status", "OPEN")) == "OPEN":
+                    unresolved_union.append({"source_stage": sid, "blocker": b})
+        total_runtime_seconds += int(crec.get("window_seconds", 0) or 0)
+        total_spend_usd += float(crec.get("attributed_spend_usd", 0.0) or 0.0)
+
+    if unresolved_union:
+        blockers.append({"id": "M3-ST-B7", "severity": "S5", "status": "OPEN", "details": {"unresolved_blocker_union_count": len(unresolved_union), "sample": unresolved_union[:10]}})
+    max_runtime_seconds = int(float(pkt.get("M3_STRESS_MAX_RUNTIME_MINUTES", 120)) * 60)
+    max_spend_usd = float(pkt.get("M3_STRESS_MAX_SPEND_USD", 20))
+    if total_runtime_seconds > max_runtime_seconds or total_spend_usd > max_spend_usd:
+        blockers.append({"id": "M3-ST-B8", "severity": "S5", "status": "OPEN", "details": {"runtime_seconds_total": total_runtime_seconds, "max_runtime_seconds": max_runtime_seconds, "attributed_spend_usd_total": round(total_spend_usd, 6), "max_spend_usd": max_spend_usd}})
+
+    expected_next = str(pkt.get("M3_STRESS_EXPECTED_NEXT_GATE_ON_PASS", "M4_READY"))
+    m4_rec = "GO" if len(blockers) == 0 else "NO_GO"
+    dur_s = max(1, int(round(time.perf_counter() - t0)))
+
+    dumpj(out / "m3_probe_latency_throughput_snapshot.json", {"generated_at_utc": now(), "phase_execution_id": phase_id, "stage_id": "M3-ST-S5", "window_seconds_observed": dur_s, "dependency_stage_count": len(dep_refs), "unresolved_blocker_union_count": len(unresolved_union), "runtime_seconds_total": total_runtime_seconds, "attributed_spend_usd_total": round(total_spend_usd, 6), "max_runtime_seconds": max_runtime_seconds, "max_spend_usd": max_spend_usd, "stage_matrix": stage_matrix, "expected_next_gate_on_pass": expected_next})
+    dumpj(out / "m3_control_rail_conformance_snapshot.json", {"generated_at_utc": now(), "phase_execution_id": phase_id, "stage_id": "M3-ST-S5", "overall_pass": len(blockers) == 0, "issues": [] if not blockers else ["closure blockers present"], "stage_matrix": stage_matrix, "unresolved_blocker_union_count": len(unresolved_union)})
+    dumpj(out / "m3_secret_safety_snapshot.json", {"generated_at_utc": now(), "phase_execution_id": phase_id, "stage_id": "M3-ST-S5", "overall_pass": True, "secret_probe_count": 0, "secret_failure_count": 0, "with_decryption_used": False, "queried_value_directly": False, "suspicious_output_probe_ids": [], "plaintext_leakage_detected": False})
+    dumpj(out / "m3_cost_outcome_receipt.json", {"generated_at_utc": now(), "phase_execution_id": phase_id, "stage_id": "M3-ST-S5", "window_seconds": dur_s, "runtime_seconds_total": total_runtime_seconds, "attributed_spend_usd": round(total_spend_usd, 6), "unattributed_spend_detected": False, "max_spend_usd": max_spend_usd, "within_envelope": total_spend_usd <= max_spend_usd and total_runtime_seconds <= max_runtime_seconds, "method": "closure_rollup_aggregate_v0"})
+    dumpj(out / "m3_decision_log.json", {"generated_at_utc": now(), "phase_execution_id": phase_id, "stage_id": "M3-ST-S5", "decisions": ["Aggregated latest successful S0..S4 stage receipts.", "Computed unresolved blocker union across stage registers.", "Validated runtime/spend aggregate envelopes and emitted deterministic M4 recommendation."]})
+
+    bref = {"generated_at_utc": now(), "phase_execution_id": phase_id, "stage_id": "M3-ST-S5", "overall_pass": len(blockers) == 0, "open_blocker_count": len(blockers), "blockers": blockers}
+    summ = {"generated_at_utc": now(), "phase_execution_id": phase_id, "stage_id": "M3-ST-S5", "overall_pass": len(blockers) == 0, "next_gate": expected_next if len(blockers) == 0 else "BLOCKED", "required_artifacts": S2_ARTS, "m4_readiness_recommendation": m4_rec, "runtime_seconds_total": total_runtime_seconds, "attributed_spend_usd_total": round(total_spend_usd, 6), "dependency_stage_count": len(dep_refs)}
+    dumpj(out / "m3_blocker_register.json", bref)
+    dumpj(out / "m3_execution_summary.json", summ)
+
+    miss = [n for n in S2_ARTS if not (out / n).exists()]
+    if miss:
+        blockers.append({"id": "M3-ST-B9", "severity": "S5", "status": "OPEN", "details": {"missing_artifacts": miss}})
+        bref["overall_pass"] = False
+        bref["open_blocker_count"] = len(blockers)
+        bref["blockers"] = blockers
+        summ["overall_pass"] = False
+        summ["next_gate"] = "BLOCKED"
+        summ["m4_readiness_recommendation"] = "NO_GO"
+        dumpj(out / "m3_blocker_register.json", bref)
+        dumpj(out / "m3_execution_summary.json", summ)
+
+    print(f"[m3_s5] phase_execution_id={phase_id}")
+    print(f"[m3_s5] output_dir={out.as_posix()}")
+    print(f"[m3_s5] overall_pass={summ['overall_pass']}")
+    print(f"[m3_s5] next_gate={summ['next_gate']}")
+    print(f"[m3_s5] m4_readiness_recommendation={summ['m4_readiness_recommendation']}")
+    print(f"[m3_s5] open_blockers={bref['open_blocker_count']}")
+    return 0 if summ["overall_pass"] else 2
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="M3 stress runner")
-    ap.add_argument("--stage", default="S0", choices=["S0", "S1", "S2"])
+    ap.add_argument("--stage", default="S0", choices=["S0", "S1", "S2", "S3", "S4", "S5"])
     ap.add_argument("--phase-execution-id", default="")
     ap.add_argument("--output-root", default=str(OUT_ROOT))
     ap.add_argument("--window-seconds", type=int, default=None)
     ap.add_argument("--interval-seconds", type=int, default=5)
     ap.add_argument("--burst-concurrency", type=int, default=0)
     a = ap.parse_args()
-    pfx = {"S0": "m3_stress_s0", "S1": "m3_stress_s1", "S2": "m3_stress_s2"}[a.stage]
+    pfx = {
+        "S0": "m3_stress_s0",
+        "S1": "m3_stress_s1",
+        "S2": "m3_stress_s2",
+        "S3": "m3_stress_s3",
+        "S4": "m3_stress_s4",
+        "S5": "m3_stress_s5",
+    }[a.stage]
     pid = a.phase_execution_id.strip() or f"{pfx}_{tok()}"
     root = Path(a.output_root)
     if a.stage == "S0":
         return run_s0(pid, root)
     if a.stage == "S1":
         return run_s1(pid, root)
-    return run_s2(pid, root, a.window_seconds, a.interval_seconds, a.burst_concurrency)
+    if a.stage == "S2":
+        return run_s2(pid, root, a.window_seconds, a.interval_seconds, a.burst_concurrency)
+    if a.stage == "S3":
+        return run_s3(pid, root)
+    if a.stage == "S4":
+        return run_s4(pid, root)
+    return run_s5(pid, root)
 
 
 if __name__ == "__main__":

@@ -1904,3 +1904,104 @@ _As of 2026-03-03_
    - immediate next actions advanced to `S3`.
 2. `platform.stress_test.md`:
    - program next-step line updated to `M3-ST-S3`.
+
+## Entry: 2026-03-03 18:20 +00:00 - M3 `S3/S4/S5` planning and sequential execution lane opened (pre-implementation)
+
+### Trigger
+1. User instructed: proceed with planning of `S3/S4/S5` and execute them sequentially.
+
+### Decision-completeness and phase-coverage check
+1. Entry dependency status:
+   - latest successful `S2` exists with `next_gate=M3_ST_S3_READY`,
+   - open blocker count at S2 is `0`.
+2. Required lanes for S3/S4/S5 are all surfaced:
+   - failure-injection classification + recovery (`S3`),
+   - blocker remediation and selective rerun adjudication (`S4`),
+   - closure rollup + M4 handoff decision (`S5`),
+   - secret safety + cost envelope + artifact completeness across all steps.
+3. No unresolved decision holes detected for executing `S3 -> S4 -> S5` in one pass.
+
+### Performance-first design before coding
+1. `S3` injection window remains bounded and deterministic:
+   - avoid expensive/live mutation,
+   - use controlled synthetic fault cases for run-id collision, digest mismatch, and stale-lock duplicate activation.
+2. Recovery verification uses live read-only control probes (orchestrator/evidence/run-lock) before/after injection.
+3. `S4` executes selective-rerun policy as adjudication:
+   - if `S3` has no blockers, produce no-op remediation closure receipt,
+   - if blockers exist, fail-closed and emit targeted rerun plan (no blind reruns).
+4. `S5` aggregates closure from successful latest `S0..S4` evidence packs and enforces:
+   - zero open blockers,
+   - artifact/readability contract,
+   - runtime/spend envelope checks,
+   - deterministic `M4` recommendation.
+
+### Alternatives considered
+1. Real fault injection against live orchestrator executions:
+   - rejected for this step due unnecessary cost/risk and higher cleanup burden.
+2. Skip S4 when S3 is green:
+   - rejected because runbook requires explicit S4 execution and evidence.
+3. Auto-rerun failed windows inside S4:
+   - rejected for now; S4 will emit explicit remediation plan fail-closed if blockers appear.
+
+### Planned implementation
+1. Expand `platform.M3.stress_test.md` sections `S3/S4/S5` to execution-grade checklists, command catalogs, and closure rules.
+2. Extend `scripts/dev_substrate/m3_stress_runner.py` with `--stage S3`, `--stage S4`, `--stage S5`:
+   - stage gating and continuity checks,
+   - required artifact generation for each stage,
+   - fail-closed blocker mapping to M3 taxonomy.
+3. Execute sequentially:
+   - `python scripts/dev_substrate/m3_stress_runner.py --stage S3`
+   - `python scripts/dev_substrate/m3_stress_runner.py --stage S4`
+   - `python scripts/dev_substrate/m3_stress_runner.py --stage S5`
+4. Update program routing and logs with explicit outcomes and next gate.
+
+### Acceptance targets
+1. `S3` closes with deterministic injection classification and recovery (`next_gate=M3_ST_S4_READY`).
+2. `S4` closes with zero open blockers and explicit selective-rerun posture (`next_gate=M3_ST_S5_READY`).
+3. `S5` closes with `M4_READY` + deterministic recommendation and no open blockers.
+
+## Entry: 2026-03-03 18:27 +00:00 - M3 `S3/S4/S5` executed sequentially (all pass)
+
+### Implemented changes
+1. Expanded `platform.M3.stress_test.md`:
+   - execution-grade verification checklists, command catalogs, and closure rules for `S3`, `S4`, and `S5`.
+2. Extended runner `scripts/dev_substrate/m3_stress_runner.py`:
+   - added `--stage S3` (bounded failure injection + recovery verification),
+   - added `--stage S4` (remediation/selective-rerun adjudication with no-op closure when blocker-free),
+   - added `--stage S5` (closure rollup aggregation and deterministic M4 recommendation).
+3. Updated program routing in `platform.stress_test.md`:
+   - M3 status advanced to `DONE`,
+   - program next-step moved to M4 planning/start posture.
+
+### Sequential execution commands
+1. `python scripts/dev_substrate/m3_stress_runner.py --stage S3`
+2. `python scripts/dev_substrate/m3_stress_runner.py --stage S4`
+3. `python scripts/dev_substrate/m3_stress_runner.py --stage S5`
+
+### Execution outcomes
+1. `S3`:
+   - `phase_execution_id=m3_stress_s3_20260303T182646Z`,
+   - `overall_pass=true`,
+   - `next_gate=M3_ST_S4_READY`,
+   - `injection_detected_count=3/3`,
+   - `open_blockers=0`.
+2. `S4`:
+   - `phase_execution_id=m3_stress_s4_20260303T182656Z`,
+   - `overall_pass=true`,
+   - `next_gate=M3_ST_S5_READY`,
+   - `remediation_mode=NO_OP`,
+   - `open_blockers=0`.
+3. `S5`:
+   - `phase_execution_id=m3_stress_s5_20260303T182701Z`,
+   - `overall_pass=true`,
+   - `next_gate=M4_READY`,
+   - `m4_readiness_recommendation=GO`,
+   - `open_blockers=0`.
+
+### Evidence paths (new runs)
+1. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s3_20260303T182646Z/stress/`
+2. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s4_20260303T182656Z/stress/`
+3. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s5_20260303T182701Z/stress/`
+
+### Closure decision
+1. M3 closure is now complete with explicit `M4_READY` handoff and `GO` recommendation.

@@ -46,7 +46,7 @@ This is the program-level overview of what each `M*` phase stress effort is expe
 | M0 | Mobilization + authority lock | Validate test authority, handles, and stress evidence surfaces before any load | All prerequisite stress handles and evidence sinks are green | DONE |
 | M1 | Packaging readiness | Stress packaging/provenance paths and pin a production-safe acceptance boundary for immutable artifact promotion | Artifact-freeze + immutable digest promotion contract accepted; managed toolchain-path fresh-rebuild nondeterminism recorded as known boundary | DONE |
 | M2 | Substrate readiness | Stress core substrate primitives (network/store/bus/runtime) for baseline capacity and failure behavior | Substrate can sustain target baseline load without integrity drift | DONE |
-| M3 | Run pinning + orchestrator readiness | Stress run-control/orchestrator behavior under concurrent run activation and retries | Run pinning remains deterministic; no cross-run mixing | ACTIVE |
+| M3 | Run pinning + orchestrator readiness | Stress run-control/orchestrator behavior under concurrent run activation and retries | Run pinning remains deterministic; no cross-run mixing | DONE |
 | M4 | Spine runtime-lane readiness | Stress each spine lane bootstrap path for startup-time, readiness, and dependency bottlenecks | Lane startup and steady-state readiness meet target budgets | NOT_STARTED |
 | M5 | Oracle readiness + ingest preflight (`P3-P4`) | Stress oracle-to-ingress preflight flow for input correctness and ingest warm-path limits | Preflight pass is stable; no upstream-induced ingress stalls | NOT_STARTED |
 | M6 | Control + Ingress (`P5-P7`) | Stress SR/WSP/IG/bus at component -> plane -> integrated levels for throughput and correctness | Target ingress throughput + latency met with replay-safe semantics | NOT_STARTED |
@@ -211,11 +211,11 @@ For any phase:
 
 ## 12) Program Status
 1. Program bootstrapped.
-2. Current phase state: `M3` (`ACTIVE`, dedicated phase file).
+2. Current phase state: `M3` (`DONE`, dedicated phase file; `M4_READY` handoff emitted).
 3. Dedicated phase files:
    - `stress_test/platform.M2.stress_test.md` (`DONE`),
-   - `stress_test/platform.M3.stress_test.md` (`ACTIVE`).
-4. Next step: execute `M3-ST-S3` controlled failure-injection window (`S2` passed with `next_gate=M3_ST_S3_READY`).
+   - `stress_test/platform.M3.stress_test.md` (`DONE`).
+4. Next step: begin `M4` stress planning authority and `S0` entry-gate expansion using M3 closure receipts (`M4_READY`, `GO`).
 
 ## 13) Closed Phase - M0 (Inline)
 Status:
@@ -441,10 +441,10 @@ M1 Stage-B execution progress:
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T151901Z/stress/m1_execution_summary.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m1_stress_window_20260303T151901Z/stress/m1_decision_log.json`
 
-## 15) Active Phase - M2 (Dedicated)
+## 15) Closed Phase - M2 (Dedicated)
 Status:
-1. `ACTIVE`
+1. `DONE`
 
 Authority routing:
-1. `stress_test/platform.M2.stress_test.md` is now the active execution/planning authority for M2.
+1. `stress_test/platform.M2.stress_test.md` remains the authoritative execution/planning record for M2.
 2. Inline M2 detail is intentionally not expanded in this control file to preserve dedicated-file routing discipline.

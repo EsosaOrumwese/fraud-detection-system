@@ -288,6 +288,34 @@ Pass gate:
 3. recovery checks return green after injection window.
 4. evidence captures cause, impact, remediation hint, and recovery outcome.
 
+S3 failure-injection verification checklist:
+1. successful `S2` continuity gate is present (`next_gate=M3_ST_S3_READY`).
+2. bounded forced-collision injection executes and is deterministically classified.
+3. bounded payload/digest mismatch injection executes and is deterministically classified.
+4. bounded stale-lock/duplicate-activation injection executes and is deterministically classified.
+5. pre/post recovery probes for orchestrator/evidence/run-lock surfaces are green.
+6. no secret leakage signals and no unattributed spend signals appear in the injection window.
+7. injection artifact set includes per-injection cause/impact/remediation fields.
+
+S3 verification command catalog (planned, execution-time):
+| Verify ID | Command template | Purpose |
+| --- | --- | --- |
+| `M3S3-V1-S2-CONTINUITY` | read latest successful `m3_stress_s2_*/stress/m3_execution_summary.json` | enforces S2 gate continuity |
+| `M3S3-V2-INJ-COLLISION` | local forced-collision simulation with bounded retry cap | validates collision fail-closed path |
+| `M3S3-V3-INJ-DIGEST` | local malformed payload/digest mismatch simulation | validates digest mismatch classification |
+| `M3S3-V4-INJ-LOCK` | local stale-lock/duplicate activation simulation | validates lock conflict classification |
+| `M3S3-V5-PRECHECK` | `aws stepfunctions list-state-machines` + `aws s3api head-bucket` + `aws stepfunctions list-executions` | validates control surfaces before injection |
+| `M3S3-V6-RECOVERY` | repeat precheck probes post-injection | proves recovery posture after injection |
+| `M3S3-V7-INJ-CLASSIFY` | local deterministic classifier on injection receipts | enforces deterministic classification |
+| `M3S3-V8-SECRET-COST` | local secret-output scan + cost-envelope receipt checks | enforces B6/B8 fail-closed guards |
+
+S3 closure rule:
+1. `S3` closes only when:
+   - S2 continuity is present and readable,
+   - all injections are executed and deterministically classified,
+   - pre/post recovery checks pass with no new control drift,
+   - complete S3 artifact set is emitted with zero open blockers.
+
 ### 7.5 `M3-ST-S4` - Remediation and selective rerun
 Objective:
 1. close blockers with minimal-cost targeted reruns.
@@ -300,6 +328,30 @@ Execution rule:
 Pass gate:
 1. all open non-waived `M3-ST-B*` blockers closed.
 2. rerun evidence shows direct before/after improvement.
+
+S4 remediation/selective-rerun checklist:
+1. successful `S3` execution summary and blocker register are readable.
+2. open blockers are ranked by severity and closure cost.
+3. each open blocker is mapped to a targeted remediation lane or explicit hold reason.
+4. rerun scope is strictly limited to failed windows (`S1/S2/S3`) when blockers exist.
+5. if no blockers exist, explicit no-op remediation receipt is emitted.
+6. post-remediation status is captured with before/after evidence references.
+
+S4 verification command catalog (planned, execution-time):
+| Verify ID | Command template | Purpose |
+| --- | --- | --- |
+| `M3S4-V1-S3-RECEIPTS` | read latest `m3_stress_s3_*/stress/m3_execution_summary.json` + `m3_blocker_register.json` | loads remediation input set |
+| `M3S4-V2-BLOCKER-RANK` | local severity/cost ranking over open `M3-ST-B*` set | prioritizes remediation order |
+| `M3S4-V3-LANE-MAP` | local mapping `blocker -> remediation lane -> rerun scope` | enforces selective-rerun policy |
+| `M3S4-V4-RERUN-PLAN` | local generation of targeted rerun plan for failed windows only | blocks broad unscoped reruns |
+| `M3S4-V5-POST-CHECK` | read latest post-remediation stage summaries | validates closure status after remediation |
+
+S4 closure rule:
+1. `S4` closes only when:
+   - S3 blocker set is fully adjudicated,
+   - no open non-waived blockers remain, or explicit fail-closed hold is emitted,
+   - selective-rerun policy is evidenced (or no-op remediation is explicitly recorded),
+   - complete S4 artifact set is emitted.
 
 ### 7.6 `M3-ST-S5` - Closure rollup and M4 handoff recommendation
 Objective:
@@ -317,6 +369,30 @@ Pass gate:
 1. no open non-waived `M3-ST-B*` blockers.
 2. required artifacts are complete/readable.
 3. runtime/spend envelopes remain within pinned bounds.
+
+S5 closure-rollup checklist:
+1. latest successful `S0..S4` summaries and blocker registers are readable.
+2. unresolved blocker union across `S0..S4` is empty.
+3. required M3 artifact contract is complete and readable for closure stage.
+4. cumulative runtime/spend receipts remain within M3 envelope.
+5. deterministic M4 recommendation (`GO`/`NO_GO`) is produced with rationale.
+6. summary next gate aligns with `M3_STRESS_EXPECTED_NEXT_GATE_ON_PASS`.
+
+S5 verification command catalog (planned, execution-time):
+| Verify ID | Command template | Purpose |
+| --- | --- | --- |
+| `M3S5-V1-STAGE-AGG` | read latest successful `m3_stress_s{0..4}_*/stress/m3_execution_summary.json` | builds closure aggregate |
+| `M3S5-V2-BLOCKER-UNION` | read corresponding blocker registers and compute unresolved union | enforces zero unresolved blockers |
+| `M3S5-V3-ARTIFACT-READ` | local readback check for required M3 closure artifacts | validates evidence completeness |
+| `M3S5-V4-ENVELOPE` | aggregate runtime/spend receipts from `S0..S5` | validates runtime/cost bounds |
+| `M3S5-V5-M4-VERDICT` | deterministic recommendation builder from aggregate state | emits `GO/NO_GO` handoff |
+
+S5 closure rule:
+1. `S5` closes only when:
+   - successful `S0..S4` evidence packs are available and readable,
+   - no unresolved M3 blockers remain,
+   - M4 recommendation is explicit and blocker-consistent,
+   - complete S5 artifact set is emitted with pass/fail-closed verdict.
 
 ## 8) Blocker Taxonomy (M3 Stress)
 1. `M3-ST-B1`: missing or unresolved required handle/contract.
@@ -353,11 +429,15 @@ Required artifacts for each M3 stress window:
 - [x] Blocker taxonomy and evidence contract pinned.
 - [x] Stage-A artifacts emitted to run-control path.
 - [x] First managed M3 stress window executed.
+- [x] `S2` concurrency/retry contention window executed with zero open blockers.
+- [x] `S3` controlled failure-injection window executed with deterministic classification and recovery green.
+- [x] `S4` remediation/selective-rerun adjudication executed (`NO_OP` closure).
+- [x] `S5` closure rollup emitted with `M4_READY` + `GO`.
 
 ## 11) Immediate Next Actions
-1. Expand M3 runner to `S3` controlled failure-injection window (`scripts/dev_substrate/m3_stress_runner.py`).
-2. Execute `M3-ST-S3` bounded injection set and open fail-closed blockers on any non-deterministic classification/recovery result.
-3. Advance to `M3-ST-S4` only if `S3` closes with zero open blockers.
+1. Start `M4` stress planning authority and stage-0 gate expansion.
+2. Carry forward M3 closure receipts as mandatory entry evidence for M4.
+3. Keep M3 closed unless a new drift signal forces targeted reopen.
 
 ## 12) Execution Progress
 ### `M3-ST-S0` authority/handle gate execution (2026-03-03)
@@ -446,3 +526,80 @@ Required artifacts for each M3 stress window:
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s2_20260303T180542Z/stress/m3_blocker_register.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s2_20260303T180542Z/stress/m3_execution_summary.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s2_20260303T180542Z/stress/m3_decision_log.json`
+
+### `M3-ST-S3` controlled failure-injection execution (2026-03-03)
+1. Phase execution id: `m3_stress_s3_20260303T182646Z`.
+2. Runner:
+   - `python scripts/dev_substrate/m3_stress_runner.py --stage S3`
+3. Injection summary:
+   - expected injections `3`,
+   - detected/classified injections `3`,
+   - `inj_forced_collision -> DETECTED_COLLISION_RETRY_POLICY`,
+   - `inj_payload_digest_mismatch -> DETECTED_DIGEST_MISMATCH`,
+   - `inj_stale_lock_duplicate_activation -> DETECTED_STALE_LOCK_DUPLICATE`.
+4. Recovery summary:
+   - orchestrator lookup recovery `PASS`,
+   - evidence bucket recovery `PASS`.
+5. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M3_ST_S4_READY`,
+   - `open_blockers=0`,
+   - `error_rate_pct=0.0`.
+6. Artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s3_20260303T182646Z/stress/m3_stagea_findings.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s3_20260303T182646Z/stress/m3_lane_matrix.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s3_20260303T182646Z/stress/m3_probe_latency_throughput_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s3_20260303T182646Z/stress/m3_control_rail_conformance_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s3_20260303T182646Z/stress/m3_secret_safety_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s3_20260303T182646Z/stress/m3_cost_outcome_receipt.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s3_20260303T182646Z/stress/m3_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s3_20260303T182646Z/stress/m3_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s3_20260303T182646Z/stress/m3_decision_log.json`
+
+### `M3-ST-S4` remediation and selective-rerun execution (2026-03-03)
+1. Phase execution id: `m3_stress_s4_20260303T182656Z`.
+2. Runner:
+   - `python scripts/dev_substrate/m3_stress_runner.py --stage S4`
+3. Remediation summary:
+   - S3 open blocker count `0`,
+   - remediation mode `NO_OP`,
+   - rerun scope `[]`.
+4. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M3_ST_S5_READY`,
+   - `open_blockers=0`.
+5. Artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s4_20260303T182656Z/stress/m3_stagea_findings.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s4_20260303T182656Z/stress/m3_lane_matrix.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s4_20260303T182656Z/stress/m3_probe_latency_throughput_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s4_20260303T182656Z/stress/m3_control_rail_conformance_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s4_20260303T182656Z/stress/m3_secret_safety_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s4_20260303T182656Z/stress/m3_cost_outcome_receipt.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s4_20260303T182656Z/stress/m3_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s4_20260303T182656Z/stress/m3_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s4_20260303T182656Z/stress/m3_decision_log.json`
+
+### `M3-ST-S5` closure rollup and M4 handoff execution (2026-03-03)
+1. Phase execution id: `m3_stress_s5_20260303T182701Z`.
+2. Runner:
+   - `python scripts/dev_substrate/m3_stress_runner.py --stage S5`
+3. Closure summary:
+   - dependency stage count `5` (`S0..S4`),
+   - unresolved blocker union `0`,
+   - runtime aggregate `614s`,
+   - attributed spend aggregate `0.0`.
+4. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M4_READY`,
+   - `m4_readiness_recommendation=GO`,
+   - `open_blockers=0`.
+5. Artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s5_20260303T182701Z/stress/m3_stagea_findings.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s5_20260303T182701Z/stress/m3_lane_matrix.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s5_20260303T182701Z/stress/m3_probe_latency_throughput_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s5_20260303T182701Z/stress/m3_control_rail_conformance_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s5_20260303T182701Z/stress/m3_secret_safety_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s5_20260303T182701Z/stress/m3_cost_outcome_receipt.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s5_20260303T182701Z/stress/m3_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s5_20260303T182701Z/stress/m3_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s5_20260303T182701Z/stress/m3_decision_log.json`
