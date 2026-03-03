@@ -2173,3 +2173,165 @@ _As of 2026-03-03_
    - immediate next actions advanced to `S1`.
 2. `platform.stress_test.md`:
    - program next-step line updated to `M4-ST-S1`.
+
+## Entry: 2026-03-03 18:44 +00:00 - M4 `S1` planning and execution lane opened (pre-implementation)
+
+### Trigger
+1. User instructed: plan `S1` and execute it.
+
+### Decision-completeness and lane closure check
+1. Entry dependency is closed:
+   - latest successful `M4-ST-S0` exists with `next_gate=M4_ST_S1_READY`.
+2. Required lanes for S1 are explicit:
+   - startup/readiness budget checks,
+   - runtime surface readiness (stream + ingress + control),
+   - runtime-path law and correlation anchors,
+   - secret/cost envelope and artifact completeness.
+
+### Performance-first design before coding
+1. Add critical precheck before steady window:
+   - if critical startup/readiness surfaces fail, S1 fails closed immediately and does not burn the full steady window.
+2. If precheck passes:
+   - run bounded steady baseline window (`M4_STRESS_STEADY_WINDOW_MINUTES`),
+   - capture latency/error/streak metrics and startup-ready time.
+3. Cost discipline:
+   - read-only control-plane probes only,
+   - attributed spend expected `0.0`.
+
+### Known precheck signal discovered before implementation
+1. Direct probe check observed:
+   - `aws kinesisanalyticsv2 describe-application --application-name fraud-platform-dev-full-rtdl-ieg-ofp-v0 --region eu-west-2`
+   - returned `ResourceNotFoundException`.
+2. Decision:
+   - include this as an explicit S1 runtime-surface probe and let fail-closed adjudication determine blocker state.
+   - do not hide/suppress this surface.
+
+### Planned implementation
+1. Expand `M4-ST-S1` in `platform.M4.stress_test.md`:
+   - deterministic checklist,
+   - S1 command catalog,
+   - S1 closure rule.
+2. Extend `scripts/dev_substrate/m4_stress_runner.py`:
+   - add `--stage S1`,
+   - enforce S0 continuity and Stage-A carry-forward,
+   - add precheck + steady-window probes,
+   - emit full M4 S1 artifact contract and fail-closed blockers.
+3. Execute `python scripts/dev_substrate/m4_stress_runner.py --stage S1` immediately.
+4. Update program authority/logbook with execution result and next gate.
+
+### Acceptance targets
+1. `overall_pass=true`.
+2. `next_gate=M4_ST_S2_READY`.
+3. `open_blockers=0`.
+
+## Entry: 2026-03-03 18:50 +00:00 - M4 `S1` executed (fail-closed; startup/readiness blockers opened)
+
+### Implementation executed
+1. Expanded runner `scripts/dev_substrate/m4_stress_runner.py` to support `--stage S1` with:
+   - S0 continuity dependency enforcement,
+   - Stage-A artifact carry-forward into S1 output lane,
+   - critical precheck before steady-window loop,
+   - bounded steady-window probing with startup-budget tracking,
+   - fail-closed blocker mapping and full S1 artifact publication.
+2. Validation command:
+   - `python -m py_compile scripts/dev_substrate/m4_stress_runner.py`
+   - result: pass.
+3. Executed:
+   - `python scripts/dev_substrate/m4_stress_runner.py --stage S1`
+   - `phase_execution_id=m4_stress_s1_20260303T184921Z`.
+
+### Execution result
+1. Verdict:
+   - `overall_pass=false`,
+   - `next_gate=BLOCKED`,
+   - `open_blockers=3`,
+   - `probe_count=7`,
+   - `error_rate_pct=14.2857`,
+   - `startup_ready_seconds=null`.
+2. Open blocker set:
+   - `M4-ST-B2`: startup ready state not reached.
+   - `M4-ST-B3`: `s1_flink_app` failures `1`.
+   - `M4-ST-B5`: error-rate threshold breached (`14.2857%`).
+3. Direct failure evidence:
+   - `s1_flink_app` precheck probe returned `ResourceNotFoundException` for:
+     - `fraud-platform-dev-full-rtdl-ieg-ofp-v0`.
+
+### Decision and governance outcome
+1. Maintain fail-closed posture:
+   - no progression to `M4-ST-S2` while `M4-ST-B*` blockers are open.
+2. Preserve realistic-production signal:
+   - keep stream-lane probe active (no suppression), because missing runtime surface is a real readiness risk.
+3. Record routing updates:
+   - `platform.M4.stress_test.md` updated with S1 execution evidence and blocker state.
+   - `platform.stress_test.md` next-step routing changed to S1 remediation/rerun.
+
+### Evidence paths
+1. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T184921Z/stress/m4_probe_latency_throughput_snapshot.json`
+2. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T184921Z/stress/m4_control_rail_conformance_snapshot.json`
+3. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T184921Z/stress/m4_secret_safety_snapshot.json`
+4. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T184921Z/stress/m4_cost_outcome_receipt.json`
+5. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T184921Z/stress/m4_blocker_register.json`
+6. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T184921Z/stress/m4_execution_summary.json`
+7. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T184921Z/stress/m4_decision_log.json`
+
+## Entry: 2026-03-03 18:57 +00:00 - M4 S1 blocker root-cause diagnostic (Managed Flink verification vs missing app state)
+
+### Trigger
+1. User recalled prior account-verification denial history for Managed Service for Apache Flink and asked whether that could still be the active blocker cause.
+
+### Diagnostics executed (current local AWS context)
+1. `aws sts get-caller-identity`:
+   - account: `230372904534`,
+   - principal: `arn:aws:iam::230372904534:user/fraud-dev`.
+2. `aws configure get region`:
+   - `eu-west-2`.
+3. `aws kinesisanalyticsv2 describe-application --application-name fraud-platform-dev-full-rtdl-ieg-ofp-v0 --region eu-west-2`:
+   - `ResourceNotFoundException`.
+4. `aws kinesisanalyticsv2 list-applications`:
+   - `eu-west-2`: empty set.
+   - sampled additional regions (`us-east-1`, `eu-west-1`): empty set.
+   - full all-region sweep (`ec2 describe-regions` driven): `NO_APPS_FOUND`.
+
+### Decision
+1. Reclassify likely cause away from account-verification denial:
+   - API calls succeed (service access present),
+   - failure mode is resource absence (`ResourceNotFoundException`), not authorization denial.
+2. Keep S1 blocker set unchanged (`M4-ST-B2/B3/B5`) and remediation focus on runtime app existence/handle validity in the active account+region context.
+
+## Entry: 2026-03-03 19:03 +00:00 - M4 S1 remediation execution plan (stream-lane app materialization and rerun)
+
+### Trigger
+1. User directed immediate remediation execution for open `M4-ST-B2/B3/B5` blockers.
+
+### Decision-completeness closure
+1. Required authority pins are present:
+   - `AWS_REGION=eu-west-2`,
+   - `FLINK_RUNTIME_PATH_ACTIVE=MSF_MANAGED`,
+   - `FLINK_APP_RTDL_IEG_OFP_V0=fraud-platform-dev-full-rtdl-ieg-ofp-v0`,
+   - `ROLE_FLINK_EXECUTION=arn:aws:iam::230372904534:role/fraud-platform-dev-full-flink-execution`.
+2. Entry condition is explicit:
+   - no managed Flink apps currently listed in active account/region; canonical app handle resolves to non-existent resource.
+
+### Performance/cost design before execution
+1. Use single API create call on canonical app handle (no blind long loops).
+2. Use bounded readiness polling (`describe-application`) with short interval and hard timeout.
+3. Keep spend bounded:
+   - one app surface only,
+   - no multi-app probes,
+   - immediate S1 rerun to validate closure without extra windows.
+
+### Alternatives considered
+1. Repin away from `MSF_MANAGED` to EKS runtime path before trying create:
+   - rejected as first remediation step because current active pin is canonical MSF path and user requested immediate unblock.
+2. Keep runner as-is and rerun without remediation:
+   - rejected because prior failure cause is deterministic (`ResourceNotFoundException`).
+
+### Planned execution sequence
+1. Validate execution role existence and callable permission surfaces.
+2. Attempt `kinesisanalyticsv2 create-application` on canonical app handle.
+3. If create succeeds:
+   - poll for describable state within bounded timeout,
+   - rerun `python scripts/dev_substrate/m4_stress_runner.py --stage S1`.
+4. If create fails with account-gate code (`UnsupportedOperationException`) or permission errors:
+   - keep fail-closed blockers open,
+   - record explicit blocker-cause receipt and stop S2 progression.

@@ -211,6 +211,42 @@ Pass gate:
 2. no control/correlation drift versus S0 baseline.
 3. no secret leakage or unattributed spend.
 
+S1 startup/readiness verification checklist:
+1. successful `S0` continuity gate is present (`next_gate=M4_ST_S1_READY`).
+2. startup-ready time is measured and validated against `M4_STRESS_STARTUP_BUDGET_SECONDS`.
+3. required runtime surfaces are queryable at startup and during steady window:
+   - SFN orchestrator,
+   - evidence bucket,
+   - API Gateway ingress edge,
+   - Lambda ingress handler,
+   - DDB idempotency table,
+   - MSK cluster,
+   - active Flink app handle.
+4. runtime-path law remains compliant during S1 window.
+5. correlation contract anchors remain fail-closed and complete.
+6. new control/correlation issues versus `S0` are empty.
+7. instability signals are bounded (error rate + failure streak).
+
+S1 verification command catalog (planned, execution-time):
+| Verify ID | Command template | Purpose |
+| --- | --- | --- |
+| `M4S1-V1-S0-CONTINUITY` | read latest successful `m4_stress_s0_*/stress/m4_execution_summary.json` | enforces S0 dependency gate |
+| `M4S1-V2-STARTUP-BUDGET` | local timer from probe loop start to first all-pass cycle | validates startup readiness budget |
+| `M4S1-V3-SFN-LOOKUP` | `aws stepfunctions list-state-machines --region eu-west-2 --max-results 100 ...` | validates orchestrator readiness |
+| `M4S1-V4-EVIDENCE-BUCKET` | `aws s3api head-bucket --bucket <S3_EVIDENCE_BUCKET> --region eu-west-2` | validates evidence root readiness |
+| `M4S1-V5-INGRESS-EDGE` | `aws apigatewayv2 get-api`, `aws lambda get-function`, `aws dynamodb describe-table` | validates ingress edge readiness |
+| `M4S1-V6-STREAM-SURFACE` | `aws kafka describe-cluster-v2`; runtime-path aware probe: `MSF_MANAGED -> aws kinesisanalyticsv2 describe-application`, `EKS_FLINK_OPERATOR -> aws emr-containers describe-virtual-cluster + aws eks describe-cluster` | validates stream lane readiness |
+| `M4S1-V7-RUNTIME-PATH-LAW` | local checks on `PHASE_RUNTIME_PATH_*` handles | enforces single-active path posture |
+| `M4S1-V8-CORRELATION-CONTRACT` | local checks on correlation required fields/headers + fail-closed flag | enforces continuity anchors |
+| `M4S1-V9-STEADY-WINDOW` | repeated probe cycles across `M4_STRESS_STEADY_WINDOW_MINUTES` | validates sustained readiness |
+
+S1 closure rule:
+1. `S1` closes only when:
+   - S0 continuity artifacts are present/readable,
+   - startup/readiness budget checks pass,
+   - steady-window probes complete with no new control/correlation drift,
+   - complete S1 artifact set is emitted with zero open blockers.
+
 ### 7.3 `M4-ST-S2` - Steady dependency and contention window
 Objective:
 1. validate runtime-lane readiness remains stable under repeated dependency/control probing.
@@ -303,9 +339,9 @@ Required artifacts for each M4 stress window:
 - [x] First M4 managed stress window executed.
 
 ## 11) Immediate Next Actions
-1. Expand M4 runner to `S1` startup/readiness baseline window (`scripts/dev_substrate/m4_stress_runner.py`).
-2. Execute `M4-ST-S1` window and open fail-closed blockers on startup/readiness or dependency drift.
-3. Advance to `M4-ST-S2` only if `S1` closes with zero open blockers.
+1. Remediate `M4-ST-S1` fail-closed blockers with focus on stream-lane startup/readiness (`FLINK_APP_RTDL_IEG_OFP_V0` surface).
+2. Rerun `M4-ST-S1` startup/readiness baseline window and require zero open blockers.
+3. Advance to `M4-ST-S2` only after `S1` closes (`next_gate=M4_ST_S2_READY`).
 
 ## 12) Execution Progress
 ### `M4-ST-S0` authority/entry-gate closure execution (2026-03-03)
@@ -333,3 +369,40 @@ Required artifacts for each M4 stress window:
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s0_20260303T184138Z/stress/m4_blocker_register.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s0_20260303T184138Z/stress/m4_execution_summary.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s0_20260303T184138Z/stress/m4_decision_log.json`
+
+### `M4-ST-S1` startup/readiness baseline execution (2026-03-03)
+1. Phase execution id: `m4_stress_s1_20260303T184921Z`.
+2. Runner:
+   - `python scripts/dev_substrate/m4_stress_runner.py --stage S1`
+3. Verification summary:
+   - successful S0 continuity gate loaded (`m4_stress_s0_20260303T184138Z`),
+   - Stage-A artifact contract carried forward,
+   - critical precheck failed on stream-lane readiness probe:
+     - `aws kinesisanalyticsv2 describe-application --application-name fraud-platform-dev-full-rtdl-ieg-ofp-v0 --region eu-west-2`
+     - returned `ResourceNotFoundException`,
+   - steady window terminated fail-closed before startup-ready state.
+4. Verdict:
+   - `overall_pass=false`,
+   - `next_gate=BLOCKED`,
+   - `open_blockers=3`,
+   - `probe_count=7`,
+   - `error_rate_pct=14.2857`,
+   - `startup_ready_seconds=null`.
+5. Open blockers:
+   - `M4-ST-B2`: startup ready state not reached.
+   - `M4-ST-B3`: `s1_flink_app` failures `1`.
+   - `M4-ST-B5`: error-rate threshold breached (`14.2857%`).
+6. Artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T184921Z/stress/m4_stagea_findings.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T184921Z/stress/m4_lane_matrix.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T184921Z/stress/m4_probe_latency_throughput_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T184921Z/stress/m4_control_rail_conformance_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T184921Z/stress/m4_secret_safety_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T184921Z/stress/m4_cost_outcome_receipt.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T184921Z/stress/m4_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T184921Z/stress/m4_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s1_20260303T184921Z/stress/m4_decision_log.json`
+7. Next action:
+   - keep fail-closed posture,
+   - remediate stream-lane readiness handle/state,
+   - rerun `S1` before any `S2` progression.

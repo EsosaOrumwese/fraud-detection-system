@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import concurrent.futures as cf
 import json
 import re
 import subprocess
@@ -65,6 +66,7 @@ S0_ARTS = [
     "m4_execution_summary.json",
     "m4_decision_log.json",
 ]
+S1_ARTS = S0_ARTS
 
 
 def now() -> str:
@@ -171,6 +173,69 @@ def load_latest_successful_m3_s5(out_root: Path) -> dict[str, Any]:
     return {}
 
 
+def load_latest_successful_stage(out_root: Path, run_prefix: str, stage_id: str) -> dict[str, Any]:
+    runs = sorted(out_root.glob(f"{run_prefix}*/stress"))
+    for d in reversed(runs):
+        sp = d / "m4_execution_summary.json"
+        if not sp.exists():
+            continue
+        try:
+            summ = json.loads(sp.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if summ.get("overall_pass") is not True:
+            continue
+        if str(summ.get("stage_id", "")) != stage_id:
+            continue
+        return {"path": d.as_posix(), "summary": summ}
+    return {}
+
+
+def copy_stagea_from_stage(out_root: Path, out_dir: Path, run_prefix: str, stage_id: str) -> list[str]:
+    ref = load_latest_successful_stage(out_root, run_prefix, stage_id)
+    if not ref:
+        return [f"No successful {stage_id} folder found."]
+    src = Path(str(ref["path"]))
+    errs: list[str] = []
+    for n in ("m4_stagea_findings.json", "m4_lane_matrix.json"):
+        s = src / n
+        if s.exists():
+            out_dir.joinpath(n).write_bytes(s.read_bytes())
+        else:
+            errs.append(f"Missing {s.as_posix()}")
+    return errs
+
+
+def pct(vals: list[float], q: float) -> float:
+    if not vals:
+        return 0.0
+    s = sorted(vals)
+    if len(s) == 1:
+        return float(s[0])
+    k = (len(s) - 1) * q
+    lo = int(k)
+    hi = min(lo + 1, len(s) - 1)
+    if lo == hi:
+        return float(s[lo])
+    return float(s[lo] * (hi - k) + s[hi] * (k - lo))
+
+
+def load_json_safe(path: Path) -> dict[str, Any]:
+    try:
+        if path.exists():
+            return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    return {}
+
+
+def run_named_probe(probe_id: str, group: str, cmd: list[str], timeout: int = 25) -> dict[str, Any]:
+    r = run_cmd(cmd, timeout=timeout)
+    r["probe_id"] = probe_id
+    r["group"] = group
+    return r
+
+
 def build_lane_matrix() -> dict[str, Any]:
     return {
         "component_sequence": ["M4.A/B", "M4.C/D/E", "M4.F/G/H/I/J"],
@@ -220,6 +285,10 @@ def run_s0(phase_id: str, out_root: Path) -> int:
 
     region = str(h.get("AWS_REGION", "eu-west-2"))
     msk_region = str(h.get("MSK_REGION", region))
+    flink_runtime_active = str(h.get("FLINK_RUNTIME_PATH_ACTIVE", "")).strip()
+    flink_runtime_allowed = {x.strip() for x in str(h.get("FLINK_RUNTIME_PATH_ALLOWED", "")).split("|") if x.strip()}
+    if flink_runtime_active and flink_runtime_allowed and flink_runtime_active not in flink_runtime_allowed:
+        runtime_path_issues.append(f"FLINK_RUNTIME_PATH_ACTIVE drift:{flink_runtime_active}")
     sfn_name, sfn_chain = resolve_handle(h, "SFN_PLATFORM_RUN_ORCHESTRATOR_V0")
     sfn_name_s = str(sfn_name).strip() if sfn_name is not None else ""
     bucket = str(h.get("S3_EVIDENCE_BUCKET", "")).strip()
@@ -482,16 +551,478 @@ def run_s0(phase_id: str, out_root: Path) -> int:
     return 0 if summ["overall_pass"] else 2
 
 
+def run_s1(phase_id: str, out_root: Path, win_override: int | None, interval: int, conc_override: int) -> int:
+    t0 = time.perf_counter()
+    out = out_root / phase_id / "stress"
+    out.mkdir(parents=True, exist_ok=True)
+
+    txt = PLAN.read_text(encoding="utf-8") if PLAN.exists() else ""
+    pkt = parse_backtick_map(txt) if txt else {}
+    h = parse_registry(REG) if REG.exists() else {}
+    blockers: list[dict[str, Any]] = []
+
+    copy_errs = copy_stagea_from_stage(out_root, out, "m4_stress_s0_", "M4-ST-S0")
+    if copy_errs:
+        blockers.append({"id": "M4-ST-B9", "severity": "S1", "status": "OPEN", "details": {"copy_errors": copy_errs}})
+
+    s0 = load_latest_successful_stage(out_root, "m4_stress_s0_", "M4-ST-S0")
+    if not s0:
+        blockers.append({"id": "M4-ST-B9", "severity": "S1", "status": "OPEN", "details": {"missing_dependency": "successful M4 S0"}})
+
+    missing_plan_keys = [k for k in S0_PLAN_KEYS if k not in pkt]
+    missing_handles = [k for k in S0_REQ_HANDLES if k not in h]
+    placeholder_handles = [k for k in S0_REQ_HANDLES if k in h and str(h[k]).strip() in {"", "TO_PIN"}]
+    if missing_plan_keys or missing_handles or placeholder_handles:
+        blockers.append(
+            {
+                "id": "M4-ST-B1",
+                "severity": "S1",
+                "status": "OPEN",
+                "details": {
+                    "missing_plan_keys": missing_plan_keys,
+                    "missing_handles": missing_handles,
+                    "placeholder_handles": placeholder_handles,
+                },
+            }
+        )
+
+    runtime_path_issues: list[str] = []
+    if h.get("PHASE_RUNTIME_PATH_MODE") != "single_active_path_per_phase_run":
+        runtime_path_issues.append("PHASE_RUNTIME_PATH_MODE drift")
+    if h.get("PHASE_RUNTIME_PATH_PIN_REQUIRED") is not True:
+        runtime_path_issues.append("PHASE_RUNTIME_PATH_PIN_REQUIRED not true")
+    if h.get("RUNTIME_PATH_SWITCH_IN_PHASE_ALLOWED") is not False:
+        runtime_path_issues.append("RUNTIME_PATH_SWITCH_IN_PHASE_ALLOWED not false")
+
+    corr_issues: list[str] = []
+    req_corr_fields = {"platform_run_id", "scenario_run_id", "phase_id", "event_id", "runtime_lane", "trace_id"}
+    req_corr_headers = {"traceparent", "tracestate", "x-fp-platform-run-id", "x-fp-phase-id", "x-fp-event-id"}
+    corr_fields = [x.strip() for x in str(h.get("CORRELATION_REQUIRED_FIELDS", "")).split(",") if x.strip()]
+    corr_headers = [x.strip() for x in str(h.get("CORRELATION_HEADERS_REQUIRED", "")).split(",") if x.strip()]
+    miss_fields = sorted(req_corr_fields - set(corr_fields))
+    miss_headers = sorted(req_corr_headers - set(corr_headers))
+    if miss_fields:
+        corr_issues.append(f"missing correlation required fields: {','.join(miss_fields)}")
+    if miss_headers:
+        corr_issues.append(f"missing correlation required headers: {','.join(miss_headers)}")
+    if h.get("CORRELATION_ENFORCEMENT_FAIL_CLOSED") is not True:
+        corr_issues.append("CORRELATION_ENFORCEMENT_FAIL_CLOSED not true")
+
+    region = str(h.get("AWS_REGION", "eu-west-2"))
+    msk_region = str(h.get("MSK_REGION", region))
+    flink_runtime_active = str(h.get("FLINK_RUNTIME_PATH_ACTIVE", "")).strip()
+    flink_runtime_allowed = {x.strip() for x in str(h.get("FLINK_RUNTIME_PATH_ALLOWED", "")).split("|") if x.strip()}
+    if flink_runtime_active and flink_runtime_allowed and flink_runtime_active not in flink_runtime_allowed:
+        runtime_path_issues.append(f"FLINK_RUNTIME_PATH_ACTIVE drift:{flink_runtime_active}")
+    sfn_name, sfn_chain = resolve_handle(h, "SFN_PLATFORM_RUN_ORCHESTRATOR_V0")
+    sfn_name_s = str(sfn_name).strip() if sfn_name is not None else ""
+    bucket = str(h.get("S3_EVIDENCE_BUCKET", "")).strip()
+    api_id = str(h.get("APIGW_IG_API_ID", "")).strip()
+    lambda_name = str(h.get("LAMBDA_IG_HANDLER_NAME", "")).strip()
+    ddb_table = str(h.get("DDB_IG_IDEMPOTENCY_TABLE", "")).strip()
+    msk_arn = str(h.get("MSK_CLUSTER_ARN", "")).strip()
+    flink_app = str(h.get("FLINK_APP_RTDL_IEG_OFP_V0", "")).strip()
+    emr_vc_id = str(h.get("EMR_EKS_VIRTUAL_CLUSTER_ID", "")).strip()
+    emr_vc_name = str(h.get("EMR_EKS_VIRTUAL_CLUSTER_NAME", "")).strip()
+    eks_cluster = str(h.get("EKS_CLUSTER_NAME", "")).strip()
+
+    probes: list[dict[str, Any]] = [
+        {
+            "id": "s1_sfn_lookup",
+            "group": "control",
+            "cmd": [
+                "aws",
+                "stepfunctions",
+                "list-state-machines",
+                "--max-results",
+                "100",
+                "--region",
+                region,
+                "--query",
+                f"stateMachines[?name=='{sfn_name_s}'].stateMachineArn | [0]",
+                "--output",
+                "text",
+            ],
+            "timeout": 30,
+            "required": bool(sfn_name_s),
+            "missing_msg": "missing SFN handle",
+        },
+        {
+            "id": "s1_evidence_bucket",
+            "group": "control",
+            "cmd": ["aws", "s3api", "head-bucket", "--bucket", bucket, "--region", region],
+            "timeout": 20,
+            "required": bool(bucket),
+            "missing_msg": "missing S3_EVIDENCE_BUCKET handle",
+        },
+        {
+            "id": "s1_api_gateway",
+            "group": "runtime",
+            "cmd": ["aws", "apigatewayv2", "get-api", "--api-id", api_id, "--region", region, "--query", "ApiId", "--output", "text"],
+            "timeout": 25,
+            "required": bool(api_id),
+            "missing_msg": "missing APIGW_IG_API_ID handle",
+        },
+        {
+            "id": "s1_lambda",
+            "group": "runtime",
+            "cmd": ["aws", "lambda", "get-function", "--function-name", lambda_name, "--region", region, "--query", "Configuration.FunctionName", "--output", "text"],
+            "timeout": 25,
+            "required": bool(lambda_name),
+            "missing_msg": "missing LAMBDA_IG_HANDLER_NAME handle",
+        },
+        {
+            "id": "s1_ddb",
+            "group": "runtime",
+            "cmd": ["aws", "dynamodb", "describe-table", "--table-name", ddb_table, "--region", region, "--query", "Table.TableStatus", "--output", "text"],
+            "timeout": 25,
+            "required": bool(ddb_table),
+            "missing_msg": "missing DDB_IG_IDEMPOTENCY_TABLE handle",
+        },
+        {
+            "id": "s1_msk",
+            "group": "runtime",
+            "cmd": ["aws", "kafka", "describe-cluster-v2", "--cluster-arn", msk_arn, "--region", msk_region, "--query", "ClusterInfo.State", "--output", "text"],
+            "timeout": 30,
+            "required": bool(msk_arn),
+            "missing_msg": "missing MSK_CLUSTER_ARN handle",
+        },
+    ]
+    if flink_runtime_active == "MSF_MANAGED":
+        probes.append(
+            {
+                "id": "s1_flink_msf_app",
+                "group": "runtime",
+                "cmd": ["aws", "kinesisanalyticsv2", "describe-application", "--application-name", flink_app, "--region", region, "--query", "ApplicationDetail.ApplicationStatus", "--output", "text"],
+                "timeout": 30,
+                "required": bool(flink_app) and flink_app not in {"legacy_deferred_not_active", "LEGACY_DEFERRED_NOT_ACTIVE"},
+                "missing_msg": "missing/legacy FLINK_APP_RTDL_IEG_OFP_V0 handle",
+            }
+        )
+    elif flink_runtime_active == "EKS_FLINK_OPERATOR":
+        probes.append(
+            {
+                "id": "s1_flink_eks_virtual_cluster",
+                "group": "runtime",
+                "cmd": ["aws", "emr-containers", "describe-virtual-cluster", "--id", emr_vc_id, "--region", region, "--query", "virtualCluster.state", "--output", "text"],
+                "timeout": 30,
+                "required": bool(emr_vc_id),
+                "missing_msg": "missing EMR_EKS_VIRTUAL_CLUSTER_ID handle",
+            }
+        )
+        probes.append(
+            {
+                "id": "s1_flink_eks_cluster",
+                "group": "runtime",
+                "cmd": ["aws", "eks", "describe-cluster", "--name", eks_cluster, "--region", region, "--query", "cluster.status", "--output", "text"],
+                "timeout": 30,
+                "required": bool(eks_cluster),
+                "missing_msg": "missing EKS_CLUSTER_NAME handle",
+            }
+        )
+        probes.append(
+            {
+                "id": "s1_flink_eks_job_surface",
+                "group": "runtime",
+                "cmd": ["aws", "emr-containers", "list-job-runs", "--virtual-cluster-id", emr_vc_id, "--region", region, "--max-results", "1", "--query", "jobRuns[0].id", "--output", "text"],
+                "timeout": 30,
+                "required": bool(emr_vc_id),
+                "missing_msg": "missing EMR_EKS_VIRTUAL_CLUSTER_ID handle",
+            }
+        )
+    else:
+        runtime_path_issues.append(f"unsupported FLINK_RUNTIME_PATH_ACTIVE:{flink_runtime_active or 'UNSET'}")
+
+    rows: list[dict[str, Any]] = []
+    tstart = time.monotonic()
+    cycles = 0
+    startup_ready_seconds: int | None = None
+    startup_budget_seconds = int(pkt.get("M4_STRESS_STARTUP_BUDGET_SECONDS", 900))
+    precheck_issues: list[str] = []
+    precheck_fail_closed = False
+
+    def execute_cycle(cycle_idx: int, precheck: bool = False) -> tuple[list[dict[str, Any]], bool]:
+        cycle_rows: list[dict[str, Any]] = []
+        all_pass = True
+        with cf.ThreadPoolExecutor(max_workers=max(1, min(conc_override if conc_override > 0 else len(probes), len(probes)))) as ex:
+            futs = []
+            for p in probes:
+                if p["required"]:
+                    futs.append(ex.submit(run_named_probe, str(p["id"]), str(p["group"]), list(p["cmd"]), int(p["timeout"])))
+                else:
+                    cycle_rows.append(
+                        {
+                            "probe_id": str(p["id"]),
+                            "group": str(p["group"]),
+                            "command": " ".join(list(p["cmd"])),
+                            "exit_code": 1,
+                            "status": "FAIL",
+                            "duration_ms": 0.0,
+                            "stdout": "",
+                            "stderr": str(p["missing_msg"]),
+                            "started_at_utc": now(),
+                            "ended_at_utc": now(),
+                            "cycle_index": cycle_idx,
+                            "precheck": precheck,
+                        }
+                    )
+                    all_pass = False
+            for f in cf.as_completed(futs):
+                rr = f.result()
+                rr["cycle_index"] = cycle_idx
+                rr["precheck"] = precheck
+                cycle_rows.append(rr)
+                if str(rr.get("status", "FAIL")) != "PASS":
+                    all_pass = False
+        return cycle_rows, all_pass
+
+    cycles += 1
+    pre_rows, pre_all_pass = execute_cycle(cycles, precheck=True)
+    rows.extend(pre_rows)
+    if pre_all_pass:
+        startup_ready_seconds = max(1, int(round(time.monotonic() - tstart)))
+    else:
+        precheck_fail_closed = True
+        precheck_issues.append("critical precheck failed before steady window")
+        if startup_ready_seconds is None:
+            precheck_issues.append("startup ready state not reached")
+
+    win = int(win_override) if win_override is not None else int(float(pkt.get("M4_STRESS_STEADY_WINDOW_MINUTES", 10)) * 60)
+    win = max(60, win)
+    cycle_interval = max(1, interval)
+    if not precheck_fail_closed:
+        while time.monotonic() - tstart < win:
+            cycles += 1
+            c0 = time.monotonic()
+            cycle_rows, all_pass = execute_cycle(cycles, precheck=False)
+            rows.extend(cycle_rows)
+            if all_pass and startup_ready_seconds is None:
+                startup_ready_seconds = max(1, int(round(time.monotonic() - tstart)))
+            sleep_for = min(max(0.0, cycle_interval - (time.monotonic() - c0)), max(0.0, win - (time.monotonic() - tstart)))
+            if sleep_for > 0:
+                time.sleep(sleep_for)
+
+    startup_issues: list[str] = []
+    if startup_ready_seconds is None:
+        startup_issues.append("startup ready state not reached")
+    elif startup_ready_seconds > startup_budget_seconds:
+        startup_issues.append(f"startup budget exceeded: ready={startup_ready_seconds}s budget={startup_budget_seconds}s")
+
+    control_issues: list[str] = []
+    if str(h.get("SR_READY_COMMIT_AUTHORITY", "")) != "step_functions_only":
+        control_issues.append("SR_READY_COMMIT_AUTHORITY drift")
+    control_issues.extend(runtime_path_issues)
+    control_issues.extend(corr_issues)
+    control_issues.extend(precheck_issues)
+    fail_counts: dict[str, int] = {}
+    for r in rows:
+        pid = str(r.get("probe_id", ""))
+        if str(r.get("status", "FAIL")) != "PASS":
+            fail_counts[pid] = fail_counts.get(pid, 0) + 1
+    for pid, cnt in sorted(fail_counts.items()):
+        control_issues.append(f"{pid} failures: {cnt}")
+
+    s0_path = Path(str(s0.get("path", ""))) if s0 else Path("")
+    s0_ctrl = load_json_safe(s0_path / "m4_control_rail_conformance_snapshot.json") if s0 else {}
+    s0_issues = [str(x) for x in s0_ctrl.get("issues", [])] if s0_ctrl else []
+    new_ci = sorted(set(control_issues) - set(s0_issues))
+
+    total = len(rows)
+    fails = [r for r in rows if str(r.get("status", "FAIL")) != "PASS"]
+    er = round((len(fails) / total) * 100.0, 4) if total else 100.0
+    lat = [float(r.get("duration_ms", 0.0)) for r in rows]
+    cycle_failed: dict[int, bool] = {}
+    for r in rows:
+        idx = int(r.get("cycle_index", 0))
+        if idx not in cycle_failed:
+            cycle_failed[idx] = False
+        if str(r.get("status", "FAIL")) != "PASS":
+            cycle_failed[idx] = True
+    cur_streak = 0
+    max_streak = 0
+    for idx in sorted(cycle_failed):
+        if cycle_failed[idx]:
+            cur_streak += 1
+            max_streak = max(max_streak, cur_streak)
+        else:
+            cur_streak = 0
+
+    if startup_issues:
+        blockers.append({"id": "M4-ST-B2", "severity": "S1", "status": "OPEN", "details": {"issues": startup_issues + runtime_path_issues}})
+    b3_markers = ["s1_sfn_lookup", "s1_evidence_bucket", "s1_api_gateway", "s1_lambda", "s1_ddb", "s1_msk", "s1_flink_", "SR_READY_COMMIT_AUTHORITY"]
+    b3_issues = [x for x in new_ci if any(y in x for y in b3_markers)]
+    if b3_issues:
+        blockers.append({"id": "M4-ST-B3", "severity": "S1", "status": "OPEN", "details": {"issues": sorted(set(b3_issues))}})
+    b4_issues = [x for x in new_ci if "correlation" in x]
+    if b4_issues:
+        blockers.append({"id": "M4-ST-B4", "severity": "S1", "status": "OPEN", "details": {"issues": sorted(set(b4_issues))}})
+    b5_details: dict[str, Any] = {}
+    if er > 2.0:
+        b5_details["error_rate_pct"] = er
+    if max_streak > 3:
+        b5_details["max_consecutive_failure_cycles"] = max_streak
+    if b5_details:
+        blockers.append({"id": "M4-ST-B5", "severity": "S1", "status": "OPEN", "details": b5_details})
+
+    wdec = any("--with-decryption" in str(r.get("command", "")) for r in rows)
+    qval = any("Parameter.Value" in str(r.get("command", "")) or "SecretString" in str(r.get("command", "")) for r in rows)
+    sus: list[str] = []
+    rx = re.compile(r"(AKIA[0-9A-Z]{16}|BEGIN [A-Z ]*PRIVATE KEY|SECRET_ACCESS_KEY)")
+    for r in rows:
+        if rx.search((str(r.get("stdout", "")) + " " + str(r.get("stderr", ""))).strip()):
+            sus.append(str(r.get("probe_id", "")))
+    leak = wdec or qval or bool(sus)
+    if leak:
+        blockers.append({"id": "M4-ST-B6", "severity": "S1", "status": "OPEN", "details": {"issues": ["plaintext leakage signal detected"]}})
+
+    dur_s = max(1, int(round(time.monotonic() - tstart)))
+    max_sp = float(pkt.get("M4_STRESS_MAX_SPEND_USD", 40))
+    cost_within = True
+    if not cost_within:
+        blockers.append({"id": "M4-ST-B8", "severity": "S1", "status": "OPEN"})
+
+    probe = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M4-ST-S1",
+        "window_seconds_configured": win,
+        "window_seconds_observed": dur_s,
+        "cycle_count": cycles,
+        "probe_count": total,
+        "failure_count": len(fails),
+        "error_rate_pct": er,
+        "probe_eps_observed": round(total / max(1.0, float(dur_s)), 4),
+        "latency_ms_p50": round(pct(lat, 0.5), 3),
+        "latency_ms_p95": round(pct(lat, 0.95), 3),
+        "latency_ms_p99": round(pct(lat, 0.99), 3),
+        "sample_failures": fails[:10],
+        "max_consecutive_failure_cycles": max_streak,
+        "startup_ready_seconds": startup_ready_seconds,
+        "startup_budget_seconds": startup_budget_seconds,
+        "startup_issues": startup_issues,
+        "s0_baseline_phase_execution_id": s0.get("summary", {}).get("phase_execution_id", "") if s0 else "",
+        "precheck_fail_closed": precheck_fail_closed,
+        "sfn_handle_chain": sfn_chain,
+        "sfn_name_resolved": sfn_name_s,
+    }
+    dumpj(out / "m4_probe_latency_throughput_snapshot.json", probe)
+
+    ctrl = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M4-ST-S1",
+        "overall_pass": len(new_ci) == 0 and len(startup_issues) == 0,
+        "issues": control_issues,
+        "s0_baseline_issues": s0_issues,
+        "new_issues_vs_s0": new_ci,
+        "s0_dependency_summary": s0.get("summary", {}) if s0 else {},
+        "probe_failure_counts": fail_counts,
+        "sfn_handle_chain": sfn_chain,
+    }
+    dumpj(out / "m4_control_rail_conformance_snapshot.json", ctrl)
+
+    sec = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M4-ST-S1",
+        "overall_pass": not leak,
+        "secret_probe_count": 0,
+        "secret_failure_count": 0,
+        "with_decryption_used": wdec,
+        "queried_value_directly": qval,
+        "suspicious_output_probe_ids": sus,
+        "plaintext_leakage_detected": leak,
+    }
+    dumpj(out / "m4_secret_safety_snapshot.json", sec)
+
+    cost = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M4-ST-S1",
+        "window_seconds": dur_s,
+        "estimated_api_call_count": total,
+        "attributed_spend_usd": 0.0,
+        "unattributed_spend_detected": False,
+        "max_spend_usd": max_sp,
+        "within_envelope": cost_within,
+        "method": "readonly_startup_baseline_probe_v0",
+    }
+    dumpj(out / "m4_cost_outcome_receipt.json", cost)
+
+    dlog = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M4-ST-S1",
+        "decisions": [
+            "Validated S0 continuity and carried Stage-A artifacts forward.",
+            "Executed critical precheck before steady startup/readiness window.",
+            "Executed steady-window runtime readiness probes across active surfaces.",
+            "Compared S1 control posture against latest successful S0 baseline.",
+            "Applied fail-closed blocker mapping for M4 S1.",
+        ],
+    }
+    dumpj(out / "m4_decision_log.json", dlog)
+
+    bref = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M4-ST-S1",
+        "overall_pass": len(blockers) == 0,
+        "open_blocker_count": len(blockers),
+        "blockers": blockers,
+    }
+    summ = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M4-ST-S1",
+        "overall_pass": len(blockers) == 0,
+        "next_gate": "M4_ST_S2_READY" if len(blockers) == 0 else "BLOCKED",
+        "required_artifacts": S1_ARTS,
+        "probe_count": total,
+        "error_rate_pct": er,
+        "startup_ready_seconds": startup_ready_seconds,
+        "startup_budget_seconds": startup_budget_seconds,
+    }
+    dumpj(out / "m4_blocker_register.json", bref)
+    dumpj(out / "m4_execution_summary.json", summ)
+
+    miss = [n for n in S1_ARTS if not (out / n).exists()]
+    if miss:
+        blockers.append({"id": "M4-ST-B9", "severity": "S1", "status": "OPEN", "details": {"missing_artifacts": miss}})
+        bref["overall_pass"] = False
+        bref["open_blocker_count"] = len(blockers)
+        bref["blockers"] = blockers
+        summ["overall_pass"] = False
+        summ["next_gate"] = "BLOCKED"
+        dumpj(out / "m4_blocker_register.json", bref)
+        dumpj(out / "m4_execution_summary.json", summ)
+
+    print(f"[m4_s1] phase_execution_id={phase_id}")
+    print(f"[m4_s1] output_dir={out.as_posix()}")
+    print(f"[m4_s1] overall_pass={summ['overall_pass']}")
+    print(f"[m4_s1] next_gate={summ['next_gate']}")
+    print(f"[m4_s1] probe_count={total}")
+    print(f"[m4_s1] error_rate_pct={er}")
+    print(f"[m4_s1] startup_ready_seconds={startup_ready_seconds}")
+    print(f"[m4_s1] open_blockers={bref['open_blocker_count']}")
+    return 0 if summ["overall_pass"] else 2
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="M4 stress runner")
-    ap.add_argument("--stage", default="S0", choices=["S0"])
+    ap.add_argument("--stage", default="S0", choices=["S0", "S1"])
     ap.add_argument("--phase-execution-id", default="")
     ap.add_argument("--output-root", default=str(OUT_ROOT))
+    ap.add_argument("--window-seconds", type=int, default=None)
+    ap.add_argument("--interval-seconds", type=int, default=10)
+    ap.add_argument("--probe-concurrency", type=int, default=0)
     a = ap.parse_args()
-    pfx = {"S0": "m4_stress_s0"}[a.stage]
+    pfx = {"S0": "m4_stress_s0", "S1": "m4_stress_s1"}[a.stage]
     pid = a.phase_execution_id.strip() or f"{pfx}_{tok()}"
     root = Path(a.output_root)
-    return run_s0(pid, root)
+    if a.stage == "S0":
+        return run_s0(pid, root)
+    return run_s1(pid, root, a.window_seconds, a.interval_seconds, a.probe_concurrency)
 
 
 if __name__ == "__main__":
