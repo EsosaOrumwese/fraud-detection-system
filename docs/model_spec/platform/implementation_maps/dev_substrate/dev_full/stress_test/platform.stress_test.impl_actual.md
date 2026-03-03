@@ -1799,3 +1799,108 @@ _As of 2026-03-03_
    - immediate next actions advanced to `S2`.
 2. `platform.stress_test.md`:
    - program next-step line updated to `M3-ST-S2`.
+
+## Entry: 2026-03-03 18:00 +00:00 - M3 `S2` planning and execution lane opened (pre-implementation)
+
+### Trigger
+1. User instructed proceeding to `S2` planning and execution.
+
+### Decision-completeness and lane closure check
+1. Dependency gate:
+   - latest successful `M3-ST-S1` exists with `next_gate=M3_ST_S2_READY`.
+2. Required authority remains pinned:
+   - M3 stress handle packet and blocker taxonomy in `platform.M3.stress_test.md`.
+3. Capability lanes exposed for `S2`:
+   - identity/determinism continuation (`run_id`, digest, scenario),
+   - orchestrator/lock contention and duplicate activation behavior,
+   - correlation isolation and no cross-run mixing posture,
+   - secret safety, cost envelope, artifact completeness.
+
+### Performance-first and cost-first design (before coding)
+1. Runtime model:
+   - bounded contention window only (`M3_STRESS_WINDOW_MINUTES`) with read-only probes,
+   - avoid long/expensive active workflow executions in this step.
+2. Concurrency model:
+   - run deterministic contention probes with worker fan-out equal to `M3_STRESS_BURST_CONCURRENT_RUNS`,
+   - compute cycle failure streaks and error rates to detect instability quickly.
+3. Data structures:
+   - in-memory probe rows list with per-cycle annotations (`cycle_index`, `duplicate_activation`, `near_simultaneous_collision`),
+   - baseline comparison against latest successful S1 control/latency snapshots.
+4. Cost model:
+   - AWS control-plane query only (S3 + Step Functions),
+   - attributed spend expected `0.0` with explicit `M3-ST-B8` opening on any unattributed spend flag.
+5. Rejected alternative:
+   - launching real concurrent Step Functions executions for contention.
+   - rejected for now due avoidable cost/risk at this gate; S2 objective can be met through deterministic lock/collision/control probe surfaces.
+
+### Planned implementation
+1. Expand `platform.M3.stress_test.md` S2 section with execution-grade checklist, command catalog, and closure rule.
+2. Extend `scripts/dev_substrate/m3_stress_runner.py` with `--stage S2`:
+   - enforce successful S1 dependency and continuity artifact carry-forward,
+   - execute burst-cycle probe matrix with duplicate/near-simultaneous run-id attempts,
+   - compare control issues and latency posture against latest successful S1 baseline,
+   - emit full M3 artifact contract and fail-closed blocker mapping (`B2/B3/B4/B6/B7/B8/B9` as applicable).
+3. Execute `python scripts/dev_substrate/m3_stress_runner.py --stage S2` immediately.
+4. Update program authorities/logbook with execution outcome and next gate (`M3_ST_S3_READY` or `BLOCKED`).
+
+### Acceptance targets
+1. `overall_pass=true`.
+2. `next_gate=M3_ST_S3_READY`.
+3. `open_blockers=0`.
+
+## Entry: 2026-03-03 18:16 +00:00 - M3 `S2` executed (pass, zero blockers)
+
+### Implemented changes
+1. Expanded `M3-ST-S2` section in `platform.M3.stress_test.md`:
+   - deterministic/concurrency verification checklist,
+   - command catalog (`M3S2-V1..V8`),
+   - explicit S2 closure rule.
+2. Extended runner `scripts/dev_substrate/m3_stress_runner.py` with `--stage S2`:
+   - enforces successful `S1` dependency,
+   - carries Stage-A continuity artifacts into S2 output pack,
+   - runs bounded burst contention probes (duplicate + near-simultaneous run-id candidate sequences),
+   - runs per-cycle orchestrator/evidence/run-lock control checks,
+   - compares S2 control issues against latest successful S1 baseline,
+   - emits full M3 artifact contract with fail-closed blocker mapping (`B1/B2/B3/B4/B6/B7/B8/B9`).
+
+### Executed command
+1. `python scripts/dev_substrate/m3_stress_runner.py --stage S2`
+2. Phase execution id:
+   - `m3_stress_s2_20260303T180542Z`.
+
+### Execution outcome
+1. Window/concurrency:
+   - `window_seconds_observed=600`,
+   - `cycle_count=106`,
+   - `probe_count=957`,
+   - `contention_probe_count=636` (`duplicate=318`, `near_simultaneous=318`).
+2. Stability:
+   - `error_rate_pct=0.0`,
+   - `max_consecutive_failure_cycles=0`,
+   - `collision_unresolved_count=0`,
+   - `duplicate_inconsistent_cycle_count=0`,
+   - `lock_conflict_cycle_count=0`.
+3. Control/correlation:
+   - precheck fail-closed was `false`,
+   - `new_issues_vs_s1=[]`.
+4. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M3_ST_S3_READY`,
+   - `open_blockers=0`.
+
+### Evidence paths
+1. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s2_20260303T180542Z/stress/m3_probe_latency_throughput_snapshot.json`
+2. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s2_20260303T180542Z/stress/m3_control_rail_conformance_snapshot.json`
+3. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s2_20260303T180542Z/stress/m3_secret_safety_snapshot.json`
+4. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s2_20260303T180542Z/stress/m3_cost_outcome_receipt.json`
+5. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s2_20260303T180542Z/stress/m3_blocker_register.json`
+6. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s2_20260303T180542Z/stress/m3_execution_summary.json`
+7. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s2_20260303T180542Z/stress/m3_decision_log.json`
+
+### Authority updates applied
+1. `platform.M3.stress_test.md`:
+   - S2 section expanded to execution-grade details,
+   - S2 execution progress appended,
+   - immediate next actions advanced to `S3`.
+2. `platform.stress_test.md`:
+   - program next-step line updated to `M3-ST-S3`.

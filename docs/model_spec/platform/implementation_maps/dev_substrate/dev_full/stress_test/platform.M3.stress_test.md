@@ -243,6 +243,36 @@ Pass gate:
 3. no new control/correlation drift vs `S1`.
 4. no secret leakage and no unattributed spend.
 
+S2 deterministic/concurrency verification checklist:
+1. successful `S1` continuity gate is present (`next_gate=M3_ST_S2_READY`).
+2. burst contention runs with `M3_STRESS_BURST_CONCURRENT_RUNS`.
+3. duplicate activation probes and near-simultaneous activation probes both execute.
+4. collision retry policy enforces `M3_STRESS_RUN_ID_COLLISION_RETRY_CAP`.
+5. run-lock query succeeds under contention (`list-executions --status-filter RUNNING`).
+6. correlation contract remains fail-closed (`CORRELATION_REQUIRED_FIELDS`, headers, and enforcement flag).
+7. new control/correlation issues versus successful `S1` baseline are empty.
+8. contention instability stays bounded (error-rate/failure-streak within policy envelope).
+
+S2 verification command catalog (planned, execution-time):
+| Verify ID | Command template | Purpose |
+| --- | --- | --- |
+| `M3S2-V1-S1-CONTINUITY` | read latest successful `m3_stress_s1_*/stress/m3_execution_summary.json` | enforces S1 gate continuity |
+| `M3S2-V2-COLLISION-BURST` | concurrent `aws s3api list-objects-v2 --bucket <S3_EVIDENCE_BUCKET> --prefix evidence/runs/<candidate>/ --max-keys 1` | executes contention collision probes |
+| `M3S2-V3-SFN-LOOKUP` | `aws stepfunctions list-state-machines --region eu-west-2 --max-results 100 ...` | verifies orchestrator lookup under burst window |
+| `M3S2-V4-RUN-LOCK` | `aws stepfunctions list-executions --state-machine-arn <resolved_arn> --status-filter RUNNING --max-results 100 --region eu-west-2` | checks run-lock posture under contention |
+| `M3S2-V5-EVIDENCE-BUCKET` | `aws s3api head-bucket --bucket <S3_EVIDENCE_BUCKET> --region eu-west-2` | validates durable evidence root in-window |
+| `M3S2-V6-CORRELATION-CONTRACT` | local contract check on `CORRELATION_REQUIRED_FIELDS`, `CORRELATION_HEADERS_REQUIRED`, `CORRELATION_ENFORCEMENT_FAIL_CLOSED` | enforces cross-run isolation anchors |
+| `M3S2-V7-S1-COMPARE` | compare S2 control issues + p95 against latest successful S1 snapshots | detects new drift under contention |
+| `M3S2-V8-SECRET-COST` | local secret-output scan + cost-envelope receipt checks | enforces B6/B8 fail-closed guards |
+
+S2 closure rule:
+1. `S2` closes only when:
+   - S1 continuity is present and readable,
+   - contention probes complete with deterministic retry behavior,
+   - no new control/correlation drift appears versus S1 baseline,
+   - run-lock and evidence-root probes pass throughout contention window,
+   - complete S2 artifact set is emitted with zero open blockers.
+
 ### 7.4 `M3-ST-S3` - Controlled failure-injection window
 Objective:
 1. prove deterministic fault detection and fail-closed recovery behavior.
@@ -325,9 +355,9 @@ Required artifacts for each M3 stress window:
 - [x] First managed M3 stress window executed.
 
 ## 11) Immediate Next Actions
-1. Expand M3 runner to `S2` concurrency/retry contention window (`scripts/dev_substrate/m3_stress_runner.py`).
-2. Execute `M3-ST-S2` window and open fail-closed blockers on any lock/correlation drift.
-3. Advance to `M3-ST-S3` only if `S2` closes with zero open blockers.
+1. Expand M3 runner to `S3` controlled failure-injection window (`scripts/dev_substrate/m3_stress_runner.py`).
+2. Execute `M3-ST-S3` bounded injection set and open fail-closed blockers on any non-deterministic classification/recovery result.
+3. Advance to `M3-ST-S4` only if `S3` closes with zero open blockers.
 
 ## 12) Execution Progress
 ### `M3-ST-S0` authority/handle gate execution (2026-03-03)
@@ -382,3 +412,37 @@ Required artifacts for each M3 stress window:
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s1_20260303T175534Z/stress/m3_blocker_register.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s1_20260303T175534Z/stress/m3_execution_summary.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s1_20260303T175534Z/stress/m3_decision_log.json`
+
+### `M3-ST-S2` concurrency/retry contention execution (2026-03-03)
+1. Phase execution id: `m3_stress_s2_20260303T180542Z`.
+2. Runner:
+   - `python scripts/dev_substrate/m3_stress_runner.py --stage S2`
+3. Contention summary:
+   - configured window `600s`, observed `600s`,
+   - burst concurrency `6`,
+   - cycle count `106`,
+   - contention probes `636` (`duplicate=318`, `near_simultaneous=318`),
+   - retries used `0`,
+   - collision unresolved count `0`,
+   - duplicate inconsistency cycles `0`,
+   - lock-conflict cycles `0`.
+4. Control summary:
+   - precheck fail-closed `false`,
+   - orchestrator/evidence/run-lock prechecks `PASS`,
+   - `new_issues_vs_s1=[]`.
+5. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M3_ST_S3_READY`,
+   - `open_blockers=0`,
+   - `error_rate_pct=0.0`,
+   - `max_consecutive_failure_cycles=0`.
+6. Artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s2_20260303T180542Z/stress/m3_stagea_findings.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s2_20260303T180542Z/stress/m3_lane_matrix.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s2_20260303T180542Z/stress/m3_probe_latency_throughput_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s2_20260303T180542Z/stress/m3_control_rail_conformance_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s2_20260303T180542Z/stress/m3_secret_safety_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s2_20260303T180542Z/stress/m3_cost_outcome_receipt.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s2_20260303T180542Z/stress/m3_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s2_20260303T180542Z/stress/m3_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m3_stress_s2_20260303T180542Z/stress/m3_decision_log.json`
