@@ -224,12 +224,12 @@ Required artifacts for each M5 parent stress stage:
 - [x] Parent orchestration runbook (`S0..S3`) pinned.
 - [x] M5 parent S0 executed with blocker-free entry closure.
 - [x] P3 and P4 orchestration gates validated from stress evidence.
-- [ ] M5 closure rollup emitted with deterministic `M6_READY` recommendation.
+- [x] M5 closure rollup emitted with deterministic `M6_READY` recommendation.
 
 ## 11) Immediate Next Actions
-1. Execute parent `M5-ST-S1` orchestration gate using latest P3 closure receipt.
-2. Execute parent `M5-ST-S2` orchestration gate using latest P4 closure receipt (`ADVANCE_TO_M6`).
-3. Keep targeted-rerun posture: rerun only failed stage windows (`M5P3` or `M5P4`) if new blockers open.
+1. Treat M5 as closure-complete and hand off to M6 planning/entry authority.
+2. Preserve targeted-rerun posture: rerun only failed M5 stage windows if new blockers appear.
+3. Use `M5-ST-S3` closure receipt (`recommendation=GO`, `next_gate=M6_READY`) as authoritative M6 entry dependency.
 
 ## 12) Execution Progress
 ### `M5-ST-S0` authority/entry-gate closure execution (2026-03-03)
@@ -330,4 +330,58 @@ Required artifacts for each M5 parent stress stage:
    - `next_gate=ADVANCE_TO_M6`,
    - `open_blockers=0`.
 2. Parent routing decision:
-   - proceed to parent orchestration gates `M5-ST-S1` then `M5-ST-S2`.
+   - parent orchestration gates `M5-ST-S1` and `M5-ST-S2` executed; parent closure progressed to `M5-ST-S3`.
+
+### `M5-ST-S1` P3 orchestration gate execution (2026-03-04)
+1. Phase execution id: `m5_stress_s1_20260304T010230Z`.
+2. Runner:
+   - `python scripts/dev_substrate/m5_stress_runner.py --stage S1`
+3. Verification summary:
+   - S0 dependency remained closed (`m5_stress_s0_20260303T232628Z`, `next_gate=M5_ST_S1_READY`),
+   - latest successful P3 closure loaded (`m5p3_stress_fast_20260303T235036Z`),
+   - P3 verdict surface matched `ADVANCE_TO_P4`,
+   - P3 blocker register remained closed (`open_blocker_count=0`),
+   - required P3 artifact contract was readable/complete.
+4. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M5_ST_S2_READY`,
+   - `open_blockers=0`,
+   - `probe_count=1`,
+   - `error_rate_pct=0.0`.
+
+### `M5-ST-S2` P4 orchestration gate execution (2026-03-04)
+1. Phase execution id: `m5_stress_s2_20260304T010237Z`.
+2. Runner:
+   - `python scripts/dev_substrate/m5_stress_runner.py --stage S2`
+3. Verification summary:
+   - S1 dependency remained closed (`m5_stress_s1_20260304T010230Z`, `next_gate=M5_ST_S2_READY`),
+   - latest successful P4 closure loaded (`m5p4_stress_s5_20260304T004218Z`),
+   - P4 verdict surface matched `ADVANCE_TO_M6`,
+   - P4 blocker register remained closed (`open_blocker_count=0`),
+   - `m6_handoff_pack_ref` from P4 summary was readable/valid.
+4. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M5_ST_S3_READY`,
+   - `open_blockers=0`,
+   - `probe_count=1`,
+   - `error_rate_pct=0.0`.
+
+### `M5-ST-S3` closure rollup/recommendation execution (2026-03-04)
+1. Phase execution id: `m5_stress_s3_20260304T010243Z`.
+2. Runner:
+   - `python scripts/dev_substrate/m5_stress_runner.py --stage S3`
+3. Verification summary:
+   - S2 dependency remained closed (`m5_stress_s2_20260304T010237Z`, `next_gate=M5_ST_S3_READY`),
+   - parent `S0..S2` rollup matrix passed gate/readback checks with zero open blockers,
+   - subphase verdict continuity remained aligned:
+     - P3 `ADVANCE_TO_P4`,
+     - P4 `ADVANCE_TO_M6`.
+4. Verdict:
+   - `overall_pass=true`,
+   - `recommendation=GO`,
+   - `next_gate=M6_READY`,
+   - `open_blockers=0`,
+   - `probe_count=1`,
+   - `error_rate_pct=0.0`.
+5. Parent closure decision:
+   - M5 parent orchestration is closure-complete and handed off to M6 readiness.

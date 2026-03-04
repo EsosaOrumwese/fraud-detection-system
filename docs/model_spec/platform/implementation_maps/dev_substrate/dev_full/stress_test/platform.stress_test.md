@@ -211,15 +211,15 @@ For any phase:
 
 ## 12) Program Status
 1. Program bootstrapped.
-2. Current phase state: `M5` (`ACTIVE` execution lane with dedicated parent + split subphase files).
+2. Current phase state: `M5` (`DONE`; parent closure emitted `M6_READY` recommendation).
 3. Dedicated phase files:
    - `stress_test/platform.M2.stress_test.md` (`DONE`),
    - `stress_test/platform.M3.stress_test.md` (`DONE`),
    - `stress_test/platform.M4.stress_test.md` (`DONE`),
-   - `stress_test/platform.M5.stress_test.md` (`ACTIVE`),
+   - `stress_test/platform.M5.stress_test.md` (`DONE`),
    - `stress_test/platform.M5.P3.stress_test.md` (`DONE`),
    - `stress_test/platform.M5.P4.stress_test.md` (`DONE`).
-4. Next step: execute parent M5 orchestration gates (`M5-ST-S1` then `M5-ST-S2`) before parent closure rollup (`M5-ST-S3`).
+4. Next step: open M6 planning/entry-gate lane using M5 closure receipt (`recommendation=GO`, `next_gate=M6_READY`).
 
 ## 13) Closed Phase - M0 (Inline)
 Status:
@@ -461,16 +461,16 @@ Authority routing:
 1. `stress_test/platform.M4.stress_test.md` is the closure authority for M4.
 2. Latest M4 execution state is `M4-ST-S5` pass (`recommendation=GO`, `next_gate=M5_READY`); M4 handoff is complete.
 
-## 17) Active Phase - M5 (Dedicated)
+## 17) Closed Phase - M5 (Dedicated)
 Status:
-1. `ACTIVE` (parent S0 closed; P3 and P4 closures are green; parent orchestration gates pending)
+1. `DONE` (parent S0/S1/S2/S3 closed green; M5 emitted deterministic `M6_READY` recommendation)
 
 Authority routing:
 1. Parent orchestration authority: `stress_test/platform.M5.stress_test.md`.
 2. Split subphase authorities:
    - `stress_test/platform.M5.P3.stress_test.md` (P3 ORACLE_READY),
    - `stress_test/platform.M5.P4.stress_test.md` (P4 INGEST_READY).
-3. Latest M5 parent execution state is `M5-ST-S0` pass (`next_gate=M5_ST_S1_READY`, `open_blockers=0`).
+3. Latest M5 parent execution state is `M5-ST-S3` pass (`recommendation=GO`, `next_gate=M6_READY`, `open_blockers=0`).
 4. Latest M5.P3 execution state is `M5P3-ST-FAST` pass (`next_gate=ADVANCE_TO_P4`, `open_blockers=0`, `waived_observation_count=2`).
 5. Latest M5.P4 execution state is `M5P4-ST-S5` pass (`verdict=ADVANCE_TO_M6`, `next_gate=ADVANCE_TO_M6`, `open_blockers=0`).
 6. M5 execution is fail-closed in this order:

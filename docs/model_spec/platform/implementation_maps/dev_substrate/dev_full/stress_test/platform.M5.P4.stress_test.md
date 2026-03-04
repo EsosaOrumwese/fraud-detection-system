@@ -417,9 +417,9 @@ Required artifacts for each M5.P4 stage:
 - [x] P4 verdict `ADVANCE_TO_M6` emitted from blocker-free rollup.
 
 ## 11) Immediate Next Actions
-1. Hand off to parent orchestration `M5-ST-S1` with latest P4 closure receipt.
+1. Preserve P4 closure receipt (`ADVANCE_TO_M6`) and `m6_handoff_pack` as M6 entry dependencies.
 2. Keep targeted-rerun posture for `M5.P4` (rerun only failed stage windows if new blockers open).
-3. Preserve `ADVANCE_TO_M6` as fail-closed: reopen only if any `M5P4-B*` blocker reappears.
+3. Reopen P4 only if any `M5P4-B*` blocker reappears under active runtime drift.
 
 ## 12) Execution Progress
 ### `M5P4-ST-S0` authority/entry-gate closure execution (2026-03-03)

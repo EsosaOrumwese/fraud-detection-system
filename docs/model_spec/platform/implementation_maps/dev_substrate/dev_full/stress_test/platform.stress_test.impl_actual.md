@@ -3839,3 +3839,139 @@ _As of 2026-03-03_
 
 ### Commit posture
 1. No commit/push performed.
+
+## Entry: 2026-03-04 00:51 +00:00 - M5 parent DoD closure plan (S1/S2/S3 implementation + execution)
+
+### Trigger
+1. User requested clearing the dangling DoD for parent M5.
+2. Parent authority still has one unchecked DoD item: M5 closure rollup with deterministic `M6_READY` recommendation.
+
+### Current blocker diagnosis
+1. `scripts/dev_substrate/m5_stress_runner.py` currently supports only `--stage S0`.
+2. Parent stages `S1` (P3 gate), `S2` (P4 gate), and `S3` (parent closure rollup) are not implemented, so DoD cannot be closed with executable evidence.
+
+### Evidence baseline (pre-implementation)
+1. Latest P3 closure evidence is present and green:
+   - `m5p3_stress_fast_20260303T235036Z` (`next_gate=ADVANCE_TO_P4`, `open_blocker_count=0`).
+2. Latest P4 closure evidence is present and green:
+   - `m5p4_stress_s5_20260304T004218Z` (`verdict=ADVANCE_TO_M6`, `open_blocker_count=0`).
+3. Latest parent S0 evidence is present and green:
+   - `m5_stress_s0_20260303T232628Z` (`next_gate=M5_ST_S1_READY`, `open_blockers=0`).
+
+### Design decision
+1. Implement executable parent gates directly in existing runner:
+   - add `run_s1`, `run_s2`, `run_s3` to `scripts/dev_substrate/m5_stress_runner.py`,
+   - add stage loaders/helpers for parent and subphase evidence readback,
+   - extend CLI choices/prefix routing for `S1/S2/S3`.
+2. Preserve parent artifact contract (`m5_*`) and blocker taxonomy (`M5-ST-B*`) already pinned in authority docs.
+3. Use strict fail-closed dependency continuity:
+   - `S1` depends on successful `S0` + closed P3 closure,
+   - `S2` depends on successful `S1` + closed P4 closure,
+   - `S3` depends on successful `S2` and emits deterministic parent recommendation (`GO/M6_READY` only when blocker-free).
+
+### Stage-level implementation approach
+1. `S1` (P3 orchestration gate):
+   - validate latest successful parent `S0` dependency,
+   - load latest successful P3 closure verdict (`ADVANCE_TO_P4`),
+   - enforce closed P3 blocker register + required artifact completeness,
+   - emit parent `M5-ST-S1` artifacts and `next_gate=M5_ST_S2_READY` on pass.
+2. `S2` (P4 orchestration gate):
+   - validate latest successful parent `S1` dependency,
+   - load latest successful P4 closure verdict (`ADVANCE_TO_M6`),
+   - enforce closed P4 blocker register + required artifact completeness + readable `m6_handoff_pack` reference,
+   - emit parent `M5-ST-S2` artifacts and `next_gate=M5_ST_S3_READY` on pass.
+3. `S3` (parent closure rollup):
+   - validate latest successful parent `S2` dependency,
+   - aggregate parent `S0..S2` receipts + subphase verdict surfaces,
+   - enforce deterministic parent recommendation:
+     - `GO` + `next_gate=M6_READY` only when blocker-free,
+     - else `NO_GO` + `next_gate=BLOCKED`,
+   - emit parent `M5-ST-S3` artifacts.
+
+### Blocker mapping posture
+1. `M5-ST-B4` for P3 gate failure conditions in `S1`.
+2. `M5-ST-B5` for P4 gate failure conditions in `S2`.
+3. `M5-ST-B6` for parent rollup/recommendation inconsistency in `S3`.
+4. `M5-ST-B7` for evidence publish/readback probe failures.
+5. `M5-ST-B8` for envelope spend inconsistency.
+6. `M5-ST-B9` for dependency/artifact completeness failures.
+
+### Execution plan after implementation
+1. Compile runner:
+   - `python -m py_compile scripts/dev_substrate/m5_stress_runner.py`.
+2. Execute sequentially:
+   - `python scripts/dev_substrate/m5_stress_runner.py --stage S1`,
+   - `python scripts/dev_substrate/m5_stress_runner.py --stage S2`,
+   - `python scripts/dev_substrate/m5_stress_runner.py --stage S3`.
+3. If any blockers open, remediate immediately and rerun impacted stage only.
+4. On green closure, update:
+   - `platform.M5.stress_test.md` DoD + execution progress + immediate next actions,
+   - `platform.stress_test.md` program status/next step,
+   - this implementation map and today logbook.
+
+### Acceptance target
+1. Parent `M5-ST-S3` summary emits:
+   - `overall_pass=true`,
+   - `recommendation=GO`,
+   - `next_gate=M6_READY`,
+   - `open_blockers=0`.
+2. Parent M5 DoD checkbox for closure rollup is marked complete in authority doc.
+
+## Entry: 2026-03-04 01:03 +00:00 - M5 parent `S1/S2/S3` implemented and executed (green)
+
+### Implementation completed
+1. Extended `scripts/dev_substrate/m5_stress_runner.py` to support parent stages:
+   - `run_s1` (`M5-ST-S1` P3 orchestration gate),
+   - `run_s2` (`M5-ST-S2` P4 orchestration gate),
+   - `run_s3` (`M5-ST-S3` closure rollup/recommendation).
+2. Added supporting loader/carry-forward helpers for parent/subphase dependencies and stage-a propagation.
+3. Extended CLI stage routing from `S0` only to `S0..S3`.
+
+### Validation and execution
+1. `python -m py_compile scripts/dev_substrate/m5_stress_runner.py` (pass).
+2. `python scripts/dev_substrate/m5_stress_runner.py --stage S1`:
+   - `phase_execution_id=m5_stress_s1_20260304T010230Z`,
+   - `overall_pass=true`, `next_gate=M5_ST_S2_READY`, `open_blockers=0`.
+3. `python scripts/dev_substrate/m5_stress_runner.py --stage S2`:
+   - `phase_execution_id=m5_stress_s2_20260304T010237Z`,
+   - `overall_pass=true`, `next_gate=M5_ST_S3_READY`, `open_blockers=0`.
+4. `python scripts/dev_substrate/m5_stress_runner.py --stage S3`:
+   - `phase_execution_id=m5_stress_s3_20260304T010243Z`,
+   - `overall_pass=true`, `recommendation=GO`, `next_gate=M6_READY`, `open_blockers=0`.
+
+### DoD impact
+1. Parent closure evidence now exists for `M5-ST-S3` with deterministic pass recommendation.
+2. The remaining unchecked parent M5 DoD item can now be closed in authority docs.
+
+### Next updates pending
+1. Update `platform.M5.stress_test.md` DoD and append S1/S2/S3 execution receipts.
+2. Update `platform.stress_test.md` routing posture from M5 active to M5 closure/M6-next.
+3. Append final logbook + implementation-map closure receipts after doc updates.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 01:04 +00:00 - M5 authority docs updated; dangling M5 DoD closed
+
+### Documentation closure updates
+1. Updated `platform.M5.stress_test.md`:
+   - marked final DoD item complete (`M5 closure rollup emitted with deterministic M6_READY recommendation`),
+   - replaced stale immediate-next actions with M6 handoff posture,
+   - appended authoritative execution receipts for:
+     - `M5-ST-S1` (`m5_stress_s1_20260304T010230Z`),
+     - `M5-ST-S2` (`m5_stress_s2_20260304T010237Z`),
+     - `M5-ST-S3` (`m5_stress_s3_20260304T010243Z`, `recommendation=GO`, `next_gate=M6_READY`).
+2. Updated `platform.stress_test.md`:
+   - program status moved from M5 active to M5 done,
+   - next step advanced to M6 planning/entry,
+   - section `17` updated from active M5 to closed M5 with latest parent state at `M5-ST-S3` pass.
+3. Updated subphase docs to remove stale next-step pointers:
+   - `platform.M5.P3.stress_test.md` immediate next actions now reflect preserved closure receipt posture,
+   - `platform.M5.P4.stress_test.md` immediate next actions now reflect M6 dependency posture.
+
+### Closure confirmation
+1. Parent M5 DoD dangling item is now resolved in authority docs and backed by executed evidence.
+2. M5 parent + P3 + P4 docs now consistently reflect closure-complete posture and M6 handoff direction.
+
+### Commit posture
+1. No commit/push performed.

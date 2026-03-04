@@ -2,7 +2,7 @@
 _Parent authority: `platform.M5.stress_test.md`_
 _Status source of truth: `platform.stress_test.md`_
 _Track: `dev_full` only_
-_As of 2026-03-03_
+_As of 2026-03-04_
 
 ## 0) Purpose
 M5.P3 stress validates oracle source boundary and stream-view readiness under realistic production posture.
@@ -298,9 +298,9 @@ Required artifacts for each M5.P3 stage:
 - [x] P3 verdict `ADVANCE_TO_P4` emitted from blocker-free rollup.
 
 ## 11) Immediate Next Actions
-1. Execute `M5P4-ST-S0` authority/entry-gate closure.
-2. Preserve fail-closed ingress posture for P4 (IG boundary/auth/topic/envelope lanes).
-3. Keep M5.P3 historical managed-sort receipt failure as documented pre-platform waiver context unless drift resurfaces.
+1. Preserve M5.P3 closure receipt as immutable dependency evidence for M5/M6 transition.
+2. Reopen M5.P3 only if oracle source boundary or stream-view contract drift reappears.
+3. Keep historical managed-sort receipt observation as documented pre-platform waiver context unless drift resurfaces.
 
 ## 12) Execution Progress
 ### `M5P3-ST-S0` authority/entry-gate closure execution (2026-03-03)
