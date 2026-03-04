@@ -271,8 +271,18 @@ def latest_hist(summary_name: str, snapshot_name: str, perf_name: str, blocker_n
             continue
         if int(s.get("blocker_count", 0) or 0) != 0 or int(blk.get("blocker_count", 0) or 0) != 0:
             continue
-        rows.append({"path": d.as_posix(), "summary": s, "snapshot": snap, "perf": perf, "blocker": blk})
-    return rows[-1] if rows else {}
+        captured = str(s.get("captured_at_utc") or snap.get("captured_at_utc") or perf.get("captured_at_utc") or "")
+        rows.append({"path": d.as_posix(), "captured_at_utc": captured, "summary": s, "snapshot": snap, "perf": perf, "blocker": blk})
+    if not rows:
+        return {}
+    rows.sort(
+        key=lambda x: (
+            str(x.get("captured_at_utc", "")),
+            str((x.get("summary") or {}).get("execution_id", "")),
+            str(x.get("path", "")),
+        )
+    )
+    return rows[-1]
 
 
 def latest_hist_p10a() -> dict[str, Any]:
@@ -288,8 +298,18 @@ def latest_hist_p10a() -> dict[str, Any]:
             continue
         if int(s.get("blocker_count", 0) or 0) != 0 or int(blk.get("blocker_count", 0) or 0) != 0:
             continue
-        rows.append({"path": d.as_posix(), "summary": s, "snapshot": snap, "blocker": blk})
-    return rows[-1] if rows else {}
+        captured = str(s.get("captured_at_utc") or snap.get("captured_at_utc") or "")
+        rows.append({"path": d.as_posix(), "captured_at_utc": captured, "summary": s, "snapshot": snap, "blocker": blk})
+    if not rows:
+        return {}
+    rows.sort(
+        key=lambda x: (
+            str(x.get("captured_at_utc", "")),
+            str((x.get("summary") or {}).get("execution_id", "")),
+            str(x.get("path", "")),
+        )
+    )
+    return rows[-1]
 
 
 def head_bucket_probe(probes: list[dict[str, Any]], bucket: str, probe_id: str) -> dict[str, Any]:

@@ -319,11 +319,13 @@ Pass gate:
 
 ## 11) Immediate Next Actions
 1. Preserve existing `S0..S5` receipts as baseline history only.
-2. Re-run `S1..S5` under strict non-toy policy:
-   - no `waived_low_sample`,
-   - no advisory-only throughput acceptance,
-   - no proxy/historical-only closure authority.
-3. Promote parent M7 adjudication only from strict rerun receipts with `M7P10-ST-B13` resolved.
+2. Strict rerun chain completed with non-toy throughput assertions:
+   - `m7p10_stress_s1_20260304T211012Z`
+   - `m7p10_stress_s2_20260304T211028Z`
+   - `m7p10_stress_s3_20260304T211039Z`
+   - `m7p10_stress_s4_20260304T211056Z`
+   - `m7p10_stress_s5_20260304T211100Z`
+3. Promote parent M7 adjudication from strict rerun receipts (non-toy posture enforced, `M7P10-ST-B13` closed).
 
 ## 12) Execution Progress
 1. P10 stress planning authority created.
@@ -382,8 +384,27 @@ Pass gate:
    - deterministic verdict contract resolved exactly to pinned pass gate (`M7_J_READY`),
    - closure readback probes remained green across receipt + case/label proofs + writer probe (`probe_count=6`, `error_rate_pct=0.0`),
    - no remediation blocker remained; P10 is closure-complete and ready for parent M7 adjudication.
+15. Strict rerun start (`M7P10-ST-S1`) first attempt (`m7p10_stress_s1_20260304T210815Z`) failed fail-closed:
+   - `overall_pass=false`, `next_gate=BLOCKED`, `open_blocker_count=2`,
+   - blockers: `M7P10-ST-B13` (toy-profile waived throughput posture), `M7P10-ST-B4` (strict closure requirement unmet).
+16. First remediation attempt applied strict historical refresh pack:
+   - `runs/dev_substrate/dev_full/m7/_strict_rerun_artifacts/p10-component-strict-refresh-20260304T210928Z`,
+   - refreshed `p10b_case_trigger`, `p10c_cm`, `p10d_ls` with:
+     - `throughput_assertion_applied=true`,
+     - `throughput_gate_mode=asserted_oracle_manifest_window`,
+     - `throughput_observed=25347.233634`.
+17. `S1` second attempt (`m7p10_stress_s1_20260304T210932Z`) still failed with same blockers because historical resolver selected older `_tmp_run_*` artifacts (filesystem-order nondeterminism).
+18. Deterministic historical baseline selection remediation applied in `scripts/dev_substrate/m7p10_stress_runner.py`:
+   - `latest_hist` and `latest_hist_p10a` now sort candidates by `captured_at_utc`/`execution_id`/`path` and select newest, eliminating traversal-order drift.
+19. Strict rerun chain (`S1..S5`) executed and passed after resolver remediation:
+   - `m7p10_stress_s1_20260304T211012Z`: `next_gate=M7P10_ST_S2_READY`, `open_blocker_count=0`,
+   - `m7p10_stress_s2_20260304T211028Z`: `next_gate=M7P10_ST_S3_READY`, `open_blocker_count=0`,
+   - `m7p10_stress_s3_20260304T211039Z`: `next_gate=M7P10_ST_S4_READY`, `open_blocker_count=0`,
+   - `m7p10_stress_s4_20260304T211056Z`: `next_gate=M7P10_ST_S5_READY`, `open_blocker_count=0`, `remediation_mode=NO_OP`,
+   - `m7p10_stress_s5_20260304T211100Z`: `verdict=M7_J_READY`, `next_gate=M7_J_READY`, `open_blocker_count=0`.
 
 ## 13) Reopen Notice - Non-Toy Enforcement (2026-03-04)
 1. Prior P10 closure is reclassified as baseline history and no longer accepted as closure authority.
 2. `M7P10-ST-B13` opens when any lane attempts closure with `waived_low_sample` or advisory-only throughput posture.
 3. P10 is closeable only after fresh reruns demonstrate non-waived throughput and blocker-free deterministic verdict (`M7_J_READY`).
+4. Strict rerun condition satisfied by chain ending at `m7p10_stress_s5_20260304T211100Z` with zero open blockers.
