@@ -4243,6 +4243,103 @@ _As of 2026-03-03_
 
 ### Commit posture
 1. No commit/push performed.
+## Entry: 2026-03-04 15:09 +00:00 - M6 A4R implemented and validated by targeted S5 rerun
+
+### Implementation executed
+1. Updated `scripts/dev_substrate/m6_stress_runner.py` `S5` path to harden lane `A4` from mapped-rollup-only to CE-backed real attribution.
+2. Added helper capabilities:
+   - UTC timestamp parsing for phase/receipt windows,
+   - deterministic cost query-window derivation from stage rows,
+   - AWS Cost Explorer query execution (`UnblendedCost`, daily granularity, billing region handle),
+   - mapped-vs-real spend delta computation with fail-closed residual detection.
+3. Updated receipt payloads:
+   - `m6_cost_outcome_receipt.json` now carries `attributed_spend_usd`, `mapped_rollup_spend_usd`, `ce_attribution`, query window, and residual delta.
+   - `m6_addendum_cost_attribution_receipt.json` now carries CE attribution metadata and sets `mapping_complete` only when CE query is valid and residual check is clean.
+
+### Fail-closed semantics preserved
+1. `M6-ST-B12` now triggers on:
+   - runtime envelope breach,
+   - spend envelope breach using CE-attributed spend,
+   - unattributed spend condition (`unattributed_spend_check=false`).
+2. `M6-ADD-B5` now captures CE attribution details directly for closure auditability.
+
+### Validation and execution
+1. Compile gate:
+   - `python -m py_compile scripts/dev_substrate/m6_stress_runner.py` (pass).
+2. Targeted rerun:
+   - `python scripts/dev_substrate/m6_stress_runner.py --stage S5` (pass).
+   - `phase_execution_id=m6_stress_s5_20260304T150852Z`.
+   - `overall_pass=true`, `verdict=GO`, `next_gate=M7_READY`, `open_blockers=0`.
+3. A4R evidence in latest receipt:
+   - `attributed_spend_usd=5.567148`,
+   - method `aws_ce_daily_unblended_v1`,
+   - `mapping_complete=true`,
+   - `unattributed_spend_detected=false`.
+
+### Documentation synchronization
+1. Updated `platform.M6.stress_test.md`:
+   - addendum entry prerequisites include A4R rerun receipt,
+   - DoD lane A4 wording upgraded to real CE-backed attribution,
+   - execution progress includes A4R rerun receipt details.
+2. Updated `platform.stress_test.md` M6 section:
+   - latest parent `S5` receipt switched to rerun `m6_stress_s5_20260304T150852Z`,
+   - addendum A4 receipt now records real attributed spend method and value.
+
+### Commit posture
+1. No commit/push performed.
+## Entry: 2026-03-04 15:07 +00:00 - M6 A4R cost-attribution hardening plan before implementation
+
+### Trigger
+1. USER approved the recommended next step after M6 addendum closure: harden lane `A4` to use real attributable spend evidence and rerun only `M6-ST-S5`.
+
+### Problem statement
+1. Existing `M6-ST-S5` and addendum `A4` receipts are structurally complete but financially weak because they roll up stage-local receipts with `attributed_spend_usd=0.0`.
+2. Under Cost-Control Law, closure confidence is incomplete without cross-surface attributable spend evidence for the active execution window.
+
+### Constraints and acceptance posture
+1. Fail-closed behavior must be preserved (`M6-ST-B12` / `M6-ADD-B5` on attribution failure).
+2. Must avoid broad reruns; only parent `S5` rerun is allowed in this step.
+3. Must keep data-engine black-box boundary unchanged.
+4. No commit/push.
+
+### Alternatives considered
+1. Keep mapped spend from prior stage receipts only.
+   - Rejected: cannot prove real platform spend attribution.
+2. Add direct Cost Explorer query with day-level totals for the S5 closure window and keep prior stage mapping as supplementary detail.
+   - Accepted: practical, available in current environment, deterministic enough for closure evidence.
+3. Build full CUR/athena tag-level allocator in this step.
+   - Rejected for now: too broad for targeted rerun scope.
+
+### Planned implementation design
+1. Add CE helper functions in `scripts/dev_substrate/m6_stress_runner.py`:
+   - parse UTC timestamps robustly,
+   - derive CE date range from active stage window rows,
+   - call `aws ce get-cost-and-usage` via existing bounded command runner,
+   - aggregate `UnblendedCost` USD from CE results.
+2. In `run_s5`, compute:
+   - `mapped_rollup_spend_usd` from stage receipts (existing behavior),
+   - `attributed_spend_usd` from CE (new primary value),
+   - `unattributed_spend_detected` when CE is unavailable/invalid or less than mapped rollup by epsilon.
+3. Update both receipts:
+   - `m6_cost_outcome_receipt.json`,
+   - `m6_addendum_cost_attribution_receipt.json`,
+   to include CE method/source metadata and mapped-vs-real comparison.
+4. Keep runtime/spend envelope checks deterministic and fail-closed when attribution is not trustworthy.
+
+### Performance and cost design
+1. Added complexity is constant-time with one CE API call per `S5` run.
+2. No high-volume scans, no new persistent resources.
+3. Runtime budget impact expected to be seconds, not minutes.
+
+### Execution plan
+1. Patch runner with CE-backed attribution path.
+2. Compile check.
+3. Execute `python scripts/dev_substrate/m6_stress_runner.py --stage S5`.
+4. Validate blocker/summary/addendum receipts.
+5. Update M6 authority docs + logbook with final receipt IDs and decision.
+
+### Commit posture
+1. No commit/push performed.
 
 ## Entry: 2026-03-04 14:44 +00:00 - M6 hard-close addendum execution plan (A1..A4)
 
@@ -7981,6 +8078,19 @@ ext_gate=M8_READY, open_blockers=0.
 1. Preserve deterministic closure history of M7-ST-S0..S5 as factual execution truth.
 2. Add production-hardening closure as explicit addendum rather than rewriting closed stage receipts.
 3. Maintain fail-closed posture by making M8 advancement conditional on addendum closure under strict realism/performance/cost evidence.
+
+### Commit posture
+1. No commit/push performed.
+## Entry: 2026-03-04 15:10 +00:00 - Continuity note: M6 A4R closure receipt pinned
+
+### Final receipt pin
+1. Latest authoritative M6 parent closure after A4R hardening is `m6_stress_s5_20260304T150852Z`.
+2. Deterministic gate remains green: `overall_pass=true`, `verdict=GO`, `next_gate=M7_READY`, `open_blockers=0`.
+3. A4 evidence is now real CE-backed attribution:
+   - `attributed_spend_usd=5.567148`,
+   - `mapping_complete=true`,
+   - `unattributed_spend_detected=false`,
+   - method `aws_ce_daily_unblended_v1`.
 
 ### Commit posture
 1. No commit/push performed.

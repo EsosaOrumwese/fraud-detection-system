@@ -6,7 +6,7 @@ import json
 import re
 import subprocess
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -246,6 +246,178 @@ def parse_required_artifacts(plan_packet: dict[str, Any]) -> list[str]:
         return list(M6_DEFAULT_REQUIRED_ARTIFACTS)
     out = [x.strip() for x in raw.split(",") if x.strip()]
     return out if out else list(M6_DEFAULT_REQUIRED_ARTIFACTS)
+
+
+def parse_iso_utc(ts: str) -> datetime | None:
+    raw = str(ts or "").strip()
+    if not raw:
+        return None
+    try:
+        return datetime.fromisoformat(raw.replace("Z", "+00:00")).astimezone(timezone.utc)
+    except ValueError:
+        return None
+
+
+def parse_phase_execution_timestamp(phase_execution_id: str) -> datetime | None:
+    m = re.search(r"(\d{8}T\d{6}Z)$", str(phase_execution_id or "").strip())
+    if not m:
+        return None
+    try:
+        return datetime.strptime(m.group(1), "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+
+
+def iso_utc(dt: datetime | None) -> str:
+    if dt is None:
+        return ""
+    return dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def derive_stage_window(row: dict[str, Any]) -> tuple[datetime | None, datetime | None]:
+    phase_ts = parse_phase_execution_timestamp(str(row.get("phase_execution_id", "")))
+    summary_ts = parse_iso_utc(str(row.get("summary_generated_at_utc", "")))
+    receipt_ts = parse_iso_utc(str(row.get("receipt_generated_at_utc", "")))
+    window_seconds = max(0, int(row.get("window_seconds", 0) or 0))
+
+    start_ts = phase_ts or summary_ts or receipt_ts
+    end_ts = receipt_ts or summary_ts
+    if start_ts and not end_ts:
+        end_ts = start_ts + timedelta(seconds=max(1, window_seconds))
+    if start_ts and end_ts and end_ts <= start_ts:
+        end_ts = start_ts + timedelta(seconds=max(1, window_seconds, 1))
+    return start_ts, end_ts
+
+
+def derive_cost_query_window(stage_rows: list[dict[str, Any]]) -> tuple[datetime, datetime]:
+    starts: list[datetime] = []
+    ends: list[datetime] = []
+    for row in stage_rows:
+        start_ts, end_ts = derive_stage_window(row)
+        if start_ts:
+            starts.append(start_ts)
+        if end_ts:
+            ends.append(end_ts)
+    if starts and ends:
+        start = min(starts)
+        end = max(ends)
+    elif starts:
+        start = min(starts)
+        end = max(starts) + timedelta(hours=1)
+    elif ends:
+        end = max(ends)
+        start = min(ends) - timedelta(hours=1)
+    else:
+        end = datetime.now(timezone.utc)
+        start = end - timedelta(hours=6)
+    if end <= start:
+        end = start + timedelta(hours=1)
+    return start, end
+
+
+def query_aws_cost_explorer_window(start_utc: datetime, end_utc: datetime, billing_region: str) -> dict[str, Any]:
+    start_date = start_utc.date().isoformat()
+    end_date = (end_utc.date() + timedelta(days=1)).isoformat()
+    cmd = [
+        "aws",
+        "ce",
+        "get-cost-and-usage",
+        "--time-period",
+        f"Start={start_date},End={end_date}",
+        "--granularity",
+        "DAILY",
+        "--metrics",
+        "UnblendedCost",
+        "--region",
+        billing_region,
+        "--output",
+        "json",
+    ]
+    t0 = time.perf_counter()
+    started = now()
+    try:
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=45)
+    except subprocess.TimeoutExpired:
+        return {
+            "ok": False,
+            "method": "aws_ce_daily_unblended_v1",
+            "query": {"start_date": start_date, "end_date": end_date, "billing_region": billing_region},
+            "amount_usd": 0.0,
+            "currency": "USD",
+            "rows": [],
+            "error": "timeout",
+            "command": " ".join(cmd),
+            "duration_ms": round((time.perf_counter() - t0) * 1000.0, 3),
+            "started_at_utc": started,
+            "ended_at_utc": now(),
+        }
+    if int(p.returncode) != 0:
+        return {
+            "ok": False,
+            "method": "aws_ce_daily_unblended_v1",
+            "query": {"start_date": start_date, "end_date": end_date, "billing_region": billing_region},
+            "amount_usd": 0.0,
+            "currency": "USD",
+            "rows": [],
+            "error": (p.stderr or p.stdout or "ce_query_failed").strip()[:500],
+            "command": " ".join(cmd),
+            "duration_ms": round((time.perf_counter() - t0) * 1000.0, 3),
+            "started_at_utc": started,
+            "ended_at_utc": now(),
+        }
+    try:
+        payload = json.loads((p.stdout or "").strip() or "{}")
+    except json.JSONDecodeError:
+        return {
+            "ok": False,
+            "method": "aws_ce_daily_unblended_v1",
+            "query": {"start_date": start_date, "end_date": end_date, "billing_region": billing_region},
+            "amount_usd": 0.0,
+            "currency": "USD",
+            "rows": [],
+            "error": "invalid_json_response",
+            "command": " ".join(cmd),
+            "duration_ms": round((time.perf_counter() - t0) * 1000.0, 3),
+            "started_at_utc": started,
+            "ended_at_utc": now(),
+        }
+
+    rows: list[dict[str, Any]] = []
+    total = 0.0
+    currency = "USD"
+    for item in payload.get("ResultsByTime", []) if isinstance(payload.get("ResultsByTime", []), list) else []:
+        total_obj = item.get("Total", {}) if isinstance(item.get("Total", {}), dict) else {}
+        uc = total_obj.get("UnblendedCost", {}) if isinstance(total_obj.get("UnblendedCost", {}), dict) else {}
+        amount_raw = uc.get("Amount", "0")
+        unit_raw = uc.get("Unit", "USD")
+        try:
+            amount = float(amount_raw or 0.0)
+        except (TypeError, ValueError):
+            amount = 0.0
+        total += amount
+        currency = str(unit_raw or "USD")
+        rows.append(
+            {
+                "start": str(item.get("TimePeriod", {}).get("Start", "")),
+                "end": str(item.get("TimePeriod", {}).get("End", "")),
+                "amount_usd": round(amount, 8),
+                "currency": currency,
+                "estimated": bool(item.get("Estimated", False)),
+            }
+        )
+
+    return {
+        "ok": True,
+        "method": "aws_ce_daily_unblended_v1",
+        "query": {"start_date": start_date, "end_date": end_date, "billing_region": billing_region},
+        "amount_usd": round(total, 8),
+        "currency": currency,
+        "rows": rows,
+        "command": " ".join(cmd),
+        "duration_ms": round((time.perf_counter() - t0) * 1000.0, 3),
+        "started_at_utc": started,
+        "ended_at_utc": now(),
+    }
 
 
 def probe_metrics(probes: list[dict[str, Any]]) -> dict[str, Any]:
@@ -1888,7 +2060,7 @@ def run_s5(phase_id: str, out_root: Path) -> int:
 
     stage_cost_rows: list[dict[str, Any]] = []
     total_window_seconds = 0
-    total_spend_usd = 0.0
+    mapped_rollup_spend_usd = 0.0
     for prefix, stage_id in [
         ("m6_stress_s0", "M6-ST-S0"),
         ("m6_stress_s1", "M6-ST-S1"),
@@ -1897,15 +2069,31 @@ def run_s5(phase_id: str, out_root: Path) -> int:
         ("m6_stress_s4", "M6-ST-S4"),
     ]:
         rec = latest_ok(prefix, "m6_execution_summary.json", stage_id, out_root)
-        row = {"stage_id": stage_id, "phase_execution_id": "", "window_seconds": 0, "attributed_spend_usd": 0.0, "found": bool(rec), "source": "m6_cost_outcome_receipt.json"}
+        row = {
+            "stage_id": stage_id,
+            "phase_execution_id": "",
+            "window_seconds": 0,
+            "attributed_spend_usd": 0.0,
+            "found": bool(rec),
+            "source": "m6_cost_outcome_receipt.json",
+            "summary_generated_at_utc": "",
+            "receipt_generated_at_utc": "",
+            "window_start_utc": "",
+            "window_end_utc": "",
+        }
         if rec:
             s = rec.get("summary", {})
             row["phase_execution_id"] = str(s.get("phase_execution_id", ""))
+            row["summary_generated_at_utc"] = str(s.get("generated_at_utc", ""))
             cost = load_json_safe(Path(str(rec.get("path", ""))) / "m6_cost_outcome_receipt.json")
+            row["receipt_generated_at_utc"] = str(cost.get("generated_at_utc", ""))
             row["window_seconds"] = int(cost.get("window_seconds", 0) or 0)
             row["attributed_spend_usd"] = float(cost.get("attributed_spend_usd", 0.0) or 0.0)
+            ws, we = derive_stage_window(row)
+            row["window_start_utc"] = iso_utc(ws)
+            row["window_end_utc"] = iso_utc(we)
             total_window_seconds += row["window_seconds"]
-            total_spend_usd += row["attributed_spend_usd"]
+            mapped_rollup_spend_usd += row["attributed_spend_usd"]
         stage_cost_rows.append(row)
 
     for label, rec in [
@@ -1927,17 +2115,34 @@ def run_s5(phase_id: str, out_root: Path) -> int:
                 "attributed_spend_usd": float(cost.get("attributed_spend_usd", 0.0) or 0.0),
                 "found": True,
                 "source": cost_name,
+                "summary_generated_at_utc": str(summary.get("generated_at_utc", "")),
+                "receipt_generated_at_utc": str(cost.get("generated_at_utc", "")),
             }
         )
+        ws2, we2 = derive_stage_window(stage_cost_rows[-1])
+        stage_cost_rows[-1]["window_start_utc"] = iso_utc(ws2)
+        stage_cost_rows[-1]["window_end_utc"] = iso_utc(we2)
         total_window_seconds += int(cost.get("window_seconds", 0) or 0)
-        total_spend_usd += float(cost.get("attributed_spend_usd", 0.0) or 0.0)
+        mapped_rollup_spend_usd += float(cost.get("attributed_spend_usd", 0.0) or 0.0)
+
+    query_start_utc, query_end_utc = derive_cost_query_window(stage_cost_rows)
+    billing_region = str(h.get("AWS_BILLING_REGION", "us-east-1")).strip() or "us-east-1"
+    ce_receipt = query_aws_cost_explorer_window(query_start_utc, query_end_utc, billing_region)
+    attributed_spend_usd = float(ce_receipt.get("amount_usd", 0.0) or 0.0) if ce_receipt.get("ok") else float(mapped_rollup_spend_usd)
+    unattributed_spend_detected = not bool(ce_receipt.get("ok"))
+    ce_vs_rollup_delta_usd = round(attributed_spend_usd - float(mapped_rollup_spend_usd), 8)
+    if not ce_receipt.get("ok"):
+        advisories.append(f"cost explorer attribution unavailable: {ce_receipt.get('error', 'unknown_error')}")
+    elif attributed_spend_usd + 0.01 < float(mapped_rollup_spend_usd):
+        unattributed_spend_detected = True
+        advisories.append("ce attributed spend below mapped rollup spend by >$0.01; flagged as unattributed residual")
 
     max_runtime_minutes = float(pkt.get("M6_STRESS_MAX_RUNTIME_MINUTES", 300))
     max_spend_usd = float(pkt.get("M6_STRESS_MAX_SPEND_USD", 90))
     budget_checks = {
         "runtime_check": (total_window_seconds / 60.0) <= max_runtime_minutes,
-        "spend_check": total_spend_usd <= max_spend_usd,
-        "unattributed_spend_check": True,
+        "spend_check": attributed_spend_usd <= max_spend_usd,
+        "unattributed_spend_check": not unattributed_spend_detected,
     }
     if not all(budget_checks.values()):
         blockers.append(
@@ -1949,8 +2154,11 @@ def run_s5(phase_id: str, out_root: Path) -> int:
                     "checks": budget_checks,
                     "total_window_seconds": total_window_seconds,
                     "max_runtime_minutes": max_runtime_minutes,
-                    "total_spend_usd": total_spend_usd,
+                    "total_spend_usd": attributed_spend_usd,
                     "max_spend_usd": max_spend_usd,
+                    "mapped_rollup_spend_usd": round(mapped_rollup_spend_usd, 6),
+                    "ce_attribution": ce_receipt,
+                    "ce_vs_rollup_delta_usd": ce_vs_rollup_delta_usd,
                     "stage_cost_rows": stage_cost_rows,
                 },
             }
@@ -1983,6 +2191,9 @@ def run_s5(phase_id: str, out_root: Path) -> int:
                     "total_window_seconds": total_window_seconds,
                     "min_required_window_seconds": min_addendum_window,
                     "budget_checks": budget_checks,
+                    "mapped_rollup_spend_usd": round(mapped_rollup_spend_usd, 6),
+                    "attributed_spend_usd": round(attributed_spend_usd, 6),
+                    "ce_attribution": ce_receipt,
                 },
             }
         )
@@ -2079,11 +2290,15 @@ def run_s5(phase_id: str, out_root: Path) -> int:
             "stage_id": "M6-ST-S5",
             "window_seconds": total_window_seconds,
             "estimated_api_call_count": int(metrics.get("probe_count", 0) or 0),
-            "attributed_spend_usd": round(total_spend_usd, 6),
-            "unattributed_spend_detected": False,
+            "attributed_spend_usd": round(attributed_spend_usd, 6),
+            "mapped_rollup_spend_usd": round(mapped_rollup_spend_usd, 6),
+            "unattributed_spend_detected": unattributed_spend_detected,
             "max_spend_usd": max_spend_usd,
             "within_envelope": all(budget_checks.values()),
-            "method": "m6_s5_rollup_handoff_v0",
+            "method": "m6_s5_real_cost_attribution_v1",
+            "cost_query_window": {"start_utc": iso_utc(query_start_utc), "end_utc": iso_utc(query_end_utc)},
+            "ce_attribution": ce_receipt,
+            "ce_vs_rollup_delta_usd": ce_vs_rollup_delta_usd,
             "spend_sources": stage_cost_rows,
         },
     )
@@ -2136,10 +2351,14 @@ def run_s5(phase_id: str, out_root: Path) -> int:
         "overall_pass": a4_pass,
         "window_seconds": total_window_seconds,
         "min_required_window_seconds": min_addendum_window,
-        "attributed_spend_usd": round(total_spend_usd, 6),
-        "unattributed_spend_detected": False,
+        "attributed_spend_usd": round(attributed_spend_usd, 6),
+        "mapped_rollup_spend_usd": round(mapped_rollup_spend_usd, 6),
+        "unattributed_spend_detected": unattributed_spend_detected,
+        "ce_vs_rollup_delta_usd": ce_vs_rollup_delta_usd,
+        "cost_query_window": {"start_utc": iso_utc(query_start_utc), "end_utc": iso_utc(query_end_utc)},
+        "ce_attribution": ce_receipt,
         "spend_sources": stage_cost_rows,
-        "mapping_complete": True,
+        "mapping_complete": bool(ce_receipt.get("ok")) and not unattributed_spend_detected,
     }
     m6_addendum_blocker_register = {
         "generated_at_utc": now(),
@@ -2166,7 +2385,7 @@ def run_s5(phase_id: str, out_root: Path) -> int:
             "Lane A1 mapped to parent S2/S3 deterministic adjudication.",
             "Lane A2 mapped to integrated S4 check bundle and carried into S5 rollup.",
             "Lane A3 enforced non-proxy-only ingest evidence posture using direct query + live sample checks.",
-            "Lane A4 enforced mapped cost attribution with source rows and minimum time-window contract.",
+            "Lane A4 enforced real CE-backed cost attribution with mapped-rollup cross-check and fail-closed residual detection.",
         ],
     }
 
@@ -2196,7 +2415,7 @@ def run_s5(phase_id: str, out_root: Path) -> int:
         [
             "Validated parent S4 continuity and full parent-chain sweep before M6 closeout.",
             "Enforced deterministic GO rule only when parent/subphase/addendum lanes are blocker-free.",
-            "Published mapped spend attribution and M7 handoff at closure.",
+            "Published real CE-backed spend attribution and M7 handoff at closure.",
         ]
     )
     dumpj(

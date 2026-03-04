@@ -514,7 +514,7 @@ Authority routing:
    - `M6-ST-S2`: `phase_execution_id=m6_stress_s2_20260304T145122Z`, `overall_pass=true`, `next_gate=M6_ST_S3_READY`, `open_blockers=0`.
    - `M6-ST-S3`: `phase_execution_id=m6_stress_s3_20260304T145156Z`, `overall_pass=true`, `next_gate=M6_ST_S4_READY`, `open_blockers=0`.
    - `M6-ST-S4`: `phase_execution_id=m6_stress_s4_20260304T145244Z`, `overall_pass=true`, `next_gate=M6_ST_S5_READY`, `open_blockers=0`.
-   - `M6-ST-S5`: `phase_execution_id=m6_stress_s5_20260304T145252Z`, `overall_pass=true`, `verdict=GO`, `next_gate=M7_READY`, `open_blockers=0`.
+   - `M6-ST-S5` (latest rerun): `phase_execution_id=m6_stress_s5_20260304T150852Z`, `overall_pass=true`, `verdict=GO`, `next_gate=M7_READY`, `open_blockers=0`.
 6. Latest subphase execution receipt:
    - `M6.P5` `M6P5-ST-S5`: `phase_execution_id=m6p5_stress_s5_20260304T013452Z`, `overall_pass=true`, `verdict=ADVANCE_TO_P6`, `open_blockers=0`.
    - `M6.P6` `M6P6-ST-S5`: `phase_execution_id=m6p6_stress_s5_20260304T020815Z`, `overall_pass=true`, `verdict=ADVANCE_TO_P7`, `open_blockers=0`.
@@ -522,7 +522,7 @@ Authority routing:
 7. M6 hard-close addendum closure receipts:
    - `m6_addendum_execution_summary.json`: `overall_pass=true`, lane status `A1=true`, `A2=true`, `A3=true`, `A4=true`.
    - `m6_addendum_blocker_register.json`: `open_blocker_count=0`.
-   - `m6_addendum_cost_attribution_receipt.json`: `window_seconds=2051`, `mapping_complete=true`, `unattributed_spend_detected=false`.
+   - `m6_addendum_cost_attribution_receipt.json` (latest rerun): `window_seconds=2051`, `mapping_complete=true`, `unattributed_spend_detected=false`, `attributed_spend_usd=5.567148` via `aws_ce_daily_unblended_v1`.
 
 ## 19) Closed Phase - M7 (Gate Closed + Hard-Close Addendum Pending)
 Status:

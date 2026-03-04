@@ -439,8 +439,8 @@ Required artifacts for each parent stage:
 - [x] `M6-ST-S5` closure rollup emitted with deterministic `M7_READY` recommendation.
 
 ## 11) Immediate Next Actions
-1. Preserve `M6-ST-S5` closure receipt (`m6_stress_s5_20260304T145252Z`) as active M6 hard-close authority.
-2. Keep `M7_READY` handoff anchor at `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m6_stress_s5_20260304T145252Z/stress/m7_handoff_pack.json`.
+1. Preserve `M6-ST-S5` A4R rerun receipt (`m6_stress_s5_20260304T150852Z`) as active M6 hard-close authority.
+2. Keep `M7_READY` handoff anchor at `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m6_stress_s5_20260304T150852Z/stress/m7_handoff_pack.json`.
 3. Continue with M7 hard-close addendum lanes (`A1..A4`) before advancing to active M8 execution.
 
 ## 12) Execution Progress
@@ -562,6 +562,15 @@ Required artifacts for each parent stage:
    - `m6_addendum_blocker_register.json`,
    - `m6_addendum_execution_summary.json`,
    - `m6_addendum_decision_log.json`.
+18. Parent `M6-ST-S5` A4R remediation rerun passed with real attributable spend evidence:
+   - `phase_execution_id=m6_stress_s5_20260304T150852Z`,
+   - `overall_pass=true`,
+   - `verdict=GO`,
+   - `next_gate=M7_READY`,
+   - `open_blockers=0`,
+   - addendum lane status `A1=true`, `A2=true`, `A3=true`, `A4=true`,
+   - `m6_addendum_cost_attribution_receipt.json`: `mapping_complete=true`, `unattributed_spend_detected=false`, `attributed_spend_usd=5.567148`, `method=aws_ce_daily_unblended_v1`,
+   - evidence root: `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m6_stress_s5_20260304T150852Z/stress/`.
 
 ## 13) M6 Hard-Close Addendum (Production-Readiness Closure)
 Purpose:
@@ -573,7 +582,7 @@ Entry prerequisites:
    - `M6P6-ST-S5` (`m6p6_stress_s5_20260304T020815Z`),
    - `M6P7-ST-S5` (`m6p7_stress_s5_20260304T024638Z`).
 2. parent gap was explicit at addendum start and is now resolved in-cycle:
-   - parent `M6-ST-S2..S5` executed with closure receipt `m6_stress_s5_20260304T145252Z`.
+   - parent `M6-ST-S2..S5` executed with closure receipt `m6_stress_s5_20260304T145252Z` and A4R hardening rerun receipt `m6_stress_s5_20260304T150852Z`.
 3. run-scope continuity remains pinned to active `platform_run_id`.
 
 No-waiver closure rule:
@@ -621,7 +630,7 @@ No-waiver closure rule:
 - [x] Lane `A1` executed with parent `M6-ST-S2` and `M6-ST-S3` green and deterministic verdict contracts preserved.
 - [x] Lane `A2` executed with parent `M6-ST-S4` sustained/burst/fault windows green within runtime/spend envelope.
 - [x] Lane `A3` executed with live-window ingest evidence replacing historical/proxy-only closure mode for offsets/replay/idempotency checks.
-- [x] Lane `A4` executed with mapped spend attribution (`window_seconds >= 600`) and `unattributed_spend_detected=false`.
+- [x] Lane `A4` executed with real CE-backed spend attribution (`window_seconds >= 600`) and `unattributed_spend_detected=false`.
 - [x] Addendum blocker register closed (`open_blocker_count=0`) and parent `M6-ST-S5` reaffirms deterministic `M7_READY`.
 
 ### 13.6 Addendum Execution Order
