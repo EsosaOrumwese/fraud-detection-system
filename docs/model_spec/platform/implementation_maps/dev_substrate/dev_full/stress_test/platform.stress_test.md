@@ -53,7 +53,7 @@ This is the program-level overview of what each `M*` phase stress effort is expe
 | M5 | Oracle readiness + ingest preflight (`P3-P4`) | Stress oracle-to-ingress preflight flow for input correctness and ingest warm-path limits | Preflight pass is stable; no upstream-induced ingress stalls | DONE |
 | M6 | Control + Ingress (`P5-P7`) | Stress SR/WSP/IG/bus at component -> plane -> integrated levels for throughput and correctness | Target ingress throughput + latency met with replay-safe semantics | HOLD_REMEDIATE |
 | M7 | RTDL + Case/Labels (`P8-P10`) | Stress decision loop + case/label pathways for sustained throughput and bounded lag | Decision/action/case/label lanes keep pace with ingress without silent degrade | DONE |
-| M8 | Spine Obs/Gov (`P11`) | Stress observability/governance paths so evidence remains complete under high event rates | Evidence completeness + low-overhead telemetry proven | IN_PROGRESS (`S2_GREEN`) |
+| M8 | Spine Obs/Gov (`P11`) | Stress observability/governance paths so evidence remains complete under high event rates | Evidence completeness + low-overhead telemetry proven | IN_PROGRESS (`S3_GREEN`) |
 | M9 | Learning input readiness (`P12`) | Stress replay-basis/as-of/maturity extraction paths for correctness under realistic volume | Learning input lanes produce deterministic, timely, leak-safe outputs | NOT_STARTED |
 | M10 | OFS dataset closure (`P13`) | Stress offline feature dataset generation for throughput, stability, and cost posture | Dataset builds finish within budget with reproducible manifests | NOT_STARTED |
 | M11 | MF train/eval closure (`P14`) | Stress model train/eval orchestration for queueing, runtime, and artifact integrity | Train/eval flow stable with deterministic evidence and bounded runtime | NOT_STARTED |
@@ -230,8 +230,8 @@ For any phase:
    - `stress_test/platform.M7.P8.stress_test.md` (`DONE`),
    - `stress_test/platform.M7.P9.stress_test.md` (`DONE`),
    - `stress_test/platform.M7.P10.stress_test.md` (`DONE`),
-   - `stress_test/platform.M8.stress_test.md` (`S2_GREEN`).
-4. Next step: execute `M8-ST-S3` fail-closed (closure-bundle completeness + strict non-regression anchors), with targeted rerun on first blocker.
+   - `stress_test/platform.M8.stress_test.md` (`S3_GREEN`).
+4. Next step: execute `M8-ST-S4` fail-closed (governance append/close marker + deterministic rollup/handoff), with targeted rerun on first blocker.
 
 ## 13) Closed Phase - M0 (Inline)
 Status:

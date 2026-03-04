@@ -9366,3 +9366,51 @@ ext_gate=M8_READY, open_blockers=0.
 
 ### Governance
 1. No commit/push/branch operation.
+
+## Entry: 2026-03-04 23:16 +00:00 - M8-ST-S3 implementation and green execution
+
+### Context
+1. USER requested planning and execution of parent `M8-ST-S3`.
+2. Parent runner previously supported `S0..S2`; `S3` lane was missing.
+
+### Design decision
+1. Implement parent `S3` as sequential orchestration of:
+   - `M8.F` closure-bundle completeness (`m8f_closure_bundle_completeness.py`),
+   - `M8.G` non-regression pack (`m8g_non_regression_pack.py`).
+2. Keep fail-closed posture with explicit blocker mapping:
+   - `M8-ST-B6` for closure-bundle failures,
+   - `M8-ST-B7` for non-regression anchor failures,
+   - `M8-ST-B13` for stale/strict authority mismatch,
+   - `M8-ST-B10` for evidence publication/readback failures,
+   - `M8-ST-B12` for parent artifact contract incompleteness.
+3. Resolve legacy anchor contract mismatch in `M8.G` by emitting strict-anchor compatibility summaries under fresh run-control ids:
+   - `m6j_execution_summary.json`, `m7_execution_summary.json`, `m7k_throughput_cert_execution_summary.json`,
+   - all derived from strict current `M6/M7` closure authority and uploaded before `M8.G` execution.
+
+### Implementation
+1. Extended `scripts/dev_substrate/m8_stress_runner.py`:
+   - added `S3` artifact contract and gate mapping (`M8_ST_S4_READY`),
+   - added `latest_s2()` resolver,
+   - added `run_s3(...)` with strict entry checks + stale cutoff enforcement,
+   - added subprocess orchestration for `m8f` and `m8g`,
+   - added strict-anchor compatibility bridge and publication,
+   - wired CLI arg `--upstream-m8-s2-execution` and stage route `S3`.
+
+### Execution
+1. Ran:
+   - `python scripts/dev_substrate/m8_stress_runner.py --stage S3 --upstream-m8-s2-execution m8_stress_s2_20260304T231018Z --upstream-m7-execution m7_stress_s5_20260304T212520Z --upstream-m6-execution m6_stress_s5_20260304T204909Z`
+2. Result:
+   - `phase_execution_id=m8_stress_s3_20260304T231650Z`,
+   - `overall_pass=true`, `open_blocker_count=0`,
+   - `next_gate=M8_ST_S4_READY`, `verdict=GO`.
+3. Component execution ids:
+   - `m8f_execution_id=m8f_stress_s3_20260304T231651Z`,
+   - `m8g_execution_id=m8g_stress_s3_20260304T231657Z`.
+4. Strict-anchor compatibility ids used by `M8.G`:
+   - `m6j_strict_anchor_20260304T231654Z`,
+   - `m7j_strict_anchor_20260304T231654Z`,
+   - `m7k_strict_anchor_20260304T231654Z`.
+
+### Governance
+1. No commit/push/branch operation.
+2. Docs/logs synced after green closure.

@@ -3,7 +3,7 @@ _Parent authority: `platform.stress_test.md`_
 _Status source of truth: `platform.stress_test.md`_
 _Track: `dev_full` only_
 _As of 2026-03-04_
-_Current posture: `S2_GREEN` (`M8-ST-S0/S1/S2` executed pass; next gate `M8_ST_S3_READY`)._
+_Current posture: `S3_GREEN` (`M8-ST-S0/S1/S2/S3` executed pass; next gate `M8_ST_S4_READY`)._
 
 ## 0) Purpose
 M8 stress validates spine observability and governance closure under production-like throughput, run-scope determinism, and spend discipline.
@@ -401,14 +401,14 @@ Required stage outputs (phase-level):
 - [x] `M8-ST-S0` executed and closed green.
 - [x] `M8-ST-S1` executed and closed green.
 - [x] `M8-ST-S2` executed and closed green.
-- [ ] `M8-ST-S3` executed and closed green.
+- [x] `M8-ST-S3` executed and closed green.
 - [ ] `M8-ST-S4` executed and closed green with deterministic `ADVANCE_TO_M9`.
 - [ ] `M8-ST-S5` executed and closed green with deterministic `M9_READY`.
 
 ## 12) Immediate Next Actions
-1. execute `M8-ST-S3` only (fail-closed) to validate closure-bundle completeness and strict non-regression anchors.
-2. preserve strict targeted-rerun posture; if any blocker opens in `S3`, remediate in-lane and rerun `S3` only.
-3. progress `S4..S5` sequentially only when each prior stage is green and blocker-free.
+1. execute `M8-ST-S4` only (fail-closed) to validate governance close-marker semantics and deterministic P11 rollup/handoff.
+2. preserve strict targeted-rerun posture; if any blocker opens in `S4`, remediate in-lane and rerun `S4` only.
+3. progress to `S5` only when `S4` is green and blocker-free.
 
 ## 13) Execution Progress
 1. M8 stress authority and fail-closed packet are now pinned.
@@ -438,7 +438,20 @@ Required stage outputs (phase-level):
 8. targeted remediation applied in-run before green closure:
    - parent runner defect fixed (`finish()` recursion on artifact-contract failure),
    - `m8d` import-path blocker remediated by injecting `PYTHONPATH=src` for component subprocess execution.
-9. historical 2026-02-26 M8 build-plan receipts remain baseline context only, not closure authority for strict stress run scope.
+9. `M8-ST-S3` executed pass:
+   - `phase_execution_id=m8_stress_s3_20260304T231650Z`,
+   - `overall_pass=true`, `open_blocker_count=0`,
+   - `next_gate=M8_ST_S4_READY`, `verdict=GO`.
+10. `S3` artifacts emitted under:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m8_stress_s3_20260304T231650Z/stress/`
+   - includes parent snapshots from component lanes:
+     - `m8f_closure_bundle_completeness_snapshot.json`,
+     - `m8g_non_regression_pack_snapshot.json`.
+11. `S3` strict non-regression execution used explicit strict-anchor compatibility bridge for `M8.G` contract surfaces:
+   - `m6j_strict_anchor_20260304T231654Z`,
+   - `m7j_strict_anchor_20260304T231654Z`,
+   - `m7k_strict_anchor_20260304T231654Z`.
+12. historical 2026-02-26 M8 build-plan receipts remain baseline context only, not closure authority for strict stress run scope.
 
 ## 14) Reopen Notice (Strict Authority)
 1. M8 is not closeable using historical/stale receipts alone.
