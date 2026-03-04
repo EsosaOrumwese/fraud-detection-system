@@ -8880,3 +8880,86 @@ ext_gate=M8_READY, open_blockers=0.
 ### Governance
 1. Execution + documentation update only.
 2. No commit/push/branch operation.
+
+## Entry: 2026-03-04 21:16 +00:00 - Execution start (parent M7 strict rerun S1..S5)
+
+### Trigger
+1. USER directed immediate execution of parent `M7` rerun chain (`S1..S5`).
+
+### Execution contract
+1. Sequential fail-closed: `S1 -> S2 -> S3 -> S4 -> S5`.
+2. Stop on first blocker/defect and remediate targeted cause before continuation.
+3. Preserve strict addendum hard-close posture (`A1`/`A2` direct-observed gates are blocker-class).
+
+### Governance
+1. No commit/push/branch operation.
+
+## Entry: 2026-03-04 21:16 +00:00 - Parent M7 S1..S4 strict rerun outcomes
+
+### Execution outcomes
+1. `M7-ST-S1` passed:
+   - `phase_execution_id=m7_stress_s1_20260304T211613Z`
+   - `open_blockers=0`, `next_gate=M7_ST_S2_READY`.
+2. `M7-ST-S2` passed:
+   - `phase_execution_id=m7_stress_s2_20260304T211622Z`
+   - `open_blockers=0`, `next_gate=M7_ST_S3_READY`.
+3. `M7-ST-S3` passed:
+   - `phase_execution_id=m7_stress_s3_20260304T211629Z`
+   - `open_blockers=0`, `next_gate=M7_ST_S4_READY`.
+4. `M7-ST-S4` passed:
+   - `phase_execution_id=m7_stress_s4_20260304T211639Z`
+   - `open_blockers=0`, `next_gate=M7_ST_S5_READY`.
+
+### Decision
+1. Proceed to `S5` rollup with same fail-closed posture.
+
+### Governance
+1. Execution only.
+2. No commit/push/branch operation.
+
+## Entry: 2026-03-04 21:16 +00:00 - Parent M7 S5 runner defect remediation
+
+### Observed defect
+1. First `S5` attempt (`m7_stress_s5_20260304T211648Z`) terminated with:
+   - `NameError: duplicate_pressure_contract is not defined`.
+2. Defect scope:
+   - `scripts/dev_substrate/m7_stress_runner.py` `run_s5` addendum summary emission path.
+
+### Remediation
+1. Added explicit flag derivation before addendum artifact emission:
+   - `duplicate_pressure_contract` from `duplicate_ratio_pct >= dup_min_pct` when observed.
+   - `late_pressure_contract` from `out_of_order_ratio_pct >= ooo_min_pct` when observed.
+   - `hotkey_pressure_contract` from `top1_share_pct >= hotkey_min_pct` when observed.
+2. Rationale:
+   - eliminate undefined-variable crash,
+   - preserve strict semantics by deriving from observed-threshold checks.
+
+### Governance
+1. Targeted bug fix only.
+2. No commit/push/branch operation.
+
+## Entry: 2026-03-04 21:17 +00:00 - Parent M7 S5 rerun fail-closed on strict addendum gates
+
+### Execution outcome
+1. `M7-ST-S5` rerun `m7_stress_s5_20260304T211729Z` failed:
+   - `overall_pass=false`, `verdict=HOLD_REMEDIATE`, `next_gate=BLOCKED`,
+   - `open_blocker_count=2`, `addendum_open_blocker_count=2`.
+
+### Blockers
+1. `M7-ST-B11` / addendum `A1`:
+   - direct-observed realism floors not met:
+   - `duplicate_ratio_pct=0.0`,
+   - `out_of_order_ratio_pct=null`,
+   - `top1_share_pct=21.6157` (< `30.0` threshold).
+2. `M7-ST-B11` / addendum `A2`:
+   - strict observed case/label volume not met:
+   - `case_events_observed=18`, `label_events_observed=18`,
+   - hard minimum `100000`.
+
+### Decision
+1. Keep parent M7 closed fail-closed at `S5`.
+2. Do not emit `M8_READY` until explicit `A1/A2` observed-pressure lanes are executed and green under strict addendum policy.
+
+### Governance
+1. Execution + blocker capture only.
+2. No commit/push/branch operation.

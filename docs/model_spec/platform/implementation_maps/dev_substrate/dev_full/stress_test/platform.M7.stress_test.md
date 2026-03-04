@@ -3,7 +3,7 @@ _Parent authority: `platform.stress_test.md`_
 _Status source of truth: `platform.stress_test.md`_
 _Track: `dev_full` only_
 _As of 2026-03-04_
-_Current posture: `HOLD_REMEDIATE` (non-toy reruns required for P8/P9/P10 and parent rollup)._
+_Current posture: `HOLD_REMEDIATE` (parent `M7-ST-S5` is blocked on addendum strict direct-observed lanes `A1` and `A2`)._
 
 ## 0) Purpose
 M7 stress validates RTDL and case/label runtime closure under realistic production data behavior, not schema-only conformance.
@@ -381,12 +381,18 @@ Pass gate:
 - [x] `M7-ST-S4` integrated realistic-data window executed within envelope.
 - [x] `M7-ST-S5` closure rollup emitted with deterministic `M8_READY` recommendation.
 - [ ] Strict non-toy revalidation executed (`P8/P9/P10` then parent `S1..S5`) with zero low-sample/advisory closure posture.
+  - strict `P8/P9/P10` reruns are green,
+  - parent `S1..S4` strict rerun is green,
+  - parent `S5` remains blocked by addendum `A1/A2` direct-observed hard-close gates.
 
 ## 11) Immediate Next Actions
-1. Preserve latest M7 addendum receipt (`m7_stress_s5_20260304T152614Z`) as legacy evidence only.
-2. Re-execute `M7.P8`, `M7.P9`, and `M7.P10` under non-toy policy (no `waived_low_sample`, no advisory-only throughput closure).
-3. Re-execute parent `M7-ST-S1..S5` from refreshed subphase receipts only.
-4. Promote `M8_READY` handoff only from strict reruns with `M7-ST-B14` resolved.
+1. Preserve strict rerun receipts as baseline for parent closure:
+   - `m7p8_stress_s5_20260304T205741Z`
+   - `m7p9_stress_s5_20260304T210343Z`
+   - `m7p10_stress_s5_20260304T211100Z`
+2. Execute addendum lane `A1` with explicit injected realism pressure so direct-observed duplicate/out-of-order/hotkey floors close (no proxy mode).
+3. Execute addendum lane `A2` with strict observed-volume case/label pressure window to meet hard minimums (no effective-volume fallback).
+4. Rerun parent `M7-ST-S5` and promote `M8_READY` only if `open_blocker_count=0` and addendum lanes are `A1=true`, `A2=true`, `A3=true`, `A4=true`.
 
 ## 12) Execution Progress
 1. M7 stress planning authority created.
@@ -514,6 +520,19 @@ Pass gate:
      - addendum lane status `A1=true`, `A2=true`, `A3=true`, `A4=true`,
      - addendum blocker register `open_blocker_count=0`,
      - `A4` receipt: `mapping_complete=true`, `unattributed_spend_detected=false`, `attributed_spend_usd=5.567148`, `method=aws_ce_daily_unblended_v1`.
+36. Parent strict rerun chain started from refreshed strict subphase receipts:
+   - `M7-ST-S1` (`m7_stress_s1_20260304T211613Z`) passed (`next_gate=M7_ST_S2_READY`, `open_blockers=0`),
+   - `M7-ST-S2` (`m7_stress_s2_20260304T211622Z`) passed (`next_gate=M7_ST_S3_READY`, `open_blockers=0`),
+   - `M7-ST-S3` (`m7_stress_s3_20260304T211629Z`) passed (`next_gate=M7_ST_S4_READY`, `open_blockers=0`),
+   - `M7-ST-S4` (`m7_stress_s4_20260304T211639Z`) passed (`next_gate=M7_ST_S5_READY`, `open_blockers=0`).
+37. Parent strict rerun `M7-ST-S5` first attempt (`m7_stress_s5_20260304T211648Z`) failed on runner defect:
+   - `NameError: duplicate_pressure_contract is not defined` in `scripts/dev_substrate/m7_stress_runner.py` `run_s5`.
+38. Remediation applied in `run_s5`:
+   - explicitly compute `duplicate_pressure_contract`, `late_pressure_contract`, `hotkey_pressure_contract` from direct-observed threshold checks before addendum summary emission.
+39. Parent strict rerun `M7-ST-S5` rerun (`m7_stress_s5_20260304T211729Z`) executed and failed fail-closed on addendum realism hard-close gates:
+   - `overall_pass=false`, `verdict=HOLD_REMEDIATE`, `next_gate=BLOCKED`, `open_blocker_count=2`,
+   - blocker 1 (`M7-ST-B11`): `A1` direct-observed realism below hard floors (`duplicate_ratio_pct=0.0`, `out_of_order_ratio_pct=null`, `top1_share_pct=21.6157 < 30.0`),
+   - blocker 2 (`M7-ST-B11`): `A2` observed case/label pressure window below hard minimum (`case_events_observed=18`, `label_events_observed=18`, min `100000`).
 
 ## 13) M7 Hard-Close Addendum (Production-Readiness Closure)
 Purpose:

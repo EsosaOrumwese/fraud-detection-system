@@ -2814,6 +2814,9 @@ def run_s5(phase_execution_id: str) -> int:
         and out_of_order_ratio_pct >= ooo_min_pct
         and top1_share_pct >= hotkey_min_pct
     )
+    duplicate_pressure_contract = duplicate_ratio_pct is not None and duplicate_ratio_pct >= dup_min_pct
+    late_pressure_contract = out_of_order_ratio_pct is not None and out_of_order_ratio_pct >= ooo_min_pct
+    hotkey_pressure_contract = top1_share_pct is not None and top1_share_pct >= hotkey_min_pct
     a1_mode = "direct_observed" if direct_realism_check else "failed"
     a1_pass = semantic_ok and direct_realism_check
     if not a1_pass:
