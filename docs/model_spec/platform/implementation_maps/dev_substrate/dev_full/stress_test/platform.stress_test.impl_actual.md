@@ -9045,3 +9045,140 @@ ext_gate=M8_READY, open_blockers=0.
 ### Governance
 1. Documentation synchronization only.
 2. No commit/push/branch operation.
+
+## Entry: 2026-03-04 22:35 +00:00 - M8 stress planning hardened against M6/M7 hole patterns
+
+### Context
+1. USER requested M8 planning start with explicit avoidance of M6/M7 mistakes and closure holes.
+2. M8 stress authority file exists and is now the active planning surface (`platform.M8.stress_test.md`).
+
+### Gap review
+1. Existing M8 planning already covered stage topology (`S0..S5`), lane matrix (`A..J`), decision-completeness, phase-coverage, and stale-evidence quarantine.
+2. Missing explicit hard gates for three previously observed risk classes:
+   - local-runtime closure misuse,
+   - non-authoritative source selection,
+   - waived/proxy-only realism acceptance.
+
+### Decision
+1. Keep the M8 stage topology unchanged.
+2. Strengthen M8 planning with binding anti-hole controls instead of expanding scope:
+   - `runtime-locality guard` (managed runtime only for closure evidence),
+   - `source-authority guard` (Oracle/durable evidence only for closure adjudication),
+   - `non-toy realism guard` (no waived low-sample/proxy-only closure acceptance).
+3. Extend blocker taxonomy and artifact contract so these controls are auditable and fail-closed.
+
+### Applied doc updates
+1. Updated `platform.M8.stress_test.md`:
+   - added Stage-A prevent findings `M8-ST-F9..F11`,
+   - pinned handle-packet flags:
+     - `M8_STRESS_REQUIRE_REMOTE_RUNTIME_ONLY=true`,
+     - `M8_STRESS_REQUIRE_ORACLE_EVIDENCE_ONLY=true`,
+     - `M8_STRESS_DISALLOW_WAIVED_THROUGHPUT=true`,
+   - added anti-hole gates `6.5`, `6.6`, `6.7`,
+   - propagated checks into `S1`, `S2`, `S3`, `S5`,
+   - extended blocker taxonomy with `M8-ST-B16..B18`,
+   - extended artifact contract with:
+     - `m8_runtime_locality_guard_snapshot.json`,
+     - `m8_source_authority_guard_snapshot.json`,
+     - `m8_realism_guard_snapshot.json`,
+   - updated DoD to mark M6/M7 mistake-prevention controls as pinned.
+
+### Governance
+1. Planning/docs only; no runtime execution performed.
+2. No commit/push/branch operation.
+
+## Entry: 2026-03-04 22:36 +00:00 - Program index sync for M8 anti-hole guard scope
+
+### Change
+1. Updated `platform.stress_test.md` next-step line to include the full M8 anti-hole preflight scope:
+   - decision completeness,
+   - lane coverage,
+   - strict authority closure,
+   - runtime locality,
+   - source authority,
+   - non-toy realism.
+
+### Governance
+1. Documentation sync only.
+2. No commit/push/branch operation.
+
+## Entry: 2026-03-04 22:40 +00:00 - M8-ST-S0 execution design and runner implementation
+
+### Context
+1. USER requested immediate planning and execution of `M8-ST-S0`.
+2. Existing repo had M8 component scripts (`m8a..m8j`) but no parent stress runner implementing stage packet `S0..S5`.
+
+### Design decision
+1. Implement parent `scripts/dev_substrate/m8_stress_runner.py` and execute `S0` only (fail-closed), aligned to `platform.M8.stress_test.md`.
+2. Keep runtime impact minimal: authority/readback checks only, no runtime lane execution in `S0`.
+3. Encode anti-hole controls directly in `S0` adjudication:
+   - decision completeness (`M8-ST-B14`),
+   - lane coverage (`M8-ST-B15`),
+   - stale/strict authority checks (`M8-ST-B13`),
+   - handle/authority closure (`M8-ST-B1`),
+   - runtime-locality guard (`M8-ST-B16`),
+   - source-authority guard (`M8-ST-B17`),
+   - non-toy realism guard (`M8-ST-B18`),
+   - artifact contract parity (`M8-ST-B12`).
+
+### Implementation details
+1. Added `scripts/dev_substrate/m8_stress_runner.py` with:
+   - deterministic run id generation (`m8_stress_s0_<UTC>`),
+   - strict parent authority parsing from M8 stress doc,
+   - lane-matrix parsing and owner-stage coverage checks,
+   - required handle resolution against `dev_full_handles.registry.v0.md`,
+   - strict M7 continuity checks against local strict rerun artifacts,
+   - S0 artifact contract emission:
+     - `m8_stagea_findings.json`,
+     - `m8_lane_matrix.json`,
+     - `m8a_handle_closure_snapshot.json`,
+     - `m8_runtime_locality_guard_snapshot.json`,
+     - `m8_source_authority_guard_snapshot.json`,
+     - `m8_realism_guard_snapshot.json`,
+     - `m8_blocker_register.json`,
+     - `m8_execution_summary.json`,
+     - `m8_decision_log.json`,
+     - `m8_gate_verdict.json`.
+2. Stage coverage currently implemented for `S0`; higher stages are intentionally blocked until sequential progression.
+
+### Governance
+1. No commit/push/branch operation.
+2. No managed runtime job execution in this step.
+
+## Entry: 2026-03-04 22:44 +00:00 - M8-ST-S0 executed green and docs synced
+
+### Execution
+1. Ran:
+   - `python scripts/dev_substrate/m8_stress_runner.py --stage S0`
+2. Execution result:
+   - `phase_execution_id=m8_stress_s0_20260304T224349Z`,
+   - `overall_pass=true`,
+   - `open_blocker_count=0`,
+   - `next_gate=M8_ST_S1_READY`,
+   - `verdict=GO`.
+3. Evidence root:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m8_stress_s0_20260304T224349Z/stress/`.
+
+### Validation highlights
+1. Strict parent authority continuity held for:
+   - `M7-ST-S5=m7_stress_s5_20260304T212520Z`,
+   - strict `P8/P9/P10` refs matched pinned ids.
+2. Anti-hole guards were green in `S0`:
+   - runtime-locality guard,
+   - source-authority guard,
+   - non-toy realism guard.
+3. Artifact contract was complete for all `S0` required outputs.
+
+### Documentation sync
+1. Updated `platform.M8.stress_test.md`:
+   - posture -> `S0_GREEN`,
+   - DoD `M8-ST-S0` marked complete,
+   - immediate next actions advanced to `M8-ST-S1`,
+   - execution progress appended with run id and pass posture.
+2. Updated `platform.stress_test.md`:
+   - M8 status -> `IN_PROGRESS (S0_GREEN)`,
+   - next step -> execute `M8-ST-S1` fail-closed.
+
+### Governance
+1. No commit/push/branch operation.
+2. No managed runtime service orchestration executed in S0.
