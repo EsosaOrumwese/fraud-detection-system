@@ -371,7 +371,7 @@ Pass gate:
 - [x] Dedicated M7 parent stress authority created.
 - [x] M7 data-realism gate (M7+) pinned.
 - [x] M7 split-subphase routing (`P8/P9/P10`) pinned.
-- [ ] `M7-ST-S0` executed with dependency + data-profile closure.
+- [x] `M7-ST-S0` executed with dependency + data-profile closure.
 - [ ] `M7-ST-S1` executed and P8 gate accepted.
 - [ ] `M7-ST-S2` executed and P9 gate accepted.
 - [ ] `M7-ST-S3` executed and P10 gate accepted.
@@ -379,8 +379,10 @@ Pass gate:
 - [ ] `M7-ST-S5` closure rollup emitted with deterministic `M8_READY` recommendation.
 
 ## 11) Immediate Next Actions
-1. Close pending parent M6 gates (`M6-ST-S2..S5`) before opening M7 execution.
-2. Execute `M7-ST-S0` to pin run-scoped data subset/profile envelope.
+1. Execute `M7-ST-S1` (P8 parent gate adjudication) using successful `M7-ST-S0` artifacts.
+2. Carry forward S0 advisories as explicit injected-stress requirements:
+   - duplicate/replay cohort injection,
+   - late/out-of-order cohort injection.
 3. Execute M7 subphase stress lanes in order: `P8 -> P9 -> P10`.
 
 ## 12) Execution Progress
@@ -390,4 +392,12 @@ Pass gate:
    - historical component lanes mostly low-sample (`sample_size=18`, `waived_low_sample` mode),
    - aggregate cert sample seen (`sample_size_events=11878`),
    - local checked-in event subset currently narrow (`14` rows, `anchor` only) and marked insufficient as standalone realism source.
-4. Execution remains blocked until parent M6 closure stages are complete.
+4. `M7-ST-S0` first execution (`m7_stress_s0_20260304T043954Z`) opened fail-closed blockers:
+   - `M7-ST-B2` dependency-contract mismatch (`M6-ST-S5` artifact expectation vs executed subphase-chain closure),
+   - `M7-ST-B3` data-profile insufficiency/metric semantics drift.
+5. `M7-ST-S0` remediated and rerun (`m7_stress_s0_20260304T044914Z`) passed:
+   - `overall_pass=true`, `next_gate=M7_ST_S1_READY`, `open_blockers=0`,
+   - dependency mode resolved as `subphase_chain`,
+   - profiled `200000` rows from historical local event logs with `event_type_count=7`.
+6. Advisory posture pinned for downstream lanes:
+   - natural baseline duplicate/out-of-order floors were below target (`0.0%`), therefore S1-S5 must inject duplicate/replay and late-event cohorts explicitly.

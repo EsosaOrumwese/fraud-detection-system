@@ -51,7 +51,7 @@ This is the program-level overview of what each `M*` phase stress effort is expe
 | M4 | Spine runtime-lane readiness | Stress each spine lane bootstrap path for startup-time, readiness, and dependency bottlenecks | Lane startup and steady-state readiness meet target budgets | DONE |
 | M5 | Oracle readiness + ingest preflight (`P3-P4`) | Stress oracle-to-ingress preflight flow for input correctness and ingest warm-path limits | Preflight pass is stable; no upstream-induced ingress stalls | DONE |
 | M6 | Control + Ingress (`P5-P7`) | Stress SR/WSP/IG/bus at component -> plane -> integrated levels for throughput and correctness | Target ingress throughput + latency met with replay-safe semantics | ACTIVE |
-| M7 | RTDL + Case/Labels (`P8-P10`) | Stress decision loop + case/label pathways for sustained throughput and bounded lag | Decision/action/case/label lanes keep pace with ingress without silent degrade | PLANNED |
+| M7 | RTDL + Case/Labels (`P8-P10`) | Stress decision loop + case/label pathways for sustained throughput and bounded lag | Decision/action/case/label lanes keep pace with ingress without silent degrade | ACTIVE |
 | M8 | Spine Obs/Gov (`P11`) | Stress observability/governance paths so evidence remains complete under high event rates | Evidence completeness + low-overhead telemetry proven | NOT_STARTED |
 | M9 | Learning input readiness (`P12`) | Stress replay-basis/as-of/maturity extraction paths for correctness under realistic volume | Learning input lanes produce deterministic, timely, leak-safe outputs | NOT_STARTED |
 | M10 | OFS dataset closure (`P13`) | Stress offline feature dataset generation for throughput, stability, and cost posture | Dataset builds finish within budget with reproducible manifests | NOT_STARTED |
@@ -516,9 +516,9 @@ Authority routing:
    - `M6.P6` `M6P6-ST-S5`: `phase_execution_id=m6p6_stress_s5_20260304T015956Z`, `overall_pass=true`, `verdict=ADVANCE_TO_P7`, `open_blockers=0`.
    - `M6.P7` `M6P7-ST-S5`: `phase_execution_id=m6p7_stress_s5_20260304T024638Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M7`, `next_gate=ADVANCE_TO_M7`, `open_blockers=0`.
 
-## 19) Planned Phase - M7 (Dedicated + Split Subphases)
+## 19) Active Phase - M7 (Dedicated + Split Subphases)
 Status:
-1. `PLANNED` (execution waits for parent M6 gate completion).
+1. `ACTIVE` (`M7-ST-S0` pass complete; next gate is `M7-ST-S1`).
 
 Authority routing:
 1. Parent orchestration authority: `stress_test/platform.M7.stress_test.md`.
@@ -535,3 +535,7 @@ Authority routing:
    - `M7.P10` closure gate,
    - parent `M7-ST-S4` integrated realistic-data window,
    - parent `M7-ST-S5` rollup and `M8_READY` recommendation.
+5. Latest parent execution receipt:
+   - `M7-ST-S0`: `phase_execution_id=m7_stress_s0_20260304T044914Z`, `overall_pass=true`, `next_gate=M7_ST_S1_READY`, `open_blockers=0`, `dependency_mode=subphase_chain`.
+6. Current next executable step:
+   - execute parent `M7-ST-S1` adjudication on latest `M7.P8` closure with S0 advisory carry-forward (duplicate/replay and late-event injected cohorts mandatory).
