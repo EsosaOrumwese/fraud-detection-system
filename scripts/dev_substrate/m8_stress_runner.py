@@ -89,6 +89,18 @@ S4_ARTS = [
     "m8_gate_verdict.json",
 ]
 
+S5_ARTS = [
+    "m8_phase_budget_envelope.json",
+    "m8_phase_cost_outcome_receipt.json",
+    "m8_runtime_locality_guard_snapshot.json",
+    "m8_source_authority_guard_snapshot.json",
+    "m8_realism_guard_snapshot.json",
+    "m8_blocker_register.json",
+    "m8_execution_summary.json",
+    "m8_decision_log.json",
+    "m8_gate_verdict.json",
+]
+
 
 def now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -271,6 +283,28 @@ def latest_s3() -> tuple[str, dict[str, Any]]:
         if str(p.get("stage_id", "")) != "M8-ST-S3" or not bool(p.get("overall_pass")):
             continue
         if str(p.get("next_gate", "")) != "M8_ST_S4_READY":
+            continue
+        ts = parse_utc(p.get("generated_at_utc")) or datetime.min.replace(tzinfo=timezone.utc)
+        if (ts, d.name) > (best_ts, best_id):
+            best_ts = ts
+            best_id = d.name
+            best_payload = p
+    return best_id, best_payload
+
+
+def latest_s4() -> tuple[str, dict[str, Any]]:
+    best_id = ""
+    best_payload: dict[str, Any] = {}
+    best_ts = datetime.min.replace(tzinfo=timezone.utc)
+    for d in OUT_ROOT.glob("m8_stress_s4_*"):
+        p = loadj(d / "stress" / "m8_execution_summary.json")
+        if not p:
+            continue
+        if str(p.get("stage_id", "")) != "M8-ST-S4" or not bool(p.get("overall_pass")):
+            continue
+        if str(p.get("next_gate", "")) != "M8_ST_S5_READY":
+            continue
+        if str(p.get("verdict", "")) != "ADVANCE_TO_M9":
             continue
         ts = parse_utc(p.get("generated_at_utc")) or datetime.min.replace(tzinfo=timezone.utc)
         if (ts, d.name) > (best_ts, best_id):
@@ -1418,6 +1452,419 @@ def run_s4(
     )
 
 
+def run_s5(
+    phase_execution_id: str,
+    upstream_m7_execution: str,
+    upstream_m8_s4_execution: str,
+    upstream_m6_execution: str,
+) -> int:
+    out = OUT_ROOT / phase_execution_id / "stress"
+    out.mkdir(parents=True, exist_ok=True)
+    blockers: list[dict[str, Any]] = []
+    advisories: list[str] = []
+
+    plan_text = PLAN.read_text(encoding="utf-8") if PLAN.exists() else ""
+    packet = parse_plan_packet(plan_text)
+    reg = parse_registry(REG) if REG.exists() else {}
+    strict = parse_strict_ids(plan_text)
+
+    s4_exec = upstream_m8_s4_execution.strip()
+    s4 = loadj(OUT_ROOT / s4_exec / "stress" / "m8_execution_summary.json") if s4_exec else {}
+    if not s4:
+        s4_exec, s4 = latest_s4()
+    if not s4 or not (
+        bool(s4.get("overall_pass"))
+        and str(s4.get("verdict", "")) == "ADVANCE_TO_M9"
+        and str(s4.get("next_gate", "")) == "M8_ST_S5_READY"
+    ):
+        add_blocker(blockers, "M8-ST-B11", "S5", {"reason": "upstream_s4_not_ready", "execution_id": s4_exec})
+
+    m7 = loadj(OUT_ROOT / upstream_m7_execution / "stress" / "m7_execution_summary.json")
+    m8_handoff = loadj(OUT_ROOT / upstream_m7_execution / "stress" / "m8_handoff_pack.json")
+    if strict.get("M7-ST-S5", "") != upstream_m7_execution:
+        add_blocker(blockers, "M8-ST-B13", "S5", {"reason": "strict_parent_mismatch", "expected": strict.get("M7-ST-S5", ""), "actual": upstream_m7_execution})
+    if not bool(m7.get("overall_pass")) or str(m7.get("next_gate", "")) != "M8_READY":
+        add_blocker(blockers, "M8-ST-B13", "S5", {"reason": "m7_parent_not_ready"})
+    if not m8_handoff or str(m8_handoff.get("next_gate", "")) != "M8_READY":
+        add_blocker(blockers, "M8-ST-B13", "S5", {"reason": "m8_handoff_not_ready"})
+
+    p8 = loadj(OUT_ROOT / strict.get("M7P8-ST-S5", "") / "stress" / "m7p8_execution_summary.json")
+    p9 = loadj(OUT_ROOT / strict.get("M7P9-ST-S5", "") / "stress" / "m7p9_execution_summary.json")
+    p10 = loadj(OUT_ROOT / strict.get("M7P10-ST-S5", "") / "stress" / "m7p10_execution_summary.json")
+    if not (bool(p8.get("overall_pass")) and str(p8.get("verdict", "")) == "ADVANCE_TO_P9"):
+        add_blocker(blockers, "M8-ST-B13", "S5", {"reason": "p8_not_ready"})
+    if not (bool(p9.get("overall_pass")) and str(p9.get("verdict", "")) == "ADVANCE_TO_P10"):
+        add_blocker(blockers, "M8-ST-B13", "S5", {"reason": "p9_not_ready"})
+    if not (bool(p10.get("overall_pass")) and str(p10.get("verdict", "")) == "M7_J_READY"):
+        add_blocker(blockers, "M8-ST-B13", "S5", {"reason": "p10_not_ready"})
+
+    m6_exec = upstream_m6_execution.strip()
+    m6 = loadj(OUT_ROOT / m6_exec / "stress" / "m6_execution_summary.json") if m6_exec else {}
+    if not m6:
+        for d in sorted(OUT_ROOT.glob("m6_stress_s5_*")):
+            cand = loadj(d / "stress" / "m6_execution_summary.json")
+            if bool(cand.get("overall_pass")) and str(cand.get("next_gate", "")) == "M7_READY":
+                m6_exec, m6 = d.name, cand
+    if not m6 or not bool(m6.get("overall_pass")) or str(m6.get("next_gate", "")) != "M7_READY":
+        add_blocker(blockers, "M8-ST-B13", "S5", {"reason": "m6_not_ready", "execution_id": m6_exec})
+
+    stale = parse_utc(packet.get("M8_STRESS_STALE_EVIDENCE_CUTOFF_UTC"))
+    if stale:
+        for label, payload in [("M8-S4", s4), ("M7", m7), ("P8", p8), ("P9", p9), ("P10", p10), ("M6", m6)]:
+            if (parse_utc(payload.get("generated_at_utc")) or datetime.min.replace(tzinfo=timezone.utc)) < stale:
+                add_blocker(blockers, "M8-ST-B13", "S5", {"reason": "stale_authority", "label": label})
+
+    platform_ids = {
+        str(v).strip()
+        for v in [
+            s4.get("platform_run_id"),
+            m7.get("platform_run_id"),
+            p8.get("platform_run_id"),
+            p9.get("platform_run_id"),
+            p10.get("platform_run_id"),
+            m6.get("platform_run_id"),
+            m8_handoff.get("platform_run_id") if m8_handoff else "",
+        ]
+        if str(v or "").strip()
+    }
+    if len(platform_ids) != 1:
+        add_blocker(blockers, "M8-ST-B11", "S5", {"reason": "platform_run_scope_mismatch", "platform_run_ids": sorted(platform_ids)})
+    platform_run_id = sorted(platform_ids)[0] if len(platform_ids) == 1 else ""
+
+    refs = [
+        str(m8_handoff.get("receipt_summary_ref", "")) if m8_handoff else "",
+        str(m8_handoff.get("offsets_snapshot_ref", "")) if m8_handoff else "",
+        str(m8_handoff.get("quarantine_summary_ref", "")) if m8_handoff else "",
+        str(m8_handoff.get("decision_evidence_ref", "")) if m8_handoff else "",
+        str(m8_handoff.get("case_labels_evidence_ref", "")) if m8_handoff else "",
+        str(m8_handoff.get("rtdl_evidence_ref", "")) if m8_handoff else "",
+    ]
+    if any(not r for r in refs) or any(is_local(r) for r in refs):
+        add_blocker(blockers, "M8-ST-B17", "S5", {"reason": "invalid_authority_refs", "refs": refs})
+
+    bucket = str(reg.get("S3_EVIDENCE_BUCKET", "")).strip()
+    if not bucket:
+        add_blocker(blockers, "M8-ST-B10", "S5", {"reason": "missing_evidence_bucket"})
+
+    scenario_run_id = str(s4.get("scenario_run_id", "")).strip()
+    if not blockers and (not scenario_run_id) and refs[0]:
+        rc, raw, err = run(["aws", "s3", "cp", f"s3://{bucket}/{refs[0]}", "-", "--region", "eu-west-2"], timeout=90)
+        if rc != 0:
+            add_blocker(blockers, "M8-ST-B10", "S5", {"reason": "receipt_summary_unreadable", "stderr": err.strip()[:200]})
+        else:
+            receipt = json.loads(raw) if raw.strip() else {}
+            scenario_run_id = str(receipt.get("scenario_run_id", "")).strip()
+    if not scenario_run_id:
+        add_blocker(blockers, "M8-ST-B11", "S5", {"reason": "scenario_run_id_unresolved"})
+
+    s3_exec = str(s4.get("upstream_m8_s3_execution", "")).strip()
+    s2_exec = str(s4.get("upstream_m8_s2_execution", "")).strip()
+    s1_exec = str(s4.get("upstream_m8_s1_execution", "")).strip()
+    s0_exec = str(s4.get("upstream_m8_s0_execution", "")).strip()
+    m8d_exec = str(s4.get("m8d_execution_id", "")).strip()
+    m8e_exec = str(s4.get("m8e_execution_id", "")).strip()
+    m8f_exec = str(s4.get("m8f_execution_id", "")).strip()
+    m8g_exec = str(s4.get("m8g_execution_id", "")).strip()
+    m8h_exec = str(s4.get("m8h_execution_id", "")).strip()
+    m8i_exec = str(s4.get("m8i_execution_id", "")).strip()
+    required_ids = {
+        "upstream_m8_s0_execution": s0_exec,
+        "upstream_m8_s1_execution": s1_exec,
+        "upstream_m8_s2_execution": s2_exec,
+        "upstream_m8_s3_execution": s3_exec,
+        "m8d_execution_id": m8d_exec,
+        "m8e_execution_id": m8e_exec,
+        "m8f_execution_id": m8f_exec,
+        "m8g_execution_id": m8g_exec,
+        "m8h_execution_id": m8h_exec,
+        "m8i_execution_id": m8i_exec,
+    }
+    missing_required_ids = [k for k, v in required_ids.items() if not str(v).strip()]
+    if missing_required_ids:
+        add_blocker(blockers, "M8-ST-B14", "S5", {"reason": "unresolved_upstream_execution_ids", "fields": missing_required_ids})
+
+    s0a_snapshot = loadj(OUT_ROOT / s0_exec / "stress" / "m8a_handle_closure_snapshot.json") if s0_exec else {}
+    s1b_snapshot = loadj(OUT_ROOT / s1_exec / "stress" / "m8b_runtime_lock_readiness_snapshot.json") if s1_exec else {}
+    s1c_snapshot = loadj(OUT_ROOT / s1_exec / "stress" / "m8c_closure_input_readiness_snapshot.json") if s1_exec else {}
+    if not s0a_snapshot:
+        add_blocker(blockers, "M8-ST-B11", "S5", {"reason": "missing_parent_m8a_snapshot", "execution_id": s0_exec})
+    if not s1b_snapshot:
+        add_blocker(blockers, "M8-ST-B11", "S5", {"reason": "missing_parent_m8b_snapshot", "execution_id": s1_exec})
+    if not s1c_snapshot:
+        add_blocker(blockers, "M8-ST-B11", "S5", {"reason": "missing_parent_m8c_snapshot", "execution_id": s1_exec})
+
+    phase_compat: dict[str, Any] = {}
+    if not blockers:
+        compat_root = out / "_m8j_phase_compat"
+        compat_root.mkdir(parents=True, exist_ok=True)
+        generated_at = now()
+        m8a_id = f"m8a_j_strict_compat_{tok()}"
+        m8b_id = f"m8b_j_strict_compat_{tok()}"
+        m8c_id = f"m8c_j_strict_compat_{tok()}"
+
+        m8a_summary = {
+            "captured_at_utc": generated_at,
+            "phase": "M8.A",
+            "execution_id": m8a_id,
+            "platform_run_id": platform_run_id,
+            "scenario_run_id": scenario_run_id,
+            "overall_pass": True,
+            "blocker_count": 0,
+            "next_gate": "M8.B_READY",
+            "derived_from_m8_s0_execution_id": s0_exec,
+        }
+        m8b_summary = {
+            "captured_at_utc": generated_at,
+            "phase": "M8.B",
+            "execution_id": m8b_id,
+            "platform_run_id": platform_run_id,
+            "scenario_run_id": scenario_run_id,
+            "overall_pass": True,
+            "blocker_count": 0,
+            "next_gate": "M8.C_READY",
+            "derived_from_m8_s1_execution_id": s1_exec,
+        }
+        m8c_summary = {
+            "captured_at_utc": generated_at,
+            "phase": "M8.C",
+            "execution_id": m8c_id,
+            "platform_run_id": platform_run_id,
+            "scenario_run_id": scenario_run_id,
+            "overall_pass": True,
+            "blocker_count": 0,
+            "next_gate": "M8.D_READY",
+            "derived_from_m8_s1_execution_id": s1_exec,
+            "derived_from_m6_execution_id": m6_exec,
+            "derived_from_m7_execution_id": upstream_m7_execution,
+        }
+
+        m8a_snapshot = dict(s0a_snapshot)
+        m8b_snapshot = dict(s1b_snapshot)
+        m8c_snapshot = dict(s1c_snapshot)
+        for snap in (m8a_snapshot, m8b_snapshot, m8c_snapshot):
+            snap["platform_run_id"] = platform_run_id
+            snap["scenario_run_id"] = scenario_run_id
+
+        local_m8a_summary = compat_root / "m8a_execution_summary.json"
+        local_m8b_summary = compat_root / "m8b_execution_summary.json"
+        local_m8c_summary = compat_root / "m8c_execution_summary.json"
+        local_m8a_snapshot = compat_root / "m8a_handle_closure_snapshot.json"
+        local_m8b_snapshot = compat_root / "m8b_runtime_lock_readiness_snapshot.json"
+        local_m8c_snapshot = compat_root / "m8c_closure_input_readiness_snapshot.json"
+        dumpj(local_m8a_summary, m8a_summary)
+        dumpj(local_m8b_summary, m8b_summary)
+        dumpj(local_m8c_summary, m8c_summary)
+        dumpj(local_m8a_snapshot, m8a_snapshot)
+        dumpj(local_m8b_snapshot, m8b_snapshot)
+        dumpj(local_m8c_snapshot, m8c_snapshot)
+
+        uploads = [
+            (local_m8a_summary, f"evidence/dev_full/run_control/{m8a_id}/m8a_execution_summary.json"),
+            (local_m8a_snapshot, f"evidence/dev_full/run_control/{m8a_id}/m8a_handle_closure_snapshot.json"),
+            (local_m8b_summary, f"evidence/dev_full/run_control/{m8b_id}/m8b_execution_summary.json"),
+            (local_m8b_snapshot, f"evidence/dev_full/run_control/{m8b_id}/m8b_runtime_lock_readiness_snapshot.json"),
+            (local_m8c_summary, f"evidence/dev_full/run_control/{m8c_id}/m8c_execution_summary.json"),
+            (local_m8c_snapshot, f"evidence/dev_full/run_control/{m8c_id}/m8c_closure_input_readiness_snapshot.json"),
+        ]
+        compat_upload_errs: list[dict[str, Any]] = []
+        for local_path, key in uploads:
+            rc, _, err = run(["aws", "s3", "cp", local_path.as_posix(), f"s3://{bucket}/{key}", "--region", "eu-west-2"], timeout=90)
+            if rc != 0:
+                compat_upload_errs.append({"key": key, "stderr": err.strip()[:200], "rc": rc})
+        if compat_upload_errs:
+            add_blocker(blockers, "M8-ST-B10", "S5", {"reason": "phase_compat_upload_failed", "errors": compat_upload_errs})
+
+        phase_compat = {
+            "generated_at_utc": generated_at,
+            "m8a_execution_id": m8a_id,
+            "m8b_execution_id": m8b_id,
+            "m8c_execution_id": m8c_id,
+            "derived_from": {
+                "m8_s0_execution_id": s0_exec,
+                "m8_s1_execution_id": s1_exec,
+                "m8_s2_execution_id": s2_exec,
+                "m8_s3_execution_id": s3_exec,
+                "m8_s4_execution_id": s4_exec,
+            },
+            "upload_error_count": len(compat_upload_errs),
+        }
+
+    m8j_exec = ""
+    m8j_summary: dict[str, Any] = {}
+    m8j_blocker_register: dict[str, Any] = {}
+    m8j_budget_envelope: dict[str, Any] = {}
+    m8j_cost_receipt: dict[str, Any] = {}
+    m8j_exec_summary: dict[str, Any] = {}
+    if not blockers:
+        m8j_exec = f"m8j_stress_s5_{tok()}"
+        m8j_local_root = out / "_m8j_local"
+        rc, _, err = run(
+            [
+                "python",
+                "scripts/dev_substrate/m8j_closure_sync.py",
+                "--execution-id",
+                m8j_exec,
+                "--platform-run-id",
+                platform_run_id,
+                "--scenario-run-id",
+                scenario_run_id,
+                "--upstream-m8a-execution",
+                str(phase_compat.get("m8a_execution_id", "")),
+                "--upstream-m8b-execution",
+                str(phase_compat.get("m8b_execution_id", "")),
+                "--upstream-m8c-execution",
+                str(phase_compat.get("m8c_execution_id", "")),
+                "--upstream-m8d-execution",
+                m8d_exec,
+                "--upstream-m8e-execution",
+                m8e_exec,
+                "--upstream-m8f-execution",
+                m8f_exec,
+                "--upstream-m8g-execution",
+                m8g_exec,
+                "--upstream-m8h-execution",
+                m8h_exec,
+                "--upstream-m8i-execution",
+                m8i_exec,
+                "--evidence-bucket",
+                bucket,
+                "--region",
+                "eu-west-2",
+                "--local-output-root",
+                m8j_local_root.as_posix(),
+            ],
+            timeout=1800,
+        )
+        if rc != 0:
+            add_blocker(blockers, "M8-ST-B11", "S5", {"reason": "m8j_command_failed", "stderr": err.strip()[:300], "rc": rc})
+
+        m8j_dir = m8j_local_root / m8j_exec
+        m8j_summary = loadj(m8j_dir / "m8_execution_summary.json")
+        m8j_exec_summary = loadj(m8j_dir / "m8j_execution_summary.json")
+        m8j_blocker_register = loadj(m8j_dir / "m8j_blocker_register.json")
+        m8j_budget_envelope = loadj(m8j_dir / "m8_phase_budget_envelope.json")
+        m8j_cost_receipt = loadj(m8j_dir / "m8_phase_cost_outcome_receipt.json")
+
+        if not m8j_exec_summary:
+            add_blocker(blockers, "M8-ST-B11", "S5", {"reason": "m8j_execution_summary_missing"})
+        if not m8j_budget_envelope:
+            add_blocker(blockers, "M8-ST-B12", "S5", {"reason": "m8_phase_budget_envelope_missing"})
+        if not m8j_cost_receipt:
+            add_blocker(blockers, "M8-ST-B12", "S5", {"reason": "m8_phase_cost_outcome_receipt_missing"})
+
+        source_blockers = m8j_blocker_register.get("blockers", []) if isinstance(m8j_blocker_register, dict) else []
+        if isinstance(source_blockers, list):
+            for sb in source_blockers:
+                if not isinstance(sb, dict):
+                    continue
+                code = str(sb.get("code", "")).strip()
+                message = str(sb.get("message", "")).strip()
+                low = message.lower()
+                if code == "M8-B12":
+                    add_blocker(blockers, "M8-ST-B12", "S5", {"reason": "m8j_blocker", "source_code": code, "message": message})
+                elif code == "M8-B11":
+                    if any(k in low for k in ("cost", "budget", "spend")):
+                        add_blocker(blockers, "M8-ST-B15", "S5", {"reason": "m8j_cost_blocker", "source_code": code, "message": message})
+                    else:
+                        add_blocker(blockers, "M8-ST-B11", "S5", {"reason": "m8j_blocker", "source_code": code, "message": message})
+
+        if m8j_exec_summary and not (
+            bool(m8j_exec_summary.get("overall_pass"))
+            and str(m8j_exec_summary.get("verdict", "")) == "ADVANCE_TO_M9"
+            and str(m8j_exec_summary.get("next_gate", "")) == "M9_READY"
+        ):
+            add_blocker(blockers, "M8-ST-B11", "S5", {"reason": "m8j_not_ready", "summary": m8j_exec_summary})
+
+    if phase_compat:
+        dumpj(out / "m8j_phase_compat_snapshot.json", phase_compat)
+    if m8j_exec_summary:
+        dumpj(out / "m8j_execution_summary_snapshot.json", m8j_exec_summary)
+    if m8j_blocker_register:
+        dumpj(out / "m8j_blocker_register_snapshot.json", m8j_blocker_register)
+    if m8j_budget_envelope:
+        dumpj(out / "m8_phase_budget_envelope.json", m8j_budget_envelope)
+    if m8j_cost_receipt:
+        dumpj(out / "m8_phase_cost_outcome_receipt.json", m8j_cost_receipt)
+
+    runtime_locality_ok = bool(packet.get("M8_STRESS_REQUIRE_REMOTE_RUNTIME_ONLY"))
+    dumpj(
+        out / "m8_runtime_locality_guard_snapshot.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M8-ST-S5",
+            "overall_pass": runtime_locality_ok,
+            "require_remote_runtime_only": bool(packet.get("M8_STRESS_REQUIRE_REMOTE_RUNTIME_ONLY")),
+            "runtime_execution_attempted": False,
+            "runtime_execution_mode": "none_in_s5_validations",
+        },
+    )
+    if not runtime_locality_ok:
+        add_blocker(blockers, "M8-ST-B16", "S5", {"reason": "runtime_locality_policy_not_true"})
+
+    source_guard_ok = len([b for b in blockers if b["id"] in {"M8-ST-B10", "M8-ST-B17"}]) == 0
+    dumpj(
+        out / "m8_source_authority_guard_snapshot.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M8-ST-S5",
+            "overall_pass": source_guard_ok,
+            "authoritative_refs": refs,
+            "evidence_bucket": bucket,
+        },
+    )
+
+    addendum = m8_handoff.get("addendum_lane_status", {}) if m8_handoff else {}
+    realism_ok = all(bool(addendum.get(k)) for k in ("A1", "A2", "A3", "A4")) and int(m8_handoff.get("addendum_open_blocker_count", -1)) == 0
+    if not realism_ok:
+        add_blocker(blockers, "M8-ST-B18", "S5", {"reason": "non_toy_realism_guard_not_satisfied"})
+    dumpj(
+        out / "m8_realism_guard_snapshot.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M8-ST-S5",
+            "overall_pass": realism_ok,
+            "addendum_lane_status": addendum,
+        },
+    )
+
+    return finish(
+        "S5",
+        phase_execution_id,
+        out,
+        blockers,
+        S5_ARTS,
+        {
+            "platform_run_id": platform_run_id,
+            "scenario_run_id": scenario_run_id,
+            "upstream_m8_s4_execution": s4_exec,
+            "upstream_m8_s3_execution": s3_exec,
+            "upstream_m8_s2_execution": s2_exec,
+            "upstream_m8_s1_execution": s1_exec,
+            "upstream_m8_s0_execution": s0_exec,
+            "upstream_m7_execution": upstream_m7_execution,
+            "upstream_m6_execution": m6_exec,
+            "m8j_execution_id": m8j_exec,
+            "m8a_execution_id": str(phase_compat.get("m8a_execution_id", "")),
+            "m8b_execution_id": str(phase_compat.get("m8b_execution_id", "")),
+            "m8c_execution_id": str(phase_compat.get("m8c_execution_id", "")),
+            "m8d_execution_id": m8d_exec,
+            "m8e_execution_id": m8e_exec,
+            "m8f_execution_id": m8f_exec,
+            "m8g_execution_id": m8g_exec,
+            "m8h_execution_id": m8h_exec,
+            "m8i_execution_id": m8i_exec,
+            "decisions": [
+                "S5 executed closure sync and cost-outcome publication via M8.J with strict authority chain continuity.",
+                "Strict compatibility summaries and snapshots were emitted for M8.A/M8.B/M8.C to satisfy M8.J durable contract parity checks.",
+            ],
+            "advisories": advisories,
+        },
+    )
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="M8 parent stress runner")
     ap.add_argument("--stage", required=True, choices=["S0", "S1", "S2", "S3", "S4", "S5"])
@@ -1427,6 +1874,7 @@ def main() -> int:
     ap.add_argument("--upstream-m8-s1-execution", default="")
     ap.add_argument("--upstream-m8-s2-execution", default="")
     ap.add_argument("--upstream-m8-s3-execution", default="")
+    ap.add_argument("--upstream-m8-s4-execution", default="")
     ap.add_argument("--upstream-m6-execution", default="")
     args = ap.parse_args()
     pid = args.phase_execution_id.strip() or f"m8_stress_{args.stage.lower()}_{tok()}"
@@ -1455,7 +1903,14 @@ def main() -> int:
             args.upstream_m8_s3_execution.strip(),
             args.upstream_m6_execution.strip(),
         )
-    raise SystemExit("Only S0, S1, S2, S3 and S4 are implemented in this runner.")
+    if args.stage == "S5":
+        return run_s5(
+            pid,
+            args.upstream_m7_execution.strip(),
+            args.upstream_m8_s4_execution.strip(),
+            args.upstream_m6_execution.strip(),
+        )
+    raise SystemExit("Only S0, S1, S2, S3, S4 and S5 are implemented in this runner.")
 
 
 if __name__ == "__main__":

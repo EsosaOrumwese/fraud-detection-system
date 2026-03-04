@@ -9486,3 +9486,80 @@ ext_gate=M8_READY, open_blockers=0.
 ### Governance
 1. No commit/push/branch operation.
 
+
+## Entry: 2026-03-04 23:29 +00:00 - M8-ST-S5 pre-implementation plan (closure sync + cost receipt)
+### Context
+1. USER requested immediate planning and execution of parent `M8-ST-S5`.
+2. Current parent runner supports `S0..S4`; `S5` is not implemented.
+3. S5 contract requires M8 closure sync parity + attributable cost-outcome receipt and final gate `M9_READY` with blocker-free posture.
+
+### S5 contract mapping
+1. Parent stage must execute component lane `M8.J` via `scripts/dev_substrate/m8j_closure_sync.py`.
+2. `m8j` requires explicit upstream IDs for `M8.A..M8.I` and reads both summary and contract snapshots from S3 run-control roots.
+3. Current strict chain has native component IDs for `D..I`, but `A/B/C` are parent-stage receipts from `S0/S1`, so compatibility projection is required to satisfy `m8j` root-level contract paths.
+
+### Decision
+1. Implement parent `run_s5(...)` in `m8_stress_runner.py` with strict fail-closed checks (`S4`, strict M7/P8/P9/P10/M6, stale cutoff, scope continuity).
+2. Materialize deterministic strict-chain compatibility packs for `M8.A/B/C` containing both:
+   - `m8[a|b|c]_execution_summary.json`, and
+   - matching snapshot artifact (`m8a_handle_closure_snapshot.json`, `m8b_runtime_lock_readiness_snapshot.json`, `m8c_closure_input_readiness_snapshot.json`).
+3. Execute `m8j_closure_sync.py` with strict upstream IDs; map `m8j` blockers into parent taxonomy (`B11/B12/B15`) and fail-closed.
+4. Copy required `J` artifacts into parent S5 evidence root:
+   - `m8_phase_budget_envelope.json`,
+   - `m8_phase_cost_outcome_receipt.json`,
+   - plus stage receipts and guard snapshots.
+
+### Planned implementation steps
+1. Add `S5_ARTS`, `latest_s4()`, CLI arg `--upstream-m8-s4-execution`, and `S5` dispatch.
+2. Implement `run_s5(...)`:
+   - strict entry gate checks from `S4` (`verdict=ADVANCE_TO_M9`, `next_gate=M8_ST_S5_READY`),
+   - strict authority chain validation and stale-evidence checks,
+   - compatibility projection upload for `A/B/C`,
+   - execute `m8j_closure_sync.py`, evaluate pass conditions (`overall_pass=true`, `verdict=ADVANCE_TO_M9`, `next_gate=M9_READY`),
+   - emit parent artifacts/guards and final summary.
+3. Execute `M8-ST-S5` immediately and remediate in-lane if blocker opens.
+4. Sync `platform.M8.stress_test.md`, `platform.stress_test.md`, impl map, and day logbook.
+
+### Risk controls
+1. No historical default upstream IDs; all upstreams pinned from strict chain.
+2. Oracle/durable evidence only for adjudication; no local-only authority.
+3. No commit/push/branch operation.
+
+## Entry: 2026-03-04 23:31 +00:00 - M8-ST-S5 implemented and executed green
+### Implementation summary
+1. Extended `scripts/dev_substrate/m8_stress_runner.py` with parent `S5` execution lane for closure sync/cost-outcome (`M8.J`).
+2. Added `S5_ARTS`, `latest_s4()`, CLI arg `--upstream-m8-s4-execution`, and `S5` dispatch in `main()`.
+3. Implemented `run_s5(...)` fail-closed flow:
+   - strict entry gate checks from `S4` (`ADVANCE_TO_M9`, `M8_ST_S5_READY`),
+   - strict chain continuity (`M7`, `P8/P9/P10`, `M6`) and stale-cutoff enforcement,
+   - source-authority checks against durable refs,
+   - strict compatibility projection for `M8.A/B/C` with summary + snapshot artifacts (to satisfy `M8.J` contract parity),
+   - execution of `m8j_closure_sync.py` and blocker mapping to parent taxonomy (`B11/B12/B15`),
+   - parent guard snapshots and deterministic final stage receipts.
+
+### Command executed
+1. `python scripts/dev_substrate/m8_stress_runner.py --stage S5 --upstream-m8-s4-execution m8_stress_s4_20260304T232602Z --upstream-m7-execution m7_stress_s5_20260304T212520Z --upstream-m6-execution m6_stress_s5_20260304T204909Z`
+
+### Result
+1. `phase_execution_id=m8_stress_s5_20260304T233110Z`.
+2. `overall_pass=true`, `open_blocker_count=0`.
+3. `verdict=ADVANCE_TO_M9`, `next_gate=M9_READY`.
+4. `M8.J` execution id: `m8j_stress_s5_20260304T233118Z`.
+5. Compatibility IDs used for `M8.J` parity surfaces:
+   - `m8a_j_strict_compat_20260304T233110Z`,
+   - `m8b_j_strict_compat_20260304T233110Z`,
+   - `m8c_j_strict_compat_20260304T233110Z`.
+6. Evidence root:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m8_stress_s5_20260304T233110Z/stress/`.
+
+### Cost/closure outcome
+1. `m8_phase_budget_envelope.json` emitted with contract parity complete (`all_required_available=true`).
+2. `m8_phase_cost_outcome_receipt.json` emitted with attributable AWS MTD capture (`spend_currency=USD`).
+
+### Documentation sync
+1. Updated `platform.M8.stress_test.md` to posture `S5_GREEN`, checked S5 DoD, and marked final gate `M9_READY`.
+2. Updated `platform.stress_test.md` M8 row to `DONE (M9_READY)` and advanced next step to M9 planning.
+
+### Governance
+1. No commit/push/branch operation.
+
