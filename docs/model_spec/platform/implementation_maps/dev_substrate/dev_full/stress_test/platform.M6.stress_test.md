@@ -434,15 +434,14 @@ Required artifacts for each parent stage:
 - [x] Parent orchestration runbook (`S0..S5`) pinned.
 - [x] `M6-ST-S0` executed with blocker-free entry closure.
 - [x] `M6-ST-S1` (P5 orchestration gate) executed and closed.
-- [ ] `M6-ST-S2..S3` subphase orchestration gates executed and closed.
-- [ ] `M6-ST-S4` integrated stress windows executed within envelope.
-- [ ] `M6-ST-S5` closure rollup emitted with deterministic `M7_READY` recommendation.
+- [x] `M6-ST-S2..S3` subphase orchestration gates executed and closed.
+- [x] `M6-ST-S4` integrated stress windows executed within envelope.
+- [x] `M6-ST-S5` closure rollup emitted with deterministic `M7_READY` recommendation.
 
 ## 11) Immediate Next Actions
-1. Execute `M6` hard-close addendum lane `A1` (parent orchestration completion): implement/execute parent `M6-ST-S2` and `M6-ST-S3` with deterministic adjudication on `M6P6/M6P7` closure receipts.
-2. Execute `M6` hard-close addendum lane `A2` (integrated live-window stress): run parent `M6-ST-S4` sustained/burst/fault windows with direct throughput/latency/lag/error evidence.
-3. Execute `M6` hard-close addendum lane `A3` (ingest realism hardening): replace historical/proxy-only closure claims with live-window ingest evidence for offsets, replay-window, and idempotency posture.
-4. Execute `M6` hard-close addendum lane `A4` (cost attribution closure): run parent `M6-ST-S5` rollup only after mapped spend attribution and reaffirm deterministic `M7_READY`.
+1. Preserve `M6-ST-S5` closure receipt (`m6_stress_s5_20260304T145252Z`) as active M6 hard-close authority.
+2. Keep `M7_READY` handoff anchor at `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m6_stress_s5_20260304T145252Z/stress/m7_handoff_pack.json`.
+3. Continue with M7 hard-close addendum lanes (`A1..A4`) before advancing to active M8 execution.
 
 ## 12) Execution Progress
 1. Planning authority created.
@@ -523,6 +522,46 @@ Required artifacts for each parent stage:
    - `s4_dependency_phase_execution_id=m6p7_stress_s4_20260304T024002Z`,
    - `handoff_path_key=evidence/dev_full/run_control/m6p7_stress_s5_20260304T024638Z/m7_handoff_pack.json`,
    - evidence root: `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m6p7_stress_s5_20260304T024638Z/stress/`.
+13. Parent `M6-ST-S2` executed and passed:
+   - `phase_execution_id=m6_stress_s2_20260304T145122Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6_ST_S3_READY`,
+   - `open_blockers=0`,
+   - `m6p6_verdict=ADVANCE_TO_P7`,
+   - evidence root: `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m6_stress_s2_20260304T145122Z/stress/`.
+14. Parent `M6-ST-S3` executed and passed:
+   - `phase_execution_id=m6_stress_s3_20260304T145156Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6_ST_S4_READY`,
+   - `open_blockers=0`,
+   - `m6p7_verdict=ADVANCE_TO_M7`,
+   - evidence root: `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m6_stress_s3_20260304T145156Z/stress/`.
+15. Parent `M6-ST-S4` integrated/addendum execution passed:
+   - `phase_execution_id=m6_stress_s4_20260304T145244Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6_ST_S5_READY`,
+   - `open_blockers=0`,
+   - integrated checks green (`throughput/latency/lag/error/continuity`),
+   - ingest realism checks green (`direct_query_evidence_check=true`, `live_idempotency_sample_check=true`, `proxy_only_check=true`),
+   - evidence root: `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m6_stress_s4_20260304T145244Z/stress/`.
+16. Parent `M6-ST-S5` rollup/addendum closure passed:
+   - `phase_execution_id=m6_stress_s5_20260304T145252Z`,
+   - `overall_pass=true`,
+   - `verdict=GO`,
+   - `next_gate=M7_READY`,
+   - `open_blockers=0`,
+   - addendum lane status: `A1=true`, `A2=true`, `A3=true`, `A4=true`,
+   - addendum blocker register: `open_blocker_count=0`,
+   - evidence root: `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m6_stress_s5_20260304T145252Z/stress/`.
+17. M6 hard-close addendum artifact contract emitted in parent S5:
+   - `m6_addendum_parent_chain_summary.json`,
+   - `m6_addendum_integrated_window_summary.json`,
+   - `m6_addendum_integrated_window_metrics.json`,
+   - `m6_addendum_ingest_live_evidence_summary.json`,
+   - `m6_addendum_cost_attribution_receipt.json`,
+   - `m6_addendum_blocker_register.json`,
+   - `m6_addendum_execution_summary.json`,
+   - `m6_addendum_decision_log.json`.
 
 ## 13) M6 Hard-Close Addendum (Production-Readiness Closure)
 Purpose:
@@ -533,8 +572,8 @@ Entry prerequisites:
    - `M6P5-ST-S5` (`m6p5_stress_s5_20260304T013452Z`),
    - `M6P6-ST-S5` (`m6p6_stress_s5_20260304T020815Z`),
    - `M6P7-ST-S5` (`m6p7_stress_s5_20260304T024638Z`).
-2. parent gap is explicit and unresolved:
-   - parent `M6-ST-S2..S5` not yet executed in current cycle.
+2. parent gap was explicit at addendum start and is now resolved in-cycle:
+   - parent `M6-ST-S2..S5` executed with closure receipt `m6_stress_s5_20260304T145252Z`.
 3. run-scope continuity remains pinned to active `platform_run_id`.
 
 No-waiver closure rule:
@@ -579,11 +618,11 @@ No-waiver closure rule:
 8. `m6_addendum_decision_log.json`
 
 ### 13.5 Addendum DoD
-- [ ] Lane `A1` executed with parent `M6-ST-S2` and `M6-ST-S3` green and deterministic verdict contracts preserved.
-- [ ] Lane `A2` executed with parent `M6-ST-S4` sustained/burst/fault windows green within runtime/spend envelope.
-- [ ] Lane `A3` executed with live-window ingest evidence replacing historical/proxy-only closure mode for offsets/replay/idempotency checks.
-- [ ] Lane `A4` executed with mapped spend attribution (`window_seconds >= 600`) and `unattributed_spend_detected=false`.
-- [ ] Addendum blocker register closed (`open_blocker_count=0`) and parent `M6-ST-S5` reaffirms deterministic `M7_READY`.
+- [x] Lane `A1` executed with parent `M6-ST-S2` and `M6-ST-S3` green and deterministic verdict contracts preserved.
+- [x] Lane `A2` executed with parent `M6-ST-S4` sustained/burst/fault windows green within runtime/spend envelope.
+- [x] Lane `A3` executed with live-window ingest evidence replacing historical/proxy-only closure mode for offsets/replay/idempotency checks.
+- [x] Lane `A4` executed with mapped spend attribution (`window_seconds >= 600`) and `unattributed_spend_detected=false`.
+- [x] Addendum blocker register closed (`open_blocker_count=0`) and parent `M6-ST-S5` reaffirms deterministic `M7_READY`.
 
 ### 13.6 Addendum Execution Order
 1. `A1` -> parent orchestration completion (`S2`, `S3`).

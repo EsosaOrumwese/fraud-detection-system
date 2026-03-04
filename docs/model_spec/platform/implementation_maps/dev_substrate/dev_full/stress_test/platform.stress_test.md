@@ -213,7 +213,7 @@ For any phase:
 
 ## 12) Program Status
 1. Program bootstrapped.
-2. Current phase state: `M6` (`ACTIVE`; parent `S0/S1` executed green, `M6.P5/P6/P7` closed green, parent `S2/S3` adjudications next). `M7` stress planning scaffold is now created with mandatory data-realism gates.
+2. Current phase state: `M7` (`CONDITIONALLY CLOSED`; parent and subphase gates are green, while M7 hard-close addendum lanes remain pending before M8).
 3. Dedicated phase files:
    - `stress_test/platform.M2.stress_test.md` (`DONE`),
    - `stress_test/platform.M3.stress_test.md` (`DONE`),
@@ -221,15 +221,15 @@ For any phase:
    - `stress_test/platform.M5.stress_test.md` (`DONE`),
    - `stress_test/platform.M5.P3.stress_test.md` (`DONE`),
    - `stress_test/platform.M5.P4.stress_test.md` (`DONE`),
-   - `stress_test/platform.M6.stress_test.md` (`ACTIVE_EXECUTION`),
+   - `stress_test/platform.M6.stress_test.md` (`DONE_HARD_CLOSED`),
    - `stress_test/platform.M6.P5.stress_test.md` (`DONE`),
    - `stress_test/platform.M6.P6.stress_test.md` (`DONE`),
-   - `stress_test/platform.M6.P7.stress_test.md` (`ACTIVE_EXECUTION`),
-   - `stress_test/platform.M7.stress_test.md` (`PLANNED`),
-   - `stress_test/platform.M7.P8.stress_test.md` (`PLANNED`),
-   - `stress_test/platform.M7.P9.stress_test.md` (`PLANNED`),
-   - `stress_test/platform.M7.P10.stress_test.md` (`PLANNED`).
-4. Next step: execute parent `M6-ST-S2` adjudication on P6 verdict `ADVANCE_TO_P7`, then parent `M6-ST-S3` adjudication on P7 verdict `ADVANCE_TO_M7`; once M6 parent gates close, execute `M7-ST-S0` data-profile closure.
+   - `stress_test/platform.M6.P7.stress_test.md` (`DONE`),
+   - `stress_test/platform.M7.stress_test.md` (`CONDITIONALLY_CLOSED`),
+   - `stress_test/platform.M7.P8.stress_test.md` (`DONE`),
+   - `stress_test/platform.M7.P9.stress_test.md` (`DONE`),
+   - `stress_test/platform.M7.P10.stress_test.md` (`DONE`).
+4. Next step: execute M7 hard-close addendum lanes (`A1 -> A2 -> A3 -> A4`) before active M8 execution.
 
 ## 13) Closed Phase - M0 (Inline)
 Status:
@@ -489,9 +489,9 @@ Authority routing:
    - `M5.P4`,
    - parent closure rollup with `M6_READY` recommendation.
 
-## 18) Active Phase - M6 (Dedicated + Split Subphases)
+## 18) Closed Phase - M6 (Dedicated + Split Subphases + Hard-Close Addendum)
 Status:
-1. `ACTIVE` (`M6-ST-S0/S1 PASS`; `M6.P5`, `M6.P6`, and `M6.P7` closed green; parent hard-close addendum lanes pending for production-readiness closure).
+1. `DONE` (`M6-ST-S0..S5` closed green; hard-close addendum lanes `A1..A4` closed green; deterministic `GO` with `next_gate=M7_READY`).
 
 Authority routing:
 1. Parent orchestration authority: `stress_test/platform.M6.stress_test.md`.
@@ -507,24 +507,22 @@ Authority routing:
    - parent `M6-ST-S4` integrated stress window,
    - parent `M6-ST-S5` closure rollup and `M7_READY` recommendation.
 4. Current next executable step:
-   - execute M6 hard-close addendum lane `A1`:
-     - run parent `M6-ST-S2` to adjudicate `M6.P6` closure (`ADVANCE_TO_P7`),
-     - run parent `M6-ST-S3` to adjudicate `M6.P7` closure (`ADVANCE_TO_M7`).
-   - then execute lane `A2` (parent `M6-ST-S4` integrated sustained/burst/fault windows with direct metrics),
-   - then execute lane `A3` (live-window ingest realism evidence, not historical/proxy-only closure mode),
-   - then execute lane `A4` (mapped cost attribution + parent `M6-ST-S5` rollup with deterministic `M7_READY` reaffirmation).
+   - execute M7 hard-close addendum lanes from `platform.M7.stress_test.md` section `13` before M8.
 5. Latest parent execution receipts:
    - `M6-ST-S0`: `phase_execution_id=m6_stress_s0_20260304T012128Z`, `overall_pass=true`, `open_blockers=0`.
    - `M6-ST-S1`: `phase_execution_id=m6_stress_s1_20260304T013651Z`, `overall_pass=true`, `next_gate=M6_ST_S2_READY`, `open_blockers=0`.
+   - `M6-ST-S2`: `phase_execution_id=m6_stress_s2_20260304T145122Z`, `overall_pass=true`, `next_gate=M6_ST_S3_READY`, `open_blockers=0`.
+   - `M6-ST-S3`: `phase_execution_id=m6_stress_s3_20260304T145156Z`, `overall_pass=true`, `next_gate=M6_ST_S4_READY`, `open_blockers=0`.
+   - `M6-ST-S4`: `phase_execution_id=m6_stress_s4_20260304T145244Z`, `overall_pass=true`, `next_gate=M6_ST_S5_READY`, `open_blockers=0`.
+   - `M6-ST-S5`: `phase_execution_id=m6_stress_s5_20260304T145252Z`, `overall_pass=true`, `verdict=GO`, `next_gate=M7_READY`, `open_blockers=0`.
 6. Latest subphase execution receipt:
    - `M6.P5` `M6P5-ST-S5`: `phase_execution_id=m6p5_stress_s5_20260304T013452Z`, `overall_pass=true`, `verdict=ADVANCE_TO_P6`, `open_blockers=0`.
-   - `M6.P6` `M6P6-ST-S5`: `phase_execution_id=m6p6_stress_s5_20260304T015956Z`, `overall_pass=true`, `verdict=ADVANCE_TO_P7`, `open_blockers=0`.
+   - `M6.P6` `M6P6-ST-S5`: `phase_execution_id=m6p6_stress_s5_20260304T020815Z`, `overall_pass=true`, `verdict=ADVANCE_TO_P7`, `open_blockers=0`.
    - `M6.P7` `M6P7-ST-S5`: `phase_execution_id=m6p7_stress_s5_20260304T024638Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M7`, `next_gate=ADVANCE_TO_M7`, `open_blockers=0`.
-7. M6 production-readiness hard-close addendum is now pinned in parent authority section `13`:
-   - lane `A1`: complete parent `S2/S3` adjudication chain,
-   - lane `A2`: execute integrated `S4` direct-metric stress windows,
-   - lane `A3`: replace historical/proxy-only ingest closure with live-window evidence,
-   - lane `A4`: enforce mapped cost attribution and close parent `S5` with deterministic reaffirmation.
+7. M6 hard-close addendum closure receipts:
+   - `m6_addendum_execution_summary.json`: `overall_pass=true`, lane status `A1=true`, `A2=true`, `A3=true`, `A4=true`.
+   - `m6_addendum_blocker_register.json`: `open_blocker_count=0`.
+   - `m6_addendum_cost_attribution_receipt.json`: `window_seconds=2051`, `mapping_complete=true`, `unattributed_spend_detected=false`.
 
 ## 19) Closed Phase - M7 (Gate Closed + Hard-Close Addendum Pending)
 Status:
