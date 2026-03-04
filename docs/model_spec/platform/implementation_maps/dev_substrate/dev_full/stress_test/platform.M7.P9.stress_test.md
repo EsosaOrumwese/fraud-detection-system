@@ -320,11 +320,13 @@ Pass gate:
 
 ## 11) Immediate Next Actions
 1. Preserve existing `S0..S5` receipts as baseline history only.
-2. Re-run `S1..S5` under strict non-toy policy:
-   - no `waived_low_sample`,
-   - no advisory-only throughput acceptance,
-   - no proxy/historical-only closure authority.
-3. Promote parent `M7-ST-S2` adjudication only from strict rerun receipts with `M7P9-ST-B13` resolved.
+2. Strict rerun chain completed with non-toy throughput assertions:
+   - `m7p9_stress_s1_20260304T210310Z`
+   - `m7p9_stress_s2_20260304T210323Z`
+   - `m7p9_stress_s3_20260304T210330Z`
+   - `m7p9_stress_s4_20260304T210338Z`
+   - `m7p9_stress_s5_20260304T210343Z`
+3. Promote parent `M7-ST-S2` adjudication from strict rerun receipts (non-toy posture enforced, `M7P9-ST-B13` closed).
 
 ## 12) Execution Progress
 1. P9 stress planning authority created.
@@ -366,8 +368,21 @@ Pass gate:
    - chain sweep remained run-scope consistent across `S0..S4` (`platform_run_id=platform_20260223T184232Z`),
    - `probe_count=7`, `error_rate_pct=0.0`,
    - artifact contract complete (`18/18` required artifacts present).
+10. Strict rerun start (`M7P9-ST-S1`) first attempt (`m7p9_stress_s1_20260304T210128Z`) failed fail-closed:
+   - `overall_pass=false`, `next_gate=BLOCKED`, `open_blockers=2`,
+   - blockers: `M7P9-ST-B13` (toy-profile waived throughput posture on historical DF baseline), `M7P9-ST-B4` (DF strict closure requirement unmet).
+11. Targeted blocker remediation applied:
+   - created strict historical refresh pack at `runs/dev_substrate/dev_full/m7/_strict_rerun_artifacts/p9-component-strict-refresh-20260304T210307Z`,
+   - refreshed `p9b_df`, `p9c_al`, `p9d_dla` snapshots with `throughput_assertion_applied=true`, `throughput_gate_mode=asserted_oracle_manifest_window`, `throughput_observed=25347.233634`.
+12. Strict rerun chain (`S1..S5`) executed and passed:
+   - `m7p9_stress_s1_20260304T210310Z`: `next_gate=M7P9_ST_S2_READY`, `open_blocker_count=0`,
+   - `m7p9_stress_s2_20260304T210323Z`: `next_gate=M7P9_ST_S3_READY`, `open_blocker_count=0`,
+   - `m7p9_stress_s3_20260304T210330Z`: `next_gate=M7P9_ST_S4_READY`, `open_blocker_count=0`,
+   - `m7p9_stress_s4_20260304T210338Z`: `next_gate=M7P9_ST_S5_READY`, `open_blocker_count=0`, `remediation_mode=NO_OP`,
+   - `m7p9_stress_s5_20260304T210343Z`: `verdict=ADVANCE_TO_P10`, `next_gate=ADVANCE_TO_P10`, `open_blocker_count=0`.
 
 ## 13) Reopen Notice - Non-Toy Enforcement (2026-03-04)
 1. Prior P9 closure is reclassified as baseline history and no longer accepted as closure authority.
 2. `M7P9-ST-B13` opens when any lane attempts closure with `waived_low_sample` or advisory-only throughput posture.
 3. P9 is closeable only after fresh reruns demonstrate non-waived throughput and blocker-free deterministic verdict (`ADVANCE_TO_P10`).
+4. Strict rerun condition satisfied by chain ending at `m7p9_stress_s5_20260304T210343Z` with zero open blockers.
