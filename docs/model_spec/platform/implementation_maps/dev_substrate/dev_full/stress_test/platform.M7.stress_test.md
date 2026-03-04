@@ -1,0 +1,393 @@
+# Dev Substrate Stress Plan - M7 (P8 RTDL_CAUGHT_UP + P9 DECISION_CHAIN_COMMITTED + P10 CASE_LABELS_COMMITTED)
+_Parent authority: `platform.stress_test.md`_
+_Status source of truth: `platform.stress_test.md`_
+_Track: `dev_full` only_
+_As of 2026-03-04_
+
+## 0) Purpose
+M7 stress validates RTDL and case/label runtime closure under realistic production data behavior, not schema-only conformance.
+
+M7 stress must prove:
+1. P8/P9/P10 close with deterministic run-scope evidence under realistic data-content distributions.
+2. component and plane performance remain stable under mixed normal, duplicate, out-of-order, skewed, and edge-case cohorts.
+3. decision/case/label semantic invariants hold under replay-like and burst windows.
+4. M7 closure emits deterministic M8 handoff posture from blocker-consistent evidence.
+
+## 1) Authority Inputs
+Primary:
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.stress_test.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M7.build_plan.md`
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M7.P8.build_plan.md`
+4. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M7.P9.build_plan.md`
+5. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M7.P10.build_plan.md`
+6. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`
+
+Data-profile inputs:
+1. `docs/reports/eda/segment_1A/metrics_summary.csv`
+2. `docs/reports/eda/segment_1A/dictionary_datasets.csv`
+3. `artefacts/s0_runs/2025-10-09_synthetic/rng_logs/events/core/**/part-00000.jsonl` (local subset sanity source)
+4. latest run-scoped ingest surfaces (`receipt`, `offset`, `quarantine`) for active `platform_run_id`.
+
+Dependency input:
+1. latest successful M6 closure chain with `M6.P7` verdict `ADVANCE_TO_M7`.
+
+## 2) Stage-A Findings (M7)
+| ID | Classification | Finding | Required action |
+| --- | --- | --- | --- |
+| `M7-ST-F1` | `PREVENT` | Historical component lanes (`P8/P9/P10`) were mostly low-sample (`sample_size=18`) with waived component throughput assertions. | Force data-realism profiling gate before any M7 stress execution. |
+| `M7-ST-F2` | `PREVENT` | Aggregate cert can pass while component-level data diversity remains underrepresented. | Add per-subphase data-content representativeness checks. |
+| `M7-ST-F3` | `PREVENT` | Local checked-in event subset (`14` rows, `anchor` only) is insufficient as a standalone realism source. | Require run-scoped subset extraction from ingest/archive/decision/case surfaces. |
+| `M7-ST-F4` | `PREVENT` | Schema-valid flows can still break on skew, duplicates, late events, and hot keys. | Add semantic stress lanes and fail-closed blockers for content-driven drift. |
+| `M7-ST-F5` | `OBSERVE` | Throughput and semantic stability can diverge by cohort mix even when mean EPS looks healthy. | Pin cohort-aware assertions (normal + edge cohorts) for P8/P9/P10. |
+| `M7-ST-F6` | `ACCEPT` | Existing M7 build authority provides deterministic component and rollup lane contracts. | Reuse lane routing while strengthening data-content stress evidence. |
+
+## 3) Scope Boundary for M7 Stress
+In scope:
+1. parent orchestration gates across `P8`, `P9`, `P10`.
+2. mandatory M7 data-subset profiling and semantic stress assertions.
+3. integrated RTDL -> decision -> case/label flow stress using realistic data cohorts.
+4. deterministic M7 rollup and M8 handoff readiness.
+
+Out of scope:
+1. M8 observability/governance execution itself.
+2. M9+ learning/evolution execution.
+3. schema-only green claims without data-content evidence.
+
+## 4) M7 Stress Handle Packet (Pinned)
+1. `M7_STRESS_PROFILE_ID = "rtdl_case_labels_data_realism_stress_v0"`.
+2. `M7_STRESS_BLOCKER_REGISTER_PATH_PATTERN = "evidence/dev_full/run_control/{phase_execution_id}/stress/m7_blocker_register.json"`.
+3. `M7_STRESS_EXECUTION_SUMMARY_PATH_PATTERN = "evidence/dev_full/run_control/{phase_execution_id}/stress/m7_execution_summary.json"`.
+4. `M7_STRESS_DECISION_LOG_PATH_PATTERN = "evidence/dev_full/run_control/{phase_execution_id}/stress/m7_decision_log.json"`.
+5. `M7_STRESS_REQUIRED_ARTIFACTS = "m7_stagea_findings.json,m7_lane_matrix.json,m7_data_subset_manifest.json,m7_data_profile_summary.json,m7_data_edge_case_matrix.json,m7_data_skew_hotspot_profile.json,m7_data_quality_guardrail_snapshot.json,m7_probe_latency_throughput_snapshot.json,m7_control_rail_conformance_snapshot.json,m7_secret_safety_snapshot.json,m7_cost_outcome_receipt.json,m7_blocker_register.json,m7_execution_summary.json,m7_decision_log.json,m7_phase_rollup_matrix.json,m7_gate_verdict.json,m8_handoff_pack.json"`.
+6. `M7_STRESS_MAX_RUNTIME_MINUTES = 360`.
+7. `M7_STRESS_MAX_SPEND_USD = 120`.
+8. `M7_STRESS_EXPECTED_NEXT_GATE_ON_PASS = "M8_READY"`.
+9. `M7_STRESS_DATA_MIN_SAMPLE_EVENTS = 15000`.
+10. `M7_STRESS_DATA_PROFILE_WINDOW_HOURS = 24`.
+11. `M7_STRESS_DUPLICATE_RATIO_TARGET_RANGE_PCT = "0.5|5.0"`.
+12. `M7_STRESS_OUT_OF_ORDER_RATIO_TARGET_RANGE_PCT = "0.2|3.0"`.
+13. `M7_STRESS_HOTKEY_TOP1_SHARE_MAX = 0.60`.
+14. `M7_STRESS_TARGETED_RERUN_ONLY = true`.
+
+Registry-backed required handles:
+1. `S3_EVIDENCE_BUCKET`
+2. `S3_RUN_CONTROL_ROOT_PATTERN`
+3. `M7_HANDOFF_PACK_PATH_PATTERN`
+4. `M8_HANDOFF_PACK_PATH_PATTERN`
+5. `RTDL_CORE_EVIDENCE_PATH_PATTERN`
+6. `DECISION_LANE_EVIDENCE_PATH_PATTERN`
+7. `CASE_LABELS_EVIDENCE_PATH_PATTERN`
+8. `RECEIPT_SUMMARY_PATH_PATTERN`
+9. `KAFKA_OFFSETS_SNAPSHOT_PATH_PATTERN`
+10. `QUARANTINE_SUMMARY_PATH_PATTERN`
+11. `THROUGHPUT_CERT_MIN_SAMPLE_EVENTS`
+12. `THROUGHPUT_CERT_TARGET_EVENTS_PER_SECOND`
+13. `THROUGHPUT_CERT_WINDOW_MINUTES`
+14. `THROUGHPUT_CERT_MAX_ERROR_RATE_PCT`
+15. `THROUGHPUT_CERT_MAX_RETRY_RATIO_PCT`
+
+## 5) Capability-Lane Coverage (Phase-Coverage Law)
+| Capability lane | M7 parent stage owner | Minimum PASS evidence |
+| --- | --- | --- |
+| Authority + dependency + data-profile closure | `S0` | M6 dependency green + data subset/profile artifacts complete |
+| P8 gate (RTDL) with data realism | `S1` | P8 stress verdict + cohort semantics green |
+| P9 gate (decision chain) with data realism | `S2` | P9 stress verdict + cohort semantics green |
+| P10 gate (case/label) with data realism | `S3` | P10 stress verdict + writer-boundary semantics green |
+| Integrated M7 cross-plane realistic-data window | `S4` | end-to-end throughput + semantic invariants green across cohorts |
+| M7 rollup + M8 handoff | `S5` | deterministic verdict `GO` and `next_gate=M8_READY` |
+
+Subphase routing:
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M7.P8.stress_test.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M7.P9.stress_test.md`
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M7.P10.stress_test.md`
+
+## 6) Stress Topology (M7 Parent)
+1. Component sequence:
+   - `M7-ST-S0` authority + data profile,
+   - `M7-ST-S1` P8 gate,
+   - `M7-ST-S2` P9 gate,
+   - `M7-ST-S3` P10 gate,
+   - `M7-ST-S4` integrated realistic-data window,
+   - `M7-ST-S5` rollup + handoff.
+2. Plane sequence:
+   - `rtdl_plane`,
+   - `decision_plane`,
+   - `case_label_plane`,
+   - `m7_rollup_plane`.
+3. Integrated windows:
+   - `m7_s4_normal_mix_window`,
+   - `m7_s4_edge_mix_window`,
+   - `m7_s4_replay_duplicate_window`.
+
+### 6.1 Data-Subset Strategy (M7+ mandatory)
+1. Build a run-scoped subset manifest before phase execution with:
+   - event mix coverage,
+   - key cardinality coverage,
+   - temporal skew/out-of-order coverage,
+   - duplicate/retry cohort coverage.
+2. Subset stratification dimensions:
+   - `event_type`, `country`, `merchant/mcc`, `risk-band`, `channel`, `time_bucket`.
+3. Subset cohorts (all mandatory):
+   - `normal_mix`,
+   - `high_skew_hotkey`,
+   - `late_out_of_order`,
+   - `duplicate_replay`,
+   - `rare_edge_case`.
+4. Phase fails closed if subset/profile artifacts are incomplete or non-representative.
+
+## 7) Execution Plan (Parent Orchestration Runbook)
+### 7.1 `M7-ST-S0` - Authority + data profile closure
+Objective:
+1. validate M7 entry and pin realistic data-profile envelope for downstream lanes.
+
+Entry criteria:
+1. latest successful `M6` closure chain is readable and blocker-free.
+2. required M7 handles are present and non-placeholder.
+
+Required inputs:
+1. latest M6 closure artifacts.
+2. M7/P8/P9/P10 stress authorities.
+3. data-profile inputs listed in section `1`.
+
+Execution steps:
+1. validate M6 dependency continuity and blocker closure.
+2. validate required M7 handles and authority docs.
+3. materialize run-scoped subset manifest and profile.
+4. compute representativeness checks and edge-case matrix.
+5. emit `m7_data_*` artifacts and stage receipts.
+
+Fail-closed blocker mapping:
+1. `M7-ST-B1`: required handle/authority closure failure.
+2. `M7-ST-B2`: invalid M6 dependency gate.
+3. `M7-ST-B3`: data subset insufficient/non-representative.
+4. `M7-ST-B4`: data-profile generation or guardrail failure.
+5. `M7-ST-B10`: evidence publish/readback failure.
+
+Runtime/cost budget:
+1. max runtime: `30` minutes.
+2. max spend: `$4`.
+
+Pass gate:
+1. dependency + handles are green.
+2. data subset/profile artifacts are complete and representative.
+3. `next_gate=M7_ST_S1_READY`.
+
+### 7.2 `M7-ST-S1` - P8 gate adjudication (data-realism enforced)
+Objective:
+1. validate P8 stress closure under realistic data-content cohorts.
+
+Entry criteria:
+1. latest successful `S0` with `next_gate=M7_ST_S1_READY`.
+2. latest successful P8 stress `S5` verdict.
+
+Required inputs:
+1. P8 stress summary/register/verdict.
+2. M7 S0 data subset/profile artifacts.
+
+Execution steps:
+1. enforce S0 continuity and zero open blockers.
+2. enforce P8 deterministic verdict and artifact completeness.
+3. verify P8 cohort-level semantic checks (duplicates, lateness, skew/hotkey) passed.
+4. emit parent gate receipts.
+
+Fail-closed blocker mapping:
+1. `M7-ST-B5`: P8 gate/verdict/data-semantic failure.
+2. `M7-ST-B9`: artifact contract incompleteness.
+3. `M7-ST-B10`: evidence contract failure.
+
+Runtime/cost budget:
+1. max runtime: `35` minutes.
+2. max spend: `$12`.
+
+Pass gate:
+1. P8 verdict accepted and data-semantic checks pass.
+2. `next_gate=M7_ST_S2_READY`.
+
+### 7.3 `M7-ST-S2` - P9 gate adjudication (data-realism enforced)
+Objective:
+1. validate P9 stress closure under realistic decision-data cohorts.
+
+Entry criteria:
+1. latest successful `S1` with `next_gate=M7_ST_S2_READY`.
+2. latest successful P9 stress `S5` verdict.
+
+Required inputs:
+1. P9 stress summary/register/verdict.
+2. M7 S0 data subset/profile artifacts.
+
+Execution steps:
+1. enforce S1 continuity and zero open blockers.
+2. enforce P9 deterministic verdict and artifact completeness.
+3. verify decision/action/audit semantic invariants across cohorts.
+4. emit parent gate receipts.
+
+Fail-closed blocker mapping:
+1. `M7-ST-B6`: P9 gate/verdict/data-semantic failure.
+2. `M7-ST-B9`: artifact contract incompleteness.
+3. `M7-ST-B10`: evidence contract failure.
+
+Runtime/cost budget:
+1. max runtime: `40` minutes.
+2. max spend: `$15`.
+
+Pass gate:
+1. P9 verdict accepted and data-semantic checks pass.
+2. `next_gate=M7_ST_S3_READY`.
+
+### 7.4 `M7-ST-S3` - P10 gate adjudication (data-realism enforced)
+Objective:
+1. validate P10 stress closure under realistic case/label data cohorts.
+
+Entry criteria:
+1. latest successful `S2` with `next_gate=M7_ST_S3_READY`.
+2. latest successful P10 stress `S5` verdict.
+
+Required inputs:
+1. P10 stress summary/register/verdict.
+2. M7 S0 data subset/profile artifacts.
+
+Execution steps:
+1. enforce S2 continuity and zero open blockers.
+2. enforce P10 deterministic verdict and artifact completeness.
+3. verify case lifecycle, label distribution, and writer-boundary semantics across cohorts.
+4. emit parent gate receipts.
+
+Fail-closed blocker mapping:
+1. `M7-ST-B7`: P10 gate/verdict/data-semantic failure.
+2. `M7-ST-B9`: artifact contract incompleteness.
+3. `M7-ST-B10`: evidence contract failure.
+
+Runtime/cost budget:
+1. max runtime: `40` minutes.
+2. max spend: `$15`.
+
+Pass gate:
+1. P10 verdict accepted and data-semantic checks pass.
+2. `next_gate=M7_ST_S4_READY`.
+
+### 7.5 `M7-ST-S4` - Integrated realistic-data stress window
+Objective:
+1. validate integrated RTDL->decision->case/label behavior under realistic data cohorts.
+
+Entry criteria:
+1. latest successful `S3` with `next_gate=M7_ST_S4_READY`.
+2. no unresolved non-waived blockers from `S0..S3`.
+
+Required inputs:
+1. S0 data subset/profile artifacts.
+2. P8/P9/P10 closure artifacts.
+3. integrated throughput and semantic guardrails.
+
+Execution steps:
+1. run normal-mix window and capture baseline.
+2. run edge-mix window (hotkey, duplicates, out-of-order, rare events).
+3. run replay/duplicate window and verify idempotent behavior.
+4. evaluate throughput/latency/error + semantic invariants by cohort.
+5. emit integrated snapshots and blocker register.
+
+Fail-closed blocker mapping:
+1. `M7-ST-B8`: integrated throughput/latency/error budget breach.
+2. `M7-ST-B11`: semantic invariant drift under realistic data cohorts.
+3. `M7-ST-B12`: unattributed spend/runtime envelope breach.
+4. `M7-ST-B10`: evidence contract failure.
+
+Runtime/cost budget:
+1. max runtime: `160` minutes.
+2. max spend: `$55`.
+
+Pass gate:
+1. integrated windows pass budgets and semantic invariants.
+2. `next_gate=M7_ST_S5_READY`.
+
+### 7.6 `M7-ST-S5` - M7 rollup + M8 handoff
+Objective:
+1. publish deterministic M7 closure verdict and M8 handoff from realistic-data evidence.
+
+Entry criteria:
+1. latest successful `S4` with `next_gate=M7_ST_S5_READY`.
+2. no unresolved non-waived blockers from `S0..S4`.
+
+Required inputs:
+1. parent `S0..S4` artifacts.
+2. subphase `P8/P9/P10` verdict artifacts.
+3. integrated cost/runtime receipts.
+
+Execution steps:
+1. aggregate parent + subphase closure evidence.
+2. enforce deterministic verdict rule:
+   - `GO` + `next_gate=M8_READY` only when blocker-free and data-realism gates are green.
+3. validate handoff refs and run-scope continuity.
+4. emit rollup matrix, verdict artifact, and handoff pack.
+
+Fail-closed blocker mapping:
+1. `M7-ST-B11`: rollup/verdict inconsistency.
+2. `M7-ST-B12`: cost/runtime envelope inconsistency.
+3. `M7-ST-B13`: handoff pack missing/invalid.
+4. `M7-ST-B9`: artifact contract incompleteness.
+
+Runtime/cost budget:
+1. max runtime: `55` minutes.
+2. max spend: `$19`.
+
+Pass gate:
+1. deterministic recommendation `GO`.
+2. `next_gate=M8_READY`.
+
+## 8) Blocker Taxonomy (M7 Parent)
+1. `M7-ST-B1`: required handle or authority closure failure.
+2. `M7-ST-B2`: invalid M6 dependency chain.
+3. `M7-ST-B3`: data subset insufficient/non-representative.
+4. `M7-ST-B4`: data-profile or data-guardrail artifact failure.
+5. `M7-ST-B5`: P8 gate failure.
+6. `M7-ST-B6`: P9 gate failure.
+7. `M7-ST-B7`: P10 gate failure.
+8. `M7-ST-B8`: integrated throughput/latency/error breach.
+9. `M7-ST-B9`: artifact/evidence contract incompleteness.
+10. `M7-ST-B10`: durable evidence publish/readback failure.
+11. `M7-ST-B11`: semantic or verdict inconsistency.
+12. `M7-ST-B12`: runtime/spend envelope breach or unattributed spend.
+13. `M7-ST-B13`: M8 handoff artifact missing/invalid.
+
+## 9) Evidence Contract (M7 Parent)
+1. `m7_stagea_findings.json`
+2. `m7_lane_matrix.json`
+3. `m7_data_subset_manifest.json`
+4. `m7_data_profile_summary.json`
+5. `m7_data_edge_case_matrix.json`
+6. `m7_data_skew_hotspot_profile.json`
+7. `m7_data_quality_guardrail_snapshot.json`
+8. `m7_probe_latency_throughput_snapshot.json`
+9. `m7_control_rail_conformance_snapshot.json`
+10. `m7_secret_safety_snapshot.json`
+11. `m7_cost_outcome_receipt.json`
+12. `m7_blocker_register.json`
+13. `m7_execution_summary.json`
+14. `m7_decision_log.json`
+15. `m7_phase_rollup_matrix.json`
+16. `m7_gate_verdict.json`
+17. `m8_handoff_pack.json`
+
+## 10) DoD (Planning to Execution-Ready)
+- [x] Dedicated M7 parent stress authority created.
+- [x] M7 data-realism gate (M7+) pinned.
+- [x] M7 split-subphase routing (`P8/P9/P10`) pinned.
+- [ ] `M7-ST-S0` executed with dependency + data-profile closure.
+- [ ] `M7-ST-S1` executed and P8 gate accepted.
+- [ ] `M7-ST-S2` executed and P9 gate accepted.
+- [ ] `M7-ST-S3` executed and P10 gate accepted.
+- [ ] `M7-ST-S4` integrated realistic-data window executed within envelope.
+- [ ] `M7-ST-S5` closure rollup emitted with deterministic `M8_READY` recommendation.
+
+## 11) Immediate Next Actions
+1. Close pending parent M6 gates (`M6-ST-S2..S5`) before opening M7 execution.
+2. Execute `M7-ST-S0` to pin run-scoped data subset/profile envelope.
+3. Execute M7 subphase stress lanes in order: `P8 -> P9 -> P10`.
+
+## 12) Execution Progress
+1. M7 stress planning authority created.
+2. Data-realism shift pinned: M7 closure now requires data-content profile + semantic stress evidence, not schema-only proofs.
+3. Baseline investigation captured:
+   - historical component lanes mostly low-sample (`sample_size=18`, `waived_low_sample` mode),
+   - aggregate cert sample seen (`sample_size_events=11878`),
+   - local checked-in event subset currently narrow (`14` rows, `anchor` only) and marked insufficient as standalone realism source.
+4. Execution remains blocked until parent M6 closure stages are complete.

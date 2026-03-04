@@ -439,10 +439,10 @@ Required artifacts for each parent stage:
 - [ ] `M6-ST-S5` closure rollup emitted with deterministic `M7_READY` recommendation.
 
 ## 11) Immediate Next Actions
-1. Execute `M6.P6` (`S0..S5`) and target deterministic verdict `ADVANCE_TO_P7`.
-2. After P6 closure, run parent `M6-ST-S2` gate adjudication for P6.
-3. Execute `M6.P7` and close parent `M6-ST-S3` gate before opening integrated `S4`.
-4. After `S4`, execute `S5` closure rollup and publish deterministic `M7_READY` recommendation.
+1. Run parent `M6-ST-S2` gate adjudication for P6 using `M6P6-ST-S5` verdict `ADVANCE_TO_P7`.
+2. Run parent `M6-ST-S3` gate adjudication using `M6P7-ST-S5` verdict `ADVANCE_TO_M7` and handoff-pack closure artifacts.
+3. Execute parent `M6-ST-S4` integrated stress window with sustained/burst/fault profiles.
+4. Execute parent `M6-ST-S5` closure rollup and publish deterministic `M7_READY` recommendation.
 
 ## 12) Execution Progress
 1. Planning authority created.
@@ -468,3 +468,58 @@ Required artifacts for each parent stage:
    - `m6p5_dependency_phase_execution_id=m6p5_stress_s5_20260304T013452Z`,
    - `m6p5_verdict=ADVANCE_TO_P6`,
    - evidence root: `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m6_stress_s1_20260304T013651Z/stress/`.
+6. `M6.P6` (`S0..S5`) executed and passed end-to-end:
+   - final phase execution: `m6p6_stress_s5_20260304T015956Z`,
+   - final verdict: `ADVANCE_TO_P7`,
+   - `next_gate=ADVANCE_TO_P7`,
+   - `open_blockers=0`,
+   - evidence root: `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m6p6_stress_s5_20260304T015956Z/stress/`.
+7. `M6.P7` `S0` entry-gate executed and passed:
+   - `phase_execution_id=m6p7_stress_s0_20260304T021107Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P7_ST_S1_READY`,
+   - `open_blockers=0`,
+   - `p6_dependency_phase_execution_id=m6p6_stress_s5_20260304T020815Z`,
+   - evidence root: `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m6p7_stress_s0_20260304T021107Z/stress/`.
+8. `M6.P7` `S1` evidence-materialization gate executed and passed:
+   - `phase_execution_id=m6p7_stress_s1_20260304T021901Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P7_ST_S2_READY`,
+   - `open_blockers=0`,
+   - `s0_dependency_phase_execution_id=m6p7_stress_s0_20260304T021107Z`,
+   - `historical_m6h_execution_id=m6h_p7a_ingest_commit_20260225T191433Z`,
+   - evidence root: `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m6p7_stress_s1_20260304T021901Z/stress/`.
+9. `M6.P7` `S2` dedupe/anomaly gate executed and passed:
+   - `phase_execution_id=m6p7_stress_s2_20260304T023114Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P7_ST_S3_READY`,
+   - `open_blockers=0`,
+   - `s1_dependency_phase_execution_id=m6p7_stress_s1_20260304T021901Z`,
+   - `ttl_evidence_mode=HISTORICAL_WITH_LIVE_SAMPLE`,
+   - evidence root: `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m6p7_stress_s2_20260304T023114Z/stress/`.
+10. `M6.P7` `S3` continuity/replay gate executed and passed:
+   - `phase_execution_id=m6p7_stress_s3_20260304T023645Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P7_ST_S4_READY`,
+   - `open_blockers=0`,
+   - `s2_dependency_phase_execution_id=m6p7_stress_s2_20260304T023114Z`,
+   - `historical_m6i_execution_id=m6i_p7b_gate_rollup_20260225T191541Z`,
+   - `replay_window_mode=HISTORICAL_CLOSED_WINDOW`,
+   - evidence root: `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m6p7_stress_s3_20260304T023645Z/stress/`.
+11. `M6.P7` `S4` remediation gate executed and passed:
+   - `phase_execution_id=m6p7_stress_s4_20260304T024002Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P7_ST_S5_READY`,
+   - `open_blockers=0`,
+   - `s3_dependency_phase_execution_id=m6p7_stress_s3_20260304T023645Z`,
+   - `remediation_mode=NO_OP`,
+   - evidence root: `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m6p7_stress_s4_20260304T024002Z/stress/`.
+12. `M6.P7` `S5` rollup gate executed and passed:
+   - `phase_execution_id=m6p7_stress_s5_20260304T024638Z`,
+   - `overall_pass=true`,
+   - `verdict=ADVANCE_TO_M7`,
+   - `next_gate=ADVANCE_TO_M7`,
+   - `open_blockers=0`,
+   - `s4_dependency_phase_execution_id=m6p7_stress_s4_20260304T024002Z`,
+   - `handoff_path_key=evidence/dev_full/run_control/m6p7_stress_s5_20260304T024638Z/m7_handoff_pack.json`,
+   - evidence root: `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m6p7_stress_s5_20260304T024638Z/stress/`.

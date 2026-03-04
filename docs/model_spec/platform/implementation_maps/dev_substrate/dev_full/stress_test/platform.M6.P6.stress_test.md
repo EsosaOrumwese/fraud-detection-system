@@ -369,15 +369,92 @@ Any open `M6P6-ST-B*` blocks P6 closure and parent M6 `S2` progression.
 - [x] P6 handle packet and blocker taxonomy pinned.
 - [x] Runtime-path and fallback posture explicitly documented.
 - [x] P6 execution-grade runbook (`S0..S5`) pinned.
-- [ ] `M6P6-ST-S0` executed with blocker-free entry closure.
-- [ ] `M6P6-ST-S1..S3` executed with strict progression/lag semantics.
-- [ ] `M6P6-ST-S4` remediation lane closed (if needed).
-- [ ] `M6P6-ST-S5` verdict emitted as `ADVANCE_TO_P7`.
+- [x] `M6P6-ST-S0` executed with blocker-free entry closure.
+- [x] `M6P6-ST-S1..S3` executed with strict progression/lag semantics.
+- [x] `M6P6-ST-S4` remediation lane closed (no-op, blocker-free).
+- [x] `M6P6-ST-S5` verdict emitted as `ADVANCE_TO_P7`.
 
 ## 11) Immediate Next Actions
-1. Execute `M6P6-ST-S0` only after P5 verdict is `ADVANCE_TO_P6`.
-2. Progress through `S1 -> S2 -> S3` with strict run-window semantics.
-3. Use `S4` for targeted blocker closure and publish deterministic `S5` verdict.
+1. Preserve `M6.P6` closure receipts as dependency authority for parent `M6-ST-S2`.
+2. Execute parent `M6-ST-S2` gate adjudication using P6 verdict `ADVANCE_TO_P7`.
+3. After parent `S2` closure, execute `M6.P7` (`S0..S5`) and progress to parent `M6-ST-S3`.
 
 ## 12) Execution Progress
-1. Planning authority created; no new-cycle P6 execution receipts recorded yet.
+1. Planning authority created.
+2. `M6P6-ST-S0` executed and passed:
+   - `phase_execution_id=m6p6_stress_s0_20260304T015920Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P6_ST_S1_READY`,
+   - `open_blockers=0`,
+   - `runtime_path_active=EKS_FLINK_OPERATOR`,
+   - `p5_dependency_phase_execution_id=m6p5_stress_s5_20260304T013452Z`.
+3. `M6P6-ST-S1` executed and passed:
+   - `phase_execution_id=m6p6_stress_s1_20260304T015926Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P6_ST_S2_READY`,
+   - `open_blockers=0`,
+   - `historical_m6e_execution_id=m6e_p6a_stream_entry_20260225T120522Z`,
+   - `historical_m6f_execution_id=m6f_p6b_streaming_active_20260225T175655Z`.
+4. `M6P6-ST-S2` executed and passed:
+   - `phase_execution_id=m6p6_stress_s2_20260304T015936Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P6_ST_S3_READY`,
+   - `open_blockers=0`,
+   - non-zero progression retained (`platform_run_id=platform_20260223T184232Z`).
+5. `M6P6-ST-S3` executed and passed:
+   - `phase_execution_id=m6p6_stress_s3_20260304T015942Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P6_ST_S4_READY`,
+   - `open_blockers=0`,
+   - lag/ambiguity/overhead closure remained green.
+6. `M6P6-ST-S4` executed and passed:
+   - `phase_execution_id=m6p6_stress_s4_20260304T015951Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P6_ST_S5_READY`,
+   - `open_blockers=0`,
+   - remediation mode `NO_OP`.
+7. `M6P6-ST-S5` executed and passed:
+   - `phase_execution_id=m6p6_stress_s5_20260304T015956Z`,
+   - `overall_pass=true`,
+   - `verdict=ADVANCE_TO_P7`,
+   - `next_gate=ADVANCE_TO_P7`,
+   - `open_blockers=0`,
+   - `historical_m6g_execution_id=m6g_p6c_gate_rollup_20260225T181523Z`.
+8. Authoritative evidence root:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m6p6_stress_s*_20260304T0159*/stress/`.
+9. Targeted assurance rerun of `M6P6-ST-S1` (post-closure stability check):
+   - `phase_execution_id=m6p6_stress_s1_20260304T020238Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P6_ST_S2_READY`,
+   - `open_blockers=0`,
+   - decision: no prior-cycle blockers existed (`S0..S5` all closed), so no remediation was required.
+10. Targeted assurance rerun of `M6P6-ST-S2` (progression-lane stability check):
+   - `phase_execution_id=m6p6_stress_s2_20260304T020405Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P6_ST_S3_READY`,
+   - `open_blockers=0`,
+   - `s1_dependency_phase_execution_id=m6p6_stress_s1_20260304T020238Z`,
+   - decision: no prior-cycle blockers existed, so rerun was executed as assurance-only with no remediation actions.
+11. Targeted assurance rerun of `M6P6-ST-S3` (lag/ambiguity/overhead stability check):
+   - `phase_execution_id=m6p6_stress_s3_20260304T020529Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P6_ST_S4_READY`,
+   - `open_blockers=0`,
+   - `s2_dependency_phase_execution_id=m6p6_stress_s2_20260304T020405Z`,
+   - decision: no prior-cycle blockers existed, so rerun was executed as assurance-only with no remediation actions.
+12. Targeted assurance rerun of `M6P6-ST-S4` (remediation-lane stability check):
+   - `phase_execution_id=m6p6_stress_s4_20260304T020649Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P6_ST_S5_READY`,
+   - `open_blockers=0`,
+   - `remediation_mode=NO_OP`,
+   - `s3_dependency_phase_execution_id=m6p6_stress_s3_20260304T020529Z`,
+   - decision: no prior-cycle blockers existed, so rerun was executed as assurance-only with no remediation actions.
+13. Targeted assurance rerun of `M6P6-ST-S5` (deterministic verdict stability check):
+   - `phase_execution_id=m6p6_stress_s5_20260304T020815Z`,
+   - `overall_pass=true`,
+   - `verdict=ADVANCE_TO_P7`,
+   - `next_gate=ADVANCE_TO_P7`,
+   - `open_blockers=0`,
+   - `s4_dependency_phase_execution_id=m6p6_stress_s4_20260304T020649Z`,
+   - decision: no prior-cycle blockers existed, so rerun was executed as assurance-only with no remediation actions.

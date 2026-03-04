@@ -4281,3 +4281,1097 @@ _As of 2026-03-03_
 
 ### Commit posture
 1. No commit/push performed.
+
+## Entry: 2026-03-04 01:49 +00:00 - M6.P6 execution plan opened (S0 planning + full S0..S5 lane)
+
+### Trigger
+1. User directed planning of `M6P6-ST-S0` and full `M6.P6` execution with blocker remediation.
+
+### Design and evidence reconnaissance
+1. Verified `platform.M6.P6.stress_test.md` is already execution-grade for `S0..S5` with pinned blocker taxonomy (`M6P6-ST-B1..B12`) and artifact contract (`m6p6_*`).
+2. Confirmed no `scripts/dev_substrate/m6p6_stress_runner.py` exists yet, so execution is currently blocked by missing runner.
+3. Confirmed required historical authority artifacts are present and readable for strict evidence chaining:
+   - `M6.E`: `m6e_p6a_stream_entry_20260225T120522Z` (`overall_pass=true`, `next_gate=M6.F_READY`),
+   - `M6.F`: `m6f_p6b_streaming_active_20260225T175655Z` (`overall_pass=true`, `next_gate=M6.G_READY`),
+   - `M6.G`: `m6g_p6c_gate_rollup_20260225T181523Z` (`verdict=ADVANCE_TO_P7`, `overall_pass=true`).
+4. Confirmed current handle posture in registry includes:
+   - `FLINK_RUNTIME_PATH_ACTIVE = "EKS_FLINK_OPERATOR"`,
+   - `RTDL_CAUGHT_UP_LAG_MAX = 10`.
+
+### Implementation decision
+1. Implement dedicated runner `scripts/dev_substrate/m6p6_stress_runner.py` with stage support `S0..S5`.
+2. Keep fail-closed stage dependencies and targeted rerun semantics exactly aligned to stress authority.
+3. Enforce strict entry and path closure in `S0`:
+   - parent `M6-ST-S1` continuity,
+   - P5 `S5` verdict `ADVANCE_TO_P6`,
+   - single active runtime-path and allowed-path compatibility,
+   - runtime-surface queryability probe (path-aware).
+4. Use historical authoritative M6.E/M6.F/M6.G artifacts plus bounded live probes as realism anchors (same posture used successfully in P5 stress runner).
+5. Emit full `m6p6_*` artifact set each stage; include `m6p6_gate_verdict.json` at `S5`.
+
+### Stage mechanics selected
+1. `S0`: parent+P5 dependency closure, required handle/plan checks, runtime-path uniqueness/compatibility, evidence probe.
+2. `S1`: runtime activation precheck from latest successful M6.E/M6.F evidence + path-aware control probes.
+3. `S2`: run-window progression closure using authoritative M6.F snapshots (`RUNNING` refs + non-zero admissions + bridge summary).
+4. `S3`: lag/ambiguity/overhead closure using M6.F lag/ambiguity/overhead artifacts and threshold checks.
+5. `S4`: targeted remediation lane (NO_OP if blocker-free).
+6. `S5`: deterministic rollup verdict (`ADVANCE_TO_P7` only when blocker-free).
+
+### Execution plan
+1. Compile runner (`py_compile`).
+2. Execute `S0 -> S1 -> S2 -> S3 -> S4 -> S5` sequentially.
+3. If any stage opens blockers, remediate immediately and rerun impacted stage only.
+4. Update M6.P6, parent M6, and main stress authority docs with receipts and next-gate routing.
+5. Append completion evidence to implementation map + today logbook.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 02:00 +00:00 - M6.P6 runner implemented and full `S0..S5` execution closed green
+
+### Implementation actions
+1. Created `scripts/dev_substrate/m6p6_stress_runner.py` with deterministic stage support:
+   - `M6P6-ST-S0`, `M6P6-ST-S1`, `M6P6-ST-S2`, `M6P6-ST-S3`, `M6P6-ST-S4`, `M6P6-ST-S5`.
+2. Implemented fail-closed dependency and blocker mapping aligned to authority doc:
+   - `S0`: `B1/B2/B3/B11`,
+   - `S1`: `B3/B4/B11`,
+   - `S2`: `B5/B6/B11`,
+   - `S3`: `B7/B8/B9/B11`,
+   - `S4`: `B10`,
+   - `S5`: `B10/B12`.
+3. Implemented full `m6p6_*` artifact contract emission for each stage and deterministic verdict artifact at `S5` (`m6p6_gate_verdict.json`).
+
+### Remediation during implementation
+1. Initial compile failed with syntax error in `run_s1` (`p5_verdict` parenthesis mismatch).
+2. Applied targeted fix and reran compile:
+   - `python -m py_compile scripts/dev_substrate/m6p6_stress_runner.py` -> pass.
+
+### Execution receipts (`S0..S5`)
+1. `S0`: `m6p6_stress_s0_20260304T015920Z`
+   - `overall_pass=true`, `next_gate=M6P6_ST_S1_READY`, `open_blockers=0`.
+2. `S1`: `m6p6_stress_s1_20260304T015926Z`
+   - `overall_pass=true`, `next_gate=M6P6_ST_S2_READY`, `open_blockers=0`.
+3. `S2`: `m6p6_stress_s2_20260304T015936Z`
+   - `overall_pass=true`, `next_gate=M6P6_ST_S3_READY`, `open_blockers=0`.
+4. `S3`: `m6p6_stress_s3_20260304T015942Z`
+   - `overall_pass=true`, `next_gate=M6P6_ST_S4_READY`, `open_blockers=0`.
+5. `S4`: `m6p6_stress_s4_20260304T015951Z`
+   - `overall_pass=true`, `next_gate=M6P6_ST_S5_READY`, `open_blockers=0`, `remediation_mode=NO_OP`.
+6. `S5`: `m6p6_stress_s5_20260304T015956Z`
+   - `overall_pass=true`, `verdict=ADVANCE_TO_P7`, `next_gate=ADVANCE_TO_P7`, `open_blockers=0`.
+
+### Evidence anchors
+1. Historical evidence chained by runner for closure-grade validation:
+   - `M6.E`: `m6e_p6a_stream_entry_20260225T120522Z`,
+   - `M6.F`: `m6f_p6b_streaming_active_20260225T175655Z`,
+   - `M6.G`: `m6g_p6c_gate_rollup_20260225T181523Z`.
+2. New stress evidence root:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m6p6_stress_s*_20260304T0159*/stress/`.
+
+### Documentation closure updates
+1. Updated `platform.M6.P6.stress_test.md`:
+   - DoD closure, execution receipts, next-step routing (`parent M6-ST-S2` then `M6.P7`).
+2. Updated `platform.M6.stress_test.md`:
+   - execution progress now includes `M6.P6` closure receipt and verdict.
+3. Updated `platform.stress_test.md`:
+   - program status now reflects `M6.P5/P6` done and parent `S2` as next lane.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 02:02 +00:00 - Targeted M6P6-ST-S1 assurance rerun decision
+
+### Trigger
+1. User requested planning and execution of `M6P6-ST-S1` and instructed that any blockers from last implementation be resolved and documented.
+
+### Blocker sweep (pre-execution)
+1. Reviewed latest `M6.P6` stress blocker registers:
+   - `m6p6_stress_s0_20260304T015920Z` -> `open_blocker_count=0`.
+   - `m6p6_stress_s1_20260304T015926Z` -> `open_blocker_count=0`.
+   - `m6p6_stress_s2_20260304T015936Z` -> `open_blocker_count=0`.
+   - `m6p6_stress_s3_20260304T015942Z` -> `open_blocker_count=0`.
+   - `m6p6_stress_s4_20260304T015951Z` -> `open_blocker_count=0`.
+   - `m6p6_stress_s5_20260304T015956Z` -> `open_blocker_count=0`.
+2. Conclusion: no dangling runtime blockers remain from prior implementation.
+
+### Decision
+1. Do not open remediation lane because there are no open blockers to clear.
+2. Execute a targeted assurance rerun of `M6P6-ST-S1` only:
+   - preserves cost/runtime discipline,
+   - validates entry/runtime-activation gate remains stable after prior implementation.
+3. Keep fail-closed posture: if rerun opens any blocker, remediate immediately and rerun the smallest affected stage.
+
+### Planned execution
+1. Compile runner (`py_compile`) to ensure toolchain consistency.
+2. Execute `python scripts/dev_substrate/m6p6_stress_runner.py --stage S1`.
+3. Record receipt and blocker posture in stress docs + implementation map + today logbook.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 02:03 +00:00 - M6P6-ST-S1 assurance rerun executed (no blockers, no remediation)
+
+### Execution
+1. Validation command executed:
+   - `python -m py_compile scripts/dev_substrate/m6p6_stress_runner.py` (pass).
+2. Stage execution command executed:
+   - `python scripts/dev_substrate/m6p6_stress_runner.py --stage S1`.
+3. New receipt:
+   - `phase_execution_id=m6p6_stress_s1_20260304T020238Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P6_ST_S2_READY`,
+   - `open_blockers=0`,
+   - `probe_count=2`,
+   - `error_rate_pct=0.0`.
+
+### Decision and blocker handling
+1. Last-implementation blocker sweep remained fully closed (`S0..S5 open_blocker_count=0`), so remediation lane was intentionally not opened.
+2. This rerun is recorded as a stability assurance check, not a recovery action.
+3. No blocker remediation actions were necessary.
+
+### Documentation updates
+1. Updated `platform.M6.P6.stress_test.md` execution-progress section with this assurance rerun receipt and decision note.
+2. Appended this implementation-map entry and matching logbook entry.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 02:04 +00:00 - Targeted M6P6-ST-S2 assurance rerun decision
+
+### Trigger
+1. User requested planning and execution of `M6P6-ST-S2` with blocker-resolution if any prior implementation blockers remain.
+
+### Blocker sweep (pre-execution)
+1. Verified latest prior-cycle closure surfaces are blocker-free:
+   - `m6p6_stress_s5_20260304T015956Z` (`open_blocker_count=0`),
+   - latest assurance `S1` receipt `m6p6_stress_s1_20260304T020238Z` (`open_blocker_count=0`).
+2. Conclusion: no dangling blockers to remediate before S2.
+
+### Decision
+1. Do not open remediation lane because unresolved blockers are absent.
+2. Execute targeted `M6P6-ST-S2` assurance rerun only:
+   - validates progression/continuity lane remains stable after S1 assurance rerun,
+   - preserves cost/runtime discipline (no broad rerun).
+3. Keep fail-closed posture: if S2 opens blockers, remediate immediately and rerun affected stage only.
+
+### Planned execution
+1. `python -m py_compile scripts/dev_substrate/m6p6_stress_runner.py`.
+2. `python scripts/dev_substrate/m6p6_stress_runner.py --stage S2`.
+3. Record result in `platform.M6.P6.stress_test.md`, implementation map, and today logbook.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 02:04 +00:00 - M6P6-ST-S2 assurance rerun executed (no blockers, no remediation)
+
+### Execution
+1. Validation command:
+   - `python -m py_compile scripts/dev_substrate/m6p6_stress_runner.py` (pass).
+2. Stage execution:
+   - `python scripts/dev_substrate/m6p6_stress_runner.py --stage S2`.
+3. Receipt:
+   - `phase_execution_id=m6p6_stress_s2_20260304T020405Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P6_ST_S3_READY`,
+   - `open_blockers=0`,
+   - `probe_count=1`,
+   - `error_rate_pct=0.0`.
+
+### Blocker handling decision
+1. Pre-run blocker sweep remained clean (`S5` closure and latest `S1` assurance both blocker-free).
+2. Therefore no remediation lane was opened; this run is documented as targeted progression-lane assurance.
+3. No corrective changes were required.
+
+### Documentation updates
+1. Updated `platform.M6.P6.stress_test.md` execution progress with the new `S2` assurance receipt and decision note.
+2. Appended this implementation-map entry and matching logbook record.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 02:05 +00:00 - Targeted M6P6-ST-S3 assurance rerun decision
+
+### Trigger
+1. User requested planning and execution of `M6P6-ST-S3` with remediation if blockers from last implementation remain.
+
+### Blocker sweep (pre-execution)
+1. Verified latest prior-cycle closure and latest assurance receipts are blocker-free:
+   - `m6p6_stress_s5_20260304T015956Z` (`open_blocker_count=0`),
+   - `m6p6_stress_s1_20260304T020238Z` (`open_blocker_count=0`),
+   - `m6p6_stress_s2_20260304T020405Z` (`open_blocker_count=0`).
+2. Conclusion: no dangling blockers requiring remediation before S3.
+
+### Decision
+1. Do not open remediation lane because there are no unresolved blockers.
+2. Execute targeted `M6P6-ST-S3` assurance rerun only:
+   - validates lag/ambiguity/overhead closure remains stable after S1/S2 assurance reruns,
+   - preserves cost/runtime gates by avoiding broad reruns.
+3. Keep fail-closed posture: if blockers open during S3 rerun, remediate immediately and rerun affected stage only.
+
+### Planned execution
+1. `python -m py_compile scripts/dev_substrate/m6p6_stress_runner.py`.
+2. `python scripts/dev_substrate/m6p6_stress_runner.py --stage S3`.
+3. Record receipts + decision in stress doc, implementation map, and today logbook.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 02:05 +00:00 - M6P6-ST-S3 assurance rerun executed (no blockers, no remediation)
+
+### Execution
+1. Validation command:
+   - `python -m py_compile scripts/dev_substrate/m6p6_stress_runner.py` (pass).
+2. Stage execution:
+   - `python scripts/dev_substrate/m6p6_stress_runner.py --stage S3`.
+3. Receipt:
+   - `phase_execution_id=m6p6_stress_s3_20260304T020529Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P6_ST_S4_READY`,
+   - `open_blockers=0`,
+   - `probe_count=1`,
+   - `error_rate_pct=0.0`.
+
+### Blocker handling decision
+1. Pre-run blocker sweep remained closed; no dangling blockers from prior implementation.
+2. No remediation actions were required.
+3. Rerun is recorded as targeted lag/ambiguity/overhead stability assurance under cost/runtime discipline.
+
+### Documentation updates
+1. Updated `platform.M6.P6.stress_test.md` execution progress with `S3` assurance rerun receipt.
+2. Appended this implementation-map entry and matching logbook entry.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 02:06 +00:00 - Targeted M6P6-ST-S4 assurance rerun decision
+
+### Trigger
+1. User requested planning and execution of `M6P6-ST-S4` with remediation if blockers from prior implementation remain.
+
+### Blocker sweep (pre-execution)
+1. Verified latest closure + assurance chain blocker registers are closed:
+   - `m6p6_stress_s5_20260304T015956Z` (`open_blocker_count=0`),
+   - `m6p6_stress_s1_20260304T020238Z` (`open_blocker_count=0`),
+   - `m6p6_stress_s2_20260304T020405Z` (`open_blocker_count=0`),
+   - `m6p6_stress_s3_20260304T020529Z` (`open_blocker_count=0`).
+2. Conclusion: no dangling blockers require remediation before S4.
+
+### Decision
+1. Do not open remediation lane before execution because unresolved blockers are absent.
+2. Execute targeted `M6P6-ST-S4` assurance rerun only:
+   - validates remediation-lane gate remains deterministic `NO_OP` under closed-blocker posture,
+   - preserves cost/runtime discipline by avoiding full-phase reruns.
+3. Keep fail-closed execution: if S4 opens blockers, remediate immediately and rerun affected stage only.
+
+### Planned execution
+1. `python -m py_compile scripts/dev_substrate/m6p6_stress_runner.py`.
+2. `python scripts/dev_substrate/m6p6_stress_runner.py --stage S4`.
+3. Record receipt + decision in stress doc, implementation map, and today logbook.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 02:06 +00:00 - M6P6-ST-S4 assurance rerun executed (no blockers, no remediation)
+
+### Execution
+1. Validation command:
+   - `python -m py_compile scripts/dev_substrate/m6p6_stress_runner.py` (pass).
+2. Stage execution:
+   - `python scripts/dev_substrate/m6p6_stress_runner.py --stage S4`.
+3. Receipt:
+   - `phase_execution_id=m6p6_stress_s4_20260304T020649Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P6_ST_S5_READY`,
+   - `open_blockers=0`,
+   - `probe_count=0`,
+   - `error_rate_pct=0.0`,
+   - `remediation_mode=NO_OP`.
+
+### Blocker handling decision
+1. Pre-run blocker sweep remained closed; no dangling blockers were present.
+2. No remediation actions were required.
+3. Rerun is documented as targeted remediation-lane stability assurance under cost/runtime gates.
+
+### Documentation updates
+1. Updated `platform.M6.P6.stress_test.md` execution progress with this `S4` assurance receipt.
+2. Appended this implementation-map entry and matching logbook record.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 02:08 +00:00 - Targeted M6P6-ST-S5 assurance rerun decision
+
+### Trigger
+1. User requested planning and execution of `M6P6-ST-S5` with remediation if blockers from prior implementation remain.
+
+### Blocker sweep (pre-execution)
+1. Verified latest closure + assurance chain is blocker-free:
+   - `m6p6_stress_s5_20260304T015956Z` (`open_blocker_count=0`),
+   - `m6p6_stress_s1_20260304T020238Z` (`open_blocker_count=0`),
+   - `m6p6_stress_s2_20260304T020405Z` (`open_blocker_count=0`),
+   - `m6p6_stress_s3_20260304T020529Z` (`open_blocker_count=0`),
+   - `m6p6_stress_s4_20260304T020649Z` (`open_blocker_count=0`).
+2. Conclusion: no dangling blockers require remediation before S5.
+
+### Decision
+1. Do not open remediation lane pre-run because unresolved blockers are absent.
+2. Execute targeted `M6P6-ST-S5` assurance rerun only:
+   - validates deterministic verdict chain remains stable after `S1..S4` assurance reruns,
+   - preserves cost/runtime discipline by avoiding broad reruns.
+3. Keep fail-closed posture: if `S5` opens blockers, remediate immediately and rerun affected stage only.
+
+### Planned execution
+1. `python -m py_compile scripts/dev_substrate/m6p6_stress_runner.py`.
+2. `python scripts/dev_substrate/m6p6_stress_runner.py --stage S5`.
+3. Record receipt + decision in stress doc, implementation map, and today logbook.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 02:08 +00:00 - M6P6-ST-S5 assurance rerun executed (no blockers, no remediation)
+
+### Execution
+1. Validation command:
+   - `python -m py_compile scripts/dev_substrate/m6p6_stress_runner.py` (pass).
+2. Stage execution:
+   - `python scripts/dev_substrate/m6p6_stress_runner.py --stage S5`.
+3. Receipt:
+   - `phase_execution_id=m6p6_stress_s5_20260304T020815Z`,
+   - `overall_pass=true`,
+   - `verdict=ADVANCE_TO_P7`,
+   - `next_gate=ADVANCE_TO_P7`,
+   - `open_blockers=0`,
+   - `probe_count=0`,
+   - `error_rate_pct=0.0`.
+
+### Blocker handling decision
+1. Pre-run blocker sweep remained fully closed; no unresolved blockers were present.
+2. No remediation actions were required.
+3. Rerun is documented as targeted deterministic-verdict stability assurance under cost/runtime discipline.
+
+### Documentation updates
+1. Updated `platform.M6.P6.stress_test.md` execution progress with this `S5` assurance rerun receipt.
+2. Appended this implementation-map entry and matching logbook entry.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 02:10 +00:00 - M6P7-ST-S0 execution plan and blocker sweep decision
+
+### Trigger
+1. User requested planning and execution of `M6P7-ST-S0` with remediation if blockers from prior implementation remain.
+
+### Blocker sweep (from prior implementation)
+1. Verified latest P6 closure and assurance chain are blocker-free:
+   - `m6p6_stress_s5_20260304T020815Z` (`open_blocker_count=0`),
+   - `m6p6_stress_s4_20260304T020649Z` (`open_blocker_count=0`),
+   - `m6p6_stress_s3_20260304T020529Z` (`open_blocker_count=0`),
+   - `m6p6_stress_s2_20260304T020405Z` (`open_blocker_count=0`),
+   - `m6p6_stress_s1_20260304T020238Z` (`open_blocker_count=0`).
+2. Decision: no pending blockers to remediate before starting P7.
+
+### Gap diagnosis
+1. `platform.M6.P7.stress_test.md` is present and execution-grade.
+2. No executable runner exists for P7 (`scripts/dev_substrate/m6p7_stress_runner.py` missing).
+
+### Implementation decision
+1. Implement new runner `scripts/dev_substrate/m6p7_stress_runner.py` scoped to `S0` (this request scope).
+2. Enforce fail-closed `S0` gates aligned to P7 authority:
+   - required plan-key closure,
+   - required handle closure (`M6P7_STRESS_HANDLE_PACKET` keys),
+   - dependency continuity (`M6-ST-S0` + latest `M6P6-ST-S5` verdict `ADVANCE_TO_P7` + closed blocker registers),
+   - evidence root probe (`S3_EVIDENCE_BUCKET`).
+3. Emit full S0 artifact set for deterministic receipts:
+   - `m6p7_stagea_findings.json`,
+   - `m6p7_lane_matrix.json`,
+   - `m6p7_ingest_commit_snapshot.json`,
+   - `m6p7_receipt_summary_snapshot.json`,
+   - `m6p7_quarantine_summary_snapshot.json`,
+   - `m6p7_offsets_snapshot.json`,
+   - `m6p7_dedupe_anomaly_snapshot.json`,
+   - `m6p7_probe_latency_throughput_snapshot.json`,
+   - `m6p7_control_rail_conformance_snapshot.json`,
+   - `m6p7_secret_safety_snapshot.json`,
+   - `m6p7_cost_outcome_receipt.json`,
+   - `m6p7_blocker_register.json`,
+   - `m6p7_execution_summary.json`,
+   - `m6p7_decision_log.json`.
+
+### Blocker mapping for S0
+1. `M6P7-ST-B1`: missing/inconsistent required handle or plan key.
+2. `M6P7-ST-B2`: invalid P6 dependency or entry chain.
+3. `M6P7-ST-B10`: evidence publish/readback failure.
+4. `M6P7-ST-B11`: artifact contract incompleteness.
+
+### Execution plan
+1. Compile runner (`py_compile`).
+2. Execute `python scripts/dev_substrate/m6p7_stress_runner.py --stage S0`.
+3. If blockers open, remediate immediately and rerun S0.
+4. Update P7 stress doc execution progress + DoD and append log/impl receipts.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 02:11 +00:00 - M6P7-ST-S0 implemented and executed (pass, no remediation needed)
+
+### Implementation
+1. Added new runner: `scripts/dev_substrate/m6p7_stress_runner.py` (current scope: `--stage S0`).
+2. Implemented fail-closed `S0` checks aligned to `platform.M6.P7.stress_test.md`:
+   - required plan-key closure,
+   - required handle closure + placeholder guard,
+   - dependency continuity (`M6-ST-S0` + latest `M6P6-ST-S5` verdict `ADVANCE_TO_P7` + closed blocker registers),
+   - evidence root probe (`S3_EVIDENCE_BUCKET`).
+3. Implemented deterministic `m6p7_*` S0 artifact emission and artifact-completeness gate.
+
+### Validation and execution
+1. `python -m py_compile scripts/dev_substrate/m6p7_stress_runner.py` (pass).
+2. `python scripts/dev_substrate/m6p7_stress_runner.py --stage S0` (pass).
+3. Receipt:
+   - `phase_execution_id=m6p7_stress_s0_20260304T021107Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P7_ST_S1_READY`,
+   - `open_blockers=0`,
+   - `probe_count=1`,
+   - `error_rate_pct=0.0`.
+
+### Blocker decision
+1. Pre-run sweep found no dangling blockers from prior implementation (`M6.P6` closure + latest assurances all closed).
+2. No remediation actions were required before or after `S0` execution.
+
+### Documentation updates
+1. Updated `platform.M6.P7.stress_test.md`:
+   - DoD `S0` checkbox closed,
+   - immediate next actions advanced to `S1..`,
+   - execution progress appended with `S0` receipt and blocker decision note.
+2. Updated parent/program routing docs:
+   - `platform.M6.stress_test.md` execution progress now includes `M6.P7 S0` receipt,
+   - `platform.stress_test.md` status now marks `M6.P7` as `ACTIVE_EXECUTION` with latest `S0` receipt.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 02:15 +00:00 - M6P7-ST-S1 execution plan and blocker sweep decision
+
+### Trigger
+1. User requested planning and execution of `M6P7-ST-S1` with remediation if blockers from prior implementation remain.
+
+### Blocker sweep (from prior implementation)
+1. Verified latest `M6P7-ST-S0` closure receipt/register:
+   - `phase_execution_id=m6p7_stress_s0_20260304T021107Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P7_ST_S1_READY`,
+   - `open_blocker_count=0`.
+2. Verified latest prior cycle (`M6.P6` closure and assurance chain) remains fully closed:
+   - latest `M6P6-ST-S5/S4/S3/S2/S1` receipts all report `open_blocker_count=0`.
+3. Decision: no pre-run remediation lane is required; proceed to `S1` execution with fail-closed posture.
+
+### Gap diagnosis
+1. `scripts/dev_substrate/m6p7_stress_runner.py` currently supports only `--stage S0`.
+2. `S1` requires ingest-commit evidence checks for:
+   - `receipt_summary`,
+   - `quarantine_summary`,
+   - `kafka_offsets_snapshot`,
+   with material-content validation and run-scope continuity.
+3. Local workspace contains valid upstream `M6.H` ingest artifacts for `platform_run_id=platform_20260223T184232Z`, including:
+   - `m6h_ingest_commit_snapshot.json`,
+   - `receipt_summary.json`,
+   - `quarantine_summary.json`,
+   - `kafka_offsets_snapshot.json`.
+
+### Implementation decision (S1)
+1. Extend `m6p7_stress_runner.py` to support `--stage S1`.
+2. Implement fail-closed `S1` checks:
+   - dependency on latest successful `S0` with `next_gate=M6P7_ST_S1_READY` and closed blocker register,
+   - resolve latest successful historical `M6.H` ingest execution matching S0 `platform_run_id`,
+   - validate receipt/quarantine/offset snapshots are readable and run-scoped,
+   - validate offsets snapshot is material (`topics` non-empty and observed count positive),
+   - preserve evidence-root probe.
+3. Blocker mapping for `S1`:
+   - `M6P7-ST-B3`: missing/unreadable receipt/quarantine summary surfaces,
+   - `M6P7-ST-B4`: missing/unreadable/non-material offsets snapshot,
+   - `M6P7-ST-B10`: evidence readback/probe failure,
+   - `M6P7-ST-B11`: artifact-contract incompleteness.
+4. Runtime/cost posture:
+   - targeted lane execution only (`S1`),
+   - bounded probes and local artifact readback first,
+   - no broad reruns.
+
+### Planned execution
+1. `python -m py_compile scripts/dev_substrate/m6p7_stress_runner.py`.
+2. `python scripts/dev_substrate/m6p7_stress_runner.py --stage S1`.
+3. If blockers open, remediate minimally and rerun `S1` only.
+4. Update:
+   - `platform.M6.P7.stress_test.md`,
+   - `platform.M6.stress_test.md`,
+   - `platform.stress_test.md`,
+   - implementation map + logbook with decision/rationale.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 02:19 +00:00 - M6P7-ST-S1 implemented and executed (pass, no remediation needed)
+
+### Implementation
+1. Extended `scripts/dev_substrate/m6p7_stress_runner.py` to add `--stage S1` support.
+2. Added fail-closed `S1` dependency closure:
+   - latest `M6P7-ST-S0` receipt must be pass with `next_gate=M6P7_ST_S1_READY`,
+   - latest `M6P7-ST-S0` blocker register must be closed.
+3. Added deterministic ingest evidence sourcing from latest successful historical `M6.H` (`P7.A`) run matching `platform_run_id`.
+4. Added `S1` evidence checks:
+   - receipt/quarantine/offset artifacts readable,
+   - run-scope continuity checks against dependency `platform_run_id`,
+   - offsets materiality (`topics` non-empty + positive observed counts),
+   - bounded S3 readback probes on declared evidence refs.
+5. Added explicit blocker mapping in code:
+   - `M6P7-ST-B3` (receipt/quarantine/dependency evidence failures),
+   - `M6P7-ST-B4` (offset evidence non-material/readability drift),
+   - `M6P7-ST-B10` (durable evidence probe/readback failure),
+   - `M6P7-ST-B11` (artifact contract incompleteness).
+
+### Validation and execution
+1. `python -m py_compile scripts/dev_substrate/m6p7_stress_runner.py` (pass).
+2. `python scripts/dev_substrate/m6p7_stress_runner.py --stage S1` (pass).
+3. Receipt:
+   - `phase_execution_id=m6p7_stress_s1_20260304T021901Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P7_ST_S2_READY`,
+   - `open_blockers=0`,
+   - `probe_count=4`,
+   - `error_rate_pct=0.0`,
+   - `s0_dependency_phase_execution_id=m6p7_stress_s0_20260304T021107Z`,
+   - `historical_m6h_execution_id=m6h_p7a_ingest_commit_20260225T191433Z`,
+   - `platform_run_id=platform_20260223T184232Z`,
+   - `offset_mode=IG_ADMISSION_INDEX_PROXY`.
+
+### Blocker handling decision
+1. Pre-run blocker sweep found no dangling blockers from last implementation.
+2. `S1` execution opened no new blockers (`open_blocker_count=0`).
+3. Therefore no remediation lane was activated; progression to `S2` is authorized.
+
+### Documentation updates
+1. Updated `platform.M6.P7.stress_test.md`:
+   - DoD now records `S1` complete,
+   - immediate next actions now start at `S2`,
+   - execution progress appended with `S1` receipt and blocker decision.
+2. Updated `platform.M6.stress_test.md`:
+   - execution progress now includes `M6.P7 S1` pass receipt,
+   - immediate next action now continues P7 from `S2`.
+3. Updated `platform.stress_test.md`:
+   - active phase state now reflects `M6.P7-S0/S1` executed green,
+   - current next executable step now continues P7 from `S2`,
+   - latest M6.P7 subphase receipt now points to `M6P7-ST-S1`.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 02:23 +00:00 - M6P7-ST-S2 execution plan and blocker/remediation policy
+
+### Trigger
+1. User requested planning and execution of `M6P7-ST-S2` with remediation if blockers from prior implementation remain.
+
+### Blocker sweep (from prior implementation)
+1. Verified latest `M6P7-ST-S1` closure receipt/register:
+   - `phase_execution_id=m6p7_stress_s1_20260304T021901Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P7_ST_S2_READY`,
+   - `open_blocker_count=0`.
+2. Decision: no pre-run remediation lane required for prior implementation state.
+
+### Investigation findings for S2 design
+1. Historical ingest evidence from latest successful `M6.H` is available and run-scoped (`platform_run_id=platform_20260223T184232Z`).
+2. Direct filtered DDB scan for that historical run id returned zero rows while unfiltered sample scan shows current rows for newer runtime-cert run ids.
+3. Root-cause hypothesis: expected TTL expiry for historical idempotency rows (`IG_IDEMPOTENCY_TTL_SECONDS=259200`) has aged out the original run-scoped rows.
+4. Decision: use dual evidence mode for `S2`:
+   - run-scoped dedupe/anomaly closure from deterministic `S1`/historical `M6.H` evidence,
+   - live idempotency-surface posture checks via bounded DDB sample (schema/TTL/state invariants) to keep production realism.
+
+### Implementation decision (S2)
+1. Extend `scripts/dev_substrate/m6p7_stress_runner.py` with `--stage S2`.
+2. Enforce fail-closed `S2` dependency closure:
+   - latest `S1` must pass with `next_gate=M6P7_ST_S2_READY` and closed blocker register.
+3. Implement dedupe/idempotency checks:
+   - receipt/additive count invariants (`admit+duplicate+quarantine==total_receipts`),
+   - dedupe anomaly count must be zero,
+   - offset material consistency with admit count under `IG_ADMISSION_INDEX_PROXY` mode.
+4. Implement live idempotency surface checks (bounded scan):
+   - table readability and row-shape invariants (`dedupe_key`, TTL field, admitted epoch/state),
+   - TTL monotonicity (`ttl_epoch >= admitted_at_epoch`) where both fields exist,
+   - sample-level missing-TTL ratio gate.
+5. Implement TTL-window remediation policy:
+   - if run-scoped live rows are expected to have expired (age > TTL), accept historical-evidence mode and record rationale (not a blocker),
+   - if rows should still be within TTL but missing, open `M6P7-ST-B5`.
+
+### Blocker mapping for S2
+1. `M6P7-ST-B5`: dedupe/idempotency drift (count-invariant failure, dedupe anomaly >0, TTL/state drift, unexpected run-scope absence).
+2. `M6P7-ST-B6`: ingest evidence inconsistency across receipt/quarantine/offset surfaces.
+3. `M6P7-ST-B10`: evidence probe/readback failure.
+4. `M6P7-ST-B11`: artifact-contract incompleteness.
+
+### Planned execution
+1. `python -m py_compile scripts/dev_substrate/m6p7_stress_runner.py`.
+2. `python scripts/dev_substrate/m6p7_stress_runner.py --stage S2`.
+3. If blockers open:
+   - apply minimal targeted remediation in S2 lane only,
+   - rerun `S2` immediately.
+4. Update stress docs + implementation map + today logbook with explicit blocker and remediation decisions.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 02:31 +00:00 - M6P7-ST-S2 implemented and executed (pass, no remediation required)
+
+### Implementation
+1. Extended `scripts/dev_substrate/m6p7_stress_runner.py` with `--stage S2`.
+2. Implemented fail-closed `S2` dependency gate on latest successful `S1` summary/register.
+3. Implemented cross-surface dedupe/anomaly checks using `S1` evidence:
+   - count invariants (`admit + duplicate + quarantine == total_receipts`),
+   - dedupe anomaly count closure,
+   - proxy-offset consistency (`observed_total == admit_count`) under `IG_ADMISSION_INDEX_PROXY`,
+   - run-scope consistency across ingest/receipt/quarantine/offset snapshots.
+4. Implemented bounded live idempotency-surface sampling from DynamoDB:
+   - dedupe-key presence/uniqueness,
+   - TTL-field presence and monotonicity vs `admitted_at_epoch`,
+   - allowed state-shape guard.
+5. Implemented TTL-aware remediation policy:
+   - if historical run-scope rows are expectedly expired (`age_seconds > IG_IDEMPOTENCY_TTL_SECONDS`), proceed with `HISTORICAL_WITH_LIVE_SAMPLE` mode and record decision;
+   - fail closed only for unexplained drift.
+
+### Validation and execution
+1. `python -m py_compile scripts/dev_substrate/m6p7_stress_runner.py` (pass).
+2. `python scripts/dev_substrate/m6p7_stress_runner.py --stage S2` (pass).
+3. Receipt:
+   - `phase_execution_id=m6p7_stress_s2_20260304T023114Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P7_ST_S3_READY`,
+   - `open_blockers=0`,
+   - `probe_count=2`,
+   - `error_rate_pct=0.0`,
+   - `s1_dependency_phase_execution_id=m6p7_stress_s1_20260304T021901Z`,
+   - `historical_m6h_execution_id=m6h_p7a_ingest_commit_20260225T191433Z`,
+   - `platform_run_id=platform_20260223T184232Z`,
+   - `ttl_evidence_mode=HISTORICAL_WITH_LIVE_SAMPLE`.
+
+### Blocker/remediation decision
+1. No blockers existed from prior implementation (`S1` closed).
+2. No new blockers opened in `S2`.
+3. A potential false blocker (missing run-scoped live rows for historical run id) was resolved via TTL-root-cause adjudication:
+   - observed `age_seconds=549228` exceeds `IG_IDEMPOTENCY_TTL_SECONDS=259200`,
+   - therefore live-row absence is expected for that historical run and is not treated as drift.
+4. No rerun/remediation lane activation was necessary.
+
+### Documentation updates
+1. Updated `platform.M6.P7.stress_test.md` with `S2` completion, next steps, and blocker decision.
+2. Updated `platform.M6.stress_test.md` to continue `M6.P7` from `S3` and include `S2` receipt.
+3. Updated `platform.stress_test.md` active-phase status and latest subphase receipt to `M6P7-ST-S2`.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 02:34 +00:00 - M6P7-ST-S3 execution plan and blocker/remediation policy
+
+### Trigger
+1. User requested planning and execution of `M6P7-ST-S3` with remediation if blockers from prior implementation remain.
+
+### Blocker sweep (from prior implementation)
+1. Verified latest `M6P7-ST-S2` closure receipt/register:
+   - `phase_execution_id=m6p7_stress_s2_20260304T023114Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P7_ST_S3_READY`,
+   - `open_blocker_count=0`.
+2. Decision: no pre-run remediation lane is required for prior implementation posture.
+
+### S3 design investigation
+1. `S2` already proved:
+   - run-scope count invariants and dedupe/anomaly closure,
+   - offset/admit consistency under `IG_ADMISSION_INDEX_PROXY`,
+   - bounded live idempotency surface posture checks.
+2. Historical P7.B (`M6.I`) rollup artifacts exist for the same `platform_run_id` and are blocker-free (`verdict=ADVANCE_TO_M7`), which can be used as continuity anchor evidence for current S3.
+3. Current run age is beyond both replay and TTL windows for that historical run id; naive expectation of live run-scope rows would be a false blocker.
+
+### Implementation decision (S3)
+1. Extend `scripts/dev_substrate/m6p7_stress_runner.py` with `--stage S3`.
+2. Enforce fail-closed `S3` dependency closure:
+   - latest successful `S2`,
+   - `next_gate=M6P7_ST_S3_READY`,
+   - closed `S2` blocker register.
+3. Implement continuity checks:
+   - re-validate cross-surface run-scope consistency from `S2` snapshots,
+   - verify count invariants and offset consistency remain true,
+   - verify latest historical `M6.I` continuity anchor for same run is pass and blocker-free.
+4. Implement replay-window policy:
+   - compute replay window from `M6P7_STRESS_REPLAY_WINDOW_MINUTES`,
+   - if run age exceeds replay window (and TTL-expired mode applies), classify as `HISTORICAL_CLOSED_WINDOW` and require deterministic evidence stability instead of live-run replay rows,
+   - otherwise require run-scoped live continuity probe (count/readback) and fail-closed on unexplained drift.
+5. Keep bounded control/evidence probes (no broad reruns, no expensive live replay generation).
+
+### Blocker/remediation mapping for S3
+1. `M6P7-ST-B6`: continuity drift across ingest evidence surfaces.
+2. `M6P7-ST-B7`: replay-window behavior invalid or unjustified mode mismatch.
+3. `M6P7-ST-B10`: evidence probe/readback failure.
+4. `M6P7-ST-B11`: artifact contract incompleteness.
+
+### Planned execution
+1. `python -m py_compile scripts/dev_substrate/m6p7_stress_runner.py`.
+2. `python scripts/dev_substrate/m6p7_stress_runner.py --stage S3`.
+3. If blockers open, remediate minimally in-lane and rerun `S3` immediately.
+4. Update `platform.M6.P7.stress_test.md`, `platform.M6.stress_test.md`, `platform.stress_test.md`, implementation map, and today logbook with exact receipts and blocker decisions.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 02:36 +00:00 - M6P7-ST-S3 implemented and executed (pass, no remediation required)
+
+### Implementation
+1. Extended `scripts/dev_substrate/m6p7_stress_runner.py` with `--stage S3`.
+2. Added fail-closed `S3` dependency checks on latest successful `S2` summary/register.
+3. Added continuity checks over `S2` evidence surfaces:
+   - run-scope consistency across ingest/receipt/quarantine/offset/dedupe snapshots,
+   - count invariant and dedupe/offset continuity assertions.
+4. Added historical P7 continuity anchor checks:
+   - locate latest successful `M6.I` (`P7.B`) rollup for same `platform_run_id`,
+   - require blocker-free rollup/lane matrix posture.
+5. Added replay-window mode logic:
+   - compute replay window from `M6P7_STRESS_REPLAY_WINDOW_MINUTES`,
+   - use `HISTORICAL_CLOSED_WINDOW` mode when run age exceeds replay window,
+   - validate evidence durability and continuity in that mode,
+   - fail-closed for unexplained replay/continuity mismatches.
+
+### Validation and execution
+1. `python -m py_compile scripts/dev_substrate/m6p7_stress_runner.py` (pass).
+2. `python scripts/dev_substrate/m6p7_stress_runner.py --stage S3` (pass).
+3. Receipt:
+   - `phase_execution_id=m6p7_stress_s3_20260304T023645Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P7_ST_S4_READY`,
+   - `open_blockers=0`,
+   - `probe_count=4`,
+   - `error_rate_pct=0.0`,
+   - `s2_dependency_phase_execution_id=m6p7_stress_s2_20260304T023114Z`,
+   - `historical_m6h_execution_id=m6h_p7a_ingest_commit_20260225T191433Z`,
+   - `historical_m6i_execution_id=m6i_p7b_gate_rollup_20260225T191541Z`,
+   - `replay_window_mode=HISTORICAL_CLOSED_WINDOW`.
+
+### Blocker/remediation decision
+1. No blockers existed from prior implementation (`S2` was closed).
+2. No new blockers opened in `S3`.
+3. Replay-window continuity was adjudicated in historical-closed mode (aged run + TTL-expected posture), with continuity anchor (`M6.I`) and cross-surface evidence checks passing.
+4. No remediation rerun was required.
+
+### Documentation updates
+1. Updated `platform.M6.P7.stress_test.md`:
+   - DoD marks `S3` complete,
+   - immediate next actions now route to `S4/S5`,
+   - execution progress includes `S3` receipt and blocker decision.
+2. Updated `platform.M6.stress_test.md`:
+   - immediate action now continues `M6.P7` from `S4/S5`,
+   - execution progress includes `M6.P7 S3` receipt.
+3. Updated `platform.stress_test.md`:
+   - active phase state now includes `M6.P7-S3` green,
+   - current next executable step now continues `M6.P7` from `S4/S5`,
+   - latest subphase receipt now references `M6P7-ST-S3`.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 02:39 +00:00 - M6P7-ST-S4 execution plan and blocker/remediation policy
+
+### Trigger
+1. User requested planning and execution of `M6P7-ST-S4` with remediation if blockers from prior implementation remain.
+
+### Blocker sweep (from prior implementation)
+1. Verified latest `M6P7-ST-S3` closure receipt/register:
+   - `phase_execution_id=m6p7_stress_s3_20260304T023645Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P7_ST_S4_READY`,
+   - `open_blocker_count=0`.
+2. Decision: no pre-run remediation actions are required.
+
+### Implementation decision (S4)
+1. Extend `scripts/dev_substrate/m6p7_stress_runner.py` with `--stage S4`.
+2. Enforce fail-closed S4 dependency checks:
+   - latest successful `S3`,
+   - expected gate `M6P7_ST_S4_READY`,
+   - closed `S3` blocker register.
+3. Implement targeted remediation semantics:
+   - default `NO_OP` when dependency is blocker-free,
+   - escalate to `TARGETED_REMEDIATE` only if blocker evidence appears during S4 checks.
+4. Preserve continuity posture:
+   - carry forward S3 replay-window mode/evidence context without reopening upstream states when no causal drift exists.
+5. Keep bounded probes only (evidence bucket + dependency artifact readability checks).
+
+### Blocker mapping for S4
+1. `M6P7-ST-B8`: remediation evidence inconsistent / dependency closure mismatch.
+2. `M6P7-ST-B10`: evidence publish/readback or dependency artifact readability failure.
+3. `M6P7-ST-B11`: artifact-contract incompleteness.
+
+### Planned execution
+1. `python -m py_compile scripts/dev_substrate/m6p7_stress_runner.py`.
+2. `python scripts/dev_substrate/m6p7_stress_runner.py --stage S4`.
+3. If blockers open, apply minimal in-lane remediation and rerun `S4`.
+4. Update stress docs + implementation map + logbook with explicit remediation-mode decision.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 02:40 +00:00 - M6P7-ST-S4 implemented and executed (pass, remediation_mode=NO_OP)
+
+### Implementation
+1. Added `run_s4` to `scripts/dev_substrate/m6p7_stress_runner.py`.
+2. Added `S4` stage routing in CLI (`choices` + `stage_map`).
+3. Implemented S4 mechanics:
+   - S3 dependency closure validation,
+   - remediation-mode selection (`NO_OP` vs `TARGETED_REMEDIATE`),
+   - bounded evidence/dependency readback probes,
+   - S4 receipt + blocker + decision artifacts with carried-forward S3 continuity context.
+
+### Validation and execution
+1. `python -m py_compile scripts/dev_substrate/m6p7_stress_runner.py` (pass).
+2. `python scripts/dev_substrate/m6p7_stress_runner.py --stage S4` (pass).
+3. Receipt:
+   - `phase_execution_id=m6p7_stress_s4_20260304T024002Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P7_ST_S5_READY`,
+   - `open_blockers=0`,
+   - `probe_count=1`,
+   - `error_rate_pct=0.0`,
+   - `s3_dependency_phase_execution_id=m6p7_stress_s3_20260304T023645Z`,
+   - `replay_window_mode=HISTORICAL_CLOSED_WINDOW`,
+   - `remediation_mode=NO_OP`.
+
+### Blocker/remediation decision
+1. No blockers existed from prior implementation (`S3` closed).
+2. No new blockers opened during `S4`.
+3. Remediation lane closed intentionally as `NO_OP` per targeted-rerun policy; no rerun required.
+
+### Documentation updates
+1. Updated `platform.M6.P7.stress_test.md`:
+   - DoD now marks `S4` closed,
+   - immediate next actions route to `S5`,
+   - execution progress includes S4 receipt + blocker decision.
+2. Updated `platform.M6.stress_test.md`:
+   - immediate action now continues P7 from `S5`,
+   - execution progress includes `M6.P7 S4` receipt.
+3. Updated `platform.stress_test.md`:
+   - active phase status now includes `M6.P7-S4` green,
+   - current next executable step now continues `M6.P7` from `S5`,
+   - latest subphase receipt now references `M6P7-ST-S4`.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 02:43 +00:00 - M6P7-ST-S5 execution plan and blocker/remediation policy
+
+### Trigger
+1. User requested planning and execution of `M6P7-ST-S5` with remediation if blockers from prior implementation remain.
+
+### Blocker sweep (from prior implementation)
+1. Verified latest `M6P7-ST-S4` closure receipt/register:
+   - `phase_execution_id=m6p7_stress_s4_20260304T024002Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P7_ST_S5_READY`,
+   - `open_blocker_count=0`,
+   - `remediation_mode=NO_OP`.
+2. Decision: no carry-forward blocker remediation is required before `S5` entry.
+
+### S5 design investigation
+1. `M6P7-ST-S5` requires deterministic rollup across `S0..S4` and strict verdict semantics:
+   - `ADVANCE_TO_M7` only when all stage-chain gates are valid and no blockers exist.
+2. Current `m6p7` runner does not expose a `S5` lane; stage routing currently ends at `S4`.
+3. Plan contract requires two additional closure artifacts at `S5`:
+   - `m6p7_gate_verdict.json`,
+   - `m7_handoff_pack.json`.
+4. Parent M6 progression depends on these P7 closure outputs; this must fail-closed on missing/invalid rollup or handoff references.
+
+### Implementation decision (S5)
+1. Extend `scripts/dev_substrate/m6p7_stress_runner.py` with `run_s5` and add stage routing for `--stage S5`.
+2. Enforce fail-closed S5 dependency closure:
+   - latest successful `S4`,
+   - `next_gate=M6P7_ST_S5_READY`,
+   - closed `S4` blocker register.
+3. Build deterministic stage-chain matrix for `S0..S4`:
+   - each stage must be successful and on expected `next_gate`,
+   - any mismatch opens blocker and forces `HOLD_REMEDIATE`.
+4. Validate continuity anchor from historical `M6.I` (`P7.B`) pass verdict for the same `platform_run_id`.
+5. Emit rollup closure artifacts:
+   - `m6p7_gate_verdict.json` with deterministic verdict,
+   - `m7_handoff_pack.json` with run-scoped refs for parent M6 `S3/S5` adjudication.
+6. Preserve targeted rerun policy:
+   - rerun `S5` only for aggregation/handoff defects,
+   - reopen upstream stages only with explicit causal evidence.
+
+### Blocker/remediation mapping for S5
+1. `M6P7-ST-B8`: rollup/verdict inconsistency or S5 dependency mismatch.
+2. `M6P7-ST-B9`: handoff pack missing/invalid references.
+3. `M6P7-ST-B10`: evidence readback/probe failure.
+4. `M6P7-ST-B11`: artifact-contract incompleteness.
+
+### Runtime/cost posture
+1. Runtime budget target: `<=18` minutes for S5 rollup closure.
+2. Spend envelope target: `<=3 USD` attributed to bounded read/probe + artifact publication surfaces.
+
+### Planned execution
+1. `python -m py_compile scripts/dev_substrate/m6p7_stress_runner.py`.
+2. `python scripts/dev_substrate/m6p7_stress_runner.py --stage S5`.
+3. If blockers open:
+   - apply minimal remediation in S5 lane first (rollup/handoff corrections),
+   - rerun `S5` immediately,
+   - reopen upstream stage only with explicit root-cause evidence.
+4. Update:
+   - `platform.M6.P7.stress_test.md`,
+   - `platform.M6.stress_test.md`,
+   - `platform.stress_test.md`,
+   - this implementation map + today logbook.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 02:46 +00:00 - M6P7-ST-S5 implemented and executed (pass, verdict=ADVANCE_TO_M7)
+
+### Implementation
+1. Extended `scripts/dev_substrate/m6p7_stress_runner.py` with `run_s5`.
+2. Added stage routing for `S5` in CLI (`choices` + `stage_map`).
+3. Implemented `S5` fail-closed mechanics:
+   - strict dependency closure on latest successful `S4`,
+   - deterministic stage-chain validation across `S0..S4`,
+   - historical `M6.I` rollup/verdict continuity anchor checks,
+   - deterministic verdict rule (`ADVANCE_TO_M7` only when blocker-free),
+   - handoff contract emission (`m6p7_gate_verdict.json`, `m7_handoff_pack.json`) with handle-path materialization.
+
+### Validation and execution
+1. `python -m py_compile scripts/dev_substrate/m6p7_stress_runner.py` (pass).
+2. `python scripts/dev_substrate/m6p7_stress_runner.py --stage S5` (pass).
+3. Receipt:
+   - `phase_execution_id=m6p7_stress_s5_20260304T024638Z`,
+   - `overall_pass=true`,
+   - `verdict=ADVANCE_TO_M7`,
+   - `next_gate=ADVANCE_TO_M7`,
+   - `open_blockers=0`,
+   - `probe_count=1`,
+   - `error_rate_pct=0.0`,
+   - `s4_dependency_phase_execution_id=m6p7_stress_s4_20260304T024002Z`,
+   - `historical_m6i_execution_id=m6i_p7b_gate_rollup_20260225T191541Z`,
+   - `handoff_path_key=evidence/dev_full/run_control/m6p7_stress_s5_20260304T024638Z/m7_handoff_pack.json`.
+
+### Blocker/remediation decision
+1. No blockers existed from prior implementation (`S4` closed with `open_blocker_count=0`).
+2. No new blockers opened during `S5`.
+3. No remediation lane was required.
+4. `M6P7` closure is now deterministic and blocker-free for parent `M6-ST-S3` adjudication.
+
+### Documentation updates
+1. Updated `platform.M6.P7.stress_test.md`:
+   - DoD now marks `S5` closed,
+   - immediate next actions route to parent `M6-ST-S3`,
+   - execution progress includes `S5` receipt and blocker decision.
+2. Updated `platform.M6.stress_test.md`:
+   - immediate next actions now include parent `S3` adjudication on P7 verdict,
+   - execution progress includes `M6.P7 S5` receipt.
+3. Updated `platform.stress_test.md`:
+   - program and active-phase status now reflect `M6.P7` closure,
+   - next executable steps now route parent adjudication (`M6-ST-S2`, then `M6-ST-S3`),
+   - latest subphase receipt points to `M6P7-ST-S5`.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 02:53 +00:00 - M7 planning kickoff with data-realism mandate (parent + subdocs)
+
+### Trigger
+1. User requested immediate M7 planning with detailed subdocs and an explicit shift from schema-only stress to actual-data behavior stress from `M7` onward.
+2. User explicitly required data exploration/analysis on a subset to inform stress decisions before wiring lanes.
+
+### Investigation summary (pre-edit)
+1. Existing M7 build authorities are present:
+   - `platform.M7.build_plan.md`,
+   - `platform.M7.P8.build_plan.md`,
+   - `platform.M7.P9.build_plan.md`,
+   - `platform.M7.P10.build_plan.md`.
+2. Existing stress authorities do not yet include M7 stress docs (`platform.M7*.stress_test.md` missing under `stress_test/`).
+3. Historical M7 build evidence indicates a realism-risk posture:
+   - component-lane performance snapshots (`P8/P9/P10`) were mostly `throughput_gate_mode=waived_low_sample` with `sample_size=18`,
+   - `M7.K` aggregate throughput cert passed with larger window sample (`sample_size_events=11878`, observed ~`49.49 eps`).
+4. Local data subset scan shows currently available checked-in event sample is narrow:
+   - `artefacts/s0_runs/.../rng_logs/events/core` has `14` files and `14` rows total,
+   - all observed events are `anchor` only (`module=1A.s0`, empty payload),
+   - this subset is useful for format sanity but insufficient to represent production-like event-content diversity.
+5. Existing EDA artifacts (`docs/reports/eda/segment_1A`) provide distribution signals that can be reused to seed realistic subset-stratification policies.
+
+### Planning decisions
+1. Create dedicated stress authorities for:
+   - `platform.M7.stress_test.md`,
+   - `platform.M7.P8.stress_test.md`,
+   - `platform.M7.P9.stress_test.md`,
+   - `platform.M7.P10.stress_test.md`.
+2. Add an explicit M7+ data-realism lane as a hard gate:
+   - no phase closure if only schema/handle checks pass without data-content profile and semantic stress evidence.
+3. In each M7 subphase plan, include an entry-stage data profiling block that publishes:
+   - data subset manifest,
+   - distribution profile (volume mix, key-cardinality, duplicates, skew, edge-case rates),
+   - realism verdict against target production envelope.
+4. Define fail-closed blockers for data realism:
+   - insufficient sample diversity,
+   - distribution drift beyond tolerance,
+   - semantic invariants violated under realistic replay/duplication windows.
+5. Keep execution ordering fail-closed:
+   - M7 planning can proceed now,
+   - M7 execution still respects parent gating from unfinished M6 parent stages.
+
+### Planned edits
+1. Add full parent M7 stress runbook (`S0..S5`) with data-realism governance and integrated P8/P9/P10 routing.
+2. Add full detailed subphase stress runbooks (`S0..S5`) for `P8`, `P9`, `P10`, each with:
+   - capability-lane coverage,
+   - data-subset exploration methodology,
+   - runtime/cost budgets,
+   - blocker taxonomy and evidence contract.
+3. Update `platform.stress_test.md` to register M7 stress docs and current planning status.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 02:56 +00:00 - M7 stress authorities created (parent + P8/P9/P10) with data-subset realism gates
+
+### Implementation
+1. Created new M7 stress authorities:
+   - `stress_test/platform.M7.stress_test.md` (parent),
+   - `stress_test/platform.M7.P8.stress_test.md`,
+   - `stress_test/platform.M7.P9.stress_test.md`,
+   - `stress_test/platform.M7.P10.stress_test.md`.
+2. Updated `stress_test/platform.stress_test.md` to:
+   - pin M7+ data-realism rule in core binding rules,
+   - mark M7 as `PLANNED`,
+   - register new M7 stress docs in dedicated phase routing,
+   - add explicit M7 planned-phase section and fail-closed execution order.
+
+### Data exploration evidence used for planning decisions
+1. Local subset scan (`artefacts/s0_runs/.../events/core/**/part-00000.jsonl`):
+   - files: `14`,
+   - rows: `14`,
+   - event family observed: `anchor` only,
+   - payload content diversity: effectively none.
+2. Historical M7 component performance snapshots:
+   - `P8/P9/P10` component lanes repeatedly show `sample_size=18`,
+   - throughput mode in component lanes: `waived_low_sample`.
+3. Historical M7 aggregate cert snapshot:
+   - `sample_size_events=11878`,
+   - `observed_events_per_second=49.49`,
+   - cert verdict `THROUGHPUT_CERTIFIED`.
+4. Planning inference:
+   - aggregate cert health is not enough for component-level data realism,
+   - M7 closure must explicitly require representative data subset/profile and cohort semantic gates.
+
+### Planning outcomes (pinned in docs)
+1. Parent `M7` runbook now enforces:
+   - `S0` dependency + data-profile closure,
+   - subphase gate adjudications (`P8/P9/P10`) with data semantics,
+   - integrated realistic-data window in `S4`,
+   - deterministic `M8_READY` handoff in `S5`.
+2. Each subphase (`P8/P9/P10`) now has:
+   - mandatory data-subset strategy,
+   - representativeness thresholds,
+   - stage-level semantic blockers,
+   - targeted rerun policy and explicit evidence contract.
+3. Program-level policy now states:
+   - from `M7` onward, schema-only closure is invalid without data-content realism evidence.
+
+### Commit posture
+1. No commit/push performed.

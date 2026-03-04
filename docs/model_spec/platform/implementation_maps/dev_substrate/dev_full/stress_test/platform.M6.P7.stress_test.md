@@ -351,15 +351,91 @@ Any open `M6P7-ST-B*` blocks P7 closure and parent M6 `S3` progression.
 - [x] Dedicated M6.P7 stress authority created.
 - [x] P7 handle packet and blocker taxonomy pinned.
 - [x] P7 execution-grade runbook (`S0..S5`) pinned.
-- [ ] `M6P7-ST-S0` executed with blocker-free entry closure.
-- [ ] `M6P7-ST-S1..S3` executed with evidence and replay continuity closure.
-- [ ] `M6P7-ST-S4` remediation lane closed (if needed).
-- [ ] `M6P7-ST-S5` verdict emitted as `ADVANCE_TO_M7`.
+- [x] `M6P7-ST-S0` executed with blocker-free entry closure.
+- [x] `M6P7-ST-S1` executed with ingest-evidence materialization closure.
+- [x] `M6P7-ST-S2` executed with replay-safe dedupe/anomaly closure.
+- [x] `M6P7-ST-S3` executed with continuity/replay-window closure.
+- [x] `M6P7-ST-S4` remediation lane closed (`NO_OP`).
+- [x] `M6P7-ST-S5` verdict emitted as `ADVANCE_TO_M7`.
 
 ## 11) Immediate Next Actions
-1. Execute `M6P7-ST-S0` only after P6 verdict is `ADVANCE_TO_P7`.
-2. Run `S1 -> S2 -> S3` with strict evidence-materiality and replay-safe checks.
-3. Use `S4` for targeted blocker closure and emit deterministic `S5` verdict.
+1. Route to parent M6 `S3` adjudication using `M6P7-ST-S5` verdict `ADVANCE_TO_M7` and handoff-pack closure artifacts.
+2. Keep parent `S3` fail-closed on any P7 verdict/handoff/evidence-ref inconsistency.
+3. After parent `S3` closes green, proceed to parent integrated `M6-ST-S4` stress window.
 
 ## 12) Execution Progress
-1. Planning authority created; no new-cycle P7 execution receipts recorded yet.
+1. Planning authority created.
+2. `M6P7-ST-S0` executed and passed:
+   - `phase_execution_id=m6p7_stress_s0_20260304T021107Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P7_ST_S1_READY`,
+   - `open_blockers=0`,
+   - `parent_m6_s0_phase_execution_id=m6_stress_s0_20260304T012128Z`,
+   - `p6_dependency_phase_execution_id=m6p6_stress_s5_20260304T020815Z`,
+   - `platform_run_id=platform_20260223T184232Z`.
+3. Blocker decision for this run:
+   - latest prior implementation sweep (`M6.P6` closure and assurance chain) was fully blocker-free,
+   - no remediation actions were required before or after `S0` execution.
+4. `M6P7-ST-S1` executed and passed:
+   - `phase_execution_id=m6p7_stress_s1_20260304T021901Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P7_ST_S2_READY`,
+   - `open_blockers=0`,
+   - `s0_dependency_phase_execution_id=m6p7_stress_s0_20260304T021107Z`,
+   - `historical_m6h_execution_id=m6h_p7a_ingest_commit_20260225T191433Z`,
+   - `platform_run_id=platform_20260223T184232Z`,
+   - `offset_mode=IG_ADMISSION_INDEX_PROXY`.
+5. Blocker decision for this run:
+   - latest prior implementation sweep (`M6P7-ST-S0` + `M6.P6` assurance chain) remained blocker-free,
+   - no remediation actions were required before or after `S1` execution.
+6. `M6P7-ST-S2` executed and passed:
+   - `phase_execution_id=m6p7_stress_s2_20260304T023114Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P7_ST_S3_READY`,
+   - `open_blockers=0`,
+   - `s1_dependency_phase_execution_id=m6p7_stress_s1_20260304T021901Z`,
+   - `historical_m6h_execution_id=m6h_p7a_ingest_commit_20260225T191433Z`,
+   - `platform_run_id=platform_20260223T184232Z`,
+   - `offset_mode=IG_ADMISSION_INDEX_PROXY`,
+   - `ttl_evidence_mode=HISTORICAL_WITH_LIVE_SAMPLE`.
+7. Blocker decision for this run:
+   - latest prior implementation sweep (`M6P7-ST-S1`) remained blocker-free,
+   - no remediation actions were required,
+   - TTL-window check determined run-scoped live idempotency rows are expectedly expired for the historical run; S2 therefore used historical run-scoped evidence plus bounded live-table posture sampling.
+8. `M6P7-ST-S3` executed and passed:
+   - `phase_execution_id=m6p7_stress_s3_20260304T023645Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P7_ST_S4_READY`,
+   - `open_blockers=0`,
+   - `s2_dependency_phase_execution_id=m6p7_stress_s2_20260304T023114Z`,
+   - `historical_m6i_execution_id=m6i_p7b_gate_rollup_20260225T191541Z`,
+   - `replay_window_mode=HISTORICAL_CLOSED_WINDOW`.
+9. Blocker decision for this run:
+   - latest prior implementation sweep (`M6P7-ST-S2`) remained blocker-free,
+   - no remediation actions were required,
+   - replay-window continuity was evaluated in historical-closed mode because run age exceeded the replay window and TTL-expired posture was expected.
+10. `M6P7-ST-S4` executed and passed:
+   - `phase_execution_id=m6p7_stress_s4_20260304T024002Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P7_ST_S5_READY`,
+   - `open_blockers=0`,
+   - `s3_dependency_phase_execution_id=m6p7_stress_s3_20260304T023645Z`,
+   - `remediation_mode=NO_OP`,
+   - `replay_window_mode=HISTORICAL_CLOSED_WINDOW`.
+11. Blocker decision for this run:
+   - latest prior implementation sweep (`M6P7-ST-S3`) remained blocker-free,
+   - no remediation actions were required,
+   - S4 remediation lane was intentionally closed as `NO_OP` with targeted-rerun policy preserved.
+12. `M6P7-ST-S5` executed and passed:
+   - `phase_execution_id=m6p7_stress_s5_20260304T024638Z`,
+   - `overall_pass=true`,
+   - `verdict=ADVANCE_TO_M7`,
+   - `next_gate=ADVANCE_TO_M7`,
+   - `open_blockers=0`,
+   - `s4_dependency_phase_execution_id=m6p7_stress_s4_20260304T024002Z`,
+   - `historical_m6i_execution_id=m6i_p7b_gate_rollup_20260225T191541Z`,
+   - `handoff_path_key=evidence/dev_full/run_control/m6p7_stress_s5_20260304T024638Z/m7_handoff_pack.json`.
+13. Blocker decision for this run:
+   - latest prior implementation sweep (`M6P7-ST-S4`) remained blocker-free,
+   - no remediation actions were required,
+   - deterministic rollup verdict and handoff-pack emission both closed green under targeted-rerun policy.
