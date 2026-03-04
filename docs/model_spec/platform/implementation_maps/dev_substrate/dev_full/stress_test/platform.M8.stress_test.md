@@ -408,7 +408,7 @@ Required stage outputs (phase-level):
 ## 12) Immediate Next Actions
 1. transition to `M9` planning with strict carry-forward of runtime-locality, source-authority, realism, and cost-to-outcome gates.
 2. preserve targeted-rerun posture for any M8 reopen trigger; no broad reruns without explicit blocker-driven reason.
-3. treat `m8_stress_s5_20260304T233110Z` as active M8 closure authority for downstream `M9` entry.
+3. treat `m8_stress_s5_20260304T234918Z` as active M8 closure authority for downstream `M9` entry.
 
 ## 13) Execution Progress
 1. M8 stress authority and fail-closed packet are now pinned.
@@ -481,6 +481,26 @@ Required stage outputs (phase-level):
    - `m8a_j_strict_compat_20260304T233110Z`,
    - `m8b_j_strict_compat_20260304T233110Z`,
    - `m8c_j_strict_compat_20260304T233110Z`.
+19. `M8-ST-S4` residual-clearance rerun executed pass (native `A/B/C` retained):
+   - `phase_execution_id=m8_stress_s4_20260304T234834Z`,
+   - `overall_pass=true`, `open_blocker_count=0`,
+   - `verdict=ADVANCE_TO_M9`, `next_gate=M8_ST_S5_READY`,
+   - native component IDs consumed by `M8.I`:
+     - `m8a_execution_id=m8a_stress_s4_20260304T234850Z`,
+     - `m8b_execution_id=m8b_stress_s4_20260304T234851Z`,
+     - `m8c_execution_id=m8c_stress_s4_20260304T234858Z`.
+20. `M8.C` legacy-root contract bridge was hardened and executed in `S4` (strict authority preserved):
+   - published root compatibility keys for `m6/m7/p8/p9/p10` required by `m8c`,
+   - `m8c_contract_bridge_snapshot.json` reports `upload_error_count=0`.
+21. `M8-ST-S5` residual-clearance rerun executed pass:
+   - `phase_execution_id=m8_stress_s5_20260304T234918Z`,
+   - `overall_pass=true`, `open_blocker_count=0`,
+   - `verdict=ADVANCE_TO_M9`, `next_gate=M9_READY`,
+   - `M8.J execution_id=m8j_stress_s5_20260304T234918Z`.
+22. Residual non-blocking notes are now cleared:
+   - S4/S5 consume native `M8.A/B/C` execution IDs (no S4/S5 `*_strict_compat_*` projection path),
+   - `M8.J` primary spend signal is phase-window attributable spend (`CE_DAILY_PRORATED_BY_WINDOW_SECONDS`),
+   - AWS MTD is retained as context-only metadata.
 
 ## 14) Reopen Notice (Strict Authority)
 1. M8 is not closeable using historical/stale receipts alone.

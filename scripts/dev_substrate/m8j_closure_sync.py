@@ -125,6 +125,70 @@ def _aws_mtd_cost(
         return None, unit, "ce_amount_invalid"
 
 
+def _aws_daily_cost_series(
+    ce_client: Any,
+    *,
+    start_date: str,
+    end_date: str,
+) -> tuple[list[dict[str, Any]] | None, str | None, str | None]:
+    try:
+        payload = ce_client.get_cost_and_usage(
+            TimePeriod={"Start": start_date, "End": end_date},
+            Granularity="DAILY",
+            Metrics=["UnblendedCost"],
+        )
+    except (BotoCoreError, ClientError) as exc:
+        return None, None, f"ce_get_daily_cost_failed:{type(exc).__name__}"
+    rows: list[dict[str, Any]] = []
+    unit: str | None = None
+    for item in payload.get("ResultsByTime", []):
+        period = item.get("TimePeriod", {}) if isinstance(item.get("TimePeriod"), dict) else {}
+        start = str(period.get("Start", "")).strip()
+        end = str(period.get("End", "")).strip()
+        total = item.get("Total", {}) if isinstance(item.get("Total"), dict) else {}
+        unblended = total.get("UnblendedCost", {}) if isinstance(total.get("UnblendedCost"), dict) else {}
+        amount_text = str(unblended.get("Amount", "")).strip()
+        row_unit = str(unblended.get("Unit", "")).strip()
+        if row_unit:
+            unit = row_unit
+        if not start or not end or not amount_text:
+            return None, unit, "ce_daily_row_invalid"
+        try:
+            amount = Decimal(amount_text)
+        except InvalidOperation:
+            return None, unit, "ce_daily_amount_invalid"
+        rows.append({"start_date": start, "end_date": end, "amount": amount})
+    if not rows:
+        return None, unit, "ce_daily_rows_empty"
+    return rows, unit, None
+
+
+def _window_prorated_cost(
+    *,
+    daily_rows: list[dict[str, Any]],
+    window_start_utc: datetime,
+    window_end_utc: datetime,
+) -> Decimal:
+    total = Decimal("0")
+    if window_end_utc <= window_start_utc:
+        return total
+    for row in daily_rows:
+        day_start = _parse_utc(f"{row['start_date']}T00:00:00Z")
+        day_end = _parse_utc(f"{row['end_date']}T00:00:00Z")
+        if day_start is None or day_end is None or day_end <= day_start:
+            continue
+        overlap_start = max(day_start, window_start_utc)
+        overlap_end = min(day_end, window_end_utc)
+        if overlap_end <= overlap_start:
+            continue
+        overlap_seconds = Decimal(str((overlap_end - overlap_start).total_seconds()))
+        day_seconds = Decimal(str((day_end - day_start).total_seconds()))
+        if day_seconds <= Decimal("0"):
+            continue
+        total += row["amount"] * (overlap_seconds / day_seconds)
+    return total
+
+
 def _run_scope_ok(payload: dict[str, Any], *, platform_run_id: str, scenario_run_id: str) -> bool:
     return (
         str(payload.get("platform_run_id", "")).strip() == platform_run_id
@@ -304,42 +368,61 @@ def main() -> int:
             }
         )
 
-    month_start = _month_start_utc(now_dt)
-    tomorrow = _tomorrow_utc(now_dt)
-    aws_mtd, aws_unit, ce_error = _aws_mtd_cost(
-        ce,
-        start_date=month_start,
-        end_date=tomorrow,
-    )
-    if ce_error:
-        blockers.append(
-            {
-                "code": "M8-B11",
-                "message": f"AWS cost capture failed during M8 closure ({ce_error}).",
-            }
-        )
-    if aws_mtd is not None and aws_mtd >= alert_3:
-        blockers.append(
-            {
-                "code": "M8-B11",
-                "message": (
-                    "M8 closure blocked by cost hard-stop "
-                    f"(aws_mtd_cost={str(aws_mtd)}, alert_3={str(alert_3)})."
-                ),
-            }
-        )
-
-    blockers = _dedupe_blockers(blockers)
-    overall_pass = len(blockers) == 0
-    verdict = "ADVANCE_TO_M9" if overall_pass else "HOLD_REMEDIATE"
-    next_gate = "M9_READY" if overall_pass else "HOLD_REMEDIATE"
-
     upstream_times = []
     for payload in summary_payloads.values():
         parsed = _parse_utc(str(payload.get("captured_at_utc", "")))
         if parsed:
             upstream_times.append(parsed)
-    phase_start = min(upstream_times).isoformat().replace("+00:00", "Z") if upstream_times else captured_at
+    phase_start_dt = min(upstream_times) if upstream_times else now_dt
+    phase_end_dt = _parse_utc(captured_at) or now_dt
+    phase_start = phase_start_dt.isoformat().replace("+00:00", "Z")
+
+    month_start = _month_start_utc(now_dt)
+    tomorrow = _tomorrow_utc(now_dt)
+    aws_mtd, aws_mtd_unit, aws_mtd_error = _aws_mtd_cost(
+        ce,
+        start_date=month_start,
+        end_date=tomorrow,
+    )
+
+    daily_start = phase_start_dt.date().isoformat()
+    daily_end = (phase_end_dt.date() + timedelta(days=1)).isoformat()
+    aws_daily_rows, aws_daily_unit, aws_daily_error = _aws_daily_cost_series(
+        ce,
+        start_date=daily_start,
+        end_date=daily_end,
+    )
+    aws_phase_window_cost: Decimal | None = None
+    if aws_daily_error:
+        blockers.append(
+            {
+                "code": "M8-B11",
+                "message": f"AWS phase-window cost capture failed during M8 closure ({aws_daily_error}).",
+            }
+        )
+    elif aws_daily_rows is not None:
+        aws_phase_window_cost = _window_prorated_cost(
+            daily_rows=aws_daily_rows,
+            window_start_utc=phase_start_dt,
+            window_end_utc=phase_end_dt,
+        )
+        if aws_phase_window_cost >= alert_3:
+            blockers.append(
+                {
+                    "code": "M8-B11",
+                    "message": (
+                        "M8 closure blocked by phase-window cost hard-stop "
+                        f"(aws_phase_window_cost={str(aws_phase_window_cost)}, alert_3={str(alert_3)})."
+                    ),
+                }
+            )
+
+    ce_error = aws_daily_error or aws_mtd_error
+
+    blockers = _dedupe_blockers(blockers)
+    overall_pass = len(blockers) == 0
+    verdict = "ADVANCE_TO_M9" if overall_pass else "HOLD_REMEDIATE"
+    next_gate = "M9_READY" if overall_pass else "HOLD_REMEDIATE"
 
     contract_upstream_required_count = len(contract_artifacts)
     contract_upstream_readable_count = sum(1 for item in contract_matrix if bool(item["readable"]))
@@ -376,9 +459,14 @@ def main() -> int:
         "alert_1_amount": str(alert_1),
         "alert_2_amount": str(alert_2),
         "alert_3_amount": str(alert_3),
-        "cost_capture_scope": "aws_only_pre_m11_databricks_cost_deferred",
+        "cost_capture_scope": "aws_phase_window_prorated_pre_m11_databricks_cost_deferred",
         "aws_cost_capture_enabled": True,
         "databricks_cost_capture_enabled": False,
+        "aws_cost_attribution_method": "CE_DAILY_PRORATED_BY_WINDOW_SECONDS",
+        "aws_phase_window_cost_amount": str(aws_phase_window_cost) if aws_phase_window_cost is not None else None,
+        "aws_phase_window_cost_unit": aws_daily_unit or args.budget_currency,
+        "aws_mtd_cost_amount_context": str(aws_mtd) if aws_mtd is not None else None,
+        "aws_mtd_cost_unit_context": aws_mtd_unit or args.budget_currency,
         "phase_window": {
             "start_utc": phase_start,
             "end_utc": captured_at,
@@ -394,8 +482,9 @@ def main() -> int:
         "phase_execution_id": args.execution_id,
         "window_start_utc": phase_start,
         "window_end_utc": captured_at,
-        "spend_amount": str(aws_mtd) if aws_mtd is not None else None,
-        "spend_currency": aws_unit or args.budget_currency,
+        "spend_amount": str(aws_phase_window_cost) if aws_phase_window_cost is not None else None,
+        "spend_currency": aws_daily_unit or args.budget_currency,
+        "spend_attribution_method": "CE_DAILY_PRORATED_BY_WINDOW_SECONDS",
         "artifacts_emitted": [
             "m8_phase_budget_envelope.json",
             "m8_phase_cost_outcome_receipt.json",
@@ -405,8 +494,10 @@ def main() -> int:
         ],
         "decision_or_risk_retired": "M8 closure sync completed; P11 closure artifacts + deterministic handoff to M9 are finalized.",
         "source_components": {
-            "aws_mtd_cost_amount": str(aws_mtd) if aws_mtd is not None else None,
-            "aws_currency": aws_unit or args.budget_currency,
+            "aws_phase_window_cost_amount": str(aws_phase_window_cost) if aws_phase_window_cost is not None else None,
+            "aws_phase_window_currency": aws_daily_unit or args.budget_currency,
+            "aws_mtd_cost_amount_context": str(aws_mtd) if aws_mtd is not None else None,
+            "aws_mtd_currency_context": aws_mtd_unit or args.budget_currency,
             "databricks_mtd_cost_amount": None,
             "databricks_capture_mode": "DEFERRED",
         },

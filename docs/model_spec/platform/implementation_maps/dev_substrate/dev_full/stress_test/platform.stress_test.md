@@ -214,7 +214,7 @@ For any phase:
 
 ## 12) Program Status
 1. Program bootstrapped.
-2. Current phase state: `M6=GO`, `M7=GO`, `M8=GO` (`M9_READY` emitted from strict closure authority); next active phase is `M9`.
+2. Current phase state: `M6=GO`, `M7=GO`, `M8=GO` (`M9_READY` emitted from strict closure authority `m8_stress_s5_20260304T234918Z`); next active phase is `M9`.
 3. Dedicated phase files:
    - `stress_test/platform.M2.stress_test.md` (`DONE`),
    - `stress_test/platform.M3.stress_test.md` (`DONE`),
