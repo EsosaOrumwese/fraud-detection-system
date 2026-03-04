@@ -8223,3 +8223,80 @@ ext_gate=M8_READY, open_blockers=0.
 
 ### Commit posture
 1. No commit/push performed.
+
+## Entry: 2026-03-04 19:50 +00:00 - Remediation plan: remove local fallback semantics and enforce strict remote-only addendum closure
+
+### Trigger
+1. USER requested immediate resolution of trust-breaking posture caused by local compute usage and any local-evidence acceptance semantics.
+
+### Problem statement
+1. Stress tooling currently has specific fallback paths that can be interpreted as local-evidence acceptance or non-direct closure:
+   - M6 S3 parent gate accepts local run-control handoff when S3 handoff readback fails,
+   - M7 addendum lanes A1/A2 allow fallback adjudication modes (`contractual_pressure`, `effective_with_observed_floor`),
+   - M6P7 blocker payload publishes `handoff_local_path`.
+2. Even though runtime component code is not modified by this, these stress-tooling semantics are inconsistent with strict no-local-runtime evidence posture.
+
+### Decision
+1. Tighten stress tooling to strict fail-closed remote evidence only:
+   - remove M6 local handoff acceptance; S3 readback failure becomes blocker regardless of local artifact presence,
+   - remove M7 A1/A2 fallback modes; closure requires direct-observed thresholds only,
+   - remove local filesystem path field from M6P7 blocker payload and replace with handle-safe metadata.
+2. Update stress authority docs to reflect strict direct-observed requirements and no-local-evidence fallback semantics.
+
+### Planned file changes
+1. `scripts/dev_substrate/m6_stress_runner.py`:
+   - delete local-authoritative branch in `run_s3` handoff probe handling.
+2. `scripts/dev_substrate/m7_stress_runner.py`:
+   - delete `fallback_realism_check` and `a2_effective_fallback_check` as closure paths,
+   - keep only `direct_observed` and `observed_volume` closure modes.
+3. `scripts/dev_substrate/m6p7_stress_runner.py`:
+   - replace `handoff_local_path` blocker detail with handle-bound/target metadata.
+4. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M7.stress_test.md` and `platform.stress_test.md`:
+   - align lane language to direct-observed-only posture.
+5. `docs/logbook/03-2026/2026-03-04.md`:
+   - append execution and rationale evidence for this remediation.
+
+### Validation plan
+1. Lightweight syntax validation only (`py_compile`) for edited runners.
+2. No local stress execution/orchestration.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 19:55 +00:00 - Executed strict no-local-evidence remediation for M6/M7 stress tooling
+
+### Implemented changes
+1. `scripts/dev_substrate/m6_stress_runner.py` (`M6-ST-S3`):
+   - removed local-authoritative fallback branch when `m7_handoff_pack` S3 readback fails,
+   - S3 handoff readback failure now always opens blocker `M6-ST-B7` (fail-closed),
+   - retained diagnostic signal `local_handoff_present` only as non-authoritative context.
+2. `scripts/dev_substrate/m7_stress_runner.py` (`M7-ST-S5` addendum):
+   - removed A1 fallback adjudication (`contractual_pressure`),
+   - removed A2 fallback adjudication (`effective_with_observed_floor`),
+   - A1 closure now requires direct-observed realism thresholds,
+   - A2 closure now requires direct observed case/label minimums,
+   - updated decision-log wording to strict direct-observed-only semantics.
+3. `scripts/dev_substrate/m6p7_stress_runner.py`:
+   - removed `handoff_local_path` from blocker payload,
+   - replaced with handle-safe metadata (`handoff_path_pattern`, `handoff_key`).
+
+### Authority/doc sync
+1. Updated `platform.M7.stress_test.md` addendum lane acceptance to strict direct-observed-only for `A1/A2`.
+2. Marked `A1/A2` addendum DoD items as revalidation-required; legacy fallback closure no longer accepted.
+3. Updated `platform.M6.stress_test.md` immediate-next-action section to require strict rerun `M6-ST-S3..S5`.
+4. Updated `platform.stress_test.md`:
+   - M6 status -> `REVALIDATION_REQUIRED`,
+   - M7 status -> `REVALIDATION_REQUIRED`,
+   - next-step chain updated to strict revalidation before advancing to M8.
+
+### Validation
+1. `python -m py_compile scripts/dev_substrate/m6_stress_runner.py` (pass)
+2. `python -m py_compile scripts/dev_substrate/m6p7_stress_runner.py` (pass)
+3. `python -m py_compile scripts/dev_substrate/m7_stress_runner.py` (pass)
+
+### Outcome
+1. No runtime service code was changed; remediation is constrained to stress tooling and stress authority docs.
+2. Strict no-local-evidence closure semantics are now enforced in code paths that previously permitted fallback closure.
+
+### Commit posture
+1. No commit/push performed.

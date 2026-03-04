@@ -1329,12 +1329,19 @@ def run_s3(phase_id: str, out_root: Path) -> int:
         hp = run_cmd(["aws", "s3api", "head-object", "--bucket", bucket, "--key", p7_handoff_key, "--region", region], timeout=30)
         probes.append({**hp, "probe_id": "m6_s3_handoff_object", "group": "evidence", "key": p7_handoff_key})
         if hp.get("status") != "PASS":
-            # Keep local run-control handoff artifact as authoritative for S3 closure.
-            if p7_handoff:
-                decisions.append("S3 handoff readback from S3 failed; accepted local run-control handoff artifact as authoritative evidence source.")
-            else:
-                blockers.append({"id": "M6-ST-B7", "severity": "S3", "status": "OPEN", "details": {"reason": "handoff object readback failed", "key": p7_handoff_key}})
-                issues.append("m7_handoff_pack readback failed from evidence bucket")
+            blockers.append(
+                {
+                    "id": "M6-ST-B7",
+                    "severity": "S3",
+                    "status": "OPEN",
+                    "details": {
+                        "reason": "handoff object readback failed",
+                        "key": p7_handoff_key,
+                        "local_handoff_present": bool(p7_handoff),
+                    },
+                }
+            )
+            issues.append("m7_handoff_pack readback failed from evidence bucket")
 
     metrics = probe_metrics(probes)
     platform_run_id = p7_platform_run_id or dep_platform_run_id

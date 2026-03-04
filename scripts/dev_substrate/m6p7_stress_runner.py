@@ -2733,7 +2733,8 @@ def run_s5(phase_execution_id: str) -> int:
                 "status": "OPEN",
                 "details": {
                     "reason": "failed to write handoff pack at handle path",
-                    "handoff_local_path": handoff_pattern_local.as_posix() if handoff_pattern_local else "",
+                    "handoff_path_pattern": handoff_pattern,
+                    "handoff_key": handoff_key,
                     "error": handoff_pattern_write_error,
                 },
             }

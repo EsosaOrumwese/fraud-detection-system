@@ -439,9 +439,9 @@ Required artifacts for each parent stage:
 - [x] `M6-ST-S5` closure rollup emitted with deterministic `M7_READY` recommendation.
 
 ## 11) Immediate Next Actions
-1. Preserve `M6-ST-S5` A4R rerun receipt (`m6_stress_s5_20260304T150852Z`) as active M6 hard-close authority.
-2. Keep `M7_READY` handoff anchor at `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m6_stress_s5_20260304T150852Z/stress/m7_handoff_pack.json`.
-3. Continue with M7 hard-close addendum lanes (`A1..A4`) before advancing to active M8 execution.
+1. Preserve legacy `M6-ST-S5` A4R rerun receipt (`m6_stress_s5_20260304T150852Z`) as historical evidence only.
+2. Re-execute `M6-ST-S3..S5` under strict remote-evidence-only posture (no local handoff fallback acceptance).
+3. Promote `M7_READY` handoff only from the new strict rerun chain, then continue to M7 strict addendum revalidation.
 
 ## 12) Execution Progress
 1. Planning authority created.

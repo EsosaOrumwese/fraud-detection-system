@@ -2746,11 +2746,6 @@ def run_s5(phase_execution_id: str) -> int:
     p10_semantic_issue_count = to_int(dep_profile.get("p10_semantic_issue_count"))
     semantic_ok = (semantic_issue_count + p8_semantic_issue_count + p9_semantic_issue_count + p10_semantic_issue_count) == 0
 
-    advisories_pool = [str(x) for x in [*(dep_profile.get("advisories", []) or []), *(p8_profile.get("advisories", []) or []), *(p9_profile.get("advisories", []) or []), *(p10_profile.get("advisories", []) or [])]]
-    duplicate_pressure_contract = any("duplicate/replay" in a.lower() for a in advisories_pool)
-    late_pressure_contract = any("late-event" in a.lower() or "late_out_of_order" in a.lower() for a in advisories_pool)
-    hotkey_pressure_contract = any("hotkey" in a.lower() for a in advisories_pool)
-
     direct_realism_check = (
         duplicate_ratio_pct is not None
         and out_of_order_ratio_pct is not None
@@ -2759,15 +2754,8 @@ def run_s5(phase_execution_id: str) -> int:
         and out_of_order_ratio_pct >= ooo_min_pct
         and top1_share_pct >= hotkey_min_pct
     )
-    fallback_realism_check = (
-        bool(cohort_presence.get("normal_mix", False))
-        and bool(cohort_presence.get("rare_edge_case", False))
-        and duplicate_pressure_contract
-        and late_pressure_contract
-        and hotkey_pressure_contract
-    )
-    a1_mode = "direct_observed" if direct_realism_check else ("contractual_pressure" if fallback_realism_check else "failed")
-    a1_pass = semantic_ok and (direct_realism_check or fallback_realism_check)
+    a1_mode = "direct_observed" if direct_realism_check else "failed"
+    a1_pass = semantic_ok and direct_realism_check
     if not a1_pass:
         if not semantic_ok:
             addendum_blockers.append(
@@ -2784,16 +2772,15 @@ def run_s5(phase_execution_id: str) -> int:
                     },
                 }
             )
-        if not (direct_realism_check or fallback_realism_check):
+        if not direct_realism_check:
             addendum_blockers.append(
                 {
                     "id": "M7-ADD-B1",
                     "severity": "HIGH",
                     "status": "OPEN",
                     "details": {
-                        "reason": "realism cohorts not sufficiently observed/validated",
+                        "reason": "realism cohorts not sufficiently observed at direct-observed thresholds",
                         "direct_realism_check": direct_realism_check,
-                        "fallback_realism_check": fallback_realism_check,
                         "cohort_presence": cohort_presence,
                         "duplicate_ratio_pct": duplicate_ratio_pct,
                         "out_of_order_ratio_pct": out_of_order_ratio_pct,
@@ -2822,14 +2809,8 @@ def run_s5(phase_execution_id: str) -> int:
         and bool(p10_profile.get("single_writer_posture_s3", True))
     )
     a2_direct_observed_check = case_events_observed >= case_label_observed_min_events and label_events_observed >= case_label_observed_min_events
-    a2_effective_fallback_check = (
-        case_events_effective >= case_label_effective_min_events
-        and label_events_effective >= case_label_effective_min_events
-        and case_events_observed >= case_label_observed_proof_min_events
-        and label_events_observed >= case_label_observed_proof_min_events
-    )
-    a2_mode = "observed_volume" if a2_direct_observed_check else ("effective_with_observed_floor" if a2_effective_fallback_check else "failed")
-    a2_pass = p10_semantic_green and (a2_direct_observed_check or a2_effective_fallback_check)
+    a2_mode = "observed_volume" if a2_direct_observed_check else "failed"
+    a2_pass = p10_semantic_green and a2_direct_observed_check
     if not a2_pass:
         addendum_blockers.append(
             {
@@ -3178,8 +3159,8 @@ def run_s5(phase_execution_id: str) -> int:
         "phase_execution_id": phase_execution_id,
         "stage_id": "M7-ST-S5",
         "decisions": [
-            "Lane A1 adjudicated realism using direct observations and bounded contractual-pressure fallback when black-box surfaces are non-observable.",
-            "Lane A2 adjudicated case/label pressure with effective-volume fallback plus observed proof floor and strict semantic invariants.",
+            "Lane A1 adjudicated realism with strict direct-observed thresholds only; no contractual or proxy fallback accepted.",
+            "Lane A2 adjudicated case/label pressure with strict observed-volume thresholds only and semantic invariants green.",
             "Lane A3 enforced direct service-path latency/throughput checks from integrated S4 evidence and budget checks.",
             "Lane A4 enforced real CE-backed spend attribution with method contract and unexplained-spend fail-closed posture.",
         ],

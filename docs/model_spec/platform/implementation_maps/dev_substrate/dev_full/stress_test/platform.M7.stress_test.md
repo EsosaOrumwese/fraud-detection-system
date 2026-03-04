@@ -379,9 +379,9 @@ Pass gate:
 - [x] `M7-ST-S5` closure rollup emitted with deterministic `M8_READY` recommendation.
 
 ## 11) Immediate Next Actions
-1. Preserve latest M7 hard-close addendum closure receipt (`m7_stress_s5_20260304T152614Z`) as active M7 closure authority.
-2. Keep `M8_READY` handoff anchor at `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m7_stress_s5_20260304T152614Z/stress/m8_handoff_pack.json`.
-3. Proceed with active M8 execution.
+1. Preserve latest M7 addendum receipt (`m7_stress_s5_20260304T152614Z`) as legacy evidence only.
+2. Re-execute `M7-ST-S5` under strict A1/A2 direct-observed-only policy (no fallback modes).
+3. Promote `M8_READY` handoff only from the strict rerun receipt.
 
 ## 12) Execution Progress
 1. M7 stress planning authority created.
@@ -523,12 +523,13 @@ Entry prerequisites:
 No-waiver closure rule:
 1. Addendum lanes do not accept proxy-only closure for realism, service-path latency, or spend attribution.
 2. If direct observation is unavailable, lane blocks fail-closed until the measurement path is remediated.
+3. Legacy closure based on A1/A2 fallback modes is superseded and must be revalidated under strict direct-observed-only policy.
 
 ### 13.1 Addendum Capability Lanes
 | Lane | ID | Objective | Hard acceptance posture |
 | --- | --- | --- | --- |
-| Injected realism pressure | `A1` | prove duplicate/replay, out-of-order, hotkey, and rare-path behavior under active pressure windows | direct cohort observation passes, or (for non-observable black-box surfaces) contractual pressure obligations + semantic invariants are explicitly satisfied |
-| Case/label pressure window | `A2` | remove low-observed-volume weakness in P10 semantics | observed case/label sample meets minimum, or effective run-scoped volume meets minimum with observed proof floor + lifecycle/writer invariants green |
+| Injected realism pressure | `A1` | prove duplicate/replay, out-of-order, hotkey, and rare-path behavior under active pressure windows | direct cohort observation must pass duplicate/out-of-order/hotkey floors with semantic invariants green; otherwise fail-closed |
+| Case/label pressure window | `A2` | remove low-observed-volume weakness in P10 semantics | observed case/label sample must meet minimum with lifecycle/writer invariants green; otherwise fail-closed |
 | Service-path latency/throughput | `A3` | capture direct end-to-end RTDL->Decision->Case performance | p50/p95/p99, error, retry, and lag evidence from runtime path (not manifest-only proxies) |
 | Cost attribution hardening | `A4` | map execution window spend to concrete active surfaces using real billing receipts | CE-backed attributed spend receipt (`method=aws_ce_daily_unblended_v1`) with `mapping_complete=true` and no unexplained spend |
 
@@ -546,8 +547,8 @@ No-waiver closure rule:
 11. `M7_ADDENDUM_COST_ATTRIBUTION_REQUIRE_REAL_BILLING = true`.
 12. `M7_ADDENDUM_COST_ATTRIBUTION_BILLING_REGION = "us-east-1"`.
 13. `M7_ADDENDUM_COST_ATTRIBUTION_MIN_WINDOW_SECONDS = 600`.
-14. `M7_ADDENDUM_CASE_LABEL_EFFECTIVE_MIN_EVENTS = 100000`.
-15. `M7_ADDENDUM_CASE_LABEL_OBSERVED_PROOF_MIN_EVENTS = 10`.
+14. `M7_ADDENDUM_CASE_LABEL_EFFECTIVE_MIN_EVENTS = 100000` (telemetry-only; non-gating).
+15. `M7_ADDENDUM_CASE_LABEL_OBSERVED_PROOF_MIN_EVENTS = 10` (telemetry-only; non-gating).
 
 ### 13.3 Addendum Blocker Mapping
 1. `M7-ADD-B1`: realism-injection cohort not observed or below target floor.
@@ -570,11 +571,11 @@ No-waiver closure rule:
 10. `m7_addendum_decision_log.json`
 
 ### 13.5 Addendum DoD
-- [x] Lane `A1` executed and closed via contractual-pressure mode where black-box surfaces are non-observable (`cohort_presence normal/rare=true`, pressure obligations explicit, semantic invariants green).
-- [x] Lane `A2` executed and closed with effective-volume + observed-proof-floor posture (`effective=2190000986`, `observed=18`) and writer/lifecycle invariants green.
+- [ ] Lane `A1` re-executed and closed with strict direct-observed thresholds only (no contractual/proxy fallback).
+- [ ] Lane `A2` re-executed and closed with strict observed-volume thresholds only (no effective-volume fallback).
 - [x] Lane `A3` executed with direct service-path p50/p95/p99 + retry/error/lag evidence and budgets green.
 - [x] Lane `A4` executed with real CE-backed spend attribution (`mapping_complete=true`) and zero unexplained spend.
-- [x] Addendum blocker register closed (`open_blocker_count=0`) and deterministic `M8_READY` recommendation reaffirmed.
+- [ ] Addendum blocker register re-closed under strict A1/A2 posture and deterministic `M8_READY` recommendation reaffirmed.
 
 ### 13.6 Addendum Execution Order
 1. `A1` -> realism injected pressure.

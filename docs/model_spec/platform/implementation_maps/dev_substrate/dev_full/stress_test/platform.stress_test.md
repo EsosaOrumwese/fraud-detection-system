@@ -489,9 +489,9 @@ Authority routing:
    - `M5.P4`,
    - parent closure rollup with `M6_READY` recommendation.
 
-## 18) Closed Phase - M6 (Dedicated + Split Subphases + Hard-Close Addendum)
+## 18) Active Remediation - M6 (Dedicated + Split Subphases + Hard-Close Addendum)
 Status:
-1. `DONE` (`M6-ST-S0..S5` closed green; hard-close addendum lanes `A1..A4` closed green; deterministic `GO` with `next_gate=M7_READY`).
+1. `REVALIDATION_REQUIRED` (legacy `M6-ST-S3` accepted local handoff fallback on S3 readback failure; strict remote-evidence-only policy requires rerun of `M6-ST-S3..S5`).
 
 Authority routing:
 1. Parent orchestration authority: `stress_test/platform.M6.stress_test.md`.
@@ -507,7 +507,7 @@ Authority routing:
    - parent `M6-ST-S4` integrated stress window,
    - parent `M6-ST-S5` closure rollup and `M7_READY` recommendation.
 4. Current next executable step:
-   - execute M7 hard-close addendum lanes from `platform.M7.stress_test.md` section `13` before M8.
+   - rerun `M6-ST-S3..S5` under strict remote-evidence-only posture, then advance to M7 strict addendum revalidation.
 5. Latest parent execution receipts:
    - `M6-ST-S0`: `phase_execution_id=m6_stress_s0_20260304T012128Z`, `overall_pass=true`, `open_blockers=0`.
    - `M6-ST-S1`: `phase_execution_id=m6_stress_s1_20260304T013651Z`, `overall_pass=true`, `next_gate=M6_ST_S2_READY`, `open_blockers=0`.
@@ -524,9 +524,9 @@ Authority routing:
    - `m6_addendum_blocker_register.json`: `open_blocker_count=0`.
    - `m6_addendum_cost_attribution_receipt.json` (latest rerun): `window_seconds=2051`, `mapping_complete=true`, `unattributed_spend_detected=false`, `attributed_spend_usd=5.567148` via `aws_ce_daily_unblended_v1`.
 
-## 19) Closed Phase - M7 (Hard-Closed)
+## 19) Active Remediation - M7 (Strict Revalidation)
 Status:
-1. `DONE_HARD_CLOSED` (`M7-ST-S0..S5` closed green and hard-close addendum lanes `A1..A4` are closed green with deterministic `GO` + `next_gate=M8_READY`).
+1. `REVALIDATION_REQUIRED` (legacy addendum closure used A1/A2 fallback modes; strict policy now requires direct-observed-only re-execution before `M8_READY` can be asserted).
 
 Authority routing:
 1. Parent orchestration authority: `stress_test/platform.M7.stress_test.md`.
