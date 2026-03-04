@@ -47,9 +47,9 @@ This is the program-level overview of what each `M*` phase stress effort is expe
 | M1 | Packaging readiness | Stress packaging/provenance paths and pin a production-safe acceptance boundary for immutable artifact promotion | Artifact-freeze + immutable digest promotion contract accepted; managed toolchain-path fresh-rebuild nondeterminism recorded as known boundary | DONE |
 | M2 | Substrate readiness | Stress core substrate primitives (network/store/bus/runtime) for baseline capacity and failure behavior | Substrate can sustain target baseline load without integrity drift | DONE |
 | M3 | Run pinning + orchestrator readiness | Stress run-control/orchestrator behavior under concurrent run activation and retries | Run pinning remains deterministic; no cross-run mixing | DONE |
-| M4 | Spine runtime-lane readiness | Stress each spine lane bootstrap path for startup-time, readiness, and dependency bottlenecks | Lane startup and steady-state readiness meet target budgets | ACTIVE |
-| M5 | Oracle readiness + ingest preflight (`P3-P4`) | Stress oracle-to-ingress preflight flow for input correctness and ingest warm-path limits | Preflight pass is stable; no upstream-induced ingress stalls | ACTIVE |
-| M6 | Control + Ingress (`P5-P7`) | Stress SR/WSP/IG/bus at component -> plane -> integrated levels for throughput and correctness | Target ingress throughput + latency met with replay-safe semantics | NOT_STARTED |
+| M4 | Spine runtime-lane readiness | Stress each spine lane bootstrap path for startup-time, readiness, and dependency bottlenecks | Lane startup and steady-state readiness meet target budgets | DONE |
+| M5 | Oracle readiness + ingest preflight (`P3-P4`) | Stress oracle-to-ingress preflight flow for input correctness and ingest warm-path limits | Preflight pass is stable; no upstream-induced ingress stalls | DONE |
+| M6 | Control + Ingress (`P5-P7`) | Stress SR/WSP/IG/bus at component -> plane -> integrated levels for throughput and correctness | Target ingress throughput + latency met with replay-safe semantics | ACTIVE |
 | M7 | RTDL + Case/Labels (`P8-P10`) | Stress decision loop + case/label pathways for sustained throughput and bounded lag | Decision/action/case/label lanes keep pace with ingress without silent degrade | NOT_STARTED |
 | M8 | Spine Obs/Gov (`P11`) | Stress observability/governance paths so evidence remains complete under high event rates | Evidence completeness + low-overhead telemetry proven | NOT_STARTED |
 | M9 | Learning input readiness (`P12`) | Stress replay-basis/as-of/maturity extraction paths for correctness under realistic volume | Learning input lanes produce deterministic, timely, leak-safe outputs | NOT_STARTED |
@@ -211,15 +211,19 @@ For any phase:
 
 ## 12) Program Status
 1. Program bootstrapped.
-2. Current phase state: `M5` (`DONE`; parent closure emitted `M6_READY` recommendation).
+2. Current phase state: `M6` (`ACTIVE`; planning authorities created for parent + `P5/P6/P7`).
 3. Dedicated phase files:
    - `stress_test/platform.M2.stress_test.md` (`DONE`),
    - `stress_test/platform.M3.stress_test.md` (`DONE`),
    - `stress_test/platform.M4.stress_test.md` (`DONE`),
    - `stress_test/platform.M5.stress_test.md` (`DONE`),
    - `stress_test/platform.M5.P3.stress_test.md` (`DONE`),
-   - `stress_test/platform.M5.P4.stress_test.md` (`DONE`).
-4. Next step: open M6 planning/entry-gate lane using M5 closure receipt (`recommendation=GO`, `next_gate=M6_READY`).
+   - `stress_test/platform.M5.P4.stress_test.md` (`DONE`),
+   - `stress_test/platform.M6.stress_test.md` (`ACTIVE_PLANNING`),
+   - `stress_test/platform.M6.P5.stress_test.md` (`PLANNED`),
+   - `stress_test/platform.M6.P6.stress_test.md` (`PLANNED`),
+   - `stress_test/platform.M6.P7.stress_test.md` (`PLANNED`).
+4. Next step: execute `M6-ST-S0` authority and entry-gate closure using M5 closure receipt (`recommendation=GO`, `next_gate=M6_READY`).
 
 ## 13) Closed Phase - M0 (Inline)
 Status:
@@ -478,3 +482,23 @@ Authority routing:
    - `M5.P3`,
    - `M5.P4`,
    - parent closure rollup with `M6_READY` recommendation.
+
+## 18) Active Phase - M6 (Dedicated + Split Subphases)
+Status:
+1. `ACTIVE` (`PLANNING_COMPLETE`; execution pending from `M6-ST-S0`)
+
+Authority routing:
+1. Parent orchestration authority: `stress_test/platform.M6.stress_test.md`.
+2. Split subphase authorities:
+   - `stress_test/platform.M6.P5.stress_test.md` (`P5 READY_PUBLISHED`),
+   - `stress_test/platform.M6.P6.stress_test.md` (`P6 STREAMING_ACTIVE`),
+   - `stress_test/platform.M6.P7.stress_test.md` (`P7 INGEST_COMMITTED`).
+3. Parent-to-subphase fail-closed order:
+   - parent `M6-ST-S0` (entry and handle closure),
+   - `M6.P5` closure gate,
+   - `M6.P6` closure gate,
+   - `M6.P7` closure gate,
+   - parent `M6-ST-S4` integrated stress window,
+   - parent `M6-ST-S5` closure rollup and `M7_READY` recommendation.
+4. Current next executable step:
+   - run `M6-ST-S0` using latest M5 parent closure receipt (`recommendation=GO`, `next_gate=M6_READY`).

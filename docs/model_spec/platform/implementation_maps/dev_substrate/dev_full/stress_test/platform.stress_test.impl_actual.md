@@ -3975,3 +3975,90 @@ _As of 2026-03-03_
 
 ### Commit posture
 1. No commit/push performed.
+
+## Entry: 2026-03-04 01:11 +00:00 - M6 stress-planning activation (parent + subdocs)
+
+### Trigger
+1. User directed: proceed with `M6` planning along with subdocs.
+2. Main stress authority currently routes to M6 next, but no dedicated M6 stress authorities exist in `stress_test/`.
+
+### Design-intent readback and constraints
+1. Active track remains `dev_full` stress-first hardening.
+2. M6 must remain split by subphase lanes (`P5`, `P6`, `P7`) to avoid phase cram and to preserve deterministic blocker taxonomies.
+3. M6 planning must preserve fail-closed gating, runtime/cost envelope gates, and evidence contracts.
+4. Documentation-only change scope for this step: no runtime execution claims for new M6 stress cycle unless backed by fresh stress receipts.
+
+### Alternatives considered
+1. Keep M6 inline in `platform.stress_test.md`.
+   - Rejected: M6 has multi-lane coupled surfaces (SR/WSP/IG/bus), distinct subphase verdicts, and higher blocker complexity.
+2. Create only parent M6 stress doc and defer subdocs.
+   - Rejected: user explicitly requested M6 planning with subdocs; also weakens execution readiness and anti-cram compliance.
+3. Create parent + `P5/P6/P7` subdocs now.
+   - Selected: full phase-coverage exposure before execution and clearer ownership boundaries.
+
+### Planned edits
+1. Create:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M6.stress_test.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M6.P5.stress_test.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M6.P6.stress_test.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M6.P7.stress_test.md`
+2. Update `platform.stress_test.md`:
+   - mark `M4` and `M5` overview rows as `DONE` for consistency,
+   - activate M6 planning posture,
+   - register new dedicated M6 stress files in program status,
+   - add M6 activation section with parent/subdoc routing and next actions.
+3. Append same decision/action trace to today logbook.
+
+### Acceptance target
+1. M6 parent and subphase stress authorities exist with execution-grade state plans (`S0..S5`) and explicit blocker/evidence contracts.
+2. Main stress authority routes to M6 as active planning phase and points to dedicated M6 docs.
+3. No commit/push performed; docs only.
+
+## Entry: 2026-03-04 01:17 +00:00 - M6 parent/subphase stress authorities created and routed
+
+### Implementation completed
+1. Created dedicated M6 stress planning authorities:
+   - `stress_test/platform.M6.stress_test.md`
+   - `stress_test/platform.M6.P5.stress_test.md`
+   - `stress_test/platform.M6.P6.stress_test.md`
+   - `stress_test/platform.M6.P7.stress_test.md`
+2. Updated program control authority `stress_test/platform.stress_test.md` to activate M6 planning posture and route to new docs.
+
+### What was pinned
+1. Parent M6 orchestration:
+   - explicit phase scope and Stage-A findings,
+   - parent handle packet,
+   - capability-lane matrix,
+   - execution-grade `S0..S5` runbook,
+   - parent blocker taxonomy + evidence contract + DoD + immediate next actions.
+2. Subphase M6.P5:
+   - READY commit authority stress runbook (`S0..S5`),
+   - deterministic verdict contract (`ADVANCE_TO_P6`),
+   - duplicate/ambiguity stress lane and blocker map.
+3. Subphase M6.P6:
+   - runtime-path-aware activation/progression/lag runbook (`S0..S5`),
+   - explicit managed->fallback runtime-path handling as fail-closed remediation path,
+   - evidence-overhead budget checks and deterministic verdict contract (`ADVANCE_TO_P7`).
+4. Subphase M6.P7:
+   - ingest commit evidence materiality + dedupe/anomaly + replay-window runbook (`S0..S5`),
+   - deterministic verdict contract (`ADVANCE_TO_M7`),
+   - handoff-input integrity checks for parent closure.
+
+### Main control-file routing updates
+1. M-phase table normalized:
+   - `M4` status corrected to `DONE`,
+   - `M5` status corrected to `DONE`,
+   - `M6` set to `ACTIVE`.
+2. Program status section updated:
+   - current phase switched to `M6 ACTIVE`,
+   - M6 parent and subphase files registered with planning status,
+   - next step set to `M6-ST-S0` execution.
+3. Added dedicated `Active Phase - M6` section with explicit parent/subphase fail-closed sequence.
+
+### Validation performed
+1. Confirmed new files exist in `stress_test/` directory.
+2. Confirmed each M6 doc contains execution runbook + DoD + execution-progress sections.
+3. Confirmed main control file reflects M6 active routing and new authority references.
+
+### Commit posture
+1. No commit/push performed.
