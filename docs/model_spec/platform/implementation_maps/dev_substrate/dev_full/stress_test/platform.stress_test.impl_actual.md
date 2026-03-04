@@ -8346,3 +8346,107 @@ ext_gate=M8_READY, open_blockers=0.
 
 ### Commit posture
 1. No commit/push performed.
+
+## Entry: 2026-03-04 20:09 +00:00 - Rerun execution strategy (single managed campaign, strict sequential fail-closed)
+
+### Assessment
+1. USER reworked plan is accepted as authority directionally.
+2. Runner enforcement is not yet fully aligned with new non-toy blockers; running now would risk policy drift.
+
+### Decision
+1. Do not launch reruns before runner alignment patch.
+2. Execute as one managed campaign (single trigger) but with strict sequential stage gates and fail-closed stop-on-first-blocker semantics.
+
+### Ordered chain
+1. M6.P7 `S1..S5`.
+2. M6 parent `S3..S5`.
+3. M7.P8 `S1..S5`.
+4. M7.P9 `S1..S5`.
+5. M7.P10 `S1..S5`.
+6. M7 parent `S1..S5`.
+
+### Success condition
+1. No `waived_low_sample`/advisory-only/historical-proxy closure authority in any accepted verdict.
+2. Fresh strict receipts only for `M7_READY` and `M8_READY` eligibility.
+
+### Commit posture
+1. No commit/push performed.
+### 2026-03-04 20:11:00 +00:00 - Pre-implementation plan for enforcement sync (M6/M7 non-toy runner alignment)
+- Trigger:
+  - USER approved proceeding with enforcement sync before any rerun campaign.
+- Problem:
+  - reworked stress authorities now fail-close toy-profile posture, but runner implementations still contain waiver/advisory semantics (`waived_low_sample`, historical-closed acceptance) that can incorrectly pass/advance.
+- Scope of code changes:
+  1. `scripts/dev_substrate/m7p8_stress_runner.py`
+     - convert waived-low-sample acceptance paths in `S1/S2/S3` to explicit blocker `M7P8-ST-B13`.
+     - ensure `S5` rollup fail-closes if toy-profile markers are present.
+  2. `scripts/dev_substrate/m7p9_stress_runner.py`
+     - convert non-asserted throughput advisory paths in `S1/S2/S3` to explicit blocker `M7P9-ST-B13`.
+     - enforce `S5` rollup fail-closed on toy-profile markers.
+  3. `scripts/dev_substrate/m7p10_stress_runner.py`
+     - convert historical waived-low-sample advisories in `S1/S2/S3` to explicit blocker `M7P10-ST-B13`.
+     - enforce `S5` rollup fail-closed on toy-profile markers.
+  4. `scripts/dev_substrate/m6p7_stress_runner.py`
+     - add strict blocker `M6P7-ST-B12` when replay-window logic enters historical-closed acceptance or when historical-only closure authority is used in rollup.
+  5. `scripts/dev_substrate/m6_stress_runner.py`
+     - add strict blocker `M6-ST-B13` in parent closure when upstream P7 summary indicates historical-only or advisory closure posture.
+  6. `scripts/dev_substrate/m7_stress_runner.py`
+     - add strict blocker `M7-ST-B14` in parent rollup when subphase summaries carry low-sample/advisory closure posture.
+- Validation plan:
+  - syntax-only checks via `python -m py_compile` on edited runners.
+  - no stress execution and no local orchestration.
+- Governance:
+  - no commit/push/branch operation.
+
+## Entry: 2026-03-04 20:28 +00:00 - Parent runner enforcement sync for strict non-toy closure
+
+### Trigger
+1. Remaining enforcement gap after subphase alignment: parent `M6-ST-S5` and `M7-ST-S5` still lacked explicit toy-profile blocker emission.
+
+### Decision
+1. Add strict toy-profile signal detection in parent rollups using carried advisories/evidence from dependency artifacts.
+2. Emit `M6-ST-B13` in `M6-ST-S5` on historical/proxy/advisory-only closure posture.
+3. Emit `M7-ST-B14` in `M7-ST-S5` on toy-profile advisory posture carried from `P8/P9/P10` or parent dependency artifacts.
+4. Keep closure fail-closed; no conversion to advisory-only behavior.
+
+### Planned edits
+1. `scripts/dev_substrate/m6_stress_runner.py`
+2. `scripts/dev_substrate/m7_stress_runner.py`
+
+### Validation plan
+1. `python -m py_compile scripts/dev_substrate/m6_stress_runner.py`
+2. `python -m py_compile scripts/dev_substrate/m7_stress_runner.py`
+
+### Governance
+1. No stress execution.
+2. No commit/push/branch operations.
+
+## Entry: 2026-03-04 20:31 +00:00 - Enforcement sync executed (parent M6/M7 toy-profile blocker lanes)
+
+### Implementation
+1. `scripts/dev_substrate/m6_stress_runner.py`
+   - added `is_toy_profile_advisory` matcher for strict non-toy markers.
+   - `M6-ST-S5` now inspects carried advisories from:
+     - parent `M6-S4` control snapshot/decision log,
+     - subphase `P5/P6/P7` control snapshots and decision logs,
+     - `P7` summary replay mode (`HISTORICAL_CLOSED_WINDOW`).
+   - emits `M6-ST-B13` with source-level signals and fail-closes rollup.
+2. `scripts/dev_substrate/m7_stress_runner.py`
+   - added `is_toy_profile_advisory` matcher aligned to strict subphase markers.
+   - `M7-ST-S5` now inspects carried advisories from:
+     - parent `M7-S4` data profile/control snapshot/decision log,
+     - subphase `P8/P9/P10` data profile/control snapshot/decision log.
+   - emits `M7-ST-B14` with source-level signals and fail-closes rollup.
+
+### Validation
+1. `python -m py_compile scripts/dev_substrate/m6_stress_runner.py scripts/dev_substrate/m7_stress_runner.py scripts/dev_substrate/m6p7_stress_runner.py scripts/dev_substrate/m7p8_stress_runner.py scripts/dev_substrate/m7p9_stress_runner.py scripts/dev_substrate/m7p10_stress_runner.py` (pass)
+
+### Outcome
+1. Parent closure no longer permits advisory carry-forward for toy-profile posture.
+2. Enforcement sync for planned blocker IDs is complete in code:
+   - `M6-ST-B13`
+   - `M7-ST-B14`
+
+### Governance
+1. No stress execution.
+2. No commit/push/branch operation.

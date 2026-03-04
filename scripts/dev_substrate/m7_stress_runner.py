@@ -164,6 +164,25 @@ def parse_registry(path: Path) -> dict[str, Any]:
     return out
 
 
+def is_toy_profile_advisory(msg: str) -> bool:
+    s = str(msg).strip().lower()
+    if not s:
+        return False
+    if "did not use historical" in s:
+        return False
+    return any(
+        token in s
+        for token in (
+            "waived_low_sample",
+            "advisory-only throughput",
+            "historical/proxy-only closure authority",
+            "historical-only closure authority",
+            "proxy-only closure authority",
+            "toy-profile throughput posture",
+        )
+    )
+
+
 def run_cmd(argv: list[str], timeout: int = 30) -> dict[str, Any]:
     t0 = time.perf_counter()
     st = now()
@@ -2600,6 +2619,47 @@ def run_s5(phase_execution_id: str) -> int:
     if subphase_issues:
         blockers.append({"id": "M7-ST-B11", "severity": "S5", "status": "OPEN", "details": {"issues": sorted(set(subphase_issues)), "subphase_rows": subphase_rows}})
         issues.extend(sorted(set(subphase_issues)))
+
+    toy_profile_signals: list[dict[str, Any]] = []
+
+    def gather_toy_signals(source_label: str, payload: dict[str, Any], keys: tuple[str, ...] = ("advisories",)) -> None:
+        if not isinstance(payload, dict):
+            return
+        for key in keys:
+            raw = payload.get(key, [])
+            if not isinstance(raw, list):
+                continue
+            hits = [str(x).strip() for x in raw if str(x).strip() and is_toy_profile_advisory(str(x))]
+            if hits:
+                toy_profile_signals.append({"source": f"{source_label}:{key}", "signals": hits[:20]})
+
+    if dep_path:
+        gather_toy_signals("M7-S4 data profile", loadj(dep_path / "m7_data_profile_summary.json"))
+        gather_toy_signals("M7-S4 control snapshot", loadj(dep_path / "m7_control_rail_conformance_snapshot.json"))
+        gather_toy_signals("M7-S4 decision log", loadj(dep_path / "m7_decision_log.json"))
+
+    for label, prefix in [("P8", "m7p8"), ("P9", "m7p9"), ("P10", "m7p10")]:
+        rec = subphase_records.get(label)
+        if not rec:
+            continue
+        rec_path = Path(str(rec.get("path", "")))
+        gather_toy_signals(f"{label} data profile", loadj(rec_path / f"{prefix}_data_profile_summary.json"))
+        gather_toy_signals(f"{label} control snapshot", loadj(rec_path / f"{prefix}_control_rail_conformance_snapshot.json"))
+        gather_toy_signals(f"{label} decision log", loadj(rec_path / f"{prefix}_decision_log.json"))
+
+    if toy_profile_signals:
+        blockers.append(
+            {
+                "id": "M7-ST-B14",
+                "severity": "S5",
+                "status": "OPEN",
+                "details": {
+                    "reason": "toy-profile closure posture detected in M7 parent rollup inputs",
+                    "signals": toy_profile_signals[:40],
+                },
+            }
+        )
+        issues.append("toy-profile closure posture detected in M7 parent rollup inputs")
 
     bucket = str(handles.get("S3_EVIDENCE_BUCKET", "")).strip()
     p_bucket = add_head_bucket_probe(probes, bucket, "eu-west-2", "m7_s5_evidence_bucket")

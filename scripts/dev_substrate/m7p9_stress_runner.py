@@ -128,6 +128,20 @@ def parse_registry(path: Path) -> dict[str, Any]:
     return out
 
 
+def is_toy_profile_advisory(msg: str) -> bool:
+    s = str(msg).strip().lower()
+    return any(
+        token in s
+        for token in (
+            "waived_low_sample",
+            "advisory-only throughput",
+            "historical/proxy-only closure authority",
+            "historical-only closure authority",
+            "proxy-only closure authority",
+        )
+    )
+
+
 def run_cmd(argv: list[str], timeout: int = 30) -> dict[str, Any]:
     t0 = time.perf_counter()
     st = now()
@@ -1173,7 +1187,20 @@ def run_s1(phase_execution_id: str) -> int:
         if throughput_asserted is True and throughput_observed is not None and throughput_min is not None and throughput_observed < throughput_min:
             functional_issues.append("historical DF throughput below minimum while asserted")
         if throughput_asserted is not True:
-            advisories.append("historical DF throughput gate is waived_low_sample; enforce explicit throughput pressure in downstream windows.")
+            blockers.append(
+                {
+                    "id": "M7P9-ST-B13",
+                    "severity": "S1",
+                    "status": "OPEN",
+                    "details": {
+                        "reason": "toy-profile throughput posture is not allowed for closure",
+                        "component": "DF",
+                        "throughput_assertion_applied": throughput_asserted,
+                        "throughput_gate_mode": str(perf.get("throughput_gate_mode", "")).strip(),
+                    },
+                }
+            )
+            functional_issues.append("DF throughput assertion is not applied; strict non-toy closure requires asserted throughput")
 
     if df_proof:
         if str(df_proof.get("component", "")).strip().upper() != "DF":
@@ -1464,7 +1491,20 @@ def run_s2(phase_execution_id: str) -> int:
         if throughput_asserted is True and throughput_observed is not None and throughput_min is not None and throughput_observed < throughput_min:
             functional_issues.append("historical AL throughput below minimum while asserted")
         if throughput_asserted is not True:
-            advisories.append("historical AL throughput gate is waived_low_sample; enforce explicit throughput pressure in downstream windows.")
+            blockers.append(
+                {
+                    "id": "M7P9-ST-B13",
+                    "severity": "S2",
+                    "status": "OPEN",
+                    "details": {
+                        "reason": "toy-profile throughput posture is not allowed for closure",
+                        "component": "AL",
+                        "throughput_assertion_applied": throughput_asserted,
+                        "throughput_gate_mode": str(perf.get("throughput_gate_mode", "")).strip(),
+                    },
+                }
+            )
+            functional_issues.append("AL throughput assertion is not applied; strict non-toy closure requires asserted throughput")
 
     if al_proof:
         if str(al_proof.get("component", "")).strip().upper() != "AL":
@@ -1754,10 +1794,20 @@ def run_s3(phase_execution_id: str) -> int:
             functional_issues.append("historical DLA throughput below minimum while asserted")
         if throughput_asserted is not True:
             mode = str(perf.get("throughput_gate_mode", "")).strip()
-            if mode != "waived_low_sample":
-                functional_issues.append("historical DLA throughput is non-asserted without waived_low_sample mode")
-            else:
-                advisories.append("historical DLA throughput gate is waived_low_sample; enforce explicit throughput pressure in downstream windows.")
+            blockers.append(
+                {
+                    "id": "M7P9-ST-B13",
+                    "severity": "S3",
+                    "status": "OPEN",
+                    "details": {
+                        "reason": "toy-profile throughput posture is not allowed for closure",
+                        "component": "DLA",
+                        "throughput_assertion_applied": throughput_asserted,
+                        "throughput_gate_mode": mode,
+                    },
+                }
+            )
+            functional_issues.append("DLA throughput assertion is not applied; strict non-toy closure requires asserted throughput")
 
     dep_input_events = to_int(dep_subset.get("decision_input_events"))
     if dep_input_events is None:
@@ -2088,6 +2138,21 @@ def run_s4(phase_execution_id: str) -> int:
                 sx = str(x).strip()
                 if sx and sx not in advisories:
                     advisories.append(sx)
+
+    toy_advisories = [x for x in advisories if is_toy_profile_advisory(x)]
+    if toy_advisories:
+        blockers.append(
+            {
+                "id": "M7P9-ST-B13",
+                "severity": "S5",
+                "status": "OPEN",
+                "details": {
+                    "reason": "toy-profile advisory posture carried into P9 rollup",
+                    "advisories": toy_advisories[:20],
+                },
+            }
+        )
+        issues.append("toy-profile advisory posture is not allowed for P9 closure")
 
     metrics = probe_metrics(probes)
     overall_pass = len(blockers) == 0

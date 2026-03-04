@@ -168,6 +168,20 @@ def normalize_runtime_path(v: str) -> str:
     return aliases.get(raw, raw)
 
 
+def is_toy_profile_advisory(msg: str) -> bool:
+    s = str(msg).strip().lower()
+    return any(
+        token in s
+        for token in (
+            "waived_low_sample",
+            "advisory-only throughput",
+            "historical/proxy-only closure authority",
+            "historical-only closure authority",
+            "proxy-only closure authority",
+        )
+    )
+
+
 def run_cmd(argv: list[str], timeout: int = 30) -> dict[str, Any]:
     t0 = time.perf_counter()
     st = now()
@@ -667,9 +681,23 @@ def run_s1(phase_execution_id: str) -> int:
         perf = hist_ct.get("perf", {})
         if to_bool(perf.get("performance_gate_pass")) is not True:
             functional_issues.append("historical P10.B performance gate is not pass")
+        throughput_asserted = to_bool(perf.get("throughput_assertion_applied"))
         mode = str(perf.get("throughput_gate_mode", "")).strip()
-        if mode.lower() == "waived_low_sample":
-            advisories.append("historical P10.B throughput gate is waived_low_sample; preserve explicit hotkey/replay pressure windows downstream.")
+        if throughput_asserted is not True:
+            blockers.append(
+                {
+                    "id": "M7P10-ST-B13",
+                    "severity": "S1",
+                    "status": "OPEN",
+                    "details": {
+                        "reason": "toy-profile throughput posture is not allowed for closure",
+                        "component": "CaseTriggerBridge",
+                        "throughput_assertion_applied": throughput_asserted,
+                        "throughput_gate_mode": mode,
+                    },
+                }
+            )
+            functional_issues.append("CaseTriggerBridge throughput assertion is not applied; strict non-toy closure requires asserted throughput")
 
     comp = str(ct_proof.get("component", "")).strip()
     if comp and comp != "CaseTriggerBridge":
@@ -1058,9 +1086,23 @@ def run_s2(phase_execution_id: str) -> int:
         perf = hist_cm.get("perf", {})
         if to_bool(perf.get("performance_gate_pass")) is not True:
             functional_issues.append("historical P10.C performance gate is not pass")
+        throughput_asserted = to_bool(perf.get("throughput_assertion_applied"))
         mode = str(perf.get("throughput_gate_mode", "")).strip()
-        if mode.lower() == "waived_low_sample":
-            advisories.append("historical P10.C throughput gate is waived_low_sample; preserve explicit reopen/rare-path pressure windows downstream.")
+        if throughput_asserted is not True:
+            blockers.append(
+                {
+                    "id": "M7P10-ST-B13",
+                    "severity": "S2",
+                    "status": "OPEN",
+                    "details": {
+                        "reason": "toy-profile throughput posture is not allowed for closure",
+                        "component": "CM",
+                        "throughput_assertion_applied": throughput_asserted,
+                        "throughput_gate_mode": mode,
+                    },
+                }
+            )
+            functional_issues.append("CM throughput assertion is not applied; strict non-toy closure requires asserted throughput")
 
     comp = str(cm_proof.get("component", "")).strip()
     if comp and comp != "CM":
@@ -1501,9 +1543,23 @@ def run_s3(phase_execution_id: str) -> int:
         perf = hist_ls.get("perf", {})
         if to_bool(perf.get("performance_gate_pass")) is not True:
             functional_issues.append("historical P10.D performance gate is not pass")
+        throughput_asserted = to_bool(perf.get("throughput_assertion_applied"))
         mode = str(perf.get("throughput_gate_mode", "")).strip()
-        if mode.lower() == "waived_low_sample":
-            advisories.append("historical P10.D throughput gate is waived_low_sample; preserve explicit contention pressure windows downstream.")
+        if throughput_asserted is not True:
+            blockers.append(
+                {
+                    "id": "M7P10-ST-B13",
+                    "severity": "S3",
+                    "status": "OPEN",
+                    "details": {
+                        "reason": "toy-profile throughput posture is not allowed for closure",
+                        "component": "LS",
+                        "throughput_assertion_applied": throughput_asserted,
+                        "throughput_gate_mode": mode,
+                    },
+                }
+            )
+            functional_issues.append("LS throughput assertion is not applied; strict non-toy closure requires asserted throughput")
 
     comp = str(ls_proof.get("component", "")).strip()
     if comp and comp != "LS":
@@ -1986,6 +2042,21 @@ def run_s4(phase_execution_id: str) -> int:
                 sx = str(x).strip()
                 if sx and sx not in advisories:
                     advisories.append(sx)
+
+    toy_advisories = [x for x in advisories if is_toy_profile_advisory(x)]
+    if toy_advisories:
+        blockers.append(
+            {
+                "id": "M7P10-ST-B13",
+                "severity": "S5",
+                "status": "OPEN",
+                "details": {
+                    "reason": "toy-profile advisory posture carried into P10 rollup",
+                    "advisories": toy_advisories[:20],
+                },
+            }
+        )
+        issues.append("toy-profile advisory posture is not allowed for P10 closure")
 
     metrics = probe_metrics(probes)
     overall = len(blockers) == 0

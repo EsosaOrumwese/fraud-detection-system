@@ -138,6 +138,20 @@ def parse_registry(path: Path) -> dict[str, Any]:
     return out
 
 
+def is_toy_profile_advisory(msg: str) -> bool:
+    s = str(msg).strip().lower()
+    return any(
+        token in s
+        for token in (
+            "waived_low_sample",
+            "advisory-only throughput",
+            "historical/proxy-only closure authority",
+            "historical-only closure authority",
+            "proxy-only closure authority",
+        )
+    )
+
+
 def run_cmd(argv: list[str], timeout: int = 30) -> dict[str, Any]:
     t0 = time.perf_counter()
     st = now()
@@ -766,15 +780,20 @@ def run_s1(phase_execution_id: str) -> int:
                 functional_issues.append("historical IEG throughput assertion failed")
         else:
             mode = str(perf.get("throughput_gate_mode", "")).strip()
-            if mode != "waived_low_sample":
-                functional_issues.append("IEG throughput is non-asserted without waived_low_sample mode")
-            else:
-                s0_checks = dep_profile.get("checks", {})
-                if not bool(s0_checks.get("sample_size_check", False)):
-                    semantic_issues.append("S0 sample-size realism check is not closed for waived-low-sample IEG posture")
-                if not bool(s0_checks.get("event_type_check", False)):
-                    semantic_issues.append("S0 event-type realism check is not closed for waived-low-sample IEG posture")
-                advisories.append("IEG throughput remains waived_low_sample; non-waived throughput certification stays deferred while functional+semantic checks gate S1.")
+            blockers.append(
+                {
+                    "id": "M7P8-ST-B13",
+                    "severity": "S1",
+                    "status": "OPEN",
+                    "details": {
+                        "reason": "toy-profile throughput posture is not allowed for closure",
+                        "component": "IEG",
+                        "throughput_assertion_applied": False,
+                        "throughput_gate_mode": mode,
+                    },
+                }
+            )
+            functional_issues.append("IEG throughput assertion is not applied; strict non-toy closure requires asserted throughput")
 
         proof_key = str(component.get("rtdl_core_component_proof_key", "")).strip().lstrip("/")
         if not proof_key:
@@ -1069,15 +1088,20 @@ def run_s2(phase_execution_id: str) -> int:
                 functional_issues.append("historical OFP throughput assertion failed")
         else:
             mode = str(perf.get("throughput_gate_mode", "")).strip()
-            if mode != "waived_low_sample":
-                functional_issues.append("OFP throughput is non-asserted without waived_low_sample mode")
-            else:
-                s0_checks = dep_profile.get("checks", {})
-                if not bool(s0_checks.get("sample_size_check", False)):
-                    semantic_issues.append("S0 sample-size realism check is not closed for waived-low-sample OFP posture")
-                if not bool(s0_checks.get("event_type_check", False)):
-                    semantic_issues.append("S0 event-type realism check is not closed for waived-low-sample OFP posture")
-                advisories.append("OFP throughput remains waived_low_sample; non-waived throughput certification stays deferred while functional+semantic checks gate S2.")
+            blockers.append(
+                {
+                    "id": "M7P8-ST-B13",
+                    "severity": "S2",
+                    "status": "OPEN",
+                    "details": {
+                        "reason": "toy-profile throughput posture is not allowed for closure",
+                        "component": "OFP",
+                        "throughput_assertion_applied": False,
+                        "throughput_gate_mode": mode,
+                    },
+                }
+            )
+            functional_issues.append("OFP throughput assertion is not applied; strict non-toy closure requires asserted throughput")
 
         proof_key = str(component.get("rtdl_core_component_proof_key", "")).strip().lstrip("/")
         if not proof_key:
@@ -1401,15 +1425,20 @@ def run_s3(phase_execution_id: str) -> int:
                 functional_issues.append("historical ArchiveWriter throughput assertion failed")
         else:
             mode = str(perf.get("throughput_gate_mode", "")).strip()
-            if mode != "waived_low_sample":
-                functional_issues.append("ArchiveWriter throughput is non-asserted without waived_low_sample mode")
-            else:
-                s0_checks = dep_profile.get("checks", {})
-                if not bool(s0_checks.get("sample_size_check", False)):
-                    semantic_issues.append("S0 sample-size realism check is not closed for waived-low-sample ArchiveWriter posture")
-                if not bool(s0_checks.get("event_type_check", False)):
-                    semantic_issues.append("S0 event-type realism check is not closed for waived-low-sample ArchiveWriter posture")
-                advisories.append("ArchiveWriter throughput remains waived_low_sample; non-waived throughput certification stays deferred while functional+semantic checks gate S3.")
+            blockers.append(
+                {
+                    "id": "M7P8-ST-B13",
+                    "severity": "S3",
+                    "status": "OPEN",
+                    "details": {
+                        "reason": "toy-profile throughput posture is not allowed for closure",
+                        "component": "ArchiveWriter",
+                        "throughput_assertion_applied": False,
+                        "throughput_gate_mode": mode,
+                    },
+                }
+            )
+            functional_issues.append("ArchiveWriter throughput assertion is not applied; strict non-toy closure requires asserted throughput")
 
         proof_key = str(component.get("rtdl_core_component_proof_key", "")).strip().lstrip("/")
         if not proof_key:
@@ -1972,6 +2001,21 @@ def run_s5(phase_execution_id: str) -> int:
                 sx = str(x).strip()
                 if sx and sx not in advisories:
                     advisories.append(sx)
+
+    toy_advisories = [x for x in advisories if is_toy_profile_advisory(x)]
+    if toy_advisories:
+        blockers.append(
+            {
+                "id": "M7P8-ST-B13",
+                "severity": "S5",
+                "status": "OPEN",
+                "details": {
+                    "reason": "toy-profile advisory posture carried into P8 rollup",
+                    "advisories": toy_advisories[:20],
+                },
+            }
+        )
+        issues.append("toy-profile advisory posture is not allowed for P8 closure")
 
     metrics = probe_metrics(probes)
     overall_pass = len(blockers) == 0

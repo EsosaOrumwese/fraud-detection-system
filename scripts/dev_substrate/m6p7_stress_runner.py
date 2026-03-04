@@ -336,6 +336,7 @@ def run_s0(phase_execution_id: str) -> int:
     blockers: list[dict[str, Any]] = []
     probes: list[dict[str, Any]] = []
     issues: list[str] = []
+    advisories: list[str] = []
     decisions: list[str] = []
 
     missing_plan_keys = [k for k in PLAN_KEYS if k not in plan_packet]
@@ -1860,6 +1861,20 @@ def run_s3(phase_execution_id: str) -> int:
                 run_scope_live_count = c2 if c2 is not None else run_scope_live_count
     else:
         replay_window_mode = "HISTORICAL_CLOSED_WINDOW"
+        blockers.append(
+            {
+                "id": "M6P7-ST-B12",
+                "severity": "S3",
+                "status": "OPEN",
+                "details": {
+                    "reason": "historical-closed replay-window mode is not allowed for strict non-toy closure",
+                    "age_seconds": age_seconds,
+                    "replay_window_seconds": replay_window_seconds,
+                    "ttl_expired_expected": ttl_expired_expected,
+                },
+            }
+        )
+        issues.append("historical-closed replay-window mode is not allowed for strict non-toy closure")
         if ttl_expired_expected:
             decisions.append("Replay-window continuity evaluated in historical-closed mode: run age exceeds replay window and TTL-expired posture is expected.")
         else:
@@ -2418,6 +2433,20 @@ def run_s5(phase_execution_id: str) -> int:
     if dep_issues:
         blockers.append({"id": "M6P7-ST-B8", "severity": "S5", "status": "OPEN", "details": {"issues": dep_issues}})
         issues.extend(dep_issues)
+    if dep_replay_mode.upper() == "HISTORICAL_CLOSED_WINDOW":
+        blockers.append(
+            {
+                "id": "M6P7-ST-B12",
+                "severity": "S5",
+                "status": "OPEN",
+                "details": {
+                    "reason": "historical replay-window mode propagated into closure rollup",
+                    "replay_window_mode": dep_replay_mode,
+                    "s4_dependency_phase_execution_id": dep_id,
+                },
+            }
+        )
+        issues.append("historical replay-window mode is not allowed for strict non-toy P7 closure")
 
     chain = [
         ("S0", "m6p7_stress_s0", "M6P7-ST-S0", "M6P7_ST_S1_READY"),
@@ -2460,48 +2489,25 @@ def run_s5(phase_execution_id: str) -> int:
     m6i_id = ""
     m6i_verdict = ""
     m6i_blocker_count = 0
-    if not m6i:
-        blockers.append({"id": "M6P7-ST-B9", "severity": "S5", "status": "OPEN", "details": {"reason": "missing successful historical M6.I evidence"}})
-        issues.append("missing successful historical M6.I evidence")
-    else:
+    if m6i:
         m6i_id = str(m6i.get("execution_id", "")).strip()
         m6i_verdict = str(m6i.get("gate_verdict", {}).get("verdict", "")).strip()
         m6i_blocker_count = int(m6i.get("blocker_register", {}).get("blocker_count", 0) or 0)
         m6i_platform_run_id = str(m6i.get("rollup_matrix", {}).get("platform_run_id", "")).strip()
         if dep_platform_run_id and m6i_platform_run_id and m6i_platform_run_id != dep_platform_run_id:
-            blockers.append(
-                {
-                    "id": "M6P7-ST-B9",
-                    "severity": "S5",
-                    "status": "OPEN",
-                    "details": {
-                        "reason": "historical M6.I run-scope mismatch",
-                        "expected_platform_run_id": dep_platform_run_id,
-                        "observed_platform_run_id": m6i_platform_run_id,
-                    },
-                }
+            advisories.append(
+                f"historical M6.I run-scope mismatch observed ({m6i_platform_run_id}); historical anchor is non-authoritative in strict mode"
             )
-            issues.append("historical M6.I run-scope mismatch")
         if m6i_verdict != "ADVANCE_TO_M7":
-            blockers.append(
-                {
-                    "id": "M6P7-ST-B9",
-                    "severity": "S5",
-                    "status": "OPEN",
-                    "details": {"reason": "historical M6.I verdict mismatch", "verdict": m6i_verdict},
-                }
+            advisories.append(
+                f"historical M6.I verdict mismatch observed ({m6i_verdict}); historical anchor is non-authoritative in strict mode"
             )
-            issues.append("historical M6.I verdict is not ADVANCE_TO_M7")
         if m6i_blocker_count != 0:
-            blockers.append(
-                {
-                    "id": "M6P7-ST-B9",
-                    "severity": "S5",
-                    "status": "OPEN",
-                    "details": {"reason": "historical M6.I blocker register not closed", "blocker_count": m6i_blocker_count},
-                }
+            advisories.append(
+                f"historical M6.I blocker register count={m6i_blocker_count}; historical anchor is non-authoritative in strict mode"
             )
-            issues.append("historical M6.I blocker register is not closed")
+    else:
+        decisions.append("Historical M6.I evidence is not required as closure authority in strict non-toy mode.")
 
     bucket = str(handles.get("S3_EVIDENCE_BUCKET", "")).strip()
     p_bucket = cmd(["aws", "s3api", "head-bucket", "--bucket", bucket, "--region", "eu-west-2"], 25) if bucket else {
@@ -2637,7 +2643,14 @@ def run_s5(phase_execution_id: str) -> int:
     )
     dumpj(
         out / "m6p7_control_rail_conformance_snapshot.json",
-        {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M6P7-ST-S5", "overall_pass": len(issues) == 0, "issues": issues},
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M6P7-ST-S5",
+            "overall_pass": len(issues) == 0,
+            "issues": issues,
+            "advisories": advisories,
+        },
     )
     dumpj(
         out / "m6p7_secret_safety_snapshot.json",
@@ -2753,14 +2766,20 @@ def run_s5(phase_execution_id: str) -> int:
         [
             "Validated S4 dependency continuity and blocker closure before S5.",
             "Validated full S0..S4 chain matrix and run-scope consistency for deterministic rollup.",
-            "Validated historical M6.I continuity anchor and verdict posture before publishing M6P7 rollup.",
+            "Did not use historical M6.I evidence as closure authority in strict non-toy mode.",
             "Applied deterministic verdict rule: ADVANCE_TO_M7 only when blocker-free; HOLD_REMEDIATE otherwise.",
             "Emitted m6p7_gate_verdict.json and m7_handoff_pack.json for parent M6 adjudication surfaces.",
         ]
     )
     dumpj(
         out / "m6p7_decision_log.json",
-        {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M6P7-ST-S5", "decisions": decisions},
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M6P7-ST-S5",
+            "decisions": decisions,
+            "advisories": advisories,
+        },
     )
 
     blocker_register = {

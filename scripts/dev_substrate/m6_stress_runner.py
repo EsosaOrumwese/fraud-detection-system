@@ -140,6 +140,27 @@ def parse_registry(path: Path) -> dict[str, Any]:
     return out
 
 
+def is_toy_profile_advisory(msg: str) -> bool:
+    s = str(msg).strip().lower()
+    if not s:
+        return False
+    if "did not use historical" in s or "non-authoritative in strict mode" in s:
+        return False
+    return any(
+        token in s
+        for token in (
+            "waived_low_sample",
+            "advisory-only throughput",
+            "historical/proxy-only closure authority",
+            "historical-only closure authority",
+            "proxy-only closure authority",
+            "historical_closed_window",
+            "historical-closed replay-window mode",
+            "accepted only because",
+        )
+    )
+
+
 def run_cmd(cmd: list[str], timeout: int = 30) -> dict[str, Any]:
     t0 = time.perf_counter()
     st = now()
@@ -1979,19 +2000,21 @@ def run_s5(phase_id: str, out_root: Path) -> int:
     platform_run_id = ""
     dep_profile = {}
     dep_handoff = {}
+    dep_path = Path()
     if not dep:
         dep_issues.append("missing successful M6-ST-S4 dependency")
     else:
         dep_s = dep.get("summary", {})
+        dep_path = Path(str(dep.get("path", "")))
         dep_id = str(dep_s.get("phase_execution_id", ""))
         platform_run_id = str(dep_s.get("platform_run_id", "")).strip()
         if str(dep_s.get("next_gate", "")).strip() != "M6_ST_S5_READY":
             dep_issues.append("M6-ST-S4 next_gate is not M6_ST_S5_READY")
-        dep_b = load_json_safe(Path(str(dep.get("path", ""))) / "m6_blocker_register.json")
+        dep_b = load_json_safe(dep_path / "m6_blocker_register.json")
         if int(dep_b.get("open_blocker_count", 0) or 0) != 0:
             dep_issues.append("M6-ST-S4 blocker register is not closed")
         dep_profile = dep_s
-        dep_handoff = load_json_safe(Path(str(dep.get("path", ""))) / "m7_handoff_pack.json")
+        dep_handoff = load_json_safe(dep_path / "m7_handoff_pack.json")
     if dep_issues:
         blockers.append({"id": "M6-ST-B6", "severity": "S5", "status": "OPEN", "details": {"issues": dep_issues}})
         issues.extend(dep_issues)
@@ -2002,6 +2025,7 @@ def run_s5(phase_id: str, out_root: Path) -> int:
         issues.extend(chain_issues)
 
     subphase_rows: list[dict[str, Any]] = []
+    subphase_records: dict[str, dict[str, Any]] = {}
     subphase_issues: list[str] = []
     for label, rec, expected_verdict in [
         ("P5", latest_ok("m6p5_stress_s5", "m6p5_execution_summary.json", "M6P5-ST-S5", out_root), "ADVANCE_TO_P6"),
@@ -2021,6 +2045,7 @@ def run_s5(phase_id: str, out_root: Path) -> int:
             subphase_issues.append(f"missing successful {label} S5 dependency")
             subphase_rows.append(row)
             continue
+        subphase_records[label] = rec
         s = rec.get("summary", {})
         row["phase_execution_id"] = str(s.get("phase_execution_id", ""))
         row["platform_run_id"] = str(s.get("platform_run_id", "")).strip()
@@ -2036,6 +2061,48 @@ def run_s5(phase_id: str, out_root: Path) -> int:
     if subphase_issues:
         blockers.append({"id": "M6-ST-B6", "severity": "S5", "status": "OPEN", "details": {"issues": sorted(set(subphase_issues)), "subphase_rows": subphase_rows}})
         issues.extend(sorted(set(subphase_issues)))
+
+    toy_profile_signals: list[dict[str, Any]] = []
+
+    def gather_toy_signals(source_label: str, payload: dict[str, Any], key: str = "advisories") -> None:
+        if not isinstance(payload, dict):
+            return
+        raw = payload.get(key, [])
+        if not isinstance(raw, list):
+            return
+        hits = [str(x).strip() for x in raw if str(x).strip() and is_toy_profile_advisory(str(x))]
+        if hits:
+            toy_profile_signals.append({"source": source_label, "signals": hits[:20]})
+
+    if dep_path:
+        gather_toy_signals("M6-S4 control snapshot", load_json_safe(dep_path / "m6_control_rail_conformance_snapshot.json"))
+        gather_toy_signals("M6-S4 decision log", load_json_safe(dep_path / "m6_decision_log.json"))
+
+    for label, prefix in [("P5", "m6p5"), ("P6", "m6p6"), ("P7", "m6p7")]:
+        rec = subphase_records.get(label)
+        if not rec:
+            continue
+        rec_path = Path(str(rec.get("path", "")))
+        gather_toy_signals(f"{label} control snapshot", load_json_safe(rec_path / f"{prefix}_control_rail_conformance_snapshot.json"))
+        gather_toy_signals(f"{label} decision log", load_json_safe(rec_path / f"{prefix}_decision_log.json"))
+        if label == "P7":
+            replay_mode = str(rec.get("summary", {}).get("replay_window_mode", "")).strip()
+            if replay_mode.upper() == "HISTORICAL_CLOSED_WINDOW":
+                toy_profile_signals.append({"source": "P7 execution summary", "signals": [f"replay_window_mode={replay_mode}"]})
+
+    if toy_profile_signals:
+        blockers.append(
+            {
+                "id": "M6-ST-B13",
+                "severity": "S5",
+                "status": "OPEN",
+                "details": {
+                    "reason": "toy-profile closure posture detected in M6 parent rollup inputs",
+                    "signals": toy_profile_signals[:40],
+                },
+            }
+        )
+        issues.append("toy-profile closure posture detected in M6 parent rollup inputs")
 
     p7 = latest_ok("m6p7_stress_s5", "m6p7_execution_summary.json", "M6P7-ST-S5", out_root)
     p7_handoff = load_json_safe(Path(str(p7.get("path", ""))) / "m7_handoff_pack.json") if p7 else {}
