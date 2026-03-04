@@ -306,20 +306,74 @@ Pass gate:
 - [x] Dedicated P10 stress authority created.
 - [x] Case/label data subset representativeness gates pinned.
 - [x] P10 runbook (`S0..S5`) pinned with targeted-rerun policy.
-- [ ] `M7P10-ST-S0` executed and closed green.
-- [ ] `M7P10-ST-S1` executed and closed green.
-- [ ] `M7P10-ST-S2` executed and closed green.
-- [ ] `M7P10-ST-S3` executed and closed green.
-- [ ] `M7P10-ST-S4` remediation lane closed.
-- [ ] `M7P10-ST-S5` deterministic closure emitted with `next_gate=M7_J_READY`.
+- [x] `M7P10-ST-S0` executed and closed green.
+- [x] `M7P10-ST-S1` executed and closed green.
+- [x] `M7P10-ST-S2` executed and closed green.
+- [x] `M7P10-ST-S3` executed and closed green.
+- [x] `M7P10-ST-S4` remediation lane closed.
+- [x] `M7P10-ST-S5` deterministic closure emitted with `next_gate=M7_J_READY`.
 
 ## 11) Immediate Next Actions
-1. Execute parent `M7-ST-S0` then `M7P9-ST-S5` prerequisite closure.
-2. Execute `M7P10-ST-S0` and validate case/label data representativeness.
-3. Proceed sequentially through `S1 -> S2 -> S3 -> S4 -> S5`.
+1. Return to parent M7 adjudication path (`M7-ST-S1 -> S2 -> S3`) using closed `P8/P9/P10` verdict artifacts.
+2. Preserve `S0/S1/S2/S3/S4/S5` advisories as explicit downstream stress requirements:
+   - keep low-sample component-proof posture visible,
+   - preserve duplicate/hotkey/reopen/contention pressure windows through parent M7 integrated windows.
+3. Treat `M7_J_READY` as subphase closure gate only; M7 parent closure still requires parent `S1..S5` completion.
 
 ## 12) Execution Progress
 1. P10 stress planning authority created.
 2. Historical evidence baseline captured:
    - prior component lanes used low sample (`18`) with waived throughput mode.
-3. P10 execution not started in current stress cycle.
+3. `M7P10-ST-S0` executed (`m7p10_stress_s0_20260304T065016Z`) and passed on first run:
+   - `overall_pass=true`, `next_gate=M7P10_ST_S1_READY`, `open_blockers=0`,
+   - artifact contract complete (`18/18`),
+   - readback probes green (`probe_count=6`, `error_rate_pct=0.0`),
+   - run scope continuity preserved (`platform_run_id=platform_20260223T184232Z`).
+4. Representativeness closure rationale pinned:
+   - direct case-label component proofs are low-sample (`18`) in current managed lane surfaces,
+   - `S0` used explicit run-scoped proxy for case/label event volume (`decision_input_events=2190000986`) with provenance recorded,
+   - label class cardinality resolved from LS writer probe (`outcome_states=3`),
+   - writer conflict and reopen guards closed at `0.0` with explicit evidence-source annotations.
+5. `M7P10-ST-S1` executed (`m7p10_stress_s1_20260304T065702Z`) and passed on first run:
+   - `overall_pass=true`, `next_gate=M7P10_ST_S2_READY`, `open_blockers=0`,
+   - artifact contract complete (`18/18`),
+   - readback probes green (`probe_count=3`, `error_rate_pct=0.0`),
+   - CaseTrigger functional and semantic issue sets both empty.
+6. `S1` realism-advisory posture pinned:
+   - historical CaseTrigger throughput gate remains `waived_low_sample`,
+   - naturally observed duplicate ratio in S1 window remained `0.0`,
+   - duplicate/hotkey replay pressure remains a mandatory injected cohort requirement for downstream lanes.
+7. `M7P10-ST-S2` executed (`m7p10_stress_s2_20260304T070138Z`) and passed on first run:
+   - `overall_pass=true`, `next_gate=M7P10_ST_S3_READY`, `open_blockers=0`,
+   - artifact contract complete (`18/18`),
+   - readback probes green (`probe_count=4`, `error_rate_pct=0.0`),
+   - CM lane functional and semantic issue sets both empty.
+8. `S2` realism-advisory posture pinned:
+   - historical CM throughput gate remains `waived_low_sample`,
+   - case reopen metric remained in-bounds (`0.0 <= 3.0`) using explicit carry-forward provenance where direct metric was absent,
+   - downstream LS lane still requires contention-focused pressure checks.
+9. `M7P10-ST-S3` executed (`m7p10_stress_s3_20260304T070641Z`) and passed on first run:
+   - `overall_pass=true`, `next_gate=M7P10_ST_S4_READY`, `open_blockers=0`,
+   - artifact contract complete (`18/18`),
+   - readback probes green (`probe_count=6`, `error_rate_pct=0.0`),
+   - LS lane functional and semantic issue sets both empty.
+10. `S3` realism-advisory posture pinned:
+   - historical LS throughput gate remains `waived_low_sample`,
+   - writer-boundary closure stayed green (`single_writer_posture=true`, `writer_conflict_rate_pct=0.0 <= 0.5`),
+   - writer-outcome state coverage remained valid (`ACCEPTED`, `PENDING`, `REJECTED`) and downstream rollup still must preserve contention pressure visibility.
+11. `M7P10-ST-S4` executed (`m7p10_stress_s4_20260304T071415Z`) and passed on first run:
+   - `overall_pass=true`, `next_gate=M7P10_ST_S5_READY`, `open_blockers=0`, `remediation_mode=NO_OP`,
+   - artifact contract complete (`18/18`),
+   - deterministic `S0..S3` chain sweep remained fully green with run-scope consistency preserved.
+12. `S4` remediation-lane closure posture pinned:
+   - no residual blocker required targeted rerun in this window (`remediation_mode=NO_OP`),
+   - blocker-classification matrix remained empty (`s4_blocker_classification={}`),
+   - targeted-rerun-only doctrine remains active and mandatory if any residual blocker appears before `S5` closure.
+13. `M7P10-ST-S5` executed (`m7p10_stress_s5_20260304T071946Z`) and passed on first run:
+   - `overall_pass=true`, `verdict=M7_J_READY`, `next_gate=M7_J_READY`, `open_blockers=0`,
+   - artifact contract complete (`18/18`),
+   - rollup chain sweep `S0..S4` remained fully green with run-scope consistency preserved.
+14. `S5` closure posture pinned:
+   - deterministic verdict contract resolved exactly to pinned pass gate (`M7_J_READY`),
+   - closure readback probes remained green across receipt + case/label proofs + writer probe (`probe_count=6`, `error_rate_pct=0.0`),
+   - no remediation blocker remained; P10 is closure-complete and ready for parent M7 adjudication.

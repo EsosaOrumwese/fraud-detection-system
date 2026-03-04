@@ -516,9 +516,9 @@ Authority routing:
    - `M6.P6` `M6P6-ST-S5`: `phase_execution_id=m6p6_stress_s5_20260304T015956Z`, `overall_pass=true`, `verdict=ADVANCE_TO_P7`, `open_blockers=0`.
    - `M6.P7` `M6P7-ST-S5`: `phase_execution_id=m6p7_stress_s5_20260304T024638Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M7`, `next_gate=ADVANCE_TO_M7`, `open_blockers=0`.
 
-## 19) Active Phase - M7 (Dedicated + Split Subphases)
+## 19) Closed Phase - M7 (Dedicated + Split Subphases)
 Status:
-1. `ACTIVE` (`M7-ST-S0` pass complete; next gate is `M7-ST-S1`).
+1. `DONE` (`M7-ST-S0..S5` closed green; deterministic `GO` with `next_gate=M8_READY`).
 
 Authority routing:
 1. Parent orchestration authority: `stress_test/platform.M7.stress_test.md`.
@@ -528,14 +528,46 @@ Authority routing:
    - `stress_test/platform.M7.P10.stress_test.md` (`P10 CASE_LABELS_COMMITTED`).
 3. M7+ data-realism requirement is pinned:
    - no `M7` closure claim without run-scoped data subset/profile artifacts and cohort semantic checks.
-4. Planned fail-closed order:
+4. Executed fail-closed order:
    - parent `M7-ST-S0` (authority + data-profile closure),
    - `M7.P8` closure gate,
    - `M7.P9` closure gate,
    - `M7.P10` closure gate,
    - parent `M7-ST-S4` integrated realistic-data window,
    - parent `M7-ST-S5` rollup and `M8_READY` recommendation.
-5. Latest parent execution receipt:
+5. Latest parent execution receipts:
    - `M7-ST-S0`: `phase_execution_id=m7_stress_s0_20260304T050659Z`, `overall_pass=true`, `next_gate=M7_ST_S1_READY`, `open_blockers=0`, `dependency_mode=subphase_chain`, `profile_source_mode=platform_stream_truth_manifests`.
-6. Current next executable step:
-   - execute parent `M7-ST-S1` adjudication on latest `M7.P8` closure with S0 advisory carry-forward (duplicate/replay and late-event injected cohorts mandatory).
+   - `M7-ST-S1`: `phase_execution_id=m7_stress_s1_20260304T074135Z`, `overall_pass=true`, `next_gate=M7_ST_S2_READY`, `open_blockers=0`.
+   - `M7-ST-S2`: `phase_execution_id=m7_stress_s2_20260304T074144Z`, `overall_pass=true`, `next_gate=M7_ST_S3_READY`, `open_blockers=0`.
+   - `M7-ST-S3`: `phase_execution_id=m7_stress_s3_20260304T074152Z`, `overall_pass=true`, `next_gate=M7_ST_S4_READY`, `open_blockers=0`.
+   - `M7-ST-S4` (latest rerun): `phase_execution_id=m7_stress_s4_20260304T074305Z`, `overall_pass=true`, `next_gate=M7_ST_S5_READY`, `open_blockers=0`.
+   - `M7-ST-S5` (latest rerun): `phase_execution_id=m7_stress_s5_20260304T074317Z`, `overall_pass=true`, `verdict=GO`, `next_gate=M8_READY`, `open_blockers=0`.
+6. Latest `M7.P8` execution receipts:
+   - `M7P8-ST-S0`: `phase_execution_id=m7p8_stress_s0_20260304T052810Z`, `overall_pass=true`, `next_gate=M7P8_ST_S1_READY`, `open_blockers=0`.
+   - `M7P8-ST-S1`: `phase_execution_id=m7p8_stress_s1_20260304T052941Z`, `overall_pass=true`, `next_gate=M7P8_ST_S2_READY`, `open_blockers=0`.
+   - `M7P8-ST-S2`: `phase_execution_id=m7p8_stress_s2_20260304T053741Z`, `overall_pass=true`, `next_gate=M7P8_ST_S3_READY`, `open_blockers=0`.
+   - `M7P8-ST-S3`: `phase_execution_id=m7p8_stress_s3_20260304T054234Z`, `overall_pass=true`, `next_gate=M7P8_ST_S4_READY`, `open_blockers=0`.
+   - `M7P8-ST-S4`: `phase_execution_id=m7p8_stress_s4_20260304T054605Z`, `overall_pass=true`, `next_gate=M7P8_ST_S5_READY`, `open_blockers=0`, `remediation_mode=NO_OP`.
+   - `M7P8-ST-S5`: `phase_execution_id=m7p8_stress_s5_20260304T055237Z`, `overall_pass=true`, `verdict=ADVANCE_TO_P9`, `next_gate=ADVANCE_TO_P9`, `open_blockers=0`.
+7. Latest `M7.P9` execution receipts:
+   - `M7P9-ST-S0`: `phase_execution_id=m7p9_stress_s0_20260304T060915Z`, `overall_pass=true`, `next_gate=M7P9_ST_S1_READY`, `open_blockers=0`.
+   - `M7P9-ST-S1`: `phase_execution_id=m7p9_stress_s1_20260304T061430Z`, `overall_pass=true`, `next_gate=M7P9_ST_S2_READY`, `open_blockers=0`.
+   - `M7P9-ST-S2`: `phase_execution_id=m7p9_stress_s2_20260304T061756Z`, `overall_pass=true`, `next_gate=M7P9_ST_S3_READY`, `open_blockers=0`.
+   - `M7P9-ST-S3`: `phase_execution_id=m7p9_stress_s3_20260304T062431Z`, `overall_pass=true`, `next_gate=M7P9_ST_S4_READY`, `open_blockers=0`.
+   - `M7P9-ST-S4`: `phase_execution_id=m7p9_stress_s4_20260304T062934Z`, `overall_pass=true`, `next_gate=M7P9_ST_S5_READY`, `open_blockers=0`, `remediation_mode=NO_OP`.
+   - `M7P9-ST-S5`: `phase_execution_id=m7p9_stress_s5_20260304T063429Z`, `overall_pass=true`, `verdict=ADVANCE_TO_P10`, `next_gate=ADVANCE_TO_P10`, `open_blockers=0`.
+8. Latest `M7.P10` execution receipts:
+   - `M7P10-ST-S0`: `phase_execution_id=m7p10_stress_s0_20260304T065016Z`, `overall_pass=true`, `next_gate=M7P10_ST_S1_READY`, `open_blockers=0`,
+     observed case/label proof sample=`18` with explicit run-scoped proxy volume=`2190000986` (provenance pinned in `m7p10_data_profile_summary.json`).
+   - `M7P10-ST-S1`: `phase_execution_id=m7p10_stress_s1_20260304T065702Z`, `overall_pass=true`, `next_gate=M7P10_ST_S2_READY`, `open_blockers=0`,
+     CaseTrigger functional/performance and semantic checks passed with mandatory downstream duplicate/hotkey pressure advisories preserved.
+    - `M7P10-ST-S2`: `phase_execution_id=m7p10_stress_s2_20260304T070138Z`, `overall_pass=true`, `next_gate=M7P10_ST_S3_READY`, `open_blockers=0`,
+      CM functional/performance and lifecycle/identity semantics passed with mandatory downstream contention/reopen pressure advisories preserved.
+   - `M7P10-ST-S3`: `phase_execution_id=m7p10_stress_s3_20260304T070641Z`, `overall_pass=true`, `next_gate=M7P10_ST_S4_READY`, `open_blockers=0`,
+     LS functional/performance and writer-boundary semantics passed (`single_writer_posture=true`, `writer_conflict_rate_pct=0.0`) with contention-pressure advisories preserved.
+   - `M7P10-ST-S4`: `phase_execution_id=m7p10_stress_s4_20260304T071415Z`, `overall_pass=true`, `next_gate=M7P10_ST_S5_READY`, `open_blockers=0`, `remediation_mode=NO_OP`,
+     deterministic `S0..S3` chain sweep stayed run-scope consistent and blocker-free under targeted-rerun-only policy.
+   - `M7P10-ST-S5`: `phase_execution_id=m7p10_stress_s5_20260304T071946Z`, `overall_pass=true`, `verdict=M7_J_READY`, `next_gate=M7_J_READY`, `open_blockers=0`,
+     deterministic `S0..S4` chain sweep + closure readback checks passed with full artifact contract closure.
+9. Current next executable step:
+   - start `M8` planning/execution using `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m7_stress_s5_20260304T074317Z/stress/m8_handoff_pack.json`.

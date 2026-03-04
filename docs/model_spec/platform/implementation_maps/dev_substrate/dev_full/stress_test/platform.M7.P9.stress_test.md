@@ -307,20 +307,59 @@ Pass gate:
 - [x] Dedicated P9 stress authority created.
 - [x] Decision-data subset representativeness gates pinned.
 - [x] P9 runbook (`S0..S5`) pinned with targeted-rerun policy.
-- [ ] `M7P9-ST-S0` executed and closed green.
-- [ ] `M7P9-ST-S1` executed and closed green.
-- [ ] `M7P9-ST-S2` executed and closed green.
-- [ ] `M7P9-ST-S3` executed and closed green.
-- [ ] `M7P9-ST-S4` remediation lane closed.
-- [ ] `M7P9-ST-S5` verdict emitted as `ADVANCE_TO_P10`.
+- [x] `M7P9-ST-S0` executed and closed green.
+- [x] `M7P9-ST-S1` executed and closed green.
+- [x] `M7P9-ST-S2` executed and closed green.
+- [x] `M7P9-ST-S3` executed and closed green.
+- [x] `M7P9-ST-S4` remediation lane closed.
+- [x] `M7P9-ST-S5` verdict emitted as `ADVANCE_TO_P10`.
 
 ## 11) Immediate Next Actions
-1. Execute parent `M7-ST-S0` then `M7P8-ST-S5` prerequisite closure.
-2. Execute `M7P9-ST-S0` and validate decision-data representativeness.
-3. Proceed sequentially through `S1 -> S2 -> S3 -> S4 -> S5`.
+1. Promote `M7P9` closure verdict into parent `M7-ST-S2` adjudication input.
+2. Carry forward `S0/S1/S2/S3/S4/S5` advisories into `P10` stress pressure:
+   - policy-path coverage currently uses proxy from P8 event diversity,
+   - active decision-class coverage is sparse in observed receipts,
+   - duplicate floor is below target and must be injected explicitly downstream,
+   - managed-lane low-sample throughput remains advisory and must be stress-pressured explicitly downstream.
+3. Begin `M7.P10` sequential execution (`S0 -> S5`) with the same fail-closed rollup posture.
 
 ## 12) Execution Progress
 1. P9 stress planning authority created.
 2. Historical evidence baseline captured:
    - prior component lanes used low sample (`18`) with waived throughput mode.
-3. P9 execution not started in current stress cycle.
+3. Pre-execution blocker confirmation:
+   - latest `M7P8-ST-S5` remained blocker-free (`open_blocker_count=0`, `verdict=ADVANCE_TO_P9`),
+   - upstream `M7P8-ST-S4` blocker register remained closed.
+4. `M7P9-ST-S0` executed (`m7p9_stress_s0_20260304T060915Z`) and passed:
+   - `overall_pass=true`, `next_gate=M7P9_ST_S1_READY`, `open_blockers=0`,
+   - `probe_count=7`, `error_rate_pct=0.0`,
+   - artifact contract complete (`18/18` required artifacts present),
+   - representativeness blocking checks passed with explicit advisories for downstream duplicate/retry/policy-edge injections.
+5. `M7P9-ST-S1` executed (`m7p9_stress_s1_20260304T061430Z`) and passed:
+   - `overall_pass=true`, `next_gate=M7P9_ST_S2_READY`, `open_blockers=0`,
+   - DF functional/performance and semantic-invariant checks closed green,
+   - `probe_count=2`, `error_rate_pct=0.0`,
+   - artifact contract complete (`18/18` required artifacts present),
+   - sparse natural cohort coverage remains explicit advisory (duplicate-floor and active action-class pressure retained for downstream injected stress).
+6. `M7P9-ST-S2` executed (`m7p9_stress_s2_20260304T061756Z`) and passed:
+   - `overall_pass=true`, `next_gate=M7P9_ST_S3_READY`, `open_blockers=0`,
+   - AL functional/performance and semantic/retry-invariant checks closed green,
+   - `probe_count=2`, `error_rate_pct=0.0`,
+   - artifact contract complete (`18/18` required artifacts present),
+   - sparse natural cohort coverage and managed-lane low-sample throughput remain explicit advisories for downstream injected stress windows.
+7. `M7P9-ST-S3` executed (`m7p9_stress_s3_20260304T062431Z`) and passed:
+   - `overall_pass=true`, `next_gate=M7P9_ST_S4_READY`, `open_blockers=0`,
+   - DLA functional/performance and append-only/causal-invariant checks closed green,
+   - `probe_count=3`, `error_rate_pct=0.0`,
+   - artifact contract complete (`18/18` required artifacts present),
+   - managed-lane low-sample throughput and sparse natural cohort coverage remain explicit advisories for downstream pressure windows.
+8. `M7P9-ST-S4` executed (`m7p9_stress_s4_20260304T062934Z`) and passed:
+   - `overall_pass=true`, `next_gate=M7P9_ST_S5_READY`, `open_blockers=0`, `remediation_mode=NO_OP`,
+   - targeted-rerun lane remained deterministic and blocker-consistent across `S0..S3` chain sweep,
+   - `probe_count=1`, `error_rate_pct=0.0`,
+   - artifact contract complete (`18/18` required artifacts present).
+9. `M7P9-ST-S5` executed (`m7p9_stress_s5_20260304T063429Z`) and passed:
+   - `overall_pass=true`, `verdict=ADVANCE_TO_P10`, `next_gate=ADVANCE_TO_P10`, `open_blockers=0`,
+   - chain sweep remained run-scope consistent across `S0..S4` (`platform_run_id=platform_20260223T184232Z`),
+   - `probe_count=7`, `error_rate_pct=0.0`,
+   - artifact contract complete (`18/18` required artifacts present).

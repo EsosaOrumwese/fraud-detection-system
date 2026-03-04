@@ -4243,6 +4243,586 @@ _As of 2026-03-03_
 
 ### Commit posture
 1. No commit/push performed.
+## Entry: 2026-03-04 07:11 +00:00 - M7P10-ST-S3 execution closure continuity (tail append)
+
+### Continuity note
+1. Full `M7P10-ST-S3` implementation/execution detail is already recorded in this file under the 07:09 execution entry.
+2. This tail append preserves end-of-file chronology for the active workstream without rewriting prior records.
+
+### Closure summary
+1. `M7P10-ST-S3` execution receipt:
+   - `phase_execution_id=m7p10_stress_s3_20260304T070641Z`,
+   - `overall_pass=true`,
+   - `next_gate=M7P10_ST_S4_READY`,
+   - `open_blockers=0`.
+2. Blocker register remained empty and artifact contract remained complete (`18/18`).
+3. Decision posture remained unchanged:
+   - LS writer-boundary semantics are green (`single_writer_posture=true`, `writer_conflict_rate_pct=0.0`),
+   - low-sample throughput posture remains explicit advisory for downstream pressure windows.
+
+### Commit posture
+1. No commit/push performed.
+## Entry: 2026-03-04 07:09 +00:00 - M7P10-ST-S3 implemented and executed (pass)
+
+### Blocker carry-over confirmation
+1. Upstream `M7P10-ST-S2` remained blocker-free at execution start:
+   - `phase_execution_id=m7p10_stress_s2_20260304T070138Z`,
+   - `overall_pass=true`,
+   - `next_gate=M7P10_ST_S3_READY`,
+   - `open_blocker_count=0`.
+
+### Implementation
+1. Extended `scripts/dev_substrate/m7p10_stress_runner.py` with:
+   - `run_s3()` LS lane execution,
+   - CLI stage routing for `--stage S3`.
+2. `S3` fail-closed mapping enforced:
+   - `M7P10-ST-B8` LS functional/performance breaches,
+   - `M7P10-ST-B9` writer-boundary/single-writer semantic breaches,
+   - `M7P10-ST-B10` evidence readback/artifact-contract breaches.
+3. `S3` lane mechanics enforced:
+   - strict `S2` continuity and dependency artifact closure,
+   - historical `P10.D` baseline adjudication + runtime contract normalization,
+   - LS run-scope/upstream-linkage/idempotency/fail-closed checks,
+   - writer-boundary semantics (`single_writer_posture`, writer-state cardinality, conflict/reopen bounds),
+   - full P10 artifact contract emission (`18/18`).
+
+### Validation and execution
+1. Compile check:
+   - `python -m py_compile scripts/dev_substrate/m7p10_stress_runner.py` (pass).
+2. Execution:
+   - `python scripts/dev_substrate/m7p10_stress_runner.py --stage S3` (pass).
+3. Receipt:
+   - `phase_execution_id=m7p10_stress_s3_20260304T070641Z`,
+   - `overall_pass=true`,
+   - `next_gate=M7P10_ST_S4_READY`,
+   - `open_blockers=0`,
+   - `probe_count=6`,
+   - `error_rate_pct=0.0`,
+   - `platform_run_id=platform_20260223T184232Z`.
+4. Artifact contract:
+   - complete (`18/18` required artifacts present).
+
+### Decision rationale
+1. No carry-over blockers were detected before `S3`; dependency continuity is clean.
+2. LS lane closed green with empty S3 functional and semantic issue sets.
+3. Writer-boundary posture stayed in-bounds:
+   - `single_writer_posture=true`,
+   - `writer_conflict_rate_pct=0.0 <= 0.5`,
+   - writer outcome states remained valid (`ACCEPTED`, `PENDING`, `REJECTED`).
+4. Historical low-sample throughput posture remains explicit advisory; contention pressure remains a downstream requirement and not a silently waived risk.
+5. No remediation rerun required because blocker register is empty.
+
+### Documentation sync
+1. Updated `platform.M7.P10.stress_test.md`:
+   - DoD marks `S3` complete,
+   - immediate next actions now route to `S4 -> S5`,
+   - execution progress includes `S3` receipt and LS writer-boundary closure rationale.
+2. Updated `platform.M7.stress_test.md`:
+   - immediate next actions now continue `P10` from `S4 -> S5`,
+   - execution progress includes `S3` receipt.
+3. Updated `platform.stress_test.md`:
+   - active M7 status reflects `P10` `S0/S1/S2/S3` closure,
+   - latest `P10` receipts include `S3`,
+   - current next executable step routes to `M7P10-ST-S4`.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 06:51 +00:00 - M7P10-ST-S0 implemented and executed (pass)
+
+### Blocker carry-over confirmation
+1. Previous execution remained clean before opening `M7P10-S0`:
+   - latest `M7P9-ST-S5` (`m7p9_stress_s5_20260304T063429Z`) had
+     - `overall_pass=true`,
+     - `verdict=ADVANCE_TO_P10`,
+     - `next_gate=ADVANCE_TO_P10`,
+     - `open_blocker_count=0`.
+
+### Implementation delivered
+1. Added `scripts/dev_substrate/m7p10_stress_runner.py` (initial `S0` lane).
+2. Runner behavior implemented:
+   - authority + required-handle closure checks (`M7P10-ST-B1`),
+   - dependency continuity checks vs parent `M7-S0` and upstream `M7P9-S5` (`M7P10-ST-B2`),
+   - case-label evidence readback and writer-probe validation (`M7P10-ST-B10`),
+   - representativeness checks for case/label profile thresholds (`M7P10-ST-B3`),
+   - deterministic artifact contract emission (`18/18` required artifacts).
+3. Runtime/performance design choice for S0 realism gate:
+   - direct case-label component proofs are low sample (`18`) in managed-lane surfaces,
+   - S0 uses explicit run-scoped proxy (`P9 decision_input_events`) only for volume gates,
+   - source provenance is recorded in `m7p10_data_profile_summary.json` and treated as advisory-bound, not silent.
+
+### Remediation during execution
+1. First `S0` run failed on serialization defect (`WindowsPath` inside historical snapshot payload).
+2. Remediation applied:
+   - normalized historical `path` values to string in runner helpers.
+3. Rerun executed immediately after patch.
+
+### Execution receipts
+1. Compile check:
+   - `python -m py_compile scripts/dev_substrate/m7p10_stress_runner.py` (pass).
+2. Execution:
+   - `python scripts/dev_substrate/m7p10_stress_runner.py --stage S0` (pass).
+3. Receipt:
+   - `phase_execution_id=m7p10_stress_s0_20260304T065016Z`,
+   - `overall_pass=true`,
+   - `next_gate=M7P10_ST_S1_READY`,
+   - `open_blockers=0`,
+   - `probe_count=6`,
+   - `error_rate_pct=0.0`,
+   - `platform_run_id=platform_20260223T184232Z`.
+4. Representativeness closure summary:
+   - observed case/label proof sample: `18`,
+   - effective run-scoped proxy volume: `2190000986`,
+   - label class cardinality: `3` (from LS writer probe outcomes),
+   - writer conflict rate: `0.0`,
+   - case reopen rate: `0.0`.
+
+### Documentation sync
+1. Updated `platform.M7.P10.stress_test.md`:
+   - marked `M7P10-ST-S0` DoD complete,
+   - updated immediate next action to `M7P10-ST-S1`,
+   - appended S0 execution progress receipt + proxy rationale.
+2. Updated `platform.M7.stress_test.md`:
+   - progressed P10 pointer to `S1`,
+   - appended `M7P10-ST-S0` pass receipt in execution progress.
+3. Updated `platform.stress_test.md`:
+   - active `M7` status now includes `P10-S0` closure,
+   - added latest `M7.P10` receipt,
+   - updated next executable step to `M7P10-ST-S1`.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 06:42 +00:00 - M7P10-ST-S0 execution plan pinned before implementation
+
+### Trigger
+1. USER directed:
+   - confirm no carry-over blockers from previous execution,
+   - plan and execute `M7P10-ST-S0`,
+   - resolve blockers according to platform goals and document decisions.
+
+### Pre-run blocker confirmation
+1. Latest `M7P9-ST-S5` receipt remains blocker-free:
+   - `phase_execution_id=m7p9_stress_s5_20260304T063429Z`,
+   - `overall_pass=true`,
+   - `verdict=ADVANCE_TO_P10`,
+   - `next_gate=ADVANCE_TO_P10`,
+   - blocker register closed (`open_blocker_count=0`).
+
+### M7P10-S0 authority and contract extraction
+1. P10 stress authority confirms `S0` objective:
+   - close entry/dependency/handle packet,
+   - generate representative case-label subset/profile closure,
+   - emit deterministic stage artifacts.
+2. P10 S0 fail-closed blocker mapping:
+   - `M7P10-ST-B1` authority/handle closure failure,
+   - `M7P10-ST-B2` dependency gate mismatch,
+   - `M7P10-ST-B3` representativeness failure,
+   - `M7P10-ST-B10` evidence publish/readback failure.
+3. P10 representativeness thresholds to enforce:
+   - `M7P10_STRESS_DATA_MIN_CASE_EVENTS=5000`,
+   - `M7P10_STRESS_DATA_MIN_LABEL_EVENTS=12000`,
+   - `M7P10_STRESS_LABEL_CLASS_MIN_CARDINALITY=3`,
+   - `M7P10_STRESS_WRITER_CONFLICT_MAX_RATE_PCT=0.5`,
+   - `M7P10_STRESS_CASE_REOPEN_RATE_MAX_PCT=3.0`.
+
+### Historical baseline and dependency posture
+1. Historical P10 component lineage is present and green:
+   - `P10.A` `next_gate=P10.B_READY`,
+   - `P10.B` `next_gate=P10.C_READY`,
+   - `P10.C` `next_gate=P10.D_READY`,
+   - `P10.D` `next_gate=P10.E_READY`,
+   - `P10.E` `next_gate=M7.J_READY`,
+   - all sampled historical blocker registers show zero blockers.
+2. Current-cycle upstream dependency artifacts are available from latest P9 S5:
+   - `m7p9_data_subset_manifest.json`,
+   - `m7p9_data_profile_summary.json`,
+   - `m7p9_score_distribution_profile.json`,
+   - `m7p9_action_mix_profile.json`,
+   - `m7p9_idempotency_collision_profile.json`.
+
+### Design choices before coding
+1. Implement dedicated runner `scripts/dev_substrate/m7p10_stress_runner.py` with explicit `S0` stage entrypoint first.
+2. Reuse deterministic structure from `m7p9_stress_runner.py`:
+   - contract-key parsing,
+   - required-handle closure checks,
+   - dependency continuity checks,
+   - probe metrics and fail-closed artifact-contract enforcement.
+3. Preserve black-box boundary:
+   - no data-engine internals,
+   - evidence sourced from run-scoped platform artifacts (`case_labels`, `decision_lane`, `ingest` surfaces).
+4. Prefer direct P10 case-label proofs (`case_trigger/cm/ls`) for semantic metrics; only use upstream P9 proxies when a metric is not directly observable.
+5. Keep S0 runtime low-cost with metadata/object-head/readback probes only; no broad high-spend execution in S0.
+
+### Planned implementation steps
+1. Build `m7p10_stress_runner.py` utilities:
+   - parse plan packet and registry,
+   - resolve required handles,
+   - dependency lookup helpers,
+   - S3 head/object readback probes,
+   - artifact-contract finalizer.
+2. Implement `run_s0()`:
+   - enforce authority closure (`B1`),
+   - enforce dependency continuity (`B2`) against parent `M7-S0` and upstream `M7P9-S5`,
+   - load/validate case-label component proofs and historical P10 baselines,
+   - compute representativeness checks with explicit blocking vs advisory split,
+   - emit full P10 required artifact contract and deterministic summary/verdict.
+3. Validate and run:
+   - `python -m py_compile scripts/dev_substrate/m7p10_stress_runner.py`,
+   - `python scripts/dev_substrate/m7p10_stress_runner.py --stage S0`.
+4. If blocked:
+   - classify blocker root cause,
+   - implement narrow remediation in runner logic or data-source mapping,
+   - rerun `S0` immediately.
+5. Sync docs:
+   - update `platform.M7.P10.stress_test.md`,
+   - update `platform.M7.stress_test.md`,
+   - update `platform.stress_test.md`,
+   - append execution receipts + rationale to impl map and logbook.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 06:38 +00:00 - M7P9 closure audit complete (no blockers; no unresolved execution work)
+
+### Trigger
+1. USER requested explicit confirmation that `M7.P9` has no blockers or unresolved work before moving to `P10`.
+
+### Audit performed
+1. Verified latest receipts for `S0..S5`:
+   - `S0`: `m7p9_stress_s0_20260304T060915Z` (`next_gate=M7P9_ST_S1_READY`, `open_blockers=0`),
+   - `S1`: `m7p9_stress_s1_20260304T061430Z` (`next_gate=M7P9_ST_S2_READY`, `open_blockers=0`),
+   - `S2`: `m7p9_stress_s2_20260304T061756Z` (`next_gate=M7P9_ST_S3_READY`, `open_blockers=0`),
+   - `S3`: `m7p9_stress_s3_20260304T062431Z` (`next_gate=M7P9_ST_S4_READY`, `open_blockers=0`),
+   - `S4`: `m7p9_stress_s4_20260304T062934Z` (`next_gate=M7P9_ST_S5_READY`, `open_blockers=0`, `remediation_mode=NO_OP`),
+   - `S5`: `m7p9_stress_s5_20260304T063429Z` (`verdict=ADVANCE_TO_P10`, `next_gate=ADVANCE_TO_P10`, `open_blockers=0`).
+2. Verified `S5` artifact contract completeness:
+   - required artifacts `18/18`, missing `0`.
+3. Verified P9 authority DoD is fully closed:
+   - `platform.M7.P9.stress_test.md` marks `S0..S5` complete.
+
+### Residual item and resolution
+1. Found documentation drift in main stress authority status line:
+   - it still stated `M7.P9` had only started.
+2. Resolved by updating `platform.stress_test.md` status to reflect full `M7.P9` closure through `S5` with `ADVANCE_TO_P10`.
+
+### Outcome
+1. No unresolved blockers exist in `M7.P9`.
+2. No unresolved execution work remains inside `M7.P9`.
+3. `M7.P9` is closure-ready to hand off as accepted input for `P10` continuation.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 06:32 +00:00 - M7P9-ST-S5 execution plan pinned before implementation
+
+### Prompt and blocker posture
+1. USER directed: confirm no carry-over blockers, then plan and execute `M7P9-ST-S5` with remediation as needed and documented decisions.
+2. Confirmed upstream closure before implementation:
+   - latest `M7P9-ST-S4` summary: `phase_execution_id=m7p9_stress_s4_20260304T062934Z`, `overall_pass=true`, `next_gate=M7P9_ST_S5_READY`, `open_blocker_count=0`, `remediation_mode=NO_OP`,
+   - latest `M7P9-ST-S4` blocker register remained closed.
+
+### S5 contract extraction (authority)
+1. Extracted from `platform.M7.P9.stress_test.md` section `7.6`:
+   - objective: emit deterministic P9 verdict from realistic-data evidence,
+   - entry: latest successful `S4` with `next_gate=M7P9_ST_S5_READY` and no unresolved non-waived blockers,
+   - fail-closed mapping: `M7P9-ST-B11` for rollup/verdict inconsistency, `M7P9-ST-B12` for artifact-contract incompleteness,
+   - pass gate: deterministic verdict `ADVANCE_TO_P10` and `next_gate=ADVANCE_TO_P10`.
+2. Plan contract check:
+   - enforce `M7P9_STRESS_EXPECTED_VERDICT_ON_PASS=ADVANCE_TO_P10` as hard gate before execution.
+
+### Alternatives considered
+1. Reuse `S4` verdict directly and skip explicit S5 rollup:
+   - rejected because S5 is the deterministic closure authority and must emit explicit rollup evidence.
+2. Promote pass without full chain sweep:
+   - rejected because it can hide latent chain drift and violates fail-closed rollup intent.
+3. Deterministic chain rollup from `S0..S4` with evidence readback and contract-complete artifact emission:
+   - selected; aligns with S5 contract, anti-drift law, and production-grade closure posture.
+
+### Planned implementation
+1. Extend `scripts/dev_substrate/m7p9_stress_runner.py` with `run_s5()`:
+   - validate expected-pass verdict contract (`ADVANCE_TO_P10`),
+   - enforce plan/handle/doc closure and `S4` dependency closure,
+   - verify required S4 artifact set and gate/verdict/readback payloads,
+   - execute deterministic chain sweep across `S0..S4` with gate+blocker+run-scope checks,
+   - validate behavior-context readback keys (`receipt_summary`, `quarantine_summary`, `offsets_snapshot`) via head-object probes,
+   - aggregate advisories and emit deterministic verdict:
+     - `ADVANCE_TO_P10` only when blocker-free and artifact-complete,
+     - otherwise fail closed (`HOLD_REMEDIATE`).
+2. Update shared artifact-contract finalizer to allow S5-specific blocker mapping (`M7P9-ST-B12`) without altering other stage mappings.
+3. Wire CLI stage routing for `--stage S5`.
+4. Validate and execute:
+   - `python -m py_compile scripts/dev_substrate/m7p9_stress_runner.py`,
+   - `python scripts/dev_substrate/m7p9_stress_runner.py --stage S5`.
+5. If blockers appear, apply targeted remediation and rerun `S5` immediately.
+6. Sync P9/M7/main stress authorities + impl map + logbook with S5 receipts and rationale.
+
+### Commit posture
+1. No commit/push planned.
+
+## Entry: 2026-03-04 06:34 +00:00 - M7P9-ST-S5 implemented and executed (pass)
+
+### Implementation
+1. Extended `scripts/dev_substrate/m7p9_stress_runner.py` with:
+   - `run_s5()` P9 rollup + verdict lane execution,
+   - CLI stage routing for `--stage S5`.
+2. `S5` fail-closed mapping implemented:
+   - `M7P9-ST-B11` for rollup/verdict and chain-consistency inconsistencies,
+   - `M7P9-ST-B12` for artifact-contract/evidence readback incompleteness.
+3. `S5` mechanics implemented:
+   - strict `S4` dependency continuity and blocker closure checks,
+   - deterministic chain sweep across `S0..S4` with run-scope consistency checks,
+   - expected verdict contract guard (`M7P9_STRESS_EXPECTED_VERDICT_ON_PASS=ADVANCE_TO_P10`),
+   - behavior-context and decision-lane readback probes before verdict emission,
+   - stage-specific artifact-contract finalization mapped to `B12` for S5.
+
+### Execution and result
+1. Compile check:
+   - `python -m py_compile scripts/dev_substrate/m7p9_stress_runner.py` (pass).
+2. Execution:
+   - `python scripts/dev_substrate/m7p9_stress_runner.py --stage S5`.
+3. Receipt:
+   - `phase_execution_id=m7p9_stress_s5_20260304T063429Z`,
+   - `overall_pass=true`,
+   - `verdict=ADVANCE_TO_P10`,
+   - `next_gate=ADVANCE_TO_P10`,
+   - `open_blockers=0`,
+   - `probe_count=7`,
+   - `error_rate_pct=0.0`,
+   - `platform_run_id=platform_20260223T184232Z`.
+4. Artifact contract:
+   - complete (`18/18` required artifacts present).
+
+### Decision rationale
+1. No carry-over blocker existed from prior lane (`S4` blocker register remained closed).
+2. S5 closure was treated as deterministic authority, not a box-check:
+   - chain closure `S0..S4` remained fully green and run-scope consistent,
+   - verdict contract and readback evidence were complete before promoting `ADVANCE_TO_P10`.
+3. Sparse natural cohort advisories remain explicit and were propagated into post-P9 continuation.
+
+### Documentation sync
+1. Updated `platform.M7.P9.stress_test.md`:
+   - DoD marks `S5` complete,
+   - immediate next actions route to parent P9 acceptance and P10 start,
+   - execution progress includes `S5` pass receipt.
+2. Updated `platform.M7.stress_test.md`:
+   - execution progress includes `S5` pass receipt,
+   - immediate next subphase pointer moves from P9 to P10.
+3. Updated `platform.stress_test.md`:
+   - active-phase receipt list includes `M7P9-S5` pass,
+   - next executable step routes to parent `M7-S1` then `M7.P10` `S0`.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 06:27 +00:00 - M7P9-ST-S4 execution plan pinned before implementation
+
+### Prompt and blocker posture
+1. USER directed: confirm no carry-over blockers, then plan and execute `M7P9-ST-S4` with remediation as needed and documented decisions.
+2. Confirmed upstream closure before implementation:
+   - latest `M7P9-ST-S3` summary: `phase_execution_id=m7p9_stress_s3_20260304T062431Z`, `overall_pass=true`, `next_gate=M7P9_ST_S4_READY`, `open_blocker_count=0`,
+   - latest `M7P9-ST-S3` blocker register remained closed.
+
+### S4 contract extraction (authority)
+1. Extracted from `platform.M7.P9.stress_test.md` section `7.5`:
+   - objective: close open blockers with narrow-scope fixes and targeted reruns only,
+   - entry: latest `S3` summary/register readable,
+   - fail-closed mapping: `M7P9-ST-B11` for remediation evidence inconsistency, `M7P9-ST-B10` for evidence contract/readback failure,
+   - pass gate: all blockers resolved/waived and `next_gate=M7P9_ST_S5_READY`.
+2. Since `S3` is currently blocker-free, expected primary path is deterministic `NO_OP` remediation closure with full evidence contract emission.
+
+### Alternatives considered
+1. Manual/no-code closure by treating `S4` as implicit pass:
+   - rejected because S4 requires explicit stage evidence and deterministic lane receipts.
+2. Always-force targeted rerun despite clean `S3`:
+   - rejected because it violates targeted-rerun-only policy and wastes runtime/cost budget without new decision value.
+3. Deterministic remediation adjudication (`NO_OP` when clean, fail-closed otherwise):
+   - selected; aligns with S4 contract, cost-control law, and anti-box-check requirements.
+
+### Planned implementation
+1. Extend `scripts/dev_substrate/m7p9_stress_runner.py` with `run_s4()`:
+   - enforce plan/handle/doc closure for S4,
+   - enforce strict dependency closure on `S3` (`next_gate=M7P9_ST_S4_READY`, blocker register closed),
+   - verify required S3 carry-forward artifacts,
+   - execute deterministic chain sweep across `S0..S3` with expected gates,
+   - classify remediation posture as:
+     - `NO_OP` when chain and dependency closure are clean,
+     - `TARGETED_REMEDIATE` when concrete residual blocker exists,
+   - map inconsistencies to `M7P9-ST-B11`,
+   - map evidence/readback failures to `M7P9-ST-B10`,
+   - emit full P9 artifact contract and verdict (`ADVANCE_TO_S5` only when blocker-free).
+2. Wire CLI stage routing for `--stage S4`.
+3. Validate and execute:
+   - `python -m py_compile scripts/dev_substrate/m7p9_stress_runner.py`,
+   - `python scripts/dev_substrate/m7p9_stress_runner.py --stage S4`.
+4. If blockers appear, apply minimal targeted remediation and rerun `S4` immediately.
+5. Sync P9/M7/main stress authorities + impl map + logbook with S4 receipts and rationale.
+
+### Commit posture
+1. No commit/push planned.
+
+## Entry: 2026-03-04 06:29 +00:00 - M7P9-ST-S4 implemented and executed (pass)
+
+### Implementation
+1. Extended `scripts/dev_substrate/m7p9_stress_runner.py` with:
+   - `run_s4()` remediation lane execution,
+   - CLI stage routing for `--stage S4`.
+2. `S4` fail-closed mapping implemented:
+   - `M7P9-ST-B11` for remediation/chain-closure inconsistencies,
+   - `M7P9-ST-B10` for evidence readback/artifact-contract failures.
+3. `S4` mechanics implemented:
+   - strict `S3` dependency continuity and blocker closure checks,
+   - deterministic chain sweep across `S0..S3` with expected gate sequence checks,
+   - blocker root-cause classification (`DF/AL/DLA/DATA_PROFILE/EVIDENCE`) for targeted remediation posture,
+   - targeted-rerun enforcement (`NO_OP` when clean; `TARGETED_REMEDIATE` when residual blockers exist),
+   - full P9 artifact contract emission with S3 carry-forward where appropriate.
+
+### Execution and result
+1. Compile check:
+   - `python -m py_compile scripts/dev_substrate/m7p9_stress_runner.py` (pass).
+2. Execution:
+   - `python scripts/dev_substrate/m7p9_stress_runner.py --stage S4`.
+3. Receipt:
+   - `phase_execution_id=m7p9_stress_s4_20260304T062934Z`,
+   - `overall_pass=true`,
+   - `next_gate=M7P9_ST_S5_READY`,
+   - `open_blockers=0`,
+   - `remediation_mode=NO_OP`,
+   - `probe_count=1`,
+   - `error_rate_pct=0.0`,
+   - `platform_run_id=platform_20260223T184232Z`.
+4. Artifact contract:
+   - complete (`18/18` required artifacts present).
+
+### Decision rationale
+1. No carry-over blocker existed from prior lane (`S3` blocker register remained closed).
+2. S4 remediation lane was adjudicated as a full component gate:
+   - chain consistency across `S0..S3` passed,
+   - no residual blocker required targeted rerun, so `NO_OP` is the only cost-correct posture.
+3. Sparse natural cohort advisories remain explicit and are preserved for S5 rollup pressure.
+
+### Documentation sync
+1. Updated `platform.M7.P9.stress_test.md`:
+   - DoD marks `S4` complete,
+   - immediate next step routes to `S5`,
+   - execution progress includes `S4` pass receipt.
+2. Updated `platform.M7.stress_test.md`:
+   - execution progress includes `S4` pass receipt,
+   - immediate next P9 lane now `S5`.
+3. Updated `platform.stress_test.md`:
+   - active-phase receipt list includes `M7P9-S4` pass,
+   - next executable step routes to parent `M7-S1` then `M7P9-S5`.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 06:22 +00:00 - M7P9-ST-S3 execution plan pinned before implementation
+
+### Prompt and blocker posture
+1. USER directed: confirm no carry-over blockers, then plan and execute `M7P9-ST-S3` (DLA lane) with remediation and documented decisions.
+2. Confirmed upstream closure before implementation:
+   - latest `M7P9-ST-S2` summary: `phase_execution_id=m7p9_stress_s2_20260304T061756Z`, `overall_pass=true`, `next_gate=M7P9_ST_S3_READY`, `open_blocker_count=0`,
+   - latest `M7P9-ST-S2` blocker register remained closed.
+
+### S3 contract extraction (authority)
+1. Extracted from `platform.M7.P9.stress_test.md` section `7.4`:
+   - objective: validate DLA append-only audit truth under realistic cohorts,
+   - entry: latest successful `S2` with `next_gate=M7P9_ST_S3_READY`,
+   - fail-closed mapping: `M7P9-ST-B8` (functional/performance), `M7P9-ST-B9` (append-only/causal invariants), `M7P9-ST-B10` (evidence contract/readback),
+   - pass gate: `next_gate=M7P9_ST_S4_READY`.
+2. Cross-checked DLA historical baseline payload shape from `p9d_dla_{execution_summary,component_snapshot,performance_snapshot,blocker_register}.json`.
+3. Cross-checked active run DLA proof schema (`dla_component_proof.json`) from local stress temp artifact and S0 excerpt for invariant fields:
+   - `component`, `platform_run_id`, `run_scope_tuple`, `upstream_gate_accepted`, `idempotency_posture`, `fail_closed_posture`, `append_only_posture`, `audit_append_probe_key`.
+
+### Alternatives considered
+1. Minimal/no-code run (treat S3 as carry-forward only):
+   - rejected because S3 must execute DLA-specific checks and emit lane-local closure evidence.
+2. Full synthetic replay pressure generation inside S3 runner:
+   - rejected for now because it exceeds this lane scope and would mutate test mechanics beyond current P9 contract.
+3. Deterministic black-box DLA gate from current run proofs + historical baseline + evidence probes:
+   - selected; preserves existing pattern from S1/S2, remains fail-closed, and is aligned with P9 S3 contract.
+
+### Planned implementation
+1. Extend `scripts/dev_substrate/m7p9_stress_runner.py` with `run_s3()`:
+   - enforce S2 dependency continuity and closed blocker register,
+   - carry forward required S2 artifacts (`subset/profile/df/al/dla/score/action/idempotency/decision_log`),
+   - probe `S3_EVIDENCE_BUCKET`,
+   - resolve decision-lane root from `DECISION_LANE_EVIDENCE_PATH_PATTERN`,
+   - read `dla_component_proof.json`,
+   - load latest successful `P9.D` historical baseline (`latest_hist_p9d()`),
+   - functional checks (`B8`): runtime contract, historical gate/perf bounds, baseline availability,
+   - semantic checks (`B9`): DLA proof run-scope/invariant posture, append-only posture, audit append probe readability, causal linkage to S2 profile,
+   - evidence/readback failures (`B10`).
+2. Emit full P9 artifact contract for stage `M7P9-ST-S3` and compute verdict:
+   - pass: `next_gate=M7P9_ST_S4_READY`, verdict `ADVANCE_TO_S4`,
+   - fail: `BLOCKED`, verdict `HOLD_REMEDIATE`.
+3. Wire CLI stage routing for `--stage S3`.
+4. Validate and execute:
+   - `python -m py_compile scripts/dev_substrate/m7p9_stress_runner.py`,
+   - `python scripts/dev_substrate/m7p9_stress_runner.py --stage S3`.
+5. If blockers appear, perform targeted remediation and rerun `S3` immediately.
+6. Sync P9/M7/main stress authorities + impl map + logbook with receipts and rationale.
+
+### Commit posture
+1. No commit/push planned.
+
+## Entry: 2026-03-04 06:24 +00:00 - M7P9-ST-S3 implemented and executed (pass)
+
+### Implementation
+1. Extended `scripts/dev_substrate/m7p9_stress_runner.py` with:
+   - `run_s3()` DLA lane execution,
+   - CLI stage routing for `--stage S3`.
+2. `S3` fail-closed mapping implemented:
+   - `M7P9-ST-B8` for DLA functional/performance breaches,
+   - `M7P9-ST-B9` for DLA append-only/causal-invariant breaches,
+   - `M7P9-ST-B10` for evidence readback/artifact-contract failures.
+3. `S3` mechanics implemented:
+   - strict `S2` dependency continuity and blocker closure checks,
+   - DLA proof readback from active run scope,
+   - DLA audit append probe readback and parse checks,
+   - historical DLA baseline/performance adjudication with runtime alias normalization,
+   - semantic posture checks (`run_scope_tuple`, upstream gate acceptance, idempotency/fail-closed posture, append-only posture, causal ingest-basis bounds),
+   - full P9 artifact contract emission with S2 carry-forward where appropriate.
+
+### Execution and result
+1. Compile check:
+   - `python -m py_compile scripts/dev_substrate/m7p9_stress_runner.py` (pass).
+2. Execution:
+   - `python scripts/dev_substrate/m7p9_stress_runner.py --stage S3`.
+3. Receipt:
+   - `phase_execution_id=m7p9_stress_s3_20260304T062431Z`,
+   - `overall_pass=true`,
+   - `next_gate=M7P9_ST_S4_READY`,
+   - `open_blockers=0`,
+   - `probe_count=3`,
+   - `error_rate_pct=0.0`,
+   - `platform_run_id=platform_20260223T184232Z`.
+4. Artifact contract:
+   - complete (`18/18` required artifacts present).
+
+### Decision rationale
+1. No carry-over blocker existed from prior lane (`S2` blocker register remained closed).
+2. DLA assurance was treated as a full component gate:
+   - functional/performance baseline checks passed,
+   - append-only/causal invariants passed for active run scope.
+3. Sparse natural cohort posture remains explicit advisory, not silently accepted as realism completion:
+   - managed-lane low-sample throughput remains advisory,
+   - prior policy/action/duplicate sparsity advisories remain carried into downstream lanes.
+
+### Documentation sync
+1. Updated `platform.M7.P9.stress_test.md`:
+   - DoD marks `S3` complete,
+   - immediate next step routes to `S4`,
+   - execution progress includes `S3` pass receipt.
+2. Updated `platform.M7.stress_test.md`:
+   - execution progress includes `S3` pass receipt,
+   - immediate next P9 lane now `S4`.
+3. Updated `platform.stress_test.md`:
+   - active-phase receipt list includes `M7P9-S3` pass,
+   - next executable step routes to parent `M7-S1` then `M7P9-S4`.
+
+### Commit posture
+1. No commit/push performed.
 
 ## Entry: 2026-03-04 01:37 +00:00 - Parent `M6-ST-S1` gate implemented and executed (pass)
 
@@ -5579,6 +6159,1578 @@ _As of 2026-03-03_
    - latest S0 receipt `m7_stress_s0_20260304T050659Z`,
    - advisory semantics for duplicate/out-of-order non-observability at manifest-only S0 layer.
 2. `platform.stress_test.md` M7 active-phase receipt updated to latest S0 run and profile source mode.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 05:20 +00:00 - M7P8-ST-S1 execution plan pinned before implementation
+
+### Trigger
+1. USER directed: plan `M7P8-ST-S1` first, then execute and resolve blockers with documented decisions.
+2. USER emphasized this is a full component stress gate and must not be checkbox-only.
+
+### Context and constraints
+1. Parent `M7-ST-S0` is green from boundary-corrected run:
+   - `phase_execution_id=m7_stress_s0_20260304T050659Z`,
+   - `overall_pass=true`,
+   - `next_gate=M7_ST_S1_READY`,
+   - black-box profile source: `stream_view/truth_view` manifests + ingest behavior-context receipts.
+2. No dedicated `M7P8` executable runner exists yet.
+3. P8 component historical artifacts exist from managed lanes (`p8b/p8c/p8d/p8e`) and align to platform run `platform_20260223T184232Z`.
+4. Throughput posture in historical component lane remains `waived_low_sample` (`sample_size=18`), so S1 adjudication must separate:
+   - functional/semantic/runtime safety gates (blocking),
+   - deferred non-waived throughput certification (`M7P8-D8` style carry-forward, non-blocking for functional closure).
+
+### Decision
+1. Implement a dedicated `scripts/dev_substrate/m7p8_stress_runner.py` now, with executable `S0` and `S1` lanes.
+2. Keep strict black-box boundary:
+   - inputs limited to stress docs/registry + run-control artifacts + component proof artifacts + S3 behavior-context evidence.
+3. `S0` will close entry dependency and profile continuity:
+   - validate plan keys/required handles/docs,
+   - require latest parent `M7-ST-S0` closure and blocker-free status,
+   - derive P8 subset/profile closure from parent M7 S0 profile (same run-scope),
+   - emit full `m7p8_*` artifact contract with fail-closed blocker mapping.
+4. `S1` will enforce IEG lane closure under realistic data cohorts by combining:
+   - parent realism evidence from `S0`,
+   - latest successful managed `P8.B` component snapshots/proofs,
+   - behavior-context evidence readback (receipt/offset/quarantine).
+5. S1 fail-closed blocker policy:
+   - open `M7P8-ST-B4` for functional/perf failures (lane fail, lag/error breach, run-scope mismatch),
+   - open `M7P8-ST-B5` for semantic-invariant failure (required cohort or evidence invariant failure),
+   - open `M7P8-ST-B10` for evidence contract/readback failures.
+6. If blocker opens, remediate minimally and rerun only affected stage (`targeted rerun only`).
+
+### Execution plan
+1. Add runner file with common helpers + `run_s0` + `run_s1` + CLI wiring.
+2. Compile-check runner.
+3. Execute:
+   - `python scripts/dev_substrate/m7p8_stress_runner.py --stage S0`,
+   - `python scripts/dev_substrate/m7p8_stress_runner.py --stage S1`.
+4. If blocked, patch minimally, rerun impacted stage immediately, and capture decision rationale.
+5. Update:
+   - `platform.M7.P8.stress_test.md`,
+   - `platform.M7.stress_test.md`,
+   - `platform.stress_test.md`,
+   - this implementation map + today logbook.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 05:31 +00:00 - M7P8-ST-S0/S1 implemented, remediated, and executed green
+
+### Implementation delivered
+1. Created `scripts/dev_substrate/m7p8_stress_runner.py` with executable lanes:
+   - `S0`: entry/dependency/profile closure,
+   - `S1`: IEG functional/performance/semantic gate.
+2. Runner emits full P8 artifact contract per stage (`m7p8_*` set), including blocker register, summary, decision log, and gate verdict.
+3. Enforced black-box evidence scope:
+   - parent `M7-ST-S0` stress artifacts,
+   - historical managed `P8.B` artifacts,
+   - S3 behavior-context receipts and RTDL component proof.
+
+### Execution chain and blocker remediations
+1. Compile check:
+   - `python -m py_compile scripts/dev_substrate/m7p8_stress_runner.py` (pass).
+2. First `S0` run:
+   - `phase_execution_id=m7p8_stress_s0_20260304T052722Z`,
+   - blocked with `M7P8-ST-B1`.
+3. `S0` blocker root cause:
+   - plan pinned legacy handle names (`FP_BUS_TRAFFIC_V1`, `FP_BUS_CONTEXT_V1`),
+   - registry now exposes equivalent canonicalized keys (`FP_BUS_TRAFFIC_FRAUD_V1`, `FP_BUS_CONTEXT_*`).
+4. `S0` remediation:
+   - added alias-aware required-handle resolution,
+   - fail-closed retained when no equivalent handle exists.
+5. `S0` rerun:
+   - `phase_execution_id=m7p8_stress_s0_20260304T052810Z`,
+   - `overall_pass=true`, `next_gate=M7P8_ST_S1_READY`, `open_blockers=0`.
+6. First `S1` run:
+   - `phase_execution_id=m7p8_stress_s1_20260304T052814Z`,
+   - blocked with `M7P8-ST-B4`.
+7. `S1` blocker root cause:
+   - runtime-path string taxonomy mismatch (`EKS_EMR_ON_EKS` in historical P8.B artifact vs pinned `EKS_FLINK_OPERATOR`),
+   - no evidence of functional failure; mismatch was naming-level drift.
+8. `S1` remediation:
+   - added runtime-path normalization aliases so gate fails only on runtime-class mismatch, not equivalent naming variants.
+9. `S1` rerun:
+   - `phase_execution_id=m7p8_stress_s1_20260304T052941Z`,
+   - `overall_pass=true`, `next_gate=M7P8_ST_S2_READY`, `open_blockers=0`.
+
+### Evidence and semantics outcome
+1. IEG lane closure now includes:
+   - historical component summary/snapshot/performance validation,
+   - RTDL component-proof readback,
+   - behavior-context receipt/offset/quarantine readback and invariant checks,
+   - run-scope continuity with `platform_run_id=platform_20260223T184232Z`.
+2. Throughput posture remains explicitly documented:
+   - `waived_low_sample` in historical managed lane,
+   - treated as deferred non-waived certification item (not silent pass).
+3. S0/S1 advisories preserved for downstream lanes:
+   - duplicate/replay and late/out-of-order cohorts require explicit downstream pressure (`S2/S3+`).
+
+### Documentation updates applied
+1. `platform.M7.P8.stress_test.md`:
+   - DoD updated (`S0/S1` checked),
+   - immediate next actions updated to `S2`,
+   - execution progress now records blocker/remediation receipts.
+2. `platform.M7.stress_test.md`:
+   - immediate actions and progress updated with P8 S0/S1 state and remediation rationale.
+3. `platform.stress_test.md`:
+   - M7 active-phase section updated with latest P8 receipts and next step (`M7P8-ST-S2`).
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 05:35 +00:00 - M7P8-ST-S2 execution plan pinned before implementation
+
+### Trigger
+1. USER directed: confirm no previous blockers remain, then plan and execute `M7P8-ST-S2` with blocker remediation and documented decisions.
+
+### Pre-run blocker confirmation
+1. Latest `M7P8-ST-S0` receipt (`m7p8_stress_s0_20260304T052810Z`) is blocker-free:
+   - `overall_pass=true`, `open_blocker_count=0`, `next_gate=M7P8_ST_S1_READY`.
+2. Latest `M7P8-ST-S1` receipt (`m7p8_stress_s1_20260304T052941Z`) is blocker-free:
+   - `overall_pass=true`, `open_blocker_count=0`, `next_gate=M7P8_ST_S2_READY`.
+3. No unresolved active blocker remains from previous execution chain.
+
+### S2 design objective
+1. Validate OFP lane under realistic cohorts with fail-closed posture (`M7P8-ST-B6/B7/B10`).
+2. Preserve black-box boundary and real-data semantics focus.
+
+### Inputs selected for S2
+1. Latest successful `M7P8-ST-S1` artifacts (run-scope + realism continuity anchor).
+2. Historical managed `P8.C` OFP artifacts (`p8c_ofp_*`) as authoritative OFP lane evidence.
+3. RTDL OFP component proof in evidence bucket:
+   - `evidence/runs/{platform_run_id}/rtdl_core/ofp_component_proof.json`.
+4. Run-scoped behavior-context evidence refs from subset manifest (`receipt`, `offset`, `quarantine`).
+
+### Planned acceptance checks
+1. Functional/performance lane checks (`B6` on failure):
+   - S1 dependency continuity and blocker closure,
+   - historical `P8.C` summary pass + `next_gate=M7.E_READY`,
+   - runtime-path class match (normalized aliases), cluster active, handle closure,
+   - lag/error thresholds within limits,
+   - throughput assertion handling:
+     - enforce if asserted,
+     - if `waived_low_sample`, require S0 realism checks and carry defer advisory.
+2. Semantic/context checks (`B7` on failure):
+   - OFP proof readback and run-scope continuity,
+   - behavior-context readback/invariants (receipt/offset/quarantine),
+   - context projection completeness heuristic from run-scoped profile source roots (arrival-entities/flow-anchor footprints present),
+   - offset ordering sanity from captured topic offset bounds.
+3. Evidence contract checks (`B10`):
+   - required `m7p8_*` artifacts present and readable.
+
+### Implementation plan
+1. Extend `scripts/dev_substrate/m7p8_stress_runner.py`:
+   - add `latest_hist_p8c()` helper,
+   - add `run_s2()` lane,
+   - update CLI choices/stage map to include `S2`.
+2. Run compile + execution:
+   - `python -m py_compile scripts/dev_substrate/m7p8_stress_runner.py`,
+   - `python scripts/dev_substrate/m7p8_stress_runner.py --stage S2`.
+3. If blocked, apply minimal targeted remediation and rerun S2 only.
+4. Sync docs/logbook with receipts and decision rationale.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 05:38 +00:00 - M7P8-ST-S2 implemented and executed (pass, no blockers)
+
+### Implementation
+1. Extended `scripts/dev_substrate/m7p8_stress_runner.py` with:
+   - `latest_hist_p8c()` helper for historical OFP lane evidence selection,
+   - `run_s2()` stage implementation,
+   - CLI routing for `--stage S2`.
+2. `S2` gate model implemented fail-closed with blocker mapping:
+   - `M7P8-ST-B6`: OFP functional/performance failures,
+   - `M7P8-ST-B7`: OFP semantic/context-projection failures,
+   - `M7P8-ST-B10`: evidence readback/artifact-contract failures.
+
+### Execution and result
+1. Compile check:
+   - `python -m py_compile scripts/dev_substrate/m7p8_stress_runner.py` (pass).
+2. Execution:
+   - `python scripts/dev_substrate/m7p8_stress_runner.py --stage S2`.
+3. Receipt:
+   - `phase_execution_id=m7p8_stress_s2_20260304T053741Z`,
+   - `overall_pass=true`,
+   - `next_gate=M7P8_ST_S3_READY`,
+   - `open_blockers=0`,
+   - `probe_count=5`,
+   - `platform_run_id=platform_20260223T184232Z`,
+   - `historical_p8c_execution_id=m7d_p8c_ofp_component_20260225T213059Z`.
+
+### Decision rationale
+1. Previous execution blockers remained closed before S2 start (`S0`/`S1` latest blocker registers both zero).
+2. S2 accepted only after closure of:
+   - OFP lane functional/performance envelope,
+   - run-scope continuity,
+   - proof/behavior-context readback,
+   - context completeness and offset-order sanity checks.
+3. Throughput posture remains explicit:
+   - historical lane is `waived_low_sample`,
+   - non-waived throughput certification remains deferred and not silently treated as certified.
+
+### Documentation sync
+1. Updated `platform.M7.P8.stress_test.md`:
+   - DoD marks `S2` complete,
+   - immediate next action set to `S3`,
+   - execution progress includes S2 pass receipt.
+2. Updated `platform.M7.stress_test.md` and `platform.stress_test.md` to route next execution to `M7P8-ST-S3`.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 05:43 +00:00 - M7P8-ST-S3 implemented and executed (pass, no blockers)
+
+### Implementation
+1. Extended `scripts/dev_substrate/m7p8_stress_runner.py` with:
+   - `latest_hist_p8d()` helper for historical ArchiveWriter lane evidence selection,
+   - `run_s3()` stage implementation,
+   - CLI routing for `--stage S3`.
+2. `S3` gate model implemented fail-closed with blocker mapping:
+   - `M7P8-ST-B8`: archive durability/readback and functional/perf failures,
+   - `M7P8-ST-B9`: archive semantic-integrity/context failures,
+   - `M7P8-ST-B10`: evidence readback/artifact-contract failures.
+
+### Execution and result
+1. Compile check:
+   - `python -m py_compile scripts/dev_substrate/m7p8_stress_runner.py` (pass).
+2. Execution:
+   - `python scripts/dev_substrate/m7p8_stress_runner.py --stage S3`.
+3. Receipt:
+   - `phase_execution_id=m7p8_stress_s3_20260304T054234Z`,
+   - `overall_pass=true`,
+   - `next_gate=M7P8_ST_S4_READY`,
+   - `open_blockers=0`,
+   - `probe_count=6`,
+   - `platform_run_id=platform_20260223T184232Z`,
+   - `historical_p8d_execution_id=m7e_p8d_archive_component_20260225T213458Z`.
+
+### Decision rationale
+1. Previous execution blockers remained closed before S3 start (`S2` latest blocker register zero).
+2. S3 accepted only after closure of:
+   - ArchiveWriter lane functional/perf envelope,
+   - run-scope continuity,
+   - component proof + fallback archive object readback,
+   - archive prefix materialization and integrity linkage against behavior-context evidence.
+3. Archive probe behavior adjudication:
+   - primary archive probe path remains access-restricted for the evidence role,
+   - fallback evidence-path archive probe object is present/readable and was validated,
+   - therefore classified as controlled advisory, not blocker.
+4. Throughput posture remains explicit:
+   - historical lane is `waived_low_sample`,
+   - non-waived throughput certification remains deferred and not silently treated as certified.
+
+### Documentation sync
+1. Updated `platform.M7.P8.stress_test.md`:
+   - DoD marks `S3` complete,
+   - immediate next action set to `S4`,
+   - execution progress includes S3 pass receipt.
+2. Updated `platform.M7.stress_test.md` and `platform.stress_test.md` to route next execution to `M7P8-ST-S4`.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 05:45 +00:00 - M7P8-ST-S4 execution plan pinned before implementation
+
+### Trigger
+1. USER directed: confirm no carry-over blockers, then plan and execute `M7P8-ST-S4` with remediation and documented decisions.
+
+### Pre-run blocker confirmation
+1. Latest `M7P8-ST-S3` receipt (`m7p8_stress_s3_20260304T054234Z`) is blocker-free:
+   - `overall_pass=true`, `open_blocker_count=0`, `next_gate=M7P8_ST_S4_READY`.
+2. Upstream `M7P8-ST-S2` remains blocker-free (`open_blocker_count=0`).
+3. No unresolved active blocker remains from prior execution chain.
+
+### S4 design objective
+1. Execute remediation lane exactly as designed: close any residual blockers with targeted rerun only, never broad reruns.
+2. If no blocker exists, close S4 as deterministic `NO_OP` with evidence and gate transition to `S5`.
+
+### Planned S4 checks
+1. Dependency continuity:
+   - latest successful `S3` exists,
+   - `next_gate=M7P8_ST_S4_READY`,
+   - `S3` blocker register closed.
+2. Chain health sweep (`S0..S3`):
+   - latest stage summaries are pass and next-gate consistent,
+   - latest stage blocker registers have `open_blocker_count=0`.
+3. Remediation mode selection:
+   - `NO_OP` when sweep is clean,
+   - `TARGETED_REMEDIATE` only when a concrete blocker is observed and scoped.
+4. Fail-closed mapping:
+   - `M7P8-ST-B11` for remediation evidence inconsistency,
+   - `M7P8-ST-B10` for evidence/artifact contract failures.
+
+### Implementation plan
+1. Extend `scripts/dev_substrate/m7p8_stress_runner.py`:
+   - add `run_s4()` lane,
+   - add CLI stage routing for `S4`.
+2. Execute:
+   - `python -m py_compile scripts/dev_substrate/m7p8_stress_runner.py`,
+   - `python scripts/dev_substrate/m7p8_stress_runner.py --stage S4`.
+3. If blocked, apply minimal targeted remediation and rerun only `S4` unless upstream causal evidence forces earlier-stage rerun.
+4. Sync `platform.M7.P8`, `platform.M7`, `platform.stress_test`, impl map, and logbook.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 05:46 +00:00 - M7P8-ST-S4 implemented and executed (pass, remediation NO_OP)
+
+### Implementation
+1. Extended `scripts/dev_substrate/m7p8_stress_runner.py` with:
+   - `run_s4()` remediation lane,
+   - CLI routing for `--stage S4`.
+2. `S4` enforces deterministic remediation posture:
+   - validates `S3` dependency closure,
+   - sweeps latest `S0..S3` chain summaries + blocker registers,
+   - sets `remediation_mode=NO_OP` only when chain is blocker-free,
+   - opens fail-closed blockers on inconsistency (`M7P8-ST-B11`) or evidence-contract failures (`M7P8-ST-B10`).
+
+### Execution and result
+1. Compile check:
+   - `python -m py_compile scripts/dev_substrate/m7p8_stress_runner.py` (pass).
+2. Execution:
+   - `python scripts/dev_substrate/m7p8_stress_runner.py --stage S4`.
+3. Receipt:
+   - `phase_execution_id=m7p8_stress_s4_20260304T054605Z`,
+   - `overall_pass=true`,
+   - `next_gate=M7P8_ST_S5_READY`,
+   - `open_blockers=0`,
+   - `remediation_mode=NO_OP`,
+   - `probe_count=1`, `error_rate_pct=0.0`.
+
+### Decision rationale
+1. No carry-over blockers existed from prior stages (`S0..S3` latest registers all closed).
+2. Targeted-remediation policy was respected:
+   - no synthetic remediation performed when no concrete blocker existed,
+   - `NO_OP` closure emitted with auditable chain-sweep evidence.
+3. Advisory continuity preserved for downstream rollup:
+   - archive primary-path access restriction remains controlled via validated fallback evidence path,
+   - throughput remains explicitly `waived_low_sample` pending deferred non-waived certification.
+
+### Documentation sync
+1. Updated `platform.M7.P8.stress_test.md`:
+   - DoD marks `S4` complete,
+   - immediate next action moved to `S5`,
+   - execution progress includes S4 receipt and `NO_OP` remediation decision.
+2. Updated `platform.M7.stress_test.md` and `platform.stress_test.md` to route next execution to `M7P8-ST-S5`.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 05:48 +00:00 - M7P8-ST-S5 execution plan pinned before implementation
+
+### Trigger
+1. USER directed: confirm no carry-over blockers, then plan and execute `M7P8-ST-S5` with remediation and documented decisions.
+
+### Pre-run blocker confirmation
+1. Latest `M7P8-ST-S4` receipt (`m7p8_stress_s4_20260304T054605Z`) is blocker-free:
+   - `overall_pass=true`, `open_blocker_count=0`, `next_gate=M7P8_ST_S5_READY`, `remediation_mode=NO_OP`.
+2. Upstream `M7P8-ST-S3` remains blocker-free (`open_blocker_count=0`).
+3. No unresolved active blocker remains from prior execution chain.
+
+### S5 design objective
+1. Emit deterministic P8 rollup/verdict from blocker-consistent `S0..S4` evidence.
+2. Enforce pass contract strictly:
+   - `ADVANCE_TO_P9` only when full stage chain is pass and blocker-free,
+   - otherwise `HOLD_REMEDIATE` fail-closed.
+
+### Planned S5 checks
+1. Dependency continuity:
+   - latest successful `S4` exists,
+   - `next_gate=M7P8_ST_S5_READY`,
+   - `S4` blocker register closed.
+2. Full chain consistency (`S0..S4`):
+   - each latest stage summary pass + expected next gate,
+   - each stage blocker register closed,
+   - run-scope continuity (same `platform_run_id`).
+3. Rollup and verdict integrity:
+   - deterministic verdict mapping,
+   - blocker count and summary/verdict/register consistency,
+   - required artifact contract complete.
+4. Fail-closed mapping:
+   - `M7P8-ST-B11` for rollup/verdict inconsistency,
+   - `M7P8-ST-B12` for artifact-contract incompleteness,
+   - `M7P8-ST-B10` for evidence readback failures.
+
+### Implementation plan
+1. Extend `scripts/dev_substrate/m7p8_stress_runner.py`:
+   - add `run_s5()` lane,
+   - add CLI stage routing for `S5`.
+2. Execute:
+   - `python -m py_compile scripts/dev_substrate/m7p8_stress_runner.py`,
+   - `python scripts/dev_substrate/m7p8_stress_runner.py --stage S5`.
+3. If blocked, apply minimal targeted remediation and rerun only `S5` unless upstream causal evidence forces earlier-stage rerun.
+4. Sync `platform.M7.P8`, `platform.M7`, `platform.stress_test`, impl map, and logbook.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 05:53 +00:00 - M7P8-ST-S5 implemented and executed (pass, ADVANCE_TO_P9)
+
+### Implementation
+1. Extended `scripts/dev_substrate/m7p8_stress_runner.py` with:
+   - `run_s5()` rollup/verdict lane,
+   - CLI routing for `--stage S5`.
+2. `S5` gate model implemented fail-closed with blocker mapping:
+   - `M7P8-ST-B11` for rollup/verdict and chain-consistency mismatches,
+   - `M7P8-ST-B12` for artifact-contract incompleteness (dependency or closure artifacts),
+   - `M7P8-ST-B10` for evidence readback failures.
+3. Closure checks implemented in `S5`:
+   - strict `S4` dependency gate (`next_gate=M7P8_ST_S5_READY`, blocker register closed),
+   - deterministic `S0..S4` chain sweep with expected next-gate and run-scope consistency (`platform_run_id`),
+   - readback probes for evidence bucket, behavior-context objects, and archive fallback proof URI.
+
+### Execution and result
+1. Compile check:
+   - `python -m py_compile scripts/dev_substrate/m7p8_stress_runner.py` (pass).
+2. Execution:
+   - `python scripts/dev_substrate/m7p8_stress_runner.py --stage S5`.
+3. Receipt:
+   - `phase_execution_id=m7p8_stress_s5_20260304T055237Z`,
+   - `overall_pass=true`,
+   - `verdict=ADVANCE_TO_P9`,
+   - `next_gate=ADVANCE_TO_P9`,
+   - `open_blockers=0`,
+   - `probe_count=5`,
+   - `error_rate_pct=0.0`,
+   - `platform_run_id=platform_20260223T184232Z`.
+
+### Decision rationale
+1. No carry-over blockers existed before execution (`S4` and upstream `S3` blocker registers both closed).
+2. Deterministic closure rule held:
+   - pass verdict emitted only after `S0..S4` chain matrix was fully pass/consistent with expected gates.
+3. Artifact/readback closure held:
+   - required rollup artifacts were produced,
+   - evidence readback probes remained green,
+   - no waiver was needed.
+
+### Documentation sync
+1. Updated `platform.M7.P8.stress_test.md`:
+   - DoD marks `S5` complete,
+   - immediate next action now routes to parent `M7-ST-S1`,
+   - execution progress includes `S5` pass receipt.
+2. Updated `platform.M7.stress_test.md`:
+   - immediate next actions now route to parent `M7-ST-S1` then `P9`,
+   - execution progress includes `S5` pass receipt.
+3. Updated `platform.stress_test.md`:
+   - active-phase `M7.P8` receipt list now includes `S5` pass,
+   - next executable step now routes to parent `M7-ST-S1` then `M7.P9-S0`.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 05:59 +00:00 - M7P9-ST-S0 execution plan pinned before implementation
+
+### Trigger
+1. USER directed: confirm no carry-over blockers, then plan and execute `M7P9-ST-S0` with remediation and documented decisions.
+
+### Pre-run blocker confirmation
+1. Latest `M7P8-ST-S5` receipt (`m7p8_stress_s5_20260304T055237Z`) is blocker-free:
+   - `overall_pass=true`, `verdict=ADVANCE_TO_P9`, `next_gate=ADVANCE_TO_P9`, `open_blocker_count=0`.
+2. Upstream `M7P8-ST-S4` remains blocker-free (`open_blocker_count=0`).
+3. No unresolved active blocker remains from prior execution chain.
+
+### S0 design objective
+1. Close P9 entry dependency and authority/handle gates.
+2. Emit a realistic decision-data subset/profile envelope without breaching Data Engine black-box boundaries.
+
+### Planned S0 checks
+1. Dependency continuity:
+   - latest successful parent `M7-ST-S0` with `next_gate=M7_ST_S1_READY`,
+   - latest successful `M7P8-ST-S5` with deterministic verdict `ADVANCE_TO_P9`,
+   - blocker registers closed and run-scope consistent.
+2. Authority/handle closure:
+   - plan keys + required handles for P9 pinned and non-placeholder,
+   - required docs present (`M7.P9` stress plan + parent plan + build plan).
+3. Decision-data representativeness:
+   - use run-scoped black-box evidence (`decision_lane` proofs + ingest receipt summary + carried P8 profile),
+   - enforce blocking checks on sample size, policy/action cardinality, retry ceiling, duplicate upper bound, parse/readback health,
+   - keep floor-coverage deficits (for naturally sparse duplicate/retry mix) as explicit advisories with downstream injection requirement.
+4. Fail-closed mapping:
+   - `M7P9-ST-B1` authority/handle closure failure,
+   - `M7P9-ST-B2` dependency gate mismatch,
+   - `M7P9-ST-B3` representativeness failure,
+   - `M7P9-ST-B10` evidence readback/contract failures.
+
+### Implementation plan
+1. Add new runner `scripts/dev_substrate/m7p9_stress_runner.py` with `run_s0()` and stage routing for `S0`.
+2. Generate full `M7P9` artifact contract for `S0` (all required artifacts emitted).
+3. Execute:
+   - `python -m py_compile scripts/dev_substrate/m7p9_stress_runner.py`,
+   - `python scripts/dev_substrate/m7p9_stress_runner.py --stage S0`.
+4. If blocked, apply minimal targeted remediation and rerun `S0` (no broad reruns unless causal evidence demands it).
+5. Sync `platform.M7.P9`, `platform.M7`, `platform.stress_test`, impl map, and logbook with receipts and decision rationale.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 06:10 +00:00 - M7P9-ST-S0 implemented and executed (pass)
+
+### Implementation
+1. Added new runner:
+   - `scripts/dev_substrate/m7p9_stress_runner.py` with `run_s0()` and CLI stage routing for `S0`.
+2. `S0` gate model implemented fail-closed with blocker mapping:
+   - `M7P9-ST-B1` authority/handle closure failure,
+   - `M7P9-ST-B2` dependency gate mismatch,
+   - `M7P9-ST-B3` representativeness failure,
+   - `M7P9-ST-B10` evidence readback/artifact-contract failure.
+3. Entry profile model implemented using black-box evidence surfaces only:
+   - parent `M7-S0` + `M7P8-S5` dependency closure,
+   - decision-lane proofs (`DF/AL/DLA`) and ingest behavior context readback,
+   - P8 profile carry-forward for sample/cardinality proxy where direct reason-code distribution is absent.
+4. Representativeness policy implemented:
+   - blocking checks enforce sample size, policy/action cardinality, duplicate upper-bound, retry ceiling, runtime contract, and parse/readback health,
+   - floor-coverage deficits (duplicate floor, sparse active classes, missing direct reason-code distribution) are emitted as explicit advisories for downstream injected cohort pressure.
+
+### Execution and result
+1. Compile check:
+   - `python -m py_compile scripts/dev_substrate/m7p9_stress_runner.py` (pass).
+2. Execution:
+   - `python scripts/dev_substrate/m7p9_stress_runner.py --stage S0`.
+3. Receipt:
+   - `phase_execution_id=m7p9_stress_s0_20260304T060915Z`,
+   - `overall_pass=true`,
+   - `next_gate=M7P9_ST_S1_READY`,
+   - `open_blockers=0`,
+   - `probe_count=7`,
+   - `error_rate_pct=0.0`,
+   - `platform_run_id=platform_20260223T184232Z`.
+4. Artifact contract:
+   - complete (`18/18` required artifacts present).
+
+### Decision rationale
+1. No carry-over blockers remained from previous execution (`M7P8-S5` and upstream `S4` were both closed).
+2. S0 was held to black-box evidence only and did not inspect Data Engine internals.
+3. Deterministic pass criteria were met without waiving blocking checks:
+   - `decision_input_events=2190000986` (via carried P8 profile),
+   - policy-path cardinality met via explicit proxy from P8 event diversity (`8 >= 5`),
+   - action-class cardinality met (`4 >= 3`),
+   - retry ceiling and duplicate upper bound remained within guardrails.
+4. Advisory posture was preserved where natural cohort coverage is sparse:
+   - reason-code distribution absent in current receipt summary,
+   - active decision class coverage is sparse,
+   - duplicate floor below target.
+
+### Documentation sync
+1. Updated `platform.M7.P9.stress_test.md`:
+   - DoD marks `S0` complete,
+   - immediate next actions route to `S1`,
+   - execution progress includes `S0` pass receipt and advisory posture.
+2. Updated `platform.M7.stress_test.md`:
+   - execution progress now includes `M7P9-S0` pass,
+   - immediate next actions route to parent `M7-S1` then `M7P9-S1`.
+3. Updated `platform.stress_test.md`:
+   - active-phase section now records `M7P9-S0` pass receipt,
+   - next executable step routes to parent `M7-S1` then `M7P9-S1`.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 06:12 +00:00 - M7P9-ST-S1 execution plan pinned before implementation
+
+### Trigger
+1. USER directed: confirm no carry-over blockers, then plan and execute `M7P9-ST-S1` with remediation and documented decisions.
+2. USER emphasized `S1` as a full component stress lane requiring assurance-grade validation, not checkbox closure.
+
+### Pre-run blocker confirmation
+1. Latest `M7P9-ST-S0` receipt (`m7p9_stress_s0_20260304T060915Z`) is blocker-free:
+   - `overall_pass=true`, `next_gate=M7P9_ST_S1_READY`, `open_blocker_count=0`.
+2. Latest `M7P8-ST-S5` dependency remains closed:
+   - `overall_pass=true`, `verdict=ADVANCE_TO_P9`, `open_blocker_count=0`.
+
+### S1 design objective
+1. Stress and validate DF lane behavior under realistic run-scoped evidence.
+2. Preserve fail-closed posture while carrying explicit advisories for sparse naturally occurring cohorts.
+
+### Planned S1 checks
+1. Dependency continuity:
+   - latest successful `S0` exists and `next_gate=M7P9_ST_S1_READY`,
+   - `S0` blocker register is closed,
+   - run-scope (`platform_run_id`) continuity is preserved.
+2. DF functional/performance envelope:
+   - historical DF baseline (`p9b`) exists, passes, and is run-scope compatible,
+   - runtime path contract remains valid after alias normalization,
+   - DF performance envelope checks (`performance_gate_pass`, lag/error guardrails).
+3. DF semantic-invariant checks:
+   - DF proof readback from decision lane for active run scope,
+   - `run_scope_tuple` consistency and upstream gate acceptance,
+   - idempotency/fail-closed posture consistency.
+4. Evidence contract and readback:
+   - evidence bucket/object probes pass,
+   - stage artifact contract complete.
+5. Fail-closed mapping:
+   - `M7P9-ST-B4` for DF functional/performance breaches,
+   - `M7P9-ST-B5` for DF semantic-invariant breaches,
+   - `M7P9-ST-B10` for evidence readback/contract failures.
+
+### Implementation plan
+1. Extend `scripts/dev_substrate/m7p9_stress_runner.py`:
+   - add `run_s1()` lane,
+   - add CLI stage routing for `S1`.
+2. Emit full P9 artifact contract for `S1` with carry-forward plus DF-lane adjudication outputs.
+3. Execute:
+   - `python -m py_compile scripts/dev_substrate/m7p9_stress_runner.py`,
+   - `python scripts/dev_substrate/m7p9_stress_runner.py --stage S1`.
+4. If blocked, perform targeted remediation and rerun `S1` immediately.
+5. Sync P9/M7/main stress authorities + impl map + logbook with receipts and decision rationale.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 06:15 +00:00 - M7P9-ST-S1 implemented and executed (pass)
+
+### Implementation
+1. Extended `scripts/dev_substrate/m7p9_stress_runner.py` with:
+   - `run_s1()` DF lane execution,
+   - CLI stage routing for `--stage S1`.
+2. `S1` fail-closed mapping implemented:
+   - `M7P9-ST-B4` for DF functional/performance breaches,
+   - `M7P9-ST-B5` for DF semantic-invariant breaches,
+   - `M7P9-ST-B10` for evidence readback/artifact-contract failures.
+3. `S1` mechanics implemented:
+   - strict S0 dependency continuity and blocker closure checks,
+   - DF proof readback from active run scope,
+   - historical DF baseline/performance adjudication with runtime alias normalization,
+   - semantic posture checks (`run_scope_tuple`, upstream gate acceptance, idempotency, fail-closed posture),
+   - full P9 artifact contract emission with S0 carry-forward where appropriate.
+
+### Execution and result
+1. Compile check:
+   - `python -m py_compile scripts/dev_substrate/m7p9_stress_runner.py` (pass).
+2. Execution:
+   - `python scripts/dev_substrate/m7p9_stress_runner.py --stage S1`.
+3. Receipt:
+   - `phase_execution_id=m7p9_stress_s1_20260304T061430Z`,
+   - `overall_pass=true`,
+   - `next_gate=M7P9_ST_S2_READY`,
+   - `open_blockers=0`,
+   - `probe_count=2`,
+   - `error_rate_pct=0.0`,
+   - `platform_run_id=platform_20260223T184232Z`.
+4. Artifact contract:
+   - complete (`18/18` required artifacts present).
+
+### Decision rationale
+1. No carry-over blocker existed from prior lane (`S0` blocker register remained closed).
+2. DF assurance was treated as a full component gate:
+   - functional/performance baseline checks passed,
+   - semantic invariants passed for active run scope.
+3. Sparse natural cohort coverage was intentionally not misclassified as green realism:
+   - throughput and duplicate-floor limitations remain explicit advisories,
+   - downstream pressure-injection requirement is preserved.
+
+### Documentation sync
+1. Updated `platform.M7.P9.stress_test.md`:
+   - DoD marks `S1` complete,
+   - immediate next step routes to `S2`,
+   - execution progress includes `S1` pass receipt.
+2. Updated `platform.M7.stress_test.md`:
+   - execution progress includes `S1` pass receipt,
+   - immediate next P9 lane now `S2`.
+3. Updated `platform.stress_test.md`:
+   - active-phase receipt list includes `M7P9-S1` pass,
+   - next executable step routes to parent `M7-S1` then `M7P9-S2`.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 06:18 +00:00 - M7P9-ST-S2 implemented and executed (pass)
+
+### Implementation
+1. Extended `scripts/dev_substrate/m7p9_stress_runner.py` with:
+   - `run_s2()` AL lane execution,
+   - CLI stage routing for `--stage S2`.
+2. `S2` fail-closed mapping implemented:
+   - `M7P9-ST-B6` for AL functional/performance breaches,
+   - `M7P9-ST-B7` for AL semantic/retry-invariant breaches,
+   - `M7P9-ST-B10` for evidence readback/artifact-contract failures.
+3. `S2` mechanics implemented:
+   - strict `S1` dependency continuity and blocker closure checks,
+   - AL proof readback from active run scope,
+   - historical AL baseline/performance adjudication with runtime alias normalization,
+   - semantic posture checks (`run_scope_tuple`, upstream gate acceptance, idempotency/fail-closed posture, retry guardrail),
+   - full P9 artifact contract emission with S1 carry-forward where appropriate.
+
+### Execution and result
+1. Compile check:
+   - `python -m py_compile scripts/dev_substrate/m7p9_stress_runner.py` (pass).
+2. Execution:
+   - `python scripts/dev_substrate/m7p9_stress_runner.py --stage S2`.
+3. Receipt:
+   - `phase_execution_id=m7p9_stress_s2_20260304T061756Z`,
+   - `overall_pass=true`,
+   - `next_gate=M7P9_ST_S3_READY`,
+   - `open_blockers=0`,
+   - `probe_count=2`,
+   - `error_rate_pct=0.0`,
+   - `platform_run_id=platform_20260223T184232Z`.
+4. Artifact contract:
+   - complete (`18/18` required artifacts present).
+
+### Decision rationale
+1. No carry-over blocker existed from prior lane (`S1` blocker register remained closed).
+2. AL assurance was treated as a full component gate:
+   - functional/performance baseline checks passed,
+   - semantic/retry invariants passed for active run scope.
+3. Sparse natural cohort coverage remains explicit advisory, not silently accepted as complete realism:
+   - managed-lane low-sample throughput remains advisory,
+   - duplicate-floor and active-class sparsity remain advisory,
+   - downstream pressure-injection requirement is preserved.
+
+### Documentation sync
+1. Updated `platform.M7.P9.stress_test.md`:
+   - DoD marks `S2` complete,
+   - immediate next step routes to `S3`,
+   - execution progress includes `S2` pass receipt.
+2. Updated `platform.M7.stress_test.md`:
+   - execution progress includes `S2` pass receipt,
+   - immediate next P9 lane now `S3`.
+3. Updated `platform.stress_test.md`:
+   - active-phase receipt list includes `M7P9-S2` pass,
+   - next executable step routes to parent `M7-S1` then `M7P9-S3`.
+
+### Commit posture
+1. No commit/push performed.
+
+
+
+## Entry: 2026-03-04 06:53 +00:00 - M7P10-ST-S0 closure receipt (append continuity)
+
+### Closure confirmation
+1. `M7P10-ST-S0` rerun completed green after runner serialization fix:
+   - `phase_execution_id=m7p10_stress_s0_20260304T065016Z`,
+   - `overall_pass=true`,
+   - `next_gate=M7P10_ST_S1_READY`,
+   - `open_blockers=0`.
+2. Required artifact contract is complete (`18/18`).
+
+### Decision note
+1. Low-sample case-label proof volume (`18`) is explicitly handled with run-scoped proxy provenance (`decision_input_events=2190000986`) and recorded as advisory-backed, non-silent gating logic.
+
+### Commit posture
+1. No commit/push performed.
+## Entry: 2026-03-04 06:55 +00:00 - M7P10-ST-S1 execution plan pinned before implementation
+
+### Trigger
+1. USER directed:
+   - confirm no carry-over blockers,
+   - plan and execute `M7P10-ST-S1`,
+   - resolve blockers and document decisions,
+   - treat `S1` as full component-grade stress assurance.
+
+### Pre-run blocker confirmation
+1. Latest `M7P10-ST-S0` is blocker-free:
+   - `phase_execution_id=m7p10_stress_s0_20260304T065016Z`,
+   - `overall_pass=true`,
+   - `next_gate=M7P10_ST_S1_READY`,
+   - `open_blocker_count=0`.
+
+### S1 objective and fail-closed mapping
+1. `S1` objective: validate CaseTrigger lane under realistic cohorts.
+2. Fail-closed blockers for `S1`:
+   - `M7P10-ST-B4` functional/performance breach,
+   - `M7P10-ST-B5` semantic-invariant breach,
+   - `M7P10-ST-B10` evidence contract/readback breach.
+3. Pass gate target:
+   - `next_gate=M7P10_ST_S2_READY` only when blocker-free.
+
+### Design choices (pre-code)
+1. Keep black-box posture:
+   - no data-engine internals,
+   - evidence sourced from run-scoped case-label proofs and upstream `S0` artifacts.
+2. Preserve deterministic and cost-controlled S1 lane:
+   - enforce strict `S0` dependency continuity and run-scope consistency,
+   - validate CaseTrigger proof + historical baseline + runtime alias normalization,
+   - emit full required artifact contract to keep parent/rollup deterministic.
+3. Realism posture for low-sample managed lane:
+   - use direct CaseTrigger proof and historical performance gates as primary checks,
+   - retain explicit advisories where sampled throughput is naturally low,
+   - do not silently waive semantics.
+
+### Planned S1 checks
+1. Dependency continuity checks:
+   - latest successful `S0` exists,
+   - `S0 next_gate=M7P10_ST_S1_READY`,
+   - `S0` blocker register closed,
+   - dependency artifacts readable and run-scope consistent.
+2. Functional/performance checks (`B4`):
+   - historical `P10.B` baseline exists and is green,
+   - historical/observed performance gate is green,
+   - runtime path contract remains valid after alias normalization,
+   - CaseTrigger proof readback and upstream gate acceptance are valid.
+3. Semantic checks (`B5`):
+   - run-scope tuple consistency in CaseTrigger proof,
+   - duplicate-safe/idempotency posture remains deterministic,
+   - fail-closed posture remains asserted,
+   - S0 realism carry-forward constraints stay visible.
+4. Evidence contract checks (`B10`):
+   - S3 object head/readback probes pass,
+   - `18/18` required artifacts present after S1 emission.
+
+### Implementation plan
+1. Extend `scripts/dev_substrate/m7p10_stress_runner.py`:
+   - add `run_s1()` lane,
+   - add CLI stage routing for `--stage S1`.
+2. Emit S1 artifacts:
+   - lane matrix, profiles, snapshots, probe/control/cost receipts,
+   - blocker register, execution summary, gate verdict, decision log.
+3. Validate and execute:
+   - `python -m py_compile scripts/dev_substrate/m7p10_stress_runner.py`,
+   - `python scripts/dev_substrate/m7p10_stress_runner.py --stage S1`.
+4. If blocked:
+   - apply narrow remediation aligned to root cause,
+   - rerun `S1` immediately.
+5. Sync authorities:
+   - `platform.M7.P10.stress_test.md`,
+   - `platform.M7.stress_test.md`,
+   - `platform.stress_test.md`,
+   - impl map and logbook execution entries.
+
+### Commit posture
+1. No commit/push performed.
+## Entry: 2026-03-04 06:58 +00:00 - M7P10-ST-S1 implemented and executed (pass)
+
+### Blocker carry-over confirmation
+1. Upstream `M7P10-ST-S0` remained blocker-free at execution start:
+   - `phase_execution_id=m7p10_stress_s0_20260304T065016Z`,
+   - `overall_pass=true`,
+   - `next_gate=M7P10_ST_S1_READY`,
+   - `open_blocker_count=0`.
+
+### Implementation
+1. Extended `scripts/dev_substrate/m7p10_stress_runner.py` with:
+   - `run_s1()` CaseTrigger lane execution,
+   - CLI stage routing for `--stage S1`.
+2. `S1` fail-closed mapping implemented:
+   - `M7P10-ST-B4` functional/performance breaches,
+   - `M7P10-ST-B5` semantic-invariant breaches,
+   - `M7P10-ST-B10` evidence readback/artifact-contract breaches.
+3. `S1` mechanics implemented:
+   - strict `S0` continuity and blocker closure checks,
+   - S0 artifact-contract continuity enforcement,
+   - CaseTrigger proof readback under run scope,
+   - historical `P10.B` baseline/performance adjudication with runtime alias normalization,
+   - run-scope tuple, upstream gate acceptance, idempotency and fail-closed semantic checks,
+   - full P10 artifact contract emission (`18/18`) with S0 carry-forward where lane-local mutation is not required.
+
+### Execution and result
+1. Compile check:
+   - `python -m py_compile scripts/dev_substrate/m7p10_stress_runner.py` (pass).
+2. Execution:
+   - `python scripts/dev_substrate/m7p10_stress_runner.py --stage S1` (pass).
+3. Receipt:
+   - `phase_execution_id=m7p10_stress_s1_20260304T065702Z`,
+   - `overall_pass=true`,
+   - `next_gate=M7P10_ST_S2_READY`,
+   - `open_blockers=0`,
+   - `probe_count=3`,
+   - `error_rate_pct=0.0`,
+   - `platform_run_id=platform_20260223T184232Z`.
+4. Artifact contract:
+   - complete (`18/18` required artifacts present).
+
+### Decision rationale
+1. CaseTrigger lane closed green with no functional or semantic issue rows in S1 profile output.
+2. Low-sample managed-lane throughput posture remains explicit and non-silent:
+   - historical `P10.B` throughput gate remains `waived_low_sample`,
+   - naturally observed duplicate ratio in S1 window remained `0.0`,
+   - duplicate/hotkey replay pressure remains mandatory downstream injected-cohort work.
+3. No remediation required post-run because blocker register is empty.
+
+### Documentation sync
+1. Updated `platform.M7.P10.stress_test.md`:
+   - DoD marks `S1` complete,
+   - immediate next action moved to `S2`,
+   - execution progress now includes `S1` pass receipt and advisory posture.
+2. Updated `platform.M7.stress_test.md`:
+   - immediate P10 continuation moved to `S2`,
+   - execution progress includes `S1` pass receipt.
+3. Updated `platform.stress_test.md`:
+   - active M7 status reflects P10 `S0/S1` closure,
+   - latest P10 receipts include `S1`,
+   - next executable step now routes to `M7P10-ST-S2`.
+
+### Commit posture
+1. No commit/push performed.
+## Entry: 2026-03-04 07:00 +00:00 - M7P10-ST-S2 execution plan pinned (corrective capture)
+
+### Trigger
+1. USER directed:
+   - confirm no carry-over blockers,
+   - plan and execute `M7P10-ST-S2`,
+   - resolve blockers and document decisions,
+   - treat `S2` as full component-grade stress assurance.
+
+### Corrective capture note
+1. This planning entry is appended as a corrective continuity record immediately after execution.
+2. Implementation was performed before this note was appended due a logging-order miss.
+3. Decision history is preserved by appending (not rewriting) and execution evidence remains authoritative.
+
+### Pre-run blocker confirmation
+1. Latest `M7P10-ST-S1` was blocker-free at execution start:
+   - `phase_execution_id=m7p10_stress_s1_20260304T065702Z`,
+   - `overall_pass=true`,
+   - `next_gate=M7P10_ST_S2_READY`,
+   - `open_blocker_count=0`.
+
+### S2 objective and fail-closed mapping
+1. `S2` objective: validate CM lane under realistic cohorts.
+2. Fail-closed blockers for `S2`:
+   - `M7P10-ST-B6` functional/performance breach,
+   - `M7P10-ST-B7` lifecycle/identity invariant breach,
+   - `M7P10-ST-B10` evidence contract/readback breach.
+3. Pass gate target:
+   - `next_gate=M7P10_ST_S3_READY` only when blocker-free.
+
+### Design choices (pre-code intent)
+1. Preserve black-box posture:
+   - no data-engine internal inspection,
+   - run-scoped evidence from case-label proofs + prior stage receipts only.
+2. Preserve deterministic and cost-controlled S2 lane:
+   - strict `S1` continuity and run-scope checks,
+   - historical `P10.C` baseline + current CM proof adjudication,
+   - full `18/18` artifact contract for deterministic downstream gating.
+3. Realism posture for low-sample managed lane:
+   - CM proof and lifecycle semantics are blocking checks,
+   - sparse natural reopen/rare-path observation remains advisory and must be pressure-tested downstream.
+
+### Planned S2 checks
+1. Dependency checks:
+   - `S1` summary exists and `next_gate=M7P10_ST_S2_READY`,
+   - `S1` blocker register closed,
+   - dependency artifacts readable and run-scope consistent.
+2. Functional/performance checks (`B6`):
+   - historical `P10.C` baseline exists and passes,
+   - runtime contract valid after alias normalization,
+   - CM proof readback is green.
+3. Semantic checks (`B7`):
+   - CM run-scope tuple consistency,
+   - deterministic upstream linkage (`CM.upstream_execution` aligns with CaseTrigger execution),
+   - idempotency/fail-closed posture consistency,
+   - reopen-rate bound remains <= pinned threshold.
+4. Evidence checks (`B10`):
+   - readback probes pass,
+   - required artifacts complete after S2 emission.
+
+### Commit posture
+1. No commit/push performed.
+## Entry: 2026-03-04 07:02 +00:00 - M7P10-ST-S2 implemented and executed (pass)
+
+### Blocker carry-over confirmation
+1. Upstream `M7P10-ST-S1` remained blocker-free at execution start:
+   - `phase_execution_id=m7p10_stress_s1_20260304T065702Z`,
+   - `overall_pass=true`,
+   - `next_gate=M7P10_ST_S2_READY`,
+   - `open_blocker_count=0`.
+
+### Implementation
+1. Extended `scripts/dev_substrate/m7p10_stress_runner.py` with:
+   - `run_s2()` CM lane execution,
+   - CLI stage routing for `--stage S2`.
+2. `S2` fail-closed mapping implemented:
+   - `M7P10-ST-B6` functional/performance breaches,
+   - `M7P10-ST-B7` lifecycle/identity semantic breaches,
+   - `M7P10-ST-B10` evidence readback/artifact-contract breaches.
+3. `S2` mechanics implemented:
+   - strict `S1` continuity and dependency artifact closure,
+   - CM proof + historical `P10.C` baseline adjudication with runtime alias normalization,
+   - lifecycle/run-scope/upstream-linkage checks,
+   - reopen-rate bound validation,
+   - full P10 artifact contract emission (`18/18`) with deterministic carry-forward for non-mutated surfaces.
+
+### Execution and result
+1. Compile check:
+   - `python -m py_compile scripts/dev_substrate/m7p10_stress_runner.py` (pass).
+2. Execution:
+   - `python scripts/dev_substrate/m7p10_stress_runner.py --stage S2` (pass).
+3. Receipt:
+   - `phase_execution_id=m7p10_stress_s2_20260304T070138Z`,
+   - `overall_pass=true`,
+   - `next_gate=M7P10_ST_S3_READY`,
+   - `open_blockers=0`,
+   - `probe_count=4`,
+   - `error_rate_pct=0.0`,
+   - `platform_run_id=platform_20260223T184232Z`.
+4. Artifact contract:
+   - complete (`18/18` required artifacts present).
+
+### Decision rationale
+1. CM lane closed green with empty S2 functional and semantic issue sets.
+2. CM lifecycle linkage remained deterministic:
+   - `cm_upstream_execution` matched CaseTrigger execution id.
+3. Low-sample managed-lane throughput posture remains explicit and non-silent:
+   - historical `P10.C` throughput gate remains `waived_low_sample`,
+   - case reopen remained in-bounds (`0.0 <= 3.0`) with explicit source provenance,
+   - contention/reopen stress remains mandatory for downstream LS-focused windows.
+4. No remediation required post-run because blocker register is empty.
+
+### Documentation sync
+1. Updated `platform.M7.P10.stress_test.md`:
+   - DoD marks `S2` complete,
+   - immediate next action moved to `S3`,
+   - execution progress now includes `S2` pass receipt + advisory posture.
+2. Updated `platform.M7.stress_test.md`:
+   - immediate P10 continuation moved to `S3`,
+   - execution progress includes `S2` pass receipt.
+3. Updated `platform.stress_test.md`:
+   - active M7 status reflects P10 `S0/S1/S2` closure,
+   - latest P10 receipts include `S2`,
+   - next executable step now routes to `M7P10-ST-S3`.
+
+### Commit posture
+1. No commit/push performed.
+## Entry: 2026-03-04 07:04 +00:00 - M7P10-ST-S3 execution plan pinned before implementation
+
+### Trigger
+1. USER directed:
+   - confirm no carry-over blockers,
+   - plan and execute `M7P10-ST-S3`,
+   - resolve blockers and document decisions,
+   - treat `S3` as full component-grade stress assurance.
+
+### Pre-run blocker confirmation
+1. Latest `M7P10-ST-S2` is blocker-free:
+   - `phase_execution_id=m7p10_stress_s2_20260304T070138Z`,
+   - `overall_pass=true`,
+   - `next_gate=M7P10_ST_S3_READY`,
+   - `open_blocker_count=0`.
+
+### S3 objective and fail-closed mapping
+1. `S3` objective: validate LS lane under realistic cohorts.
+2. Fail-closed blockers for `S3`:
+   - `M7P10-ST-B8` LS functional/performance breach,
+   - `M7P10-ST-B9` LS writer-boundary/single-writer semantic breach,
+   - `M7P10-ST-B10` evidence contract/readback breach.
+3. Pass gate target:
+   - `next_gate=M7P10_ST_S4_READY` only when blocker-free.
+
+### Design choices (pre-code)
+1. Preserve black-box posture:
+   - no data-engine internals,
+   - run-scoped evidence from LS/CM/CaseTrigger proofs + writer-boundary probe + prior-stage receipts.
+2. Preserve deterministic and cost-controlled S3 lane:
+   - strict `S2` continuity and run-scope checks,
+   - historical `P10.D` baseline + current LS proof adjudication,
+   - explicit writer-boundary and single-writer semantics as blocking checks,
+   - full `18/18` artifact contract for deterministic downstream gate closure.
+3. Realism posture for low-sample managed lane:
+   - LS proof + writer probe semantics are blocking checks,
+   - sparse natural contention/reopen observation remains explicit advisory and must be pressure-tested in downstream windows.
+
+### Planned S3 checks
+1. Dependency checks:
+   - `S2` summary exists and `next_gate=M7P10_ST_S3_READY`,
+   - `S2` blocker register closed,
+   - dependency artifacts readable and run-scope consistent.
+2. Functional/performance checks (`B8`):
+   - historical `P10.D` baseline exists and passes,
+   - runtime contract valid after alias normalization,
+   - LS proof readback is green.
+3. Semantic checks (`B9`):
+   - LS run-scope tuple consistency,
+   - deterministic upstream linkage (`LS.upstream_execution` aligns with CM execution),
+   - idempotency/fail-closed posture consistency,
+   - writer probe exists, single-writer posture is true, and writer-outcome set remains valid,
+   - writer conflict bound remains <= pinned threshold.
+4. Evidence checks (`B10`):
+   - readback probes pass,
+   - required artifacts complete after S3 emission.
+
+### Implementation plan
+1. Extend `scripts/dev_substrate/m7p10_stress_runner.py`:
+   - add `run_s3()` lane,
+   - add CLI stage routing for `--stage S3`.
+2. Emit S3 artifacts:
+   - lane matrix, profiles, snapshots, probe/control/cost receipts,
+   - blocker register, execution summary, gate verdict, decision log.
+3. Validate and execute:
+   - `python -m py_compile scripts/dev_substrate/m7p10_stress_runner.py`,
+   - `python scripts/dev_substrate/m7p10_stress_runner.py --stage S3`.
+4. If blocked:
+   - apply narrow remediation aligned to root cause,
+   - rerun `S3` immediately.
+5. Sync authorities:
+   - `platform.M7.P10.stress_test.md`,
+   - `platform.M7.stress_test.md`,
+   - `platform.stress_test.md`,
+   - impl map and logbook execution entries.
+
+### Commit posture
+1. No commit/push performed.
+## Entry: 2026-03-04 07:12 +00:00 - M7P10-ST-S3 execution closure continuity (tail append)
+
+### Continuity note
+1. Full `M7P10-ST-S3` implementation/execution detail is already recorded in this file under the 07:09 execution entry.
+2. This tail append preserves end-of-file chronology for the active workstream without rewriting prior records.
+
+### Closure summary
+1. `M7P10-ST-S3` execution receipt:
+   - `phase_execution_id=m7p10_stress_s3_20260304T070641Z`,
+   - `overall_pass=true`,
+   - `next_gate=M7P10_ST_S4_READY`,
+   - `open_blockers=0`.
+2. Blocker register remained empty and artifact contract remained complete (`18/18`).
+3. Decision posture remained unchanged:
+   - LS writer-boundary semantics are green (`single_writer_posture=true`, `writer_conflict_rate_pct=0.0`),
+   - low-sample throughput posture remains explicit advisory for downstream pressure windows.
+
+### Commit posture
+1. No commit/push performed.
+## Entry: 2026-03-04 07:18 +00:00 - M7P10-ST-S4 execution plan pinned before implementation
+
+### Trigger
+1. USER directed:
+   - confirm no carry-over blockers,
+   - plan and execute `M7P10-ST-S4`,
+   - resolve blockers according to platform goals,
+   - document decisions for closure-grade assurance.
+
+### Pre-run blocker confirmation
+1. Latest `M7P10-ST-S3` is blocker-free:
+   - `phase_execution_id=m7p10_stress_s3_20260304T070641Z`,
+   - `overall_pass=true`,
+   - `next_gate=M7P10_ST_S4_READY`,
+   - `open_blocker_count=0`.
+
+### S4 objective and fail-closed mapping
+1. `S4` objective: remediation lane closure with targeted-rerun-only posture.
+2. Fail-closed blockers for `S4`:
+   - `M7P10-ST-B11` remediation evidence inconsistency / unresolved chain state,
+   - `M7P10-ST-B10` evidence contract/readback failure.
+3. Pass gate target:
+   - `next_gate=M7P10_ST_S5_READY` only when blocker-free.
+
+### Pre-implementation performance and cost design
+1. Complexity target:
+   - chain verification over fixed `S0..S3` lanes only (constant-bounded iteration; practical `O(1)` for this phase).
+2. Data-structure/model choice:
+   - immutable `chain_rows` matrix + lane-root-cause classification map keyed by logical lane (`DATA_PROFILE`, `CASE_TRIGGER`, `CM`, `LS`, `EVIDENCE`).
+3. I/O model:
+   - read local evidence JSON for `S0..S3` + bounded S3 readback probes; no broad scans or replay windows in `S4`.
+4. Runtime/cost budget posture:
+   - align with plan budget (`<=25` minutes, `<=3 USD`); expected observed window in seconds due no-op remediation when blocker-free.
+5. Rejected alternative:
+   - broad rerun of `S0..S3` in `S4` (rejected as anti-policy and cost-inefficient; violates targeted-rerun-only doctrine).
+
+### Design choices (pre-code)
+1. Preserve black-box boundary:
+   - no data-engine internals; S4 uses run-scoped platform evidence and prior stage artifacts only.
+2. Preserve deterministic closure:
+   - enforce full chain health (`S0..S3`) before allowing `S5` entry.
+3. Preserve targeted-remediation doctrine:
+   - if clean chain and probes: `remediation_mode=NO_OP`.
+   - if residual issues: classify root-cause and fail closed with blocker-scoped evidence (`TARGETED_REMEDIATE`).
+
+### Planned S4 checks
+1. Dependency checks:
+   - latest successful `S3` exists with `next_gate=M7P10_ST_S4_READY`, blocker register closed, and required artifacts present.
+2. Chain integrity checks (`B11`):
+   - deterministic sweep across `S0..S3` summaries, expected gates, blocker counts, and run-scope consistency.
+3. Evidence checks (`B10`):
+   - evidence bucket head probe and required artifact closure after S4 emission.
+4. Decision closure:
+   - emit blocker classification and remediation mode with explicit no-op vs targeted posture.
+
+### Implementation plan
+1. Extend `scripts/dev_substrate/m7p10_stress_runner.py`:
+   - add `run_s4()` remediation lane,
+   - add CLI stage routing for `--stage S4`.
+2. Emit S4 artifacts:
+   - carry-forward snapshots/profiles + `s4_chain_rows` + `s4_blocker_classification` + `remediation_mode`.
+3. Validate and execute:
+   - `python -m py_compile scripts/dev_substrate/m7p10_stress_runner.py`,
+   - `python scripts/dev_substrate/m7p10_stress_runner.py --stage S4`.
+4. If blocked:
+   - perform blocker-scoped remediation and rerun `S4` immediately.
+5. Sync authorities:
+   - `platform.M7.P10.stress_test.md`,
+   - `platform.M7.stress_test.md`,
+   - `platform.stress_test.md`,
+   - impl map + logbook closure entries.
+
+### Commit posture
+1. No commit/push performed.
+## Entry: 2026-03-04 07:21 +00:00 - M7P10-ST-S4 implemented and executed (pass)
+
+### Blocker carry-over confirmation
+1. Upstream `M7P10-ST-S3` remained blocker-free at execution start:
+   - `phase_execution_id=m7p10_stress_s3_20260304T070641Z`,
+   - `overall_pass=true`,
+   - `next_gate=M7P10_ST_S4_READY`,
+   - `open_blocker_count=0`.
+
+### Implementation
+1. Extended `scripts/dev_substrate/m7p10_stress_runner.py` with:
+   - `run_s4()` remediation lane execution,
+   - CLI stage routing for `--stage S4`.
+2. `S4` fail-closed mapping enforced:
+   - `M7P10-ST-B11` remediation-evidence inconsistency and unresolved stage-chain closure,
+   - `M7P10-ST-B10` evidence readback/artifact-contract breaches.
+3. `S4` lane mechanics enforced:
+   - strict `S3` continuity and dependency artifact closure,
+   - deterministic `S0..S3` chain sweep with run-scope consistency checks,
+   - lane-root-cause classification and targeted-remediation posture (`NO_OP` when clean, `TARGETED_REMEDIATE` otherwise),
+   - full P10 artifact contract emission (`18/18`).
+
+### Validation and execution
+1. Compile check:
+   - `python -m py_compile scripts/dev_substrate/m7p10_stress_runner.py` (pass).
+2. Execution:
+   - `python scripts/dev_substrate/m7p10_stress_runner.py --stage S4` (pass).
+3. Receipt:
+   - `phase_execution_id=m7p10_stress_s4_20260304T071415Z`,
+   - `overall_pass=true`,
+   - `next_gate=M7P10_ST_S5_READY`,
+   - `open_blockers=0`,
+   - `remediation_mode=NO_OP`,
+   - `probe_count=1`,
+   - `error_rate_pct=0.0`,
+   - `platform_run_id=platform_20260223T184232Z`.
+4. Artifact contract:
+   - complete (`18/18` required artifacts present).
+
+### Decision rationale
+1. No carry-over blockers were present before `S4`; dependency continuity stayed clean.
+2. Deterministic chain-health sweep across `S0..S3` remained fully green and run-scope consistent.
+3. No residual blocker required targeted remediation in this window; `NO_OP` closure is valid and evidence-backed.
+4. Fail-closed policy remains active: any future residual inconsistency in chain/evidence will reopen `B11/B10` and block `S5` progression.
+
+### Documentation sync
+1. Updated `platform.M7.P10.stress_test.md`:
+   - DoD marks `S4` complete,
+   - immediate next actions now route to `S5`,
+   - execution progress includes `S4` receipt and remediation-lane closure rationale.
+2. Updated `platform.M7.stress_test.md`:
+   - immediate next action now routes to `M7P10-ST-S5`,
+   - execution progress includes `S4` receipt.
+3. Updated `platform.stress_test.md`:
+   - active M7 status reflects `P10` `S0..S4` closure,
+   - latest `P10` receipts include `S4`,
+   - current next executable step routes to `M7P10-ST-S5`.
+
+### Commit posture
+1. No commit/push performed.
+## Entry: 2026-03-04 07:25 +00:00 - M7P10-ST-S5 execution plan pinned before implementation
+
+### Trigger
+1. USER directed:
+   - confirm no carry-over blockers,
+   - plan and execute `M7P10-ST-S5`,
+   - resolve blockers per platform goals,
+   - document decisions for closure-grade assurance.
+
+### Pre-run blocker confirmation
+1. Latest `M7P10-ST-S4` is blocker-free:
+   - `phase_execution_id=m7p10_stress_s4_20260304T071415Z`,
+   - `overall_pass=true`,
+   - `next_gate=M7P10_ST_S5_READY`,
+   - `open_blocker_count=0`,
+   - `remediation_mode=NO_OP`.
+
+### S5 objective and fail-closed mapping
+1. `S5` objective: deterministic P10 closure rollup from realistic-data evidence.
+2. Fail-closed blockers for `S5`:
+   - `M7P10-ST-B11` rollup/verdict inconsistency or unresolved stage-chain closure,
+   - `M7P10-ST-B12` artifact/readback contract incompleteness.
+3. Pass gate target:
+   - `next_gate=M7_J_READY` only when blocker-free and artifact-complete.
+
+### Pre-implementation performance and cost design
+1. Complexity target:
+   - bounded deterministic sweep across fixed chain `S0..S4` (constant-bounded, practical `O(1)` for phase scale).
+2. Data-structure/model choice:
+   - immutable `chain_rows` matrix with run-scope consistency flags,
+   - explicit closure evidence map from S4 carry-forward refs,
+   - blocker list partitioned by `B11` (logic/verdict) vs `B12` (evidence contract).
+3. I/O model:
+   - local evidence JSON reads for `S0..S4` + bounded S3 head probes for closure refs.
+4. Runtime/cost budget posture:
+   - align with S5 budget (`<=20` minutes, `<=2 USD`), expected minute/sub-minute observed for no-rerun closure paths.
+5. Rejected alternatives:
+   - broad lane reruns during S5 rollup (rejected as non-targeted and cost-inefficient),
+   - verdict emission without readback (rejected as non-auditable and non-deterministic).
+
+### Design choices (pre-code)
+1. Preserve black-box posture:
+   - no data-engine internals; S5 consumes run-scoped platform evidence only.
+2. Preserve deterministic closure contract:
+   - rollup verdict derives from chain + artifact/readback closure only.
+3. Preserve fail-closed semantics:
+   - any unresolved chain/evidence hole blocks `M7_J_READY` and emits `HOLD_REMEDIATE`.
+
+### Planned S5 checks
+1. Dependency checks:
+   - latest successful `S4` exists with `next_gate=M7P10_ST_S5_READY`, blocker register closed, artifact set complete.
+2. Chain integrity checks (`B11`):
+   - deterministic sweep across `S0..S4` expected gates, pass flags, blocker counts, and run-scope consistency.
+3. Evidence checks (`B12`):
+   - S4 closure references readback (case/label proofs, writer probe, receipt summary) + artifact contract completeness.
+4. Verdict consistency checks (`B11`):
+   - expected pass gate from handle packet resolves to `M7_J_READY` and is used consistently across summary + verdict.
+
+### Implementation plan
+1. Extend `scripts/dev_substrate/m7p10_stress_runner.py`:
+   - add `run_s5()` rollup lane,
+   - extend artifact-finalizer to support stage-specific blocker id (`B12` for S5 contract failures),
+   - add CLI routing for `--stage S5`.
+2. Emit S5 artifacts:
+   - carry-forward snapshots/profiles with chain rows + verdict candidate,
+   - blocker register, execution summary, gate verdict, decision log.
+3. Validate and execute:
+   - `python -m py_compile scripts/dev_substrate/m7p10_stress_runner.py`,
+   - `python scripts/dev_substrate/m7p10_stress_runner.py --stage S5`.
+4. If blocked:
+   - perform blocker-scoped remediation and rerun `S5` immediately.
+5. Sync authorities:
+   - `platform.M7.P10.stress_test.md`,
+   - `platform.M7.stress_test.md`,
+   - `platform.stress_test.md`,
+   - impl map + logbook closure entries.
+
+### Commit posture
+1. No commit/push performed.
+## Entry: 2026-03-04 07:29 +00:00 - M7P10-ST-S5 implemented and executed (pass)
+
+### Blocker carry-over confirmation
+1. Upstream `M7P10-ST-S4` remained blocker-free at execution start:
+   - `phase_execution_id=m7p10_stress_s4_20260304T071415Z`,
+   - `overall_pass=true`,
+   - `next_gate=M7P10_ST_S5_READY`,
+   - `open_blocker_count=0`,
+   - `remediation_mode=NO_OP`.
+
+### Implementation
+1. Extended `scripts/dev_substrate/m7p10_stress_runner.py` with:
+   - `run_s5()` deterministic rollup lane,
+   - CLI stage routing for `--stage S5`.
+2. Hardened shared artifact finalizer:
+   - added stage-specific blocker-id parameter so `S5` artifact-contract failures are classified as `M7P10-ST-B12` (while preserving `B10` default for `S0..S4`).
+3. `S5` fail-closed mapping enforced:
+   - `M7P10-ST-B11` for rollup/verdict inconsistency and unresolved chain state,
+   - `M7P10-ST-B12` for closure readback/artifact-contract incompleteness.
+4. `S5` lane mechanics enforced:
+   - strict `S4` continuity and dependency artifact closure,
+   - deterministic `S0..S4` chain sweep with run-scope consistency checks,
+   - closure readback probes for receipt summary + case/label proofs + writer-boundary proof,
+   - deterministic pass-gate contract (`M7_J_READY`) from pinned handle packet,
+   - full P10 artifact contract emission (`18/18`).
+
+### Validation and execution
+1. Compile check:
+   - `python -m py_compile scripts/dev_substrate/m7p10_stress_runner.py` (pass).
+2. Execution:
+   - `python scripts/dev_substrate/m7p10_stress_runner.py --stage S5` (pass).
+3. Receipt:
+   - `phase_execution_id=m7p10_stress_s5_20260304T071946Z`,
+   - `overall_pass=true`,
+   - `verdict=M7_J_READY`,
+   - `next_gate=M7_J_READY`,
+   - `open_blockers=0`,
+   - `probe_count=6`,
+   - `error_rate_pct=0.0`,
+   - `platform_run_id=platform_20260223T184232Z`.
+4. Artifact contract:
+   - complete (`18/18` required artifacts present).
+
+### Decision rationale
+1. No carry-over blockers were present before `S5`; dependency continuity stayed clean.
+2. Deterministic chain-health sweep across `S0..S4` remained fully green and run-scope consistent.
+3. Closure readback surface remained green and attributable; no evidence hole remained.
+4. Deterministic verdict contract closed exactly to pinned pass gate (`M7_J_READY`), so `P10` is closure-complete.
+5. Fail-closed posture remains active for parent M7 lanes; P10 closure does not bypass parent adjudication requirements.
+
+### Documentation sync
+1. Updated `platform.M7.P10.stress_test.md`:
+   - DoD marks `S5` complete,
+   - immediate next actions now route to parent M7 adjudication,
+   - execution progress includes `S5` receipt and closure rationale.
+2. Updated `platform.M7.stress_test.md`:
+   - immediate next action now routes to parent `M7-ST-S1`,
+   - execution progress includes `S5` receipt.
+3. Updated `platform.stress_test.md`:
+   - active M7 status reflects P10 closure through `S5` (`M7_J_READY`),
+   - latest P10 receipts include `S5`,
+   - current next executable step routes to parent `M7-ST-S1 -> S2 -> S3`.
+
+### Commit posture
+1. No commit/push performed.
+## Entry: 2026-03-04 07:42 +00:00 - Parent M7 runner closure implementation plan (S1..S5)
+
+### Trigger
+1. USER directed implementation of remaining production-readiness gaps identified in M7 audit.
+2. Material gap confirmed: `scripts/dev_substrate/m7_stress_runner.py` currently supports `S0` only; parent M7 DoD requires `S1..S5` execution and closure.
+
+### Problem statement
+1. M7 subphases (`P8/P9/P10`) are closed green, but parent orchestration and integrated closure gates remain unimplemented.
+2. Without parent `S1..S5`, M7 cannot claim deterministic `M8_READY` recommendation under project fail-closed law.
+
+### Performance and cost design (pre-implementation)
+1. Complexity model:
+   - deterministic stage-chain sweeps over fixed stage sets (`S0..S4`) and fixed subphase receipts (`P8/P9/P10`) => bounded `O(1)` behavior for each parent stage.
+2. Data model:
+   - immutable `chain_rows` matrices,
+   - blocker-classification maps by parent blocker taxonomy,
+   - carry-forward snapshot/profile artifacts from prior stages,
+   - explicit verdict contracts and run-scope consistency checks.
+3. I/O model:
+   - local evidence JSON reads from run-control,
+   - bounded S3 head probes for evidence/readback validation,
+   - no broad data re-scan in adjudication stages.
+4. Runtime budget posture:
+   - parent `S1..S3` expected sub-minute to low-minute,
+   - parent `S4/S5` bounded by plan budgets with explicit envelope checks (`M7_STRESS_MAX_RUNTIME_MINUTES`, `M7_STRESS_MAX_SPEND_USD`).
+5. Rejected alternatives:
+   - schema-only parent closure without integrated windows (rejected by M7 purpose and DoD),
+   - ad-hoc manual parent adjudication outside runner (rejected for non-determinism and weak auditability),
+   - broad reruns instead of targeted fail-closed progression (rejected by performance/cost doctrine).
+
+### Planned implementation scope
+1. Extend `scripts/dev_substrate/m7_stress_runner.py` with:
+   - `run_s1()` P8 gate adjudication,
+   - `run_s2()` P9 gate adjudication,
+   - `run_s3()` P10 gate adjudication,
+   - `run_s4()` integrated realistic-data window adjudication,
+   - `run_s5()` deterministic rollup + `M8` handoff.
+2. Add shared helpers:
+   - stage-specific artifact finalizer,
+   - required-artifact parser from plan packet,
+   - chain sweep utility for parent stages.
+3. Extend CLI routing to support `--stage S0..S5`.
+
+### Parent-stage gate mapping (fail-closed)
+1. `S1` -> `B5/B9/B10`.
+2. `S2` -> `B6/B9/B10`.
+3. `S3` -> `B7/B9/B10`.
+4. `S4` -> `B8/B11/B12/B10`.
+5. `S5` -> `B11/B12/B13/B9`.
+
+### Acceptance targets
+1. `S1` pass gate: `next_gate=M7_ST_S2_READY`.
+2. `S2` pass gate: `next_gate=M7_ST_S3_READY`.
+3. `S3` pass gate: `next_gate=M7_ST_S4_READY`.
+4. `S4` pass gate: `next_gate=M7_ST_S5_READY`.
+5. `S5` pass gate: deterministic recommendation `GO`, `next_gate=M8_READY`.
+
+### Execution plan after code implementation
+1. Compile runner.
+2. Execute sequentially: `S1 -> S2 -> S3 -> S4 -> S5`.
+3. On any blocker, perform narrow root-cause remediation and rerun impacted parent stage only.
+4. Sync authorities and evidence ledger:
+   - `platform.M7.stress_test.md`,
+   - `platform.stress_test.md`,
+   - `platform.stress_test.impl_actual.md`,
+   - `docs/logbook/03-2026/2026-03-04.md`.
+
+### Commit posture
+1. No commit/push performed.
+## Entry: 2026-03-04 07:34 +00:00 - Parent M7 closure implementation resumed after patch-length failure
+
+### Resume trigger
+1. USER reconfirmed implementation of any remaining M7 closure gaps.
+2. Remaining gap still present: parent M7-ST-S1..S5 not yet implemented/executed in scripts/dev_substrate/m7_stress_runner.py.
+
+### Resume plan (unchanged objective, adjusted method)
+1. Keep the same fail-closed design and blocker mapping pinned in the prior parent-M7 plan entry.
+2. Apply runner edits in smaller hunks (S1, S2, S3, S4, S5, then CLI map) to avoid Windows command-length limits.
+3. Compile and execute parent stages sequentially: S1 -> S2 -> S3 -> S4 -> S5.
+4. If any stage blocks, remediate narrowly and rerun only the impacted parent stage.
+
+### Commit posture
+1. No commit/push performed.
+## Entry: 2026-03-04 14:16 +00:00 - Parent M7 closure implemented and executed (S1..S5 green)
+
+### Scope implemented
+1. Extended scripts/dev_substrate/m7_stress_runner.py from S0-only to full parent chain support:
+   - added un_s1() (P8 adjudication),
+   - added un_s2() (P9 adjudication),
+   - added un_s3() (P10 adjudication),
+   - added un_s4() (integrated realistic-data window),
+   - added un_s5() (rollup + M8 handoff),
+   - extended CLI routing to --stage S0..S5.
+2. Added shared helper parse_s3_uri() and reused existing fail-closed helpers (parse_required_artifacts, esolve_required_handles, probe helpers, artifact finalizer, parent-chain builder).
+
+### Gate logic and blocker mapping enforced
+1. S1 fail-closed mapping: B5/B9/B10.
+2. S2 fail-closed mapping: B6/B9/B10.
+3. S3 fail-closed mapping: B7/B9/B10.
+4. S4 fail-closed mapping: B8/B11/B12/B10.
+5. S5 fail-closed mapping: B11/B12/B13/B9.
+6. Deterministic pass rule implemented in S5: erdict=GO and 
+ext_gate=M8_READY only when parent+subphase chains and handoff contract are blocker-free.
+
+### Validation and execution receipts
+1. Compile gate:
+   - python -m py_compile scripts/dev_substrate/m7_stress_runner.py (pass).
+2. Sequential execution (first pass):
+   - S1: m7_stress_s1_20260304T074135Z -> overall_pass=true, 
+ext_gate=M7_ST_S2_READY, open_blockers=0.
+   - S2: m7_stress_s2_20260304T074144Z -> overall_pass=true, 
+ext_gate=M7_ST_S3_READY, open_blockers=0.
+   - S3: m7_stress_s3_20260304T074152Z -> overall_pass=true, 
+ext_gate=M7_ST_S4_READY, open_blockers=0.
+   - S4: m7_stress_s4_20260304T074200Z -> overall_pass=true, 
+ext_gate=M7_ST_S5_READY, open_blockers=0.
+   - S5: m7_stress_s5_20260304T074209Z -> overall_pass=true, erdict=GO, 
+ext_gate=M8_READY, open_blockers=0.
+3. Post-pass hardening adjustment (S4 bookkeeping correctness only):
+   - fixed per-subphase semantic-count bookkeeping + explicit cost-receipt filename resolution in S4.
+4. Revalidation after hardening:
+   - recompile passed,
+   - S4 rerun: m7_stress_s4_20260304T074305Z -> pass,
+   - S5 rerun: m7_stress_s5_20260304T074317Z -> pass (GO, M8_READY, open_blockers=0).
+
+### Documentation synchronization
+1. Updated platform.M7.stress_test.md:
+   - DoD now marks parent S1..S5 complete,
+   - immediate next actions now route to M8,
+   - execution progress includes parent-stage receipts and rerun receipts.
+2. Updated platform.stress_test.md:
+   - M7 section moved to closure posture (DONE),
+   - latest parent receipts include S1..S5 with rerun finals,
+   - next executable step now routes to M8 planning/execution via latest m8_handoff_pack.json.
+
+### Drift and closure assessment
+1. Parent M7 runtime flow is no longer partial/orphaned: S0..S5 closed in sequence with deterministic gates.
+2. Subphase-to-parent and parent-to-M8 continuity is now explicit and run-scope consistent (platform_20260223T184232Z).
+3. No unresolved blockers remain in latest parent closure receipt (m7_stress_s5_20260304T074317Z).
+
+### Commit posture
+1. No commit/push performed.
+## Entry: 2026-03-04 14:22 +00:00 - M7 closure readiness audit (production-standard review)
+
+### Audit trigger
+1. USER requested a pre-close review of M7 against production goals: realistic-data stress confidence, not checklist closure.
+
+### Evidence reviewed
+1. Parent M7 closure receipts:
+   - uns/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m7_stress_s4_20260304T074305Z/stress/*
+   - uns/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m7_stress_s5_20260304T074317Z/stress/*
+2. Subphase closure profiles:
+   - m7p8_stress_s5_20260304T055237Z/stress/m7p8_data_profile_summary.json
+   - m7p9_stress_s5_20260304T063429Z/stress/m7p9_data_profile_summary.json
+   - m7p10_stress_s5_20260304T071946Z/stress/m7p10_data_profile_summary.json
+
+### Findings (severity-ranked)
+1. HIGH: integrated M7 window is still proxy-heavy instead of pressure-executed on key realism cohorts.
+   - duplicate/out-of-order remain unobserved at parent profile level (duplicate_ratio_pct=null, out_of_order_ratio_pct=null), and advisories repeatedly state downstream injection remains required.
+2. HIGH: case/label realism remains low-sample at source of truth for P10 semantics.
+   - observed case/label receipts remain 18 while effective counts are proxy-expanded from upstream run volume.
+3. MEDIUM: throughput evidence in parent S4/S5 is not end-to-end service-path latency/throughput; it is currently dominated by manifest/receipt-derived proxies and control-plane probes.
+4. MEDIUM: cost attribution is closure-complete structurally but not financially complete for true platform spend.
+   - stage receipts still report ttributed_spend_usd=0.0 for parent M7 closeout.
+5. LOW: deterministic gateing, run-scope continuity, and artifact completeness are strong and closure-grade.
+
+### Decision
+1. M7 is functionally closed and deterministic, but not yet "production-ready stress closed" under strict realism-first criteria.
+2. Keep M7 in a CONDITIONALLY CLOSED posture until explicit hard-close lanes below are executed.
+
+### Hard-close remediation lanes (targeted, no redesign required)
+1. Lane A (realism injection): execute dedicated duplicate/out-of-order/hotkey/rare-event injected windows and publish observed cohort metrics at parent layer.
+2. Lane B (P10 realism): run a case/label stress window that increases observed case/label receipts materially above low-sample posture and verifies lifecycle/writer invariants under pressure.
+3. Lane C (service-path throughput): collect end-to-end p50/p95/p99 and error/retry from RTDL->decision->case pipelines, not only manifest-derived proxies.
+4. Lane D (cost attribution hardening): map parent M7 receipt spend to actual cost surfaces (AWS + any in-scope external surfaces) for the execution window.
 
 ### Commit posture
 1. No commit/push performed.

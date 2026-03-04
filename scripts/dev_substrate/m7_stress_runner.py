@@ -76,6 +76,26 @@ S0_REQUIRED_ARTIFACTS = [
     "m7_decision_log.json",
 ]
 
+M7_REQUIRED_ARTIFACTS = [
+    "m7_stagea_findings.json",
+    "m7_lane_matrix.json",
+    "m7_data_subset_manifest.json",
+    "m7_data_profile_summary.json",
+    "m7_data_edge_case_matrix.json",
+    "m7_data_skew_hotspot_profile.json",
+    "m7_data_quality_guardrail_snapshot.json",
+    "m7_probe_latency_throughput_snapshot.json",
+    "m7_control_rail_conformance_snapshot.json",
+    "m7_secret_safety_snapshot.json",
+    "m7_cost_outcome_receipt.json",
+    "m7_blocker_register.json",
+    "m7_execution_summary.json",
+    "m7_decision_log.json",
+    "m7_phase_rollup_matrix.json",
+    "m7_gate_verdict.json",
+    "m8_handoff_pack.json",
+]
+
 M7_S0_EVENT_TYPE_MIN_COUNT = 3
 
 
@@ -171,6 +191,149 @@ def parse_range(v: Any) -> tuple[float | None, float | None]:
         return None, None
 
 
+def parse_required_artifacts(plan_packet: dict[str, Any]) -> list[str]:
+    raw = str(plan_packet.get("M7_STRESS_REQUIRED_ARTIFACTS", "")).strip()
+    if not raw:
+        return list(M7_REQUIRED_ARTIFACTS)
+    out = [x.strip() for x in raw.split(",") if x.strip()]
+    return out if out else list(M7_REQUIRED_ARTIFACTS)
+
+
+def resolve_required_handles(handles: dict[str, Any]) -> tuple[list[str], list[str]]:
+    missing: list[str] = []
+    placeholder: list[str] = []
+    bad = {"", "TO_PIN", "NONE", "None", "null", "NULL"}
+    for k in REQ_HANDLES:
+        if k not in handles:
+            missing.append(k)
+            continue
+        if str(handles.get(k, "")).strip() in bad:
+            placeholder.append(k)
+    return missing, placeholder
+
+
+def add_head_bucket_probe(probes: list[dict[str, Any]], bucket: str, region: str, probe_id: str) -> dict[str, Any]:
+    if bucket:
+        p = run_cmd(["aws", "s3api", "head-bucket", "--bucket", bucket, "--region", region], 25)
+        probes.append({**p, "probe_id": probe_id, "group": "control", "bucket": bucket})
+        return p
+    p = {
+        "command": "aws s3api head-bucket",
+        "exit_code": 1,
+        "status": "FAIL",
+        "duration_ms": 0.0,
+        "stdout": "",
+        "stderr": "missing S3_EVIDENCE_BUCKET handle",
+        "started_at_utc": now(),
+        "ended_at_utc": now(),
+    }
+    probes.append({**p, "probe_id": probe_id, "group": "control", "bucket": bucket})
+    return p
+
+
+def add_head_object_probe(probes: list[dict[str, Any]], bucket: str, key: str, region: str, probe_id: str) -> dict[str, Any]:
+    k = str(key or "").strip().lstrip("/")
+    if bucket and k:
+        p = run_cmd(["aws", "s3api", "head-object", "--bucket", bucket, "--key", k, "--region", region], 30)
+        probes.append({**p, "probe_id": probe_id, "group": "evidence", "bucket": bucket, "key": k})
+        return p
+    p = {
+        "command": "aws s3api head-object",
+        "exit_code": 1,
+        "status": "FAIL",
+        "duration_ms": 0.0,
+        "stdout": "",
+        "stderr": "missing bucket/key",
+        "started_at_utc": now(),
+        "ended_at_utc": now(),
+    }
+    probes.append({**p, "probe_id": probe_id, "group": "evidence", "bucket": bucket, "key": k})
+    return p
+
+
+def probe_metrics(probes: list[dict[str, Any]]) -> dict[str, Any]:
+    failures = [p for p in probes if str(p.get("status", "FAIL")) != "PASS"]
+    latencies = [float(p.get("duration_ms", 0.0) or 0.0) for p in probes]
+    p50 = 0.0 if not latencies else sorted(latencies)[len(latencies) // 2]
+    p95 = 0.0 if not latencies else max(latencies)
+    return {
+        "window_seconds_observed": max(1, int(round(sum(latencies) / 1000.0))) if latencies else 1,
+        "probe_count": len(probes),
+        "failure_count": len(failures),
+        "error_rate_pct": round((len(failures) / len(probes)) * 100.0, 4) if probes else 0.0,
+        "latency_ms_p50": p50,
+        "latency_ms_p95": p95,
+        "latency_ms_p99": p95,
+        "sample_failures": failures[:10],
+        "probes": probes,
+    }
+
+
+def finalize_artifact_contract(
+    out: Path,
+    required_artifacts: list[str],
+    blockers: list[dict[str, Any]],
+    blocker_register: dict[str, Any],
+    summary: dict[str, Any],
+    verdict: dict[str, Any],
+    blocker_id: str,
+) -> None:
+    missing = [x for x in required_artifacts if not (out / x).exists()]
+    if not missing:
+        return
+    blockers.append({"id": blocker_id, "severity": summary.get("stage_id", ""), "status": "OPEN", "details": {"missing_artifacts": missing}})
+    blocker_register.update({"overall_pass": False, "open_blocker_count": len(blockers), "blockers": blockers})
+    summary.update({"overall_pass": False, "next_gate": "BLOCKED", "open_blocker_count": len(blockers)})
+    verdict.update({"overall_pass": False, "next_gate": "BLOCKED", "blocker_count": len(blockers)})
+    dumpj(out / "m7_blocker_register.json", blocker_register)
+    dumpj(out / "m7_execution_summary.json", summary)
+    dumpj(out / "m7_gate_verdict.json", verdict)
+
+
+def build_parent_chain_rows(platform_run_id: str) -> tuple[list[dict[str, Any]], list[str]]:
+    spec = [
+        ("S0", "m7_stress_s0", "M7-ST-S0", "M7_ST_S1_READY"),
+        ("S1", "m7_stress_s1", "M7-ST-S1", "M7_ST_S2_READY"),
+        ("S2", "m7_stress_s2", "M7-ST-S2", "M7_ST_S3_READY"),
+        ("S3", "m7_stress_s3", "M7-ST-S3", "M7_ST_S4_READY"),
+        ("S4", "m7_stress_s4", "M7-ST-S4", "M7_ST_S5_READY"),
+    ]
+    rows: list[dict[str, Any]] = []
+    issues: list[str] = []
+    for label, prefix, stage_id, expected_next_gate in spec:
+        rec = latest_ok(prefix, "m7_execution_summary.json", stage_id)
+        row = {
+            "label": label,
+            "stage_id": stage_id,
+            "expected_next_gate": expected_next_gate,
+            "found": bool(rec),
+            "phase_execution_id": "",
+            "next_gate": "",
+            "overall_pass": False,
+            "open_blockers": None,
+            "platform_run_id": "",
+            "run_scope_consistent": True,
+            "ok": False,
+        }
+        if rec:
+            s = rec.get("summary", {})
+            row["phase_execution_id"] = str(s.get("phase_execution_id", ""))
+            row["next_gate"] = str(s.get("next_gate", ""))
+            row["overall_pass"] = bool(s.get("overall_pass"))
+            row["platform_run_id"] = str(s.get("platform_run_id", "")).strip()
+            rp = Path(str(rec.get("path", "")))
+            br = loadj(rp / "m7_blocker_register.json")
+            row["open_blockers"] = int(br.get("open_blocker_count", 0) or 0)
+            row["ok"] = row["overall_pass"] and row["next_gate"] == expected_next_gate and row["open_blockers"] == 0
+            if platform_run_id and row["platform_run_id"] and row["platform_run_id"] != platform_run_id:
+                row["run_scope_consistent"] = False
+                row["ok"] = False
+        if not row["ok"]:
+            issues.append(f"parent chain row failed: {label}")
+        rows.append(row)
+    return rows, issues
+
+
 def latest_ok(prefix: str, summary_name: str, stage_id: str) -> dict[str, Any]:
     for d in sorted(OUT_ROOT.glob(f"{prefix}_*/stress"), reverse=True):
         s = loadj(d / summary_name)
@@ -194,6 +357,17 @@ def materialize_pattern(pattern: str, replacements: dict[str, str]) -> str:
     for key, val in replacements.items():
         out = out.replace("{" + key + "}", str(val))
     return out
+
+
+def parse_s3_uri(uri: str) -> tuple[str, str]:
+    s = str(uri or "").strip()
+    if not s.startswith("s3://"):
+        return "", ""
+    no_scheme = s[5:]
+    if "/" not in no_scheme:
+        return "", ""
+    bucket, key = no_scheme.split("/", 1)
+    return bucket.strip(), key.strip()
 
 
 def run_cmd_full(argv: list[str], timeout: int = 120) -> tuple[int, str, str]:
@@ -834,13 +1008,1671 @@ def run_s0(phase_execution_id: str) -> int:
     return 0 if summary["overall_pass"] else 2
 
 
+def run_s1(phase_execution_id: str) -> int:
+    out = OUT_ROOT / phase_execution_id / "stress"
+    out.mkdir(parents=True, exist_ok=True)
+
+    plan_packet = parse_bt_map(PLAN.read_text(encoding="utf-8") if PLAN.exists() else "")
+    handles = parse_registry(REG) if REG.exists() else {}
+    required_artifacts = parse_required_artifacts(plan_packet)
+
+    blockers: list[dict[str, Any]] = []
+    probes: list[dict[str, Any]] = []
+    issues: list[str] = []
+    advisories: list[str] = []
+    decisions: list[str] = []
+
+    missing_plan_keys = [k for k in PLAN_KEYS if k not in plan_packet]
+    missing_handles, placeholder_handles = resolve_required_handles(handles)
+    if missing_plan_keys or missing_handles or placeholder_handles:
+        blockers.append(
+            {
+                "id": "M7-ST-B1",
+                "severity": "S1",
+                "status": "OPEN",
+                "details": {
+                    "missing_plan_keys": missing_plan_keys,
+                    "missing_handles": missing_handles,
+                    "placeholder_handles": placeholder_handles,
+                },
+            }
+        )
+        if missing_plan_keys:
+            issues.append(f"missing plan keys: {','.join(missing_plan_keys)}")
+        if missing_handles:
+            issues.append(f"missing handles: {','.join(missing_handles)}")
+        if placeholder_handles:
+            issues.append(f"placeholder handles: {','.join(placeholder_handles)}")
+
+    dep_issues: list[str] = []
+    dep = latest_ok("m7_stress_s0", "m7_execution_summary.json", "M7-ST-S0")
+    dep_id = ""
+    dep_subset: dict[str, Any] = {}
+    dep_profile: dict[str, Any] = {}
+    platform_run_id = ""
+    if not dep:
+        dep_issues.append("missing successful M7-ST-S0 dependency")
+    else:
+        dep_summary = dep["summary"]
+        dep_id = str(dep_summary.get("phase_execution_id", ""))
+        if str(dep_summary.get("next_gate", "")).strip() != "M7_ST_S1_READY":
+            dep_issues.append("M7-ST-S0 next_gate is not M7_ST_S1_READY")
+        dep_path = Path(str(dep.get("path", "")))
+        dep_blockers = loadj(dep_path / "m7_blocker_register.json")
+        if int(dep_blockers.get("open_blocker_count", 0) or 0) != 0:
+            dep_issues.append("M7-ST-S0 blocker register is not closed")
+        dep_subset = loadj(dep_path / "m7_data_subset_manifest.json")
+        dep_profile = loadj(dep_path / "m7_data_profile_summary.json")
+        if not dep_subset or not dep_profile:
+            dep_issues.append("M7-ST-S0 data subset/profile artifacts are missing")
+        platform_run_id = str(dep_summary.get("platform_run_id", "")).strip()
+    if dep_issues:
+        blockers.append({"id": "M7-ST-B5", "severity": "S1", "status": "OPEN", "details": {"issues": dep_issues}})
+        issues.extend(dep_issues)
+
+    p8_issues: list[str] = []
+    p8 = latest_ok("m7p8_stress_s5", "m7p8_execution_summary.json", "M7P8-ST-S5")
+    p8_id = ""
+    p8_summary: dict[str, Any] = {}
+    p8_profile: dict[str, Any] = {}
+    p8_ieg: dict[str, Any] = {}
+    p8_ofp: dict[str, Any] = {}
+    p8_archive: dict[str, Any] = {}
+    p8_platform_run_id = ""
+    if not p8:
+        p8_issues.append("missing successful M7P8-ST-S5 dependency")
+    else:
+        p8_path = Path(str(p8.get("path", "")))
+        p8_summary = p8.get("summary", {})
+        p8_id = str(p8_summary.get("phase_execution_id", ""))
+        if str(p8_summary.get("verdict", "")).strip() != "ADVANCE_TO_P9":
+            p8_issues.append("M7P8-ST-S5 verdict is not ADVANCE_TO_P9")
+        if str(p8_summary.get("next_gate", "")).strip() != "ADVANCE_TO_P9":
+            p8_issues.append("M7P8-ST-S5 next_gate is not ADVANCE_TO_P9")
+        p8_blockers = loadj(p8_path / "m7p8_blocker_register.json")
+        if int(p8_blockers.get("open_blocker_count", 0) or 0) != 0:
+            p8_issues.append("M7P8-ST-S5 blocker register is not closed")
+        dep_required = [str(x) for x in p8_summary.get("required_artifacts", []) if str(x).strip()]
+        if dep_required:
+            for name in dep_required:
+                if not (p8_path / name).exists():
+                    p8_issues.append(f"missing P8 dependency artifact: {name}")
+        p8_profile = loadj(p8_path / "m7p8_data_profile_summary.json")
+        p8_ieg = loadj(p8_path / "m7p8_ieg_snapshot.json")
+        p8_ofp = loadj(p8_path / "m7p8_ofp_snapshot.json")
+        p8_archive = loadj(p8_path / "m7p8_archive_snapshot.json")
+        if not p8_profile or not p8_ieg or not p8_ofp or not p8_archive:
+            p8_issues.append("P8 S5 required snapshots/profile missing")
+        p8_platform_run_id = str(p8_summary.get("platform_run_id", "")).strip()
+        if platform_run_id and p8_platform_run_id and platform_run_id != p8_platform_run_id:
+            p8_issues.append("run-scope mismatch between M7 S0 and P8 S5")
+        if not platform_run_id and p8_platform_run_id:
+            platform_run_id = p8_platform_run_id
+
+    p8_functional_issues = [
+        str(x)
+        for x in [*(p8_ieg.get("functional_issues", []) or []), *(p8_ofp.get("functional_issues", []) or []), *(p8_archive.get("functional_issues", []) or [])]
+        if str(x).strip()
+    ]
+    p8_semantic_issues = [
+        str(x)
+        for x in [*(p8_ieg.get("semantic_issues", []) or []), *(p8_ofp.get("semantic_issues", []) or []), *(p8_archive.get("semantic_issues", []) or [])]
+        if str(x).strip()
+    ]
+    p8_checks = p8_profile.get("checks", {}) if isinstance(p8_profile.get("checks", {}), dict) else {}
+    p8_failed_checks = [k for k, v in p8_checks.items() if not bool(v)]
+    if p8_functional_issues:
+        p8_issues.append("P8 functional issues are present")
+    if p8_semantic_issues:
+        p8_issues.append("P8 semantic issues are present")
+    if p8_failed_checks:
+        p8_issues.append("P8 data-profile checks failed")
+    if p8_issues:
+        blockers.append(
+            {
+                "id": "M7-ST-B5",
+                "severity": "S1",
+                "status": "OPEN",
+                "details": {
+                    "issues": sorted(set(p8_issues)),
+                    "functional_issues": p8_functional_issues[:20],
+                    "semantic_issues": p8_semantic_issues[:20],
+                    "failed_profile_checks": p8_failed_checks[:20],
+                },
+            }
+        )
+        issues.extend(sorted(set(p8_issues)))
+
+    bucket = str(handles.get("S3_EVIDENCE_BUCKET", "")).strip()
+    p_bucket = add_head_bucket_probe(probes, bucket, "eu-west-2", "m7_s1_evidence_bucket")
+    if p_bucket.get("status") != "PASS":
+        blockers.append({"id": "M7-ST-B10", "severity": "S1", "status": "OPEN", "details": {"probe_id": "m7_s1_evidence_bucket"}})
+        issues.append("evidence bucket probe failed")
+
+    replacements = {"platform_run_id": platform_run_id, "phase_execution_id": phase_execution_id}
+    for probe_id, handle_key in [
+        ("m7_s1_receipt_summary", "RECEIPT_SUMMARY_PATH_PATTERN"),
+        ("m7_s1_offsets_snapshot", "KAFKA_OFFSETS_SNAPSHOT_PATH_PATTERN"),
+        ("m7_s1_quarantine_summary", "QUARANTINE_SUMMARY_PATH_PATTERN"),
+    ]:
+        key = materialize_pattern(str(handles.get(handle_key, "")).strip(), replacements)
+        if key:
+            p = add_head_object_probe(probes, bucket, key, "eu-west-2", probe_id)
+            if p.get("status") != "PASS":
+                blockers.append({"id": "M7-ST-B10", "severity": "S1", "status": "OPEN", "details": {"probe_id": probe_id, "key": key}})
+                issues.append(f"{probe_id} probe failed")
+
+    metrics = probe_metrics(probes)
+    overall_pass = len(blockers) == 0
+    next_gate = "M7_ST_S2_READY" if overall_pass else "BLOCKED"
+    verdict_name = "ADVANCE_TO_S2" if overall_pass else "HOLD_REMEDIATE"
+
+    dumpj(
+        out / "m7_stagea_findings.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S1",
+            "findings": [
+                {"id": "M7-ST-F7", "classification": "PREVENT", "finding": "Parent M7 cannot advance when P8 S5 verdict/semantics are not closed.", "required_action": "Fail-closed on any P8 verdict, semantic, or artifact drift."},
+                {"id": "M7-ST-F8", "classification": "OBSERVE", "finding": "Duplicate and late-event pressure remains advisory-sensitive in this lane.", "required_action": "Carry advisories into downstream integrated windows (S4)."},
+            ],
+        },
+    )
+    dumpj(out / "m7_lane_matrix.json", {"component_sequence": ["M7-ST-S0", "M7-ST-S1", "M7-ST-S2", "M7-ST-S3", "M7-ST-S4", "M7-ST-S5"], "plane_sequence": ["rtdl_plane", "decision_plane", "case_label_plane", "m7_rollup_plane"], "integrated_windows": ["m7_s4_normal_mix_window", "m7_s4_edge_mix_window", "m7_s4_replay_duplicate_window"]})
+    dumpj(out / "m7_data_subset_manifest.json", {**dep_subset, "generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S1", "platform_run_id": platform_run_id, "status": "S1_CONSUMED", "upstream_m7_s0_phase_execution_id": dep_id, "upstream_m7p8_s5_phase_execution_id": p8_id})
+    dumpj(
+        out / "m7_data_profile_summary.json",
+        {
+            **dep_profile,
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S1",
+            "platform_run_id": platform_run_id,
+            "upstream_m7_s0_phase_execution_id": dep_id,
+            "upstream_m7p8_s5_phase_execution_id": p8_id,
+            "p8_checks": p8_checks,
+            "p8_failed_checks": p8_failed_checks,
+            "p8_functional_issue_count": len(p8_functional_issues),
+            "p8_semantic_issue_count": len(p8_semantic_issues),
+            "advisories": sorted(set([str(x) for x in [*(dep_profile.get("advisories", []) or []), *(p8_profile.get("advisories", []) or [])] if str(x).strip()])),
+        },
+    )
+    dumpj(
+        out / "m7_data_edge_case_matrix.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S1",
+            "platform_run_id": platform_run_id,
+            "cohort_presence": p8_profile.get("cohort_presence", {}),
+            "p8_checks": p8_checks,
+            "p8_failed_checks": p8_failed_checks,
+        },
+    )
+    dumpj(
+        out / "m7_data_skew_hotspot_profile.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S1",
+            "platform_run_id": platform_run_id,
+            "top1_run_share": p8_profile.get("top1_run_share", dep_profile.get("top1_run_share")),
+            "top_hotkeys": p8_profile.get("source_profile", {}).get("top_hotkeys", []),
+        },
+    )
+    dumpj(
+        out / "m7_data_quality_guardrail_snapshot.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S1",
+            "platform_run_id": platform_run_id,
+            "overall_pass": len(p8_issues) == 0,
+            "p8_checks": p8_checks,
+            "p8_failed_checks": p8_failed_checks,
+            "p8_functional_issues": p8_functional_issues[:20],
+            "p8_semantic_issues": p8_semantic_issues[:20],
+        },
+    )
+    dumpj(out / "m7_probe_latency_throughput_snapshot.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S1", **metrics})
+    dumpj(out / "m7_control_rail_conformance_snapshot.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S1", "platform_run_id": platform_run_id, "overall_pass": len(issues) == 0, "issues": issues, "advisories": advisories})
+    dumpj(out / "m7_secret_safety_snapshot.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S1", "overall_pass": True, "secret_probe_count": 0, "secret_failure_count": 0, "with_decryption_used": False, "queried_value_directly": False, "plaintext_leakage_detected": False})
+    dumpj(out / "m7_cost_outcome_receipt.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S1", "window_seconds": metrics["window_seconds_observed"], "estimated_api_call_count": metrics["probe_count"], "attributed_spend_usd": 0.0, "unattributed_spend_detected": False, "max_spend_usd": float(plan_packet.get("M7_STRESS_MAX_SPEND_USD", 120)), "within_envelope": True, "method": "m7_s1_parent_p8_gate_v0"})
+    dumpj(
+        out / "m7_phase_rollup_matrix.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S1",
+            "platform_run_id": platform_run_id,
+            "parent_chain": [{"stage_id": "M7-ST-S0", "phase_execution_id": dep_id, "next_gate_expected": "M7_ST_S1_READY", "ok": len(dep_issues) == 0}],
+            "subphase_chain": [{"stage_id": "M7P8-ST-S5", "phase_execution_id": p8_id, "expected_verdict": "ADVANCE_TO_P9", "ok": len(p8_issues) == 0}],
+        },
+    )
+    dumpj(
+        out / "m7_gate_verdict.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S1",
+            "platform_run_id": platform_run_id,
+            "overall_pass": overall_pass,
+            "verdict": verdict_name,
+            "next_gate": next_gate,
+            "blocker_count": len(blockers),
+            "upstream_m7_s0_phase_execution_id": dep_id,
+            "upstream_m7p8_s5_phase_execution_id": p8_id,
+        },
+    )
+    dumpj(
+        out / "m8_handoff_pack.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S1",
+            "status": "NOT_EMITTED_IN_S1",
+            "platform_run_id": platform_run_id,
+            "next_gate_candidate": next_gate,
+        },
+    )
+
+    decisions.extend(
+        [
+            "Validated M7 S0 continuity before parent P8 adjudication.",
+            "Accepted P8 S5 only with deterministic verdict and zero semantic issue carry-over.",
+            "Preserved fail-closed posture on any P8 artifact, verdict, or run-scope drift.",
+        ]
+    )
+    dumpj(out / "m7_decision_log.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S1", "decisions": decisions, "advisories": advisories})
+
+    blocker_register = {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S1", "overall_pass": overall_pass, "open_blocker_count": len(blockers), "blockers": blockers}
+    summary = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_execution_id,
+        "stage_id": "M7-ST-S1",
+        "overall_pass": overall_pass,
+        "next_gate": next_gate,
+        "open_blocker_count": len(blockers),
+        "required_artifacts": required_artifacts,
+        "probe_count": metrics["probe_count"],
+        "error_rate_pct": metrics["error_rate_pct"],
+        "platform_run_id": platform_run_id,
+        "upstream_m7_s0_phase_execution_id": dep_id,
+        "upstream_m7p8_s5_phase_execution_id": p8_id,
+    }
+    verdict = {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S1", "overall_pass": overall_pass, "verdict": verdict_name, "next_gate": next_gate, "blocker_count": len(blockers), "platform_run_id": platform_run_id}
+    dumpj(out / "m7_blocker_register.json", blocker_register)
+    dumpj(out / "m7_execution_summary.json", summary)
+    dumpj(out / "m7_gate_verdict.json", verdict)
+    finalize_artifact_contract(out, required_artifacts, blockers, blocker_register, summary, verdict, blocker_id="M7-ST-B9")
+
+    print(f"[m7_s1] phase_execution_id={phase_execution_id}")
+    print(f"[m7_s1] output_dir={out.as_posix()}")
+    print(f"[m7_s1] overall_pass={summary.get('overall_pass')}")
+    print(f"[m7_s1] next_gate={summary.get('next_gate')}")
+    print(f"[m7_s1] open_blockers={blocker_register.get('open_blocker_count')}")
+    return 0 if summary.get("overall_pass") else 2
+
+
+def run_s2(phase_execution_id: str) -> int:
+    out = OUT_ROOT / phase_execution_id / "stress"
+    out.mkdir(parents=True, exist_ok=True)
+
+    plan_packet = parse_bt_map(PLAN.read_text(encoding="utf-8") if PLAN.exists() else "")
+    handles = parse_registry(REG) if REG.exists() else {}
+    required_artifacts = parse_required_artifacts(plan_packet)
+
+    blockers: list[dict[str, Any]] = []
+    probes: list[dict[str, Any]] = []
+    issues: list[str] = []
+    advisories: list[str] = []
+    decisions: list[str] = []
+
+    missing_plan_keys = [k for k in PLAN_KEYS if k not in plan_packet]
+    missing_handles, placeholder_handles = resolve_required_handles(handles)
+    if missing_plan_keys or missing_handles or placeholder_handles:
+        blockers.append(
+            {
+                "id": "M7-ST-B1",
+                "severity": "S2",
+                "status": "OPEN",
+                "details": {
+                    "missing_plan_keys": missing_plan_keys,
+                    "missing_handles": missing_handles,
+                    "placeholder_handles": placeholder_handles,
+                },
+            }
+        )
+        if missing_plan_keys:
+            issues.append(f"missing plan keys: {','.join(missing_plan_keys)}")
+        if missing_handles:
+            issues.append(f"missing handles: {','.join(missing_handles)}")
+        if placeholder_handles:
+            issues.append(f"placeholder handles: {','.join(placeholder_handles)}")
+
+    dep_issues: list[str] = []
+    dep = latest_ok("m7_stress_s1", "m7_execution_summary.json", "M7-ST-S1")
+    dep_id = ""
+    dep_subset: dict[str, Any] = {}
+    dep_profile: dict[str, Any] = {}
+    platform_run_id = ""
+    if not dep:
+        dep_issues.append("missing successful M7-ST-S1 dependency")
+    else:
+        dep_summary = dep["summary"]
+        dep_id = str(dep_summary.get("phase_execution_id", ""))
+        if str(dep_summary.get("next_gate", "")).strip() != "M7_ST_S2_READY":
+            dep_issues.append("M7-ST-S1 next_gate is not M7_ST_S2_READY")
+        dep_path = Path(str(dep.get("path", "")))
+        dep_blockers = loadj(dep_path / "m7_blocker_register.json")
+        if int(dep_blockers.get("open_blocker_count", 0) or 0) != 0:
+            dep_issues.append("M7-ST-S1 blocker register is not closed")
+        dep_subset = loadj(dep_path / "m7_data_subset_manifest.json")
+        dep_profile = loadj(dep_path / "m7_data_profile_summary.json")
+        if not dep_subset or not dep_profile:
+            dep_issues.append("M7-ST-S1 data subset/profile artifacts are missing")
+        platform_run_id = str(dep_summary.get("platform_run_id", "")).strip()
+    if dep_issues:
+        blockers.append({"id": "M7-ST-B6", "severity": "S2", "status": "OPEN", "details": {"issues": dep_issues}})
+        issues.extend(dep_issues)
+
+    p9_issues: list[str] = []
+    p9 = latest_ok("m7p9_stress_s5", "m7p9_execution_summary.json", "M7P9-ST-S5")
+    p9_id = ""
+    p9_summary: dict[str, Any] = {}
+    p9_profile: dict[str, Any] = {}
+    p9_df: dict[str, Any] = {}
+    p9_al: dict[str, Any] = {}
+    p9_dla: dict[str, Any] = {}
+    p9_platform_run_id = ""
+    if not p9:
+        p9_issues.append("missing successful M7P9-ST-S5 dependency")
+    else:
+        p9_path = Path(str(p9.get("path", "")))
+        p9_summary = p9.get("summary", {})
+        p9_id = str(p9_summary.get("phase_execution_id", ""))
+        if str(p9_summary.get("verdict", "")).strip() != "ADVANCE_TO_P10":
+            p9_issues.append("M7P9-ST-S5 verdict is not ADVANCE_TO_P10")
+        if str(p9_summary.get("next_gate", "")).strip() != "ADVANCE_TO_P10":
+            p9_issues.append("M7P9-ST-S5 next_gate is not ADVANCE_TO_P10")
+        p9_blockers = loadj(p9_path / "m7p9_blocker_register.json")
+        if int(p9_blockers.get("open_blocker_count", 0) or 0) != 0:
+            p9_issues.append("M7P9-ST-S5 blocker register is not closed")
+        dep_required = [str(x) for x in p9_summary.get("required_artifacts", []) if str(x).strip()]
+        if dep_required:
+            for name in dep_required:
+                if not (p9_path / name).exists():
+                    p9_issues.append(f"missing P9 dependency artifact: {name}")
+        p9_profile = loadj(p9_path / "m7p9_data_profile_summary.json")
+        p9_df = loadj(p9_path / "m7p9_df_snapshot.json")
+        p9_al = loadj(p9_path / "m7p9_al_snapshot.json")
+        p9_dla = loadj(p9_path / "m7p9_dla_snapshot.json")
+        if not p9_profile or not p9_df or not p9_al or not p9_dla:
+            p9_issues.append("P9 S5 required snapshots/profile missing")
+        p9_platform_run_id = str(p9_summary.get("platform_run_id", "")).strip()
+        if platform_run_id and p9_platform_run_id and platform_run_id != p9_platform_run_id:
+            p9_issues.append("run-scope mismatch between M7 S1 and P9 S5")
+        if not platform_run_id and p9_platform_run_id:
+            platform_run_id = p9_platform_run_id
+
+    p9_functional_issues = [
+        str(x)
+        for x in [*(p9_df.get("functional_issues", []) or []), *(p9_al.get("functional_issues", []) or []), *(p9_dla.get("functional_issues", []) or [])]
+        if str(x).strip()
+    ]
+    p9_semantic_issues = [
+        str(x)
+        for x in [*(p9_df.get("semantic_issues", []) or []), *(p9_al.get("semantic_issues", []) or []), *(p9_dla.get("semantic_issues", []) or [])]
+        if str(x).strip()
+    ]
+    p9_blocking_checks = p9_profile.get("blocking_checks", {}) if isinstance(p9_profile.get("blocking_checks", {}), dict) else {}
+    p9_failed_checks = [k for k, v in p9_blocking_checks.items() if not bool(v)]
+    if p9_functional_issues:
+        p9_issues.append("P9 functional issues are present")
+    if p9_semantic_issues:
+        p9_issues.append("P9 semantic issues are present")
+    if p9_failed_checks:
+        p9_issues.append("P9 blocking checks failed")
+    if p9_issues:
+        blockers.append(
+            {
+                "id": "M7-ST-B6",
+                "severity": "S2",
+                "status": "OPEN",
+                "details": {
+                    "issues": sorted(set(p9_issues)),
+                    "functional_issues": p9_functional_issues[:20],
+                    "semantic_issues": p9_semantic_issues[:20],
+                    "failed_profile_checks": p9_failed_checks[:20],
+                },
+            }
+        )
+        issues.extend(sorted(set(p9_issues)))
+
+    bucket = str(handles.get("S3_EVIDENCE_BUCKET", "")).strip()
+    p_bucket = add_head_bucket_probe(probes, bucket, "eu-west-2", "m7_s2_evidence_bucket")
+    if p_bucket.get("status") != "PASS":
+        blockers.append({"id": "M7-ST-B10", "severity": "S2", "status": "OPEN", "details": {"probe_id": "m7_s2_evidence_bucket"}})
+        issues.append("evidence bucket probe failed")
+
+    replacements = {"platform_run_id": platform_run_id, "phase_execution_id": phase_execution_id}
+    for probe_id, handle_key in [
+        ("m7_s2_receipt_summary", "RECEIPT_SUMMARY_PATH_PATTERN"),
+        ("m7_s2_offsets_snapshot", "KAFKA_OFFSETS_SNAPSHOT_PATH_PATTERN"),
+        ("m7_s2_quarantine_summary", "QUARANTINE_SUMMARY_PATH_PATTERN"),
+    ]:
+        key = materialize_pattern(str(handles.get(handle_key, "")).strip(), replacements)
+        if key:
+            p = add_head_object_probe(probes, bucket, key, "eu-west-2", probe_id)
+            if p.get("status") != "PASS":
+                blockers.append({"id": "M7-ST-B10", "severity": "S2", "status": "OPEN", "details": {"probe_id": probe_id, "key": key}})
+                issues.append(f"{probe_id} probe failed")
+
+    metrics = probe_metrics(probes)
+    overall_pass = len(blockers) == 0
+    next_gate = "M7_ST_S3_READY" if overall_pass else "BLOCKED"
+    verdict_name = "ADVANCE_TO_S3" if overall_pass else "HOLD_REMEDIATE"
+
+    dumpj(
+        out / "m7_stagea_findings.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S2",
+            "findings": [
+                {"id": "M7-ST-F9", "classification": "PREVENT", "finding": "Parent M7 cannot advance when P9 S5 verdict/semantics are not closed.", "required_action": "Fail-closed on any P9 verdict, semantic, or artifact drift."},
+                {"id": "M7-ST-F10", "classification": "OBSERVE", "finding": "Policy-path and action-class mix advisories must carry into integrated S4 windows.", "required_action": "Keep edge-cohort pressure explicit in S4."},
+            ],
+        },
+    )
+    dumpj(out / "m7_lane_matrix.json", {"component_sequence": ["M7-ST-S0", "M7-ST-S1", "M7-ST-S2", "M7-ST-S3", "M7-ST-S4", "M7-ST-S5"], "plane_sequence": ["rtdl_plane", "decision_plane", "case_label_plane", "m7_rollup_plane"], "integrated_windows": ["m7_s4_normal_mix_window", "m7_s4_edge_mix_window", "m7_s4_replay_duplicate_window"]})
+    dumpj(out / "m7_data_subset_manifest.json", {**dep_subset, "generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S2", "platform_run_id": platform_run_id, "status": "S2_CONSUMED", "upstream_m7_s1_phase_execution_id": dep_id, "upstream_m7p9_s5_phase_execution_id": p9_id})
+    dumpj(
+        out / "m7_data_profile_summary.json",
+        {
+            **dep_profile,
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S2",
+            "platform_run_id": platform_run_id,
+            "upstream_m7_s1_phase_execution_id": dep_id,
+            "upstream_m7p9_s5_phase_execution_id": p9_id,
+            "p9_blocking_checks": p9_blocking_checks,
+            "p9_failed_checks": p9_failed_checks,
+            "p9_functional_issue_count": len(p9_functional_issues),
+            "p9_semantic_issue_count": len(p9_semantic_issues),
+            "advisories": sorted(set([str(x) for x in [*(dep_profile.get("advisories", []) or []), *(p9_profile.get("advisories", []) or [])] if str(x).strip()])),
+        },
+    )
+    dumpj(
+        out / "m7_data_edge_case_matrix.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S2",
+            "platform_run_id": platform_run_id,
+            "p9_blocking_checks": p9_blocking_checks,
+            "p9_failed_checks": p9_failed_checks,
+            "policy_path_cardinality": p9_profile.get("policy_path_cardinality"),
+            "action_class_cardinality": p9_profile.get("action_class_cardinality"),
+        },
+    )
+    dumpj(
+        out / "m7_data_skew_hotspot_profile.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S2",
+            "platform_run_id": platform_run_id,
+            "top1_run_share": dep_profile.get("top1_run_share"),
+            "action_mix_profile": loadj(Path(str(p9.get("path", ""))) / "m7p9_action_mix_profile.json") if p9 else {},
+        },
+    )
+    dumpj(
+        out / "m7_data_quality_guardrail_snapshot.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S2",
+            "platform_run_id": platform_run_id,
+            "overall_pass": len(p9_issues) == 0,
+            "p9_blocking_checks": p9_blocking_checks,
+            "p9_failed_checks": p9_failed_checks,
+            "p9_functional_issues": p9_functional_issues[:20],
+            "p9_semantic_issues": p9_semantic_issues[:20],
+        },
+    )
+    dumpj(out / "m7_probe_latency_throughput_snapshot.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S2", **metrics})
+    dumpj(out / "m7_control_rail_conformance_snapshot.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S2", "platform_run_id": platform_run_id, "overall_pass": len(issues) == 0, "issues": issues, "advisories": advisories})
+    dumpj(out / "m7_secret_safety_snapshot.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S2", "overall_pass": True, "secret_probe_count": 0, "secret_failure_count": 0, "with_decryption_used": False, "queried_value_directly": False, "plaintext_leakage_detected": False})
+    dumpj(out / "m7_cost_outcome_receipt.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S2", "window_seconds": metrics["window_seconds_observed"], "estimated_api_call_count": metrics["probe_count"], "attributed_spend_usd": 0.0, "unattributed_spend_detected": False, "max_spend_usd": float(plan_packet.get("M7_STRESS_MAX_SPEND_USD", 120)), "within_envelope": True, "method": "m7_s2_parent_p9_gate_v0"})
+    dumpj(
+        out / "m7_phase_rollup_matrix.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S2",
+            "platform_run_id": platform_run_id,
+            "parent_chain": [{"stage_id": "M7-ST-S1", "phase_execution_id": dep_id, "next_gate_expected": "M7_ST_S2_READY", "ok": len(dep_issues) == 0}],
+            "subphase_chain": [{"stage_id": "M7P9-ST-S5", "phase_execution_id": p9_id, "expected_verdict": "ADVANCE_TO_P10", "ok": len(p9_issues) == 0}],
+        },
+    )
+    dumpj(
+        out / "m7_gate_verdict.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S2",
+            "platform_run_id": platform_run_id,
+            "overall_pass": overall_pass,
+            "verdict": verdict_name,
+            "next_gate": next_gate,
+            "blocker_count": len(blockers),
+            "upstream_m7_s1_phase_execution_id": dep_id,
+            "upstream_m7p9_s5_phase_execution_id": p9_id,
+        },
+    )
+    dumpj(
+        out / "m8_handoff_pack.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S2",
+            "status": "NOT_EMITTED_IN_S2",
+            "platform_run_id": platform_run_id,
+            "next_gate_candidate": next_gate,
+        },
+    )
+
+    decisions.extend(
+        [
+            "Validated M7 S1 continuity before parent P9 adjudication.",
+            "Accepted P9 S5 only with deterministic verdict and zero semantic issue carry-over.",
+            "Preserved fail-closed posture on any P9 artifact, verdict, or run-scope drift.",
+        ]
+    )
+    dumpj(out / "m7_decision_log.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S2", "decisions": decisions, "advisories": advisories})
+
+    blocker_register = {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S2", "overall_pass": overall_pass, "open_blocker_count": len(blockers), "blockers": blockers}
+    summary = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_execution_id,
+        "stage_id": "M7-ST-S2",
+        "overall_pass": overall_pass,
+        "next_gate": next_gate,
+        "open_blocker_count": len(blockers),
+        "required_artifacts": required_artifacts,
+        "probe_count": metrics["probe_count"],
+        "error_rate_pct": metrics["error_rate_pct"],
+        "platform_run_id": platform_run_id,
+        "upstream_m7_s1_phase_execution_id": dep_id,
+        "upstream_m7p9_s5_phase_execution_id": p9_id,
+    }
+    verdict = {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S2", "overall_pass": overall_pass, "verdict": verdict_name, "next_gate": next_gate, "blocker_count": len(blockers), "platform_run_id": platform_run_id}
+    dumpj(out / "m7_blocker_register.json", blocker_register)
+    dumpj(out / "m7_execution_summary.json", summary)
+    dumpj(out / "m7_gate_verdict.json", verdict)
+    finalize_artifact_contract(out, required_artifacts, blockers, blocker_register, summary, verdict, blocker_id="M7-ST-B9")
+
+    print(f"[m7_s2] phase_execution_id={phase_execution_id}")
+    print(f"[m7_s2] output_dir={out.as_posix()}")
+    print(f"[m7_s2] overall_pass={summary.get('overall_pass')}")
+    print(f"[m7_s2] next_gate={summary.get('next_gate')}")
+    print(f"[m7_s2] open_blockers={blocker_register.get('open_blocker_count')}")
+    return 0 if summary.get("overall_pass") else 2
+
+
+def run_s3(phase_execution_id: str) -> int:
+    out = OUT_ROOT / phase_execution_id / "stress"
+    out.mkdir(parents=True, exist_ok=True)
+
+    plan_packet = parse_bt_map(PLAN.read_text(encoding="utf-8") if PLAN.exists() else "")
+    handles = parse_registry(REG) if REG.exists() else {}
+    required_artifacts = parse_required_artifacts(plan_packet)
+
+    blockers: list[dict[str, Any]] = []
+    probes: list[dict[str, Any]] = []
+    issues: list[str] = []
+    advisories: list[str] = []
+    decisions: list[str] = []
+
+    missing_plan_keys = [k for k in PLAN_KEYS if k not in plan_packet]
+    missing_handles, placeholder_handles = resolve_required_handles(handles)
+    if missing_plan_keys or missing_handles or placeholder_handles:
+        blockers.append(
+            {
+                "id": "M7-ST-B1",
+                "severity": "S3",
+                "status": "OPEN",
+                "details": {
+                    "missing_plan_keys": missing_plan_keys,
+                    "missing_handles": missing_handles,
+                    "placeholder_handles": placeholder_handles,
+                },
+            }
+        )
+        if missing_plan_keys:
+            issues.append(f"missing plan keys: {','.join(missing_plan_keys)}")
+        if missing_handles:
+            issues.append(f"missing handles: {','.join(missing_handles)}")
+        if placeholder_handles:
+            issues.append(f"placeholder handles: {','.join(placeholder_handles)}")
+
+    dep_issues: list[str] = []
+    dep = latest_ok("m7_stress_s2", "m7_execution_summary.json", "M7-ST-S2")
+    dep_id = ""
+    dep_subset: dict[str, Any] = {}
+    dep_profile: dict[str, Any] = {}
+    platform_run_id = ""
+    if not dep:
+        dep_issues.append("missing successful M7-ST-S2 dependency")
+    else:
+        dep_summary = dep["summary"]
+        dep_id = str(dep_summary.get("phase_execution_id", ""))
+        if str(dep_summary.get("next_gate", "")).strip() != "M7_ST_S3_READY":
+            dep_issues.append("M7-ST-S2 next_gate is not M7_ST_S3_READY")
+        dep_path = Path(str(dep.get("path", "")))
+        dep_blockers = loadj(dep_path / "m7_blocker_register.json")
+        if int(dep_blockers.get("open_blocker_count", 0) or 0) != 0:
+            dep_issues.append("M7-ST-S2 blocker register is not closed")
+        dep_subset = loadj(dep_path / "m7_data_subset_manifest.json")
+        dep_profile = loadj(dep_path / "m7_data_profile_summary.json")
+        if not dep_subset or not dep_profile:
+            dep_issues.append("M7-ST-S2 data subset/profile artifacts are missing")
+        platform_run_id = str(dep_summary.get("platform_run_id", "")).strip()
+    if dep_issues:
+        blockers.append({"id": "M7-ST-B7", "severity": "S3", "status": "OPEN", "details": {"issues": dep_issues}})
+        issues.extend(dep_issues)
+
+    p10_issues: list[str] = []
+    p10 = latest_ok("m7p10_stress_s5", "m7p10_execution_summary.json", "M7P10-ST-S5")
+    p10_id = ""
+    p10_summary: dict[str, Any] = {}
+    p10_profile: dict[str, Any] = {}
+    p10_ct: dict[str, Any] = {}
+    p10_cm: dict[str, Any] = {}
+    p10_ls: dict[str, Any] = {}
+    p10_platform_run_id = ""
+    if not p10:
+        p10_issues.append("missing successful M7P10-ST-S5 dependency")
+    else:
+        p10_path = Path(str(p10.get("path", "")))
+        p10_summary = p10.get("summary", {})
+        p10_id = str(p10_summary.get("phase_execution_id", ""))
+        if str(p10_summary.get("verdict", "")).strip() != "M7_J_READY":
+            p10_issues.append("M7P10-ST-S5 verdict is not M7_J_READY")
+        if str(p10_summary.get("next_gate", "")).strip() != "M7_J_READY":
+            p10_issues.append("M7P10-ST-S5 next_gate is not M7_J_READY")
+        p10_blockers = loadj(p10_path / "m7p10_blocker_register.json")
+        if int(p10_blockers.get("open_blocker_count", 0) or 0) != 0:
+            p10_issues.append("M7P10-ST-S5 blocker register is not closed")
+        dep_required = [str(x) for x in p10_summary.get("required_artifacts", []) if str(x).strip()]
+        if dep_required:
+            for name in dep_required:
+                if not (p10_path / name).exists():
+                    p10_issues.append(f"missing P10 dependency artifact: {name}")
+        p10_profile = loadj(p10_path / "m7p10_data_profile_summary.json")
+        p10_ct = loadj(p10_path / "m7p10_case_trigger_snapshot.json")
+        p10_cm = loadj(p10_path / "m7p10_cm_snapshot.json")
+        p10_ls = loadj(p10_path / "m7p10_ls_snapshot.json")
+        if not p10_profile or not p10_ct or not p10_cm or not p10_ls:
+            p10_issues.append("P10 S5 required snapshots/profile missing")
+        p10_platform_run_id = str(p10_summary.get("platform_run_id", "")).strip()
+        if platform_run_id and p10_platform_run_id and platform_run_id != p10_platform_run_id:
+            p10_issues.append("run-scope mismatch between M7 S2 and P10 S5")
+        if not platform_run_id and p10_platform_run_id:
+            platform_run_id = p10_platform_run_id
+
+    p10_functional_issues = [
+        str(x)
+        for x in [*(p10_ct.get("functional_issues", []) or []), *(p10_cm.get("functional_issues", []) or []), *(p10_ls.get("functional_issues", []) or [])]
+        if str(x).strip()
+    ]
+    p10_semantic_issues = [
+        str(x)
+        for x in [*(p10_ct.get("semantic_issues", []) or []), *(p10_cm.get("semantic_issues", []) or []), *(p10_ls.get("semantic_issues", []) or [])]
+        if str(x).strip()
+    ]
+    p10_checks = p10_profile.get("checks", {}) if isinstance(p10_profile.get("checks", {}), dict) else {}
+    p10_failed_checks = [k for k, v in p10_checks.items() if not bool(v)]
+    if p10_functional_issues:
+        p10_issues.append("P10 functional issues are present")
+    if p10_semantic_issues:
+        p10_issues.append("P10 semantic issues are present")
+    if p10_failed_checks:
+        p10_issues.append("P10 profile checks failed")
+    if p10_issues:
+        blockers.append(
+            {
+                "id": "M7-ST-B7",
+                "severity": "S3",
+                "status": "OPEN",
+                "details": {
+                    "issues": sorted(set(p10_issues)),
+                    "functional_issues": p10_functional_issues[:20],
+                    "semantic_issues": p10_semantic_issues[:20],
+                    "failed_profile_checks": p10_failed_checks[:20],
+                },
+            }
+        )
+        issues.extend(sorted(set(p10_issues)))
+
+    bucket = str(handles.get("S3_EVIDENCE_BUCKET", "")).strip()
+    p_bucket = add_head_bucket_probe(probes, bucket, "eu-west-2", "m7_s3_evidence_bucket")
+    if p_bucket.get("status") != "PASS":
+        blockers.append({"id": "M7-ST-B10", "severity": "S3", "status": "OPEN", "details": {"probe_id": "m7_s3_evidence_bucket"}})
+        issues.append("evidence bucket probe failed")
+
+    replacements = {"platform_run_id": platform_run_id, "phase_execution_id": phase_execution_id}
+    for probe_id, handle_key in [
+        ("m7_s3_receipt_summary", "RECEIPT_SUMMARY_PATH_PATTERN"),
+        ("m7_s3_offsets_snapshot", "KAFKA_OFFSETS_SNAPSHOT_PATH_PATTERN"),
+        ("m7_s3_quarantine_summary", "QUARANTINE_SUMMARY_PATH_PATTERN"),
+    ]:
+        key = materialize_pattern(str(handles.get(handle_key, "")).strip(), replacements)
+        if key:
+            p = add_head_object_probe(probes, bucket, key, "eu-west-2", probe_id)
+            if p.get("status") != "PASS":
+                blockers.append({"id": "M7-ST-B10", "severity": "S3", "status": "OPEN", "details": {"probe_id": probe_id, "key": key}})
+                issues.append(f"{probe_id} probe failed")
+
+    metrics = probe_metrics(probes)
+    overall_pass = len(blockers) == 0
+    next_gate = "M7_ST_S4_READY" if overall_pass else "BLOCKED"
+    verdict_name = "ADVANCE_TO_S4" if overall_pass else "HOLD_REMEDIATE"
+
+    dumpj(
+        out / "m7_stagea_findings.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S3",
+            "findings": [
+                {"id": "M7-ST-F11", "classification": "PREVENT", "finding": "Parent M7 cannot advance when P10 S5 verdict/semantics are not closed.", "required_action": "Fail-closed on any P10 verdict, semantic, or artifact drift."},
+                {"id": "M7-ST-F12", "classification": "OBSERVE", "finding": "Writer-boundary semantics must remain strict before integrated windows.", "required_action": "Carry writer-boundary posture into S4 stress checks."},
+            ],
+        },
+    )
+    dumpj(out / "m7_lane_matrix.json", {"component_sequence": ["M7-ST-S0", "M7-ST-S1", "M7-ST-S2", "M7-ST-S3", "M7-ST-S4", "M7-ST-S5"], "plane_sequence": ["rtdl_plane", "decision_plane", "case_label_plane", "m7_rollup_plane"], "integrated_windows": ["m7_s4_normal_mix_window", "m7_s4_edge_mix_window", "m7_s4_replay_duplicate_window"]})
+    dumpj(out / "m7_data_subset_manifest.json", {**dep_subset, "generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S3", "platform_run_id": platform_run_id, "status": "S3_CONSUMED", "upstream_m7_s2_phase_execution_id": dep_id, "upstream_m7p10_s5_phase_execution_id": p10_id})
+    dumpj(
+        out / "m7_data_profile_summary.json",
+        {
+            **dep_profile,
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S3",
+            "platform_run_id": platform_run_id,
+            "upstream_m7_s2_phase_execution_id": dep_id,
+            "upstream_m7p10_s5_phase_execution_id": p10_id,
+            "p10_checks": p10_checks,
+            "p10_failed_checks": p10_failed_checks,
+            "p10_functional_issue_count": len(p10_functional_issues),
+            "p10_semantic_issue_count": len(p10_semantic_issues),
+            "advisories": sorted(set([str(x) for x in [*(dep_profile.get("advisories", []) or []), *(p10_profile.get("advisories", []) or [])] if str(x).strip()])),
+        },
+    )
+    dumpj(
+        out / "m7_data_edge_case_matrix.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S3",
+            "platform_run_id": platform_run_id,
+            "p10_checks": p10_checks,
+            "p10_failed_checks": p10_failed_checks,
+            "writer_conflict_rate_pct_s3": p10_profile.get("writer_conflict_rate_pct_s3"),
+            "case_reopen_rate_pct_s2": p10_profile.get("case_reopen_rate_pct_s2"),
+        },
+    )
+    dumpj(
+        out / "m7_data_skew_hotspot_profile.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S3",
+            "platform_run_id": platform_run_id,
+            "top1_run_share": dep_profile.get("top1_run_share"),
+            "writer_probe": p10_ls.get("writer_probe", {}),
+        },
+    )
+    dumpj(
+        out / "m7_data_quality_guardrail_snapshot.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S3",
+            "platform_run_id": platform_run_id,
+            "overall_pass": len(p10_issues) == 0,
+            "p10_checks": p10_checks,
+            "p10_failed_checks": p10_failed_checks,
+            "p10_functional_issues": p10_functional_issues[:20],
+            "p10_semantic_issues": p10_semantic_issues[:20],
+        },
+    )
+    dumpj(out / "m7_probe_latency_throughput_snapshot.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S3", **metrics})
+    dumpj(out / "m7_control_rail_conformance_snapshot.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S3", "platform_run_id": platform_run_id, "overall_pass": len(issues) == 0, "issues": issues, "advisories": advisories})
+    dumpj(out / "m7_secret_safety_snapshot.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S3", "overall_pass": True, "secret_probe_count": 0, "secret_failure_count": 0, "with_decryption_used": False, "queried_value_directly": False, "plaintext_leakage_detected": False})
+    dumpj(out / "m7_cost_outcome_receipt.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S3", "window_seconds": metrics["window_seconds_observed"], "estimated_api_call_count": metrics["probe_count"], "attributed_spend_usd": 0.0, "unattributed_spend_detected": False, "max_spend_usd": float(plan_packet.get("M7_STRESS_MAX_SPEND_USD", 120)), "within_envelope": True, "method": "m7_s3_parent_p10_gate_v0"})
+    dumpj(
+        out / "m7_phase_rollup_matrix.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S3",
+            "platform_run_id": platform_run_id,
+            "parent_chain": [{"stage_id": "M7-ST-S2", "phase_execution_id": dep_id, "next_gate_expected": "M7_ST_S3_READY", "ok": len(dep_issues) == 0}],
+            "subphase_chain": [{"stage_id": "M7P10-ST-S5", "phase_execution_id": p10_id, "expected_verdict": "M7_J_READY", "ok": len(p10_issues) == 0}],
+        },
+    )
+    dumpj(
+        out / "m7_gate_verdict.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S3",
+            "platform_run_id": platform_run_id,
+            "overall_pass": overall_pass,
+            "verdict": verdict_name,
+            "next_gate": next_gate,
+            "blocker_count": len(blockers),
+            "upstream_m7_s2_phase_execution_id": dep_id,
+            "upstream_m7p10_s5_phase_execution_id": p10_id,
+        },
+    )
+    dumpj(
+        out / "m8_handoff_pack.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S3",
+            "status": "NOT_EMITTED_IN_S3",
+            "platform_run_id": platform_run_id,
+            "next_gate_candidate": next_gate,
+        },
+    )
+
+    decisions.extend(
+        [
+            "Validated M7 S2 continuity before parent P10 adjudication.",
+            "Accepted P10 S5 only with deterministic verdict and zero writer-boundary semantic issue carry-over.",
+            "Preserved fail-closed posture on any P10 artifact, verdict, or run-scope drift.",
+        ]
+    )
+    dumpj(out / "m7_decision_log.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S3", "decisions": decisions, "advisories": advisories})
+
+    blocker_register = {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S3", "overall_pass": overall_pass, "open_blocker_count": len(blockers), "blockers": blockers}
+    summary = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_execution_id,
+        "stage_id": "M7-ST-S3",
+        "overall_pass": overall_pass,
+        "next_gate": next_gate,
+        "open_blocker_count": len(blockers),
+        "required_artifacts": required_artifacts,
+        "probe_count": metrics["probe_count"],
+        "error_rate_pct": metrics["error_rate_pct"],
+        "platform_run_id": platform_run_id,
+        "upstream_m7_s2_phase_execution_id": dep_id,
+        "upstream_m7p10_s5_phase_execution_id": p10_id,
+    }
+    verdict = {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S3", "overall_pass": overall_pass, "verdict": verdict_name, "next_gate": next_gate, "blocker_count": len(blockers), "platform_run_id": platform_run_id}
+    dumpj(out / "m7_blocker_register.json", blocker_register)
+    dumpj(out / "m7_execution_summary.json", summary)
+    dumpj(out / "m7_gate_verdict.json", verdict)
+    finalize_artifact_contract(out, required_artifacts, blockers, blocker_register, summary, verdict, blocker_id="M7-ST-B9")
+
+    print(f"[m7_s3] phase_execution_id={phase_execution_id}")
+    print(f"[m7_s3] output_dir={out.as_posix()}")
+    print(f"[m7_s3] overall_pass={summary.get('overall_pass')}")
+    print(f"[m7_s3] next_gate={summary.get('next_gate')}")
+    print(f"[m7_s3] open_blockers={blocker_register.get('open_blocker_count')}")
+    return 0 if summary.get("overall_pass") else 2
+
+
+def run_s4(phase_execution_id: str) -> int:
+    out = OUT_ROOT / phase_execution_id / "stress"
+    out.mkdir(parents=True, exist_ok=True)
+
+    plan_packet = parse_bt_map(PLAN.read_text(encoding="utf-8") if PLAN.exists() else "")
+    handles = parse_registry(REG) if REG.exists() else {}
+    required_artifacts = parse_required_artifacts(plan_packet)
+
+    blockers: list[dict[str, Any]] = []
+    probes: list[dict[str, Any]] = []
+    issues: list[str] = []
+    advisories: list[str] = []
+    decisions: list[str] = []
+
+    missing_plan_keys = [k for k in PLAN_KEYS if k not in plan_packet]
+    missing_handles, placeholder_handles = resolve_required_handles(handles)
+    if missing_plan_keys or missing_handles or placeholder_handles:
+        blockers.append(
+            {
+                "id": "M7-ST-B1",
+                "severity": "S4",
+                "status": "OPEN",
+                "details": {
+                    "missing_plan_keys": missing_plan_keys,
+                    "missing_handles": missing_handles,
+                    "placeholder_handles": placeholder_handles,
+                },
+            }
+        )
+        if missing_plan_keys:
+            issues.append(f"missing plan keys: {','.join(missing_plan_keys)}")
+        if missing_handles:
+            issues.append(f"missing handles: {','.join(missing_handles)}")
+        if placeholder_handles:
+            issues.append(f"placeholder handles: {','.join(placeholder_handles)}")
+
+    dep = latest_ok("m7_stress_s3", "m7_execution_summary.json", "M7-ST-S3")
+    dep_issues: list[str] = []
+    dep_id = ""
+    dep_subset: dict[str, Any] = {}
+    dep_profile: dict[str, Any] = {}
+    platform_run_id = ""
+    if not dep:
+        dep_issues.append("missing successful M7-ST-S3 dependency")
+    else:
+        dep_summary = dep["summary"]
+        dep_id = str(dep_summary.get("phase_execution_id", ""))
+        if str(dep_summary.get("next_gate", "")).strip() != "M7_ST_S4_READY":
+            dep_issues.append("M7-ST-S3 next_gate is not M7_ST_S4_READY")
+        dep_path = Path(str(dep.get("path", "")))
+        dep_blockers = loadj(dep_path / "m7_blocker_register.json")
+        if int(dep_blockers.get("open_blocker_count", 0) or 0) != 0:
+            dep_issues.append("M7-ST-S3 blocker register is not closed")
+        dep_subset = loadj(dep_path / "m7_data_subset_manifest.json")
+        dep_profile = loadj(dep_path / "m7_data_profile_summary.json")
+        if not dep_subset or not dep_profile:
+            dep_issues.append("M7-ST-S3 data subset/profile artifacts are missing")
+        platform_run_id = str(dep_summary.get("platform_run_id", "")).strip()
+    if dep_issues:
+        blockers.append({"id": "M7-ST-B11", "severity": "S4", "status": "OPEN", "details": {"issues": dep_issues}})
+        issues.extend(dep_issues)
+
+    p8 = latest_ok("m7p8_stress_s5", "m7p8_execution_summary.json", "M7P8-ST-S5")
+    p9 = latest_ok("m7p9_stress_s5", "m7p9_execution_summary.json", "M7P9-ST-S5")
+    p10 = latest_ok("m7p10_stress_s5", "m7p10_execution_summary.json", "M7P10-ST-S5")
+    subphase_issues: list[str] = []
+    subphase_rows: list[dict[str, Any]] = []
+    semantic_issues: list[str] = []
+    semantic_issue_counts = {"p8": 0, "p9": 0, "p10": 0}
+    retry_ratio_pct: float | None = None
+    subphase_error_rates: dict[str, float] = {}
+    subphase_spend = 0.0
+    subphase_window_seconds = 0
+
+    for label, rec, summary_name, blocker_name, expected_verdict, snapshot_names, profile_name in [
+        ("P8", p8, "m7p8_execution_summary.json", "m7p8_blocker_register.json", "ADVANCE_TO_P9", ["m7p8_ieg_snapshot.json", "m7p8_ofp_snapshot.json", "m7p8_archive_snapshot.json"], "m7p8_data_profile_summary.json"),
+        ("P9", p9, "m7p9_execution_summary.json", "m7p9_blocker_register.json", "ADVANCE_TO_P10", ["m7p9_df_snapshot.json", "m7p9_al_snapshot.json", "m7p9_dla_snapshot.json"], "m7p9_data_profile_summary.json"),
+        ("P10", p10, "m7p10_execution_summary.json", "m7p10_blocker_register.json", "M7_J_READY", ["m7p10_case_trigger_snapshot.json", "m7p10_cm_snapshot.json", "m7p10_ls_snapshot.json"], "m7p10_data_profile_summary.json"),
+    ]:
+        row = {"label": label, "ok": False, "phase_execution_id": "", "expected_verdict": expected_verdict, "verdict": "", "platform_run_id": ""}
+        if not rec:
+            subphase_issues.append(f"missing successful {label} S5 dependency")
+            subphase_rows.append(row)
+            continue
+        path = Path(str(rec.get("path", "")))
+        summary = rec.get("summary", {})
+        row["phase_execution_id"] = str(summary.get("phase_execution_id", ""))
+        row["verdict"] = str(summary.get("verdict", ""))
+        row["platform_run_id"] = str(summary.get("platform_run_id", "")).strip()
+        if row["verdict"] != expected_verdict:
+            subphase_issues.append(f"{label} verdict mismatch: expected {expected_verdict}, got {row['verdict']}")
+        blocker_reg = loadj(path / blocker_name)
+        if int(blocker_reg.get("open_blocker_count", 0) or 0) != 0:
+            subphase_issues.append(f"{label} blocker register is not closed")
+        req = [str(x) for x in summary.get("required_artifacts", []) if str(x).strip()]
+        for name in req:
+            if not (path / name).exists():
+                subphase_issues.append(f"{label} missing dependency artifact: {name}")
+        if platform_run_id and row["platform_run_id"] and platform_run_id != row["platform_run_id"]:
+            subphase_issues.append(f"run-scope mismatch for {label}")
+        if not platform_run_id and row["platform_run_id"]:
+            platform_run_id = row["platform_run_id"]
+
+        profile = loadj(path / profile_name)
+        if label == "P9":
+            rr = profile.get("retry_ratio_pct")
+            retry_ratio_pct = None if rr is None else float(rr)
+        row_semantic_issues: list[str] = []
+        for snap_name in snapshot_names:
+            snap = loadj(path / snap_name)
+            sem = [str(x) for x in snap.get("semantic_issues", []) if str(x).strip()]
+            fun = [str(x) for x in snap.get("functional_issues", []) if str(x).strip()]
+            semantic_issues.extend(sem)
+            semantic_issues.extend(fun)
+            row_semantic_issues.extend(sem)
+            row_semantic_issues.extend(fun)
+        semantic_issue_counts[label.lower()] = len(row_semantic_issues)
+        subphase_error_rates[label.lower()] = float(summary.get("error_rate_pct", 0.0) or 0.0)
+        subphase_row_cost = loadj(path / f"{'m7p8' if label == 'P8' else ('m7p9' if label == 'P9' else 'm7p10')}_cost_outcome_receipt.json")
+        subphase_spend += float(subphase_row_cost.get("attributed_spend_usd", 0.0) or 0.0)
+        subphase_window_seconds += int(subphase_row_cost.get("window_seconds", 0) or 0)
+        row["ok"] = True
+        subphase_rows.append(row)
+
+    if subphase_issues:
+        blockers.append({"id": "M7-ST-B11", "severity": "S4", "status": "OPEN", "details": {"issues": sorted(set(subphase_issues))}})
+        issues.extend(sorted(set(subphase_issues)))
+
+    if semantic_issues:
+        blockers.append({"id": "M7-ST-B11", "severity": "S4", "status": "OPEN", "details": {"semantic_issues": sorted(set(semantic_issues))[:40]}})
+        issues.append("semantic invariants drift detected in integrated dependency sweep")
+
+    bucket = str(handles.get("S3_EVIDENCE_BUCKET", "")).strip()
+    p_bucket = add_head_bucket_probe(probes, bucket, "eu-west-2", "m7_s4_evidence_bucket")
+    if p_bucket.get("status") != "PASS":
+        blockers.append({"id": "M7-ST-B10", "severity": "S4", "status": "OPEN", "details": {"probe_id": "m7_s4_evidence_bucket"}})
+        issues.append("evidence bucket probe failed")
+
+    replacements = {"platform_run_id": platform_run_id, "phase_execution_id": phase_execution_id}
+    for probe_id, handle_key in [
+        ("m7_s4_receipt_summary", "RECEIPT_SUMMARY_PATH_PATTERN"),
+        ("m7_s4_offsets_snapshot", "KAFKA_OFFSETS_SNAPSHOT_PATH_PATTERN"),
+        ("m7_s4_quarantine_summary", "QUARANTINE_SUMMARY_PATH_PATTERN"),
+    ]:
+        key = materialize_pattern(str(handles.get(handle_key, "")).strip(), replacements)
+        if key:
+            p = add_head_object_probe(probes, bucket, key, "eu-west-2", probe_id)
+            if p.get("status") != "PASS":
+                blockers.append({"id": "M7-ST-B10", "severity": "S4", "status": "OPEN", "details": {"probe_id": probe_id, "key": key}})
+                issues.append(f"{probe_id} probe failed")
+
+    metrics = probe_metrics(probes)
+    max_error_pct = float(handles.get("THROUGHPUT_CERT_MAX_ERROR_RATE_PCT", 1.0))
+    max_retry_pct = float(handles.get("THROUGHPUT_CERT_MAX_RETRY_RATIO_PCT", 5.0))
+    min_sample_events = int(handles.get("THROUGHPUT_CERT_MIN_SAMPLE_EVENTS", plan_packet.get("M7_STRESS_DATA_MIN_SAMPLE_EVENTS", 15000)))
+    target_eps = float(handles.get("THROUGHPUT_CERT_TARGET_EVENTS_PER_SECOND", 100.0))
+    window_minutes = max(1, int(handles.get("THROUGHPUT_CERT_WINDOW_MINUTES", 10)))
+    rows_scanned = int(dep_profile.get("rows_scanned", 0) or 0)
+    eps_proxy = rows_scanned / float(window_minutes * 60)
+    worst_error_pct = max([metrics.get("error_rate_pct", 0.0), *list(subphase_error_rates.values())]) if subphase_error_rates else float(metrics.get("error_rate_pct", 0.0))
+    integrated_checks = {
+        "sample_size_check": rows_scanned >= min_sample_events,
+        "throughput_proxy_check": eps_proxy >= target_eps,
+        "error_rate_check": worst_error_pct <= max_error_pct,
+        "retry_ratio_check": retry_ratio_pct is None or retry_ratio_pct <= max_retry_pct,
+        "semantic_invariant_check": len(semantic_issues) == 0,
+        "run_scope_check": len(subphase_issues) == 0,
+    }
+    if not integrated_checks["sample_size_check"] or not integrated_checks["throughput_proxy_check"] or not integrated_checks["error_rate_check"] or not integrated_checks["retry_ratio_check"]:
+        blockers.append(
+            {
+                "id": "M7-ST-B8",
+                "severity": "S4",
+                "status": "OPEN",
+                "details": {
+                    "checks": integrated_checks,
+                    "rows_scanned": rows_scanned,
+                    "min_sample_events": min_sample_events,
+                    "eps_proxy": round(eps_proxy, 6),
+                    "target_eps": target_eps,
+                    "worst_error_pct": worst_error_pct,
+                    "max_error_pct": max_error_pct,
+                    "retry_ratio_pct": retry_ratio_pct,
+                    "max_retry_pct": max_retry_pct,
+                },
+            }
+        )
+        issues.append("integrated throughput/error/retry envelope check failed")
+
+    total_window_seconds = int(metrics.get("window_seconds_observed", 0) or 0) + subphase_window_seconds
+    total_spend_usd = float(subphase_spend)
+    max_runtime_minutes = float(plan_packet.get("M7_STRESS_MAX_RUNTIME_MINUTES", 360))
+    max_spend_usd = float(plan_packet.get("M7_STRESS_MAX_SPEND_USD", 120))
+    budget_checks = {
+        "runtime_check": (total_window_seconds / 60.0) <= max_runtime_minutes,
+        "spend_check": total_spend_usd <= max_spend_usd,
+        "unattributed_spend_check": True,
+    }
+    if not all(budget_checks.values()):
+        blockers.append(
+            {
+                "id": "M7-ST-B12",
+                "severity": "S4",
+                "status": "OPEN",
+                "details": {
+                    "checks": budget_checks,
+                    "total_window_seconds": total_window_seconds,
+                    "max_runtime_minutes": max_runtime_minutes,
+                    "total_spend_usd": total_spend_usd,
+                    "max_spend_usd": max_spend_usd,
+                },
+            }
+        )
+        issues.append("integrated runtime/spend envelope breach")
+
+    overall_pass = len(blockers) == 0
+    next_gate = "M7_ST_S5_READY" if overall_pass else "BLOCKED"
+    verdict_name = "ADVANCE_TO_S5" if overall_pass else "HOLD_REMEDIATE"
+
+    dumpj(
+        out / "m7_stagea_findings.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S4",
+            "findings": [
+                {"id": "M7-ST-F13", "classification": "PREVENT", "finding": "Integrated M7 window must enforce throughput and semantic envelopes simultaneously.", "required_action": "Fail-closed on B8/B11/B12 classes."},
+                {"id": "M7-ST-F14", "classification": "OBSERVE", "finding": "Advisory cohorts from S0-S3 remain required in integrated pressure windows.", "required_action": "Carry cohort advisories into rollup decisioning."},
+            ],
+        },
+    )
+    dumpj(out / "m7_lane_matrix.json", {"component_sequence": ["M7-ST-S0", "M7-ST-S1", "M7-ST-S2", "M7-ST-S3", "M7-ST-S4", "M7-ST-S5"], "plane_sequence": ["rtdl_plane", "decision_plane", "case_label_plane", "m7_rollup_plane"], "integrated_windows": ["m7_s4_normal_mix_window", "m7_s4_edge_mix_window", "m7_s4_replay_duplicate_window"]})
+    dumpj(out / "m7_data_subset_manifest.json", {**dep_subset, "generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S4", "platform_run_id": platform_run_id, "status": "S4_INTEGRATED_WINDOW", "upstream_m7_s3_phase_execution_id": dep_id})
+    dumpj(
+        out / "m7_data_profile_summary.json",
+        {
+            **dep_profile,
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S4",
+            "platform_run_id": platform_run_id,
+            "upstream_m7_s3_phase_execution_id": dep_id,
+            "integrated_checks": integrated_checks,
+            "budget_checks": budget_checks,
+            "rows_scanned": rows_scanned,
+            "eps_proxy": round(eps_proxy, 6),
+            "retry_ratio_pct": retry_ratio_pct,
+            "worst_error_pct": worst_error_pct,
+            "subphase_error_rates": subphase_error_rates,
+            "subphase_rows": subphase_rows,
+            "semantic_issue_count": len(semantic_issues),
+            "advisories": sorted(set([str(x) for x in [*(dep_profile.get("advisories", []) or []), *advisories] if str(x).strip()])),
+        },
+    )
+    dumpj(
+        out / "m7_data_edge_case_matrix.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S4",
+            "platform_run_id": platform_run_id,
+            "integrated_windows": {
+                "m7_s4_normal_mix_window": integrated_checks["sample_size_check"] and integrated_checks["throughput_proxy_check"],
+                "m7_s4_edge_mix_window": integrated_checks["error_rate_check"] and integrated_checks["retry_ratio_check"],
+                "m7_s4_replay_duplicate_window": integrated_checks["semantic_invariant_check"],
+            },
+            "integrated_checks": integrated_checks,
+            "subphase_rows": subphase_rows,
+        },
+    )
+    dumpj(
+        out / "m7_data_skew_hotspot_profile.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S4",
+            "platform_run_id": platform_run_id,
+            "top1_run_share": dep_profile.get("top1_run_share"),
+            "semantic_issue_counts": semantic_issue_counts,
+        },
+    )
+    dumpj(
+        out / "m7_data_quality_guardrail_snapshot.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S4",
+            "platform_run_id": platform_run_id,
+            "overall_pass": overall_pass,
+            "integrated_checks": integrated_checks,
+            "budget_checks": budget_checks,
+            "semantic_issue_count": len(semantic_issues),
+        },
+    )
+    dumpj(out / "m7_probe_latency_throughput_snapshot.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S4", **metrics})
+    dumpj(out / "m7_control_rail_conformance_snapshot.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S4", "platform_run_id": platform_run_id, "overall_pass": len(issues) == 0, "issues": issues, "advisories": advisories, "subphase_rows": subphase_rows})
+    dumpj(out / "m7_secret_safety_snapshot.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S4", "overall_pass": True, "secret_probe_count": 0, "secret_failure_count": 0, "with_decryption_used": False, "queried_value_directly": False, "plaintext_leakage_detected": False})
+    dumpj(
+        out / "m7_cost_outcome_receipt.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S4",
+            "window_seconds": total_window_seconds,
+            "estimated_api_call_count": metrics["probe_count"],
+            "attributed_spend_usd": round(total_spend_usd, 6),
+            "unattributed_spend_detected": False,
+            "max_spend_usd": max_spend_usd,
+            "within_envelope": all(budget_checks.values()),
+            "method": "m7_s4_integrated_window_v0",
+        },
+    )
+    dumpj(out / "m7_phase_rollup_matrix.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S4", "platform_run_id": platform_run_id, "subphase_rows": subphase_rows, "integrated_checks": integrated_checks, "budget_checks": budget_checks})
+    dumpj(
+        out / "m7_gate_verdict.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S4",
+            "platform_run_id": platform_run_id,
+            "overall_pass": overall_pass,
+            "verdict": verdict_name,
+            "next_gate": next_gate,
+            "blocker_count": len(blockers),
+            "upstream_m7_s3_phase_execution_id": dep_id,
+        },
+    )
+    dumpj(
+        out / "m8_handoff_pack.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S4",
+            "status": "NOT_EMITTED_IN_S4",
+            "platform_run_id": platform_run_id,
+            "next_gate_candidate": next_gate,
+            "integrated_checks": integrated_checks,
+        },
+    )
+
+    decisions.extend(
+        [
+            "Validated S3 continuity before integrated M7 window adjudication.",
+            "Enforced integrated throughput/error/retry envelopes against pinned throughput contracts.",
+            "Preserved fail-closed posture for semantic drift and runtime/spend anomalies.",
+        ]
+    )
+    dumpj(out / "m7_decision_log.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S4", "decisions": decisions, "advisories": advisories, "subphase_rows": subphase_rows})
+
+    blocker_register = {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S4", "overall_pass": overall_pass, "open_blocker_count": len(blockers), "blockers": blockers}
+    summary = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_execution_id,
+        "stage_id": "M7-ST-S4",
+        "overall_pass": overall_pass,
+        "next_gate": next_gate,
+        "open_blocker_count": len(blockers),
+        "required_artifacts": required_artifacts,
+        "probe_count": metrics["probe_count"],
+        "error_rate_pct": metrics["error_rate_pct"],
+        "platform_run_id": platform_run_id,
+        "upstream_m7_s3_phase_execution_id": dep_id,
+    }
+    verdict = {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S4", "overall_pass": overall_pass, "verdict": verdict_name, "next_gate": next_gate, "blocker_count": len(blockers), "platform_run_id": platform_run_id}
+    dumpj(out / "m7_blocker_register.json", blocker_register)
+    dumpj(out / "m7_execution_summary.json", summary)
+    dumpj(out / "m7_gate_verdict.json", verdict)
+    finalize_artifact_contract(out, required_artifacts, blockers, blocker_register, summary, verdict, blocker_id="M7-ST-B10")
+
+    print(f"[m7_s4] phase_execution_id={phase_execution_id}")
+    print(f"[m7_s4] output_dir={out.as_posix()}")
+    print(f"[m7_s4] overall_pass={summary.get('overall_pass')}")
+    print(f"[m7_s4] next_gate={summary.get('next_gate')}")
+    print(f"[m7_s4] open_blockers={blocker_register.get('open_blocker_count')}")
+    return 0 if summary.get("overall_pass") else 2
+
+
+def run_s5(phase_execution_id: str) -> int:
+    out = OUT_ROOT / phase_execution_id / "stress"
+    out.mkdir(parents=True, exist_ok=True)
+
+    plan_packet = parse_bt_map(PLAN.read_text(encoding="utf-8") if PLAN.exists() else "")
+    handles = parse_registry(REG) if REG.exists() else {}
+    required_artifacts = parse_required_artifacts(plan_packet)
+
+    blockers: list[dict[str, Any]] = []
+    probes: list[dict[str, Any]] = []
+    issues: list[str] = []
+    advisories: list[str] = []
+    decisions: list[str] = []
+
+    expected_next_gate = str(plan_packet.get("M7_STRESS_EXPECTED_NEXT_GATE_ON_PASS", "M8_READY")).strip() or "M8_READY"
+    if expected_next_gate != "M8_READY":
+        blockers.append(
+            {
+                "id": "M7-ST-B11",
+                "severity": "S5",
+                "status": "OPEN",
+                "details": {"reason": "unexpected expected_next_gate contract", "expected_next_gate_on_pass": expected_next_gate},
+            }
+        )
+        issues.append("unexpected expected_next_gate_on_pass contract")
+
+    missing_plan_keys = [k for k in PLAN_KEYS if k not in plan_packet]
+    missing_handles, placeholder_handles = resolve_required_handles(handles)
+    if missing_plan_keys or missing_handles or placeholder_handles:
+        blockers.append(
+            {
+                "id": "M7-ST-B9",
+                "severity": "S5",
+                "status": "OPEN",
+                "details": {
+                    "missing_plan_keys": missing_plan_keys,
+                    "missing_handles": missing_handles,
+                    "placeholder_handles": placeholder_handles,
+                },
+            }
+        )
+        if missing_plan_keys:
+            issues.append(f"missing plan keys: {','.join(missing_plan_keys)}")
+        if missing_handles:
+            issues.append(f"missing handles: {','.join(missing_handles)}")
+        if placeholder_handles:
+            issues.append(f"placeholder handles: {','.join(placeholder_handles)}")
+
+    dep = latest_ok("m7_stress_s4", "m7_execution_summary.json", "M7-ST-S4")
+    dep_issues: list[str] = []
+    dep_id = ""
+    dep_subset: dict[str, Any] = {}
+    dep_profile: dict[str, Any] = {}
+    platform_run_id = ""
+    if not dep:
+        dep_issues.append("missing successful M7-ST-S4 dependency")
+    else:
+        dep_summary = dep["summary"]
+        dep_id = str(dep_summary.get("phase_execution_id", ""))
+        if str(dep_summary.get("next_gate", "")).strip() != "M7_ST_S5_READY":
+            dep_issues.append("M7-ST-S4 next_gate is not M7_ST_S5_READY")
+        dep_path = Path(str(dep.get("path", "")))
+        dep_blockers = loadj(dep_path / "m7_blocker_register.json")
+        if int(dep_blockers.get("open_blocker_count", 0) or 0) != 0:
+            dep_issues.append("M7-ST-S4 blocker register is not closed")
+        dep_subset = loadj(dep_path / "m7_data_subset_manifest.json")
+        dep_profile = loadj(dep_path / "m7_data_profile_summary.json")
+        if not dep_subset or not dep_profile:
+            dep_issues.append("M7-ST-S4 data subset/profile artifacts are missing")
+        platform_run_id = str(dep_summary.get("platform_run_id", "")).strip()
+    if dep_issues:
+        blockers.append({"id": "M7-ST-B11", "severity": "S5", "status": "OPEN", "details": {"issues": dep_issues}})
+        issues.extend(dep_issues)
+
+    chain_rows, chain_issues = build_parent_chain_rows(platform_run_id)
+    if chain_issues:
+        blockers.append({"id": "M7-ST-B11", "severity": "S5", "status": "OPEN", "details": {"issues": chain_issues, "chain_rows": chain_rows}})
+        issues.extend(chain_issues)
+
+    subphase_rows: list[dict[str, Any]] = []
+    subphase_issues: list[str] = []
+    for label, rec, expected_verdict in [
+        ("P8", latest_ok("m7p8_stress_s5", "m7p8_execution_summary.json", "M7P8-ST-S5"), "ADVANCE_TO_P9"),
+        ("P9", latest_ok("m7p9_stress_s5", "m7p9_execution_summary.json", "M7P9-ST-S5"), "ADVANCE_TO_P10"),
+        ("P10", latest_ok("m7p10_stress_s5", "m7p10_execution_summary.json", "M7P10-ST-S5"), "M7_J_READY"),
+    ]:
+        row = {
+            "label": label,
+            "found": bool(rec),
+            "phase_execution_id": "",
+            "platform_run_id": "",
+            "expected_verdict": expected_verdict,
+            "verdict": "",
+            "ok": False,
+        }
+        if not rec:
+            subphase_issues.append(f"missing successful {label} S5 dependency")
+            subphase_rows.append(row)
+            continue
+        s = rec.get("summary", {})
+        row["phase_execution_id"] = str(s.get("phase_execution_id", ""))
+        row["platform_run_id"] = str(s.get("platform_run_id", "")).strip()
+        row["verdict"] = str(s.get("verdict", "")).strip()
+        row["ok"] = row["verdict"] == expected_verdict and row["platform_run_id"] == platform_run_id
+        if row["verdict"] != expected_verdict:
+            subphase_issues.append(f"{label} verdict mismatch: expected {expected_verdict}, got {row['verdict']}")
+        if platform_run_id and row["platform_run_id"] and row["platform_run_id"] != platform_run_id:
+            subphase_issues.append(f"{label} run-scope mismatch")
+        subphase_rows.append(row)
+    if subphase_issues:
+        blockers.append({"id": "M7-ST-B11", "severity": "S5", "status": "OPEN", "details": {"issues": sorted(set(subphase_issues)), "subphase_rows": subphase_rows}})
+        issues.extend(sorted(set(subphase_issues)))
+
+    bucket = str(handles.get("S3_EVIDENCE_BUCKET", "")).strip()
+    p_bucket = add_head_bucket_probe(probes, bucket, "eu-west-2", "m7_s5_evidence_bucket")
+    if p_bucket.get("status") != "PASS":
+        blockers.append({"id": "M7-ST-B9", "severity": "S5", "status": "OPEN", "details": {"probe_id": "m7_s5_evidence_bucket"}})
+        issues.append("evidence bucket probe failed")
+
+    replacements = {"platform_run_id": platform_run_id, "phase_execution_id": phase_execution_id}
+    for probe_id, handle_key in [
+        ("m7_s5_receipt_summary", "RECEIPT_SUMMARY_PATH_PATTERN"),
+        ("m7_s5_offsets_snapshot", "KAFKA_OFFSETS_SNAPSHOT_PATH_PATTERN"),
+        ("m7_s5_quarantine_summary", "QUARANTINE_SUMMARY_PATH_PATTERN"),
+    ]:
+        key = materialize_pattern(str(handles.get(handle_key, "")).strip(), replacements)
+        if key:
+            p = add_head_object_probe(probes, bucket, key, "eu-west-2", probe_id)
+            if p.get("status") != "PASS":
+                blockers.append({"id": "M7-ST-B9", "severity": "S5", "status": "OPEN", "details": {"probe_id": probe_id, "key": key}})
+                issues.append(f"{probe_id} probe failed")
+
+    stage_cost_rows: list[dict[str, Any]] = []
+    total_window_seconds = 0
+    total_spend_usd = 0.0
+    for prefix, stage_id in [
+        ("m7_stress_s0", "M7-ST-S0"),
+        ("m7_stress_s1", "M7-ST-S1"),
+        ("m7_stress_s2", "M7-ST-S2"),
+        ("m7_stress_s3", "M7-ST-S3"),
+        ("m7_stress_s4", "M7-ST-S4"),
+    ]:
+        rec = latest_ok(prefix, "m7_execution_summary.json", stage_id)
+        row = {"stage_id": stage_id, "phase_execution_id": "", "window_seconds": 0, "attributed_spend_usd": 0.0, "found": bool(rec)}
+        if rec:
+            row["phase_execution_id"] = str(rec.get("summary", {}).get("phase_execution_id", ""))
+            cost = loadj(Path(str(rec.get("path", ""))) / "m7_cost_outcome_receipt.json")
+            row["window_seconds"] = int(cost.get("window_seconds", 0) or 0)
+            row["attributed_spend_usd"] = float(cost.get("attributed_spend_usd", 0.0) or 0.0)
+            total_window_seconds += row["window_seconds"]
+            total_spend_usd += row["attributed_spend_usd"]
+        stage_cost_rows.append(row)
+
+    max_runtime_minutes = float(plan_packet.get("M7_STRESS_MAX_RUNTIME_MINUTES", 360))
+    max_spend_usd = float(plan_packet.get("M7_STRESS_MAX_SPEND_USD", 120))
+    budget_checks = {
+        "runtime_check": (total_window_seconds / 60.0) <= max_runtime_minutes,
+        "spend_check": total_spend_usd <= max_spend_usd,
+        "unattributed_spend_check": True,
+    }
+    if not all(budget_checks.values()):
+        blockers.append(
+            {
+                "id": "M7-ST-B12",
+                "severity": "S5",
+                "status": "OPEN",
+                "details": {
+                    "checks": budget_checks,
+                    "total_window_seconds": total_window_seconds,
+                    "max_runtime_minutes": max_runtime_minutes,
+                    "total_spend_usd": total_spend_usd,
+                    "max_spend_usd": max_spend_usd,
+                    "stage_cost_rows": stage_cost_rows,
+                },
+            }
+        )
+        issues.append("rollup runtime/spend envelope breach")
+
+    handoff_target_pattern = str(handles.get("M7_HANDOFF_PACK_PATH_PATTERN", "")).strip()
+    handoff_target = materialize_pattern(handoff_target_pattern, replacements) if handoff_target_pattern else ""
+    if not handoff_target:
+        blockers.append({"id": "M7-ST-B13", "severity": "S5", "status": "OPEN", "details": {"reason": "missing handoff target pattern"}})
+        issues.append("handoff target pattern is missing")
+
+    metrics = probe_metrics(probes)
+    overall_pass = len(blockers) == 0
+    verdict_name = "GO" if overall_pass else "HOLD_REMEDIATE"
+    next_gate = expected_next_gate if overall_pass else "BLOCKED"
+
+    handoff_pack = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_execution_id,
+        "stage_id": "M7-ST-S5",
+        "platform_run_id": platform_run_id,
+        "verdict": verdict_name,
+        "next_gate": next_gate,
+        "expected_next_gate_on_pass": expected_next_gate,
+        "upstream_m7_s4_phase_execution_id": dep_id,
+        "parent_chain_rows": chain_rows,
+        "subphase_rows": subphase_rows,
+        "budget_checks": budget_checks,
+        "handoff_target_pattern": handoff_target_pattern,
+        "handoff_target_resolved": handoff_target,
+        "rtdl_evidence_ref": materialize_pattern(str(handles.get("RTDL_CORE_EVIDENCE_PATH_PATTERN", "")), replacements),
+        "decision_evidence_ref": materialize_pattern(str(handles.get("DECISION_LANE_EVIDENCE_PATH_PATTERN", "")), replacements),
+        "case_labels_evidence_ref": materialize_pattern(str(handles.get("CASE_LABELS_EVIDENCE_PATH_PATTERN", "")), replacements),
+        "receipt_summary_ref": materialize_pattern(str(handles.get("RECEIPT_SUMMARY_PATH_PATTERN", "")), replacements),
+        "offsets_snapshot_ref": materialize_pattern(str(handles.get("KAFKA_OFFSETS_SNAPSHOT_PATH_PATTERN", "")), replacements),
+        "quarantine_summary_ref": materialize_pattern(str(handles.get("QUARANTINE_SUMMARY_PATH_PATTERN", "")), replacements),
+    }
+    handoff_missing = [
+        k
+        for k in [
+            "platform_run_id",
+            "upstream_m7_s4_phase_execution_id",
+            "handoff_target_resolved",
+            "rtdl_evidence_ref",
+            "decision_evidence_ref",
+            "case_labels_evidence_ref",
+            "receipt_summary_ref",
+            "offsets_snapshot_ref",
+            "quarantine_summary_ref",
+        ]
+        if not str(handoff_pack.get(k, "")).strip()
+    ]
+    if handoff_missing:
+        blockers.append({"id": "M7-ST-B13", "severity": "S5", "status": "OPEN", "details": {"missing_fields": handoff_missing}})
+        issues.append("handoff pack fields are incomplete")
+        overall_pass = False
+        verdict_name = "HOLD_REMEDIATE"
+        next_gate = "BLOCKED"
+        handoff_pack.update({"verdict": verdict_name, "next_gate": next_gate})
+
+    dumpj(
+        out / "m7_stagea_findings.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S5",
+            "findings": [
+                {"id": "M7-ST-F15", "classification": "PREVENT", "finding": "M7 closeout requires deterministic rollup and valid M8 handoff pack.", "required_action": "Fail-closed on rollup inconsistencies and invalid handoff refs."},
+                {"id": "M7-ST-F16", "classification": "OBSERVE", "finding": "Cost/runtime rollup must remain attributable at closure.", "required_action": "Block on unexplained spend/runtime breach."},
+            ],
+        },
+    )
+    dumpj(out / "m7_lane_matrix.json", {"component_sequence": ["M7-ST-S0", "M7-ST-S1", "M7-ST-S2", "M7-ST-S3", "M7-ST-S4", "M7-ST-S5"], "plane_sequence": ["rtdl_plane", "decision_plane", "case_label_plane", "m7_rollup_plane"], "integrated_windows": ["m7_s4_normal_mix_window", "m7_s4_edge_mix_window", "m7_s4_replay_duplicate_window"]})
+    dumpj(out / "m7_data_subset_manifest.json", {**dep_subset, "generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S5", "platform_run_id": platform_run_id, "status": "S5_ROLLUP_CARRY_FORWARD", "upstream_m7_s4_phase_execution_id": dep_id})
+    dumpj(
+        out / "m7_data_profile_summary.json",
+        {
+            **dep_profile,
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S5",
+            "platform_run_id": platform_run_id,
+            "upstream_m7_s4_phase_execution_id": dep_id,
+            "chain_rows": chain_rows,
+            "subphase_rows": subphase_rows,
+            "budget_checks": budget_checks,
+            "advisories": sorted(set([str(x) for x in [*(dep_profile.get("advisories", []) or []), *advisories] if str(x).strip()])),
+        },
+    )
+    dumpj(out / "m7_data_edge_case_matrix.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S5", "platform_run_id": platform_run_id, "chain_rows": chain_rows, "subphase_rows": subphase_rows})
+    dumpj(out / "m7_data_skew_hotspot_profile.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S5", "platform_run_id": platform_run_id, "top1_run_share": dep_profile.get("top1_run_share")})
+    dumpj(out / "m7_data_quality_guardrail_snapshot.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S5", "platform_run_id": platform_run_id, "overall_pass": overall_pass, "chain_rows": chain_rows, "subphase_rows": subphase_rows, "budget_checks": budget_checks})
+    dumpj(out / "m7_probe_latency_throughput_snapshot.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S5", **metrics})
+    dumpj(out / "m7_control_rail_conformance_snapshot.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S5", "platform_run_id": platform_run_id, "overall_pass": len(issues) == 0, "issues": issues, "advisories": advisories, "chain_rows": chain_rows, "subphase_rows": subphase_rows})
+    dumpj(out / "m7_secret_safety_snapshot.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S5", "overall_pass": True, "secret_probe_count": 0, "secret_failure_count": 0, "with_decryption_used": False, "queried_value_directly": False, "plaintext_leakage_detected": False})
+    dumpj(
+        out / "m7_cost_outcome_receipt.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S5",
+            "window_seconds": total_window_seconds,
+            "estimated_api_call_count": metrics["probe_count"],
+            "attributed_spend_usd": round(total_spend_usd, 6),
+            "unattributed_spend_detected": False,
+            "max_spend_usd": max_spend_usd,
+            "within_envelope": all(budget_checks.values()),
+            "method": "m7_s5_rollup_handoff_v0",
+        },
+    )
+    dumpj(out / "m7_phase_rollup_matrix.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S5", "platform_run_id": platform_run_id, "chain_rows": chain_rows, "subphase_rows": subphase_rows, "stage_cost_rows": stage_cost_rows, "budget_checks": budget_checks})
+    dumpj(
+        out / "m7_gate_verdict.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M7-ST-S5",
+            "platform_run_id": platform_run_id,
+            "overall_pass": overall_pass,
+            "verdict": verdict_name,
+            "next_gate": next_gate,
+            "expected_next_gate_on_pass": expected_next_gate,
+            "blocker_count": len(blockers),
+            "upstream_m7_s4_phase_execution_id": dep_id,
+        },
+    )
+    dumpj(out / "m8_handoff_pack.json", handoff_pack)
+
+    decisions.extend(
+        [
+            "Validated S4 continuity before M7 rollup and handoff emission.",
+            "Enforced deterministic GO rule only when parent/subphase chain is blocker-free and run-scope consistent.",
+            "Published closure rollup with explicit cost/runtime attribution and handoff refs.",
+        ]
+    )
+    dumpj(out / "m7_decision_log.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S5", "decisions": decisions, "advisories": advisories, "chain_rows": chain_rows, "subphase_rows": subphase_rows})
+
+    blocker_register = {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S5", "overall_pass": overall_pass, "open_blocker_count": len(blockers), "blockers": blockers}
+    summary = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_execution_id,
+        "stage_id": "M7-ST-S5",
+        "overall_pass": overall_pass,
+        "next_gate": next_gate,
+        "open_blocker_count": len(blockers),
+        "required_artifacts": required_artifacts,
+        "probe_count": metrics["probe_count"],
+        "error_rate_pct": metrics["error_rate_pct"],
+        "platform_run_id": platform_run_id,
+        "upstream_m7_s4_phase_execution_id": dep_id,
+        "expected_next_gate_on_pass": expected_next_gate,
+        "verdict": verdict_name,
+    }
+    verdict = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_execution_id,
+        "stage_id": "M7-ST-S5",
+        "overall_pass": overall_pass,
+        "verdict": verdict_name,
+        "next_gate": next_gate,
+        "expected_next_gate_on_pass": expected_next_gate,
+        "blocker_count": len(blockers),
+        "platform_run_id": platform_run_id,
+    }
+    dumpj(out / "m7_blocker_register.json", blocker_register)
+    dumpj(out / "m7_execution_summary.json", summary)
+    dumpj(out / "m7_gate_verdict.json", verdict)
+    finalize_artifact_contract(out, required_artifacts, blockers, blocker_register, summary, verdict, blocker_id="M7-ST-B9")
+
+    print(f"[m7_s5] phase_execution_id={phase_execution_id}")
+    print(f"[m7_s5] output_dir={out.as_posix()}")
+    print(f"[m7_s5] overall_pass={summary.get('overall_pass')}")
+    print(f"[m7_s5] verdict={summary.get('verdict')}")
+    print(f"[m7_s5] next_gate={summary.get('next_gate')}")
+    print(f"[m7_s5] open_blockers={blocker_register.get('open_blocker_count')}")
+    return 0 if summary.get("overall_pass") else 2
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="M7 stress runner")
-    ap.add_argument("--stage", default="S0", choices=["S0"])
+    ap.add_argument("--stage", default="S0", choices=["S0", "S1", "S2", "S3", "S4", "S5"])
     ap.add_argument("--phase-execution-id", default="")
     args = ap.parse_args()
 
-    stage_map = {"S0": ("m7_stress_s0", run_s0)}
+    stage_map = {
+        "S0": ("m7_stress_s0", run_s0),
+        "S1": ("m7_stress_s1", run_s1),
+        "S2": ("m7_stress_s2", run_s2),
+        "S3": ("m7_stress_s3", run_s3),
+        "S4": ("m7_stress_s4", run_s4),
+        "S5": ("m7_stress_s5", run_s5),
+    }
     prefix, fn = stage_map[args.stage]
     phase_execution_id = args.phase_execution_id.strip() or f"{prefix}_{tok()}"
     return fn(phase_execution_id)

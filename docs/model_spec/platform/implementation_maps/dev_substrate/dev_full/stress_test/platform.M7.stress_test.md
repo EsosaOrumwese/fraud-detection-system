@@ -372,18 +372,16 @@ Pass gate:
 - [x] M7 data-realism gate (M7+) pinned.
 - [x] M7 split-subphase routing (`P8/P9/P10`) pinned.
 - [x] `M7-ST-S0` executed with dependency + data-profile closure.
-- [ ] `M7-ST-S1` executed and P8 gate accepted.
-- [ ] `M7-ST-S2` executed and P9 gate accepted.
-- [ ] `M7-ST-S3` executed and P10 gate accepted.
-- [ ] `M7-ST-S4` integrated realistic-data window executed within envelope.
-- [ ] `M7-ST-S5` closure rollup emitted with deterministic `M8_READY` recommendation.
+- [x] `M7-ST-S1` executed and P8 gate accepted.
+- [x] `M7-ST-S2` executed and P9 gate accepted.
+- [x] `M7-ST-S3` executed and P10 gate accepted.
+- [x] `M7-ST-S4` integrated realistic-data window executed within envelope.
+- [x] `M7-ST-S5` closure rollup emitted with deterministic `M8_READY` recommendation.
 
 ## 11) Immediate Next Actions
-1. Execute `M7-ST-S1` (P8 parent gate adjudication) using successful `M7-ST-S0` artifacts.
-2. Carry forward S0 advisories as explicit injected-stress requirements:
-   - duplicate/replay cohort injection,
-   - late/out-of-order cohort injection.
-3. Execute M7 subphase stress lanes in order: `P8 -> P9 -> P10`.
+1. Start `M8` planning with `M7` handoff references from `m8_handoff_pack.json`.
+2. Carry forward M7 advisories into M8 observability/governance stress acceptance criteria.
+3. Keep targeted-rerun-only posture for M7 unless new drift is detected.
 
 ## 12) Execution Progress
 1. M7 stress planning authority created.
@@ -406,3 +404,97 @@ Pass gate:
 7. Advisory posture pinned for downstream lanes:
    - duplicate/out-of-order rates are not directly observable from manifest-only S0 profile,
    - therefore S1-S5 must inject duplicate/replay and late-event cohorts explicitly.
+8. `M7.P8` execution started and progressed:
+   - `M7P8-ST-S0` first run (`m7p8_stress_s0_20260304T052722Z`) blocked on legacy bus-handle naming drift (`M7P8-ST-B1`);
+   - alias-aware handle closure remediation applied in runner;
+   - `M7P8-ST-S0` rerun (`m7p8_stress_s0_20260304T052810Z`) passed (`next_gate=M7P8_ST_S1_READY`, `open_blockers=0`).
+9. `M7P8-ST-S1` first run (`m7p8_stress_s1_20260304T052814Z`) blocked on runtime-path taxonomy mismatch (`M7P8-ST-B4`);
+10. runtime-path normalization remediation applied (`EKS_EMR_ON_EKS` treated as same runtime class as `EKS_FLINK_OPERATOR` for gate checks);
+11. `M7P8-ST-S1` rerun (`m7p8_stress_s1_20260304T052941Z`) passed:
+   - `overall_pass=true`, `next_gate=M7P8_ST_S2_READY`, `open_blockers=0`.
+12. `M7P8-ST-S2` executed (`m7p8_stress_s2_20260304T053741Z`) and passed on first run:
+   - `overall_pass=true`, `next_gate=M7P8_ST_S3_READY`, `open_blockers=0`.
+13. `M7P8-ST-S3` executed (`m7p8_stress_s3_20260304T054234Z`) and passed on first run:
+   - `overall_pass=true`, `next_gate=M7P8_ST_S4_READY`, `open_blockers=0`.
+14. `M7P8-ST-S4` executed (`m7p8_stress_s4_20260304T054605Z`) and passed on first run:
+   - `overall_pass=true`, `next_gate=M7P8_ST_S5_READY`, `open_blockers=0`, `remediation_mode=NO_OP`.
+15. `M7P8-ST-S5` executed (`m7p8_stress_s5_20260304T055237Z`) and passed on first run:
+   - `overall_pass=true`, `verdict=ADVANCE_TO_P9`, `next_gate=ADVANCE_TO_P9`, `open_blockers=0`,
+   - chain sweep remained run-scope consistent (`platform_run_id=platform_20260223T184232Z`),
+   - readback probes remained green (`probe_count=5`, `error_rate_pct=0.0`).
+16. `M7P9-ST-S0` executed (`m7p9_stress_s0_20260304T060915Z`) and passed on first run:
+   - `overall_pass=true`, `next_gate=M7P9_ST_S1_READY`, `open_blockers=0`,
+   - entry dependency closure validated against `M7-ST-S0` and `M7P8-ST-S5`,
+   - representativeness blocking checks passed with explicit advisories for policy-edge/action/duplicate pressure injection in downstream P9 lanes.
+17. `M7P9-ST-S1` executed (`m7p9_stress_s1_20260304T061430Z`) and passed on first run:
+   - `overall_pass=true`, `next_gate=M7P9_ST_S2_READY`, `open_blockers=0`,
+   - DF lane functional/performance checks passed against historical baseline with normalized runtime contract,
+   - DF semantic invariants (run-scope tuple, upstream gate acceptance, idempotency/fail-closed posture) passed for active run scope.
+18. `M7P9-ST-S2` executed (`m7p9_stress_s2_20260304T061756Z`) and passed on first run:
+   - `overall_pass=true`, `next_gate=M7P9_ST_S3_READY`, `open_blockers=0`,
+   - AL lane functional/performance checks passed against historical baseline with normalized runtime contract,
+   - AL semantic/retry invariants (run-scope tuple, upstream gate acceptance, idempotency/fail-closed posture, retry guardrail) passed for active run scope.
+19. `M7P9-ST-S3` executed (`m7p9_stress_s3_20260304T062431Z`) and passed on first run:
+   - `overall_pass=true`, `next_gate=M7P9_ST_S4_READY`, `open_blockers=0`,
+   - DLA lane functional/performance checks passed against historical baseline with normalized runtime contract,
+   - DLA append-only/causal invariants (run-scope tuple, upstream gate acceptance, idempotency/fail-closed posture, append-only posture, audit append readback) passed for active run scope.
+20. `M7P9-ST-S4` executed (`m7p9_stress_s4_20260304T062934Z`) and passed on first run:
+   - `overall_pass=true`, `next_gate=M7P9_ST_S5_READY`, `open_blockers=0`, `remediation_mode=NO_OP`,
+   - targeted-rerun-only remediation lane stayed deterministic with clean chain sweep across `S0..S3`.
+21. `M7P9-ST-S5` executed (`m7p9_stress_s5_20260304T063429Z`) and passed on first run:
+   - `overall_pass=true`, `verdict=ADVANCE_TO_P10`, `next_gate=ADVANCE_TO_P10`, `open_blockers=0`,
+   - P9 chain sweep remained run-scope consistent (`platform_run_id=platform_20260223T184232Z`),
+   - rollup lane remained artifact-complete (`18/18`) with green readback probes.
+22. `M7P10-ST-S0` executed (`m7p10_stress_s0_20260304T065016Z`) and passed on first run:
+   - `overall_pass=true`, `next_gate=M7P10_ST_S1_READY`, `open_blockers=0`,
+   - artifact contract complete (`18/18`) with readback probes green (`probe_count=6`, `error_rate_pct=0.0`),
+   - representativeness closure used explicit low-sample proxy provenance:
+     - observed case/label proof sample `18`,
+     - effective run-scoped proxy volume `decision_input_events=2190000986`,
+     - LS writer probe class cardinality `3`, writer conflict `0.0`, case reopen `0.0`.
+23. `M7P10-ST-S1` executed (`m7p10_stress_s1_20260304T065702Z`) and passed on first run:
+   - `overall_pass=true`, `next_gate=M7P10_ST_S2_READY`, `open_blockers=0`,
+   - artifact contract complete (`18/18`) with readback probes green (`probe_count=3`, `error_rate_pct=0.0`),
+   - CaseTrigger lane functional/performance and semantic invariants stayed green for active run scope,
+   - low-sample duplicate/hotkey coverage remains explicit advisory for downstream injected-pressure windows.
+24. `M7P10-ST-S2` executed (`m7p10_stress_s2_20260304T070138Z`) and passed on first run:
+   - `overall_pass=true`, `next_gate=M7P10_ST_S3_READY`, `open_blockers=0`,
+   - artifact contract complete (`18/18`) with readback probes green (`probe_count=4`, `error_rate_pct=0.0`),
+   - CM lane functional/performance and semantic invariants stayed green for active run scope,
+   - low-sample reopen/rare-path coverage remains explicit advisory for downstream injected-pressure windows.
+25. `M7P10-ST-S3` executed (`m7p10_stress_s3_20260304T070641Z`) and passed on first run:
+   - `overall_pass=true`, `next_gate=M7P10_ST_S4_READY`, `open_blockers=0`,
+   - artifact contract complete (`18/18`) with readback probes green (`probe_count=6`, `error_rate_pct=0.0`),
+   - LS lane functional/performance and writer-boundary semantics stayed green for active run scope (`single_writer_posture=true`, `writer_conflict_rate_pct=0.0`),
+   - low-sample contention coverage remains explicit advisory for downstream targeted pressure windows.
+26. `M7P10-ST-S4` executed (`m7p10_stress_s4_20260304T071415Z`) and passed on first run:
+   - `overall_pass=true`, `next_gate=M7P10_ST_S5_READY`, `open_blockers=0`, `remediation_mode=NO_OP`,
+   - artifact contract complete (`18/18`) with readback probe surface green (`probe_count=1`, `error_rate_pct=0.0`),
+   - deterministic `S0..S3` chain sweep remained run-scope consistent and blocker-free.
+27. `M7P10-ST-S5` executed (`m7p10_stress_s5_20260304T071946Z`) and passed on first run:
+   - `overall_pass=true`, `verdict=M7_J_READY`, `next_gate=M7_J_READY`, `open_blockers=0`,
+   - artifact contract complete (`18/18`) with readback probes green (`probe_count=6`, `error_rate_pct=0.0`),
+   - deterministic `S0..S4` chain sweep remained run-scope consistent and blocker-free, confirming P10 closure readiness for parent adjudication.
+28. Parent `M7-ST-S1` executed (`m7_stress_s1_20260304T074135Z`) and passed on first run:
+   - `overall_pass=true`, `next_gate=M7_ST_S2_READY`, `open_blockers=0`,
+   - P8 S5 adjudication accepted (`upstream_m7p8_s5_phase_execution_id=m7p8_stress_s5_20260304T055237Z`),
+   - artifact contract complete (`17/17`) with readback probes green (`probe_count=4`, `error_rate_pct=0.0`).
+29. Parent `M7-ST-S2` executed (`m7_stress_s2_20260304T074144Z`) and passed on first run:
+   - `overall_pass=true`, `next_gate=M7_ST_S3_READY`, `open_blockers=0`,
+   - P9 S5 adjudication accepted (`upstream_m7p9_s5_phase_execution_id=m7p9_stress_s5_20260304T063429Z`),
+   - artifact contract complete (`17/17`) with readback probes green (`probe_count=4`, `error_rate_pct=0.0`).
+30. Parent `M7-ST-S3` executed (`m7_stress_s3_20260304T074152Z`) and passed on first run:
+   - `overall_pass=true`, `next_gate=M7_ST_S4_READY`, `open_blockers=0`,
+   - P10 S5 adjudication accepted (`upstream_m7p10_s5_phase_execution_id=m7p10_stress_s5_20260304T071946Z`),
+   - artifact contract complete (`17/17`) with readback probes green (`probe_count=4`, `error_rate_pct=0.0`).
+31. Parent `M7-ST-S4` executed (`m7_stress_s4_20260304T074200Z`) and passed on first run:
+   - `overall_pass=true`, `next_gate=M7_ST_S5_READY`, `open_blockers=0`,
+   - integrated window checks remained green within runtime/spend envelope,
+   - artifact contract complete (`17/17`) with readback probes green (`probe_count=4`, `error_rate_pct=0.0`).
+32. Parent `M7-ST-S5` executed (`m7_stress_s5_20260304T074209Z`) and passed on first run:
+   - `overall_pass=true`, `verdict=GO`, `next_gate=M8_READY`, `open_blockers=0`,
+   - deterministic parent chain sweep (`S0..S4`) and subphase sweep (`P8..P10`) remained run-scope consistent,
+   - `m8_handoff_pack.json` emitted with complete run-scoped evidence refs.
+33. S4 bookkeeping hardening was applied in runner (`semantic_issue_counts` and subphase cost receipt resolution) and parent closure was rerun:
+   - `M7-ST-S4` rerun: `phase_execution_id=m7_stress_s4_20260304T074305Z`, `overall_pass=true`, `next_gate=M7_ST_S5_READY`, `open_blockers=0`;
+   - `M7-ST-S5` rerun: `phase_execution_id=m7_stress_s5_20260304T074317Z`, `overall_pass=true`, `verdict=GO`, `next_gate=M8_READY`, `open_blockers=0`.
