@@ -4062,3 +4062,222 @@ _As of 2026-03-03_
 
 ### Commit posture
 1. No commit/push performed.
+
+## Entry: 2026-03-04 01:20 +00:00 - M6-ST-S0 execution design before coding
+
+### Trigger
+1. User directed: proceed with planning and executing `M6-ST-S0`.
+2. M6 planning docs are created, but no stress runner exists yet for parent M6 execution lane.
+
+### Gap diagnosis
+1. `scripts/dev_substrate/` has stress runners through M5, but no `m6_stress_runner.py`.
+2. Without executable `S0` lane, M6 cannot move from planning-complete to execution-backed posture.
+
+### Design decision
+1. Implement new runner: `scripts/dev_substrate/m6_stress_runner.py`.
+2. Scope for this step is `S0` only (authority + entry-gate closure), aligned to `platform.M6.stress_test.md` section `7.1`.
+3. Keep fail-closed logic deterministic and artifact contract-compatible with prior stress runners.
+
+### Planned `S0` behavior
+1. Read and validate M6 parent plan keys and required parent handles.
+2. Validate latest successful M5 parent `S3` dependency:
+   - `overall_pass=true`,
+   - `recommendation=GO`,
+   - `next_gate=M6_READY`,
+   - dependency blocker register closed.
+3. Validate required split authority files are present/readable:
+   - `platform.M6.stress_test.md`,
+   - `platform.M6.P5.stress_test.md`,
+   - `platform.M6.P6.stress_test.md`,
+   - `platform.M6.P7.stress_test.md`.
+4. Run bounded evidence root readback probe (`s3api head-bucket`).
+5. Emit full S0 artifact set:
+   - `m6_stagea_findings.json`,
+   - `m6_lane_matrix.json`,
+   - `m6_probe_latency_throughput_snapshot.json`,
+   - `m6_control_rail_conformance_snapshot.json`,
+   - `m6_secret_safety_snapshot.json`,
+   - `m6_cost_outcome_receipt.json`,
+   - `m6_blocker_register.json`,
+   - `m6_execution_summary.json`,
+   - `m6_decision_log.json`.
+
+### Blocker mapping implemented
+1. `M6-ST-B1`: missing/unresolved required parent handles or plan keys.
+2. `M6-ST-B2`: invalid M5 handoff dependency.
+3. `M6-ST-B3`: missing/unreadable M6 split authority docs.
+4. `M6-ST-B10`: evidence publish/readback probe failure.
+5. `M6-ST-B9`: required S0 artifact incompleteness.
+
+### Execution plan after coding
+1. `python -m py_compile scripts/dev_substrate/m6_stress_runner.py`.
+2. `python scripts/dev_substrate/m6_stress_runner.py --stage S0`.
+3. If blockers appear, stop and report fail-closed blocker set; otherwise:
+   - update `platform.M6.stress_test.md` with S0 receipt,
+   - update `platform.stress_test.md` next-step routing to `M6.P5` / parent `S1`.
+
+### Commit posture
+1. No commit/push.
+
+## Entry: 2026-03-04 01:22 +00:00 - M6-ST-S0 implemented and executed green
+
+### Implementation completed
+1. Added `scripts/dev_substrate/m6_stress_runner.py` with executable `S0` lane (`--stage S0`).
+2. Runner emits deterministic M6 S0 artifact contract and fail-closed blocker mapping.
+
+### S0 execution receipt
+1. Command executed:
+   - `python scripts/dev_substrate/m6_stress_runner.py --stage S0`
+2. Execution id:
+   - `m6_stress_s0_20260304T012128Z`
+3. Result:
+   - `overall_pass=true`
+   - `next_gate=M6_ST_S1_READY`
+   - `open_blockers=0`
+   - `probe_count=1`
+   - `error_rate_pct=0.0`
+4. Dependency closure validated:
+   - upstream `M5-ST-S3` receipt `m5_stress_s3_20260304T010243Z`
+   - `recommendation=GO`, `next_gate=M6_READY`, blocker register closed.
+5. Evidence root:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m6_stress_s0_20260304T012128Z/stress/`
+
+### Documentation updates
+1. `platform.M6.stress_test.md`:
+   - DoD updated (`M6-ST-S0` now checked),
+   - immediate next actions shifted to `M6.P5` execution then parent `S1` adjudication,
+   - execution progress now includes `M6-ST-S0` receipt.
+2. `platform.stress_test.md`:
+   - M6 program status moved from planning posture to active execution posture,
+   - next step moved to `M6P5-ST-S0` progression,
+   - active-phase M6 section now records latest parent S0 pass receipt.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 01:26 +00:00 - M6.P5 full execution design before coding
+
+### Trigger
+1. User directed: execute full `M6.P5` (for parent `M6-ST-S1` readiness) and clear blockers if they arise.
+
+### Gap diagnosis
+1. No dedicated `M6.P5` stress runner exists yet in `scripts/dev_substrate/`.
+2. Parent `M6-ST-S1` gate cannot be executed credibly without deterministic `M6.P5` stage receipts.
+
+### Design decision
+1. Implement `scripts/dev_substrate/m6p5_stress_runner.py` with stages `S0..S5`.
+2. Keep execution fail-closed and artifact-contract aligned to `platform.M6.P5.stress_test.md`.
+3. For this cycle, use live control-plane checks plus existing authoritative `M6.B/M6.C/M6.D` execution artifacts as runtime-evidence anchors to avoid unsafe direct runtime mutation.
+
+### Planned stage mechanics
+1. `S0`:
+   - validate parent dependency (`M6-ST-S0` pass + `M6_ST_S1_READY`),
+   - validate required `M6.P5` handles and plan keys,
+   - validate M6/P5 authority file readability,
+   - evidence-bucket readback probe.
+2. `S1`:
+   - validate SFN state-machine handle resolution and active status,
+   - validate run-scope continuity from latest authoritative `m6b_p5a_ready_entry_*` artifact.
+3. `S2`:
+   - validate latest successful `m6c_p5b_ready_commit_*` snapshot,
+   - enforce commit-authority/receipt/publication proof checks,
+   - readback receipt object from S3 path derived from `SR_READY_COMMIT_RECEIPT_PATH_PATTERN`.
+4. `S3`:
+   - execute bounded duplicate/ambiguity stability checks by repeated S3 readback and snapshot consistency validation,
+   - require `duplicate_ambiguity_status=clear` and stable receipt identity.
+5. `S4`:
+   - remediation lane (NO_OP when blocker-free; targeted rerun support when blockers exist).
+6. `S5`:
+   - deterministic rollup + verdict (`ADVANCE_TO_P6` only when blocker-free).
+
+### Blocker mapping implemented
+1. `M6P5-ST-B1/B2/B3/B4/B5/B6/B7/B8/B9/B10` per stress authority.
+2. Stage-level mapping:
+   - S0: B1/B2/B8,
+   - S1: B3/B4/B8,
+   - S2: B4/B5/B6/B8,
+   - S3: B7/B5/B8,
+   - S4: B9/B8,
+   - S5: B9/B10.
+
+### Execution sequence
+1. Implement runner.
+2. Compile.
+3. Run sequentially in one lane:
+   - `S0 -> S1 -> S2 -> S3 -> S4 -> S5`.
+4. If any blocker opens:
+   - apply targeted remediation immediately,
+   - rerun impacted stage(s) and continue.
+5. Update:
+   - `platform.M6.P5.stress_test.md` execution receipts + DoD,
+   - `platform.M6.stress_test.md` parent next-actions,
+   - `platform.stress_test.md` routing posture.
+
+### Commit posture
+1. No commit/push.
+
+## Entry: 2026-03-04 01:35 +00:00 - M6.P5 full execution completed (`S0..S5`) with deterministic `ADVANCE_TO_P6`
+
+### Trigger
+1. User directed complete execution of `M6-ST-S1` scope by closing subphase `M6.P5` end-to-end first and remediating blockers inline if any appeared.
+
+### Implementation and execution
+1. Executed sequential `M6.P5` stages using `scripts/dev_substrate/m6p5_stress_runner.py`:
+   - `S0`: `m6p5_stress_s0_20260304T013405Z`.
+   - `S1`: `m6p5_stress_s1_20260304T013406Z`.
+   - `S2`: `m6p5_stress_s2_20260304T013411Z`.
+   - `S3`: `m6p5_stress_s3_20260304T013414Z`.
+   - `S4`: `m6p5_stress_s4_20260304T013452Z`.
+   - `S5`: `m6p5_stress_s5_20260304T013452Z`.
+2. Verified all stage summaries are `overall_pass=true` with `open_blockers=0`.
+3. Verified `S3` duplicate/ambiguity stability probe completed (`receipt_probe_iterations=25`) with stable receipt identity.
+4. Verified final `S5` verdict contract:
+   - `verdict=ADVANCE_TO_P6`,
+   - `next_gate=ADVANCE_TO_P6`.
+
+### Outcome
+1. No blockers opened; no remediation lane changes were required (`S4 remediation_mode=NO_OP`).
+2. `M6.P5` is closure-complete and valid as dependency authority for parent `M6-ST-S1`.
+3. Evidence roots are published under:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m6p5_stress_s*_20260304T0134*/stress/`.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 01:37 +00:00 - Parent `M6-ST-S1` gate implemented and executed (pass)
+
+### Trigger
+1. After `M6.P5` closure, parent M6 orchestration required `S1` gate adjudication before any `M6.P6` work.
+
+### Implementation
+1. Extended `scripts/dev_substrate/m6_stress_runner.py` beyond `S0` to support `S1`:
+   - added `M6_S1_ARTS` contract,
+   - added dependency loaders for latest successful parent `S0` and `M6.P5` `S5`,
+   - added `run_s1(...)` with fail-closed checks for:
+     - parent S0 continuity,
+     - P5 verdict contract (`ADVANCE_TO_P6`),
+     - blocker-closed register posture,
+     - required artifact completeness,
+     - evidence bucket probe.
+   - extended CLI stage routing to include `--stage S1`.
+
+### Validation and execution
+1. `python -m py_compile scripts/dev_substrate/m6_stress_runner.py` (pass).
+2. `python scripts/dev_substrate/m6_stress_runner.py --stage S1` (pass).
+3. Execution receipt:
+   - `phase_execution_id=m6_stress_s1_20260304T013651Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6_ST_S2_READY`,
+   - `open_blockers=0`,
+   - `m6p5_dependency_phase_execution_id=m6p5_stress_s5_20260304T013452Z`,
+   - `m6p5_verdict=ADVANCE_TO_P6`.
+
+### Outcome
+1. Parent M6 is now green through `S1` and routed to `S2`.
+2. Authority docs were updated to reflect:
+   - `M6.P5` DoD closure,
+   - parent `M6-ST-S1` closure,
+   - next-step routing to `M6.P6` then parent `M6-ST-S2`.
+
+### Commit posture
+1. No commit/push performed.

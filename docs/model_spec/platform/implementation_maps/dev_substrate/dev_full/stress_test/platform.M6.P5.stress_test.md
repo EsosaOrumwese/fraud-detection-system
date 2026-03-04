@@ -347,15 +347,53 @@ Any open `M6P5-ST-B*` blocks P5 closure and parent M6 `S1` progression.
 - [x] Dedicated M6.P5 stress authority created.
 - [x] P5 handle packet and blocker taxonomy pinned.
 - [x] P5 execution-grade runbook (`S0..S5`) pinned.
-- [ ] `M6P5-ST-S0` executed with blocker-free entry closure.
-- [ ] `M6P5-ST-S1..S3` executed and validated under stress windows.
-- [ ] `M6P5-ST-S4` remediation lane closed (if needed).
-- [ ] `M6P5-ST-S5` verdict emitted as `ADVANCE_TO_P6`.
+- [x] `M6P5-ST-S0` executed with blocker-free entry closure.
+- [x] `M6P5-ST-S1..S3` executed and validated under stress windows.
+- [x] `M6P5-ST-S4` remediation lane closed (no-op, blocker-free).
+- [x] `M6P5-ST-S5` verdict emitted as `ADVANCE_TO_P6`.
 
 ## 11) Immediate Next Actions
-1. Execute `M6P5-ST-S0` after parent `M6-ST-S0` closure.
-2. Progress through `S1 -> S2 -> S3` with targeted remediation in `S4` if blockers appear.
-3. Emit `S5` verdict and hand off to parent `M6-ST-S1` gate.
+1. Preserve `M6.P5` closure receipts and blocker-free register as dependency authority for parent `M6-ST-S1` and audit replay.
+2. Execute `M6.P6` (`S0..S5`) to target deterministic verdict `ADVANCE_TO_P7`.
+3. After `M6.P6` closure, run parent `M6-ST-S2` gate adjudication.
 
 ## 12) Execution Progress
-1. Planning authority created; no new-cycle P5 execution receipts recorded yet.
+1. Planning authority created.
+2. `M6P5-ST-S0` executed and passed:
+   - `phase_execution_id=m6p5_stress_s0_20260304T013405Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P5_ST_S1_READY`,
+   - `open_blockers=0`,
+   - `probe_count=1`, `error_rate_pct=0.0`.
+3. `M6P5-ST-S1` executed and passed:
+   - `phase_execution_id=m6p5_stress_s1_20260304T013406Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P5_ST_S2_READY`,
+   - `open_blockers=0`,
+   - `historical_m6b_execution_id=m6b_p5a_ready_entry_20260225T024245Z`.
+4. `M6P5-ST-S2` executed and passed:
+   - `phase_execution_id=m6p5_stress_s2_20260304T013411Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P5_ST_S3_READY`,
+   - `open_blockers=0`,
+   - receipt readback: `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/sr/ready_commit_receipt.json`.
+5. `M6P5-ST-S3` executed and passed:
+   - `phase_execution_id=m6p5_stress_s3_20260304T013414Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P5_ST_S4_READY`,
+   - `open_blockers=0`,
+   - duplicate/ambiguity stability probes: `25` (`stable_receipt_etag="271a9d7f86b64a60f9b234bf628c50c2"`).
+6. `M6P5-ST-S4` executed and passed:
+   - `phase_execution_id=m6p5_stress_s4_20260304T013452Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6P5_ST_S5_READY`,
+   - `open_blockers=0`,
+   - remediation mode: `NO_OP` (no open blockers).
+7. `M6P5-ST-S5` executed and passed:
+   - `phase_execution_id=m6p5_stress_s5_20260304T013452Z`,
+   - `overall_pass=true`,
+   - `verdict=ADVANCE_TO_P6`,
+   - `next_gate=ADVANCE_TO_P6`,
+   - `open_blockers=0`.
+8. Authoritative evidence root:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m6p5_stress_s*_20260304T0134*/stress/`.

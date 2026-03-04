@@ -432,17 +432,39 @@ Required artifacts for each parent stage:
 - [x] M6 split-subphase routing (`P5`, `P6`, `P7`) pinned.
 - [x] Parent handle packet and parent blocker taxonomy pinned.
 - [x] Parent orchestration runbook (`S0..S5`) pinned.
-- [ ] `M6-ST-S0` executed with blocker-free entry closure.
-- [ ] `M6-ST-S1..S3` subphase orchestration gates executed and closed.
+- [x] `M6-ST-S0` executed with blocker-free entry closure.
+- [x] `M6-ST-S1` (P5 orchestration gate) executed and closed.
+- [ ] `M6-ST-S2..S3` subphase orchestration gates executed and closed.
 - [ ] `M6-ST-S4` integrated stress windows executed within envelope.
 - [ ] `M6-ST-S5` closure rollup emitted with deterministic `M7_READY` recommendation.
 
 ## 11) Immediate Next Actions
-1. Execute `M6-ST-S0` authority and entry-gate closure.
-2. If `S0` is green, run subphase gates in order: `S1` (`P5`) -> `S2` (`P6`) -> `S3` (`P7`).
-3. Open `S4` only after all subphase verdict contracts are green.
-4. Close with `S5` and update `platform.stress_test.md` with M6 execution receipts.
+1. Execute `M6.P6` (`S0..S5`) and target deterministic verdict `ADVANCE_TO_P7`.
+2. After P6 closure, run parent `M6-ST-S2` gate adjudication for P6.
+3. Execute `M6.P7` and close parent `M6-ST-S3` gate before opening integrated `S4`.
+4. After `S4`, execute `S5` closure rollup and publish deterministic `M7_READY` recommendation.
 
 ## 12) Execution Progress
-1. Planning authority created; execution not started yet in this stress cycle.
+1. Planning authority created.
 2. Latest upstream dependency is M5 parent `S3` pass (`recommendation=GO`, `next_gate=M6_READY`).
+3. `M6-ST-S0` executed and passed:
+   - `phase_execution_id=m6_stress_s0_20260304T012128Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6_ST_S1_READY`,
+   - `open_blockers=0`,
+   - `probe_count=1`, `error_rate_pct=0.0`,
+   - evidence root: `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m6_stress_s0_20260304T012128Z/stress/`.
+4. `M6.P5` (`S0..S5`) executed and passed end-to-end:
+   - final phase execution: `m6p5_stress_s5_20260304T013452Z`,
+   - final verdict: `ADVANCE_TO_P6`,
+   - `next_gate=ADVANCE_TO_P6`,
+   - `open_blockers=0`,
+   - evidence root: `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m6p5_stress_s5_20260304T013452Z/stress/`.
+5. Parent `M6-ST-S1` gate adjudication executed and passed:
+   - `phase_execution_id=m6_stress_s1_20260304T013651Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6_ST_S2_READY`,
+   - `open_blockers=0`,
+   - `m6p5_dependency_phase_execution_id=m6p5_stress_s5_20260304T013452Z`,
+   - `m6p5_verdict=ADVANCE_TO_P6`,
+   - evidence root: `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m6_stress_s1_20260304T013651Z/stress/`.

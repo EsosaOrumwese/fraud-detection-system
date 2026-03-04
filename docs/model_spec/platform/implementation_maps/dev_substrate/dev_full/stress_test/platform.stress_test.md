@@ -211,7 +211,7 @@ For any phase:
 
 ## 12) Program Status
 1. Program bootstrapped.
-2. Current phase state: `M6` (`ACTIVE`; planning authorities created for parent + `P5/P6/P7`).
+2. Current phase state: `M6` (`ACTIVE`; parent `S0/S1` executed green, `M6.P5` closed, `M6.P6` next).
 3. Dedicated phase files:
    - `stress_test/platform.M2.stress_test.md` (`DONE`),
    - `stress_test/platform.M3.stress_test.md` (`DONE`),
@@ -219,11 +219,11 @@ For any phase:
    - `stress_test/platform.M5.stress_test.md` (`DONE`),
    - `stress_test/platform.M5.P3.stress_test.md` (`DONE`),
    - `stress_test/platform.M5.P4.stress_test.md` (`DONE`),
-   - `stress_test/platform.M6.stress_test.md` (`ACTIVE_PLANNING`),
-   - `stress_test/platform.M6.P5.stress_test.md` (`PLANNED`),
+   - `stress_test/platform.M6.stress_test.md` (`ACTIVE_EXECUTION`),
+   - `stress_test/platform.M6.P5.stress_test.md` (`DONE`),
    - `stress_test/platform.M6.P6.stress_test.md` (`PLANNED`),
    - `stress_test/platform.M6.P7.stress_test.md` (`PLANNED`).
-4. Next step: execute `M6-ST-S0` authority and entry-gate closure using M5 closure receipt (`recommendation=GO`, `next_gate=M6_READY`).
+4. Next step: execute `M6P6-ST-S0` (then `M6P6-ST-S1..S5`) and adjudicate parent `M6-ST-S2` after P6 verdict `ADVANCE_TO_P7`.
 
 ## 13) Closed Phase - M0 (Inline)
 Status:
@@ -485,7 +485,7 @@ Authority routing:
 
 ## 18) Active Phase - M6 (Dedicated + Split Subphases)
 Status:
-1. `ACTIVE` (`PLANNING_COMPLETE`; execution pending from `M6-ST-S0`)
+1. `ACTIVE` (`M6-ST-S0/S1 PASS`; `M6.P5` closed with `ADVANCE_TO_P6`)
 
 Authority routing:
 1. Parent orchestration authority: `stress_test/platform.M6.stress_test.md`.
@@ -501,4 +501,9 @@ Authority routing:
    - parent `M6-ST-S4` integrated stress window,
    - parent `M6-ST-S5` closure rollup and `M7_READY` recommendation.
 4. Current next executable step:
-   - run `M6-ST-S0` using latest M5 parent closure receipt (`recommendation=GO`, `next_gate=M6_READY`).
+   - run `M6P6-ST-S0` and progress `M6.P6` through `S5` toward verdict `ADVANCE_TO_P7`, then execute parent `M6-ST-S2`.
+5. Latest parent execution receipts:
+   - `M6-ST-S0`: `phase_execution_id=m6_stress_s0_20260304T012128Z`, `overall_pass=true`, `open_blockers=0`.
+   - `M6-ST-S1`: `phase_execution_id=m6_stress_s1_20260304T013651Z`, `overall_pass=true`, `next_gate=M6_ST_S2_READY`, `open_blockers=0`.
+6. Latest subphase execution receipt:
+   - `M6.P5` `M6P5-ST-S5`: `phase_execution_id=m6p5_stress_s5_20260304T013452Z`, `overall_pass=true`, `verdict=ADVANCE_TO_P6`, `open_blockers=0`.
