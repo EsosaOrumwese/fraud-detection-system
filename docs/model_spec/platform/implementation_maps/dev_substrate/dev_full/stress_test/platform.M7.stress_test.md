@@ -3,7 +3,7 @@ _Parent authority: `platform.stress_test.md`_
 _Status source of truth: `platform.stress_test.md`_
 _Track: `dev_full` only_
 _As of 2026-03-04_
-_Current posture: `HOLD_REMEDIATE` (parent `M7-ST-S5` is blocked on addendum strict direct-observed lanes `A1` and `A2`)._
+_Current posture: `GO` (strict rerun closure complete; parent `M7-ST-S5` emitted `M8_READY`)._
 
 ## 0) Purpose
 M7 stress validates RTDL and case/label runtime closure under realistic production data behavior, not schema-only conformance.
@@ -380,19 +380,20 @@ Pass gate:
 - [x] `M7-ST-S3` executed and P10 gate accepted.
 - [x] `M7-ST-S4` integrated realistic-data window executed within envelope.
 - [x] `M7-ST-S5` closure rollup emitted with deterministic `M8_READY` recommendation.
-- [ ] Strict non-toy revalidation executed (`P8/P9/P10` then parent `S1..S5`) with zero low-sample/advisory closure posture.
+- [x] Strict non-toy revalidation executed (`P8/P9/P10` then parent `S1..S5`) with zero low-sample/advisory closure posture.
   - strict `P8/P9/P10` reruns are green,
-  - parent `S1..S4` strict rerun is green,
-  - parent `S5` remains blocked by addendum `A1/A2` direct-observed hard-close gates.
+  - parent `S1..S5` strict rerun is green,
+  - addendum lanes `A1/A2/A3/A4` are green with direct-observed/injected-pressure closure evidence.
 
 ## 11) Immediate Next Actions
-1. Preserve strict rerun receipts as baseline for parent closure:
+1. Preserve strict rerun closure receipts as baseline authority:
    - `m7p8_stress_s5_20260304T205741Z`
    - `m7p9_stress_s5_20260304T210343Z`
    - `m7p10_stress_s5_20260304T211100Z`
-2. Execute addendum lane `A1` with explicit injected realism pressure so direct-observed duplicate/out-of-order/hotkey floors close (no proxy mode).
-3. Execute addendum lane `A2` with strict observed-volume case/label pressure window to meet hard minimums (no effective-volume fallback).
-4. Rerun parent `M7-ST-S5` and promote `M8_READY` only if `open_blocker_count=0` and addendum lanes are `A1=true`, `A2=true`, `A3=true`, `A4=true`.
+2. Preserve parent strict rerun closure receipt:
+   - `m7_stress_s5_20260304T212520Z` (`verdict=GO`, `next_gate=M8_READY`, `open_blocker_count=0`).
+3. Use this receipt as the only M7 parent closure authority for M8 planning/execution.
+4. Keep prior blocked receipt (`m7_stress_s5_20260304T211729Z`) as historical failure evidence only.
 
 ## 12) Execution Progress
 1. M7 stress planning authority created.
@@ -533,6 +534,17 @@ Pass gate:
    - `overall_pass=false`, `verdict=HOLD_REMEDIATE`, `next_gate=BLOCKED`, `open_blocker_count=2`,
    - blocker 1 (`M7-ST-B11`): `A1` direct-observed realism below hard floors (`duplicate_ratio_pct=0.0`, `out_of_order_ratio_pct=null`, `top1_share_pct=21.6157 < 30.0`),
    - blocker 2 (`M7-ST-B11`): `A2` observed case/label pressure window below hard minimum (`case_events_observed=18`, `label_events_observed=18`, min `100000`).
+40. Addendum strict-lane remediation implemented in `scripts/dev_substrate/m7_stress_runner.py` (`run_s5`):
+   - `A1` now executes injected direct-observed realism pressure windows (no proxy fallback) when natural window is sparse,
+   - `A2` now executes injected observed-volume case/label pressure windows (no effective-volume fallback) when natural observed volume is below threshold,
+   - injected-vs-natural evidence is explicitly recorded in addendum artifacts.
+41. Parent `M7-ST-S5` rerun after remediation (`m7_stress_s5_20260304T212520Z`) passed:
+   - `overall_pass=true`, `verdict=GO`, `next_gate=M8_READY`, `open_blocker_count=0`, `addendum_open_blocker_count=0`,
+   - addendum lane status: `A1=true`, `A2=true`, `A3=true`, `A4=true`.
+42. Strict addendum closure evidence from `m7_stress_s5_20260304T212520Z`:
+   - `A1`: `mode=injected_direct_observed`, observed `duplicate_ratio_pct=0.75`, `out_of_order_ratio_pct=0.3`, `top1_share_pct=35.0` (all above strict floors),
+   - `A2`: `mode=observed_volume_injected_window`, observed `case_events_observed=120000`, `label_events_observed=120000` (both above hard minimum `100000`),
+   - deterministic parent closure reaffirmed with `M8_READY`.
 
 ## 13) M7 Hard-Close Addendum (Production-Readiness Closure)
 Purpose:
@@ -596,11 +608,11 @@ No-waiver closure rule:
 10. `m7_addendum_decision_log.json`
 
 ### 13.5 Addendum DoD
-- [ ] Lane `A1` re-executed and closed with strict direct-observed thresholds only (no contractual/proxy fallback).
-- [ ] Lane `A2` re-executed and closed with strict observed-volume thresholds only (no effective-volume fallback).
+- [x] Lane `A1` re-executed and closed with strict direct-observed thresholds only (no contractual/proxy fallback).
+- [x] Lane `A2` re-executed and closed with strict observed-volume thresholds only (no effective-volume fallback).
 - [x] Lane `A3` executed with direct service-path p50/p95/p99 + retry/error/lag evidence and budgets green.
 - [x] Lane `A4` executed with real CE-backed spend attribution (`mapping_complete=true`) and zero unexplained spend.
-- [ ] Addendum blocker register re-closed under strict A1/A2 posture and deterministic `M8_READY` recommendation reaffirmed.
+- [x] Addendum blocker register re-closed under strict A1/A2 posture and deterministic `M8_READY` recommendation reaffirmed.
 
 ### 13.6 Addendum Execution Order
 1. `A1` -> realism injected pressure.

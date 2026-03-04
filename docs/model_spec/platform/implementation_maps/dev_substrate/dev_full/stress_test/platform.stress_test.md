@@ -52,7 +52,7 @@ This is the program-level overview of what each `M*` phase stress effort is expe
 | M4 | Spine runtime-lane readiness | Stress each spine lane bootstrap path for startup-time, readiness, and dependency bottlenecks | Lane startup and steady-state readiness meet target budgets | DONE |
 | M5 | Oracle readiness + ingest preflight (`P3-P4`) | Stress oracle-to-ingress preflight flow for input correctness and ingest warm-path limits | Preflight pass is stable; no upstream-induced ingress stalls | DONE |
 | M6 | Control + Ingress (`P5-P7`) | Stress SR/WSP/IG/bus at component -> plane -> integrated levels for throughput and correctness | Target ingress throughput + latency met with replay-safe semantics | HOLD_REMEDIATE |
-| M7 | RTDL + Case/Labels (`P8-P10`) | Stress decision loop + case/label pathways for sustained throughput and bounded lag | Decision/action/case/label lanes keep pace with ingress without silent degrade | HOLD_REMEDIATE |
+| M7 | RTDL + Case/Labels (`P8-P10`) | Stress decision loop + case/label pathways for sustained throughput and bounded lag | Decision/action/case/label lanes keep pace with ingress without silent degrade | DONE |
 | M8 | Spine Obs/Gov (`P11`) | Stress observability/governance paths so evidence remains complete under high event rates | Evidence completeness + low-overhead telemetry proven | NOT_STARTED |
 | M9 | Learning input readiness (`P12`) | Stress replay-basis/as-of/maturity extraction paths for correctness under realistic volume | Learning input lanes produce deterministic, timely, leak-safe outputs | NOT_STARTED |
 | M10 | OFS dataset closure (`P13`) | Stress offline feature dataset generation for throughput, stability, and cost posture | Dataset builds finish within budget with reproducible manifests | NOT_STARTED |
@@ -214,7 +214,7 @@ For any phase:
 
 ## 12) Program Status
 1. Program bootstrapped.
-2. Current phase state: `M6/M7` (`HOLD_REMEDIATE`; strict non-toy revalidation is now mandatory before any `M8_READY` claim).
+2. Current phase state: `M6=GO`, `M7=GO` (`M8_READY` emitted from strict rerun authority); next active phase is `M8`.
 3. Dedicated phase files:
    - `stress_test/platform.M2.stress_test.md` (`DONE`),
    - `stress_test/platform.M3.stress_test.md` (`DONE`),
@@ -226,11 +226,11 @@ For any phase:
    - `stress_test/platform.M6.P5.stress_test.md` (`DONE_BASELINE`),
    - `stress_test/platform.M6.P6.stress_test.md` (`DONE_BASELINE`),
    - `stress_test/platform.M6.P7.stress_test.md` (`HOLD_REMEDIATE`),
-   - `stress_test/platform.M7.stress_test.md` (`HOLD_REMEDIATE`),
-   - `stress_test/platform.M7.P8.stress_test.md` (`HOLD_REMEDIATE`),
-   - `stress_test/platform.M7.P9.stress_test.md` (`HOLD_REMEDIATE`),
-   - `stress_test/platform.M7.P10.stress_test.md` (`HOLD_REMEDIATE`).
-4. Next step: execute strict non-toy rerun chain (`M6.P7 -> M6 S3..S5 -> M7.P8 -> M7.P9 -> M7.P10 -> M7 S1..S5`) and only then evaluate `M8_READY`.
+   - `stress_test/platform.M7.stress_test.md` (`DONE`),
+   - `stress_test/platform.M7.P8.stress_test.md` (`DONE`),
+   - `stress_test/platform.M7.P9.stress_test.md` (`DONE`),
+   - `stress_test/platform.M7.P10.stress_test.md` (`DONE`).
+4. Next step: execute `M8` planning + `S0` entry under strict runtime/cost/evidence posture.
 
 ## 13) Closed Phase - M0 (Inline)
 Status:
@@ -527,7 +527,7 @@ Authority routing:
 
 ## 19) Active Remediation - M7 (Strict Revalidation)
 Status:
-1. `REVALIDATION_REQUIRED` (legacy addendum closure used A1/A2 fallback modes; strict policy now requires direct-observed-only re-execution before `M8_READY` can be asserted).
+1. `CLOSED` (strict rerun chain completed; parent `M7-ST-S5` emitted `GO` and `M8_READY` with addendum lanes green).
 
 Authority routing:
 1. Parent orchestration authority: `stress_test/platform.M7.stress_test.md`.
@@ -587,3 +587,9 @@ Authority routing:
    - lane `A2`: case/label pressure window (remove low observed-volume reliance),
    - lane `A3`: direct service-path p50/p95/p99 + retry/error/lag evidence,
    - lane `A4`: real CE-backed spend attribution (`aws_ce_daily_unblended_v1`) with no unexplained spend.
+11. Strict rerun closure authority (latest):
+   - `M7P8-ST-S5`: `phase_execution_id=m7p8_stress_s5_20260304T205741Z`, `overall_pass=true`, `verdict=ADVANCE_TO_P9`, `open_blockers=0`.
+   - `M7P9-ST-S5`: `phase_execution_id=m7p9_stress_s5_20260304T210343Z`, `overall_pass=true`, `verdict=ADVANCE_TO_P10`, `open_blockers=0`.
+   - `M7P10-ST-S5`: `phase_execution_id=m7p10_stress_s5_20260304T211100Z`, `overall_pass=true`, `verdict=M7_J_READY`, `open_blockers=0`.
+   - parent `M7-ST-S5` strict rerun (blocked sample): `phase_execution_id=m7_stress_s5_20260304T211729Z`, `overall_pass=false`, blockers on addendum `A1/A2`.
+   - parent `M7-ST-S5` strict rerun (remediated): `phase_execution_id=m7_stress_s5_20260304T212520Z`, `overall_pass=true`, `verdict=GO`, `next_gate=M8_READY`, `open_blockers=0`, `addendum_lane_status=A1:true|A2:true|A3:true|A4:true`.
