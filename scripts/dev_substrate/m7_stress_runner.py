@@ -17,8 +17,6 @@ P9_PLAN = Path("docs/model_spec/platform/implementation_maps/dev_substrate/dev_f
 P10_PLAN = Path("docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M7.P10.stress_test.md")
 REG = Path("docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md")
 OUT_ROOT = Path("runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control")
-LEGACY_SUBSET_ROOT = Path("artefacts/s0_runs/2025-10-09_synthetic/rng_logs/events/core")
-HISTORICAL_EVENTS_ROOT = Path("runs")
 EDA_METRICS = Path("docs/reports/eda/segment_1A/metrics_summary.csv")
 EDA_DICTIONARY = Path("docs/reports/eda/segment_1A/dictionary_datasets.csv")
 
@@ -40,8 +38,13 @@ PLAN_KEYS = [
 ]
 
 REQ_HANDLES = [
+    "S3_OBJECT_STORE_BUCKET",
     "S3_EVIDENCE_BUCKET",
     "S3_RUN_CONTROL_ROOT_PATTERN",
+    "ORACLE_SOURCE_NAMESPACE",
+    "ORACLE_ENGINE_RUN_ID",
+    "S3_STREAM_VIEW_PREFIX_PATTERN",
+    "S3_TRUTH_VIEW_PREFIX_PATTERN",
     "M7_HANDOFF_PACK_PATH_PATTERN",
     "RTDL_CORE_EVIDENCE_PATH_PATTERN",
     "DECISION_LANE_EVIDENCE_PATH_PATTERN",
@@ -74,7 +77,6 @@ S0_REQUIRED_ARTIFACTS = [
 ]
 
 M7_S0_EVENT_TYPE_MIN_COUNT = 3
-MAX_PROFILE_ROWS = 200000
 
 
 def now() -> str:
@@ -187,171 +189,197 @@ def parse_ts(ts: str) -> datetime | None:
         return None
 
 
-def event_type_from_path(fp: Path) -> str:
-    parts = list(fp.parts)
-    for i, token in enumerate(parts):
-        if token == "events" and i + 1 < len(parts):
-            return str(parts[i + 1]).strip()
-    return ""
+def materialize_pattern(pattern: str, replacements: dict[str, str]) -> str:
+    out = str(pattern)
+    for key, val in replacements.items():
+        out = out.replace("{" + key + "}", str(val))
+    return out
 
 
-def select_profile_files() -> tuple[list[Path], str, list[str]]:
-    hist_files: list[Path] = []
-    if HISTORICAL_EVENTS_ROOT.exists():
-        hist_files = sorted(
-            HISTORICAL_EVENTS_ROOT.glob(
-                "local_full_run-*/**/logs/layer1/*/rng/events/*/seed=*/parameter_hash=*/run_id=*/part-*.jsonl"
-            )
-        )
-    if hist_files:
-        return (
-            hist_files,
-            "historical_local_full_run",
-            ["runs/local_full_run-*/**/logs/layer1/*/rng/events/*/seed=*/parameter_hash=*/run_id=*/part-*.jsonl"],
-        )
-    legacy_files = sorted(LEGACY_SUBSET_ROOT.rglob("part-*.jsonl")) if LEGACY_SUBSET_ROOT.exists() else []
-    if legacy_files:
-        return (legacy_files, "legacy_min_subset", [f"{LEGACY_SUBSET_ROOT.as_posix()}/**/part-*.jsonl"])
-    return ([], "none", [])
+def run_cmd_full(argv: list[str], timeout: int = 120) -> tuple[int, str, str]:
+    try:
+        p = subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
+        return int(p.returncode), (p.stdout or ""), (p.stderr or "")
+    except subprocess.TimeoutExpired:
+        return 124, "", "timeout"
 
 
-def extract_run_id_from_path(fp: Path) -> str:
-    for token in fp.parts:
-        if token.startswith("run_id="):
-            return token.split("=", 1)[1].strip()
-    return ""
-
-
-def reorder_files_for_run_coverage(files: list[Path]) -> list[Path]:
-    if not files:
+def list_s3_keys(bucket: str, prefix: str, suffix: str) -> list[str]:
+    rc, stdout, _ = run_cmd_full(["aws", "s3", "ls", f"s3://{bucket}/{prefix}", "--recursive"], timeout=120)
+    if rc != 0:
         return []
-    buckets: dict[str, list[Path]] = {}
-    for fp in sorted(files):
-        rid = extract_run_id_from_path(fp) or "__unknown_run_id__"
-        buckets.setdefault(rid, []).append(fp)
-    ordered: list[Path] = []
-    active = sorted(buckets.keys())
-    while active:
-        next_active: list[str] = []
-        for rid in active:
-            if buckets[rid]:
-                ordered.append(buckets[rid].pop(0))
-            if buckets[rid]:
-                next_active.append(rid)
-        active = next_active
-    return ordered
+    out: list[str] = []
+    rx = re.compile(r"^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\s+\d+\s+(.+)$")
+    for raw in stdout.splitlines():
+        m = rx.match(raw.strip())
+        if not m:
+            continue
+        key = m.group(1).strip()
+        if key.endswith(suffix):
+            out.append(key)
+    return sorted(out)
 
 
-def build_subset_profile() -> dict[str, Any]:
-    selected_files, source_mode, source_patterns = select_profile_files()
-    files = reorder_files_for_run_coverage(selected_files)
+def load_s3_json(bucket: str, key: str) -> dict[str, Any]:
+    rc, stdout, _ = run_cmd_full(["aws", "s3", "cp", f"s3://{bucket}/{key}", "-"], timeout=180)
+    if rc != 0:
+        return {}
+    try:
+        return json.loads(stdout)
+    except Exception:
+        return {}
+
+
+def parse_output_id_from_key(key: str) -> str:
+    m = re.search(r"output_id=([^/]+)/", key)
+    return str(m.group(1)).strip() if m else ""
+
+
+def build_subset_profile(handles: dict[str, Any], platform_run_id: str) -> dict[str, Any]:
+    parse_errors = 0
     event_counts: Counter[str] = Counter()
     module_counts: Counter[str] = Counter()
-    run_counts: Counter[str] = Counter()
-    hotkey_counts: Counter[str] = Counter()
-    line_counts: Counter[str] = Counter()
-    file_rows: dict[str, int] = {}
-    prev_ts_by_stream: dict[str, datetime] = {}
-    ts_missing = 0
-    run_missing = 0
-    parse_errors = 0
-    rows = 0
-    total_bytes = 0
-    out_of_order = 0
-    duplicate_rows = 0
     source_roots: set[str] = set()
+    top_run_ids: Counter[str] = Counter()
+    file_rows: dict[str, int] = {}
+    manifest_rows = 0
+    manifest_file_count = 0
+    total_bytes = 0
 
-    for fp in files:
-        if rows >= MAX_PROFILE_ROWS:
-            break
-        file_rows[str(fp.as_posix())] = 0
-        source_roots.add(str(fp.parents[5].as_posix()) if len(fp.parents) > 5 else str(fp.parent.as_posix()))
-        try:
-            with fp.open("r", encoding="utf-8") as f:
-                for raw in f:
-                    if rows >= MAX_PROFILE_ROWS:
-                        break
-                    line = raw.strip()
-                    if not line:
-                        continue
-                    rows += 1
-                    file_rows[str(fp.as_posix())] += 1
-                    total_bytes += len(line.encode("utf-8"))
-                    try:
-                        obj = json.loads(line)
-                    except Exception:
-                        parse_errors += 1
-                        continue
+    object_bucket = str(handles.get("S3_OBJECT_STORE_BUCKET", "")).strip()
+    evidence_bucket = str(handles.get("S3_EVIDENCE_BUCKET", "")).strip()
+    source_ns = str(handles.get("ORACLE_SOURCE_NAMESPACE", "")).strip()
+    engine_run_id = str(handles.get("ORACLE_ENGINE_RUN_ID", "")).strip()
+    stream_pat = str(handles.get("S3_STREAM_VIEW_PREFIX_PATTERN", "")).strip()
+    truth_pat = str(handles.get("S3_TRUTH_VIEW_PREFIX_PATTERN", "")).strip()
+    receipt_pat = str(handles.get("RECEIPT_SUMMARY_PATH_PATTERN", "")).strip()
+    offset_pat = str(handles.get("KAFKA_OFFSETS_SNAPSHOT_PATH_PATTERN", "")).strip()
+    quarantine_pat = str(handles.get("QUARANTINE_SUMMARY_PATH_PATTERN", "")).strip()
 
-                    ev = str(obj.get("event", "")).strip() or event_type_from_path(fp)
-                    md = str(obj.get("module", "")).strip()
-                    rid = str(obj.get("run_id", "")).strip()
-                    event_counts[ev] += 1
-                    module_counts[md] += 1
-                    if rid:
-                        run_counts[rid] += 1
-                    if not rid:
-                        run_missing += 1
+    replacements = {
+        "oracle_source_namespace": source_ns,
+        "oracle_engine_run_id": engine_run_id,
+        "platform_run_id": platform_run_id,
+    }
+    stream_prefix = materialize_pattern(stream_pat, replacements) if stream_pat else ""
+    truth_prefix = materialize_pattern(truth_pat, replacements) if truth_pat else ""
 
-                    hotkey = ""
-                    for hk_field in ["merchant_id", "merchant", "account_id", "card_id", "device_id", "run_id"]:
-                        raw_hk = obj.get(hk_field, "")
-                        if raw_hk is not None and str(raw_hk).strip() != "":
-                            hotkey = str(raw_hk).strip()
-                            break
-                    if hotkey:
-                        hotkey_counts[hotkey] += 1
+    if not object_bucket or not stream_prefix or not truth_prefix:
+        return {
+            "generated_at_utc": now(),
+            "source_mode": "platform_surface_unavailable",
+            "source_patterns": [stream_prefix, truth_prefix],
+            "source_roots": [],
+            "files_scanned": 0,
+            "rows_scanned": 0,
+            "bytes_scanned": 0,
+            "parse_error_count": 1,
+            "missing_ts_count": None,
+            "missing_run_id_count": None,
+            "event_type_count": 0,
+            "event_counts_top5": [],
+            "module_counts_top5": [],
+            "top_run_ids": [],
+            "top_hotkeys": [],
+            "duplicate_rows": None,
+            "duplicate_ratio_pct": None,
+            "out_of_order_rows": None,
+            "out_of_order_ratio_pct": None,
+            "top1_hotkey_share": 1.0,
+            "top1_run_share": 1.0,
+            "file_rows": {},
+            "behavior_context_refs": {},
+        }
 
-                    line_counts[line] += 1
-                    if line_counts[line] > 1:
-                        duplicate_rows += 1
+    stream_manifest_keys = list_s3_keys(object_bucket, stream_prefix, "_stream_view_manifest.json")
+    truth_manifest_keys = list_s3_keys(object_bucket, truth_prefix, "_stream_view_manifest.json")
 
-                    tsv = parse_ts(str(obj.get("ts_utc", "")))
-                    if tsv is None:
-                        ts_missing += 1
-                    else:
-                        stream_key = "|".join([rid or "__missing_run_id__", md or "__missing_module__", ev or "__missing_event__"])
-                        prev_ts = prev_ts_by_stream.get(stream_key)
-                        if prev_ts is not None and tsv < prev_ts:
-                            out_of_order += 1
-                        prev_ts_by_stream[stream_key] = tsv
-        except Exception:
+    for key in stream_manifest_keys:
+        manifest = load_s3_json(object_bucket, key)
+        if not manifest:
             parse_errors += 1
+            continue
+        output_id = str(manifest.get("output_id", "")).strip() or parse_output_id_from_key(key)
+        row_count = int(manifest.get("row_count", 0) or 0)
+        file_count = int(manifest.get("file_count", 0) or 0)
+        manifest_rows += row_count
+        manifest_file_count += file_count
+        event_counts[output_id] += row_count
+        module_counts["stream_view"] += row_count
+        top_run_ids["stream_view"] += row_count
+        source_root = str(manifest.get("stream_view_root", "")).strip()
+        if source_root:
+            source_roots.add(source_root)
+        sizes = [int(x.get("size_bytes", 0) or 0) for x in manifest.get("files", []) if isinstance(x, dict)]
+        total_bytes += sum(sizes)
+        file_rows[f"s3://{object_bucket}/{key}"] = row_count
 
-    duplicate_ratio_pct = round((duplicate_rows / rows) * 100.0, 6) if rows else 0.0
-    out_of_order_ratio_pct = round((out_of_order / rows) * 100.0, 6) if rows else 0.0
+    for key in truth_manifest_keys:
+        manifest = load_s3_json(object_bucket, key)
+        if not manifest:
+            parse_errors += 1
+            continue
+        output_id = str(manifest.get("output_id", "")).strip() or parse_output_id_from_key(key)
+        row_count = int(manifest.get("row_count", 0) or 0)
+        file_count = int(manifest.get("file_count", 0) or 0)
+        manifest_rows += row_count
+        manifest_file_count += file_count
+        event_counts[output_id] += row_count
+        module_counts["truth_view"] += row_count
+        top_run_ids["truth_view"] += row_count
+        source_root = str(manifest.get("truth_view_root", "")).strip()
+        if source_root:
+            source_roots.add(source_root)
+        sizes = [int(x.get("size_bytes", 0) or 0) for x in manifest.get("files", []) if isinstance(x, dict)]
+        total_bytes += sum(sizes)
+        file_rows[f"s3://{object_bucket}/{key}"] = row_count
+
+    behavior_context_refs: dict[str, Any] = {}
+    if evidence_bucket and platform_run_id:
+        for tag, pattern in [
+            ("receipt_summary", receipt_pat),
+            ("offsets_snapshot", offset_pat),
+            ("quarantine_summary", quarantine_pat),
+        ]:
+            key = materialize_pattern(pattern, replacements) if pattern else ""
+            payload = load_s3_json(evidence_bucket, key) if key else {}
+            behavior_context_refs[tag] = {
+                "key": key,
+                "present": bool(payload),
+                "keys": sorted(payload.keys())[:15] if payload else [],
+            }
+
+    event_type_count = len([k for k in event_counts.keys() if k])
     top1_share = 0.0
-    if rows and hotkey_counts:
-        top1_share = round(max(hotkey_counts.values()) / rows, 6)
-
-    top_event = event_counts.most_common(5)
-    top_module = module_counts.most_common(5)
-    top_run = run_counts.most_common(10)
-    top_hotkey = hotkey_counts.most_common(10)
+    if manifest_rows > 0 and event_counts:
+        top1_share = round(max(event_counts.values()) / float(manifest_rows), 6)
 
     return {
         "generated_at_utc": now(),
-        "source_mode": source_mode,
-        "source_patterns": source_patterns,
+        "source_mode": "platform_stream_truth_manifests",
+        "source_patterns": [stream_prefix, truth_prefix],
         "source_roots": sorted(source_roots),
-        "files_scanned": len(files),
-        "rows_scanned": rows,
+        "files_scanned": manifest_file_count,
+        "rows_scanned": manifest_rows,
         "bytes_scanned": total_bytes,
         "parse_error_count": parse_errors,
-        "missing_ts_count": ts_missing,
-        "missing_run_id_count": run_missing,
-        "event_type_count": len([k for k in event_counts.keys() if k]),
-        "event_counts_top5": [{"event": k, "count": int(v)} for k, v in top_event],
-        "module_counts_top5": [{"module": k, "count": int(v)} for k, v in top_module],
-        "top_run_ids": [{"run_id": k, "count": int(v)} for k, v in top_run],
-        "top_hotkeys": [{"hotkey": k, "count": int(v)} for k, v in top_hotkey],
-        "duplicate_rows": duplicate_rows,
-        "duplicate_ratio_pct": duplicate_ratio_pct,
-        "out_of_order_rows": out_of_order,
-        "out_of_order_ratio_pct": out_of_order_ratio_pct,
+        "missing_ts_count": None,
+        "missing_run_id_count": None,
+        "event_type_count": event_type_count,
+        "event_counts_top5": [{"event": k, "count": int(v)} for k, v in event_counts.most_common(5)],
+        "module_counts_top5": [{"module": k, "count": int(v)} for k, v in module_counts.most_common(5)],
+        "top_run_ids": [{"run_id": k, "count": int(v)} for k, v in top_run_ids.most_common(10)],
+        "top_hotkeys": [{"hotkey": k, "count": int(v)} for k, v in event_counts.most_common(10)],
+        "duplicate_rows": None,
+        "duplicate_ratio_pct": None,
+        "out_of_order_rows": None,
+        "out_of_order_ratio_pct": None,
         "top1_hotkey_share": top1_share,
         "top1_run_share": top1_share,
         "file_rows": file_rows,
+        "behavior_context_refs": behavior_context_refs,
+        "stream_manifest_count": len(stream_manifest_keys),
+        "truth_manifest_count": len(truth_manifest_keys),
     }
 
 
@@ -490,7 +518,7 @@ def run_s0(phase_execution_id: str) -> int:
         blockers.append({"id": "M7-ST-B10", "severity": "S0", "status": "OPEN", "details": {"probe_id": "m7_s0_evidence_bucket"}})
         issues.append("evidence bucket probe failed")
 
-    profile = build_subset_profile()
+    profile = build_subset_profile(handles, dep_platform_run_id)
     min_sample = int(plan_packet.get("M7_STRESS_DATA_MIN_SAMPLE_EVENTS", 15000))
     dup_low, dup_high = parse_range(plan_packet.get("M7_STRESS_DUPLICATE_RATIO_TARGET_RANGE_PCT", "0.5|5.0"))
     ooo_low, ooo_high = parse_range(plan_packet.get("M7_STRESS_OUT_OF_ORDER_RATIO_TARGET_RANGE_PCT", "0.2|3.0"))
@@ -498,19 +526,25 @@ def run_s0(phase_execution_id: str) -> int:
 
     rows_scanned = int(profile.get("rows_scanned", 0) or 0)
     event_type_count = int(profile.get("event_type_count", 0) or 0)
-    duplicate_ratio_pct = float(profile.get("duplicate_ratio_pct", 0.0) or 0.0)
-    out_of_order_ratio_pct = float(profile.get("out_of_order_ratio_pct", 0.0) or 0.0)
+    duplicate_ratio_raw = profile.get("duplicate_ratio_pct", None)
+    out_of_order_ratio_raw = profile.get("out_of_order_ratio_pct", None)
+    duplicate_ratio_pct = None if duplicate_ratio_raw is None else float(duplicate_ratio_raw)
+    out_of_order_ratio_pct = None if out_of_order_ratio_raw is None else float(out_of_order_ratio_raw)
     top1_share = float(profile.get("top1_run_share", 0.0) or 0.0)
+    dup_observed = duplicate_ratio_pct is not None
+    ooo_observed = out_of_order_ratio_pct is not None
 
-    dup_floor_ok = dup_low is None or duplicate_ratio_pct >= dup_low
-    dup_ceiling_ok = dup_high is None or duplicate_ratio_pct <= dup_high
-    ooo_floor_ok = ooo_low is None or out_of_order_ratio_pct >= ooo_low
-    ooo_ceiling_ok = ooo_high is None or out_of_order_ratio_pct <= ooo_high
+    dup_floor_ok = (not dup_observed) or dup_low is None or duplicate_ratio_pct >= dup_low
+    dup_ceiling_ok = (not dup_observed) or dup_high is None or duplicate_ratio_pct <= dup_high
+    ooo_floor_ok = (not ooo_observed) or ooo_low is None or out_of_order_ratio_pct >= ooo_low
+    ooo_ceiling_ok = (not ooo_observed) or ooo_high is None or out_of_order_ratio_pct <= ooo_high
     profile_checks = {
         "sample_size_check": rows_scanned >= min_sample,
         "event_type_check": event_type_count >= M7_S0_EVENT_TYPE_MIN_COUNT,
+        "duplicate_ratio_observed": dup_observed,
         "duplicate_ratio_floor_check": dup_floor_ok,
         "duplicate_ratio_upper_bound_check": dup_ceiling_ok,
+        "out_of_order_ratio_observed": ooo_observed,
         "out_of_order_ratio_floor_check": ooo_floor_ok,
         "out_of_order_ratio_upper_bound_check": ooo_ceiling_ok,
         "hotkey_share_check": top1_share <= hotkey_max,
@@ -525,11 +559,15 @@ def run_s0(phase_execution_id: str) -> int:
         "parse_error_check": profile_checks["parse_error_check"],
     }
     representativeness_pass = all(blocking_checks.values())
-    if not profile_checks["duplicate_ratio_floor_check"]:
+    if not dup_observed:
+        advisories.append("duplicate ratio is not directly observable from stream/truth manifests at S0; duplicate/replay injection is mandatory in downstream windows")
+    elif not profile_checks["duplicate_ratio_floor_check"]:
         advisories.append(
             f"duplicate ratio {duplicate_ratio_pct:.6f}% is below floor {dup_low}; keep duplicate/replay injection mandatory in downstream windows"
         )
-    if not profile_checks["out_of_order_ratio_floor_check"]:
+    if not ooo_observed:
+        advisories.append("out_of_order ratio is not directly observable from stream/truth manifests at S0; late-event injection is mandatory in downstream windows")
+    elif not profile_checks["out_of_order_ratio_floor_check"]:
         advisories.append(
             f"out_of_order ratio {out_of_order_ratio_pct:.6f}% is below floor {ooo_low}; keep late-event injection mandatory in downstream windows"
         )
@@ -576,8 +614,8 @@ def run_s0(phase_execution_id: str) -> int:
         "cohort_presence": {
             "normal_mix": rows_scanned > 0,
             "hotkey_skew": top1_share >= 0.30,
-            "duplicate_replay": duplicate_ratio_pct > 0.0,
-            "late_out_of_order": out_of_order_ratio_pct > 0.0,
+            "duplicate_replay": (duplicate_ratio_pct is not None and duplicate_ratio_pct > 0.0),
+            "late_out_of_order": (out_of_order_ratio_pct is not None and out_of_order_ratio_pct > 0.0),
             "rare_edge_case": event_type_count >= M7_S0_EVENT_TYPE_MIN_COUNT,
         },
         "profile_checks": profile_checks,
@@ -632,12 +670,13 @@ def run_s0(phase_execution_id: str) -> int:
             "profile_source_mode": str(profile.get("source_mode", "")),
             "profile_source_roots": profile.get("source_roots", []),
             "profile_source_patterns": profile.get("source_patterns", []),
-            "legacy_subset_root": LEGACY_SUBSET_ROOT.as_posix(),
+            "stream_manifest_count": int(profile.get("stream_manifest_count", 0) or 0),
+            "truth_manifest_count": int(profile.get("truth_manifest_count", 0) or 0),
             "files_scanned": profile.get("files_scanned", 0),
             "rows_scanned": rows_scanned,
-            "max_rows_cap": MAX_PROFILE_ROWS,
             "profile_window_hours": int(plan_packet.get("M7_STRESS_DATA_PROFILE_WINDOW_HOURS", 24)),
             "eda_sources": [EDA_METRICS.as_posix(), EDA_DICTIONARY.as_posix()],
+            "behavior_context_refs": profile.get("behavior_context_refs", {}),
         },
     )
     dumpj(
@@ -736,7 +775,7 @@ def run_s0(phase_execution_id: str) -> int:
         [
             "Enforced fail-closed M6 dependency checks before M7 execution.",
             "Enforced required-handle and required-authority closure checks for M7 S0.",
-            "Generated run-scoped data subset profile and cohort representativeness guards from strongest available local source.",
+            "Generated run-scoped data subset profile from black-box platform ingress sources (stream_view/truth_view + behavior-context receipts).",
             "Applied blocking posture to sample/event-type/safety bounds and advisory posture to floor-coverage checks for duplicate/out-of-order mix.",
             "Opened explicit blockers only for material dependency/data realism gaps rather than allowing schema-only progression.",
         ]

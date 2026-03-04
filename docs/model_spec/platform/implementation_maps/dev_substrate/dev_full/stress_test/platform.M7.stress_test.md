@@ -395,9 +395,14 @@ Pass gate:
 4. `M7-ST-S0` first execution (`m7_stress_s0_20260304T043954Z`) opened fail-closed blockers:
    - `M7-ST-B2` dependency-contract mismatch (`M6-ST-S5` artifact expectation vs executed subphase-chain closure),
    - `M7-ST-B3` data-profile insufficiency/metric semantics drift.
-5. `M7-ST-S0` remediated and rerun (`m7_stress_s0_20260304T044914Z`) passed:
+5. Boundary correction applied after USER escalation:
+   - removed Data-Engine internal local-log profiling from M7 S0,
+   - S0 profile source is now black-box platform ingress only (`stream_view`, `truth_view`, behavior-context receipts).
+6. `M7-ST-S0` rerun with boundary-corrected source (`m7_stress_s0_20260304T050659Z`) passed:
    - `overall_pass=true`, `next_gate=M7_ST_S1_READY`, `open_blockers=0`,
-   - dependency mode resolved as `subphase_chain`,
-   - profiled `200000` rows from historical local event logs with `event_type_count=7`.
-6. Advisory posture pinned for downstream lanes:
-   - natural baseline duplicate/out-of-order floors were below target (`0.0%`), therefore S1-S5 must inject duplicate/replay and late-event cohorts explicitly.
+   - `dependency_mode=subphase_chain`,
+   - `profile_source_mode=platform_stream_truth_manifests`,
+   - `rows_scanned=2190000986`, `event_type_count=8`.
+7. Advisory posture pinned for downstream lanes:
+   - duplicate/out-of-order rates are not directly observable from manifest-only S0 profile,
+   - therefore S1-S5 must inject duplicate/replay and late-event cohorts explicitly.

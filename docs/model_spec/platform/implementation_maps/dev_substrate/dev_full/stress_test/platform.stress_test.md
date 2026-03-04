@@ -536,6 +536,6 @@ Authority routing:
    - parent `M7-ST-S4` integrated realistic-data window,
    - parent `M7-ST-S5` rollup and `M8_READY` recommendation.
 5. Latest parent execution receipt:
-   - `M7-ST-S0`: `phase_execution_id=m7_stress_s0_20260304T044914Z`, `overall_pass=true`, `next_gate=M7_ST_S1_READY`, `open_blockers=0`, `dependency_mode=subphase_chain`.
+   - `M7-ST-S0`: `phase_execution_id=m7_stress_s0_20260304T050659Z`, `overall_pass=true`, `next_gate=M7_ST_S1_READY`, `open_blockers=0`, `dependency_mode=subphase_chain`, `profile_source_mode=platform_stream_truth_manifests`.
 6. Current next executable step:
    - execute parent `M7-ST-S1` adjudication on latest `M7.P8` closure with S0 advisory carry-forward (duplicate/replay and late-event injected cohorts mandatory).

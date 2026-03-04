@@ -5528,3 +5528,57 @@ _As of 2026-03-03_
 
 ### Commit posture
 1. No commit/push performed.
+
+## Entry: 2026-03-04 05:07 +00:00 - Drift remediation: removed Data-Engine internals from M7 S0 profile source (black-box boundary enforcement)
+
+### Drift trigger
+1. USER flagged boundary drift: M7 S0 profiling referenced local Data-Engine internal logs (`runs/local_full_run-*` / layer internals), which violates black-box scope for platform stress.
+
+### Severity and consequence
+1. Severity: `S0` governance drift (scope/ownership boundary).
+2. Consequence: S0 evidence source did not strictly represent platform ingress surfaces; this weakens architectural boundary fidelity.
+
+### Remediation decision
+1. Remove all local Data-Engine internal file profiling from `m7_stress_runner.py`.
+2. Use only black-box platform ingress surfaces for M7 S0 profile:
+   - `stream_view` manifests,
+   - `truth_view` manifests,
+   - run-scoped behavior-context ingress receipts (`receipt`, `offsets`, `quarantine`).
+3. Keep duplicate/out-of-order floor checks as advisory when these metrics are not directly observable from manifest surfaces at S0; enforce via injected cohorts in S1+.
+
+### Implementation changes
+1. Updated required handle closure to include ingress surface authorities:
+   - `S3_OBJECT_STORE_BUCKET`, `ORACLE_SOURCE_NAMESPACE`, `ORACLE_ENGINE_RUN_ID`, `S3_STREAM_VIEW_PREFIX_PATTERN`, `S3_TRUTH_VIEW_PREFIX_PATTERN`.
+2. Replaced subset profile builder with manifest-driven black-box profile builder:
+   - lists stream/truth manifest keys from object-store prefixes,
+   - loads manifest JSONs and aggregates `row_count`, `file_count`, source roots, output distribution,
+   - links behavior-context evidence keys from run-scoped ingest surfaces.
+3. Removed local fallback behavior to Data-Engine internals.
+
+### Verification
+1. `python -m py_compile scripts/dev_substrate/m7_stress_runner.py` passed.
+2. Reran `M7-ST-S0`:
+   - `phase_execution_id=m7_stress_s0_20260304T050659Z`,
+   - `overall_pass=true`, `next_gate=M7_ST_S1_READY`, `open_blockers=0`.
+3. Evidence confirms black-box source mode:
+   - `profile_source_mode=platform_stream_truth_manifests`,
+   - stream manifests=4, truth manifests=4,
+   - behavior-context refs present for receipt/offset/quarantine.
+
+### Forward constraint
+1. From this point, M7+ data profiling must remain limited to platform ingress/egress black-box surfaces unless USER explicitly reopens engine-scope analysis.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 05:08 +00:00 - M7 authority docs corrected after boundary remediation
+
+### Updates
+1. `platform.M7.stress_test.md` execution progress section updated to record:
+   - boundary correction (black-box ingress-only profiling),
+   - latest S0 receipt `m7_stress_s0_20260304T050659Z`,
+   - advisory semantics for duplicate/out-of-order non-observability at manifest-only S0 layer.
+2. `platform.stress_test.md` M7 active-phase receipt updated to latest S0 run and profile source mode.
+
+### Commit posture
+1. No commit/push performed.
