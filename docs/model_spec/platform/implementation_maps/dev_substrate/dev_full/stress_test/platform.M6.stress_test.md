@@ -439,10 +439,10 @@ Required artifacts for each parent stage:
 - [ ] `M6-ST-S5` closure rollup emitted with deterministic `M7_READY` recommendation.
 
 ## 11) Immediate Next Actions
-1. Run parent `M6-ST-S2` gate adjudication for P6 using `M6P6-ST-S5` verdict `ADVANCE_TO_P7`.
-2. Run parent `M6-ST-S3` gate adjudication using `M6P7-ST-S5` verdict `ADVANCE_TO_M7` and handoff-pack closure artifacts.
-3. Execute parent `M6-ST-S4` integrated stress window with sustained/burst/fault profiles.
-4. Execute parent `M6-ST-S5` closure rollup and publish deterministic `M7_READY` recommendation.
+1. Execute `M6` hard-close addendum lane `A1` (parent orchestration completion): implement/execute parent `M6-ST-S2` and `M6-ST-S3` with deterministic adjudication on `M6P6/M6P7` closure receipts.
+2. Execute `M6` hard-close addendum lane `A2` (integrated live-window stress): run parent `M6-ST-S4` sustained/burst/fault windows with direct throughput/latency/lag/error evidence.
+3. Execute `M6` hard-close addendum lane `A3` (ingest realism hardening): replace historical/proxy-only closure claims with live-window ingest evidence for offsets, replay-window, and idempotency posture.
+4. Execute `M6` hard-close addendum lane `A4` (cost attribution closure): run parent `M6-ST-S5` rollup only after mapped spend attribution and reaffirm deterministic `M7_READY`.
 
 ## 12) Execution Progress
 1. Planning authority created.
@@ -523,3 +523,70 @@ Required artifacts for each parent stage:
    - `s4_dependency_phase_execution_id=m6p7_stress_s4_20260304T024002Z`,
    - `handoff_path_key=evidence/dev_full/run_control/m6p7_stress_s5_20260304T024638Z/m7_handoff_pack.json`,
    - evidence root: `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m6p7_stress_s5_20260304T024638Z/stress/`.
+
+## 13) M6 Hard-Close Addendum (Production-Readiness Closure)
+Purpose:
+1. Promote M6 from subphase-closed posture to strict production-readiness closure by completing parent orchestration (`S2..S5`), proving integrated live-window behavior, and enforcing attributable spend evidence.
+
+Entry prerequisites:
+1. latest subphase closure receipts remain green and blocker-free:
+   - `M6P5-ST-S5` (`m6p5_stress_s5_20260304T013452Z`),
+   - `M6P6-ST-S5` (`m6p6_stress_s5_20260304T020815Z`),
+   - `M6P7-ST-S5` (`m6p7_stress_s5_20260304T024638Z`).
+2. parent gap is explicit and unresolved:
+   - parent `M6-ST-S2..S5` not yet executed in current cycle.
+3. run-scope continuity remains pinned to active `platform_run_id`.
+
+No-waiver closure rule:
+1. M6 cannot be called production-ready while parent `S2..S5` remain unexecuted.
+2. Historical/proxy-only ingest evidence is insufficient for hard-close acceptance.
+3. Synthetic `window_seconds=1` cost receipts are insufficient for hard-close acceptance.
+
+### 13.1 Addendum Capability Lanes
+| Lane | ID | Objective | Hard acceptance posture |
+| --- | --- | --- | --- |
+| Parent orchestration completion | `A1` | close missing parent adjudication/rollup path | parent `S2` and `S3` execute green with deterministic verdict contracts and zero open blockers |
+| Integrated live-window stress | `A2` | prove control->stream->ingress behavior under sustained/burst/fault pressure | parent `S4` windows pass against throughput/latency/lag/error/runtime/spend envelopes |
+| Ingest realism hardening | `A3` | remove proxy-only closure weakness in ingest semantics | live-window offsets/replay/idempotency evidence observed directly (no historical-only closure mode) |
+| Cost attribution closure | `A4` | map spend to active M6 windows and closure outcomes | attributable spend receipt includes source mapping and `unattributed_spend_detected=false` |
+
+### 13.2 Addendum Execution Packet (Pinned)
+1. `M6_ADDENDUM_PROFILE_ID = "m6_production_hard_close_v0"`.
+2. `M6_ADDENDUM_EXPECTED_GATE_ON_PASS = "M7_READY_REAFFIRMED"`.
+3. `M6_ADDENDUM_REQUIRED_PARENT_STAGES = "S2|S3|S4|S5"`.
+4. `M6_ADDENDUM_DISALLOW_PROXY_ONLY_INGEST_CLOSURE = true`.
+5. `M6_ADDENDUM_DIRECT_METRICS_REQUIRED = "throughput,latency_p95,lag,error_rate"`.
+6. `M6_ADDENDUM_COST_ATTRIBUTION_MIN_WINDOW_SECONDS = 600`.
+7. `M6_ADDENDUM_MAX_RUNTIME_MINUTES = 300`.
+8. `M6_ADDENDUM_MAX_SPEND_USD = 90`.
+
+### 13.3 Addendum Blocker Mapping
+1. `M6-ADD-B1`: parent stage implementation/execution gap (`S2..S5`) remains unresolved.
+2. `M6-ADD-B2`: parent adjudication mismatch on required subphase verdicts (`ADVANCE_TO_P7` / `ADVANCE_TO_M7`).
+3. `M6-ADD-B3`: integrated live-window threshold breach (throughput/latency/lag/error/runtime/spend).
+4. `M6-ADD-B4`: ingest closure still depends on historical/proxy-only evidence.
+5. `M6-ADD-B5`: cost attribution incomplete or unexplained spend detected.
+6. `M6-ADD-B6`: addendum artifact contract incomplete or unreadable.
+
+### 13.4 Addendum Evidence Contract Extension
+1. `m6_addendum_parent_chain_summary.json`
+2. `m6_addendum_integrated_window_summary.json`
+3. `m6_addendum_integrated_window_metrics.json`
+4. `m6_addendum_ingest_live_evidence_summary.json`
+5. `m6_addendum_cost_attribution_receipt.json`
+6. `m6_addendum_blocker_register.json`
+7. `m6_addendum_execution_summary.json`
+8. `m6_addendum_decision_log.json`
+
+### 13.5 Addendum DoD
+- [ ] Lane `A1` executed with parent `M6-ST-S2` and `M6-ST-S3` green and deterministic verdict contracts preserved.
+- [ ] Lane `A2` executed with parent `M6-ST-S4` sustained/burst/fault windows green within runtime/spend envelope.
+- [ ] Lane `A3` executed with live-window ingest evidence replacing historical/proxy-only closure mode for offsets/replay/idempotency checks.
+- [ ] Lane `A4` executed with mapped spend attribution (`window_seconds >= 600`) and `unattributed_spend_detected=false`.
+- [ ] Addendum blocker register closed (`open_blocker_count=0`) and parent `M6-ST-S5` reaffirms deterministic `M7_READY`.
+
+### 13.6 Addendum Execution Order
+1. `A1` -> parent orchestration completion (`S2`, `S3`).
+2. `A2` -> integrated live-window stress (`S4` sustained/burst/fault).
+3. `A3` -> ingest realism hardening (live offsets/replay/idempotency evidence).
+4. `A4` -> cost attribution closure and final parent rollup (`S5`) with `M7_READY` reaffirmation.

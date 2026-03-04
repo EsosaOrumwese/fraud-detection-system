@@ -379,9 +379,9 @@ Pass gate:
 - [x] `M7-ST-S5` closure rollup emitted with deterministic `M8_READY` recommendation.
 
 ## 11) Immediate Next Actions
-1. Start `M8` planning with `M7` handoff references from `m8_handoff_pack.json`.
-2. Carry forward M7 advisories into M8 observability/governance stress acceptance criteria.
-3. Keep targeted-rerun-only posture for M7 unless new drift is detected.
+1. Execute `M7` hard-close addendum lane `A1` (injected realism window) and fail closed on any unobserved cohort metrics.
+2. Execute `M7` hard-close addendum lane `A2` (case/label pressure) to remove low-observed-volume reliance in P10 semantics.
+3. Execute `M7` hard-close addendum lanes `A3` and `A4` (service-path p95/p99 evidence + mapped cost attribution) before advancing to `M8`.
 
 ## 12) Execution Progress
 1. M7 stress planning authority created.
@@ -498,3 +498,69 @@ Pass gate:
 33. S4 bookkeeping hardening was applied in runner (`semantic_issue_counts` and subphase cost receipt resolution) and parent closure was rerun:
    - `M7-ST-S4` rerun: `phase_execution_id=m7_stress_s4_20260304T074305Z`, `overall_pass=true`, `next_gate=M7_ST_S5_READY`, `open_blockers=0`;
    - `M7-ST-S5` rerun: `phase_execution_id=m7_stress_s5_20260304T074317Z`, `overall_pass=true`, `verdict=GO`, `next_gate=M8_READY`, `open_blockers=0`.
+
+## 13) M7 Hard-Close Addendum (Production-Readiness Closure)
+Purpose:
+1. Promote M7 from deterministic gate closure to strict production-readiness closure by proving observed realism under pressure, direct service-path latency/throughput posture, and mapped spend attribution.
+
+Entry prerequisites:
+1. latest parent closure remains green:
+   - `m7_stress_s5_20260304T074317Z`,
+   - `overall_pass=true`, `verdict=GO`, `next_gate=M8_READY`, `open_blockers=0`.
+2. run-scope continuity remains pinned to active `platform_run_id`.
+
+No-waiver closure rule:
+1. Addendum lanes do not accept proxy-only closure for realism, service-path latency, or spend attribution.
+2. If direct observation is unavailable, lane blocks fail-closed until the measurement path is remediated.
+
+### 13.1 Addendum Capability Lanes
+| Lane | ID | Objective | Hard acceptance posture |
+| --- | --- | --- | --- |
+| Injected realism pressure | `A1` | prove duplicate/replay, out-of-order, hotkey, and rare-path behavior under active pressure windows | all target cohorts observed with explicit measured ratios and zero semantic drift |
+| Case/label pressure window | `A2` | remove low-observed-volume weakness in P10 semantics | observed case/label sample materially above low-sample mode, lifecycle + writer invariants remain green |
+| Service-path latency/throughput | `A3` | capture direct end-to-end RTDL->Decision->Case performance | p50/p95/p99, error, retry, and lag evidence from runtime path (not manifest-only proxies) |
+| Cost attribution hardening | `A4` | map execution window spend to concrete active surfaces | attributed spend receipt with source mapping and no unexplained spend |
+
+### 13.2 Addendum Execution Packet (Pinned)
+1. `M7_ADDENDUM_PROFILE_ID = "m7_production_hard_close_v0"`.
+2. `M7_ADDENDUM_EXPECTED_GATE_ON_PASS = "M8_READY"`.
+3. `M7_ADDENDUM_REALISM_DUPLICATE_OBSERVED_MIN_PCT = 0.5`.
+4. `M7_ADDENDUM_REALISM_OUT_OF_ORDER_OBSERVED_MIN_PCT = 0.2`.
+5. `M7_ADDENDUM_REALISM_HOTKEY_TOP1_MIN_PCT = 30`.
+6. `M7_ADDENDUM_CASE_LABEL_OBSERVED_MIN_EVENTS = 100000`.
+7. `M7_ADDENDUM_SERVICE_PATH_METRICS_REQUIRED = "p50,p95,p99,error_rate,retry_ratio,lag"`.
+8. `M7_ADDENDUM_MAX_RUNTIME_MINUTES = 240`.
+9. `M7_ADDENDUM_MAX_SPEND_USD = 60`.
+
+### 13.3 Addendum Blocker Mapping
+1. `M7-ADD-B1`: realism-injection cohort not observed or below target floor.
+2. `M7-ADD-B2`: semantic drift under injected realism pressure.
+3. `M7-ADD-B3`: case/label observed sample remains below hard-close minimum.
+4. `M7-ADD-B4`: missing/invalid direct service-path latency or throughput evidence.
+5. `M7-ADD-B5`: spend attribution incomplete or unexplained spend detected.
+6. `M7-ADD-B6`: artifact contract incomplete for addendum pack.
+
+### 13.4 Addendum Evidence Contract Extension
+1. `m7_addendum_realism_window_summary.json`
+2. `m7_addendum_realism_window_metrics.json`
+3. `m7_addendum_case_label_pressure_summary.json`
+4. `m7_addendum_case_label_pressure_metrics.json`
+5. `m7_addendum_service_path_latency_profile.json`
+6. `m7_addendum_service_path_throughput_profile.json`
+7. `m7_addendum_cost_attribution_receipt.json`
+8. `m7_addendum_blocker_register.json`
+9. `m7_addendum_execution_summary.json`
+10. `m7_addendum_decision_log.json`
+
+### 13.5 Addendum DoD
+- [ ] Lane `A1` executed with all required cohorts directly observed and semantic invariants green.
+- [ ] Lane `A2` executed with case/label observed sample above minimum and writer/lifecycle invariants green.
+- [ ] Lane `A3` executed with direct service-path p50/p95/p99 + retry/error/lag evidence and budgets green.
+- [ ] Lane `A4` executed with mapped spend attribution and zero unexplained spend.
+- [ ] Addendum blocker register closed (`open_blocker_count=0`) and deterministic `M8_READY` recommendation reaffirmed.
+
+### 13.6 Addendum Execution Order
+1. `A1` -> realism injected pressure.
+2. `A2` -> case/label pressure window.
+3. `A3` -> service-path latency/throughput capture.
+4. `A4` -> cost attribution closure and final addendum verdict.

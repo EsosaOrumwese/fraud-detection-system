@@ -4243,6 +4243,77 @@ _As of 2026-03-03_
 
 ### Commit posture
 1. No commit/push performed.
+
+## Entry: 2026-03-04 14:38 +00:00 - Plan to insert M6 hard-close addendum in stress authorities
+
+### Trigger
+1. USER requested the M6 review addendum to be added to the plan.
+2. Latest M6 audit confirms subphase closure is green, but parent closure and production-hardening lanes remain incomplete.
+
+### Design-intent check (drift sentinel)
+1. Planned addendum preserves existing historical execution truth; no prior receipt is rewritten.
+2. Planned addendum strengthens fail-closed closure posture by adding explicit non-waiver production-readiness lanes for M6.
+3. No truth-ownership boundary is changed; this is documentation/routing authority hardening only.
+
+### Performance and cost design (pre-implementation)
+1. Change scope is documentation-only with constant-time lookup updates (`O(1)` sections, no runtime path impact).
+2. Addendum execution lanes will explicitly enforce existing M6 runtime and spend envelope gates in parent integrated windows.
+3. Cost-control closure is elevated from synthetic receipts to attributable spend mapping as an explicit addendum lane.
+
+### Alternatives considered
+1. Alternative A: only update chat guidance and leave docs unchanged.
+   - Rejected: violates plan-as-authority posture and leaves future execution ambiguous.
+2. Alternative B: rewrite M6 historical status as failed/blocked.
+   - Rejected: factual receipts remain true; addendum should extend closure criteria without falsifying prior state.
+
+### Planned documentation edits
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M6.stress_test.md`
+   - add `## 13) M6 Hard-Close Addendum (Production-Readiness Closure)`:
+     - purpose, entry prerequisites, and no-waiver closure rule,
+     - capability lanes `A1..A4` (parent orchestration completion, integrated live windows, live ingest realism evidence, cost attribution),
+     - pinned addendum packet, blocker mapping, evidence extension, DoD, and execution order.
+   - update `## 11) Immediate Next Actions` to execute addendum lanes before treating M6 as production-ready complete.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.stress_test.md`
+   - update M6 section status/routing to reflect addendum-pending hard-close posture.
+   - add explicit M6 addendum lane routing as current next executable step for strict closure.
+
+### Acceptance criteria
+1. M6 parent authority includes explicit addendum lanes and deterministic hard-close DoD.
+2. Program control authority reflects M6 addendum-pending posture and routes execution accordingly.
+3. Implementation map and logbook both record decision and action trail.
+
+### Commit posture
+1. No commit/push planned or performed.
+
+## Entry: 2026-03-04 14:39 +00:00 - M6 hard-close addendum inserted in stress authorities
+
+### Implemented documentation changes
+1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M6.stress_test.md`:
+   - rewired `## 11) Immediate Next Actions` to execute hard-close lanes `A1 -> A2 -> A3 -> A4`,
+   - added `## 13) M6 Hard-Close Addendum (Production-Readiness Closure)` with:
+     - objective, entry prerequisites, and no-waiver closure rule,
+     - capability lanes `A1..A4`,
+     - pinned addendum packet values,
+     - blocker mapping `M6-ADD-B1..B6`,
+     - addendum evidence contract extension,
+     - addendum DoD and execution order.
+2. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.stress_test.md` (section `18`):
+   - M6 status now explicitly records hard-close addendum pending posture,
+   - current next executable steps now route through addendum lanes,
+   - added explicit note that M6 parent authority section `13` is the hard-close routing source.
+
+### Decision rationale
+1. Preserve historical M6 execution receipts as factual truth while extending closure criteria to production-hardening requirements.
+2. Eliminate ambiguity between subphase closure and parent production-readiness closure by pinning explicit addendum lanes.
+3. Keep fail-closed progression by requiring parent `S2..S5`, live ingest realism evidence, and mapped cost attribution before hard-close acceptance.
+
+### Drift and governance check
+1. No branch operation executed.
+2. No commit/push executed.
+3. Change scope remains documentation-only under platform stress authorities.
+
+### Commit posture
+1. No commit/push performed.
 ## Entry: 2026-03-04 07:11 +00:00 - M7P10-ST-S3 execution closure continuity (tail append)
 
 ### Continuity note
@@ -7731,6 +7802,58 @@ ext_gate=M8_READY, open_blockers=0.
 2. Lane B (P10 realism): run a case/label stress window that increases observed case/label receipts materially above low-sample posture and verifies lifecycle/writer invariants under pressure.
 3. Lane C (service-path throughput): collect end-to-end p50/p95/p99 and error/retry from RTDL->decision->case pipelines, not only manifest-derived proxies.
 4. Lane D (cost attribution hardening): map parent M7 receipt spend to actual cost surfaces (AWS + any in-scope external surfaces) for the execution window.
+
+### Commit posture
+1. No commit/push performed.
+## Entry: 2026-03-04 14:24 +00:00 - Plan to add M7 hard-close addendum to authority docs
+
+### Trigger
+1. USER requested explicit addendum insertion for M7 to capture remaining production-readiness hardening lanes.
+
+### Decision and rationale
+1. Keep existing M7 closure receipts intact (deterministic gate closure remains true).
+2. Add a separate hard-close addendum section instead of rewriting prior execution history.
+3. Re-route immediate next actions to execute addendum lanes before M8 in strict production-readiness posture.
+
+### Planned documentation edits
+1. platform.M7.stress_test.md
+   - add new section ## 13) M7 Hard-Close Addendum (Production-Readiness Closure).
+   - define addendum objective, scope, entry criteria, four lanes, blocker taxonomy extension, evidence extension, addendum DoD, and execution order.
+   - update Immediate Next Actions to prioritize addendum execution before M8.
+2. platform.stress_test.md
+   - mark M7 status as conditionally closed (gate closed, hard-close addendum pending).
+   - add addendum execution as current next executable step.
+
+### Addendum lanes to pin
+1. A1: injected realism window (duplicate/replay, out-of-order, hotkey, rare path) with observed metrics.
+2. A2: P10 pressure window to move from low observed case/label sample to stress-grade observed volume.
+3. A3: end-to-end service-path latency/throughput evidence (p50/p95/p99, error, retry) from RTDL->Decision->Case.
+4. A4: cost attribution hardening with real mapped spend surfaces and closure receipt.
+
+### Commit posture
+1. No commit/push performed.
+## Entry: 2026-03-04 14:27 +00:00 - M7 hard-close addendum inserted in authority docs
+
+### Implemented documentation changes
+1. Updated platform.M7.stress_test.md:
+   - rewired Immediate Next Actions to execute M7 addendum lanes before M8,
+   - added ## 13) M7 Hard-Close Addendum (Production-Readiness Closure) with:
+     - objective and no-waiver closure rule,
+     - capability lanes A1..A4,
+     - pinned addendum packet values,
+     - blocker mapping M7-ADD-B1..B6,
+     - addendum evidence contract extension,
+     - addendum DoD,
+     - lane execution order.
+2. Updated platform.stress_test.md M7 section:
+   - status set to CONDITIONALLY CLOSED (gate closed, addendum pending),
+   - next executable step re-routed to addendum lanes,
+   - added explicit addendum lane routing summary.
+
+### Decision rationale
+1. Preserve deterministic closure history of M7-ST-S0..S5 as factual execution truth.
+2. Add production-hardening closure as explicit addendum rather than rewriting closed stage receipts.
+3. Maintain fail-closed posture by making M8 advancement conditional on addendum closure under strict realism/performance/cost evidence.
 
 ### Commit posture
 1. No commit/push performed.

@@ -491,7 +491,7 @@ Authority routing:
 
 ## 18) Active Phase - M6 (Dedicated + Split Subphases)
 Status:
-1. `ACTIVE` (`M6-ST-S0/S1 PASS`; `M6.P5`, `M6.P6`, and `M6.P7` closed green)
+1. `ACTIVE` (`M6-ST-S0/S1 PASS`; `M6.P5`, `M6.P6`, and `M6.P7` closed green; parent hard-close addendum lanes pending for production-readiness closure).
 
 Authority routing:
 1. Parent orchestration authority: `stress_test/platform.M6.stress_test.md`.
@@ -507,7 +507,12 @@ Authority routing:
    - parent `M6-ST-S4` integrated stress window,
    - parent `M6-ST-S5` closure rollup and `M7_READY` recommendation.
 4. Current next executable step:
-   - run parent `M6-ST-S2` to adjudicate `M6.P6` closure (`ADVANCE_TO_P7`), then run parent `M6-ST-S3` to adjudicate `M6.P7` closure (`ADVANCE_TO_M7`).
+   - execute M6 hard-close addendum lane `A1`:
+     - run parent `M6-ST-S2` to adjudicate `M6.P6` closure (`ADVANCE_TO_P7`),
+     - run parent `M6-ST-S3` to adjudicate `M6.P7` closure (`ADVANCE_TO_M7`).
+   - then execute lane `A2` (parent `M6-ST-S4` integrated sustained/burst/fault windows with direct metrics),
+   - then execute lane `A3` (live-window ingest realism evidence, not historical/proxy-only closure mode),
+   - then execute lane `A4` (mapped cost attribution + parent `M6-ST-S5` rollup with deterministic `M7_READY` reaffirmation).
 5. Latest parent execution receipts:
    - `M6-ST-S0`: `phase_execution_id=m6_stress_s0_20260304T012128Z`, `overall_pass=true`, `open_blockers=0`.
    - `M6-ST-S1`: `phase_execution_id=m6_stress_s1_20260304T013651Z`, `overall_pass=true`, `next_gate=M6_ST_S2_READY`, `open_blockers=0`.
@@ -515,10 +520,15 @@ Authority routing:
    - `M6.P5` `M6P5-ST-S5`: `phase_execution_id=m6p5_stress_s5_20260304T013452Z`, `overall_pass=true`, `verdict=ADVANCE_TO_P6`, `open_blockers=0`.
    - `M6.P6` `M6P6-ST-S5`: `phase_execution_id=m6p6_stress_s5_20260304T015956Z`, `overall_pass=true`, `verdict=ADVANCE_TO_P7`, `open_blockers=0`.
    - `M6.P7` `M6P7-ST-S5`: `phase_execution_id=m6p7_stress_s5_20260304T024638Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M7`, `next_gate=ADVANCE_TO_M7`, `open_blockers=0`.
+7. M6 production-readiness hard-close addendum is now pinned in parent authority section `13`:
+   - lane `A1`: complete parent `S2/S3` adjudication chain,
+   - lane `A2`: execute integrated `S4` direct-metric stress windows,
+   - lane `A3`: replace historical/proxy-only ingest closure with live-window evidence,
+   - lane `A4`: enforce mapped cost attribution and close parent `S5` with deterministic reaffirmation.
 
-## 19) Closed Phase - M7 (Dedicated + Split Subphases)
+## 19) Closed Phase - M7 (Gate Closed + Hard-Close Addendum Pending)
 Status:
-1. `DONE` (`M7-ST-S0..S5` closed green; deterministic `GO` with `next_gate=M8_READY`).
+1. `CONDITIONALLY CLOSED` (`M7-ST-S0..S5` closed green; deterministic `GO` with `next_gate=M8_READY`, while hard-close addendum lanes remain pending for strict production-readiness confidence).
 
 Authority routing:
 1. Parent orchestration authority: `stress_test/platform.M7.stress_test.md`.
@@ -570,4 +580,9 @@ Authority routing:
    - `M7P10-ST-S5`: `phase_execution_id=m7p10_stress_s5_20260304T071946Z`, `overall_pass=true`, `verdict=M7_J_READY`, `next_gate=M7_J_READY`, `open_blockers=0`,
      deterministic `S0..S4` chain sweep + closure readback checks passed with full artifact contract closure.
 9. Current next executable step:
-   - start `M8` planning/execution using `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m7_stress_s5_20260304T074317Z/stress/m8_handoff_pack.json`.
+   - execute M7 hard-close addendum lanes (`A1 -> A2 -> A3 -> A4`) from `platform.M7.stress_test.md` section `13` before advancing to active M8 execution.
+10. M7 addendum execution routing:
+   - lane `A1`: injected realism pressure (duplicate/replay, out-of-order, hotkey, rare-path),
+   - lane `A2`: case/label pressure window (remove low observed-volume reliance),
+   - lane `A3`: direct service-path p50/p95/p99 + retry/error/lag evidence,
+   - lane `A4`: mapped spend attribution with no unexplained spend.
