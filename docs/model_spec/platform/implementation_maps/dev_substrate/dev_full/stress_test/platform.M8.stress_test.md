@@ -3,7 +3,7 @@ _Parent authority: `platform.stress_test.md`_
 _Status source of truth: `platform.stress_test.md`_
 _Track: `dev_full` only_
 _As of 2026-03-04_
-_Current posture: `S3_GREEN` (`M8-ST-S0/S1/S2/S3` executed pass; next gate `M8_ST_S4_READY`)._
+_Current posture: `S4_GREEN` (`M8-ST-S0/S1/S2/S3/S4` executed pass; next gate `M8_ST_S5_READY`)._
 
 ## 0) Purpose
 M8 stress validates spine observability and governance closure under production-like throughput, run-scope determinism, and spend discipline.
@@ -402,13 +402,13 @@ Required stage outputs (phase-level):
 - [x] `M8-ST-S1` executed and closed green.
 - [x] `M8-ST-S2` executed and closed green.
 - [x] `M8-ST-S3` executed and closed green.
-- [ ] `M8-ST-S4` executed and closed green with deterministic `ADVANCE_TO_M9`.
+- [x] `M8-ST-S4` executed and closed green with deterministic `ADVANCE_TO_M9`.
 - [ ] `M8-ST-S5` executed and closed green with deterministic `M9_READY`.
 
 ## 12) Immediate Next Actions
-1. execute `M8-ST-S4` only (fail-closed) to validate governance close-marker semantics and deterministic P11 rollup/handoff.
-2. preserve strict targeted-rerun posture; if any blocker opens in `S4`, remediate in-lane and rerun `S4` only.
-3. progress to `S5` only when `S4` is green and blocker-free.
+1. execute `M8-ST-S5` only (fail-closed) to validate closure sync parity and attributable cost-outcome publication.
+2. preserve strict targeted-rerun posture; if any blocker opens in `S5`, remediate in-lane and rerun `S5` only.
+3. close M8 only when `S5` is green and blocker-free with deterministic `M9_READY`.
 
 ## 13) Execution Progress
 1. M8 stress authority and fail-closed packet are now pinned.
@@ -452,6 +452,21 @@ Required stage outputs (phase-level):
    - `m7j_strict_anchor_20260304T231654Z`,
    - `m7k_strict_anchor_20260304T231654Z`.
 12. historical 2026-02-26 M8 build-plan receipts remain baseline context only, not closure authority for strict stress run scope.
+13. `M8-ST-S4` executed pass:
+   - `phase_execution_id=m8_stress_s4_20260304T232602Z`,
+   - `overall_pass=true`, `open_blocker_count=0`,
+   - `verdict=ADVANCE_TO_M9`, `next_gate=M8_ST_S5_READY`.
+14. `S4` artifacts emitted under:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m8_stress_s4_20260304T232602Z/stress/`
+   - includes parent snapshots from component lanes:
+     - `m8h_governance_close_marker_snapshot.json`,
+     - `m8i_p11_rollup_matrix.json`,
+     - `m8i_p11_verdict.json`,
+     - `m9_handoff_pack.json`.
+15. `S4` strict rollup execution used explicit strict-chain compatibility bridge for `M8.I` source matrix:
+   - `m8a_strict_compat_20260304T232603Z`,
+   - `m8b_strict_compat_20260304T232603Z`,
+   - `m8c_strict_compat_20260304T232603Z`.
 
 ## 14) Reopen Notice (Strict Authority)
 1. M8 is not closeable using historical/stale receipts alone.

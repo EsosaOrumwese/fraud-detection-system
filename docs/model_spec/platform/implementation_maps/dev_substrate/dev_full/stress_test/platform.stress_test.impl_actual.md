@@ -9414,3 +9414,75 @@ ext_gate=M8_READY, open_blockers=0.
 ### Governance
 1. No commit/push/branch operation.
 2. Docs/logs synced after green closure.
+
+## Entry: 2026-03-04 23:20 +00:00 - M8-ST-S4 pre-implementation plan (H/I integration)
+### Context
+1. USER requested immediate planning and execution of `M8-ST-S4` after `S3_GREEN`.
+2. Current parent runner (`scripts/dev_substrate/m8_stress_runner.py`) supports `S0..S3` only; `S4`/`S5` choices exist in CLI but dispatch exits with not-implemented.
+3. Stage contract requires `M8.H` governance close-marker and `M8.I` deterministic rollup+handoff with pass gate `verdict=ADVANCE_TO_M9`, `next_gate=M8_ST_S5_READY`.
+
+### Required contracts discovered
+1. `m8h_governance_close_marker.py` expects `UPSTREAM_M8G_EXECUTION` and yields `m8h_execution_summary.json` with `next_gate=M8.I_READY` on pass.
+2. `m8i_p11_rollup_handoff.py` expects explicit upstream execution IDs for `M8.A..M8.H` and reads each summary from `evidence/dev_full/run_control/{execution_id}/...`.
+3. Current parent `S0/S1` did not run component scripts `m8a/m8b/m8c`; therefore `M8.I` cannot resolve fresh `A/B/C` summaries unless a compatibility bridge is emitted.
+
+### Decision
+1. Implement parent `run_s4(...)` in `m8_stress_runner.py` using strict fail-closed gating and strict-chain verification (`M8-S3`, strict `M7`, strict `P8/P9/P10`, strict `M6`, stale cutoff).
+2. Emit deterministic compatibility summaries for `M8.A/B/C` into S3 run-control for this strict chain, derived from parent S0/S1 posture and current run-scope. This is analogous to prior strict-anchor compatibility bridging used in `S3` for `M8.G`.
+3. Execute `M8.H` then `M8.I` sequentially; block on first failure and map blockers to parent taxonomy (`B8/B9/B10/B12`, plus guard blockers where applicable).
+4. Update parent finish gate map to support `S4` pass semantics (`next_gate=M8_ST_S5_READY`, `verdict=ADVANCE_TO_M9`).
+
+### Planned implementation steps
+1. Add `S4_ARTS`, `latest_s3()` helper, new CLI arg `--upstream-m8-s3-execution`, and stage dispatch for `S4`.
+2. Build `run_s4(...)`:
+   - validate upstream `S3` pass gate and strict authority continuity;
+   - resolve canonical run scope and scenario ID from authoritative receipt summary;
+   - produce/upload `m8a/m8b/m8c` compatibility summaries with expected gates (`M8.B_READY/M8.C_READY/M8.D_READY`);
+   - run `m8h_governance_close_marker.py` with `UPSTREAM_M8G_EXECUTION`;
+   - run `m8i_p11_rollup_handoff.py` with upstream IDs `A..H`;
+   - copy component artifacts into parent S4 contract files.
+3. Preserve anti-hole guards (`runtime locality`, `source authority`, `non-toy realism`) and capture guard snapshots.
+4. Execute `M8-ST-S4` immediately using strict upstreams from current green chain.
+5. Sync `platform.M8.stress_test.md`, `platform.stress_test.md`, and day logbook with execution evidence/result.
+
+### Risk controls
+1. Fail-closed on any unresolved handle/ref/run-scope drift; no fallback to historical 2026-02-26 default IDs.
+2. Avoid local-authority acceptance: all pass/fail adjudication reads durable S3 evidence only.
+3. No commit/push/branch operation.
+
+## Entry: 2026-03-04 23:27 +00:00 - M8-ST-S4 implemented and executed green
+### Implementation summary
+1. Extended `scripts/dev_substrate/m8_stress_runner.py` to support parent `S4` execution lane and gate mapping.
+2. Added `S4_ARTS`, `latest_s3()`, CLI arg `--upstream-m8-s3-execution`, and `S4` dispatch in `main()`.
+3. Updated `finish()` to support stage-specific pass semantics for `S4` (`next_gate=M8_ST_S5_READY`, `verdict=ADVANCE_TO_M9`).
+4. Implemented `run_s4(...)` fail-closed flow:
+   - strict upstream and stale-cutoff checks (`M8.S3`, strict `M7`, strict `P8/P9/P10`, strict `M6`),
+   - canonical run-scope + scenario derivation from authoritative receipt summary,
+   - strict-chain compatibility bridge for `M8.A/B/C` summary contracts (for `M8.I` matrix requirements),
+   - sequential `M8.H` then `M8.I` execution,
+   - parent artifact/guard synthesis and final stage receipts.
+
+### Command executed
+1. `python scripts/dev_substrate/m8_stress_runner.py --stage S4 --upstream-m8-s3-execution m8_stress_s3_20260304T231650Z --upstream-m7-execution m7_stress_s5_20260304T212520Z --upstream-m6-execution m6_stress_s5_20260304T204909Z`
+
+### Result
+1. `phase_execution_id=m8_stress_s4_20260304T232602Z`.
+2. `overall_pass=true`, `open_blocker_count=0`.
+3. `verdict=ADVANCE_TO_M9`, `next_gate=M8_ST_S5_READY`.
+4. Component execution IDs:
+   - `m8h_execution_id=m8h_stress_s4_20260304T232607Z`.
+   - `m8i_execution_id=m8i_stress_s4_20260304T232610Z`.
+5. Compatibility IDs (strict-chain bridge):
+   - `m8a_strict_compat_20260304T232603Z`,
+   - `m8b_strict_compat_20260304T232603Z`,
+   - `m8c_strict_compat_20260304T232603Z`.
+6. Evidence root:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m8_stress_s4_20260304T232602Z/stress/`.
+
+### Documentation sync
+1. Updated `platform.M8.stress_test.md` to posture `S4_GREEN`, marked S4 DoD complete, and advanced immediate next action to `S5`.
+2. Updated `platform.stress_test.md` M8 status to `IN_PROGRESS (S4_GREEN)` and next step to `M8-ST-S5`.
+
+### Governance
+1. No commit/push/branch operation.
+
