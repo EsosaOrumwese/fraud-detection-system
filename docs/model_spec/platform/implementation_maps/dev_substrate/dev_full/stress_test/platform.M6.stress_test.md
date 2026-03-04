@@ -3,6 +3,7 @@ _Status source of truth: `platform.stress_test.md`_
 _This document provides deep stress-planning detail for M6 orchestration._
 _Track: `dev_full` only_
 _As of 2026-03-04_
+_Current posture: `HOLD_REMEDIATE` (strict non-toy revalidation required before `M7_READY` can be claimed)._
 
 ## 0) Purpose
 M6 stress validates Control + Ingress production posture under realistic sustained and burst traffic before M7 activation.
@@ -411,6 +412,7 @@ Pass gate:
 10. `M6-ST-B10`: durable evidence publish/readback failure.
 11. `M6-ST-B11`: cross-boundary count continuity drift.
 12. `M6-ST-B12`: runtime/spend envelope breach or unattributed spend.
+13. `M6-ST-B13`: toy-profile closure attempt (`historical_*`/proxy-only evidence used as closure authority, or advisory-only throughput posture).
 
 Any open `M6-ST-B*` blocks M6 closure and M7 transition.
 
@@ -437,11 +439,13 @@ Required artifacts for each parent stage:
 - [x] `M6-ST-S2..S3` subphase orchestration gates executed and closed.
 - [x] `M6-ST-S4` integrated stress windows executed within envelope.
 - [x] `M6-ST-S5` closure rollup emitted with deterministic `M7_READY` recommendation.
+- [ ] Strict non-toy revalidation chain re-executed (`M6.P7 S1..S5`, then `M6 S3..S5`) with zero advisory/historical-only closure posture.
 
 ## 11) Immediate Next Actions
 1. Preserve legacy `M6-ST-S5` A4R rerun receipt (`m6_stress_s5_20260304T150852Z`) as historical evidence only.
-2. Re-execute `M6-ST-S3..S5` under strict remote-evidence-only posture (no local handoff fallback acceptance).
-3. Promote `M7_READY` handoff only from the new strict rerun chain, then continue to M7 strict addendum revalidation.
+2. Re-execute `M6.P7` (`S1..S5`) with no historical/proxy closure authority and no TTL-expired fallback acceptance.
+3. Re-execute `M6-ST-S3..S5` under strict remote-evidence-only posture (no local handoff fallback acceptance, no advisory-only throughput closure).
+4. Promote `M7_READY` handoff only from the new strict rerun chain, then continue to M7 strict non-toy revalidation.
 
 ## 12) Execution Progress
 1. Planning authority created.
@@ -589,6 +593,7 @@ No-waiver closure rule:
 1. M6 cannot be called production-ready while parent `S2..S5` remain unexecuted.
 2. Historical/proxy-only ingest evidence is insufficient for hard-close acceptance.
 3. Synthetic `window_seconds=1` cost receipts are insufficient for hard-close acceptance.
+4. Any advisory-only throughput claim or low-sample closure posture is treated as blocker (`M6-ST-B13`), not carry-forward.
 
 ### 13.1 Addendum Capability Lanes
 | Lane | ID | Objective | Hard acceptance posture |
@@ -638,3 +643,14 @@ No-waiver closure rule:
 2. `A2` -> integrated live-window stress (`S4` sustained/burst/fault).
 3. `A3` -> ingest realism hardening (live offsets/replay/idempotency evidence).
 4. `A4` -> cost attribution closure and final parent rollup (`S5`) with `M7_READY` reaffirmation.
+
+## 14) Reopen Notice - Non-Toy Enforcement (2026-03-04)
+1. Legacy M6 closure receipts remain baseline artifacts only; they are not accepted as current closure authority.
+2. M6 is reopened fail-closed under `M6-ST-B13` until fresh strict reruns close with zero blockers.
+3. Required strict rerun chain:
+   - `M6.P7` `S1..S5` (live-window replay/idempotency evidence only),
+   - `M6-ST-S3..S5` (no proxy-only/historical-only closure authority).
+4. M6 closure acceptance now requires:
+   - no `historical_*` execution id as primary proof in closure verdicts,
+   - no advisory-only throughput posture in parent or subphase closure,
+   - deterministic `GO` + `next_gate=M7_READY` from fresh rerun evidence only.

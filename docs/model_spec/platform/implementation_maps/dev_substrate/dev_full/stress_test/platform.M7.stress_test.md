@@ -3,6 +3,7 @@ _Parent authority: `platform.stress_test.md`_
 _Status source of truth: `platform.stress_test.md`_
 _Track: `dev_full` only_
 _As of 2026-03-04_
+_Current posture: `HOLD_REMEDIATE` (non-toy reruns required for P8/P9/P10 and parent rollup)._
 
 ## 0) Purpose
 M7 stress validates RTDL and case/label runtime closure under realistic production data behavior, not schema-only conformance.
@@ -323,7 +324,8 @@ Fail-closed blocker mapping:
 1. `M7-ST-B11`: rollup/verdict inconsistency.
 2. `M7-ST-B12`: cost/runtime envelope inconsistency.
 3. `M7-ST-B13`: handoff pack missing/invalid.
-4. `M7-ST-B9`: artifact contract incompleteness.
+4. `M7-ST-B14`: toy-profile/advisory-only closure posture detected in subphase or parent rollup.
+5. `M7-ST-B9`: artifact contract incompleteness.
 
 Runtime/cost budget:
 1. max runtime: `55` minutes.
@@ -347,6 +349,7 @@ Pass gate:
 11. `M7-ST-B11`: semantic or verdict inconsistency.
 12. `M7-ST-B12`: runtime/spend envelope breach or unattributed spend.
 13. `M7-ST-B13`: M8 handoff artifact missing/invalid.
+14. `M7-ST-B14`: toy-profile closure attempt (`waived_low_sample`, advisory-only throughput closure, or proxy/historical-only authority in P8/P9/P10 rollup).
 
 ## 9) Evidence Contract (M7 Parent)
 1. `m7_stagea_findings.json`
@@ -377,11 +380,13 @@ Pass gate:
 - [x] `M7-ST-S3` executed and P10 gate accepted.
 - [x] `M7-ST-S4` integrated realistic-data window executed within envelope.
 - [x] `M7-ST-S5` closure rollup emitted with deterministic `M8_READY` recommendation.
+- [ ] Strict non-toy revalidation executed (`P8/P9/P10` then parent `S1..S5`) with zero low-sample/advisory closure posture.
 
 ## 11) Immediate Next Actions
 1. Preserve latest M7 addendum receipt (`m7_stress_s5_20260304T152614Z`) as legacy evidence only.
-2. Re-execute `M7-ST-S5` under strict A1/A2 direct-observed-only policy (no fallback modes).
-3. Promote `M8_READY` handoff only from the strict rerun receipt.
+2. Re-execute `M7.P8`, `M7.P9`, and `M7.P10` under non-toy policy (no `waived_low_sample`, no advisory-only throughput closure).
+3. Re-execute parent `M7-ST-S1..S5` from refreshed subphase receipts only.
+4. Promote `M8_READY` handoff only from strict reruns with `M7-ST-B14` resolved.
 
 ## 12) Execution Progress
 1. M7 stress planning authority created.
@@ -523,6 +528,7 @@ Entry prerequisites:
 No-waiver closure rule:
 1. Addendum lanes do not accept proxy-only closure for realism, service-path latency, or spend attribution.
 2. If direct observation is unavailable, lane blocks fail-closed until the measurement path is remediated.
+3. Low-sample/advisory throughput posture is blocker-class for M7 closure (`M7-ST-B14`), not a carry-forward advisory.
 3. Legacy closure based on A1/A2 fallback modes is superseded and must be revalidated under strict direct-observed-only policy.
 
 ### 13.1 Addendum Capability Lanes

@@ -8300,3 +8300,49 @@ ext_gate=M8_READY, open_blockers=0.
 
 ### Commit posture
 1. No commit/push performed.
+
+## Entry: 2026-03-04 20:03 +00:00 - USER overrode prior M6/M7 acceptance; strict rerun mandate adopted
+
+### USER override
+1. Prior M6/M7 closure is rejected as insufficient for production-grade performance posture.
+2. USER is reworking M6/M7 plans and requires re-execution under stricter hardening/stress posture.
+
+### Enforcement decision
+1. Treat all legacy M6/M7 green receipts as non-authoritative for production readiness until rerun completes.
+2. Keep fail-closed policy on throughput, latency, lag, cost attribution, and runtime-budget lanes.
+3. Do not use fallback/proxy semantics to satisfy closure gates where direct observed evidence is required.
+
+### Execution posture
+1. Await updated USER plan authority for M6 and M7 and execute strictly against it.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 20:05 +00:00 - Non-toy enforcement repin for M6/M7 stress authorities
+
+### Trigger
+1. USER required M7 subphases (and M6 where applicable) to stop accepting toy-profile posture and to fail closed until production-grade stress evidence is re-proven.
+
+### Decisions pinned
+1. Program-level rule added: no toy-profile closure for M6/M7 (`waived_low_sample`, advisory-only throughput closure, historical/proxy-only closure authority are disallowed).
+2. Program control status moved to remediation posture for M6/M7 in `platform.stress_test.md` and next-step sequencing pinned to strict rerun chain.
+3. M6 parent taxonomy extended with `M6-ST-B13` (toy-profile/historical/proxy closure authority blocker).
+4. M6.P7 taxonomy extended with `M6P7-ST-B12` and explicit reopen notice requiring live-window reruns.
+5. M7 parent taxonomy extended with `M7-ST-B14` and immediate next actions repinned to rerun P8/P9/P10 plus parent S1..S5.
+6. M7.P8/M7.P9/M7.P10 taxonomies extended with `B13` blockers and each subphase reopened under strict non-toy policy.
+
+### Files updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.stress_test.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M6.stress_test.md`
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M6.P7.stress_test.md`
+4. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M7.stress_test.md`
+5. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M7.P8.stress_test.md`
+6. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M7.P9.stress_test.md`
+7. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M7.P10.stress_test.md`
+
+### Outcome
+1. Legacy green receipts remain traceability artifacts only; they are not closure authority.
+2. Closure path now requires fresh strict reruns with no toy-profile semantics.
+
+### Commit posture
+1. No commit/push performed.

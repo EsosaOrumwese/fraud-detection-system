@@ -29,6 +29,7 @@ Program correction:
 4. Cost-first discipline: do not run tests that are already predicted to fail for known bottlenecks.
 5. Determinism and truth-boundary laws are non-negotiable.
 6. From `M7` onward, phase closure requires actual-data profile and semantic stress evidence; schema-only conformance is insufficient.
+7. No toy-profile closure for `M6` and `M7`: no `waived_low_sample`, no advisory-only throughput closure, and no historical/proxy-only evidence as closure authority.
 
 ## 3) Clarification on Local Development vs No Local Runtime
 Pinned interpretation:
@@ -50,8 +51,8 @@ This is the program-level overview of what each `M*` phase stress effort is expe
 | M3 | Run pinning + orchestrator readiness | Stress run-control/orchestrator behavior under concurrent run activation and retries | Run pinning remains deterministic; no cross-run mixing | DONE |
 | M4 | Spine runtime-lane readiness | Stress each spine lane bootstrap path for startup-time, readiness, and dependency bottlenecks | Lane startup and steady-state readiness meet target budgets | DONE |
 | M5 | Oracle readiness + ingest preflight (`P3-P4`) | Stress oracle-to-ingress preflight flow for input correctness and ingest warm-path limits | Preflight pass is stable; no upstream-induced ingress stalls | DONE |
-| M6 | Control + Ingress (`P5-P7`) | Stress SR/WSP/IG/bus at component -> plane -> integrated levels for throughput and correctness | Target ingress throughput + latency met with replay-safe semantics | ACTIVE |
-| M7 | RTDL + Case/Labels (`P8-P10`) | Stress decision loop + case/label pathways for sustained throughput and bounded lag | Decision/action/case/label lanes keep pace with ingress without silent degrade | ACTIVE |
+| M6 | Control + Ingress (`P5-P7`) | Stress SR/WSP/IG/bus at component -> plane -> integrated levels for throughput and correctness | Target ingress throughput + latency met with replay-safe semantics | HOLD_REMEDIATE |
+| M7 | RTDL + Case/Labels (`P8-P10`) | Stress decision loop + case/label pathways for sustained throughput and bounded lag | Decision/action/case/label lanes keep pace with ingress without silent degrade | HOLD_REMEDIATE |
 | M8 | Spine Obs/Gov (`P11`) | Stress observability/governance paths so evidence remains complete under high event rates | Evidence completeness + low-overhead telemetry proven | NOT_STARTED |
 | M9 | Learning input readiness (`P12`) | Stress replay-basis/as-of/maturity extraction paths for correctness under realistic volume | Learning input lanes produce deterministic, timely, leak-safe outputs | NOT_STARTED |
 | M10 | OFS dataset closure (`P13`) | Stress offline feature dataset generation for throughput, stability, and cost posture | Dataset builds finish within budget with reproducible manifests | NOT_STARTED |
@@ -213,7 +214,7 @@ For any phase:
 
 ## 12) Program Status
 1. Program bootstrapped.
-2. Current phase state: `M7` (`DONE_HARD_CLOSED`; parent and subphase gates are green, addendum lanes `A1..A4` are closed green, and `M8_READY` is emitted).
+2. Current phase state: `M6/M7` (`HOLD_REMEDIATE`; strict non-toy revalidation is now mandatory before any `M8_READY` claim).
 3. Dedicated phase files:
    - `stress_test/platform.M2.stress_test.md` (`DONE`),
    - `stress_test/platform.M3.stress_test.md` (`DONE`),
@@ -221,15 +222,15 @@ For any phase:
    - `stress_test/platform.M5.stress_test.md` (`DONE`),
    - `stress_test/platform.M5.P3.stress_test.md` (`DONE`),
    - `stress_test/platform.M5.P4.stress_test.md` (`DONE`),
-   - `stress_test/platform.M6.stress_test.md` (`DONE_HARD_CLOSED`),
-   - `stress_test/platform.M6.P5.stress_test.md` (`DONE`),
-   - `stress_test/platform.M6.P6.stress_test.md` (`DONE`),
-   - `stress_test/platform.M6.P7.stress_test.md` (`DONE`),
-   - `stress_test/platform.M7.stress_test.md` (`DONE_HARD_CLOSED`),
-   - `stress_test/platform.M7.P8.stress_test.md` (`DONE`),
-   - `stress_test/platform.M7.P9.stress_test.md` (`DONE`),
-   - `stress_test/platform.M7.P10.stress_test.md` (`DONE`).
-4. Next step: begin `M8-ST-S0` planning/execution using the `M8_READY` handoff anchored at `m7_stress_s5_20260304T152614Z`.
+   - `stress_test/platform.M6.stress_test.md` (`HOLD_REMEDIATE`),
+   - `stress_test/platform.M6.P5.stress_test.md` (`DONE_BASELINE`),
+   - `stress_test/platform.M6.P6.stress_test.md` (`DONE_BASELINE`),
+   - `stress_test/platform.M6.P7.stress_test.md` (`HOLD_REMEDIATE`),
+   - `stress_test/platform.M7.stress_test.md` (`HOLD_REMEDIATE`),
+   - `stress_test/platform.M7.P8.stress_test.md` (`HOLD_REMEDIATE`),
+   - `stress_test/platform.M7.P9.stress_test.md` (`HOLD_REMEDIATE`),
+   - `stress_test/platform.M7.P10.stress_test.md` (`HOLD_REMEDIATE`).
+4. Next step: execute strict non-toy rerun chain (`M6.P7 -> M6 S3..S5 -> M7.P8 -> M7.P9 -> M7.P10 -> M7 S1..S5`) and only then evaluate `M8_READY`.
 
 ## 13) Closed Phase - M0 (Inline)
 Status:

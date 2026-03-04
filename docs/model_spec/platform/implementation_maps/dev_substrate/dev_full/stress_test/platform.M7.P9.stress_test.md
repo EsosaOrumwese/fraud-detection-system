@@ -3,6 +3,7 @@ _Parent authority: `platform.M7.stress_test.md`_
 _Status source of truth: `platform.stress_test.md`_
 _Track: `dev_full` only_
 _As of 2026-03-04_
+_Current posture: `HOLD_REMEDIATE` (legacy low-sample/advisory closure is not accepted)._
 
 ## 0) Purpose
 M7.P9 stress validates decision-chain closure (`DF`, `AL`, `DLA`) under realistic production decision-data behavior.
@@ -260,6 +261,7 @@ Execution steps:
 Fail-closed blockers:
 1. `M7P9-ST-B11`: rollup/verdict inconsistency.
 2. `M7P9-ST-B12`: artifact contract incomplete.
+3. `M7P9-ST-B13`: toy-profile/advisory-only throughput closure posture detected.
 
 Runtime/cost budget:
 1. max runtime: `20` minutes.
@@ -282,6 +284,7 @@ Pass gate:
 10. `M7P9-ST-B10`: evidence publish/readback failure.
 11. `M7P9-ST-B11`: remediation/rollup inconsistency.
 12. `M7P9-ST-B12`: artifact-contract incompleteness.
+13. `M7P9-ST-B13`: toy-profile closure attempt (`waived_low_sample`, advisory-only throughput, or historical/proxy-only closure authority).
 
 ## 9) Evidence Contract (P9)
 1. `m7p9_stagea_findings.json`
@@ -313,15 +316,15 @@ Pass gate:
 - [x] `M7P9-ST-S3` executed and closed green.
 - [x] `M7P9-ST-S4` remediation lane closed.
 - [x] `M7P9-ST-S5` verdict emitted as `ADVANCE_TO_P10`.
+- [ ] Strict non-toy rerun (`S1..S5`) executed with no low-sample/advisory throughput closure posture.
 
 ## 11) Immediate Next Actions
-1. Promote `M7P9` closure verdict into parent `M7-ST-S2` adjudication input.
-2. Carry forward `S0/S1/S2/S3/S4/S5` advisories into `P10` stress pressure:
-   - policy-path coverage currently uses proxy from P8 event diversity,
-   - active decision-class coverage is sparse in observed receipts,
-   - duplicate floor is below target and must be injected explicitly downstream,
-   - managed-lane low-sample throughput remains advisory and must be stress-pressured explicitly downstream.
-3. Begin `M7.P10` sequential execution (`S0 -> S5`) with the same fail-closed rollup posture.
+1. Preserve existing `S0..S5` receipts as baseline history only.
+2. Re-run `S1..S5` under strict non-toy policy:
+   - no `waived_low_sample`,
+   - no advisory-only throughput acceptance,
+   - no proxy/historical-only closure authority.
+3. Promote parent `M7-ST-S2` adjudication only from strict rerun receipts with `M7P9-ST-B13` resolved.
 
 ## 12) Execution Progress
 1. P9 stress planning authority created.
@@ -363,3 +366,8 @@ Pass gate:
    - chain sweep remained run-scope consistent across `S0..S4` (`platform_run_id=platform_20260223T184232Z`),
    - `probe_count=7`, `error_rate_pct=0.0`,
    - artifact contract complete (`18/18` required artifacts present).
+
+## 13) Reopen Notice - Non-Toy Enforcement (2026-03-04)
+1. Prior P9 closure is reclassified as baseline history and no longer accepted as closure authority.
+2. `M7P9-ST-B13` opens when any lane attempts closure with `waived_low_sample` or advisory-only throughput posture.
+3. P9 is closeable only after fresh reruns demonstrate non-waived throughput and blocker-free deterministic verdict (`ADVANCE_TO_P10`).

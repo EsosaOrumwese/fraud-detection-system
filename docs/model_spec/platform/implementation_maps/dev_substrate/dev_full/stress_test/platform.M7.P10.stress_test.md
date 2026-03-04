@@ -3,6 +3,7 @@ _Parent authority: `platform.M7.stress_test.md`_
 _Status source of truth: `platform.stress_test.md`_
 _Track: `dev_full` only_
 _As of 2026-03-04_
+_Current posture: `HOLD_REMEDIATE` (legacy low-sample/advisory closure is not accepted)._
 
 ## 0) Purpose
 M7.P10 stress validates case/label closure (`CaseTrigger`, `CM`, `LS`) under realistic production case-label data behavior.
@@ -260,6 +261,7 @@ Execution steps:
 Fail-closed blockers:
 1. `M7P10-ST-B11`: rollup/verdict inconsistency.
 2. `M7P10-ST-B12`: artifact contract incomplete.
+3. `M7P10-ST-B13`: toy-profile/advisory-only throughput closure posture detected.
 
 Runtime/cost budget:
 1. max runtime: `20` minutes.
@@ -281,6 +283,7 @@ Pass gate:
 10. `M7P10-ST-B10`: evidence publish/readback failure.
 11. `M7P10-ST-B11`: remediation/rollup inconsistency.
 12. `M7P10-ST-B12`: artifact-contract incompleteness.
+13. `M7P10-ST-B13`: toy-profile closure attempt (`waived_low_sample`, advisory-only throughput, or historical/proxy-only closure authority).
 
 ## 9) Evidence Contract (P10)
 1. `m7p10_stagea_findings.json`
@@ -312,13 +315,15 @@ Pass gate:
 - [x] `M7P10-ST-S3` executed and closed green.
 - [x] `M7P10-ST-S4` remediation lane closed.
 - [x] `M7P10-ST-S5` deterministic closure emitted with `next_gate=M7_J_READY`.
+- [ ] Strict non-toy rerun (`S1..S5`) executed with no low-sample/advisory throughput closure posture.
 
 ## 11) Immediate Next Actions
-1. Return to parent M7 adjudication path (`M7-ST-S1 -> S2 -> S3`) using closed `P8/P9/P10` verdict artifacts.
-2. Preserve `S0/S1/S2/S3/S4/S5` advisories as explicit downstream stress requirements:
-   - keep low-sample component-proof posture visible,
-   - preserve duplicate/hotkey/reopen/contention pressure windows through parent M7 integrated windows.
-3. Treat `M7_J_READY` as subphase closure gate only; M7 parent closure still requires parent `S1..S5` completion.
+1. Preserve existing `S0..S5` receipts as baseline history only.
+2. Re-run `S1..S5` under strict non-toy policy:
+   - no `waived_low_sample`,
+   - no advisory-only throughput acceptance,
+   - no proxy/historical-only closure authority.
+3. Promote parent M7 adjudication only from strict rerun receipts with `M7P10-ST-B13` resolved.
 
 ## 12) Execution Progress
 1. P10 stress planning authority created.
@@ -377,3 +382,8 @@ Pass gate:
    - deterministic verdict contract resolved exactly to pinned pass gate (`M7_J_READY`),
    - closure readback probes remained green across receipt + case/label proofs + writer probe (`probe_count=6`, `error_rate_pct=0.0`),
    - no remediation blocker remained; P10 is closure-complete and ready for parent M7 adjudication.
+
+## 13) Reopen Notice - Non-Toy Enforcement (2026-03-04)
+1. Prior P10 closure is reclassified as baseline history and no longer accepted as closure authority.
+2. `M7P10-ST-B13` opens when any lane attempts closure with `waived_low_sample` or advisory-only throughput posture.
+3. P10 is closeable only after fresh reruns demonstrate non-waived throughput and blocker-free deterministic verdict (`M7_J_READY`).

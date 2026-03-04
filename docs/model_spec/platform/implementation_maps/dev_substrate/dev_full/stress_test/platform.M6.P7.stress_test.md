@@ -3,6 +3,7 @@ _Parent authority: `platform.M6.stress_test.md`_
 _Status source of truth: `platform.stress_test.md`_
 _Track: `dev_full` only_
 _As of 2026-03-04_
+_Current posture: `HOLD_REMEDIATE` (legacy historical-window closure is not accepted as production-grade)._
 
 ## 0) Purpose
 M6.P7 stress validates ingest commit closure under realistic production stress and prepares deterministic M7 handoff inputs.
@@ -301,6 +302,7 @@ Fail-closed blocker mapping:
 1. `M6P7-ST-B8`: rollup/verdict inconsistency.
 2. `M6P7-ST-B9`: handoff input artifact missing/invalid.
 3. `M6P7-ST-B11`: artifact contract incompleteness.
+4. `M6P7-ST-B12`: toy-profile/historical-only closure posture detected.
 
 Runtime/cost budget:
 1. max runtime: `18` minutes.
@@ -326,6 +328,7 @@ Pass gate:
 9. `M6P7-ST-B9`: handoff input artifact missing/invalid.
 10. `M6P7-ST-B10`: durable evidence publish/readback failure.
 11. `M6P7-ST-B11`: artifact contract incomplete.
+12. `M6P7-ST-B12`: toy-profile or historical/proxy-only closure authority detected.
 
 Any open `M6P7-ST-B*` blocks P7 closure and parent M6 `S3` progression.
 
@@ -357,6 +360,7 @@ Any open `M6P7-ST-B*` blocks P7 closure and parent M6 `S3` progression.
 - [x] `M6P7-ST-S3` executed with continuity/replay-window closure.
 - [x] `M6P7-ST-S4` remediation lane closed (`NO_OP`).
 - [x] `M6P7-ST-S5` verdict emitted as `ADVANCE_TO_M7`.
+- [ ] Strict non-toy rerun (`S1..S5`) executed with zero historical/proxy closure authority.
 
 ## 11) Immediate Next Actions
 1. Route to parent M6 `S3` adjudication using `M6P7-ST-S5` verdict `ADVANCE_TO_M7` and handoff-pack closure artifacts.
@@ -439,3 +443,15 @@ Any open `M6P7-ST-B*` blocks P7 closure and parent M6 `S3` progression.
    - latest prior implementation sweep (`M6P7-ST-S4`) remained blocker-free,
    - no remediation actions were required,
    - deterministic rollup verdict and handoff-pack emission both closed green under targeted-rerun policy.
+
+## 13) Reopen Notice - Non-Toy Enforcement (2026-03-04)
+1. Legacy `M6P7-ST-S2..S5` receipts are retained for traceability only; they are not valid closure authority.
+2. `M6P7-ST-B12` is opened whenever closure depends on:
+   - `historical_*` execution ids as primary proof,
+   - replay/idempotency checks in historical-closed mode,
+   - advisory-only throughput posture.
+3. Required rerun path for re-closure:
+   - rerun `S1..S5` with live-window, run-scoped ingest evidence,
+   - enforce zero `historical_*` closure references in `m6p7_gate_verdict.json`,
+   - enforce blocker-free closure with deterministic `ADVANCE_TO_M7`.
+4. P7 is not closeable until `M6P7-ST-B12` is resolved by fresh evidence.
