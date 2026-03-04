@@ -232,10 +232,167 @@ Required artifacts for each M5.P4 stage:
 - [x] Dedicated M5.P4 stress authority created.
 - [x] P4 staged runbook (`S0..S5`) pinned with fail-closed transitions.
 - [x] P4 blocker taxonomy and evidence contract pinned.
-- [ ] M5.P4 S0 executed with blocker-free entry closure.
+- [x] M5.P4 S0 executed with blocker-free entry closure.
 - [ ] P4 verdict `ADVANCE_TO_M6` emitted from blocker-free rollup.
 
 ## 11) Immediate Next Actions
-1. Execute `M5P4-ST-S0` authority/entry-gate closure after P3 verdict closure.
-2. Keep auth/topic/envelope checks as independent fail-closed stages (`S2..S4`) with targeted reruns only.
-3. Do not enter `M5P4-ST-S1` until `S0` closes blocker-free.
+1. Execute `M5P4-ST-S5` P4 rollup and deterministic verdict.
+2. Keep rollup closure as independent fail-closed stage with targeted reruns only.
+3. Do not emit `ADVANCE_TO_M6` unless all `M5P4-B*` blockers remain closed across `S1..S4`.
+
+## 12) Execution Progress
+### `M5P4-ST-S0` authority/entry-gate closure execution (2026-03-03)
+1. Phase execution id: `m5p4_stress_s0_20260303T235728Z`.
+2. Runner:
+   - `python scripts/dev_substrate/m5p4_stress_runner.py --stage S0`
+3. Verification summary:
+   - latest successful P3 closure loaded (`m5p3_stress_fast_20260303T235036Z`) with `ADVANCE_TO_P4`,
+   - P3 blocker register remained closed (`open_blockers=0`),
+   - required P4 handles and plan keys passed placeholder guard,
+   - parent/P4 authority files were present/readable,
+   - bounded evidence bucket probe passed.
+4. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M5P4_ST_S1_READY`,
+   - `open_blockers=0`,
+   - `probe_count=1`,
+   - `error_rate_pct=0.0`.
+5. Artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s0_20260303T235728Z/stress/m5p4_stagea_findings.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s0_20260303T235728Z/stress/m5p4_lane_matrix.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s0_20260303T235728Z/stress/m5p4_probe_latency_throughput_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s0_20260303T235728Z/stress/m5p4_control_rail_conformance_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s0_20260303T235728Z/stress/m5p4_secret_safety_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s0_20260303T235728Z/stress/m5p4_cost_outcome_receipt.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s0_20260303T235728Z/stress/m5p4_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s0_20260303T235728Z/stress/m5p4_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s0_20260303T235728Z/stress/m5p4_decision_log.json`
+
+### `M5P4-ST-S1` IG boundary health preflight execution (2026-03-04)
+1. Phase execution id: `m5p4_stress_s1_20260304T000523Z`.
+2. Runner:
+   - `python scripts/dev_substrate/m5p4_stress_runner.py --stage S1`
+3. Verification summary:
+   - S0 dependency loaded (`m5p4_stress_s0_20260303T235728Z`) and blocker-free.
+   - secret-safe API key retrieval succeeded from `SSM_IG_API_KEY_PATH` (plaintext not emitted).
+   - boundary probes passed with configured auth header:
+     - health probe `GET /ops/health` => `200` with required fields (`status`, `service`, `mode`),
+     - ingest preflight `POST /ingest/push` => `202` with required fields (`admitted`, `ingress_mode`).
+   - bounded evidence-bucket probe passed.
+4. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M5P4_ST_S2_READY`,
+   - `open_blockers=0`,
+   - `probe_count=4`,
+   - `error_rate_pct=0.0`.
+5. Artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s1_20260304T000523Z/stress/m5p4_stagea_findings.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s1_20260304T000523Z/stress/m5p4_lane_matrix.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s1_20260304T000523Z/stress/m5p4_boundary_health_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s1_20260304T000523Z/stress/m5p4_probe_latency_throughput_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s1_20260304T000523Z/stress/m5p4_control_rail_conformance_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s1_20260304T000523Z/stress/m5p4_secret_safety_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s1_20260304T000523Z/stress/m5p4_cost_outcome_receipt.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s1_20260304T000523Z/stress/m5p4_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s1_20260304T000523Z/stress/m5p4_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s1_20260304T000523Z/stress/m5p4_decision_log.json`
+
+### `M5P4-ST-S2` boundary auth enforcement execution (2026-03-04)
+1. Phase execution id: `m5p4_stress_s2_20260304T001044Z`.
+2. Runner:
+   - `python scripts/dev_substrate/m5p4_stress_runner.py --stage S2`
+3. Verification summary:
+   - S1 dependency loaded (`m5p4_stress_s1_20260304T000523Z`) and blocker-free.
+   - secret-safe API key retrieval succeeded from `SSM_IG_API_KEY_PATH`.
+   - auth matrix probes all matched expected outcomes:
+     - valid-key probes: health `200`, ingest `202`,
+     - missing-key probes: health `401`, ingest `401`,
+     - invalid-key probes: health `401`, ingest `401`.
+   - unauthorized contract fields (`error/reason`) were deterministic on negative probes.
+4. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M5P4_ST_S3_READY`,
+   - `open_blockers=0`,
+   - `probe_count=8`,
+   - `error_rate_pct=0.0`.
+5. Artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s2_20260304T001044Z/stress/m5p4_stagea_findings.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s2_20260304T001044Z/stress/m5p4_lane_matrix.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s2_20260304T001044Z/stress/m5p4_auth_enforcement_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s2_20260304T001044Z/stress/m5p4_probe_latency_throughput_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s2_20260304T001044Z/stress/m5p4_control_rail_conformance_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s2_20260304T001044Z/stress/m5p4_secret_safety_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s2_20260304T001044Z/stress/m5p4_cost_outcome_receipt.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s2_20260304T001044Z/stress/m5p4_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s2_20260304T001044Z/stress/m5p4_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s2_20260304T001044Z/stress/m5p4_decision_log.json`
+
+### `M5P4-ST-S3` MSK topic readiness execution (2026-03-04)
+1. Baseline run trail (fail-closed by design):
+   - `m5p4_stress_s3_20260304T002054Z`: in-VPC probe import failure (`No module named 'kafka.oauth'`).
+   - `m5p4_stress_s3_20260304T002237Z`: probe runtime fixed; live cluster showed only `2/9` required topics present.
+   - `m5p4_stress_s3_20260304T002527Z`: create-and-relist lane attempted; create denied (`TopicAuthorizationFailedError`).
+2. Remediations applied:
+   - corrected probe client import path to `kafka.sasl.oauth`,
+   - added create-and-relist topic remediation contract with explicit partition map,
+   - provisioned temporary in-VPC probe role with Lambda VPC + `kafka-cluster:CreateTopic` scope and reran with `M5P4_S3_PROBE_ROLE_ARN` override.
+3. Authoritative green run:
+   - phase execution id: `m5p4_stress_s3_20260304T003115Z`,
+   - runner: `python scripts/dev_substrate/m5p4_stress_runner.py --stage S3`.
+4. Verification summary:
+   - S2 dependency remained closed (`m5p4_stress_s2_20260304T001044Z`, zero blockers),
+   - MSK handle parity checks against `terraform output` (streaming/core) were clean,
+   - cluster state remained `ACTIVE`, bootstrap readback matched registry pin,
+   - in-VPC probe converged required P4 topic set to `9/9 ready` with zero residual missing topics.
+5. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M5P4_ST_S4_READY`,
+   - `open_blockers=0`,
+   - `probe_count=10`,
+   - `error_rate_pct=0.0`.
+6. Artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s3_20260304T003115Z/stress/m5p4_stagea_findings.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s3_20260304T003115Z/stress/m5p4_lane_matrix.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s3_20260304T003115Z/stress/m5p4_topic_readiness_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s3_20260304T003115Z/stress/m5p4_probe_latency_throughput_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s3_20260304T003115Z/stress/m5p4_control_rail_conformance_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s3_20260304T003115Z/stress/m5p4_secret_safety_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s3_20260304T003115Z/stress/m5p4_cost_outcome_receipt.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s3_20260304T003115Z/stress/m5p4_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s3_20260304T003115Z/stress/m5p4_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s3_20260304T003115Z/stress/m5p4_decision_log.json`
+
+### `M5P4-ST-S4` ingress envelope conformance execution (2026-03-04)
+1. Phase execution id: `m5p4_stress_s4_20260304T003732Z`.
+2. Runner:
+   - `python scripts/dev_substrate/m5p4_stress_runner.py --stage S4`
+3. Verification summary:
+   - S3 dependency loaded (`m5p4_stress_s3_20260304T003115Z`) and blocker-free.
+   - envelope handle packet was closed with no missing/placeholder values.
+   - runtime materialization checks passed:
+     - Lambda env conformed to pinned `IG_*` envelope handles,
+     - API Gateway stage throttles matched (`RPS=200`, `Burst=400`),
+     - API integration timeout matched (`30000ms`),
+     - DDB TTL remained enabled on `ttl_epoch`,
+     - DLQ queue URL resolved for `fraud-platform-dev-full-ig-dlq`.
+   - behavior probes passed:
+     - authenticated normal ingest => `202` with `admitted=true`,
+     - authenticated oversize ingest => `413` with `error=payload_too_large`,
+     - health envelope surface matched pinned envelope values.
+4. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M5P4_ST_S5_READY`,
+   - `open_blockers=0`,
+   - `probe_count=10`,
+   - `error_rate_pct=0.0`.
+5. Artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s4_20260304T003732Z/stress/m5p4_stagea_findings.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s4_20260304T003732Z/stress/m5p4_lane_matrix.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s4_20260304T003732Z/stress/m5p4_envelope_conformance_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s4_20260304T003732Z/stress/m5p4_probe_latency_throughput_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s4_20260304T003732Z/stress/m5p4_control_rail_conformance_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s4_20260304T003732Z/stress/m5p4_secret_safety_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s4_20260304T003732Z/stress/m5p4_cost_outcome_receipt.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s4_20260304T003732Z/stress/m5p4_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s4_20260304T003732Z/stress/m5p4_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s4_20260304T003732Z/stress/m5p4_decision_log.json`

@@ -3183,3 +3183,489 @@ _As of 2026-03-03_
 ## Entry: 2026-03-03 23:54 +00:00 - M5 status wording aligned
 1. Updated `platform.stress_test.md` wording for current phase state from planning lane to execution lane.
 2. Rationale: M5 parent and M5.P3 already executed; wording now matches live posture and avoids governance ambiguity.
+
+## Entry: 2026-03-03 23:56 +00:00 - M5.P4 `S0` planning/execution lane opened
+
+### Trigger
+1. User directed: proceed with `M5P4-ST-S0` planning and execution.
+
+### Decision-completeness and lane closure check
+1. M5 parent state is ready for P4 entry:
+   - parent S0 passed (`M5-ST-S0`, `next_gate=M5_ST_S1_READY`, `open_blockers=0`).
+2. M5.P3 dependency closure is present:
+   - latest P3 closure passed (`M5P3-ST-FAST`, `next_gate=ADVANCE_TO_P4`, `open_blockers=0`).
+3. `platform.M5.P4.stress_test.md` defines S0 handle packet, dependency requirement, and pass gate.
+4. No existing `scripts/dev_substrate/m5p4_stress_runner.py`; implementation required.
+
+### Performance-first and cost-control design before coding
+1. Implement S0 as bounded read-only entry checks:
+   - handle and plan-key closure,
+   - P3 verdict + blocker register dependency closure,
+   - authority readability,
+   - minimal evidence bucket probe.
+2. Keep runtime minute-scale with zero mutating infrastructure operations.
+3. Emit full P4 artifact contract with fail-closed blocker mapping.
+
+### Planned implementation
+1. Create `scripts/dev_substrate/m5p4_stress_runner.py` with `--stage S0`.
+2. Validate with:
+   - `python -m py_compile scripts/dev_substrate/m5p4_stress_runner.py`.
+3. Execute:
+   - `python scripts/dev_substrate/m5p4_stress_runner.py --stage S0`.
+4. Route docs based on evidence-backed result.
+
+### Acceptance target
+1. `overall_pass=true`.
+2. `next_gate=M5P4_ST_S1_READY`.
+3. `open_blockers=0`.
+
+## Entry: 2026-03-03 23:58 +00:00 - M5.P4 `S0` executed (pass)
+
+### Implementation executed
+1. Created `scripts/dev_substrate/m5p4_stress_runner.py` with `--stage S0` fail-closed entry checks:
+   - plan-key + handle closure,
+   - P3 closure dependency validation (`ADVANCE_TO_P4` + closed blocker register),
+   - authority readability check,
+   - bounded evidence-bucket probe,
+   - complete `m5p4_*` artifact contract emission.
+2. Updated `platform.M5.P4.stress_test.md`:
+   - DoD S0 item marked complete,
+   - S0 execution receipt added,
+   - immediate next actions advanced to `M5P4-ST-S1`.
+3. Updated routing docs:
+   - `platform.M5.stress_test.md` next action moved to `M5P4-ST-S1` and P4 S0 handoff receipt added,
+   - `platform.stress_test.md` program next step moved to `M5P4-ST-S1`; M5.P4 status moved to active.
+
+### Validation and execution
+1. `python -m py_compile scripts/dev_substrate/m5p4_stress_runner.py` (pass).
+2. `python scripts/dev_substrate/m5p4_stress_runner.py --stage S0`.
+3. `phase_execution_id=m5p4_stress_s0_20260303T235728Z`.
+
+### Execution result
+1. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M5P4_ST_S1_READY`,
+   - `open_blockers=0`,
+   - `probe_count=1`,
+   - `error_rate_pct=0.0`.
+2. Dependency closure:
+   - P3 dependency resolved to `m5p3_stress_fast_20260303T235036Z`,
+   - dependency verdict `ADVANCE_TO_P4`,
+   - dependency blocker count `0`.
+3. Artifact contract:
+   - complete/readable (`9/9` required artifacts present).
+
+### Evidence path
+1. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s0_20260303T235728Z/stress/`
+
+## Entry: 2026-03-04 00:03 +00:00 - M5.P4 `S1` planning/execution lane opened
+
+### Trigger
+1. User directed: plan and execute `M5P4-ST-S1`; remediate blockers if they arise.
+
+### Decision-completeness and lane closure check
+1. `M5P4-ST-S0` closure is present and blocker-free:
+   - `phase_execution_id=m5p4_stress_s0_20260303T235728Z`,
+   - `next_gate=M5P4_ST_S1_READY`,
+   - `open_blockers=0`.
+2. P3 dependency remains closed:
+   - `M5P3-ST-FAST` with `next_gate=ADVANCE_TO_P4`, `open_blockers=0`.
+3. P4 authority and build plan define explicit S1 acceptance contract:
+   - health probe `GET /ops/health` => `200` with `status/service/mode`,
+   - ingest preflight `POST /ingest/push` => `202` with `admitted/ingress_mode`,
+   - API key retrieved from `SSM_IG_API_KEY_PATH` via configured header.
+
+### Performance-first and cost-control design before coding
+1. Implement S1 as bounded read-only probe lane:
+   - one SSM retrieval,
+   - two HTTP probes (health + ingest preflight),
+   - no infra mutation.
+2. Keep secret-safe posture:
+   - do not write API key plaintext to artifacts,
+   - capture retrieval success/failure metadata only.
+3. Preserve fail-closed blocker mapping:
+   - `M5P4-B1` handle closure,
+   - `M5P4-B2` health/probe/contract drift,
+   - `M5P4-B3` auth/key retrieval path failure,
+   - `M5P4-B8` durable artifact/readback failures,
+   - `M5P4-B9` dependency transition violations.
+
+### Planned implementation
+1. Extend `scripts/dev_substrate/m5p4_stress_runner.py` with `--stage S1`:
+   - enforce S0 continuity and Stage-A artifact carry-forward,
+   - retrieve API key from SSM securely,
+   - run boundary probes against `IG_BASE_URL + IG_HEALTHCHECK_PATH` and `IG_BASE_URL + IG_INGEST_PATH`,
+   - validate minimal response contracts,
+   - emit full `m5p4_*` artifact set.
+2. Validate and execute:
+   - `python -m py_compile scripts/dev_substrate/m5p4_stress_runner.py`,
+   - `python scripts/dev_substrate/m5p4_stress_runner.py --stage S1`.
+3. If blockers open, remediate immediately and rerun until lane closure or explicit external dependency blocker is isolated.
+
+### Acceptance target
+1. `overall_pass=true`.
+2. `next_gate=M5P4_ST_S2_READY`.
+3. `open_blockers=0`.
+
+## Entry: 2026-03-04 00:06 +00:00 - M5.P4 `S1` executed (pass, zero blockers)
+
+### Implementation executed
+1. Extended `scripts/dev_substrate/m5p4_stress_runner.py` with `--stage S1`:
+   - S0 dependency continuity gate and Stage-A carry-forward,
+   - secret-safe SSM API-key retrieval (no plaintext artifact emission),
+   - IG boundary probes for health and ingest preflight,
+   - response contract checks for S1 acceptance,
+   - full `m5p4_*` artifact contract emission with fail-closed blocker mapping.
+2. Updated routing docs:
+   - `platform.M5.P4.stress_test.md` now records S1 execution and routes to `M5P4-ST-S2`,
+   - `platform.M5.stress_test.md` parent next action advanced to `M5P4-ST-S2`,
+   - `platform.stress_test.md` program next step advanced to `M5P4-ST-S2`.
+
+### Validation and execution
+1. `python -m py_compile scripts/dev_substrate/m5p4_stress_runner.py` (pass).
+2. `python scripts/dev_substrate/m5p4_stress_runner.py --stage S1`.
+3. `phase_execution_id=m5p4_stress_s1_20260304T000523Z`.
+
+### Execution result
+1. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M5P4_ST_S2_READY`,
+   - `open_blockers=0`,
+   - `probe_count=4`,
+   - `error_rate_pct=0.0`.
+2. Probe contract closure:
+   - health probe (`GET /ops/health`) returned `200` with required fields,
+   - ingest preflight (`POST /ingest/push`) returned `202` with required fields,
+   - SSM key retrieval and evidence-bucket probe passed.
+3. Artifact contract:
+   - complete/readable (`9/9` required artifacts present).
+
+### Evidence path
+1. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s1_20260304T000523Z/stress/`
+
+## Entry: 2026-03-04 00:08 +00:00 - M5.P4 `S2` planning/execution lane opened (with blocker sweep)
+
+### Trigger
+1. User directed: clear any dangling blockers, then plan and execute `M5P4-ST-S2` with remediation if blockers appear.
+
+### Dangling-blocker sweep result
+1. Active-lane blocker registers verified closed:
+   - `M5P3-ST-FAST` latest register: `open_blocker_count=0`,
+   - `M5P4-ST-S0` latest register: `open_blocker_count=0`,
+   - `M5P4-ST-S1` latest register: `open_blocker_count=0`.
+2. No active dangling blocker requires remediation before S2.
+
+### Decision-completeness and lane closure check
+1. `M5P4-ST-S1` dependency is closed and readable:
+   - `phase_execution_id=m5p4_stress_s1_20260304T000523Z`,
+   - `next_gate=M5P4_ST_S2_READY`,
+   - `open_blockers=0`.
+2. P4 authority and build plan define S2 acceptance:
+   - positive valid-key probes on health/ingest,
+   - missing-key and invalid-key probes must return `401` for both protected routes,
+   - deterministic auth matrix emission.
+
+### Performance-first and cost-control design before coding
+1. Implement S2 as bounded read-only auth-probe matrix:
+   - one SSM retrieval,
+   - six HTTP probes (`2` positive + `2` missing-key + `2` invalid-key),
+   - one evidence bucket probe.
+2. Preserve secret-safe posture:
+   - do not persist API key plaintext.
+3. Preserve fail-closed blocker mapping:
+   - `M5P4-B1` handle closure,
+   - `M5P4-B3` auth posture/enforcement mismatch,
+   - `M5P4-B8` durable evidence publication/readback failure,
+   - `M5P4-B9` stage transition violation.
+
+### Planned implementation
+1. Extend `scripts/dev_substrate/m5p4_stress_runner.py` with `--stage S2`:
+   - enforce S1 continuity and Stage-A carry-forward,
+   - execute auth matrix probes with strict status/contract checks,
+   - emit `m5p4_auth_enforcement_snapshot.json` plus full `m5p4_*` contract.
+2. Validate and execute:
+   - `python -m py_compile scripts/dev_substrate/m5p4_stress_runner.py`,
+   - `python scripts/dev_substrate/m5p4_stress_runner.py --stage S2`.
+3. If blockers arise, remediate immediately and rerun.
+
+### Acceptance target
+1. `overall_pass=true`.
+2. `next_gate=M5P4_ST_S3_READY`.
+3. `open_blockers=0`.
+
+## Entry: 2026-03-04 00:11 +00:00 - M5.P4 `S2` executed (pass, zero blockers)
+
+### Implementation executed
+1. Extended `scripts/dev_substrate/m5p4_stress_runner.py` with `--stage S2`:
+   - S1 dependency continuity gate and Stage-A carry-forward,
+   - secret-safe SSM API-key retrieval,
+   - auth matrix probes across positive/missing/invalid-key paths for health + ingest,
+   - deterministic auth contract checks (`200/202/401`) with unauthorized reason validation,
+   - full `m5p4_*` artifact contract emission.
+2. Updated routing docs:
+   - `platform.M5.P4.stress_test.md` now records S2 execution and routes to `M5P4-ST-S3`,
+   - `platform.M5.stress_test.md` parent next action advanced to `M5P4-ST-S3`,
+   - `platform.stress_test.md` program next step advanced to `M5P4-ST-S3`.
+
+### Validation and execution
+1. `python -m py_compile scripts/dev_substrate/m5p4_stress_runner.py` (pass).
+2. `python scripts/dev_substrate/m5p4_stress_runner.py --stage S2`.
+3. `phase_execution_id=m5p4_stress_s2_20260304T001044Z`.
+
+### Execution result
+1. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M5P4_ST_S3_READY`,
+   - `open_blockers=0`,
+   - `probe_count=8`,
+   - `error_rate_pct=0.0`.
+2. Auth enforcement matrix:
+   - positive probes: health `200`, ingest `202`,
+   - missing-key probes: health `401`, ingest `401`,
+   - invalid-key probes: health `401`, ingest `401`,
+   - contract issues: none.
+3. Dangling blocker posture:
+   - active-lane blocker sweep remains closed after S2 execution.
+
+### Evidence path
+1. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s2_20260304T001044Z/stress/`
+
+## Entry: 2026-03-04 00:16 +00:00 - M5.P4 `S3` planning/execution lane opened (with blocker sweep)
+
+### Trigger
+1. User directed: clear dangling blockers, then plan and execute `M5P4-ST-S3`; remediate blockers if they arise.
+
+### Dangling-blocker sweep result
+1. Active-lane M5.P4 blocker registers remain closed before S3 start:
+   - `M5P4-ST-S0`: `open_blocker_count=0`,
+   - `M5P4-ST-S1`: `open_blocker_count=0`,
+   - `M5P4-ST-S2`: `open_blocker_count=0`.
+2. No pre-existing blocker requires remediation before S3.
+
+### Decision-completeness and lane closure check
+1. `M5P4-ST-S2` dependency is closed and readable:
+   - `phase_execution_id=m5p4_stress_s2_20260304T001044Z`,
+   - `next_gate=M5P4_ST_S3_READY`,
+   - `open_blockers=0`.
+2. S3 acceptance contract confirmed from stress/build authorities:
+   - MSK handle parity vs runtime outputs,
+   - cluster state `ACTIVE`,
+   - required topic readiness `9/9`,
+   - no unresolved `M5P4-B1`, `M5P4-B4`, or `M5P4-B8` blockers.
+
+### Alternatives considered (before coding)
+1. Control-plane-only S3 (describe cluster + bootstrap only).
+   - Rejected: does not prove topic readiness/reachability and weakens fail-closed S3 gate intent.
+2. Historical M5.H evidence-only reuse.
+   - Rejected as primary lane: build/stress authority requires active-lane checks; baseline evidence may drift.
+3. Active in-VPC probe via temporary managed compute.
+   - Selected: short-lived Lambda in MSK client subnets + SG, IAM auth topic metadata probe, deterministic cleanup.
+
+### Performance-first and cost-control design before coding
+1. Keep S3 bounded and ephemeral:
+   - short-lived temporary Lambda only for probe window,
+   - deterministic cleanup in all paths.
+2. Minimize API calls and runtime:
+   - control-plane checks (`describe-cluster-v2`, `get-bootstrap-brokers`, terraform output parity),
+   - one invoke for topic readiness,
+   - one evidence-bucket probe.
+3. Fail-closed blocker mapping:
+   - `M5P4-B1` for MSK handle drift/missing handles,
+   - `M5P4-B4` for cluster/topic readiness failures,
+   - `M5P4-B8` for evidence/materialization failures,
+   - `M5P4-B9` for dependency transition violations.
+
+### Planned implementation
+1. Extend `scripts/dev_substrate/m5p4_stress_runner.py` with `--stage S3`:
+   - S2 dependency continuity and Stage-A carry-forward,
+   - MSK handle parity checks against live Terraform outputs,
+   - cluster state + bootstrap parity checks,
+   - temporary in-VPC topic probe packaging/create/invoke/delete lane,
+   - `m5p4_topic_readiness_snapshot.json` emission,
+   - full `m5p4_*` artifact contract and `next_gate=M5P4_ST_S4_READY` on pass.
+2. Validate and execute immediately:
+   - `python -m py_compile scripts/dev_substrate/m5p4_stress_runner.py`,
+   - `python scripts/dev_substrate/m5p4_stress_runner.py --stage S3`.
+3. If blockers arise, remediate and rerun in the same lane.
+
+### Acceptance target
+1. `overall_pass=true`.
+2. `next_gate=M5P4_ST_S4_READY`.
+3. `open_blockers=0`.
+
+## Entry: 2026-03-04 00:30 +00:00 - M5.P4 `S3` execution/remediation trail (authoritative pass)
+
+### Execution sequence and blocker trail
+1. Initial `S3` implementation executed with active-lane in-VPC topic probe and strict fail-closed gates.
+2. Baseline run `m5p4_stress_s3_20260304T002054Z` failed with `M5P4-B4`:
+   - in-VPC probe returned `FunctionError=Unhandled`.
+3. First remediation:
+   - patched probe payload/error extraction to preserve Lambda error diagnostics,
+   - root cause identified: incorrect kafka import path.
+4. Baseline rerun `m5p4_stress_s3_20260304T002237Z` failed with `M5P4-B4`:
+   - `Runtime.ImportModuleError` -> `No module named 'kafka.oauth'`.
+5. Second remediation:
+   - updated in-probe import path to `kafka.sasl.oauth`.
+6. Baseline rerun `m5p4_stress_s3_20260304T002348Z` failed with `M5P4-B4`:
+   - live topic probe showed only `2/9` required topics present.
+7. Third remediation:
+   - hardened probe lane to support create-and-relist contract with explicit topic partition map.
+8. Baseline rerun `m5p4_stress_s3_20260304T002527Z` failed with `M5P4-B4`:
+   - create attempt denied with `TopicAuthorizationFailedError`.
+9. Fourth remediation:
+   - introduced optional role override input (`M5P4_S3_PROBE_ROLE_ARN`) in runner,
+   - provisioned temporary probe role `arn:aws:iam::230372904534:role/fraud-platform-dev-full-m5p4-s3-probe-role` with Lambda VPC + `kafka-cluster:CreateTopic` scope,
+   - reran S3 with role override.
+
+### Authoritative closure run
+1. Execution id: `m5p4_stress_s3_20260304T002821Z`.
+2. Command posture:
+   - `M5P4_S3_PROBE_ROLE_ARN=arn:aws:iam::230372904534:role/fraud-platform-dev-full-m5p4-s3-probe-role python scripts/dev_substrate/m5p4_stress_runner.py --stage S3`.
+3. Result:
+   - `overall_pass=true`,
+   - `next_gate=M5P4_ST_S4_READY`,
+   - `open_blockers=0`,
+   - `probe_count=10`,
+   - `error_rate_pct=0.0`.
+4. Contract closure evidence:
+   - S2 dependency remained closed,
+   - MSK handle parity vs streaming/core outputs passed,
+   - cluster remained `ACTIVE` and bootstrap readback matched registry pin,
+   - topic probe converged required readiness to `9/9`.
+
+### Files and routing updates
+1. `scripts/dev_substrate/m5p4_stress_runner.py`:
+   - added `S3` stage,
+   - added in-VPC probe packaging/invoke/delete lane,
+   - added topic create-and-relist remediation path,
+   - added optional `M5P4_S3_PROBE_ROLE_ARN` override for authorized probe execution.
+2. Routing docs advanced to `S4`:
+   - `stress_test/platform.M5.P4.stress_test.md`,
+   - `stress_test/platform.M5.stress_test.md`,
+   - `stress_test/platform.stress_test.md`.
+
+### Risk note
+1. Temporary probe role was created to clear `TopicAuthorizationFailedError` in active-lane remediation.
+2. Keep this role constrained to stress probe usage and remove/repin after `M5.P4` closure if no longer required.
+
+## Entry: 2026-03-04 00:32 +00:00 - M5.P4 `S3` hardening rerun (role auto-discovery) and final closure lock
+
+### Trigger
+1. After first S3 green (`m5p4_stress_s3_20260304T002821Z`), runner still required explicit env override to select the authorized probe role.
+2. To remove operator-only coupling and keep reruns deterministic, role selection needed an automatic lane.
+
+### Implementation update
+1. Updated `scripts/dev_substrate/m5p4_stress_runner.py` role resolution order for S3 probe:
+   - `M5P4_S3_PROBE_ROLE_ARN` env override (if present),
+   - dedicated role auto-discovery via `aws iam get-role` for `fraud-platform-dev-full-m5p4-s3-probe-role`,
+   - archive-function role fallback,
+   - IG execution role fallback.
+2. This preserves fail-closed behavior while making the authorized probe lane reproducible without manual env injection.
+
+### Validation and execution
+1. `python -m py_compile scripts/dev_substrate/m5p4_stress_runner.py` (pass).
+2. `python scripts/dev_substrate/m5p4_stress_runner.py --stage S3` (no env override).
+3. Execution id: `m5p4_stress_s3_20260304T003115Z`.
+
+### Result
+1. `overall_pass=true`.
+2. `next_gate=M5P4_ST_S4_READY`.
+3. `open_blockers=0`.
+4. Required topic readiness remained `9/9` with no create actions needed on rerun.
+
+### Evidence path
+1. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s3_20260304T003115Z/stress/`.
+
+## Entry: 2026-03-04 00:33 +00:00 - M5.P4 `S4` planning/execution lane opened (post-S3 closure)
+
+### Trigger
+1. User directed: clear dangling blockers, plan and execute `M5P4-ST-S4`, remediate blockers immediately.
+
+### Dangling-blocker sweep (authoritative)
+1. Latest active M5.P4 stage registers are all closed:
+   - `S0`: `open_blocker_count=0`,
+   - `S1`: `open_blocker_count=0`,
+   - `S2`: `open_blocker_count=0`,
+   - `S3`: `open_blocker_count=0` (`m5p4_stress_s3_20260304T003115Z`).
+2. No dangling blocker requires pre-S4 remediation.
+
+### Decision-completeness and S4 authority closure
+1. S4 dependency gate is valid/readable:
+   - `M5P4-ST-S3` pass, `next_gate=M5P4_ST_S4_READY`, blocker-free.
+2. S4 acceptance contract from authority files:
+   - envelope handle integrity (`IG_MAX_REQUEST_BYTES`, timeout/retry/idempotency/DLQ/replay/rate handles),
+   - runtime materialization parity (Lambda env + API integration/stage + DDB TTL + SQS DLQ),
+   - behavioral probes (`202` normal ingest and `413 payload_too_large` oversize ingest),
+   - no open `M5P4-B5` and no `M5P4-B8` evidence failures.
+
+### Live runtime baseline collected before coding
+1. `aws lambda get-function-configuration` confirms IG envelope env surfaces are present and pinned to expected values.
+2. `aws apigatewayv2 get-stage` confirms throttles (`RPS=200`, `Burst=400`).
+3. `aws apigatewayv2 get-integrations` confirms integration timeout (`30000ms`).
+4. `aws dynamodb describe-time-to-live` confirms TTL enabled on `ttl_epoch`.
+5. `aws sqs get-queue-url` confirms DLQ queue exists and resolves.
+
+### Pre-implementation performance/cost design
+1. S4 is bounded read-mostly + two HTTP behavior probes:
+   - one normal ingest probe,
+   - one oversize ingest probe.
+2. Reuse SSM key retrieval lane from prior stages; never persist plaintext key.
+3. Keep API/control checks minimal and deterministic to stay within phase runtime/cost envelope.
+
+### Planned implementation
+1. Extend `scripts/dev_substrate/m5p4_stress_runner.py` with `--stage S4`:
+   - S3 dependency continuity + Stage-A carry-forward,
+   - envelope handle integrity checks,
+   - runtime materialization checks (Lambda/API/DDB/SQS),
+   - behavior probes for normal and oversize payload,
+   - emit `m5p4_envelope_conformance_snapshot.json` and full `m5p4_*` contract,
+   - pass gate emits `next_gate=M5P4_ST_S5_READY`.
+2. Validate and execute immediately:
+   - `python -m py_compile scripts/dev_substrate/m5p4_stress_runner.py`,
+   - `python scripts/dev_substrate/m5p4_stress_runner.py --stage S4`.
+3. If blockers open, remediate and rerun until closure-grade pass.
+
+### Acceptance target
+1. `overall_pass=true`.
+2. `next_gate=M5P4_ST_S5_READY`.
+3. `open_blockers=0`.
+
+## Entry: 2026-03-04 00:38 +00:00 - M5.P4 `S4` executed (pass, zero blockers)
+
+### Implementation executed
+1. Extended `scripts/dev_substrate/m5p4_stress_runner.py` with `--stage S4`:
+   - S3 dependency continuity gate + Stage-A carry-forward,
+   - envelope handle integrity checks,
+   - runtime materialization parity checks (Lambda env, API stage/integration, DDB TTL, SQS DLQ),
+   - behavior probes (`202` normal ingest, `413 payload_too_large` oversize ingest),
+   - `m5p4_envelope_conformance_snapshot.json` emission,
+   - full `m5p4_*` artifact contract with fail-closed blocker mapping.
+
+### Validation and execution
+1. `python -m py_compile scripts/dev_substrate/m5p4_stress_runner.py` (pass).
+2. `python scripts/dev_substrate/m5p4_stress_runner.py --stage S4`.
+3. Phase execution id: `m5p4_stress_s4_20260304T003732Z`.
+
+### Execution result
+1. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M5P4_ST_S5_READY`,
+   - `open_blockers=0`,
+   - `probe_count=10`,
+   - `error_rate_pct=0.0`.
+2. Runtime conformance:
+   - Lambda envelope env parity passed,
+   - API stage throttles and integration timeout matched pinned handles,
+   - DDB TTL and DLQ queue posture passed.
+3. Behavioral conformance:
+   - normal ingest probe `202` with `admitted=true`,
+   - oversize ingest probe `413` with `payload_too_large`,
+   - health envelope projection matched pinned envelope values.
+
+### Routing updates applied
+1. `stress_test/platform.M5.P4.stress_test.md` advanced immediate next action to `M5P4-ST-S5` and captured S4 execution receipt.
+2. `stress_test/platform.M5.stress_test.md` advanced parent immediate next action to `M5P4-ST-S5` and captured P4 S4 status.
+3. `stress_test/platform.stress_test.md` advanced program next step to `M5P4-ST-S5` and latest M5.P4 state to `S4` pass.
+
+### Evidence path
+1. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s4_20260304T003732Z/stress/`.

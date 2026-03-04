@@ -227,9 +227,9 @@ Required artifacts for each M5 parent stress stage:
 - [ ] M5 closure rollup emitted with deterministic `M6_READY` recommendation.
 
 ## 11) Immediate Next Actions
-1. Execute `M5P4-ST-S0` authority/entry-gate closure.
+1. Execute `M5P4-ST-S5` P4 rollup and deterministic verdict.
 2. Keep targeted-rerun posture: rerun only failed stage windows (`M5P3` or `M5P4`) when blockers open.
-3. Do not advance parent `M5-ST-S1` until `M5P4` emits blocker-free verdict `INGEST_READY`.
+3. Do not advance parent `M5-ST-S1` until `M5P4` emits blocker-free verdict `ADVANCE_TO_M6`.
 
 ## 12) Execution Progress
 ### `M5-ST-S0` authority/entry-gate closure execution (2026-03-03)
@@ -267,3 +267,56 @@ Required artifacts for each M5 parent stress stage:
    - `open_blockers=0`.
 2. Handoff decision:
    - parent orchestration can proceed to `M5.P4` entry lane (`M5P4-ST-S0`).
+
+### `M5.P4` entry-gate status (2026-03-03)
+1. `M5.P4` latest execution:
+   - `phase_execution_id=m5p4_stress_s0_20260303T235728Z`,
+   - `stage_id=M5P4-ST-S0`,
+   - `overall_pass=true`,
+   - `next_gate=M5P4_ST_S1_READY`,
+   - `open_blockers=0`.
+2. Parent routing decision:
+   - proceed to `M5P4-ST-S1` preflight checks.
+
+### `M5.P4` boundary preflight status (2026-03-04)
+1. `M5.P4` latest execution:
+   - `phase_execution_id=m5p4_stress_s1_20260304T000523Z`,
+   - `stage_id=M5P4-ST-S1`,
+   - `overall_pass=true`,
+   - `next_gate=M5P4_ST_S2_READY`,
+   - `open_blockers=0`.
+2. Parent routing decision:
+   - proceed to `M5P4-ST-S2` boundary auth enforcement.
+
+### `M5.P4` boundary auth status (2026-03-04)
+1. `M5.P4` latest execution:
+   - `phase_execution_id=m5p4_stress_s2_20260304T001044Z`,
+   - `stage_id=M5P4-ST-S2`,
+   - `overall_pass=true`,
+   - `next_gate=M5P4_ST_S3_READY`,
+   - `open_blockers=0`.
+2. Parent routing decision:
+   - proceed to `M5P4-ST-S3` topic readiness checks.
+
+### `M5.P4` topic readiness status (2026-03-04)
+1. `M5.P4` latest execution:
+   - `phase_execution_id=m5p4_stress_s3_20260304T003115Z`,
+   - `stage_id=M5P4-ST-S3`,
+   - `overall_pass=true`,
+   - `next_gate=M5P4_ST_S4_READY`,
+   - `open_blockers=0`.
+2. Execution highlights:
+   - fail-closed baselines captured import drift and topic-authorization drift before closure,
+   - active in-VPC probe converged required topic readiness to `9/9`.
+3. Parent routing decision:
+   - proceed to `M5P4-ST-S4` ingress envelope conformance.
+
+### `M5.P4` envelope conformance status (2026-03-04)
+1. `M5.P4` latest execution:
+   - `phase_execution_id=m5p4_stress_s4_20260304T003732Z`,
+   - `stage_id=M5P4-ST-S4`,
+   - `overall_pass=true`,
+   - `next_gate=M5P4_ST_S5_READY`,
+   - `open_blockers=0`.
+2. Parent routing decision:
+   - proceed to `M5P4-ST-S5` rollup/verdict closure.
