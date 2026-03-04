@@ -9182,3 +9182,187 @@ ext_gate=M8_READY, open_blockers=0.
 ### Governance
 1. No commit/push/branch operation.
 2. No managed runtime service orchestration executed in S0.
+
+## Entry: 2026-03-04 22:50 +00:00 - M8-ST-S1 execution design and stage implementation
+
+### Context
+1. USER requested `M8-ST-S1` planning and execution.
+2. Existing parent runner supported only `S0`; `S1` execution path was missing.
+
+### Design decision
+1. Extend `scripts/dev_substrate/m8_stress_runner.py` to support `S1` fail-closed execution.
+2. Keep stage scope strict to M8 authority:
+   - runtime/lock readiness (`B` lane),
+   - closure-input strict-chain readiness (`C` lane),
+   - source-authority/runtime-locality/non-toy guards carried forward.
+3. Preserve targeted-rerun posture: `S1` only, no advance if blocker opens.
+
+### Implementation summary
+1. Added `S1` stage path in parent runner with explicit inputs:
+   - upstream `M8-ST-S0` execution,
+   - upstream strict `M7-ST-S5`,
+   - upstream strict `M6-ST-S5`.
+2. `S1` checks implemented:
+   - upstream stage continuity and strict-chain refs (`M6`, `M7`, `P8/P9/P10`),
+   - stale-authority cutoff enforcement,
+   - run-scope continuity across upstream summaries,
+   - runtime identity/lock probes via AWS CLI (`sts`, `iam get-role`, `eks describe-cluster`),
+   - authoritative evidence readback probes on run refs (object head + prefix list).
+3. `S1` artifact contract emitted:
+   - `m8b_runtime_lock_readiness_snapshot.json`,
+   - `m8c_closure_input_readiness_snapshot.json`,
+   - guard snapshots + stage receipts.
+
+### Governance
+1. No commit/push/branch operation.
+2. Stage execution remains fail-closed.
+
+## Entry: 2026-03-04 22:54 +00:00 - M8-ST-S1 executed green
+
+### Execution
+1. Ran:
+   - `python scripts/dev_substrate/m8_stress_runner.py --stage S1 --upstream-m8-s0-execution m8_stress_s0_20260304T224349Z --upstream-m7-execution m7_stress_s5_20260304T212520Z --upstream-m6-execution m6_stress_s5_20260304T204909Z`
+2. Result:
+   - `phase_execution_id=m8_stress_s1_20260304T225441Z`,
+   - `overall_pass=true`, `open_blocker_count=0`,
+   - `next_gate=M8_ST_S2_READY`, `verdict=GO`.
+3. Evidence root:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m8_stress_s1_20260304T225441Z/stress/`.
+
+### Validation highlights
+1. Runtime/lock readiness passed:
+   - role probe (`fraud-platform-dev-full-irsa-obs-gov`) readable,
+   - EKS cluster `fraud-platform-dev-full` status `ACTIVE`,
+   - lock backend `db_advisory_lock`, lock key rendered run-scoped.
+2. Closure-input strict chain passed:
+   - upstream strict `M6`, `M7`, and `P8/P9/P10` summaries are green and run-scope consistent.
+3. Source-authority guard passed:
+   - receipt/offset/quarantine objects and decision/case/rtdl prefixes resolved from evidence bucket.
+
+### Documentation sync
+1. `platform.M8.stress_test.md` updated:
+   - posture `S1_GREEN`,
+   - DoD `S1` marked complete,
+   - next actions advanced to `S2`.
+2. `platform.stress_test.md` updated:
+   - M8 program status `IN_PROGRESS (S1_GREEN)`,
+   - next step routed to `M8-ST-S2`.
+
+### Governance
+1. No commit/push/branch operation.
+
+## Entry: 2026-03-04 23:00 +00:00 - M8-ST-S2 pre-implementation plan (fail-closed)
+
+### Problem framing
+1. USER requested immediate planning + execution of `M8-ST-S2`.
+2. Parent runner currently supports `S0/S1`; `S2` lane is not yet implemented.
+3. `S2` depends on component scripts:
+   - `m8d_single_writer_probe.py` (lane `D`),
+   - `m8e_reporter_one_shot.py` (lane `E`).
+
+### Decision-completeness checks
+1. Entry gate required: latest `S1` pass with `next_gate=M8_ST_S2_READY`.
+2. Strict authority required:
+   - parent `M7-ST-S5` strict run,
+   - strict `P8/P9/P10` IDs from M8 stress authority,
+   - `M6-ST-S5` pass continuity.
+3. Guard posture required before/after `S2`:
+   - runtime-locality (one-shot must be managed runtime, not local-only),
+   - source-authority (Oracle/durable refs only),
+   - non-toy realism (carry strict addendum pass posture).
+
+### Implementation plan for S2 in parent runner
+1. Add `run_s2(...)` to `scripts/dev_substrate/m8_stress_runner.py`.
+2. Validate `S1` upstream summary pass + gate.
+3. Build compatibility bridge for M8.D upstream contract:
+   - synthesize `m8c_execution_summary.json` under the `S1` run-control root so `m8d` can consume `UPSTREAM_M8C_EXECUTION=<S1_EXECUTION_ID>` deterministically.
+4. Execute `m8d_single_writer_probe.py` via subprocess with explicit env:
+   - `M8D_EXECUTION_ID`, `M8D_RUN_DIR`, `EVIDENCE_BUCKET`, `UPSTREAM_M8C_EXECUTION`,
+   - `PLATFORM_RUN_ID`, `SCENARIO_RUN_ID`, `AWS_REGION`.
+5. Validate `m8d_execution_summary.json` is pass + `next_gate=M8.E_READY`; map failures to `M8-ST-B4/B10/B12`.
+6. Execute `m8e_reporter_one_shot.py` via subprocess with explicit env:
+   - `M8E_EXECUTION_ID`, `M8E_RUN_DIR`, `EVIDENCE_BUCKET`, `UPSTREAM_M8D_EXECUTION`,
+   - `PLATFORM_RUN_ID`, `SCENARIO_RUN_ID`, `AWS_REGION`.
+7. Validate `m8e_execution_summary.json` is pass + `next_gate=M8.F_READY`; map failures to `M8-ST-B5/B10/B12`.
+8. Emit parent `S2` artifacts:
+   - `m8d_single_writer_probe_snapshot.json`,
+   - `m8e_reporter_execution_snapshot.json`,
+   - guard snapshots + stage receipts.
+9. Enforce fail-closed stage gate:
+   - pass => `M8_ST_S3_READY`,
+   - any blocker => `BLOCKED`.
+
+### Performance/cost posture
+1. Use targeted single execution for `m8d` then `m8e`; no parallel heavy runners.
+2. Keep retries disabled in parent lane by default; rerun only when blocker-specific remediation is applied.
+
+### Governance
+1. No branch operation.
+2. No commit/push.
+3. Proceed to implementation then immediate S2 execution.
+
+## Entry: 2026-03-04 23:09 +00:00 - M8-ST-S2 first execution failed on runner/import defects
+
+### Execution
+1. Ran parent `S2` with strict upstreams:
+   - `M8.S1=m8_stress_s1_20260304T225441Z`,
+   - `M7.S5=m7_stress_s5_20260304T212520Z`,
+   - `M6.S5=m6_stress_s5_20260304T204909Z`.
+2. First `S2` execution id:
+   - `m8_stress_s2_20260304T230926Z`.
+3. Outcome:
+   - fail-closed `overall_pass=false`, `next_gate=BLOCKED`.
+
+### Root-cause blockers
+1. `M8-ST-B4`:
+   - component runner `m8d_single_writer_probe.py` failed on import path:
+   - `ModuleNotFoundError: No module named 'fraud_detection'`.
+2. Parent runner defect:
+   - `finish()` artifact-contract handling was recursively self-calling, causing recursion failure in error paths.
+3. Cascading artifacts:
+   - expected `S2` component snapshots were absent because `M8.D` did not execute successfully.
+
+### Remediation decision
+1. Keep fail-closed posture.
+2. Implement targeted runner fixes only:
+   - patch `finish()` to single-pass finalization (no recursion),
+   - inject `PYTHONPATH=src` for child `m8d/m8e` subprocesses,
+   - avoid false runtime-locality blocker when runtime lane was skipped due pre-runtime blockers.
+3. Rerun `S2` immediately after patch under same strict upstreams.
+
+### Governance
+1. No commit/push/branch operation.
+
+## Entry: 2026-03-04 23:11 +00:00 - M8-ST-S2 remediation rerun passed green
+
+### Execution
+1. Reran parent `S2` after targeted remediation with same strict upstream pins.
+2. Rerun execution id:
+   - `m8_stress_s2_20260304T231018Z`.
+3. Outcome:
+   - `overall_pass=true`, `open_blocker_count=0`,
+   - `next_gate=M8_ST_S3_READY`, `verdict=GO`.
+
+### Evidence
+1. Parent S2 evidence root:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m8_stress_s2_20260304T231018Z/stress/`.
+2. Component lane execution ids carried in parent summary:
+   - `m8d_execution_id=m8d_stress_s2_20260304T231020Z`,
+   - `m8e_execution_id=m8e_stress_s2_20260304T231033Z`.
+3. Managed runtime proof from `m8e_reporter_execution_snapshot.json`:
+   - one-shot EKS job succeeded,
+   - lock acquire/release lifecycle observed,
+   - required closure artifacts in object store readable.
+
+### Documentation sync
+1. `platform.M8.stress_test.md` updated:
+   - posture `S2_GREEN`,
+   - `S2` DoD marked complete,
+   - next action moved to `S3`,
+   - execution progress includes blocker remediation + green closure.
+2. `platform.stress_test.md` updated:
+   - M8 status `IN_PROGRESS (S2_GREEN)`,
+   - next step set to `M8-ST-S3`.
+
+### Governance
+1. No commit/push/branch operation.
