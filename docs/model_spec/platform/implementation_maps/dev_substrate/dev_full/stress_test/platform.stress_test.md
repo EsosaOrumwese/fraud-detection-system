@@ -583,4 +583,4 @@ Authority routing:
    - lane `A1`: injected realism pressure (duplicate/replay, out-of-order, hotkey, rare-path),
    - lane `A2`: case/label pressure window (remove low observed-volume reliance),
    - lane `A3`: direct service-path p50/p95/p99 + retry/error/lag evidence,
-   - lane `A4`: mapped spend attribution with no unexplained spend.
+   - lane `A4`: real CE-backed spend attribution (`aws_ce_daily_unblended_v1`) with no unexplained spend.

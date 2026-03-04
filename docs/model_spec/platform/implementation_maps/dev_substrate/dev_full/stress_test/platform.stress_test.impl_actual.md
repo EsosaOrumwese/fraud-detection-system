@@ -8094,3 +8094,34 @@ ext_gate=M8_READY, open_blockers=0.
 
 ### Commit posture
 1. No commit/push performed.
+## Entry: 2026-03-04 15:15 +00:00 - Plan: align M7 addendum A4 with M6 A4R real attribution posture
+
+### Trigger
+1. USER requested the M6 A4R cost-attribution posture to be applied to M7 addendum.
+
+### Gap
+1. M7 addendum `A4` language still says mapped attribution and does not explicitly require CE-backed real billing evidence.
+
+### Planned updates
+1. Update `platform.M7.stress_test.md` addendum sections (`Purpose`, lane `A4`, packet, blocker mapping note, DoD, and execution wording) to require real CE-backed attribution.
+2. Update cross-plan summary text in `platform.stress_test.md` where M7 addendum lane `A4` is described.
+3. Keep implementation fail-closed posture: missing CE attribution -> `M7-ADD-B5`.
+
+### Commit posture
+1. No commit/push performed.
+## Entry: 2026-03-04 15:17 +00:00 - M7 addendum A4 upgraded to real CE-backed attribution posture
+
+### Changes applied
+1. Updated `platform.M7.stress_test.md` addendum to align lane `A4` with M6 A4R:
+   - purpose/next-action wording now references real CE-backed cost attribution,
+   - lane acceptance now requires `method=aws_ce_daily_unblended_v1`, `mapping_complete=true`, and no unexplained spend,
+   - pinned packet now includes explicit cost-attribution controls (method, real-billing requirement, billing region, min attribution window),
+   - blocker `M7-ADD-B5` now explicitly covers CE query missing/invalid attribution.
+2. Updated `platform.stress_test.md` M7 routing summary lane `A4` text to real CE-backed posture.
+
+### Rationale
+1. Keep M7 addendum consistent with the production-readiness cost discipline already enforced in M6 A4R.
+2. Prevent false-green closure from mapped-only synthetic receipts.
+
+### Commit posture
+1. No commit/push performed.
