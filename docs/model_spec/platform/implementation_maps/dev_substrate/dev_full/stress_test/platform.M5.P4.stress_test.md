@@ -2,7 +2,7 @@
 _Parent authority: `platform.M5.stress_test.md`_
 _Status source of truth: `platform.stress_test.md`_
 _Track: `dev_full` only_
-_As of 2026-03-03_
+_As of 2026-03-04_
 
 ## 0) Purpose
 M5.P4 stress validates ingress boundary, auth, topic readiness, and envelope controls before M6.
@@ -120,87 +120,268 @@ Registry-backed required handles for M5.P4:
 Objective:
 1. validate M5.P4 can run with complete authority and valid P3 verdict dependency.
 
-Actions:
-1. validate required M5.P4 handles and placeholder guards.
-2. validate latest successful P3 summary:
+Entry criteria:
+1. latest successful P3 closure summary/register are readable from run-control evidence.
+2. no unresolved planning decision exists for required handle packet in section `4`.
+
+Required inputs:
+1. latest successful P3 execution summary and blocker register.
+2. required handle set from section `4`.
+3. M5 parent and M5.P4 authority docs listed in section `1`.
+4. evidence bucket/root handles for publish-readback contract.
+
+Execution steps:
+1. resolve latest successful P3 stage and load summary + blocker register.
+2. enforce P3 dependency contract:
    - `overall_pass=true`,
    - `verdict=ADVANCE_TO_P4`,
-   - no open non-waived `M5P3-B*`.
-3. emit Stage-A findings + lane matrix + blocker register.
+   - `open_blocker_count=0`.
+3. validate required M5.P4 handles are present and not placeholder (`TO_PIN`, empty, null-like values).
+4. validate authority files are present/readable.
+5. execute bounded evidence publish/readback probe.
+6. emit Stage-A findings, lane matrix, blocker register, execution summary, and decision log.
+
+Fail-closed blocker mapping:
+1. `M5P4-B1`: missing/inconsistent required handles.
+2. `M5P4-B9`: dependency transition invalid (P3 verdict/register mismatch).
+3. `M5P4-B8`: evidence publish/readback failure.
+
+Runtime/cost budget:
+1. max runtime: `10` minutes.
+2. max spend: `$2` (control-plane reads + single evidence probe).
+
+Targeted rerun policy:
+1. rerun `S0` only when failure is authority/handle/evidence scoped.
+2. do not proceed to `S1` until all `S0` blockers are closed.
 
 Pass gate:
 1. required handles complete/non-placeholder.
 2. P3 dependency verdict is valid/readable and blocker-free.
 3. full P4 S0 artifact set exists/readable.
+4. `next_gate=M5P4_ST_S1_READY`.
 
 ### 7.2 `M5P4-ST-S1` - IG boundary health preflight
 Objective:
 1. validate ingest and ops boundary health posture.
 
-Actions:
-1. run health and ingest preflight probes with expected response contracts.
-2. validate response status and required minimal fields.
-3. emit boundary health snapshot and blocker register.
+Entry criteria:
+1. latest successful `S0` summary is readable with `next_gate=M5P4_ST_S1_READY`.
+2. API key retrieval path (`SSM_IG_API_KEY_PATH`) is present in handle packet.
+
+Required inputs:
+1. IG endpoint handles (`IG_BASE_URL`, `IG_HEALTHCHECK_PATH`, `IG_INGEST_PATH`).
+2. auth header handles (`IG_AUTH_MODE`, `IG_AUTH_HEADER_NAME`, `SSM_IG_API_KEY_PATH`).
+3. `S0` execution summary/register for dependency continuity.
+
+Execution steps:
+1. load `S0` summary/register and enforce zero-blocker dependency continuity.
+2. retrieve IG API key from SSM using secret-safe posture (never persist plaintext).
+3. execute health probe (`GET`) and ingest preflight probe (`POST`) with required auth header.
+4. validate status codes and minimal response fields:
+   - health: `200` with required health fields,
+   - ingest preflight: `202` with required admission fields.
+5. write boundary health snapshot and full stage artifact set.
+
+Fail-closed blocker mapping:
+1. `M5P4-B2`: boundary probe failure or contract mismatch.
+2. `M5P4-B1`: endpoint/handle inconsistency.
+3. `M5P4-B8`: evidence contract publish/readback failure.
+
+Runtime/cost budget:
+1. max runtime: `15` minutes.
+2. max spend: `$4`.
+3. bounded probe envelope: health + ingest + evidence checks only.
+
+Targeted rerun policy:
+1. rerun `S1` for transient endpoint/network issues after immediate remediation.
+2. reopen `S0` only when `S1` reveals handle/authority drift.
 
 Pass gate:
 1. ops and ingest probes meet expected pass criteria.
 2. response contract validation is blocker-free.
+3. `next_gate=M5P4_ST_S2_READY`.
 
 ### 7.3 `M5P4-ST-S2` - Boundary auth enforcement
 Objective:
 1. validate auth enforcement behavior for protected ingress routes.
 
-Actions:
-1. execute valid-key positive probes on protected routes.
-2. execute missing-key and invalid-key negative probes.
-3. require deterministic status outcomes and emit auth matrix snapshot.
+Entry criteria:
+1. latest successful `S1` summary is readable with `next_gate=M5P4_ST_S2_READY`.
+2. auth handles and API key retrieval path are present/readable.
+
+Required inputs:
+1. same boundary endpoint/auth handles used in `S1`.
+2. `S1` execution summary/register for dependency continuity.
+3. expected auth matrix contract (positive, missing-key, invalid-key outcomes).
+
+Execution steps:
+1. load `S1` summary/register and enforce dependency continuity.
+2. retrieve valid API key via SSM secret-safe lane.
+3. execute auth matrix:
+   - positive probes with valid key,
+   - negative probes with missing key,
+   - negative probes with invalid key.
+4. enforce deterministic outcome contract:
+   - positive path: `200`/`202`,
+   - negative path: `401` with stable unauthorized surface.
+5. emit auth enforcement snapshot, blocker register, and execution summary.
+
+Fail-closed blocker mapping:
+1. `M5P4-B3`: auth bypass/regression or unexpected status contract.
+2. `M5P4-B2`: boundary route unavailability during matrix execution.
+3. `M5P4-B8`: evidence contract incompleteness/readback failure.
+
+Runtime/cost budget:
+1. max runtime: `20` minutes.
+2. max spend: `$5`.
+3. bounded probe envelope: auth matrix only (no broad load window in this state).
+
+Targeted rerun policy:
+1. rerun `S2` for auth-only defects after remediation.
+2. reopen `S1` only if endpoint health parity is contradicted by matrix results.
 
 Pass gate:
 1. positive and negative auth probes are contract-consistent.
 2. no auth enforcement drift or bypass signal exists.
+3. `next_gate=M5P4_ST_S3_READY`.
 
 ### 7.4 `M5P4-ST-S3` - MSK topic readiness
 Objective:
 1. validate required MSK topic readiness and reachability posture.
 
-Actions:
-1. validate MSK handle parity against live runtime outputs.
-2. execute topic readiness probe in correct network/auth posture.
-3. emit topic readiness snapshot and blocker register.
+Entry criteria:
+1. latest successful `S2` summary is readable with `next_gate=M5P4_ST_S3_READY`.
+2. MSK handles (`cluster arn`, `bootstrap brokers`, `subnets`, `security group`) are present.
+
+Required inputs:
+1. MSK handles from section `4`.
+2. latest runtime readbacks (`terraform output` and AWS control-plane state).
+3. required P4 topic set and partition map contract.
+4. authorized in-VPC probe role posture for list/create checks.
+
+Execution steps:
+1. load `S2` summary/register and enforce dependency continuity.
+2. validate MSK handle parity against live runtime outputs.
+3. validate cluster state is `ACTIVE` and bootstrap readback matches pinned handle.
+4. execute in-VPC topic readiness probe:
+   - list required topics,
+   - when missing topics are found, run controlled create-and-relist lane (authorized role only),
+   - re-evaluate readiness until closure or fail-closed blocker.
+5. emit topic readiness snapshot with explicit ready/missing topic sets and blocker status.
+
+Fail-closed blocker mapping:
+1. `M5P4-B1`: MSK handle drift/inconsistency.
+2. `M5P4-B4`: topic readiness, reachability, or authorization failure.
+3. `M5P4-B9`: dependency transition violation from `S2`.
+4. `M5P4-B8`: evidence contract incompleteness/readback failure.
+
+Runtime/cost budget:
+1. max runtime: `60` minutes.
+2. max spend: `$15`.
+3. probe posture: single bounded active-lane readiness probe + optional controlled create-and-relist remediation.
+
+Targeted rerun policy:
+1. rerun `S3` only for topic/authorization/network readiness defects.
+2. do not rerun `S1/S2` unless `S3` detects upstream handle or auth drift.
 
 Pass gate:
 1. required topics are ready/reachable.
 2. no unresolved MSK handle or readiness blockers remain.
+3. `next_gate=M5P4_ST_S4_READY`.
 
 ### 7.5 `M5P4-ST-S4` - Ingress envelope conformance
 Objective:
 1. validate envelope controls are pinned and behaviorally enforced.
 
-Actions:
-1. validate envelope handles and runtime materialization parity.
-2. run bounded behavior probes (normal and oversized payloads).
-3. emit envelope conformance snapshot and blocker register.
+Entry criteria:
+1. latest successful `S3` summary is readable with `next_gate=M5P4_ST_S4_READY`.
+2. ingress envelope handles are present and non-placeholder.
+
+Required inputs:
+1. envelope control handles:
+   - request size/timeout/retry/idempotency handles,
+   - DLQ and replay handles,
+   - rate-limit handles.
+2. runtime materialization surfaces:
+   - Lambda env,
+   - API stage + integration settings,
+   - DDB TTL posture,
+   - DLQ queue resolution.
+3. `S3` execution summary/register for dependency continuity.
+
+Execution steps:
+1. load `S3` summary/register and enforce dependency continuity.
+2. validate envelope handles are complete/non-placeholder.
+3. validate runtime materialization parity against pinned handles.
+4. run bounded behavior probes:
+   - normal ingest expects `202`,
+   - oversize payload expects `413 payload_too_large`.
+5. emit envelope conformance snapshot and full stage artifacts.
+
+Fail-closed blocker mapping:
+1. `M5P4-B5`: envelope handle/runtime/behavior mismatch.
+2. `M5P4-B2`: ingest/health probe execution failure in conformance lane.
+3. `M5P4-B8`: evidence contract incompleteness/readback failure.
+
+Runtime/cost budget:
+1. max runtime: `25` minutes.
+2. max spend: `$6`.
+3. probe posture: bounded control checks + two behavior probes only.
+
+Targeted rerun policy:
+1. rerun `S4` for envelope/runtime conformance defects after remediation.
+2. reopen `S3` only when conformance failure is caused by upstream topic/runtime drift.
 
 Pass gate:
 1. envelope handles and runtime surfaces are aligned.
 2. behavior probes match expected contract.
+3. `next_gate=M5P4_ST_S5_READY`.
 
 ### 7.6 `M5P4-ST-S5` - P4 rollup and deterministic verdict
 Objective:
 1. emit deterministic P4 verdict and M6 handoff recommendation.
 
-Actions:
-1. aggregate S1..S4 artifacts and blocker registers.
-2. enforce blocker-consistent verdict rule.
-3. emit verdict:
-   - `ADVANCE_TO_M6` only when blocker-free,
+Entry criteria:
+1. latest successful `S4` summary is readable with `next_gate=M5P4_ST_S5_READY`.
+2. successful summaries/registers for `S1..S4` are available/readable.
+
+Required inputs:
+1. `S1..S4` execution summaries.
+2. `S1..S4` blocker registers.
+3. required artifact lists for each contributing stage.
+4. verdict rule handles from section `4` (`expected verdict`, `handoff pack required`).
+
+Execution steps:
+1. load `S4` summary/register and enforce dependency continuity.
+2. aggregate latest successful `S1..S4` summaries/registers.
+3. verify artifact completeness/readability across contributing stages.
+4. build rollup matrix and deterministic gate verdict:
+   - `ADVANCE_TO_M6` only when no open non-waived `M5P4-B*`,
    - otherwise `HOLD_REMEDIATE` or `NO_GO_RESET_REQUIRED`.
-4. require `m6_handoff_pack` reference/readability on pass.
+5. generate `m6_handoff_pack` and validate readback on pass.
+6. emit rollup artifacts, blocker register, execution summary, and decision log.
+
+Fail-closed blocker mapping:
+1. `M5P4-B6`: rollup/register inconsistency.
+2. `M5P4-B7`: deterministic verdict construction failure.
+3. `M5P4-B10`: handoff pack missing/invalid/unreadable.
+4. `M5P4-B9`: invalid advance verdict while blockers remain open.
+5. `M5P4-B8`: evidence contract incompleteness/readback failure.
+
+Runtime/cost budget:
+1. max runtime: `10` minutes.
+2. max spend: `$2`.
+3. read-mostly rollup lane; no broad runtime mutation allowed.
+
+Targeted rerun policy:
+1. rerun `S5` for rollup-only defects.
+2. rerun only the specific upstream state that fails artifact/blocker consistency checks; do not rerun full P4 blindly.
 
 Pass gate:
 1. no open non-waived `M5P4-B*` blockers.
 2. verdict equals `ADVANCE_TO_M6`.
 3. M6 handoff pack reference is present/readable.
+4. `next_gate=ADVANCE_TO_M6`.
 
 ## 8) Blocker Taxonomy (M5.P4)
 1. `M5P4-B1`: boundary endpoint handles missing/inconsistent.
@@ -233,12 +414,12 @@ Required artifacts for each M5.P4 stage:
 - [x] P4 staged runbook (`S0..S5`) pinned with fail-closed transitions.
 - [x] P4 blocker taxonomy and evidence contract pinned.
 - [x] M5.P4 S0 executed with blocker-free entry closure.
-- [ ] P4 verdict `ADVANCE_TO_M6` emitted from blocker-free rollup.
+- [x] P4 verdict `ADVANCE_TO_M6` emitted from blocker-free rollup.
 
 ## 11) Immediate Next Actions
-1. Execute `M5P4-ST-S5` P4 rollup and deterministic verdict.
-2. Keep rollup closure as independent fail-closed stage with targeted reruns only.
-3. Do not emit `ADVANCE_TO_M6` unless all `M5P4-B*` blockers remain closed across `S1..S4`.
+1. Hand off to parent orchestration `M5-ST-S1` with latest P4 closure receipt.
+2. Keep targeted-rerun posture for `M5.P4` (rerun only failed stage windows if new blockers open).
+3. Preserve `ADVANCE_TO_M6` as fail-closed: reopen only if any `M5P4-B*` blocker reappears.
 
 ## 12) Execution Progress
 ### `M5P4-ST-S0` authority/entry-gate closure execution (2026-03-03)
@@ -392,7 +573,38 @@ Required artifacts for each M5.P4 stage:
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s4_20260304T003732Z/stress/m5p4_probe_latency_throughput_snapshot.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s4_20260304T003732Z/stress/m5p4_control_rail_conformance_snapshot.json`
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s4_20260304T003732Z/stress/m5p4_secret_safety_snapshot.json`
-   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s4_20260304T003732Z/stress/m5p4_cost_outcome_receipt.json`
-   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s4_20260304T003732Z/stress/m5p4_blocker_register.json`
-   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s4_20260304T003732Z/stress/m5p4_execution_summary.json`
-   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s4_20260304T003732Z/stress/m5p4_decision_log.json`
+    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s4_20260304T003732Z/stress/m5p4_cost_outcome_receipt.json`
+    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s4_20260304T003732Z/stress/m5p4_blocker_register.json`
+    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s4_20260304T003732Z/stress/m5p4_execution_summary.json`
+    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s4_20260304T003732Z/stress/m5p4_decision_log.json`
+
+### `M5P4-ST-S5` rollup and deterministic verdict execution (2026-03-04)
+1. Phase execution id: `m5p4_stress_s5_20260304T004218Z`.
+2. Runner:
+   - `python scripts/dev_substrate/m5p4_stress_runner.py --stage S5`
+3. Verification summary:
+   - S4 dependency loaded (`m5p4_stress_s4_20260304T003732Z`) and blocker-free.
+   - rollup matrix aggregated latest successful `S1..S4` summaries and blocker registers.
+   - required stage artifacts for `S1..S4` were readable/complete.
+   - deterministic verdict rule applied blocker-consistently.
+   - `m6_handoff_pack` was generated and readable.
+4. Verdict:
+   - `overall_pass=true`,
+   - `verdict=ADVANCE_TO_M6`,
+   - `next_gate=ADVANCE_TO_M6`,
+   - `open_blockers=0`,
+   - `probe_count=1`,
+   - `error_rate_pct=0.0`.
+5. Artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s5_20260304T004218Z/stress/m5p4_stagea_findings.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s5_20260304T004218Z/stress/m5p4_lane_matrix.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s5_20260304T004218Z/stress/m5p4_rollup_matrix.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s5_20260304T004218Z/stress/m5p4_gate_verdict.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s5_20260304T004218Z/stress/m6_handoff_pack.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s5_20260304T004218Z/stress/m5p4_probe_latency_throughput_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s5_20260304T004218Z/stress/m5p4_control_rail_conformance_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s5_20260304T004218Z/stress/m5p4_secret_safety_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s5_20260304T004218Z/stress/m5p4_cost_outcome_receipt.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s5_20260304T004218Z/stress/m5p4_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s5_20260304T004218Z/stress/m5p4_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s5_20260304T004218Z/stress/m5p4_decision_log.json`

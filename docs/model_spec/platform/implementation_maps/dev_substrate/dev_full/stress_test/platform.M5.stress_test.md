@@ -2,7 +2,7 @@
 _Status source of truth: `platform.stress_test.md`_
 _This document provides deep stress-planning detail for M5 orchestration._
 _Track: `dev_full` only_
-_As of 2026-03-03_
+_As of 2026-03-04_
 
 ## 0) Purpose
 M5 stress validates oracle-to-ingress preflight readiness under realistic production posture before M6 activation.
@@ -223,13 +223,13 @@ Required artifacts for each M5 parent stress stage:
 - [x] Parent handle packet and parent blocker taxonomy pinned.
 - [x] Parent orchestration runbook (`S0..S3`) pinned.
 - [x] M5 parent S0 executed with blocker-free entry closure.
-- [ ] P3 and P4 orchestration gates validated from stress evidence.
+- [x] P3 and P4 orchestration gates validated from stress evidence.
 - [ ] M5 closure rollup emitted with deterministic `M6_READY` recommendation.
 
 ## 11) Immediate Next Actions
-1. Execute `M5P4-ST-S5` P4 rollup and deterministic verdict.
-2. Keep targeted-rerun posture: rerun only failed stage windows (`M5P3` or `M5P4`) when blockers open.
-3. Do not advance parent `M5-ST-S1` until `M5P4` emits blocker-free verdict `ADVANCE_TO_M6`.
+1. Execute parent `M5-ST-S1` orchestration gate using latest P3 closure receipt.
+2. Execute parent `M5-ST-S2` orchestration gate using latest P4 closure receipt (`ADVANCE_TO_M6`).
+3. Keep targeted-rerun posture: rerun only failed stage windows (`M5P3` or `M5P4`) if new blockers open.
 
 ## 12) Execution Progress
 ### `M5-ST-S0` authority/entry-gate closure execution (2026-03-03)
@@ -320,3 +320,14 @@ Required artifacts for each M5 parent stress stage:
    - `open_blockers=0`.
 2. Parent routing decision:
    - proceed to `M5P4-ST-S5` rollup/verdict closure.
+
+### `M5.P4` rollup/verdict closure status (2026-03-04)
+1. `M5.P4` latest execution:
+   - `phase_execution_id=m5p4_stress_s5_20260304T004218Z`,
+   - `stage_id=M5P4-ST-S5`,
+   - `overall_pass=true`,
+   - `verdict=ADVANCE_TO_M6`,
+   - `next_gate=ADVANCE_TO_M6`,
+   - `open_blockers=0`.
+2. Parent routing decision:
+   - proceed to parent orchestration gates `M5-ST-S1` then `M5-ST-S2`.

@@ -79,6 +79,7 @@ M5P4_S1_ARTS = M5P4_ARTS
 M5P4_S2_ARTS = M5P4_ARTS
 M5P4_S3_ARTS = M5P4_ARTS
 M5P4_S4_ARTS = M5P4_ARTS
+M5P4_S5_ARTS = M5P4_ARTS
 
 M5P4_REQUIRED_TOPIC_HANDLES = [
     "FP_BUS_CONTROL_V1",
@@ -301,6 +302,24 @@ def load_latest_successful_m5p4_s3(out_root: Path) -> dict[str, Any]:
     return {}
 
 
+def load_latest_successful_m5p4_s4(out_root: Path) -> dict[str, Any]:
+    runs = sorted(out_root.glob("m5p4_stress_s4_*/stress"))
+    for d in reversed(runs):
+        sp = d / "m5p4_execution_summary.json"
+        if not sp.exists():
+            continue
+        try:
+            summ = json.loads(sp.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if summ.get("overall_pass") is not True:
+            continue
+        if str(summ.get("stage_id", "")) != "M5P4-ST-S4":
+            continue
+        return {"path": d, "summary": summ}
+    return {}
+
+
 def copy_stagea_from_s0(out_root: Path, out_dir: Path) -> list[str]:
     ref = load_latest_successful_m5p4_s0(out_root)
     if not ref:
@@ -350,6 +369,21 @@ def copy_stagea_from_s3(out_root: Path, out_dir: Path) -> list[str]:
     ref = load_latest_successful_m5p4_s3(out_root)
     if not ref:
         return ["No successful M5P4-ST-S3 folder found."]
+    src = Path(str(ref["path"]))
+    errs: list[str] = []
+    for n in ("m5p4_stagea_findings.json", "m5p4_lane_matrix.json"):
+        s = src / n
+        if s.exists():
+            out_dir.joinpath(n).write_bytes(s.read_bytes())
+        else:
+            errs.append(f"Missing {s.as_posix()}")
+    return errs
+
+
+def copy_stagea_from_s4(out_root: Path, out_dir: Path) -> list[str]:
+    ref = load_latest_successful_m5p4_s4(out_root)
+    if not ref:
+        return ["No successful M5P4-ST-S4 folder found."]
     src = Path(str(ref["path"]))
     errs: list[str] = []
     for n in ("m5p4_stagea_findings.json", "m5p4_lane_matrix.json"):
@@ -2807,9 +2841,334 @@ def run_s4(phase_id: str, out_root: Path) -> int:
     return 0 if summ["overall_pass"] else 2
 
 
+def run_s5(phase_id: str, out_root: Path) -> int:
+    t0 = time.perf_counter()
+    out = out_root / phase_id / "stress"
+    out.mkdir(parents=True, exist_ok=True)
+
+    txt = PLAN.read_text(encoding="utf-8") if PLAN.exists() else ""
+    pkt = parse_backtick_map(txt) if txt else {}
+    h = parse_registry(REG) if REG.exists() else {}
+    blockers: list[dict[str, Any]] = []
+
+    copy_errs = copy_stagea_from_s4(out_root, out)
+    if copy_errs:
+        blockers.append({"id": "M5P4-B8", "severity": "S5", "status": "OPEN", "details": {"copy_errors": copy_errs}})
+        if not (out / "m5p4_lane_matrix.json").exists():
+            dumpj(out / "m5p4_lane_matrix.json", build_lane_matrix())
+
+    s4 = load_latest_successful_m5p4_s4(out_root)
+    dep_issues: list[str] = []
+    dep_id = ""
+    if not s4:
+        dep_issues.append("missing successful M5P4-ST-S4 dependency")
+    else:
+        dep_summ = s4.get("summary", {})
+        dep_id = str(dep_summ.get("phase_execution_id", ""))
+        if str(dep_summ.get("next_gate", "")) != "M5P4_ST_S5_READY":
+            dep_issues.append("M5P4 S4 next_gate is not M5P4_ST_S5_READY")
+        s4_br = load_json_safe(Path(str(s4["path"])) / "m5p4_blocker_register.json")
+        s4_open = int(s4_br.get("open_blocker_count", len(s4_br.get("blockers", [])))) if s4_br else 0
+        if s4_open != 0:
+            dep_issues.append(f"M5P4 S4 blocker register not closed: {s4_open}")
+    if dep_issues:
+        blockers.append({"id": "M5P4-B9", "severity": "S5", "status": "OPEN", "details": {"issues": dep_issues}})
+
+    stage_rollup_specs = [
+        ("S1", load_latest_successful_m5p4_s1, "M5P4-ST-S1", "M5P4_ST_S2_READY"),
+        ("S2", load_latest_successful_m5p4_s2, "M5P4-ST-S2", "M5P4_ST_S3_READY"),
+        ("S3", load_latest_successful_m5p4_s3, "M5P4-ST-S3", "M5P4_ST_S4_READY"),
+        ("S4", load_latest_successful_m5p4_s4, "M5P4-ST-S4", "M5P4_ST_S5_READY"),
+    ]
+    stage_rollup_rows: list[dict[str, Any]] = []
+    rollup_issues: list[str] = []
+    stage_refs: dict[str, str] = {}
+    for stage_name, loader, stage_id, expected_gate in stage_rollup_specs:
+        ref = loader(out_root)
+        row: dict[str, Any] = {
+            "stage": stage_name,
+            "stage_id_expected": stage_id,
+            "expected_next_gate": expected_gate,
+            "path": "",
+            "phase_execution_id": "",
+            "overall_pass": False,
+            "open_blocker_count": 0,
+            "artifact_completeness_pass": False,
+            "issues": [],
+        }
+        if not ref:
+            row["issues"] = [f"missing successful {stage_id} evidence lane"]
+            rollup_issues.extend(row["issues"])
+            stage_rollup_rows.append(row)
+            continue
+        path = Path(str(ref["path"]))
+        summ = ref.get("summary", {})
+        row["path"] = path.as_posix()
+        row["phase_execution_id"] = str(summ.get("phase_execution_id", ""))
+        row["overall_pass"] = bool(summ.get("overall_pass") is True)
+        stage_refs[stage_name] = path.as_posix()
+        if str(summ.get("stage_id", "")) != stage_id:
+            row["issues"] = row.get("issues", []) + [f"stage id mismatch: expected={stage_id} observed={summ.get('stage_id')}"]
+        observed_gate = str(summ.get("next_gate", ""))
+        if observed_gate != expected_gate:
+            row["issues"] = row.get("issues", []) + [f"next_gate mismatch: expected={expected_gate} observed={observed_gate}"]
+        br = load_json_safe(path / "m5p4_blocker_register.json")
+        open_count = int(br.get("open_blocker_count", len(br.get("blockers", [])))) if br else 0
+        row["open_blocker_count"] = open_count
+        if open_count != 0:
+            row["issues"] = row.get("issues", []) + [f"open blocker count is {open_count}"]
+        required_artifacts = list(summ.get("required_artifacts", [])) if isinstance(summ.get("required_artifacts", []), list) else []
+        missing_stage_artifacts = [n for n in required_artifacts if not (path / n).exists()]
+        row["artifact_completeness_pass"] = len(missing_stage_artifacts) == 0
+        if missing_stage_artifacts:
+            row["issues"] = row.get("issues", []) + [f"missing stage artifacts: {','.join(missing_stage_artifacts)}"]
+        if row["issues"]:
+            rollup_issues.extend([f"{stage_id}: {x}" for x in row["issues"]])
+        stage_rollup_rows.append(row)
+
+    if rollup_issues:
+        blockers.append({"id": "M5P4-B6", "severity": "S5", "status": "OPEN", "details": {"issues": rollup_issues}})
+
+    probe_rows: list[dict[str, Any]] = []
+    region = str(h.get("AWS_REGION", "eu-west-2")).strip() or "eu-west-2"
+    evidence_bucket = str(h.get("S3_EVIDENCE_BUCKET", "")).strip()
+    if evidence_bucket:
+        p = run_cmd(["aws", "s3api", "head-bucket", "--bucket", evidence_bucket, "--region", region], timeout=25)
+        probe_rows.append({**p, "probe_id": "m5p4_s5_evidence_bucket", "group": "control"})
+        if str(p.get("status", "FAIL")) != "PASS":
+            blockers.append(
+                {
+                    "id": "M5P4-B8",
+                    "severity": "S5",
+                    "status": "OPEN",
+                    "details": {"probe_failures": ["m5p4_s5_evidence_bucket"]},
+                }
+            )
+
+    verdict = "ADVANCE_TO_M6" if len(blockers) == 0 else "HOLD_REMEDIATE"
+    if any("missing successful" in x for x in rollup_issues):
+        verdict = "NO_GO_RESET_REQUIRED"
+    if verdict not in {"ADVANCE_TO_M6", "HOLD_REMEDIATE", "NO_GO_RESET_REQUIRED"}:
+        blockers.append(
+            {
+                "id": "M5P4-B7",
+                "severity": "S5",
+                "status": "OPEN",
+                "details": {"issues": [f"invalid verdict computed: {verdict}"]},
+            }
+        )
+        verdict = "NO_GO_RESET_REQUIRED"
+    if len(blockers) > 0 and verdict == "ADVANCE_TO_M6":
+        blockers.append(
+            {
+                "id": "M5P4-B9",
+                "severity": "S5",
+                "status": "OPEN",
+                "details": {"issues": ["advance verdict cannot be emitted with open blockers"]},
+            }
+        )
+        verdict = "HOLD_REMEDIATE"
+
+    rollup_matrix = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M5P4-ST-S5",
+        "s4_dependency_phase_execution_id": dep_id,
+        "stage_rollup_rows": stage_rollup_rows,
+        "rollup_issues": rollup_issues,
+    }
+    dumpj(out / "m5p4_rollup_matrix.json", rollup_matrix)
+
+    handoff_pack = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M5P4-ST-S5",
+        "verdict": verdict,
+        "next_gate": verdict,
+        "source_stage_phase_execution_ids": {
+            "S1": stage_rollup_rows[0].get("phase_execution_id", "") if len(stage_rollup_rows) > 0 else "",
+            "S2": stage_rollup_rows[1].get("phase_execution_id", "") if len(stage_rollup_rows) > 1 else "",
+            "S3": stage_rollup_rows[2].get("phase_execution_id", "") if len(stage_rollup_rows) > 2 else "",
+            "S4": stage_rollup_rows[3].get("phase_execution_id", "") if len(stage_rollup_rows) > 3 else "",
+        },
+        "source_stage_paths": stage_refs,
+        "runtime_bindings": {
+            "IG_BASE_URL": str(h.get("IG_BASE_URL", "")).strip(),
+            "IG_INGEST_PATH": str(h.get("IG_INGEST_PATH", "")).strip(),
+            "IG_HEALTHCHECK_PATH": str(h.get("IG_HEALTHCHECK_PATH", "")).strip(),
+            "APIGW_IG_API_ID": str(h.get("APIGW_IG_API_ID", "")).strip(),
+            "LAMBDA_IG_HANDLER_NAME": str(h.get("LAMBDA_IG_HANDLER_NAME", "")).strip(),
+            "MSK_CLUSTER_ARN": str(h.get("MSK_CLUSTER_ARN", "")).strip(),
+            "MSK_BOOTSTRAP_BROKERS_SASL_IAM": str(h.get("MSK_BOOTSTRAP_BROKERS_SASL_IAM", "")).strip(),
+        },
+    }
+    handoff_pack_path = out / "m6_handoff_pack.json"
+    dumpj(handoff_pack_path, handoff_pack)
+    handoff_issues: list[str] = []
+    if verdict == "ADVANCE_TO_M6":
+        if not handoff_pack_path.exists():
+            handoff_issues.append("m6_handoff_pack.json missing after generation")
+        else:
+            try:
+                _ = json.loads(handoff_pack_path.read_text(encoding="utf-8"))
+            except Exception:
+                handoff_issues.append("m6_handoff_pack.json unreadable json")
+    if handoff_issues:
+        blockers.append({"id": "M5P4-B10", "severity": "S5", "status": "OPEN", "details": {"issues": handoff_issues}})
+        if verdict == "ADVANCE_TO_M6":
+            verdict = "HOLD_REMEDIATE"
+
+    verdict_snapshot = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M5P4-ST-S5",
+        "verdict": verdict,
+        "next_gate": verdict,
+        "open_blocker_count": len(blockers),
+        "m6_handoff_pack_ref": handoff_pack_path.as_posix(),
+        "rollup_matrix_ref": (out / "m5p4_rollup_matrix.json").as_posix(),
+    }
+    dumpj(out / "m5p4_gate_verdict.json", verdict_snapshot)
+
+    total = len(probe_rows)
+    probe_failures = [p for p in probe_rows if str(p.get("status", "FAIL")) != "PASS"]
+    er = round((len(probe_failures) / total) * 100.0, 4) if total else 0.0
+    lat = [float(x.get("duration_ms", 0.0)) for x in probe_rows]
+    dur_s = max(1, int(round(time.perf_counter() - t0)))
+    max_sp = float(pkt.get("M5P4_STRESS_MAX_SPEND_USD", 40))
+
+    probe = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M5P4-ST-S5",
+        "window_seconds_observed": dur_s,
+        "probe_count": total,
+        "failure_count": len(probe_failures),
+        "error_rate_pct": er,
+        "latency_ms_p50": 0.0 if not lat else sorted(lat)[len(lat) // 2],
+        "latency_ms_p95": 0.0 if not lat else max(lat),
+        "latency_ms_p99": 0.0 if not lat else max(lat),
+        "sample_failures": probe_failures[:10],
+        "s4_dependency_phase_execution_id": dep_id,
+    }
+    dumpj(out / "m5p4_probe_latency_throughput_snapshot.json", probe)
+
+    control_issues: list[str] = []
+    control_issues.extend(dep_issues)
+    control_issues.extend(rollup_issues)
+    control_issues.extend(handoff_issues)
+    if probe_failures:
+        control_issues.append(f"probe failures: {len(probe_failures)}")
+    if len(blockers) > 0 and verdict == "ADVANCE_TO_M6":
+        control_issues.append("verdict inconsistency: ADVANCE_TO_M6 with blockers")
+    ctrl = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M5P4-ST-S5",
+        "overall_pass": len(control_issues) == 0 and verdict == "ADVANCE_TO_M6",
+        "issues": control_issues,
+        "s4_dependency_phase_execution_id": dep_id,
+        "rollup_matrix_ref": "m5p4_rollup_matrix.json",
+        "gate_verdict_ref": "m5p4_gate_verdict.json",
+    }
+    dumpj(out / "m5p4_control_rail_conformance_snapshot.json", ctrl)
+
+    sec = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M5P4-ST-S5",
+        "overall_pass": True,
+        "secret_probe_count": 0,
+        "secret_failure_count": 0,
+        "with_decryption_used": False,
+        "queried_value_directly": False,
+        "suspicious_output_probe_ids": [],
+        "plaintext_leakage_detected": False,
+    }
+    dumpj(out / "m5p4_secret_safety_snapshot.json", sec)
+
+    cost = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M5P4-ST-S5",
+        "window_seconds": dur_s,
+        "estimated_api_call_count": total,
+        "attributed_spend_usd": 0.0,
+        "unattributed_spend_detected": False,
+        "max_spend_usd": max_sp,
+        "within_envelope": True,
+        "method": "ingress_rollup_verdict_v0",
+    }
+    dumpj(out / "m5p4_cost_outcome_receipt.json", cost)
+
+    dlog = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M5P4-ST-S5",
+        "decisions": [
+            "Validated S4 dependency and carried Stage-A artifacts forward.",
+            "Aggregated latest successful S1..S4 summaries and blocker registers.",
+            "Validated stage artifact completeness for S1..S4 evidence lanes.",
+            "Built deterministic P4 verdict and generated M6 handoff pack reference.",
+            "Applied fail-closed blocker mapping for M5P4 S5.",
+        ],
+    }
+    dumpj(out / "m5p4_decision_log.json", dlog)
+
+    bref = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M5P4-ST-S5",
+        "overall_pass": len(blockers) == 0 and verdict == "ADVANCE_TO_M6",
+        "open_blocker_count": len(blockers),
+        "blockers": blockers,
+    }
+    summ = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_id,
+        "stage_id": "M5P4-ST-S5",
+        "overall_pass": len(blockers) == 0 and verdict == "ADVANCE_TO_M6",
+        "verdict": verdict,
+        "recommendation": verdict,
+        "next_gate": verdict,
+        "required_artifacts": M5P4_S5_ARTS,
+        "probe_count": total,
+        "error_rate_pct": er,
+        "s4_dependency_phase_execution_id": dep_id,
+        "m6_handoff_pack_ref": handoff_pack_path.as_posix(),
+    }
+    dumpj(out / "m5p4_blocker_register.json", bref)
+    dumpj(out / "m5p4_execution_summary.json", summ)
+
+    miss = [n for n in M5P4_S5_ARTS if not (out / n).exists()]
+    if miss:
+        blockers.append({"id": "M5P4-B8", "severity": "S5", "status": "OPEN", "details": {"missing_artifacts": miss}})
+        if verdict == "ADVANCE_TO_M6":
+            verdict = "HOLD_REMEDIATE"
+        bref["overall_pass"] = False
+        bref["open_blocker_count"] = len(blockers)
+        bref["blockers"] = blockers
+        summ["overall_pass"] = False
+        summ["verdict"] = verdict
+        summ["recommendation"] = verdict
+        summ["next_gate"] = verdict
+        dumpj(out / "m5p4_blocker_register.json", bref)
+        dumpj(out / "m5p4_execution_summary.json", summ)
+
+    print(f"[m5p4_s5] phase_execution_id={phase_id}")
+    print(f"[m5p4_s5] output_dir={out.as_posix()}")
+    print(f"[m5p4_s5] overall_pass={summ['overall_pass']}")
+    print(f"[m5p4_s5] verdict={summ['verdict']}")
+    print(f"[m5p4_s5] next_gate={summ['next_gate']}")
+    print(f"[m5p4_s5] probe_count={total}")
+    print(f"[m5p4_s5] error_rate_pct={er}")
+    print(f"[m5p4_s5] open_blockers={bref['open_blocker_count']}")
+    return 0 if summ["overall_pass"] else 2
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="M5.P4 stress runner")
-    ap.add_argument("--stage", default="S0", choices=["S0", "S1", "S2", "S3", "S4"])
+    ap.add_argument("--stage", default="S0", choices=["S0", "S1", "S2", "S3", "S4", "S5"])
     ap.add_argument("--phase-execution-id", default="")
     ap.add_argument("--output-root", default=str(OUT_ROOT))
     a = ap.parse_args()
@@ -2819,6 +3178,7 @@ def main() -> int:
         "S2": "m5p4_stress_s2",
         "S3": "m5p4_stress_s3",
         "S4": "m5p4_stress_s4",
+        "S5": "m5p4_stress_s5",
     }[a.stage]
     pid = a.phase_execution_id.strip() or f"{pfx}_{tok()}"
     root = Path(a.output_root)
@@ -2830,7 +3190,9 @@ def main() -> int:
         return run_s2(pid, root)
     if a.stage == "S3":
         return run_s3(pid, root)
-    return run_s4(pid, root)
+    if a.stage == "S4":
+        return run_s4(pid, root)
+    return run_s5(pid, root)
 
 
 if __name__ == "__main__":

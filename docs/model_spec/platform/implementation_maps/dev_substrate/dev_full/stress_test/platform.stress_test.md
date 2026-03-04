@@ -1,6 +1,6 @@
 # Dev Full Platform Stress-Test Program
 _Track: dev_substrate/dev_full_
-_As of 2026-03-03_
+_As of 2026-03-04_
 _Status: ACTIVE PROGRAM AUTHORITY_
 
 ## 0) Objective
@@ -218,8 +218,8 @@ For any phase:
    - `stress_test/platform.M4.stress_test.md` (`DONE`),
    - `stress_test/platform.M5.stress_test.md` (`ACTIVE`),
    - `stress_test/platform.M5.P3.stress_test.md` (`DONE`),
-   - `stress_test/platform.M5.P4.stress_test.md` (`ACTIVE`).
-4. Next step: execute `M5P4-ST-S5` P4 rollup/deterministic verdict (`M5P4-ST-S4` passed with `next_gate=M5P4_ST_S5_READY`, `open_blockers=0`).
+   - `stress_test/platform.M5.P4.stress_test.md` (`DONE`).
+4. Next step: execute parent M5 orchestration gates (`M5-ST-S1` then `M5-ST-S2`) before parent closure rollup (`M5-ST-S3`).
 
 ## 13) Closed Phase - M0 (Inline)
 Status:
@@ -463,7 +463,7 @@ Authority routing:
 
 ## 17) Active Phase - M5 (Dedicated)
 Status:
-1. `ACTIVE` (parent S0, P3 closure, and P4 S3 topic readiness closed green; P4 S4 pending)
+1. `ACTIVE` (parent S0 closed; P3 and P4 closures are green; parent orchestration gates pending)
 
 Authority routing:
 1. Parent orchestration authority: `stress_test/platform.M5.stress_test.md`.
@@ -472,7 +472,7 @@ Authority routing:
    - `stress_test/platform.M5.P4.stress_test.md` (P4 INGEST_READY).
 3. Latest M5 parent execution state is `M5-ST-S0` pass (`next_gate=M5_ST_S1_READY`, `open_blockers=0`).
 4. Latest M5.P3 execution state is `M5P3-ST-FAST` pass (`next_gate=ADVANCE_TO_P4`, `open_blockers=0`, `waived_observation_count=2`).
-5. Latest M5.P4 execution state is `M5P4-ST-S4` pass (`next_gate=M5P4_ST_S5_READY`, `open_blockers=0`).
+5. Latest M5.P4 execution state is `M5P4-ST-S5` pass (`verdict=ADVANCE_TO_M6`, `next_gate=ADVANCE_TO_M6`, `open_blockers=0`).
 6. M5 execution is fail-closed in this order:
    - parent `M5-ST-S0`,
    - `M5.P3`,

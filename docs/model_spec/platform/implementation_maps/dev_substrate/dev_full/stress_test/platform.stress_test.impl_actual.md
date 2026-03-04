@@ -3669,3 +3669,173 @@ _As of 2026-03-03_
 
 ### Evidence path
 1. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s4_20260304T003732Z/stress/`.
+
+## Entry: 2026-03-04 00:39 +00:00 - M5.P4 `S5` planning/execution lane opened (post-S4 closure)
+
+### Trigger
+1. User directed: clear dangling blockers, plan and execute `M5P4-ST-S5`, remediate blockers if they arise.
+
+### Dangling-blocker sweep result
+1. Latest active stage registers are all closed (`S0..S4`, each `open_blocker_count=0`).
+2. No dangling blocker requires remediation before S5.
+
+### Decision-completeness and S5 authority closure
+1. S4 dependency is closed/readable:
+   - `phase_execution_id=m5p4_stress_s4_20260304T003732Z`,
+   - `next_gate=M5P4_ST_S5_READY`,
+   - blocker-free.
+2. S5 acceptance contract is explicit:
+   - aggregate S1..S4 summaries/registers,
+   - deterministic verdict rule (`ADVANCE_TO_M6` only when blocker-free),
+   - fail-closed otherwise (`HOLD_REMEDIATE` or `NO_GO_RESET_REQUIRED`),
+   - `m6_handoff_pack` reference/readability required on pass.
+
+### Design before coding (performance + rigor)
+1. Implement S5 as read-mostly rollup lane:
+   - load latest S1..S4 evidence,
+   - verify stage dependency gates and blocker closure,
+   - verify artifact completeness for each contributing stage,
+   - build deterministic verdict and transition recommendation.
+2. Emit explicit rollup evidence:
+   - `m5p4_rollup_matrix.json`,
+   - `m5p4_gate_verdict.json`,
+   - `m6_handoff_pack.json` (or equivalent readable reference on pass).
+3. Blocker mapping for S5:
+   - `M5P4-B6` rollup/register inconsistency,
+   - `M5P4-B7` deterministic verdict build failure,
+   - `M5P4-B10` missing/unreadable handoff pack,
+   - `M5P4-B8` evidence contract incompleteness.
+
+### Planned implementation
+1. Extend `scripts/dev_substrate/m5p4_stress_runner.py` with `--stage S5`:
+   - S4 dependency closure,
+   - S1..S4 rollup/readback checks,
+   - deterministic verdict emission,
+   - M6 handoff pack generation/readability check,
+   - full `m5p4_*` required artifact contract.
+2. Validate and execute:
+   - `python -m py_compile scripts/dev_substrate/m5p4_stress_runner.py`,
+   - `python scripts/dev_substrate/m5p4_stress_runner.py --stage S5`.
+3. If blockers arise, remediate and rerun immediately.
+
+### Acceptance target
+1. `overall_pass=true`.
+2. `verdict=ADVANCE_TO_M6`.
+3. `next_gate=ADVANCE_TO_M6`.
+4. `open_blockers=0`.
+
+## Entry: 2026-03-04 00:43 +00:00 - M5.P4 `S5` executed (pass, zero blockers)
+
+### Validation and execution
+1. `python -m py_compile scripts/dev_substrate/m5p4_stress_runner.py` (pass).
+2. `python scripts/dev_substrate/m5p4_stress_runner.py --stage S5`.
+3. Phase execution id: `m5p4_stress_s5_20260304T004218Z`.
+
+### Execution result
+1. Verdict:
+   - `overall_pass=true`,
+   - `verdict=ADVANCE_TO_M6`,
+   - `next_gate=ADVANCE_TO_M6`,
+   - `open_blockers=0`,
+   - `probe_count=1`,
+   - `error_rate_pct=0.0`.
+2. Rollup closure:
+   - S4 dependency remained closed (`m5p4_stress_s4_20260304T003732Z`),
+   - latest successful `S1..S4` summaries/registers were aggregated consistently,
+   - required stage artifact contract across `S1..S4` was complete/readable,
+   - `m6_handoff_pack` was generated and readback passed.
+3. Dangling-blocker sweep:
+   - no pre-existing active blockers remained from prior M5.P4 stages (`S0..S4` all closed before S5),
+   - no new blocker opened during S5.
+
+### Routing updates applied
+1. `stress_test/platform.M5.P4.stress_test.md`:
+   - marked DoD verdict item complete,
+   - captured S5 execution receipt,
+   - advanced immediate next action to parent `M5-ST-S1`.
+2. `stress_test/platform.M5.stress_test.md`:
+   - marked P3/P4 orchestration-gate DoD item complete,
+   - routed immediate next actions to parent `M5-ST-S1` then `M5-ST-S2`,
+   - captured P4 S5 closure status.
+3. `stress_test/platform.stress_test.md`:
+   - updated program next step to parent M5 orchestration gates,
+   - updated active M5 state to reflect P4 S5 pass (`ADVANCE_TO_M6`).
+
+### Evidence path
+1. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p4_stress_s5_20260304T004218Z/stress/`.
+
+## Entry: 2026-03-04 00:47 +00:00 - M5.P4 state-plan expansion before edit (user feedback closure)
+
+### Trigger
+1. User flagged that M5.P4 state plans were not expanded enough.
+2. Current `platform.M5.P4.stress_test.md` section `7.1..7.6` contains only objective/actions/pass gate summaries, which is insufficient for execution-grade state review.
+
+### Gap diagnosis
+1. Decision-completeness exposure is too shallow per-state:
+   - missing explicit entry criteria,
+   - missing concrete required input sets by state,
+   - missing runtime/cost budgets per state,
+   - missing fail-closed blocker mapping per state,
+   - missing rerun boundaries (targeted rerun policy) per state.
+2. This reduces auditability of why a state should rerun itself versus escalate to prior dependencies.
+
+### Design decision (chosen)
+1. Expand `M5P4-ST-S0..S5` directly inside section `7` of `platform.M5.P4.stress_test.md`.
+2. For each state, pin a uniform execution contract:
+   - `Entry criteria`,
+   - `Required inputs`,
+   - `Execution steps`,
+   - `Fail-closed blocker mapping`,
+   - `Runtime/cost budget`,
+   - `Targeted rerun policy`,
+   - existing `Pass gate` retained and tightened.
+3. Keep scope to authority planning doc only; do not alter execution results/evidence receipts already recorded in section `12`.
+
+### Alternatives considered and rejected
+1. Alternative A: Add expansion notes only in `platform.stress_test.impl_actual.md`.
+   - Rejected: user asked specifically for plan expansion of M5.P4 states; authority doc must carry the canonical state detail.
+2. Alternative B: Create a new detached deep-dive doc for S0..S5.
+   - Rejected: adds routing indirection and weakens single-authority readability for phase operators.
+3. Alternative C: Expand only pending/future states.
+   - Rejected: full-state coverage is required for consistency and future reruns.
+
+### Planned edits
+1. Update `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M5.P4.stress_test.md` section `7`.
+2. Replace current concise stage descriptions with expanded execution-grade state contracts for:
+   - `7.1 M5P4-ST-S0`,
+   - `7.2 M5P4-ST-S1`,
+   - `7.3 M5P4-ST-S2`,
+   - `7.4 M5P4-ST-S3`,
+   - `7.5 M5P4-ST-S4`,
+   - `7.6 M5P4-ST-S5`.
+3. Preserve all existing blocker IDs, artifact names, and gate outcomes to avoid drift from executed evidence.
+
+### Acceptance check after edit
+1. Each state in section `7` must explicitly include all required execution-contract fields listed above.
+2. No contradiction introduced against section `8` blocker taxonomy and section `9` evidence contract.
+3. Routing sections (`10..12`) remain semantically unchanged except for richer planning clarity.
+
+## Entry: 2026-03-04 00:49 +00:00 - M5.P4 state-plan expansion completed in authority doc
+
+### What changed
+1. Rewrote `platform.M5.P4.stress_test.md` section `7` (`S0..S5`) from summary-only bullets to execution-grade state contracts.
+2. Added explicit per-state fields:
+   - `Entry criteria`,
+   - `Required inputs`,
+   - `Execution steps`,
+   - `Fail-closed blocker mapping`,
+   - `Runtime/cost budget`,
+   - `Targeted rerun policy`,
+   - tightened `Pass gate` with explicit `next_gate` expectation.
+
+### Consistency checks completed
+1. Blocker mappings remain aligned with section `8` taxonomy (`M5P4-B1..B10`).
+2. Evidence outputs remain aligned with section `9` artifact contract (`m5p4_*` + handoff pack requirement at `S5`).
+3. No executed evidence receipts in section `12` were modified; planning expansion is additive and non-destructive.
+
+### Why this resolves user feedback
+1. The M5.P4 plan now exposes state-level execution mechanics and fail-closed rerun boundaries directly in the authority file.
+2. A reviewer can now audit each state without relying on implicit runner behavior or implementation-map narrative context.
+
+### Commit posture
+1. No commit/push performed.
