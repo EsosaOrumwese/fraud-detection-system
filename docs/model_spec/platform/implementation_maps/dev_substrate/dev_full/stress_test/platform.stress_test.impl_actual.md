@@ -8589,3 +8589,58 @@ ext_gate=M8_READY, open_blockers=0.
 ### Governance
 1. Documentation-only update.
 2. No commit/push/branch operation.
+
+## Entry: 2026-03-04 20:51 +00:00 - Execution start (parent M6 strict rerun S3..S5)
+
+### Trigger
+1. USER directed immediate execution of parent `M6-ST-S3..S5`.
+
+### Execution contract
+1. Sequential run: `S3 -> S4 -> S5`.
+2. Fail-closed stop on first blocker/failure.
+3. Use refreshed strict `M6.P7` baseline (`m6p7_stress_s5_20260304T203739Z`).
+
+### Governance
+1. No commit/push/branch operation.
+
+## Entry: 2026-03-04 20:52 +00:00 - Targeted blocker remediation during M6 parent rerun (M6-ST-B7)
+
+### Observed blocker
+1. `M6-ST-S3` fail-closed on `M6-ST-B7`:
+   - reason: parent handoff object readback failed,
+   - key: `evidence/dev_full/run_control/m6p7_stress_s5_20260304T203739Z/m7_handoff_pack.json`,
+   - local handoff file present.
+
+### Decision
+1. Apply targeted remediation by publishing the existing strict `M6.P7 S5` handoff pack to the expected S3 key.
+2. Re-run parent chain from `M6-ST-S3` immediately and continue `S4/S5` only if blocker-free.
+
+### Rationale
+1. This resolves the concrete closure artifact-readback mismatch without changing runtime semantics.
+2. Preserves fail-closed behavior and avoids broad reruns.
+
+### Governance
+1. No commit/push/branch operation.
+
+## Entry: 2026-03-04 20:56 +00:00 - Parent M6 strict rerun execution outcome and plan-sync closure
+
+### Parent execution outcome
+1. Initial `M6-ST-S3` attempt (`m6_stress_s3_20260304T204725Z`) failed fail-closed on `M6-ST-B7`:
+   - handoff readback miss at key `evidence/dev_full/run_control/m6p7_stress_s5_20260304T203739Z/m7_handoff_pack.json`.
+2. Targeted remediation applied:
+   - published strict `M6.P7 S5` handoff pack to expected S3 key.
+3. Parent rerun chain completed green:
+   - `M6-ST-S3`: `m6_stress_s3_20260304T204856Z`, `open_blockers=0`, `next_gate=M6_ST_S4_READY`.
+   - `M6-ST-S4`: `m6_stress_s4_20260304T204901Z`, `open_blockers=0`, `next_gate=M6_ST_S5_READY`.
+   - `M6-ST-S5`: `m6_stress_s5_20260304T204909Z`, `open_blockers=0`, `verdict=GO`, `next_gate=M7_READY`, `addendum_open_blockers=0`.
+
+### Plan synchronization
+1. Updated `platform.M6.stress_test.md` to reflect strict rerun closure state:
+   - posture moved to strict-rerun closed wording,
+   - DoD parent strict rerun item marked complete,
+   - immediate next actions refocused to M7 progression,
+   - execution progress appended with parent rerun events,
+   - reopen notice marked resolved for M6 with latest strict receipts.
+
+### Governance
+1. No commit/push/branch operation.

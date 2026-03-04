@@ -3,7 +3,7 @@ _Status source of truth: `platform.stress_test.md`_
 _This document provides deep stress-planning detail for M6 orchestration._
 _Track: `dev_full` only_
 _As of 2026-03-04_
-_Current posture: `HOLD_REMEDIATE` (`M6.P7` strict rerun chain is green; parent `M6-ST-S3..S5` strict rerun remains required before reclaiming `M7_READY`)._
+_Current posture: `STRICT_RERUN_CLOSED` (`M6.P7` and parent `M6-ST-S3..S5` strict reruns are green; latest parent closure reaffirms `next_gate=M7_READY`)._
 
 ## 0) Purpose
 M6 stress validates Control + Ingress production posture under realistic sustained and burst traffic before M7 activation.
@@ -440,7 +440,7 @@ Required artifacts for each parent stage:
 - [x] `M6-ST-S4` integrated stress windows executed within envelope.
 - [x] `M6-ST-S5` closure rollup emitted with deterministic `M7_READY` recommendation.
 - [x] Strict non-toy rerun completed for `M6.P7 S1..S5` with blocker-free closure (`verdict=ADVANCE_TO_M7`).
-- [ ] Strict non-toy rerun still required for parent `M6-ST-S3..S5` from fresh post-remediation `M6.P7` receipts.
+- [x] Strict non-toy rerun completed for parent `M6-ST-S3..S5` from fresh post-remediation `M6.P7` receipts.
 
 ## 11) Immediate Next Actions
 1. Preserve legacy `M6-ST-S5` A4R rerun receipt (`m6_stress_s5_20260304T150852Z`) as historical evidence only.
@@ -448,8 +448,11 @@ Required artifacts for each parent stage:
    - `m6p7_stress_s3_20260304T203657Z`,
    - `m6p7_stress_s4_20260304T203706Z`,
    - `m6p7_stress_s5_20260304T203739Z`.
-3. Re-execute parent `M6-ST-S3..S5` under strict remote-evidence-only posture against the refreshed `M6.P7` baseline.
-4. Promote `M7_READY` handoff only from the parent strict rerun chain, then continue to M7 strict non-toy revalidation.
+3. Keep latest parent strict rerun closure as active M6 authority baseline:
+   - `m6_stress_s3_20260304T204856Z`,
+   - `m6_stress_s4_20260304T204901Z`,
+   - `m6_stress_s5_20260304T204909Z`.
+4. Continue to M7 strict non-toy revalidation using refreshed `M6` closure receipts as upstream dependency.
 
 ## 12) Execution Progress
 1. Planning authority created.
@@ -612,6 +615,29 @@ Required artifacts for each parent stage:
    - `next_gate=ADVANCE_TO_M7`,
    - `open_blockers=0`,
    - evidence root: `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m6p7_stress_s5_20260304T203739Z/stress/`.
+25. Parent strict rerun `M6-ST-S3` first attempt failed on `M6-ST-B7` (handoff S3 object readback miss for `m6p7_stress_s5_20260304T203739Z` key); targeted remediation published the handoff object to expected S3 key.
+26. Parent strict rerun `M6-ST-S3` post-remediation executed and passed:
+   - `phase_execution_id=m6_stress_s3_20260304T204856Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6_ST_S4_READY`,
+   - `open_blockers=0`,
+   - `upstream_m6p7_s5_phase_execution_id=m6p7_stress_s5_20260304T203739Z`,
+   - evidence root: `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m6_stress_s3_20260304T204856Z/stress/`.
+27. Parent strict rerun `M6-ST-S4` executed and passed:
+   - `phase_execution_id=m6_stress_s4_20260304T204901Z`,
+   - `overall_pass=true`,
+   - `next_gate=M6_ST_S5_READY`,
+   - `open_blockers=0`,
+   - integrated checks green and ingest-realism checks green,
+   - evidence root: `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m6_stress_s4_20260304T204901Z/stress/`.
+28. Parent strict rerun `M6-ST-S5` executed and passed:
+   - `phase_execution_id=m6_stress_s5_20260304T204909Z`,
+   - `overall_pass=true`,
+   - `verdict=GO`,
+   - `next_gate=M7_READY`,
+   - `open_blockers=0`,
+   - addendum lane status `A1=true`, `A2=true`, `A3=true`, `A4=true`, addendum blockers `0`,
+   - evidence root: `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m6_stress_s5_20260304T204909Z/stress/`.
 
 ## 13) M6 Hard-Close Addendum (Production-Readiness Closure)
 Purpose:
@@ -683,11 +709,11 @@ No-waiver closure rule:
 
 ## 14) Reopen Notice - Non-Toy Enforcement (2026-03-04)
 1. Legacy M6 closure receipts remain baseline artifacts only; they are not accepted as current closure authority.
-2. M6 is reopened fail-closed under `M6-ST-B13` until fresh strict reruns close with zero blockers.
+2. M6 reopen has been resolved by fresh strict reruns with zero blockers.
 3. Required strict rerun chain:
    - `M6.P7` `S1..S5` (completed: `m6p7_stress_s5_20260304T203739Z`; `replay_window_mode=STALE_WINDOW_WITH_LIVE_EVIDENCE`),
-   - `M6-ST-S3..S5` (no proxy-only/historical-only closure authority).
+   - `M6-ST-S3..S5` (completed: `m6_stress_s5_20260304T204909Z`; `verdict=GO`, `next_gate=M7_READY`).
 4. M6 closure acceptance now requires:
    - no `historical_*` execution id as primary proof in closure verdicts,
    - no advisory-only throughput posture in parent or subphase closure,
-   - deterministic `GO` + `next_gate=M7_READY` from fresh rerun evidence only.
+   - deterministic `GO` + `next_gate=M7_READY` from fresh rerun evidence only (satisfied by `m6_stress_s5_20260304T204909Z`).
