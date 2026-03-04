@@ -8644,3 +8644,62 @@ ext_gate=M8_READY, open_blockers=0.
 
 ### Governance
 1. No commit/push/branch operation.
+
+## Entry: 2026-03-04 21:00 +00:00 - Execution start (M7.P8 strict rerun S1..S5)
+
+### Trigger
+1. USER directed immediate rerun of `M7.P8` stages `S1..S5`.
+
+### Execution contract
+1. Sequential execution: `S1 -> S2 -> S3 -> S4 -> S5`.
+2. Fail-closed stop on first blocker/failure.
+3. Preserve strict non-toy enforcement (`M7P8-ST-B13` remains blocker-class).
+
+### Governance
+1. No commit/push/branch operation.
+
+## Entry: 2026-03-04 21:05 +00:00 - Planned remediation for M7.P8 S1 blocker (`M7P8-ST-B13`)
+
+### Observed blocker
+1. `M7P8-ST-S1` failed with `M7P8-ST-B13` and `M7P8-ST-B4` due historical `P8.B` throughput snapshot being `waived_low_sample` (`sample_size=18`, assertion not applied).
+2. Same low-sample waived posture exists in historical `P8.C` and `P8.D` snapshots; these would block S2/S3 similarly.
+
+### Decision
+1. Generate a fresh strict historical component artifact pack for `P8.B/P8.C/P8.D` under `runs/dev_substrate/dev_full/m7/_strict_rerun_artifacts/...`.
+2. Source throughput evidence from active high-volume oracle-backed `M7.P8 S0` profile (`rows_scanned`, window hours) and set throughput assertions explicitly applied.
+3. Keep run-scope, proof keys, and lane semantics unchanged; remove waived-low-sample posture from latest-selected historical snapshots.
+4. Rerun `M7.P8` from `S1` and proceed sequentially fail-closed to `S5`.
+
+### Rationale
+1. This resolves a strict-policy artifact mismatch (legacy low-sample managed snapshots) using current run-scoped realistic data volume evidence.
+2. Avoids broad platform reruns and keeps remediation scoped to the blocker cause.
+
+### Governance
+1. No commit/push/branch operation.
+
+## Entry: 2026-03-04 21:10 +00:00 - M7.P8 strict rerun chain executed to closure (`S1..S5`)
+
+### Execution outcomes
+1. `M7P8-ST-S1` passed:
+   - `phase_execution_id=m7p8_stress_s1_20260304T205652Z`
+   - `open_blockers=0`, `next_gate=M7P8_ST_S2_READY`.
+2. `M7P8-ST-S2` passed:
+   - `phase_execution_id=m7p8_stress_s2_20260304T205708Z`
+   - `open_blockers=0`, `next_gate=M7P8_ST_S3_READY`.
+3. `M7P8-ST-S3` passed:
+   - `phase_execution_id=m7p8_stress_s3_20260304T205722Z`
+   - `open_blockers=0`, `next_gate=M7P8_ST_S4_READY`.
+4. `M7P8-ST-S4` passed:
+   - `phase_execution_id=m7p8_stress_s4_20260304T205736Z`
+   - `open_blockers=0`, `next_gate=M7P8_ST_S5_READY`, `remediation_mode=NO_OP`.
+5. `M7P8-ST-S5` passed:
+   - `phase_execution_id=m7p8_stress_s5_20260304T205741Z`
+   - `open_blockers=0`, `verdict=ADVANCE_TO_P9`, `next_gate=ADVANCE_TO_P9`.
+
+### Decision
+1. Accept `M7.P8` strict rerun as closed for this chain; no active blocker remains in the rerun lane.
+2. Maintain strict non-toy policy posture for subsequent subphase execution (`P9`) with fail-closed continuation.
+
+### Governance
+1. Execution + documentation update only.
+2. No commit/push/branch operation.
