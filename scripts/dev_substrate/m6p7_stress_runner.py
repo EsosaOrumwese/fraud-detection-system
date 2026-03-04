@@ -597,6 +597,7 @@ def run_s1(phase_execution_id: str) -> int:
     blockers: list[dict[str, Any]] = []
     probes: list[dict[str, Any]] = []
     issues: list[str] = []
+    advisories: list[str] = []
     decisions: list[str] = []
 
     dep = latest_ok("m6p7_stress_s0", "M6P7-ST-S0")
@@ -1772,6 +1773,24 @@ def run_s3(phase_execution_id: str) -> int:
     ttl_seconds = to_int(offsets_s2.get("ttl_seconds"))
     ttl_expired_expected = bool(offsets_s2.get("ttl_expired_expected"))
     age_seconds = to_int(offsets_s2.get("age_seconds"))
+    live_sample = dedupe_s2.get("live_idempotency_sample", {}) if isinstance(dedupe_s2.get("live_idempotency_sample"), dict) else {}
+    live_sample_count = to_int(live_sample.get("sample_count")) or 0
+    live_missing_ttl_count = to_int(live_sample.get("missing_ttl_count")) or 0
+    live_ttl_before_admitted_count = to_int(live_sample.get("ttl_before_admitted_count")) or 0
+    live_missing_dedupe_key_count = to_int(live_sample.get("missing_dedupe_key_count")) or 0
+    live_invalid_state_count = to_int(live_sample.get("invalid_state_count")) or 0
+    live_duplicate_dedupe_key_count = to_int(live_sample.get("duplicate_dedupe_key_count")) or 0
+    stale_window_live_evidence_ok = (
+        live_sample_count > 0
+        and live_missing_ttl_count == 0
+        and live_ttl_before_admitted_count == 0
+        and live_missing_dedupe_key_count == 0
+        and live_invalid_state_count == 0
+        and live_duplicate_dedupe_key_count == 0
+        and count_invariant_pass is True
+        and offset_consistency_pass is True
+        and dedupe_anomaly_count == 0
+    )
     if age_seconds is None and latest_admitted_epoch is not None:
         age_seconds = int(time.time()) - latest_admitted_epoch
     replay_window_mode = "UNKNOWN"
@@ -1860,28 +1879,34 @@ def run_s3(phase_execution_id: str) -> int:
                     issues.append("live replay-window run-scope count regressed")
                 run_scope_live_count = c2 if c2 is not None else run_scope_live_count
     else:
-        replay_window_mode = "HISTORICAL_CLOSED_WINDOW"
-        blockers.append(
-            {
-                "id": "M6P7-ST-B12",
-                "severity": "S3",
-                "status": "OPEN",
-                "details": {
-                    "reason": "historical-closed replay-window mode is not allowed for strict non-toy closure",
-                    "age_seconds": age_seconds,
-                    "replay_window_seconds": replay_window_seconds,
-                    "ttl_expired_expected": ttl_expired_expected,
-                },
-            }
-        )
-        issues.append("historical-closed replay-window mode is not allowed for strict non-toy closure")
-        if ttl_expired_expected:
-            decisions.append("Replay-window continuity evaluated in historical-closed mode: run age exceeds replay window and TTL-expired posture is expected.")
+        if stale_window_live_evidence_ok:
+            replay_window_mode = "STALE_WINDOW_WITH_LIVE_EVIDENCE"
+            decisions.append("Replay age exceeded configured window; stale-window mode accepted with direct live idempotency evidence and clean continuity invariants.")
         else:
-            decisions.append("Replay-window continuity evaluated in historical-closed mode due run age exceeding replay window.")
-        if ttl_seconds is None and age_seconds > replay_window_seconds:
-            blockers.append({"id": "M6P7-ST-B7", "severity": "S3", "status": "OPEN", "details": {"reason": "historical closed-window mode lacks TTL context", "age_seconds": age_seconds}})
-            issues.append("historical closed-window mode lacks TTL context")
+            replay_window_mode = "HISTORICAL_CLOSED_WINDOW"
+            blockers.append(
+                {
+                    "id": "M6P7-ST-B12",
+                    "severity": "S3",
+                    "status": "OPEN",
+                    "details": {
+                        "reason": "historical-closed replay-window mode is not allowed for strict non-toy closure",
+                        "age_seconds": age_seconds,
+                        "replay_window_seconds": replay_window_seconds,
+                        "ttl_expired_expected": ttl_expired_expected,
+                        "live_sample_count": live_sample_count,
+                        "live_evidence_clean": stale_window_live_evidence_ok,
+                    },
+                }
+            )
+            issues.append("historical-closed replay-window mode is not allowed for strict non-toy closure")
+            if ttl_expired_expected:
+                decisions.append("Replay window is stale and TTL-expired posture is expected; live evidence is insufficient for strict closure.")
+            else:
+                decisions.append("Replay window is stale and live evidence is insufficient for strict closure.")
+            if ttl_seconds is None and age_seconds > replay_window_seconds:
+                blockers.append({"id": "M6P7-ST-B7", "severity": "S3", "status": "OPEN", "details": {"reason": "historical closed-window mode lacks TTL context", "age_seconds": age_seconds}})
+                issues.append("historical closed-window mode lacks TTL context")
 
     bucket = str(handles.get("S3_EVIDENCE_BUCKET", "")).strip()
     p_bucket = cmd(["aws", "s3api", "head-bucket", "--bucket", bucket, "--region", "eu-west-2"], 25) if bucket else {
@@ -1927,7 +1952,7 @@ def run_s3(phase_execution_id: str) -> int:
             "stage_id": "M6P7-ST-S3",
             "findings": [
                 {"id": "M6P7-ST-F4", "classification": "PREVENT", "finding": "P7 continuity must remain deterministic against historical gate anchors.", "required_action": "Fail-closed if historical P7.B anchor is missing or inconsistent."},
-                {"id": "M6P7-ST-F5", "classification": "OBSERVE", "finding": "Replay-window checks must be mode-aware for aged historical runs.", "required_action": "Use historical-closed mode with explicit rationale when replay window is elapsed."},
+                {"id": "M6P7-ST-F5", "classification": "OBSERVE", "finding": "Replay-window checks must stay strict under stale windows.", "required_action": "Allow stale-window mode only when direct live idempotency evidence is present and clean; else fail-closed."},
                 {"id": "M6P7-ST-F6", "classification": "OBSERVE", "finding": "Proxy offset mode remains valid if continuity invariants hold.", "required_action": "Enforce offset/admit consistency and persist mode in summary."},
             ],
         },
@@ -2231,7 +2256,7 @@ def run_s4(phase_execution_id: str) -> int:
             "stage_id": "M6P7-ST-S4",
             "findings": [
                 {"id": "M6P7-ST-F5", "classification": "OBSERVE", "finding": "S4 should stay targeted and avoid broad reruns.", "required_action": "Use NO_OP when dependency register is already clean; rerun only on explicit blocker evidence."},
-                {"id": "M6P7-ST-F6", "classification": "OBSERVE", "finding": "Historical replay-window mode can remain valid without reopening S3.", "required_action": "Carry forward S3 mode when no causal drift is observed."},
+                {"id": "M6P7-ST-F6", "classification": "OBSERVE", "finding": "Stale-window replay mode can remain valid without reopening S3 when live evidence is already proven.", "required_action": "Carry forward S3 replay mode when no causal drift is observed."},
             ],
         },
     )
@@ -2397,6 +2422,7 @@ def run_s5(phase_execution_id: str) -> int:
     blockers: list[dict[str, Any]] = []
     probes: list[dict[str, Any]] = []
     issues: list[str] = []
+    advisories: list[str] = []
     decisions: list[str] = []
 
     expected_pass_verdict = str(plan_packet.get("M6P7_STRESS_EXPECTED_VERDICT_ON_PASS", "ADVANCE_TO_M7")).strip() or "ADVANCE_TO_M7"
