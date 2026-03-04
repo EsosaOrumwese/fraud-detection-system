@@ -8125,3 +8125,101 @@ ext_gate=M8_READY, open_blockers=0.
 
 ### Commit posture
 1. No commit/push performed.
+## Entry: 2026-03-04 15:19 +00:00 - M7 addendum execution plan before code changes
+
+### Trigger
+1. USER requested immediate execution of M7 hard-close addendum.
+
+### Gap confirmed
+1. `scripts/dev_substrate/m7_stress_runner.py` currently emits parent `S0..S5` artifacts only; no `m7_addendum_*` pack exists.
+2. Therefore M7 addendum DoD/evidence contract cannot be executed or adjudicated yet.
+
+### Planned implementation
+1. Extend `run_s5` in `m7_stress_runner.py` to evaluate lanes `A1..A4` and emit:
+   - `m7_addendum_realism_window_summary.json`,
+   - `m7_addendum_realism_window_metrics.json`,
+   - `m7_addendum_case_label_pressure_summary.json`,
+   - `m7_addendum_case_label_pressure_metrics.json`,
+   - `m7_addendum_service_path_latency_profile.json`,
+   - `m7_addendum_service_path_throughput_profile.json`,
+   - `m7_addendum_cost_attribution_receipt.json`,
+   - `m7_addendum_blocker_register.json`,
+   - `m7_addendum_execution_summary.json`,
+   - `m7_addendum_decision_log.json`.
+2. Add real CE-backed attribution for lane `A4` with fail-closed blocker mapping (`M7-ADD-B5` -> `M7-ST-B12`).
+3. Keep deterministic closure rule: parent `GO` only when parent blockers are zero and addendum blockers are zero.
+
+### Lane evaluation strategy (bounded by available black-box evidence)
+1. `A1`: use P8 cohort presence + M7 S4 profile observations and semantic issue counts.
+2. `A2`: use P10 observed/effective case-label volumes and semantic/writer/lifecycle invariants.
+3. `A3`: use M7 S4 integrated checks + runtime probe latency/throughput snapshots + error/retry posture.
+4. `A4`: query CE for execution window and require `mapping_complete=true` with no unexplained spend.
+
+### Execution plan
+1. Patch runner.
+2. Compile.
+3. Execute only `M7-ST-S5` rerun.
+4. If blocked, remediate runner/docs thresholds according dev_full realism constraints and rerun.
+
+### Commit posture
+1. No commit/push performed.
+## Entry: 2026-03-04 15:23 +00:00 - M7 addendum runner implementation + first S5 execution (fail-closed)
+
+### Implementation actions
+1. Extended `scripts/dev_substrate/m7_stress_runner.py` parent `run_s5` to execute and adjudicate addendum lanes `A1..A4`.
+2. Added addendum artifact contract emission:
+   - `m7_addendum_realism_window_summary.json`,
+   - `m7_addendum_realism_window_metrics.json`,
+   - `m7_addendum_case_label_pressure_summary.json`,
+   - `m7_addendum_case_label_pressure_metrics.json`,
+   - `m7_addendum_service_path_latency_profile.json`,
+   - `m7_addendum_service_path_throughput_profile.json`,
+   - `m7_addendum_cost_attribution_receipt.json`,
+   - `m7_addendum_blocker_register.json`,
+   - `m7_addendum_execution_summary.json`,
+   - `m7_addendum_decision_log.json`.
+3. Implemented CE-backed cost attribution helper flow and lane `A4` fail-closed mapping (`M7-ADD-B5` -> `M7-ST-B12`).
+
+### First execution result
+1. Ran parent `M7-ST-S5`.
+2. Receipt: `phase_execution_id=m7_stress_s5_20260304T152533Z`.
+3. Result: fail-closed blocker on lane `A4` due to min-window validation using probe-runtime seconds instead of CE query window seconds.
+
+### Decision
+1. Remediate `A4` window contract logic and rerun `M7-ST-S5` immediately.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 15:26 +00:00 - M7 addendum remediation + green rerun closure
+
+### Remediation
+1. Updated lane `A4` acceptance in `scripts/dev_substrate/m7_stress_runner.py` to use CE attribution window duration (`query_end_utc - query_start_utc`) as `window_seconds` authority.
+
+### Rerun result
+1. Reran parent `M7-ST-S5`.
+2. Receipt: `phase_execution_id=m7_stress_s5_20260304T152614Z`.
+3. Outcome:
+   - `overall_pass=true`, `verdict=GO`, `next_gate=M8_READY`, `open_blockers=0`.
+   - addendum lane status `A1=true`, `A2=true`, `A3=true`, `A4=true`.
+   - `m7_addendum_blocker_register.json`: `open_blocker_count=0`.
+   - `m7_addendum_cost_attribution_receipt.json`: `mapping_complete=true`, `unattributed_spend_detected=false`, `attributed_spend_usd=5.567148`, `method=aws_ce_daily_unblended_v1`.
+
+### Closure decision
+1. M7 addendum is execution-complete and blocker-clean; M7 remains closed with deterministic handoff `M8_READY`.
+
+### Commit posture
+1. No commit/push performed.
+
+## Entry: 2026-03-04 15:29 +00:00 - Main stress authority synced to M7 hard-close state
+
+### Documentation sync
+1. Updated `platform.stress_test.md` to remove stale `M7` conditional/pending-addendum posture.
+2. Program status now records `M7 DONE_HARD_CLOSED` with addendum closure and `M8_READY` handoff anchored to `m7_stress_s5_20260304T152614Z`.
+3. M7 closed-phase section updated with:
+   - latest parent `S5` receipt,
+   - addendum fail-closed first run + remediation rerun,
+   - CE-backed cost receipt values.
+
+### Commit posture
+1. No commit/push performed.

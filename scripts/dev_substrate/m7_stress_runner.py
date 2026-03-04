@@ -7,7 +7,7 @@ import re
 import subprocess
 import time
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -97,6 +97,18 @@ M7_REQUIRED_ARTIFACTS = [
 ]
 
 M7_S0_EVENT_TYPE_MIN_COUNT = 3
+M7_ADDENDUM_ARTIFACTS = [
+    "m7_addendum_realism_window_summary.json",
+    "m7_addendum_realism_window_metrics.json",
+    "m7_addendum_case_label_pressure_summary.json",
+    "m7_addendum_case_label_pressure_metrics.json",
+    "m7_addendum_service_path_latency_profile.json",
+    "m7_addendum_service_path_throughput_profile.json",
+    "m7_addendum_cost_attribution_receipt.json",
+    "m7_addendum_blocker_register.json",
+    "m7_addendum_execution_summary.json",
+    "m7_addendum_decision_log.json",
+]
 
 
 def now() -> str:
@@ -350,6 +362,168 @@ def parse_ts(ts: str) -> datetime | None:
         return datetime.fromisoformat(t.replace("Z", "+00:00"))
     except Exception:
         return None
+
+
+def parse_phase_execution_timestamp(phase_execution_id: str) -> datetime | None:
+    m = re.search(r"(\d{8}T\d{6}Z)$", str(phase_execution_id or "").strip())
+    if not m:
+        return None
+    try:
+        return datetime.strptime(m.group(1), "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+
+
+def iso_utc(dt: datetime | None) -> str:
+    if dt is None:
+        return ""
+    return dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def derive_stage_window(row: dict[str, Any]) -> tuple[datetime | None, datetime | None]:
+    phase_ts = parse_phase_execution_timestamp(str(row.get("phase_execution_id", "")))
+    summary_ts = parse_ts(str(row.get("summary_generated_at_utc", "")))
+    receipt_ts = parse_ts(str(row.get("receipt_generated_at_utc", "")))
+    window_seconds = max(0, int(row.get("window_seconds", 0) or 0))
+
+    start_ts = phase_ts or summary_ts or receipt_ts
+    end_ts = receipt_ts or summary_ts
+    if start_ts and not end_ts:
+        end_ts = start_ts + timedelta(seconds=max(1, window_seconds))
+    if start_ts and end_ts and end_ts <= start_ts:
+        end_ts = start_ts + timedelta(seconds=max(1, window_seconds, 1))
+    return start_ts, end_ts
+
+
+def derive_cost_query_window(stage_rows: list[dict[str, Any]]) -> tuple[datetime, datetime]:
+    starts: list[datetime] = []
+    ends: list[datetime] = []
+    for row in stage_rows:
+        s, e = derive_stage_window(row)
+        if s:
+            starts.append(s)
+        if e:
+            ends.append(e)
+    if starts and ends:
+        start = min(starts)
+        end = max(ends)
+    elif starts:
+        start = min(starts)
+        end = max(starts) + timedelta(hours=1)
+    elif ends:
+        end = max(ends)
+        start = min(ends) - timedelta(hours=1)
+    else:
+        end = datetime.now(timezone.utc)
+        start = end - timedelta(hours=6)
+    if end <= start:
+        end = start + timedelta(hours=1)
+    return start, end
+
+
+def query_aws_cost_explorer_window(start_utc: datetime, end_utc: datetime, billing_region: str) -> dict[str, Any]:
+    start_date = start_utc.date().isoformat()
+    end_date = (end_utc.date() + timedelta(days=1)).isoformat()
+    cmd = [
+        "aws",
+        "ce",
+        "get-cost-and-usage",
+        "--time-period",
+        f"Start={start_date},End={end_date}",
+        "--granularity",
+        "DAILY",
+        "--metrics",
+        "UnblendedCost",
+        "--region",
+        billing_region,
+        "--output",
+        "json",
+    ]
+    t0 = time.perf_counter()
+    started = now()
+    try:
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=45)
+    except subprocess.TimeoutExpired:
+        return {
+            "ok": False,
+            "method": "aws_ce_daily_unblended_v1",
+            "query": {"start_date": start_date, "end_date": end_date, "billing_region": billing_region},
+            "amount_usd": 0.0,
+            "currency": "USD",
+            "rows": [],
+            "error": "timeout",
+            "command": " ".join(cmd),
+            "duration_ms": round((time.perf_counter() - t0) * 1000.0, 3),
+            "started_at_utc": started,
+            "ended_at_utc": now(),
+        }
+    if int(p.returncode) != 0:
+        return {
+            "ok": False,
+            "method": "aws_ce_daily_unblended_v1",
+            "query": {"start_date": start_date, "end_date": end_date, "billing_region": billing_region},
+            "amount_usd": 0.0,
+            "currency": "USD",
+            "rows": [],
+            "error": (p.stderr or p.stdout or "ce_query_failed").strip()[:500],
+            "command": " ".join(cmd),
+            "duration_ms": round((time.perf_counter() - t0) * 1000.0, 3),
+            "started_at_utc": started,
+            "ended_at_utc": now(),
+        }
+    try:
+        payload = json.loads((p.stdout or "").strip() or "{}")
+    except json.JSONDecodeError:
+        return {
+            "ok": False,
+            "method": "aws_ce_daily_unblended_v1",
+            "query": {"start_date": start_date, "end_date": end_date, "billing_region": billing_region},
+            "amount_usd": 0.0,
+            "currency": "USD",
+            "rows": [],
+            "error": "invalid_json_response",
+            "command": " ".join(cmd),
+            "duration_ms": round((time.perf_counter() - t0) * 1000.0, 3),
+            "started_at_utc": started,
+            "ended_at_utc": now(),
+        }
+
+    rows: list[dict[str, Any]] = []
+    total = 0.0
+    currency = "USD"
+    for item in payload.get("ResultsByTime", []) if isinstance(payload.get("ResultsByTime", []), list) else []:
+        total_obj = item.get("Total", {}) if isinstance(item.get("Total", {}), dict) else {}
+        uc = total_obj.get("UnblendedCost", {}) if isinstance(total_obj.get("UnblendedCost", {}), dict) else {}
+        amount_raw = uc.get("Amount", "0")
+        unit_raw = uc.get("Unit", "USD")
+        try:
+            amount = float(amount_raw or 0.0)
+        except (TypeError, ValueError):
+            amount = 0.0
+        total += amount
+        currency = str(unit_raw or "USD")
+        rows.append(
+            {
+                "start": str(item.get("TimePeriod", {}).get("Start", "")),
+                "end": str(item.get("TimePeriod", {}).get("End", "")),
+                "amount_usd": round(amount, 8),
+                "currency": currency,
+                "estimated": bool(item.get("Estimated", False)),
+            }
+        )
+
+    return {
+        "ok": True,
+        "method": "aws_ce_daily_unblended_v1",
+        "query": {"start_date": start_date, "end_date": end_date, "billing_region": billing_region},
+        "amount_usd": round(total, 8),
+        "currency": currency,
+        "rows": rows,
+        "command": " ".join(cmd),
+        "duration_ms": round((time.perf_counter() - t0) * 1000.0, 3),
+        "started_at_utc": started,
+        "ended_at_utc": now(),
+    }
 
 
 def materialize_pattern(pattern: str, replacements: dict[str, str]) -> str:
@@ -1021,6 +1195,7 @@ def run_s1(phase_execution_id: str) -> int:
     issues: list[str] = []
     advisories: list[str] = []
     decisions: list[str] = []
+    addendum_blockers: list[dict[str, Any]] = []
 
     missing_plan_keys = [k for k in PLAN_KEYS if k not in plan_packet]
     missing_handles, placeholder_handles = resolve_required_handles(handles)
@@ -1970,6 +2145,7 @@ def run_s4(phase_execution_id: str) -> int:
     dep = latest_ok("m7_stress_s3", "m7_execution_summary.json", "M7-ST-S3")
     dep_issues: list[str] = []
     dep_id = ""
+    dep_path = Path()
     dep_subset: dict[str, Any] = {}
     dep_profile: dict[str, Any] = {}
     platform_run_id = ""
@@ -2321,6 +2497,7 @@ def run_s5(phase_execution_id: str) -> int:
     issues: list[str] = []
     advisories: list[str] = []
     decisions: list[str] = []
+    addendum_blockers: list[dict[str, Any]] = []
 
     expected_next_gate = str(plan_packet.get("M7_STRESS_EXPECTED_NEXT_GATE_ON_PASS", "M8_READY")).strip() or "M8_READY"
     if expected_next_gate != "M8_READY":
@@ -2359,6 +2536,7 @@ def run_s5(phase_execution_id: str) -> int:
     dep = latest_ok("m7_stress_s4", "m7_execution_summary.json", "M7-ST-S4")
     dep_issues: list[str] = []
     dep_id = ""
+    dep_path = Path()
     dep_subset: dict[str, Any] = {}
     dep_profile: dict[str, Any] = {}
     platform_run_id = ""
@@ -2388,6 +2566,7 @@ def run_s5(phase_execution_id: str) -> int:
         issues.extend(chain_issues)
 
     subphase_rows: list[dict[str, Any]] = []
+    subphase_records: dict[str, dict[str, Any]] = {}
     subphase_issues: list[str] = []
     for label, rec, expected_verdict in [
         ("P8", latest_ok("m7p8_stress_s5", "m7p8_execution_summary.json", "M7P8-ST-S5"), "ADVANCE_TO_P9"),
@@ -2407,6 +2586,7 @@ def run_s5(phase_execution_id: str) -> int:
             subphase_issues.append(f"missing successful {label} S5 dependency")
             subphase_rows.append(row)
             continue
+        subphase_records[label] = rec
         s = rec.get("summary", {})
         row["phase_execution_id"] = str(s.get("phase_execution_id", ""))
         row["platform_run_id"] = str(s.get("platform_run_id", "")).strip()
@@ -2442,7 +2622,7 @@ def run_s5(phase_execution_id: str) -> int:
 
     stage_cost_rows: list[dict[str, Any]] = []
     total_window_seconds = 0
-    total_spend_usd = 0.0
+    mapped_rollup_spend_usd = 0.0
     for prefix, stage_id in [
         ("m7_stress_s0", "M7-ST-S0"),
         ("m7_stress_s1", "M7-ST-S1"),
@@ -2451,22 +2631,52 @@ def run_s5(phase_execution_id: str) -> int:
         ("m7_stress_s4", "M7-ST-S4"),
     ]:
         rec = latest_ok(prefix, "m7_execution_summary.json", stage_id)
-        row = {"stage_id": stage_id, "phase_execution_id": "", "window_seconds": 0, "attributed_spend_usd": 0.0, "found": bool(rec)}
+        row = {
+            "stage_id": stage_id,
+            "phase_execution_id": "",
+            "window_seconds": 0,
+            "attributed_spend_usd": 0.0,
+            "found": bool(rec),
+            "source": "m7_cost_outcome_receipt.json",
+            "summary_generated_at_utc": "",
+            "receipt_generated_at_utc": "",
+            "window_start_utc": "",
+            "window_end_utc": "",
+        }
         if rec:
-            row["phase_execution_id"] = str(rec.get("summary", {}).get("phase_execution_id", ""))
+            s = rec.get("summary", {})
+            row["phase_execution_id"] = str(s.get("phase_execution_id", ""))
+            row["summary_generated_at_utc"] = str(s.get("generated_at_utc", ""))
             cost = loadj(Path(str(rec.get("path", ""))) / "m7_cost_outcome_receipt.json")
+            row["receipt_generated_at_utc"] = str(cost.get("generated_at_utc", ""))
             row["window_seconds"] = int(cost.get("window_seconds", 0) or 0)
             row["attributed_spend_usd"] = float(cost.get("attributed_spend_usd", 0.0) or 0.0)
+            ws, we = derive_stage_window(row)
+            row["window_start_utc"] = iso_utc(ws)
+            row["window_end_utc"] = iso_utc(we)
             total_window_seconds += row["window_seconds"]
-            total_spend_usd += row["attributed_spend_usd"]
+            mapped_rollup_spend_usd += row["attributed_spend_usd"]
         stage_cost_rows.append(row)
+
+    query_start_utc, query_end_utc = derive_cost_query_window(stage_cost_rows)
+    cost_attribution_window_seconds = max(1, int((query_end_utc - query_start_utc).total_seconds()))
+    billing_region = str(handles.get("AWS_BILLING_REGION", "us-east-1")).strip() or "us-east-1"
+    ce_receipt = query_aws_cost_explorer_window(query_start_utc, query_end_utc, billing_region)
+    attributed_spend_usd = float(ce_receipt.get("amount_usd", 0.0) or 0.0) if ce_receipt.get("ok") else float(mapped_rollup_spend_usd)
+    unattributed_spend_detected = not bool(ce_receipt.get("ok"))
+    ce_vs_rollup_delta_usd = round(attributed_spend_usd - float(mapped_rollup_spend_usd), 8)
+    if not ce_receipt.get("ok"):
+        advisories.append(f"cost explorer attribution unavailable: {ce_receipt.get('error', 'unknown_error')}")
+    elif attributed_spend_usd + 0.01 < float(mapped_rollup_spend_usd):
+        unattributed_spend_detected = True
+        advisories.append("ce attributed spend below mapped rollup spend by >$0.01; flagged as unattributed residual")
 
     max_runtime_minutes = float(plan_packet.get("M7_STRESS_MAX_RUNTIME_MINUTES", 360))
     max_spend_usd = float(plan_packet.get("M7_STRESS_MAX_SPEND_USD", 120))
     budget_checks = {
         "runtime_check": (total_window_seconds / 60.0) <= max_runtime_minutes,
-        "spend_check": total_spend_usd <= max_spend_usd,
-        "unattributed_spend_check": True,
+        "spend_check": attributed_spend_usd <= max_spend_usd,
+        "unattributed_spend_check": not unattributed_spend_detected,
     }
     if not all(budget_checks.values()):
         blockers.append(
@@ -2478,13 +2688,249 @@ def run_s5(phase_execution_id: str) -> int:
                     "checks": budget_checks,
                     "total_window_seconds": total_window_seconds,
                     "max_runtime_minutes": max_runtime_minutes,
-                    "total_spend_usd": total_spend_usd,
+                    "total_spend_usd": attributed_spend_usd,
                     "max_spend_usd": max_spend_usd,
+                    "mapped_rollup_spend_usd": round(mapped_rollup_spend_usd, 6),
+                    "ce_attribution": ce_receipt,
+                    "ce_vs_rollup_delta_usd": ce_vs_rollup_delta_usd,
                     "stage_cost_rows": stage_cost_rows,
                 },
             }
         )
         issues.append("rollup runtime/spend envelope breach")
+
+    p8_profile = loadj(Path(str(subphase_records.get("P8", {}).get("path", ""))) / "m7p8_data_profile_summary.json") if subphase_records.get("P8") else {}
+    p9_profile = loadj(Path(str(subphase_records.get("P9", {}).get("path", ""))) / "m7p9_data_profile_summary.json") if subphase_records.get("P9") else {}
+    p10_profile = loadj(Path(str(subphase_records.get("P10", {}).get("path", ""))) / "m7p10_data_profile_summary.json") if subphase_records.get("P10") else {}
+    dep_probe = loadj(dep_path / "m7_probe_latency_throughput_snapshot.json") if dep_path else {}
+
+    def to_float(v: Any) -> float | None:
+        try:
+            if v is None:
+                return None
+            return float(v)
+        except (TypeError, ValueError):
+            return None
+
+    def to_int(v: Any) -> int:
+        try:
+            return int(v)
+        except (TypeError, ValueError):
+            return 0
+
+    add_profile_id = str(plan_packet.get("M7_ADDENDUM_PROFILE_ID", "m7_production_hard_close_v0")).strip() or "m7_production_hard_close_v0"
+    add_expected_gate = str(plan_packet.get("M7_ADDENDUM_EXPECTED_GATE_ON_PASS", "M8_READY")).strip() or "M8_READY"
+    dup_min_pct = float(plan_packet.get("M7_ADDENDUM_REALISM_DUPLICATE_OBSERVED_MIN_PCT", 0.5) or 0.5)
+    ooo_min_pct = float(plan_packet.get("M7_ADDENDUM_REALISM_OUT_OF_ORDER_OBSERVED_MIN_PCT", 0.2) or 0.2)
+    hotkey_min_pct = float(plan_packet.get("M7_ADDENDUM_REALISM_HOTKEY_TOP1_MIN_PCT", 30) or 30)
+    case_label_observed_min_events = int(plan_packet.get("M7_ADDENDUM_CASE_LABEL_OBSERVED_MIN_EVENTS", 100000) or 100000)
+    case_label_effective_min_events = int(plan_packet.get("M7_ADDENDUM_CASE_LABEL_EFFECTIVE_MIN_EVENTS", case_label_observed_min_events) or case_label_observed_min_events)
+    case_label_observed_proof_min_events = int(plan_packet.get("M7_ADDENDUM_CASE_LABEL_OBSERVED_PROOF_MIN_EVENTS", 10) or 10)
+    service_metrics_required = [x.strip() for x in str(plan_packet.get("M7_ADDENDUM_SERVICE_PATH_METRICS_REQUIRED", "p50,p95,p99,error_rate,retry_ratio,lag")).split(",") if x.strip()]
+    add_max_runtime_minutes = float(plan_packet.get("M7_ADDENDUM_MAX_RUNTIME_MINUTES", 240) or 240)
+    add_max_spend_usd = float(plan_packet.get("M7_ADDENDUM_MAX_SPEND_USD", 60) or 60)
+    add_cost_method_required = str(plan_packet.get("M7_ADDENDUM_COST_ATTRIBUTION_METHOD", "aws_ce_daily_unblended_v1")).strip() or "aws_ce_daily_unblended_v1"
+    add_cost_min_window_seconds = int(plan_packet.get("M7_ADDENDUM_COST_ATTRIBUTION_MIN_WINDOW_SECONDS", 600) or 600)
+
+    cohort_presence = p8_profile.get("cohort_presence", {}) if isinstance(p8_profile.get("cohort_presence", {}), dict) else {}
+    duplicate_ratio_pct = to_float(p9_profile.get("duplicate_ratio_pct"))
+    out_of_order_ratio_pct = to_float(dep_profile.get("out_of_order_ratio_pct"))
+    top1_share = to_float(dep_profile.get("top1_run_share"))
+    if top1_share is None:
+        top1_share = to_float((p8_profile.get("source_profile", {}) or {}).get("top1_hotkey_share"))
+    top1_share_pct = None if top1_share is None else (top1_share * 100.0 if top1_share <= 1.0 else top1_share)
+
+    semantic_issue_count = to_int(dep_profile.get("semantic_issue_count"))
+    p8_semantic_issue_count = to_int(dep_profile.get("p8_semantic_issue_count"))
+    p9_semantic_issue_count = to_int(dep_profile.get("p9_semantic_issue_count"))
+    p10_semantic_issue_count = to_int(dep_profile.get("p10_semantic_issue_count"))
+    semantic_ok = (semantic_issue_count + p8_semantic_issue_count + p9_semantic_issue_count + p10_semantic_issue_count) == 0
+
+    advisories_pool = [str(x) for x in [*(dep_profile.get("advisories", []) or []), *(p8_profile.get("advisories", []) or []), *(p9_profile.get("advisories", []) or []), *(p10_profile.get("advisories", []) or [])]]
+    duplicate_pressure_contract = any("duplicate/replay" in a.lower() for a in advisories_pool)
+    late_pressure_contract = any("late-event" in a.lower() or "late_out_of_order" in a.lower() for a in advisories_pool)
+    hotkey_pressure_contract = any("hotkey" in a.lower() for a in advisories_pool)
+
+    direct_realism_check = (
+        duplicate_ratio_pct is not None
+        and out_of_order_ratio_pct is not None
+        and top1_share_pct is not None
+        and duplicate_ratio_pct >= dup_min_pct
+        and out_of_order_ratio_pct >= ooo_min_pct
+        and top1_share_pct >= hotkey_min_pct
+    )
+    fallback_realism_check = (
+        bool(cohort_presence.get("normal_mix", False))
+        and bool(cohort_presence.get("rare_edge_case", False))
+        and duplicate_pressure_contract
+        and late_pressure_contract
+        and hotkey_pressure_contract
+    )
+    a1_mode = "direct_observed" if direct_realism_check else ("contractual_pressure" if fallback_realism_check else "failed")
+    a1_pass = semantic_ok and (direct_realism_check or fallback_realism_check)
+    if not a1_pass:
+        if not semantic_ok:
+            addendum_blockers.append(
+                {
+                    "id": "M7-ADD-B2",
+                    "severity": "HIGH",
+                    "status": "OPEN",
+                    "details": {
+                        "reason": "semantic drift under realism pressure",
+                        "semantic_issue_count": semantic_issue_count,
+                        "p8_semantic_issue_count": p8_semantic_issue_count,
+                        "p9_semantic_issue_count": p9_semantic_issue_count,
+                        "p10_semantic_issue_count": p10_semantic_issue_count,
+                    },
+                }
+            )
+        if not (direct_realism_check or fallback_realism_check):
+            addendum_blockers.append(
+                {
+                    "id": "M7-ADD-B1",
+                    "severity": "HIGH",
+                    "status": "OPEN",
+                    "details": {
+                        "reason": "realism cohorts not sufficiently observed/validated",
+                        "direct_realism_check": direct_realism_check,
+                        "fallback_realism_check": fallback_realism_check,
+                        "cohort_presence": cohort_presence,
+                        "duplicate_ratio_pct": duplicate_ratio_pct,
+                        "out_of_order_ratio_pct": out_of_order_ratio_pct,
+                        "top1_share_pct": top1_share_pct,
+                        "thresholds": {
+                            "duplicate_min_pct": dup_min_pct,
+                            "out_of_order_min_pct": ooo_min_pct,
+                            "hotkey_top1_min_pct": hotkey_min_pct,
+                        },
+                        "a1_mode": a1_mode,
+                    },
+                }
+            )
+
+    case_events_observed = to_int(p10_profile.get("case_events_observed"))
+    label_events_observed = to_int(p10_profile.get("label_events_observed"))
+    case_events_effective = to_int(p10_profile.get("case_events_effective"))
+    label_events_effective = to_int(p10_profile.get("label_events_effective"))
+    p10_checks = p10_profile.get("checks", {}) if isinstance(p10_profile.get("checks", {}), dict) else {}
+    p10_semantic_green = (
+        len(p10_profile.get("s1_semantic_issues", []) or []) == 0
+        and len(p10_profile.get("s2_semantic_issues", []) or []) == 0
+        and len(p10_profile.get("s3_semantic_issues", []) or []) == 0
+        and bool(p10_checks.get("writer_conflict_rate_check", True))
+        and bool(p10_checks.get("case_reopen_rate_check", True))
+        and bool(p10_profile.get("single_writer_posture_s3", True))
+    )
+    a2_direct_observed_check = case_events_observed >= case_label_observed_min_events and label_events_observed >= case_label_observed_min_events
+    a2_effective_fallback_check = (
+        case_events_effective >= case_label_effective_min_events
+        and label_events_effective >= case_label_effective_min_events
+        and case_events_observed >= case_label_observed_proof_min_events
+        and label_events_observed >= case_label_observed_proof_min_events
+    )
+    a2_mode = "observed_volume" if a2_direct_observed_check else ("effective_with_observed_floor" if a2_effective_fallback_check else "failed")
+    a2_pass = p10_semantic_green and (a2_direct_observed_check or a2_effective_fallback_check)
+    if not a2_pass:
+        addendum_blockers.append(
+            {
+                "id": "M7-ADD-B3",
+                "severity": "HIGH",
+                "status": "OPEN",
+                "details": {
+                    "reason": "case/label pressure window remains below closure posture",
+                    "mode": a2_mode,
+                    "p10_semantic_green": p10_semantic_green,
+                    "case_events_observed": case_events_observed,
+                    "label_events_observed": label_events_observed,
+                    "case_events_effective": case_events_effective,
+                    "label_events_effective": label_events_effective,
+                    "thresholds": {
+                        "observed_min_events": case_label_observed_min_events,
+                        "effective_min_events": case_label_effective_min_events,
+                        "observed_proof_min_events": case_label_observed_proof_min_events,
+                    },
+                },
+            }
+        )
+
+    integrated_checks = dep_profile.get("integrated_checks", {}) if isinstance(dep_profile.get("integrated_checks", {}), dict) else {}
+    target_eps = float(handles.get("THROUGHPUT_CERT_TARGET_EVENTS_PER_SECOND", 20) or 20)
+    max_error_pct = float(handles.get("THROUGHPUT_CERT_MAX_ERROR_RATE_PCT", 1.0) or 1.0)
+    max_retry_pct = float(handles.get("THROUGHPUT_CERT_MAX_RETRY_RATIO_PCT", 5.0) or 5.0)
+    eps_proxy = float(dep_profile.get("eps_proxy", 0.0) or 0.0)
+    error_rate_pct = float(dep_profile.get("worst_error_pct", 0.0) or 0.0)
+    retry_ratio_pct = float(dep_profile.get("retry_ratio_pct", 0.0) or 0.0)
+    latency_p50 = float(dep_probe.get("latency_ms_p50", 0.0) or 0.0)
+    latency_p95 = float(dep_probe.get("latency_ms_p95", 0.0) or 0.0)
+    latency_p99 = float(dep_probe.get("latency_ms_p99", 0.0) or 0.0)
+    lag_evidence_present = bool(((dep_profile.get("source_profile", {}) or {}).get("behavior_context_refs", {}) or {}).get("offsets_snapshot", {}).get("present", False))
+    a3_checks = {
+        "integrated_checks_pass": bool(integrated_checks) and all(bool(v) for v in integrated_checks.values()),
+        "throughput_eps_check": eps_proxy >= target_eps,
+        "error_rate_check": error_rate_pct <= max_error_pct,
+        "retry_ratio_check": retry_ratio_pct <= max_retry_pct,
+        "latency_capture_check": latency_p50 > 0.0 and latency_p95 > 0.0 and latency_p99 > 0.0,
+        "lag_evidence_check": lag_evidence_present,
+        "runtime_budget_check": (total_window_seconds / 60.0) <= add_max_runtime_minutes,
+        "spend_budget_check": attributed_spend_usd <= add_max_spend_usd,
+        "required_metric_keys_check": len(service_metrics_required) > 0,
+    }
+    a3_pass = all(bool(v) for v in a3_checks.values())
+    if not a3_pass:
+        addendum_blockers.append(
+            {
+                "id": "M7-ADD-B4",
+                "severity": "HIGH",
+                "status": "OPEN",
+                "details": {
+                    "reason": "service-path latency/throughput evidence incomplete or out of budget",
+                    "checks": a3_checks,
+                    "target_eps": target_eps,
+                    "eps_proxy": round(eps_proxy, 6),
+                    "error_rate_pct": error_rate_pct,
+                    "max_error_pct": max_error_pct,
+                    "retry_ratio_pct": retry_ratio_pct,
+                    "max_retry_pct": max_retry_pct,
+                    "latency_ms": {"p50": latency_p50, "p95": latency_p95, "p99": latency_p99},
+                    "required_metrics": service_metrics_required,
+                },
+            }
+        )
+
+    a4_pass = (
+        cost_attribution_window_seconds >= add_cost_min_window_seconds
+        and bool(ce_receipt.get("ok"))
+        and str(ce_receipt.get("method", "")).strip() == add_cost_method_required
+        and not unattributed_spend_detected
+    )
+    if not a4_pass:
+        addendum_blockers.append(
+            {
+                "id": "M7-ADD-B5",
+                "severity": "HIGH",
+                "status": "OPEN",
+                "details": {
+                    "reason": "real cost attribution incomplete or unexplained spend detected",
+                    "window_seconds": cost_attribution_window_seconds,
+                    "min_required_window_seconds": add_cost_min_window_seconds,
+                    "cost_method_required": add_cost_method_required,
+                    "cost_method_observed": str(ce_receipt.get("method", "")),
+                    "attributed_spend_usd": round(attributed_spend_usd, 6),
+                    "mapped_rollup_spend_usd": round(mapped_rollup_spend_usd, 6),
+                    "ce_attribution": ce_receipt,
+                    "unattributed_spend_detected": unattributed_spend_detected,
+                },
+            }
+        )
+
+    if addendum_blockers:
+        for b in addendum_blockers:
+            bid = str(b.get("id", ""))
+            if bid == "M7-ADD-B5":
+                blockers.append({"id": "M7-ST-B12", "severity": "S5", "status": "OPEN", "details": b.get("details", {})})
+            elif bid in {"M7-ADD-B1", "M7-ADD-B2", "M7-ADD-B3", "M7-ADD-B4"}:
+                blockers.append({"id": "M7-ST-B11", "severity": "S5", "status": "OPEN", "details": b.get("details", {})})
+        issues.append("one or more addendum lanes failed")
 
     handoff_target_pattern = str(handles.get("M7_HANDOFF_PACK_PATH_PATTERN", "")).strip()
     handoff_target = materialize_pattern(handoff_target_pattern, replacements) if handoff_target_pattern else ""
@@ -2508,6 +2954,8 @@ def run_s5(phase_execution_id: str) -> int:
         "upstream_m7_s4_phase_execution_id": dep_id,
         "parent_chain_rows": chain_rows,
         "subphase_rows": subphase_rows,
+        "addendum_lane_status": {"A1": a1_pass, "A2": a2_pass, "A3": a3_pass, "A4": a4_pass},
+        "addendum_open_blocker_count": len(addendum_blockers),
         "budget_checks": budget_checks,
         "handoff_target_pattern": handoff_target_pattern,
         "handoff_target_resolved": handoff_target,
@@ -2572,9 +3020,9 @@ def run_s5(phase_execution_id: str) -> int:
     )
     dumpj(out / "m7_data_edge_case_matrix.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S5", "platform_run_id": platform_run_id, "chain_rows": chain_rows, "subphase_rows": subphase_rows})
     dumpj(out / "m7_data_skew_hotspot_profile.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S5", "platform_run_id": platform_run_id, "top1_run_share": dep_profile.get("top1_run_share")})
-    dumpj(out / "m7_data_quality_guardrail_snapshot.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S5", "platform_run_id": platform_run_id, "overall_pass": overall_pass, "chain_rows": chain_rows, "subphase_rows": subphase_rows, "budget_checks": budget_checks})
+    dumpj(out / "m7_data_quality_guardrail_snapshot.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S5", "platform_run_id": platform_run_id, "overall_pass": overall_pass, "chain_rows": chain_rows, "subphase_rows": subphase_rows, "budget_checks": budget_checks, "addendum_lane_status": {"A1": a1_pass, "A2": a2_pass, "A3": a3_pass, "A4": a4_pass}})
     dumpj(out / "m7_probe_latency_throughput_snapshot.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S5", **metrics})
-    dumpj(out / "m7_control_rail_conformance_snapshot.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S5", "platform_run_id": platform_run_id, "overall_pass": len(issues) == 0, "issues": issues, "advisories": advisories, "chain_rows": chain_rows, "subphase_rows": subphase_rows})
+    dumpj(out / "m7_control_rail_conformance_snapshot.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S5", "platform_run_id": platform_run_id, "overall_pass": len(issues) == 0, "issues": issues, "advisories": advisories, "chain_rows": chain_rows, "subphase_rows": subphase_rows, "addendum_lane_status": {"A1": a1_pass, "A2": a2_pass, "A3": a3_pass, "A4": a4_pass}})
     dumpj(out / "m7_secret_safety_snapshot.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S5", "overall_pass": True, "secret_probe_count": 0, "secret_failure_count": 0, "with_decryption_used": False, "queried_value_directly": False, "plaintext_leakage_detected": False})
     dumpj(
         out / "m7_cost_outcome_receipt.json",
@@ -2583,14 +3031,185 @@ def run_s5(phase_execution_id: str) -> int:
             "phase_execution_id": phase_execution_id,
             "stage_id": "M7-ST-S5",
             "window_seconds": total_window_seconds,
+            "cost_attribution_window_seconds": cost_attribution_window_seconds,
             "estimated_api_call_count": metrics["probe_count"],
-            "attributed_spend_usd": round(total_spend_usd, 6),
-            "unattributed_spend_detected": False,
+            "attributed_spend_usd": round(attributed_spend_usd, 6),
+            "mapped_rollup_spend_usd": round(mapped_rollup_spend_usd, 6),
+            "unattributed_spend_detected": unattributed_spend_detected,
             "max_spend_usd": max_spend_usd,
             "within_envelope": all(budget_checks.values()),
-            "method": "m7_s5_rollup_handoff_v0",
+            "method": "m7_s5_real_cost_attribution_v1",
+            "cost_query_window": {"start_utc": iso_utc(query_start_utc), "end_utc": iso_utc(query_end_utc)},
+            "ce_attribution": ce_receipt,
+            "ce_vs_rollup_delta_usd": ce_vs_rollup_delta_usd,
+            "spend_sources": stage_cost_rows,
         },
     )
+    m7_addendum_realism_window_summary = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_execution_id,
+        "stage_id": "M7-ST-S5",
+        "lane_id": "A1",
+        "overall_pass": a1_pass,
+        "mode": a1_mode,
+        "semantic_ok": semantic_ok,
+        "cohort_presence": cohort_presence,
+        "thresholds": {
+            "duplicate_min_pct": dup_min_pct,
+            "out_of_order_min_pct": ooo_min_pct,
+            "hotkey_top1_min_pct": hotkey_min_pct,
+        },
+        "observed": {
+            "duplicate_ratio_pct": duplicate_ratio_pct,
+            "out_of_order_ratio_pct": out_of_order_ratio_pct,
+            "top1_share_pct": top1_share_pct,
+        },
+        "pressure_contract_flags": {
+            "duplicate_pressure_contract": duplicate_pressure_contract,
+            "late_pressure_contract": late_pressure_contract,
+            "hotkey_pressure_contract": hotkey_pressure_contract,
+        },
+    }
+    m7_addendum_realism_window_metrics = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_execution_id,
+        "stage_id": "M7-ST-S5",
+        "lane_id": "A1",
+        "rows_scanned": to_int(dep_profile.get("rows_scanned")),
+        "event_type_count": to_int(dep_profile.get("event_type_count")),
+        "semantic_issue_count": semantic_issue_count,
+        "p8_semantic_issue_count": p8_semantic_issue_count,
+        "p9_semantic_issue_count": p9_semantic_issue_count,
+        "p10_semantic_issue_count": p10_semantic_issue_count,
+    }
+    m7_addendum_case_label_pressure_summary = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_execution_id,
+        "stage_id": "M7-ST-S5",
+        "lane_id": "A2",
+        "overall_pass": a2_pass,
+        "mode": a2_mode,
+        "p10_semantic_green": p10_semantic_green,
+        "thresholds": {
+            "observed_min_events": case_label_observed_min_events,
+            "effective_min_events": case_label_effective_min_events,
+            "observed_proof_min_events": case_label_observed_proof_min_events,
+        },
+        "counts": {
+            "case_events_observed": case_events_observed,
+            "label_events_observed": label_events_observed,
+            "case_events_effective": case_events_effective,
+            "label_events_effective": label_events_effective,
+        },
+    }
+    m7_addendum_case_label_pressure_metrics = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_execution_id,
+        "stage_id": "M7-ST-S5",
+        "lane_id": "A2",
+        "writer_conflict_rate_pct": to_float(p10_profile.get("writer_conflict_rate_pct")),
+        "case_reopen_rate_pct": to_float(p10_profile.get("case_reopen_rate_pct")),
+        "single_writer_posture_s3": bool(p10_profile.get("single_writer_posture_s3", True)),
+    }
+    m7_addendum_service_path_latency_profile = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_execution_id,
+        "stage_id": "M7-ST-S5",
+        "lane_id": "A3",
+        "overall_pass": a3_pass,
+        "required_metrics": service_metrics_required,
+        "latency_ms": {"p50": latency_p50, "p95": latency_p95, "p99": latency_p99},
+        "error_rate_pct": error_rate_pct,
+        "retry_ratio_pct": retry_ratio_pct,
+        "lag_evidence_present": lag_evidence_present,
+        "checks": a3_checks,
+    }
+    m7_addendum_service_path_throughput_profile = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_execution_id,
+        "stage_id": "M7-ST-S5",
+        "lane_id": "A3",
+        "eps_proxy": round(eps_proxy, 6),
+        "target_eps": target_eps,
+        "runtime_budget_minutes_used": round(total_window_seconds / 60.0, 6),
+        "runtime_budget_minutes_max": add_max_runtime_minutes,
+        "spend_budget_usd_used": round(attributed_spend_usd, 6),
+        "spend_budget_usd_max": add_max_spend_usd,
+    }
+    m7_addendum_cost_attribution_receipt = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_execution_id,
+        "stage_id": "M7-ST-S5",
+        "lane_id": "A4",
+        "overall_pass": a4_pass,
+        "window_seconds": cost_attribution_window_seconds,
+        "min_required_window_seconds": add_cost_min_window_seconds,
+        "attributed_spend_usd": round(attributed_spend_usd, 6),
+        "mapped_rollup_spend_usd": round(mapped_rollup_spend_usd, 6),
+        "unattributed_spend_detected": unattributed_spend_detected,
+        "ce_vs_rollup_delta_usd": ce_vs_rollup_delta_usd,
+        "cost_query_window": {"start_utc": iso_utc(query_start_utc), "end_utc": iso_utc(query_end_utc)},
+        "cost_method_required": add_cost_method_required,
+        "cost_method_observed": str(ce_receipt.get("method", "")),
+        "ce_attribution": ce_receipt,
+        "spend_sources": stage_cost_rows,
+        "mapping_complete": bool(ce_receipt.get("ok")) and not unattributed_spend_detected,
+    }
+    m7_addendum_blocker_register = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_execution_id,
+        "stage_id": "M7-ST-S5",
+        "overall_pass": len(addendum_blockers) == 0,
+        "open_blocker_count": len(addendum_blockers),
+        "blockers": addendum_blockers,
+    }
+    m7_addendum_execution_summary = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_execution_id,
+        "stage_id": "M7-ST-S5",
+        "profile_id": add_profile_id,
+        "overall_pass": len(addendum_blockers) == 0,
+        "lane_status": {"A1": a1_pass, "A2": a2_pass, "A3": a3_pass, "A4": a4_pass},
+        "next_gate_on_pass": add_expected_gate,
+        "recommended_next_gate": add_expected_gate if len(addendum_blockers) == 0 else "BLOCKED",
+    }
+    m7_addendum_decision_log = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_execution_id,
+        "stage_id": "M7-ST-S5",
+        "decisions": [
+            "Lane A1 adjudicated realism using direct observations and bounded contractual-pressure fallback when black-box surfaces are non-observable.",
+            "Lane A2 adjudicated case/label pressure with effective-volume fallback plus observed proof floor and strict semantic invariants.",
+            "Lane A3 enforced direct service-path latency/throughput checks from integrated S4 evidence and budget checks.",
+            "Lane A4 enforced real CE-backed spend attribution with method contract and unexplained-spend fail-closed posture.",
+        ],
+    }
+
+    dumpj(out / "m7_addendum_realism_window_summary.json", m7_addendum_realism_window_summary)
+    dumpj(out / "m7_addendum_realism_window_metrics.json", m7_addendum_realism_window_metrics)
+    dumpj(out / "m7_addendum_case_label_pressure_summary.json", m7_addendum_case_label_pressure_summary)
+    dumpj(out / "m7_addendum_case_label_pressure_metrics.json", m7_addendum_case_label_pressure_metrics)
+    dumpj(out / "m7_addendum_service_path_latency_profile.json", m7_addendum_service_path_latency_profile)
+    dumpj(out / "m7_addendum_service_path_throughput_profile.json", m7_addendum_service_path_throughput_profile)
+    dumpj(out / "m7_addendum_cost_attribution_receipt.json", m7_addendum_cost_attribution_receipt)
+    dumpj(out / "m7_addendum_blocker_register.json", m7_addendum_blocker_register)
+    dumpj(out / "m7_addendum_execution_summary.json", m7_addendum_execution_summary)
+    dumpj(out / "m7_addendum_decision_log.json", m7_addendum_decision_log)
+
+    addendum_missing = [n for n in M7_ADDENDUM_ARTIFACTS if not (out / n).exists()]
+    if addendum_missing:
+        addendum_blockers.append({"id": "M7-ADD-B6", "severity": "HIGH", "status": "OPEN", "details": {"missing_artifacts": addendum_missing}})
+        m7_addendum_blocker_register.update({"overall_pass": False, "open_blocker_count": len(addendum_blockers), "blockers": addendum_blockers})
+        m7_addendum_execution_summary.update({"overall_pass": False, "recommended_next_gate": "BLOCKED"})
+        dumpj(out / "m7_addendum_blocker_register.json", m7_addendum_blocker_register)
+        dumpj(out / "m7_addendum_execution_summary.json", m7_addendum_execution_summary)
+        blockers.append({"id": "M7-ST-B9", "severity": "S5", "status": "OPEN", "details": {"missing_addendum_artifacts": addendum_missing}})
+        issues.append("missing addendum artifacts")
+        overall_pass = False
+        verdict_name = "HOLD_REMEDIATE"
+        next_gate = "BLOCKED"
+        handoff_pack.update({"verdict": verdict_name, "next_gate": next_gate})
+
     dumpj(out / "m7_phase_rollup_matrix.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S5", "platform_run_id": platform_run_id, "chain_rows": chain_rows, "subphase_rows": subphase_rows, "stage_cost_rows": stage_cost_rows, "budget_checks": budget_checks})
     dumpj(
         out / "m7_gate_verdict.json",
@@ -2612,8 +3231,8 @@ def run_s5(phase_execution_id: str) -> int:
     decisions.extend(
         [
             "Validated S4 continuity before M7 rollup and handoff emission.",
-            "Enforced deterministic GO rule only when parent/subphase chain is blocker-free and run-scope consistent.",
-            "Published closure rollup with explicit cost/runtime attribution and handoff refs.",
+            "Enforced deterministic GO rule only when parent/subphase/addendum lanes are blocker-free and run-scope consistent.",
+            "Published closure rollup with explicit addendum lane adjudication, real cost attribution, and handoff refs.",
         ]
     )
     dumpj(out / "m7_decision_log.json", {"generated_at_utc": now(), "phase_execution_id": phase_execution_id, "stage_id": "M7-ST-S5", "decisions": decisions, "advisories": advisories, "chain_rows": chain_rows, "subphase_rows": subphase_rows})
@@ -2633,6 +3252,8 @@ def run_s5(phase_execution_id: str) -> int:
         "upstream_m7_s4_phase_execution_id": dep_id,
         "expected_next_gate_on_pass": expected_next_gate,
         "verdict": verdict_name,
+        "addendum_lane_status": {"A1": a1_pass, "A2": a2_pass, "A3": a3_pass, "A4": a4_pass},
+        "addendum_open_blocker_count": len(addendum_blockers),
     }
     verdict = {
         "generated_at_utc": now(),
@@ -2656,6 +3277,7 @@ def run_s5(phase_execution_id: str) -> int:
     print(f"[m7_s5] verdict={summary.get('verdict')}")
     print(f"[m7_s5] next_gate={summary.get('next_gate')}")
     print(f"[m7_s5] open_blockers={blocker_register.get('open_blocker_count')}")
+    print(f"[m7_s5] addendum_open_blockers={len(addendum_blockers)}")
     return 0 if summary.get("overall_pass") else 2
 
 

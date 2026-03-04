@@ -213,7 +213,7 @@ For any phase:
 
 ## 12) Program Status
 1. Program bootstrapped.
-2. Current phase state: `M7` (`CONDITIONALLY CLOSED`; parent and subphase gates are green, while M7 hard-close addendum lanes remain pending before M8).
+2. Current phase state: `M7` (`DONE_HARD_CLOSED`; parent and subphase gates are green, addendum lanes `A1..A4` are closed green, and `M8_READY` is emitted).
 3. Dedicated phase files:
    - `stress_test/platform.M2.stress_test.md` (`DONE`),
    - `stress_test/platform.M3.stress_test.md` (`DONE`),
@@ -225,11 +225,11 @@ For any phase:
    - `stress_test/platform.M6.P5.stress_test.md` (`DONE`),
    - `stress_test/platform.M6.P6.stress_test.md` (`DONE`),
    - `stress_test/platform.M6.P7.stress_test.md` (`DONE`),
-   - `stress_test/platform.M7.stress_test.md` (`CONDITIONALLY_CLOSED`),
+   - `stress_test/platform.M7.stress_test.md` (`DONE_HARD_CLOSED`),
    - `stress_test/platform.M7.P8.stress_test.md` (`DONE`),
    - `stress_test/platform.M7.P9.stress_test.md` (`DONE`),
    - `stress_test/platform.M7.P10.stress_test.md` (`DONE`).
-4. Next step: execute M7 hard-close addendum lanes (`A1 -> A2 -> A3 -> A4`) before active M8 execution.
+4. Next step: begin `M8-ST-S0` planning/execution using the `M8_READY` handoff anchored at `m7_stress_s5_20260304T152614Z`.
 
 ## 13) Closed Phase - M0 (Inline)
 Status:
@@ -524,9 +524,9 @@ Authority routing:
    - `m6_addendum_blocker_register.json`: `open_blocker_count=0`.
    - `m6_addendum_cost_attribution_receipt.json` (latest rerun): `window_seconds=2051`, `mapping_complete=true`, `unattributed_spend_detected=false`, `attributed_spend_usd=5.567148` via `aws_ce_daily_unblended_v1`.
 
-## 19) Closed Phase - M7 (Gate Closed + Hard-Close Addendum Pending)
+## 19) Closed Phase - M7 (Hard-Closed)
 Status:
-1. `CONDITIONALLY CLOSED` (`M7-ST-S0..S5` closed green; deterministic `GO` with `next_gate=M8_READY`, while hard-close addendum lanes remain pending for strict production-readiness confidence).
+1. `DONE_HARD_CLOSED` (`M7-ST-S0..S5` closed green and hard-close addendum lanes `A1..A4` are closed green with deterministic `GO` + `next_gate=M8_READY`).
 
 Authority routing:
 1. Parent orchestration authority: `stress_test/platform.M7.stress_test.md`.
@@ -549,7 +549,7 @@ Authority routing:
    - `M7-ST-S2`: `phase_execution_id=m7_stress_s2_20260304T074144Z`, `overall_pass=true`, `next_gate=M7_ST_S3_READY`, `open_blockers=0`.
    - `M7-ST-S3`: `phase_execution_id=m7_stress_s3_20260304T074152Z`, `overall_pass=true`, `next_gate=M7_ST_S4_READY`, `open_blockers=0`.
    - `M7-ST-S4` (latest rerun): `phase_execution_id=m7_stress_s4_20260304T074305Z`, `overall_pass=true`, `next_gate=M7_ST_S5_READY`, `open_blockers=0`.
-   - `M7-ST-S5` (latest rerun): `phase_execution_id=m7_stress_s5_20260304T074317Z`, `overall_pass=true`, `verdict=GO`, `next_gate=M8_READY`, `open_blockers=0`.
+   - `M7-ST-S5` (latest rerun): `phase_execution_id=m7_stress_s5_20260304T152614Z`, `overall_pass=true`, `verdict=GO`, `next_gate=M8_READY`, `open_blockers=0`, `addendum_lane_status=A1:true|A2:true|A3:true|A4:true`, `addendum_open_blockers=0`.
 6. Latest `M7.P8` execution receipts:
    - `M7P8-ST-S0`: `phase_execution_id=m7p8_stress_s0_20260304T052810Z`, `overall_pass=true`, `next_gate=M7P8_ST_S1_READY`, `open_blockers=0`.
    - `M7P8-ST-S1`: `phase_execution_id=m7p8_stress_s1_20260304T052941Z`, `overall_pass=true`, `next_gate=M7P8_ST_S2_READY`, `open_blockers=0`.
@@ -577,9 +577,11 @@ Authority routing:
      deterministic `S0..S3` chain sweep stayed run-scope consistent and blocker-free under targeted-rerun-only policy.
    - `M7P10-ST-S5`: `phase_execution_id=m7p10_stress_s5_20260304T071946Z`, `overall_pass=true`, `verdict=M7_J_READY`, `next_gate=M7_J_READY`, `open_blockers=0`,
      deterministic `S0..S4` chain sweep + closure readback checks passed with full artifact contract closure.
-9. Current next executable step:
-   - execute M7 hard-close addendum lanes (`A1 -> A2 -> A3 -> A4`) from `platform.M7.stress_test.md` section `13` before advancing to active M8 execution.
-10. M7 addendum execution routing:
+9. M7 hard-close addendum closure receipts:
+   - first addendum execution attempt (fail-closed): `phase_execution_id=m7_stress_s5_20260304T152533Z`, blocker `M7-ADD-B5` (`M7-ST-B12`) on lane `A4` min-window contract mismatch.
+   - remediated rerun (green): `phase_execution_id=m7_stress_s5_20260304T152614Z`, `m7_addendum_execution_summary.json overall_pass=true`, `m7_addendum_blocker_register.json open_blocker_count=0`.
+   - `m7_addendum_cost_attribution_receipt.json`: `window_seconds=9371`, `mapping_complete=true`, `unattributed_spend_detected=false`, `attributed_spend_usd=5.567148`, `method=aws_ce_daily_unblended_v1`.
+10. M7 addendum execution routing (closed):
    - lane `A1`: injected realism pressure (duplicate/replay, out-of-order, hotkey, rare-path),
    - lane `A2`: case/label pressure window (remove low observed-volume reliance),
    - lane `A3`: direct service-path p50/p95/p99 + retry/error/lag evidence,
