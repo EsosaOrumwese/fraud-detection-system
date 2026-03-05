@@ -2,8 +2,8 @@
 _Parent authority: `platform.stress_test.md`_
 _Status source of truth: `platform.stress_test.md`_
 _Track: `dev_full` only_
-_As of 2026-03-04_
-_Current posture: `PLANNED` (`M9-ST-S0` is next; no M9 stress stage has executed in current strict chain)._
+_As of 2026-03-05_
+_Current posture: `S0_GREEN` (`M9-ST-S0` executed pass; next gate `M9_ST_S1_READY`)._
 
 ## 0) Purpose
 M9 stress validates learning-input readiness under realistic production data behavior, deterministic run scope, and cost discipline.
@@ -390,7 +390,7 @@ Required stage outputs (phase-level):
 - [x] anti-hole preflight gates pinned.
 - [x] M8 carry-forward guards pinned (locality/source authority/realism/black-box).
 - [x] fail-closed blocker taxonomy and artifact contract pinned.
-- [ ] `M9-ST-S0` executed and closed green.
+- [x] `M9-ST-S0` executed and closed green.
 - [ ] `M9-ST-S1` executed and closed green.
 - [ ] `M9-ST-S2` executed and closed green.
 - [ ] `M9-ST-S3` executed and closed green.
@@ -398,14 +398,27 @@ Required stage outputs (phase-level):
 - [ ] `M9-ST-S5` executed and closed green with deterministic `M10_READY`.
 
 ## 12) Immediate Next Actions
-1. implement `scripts/dev_substrate/m9_stress_runner.py` with deterministic `S0..S5` orchestration and fail-closed blocker mapping.
-2. execute `M9-ST-S0` using strict entry authority `m8_stress_s5_20260304T234918Z`.
-3. stop fail-closed on first blocker and remediate targeted only.
+1. expand `scripts/dev_substrate/m9_stress_runner.py` from `S0` to `S1` (`C+D`) with deterministic blocker mapping.
+2. execute `M9-ST-S1` using upstream `m9_stress_s0_20260305T000519Z`.
+3. maintain fail-closed posture with targeted remediation only.
 
 ## 13) Execution Progress
-1. M9 stress authority is now pinned and execution-ready.
+1. M9 stress authority is pinned and active.
 2. M8 strict closure authority for M9 entry is pinned to `m8_stress_s5_20260304T234918Z`.
-3. No M9 stress stage execution has occurred yet in the current strict chain.
+3. `M9-ST-S0` first execution failed closed (runner contract bug):
+   - `phase_execution_id=m9_stress_s0_20260305T000457Z`,
+   - blocker: `M9-ST-B11` (`artifact_contract_incomplete` from prewrite self-check of stage receipts).
+4. Remediation applied:
+   - patched `scripts/dev_substrate/m9_stress_runner.py` `finish()` to validate only pre-existing stage artifacts before writing stage receipts.
+5. `M9-ST-S0` closure execution passed:
+   - `phase_execution_id=m9_stress_s0_20260305T000519Z`,
+   - `overall_pass=true`, `open_blocker_count=0`,
+   - `verdict=GO`, `next_gate=M9_ST_S1_READY`.
+6. Native lane execution IDs in S0:
+   - `m9a_execution_id=m9a_stress_s0_20260305T000520Z` (`overall_pass=true`, `next_gate=M9.B_READY`),
+   - `m9b_execution_id=m9b_stress_s0_20260305T000522Z` (`overall_pass=true`, `next_gate=M9.C_READY`).
+7. S0 evidence root:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m9_stress_s0_20260305T000519Z/stress/`.
 
 ## 14) Reopen Notice (Strict Authority)
 1. M9 cannot be closed using historical 2026-02-26 receipts alone.

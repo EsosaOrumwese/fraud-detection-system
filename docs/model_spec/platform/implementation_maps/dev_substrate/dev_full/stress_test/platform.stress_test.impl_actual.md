@@ -9787,3 +9787,92 @@ ext_gate=M8_READY, open_blockers=0.
 1. M9 status row moved from `NOT_STARTED` to `IN_PROGRESS (PLANNED_S0)`.
 2. Program status now lists `platform.M9.stress_test.md` as dedicated active authority (`PLANNED`, `S0_PENDING`).
 3. Next step changed from \"begin M9 planning\" to \"execute `M9-ST-S0` fail-closed\".
+
+## Entry: 2026-03-05 00:01 +00:00 - M9-ST-S0 implementation plan (A+B orchestration)
+### Problem statement
+1. USER requested immediate planning and execution of `M9-ST-S0`.
+2. `m9a`/`m9b` lane scripts exist, but no parent stress orchestrator exists yet (`m9_stress_runner.py` absent).
+3. Contract mismatch discovered before execution:
+   - `m9a` reads upstream M8 summary from S3 root key `evidence/dev_full/run_control/{m8_s5_exec}/m8_execution_summary.json`,
+   - strict M8 parent summary currently exists locally under `/stress/` and is not present at that root key.
+
+### Decision
+1. Implement parent `M9-ST-S0` runner now (incremental runner build, S0 only) to preserve strict fail-closed posture and deterministic stage receipts.
+2. Add deterministic S0 bridge step (no semantic override):
+   - publish local strict M8 S5 summary to required root key for the exact upstream M8 execution id.
+3. Execute native lane chain `A -> B` from runner:
+   - `m9a_handle_closure.py`,
+   - `m9b_handoff_scope_lock.py`.
+4. Enforce S0 parent guards and artifact contract at parent stage:
+   - runtime locality guard,
+   - source-authority guard,
+   - realism guard,
+   - blocker register and execution summary.
+5. Keep Data Engine black-box boundary untouched; all assertions derive from platform run-control/oracle evidence only.
+
+### Planned implementation mechanics
+1. Create `scripts/dev_substrate/m9_stress_runner.py` with:
+   - parser for `--stage S0`, upstream M8 execution id,
+   - strict preflight checks against M8 pass posture (`ADVANCE_TO_M9`, `M9_READY`, blocker-free),
+   - S3 bridge upload for root `m8_execution_summary.json`,
+   - subprocess execution and evaluation of `m9a` and `m9b`,
+   - parent-stage artifact generation under:
+     - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/{m9_s0_exec}/stress/`.
+2. Map lane failures to parent blocker taxonomy:
+   - `M9-ST-B1` for A failures,
+   - `M9-ST-B2` for B failures,
+   - `M9-ST-B11` for artifact/bridge/readback parity failures.
+3. Stage pass gate for S0:
+   - `next_gate=M9_ST_S1_READY`, `verdict=GO`, `open_blocker_count=0`.
+4. Execute S0 immediately after implementation and sync stress docs/status/logbook.
+
+## Entry: 2026-03-05 00:06 +00:00 - M9-ST-S0 executed with fail-closed remediation
+### Implementation
+1. Added `scripts/dev_substrate/m9_stress_runner.py` with initial parent orchestration for `S0`:
+   - strict M8 entry validation from local strict chain summary,
+   - deterministic upstream M8 root-summary bridge upload for `m9a` contract parity,
+   - native chain execution `m9a -> m9b`,
+   - parent S0 artifact synthesis and guard snapshots,
+   - fail-closed blocker mapping and stage gate emission.
+2. Stage artifact contract for S0 is enforced in runner:
+   - `m9_stagea_findings.json`,
+   - `m9_lane_matrix.json`,
+   - `m9a_handle_closure_snapshot.json`,
+   - `m9b_handoff_scope_snapshot.json`,
+   - `m9_runtime_locality_guard_snapshot.json`,
+   - `m9_source_authority_guard_snapshot.json`,
+   - `m9_realism_guard_snapshot.json`,
+   - stage control receipts (`m9_blocker_register.json`, `m9_execution_summary.json`, `m9_decision_log.json`, `m9_gate_verdict.json`).
+
+### Execution and blocker
+1. Validation command:
+   - `python -m py_compile scripts/dev_substrate/m9_stress_runner.py scripts/dev_substrate/m9a_handle_closure.py scripts/dev_substrate/m9b_handoff_scope_lock.py` -> pass.
+2. First `S0` execution:
+   - `phase_execution_id=m9_stress_s0_20260305T000457Z`,
+   - result: `overall_pass=false`, `open_blocker_count=1`, `next_gate=HOLD_REMEDIATE`.
+3. Open blocker:
+   - `M9-ST-B11` (`artifact_contract_incomplete`).
+4. Root cause:
+   - runner `finish()` validated for stage receipts before writing them, creating a self-failing contract check.
+
+### Remediation and closure
+1. Patched `finish()` in `m9_stress_runner.py`:
+   - artifact-contract precheck now excludes the stage receipts that are written by `finish()` itself.
+2. Reran `S0`:
+   - `phase_execution_id=m9_stress_s0_20260305T000519Z`,
+   - result: `overall_pass=true`, `open_blocker_count=0`,
+   - `verdict=GO`, `next_gate=M9_ST_S1_READY`.
+3. Native lane evidence in closure run:
+   - `m9a_execution_id=m9a_stress_s0_20260305T000520Z` (`overall_pass=true`, `next_gate=M9.B_READY`),
+   - `m9b_execution_id=m9b_stress_s0_20260305T000522Z` (`overall_pass=true`, `next_gate=M9.C_READY`).
+
+### Documentation sync
+1. Updated `platform.M9.stress_test.md`:
+   - posture to `S0_GREEN`,
+   - DoD `M9-ST-S0` checked,
+   - immediate next actions moved to `S1`,
+   - execution progress includes first fail-closed run, remediation, and closure run.
+2. Updated `platform.stress_test.md`:
+   - M9 status `IN_PROGRESS (S0_GREEN)`,
+   - dedicated-file status `S0_GREEN, S1_PENDING`,
+   - next step set to `M9-ST-S1`.
