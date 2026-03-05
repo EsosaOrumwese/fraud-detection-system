@@ -11060,3 +11060,175 @@ ext_gate=M8_READY, open_blockers=0.
 ### Outcome
 1. M11 planning is now detailed, standalone, and execution-ready at design level.
 2. Next operational step is implementation and execution of `M11-ST-S0` fail-closed.
+
+## Entry: 2026-03-05 01:55 +00:00 - M11-ST-S0 plan pinned before implementation
+### Context
+1. USER directed: proceed with planning and implementation of `M11-ST-S0`.
+2. M11 stress authority is now `PLAN_READY` with strict entry authority pinned:
+   - `m10_stress_s5_20260305T014017Z` (`ADVANCE_TO_M11`, `M11_READY`).
+3. Current implementation gap for S0:
+   - no `scripts/dev_substrate/m11_stress_runner.py`,
+   - no `m11a`/`m11b` lane scripts.
+4. Required S0 scope from authority:
+   - `A`: authority/handle closure,
+   - `B`: SageMaker readiness,
+   - parent fail-closed blocker mapping (`M11-ST-B1/B2/B12/B16/B18`).
+
+### Performance and cost design (pre-code)
+1. Complexity target:
+   - `M11.A`: O(H + U) where `H` is required handle count and `U` is fixed upstream artifact set; no data-volume dependent loop.
+   - `M11.B`: O(H + P) where `P` is bounded API probe count (IAM/SSM/SageMaker calls), no dataset scan.
+2. Data structures:
+   - deterministic list + dict lookups for handles and probe rows,
+   - append-only blocker list with deterministic dedupe signature.
+3. I/O model:
+   - control-plane API calls only (S3/SSM/IAM/SageMaker),
+   - local writes only for run-control artifacts,
+   - no local runtime data processing lane.
+4. Rejected alternative:
+   - direct manual CLI-only checks per run (rejected: non-deterministic and weak auditability).
+5. Runtime budget stance:
+   - `M11-ST-S0` target <= 35 minutes total,
+   - sub-lane expected control-plane completion <= 10 minutes in normal posture.
+
+### Decision
+1. Implement three files:
+   - `scripts/dev_substrate/m11a_handle_closure.py`,
+   - `scripts/dev_substrate/m11b_sagemaker_readiness.py`,
+   - `scripts/dev_substrate/m11_stress_runner.py` (`S0` only at this step).
+2. Enforce strict continuity and stale-authority guard in runner:
+   - require upstream `m10_stress_s5_20260305T014017Z` (or explicit approved override),
+   - verify local strict-chain summaries,
+   - bridge required upstream summaries/handoff to durable S3 authority keys before lane execution.
+3. Keep fail-closed posture:
+   - block stage on missing scripts/handles, lane non-pass, artifact parity gaps, locality/black-box guard mismatch.
+4. Execute `M11-ST-S0` immediately after compile validation and remediate blockers if they are deterministic and in-scope.
+
+### Planned validation and sync
+1. compile-check new scripts with `python -m py_compile`.
+2. run `python scripts/dev_substrate/m11_stress_runner.py --stage S0 --upstream-m10-s5-execution m10_stress_s5_20260305T014017Z`.
+3. update:
+   - `platform.M11.stress_test.md` execution progress + DoD,
+   - `platform.stress_test.md` M11 status and next routing,
+   - implementation map and logbook with exact receipts.
+
+## Entry: 2026-03-05 02:01 +00:00 - M11-ST-S0 implemented and executed green
+### Implementation
+1. Added `scripts/dev_substrate/m11a_handle_closure.py`:
+   - validates strict M10 entry artifacts from durable keys (`m10_execution_summary`, `m10j_execution_summary`, `m11_handoff_pack`),
+   - enforces run-scope parity (`platform_run_id`, `scenario_run_id`),
+   - resolves required M11.A handles with deterministic classification (`resolved|missing|placeholder|wildcard`),
+   - emits and publishes `m11a_handle_closure_snapshot.json`, `m11a_blocker_register.json`, `m11a_execution_summary.json`.
+2. Added `scripts/dev_substrate/m11b_sagemaker_readiness.py`:
+   - enforces M11.A entry gate (`M11.B_READY`),
+   - validates required handles for SageMaker readiness,
+   - validates SSM parity (`ROLE_SAGEMAKER_EXECUTION`, MLflow tracking URI path),
+   - validates IAM role existence + trust (`sagemaker.amazonaws.com`),
+   - probes SageMaker control-plane (`list_training_jobs`, `list_model_package_groups`) and package-group readiness,
+   - emits and publishes `m11b_sagemaker_readiness_snapshot.json`, `m11b_blocker_register.json`, `m11b_execution_summary.json`.
+3. Added `scripts/dev_substrate/m11_stress_runner.py` (`S0`):
+   - enforces strict upstream `M10-ST-S5` continuity and stale-authority guard,
+   - bridges required upstream artifacts to durable authority keys before lane execution,
+   - executes lane chain `M11.A -> M11.B` fail-closed,
+   - emits parent guard snapshots, lane matrix, blocker register, decision log, gate verdict, and execution summary,
+   - maps fail-closed blockers `M11-ST-B1/B2/B12/B16/B17/B18` for S0.
+
+### Validation and execution
+1. Compile validation passed:
+   - `python -m py_compile scripts/dev_substrate/m11a_handle_closure.py scripts/dev_substrate/m11b_sagemaker_readiness.py scripts/dev_substrate/m11_stress_runner.py`.
+2. Executed:
+   - `python scripts/dev_substrate/m11_stress_runner.py --stage S0 --upstream-m10-s5-execution m10_stress_s5_20260305T014017Z`.
+3. Result:
+   - `phase_execution_id=m11_stress_s0_20260305T015950Z`,
+   - `overall_pass=true`, `open_blocker_count=0`, `verdict=GO`, `next_gate=M11_ST_S1_READY`.
+4. Lane closure receipts:
+   - `m11a_execution_id=m11a_stress_s0_20260305T015954Z` (`overall_pass=true`, `next_gate=M11.B_READY`),
+   - `m11b_execution_id=m11b_stress_s0_20260305T015955Z` (`overall_pass=true`, `next_gate=M11.C_READY`).
+5. S0 readiness proof highlights:
+   - IAM role and trust checks passed,
+   - SSM parity checks passed (role ARN + MLflow URI),
+   - SageMaker control-plane probes passed,
+   - model package group readiness passed (`describe_ok`), no advisories.
+
+### Documentation sync
+1. Updated `platform.M11.stress_test.md`:
+   - posture -> `S0_GREEN`,
+   - Stage-A findings updated for implemented S0 surfaces,
+   - DoD marks `M11-ST-S0` complete,
+   - immediate next actions routed to `M11-ST-S1`,
+   - execution progress appended with S0 implementation and receipts.
+2. Updated `platform.stress_test.md`:
+   - M-phase overview row updated to `M11 IN_PROGRESS (S0_GREEN)`,
+   - program status includes `m11_stress_s0_20260305T015950Z` and `M11_ST_S1_READY`,
+   - dedicated file status for M11 updated to `S0_GREEN`,
+   - next step routed to `M11-ST-S1`.
+
+## Entry: 2026-03-05 02:21 +00:00 - M11-ST-S1 remediation design: producer-compatibility over consumer drift
+### Context
+1. `M11-ST-S1` run `m11_stress_s1_20260305T021526Z` failed fail-closed (`overall_pass=false`, blockers in `M11-ST-B3/B4`).
+2. Failure was not service capacity; it was schema contract mismatch between:
+   - local script-produced `M11.A/M11.B` artifacts from `M11-ST-S0`, and
+   - managed consumer contracts embedded in `dev_full_m11_c_managed.yml` and `dev_full_m11_managed.yml`.
+3. This is a deterministic integration defect at the orchestration contract seam.
+
+### Root-cause details
+1. `M11.C` expects `m11b_execution_summary.upstream_refs.m11a_execution_id`; current `m11b` summary omitted `upstream_refs`.
+2. `M11.C` expects `m11a_execution_summary.artifact_keys.m11a_handle_closure_snapshot`; current `m11a` summary omitted `artifact_keys`.
+3. `M11.C` parses `m11a_handle_closure_snapshot.handle_matrix` rows as `{handle,status,value}`; current `m11a` snapshot rows are `{key,raw_value,state}`.
+4. `M11.C` requires handoff root aliases (`m11_entry_ready`, `next_gate`, `required_refs`), while upstream handoff uses `m11_entry_gate` and `required_evidence_refs`.
+5. `M11.D` expects `m11b` snapshot legacy surfaces (`ssm_checks`, row-wise `handle_matrix`) not currently emitted by script variant.
+
+### Alternatives considered
+1. Patch managed workflows (`M11.C`, `M11.D`) to accept both schemas.
+   - Pros: single consumer-side tolerance point.
+   - Cons: broadens workflow complexity and leaves script outputs under-specified for other readers.
+2. Producer-side compatibility in `M11.A/B` + S0 handoff alias bridge (chosen).
+   - Pros: tight remediation scope, deterministic artifact shape from producer, preserves existing managed workflow contracts.
+   - Cons: requires rerun `S0` before `S1`.
+3. One-off ad-hoc artifact patching in S3.
+   - Rejected: weak reproducibility/auditability.
+
+### Decision (chosen)
+1. Update `scripts/dev_substrate/m11a_handle_closure.py` to emit compatibility aliases:
+   - summary: add `verdict`, `upstream_refs`, `artifact_keys`.
+   - snapshot: normalize row matrix to legacy `{handle,status,value}` while retaining explicit modern row data under a separate field.
+2. Update `scripts/dev_substrate/m11b_sagemaker_readiness.py` to emit compatibility aliases:
+   - summary: add `verdict`, `upstream_refs`, `artifact_keys`.
+   - snapshot: add legacy `handle_matrix` rows and `ssm_checks` block expected by downstream managed lane.
+3. Update `scripts/dev_substrate/m11_stress_runner.py` (S0 bridge path) to publish compatibility aliases in bridged `m11_handoff_pack.json`:
+   - `m11_entry_ready`, root `next_gate`, `required_refs` aliasing from authoritative fields.
+4. Validate by rerun chain:
+   - `M11-ST-S0` (regenerate producer artifacts + bridge aliases),
+   - `M11-ST-S1` immediate rerun fail-closed.
+
+### Performance/cost/runtime posture
+1. Complexity unchanged (metadata-only transforms, O(H) row normalization).
+2. Runtime budget impact negligible vs baseline; expected rerun overhead bounded by one extra S0 control-plane execution.
+3. Cost posture unchanged except bounded managed rerun of C/D lane for proof.
+
+### Risk controls
+1. Preserve existing fields; add aliases only (non-breaking additive change).
+2. Keep blocker dedupe semantics and gate criteria unchanged.
+3. No local data-plane execution introduced.
+
+## Entry: 2026-03-05 02:41 +00:00 - M11-ST-S1 fail-closed remediation closure to green
+### Implementation summary
+1. Patched `m11a_handle_closure.py` to emit dual-shape handle matrix rows and summary metadata required by managed `M11.C` contract.
+2. Patched `m11b_sagemaker_readiness.py` to emit managed-consumer compatibility (`handle_matrix`, `ssm_checks`, `upstream_refs`, `artifact_keys`).
+3. Patched `m11_stress_runner.py` S0 bridge to synthesize and publish compatibility artifacts for `M11.C` immutable-input checks:
+   - `m10g_manifest_compat.json` (includes `status=COMMITTED`, `fingerprint_ref`, `time_bound_audit_ref`),
+   - `m10g_fingerprint_compat.json` (includes `status=COMMITTED`, `required_fields_order`, `required_field_values`, canonicalized digest),
+   - `m10g_time_bound_compat.json` (`status=COMMITTED`),
+   - plus handoff root aliases (`m11_entry_ready`, root `next_gate`, `required_refs`).
+4. Added deterministic S3 fetch helper in runner (`stage_bridge_fetch_json`) for bridge inputs from authoritative run-scoped artifacts.
+
+### Fail-closed evidence loop
+1. First S1 rerun (`m11_stress_s1_20260305T022412Z`) exposed six `M11.C` blockers (manifest/fingerprint/time-bound schema mismatch).
+2. Second S1 rerun (`m11_stress_s1_20260305T022940Z`) reduced to one `M11.C` blocker (fingerprint canonicalization mismatch).
+3. Third S1 rerun (`m11_stress_s1_20260305T023231Z`) closed green with `next_gate=M11_ST_S2_READY`.
+
+### Final outcome
+1. `M11-ST-S1` closure is now deterministic and blocker-free:
+   - parent summary: `overall_pass=true`, `open_blocker_count=0`, `next_gate=M11_ST_S2_READY`.
+2. Root cause class recorded: orchestration contract mismatch at producer/consumer seam, not managed capacity instability.
+3. Design decision retained: additive compatibility on producer bridge, no silent schema drift, no destructive override of authoritative upstream artifacts.
