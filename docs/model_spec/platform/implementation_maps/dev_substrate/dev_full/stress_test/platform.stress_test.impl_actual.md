@@ -10476,3 +10476,128 @@ ext_gate=M8_READY, open_blockers=0.
    - M10 status -> `IN_PROGRESS (S0_GREEN)`,
    - program status pins `m10_stress_s0_20260305T005311Z`,
    - next step routed to `M10-ST-S1`.
+
+## Entry: 2026-03-05 00:58 +00:00 - M10-ST-S1 execution design (C+D)
+### Context
+1. USER requested immediate planning and execution of `M10-ST-S1`.
+2. Upstream `S0` is green and pinned:
+   - `phase_execution_id=m10_stress_s0_20260305T005311Z`,
+   - `overall_pass=true`, `next_gate=M10_ST_S1_READY`,
+   - `m10b_execution_id=m10b_stress_s0_20260305T005322Z`.
+3. Lane implementation state:
+   - `M10.C` exists (`scripts/dev_substrate/m10c_input_binding.py`),
+   - `M10.D` missing (implementation hole).
+4. S1 contract requires fail-closed mapping:
+   - `M10-ST-B3` (input binding),
+   - `M10-ST-B4` (OFS build execution),
+   - `M10-ST-B12` (artifact parity),
+   - `M10-ST-B18` (execution-lane hole).
+
+### Decision
+1. Implement missing lane executor `scripts/dev_substrate/m10d_ofs_build_execution.py` first, then execute S1.
+2. Implement `M10.D` to follow build-authority deterministic flow:
+   - validate upstream `M10.C` gate (`M10.D_READY`),
+   - resolve Databricks workspace/token via SSM,
+   - import repo source `platform/databricks/dev_full/ofs_build_v0.py` to workspace path,
+   - resolve build job by name and trigger `jobs/run-now`,
+   - poll `jobs/runs/get` until terminal state/timeout,
+   - fail closed unless `TERMINATED/SUCCESS`,
+   - emit/publish `m10d_ofs_build_execution_snapshot.json`, `m10d_blocker_register.json`, `m10d_execution_summary.json`.
+3. Extend `scripts/dev_substrate/m10_stress_runner.py` with `--stage S1`:
+   - validate upstream S0 summary (`overall_pass=true`, `next_gate=M10_ST_S1_READY`),
+   - run `M10.C`, then `M10.D`,
+   - map failures to `M10-ST-B3/B4/B12/B18`,
+   - emit parent S1 guard snapshots and stage receipts,
+   - pass gate `next_gate=M10_ST_S2_READY`.
+4. Preserve no-local-runtime posture:
+   - local control-plane orchestration only,
+   - runtime compute remains Databricks managed lane.
+
+### Planned edits
+1. add `scripts/dev_substrate/m10d_ofs_build_execution.py`.
+2. update `scripts/dev_substrate/m10_stress_runner.py` for S1.
+3. validate via `py_compile`.
+4. execute:
+   - `python scripts/dev_substrate/m10_stress_runner.py --stage S1 --upstream-m10-s0-execution m10_stress_s0_20260305T005311Z`.
+5. sync `platform.M10.stress_test.md`, `platform.stress_test.md`, implementation map, and logbook with exact outcome.
+
+## Entry: 2026-03-05 01:03 +00:00 - M10-ST-S1 fail-closed blocker analysis and remediation decision
+### Observed blocker
+1. `M10-ST-S1` execution `m10_stress_s1_20260305T010157Z` failed closed with `open_blocker_count=1` (`M10-ST-B4`).
+2. Lane posture:
+   - `M10.C` passed (`m10c_stress_s1_20260305T010157Z`, `next_gate=M10.D_READY`),
+   - `M10.D` failed (`m10d_stress_s1_20260305T010159Z`, `next_gate=HOLD_REMEDIATE`).
+3. Databricks terminal error from `M10.D` snapshot:
+   - `Task ofs_build failed ... INVALID_PARAMETER_VALUE: Workspace doesn't support Client-1 channel for REPL.`
+
+### Root-cause assessment
+1. Failure is runtime-profile/Databricks job-shape drift, not input-binding drift:
+   - upstream `M10.C` is green and deterministic.
+2. Existing serverless upsert contract emits `environments.spec.client="1"`, which is incompatible with current workspace REPL channel support.
+
+### Remediation decision
+1. Repin serverless upsert contract to a supported client channel in `m10b_upsert_databricks_jobs.py` (move from `client=1` to supported value) and reset jobs.
+2. Re-upsert both required jobs (`OFS build`, `OFS quality`) against current workspace.
+3. Rerun `M10-ST-S1` from the same strict upstream `S0` authority and fail closed if any blocker remains.
+4. If rerun is green, sync stress docs/status and logbook; if not, continue targeted remediation in-lane.
+
+## Entry: 2026-03-05 01:02 +00:00 - M10-ST-S1 implementation and first execution (fail-closed)
+### Implementation
+1. Added lane executor:
+   - `scripts/dev_substrate/m10d_ofs_build_execution.py`.
+2. Extended parent runner:
+   - `scripts/dev_substrate/m10_stress_runner.py` now supports `S1` (`C+D`) in addition to `S0`.
+3. `S1` runner behavior implemented:
+   - strict upstream S0 gate validation (`overall_pass=true`, `next_gate=M10_ST_S1_READY`),
+   - deterministic upstream continuity extraction (`m10b_execution_id`, `upstream_m9_s5_execution`, `upstream_m9h_execution`),
+   - lane chain orchestration `M10.C -> M10.D`,
+   - fail-closed mapping to `M10-ST-B3/B4/B12/B18`,
+   - parent S1 guard snapshots + stage receipts with pass gate `M10_ST_S2_READY`.
+
+### Validation and first execution
+1. Compile validation:
+   - `python -m py_compile scripts/dev_substrate/m10d_ofs_build_execution.py scripts/dev_substrate/m10_stress_runner.py scripts/dev_substrate/m10c_input_binding.py` -> pass.
+2. Execution command:
+   - `python scripts/dev_substrate/m10_stress_runner.py --stage S1 --upstream-m10-s0-execution m10_stress_s0_20260305T005311Z`.
+3. Result (fail-closed):
+   - `phase_execution_id=m10_stress_s1_20260305T010157Z`,
+   - `overall_pass=false`, `open_blocker_count=1`, `next_gate=HOLD_REMEDIATE`.
+4. Lane split:
+   - `M10.C` pass: `m10c_stress_s1_20260305T010157Z`, `next_gate=M10.D_READY`.
+   - `M10.D` fail: `m10d_stress_s1_20260305T010159Z`, `next_gate=HOLD_REMEDIATE`.
+
+## Entry: 2026-03-05 01:05 +00:00 - M10-ST-S1 blocker remediation and rerun green
+### Root cause and remediation
+1. Root cause from `M10.D` terminal state:
+   - `INVALID_PARAMETER_VALUE: Workspace doesn't support Client-1 channel for REPL`.
+2. Applied remediation:
+   - repinned Databricks serverless upsert contract in `m10b_upsert_databricks_jobs.py` from `client="1"` to `client="2"`.
+3. Re-upserted jobs via fresh S0 pass:
+   - `python scripts/dev_substrate/m10_stress_runner.py --stage S0 --upstream-m9-s5-execution m9_stress_s5_20260305T003614Z`
+   - result: `m10_stress_s0_20260305T010426Z`, `overall_pass=true`, `next_gate=M10_ST_S1_READY`.
+
+### Rerun outcome
+1. Rerun command:
+   - `python scripts/dev_substrate/m10_stress_runner.py --stage S1 --upstream-m10-s0-execution m10_stress_s0_20260305T010426Z`.
+2. Rerun result (green):
+   - `phase_execution_id=m10_stress_s1_20260305T010445Z`,
+   - `overall_pass=true`, `open_blocker_count=0`, `verdict=GO`, `next_gate=M10_ST_S2_READY`.
+3. Lane outputs in green run:
+   - `m10c_execution_id=m10c_stress_s1_20260305T010445Z` (`next_gate=M10.D_READY`),
+   - `m10d_execution_id=m10d_stress_s1_20260305T010447Z` (`next_gate=M10.E_READY`).
+4. `M10.D` Databricks closure proof:
+   - run id `14362870372775`, terminal `TERMINATED/SUCCESS`,
+   - source provenance pinned:
+     - `repo_source_path=platform/databricks/dev_full/ofs_build_v0.py`,
+     - `repo_source_sha256=71edd09a78f973800f3c290a02b93232c14efafe0de93041255693939ee432ca`,
+     - `workspace_python_file=/Shared/fraud-platform/dev_full/ofs_build_v0`.
+
+### Documentation sync
+1. Updated `platform.M10.stress_test.md`:
+   - posture `S1_GREEN`,
+   - DoD marks `M10-ST-S1` complete,
+   - immediate next actions route to `M10-ST-S2`,
+   - execution progress now includes first fail-closed run + remediation + green rerun.
+2. Updated `platform.stress_test.md`:
+   - M10 state `IN_PROGRESS (S1_GREEN)`,
+   - next step routed to `M10-ST-S2` using upstream `m10_stress_s1_20260305T010445Z`.
