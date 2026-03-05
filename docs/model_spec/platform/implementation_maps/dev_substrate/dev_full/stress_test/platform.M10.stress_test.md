@@ -3,7 +3,7 @@ _Parent authority: `platform.stress_test.md`_
 _Status source of truth: `platform.stress_test.md`_
 _Track: `dev_full` only_
 _As of 2026-03-05_
-_Current posture: `S3_GREEN` (strict S0/S1/S2/S3 chain is green; M10 routed to `S4`)._
+_Current posture: `S4_GREEN` (strict S0/S1/S2/S3/S4 chain is green; M10 routed to `S5`)._
 
 ## 0) Purpose
 M10 stress validates OFS dataset closure under realistic production pressure with strict replay/as-of provenance continuity and deterministic handoff posture.
@@ -344,21 +344,21 @@ Required stage outputs (phase-level):
 - [x] `M10-ST-S1` executed and closed green.
 - [x] `M10-ST-S2` executed and closed green.
 - [x] `M10-ST-S3` executed and closed green.
-- [ ] `M10-ST-S4` executed and closed green.
+- [x] `M10-ST-S4` executed and closed green.
 - [ ] `M10-ST-S5` executed and closed green with deterministic `M11_READY`.
 
 ## 12) Immediate Next Actions
-1. plan and execute `M10-ST-S4` (`I`) with fail-closed mapping (`M10-ST-B9/B10/B12/B18`) and strict `S3` continuity.
-2. implement/validate missing lane executor `M10.I` before `S4` run.
+1. plan and execute `M10-ST-S5` (`J`) with fail-closed mapping (`M10-ST-B11/B12/B16/B17/B18`) and strict `S4` continuity.
+2. implement/validate missing lane executor `M10.J` before `S5` run.
 3. maintain fail-closed posture with targeted remediation only.
 
 ## 13) Execution Progress
 1. M10 detailed stress authority is pinned and active.
 2. Strict M9 closure authority for M10 entry is pinned to `m9_stress_s5_20260305T003614Z`.
 3. Stage-A implementation-readiness finding remains explicit:
-   - lane scripts present: `m10a`, `m10b`, `m10c`, `m10d`, `m10e`, `m10f`,
-   - lane scripts missing: `m10g..m10j`,
-   - parent runner present: `m10_stress_runner.py` (`S0` + `S1` + `S2` implemented).
+   - lane scripts present: `m10a`, `m10b`, `m10c`, `m10d`, `m10e`, `m10f`, `m10g`, `m10h`, `m10i`,
+   - lane scripts missing: `m10j`,
+   - parent runner present: `m10_stress_runner.py` (`S0` + `S1` + `S2` + `S3` + `S4` implemented).
 4. First `M10-ST-S0` attempt failed closed (`m10_stress_s0_20260305T005201Z`):
    - `open_blocker_count=2`, `next_gate=HOLD_REMEDIATE`,
    - blocker root cause: `M10.A` could not read `M9` closure summary at the expected S3 authority key (`NoSuchKey`), cascading into `M10.B` non-pass posture.
@@ -420,6 +420,18 @@ Required stage outputs (phase-level):
     - `m10h_execution_id=m10h_stress_s3_20260305T012427Z` (`overall_pass=true`, `next_gate=M10.I_READY`).
 23. Current evidence roots:
     - S3 green: `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m10_stress_s3_20260305T012424Z/stress/`.
+24. `M10-ST-S4` implementation closure:
+    - added `scripts/dev_substrate/m10i_p13_rollup_handoff.py`,
+    - extended `scripts/dev_substrate/m10_stress_runner.py` with fail-closed `S4` orchestration (`I`) and `M10_ST_S5_READY` pass gate.
+25. `M10-ST-S4` execution passed (`m10_stress_s4_20260305T013131Z`):
+    - `overall_pass=true`, `open_blocker_count=0`, `verdict=GO`, `next_gate=M10_ST_S5_READY`.
+26. Lane execution IDs in green S4:
+    - `m10i_execution_id=m10i_stress_s4_20260305T013131Z` (`overall_pass=true`, `verdict=ADVANCE_TO_P14`, `next_gate=M11_READY`).
+27. S4 rollup/handoff closure proof:
+    - `m10i_p13_gate_verdict.json` -> `verdict=ADVANCE_TO_P14`, `next_gate=M11_READY`,
+    - `m11_handoff_pack.json` published with strict `M10.A..M10.H` phase-pass matrix and non-secret policy.
+28. Current evidence roots:
+    - S4 green: `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m10_stress_s4_20260305T013131Z/stress/`.
 
 ## 14) Reopen Notice (Strict Authority)
 1. M10 cannot be closed using historical 2026-02-26 receipts alone.

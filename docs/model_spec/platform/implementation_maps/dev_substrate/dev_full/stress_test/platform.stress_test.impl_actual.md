@@ -10825,3 +10825,82 @@ ext_gate=M8_READY, open_blockers=0.
 2. Updated `platform.stress_test.md`:
    - program status now `M10=IN_PROGRESS (S3_GREEN)`,
    - next step now `M10-ST-S4` using upstream `m10_stress_s3_20260305T012424Z`.
+
+## Entry: 2026-03-05 01:28 +00:00 - M10-ST-S4 implementation plan before execution
+### Context
+1. USER directed immediate progression to `M10-ST-S4`.
+2. Upstream `S3` is green and pinned:
+   - `phase_execution_id=m10_stress_s3_20260305T012424Z`,
+   - `overall_pass=true`, `open_blocker_count=0`, `next_gate=M10_ST_S4_READY`.
+3. S4 authority requires lane `M10.I` plus parent rollup stage receipts:
+   - `m10i_p13_rollup_matrix.json`,
+   - `m10i_p13_gate_verdict.json`,
+   - `m11_handoff_pack.json`.
+4. Current implementation gap:
+   - no `scripts/dev_substrate/m10i_p13_rollup_handoff.py`,
+   - no `S4` support in `scripts/dev_substrate/m10_stress_runner.py`.
+
+### Decision
+1. Implement `M10.I` lane script (`m10i_p13_rollup_handoff.py`) with strict pass/fail semantics:
+   - consume upstream `M10.A..M10.H` summary receipts from authoritative S3 surfaces,
+   - enforce deterministic gate chain (`A->B_READY`, ..., `H->I_READY`),
+   - fail closed on any missing unreadable/mismatch run-scope,
+   - emit deterministic `P13` rollup + gate verdict (`ADVANCE_TO_P14`, `M11_READY`) and `m11_handoff_pack.json`,
+   - enforce non-secret handoff payload policy,
+   - publish run-control artifacts with readback parity.
+2. Extend parent `m10_stress_runner.py` for `S4`:
+   - add `S4_ARTS`, `latest_s3()`, `run_s4(...)`, `--upstream-m10-s3-execution` and stage dispatch,
+   - enforce strict continuity from `S3` through upstream `S2/S1/S0` (recover `A..H` ids),
+   - map fail-closed blockers per authority:
+     - `M10-ST-B9` rollup/verdict inconsistency,
+     - `M10-ST-B10` handoff publication/contract failure,
+     - `M10-ST-B12` guard/parity failures,
+     - `M10-ST-B18` execution-lane hole.
+3. Preserve laws:
+   - local machine only orchestrates; evidence authority remains managed S3/Glue surfaces,
+   - Data Engine remains black-box, no engine internals touched.
+
+### Planned execution
+1. compile-check new/updated scripts.
+2. execute:
+   - `python scripts/dev_substrate/m10_stress_runner.py --stage S4 --upstream-m10-s3-execution m10_stress_s3_20260305T012424Z`.
+3. remediate blockers immediately and rerun fail-closed if needed.
+4. sync M10/parent stress docs + impl map + logbook with exact receipts.
+
+## Entry: 2026-03-05 01:32 +00:00 - M10-ST-S4 implemented and executed green
+### Implementation
+1. Added lane executor `scripts/dev_substrate/m10i_p13_rollup_handoff.py`.
+2. `M10.I` lane behavior:
+   - reads authoritative upstream summaries `M10.A..M10.H` from managed S3 run-control surfaces,
+   - enforces deterministic gate continuity (`A->B_READY`, ..., `H->I_READY`) and run-scope consistency,
+   - verifies required handoff refs are readable,
+   - emits `m10i_p13_rollup_matrix.json`, `m10i_p13_gate_verdict.json`, `m11_handoff_pack.json`, `m10i_blocker_register.json`, `m10i_execution_summary.json`,
+   - enforces non-secret handoff payload policy and fail-closed artifact publication/readback.
+3. Extended parent `scripts/dev_substrate/m10_stress_runner.py` with `S4`:
+   - added `S4_ARTS`, `latest_s3()`, `run_s4(...)`, `--upstream-m10-s3-execution` dispatch,
+   - strict continuity recovery across `S3 -> S2 -> S1 -> S0` to recover `A..H` ids,
+   - fail-closed mapping `M10-ST-B9/B10/B12/B18`,
+   - stage pass gate mapping `S4 -> M10_ST_S5_READY`.
+
+### Validation and execution
+1. Compile validation passed:
+   - `python -m py_compile scripts/dev_substrate/m10i_p13_rollup_handoff.py scripts/dev_substrate/m10_stress_runner.py`.
+2. Executed:
+   - `python scripts/dev_substrate/m10_stress_runner.py --stage S4 --upstream-m10-s3-execution m10_stress_s3_20260305T012424Z`.
+3. Result:
+   - `phase_execution_id=m10_stress_s4_20260305T013131Z`,
+   - `overall_pass=true`, `open_blocker_count=0`, `verdict=GO`, `next_gate=M10_ST_S5_READY`.
+4. Lane-I closure proof:
+   - `m10i_execution_id=m10i_stress_s4_20260305T013131Z`,
+   - `m10i_execution_summary.json`: `overall_pass=true`, `verdict=ADVANCE_TO_P14`, `next_gate=M11_READY`,
+   - `m11_handoff_pack.json` includes strict `M10.A..M10.H` phase-pass matrix and non-secret policy.
+
+### Documentation sync
+1. Updated `platform.M10.stress_test.md`:
+   - posture -> `S4_GREEN`,
+   - DoD marks `M10-ST-S4` complete,
+   - immediate next action routed to `M10-ST-S5`,
+   - execution progress updated with S4 implementation + run receipts.
+2. Updated `platform.stress_test.md`:
+   - program status now `M10=IN_PROGRESS (S4_GREEN)`,
+   - next step now `M10-ST-S5` using upstream `m10_stress_s4_20260305T013131Z`.

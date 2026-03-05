@@ -214,7 +214,7 @@ For any phase:
 
 ## 12) Program Status
 1. Program bootstrapped.
-2. Current phase state: `M6=GO`, `M7=GO`, `M8=GO` (`M9_READY` emitted from strict closure authority `m8_stress_s5_20260304T234918Z`); `M9=GO` (`M10_READY` emitted from strict closure authority `m9_stress_s5_20260305T003614Z`); `M10=IN_PROGRESS` (`S3_GREEN` from `m10_stress_s3_20260305T012424Z`).
+2. Current phase state: `M6=GO`, `M7=GO`, `M8=GO` (`M9_READY` emitted from strict closure authority `m8_stress_s5_20260304T234918Z`); `M9=GO` (`M10_READY` emitted from strict closure authority `m9_stress_s5_20260305T003614Z`); `M10=IN_PROGRESS` (`S4_GREEN` from `m10_stress_s4_20260305T013131Z`).
 3. Dedicated phase files:
    - `stress_test/platform.M2.stress_test.md` (`DONE`),
    - `stress_test/platform.M3.stress_test.md` (`DONE`),
@@ -232,8 +232,8 @@ For any phase:
    - `stress_test/platform.M7.P10.stress_test.md` (`DONE`),
    - `stress_test/platform.M8.stress_test.md` (`S5_GREEN`, `M9_READY`),
    - `stress_test/platform.M9.stress_test.md` (`S5_GREEN`, `M10_READY`),
-   - `stress_test/platform.M10.stress_test.md` (`S3_GREEN`, `S4_PENDING`).
-4. Next step: plan and execute `M10-ST-S4` fail-closed using upstream `m10_stress_s3_20260305T012424Z`.
+   - `stress_test/platform.M10.stress_test.md` (`S4_GREEN`, `S5_PENDING`).
+4. Next step: plan and execute `M10-ST-S5` fail-closed using upstream `m10_stress_s4_20260305T013131Z`.
 
 ## 13) Closed Phase - M0 (Inline)
 Status:
