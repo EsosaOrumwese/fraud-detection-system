@@ -11554,3 +11554,116 @@ ext_gate=M8_READY, open_blockers=0.
 
 ### Next execution prerequisite
 1. Materialize `scripts/dev_substrate/m12_stress_runner.py` and M12 wrappers before `M12-ST-S0` run.
+
+## Entry: 2026-03-05 06:15 +00:00 - M12-ST-S0 implementation plan pinned before coding
+### Trigger
+1. User directed: implement M12 runner/wrappers and execute `M12-ST-S0` fail-closed from `m11_stress_s5_20260305T055457Z`.
+
+### Scope for this step
+1. Implement only what is required for strict `S0` execution:
+   - parent runner `scripts/dev_substrate/m12_stress_runner.py` (`S0` stage),
+   - lane wrappers for `B0` and `A`:
+     - `scripts/dev_substrate/m12b0_managed_materialization.py`,
+     - `scripts/dev_substrate/m12a_handle_closure.py`.
+2. Execute strict `M12-ST-S0` and stop fail-closed on first blocker.
+
+### Design decision
+1. Reuse the proven M11 orchestration pattern (local control plane, managed runtime authority).
+2. Wrapper behavior:
+   - dispatch `.github/workflows/dev_full_m12_managed.yml` via `gh workflow run`,
+   - wait for completion when run-id is discoverable,
+   - materialize authoritative S3 artifacts locally,
+   - enforce lane gate truth (`B0 -> M12.A_READY`, `A -> M12.B_READY`) fail-closed.
+3. Parent S0 behavior:
+   - enforce strict entry continuity from `m11_stress_s5_20260305T055457Z` and lane `m11j`/handoff checks,
+   - execute lane chain `B0 -> A`,
+   - emit stage artifacts (`m12_stagea_findings`, lane matrix, locality/source/realism guards, blocker register, summary, decision log, gate verdict),
+   - map blockers to M12 taxonomy (`B0/B1/B11/B15/B16/B18/B19/B20`).
+
+### Upstream-default risk control (M12-ST-B20)
+1. Workflow has historical defaults for upstream ids on required inputs.
+2. Runner/wrappers will pass explicit upstream input values for all required workflow inputs during dispatch to avoid silent default reliance in strict S0 execution posture.
+
+### Performance/cost posture
+1. Local execution remains orchestration/evidence only (no local data-plane compute).
+2. Runtime budget remains bounded by managed workflow windows; local scripts do constant-time artifact adjudication.
+
+### Validation and execution plan
+1. Implement wrapper files + parent runner.
+2. Compile check all new scripts.
+3. Execute:
+   - `python scripts/dev_substrate/m12_stress_runner.py --stage S0 --upstream-m11-s5-execution m11_stress_s5_20260305T055457Z`
+4. If blocked, remediate deterministic blocker and rerun from S0.
+
+## Entry: 2026-03-05 06:26 +00:00 - M12-ST-S0 implemented and executed green from strict upstream
+### Implementation summary
+1. Added managed wrapper `scripts/dev_substrate/m12b0_managed_materialization.py`:
+   - dispatches `dev_full_m12_managed.yml` with `execution_mode=materialization_check`,
+   - enforces explicit upstream input overrides on dispatch to avoid default-upstream drift,
+   - materializes and validates `m12_managed_lane_materialization_snapshot`, `m12_subphase_dispatchability_snapshot`, `m12b0_blocker_register`, `m12b0_execution_summary`.
+2. Added managed wrapper `scripts/dev_substrate/m12a_handle_closure.py`:
+   - dispatches `dev_full_m12_managed.yml` with `execution_mode=m12a_execute`,
+   - enforces explicit upstream input overrides on dispatch,
+   - materializes and validates `m12a_handle_closure_snapshot`, `m12a_blocker_register`, `m12a_execution_summary`.
+3. Added parent runner `scripts/dev_substrate/m12_stress_runner.py` (`S0`):
+   - strict entry validation from `M11-ST-S5` closure,
+   - fail-closed lane chain `B0 -> A`,
+   - emits stage findings, lane matrix, locality/source/realism guard snapshots, and parent stage receipts.
+
+### Execution receipts
+1. Executed strict run:
+   - `python scripts/dev_substrate/m12_stress_runner.py --stage S0 --upstream-m11-s5-execution m11_stress_s5_20260305T055457Z`.
+2. Parent S0 result:
+   - `phase_execution_id=m12_stress_s0_20260305T061903Z`,
+   - `overall_pass=true`,
+   - `open_blocker_count=0`,
+   - `next_gate=M12_ST_S1_READY`.
+3. Lane receipts:
+   - `M12.B0`: `m12b0_stress_s0_20260305T061903Z` (`overall_pass=true`, `verdict=ADVANCE_TO_M12_A`, `next_gate=M12.A_READY`),
+   - `M12.A`: `m12a_stress_s0_20260305T062209Z` (`overall_pass=true`, `verdict=ADVANCE_TO_M12_B`, `next_gate=M12.B_READY`).
+
+### Decision notes
+1. S0 closure used strict current M11 chain only; no historical M12 receipts were used as closure authority.
+2. Workflow run-id discoverability remained non-blocking because authoritative lane artifacts were present and gate-pass.
+3. Runtime posture stayed local control-plane orchestration only; managed services remained runtime authority.
+
+## Entry: 2026-03-05 06:27 +00:00 - M12-ST-S1 implementation plan pinned before coding
+### Trigger
+1. User directed: proceed to `M12-ST-S1` from strict upstream `m12_stress_s0_20260305T061903Z`.
+
+### Scope for this step
+1. Implement only `S1` execution support:
+   - lane wrappers: `m12b_candidate_eligibility.py`, `m12c_compatibility_precheck.py`,
+   - parent runner extension: `m12_stress_runner.py` add `S1` stage.
+2. Execute strict `M12-ST-S1` and stop fail-closed on first blocker.
+
+### Design decision
+1. Preserve M12 S0 posture: local control-plane orchestration only, managed workflow remains runtime authority.
+2. Wrappers dispatch `dev_full_m12_managed.yml` with explicit upstream inputs (including required but non-active upstream placeholders) to avoid workflow-default upstream drift.
+3. Wrapper gate truth:
+   - `M12.B`: require `overall_pass=true`, `verdict=ADVANCE_TO_M12_C`, `next_gate=M12.C_READY`.
+   - `M12.C`: require `overall_pass=true`, `verdict=ADVANCE_TO_M12_D`, `next_gate=M12.D_READY`.
+4. Parent S1 gate truth:
+   - strict S0 entry summary pass (`next_gate=M12_ST_S1_READY`),
+   - lane chain `B -> C`,
+   - parent pass emits `next_gate=M12_ST_S2_READY`.
+
+### Fail-closed blocker mapping for S1
+1. `M12-ST-B2` candidate eligibility failure.
+2. `M12-ST-B3` compatibility precheck failure.
+3. `M12-ST-B11` evidence/summary parity failure.
+4. `M12-ST-B15` stale/continuity drift.
+5. `M12-ST-B18` implementation hole.
+6. `M12-ST-B19` managed quota/access boundary pressure.
+7. `M12-ST-B20` default-upstream override violation.
+
+### Performance/cost posture
+1. No local data-plane runtime.
+2. Local scripts perform bounded dispatch/wait/materialization only.
+3. Managed lane wall time bounded by wrapper timeout and fail-closed evaluation.
+
+### Validation and execution plan
+1. implement wrappers + runner S1,
+2. compile-check changed scripts,
+3. execute strict command:
+   - `python scripts/dev_substrate/m12_stress_runner.py --stage S1 --upstream-m12-s0-execution m12_stress_s0_20260305T061903Z`.
