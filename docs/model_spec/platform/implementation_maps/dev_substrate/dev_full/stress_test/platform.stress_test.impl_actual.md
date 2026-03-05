@@ -10601,3 +10601,227 @@ ext_gate=M8_READY, open_blockers=0.
 2. Updated `platform.stress_test.md`:
    - M10 state `IN_PROGRESS (S1_GREEN)`,
    - next step routed to `M10-ST-S2` using upstream `m10_stress_s1_20260305T010445Z`.
+
+## Entry: 2026-03-05 01:09 +00:00 - M10-ST-S2 execution design (E+F)
+### Context
+1. USER requested to proceed to `M10-ST-S2`.
+2. Upstream S1 authority is green:
+   - `phase_execution_id=m10_stress_s1_20260305T010445Z`,
+   - `overall_pass=true`, `next_gate=M10_ST_S2_READY`,
+   - lane ids: `m10c_stress_s1_20260305T010445Z`, `m10d_stress_s1_20260305T010447Z`.
+3. Lane implementation state:
+   - `M10.E` missing,
+   - `M10.F` missing,
+   - parent runner currently supports `S0/S1` only.
+4. Build-authority contracts for S2 are deterministic and committed surfaces are reachable:
+   - leakage report at `evidence/runs/{platform_run_id}/learning/input/leakage_guardrail_report.json` is pass,
+   - Glue DB/table and S3 warehouse marker for deterministic table identity are readable.
+
+### Decision
+1. Implement missing lane executors before S2 run:
+   - `scripts/dev_substrate/m10e_quality_gate.py`,
+   - `scripts/dev_substrate/m10f_iceberg_commit.py`.
+2. Implement `M10.E` as committed-surface adjudication (no speculative mutation):
+   - validate upstream `M10.D` gate (`M10.E_READY`),
+   - resolve leakage report path by handle pattern,
+   - fail closed unless leakage report is pass and zero boundary-breach posture,
+   - emit/publish `m10e_quality_gate_snapshot.json`, `m10e_blocker_register.json`, `m10e_execution_summary.json`.
+3. Implement `M10.F` as deterministic commit-surface verification:
+   - validate upstream `M10.E` gate (`M10.F_READY`),
+   - derive `database/table/location` from handles + `platform_run_id`,
+   - verify Glue DB/table and location parity,
+   - verify S3 marker object `_m10f_commit_marker.json` at deterministic table location,
+   - emit/publish `m10f_iceberg_commit_snapshot.json`, `m10f_blocker_register.json`, `m10f_execution_summary.json`.
+4. Extend parent `m10_stress_runner.py` with `S2`:
+   - enforce strict S1 continuity,
+   - orchestrate `M10.E -> M10.F`,
+   - fail-closed mapping `M10-ST-B5/B6/B12/B18`,
+   - pass gate `M10_ST_S3_READY`.
+5. Preserve no-local-runtime law:
+   - local control-plane orchestration only,
+   - runtime/data-plane evidence from managed services only.
+
+### Planned edits
+1. add `scripts/dev_substrate/m10e_quality_gate.py`.
+2. add `scripts/dev_substrate/m10f_iceberg_commit.py`.
+3. update `scripts/dev_substrate/m10_stress_runner.py` for `--stage S2`.
+4. run `py_compile` validation.
+5. execute:
+   - `python scripts/dev_substrate/m10_stress_runner.py --stage S2 --upstream-m10-s1-execution m10_stress_s1_20260305T010445Z`.
+6. sync stress docs + implementation map + logbook with exact outcome.
+
+## Entry: 2026-03-05 01:13 +00:00 - M10-ST-S2 fail-closed blocker analysis and remediation decision
+### Observed blocker
+1. `M10-ST-S2` execution `m10_stress_s2_20260305T011300Z` failed closed with `open_blocker_count=1` (`M10-ST-B6`).
+2. Lane split:
+   - `M10.E` passed (`m10e_stress_s2_20260305T011300Z`, `next_gate=M10.F_READY`),
+   - `M10.F` failed (`m10f_stress_s2_20260305T011302Z`, `next_gate=HOLD_REMEDIATE`).
+3. Commit surfaces themselves are healthy:
+   - Glue database/table present and location/type checks pass,
+   - S3 marker present and readable.
+4. Failure is schema strictness in verifier only:
+   - marker payload uses `database_name/table_name` while verifier currently required `database/table`.
+
+### Remediation decision
+1. Patch `scripts/dev_substrate/m10f_iceberg_commit.py` to accept both marker key variants for deterministic equality checks:
+   - database key: `database` or `database_name`,
+   - table key: `table` or `table_name`.
+2. Rerun `M10-ST-S2` from strict upstream `m10_stress_s1_20260305T010445Z` immediately.
+3. If green, sync docs and route to `S3`; if not, continue fail-closed remediation in-lane.
+
+## Entry: 2026-03-05 01:12 +00:00 - M10-ST-S2 implementation and first execution (fail-closed)
+### Implementation
+1. Added missing S2 lane executors:
+   - `scripts/dev_substrate/m10e_quality_gate.py` (`M10.E`),
+   - `scripts/dev_substrate/m10f_iceberg_commit.py` (`M10.F`).
+2. Extended parent runner:
+   - `scripts/dev_substrate/m10_stress_runner.py` now supports `S2` (`E+F`) with strict S1 continuity and fail-closed blocker mapping (`M10-ST-B5/B6/B12/B18`).
+3. S2 runner behavior:
+   - validates upstream `S1` (`overall_pass=true`, `next_gate=M10_ST_S2_READY`),
+   - executes `M10.E -> M10.F`,
+   - emits parent S2 guard snapshots + stage receipts,
+   - pass gate on green: `M10_ST_S3_READY`.
+
+### Validation and first execution
+1. Compile validation:
+   - `python -m py_compile scripts/dev_substrate/m10e_quality_gate.py scripts/dev_substrate/m10f_iceberg_commit.py scripts/dev_substrate/m10_stress_runner.py` -> pass.
+2. Execution command:
+   - `python scripts/dev_substrate/m10_stress_runner.py --stage S2 --upstream-m10-s1-execution m10_stress_s1_20260305T010445Z`.
+3. Result (fail-closed):
+   - `phase_execution_id=m10_stress_s2_20260305T011300Z`,
+   - `overall_pass=false`, `open_blocker_count=1`, `next_gate=HOLD_REMEDIATE`.
+4. Lane split:
+   - `M10.E` pass (`m10e_stress_s2_20260305T011300Z`, `next_gate=M10.F_READY`),
+   - `M10.F` fail (`m10f_stress_s2_20260305T011302Z`, `next_gate=HOLD_REMEDIATE`).
+
+## Entry: 2026-03-05 01:13 +00:00 - M10-ST-S2 blocker remediation and rerun green
+### Root cause and remediation
+1. Root cause was verifier strictness mismatch only in `M10.F`:
+   - commit marker payload uses `database_name/table_name`,
+   - verifier initially required `database/table`.
+2. Commit surfaces were already healthy (Glue DB/table present, deterministic location/type pass, marker readable).
+3. Patched `scripts/dev_substrate/m10f_iceberg_commit.py` to accept both deterministic field variants.
+
+### Rerun outcome
+1. Rerun command:
+   - `python scripts/dev_substrate/m10_stress_runner.py --stage S2 --upstream-m10-s1-execution m10_stress_s1_20260305T010445Z`.
+2. Rerun result (green):
+   - `phase_execution_id=m10_stress_s2_20260305T011349Z`,
+   - `overall_pass=true`, `open_blocker_count=0`, `verdict=GO`, `next_gate=M10_ST_S3_READY`.
+3. Lane outputs in green run:
+   - `m10e_execution_id=m10e_stress_s2_20260305T011349Z` (`next_gate=M10.F_READY`),
+   - `m10f_execution_id=m10f_stress_s2_20260305T011351Z` (`next_gate=M10.G_READY`).
+4. S2 commit-surface closure evidence:
+   - Glue DB: `fraud_platform_dev_full_ofs`,
+   - Glue table: `ofs_platform_20260223t184232z`,
+   - deterministic table location/type parity pass,
+   - S3 marker verified: `learning/ofs/iceberg/warehouse/ofs_platform_20260223t184232z/_m10f_commit_marker.json`.
+
+### Documentation sync
+1. Updated `platform.M10.stress_test.md`:
+   - posture `S2_GREEN`,
+   - DoD marks `M10-ST-S2` complete,
+   - immediate next actions route to `M10-ST-S3`,
+   - execution progress includes first fail-closed run, root cause, remediation, and green rerun.
+2. Updated `platform.stress_test.md`:
+   - M10 status `IN_PROGRESS (S2_GREEN)`,
+   - next step routed to `M10-ST-S3` using upstream `m10_stress_s2_20260305T011349Z`.
+
+## Entry: 2026-03-05 01:18 +00:00 - M10-ST-S3 execution design (G+H)
+### Context
+1. USER directed: proceed to `M10-ST-S3`.
+2. Upstream `S2` is green:
+   - `phase_execution_id=m10_stress_s2_20260305T011349Z`,
+   - `overall_pass=true`, `next_gate=M10_ST_S3_READY`,
+   - lane ids: `m10e_stress_s2_20260305T011349Z`, `m10f_stress_s2_20260305T011351Z`.
+3. Implementation state:
+   - `M10.G` and `M10.H` are missing,
+   - parent runner currently supports `S0..S2`.
+4. Required handles and surfaces for G/H are resolvable:
+   - manifest/fingerprint/audit path patterns,
+   - fingerprint field contract,
+   - deterministic Glue/S3 commit surfaces from `M10.F`.
+
+### Decision
+1. Implement missing lane executors:
+   - `scripts/dev_substrate/m10g_manifest_fingerprint.py`,
+   - `scripts/dev_substrate/m10h_rollback_recipe.py`.
+2. Implement `M10.G` using deterministic synthesis from committed lineage:
+   - validate upstream `M10.F` gate (`M10.G_READY`),
+   - resolve transitive lineage (`E -> D -> C`),
+   - synthesize/publish run-scoped `dataset_manifest.json`, `dataset_fingerprint.json`, `time_bound_audit.json`,
+   - emit `m10g_manifest_fingerprint_snapshot.json`, `m10g_blocker_register.json`, `m10g_execution_summary.json` (`M10.H_READY` on pass).
+3. Implement `M10.H` rollback closure as non-destructive drill:
+   - validate upstream `M10.G` gate (`M10.H_READY`),
+   - read run-scoped OFS artifacts + transitive commit surface,
+   - synthesize/publish run-scoped `rollback_recipe.json` and `rollback_drill_report.json`,
+   - emit `m10h_rollback_recipe_snapshot.json`, `m10h_blocker_register.json`, `m10h_execution_summary.json` (`M10.I_READY` on pass).
+4. Extend `scripts/dev_substrate/m10_stress_runner.py` with `S3`:
+   - strict `S2` continuity validation,
+   - orchestrate `M10.G -> M10.H`,
+   - fail-closed mapping `M10-ST-B7/B8/B12/B18`,
+   - stage pass gate `M10_ST_S4_READY`.
+5. Preserve no-local-runtime law:
+   - local orchestration only,
+   - runtime evidence from managed durable surfaces.
+
+### Planned edits
+1. add `scripts/dev_substrate/m10g_manifest_fingerprint.py`.
+2. add `scripts/dev_substrate/m10h_rollback_recipe.py`.
+3. extend `scripts/dev_substrate/m10_stress_runner.py` for `--stage S3`.
+4. compile-check and execute S3 fail-closed.
+5. sync docs/logbook with exact outcome and next routing.
+
+## Entry: 2026-03-05 01:23 +00:00 - M10-ST-S3 runner wiring plan before execution
+### Context
+1. USER directed immediate progression to `M10-ST-S3`.
+2. Upstream `S2` remains green (`m10_stress_s2_20260305T011349Z`, `next_gate=M10_ST_S3_READY`).
+3. Lane executors now exist:
+   - `scripts/dev_substrate/m10g_manifest_fingerprint.py`
+   - `scripts/dev_substrate/m10h_rollback_recipe.py`
+4. Parent runner currently lacks `S3` orchestration/dispatch and gate mapping.
+
+### Decision
+1. Extend `scripts/dev_substrate/m10_stress_runner.py` with full `S3` support:
+   - add `S3_ARTS` contract list,
+   - add `latest_s2()` selector,
+   - add `run_s3(...)` orchestration (`G -> H`) with strict S2 continuity,
+   - map lane failures fail-closed to `M10-ST-B7/B8`, retain `B12/B18` parity/holes,
+   - set pass gate for `S3` to `M10_ST_S4_READY`.
+2. Validate by compile-check, then execute:
+   - `python scripts/dev_substrate/m10_stress_runner.py --stage S3 --upstream-m10-s2-execution m10_stress_s2_20260305T011349Z`.
+3. If blocked, remediate in-lane and rerun immediately; if green, sync stress docs and logs.
+
+## Entry: 2026-03-05 01:25 +00:00 - M10-ST-S3 implemented and executed green
+### Implementation
+1. Extended `scripts/dev_substrate/m10_stress_runner.py` with full `S3` support:
+   - added `S3_ARTS` stage contract,
+   - added `latest_s2()` selection helper,
+   - added `run_s3(...)` orchestration (`M10.G -> M10.H`) with strict S2 continuity,
+   - added `S3` pass-gate mapping (`M10_ST_S4_READY`) and CLI dispatch (`--upstream-m10-s2-execution`).
+2. `S3` blocker mapping is fail-closed per authority:
+   - `M10-ST-B7` for manifest/fingerprint/audit lane failures,
+   - `M10-ST-B8` for rollback lane failures,
+   - `M10-ST-B12` for parity/guard failures,
+   - `M10-ST-B18` for lane implementation holes.
+
+### Validation and execution
+1. Compile validation passed:
+   - `python -m py_compile scripts/dev_substrate/m10_stress_runner.py scripts/dev_substrate/m10g_manifest_fingerprint.py scripts/dev_substrate/m10h_rollback_recipe.py`.
+2. Executed:
+   - `python scripts/dev_substrate/m10_stress_runner.py --stage S3 --upstream-m10-s2-execution m10_stress_s2_20260305T011349Z`.
+3. Result:
+   - `phase_execution_id=m10_stress_s3_20260305T012424Z`,
+   - `overall_pass=true`, `open_blocker_count=0`, `verdict=GO`, `next_gate=M10_ST_S4_READY`.
+4. Green lane receipts:
+   - `m10g_execution_id=m10g_stress_s3_20260305T012424Z` (`next_gate=M10.H_READY`),
+   - `m10h_execution_id=m10h_stress_s3_20260305T012427Z` (`next_gate=M10.I_READY`).
+
+### Documentation sync
+1. Updated `platform.M10.stress_test.md` to `S3_GREEN`:
+   - DoD marks `M10-ST-S3` complete,
+   - immediate next actions route to `M10-ST-S4` (`I`),
+   - execution-progress now includes S3 implementation/green receipts.
+2. Updated `platform.stress_test.md`:
+   - program status now `M10=IN_PROGRESS (S3_GREEN)`,
+   - next step now `M10-ST-S4` using upstream `m10_stress_s3_20260305T012424Z`.

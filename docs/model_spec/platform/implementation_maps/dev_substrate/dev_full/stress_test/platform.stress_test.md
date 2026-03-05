@@ -55,7 +55,7 @@ This is the program-level overview of what each `M*` phase stress effort is expe
 | M7 | RTDL + Case/Labels (`P8-P10`) | Stress decision loop + case/label pathways for sustained throughput and bounded lag | Decision/action/case/label lanes keep pace with ingress without silent degrade | DONE |
 | M8 | Spine Obs/Gov (`P11`) | Stress observability/governance paths so evidence remains complete under high event rates | Evidence completeness + low-overhead telemetry proven | DONE (`M9_READY`) |
 | M9 | Learning input readiness (`P12`) | Stress replay-basis/as-of/maturity extraction paths for correctness under realistic volume | Learning input lanes produce deterministic, timely, leak-safe outputs | DONE (`M10_READY`) |
-| M10 | OFS dataset closure (`P13`) | Stress offline feature dataset generation for throughput, stability, and cost posture | Dataset builds finish within budget with reproducible manifests | IN_PROGRESS (`S1_GREEN`) |
+| M10 | OFS dataset closure (`P13`) | Stress offline feature dataset generation for throughput, stability, and cost posture | Dataset builds finish within budget with reproducible manifests | IN_PROGRESS (`S2_GREEN`) |
 | M11 | MF train/eval closure (`P14`) | Stress model train/eval orchestration for queueing, runtime, and artifact integrity | Train/eval flow stable with deterministic evidence and bounded runtime | NOT_STARTED |
 | M12 | MPR promotion/rollback (`P15`) | Stress model promotion, rollback, and resolution lanes under repeated activation pressure | Promotion/rollback deterministic and fail-closed under stress | NOT_STARTED |
 | M13 | Full-platform verdict + teardown (`P16-P17`) | Stress full-platform execution windows plus teardown and idle-safe guarantees | Full-lane run + teardown remains stable, complete, and cost-safe | NOT_STARTED |
@@ -214,7 +214,7 @@ For any phase:
 
 ## 12) Program Status
 1. Program bootstrapped.
-2. Current phase state: `M6=GO`, `M7=GO`, `M8=GO` (`M9_READY` emitted from strict closure authority `m8_stress_s5_20260304T234918Z`); `M9=GO` (`M10_READY` emitted from strict closure authority `m9_stress_s5_20260305T003614Z`); `M10=IN_PROGRESS` (`S1_GREEN` from `m10_stress_s1_20260305T010445Z`).
+2. Current phase state: `M6=GO`, `M7=GO`, `M8=GO` (`M9_READY` emitted from strict closure authority `m8_stress_s5_20260304T234918Z`); `M9=GO` (`M10_READY` emitted from strict closure authority `m9_stress_s5_20260305T003614Z`); `M10=IN_PROGRESS` (`S3_GREEN` from `m10_stress_s3_20260305T012424Z`).
 3. Dedicated phase files:
    - `stress_test/platform.M2.stress_test.md` (`DONE`),
    - `stress_test/platform.M3.stress_test.md` (`DONE`),
@@ -232,8 +232,8 @@ For any phase:
    - `stress_test/platform.M7.P10.stress_test.md` (`DONE`),
    - `stress_test/platform.M8.stress_test.md` (`S5_GREEN`, `M9_READY`),
    - `stress_test/platform.M9.stress_test.md` (`S5_GREEN`, `M10_READY`),
-   - `stress_test/platform.M10.stress_test.md` (`S1_GREEN`, `S2_PENDING`).
-4. Next step: plan and execute `M10-ST-S2` fail-closed using upstream `m10_stress_s1_20260305T010445Z`.
+   - `stress_test/platform.M10.stress_test.md` (`S3_GREEN`, `S4_PENDING`).
+4. Next step: plan and execute `M10-ST-S4` fail-closed using upstream `m10_stress_s3_20260305T012424Z`.
 
 ## 13) Closed Phase - M0 (Inline)
 Status:
