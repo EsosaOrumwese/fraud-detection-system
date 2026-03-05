@@ -437,7 +437,7 @@ Publication surfaces:
 Fail-closed rule:
 1. If digest rows/columns are incomplete, state closure remains `HOLD_REMEDIATE` for reporting incompleteness.
 
-## 11) Execution Record - `pr1_20260305T174744Z` (`S0-S4`)
+## 11) Execution Record - `pr1_20260305T174744Z` (`S0-S5`)
 State outcomes:
 1. `S0 PASS`:
    - upstream lock validated from PR0 (`PR1_READY`),
@@ -471,6 +471,12 @@ State outcomes:
    - `B13=true`, `B14=true`, `B15=true`,
    - `TGT-05` and `TGT-07` moved to `PINNED`,
    - verdict `PR1_S4_READY`, `next_state=PR1-S5`, `open_blockers=0`.
+6. `S5 PASS`:
+   - RC2-S envelope numeric set finalized and activated from measured PR1 profile + cohort contract evidence,
+   - deterministic G2 pack rollup emitted (`pack_index`, `verdict`, `blocker_register`, `execution_summary`, `evidence_index`),
+   - `B16=true`, `B17=true`, `B18=true`, `B19=true`,
+   - `TGT-02` moved to `PINNED`, completing `TGT-02..TGT-07=PINNED`,
+   - verdict `PR1_S5_READY`, `next_state=PR2-S0`, `open_blockers=0`.
 
 Run-control root:
 1. `runs/dev_substrate/dev_full/road_to_prod/run_control/pr1_20260305T174744Z/`
@@ -498,6 +504,12 @@ Artifacts emitted in this state:
 20. `g2_monitoring_baselines.json`
 21. `pr1_s4_support_receipt.json`
 22. `pr1_s4_execution_receipt.json`
+23. `g2_data_realism_pack_index.json`
+24. `g2_data_realism_verdict.json`
+25. `pr1_blocker_register.json`
+26. `pr1_execution_summary.json`
+27. `pr1_evidence_index.json`
+28. `pr1_s5_execution_receipt.json`
 
 ## 12) PR1-S1 Findings Summary (Readable)
 | Area | What was found | Interpretation |
@@ -572,3 +584,16 @@ Artifacts emitted in this state:
 | S4 verdict | `PR1_S4_READY`, `open_blockers=0`, `next_state=PR1-S5` | PR1 can proceed to rollup closure (`S5`). |
 | Runtime + cost posture | `elapsed_minutes=0.015` vs budget `15`; `attributable_spend_usd=0.018179` vs envelope `10.0` | S4 remained minute-scale and cost-attributable. |
 | Advisory posture | `PR1.S4.AD01_LABEL_TS_PROXY_SEMANTICS` | Proxy semantics are explicit and tracked for future migration if true availability timestamp appears. |
+
+## 17) PR1-S5 Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Upstream gate | `PR1_S4_READY`, `open_blockers=0` | S5 execution respected strict state continuity. |
+| RC2-S numeric closure (`TGT-02`) | steady `61.365 eps`, burst `73 eps`, durations `30/5/5/30 min`, min processed `37,113,583`, min event types `2` | RC2-S envelope moved from candidate to activated numeric set for PR1 claim scope. |
+| Target closure set | `TGT-02..TGT-07=PINNED` | Required G2 target set is complete with no unresolved target blockers. |
+| G2 pack outputs | `g2_data_realism_pack_index`, `g2_data_realism_verdict`, `pr1_blocker_register`, `pr1_execution_summary`, `pr1_evidence_index` all readable | Data Realism Pack rollup is deterministic and auditable. |
+| Gate checks | `B16=true`, `B17=true`, `B18=true`, `B19=true` | All S5 fail-closed checks passed. |
+| G2 verdict | `PASS`, `next_gate=PR2_READY`, `open_blockers=0` | PR1/G2 closure is complete and legal handoff to PR2 is valid. |
+| PR1 summary verdict | `PR2_READY`, `next_gate=PR2_READY` | Main phase verdict aligns with gate verdict and target map. |
+| Runtime + cost posture | `elapsed_minutes=0.001` vs budget `10`; `attributable_spend_usd=0.0` vs envelope `5.0` | S5 closure remained minute-scale and evidence-first spend-neutral. |
+| Advisory posture | `PR1.S4.AD01_LABEL_TS_PROXY_SEMANTICS` retained | Proxy semantic remains explicit and must migrate if true label availability timestamp becomes available. |

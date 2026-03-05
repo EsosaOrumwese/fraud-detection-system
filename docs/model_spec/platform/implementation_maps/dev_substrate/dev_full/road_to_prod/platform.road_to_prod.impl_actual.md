@@ -1128,3 +1128,80 @@ ext_state=PR1-S5.
 ### Governance
 1. No branch operation, no commit/push.
 2. Execution used bounded Athena query and by-reference controls only.
+## Entry: 2026-03-05 19:40 +00:00 - Pre-edit plan: PR1-S5 rollup closure and G2 verdict emission
+### Trigger
+1. USER directed: plan and execute PR1-S5.
+2. Upstream S4 is green (PR1_S4_READY, open_blockers=0).
+
+### Decision-completeness check
+1. S5 objective/contract pinned in PR1 authority (Section S5, blockers B16..B19).
+2. Required S5 outputs pinned:
+   - g2_data_realism_pack_index.json,
+   - g2_data_realism_verdict.json,
+   - pr1_blocker_register.json,
+   - pr1_execution_summary.json,
+   - pr1_evidence_index.json.
+3. TGT-03..TGT-07 source status available from prior receipts/artifacts; S5 must finalize TGT-02 and enforce all TGT-02..TGT-07=PINNED.
+
+### S5 execution design
+1. Strict upstream lock:
+   - require pr1_s4_execution_receipt.json => PR1_S4_READY + open_blockers=0.
+2. Finalize TGT-02 RC2-S envelope numeric set using PR1 measured artifacts:
+   - baseline throughput from pr1_g2_profile_summary.json,
+   - envelope seed from g2_load_campaign_seed.json,
+   - cohort mix from pr1_g2_cohort_profile.json.
+3. Build deterministic G2 pack index with source refs, pinned target map, and activated RC2-S envelope.
+4. Build deterministic evidence index (artifact name, size, sha256, role classification).
+5. Emit verdict + blocker register fail-closed:
+   - B16 if any TGT-02..TGT-07 not pinned,
+   - B17 if pack/evidence index contract incomplete,
+   - B18 if verdict not PASS when blockers are zero,
+   - B19 if open blockers nonzero.
+6. Emit pr1_s5_execution_receipt.json with runtime/cost/advisory fields and update pr1_latest.json to S5.
+
+### Performance and cost posture
+1. No new data extraction; by-reference rollup only.
+2. Minute-scale runtime target (<=10 min) and negligible spend (explicitly attributed).
+
+### Governance
+1. No branch operations, no commit/push.
+2. Artifacts in uns/; docs/logbook/impl map synced after execution.
+## Entry: 2026-03-05 19:47 +00:00 - PR1-S5 executed with fail-closed remediation and final G2 closure
+### Execution summary
+1. Ran scripts/dev_substrate/pr1_s5_executor.py from strict upstream PR1_S4_READY.
+2. Initial attempt surfaced PR1.B17_PACK_INDEX_MISSING due ordering defect in S5 executor (post-emit completeness check executed before verdict/summary outputs were written).
+3. Remediated by reordering S5 emit sequence:
+   - emit provisional outputs first,
+   - run post-emit completeness check,
+   - then compute final blockers/verdict and rewrite outputs deterministically.
+4. Reran S5 immediately; final result:
+   - PR1_S5_READY, open_blockers=0, 
+ext_state=PR2-S0.
+
+### Final outputs emitted
+1. g2_data_realism_pack_index.json
+2. g2_data_realism_verdict.json
+3. pr1_blocker_register.json
+4. pr1_execution_summary.json
+5. pr1_evidence_index.json
+6. pr1_s5_execution_receipt.json
+7. latest pointer updated: pr1_latest.json -> latest_state=S5.
+
+### Gate/target closure results
+1. G2 verdict: PASS, 
+ext_gate=PR2_READY, open_blockers=0.
+2. Required target set: TGT-02..TGT-07 all PINNED.
+3. TGT-02 finalized/activated at S5 from measured profile + cohort evidence.
+
+### Runtime/cost posture
+1. S5 elapsed_minutes=0.001 (budget 10).
+2. S5 attributable_spend_usd=0.0 (rollup by-reference posture).
+
+### Documentation sync
+1. Updated PR1 authority doc with S5 execution state and findings.
+2. Updated main plan immediate next step to PR2-S0 and added S5 findings snapshot.
+3. Updated target status snapshot to PR1-S5 with TGT-02=PINNED.
+
+### Governance
+1. No branch operations, no commit/push.
+2. Scope stayed in run-control artifacts + docs/logbook/implementation map.

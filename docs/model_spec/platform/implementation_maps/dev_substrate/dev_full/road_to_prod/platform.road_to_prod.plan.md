@@ -77,6 +77,7 @@ Exit / DoD:
 2. Required realism decisions pinned.
 3. `open_blockers=0` for `G2`.
 4. Unknowns are converted to pinned decisions or explicit blockers with rerun boundaries (no silent unknowns).
+5. Execution status: `COMPLETE` (`pr1_20260305T174744Z`, verdict `PR2_READY`, `next_gate=PR2_READY`).
 
 ### PR2 - Numeric Contract Activation
 Intent:
@@ -212,11 +213,11 @@ This plan's intent is satisfied only when:
 3. The final production-ready verdict is claimable, auditable, and has `open_blockers=0`.
 
 ## 10) Immediate Next Step
-1. Start `PR1-S5`: execute deterministic G2 rollup and verdict closure from pinned `S4` outputs.
-2. Use `PR1-S4` receipt as immediate upstream authority:
-   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr1_20260305T174744Z/pr1_s4_execution_receipt.json`.
-3. Keep Section 11 target status table as the active blocker-routing surface during PR1 execution.
-4. Use the dedicated PR1 authority doc as execution source:
+1. Start `PR2-S0`: execute numeric contract activation entry lock from completed `PR1` gate outputs.
+2. Use `PR1-S5` receipt as immediate upstream authority:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr1_20260305T174744Z/pr1_s5_execution_receipt.json`.
+3. Keep Section 11 target status table as the active blocker-routing surface during `PR2` execution.
+4. Use the dedicated PR1 authority doc as closed historical source and PR2 authority doc as active execution source:
    - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR1.road_to_prod.md`.
 
 ### 10.1 PR1-S1 Findings Snapshot (Readable)
@@ -281,6 +282,18 @@ This plan's intent is satisfied only when:
 | Cost posture (`S4`) | `attributable_spend_usd=0.018179` vs envelope `10.0` | `<= 10.0` | `PASS` | S4 spend is attributable and bounded. | Keep attributable receipts mandatory in S5. |
 | Advisory posture | `PR1.S4.AD01_LABEL_TS_PROXY_SEMANTICS` | explicit advisory allowed when documented | `PASS` | Proxy semantics are transparent and auditable (no hidden field assumptions). | Keep migration note active until true `label_available_ts` is available. |
 
+### 10.6 PR1-S5 Findings Snapshot (Readable)
+| Signal | Observed Value | Threshold/Expectation | Status | Why it matters for PR1 | Decision/Next Action |
+| --- | --- | --- | --- | --- | --- |
+| S5 verdict | `PR1_S5_READY`, `open_blockers=0`, `next_state=PR2-S0` | `open_blockers=0` | `PASS` | Confirms legal closure of PR1 phase. | Move to `PR2-S0`. |
+| G2 gate verdict | `PASS`, `next_gate=PR2_READY`, `open_blockers=0` | `PASS` + zero blockers | `PASS` | `G2` gate closure is now claimable and auditable. | Treat PR1 as complete. |
+| `B16` target set check | `TGT-02..TGT-07` all `PINNED` | all required targets pinned | `PASS` | Removes remaining target incompleteness risk from G2. | Carry this set as immutable baseline for PR2+. |
+| `B17` pack/index check | all required S5 rollup artifacts readable | required artifacts present | `PASS` | Deterministic pack/index contract is complete. | Preserve artifact paths for downstream references. |
+| `TGT-02` RC2-S activation | steady `61.365 eps`, burst `73 eps`, durations `30/5/5/30`, min processed `37,113,583` | numeric set required at S5 | `PASS` | Converts envelope from candidate into activated numeric contract for PR1 scope. | Carry activated envelope to PR2 contract activation. |
+| Runtime posture (`S5`) | `elapsed_minutes=0.001` vs budget `10` | `<= 10` | `PASS` | Rollup closure stayed minute-scale. | Keep this posture for future rollup states. |
+| Cost posture (`S5`) | `attributable_spend_usd=0.0` vs envelope `5.0` | `<= 5.0` | `PASS` | Evidence-first rollup remained spend-neutral. | Preserve by-reference rollup policy where applicable. |
+| Advisory posture | `PR1.S4.AD01_LABEL_TS_PROXY_SEMANTICS` retained | explicit advisory allowed when documented | `PASS` | Maintains semantic transparency for label maturity pinning basis. | Keep migration note active until schema exposes true availability timestamp. |
+
 ## 11) Required TBD Closure Sheet (Binding)
 This section defines the mandatory closure routing for unresolved targets in:
 1. `docs/model_spec/platform/pre-design_decisions/dev-full_road-to-production-ready.md` Section 15.1 (open decisions `OD-01..OD-09`).
@@ -331,13 +344,13 @@ Closure rule:
 1. Required targets cannot remain `OPEN`/`IN_PROGRESS`/`WAIVED_TIMEBOXED` at their close-by gate.
 2. Any miss becomes `HOLD_REMEDIATE` with explicit rerun boundary before phase continuation.
 
-### 11.3 Current Target Status Snapshot (PR1-S4)
+### 11.3 Current Target Status Snapshot (PR1-S5)
 As-of execution: `pr1_20260305T174744Z`
 
 | Target ID | Current status | Blocking gate | Notes |
 | --- | --- | --- | --- |
 | TGT-01 | PINNED | PR0 | Injection-path policy pinned: `via_IG` is production claim path; `via_MSK` is hot-path-only scoped claim path. |
-| TGT-02 | IN_PROGRESS | PR1-S5 | PR1-S1 produced bounded RC2-S envelope candidate; numeric finalization remains queued for S5 rollup. |
+| TGT-02 | PINNED | PR1-S5 | S5 finalized and activated RC2-S numeric envelope from measured PR1 profile + cohort contract evidence (`steady=61.365 eps`, `burst=73 eps`, `30/5/5/30 min`). |
 | TGT-03 | PINNED | PR1-S5 | S3 pinned lateness policy with fail-closed as-of semantics and enforceability receipt. |
 | TGT-04 | PINNED | PR1-S5 | S3 pinned IEG minimal graph scope with explicit TTL/state bounds. |
 | TGT-05 | PINNED | PR1-S5 | S4 pinned `label_maturity_lag=3d` from charter-window maturity distribution using explicit `ts_utc` availability proxy semantics and fail-closed selection policy. |
