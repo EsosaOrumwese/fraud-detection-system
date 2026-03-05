@@ -12430,6 +12430,32 @@ ext_gate=M8_READY, open_blockers=0.
 1. No commit/push/branch operation.
 2. Data Engine boundary preserved (black-box).
 
+## Entry: 2026-03-05 11:24 +00:00 - M13 green confirmation, M14/M15 TODO posture, and live MSF authorization recheck
+### Trigger
+1. User requested:
+   - explicit confirmation that `M13` is green,
+   - mark `M14` and `M15` as `TODO` for deferred planning,
+   - confirm whether Amazon Managed Service for Flink is still unauthorized.
+
+### Evidence review and live probe
+1. Verified strict M13 closure authority:
+   - `m13_stress_s5_20260305T111321Z` (`overall_pass=true`, `open_blocker_count=0`, `verdict=ADVANCE_TO_M14`, `next_gate=M14_READY`).
+2. Updated parent phase table posture:
+   - `M14` status changed `NOT_STARTED -> TODO`,
+   - `M15` status changed `NOT_STARTED -> TODO`.
+3. Rechecked current AWS identity and MSF access in live context (`arn:aws:iam::230372904534:user/fraud-dev`):
+   - `aws sts get-caller-identity` succeeded,
+   - `aws kinesisanalyticsv2 list-applications --region eu-west-2` succeeded.
+4. Live create authorization probe:
+   - first probe using `ApplicationMode=INTERACTIVE` on `FLINK-1_18` returned `InvalidArgumentException` (mode/runtime incompatibility; not auth denial),
+   - second probe using `ApplicationMode=STREAMING` succeeded (`ApplicationStatus=READY`) and was immediately deleted,
+   - post-probe list confirmed no residual applications.
+
+### Decision
+1. Conclude M13 is green and closed with valid strict handoff to M14.
+2. Conclude current MSF account/service authorization is available in this account/region context; prior M4-era `UnsupportedOperationException` gate is not currently reproducible under the live probe.
+3. Keep M14/M15 deferred by explicit `TODO` status until user starts the discussion/planning sequence.
+
 ## Entry: 2026-03-05 10:38 +00:00 - Pre-edit plan for M13-ST-S3 implementation and strict execution
 ### Trigger
 1. User directive: move to `M13-ST-S3`.
