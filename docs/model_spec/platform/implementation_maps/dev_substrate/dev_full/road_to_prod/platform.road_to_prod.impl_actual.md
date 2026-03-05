@@ -1205,3 +1205,60 @@ ext_gate=PR2_READY, open_blockers=0.
 ### Governance
 1. No branch operations, no commit/push.
 2. Scope stayed in run-control artifacts + docs/logbook/implementation map.
+## Entry: 2026-03-05 19:57 +00:00 - Pre-edit plan: materialize PR2 authority doc for numeric contract activation
+### Trigger
+1. USER requested planning for PR2 and its dedicated document.
+
+### Decision-completeness check
+1. Upstream PR1 closure is pinned and green:
+   - pr1_s5_execution_receipt.json => PR1_S5_READY, open_blockers=0, 
+ext_state=PR2-S0.
+2. Main plan defines PR2 intent and subphase template (S0..S3) but lacks execution authority detail.
+3. Binding activation law is pinned in pre-design authority:
+   - numeric contracts must be activatable (
+o required TBD) before certification progression.
+
+### PR2 planning design
+1. Create platform.PR2.road_to_prod.md with execution-grade structure mirroring PR0/PR1:
+   - purpose, authorities, scope, hard exit standard,
+   - capability lanes,
+   - state plan S0..S3 with objectives/actions/outputs/pass/fail blockers,
+   - per-state planning expansion checklists,
+   - artifact contract + schema minimums,
+   - runtime/cost budgets,
+   - rerun discipline + DoD.
+2. Define deterministic run root posture:
+   - uns/dev_substrate/dev_full/road_to_prod/run_control/<pr2_execution_id>/.
+3. Wire main plan PR2 section and immediate-next-step section to this new PR2 authority doc.
+
+### Performance and cost posture
+1. PR2 is activation/planning/validation-heavy, not runtime load execution.
+2. Prefer by-reference measured evidence from PR1 for threshold population and calibration traceability.
+3. Enforce minute-scale state budgets and explicit spend attribution if any fresh extraction is required.
+
+### Governance
+1. Docs-only planning edits plus logbook/implementation-map updates.
+2. No branch operations, no commit/push.
+## Entry: 2026-03-05 19:59 +00:00 - PR2 phase planning materialized and wired as active authority
+### Work completed
+1. Added dedicated PR2 authority doc:
+   - docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR2.road_to_prod.md.
+2. PR2 doc now includes:
+   - purpose, authorities, scope, hard exit standard,
+   - capability lanes,
+   - full state plan S0..S3 with objectives/actions/outputs/pass/fail blockers,
+   - per-state planning expansion checklists,
+   - deterministic artifact contract, runtime/cost budgets, rerun discipline, DoD.
+3. Wired main plan to PR2 authority:
+   - PR2 section now explicitly references the detailed PR2 doc,
+   - immediate-next-step authority list now includes both PR1 (closed historical source) and PR2 (active source).
+
+### Key planning decisions pinned
+1. PR2 enforces activatable contracts before PR3 (
+o required TBD in active scope).
+2. PR2 remains evidence-first and by-reference; runtime pressure certification stays in PR3.
+3. Blocker taxonomy is fail-closed across S0..S3, including unattributed spend blocker (PR2.B19).
+
+### Governance
+1. No branch operation, no commit/push.
+2. Planning edits only (docs + logbook + implementation map).

@@ -83,6 +83,8 @@ Exit / DoD:
 Intent:
 1. Activate required runtime and ops/gov numeric contract sections with no required `TBD`.
 2. Ensure every threshold has declared measurement surface, sample minima, and failure path.
+3. Execute detailed state plan in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR2.road_to_prod.md`.
 
 Subphase template:
 1. `S0` required row inventory and gap map.
@@ -218,7 +220,8 @@ This plan's intent is satisfied only when:
    - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr1_20260305T174744Z/pr1_s5_execution_receipt.json`.
 3. Keep Section 11 target status table as the active blocker-routing surface during `PR2` execution.
 4. Use the dedicated PR1 authority doc as closed historical source and PR2 authority doc as active execution source:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR1.road_to_prod.md`.
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR1.road_to_prod.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR2.road_to_prod.md`.
 
 ### 10.1 PR1-S1 Findings Snapshot (Readable)
 | Signal | Value | Why it matters for PR1 |
