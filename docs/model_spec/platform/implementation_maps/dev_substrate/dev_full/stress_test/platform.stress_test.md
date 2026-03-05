@@ -58,7 +58,7 @@ This is the program-level overview of what each `M*` phase stress effort is expe
 | M10 | OFS dataset closure (`P13`) | Stress offline feature dataset generation for throughput, stability, and cost posture | Dataset builds finish within budget with reproducible manifests | DONE (`M11_READY`) |
 | M11 | MF train/eval closure (`P14`) | Stress model train/eval orchestration for queueing, runtime, and artifact integrity | Train/eval flow stable with deterministic evidence and bounded runtime | DONE (`M12_READY`) |
 | M12 | MPR promotion/rollback (`P15`) | Stress model promotion, rollback, and resolution lanes under repeated activation pressure | Promotion/rollback deterministic and fail-closed under stress | DONE (`M13_READY`) |
-| M13 | Full-platform verdict + teardown (`P16-P17`) | Stress full-platform execution windows plus teardown and idle-safe guarantees | Full-lane run + teardown remains stable, complete, and cost-safe | NOT_STARTED |
+| M13 | Full-platform verdict + teardown (`P16-P17`) | Stress full-platform execution windows plus teardown and idle-safe guarantees | Full-lane run + teardown remains stable, complete, and cost-safe | PLANNING_READY |
 | M14 | Runtime-placement repin materialization | Stress any placement repins to validate they improve or preserve performance and reliability | Repinned runtime lanes meet or exceed prior stress baselines | NOT_STARTED |
 | M15 | Data semantics realization | Stress real-data semantics in learning/evolution lanes at production-like volume and quality | Semantic realism + runtime budget + no-leakage gates all green | NOT_STARTED |
 
@@ -683,3 +683,30 @@ Authority routing:
    - `M12.H`: `execution_id=m12h_stress_s4_20260305T090625Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M12_I`, `next_gate=M12.I_READY`, `p15_verdict=ADVANCE_TO_P16`, `p15_next_gate=M13_READY`.
    - `M12.I`: `execution_id=m12i_stress_s4_20260305T090930Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M12_J`, `next_gate=M12.J_READY`.
    - `M12.J`: `execution_id=m12j_stress_s5_20260305T091936Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M13`, `next_gate=M13_READY`.
+
+## 22) Open Phase - M13 (Planning)
+Status:
+1. `PLANNING_READY` (dedicated M13 stress authority is present; no M13 stage execution has started in the strict chain).
+
+Authority routing:
+1. Parent orchestration authority: `stress_test/platform.M13.stress_test.md`.
+2. Strict entry authority for M13:
+   - parent `M12-ST-S5`: `phase_execution_id=m12_stress_s5_20260305T091936Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M13`, `next_gate=M13_READY`, `open_blockers=0`,
+   - lane `M12.J`: `execution_id=m12j_stress_s5_20260305T091936Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M13`, `next_gate=M13_READY`,
+   - lane `M12.H`: `execution_id=m12h_stress_s4_20260305T090625Z`, `m13_handoff_pack.json` indicates `m13_entry_ready=true` with `p15_verdict=ADVANCE_TO_P16` and `next_gate=M13_READY`.
+3. Parent-to-lane fail-closed stage order:
+   - `M13-ST-S0` (`B0+A`),
+   - `M13-ST-S1` (`B+C`),
+   - `M13-ST-S2` (`D+E`),
+   - `M13-ST-S3` (`F+G`),
+   - `M13-ST-S4` (`H+I`),
+   - `M13-ST-S5` (`J`) with final `M14_READY` gate.
+4. Implementation-readiness status:
+   - dedicated M13 stress doc: present,
+   - managed workflow `.github/workflows/dev_full_m13_managed.yml`: present,
+   - parent runner `scripts/dev_substrate/m13_stress_runner.py`: not materialized yet,
+   - stage wrappers `scripts/dev_substrate/m13{a..j}_*.py`: not materialized yet.
+5. Current next executable step:
+   - execute `M13-ST-S0` from strict upstream `m12_stress_s5_20260305T091936Z` and stop fail-closed on first blocker.
+6. Latest execution receipts:
+   - none for M13 yet in the current strict chain (`S0` pending).

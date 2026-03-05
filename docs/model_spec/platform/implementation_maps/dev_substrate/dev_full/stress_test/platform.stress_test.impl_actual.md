@@ -12172,3 +12172,69 @@ ext_gate=M8_READY, open_blockers=0.
 ### State synchronization
 1. Updated `platform.M12.stress_test.md` to `S5_GREEN` with deterministic closure posture.
 2. Updated `platform.stress_test.md` M12 status to `DONE (M13_READY)` and routed next step to M13 from strict upstream `m12_stress_s5_20260305T091936Z`.
+
+## Entry: 2026-03-05 09:31 +00:00 - Pre-edit plan for M13 stress authority creation
+### Trigger
+1. User directed: begin planning M13.
+2. M12 strict closure authority is now green and pinned to `m12_stress_s5_20260305T091936Z` (`ADVANCE_TO_M13`, `M13_READY`).
+
+### Current gap
+1. No dedicated `stress_test/platform.M13.stress_test.md` exists.
+2. Parent stress index marks M13 as `NOT_STARTED` and does not yet carry M13 active-phase authority routing.
+
+### Design decision
+1. Create a dedicated M13 stress authority doc at:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M13.stress_test.md`.
+2. Align M13 stress to existing deep plan authority in `platform.M13.build_plan.md` while preserving strict current run continuity from M12 closure.
+3. Use parent stage topology `S0..S5` with explicit lane mapping:
+   - `S0`: `B0 + A` (managed lane materialization + authority/handle closure),
+   - `S1`: `B + C` (source matrix + six-proof matrix),
+   - `S2`: `D + E` (final verdict publication + teardown plan),
+   - `S3`: `F + G` (teardown execution + residual/readability),
+   - `S4`: `H + I` (post-teardown cost guardrail + phase cost-outcome closure),
+   - `S5`: `J` (final closure sync with `M14_READY` gate decision).
+4. Pin fail-closed blocker taxonomy (`M13-ST-B0..B20`) and strict guards (locality/source-authority/black-box/realism/cost).
+5. Update parent stress index `platform.stress_test.md` to set M13 as active planning phase and route next step to strict M13 S0.
+
+### Non-goals for this step
+1. Do not execute M13 stages yet.
+2. Do not commit/push.
+
+## Entry: 2026-03-05 09:33 +00:00 - Pre-edit plan for parent M13 routing sync
+### Trigger
+1. User directed: begin planning out M13.
+2. Dedicated M13 stress authority exists at stress_test/platform.M13.stress_test.md, but parent index stress_test/platform.stress_test.md still terminates at M12 and does not carry a dedicated M13 routing section.
+
+### Decision-completeness and coverage check
+1. Strict entry authority is pinned to m12_stress_s5_20260305T091936Z (ADVANCE_TO_M13, M13_READY, open_blockers=0).
+2. M13 scope lanes (B0, A..J) and fail-closed blocker taxonomy are already pinned in the dedicated M13 doc.
+3. Parent index drift risk exists if M13 row remains NOT_STARTED without explicit planning-state routing and execution authority references.
+
+### Planned edits
+1. Update M13 row in platform.stress_test.md overview table from NOT_STARTED to PLANNING_READY.
+2. Append ## 22) Open Phase - M13 (Planning) to platform.stress_test.md with:
+   - status,
+   - authority routing,
+   - strict entry receipts,
+   - stage order (S0..S5),
+   - implementation-readiness gap callouts,
+   - immediate next executable step (M13-ST-S0).
+3. Keep execution untouched in this step (planning sync only).
+4. No commit/push/branch operation.
+
+## Entry: 2026-03-05 09:34 +00:00 - M13 parent routing sync completed
+### Edits applied
+1. Updated platform.stress_test.md M-phase overview row for M13 status from NOT_STARTED to PLANNING_READY.
+2. Appended ## 22) Open Phase - M13 (Planning) to platform.stress_test.md with:
+   - strict M13 entry authority refs from M12 closure (m12_stress_s5_20260305T091936Z, m12j_stress_s5_20260305T091936Z, m12h_stress_s4_20260305T090625Z),
+   - fail-closed stage chain (S0..S5 mapping to B0+A, B+C, D+E, F+G, H+I, J),
+   - implementation-readiness statement (workflow present; runner/wrappers pending),
+   - immediate next executable step (M13-ST-S0) and pending-execution status.
+
+### Rationale
+1. Prevent parent-index/design drift where dedicated M13 authority existed but parent routing stopped at M12.
+2. Keep closure chain auditable and deterministic before any M13 execution begins.
+
+### Execution posture
+1. No M13 stages executed in this update.
+2. No commit/push/branch operation.
