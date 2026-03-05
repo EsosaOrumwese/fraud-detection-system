@@ -3,7 +3,7 @@ _Parent authority: `platform.stress_test.md`_
 _Status source of truth: `platform.stress_test.md`_
 _Track: `dev_full` only_
 _As of 2026-03-05_
-_Current posture: `S3_GREEN` (strict `M13-ST-S3` passed from `m13_stress_s2_20260305T102426Z`; `S4` pending execution)._
+_Current posture: `S4_GREEN` (strict `M13-ST-S4` passed from `m13_stress_s3_20260305T104425Z`; `S5` pending execution)._
 
 ## 0) Purpose
 M13 stress validates full-platform closure and deterministic teardown/idle-safe posture under strict production-realism and fail-closed gates.
@@ -317,14 +317,14 @@ Required stage outputs (phase-level):
 - [x] `M13-ST-S1` executed and closed green.
 - [x] `M13-ST-S2` executed and closed green.
 - [x] `M13-ST-S3` executed and closed green.
-- [ ] `M13-ST-S4` executed and closed green.
+- [x] `M13-ST-S4` executed and closed green.
 - [ ] `M13-ST-S5` executed and closed green with deterministic `M14_READY`.
 
 ## 12) Immediate Next Actions
-1. proceed to `M13-ST-S4` from strict upstream `m13_stress_s3_20260305T104425Z`.
-2. materialize parent `M13.H`/`M13.I` wrappers and extend `m13_stress_runner.py` for `S4`.
-3. execute strict `S4` fail-closed and stop on first blocker.
-4. continue strict chain `S5` with per-stage authority pinning after `S4` closure.
+1. proceed to `M13-ST-S5` from strict upstream `m13_stress_s4_20260305T110049Z`.
+2. materialize parent `M13.J` wrapper and extend `m13_stress_runner.py` for `S5`.
+3. execute strict `S5` fail-closed and stop on first blocker.
+4. close M13 only if `S5` emits deterministic `ADVANCE_TO_M14` + `M14_READY` with zero unresolved blockers.
 5. keep parent `platform.stress_test.md` synchronized after each run with latest execution id and gate.
 
 ## 13) Execution Progress
@@ -360,7 +360,13 @@ Required stage outputs (phase-level):
 12. S3 lane receipts:
    - `M13.F`: `execution_id=m13f_stress_s3_20260305T104425Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M13_G`, `next_gate=M13.G_READY`,
    - `M13.G`: `execution_id=m13g_stress_s3_20260305T104729Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M13_H`, `next_gate=M13.H_READY`.
-13. Next strict executable stage is `M13-ST-S4`.
+13. `M13-ST-S4` passed in strict chain:
+   - parent `phase_execution_id=m13_stress_s4_20260305T110049Z`,
+   - `overall_pass=true`, `open_blocker_count=0`, `next_gate=M13_ST_S5_READY`, `verdict=GO`.
+14. S4 lane receipts:
+   - `M13.H`: `execution_id=m13h_stress_s4_20260305T110049Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M13_I`, `next_gate=M13.I_READY`,
+   - `M13.I`: `execution_id=m13i_stress_s4_20260305T110355Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M13_J`, `next_gate=M13.J_READY`.
+15. Next strict executable stage is `M13-ST-S5`.
 
 ## 14) Reopen Notice (Strict Authority)
 1. M13 cannot be closed using historical 2026-02 receipts alone.
