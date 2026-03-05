@@ -19938,3 +19938,87 @@ Context:
    - keep deterministic artifact lineage and fail-closed behavior unchanged.
 4. Fresh managed closure proof:
    - run 22600392998, execution m6f_p6b_streaming_active_20260302T232217Z, overall_pass=true, locker_count=0.
+
+## Entry: 2026-03-05 13:39 +00:00 - Pre-edit plan: add dev_full idle teardown guard workflow (guard->M13 executor)
+### Trigger
+1. USER requested implementation of recommended pattern: separate idle guard workflow for `dev_full` that can dispatch teardown through `dev_full_m13_managed.yml`.
+
+### Problem framing
+1. Current `dev_full` has teardown-capable logic in `dev_full_m13_managed.yml` but no scheduled idle detector/controller.
+2. Without an idle guard, teardown is manual-only and vulnerable to idle-cost drift.
+
+### Design decision
+1. Introduce `.github/workflows/dev_full_idle_teardown_guard.yml` as a dedicated controller workflow.
+2. Keep `dev_full_m13_managed.yml` as teardown executor; guard dispatches M13 on idle breach in dedicated mode.
+3. Preserve safe default posture:
+   - mode default `observe_only`,
+   - explicit mode options `observe_only`, `stop_services`, `dispatch_m13_teardown`.
+
+### Enforcement model
+1. Idle detection source:
+   - SSM heartbeat parameter payload timestamp (`updated_at_utc`/`last_activity_utc`/`captured_at_utc`).
+2. Runtime surface check:
+   - ECS services in configured cluster filtered by configured service-name prefixes.
+3. Idle-breach action by mode:
+   - `observe_only`: no mutating action; emit snapshot and fail-closed on observed breach,
+   - `stop_services`: set ECS desired count to 0 for active prefixed services,
+   - `dispatch_m13_teardown`: workflow-dispatch `dev_full_m13_managed.yml` in `M13.F` teardown execution mode.
+4. Guard preconditions:
+   - reject static AWS creds,
+   - require OIDC role,
+   - validate enforcement mode + TTL,
+   - require M13 upstream ids for dispatch mode (`upstream_m12j_execution`, `upstream_m13e_execution`) to avoid ambiguous teardown dispatch.
+
+### Artifacts and evidence
+1. Emit run-scoped snapshot JSON under local path:
+   - `runs/dev_substrate/dev_full/idle_guard/{timestamp}/dev_full_idle_teardown_guard_snapshot.json`.
+2. Emit durable mirror to:
+   - `s3://{evidence_bucket}/{evidence_prefix}/{execution_id}/dev_full_idle_teardown_guard_snapshot.json`.
+3. Fail-closed on unresolved blockers.
+
+### Non-goals
+1. Do not modify existing `dev_full_m13_managed.yml` execution semantics.
+2. Do not introduce local runtime orchestration for platform workloads.
+
+### Governance
+1. Workflow-file implementation only for functional change.
+2. No commit/push/branch operation.
+
+## Entry: 2026-03-05 13:57 +00:00 - dev_full idle teardown guard workflow implemented
+### Implementation
+1. Added new workflow:
+   - `.github/workflows/dev_full_idle_teardown_guard.yml`.
+2. Trigger model:
+   - `workflow_dispatch` + `schedule` (`*/30 * * * *`).
+3. Mode model:
+   - `observe_only`,
+   - `stop_services`,
+   - `dispatch_m13_teardown`.
+4. Controller/executor split:
+   - guard detects idle and adjudicates blockers,
+   - teardown execution is delegated to `dev_full_m13_managed.yml` (`M13.F`, `teardown_execution_closure`) when dispatch mode is selected.
+
+### Safety and fail-closed controls
+1. OIDC-only auth posture (rejects static credentials).
+2. Requires resolved AWS role input/var before execution.
+3. Idle detection uses SSM heartbeat timestamp; missing/invalid heartbeat fields fail closed.
+4. Dispatch mode requires explicit upstream ids:
+   - `m13_upstream_m12j_execution`,
+   - `m13_upstream_m13e_execution`.
+5. Active-run lock heuristic from heartbeat payload blocks mutating modes.
+6. Workflow emits blocker-coded snapshot and exits non-zero when blockers remain.
+
+### Evidence contract
+1. Local artifact:
+   - `runs/dev_substrate/dev_full/idle_guard/{timestamp}/dev_full_idle_teardown_guard_snapshot.json`.
+2. Durable mirror:
+   - `s3://{evidence_bucket}/{evidence_prefix}/{execution_id}/dev_full_idle_teardown_guard_snapshot.json`.
+
+### Notes
+1. Default enforcement mode is `observe_only` for safe rollout.
+2. `dispatch_m13_teardown` is available once upstream ids are pinned in workflow inputs or repo vars.
+
+### Governance
+1. Functional change is workflow-only (`.github/workflows/dev_full_idle_teardown_guard.yml`).
+2. No commit/push/branch operation.
+3. No runtime workload dispatch executed in this implementation step.
