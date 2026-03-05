@@ -58,7 +58,7 @@ This is the program-level overview of what each `M*` phase stress effort is expe
 | M10 | OFS dataset closure (`P13`) | Stress offline feature dataset generation for throughput, stability, and cost posture | Dataset builds finish within budget with reproducible manifests | DONE (`M11_READY`) |
 | M11 | MF train/eval closure (`P14`) | Stress model train/eval orchestration for queueing, runtime, and artifact integrity | Train/eval flow stable with deterministic evidence and bounded runtime | DONE (`M12_READY`) |
 | M12 | MPR promotion/rollback (`P15`) | Stress model promotion, rollback, and resolution lanes under repeated activation pressure | Promotion/rollback deterministic and fail-closed under stress | DONE (`M13_READY`) |
-| M13 | Full-platform verdict + teardown (`P16-P17`) | Stress full-platform execution windows plus teardown and idle-safe guarantees | Full-lane run + teardown remains stable, complete, and cost-safe | IN_PROGRESS (`S4_GREEN`) |
+| M13 | Full-platform verdict + teardown (`P16-P17`) | Stress full-platform execution windows plus teardown and idle-safe guarantees | Full-lane run + teardown remains stable, complete, and cost-safe | DONE (`M14_READY`) |
 | M14 | Runtime-placement repin materialization | Stress any placement repins to validate they improve or preserve performance and reliability | Repinned runtime lanes meet or exceed prior stress baselines | NOT_STARTED |
 | M15 | Data semantics realization | Stress real-data semantics in learning/evolution lanes at production-like volume and quality | Semantic realism + runtime budget + no-leakage gates all green | NOT_STARTED |
 
@@ -686,7 +686,7 @@ Authority routing:
 
 ## 22) Open Phase - M13
 Status:
-1. `IN_PROGRESS` (`S4_GREEN`; strict S4 run passed with `next_gate=M13_ST_S5_READY`).
+1. `DONE` (`M14_READY`; strict S5 run passed with `verdict=ADVANCE_TO_M14` and zero open blockers).
 
 Authority routing:
 1. Parent orchestration authority: `stress_test/platform.M13.stress_test.md`.
@@ -710,9 +710,9 @@ Authority routing:
    - stage wrappers for `S2`: present (`m13d_final_verdict_closure.py`, `m13e_teardown_plan_closure.py`),
    - stage wrappers for `S3`: present (`m13f_teardown_execution_closure.py`, `m13g_residual_readability_closure.py`),
    - stage wrappers for `S4`: present (`m13h_post_teardown_cost_guardrail_closure.py`, `m13i_phase_cost_outcome_closure.py`),
-   - stage wrappers for `S5`: pending materialization.
+   - stage wrappers for `S5`: present (`m13j_final_closure_sync.py`).
 5. Current next executable step:
-   - execute `M13-ST-S5` from strict upstream `m13_stress_s4_20260305T110049Z` and stop fail-closed on first blocker.
+   - M13 is closed; route strict entry to M14 from `m13_stress_s5_20260305T111321Z`.
 6. Latest execution receipts:
    - `M13-ST-S0`: `phase_execution_id=m13_stress_s0_20260305T094531Z`, `overall_pass=true`, `next_gate=M13_ST_S1_READY`, `open_blockers=0`,
    - `M13.B0`: `execution_id=m13b0_stress_s0_20260305T094531Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M13_A`, `next_gate=M13.A_READY`,
@@ -730,4 +730,6 @@ Authority routing:
    - `M13.G`: `execution_id=m13g_stress_s3_20260305T104729Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M13_H`, `next_gate=M13.H_READY`,
    - `M13-ST-S4`: `phase_execution_id=m13_stress_s4_20260305T110049Z`, `overall_pass=true`, `next_gate=M13_ST_S5_READY`, `open_blockers=0`,
    - `M13.H`: `execution_id=m13h_stress_s4_20260305T110049Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M13_I`, `next_gate=M13.I_READY`,
-   - `M13.I`: `execution_id=m13i_stress_s4_20260305T110355Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M13_J`, `next_gate=M13.J_READY`.
+   - `M13.I`: `execution_id=m13i_stress_s4_20260305T110355Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M13_J`, `next_gate=M13.J_READY`,
+   - `M13-ST-S5`: `phase_execution_id=m13_stress_s5_20260305T111321Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M14`, `next_gate=M14_READY`, `open_blockers=0`,
+   - `M13.J`: `execution_id=m13j_stress_s5_20260305T111321Z`, `overall_pass=true`, `verdict=M13_COMPLETE_GREEN`, `next_gate=DEV_FULL_TRACK_COMPLETE`.

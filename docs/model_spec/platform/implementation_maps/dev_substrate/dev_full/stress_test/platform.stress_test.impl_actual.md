@@ -12615,6 +12615,94 @@ ext_gate=M8_READY, open_blockers=0.
 1. No commit/push/branch operation.
 2. Data Engine boundary preserved (black-box).
 
+## Entry: 2026-03-05 11:10 +00:00 - Pre-edit plan for M13-ST-S5 implementation and strict execution
+### Trigger
+1. User directive: move to strict `M13-ST-S5`.
+2. Current strict upstream: `m13_stress_s4_20260305T110049Z` (`overall_pass=true`, `next_gate=M13_ST_S5_READY`, `open_blocker_count=0`).
+
+### Decision-completeness and coverage check (S5 scope)
+1. M13 S5 authority requires lane `J` (final closure sync), fail-closed.
+2. Managed workflow contract confirms `final_closure_sync` (`m13_subphase=J`) emits lane pass with:
+   - `overall_pass=true`,
+   - `verdict=M13_COMPLETE_GREEN`,
+   - `next_gate=DEV_FULL_TRACK_COMPLETE`.
+3. Parent S5 acceptance contract remains:
+   - `overall_pass=true`,
+   - `verdict=ADVANCE_TO_M14`,
+   - `next_gate=M14_READY`,
+   - `open_blocker_count=0`.
+4. Missing implementation lanes on this branch:
+   - `scripts/dev_substrate/m13j_final_closure_sync.py`,
+   - `m13_stress_runner.py` support for `S5`.
+
+### Performance/correctness design
+1. Reuse established S0..S4 dispatch-readback pattern to keep control-plane complexity O(1).
+2. Keep strict upstream continuity checks in parent `S5` before lane dispatch:
+   - require S4 green (`M13_ST_S5_READY`),
+   - require lane lineage refs (`m12j`, `m13a..m13i`) with no missing executions.
+3. Enforce explicit upstream override posture to prevent workflow-default drift (`M13-ST-B20` guard).
+4. Keep local machine usage to control orchestration and artifact readback only; runtime execution remains remote-managed.
+
+### Planned edits
+1. Add `m13j_final_closure_sync.py` wrapper with strict lane gate checks (`M13_COMPLETE_GREEN`, `DEV_FULL_TRACK_COMPLETE`).
+2. Extend `m13_stress_runner.py` with:
+   - `S5_ARTS`,
+   - `latest_s4()`,
+   - `run_s5(...)`,
+   - CLI support (`--stage S5 --upstream-m13-s4-execution`),
+   - finish mapping (`S5 -> ADVANCE_TO_M14 + M14_READY`).
+3. Compile-check updated scripts, then run strict:
+   - `python scripts/dev_substrate/m13_stress_runner.py --stage S5 --upstream-m13-s4-execution m13_stress_s4_20260305T110049Z`.
+4. Sync M13 stress docs + parent index + logbook with resulting S5 receipts and closure status.
+
+### Guardrails
+1. No commit/push/branch operation.
+2. Data Engine boundary remains black-box.
+
+## Entry: 2026-03-05 11:16 +00:00 - M13-ST-S5 implemented and executed green from strict S4 authority
+### Implementation completed
+1. Added `scripts/dev_substrate/m13j_final_closure_sync.py`:
+   - managed dispatch for `final_closure_sync` (`m13_subphase=J`),
+   - strict upstream requirements (`UPSTREAM_M12J_EXECUTION`, `UPSTREAM_M13A..I_EXECUTION`),
+   - lane gate enforcement (`overall_pass=true`, `verdict=M13_COMPLETE_GREEN`, `next_gate=DEV_FULL_TRACK_COMPLETE`),
+   - artifact materialization:
+     - `m13_closure_sync_snapshot.json`,
+     - `m13j_blocker_register.json`,
+     - `m13j_execution_summary.json`.
+2. Extended `scripts/dev_substrate/m13_stress_runner.py`:
+   - added `S5_ARTS`, `latest_s4()`, `run_s5(...)`, and CLI support `--upstream-m13-s4-execution`,
+   - enforced strict S4 continuity checks and fail-closed `J` orchestration,
+   - added pass mapping `S5 -> verdict=ADVANCE_TO_M14`, `next_gate=M14_READY`.
+
+### Validation + strict execution
+1. Compile check passed:
+   - `python -m py_compile scripts/dev_substrate/m13_stress_runner.py scripts/dev_substrate/m13j_final_closure_sync.py scripts/dev_substrate/m13h_post_teardown_cost_guardrail_closure.py scripts/dev_substrate/m13i_phase_cost_outcome_closure.py`.
+2. Strict execution:
+   - `python scripts/dev_substrate/m13_stress_runner.py --stage S5 --upstream-m13-s4-execution m13_stress_s4_20260305T110049Z`.
+3. Parent result:
+   - `phase_execution_id=m13_stress_s5_20260305T111321Z`,
+   - `overall_pass=true`,
+   - `open_blocker_count=0`,
+   - `verdict=ADVANCE_TO_M14`,
+   - `next_gate=M14_READY`.
+4. Lane result:
+   - `M13.J`: `m13j_stress_s5_20260305T111321Z` pass (`M13_COMPLETE_GREEN`, `DEV_FULL_TRACK_COMPLETE`).
+
+### State synchronization
+1. Updated `platform.M13.stress_test.md`:
+   - posture -> `S5_GREEN`,
+   - DoD marks `M13-ST-S5` complete,
+   - execution progress appended with S5 parent/lane receipts,
+   - strict M14 handoff pinned to `m13_stress_s5_20260305T111321Z`.
+2. Updated `platform.stress_test.md`:
+   - M13 status advanced to `DONE (M14_READY)`,
+   - implementation-readiness synced for S5 wrapper/runner support,
+   - latest receipts include strict M13 closure and M14 entry authority.
+
+### Governance posture
+1. No commit/push/branch operation.
+2. Data Engine boundary preserved (black-box).
+
 ## Entry: 2026-03-05 10:08 +00:00 - Pre-edit plan for M13-ST-S2 implementation and strict execution
 ### Trigger
 1. User directive: proceed to `M13-ST-S2`.
