@@ -1,0 +1,398 @@
+# Dev Substrate Stress Plan - M5.P3 (P3 ORACLE_READY)
+_Parent authority: `platform.M5.stress_test.md`_
+_Status source of truth: `platform.stress_test.md`_
+_Track: `dev_full` only_
+_As of 2026-03-04_
+
+## 0) Purpose
+M5.P3 stress validates oracle source boundary and stream-view readiness under realistic production posture.
+
+M5.P3 stress must prove:
+1. oracle source boundary remains read-only to platform runtime and ownership is not drifted.
+2. raw upload contract and managed stream-sort contract are enforced fail-closed.
+3. required output surfaces and manifests are present/readable for active oracle source.
+4. stream-view materialization and sort-key contract remain deterministic.
+5. P3 rollup emits deterministic verdict for P4 entry (`ADVANCE_TO_P4` only when blocker-free).
+
+## 1) Authority Inputs
+Primary:
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M5.stress_test.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M5.P3.build_plan.md`
+3. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`
+4. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m4_stress_s5_20260303T200552Z/stress/m4_execution_summary.json`
+
+Supporting:
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M5.build_plan.md`
+2. `docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md`
+
+## 2) Stage-A Findings (M5.P3)
+| ID | Classification | Finding | Required action |
+| --- | --- | --- | --- |
+| `M5P3-ST-F1` | `PREVENT` | P3 has mixed concerns (boundary, upload/sort, contract, rollup); a shallow runbook can hide blocker propagation errors. | Use explicit staged runbook `S0..S5` with blocker-safe transitions only. |
+| `M5P3-ST-F2` | `PREVENT` | Managed-sort path must remain canonical (`EMR_SERVERLESS_SPARK`) with no local fallback. | Enforce runtime-path checks and fail if local execution mode is allowed. |
+| `M5P3-ST-F3` | `PREVENT` | P3 verdict must be deterministic and blocker-consistent before P4 activation. | Pin rollup rule: `ADVANCE_TO_P4` only when all prior P3 stages are blocker-free. |
+| `M5P3-ST-F4` | `OBSERVE` | Oracle source handle drifts can silently break prefix/materialization checks. | Add explicit handle and prefix resolution checks at S0/S1. |
+| `M5P3-ST-F5` | `OBSERVE` | Raw upload and managed sort are high-cost lanes if rerun broadly. | Use targeted rerun policy by failing stage only. |
+| `M5P3-ST-F6` | `ACCEPT` | Historical P3 closure exists as reference evidence. | Treat historical evidence as baseline only; require active-source checks for current cycle. |
+
+## 3) Scope Boundary for M5.P3 Stress
+In scope:
+1. P3 boundary ownership and oracle-source namespace checks.
+2. raw upload + managed distributed sort readiness checks.
+3. required output and manifest readability checks.
+4. stream-view contract/materialization checks.
+5. P3 rollup and deterministic verdict emission.
+
+Out of scope:
+1. ingest boundary/auth/topic/envelope lanes (`M5.P4`).
+2. M6 activation and runtime stream processing.
+
+## 4) M5.P3 Stress Handle Packet (Pinned)
+1. `M5P3_STRESS_PROFILE_ID = "oracle_ready_stress_v0"`.
+2. `M5P3_STRESS_BLOCKER_REGISTER_PATH_PATTERN = "evidence/dev_full/run_control/{phase_execution_id}/stress/m5p3_blocker_register.json"`.
+3. `M5P3_STRESS_EXECUTION_SUMMARY_PATH_PATTERN = "evidence/dev_full/run_control/{phase_execution_id}/stress/m5p3_execution_summary.json"`.
+4. `M5P3_STRESS_DECISION_LOG_PATH_PATTERN = "evidence/dev_full/run_control/{phase_execution_id}/stress/m5p3_decision_log.json"`.
+5. `M5P3_STRESS_REQUIRED_ARTIFACTS = "m5p3_stagea_findings.json,m5p3_lane_matrix.json,m5p3_probe_latency_throughput_snapshot.json,m5p3_control_rail_conformance_snapshot.json,m5p3_secret_safety_snapshot.json,m5p3_cost_outcome_receipt.json,m5p3_blocker_register.json,m5p3_execution_summary.json,m5p3_decision_log.json"`.
+6. `M5P3_STRESS_MAX_RUNTIME_MINUTES = 180`.
+7. `M5P3_STRESS_MAX_SPEND_USD = 40`.
+8. `M5P3_STRESS_EXPECTED_VERDICT_ON_PASS = "ADVANCE_TO_P4"`.
+9. `M5P3_STRESS_MANAGED_SORT_REQUIRED = true`.
+10. `M5P3_STRESS_LOCAL_SORT_ALLOWED = false`.
+11. `M5P3_STRESS_FASTCHECK_ALLOW_HISTORICAL_SORT_FAILURE = true`.
+
+Registry-backed required handles for M5.P3:
+1. `ORACLE_REQUIRED_OUTPUT_IDS`
+2. `ORACLE_SORT_KEY_BY_OUTPUT_ID`
+3. `ORACLE_STORE_BUCKET`
+4. `ORACLE_STORE_PLATFORM_ACCESS_MODE`
+5. `ORACLE_STORE_WRITE_OWNER`
+6. `ORACLE_SOURCE_NAMESPACE`
+7. `ORACLE_ENGINE_RUN_ID`
+8. `S3_ORACLE_RUN_PREFIX_PATTERN`
+9. `S3_ORACLE_INPUT_PREFIX_PATTERN`
+10. `S3_STREAM_VIEW_OUTPUT_PREFIX_PATTERN`
+11. `S3_STREAM_VIEW_MANIFEST_KEY_PATTERN`
+12. `ORACLE_STREAM_SORT_EXECUTION_MODE`
+13. `ORACLE_STREAM_SORT_ENGINE`
+14. `ORACLE_STREAM_SORT_TRIGGER_SURFACE`
+15. `ORACLE_STREAM_SORT_LOCAL_EXECUTION_ALLOWED`
+16. `ORACLE_STREAM_SORT_REQUIRED_BEFORE_P3B`
+17. `ORACLE_STREAM_SORT_RECEIPT_REQUIRED`
+18. `ORACLE_STREAM_SORT_PARITY_CHECK_REQUIRED`
+19. `ORACLE_STREAM_SORT_EMR_SERVERLESS_APP`
+20. `ORACLE_STREAM_SORT_EXECUTION_ROLE_ARN`
+21. `ORACLE_STREAM_SORT_EMR_RELEASE_LABEL`
+22. `S3_EVIDENCE_BUCKET`
+23. `S3_RUN_CONTROL_ROOT_PATTERN`
+
+## 5) Capability-Lane Coverage (Phase-Coverage Law)
+| Capability lane | M5.P3 stage owner | Minimum PASS evidence |
+| --- | --- | --- |
+| Authority + entry gate closure | `S0` | required handles + M5 parent S0 readiness dependency |
+| Oracle boundary and ownership | `S1` | read-only boundary snapshot blocker-free |
+| Raw upload + managed sort | `S2` | upload/sort receipts + parity report blocker-free |
+| Required outputs + manifest readability | `S3` | required-output matrix blocker-free |
+| Stream-view contract/materialization | `S4` | stream-view contract snapshot blocker-free |
+| P3 rollup + verdict | `S5` | deterministic verdict `ADVANCE_TO_P4` |
+
+## 6) Stress Topology (M5.P3)
+1. Component sequence:
+   - `P3.A` boundary/ownership,
+   - `P3.A1` raw upload + managed sort,
+   - `P3.B` required outputs + manifests,
+   - `P3.C` stream-view contract,
+   - `P3.D` rollup verdict.
+2. Plane sequence:
+   - `oracle_boundary_plane`,
+   - `oracle_materialization_plane`,
+   - `oracle_rollup_plane`.
+3. Integrated windows:
+   - `m5p3_s1_boundary_window`,
+   - `m5p3_s2_upload_sort_window`,
+   - `m5p3_s3_output_manifest_window`,
+   - `m5p3_s4_contract_window`.
+
+## 7) Execution Plan (Execution-Grade Runbook)
+### 7.1 `M5P3-ST-S0` - Authority and entry-gate closure
+Objective:
+1. validate M5.P3 can run with complete authority and valid parent M5 activation.
+
+Actions:
+1. validate required M5.P3 handles and placeholder guards.
+2. validate parent M5 handoff and M4->M5 dependency chain are readable and pass.
+3. validate managed-sort path constraints (`managed_distributed`, no local sort).
+4. emit Stage-A findings + lane matrix + blocker register.
+
+Pass gate:
+1. required handles complete/non-placeholder.
+2. managed-sort path is pinned and local-sort is disallowed.
+3. entry dependency artifacts readable and valid.
+
+### 7.2 `M5P3-ST-S1` - Oracle source boundary and ownership
+Objective:
+1. prove oracle boundary remains read-only and ownership semantics are intact.
+
+S1 checklist:
+1. load latest successful `S0` summary and blocker register.
+2. resolve boundary handles:
+   - `ORACLE_STORE_BUCKET`,
+   - `ORACLE_STORE_PLATFORM_ACCESS_MODE`,
+   - `ORACLE_STORE_WRITE_OWNER`,
+   - `ORACLE_INLET_PLATFORM_OWNERSHIP`,
+   - `ORACLE_SOURCE_NAMESPACE`,
+   - `ORACLE_ENGINE_RUN_ID`,
+   - `S3_ORACLE_ROOT_PREFIX`,
+   - `S3_ORACLE_RUN_PREFIX_PATTERN`,
+   - `S3_ORACLE_INPUT_PREFIX_PATTERN`,
+   - `S3_RUN_CONTROL_ROOT_PATTERN`.
+3. enforce ownership/read-only law:
+   - `ORACLE_STORE_PLATFORM_ACCESS_MODE=read_only`,
+   - `ORACLE_STORE_WRITE_OWNER` not platform-runtime owned,
+   - `ORACLE_INLET_PLATFORM_OWNERSHIP=outside_platform_runtime_scope`.
+4. enforce boundary isolation law:
+   - oracle root starts with `oracle-store/`,
+   - oracle root and run-control evidence roots do not overlap.
+5. run bounded reachability probes:
+   - oracle bucket `head-bucket`,
+   - oracle root prefix list probe,
+   - evidence bucket `head-bucket`.
+6. emit `m5p3_oracle_boundary_snapshot` evidence set and blocker register.
+
+S1 command catalog:
+| Command ID | Command | Purpose |
+| --- | --- | --- |
+| `M5P3S1-V1-S0-CONTINUITY` | read latest successful `m5p3_stress_s0_*/stress/m5p3_execution_summary.json` | enforces S0 dependency gate |
+| `M5P3S1-V2-HANDLE-CLOSURE` | parse registry handle set for boundary keys | validates boundary handle completeness |
+| `M5P3S1-V3-OWNERSHIP-LAW` | local law checks on ownership/read-only handles | enforces oracle ownership semantics |
+| `M5P3S1-V4-BOUNDARY-ISOLATION` | local prefix isolation checks (`oracle` vs `run_control`) | prevents namespace overlap drift |
+| `M5P3S1-V5-ORACLE-BUCKET` | `aws s3api head-bucket --bucket <ORACLE_STORE_BUCKET>` | verifies oracle bucket reachability |
+| `M5P3S1-V6-ORACLE-PREFIX` | `aws s3api list-objects-v2 --bucket <ORACLE_STORE_BUCKET> --prefix <S3_ORACLE_ROOT_PREFIX> --max-keys 1` | verifies oracle prefix queryability |
+| `M5P3S1-V7-EVIDENCE-BUCKET` | `aws s3api head-bucket --bucket <S3_EVIDENCE_BUCKET>` | verifies evidence bucket reachability |
+
+S1 closure rule:
+1. `S1` closes only when:
+   - S0 dependency artifacts are present/readable and blocker-free,
+   - boundary handle closure is complete/non-placeholder,
+   - ownership/read-only and boundary isolation laws pass,
+   - bounded oracle/evidence probes are green,
+   - complete S1 artifact contract is emitted with zero open blockers.
+
+Pass gate:
+1. boundary and ownership checks are blocker-free.
+2. boundary snapshot artifacts are complete and readable.
+
+### 7.3 `M5P3-ST-S2` - Raw upload and managed distributed sort
+Objective:
+1. validate raw-upload contract and managed sort contract for active oracle source.
+
+Actions:
+1. validate raw upload receipt/parity evidence for active source namespace/run-id.
+2. validate managed sort trigger/terminal-state receipt and required output receipt surfaces.
+3. fail if managed sort receipt is missing, non-terminal-success, or parity is drifted.
+4. emit `m5p3_upload_sort_snapshot` evidence set.
+
+Pass gate:
+1. raw upload and managed sort receipts are readable and pass.
+2. parity/readback checks are blocker-free.
+3. no local-sort fallback signal exists.
+
+### 7.4 `M5P3-ST-S3` - Required outputs and manifest readability
+Objective:
+1. validate required output surfaces and manifests for all required output IDs.
+
+Actions:
+1. parse required output list and enforce deterministic set integrity.
+2. for each output ID verify stream-view prefix presence and manifest readability.
+3. emit required-output matrix and blocker register.
+
+Pass gate:
+1. all required outputs present and readable.
+2. manifest checks pass for every required output ID.
+3. matrix and blocker register are consistent.
+
+### 7.5 `M5P3-ST-S4` - Stream-view contract and materialization
+Objective:
+1. validate stream-view contract conformance and materialization correctness.
+
+Actions:
+1. validate sort-key contract by output ID from manifests and handle map.
+2. validate non-empty materialization for required outputs.
+3. run sampled readability/order checks and publish contract snapshot.
+
+Pass gate:
+1. stream-view contract checks pass for required outputs.
+2. materialization/readability checks are blocker-free.
+
+### 7.6 `M5P3-ST-S5` - P3 rollup and deterministic verdict
+Objective:
+1. emit deterministic P3 verdict for P4 entry.
+
+Actions:
+1. aggregate S1..S4 artifacts and blocker registers.
+2. enforce blocker-consistent verdict rule.
+3. emit verdict:
+   - `ADVANCE_TO_P4` only when all blockers are closed,
+   - otherwise `HOLD_REMEDIATE` or `NO_GO_RESET_REQUIRED`.
+
+Pass gate:
+1. no open non-waived `M5P3-B*` blockers.
+2. verdict equals `ADVANCE_TO_P4`.
+3. required artifacts are complete/readable.
+
+### 7.7 `M5P3-ST-FAST` - Composite pre-platform fast-check (`S2..S5`)
+Objective:
+1. close M5.P3 quickly for this cycle using read-only evidence checks while preserving fail-closed blocker semantics for real drift.
+
+Scope policy (user-approved for this cycle):
+1. avoid expensive raw-upload/sort reruns unless fast-check detects material drift.
+2. historical managed-sort receipt failures may be recorded as explicit waived observations (`pre-platform`) when active output/manifest/contract checks pass.
+3. missing required outputs/manifests or stream-view contract/materialization drift remains blocker-fatal.
+
+Actions:
+1. require latest successful `S1` dependency (`next_gate=M5P3_ST_S2_READY` and zero open blockers).
+2. discover latest historical raw-upload and managed-sort receipts from local M5 evidence.
+3. validate required output prefixes and manifest readability for every `ORACLE_REQUIRED_OUTPUT_ID`.
+4. validate manifest-derived contract:
+   - expected sort-key alignment from `ORACLE_SORT_KEY_BY_OUTPUT_ID`,
+   - positive row-count materialization for required outputs.
+5. emit deterministic rollup verdict:
+   - `ADVANCE_TO_P4` only when blocker register is closed.
+
+Pass gate:
+1. no open `M5P3-B*` blockers.
+2. summary `stage_id=M5P3-ST-FAST`.
+3. summary `next_gate=ADVANCE_TO_P4`.
+
+## 8) Blocker Taxonomy (M5.P3)
+1. `M5P3-B1`: required oracle handles missing/inconsistent.
+2. `M5P3-B2`: oracle source boundary/ownership drift.
+3. `M5P3-B3`: required output prefix/manifest missing.
+4. `M5P3-B4`: stream-view contract/materialization failure.
+5. `M5P3-B5`: rollup matrix/register inconsistency.
+6. `M5P3-B6`: deterministic verdict build failure.
+7. `M5P3-B7`: durable publish/readback failure.
+8. `M5P3-B8`: advance verdict emitted despite unresolved blockers.
+9. `M5P3-B9`: raw-upload contract failure/incomplete input staging.
+10. `M5P3-B10`: managed stream-sort execution/receipt failure.
+11. `M5P3-B11`: stream-sort parity/readback mismatch.
+
+Any open `M5P3-B*` blocks P3 closure and blocks P4 transition.
+
+## 9) Evidence Contract (M5.P3)
+Required artifacts for each M5.P3 stage:
+1. `m5p3_stagea_findings.json`
+2. `m5p3_lane_matrix.json`
+3. `m5p3_probe_latency_throughput_snapshot.json`
+4. `m5p3_control_rail_conformance_snapshot.json`
+5. `m5p3_secret_safety_snapshot.json`
+6. `m5p3_cost_outcome_receipt.json`
+7. `m5p3_blocker_register.json`
+8. `m5p3_execution_summary.json`
+9. `m5p3_decision_log.json`
+
+## 10) DoD (Planning to Execution-Ready)
+- [x] Dedicated M5.P3 stress authority created.
+- [x] P3 staged runbook (`S0..S5`) pinned with fail-closed transitions.
+- [x] P3 blocker taxonomy and evidence contract pinned.
+- [x] M5.P3 S0 executed with blocker-free entry closure.
+- [x] P3 verdict `ADVANCE_TO_P4` emitted from blocker-free rollup.
+
+## 11) Immediate Next Actions
+1. Preserve M5.P3 closure receipt as immutable dependency evidence for M5/M6 transition.
+2. Reopen M5.P3 only if oracle source boundary or stream-view contract drift reappears.
+3. Keep historical managed-sort receipt observation as documented pre-platform waiver context unless drift resurfaces.
+
+## 12) Execution Progress
+### `M5P3-ST-S0` authority/entry-gate closure execution (2026-03-03)
+1. Phase execution id: `m5p3_stress_s0_20260303T233332Z`.
+2. Runner:
+   - `python scripts/dev_substrate/m5p3_stress_runner.py --stage S0`
+3. Verification summary:
+   - parent dependency loaded from latest successful `M5-ST-S0` (`m5_stress_s0_20260303T232628Z`),
+   - required M5.P3 plan keys + handles passed placeholder guard,
+   - managed-sort path law checks passed (`managed_distributed`, `EMR_SERVERLESS_SPARK`, local fallback disabled),
+   - P3 and parent authority files were present/readable.
+4. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M5P3_ST_S1_READY`,
+   - `open_blockers=0`,
+   - `probe_count=1`,
+   - `error_rate_pct=0.0`.
+5. Artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s0_20260303T233332Z/stress/m5p3_stagea_findings.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s0_20260303T233332Z/stress/m5p3_lane_matrix.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s0_20260303T233332Z/stress/m5p3_probe_latency_throughput_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s0_20260303T233332Z/stress/m5p3_control_rail_conformance_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s0_20260303T233332Z/stress/m5p3_secret_safety_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s0_20260303T233332Z/stress/m5p3_cost_outcome_receipt.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s0_20260303T233332Z/stress/m5p3_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s0_20260303T233332Z/stress/m5p3_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s0_20260303T233332Z/stress/m5p3_decision_log.json`
+
+### `M5P3-ST-S1` oracle source boundary and ownership execution (2026-03-03)
+1. Phase execution id: `m5p3_stress_s1_20260303T233818Z`.
+2. Runner:
+   - `python scripts/dev_substrate/m5p3_stress_runner.py --stage S1`
+3. Verification summary:
+   - S0 dependency loaded (`m5p3_stress_s0_20260303T233332Z`) and blocker-free,
+   - boundary handle closure checks passed,
+   - ownership/read-only law checks passed (`read_only` + non-platform write ownership + external inlet ownership),
+   - boundary isolation checks passed (`oracle-store/` root and non-overlap with run-control root),
+   - bounded S3 probes passed:
+     - oracle bucket `head-bucket`,
+     - oracle prefix list probe,
+     - evidence bucket `head-bucket`.
+4. Verdict:
+   - `overall_pass=true`,
+   - `next_gate=M5P3_ST_S2_READY`,
+   - `open_blockers=0`,
+   - `probe_count=3`,
+   - `error_rate_pct=0.0`.
+5. Artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s1_20260303T233818Z/stress/m5p3_stagea_findings.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s1_20260303T233818Z/stress/m5p3_lane_matrix.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s1_20260303T233818Z/stress/m5p3_probe_latency_throughput_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s1_20260303T233818Z/stress/m5p3_oracle_boundary_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s1_20260303T233818Z/stress/m5p3_control_rail_conformance_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s1_20260303T233818Z/stress/m5p3_secret_safety_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s1_20260303T233818Z/stress/m5p3_cost_outcome_receipt.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s1_20260303T233818Z/stress/m5p3_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s1_20260303T233818Z/stress/m5p3_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_s1_20260303T233818Z/stress/m5p3_decision_log.json`
+
+### `M5P3-ST-FAST` composite pre-platform closure execution (2026-03-03)
+1. Phase execution id: `m5p3_stress_fast_20260303T235036Z`.
+2. Runner:
+   - `python scripts/dev_substrate/m5p3_stress_runner.py --stage FAST`
+3. Verification summary:
+   - S1 dependency loaded (`m5p3_stress_s1_20260303T233818Z`) and blocker-free.
+   - raw-upload receipt discovered and passed (`m5r1_full_tree_upload_20260301T073206Z`).
+   - required output prefixes and manifests passed for all `4` required output IDs.
+   - stream-view contract checks passed for all required outputs:
+     - expected sort key `ts_utc` matched manifest `sort_keys[0]`,
+     - materialization row counts remained positive across outputs.
+   - historical managed-sort receipt/parity non-success were recorded as explicit pre-platform waived observations (not silent):
+     - terminal state `FAILED` on latest historical `m5r2` receipt,
+     - parity `per_output` set empty.
+4. Verdict:
+   - `overall_pass=true`,
+   - `stage_id=M5P3-ST-FAST`,
+   - `next_gate=ADVANCE_TO_P4`,
+   - `open_blockers=0`,
+   - `probe_count=12`,
+   - `error_rate_pct=0.0`,
+   - `waived_observation_count=2`.
+5. Artifacts:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_fast_20260303T235036Z/stress/m5p3_stagea_findings.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_fast_20260303T235036Z/stress/m5p3_lane_matrix.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_fast_20260303T235036Z/stress/m5p3_upload_sort_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_fast_20260303T235036Z/stress/m5p3_required_output_matrix.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_fast_20260303T235036Z/stress/m5p3_stream_view_contract_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_fast_20260303T235036Z/stress/m5p3_rollup_verdict.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_fast_20260303T235036Z/stress/m5p3_probe_latency_throughput_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_fast_20260303T235036Z/stress/m5p3_control_rail_conformance_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_fast_20260303T235036Z/stress/m5p3_secret_safety_snapshot.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_fast_20260303T235036Z/stress/m5p3_cost_outcome_receipt.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_fast_20260303T235036Z/stress/m5p3_blocker_register.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_fast_20260303T235036Z/stress/m5p3_execution_summary.json`
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m5p3_stress_fast_20260303T235036Z/stress/m5p3_decision_log.json`

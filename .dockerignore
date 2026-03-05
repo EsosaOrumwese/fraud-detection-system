@@ -3,6 +3,10 @@
 
 !Dockerfile
 !pyproject.toml
+!requirements
+!requirements/m1-image.lock.txt
+!requirements/wheelhouse
+!requirements/wheelhouse/**
 
 !src
 !src/fraud_detection

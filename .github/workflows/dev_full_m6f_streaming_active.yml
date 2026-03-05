@@ -485,15 +485,24 @@ jobs:
         if: ${{ inputs.runtime_path == 'EKS_FLINK_OPERATOR' }}
         continue-on-error: true
         shell: bash
+        env:
+          IG_BRIDGE_EVENT_COUNT: ${{ inputs.iterations }}
+          IG_BRIDGE_SLEEP_SECONDS: ${{ inputs.sleep_seconds }}
+          IG_BRIDGE_MAX_WORKERS: "128"
+          IG_BRIDGE_TIMEOUT_SECONDS: "5.0"
+          IG_BRIDGE_RETRY_MAX_ATTEMPTS: "5"
+          IG_BRIDGE_RETRY_BACKOFF_MS: "200"
         run: |
           set -euo pipefail
           python - <<'PY'
+          from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
           import json
+          import os
           import time
           import urllib.error
           import urllib.request
-          import os
           from pathlib import Path
+          from random import random
 
           base_url = os.environ.get("IG_BASE_URL", "").rstrip("/")
           ingest_path = os.environ.get("IG_INGEST_PATH", "")
@@ -501,6 +510,33 @@ jobs:
               ingest_path = "/" + ingest_path
           ingest_url = f"{base_url}{ingest_path}"
           api_key = os.environ.get("IG_API_KEY", "")
+          event_count = max(1, int(os.environ.get("IG_BRIDGE_EVENT_COUNT", "12")))
+          max_workers = max(1, int(os.environ.get("IG_BRIDGE_MAX_WORKERS", "64")))
+          sleep_seconds = max(0.0, float(os.environ.get("IG_BRIDGE_SLEEP_SECONDS", "0.2")))
+          timeout_seconds = max(0.5, float(os.environ.get("IG_BRIDGE_TIMEOUT_SECONDS", "10.0")))
+          retry_max_attempts = max(1, int(os.environ.get("IG_BRIDGE_RETRY_MAX_ATTEMPTS", "1")))
+          retry_backoff_ms = max(0.0, float(os.environ.get("IG_BRIDGE_RETRY_BACKOFF_MS", "0")))
+          # RC2.R2 upward-stage mapping uses iterations as the stage selector:
+          #  75k->250 eps, 150k->500 eps, 300k->1000 eps, 450k->1500 eps.
+          if event_count >= 450000:
+              target_dispatch_rps = 1500.0
+              max_workers = min(max_workers, 128)
+          elif event_count >= 300000:
+              target_dispatch_rps = 1000.0
+              max_workers = min(max_workers, 96)
+          elif event_count >= 150000:
+              target_dispatch_rps = 500.0
+              max_workers = min(max_workers, 64)
+          elif event_count >= 75000:
+              target_dispatch_rps = 250.0
+              max_workers = min(max_workers, 48)
+          elif event_count >= 30000:
+              target_dispatch_rps = 100.0
+              max_workers = min(max_workers, 48)
+          else:
+              target_dispatch_rps = 0.0
+              max_workers = min(max_workers, 32)
+          worker_count = max(1, min(max_workers, event_count))
           platform_run_id = "${{ inputs.platform_run_id }}"
           scenario_run_id = "${{ inputs.scenario_run_id }}"
           phase_id = "P6.B"
@@ -508,12 +544,9 @@ jobs:
               "${{ inputs.wsp_ref }}",
               "${{ inputs.sr_ready_ref }}",
           ]
-          admitted = 0
-          failed = 0
-          failures = []
           started_epoch = int(time.time())
 
-          for idx in range(12):
+          def send_once(idx: int):
               lane_ref = lane_refs[idx % len(lane_refs)]
               event_id = f"m6f_bridge:{platform_run_id}:{started_epoch}:{idx}"
               payload = {
@@ -535,21 +568,75 @@ jobs:
                       "X-IG-Api-Key": api_key,
                   },
               )
-              try:
-                  with urllib.request.urlopen(req, timeout=10) as resp:
-                      status = int(resp.status)
-                  if status == 202:
-                      admitted += 1
-                  else:
-                      failed += 1
-                      failures.append(f"unexpected_status:{status}")
-              except urllib.error.HTTPError as exc:
-                  failed += 1
-                  failures.append(f"http_{exc.code}")
-              except Exception as exc:  # pragma: no cover - runtime guard
-                  failed += 1
-                  failures.append(f"{type(exc).__name__}:{exc}")
-              time.sleep(0.2)
+
+              ok = False
+              reason = "unknown_failure"
+              for attempt in range(1, retry_max_attempts + 1):
+                  try:
+                      with urllib.request.urlopen(req, timeout=timeout_seconds) as resp:
+                          status = int(resp.status)
+                      if status == 202:
+                          ok = True
+                          reason = ""
+                          break
+                      reason = f"unexpected_status:{status}"
+                      if attempt >= retry_max_attempts:
+                          break
+                  except urllib.error.HTTPError as exc:
+                      reason = f"http_{exc.code}"
+                      is_retryable_http = (exc.code == 429) or (500 <= exc.code < 600)
+                      if (not is_retryable_http) or attempt >= retry_max_attempts:
+                          break
+                  except Exception as exc:  # pragma: no cover - runtime guard
+                      reason = f"{type(exc).__name__}:{exc}"
+                      if attempt >= retry_max_attempts:
+                          break
+                  base_backoff = (retry_backoff_ms / 1000.0) * (2 ** (attempt - 1))
+                  jitter = min(0.05, random() * 0.05)
+                  time.sleep(base_backoff + jitter)
+
+              if sleep_seconds > 0:
+                  time.sleep(sleep_seconds)
+              return ok, reason
+
+          admitted = 0
+          failed = 0
+          failures = []
+          dispatch_started_epoch = time.time()
+
+          def maybe_pace_dispatch(idx: int) -> None:
+              if target_dispatch_rps <= 0:
+                  return
+              target_dispatch_epoch = dispatch_started_epoch + (idx / target_dispatch_rps)
+              now = time.time()
+              if target_dispatch_epoch > now:
+                  time.sleep(min(0.01, target_dispatch_epoch - now))
+
+          with ThreadPoolExecutor(max_workers=worker_count) as pool:
+              in_flight = set()
+              next_idx = 0
+
+              while next_idx < event_count and len(in_flight) < worker_count:
+                  maybe_pace_dispatch(next_idx)
+                  in_flight.add(pool.submit(send_once, next_idx))
+                  next_idx += 1
+
+              while in_flight:
+                  done, pending = wait(in_flight, return_when=FIRST_COMPLETED)
+                  in_flight = pending
+                  for fut in done:
+                      ok, reason = fut.result()
+                      if ok:
+                          admitted += 1
+                      else:
+                          failed += 1
+                          if len(failures) < 16:
+                              failures.append(reason)
+
+                  while next_idx < event_count and len(in_flight) < worker_count:
+                      maybe_pace_dispatch(next_idx)
+                      in_flight.add(pool.submit(send_once, next_idx))
+                      next_idx += 1
 
           summary = {
               "captured_at_epoch": int(time.time()),
@@ -559,9 +646,15 @@ jobs:
               "ingest_url": ingest_url,
               "platform_run_id": platform_run_id,
               "scenario_run_id": scenario_run_id,
-              "attempted": 12,
+              "attempted": event_count,
               "admitted": admitted,
               "failed": failed,
+              "workers": worker_count,
+              "sleep_seconds": sleep_seconds,
+              "timeout_seconds": timeout_seconds,
+              "retry_max_attempts": retry_max_attempts,
+              "retry_backoff_ms": retry_backoff_ms,
+              "target_dispatch_rps": target_dispatch_rps,
               "failure_samples": failures[:8],
           }
           out = Path("${{ steps.run_meta.outputs.run_dir }}") / "m6f_ig_bridge_summary.json"
@@ -574,6 +667,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          CAPTURE_START_EPOCH="$(date +%s)"
           python scripts/dev_substrate/m6f_capture.py \
             --execution-id "${{ steps.run_meta.outputs.m6_execution_id }}" \
             --platform-run-id "${{ inputs.platform_run_id }}" \
@@ -592,9 +686,107 @@ jobs:
             --sr-ready-ref "${{ inputs.sr_ready_ref }}" \
             --lane-window-start-utc "${{ steps.submit.outputs.lane_window_start_utc }}" \
             --ig-idempotency-table "${{ inputs.ig_idempotency_table }}" \
+            --ddb-scan-page-limit "5000" \
+            --ddb-scan-page-size "1000" \
             --lag-threshold "${{ inputs.lag_threshold }}" \
             --evidence-bucket "${{ inputs.evidence_bucket }}" \
             --local-output-root "runs/dev_substrate/dev_full/m6"
+          export CAPTURE_START_EPOCH
+          export RUN_DIR="${{ steps.run_meta.outputs.run_dir }}"
+          export M6_EXECUTION_ID="${{ steps.run_meta.outputs.m6_execution_id }}"
+          export EVIDENCE_BUCKET="${{ inputs.evidence_bucket }}"
+          export AWS_REGION="${{ inputs.aws_region }}"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          import boto3
+
+          run_dir = Path(os.environ["RUN_DIR"])
+          capture_start_epoch = int(os.environ["CAPTURE_START_EPOCH"])
+          execution_id = str(os.environ["M6_EXECUTION_ID"]).strip()
+          bucket = str(os.environ["EVIDENCE_BUCKET"]).strip()
+          region = str(os.environ["AWS_REGION"]).strip()
+
+          snapshot_path = run_dir / "m6f_streaming_active_snapshot.json"
+          lag_path = run_dir / "m6f_streaming_lag_posture.json"
+          blocker_path = run_dir / "m6f_blocker_register.json"
+          summary_path = run_dir / "m6f_execution_summary.json"
+          ambiguity_path = run_dir / "m6f_publish_ambiguity_register.json"
+
+          snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
+          lag = json.loads(lag_path.read_text(encoding="utf-8"))
+          blockers = json.loads(blocker_path.read_text(encoding="utf-8"))
+          summary = json.loads(summary_path.read_text(encoding="utf-8"))
+          ambiguity = json.loads(ambiguity_path.read_text(encoding="utf-8"))
+
+          latest_admitted = snapshot.get("ig_idempotency_latest_admitted_epoch")
+          threshold = int(lag.get("threshold", 10))
+          if latest_admitted is None:
+              measured_lag = None
+              lag_source = "unavailable_no_latest_admission_epoch"
+              within_threshold = False
+          else:
+              measured_lag = max(0, int(capture_start_epoch) - int(latest_admitted))
+              lag_source = "ig_admission_freshness_seconds_capture_start_epoch"
+              within_threshold = measured_lag <= threshold
+
+          lag["measured_lag"] = measured_lag
+          lag["measurement_source"] = lag_source
+          lag["within_threshold"] = within_threshold
+          lag["capture_start_epoch"] = capture_start_epoch
+
+          existing = blockers.get("blockers", [])
+          filtered = [b for b in existing if str(b.get("code", "")).strip() != "M6P6-B4"]
+          if not within_threshold:
+              filtered.append(
+                  {
+                      "code": "M6P6-B4",
+                      "message": (
+                          "Lag posture unresolved or exceeds threshold "
+                          f"(threshold={threshold}, measured={measured_lag}, source={lag_source})"
+                      ),
+                  }
+              )
+          if int(ambiguity.get("unresolved_publish_ambiguity_count", 0)) > 0 and not any(
+              str(b.get("code", "")).strip() == "M6P6-B5" for b in filtered
+          ):
+              filtered.append(
+                  {
+                      "code": "M6P6-B5",
+                      "message": (
+                          "Unresolved publish ambiguity count is non-zero "
+                          f"({ambiguity.get('unresolved_publish_ambiguity_count')})."
+                      ),
+                  }
+              )
+
+          blockers["blockers"] = filtered
+          blockers["blocker_count"] = len(filtered)
+          overall_pass = len(filtered) == 0
+          summary["overall_pass"] = overall_pass
+          summary["blocker_count"] = len(filtered)
+          summary["next_gate"] = "M6.G_READY" if overall_pass else "HOLD_REMEDIATE"
+
+          snapshot_path.write_text(json.dumps(snapshot, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+          lag_path.write_text(json.dumps(lag, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+          blocker_path.write_text(json.dumps(blockers, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+          summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+
+          s3 = boto3.client("s3", region_name=region)
+          prefix = f"evidence/dev_full/run_control/{execution_id}/"
+          for path in (snapshot_path, lag_path, blocker_path, summary_path):
+              key = prefix + path.name
+              body = path.read_bytes()
+              s3.put_object(
+                  Bucket=bucket,
+                  Key=key,
+                  Body=body,
+                  ContentType="application/json",
+              )
+              s3.head_object(Bucket=bucket, Key=key)
+          PY
 
       - name: Fail-closed verdict gate
         shell: bash

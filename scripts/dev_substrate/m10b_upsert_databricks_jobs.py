@@ -192,7 +192,7 @@ def build_serverless_job_settings(
             {
                 "environment_key": "default",
                 "spec": {
-                    "client": "1",
+                    "client": "2",
                     "dependencies": [],
                 },
             }
