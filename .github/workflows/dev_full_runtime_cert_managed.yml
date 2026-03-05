@@ -1611,6 +1611,7 @@ jobs:
           APIGW_IG_API_ID: ${{ inputs.rc2r2_apigw_ig_api_id }}
           EXPECTED_IG_RATE_LIMIT_RPS: ${{ inputs.rc2r2_ig_rate_limit_rps }}
           EXPECTED_IG_RATE_LIMIT_BURST: ${{ inputs.rc2r2_ig_rate_limit_burst }}
+          EXPECTED_NODEGROUP_INSTANCE_TYPES_JSON: ${{ inputs.rc2r2_eks_nodegroup_instance_types_json }}
           EXPECTED_NODEGROUP_DESIRED: ${{ inputs.rc2r2_eks_nodegroup_desired_size }}
           EXPECTED_NODEGROUP_MIN: ${{ inputs.rc2r2_eks_nodegroup_min_size }}
           EXPECTED_NODEGROUP_MAX: ${{ inputs.rc2r2_eks_nodegroup_max_size }}
@@ -1641,6 +1642,7 @@ jobs:
           pinned_api_id = str(os.environ.get("APIGW_IG_API_ID", "") or "").strip()
           expected_rate = float(os.environ["EXPECTED_IG_RATE_LIMIT_RPS"])
           expected_burst = int(float(os.environ["EXPECTED_IG_RATE_LIMIT_BURST"]))
+          expected_instance_types_raw = os.environ.get("EXPECTED_NODEGROUP_INSTANCE_TYPES_JSON", "[]")
           expected_desired = int(os.environ["EXPECTED_NODEGROUP_DESIRED"])
           expected_min = int(os.environ["EXPECTED_NODEGROUP_MIN"])
           expected_max = int(os.environ["EXPECTED_NODEGROUP_MAX"])
@@ -1723,6 +1725,20 @@ jobs:
           blockers = []
           apply_errors = []
           permission_errors = []
+
+          try:
+              expected_instance_types = sorted(
+                  {
+                      str(item).strip()
+                      for item in json.loads(expected_instance_types_raw)
+                      if str(item).strip()
+                  }
+              )
+          except Exception:
+              expected_instance_types = []
+              apply_errors.append("rc2r2_expected_instance_types_json_invalid")
+          if not expected_instance_types:
+              apply_errors.append("rc2r2_expected_instance_types_missing")
 
           api_id = pinned_api_id
           if not api_id:
@@ -1812,6 +1828,22 @@ jobs:
                       "EKS nodegroup scaling below target "
                       f"(live desired/min/max={desired_live}/{min_live}/{max_live}, "
                       f"expected>={expected_desired}/{expected_min}/{expected_max})."
+                  ),
+              })
+
+          live_instance_types = sorted(
+              {
+                  str(item).strip()
+                  for item in (post.get("eks_m6f_nodegroup", {}).get("instance_types") or [])
+                  if str(item).strip()
+              }
+          )
+          if expected_instance_types and live_instance_types != expected_instance_types:
+              blockers.append({
+                  "code": "RC2R2-B3",
+                  "message": (
+                      "EKS nodegroup instance types do not match expected target "
+                      f"(live={live_instance_types}, expected={expected_instance_types})."
                   ),
               })
 

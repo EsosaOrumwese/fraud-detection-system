@@ -495,7 +495,7 @@ jobs:
         run: |
           set -euo pipefail
           python - <<'PY'
-          from concurrent.futures import ThreadPoolExecutor, as_completed
+          from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
           import json
           import os
           import time
@@ -603,23 +603,40 @@ jobs:
           failed = 0
           failures = []
           dispatch_started_epoch = time.time()
+
+          def maybe_pace_dispatch(idx: int) -> None:
+              if target_dispatch_rps <= 0:
+                  return
+              target_dispatch_epoch = dispatch_started_epoch + (idx / target_dispatch_rps)
+              now = time.time()
+              if target_dispatch_epoch > now:
+                  time.sleep(min(0.01, target_dispatch_epoch - now))
+
           with ThreadPoolExecutor(max_workers=worker_count) as pool:
-              futures = []
-              for idx in range(event_count):
-                  if target_dispatch_rps > 0:
-                      target_dispatch_epoch = dispatch_started_epoch + (idx / target_dispatch_rps)
-                      now = time.time()
-                      if target_dispatch_epoch > now:
-                          time.sleep(min(0.01, target_dispatch_epoch - now))
-                  futures.append(pool.submit(send_once, idx))
-              for fut in as_completed(futures):
-                  ok, reason = fut.result()
-                  if ok:
-                      admitted += 1
-                  else:
-                      failed += 1
-                      if len(failures) < 16:
-                          failures.append(reason)
+              in_flight = set()
+              next_idx = 0
+
+              while next_idx < event_count and len(in_flight) < worker_count:
+                  maybe_pace_dispatch(next_idx)
+                  in_flight.add(pool.submit(send_once, next_idx))
+                  next_idx += 1
+
+              while in_flight:
+                  done, pending = wait(in_flight, return_when=FIRST_COMPLETED)
+                  in_flight = pending
+                  for fut in done:
+                      ok, reason = fut.result()
+                      if ok:
+                          admitted += 1
+                      else:
+                          failed += 1
+                          if len(failures) < 16:
+                              failures.append(reason)
+
+                  while next_idx < event_count and len(in_flight) < worker_count:
+                      maybe_pace_dispatch(next_idx)
+                      in_flight.add(pool.submit(send_once, next_idx))
+                      next_idx += 1
 
           summary = {
               "captured_at_epoch": int(time.time()),
