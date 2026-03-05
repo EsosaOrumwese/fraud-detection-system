@@ -3,7 +3,7 @@ _Parent authority: `platform.stress_test.md`_
 _Status source of truth: `platform.stress_test.md`_
 _Track: `dev_full` only_
 _As of 2026-03-05_
-_Current posture: `S1_BLOCKED` (strict rerun `M12-ST-S1` executed fail-closed; `open_blockers=1`, `M12-ST-B3` root cause is join-scope compatibility)._
+_Current posture: `S1_GREEN` (strict rerun passed; `next_gate=M12_ST_S2_READY`, `open_blockers=0`)._
 
 ## 0) Purpose
 M12 stress validates promotion/rollback closure under repeated activation pressure with deterministic provenance, fail-closed gate semantics, and explicit non-gate acceptance.
@@ -379,19 +379,18 @@ Required stage outputs (phase-level):
 - [x] stale-default upstream override guard pinned.
 - [x] missing execution-lane implementations and parent runner pinned as explicit `PREVENT` findings.
 - [x] `M12-ST-S0` executed and closed green.
-- [ ] `M12-ST-S1` executed and closed green (latest run blocked on `M12-ST-B3`).
+- [x] `M12-ST-S1` executed and closed green.
 - [ ] `M12-ST-S2` executed and closed green.
 - [ ] `M12-ST-S3` executed and closed green.
 - [ ] `M12-ST-S4` executed and closed green.
 - [ ] `M12-ST-S5` executed and closed green with deterministic `M13_READY`.
 
 ## 12) Immediate Next Actions
-1. remediate `M12-ST-B3` in lane `M12.C` with contract-alignment (format-aware strict validation for `join_scope`).
-2. keep gate strictness fail-closed: no bypass, no advisory downgrade for real compatibility mismatch.
-3. run preflight compatibility parse against existing artifacts before managed rerun (to avoid avoidable spend/time).
-4. rerun `M12-ST-S1` from strict upstream `m12_stress_s0_20260305T061903Z`.
-5. only if S1 turns green, continue strict chain `S2..S5`, stopping fail-closed on first blocker.
-6. update parent `platform.stress_test.md` after each stage with authoritative latest execution id and gate.
+1. proceed to `M12-ST-S2` from strict upstream `m12_stress_s1_20260305T074035Z`.
+2. materialize remaining wrappers for `M12.D` and `M12.E` with strict upstream override posture.
+3. execute strict `S2` fail-closed and stop on first blocker.
+4. after S2 closure, continue strict chain `S3..S5` with per-stage authority pinning.
+5. keep parent `platform.stress_test.md` synchronized after each run with latest execution id and gate.
 
 ### 12.1) `M12-ST-B3` Contract-Alignment Remediation Lane
 1. Root-cause adjudication:
@@ -412,6 +411,8 @@ Required stage outputs (phase-level):
 5. Execution closure for this lane:
    - rerun strict `M12-ST-S1`,
    - accept closure only on `overall_pass=true`, `next_gate=M12_ST_S2_READY`, and zero open blockers.
+6. Lane status:
+   - `CLOSED_GREEN` via `m12_stress_s1_20260305T074035Z` and lane `m12c_stress_s1_20260305T074340Z`.
 
 ## 13) Execution Progress
 1. M12 detailed stress authority is now pinned and active.
@@ -443,6 +444,13 @@ Required stage outputs (phase-level):
    - authoritative managed blocker now explicit: `Dataset fingerprint join_scope does not match M12 run scope.`
 10. Current evidence root:
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m12_stress_s1_20260305T065136Z/stress/`.
+11. `M12.C` contract-alignment fix applied and exercised:
+   - workflow patch committed/pushed on `cert-platform`: `3f914e423` (workflow-only scope),
+   - strict parent rerun: `m12_stress_s1_20260305T074035Z` (`overall_pass=true`, `open_blocker_count=0`, `next_gate=M12_ST_S2_READY`),
+   - lane `M12.C`: `m12c_stress_s1_20260305T074340Z` (`overall_pass=true`, `verdict=ADVANCE_TO_M12_D`),
+   - snapshot confirms `join_scope_match_mode=ofs_table_scope` with deterministic expected/observed values.
+12. Current evidence root:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m12_stress_s1_20260305T074035Z/stress/`.
 
 ## 14) Reopen Notice (Strict Authority)
 1. M12 cannot be closed using historical 2026-02 receipts alone.

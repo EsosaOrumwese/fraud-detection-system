@@ -11797,3 +11797,61 @@ ext_gate=M8_READY, open_blockers=0.
 
 ### Decision confirmation
 1. This change keeps fail-closed semantics and production realism; it removes an overspecified validator assumption without weakening run-scope guarantees.
+
+## Entry: 2026-03-05 07:32 +00:00 - M12.C join_scope contract-alignment implementation plan before code edits
+### Trigger
+1. User directed immediate execution of the blocker fix to clear `M12-ST-B3`.
+
+### Root cause restated from authority evidence
+1. `M12.C` currently requires key-value tokens in `join_scope` (`platform_run_id=...` + `scenario_run_id=...`).
+2. Upstream fingerprint authority uses OFS table-scope form (`ofs_platform_<platform_run_id_lower>`).
+3. This mismatch is validator overspecification, not data-engine interface contract failure.
+
+### Implementation decision
+1. Patch only `.github/workflows/dev_full_m12_managed.yml` in `M12.C` lane validation.
+2. Keep fail-closed behavior; do not downgrade real mismatch to advisory.
+3. Add strict format-aware acceptance:
+   - pass on key-value run-scope form matching both platform/scenario ids, or
+   - pass on OFS table-scope form matching current platform run id.
+4. Preserve scenario continuity requirement via existing upstream run-scope checks (`M12.B` summary continuity remains mandatory).
+5. Emit extra snapshot evidence:
+   - `join_scope_observed`,
+   - `join_scope_expected`,
+   - `join_scope_match_mode`.
+
+### Validation and execution plan
+1. Static validation:
+   - `python -m py_compile scripts/dev_substrate/m12_stress_runner.py scripts/dev_substrate/m12c_compatibility_precheck.py`
+2. Strict rerun:
+   - `python scripts/dev_substrate/m12_stress_runner.py --stage S1 --upstream-m12-s0-execution m12_stress_s0_20260305T061903Z`
+3. Closure rule:
+   - `overall_pass=true`, `next_gate=M12_ST_S2_READY`, `open_blocker_count=0`; else fail-closed with blocker details.
+
+## Entry: 2026-03-05 07:47 +00:00 - M12.C contract-alignment implemented; S1 blocker cleared green
+### Implementation + rollout
+1. Patched `.github/workflows/dev_full_m12_managed.yml` (`M12.C` lane):
+   - replaced single-format `join_scope` match with strict format-aware matching (`kv_tokens` or `ofs_table_scope`),
+   - added `join_scope_observed`, `join_scope_expected`, and `join_scope_match_mode` into compatibility snapshot.
+2. Initial rerun before remote rollout remained blocked (expected): local workflow edits do not affect managed dispatch until pushed.
+3. Per commit-scope law, created workflow-only commit and pushed active branch:
+   - commit: `3f914e423`,
+   - push target: `origin/cert-platform`.
+
+### Validation + execution receipts
+1. Strict rerun after push:
+   - `python scripts/dev_substrate/m12_stress_runner.py --stage S1 --upstream-m12-s0-execution m12_stress_s0_20260305T061903Z`.
+2. Parent result:
+   - `phase_execution_id=m12_stress_s1_20260305T074035Z`,
+   - `overall_pass=true`,
+   - `open_blocker_count=0`,
+   - `next_gate=M12_ST_S2_READY`.
+3. Lane result:
+   - `M12.C` execution `m12c_stress_s1_20260305T074340Z` is pass with
+     - `fingerprint_join_scope_matches_run=true`,
+     - `join_scope_match_mode=ofs_table_scope`,
+     - `join_scope_observed=ofs_platform_20260223t184232z`.
+
+### Outcome
+1. `M12-ST-B3` is cleared.
+2. M12 advances to `S2` under strict authority (`m12_stress_s1_20260305T074035Z`).
+3. Documentation/state files updated to `S1_GREEN` posture and `M12_ST_S2_READY`.
