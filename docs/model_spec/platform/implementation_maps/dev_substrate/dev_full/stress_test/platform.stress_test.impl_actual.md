@@ -12238,3 +12238,50 @@ ext_gate=M8_READY, open_blockers=0.
 ### Execution posture
 1. No M13 stages executed in this update.
 2. No commit/push/branch operation.
+
+## Entry: 2026-03-05 09:38 +00:00 - Pre-edit plan for M13-ST-S0 implementation and strict execution
+### Trigger
+1. User directive: materialize `m13_stress_runner.py` and `M13(B0/A)` wrappers, then run `M13-ST-S0` fail-closed from `m12_stress_s5_20260305T091936Z`.
+
+### Decision-completeness check (S0 scope)
+1. Dedicated M13 stress authority is present (`platform.M13.stress_test.md`) and pins strict upstream `m12_stress_s5_20260305T091936Z`.
+2. Required managed workflow is present (`.github/workflows/dev_full_m13_managed.yml`) and supports:
+   - `materialization_check` (`M13.B0`) with pass gate `ADVANCE_TO_M13_A` / `M13.A_READY`,
+   - `handle_closure` (`M13.A`) with pass gate `ADVANCE_TO_M13_B` / `M13.B_READY`.
+3. Implementation gap exists (no `scripts/dev_substrate/m13_stress_runner.py`, `m13b0_*`, `m13a_*` wrappers).
+
+### Implementation design (performance/correctness)
+1. Reuse proven M12 orchestration pattern to avoid novel control-path risk:
+   - local control-plane orchestration only,
+   - remote managed execution + S3 readback for lane truth,
+   - fail-closed gate checks.
+2. Complexity posture:
+   - wrapper dispatch/readback is O(1) artifact count,
+   - runner S0 checks are O(1) against fixed authority artifacts.
+3. Data-structure posture:
+   - dictionary-based summary/register snapshots,
+   - blocker list with deterministic de-duplication.
+4. Rejected alternative:
+   - introducing a generic dynamic runner now was rejected for S0 due to avoidable risk and slower unblock.
+
+### Planned edits
+1. Add `scripts/dev_substrate/m13b0_managed_materialization.py`:
+   - dispatch `.github/workflows/dev_full_m13_managed.yml` with explicit upstream overrides,
+   - read back `m13_managed_lane_materialization_snapshot.json`, `m13_subphase_dispatchability_snapshot.json`, `m13b0_blocker_register.json`, `m13b0_execution_summary.json`,
+   - enforce lane gate (`overall_pass=true`, `verdict=ADVANCE_TO_M13_A`, `next_gate=M13.A_READY`).
+2. Add `scripts/dev_substrate/m13a_handle_closure.py`:
+   - dispatch managed lane `handle_closure` with explicit `upstream_m12j_execution` and `upstream_m13b0_execution`,
+   - read back `m13a_handle_closure_snapshot.json`, `m13a_blocker_register.json`, `m13a_execution_summary.json`,
+   - enforce lane gate (`overall_pass=true`, `verdict=ADVANCE_TO_M13_B`, `next_gate=M13.B_READY`).
+3. Add `scripts/dev_substrate/m13_stress_runner.py` with `S0`:
+   - strict stale-upstream guard against `M13_STRESS_EXPECTED_ENTRY_EXECUTION`,
+   - strict M12 closure-readiness checks (`m12_execution_summary`, `m12j_execution_summary`, `m13_handoff_pack`),
+   - wrapper orchestration `B0 -> A` stop-on-first-blocker,
+   - parent artifact contract and gate summary emit (`M13_ST_S1_READY` on pass).
+4. Validate by compile check and strict execution:
+   - `python scripts/dev_substrate/m13_stress_runner.py --stage S0 --upstream-m12-s5-execution m12_stress_s5_20260305T091936Z`.
+5. Sync M13 docs and logbook with resulting authority receipts.
+
+### Guardrails
+1. No branch operation and no commit/push.
+2. No Data Engine internals touched (black-box boundary preserved).

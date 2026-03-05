@@ -3,7 +3,7 @@ _Parent authority: `platform.stress_test.md`_
 _Status source of truth: `platform.stress_test.md`_
 _Track: `dev_full` only_
 _As of 2026-03-05_
-_Current posture: `PLANNING_READY` (strict M12 closure authority pinned; `S0` pending execution)._
+_Current posture: `S0_GREEN` (strict `M13-ST-S0` passed from `m12_stress_s5_20260305T091936Z`; `S1` pending execution)._
 
 ## 0) Purpose
 M13 stress validates full-platform closure and deterministic teardown/idle-safe posture under strict production-realism and fail-closed gates.
@@ -313,7 +313,7 @@ Required stage outputs (phase-level):
 - [x] non-gate acceptance contract pinned as mandatory closure input.
 - [x] stale-default upstream override guard pinned.
 - [x] missing execution-lane implementations and parent runner pinned as explicit `PREVENT` findings.
-- [ ] `M13-ST-S0` executed and closed green.
+- [x] `M13-ST-S0` executed and closed green.
 - [ ] `M13-ST-S1` executed and closed green.
 - [ ] `M13-ST-S2` executed and closed green.
 - [ ] `M13-ST-S3` executed and closed green.
@@ -321,16 +321,22 @@ Required stage outputs (phase-level):
 - [ ] `M13-ST-S5` executed and closed green with deterministic `M14_READY`.
 
 ## 12) Immediate Next Actions
-1. proceed to `M13-ST-S0` from strict upstream `m12_stress_s5_20260305T091936Z`.
-2. materialize parent `m13_stress_runner.py` and wrappers for `M13.B0` and `M13.A`.
-3. execute strict `S0` fail-closed and stop on first blocker.
-4. after S0 closure, continue strict chain `S1..S5` with per-stage authority pinning.
+1. proceed to `M13-ST-S1` from strict upstream `m13_stress_s0_20260305T094531Z`.
+2. materialize parent `M13.B`/`M13.C` wrappers and extend `m13_stress_runner.py` for `S1`.
+3. execute strict `S1` fail-closed and stop on first blocker.
+4. continue strict chain `S2..S5` with per-stage authority pinning after `S1` closure.
 5. keep parent `platform.stress_test.md` synchronized after each run with latest execution id and gate.
 
 ## 13) Execution Progress
-1. M13 detailed stress authority is now pinned and active.
-2. Strict M12 closure authority for M13 entry is pinned to `m12_stress_s5_20260305T091936Z`.
-3. Stage execution is pending; no M13 stress stages have been run in this strict chain yet.
+1. M13 detailed stress authority is pinned and active.
+2. Strict M12 closure authority for M13 entry remains pinned to `m12_stress_s5_20260305T091936Z`.
+3. `M13-ST-S0` passed in strict chain:
+   - parent `phase_execution_id=m13_stress_s0_20260305T094531Z`,
+   - `overall_pass=true`, `open_blocker_count=0`, `next_gate=M13_ST_S1_READY`, `verdict=GO`.
+4. S0 lane receipts:
+   - `M13.B0`: `execution_id=m13b0_stress_s0_20260305T094531Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M13_A`, `next_gate=M13.A_READY`,
+   - `M13.A`: `execution_id=m13a_stress_s0_20260305T094836Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M13_B`, `next_gate=M13.B_READY`.
+5. Next strict executable stage is `M13-ST-S1`.
 
 ## 14) Reopen Notice (Strict Authority)
 1. M13 cannot be closed using historical 2026-02 receipts alone.
