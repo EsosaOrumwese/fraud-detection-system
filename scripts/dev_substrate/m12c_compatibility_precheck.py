@@ -321,6 +321,14 @@ def main() -> int:
             read_errors.append({"surface": key, "error": type(exc).__name__})
             blockers.append({"code": "M12-B3", "message": f"M12.C artifact unreadable: {target}."})
 
+    if register is not None and isinstance(register.get("blockers"), list):
+        for row in register.get("blockers", []):
+            if not isinstance(row, dict):
+                continue
+            msg = str(row.get("message", "")).strip()
+            if msg:
+                blockers.append({"code": "M12-B3", "message": f"M12.C managed blocker: {msg}"})
+
     if summary is not None:
         if not bool(summary.get("overall_pass")):
             blockers.append({"code": "M12-B3", "message": "M12.C summary overall_pass is false."})
@@ -335,8 +343,23 @@ def main() -> int:
         and str(summary.get("next_gate", "")).strip() == "M12.D_READY"
         and str(summary.get("verdict", "")).strip() == "ADVANCE_TO_M12_D"
     )
+    lane_authority_available = bool(summary is not None and register is not None and not read_errors)
     if workflow_advisories:
-        if not lane_gate_pass:
+        if lane_authority_available:
+            notes: list[str] = []
+            if isinstance(snapshot, dict) and isinstance(snapshot.get("notes"), list):
+                notes = [str(x) for x in snapshot.get("notes", []) if str(x).strip()]
+            notes.extend(workflow_advisories)
+            seen_notes: set[str] = set()
+            deduped_notes: list[str] = []
+            for item in notes:
+                if item in seen_notes:
+                    continue
+                seen_notes.add(item)
+                deduped_notes.append(item)
+            if isinstance(snapshot, dict):
+                snapshot["notes"] = deduped_notes
+        elif not lane_gate_pass:
             for msg in workflow_advisories:
                 blockers.append({"code": "M12-B3", "message": msg})
 

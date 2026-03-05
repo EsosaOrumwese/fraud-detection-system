@@ -11694,3 +11694,66 @@ ext_gate=M8_READY, open_blockers=0.
 1. M12 remains fail-closed at `S1`; no progression to `S2` is allowed.
 2. Next remediation lane is `M12.C` wrapper hardening to treat run-id discoverability as advisory when authoritative artifacts and gate truth are present (same stabilization posture applied in prior M11 wrappers).
 3. After remediation, rerun strict `M12-ST-S1` from `m12_stress_s0_20260305T061903Z`.
+
+## Entry: 2026-03-05 06:50 +00:00 - M12.C metadata discoverability remediation plan (targeted) before rerun
+### Trigger
+1. User directed: remediate `M12.C` wrapper metadata discoverability handling and rerun `M12-ST-S1` from strict upstream `m12_stress_s0_20260305T061903Z`.
+
+### Problem framing
+1. Current `m12c_compatibility_precheck.py` behavior can elevate workflow metadata discoverability advisories into hard blockers during non-green lane posture.
+2. This can mask true compatibility-failure root causes and creates noisy blocker attribution (`run_id` advisory mixed with summary gate mismatch).
+3. Managed lane artifacts (`snapshot/register/summary`) are already the authority for gate truth; workflow run-id visibility is auxiliary metadata.
+
+### Decision
+1. Keep fail-closed gate posture unchanged (`overall_pass`, `next_gate`, `verdict` from lane summary contract remain mandatory).
+2. Make workflow metadata discoverability strictly advisory when lane artifacts are readable, regardless of gate pass/fail.
+3. Preserve fail-closed behavior for workflow metadata only when lane artifacts are missing/unreadable (authority cannot be established).
+4. Surface managed lane blocker details from `m12c_blocker_register` into wrapper-level blockers to improve root-cause observability.
+
+### Planned code changes
+1. Update `scripts/dev_substrate/m12c_compatibility_precheck.py`:
+   - add lane-artifact readability gate (`lane_authority_available`),
+   - change advisory->blocker mapping to block only when authority unavailable,
+   - propagate managed-register blocker messages into wrapper blocker set (deduped).
+2. Keep blocker taxonomy mapping (`M12-B3`) unchanged.
+
+### Validation and execution plan
+1. `python -m py_compile scripts/dev_substrate/m12c_compatibility_precheck.py scripts/dev_substrate/m12_stress_runner.py`
+2. Rerun strict S1:
+   - `python scripts/dev_substrate/m12_stress_runner.py --stage S1 --upstream-m12-s0-execution m12_stress_s0_20260305T061903Z`
+3. Publish fail-closed outcome and update M12 status docs with authoritative latest execution id.
+
+## Entry: 2026-03-05 06:58 +00:00 - M12.C metadata discoverability remediation executed; S1 rerun still blocked on true compatibility cause
+### Implementation change
+1. Patched `scripts/dev_substrate/m12c_compatibility_precheck.py`:
+   - propagated managed lane blocker details from managed `m12c_blocker_register`,
+   - introduced `lane_authority_available` guard,
+   - changed workflow metadata advisory handling to advisory-only when lane artifacts are readable,
+   - retained fail-closed escalation of workflow advisories only when lane authority artifacts are unreadable.
+
+### Validation and execution receipts
+1. Compile check:
+   - `python -m py_compile scripts/dev_substrate/m12c_compatibility_precheck.py scripts/dev_substrate/m12_stress_runner.py` (pass).
+2. Strict rerun:
+   - `python scripts/dev_substrate/m12_stress_runner.py --stage S1 --upstream-m12-s0-execution m12_stress_s0_20260305T061903Z`.
+3. Parent result:
+   - `phase_execution_id=m12_stress_s1_20260305T065136Z`,
+   - `overall_pass=false`, `open_blocker_count=1`, `next_gate=HOLD_REMEDIATE`.
+4. Lane outcomes:
+   - `M12.B`: `m12b_stress_s1_20260305T065136Z` (`overall_pass=true`, `next_gate=M12.C_READY`),
+   - `M12.C`: `m12c_stress_s1_20260305T065442Z` (`overall_pass=false`, `next_gate=HOLD_REMEDIATE`).
+
+### Post-remediation blocker truth
+1. Workflow metadata advisory remains present (`run_id` not discoverable) but is no longer promoted to blocker when lane authority artifacts are readable.
+2. Remaining `M12-ST-B3` root cause is now explicit from managed lane evidence:
+   - `M12.C managed blocker: Dataset fingerprint join_scope does not match M12 run scope.`
+3. Therefore `S1` remains correctly fail-closed for a true compatibility failure, not metadata-discoverability noise.
+
+### Documentation sync
+1. Updated `platform.M12.stress_test.md` to:
+   - keep `S1_BLOCKED`,
+   - record rerun receipts (`m12_stress_s1_20260305T065136Z`, `m12c_stress_s1_20260305T065442Z`),
+   - switch immediate next action to `join_scope` root-cause remediation.
+2. Updated `platform.stress_test.md` to:
+   - repin latest M12 parent/lane receipts to rerun authority,
+   - route next action to `M12.C` `join_scope` mismatch remediation before next strict rerun.

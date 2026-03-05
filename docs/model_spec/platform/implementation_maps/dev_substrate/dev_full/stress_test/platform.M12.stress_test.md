@@ -3,7 +3,7 @@ _Parent authority: `platform.stress_test.md`_
 _Status source of truth: `platform.stress_test.md`_
 _Track: `dev_full` only_
 _As of 2026-03-05_
-_Current posture: `S1_BLOCKED` (strict `M12-ST-S1` executed fail-closed; `open_blockers=1`, `M12-ST-B3`)._
+_Current posture: `S1_BLOCKED` (strict rerun `M12-ST-S1` executed fail-closed; `open_blockers=1`, `M12-ST-B3` root cause is join-scope compatibility)._
 
 ## 0) Purpose
 M12 stress validates promotion/rollback closure under repeated activation pressure with deterministic provenance, fail-closed gate semantics, and explicit non-gate acceptance.
@@ -386,7 +386,7 @@ Required stage outputs (phase-level):
 - [ ] `M12-ST-S5` executed and closed green with deterministic `M13_READY`.
 
 ## 12) Immediate Next Actions
-1. remediate `M12-ST-B3` in lane `M12.C` (metadata run-id discoverability should not override artifact-truth gate pass).
+1. remediate `M12-ST-B3` in lane `M12.C` by resolving dataset fingerprint `join_scope` vs current M12 run-scope mismatch.
 2. rerun `M12-ST-S1` from strict upstream `m12_stress_s0_20260305T061903Z`.
 3. after S1 turns green, continue strict chain `S2..S5` stopping fail-closed on first blocker.
 4. update parent `platform.stress_test.md` after each stage with authoritative latest execution id and gate.
@@ -414,6 +414,13 @@ Required stage outputs (phase-level):
    - lane `M12.C`: `m12c_stress_s1_20260305T064132Z` (`overall_pass=false`, `verdict=HOLD_REMEDIATE`, blocker source for `M12-ST-B3`).
 8. Current evidence root:
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m12_stress_s1_20260305T063823Z/stress/`.
+9. `M12.C` metadata discoverability remediation + strict S1 rerun:
+   - rerun parent: `m12_stress_s1_20260305T065136Z` (`overall_pass=false`, `open_blocker_count=1`, `next_gate=HOLD_REMEDIATE`).
+   - rerun lane `M12.C`: `m12c_stress_s1_20260305T065442Z` (`overall_pass=false`, `verdict=HOLD_REMEDIATE`).
+   - workflow run-id discoverability remains advisory only (not a blocker) when lane artifacts are readable.
+   - authoritative managed blocker now explicit: `Dataset fingerprint join_scope does not match M12 run scope.`
+10. Current evidence root:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m12_stress_s1_20260305T065136Z/stress/`.
 
 ## 14) Reopen Notice (Strict Authority)
 1. M12 cannot be closed using historical 2026-02 receipts alone.
