@@ -599,3 +599,49 @@ _As of 2026-03-05_
 ### Governance
 1. Run-control artifacts + docs updated only.
 2. No commit/push/branch operation.
+
+## Entry: 2026-03-05 18:12 +00:00 - Pre-edit plan: add human-readable PR1-S1 findings summary tables
+### Trigger
+1. USER requested a non-JSON, readable summary of S1 findings in the notes and in the main plan.
+
+### Decision
+1. Treat user reference "SR1" as `PR1-S1` and materialize one concise summary table in:
+   - `platform.PR1.road_to_prod.md` (phase-local execution notes),
+   - `platform.road_to_prod.plan.md` (program-level status surface).
+2. Source values from executed artifacts only:
+   - `pr1_g2_profile_summary.json`,
+   - `pr1_g2_cohort_profile.json`,
+   - `g2_load_campaign_seed.json`,
+   - `pr1_s1_execution_receipt.json`.
+3. Keep the summary interpretation-safe:
+   - show measured values,
+   - show blocker checks (`B04..B06`),
+   - show decision significance and next action (`S2`).
+
+### Governance
+1. Documentation update only.
+2. No commit/push/branch operation.
+
+## Entry: 2026-03-05 18:13 +00:00 - Added PR1-S1 readable findings summary tables to notes + plan
+### Files updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR1.road_to_prod.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.road_to_prod.plan.md`
+
+### What was added
+1. In PR1 notes, added `PR1-S1 Findings Summary (Readable)` table showing:
+   - charter/scope,
+   - scanned volume and observed rate,
+   - cohort posture (duplicate, late/out-of-order, hotkey, event diversity),
+   - parse-quality posture,
+   - envelope candidate seed,
+   - gate checks `B04..B06`,
+   - S1 verdict and next state.
+2. In main plan, added `10.1 PR1-S1 Findings Snapshot (Readable)` with concise cross-phase interpretation of the same findings.
+
+### Result
+1. Reviewers can assess S1 evidence and meaning directly from docs without opening raw JSON artifacts.
+2. Program next step remains unchanged: execute `PR1-S2` from strict upstream `PR1-S1` receipt.
+
+### Governance
+1. Documentation updates only.
+2. No commit/push/branch operation.

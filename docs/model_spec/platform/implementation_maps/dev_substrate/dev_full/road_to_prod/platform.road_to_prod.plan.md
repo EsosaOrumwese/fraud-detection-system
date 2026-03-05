@@ -191,6 +191,21 @@ This plan's intent is satisfied only when:
 4. Use the dedicated PR1 authority doc as execution source:
    - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR1.road_to_prod.md`.
 
+### 10.1 PR1-S1 Findings Snapshot (Readable)
+| Signal | Value | Why it matters for PR1 |
+| --- | --- | --- |
+| S1 verdict | `PR1_S1_READY` | Confirms S1 closure and legal handoff to S2. |
+| Open blockers | `0` | No fail-closed blocker carried from S1 into S2. |
+| Rows scanned | `2,190,000,986` | Evidence depth supports claimable realism profile. |
+| Observed steady rate | `25,347.234 eps` | Seeds runtime envelope candidate (`TGT-02` in progress). |
+| Event type count | `8` | Mixed-event realism requirement is met. |
+| Duplicate ratio observed | `0.75%` | Duplicate/replay cohort is present and bounded. |
+| Out-of-order ratio observed | `0.3%` | Late/out-of-order cohort is present and bounded. |
+| Hotkey top1 share observed | `35.0%` | Skew/hotkey pressure is represented in realism profile. |
+| Parse errors | `0` | No profile-quality parsing defect carried forward. |
+| Envelope candidate (S1) | steady `25,347.234 eps`, burst `29,910 eps`, durations `30/5/5/30 min` | S1 candidate is bounded; final numeric pin remains S5 responsibility. |
+| Gate checks | `B04=true`, `B05=true`, `B06=true` | Required S1 acceptance checks all passed. |
+
 ## 11) Required TBD Closure Sheet (Binding)
 This section defines the mandatory closure routing for unresolved targets in:
 1. `docs/model_spec/platform/pre-design_decisions/dev-full_road-to-production-ready.md` Section 15.1 (open decisions `OD-01..OD-09`).

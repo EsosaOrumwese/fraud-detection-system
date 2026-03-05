@@ -353,3 +353,18 @@ Artifacts emitted in this state:
 6. `pr1_g2_cohort_profile.json`
 7. `g2_load_campaign_seed.json`
 8. `pr1_s1_execution_receipt.json`
+
+## 12) PR1-S1 Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Window + scope | `2026-02-26T00:00:00Z` to `2026-03-05T00:00:00Z`; injection path `via_IG` | S1 remained inside the pinned charter and production-claim scope. |
+| Data volume scanned | `2,190,000,986` rows over `24h` profile window | Sample size is well above anti-toy minima for S1 realism derivation. |
+| Observed steady rate | `25,347.234 eps` | Credible base for RC2-S candidate envelope seeding. |
+| Event diversity | `8` event types | Mixed-event cohort requirement is satisfied for S1. |
+| Quality posture | `parse_error_count=0` | No parse-quality blocker for S1 profile evidence. |
+| Skew/hotkey cohort | top1 share `35.0%` | Hotkey pressure is materially present and measurable. |
+| Duplicate cohort | observed duplicate ratio `0.75%` | Duplicate/replay cohort minimum is satisfied. |
+| Late/out-of-order cohort | observed out-of-order ratio `0.3%` | Late-event cohort minimum is satisfied. |
+| Envelope candidate (seed) | steady `25,347.234 eps`; burst `29,910 eps`; steady/burst/recovery/soak `30/5/5/30 min` | Candidate is bounded for S1; numeric finalization stays at S5. |
+| Gate checks | `B04=true`, `B05=true`, `B06=true` | All S1 fail-closed checks passed. |
+| S1 verdict | `PR1_S1_READY`, `open_blockers=0`, `next_state=PR1-S2` | PR1 can proceed to joinability closure (`S2`). |
