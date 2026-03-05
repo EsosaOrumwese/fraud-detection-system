@@ -47,6 +47,8 @@ Intent:
 1. Establish one authoritative status surface for this road.
 2. Pin mission charter identity and active gate map.
 3. Materialize initial blocker register for unresolved required `TBD` fields in active scope.
+4. Execute detailed state plan in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR0.road_to_prod.md`.
 
 Exit / DoD:
 1. Status owner file is pinned and current.
@@ -180,3 +182,56 @@ This plan's intent is satisfied only when:
 
 ## 10) Immediate Next Step
 1. Start `PR0-S0`: pin authoritative status owner and mission charter entry bindings for this road.
+2. Execute `PR0-S0.1`: instantiate and populate the Section 11 TBD closure sheet with owner, due-gate, and initial status for every required open decision/TBD class.
+3. Use the dedicated PR0 authority doc as execution source:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR0.road_to_prod.md`.
+
+## 11) Required TBD Closure Sheet (Binding)
+This section defines the mandatory closure routing for unresolved targets in:
+1. `docs/model_spec/platform/pre-design_decisions/dev-full_road-to-production-ready.md` Section 15.1 (open decisions `OD-01..OD-09`).
+2. Appendix A.1 workload envelope template required fields.
+3. Appendix C.1 monitoring baseline template required fields.
+
+Fail-closed rules for this sheet:
+1. Any row marked `Pin Now` must be closed before advancing beyond `PR0`.
+2. Any row marked `Pin By G2` must be closed before `PR1-S5` can PASS.
+3. Any row marked `Pin By G3A` must be closed before `PR3-S5` can PASS.
+4. Any row marked `Pin By G3B` must be closed before `PR4-S5` can PASS.
+5. Any row marked `Pin By G4` must be closed before final `PR5-S5` PASS.
+6. `Deferred/Out-Of-Scope` is allowed only where explicitly non-required for `dev_full` production-ready claim; otherwise it is a blocker.
+
+As-of snapshot (2026-03-05) from authority scan:
+1. Open decisions: `OD-01..OD-09` (9 total).
+2. Appendix A.1 template `TBD` fields: 68.
+3. Appendix C.1 template `TBD` fields: 129.
+
+### 11.1 Closure Routing Table
+| Target ID | Decision/TBD class | Source locus | Close-by target | Owner lane | Closure artifact |
+| --- | --- | --- | --- | --- | --- |
+| TGT-01 | Injection-path certification policy (`via_IG` vs `via_MSK`) | OD-01 | Pin Now (PR0) | Program owner + run-control | Mission charter + status owner entry |
+| TGT-02 | RC2-S envelope numeric set (steady/burst/recovery/soak/replay) | OD-02 + Appendix A.1 envelope rows | Pin By G2 (PR1) | Runtime/perf | Activated workload envelope section |
+| TGT-03 | Watermark/allowed-lateness posture | OD-03 + Appendix A.1 late-event rows | Pin By G2 (PR1) | RTDL/data semantics | Late-event policy receipt + threshold row activation |
+| TGT-04 | IEG minimal graph scope + TTL/state bounds | OD-04 | Pin By G2 (PR1) | IEG/data semantics | IEG scope decision record + realism pack reference |
+| TGT-05 | Label maturity lag definition and enforcement bound | OD-07 + Appendix A.1/C.1 maturity fields | Pin By G2 (PR1) | Learning/truth | Maturity lag decision + causality evidence link |
+| TGT-06 | Join/fanout/unmatched-rate required bounds | Appendix A.1 join rows | Pin By G2 (PR1) | Data realism | Join matrix decision output + activated thresholds |
+| TGT-07 | Monitoring baseline reference binding (`G2/G3A/G3B refs`) | Appendix C.1 `pack_ref` rows | Pin By G2 (PR1) | Observability | Monitoring baseline ACTIVE/FROZEN header |
+| TGT-08 | Runtime threshold families (lag/latency/error/timeout/checkpoint) | Appendix A.1 + Appendix C.1 runtime metric families | Pin By G3A (PR3) | Runtime/perf | G3A scorecard + runtime pack index |
+| TGT-09 | Archive sink design and backpressure posture | OD-05 | Pin By G3A (PR3) | Archive/egress | Sink design decision + burst/soak evidence link |
+| TGT-10 | Decision explainability minimal schema | OD-06 | Pin By G3B (PR4) | Decision/audit | Explainability contract + audit drill evidence |
+| TGT-11 | Promotion observation window and stable-signal set | OD-08 | Pin By G3B (PR4) | Ops/gov | Promotion corridor policy + observation receipt |
+| TGT-12 | Cost budgets by gate and mission, with enforcement posture | OD-09 + Appendix A.1/C.1 cost rows | Pin By G3B (PR4) | Cost governance | Gate budget table + enforcement receipt |
+| TGT-13 | Ops/gov monitor families owner assignment and numeric thresholds | Appendix C.1 owner/threshold rows | Pin By G3B (PR4) | Ops/gov/observability | Monitoring baseline activated owner table |
+| TGT-14 | Final rehearsal-only required rows (if any still pending) | Remaining required TBD in ACTIVE scope | Pin By G4 (PR5) | Program owner | Final ACTIVE/FROZEN validator output |
+| TGT-15 | RC2-L stretch rows | Appendix A.1/C.1 RC2-L | Deferred/Out-Of-Scope for dev_full claim | Program owner | Deferred register entry with rationale |
+
+### 11.2 Status Discipline
+Allowed status values for each target:
+1. `OPEN`
+2. `IN_PROGRESS`
+3. `PINNED`
+4. `WAIVED_TIMEBOXED` (explicit USER approval required)
+5. `DEFERRED_OUT_OF_SCOPE` (only for non-required stretch scope)
+
+Closure rule:
+1. Required targets cannot remain `OPEN`/`IN_PROGRESS`/`WAIVED_TIMEBOXED` at their close-by gate.
+2. Any miss becomes `HOLD_REMEDIATE` with explicit rerun boundary before phase continuation.

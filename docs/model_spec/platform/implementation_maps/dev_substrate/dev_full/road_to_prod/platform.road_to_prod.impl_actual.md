@@ -113,3 +113,93 @@ _As of 2026-03-05_
 ### Governance
 1. Documentation-only change.
 2. No commit/push/branch operation.
+
+## Entry: 2026-03-05 17:11 +00:00 - Pre-edit plan: add required TBD closure sheet to road-to-prod authority
+### Trigger
+1. USER approved adding the strict TBD closure sheet into the main plan.
+
+### Problem framing
+1. The plan already defines gate intent, but unresolved `TBD` targets in the binding authority were not yet mapped into one closure board with explicit due-gate routing.
+2. Without that mapping, execution risks ambiguity on what must be pinned now versus later gates.
+
+### Decision
+1. Add a binding section in `platform.road_to_prod.plan.md` for required TBD closure routing.
+2. Cover three authority sources:
+   - Section 15.1 open decisions (`OD-01..OD-09`),
+   - Appendix A.1 workload envelope required rows,
+   - Appendix C.1 monitoring baseline required rows.
+3. Encode `Pin Now / Pin By G2 / Pin By G3A / Pin By G3B / Pin By G4` with fail-closed rules and status discipline.
+
+### Governance
+1. Documentation-only change.
+2. No commit/push/branch operation.
+
+## Entry: 2026-03-05 17:12 +00:00 - Required TBD closure sheet added and bound to gate progression
+### Implemented file
+1. Updated:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.road_to_prod.plan.md`.
+
+### What was added
+1. New Section 11 `Required TBD Closure Sheet (Binding)`.
+2. Fail-closed closure timing rules for `Pin Now / Pin By G2 / Pin By G3A / Pin By G3B / Pin By G4`.
+3. As-of scan snapshot counts:
+   - open decisions: 9 (`OD-01..OD-09`),
+   - Appendix A.1 `TBD` fields: 68,
+   - Appendix C.1 `TBD` fields: 129.
+4. Routing table (`TGT-01..TGT-15`) mapping each target class to owner lane, due gate, and closure artifact.
+5. Status discipline and closure enforcement to block phase advancement on unresolved required targets.
+6. Immediate next step updated to include `PR0-S0.1` sheet instantiation/population.
+
+### Resulting authority posture
+1. Required unresolved targets are now explicit and gate-bound, preventing silent carry-over of `TBD` debt.
+2. Phase closure now has a concrete decision inventory that can be audited against fail-closed gate rules.
+
+### Governance
+1. Documentation-only change.
+2. No commit/push/branch operation.
+
+## Entry: 2026-03-05 17:15 +00:00 - Pre-edit plan: materialize PR0 dedicated phase doc and wire main plan
+### Trigger
+1. USER requested proceeding with planning `PR0` and the dedicated PR0 doc.
+
+### Problem framing
+1. Main road-to-prod plan defines PR0 intent, but execution-grade PR0 details (`S0..S5`, lane coverage, required artifacts, fail-closed blocker taxonomy) are not yet materialized in a dedicated phase authority document.
+2. Without a dedicated PR0 doc, PR0 execution can drift into ad-hoc interpretation.
+
+### Decision
+1. Create a dedicated PR0 authority doc at:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR0.road_to_prod.md`.
+2. Include explicit PR0 lane coverage and sequential state plan (`S0..S5`) with per-state DoD and failure conditions.
+3. Wire the main plan to the PR0 doc via a detail pointer under PR0 and immediate-next-step posture.
+4. Keep closure bound to Section 11 required `Pin Now` targets and `open_blockers=0`.
+
+### Governance
+1. Documentation-only change.
+2. No commit/push/branch operation.
+
+## Entry: 2026-03-05 17:16 +00:00 - PR0 dedicated phase authority doc created and main plan wired
+### Implemented files
+1. Added:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR0.road_to_prod.md`.
+2. Updated:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.road_to_prod.plan.md`.
+
+### What was implemented
+1. Created a dedicated PR0 execution authority with:
+   - explicit scope boundary,
+   - mandatory capability-lane coverage,
+   - state plan `S0..S5` with pass/fail criteria,
+   - blocker taxonomy (`PR0.B01..B16`),
+   - deterministic artifact contract,
+   - runtime/cost budgets,
+   - rerun discipline,
+   - PR0 DoD checklist.
+2. Wired main plan PR0 section and immediate-next-step section to this dedicated PR0 doc so execution path is unambiguous.
+
+### Authority posture impact
+1. PR0 is now execution-grade and fail-closed, not just a one-paragraph phase summary.
+2. `Pin Now` closure and `open_blockers=0` handoff to `PR1_READY` are now explicitly testable and auditable.
+
+### Governance
+1. Documentation-only change.
+2. No commit/push/branch operation.
