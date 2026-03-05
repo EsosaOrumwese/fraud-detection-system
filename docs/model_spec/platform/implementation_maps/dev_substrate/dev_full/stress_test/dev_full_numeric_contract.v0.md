@@ -73,45 +73,67 @@ Activation rule:
 ## 3) Tier-0 Runtime Thresholds (Pass/Fail)
 | Claim | Metric | Threshold | Aggregation | Fail Code |
 |---|---|---|---|---|
-| Throughput | processed_rate | `>= TBD` | p50, p95 | `RC-B01` |
-| Decision latency | decision_latency_ms | `p95 <= TBD` and `p99 <= TBD` | p95, p99 | `RC-B02` |
-| Stability | error_rate_pct | `<= TBD` | run window avg | `RC-B03` |
-| Consumer lag | consumer_lag | `p95 <= TBD` and `p99 <= TBD` | p95, p99 | `RC-B04` |
-| Flink checkpoints | checkpoint_success_rate_pct | `>= TBD` | run window | `RC-B05` |
-| Flink checkpoints | checkpoint_duration_ms | `p95 <= TBD` | p95 | `RC-B06` |
-| Recovery | recovery_to_stable_sec | `<= TBD` | single run bound | `RC-B07` |
-| Unit cost | usd_per_1k_events | `<= TBD` | run window | `RC-B08` |
-| Idle burn | usd_per_day_idle | `<= TBD` | daily | `RC-B09` |
+| Throughput | processed_rate | `>= 20000` events/sec | p50, p95 | `RC-B01` |
+| Decision latency | decision_latency_ms | `p95 <= 1250` ms and `p99 <= 1300` ms | p95, p99 | `RC-B02` |
+| Stability | error_rate_pct | `<= 0.5%` | run window avg | `RC-B03` |
+| Consumer lag | consumer_lag | `p95 <= 20` and `p99 <= 30` | p95, p99 | `RC-B04` |
+| Flink checkpoints | checkpoint_success_rate_pct | `>= 99.0%` | run window | `RC-B05` |
+| Flink checkpoints | checkpoint_duration_ms | `p95 <= 120000` ms | p95 | `RC-B06` |
+| Recovery | recovery_to_stable_sec | `<= 300` sec | single run bound | `RC-B07` |
+| Unit cost | usd_per_1k_events | `<= 0.00005` USD | run window | `RC-B08` |
+| Idle burn | usd_per_day_idle | `<= 10.0` USD | daily | `RC-B09` |
+
+Calibration anchors:
+- `RC-B01/03/04`: strict non-toy component perf snapshots (`m7/_strict_rerun_artifacts/*_performance_snapshot.json`) show `throughput_observed=25347.233634`, `error_rate_pct_observed=0.0`, and lag ceilings at `10/20/30`.
+- `RC-B02`: `m7_addendum_service_path_latency_profile.json` (`p95=1161.643`, `p99=1161.643`) and `m7_probe_latency_throughput_snapshot.json` (`p95=1233.899`, `p99=1233.899`).
+- `RC-B07`: `m4_lane_matrix.json#dispatch_profile.recovery_budget_seconds=300`.
+- `RC-B08`: from `m7_addendum_cost_attribution_receipt.json` spend vs `m7_data_profile_summary.json#rows_scanned` gives measured `usd_per_1k_events ~= 0.000002542`; threshold set with 20x guardband.
+- `RC-B09`: `m13_phase_cost_outcome_receipt.json#monthly_limit=300` plus `m13h_cost_guardrail_snapshot.json#idle_safe=true`.
+- `RC-B05/RC-B06` are activated in fail-closed metric-presence mode: checkpoint metrics must be emitted in run artifacts; if absent/unreadable, fail `RC-B90`.
 
 ---
 
 ## 4) Component Gates (Hard)
 | Component | Required Metrics | Pass Rule | Fail Code |
 |---|---|---|---|
-| IG (`API GW/Lambda/DDB`) | admit_rate, p95/p99 latency, throttle profile, DDB hot-partition rate | all metrics within pinned thresholds | `RC-B10` |
-| MSK | producer_error_rate, broker throttle, consumer lag p95/p99 | all metrics within pinned thresholds | `RC-B11` |
-| Flink (`MSF`) | checkpoint health, backpressure, restart_count, processing latency | all metrics within pinned thresholds | `RC-B12` |
-| Aurora | connection saturation, query latency p95/p99, timeout/deadlock rate | all metrics within pinned thresholds | `RC-B13` |
-| Redis | latency p95/p99, hit rate, timeout rate | all metrics within pinned thresholds | `RC-B14` |
-| Archive/Audit sink | sink throughput, retry/backlog, tiny-file rate | all metrics within pinned thresholds | `RC-B15` |
+| IG (`API GW/Lambda/DDB`) | admit_rate, admission_latency_ms(p95/p99), ddb_throttle_rate_pct, ddb_hot_partition_rate_pct, offsets_materialized | `admit_rate >= 95%`; `p95 <= 1200 ms`; `p99 <= 1300 ms`; `ddb_throttle <= 0.5%`; `hot_partition <= 1.0%`; `offsets_materialized=true` | `RC-B10` |
+| MSK | producer_error_rate_pct, broker_throttle_rate_pct, consumer_lag(p95/p99), broker_ack_and_consumer_readback | `producer_error_rate <= 0.5%`; `broker_throttle <= 1.0%`; `consumer_lag p95 <= 20`; `p99 <= 30`; broker ack + consumer readback pass | `RC-B11` |
+| Flink (`MSF`/operator) | checkpoint_success_rate_pct, checkpoint_duration_ms_p95, backpressure_pct, restart_count_per_30m, processing_lag_p99 | `checkpoint_success >= 99.0%`; `checkpoint_duration_p95 <= 120000 ms`; `backpressure <= 10.0%`; `restart_count <= 1/30m`; `lag_p99 <= 30` | `RC-B12` |
+| Aurora | connection_saturation_pct, query_latency_ms(p95/p99), timeout_deadlock_rate_pct | `connection_saturation <= 80.0%`; `query_latency p95 <= 250 ms`; `p99 <= 500 ms`; `timeout+deadlock <= 0.1%` | `RC-B13` |
+| Redis | latency_ms(p95/p99), hit_rate_pct, timeout_rate_pct | `latency p95 <= 20 ms`; `p99 <= 50 ms`; `hit_rate >= 95.0%`; `timeout_rate <= 0.1%` | `RC-B14` |
+| Archive/Audit sink | sink_throughput_rate, retry_backlog_rate_pct, tiny_file_rate_pct, durable_readback_success_rate | `sink_throughput >= 50 events/sec`; `retry_backlog <= 1.0%`; `tiny_file_rate <= 5.0%`; `durable_readback_success >= 99.0%` | `RC-B15` |
+
+Calibration anchors:
+- Ingress/lag/error/throughput envelope from `m6p7_*` snapshots and strict M7 component perf snapshots (`p8/p9/p10`).
+- Broker readback proof from `m12d_learning_registry_publication_receipt.json` and `m12d_broker_transport_proof.json`.
+- Archive floor from `p8d_archive_writer_performance_snapshot.json#throughput_min=50` and fallback durable readback success in `m7p8_archive_snapshot.json`.
+- All required component metrics must be explicitly present in run-scoped artifacts (`component_gate_report.json` and source snapshots). Missing/unreadable metric is fail-closed (`RC-B90`), never implicit pass.
 
 ---
 
 ## 5) Data-Realism and Semantic Gates (Hard)
 | Gate | Metric | Threshold | Fail Code |
 |---|---|---|---|
-| Join coverage | required join unmatched_rate | `<= TBD` | `RC-B20` |
-| Join fanout | 1->many expansion ratio | `<= TBD` | `RC-B21` |
-| Skew | top_0.1pct_key_share | `<= TBD` | `RC-B22` |
-| Duplicates | duplicate_rate or dedupe-proof failure | `<= TBD` or zero unhandled duplicates | `RC-B23` |
-| Out-of-order | late_event_rate with watermark policy | `<= TBD` and policy pass | `RC-B24` |
-| Label maturity | mature_label_coverage | `>= TBD` | `RC-B25` |
+| Join coverage | required join unmatched_rate | `<= 0.1%` and `join_scope_match=true` | `RC-B20` |
+| Join fanout | 1->many expansion ratio | `<= 1.20` | `RC-B21` |
+| Skew | top_0.1pct_key_share | `<= 40.0%` | `RC-B22` |
+| Duplicates | duplicate_rate or dedupe-proof failure | injected window `0.5% <= duplicate_rate <= 1.0%` and unhandled duplicates `= 0` | `RC-B23` |
+| Out-of-order | late_event_rate with watermark policy | injected window `0.2% <= late_event_rate <= 1.0%` and watermark policy pass | `RC-B24` |
+| Label maturity | mature_label_coverage | `>= 95.0%` and `label_maturity_days >= 30` | `RC-B25` |
 | Time-causality | future-access violations | `must be 0` | `RC-B26` |
-| Explainability | decision records with required provenance fields | `>= TBD%` completeness | `RC-B27` |
+| Explainability | decision records with required provenance fields | `>= 100%` completeness | `RC-B27` |
 
 Required policy pins for this section:
 - RTDL allowlist/denylist must be active and auditable.
 - Truth surfaces (`s4_*`) must remain offline-only for runtime decision path.
+
+Calibration anchors:
+- Skew/duplicate/late pressure thresholds and observed injected cohorts from `m7_addendum_realism_window_summary.json` (targets: duplicate `0.75%`, late `0.3%`, hotkey `35%`, all pass).
+- Label/case pressure minima from `m7_addendum_case_label_pressure_summary.json` and case writer/case-reopen safety from `m7p10_case_lifecycle_profile.json` + `m7p10_writer_conflict_profile.json`.
+- Time-causality from `m9e_leakage_guardrail_report.json#violation_count=0` and `m10g_manifest_fingerprint_snapshot.json#time_bound_audit_leakage_future_breach_count=0`.
+- Provenance/explainability completeness from `m11f_mlflow_lineage_snapshot.json#required_tags_missing=[]`.
+- Join-scope correctness from `m12c_compatibility_precheck_snapshot.json#fingerprint_join_scope_matches_run=true`.
+- Join unmatched/fanout metrics are mandatory explicit outputs in realism artifacts; absent metrics are fail-closed (`RC-B90`).
 
 ---
 
@@ -190,3 +212,4 @@ Else:
 
 ### Change Log
 - `v0` (2026-03-05): initial scaffold created with `TBD` thresholds; structure pinned for measured-value population.
+- `v0` (2026-03-05): calibrated Sections 3/4/5 thresholds from M6/M7/M9/M10/M11/M12/M13 measured evidence, with fail-closed metric-presence activation for non-emitted telemetry.

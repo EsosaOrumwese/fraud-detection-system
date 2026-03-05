@@ -13092,3 +13092,62 @@ ext_gate=M8_READY, open_blockers=0.
 ### Governance
 1. No commit/push/branch operation.
 2. Content unchanged; path only.
+
+## Entry: 2026-03-05 12:57 +00:00 - Numeric contract activation calibration for Sections 3/4/5
+### Trigger
+1. User directive: calibrate Tier-0, component, and realism thresholds from measured evidence so the numeric contract is fully activatable.
+
+### Decision model
+1. Prioritize measured values from latest strict green windows (M6/M7/M9/M10/M11/M12/M13).
+2. Where direct telemetry is not emitted in current evidence surfaces, avoid synthetic PASS defaults:
+   - pin explicit numeric threshold,
+   - require metric presence in run-scoped artifacts,
+   - fail-closed with `RC-B90` when missing/unreadable.
+3. Keep RC2-L untouched (`TBD`) because activation target was Sections 3/4/5 only.
+
+### Evidence basis used
+1. Tier-0 envelope/perf:
+   - `runs/dev_substrate/dev_full/m7/_strict_rerun_artifacts/*_performance_snapshot.json`,
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m7_stress_s5_20260304T212520Z/stress/m7_addendum_service_path_latency_profile.json`,
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m7_stress_s5_20260304T212520Z/stress/m7_addendum_cost_attribution_receipt.json`,
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m7_stress_s5_20260304T212520Z/stress/m7_data_profile_summary.json`,
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m13_stress_s4_20260305T110049Z/stress/m13_phase_cost_outcome_receipt.json`,
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m13_stress_s4_20260305T110049Z/stress/m13h_cost_guardrail_snapshot.json`.
+2. Component gate anchors:
+   - M6/M6.P7 ingress evidence snapshots,
+   - M12 broker ack/readback proofs,
+   - M7 archive performance/readback snapshots.
+3. Realism/semantic anchors:
+   - `m7_addendum_realism_window_summary.json`,
+   - `m7_addendum_case_label_pressure_summary.json`,
+   - `m7p10_case_lifecycle_profile.json`,
+   - `m7p10_writer_conflict_profile.json`,
+   - `m9e_leakage_guardrail_report.json`,
+   - `m10g_manifest_fingerprint_snapshot.json`,
+   - `m11f_mlflow_lineage_snapshot.json`,
+   - `m12c_compatibility_precheck_snapshot.json`.
+
+### Implemented edits
+1. Updated:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/dev_full_numeric_contract.v0.md`.
+2. Section 3:
+   - replaced all `TBD` Tier-0 thresholds with numeric values,
+   - added calibration anchor bullets and explicit checkpoint metric-presence fail-closed note.
+3. Section 4:
+   - converted component rows to explicit numeric pass rules,
+   - added calibration anchors and explicit required-metric presence fail-closed rule.
+4. Section 5:
+   - replaced all realism gate `TBD` thresholds with numeric thresholds,
+   - added source anchors and explicit fail-closed requirement for join unmatched/fanout metric emission.
+5. Change log:
+   - appended v0 calibration entry recording measured-evidence calibration of Sections 3/4/5.
+
+### Activation outcome
+1. Sections 3/4/5 now contain no `TBD` thresholds.
+2. Contract activation is deterministic in these sections:
+   - explicit numeric gate,
+   - explicit source anchor,
+   - explicit missing-metric failure path.
+
+### Governance
+1. No commit/push/branch operation.
