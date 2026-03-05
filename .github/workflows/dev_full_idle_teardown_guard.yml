@@ -107,22 +107,22 @@ jobs:
     name: Enforce dev_full idle guard
     runs-on: ubuntu-latest
     env:
-      RESOLVED_AWS_REGION: ${{ inputs.aws_region || vars.DEV_FULL_AWS_REGION || 'eu-west-2' }}
-      RESOLVED_AWS_ROLE: ${{ inputs.aws_role_to_assume || vars.DEV_FULL_AWS_ROLE_TO_ASSUME }}
-      RESOLVED_ECS_CLUSTER: ${{ inputs.ecs_cluster_name || vars.DEV_FULL_ECS_CLUSTER_NAME || 'fraud-platform-dev-full' }}
-      RESOLVED_SERVICE_PREFIXES: ${{ inputs.service_name_prefixes || vars.DEV_FULL_SERVICE_NAME_PREFIXES || 'fraud-platform-dev-full' }}
-      RESOLVED_HEARTBEAT_PARAM: ${{ inputs.heartbeat_param_path || vars.DEV_FULL_HEARTBEAT_PARAM_PATH || '/fraud-platform/dev_full/demo/manual/heartbeat' }}
-      RESOLVED_IDLE_TTL_MINUTES: ${{ inputs.idle_ttl_minutes || vars.DEV_FULL_IDLE_TTL_MINUTES || '90' }}
-      RESOLVED_ENFORCEMENT_MODE: ${{ inputs.enforcement_mode || vars.DEV_FULL_IDLE_GUARD_MODE || 'observe_only' }}
-      RESOLVED_M13_WORKFLOW_FILE: ${{ inputs.m13_workflow_file || vars.DEV_FULL_IDLE_M13_WORKFLOW_FILE || 'dev_full_m13_managed.yml' }}
-      RESOLVED_M13_WORKFLOW_REF: ${{ inputs.m13_workflow_ref || vars.DEV_FULL_IDLE_M13_WORKFLOW_REF || github.ref_name }}
-      RESOLVED_M13_UPSTREAM_M12J_EXECUTION: ${{ inputs.m13_upstream_m12j_execution || vars.DEV_FULL_M13_UPSTREAM_M12J_EXECUTION || '' }}
-      RESOLVED_M13_UPSTREAM_M13E_EXECUTION: ${{ inputs.m13_upstream_m13e_execution || vars.DEV_FULL_M13_UPSTREAM_M13E_EXECUTION || '' }}
-      RESOLVED_M13_TEARDOWN_OVERRIDE: ${{ inputs.m13_teardown_override || vars.DEV_FULL_M13_TEARDOWN_OVERRIDE || 'scale_to_zero_or_destroy' }}
-      RESOLVED_M13_EVIDENCE_BUCKET: ${{ inputs.m13_evidence_bucket || vars.DEV_FULL_M13_EVIDENCE_BUCKET || 'fraud-platform-dev-full-evidence' }}
-      RESOLVED_EVIDENCE_BUCKET: ${{ inputs.evidence_bucket || vars.DEV_FULL_EVIDENCE_BUCKET || 'fraud-platform-dev-full-evidence' }}
-      RESOLVED_EVIDENCE_PREFIX: ${{ inputs.evidence_prefix || vars.DEV_FULL_EVIDENCE_PREFIX || 'evidence/dev_full/run_control' }}
-      RESOLVED_UPLOAD_EVIDENCE: ${{ (github.event_name == 'schedule') || inputs.upload_evidence_to_s3 }}
+      RESOLVED_AWS_REGION: ${{ github.event.inputs.aws_region || vars.DEV_FULL_AWS_REGION || 'eu-west-2' }}
+      RESOLVED_AWS_ROLE: ${{ github.event.inputs.aws_role_to_assume || vars.DEV_FULL_AWS_ROLE_TO_ASSUME }}
+      RESOLVED_ECS_CLUSTER: ${{ github.event.inputs.ecs_cluster_name || vars.DEV_FULL_ECS_CLUSTER_NAME || 'fraud-platform-dev-full' }}
+      RESOLVED_SERVICE_PREFIXES: ${{ github.event.inputs.service_name_prefixes || vars.DEV_FULL_SERVICE_NAME_PREFIXES || 'fraud-platform-dev-full' }}
+      RESOLVED_HEARTBEAT_PARAM: ${{ github.event.inputs.heartbeat_param_path || vars.DEV_FULL_HEARTBEAT_PARAM_PATH || '/fraud-platform/dev_full/demo/manual/heartbeat' }}
+      RESOLVED_IDLE_TTL_MINUTES: ${{ github.event.inputs.idle_ttl_minutes || vars.DEV_FULL_IDLE_TTL_MINUTES || '90' }}
+      RESOLVED_ENFORCEMENT_MODE: ${{ github.event.inputs.enforcement_mode || vars.DEV_FULL_IDLE_GUARD_MODE || 'observe_only' }}
+      RESOLVED_M13_WORKFLOW_FILE: ${{ github.event.inputs.m13_workflow_file || vars.DEV_FULL_IDLE_M13_WORKFLOW_FILE || 'dev_full_m13_managed.yml' }}
+      RESOLVED_M13_WORKFLOW_REF: ${{ github.event.inputs.m13_workflow_ref || vars.DEV_FULL_IDLE_M13_WORKFLOW_REF || github.ref_name }}
+      RESOLVED_M13_UPSTREAM_M12J_EXECUTION: ${{ github.event.inputs.m13_upstream_m12j_execution || vars.DEV_FULL_M13_UPSTREAM_M12J_EXECUTION || '' }}
+      RESOLVED_M13_UPSTREAM_M13E_EXECUTION: ${{ github.event.inputs.m13_upstream_m13e_execution || vars.DEV_FULL_M13_UPSTREAM_M13E_EXECUTION || '' }}
+      RESOLVED_M13_TEARDOWN_OVERRIDE: ${{ github.event.inputs.m13_teardown_override || vars.DEV_FULL_M13_TEARDOWN_OVERRIDE || 'scale_to_zero_or_destroy' }}
+      RESOLVED_M13_EVIDENCE_BUCKET: ${{ github.event.inputs.m13_evidence_bucket || vars.DEV_FULL_M13_EVIDENCE_BUCKET || 'fraud-platform-dev-full-evidence' }}
+      RESOLVED_EVIDENCE_BUCKET: ${{ github.event.inputs.evidence_bucket || vars.DEV_FULL_EVIDENCE_BUCKET || 'fraud-platform-dev-full-evidence' }}
+      RESOLVED_EVIDENCE_PREFIX: ${{ github.event.inputs.evidence_prefix || vars.DEV_FULL_EVIDENCE_PREFIX || 'evidence/dev_full/run_control' }}
+      RESOLVED_UPLOAD_EVIDENCE: ${{ github.event_name == 'schedule' || github.event.inputs.upload_evidence_to_s3 }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -203,10 +203,21 @@ jobs:
           import urllib.request
           from datetime import UTC, datetime
 
-          def aws_json(args):
+          blockers = []
+
+          def aws_json(args, blocker_code):
             cmd = ["aws"] + args + ["--output", "json"]
-            proc = subprocess.run(cmd, check=True, capture_output=True, text=True)
-            return json.loads(proc.stdout) if proc.stdout.strip() else {}
+            proc = subprocess.run(cmd, capture_output=True, text=True)
+            if proc.returncode != 0:
+              blockers.append(blocker_code)
+              return {}
+            if not proc.stdout.strip():
+              return {}
+            try:
+              return json.loads(proc.stdout)
+            except json.JSONDecodeError:
+              blockers.append(f"{blocker_code}_JSON_INVALID")
+              return {}
 
           def safe_aws_json(args):
             cmd = ["aws"] + args + ["--output", "json"]
@@ -218,7 +229,6 @@ jobs:
             return json.loads(proc.stdout), ""
 
           now = datetime.now(UTC)
-          blockers = []
           actions = []
           cluster = os.environ["ECS_CLUSTER_NAME"]
           prefixes_raw = os.environ["SERVICE_NAME_PREFIXES"]
@@ -237,18 +247,18 @@ jobs:
           if ttl_minutes <= 0:
             blockers.append("INVALID_IDLE_TTL")
 
-          service_arns = aws_json(["ecs", "list-services", "--cluster", cluster]).get("serviceArns", [])
+          service_arns = aws_json(["ecs", "list-services", "--cluster", cluster], "ECS_LIST_FAILED").get("serviceArns", [])
           service_names = []
           for arn in service_arns:
             service_name = arn.rsplit("/", 1)[-1]
-            if any(prefix in service_name for prefix in prefixes):
+            if any(service_name.startswith(prefix) for prefix in prefixes):
               service_names.append(service_name)
 
           services = []
           failures = []
           for i in range(0, len(service_names), 10):
             chunk = service_names[i : i + 10]
-            payload = aws_json(["ecs", "describe-services", "--cluster", cluster, "--services", *chunk])
+            payload = aws_json(["ecs", "describe-services", "--cluster", cluster, "--services", *chunk], "ECS_DESCRIBE_FAILED")
             services.extend(payload.get("services", []))
             failures.extend(payload.get("failures", []))
           if failures:
@@ -303,10 +313,10 @@ jobs:
             or heartbeat_payload.get("active_run")
             or heartbeat_payload.get("teardown_lock")
           )
-          if active_run_lock and mode in {"stop_services", "dispatch_m13_teardown"}:
-            blockers.append("ACTIVE_RUN_LOCKED")
 
           idle_breach = idle_minutes is not None and ttl_minutes > 0 and idle_minutes >= ttl_minutes
+          if idle_breach and len(active_services) > 0 and active_run_lock and mode in {"stop_services", "dispatch_m13_teardown"}:
+            blockers.append("ACTIVE_RUN_LOCKED")
           enforced = {"mode": mode, "triggered": False, "result": "none", "details": []}
 
           if mode not in {"observe_only", "stop_services", "dispatch_m13_teardown"}:
@@ -393,7 +403,7 @@ jobs:
           if service_names:
             for i in range(0, len(service_names), 10):
               chunk = service_names[i : i + 10]
-              payload = aws_json(["ecs", "describe-services", "--cluster", cluster, "--services", *chunk])
+              payload = aws_json(["ecs", "describe-services", "--cluster", cluster, "--services", *chunk], "ECS_POST_DESCRIBE_FAILED")
               for svc in payload.get("services", []):
                 post_service_rows.append(
                   {
@@ -442,7 +452,7 @@ jobs:
           PY
 
       - name: Upload idle guard snapshot to S3
-        if: ${{ github.event_name == 'schedule' || inputs.upload_evidence_to_s3 }}
+        if: ${{ github.event_name == 'schedule' || env.RESOLVED_UPLOAD_EVIDENCE == 'true' }}
         shell: bash
         run: |
           set -euo pipefail
