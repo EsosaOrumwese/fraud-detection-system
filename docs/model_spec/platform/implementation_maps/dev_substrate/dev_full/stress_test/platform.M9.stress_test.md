@@ -3,7 +3,7 @@ _Parent authority: `platform.stress_test.md`_
 _Status source of truth: `platform.stress_test.md`_
 _Track: `dev_full` only_
 _As of 2026-03-05_
-_Current posture: `S1_GREEN` (`M9-ST-S1` executed pass; next gate `M9_ST_S2_READY`)._
+_Current posture: `S2_GREEN` (`M9-ST-S2` executed pass; next gate `M9_ST_S3_READY`)._
 
 ## 0) Purpose
 M9 stress validates learning-input readiness under realistic production data behavior, deterministic run scope, and cost discipline.
@@ -392,14 +392,14 @@ Required stage outputs (phase-level):
 - [x] fail-closed blocker taxonomy and artifact contract pinned.
 - [x] `M9-ST-S0` executed and closed green.
 - [x] `M9-ST-S1` executed and closed green.
-- [ ] `M9-ST-S2` executed and closed green.
+- [x] `M9-ST-S2` executed and closed green.
 - [ ] `M9-ST-S3` executed and closed green.
 - [ ] `M9-ST-S4` executed and closed green.
 - [ ] `M9-ST-S5` executed and closed green with deterministic `M10_READY`.
 
 ## 12) Immediate Next Actions
-1. expand `scripts/dev_substrate/m9_stress_runner.py` from `S1` to `S2` (`E+F`) with deterministic blocker mapping.
-2. execute `M9-ST-S2` using upstream `m9_stress_s1_20260305T001004Z`.
+1. expand `scripts/dev_substrate/m9_stress_runner.py` from `S2` to `S3` (`G+H`) with deterministic blocker mapping.
+2. execute `M9-ST-S3` using upstream `m9_stress_s2_20260305T001721Z`.
 3. maintain fail-closed posture with targeted remediation only.
 
 ## 13) Execution Progress
@@ -428,6 +428,15 @@ Required stage outputs (phase-level):
    - `m9d_execution_id=m9d_stress_s1_20260305T001006Z` (`overall_pass=true`, `next_gate=M9.E_READY`).
 10. S1 evidence root:
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m9_stress_s1_20260305T001004Z/stress/`.
+11. `M9-ST-S2` executed pass:
+   - `phase_execution_id=m9_stress_s2_20260305T001721Z`,
+   - `overall_pass=true`, `open_blocker_count=0`,
+   - `verdict=GO`, `next_gate=M9_ST_S3_READY`.
+12. Native lane execution IDs in S2:
+   - `m9e_execution_id=m9e_stress_s2_20260305T001721Z` (`overall_pass=true`, `next_gate=M9.F_READY`),
+   - `m9f_execution_id=m9f_stress_s2_20260305T001723Z` (`overall_pass=true`, `next_gate=M9.G_READY`).
+13. S2 evidence root:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m9_stress_s2_20260305T001721Z/stress/`.
 
 ## 14) Reopen Notice (Strict Authority)
 1. M9 cannot be closed using historical 2026-02-26 receipts alone.

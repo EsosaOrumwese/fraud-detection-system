@@ -9958,3 +9958,87 @@ ext_gate=M8_READY, open_blockers=0.
    - M9 status `IN_PROGRESS (S1_GREEN)`,
    - dedicated status `S1_GREEN, S2_PENDING`,
    - next step `M9-ST-S2` with upstream `m9_stress_s1_20260305T001004Z`.
+
+## Entry: 2026-03-05 00:12 +00:00 - M9-ST-S2 design + execution plan (E+F)
+### Context
+1. USER requested immediate planning and execution of `M9-ST-S2`.
+2. `M9-ST-S1` is green (`m9_stress_s1_20260305T001004Z`) with:
+   - `m9c_execution_id=m9c_stress_s1_20260305T001004Z`,
+   - `m9d_execution_id=m9d_stress_s1_20260305T001006Z`,
+   - `next_gate=M9_ST_S2_READY`.
+3. Component contracts:
+   - `m9e` requires `UPSTREAM_M9D_EXECUTION`, validates leakage/future-boundary policy, and emits `next_gate=M9.F_READY` on pass.
+   - `m9f` requires `UPSTREAM_M9E_EXECUTION` and `UPSTREAM_M9B_EXECUTION`, validates runtime-learning surface separation, and emits `next_gate=M9.G_READY` on pass.
+
+### Decision
+1. Extend `m9_stress_runner.py` incrementally to support `S2` only, preserving `S0/S1` behavior.
+2. Add deterministic S2 entry checks:
+   - upstream S1 summary must be pass and `next_gate=M9_ST_S2_READY`,
+   - upstream `m9d_execution_id` must be present,
+   - upstream `m9b_execution_id` must be recovered from S0 referenced by S1 (`upstream_m9_s0_execution`).
+3. Execute native `E -> F` chain:
+   - call `m9e_leakage_guardrail.py`,
+   - call `m9f_runtime_learning_surface_separation.py`.
+4. Map failures fail-closed:
+   - `M9-ST-B5` for E failures,
+   - `M9-ST-B6` for F failures,
+   - `M9-ST-B11` for artifact contract/parity failures.
+5. Emit S2 parent receipts and guards with pass gate:
+   - `next_gate=M9_ST_S3_READY`,
+   - `verdict=GO`,
+   - `open_blocker_count=0`.
+
+### Planned edits
+1. `scripts/dev_substrate/m9_stress_runner.py`:
+   - add `S2_ARTS`,
+   - add `latest_s1()` selector,
+   - extend `finish()` for stage-specific gates (`S0`/`S1`/`S2`),
+   - implement `run_s2(...)`,
+   - extend CLI dispatch to `--stage S2`.
+2. Execute `M9-ST-S2` with `--upstream-m9-s1-execution m9_stress_s1_20260305T001004Z`.
+
+## Entry: 2026-03-05 00:18 +00:00 - M9-ST-S2 executed green
+### Implementation
+1. Extended `scripts/dev_substrate/m9_stress_runner.py`:
+   - added `S2_ARTS` contract,
+   - added `latest_s1()` selector,
+   - made `finish()` stage-aware (`S0 -> M9_ST_S1_READY`, `S1 -> M9_ST_S2_READY`, `S2 -> M9_ST_S3_READY`),
+   - implemented `run_s2(...)` with deterministic `E -> F` chain orchestration,
+   - extended CLI with `--stage S2` and `--upstream-m9-s1-execution`.
+2. `S2` logic enforces:
+   - S1 entry continuity check (`overall_pass=true`, `next_gate=M9_ST_S2_READY`),
+   - required `m9d_execution_id` presence,
+   - strict S1->S0 back-reference recovery for `m9b_execution_id` (required by `M9.F`),
+   - native `m9e` then `m9f` execution and pass-gate validation,
+   - parent guard snapshots (`runtime_locality`, `source_authority`, `realism`) and black-box guard continuity.
+
+### Validation and execution
+1. Compile validation:
+   - `python -m py_compile scripts/dev_substrate/m9_stress_runner.py scripts/dev_substrate/m9e_leakage_guardrail.py scripts/dev_substrate/m9f_runtime_learning_surface_separation.py` -> pass.
+2. Execution command:
+   - `python scripts/dev_substrate/m9_stress_runner.py --stage S2 --upstream-m9-s1-execution m9_stress_s1_20260305T001004Z`.
+3. Stage result:
+   - `phase_execution_id=m9_stress_s2_20260305T001721Z`,
+   - `overall_pass=true`, `open_blocker_count=0`,
+   - `verdict=GO`, `next_gate=M9_ST_S3_READY`.
+
+### Lane evidence
+1. `M9.E`:
+   - `execution_id=m9e_stress_s2_20260305T001721Z`,
+   - `overall_pass=true`, `next_gate=M9.F_READY`,
+   - run-scoped leakage guardrail report emitted:
+     - `evidence/runs/platform_20260223T184232Z/learning/input/leakage_guardrail_report.json`.
+2. `M9.F`:
+   - `execution_id=m9f_stress_s2_20260305T001723Z`,
+   - `overall_pass=true`, `next_gate=M9.G_READY`,
+   - runtime-learning surface separation snapshot emitted with zero blockers.
+
+### Documentation sync
+1. Updated `platform.M9.stress_test.md`:
+   - posture `S2_GREEN`,
+   - DoD `M9-ST-S2` checked,
+   - immediate next action switched to `M9-ST-S3`.
+2. Updated `platform.stress_test.md`:
+   - M9 status `IN_PROGRESS (S2_GREEN)`,
+   - dedicated status `S2_GREEN, S3_PENDING`,
+   - next step `M9-ST-S3` with upstream `m9_stress_s2_20260305T001721Z`.
