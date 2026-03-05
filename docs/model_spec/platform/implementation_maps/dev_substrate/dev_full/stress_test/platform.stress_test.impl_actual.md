@@ -10130,3 +10130,91 @@ ext_gate=M8_READY, open_blockers=0.
    - M9 status `IN_PROGRESS (S3_GREEN)`,
    - dedicated status `S3_GREEN, S4_PENDING`,
    - next step `M9-ST-S4` with upstream `m9_stress_s3_20260305T002230Z`.
+
+## Entry: 2026-03-05 00:26 +00:00 - M9-ST-S4 design + execution plan (I)
+### Context
+1. USER requested immediate planning and execution of `M9-ST-S4`.
+2. `M9-ST-S3` is green (`m9_stress_s3_20260305T002230Z`) with:
+   - `m9g_execution_id=m9g_stress_s3_20260305T002230Z`,
+   - `m9h_execution_id=m9h_stress_s3_20260305T002232Z`,
+   - `next_gate=M9_ST_S4_READY`.
+3. Component contract:
+   - `m9i` requires `UPSTREAM_M9A..UPSTREAM_M9H_EXECUTION`, validates continuity and cost envelope posture, and emits `verdict=ADVANCE_TO_M9J`, `next_gate=M9.J_READY` on pass.
+
+### Decision
+1. Extend `m9_stress_runner.py` incrementally to support `S4` only, preserving `S0..S3` behavior.
+2. Add deterministic S4 entry checks:
+   - upstream S3 summary must be pass and `next_gate=M9_ST_S4_READY`,
+   - recover and validate continuity chain:
+     - `S3 -> S2` for `m9e/m9f`,
+     - `S2 -> S1` for `m9c/m9d`,
+     - `S1 -> S0` for `m9a/m9b`,
+   - fail closed on unresolved upstream execution ids.
+3. Execute native `I` lane:
+   - call `m9i_phase_cost_closure.py`.
+4. Map failures fail-closed:
+   - `M9-ST-B10` for S4 continuity/cost-outcome failures,
+   - `M9-ST-B11` for S4 artifact publication/parity failures,
+   - `M9-ST-B15` for locality/source-authority/black-box guard failures.
+5. Emit S4 parent receipts and guards with pass gate:
+   - `next_gate=M9_ST_S5_READY`,
+   - `verdict=GO`,
+   - `open_blocker_count=0`.
+
+### Planned edits
+1. `scripts/dev_substrate/m9_stress_runner.py`:
+   - add `S4_ARTS`,
+   - add `latest_s3()` selector,
+   - extend `finish()` for stage-specific gates (`S0`..`S4`),
+   - implement `run_s4(...)`,
+   - extend CLI dispatch to `--stage S4`.
+2. Execute `M9-ST-S4` with `--upstream-m9-s3-execution m9_stress_s3_20260305T002230Z`.
+
+## Entry: 2026-03-05 00:29 +00:00 - M9-ST-S4 executed green
+### Implementation
+1. Extended `scripts/dev_substrate/m9_stress_runner.py`:
+   - added `S4_ARTS` contract,
+   - added `latest_s3()` selector,
+   - made `finish()` stage-aware (`S0 -> M9_ST_S1_READY`, `S1 -> M9_ST_S2_READY`, `S2 -> M9_ST_S3_READY`, `S3 -> M9_ST_S4_READY`, `S4 -> M9_ST_S5_READY`),
+   - implemented `run_s4(...)` with deterministic `I` lane orchestration,
+   - extended CLI with `--stage S4` and `--upstream-m9-s3-execution`.
+2. `S4` logic enforces:
+   - S3 entry continuity check (`overall_pass=true`, `next_gate=M9_ST_S4_READY`),
+   - strict continuity recovery chain:
+     - `S3 -> S2` for `m9e/m9f`,
+     - `S2 -> S1` for `m9c/m9d`,
+     - `S1 -> S0` for `m9a/m9b`,
+   - native `m9i` execution and pass-gate validation,
+   - parent guard snapshots (`runtime_locality`, `source_authority`, `realism`) and black-box guard continuity.
+
+### Validation and execution
+1. Compile validation:
+   - `python -m py_compile scripts/dev_substrate/m9_stress_runner.py scripts/dev_substrate/m9i_phase_cost_closure.py` -> pass.
+2. Execution command:
+   - `python scripts/dev_substrate/m9_stress_runner.py --stage S4 --upstream-m9-s3-execution m9_stress_s3_20260305T002230Z`.
+3. Stage result:
+   - `phase_execution_id=m9_stress_s4_20260305T002808Z`,
+   - `overall_pass=true`, `open_blocker_count=0`,
+   - `verdict=GO`, `next_gate=M9_ST_S5_READY`.
+
+### Lane evidence
+1. `M9.I`:
+   - `execution_id=m9i_stress_s4_20260305T002808Z`,
+   - `overall_pass=true`, `verdict=ADVANCE_TO_M9J`, `next_gate=M9.J_READY`,
+   - contract parity passed (`required=20`, `readable=20`, published output count `2/2`).
+2. Cost outcome:
+   - `m9_phase_cost_outcome_receipt.json` emitted with:
+     - `spend_amount=133.4288558572`,
+     - `spend_currency=USD`,
+     - `window_start_utc=2026-03-05T00:05:21.290236Z`,
+     - `window_end_utc=2026-03-05T00:28:08.592093Z`.
+
+### Documentation sync
+1. Updated `platform.M9.stress_test.md`:
+   - posture `S4_GREEN`,
+   - DoD `M9-ST-S4` checked,
+   - immediate next action switched to `M9-ST-S5`.
+2. Updated `platform.stress_test.md`:
+   - M9 status `IN_PROGRESS (S4_GREEN)`,
+   - dedicated status `S4_GREEN, S5_PENDING`,
+   - next step `M9-ST-S5` with upstream `m9_stress_s4_20260305T002808Z`.
