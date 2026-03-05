@@ -3,7 +3,7 @@ _Parent authority: `platform.stress_test.md`_
 _Status source of truth: `platform.stress_test.md`_
 _Track: `dev_full` only_
 _As of 2026-03-05_
-_Current posture: `S4_GREEN` (`M9-ST-S4` executed pass; next gate `M9_ST_S5_READY`)._
+_Current posture: `S5_GREEN` (`M9-ST-S5` executed pass; next gate `M10_READY`)._
 
 ## 0) Purpose
 M9 stress validates learning-input readiness under realistic production data behavior, deterministic run scope, and cost discipline.
@@ -395,11 +395,11 @@ Required stage outputs (phase-level):
 - [x] `M9-ST-S2` executed and closed green.
 - [x] `M9-ST-S3` executed and closed green.
 - [x] `M9-ST-S4` executed and closed green.
-- [ ] `M9-ST-S5` executed and closed green with deterministic `M10_READY`.
+- [x] `M9-ST-S5` executed and closed green with deterministic `M10_READY`.
 
 ## 12) Immediate Next Actions
-1. expand `scripts/dev_substrate/m9_stress_runner.py` from `S4` to `S5` (`J`) with deterministic blocker mapping.
-2. execute `M9-ST-S5` using upstream `m9_stress_s4_20260305T002808Z`.
+1. treat M9 as closed using strict closure authority `m9_stress_s5_20260305T003614Z`.
+2. begin M10 stress planning/execution from the M9 handoff gate `M10_READY`.
 3. maintain fail-closed posture with targeted remediation only.
 
 ## 13) Execution Progress
@@ -454,6 +454,14 @@ Required stage outputs (phase-level):
    - `m9i_execution_id=m9i_stress_s4_20260305T002808Z` (`overall_pass=true`, `verdict=ADVANCE_TO_M9J`, `next_gate=M9.J_READY`).
 19. S4 evidence root:
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m9_stress_s4_20260305T002808Z/stress/`.
+20. `M9-ST-S5` executed pass:
+   - `phase_execution_id=m9_stress_s5_20260305T003614Z`,
+   - `overall_pass=true`, `open_blocker_count=0`,
+   - `verdict=ADVANCE_TO_M10`, `next_gate=M10_READY`.
+21. Native lane execution IDs in S5:
+   - `m9j_execution_id=m9j_stress_s5_20260305T003614Z` (`overall_pass=true`, `verdict=ADVANCE_TO_M10`, `next_gate=M10_READY`).
+22. S5 evidence root:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m9_stress_s5_20260305T003614Z/stress/`.
 
 ## 14) Reopen Notice (Strict Authority)
 1. M9 cannot be closed using historical 2026-02-26 receipts alone.

@@ -10218,3 +10218,89 @@ ext_gate=M8_READY, open_blockers=0.
    - M9 status `IN_PROGRESS (S4_GREEN)`,
    - dedicated status `S4_GREEN, S5_PENDING`,
    - next step `M9-ST-S5` with upstream `m9_stress_s4_20260305T002808Z`.
+
+## Entry: 2026-03-05 00:31 +00:00 - M9-ST-S5 design + execution plan (J)
+### Context
+1. USER requested immediate planning and execution of `M9-ST-S5`.
+2. `M9-ST-S4` is green (`m9_stress_s4_20260305T002808Z`) with:
+   - `m9i_execution_id=m9i_stress_s4_20260305T002808Z`,
+   - `next_gate=M9_ST_S5_READY`.
+3. Component contract:
+   - `m9j` requires `UPSTREAM_M9A..UPSTREAM_M9I_EXECUTION`, validates end-to-end closure continuity and contract parity, and emits `verdict=ADVANCE_TO_M10`, `next_gate=M10_READY` on pass.
+
+### Decision
+1. Extend `m9_stress_runner.py` incrementally to support `S5` only, preserving `S0..S4` behavior.
+2. Add deterministic S5 entry checks:
+   - upstream S4 summary must be pass and `next_gate=M9_ST_S5_READY`,
+   - recover and validate continuity chain:
+     - `S4 -> S3` for `m9g/m9h`,
+     - `S3 -> S2` for `m9e/m9f`,
+     - `S2 -> S1` for `m9c/m9d`,
+     - `S1 -> S0` for `m9a/m9b`,
+   - fail closed on unresolved upstream execution ids.
+3. Execute native `J` lane:
+   - call `m9j_closure_sync.py`.
+4. Map failures fail-closed:
+   - `M9-ST-B10` for S5 continuity/closure-sync failures,
+   - `M9-ST-B11` for S5 artifact publication/parity failures,
+   - `M9-ST-B15` for locality/source-authority/black-box guard failures,
+   - `M9-ST-B16` for non-realistic closure posture.
+5. Emit S5 parent receipts and guards with final pass gate:
+   - `next_gate=M10_READY`,
+   - `verdict=ADVANCE_TO_M10`,
+   - `open_blocker_count=0`.
+
+### Planned edits
+1. `scripts/dev_substrate/m9_stress_runner.py`:
+   - add `S5_ARTS`,
+   - add `latest_s4()` selector,
+   - extend `finish()` for stage-specific gates (`S0`..`S5`),
+   - implement `run_s5(...)`,
+   - extend CLI dispatch to `--stage S5`.
+2. Execute `M9-ST-S5` with `--upstream-m9-s4-execution m9_stress_s4_20260305T002808Z`.
+
+## Entry: 2026-03-05 00:37 +00:00 - M9-ST-S5 executed green (M9 closed)
+### Implementation
+1. Extended `scripts/dev_substrate/m9_stress_runner.py`:
+   - added `S5_ARTS` contract,
+   - added `latest_s4()` selector,
+   - made `finish()` stage-aware (`S0 -> M9_ST_S1_READY`, `S1 -> M9_ST_S2_READY`, `S2 -> M9_ST_S3_READY`, `S3 -> M9_ST_S4_READY`, `S4 -> M9_ST_S5_READY`, `S5 -> M10_READY`),
+   - added stage-specific final verdict mapping (`S5 -> ADVANCE_TO_M10`),
+   - implemented `run_s5(...)` with deterministic `J` lane orchestration,
+   - extended CLI with `--stage S5` and `--upstream-m9-s4-execution`.
+2. `S5` logic enforces:
+   - S4 entry continuity check (`overall_pass=true`, `next_gate=M9_ST_S5_READY`),
+   - strict continuity recovery chain:
+     - `S4 -> S3` for `m9g/m9h`,
+     - `S3 -> S2` for `m9e/m9f`,
+     - `S2 -> S1` for `m9c/m9d`,
+     - `S1 -> S0` for `m9a/m9b`,
+   - native `m9j` execution and final pass-gate validation,
+   - parent guard snapshots (`runtime_locality`, `source_authority`, `realism`) and black-box guard continuity.
+
+### Validation and execution
+1. Compile validation:
+   - `python -m py_compile scripts/dev_substrate/m9_stress_runner.py scripts/dev_substrate/m9j_closure_sync.py` -> pass.
+2. Execution command:
+   - `python scripts/dev_substrate/m9_stress_runner.py --stage S5 --upstream-m9-s4-execution m9_stress_s4_20260305T002808Z`.
+3. Stage result:
+   - `phase_execution_id=m9_stress_s5_20260305T003614Z`,
+   - `overall_pass=true`, `open_blocker_count=0`,
+   - `verdict=ADVANCE_TO_M10`, `next_gate=M10_READY`.
+
+### Lane evidence
+1. `M9.J`:
+   - `execution_id=m9j_stress_s5_20260305T003614Z`,
+   - `overall_pass=true`, `verdict=ADVANCE_TO_M10`, `next_gate=M10_READY`.
+2. Parent closure stage:
+   - `m9_gate_verdict.json` confirms `overall_pass=true`, `verdict=ADVANCE_TO_M10`, `next_gate=M10_READY`.
+
+### Documentation sync
+1. Updated `platform.M9.stress_test.md`:
+   - posture `S5_GREEN`,
+   - DoD `M9-ST-S5` checked,
+   - M9 closure authority pinned to `m9_stress_s5_20260305T003614Z`.
+2. Updated `platform.stress_test.md`:
+   - M9 status `DONE (M10_READY)`,
+   - dedicated status `S5_GREEN, M10_READY`,
+   - next step set to begin M10 stress planning from strict M9 closure authority.
