@@ -11855,3 +11855,95 @@ ext_gate=M8_READY, open_blockers=0.
 1. `M12-ST-B3` is cleared.
 2. M12 advances to `S2` under strict authority (`m12_stress_s1_20260305T074035Z`).
 3. Documentation/state files updated to `S1_GREEN` posture and `M12_ST_S2_READY`.
+
+## Entry: 2026-03-05 08:24 +00:00 - M12-ST-S2 implementation surface materialized before execution
+### Trigger
+1. User directed: execute `M12-ST-S2` from strict upstream `m12_stress_s1_20260305T074035Z`.
+
+### Implementation completed for execution readiness
+1. Added `scripts/dev_substrate/m12d_promotion_commit.py` wrapper:
+   - managed dispatch `m12_subphase=D`, `execution_mode=m12d_execute`,
+   - gate contract: `M12.E_READY` + `ADVANCE_TO_M12_E`,
+   - artifact materialization: `m12d_promotion_commit_snapshot`, blocker register, execution summary.
+2. Added `scripts/dev_substrate/m12e_rollback_drill.py` wrapper:
+   - managed dispatch `m12_subphase=E`, `execution_mode=m12e_execute`,
+   - gate contract: `M12.F_READY` + `ADVANCE_TO_M12_F`,
+   - artifact materialization: `m12e_rollback_drill_snapshot`, blocker register, execution summary.
+3. Extended `scripts/dev_substrate/m12_stress_runner.py`:
+   - added `S2_ARTS`,
+   - added `latest_s1()` selector,
+   - added `run_s2(...)` fail-closed orchestration (`D -> E`),
+   - added stage mapping `S2 pass -> M12_ST_S3_READY`,
+   - added CLI support for `--stage S2 --upstream-m12-s1-execution`.
+
+### S2 fail-closed contract
+1. Entry requires strict `S1` pass (`next_gate=M12_ST_S2_READY`, zero blockers).
+2. `M12.D` failure maps to `M12-ST-B4`; `M12.E` failure maps to `M12-ST-B5`.
+3. Managed quota/access pressure maps to `M12-ST-B19`.
+4. No progression beyond S2 unless parent emits `overall_pass=true` and `next_gate=M12_ST_S3_READY`.
+
+## Entry: 2026-03-05 08:31 +00:00 - S2 remediation plan for parent artifact-parity blocker (M12-ST-B11)
+### Observed blocker
+1. Parent `S2` run `m12_stress_s2_20260305T082439Z` failed with `M12-ST-B11` due missing local outputs:
+   - `m12d_registry_lifecycle_event.json`,
+   - `m12d_broker_transport_proof.json`,
+   - `m12d_learning_registry_publication_receipt.json`.
+2. Lane truth is green (`M12.D` and `M12.E` summaries both pass), so this is an orchestration materialization gap, not a runtime contract failure.
+
+### Decision
+1. Keep parent artifact contract strict (do not remove required artifacts from `S2_ARTS`).
+2. Patch `m12d_promotion_commit.py` to fetch/write the three managed artifacts to local run_dir.
+3. Rerun strict `S2` from same upstream `m12_stress_s1_20260305T074035Z`.
+
+## Entry: 2026-03-05 08:32 +00:00 - Pre-edit decision for M12-ST-B11 remediation in S2
+### Trigger
+1. User directed execution of `M12-ST-S2` from strict upstream `m12_stress_s1_20260305T074035Z`.
+2. Parent S2 fail-closed on `M12-ST-B11` due missing local artifact parity for `M12.D`.
+
+### Root cause
+1. Parent S2 contract (`S2_ARTS`) requires three `M12.D` outputs:
+   - `m12d_registry_lifecycle_event.json`,
+   - `m12d_broker_transport_proof.json`,
+   - `m12d_learning_registry_publication_receipt.json`.
+2. `m12d_promotion_commit.py` currently reads/materializes only snapshot/register/summary from managed S3 output.
+3. Lane authority is otherwise green (`M12.D` + `M12.E` pass), therefore blocker is orchestration materialization drift, not managed lane gate failure.
+
+### Decision
+1. Keep parent artifact contract strict (no contract relaxation).
+2. Patch `scripts/dev_substrate/m12d_promotion_commit.py` to fetch/materialize the three missing `M12.D` artifacts from managed evidence.
+3. Rerun strict S2 from unchanged upstream `m12_stress_s1_20260305T074035Z`.
+4. Maintain fail-closed posture: unreadable required artifact remains blocker `M12-B4`/`M12-ST-B11`.
+
+### Validation plan
+1. `python -m py_compile scripts/dev_substrate/m12d_promotion_commit.py scripts/dev_substrate/m12_stress_runner.py`.
+2. `python scripts/dev_substrate/m12_stress_runner.py --stage S2 --upstream-m12-s1-execution m12_stress_s1_20260305T074035Z`.
+3. Accept only if parent summary emits `overall_pass=true`, `next_gate=M12_ST_S3_READY`, `open_blocker_count=0`.
+
+## Entry: 2026-03-05 08:41 +00:00 - M12-ST-B11 remediated and strict S2 rerun closed green
+### Remediation implemented
+1. Patched `scripts/dev_substrate/m12d_promotion_commit.py` to materialize required `M12.D` artifacts expected by parent `S2` artifact contract:
+   - `m12d_registry_lifecycle_event.json`,
+   - `m12d_broker_transport_proof.json`,
+   - `m12d_learning_registry_publication_receipt.json`.
+2. Wrapper now reads these artifacts from managed S3 evidence and writes local copies into `_m12d` run dir.
+3. Fail-closed behavior is preserved:
+   - unreadable artifact raises `M12-B4` blocker,
+   - fallback artifact stubs are emitted only to preserve artifact parity and keep blocker causality explicit.
+
+### Validation + execution
+1. Compile check passed:
+   - `python -m py_compile scripts/dev_substrate/m12d_promotion_commit.py scripts/dev_substrate/m12e_rollback_drill.py scripts/dev_substrate/m12_stress_runner.py`.
+2. Strict rerun executed:
+   - `python scripts/dev_substrate/m12_stress_runner.py --stage S2 --upstream-m12-s1-execution m12_stress_s1_20260305T074035Z`.
+3. Parent outcome:
+   - `phase_execution_id=m12_stress_s2_20260305T083332Z`,
+   - `overall_pass=true`,
+   - `open_blocker_count=0`,
+   - `next_gate=M12_ST_S3_READY`.
+4. Lane outcomes:
+   - `M12.D`: `m12d_stress_s2_20260305T083332Z` pass (`ADVANCE_TO_M12_E`, `M12.E_READY`),
+   - `M12.E`: `m12e_stress_s2_20260305T083639Z` pass (`ADVANCE_TO_M12_F`, `M12.F_READY`).
+
+### State synchronization
+1. Updated `platform.M12.stress_test.md` to `S2_GREEN`, checked S2 DoD, and routed next step to strict `S3`.
+2. Updated `platform.stress_test.md` M12 row/program status/active-phase receipts to `S2_GREEN` and `M12_ST_S3_READY`.
