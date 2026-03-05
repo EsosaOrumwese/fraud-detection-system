@@ -3,7 +3,7 @@ _Parent authority: `platform.stress_test.md`_
 _Status source of truth: `platform.stress_test.md`_
 _Track: `dev_full` only_
 _As of 2026-03-05_
-_Current posture: `S1_GREEN` (strict `M11-ST-S1` executed green; next gate `M11_ST_S2_READY`)._
+_Current posture: `S2_GREEN` (strict `M11-ST-S2` executed green; next gate `M11_ST_S3_READY`)._
 
 ## 0) Purpose
 M11 stress validates managed model-factory train/eval closure under realistic production pressure with deterministic provenance and fail-closed gate semantics.
@@ -43,8 +43,8 @@ Legacy receipts (history only, not closure authority):
 | --- | --- | --- | --- |
 | `M11-ST-F1` | `ACCEPT` | strict M10 closure authority is green and deterministic for M11 entry. | use `m10_stress_s5_20260305T014017Z` as sole entry authority. |
 | `M11-ST-F2` | `ACCEPT` | dedicated M11 stress authority is now pinned in `stress_test/`. | maintain this file as sole M11 stress authority. |
-| `M11-ST-F3` | `ACCEPT` | parent M11 stress orchestrator now exists for `S0` and enforces fail-closed gates. | extend stage-by-stage (`S1..S5`) under the same fail-closed contract. |
-| `M11-ST-F4` | `PREVENT` | execution-lane implementation remains partial (`m11a,m11b` present; `m11c..m11j` missing). | fail closed for any stage requiring missing lanes until implementation is complete. |
+| `M11-ST-F3` | `ACCEPT` | parent M11 stress orchestrator now exists for `S0..S2` and enforces fail-closed gates. | extend stage-by-stage (`S3..S5`) under the same fail-closed contract. |
+| `M11-ST-F4` | `PREVENT` | execution-lane implementation remains partial (`m11a..m11f` present; `m11g..m11j` pending). | fail closed for any stage requiring missing lanes until implementation is complete. |
 | `M11-ST-F5` | `PREVENT` | historical M11 receipts can be mistaken for current closure authority. | enforce stale-evidence rejection and run-scope continuity checks at every stage. |
 | `M11-ST-F6` | `PREVENT` | without explicit non-gate acceptance checks, chain pass can mask weak production readiness. | require utility/reproducibility/operability/auditability/decision-quality artifacts before closure. |
 | `M11-ST-F7` | `OBSERVE` | SageMaker managed quotas and regional capacity can bottleneck `M11.D`. | include explicit quota/capacity diagnostics and targeted remediation lane in S1. |
@@ -360,18 +360,18 @@ Required stage outputs (phase-level):
 - [x] missing execution-lane implementations and parent runner pinned as explicit `PREVENT` findings.
 - [x] `M11-ST-S0` executed and closed green.
 - [x] `M11-ST-S1` executed and closed green.
-- [ ] `M11-ST-S2` executed and closed green.
+- [x] `M11-ST-S2` executed and closed green.
 - [ ] `M11-ST-S3` executed and closed green.
 - [ ] `M11-ST-S4` executed and closed green.
 - [ ] `M11-ST-S5` executed and closed green with deterministic `M12_READY` and non-gate acceptance pass.
 
 ## 12) Immediate Next Actions
-1. implement `M11-ST-S2` lanes and parent dispatch:
-   - `scripts/dev_substrate/m11e_eval_gate.py`,
-   - `scripts/dev_substrate/m11f_mlflow_lineage.py`,
-   - extend `scripts/dev_substrate/m11_stress_runner.py` for `S2`.
-2. execute `M11-ST-S2` from strict upstream `m11_stress_s1_20260305T023231Z`.
-3. fail closed on first blocker and remediate in-lane until `next_gate=M11_ST_S3_READY` with `open_blocker_count=0`.
+1. implement `M11-ST-S3` lanes and parent dispatch:
+   - `scripts/dev_substrate/m11g_candidate_bundle.py`,
+   - `scripts/dev_substrate/m11h_safe_disable_rollback.py`,
+   - extend `scripts/dev_substrate/m11_stress_runner.py` for `S3`.
+2. execute `M11-ST-S3` from strict upstream `m11_stress_s2_20260305T030101Z`.
+3. fail closed on first blocker and remediate in-lane until `next_gate=M11_ST_S4_READY` with `open_blocker_count=0`.
 
 ## 13) Execution Progress
 1. M11 detailed stress authority is pinned and active.
@@ -384,20 +384,29 @@ Required stage outputs (phase-level):
    - added `scripts/dev_substrate/m11c_input_immutability.py`,
    - added `scripts/dev_substrate/m11d_train_eval_execution.py`,
    - extended `scripts/dev_substrate/m11_stress_runner.py` for `S1`.
-5. S0 readiness closure proof:
+5. `M11-ST-S2` implementation closure:
+   - added `scripts/dev_substrate/m11e_eval_gate.py`,
+   - added `scripts/dev_substrate/m11f_mlflow_lineage.py`,
+   - extended `scripts/dev_substrate/m11_stress_runner.py` for `S2`.
+6. S0 readiness closure proof:
    - IAM role check pass (`fraud-platform-dev-full-sagemaker-execution`, trust includes `sagemaker.amazonaws.com`),
    - SSM parity pass for role ARN and MLflow tracking URI handles,
    - SageMaker control-plane probes pass (`list_training_jobs`, `list_model_package_groups`),
    - package group `fraud-platform-dev-full-models` readiness pass (`describe_ok`), no advisories.
-6. `M11-ST-S1` fail-closed remediation chronology:
+7. `M11-ST-S1` fail-closed remediation chronology:
    - blocked run: `m11_stress_s1_20260305T022412Z` (`M11.C` immutable-input schema mismatch),
    - blocked run: `m11_stress_s1_20260305T022940Z` (single residual fingerprint canonicalization mismatch),
    - remediated green run: `m11_stress_s1_20260305T023231Z` (`overall_pass=true`, `open_blocker_count=0`, `next_gate=M11_ST_S2_READY`).
-7. Final strict-chain upstream for next stage:
+8. `M11-ST-S2` fail-closed remediation chronology:
+   - blocked run: `m11_stress_s2_20260305T024944Z` (`M11-ST-B6`, run-selection mismatch in `M11.F` wrapper),
+   - blocked run: `m11_stress_s2_20260305T025209Z` (`M11-ST-B5/B6`, metadata strictness on GH run-id discoverability),
+   - remediated green run: `m11_stress_s2_20260305T030101Z` (`overall_pass=true`, `open_blocker_count=0`, `next_gate=M11_ST_S3_READY`).
+9. Final strict-chain upstream for next stage:
    - `M11-ST-S0`: `m11_stress_s0_20260305T023211Z` (`overall_pass=true`, `next_gate=M11_ST_S1_READY`),
-   - `M11-ST-S1`: `m11_stress_s1_20260305T023231Z` (`overall_pass=true`, `next_gate=M11_ST_S2_READY`).
-8. Current evidence root:
-   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m11_stress_s1_20260305T023231Z/stress/`.
+   - `M11-ST-S1`: `m11_stress_s1_20260305T023231Z` (`overall_pass=true`, `next_gate=M11_ST_S2_READY`),
+   - `M11-ST-S2`: `m11_stress_s2_20260305T030101Z` (`overall_pass=true`, `next_gate=M11_ST_S3_READY`).
+10. Current evidence root:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m11_stress_s2_20260305T030101Z/stress/`.
 
 ## 14) Reopen Notice (Strict Authority)
 1. M11 cannot be closed using historical 2026-02-26/27 receipts alone.

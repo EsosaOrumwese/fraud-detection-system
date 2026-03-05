@@ -53,6 +53,26 @@ S1_ARTS = [
     "m11_gate_verdict.json",
 ]
 
+S2_ARTS = [
+    "m11_stagea_findings.json",
+    "m11_lane_matrix.json",
+    "m11_eval_vs_baseline_report.json",
+    "m11_leakage_provenance_check.json",
+    "m11e_eval_gate_snapshot.json",
+    "m11e_blocker_register.json",
+    "m11e_execution_summary.json",
+    "m11f_mlflow_lineage_snapshot.json",
+    "m11f_blocker_register.json",
+    "m11f_execution_summary.json",
+    "m11_runtime_locality_guard_snapshot.json",
+    "m11_source_authority_guard_snapshot.json",
+    "m11_realism_guard_snapshot.json",
+    "m11_blocker_register.json",
+    "m11_execution_summary.json",
+    "m11_decision_log.json",
+    "m11_gate_verdict.json",
+]
+
 
 def now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -185,6 +205,28 @@ def latest_s0() -> tuple[str, dict[str, Any]]:
     return best_id, best_payload
 
 
+def latest_s1() -> tuple[str, dict[str, Any]]:
+    best_id = ""
+    best_payload: dict[str, Any] = {}
+    best_stamp = ""
+    for d in OUT_ROOT.glob("m11_stress_s1_*"):
+        payload = loadj(d / "stress" / "m11_execution_summary.json")
+        if not payload:
+            continue
+        if str(payload.get("stage_id", "")) != "M11-ST-S1":
+            continue
+        if not bool(payload.get("overall_pass")):
+            continue
+        if str(payload.get("next_gate", "")) != "M11_ST_S2_READY":
+            continue
+        stamp = str(payload.get("generated_at_utc", ""))
+        if (stamp, d.name) > (best_stamp, best_id):
+            best_id = d.name
+            best_payload = payload
+            best_stamp = stamp
+    return best_id, best_payload
+
+
 def finish(
     stage: str,
     phase_execution_id: str,
@@ -217,6 +259,9 @@ def finish(
         verdict = "GO"
     elif overall_pass and stage == "S1":
         next_gate = "M11_ST_S2_READY"
+        verdict = "GO"
+    elif overall_pass and stage == "S2":
+        next_gate = "M11_ST_S3_READY"
         verdict = "GO"
     else:
         next_gate = "HOLD_REMEDIATE"
@@ -1130,12 +1175,333 @@ def run_s1(phase_execution_id: str, upstream_m11_s0_execution: str) -> int:
     )
 
 
+def run_s2(phase_execution_id: str, upstream_m11_s1_execution: str) -> int:
+    out = OUT_ROOT / phase_execution_id / "stress"
+    out.mkdir(parents=True, exist_ok=True)
+    blockers: list[dict[str, Any]] = []
+    advisories: list[str] = []
+
+    plan_text = PLAN.read_text(encoding="utf-8") if PLAN.exists() else ""
+    packet = parse_plan_packet(plan_text)
+    reg = parse_registry(REG) if REG.exists() else {}
+
+    scripts_required = [
+        "scripts/dev_substrate/m11e_eval_gate.py",
+        "scripts/dev_substrate/m11f_mlflow_lineage.py",
+    ]
+    for script_path in scripts_required:
+        if not Path(script_path).exists():
+            add_blocker(
+                blockers,
+                "M11-ST-B18",
+                "S2",
+                {"reason": "required_stage_script_missing", "script": script_path},
+            )
+
+    value = reg.get("S3_EVIDENCE_BUCKET")
+    if value is None or is_placeholder(value):
+        add_blocker(blockers, "M11-ST-B5", "S2", {"reason": "required_handle_missing_or_placeholder", "handle": "S3_EVIDENCE_BUCKET"})
+    bucket = str(reg.get("S3_EVIDENCE_BUCKET", "")).strip()
+
+    s1_exec = upstream_m11_s1_execution.strip()
+    s1 = loadj(OUT_ROOT / s1_exec / "stress" / "m11_execution_summary.json") if s1_exec else {}
+    if not s1:
+        add_blocker(
+            blockers,
+            "M11-ST-B5",
+            "S2",
+            {
+                "reason": "upstream_s1_summary_missing",
+                "path": (OUT_ROOT / s1_exec / "stress" / "m11_execution_summary.json").as_posix(),
+            },
+        )
+    elif not bool(s1.get("overall_pass")) or str(s1.get("next_gate", "")) != "M11_ST_S2_READY":
+        add_blocker(
+            blockers,
+            "M11-ST-B5",
+            "S2",
+            {
+                "reason": "upstream_s1_not_ready",
+                "summary": {
+                    "overall_pass": s1.get("overall_pass"),
+                    "next_gate": s1.get("next_gate"),
+                    "open_blocker_count": s1.get("open_blocker_count"),
+                },
+            },
+        )
+
+    m11d_exec = str(s1.get("m11d_execution_id", "")).strip() if s1 else ""
+    if not m11d_exec:
+        add_blocker(blockers, "M11-ST-B5", "S2", {"reason": "missing_m11d_execution_id_from_s1_summary"})
+
+    m11e_exec = ""
+    m11e_summary: dict[str, Any] = {}
+    if Path("scripts/dev_substrate/m11e_eval_gate.py").exists() and m11d_exec:
+        m11e_exec = f"m11e_stress_s2_{tok()}"
+        m11e_dir = out / "_m11e"
+        env_m11e = dict(os.environ)
+        env_m11e.update(
+            {
+                "M11E_EXECUTION_ID": m11e_exec,
+                "M11E_RUN_DIR": m11e_dir.as_posix(),
+                "EVIDENCE_BUCKET": bucket,
+                "UPSTREAM_M11D_EXECUTION": m11d_exec,
+                "AWS_REGION": "eu-west-2",
+            }
+        )
+        rc, _, err = run(["python", "scripts/dev_substrate/m11e_eval_gate.py"], timeout=7200, env=env_m11e)
+        if rc != 0:
+            add_blocker(
+                blockers,
+                "M11-ST-B5",
+                "S2",
+                {"reason": "m11e_command_failed", "stderr": err.strip()[:300], "rc": rc},
+            )
+
+        m11e_summary = loadj(m11e_dir / "m11e_execution_summary.json")
+        m11e_snapshot = loadj(m11e_dir / "m11e_eval_gate_snapshot.json")
+        m11e_register = loadj(m11e_dir / "m11e_blocker_register.json")
+        m11e_baseline = loadj(m11e_dir / "m11_eval_vs_baseline_report.json")
+        m11e_prov = loadj(m11e_dir / "m11_leakage_provenance_check.json")
+        if m11e_snapshot:
+            dumpj(out / "m11e_eval_gate_snapshot.json", m11e_snapshot)
+            if isinstance(m11e_snapshot.get("notes"), list):
+                advisories.extend([str(x) for x in m11e_snapshot.get("notes", [])])
+        if m11e_register:
+            dumpj(out / "m11e_blocker_register.json", m11e_register)
+        if m11e_summary:
+            dumpj(out / "m11e_execution_summary.json", m11e_summary)
+        if m11e_baseline:
+            dumpj(out / "m11_eval_vs_baseline_report.json", m11e_baseline)
+        if m11e_prov:
+            dumpj(out / "m11_leakage_provenance_check.json", m11e_prov)
+
+        if not m11e_summary:
+            add_blocker(blockers, "M11-ST-B5", "S2", {"reason": "m11e_summary_missing"})
+        elif not (bool(m11e_summary.get("overall_pass")) and str(m11e_summary.get("next_gate", "")) == "M11.F_READY"):
+            add_blocker(blockers, "M11-ST-B5", "S2", {"reason": "m11e_not_ready", "summary": m11e_summary})
+
+        if m11e_register and isinstance(m11e_register.get("blockers"), list):
+            quota_signal = False
+            for row in m11e_register.get("blockers", []):
+                if not isinstance(row, dict):
+                    continue
+                text = " ".join(
+                    [
+                        str(row.get("message", "")),
+                        str(row.get("detail", "")),
+                        str(row.get("surface", "")),
+                    ]
+                ).lower()
+                if any(token in text for token in ("resourcelimit", "quota", "throttl", "accessdenied", "access denied")):
+                    quota_signal = True
+                    break
+            if quota_signal:
+                add_blocker(
+                    blockers,
+                    "M11-ST-B19",
+                    "S2",
+                    {"reason": "managed_quota_or_access_boundary_pressure_detected_in_m11e"},
+                )
+
+    m11f_exec = ""
+    m11f_summary: dict[str, Any] = {}
+    if Path("scripts/dev_substrate/m11f_mlflow_lineage.py").exists() and m11e_exec:
+        m11f_exec = f"m11f_stress_s2_{tok()}"
+        m11f_dir = out / "_m11f"
+        env_m11f = dict(os.environ)
+        env_m11f.update(
+            {
+                "M11F_EXECUTION_ID": m11f_exec,
+                "M11F_RUN_DIR": m11f_dir.as_posix(),
+                "EVIDENCE_BUCKET": bucket,
+                "UPSTREAM_M11E_EXECUTION": m11e_exec,
+                "AWS_REGION": "eu-west-2",
+            }
+        )
+        rc, _, err = run(["python", "scripts/dev_substrate/m11f_mlflow_lineage.py"], timeout=9000, env=env_m11f)
+        if rc != 0:
+            add_blocker(
+                blockers,
+                "M11-ST-B6",
+                "S2",
+                {"reason": "m11f_command_failed", "stderr": err.strip()[:300], "rc": rc},
+            )
+        m11f_summary = loadj(m11f_dir / "m11f_execution_summary.json")
+        m11f_snapshot = loadj(m11f_dir / "m11f_mlflow_lineage_snapshot.json")
+        m11f_register = loadj(m11f_dir / "m11f_blocker_register.json")
+        if m11f_snapshot:
+            dumpj(out / "m11f_mlflow_lineage_snapshot.json", m11f_snapshot)
+            if isinstance(m11f_snapshot.get("notes"), list):
+                advisories.extend([str(x) for x in m11f_snapshot.get("notes", [])])
+        if m11f_register:
+            dumpj(out / "m11f_blocker_register.json", m11f_register)
+        if m11f_summary:
+            dumpj(out / "m11f_execution_summary.json", m11f_summary)
+        if not m11f_summary:
+            add_blocker(blockers, "M11-ST-B6", "S2", {"reason": "m11f_summary_missing"})
+        elif not (bool(m11f_summary.get("overall_pass")) and str(m11f_summary.get("next_gate", "")) == "M11.G_READY"):
+            add_blocker(blockers, "M11-ST-B6", "S2", {"reason": "m11f_not_ready", "summary": m11f_summary})
+
+        if m11f_register and isinstance(m11f_register.get("blockers"), list):
+            quota_signal = False
+            for row in m11f_register.get("blockers", []):
+                if not isinstance(row, dict):
+                    continue
+                text = " ".join(
+                    [
+                        str(row.get("message", "")),
+                        str(row.get("detail", "")),
+                        str(row.get("surface", "")),
+                    ]
+                ).lower()
+                if any(token in text for token in ("resourcelimit", "quota", "throttl", "accessdenied", "access denied")):
+                    quota_signal = True
+                    break
+            if quota_signal:
+                add_blocker(
+                    blockers,
+                    "M11-ST-B19",
+                    "S2",
+                    {"reason": "managed_quota_or_access_boundary_pressure_detected_in_m11f"},
+                )
+    elif not m11e_exec:
+        add_blocker(
+            blockers,
+            "M11-ST-B6",
+            "S2",
+            {"reason": "m11f_skipped_missing_upstream_m11e_execution"},
+        )
+
+    stage_findings = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_execution_id,
+        "stage_id": "M11-ST-S2",
+        "findings": [
+            {
+                "id": "M11-ST-F9",
+                "classification": "OBSERVE",
+                "status": "CLOSED" if all(Path(p).exists() for p in scripts_required) else "OPEN",
+                "note": "S2 required execution scripts are present and executable.",
+            },
+            {
+                "id": "M11-ST-F7",
+                "classification": "OBSERVE",
+                "status": "OPEN" if len([b for b in blockers if b.get("id") == "M11-ST-B19"]) > 0 else "CLOSED",
+                "note": "Managed quota/capacity pressure surfaced by E/F lanes is projected to M11-ST-B19.",
+            },
+        ],
+    }
+    dumpj(out / "m11_stagea_findings.json", stage_findings)
+
+    lane_matrix = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_execution_id,
+        "stage_id": "M11-ST-S2",
+        "lanes": [
+            {
+                "lane": "E",
+                "component": "M11.E",
+                "execution_id": m11e_exec,
+                "overall_pass": bool(m11e_summary.get("overall_pass")) if m11e_summary else False,
+                "next_gate": str(m11e_summary.get("next_gate", "")) if m11e_summary else "",
+            },
+            {
+                "lane": "F",
+                "component": "M11.F",
+                "execution_id": m11f_exec,
+                "overall_pass": bool(m11f_summary.get("overall_pass")) if m11f_summary else False,
+                "next_gate": str(m11f_summary.get("next_gate", "")) if m11f_summary else "",
+            },
+        ],
+    }
+    dumpj(out / "m11_lane_matrix.json", lane_matrix)
+
+    runtime_locality_ok = bool(packet.get("M11_STRESS_REQUIRE_REMOTE_RUNTIME_ONLY", True))
+    if not runtime_locality_ok:
+        add_blocker(blockers, "M11-ST-B16", "S2", {"reason": "runtime_locality_policy_not_true"})
+    dumpj(
+        out / "m11_runtime_locality_guard_snapshot.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M11-ST-S2",
+            "overall_pass": runtime_locality_ok,
+            "require_remote_runtime_only": bool(packet.get("M11_STRESS_REQUIRE_REMOTE_RUNTIME_ONLY", True)),
+            "runtime_execution_attempted": False,
+            "runtime_execution_mode": "local_control_orchestration_only_remote_runtime",
+        },
+    )
+
+    refs = [
+        f"evidence/dev_full/run_control/{s1_exec}/stress/m11_execution_summary.json" if s1_exec else "",
+        f"evidence/dev_full/run_control/{m11d_exec}/m11d_execution_summary.json" if m11d_exec else "",
+        f"evidence/dev_full/run_control/{m11e_exec}/m11e_execution_summary.json" if m11e_exec else "",
+        f"evidence/dev_full/run_control/{m11f_exec}/m11f_execution_summary.json" if m11f_exec else "",
+    ]
+    source_guard_ok = len([b for b in blockers if b.get("id") in {"M11-ST-B12", "M11-ST-B16"}]) == 0
+    dumpj(
+        out / "m11_source_authority_guard_snapshot.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M11-ST-S2",
+            "overall_pass": source_guard_ok,
+            "authoritative_refs": refs,
+            "evidence_bucket": bucket,
+            "runtime_locality_only_control_plane": True,
+        },
+    )
+
+    realism_ok = bool(packet.get("M11_STRESS_DISALLOW_WAIVED_REALISM", True))
+    if not realism_ok:
+        add_blocker(blockers, "M11-ST-B17", "S2", {"reason": "realism_guard_not_true"})
+    dumpj(
+        out / "m11_realism_guard_snapshot.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M11-ST-S2",
+            "overall_pass": realism_ok,
+            "disallow_waived_realism": bool(packet.get("M11_STRESS_DISALLOW_WAIVED_REALISM", True)),
+        },
+    )
+
+    if not bool(packet.get("M11_STRESS_REQUIRE_DATA_ENGINE_BLACKBOX", True)):
+        add_blocker(blockers, "M11-ST-B16", "S2", {"reason": "data_engine_blackbox_guard_not_true"})
+
+    platform_run_id = str(s1.get("platform_run_id", "")) if s1 else ""
+    scenario_run_id = str(s1.get("scenario_run_id", "")) if s1 else ""
+    return finish(
+        "S2",
+        phase_execution_id,
+        out,
+        blockers,
+        S2_ARTS,
+        {
+            "platform_run_id": platform_run_id,
+            "scenario_run_id": scenario_run_id,
+            "upstream_m11_s1_execution": s1_exec,
+            "m11d_execution_id": m11d_exec,
+            "m11e_execution_id": m11e_exec,
+            "m11f_execution_id": m11f_exec,
+            "decisions": [
+                "S2 enforced strict M11 S1 entry continuity before executing lane E.",
+                "S2 executed M11.E eval adjudication lane via managed workflow and required deterministic M11.F_READY output.",
+                "S2 executed M11.F lineage/provenance lane via managed workflow and required deterministic M11.G_READY output.",
+            ],
+            "advisories": advisories,
+        },
+    )
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="M11 stress runner")
-    ap.add_argument("--stage", required=True, choices=["S0", "S1"])
+    ap.add_argument("--stage", required=True, choices=["S0", "S1", "S2"])
     ap.add_argument("--phase-execution-id", default="")
     ap.add_argument("--upstream-m10-s5-execution", default="")
     ap.add_argument("--upstream-m11-s0-execution", default="")
+    ap.add_argument("--upstream-m11-s1-execution", default="")
     args = ap.parse_args()
 
     phase_execution_id = args.phase_execution_id.strip()
@@ -1144,6 +1510,8 @@ def main() -> int:
             phase_execution_id = f"m11_stress_s0_{tok()}"
         elif args.stage == "S1":
             phase_execution_id = f"m11_stress_s1_{tok()}"
+        elif args.stage == "S2":
+            phase_execution_id = f"m11_stress_s2_{tok()}"
 
     if args.stage == "S0":
         upstream_m10_s5 = args.upstream_m10_s5_execution.strip()
@@ -1160,6 +1528,14 @@ def main() -> int:
         if not upstream_m11_s0:
             raise SystemExit("No upstream M11 S0 execution provided/found.")
         return run_s1(phase_execution_id, upstream_m11_s0)
+
+    if args.stage == "S2":
+        upstream_m11_s1 = args.upstream_m11_s1_execution.strip()
+        if not upstream_m11_s1:
+            upstream_m11_s1, _ = latest_s1()
+        if not upstream_m11_s1:
+            raise SystemExit("No upstream M11 S1 execution provided/found.")
+        return run_s2(phase_execution_id, upstream_m11_s1)
 
     raise SystemExit("Unsupported stage")
 

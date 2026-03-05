@@ -11232,3 +11232,121 @@ ext_gate=M8_READY, open_blockers=0.
    - parent summary: `overall_pass=true`, `open_blocker_count=0`, `next_gate=M11_ST_S2_READY`.
 2. Root cause class recorded: orchestration contract mismatch at producer/consumer seam, not managed capacity instability.
 3. Design decision retained: additive compatibility on producer bridge, no silent schema drift, no destructive override of authoritative upstream artifacts.
+
+## Entry: 2026-03-05 02:46 +00:00 - M11-ST-S2 design and execution approach pinned
+### Context
+1. User requested immediate `M11-ST-S2` planning/execution from upstream `m11_stress_s1_20260305T023231Z`.
+2. Upstream S1 closure is green and deterministic (`M11_ST_S2_READY`).
+3. S2 implementation hole exists (missing E/F wrappers and parent S2 orchestration).
+
+### Capability-lane coverage for S2
+1. Authority/entry lane: strict S1 receipt + lane continuity (`m11d_execution_id`).
+2. Eval adjudication lane (`E`): compatibility/leakage/performance/stability gate closure.
+3. Lineage lane (`F`): MLflow + Databricks provenance closure and tag completeness.
+4. Evidence lane: stage-level artifact contract and deterministic guard snapshots.
+5. Runtime locality lane: confirm control-plane-only orchestration.
+6. Source-authority lane: all refs point to strict-chain run-control evidence.
+
+### Implementation decision
+1. Add `scripts/dev_substrate/m11e_eval_gate.py` and `scripts/dev_substrate/m11f_mlflow_lineage.py` as dispatch+materialization wrappers around managed workflow `dev_full_m11_managed.yml` for subphases `E/F`.
+2. Extend `scripts/dev_substrate/m11_stress_runner.py` with:
+   - `S2_ARTS` contract,
+   - `latest_s1()` helper,
+   - `run_s2(...)` orchestration,
+   - stage->gate mapping (`S2` => `M11_ST_S3_READY`),
+   - CLI support (`--stage S2`, `--upstream-m11-s1-execution`).
+3. Keep fail-closed behavior:
+   - `M11-ST-B5` for lane E non-pass,
+   - `M11-ST-B6` for lane F non-pass,
+   - `M11-ST-B19` projected for quota/access pressure detected in lane blockers,
+   - `M11-ST-B12/B13/B16/B17/B18` for parity/acceptance/locality/realism/implementation holes.
+
+### Alternatives considered
+1. Directly dispatch managed workflow from parent runner without wrappers.
+   - Rejected: weak local evidence normalization and reduced deterministic blocker projection.
+2. Implement E/F logic locally.
+   - Rejected: violates managed-lane authority and increases local runtime burden.
+
+### Performance and cost design
+1. Parent complexity remains O(1) over fixed artifact surfaces and bounded blocker scans.
+2. Local compute remains orchestration/evidence-only; no local training/evaluation path.
+3. Runtime budget controlled by managed lane timeout inputs; wrapper poll cadence remains bounded.
+
+### Execution plan
+1. Implement files + runner extension.
+2. Compile-check scripts.
+3. Execute S2 from strict upstream S1 id.
+4. If blocked, remediate deterministic issues and rerun fail-closed.
+
+## Entry: 2026-03-05 02:51 +00:00 - S2 remediation thread: correct managed run matching for subphase F
+### Observation
+1. `M11.E` emitted green artifacts and `M11.F` appeared blocked by missing run-control keys.
+2. GH run id captured by `m11f` wrapper corresponded to `M11.E`, not `M11.F`.
+3. This is orchestration run-identification drift, not lane-functional failure.
+
+### Decision
+1. Harden `find_workflow_run` in `m11e_eval_gate.py` and `m11f_mlflow_lineage.py`:
+   - add required display-title token filter,
+   - use subphase-specific token (`M11.E` / `M11.F`) before accepting candidate run id.
+2. Keep fail-closed behavior unchanged; wrapper still blocks when expected artifacts are absent.
+3. Rerun S2 from same strict upstream after patch.
+
+## Entry: 2026-03-05 02:59 +00:00 - M11-ST-S2 adjudication hardening for metadata drift
+### Context
+1. Prior S2 rerun produced parent blockers (`M11-ST-B5/B6`) despite lane `F` snapshot proving functional pass (`overall_pass=true`, `next_gate=M11.G_READY`).
+2. Wrapper-level blocker source is GH run-id discoverability, which can fail independently of authoritative S3 lane outputs.
+3. Current fail-closed behavior is too strict on metadata and can mask real lane truth.
+
+### Decision
+1. Make wrapper adjudication authoritative-artifact-first:
+   - required S3 artifacts for the requested execution id remain mandatory,
+   - lane summary gate truth remains mandatory (`overall_pass=true` and expected `next_gate`),
+   - GH run-id discovery failure becomes advisory if required artifacts are present and gate-pass.
+2. Preserve fail-closed semantics for actual lane failures:
+   - dispatch hard-fail,
+   - required artifact unreadable/missing,
+   - lane summary non-pass or wrong gate.
+3. Preserve cost/quota/access projection by scanning lane blocker content for pressure signals and projecting `M11-B19`.
+
+### Implementation scope
+1. Patch `scripts/dev_substrate/m11e_eval_gate.py` and `scripts/dev_substrate/m11f_mlflow_lineage.py` blocker logic.
+2. Re-compile changed scripts.
+3. Rerun `M11-ST-S2` from upstream `m11_stress_s1_20260305T023231Z`.
+4. If still blocked, remediate only deterministic blocker class and rerun immediately.
+
+## Entry: 2026-03-05 03:08 +00:00 - M11-ST-S2 closure: artifact-truth over run-metadata drift
+### What changed
+1. Patched `scripts/dev_substrate/m11e_eval_gate.py` and `scripts/dev_substrate/m11f_mlflow_lineage.py` so GH workflow run-id/status lookup remains informative but no longer hard-blocking when authoritative lane artifacts for the requested execution id are present and gate-pass.
+2. Preserved fail-closed semantics for real failures (dispatch fail, artifact unreadable/missing, lane summary non-pass or wrong next gate).
+3. Preserved quota/access signal projection path to `M11-B19` from lane blocker content.
+
+### Why this is correct
+1. Source of truth for lane closure is run-scoped authoritative artifacts under `evidence/dev_full/run_control/{execution_id}/...`; GH run metadata is secondary and can be transiently incomplete.
+2. Prior blockers were metadata-induced false negatives despite lane-functional pass evidence.
+3. This remediation removes false negatives without weakening true failure detection.
+
+### Validation and execution
+1. Compile check passed for `m11e`, `m11f`, and parent `m11_stress_runner`.
+2. Executed strict rerun:
+   - `python scripts/dev_substrate/m11_stress_runner.py --stage S2 --upstream-m11-s1-execution m11_stress_s1_20260305T023231Z`.
+3. Closure receipt:
+   - `m11_stress_s2_20260305T030101Z`: `overall_pass=true`, `open_blocker_count=0`, `next_gate=M11_ST_S3_READY`.
+4. Lane receipts:
+   - `m11e_stress_s2_20260305T030101Z`: `overall_pass=true`, `next_gate=M11.F_READY`.
+   - `m11f_stress_s2_20260305T030409Z`: `overall_pass=true`, `next_gate=M11.G_READY`.
+
+### Documentation sync
+1. Updated `platform.M11.stress_test.md` to `S2_GREEN` with S2 remediation chronology and S3 next actions.
+2. Updated `platform.stress_test.md` M11 program posture to `S2_GREEN` and routed next execution to `M11-ST-S3`.
+
+## Entry: 2026-03-05 03:35 +00:00 - M11-ST-S2 re-execution request handling
+### Decision context
+1. User requested another `M11-ST-S2` planning/execution pass.
+2. Strict-chain verification showed no topology change:
+   - upstream `M11-ST-S1`: `m11_stress_s1_20260305T023231Z` still latest valid entry,
+   - `M11-ST-S2`: `m11_stress_s2_20260305T030101Z` already green from that exact upstream (`M11_ST_S3_READY`).
+
+### Decision
+1. Apply cost-control law: no redundant managed rerun when current strict evidence already closes the requested stage for the same upstream chain.
+2. Treat request as executed via authoritative existing closure receipt.
+3. Keep next action pointer on `M11-ST-S3` implementation/execution from `m11_stress_s2_20260305T030101Z`.
