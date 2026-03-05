@@ -3,7 +3,7 @@ _Parent authority: `platform.M6.stress_test.md`_
 _Status source of truth: `platform.stress_test.md`_
 _Track: `dev_full` only_
 _As of 2026-03-04_
-_Current posture: `HOLD_REMEDIATE` (legacy historical-window closure is not accepted as production-grade)._
+_Current posture: `STRICT_RERUN_CLOSED` (fresh strict rerun chain `S1..S5` closed with deterministic `ADVANCE_TO_M7`)._
 
 ## 0) Purpose
 M6.P7 stress validates ingest commit closure under realistic production stress and prepares deterministic M7 handoff inputs.
@@ -360,12 +360,12 @@ Any open `M6P7-ST-B*` blocks P7 closure and parent M6 `S3` progression.
 - [x] `M6P7-ST-S3` executed with continuity/replay-window closure.
 - [x] `M6P7-ST-S4` remediation lane closed (`NO_OP`).
 - [x] `M6P7-ST-S5` verdict emitted as `ADVANCE_TO_M7`.
-- [ ] Strict non-toy rerun (`S1..S5`) executed with zero historical/proxy closure authority.
+- [x] Strict non-toy rerun (`S1..S5`) executed with zero historical/proxy closure authority.
 
 ## 11) Immediate Next Actions
-1. Route to parent M6 `S3` adjudication using `M6P7-ST-S5` verdict `ADVANCE_TO_M7` and handoff-pack closure artifacts.
-2. Keep parent `S3` fail-closed on any P7 verdict/handoff/evidence-ref inconsistency.
-3. After parent `S3` closes green, proceed to parent integrated `M6-ST-S4` stress window.
+1. No open P7 remediation lane; retain strict rerun receipts as closure authority for M6 handoff and audit.
+2. Reopen fail-closed only if any future run reintroduces historical-only closure dependence or unresolved blockers.
+3. Keep blocker policy (`M6P7-ST-B12`) active for future enforcement.
 
 ## 12) Execution Progress
 1. Planning authority created.
@@ -444,14 +444,14 @@ Any open `M6P7-ST-B*` blocks P7 closure and parent M6 `S3` progression.
    - no remediation actions were required,
    - deterministic rollup verdict and handoff-pack emission both closed green under targeted-rerun policy.
 
-## 13) Reopen Notice - Non-Toy Enforcement (2026-03-04)
+## 13) Reopen Notice - Non-Toy Enforcement (2026-03-04, Resolved)
 1. Legacy `M6P7-ST-S2..S5` receipts are retained for traceability only; they are not valid closure authority.
 2. `M6P7-ST-B12` is opened whenever closure depends on:
    - `historical_*` execution ids as primary proof,
    - replay/idempotency checks in historical-closed mode,
    - advisory-only throughput posture.
-3. Required rerun path for re-closure:
-   - rerun `S1..S5` with live-window, run-scoped ingest evidence,
-   - enforce zero `historical_*` closure references in `m6p7_gate_verdict.json`,
-   - enforce blocker-free closure with deterministic `ADVANCE_TO_M7`.
-4. P7 is not closeable until `M6P7-ST-B12` is resolved by fresh evidence.
+3. Strict rerun path for re-closure has been completed:
+   - `S1..S5` rerun closed with run-scoped evidence (`phase_execution_id=m6p7_stress_s5_20260304T203739Z`),
+   - blocker register is closed (`open_blocker_count=0`),
+   - deterministic verdict is `ADVANCE_TO_M7`.
+4. Future closure remains fail-closed: any reintroduction of historical-only proof reopens `M6P7-ST-B12`.

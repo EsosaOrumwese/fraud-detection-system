@@ -13151,3 +13151,63 @@ ext_gate=M8_READY, open_blockers=0.
 
 ### Governance
 1. No commit/push/branch operation.
+
+## Entry: 2026-03-05 13:03 +00:00 - Pre-edit plan: authority drift sync for M6/M6.P7 status surfaces
+### Trigger
+1. User directive: "Fix the authority drift" while external review is in progress.
+
+### Drift assessment
+1. `platform.stress_test.md` still marks M6 as `HOLD_REMEDIATE` in overview/program-status lanes, while parent authority `platform.M6.stress_test.md` is `STRICT_RERUN_CLOSED` with deterministic `next_gate=M7_READY` from fresh strict reruns.
+2. `platform.stress_test.md` still routes next step as "begin M13" although M13 is already closed (`M14_READY`).
+3. `platform.M6.P7.stress_test.md` header posture still reads `HOLD_REMEDIATE` and DoD strict-rerun checkbox remains open, which conflicts with parent M6 strict-rerun closure chain (`m6p7_stress_s5_20260304T203739Z`, `m6_stress_s5_20260304T204909Z`).
+
+### Decision
+1. Apply documentation-only authority synchronization with no runtime execution.
+2. Update only status/routing fields that are drifted, preserving historical execution chronology.
+3. Keep fail-closed semantics unchanged; this is posture sync, not acceptance-criteria relaxation.
+
+### Planned edits
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.stress_test.md`
+   - change M6 overview status to closed (`DONE`, with `M7_READY` context),
+   - update Program Status dedicated-file list for `M6` and `M6.P7`,
+   - update stale next-step routing (`begin M13`) to current frontier (`M14` planning/execution),
+   - reclassify section 18 from active remediation to closed-phase language and strict-rerun authority ids.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M6.P7.stress_test.md`
+   - align header posture to strict-rerun closed,
+   - mark strict rerun DoD checkbox complete,
+   - convert reopen notice from pending-rerun directive to resolved state with strict closure evidence.
+
+### Guardrails
+1. No commit/push/branch operation.
+2. No workflow dispatch and no managed runtime load.
+3. Keep Data Engine black-box boundary untouched.
+
+## Entry: 2026-03-05 13:05 +00:00 - Authority drift sync completed for M6/M6.P7
+### Edits applied
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.stress_test.md`
+   - M-phase overview row updated: `M6` status now `DONE (M7_READY)`.
+   - Program Status dedicated-file list updated:
+     - `platform.M6.stress_test.md` -> `STRICT_RERUN_CLOSED, M7_READY`,
+     - `platform.M6.P7.stress_test.md` -> `STRICT_RERUN_CLOSED, ADVANCE_TO_M7`.
+   - Program next-step routing updated from stale `M13` start to `M14` start (`m13_stress_s5_20260305T111321Z`).
+   - Section 18 reclassified from active remediation to closed-phase language.
+   - Section 18 status and receipt references repinned to strict closure ids:
+     - parent `m6_stress_s5_20260304T204909Z`,
+     - P7 strict rerun `m6p7_stress_s5_20260304T203739Z`.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M6.P7.stress_test.md`
+   - header posture aligned to `STRICT_RERUN_CLOSED`,
+   - DoD strict rerun checkbox marked complete,
+   - immediate-next-actions rewritten from pending remediation to closure-preservation posture,
+   - reopen notice marked resolved with strict rerun evidence and persistent fail-closed reopen criteria.
+
+### Evidence checks used
+1. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m6p7_stress_s5_20260304T203739Z/stress/m6p7_execution_summary.json` (`verdict=ADVANCE_TO_M7`, `overall_pass=true`).
+2. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m6p7_stress_s5_20260304T203739Z/stress/m6p7_blocker_register.json` (`open_blocker_count=0`).
+3. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m6_stress_s5_20260304T204909Z/stress/m6_execution_summary.json` (`verdict=GO`, `next_gate=M7_READY`, addendum blockers `0`).
+
+### Outcome
+1. M6 authority surfaces are now internally consistent for current closure posture.
+2. No runtime/workflow execution performed.
+
+### Governance
+1. No commit/push/branch operation.

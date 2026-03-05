@@ -51,7 +51,7 @@ This is the program-level overview of what each `M*` phase stress effort is expe
 | M3 | Run pinning + orchestrator readiness | Stress run-control/orchestrator behavior under concurrent run activation and retries | Run pinning remains deterministic; no cross-run mixing | DONE |
 | M4 | Spine runtime-lane readiness | Stress each spine lane bootstrap path for startup-time, readiness, and dependency bottlenecks | Lane startup and steady-state readiness meet target budgets | DONE |
 | M5 | Oracle readiness + ingest preflight (`P3-P4`) | Stress oracle-to-ingress preflight flow for input correctness and ingest warm-path limits | Preflight pass is stable; no upstream-induced ingress stalls | DONE |
-| M6 | Control + Ingress (`P5-P7`) | Stress SR/WSP/IG/bus at component -> plane -> integrated levels for throughput and correctness | Target ingress throughput + latency met with replay-safe semantics | HOLD_REMEDIATE |
+| M6 | Control + Ingress (`P5-P7`) | Stress SR/WSP/IG/bus at component -> plane -> integrated levels for throughput and correctness | Target ingress throughput + latency met with replay-safe semantics | DONE (`M7_READY`) |
 | M7 | RTDL + Case/Labels (`P8-P10`) | Stress decision loop + case/label pathways for sustained throughput and bounded lag | Decision/action/case/label lanes keep pace with ingress without silent degrade | DONE |
 | M8 | Spine Obs/Gov (`P11`) | Stress observability/governance paths so evidence remains complete under high event rates | Evidence completeness + low-overhead telemetry proven | DONE (`M9_READY`) |
 | M9 | Learning input readiness (`P12`) | Stress replay-basis/as-of/maturity extraction paths for correctness under realistic volume | Learning input lanes produce deterministic, timely, leak-safe outputs | DONE (`M10_READY`) |
@@ -222,10 +222,10 @@ For any phase:
    - `stress_test/platform.M5.stress_test.md` (`DONE`),
    - `stress_test/platform.M5.P3.stress_test.md` (`DONE`),
    - `stress_test/platform.M5.P4.stress_test.md` (`DONE`),
-   - `stress_test/platform.M6.stress_test.md` (`HOLD_REMEDIATE`),
+   - `stress_test/platform.M6.stress_test.md` (`STRICT_RERUN_CLOSED`, `M7_READY`),
    - `stress_test/platform.M6.P5.stress_test.md` (`DONE_BASELINE`),
    - `stress_test/platform.M6.P6.stress_test.md` (`DONE_BASELINE`),
-   - `stress_test/platform.M6.P7.stress_test.md` (`HOLD_REMEDIATE`),
+   - `stress_test/platform.M6.P7.stress_test.md` (`STRICT_RERUN_CLOSED`, `ADVANCE_TO_M7`),
    - `stress_test/platform.M7.stress_test.md` (`DONE`),
    - `stress_test/platform.M7.P8.stress_test.md` (`DONE`),
    - `stress_test/platform.M7.P9.stress_test.md` (`DONE`),
@@ -235,7 +235,7 @@ For any phase:
    - `stress_test/platform.M10.stress_test.md` (`S5_GREEN`, `M11_READY`),
    - `stress_test/platform.M11.stress_test.md` (`S5_GREEN`, `M12_READY`),
    - `stress_test/platform.M12.stress_test.md` (`S5_GREEN`, `M13_READY`).
-4. Next step: begin `M13` planning/execution from strict upstream `m12_stress_s5_20260305T091936Z`.
+4. Next step: begin `M14` planning/execution from strict upstream `m13_stress_s5_20260305T111321Z`.
 
 ## 13) Closed Phase - M0 (Inline)
 Status:
@@ -495,9 +495,9 @@ Authority routing:
    - `M5.P4`,
    - parent closure rollup with `M6_READY` recommendation.
 
-## 18) Active Remediation - M6 (Dedicated + Split Subphases + Hard-Close Addendum)
+## 18) Closed Phase - M6 (Dedicated + Split Subphases + Hard-Close Addendum)
 Status:
-1. `REVALIDATION_REQUIRED` (legacy `M6-ST-S3` accepted local handoff fallback on S3 readback failure; strict remote-evidence-only policy requires rerun of `M6-ST-S3..S5`).
+1. `CLOSED` (strict rerun chain completed; parent `M6-ST-S5` emitted deterministic `GO` with `next_gate=M7_READY`, zero open blockers).
 
 Authority routing:
 1. Parent orchestration authority: `stress_test/platform.M6.stress_test.md`.
@@ -512,19 +512,19 @@ Authority routing:
    - `M6.P7` closure gate,
    - parent `M6-ST-S4` integrated stress window,
    - parent `M6-ST-S5` closure rollup and `M7_READY` recommendation.
-4. Current next executable step:
-   - rerun `M6-ST-S3..S5` under strict remote-evidence-only posture, then advance to M7 strict addendum revalidation.
+4. Current posture note:
+   - no pending M6 remediation; strict rerun authority is locked for handoff/reference.
 5. Latest parent execution receipts:
    - `M6-ST-S0`: `phase_execution_id=m6_stress_s0_20260304T012128Z`, `overall_pass=true`, `open_blockers=0`.
    - `M6-ST-S1`: `phase_execution_id=m6_stress_s1_20260304T013651Z`, `overall_pass=true`, `next_gate=M6_ST_S2_READY`, `open_blockers=0`.
    - `M6-ST-S2`: `phase_execution_id=m6_stress_s2_20260304T145122Z`, `overall_pass=true`, `next_gate=M6_ST_S3_READY`, `open_blockers=0`.
    - `M6-ST-S3`: `phase_execution_id=m6_stress_s3_20260304T145156Z`, `overall_pass=true`, `next_gate=M6_ST_S4_READY`, `open_blockers=0`.
    - `M6-ST-S4`: `phase_execution_id=m6_stress_s4_20260304T145244Z`, `overall_pass=true`, `next_gate=M6_ST_S5_READY`, `open_blockers=0`.
-   - `M6-ST-S5` (latest rerun): `phase_execution_id=m6_stress_s5_20260304T150852Z`, `overall_pass=true`, `verdict=GO`, `next_gate=M7_READY`, `open_blockers=0`.
+   - `M6-ST-S5` (latest strict rerun): `phase_execution_id=m6_stress_s5_20260304T204909Z`, `overall_pass=true`, `verdict=GO`, `next_gate=M7_READY`, `open_blockers=0`.
 6. Latest subphase execution receipt:
    - `M6.P5` `M6P5-ST-S5`: `phase_execution_id=m6p5_stress_s5_20260304T013452Z`, `overall_pass=true`, `verdict=ADVANCE_TO_P6`, `open_blockers=0`.
    - `M6.P6` `M6P6-ST-S5`: `phase_execution_id=m6p6_stress_s5_20260304T020815Z`, `overall_pass=true`, `verdict=ADVANCE_TO_P7`, `open_blockers=0`.
-   - `M6.P7` `M6P7-ST-S5`: `phase_execution_id=m6p7_stress_s5_20260304T024638Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M7`, `next_gate=ADVANCE_TO_M7`, `open_blockers=0`.
+   - `M6.P7` `M6P7-ST-S5` (strict rerun): `phase_execution_id=m6p7_stress_s5_20260304T203739Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M7`, `next_gate=ADVANCE_TO_M7`, `open_blockers=0`, `replay_window_mode=STALE_WINDOW_WITH_LIVE_EVIDENCE`.
 7. M6 hard-close addendum closure receipts:
    - `m6_addendum_execution_summary.json`: `overall_pass=true`, lane status `A1=true`, `A2=true`, `A3=true`, `A4=true`.
    - `m6_addendum_blocker_register.json`: `open_blocker_count=0`.
