@@ -98,6 +98,20 @@ S4_ARTS = [
     "m10_gate_verdict.json",
 ]
 
+S5_ARTS = [
+    "m10_phase_budget_envelope.json",
+    "m10_phase_cost_outcome_receipt.json",
+    "m10j_execution_summary.json",
+    "m10j_blocker_register.json",
+    "m10_runtime_locality_guard_snapshot.json",
+    "m10_source_authority_guard_snapshot.json",
+    "m10_realism_guard_snapshot.json",
+    "m10_blocker_register.json",
+    "m10_execution_summary.json",
+    "m10_decision_log.json",
+    "m10_gate_verdict.json",
+]
+
 
 def now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -296,6 +310,28 @@ def latest_s3() -> tuple[str, dict[str, Any]]:
     return best_id, best_payload
 
 
+def latest_s4() -> tuple[str, dict[str, Any]]:
+    best_id = ""
+    best_payload: dict[str, Any] = {}
+    best_stamp = ""
+    for d in OUT_ROOT.glob("m10_stress_s4_*"):
+        payload = loadj(d / "stress" / "m10_execution_summary.json")
+        if not payload:
+            continue
+        if str(payload.get("stage_id", "")) != "M10-ST-S4":
+            continue
+        if not bool(payload.get("overall_pass")):
+            continue
+        if str(payload.get("next_gate", "")) != "M10_ST_S5_READY":
+            continue
+        stamp = str(payload.get("generated_at_utc", ""))
+        if (stamp, d.name) > (best_stamp, best_id):
+            best_id = d.name
+            best_payload = payload
+            best_stamp = stamp
+    return best_id, best_payload
+
+
 def resolve_dbx_token(reg: dict[str, Any]) -> tuple[str, str]:
     token = str(os.environ.get("DBX_TOKEN", "")).strip()
     if token:
@@ -357,17 +393,25 @@ def finish(
     overall_pass = len(blockers) == 0
     if overall_pass and stage == "S0":
         next_gate = "M10_ST_S1_READY"
+        verdict = "GO"
     elif overall_pass and stage == "S1":
         next_gate = "M10_ST_S2_READY"
+        verdict = "GO"
     elif overall_pass and stage == "S2":
         next_gate = "M10_ST_S3_READY"
+        verdict = "GO"
     elif overall_pass and stage == "S3":
         next_gate = "M10_ST_S4_READY"
+        verdict = "GO"
     elif overall_pass and stage == "S4":
         next_gate = "M10_ST_S5_READY"
+        verdict = "GO"
+    elif overall_pass and stage == "S5":
+        next_gate = "M11_READY"
+        verdict = "ADVANCE_TO_M11"
     else:
         next_gate = "HOLD_REMEDIATE"
-    verdict = "GO" if overall_pass else "HOLD_REMEDIATE"
+        verdict = "HOLD_REMEDIATE"
 
     register = {
         "generated_at_utc": now(),
@@ -1902,15 +1946,393 @@ def run_s4(phase_execution_id: str, upstream_m10_s3_execution: str) -> int:
     )
 
 
+def run_s5(phase_execution_id: str, upstream_m10_s4_execution: str) -> int:
+    out = OUT_ROOT / phase_execution_id / "stress"
+    out.mkdir(parents=True, exist_ok=True)
+    blockers: list[dict[str, Any]] = []
+    advisories: list[str] = []
+
+    plan_text = PLAN.read_text(encoding="utf-8") if PLAN.exists() else ""
+    packet = parse_plan_packet(plan_text)
+    reg = parse_registry(REG) if REG.exists() else {}
+
+    scripts_required = [
+        "scripts/dev_substrate/m10j_closure_sync.py",
+    ]
+    for script_path in scripts_required:
+        if not Path(script_path).exists():
+            add_blocker(
+                blockers,
+                "M10-ST-B18",
+                "S5",
+                {"reason": "required_stage_script_missing", "script": script_path},
+            )
+
+    value = reg.get("S3_EVIDENCE_BUCKET")
+    if value is None or is_placeholder(value):
+        add_blocker(blockers, "M10-ST-B11", "S5", {"reason": "required_handle_missing_or_placeholder", "handle": "S3_EVIDENCE_BUCKET"})
+    bucket = str(reg.get("S3_EVIDENCE_BUCKET", "")).strip()
+
+    s4_exec = upstream_m10_s4_execution.strip()
+    s4 = loadj(OUT_ROOT / s4_exec / "stress" / "m10_execution_summary.json") if s4_exec else {}
+    if not s4:
+        s4_exec, s4 = latest_s4()
+    if not s4:
+        add_blocker(blockers, "M10-ST-B11", "S5", {"reason": "upstream_s4_summary_missing"})
+    elif not bool(s4.get("overall_pass")) or str(s4.get("next_gate", "")) != "M10_ST_S5_READY":
+        add_blocker(
+            blockers,
+            "M10-ST-B11",
+            "S5",
+            {
+                "reason": "upstream_s4_not_ready",
+                "upstream_s4_execution": s4_exec,
+                "summary": {
+                    "overall_pass": s4.get("overall_pass"),
+                    "next_gate": s4.get("next_gate"),
+                    "open_blocker_count": s4.get("open_blocker_count"),
+                },
+            },
+        )
+
+    m10i_exec = str(s4.get("m10i_execution_id", "")).strip() if s4 else ""
+    s3_exec = str(s4.get("upstream_m10_s3_execution", "")).strip() if s4 else ""
+    s2_exec = str(s4.get("upstream_m10_s2_execution", "")).strip() if s4 else ""
+    s1_exec = str(s4.get("upstream_m10_s1_execution", "")).strip() if s4 else ""
+    s0_exec = str(s4.get("upstream_m10_s0_execution", "")).strip() if s4 else ""
+    if not m10i_exec:
+        add_blocker(blockers, "M10-ST-B11", "S5", {"reason": "missing_m10i_execution_id", "upstream_s4_execution": s4_exec})
+    if not s3_exec:
+        add_blocker(blockers, "M10-ST-B11", "S5", {"reason": "missing_upstream_m10_s3_execution_in_s4_summary", "upstream_s4_execution": s4_exec})
+    if not s2_exec:
+        add_blocker(blockers, "M10-ST-B11", "S5", {"reason": "missing_upstream_m10_s2_execution_in_s4_summary", "upstream_s4_execution": s4_exec})
+    if not s1_exec:
+        add_blocker(blockers, "M10-ST-B11", "S5", {"reason": "missing_upstream_m10_s1_execution_in_s4_summary", "upstream_s4_execution": s4_exec})
+    if not s0_exec:
+        add_blocker(blockers, "M10-ST-B11", "S5", {"reason": "missing_upstream_m10_s0_execution_in_s4_summary", "upstream_s4_execution": s4_exec})
+
+    s3 = loadj(OUT_ROOT / s3_exec / "stress" / "m10_execution_summary.json") if s3_exec else {}
+    if s3_exec and not s3:
+        add_blocker(blockers, "M10-ST-B11", "S5", {"reason": "upstream_s3_summary_missing", "upstream_s3_execution": s3_exec})
+    elif s3_exec and (not bool(s3.get("overall_pass")) or str(s3.get("next_gate", "")) != "M10_ST_S4_READY"):
+        add_blocker(
+            blockers,
+            "M10-ST-B11",
+            "S5",
+            {
+                "reason": "upstream_s3_not_ready_for_m10j",
+                "upstream_s3_execution": s3_exec,
+                "summary": {
+                    "overall_pass": s3.get("overall_pass"),
+                    "next_gate": s3.get("next_gate"),
+                    "open_blocker_count": s3.get("open_blocker_count"),
+                },
+            },
+        )
+
+    s2 = loadj(OUT_ROOT / s2_exec / "stress" / "m10_execution_summary.json") if s2_exec else {}
+    if s2_exec and not s2:
+        add_blocker(blockers, "M10-ST-B11", "S5", {"reason": "upstream_s2_summary_missing", "upstream_s2_execution": s2_exec})
+    elif s2_exec and (not bool(s2.get("overall_pass")) or str(s2.get("next_gate", "")) != "M10_ST_S3_READY"):
+        add_blocker(
+            blockers,
+            "M10-ST-B11",
+            "S5",
+            {
+                "reason": "upstream_s2_not_ready_for_m10j",
+                "upstream_s2_execution": s2_exec,
+                "summary": {
+                    "overall_pass": s2.get("overall_pass"),
+                    "next_gate": s2.get("next_gate"),
+                    "open_blocker_count": s2.get("open_blocker_count"),
+                },
+            },
+        )
+
+    s1 = loadj(OUT_ROOT / s1_exec / "stress" / "m10_execution_summary.json") if s1_exec else {}
+    if s1_exec and not s1:
+        add_blocker(blockers, "M10-ST-B11", "S5", {"reason": "upstream_s1_summary_missing", "upstream_s1_execution": s1_exec})
+    elif s1_exec and (not bool(s1.get("overall_pass")) or str(s1.get("next_gate", "")) != "M10_ST_S2_READY"):
+        add_blocker(
+            blockers,
+            "M10-ST-B11",
+            "S5",
+            {
+                "reason": "upstream_s1_not_ready_for_m10j",
+                "upstream_s1_execution": s1_exec,
+                "summary": {
+                    "overall_pass": s1.get("overall_pass"),
+                    "next_gate": s1.get("next_gate"),
+                    "open_blocker_count": s1.get("open_blocker_count"),
+                },
+            },
+        )
+
+    s0 = loadj(OUT_ROOT / s0_exec / "stress" / "m10_execution_summary.json") if s0_exec else {}
+    if s0_exec and not s0:
+        add_blocker(blockers, "M10-ST-B11", "S5", {"reason": "upstream_s0_summary_missing", "upstream_s0_execution": s0_exec})
+    elif s0_exec and (not bool(s0.get("overall_pass")) or str(s0.get("next_gate", "")) != "M10_ST_S1_READY"):
+        add_blocker(
+            blockers,
+            "M10-ST-B11",
+            "S5",
+            {
+                "reason": "upstream_s0_not_ready_for_m10j",
+                "upstream_s0_execution": s0_exec,
+                "summary": {
+                    "overall_pass": s0.get("overall_pass"),
+                    "next_gate": s0.get("next_gate"),
+                    "open_blocker_count": s0.get("open_blocker_count"),
+                },
+            },
+        )
+
+    m10a_exec = str(s0.get("m10a_execution_id", "")).strip() if s0 else ""
+    m10b_exec = str(s0.get("m10b_execution_id", "")).strip() if s0 else ""
+    m10c_exec = str(s1.get("m10c_execution_id", "")).strip() if s1 else ""
+    m10d_exec = str(s1.get("m10d_execution_id", "")).strip() if s1 else ""
+    m10e_exec = str(s2.get("m10e_execution_id", "")).strip() if s2 else ""
+    m10f_exec = str(s2.get("m10f_execution_id", "")).strip() if s2 else ""
+    m10g_exec = str(s3.get("m10g_execution_id", "")).strip() if s3 else ""
+    m10h_exec = str(s3.get("m10h_execution_id", "")).strip() if s3 else ""
+    required_ids = {
+        "m10a_execution_id": m10a_exec,
+        "m10b_execution_id": m10b_exec,
+        "m10c_execution_id": m10c_exec,
+        "m10d_execution_id": m10d_exec,
+        "m10e_execution_id": m10e_exec,
+        "m10f_execution_id": m10f_exec,
+        "m10g_execution_id": m10g_exec,
+        "m10h_execution_id": m10h_exec,
+        "m10i_execution_id": m10i_exec,
+    }
+    missing_required_ids = [k for k, v in required_ids.items() if not str(v).strip()]
+    if missing_required_ids:
+        add_blocker(blockers, "M10-ST-B11", "S5", {"reason": "unresolved_upstream_execution_ids", "fields": missing_required_ids})
+
+    platform_ids = {
+        str(v).strip()
+        for v in [
+            s0.get("platform_run_id"),
+            s1.get("platform_run_id"),
+            s2.get("platform_run_id"),
+            s3.get("platform_run_id"),
+            s4.get("platform_run_id"),
+        ]
+        if str(v or "").strip()
+    }
+    if len(platform_ids) != 1:
+        add_blocker(blockers, "M10-ST-B11", "S5", {"reason": "platform_run_scope_mismatch", "platform_run_ids": sorted(platform_ids)})
+    platform_run_id = sorted(platform_ids)[0] if len(platform_ids) == 1 else ""
+    scenario_ids = {
+        str(v).strip()
+        for v in [
+            s0.get("scenario_run_id"),
+            s1.get("scenario_run_id"),
+            s2.get("scenario_run_id"),
+            s3.get("scenario_run_id"),
+            s4.get("scenario_run_id"),
+        ]
+        if str(v or "").strip()
+    }
+    if len(scenario_ids) != 1:
+        add_blocker(blockers, "M10-ST-B11", "S5", {"reason": "scenario_run_scope_mismatch", "scenario_run_ids": sorted(scenario_ids)})
+    scenario_run_id = sorted(scenario_ids)[0] if len(scenario_ids) == 1 else ""
+
+    m10j_exec = ""
+    m10j_summary: dict[str, Any] = {}
+    m10j_exec_summary: dict[str, Any] = {}
+    m10j_blocker_register: dict[str, Any] = {}
+    m10j_budget_envelope: dict[str, Any] = {}
+    m10j_cost_receipt: dict[str, Any] = {}
+    if not blockers and Path("scripts/dev_substrate/m10j_closure_sync.py").exists():
+        m10j_exec = f"m10j_stress_s5_{tok()}"
+        m10j_local_root = out / "_m10j_local"
+        rc, _, err = run(
+            [
+                "python",
+                "scripts/dev_substrate/m10j_closure_sync.py",
+                "--execution-id",
+                m10j_exec,
+                "--platform-run-id",
+                platform_run_id,
+                "--scenario-run-id",
+                scenario_run_id,
+                "--upstream-m10a-execution",
+                m10a_exec,
+                "--upstream-m10b-execution",
+                m10b_exec,
+                "--upstream-m10c-execution",
+                m10c_exec,
+                "--upstream-m10d-execution",
+                m10d_exec,
+                "--upstream-m10e-execution",
+                m10e_exec,
+                "--upstream-m10f-execution",
+                m10f_exec,
+                "--upstream-m10g-execution",
+                m10g_exec,
+                "--upstream-m10h-execution",
+                m10h_exec,
+                "--upstream-m10i-execution",
+                m10i_exec,
+                "--evidence-bucket",
+                bucket,
+                "--region",
+                "eu-west-2",
+                "--local-output-root",
+                m10j_local_root.as_posix(),
+                "--monthly-limit-amount",
+                str(packet.get("M10_STRESS_MAX_SPEND_USD", 130)),
+            ],
+            timeout=1800,
+        )
+        if rc != 0:
+            add_blocker(blockers, "M10-ST-B11", "S5", {"reason": "m10j_command_failed", "stderr": err.strip()[:300], "rc": rc})
+
+        m10j_dir = m10j_local_root / m10j_exec
+        m10j_summary = loadj(m10j_dir / "m10_execution_summary.json")
+        m10j_exec_summary = loadj(m10j_dir / "m10j_execution_summary.json")
+        m10j_blocker_register = loadj(m10j_dir / "m10j_blocker_register.json")
+        m10j_budget_envelope = loadj(m10j_dir / "m10_phase_budget_envelope.json")
+        m10j_cost_receipt = loadj(m10j_dir / "m10_phase_cost_outcome_receipt.json")
+
+        if not m10j_exec_summary:
+            add_blocker(blockers, "M10-ST-B11", "S5", {"reason": "m10j_execution_summary_missing"})
+        if not m10j_budget_envelope:
+            add_blocker(blockers, "M10-ST-B12", "S5", {"reason": "m10_phase_budget_envelope_missing"})
+        if not m10j_cost_receipt:
+            add_blocker(blockers, "M10-ST-B12", "S5", {"reason": "m10_phase_cost_outcome_receipt_missing"})
+
+        source_blockers = m10j_blocker_register.get("blockers", []) if isinstance(m10j_blocker_register, dict) else []
+        if isinstance(source_blockers, list):
+            for sb in source_blockers:
+                if not isinstance(sb, dict):
+                    continue
+                code = str(sb.get("code", "")).strip()
+                message = str(sb.get("message", "")).strip()
+                if code == "M10-B12":
+                    add_blocker(blockers, "M10-ST-B12", "S5", {"reason": "m10j_blocker", "source_code": code, "message": message})
+                elif code == "M10-B11":
+                    add_blocker(blockers, "M10-ST-B11", "S5", {"reason": "m10j_blocker", "source_code": code, "message": message})
+
+        if m10j_exec_summary and not (
+            bool(m10j_exec_summary.get("overall_pass"))
+            and str(m10j_exec_summary.get("verdict", "")) == "ADVANCE_TO_M11"
+            and str(m10j_exec_summary.get("next_gate", "")) == "M11_READY"
+        ):
+            add_blocker(blockers, "M10-ST-B11", "S5", {"reason": "m10j_not_ready", "summary": m10j_exec_summary})
+
+    if m10j_exec_summary:
+        dumpj(out / "m10j_execution_summary.json", m10j_exec_summary)
+    if m10j_blocker_register:
+        dumpj(out / "m10j_blocker_register.json", m10j_blocker_register)
+    if m10j_budget_envelope:
+        dumpj(out / "m10_phase_budget_envelope.json", m10j_budget_envelope)
+    if m10j_cost_receipt:
+        dumpj(out / "m10_phase_cost_outcome_receipt.json", m10j_cost_receipt)
+
+    runtime_locality_ok = bool(packet.get("M10_STRESS_REQUIRE_REMOTE_RUNTIME_ONLY", True))
+    dumpj(
+        out / "m10_runtime_locality_guard_snapshot.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M10-ST-S5",
+            "overall_pass": runtime_locality_ok,
+            "require_remote_runtime_only": bool(packet.get("M10_STRESS_REQUIRE_REMOTE_RUNTIME_ONLY", True)),
+            "runtime_execution_attempted": False,
+            "runtime_execution_mode": "none_in_s5_validations",
+        },
+    )
+    if not runtime_locality_ok:
+        add_blocker(blockers, "M10-ST-B16", "S5", {"reason": "runtime_locality_policy_not_true"})
+
+    refs = [
+        f"evidence/dev_full/run_control/{m10a_exec}/m10a_execution_summary.json" if m10a_exec else "",
+        f"evidence/dev_full/run_control/{m10b_exec}/m10b_execution_summary.json" if m10b_exec else "",
+        f"evidence/dev_full/run_control/{m10c_exec}/m10c_execution_summary.json" if m10c_exec else "",
+        f"evidence/dev_full/run_control/{m10d_exec}/m10d_execution_summary.json" if m10d_exec else "",
+        f"evidence/dev_full/run_control/{m10e_exec}/m10e_execution_summary.json" if m10e_exec else "",
+        f"evidence/dev_full/run_control/{m10f_exec}/m10f_execution_summary.json" if m10f_exec else "",
+        f"evidence/dev_full/run_control/{m10g_exec}/m10g_execution_summary.json" if m10g_exec else "",
+        f"evidence/dev_full/run_control/{m10h_exec}/m10h_execution_summary.json" if m10h_exec else "",
+        f"evidence/dev_full/run_control/{m10i_exec}/m10i_execution_summary.json" if m10i_exec else "",
+        f"evidence/dev_full/run_control/{m10j_exec}/m10j_execution_summary.json" if m10j_exec else "",
+    ]
+    source_guard_ok = len([b for b in blockers if b.get("id") in {"M10-ST-B12", "M10-ST-B16"}]) == 0
+    dumpj(
+        out / "m10_source_authority_guard_snapshot.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M10-ST-S5",
+            "overall_pass": source_guard_ok,
+            "authoritative_refs": refs,
+            "evidence_bucket": bucket,
+        },
+    )
+
+    realism_ok = bool(packet.get("M10_STRESS_DISALLOW_WAIVED_REALISM", True))
+    if not realism_ok:
+        add_blocker(blockers, "M10-ST-B17", "S5", {"reason": "realism_guard_not_true"})
+    dumpj(
+        out / "m10_realism_guard_snapshot.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M10-ST-S5",
+            "overall_pass": realism_ok,
+            "disallow_waived_realism": bool(packet.get("M10_STRESS_DISALLOW_WAIVED_REALISM", True)),
+        },
+    )
+
+    if not bool(packet.get("M10_STRESS_REQUIRE_DATA_ENGINE_BLACKBOX", True)):
+        add_blocker(blockers, "M10-ST-B16", "S5", {"reason": "data_engine_blackbox_guard_not_true"})
+
+    return finish(
+        "S5",
+        phase_execution_id,
+        out,
+        blockers,
+        S5_ARTS,
+        {
+            "platform_run_id": platform_run_id,
+            "scenario_run_id": scenario_run_id,
+            "upstream_m10_s4_execution": s4_exec,
+            "upstream_m10_s3_execution": s3_exec,
+            "upstream_m10_s2_execution": s2_exec,
+            "upstream_m10_s1_execution": s1_exec,
+            "upstream_m10_s0_execution": s0_exec,
+            "m10j_execution_id": m10j_exec,
+            "m10a_execution_id": m10a_exec,
+            "m10b_execution_id": m10b_exec,
+            "m10c_execution_id": m10c_exec,
+            "m10d_execution_id": m10d_exec,
+            "m10e_execution_id": m10e_exec,
+            "m10f_execution_id": m10f_exec,
+            "m10g_execution_id": m10g_exec,
+            "m10h_execution_id": m10h_exec,
+            "m10i_execution_id": m10i_exec,
+            "decisions": [
+                "S5 executed M10.J closure sync and cost-outcome publication against strict upstream chain A..I.",
+                "S5 enforced deterministic final closure posture (`ADVANCE_TO_M11`, `M11_READY`) with fail-closed blocker mapping for cost, parity, locality, and realism.",
+            ],
+            "advisories": advisories,
+        },
+    )
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="M10 stress runner")
-    ap.add_argument("--stage", required=True, choices=["S0", "S1", "S2", "S3", "S4"])
+    ap.add_argument("--stage", required=True, choices=["S0", "S1", "S2", "S3", "S4", "S5"])
     ap.add_argument("--phase-execution-id", default="")
     ap.add_argument("--upstream-m9-s5-execution", default="")
     ap.add_argument("--upstream-m10-s0-execution", default="")
     ap.add_argument("--upstream-m10-s1-execution", default="")
     ap.add_argument("--upstream-m10-s2-execution", default="")
     ap.add_argument("--upstream-m10-s3-execution", default="")
+    ap.add_argument("--upstream-m10-s4-execution", default="")
     args = ap.parse_args()
 
     phase_execution_id = args.phase_execution_id.strip()
@@ -1925,6 +2347,8 @@ def main() -> int:
             phase_execution_id = f"m10_stress_s3_{tok()}"
         elif args.stage == "S4":
             phase_execution_id = f"m10_stress_s4_{tok()}"
+        elif args.stage == "S5":
+            phase_execution_id = f"m10_stress_s5_{tok()}"
 
     if args.stage == "S0":
         upstream_m9_s5 = args.upstream_m9_s5_execution.strip()
@@ -1965,6 +2389,14 @@ def main() -> int:
         if not upstream_m10_s3:
             raise SystemExit("No upstream M10 S3 execution provided/found.")
         return run_s4(phase_execution_id, upstream_m10_s3)
+
+    if args.stage == "S5":
+        upstream_m10_s4 = args.upstream_m10_s4_execution.strip()
+        if not upstream_m10_s4:
+            upstream_m10_s4, _ = latest_s4()
+        if not upstream_m10_s4:
+            raise SystemExit("No upstream M10 S4 execution provided/found.")
+        return run_s5(phase_execution_id, upstream_m10_s4)
 
     raise SystemExit("Unsupported stage")
 

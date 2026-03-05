@@ -10904,3 +10904,87 @@ ext_gate=M8_READY, open_blockers=0.
 2. Updated `platform.stress_test.md`:
    - program status now `M10=IN_PROGRESS (S4_GREEN)`,
    - next step now `M10-ST-S5` using upstream `m10_stress_s4_20260305T013131Z`.
+
+## Entry: 2026-03-05 01:35 +00:00 - M10-ST-S5 implementation plan before execution
+### Context
+1. USER directed immediate progression to `M10-ST-S5`.
+2. Upstream `S4` is green and pinned:
+   - `phase_execution_id=m10_stress_s4_20260305T013131Z`,
+   - `overall_pass=true`, `next_gate=M10_ST_S5_READY`.
+3. S5 authority requires closure lane `M10.J` outputs:
+   - `m10_phase_budget_envelope.json`,
+   - `m10_phase_cost_outcome_receipt.json`,
+   - `m10j_blocker_register.json`,
+   - `m10j_execution_summary.json`,
+   - final parent `m10_execution_summary.json` with `verdict=ADVANCE_TO_M11`, `next_gate=M11_READY`.
+4. Current gap:
+   - missing `scripts/dev_substrate/m10j_closure_sync.py`,
+   - parent `scripts/dev_substrate/m10_stress_runner.py` currently supports only `S0..S4`.
+
+### Decision
+1. Implement `M10.J` closure sync script by adapting proven M8/M9 closure mechanics to M10 contracts:
+   - verify strict upstream summaries `M10.A..M10.I` are readable/pass and run-scope consistent,
+   - verify required contract artifacts (`A..I` snapshots + `m11_handoff_pack`) are readable,
+   - enforce `M10.I` gate posture (`ADVANCE_TO_P14`, `M11_READY`),
+   - compute and emit `m10_phase_budget_envelope.json` + `m10_phase_cost_outcome_receipt.json` with CE daily prorated attribution,
+   - emit `m10_execution_summary.json`, `m10j_blocker_register.json`, `m10j_execution_summary.json`,
+   - fail closed on publication parity gaps.
+2. Extend `m10_stress_runner.py` with full `S5` support:
+   - add `S5_ARTS`, `latest_s4()`, `run_s5(...)`, CLI `--upstream-m10-s4-execution`,
+   - enforce strict continuity `S4 -> S3 -> S2 -> S1 -> S0` and resolve `A..I` execution ids,
+   - execute `M10.J`, map blockers fail-closed:
+     - `M10-ST-B11` cost-outcome closure,
+     - `M10-ST-B12` parity/publication,
+     - `M10-ST-B16` locality/source/black-box guard,
+     - `M10-ST-B17` realism guard,
+     - `M10-ST-B18` implementation hole.
+3. Update parent finish semantics for `S5` pass posture to emit:
+   - `verdict=ADVANCE_TO_M11`,
+   - `next_gate=M11_READY`.
+4. Preserve laws:
+   - local machine is control orchestration only,
+   - all closure authority remains managed durable artifacts,
+   - no Data Engine internals touched.
+
+### Planned execution
+1. compile-check `m10j` + runner.
+2. execute:
+   - `python scripts/dev_substrate/m10_stress_runner.py --stage S5 --upstream-m10-s4-execution m10_stress_s4_20260305T013131Z`.
+3. remediate blockers immediately if any and rerun.
+4. sync M10 + parent stress docs and logs with exact receipts.
+
+## Entry: 2026-03-05 01:40 +00:00 - M10-ST-S5 implemented and executed green
+### Implementation
+1. Added `scripts/dev_substrate/m10j_closure_sync.py` for lane `M10.J`:
+   - validates strict upstream `M10.A..M10.I` summary chain and run-scope consistency,
+   - validates contract artifact readability (`A..I` snapshots + `m11_handoff_pack`),
+   - enforces `M10.I` gate posture (`ADVANCE_TO_P14`, `M11_READY`),
+   - computes/publishes `m10_phase_budget_envelope.json` and `m10_phase_cost_outcome_receipt.json` using CE daily-prorated attribution,
+   - publishes `m10_execution_summary.json`, `m10j_blocker_register.json`, `m10j_execution_summary.json` with fail-closed parity checks.
+2. Extended parent `scripts/dev_substrate/m10_stress_runner.py`:
+   - added `S5_ARTS`, `latest_s4()`, `run_s5(...)`, CLI `--upstream-m10-s4-execution`,
+   - added stage pass mapping for S5 (`verdict=ADVANCE_TO_M11`, `next_gate=M11_READY`),
+   - enforced strict continuity `S4 -> S3 -> S2 -> S1 -> S0` before `M10.J` execution,
+   - mapped fail-closed blockers `M10-ST-B11/B12/B16/B17/B18`.
+
+### Validation and execution
+1. Compile validation passed:
+   - `python -m py_compile scripts/dev_substrate/m10j_closure_sync.py scripts/dev_substrate/m10_stress_runner.py`.
+2. Executed:
+   - `python scripts/dev_substrate/m10_stress_runner.py --stage S5 --upstream-m10-s4-execution m10_stress_s4_20260305T013131Z`.
+3. Result:
+   - `phase_execution_id=m10_stress_s5_20260305T014017Z`,
+   - `overall_pass=true`, `open_blocker_count=0`, `verdict=ADVANCE_TO_M11`, `next_gate=M11_READY`.
+4. Lane J receipts:
+   - `m10j_execution_id=m10j_stress_s5_20260305T014017Z` (`overall_pass=true`, `verdict=ADVANCE_TO_M11`, `next_gate=M11_READY`),
+   - `m10_phase_budget_envelope.json` and `m10_phase_cost_outcome_receipt.json` published with `m10_contract_parity.all_required_available=true`.
+
+### Documentation sync
+1. Updated `platform.M10.stress_test.md`:
+   - posture -> `S5_GREEN`,
+   - DoD marks `M10-ST-S5` complete,
+   - execution progress updated with S5 implementation/receipts,
+   - immediate next actions route to M11 planning.
+2. Updated `platform.stress_test.md`:
+   - program state now `M10=GO` with strict authority `m10_stress_s5_20260305T014017Z` (`M11_READY`),
+   - next step routed to `M11-ST-S0` planning/execution.
