@@ -12823,3 +12823,166 @@ ext_gate=M8_READY, open_blockers=0.
 ### Governance posture
 1. No commit/push/branch operation.
 2. Data Engine boundary preserved (black-box).
+
+## Entry: 2026-03-05 11:38 +00:00 - Managed Flink cutover executed (repin + materialization + fail-closed probe)
+### Trigger
+1. User directive: perform a controlled cutover from fallback runtime to Managed Service for Apache Flink and ensure design-aligned wiring.
+
+### Decision-completeness and coverage check
+1. Runtime path contract allows both canonical and fallback lanes:
+   - `FLINK_RUNTIME_PATH_ALLOWED = MSF_MANAGED|EKS_FLINK_OPERATOR`.
+2. Canonical target app handle is pinned and concrete:
+   - `FLINK_APP_RTDL_IEG_OFP_V0 = fraud-platform-dev-full-rtdl-ieg-ofp-v0`.
+3. Managed execution role exists and has service-trust for `kinesisanalytics.amazonaws.com`:
+   - `arn:aws:iam::230372904534:role/fraud-platform-dev-full-flink-execution`.
+4. Fail-closed rollback path remains explicit and bounded:
+   - fallback lane still permitted by `FLINK_RUNTIME_PATH_ALLOWED`.
+
+### Preflight findings (remote-only)
+1. `aws sts get-caller-identity` succeeded for principal `arn:aws:iam::230372904534:user/fraud-dev`.
+2. `aws kinesisanalyticsv2 list-applications --region eu-west-2` returned no applications prior to cutover.
+3. `aws kinesisanalyticsv2 describe-application --application-name fraud-platform-dev-full-rtdl-ieg-ofp-v0` failed with `ResourceNotFoundException` (target managed app not materialized yet).
+
+### Implementation executed
+1. Materialized canonical managed app surface:
+   - command: `aws kinesisanalyticsv2 create-application --region eu-west-2 --application-name fraud-platform-dev-full-rtdl-ieg-ofp-v0 --runtime-environment FLINK-1_18 --application-mode STREAMING --service-execution-role arn:aws:iam::230372904534:role/fraud-platform-dev-full-flink-execution ...`.
+   - result: application created in `READY` state.
+2. Repinned active runtime handle in registry:
+   - `FLINK_RUNTIME_PATH_ACTIVE: EKS_FLINK_OPERATOR -> MSF_MANAGED`.
+3. Executed fail-closed post-cutover probes and wrote deterministic receipt bundle:
+   - execution id: `m14e_msf_cutover_20260305T113525Z`.
+
+### Evidence
+1. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m14e_msf_cutover_20260305T113525Z/stress/m14e_msf_cutover_receipt.json`.
+2. `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m14e_msf_cutover_20260305T113525Z/stress/m14e_msf_cutover_execution_summary.json`.
+3. Summary verdict:
+   - `overall_pass=true`, `verdict=MSF_CUTOVER_GREEN`, `open_blocker_count=0`.
+
+### Runtime posture after cutover
+1. Active path is now canonical managed runtime (`MSF_MANAGED`).
+2. Target app handle is discoverable and `READY` on AWS Managed Service for Apache Flink.
+3. Fallback path is retained only as bounded rollback policy (`EKS_FLINK_OPERATOR` remains in allowed set).
+
+### Governance posture
+1. No commit/push/branch operation.
+2. No local runtime orchestration was introduced; this was control-plane only with remote managed service materialization.
+
+## Entry: 2026-03-05 11:46 +00:00 - Pre-edit plan for strict M14.E-style verification after MSF cutover
+### Trigger
+1. User directive: proceed with strict `M14.E` style verification after repin to Managed Flink.
+
+### Decision-completeness and scope closure (fail-closed)
+1. Strict check will enforce `M14.E` authority criteria from `platform.M14.build_plan.md`:
+   - required-handle closure,
+   - canonical/fallback runtime adjudication via MSF probe,
+   - branch-separated `IEG/OFP` evidence readability,
+   - lag/replay continuity proofs,
+   - local + durable artifact publication/readback.
+2. Continuity reference selection (explicit):
+   - use durable canonical refs that are currently readable and already part of prior M14 evidence chain:
+     - `m6f_p6b_streaming_active_20260225T175655Z/m6f_streaming_lag_posture.json`,
+     - `m9c_p12_replay_basis_20260226T075941Z/m9c_replay_basis_receipt.json`.
+   - use latest strict P8 branch artifacts (`m7p8_stress_s5_20260304T205741Z`) for `IEG/OFP` split proof refs.
+
+### Planned implementation
+1. Add standalone verifier script: `scripts/dev_substrate/m14e_strict_verifier.py`.
+2. Script behavior:
+   - parse handles from registry; fail on unresolved/drift placeholders,
+   - validate latest `M14.D` pass summary,
+   - execute explicit MSF probe (pinned-handle probe + ephemeral create/delete permission probe),
+   - verify canonical app list/describe readiness,
+   - verify `IEG/OFP` branch proof refs are readable in durable evidence,
+   - verify lag and replay continuity payload contracts,
+   - emit deterministic artifacts:
+     - `m14e_rtdl_projection_snapshot.json`,
+     - `m14e_msf_probe_receipt.json`,
+     - `m14e_blocker_register.json`,
+     - `m14e_execution_summary.json`.
+3. Publish artifacts to durable run-control and read back (`head-object`) to satisfy `M14-B6` gate.
+4. Execute strict verifier once; if blocker appears, remediate fail-closed and rerun.
+
+### Performance/cost/runtime posture
+1. Control-plane only checks; no local runtime orchestration.
+2. Ephemeral MSF probe app is deleted in the same run to keep spend bounded.
+3. Runtime budget target remains minute-scale for this verification.
+
+### Governance
+1. No commit/push/branch operation.
+2. Data Engine boundary remains black-box.
+
+## Entry: 2026-03-05 11:49 +00:00 - Strict M14.E-style verification executed after MSF cutover (fail-closed -> remediated -> green)
+### Trigger
+1. User directive: execute strict `M14.E` style verification after canonical cutover to Managed Flink.
+
+### Implementation
+1. Added standalone verifier: `scripts/dev_substrate/m14e_strict_verifier.py`.
+2. Verifier enforces fail-closed checks aligned to `platform.M14.build_plan.md` `M14.E` contract:
+   - required handle closure (`FLINK_RUNTIME_PATH_ACTIVE`, `FLINK_RUNTIME_PATH_ALLOWED`, `FLINK_APP_*`, `RTDL_*`, `S3_EVIDENCE_BUCKET`, `ROLE_FLINK_EXECUTION`),
+   - explicit M14.D entry evidence (`m14d_execution_summary.json` pass with `ADVANCE_TO_M14_E` + `M14.E_READY`),
+   - runtime adjudication probe (pinned-handle create attempt + ephemeral create/delete capability probe + canonical list/describe check),
+   - branch-separated IEG/OFP evidence and durable proof-ref readability,
+   - lag/replay continuity verification from durable refs,
+   - local + durable artifact publication/readback.
+
+### First strict execution (fail-closed)
+1. Command:
+   - `python scripts/dev_substrate/m14e_strict_verifier.py`.
+2. Result:
+   - execution id: `m14e_rtdl_projection_20260305T114637Z`,
+   - `overall_pass=false`, `blocker_count=2`, `verdict=HOLD_REMEDIATE`.
+3. Root cause:
+   - verifier bug incorrectly treated zero blocker counts as non-zero in discovery filters (`int(value or 1)`), causing false negatives for:
+     - `M14.D` pass discovery,
+     - `P8 S5` pass discovery.
+4. Blockers observed were synthetic due filter bug:
+   - `M14-B2`: missing `M14.D` pass (false),
+   - `M14-B4`: missing `P8 S5` pass (false).
+
+### Remediation
+1. Patched verifier discovery filters:
+   - `int(payload.get("blocker_count", 1) or 1)` -> `int(payload.get("blocker_count", 1))`,
+   - `int(payload.get("open_blocker_count", 1) or 1)` -> `int(payload.get("open_blocker_count", 1))`.
+2. Recompiled:
+   - `python -m py_compile scripts/dev_substrate/m14e_strict_verifier.py`.
+
+### Strict rerun (green)
+1. Command:
+   - `python scripts/dev_substrate/m14e_strict_verifier.py`.
+2. Result:
+   - execution id: `m14e_rtdl_projection_20260305T114720Z`,
+   - `overall_pass=true`, `blocker_count=0`,
+   - `m14e_verdict=ADVANCE_TO_M14_F`, `next_gate=M14.F_READY`.
+3. Runtime adjudication:
+   - pinned-handle create probe: `ResourceInUseException` (expected, app already exists),
+   - ephemeral create probe: success + deleted,
+   - canonical app list/describe: pass (`READY`, `STREAMING`, `FLINK-1_18`),
+   - effective runtime path: `MSF_MANAGED` (no fallback adjudication used).
+4. Branch-separated and continuity checks:
+   - P8 split evidence from `m7p8_stress_s5_20260304T205741Z` with readable durable refs:
+     - `evidence/runs/platform_20260223T184232Z/rtdl_core/ieg_component_proof.json`,
+     - `evidence/runs/platform_20260223T184232Z/rtdl_core/ofp_component_proof.json`.
+   - lag continuity pass from durable ref:
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6f_p6b_streaming_active_20260225T175655Z/m6f_streaming_lag_posture.json` (`measured_lag=2`, threshold `10`).
+   - replay continuity pass from durable ref:
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9c_p12_replay_basis_20260226T075941Z/m9c_replay_basis_receipt.json` (`origin_offset_range_count=1`, `offset_validation_errors=[]`).
+5. DoD closure flags in summary are all true:
+   - single-app branch-separated evidence,
+   - lag/offset/replay continuity,
+   - runtime-path adjudication explicit,
+   - local+durable artifact readability.
+
+### Artifacts
+1. Local:
+   - `runs/dev_substrate/dev_full/m14/m14e_rtdl_projection_20260305T114720Z/m14e_rtdl_projection_snapshot.json`,
+   - `runs/dev_substrate/dev_full/m14/m14e_rtdl_projection_20260305T114720Z/m14e_msf_probe_receipt.json`,
+   - `runs/dev_substrate/dev_full/m14/m14e_rtdl_projection_20260305T114720Z/m14e_blocker_register.json`,
+   - `runs/dev_substrate/dev_full/m14/m14e_rtdl_projection_20260305T114720Z/m14e_execution_summary.json`.
+2. Durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14e_rtdl_projection_20260305T114720Z/m14e_rtdl_projection_snapshot.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14e_rtdl_projection_20260305T114720Z/m14e_msf_probe_receipt.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14e_rtdl_projection_20260305T114720Z/m14e_blocker_register.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14e_rtdl_projection_20260305T114720Z/m14e_execution_summary.json`.
+
+### Governance
+1. No commit/push/branch operation.
+2. Local machine used for control-plane orchestration only; runtime work remained on managed AWS services.

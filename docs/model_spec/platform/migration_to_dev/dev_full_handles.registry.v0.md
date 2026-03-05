@@ -450,7 +450,7 @@ Allowed tokens in pattern handles:
 * `FLINK_RUNTIME_PATH_ALLOWED = "MSF_MANAGED|EKS_FLINK_OPERATOR"`
 * `FLINK_RUNTIME_PATH_DEFAULT = "MSF_MANAGED"`
 * `FLINK_RUNTIME_PATH_FALLBACK_BLOCKER = "M6P6-B2"`
-* `FLINK_RUNTIME_PATH_ACTIVE = "EKS_FLINK_OPERATOR"` (fail-closed runtime alignment while Managed Flink account verification gate remains active)
+* `FLINK_RUNTIME_PATH_ACTIVE = "MSF_MANAGED"` (repinned on 2026-03-05 after successful managed app materialization; fallback remains policy-bounded under `FLINK_RUNTIME_PATH_ALLOWED`)
 * `FLINK_APP_RTDL_IEG_OFP_V0 = "fraud-platform-dev-full-rtdl-ieg-ofp-v0"` (single app, branch-separated metrics/evidence)
 * `FLINK_APP_RTDL_IEG_OFP_SPLIT_POLICY = "split_only_on_evidence_of_contention_or_blast_radius"`
 * `FLINK_APP_RTDL_IEG_OFP_METRIC_NAMESPACES = "ieg_*,ofp_*"`
