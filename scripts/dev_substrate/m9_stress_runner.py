@@ -28,6 +28,18 @@ S0_ARTS = [
     "m9_gate_verdict.json",
 ]
 
+S1_ARTS = [
+    "m9c_replay_basis_receipt.json",
+    "m9d_asof_maturity_policy_snapshot.json",
+    "m9_runtime_locality_guard_snapshot.json",
+    "m9_source_authority_guard_snapshot.json",
+    "m9_realism_guard_snapshot.json",
+    "m9_blocker_register.json",
+    "m9_execution_summary.json",
+    "m9_decision_log.json",
+    "m9_gate_verdict.json",
+]
+
 
 def now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -136,6 +148,28 @@ def latest_m8_s5() -> tuple[str, dict[str, Any]]:
     return best_id, best_payload
 
 
+def latest_s0() -> tuple[str, dict[str, Any]]:
+    best_id = ""
+    best_payload: dict[str, Any] = {}
+    best_stamp = ""
+    for d in OUT_ROOT.glob("m9_stress_s0_*"):
+        payload = loadj(d / "stress" / "m9_execution_summary.json")
+        if not payload:
+            continue
+        if str(payload.get("stage_id", "")) != "M9-ST-S0":
+            continue
+        if not bool(payload.get("overall_pass")):
+            continue
+        if str(payload.get("next_gate", "")) != "M9_ST_S1_READY":
+            continue
+        stamp = str(payload.get("generated_at_utc", ""))
+        if (stamp, d.name) > (best_stamp, best_id):
+            best_id = d.name
+            best_payload = payload
+            best_stamp = stamp
+    return best_id, best_payload
+
+
 def finish(
     stage: str,
     phase_execution_id: str,
@@ -165,7 +199,12 @@ def finish(
     blockers = dedupe(blockers)
 
     overall_pass = len(blockers) == 0
-    next_gate = "M9_ST_S1_READY" if overall_pass else "HOLD_REMEDIATE"
+    if overall_pass and stage == "S0":
+        next_gate = "M9_ST_S1_READY"
+    elif overall_pass and stage == "S1":
+        next_gate = "M9_ST_S2_READY"
+    else:
+        next_gate = "HOLD_REMEDIATE"
     verdict = "GO" if overall_pass else "HOLD_REMEDIATE"
 
     register = {
@@ -464,21 +503,192 @@ def run_s0(phase_execution_id: str, upstream_m8_execution: str) -> int:
     )
 
 
+def run_s1(phase_execution_id: str, upstream_m9_s0_execution: str) -> int:
+    out = OUT_ROOT / phase_execution_id / "stress"
+    out.mkdir(parents=True, exist_ok=True)
+    blockers: list[dict[str, Any]] = []
+    advisories: list[str] = []
+
+    plan_text = PLAN.read_text(encoding="utf-8") if PLAN.exists() else ""
+    packet = parse_plan_packet(plan_text)
+    reg = parse_registry(REG) if REG.exists() else {}
+
+    for handle in ["S3_EVIDENCE_BUCKET"]:
+        value = reg.get(handle)
+        if value is None or is_placeholder(value):
+            add_blocker(blockers, "M9-ST-B3", "S1", {"reason": "required_handle_missing_or_placeholder", "handle": handle})
+
+    bucket = str(reg.get("S3_EVIDENCE_BUCKET", "")).strip()
+    s0_exec = upstream_m9_s0_execution.strip()
+    s0 = loadj(OUT_ROOT / s0_exec / "stress" / "m9_execution_summary.json") if s0_exec else {}
+    if not s0:
+        s0_exec, s0 = latest_s0()
+    if not s0 or not bool(s0.get("overall_pass")) or str(s0.get("next_gate", "")) != "M9_ST_S1_READY":
+        add_blocker(blockers, "M9-ST-B3", "S1", {"reason": "upstream_s0_not_ready", "execution_id": s0_exec})
+
+    m9b_exec = str(s0.get("m9b_execution_id", "")).strip() if s0 else ""
+    if not m9b_exec:
+        add_blocker(blockers, "M9-ST-B3", "S1", {"reason": "missing_m9b_execution_id", "upstream_s0_execution": s0_exec})
+
+    m9c_exec = ""
+    m9d_exec = ""
+    m9c_summary: dict[str, Any] = {}
+    m9d_summary: dict[str, Any] = {}
+    m9c_receipt: dict[str, Any] = {}
+    m9d_snapshot: dict[str, Any] = {}
+
+    if not blockers:
+        m9c_exec = f"m9c_stress_s1_{tok()}"
+        m9c_dir = out / "_m9c"
+        env_m9c = dict(os.environ)
+        env_m9c.update(
+            {
+                "M9C_EXECUTION_ID": m9c_exec,
+                "M9C_RUN_DIR": m9c_dir.as_posix(),
+                "EVIDENCE_BUCKET": bucket,
+                "UPSTREAM_M9B_EXECUTION": m9b_exec,
+                "AWS_REGION": "eu-west-2",
+            }
+        )
+        rc, _, err = run(["python", "scripts/dev_substrate/m9c_replay_basis_receipt.py"], timeout=2400, env=env_m9c)
+        if rc != 0:
+            add_blocker(blockers, "M9-ST-B3", "S1", {"reason": "m9c_command_failed", "stderr": err.strip()[:300], "rc": rc})
+        m9c_summary = loadj(m9c_dir / "m9c_execution_summary.json")
+        m9c_receipt = loadj(m9c_dir / "m9c_replay_basis_receipt.json")
+        if not m9c_summary:
+            add_blocker(blockers, "M9-ST-B3", "S1", {"reason": "m9c_summary_missing"})
+        elif not (bool(m9c_summary.get("overall_pass")) and str(m9c_summary.get("next_gate", "")) == "M9.D_READY"):
+            add_blocker(blockers, "M9-ST-B3", "S1", {"reason": "m9c_not_ready", "summary": m9c_summary})
+
+    if not blockers:
+        m9d_exec = f"m9d_stress_s1_{tok()}"
+        m9d_dir = out / "_m9d"
+        env_m9d = dict(os.environ)
+        env_m9d.update(
+            {
+                "M9D_EXECUTION_ID": m9d_exec,
+                "M9D_RUN_DIR": m9d_dir.as_posix(),
+                "EVIDENCE_BUCKET": bucket,
+                "UPSTREAM_M9C_EXECUTION": m9c_exec,
+                "AWS_REGION": "eu-west-2",
+            }
+        )
+        rc, _, err = run(["python", "scripts/dev_substrate/m9d_asof_maturity_policy.py"], timeout=2400, env=env_m9d)
+        if rc != 0:
+            add_blocker(blockers, "M9-ST-B4", "S1", {"reason": "m9d_command_failed", "stderr": err.strip()[:300], "rc": rc})
+        m9d_summary = loadj(m9d_dir / "m9d_execution_summary.json")
+        m9d_snapshot = loadj(m9d_dir / "m9d_asof_maturity_policy_snapshot.json")
+        if not m9d_summary:
+            add_blocker(blockers, "M9-ST-B4", "S1", {"reason": "m9d_summary_missing"})
+        elif not (bool(m9d_summary.get("overall_pass")) and str(m9d_summary.get("next_gate", "")) == "M9.E_READY"):
+            add_blocker(blockers, "M9-ST-B4", "S1", {"reason": "m9d_not_ready", "summary": m9d_summary})
+
+    if m9c_receipt:
+        dumpj(out / "m9c_replay_basis_receipt.json", m9c_receipt)
+    if m9d_snapshot:
+        dumpj(out / "m9d_asof_maturity_policy_snapshot.json", m9d_snapshot)
+
+    runtime_locality_ok = bool(packet.get("M9_STRESS_REQUIRE_REMOTE_RUNTIME_ONLY", True))
+    dumpj(
+        out / "m9_runtime_locality_guard_snapshot.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M9-ST-S1",
+            "overall_pass": runtime_locality_ok,
+            "require_remote_runtime_only": bool(packet.get("M9_STRESS_REQUIRE_REMOTE_RUNTIME_ONLY", True)),
+            "runtime_execution_attempted": False,
+            "runtime_execution_mode": "none_in_s1_validations",
+        },
+    )
+    if not runtime_locality_ok:
+        add_blocker(blockers, "M9-ST-B15", "S1", {"reason": "runtime_locality_policy_not_true"})
+
+    refs = [
+        f"evidence/dev_full/run_control/{m9b_exec}/m9b_execution_summary.json" if m9b_exec else "",
+        f"evidence/dev_full/run_control/{m9c_exec}/m9c_execution_summary.json" if m9c_exec else "",
+        f"evidence/dev_full/run_control/{m9d_exec}/m9d_execution_summary.json" if m9d_exec else "",
+    ]
+    source_guard_ok = len([b for b in blockers if b.get("id") in {"M9-ST-B11", "M9-ST-B15"}]) == 0
+    dumpj(
+        out / "m9_source_authority_guard_snapshot.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M9-ST-S1",
+            "overall_pass": source_guard_ok,
+            "authoritative_refs": refs,
+            "evidence_bucket": bucket,
+        },
+    )
+
+    realism_ok = bool(packet.get("M9_STRESS_DISALLOW_WAIVED_REALISM", True))
+    if not realism_ok:
+        add_blocker(blockers, "M9-ST-B16", "S1", {"reason": "non_toy_realism_guard_not_satisfied"})
+    dumpj(
+        out / "m9_realism_guard_snapshot.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M9-ST-S1",
+            "overall_pass": realism_ok,
+            "disallow_waived_realism": bool(packet.get("M9_STRESS_DISALLOW_WAIVED_REALISM", True)),
+        },
+    )
+
+    if not bool(packet.get("M9_STRESS_REQUIRE_DATA_ENGINE_BLACKBOX", True)):
+        add_blocker(blockers, "M9-ST-B15", "S1", {"reason": "data_engine_blackbox_guard_not_true"})
+
+    return finish(
+        "S1",
+        phase_execution_id,
+        out,
+        blockers,
+        S1_ARTS,
+        {
+            "platform_run_id": str(s0.get("platform_run_id", "")) if s0 else "",
+            "scenario_run_id": str(s0.get("scenario_run_id", "")) if s0 else "",
+            "upstream_m9_s0_execution": s0_exec,
+            "m9c_execution_id": m9c_exec,
+            "m9d_execution_id": m9d_exec,
+            "decisions": [
+                "S1 executed M9.C replay-basis receipt closure then M9.D as-of/maturity policy closure.",
+                "S1 enforced strict S0 entry gate and retained source/locality/realism/black-box guards.",
+            ],
+            "advisories": advisories,
+        },
+    )
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="M9 stress runner")
-    ap.add_argument("--stage", required=True, choices=["S0"])
-    ap.add_argument("--phase-execution-id", default=f"m9_stress_s0_{tok()}")
+    ap.add_argument("--stage", required=True, choices=["S0", "S1"])
+    ap.add_argument("--phase-execution-id", default="")
     ap.add_argument("--upstream-m8-execution", default="")
+    ap.add_argument("--upstream-m9-s0-execution", default="")
     args = ap.parse_args()
 
-    upstream_m8 = args.upstream_m8_execution.strip()
-    if not upstream_m8:
-        upstream_m8, _ = latest_m8_s5()
-    if not upstream_m8:
-        raise SystemExit("No upstream M8 S5 execution provided/found.")
+    phase_execution_id = args.phase_execution_id.strip()
+    if not phase_execution_id:
+        if args.stage == "S0":
+            phase_execution_id = f"m9_stress_s0_{tok()}"
+        elif args.stage == "S1":
+            phase_execution_id = f"m9_stress_s1_{tok()}"
 
     if args.stage == "S0":
-        return run_s0(args.phase_execution_id.strip(), upstream_m8)
+        upstream_m8 = args.upstream_m8_execution.strip()
+        if not upstream_m8:
+            upstream_m8, _ = latest_m8_s5()
+        if not upstream_m8:
+            raise SystemExit("No upstream M8 S5 execution provided/found.")
+        return run_s0(phase_execution_id, upstream_m8)
+    if args.stage == "S1":
+        upstream_s0 = args.upstream_m9_s0_execution.strip()
+        if not upstream_s0:
+            upstream_s0, _ = latest_s0()
+        if not upstream_s0:
+            raise SystemExit("No upstream M9 S0 execution provided/found.")
+        return run_s1(phase_execution_id, upstream_s0)
     raise SystemExit("Unsupported stage")
 
 

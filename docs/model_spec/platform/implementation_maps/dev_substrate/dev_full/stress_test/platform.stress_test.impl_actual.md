@@ -9876,3 +9876,85 @@ ext_gate=M8_READY, open_blockers=0.
    - M9 status `IN_PROGRESS (S0_GREEN)`,
    - dedicated-file status `S0_GREEN, S1_PENDING`,
    - next step set to `M9-ST-S1`.
+
+## Entry: 2026-03-05 00:08 +00:00 - M9-ST-S1 design + execution plan (C+D)
+### Context
+1. USER requested immediate planning and execution of `M9-ST-S1`.
+2. `M9-ST-S0` is green (`m9_stress_s0_20260305T000519Z`) with:
+   - `m9a_execution_id=m9a_stress_s0_20260305T000520Z`,
+   - `m9b_execution_id=m9b_stress_s0_20260305T000522Z`,
+   - `next_gate=M9_ST_S1_READY`.
+3. Component contracts:
+   - `m9c` requires `UPSTREAM_M9B_EXECUTION`, validates replay basis and emits `next_gate=M9.D_READY` on pass.
+   - `m9d` requires `UPSTREAM_M9C_EXECUTION`, validates as-of/maturity and emits `next_gate=M9.E_READY` on pass.
+
+### Decision
+1. Extend `m9_stress_runner.py` incrementally to support `S1` only, preserving S0 behavior.
+2. Add deterministic S1 entry checks:
+   - upstream S0 summary must be pass and `next_gate=M9_ST_S1_READY`,
+   - upstream `m9b_execution_id` must be present and readable through component outputs.
+3. Execute native `C -> D` chain:
+   - call `m9c_replay_basis_receipt.py`,
+   - call `m9d_asof_maturity_policy.py`.
+4. Map failures fail-closed:
+   - `M9-ST-B3` for C failures,
+   - `M9-ST-B4` for D failures,
+   - `M9-ST-B11` for artifact contract/parity failures.
+5. Emit S1 parent receipts and guards with pass gate:
+   - `next_gate=M9_ST_S2_READY`,
+   - `verdict=GO`,
+   - `open_blocker_count=0`.
+
+### Planned edits
+1. `scripts/dev_substrate/m9_stress_runner.py`:
+   - add `S1_ARTS`,
+   - add `latest_s0()` selector,
+   - extend `finish()` for stage-specific gates (`S0`/`S1`),
+   - implement `run_s1(...)`,
+   - extend CLI dispatch to `--stage S1`.
+2. Execute `M9-ST-S1` with `--upstream-m9-s0-execution m9_stress_s0_20260305T000519Z`.
+
+## Entry: 2026-03-05 00:10 +00:00 - M9-ST-S1 executed green
+### Implementation
+1. Extended `scripts/dev_substrate/m9_stress_runner.py`:
+   - added `S1_ARTS` contract,
+   - added `latest_s0()` selector,
+   - made `finish()` stage-aware (`S0 -> M9_ST_S1_READY`, `S1 -> M9_ST_S2_READY`),
+   - implemented `run_s1(...)` with deterministic `C -> D` chain orchestration,
+   - extended CLI with `--stage S1` and `--upstream-m9-s0-execution`.
+2. `S1` logic enforces:
+   - S0 entry continuity check (`overall_pass=true`, `next_gate=M9_ST_S1_READY`),
+   - required `m9b_execution_id` presence,
+   - native `m9c` then `m9d` execution and pass-gate validation,
+   - parent guard snapshots (`runtime_locality`, `source_authority`, `realism`) and black-box guard continuity.
+
+### Validation and execution
+1. Compile validation:
+   - `python -m py_compile scripts/dev_substrate/m9_stress_runner.py scripts/dev_substrate/m9c_replay_basis_receipt.py scripts/dev_substrate/m9d_asof_maturity_policy.py` -> pass.
+2. Execution command:
+   - `python scripts/dev_substrate/m9_stress_runner.py --stage S1 --upstream-m9-s0-execution m9_stress_s0_20260305T000519Z`.
+3. Stage result:
+   - `phase_execution_id=m9_stress_s1_20260305T001004Z`,
+   - `overall_pass=true`, `open_blocker_count=0`,
+   - `verdict=GO`, `next_gate=M9_ST_S2_READY`.
+
+### Lane evidence
+1. `M9.C`:
+   - `execution_id=m9c_stress_s1_20260305T001004Z`,
+   - `overall_pass=true`, `next_gate=M9.D_READY`,
+   - run-scoped replay receipt key emitted:
+     - `evidence/runs/platform_20260223T184232Z/learning/input/replay_basis_receipt.json`.
+2. `M9.D`:
+   - `execution_id=m9d_stress_s1_20260305T001006Z`,
+   - `overall_pass=true`, `next_gate=M9.E_READY`,
+   - temporal invariants and maturity checks passed with `future_policy=fail_closed`.
+
+### Documentation sync
+1. Updated `platform.M9.stress_test.md`:
+   - posture `S1_GREEN`,
+   - DoD `M9-ST-S1` checked,
+   - immediate next action switched to `M9-ST-S2`.
+2. Updated `platform.stress_test.md`:
+   - M9 status `IN_PROGRESS (S1_GREEN)`,
+   - dedicated status `S1_GREEN, S2_PENDING`,
+   - next step `M9-ST-S2` with upstream `m9_stress_s1_20260305T001004Z`.
