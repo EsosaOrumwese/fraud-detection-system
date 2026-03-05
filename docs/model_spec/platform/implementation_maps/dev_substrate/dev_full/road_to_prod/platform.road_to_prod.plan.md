@@ -212,9 +212,9 @@ This plan's intent is satisfied only when:
 3. The final production-ready verdict is claimable, auditable, and has `open_blockers=0`.
 
 ## 10) Immediate Next Step
-1. Start `PR1-S3`: execute RTDL allowlist/denylist, IEG scope pinning, and lateness-policy closure from the pinned S2 join outcomes.
-2. Use `PR1-S2` receipt as immediate upstream authority:
-   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr1_20260305T174744Z/pr1_s2_execution_receipt.json`.
+1. Start `PR1-S4`: execute learning maturity closure and monitoring baseline pinning from the pinned S3 policy scope.
+2. Use `PR1-S3` receipt as immediate upstream authority:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr1_20260305T174744Z/pr1_s3_execution_receipt.json`.
 3. Keep Section 11 target status table as the active blocker-routing surface during PR1 execution.
 4. Use the dedicated PR1 authority doc as execution source:
    - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR1.road_to_prod.md`.
@@ -257,6 +257,18 @@ This plan's intent is satisfied only when:
 | Runtime budget posture (`S2`) | `elapsed_minutes` not yet emitted in S2 receipt | `<= 15 min` | `WARN` | Runtime is expected to be low under evidence-first reuse but not yet claimable numerically. | Add explicit `elapsed_minutes` field in state receipt starting next state and backfill when rerun occurs. |
 | Cost posture (`S2`) | `attributable_spend_usd` not yet emitted in S2 receipt | `minimal/near-zero` | `WARN` | Spend expectation is near-zero under by-reference reuse but not yet evidenced as a number. | Add explicit spend receipt fields per state; fail-closed if missing where fresh extraction occurs. |
 | Scope/provenance caveat | Advisory `S2.AD02` (join evidence window extends beyond S1 charter) | Charter-aligned window preferred | `WARN` | Evidence is corpus-aligned but time-window-extended. | Clear at next refresh boundary with charter-bounded join extraction. |
+
+### 10.4 PR1-S3 Findings Snapshot (Readable)
+| Signal | Observed Value | Threshold/Expectation | Status | Why it matters for PR1 | Decision/Next Action |
+| --- | --- | --- | --- | --- | --- |
+| S3 verdict | `PR1_S3_READY`, `open_blockers=0` | `open_blockers=0` | `PASS` | Confirms legal handoff to S4. | Proceed to `PR1-S4`. |
+| `B10` RTDL scope check | allowlist/denylist emitted and readable | required | `PASS` | Runtime-safe data boundary is explicit, not implied. | Keep as active runtime boundary contract. |
+| `B11` IEG scope check | minimal graph pinned (`edge_count=6`) + TTL/state bounds | required | `PASS` | Graph scope is bounded and auditable for G2. | Use this as S4/S5 graph-scope baseline. |
+| `B12` lateness-policy check | fail-closed as-of policy pinned; enforceability checks all `true` | required | `PASS` | Time-causality/lateness posture is enforceable, not narrative only. | Carry policy to S4 learning closure and S5 rollup. |
+| Runtime posture (`S3`) | `elapsed_minutes=0.0` vs budget `15` | `<= 15` | `PASS` | Evidence-first execution stayed minute-scale. | Preserve this execution posture for remaining PR1 states. |
+| Cost posture (`S3`) | `attributable_spend_usd=0.0` vs envelope `1.0` | `<= 1.0` | `PASS` | No incremental cloud extraction spend was incurred in this state. | Continue spend receipts even on near-zero states. |
+| Target closure impact | `TGT-03=PINNED`, `TGT-04=PINNED` | both pinned by PR1-S5 latest | `PASS` | Two mandatory G2 targets are now closed earlier at S3. | Focus S4/S5 on `TGT-05`, `TGT-07`, and final `TGT-02`. |
+| Advisory | `S3.AD01_POLICY_REFERENCE_WINDOW_EXTENDS_BEYOND_S1_CHARTER` | charter-window alignment preferred | `WARN` | Policy source window drift remains a documented caveat. | Clear with charter-bounded policy refresh at next eligible boundary. |
 
 ## 11) Required TBD Closure Sheet (Binding)
 This section defines the mandatory closure routing for unresolved targets in:
@@ -308,15 +320,15 @@ Closure rule:
 1. Required targets cannot remain `OPEN`/`IN_PROGRESS`/`WAIVED_TIMEBOXED` at their close-by gate.
 2. Any miss becomes `HOLD_REMEDIATE` with explicit rerun boundary before phase continuation.
 
-### 11.3 Current Target Status Snapshot (PR1-S2)
+### 11.3 Current Target Status Snapshot (PR1-S3)
 As-of execution: `pr1_20260305T174744Z`
 
 | Target ID | Current status | Blocking gate | Notes |
 | --- | --- | --- | --- |
 | TGT-01 | PINNED | PR0 | Injection-path policy pinned: `via_IG` is production claim path; `via_MSK` is hot-path-only scoped claim path. |
 | TGT-02 | IN_PROGRESS | PR1-S5 | PR1-S1 produced bounded RC2-S envelope candidate; numeric finalization remains queued for S5 rollup. |
-| TGT-03 | IN_PROGRESS | PR1-S5 | PR1-S0 inventory mapped lateness policy closure to S3. |
-| TGT-04 | IN_PROGRESS | PR1-S5 | PR1-S0 inventory mapped IEG minimal graph closure to S3. |
+| TGT-03 | PINNED | PR1-S5 | S3 pinned lateness policy with fail-closed as-of semantics and enforceability receipt. |
+| TGT-04 | PINNED | PR1-S5 | S3 pinned IEG minimal graph scope with explicit TTL/state bounds. |
 | TGT-05 | IN_PROGRESS | PR1-S5 | PR1-S0 pinned maturity-lag candidate set; final pin scheduled at S4. |
 | TGT-06 | PINNED | PR1-S5 | S2 pinned join/fanout/unmatched bounds with explicit thresholds and decision register. |
 | TGT-07 | IN_PROGRESS | PR1-S5 | PR1-S0 inventory mapped monitoring baseline closure to S4. |

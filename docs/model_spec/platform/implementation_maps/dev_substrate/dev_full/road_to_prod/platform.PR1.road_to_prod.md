@@ -244,6 +244,29 @@ Fail-closed blockers:
 2. `PR1.B11_IEG_SCOPE_UNPINNED`
 3. `PR1.B12_LATENESS_POLICY_UNPINNED`
 
+S3 planning expansion (execution checklist):
+1. Upstream lock:
+   - require `PR1_S2_READY` with `open_blockers=0` from the same execution id.
+2. Evidence source lock:
+   - reuse by-reference policy/IEG artifacts first (no fresh extraction),
+   - preserve explicit provenance refs for all pinned decisions.
+3. RTDL scope lock:
+   - emit `g2_rtdl_allowlist.yaml` with runtime-allowed outputs and field constraints,
+   - emit `g2_rtdl_denylist.yaml` with forbidden truth outputs and future/leakage fields.
+4. IEG minimal graph lock:
+   - pin selected graph edges, key domains, coverage basis, and deferred edges with reasons,
+   - pin TTL/state bounds explicitly for G2 runtime-safe scope.
+5. Lateness-policy lock:
+   - pin watermark/as-of posture and late-event routing (`accept`/`quarantine`/`drop` semantics),
+   - include enforceability evidence from policy validation artifacts.
+6. S3 output quality gates:
+   - allowlist/denylist files are readable and non-empty,
+   - `pr1_ieg_scope_decisions.json` contains explicit scope and bounds,
+   - `pr1_late_event_policy_receipt.json` contains pinned lateness policy plus enforceability checks.
+7. S3 handoff rule:
+   - emit `PR1_S3_READY` only when blockers `B10..B12` are zero,
+   - otherwise fail-closed with rerun boundary `S3`.
+
 ### S4 - Learning Maturity And Monitoring Baselines
 Objective:
 1. close time-causal learning boundaries and baseline references for downstream runtime certification.
@@ -391,7 +414,7 @@ Publication surfaces:
 Fail-closed rule:
 1. If digest rows/columns are incomplete, state closure remains `HOLD_REMEDIATE` for reporting incompleteness.
 
-## 11) Execution Record - `pr1_20260305T174744Z` (`S0-S2`)
+## 11) Execution Record - `pr1_20260305T174744Z` (`S0-S3`)
 State outcomes:
 1. `S0 PASS`:
    - upstream lock validated from PR0 (`PR1_READY`),
@@ -410,6 +433,14 @@ State outcomes:
    - `TGT-06` thresholds pinned (`max_unmatched_join_rate=0.001`, `max_fanout_p99=2.0`, `max_duplicate_key_rate_each_side=0.001`),
    - verdict `PR1_S2_READY`, `next_state=PR1-S3`, `open_blockers=0`,
    - advisory carried explicitly: `S2.AD02_JOIN_EVIDENCE_WINDOW_EXTENDS_BEYOND_S1_CHARTER`.
+4. `S3 PASS`:
+   - RTDL allowlist/denylist materialized with runtime-safe scope,
+   - IEG minimal graph scope + TTL/state bounds pinned,
+   - lateness policy pinned with fail-closed as-of posture and enforceability checks,
+   - `B10=true`, `B11=true`, `B12=true`,
+   - `TGT-03` and `TGT-04` moved to `PINNED`,
+   - verdict `PR1_S3_READY`, `next_state=PR1-S4`, `open_blockers=0`,
+   - advisory carried explicitly: `S3.AD01_POLICY_REFERENCE_WINDOW_EXTENDS_BEYOND_S1_CHARTER`.
 
 Run-control root:
 1. `runs/dev_substrate/dev_full/road_to_prod/run_control/pr1_20260305T174744Z/`
@@ -426,6 +457,11 @@ Artifacts emitted in this state:
 9. `pr1_join_matrix.json`
 10. `pr1_join_decision_register.json`
 11. `pr1_s2_execution_receipt.json`
+12. `g2_rtdl_allowlist.yaml`
+13. `g2_rtdl_denylist.yaml`
+14. `pr1_ieg_scope_decisions.json`
+15. `pr1_late_event_policy_receipt.json`
+16. `pr1_s3_execution_receipt.json`
 
 ## 12) PR1-S1 Findings Summary (Readable)
 | Area | What was found | Interpretation |
@@ -468,3 +504,18 @@ Artifacts emitted in this state:
 | Runtime evidence completeness | `elapsed_minutes` not yet emitted in `S1/S2` receipts | required per-state | `WARN` | Runtime is not yet numerically claimable in receipt surfaces. | Add `elapsed_minutes` to all state receipts starting S3. |
 | Cost evidence completeness | `attributable_spend_usd` not yet emitted in `S1/S2` receipts | required per-state | `WARN` | Spend posture is expected low but not numerically claimable in receipt surfaces. | Add spend fields/receipt linkage from S3 onward; backfill on rerun if needed. |
 | Scope caveat | `S2.AD02_JOIN_EVIDENCE_WINDOW_EXTENDS_BEYOND_S1_CHARTER` | charter-window alignment preferred | `WARN` | Corpus root aligns, but time window drift must remain visible. | Clear at next join refresh boundary with charter-bounded window extraction. |
+
+## 15) PR1-S3 Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Upstream gate | `PR1_S2_READY`, `open_blockers=0` | S3 execution respected strict state continuity. |
+| RTDL allowlist | runtime outputs pinned: `arrival_events_5B`, `s1_arrival_entities_6B`, `s3_event_stream_with_fraud_6B`, `s3_flow_anchor_with_fraud_6B` | Runtime-safe input scope is explicitly bounded and readable. |
+| RTDL denylist | truth outputs + future/leakage fields pinned (`arrival_count`, `session_end_utc`) | Leakage boundary is explicit and enforceable. |
+| IEG minimal scope | primary key `flow_id`; active edges `6`; deferred edges explicitly listed | Graph scope is pinned for G2 without pretending full-graph readiness. |
+| IEG bounds | `entity_edge_ttl_hours=24`, `edge_state_max_versions=3` | Runtime memory/state growth is bounded for this scope. |
+| Lateness policy | `future_timestamp_policy=fail_closed`, `allowed_lateness_seconds=0`, `late_event_route=quarantine` | Time-causality posture is strict and replay-safe. |
+| Enforceability checks | runtime boundary `true`, truth boundary `true`, leakage guard `true` | Policy is not just stated; it is backed by validation evidence. |
+| Gate checks | `B10=true`, `B11=true`, `B12=true` | S3 fail-closed checks all passed. |
+| Target updates | `TGT-03=PINNED`, `TGT-04=PINNED` | Two required G2 targets closed at S3 boundary. |
+| S3 verdict | `PR1_S3_READY`, `open_blockers=0`, `next_state=PR1-S4` | PR1 can proceed to S4. |
+| Advisory | `S3.AD01_POLICY_REFERENCE_WINDOW_EXTENDS_BEYOND_S1_CHARTER` | Policy evidence is strong but window drift remains explicit for follow-up. |

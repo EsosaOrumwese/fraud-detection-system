@@ -787,3 +787,97 @@ _As of 2026-03-05_
 ### Governance
 1. Documentation updates only.
 2. No commit/push/branch operation.
+
+## Entry: 2026-03-05 18:29 +00:00 - Pre-edit plan: PR1-S3 detailed planning + execution from strict upstream S2
+### Trigger
+1. USER requested expanding plan for `PR1-S3` and executing it.
+
+### Decision-completeness check
+1. Strict upstream is valid:
+   - `pr1_s2_execution_receipt.json` has `PR1_S2_READY`, `open_blockers=0`.
+2. Required S3 outputs are pinned:
+   - `g2_rtdl_allowlist.yaml`,
+   - `g2_rtdl_denylist.yaml`,
+   - `pr1_ieg_scope_decisions.json`,
+   - `pr1_late_event_policy_receipt.json`,
+   - `pr1_s3_execution_receipt.json` (state handoff and gate checks).
+3. Required S3 decisions are sourced from existing by-reference evidence:
+   - runtime allow/deny and future-field policy from `m15c_point_in_time_policy_spec.json`,
+   - IEG minimal relationship graph from `m15c_ieg_entity_relationship_pin.json`,
+   - policy enforceability from `m15c_policy_validation_report.json`.
+
+### Evidence strategy (performance + cost discipline)
+1. Evidence-first reuse only; no new extraction runs and no platform orchestration.
+2. Reuse `M15.C` artifacts under:
+   - `runs/dev_substrate/dev_full/m15/m15c_point_in_time_policy_20260302T074401Z/`.
+3. Preserve explicit advisory if source policy window extends beyond S1/S2 charter.
+
+### S3 execution design
+1. `g2_rtdl_allowlist.yaml`:
+   - pin runtime-allowed output ids + constraints (no truth products at runtime).
+2. `g2_rtdl_denylist.yaml`:
+   - pin forbidden truth output ids and forbidden future/leakage fields.
+3. `pr1_ieg_scope_decisions.json`:
+   - pin minimal graph edges, key domains, coverage posture, deferred edges, and TTL/state bounds for G2 scope.
+4. `pr1_late_event_policy_receipt.json`:
+   - pin watermark/allowed-lateness posture using fail-closed point-in-time policy (`feature_asof_required`, `future_timestamp_policy=fail_closed`) and explicit late-event route.
+5. Gate checks:
+   - `B10` allowlist/denylist materialized and readable,
+   - `B11` IEG scope + TTL/state bounds pinned,
+   - `B12` lateness policy pinned + enforceability evidence present.
+6. Emit `PR1_S3_READY` only if `B10..B12` are all true.
+7. Include receipt runtime/cost/advisory fields per new binding reporting law:
+   - `elapsed_minutes`, `runtime_budget_minutes`, `attributable_spend_usd`, `cost_envelope_usd`, `advisory_ids`.
+
+### Governance
+1. Docs + run-control artifact updates only.
+2. No commit/push/branch operation.
+
+## Entry: 2026-03-05 18:33 +00:00 - PR1-S3 executed; policy scope closure passed; TGT-03/TGT-04 pinned
+### Execution performed
+1. Executed `PR1-S3` from strict upstream `pr1_s2_execution_receipt.json` under:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr1_20260305T174744Z/`.
+2. Reused by-reference policy/IEG evidence (evidence-first, no fresh extraction):
+   - `m15c_point_in_time_policy_spec.json`,
+   - `m15c_ieg_entity_relationship_pin.json`,
+   - `m15c_policy_validation_report.json`,
+   - `m15c_execution_summary.json`
+   from `m15c_point_in_time_policy_20260302T074401Z`.
+3. Emitted S3 artifacts:
+   - `g2_rtdl_allowlist.yaml`,
+   - `g2_rtdl_denylist.yaml`,
+   - `pr1_ieg_scope_decisions.json`,
+   - `pr1_late_event_policy_receipt.json`,
+   - `pr1_s3_execution_receipt.json`,
+   - updated `pr1_latest.json` (`latest_state=S3`).
+
+### Result
+1. `pr1_s3_execution_receipt.json` verdict: `PR1_S3_READY`.
+2. `open_blockers=0`, `next_state=PR1-S4`.
+3. Fail-closed checks all passed:
+   - `B10_rtdl_allowlist_present=true`,
+   - `B11_ieg_scope_pinned=true`,
+   - `B12_lateness_policy_pinned=true`.
+4. Target updates:
+   - `TGT-03=PINNED`,
+   - `TGT-04=PINNED`.
+5. Runtime/cost receipt fields emitted per binding reporting law:
+   - `elapsed_minutes=0.0`,
+   - `runtime_budget_minutes=15`,
+   - `attributable_spend_usd=0.0`,
+   - `cost_envelope_usd=1.0`,
+   - `advisory_ids=[S3.AD01_POLICY_REFERENCE_WINDOW_EXTENDS_BEYOND_S1_CHARTER]`.
+
+### Plan synchronization
+1. Updated `platform.PR1.road_to_prod.md`:
+   - added S3 planning expansion checklist,
+   - updated execution record to `S0-S3`,
+   - added `PR1-S3 Findings Summary (Readable)`.
+2. Updated `platform.road_to_prod.plan.md`:
+   - immediate next step moved to `PR1-S4` with S3 receipt as strict upstream,
+   - added `10.4 PR1-S3 Findings Snapshot (Readable)`,
+   - Section `11.3` snapshot advanced to `PR1-S3` with `TGT-03/TGT-04=PINNED`.
+
+### Governance
+1. Docs + run-control artifacts only.
+2. No commit/push/branch operation.
