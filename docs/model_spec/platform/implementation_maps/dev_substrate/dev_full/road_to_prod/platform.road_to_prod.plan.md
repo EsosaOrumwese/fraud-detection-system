@@ -215,9 +215,9 @@ This plan's intent is satisfied only when:
 3. The final production-ready verdict is claimable, auditable, and has `open_blockers=0`.
 
 ## 10) Immediate Next Step
-1. Proceed to `PR2-S2`: execute activation validation and anti-gaming checks over S1 contracts.
-2. Use `PR2-S1` receipt as immediate upstream authority:
-   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_s1_execution_receipt.json`.
+1. Proceed to `PR2-S3`: execute PR2 activation rollup, blocker register, and phase verdict.
+2. Use `PR2-S2` receipt as immediate upstream authority:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_s2_execution_receipt.json`.
 3. Keep Section 11 target status table as the active blocker-routing surface during `PR2` execution.
 4. Use PR2 authority doc as active execution source and keep PR1 as historical upstream source:
    - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR2.road_to_prod.md`
@@ -322,6 +322,18 @@ This plan's intent is satisfied only when:
 | Burst realization constraint | projected burst under uniform speedup `3568.809582 eps`; gap `2431.190418 eps` | explicit carry-forward constraint | `PASS` | Documents why speedup-only pacing cannot prove 6000 burst claim. | Implement burst-shaper lane in `PR3-S1` before 6000 burst claim. |
 | Runtime posture (`S1`) | `elapsed_minutes=0.0` vs budget `25` | `<= 25` | `PASS` | S1 stayed minute-scale with deterministic artifact output. | Preserve minute-scale posture in S2/S3. |
 | Cost posture (`S1`) | `attributable_spend_usd=0.0` vs envelope `5.0` | attributable and `<= 5.0` | `PASS` | S1 remained evidence-first and spend-neutral. | Keep attributable spend receipts mandatory through PR2 closure. |
+
+### 10.9 PR2-S2 Findings Snapshot (Readable)
+| Signal | Observed Value | Threshold/Expectation | Status | Why it matters for PR2 | Decision/Next Action |
+| --- | --- | --- | --- | --- | --- |
+| S2 verdict | `PR2_S2_READY`, `open_blockers=0`, `next_state=PR2-S3` | `open_blockers=0` | `PASS` | Confirms legal handoff from activation validation to PR2 rollup closure. | Execute `PR2-S3` from this strict upstream. |
+| Runtime activatability (`B10`) | `overall_valid=true` (`pr2_runtime_contract_validator.json`) | runtime contract activatable | `PASS` | Prevents non-activatable RC2-S from leaking into PR3. | Keep runtime contract immutable through S3. |
+| Ops/gov activatability (`B11`) | `overall_valid=true` (`pr2_opsgov_contract_validator.json`) | baselines activatable | `PASS` | Confirms active-scope ops/gov contract is enforceable. | Carry owner/runbook coverage into S3 evidence index. |
+| Threshold sanity (`B12`) | `TS01..TS07` all pass | sanity checks all pass | `PASS` | Numeric target set is logically coherent and bounded. | Promote this set as PR2 activated baseline. |
+| Alert/runbook binding (`B13`) | `alert_runbook_binding_valid=true`, no missing runbooks/owners | zero unresolved bindings | `PASS` | Ensures critical alerts are actionable, not dashboard-only. | Preserve as hard requirement for PR3/PR4 gates. |
+| Anti-gaming (`B14`) | `AG01..AG04` all pass | anti-gaming checks all pass | `PASS` | Confirms non-proxy claim surfaces and explicit burst-gap governance. | Keep `PR2.S1.CN01_BURST_SHAPER_REQUIRED` due `PR3-S1`. |
+| Runtime posture (`S2`) | `elapsed_minutes=0.0` vs budget `20` | `<= 20` | `PASS` | S2 stayed minute-scale and deterministic. | Preserve budget discipline in S3 rollup. |
+| Cost posture (`S2`) | `attributable_spend_usd=0.0` vs envelope `5.0` | attributable and `<= 5.0` | `PASS` | Validation remained spend-neutral and attributable. | Keep explicit spend fields mandatory for S3 closure. |
 
 ## 11) Required TBD Closure Sheet (Binding)
 This section defines the mandatory closure routing for unresolved targets in:

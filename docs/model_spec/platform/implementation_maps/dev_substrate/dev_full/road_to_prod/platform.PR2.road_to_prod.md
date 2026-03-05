@@ -288,12 +288,12 @@ Cost budget:
 
 ## 11) Execution Record
 Status:
-1. `IN_PROGRESS` (`S0` and `S1` complete, `S2` is next).
+1. `IN_PROGRESS` (`S0`, `S1`, and `S2` complete; `S3` is next).
 
 Active control root:
 1. `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/`
 2. Latest pointer:
-   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_latest.json` (`latest_state=S0`).
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_latest.json` (`latest_state=S2`).
 
 State closure:
 1. `S0` executed from strict upstream:
@@ -306,6 +306,10 @@ State closure:
    - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_s1_execution_receipt.json`.
 5. `S1` verdict:
    - `PR2_S1_READY`, `open_blockers=0`, `next_state=PR2-S2`.
+6. `S2` receipt:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_s2_execution_receipt.json`.
+7. `S2` verdict:
+   - `PR2_S2_READY`, `open_blockers=0`, `next_state=PR2-S3`.
 
 ### 11.1 PR2-S0 Findings Snapshot (Readable)
 | Signal | Observed Value | Threshold/Expectation | Status | Interpretation | Decision/Next Action |
@@ -332,3 +336,16 @@ State closure:
 | Burst realism constraint | projected burst with uniform speedup `3568.809582 eps`; gap `2431.190418 eps` | explicit carry-forward constraint required | `PASS` | Uniform `stream_speedup` cannot alone realize 6000 burst from current natural shape. | Implement burst-shaper lane in `PR3-S1` before claiming 6000 burst runtime proof. |
 | Runtime posture (`S1`) | `elapsed_minutes=0.0` vs budget `25` | `<= 25` | `PASS` | S1 stayed minute-scale with evidence-first execution. | Preserve minute-scale execution posture for S2/S3. |
 | Cost posture (`S1`) | `attributable_spend_usd=0.0` vs envelope `5.0` | attributable and `<= 5.0` | `PASS` | S1 remained spend-neutral while producing deterministic artifacts. | Keep attributable spend fields mandatory in S2/S3. |
+
+### 11.3 PR2-S2 Findings Snapshot (Readable)
+| Signal | Observed Value | Threshold/Expectation | Status | Interpretation | Decision/Next Action |
+| --- | --- | --- | --- | --- | --- |
+| `PR2-S2` gate verdict | `PR2_S2_READY`, `open_blockers=0`, `next_state=PR2-S3` | `open_blockers=0` | `PASS` | Activation validation and anti-gaming gate closed fail-closed cleanly. | Proceed to `PR2-S3` rollup and verdict emission. |
+| Runtime activatability (`B10`) | `overall_valid=true` in `pr2_runtime_contract_validator.json` | runtime contract activatable | `PASS` | RC2-S runtime contract is ACTIVE, complete, and surface-bound. | Keep runtime contract immutable through S3. |
+| Ops/gov activatability (`B11`) | `overall_valid=true` in `pr2_opsgov_contract_validator.json` | baselines activatable | `PASS` | Ops/gov active scope is complete with no required `TBD`. | Carry baseline refs and owner bindings into S3 rollup. |
+| Threshold sanity (`B12`) | all `TS01..TS07` checks pass | sanity checks all pass | `PASS` | Numeric threshold set is logically consistent and bounded. | Promote this set as PR2 activated contract baseline. |
+| Alert/runbook binding (`B13`) | `alert_runbook_binding_valid=true`, `missing=[]`, `missing_owner_for=[]` | zero unresolved bindings | `PASS` | Every required critical alert has owner and runbook resolution. | Keep this as hard prerequisite in PR3/PR4 ops lanes. |
+| Anti-gaming posture (`B14`) | `AG01..AG04` all pass | anti-gaming checks all pass | `PASS` | Claim surfaces are non-proxy, sample minima are non-drift, and burst-gap routing is explicit. | Preserve `PR2.S1.CN01_BURST_SHAPER_REQUIRED` due `PR3-S1`. |
+| Burst-gap governance | projected burst `3568.809582 eps` vs target `6000 eps`; carry-forward present | explicit routing required when gap exists | `PASS` | 6000 burst is not over-claimed in PR2; it is routed to PR3 shaping lane. | Implement burst-shaper proof in `PR3-S1` before burst claim. |
+| Runtime posture (`S2`) | `elapsed_minutes=0.0` vs budget `20` | `<= 20` | `PASS` | S2 remained minute-scale and deterministic. | Preserve runtime discipline in S3 rollup. |
+| Cost posture (`S2`) | `attributable_spend_usd=0.0` vs envelope `5.0` | attributable and `<= 5.0` | `PASS` | S2 validation remained spend-neutral. | Keep attributable spend fields mandatory for S3 closure. |

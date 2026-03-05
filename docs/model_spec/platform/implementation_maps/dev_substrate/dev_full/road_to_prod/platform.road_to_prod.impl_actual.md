@@ -949,6 +949,7 @@ _As of 2026-03-05_
 ### Governance
 1. Run-control artifact remediation + docs/logbook update.
 2. No branch operation, no commit/push.
+
 ## Entry: 2026-03-05 19:05 +00:00 - S2 blocker analysis and remediation plan (B08 duplicate-key integrity semantics)
 ### Observed blocker
 1. S2 recompute failed with `PR1.B08_JOIN_DECISION_GAPS`.
@@ -975,6 +976,7 @@ _As of 2026-03-05_
 ### Governance
 1. Run-control artifact remediation only.
 2. No branch operation, no commit/push.
+
 ## Entry: 2026-03-05 19:12 +00:00 - PR1 strict recompute executed (`S1 -> S2 -> S3`) and findings synchronized
 ### Execution summary
 1. Recomputed `PR1-S1/S2/S3` from strict charter window (`2026-02-26T00:00:00Z` -> `2026-03-05T00:00:00Z`) under run root:
@@ -1009,6 +1011,7 @@ _As of 2026-03-05_
 ### Governance
 1. No commit/push/branch operation.
 2. Changes in tracked files are documentation/logbook/implementation-map synchronization only.
+
 ## Entry: 2026-03-05 19:16 +00:00 - Pre-edit plan: PR1-S4 detailed planning expansion + strict execution from S3
 ### Trigger
 1. USER requested: expand the S4 plan and execute it.
@@ -1058,6 +1061,7 @@ _As of 2026-03-05_
 ### Governance
 1. Docs + run-control artifacts only.
 2. No branch operation, no commit/push.
+
 ## Entry: 2026-03-05 19:30 +00:00 - Pre-edit decision: PR1-S4 maturity availability proxy + fail-closed execution contract
 ### Trigger
 1. Continue PR1-S4 execution from strict upstream PR1_S3_READY.
@@ -1065,7 +1069,8 @@ _As of 2026-03-05_
 
 ### Decision-completeness check
 1. Upstream receipt pinned and green:
-   - uns/dev_substrate/dev_full/road_to_prod/run_control/pr1_20260305T174744Z/pr1_s3_execution_receipt.json.
+   - 
+uns/dev_substrate/dev_full/road_to_prod/run_control/pr1_20260305T174744Z/pr1_s3_execution_receipt.json.
 2. S4 artifact contract and blocker taxonomy are pinned in PR1 authority (B13/B14/B15).
 3. Source evidence for time-causality and leakage is pinned and readable (m9d/m9e/m11e).
 
@@ -1088,11 +1093,14 @@ _As of 2026-03-05_
 
 ### Governance
 1. No branch operations, no commit/push.
-2. Artifacts under uns/ and docs/logbook synchronization only.
+2. Artifacts under 
+uns/ and docs/logbook synchronization only.
+
 ## Entry: 2026-03-05 19:36 +00:00 - PR1-S4 executed strict from S3; maturity and monitoring targets pinned
 ### Execution summary
 1. Executed deterministic S4 from strict upstream PR1_S3_READY under:
-   - uns/dev_substrate/dev_full/road_to_prod/run_control/pr1_20260305T174744Z/.
+   - 
+uns/dev_substrate/dev_full/road_to_prod/run_control/pr1_20260305T174744Z/.
 2. Emitted required S4 artifacts:
    - pr1_label_maturity_report.json,
    - pr1_learning_window_spec.json,
@@ -1102,7 +1110,8 @@ _As of 2026-03-05_
    - pr1_s4_support_receipt.json,
    - pr1_s4_execution_receipt.json.
 4. Updated latest pointer:
-   - uns/dev_substrate/dev_full/road_to_prod/run_control/pr1_latest.json -> latest_state=S4.
+   - 
+uns/dev_substrate/dev_full/road_to_prod/run_control/pr1_latest.json -> latest_state=S4.
 
 ### S4 outcomes
 1. Verdict: PR1_S4_READY, open_blockers=0, 
@@ -1128,6 +1137,7 @@ ext_state=PR1-S5.
 ### Governance
 1. No branch operation, no commit/push.
 2. Execution used bounded Athena query and by-reference controls only.
+
 ## Entry: 2026-03-05 19:40 +00:00 - Pre-edit plan: PR1-S5 rollup closure and G2 verdict emission
 ### Trigger
 1. USER directed: plan and execute PR1-S5.
@@ -1165,7 +1175,9 @@ ext_state=PR1-S5.
 
 ### Governance
 1. No branch operations, no commit/push.
-2. Artifacts in uns/; docs/logbook/impl map synced after execution.
+2. Artifacts in 
+uns/; docs/logbook/impl map synced after execution.
+
 ## Entry: 2026-03-05 19:47 +00:00 - PR1-S5 executed with fail-closed remediation and final G2 closure
 ### Execution summary
 1. Ran scripts/dev_substrate/pr1_s5_executor.py from strict upstream PR1_S4_READY.
@@ -1205,6 +1217,7 @@ ext_gate=PR2_READY, open_blockers=0.
 ### Governance
 1. No branch operations, no commit/push.
 2. Scope stayed in run-control artifacts + docs/logbook/implementation map.
+
 ## Entry: 2026-03-05 19:57 +00:00 - Pre-edit plan: materialize PR2 authority doc for numeric contract activation
 ### Trigger
 1. USER requested planning for PR2 and its dedicated document.
@@ -1228,7 +1241,8 @@ o required TBD) before certification progression.
    - runtime/cost budgets,
    - rerun discipline + DoD.
 2. Define deterministic run root posture:
-   - uns/dev_substrate/dev_full/road_to_prod/run_control/<pr2_execution_id>/.
+   - 
+uns/dev_substrate/dev_full/road_to_prod/run_control/<pr2_execution_id>/.
 3. Wire main plan PR2 section and immediate-next-step section to this new PR2 authority doc.
 
 ### Performance and cost posture
@@ -1239,6 +1253,7 @@ o required TBD) before certification progression.
 ### Governance
 1. Docs-only planning edits plus logbook/implementation-map updates.
 2. No branch operations, no commit/push.
+
 ## Entry: 2026-03-05 19:59 +00:00 - PR2 phase planning materialized and wired as active authority
 ### Work completed
 1. Added dedicated PR2 authority doc:
@@ -1262,27 +1277,31 @@ o required TBD in active scope).
 ### Governance
 1. No branch operation, no commit/push.
 2. Planning edits only (docs + logbook + implementation map).
+
 ## Entry: 2026-03-05 20:01 +00:00 - Pre-edit plan: execute PR2-S0 from PR1-S5 strict upstream
 ### Trigger
 1. USER directed: proceed with detailed planning and execution of PR2-S0.
 
 ### Decision-completeness check
 1. Upstream closure is valid:
-   - uns/dev_substrate/dev_full/road_to_prod/run_control/pr1_20260305T174744Z/pr1_s5_execution_receipt.json => PR1_S5_READY, open_blockers=0.
+   - 
+uns/dev_substrate/dev_full/road_to_prod/run_control/pr1_20260305T174744Z/pr1_s5_execution_receipt.json => PR1_S5_READY, open_blockers=0.
 2. PR2 authority doc is materialized and defines S0 artifact contract + blocker taxonomy.
 3. S0 scope is inventory/gap mapping only; unresolved threshold values are expected and must be explicitly mapped to owner + due state (not silently accepted).
 
 ### PR2-S0 execution design
 1. Create deterministic executor scripts/dev_substrate/pr2_s0_executor.py.
 2. Generate pr2_execution_id and run root:
-   - uns/dev_substrate/dev_full/road_to_prod/run_control/<pr2_execution_id>/.
+   - 
+uns/dev_substrate/dev_full/road_to_prod/run_control/<pr2_execution_id>/.
 3. Emit S0 artifacts:
    - pr2_entry_lock.json,
    - pr2_required_row_inventory.json,
    - pr2_gap_map.json,
    - pr2_s0_execution_receipt.json.
 4. Emit latest pointer:
-   - uns/dev_substrate/dev_full/road_to_prod/run_control/pr2_latest.json.
+   - 
+uns/dev_substrate/dev_full/road_to_prod/run_control/pr2_latest.json.
 5. Fail-closed checks:
    - B01 entry lock exists,
    - B02 upstream PR1 ready,
@@ -1295,7 +1314,9 @@ o required TBD in active scope).
 
 ### Governance
 1. No branch operations, no commit/push.
-2. Execution artifacts in uns/; docs/logbook/impl map synced after run.
+2. Execution artifacts in 
+uns/; docs/logbook/impl map synced after run.
+
 ## Entry: 2026-03-05 20:07 +00:00 - PR2-S0 executed clean with strict upstream and deterministic inventory closure
 ### Execution summary
 1. Executed `scripts/dev_substrate/pr2_s0_executor.py` from strict upstream `PR1_S5_READY`.
@@ -1338,6 +1359,7 @@ o required TBD in active scope).
 ### Governance
 1. No branch operations and no commit/push.
 2. Scope limited to run-control artifacts, docs, and execution helper script.
+
 ## Entry: 2026-03-05 20:36 +00:00 - Pre-edit plan: PR2-S1 contract materialization with production-target EPS pinning
 ### Trigger
 1. USER directed: begin planning and execution of `PR2-S1`.
@@ -1392,6 +1414,7 @@ o required TBD in active scope).
 ### Governance
 1. No branch operations, no commit/push.
 2. Scope limited to run-control artifacts, docs, and S1 executor/wrapper implementation.
+
 ## Entry: 2026-03-05 20:44 +00:00 - PR2-S1 executed clean; production-target envelope pinned and constraints carried forward
 ### Execution summary
 1. Implemented and ran `scripts/dev_substrate/pr2_s1_executor.py` from strict upstream `PR2_S0_READY`.
@@ -1441,3 +1464,171 @@ o required TBD in active scope).
 ### Governance
 1. No branch operations, no commit/push.
 2. Scope limited to run-control artifacts, docs, and S1 executor implementation.
+
+## Entry: 2026-03-05 20:55 +00:00 - Pre-edit plan: PR2-S2 activation validation and anti-gaming enforcement
+### Trigger
+1. USER directed: proceed to planning and execution of `PR2-S2`.
+
+### Decision-completeness check
+1. Strict upstream is valid:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_s1_execution_receipt.json` is `PR2_S1_READY` with `open_blockers=0`.
+2. Required S2 authority is explicit:
+   - `platform.PR2.road_to_prod.md` defines S2 objective, outputs, and fail-closed blockers `PR2.B10..PR2.B14`.
+3. Required S2 inputs are present in run root:
+   - runtime/opsgov ACTIVE contracts,
+   - threshold population ledger,
+   - calibration traceability,
+   - deferred scope register and runbook index.
+4. No unresolved decision holes remain for S2 boundary; enforcement scope is active RC2-S/C.1 contract subset pinned by PR2 inventory and S1 outputs.
+
+### PR2-S2 execution design
+1. Implement deterministic executor:
+   - `scripts/dev_substrate/pr2_s2_executor.py`.
+2. Enforce strict upstream lock (`S1 READY`) and fail immediately if broken.
+3. Run runtime contract activatability validation (A.1 active-scope checks):
+   - status + mission binding + injection path + campaign minima + required measurement surfaces + no required `TBD`.
+4. Run ops/governance baseline activatability validation (C.1 active-scope checks):
+   - status + source/window/rules + actionable owner bindings + runbook index resolution.
+5. Run threshold sanity checks:
+   - latency `p95<=p99`,
+   - bounded rate/fraction domains,
+   - sample minima bounds.
+6. Run anti-gaming checks:
+   - non-proxy measurement surfaces,
+   - distribution requirements include `p95/p99`,
+   - shape consistency (`soak >= 3x burst`),
+   - explicit burst-gap constraint disclosure and due-state binding (`PR3-S1`) if shape cannot realize target burst.
+7. Emit S2 outputs:
+   - `pr2_runtime_contract_validator.json`,
+   - `pr2_opsgov_contract_validator.json`,
+   - `pr2_threshold_sanity_report.json`,
+   - `pr2_activation_validation_matrix.json`,
+   - `pr2_s2_execution_receipt.json`.
+8. Update pointer:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_latest.json` -> `latest_state=S2`.
+
+### Blocker mapping (fail-closed)
+1. `PR2.B10_ENV_NOT_ACTIVATABLE` -> runtime validator overall invalid.
+2. `PR2.B11_BASELINES_NOT_ACTIVATABLE` -> ops/gov validator overall invalid.
+3. `PR2.B12_THRESHOLD_SANITY_FAIL` -> threshold sanity report invalid.
+4. `PR2.B13_ALERT_RUNBOOK_BINDING_MISSING` -> unresolved alert owner/runbook references.
+5. `PR2.B14_ANTI_GAMING_GUARD_FAIL` -> anti-gaming guard failure.
+
+### Performance and cost posture
+1. S2 remains evidence-first contract validation; no platform runtime load execution.
+2. Runtime budget target: `<= 20 min` (PR2 S2 budget).
+3. Cost posture: low/no incremental spend; emit attributable spend fields explicitly in receipt.
+
+### Governance
+1. No branch operations, no commit/push.
+2. Scope limited to S2 executor, run-control artifacts, docs, implementation map, and logbook sync.
+
+## Entry: 2026-03-05 21:07 +00:00 - PR2-S2 executed clean; activation validation and anti-gaming checks are green
+### Execution summary
+1. Implemented and ran `scripts/dev_substrate/pr2_s2_executor.py` from strict upstream `PR2_S1_READY`.
+2. Execution root:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/`.
+3. Emitted required S2 artifacts:
+   - `pr2_runtime_contract_validator.json`,
+   - `pr2_opsgov_contract_validator.json`,
+   - `pr2_threshold_sanity_report.json`,
+   - `pr2_activation_validation_matrix.json`,
+   - `pr2_s2_execution_receipt.json`.
+4. Updated latest pointer:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_latest.json` -> `latest_state=S2`.
+
+### S2 gate outcomes
+1. State verdict:
+   - `PR2_S2_READY`, `open_blockers=0`, `next_state=PR2-S3`.
+2. Fail-closed checks all true:
+   - `B10_env_activatable`,
+   - `B11_baselines_activatable`,
+   - `B12_threshold_sanity`,
+   - `B13_alert_runbook_binding`,
+   - `B14_anti_gaming_guard`.
+3. Runtime validator:
+   - all `RV01..RV18` passed, `required_tbd_paths=[]`.
+4. Ops/gov validator:
+   - all `OV01..OV13` passed,
+   - `alert_runbook_binding_valid=true`,
+   - no unresolved runbooks/owner bindings.
+5. Threshold sanity:
+   - all `TS01..TS07` passed.
+6. Anti-gaming:
+   - all `AG01..AG04` passed.
+
+### Key S2 claimability notes
+1. Measurement surfaces remain canonical and non-proxy:
+   - throughput `IG_ADMITTED_EVENTS_PER_SEC`,
+   - latency `IG_ADMISSION_TS -> DECISION_COMMIT_TS`.
+2. Burst gap remains explicit and correctly routed:
+   - projected burst `3568.809582 eps` vs target `6000 eps`,
+   - carry-forward constraint `PR2.S1.CN01_BURST_SHAPER_REQUIRED` due `PR3-S1` is present.
+3. No threshold drift-to-pass detected:
+   - sample-minima contract values match S0 inventory values.
+
+### Runtime and cost posture
+1. `elapsed_minutes=0.0` vs S2 budget `20`.
+2. `attributable_spend_usd=0.0` vs envelope `5.0`.
+
+### Documentation sync
+1. Updated PR2 authority execution record and added `11.3 PR2-S2 Findings Snapshot`.
+2. Updated main plan immediate next step to `PR2-S3` and added `10.9 PR2-S2 Findings Snapshot`.
+
+### Governance
+1. No branch operations and no commit/push.
+2. Scope limited to S2 executor, run-control artifacts, docs, implementation map, and logbook.
+
+## Entry: 2026-03-05 21:11 +00:00 - Pre-edit plan: PR2-S3 activation rollup and phase verdict emission
+### Trigger
+1. USER directed: move to planning and execution of `PR2-S3`.
+
+### Decision-completeness check
+1. Strict upstream is valid:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_s2_execution_receipt.json` is `PR2_S2_READY`, `open_blockers=0`.
+2. S3 authority and closure contract are explicit:
+   - PR2 authority doc defines S3 outputs, pass condition, and fail-closed blockers `PR2.B15..PR2.B19`.
+3. Required S3 input artifacts are present:
+   - `pr2_entry_lock.json`,
+   - `pr2_runtime_numeric_contract.rc2s.active.yaml`,
+   - `pr2_opsgov_numeric_contract.rc2s.active.yaml`,
+   - `pr2_runtime_contract_validator.json`,
+   - `pr2_opsgov_contract_validator.json`,
+   - `pr2_threshold_sanity_report.json`,
+   - `pr2_activation_validation_matrix.json`,
+   - state receipts `S0..S2`.
+4. No unresolved decision holes remain for S3 boundary.
+
+### PR2-S3 execution design
+1. Implement deterministic executor:
+   - `scripts/dev_substrate/pr2_s3_executor.py`.
+2. Enforce strict upstream lock (`S2 READY`) before any rollup emission.
+3. Build activation index artifact:
+   - include contract refs, validator refs, and current activatability statuses.
+4. Build blocker register:
+   - aggregate blocker posture from `S0..S2`,
+   - emit structured blocker objects (`id`, `severity`, `reason`, `owner`, `rerun_boundary`).
+5. Emit phase summary:
+   - include required schema fields (`verdict`, `next_gate`, `open_blockers`, `blocker_ids`, `contract_refs`),
+   - set `verdict=PR3_READY` and `next_gate=PR3_READY` only when `open_blockers=0`.
+6. Emit evidence index:
+   - deterministic list of all required PR2 artifacts and readback statuses.
+7. Emit S3 receipt + latest pointer:
+   - `pr2_s3_execution_receipt.json`,
+   - `pr2_latest.json` -> `latest_state=S3`.
+
+### Blocker mapping (fail-closed)
+1. `PR2.B15_ACTIVATION_INDEX_MISSING` -> missing/incomplete activation index artifact.
+2. `PR2.B16_SUMMARY_MISSING` -> missing/incomplete execution summary artifact.
+3. `PR2.B17_OPEN_BLOCKERS_NONZERO` -> any open blocker remains after S0..S2 aggregation.
+4. `PR2.B18_VERDICT_NOT_PR3_READY` -> verdict or next_gate is not `PR3_READY` when closure is expected.
+5. `PR2.B19_UNATTRIBUTED_SPEND` -> missing or negative attributable spend field in S3 summary/receipt.
+
+### Performance and cost posture
+1. S3 is evidence rollup only (no runtime pressure run).
+2. Runtime budget target: `<= 10 min`.
+3. Spend posture: attributable spend explicitly emitted and bounded (`0.0` expected).
+
+### Governance
+1. No branch operations, no commit/push.
+2. Scope limited to S3 executor, run-control artifacts, docs, implementation map, and logbook sync.
