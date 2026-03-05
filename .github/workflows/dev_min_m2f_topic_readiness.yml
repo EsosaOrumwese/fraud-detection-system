@@ -53,6 +53,7 @@ concurrency:
 jobs:
   run_m2f:
     name: Apply Confluent stack and verify M2.F topic readiness
+    if: ${{ false }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

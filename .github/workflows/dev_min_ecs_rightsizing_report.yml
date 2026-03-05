@@ -61,6 +61,7 @@ concurrency:
 jobs:
   capture_rightsizing_report:
     name: Capture ECS p95 rightsizing report
+    if: ${{ false }}
     runs-on: ubuntu-latest
     env:
       RESOLVED_AWS_REGION: ${{ inputs.aws_region || vars.DEV_MIN_AWS_REGION || 'eu-west-2' }}

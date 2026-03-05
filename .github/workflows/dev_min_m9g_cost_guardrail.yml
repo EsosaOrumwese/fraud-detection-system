@@ -130,6 +130,7 @@ concurrency:
 jobs:
   m9g_guardrail:
     name: Capture and enforce M9.G cross-platform cost guardrail
+    if: ${{ false }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

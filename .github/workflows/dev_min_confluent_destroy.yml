@@ -78,6 +78,7 @@ env:
 jobs:
   destroy_stack:
     name: Destroy dev_min stack (${{ inputs.stack_target }})
+    if: ${{ false }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

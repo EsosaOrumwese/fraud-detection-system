@@ -96,6 +96,7 @@ concurrency:
 jobs:
   apply_profile:
     name: Apply ECS phase-aware service profile
+    if: ${{ false }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

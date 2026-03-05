@@ -58,6 +58,7 @@ env:
 jobs:
   capture_confluent_billing:
     name: Capture Confluent billing snapshot for M9.G
+    if: ${{ false }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
