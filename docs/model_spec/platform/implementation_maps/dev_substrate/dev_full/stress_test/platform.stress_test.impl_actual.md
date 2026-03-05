@@ -12986,3 +12986,61 @@ ext_gate=M8_READY, open_blockers=0.
 ### Governance
 1. No commit/push/branch operation.
 2. Local machine used for control-plane orchestration only; runtime work remained on managed AWS services.
+
+## Entry: 2026-03-05 12:05 +00:00 - Pre-edit plan to scaffold dev_full numeric acceptance contract (v0)
+### Trigger
+1. User directive: proceed with creating the numeric contract scaffold before populating measured values.
+
+### Decision and scope
+1. Create a single canonical contract file under design docs:
+   - `docs/design/platform/dev_full/dev_full_numeric_contract.v0.md`.
+2. Keep this pass as scaffold-only (structure + pass/fail framework), with thresholds intentionally set to `TBD` until measured evidence is pinned.
+3. Contract will include:
+   - envelope split (`RC2-S` required vs `RC2-L` stretch),
+   - Tier-0 thresholds and component gates,
+   - data-realism hard gates,
+   - anti-gaming rules,
+   - blocker taxonomy + rerun boundaries,
+   - explicit evidence artifact contract,
+   - final verdict rule (`open_blockers=0`).
+
+### Design constraints
+1. Avoid certifying bypass paths:
+   - injection path declaration mandatory (`via_IG` vs `via_MSK`) and claim coverage must match path.
+2. Fail-closed posture:
+   - missing required artifact or unset required threshold at activation time yields `HOLD_REMEDIATE`.
+3. Measured-vs-policy transparency:
+   - each numeric row carries `Type` (`measured` or `policy`) and source reference placeholder.
+
+### Planned implementation steps
+1. Materialize new contract markdown file with executable sections/tables and `TBD` placeholders.
+2. Keep naming/versioning explicit (`v0`) and include change-control section.
+3. Sync logbook and implementation map entries after file creation.
+
+### Governance
+1. No branch/commit/push operation.
+2. No runtime execution in this step; documentation scaffold only.
+
+## Entry: 2026-03-05 12:09 +00:00 - dev_full numeric contract scaffold materialized
+### Implementation outcome
+1. Created canonical scaffold:
+   - `docs/design/platform/dev_full/dev_full_numeric_contract.v0.md`.
+2. Contract structure includes all required acceptance lanes:
+   - authority/scope and injection path declaration,
+   - `RC2-S` vs `RC2-L` envelope tables,
+   - Tier-0 thresholds,
+   - component gates,
+   - data-realism semantic gates,
+   - anti-gaming rules,
+   - blocker taxonomy with rerun boundaries,
+   - required evidence artifact contract,
+   - final verdict rule (`PASS` only when `open_blockers=0` and all gates pass).
+3. All numeric thresholds remain `TBD` by design in this pass to force measured-value population before activation.
+
+### Notes for next execution step
+1. Populate `RC2-S` first from measured evidence (latest authoritative run windows) and tag each row as `measured` or `policy`.
+2. Do not activate certification on this contract until all `RC2-S` required rows are non-`TBD`.
+
+### Governance
+1. No commit/push/branch operation.
+2. No runtime workloads executed; documentation scaffold only.
