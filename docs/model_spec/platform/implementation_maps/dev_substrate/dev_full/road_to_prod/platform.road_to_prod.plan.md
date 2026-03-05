@@ -215,9 +215,9 @@ This plan's intent is satisfied only when:
 3. The final production-ready verdict is claimable, auditable, and has `open_blockers=0`.
 
 ## 10) Immediate Next Step
-1. Proceed to `PR2-S1`: populate runtime + ops/gov RC2-S numeric contracts from the completed S0 inventory/gap map.
-2. Use `PR2-S0` receipt as immediate upstream authority:
-   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_s0_execution_receipt.json`.
+1. Proceed to `PR2-S2`: execute activation validation and anti-gaming checks over S1 contracts.
+2. Use `PR2-S1` receipt as immediate upstream authority:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_s1_execution_receipt.json`.
 3. Keep Section 11 target status table as the active blocker-routing surface during `PR2` execution.
 4. Use PR2 authority doc as active execution source and keep PR1 as historical upstream source:
    - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR2.road_to_prod.md`
@@ -309,6 +309,19 @@ This plan's intent is satisfied only when:
 | Runtime posture (`S0`) | `elapsed_minutes=0.0` vs budget `10` | `<= 10` | `PASS` | S0 stayed within minute-scale runtime budget. | Preserve minute-scale posture in S1/S2/S3. |
 | Cost posture (`S0`) | `attributable_spend_usd=0.0` vs envelope `2.0` | attributable and `<= 2.0` | `PASS` | S0 remained spend-neutral under evidence-first execution. | Keep attributable spend receipt mandatory in every PR2 state. |
 | Advisory carry-forward | `PR1.S4.AD01_LABEL_TS_PROXY_SEMANTICS` | advisories must be explicit | `PASS` | Known semantics caveat remains transparent during PR2 handoff. | Retain advisory until true `label_available_ts` field exists. |
+
+### 10.8 PR2-S1 Findings Snapshot (Readable)
+| Signal | Observed Value | Threshold/Expectation | Status | Why it matters for PR2 | Decision/Next Action |
+| --- | --- | --- | --- | --- | --- |
+| S1 verdict | `PR2_S1_READY`, `open_blockers=0`, `next_state=PR2-S2` | `open_blockers=0` | `PASS` | Confirms legal handoff from S1 to S2. | Execute `PR2-S2` from this strict upstream. |
+| Contract artifact checks | `B05=true`, `B06=true` | runtime + ops/gov contracts required | `PASS` | S1 produced both required ACTIVE contract artifacts. | Use these exact artifacts for S2 validation. |
+| Required TBD posture | `B07=true`, `required_tbd_rows=[]` | no required TBD allowed | `PASS` | Active RC2-S required scope is fully populated. | Fail closed if any required row regresses to TBD. |
+| Measurement surface binding | `B08=true` (`IG_ADMITTED_EVENTS_PER_SEC`, `IG_ADMISSION_TS -> DECISION_COMMIT_TS`) | required surfaces bound | `PASS` | Prevents wrong-surface certification in downstream states. | Validate surface semantics/anti-gaming in S2. |
+| Calibration traceability | `B09=true` with trace rows for `R006/R007/R010/R022/R023/R024/R025` | required trace rows present | `PASS` | Numeric target pinning is auditable and reproducible. | Carry trace rows into S2 sanity matrix. |
+| Runtime envelope pin | steady `3000 eps`, burst `6000 eps` | production-target pin required | `PASS` | PR2 now targets production-grade load posture rather than PR1 baseline envelope. | Keep as hard pin for PR3 runtime certification. |
+| Burst realization constraint | projected burst under uniform speedup `3568.809582 eps`; gap `2431.190418 eps` | explicit carry-forward constraint | `PASS` | Documents why speedup-only pacing cannot prove 6000 burst claim. | Implement burst-shaper lane in `PR3-S1` before 6000 burst claim. |
+| Runtime posture (`S1`) | `elapsed_minutes=0.0` vs budget `25` | `<= 25` | `PASS` | S1 stayed minute-scale with deterministic artifact output. | Preserve minute-scale posture in S2/S3. |
+| Cost posture (`S1`) | `attributable_spend_usd=0.0` vs envelope `5.0` | attributable and `<= 5.0` | `PASS` | S1 remained evidence-first and spend-neutral. | Keep attributable spend receipts mandatory through PR2 closure. |
 
 ## 11) Required TBD Closure Sheet (Binding)
 This section defines the mandatory closure routing for unresolved targets in:

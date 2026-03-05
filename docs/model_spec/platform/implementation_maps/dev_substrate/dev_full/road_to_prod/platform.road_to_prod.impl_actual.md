@@ -1338,3 +1338,106 @@ o required TBD in active scope).
 ### Governance
 1. No branch operations and no commit/push.
 2. Scope limited to run-control artifacts, docs, and execution helper script.
+## Entry: 2026-03-05 20:36 +00:00 - Pre-edit plan: PR2-S1 contract materialization with production-target EPS pinning
+### Trigger
+1. USER directed: begin planning and execution of `PR2-S1`.
+2. USER approved target posture: production target `steady=3000 eps`, `burst=6000 eps`, plus explicit note that WSP `stream_speedup` alone cannot create an independent burst shape.
+
+### Decision-completeness check
+1. Upstream lock is valid:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_s0_execution_receipt.json` => `PR2_S0_READY`, `open_blockers=0`.
+2. Pending required rows from S0 are fully scoped (9 rows) and all due in S1 with owners bound.
+3. Program decision confirmed: do not rerun PR0/PR1; continue from PR2.
+
+### PR2-S1 execution design
+1. Materialize deterministic S1 executor `scripts/dev_substrate/pr2_s1_executor.py` consuming:
+   - `pr2_required_row_inventory.json`,
+   - `pr2_gap_map.json`,
+   - `pr2_entry_lock.json`,
+   - PR1 pack sources (`g2_data_realism_pack_index.json`, `g2_monitoring_baselines.json`, `pr1_join_matrix.json`, `pr1_g2_cohort_profile.json`).
+2. Emit required S1 artifacts under run root:
+   - `pr2_runtime_numeric_contract.rc2s.active.yaml`,
+   - `pr2_opsgov_numeric_contract.rc2s.active.yaml`,
+   - `pr2_threshold_population_ledger.json`,
+   - `pr2_calibration_traceability.json`,
+   - `pr2_deferred_scope_register.json`,
+   - `pr2_s1_execution_receipt.json`.
+3. Add supportive runbook index artifact for O009 completeness:
+   - `pr2_runbook_index.json` (explicit owner/runbook bindings used by ops/gov contract).
+4. S1 fail-closed checks:
+   - `PR2.B05` runtime contract present/readable,
+   - `PR2.B06` ops/gov contract present/readable,
+   - `PR2.B07` no required `TBD` remaining,
+   - `PR2.B08` required measurement surfaces bound,
+   - `PR2.B09` calibration traceability present for required thresholds.
+
+### Threshold and policy pinning (S1)
+1. Runtime target pin:
+   - `steady_rate_eps=3000`, `burst_rate_eps=6000`.
+2. Constraint pin:
+   - WSP `stream_speedup` is a uniform wall-clock compression control, not an independent burst shaper; PR3 runtime lane must include explicit burst window shaping to prove 6000 burst claimability.
+3. Initial S1 SLO/guardband pins (policy target values; validated in S2):
+   - hot-path latency p95/p99 max,
+   - error-rate max,
+   - recovery bound,
+   - budget envelope.
+4. Ops/gov pins:
+   - required alert owners binding (`alerts.required_owners_bound`),
+   - `runbooks.index_ref` bound to emitted runbook index artifact.
+
+### Performance and cost posture
+1. Evidence-first S1: by-reference derivation from PR1 outputs and policy pins (no platform runtime load execution in S1).
+2. Runtime budget target: `<= 25 min`; cost envelope: low/no incremental spend.
+
+### Governance
+1. No branch operations, no commit/push.
+2. Scope limited to run-control artifacts, docs, and S1 executor/wrapper implementation.
+## Entry: 2026-03-05 20:44 +00:00 - PR2-S1 executed clean; production-target envelope pinned and constraints carried forward
+### Execution summary
+1. Implemented and ran `scripts/dev_substrate/pr2_s1_executor.py` from strict upstream `PR2_S0_READY`.
+2. Executed against run root:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/`.
+3. Emitted required S1 artifacts:
+   - `pr2_runtime_numeric_contract.rc2s.active.yaml`,
+   - `pr2_opsgov_numeric_contract.rc2s.active.yaml`,
+   - `pr2_threshold_population_ledger.json`,
+   - `pr2_calibration_traceability.json`,
+   - `pr2_deferred_scope_register.json`,
+   - `pr2_s1_execution_receipt.json`.
+4. Emitted support artifact for O009 binding:
+   - `pr2_runbook_index.json`.
+5. Updated latest pointer:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_latest.json` -> `latest_state=S1`.
+
+### Gate outcomes
+1. State verdict: `PR2_S1_READY`, `open_blockers=0`, `next_state=PR2-S2`.
+2. Fail-closed checks: `B05=true`, `B06=true`, `B07=true`, `B08=true`, `B09=true`.
+3. Required TBD count after S1: `0`.
+
+### Numeric pinning results
+1. Runtime envelope repinned to production target:
+   - steady `3000 eps`, burst `6000 eps`.
+2. Pending S1 rows fully closed:
+   - `R010`, `R020`, `R021`, `R022`, `R023`, `R024`, `R025`, `O008`, `O009`.
+3. Cost envelope pin:
+   - `thresholds.cost.budget_envelope_usd=250.0`.
+
+### Constraint carry-forward (binding)
+1. Uniform WSP `stream_speedup` preserves natural burst shape and cannot alone realize 6000 burst from current baseline.
+2. Measured constraint values:
+   - projected burst under uniform speedup at target steady = `3568.809582 eps`,
+   - burst gap to target = `2431.190418 eps`.
+3. Carry-forward requirement pinned:
+   - `PR2.S1.CN01_BURST_SHAPER_REQUIRED` due in `PR3-S1`.
+
+### Runtime and cost posture
+1. `elapsed_minutes=0.0` vs budget `25`.
+2. `attributable_spend_usd=0.0` vs envelope `5.0`.
+
+### Documentation sync
+1. Updated `platform.PR2.road_to_prod.md` execution record to include S1 closure + readable findings.
+2. Updated `platform.road_to_prod.plan.md` immediate-next-step to `PR2-S2` and added PR2-S1 findings snapshot.
+
+### Governance
+1. No branch operations, no commit/push.
+2. Scope limited to run-control artifacts, docs, and S1 executor implementation.

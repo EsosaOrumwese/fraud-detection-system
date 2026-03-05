@@ -288,7 +288,7 @@ Cost budget:
 
 ## 11) Execution Record
 Status:
-1. `IN_PROGRESS` (`S0` complete, `S1` is next).
+1. `IN_PROGRESS` (`S0` and `S1` complete, `S2` is next).
 
 Active control root:
 1. `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/`
@@ -302,6 +302,10 @@ State closure:
    - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_s0_execution_receipt.json`.
 3. `S0` verdict:
    - `PR2_S0_READY`, `open_blockers=0`, `next_state=PR2-S1`.
+4. `S1` receipt:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_s1_execution_receipt.json`.
+5. `S1` verdict:
+   - `PR2_S1_READY`, `open_blockers=0`, `next_state=PR2-S2`.
 
 ### 11.1 PR2-S0 Findings Snapshot (Readable)
 | Signal | Observed Value | Threshold/Expectation | Status | Interpretation | Decision/Next Action |
@@ -315,3 +319,16 @@ State closure:
 | Runtime budget posture (`S0`) | `elapsed_minutes=0.0` | `<= 10.0` | `PASS` | S0 stayed minute-scale and deterministic. | Preserve this posture for S1/S2/S3. |
 | Cost posture (`S0`) | `attributable_spend_usd=0.0` | `<= 2.0` and attributable | `PASS` | Evidence-first S0 incurred no incremental execution spend. | Keep attributable spend receipt fields mandatory in all states. |
 | Advisory carry-forward | `PR1.S4.AD01_LABEL_TS_PROXY_SEMANTICS` | advisories must be explicit and non-hidden | `PASS` | Known maturity-proxy semantics remain transparent across phase handoff. | Retain advisory until true `label_available_ts` is available. |
+
+### 11.2 PR2-S1 Findings Snapshot (Readable)
+| Signal | Observed Value | Threshold/Expectation | Status | Interpretation | Decision/Next Action |
+| --- | --- | --- | --- | --- | --- |
+| `PR2-S1` gate verdict | `PR2_S1_READY`, `open_blockers=0` | `open_blockers=0` | `PASS` | S1 contract materialization passed fail-closed checks. | Proceed to `PR2-S2` activation validation. |
+| Contract presence (`B05/B06`) | runtime + ops/gov ACTIVE contracts emitted | both required | `PASS` | Required S1 contract artifacts are present/readable. | Keep these as canonical S2 validator inputs. |
+| Required `TBD` posture (`B07`) | `required_tbd_rows=[]` | none allowed in active required scope | `PASS` | All required RC2-S S1 rows are now concretely populated. | Enforce no regression to TBD in S2/S3. |
+| Measurement surfaces (`B08`) | throughput `IG_ADMITTED_EVENTS_PER_SEC`; latency `IG_ADMISSION_TS -> DECISION_COMMIT_TS` | all required surfaces bound | `PASS` | Claim surfaces are explicit and aligned to injection path `via_IG`. | Validate surface semantics and anti-gaming in S2. |
+| Calibration traceability (`B09`) | required trace rows present for `R006/R007/R010/R022/R023/R024/R025` | trace row coverage required | `PASS` | Threshold pins are auditable against baseline/target pairs. | Carry trace rows into S2 sanity checks. |
+| Runtime envelope repin | steady `3000 eps`, burst `6000 eps` | production-target pin | `PASS` | PR2 moved from PR1 baseline envelope to explicit production target. | Use this as required S2/S3 activation baseline. |
+| Burst realism constraint | projected burst with uniform speedup `3568.809582 eps`; gap `2431.190418 eps` | explicit carry-forward constraint required | `PASS` | Uniform `stream_speedup` cannot alone realize 6000 burst from current natural shape. | Implement burst-shaper lane in `PR3-S1` before claiming 6000 burst runtime proof. |
+| Runtime posture (`S1`) | `elapsed_minutes=0.0` vs budget `25` | `<= 25` | `PASS` | S1 stayed minute-scale with evidence-first execution. | Preserve minute-scale execution posture for S2/S3. |
+| Cost posture (`S1`) | `attributable_spend_usd=0.0` vs envelope `5.0` | attributable and `<= 5.0` | `PASS` | S1 remained spend-neutral while producing deterministic artifacts. | Keep attributable spend fields mandatory in S2/S3. |
