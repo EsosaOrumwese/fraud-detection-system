@@ -58,7 +58,7 @@ This is the program-level overview of what each `M*` phase stress effort is expe
 | M10 | OFS dataset closure (`P13`) | Stress offline feature dataset generation for throughput, stability, and cost posture | Dataset builds finish within budget with reproducible manifests | DONE (`M11_READY`) |
 | M11 | MF train/eval closure (`P14`) | Stress model train/eval orchestration for queueing, runtime, and artifact integrity | Train/eval flow stable with deterministic evidence and bounded runtime | DONE (`M12_READY`) |
 | M12 | MPR promotion/rollback (`P15`) | Stress model promotion, rollback, and resolution lanes under repeated activation pressure | Promotion/rollback deterministic and fail-closed under stress | DONE (`M13_READY`) |
-| M13 | Full-platform verdict + teardown (`P16-P17`) | Stress full-platform execution windows plus teardown and idle-safe guarantees | Full-lane run + teardown remains stable, complete, and cost-safe | IN_PROGRESS (`S0_GREEN`) |
+| M13 | Full-platform verdict + teardown (`P16-P17`) | Stress full-platform execution windows plus teardown and idle-safe guarantees | Full-lane run + teardown remains stable, complete, and cost-safe | IN_PROGRESS (`S3_GREEN`) |
 | M14 | Runtime-placement repin materialization | Stress any placement repins to validate they improve or preserve performance and reliability | Repinned runtime lanes meet or exceed prior stress baselines | NOT_STARTED |
 | M15 | Data semantics realization | Stress real-data semantics in learning/evolution lanes at production-like volume and quality | Semantic realism + runtime budget + no-leakage gates all green | NOT_STARTED |
 
@@ -686,7 +686,7 @@ Authority routing:
 
 ## 22) Open Phase - M13
 Status:
-1. `IN_PROGRESS` (`S0_GREEN`; strict S0 run passed with `next_gate=M13_ST_S1_READY`).
+1. `IN_PROGRESS` (`S3_GREEN`; strict S3 run passed with `next_gate=M13_ST_S4_READY`).
 
 Authority routing:
 1. Parent orchestration authority: `stress_test/platform.M13.stress_test.md`.
@@ -704,12 +704,26 @@ Authority routing:
 4. Implementation-readiness status:
    - dedicated M13 stress doc: present,
    - managed workflow `.github/workflows/dev_full_m13_managed.yml`: present,
-   - parent runner `scripts/dev_substrate/m13_stress_runner.py`: present (`S0` implemented),
+   - parent runner `scripts/dev_substrate/m13_stress_runner.py`: present (`S0/S1/S2/S3` implemented),
    - stage wrappers for `S0`: present (`m13b0_managed_materialization.py`, `m13a_handle_closure.py`),
-   - stage wrappers for `S1..S5`: pending materialization.
+   - stage wrappers for `S1`: present (`m13b_source_matrix_closure.py`, `m13c_six_proof_closure.py`),
+   - stage wrappers for `S2`: present (`m13d_final_verdict_closure.py`, `m13e_teardown_plan_closure.py`),
+   - stage wrappers for `S3`: present (`m13f_teardown_execution_closure.py`, `m13g_residual_readability_closure.py`),
+   - stage wrappers for `S4..S5`: pending materialization.
 5. Current next executable step:
-   - execute `M13-ST-S1` from strict upstream `m13_stress_s0_20260305T094531Z` and stop fail-closed on first blocker.
+   - execute `M13-ST-S4` from strict upstream `m13_stress_s3_20260305T104425Z` and stop fail-closed on first blocker.
 6. Latest execution receipts:
    - `M13-ST-S0`: `phase_execution_id=m13_stress_s0_20260305T094531Z`, `overall_pass=true`, `next_gate=M13_ST_S1_READY`, `open_blockers=0`,
    - `M13.B0`: `execution_id=m13b0_stress_s0_20260305T094531Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M13_A`, `next_gate=M13.A_READY`,
-   - `M13.A`: `execution_id=m13a_stress_s0_20260305T094836Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M13_B`, `next_gate=M13.B_READY`.
+   - `M13.A`: `execution_id=m13a_stress_s0_20260305T094836Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M13_B`, `next_gate=M13.B_READY`,
+   - `M13-ST-S1`: `phase_execution_id=m13_stress_s1_20260305T095859Z`, `overall_pass=true`, `next_gate=M13_ST_S2_READY`, `open_blockers=0`,
+   - `M13.B`: `execution_id=m13b_stress_s1_20260305T095859Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M13_C`, `next_gate=M13.C_READY`,
+   - `M13.C`: `execution_id=m13c_stress_s1_20260305T100204Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M13_D`, `next_gate=M13.D_READY`,
+   - `M13-ST-S2` first run: `phase_execution_id=m13_stress_s2_20260305T102042Z`, `overall_pass=false`, `next_gate=HOLD_REMEDIATE`, `open_blockers=3` (`M13-ST-B4`,`M13-ST-B5`,`M13-ST-B11`),
+   - remediation: parent `S2` wiring now passes strict lineage (`m13a_execution_id`, `m13b_execution_id`) into `M13.D`,
+   - `M13-ST-S2` rerun: `phase_execution_id=m13_stress_s2_20260305T102426Z`, `overall_pass=true`, `next_gate=M13_ST_S3_READY`, `open_blockers=0`,
+   - `M13.D`: `execution_id=m13d_stress_s2_20260305T102426Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M13_E`, `next_gate=M13.E_READY`,
+   - `M13.E`: `execution_id=m13e_stress_s2_20260305T102730Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M13_F`, `next_gate=M13.F_READY`,
+   - `M13-ST-S3`: `phase_execution_id=m13_stress_s3_20260305T104425Z`, `overall_pass=true`, `next_gate=M13_ST_S4_READY`, `open_blockers=0`,
+   - `M13.F`: `execution_id=m13f_stress_s3_20260305T104425Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M13_G`, `next_gate=M13.G_READY`,
+   - `M13.G`: `execution_id=m13g_stress_s3_20260305T104729Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M13_H`, `next_gate=M13.H_READY`.

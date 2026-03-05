@@ -12285,3 +12285,334 @@ ext_gate=M8_READY, open_blockers=0.
 ### Guardrails
 1. No branch operation and no commit/push.
 2. No Data Engine internals touched (black-box boundary preserved).
+
+## Entry: 2026-03-05 09:52 +00:00 - M13-ST-S0 implemented and executed green from strict M12 S5 authority
+### Implementation completed
+1. Added `scripts/dev_substrate/m13b0_managed_materialization.py`:
+   - managed dispatch to `.github/workflows/dev_full_m13_managed.yml` with explicit upstream override inputs,
+   - strict lane gate enforcement for `M13.B0` (`overall_pass=true`, `verdict=ADVANCE_TO_M13_A`, `next_gate=M13.A_READY`),
+   - local artifact materialization:
+     - `m13_managed_lane_materialization_snapshot.json`,
+     - `m13_subphase_dispatchability_snapshot.json`,
+     - `m13b0_blocker_register.json`,
+     - `m13b0_execution_summary.json`.
+2. Added `scripts/dev_substrate/m13a_handle_closure.py`:
+   - managed dispatch for `handle_closure` mode with strict `UPSTREAM_M12J_EXECUTION` and `UPSTREAM_M13B0_EXECUTION`,
+   - strict lane gate enforcement for `M13.A` (`overall_pass=true`, `verdict=ADVANCE_TO_M13_B`, `next_gate=M13.B_READY`),
+   - local artifact materialization:
+     - `m13a_handle_closure_snapshot.json`,
+     - `m13a_blocker_register.json`,
+     - `m13a_execution_summary.json`.
+3. Added `scripts/dev_substrate/m13_stress_runner.py` (`S0` stage materialized):
+   - strict stale-upstream guard against `M13_STRESS_EXPECTED_ENTRY_EXECUTION`,
+   - strict M12 closure continuity checks (`m12_execution_summary`, `m12j_execution_summary`, `m13_handoff_pack`),
+   - fail-closed lane orchestration `M13.B0 -> M13.A`,
+   - parent artifact contract and gate summary emit (`M13_ST_S1_READY` on pass).
+
+### Validation + strict execution
+1. Compile check passed:
+   - `python -m py_compile scripts/dev_substrate/m13_stress_runner.py scripts/dev_substrate/m13b0_managed_materialization.py scripts/dev_substrate/m13a_handle_closure.py`.
+2. Strict execution:
+   - `python scripts/dev_substrate/m13_stress_runner.py --stage S0 --upstream-m12-s5-execution m12_stress_s5_20260305T091936Z`.
+3. Parent result:
+   - `phase_execution_id=m13_stress_s0_20260305T094531Z`,
+   - `overall_pass=true`,
+   - `open_blocker_count=0`,
+   - `next_gate=M13_ST_S1_READY`.
+4. Lane results:
+   - `M13.B0`: `m13b0_stress_s0_20260305T094531Z` pass (`ADVANCE_TO_M13_A`, `M13.A_READY`),
+   - `M13.A`: `m13a_stress_s0_20260305T094836Z` pass (`ADVANCE_TO_M13_B`, `M13.B_READY`).
+
+### State synchronization
+1. Updated `stress_test/platform.M13.stress_test.md`:
+   - posture -> `S0_GREEN`,
+   - DoD `M13-ST-S0` checked complete,
+   - immediate next actions routed to strict `M13-ST-S1` from `m13_stress_s0_20260305T094531Z`,
+   - execution progress updated with parent/lane receipts.
+2. Updated `stress_test/platform.stress_test.md`:
+   - M13 overview row -> `IN_PROGRESS (S0_GREEN)`,
+   - M13 open-phase section synced with S0 receipts and next strict step `S1`.
+
+### Governance posture
+1. No commit/push/branch operation.
+2. Data Engine boundary preserved (black-box).
+
+## Entry: 2026-03-05 09:56 +00:00 - Pre-edit plan for M13-ST-S1 implementation and strict execution
+### Trigger
+1. User directive: move to `M13-ST-S1`.
+2. Current strict upstream: `m13_stress_s0_20260305T094531Z` (`overall_pass=true`, `next_gate=M13_ST_S1_READY`, `open_blocker_count=0`).
+
+### Decision-completeness and coverage check (S1 scope)
+1. M13 S1 authority requires lanes `B` (source matrix closure) and `C` (six-proof closure), fail-closed.
+2. Workflow authority confirms required mode contracts:
+   - `source_matrix_closure` (`m13_subphase=B`) -> `ADVANCE_TO_M13_C`, `M13.C_READY`,
+   - `six_proof_closure` (`m13_subphase=C`) -> `ADVANCE_TO_M13_D`, `M13.D_READY`.
+3. Missing implementation lanes on this branch:
+   - `scripts/dev_substrate/m13b_source_matrix_closure.py`,
+   - `scripts/dev_substrate/m13c_six_proof_closure.py`,
+   - `m13_stress_runner.py` support for `S1`.
+
+### Performance/correctness design
+1. Reuse existing wrapper pattern from `M13.A` for deterministic control-path behavior.
+2. Keep orchestration O(1) over fixed artifact keys and fixed lane count (`B`,`C`).
+3. Enforce explicit upstream override inputs to avoid stale workflow defaults.
+4. Fail-closed on first missing/unreadable upstream gate artifact.
+
+### Planned edits
+1. Add `m13b_source_matrix_closure.py` wrapper:
+   - dispatch `source_matrix_closure` for subphase `B`,
+   - require and pass explicit upstream ids (`UPSTREAM_M12J_EXECUTION`, `UPSTREAM_M13A_EXECUTION`),
+   - enforce `M13.B` summary gate (`ADVANCE_TO_M13_C`, `M13.C_READY`).
+2. Add `m13c_six_proof_closure.py` wrapper:
+   - dispatch `six_proof_closure` for subphase `C`,
+   - require and pass explicit upstream ids (`UPSTREAM_M12J_EXECUTION`, `UPSTREAM_M13B_EXECUTION`),
+   - enforce `M13.C` summary gate (`ADVANCE_TO_M13_D`, `M13.D_READY`).
+3. Extend `m13_stress_runner.py`:
+   - add `S1_ARTS`, `latest_s0()`, `run_s1(...)`, CLI support `--stage S1 --upstream-m13-s0-execution`,
+   - enforce strict continuity from `M13-ST-S0` receipt,
+   - orchestrate `B -> C` fail-closed.
+4. Validate and execute strict S1:
+   - compile-check new/updated scripts,
+   - run `python scripts/dev_substrate/m13_stress_runner.py --stage S1 --upstream-m13-s0-execution m13_stress_s0_20260305T094531Z`.
+5. Sync stress docs + logs with resulting S1 authority.
+
+### Guardrails
+1. No commit/push/branch operation.
+2. Data Engine remains black-box boundary.
+
+## Entry: 2026-03-05 10:05 +00:00 - M13-ST-S1 implemented and executed green from strict S0 authority
+### Implementation completed
+1. Added `scripts/dev_substrate/m13b_source_matrix_closure.py`:
+   - managed dispatch for `source_matrix_closure` (`m13_subphase=B`),
+   - strict upstream requirements (`UPSTREAM_M12J_EXECUTION`, `UPSTREAM_M13A_EXECUTION`),
+   - gate enforcement (`overall_pass=true`, `verdict=ADVANCE_TO_M13_C`, `next_gate=M13.C_READY`),
+   - local artifact materialization:
+     - `m13b_source_matrix_snapshot.json`,
+     - `m13b_blocker_register.json`,
+     - `m13b_execution_summary.json`.
+2. Added `scripts/dev_substrate/m13c_six_proof_closure.py`:
+   - managed dispatch for `six_proof_closure` (`m13_subphase=C`),
+   - strict upstream requirements (`UPSTREAM_M12J_EXECUTION`, `UPSTREAM_M13B_EXECUTION`),
+   - gate enforcement (`overall_pass=true`, `verdict=ADVANCE_TO_M13_D`, `next_gate=M13.D_READY`),
+   - local artifact materialization:
+     - `m13c_six_proof_matrix_snapshot.json`,
+     - `m13c_blocker_register.json`,
+     - `m13c_execution_summary.json`.
+3. Extended `scripts/dev_substrate/m13_stress_runner.py`:
+   - added `S1_ARTS`, `latest_s0()`, `run_s1(...)`, and `--stage S1 --upstream-m13-s0-execution` CLI path,
+   - enforced strict S0 continuity checks and fail-closed `B -> C` orchestration,
+   - pass mapping `S1 -> M13_ST_S2_READY`.
+
+### Validation + strict execution
+1. Compile check passed:
+   - `python -m py_compile scripts/dev_substrate/m13_stress_runner.py scripts/dev_substrate/m13b_source_matrix_closure.py scripts/dev_substrate/m13c_six_proof_closure.py`.
+2. Strict execution:
+   - `python scripts/dev_substrate/m13_stress_runner.py --stage S1 --upstream-m13-s0-execution m13_stress_s0_20260305T094531Z`.
+3. Parent result:
+   - `phase_execution_id=m13_stress_s1_20260305T095859Z`,
+   - `overall_pass=true`,
+   - `open_blocker_count=0`,
+   - `next_gate=M13_ST_S2_READY`.
+4. Lane results:
+   - `M13.B`: `m13b_stress_s1_20260305T095859Z` pass (`ADVANCE_TO_M13_C`, `M13.C_READY`),
+   - `M13.C`: `m13c_stress_s1_20260305T100204Z` pass (`ADVANCE_TO_M13_D`, `M13.D_READY`).
+
+### State synchronization
+1. Updated `platform.M13.stress_test.md` to `S1_GREEN`:
+   - DoD marks `M13-ST-S1` complete,
+   - immediate next action routed to strict `M13-ST-S2` from `m13_stress_s1_20260305T095859Z`,
+   - execution progress appended with S1 parent/lane receipts.
+2. Updated `platform.stress_test.md`:
+   - M13 status `IN_PROGRESS (S1_GREEN)`,
+   - M13 open-phase section synced with implementation-readiness (`S0/S1` lanes materialized), latest S1 receipts, and next step `S2`.
+
+### Governance posture
+1. No commit/push/branch operation.
+2. Data Engine boundary preserved (black-box).
+
+## Entry: 2026-03-05 10:38 +00:00 - Pre-edit plan for M13-ST-S3 implementation and strict execution
+### Trigger
+1. User directive: move to `M13-ST-S3`.
+2. Current strict upstream: `m13_stress_s2_20260305T102426Z` (`overall_pass=true`, `next_gate=M13_ST_S3_READY`, `open_blocker_count=0`).
+
+### Decision-completeness and coverage check (S3 scope)
+1. M13 S3 authority requires lanes `F` (teardown execution closure) and `G` (residual/readability closure), fail-closed.
+2. Managed workflow contract confirms deterministic lane gates:
+   - `teardown_execution_closure` (`m13_subphase=F`) -> `ADVANCE_TO_M13_G`, `M13.G_READY`,
+   - `residual_readability_closure` (`m13_subphase=G`) -> `ADVANCE_TO_M13_H`, `M13.H_READY`.
+3. Missing implementation lanes on this branch:
+   - `scripts/dev_substrate/m13f_teardown_execution_closure.py`,
+   - `scripts/dev_substrate/m13g_residual_readability_closure.py`,
+   - `m13_stress_runner.py` support for `S3`.
+
+### Performance/correctness design
+1. Reuse established S0/S1/S2 dispatch-readback pattern to keep control-plane complexity O(1).
+2. Keep strict upstream continuity checks in parent `S3` before lane dispatch:
+   - require S2 green (`M13_ST_S3_READY`),
+   - require lane lineage refs (`m12j`, `m13d`, `m13e`).
+3. Enforce explicit upstream override posture to prevent workflow-default drift (`M13-ST-B20` guard).
+4. Keep local machine usage to control orchestration and artifact readback only; runtime execution remains remote-managed.
+
+### Planned edits
+1. Add `m13f_teardown_execution_closure.py` wrapper with strict gate checks (`M13.G_READY`, `ADVANCE_TO_M13_G`).
+2. Add `m13g_residual_readability_closure.py` wrapper with strict gate checks (`M13.H_READY`, `ADVANCE_TO_M13_H`).
+3. Extend `m13_stress_runner.py` with:
+   - `S3_ARTS`,
+   - `latest_s2()`,
+   - `run_s3(...)`,
+   - CLI support (`--stage S3 --upstream-m13-s2-execution`),
+   - finish mapping (`S3 -> M13_ST_S4_READY`).
+4. Compile-check updated scripts, then run strict:
+   - `python scripts/dev_substrate/m13_stress_runner.py --stage S3 --upstream-m13-s2-execution m13_stress_s2_20260305T102426Z`.
+5. Sync M13 stress docs + parent index + logbook with resulting receipts and blocker status.
+
+### Guardrails
+1. No commit/push/branch operation.
+2. Data Engine boundary remains black-box.
+
+## Entry: 2026-03-05 10:50 +00:00 - M13-ST-S3 implemented and executed green from strict S2 authority
+### Implementation completed
+1. Added `scripts/dev_substrate/m13f_teardown_execution_closure.py`:
+   - managed dispatch for `teardown_execution_closure` (`m13_subphase=F`),
+   - strict upstream requirements (`UPSTREAM_M12J_EXECUTION`, `UPSTREAM_M13E_EXECUTION`),
+   - gate enforcement (`overall_pass=true`, `verdict=ADVANCE_TO_M13_G`, `next_gate=M13.G_READY`),
+   - artifact materialization:
+     - `m13f_teardown_execution_snapshot.json`,
+     - `m13f_blocker_register.json`,
+     - `m13f_execution_summary.json`.
+2. Added `scripts/dev_substrate/m13g_residual_readability_closure.py`:
+   - managed dispatch for `residual_readability_closure` (`m13_subphase=G`),
+   - strict upstream requirements (`UPSTREAM_M12J_EXECUTION`, `UPSTREAM_M13F_EXECUTION`),
+   - gate enforcement (`overall_pass=true`, `verdict=ADVANCE_TO_M13_H`, `next_gate=M13.H_READY`),
+   - artifact materialization:
+     - `m13g_post_teardown_readability_snapshot.json`,
+     - `m13g_blocker_register.json`,
+     - `m13g_execution_summary.json`.
+3. Extended `scripts/dev_substrate/m13_stress_runner.py`:
+   - added `S3_ARTS`, `latest_s2()`, `run_s3(...)`, and CLI support `--upstream-m13-s2-execution`,
+   - enforced strict S2 continuity checks and fail-closed `F -> G` orchestration,
+   - added pass mapping `S3 -> M13_ST_S4_READY`.
+
+### Validation + strict execution
+1. Compile check passed:
+   - `python -m py_compile scripts/dev_substrate/m13_stress_runner.py scripts/dev_substrate/m13f_teardown_execution_closure.py scripts/dev_substrate/m13g_residual_readability_closure.py`.
+2. Strict execution:
+   - `python scripts/dev_substrate/m13_stress_runner.py --stage S3 --upstream-m13-s2-execution m13_stress_s2_20260305T102426Z`.
+3. Parent result:
+   - `phase_execution_id=m13_stress_s3_20260305T104425Z`,
+   - `overall_pass=true`,
+   - `open_blocker_count=0`,
+   - `next_gate=M13_ST_S4_READY`.
+4. Lane results:
+   - `M13.F`: `m13f_stress_s3_20260305T104425Z` pass (`ADVANCE_TO_M13_G`, `M13.G_READY`),
+   - `M13.G`: `m13g_stress_s3_20260305T104729Z` pass (`ADVANCE_TO_M13_H`, `M13.H_READY`).
+
+### State synchronization
+1. Updated `platform.M13.stress_test.md`:
+   - posture -> `S3_GREEN`,
+   - DoD marks `M13-ST-S3` complete,
+   - immediate next action routed to strict `M13-ST-S4` from `m13_stress_s3_20260305T104425Z`,
+   - execution progress appended with S3 parent/lane receipts.
+2. Updated `platform.stress_test.md`:
+   - M13 status advanced to `IN_PROGRESS (S3_GREEN)`,
+   - implementation-readiness synced for S3 wrappers/runner support,
+   - latest receipts include S3 closure and next strict gate `M13_ST_S4_READY`.
+
+### Governance posture
+1. No commit/push/branch operation.
+2. Data Engine boundary preserved (black-box).
+
+## Entry: 2026-03-05 10:08 +00:00 - Pre-edit plan for M13-ST-S2 implementation and strict execution
+### Trigger
+1. User directive: proceed to `M13-ST-S2`.
+2. Current strict upstream: `m13_stress_s1_20260305T095859Z` (`overall_pass=true`, `next_gate=M13_ST_S2_READY`, `open_blocker_count=0`).
+
+### Decision-completeness and coverage check (S2 scope)
+1. M13 S2 authority requires lanes `D` (final verdict closure) and `E` (teardown plan closure), fail-closed.
+2. Managed workflow contract confirms required execution modes and deterministic gates:
+   - `final_verdict_closure` (`m13_subphase=D`) -> `ADVANCE_TO_M13_E`, `M13.E_READY`,
+   - `teardown_plan_closure` (`m13_subphase=E`) -> `ADVANCE_TO_M13_F`, `M13.F_READY`.
+3. Missing implementation lanes on this branch:
+   - `scripts/dev_substrate/m13d_final_verdict_closure.py`,
+   - `scripts/dev_substrate/m13e_teardown_plan_closure.py`,
+   - `m13_stress_runner.py` support for `S2`.
+
+### Performance/correctness design
+1. Reuse `S0/S1` dispatch/readback wrapper pattern for deterministic O(1) control-plane work.
+2. Keep artifact contract fixed-width (`S2_ARTS`) to avoid dynamic graph logic at this closure step.
+3. Enforce explicit upstream continuity checks before dispatch:
+   - parent S1 receipt validity,
+   - lane prerequisites `m13a_execution_id`, `m13b_execution_id`, `m13c_execution_id`.
+4. Fail-closed on first lane blocker and emit explicit blocker register.
+
+### Planned edits
+1. Add `m13d_final_verdict_closure.py` and `m13e_teardown_plan_closure.py` wrappers.
+2. Extend `m13_stress_runner.py` with `S2_ARTS`, `latest_s1()`, `run_s2(...)`, and CLI `--upstream-m13-s1-execution`.
+3. Compile-check updated scripts and execute strict `S2` from `m13_stress_s1_20260305T095859Z`.
+4. If fail-closed, remediate root cause at contract boundary and rerun from same strict upstream.
+5. Sync stress docs + logs with resulting authority.
+
+### Guardrails
+1. No commit/push/branch operation.
+2. Data Engine boundary remains black-box.
+
+## Entry: 2026-03-05 10:31 +00:00 - M13-ST-S2 implemented, remediated, and executed green from strict S1 authority
+### Implementation completed
+1. Added `scripts/dev_substrate/m13d_final_verdict_closure.py`:
+   - managed dispatch for `final_verdict_closure` (`m13_subphase=D`),
+   - strict upstream requirements (`UPSTREAM_M12J_EXECUTION`, `UPSTREAM_M13C_EXECUTION`),
+   - gate enforcement (`overall_pass=true`, `verdict=ADVANCE_TO_M13_E`, `next_gate=M13.E_READY`),
+   - artifact materialization:
+     - `m13d_final_verdict_bundle.json`,
+     - `m13d_blocker_register.json`,
+     - `m13d_execution_summary.json`.
+2. Added `scripts/dev_substrate/m13e_teardown_plan_closure.py`:
+   - managed dispatch for `teardown_plan_closure` (`m13_subphase=E`),
+   - strict upstream requirements (`UPSTREAM_M12J_EXECUTION`, `UPSTREAM_M13D_EXECUTION`),
+   - gate enforcement (`overall_pass=true`, `verdict=ADVANCE_TO_M13_F`, `next_gate=M13.F_READY`),
+   - artifact materialization:
+     - `m13e_teardown_plan_snapshot.json`,
+     - `m13e_blocker_register.json`,
+     - `m13e_execution_summary.json`.
+3. Extended `scripts/dev_substrate/m13_stress_runner.py`:
+   - added `S2_ARTS`, `latest_s1()`, `run_s2(...)`, and CLI support `--upstream-m13-s1-execution`,
+   - enforced strict S1 continuity checks and fail-closed `D -> E` orchestration,
+   - added pass mapping `S2 -> M13_ST_S3_READY`.
+
+### Strict execution and remediation
+1. Compile check passed:
+   - `python -m py_compile scripts/dev_substrate/m13_stress_runner.py scripts/dev_substrate/m13b_source_matrix_closure.py scripts/dev_substrate/m13c_six_proof_closure.py scripts/dev_substrate/m13d_final_verdict_closure.py scripts/dev_substrate/m13e_teardown_plan_closure.py`.
+2. First strict execution (fail-closed):
+   - `python scripts/dev_substrate/m13_stress_runner.py --stage S2 --upstream-m13-s1-execution m13_stress_s1_20260305T095859Z`,
+   - `phase_execution_id=m13_stress_s2_20260305T102042Z`,
+   - `overall_pass=false`, `open_blocker_count=3`, `next_gate=HOLD_REMEDIATE`,
+   - blockers: `M13-ST-B4` (`m13d_not_ready`), `M13-ST-B5` (`m13e_skipped_due_to_prior_blocker`), `M13-ST-B11` (S2 artifact contract incomplete due lane skip).
+3. Root cause:
+   - S2 parent runner was providing placeholder lineage where lane `M13.D` required authoritative upstream `m13a`/`m13b` lineage identifiers.
+4. Remediation:
+   - patched `run_s2(...)` to pass strict real lineage from S1 receipt:
+     - `M13_UPSTREAM_M13A_EXECUTION=m13a_execution_id`,
+     - `M13_UPSTREAM_M13B_EXECUTION=m13b_execution_id`,
+   - added fail-closed guard if `m13a_execution_id` or `m13b_execution_id` is missing in S1 summary.
+5. Rerun from same strict upstream (green):
+   - `python scripts/dev_substrate/m13_stress_runner.py --stage S2 --upstream-m13-s1-execution m13_stress_s1_20260305T095859Z`,
+   - `phase_execution_id=m13_stress_s2_20260305T102426Z`,
+   - `overall_pass=true`, `open_blocker_count=0`, `next_gate=M13_ST_S3_READY`,
+   - lane receipts:
+     - `M13.D`: `m13d_stress_s2_20260305T102426Z` pass (`ADVANCE_TO_M13_E`, `M13.E_READY`),
+     - `M13.E`: `m13e_stress_s2_20260305T102730Z` pass (`ADVANCE_TO_M13_F`, `M13.F_READY`).
+
+### State synchronization
+1. Updated `platform.M13.stress_test.md`:
+   - posture -> `S2_GREEN`,
+   - DoD marks `M13-ST-S2` complete,
+   - execution progress now records first fail-closed run, root cause, remediation, and green rerun receipts,
+   - immediate next action routed to strict `M13-ST-S3` from `m13_stress_s2_20260305T102426Z`.
+2. Updated `platform.stress_test.md`:
+   - M13 status advanced to `IN_PROGRESS (S2_GREEN)`,
+   - implementation-readiness synced for S2 wrappers/runner support,
+   - latest receipts include S2 fail-closed + remediation + rerun-green sequence.
+
+### Governance posture
+1. No commit/push/branch operation.
+2. Data Engine boundary preserved (black-box).
