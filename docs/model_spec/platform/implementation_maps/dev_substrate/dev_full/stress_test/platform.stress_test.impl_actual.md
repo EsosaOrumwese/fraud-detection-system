@@ -11447,3 +11447,27 @@ ext_gate=M8_READY, open_blockers=0.
 1. Managed run-id discoverability remains advisory when authoritative run-scoped artifacts for requested execution id are present and pass.
 2. S4 closure confirms deterministic P14 rollup and valid M12 entry contract publication.
 3. M11 next executable stage is now `S5` from strict upstream `m11_stress_s4_20260305T053904Z`.
+
+## Entry: 2026-03-05 05:59 +00:00 - M11-ST-S5 closure to M12_READY
+### Implementation summary
+1. Added `scripts/dev_substrate/m11j_cost_outcome_closure.py`:
+   - dispatches managed lane `J`,
+   - materializes `m11_phase_budget_envelope`, `m11_phase_cost_outcome_receipt`, `m11j_blocker_register`, `m11j_execution_summary`, and managed `m11_execution_summary`,
+   - enforces final gate truth (`ADVANCE_TO_M12`, `M12_READY`) fail-closed.
+2. Extended `scripts/dev_substrate/m11_stress_runner.py`:
+   - added `S5_ARTS`, `latest_s4()`, `run_s5(...)`, finish mapping for `S5`, and CLI support `--stage S5 --upstream-m11-s4-execution`.
+   - added explicit non-gate acceptance closure snapshot generation in parent S5 (`utility`, `reproducibility`, `auditability`, `decision_quality`).
+
+### Execution receipts
+1. Strict upstream used: `m11_stress_s4_20260305T053904Z` (`M11_ST_S5_READY`).
+2. Parent S5 run:
+   - `m11_stress_s5_20260305T055457Z` -> `overall_pass=true`, `open_blocker_count=0`, `verdict=ADVANCE_TO_M12`, `next_gate=M12_READY`.
+3. Lane J run:
+   - `m11j_stress_s5_20260305T055457Z` -> `overall_pass=true`, `all_required_available=true`, `verdict=ADVANCE_TO_M12`, `next_gate=M12_READY`.
+4. Cost closure receipts present and valid:
+   - `m11_phase_budget_envelope.json`,
+   - `m11_phase_cost_outcome_receipt.json` (`spend_amount=133.4288558572`, `utilization_pct=44.47628528573333333333333333`).
+
+### Closure decision
+1. M11 is now closure-ready and deterministic with strict final gate `M12_READY`.
+2. Program handoff can proceed to M12 using `m11_stress_s5_20260305T055457Z` as sole strict entry authority.
