@@ -13044,3 +13044,51 @@ ext_gate=M8_READY, open_blockers=0.
 ### Governance
 1. No commit/push/branch operation.
 2. No runtime workloads executed; documentation scaffold only.
+
+## Entry: 2026-03-05 12:16 +00:00 - RC2-S envelope populated in numeric contract from measured evidence + policy guardbands
+### Trigger
+1. User directive: proceed with next step after scaffold creation.
+2. Action scope: populate `RC2-S` table in `dev_full_numeric_contract.v0.md` with concrete values and source refs.
+
+### Value population decisions
+1. `steady_rate=25347 events/sec` (`measured`):
+   - source: `m7p8_stress_s5_20260304T205741Z/m7p8_ieg_snapshot.json` `performance_snapshot.throughput_observed`.
+2. `burst_rate=30000 events/sec` (`policy`):
+   - policy guardband (`1.18x`) over measured steady to avoid no-headroom certification while keeping near-term achievability.
+3. `burst_duration=5 min` (`policy`):
+   - anchored to observed dispatch profile baseline from `m4_lane_matrix.json`.
+4. `soak_duration=30 min` (`policy`):
+   - pinned from realism guidance for dev_full operational certification windows.
+5. `recovery_window=5 min` (`policy`):
+   - anchored to `m4` recovery budget (`300s`).
+6. `replay_window_size=18 events` (`measured`):
+   - source: `m9c_replay_basis_receipt.json` `origin_offset_ranges[0].observed_count`.
+7. `min_processed_events=2190000986` (`measured`):
+   - source: `m7p8_ieg_snapshot.json` `performance_snapshot.sample_size`.
+8. `min_unique_keys=8` (`measured`):
+   - source: `m7_data_profile_summary.json` `event_type_count`.
+
+### Notes
+1. `RC2-S` rows are now non-`TBD`; `RC2-L` remains intentionally `TBD` (stretch envelope deferred).
+2. Tier-0 threshold table and component/data-realism thresholds remain `TBD` pending dedicated numeric calibration pass.
+
+### Governance
+1. No commit/push/branch operation.
+2. Documentation-only change; no runtime workloads launched.
+
+## Entry: 2026-03-05 12:22 +00:00 - Numeric contract path correction (moved from design to stress authority lane)
+### Trigger
+1. User flagged that placing the numeric contract under `docs/design/platform/dev_full/` is not a wise authority location.
+
+### Decision
+1. Relocated contract to implementation-map stress authority lane:
+   - from: `docs/design/platform/dev_full/dev_full_numeric_contract.v0.md`
+   - to: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/dev_full_numeric_contract.v0.md`.
+2. Rationale:
+   - keeps acceptance contract colocated with stress authority and execution artifacts,
+   - reduces design-vs-authority drift risk,
+   - aligns with active dev_substrate/stress governance posture.
+
+### Governance
+1. No commit/push/branch operation.
+2. Content unchanged; path only.

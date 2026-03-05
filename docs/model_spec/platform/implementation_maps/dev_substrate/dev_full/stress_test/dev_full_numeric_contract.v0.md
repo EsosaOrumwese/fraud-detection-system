@@ -41,14 +41,19 @@ Fail-closed:
 ### 2.1 RC2-S (Required)
 | Dimension | Value | Unit | Source Ref | Type |
 |---|---:|---|---|---|
-| steady_rate | `TBD` | events/sec | `TBD` | measured |
-| burst_rate | `TBD` | events/sec | `TBD` | measured |
-| burst_duration | `TBD` | min | `TBD` | policy |
-| soak_duration | `TBD` | min | `TBD` | policy |
-| recovery_window | `TBD` | min | `TBD` | policy |
-| replay_window_size | `TBD` | events | `TBD` | measured |
-| min_processed_events | `TBD` | events | `TBD` | policy |
-| min_unique_keys | `TBD` | count | `TBD` | policy |
+| steady_rate | `25347` | events/sec | `runs/.../m7p8_stress_s5_20260304T205741Z/stress/m7p8_ieg_snapshot.json#performance_snapshot.throughput_observed` | measured |
+| burst_rate | `30000` | events/sec | `policy_guardband_v0: 1.18x steady_rate derived from measured m7p8 throughput` | policy |
+| burst_duration | `5` | min | `runs/.../m4_stress_s0_20260303T184138Z/stress/m4_lane_matrix.json#dispatch_profile.burst_window_minutes` | policy |
+| soak_duration | `30` | min | `platform-realism envelope guidance (dev_full soak target 30-60 min)` | policy |
+| recovery_window | `5` | min | `runs/.../m4_stress_s0_20260303T184138Z/stress/m4_lane_matrix.json#dispatch_profile.recovery_budget_seconds(300s)` | policy |
+| replay_window_size | `18` | events | `runs/.../m9_stress_s1_20260305T001004Z/stress/m9c_replay_basis_receipt.json#origin_offset_ranges[0].observed_count` | measured |
+| min_processed_events | `2190000986` | events | `runs/.../m7p8_stress_s5_20260304T205741Z/stress/m7p8_ieg_snapshot.json#performance_snapshot.sample_size` | measured |
+| min_unique_keys | `8` | count | `runs/.../m7_stress_s5_20260304T212520Z/stress/m7_data_profile_summary.json#event_type_count` | measured |
+
+RC2-S derivation notes:
+- `steady_rate` is pinned from latest strict non-toy RTDL throughput evidence (`M7.P8 S5`).
+- `burst_rate` is policy-derived from measured steady throughput to avoid certifying a no-headroom envelope while keeping near-term achievability.
+- `soak_duration` is policy-pinned for production realism and cost control in `dev_full`.
 
 ### 2.2 RC2-L (Stretch, non-blocking by default)
 | Dimension | Value | Unit | Source Ref | Type |
