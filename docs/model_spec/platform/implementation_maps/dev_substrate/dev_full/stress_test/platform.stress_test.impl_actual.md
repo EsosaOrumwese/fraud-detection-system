@@ -11667,3 +11667,30 @@ ext_gate=M8_READY, open_blockers=0.
 2. compile-check changed scripts,
 3. execute strict command:
    - `python scripts/dev_substrate/m12_stress_runner.py --stage S1 --upstream-m12-s0-execution m12_stress_s0_20260305T061903Z`.
+
+## Entry: 2026-03-05 06:45 +00:00 - M12-ST-S1 executed fail-closed; blocker M12-ST-B3 pinned
+### Execution receipts
+1. Executed strict run:
+   - `python scripts/dev_substrate/m12_stress_runner.py --stage S1 --upstream-m12-s0-execution m12_stress_s0_20260305T061903Z`.
+2. Parent S1 result:
+   - `phase_execution_id=m12_stress_s1_20260305T063823Z`,
+   - `overall_pass=false`,
+   - `open_blocker_count=1`,
+   - `next_gate=HOLD_REMEDIATE`.
+3. Lane receipts:
+   - `M12.B`: `m12b_stress_s1_20260305T063823Z` (`overall_pass=true`, `verdict=ADVANCE_TO_M12_C`, `next_gate=M12.C_READY`),
+   - `M12.C`: `m12c_stress_s1_20260305T064132Z` (`overall_pass=false`, `verdict=HOLD_REMEDIATE`, `next_gate=HOLD_REMEDIATE`).
+
+### Blocker analysis
+1. Parent blocker register opened `M12-ST-B3` with reason `m12c_not_ready`.
+2. `M12.C` blocker register reported four fail conditions:
+   - `overall_pass` not true,
+   - `next_gate` not `M12.D_READY`,
+   - `verdict` not `ADVANCE_TO_M12_D`,
+   - workflow run-id not discoverable after dispatch (`run_id=0`, `run_url=run_not_found_after_dispatch`).
+3. Snapshot evidence confirms most compatibility checks passed and points to metadata/run-tracking discoverability as the observed closure break in this run.
+
+### Decision and next action
+1. M12 remains fail-closed at `S1`; no progression to `S2` is allowed.
+2. Next remediation lane is `M12.C` wrapper hardening to treat run-id discoverability as advisory when authoritative artifacts and gate truth are present (same stabilization posture applied in prior M11 wrappers).
+3. After remediation, rerun strict `M12-ST-S1` from `m12_stress_s0_20260305T061903Z`.

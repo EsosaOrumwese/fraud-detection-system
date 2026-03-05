@@ -3,7 +3,7 @@ _Parent authority: `platform.stress_test.md`_
 _Status source of truth: `platform.stress_test.md`_
 _Track: `dev_full` only_
 _As of 2026-03-05_
-_Current posture: `S0_GREEN` (strict `M12-ST-S0` executed green; `next_gate=M12_ST_S1_READY`)._
+_Current posture: `S1_BLOCKED` (strict `M12-ST-S1` executed fail-closed; `open_blockers=1`, `M12-ST-B3`)._
 
 ## 0) Purpose
 M12 stress validates promotion/rollback closure under repeated activation pressure with deterministic provenance, fail-closed gate semantics, and explicit non-gate acceptance.
@@ -379,16 +379,16 @@ Required stage outputs (phase-level):
 - [x] stale-default upstream override guard pinned.
 - [x] missing execution-lane implementations and parent runner pinned as explicit `PREVENT` findings.
 - [x] `M12-ST-S0` executed and closed green.
-- [ ] `M12-ST-S1` executed and closed green.
+- [ ] `M12-ST-S1` executed and closed green (latest run blocked on `M12-ST-B3`).
 - [ ] `M12-ST-S2` executed and closed green.
 - [ ] `M12-ST-S3` executed and closed green.
 - [ ] `M12-ST-S4` executed and closed green.
 - [ ] `M12-ST-S5` executed and closed green with deterministic `M13_READY`.
 
 ## 12) Immediate Next Actions
-1. implement and extend `scripts/dev_substrate/m12_stress_runner.py` and wrappers for `B..J` to support `S1..S5`.
-2. execute `M12-ST-S1` from strict upstream `m12_stress_s0_20260305T061903Z`.
-3. continue strict chain `S2..S5`, stopping fail-closed on first blocker.
+1. remediate `M12-ST-B3` in lane `M12.C` (metadata run-id discoverability should not override artifact-truth gate pass).
+2. rerun `M12-ST-S1` from strict upstream `m12_stress_s0_20260305T061903Z`.
+3. after S1 turns green, continue strict chain `S2..S5` stopping fail-closed on first blocker.
 4. update parent `platform.stress_test.md` after each stage with authoritative latest execution id and gate.
 
 ## 13) Execution Progress
@@ -404,6 +404,16 @@ Required stage outputs (phase-level):
    - lane `M12.A`: `m12a_stress_s0_20260305T062209Z` (`overall_pass=true`, `verdict=ADVANCE_TO_M12_B`, `next_gate=M12.B_READY`).
 5. Current evidence root:
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m12_stress_s0_20260305T061903Z/stress/`.
+6. `M12-ST-S1` implementation closure:
+   - added `scripts/dev_substrate/m12b_candidate_eligibility.py`,
+   - added `scripts/dev_substrate/m12c_compatibility_precheck.py`,
+   - extended `scripts/dev_substrate/m12_stress_runner.py` with fail-closed `S1` (`B+C`).
+7. `M12-ST-S1` execution result (strict upstream `m12_stress_s0_20260305T061903Z`):
+   - parent run: `m12_stress_s1_20260305T063823Z` (`overall_pass=false`, `open_blocker_count=1`, `next_gate=HOLD_REMEDIATE`).
+   - lane `M12.B`: `m12b_stress_s1_20260305T063823Z` (gate-pass to `M12.C_READY`).
+   - lane `M12.C`: `m12c_stress_s1_20260305T064132Z` (`overall_pass=false`, `verdict=HOLD_REMEDIATE`, blocker source for `M12-ST-B3`).
+8. Current evidence root:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m12_stress_s1_20260305T063823Z/stress/`.
 
 ## 14) Reopen Notice (Strict Authority)
 1. M12 cannot be closed using historical 2026-02 receipts alone.
