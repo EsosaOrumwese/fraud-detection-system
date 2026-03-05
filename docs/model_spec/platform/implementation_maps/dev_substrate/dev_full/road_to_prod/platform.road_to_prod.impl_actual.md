@@ -645,3 +645,99 @@ _As of 2026-03-05_
 ### Governance
 1. Documentation updates only.
 2. No commit/push/branch operation.
+
+## Entry: 2026-03-05 18:16 +00:00 - Pre-edit plan: PR1-S2 detailed planning + execution from strict upstream S1
+### Trigger
+1. USER requested detailed planning of `PR1-S2` and execution.
+
+### Decision-completeness check
+1. Upstream is valid and strict:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr1_20260305T174744Z/pr1_s1_execution_receipt.json` has `PR1_S1_READY`, `open_blockers=0`.
+2. Mandatory S2 lane outputs are known:
+   - `pr1_join_matrix.json`,
+   - `pr1_join_decision_register.json`,
+   - `pr1_s2_execution_receipt.json` for deterministic handoff.
+3. Required join map authority is explicit in pre-design doc (`9.4.1`).
+
+### Evidence strategy (performance + no rerun-the-world)
+1. Evidence-first by-reference reuse; no local heavy scans.
+2. Use existing oracle-store-derived joinability artifacts from:
+   - `runs/dev_substrate/dev_full/m15/m15b_semantic_profile_20260302T072457Z/`:
+     - `m15b_join_coverage_matrix.json`,
+     - `m15b_key_integrity_report.json`,
+     - `m15b_entity_stability_report.json`,
+     - `m15b_profile_manifest.json`.
+3. Validate source-root alignment against S1 corpus roots from:
+   - `m7_data_profile_summary.json` source roots.
+4. If alignment fails or mandatory join pair evidence is absent, fail-closed with `B07/B08`.
+
+### S2 execution design
+1. Materialize mandatory 4-join matrix with per-pair:
+   - keys,
+   - left/matched rows,
+   - coverage ratio,
+   - unmatched rate,
+   - fanout estimate,
+   - verdict and evidence basis.
+2. Emit deterministic decision register with route actions for breach cases:
+   - high unmatched -> quarantine/fallback,
+   - high fanout -> cap/re-key/offline path.
+3. Pin `TGT-06` threshold candidates at S2 boundary (subject to S5 rollup lock):
+   - `max_unmatched_join_rate`,
+   - `max_fanout_p99`,
+   - join duplicate-key cap.
+4. Gate checks:
+   - `B07`: join matrix exists + covers all mandatory pairs,
+   - `B08`: every mandatory pair has explicit decision,
+   - `B09`: threshold set pinned and non-null.
+5. Emit `PR1_S2_READY` only when `B07..B09` all pass; else `HOLD_REMEDIATE` at `S2`.
+
+### Governance
+1. Docs + run-control artifacts only.
+2. No commit/push/branch operation.
+
+## Entry: 2026-03-05 18:20 +00:00 - PR1-S2 executed; joinability closure passed and TGT-06 pinned
+### Execution performed
+1. Executed `PR1-S2` from strict upstream `pr1_s1_execution_receipt.json` under:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr1_20260305T174744Z/`.
+2. Reused by-reference join evidence (evidence-first, no rerun-the-world extraction):
+   - `m15b_join_coverage_matrix.json`,
+   - `m15b_key_integrity_report.json`,
+   - `m15b_entity_stability_report.json`,
+   - `m15b_profile_manifest.json`
+   from `m15b_semantic_profile_20260302T072457Z`.
+3. Validated corpus root alignment against S1 source corpus roots (`m7_data_profile_summary`):
+   - alignment check passed (`root_overlap` non-empty and equal root).
+4. Emitted S2 artifacts:
+   - `pr1_join_matrix.json`,
+   - `pr1_join_decision_register.json`,
+   - `pr1_s2_execution_receipt.json`,
+   - updated `pr1_latest.json` (`latest_state=S2`).
+
+### Result
+1. `pr1_s2_execution_receipt.json` verdict: `PR1_S2_READY`.
+2. `open_blockers=0`, `next_state=PR1-S3`.
+3. Fail-closed checks all passed:
+   - `B07_join_matrix_present=true`,
+   - `B08_decision_gaps_closed=true`,
+   - `B09_thresholds_pinned=true`.
+4. `TGT-06` status updated to `PINNED` with thresholds:
+   - `max_unmatched_join_rate=0.001`,
+   - `max_fanout_p99=2.0`,
+   - `max_duplicate_key_rate_each_side=0.001`.
+5. Advisory preserved explicitly:
+   - `S2.AD02_JOIN_EVIDENCE_WINDOW_EXTENDS_BEYOND_S1_CHARTER`.
+
+### Plan synchronization
+1. Updated `platform.PR1.road_to_prod.md`:
+   - added S2 planning expansion checklist,
+   - updated execution record to `S0-S2`,
+   - added `PR1-S2 Findings Summary (Readable)` table.
+2. Updated `platform.road_to_prod.plan.md`:
+   - immediate next step moved to `PR1-S3` with S2 receipt as strict upstream,
+   - added `10.2 PR1-S2 Findings Snapshot (Readable)`,
+   - Section `11.3` snapshot advanced to `PR1-S2`, `TGT-06=PINNED`.
+
+### Governance
+1. Docs + run-control artifacts only.
+2. No commit/push/branch operation.

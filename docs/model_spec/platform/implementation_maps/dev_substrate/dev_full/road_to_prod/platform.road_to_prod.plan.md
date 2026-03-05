@@ -184,9 +184,9 @@ This plan's intent is satisfied only when:
 3. The final production-ready verdict is claimable, auditable, and has `open_blockers=0`.
 
 ## 10) Immediate Next Step
-1. Start `PR1-S2`: execute joinability closure and bounded join decisions from the pinned S1 realism profile/cohort outputs.
-2. Use `PR1-S1` receipt as immediate upstream authority:
-   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr1_20260305T174744Z/pr1_s1_execution_receipt.json`.
+1. Start `PR1-S3`: execute RTDL allowlist/denylist, IEG scope pinning, and lateness-policy closure from the pinned S2 join outcomes.
+2. Use `PR1-S2` receipt as immediate upstream authority:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr1_20260305T174744Z/pr1_s2_execution_receipt.json`.
 3. Keep Section 11 target status table as the active blocker-routing surface during PR1 execution.
 4. Use the dedicated PR1 authority doc as execution source:
    - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR1.road_to_prod.md`.
@@ -205,6 +205,19 @@ This plan's intent is satisfied only when:
 | Parse errors | `0` | No profile-quality parsing defect carried forward. |
 | Envelope candidate (S1) | steady `25,347.234 eps`, burst `29,910 eps`, durations `30/5/5/30 min` | S1 candidate is bounded; final numeric pin remains S5 responsibility. |
 | Gate checks | `B04=true`, `B05=true`, `B06=true` | Required S1 acceptance checks all passed. |
+
+### 10.2 PR1-S2 Findings Snapshot (Readable)
+| Signal | Value | Why it matters for PR1 |
+| --- | --- | --- |
+| S2 verdict | `PR1_S2_READY` | Confirms legal handoff to S3. |
+| Open blockers | `0` | No S2 fail-closed blocker remains. |
+| Mandatory joins covered | `4/4` | Required join graph is fully represented in S2 matrix. |
+| Highest unmatched rate | `0.00000434` (`J1`) | Well below pinned unmatched cap (`0.001`). |
+| Fanout posture | `J1 p95=2.0`, others `1.0` | Within pinned fanout cap (`2.0`). |
+| Duplicate-key rates | `0.0` (mandatory join sides) | No duplicate-key pressure seen in mandatory S2 paths. |
+| `TGT-06` thresholds pinned | `max_unmatched_join_rate=0.001`, `max_fanout_p99=2.0`, `max_duplicate_key_rate_each_side=0.001` | Join/fanout/unmatched contract moved from TBD to pinned values. |
+| Gate checks | `B07=true`, `B08=true`, `B09=true` | S2 acceptance checks all passed. |
+| Advisory | `S2.AD02_JOIN_EVIDENCE_WINDOW_EXTENDS_BEYOND_S1_CHARTER` | Kept explicit for follow-up; not a blocker at S2 boundary. |
 
 ## 11) Required TBD Closure Sheet (Binding)
 This section defines the mandatory closure routing for unresolved targets in:
@@ -256,7 +269,7 @@ Closure rule:
 1. Required targets cannot remain `OPEN`/`IN_PROGRESS`/`WAIVED_TIMEBOXED` at their close-by gate.
 2. Any miss becomes `HOLD_REMEDIATE` with explicit rerun boundary before phase continuation.
 
-### 11.3 Current Target Status Snapshot (PR1-S1)
+### 11.3 Current Target Status Snapshot (PR1-S2)
 As-of execution: `pr1_20260305T174744Z`
 
 | Target ID | Current status | Blocking gate | Notes |
@@ -266,7 +279,7 @@ As-of execution: `pr1_20260305T174744Z`
 | TGT-03 | IN_PROGRESS | PR1-S5 | PR1-S0 inventory mapped lateness policy closure to S3. |
 | TGT-04 | IN_PROGRESS | PR1-S5 | PR1-S0 inventory mapped IEG minimal graph closure to S3. |
 | TGT-05 | IN_PROGRESS | PR1-S5 | PR1-S0 pinned maturity-lag candidate set; final pin scheduled at S4. |
-| TGT-06 | IN_PROGRESS | PR1-S5 | PR1-S0 inventory mapped join/fanout closure to S2. |
+| TGT-06 | PINNED | PR1-S5 | S2 pinned join/fanout/unmatched bounds with explicit thresholds and decision register. |
 | TGT-07 | IN_PROGRESS | PR1-S5 | PR1-S0 inventory mapped monitoring baseline closure to S4. |
 | TGT-08 | OPEN | PR3-S5 | Runtime threshold families pending G3A runtime cert. |
 | TGT-09 | OPEN | PR3-S5 | Archive sink design and backpressure posture pending G3A. |

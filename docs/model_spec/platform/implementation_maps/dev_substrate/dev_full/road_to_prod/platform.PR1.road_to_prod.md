@@ -190,6 +190,37 @@ Fail-closed blockers:
 2. `PR1.B08_JOIN_DECISION_GAPS`
 3. `PR1.B09_JOIN_THRESHOLDS_UNPINNED`
 
+S2 planning expansion (execution checklist):
+1. Upstream lock:
+   - require `PR1_S1_READY` with `open_blockers=0` from the same execution id.
+2. Evidence source lock:
+   - reuse by-reference joinability artifacts first (no rerun-the-world extraction),
+   - require source-root alignment with S1 corpus roots before claims are accepted.
+3. Mandatory join map lock (minimum set):
+   - `s3_event_stream_with_fraud_6B` -> `s3_flow_anchor_with_fraud_6B`,
+   - `s3_flow_anchor_with_fraud_6B` -> `arrival_events_5B`,
+   - `arrival_events_5B` -> `s1_arrival_entities_6B`,
+   - `s4_event_labels_6B` -> `s3_event_stream_with_fraud_6B`.
+4. Metrics lock per mandatory join:
+   - `left_rows`,
+   - `matched_rows`,
+   - `coverage_ratio`,
+   - `unmatched_rate`,
+   - fanout estimate (`p95`/`p99` or explicitly declared derivation basis).
+5. Decision lock per mandatory join:
+   - explicit decision owner and decision path (`accept`, `cap`, `re-key`, `offline`, `quarantine`, or `fallback`),
+   - explicit breach action and rerun boundary.
+6. Threshold lock for `TGT-06`:
+   - pin `max_unmatched_join_rate`,
+   - pin `max_fanout_p99`,
+   - pin duplicate-key guardrail per join side.
+7. S2 output quality gates:
+   - `pr1_join_matrix.json` includes all mandatory joins with metrics + provenance,
+   - `pr1_join_decision_register.json` includes all mandatory joins with explicit decisions + threshold set.
+8. S2 handoff rule:
+   - emit `PR1_S2_READY` only when `B07..B09` are zero,
+   - otherwise fail-closed with rerun boundary `S2`.
+
 ### S3 - RTDL Allowlist, IEG Scope, And Lateness Policy
 Objective:
 1. close runtime-safe data surfaces and semantic handling policy.
@@ -327,7 +358,7 @@ Cost budget:
 5. `pr1_execution_summary.json` has `open_blockers=0`.
 6. `next_gate=PR2_READY`.
 
-## 11) Execution Record - `pr1_20260305T174744Z` (`S0-S1`)
+## 11) Execution Record - `pr1_20260305T174744Z` (`S0-S2`)
 State outcomes:
 1. `S0 PASS`:
    - upstream lock validated from PR0 (`PR1_READY`),
@@ -340,6 +371,12 @@ State outcomes:
    - cohort derivation passed after alias normalization (`late_out_of_order` -> out-of-order lane, `rare_edge_case` -> payload-extremes lane),
    - envelope candidate remained bounded (`B06=true`),
    - verdict `PR1_S1_READY`, `next_state=PR1-S2`, `open_blockers=0`.
+3. `S2 PASS`:
+   - mandatory join map covered for all 4 required pairs (`J1..J4`),
+   - `B07=true`, `B08=true`, `B09=true`,
+   - `TGT-06` thresholds pinned (`max_unmatched_join_rate=0.001`, `max_fanout_p99=2.0`, `max_duplicate_key_rate_each_side=0.001`),
+   - verdict `PR1_S2_READY`, `next_state=PR1-S3`, `open_blockers=0`,
+   - advisory carried explicitly: `S2.AD02_JOIN_EVIDENCE_WINDOW_EXTENDS_BEYOND_S1_CHARTER`.
 
 Run-control root:
 1. `runs/dev_substrate/dev_full/road_to_prod/run_control/pr1_20260305T174744Z/`
@@ -353,6 +390,9 @@ Artifacts emitted in this state:
 6. `pr1_g2_cohort_profile.json`
 7. `g2_load_campaign_seed.json`
 8. `pr1_s1_execution_receipt.json`
+9. `pr1_join_matrix.json`
+10. `pr1_join_decision_register.json`
+11. `pr1_s2_execution_receipt.json`
 
 ## 12) PR1-S1 Findings Summary (Readable)
 | Area | What was found | Interpretation |
@@ -368,3 +408,17 @@ Artifacts emitted in this state:
 | Envelope candidate (seed) | steady `25,347.234 eps`; burst `29,910 eps`; steady/burst/recovery/soak `30/5/5/30 min` | Candidate is bounded for S1; numeric finalization stays at S5. |
 | Gate checks | `B04=true`, `B05=true`, `B06=true` | All S1 fail-closed checks passed. |
 | S1 verdict | `PR1_S1_READY`, `open_blockers=0`, `next_state=PR1-S2` | PR1 can proceed to joinability closure (`S2`). |
+
+## 13) PR1-S2 Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Upstream gate | `PR1_S1_READY`, `open_blockers=0` | S2 execution used strict upstream handoff. |
+| Mandatory join coverage | `4/4` required joins covered (`J1..J4`) | No missing mandatory join in matrix. |
+| Corpus alignment | S1 and join evidence share same oracle-store root | Join evidence is corpus-aligned to S1 profile source. |
+| Highest unmatched join | `J1` unmatched rate `0.00000434` | Well below pinned cap (`0.001` ratio). |
+| Fanout posture | `J1` estimated `p95=2.0`, others `1.0` | All joins within pinned `max_fanout_p99=2.0`. |
+| Duplicate-key posture | left/right duplicate-key rates `0.0` on mandatory joins | No duplicate-key pressure in mandatory S2 joins. |
+| Pinned thresholds (`TGT-06`) | unmatched cap `0.001`; fanout cap `2.0`; duplicate-key cap `0.001` | Join bounds are now explicitly pinned, not TBD. |
+| Gate checks | `B07=true`, `B08=true`, `B09=true` | S2 fail-closed checks all passed. |
+| S2 verdict | `PR1_S2_READY`, `open_blockers=0`, `next_state=PR1-S3` | PR1 can proceed to S3. |
+| Advisory | `S2.AD02_JOIN_EVIDENCE_WINDOW_EXTENDS_BEYOND_S1_CHARTER` | Explicitly logged for follow-up; not treated as blocker in S2. |
