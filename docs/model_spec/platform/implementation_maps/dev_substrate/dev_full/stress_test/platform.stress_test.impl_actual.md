@@ -11471,3 +11471,86 @@ ext_gate=M8_READY, open_blockers=0.
 ### Closure decision
 1. M11 is now closure-ready and deterministic with strict final gate `M12_READY`.
 2. Program handoff can proceed to M12 using `m11_stress_s5_20260305T055457Z` as sole strict entry authority.
+
+## Entry: 2026-03-05 06:08 +00:00 - M12 stress authority planning design pinned before edits
+### Trigger
+1. User directed: "Let's start planning for M12".
+2. Current strict upstream is M11 closure `m11_stress_s5_20260305T055457Z` (`M12_READY`).
+
+### Context scan
+1. `platform.M12.stress_test.md` does not exist yet in `stress_test/`.
+2. Main control file marks M12 as `NOT_STARTED` with next action "activate and plan M12".
+3. Managed execution lane exists in `.github/workflows/dev_full_m12_managed.yml` for `M12.B0` and `M12.A..M12.J`.
+4. No local M12 stress orchestrator/wrapper scripts exist yet under `scripts/dev_substrate/`.
+
+### Decision
+1. Create dedicated stress authority doc `stress_test/platform.M12.stress_test.md` now.
+2. Use stress parent stage topology `S0..S5` mapped to M12 subphases:
+   - `S0`: `B0 + A` (managed lane materialization + authority/handle closure),
+   - `S1`: `B + C` (candidate eligibility + compatibility precheck),
+   - `S2`: `D + E` (promotion commit + rollback drill),
+   - `S3`: `F + G` (ACTIVE resolution + governance append),
+   - `S4`: `H + I` (P15 rollup/handoff + cost-outcome closure),
+   - `S5`: `J` (final M12 closure sync to `M13_READY`).
+3. Enforce strict entry continuity from current M11 stress authority artifacts, not historical 2026-02 receipts.
+4. Add explicit PREVENT findings for implementation-hole and stale-default risks:
+   - missing `m12_stress_runner.py` and `m12a..m12j` local wrappers,
+   - stale workflow dispatch defaults that must never be used as authority.
+5. Update `platform.stress_test.md` to move M12 from `NOT_STARTED` to `IN_PROGRESS (PLAN_READY)` and add dedicated routing section for M12.
+
+### Alternatives considered
+1. Reuse historical `platform.M12.build_plan.md` closure receipts as current stress authority.
+   - Rejected: violates stale-evidence guard and strict run-scope continuity.
+2. Keep M12 inline inside `platform.stress_test.md`.
+   - Rejected: M12 has multi-lane coupled contracts, significant blocker taxonomy, and high governance/rollback complexity.
+3. Start implementing/running M12 immediately without dedicated plan authority.
+   - Rejected: violates decision-completeness and phase-coverage fail-closed laws.
+
+### Performance/cost posture for planning
+1. Planning-only changes are docs/control-plane updates (no runtime load).
+2. Planned M12 execution budgets and cost receipts will be pinned in the new M12 stress authority before any dispatch.
+
+### Resulting immediate edit scope
+1. add `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M12.stress_test.md`.
+2. update `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.stress_test.md` for M12 activation/routing.
+3. append decision/action record to `docs/logbook/03-2026/2026-03-05.md`.
+
+## Entry: 2026-03-05 06:14 +00:00 - M12 stress authority materialized and control routing activated
+### What was implemented
+1. Added dedicated stress authority file:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M12.stress_test.md`.
+2. Updated parent control authority:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.stress_test.md`.
+
+### M12 authority content decisions
+1. Parent stage topology pinned as `S0..S5` mapped to `B0/A..J`:
+   - `S0=B0+A`, `S1=B+C`, `S2=D+E`, `S3=F+G`, `S4=H+I`, `S5=J`.
+2. Strict entry authority pinned to current M11 closure chain:
+   - `m11_stress_s5_20260305T055457Z` + `m11j_stress_s5_20260305T055457Z` + `m11i_stress_s4_20260305T053904Z`.
+3. Anti-hole fail-closed gates expanded for M12:
+   - stale-evidence guard,
+   - upstream-default override guard,
+   - implementation-readiness guard,
+   - rollback-objective guard,
+   - non-gate acceptance guard.
+4. Blocker taxonomy expanded to include stress-program risks:
+   - added `M12-ST-B13..B20` alongside `B0..B12`.
+5. Explicit PREVENT findings pinned for current branch state:
+   - missing M12 runner/wrappers,
+   - stale workflow dispatch defaults.
+
+### Parent control routing changes
+1. M12 overview row moved from `NOT_STARTED` to `IN_PROGRESS (PLAN_READY)`.
+2. Program status includes `M12=PLAN_READY`.
+3. Dedicated phase list now includes `platform.M12.stress_test.md` (`PLAN_READY`, `S0_PENDING`).
+4. Next step route changed to execute `M12-ST-S0` from strict upstream `m11_stress_s5_20260305T055457Z`.
+5. Section routing updated:
+   - `M11` section renamed to closed-phase posture,
+   - new `## 21) Active Phase - M12 (Dedicated)` added.
+
+### Verification
+1. Reference/status scans confirm M12 plan activation markers and strict entry IDs are present.
+2. No execution lanes were run in this step (planning-only).
+
+### Next execution prerequisite
+1. Materialize `scripts/dev_substrate/m12_stress_runner.py` and M12 wrappers before `M12-ST-S0` run.
