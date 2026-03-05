@@ -55,6 +55,7 @@ concurrency:
 jobs:
   build_and_push:
     name: Build and push immutable platform image
+    if: ${{ false }}
     runs-on: ubuntu-latest
     outputs:
       image_tag: ${{ steps.meta.outputs.image_tag }}
