@@ -10988,3 +10988,75 @@ ext_gate=M8_READY, open_blockers=0.
 2. Updated `platform.stress_test.md`:
    - program state now `M10=GO` with strict authority `m10_stress_s5_20260305T014017Z` (`M11_READY`),
    - next step routed to `M11-ST-S0` planning/execution.
+
+## Entry: 2026-03-05 01:48 +00:00 - M11 detailed stress planning design (pre-implementation)
+### Context
+1. USER directed: begin detailed planning for `M11` immediately after `M10-ST-S5` green closure.
+2. Strict upstream authority for M11 entry is now:
+   - `m10_stress_s5_20260305T014017Z` (`overall_pass=true`, `verdict=ADVANCE_TO_M11`, `next_gate=M11_READY`, `open_blocker_count=0`).
+3. Current gap scan:
+   - no dedicated stress authority file exists for M11 (`platform.M11.stress_test.md` missing),
+   - no M11 parent runner exists yet in `scripts/dev_substrate/`,
+   - no M11 lane executors (`m11a..m11j`) exist yet in this branch.
+4. Existing M11 build authority (`platform.M11.build_plan.md`) is detailed but historical closure receipts are from 2026-02-26/27 and are not valid as current stress closure authority.
+
+### Decision
+1. Materialize a dedicated stress authority file `stress_test/platform.M11.stress_test.md` using the proven M10 stress structure and strict fail-closed posture.
+2. Keep M11 stress staged as parent `S0..S5` mapped to lane chain `A..J`:
+   - `S0`: `A+B` (authority + SageMaker readiness),
+   - `S1`: `C+D` (input immutability + train/eval execution),
+   - `S2`: `E+F` (eval adjudication + MLflow lineage),
+   - `S3`: `G+H` (candidate bundle + safe-disable/rollback),
+   - `S4`: `I` (P14 rollup + M12 handoff),
+   - `S5`: `J` (cost-outcome + final closure sync).
+3. Pin anti-hole and fail-closed preflight gates explicitly (decision completeness, coverage, stale-evidence rejection, locality/source authority, Data Engine black-box, realism, implementation readiness).
+4. Include non-gate acceptance objectives directly in stress authority (utility, reproducibility, operational readiness, auditability, decision quality) so M11 cannot be marked production-ready on chain mechanics alone.
+5. Pin stage budgets with performance-first and cost-control posture; no stage closure without runtime and spend envelopes.
+6. Preserve black-box boundary and locality policy:
+   - authoritative closure evidence must be managed durable artifacts,
+   - local machine only orchestrates/dev work; no local runtime authority.
+7. Update parent control file `platform.stress_test.md` to activate M11 planning authority and route next action to `M11-ST-S0`.
+
+### Planned edits
+1. Add `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M11.stress_test.md` (new detailed authority).
+2. Update `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.stress_test.md`:
+   - M10 row closure correction,
+   - M11 row/status activation,
+   - dedicated-phase list include M11 file,
+   - next-step routing to M11 S0.
+3. Sync implementation map and daily logbook after file edits with exact change record.
+
+## Entry: 2026-03-05 01:51 +00:00 - M11 detailed stress authority materialized and parent routing synced
+### Implementation
+1. Added dedicated M11 stress authority:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M11.stress_test.md`.
+2. The new M11 authority now pins:
+   - strict M10 entry authority (`m10_stress_s5_20260305T014017Z` + `m10j` + `m10i` handoff),
+   - Stage-A PREVENT/OBSERVE/ACCEPT findings,
+   - fail-closed preflight guards (`G0..G7`),
+   - explicit capability-lane matrix,
+   - parent `S0..S5` execution topology over lane chain `A..J`,
+   - per-stage runtime/spend budgets,
+   - parent blocker taxonomy (`M11-ST-B1..B19`),
+   - deterministic artifact contract,
+   - DoD and immediate next execution actions.
+3. Updated parent control file `platform.stress_test.md`:
+   - M-phase table corrected:
+     - `M10` -> `DONE (M11_READY)`,
+     - `M11` -> `IN_PROGRESS (PLAN_READY)`.
+   - program status line now includes `M11=PLAN_READY`.
+   - dedicated phase list now includes `platform.M11.stress_test.md` (`PLANNED`, `S0_PENDING`).
+   - next-step routing updated to direct `M11-ST-S0` execution.
+   - appended `## 20) Active Phase - M11 (Dedicated)` with strict entry receipts, fail-closed stage order, implementation-readiness state, and immediate next executable step.
+
+### Validation
+1. Structural scan confirms M11 authority sections present:
+   - purpose/authority/stage-A,
+   - fail-closed gates,
+   - `S0..S5` stage contracts,
+   - blocker taxonomy, artifact contract, DoD, and progress routing.
+2. Parent control-file routing/status scan confirms M11 activation references and new section are present.
+
+### Outcome
+1. M11 planning is now detailed, standalone, and execution-ready at design level.
+2. Next operational step is implementation and execution of `M11-ST-S0` fail-closed.
