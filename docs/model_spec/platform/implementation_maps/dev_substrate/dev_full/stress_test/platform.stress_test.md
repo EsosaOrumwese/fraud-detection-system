@@ -56,7 +56,7 @@ This is the program-level overview of what each `M*` phase stress effort is expe
 | M8 | Spine Obs/Gov (`P11`) | Stress observability/governance paths so evidence remains complete under high event rates | Evidence completeness + low-overhead telemetry proven | DONE (`M9_READY`) |
 | M9 | Learning input readiness (`P12`) | Stress replay-basis/as-of/maturity extraction paths for correctness under realistic volume | Learning input lanes produce deterministic, timely, leak-safe outputs | DONE (`M10_READY`) |
 | M10 | OFS dataset closure (`P13`) | Stress offline feature dataset generation for throughput, stability, and cost posture | Dataset builds finish within budget with reproducible manifests | DONE (`M11_READY`) |
-| M11 | MF train/eval closure (`P14`) | Stress model train/eval orchestration for queueing, runtime, and artifact integrity | Train/eval flow stable with deterministic evidence and bounded runtime | IN_PROGRESS (`S2_GREEN`) |
+| M11 | MF train/eval closure (`P14`) | Stress model train/eval orchestration for queueing, runtime, and artifact integrity | Train/eval flow stable with deterministic evidence and bounded runtime | IN_PROGRESS (`S3_GREEN`) |
 | M12 | MPR promotion/rollback (`P15`) | Stress model promotion, rollback, and resolution lanes under repeated activation pressure | Promotion/rollback deterministic and fail-closed under stress | NOT_STARTED |
 | M13 | Full-platform verdict + teardown (`P16-P17`) | Stress full-platform execution windows plus teardown and idle-safe guarantees | Full-lane run + teardown remains stable, complete, and cost-safe | NOT_STARTED |
 | M14 | Runtime-placement repin materialization | Stress any placement repins to validate they improve or preserve performance and reliability | Repinned runtime lanes meet or exceed prior stress baselines | NOT_STARTED |
@@ -214,7 +214,7 @@ For any phase:
 
 ## 12) Program Status
 1. Program bootstrapped.
-2. Current phase state: `M6=GO`, `M7=GO`, `M8=GO` (`M9_READY` emitted from strict closure authority `m8_stress_s5_20260304T234918Z`); `M9=GO` (`M10_READY` emitted from strict closure authority `m9_stress_s5_20260305T003614Z`); `M10=GO` (`M11_READY` emitted from strict closure authority `m10_stress_s5_20260305T014017Z`); `M11=IN_PROGRESS` (`S2_GREEN` emitted from strict authority `m11_stress_s2_20260305T030101Z`, `next_gate=M11_ST_S3_READY`).
+2. Current phase state: `M6=GO`, `M7=GO`, `M8=GO` (`M9_READY` emitted from strict closure authority `m8_stress_s5_20260304T234918Z`); `M9=GO` (`M10_READY` emitted from strict closure authority `m9_stress_s5_20260305T003614Z`); `M10=GO` (`M11_READY` emitted from strict closure authority `m10_stress_s5_20260305T014017Z`); `M11=IN_PROGRESS` (`S3_GREEN` emitted from strict authority `m11_stress_s3_20260305T034205Z`, `next_gate=M11_ST_S4_READY`).
 3. Dedicated phase files:
    - `stress_test/platform.M2.stress_test.md` (`DONE`),
    - `stress_test/platform.M3.stress_test.md` (`DONE`),
@@ -233,8 +233,8 @@ For any phase:
    - `stress_test/platform.M8.stress_test.md` (`S5_GREEN`, `M9_READY`),
    - `stress_test/platform.M9.stress_test.md` (`S5_GREEN`, `M10_READY`),
    - `stress_test/platform.M10.stress_test.md` (`S5_GREEN`, `M11_READY`),
-   - `stress_test/platform.M11.stress_test.md` (`S2_GREEN`, `M11_ST_S3_READY`).
-4. Next step: implement and execute `M11-ST-S3` using upstream `m11_stress_s2_20260305T030101Z`.
+   - `stress_test/platform.M11.stress_test.md` (`S3_GREEN`, `M11_ST_S4_READY`).
+4. Next step: implement and execute `M11-ST-S4` using upstream `m11_stress_s3_20260305T034205Z`.
 
 ## 13) Closed Phase - M0 (Inline)
 Status:
@@ -600,7 +600,7 @@ Authority routing:
 
 ## 20) Active Phase - M11 (Dedicated)
 Status:
-1. `IN_PROGRESS` (`S2_GREEN`; next executable stage is `M11-ST-S3`).
+1. `IN_PROGRESS` (`S3_GREEN`; next executable stage is `M11-ST-S4`).
 
 Authority routing:
 1. Parent orchestration authority: `stress_test/platform.M11.stress_test.md`.
@@ -617,14 +617,16 @@ Authority routing:
    - `M11-ST-S5` (`J`) with final `M12_READY` gate.
 4. Implementation-readiness status:
    - dedicated M11 stress doc: present,
-   - parent runner `scripts/dev_substrate/m11_stress_runner.py`: present (`S0`, `S1`, and `S2` implemented),
+   - parent runner `scripts/dev_substrate/m11_stress_runner.py`: present (`S0`, `S1`, `S2`, and `S3` implemented),
    - stage `S0` lane scripts: present (`m11a_handle_closure.py`, `m11b_sagemaker_readiness.py`),
    - stage `S1` lane scripts: present (`m11c_input_immutability.py`, `m11d_train_eval_execution.py`),
    - stage `S2` lane scripts: present (`m11e_eval_gate.py`, `m11f_mlflow_lineage.py`),
-   - stage `S3..S5` lane scripts: pending (`m11g..m11j`).
+   - stage `S3` lane scripts: present (`m11g_candidate_bundle.py`, `m11h_safe_disable_rollback.py`),
+   - stage `S4..S5` lane scripts: pending (`m11i..m11j`).
 5. Current next executable step:
-   - implement `M11-ST-S3` lanes (`m11g`, `m11h`) and extend parent runner to `S3`, then execute fail-closed using strict upstream `m11_stress_s2_20260305T030101Z`.
+   - implement `M11-ST-S4` lane (`m11i`) and extend parent runner to `S4`, then execute fail-closed using strict upstream `m11_stress_s3_20260305T034205Z`.
 6. Latest parent execution receipts:
    - `M11-ST-S0`: `phase_execution_id=m11_stress_s0_20260305T023211Z`, `overall_pass=true`, `next_gate=M11_ST_S1_READY`, `open_blockers=0`.
    - `M11-ST-S1`: `phase_execution_id=m11_stress_s1_20260305T023231Z`, `overall_pass=true`, `next_gate=M11_ST_S2_READY`, `open_blockers=0`.
    - `M11-ST-S2`: `phase_execution_id=m11_stress_s2_20260305T030101Z`, `overall_pass=true`, `next_gate=M11_ST_S3_READY`, `open_blockers=0`.
+   - `M11-ST-S3`: `phase_execution_id=m11_stress_s3_20260305T034205Z`, `overall_pass=true`, `next_gate=M11_ST_S4_READY`, `open_blockers=0`.

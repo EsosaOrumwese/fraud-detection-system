@@ -11350,3 +11350,56 @@ ext_gate=M8_READY, open_blockers=0.
 1. Apply cost-control law: no redundant managed rerun when current strict evidence already closes the requested stage for the same upstream chain.
 2. Treat request as executed via authoritative existing closure receipt.
 3. Keep next action pointer on `M11-ST-S3` implementation/execution from `m11_stress_s2_20260305T030101Z`.
+
+## Entry: 2026-03-05 03:37 +00:00 - M11-ST-S3 planning and execution approach
+### Scope and entry
+1. Stage target: `M11-ST-S3` (`G` candidate bundle + operability, `H` safe-disable/rollback + reproducibility).
+2. Strict upstream: `m11_stress_s2_20260305T030101Z` (`M11_ST_S3_READY`).
+
+### Capability lane coverage for S3
+1. authority/continuity lane: enforce strict `S2` pass and extract `m11f_execution_id` for `G`.
+2. candidate bundle lane (`G`): verify publication + operability report closure and next gate `M11.H_READY`.
+3. safe-disable/rollback lane (`H`): verify reproducibility + rollback-drill artifact and next gate `M11.I_READY`.
+4. evidence lane: stage-level artifact parity and lane matrix.
+5. policy guard lanes: runtime-locality/source-authority/realism/black-box continuity.
+
+### Pre-implementation design
+1. Implement wrappers `m11g_candidate_bundle.py` and `m11h_safe_disable_rollback.py` as managed dispatch+materialization adapters (same posture as `m11e/m11f`).
+2. Use subphase-specific workflow run matching (`displayTitle` token `M11.G` / `M11.H`) to avoid lane-cross run selection drift.
+3. Use authoritative lane artifacts for closure truth; treat GH run-id discovery as advisory only when required artifacts are present and gate-pass.
+4. Extend parent runner with `S3` stage and pass gate mapping `M11_ST_S4_READY`.
+
+### Rejected alternatives
+1. Execute G/H logic locally in runner: rejected (violates managed-lane authority and increases local runtime burden).
+2. Rerun S2 as precursor: rejected (already strict-green, no new decision value, cost waste).
+
+### Runtime/cost envelope
+1. Bounded orchestration-only local work; remote managed execution remains source of runtime spend.
+2. Fail-closed rerun on first deterministic blocker only.
+
+## Entry: 2026-03-05 03:49 +00:00 - M11-ST-S3 closure and S4 handoff readiness
+### Implementation summary
+1. Added `scripts/dev_substrate/m11g_candidate_bundle.py`:
+   - dispatches managed lane `G`,
+   - materializes `m11g_candidate_bundle_snapshot`, `m11_model_operability_report`, `m11g_blocker_register`, `m11g_execution_summary`, and local candidate bundle copy,
+   - enforces gate truth (`M11.H_READY`) fail-closed.
+2. Added `scripts/dev_substrate/m11h_safe_disable_rollback.py`:
+   - dispatches managed lane `H`,
+   - materializes `m11_reproducibility_check`, `m11h_safe_disable_rollback_snapshot`, `m11h_blocker_register`, `m11h_execution_summary`,
+   - enforces gate truth (`M11.I_READY`) fail-closed.
+3. Extended `scripts/dev_substrate/m11_stress_runner.py`:
+   - added `S3_ARTS`, `latest_s2()`, `run_s3(...)`, stage gate mapping `S3 -> M11_ST_S4_READY`, and CLI support `--stage S3 --upstream-m11-s2-execution`.
+
+### Execution receipts
+1. Strict upstream used: `m11_stress_s2_20260305T030101Z` (`M11_ST_S3_READY`).
+2. Parent S3 run:
+   - `m11_stress_s3_20260305T034205Z` -> `overall_pass=true`, `open_blocker_count=0`, `next_gate=M11_ST_S4_READY`.
+3. Lane G run:
+   - `m11g_stress_s3_20260305T034205Z` -> `overall_pass=true`, `next_gate=M11.H_READY`.
+4. Lane H run:
+   - `m11h_stress_s3_20260305T034509Z` -> `overall_pass=true`, `next_gate=M11.I_READY`.
+
+### Decision notes
+1. GH workflow run-id discoverability remains advisory when authoritative lane artifacts for the requested execution id are present and gate-pass.
+2. S3 closure confirms both non-gate acceptance artifacts required in this stage are explicitly present and pass (`operability`, `reproducibility`).
+3. M11 next executable stage is now `S4` from strict upstream `m11_stress_s3_20260305T034205Z`.
