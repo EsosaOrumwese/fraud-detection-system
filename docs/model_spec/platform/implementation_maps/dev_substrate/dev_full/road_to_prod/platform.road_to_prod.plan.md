@@ -159,6 +159,7 @@ Exit / DoD:
 4. No run under non-activatable contract rows.
 5. No rerun-the-world posture; rerun only declared blocker boundary.
 6. No closure from checklist completion alone without gate-intent proof.
+7. No state can be marked complete if its human-readable analytical metric digest is missing.
 
 ## 6) Rerun Discipline
 1. Each blocker record must carry exact rerun boundary.
@@ -176,6 +177,33 @@ Exit / DoD:
 1. Expand detail only for the active phase/subphase before execution.
 2. Keep one status owner updated after every attempt.
 3. Append implementation-map and logbook entries at pre-edit and post-edit points.
+
+### 8.1 Human-Readable Metrics Digest Standard (Binding)
+For every state attempt (`PASS`, `HOLD_REMEDIATE`, or `FAIL`), publish an analytical digest that a human reviewer can interpret without opening JSON artifacts.
+
+Required digest columns:
+1. `Signal`
+2. `Observed Value`
+3. `Threshold/Expectation`
+4. `Status` (`PASS`/`WARN`/`FAIL`)
+5. `Interpretation` (why it matters)
+6. `Decision/Next Action`
+
+Required digest rows:
+1. Gate verdict and blocker count.
+2. Core performance/correctness metrics for that state.
+3. Runtime budget posture (`elapsed` vs state budget).
+4. Cost posture (`attributable_spend_usd` vs envelope; explain near-zero when evidence-first reuse applies).
+5. Data/provenance scope (window, injection path, source refs).
+6. Caveats/advisories with explicit severity and follow-up boundary.
+
+Mandatory publication surfaces:
+1. Phase authority doc (state findings section).
+2. Main plan snapshot section for current state.
+3. Daily logbook summary entry.
+
+Completion law:
+1. If a state digest is missing any required column/row above, the state remains `HOLD_REMEDIATE` for reporting incompleteness.
 
 ## 9) Document Completion Rule
 This plan's intent is satisfied only when:
@@ -218,6 +246,17 @@ This plan's intent is satisfied only when:
 | `TGT-06` thresholds pinned | `max_unmatched_join_rate=0.001`, `max_fanout_p99=2.0`, `max_duplicate_key_rate_each_side=0.001` | Join/fanout/unmatched contract moved from TBD to pinned values. |
 | Gate checks | `B07=true`, `B08=true`, `B09=true` | S2 acceptance checks all passed. |
 | Advisory | `S2.AD02_JOIN_EVIDENCE_WINDOW_EXTENDS_BEYOND_S1_CHARTER` | Kept explicit for follow-up; not a blocker at S2 boundary. |
+
+### 10.3 PR1 Analytical Ledger Snapshot (Standardized)
+| Signal | Observed Value | Threshold/Expectation | Status | Interpretation | Decision/Next Action |
+| --- | --- | --- | --- | --- | --- |
+| `PR1-S2` gate verdict | `PR1_S2_READY`, `open_blockers=0` | `open_blockers=0` | `PASS` | S2 closure is fail-closed clean. | Proceed to `PR1-S3`. |
+| Highest unmatched join rate | `0.00000434` (`J1`) | `<= 0.001` | `PASS` | Join loss is materially below cap. | Keep current unmatched cap; monitor in S3/S5 rollup. |
+| Max fanout estimate | `2.0` (`J1 p95/p99_est`) | `<= 2.0` | `PASS` | Fanout pressure is at cap boundary but compliant. | Track as watchpoint in downstream runtime windows. |
+| Duplicate-key rate (mandatory joins) | `0.0` | `<= 0.001` | `PASS` | No duplicate-key pressure observed on mandatory join paths. | Keep current duplicate-key cap; no remediation now. |
+| Runtime budget posture (`S2`) | `elapsed_minutes` not yet emitted in S2 receipt | `<= 15 min` | `WARN` | Runtime is expected to be low under evidence-first reuse but not yet claimable numerically. | Add explicit `elapsed_minutes` field in state receipt starting next state and backfill when rerun occurs. |
+| Cost posture (`S2`) | `attributable_spend_usd` not yet emitted in S2 receipt | `minimal/near-zero` | `WARN` | Spend expectation is near-zero under by-reference reuse but not yet evidenced as a number. | Add explicit spend receipt fields per state; fail-closed if missing where fresh extraction occurs. |
+| Scope/provenance caveat | Advisory `S2.AD02` (join evidence window extends beyond S1 charter) | Charter-aligned window preferred | `WARN` | Evidence is corpus-aligned but time-window-extended. | Clear at next refresh boundary with charter-bounded join extraction. |
 
 ## 11) Required TBD Closure Sheet (Binding)
 This section defines the mandatory closure routing for unresolved targets in:

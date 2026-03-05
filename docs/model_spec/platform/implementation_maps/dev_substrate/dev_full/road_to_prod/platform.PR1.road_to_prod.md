@@ -323,7 +323,13 @@ Required artifacts:
 Schema minimums:
 1. every JSON artifact includes: `phase`, `state`, `generated_at_utc`, `generated_by`, `version`,
 2. `g2_data_realism_verdict.json` includes: `overall_pass`, `verdict`, `open_blockers`, `blocker_ids`, `next_gate`,
-3. `pr1_execution_summary.json` includes: `verdict`, `next_gate`, `open_blockers`, `tgt_status_map`, `evidence_refs`.
+3. `pr1_execution_summary.json` includes: `verdict`, `next_gate`, `open_blockers`, `tgt_status_map`, `evidence_refs`,
+4. every state receipt (`pr1_s*_execution_receipt.json`) includes:
+   - `elapsed_minutes`,
+   - `runtime_budget_minutes`,
+   - `attributable_spend_usd`,
+   - `cost_envelope_usd`,
+   - `advisory_ids`.
 
 ## 8) Runtime And Cost Budgets (PR1)
 Runtime budget:
@@ -357,6 +363,33 @@ Cost budget:
 4. `g2_data_realism_verdict.json` is `PASS`.
 5. `pr1_execution_summary.json` has `open_blockers=0`.
 6. `next_gate=PR2_READY`.
+
+## 10.1 PR1 State Metrics Digest Standard (Binding)
+Every PR1 state attempt must publish a human-readable analytical digest (not raw JSON copy).
+
+Required columns:
+1. `Signal`
+2. `Observed Value`
+3. `Threshold/Expectation`
+4. `Status` (`PASS`/`WARN`/`FAIL`)
+5. `Interpretation`
+6. `Decision/Next Action`
+
+Required rows per state:
+1. Gate verdict + blocker count.
+2. Core state metrics and contract checks for that state.
+3. Runtime posture (`elapsed_minutes` vs state budget).
+4. Cost posture (`attributable_spend_usd` vs envelope).
+5. Scope/provenance posture (window, injection path, source refs).
+6. Advisories/caveats and explicit follow-up boundary.
+
+Publication surfaces:
+1. PR1 phase doc findings section.
+2. Main plan findings snapshot section.
+3. Daily logbook entry.
+
+Fail-closed rule:
+1. If digest rows/columns are incomplete, state closure remains `HOLD_REMEDIATE` for reporting incompleteness.
 
 ## 11) Execution Record - `pr1_20260305T174744Z` (`S0-S2`)
 State outcomes:
@@ -422,3 +455,16 @@ Artifacts emitted in this state:
 | Gate checks | `B07=true`, `B08=true`, `B09=true` | S2 fail-closed checks all passed. |
 | S2 verdict | `PR1_S2_READY`, `open_blockers=0`, `next_state=PR1-S3` | PR1 can proceed to S3. |
 | Advisory | `S2.AD02_JOIN_EVIDENCE_WINDOW_EXTENDS_BEYOND_S1_CHARTER` | Explicitly logged for follow-up; not treated as blocker in S2. |
+
+## 14) PR1 Analytical Ledger Snapshot (Standardized)
+| Signal | Observed Value | Threshold/Expectation | Status | Interpretation | Decision/Next Action |
+| --- | --- | --- | --- | --- | --- |
+| `S1` gate verdict | `PR1_S1_READY`, `open_blockers=0` | `open_blockers=0` | `PASS` | S1 closure is valid for S2 handoff. | Keep S1 evidence refs as authoritative upstream for S2/S3. |
+| `S1` steady-rate baseline | `25,347.234 eps` | bounded/claimable candidate required | `PASS` | Provides credible runtime envelope seed for `TGT-02`. | Finalize numeric envelope at S5 rollup. |
+| `S2` gate verdict | `PR1_S2_READY`, `open_blockers=0` | `open_blockers=0` | `PASS` | S2 closure is valid for S3 handoff. | Proceed to `PR1-S3`. |
+| `S2` highest unmatched rate | `0.00000434` (`J1`) | `<= 0.001` | `PASS` | Join-loss risk is materially below pinned cap. | Retain cap and monitor in downstream runtime windows. |
+| `S2` max fanout estimate | `2.0` (`J1`) | `<= 2.0` | `PASS` | Fanout posture is at allowed cap boundary. | Keep explicit fanout watchpoint in S3/S5 decisions. |
+| `S2` duplicate-key rate | `0.0` on mandatory join sides | `<= 0.001` | `PASS` | No duplicate-key pressure on mandatory join paths. | No remediation needed; retain guardrail. |
+| Runtime evidence completeness | `elapsed_minutes` not yet emitted in `S1/S2` receipts | required per-state | `WARN` | Runtime is not yet numerically claimable in receipt surfaces. | Add `elapsed_minutes` to all state receipts starting S3. |
+| Cost evidence completeness | `attributable_spend_usd` not yet emitted in `S1/S2` receipts | required per-state | `WARN` | Spend posture is expected low but not numerically claimable in receipt surfaces. | Add spend fields/receipt linkage from S3 onward; backfill on rerun if needed. |
+| Scope caveat | `S2.AD02_JOIN_EVIDENCE_WINDOW_EXTENDS_BEYOND_S1_CHARTER` | charter-window alignment preferred | `WARN` | Corpus root aligns, but time window drift must remain visible. | Clear at next join refresh boundary with charter-bounded window extraction. |

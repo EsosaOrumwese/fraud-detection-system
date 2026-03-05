@@ -741,3 +741,49 @@ _As of 2026-03-05_
 ### Governance
 1. Docs + run-control artifacts only.
 2. No commit/push/branch operation.
+
+## Entry: 2026-03-05 18:25 +00:00 - Pre-edit plan: enforce human-readable analytical metrics logging as binding rule
+### Trigger
+1. USER requested that significant metrics always be logged automatically in informative, analytical form (not raw JSON dumps).
+
+### Decision
+1. Add a binding metrics-reporting standard in the main road-to-prod plan:
+   - required digest structure (value + threshold + status + interpretation + decision/action),
+   - required coverage (runtime/cost/provenance/caveats),
+   - mandatory logging surfaces (phase doc + main plan + logbook),
+   - fail-closed completion rule if digest is missing.
+2. Add PR1-local operationalization so every PR1 state follows the same digest format.
+3. Add a concise analytical ledger snapshot in main plan/PR1 doc so the current state demonstrates the standard.
+
+### Governance
+1. Documentation updates only.
+2. No commit/push/branch operation.
+
+## Entry: 2026-03-05 18:27 +00:00 - Binding analytical metrics logging standard enforced across road-to-prod docs
+### Files updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.road_to_prod.plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR1.road_to_prod.md`
+
+### What was enforced
+1. Main plan now treats missing human-readable analytical state digests as fail-closed (`state cannot be complete`).
+2. Added a binding digest standard with required columns/rows:
+   - signal/value/threshold/status/interpretation/action,
+   - runtime posture,
+   - cost posture,
+   - provenance scope,
+   - caveat severity and follow-up boundary.
+3. Added mandatory publication surfaces:
+   - phase doc,
+   - main plan,
+   - daily logbook.
+4. Added standardized PR1 analytical ledger snapshots (S1/S2) in both docs.
+5. Added PR1 receipt schema enforcement so each future state receipt carries runtime/cost/advisory fields:
+   - `elapsed_minutes`, `runtime_budget_minutes`, `attributable_spend_usd`, `cost_envelope_usd`, `advisory_ids`.
+
+### Current implications
+1. Existing S1/S2 runtime/cost fields are not yet present in their receipts and are now explicitly surfaced as `WARN` in the analytical ledger.
+2. From `PR1-S3` onward, receipt emission must include the required runtime/cost/advisory fields to satisfy the new completion law.
+
+### Governance
+1. Documentation updates only.
+2. No commit/push/branch operation.
