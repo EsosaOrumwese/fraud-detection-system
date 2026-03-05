@@ -10304,3 +10304,78 @@ ext_gate=M8_READY, open_blockers=0.
    - M9 status `DONE (M10_READY)`,
    - dedicated status `S5_GREEN, M10_READY`,
    - next step set to begin M10 stress planning from strict M9 closure authority.
+
+## Entry: 2026-03-05 00:41 +00:00 - M10 detailed stress-planning design decision
+### Context
+1. USER requested proceeding with detailed M10 planning.
+2. Program entry authority is now strict and green:
+   - `m9_stress_s5_20260305T003614Z` with `verdict=ADVANCE_TO_M10`, `next_gate=M10_READY`.
+3. `platform.M10.build_plan.md` defines deep lane coverage for `M10.A..M10.J` and deterministic closure expectations.
+4. Script readiness scan shows only partial implementation:
+   - present: `m10a`, `m10b`, `m10c`,
+   - absent: `m10d..m10j` component scripts and parent `m10_stress_runner.py`.
+
+### Decision
+1. Create dedicated stress authority file:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M10.stress_test.md`.
+2. Plan M10 with the same deterministic parent-stage topology used in heavy phases:
+   - `S0: A+B`,
+   - `S1: C+D`,
+   - `S2: E+F`,
+   - `S3: G+H`,
+   - `S4: I`,
+   - `S5: J` (final closure).
+3. Encode real implementation readiness in Stage-A findings:
+   - missing lane executors (`D..J`) and missing parent runner are `PREVENT` findings for execution,
+   - planning may still close with these findings pinned and explicit next actions.
+4. Keep global guardrails explicit:
+   - locality/source-authority/realism/black-box continuity from M9 carry forward,
+   - fail-closed decision-completeness + phase-coverage gates remain mandatory.
+5. Update program control status:
+   - M10 -> planning-active (`IN_PROGRESS (PLANNED_S0)`),
+   - dedicated-file registry includes `platform.M10.stress_test.md`,
+   - next step points to `M10-ST-S0` against strict M9 closure authority.
+
+### Planned edits
+1. Add `platform.M10.stress_test.md` with detailed scope, blockers, artifact contract, stage budgets, DoD, and immediate actions.
+2. Update `platform.stress_test.md` status table + program status + next step.
+3. Keep this update planning-only; no M10 execution attempted in this step.
+
+## Entry: 2026-03-05 00:44 +00:00 - M10 stress authority pinned and program control synced
+### Artifacts created/updated
+1. Added dedicated M10 stress authority:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M10.stress_test.md`.
+2. Updated program control authority:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.stress_test.md`.
+
+### What was pinned in `platform.M10.stress_test.md`
+1. Current strict entry authority:
+   - `m9_stress_s5_20260305T003614Z` with deterministic `M10_READY`.
+2. Detailed `S0..S5` topology mapped to lane ownership:
+   - `S0: A+B`,
+   - `S1: C+D`,
+   - `S2: E+F`,
+   - `S3: G+H`,
+   - `S4: I`,
+   - `S5: J`.
+3. Explicit anti-hole and guard gates:
+   - decision completeness,
+   - phase coverage,
+   - stale-evidence guard,
+   - locality/source-authority guard,
+   - Data Engine black-box guard,
+   - realism guard,
+   - implementation-readiness guard.
+4. Stage-A `PREVENT` findings explicitly capture current implementation gaps:
+   - missing `m10d..m10j`,
+   - missing parent `m10_stress_runner.py`.
+5. M10 parent blocker taxonomy and artifact contract were fully enumerated.
+6. DoD closure posture is explicit:
+   - planning complete,
+   - execution stages pending.
+
+### Program control updates in `platform.stress_test.md`
+1. M10 status row moved from `NOT_STARTED` to `IN_PROGRESS (PLANNED_S0)`.
+2. Program status now registers `platform.M10.stress_test.md` as dedicated active authority (`PLANNED`, `S0_PENDING`).
+3. Next-step line moved from generic M10 planning to execution-ready action:
+   - `execute M10-ST-S0 fail-closed using upstream m9_stress_s5_20260305T003614Z`.
