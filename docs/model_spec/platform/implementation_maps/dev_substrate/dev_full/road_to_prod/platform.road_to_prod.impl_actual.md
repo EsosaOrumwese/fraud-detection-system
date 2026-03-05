@@ -1262,3 +1262,79 @@ o required TBD in active scope).
 ### Governance
 1. No branch operation, no commit/push.
 2. Planning edits only (docs + logbook + implementation map).
+## Entry: 2026-03-05 20:01 +00:00 - Pre-edit plan: execute PR2-S0 from PR1-S5 strict upstream
+### Trigger
+1. USER directed: proceed with detailed planning and execution of PR2-S0.
+
+### Decision-completeness check
+1. Upstream closure is valid:
+   - uns/dev_substrate/dev_full/road_to_prod/run_control/pr1_20260305T174744Z/pr1_s5_execution_receipt.json => PR1_S5_READY, open_blockers=0.
+2. PR2 authority doc is materialized and defines S0 artifact contract + blocker taxonomy.
+3. S0 scope is inventory/gap mapping only; unresolved threshold values are expected and must be explicitly mapped to owner + due state (not silently accepted).
+
+### PR2-S0 execution design
+1. Create deterministic executor scripts/dev_substrate/pr2_s0_executor.py.
+2. Generate pr2_execution_id and run root:
+   - uns/dev_substrate/dev_full/road_to_prod/run_control/<pr2_execution_id>/.
+3. Emit S0 artifacts:
+   - pr2_entry_lock.json,
+   - pr2_required_row_inventory.json,
+   - pr2_gap_map.json,
+   - pr2_s0_execution_receipt.json.
+4. Emit latest pointer:
+   - uns/dev_substrate/dev_full/road_to_prod/run_control/pr2_latest.json.
+5. Fail-closed checks:
+   - B01 entry lock exists,
+   - B02 upstream PR1 ready,
+   - B03 inventory non-empty with required rows,
+   - B04 every pending required row has explicit owner lane + due state.
+
+### Performance and cost posture
+1. No external queries or runtime load execution for S0.
+2. Runtime budget target: <=10 min; cost posture:  .0 attributable for S0.
+
+### Governance
+1. No branch operations, no commit/push.
+2. Execution artifacts in uns/; docs/logbook/impl map synced after run.
+## Entry: 2026-03-05 20:07 +00:00 - PR2-S0 executed clean with strict upstream and deterministic inventory closure
+### Execution summary
+1. Executed `scripts/dev_substrate/pr2_s0_executor.py` from strict upstream `PR1_S5_READY`.
+2. New PR2 run root materialized:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/`.
+3. Emitted required S0 artifacts:
+   - `pr2_entry_lock.json`,
+   - `pr2_required_row_inventory.json`,
+   - `pr2_gap_map.json`,
+   - `pr2_s0_execution_receipt.json`.
+4. Updated latest pointer:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_latest.json` -> `latest_state=S0`.
+
+### S0 gate outcomes
+1. Receipt verdict: `PR2_S0_READY`, `open_blockers=0`, `next_state=PR2-S1`.
+2. Gate checks all true:
+   - `B01_entry_lock_present`,
+   - `B02_upstream_pr1_ready`,
+   - `B03_required_inventory_present`,
+   - `B04_required_pending_owner_bound`.
+3. Inventory totals:
+   - `row_count_total=36`, `row_count_required=34`, `prefilled_required=25`, `pending_required=9`, `deferred_optional=2`.
+4. Pending required rows are fully lane-bound:
+   - `runtime_perf=6`, `cost_governance=1`, `ops_gov_observability=2`.
+
+### Key decisions for S1 handoff
+1. S1 must close all nine required pending rows and keep per-row `baseline -> target -> guardband -> source_ref` traceability.
+2. Deferred rows `PR2.O010` and `PR2.O011` remain optional and intentionally routed to `PR3`/`PR4`.
+3. Advisory continuity is explicit:
+   - `PR1.S4.AD01_LABEL_TS_PROXY_SEMANTICS` remains non-blocking but visible.
+
+### Runtime and cost posture
+1. `elapsed_minutes=0.0` vs budget `10.0`.
+2. `attributable_spend_usd=0.0` vs envelope `2.0`.
+
+### Documentation sync
+1. Updated `platform.PR2.road_to_prod.md` execution record from `PLANNED` to active `S0` closure with readable digest.
+2. Updated `platform.road_to_prod.plan.md` immediate-next-step to `PR2-S1` and added `PR2-S0` findings snapshot.
+
+### Governance
+1. No branch operations and no commit/push.
+2. Scope limited to run-control artifacts, docs, and execution helper script.

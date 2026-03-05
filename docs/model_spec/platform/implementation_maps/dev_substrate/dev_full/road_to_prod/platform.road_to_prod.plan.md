@@ -215,13 +215,13 @@ This plan's intent is satisfied only when:
 3. The final production-ready verdict is claimable, auditable, and has `open_blockers=0`.
 
 ## 10) Immediate Next Step
-1. Start `PR2-S0`: execute numeric contract activation entry lock from completed `PR1` gate outputs.
-2. Use `PR1-S5` receipt as immediate upstream authority:
-   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr1_20260305T174744Z/pr1_s5_execution_receipt.json`.
+1. Proceed to `PR2-S1`: populate runtime + ops/gov RC2-S numeric contracts from the completed S0 inventory/gap map.
+2. Use `PR2-S0` receipt as immediate upstream authority:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_s0_execution_receipt.json`.
 3. Keep Section 11 target status table as the active blocker-routing surface during `PR2` execution.
-4. Use the dedicated PR1 authority doc as closed historical source and PR2 authority doc as active execution source:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR1.road_to_prod.md`
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR2.road_to_prod.md`.
+4. Use PR2 authority doc as active execution source and keep PR1 as historical upstream source:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR2.road_to_prod.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR1.road_to_prod.md`.
 
 ### 10.1 PR1-S1 Findings Snapshot (Readable)
 | Signal | Value | Why it matters for PR1 |
@@ -296,6 +296,19 @@ This plan's intent is satisfied only when:
 | Runtime posture (`S5`) | `elapsed_minutes=0.001` vs budget `10` | `<= 10` | `PASS` | Rollup closure stayed minute-scale. | Keep this posture for future rollup states. |
 | Cost posture (`S5`) | `attributable_spend_usd=0.0` vs envelope `5.0` | `<= 5.0` | `PASS` | Evidence-first rollup remained spend-neutral. | Preserve by-reference rollup policy where applicable. |
 | Advisory posture | `PR1.S4.AD01_LABEL_TS_PROXY_SEMANTICS` retained | explicit advisory allowed when documented | `PASS` | Maintains semantic transparency for label maturity pinning basis. | Keep migration note active until schema exposes true availability timestamp. |
+
+### 10.7 PR2-S0 Findings Snapshot (Readable)
+| Signal | Observed Value | Threshold/Expectation | Status | Why it matters for PR2 | Decision/Next Action |
+| --- | --- | --- | --- | --- | --- |
+| S0 verdict | `PR2_S0_READY`, `open_blockers=0`, `next_state=PR2-S1` | `open_blockers=0` | `PASS` | PR2 entry lock and inventory stage closed fail-closed cleanly. | Start `PR2-S1` materialization from this S0 boundary. |
+| Upstream lock | `PR1_S5_READY` (`pr1_20260305T174744Z`) | strict upstream required | `PASS` | PR2 is anchored to a legal PR1 closure state. | Keep strict upstream continuity for S1..S3. |
+| Required-row inventory | `required=34`, `prefilled=25`, `pending=9` | required active scope must be fully enumerated | `PASS` | S1 fill scope is explicit and bounded. | Use inventory rows as deterministic S1 fill ledger. |
+| Ownership coverage | `owner_gap_row_ids=[]` | no orphan required pending rows | `PASS` | Prevents ambiguous remediation ownership. | Fail closed in S1 if ownership/due-state drift appears. |
+| Pending distribution | `runtime_perf=6`, `cost_governance=1`, `ops_gov_observability=2` | all pending required rows must map to S1 | `PASS` | S1 execution lanes are clear before threshold population begins. | Route S1 fills per owner lane and emit traceability. |
+| Optional deferred rows | `PR2.O010->PR3`, `PR2.O011->PR4` | only optional rows can be deferred | `PASS` | PR2 focus remains on required RC2-S activation scope. | Keep deferred register explicit and untouched in PR2 blockers. |
+| Runtime posture (`S0`) | `elapsed_minutes=0.0` vs budget `10` | `<= 10` | `PASS` | S0 stayed within minute-scale runtime budget. | Preserve minute-scale posture in S1/S2/S3. |
+| Cost posture (`S0`) | `attributable_spend_usd=0.0` vs envelope `2.0` | attributable and `<= 2.0` | `PASS` | S0 remained spend-neutral under evidence-first execution. | Keep attributable spend receipt mandatory in every PR2 state. |
+| Advisory carry-forward | `PR1.S4.AD01_LABEL_TS_PROXY_SEMANTICS` | advisories must be explicit | `PASS` | Known semantics caveat remains transparent during PR2 handoff. | Retain advisory until true `label_available_ts` field exists. |
 
 ## 11) Required TBD Closure Sheet (Binding)
 This section defines the mandatory closure routing for unresolved targets in:

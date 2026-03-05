@@ -288,7 +288,30 @@ Cost budget:
 
 ## 11) Execution Record
 Status:
-1. `PLANNED` (execution not started in this document yet).
+1. `IN_PROGRESS` (`S0` complete, `S1` is next).
 
-Planned control root:
-1. `runs/dev_substrate/dev_full/road_to_prod/run_control/<pr2_execution_id>/`
+Active control root:
+1. `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/`
+2. Latest pointer:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_latest.json` (`latest_state=S0`).
+
+State closure:
+1. `S0` executed from strict upstream:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr1_20260305T174744Z/pr1_s5_execution_receipt.json`.
+2. `S0` receipt:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_s0_execution_receipt.json`.
+3. `S0` verdict:
+   - `PR2_S0_READY`, `open_blockers=0`, `next_state=PR2-S1`.
+
+### 11.1 PR2-S0 Findings Snapshot (Readable)
+| Signal | Observed Value | Threshold/Expectation | Status | Interpretation | Decision/Next Action |
+| --- | --- | --- | --- | --- | --- |
+| `PR2-S0` gate verdict | `PR2_S0_READY`, `open_blockers=0` | `open_blockers=0` | `PASS` | Entry lock and inventory stage passed fail-closed. | Proceed to `PR2-S1` contract population. |
+| Upstream continuity lock | `PR1_S5_READY` from `pr1_20260305T174744Z` | strict upstream required | `PASS` | PR2 started from a legal PR1 closure boundary. | Keep strict upstream binding for all PR2 states. |
+| Inventory coverage | `total=36`, `required=34`, `prefilled_required=25`, `pending_required=9` | required rows must be enumerated | `PASS` | Active RC2-S required scope is explicit and measurable. | Use this inventory as S1 fill ledger baseline. |
+| Owner/due-state coverage | `owner_gap_row_ids=[]` | no orphan pending required rows | `PASS` | Every required pending row has explicit owner lane and due state. | Fail closed in S1 if any row remains ownerless or unbound. |
+| Pending rows by lane | `runtime_perf=6`, `cost_governance=1`, `ops_gov_observability=2` | all pending required rows due in `S1` | `PASS` | S1 scope is focused and lane-routable. | Execute S1 with deterministic per-row closure mapping. |
+| Deferred optional scope | `PR2.O010` -> `PR3`, `PR2.O011` -> `PR4` | only non-required rows may be deferred | `PASS` | Deferred set is explicitly out-of-scope for PR2 activation gate. | Keep deferred register explicit; do not leak into required blockers. |
+| Runtime budget posture (`S0`) | `elapsed_minutes=0.0` | `<= 10.0` | `PASS` | S0 stayed minute-scale and deterministic. | Preserve this posture for S1/S2/S3. |
+| Cost posture (`S0`) | `attributable_spend_usd=0.0` | `<= 2.0` and attributable | `PASS` | Evidence-first S0 incurred no incremental execution spend. | Keep attributable spend receipt fields mandatory in all states. |
+| Advisory carry-forward | `PR1.S4.AD01_LABEL_TS_PROXY_SEMANTICS` | advisories must be explicit and non-hidden | `PASS` | Known maturity-proxy semantics remain transparent across phase handoff. | Retain advisory until true `label_available_ts` is available. |
