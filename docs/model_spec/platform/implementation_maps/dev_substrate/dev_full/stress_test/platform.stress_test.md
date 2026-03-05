@@ -235,7 +235,7 @@ For any phase:
    - `stress_test/platform.M10.stress_test.md` (`S5_GREEN`, `M11_READY`),
    - `stress_test/platform.M11.stress_test.md` (`S5_GREEN`, `M12_READY`),
    - `stress_test/platform.M12.stress_test.md` (`S1_BLOCKED`, `HOLD_REMEDIATE`).
-4. Next step: remediate `M12-ST-B3` root cause (`M12.C` dataset fingerprint `join_scope` mismatch) and rerun `M12-ST-S1` from strict upstream `m12_stress_s0_20260305T061903Z`.
+4. Next step: remediate `M12-ST-B3` via `M12.C` contract-alignment (`join_scope` format-aware strict validation; no fail-open) and rerun `M12-ST-S1` from strict upstream `m12_stress_s0_20260305T061903Z`.
 
 ## 13) Closed Phase - M0 (Inline)
 Status:
@@ -660,7 +660,7 @@ Authority routing:
    - stage wrappers `scripts/dev_substrate/m12b_candidate_eligibility.py` and `scripts/dev_substrate/m12c_compatibility_precheck.py`: present (`S1`),
    - stage wrappers for `S2..S5` (`m12d..m12j`): pending materialization.
 5. Current next executable step:
-   - remediate `M12-ST-B3` root cause (`M12.C` dataset fingerprint `join_scope` mismatch), then rerun `M12-ST-S1` from strict upstream `m12_stress_s0_20260305T061903Z`.
+   - remediate `M12-ST-B3` root cause (`M12.C` `join_scope` validator overspecification against upstream fingerprint shape), then rerun `M12-ST-S1` from strict upstream `m12_stress_s0_20260305T061903Z`.
 6. Latest parent execution receipts:
    - `M12-ST-S0`: `phase_execution_id=m12_stress_s0_20260305T061903Z`, `overall_pass=true`, `next_gate=M12_ST_S1_READY`, `open_blockers=0`,
    - `M12-ST-S1`: `phase_execution_id=m12_stress_s1_20260305T065136Z`, `overall_pass=false`, `next_gate=HOLD_REMEDIATE`, `open_blockers=1` (`M12-ST-B3`).

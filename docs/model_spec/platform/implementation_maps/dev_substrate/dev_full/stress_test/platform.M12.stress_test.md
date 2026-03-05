@@ -386,10 +386,32 @@ Required stage outputs (phase-level):
 - [ ] `M12-ST-S5` executed and closed green with deterministic `M13_READY`.
 
 ## 12) Immediate Next Actions
-1. remediate `M12-ST-B3` in lane `M12.C` by resolving dataset fingerprint `join_scope` vs current M12 run-scope mismatch.
-2. rerun `M12-ST-S1` from strict upstream `m12_stress_s0_20260305T061903Z`.
-3. after S1 turns green, continue strict chain `S2..S5` stopping fail-closed on first blocker.
-4. update parent `platform.stress_test.md` after each stage with authoritative latest execution id and gate.
+1. remediate `M12-ST-B3` in lane `M12.C` with contract-alignment (format-aware strict validation for `join_scope`).
+2. keep gate strictness fail-closed: no bypass, no advisory downgrade for real compatibility mismatch.
+3. run preflight compatibility parse against existing artifacts before managed rerun (to avoid avoidable spend/time).
+4. rerun `M12-ST-S1` from strict upstream `m12_stress_s0_20260305T061903Z`.
+5. only if S1 turns green, continue strict chain `S2..S5`, stopping fail-closed on first blocker.
+6. update parent `platform.stress_test.md` after each stage with authoritative latest execution id and gate.
+
+### 12.1) `M12-ST-B3` Contract-Alignment Remediation Lane
+1. Root-cause adjudication:
+   - `data_engine_interface.md` does not prescribe key-value token format for `join_scope`,
+   - M12.C validator currently over-assumes `join_scope` contains `platform_run_id=<...>` and `scenario_run_id=<...>`,
+   - authoritative upstream fingerprint currently carries OFS table-scope style (`ofs_platform_...`).
+2. Implementation rule (strict, production-realistic):
+   - `join_scope` passes if either:
+     - key-value run-scope style matches current run (`platform_run_id` and `scenario_run_id`), or
+     - OFS table-scope style deterministically matches current platform run identity.
+3. Mandatory continuity controls:
+   - scenario continuity must still be proven from upstream `M12.B`/`M12.C` run-scope authorities,
+   - unknown/ambiguous `join_scope` formats remain hard blocker `M12-B3`.
+4. Required evidence expansion in `m12c_compatibility_precheck_snapshot.json`:
+   - `join_scope_observed`,
+   - `join_scope_match_mode` (`kv_tokens`|`ofs_table_scope`|`none`),
+   - `join_scope_expected`.
+5. Execution closure for this lane:
+   - rerun strict `M12-ST-S1`,
+   - accept closure only on `overall_pass=true`, `next_gate=M12_ST_S2_READY`, and zero open blockers.
 
 ## 13) Execution Progress
 1. M12 detailed stress authority is now pinned and active.

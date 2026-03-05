@@ -11757,3 +11757,43 @@ ext_gate=M8_READY, open_blockers=0.
 2. Updated `platform.stress_test.md` to:
    - repin latest M12 parent/lane receipts to rerun authority,
    - route next action to `M12.C` `join_scope` mismatch remediation before next strict rerun.
+
+## Entry: 2026-03-05 07:22 +00:00 - M12-B3 contract-alignment remediation plan pinned; data-engine interface hypothesis adjudicated
+### Trigger
+1. User requested plan inclusion for the production-realistic blocker resolution and asked whether the issue came from inference against `docs/model_spec/data-engine/interface_pack/data_engine_interface.md`.
+
+### Evidence adjudication
+1. `data_engine_interface.md` does not define a `join_scope` payload format requiring embedded `platform_run_id=` and `scenario_run_id=` key-value tokens.
+2. M12.C managed validator currently enforces that key-value token style:
+   - `.github/workflows/dev_full_m12_managed.yml` (`join_scope` check in M12.C lane).
+3. Upstream fingerprint authority carries `join_scope` as OFS table-scope (`ofs_platform_...`) from M10 fingerprint synthesis:
+   - `scripts/dev_substrate/m10g_manifest_fingerprint.py` (`join_scope = deterministic_surface.table_name`),
+   - bridge artifact `m10g_fingerprint_compat.json` carries the same shape.
+4. Therefore blocker source is validator overspecification relative to upstream platform artifacts, not a data-engine interface contract violation.
+
+### Decision (production-realism preserving)
+1. Do not relax gate semantics; keep `M12-B3` fail-closed.
+2. Normalize/align only the compatibility check contract to accept production-valid join-scope representations:
+   - key-value run-scope token style, or
+   - OFS table-scope style bound to current run authority.
+3. Keep scenario continuity as mandatory via upstream run-scope evidence (`M12.B` + `M12.C` upstream refs); no bypass.
+
+### Plan to include in M12 authority
+1. Add an explicit `M12-ST-B3` remediation lane in `platform.M12.stress_test.md`:
+   - preflight parse of observed `join_scope`,
+   - canonical run-scope equivalence rules,
+   - fail-closed mismatch behavior,
+   - rerun command from strict upstream.
+2. Update `platform.stress_test.md` next-step routing to reference contract-alignment remediation (not metadata handling).
+
+## Entry: 2026-03-05 07:23 +00:00 - Plan docs updated with M12-B3 contract-alignment lane
+### Applied updates
+1. Updated `platform.M12.stress_test.md`:
+   - expanded immediate next actions for `M12-ST-B3`,
+   - added dedicated `12.1` remediation lane with strict format-aware `join_scope` acceptance rules,
+   - pinned continuity controls and required evidence fields for the lane.
+2. Updated `platform.stress_test.md`:
+   - reroute wording now explicitly points to contract-alignment remediation for `M12.C` validator overspecification.
+
+### Decision confirmation
+1. This change keeps fail-closed semantics and production realism; it removes an overspecified validator assumption without weakening run-scope guarantees.
