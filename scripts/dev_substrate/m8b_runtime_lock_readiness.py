@@ -241,8 +241,10 @@ def main() -> int:
             platform_run_id,
         )
 
-    backend = str(handles.get("REPORTER_LOCK_BACKEND", ""))
-    if backend == "aurora_advisory_lock":
+    backend = str(handles.get("REPORTER_LOCK_BACKEND", "")).strip()
+    normalized_backend = "aurora_advisory_lock" if backend in {"aurora_advisory_lock", "db_advisory_lock"} else backend
+    lock_probe["backend_normalized"] = normalized_backend
+    if normalized_backend == "aurora_advisory_lock":
         endpoint_path = str(handles.get("SSM_AURORA_ENDPOINT_PATH", ""))
         username_path = str(handles.get("SSM_AURORA_USERNAME_PATH", ""))
         password_path = str(handles.get("SSM_AURORA_PASSWORD_PATH", ""))

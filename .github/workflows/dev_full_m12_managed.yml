@@ -1178,6 +1178,13 @@ jobs:
           }
           fingerprint_required_fields = ["replay_basis", "feature_asof_utc", "label_asof_utc", "feature_def_set"]
           fingerprint_missing_fields: list[str] = []
+          join_scope = ""
+          join_scope_expected = {
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "ofs_table_scope": f"ofs_{platform_run_id.lower()}" if platform_run_id else "",
+          }
+          join_scope_match_mode = "none"
           dataset_fingerprint_ref = ""
           dataset_fingerprint: dict[str, Any] = {}
           if candidate_bundle:
@@ -1203,9 +1210,25 @@ jobs:
               if fingerprint_missing_fields:
                   blockers.append({"code": "M12-B3", "message": f"Dataset fingerprint missing required_field_values: {', '.join(fingerprint_missing_fields)}."})
               join_scope = str(req_values.get("join_scope", "")).strip()
-              feature_contract_checks["fingerprint_join_scope_matches_run"] = (
-                  f"platform_run_id={platform_run_id}" in join_scope and f"scenario_run_id={scenario_run_id}" in join_scope
+              kv_tokens: dict[str, str] = {}
+              if join_scope:
+                  for part in re.split(r"[;,\s|]+", join_scope):
+                      token = str(part).strip()
+                      if not token or "=" not in token:
+                          continue
+                      key, value = token.split("=", 1)
+                      kv_tokens[key.strip().lower()] = value.strip()
+              kv_match = (
+                  kv_tokens.get("platform_run_id", "") == platform_run_id
+                  and kv_tokens.get("scenario_run_id", "") == scenario_run_id
               )
+              expected_ofs_scope = str(join_scope_expected.get("ofs_table_scope", "")).strip()
+              ofs_scope_match = bool(expected_ofs_scope) and join_scope.lower() == expected_ofs_scope
+              feature_contract_checks["fingerprint_join_scope_matches_run"] = bool(kv_match or ofs_scope_match)
+              if kv_match:
+                  join_scope_match_mode = "kv_tokens"
+              elif ofs_scope_match:
+                  join_scope_match_mode = "ofs_table_scope"
               if not feature_contract_checks["fingerprint_join_scope_matches_run"]:
                   blockers.append({"code": "M12-B3", "message": "Dataset fingerprint join_scope does not match M12 run scope."})
 
@@ -1311,6 +1334,9 @@ jobs:
               "feature_input_contract_checks": feature_contract_checks,
               "fingerprint_required_fields_checked": fingerprint_required_fields,
               "fingerprint_missing_fields": fingerprint_missing_fields,
+              "join_scope_observed": join_scope,
+              "join_scope_expected": join_scope_expected,
+              "join_scope_match_mode": join_scope_match_mode,
               "policy_degrade_checks": policy_degrade_checks,
               "schema_event_envelope_checks": schema_checks,
               "resolved_schema_handles": resolved_schema_handles,

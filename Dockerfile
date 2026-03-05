@@ -1,14 +1,22 @@
-FROM python:3.12-slim
+FROM python:3.12-slim@sha256:42f1689d6d6b906c7e829f9d9ec38491550344ac9adc01e464ff9a08df1ffb48
+
+ARG SOURCE_DATE_EPOCH=0
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
+    PIP_NO_COMPILE=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONHASHSEED=0 \
+    SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH} \
     PYTHONPATH=/app/src
 
 WORKDIR /app
 
 # Pinned M1.A include surfaces only.
 COPY pyproject.toml /app/pyproject.toml
+COPY requirements/m1-image.lock.txt /app/requirements/m1-image.lock.txt
+COPY requirements/wheelhouse /app/requirements/wheelhouse
 COPY src/fraud_detection /app/src/fraud_detection
 COPY config/platform /app/config/platform
 COPY docs/model_spec/platform/contracts /app/docs/model_spec/platform/contracts
@@ -23,50 +31,8 @@ COPY docs/model_spec/data-engine/interface_pack/contracts/run_receipt.schema.yam
 COPY docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml /app/docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml
 COPY docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml /app/docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml
 
-RUN python -m pip install --upgrade pip && \
-    python - <<'PY'
-import subprocess
-import sys
-import tomllib
-
-with open("/app/pyproject.toml", "rb") as fh:
-    deps = tomllib.load(fh)["project"]["dependencies"]
-
-selected = {
-    "requests",
-    "pyarrow",
-    "pyyaml",
-    "jsonschema",
-    "boto3",
-    "duckdb",
-    "pydantic",
-    "pydantic-settings",
-    "psutil",
-    "psycopg[binary]",
-    "flask",
-    "werkzeug",
-    "referencing",
-    "kafka-python",
-    "confluent-kafka",
-    "orjson",
-}
-
-reqs = []
-seen = set()
-for dep in deps:
-    name = dep.split(" ", 1)[0].lower()
-    if name in selected:
-        pip_req = dep.replace(" (", "").replace(")", "")
-        if pip_req not in seen:
-            reqs.append(pip_req)
-            seen.add(pip_req)
-
-missing = sorted(x for x in selected if not any(r.lower().startswith(x.lower()) for r in reqs))
-if missing:
-    raise SystemExit(f"missing required dependency pins in pyproject.toml: {missing}")
-
-subprocess.check_call([sys.executable, "-m", "pip", "install", *reqs])
-PY
+RUN python -m pip install --no-cache-dir "pip==25.0.1" && \
+    python -m pip install --no-index --find-links=/app/requirements/wheelhouse --require-hashes -r /app/requirements/m1-image.lock.txt
 
 RUN adduser --disabled-password --gecos "" --home /home/appuser appuser && \
     chown -R appuser:appuser /app

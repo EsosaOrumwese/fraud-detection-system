@@ -19503,3 +19503,36 @@ Actions executed:
 Result:
 1. `dev_substrate` now has explicit two-lane structure (`dev_min`, `dev_full`) with no mixed working surface.
 2. Closed `dev_min` track docs remain intact and self-contained in one folder.
+
+## Entry: 2026-03-05 13:37:31 +00:00 - Dev_min workflows disabled by explicit guard
+### Trigger
+1. USER requested disabling `dev_min` workflows.
+
+### Decision
+1. Disable execution at job level (`if: ${{ false }}`) across all `dev_min` workflow files.
+2. Rationale:
+   - fast, explicit, and reversible,
+   - preserves workflow history/spec while guaranteeing zero execution,
+   - avoids partial disable where schedule/dispatch still triggers active jobs.
+
+### Files updated
+1. `.github/workflows/dev_min_confluent_destroy.yml` (`destroy_stack` job).
+2. `.github/workflows/dev_min_ecs_phase_profile.yml` (`apply_profile` job).
+3. `.github/workflows/dev_min_ecs_rightsizing_report.yml` (`capture_rightsizing_report` job).
+4. `.github/workflows/dev_min_idle_teardown_guard.yml` (`enforce_idle_guard` job).
+5. `.github/workflows/dev_min_m1_packaging.yml` (`build_and_push` job).
+6. `.github/workflows/dev_min_m2f_topic_readiness.yml` (`run_m2f` job).
+7. `.github/workflows/dev_min_m9g_confluent_billing.yml` (`capture_confluent_billing` job).
+8. `.github/workflows/dev_min_m9g_cost_guardrail.yml` (`m9g_guardrail` job).
+
+### Verification
+1. Confirmed each `dev_min*.yml` file contains `if: ${{ false }}` under its primary job key.
+2. No non-workflow files changed for this request.
+
+### Related posture check
+1. Inactivity teardown capability exists in `dev_min_idle_teardown_guard.yml` (scheduled guard; can stop services or dispatch destroy workflow), with stack destroy workflow `dev_min_confluent_destroy.yml`.
+2. Because of this disable action, these teardown paths are currently disabled until guard is removed.
+
+### Governance
+1. No commit/push/branch operation.
+2. No runtime workflow dispatch executed.

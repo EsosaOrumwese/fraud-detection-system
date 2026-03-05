@@ -1,0 +1,16 @@
+requests==2.32.3
+pyarrow==19.0.1
+pyyaml==6.0.2
+jsonschema==4.24.0
+boto3==1.35.49
+duckdb==1.4.4
+pydantic==2.11.5
+pydantic-settings==2.10.1
+psutil==6.1.1
+psycopg[binary]==3.3.2
+flask==2.2.5
+werkzeug==2.2.3
+referencing==0.36.2
+kafka-python==2.2.15
+confluent-kafka==2.13.2
+orjson==3.11.5
