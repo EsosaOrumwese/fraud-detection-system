@@ -466,3 +466,136 @@ _As of 2026-03-05_
 ### Governance
 1. Docs + run-control artifact updates only.
 2. No commit/push/branch operation.
+
+## Entry: 2026-03-05 17:59 +00:00 - Pre-edit plan: PR1-S1 detailed planning expansion (no execution)
+### Trigger
+1. USER requested proceeding with planning of `S1`.
+
+### Scope decision
+1. Planning only for `PR1-S1` in this step.
+2. No S1 run artifact emission yet.
+
+### Planned additions
+1. Expand `PR1-S1` section with explicit execution checklist:
+   - oracle-store/by-ref evidence analysis posture,
+   - no data-engine run constraint,
+   - claimability validation (window/scope/sample/cohort/readability),
+   - gap-handling policy (targeted boundary escalation, no rerun-the-world),
+   - output quality gates for `pr1_g2_profile_summary.json`, `pr1_g2_cohort_profile.json`, `g2_load_campaign_seed.json`.
+2. Add S1-specific acceptance checks and blocker mapping to keep fail-closed behavior explicit.
+3. Keep main plan immediate-next-step aligned to planned S1 execution source.
+
+### Governance
+1. Documentation-only change.
+2. No commit/push/branch operation.
+
+## Entry: 2026-03-05 18:00 +00:00 - PR1-S1 detailed planning expansion completed (planning-only)
+### Implemented files
+1. Updated:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR1.road_to_prod.md`.
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.road_to_prod.plan.md`.
+
+### What changed
+1. Expanded `PR1-S1` with an explicit execution checklist covering:
+   - oracle-store/by-ref evidence-only analysis posture,
+   - explicit no-data-engine-run constraint,
+   - charter/scope conformity checks,
+   - cohort derivation mechanics,
+   - RC2-S envelope candidate derivation posture,
+   - claimability and quality gates for all S1 outputs,
+   - fail-closed handoff rule to `PR1_S1_READY`.
+2. Main plan immediate-next-step line now explicitly states oracle-store/by-ref execution posture for S1.
+
+### Resulting posture
+1. S1 is now execution-ready with explicit anti-drift guardrails and clear blocker boundaries.
+2. This step performed planning only; no S1 execution artifacts were emitted.
+
+### Governance
+1. Documentation-only change.
+2. No commit/push/branch operation.
+
+## Entry: 2026-03-05 18:02 +00:00 - Pre-execution plan: execute PR1-S1 from oracle-store/by-ref evidence
+### Trigger
+1. USER requested proceeding with execution after S1 planning.
+
+### Decision-completeness check
+1. S0 handoff is green: `PR1_S0_READY` with `open_blockers=0` (`pr1_20260305T174744Z`).
+2. No data-engine run is allowed in this scope; execution will use platform-fed by-reference evidence only.
+3. Injection path remains `via_IG` per PR0 mission charter.
+
+### S1 execution approach
+1. Source inputs:
+   - `m7_data_profile_summary.json`,
+   - `m7_addendum_realism_window_summary.json`,
+   - `m7_data_subset_manifest.json`,
+   - plus PR1 S0 charter.
+2. Derive and emit:
+   - `pr1_g2_profile_summary.json`,
+   - `pr1_g2_cohort_profile.json`,
+   - `g2_load_campaign_seed.json`.
+3. Run fail-closed checks `B04..B06` on:
+   - profile coverage,
+   - cohort derivation completeness,
+   - envelope candidate binding.
+4. Emit `pr1_s1_execution_receipt.json` and advance to `PR1-S2` only if blockers are zero.
+
+### Governance
+1. Run-control artifact updates under `runs/` and docs sync updates only.
+2. No commit/push/branch operation.
+
+## Entry: 2026-03-05 18:06 +00:00 - Pre-remediation plan: PR1-S1 B05 cohort-derivation blocker
+### Trigger
+1. `PR1-S1` execution produced `HOLD_REMEDIATE` with blocker `PR1.B05_COHORT_DERIVATION_MISSING`.
+
+### Root-cause assessment
+1. Source realism evidence already carries cohort presence and minima needed for S1 claimability:
+   - `m7_addendum_realism_window_summary.json` has `cohort_presence` with `duplicate_replay`, `late_out_of_order`, `hotkey_skew`, `rare_edge_case` all true.
+2. `B05` is therefore treated as a derivation-quality/mapping defect in S1 logic, not a true evidence absence.
+3. Fail-closed rerun boundary remains `S1` per PR1 rerun discipline.
+
+### Remediation decision
+1. Re-execute S1 from the same strict upstream (`pr1_s0_execution_receipt.json`) with corrected cohort-key normalization:
+   - map out-of-order cohort against `late_out_of_order` (and accepted alias forms),
+   - map payload-extremes presence against `rare_edge_case` (and accepted alias forms),
+   - keep duplicate/hotkey/mixed-event checks unchanged.
+2. Preserve deterministic artifact set and overwrite S1 outputs for the same execution id:
+   - `pr1_g2_profile_summary.json`,
+   - `pr1_g2_cohort_profile.json`,
+   - `g2_load_campaign_seed.json`,
+   - `pr1_s1_execution_receipt.json`.
+3. Advance only if `B04..B06` are all true (`PR1_S1_READY`, `next_state=PR1-S2`).
+
+### Governance
+1. Run-control artifacts + docs status sync only.
+2. No commit/push/branch operation.
+
+## Entry: 2026-03-05 18:08 +00:00 - PR1-S1 remediation executed; blocker B05 cleared; state advanced
+### Execution performed
+1. Re-executed `PR1-S1` from strict upstream `pr1_s0_execution_receipt.json` under:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr1_20260305T174744Z/`.
+2. Applied cohort-key normalization in derivation logic for this boundary execution:
+   - `late_out_of_order` mapped as authoritative out-of-order cohort signal,
+   - `rare_edge_case` mapped as authoritative payload-extremes cohort signal.
+3. Re-emitted S1 artifacts:
+   - `pr1_g2_profile_summary.json`,
+   - `pr1_g2_cohort_profile.json`,
+   - `g2_load_campaign_seed.json`,
+   - `pr1_s1_execution_receipt.json`.
+
+### Result
+1. `pr1_s1_execution_receipt.json` verdict: `PR1_S1_READY`.
+2. `open_blockers=0` and `next_state=PR1-S2`.
+3. Checks all green:
+   - `B04_profile_coverage_pass=true`,
+   - `B05_cohort_derivation_pass=true`,
+   - `B06_envelope_candidate_bound=true`.
+4. Root-cause closure: initial `B05` was a derivation mapping defect, not missing upstream realism evidence.
+
+### Plan synchronization
+1. Updated `platform.PR1.road_to_prod.md` execution record from `S0-only` to `S0-S1` and recorded S1 PASS details.
+2. Updated `platform.road_to_prod.plan.md` immediate next step to `PR1-S2` with S1 receipt as strict upstream authority.
+3. Updated Section 11.3 snapshot title to `PR1-S1` and refreshed `TGT-02` note for S1 envelope-candidate progress.
+
+### Governance
+1. Run-control artifacts + docs updated only.
+2. No commit/push/branch operation.

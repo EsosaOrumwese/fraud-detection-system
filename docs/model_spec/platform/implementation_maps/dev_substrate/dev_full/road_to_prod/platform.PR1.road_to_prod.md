@@ -141,6 +141,34 @@ Fail-closed blockers:
 2. `PR1.B05_COHORT_DERIVATION_MISSING`
 3. `PR1.B06_ENVELOPE_CANDIDATE_UNBOUND`
 
+S1 planning expansion (execution checklist):
+1. Source lock:
+   - use oracle-store/by-ref platform evidence only (no local dataset processing lane),
+   - no data-engine run for S1; treat engine as black-box through interface pack boundaries.
+2. Charter conformity checks:
+   - enforce S0 window bounds exactly (`2026-02-26T00:00:00Z` to `2026-03-05T00:00:00Z`, as-of `2026-03-05T00:00:00Z`),
+   - enforce injection-path scope from PR0 (`via_IG` claim boundary),
+   - reject artifacts outside charter or outside claim scope.
+3. Evidence ingestion plan:
+   - ingest by-reference realism/profile artifacts first (`m7_data_profile_summary`, subset manifest, realism window summary),
+   - classify each metric as `claimable_now` or `requires_refresh` with reason and blocker code.
+4. Cohort derivation plan:
+   - derive duplicates/out-of-order/hot-key/payload-extremes/mixed-event-type minima from observed profile,
+   - produce cohort composition and expected impact posture for downstream stress lanes.
+5. Envelope candidate plan:
+   - derive RC2-S candidate rates/durations/sample minima from observed 7-day profile and guardbands,
+   - keep candidate numeric set explicitly marked as S1-derived candidate until S5 finalization (`TGT-02` pin).
+6. Claimability gates:
+   - required metrics must have deterministic refs, readable artifacts, and sufficient sample basis,
+   - low-sample/proxy-only rows are advisory unless supported by explicit injected-pressure evidence.
+7. S1 outputs quality gates:
+   - `pr1_g2_profile_summary.json` must include coverage, skew, duplicate/out-of-order posture, and parse/error posture,
+   - `pr1_g2_cohort_profile.json` must include cohort minima + rationale + confidence notes,
+   - `g2_load_campaign_seed.json` must include steady/burst/soak candidate + cohort mix linkage.
+8. S1 handoff rule:
+   - emit `PR1_S1_READY` only when blockers `B04..B06` are zero,
+   - otherwise emit fail-closed blocker register with rerun boundary `S1`.
+
 ### S2 - Joinability Closure And Bound Pinning
 Objective:
 1. validate intended join graph behavior and pin bounded decisions.
@@ -299,13 +327,19 @@ Cost budget:
 5. `pr1_execution_summary.json` has `open_blockers=0`.
 6. `next_gate=PR2_READY`.
 
-## 11) Execution Record - `pr1_20260305T174744Z` (`S0` only)
+## 11) Execution Record - `pr1_20260305T174744Z` (`S0-S1`)
 State outcomes:
 1. `S0 PASS`:
    - upstream lock validated from PR0 (`PR1_READY`),
    - 7-day charter pinned (`2026-02-26T00:00:00Z` to `2026-03-05T00:00:00Z`, as-of `2026-03-05T00:00:00Z`),
    - evidence inventory emitted with future-gap mapping (`S1/S2/S3/S4/S5`),
    - verdict `PR1_S0_READY`, `next_state=PR1-S1`, `open_blockers=0`.
+2. `S1 PASS`:
+   - source posture remained oracle-store/by-ref only (no data-engine run),
+   - profile coverage passed (`B04=true`),
+   - cohort derivation passed after alias normalization (`late_out_of_order` -> out-of-order lane, `rare_edge_case` -> payload-extremes lane),
+   - envelope candidate remained bounded (`B06=true`),
+   - verdict `PR1_S1_READY`, `next_state=PR1-S2`, `open_blockers=0`.
 
 Run-control root:
 1. `runs/dev_substrate/dev_full/road_to_prod/run_control/pr1_20260305T174744Z/`
@@ -315,3 +349,7 @@ Artifacts emitted in this state:
 2. `pr1_window_charter.json`
 3. `pr1_evidence_inventory.json`
 4. `pr1_s0_execution_receipt.json`
+5. `pr1_g2_profile_summary.json`
+6. `pr1_g2_cohort_profile.json`
+7. `g2_load_campaign_seed.json`
+8. `pr1_s1_execution_receipt.json`

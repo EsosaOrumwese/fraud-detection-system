@@ -184,9 +184,9 @@ This plan's intent is satisfied only when:
 3. The final production-ready verdict is claimable, auditable, and has `open_blockers=0`.
 
 ## 10) Immediate Next Step
-1. Start `PR1-S1`: execute 7-day reality profile and cohort derivation from the pinned S0 charter.
-2. Use `PR1-S0` receipt as immediate upstream authority:
-   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr1_20260305T174744Z/pr1_s0_execution_receipt.json`.
+1. Start `PR1-S2`: execute joinability closure and bounded join decisions from the pinned S1 realism profile/cohort outputs.
+2. Use `PR1-S1` receipt as immediate upstream authority:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr1_20260305T174744Z/pr1_s1_execution_receipt.json`.
 3. Keep Section 11 target status table as the active blocker-routing surface during PR1 execution.
 4. Use the dedicated PR1 authority doc as execution source:
    - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR1.road_to_prod.md`.
@@ -241,13 +241,13 @@ Closure rule:
 1. Required targets cannot remain `OPEN`/`IN_PROGRESS`/`WAIVED_TIMEBOXED` at their close-by gate.
 2. Any miss becomes `HOLD_REMEDIATE` with explicit rerun boundary before phase continuation.
 
-### 11.3 Current Target Status Snapshot (PR1-S0)
+### 11.3 Current Target Status Snapshot (PR1-S1)
 As-of execution: `pr1_20260305T174744Z`
 
 | Target ID | Current status | Blocking gate | Notes |
 | --- | --- | --- | --- |
 | TGT-01 | PINNED | PR0 | Injection-path policy pinned: `via_IG` is production claim path; `via_MSK` is hot-path-only scoped claim path. |
-| TGT-02 | IN_PROGRESS | PR1-S5 | PR1-S0 charter pinned; envelope numeric finalization queued for S5 rollup. |
+| TGT-02 | IN_PROGRESS | PR1-S5 | PR1-S1 produced bounded RC2-S envelope candidate; numeric finalization remains queued for S5 rollup. |
 | TGT-03 | IN_PROGRESS | PR1-S5 | PR1-S0 inventory mapped lateness policy closure to S3. |
 | TGT-04 | IN_PROGRESS | PR1-S5 | PR1-S0 inventory mapped IEG minimal graph closure to S3. |
 | TGT-05 | IN_PROGRESS | PR1-S5 | PR1-S0 pinned maturity-lag candidate set; final pin scheduled at S4. |
