@@ -57,7 +57,7 @@ This is the program-level overview of what each `M*` phase stress effort is expe
 | M9 | Learning input readiness (`P12`) | Stress replay-basis/as-of/maturity extraction paths for correctness under realistic volume | Learning input lanes produce deterministic, timely, leak-safe outputs | DONE (`M10_READY`) |
 | M10 | OFS dataset closure (`P13`) | Stress offline feature dataset generation for throughput, stability, and cost posture | Dataset builds finish within budget with reproducible manifests | DONE (`M11_READY`) |
 | M11 | MF train/eval closure (`P14`) | Stress model train/eval orchestration for queueing, runtime, and artifact integrity | Train/eval flow stable with deterministic evidence and bounded runtime | DONE (`M12_READY`) |
-| M12 | MPR promotion/rollback (`P15`) | Stress model promotion, rollback, and resolution lanes under repeated activation pressure | Promotion/rollback deterministic and fail-closed under stress | IN_PROGRESS (`S3_GREEN`) |
+| M12 | MPR promotion/rollback (`P15`) | Stress model promotion, rollback, and resolution lanes under repeated activation pressure | Promotion/rollback deterministic and fail-closed under stress | DONE (`M13_READY`) |
 | M13 | Full-platform verdict + teardown (`P16-P17`) | Stress full-platform execution windows plus teardown and idle-safe guarantees | Full-lane run + teardown remains stable, complete, and cost-safe | NOT_STARTED |
 | M14 | Runtime-placement repin materialization | Stress any placement repins to validate they improve or preserve performance and reliability | Repinned runtime lanes meet or exceed prior stress baselines | NOT_STARTED |
 | M15 | Data semantics realization | Stress real-data semantics in learning/evolution lanes at production-like volume and quality | Semantic realism + runtime budget + no-leakage gates all green | NOT_STARTED |
@@ -214,7 +214,7 @@ For any phase:
 
 ## 12) Program Status
 1. Program bootstrapped.
-2. Current phase state: `M6=GO`, `M7=GO`, `M8=GO` (`M9_READY` emitted from strict closure authority `m8_stress_s5_20260304T234918Z`); `M9=GO` (`M10_READY` emitted from strict closure authority `m9_stress_s5_20260305T003614Z`); `M10=GO` (`M11_READY` emitted from strict closure authority `m10_stress_s5_20260305T014017Z`); `M11=GO` (`M12_READY` emitted from strict closure authority `m11_stress_s5_20260305T055457Z`); `M12=IN_PROGRESS` (`S3_GREEN` from strict run `m12_stress_s3_20260305T084913Z`, `next_gate=M12_ST_S4_READY`).
+2. Current phase state: `M6=GO`, `M7=GO`, `M8=GO` (`M9_READY` emitted from strict closure authority `m8_stress_s5_20260304T234918Z`); `M9=GO` (`M10_READY` emitted from strict closure authority `m9_stress_s5_20260305T003614Z`); `M10=GO` (`M11_READY` emitted from strict closure authority `m10_stress_s5_20260305T014017Z`); `M11=GO` (`M12_READY` emitted from strict closure authority `m11_stress_s5_20260305T055457Z`); `M12=GO` (`M13_READY` emitted from strict closure authority `m12_stress_s5_20260305T091936Z`).
 3. Dedicated phase files:
    - `stress_test/platform.M2.stress_test.md` (`DONE`),
    - `stress_test/platform.M3.stress_test.md` (`DONE`),
@@ -234,8 +234,8 @@ For any phase:
    - `stress_test/platform.M9.stress_test.md` (`S5_GREEN`, `M10_READY`),
    - `stress_test/platform.M10.stress_test.md` (`S5_GREEN`, `M11_READY`),
    - `stress_test/platform.M11.stress_test.md` (`S5_GREEN`, `M12_READY`),
-   - `stress_test/platform.M12.stress_test.md` (`S3_GREEN`, `M12_ST_S4_READY`).
-4. Next step: execute `M12-ST-S4` from strict upstream `m12_stress_s3_20260305T084913Z`.
+   - `stress_test/platform.M12.stress_test.md` (`S5_GREEN`, `M13_READY`).
+4. Next step: begin `M13` planning/execution from strict upstream `m12_stress_s5_20260305T091936Z`.
 
 ## 13) Closed Phase - M0 (Inline)
 Status:
@@ -635,9 +635,9 @@ Authority routing:
    - `M11-ST-S4`: `phase_execution_id=m11_stress_s4_20260305T053904Z`, `overall_pass=true`, `next_gate=M11_ST_S5_READY`, `open_blockers=0`.
    - `M11-ST-S5`: `phase_execution_id=m11_stress_s5_20260305T055457Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M12`, `next_gate=M12_READY`, `open_blockers=0`.
 
-## 21) Active Phase - M12 (Dedicated)
+## 21) Closed Phase - M12 (Dedicated)
 Status:
-1. `IN_PROGRESS` (`S3_GREEN`; strict S3 run passed with `M12_ST_S4_READY`).
+1. `DONE` (`S5_GREEN`; strict S5 run passed with `ADVANCE_TO_M13` and `M13_READY`).
 
 Authority routing:
 1. Parent orchestration authority: `stress_test/platform.M12.stress_test.md`.
@@ -655,19 +655,22 @@ Authority routing:
 4. Implementation-readiness status:
    - dedicated M12 stress doc: present,
    - managed workflow `.github/workflows/dev_full_m12_managed.yml`: present (`B0`, `A..J`),
-   - parent runner `scripts/dev_substrate/m12_stress_runner.py`: present (`S0/S1/S2/S3` implemented),
+   - parent runner `scripts/dev_substrate/m12_stress_runner.py`: present (`S0/S1/S2/S3/S4/S5` implemented),
    - stage wrappers `scripts/dev_substrate/m12b0_managed_materialization.py` and `scripts/dev_substrate/m12a_handle_closure.py`: present (`S0`),
    - stage wrappers `scripts/dev_substrate/m12b_candidate_eligibility.py` and `scripts/dev_substrate/m12c_compatibility_precheck.py`: present (`S1`),
    - stage wrappers `scripts/dev_substrate/m12d_promotion_commit.py` and `scripts/dev_substrate/m12e_rollback_drill.py`: present (`S2`),
    - stage wrappers `scripts/dev_substrate/m12f_active_resolution.py` and `scripts/dev_substrate/m12g_governance_append.py`: present (`S3`),
-   - stage wrappers for `S4..S5` (`m12h..m12j`): pending materialization.
+   - stage wrappers `scripts/dev_substrate/m12h_p15_gate_rollup.py` and `scripts/dev_substrate/m12i_phase_cost_outcome.py`: present (`S4`),
+   - stage wrapper `scripts/dev_substrate/m12j_closure_sync.py`: present (`S5`).
 5. Current next executable step:
-   - execute `M12-ST-S4` from strict upstream `m12_stress_s3_20260305T084913Z`.
+   - begin `M13` from strict upstream `m12_stress_s5_20260305T091936Z`.
 6. Latest parent execution receipts:
    - `M12-ST-S0`: `phase_execution_id=m12_stress_s0_20260305T061903Z`, `overall_pass=true`, `next_gate=M12_ST_S1_READY`, `open_blockers=0`,
    - `M12-ST-S1`: `phase_execution_id=m12_stress_s1_20260305T074035Z`, `overall_pass=true`, `next_gate=M12_ST_S2_READY`, `open_blockers=0`,
    - `M12-ST-S2`: `phase_execution_id=m12_stress_s2_20260305T083332Z`, `overall_pass=true`, `next_gate=M12_ST_S3_READY`, `open_blockers=0`,
-   - `M12-ST-S3`: `phase_execution_id=m12_stress_s3_20260305T084913Z`, `overall_pass=true`, `next_gate=M12_ST_S4_READY`, `open_blockers=0`.
+   - `M12-ST-S3`: `phase_execution_id=m12_stress_s3_20260305T084913Z`, `overall_pass=true`, `next_gate=M12_ST_S4_READY`, `open_blockers=0`,
+   - `M12-ST-S4`: `phase_execution_id=m12_stress_s4_20260305T090625Z`, `overall_pass=true`, `next_gate=M12_ST_S5_READY`, `open_blockers=0`,
+   - `M12-ST-S5`: `phase_execution_id=m12_stress_s5_20260305T091936Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M13`, `next_gate=M13_READY`, `open_blockers=0`.
 7. Latest lane execution receipts:
    - `M12.B0`: `execution_id=m12b0_stress_s0_20260305T061903Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M12_A`, `next_gate=M12.A_READY`.
    - `M12.A`: `execution_id=m12a_stress_s0_20260305T062209Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M12_B`, `next_gate=M12.B_READY`.
@@ -677,3 +680,6 @@ Authority routing:
    - `M12.E`: `execution_id=m12e_stress_s2_20260305T083639Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M12_F`, `next_gate=M12.F_READY`.
    - `M12.F`: `execution_id=m12f_stress_s3_20260305T084913Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M12_G`, `next_gate=M12.G_READY`.
    - `M12.G`: `execution_id=m12g_stress_s3_20260305T085222Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M12_H`, `next_gate=M12.H_READY`.
+   - `M12.H`: `execution_id=m12h_stress_s4_20260305T090625Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M12_I`, `next_gate=M12.I_READY`, `p15_verdict=ADVANCE_TO_P16`, `p15_next_gate=M13_READY`.
+   - `M12.I`: `execution_id=m12i_stress_s4_20260305T090930Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M12_J`, `next_gate=M12.J_READY`.
+   - `M12.J`: `execution_id=m12j_stress_s5_20260305T091936Z`, `overall_pass=true`, `verdict=ADVANCE_TO_M13`, `next_gate=M13_READY`.

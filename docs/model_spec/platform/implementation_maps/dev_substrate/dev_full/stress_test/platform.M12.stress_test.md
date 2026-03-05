@@ -3,7 +3,7 @@ _Parent authority: `platform.stress_test.md`_
 _Status source of truth: `platform.stress_test.md`_
 _Track: `dev_full` only_
 _As of 2026-03-05_
-_Current posture: `S3_GREEN` (strict run passed; `next_gate=M12_ST_S4_READY`, `open_blockers=0`)._
+_Current posture: `S5_GREEN` (strict run passed; `verdict=ADVANCE_TO_M13`, `next_gate=M13_READY`, `open_blockers=0`)._
 
 ## 0) Purpose
 M12 stress validates promotion/rollback closure under repeated activation pressure with deterministic provenance, fail-closed gate semantics, and explicit non-gate acceptance.
@@ -382,14 +382,14 @@ Required stage outputs (phase-level):
 - [x] `M12-ST-S1` executed and closed green.
 - [x] `M12-ST-S2` executed and closed green.
 - [x] `M12-ST-S3` executed and closed green.
-- [ ] `M12-ST-S4` executed and closed green.
-- [ ] `M12-ST-S5` executed and closed green with deterministic `M13_READY`.
+- [x] `M12-ST-S4` executed and closed green.
+- [x] `M12-ST-S5` executed and closed green with deterministic `M13_READY`.
 
 ## 12) Immediate Next Actions
-1. proceed to `M12-ST-S4` from strict upstream `m12_stress_s3_20260305T084913Z`.
-2. materialize remaining wrappers for `M12.H` and `M12.I` with strict upstream override posture.
-3. execute strict `S4` fail-closed and stop on first blocker.
-4. after S4 closure, continue strict chain `S5` with per-stage authority pinning.
+1. mark M12 closed and freeze M12 receipts to strict closure authority `m12_stress_s5_20260305T091936Z`.
+2. begin M13 planning/execution from strict upstream `m12_stress_s5_20260305T091936Z`.
+3. only reopen M12 if a material drift signal appears against strict closure authority.
+4. keep parent `platform.stress_test.md` synchronized as M12 `DONE (M13_READY)`.
 5. keep parent `platform.stress_test.md` synchronized after each run with latest execution id and gate.
 
 ### 12.1) `M12-ST-B3` Contract-Alignment Remediation Lane
@@ -471,6 +471,25 @@ Required stage outputs (phase-level):
    - lane `M12.G`: `m12g_stress_s3_20260305T085222Z` (`overall_pass=true`, `verdict=ADVANCE_TO_M12_H`, `next_gate=M12.H_READY`).
 18. Current evidence root:
    - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m12_stress_s3_20260305T084913Z/stress/`.
+19. `M12-ST-S4` implementation closure:
+   - added `scripts/dev_substrate/m12h_p15_gate_rollup.py` and `scripts/dev_substrate/m12i_phase_cost_outcome.py`,
+   - extended `scripts/dev_substrate/m12_stress_runner.py` with fail-closed `S4` orchestration (`H` then `I`),
+   - added `S4_ARTS`, strict `S3` continuity checks, and pass gate mapping `M12_ST_S5_READY`.
+20. `M12-ST-S4` execution closure (strict upstream `m12_stress_s3_20260305T084913Z`):
+   - parent run: `m12_stress_s4_20260305T090625Z` (`overall_pass=true`, `open_blocker_count=0`, `next_gate=M12_ST_S5_READY`),
+   - lane `M12.H`: `m12h_stress_s4_20260305T090625Z` (`overall_pass=true`, `verdict=ADVANCE_TO_M12_I`, `next_gate=M12.I_READY`, `p15_verdict=ADVANCE_TO_P16`, `p15_next_gate=M13_READY`),
+   - lane `M12.I`: `m12i_stress_s4_20260305T090930Z` (`overall_pass=true`, `verdict=ADVANCE_TO_M12_J`, `next_gate=M12.J_READY`).
+21. Current evidence root:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m12_stress_s4_20260305T090625Z/stress/`.
+22. `M12-ST-S5` implementation closure:
+   - added `scripts/dev_substrate/m12j_closure_sync.py`,
+   - extended `scripts/dev_substrate/m12_stress_runner.py` with fail-closed `S5` orchestration (`J`),
+   - added `S5_ARTS`, strict `S4` continuity checks, and final gate mapping (`ADVANCE_TO_M13`, `M13_READY`).
+23. `M12-ST-S5` execution closure (strict upstream `m12_stress_s4_20260305T090625Z`):
+   - parent run: `m12_stress_s5_20260305T091936Z` (`overall_pass=true`, `open_blocker_count=0`, `verdict=ADVANCE_TO_M13`, `next_gate=M13_READY`),
+   - lane `M12.J`: `m12j_stress_s5_20260305T091936Z` (`overall_pass=true`, `verdict=ADVANCE_TO_M13`, `next_gate=M13_READY`).
+24. Current evidence root:
+   - `runs/dev_substrate/dev_full/stress/evidence/dev_full/run_control/m12_stress_s5_20260305T091936Z/stress/`.
 
 ## 14) Reopen Notice (Strict Authority)
 1. M12 cannot be closed using historical 2026-02 receipts alone.

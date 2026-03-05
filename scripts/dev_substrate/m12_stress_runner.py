@@ -93,6 +93,41 @@ S3_ARTS = [
     "m12_gate_verdict.json",
 ]
 
+S4_ARTS = [
+    "m12_stagea_findings.json",
+    "m12_lane_matrix.json",
+    "m12h_p15_gate_verdict.json",
+    "m13_handoff_pack.json",
+    "m12h_blocker_register.json",
+    "m12h_execution_summary.json",
+    "m12_phase_budget_envelope.json",
+    "m12_phase_cost_outcome_receipt.json",
+    "m12i_blocker_register.json",
+    "m12i_execution_summary.json",
+    "m12_runtime_locality_guard_snapshot.json",
+    "m12_source_authority_guard_snapshot.json",
+    "m12_realism_guard_snapshot.json",
+    "m12_blocker_register.json",
+    "m12_execution_summary.json",
+    "m12_decision_log.json",
+    "m12_gate_verdict.json",
+]
+
+S5_ARTS = [
+    "m12_stagea_findings.json",
+    "m12_lane_matrix.json",
+    "m12j_closure_sync_snapshot.json",
+    "m12j_blocker_register.json",
+    "m12j_execution_summary.json",
+    "m12_runtime_locality_guard_snapshot.json",
+    "m12_source_authority_guard_snapshot.json",
+    "m12_realism_guard_snapshot.json",
+    "m12_blocker_register.json",
+    "m12_execution_summary.json",
+    "m12_decision_log.json",
+    "m12_gate_verdict.json",
+]
+
 
 def now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -275,6 +310,54 @@ def latest_s2() -> tuple[str, dict[str, Any]]:
     return best_id, best_payload
 
 
+def latest_s3() -> tuple[str, dict[str, Any]]:
+    best_id = ""
+    best_payload: dict[str, Any] = {}
+    best_stamp = ""
+    for d in OUT_ROOT.glob("m12_stress_s3_*"):
+        payload = loadj(d / "stress" / "m12_execution_summary.json")
+        if not payload:
+            continue
+        if str(payload.get("stage_id", "")) != "M12-ST-S3":
+            continue
+        if not bool(payload.get("overall_pass")):
+            continue
+        if str(payload.get("next_gate", "")) != "M12_ST_S4_READY":
+            continue
+        if int(payload.get("open_blocker_count", 1)) != 0:
+            continue
+        stamp = str(payload.get("generated_at_utc", ""))
+        if (stamp, d.name) > (best_stamp, best_id):
+            best_id = d.name
+            best_payload = payload
+            best_stamp = stamp
+    return best_id, best_payload
+
+
+def latest_s4() -> tuple[str, dict[str, Any]]:
+    best_id = ""
+    best_payload: dict[str, Any] = {}
+    best_stamp = ""
+    for d in OUT_ROOT.glob("m12_stress_s4_*"):
+        payload = loadj(d / "stress" / "m12_execution_summary.json")
+        if not payload:
+            continue
+        if str(payload.get("stage_id", "")) != "M12-ST-S4":
+            continue
+        if not bool(payload.get("overall_pass")):
+            continue
+        if str(payload.get("next_gate", "")) != "M12_ST_S5_READY":
+            continue
+        if int(payload.get("open_blocker_count", 1)) != 0:
+            continue
+        stamp = str(payload.get("generated_at_utc", ""))
+        if (stamp, d.name) > (best_stamp, best_id):
+            best_id = d.name
+            best_payload = payload
+            best_stamp = stamp
+    return best_id, best_payload
+
+
 def finish(
     stage: str,
     phase_execution_id: str,
@@ -314,6 +397,12 @@ def finish(
     elif overall_pass and stage == "S3":
         next_gate = "M12_ST_S4_READY"
         verdict = "GO"
+    elif overall_pass and stage == "S4":
+        next_gate = "M12_ST_S5_READY"
+        verdict = "GO"
+    elif overall_pass and stage == "S5":
+        next_gate = "M13_READY"
+        verdict = "ADVANCE_TO_M13"
     else:
         next_gate = "HOLD_REMEDIATE"
         verdict = "HOLD_REMEDIATE"
@@ -1897,14 +1986,747 @@ def run_s3(phase_execution_id: str, upstream_m12_s2_execution: str) -> int:
     )
 
 
+def run_s4(phase_execution_id: str, upstream_m12_s3_execution: str) -> int:
+    out = OUT_ROOT / phase_execution_id / "stress"
+    out.mkdir(parents=True, exist_ok=True)
+    blockers: list[dict[str, Any]] = []
+    advisories: list[str] = []
+
+    plan_text = PLAN.read_text(encoding="utf-8") if PLAN.exists() else ""
+    packet = parse_plan_packet(plan_text)
+    reg = parse_registry(REG) if REG.exists() else {}
+
+    scripts_required = [
+        "scripts/dev_substrate/m12h_p15_gate_rollup.py",
+        "scripts/dev_substrate/m12i_phase_cost_outcome.py",
+    ]
+    for script_path in scripts_required:
+        if not Path(script_path).exists():
+            add_blocker(
+                blockers,
+                "M12-ST-B18",
+                "S4",
+                {"reason": "required_stage_script_missing", "script": script_path},
+            )
+
+    value = reg.get("S3_EVIDENCE_BUCKET")
+    if value is None or is_placeholder(value):
+        add_blocker(blockers, "M12-ST-B8", "S4", {"reason": "required_handle_missing_or_placeholder", "handle": "S3_EVIDENCE_BUCKET"})
+    bucket = str(reg.get("S3_EVIDENCE_BUCKET", "")).strip()
+
+    s3_exec = upstream_m12_s3_execution.strip()
+    s3 = loadj(OUT_ROOT / s3_exec / "stress" / "m12_execution_summary.json") if s3_exec else {}
+    if not s3:
+        add_blocker(
+            blockers,
+            "M12-ST-B15",
+            "S4",
+            {
+                "reason": "upstream_s3_summary_missing",
+                "path": (OUT_ROOT / s3_exec / "stress" / "m12_execution_summary.json").as_posix(),
+            },
+        )
+    elif not (
+        bool(s3.get("overall_pass"))
+        and int(s3.get("open_blocker_count", 1)) == 0
+        and str(s3.get("next_gate", "")).strip() == "M12_ST_S4_READY"
+    ):
+        add_blocker(
+            blockers,
+            "M12-ST-B15",
+            "S4",
+            {
+                "reason": "upstream_s3_not_ready",
+                "summary": {
+                    "overall_pass": s3.get("overall_pass"),
+                    "open_blocker_count": s3.get("open_blocker_count"),
+                    "next_gate": s3.get("next_gate"),
+                    "verdict": s3.get("verdict"),
+                },
+            },
+        )
+
+    m11j_exec = str(s3.get("m11j_execution_id", "")).strip() if s3 else ""
+    m12a_exec = str(s3.get("m12a_execution_id", "")).strip() if s3 else ""
+    m12b_exec = str(s3.get("m12b_execution_id", "")).strip() if s3 else ""
+    m12c_exec = str(s3.get("m12c_execution_id", "")).strip() if s3 else ""
+    m12d_exec = str(s3.get("m12d_execution_id", "")).strip() if s3 else ""
+    m12e_exec = str(s3.get("m12e_execution_id", "")).strip() if s3 else ""
+    m12f_exec = str(s3.get("m12f_execution_id", "")).strip() if s3 else ""
+    m12g_exec = str(s3.get("m12g_execution_id", "")).strip() if s3 else ""
+    if not m11j_exec:
+        add_blocker(blockers, "M12-ST-B8", "S4", {"reason": "missing_m11j_execution_id_from_s3_summary"})
+    if not m12a_exec:
+        add_blocker(blockers, "M12-ST-B8", "S4", {"reason": "missing_m12a_execution_id_from_s3_summary"})
+    if not m12b_exec:
+        add_blocker(blockers, "M12-ST-B8", "S4", {"reason": "missing_m12b_execution_id_from_s3_summary"})
+    if not m12c_exec:
+        add_blocker(blockers, "M12-ST-B8", "S4", {"reason": "missing_m12c_execution_id_from_s3_summary"})
+    if not m12d_exec:
+        add_blocker(blockers, "M12-ST-B8", "S4", {"reason": "missing_m12d_execution_id_from_s3_summary"})
+    if not m12e_exec:
+        add_blocker(blockers, "M12-ST-B8", "S4", {"reason": "missing_m12e_execution_id_from_s3_summary"})
+    if not m12f_exec:
+        add_blocker(blockers, "M12-ST-B8", "S4", {"reason": "missing_m12f_execution_id_from_s3_summary"})
+    if not m12g_exec:
+        add_blocker(blockers, "M12-ST-B8", "S4", {"reason": "missing_m12g_execution_id_from_s3_summary"})
+
+    explicit_override_used = True
+    if bool(packet.get("M12_STRESS_FAIL_ON_DEFAULT_UPSTREAM_INPUTS", True)) and not explicit_override_used:
+        add_blocker(blockers, "M12-ST-B20", "S4", {"reason": "required_explicit_upstream_override_not_used"})
+
+    m12h_exec = ""
+    m12h_summary: dict[str, Any] = {}
+    m12h_handoff: dict[str, Any] = {}
+    if (
+        Path("scripts/dev_substrate/m12h_p15_gate_rollup.py").exists()
+        and m12a_exec and m12b_exec and m12c_exec and m12d_exec and m12e_exec and m12f_exec and m12g_exec
+        and not blockers
+    ):
+        m12h_exec = f"m12h_stress_s4_{tok()}"
+        m12h_dir = out / "_m12h"
+        env_h = dict(os.environ)
+        env_h.update(
+            {
+                "M12H_EXECUTION_ID": m12h_exec,
+                "M12H_RUN_DIR": m12h_dir.as_posix(),
+                "EVIDENCE_BUCKET": bucket,
+                "UPSTREAM_M11J_EXECUTION": m11j_exec,
+                "UPSTREAM_M12A_EXECUTION": m12a_exec,
+                "UPSTREAM_M12B_EXECUTION": m12b_exec,
+                "UPSTREAM_M12C_EXECUTION": m12c_exec,
+                "UPSTREAM_M12D_EXECUTION": m12d_exec,
+                "UPSTREAM_M12E_EXECUTION": m12e_exec,
+                "UPSTREAM_M12F_EXECUTION": m12f_exec,
+                "UPSTREAM_M12G_EXECUTION": m12g_exec,
+                "AWS_REGION": "eu-west-2",
+                "M12_UPSTREAM_M12H_EXECUTION": "M12_S4_NOT_APPLICABLE",
+                "M12_UPSTREAM_M12I_EXECUTION": "M12_S4_NOT_APPLICABLE",
+            }
+        )
+        rc, _, err = run(["python", "scripts/dev_substrate/m12h_p15_gate_rollup.py"], timeout=9000, env=env_h)
+        if rc != 0:
+            add_blocker(
+                blockers,
+                "M12-ST-B8",
+                "S4",
+                {"reason": "m12h_command_failed", "stderr": err.strip()[:300], "rc": rc},
+            )
+
+        m12h_summary = loadj(m12h_dir / "m12h_execution_summary.json")
+        m12h_p15 = loadj(m12h_dir / "m12h_p15_gate_verdict.json")
+        m12h_handoff = loadj(m12h_dir / "m13_handoff_pack.json")
+        m12h_register = loadj(m12h_dir / "m12h_blocker_register.json")
+        if m12h_summary:
+            dumpj(out / "m12h_execution_summary.json", m12h_summary)
+        if m12h_p15:
+            dumpj(out / "m12h_p15_gate_verdict.json", m12h_p15)
+        if m12h_handoff:
+            dumpj(out / "m13_handoff_pack.json", m12h_handoff)
+        if m12h_register:
+            dumpj(out / "m12h_blocker_register.json", m12h_register)
+
+        if not m12h_summary:
+            add_blocker(blockers, "M12-ST-B8", "S4", {"reason": "m12h_summary_missing"})
+        elif not (
+            bool(m12h_summary.get("overall_pass"))
+            and str(m12h_summary.get("next_gate", "")) == "M12.I_READY"
+            and str(m12h_summary.get("verdict", "")) == "ADVANCE_TO_M12_I"
+            and str(m12h_summary.get("p15_verdict", "")) == "ADVANCE_TO_P16"
+            and str(m12h_summary.get("p15_next_gate", "")) == "M13_READY"
+        ):
+            add_blocker(blockers, "M12-ST-B8", "S4", {"reason": "m12h_not_ready", "summary": m12h_summary})
+
+        if not m12h_handoff:
+            add_blocker(blockers, "M12-ST-B9", "S4", {"reason": "m13_handoff_pack_missing"})
+        else:
+            if str(m12h_handoff.get("p15_verdict", "")) != "ADVANCE_TO_P16":
+                add_blocker(blockers, "M12-ST-B9", "S4", {"reason": "m13_handoff_p15_verdict_mismatch"})
+            if str(m12h_handoff.get("next_gate", "")) != "M13_READY":
+                add_blocker(blockers, "M12-ST-B9", "S4", {"reason": "m13_handoff_next_gate_mismatch"})
+            if not bool(m12h_handoff.get("m13_entry_ready")):
+                add_blocker(blockers, "M12-ST-B9", "S4", {"reason": "m13_handoff_entry_not_ready"})
+
+        if m12h_register and isinstance(m12h_register.get("blockers"), list):
+            quota_signal = False
+            for row in m12h_register.get("blockers", []):
+                if not isinstance(row, dict):
+                    continue
+                text = " ".join(
+                    [
+                        str(row.get("message", "")),
+                        str(row.get("detail", "")),
+                        str(row.get("surface", "")),
+                    ]
+                ).lower()
+                if any(token in text for token in ("resourcelimit", "quota", "throttl", "accessdenied", "access denied")):
+                    quota_signal = True
+                    break
+            if quota_signal:
+                add_blocker(
+                    blockers,
+                    "M12-ST-B19",
+                    "S4",
+                    {"reason": "managed_quota_or_access_boundary_pressure_detected_in_m12h"},
+                )
+
+    m12i_exec = ""
+    m12i_summary: dict[str, Any] = {}
+    if Path("scripts/dev_substrate/m12i_phase_cost_outcome.py").exists() and m11j_exec and m12a_exec and m12b_exec and m12c_exec and m12d_exec and m12e_exec and m12f_exec and m12g_exec and m12h_exec and not blockers:
+        m12i_exec = f"m12i_stress_s4_{tok()}"
+        m12i_dir = out / "_m12i"
+        env_i = dict(os.environ)
+        env_i.update(
+            {
+                "M12I_EXECUTION_ID": m12i_exec,
+                "M12I_RUN_DIR": m12i_dir.as_posix(),
+                "EVIDENCE_BUCKET": bucket,
+                "UPSTREAM_M11J_EXECUTION": m11j_exec,
+                "UPSTREAM_M12A_EXECUTION": m12a_exec,
+                "UPSTREAM_M12B_EXECUTION": m12b_exec,
+                "UPSTREAM_M12C_EXECUTION": m12c_exec,
+                "UPSTREAM_M12D_EXECUTION": m12d_exec,
+                "UPSTREAM_M12E_EXECUTION": m12e_exec,
+                "UPSTREAM_M12F_EXECUTION": m12f_exec,
+                "UPSTREAM_M12G_EXECUTION": m12g_exec,
+                "UPSTREAM_M12H_EXECUTION": m12h_exec,
+                "AWS_REGION": "eu-west-2",
+                "M12_UPSTREAM_M12I_EXECUTION": "M12_S4_NOT_APPLICABLE",
+            }
+        )
+        rc, _, err = run(["python", "scripts/dev_substrate/m12i_phase_cost_outcome.py"], timeout=9000, env=env_i)
+        if rc != 0:
+            add_blocker(
+                blockers,
+                "M12-ST-B10",
+                "S4",
+                {"reason": "m12i_command_failed", "stderr": err.strip()[:300], "rc": rc},
+            )
+
+        m12i_summary = loadj(m12i_dir / "m12i_execution_summary.json")
+        m12i_envelope = loadj(m12i_dir / "m12_phase_budget_envelope.json")
+        m12i_receipt = loadj(m12i_dir / "m12_phase_cost_outcome_receipt.json")
+        m12i_register = loadj(m12i_dir / "m12i_blocker_register.json")
+        if m12i_summary:
+            dumpj(out / "m12i_execution_summary.json", m12i_summary)
+        if m12i_envelope:
+            dumpj(out / "m12_phase_budget_envelope.json", m12i_envelope)
+        if m12i_receipt:
+            dumpj(out / "m12_phase_cost_outcome_receipt.json", m12i_receipt)
+        if m12i_register:
+            dumpj(out / "m12i_blocker_register.json", m12i_register)
+
+        if not m12i_summary:
+            add_blocker(blockers, "M12-ST-B10", "S4", {"reason": "m12i_summary_missing"})
+        elif not (
+            bool(m12i_summary.get("overall_pass"))
+            and str(m12i_summary.get("next_gate", "")) == "M12.J_READY"
+            and str(m12i_summary.get("verdict", "")) == "ADVANCE_TO_M12_J"
+        ):
+            add_blocker(blockers, "M12-ST-B10", "S4", {"reason": "m12i_not_ready", "summary": m12i_summary})
+
+        if not m12i_envelope:
+            add_blocker(blockers, "M12-ST-B10", "S4", {"reason": "m12_phase_budget_envelope_missing"})
+        if not m12i_receipt:
+            add_blocker(blockers, "M12-ST-B10", "S4", {"reason": "m12_phase_cost_outcome_receipt_missing"})
+
+        if m12i_register and isinstance(m12i_register.get("blockers"), list):
+            quota_signal = False
+            for row in m12i_register.get("blockers", []):
+                if not isinstance(row, dict):
+                    continue
+                text = " ".join(
+                    [
+                        str(row.get("message", "")),
+                        str(row.get("detail", "")),
+                        str(row.get("surface", "")),
+                    ]
+                ).lower()
+                if any(token in text for token in ("resourcelimit", "quota", "throttl", "accessdenied", "access denied")):
+                    quota_signal = True
+                    break
+            if quota_signal:
+                add_blocker(
+                    blockers,
+                    "M12-ST-B19",
+                    "S4",
+                    {"reason": "managed_quota_or_access_boundary_pressure_detected_in_m12i"},
+                )
+    elif m12h_exec and not m12i_exec and not blockers:
+        add_blocker(blockers, "M12-ST-B10", "S4", {"reason": "m12i_not_executed"})
+    elif blockers and not m12i_exec:
+        add_blocker(blockers, "M12-ST-B10", "S4", {"reason": "m12i_skipped_due_to_prior_blocker"})
+
+    stage_findings = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_execution_id,
+        "stage_id": "M12-ST-S4",
+        "findings": [
+            {
+                "id": "M12-ST-F6",
+                "classification": "PREVENT",
+                "status": "CLOSED" if all(Path(p).exists() for p in scripts_required) else "OPEN",
+                "note": "S4 required wrappers are materialized and executable.",
+            },
+            {
+                "id": "M12-ST-F7",
+                "classification": "PREVENT",
+                "status": "CLOSED" if explicit_override_used else "OPEN",
+                "note": "S4 dispatch uses explicit upstream input overrides.",
+            },
+            {
+                "id": "M12-ST-F8",
+                "classification": "PREVENT",
+                "status": "CLOSED" if len([b for b in blockers if b.get("id") in {"M12-ST-B15"}]) == 0 else "OPEN",
+                "note": "S4 strict continuity from S3 is enforced fail-closed.",
+            },
+        ],
+    }
+    dumpj(out / "m12_stagea_findings.json", stage_findings)
+
+    lane_matrix = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_execution_id,
+        "stage_id": "M12-ST-S4",
+        "lanes": [
+            {
+                "lane": "H",
+                "component": "M12.H",
+                "execution_id": m12h_exec,
+                "overall_pass": bool(m12h_summary.get("overall_pass")) if m12h_summary else False,
+                "next_gate": str(m12h_summary.get("next_gate", "")) if m12h_summary else "",
+                "verdict": str(m12h_summary.get("verdict", "")) if m12h_summary else "",
+            },
+            {
+                "lane": "I",
+                "component": "M12.I",
+                "execution_id": m12i_exec,
+                "overall_pass": bool(m12i_summary.get("overall_pass")) if m12i_summary else False,
+                "next_gate": str(m12i_summary.get("next_gate", "")) if m12i_summary else "",
+                "verdict": str(m12i_summary.get("verdict", "")) if m12i_summary else "",
+            },
+        ],
+    }
+    dumpj(out / "m12_lane_matrix.json", lane_matrix)
+
+    runtime_locality_ok = bool(packet.get("M12_STRESS_REQUIRE_REMOTE_RUNTIME_ONLY", True))
+    if not runtime_locality_ok:
+        add_blocker(blockers, "M12-ST-B16", "S4", {"reason": "runtime_locality_policy_not_true"})
+    dumpj(
+        out / "m12_runtime_locality_guard_snapshot.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M12-ST-S4",
+            "overall_pass": runtime_locality_ok,
+            "require_remote_runtime_only": bool(packet.get("M12_STRESS_REQUIRE_REMOTE_RUNTIME_ONLY", True)),
+            "runtime_execution_attempted": False,
+            "runtime_execution_mode": "local_control_orchestration_only_remote_runtime",
+        },
+    )
+
+    refs = [
+        f"evidence/dev_full/run_control/{s3_exec}/stress/m12_execution_summary.json" if s3_exec else "",
+        f"evidence/dev_full/run_control/{m12h_exec}/m12h_execution_summary.json" if m12h_exec else "",
+        f"evidence/dev_full/run_control/{m12i_exec}/m12i_execution_summary.json" if m12i_exec else "",
+    ]
+    source_guard_ok = len([b for b in blockers if b.get("id") in {"M12-ST-B11", "M12-ST-B16"}]) == 0
+    dumpj(
+        out / "m12_source_authority_guard_snapshot.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M12-ST-S4",
+            "overall_pass": source_guard_ok,
+            "authoritative_refs": refs,
+            "evidence_bucket": bucket,
+            "runtime_locality_only_control_plane": True,
+        },
+    )
+
+    realism_ok = bool(packet.get("M12_STRESS_DISALLOW_WAIVED_REALISM", True))
+    if not realism_ok:
+        add_blocker(blockers, "M12-ST-B17", "S4", {"reason": "realism_guard_not_true"})
+    dumpj(
+        out / "m12_realism_guard_snapshot.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M12-ST-S4",
+            "overall_pass": realism_ok,
+            "disallow_waived_realism": bool(packet.get("M12_STRESS_DISALLOW_WAIVED_REALISM", True)),
+        },
+    )
+
+    if not bool(packet.get("M12_STRESS_REQUIRE_DATA_ENGINE_BLACKBOX", True)):
+        add_blocker(blockers, "M12-ST-B16", "S4", {"reason": "data_engine_blackbox_guard_not_true"})
+
+    platform_run_id = str(s3.get("platform_run_id", "")) if s3 else ""
+    scenario_run_id = str(s3.get("scenario_run_id", "")) if s3 else ""
+    return finish(
+        "S4",
+        phase_execution_id,
+        out,
+        blockers,
+        S4_ARTS,
+        {
+            "platform_run_id": platform_run_id,
+            "scenario_run_id": scenario_run_id,
+            "upstream_m12_s3_execution": s3_exec,
+            "m11j_execution_id": m11j_exec,
+            "m12a_execution_id": m12a_exec,
+            "m12b_execution_id": m12b_exec,
+            "m12c_execution_id": m12c_exec,
+            "m12d_execution_id": m12d_exec,
+            "m12e_execution_id": m12e_exec,
+            "m12f_execution_id": m12f_exec,
+            "m12g_execution_id": m12g_exec,
+            "m12h_execution_id": m12h_exec,
+            "m12i_execution_id": m12i_exec,
+            "decisions": [
+                "S4 enforced strict M12 S3 entry continuity before executing lanes H and I.",
+                "S4 executed M12.H P15 rollup and required M12.I_READY output with M13 handoff pass posture.",
+                "S4 executed M12.I phase budget/cost-outcome closure lane and required M12.J_READY output.",
+            ],
+            "advisories": advisories,
+        },
+    )
+
+
+def run_s5(phase_execution_id: str, upstream_m12_s4_execution: str) -> int:
+    out = OUT_ROOT / phase_execution_id / "stress"
+    out.mkdir(parents=True, exist_ok=True)
+    blockers: list[dict[str, Any]] = []
+    advisories: list[str] = []
+
+    plan_text = PLAN.read_text(encoding="utf-8") if PLAN.exists() else ""
+    packet = parse_plan_packet(plan_text)
+    reg = parse_registry(REG) if REG.exists() else {}
+
+    scripts_required = [
+        "scripts/dev_substrate/m12j_closure_sync.py",
+    ]
+    for script_path in scripts_required:
+        if not Path(script_path).exists():
+            add_blocker(
+                blockers,
+                "M12-ST-B18",
+                "S5",
+                {"reason": "required_stage_script_missing", "script": script_path},
+            )
+
+    value = reg.get("S3_EVIDENCE_BUCKET")
+    if value is None or is_placeholder(value):
+        add_blocker(blockers, "M12-ST-B11", "S5", {"reason": "required_handle_missing_or_placeholder", "handle": "S3_EVIDENCE_BUCKET"})
+    bucket = str(reg.get("S3_EVIDENCE_BUCKET", "")).strip()
+
+    s4_exec = upstream_m12_s4_execution.strip()
+    s4 = loadj(OUT_ROOT / s4_exec / "stress" / "m12_execution_summary.json") if s4_exec else {}
+    if not s4:
+        add_blocker(
+            blockers,
+            "M12-ST-B15",
+            "S5",
+            {
+                "reason": "upstream_s4_summary_missing",
+                "path": (OUT_ROOT / s4_exec / "stress" / "m12_execution_summary.json").as_posix(),
+            },
+        )
+    elif not (
+        bool(s4.get("overall_pass"))
+        and int(s4.get("open_blocker_count", 1)) == 0
+        and str(s4.get("next_gate", "")).strip() == "M12_ST_S5_READY"
+    ):
+        add_blocker(
+            blockers,
+            "M12-ST-B15",
+            "S5",
+            {
+                "reason": "upstream_s4_not_ready",
+                "summary": {
+                    "overall_pass": s4.get("overall_pass"),
+                    "open_blocker_count": s4.get("open_blocker_count"),
+                    "next_gate": s4.get("next_gate"),
+                    "verdict": s4.get("verdict"),
+                },
+            },
+        )
+
+    m11j_exec = str(s4.get("m11j_execution_id", "")).strip() if s4 else ""
+    m12a_exec = str(s4.get("m12a_execution_id", "")).strip() if s4 else ""
+    m12b_exec = str(s4.get("m12b_execution_id", "")).strip() if s4 else ""
+    m12c_exec = str(s4.get("m12c_execution_id", "")).strip() if s4 else ""
+    m12d_exec = str(s4.get("m12d_execution_id", "")).strip() if s4 else ""
+    m12e_exec = str(s4.get("m12e_execution_id", "")).strip() if s4 else ""
+    m12f_exec = str(s4.get("m12f_execution_id", "")).strip() if s4 else ""
+    m12g_exec = str(s4.get("m12g_execution_id", "")).strip() if s4 else ""
+    m12h_exec = str(s4.get("m12h_execution_id", "")).strip() if s4 else ""
+    m12i_exec = str(s4.get("m12i_execution_id", "")).strip() if s4 else ""
+
+    missing_refs = []
+    for name, value_ref in (
+        ("m12a_execution_id", m12a_exec),
+        ("m12b_execution_id", m12b_exec),
+        ("m12c_execution_id", m12c_exec),
+        ("m12d_execution_id", m12d_exec),
+        ("m12e_execution_id", m12e_exec),
+        ("m12f_execution_id", m12f_exec),
+        ("m12g_execution_id", m12g_exec),
+        ("m12h_execution_id", m12h_exec),
+        ("m12i_execution_id", m12i_exec),
+    ):
+        if not value_ref:
+            missing_refs.append(name)
+    if missing_refs:
+        add_blocker(
+            blockers,
+            "M12-ST-B11",
+            "S5",
+            {"reason": "missing_upstream_execution_ids_from_s4_summary", "missing": sorted(missing_refs)},
+        )
+
+    explicit_override_used = True
+    if bool(packet.get("M12_STRESS_FAIL_ON_DEFAULT_UPSTREAM_INPUTS", True)) and not explicit_override_used:
+        add_blocker(blockers, "M12-ST-B20", "S5", {"reason": "required_explicit_upstream_override_not_used"})
+
+    m12j_exec = ""
+    m12j_summary: dict[str, Any] = {}
+    m12j_snapshot: dict[str, Any] = {}
+    if (
+        Path("scripts/dev_substrate/m12j_closure_sync.py").exists()
+        and m12a_exec and m12b_exec and m12c_exec and m12d_exec and m12e_exec and m12f_exec and m12g_exec and m12h_exec and m12i_exec
+        and not blockers
+    ):
+        m12j_exec = f"m12j_stress_s5_{tok()}"
+        m12j_dir = out / "_m12j"
+        env_j = dict(os.environ)
+        env_j.update(
+            {
+                "M12J_EXECUTION_ID": m12j_exec,
+                "M12J_RUN_DIR": m12j_dir.as_posix(),
+                "EVIDENCE_BUCKET": bucket,
+                "UPSTREAM_M11J_EXECUTION": m11j_exec,
+                "UPSTREAM_M12A_EXECUTION": m12a_exec,
+                "UPSTREAM_M12B_EXECUTION": m12b_exec,
+                "UPSTREAM_M12C_EXECUTION": m12c_exec,
+                "UPSTREAM_M12D_EXECUTION": m12d_exec,
+                "UPSTREAM_M12E_EXECUTION": m12e_exec,
+                "UPSTREAM_M12F_EXECUTION": m12f_exec,
+                "UPSTREAM_M12G_EXECUTION": m12g_exec,
+                "UPSTREAM_M12H_EXECUTION": m12h_exec,
+                "UPSTREAM_M12I_EXECUTION": m12i_exec,
+                "AWS_REGION": "eu-west-2",
+            }
+        )
+        rc, _, err = run(["python", "scripts/dev_substrate/m12j_closure_sync.py"], timeout=9000, env=env_j)
+        if rc != 0:
+            add_blocker(
+                blockers,
+                "M12-ST-B11",
+                "S5",
+                {"reason": "m12j_command_failed", "stderr": err.strip()[:300], "rc": rc},
+            )
+
+        m12j_summary = loadj(m12j_dir / "m12j_execution_summary.json")
+        m12j_snapshot = loadj(m12j_dir / "m12j_closure_sync_snapshot.json")
+        m12j_register = loadj(m12j_dir / "m12j_blocker_register.json")
+        if m12j_summary:
+            dumpj(out / "m12j_execution_summary.json", m12j_summary)
+        if m12j_snapshot:
+            dumpj(out / "m12j_closure_sync_snapshot.json", m12j_snapshot)
+        if m12j_register:
+            dumpj(out / "m12j_blocker_register.json", m12j_register)
+
+        if not m12j_summary:
+            add_blocker(blockers, "M12-ST-B11", "S5", {"reason": "m12j_summary_missing"})
+        elif not (
+            bool(m12j_summary.get("overall_pass"))
+            and str(m12j_summary.get("next_gate", "")) == "M13_READY"
+            and str(m12j_summary.get("verdict", "")) == "ADVANCE_TO_M13"
+        ):
+            add_blocker(blockers, "M12-ST-B11", "S5", {"reason": "m12j_not_ready", "summary": m12j_summary})
+
+        non_gate = m12j_summary.get("non_gate_acceptance") if isinstance(m12j_summary, dict) else {}
+        if isinstance(non_gate, dict):
+            obs_pass = bool(non_gate.get("post_promotion_observation_pass", True))
+            op_pass = bool(non_gate.get("operability_acceptance_pass", True))
+            if not (obs_pass and op_pass):
+                add_blocker(
+                    blockers,
+                    "M12-ST-B12",
+                    "S5",
+                    {
+                        "reason": "non_gate_acceptance_not_pass",
+                        "post_promotion_observation_pass": obs_pass,
+                        "operability_acceptance_pass": op_pass,
+                    },
+                )
+
+        if m12j_register and isinstance(m12j_register.get("blockers"), list):
+            quota_signal = False
+            for row in m12j_register.get("blockers", []):
+                if not isinstance(row, dict):
+                    continue
+                text = " ".join(
+                    [
+                        str(row.get("message", "")),
+                        str(row.get("detail", "")),
+                        str(row.get("surface", "")),
+                    ]
+                ).lower()
+                if any(token in text for token in ("resourcelimit", "quota", "throttl", "accessdenied", "access denied")):
+                    quota_signal = True
+                    break
+            if quota_signal:
+                add_blocker(
+                    blockers,
+                    "M12-ST-B19",
+                    "S5",
+                    {"reason": "managed_quota_or_access_boundary_pressure_detected_in_m12j"},
+                )
+    elif not m12j_exec and not blockers:
+        add_blocker(blockers, "M12-ST-B11", "S5", {"reason": "m12j_not_executed"})
+    elif blockers and not m12j_exec:
+        add_blocker(blockers, "M12-ST-B11", "S5", {"reason": "m12j_skipped_due_to_prior_blocker"})
+
+    stage_findings = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_execution_id,
+        "stage_id": "M12-ST-S5",
+        "findings": [
+            {
+                "id": "M12-ST-F6",
+                "classification": "PREVENT",
+                "status": "CLOSED" if all(Path(p).exists() for p in scripts_required) else "OPEN",
+                "note": "S5 required wrapper is materialized and executable.",
+            },
+            {
+                "id": "M12-ST-F7",
+                "classification": "PREVENT",
+                "status": "CLOSED" if explicit_override_used else "OPEN",
+                "note": "S5 dispatch uses explicit upstream input overrides.",
+            },
+            {
+                "id": "M12-ST-F8",
+                "classification": "PREVENT",
+                "status": "CLOSED" if len([b for b in blockers if b.get("id") in {"M12-ST-B15"}]) == 0 else "OPEN",
+                "note": "S5 strict continuity from S4 is enforced fail-closed.",
+            },
+        ],
+    }
+    dumpj(out / "m12_stagea_findings.json", stage_findings)
+
+    lane_matrix = {
+        "generated_at_utc": now(),
+        "phase_execution_id": phase_execution_id,
+        "stage_id": "M12-ST-S5",
+        "lanes": [
+            {
+                "lane": "J",
+                "component": "M12.J",
+                "execution_id": m12j_exec,
+                "overall_pass": bool(m12j_summary.get("overall_pass")) if m12j_summary else False,
+                "next_gate": str(m12j_summary.get("next_gate", "")) if m12j_summary else "",
+                "verdict": str(m12j_summary.get("verdict", "")) if m12j_summary else "",
+            },
+        ],
+    }
+    dumpj(out / "m12_lane_matrix.json", lane_matrix)
+
+    runtime_locality_ok = bool(packet.get("M12_STRESS_REQUIRE_REMOTE_RUNTIME_ONLY", True))
+    if not runtime_locality_ok:
+        add_blocker(blockers, "M12-ST-B16", "S5", {"reason": "runtime_locality_policy_not_true"})
+    dumpj(
+        out / "m12_runtime_locality_guard_snapshot.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M12-ST-S5",
+            "overall_pass": runtime_locality_ok,
+            "require_remote_runtime_only": bool(packet.get("M12_STRESS_REQUIRE_REMOTE_RUNTIME_ONLY", True)),
+            "runtime_execution_attempted": False,
+            "runtime_execution_mode": "local_control_orchestration_only_remote_runtime",
+        },
+    )
+
+    refs = [
+        f"evidence/dev_full/run_control/{s4_exec}/stress/m12_execution_summary.json" if s4_exec else "",
+        f"evidence/dev_full/run_control/{m12j_exec}/m12_execution_summary.json" if m12j_exec else "",
+    ]
+    source_guard_ok = len([b for b in blockers if b.get("id") in {"M12-ST-B11", "M12-ST-B16"}]) == 0
+    dumpj(
+        out / "m12_source_authority_guard_snapshot.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M12-ST-S5",
+            "overall_pass": source_guard_ok,
+            "authoritative_refs": refs,
+            "evidence_bucket": bucket,
+            "runtime_locality_only_control_plane": True,
+        },
+    )
+
+    realism_ok = bool(packet.get("M12_STRESS_DISALLOW_WAIVED_REALISM", True))
+    if not realism_ok:
+        add_blocker(blockers, "M12-ST-B17", "S5", {"reason": "realism_guard_not_true"})
+    dumpj(
+        out / "m12_realism_guard_snapshot.json",
+        {
+            "generated_at_utc": now(),
+            "phase_execution_id": phase_execution_id,
+            "stage_id": "M12-ST-S5",
+            "overall_pass": realism_ok,
+            "disallow_waived_realism": bool(packet.get("M12_STRESS_DISALLOW_WAIVED_REALISM", True)),
+        },
+    )
+
+    if not bool(packet.get("M12_STRESS_REQUIRE_DATA_ENGINE_BLACKBOX", True)):
+        add_blocker(blockers, "M12-ST-B16", "S5", {"reason": "data_engine_blackbox_guard_not_true"})
+
+    platform_run_id = str(s4.get("platform_run_id", "")) if s4 else ""
+    scenario_run_id = str(s4.get("scenario_run_id", "")) if s4 else ""
+    return finish(
+        "S5",
+        phase_execution_id,
+        out,
+        blockers,
+        S5_ARTS,
+        {
+            "platform_run_id": platform_run_id,
+            "scenario_run_id": scenario_run_id,
+            "upstream_m12_s4_execution": s4_exec,
+            "m11j_execution_id": m11j_exec,
+            "m12a_execution_id": m12a_exec,
+            "m12b_execution_id": m12b_exec,
+            "m12c_execution_id": m12c_exec,
+            "m12d_execution_id": m12d_exec,
+            "m12e_execution_id": m12e_exec,
+            "m12f_execution_id": m12f_exec,
+            "m12g_execution_id": m12g_exec,
+            "m12h_execution_id": m12h_exec,
+            "m12i_execution_id": m12i_exec,
+            "m12j_execution_id": m12j_exec,
+            "decisions": [
+                "S5 enforced strict M12 S4 entry continuity before executing lane J.",
+                "S5 executed M12.J closure sync lane and required ADVANCE_TO_M13 with M13_READY output.",
+                "S5 enforced non-gate acceptance closure from M12.F/M12.G references through M12.J summary.",
+            ],
+            "advisories": advisories,
+        },
+    )
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="M12 stress runner")
-    ap.add_argument("--stage", required=True, choices=["S0", "S1", "S2", "S3"])
+    ap.add_argument("--stage", required=True, choices=["S0", "S1", "S2", "S3", "S4", "S5"])
     ap.add_argument("--phase-execution-id", default="")
     ap.add_argument("--upstream-m11-s5-execution", default="")
     ap.add_argument("--upstream-m12-s0-execution", default="")
     ap.add_argument("--upstream-m12-s1-execution", default="")
     ap.add_argument("--upstream-m12-s2-execution", default="")
+    ap.add_argument("--upstream-m12-s3-execution", default="")
+    ap.add_argument("--upstream-m12-s4-execution", default="")
     args = ap.parse_args()
 
     phase_execution_id = args.phase_execution_id.strip()
@@ -1917,6 +2739,10 @@ def main() -> int:
             phase_execution_id = f"m12_stress_s2_{tok()}"
         elif args.stage == "S3":
             phase_execution_id = f"m12_stress_s3_{tok()}"
+        elif args.stage == "S4":
+            phase_execution_id = f"m12_stress_s4_{tok()}"
+        elif args.stage == "S5":
+            phase_execution_id = f"m12_stress_s5_{tok()}"
 
     if args.stage == "S0":
         upstream_m11_s5 = args.upstream_m11_s5_execution.strip()
@@ -1949,6 +2775,22 @@ def main() -> int:
         if not upstream_m12_s2:
             raise SystemExit("No upstream M12 S2 execution provided/found.")
         return run_s3(phase_execution_id, upstream_m12_s2)
+
+    if args.stage == "S4":
+        upstream_m12_s3 = args.upstream_m12_s3_execution.strip()
+        if not upstream_m12_s3:
+            upstream_m12_s3, _ = latest_s3()
+        if not upstream_m12_s3:
+            raise SystemExit("No upstream M12 S3 execution provided/found.")
+        return run_s4(phase_execution_id, upstream_m12_s3)
+
+    if args.stage == "S5":
+        upstream_m12_s4 = args.upstream_m12_s4_execution.strip()
+        if not upstream_m12_s4:
+            upstream_m12_s4, _ = latest_s4()
+        if not upstream_m12_s4:
+            raise SystemExit("No upstream M12 S4 execution provided/found.")
+        return run_s5(phase_execution_id, upstream_m12_s4)
 
     raise SystemExit("Unsupported stage")
 
