@@ -347,3 +347,122 @@ _As of 2026-03-05_
 
 ### Governance
 1. No commit/push/branch operation.
+
+## Entry: 2026-03-05 17:42 +00:00 - Pre-edit plan: detailed PR1 authority doc for G2 data realism closure
+### Trigger
+1. USER requested proceeding to detailed planning of PR1.
+
+### Problem framing
+1. Main plan contains PR1 intent and template only; it lacks execution-grade state details, lane coverage, blocker taxonomy, and deterministic artifact contract for G2 closure.
+2. Without a dedicated PR1 authority doc, closure of `TGT-02..TGT-07` risks ambiguity and checklist-only interpretation.
+
+### Decision
+1. Add dedicated PR1 doc:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR1.road_to_prod.md`.
+2. Encode PR1 as fail-closed `S0..S5` chain aligned to G2 authority:
+   - 7-day window charter,
+   - realism profile/cohort distributions,
+   - join matrix + decision closure,
+   - RTDL allowlist + IEG minimal graph + lateness policy,
+   - label maturity/time-causality + monitoring baselines,
+   - deterministic data realism pack rollup verdict.
+3. Bind PR1 closure to `TGT-02..TGT-07` and `G2 PASS` only when `open_blockers=0`.
+4. Wire main plan PR1 section and immediate-next-step section to the PR1 doc.
+
+### Governance
+1. Documentation-only change.
+2. No commit/push/branch operation.
+
+## Entry: 2026-03-05 17:44 +00:00 - PR1 detailed phase authority doc added and main plan wired
+### Implemented files
+1. Added:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR1.road_to_prod.md`.
+2. Updated:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.road_to_prod.plan.md`.
+
+### What was implemented
+1. Detailed PR1 authority (`G2` closure) with:
+   - binding purpose and hard exit criteria,
+   - mandatory capability-lane coverage,
+   - execution posture (evidence-first, no rerun-the-world, no local orchestration),
+   - state chain `S0..S5` with pass/fail conditions,
+   - blocker taxonomy (`PR1.B01..B20`),
+   - deterministic run artifact contract under `runs/.../run_control/<pr1_execution_id>/`,
+   - runtime/cost budgets,
+   - rerun boundary rules,
+   - DoD tied to `TGT-02..TGT-07` and `G2 PASS`.
+2. Main plan PR1 section now explicitly points to this dedicated PR1 doc.
+3. Main plan immediate-next-step section now includes PR1 doc as execution source.
+
+### Authority posture impact
+1. PR1 is now execution-grade and auditable, not a generic subphase template.
+2. Closure of `Pin By G2` targets is explicitly bound to state outcomes and fail-closed verdict logic.
+
+### Governance
+1. Documentation-only change.
+2. No commit/push/branch operation.
+
+## Entry: 2026-03-05 17:48 +00:00 - Pre-execution plan: expand PR1-S0 and execute S0 only
+### Trigger
+1. USER requested proceeding with planning expansion of `PR1-S0` and execution.
+
+### Decision-completeness check
+1. Upstream gate/charter required for PR1-S0 is present:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr0_20260305T1725Z/pr0_execution_summary.json` (`PR1_READY`).
+2. Injection-path policy is already pinned in PR0 mission charter (`via_IG` claim boundary).
+3. No unresolved `Pin Now` targets remain for PR1 entry.
+
+### S0 execution strategy
+1. Expand PR1 doc S0 with explicit substeps/checklist and fail-closed criteria.
+2. Materialize PR1 S0 run-control root:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr1_20260305T174744Z/`.
+3. Emit required S0 outputs:
+   - `pr1_entry_lock.json`,
+   - `pr1_window_charter.json`,
+   - `pr1_evidence_inventory.json`.
+4. Emit S0 receipt + latest pointer for deterministic continuation:
+   - `pr1_s0_execution_receipt.json`,
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr1_latest.json`.
+5. Sync main plan Section 11 status snapshot to PR1-S0 in-progress posture.
+
+### Key S0 posture decision
+1. Pin a concrete, replayable 7-day charter for PR1 analysis window:
+   - start `2026-02-26T00:00:00Z`,
+   - end `2026-03-05T00:00:00Z`,
+   - as-of `2026-03-05T00:00:00Z`.
+2. Label maturity lag remains a candidate-set at S0 and will be pinned at S4 (`TGT-05`).
+
+### Governance
+1. Docs + run-control artifact changes only.
+2. No commit/push/branch operation.
+
+## Entry: 2026-03-05 17:50 +00:00 - PR1-S0 planning expansion completed and S0 executed
+### Files updated
+1. Updated:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR1.road_to_prod.md`.
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.road_to_prod.plan.md`.
+2. Added run-control artifacts:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr1_20260305T174744Z/pr1_entry_lock.json`
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr1_20260305T174744Z/pr1_window_charter.json`
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr1_20260305T174744Z/pr1_evidence_inventory.json`
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr1_20260305T174744Z/pr1_s0_execution_receipt.json`
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr1_latest.json`
+
+### S0 execution result
+1. Verdict: `PR1_S0_READY`.
+2. `open_blockers=0` for S0.
+3. `next_state=PR1-S1`.
+4. 7-day charter pinned:
+   - start `2026-02-26T00:00:00Z`,
+   - end `2026-03-05T00:00:00Z`,
+   - as-of `2026-03-05T00:00:00Z`.
+5. Evidence inventory classified reusable claimable/context and mapped missing lanes to boundary states (`S2/S3/S4/S5`) instead of silent carry-over.
+
+### Plan synchronization
+1. PR1 doc now includes S0 expanded checklist and an execution record section for `pr1_20260305T174744Z`.
+2. Main plan immediate next step moved from `PR1-S0` to `PR1-S1`.
+3. Section 11 target snapshot updated to `PR1-S0` as-of status, marking `TGT-02..TGT-07` as `IN_PROGRESS`.
+
+### Governance
+1. Docs + run-control artifact updates only.
+2. No commit/push/branch operation.
