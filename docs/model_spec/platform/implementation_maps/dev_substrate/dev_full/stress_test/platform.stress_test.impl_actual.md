@@ -10379,3 +10379,100 @@ ext_gate=M8_READY, open_blockers=0.
 2. Program status now registers `platform.M10.stress_test.md` as dedicated active authority (`PLANNED`, `S0_PENDING`).
 3. Next-step line moved from generic M10 planning to execution-ready action:
    - `execute M10-ST-S0 fail-closed using upstream m9_stress_s5_20260305T003614Z`.
+
+## Entry: 2026-03-05 00:49 +00:00 - M10-ST-S0 execution design (A+B)
+### Context
+1. USER requested immediate planning and execution of `M10-ST-S0`.
+2. Strict M10 entry authority is pinned to `m9_stress_s5_20260305T003614Z` (`overall_pass=true`, `verdict=ADVANCE_TO_M10`, `next_gate=M10_READY`).
+3. M10 lane implementation status for S0:
+   - present: `m10a_handle_closure.py`, `m10b_upsert_databricks_jobs.py`, `m10b_databricks_readiness.py`,
+   - missing: parent `m10_stress_runner.py`.
+4. S0 blocker mapping contract is pinned to `M10-ST-B1/B2/B12/B16/B18` with pass gate `next_gate=M10_ST_S1_READY`.
+
+### Decision
+1. Implement `scripts/dev_substrate/m10_stress_runner.py` with stage `S0` only (fail-closed, no speculative S1+ scaffolding).
+2. Enforce strict continuity in S0 entry:
+   - validate upstream parent `M9-ST-S5` summary pass posture,
+   - validate `M10_STRESS_EXPECTED_ENTRY_EXECUTION` and `M10_STRESS_EXPECTED_ENTRY_GATE`,
+   - recover `UPSTREAM_M9H_EXECUTION` deterministically from `S5 -> S4 -> S3` chain before running lane `A`.
+3. Execute S0 lane order as:
+   - `M10.A` handle closure,
+   - Databricks job upsert receipt generation,
+   - `M10.B` readiness adjudication using the generated upsert receipt.
+4. Keep runtime posture local-control/remote-runtime only:
+   - local script orchestration only,
+   - no local data-plane compute lanes.
+5. Map failures as:
+   - authority/continuity/lane-A faults -> `M10-ST-B1`,
+   - Databricks/upsert/lane-B faults -> `M10-ST-B2`,
+   - missing artifacts -> `M10-ST-B12`,
+   - locality/source-authority/black-box/realism guard violations -> `M10-ST-B16`,
+   - missing required scripts -> `M10-ST-B18`.
+
+### Planned edits
+1. Add `scripts/dev_substrate/m10_stress_runner.py`.
+2. Validate by compile-checking runner + dependent lane scripts.
+3. Execute:
+   - `python scripts/dev_substrate/m10_stress_runner.py --stage S0 --upstream-m9-s5-execution m9_stress_s5_20260305T003614Z`.
+4. Sync docs with exact outcome in:
+   - `platform.M10.stress_test.md`,
+   - `platform.stress_test.md`,
+   - this implementation map,
+   - logbook for today.
+
+## Entry: 2026-03-05 00:52 +00:00 - M10-ST-S0 implemented and first execution failed closed
+### Implementation
+1. Added parent runner:
+   - `scripts/dev_substrate/m10_stress_runner.py` with fail-closed `S0` support.
+2. Runner behavior implemented for `S0`:
+   - strict entry validation against `m9_stress_s5_20260305T003614Z`,
+   - strict continuity recovery `S5 -> S4 -> S3` to recover `m9h_execution_id`,
+   - lane orchestration `M10.A -> Databricks upsert receipt -> M10.B`,
+   - blocker mapping: `M10-ST-B1/B2/B12/B16/B18`,
+   - stage receipts + guard snapshots (`runtime_locality`, `source_authority`, `realism`).
+
+### Validation and first execution
+1. Compile validation:
+   - `python -m py_compile scripts/dev_substrate/m10_stress_runner.py scripts/dev_substrate/m10a_handle_closure.py scripts/dev_substrate/m10b_upsert_databricks_jobs.py scripts/dev_substrate/m10b_databricks_readiness.py` -> pass.
+2. Execution command:
+   - `python scripts/dev_substrate/m10_stress_runner.py --stage S0 --upstream-m9-s5-execution m9_stress_s5_20260305T003614Z`.
+3. Result (fail-closed):
+   - `phase_execution_id=m10_stress_s0_20260305T005201Z`,
+   - `overall_pass=false`, `open_blocker_count=2`, `next_gate=HOLD_REMEDIATE`.
+
+### Root cause
+1. `M10.A` could not read upstream M9 closure summary from S3 authority key:
+   - `evidence/dev_full/run_control/m9_stress_s5_20260305T003614Z/m9_execution_summary.json` (`NoSuchKey`).
+2. `M10.B` then failed entry posture because `M10.A` was non-pass.
+3. Databricks readiness surfaces themselves were otherwise healthy (workspace probe/jobs list pass, required jobs present, upsert receipt pass).
+
+## Entry: 2026-03-05 00:54 +00:00 - M10-ST-S0 remediation applied and rerun green
+### Remediation
+1. Patched `scripts/dev_substrate/m10_stress_runner.py` to publish a strict bridge copy of verified local M9 S5 summary to the exact S3 authority key required by `M10.A` before lane execution.
+2. Added bridge snapshot artifact for traceability:
+   - `m10_m9_entry_bridge_snapshot.json`.
+
+### Validation and rerun
+1. Compile validation:
+   - `python -m py_compile scripts/dev_substrate/m10_stress_runner.py` -> pass.
+2. Rerun command:
+   - `python scripts/dev_substrate/m10_stress_runner.py --stage S0 --upstream-m9-s5-execution m9_stress_s5_20260305T003614Z`.
+3. Rerun result (green):
+   - `phase_execution_id=m10_stress_s0_20260305T005311Z`,
+   - `overall_pass=true`, `open_blocker_count=0`,
+   - `verdict=GO`, `next_gate=M10_ST_S1_READY`.
+4. Lane outcomes:
+   - `m10a_execution_id=m10a_stress_s0_20260305T005312Z` (`overall_pass=true`, `next_gate=M10.B_READY`),
+   - `m10b_execution_id=m10b_stress_s0_20260305T005322Z` (`overall_pass=true`, `next_gate=M10.C_READY`),
+   - Databricks upsert receipt pass (`compute_mode=serverless`, both jobs reset with repo-source provenance hashes).
+
+### Documentation sync
+1. Updated `platform.M10.stress_test.md`:
+   - posture -> `S0_GREEN`,
+   - DoD `M10-ST-S0` checked,
+   - execution progress includes fail-closed first pass, root cause, remediation, and green rerun,
+   - immediate next action routed to `M10-ST-S1`.
+2. Updated `platform.stress_test.md`:
+   - M10 status -> `IN_PROGRESS (S0_GREEN)`,
+   - program status pins `m10_stress_s0_20260305T005311Z`,
+   - next step routed to `M10-ST-S1`.
