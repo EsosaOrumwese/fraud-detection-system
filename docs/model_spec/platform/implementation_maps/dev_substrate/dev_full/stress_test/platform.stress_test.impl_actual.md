@@ -11403,3 +11403,47 @@ ext_gate=M8_READY, open_blockers=0.
 1. GH workflow run-id discoverability remains advisory when authoritative lane artifacts for the requested execution id are present and gate-pass.
 2. S3 closure confirms both non-gate acceptance artifacts required in this stage are explicitly present and pass (`operability`, `reproducibility`).
 3. M11 next executable stage is now `S4` from strict upstream `m11_stress_s3_20260305T034205Z`.
+
+## Entry: 2026-03-05 05:36 +00:00 - M11-ST-S4 planning approach
+### Scope and entry
+1. Stage target: `M11-ST-S4` (`I` rollup + M12 handoff).
+2. Strict upstream: `m11_stress_s3_20260305T034205Z` (`M11_ST_S4_READY`).
+
+### Capability lane coverage for S4
+1. authority/continuity lane: enforce strict `S3` pass and consume `m11h_execution_id` from parent summary.
+2. rollup/verdict lane (`I`): require deterministic chain rollup proof and `ADVANCE_TO_P15` + `M11.J_READY`.
+3. handoff lane: require `m12_handoff_pack` with `m12_entry_ready=true` and `m12_entry_gate.next_gate=M12_READY`.
+4. evidence lane: stage artifact parity for `m11i_*` and `m12_handoff_pack`.
+5. policy guard lanes: runtime-locality/source-authority/realism/black-box continuity.
+
+### Design decision
+1. Add `scripts/dev_substrate/m11i_p14_rollup_handoff.py` as managed dispatch+materialization adapter for subphase `I`.
+2. Extend parent runner with `S4` path and pass gate mapping `M11_ST_S5_READY`.
+3. Keep run-id metadata advisory when authoritative artifact gate truth is present; fail closed on real evidence failures.
+
+### Runtime/cost posture
+1. Bounded orchestration-only local work; managed lane `I` remains runtime authority.
+2. Fail-closed rerun only if deterministic blocker appears.
+
+## Entry: 2026-03-05 05:43 +00:00 - M11-ST-S4 closure and S5 handoff readiness
+### Implementation summary
+1. Added `scripts/dev_substrate/m11i_p14_rollup_handoff.py`:
+   - dispatches managed lane `I`,
+   - materializes `m11i_p14_gate_verdict`, `m12_handoff_pack`, `m11i_blocker_register`, `m11i_execution_summary`,
+   - enforces rollup/handoff gate truth fail-closed.
+2. Extended `scripts/dev_substrate/m11_stress_runner.py`:
+   - added `S4_ARTS`, `latest_s3()`, `run_s4(...)`, stage mapping `S4 -> M11_ST_S5_READY`, and CLI support `--stage S4 --upstream-m11-s3-execution`.
+
+### Execution receipts
+1. Strict upstream used: `m11_stress_s3_20260305T034205Z` (`M11_ST_S4_READY`).
+2. Parent S4 run:
+   - `m11_stress_s4_20260305T053904Z` -> `overall_pass=true`, `open_blocker_count=0`, `next_gate=M11_ST_S5_READY`.
+3. Lane I run:
+   - `m11i_stress_s4_20260305T053904Z` -> `overall_pass=true`, `verdict=ADVANCE_TO_P15`, `next_gate=M11.J_READY`.
+4. Handoff proof:
+   - `m12_handoff_pack.json` includes `m12_entry_ready=true` and `m12_entry_gate.next_gate=M12_READY`.
+
+### Decision notes
+1. Managed run-id discoverability remains advisory when authoritative run-scoped artifacts for requested execution id are present and pass.
+2. S4 closure confirms deterministic P14 rollup and valid M12 entry contract publication.
+3. M11 next executable stage is now `S5` from strict upstream `m11_stress_s4_20260305T053904Z`.
