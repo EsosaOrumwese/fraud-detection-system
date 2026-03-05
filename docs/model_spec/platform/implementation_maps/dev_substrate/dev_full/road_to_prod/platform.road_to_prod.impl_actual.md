@@ -203,3 +203,147 @@ _As of 2026-03-05_
 ### Governance
 1. Documentation-only change.
 2. No commit/push/branch operation.
+
+## Entry: 2026-03-05 17:25 +00:00 - Pre-execution plan: run PR0 S0..S5 with deterministic control artifacts
+### Trigger
+1. USER requested full execution of PR0 state-by-state with expansion and closure.
+
+### Decision-completeness check
+1. Required `Pin Now` decision in scope: `TGT-01` injection path policy.
+2. Authority-derived closure selected for `TGT-01`:
+   - `via_IG` is the default production-readiness claim path,
+   - `via_MSK` is allowed only for scoped hot-path claims and cannot certify IG envelope/capacity.
+3. This is directly grounded in the binding pre-design authority (`dev-full_road-to-production-ready.md`) injection-path rules.
+
+### Execution plan
+1. Materialize `PR0` control root under:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/control/pr0/pr0_20260305T1725Z/`.
+2. Execute `S0..S5` artifacts in-order with explicit state receipts.
+3. Populate target status map (`TGT-01..TGT-15`) with:
+   - `TGT-01=PINNED`,
+   - future due-gate targets as `OPEN` with owner and rerun boundary,
+   - `TGT-15=DEFERRED_OUT_OF_SCOPE` (RC2-L stretch).
+4. Update main plan Section 11 with current status table so closure sheet is executable, not static.
+5. Emit PR0 summary verdict and set `next_gate=PR1_READY` only if PR0-required blockers are zero.
+
+### Performance/cost posture
+1. PR0 is docs/control execution only; no local compute orchestration and no cloud workload dispatch.
+2. Expected incremental cloud spend remains zero.
+
+### Governance
+1. Documentation/control-artifact changes only.
+2. No commit/push/branch operation.
+
+## Entry: 2026-03-05 17:28 +00:00 - PR0 S0..S5 executed with deterministic artifacts; verdict PR1_READY
+### Executed artifacts
+1. Control root created:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/control/pr0/pr0_20260305T1725Z/`.
+2. State artifacts emitted:
+   - `pr0_entry_lock.json`, `pr0_authority_refs.json`,
+   - `pr0_status_owner.json`, `pr0_status_owner_validation.json`,
+   - `pr0_mission_charter.active.json`, `pr0_pin_now_resolution_receipt.json`,
+   - `pr0_blocker_register.json`, `pr0_rerun_boundary_map.json`,
+   - `pr0_consistency_validation.json`, `pr0_decision_trace.md`,
+   - `pr0_execution_summary.json`, `pr0_evidence_index.json`.
+3. Latest pointer emitted:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/control/pr0/pr0_latest.json`.
+
+### State results
+1. `S0 PASS`: authority refs resolved (`6/6`).
+2. `S1 PASS`: single status-owner surface pinned and validated.
+3. `S2 PASS`: `TGT-01` pinned (`via_IG` production claim path; `via_MSK` scoped hot-path only).
+4. `S3 PASS`: unresolved non-PR0 targets registered with owner and rerun boundaries.
+5. `S4 PASS`: consistency checks across status owner, charter, blocker register, and main plan status snapshot passed.
+6. `S5 PASS`: rollup emitted with `verdict=PR1_READY`, `next_gate=PR1_READY`, `open_blockers=0` (PR0-required scope).
+
+### Plan synchronization
+1. Updated main plan Section 11 with current target status snapshot (`TGT-01..TGT-15`).
+2. Updated main plan PR0 exit line with execution status and updated immediate-next-step to `PR1-S0`.
+3. Updated PR0 doc with explicit execution record section for `pr0_20260305T1725Z`.
+
+### Governance
+1. Documentation/control-artifact changes only.
+2. No commit/push/branch operation.
+
+## Entry: 2026-03-05 17:33 +00:00 - Pre-edit remediation: relocate PR0 artifacts from docs control path to runs path
+### Trigger
+1. USER flagged artifact placement as incorrect and required run artifacts to live under `runs/`.
+
+### Problem
+1. PR0 control JSON artifacts were placed under docs authority tree (`docs/.../road_to_prod/control/pr0/...`), which violates run-artifact separation.
+2. Main plan, PR0 doc, implementation notes, and logbook currently reference this wrong path.
+
+### Remediation decision
+1. Relocate execution artifacts to run-control path:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr0_20260305T1725Z/`.
+2. Relocate latest pointer to:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr0_latest.json`.
+3. Rewrite embedded artifact references in:
+   - `pr0_execution_summary.json`,
+   - `pr0_evidence_index.json`,
+   - `pr0_latest.json`.
+4. Update documentation references to the new `runs/` root and remove misplaced `docs/.../control` artifacts.
+
+### Governance
+1. No branch operation.
+2. No commit/push.
+
+## Entry: 2026-03-05 17:35 +00:00 - Remediation complete: PR0 artifacts relocated to runs/ and docs authority corrected
+### What was remediated
+1. Moved execution artifacts from wrong docs path to canonical runs path:
+   - from `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/control/pr0/pr0_20260305T1725Z/`
+   - to `runs/dev_substrate/dev_full/road_to_prod/run_control/pr0_20260305T1725Z/`.
+2. Moved latest pointer:
+   - from docs control path to `runs/dev_substrate/dev_full/road_to_prod/run_control/pr0_latest.json`.
+3. Rewrote embedded path refs in:
+   - `pr0_execution_summary.json`,
+   - `pr0_evidence_index.json`,
+   - `pr0_latest.json`.
+4. Updated active doc references to runs path:
+   - `platform.road_to_prod.plan.md` immediate-next-step upstream pointer,
+   - `platform.PR0.road_to_prod.md` artifact/control root references.
+5. Removed misplaced docs control directory tree.
+
+### Result
+1. Run artifacts now live exclusively under `runs/`.
+2. Docs remain authority-only.
+3. PR0 verdict remains unchanged: `PR1_READY`, `open_blockers=0` for PR0-required scope.
+
+### Governance
+1. No commit/push/branch operation.
+
+## Entry: 2026-03-05 17:37 +00:00 - Pre-edit remediation: remove PR0 decision trace artifact
+### Trigger
+1. USER requested no decision trace doc because implementation note already serves as reasoning authority.
+
+### Decision
+1. Remove `pr0_decision_trace.md` from PR0 required outputs and artifact contract.
+2. Update existing PR0 run artifacts to drop decision-trace references from:
+   - `pr0_execution_summary.json` evidence refs,
+   - `pr0_evidence_index.json` artifact list.
+3. Delete `runs/.../pr0_decision_trace.md` from the PR0 run folder.
+4. Keep reasoning continuity in implementation map + logbook only.
+
+### Governance
+1. No commit/push/branch operation.
+
+## Entry: 2026-03-05 17:38 +00:00 - Decision trace artifact removed; implementation note is sole reasoning authority
+### Completed actions
+1. Updated `platform.PR0.road_to_prod.md`:
+   - removed `pr0_decision_trace.md` from `S4` outputs,
+   - removed it from required artifact contract list,
+   - updated execution record `S4 PASS` line accordingly,
+   - added explicit note that reasoning continuity is in `platform.road_to_prod.impl_actual.md`.
+2. Updated PR0 run artifacts under `runs/.../pr0_20260305T1725Z/`:
+   - removed `pr0_decision_trace.md` from `pr0_execution_summary.json` evidence refs,
+   - removed decision-trace artifact row from `pr0_evidence_index.json`,
+   - corrected `pr0_evidence_index.json` self `exists=true` entry.
+3. Deleted run artifact file:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr0_20260305T1725Z/pr0_decision_trace.md`.
+
+### Result
+1. No active PR0 authority or run artifact contract requires a separate decision trace doc.
+2. Reasoning history remains in implementation note + logbook only.
+
+### Governance
+1. No commit/push/branch operation.

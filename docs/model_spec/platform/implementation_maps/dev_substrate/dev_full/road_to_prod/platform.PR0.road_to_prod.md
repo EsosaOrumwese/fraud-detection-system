@@ -154,7 +154,8 @@ Required actions:
 
 Outputs:
 1. `pr0_consistency_validation.json`
-2. `pr0_decision_trace.md`
+2. reasoning continuity recorded in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.road_to_prod.impl_actual.md`
 
 Pass condition:
 1. no cross-artifact drift and no unresolved PR0-required targets.
@@ -186,7 +187,7 @@ Fail-closed blockers:
 
 ## 6) PR0 Artifact Contract
 Deterministic control root:
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/control/pr0/`
+1. `runs/dev_substrate/dev_full/road_to_prod/run_control/`
 
 Required artifacts:
 1. `pr0_entry_lock.json`
@@ -198,9 +199,8 @@ Required artifacts:
 7. `pr0_blocker_register.json`
 8. `pr0_rerun_boundary_map.json`
 9. `pr0_consistency_validation.json`
-10. `pr0_decision_trace.md`
-11. `pr0_execution_summary.json`
-12. `pr0_evidence_index.json`
+10. `pr0_execution_summary.json`
+11. `pr0_evidence_index.json`
 
 Schema minimums:
 1. every JSON artifact must include: `phase`, `state`, `generated_at_utc`, `generated_by`, `version`,
@@ -234,3 +234,21 @@ Cost budget:
 4. PR0 summary is claimable and consistent with main plan Section 11.
 5. `open_blockers=0` for PR0-required scope.
 6. `next_gate=PR1_READY`.
+
+## 10) Execution Record - `pr0_20260305T1725Z`
+State outcomes:
+1. `S0 PASS`:
+   - authority refs and entry lock emitted (`pr0_entry_lock.json`, `pr0_authority_refs.json`).
+2. `S1 PASS`:
+   - status owner materialized and validated (`pr0_status_owner.json`, `pr0_status_owner_validation.json`).
+3. `S2 PASS`:
+   - `TGT-01` (`Pin Now`) closed in mission charter (`pr0_mission_charter.active.json`, `pr0_pin_now_resolution_receipt.json`).
+4. `S3 PASS`:
+   - unresolved future targets mapped with owner and rerun boundaries (`pr0_blocker_register.json`, `pr0_rerun_boundary_map.json`).
+5. `S4 PASS`:
+   - cross-artifact consistency checks passed (`pr0_consistency_validation.json`).
+6. `S5 PASS`:
+   - rollup verdict emitted: `PR1_READY`, `open_blockers=0` for PR0-required scope (`pr0_execution_summary.json`, `pr0_evidence_index.json`).
+
+Control root:
+1. `runs/dev_substrate/dev_full/road_to_prod/run_control/pr0_20260305T1725Z/`

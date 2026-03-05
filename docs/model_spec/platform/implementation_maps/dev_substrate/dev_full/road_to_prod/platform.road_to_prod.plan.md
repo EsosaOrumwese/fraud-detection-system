@@ -55,6 +55,7 @@ Exit / DoD:
 2. Mission charter is present and scoped (`injection_path`, envelope, budgets, windows).
 3. Initial blocker register exists with rerun boundaries.
 4. No gate progression ambiguity exists between status owner and evidence pack posture.
+5. Execution status: `COMPLETE` (`pr0_20260305T1725Z`, verdict `PR1_READY`).
 
 ### PR1 - G2 Data Realism Pack Closure
 Intent:
@@ -181,10 +182,10 @@ This plan's intent is satisfied only when:
 3. The final production-ready verdict is claimable, auditable, and has `open_blockers=0`.
 
 ## 10) Immediate Next Step
-1. Start `PR0-S0`: pin authoritative status owner and mission charter entry bindings for this road.
-2. Execute `PR0-S0.1`: instantiate and populate the Section 11 TBD closure sheet with owner, due-gate, and initial status for every required open decision/TBD class.
-3. Use the dedicated PR0 authority doc as execution source:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR0.road_to_prod.md`.
+1. Start `PR1-S0`: entry lock and 7-day realism window pinning for `G2` data realism pack closure.
+2. Use `PR0` closure artifacts as upstream authority:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr0_20260305T1725Z/pr0_execution_summary.json`.
+3. Keep Section 11 target status table as the active blocker-routing surface during PR1 execution.
 
 ## 11) Required TBD Closure Sheet (Binding)
 This section defines the mandatory closure routing for unresolved targets in:
@@ -235,3 +236,24 @@ Allowed status values for each target:
 Closure rule:
 1. Required targets cannot remain `OPEN`/`IN_PROGRESS`/`WAIVED_TIMEBOXED` at their close-by gate.
 2. Any miss becomes `HOLD_REMEDIATE` with explicit rerun boundary before phase continuation.
+
+### 11.3 Current Target Status Snapshot (PR0)
+As-of execution: `pr0_20260305T1725Z`
+
+| Target ID | Current status | Blocking gate | Notes |
+| --- | --- | --- | --- |
+| TGT-01 | PINNED | PR0 | Injection-path policy pinned: `via_IG` is production claim path; `via_MSK` is hot-path-only scoped claim path. |
+| TGT-02 | OPEN | PR1-S5 | RC2-S envelope numbers to be pinned during G2 realism closure. |
+| TGT-03 | OPEN | PR1-S5 | Watermark/allowed-lateness posture pending RTDL realism closure. |
+| TGT-04 | OPEN | PR1-S5 | IEG minimal graph scope + TTL/state bounds pending G2. |
+| TGT-05 | OPEN | PR1-S5 | Label maturity lag definition pending G2 learning maturity closure. |
+| TGT-06 | OPEN | PR1-S5 | Join/fanout/unmatched bounds pending join matrix closure. |
+| TGT-07 | OPEN | PR1-S5 | Monitoring baseline pack refs pending G2 outputs. |
+| TGT-08 | OPEN | PR3-S5 | Runtime threshold families pending G3A runtime cert. |
+| TGT-09 | OPEN | PR3-S5 | Archive sink design and backpressure posture pending G3A. |
+| TGT-10 | OPEN | PR4-S5 | Decision explainability schema pending G3B audit closure. |
+| TGT-11 | OPEN | PR4-S5 | Promotion observation window pending G3B corridor closure. |
+| TGT-12 | OPEN | PR4-S5 | Gate and mission cost budgets pending G3B cost governance closure. |
+| TGT-13 | OPEN | PR4-S5 | Ops/gov monitor owner+threshold rows pending G3B closure. |
+| TGT-14 | OPEN | PR5-S5 | Final rehearsal-only required rows pending G4 rehearsal closure. |
+| TGT-15 | DEFERRED_OUT_OF_SCOPE | N/A | RC2-L stretch rows deferred for dev_full production-ready claim. |
