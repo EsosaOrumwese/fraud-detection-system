@@ -9710,3 +9710,80 @@ ext_gate=M8_READY, open_blockers=0.
      - MTD spend retained as context fields only.
 3. M8 closure authority repinned:
    - `m8_stress_s5_20260304T234918Z`.
+
+## Entry: 2026-03-04 23:55 +00:00 - M9 stress-planning design entry (pre-implementation)
+### Context and constraints
+1. USER requested immediate transition to M9 planning.
+2. `platform.M9.build_plan.md` already contains deep orchestration detail (`M9.A..M9.J`) but no dedicated stress authority file exists in `stress_test/`.
+3. M8 closure is green and current (`m8_stress_s5_20260304T234918Z`, `M9_READY`) and must be the only M9 entry authority.
+4. Binding carry-forward constraints:
+   - fail-closed policy,
+   - no local-runtime acceptance for closure evidence,
+   - source-authority guard (durable/oracle surfaces only),
+   - cost-control and performance-first gates.
+
+### Design decisions
+1. Create dedicated `platform.M9.stress_test.md` as execution authority for M9 stress.
+2. Preserve lane semantics from M9 build plan while exposing parent stress topology (`M9-ST-S0..S5`) for deterministic rerun control:
+   - `S0`: `A+B` (authority/handles + handoff/scope lock),
+   - `S1`: `C+D` (replay basis + as-of/maturity policy),
+   - `S2`: `E+F` (leakage guardrail + runtime/learning separation),
+   - `S3`: `G+H` (readiness snapshot + P12 rollup/handoff),
+   - `S4`: `I` (phase budget + cost-outcome closure),
+   - `S5`: `J` (M9 closure sync + final gate).
+3. Explicitly satisfy Phase-Coverage law before any execution by pinning capability lanes:
+   - authority/handles,
+   - identity/IAM,
+   - network,
+   - data stores,
+   - messaging,
+   - secrets,
+   - observability/evidence,
+   - rollback/rerun,
+   - teardown,
+   - budget/cost.
+4. Keep Data Engine boundary strict: M9 planning and checks reason over platform-facing truth surfaces only; no engine internals.
+
+### Planned edits
+1. Add new file:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M9.stress_test.md`.
+2. Update program control doc:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.stress_test.md`:
+     - set M9 table status to planning-active,
+     - register dedicated M9 stress file in program status list,
+     - update next-step line to M9 S0 execution prep.
+
+## Entry: 2026-03-04 23:56 +00:00 - M9 stress authority pinned and program control synced
+### Artifacts created/updated
+1. Added new M9 stress authority:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.M9.stress_test.md`.
+2. Updated control authority:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/stress_test/platform.stress_test.md`.
+
+### What was pinned in `platform.M9.stress_test.md`
+1. Current posture set to planning-active with strict entry authority:
+   - `m8_stress_s5_20260304T234918Z` as sole M9 entry source.
+2. Scope and constraints pinned:
+   - Data Engine black-box guard,
+   - no local-authority closure acceptance,
+   - realism guard requiring actual platform data behavior (no proxy-only closure).
+3. Parent stress topology pinned:
+   - `M9-ST-S0..S5` with deterministic lane ownership:
+     - `S0: A+B`,
+     - `S1: C+D`,
+     - `S2: E+F`,
+     - `S3: G+H`,
+     - `S4: I`,
+     - `S5: J`.
+4. Capability-lane coverage was explicitly expanded to satisfy Phase-Coverage law:
+   - authority/handles, identity/IAM, network, data stores, messaging, secrets, observability/evidence, rollback/rerun, teardown, budget/cost.
+5. Fail-closed surfaces pinned:
+   - blocker taxonomy (`M9-ST-B1..B16`),
+   - artifact contract list,
+   - stage budgets and pass gates,
+   - DoD checklist with execution states still pending.
+
+### Program control updates in `platform.stress_test.md`
+1. M9 status row moved from `NOT_STARTED` to `IN_PROGRESS (PLANNED_S0)`.
+2. Program status now lists `platform.M9.stress_test.md` as dedicated active authority (`PLANNED`, `S0_PENDING`).
+3. Next step changed from \"begin M9 planning\" to \"execute `M9-ST-S0` fail-closed\".
