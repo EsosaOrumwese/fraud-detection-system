@@ -10042,3 +10042,91 @@ ext_gate=M8_READY, open_blockers=0.
    - M9 status `IN_PROGRESS (S2_GREEN)`,
    - dedicated status `S2_GREEN, S3_PENDING`,
    - next step `M9-ST-S3` with upstream `m9_stress_s2_20260305T001721Z`.
+
+## Entry: 2026-03-05 00:20 +00:00 - M9-ST-S3 design + execution plan (G+H)
+### Context
+1. USER requested immediate planning and execution of `M9-ST-S3`.
+2. `M9-ST-S2` is green (`m9_stress_s2_20260305T001721Z`) with:
+   - `m9e_execution_id=m9e_stress_s2_20260305T001721Z`,
+   - `m9f_execution_id=m9f_stress_s2_20260305T001723Z`,
+   - `next_gate=M9_ST_S3_READY`.
+3. Component contracts:
+   - `m9g` requires `UPSTREAM_M9C_EXECUTION`, `UPSTREAM_M9D_EXECUTION`, `UPSTREAM_M9E_EXECUTION`, `UPSTREAM_M9F_EXECUTION`, validates readiness continuity, and emits `next_gate=M9.H_READY` on pass.
+   - `m9h` requires `UPSTREAM_M9A..UPSTREAM_M9G_EXECUTION`, validates full rollup and handoff contract, and emits `verdict=ADVANCE_TO_P13`, `next_gate=M10_READY` on pass.
+
+### Decision
+1. Extend `m9_stress_runner.py` incrementally to support `S3` only, preserving `S0/S1/S2` behavior.
+2. Add deterministic S3 entry checks:
+   - upstream S2 summary must be pass and `next_gate=M9_ST_S3_READY`,
+   - recover and validate continuity chain:
+     - `S2 -> S1` for `m9c/m9d`,
+     - `S1 -> S0` for `m9a/m9b`,
+   - fail closed on unresolved upstream execution ids.
+3. Execute native `G -> H` chain:
+   - call `m9g_learning_input_readiness.py`,
+   - call `m9h_p12_rollup_handoff.py`.
+4. Map failures fail-closed:
+   - `M9-ST-B7` for G failures,
+   - `M9-ST-B8` for H rollup/verdict failures,
+   - `M9-ST-B9` for H handoff publication/contract failures,
+   - `M9-ST-B11` for artifact contract/parity failures.
+5. Emit S3 parent receipts and guards with pass gate:
+   - `next_gate=M9_ST_S4_READY`,
+   - `verdict=GO`,
+   - `open_blocker_count=0`.
+
+### Planned edits
+1. `scripts/dev_substrate/m9_stress_runner.py`:
+   - add `S3_ARTS`,
+   - add `latest_s2()` selector,
+   - extend `finish()` for stage-specific gates (`S0`/`S1`/`S2`/`S3`),
+   - implement `run_s3(...)`,
+   - extend CLI dispatch to `--stage S3`.
+2. Execute `M9-ST-S3` with `--upstream-m9-s2-execution m9_stress_s2_20260305T001721Z`.
+
+## Entry: 2026-03-05 00:23 +00:00 - M9-ST-S3 executed green
+### Implementation
+1. Extended `scripts/dev_substrate/m9_stress_runner.py`:
+   - added `S3_ARTS` contract,
+   - added `latest_s2()` selector,
+   - made `finish()` stage-aware (`S0 -> M9_ST_S1_READY`, `S1 -> M9_ST_S2_READY`, `S2 -> M9_ST_S3_READY`, `S3 -> M9_ST_S4_READY`),
+   - implemented `run_s3(...)` with deterministic `G -> H` chain orchestration,
+   - extended CLI with `--stage S3` and `--upstream-m9-s2-execution`.
+2. `S3` logic enforces:
+   - S2 entry continuity check (`overall_pass=true`, `next_gate=M9_ST_S3_READY`),
+   - strict continuity recovery chain:
+     - `S2 -> S1` for `m9c/m9d`,
+     - `S1 -> S0` for `m9a/m9b`,
+   - native `m9g` then `m9h` execution and pass-gate validation,
+   - parent guard snapshots (`runtime_locality`, `source_authority`, `realism`) and black-box guard continuity.
+
+### Validation and execution
+1. Compile validation:
+   - `python -m py_compile scripts/dev_substrate/m9_stress_runner.py scripts/dev_substrate/m9g_learning_input_readiness.py scripts/dev_substrate/m9h_p12_rollup_handoff.py` -> pass.
+2. Execution command:
+   - `python scripts/dev_substrate/m9_stress_runner.py --stage S3 --upstream-m9-s2-execution m9_stress_s2_20260305T001721Z`.
+3. Stage result:
+   - `phase_execution_id=m9_stress_s3_20260305T002230Z`,
+   - `overall_pass=true`, `open_blocker_count=0`,
+   - `verdict=GO`, `next_gate=M9_ST_S4_READY`.
+
+### Lane evidence
+1. `M9.G`:
+   - `execution_id=m9g_stress_s3_20260305T002230Z`,
+   - `overall_pass=true`, `next_gate=M9.H_READY`,
+   - run-scoped readiness snapshot emitted:
+     - `evidence/runs/platform_20260223T184232Z/learning/input/readiness_snapshot.json`.
+2. `M9.H`:
+   - `execution_id=m9h_stress_s3_20260305T002232Z`,
+   - `overall_pass=true`, `verdict=ADVANCE_TO_P13`, `next_gate=M10_READY`,
+   - deterministic P12 rollup and M10 handoff pack emitted with zero blockers.
+
+### Documentation sync
+1. Updated `platform.M9.stress_test.md`:
+   - posture `S3_GREEN`,
+   - DoD `M9-ST-S3` checked,
+   - immediate next action switched to `M9-ST-S4`.
+2. Updated `platform.stress_test.md`:
+   - M9 status `IN_PROGRESS (S3_GREEN)`,
+   - dedicated status `S3_GREEN, S4_PENDING`,
+   - next step `M9-ST-S4` with upstream `m9_stress_s3_20260305T002230Z`.
