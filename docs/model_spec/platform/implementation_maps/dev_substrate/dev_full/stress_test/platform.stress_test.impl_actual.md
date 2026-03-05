@@ -11947,3 +11947,77 @@ ext_gate=M8_READY, open_blockers=0.
 ### State synchronization
 1. Updated `platform.M12.stress_test.md` to `S2_GREEN`, checked S2 DoD, and routed next step to strict `S3`.
 2. Updated `platform.stress_test.md` M12 row/program status/active-phase receipts to `S2_GREEN` and `M12_ST_S3_READY`.
+
+## Entry: 2026-03-05 08:44 +00:00 - Pre-edit plan for M12-ST-S3 implementation and strict execution
+### Trigger
+1. User directed: proceed with `M12-ST-S3`.
+2. Current strict upstream is `m12_stress_s2_20260305T083332Z` (`overall_pass=true`, `next_gate=M12_ST_S3_READY`, `open_blockers=0`).
+
+### Coverage/decision completeness check
+1. Parent `M12` stress plan defines `S3` lanes `F` and `G` with fail-closed blockers `M12-ST-B6/B7/B11/B12/B18` and pass gate `M12_ST_S4_READY`.
+2. Current implementation state has no `S3` support in runner (`choices=[S0,S1,S2]`) and no wrappers `m12f_*`, `m12g_*`.
+3. Managed workflow authority already supports `m12f_execute` and `m12g_execute` with deterministic lane outputs.
+
+### Implementation decision
+1. Add `scripts/dev_substrate/m12f_active_resolution.py` wrapper:
+   - managed dispatch `m12_subphase=F`, `execution_mode=m12f_execute`,
+   - strict lane gate contract: `overall_pass=true`, `next_gate=M12.G_READY`, `verdict=ADVANCE_TO_M12_G`,
+   - local materialization: `m12f_active_resolution_snapshot.json`, `m12_post_promotion_observation_snapshot.json`, `m12f_blocker_register.json`, `m12f_execution_summary.json`,
+   - blocker code mapping: `M12-B6`.
+2. Add `scripts/dev_substrate/m12g_governance_append.py` wrapper:
+   - managed dispatch `m12_subphase=G`, `execution_mode=m12g_execute`,
+   - strict lane gate contract: `overall_pass=true`, `next_gate=M12.H_READY`, `verdict=ADVANCE_TO_M12_H`,
+   - local materialization: `m12g_governance_append_snapshot.json`, `m12_operability_acceptance_report.json`, `m12g_blocker_register.json`, `m12g_execution_summary.json`,
+   - blocker code mapping: `M12-B7`.
+3. Extend `scripts/dev_substrate/m12_stress_runner.py`:
+   - add `S3_ARTS`,
+   - add `latest_s2()` selector,
+   - add stage mapping `S3 pass -> M12_ST_S4_READY`,
+   - add `run_s3(...)` strict continuity from `S2`, fail-closed sequence `F -> G`,
+   - preserve guard snapshots and blocker taxonomy (`B6/B7/B11/B12/B16/B17/B18/B19/B20`).
+4. Execute strict run:
+   - `python scripts/dev_substrate/m12_stress_runner.py --stage S3 --upstream-m12-s2-execution m12_stress_s2_20260305T083332Z`.
+5. Sync docs on outcome (`platform.M12.stress_test.md`, `platform.stress_test.md`) and log receipts.
+
+## Entry: 2026-03-05 08:56 +00:00 - M12-ST-S3 implemented and executed green from strict S2 authority
+### Implementation completed
+1. Added `scripts/dev_substrate/m12f_active_resolution.py`:
+   - managed dispatch (`m12_subphase=F`, `execution_mode=m12f_execute`),
+   - strict gate contract (`M12.G_READY`, `ADVANCE_TO_M12_G`),
+   - local artifact materialization:
+     - `m12f_active_resolution_snapshot.json`,
+     - `m12_post_promotion_observation_snapshot.json`,
+     - `m12f_blocker_register.json`,
+     - `m12f_execution_summary.json`.
+2. Added `scripts/dev_substrate/m12g_governance_append.py`:
+   - managed dispatch (`m12_subphase=G`, `execution_mode=m12g_execute`),
+   - strict gate contract (`M12.H_READY`, `ADVANCE_TO_M12_H`),
+   - local artifact materialization:
+     - `m12g_governance_append_snapshot.json`,
+     - `m12_operability_acceptance_report.json`,
+     - `m12g_blocker_register.json`,
+     - `m12g_execution_summary.json`.
+3. Extended `scripts/dev_substrate/m12_stress_runner.py`:
+   - added `S3_ARTS`,
+   - added `latest_s2()` selector,
+   - added pass mapping `S3 -> M12_ST_S4_READY`,
+   - added `run_s3(...)` fail-closed orchestration (`F -> G`) with strict S2 continuity and blocker mapping (`M12-ST-B6/B7/B11/B12/B16/B17/B18/B19/B20`),
+   - added CLI support for `--stage S3 --upstream-m12-s2-execution`.
+
+### Validation + execution
+1. Compile check passed:
+   - `python -m py_compile scripts/dev_substrate/m12f_active_resolution.py scripts/dev_substrate/m12g_governance_append.py scripts/dev_substrate/m12_stress_runner.py`.
+2. Strict execution:
+   - `python scripts/dev_substrate/m12_stress_runner.py --stage S3 --upstream-m12-s2-execution m12_stress_s2_20260305T083332Z`.
+3. Parent result:
+   - `phase_execution_id=m12_stress_s3_20260305T084913Z`,
+   - `overall_pass=true`,
+   - `open_blocker_count=0`,
+   - `next_gate=M12_ST_S4_READY`.
+4. Lane results:
+   - `M12.F`: `m12f_stress_s3_20260305T084913Z` pass (`ADVANCE_TO_M12_G`, `M12.G_READY`),
+   - `M12.G`: `m12g_stress_s3_20260305T085222Z` pass (`ADVANCE_TO_M12_H`, `M12.H_READY`).
+
+### State synchronization
+1. Updated `platform.M12.stress_test.md` to `S3_GREEN` and routed immediate next action to strict `S4`.
+2. Updated `platform.stress_test.md` M12 program row/active-phase receipts to `S3_GREEN` with `M12_ST_S4_READY`.
