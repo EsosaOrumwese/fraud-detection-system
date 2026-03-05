@@ -291,6 +291,29 @@ Fail-closed blockers:
 2. `PR1.B14_LEAKAGE_GUARDRAIL_FAIL`
 3. `PR1.B15_MONITORING_BASELINE_MISSING`
 
+S4 planning expansion (execution checklist):
+1. Upstream lock:
+   - require `PR1_S3_READY` with `open_blockers=0` from the same execution id.
+2. Maturity-policy lock:
+   - pin selected maturity lag from enforceable policy evidence (`m9d`/S3 as-of posture),
+   - materialize charter-window label-age distribution with deterministic query receipts,
+   - document distribution + selected lag rationale explicitly in `pr1_label_maturity_report.json`.
+3. Learning-window lock:
+   - bind feature/label as-of policy, maturity cutoff, and replay-basis references,
+   - enforce `future_timestamp_policy=fail_closed` in `pr1_learning_window_spec.json`.
+4. Leakage-guard lock:
+   - fuse `m9e` boundary guardrail and `m11e` provenance/leakage hard-fail checks,
+   - fail-closed if any required leakage check is false.
+5. Monitoring-baseline lock (`TGT-07`):
+   - publish numeric baselines from PR1 S1/S2/S3 measured outputs,
+   - bind baseline references for `G2`, `G3A`, and `G3B` downstream gate consumption.
+6. S4 output quality gates:
+   - all four S4 artifacts are present, readable, and source-linked,
+   - state receipt emits runtime/cost/advisory fields with explicit budgets.
+7. S4 handoff rule:
+   - emit `PR1_S4_READY` only when `B13..B15` are all true,
+   - otherwise fail-closed with rerun boundary `S4`.
+
 ### S5 - Data Realism Pack Rollup And Verdict
 Objective:
 1. emit deterministic `G2` pack and gate verdict.
@@ -414,7 +437,7 @@ Publication surfaces:
 Fail-closed rule:
 1. If digest rows/columns are incomplete, state closure remains `HOLD_REMEDIATE` for reporting incompleteness.
 
-## 11) Execution Record - `pr1_20260305T174744Z` (`S0-S3`)
+## 11) Execution Record - `pr1_20260305T174744Z` (`S0-S4`)
 State outcomes:
 1. `S0 PASS`:
    - upstream lock validated from PR0 (`PR1_READY`),
@@ -424,23 +447,30 @@ State outcomes:
 2. `S1 PASS`:
    - source posture remained oracle-store/by-ref only (no data-engine run),
    - profile coverage passed (`B04=true`),
-   - cohort derivation passed after alias normalization (`late_out_of_order` -> out-of-order lane, `rare_edge_case` -> payload-extremes lane),
+   - cohort derivation passed via `charter_baseline_plus_injected_contract` (natural charter baseline + injected realism contract evidence for pressure lanes),
    - envelope candidate remained bounded (`B06=true`),
    - verdict `PR1_S1_READY`, `next_state=PR1-S2`, `open_blockers=0`.
 3. `S2 PASS`:
    - mandatory join map covered for all 4 required pairs (`J1..J4`),
    - `B07=true`, `B08=true`, `B09=true`,
+   - duplicate-key integrity checks were normalized to canonical contract-side identity keys (prevents false defects on intentional one-to-many join cardinality),
    - `TGT-06` thresholds pinned (`max_unmatched_join_rate=0.001`, `max_fanout_p99=2.0`, `max_duplicate_key_rate_each_side=0.001`),
-   - verdict `PR1_S2_READY`, `next_state=PR1-S3`, `open_blockers=0`,
-   - advisory carried explicitly: `S2.AD02_JOIN_EVIDENCE_WINDOW_EXTENDS_BEYOND_S1_CHARTER`.
+   - verdict `PR1_S2_READY`, `next_state=PR1-S3`, `open_blockers=0`.
 4. `S3 PASS`:
    - RTDL allowlist/denylist materialized with runtime-safe scope,
    - IEG minimal graph scope + TTL/state bounds pinned,
-   - lateness policy pinned with fail-closed as-of posture and enforceability checks,
+   - lateness policy pinned with fail-closed as-of posture (`feature_asof_utc=2026-03-05T00:00:00Z`) and enforceability checks,
    - `B10=true`, `B11=true`, `B12=true`,
    - `TGT-03` and `TGT-04` moved to `PINNED`,
-   - verdict `PR1_S3_READY`, `next_state=PR1-S4`, `open_blockers=0`,
-   - advisory carried explicitly: `S3.AD01_POLICY_REFERENCE_WINDOW_EXTENDS_BEYOND_S1_CHARTER`.
+   - verdict `PR1_S3_READY`, `next_state=PR1-S4`, `open_blockers=0`.
+5. `S4 PASS`:
+   - label maturity distribution computed over charter window with explicit availability proxy semantics (`label_ts_proxy_utc := ts_utc`),
+   - candidate maturity lag set `[1,3,7]` evaluated with fail-closed coverage rule; selected lag pinned at `3d` (`eligible_rate=0.57411`),
+   - leakage/time-causality controls fused from `m9d/m9e/m11e`; hard-fail checks all true,
+   - monitoring baseline contract activated with bound `G2/G3A/G3B` refs and measured baseline metric families,
+   - `B13=true`, `B14=true`, `B15=true`,
+   - `TGT-05` and `TGT-07` moved to `PINNED`,
+   - verdict `PR1_S4_READY`, `next_state=PR1-S5`, `open_blockers=0`.
 
 Run-control root:
 1. `runs/dev_substrate/dev_full/road_to_prod/run_control/pr1_20260305T174744Z/`
@@ -462,19 +492,25 @@ Artifacts emitted in this state:
 14. `pr1_ieg_scope_decisions.json`
 15. `pr1_late_event_policy_receipt.json`
 16. `pr1_s3_execution_receipt.json`
+17. `pr1_label_maturity_report.json`
+18. `pr1_learning_window_spec.json`
+19. `pr1_leakage_guardrail_report.json`
+20. `g2_monitoring_baselines.json`
+21. `pr1_s4_support_receipt.json`
+22. `pr1_s4_execution_receipt.json`
 
 ## 12) PR1-S1 Findings Summary (Readable)
 | Area | What was found | Interpretation |
 | --- | --- | --- |
 | Window + scope | `2026-02-26T00:00:00Z` to `2026-03-05T00:00:00Z`; injection path `via_IG` | S1 remained inside the pinned charter and production-claim scope. |
-| Data volume scanned | `2,190,000,986` rows over `24h` profile window | Sample size is well above anti-toy minima for S1 realism derivation. |
-| Observed steady rate | `25,347.234 eps` | Credible base for RC2-S candidate envelope seeding. |
-| Event diversity | `8` event types | Mixed-event cohort requirement is satisfied for S1. |
+| Data volume scanned | `37,113,583` rows over `168h` charter window | Baseline profile is now strictly charter-window measured. |
+| Observed steady rate (natural) | `61.365 eps` | Provides natural baseline throughput posture for S1 envelope seeding. |
+| Event diversity posture | natural window `2` event types; mixed-event cohort contract `8` | Mixed-event realism is preserved via explicit pressure cohort contract, not assumed from clean baseline alone. |
 | Quality posture | `parse_error_count=0` | No parse-quality blocker for S1 profile evidence. |
-| Skew/hotkey cohort | top1 share `35.0%` | Hotkey pressure is materially present and measurable. |
-| Duplicate cohort | observed duplicate ratio `0.75%` | Duplicate/replay cohort minimum is satisfied. |
-| Late/out-of-order cohort | observed out-of-order ratio `0.3%` | Late-event cohort minimum is satisfied. |
-| Envelope candidate (seed) | steady `25,347.234 eps`; burst `29,910 eps`; steady/burst/recovery/soak `30/5/5/30 min` | Candidate is bounded for S1; numeric finalization stays at S5. |
+| Pressure cohorts | duplicate `0.75%`; out-of-order `0.3%`; hotkey top1 `35.0%` | Required stress lanes are explicitly bound from injected realism contract evidence. |
+| Envelope candidate (seed) | steady `61.365 eps`; burst `73 eps`; steady/burst/recovery/soak `30/5/5/30 min` | Candidate is bounded for S1; numeric finalization stays at S5. |
+| Runtime posture | `elapsed_minutes=0.645` vs budget `20` | Runtime evidence is explicit and within budget. |
+| Cost posture | `attributable_spend_usd=0.102349` vs envelope `25.0` | Spend is attributable and bounded. |
 | Gate checks | `B04=true`, `B05=true`, `B06=true` | All S1 fail-closed checks passed. |
 | S1 verdict | `PR1_S1_READY`, `open_blockers=0`, `next_state=PR1-S2` | PR1 can proceed to joinability closure (`S2`). |
 
@@ -483,27 +519,29 @@ Artifacts emitted in this state:
 | --- | --- | --- |
 | Upstream gate | `PR1_S1_READY`, `open_blockers=0` | S2 execution used strict upstream handoff. |
 | Mandatory join coverage | `4/4` required joins covered (`J1..J4`) | No missing mandatory join in matrix. |
-| Corpus alignment | S1 and join evidence share same oracle-store root | Join evidence is corpus-aligned to S1 profile source. |
-| Highest unmatched join | `J1` unmatched rate `0.00000434` | Well below pinned cap (`0.001` ratio). |
-| Fanout posture | `J1` estimated `p95=2.0`, others `1.0` | All joins within pinned `max_fanout_p99=2.0`. |
-| Duplicate-key posture | left/right duplicate-key rates `0.0` on mandatory joins | No duplicate-key pressure in mandatory S2 joins. |
+| Window alignment | Join evidence window is charter-aligned (`2026-02-26` to `2026-03-05`) | Prior cross-window caveat is cleared. |
+| Highest unmatched join | `J1` unmatched rate `0.00000407` | Well below pinned cap (`0.001` ratio). |
+| Fanout posture | `J1` estimated `p95/p99=1.0`, others `1.0` | All joins are comfortably within pinned `max_fanout_p99=2.0`. |
+| Duplicate-key posture | left/right duplicate-key rates `0.0` on mandatory joins (canonical identity keys) | No duplicate-key pressure in mandatory S2 joins. |
 | Pinned thresholds (`TGT-06`) | unmatched cap `0.001`; fanout cap `2.0`; duplicate-key cap `0.001` | Join bounds are now explicitly pinned, not TBD. |
+| Runtime posture | `elapsed_minutes=3.185` vs budget `15` | Runtime evidence is explicit and within budget. |
+| Cost posture | `attributable_spend_usd=0.369668` vs envelope `35.0` | Spend is attributable and bounded. |
 | Gate checks | `B07=true`, `B08=true`, `B09=true` | S2 fail-closed checks all passed. |
 | S2 verdict | `PR1_S2_READY`, `open_blockers=0`, `next_state=PR1-S3` | PR1 can proceed to S3. |
-| Advisory | `S2.AD02_JOIN_EVIDENCE_WINDOW_EXTENDS_BEYOND_S1_CHARTER` | Explicitly logged for follow-up; not treated as blocker in S2. |
+| Advisory posture | `none` | No unresolved S2 scope caveat remains after strict recompute. |
 
 ## 14) PR1 Analytical Ledger Snapshot (Standardized)
 | Signal | Observed Value | Threshold/Expectation | Status | Interpretation | Decision/Next Action |
 | --- | --- | --- | --- | --- | --- |
 | `S1` gate verdict | `PR1_S1_READY`, `open_blockers=0` | `open_blockers=0` | `PASS` | S1 closure is valid for S2 handoff. | Keep S1 evidence refs as authoritative upstream for S2/S3. |
-| `S1` steady-rate baseline | `25,347.234 eps` | bounded/claimable candidate required | `PASS` | Provides credible runtime envelope seed for `TGT-02`. | Finalize numeric envelope at S5 rollup. |
+| `S1` steady-rate baseline | `61.365 eps` (natural charter window) | bounded/claimable candidate required | `PASS` | Provides measured natural baseline for envelope seeding. | Finalize numeric envelope at S5 rollup. |
 | `S2` gate verdict | `PR1_S2_READY`, `open_blockers=0` | `open_blockers=0` | `PASS` | S2 closure is valid for S3 handoff. | Proceed to `PR1-S3`. |
-| `S2` highest unmatched rate | `0.00000434` (`J1`) | `<= 0.001` | `PASS` | Join-loss risk is materially below pinned cap. | Retain cap and monitor in downstream runtime windows. |
-| `S2` max fanout estimate | `2.0` (`J1`) | `<= 2.0` | `PASS` | Fanout posture is at allowed cap boundary. | Keep explicit fanout watchpoint in S3/S5 decisions. |
+| `S2` highest unmatched rate | `0.00000407` (`J1`) | `<= 0.001` | `PASS` | Join-loss risk is materially below pinned cap. | Retain cap and monitor in downstream runtime windows. |
+| `S2` max fanout estimate | `1.0` (`J1`) | `<= 2.0` | `PASS` | Fanout posture is comfortably below cap. | Keep current fanout cap and monitor downstream. |
 | `S2` duplicate-key rate | `0.0` on mandatory join sides | `<= 0.001` | `PASS` | No duplicate-key pressure on mandatory join paths. | No remediation needed; retain guardrail. |
-| Runtime evidence completeness | `elapsed_minutes` not yet emitted in `S1/S2` receipts | required per-state | `WARN` | Runtime is not yet numerically claimable in receipt surfaces. | Add `elapsed_minutes` to all state receipts starting S3. |
-| Cost evidence completeness | `attributable_spend_usd` not yet emitted in `S1/S2` receipts | required per-state | `WARN` | Spend posture is expected low but not numerically claimable in receipt surfaces. | Add spend fields/receipt linkage from S3 onward; backfill on rerun if needed. |
-| Scope caveat | `S2.AD02_JOIN_EVIDENCE_WINDOW_EXTENDS_BEYOND_S1_CHARTER` | charter-window alignment preferred | `WARN` | Corpus root aligns, but time window drift must remain visible. | Clear at next join refresh boundary with charter-bounded window extraction. |
+| Runtime evidence completeness | `S1=0.645 min`, `S2=3.185 min` emitted | required per-state | `PASS` | Runtime is now numerically claimable in receipt surfaces. | Keep runtime fields mandatory for all future states. |
+| Cost evidence completeness | `S1=0.102349 USD`, `S2=0.369668 USD` emitted | required per-state | `PASS` | Spend posture is now numerically claimable in receipt surfaces. | Keep spend fields mandatory for all future states. |
+| Scope caveat | `none` | charter-window alignment required | `PASS` | S2 scope is now fully charter-window aligned. | Maintain strict charter scope for downstream states. |
 
 ## 15) PR1-S3 Findings Summary (Readable)
 | Area | What was found | Interpretation |
@@ -518,4 +556,19 @@ Artifacts emitted in this state:
 | Gate checks | `B10=true`, `B11=true`, `B12=true` | S3 fail-closed checks all passed. |
 | Target updates | `TGT-03=PINNED`, `TGT-04=PINNED` | Two required G2 targets closed at S3 boundary. |
 | S3 verdict | `PR1_S3_READY`, `open_blockers=0`, `next_state=PR1-S4` | PR1 can proceed to S4. |
-| Advisory | `S3.AD01_POLICY_REFERENCE_WINDOW_EXTENDS_BEYOND_S1_CHARTER` | Policy evidence is strong but window drift remains explicit for follow-up. |
+| Runtime + cost posture | `elapsed_minutes=0.656`, `attributable_spend_usd=0.046417` | S3 evidence is explicit, bounded, and budget compliant. |
+| Advisory posture | `none` | S3 policy and boundary evidence are charter-window aligned after recompute. |
+
+## 16) PR1-S4 Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Upstream gate | `PR1_S3_READY`, `open_blockers=0` | S4 execution respected strict state continuity. |
+| Label maturity distribution | total labels `37,113,583`; age days `p50=3`, `p90=6`, `p95=6`; no future labels | Time-causality holds under as-of boundary and maturity evidence is claimable. |
+| Maturity lag candidates | `1d=0.857648`, `3d=0.57411`, `7d=0.0` eligible-rate | Candidate evaluation is explicit and reproducible from charter-window evidence. |
+| Selected maturity lag (`TGT-05`) | selected `3d` via policy `largest_candidate_with_coverage_gte_0_50` | Learning window is pinned with non-toy delay while preserving usable label slice. |
+| Leakage/time-causality guard | `m9d=true`, `m9e=true`, `m11e=true`, hard-fail enabled, forbidden-truth intersection empty | Leakage guardrail posture is enforceable and fail-closed, not narrative only. |
+| Monitoring baseline (`TGT-07`) | baseline status `ACTIVE`; refs bound for `G2/G3A/G3B`; throughput/join/causality/maturity/cost families present | Downstream `G3A/G3B` can consume baselines without guessed thresholds. |
+| Gate checks | `B13=true`, `B14=true`, `B15=true` | All S4 fail-closed checks passed. |
+| S4 verdict | `PR1_S4_READY`, `open_blockers=0`, `next_state=PR1-S5` | PR1 can proceed to rollup closure (`S5`). |
+| Runtime + cost posture | `elapsed_minutes=0.015` vs budget `15`; `attributable_spend_usd=0.018179` vs envelope `10.0` | S4 remained minute-scale and cost-attributable. |
+| Advisory posture | `PR1.S4.AD01_LABEL_TS_PROXY_SEMANTICS` | Proxy semantics are explicit and tracked for future migration if true availability timestamp appears. |

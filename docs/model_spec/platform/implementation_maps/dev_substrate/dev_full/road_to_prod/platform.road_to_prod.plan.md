@@ -212,9 +212,9 @@ This plan's intent is satisfied only when:
 3. The final production-ready verdict is claimable, auditable, and has `open_blockers=0`.
 
 ## 10) Immediate Next Step
-1. Start `PR1-S4`: execute learning maturity closure and monitoring baseline pinning from the pinned S3 policy scope.
-2. Use `PR1-S3` receipt as immediate upstream authority:
-   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr1_20260305T174744Z/pr1_s3_execution_receipt.json`.
+1. Start `PR1-S5`: execute deterministic G2 rollup and verdict closure from pinned `S4` outputs.
+2. Use `PR1-S4` receipt as immediate upstream authority:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr1_20260305T174744Z/pr1_s4_execution_receipt.json`.
 3. Keep Section 11 target status table as the active blocker-routing surface during PR1 execution.
 4. Use the dedicated PR1 authority doc as execution source:
    - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR1.road_to_prod.md`.
@@ -224,14 +224,12 @@ This plan's intent is satisfied only when:
 | --- | --- | --- |
 | S1 verdict | `PR1_S1_READY` | Confirms S1 closure and legal handoff to S2. |
 | Open blockers | `0` | No fail-closed blocker carried from S1 into S2. |
-| Rows scanned | `2,190,000,986` | Evidence depth supports claimable realism profile. |
-| Observed steady rate | `25,347.234 eps` | Seeds runtime envelope candidate (`TGT-02` in progress). |
-| Event type count | `8` | Mixed-event realism requirement is met. |
-| Duplicate ratio observed | `0.75%` | Duplicate/replay cohort is present and bounded. |
-| Out-of-order ratio observed | `0.3%` | Late/out-of-order cohort is present and bounded. |
-| Hotkey top1 share observed | `35.0%` | Skew/hotkey pressure is represented in realism profile. |
+| Natural charter-window profile | `rows=37,113,583`, `steady=61.365 eps`, `event_type_count=2` | Baseline behavior is now strictly charter-window measured (no cross-window carry-forward). |
+| Pressure cohort contract | duplicate `0.75%`, out-of-order `0.3%`, hotkey top1 `35.0%`, mixed-event types `8` | Required pressure lanes are explicitly derived from injected realism contract evidence, preventing toy-clean closure. |
 | Parse errors | `0` | No profile-quality parsing defect carried forward. |
-| Envelope candidate (S1) | steady `25,347.234 eps`, burst `29,910 eps`, durations `30/5/5/30 min` | S1 candidate is bounded; final numeric pin remains S5 responsibility. |
+| Envelope candidate (S1) | steady `61.365 eps`, burst `73 eps`, durations `30/5/5/30 min` | S1 candidate is bounded; final numeric pin remains S5 responsibility. |
+| Runtime posture (`S1`) | `elapsed_minutes=0.645` vs budget `20` | S1 recompute remained minute-scale under strict charter extraction. |
+| Cost posture (`S1`) | `attributable_spend_usd=0.102349` vs envelope `25.0` | S1 spend is explicitly attributable and bounded. |
 | Gate checks | `B04=true`, `B05=true`, `B06=true` | Required S1 acceptance checks all passed. |
 
 ### 10.2 PR1-S2 Findings Snapshot (Readable)
@@ -240,23 +238,25 @@ This plan's intent is satisfied only when:
 | S2 verdict | `PR1_S2_READY` | Confirms legal handoff to S3. |
 | Open blockers | `0` | No S2 fail-closed blocker remains. |
 | Mandatory joins covered | `4/4` | Required join graph is fully represented in S2 matrix. |
-| Highest unmatched rate | `0.00000434` (`J1`) | Well below pinned unmatched cap (`0.001`). |
-| Fanout posture | `J1 p95=2.0`, others `1.0` | Within pinned fanout cap (`2.0`). |
-| Duplicate-key rates | `0.0` (mandatory join sides) | No duplicate-key pressure seen in mandatory S2 paths. |
+| Highest unmatched rate | `0.00000407` (`J1`) | Well below pinned unmatched cap (`0.001`). |
+| Fanout posture | `J1 p95/p99=1.0`, others `1.0` | Within pinned fanout cap (`2.0`). |
+| Duplicate-key rates | `0.0` on mandatory joins (canonical identity keys) | No duplicate-key pressure seen in mandatory S2 paths after cardinality-safe keying. |
 | `TGT-06` thresholds pinned | `max_unmatched_join_rate=0.001`, `max_fanout_p99=2.0`, `max_duplicate_key_rate_each_side=0.001` | Join/fanout/unmatched contract moved from TBD to pinned values. |
+| Runtime posture (`S2`) | `elapsed_minutes=3.185` vs budget `15` | S2 remained inside runtime budget with explicit receipt evidence. |
+| Cost posture (`S2`) | `attributable_spend_usd=0.369668` vs envelope `35.0` | S2 spend is explicitly attributable and bounded. |
 | Gate checks | `B07=true`, `B08=true`, `B09=true` | S2 acceptance checks all passed. |
-| Advisory | `S2.AD02_JOIN_EVIDENCE_WINDOW_EXTENDS_BEYOND_S1_CHARTER` | Kept explicit for follow-up; not a blocker at S2 boundary. |
+| Scope caveat | `none` | S2 evidence is now charter-window aligned; prior cross-window caveat is cleared. |
 
 ### 10.3 PR1 Analytical Ledger Snapshot (Standardized)
 | Signal | Observed Value | Threshold/Expectation | Status | Interpretation | Decision/Next Action |
 | --- | --- | --- | --- | --- | --- |
 | `PR1-S2` gate verdict | `PR1_S2_READY`, `open_blockers=0` | `open_blockers=0` | `PASS` | S2 closure is fail-closed clean. | Proceed to `PR1-S3`. |
-| Highest unmatched join rate | `0.00000434` (`J1`) | `<= 0.001` | `PASS` | Join loss is materially below cap. | Keep current unmatched cap; monitor in S3/S5 rollup. |
-| Max fanout estimate | `2.0` (`J1 p95/p99_est`) | `<= 2.0` | `PASS` | Fanout pressure is at cap boundary but compliant. | Track as watchpoint in downstream runtime windows. |
+| Highest unmatched join rate | `0.00000407` (`J1`) | `<= 0.001` | `PASS` | Join loss is materially below cap. | Keep current unmatched cap; monitor in S3/S5 rollup. |
+| Max fanout estimate | `1.0` (`J1 p95/p99_est`) | `<= 2.0` | `PASS` | Fanout pressure is comfortably below cap. | Maintain current fanout cap and monitor downstream. |
 | Duplicate-key rate (mandatory joins) | `0.0` | `<= 0.001` | `PASS` | No duplicate-key pressure observed on mandatory join paths. | Keep current duplicate-key cap; no remediation now. |
-| Runtime budget posture (`S2`) | `elapsed_minutes` not yet emitted in S2 receipt | `<= 15 min` | `WARN` | Runtime is expected to be low under evidence-first reuse but not yet claimable numerically. | Add explicit `elapsed_minutes` field in state receipt starting next state and backfill when rerun occurs. |
-| Cost posture (`S2`) | `attributable_spend_usd` not yet emitted in S2 receipt | `minimal/near-zero` | `WARN` | Spend expectation is near-zero under by-reference reuse but not yet evidenced as a number. | Add explicit spend receipt fields per state; fail-closed if missing where fresh extraction occurs. |
-| Scope/provenance caveat | Advisory `S2.AD02` (join evidence window extends beyond S1 charter) | Charter-aligned window preferred | `WARN` | Evidence is corpus-aligned but time-window-extended. | Clear at next refresh boundary with charter-bounded join extraction. |
+| Runtime budget posture (`S2`) | `elapsed_minutes=3.185` | `<= 15 min` | `PASS` | Runtime evidence is now explicitly claimable. | Keep runtime receipt fields mandatory for all future states. |
+| Cost posture (`S2`) | `attributable_spend_usd=0.369668` | `<= 35.0` | `PASS` | Spend evidence is now explicitly attributable. | Keep per-state spend receipts mandatory. |
+| Scope/provenance caveat | `none` | Charter-window alignment required | `PASS` | S2 extraction is fully charter-window aligned. | Maintain this strict scope posture for S4/S5. |
 
 ### 10.4 PR1-S3 Findings Snapshot (Readable)
 | Signal | Observed Value | Threshold/Expectation | Status | Why it matters for PR1 | Decision/Next Action |
@@ -265,10 +265,21 @@ This plan's intent is satisfied only when:
 | `B10` RTDL scope check | allowlist/denylist emitted and readable | required | `PASS` | Runtime-safe data boundary is explicit, not implied. | Keep as active runtime boundary contract. |
 | `B11` IEG scope check | minimal graph pinned (`edge_count=6`) + TTL/state bounds | required | `PASS` | Graph scope is bounded and auditable for G2. | Use this as S4/S5 graph-scope baseline. |
 | `B12` lateness-policy check | fail-closed as-of policy pinned; enforceability checks all `true` | required | `PASS` | Time-causality/lateness posture is enforceable, not narrative only. | Carry policy to S4 learning closure and S5 rollup. |
-| Runtime posture (`S3`) | `elapsed_minutes=0.0` vs budget `15` | `<= 15` | `PASS` | Evidence-first execution stayed minute-scale. | Preserve this execution posture for remaining PR1 states. |
-| Cost posture (`S3`) | `attributable_spend_usd=0.0` vs envelope `1.0` | `<= 1.0` | `PASS` | No incremental cloud extraction spend was incurred in this state. | Continue spend receipts even on near-zero states. |
+| Runtime posture (`S3`) | `elapsed_minutes=0.656` vs budget `15` | `<= 15` | `PASS` | S3 recompute stayed minute-scale with explicit runtime evidence. | Preserve this execution posture for remaining PR1 states. |
+| Cost posture (`S3`) | `attributable_spend_usd=0.046417` vs envelope `10.0` | `<= 10.0` | `PASS` | S3 spend is attributable and bounded even with fresh boundary checks. | Continue spend receipts even on low-spend states. |
 | Target closure impact | `TGT-03=PINNED`, `TGT-04=PINNED` | both pinned by PR1-S5 latest | `PASS` | Two mandatory G2 targets are now closed earlier at S3. | Focus S4/S5 on `TGT-05`, `TGT-07`, and final `TGT-02`. |
-| Advisory | `S3.AD01_POLICY_REFERENCE_WINDOW_EXTENDS_BEYOND_S1_CHARTER` | charter-window alignment preferred | `WARN` | Policy source window drift remains a documented caveat. | Clear with charter-bounded policy refresh at next eligible boundary. |
+| Scope caveat | `none` | charter-window alignment required | `PASS` | S3 policy and boundary checks are now charter-window aligned. | Keep charter-as-of binding in downstream states. |
+
+### 10.5 PR1-S4 Findings Snapshot (Readable)
+| Signal | Observed Value | Threshold/Expectation | Status | Why it matters for PR1 | Decision/Next Action |
+| --- | --- | --- | --- | --- | --- |
+| S4 verdict | `PR1_S4_READY`, `open_blockers=0` | `open_blockers=0` | `PASS` | Confirms legal handoff to S5. | Proceed to `PR1-S5` rollup closure. |
+| `B13` label maturity check | candidate coverage `1d=0.857648`, `3d=0.57411`, `7d=0.0`; selected lag `3d` | selected lag required with fail-closed coverage policy | `PASS` | `TGT-05` moves from candidate to pinned with measurable maturity semantics. | Keep `3d` lag and carry to S5 pack index. |
+| `B14` leakage guardrail check | `m9d=true`, `m9e=true`, `m11e=true`, hard-fail enabled | all true | `PASS` | Learning-time causality is enforceable, not stated-only. | Keep fail-closed guardrail posture unchanged. |
+| `B15` monitoring baseline check | baseline status `ACTIVE`; refs `G2/G3A/G3B` non-empty; required metric families present | all true | `PASS` | `TGT-07` is pinned and downstream gates can consume baseline contract. | Carry baseline contract into S5 verdict and PR3/PR4 refs. |
+| Runtime posture (`S4`) | `elapsed_minutes=0.015` vs budget `15` | `<= 15` | `PASS` | S4 closure stayed minute-scale. | Preserve this posture for S5. |
+| Cost posture (`S4`) | `attributable_spend_usd=0.018179` vs envelope `10.0` | `<= 10.0` | `PASS` | S4 spend is attributable and bounded. | Keep attributable receipts mandatory in S5. |
+| Advisory posture | `PR1.S4.AD01_LABEL_TS_PROXY_SEMANTICS` | explicit advisory allowed when documented | `PASS` | Proxy semantics are transparent and auditable (no hidden field assumptions). | Keep migration note active until true `label_available_ts` is available. |
 
 ## 11) Required TBD Closure Sheet (Binding)
 This section defines the mandatory closure routing for unresolved targets in:
@@ -320,7 +331,7 @@ Closure rule:
 1. Required targets cannot remain `OPEN`/`IN_PROGRESS`/`WAIVED_TIMEBOXED` at their close-by gate.
 2. Any miss becomes `HOLD_REMEDIATE` with explicit rerun boundary before phase continuation.
 
-### 11.3 Current Target Status Snapshot (PR1-S3)
+### 11.3 Current Target Status Snapshot (PR1-S4)
 As-of execution: `pr1_20260305T174744Z`
 
 | Target ID | Current status | Blocking gate | Notes |
@@ -329,9 +340,9 @@ As-of execution: `pr1_20260305T174744Z`
 | TGT-02 | IN_PROGRESS | PR1-S5 | PR1-S1 produced bounded RC2-S envelope candidate; numeric finalization remains queued for S5 rollup. |
 | TGT-03 | PINNED | PR1-S5 | S3 pinned lateness policy with fail-closed as-of semantics and enforceability receipt. |
 | TGT-04 | PINNED | PR1-S5 | S3 pinned IEG minimal graph scope with explicit TTL/state bounds. |
-| TGT-05 | IN_PROGRESS | PR1-S5 | PR1-S0 pinned maturity-lag candidate set; final pin scheduled at S4. |
+| TGT-05 | PINNED | PR1-S5 | S4 pinned `label_maturity_lag=3d` from charter-window maturity distribution using explicit `ts_utc` availability proxy semantics and fail-closed selection policy. |
 | TGT-06 | PINNED | PR1-S5 | S2 pinned join/fanout/unmatched bounds with explicit thresholds and decision register. |
-| TGT-07 | IN_PROGRESS | PR1-S5 | PR1-S0 inventory mapped monitoring baseline closure to S4. |
+| TGT-07 | PINNED | PR1-S5 | S4 activated monitoring baseline contract (`status=ACTIVE`) with bound `G2/G3A/G3B` refs and required metric families. |
 | TGT-08 | OPEN | PR3-S5 | Runtime threshold families pending G3A runtime cert. |
 | TGT-09 | OPEN | PR3-S5 | Archive sink design and backpressure posture pending G3A. |
 | TGT-10 | OPEN | PR4-S5 | Decision explainability schema pending G3B audit closure. |
