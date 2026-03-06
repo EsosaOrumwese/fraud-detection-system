@@ -288,12 +288,12 @@ Cost budget:
 
 ## 11) Execution Record
 Status:
-1. `IN_PROGRESS` (`S0`, `S1`, and `S2` complete; `S3` is next).
+1. `COMPLETE` (`S0..S3` complete; `PR3_READY` emitted).
 
 Active control root:
 1. `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/`
 2. Latest pointer:
-   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_latest.json` (`latest_state=S2`).
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_latest.json` (`latest_state=S3`).
 
 State closure:
 1. `S0` executed from strict upstream:
@@ -310,6 +310,12 @@ State closure:
    - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_s2_execution_receipt.json`.
 7. `S2` verdict:
    - `PR2_S2_READY`, `open_blockers=0`, `next_state=PR2-S3`.
+8. `S3` receipt:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_s3_execution_receipt.json`.
+9. `S3` verdict:
+   - `PR2_S3_READY`, `open_blockers=0`, `next_state=PR3-S0`, `next_gate=PR3_READY`.
+10. PR2 summary:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_execution_summary.json` (`verdict=PR3_READY`, `next_gate=PR3_READY`).
 
 ### 11.1 PR2-S0 Findings Snapshot (Readable)
 | Signal | Observed Value | Threshold/Expectation | Status | Interpretation | Decision/Next Action |
@@ -349,3 +355,15 @@ State closure:
 | Burst-gap governance | projected burst `3568.809582 eps` vs target `6000 eps`; carry-forward present | explicit routing required when gap exists | `PASS` | 6000 burst is not over-claimed in PR2; it is routed to PR3 shaping lane. | Implement burst-shaper proof in `PR3-S1` before burst claim. |
 | Runtime posture (`S2`) | `elapsed_minutes=0.0` vs budget `20` | `<= 20` | `PASS` | S2 remained minute-scale and deterministic. | Preserve runtime discipline in S3 rollup. |
 | Cost posture (`S2`) | `attributable_spend_usd=0.0` vs envelope `5.0` | attributable and `<= 5.0` | `PASS` | S2 validation remained spend-neutral. | Keep attributable spend fields mandatory for S3 closure. |
+
+### 11.4 PR2-S3 Findings Snapshot (Readable)
+| Signal | Observed Value | Threshold/Expectation | Status | Interpretation | Decision/Next Action |
+| --- | --- | --- | --- | --- | --- |
+| `PR2-S3` gate verdict | `PR2_S3_READY`, `open_blockers=0`, `next_state=PR3-S0` | `open_blockers=0` | `PASS` | PR2 closure rollup passed fail-closed checks. | Handoff to `PR3-S0`. |
+| PR2 phase verdict | `PR3_READY`, `next_gate=PR3_READY` | both required for closure | `PASS` | PR2 exits with deterministic gate verdict and no unresolved blockers. | Treat PR2 as complete and immutable baseline. |
+| Activation index completeness (`B15`) | `pr2_numeric_contract_activation_index.json` exists/readable with required keys | index required | `PASS` | Contract refs + validator statuses are fully compiled. | Use as PR3 upstream activation authority. |
+| Execution summary completeness (`B16`) | `pr2_execution_summary.json` exists/readable and schema-complete | summary required | `PASS` | Closure decision is explicit and auditable. | Keep summary contract unchanged unless fail-closed rerun. |
+| Open blocker posture (`B17`) | `open_blockers=0`, `blocker_ids=[]` | zero blockers required | `PASS` | No residual PR2 blockers remain. | Do not rerun PR2 states unless new drift appears. |
+| Verdict coherence (`B18`) | `verdict=PR3_READY`, `next_gate=PR3_READY` | both required when blockers=0 | `PASS` | Handoff signal is unambiguous and deterministic. | Start PR3 from strict PR2-S3 upstream. |
+| Spend attribution (`B19`) | `attributable_spend_usd=0.0` present and non-negative | attribution required | `PASS` | Closure run remains spend-disciplined and attributable. | Preserve explicit spend fields in all PR3 states. |
+| Evidence index completeness | `missing_required=[]`, `unreadable_required=[]` | no missing/unreadable required artifacts | `PASS` | Full PR2 artifact contract is now readback-complete. | Carry evidence index as canonical PR2 closure receipt. |

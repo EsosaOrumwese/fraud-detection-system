@@ -97,6 +97,7 @@ Exit / DoD:
 2. Activation verifier passes.
 3. Contract activation blockers are zero.
 4. Threshold rows are measurement-surface valid and anti-gaming checks pass.
+5. Execution status: `COMPLETE` (`pr2_20260305T200521Z`, verdict `PR3_READY`, `next_gate=PR3_READY`).
 
 ### PR3 - G3A Runtime Operational Certification Pack
 Intent:
@@ -215,13 +216,13 @@ This plan's intent is satisfied only when:
 3. The final production-ready verdict is claimable, auditable, and has `open_blockers=0`.
 
 ## 10) Immediate Next Step
-1. Proceed to `PR2-S3`: execute PR2 activation rollup, blocker register, and phase verdict.
-2. Use `PR2-S2` receipt as immediate upstream authority:
-   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_s2_execution_receipt.json`.
-3. Keep Section 11 target status table as the active blocker-routing surface during `PR2` execution.
-4. Use PR2 authority doc as active execution source and keep PR1 as historical upstream source:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR2.road_to_prod.md`
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR1.road_to_prod.md`.
+1. Proceed to `PR3-S0`: bind G3A runtime certification preflight to strict PR2 closure artifacts.
+2. Use `PR2-S3` receipt as immediate upstream authority:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_s3_execution_receipt.json`.
+3. Keep Section 11 target status table as the active blocker-routing surface during `PR3` execution.
+4. Use this main plan + PR2 authority as active execution sources until PR3 authority doc is materialized in `PR3-S0`:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.road_to_prod.plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR2.road_to_prod.md`.
 
 ### 10.1 PR1-S1 Findings Snapshot (Readable)
 | Signal | Value | Why it matters for PR1 |
@@ -334,6 +335,16 @@ This plan's intent is satisfied only when:
 | Anti-gaming (`B14`) | `AG01..AG04` all pass | anti-gaming checks all pass | `PASS` | Confirms non-proxy claim surfaces and explicit burst-gap governance. | Keep `PR2.S1.CN01_BURST_SHAPER_REQUIRED` due `PR3-S1`. |
 | Runtime posture (`S2`) | `elapsed_minutes=0.0` vs budget `20` | `<= 20` | `PASS` | S2 stayed minute-scale and deterministic. | Preserve budget discipline in S3 rollup. |
 | Cost posture (`S2`) | `attributable_spend_usd=0.0` vs envelope `5.0` | attributable and `<= 5.0` | `PASS` | Validation remained spend-neutral and attributable. | Keep explicit spend fields mandatory for S3 closure. |
+
+### 10.10 PR2-S3 Findings Snapshot (Readable)
+| Signal | Observed Value | Threshold/Expectation | Status | Why it matters for PR2 | Decision/Next Action |
+| --- | --- | --- | --- | --- | --- |
+| S3 verdict | `PR2_S3_READY`, `open_blockers=0`, `next_state=PR3-S0` | `open_blockers=0` | `PASS` | Confirms legal PR2 closure and transition to PR3 entry. | Start `PR3-S0` from this strict upstream. |
+| Phase verdict | `PR3_READY`, `next_gate=PR3_READY` | both required for PR2 close | `PASS` | Declares PR2 closure claimability under deterministic contract rules. | Treat PR2 artifacts as frozen upstream baseline. |
+| `B15/B16` closure checks | activation index + execution summary exist/readable and schema-complete | both required | `PASS` | Ensures closure artifacts are auditable and machine-consumable. | Carry refs into PR3 preflight bindings. |
+| `B17/B18` closure checks | no open blockers and verdict coherence holds | blockers zero + coherent verdict | `PASS` | Prevents ambiguous handoff states. | Advance to PR3 with fail-closed continuity. |
+| `B19` spend attribution | `attributable_spend_usd=0.0` present and non-negative | attribution required | `PASS` | Maintains cost-control law in closure state. | Keep explicit cost fields mandatory in PR3 receipts. |
+| Evidence contract completeness | `missing_required=[]`, `unreadable_required=[]` in PR2 evidence index | no missing/unreadable required files | `PASS` | Verifies full PR2 artifact contract readback. | Use PR2 evidence index as canonical closure manifest. |
 
 ## 11) Required TBD Closure Sheet (Binding)
 This section defines the mandatory closure routing for unresolved targets in:

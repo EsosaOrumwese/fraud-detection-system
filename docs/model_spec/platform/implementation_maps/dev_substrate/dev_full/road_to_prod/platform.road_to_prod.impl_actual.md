@@ -1632,3 +1632,53 @@ uns/; docs/logbook/impl map synced after run.
 ### Governance
 1. No branch operations, no commit/push.
 2. Scope limited to S3 executor, run-control artifacts, docs, implementation map, and logbook sync.
+## Entry: 2026-03-05 21:16 +00:00 - PR2-S3 executed clean; PR2 closed with `PR3_READY`
+### Execution summary
+1. Implemented and ran `scripts/dev_substrate/pr2_s3_executor.py` from strict upstream `PR2_S2_READY`.
+2. Execution root:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/`.
+3. Emitted required S3 artifacts:
+   - `pr2_numeric_contract_activation_index.json`,
+   - `pr2_blocker_register.json`,
+   - `pr2_execution_summary.json`,
+   - `pr2_evidence_index.json`,
+   - `pr2_s3_execution_receipt.json`.
+4. Updated latest pointer:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_latest.json` -> `latest_state=S3`.
+
+### S3 gate outcomes
+1. State verdict:
+   - `PR2_S3_READY`, `open_blockers=0`, `next_state=PR3-S0`, `next_gate=PR3_READY`.
+2. S3 fail-closed checks all true:
+   - `B15_activation_index_present`,
+   - `B16_summary_present`,
+   - `B17_open_blockers_zero`,
+   - `B18_verdict_pr3_ready`,
+   - `B19_attributable_spend_present`.
+3. Phase summary verdict:
+   - `pr2_execution_summary.json` -> `verdict=PR3_READY`, `next_gate=PR3_READY`, `open_blockers=0`.
+
+### Remediation during S3 execution
+1. First S3 run produced an evidence index ordering defect:
+   - `pr2_evidence_index.json` was generated before final S3 artifacts, yielding false `missing_required` entries.
+2. Remediated by updating executor ordering:
+   - generate evidence index after writing closure artifacts and receipt,
+   - perform a second pass so the self-entry (`pr2_evidence_index.json`) reflects on-disk state.
+3. Reran S3 immediately from same strict upstream and confirmed:
+   - `missing_required=[]`,
+   - `unreadable_required=[]`.
+
+### Runtime and cost posture
+1. `elapsed_minutes=0.0` vs S3 budget `10`.
+2. `attributable_spend_usd=0.0` vs envelope `5.0`.
+
+### Documentation sync
+1. Updated PR2 authority execution record to `COMPLETE` and added `11.4 PR2-S3 Findings Snapshot`.
+2. Updated main plan:
+   - PR2 section now marks execution status complete,
+   - immediate next step moved to `PR3-S0`,
+   - added `10.10 PR2-S3 Findings Snapshot`.
+
+### Governance
+1. No branch operations, no commit/push.
+2. Scope limited to S3 executor, run-control artifacts, docs, implementation map, and logbook.
