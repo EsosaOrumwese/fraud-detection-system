@@ -2291,15 +2291,20 @@ jobs:
           run_dir.mkdir(parents=True, exist_ok=True)
 
           client = boto3.client("kinesisanalyticsv2", region_name=region)
-          summaries = client.list_applications().get("ApplicationSummaries", [])
-          wsp_apps = [
-              {
-                  "application_name": str(item.get("ApplicationName", "")).strip(),
-                  "application_status": str(item.get("ApplicationStatus", "")).strip(),
-              }
-              for item in summaries
-              if str(item.get("ApplicationName", "")).strip().startswith("fraud-platform-dev-full-wsp")
-          ]
+          wsp_apps = []
+          msf_probe_error = ""
+          try:
+              summaries = client.list_applications().get("ApplicationSummaries", [])
+              wsp_apps = [
+                  {
+                      "application_name": str(item.get("ApplicationName", "")).strip(),
+                      "application_status": str(item.get("ApplicationStatus", "")).strip(),
+                  }
+                  for item in summaries
+                  if str(item.get("ApplicationName", "")).strip().startswith("fraud-platform-dev-full-wsp")
+              ]
+          except Exception as exc:
+              msf_probe_error = f"{type(exc).__name__}:{exc}"
 
           selected = ""
           blockers = []
@@ -2308,14 +2313,25 @@ jobs:
           if requested == "EKS_FLINK_OPERATOR":
               selected = "EKS_FLINK_OPERATOR"
               decision_reason = "USER_REQUESTED_FALLBACK_PATH"
-          elif requested in {"AUTO", "MSF_MANAGED"}:
-              if wsp_apps:
+          elif requested == "MSF_MANAGED":
+              if msf_probe_error:
+                  blockers.append(f"PR3.S1.MANAGED.B02_MSF_SURFACE_UNREADABLE:{msf_probe_error}")
+                  decision_reason = "EXPLICIT_MSF_REQUEST_BUT_MSF_SURFACE_UNREADABLE"
+              elif wsp_apps:
                   selected = "MSF_MANAGED"
                   blockers.append("PR3.S1.MANAGED.B04_MSF_PATH_UNIMPLEMENTED")
                   decision_reason = "WSP_MANAGED_APP_PRESENT_BUT_NO_CANONICAL_MSF_PRESSURE_IMPL_IN_REPO"
               else:
+                  blockers.append("PR3.S1.MANAGED.B03_WSP_MANAGED_APP_MISSING")
+                  decision_reason = "EXPLICIT_MSF_REQUEST_BUT_WSP_MANAGED_APP_MISSING"
+          elif requested == "AUTO":
+              if wsp_apps:
+                  selected = "MSF_MANAGED"
+                  blockers.append("PR3.S1.MANAGED.B04_MSF_PATH_UNIMPLEMENTED")
+                  decision_reason = "AUTO_FOUND_WSP_MANAGED_APP_BUT_NO_CANONICAL_MSF_PRESSURE_IMPL_IN_REPO"
+              else:
                   selected = "EKS_FLINK_OPERATOR"
-                  decision_reason = "WSP_MANAGED_APP_MISSING_LIVE_FALLBACK_SELECTED"
+                  decision_reason = "AUTO_SELECTED_FALLBACK_BECAUSE_WSP_MANAGED_APP_UNREADABLE_OR_MISSING"
           else:
               blockers.append(f"PR3.S1.MANAGED.B01_INVALID_RUNTIME_PATH_REQUEST:{requested}")
 
@@ -2329,6 +2345,7 @@ jobs:
               "runtime_path_requested": requested,
               "runtime_path_active": selected,
               "live_wsp_managed_apps": wsp_apps,
+              "msf_probe_error": msf_probe_error,
               "decision_reason": decision_reason,
               "overall_pass": len(blockers) == 0 and selected == "EKS_FLINK_OPERATOR",
               "blocker_ids": blockers,
