@@ -3790,3 +3790,19 @@ Reasoning:
 5. Why this matters:
    - we now know the next rerun is blocked by workflow runner completeness, not by platform IAM or package storage,
    - once the workflow bootstrap is corrected on `main`, the remote ingress deployment should progress into the actual infrastructure boundary.
+
+## Entry: 2026-03-06 17:46:00 +00:00 - Runtime Terraform failed because the workflow ignored the module's partial-backend contract
+1. The third remote ingress materialization attempt reached Terraform and failed with:
+   - backend `s3` missing required `bucket` and `key` values.
+2. Root cause:
+   - `infra/terraform/dev_full/runtime/versions.tf` declares a partial `backend "s3" {}` block,
+   - the runtime module expects remote execution to supply backend config,
+   - the workflow was calling bare `terraform init -input=false` and therefore violating the module contract.
+3. Existing repo pattern already solves this:
+   - other managed workflows initialize Terraform with `-reconfigure -backend-config=backend.hcl.example`.
+4. Correction applied:
+   - update `dev_full_pr3_ig_edge_materialize.yml` to initialize runtime Terraform with `backend.hcl.example`.
+5. Why this is the correct fix:
+   - preserves the declared remote-state path (`fraud-platform-dev-full-tfstate` / `dev_full/runtime/terraform.tfstate`),
+   - avoids inventing a one-off backend path for this workflow,
+   - keeps the ingress materialization lane aligned with existing dev_full Terraform operating practice.

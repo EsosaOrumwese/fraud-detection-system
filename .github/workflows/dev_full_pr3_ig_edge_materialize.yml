@@ -131,7 +131,7 @@ jobs:
         working-directory: ${{ env.TF_DIR }}
         run: |
           set -euo pipefail
-          terraform init -input=false
+          terraform init -input=false -reconfigure -backend-config=backend.hcl.example
           terraform validate
 
       - name: Apply ingress-edge correction (targeted)
