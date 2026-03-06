@@ -1,10 +1,8 @@
 topics:
   - fp.bus.traffic.fraud.v1
-  - fp.bus.traffic.baseline.v1
   - fp.bus.context.arrival_events.v1
   - fp.bus.context.arrival_entities.v1
   - fp.bus.context.flow_anchor.fraud.v1
-  - fp.bus.context.flow_anchor.baseline.v1
   - fp.bus.rtdl.v1
   - fp.bus.case.triggers.v1
   - fp.bus.audit.v1

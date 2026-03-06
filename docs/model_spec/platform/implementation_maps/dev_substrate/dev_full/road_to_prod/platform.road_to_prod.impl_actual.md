@@ -3447,3 +3447,47 @@ Reasoning:
   - it preserves the narrower permission model,
   - avoids further control-plane branching or a second workflow file just to carry one static runtime handle,
   - keeps the dispatch contract stable while still using the correct cluster scope.
+### 2026-03-06 13:58:00 +00:00 - With broker auth fixed, the remaining PR3-S1 defects are runtime-topic drift and legacy injector drift
+- Post-remediation verification confirms the MSK auth blocker is genuinely cleared:
+  - both IRSA roles now carry `*-msk-data-plane` policies scoped to the live cluster/topic/group resources,
+  - fresh `AL`, `DF`, and `DLA` logs show `Authenticated via SASL / OAuth` rather than `Access denied`.
+- New runtime observation after the restart:
+  - `DF` now emits repeated `DF kafka partition metadata unavailable topic=fp.bus.traffic.baseline.v1; deferring read` warnings.
+- Repo/design interpretation of that warning:
+  - the live managed handles registry for `dev_full` pins `fp.bus.traffic.fraud.v1` as the active traffic lane and does not carry a canonical `fp.bus.traffic.baseline.v1` topic handle,
+  - yet some runtime config surfaces (`config/platform/df/trigger_policy_v0.yaml`, `config/platform/ieg/topics_v0.yaml`, `config/platform/archive_writer/topics_v0.yaml`) still include the baseline topic from older dual-stream assumptions.
+- Why this matters:
+  - the broker auth defect is solved, so this warning is now a real contract drift rather than a hidden symptom,
+  - repeatedly polling a non-existent baseline topic wastes runtime budget and muddies PR3 evidence on the real fraud lane.
+- A second drift remains at the PR3 execution boundary:
+  - `dev_full_pr3_s1_managed.yml` still routes `steady_harness` through `pr3_s1_managed_speedup_dispatch.py`, which is explicitly marked noncanonical,
+  - while the canonical remote injector already exists as `scripts/dev_substrate/pr3_s1_wsp_replay_dispatch.py`.
+- Candidate remediation options considered:
+  - `A` ignore the baseline-topic warning and rerun the synthetic harness because it is already wired:
+    - rejected because it would preserve both runtime waste and noncanonical throughput proof.
+  - `B` create the missing baseline topic purely to silence the warning:
+    - rejected because the active production lane is fraud traffic and creating unused dual-stream surfaces would widen the hot path without evidence it is needed.
+  - `C` repin the runtime configs to the actual active fraud-only lane for this PR3 boundary and switch the PR3-S1 workflow onto the canonical remote WSP replay dispatcher:
+    - accepted because it aligns runtime behavior, measurement claims, and injector semantics to the same production path.
+- Planned implementation from this point:
+  - remove or gate the stale baseline topic references from the active `dev_full` runtime configs that are used in PR3,
+  - replace the workflow's `steady_harness` execution body with the canonical `pr3_s1_wsp_replay_dispatch.py` path,
+  - rerun PR3-S1 on the corrected `WSP -> IG -> MSK -> RTDL` path and only then judge the next blocker.
+### 2026-03-06 14:08:00 +00:00 - PR3 hot path repinned to fraud-only runtime topics and canonical remote WSP replay
+- I removed the stale baseline traffic/context topic subscriptions from the active `dev_full` runtime configs used by PR3:
+  - `config/platform/df/trigger_policy_v0.yaml`
+  - `config/platform/ieg/topics_v0.yaml`
+  - `config/platform/archive_writer/topics_v0.yaml`
+  - `config/platform/context_store_flow_binding/topics_v0.yaml`
+  - `config/platform/context_store_flow_binding/intake_policy_v0.yaml`
+- Reasoning:
+  - the current production-targeted PR3 boundary runs the fraud lane (`s3_event_stream_with_fraud_6B`) and does not pin a live baseline traffic topic in the `dev_full` handles registry,
+  - keeping baseline subscriptions in the active runtime causes unnecessary metadata churn and warning noise once broker auth is healthy,
+  - fraud-only runtime configs for the active lane are the tighter and more truthful contract for this boundary.
+- I also repointed `dev_full_pr3_s1_managed.yml` away from the synthetic inline pressure harness and onto the canonical `scripts/dev_substrate/pr3_s1_wsp_replay_dispatch.py` path.
+- Additional hardening made during that cutover:
+  - the workflow now waits for `fp-pr3-{ieg,ofp,df,al,dla,archive-writer}` to be available before starting the steady window,
+  - the canonical dispatcher now computes weighted API Gateway latency (`p95`/`p99`) in addition to throughput and error posture,
+  - steady evidence rollup is rebuilt from the canonical WSP runtime manifest/summary so the PR3 receipts remain readable and continuous.
+- Important operational consequence:
+  - these topic-config corrections live inside the immutable platform image, so they require a fresh packaging run and runtime rematerialization before the PR3 steady rerun can claim the corrected contract.

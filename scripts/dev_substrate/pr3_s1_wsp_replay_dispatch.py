@@ -231,6 +231,69 @@ def get_apigw_totals(
     }
 
 
+def get_apigw_metric_statistics(
+    cw: Any,
+    *,
+    api_id: str,
+    stage: str,
+    metric_name: str,
+    start_time: datetime,
+    end_time: datetime,
+    period_seconds: int = 60,
+    statistics: list[str] | None = None,
+    extended_statistics: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    effective_start = align_up_to_period(start_time, period_seconds)
+    effective_end = align_down_to_period(end_time, period_seconds)
+    if (effective_end - effective_start).total_seconds() < float(period_seconds):
+        return []
+    req: dict[str, Any] = {
+        "Namespace": "AWS/ApiGateway",
+        "MetricName": metric_name,
+        "Dimensions": [{"Name": "ApiId", "Value": api_id}, {"Name": "Stage", "Value": stage}],
+        "StartTime": effective_start,
+        "EndTime": effective_end,
+        "Period": period_seconds,
+    }
+    if statistics:
+        req["Statistics"] = statistics
+    if extended_statistics:
+        req["ExtendedStatistics"] = extended_statistics
+    result = cw.get_metric_statistics(**req)
+    return list(result.get("Datapoints", []))
+
+
+def weighted_latency_ms(
+    latency_points: list[dict[str, Any]],
+    count_points: list[dict[str, Any]],
+) -> tuple[float, float, str]:
+    count_by_ts: dict[str, float] = {}
+    for row in count_points:
+        ts = row.get("Timestamp")
+        if ts is None:
+            continue
+        count_by_ts[str(ts)] = float(row.get("Sum", 0.0) or 0.0)
+    p95_num = 0.0
+    p99_num = 0.0
+    weight_total = 0.0
+    for row in latency_points:
+        ts = row.get("Timestamp")
+        if ts is None:
+            continue
+        ext = row.get("ExtendedStatistics", {}) or {}
+        p95 = float(ext.get("p95", -1.0) or -1.0)
+        p99 = float(ext.get("p99", -1.0) or -1.0)
+        weight = count_by_ts.get(str(ts), 0.0)
+        if p95 < 0.0 or p99 < 0.0 or weight <= 0.0:
+            continue
+        p95_num += p95 * weight
+        p99_num += p99 * weight
+        weight_total += weight
+    if weight_total > 0.0:
+        return p95_num / weight_total, p99_num / weight_total, "weighted_by_count"
+    return -1.0, -1.0, "unavailable"
+
+
 def get_log_events(logs: Any, *, log_group: str, stream_name: str) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     next_token = None
@@ -348,6 +411,8 @@ def main() -> None:
     ap.add_argument("--max-error-rate-ratio", type=float, default=0.002)
     ap.add_argument("--max-4xx-ratio", type=float, default=0.002)
     ap.add_argument("--max-5xx-ratio", type=float, default=0.0)
+    ap.add_argument("--max-latency-p95-ms", type=float, default=350.0)
+    ap.add_argument("--max-latency-p99-ms", type=float, default=700.0)
     ap.add_argument("--metric-settle-seconds", type=int, default=90)
     ap.add_argument("--log-group", default="/ecs/fraud-platform-dev-full-wsp-ephemeral")
     ap.add_argument("--generated-by", default="codex-gpt5")
@@ -749,6 +814,9 @@ def main() -> None:
         "bin_count": 0,
     }
     metrics_error = ""
+    latency_p95_ms = -1.0
+    latency_p99_ms = -1.0
+    latency_method = "unavailable"
     metrics_end_time = min(window_closed_at or datetime.now(timezone.utc), measurement_end_at)
     metrics_ready_at = metrics_end_time + timedelta(seconds=max(0, int(args.metric_settle_seconds)))
     while datetime.now(timezone.utc) < metrics_ready_at:
@@ -761,6 +829,25 @@ def main() -> None:
             start_time=measurement_start_at,
             end_time=metrics_end_time,
         )
+        latency_rows = get_apigw_metric_statistics(
+            cw,
+            api_id=args.api_id,
+            stage=args.api_stage,
+            metric_name="Latency",
+            start_time=measurement_start_at,
+            end_time=metrics_end_time,
+            extended_statistics=["p95", "p99"],
+        )
+        count_rows = get_apigw_metric_statistics(
+            cw,
+            api_id=args.api_id,
+            stage=args.api_stage,
+            metric_name="Count",
+            start_time=measurement_start_at,
+            end_time=metrics_end_time,
+            statistics=["Sum"],
+        )
+        latency_p95_ms, latency_p99_ms, latency_method = weighted_latency_ms(latency_rows, count_rows)
     except (BotoCoreError, ClientError) as exc:
         metrics_error = f"{type(exc).__name__}:{exc}"
         blockers.append("PR3.S1.WSP.B17_METRICS_UNREADABLE")
@@ -812,6 +899,16 @@ def main() -> None:
         blockers.append(
             f"PR3.S1.WSP.B22_5XX_RATE_BREACH:observed={error_5xx_ratio:.6f}:max={float(args.max_5xx_ratio):.6f}"
         )
+    if request_count_total > 0.0 and (latency_p95_ms < 0.0 or latency_p99_ms < 0.0):
+        blockers.append("PR3.S1.WSP.B23_LATENCY_UNREADABLE")
+    if latency_p95_ms >= 0.0 and latency_p95_ms > float(args.max_latency_p95_ms):
+        blockers.append(
+            f"PR3.S1.WSP.B24_P95_LATENCY_BREACH:observed={latency_p95_ms:.3f}:max={float(args.max_latency_p95_ms):.3f}"
+        )
+    if latency_p99_ms >= 0.0 and latency_p99_ms > float(args.max_latency_p99_ms):
+        blockers.append(
+            f"PR3.S1.WSP.B25_P99_LATENCY_BREACH:observed={latency_p99_ms:.3f}:max={float(args.max_latency_p99_ms):.3f}"
+        )
 
     summary = {
         "phase": "PR3",
@@ -850,6 +947,9 @@ def main() -> None:
             "5xx_rate_ratio": error_5xx_ratio,
             "4xx_total": int(request_4xx_total),
             "5xx_total": int(request_5xx_total),
+            "latency_p95_ms": latency_p95_ms if latency_p95_ms >= 0.0 else None,
+            "latency_p99_ms": latency_p99_ms if latency_p99_ms >= 0.0 else None,
+            "latency_derivation_method": latency_method,
             "early_cutoff_triggered": early_cutoff_triggered,
             "log_event_count": len(all_log_events),
             "aggregate_cli_emitted": aggregate_cli_emitted,
