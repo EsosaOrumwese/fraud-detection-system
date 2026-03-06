@@ -87,7 +87,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "${RUN_DIR}"
-          python scripts/dev_substrate/build_ig_lambda_bundle.py --repo-root . --output "${ZIP_PATH}"
+          python scripts/dev_substrate/build_ig_lambda_bundle.py --repo-root . --output "${ZIP_PATH}" --build-mode docker
           python - <<'PY' >> "$GITHUB_OUTPUT"
           import base64
           import hashlib
@@ -141,11 +141,12 @@ jobs:
           set -euo pipefail
           terraform apply -input=false -auto-approve \
             -target='aws_vpc_endpoint.runtime_interface["ssm"]' \
+            -target='aws_vpc_endpoint.runtime_interface["sqs"]' \
             -target=aws_iam_role_policy_attachment.lambda_ig_vpc_access \
             -target=aws_iam_role_policy.lambda_ig_runtime \
             -target=aws_security_group.lambda_ig \
             -target=aws_lambda_function.ig_handler \
-            -var 'runtime_interface_vpc_endpoint_services=["ec2","ecr.api","ecr.dkr","execute-api","logs","ssm","sts"]' \
+            -var 'runtime_interface_vpc_endpoint_services=["ec2","ecr.api","ecr.dkr","execute-api","logs","sqs","ssm","sts"]' \
             -var "lambda_ig_package_s3_bucket=${{ inputs.package_bucket }}" \
             -var "lambda_ig_package_s3_key=${{ steps.bundle.outputs.package_key }}" \
             -var "lambda_ig_package_sha256_base64=${{ steps.bundle.outputs.sha256_base64 }}"

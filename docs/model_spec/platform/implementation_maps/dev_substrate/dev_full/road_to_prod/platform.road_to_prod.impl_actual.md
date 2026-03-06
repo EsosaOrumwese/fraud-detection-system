@@ -4530,3 +4530,53 @@ Reasoning:
    - `138 @ 95.0` was the last canonical configuration that previously cleared the throughput gate before the ingress hot-path invalidation,
    - the invalidation has now been corrected at the edge envelope,
    - therefore the correct next action is a direct rerun at the last credible calibration point rather than redoing low-speed exploratory underdrive runs.
+## Entry: 2026-03-06 18:26:00 +00:00 - PR3-S1 live 503 failure traced to broken IG Lambda artifact, incomplete failure-path networking, and WSP launch drift
+1. I inspected the authoritative PR3-S1 rerun artifacts for workflow `22772253988` and confirmed the failure is real runtime behavior, not a post-processing defect.
+2. Canonical `WSP` lane evidence from `g3a_s1_wsp_runtime_summary.json` shows:
+   - `request_count_total=2513`,
+   - `admitted_request_count=0`,
+   - `observed_admitted_eps=0.0`,
+   - `5xx_total=2513`,
+   - every one of the `138` WSP lanes exited non-zero after `IG_PUSH_RETRY_EXHAUSTED`.
+3. Direct lane log inspection narrowed the failure surface further:
+   - WSP starts cleanly, reads the Oracle-store engine root, and begins paced replay,
+   - the retries are all `http_503`, not connection errors or local emitter crashes,
+   - therefore the ingress edge is the failing hop.
+4. Lambda log inspection around the same wall-clock window isolated the actual root cause:
+   - every ingress request reaches `fraud-platform-dev-full-ig-handler`,
+   - the handler fails while building the Kafka publisher,
+   - the live exception is `ModuleNotFoundError: No module named 'confluent_kafka'`.
+5. This means the current live Lambda artifact is materially invalid for the design it is claiming to run:
+   - the IG hot path is pinned as `API Gateway -> Lambda -> DynamoDB -> Kafka publish`,
+   - but the deployed Lambda package is missing the native Kafka client required to reach MSK,
+   - so the edge is not actually production-capable even though the capacity envelope is pinned.
+6. I then traced artifact construction back to source and found why this happened:
+   - `scripts/dev_substrate/build_ig_lambda_bundle.py` installs dependencies only from `requirements/ig-lambda.requirements.txt`,
+   - that pinned requirements file does not contain `confluent-kafka`,
+   - therefore the bundle builder deterministically produces a broken IG package.
+7. There is a second production defect on the negative path:
+   - when the Kafka publish import fails, IG attempts to emit to DLQ,
+   - the DLQ send is timing out on `https://sqs.eu-west-2.amazonaws.com/`,
+   - the runtime VPC endpoint set currently omits `sqs`, so the fail-safe path is not network-complete for the VPC Lambda posture.
+8. There is also a canonical WSP launch drift still present in source:
+   - `pr3_s1_wsp_replay_dispatch.py` currently defaults `--assign-public-ip` to `ENABLED`,
+   - that contradicts the private-runtime posture established earlier for production replay,
+   - while not the proximate cause of the 503s, it is a real drift that should be corrected before treating the lane as canonical.
+9. Production interpretation:
+   - this is not a reason to loosen the gate or move PR3 forward,
+   - it is exactly the kind of real production-hardening defect the PR3 steady proof is supposed to expose,
+   - a green claim would be false until the IG package is materially valid, the failure path is network-complete, and the canonical replay injector is back on private-subnet posture.
+10. Alternatives considered:
+   - bypass Kafka publish and certify only HTTP admission:
+     - rejected because it would sever the actual ingest contract and create a toy claim,
+   - swap IG off Lambda immediately:
+     - rejected for this boundary because the current architecture can still meet the production goal if the artifact and network are corrected; a full architecture migration is not the smallest sound production fix,
+   - repair the Lambda build to produce a Lambda-compatible package with the native Kafka client, add the missing SQS runtime endpoint, and repin the WSP dispatcher to private posture:
+     - chosen because it preserves the intended platform shape while fixing the actual runtime defects.
+11. Immediate remediation pinned:
+   - add `confluent-kafka` to the IG Lambda pinned requirements,
+   - harden `build_ig_lambda_bundle.py` so dependency resolution is explicit for the Lambda target ABI/platform rather than left to host-default behavior,
+   - add `sqs` to the runtime interface endpoint set used by the IG edge materialization workflow and runtime defaults,
+   - repin `pr3_s1_wsp_replay_dispatch.py` default `assign_public_ip` to `DISABLED`,
+   - rematerialize the ingress edge,
+   - rerun `PR3-S1` from the same strict boundary and judge it only on the production impact metrics.

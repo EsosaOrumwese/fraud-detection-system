@@ -369,7 +369,7 @@ def main() -> None:
     ap.add_argument("--task-definition", default="fraud-platform-dev-full-wsp-ephemeral")
     ap.add_argument("--subnet-ids", default="subnet-005205ea65a9027fc,subnet-01fd5f1585bfcca47")
     ap.add_argument("--security-group-ids", default="sg-01bfefedcd75ec4b2")
-    ap.add_argument("--assign-public-ip", default="ENABLED")
+    ap.add_argument("--assign-public-ip", default="DISABLED")
     ap.add_argument("--api-id", default="ehwznd2uw7")
     ap.add_argument("--api-stage", default="v1")
     ap.add_argument("--ssm-ig-api-key-path", default="/fraud-platform/dev_full/ig/api_key")
