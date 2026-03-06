@@ -607,12 +607,14 @@ class WorldStreamProducer:
                 output_parallelism = 1
         else:
             output_parallelism = len(output_ids) if len(output_ids) > 1 else 1
+        checkpoint_attempt_id = _resolve_checkpoint_attempt_id()
         checkpoint_pack_key = _checkpoint_scope_key(
             pack_key=pack_key,
             platform_run_id=platform_run_id,
             scenario_run_id=scenario_run_id,
             lane_count=self._lane_count,
             lane_index=self._lane_index,
+            attempt_id=checkpoint_attempt_id,
         )
 
         def _save_checkpoint(cursor: CheckpointCursor, *, reason: str) -> None:
@@ -625,6 +627,7 @@ class WorldStreamProducer:
                     "pack_key_base": pack_key,
                     "platform_run_id": platform_run_id,
                     "scenario_run_id": scenario_run_id,
+                    "checkpoint_attempt_id": checkpoint_attempt_id or None,
                     "output_id": cursor.output_id,
                     "last_file": cursor.last_file,
                     "last_row_index": cursor.last_row_index,
@@ -1091,10 +1094,24 @@ def _checkpoint_scope_key(
     scenario_run_id: str,
     lane_count: int = 1,
     lane_index: int = 0,
+    attempt_id: str = "",
 ) -> str:
-    # Keep checkpoint scope run-bound so new platform runs never resume prior offsets.
-    payload = "|".join((pack_key, platform_run_id, scenario_run_id, str(lane_count), str(lane_index)))
+    # Keep checkpoint scope run-bound while allowing certification reruns to opt into a fresh namespace.
+    payload = "|".join(
+        (
+            pack_key,
+            platform_run_id,
+            scenario_run_id,
+            str(lane_count),
+            str(lane_index),
+            str(attempt_id).strip(),
+        )
+    )
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _resolve_checkpoint_attempt_id() -> str:
+    return str(os.getenv("WSP_CHECKPOINT_ATTEMPT_ID", "")).strip()
 
 
 def _resolve_lane_config() -> tuple[int, int]:

@@ -472,6 +472,7 @@ def main() -> None:
     security_groups = parse_csv(args.security_group_ids)
     blockers: list[str] = []
     submitted_at = datetime.now(timezone.utc)
+    checkpoint_attempt_id = submitted_at.strftime("%Y%m%dT%H%M%SZ")
 
     lane_count = max(1, int(args.lane_count))
     target_request_rate_eps = float(args.target_request_rate_eps) if float(args.target_request_rate_eps) > 0.0 else float(
@@ -492,6 +493,7 @@ def main() -> None:
         {"name": "WSP_TRAFFIC_OUTPUT_IDS", "value": args.traffic_output_ids},
         {"name": "WSP_CONTEXT_OUTPUT_IDS", "value": args.context_output_ids},
         {"name": "WSP_STREAM_SPEEDUP", "value": str(args.stream_speedup)},
+        {"name": "WSP_CHECKPOINT_ATTEMPT_ID", "value": checkpoint_attempt_id},
         {"name": "WSP_CHECKPOINT_DSN", "value": wsp_checkpoint_dsn},
         {"name": "WSP_OUTPUT_CONCURRENCY", "value": str(max(1, args.output_concurrency))},
         {"name": "WSP_HTTP_POOL_MAXSIZE", "value": str(max(16, args.http_pool_maxsize))},
@@ -606,6 +608,7 @@ def main() -> None:
             "early_cutoff_seconds": args.early_cutoff_seconds,
             "early_cutoff_floor_ratio": args.early_cutoff_floor_ratio,
             "stream_speedup": args.stream_speedup,
+            "checkpoint_attempt_id": checkpoint_attempt_id,
             "lane_count": lane_count,
             "output_concurrency": max(1, args.output_concurrency),
             "http_pool_maxsize": max(16, args.http_pool_maxsize),
@@ -618,6 +621,7 @@ def main() -> None:
             "profile_path": args.profile_path,
             "checkpoint_backend": "postgres",
             "checkpoint_dsn_mode": "explicit_or_ssm_aurora",
+            "checkpoint_attempt_id": checkpoint_attempt_id,
             "aurora_db_name": args.aurora_db_name,
             "task_cpu_override": task_cpu_override or None,
             "task_memory_override": task_memory_override or None,

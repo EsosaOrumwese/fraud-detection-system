@@ -3562,3 +3562,54 @@ Reasoning:
   - calibration becomes explicit and auditable,
   - the dispatch surface stays within GitHub limits,
   - future reruns can be tuned from measured ingress evidence without editing workflow code every time.
+### 2026-03-06 15:04:00 +00:00 - PR3-S1 attempt at stream_speedup=19.7 was terminated early once the root cause was proven, to avoid spending the full window on a known underdriven replay
+- By mid-window, live evidence was already conclusive:
+  - API Gateway sustained roughly 1.3k-1.45k eps,
+  - no 4XX or 5XX,
+  - latency remained well within target,
+  - WSP lanes were actively replaying real oracle-store data.
+- This proved the failure mode was not platform instability but source underdrive from the replay calibration.
+- Decision:
+  - cancel run 22761560319 before the full window completed,
+  - stop the currently running WSP ECS tasks,
+  - rerun immediately on the newly pinned explicit stream_speedup=50.0 path.
+- Reason:
+  - continuing the old attempt would only consume more time/cost for a result already analytically known,
+  - terminating early is consistent with the performance-first and cost-control laws once the true cause is established.
+### 2026-03-06 15:12:00 +00:00 - PR3-S1 rerun exposed cross-attempt checkpoint contamination in WSP, which invalidates certification windows on the same platform run
+- The calibrated 50.0 rerun improved throughput, but the lane logs exposed a more fundamental defect:
+  - lanes started far into previously processed row offsets,
+  - replay was resuming prior offsets instead of starting a fresh certification attempt.
+- Root cause in code:
+  - _checkpoint_scope_key(...) is currently derived from pack_key + platform_run_id + scenario_run_id + lane_count + lane_index,
+  - repeated certification attempts on the same platform_run_id therefore reuse the same checkpoint namespace.
+- Why this is a production-readiness blocker:
+  - certification evidence becomes non-repeatable because later attempts inherit state from earlier failed attempts,
+  - sample-minima and throughput measurements no longer represent a full fresh replay window,
+  - operational resumability and certification freshness are being conflated into one namespace.
+- Production-grade correction direction:
+  - preserve checkpoint resumability within a single attempt,
+  - add an explicit per-attempt checkpoint namespace/token so certification reruns start fresh without changing the pinned platform_run_id,
+  - pass that namespace from the PR3 dispatcher into each WSP lane,
+  - rebuild the immutable image and rerun on a fresh checkpoint namespace.
+- Immediate action taken:
+  - cancel run 22762248277,
+  - stop active WSP lanes,
+  - patch WSP checkpoint scoping before any further PR3-S1 rerun.
+### 2026-03-06 15:18:00 +00:00 - Implemented fresh-attempt checkpoint namespacing for PR3 certification reruns
+- Code change applied in src/fraud_detection/world_streamer_producer/runner.py:
+  - _checkpoint_scope_key(...) now accepts an ttempt_id,
+  - runtime reads WSP_CHECKPOINT_ATTEMPT_ID,
+  - checkpoint payloads/session events now record the attempt namespace.
+- Dispatcher change applied in scripts/dev_substrate/pr3_s1_wsp_replay_dispatch.py:
+  - each dispatch now generates a fresh UTC checkpoint_attempt_id,
+  - injects it into every WSP ECS lane via WSP_CHECKPOINT_ATTEMPT_ID,
+  - records the attempt id in the runtime manifest.
+- Semantics after the fix:
+  - resumability is preserved inside one attempt,
+  - certification reruns on the same pinned platform_run_id no longer resume prior offsets,
+  - provenance remains intact because platform_run_id is unchanged while replay-attempt identity is explicit.
+- Next steps now required:
+  1. rebuild immutable image,
+  2. repin WSP ECS family to the new digest,
+  3. rerun PR3-S1 on stream_speedup=50.0 with a fresh checkpoint namespace.
