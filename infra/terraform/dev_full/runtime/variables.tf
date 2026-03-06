@@ -339,6 +339,16 @@ variable "ig_service_health_check_grace_period_seconds" {
   default = 180
 }
 
+variable "ig_service_deployment_minimum_healthy_percent" {
+  type    = number
+  default = 50
+}
+
+variable "ig_service_deployment_maximum_percent" {
+  type    = number
+  default = 109
+}
+
 variable "ig_service_health_bus_probe_mode" {
   type    = string
   default = "none"

@@ -5696,3 +5696,75 @@ Reasoning:
    - rebuild and redeploy the shared image,
    - rerun canonical `PR3-S1` on the new receipt mode,
    - judge the result only on impact metrics.
+## Entry: 2026-03-06 23:46:00 +00:00 - The DDB hot-receipt correction is implemented locally, but PR3-S1 cannot be judged again until the managed ingress service is rolled onto a freshly published immutable image digest
+1. The code-level hot-path correction is complete and locally validated, but the live ECS ingress tasks are still running the previous immutable image digest.
+2. That means any further PR3-S1 judgment without a fresh image publish and redeploy would be analytically invalid because the measured service would not contain the latest receipt-path correction.
+3. Production rule applied here:
+   - do not keep load-testing a stale runtime and then misattribute the result to the new design;
+   - first refresh the artifact, then refresh the live service, then measure.
+4. Exact execution boundary chosen:
+   - dispatch the managed packaging lane (`dev_full_m1_packaging.yml`) with explicit OIDC/ECR inputs;
+   - capture the new digest from the workflow evidence;
+   - roll only the managed ingress resources with explicit `ig_service_enabled=true` and explicit `ig_service_image_uri=<new digest>` so the prior Terraform control defect cannot recur;
+   - verify the service reaches steady state on the new task definition before any rerun.
+5. Safety conditions that remain in force for the redeploy:
+   - no target-only Terraform apply without the explicit canonical service pins;
+   - no fresh PR3-S1 run until ECS shows the new task definition/image is actually live;
+   - read the new impact metrics against the production thresholds only after confirming the request path is executing the updated code.
+6. If the refreshed image materially improves tail latency but still remains below the `3000 eps` steady target, the next work will continue from the live metrics rather than from design assumption.
+## Entry: 2026-03-06 23:29:00 +00:00 - Fresh immutable runtime image published for the hot-receipt correction; live ingress can now be redeployed onto the corrected artifact boundary
+1. I dispatched the managed packaging lane `dev_full_m1_packaging.yml` against branch `cert-platform` with explicit OIDC/ECR inputs so the latest ingress correction is materialized as an immutable image rather than inferred from the local tree.
+2. Packaging run result:
+   - GitHub Actions run: `22786239105`
+   - source commit: `5bb042bb86f400c43aed0213bafa37e212d650fd`
+   - image digest: `sha256:e3e6ee322b81039c0c2f9a349c96eb884b8c47a01a83f7279c414945c0e69813`
+   - canonical image URI: `230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-full@sha256:e3e6ee322b81039c0c2f9a349c96eb884b8c47a01a83f7279c414945c0e69813`
+3. Why this matters operationally:
+   - the previous live ingress service was still running digest `sha256:aa9cc0b2...`, so any further runtime measurement would have been against stale code;
+   - the new digest is now the sole valid artifact for judging the DDB hot-receipt correction live.
+4. Immediate next action is a controlled ingress-only redeploy using explicit service-enable and image pins so the refreshed artifact becomes the live measurement boundary for the next canonical `PR3-S1` rerun.
+## Entry: 2026-03-06 23:36:00 +00:00 - The fresh image rollout exposed a production-operational constraint: the current ingress service rollout policy assumes overlap capacity that the account does not actually have
+1. I published the new digest and attempted a controlled ingress-only redeploy to move the live service onto the hot-receipt correction.
+2. ECS created task definition `:10` with the correct new digest and `IG_RECEIPT_STORAGE_MODE=ddb_hot`, but the service rolled back before the new deployment could replace the old one.
+3. Root cause is now clear from ECS service events and Service Quotas, not speculation:
+   - current steady ingress fleet = `32 tasks x 4 vCPU = 128 vCPU`;
+   - account Fargate on-demand vCPU quota in `eu-west-2` = `140 vCPU`;
+   - current ECS service rollout policy is `deployment_minimum_healthy_percent=50`, `deployment_maximum_percent=200`.
+4. Why that fails operationally:
+   - a `200%` rollout policy assumes the service may temporarily overlap old and new tasks up to `64` tasks during deployment;
+   - this environment cannot do that because it only has `12 vCPU` headroom above the steady `128 vCPU` posture;
+   - ECS therefore cannot place enough replacement tasks, trips the circuit breaker, and rolls back to the previous task definition even when the new image itself is healthy.
+5. This is not an app-runtime defect and not a reason to back away from the design correction.
+6. Production-grade interpretation:
+   - if the service is going to remain on this quota envelope, the rollout policy must be quota-aware;
+   - alternatively the quota must be raised so that `200%` overlap is materially possible.
+7. Chosen immediate correction for `dev_full` so progress remains honest and reproducible:
+   - pin ingress deployment policy as quota-aware in Terraform rather than depending on impossible overlap capacity;
+   - specifically expose deployment min/max percent as explicit service controls and lower `deployment_maximum_percent` so image refreshes can progress by draining old tasks before starting enough new ones to fit the quota.
+8. I am keeping the service on the stable old deployment while applying that rollout correction, then I will redeploy the new digest again and verify the running tasks are actually on the new artifact before any PR3-S1 rerun.
+## Entry: 2026-03-06 23:41:00 +00:00 - ECS Availability Zone Rebalancing imposes an additional rollout floor: deployment maximumPercent must remain above 100, so the quota-aware ingress rollout band is repinned to a narrow overlap instead of zero overlap
+1. The first quota-aware rollout attempt with `deployment_maximum_percent=100` failed before changing the service because ECS rejects that posture when Availability Zone Rebalancing is enabled.
+2. AWS error was explicit: `Availability Zone Rebalancing does not support maximumPercent <= 100`.
+3. That means the correct production fix is not exact zero overlap.
+4. The correct fix for this environment is the smallest overlap band that:
+   - remains above the AZ-rebalancing floor,
+   - still fits within the `140 vCPU` account quota,
+   - allows image refreshes without forcing a rollback.
+5. I therefore repinned the ingress deployment ceiling to `109%`.
+6. Why `109%`:
+   - steady state is `32 tasks`;
+   - `109%` allows at most a very narrow overlap window (effectively `34` total tasks if rounded down), which stays inside the quota envelope (`34 x 4 vCPU = 136 vCPU`);
+   - this preserves a controlled rolling update instead of unsafe full drain or impossible 200% overlap.
+7. I am now reapplying the redeploy under this narrow-overlap policy and will only accept it as complete once the running tasks themselves show the new digest.
+## Entry: 2026-03-06 23:42:00 +00:00 - The managed ingress service is now successfully redeployed on the corrected digest after repinning the ECS rollout policy to a quota-aware narrow-overlap band
+1. After repinning the ECS deployment policy to `maximumPercent=109`, the service successfully completed the new deployment on task definition `fraud-platform-dev-full-ig-service:10`.
+2. Verified live runtime state:
+   - running task image digest: `sha256:e3e6ee322b81039c0c2f9a349c96eb884b8c47a01a83f7279c414945c0e69813`
+   - `IG_RECEIPT_STORAGE_MODE=ddb_hot`
+   - gunicorn posture remains `8 workers x 8 threads`
+   - deployment configuration now `minimumHealthyPercent=50`, `maximumPercent=109`
+3. Operational conclusion:
+   - the image-refresh path is no longer blocked by impossible overlap assumptions under the current Fargate quota;
+   - the service is on the intended hot-receipt design and is now a valid target for the next canonical `PR3-S1` rerun.
+4. This change matters beyond the immediate rerun because it corrects a real production-operations defect: image refreshes for the ingress lane must be materially deployable inside the environment's quota envelope, not just theoretically deployable on paper.
+5. Immediate next action is to rerun the canonical `PR3-S1` steady window and re-measure throughput/tail latency now that the admit path is no longer synchronously blocked on cold receipt object persistence.

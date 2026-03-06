@@ -1255,8 +1255,8 @@ resource "aws_ecs_service" "ig_service" {
     rollback = true
   }
 
-  deployment_minimum_healthy_percent = 50
-  deployment_maximum_percent         = 200
+  deployment_minimum_healthy_percent = floor(var.ig_service_deployment_minimum_healthy_percent)
+  deployment_maximum_percent         = floor(var.ig_service_deployment_maximum_percent)
   health_check_grace_period_seconds  = floor(var.ig_service_health_check_grace_period_seconds)
 
   network_configuration {
