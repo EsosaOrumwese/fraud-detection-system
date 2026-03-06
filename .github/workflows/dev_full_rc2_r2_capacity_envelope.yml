@@ -339,7 +339,11 @@ jobs:
           print((Path(os.environ["RUN_DIR"]) / "rc2_r2_capacity_uplift.auto.tfvars.json").resolve())
           PY
           )"
-          terraform -chdir="${TF_DIR}" apply -input=false -auto-approve -var-file="${TFVARS_PATH}"
+          terraform -chdir="${TF_DIR}" apply -input=false -auto-approve \
+            -target=aws_apigatewayv2_stage.ig_v1 \
+            -target=aws_lambda_function.ig_handler \
+            -target=aws_eks_node_group.m6f_workers \
+            -var-file="${TFVARS_PATH}"
           terraform -chdir="${TF_DIR}" output -json > "${{ steps.run_meta.outputs.run_dir }}/terraform_outputs_post.json"
 
       - name: Build RC2.R2 gate artifacts and publish with readback

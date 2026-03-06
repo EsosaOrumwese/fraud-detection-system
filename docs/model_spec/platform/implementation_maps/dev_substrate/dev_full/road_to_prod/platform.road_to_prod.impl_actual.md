@@ -4469,3 +4469,28 @@ Reasoning:
    - add `iam:GetOpenIDConnectProvider` for the pinned EKS OIDC provider ARN to the same policy,
    - apply that policy live,
    - rerun RC2.R2 again from the same uplift target.
+## Entry: 2026-03-06 18:00:00 +00:00 - RC2.R2 apply scope repinned from full runtime module to authoritative capacity surfaces only
+1. After the OIDC read repairs, the RC2.R2 runtime apply progressed far enough to show a different class of problem:
+   - the runtime module plan now includes unrelated pending changes such as Step Functions state-machine version inspection and IRSA MSK data-plane policy creation,
+   - those are not part of the RC2.R2 capacity-envelope acceptance boundary.
+2. This changes the correct engineering decision.
+3. My earlier bias toward full runtime-module apply preserved maximum truth, but the new evidence shows it is conflating unrelated runtime drift with the specific edge-capacity gate we are trying to prove.
+4. Production reasoning:
+   - a capacity-envelope change for the ingress edge should have a tightly-scoped blast radius,
+   - the control plane for that gate should mutate and verify only the surfaces that define the edge envelope,
+   - dragging in unrelated runtime changes makes the gate brittle and obscures whether the ingress capacity fix itself is valid.
+5. Therefore I am repinning RC2.R2 managed apply scope to the three authoritative capacity resources only:
+   - `aws_apigatewayv2_stage.ig_v1`,
+   - `aws_lambda_function.ig_handler`,
+   - `aws_eks_node_group.m6f_workers`.
+6. Why this is not a shortcut:
+   - pre/post verification remains on the live APIGW/Lambda/EKS surfaces,
+   - the gate still fail-closes if those live values do not match the required envelope,
+   - unrelated runtime drifts remain real work, but they belong to their own phase or remediation lane rather than contaminating RC2.R2.
+7. This is the production-correct separation of concerns:
+   - RC2.R2 proves ingress capacity posture,
+   - other runtime module drifts are tracked explicitly and handled separately.
+8. Next action pinned:
+   - patch the workflow apply step to use targeted Terraform apply for those three resources,
+   - rerun RC2.R2 again,
+   - if the targeted uplift succeeds, capture/readback and move back to canonical `PR3-S1`.
