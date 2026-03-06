@@ -1052,7 +1052,7 @@ resource "aws_ecs_task_definition" "ig_service" {
       command = [
         "/bin/sh",
         "-lc",
-        "exec gunicorn --bind 0.0.0.0:$${IG_SERVICE_PORT} --workers $${IG_GUNICORN_WORKERS} --threads $${IG_GUNICORN_THREADS} --worker-class gthread --timeout $${IG_GUNICORN_TIMEOUT_SECONDS} --factory 'fraud_detection.ingestion_gate.managed_service:create_app()'"
+        "exec gunicorn --bind 0.0.0.0:$${IG_SERVICE_PORT} --workers $${IG_GUNICORN_WORKERS} --threads $${IG_GUNICORN_THREADS} --worker-class gthread --timeout $${IG_GUNICORN_TIMEOUT_SECONDS} 'fraud_detection.ingestion_gate.managed_service:create_app()'"
       ]
       environment = [
         {

@@ -4951,3 +4951,72 @@ Reasoning:
    - apply the runtime stack with `ig_service_enabled=true` and the pinned image URI,
    - verify ECS service health and resolved SSM URL,
    - rerun bounded `PR3-S1` against the service endpoint from the existing strict PR3 execution root.
+## Entry: 2026-03-06 20:50:00 +00:00 - Live materialization plan for the managed IG service and PR3-S1 bounded rerun
+1. The next boundary is no longer design choice; it is live proof.
+2. I am treating the service-backed ingress rollout as a production change with explicit acceptance gates, not as a convenience deploy.
+3. Live materialization plan:
+   - apply only the new `ig_service_*` runtime resources plus the SSM publication of the service URL,
+   - pin the image to the freshly built immutable digest,
+   - keep the existing API Gateway/Lambda edge in place as a non-canonical fallback while the service path is verified,
+   - verify the ALB target group reaches `healthy`, ECS task count reaches the desired value, and the SSM URL resolves,
+   - run a bounded `PR3-S1` canonical replay against the SSM-resolved service URL from the existing strict PR3 execution root,
+   - inspect runtime metrics and task logs immediately rather than burning a full window on a broken lane.
+4. Production acceptance for this deployment step:
+   - no container boot-loop,
+   - no ALB health-check flapping,
+   - no missing dependency on the private subnet path,
+   - no systemic `5xx` from the service edge under bounded replay,
+   - evidence artifacts land under `runs/dev_substrate/dev_full/road_to_prod/run_control/pr3_20260306T021900Z/`.
+5. If the first bounded replay misses target, I will treat that as fresh throughput evidence to diagnose and correct, not as a reason to retreat to the old Lambda path.
+6. The metrics I care about first are:
+   - admitted EPS,
+   - `4xx/5xx` split,
+   - `p95/p99` end-to-end latency,
+   - ALB target health,
+   - ECS CPU/memory utilization,
+   - application log signatures around idempotency, Kafka publish, and request timeout behavior.
+7. The immediate risk areas are:
+   - VPC reachability from ECS tasks to private dependencies,
+   - container start-command/runtime import issues,
+   - runtime-role parity gaps versus the Lambda role,
+   - a new bottleneck caused by the service shell itself rather than the managed-edge core.
+8. None of those risk areas justify shortcutting the architecture decision. They justify measuring the live service carefully and correcting the actual bottleneck that appears.
+## Entry: 2026-03-06 21:05:00 +00:00 - First live ECS boot fault isolated to the service shell, not the ingress core
+1. The targeted Terraform apply materially created the managed service substrate and published the internal service URL to SSM.
+2. Health did not stabilize on first boot:
+   - ECS service stayed at `runningCount=0`, `pendingCount=6`,
+   - ALB targets repeatedly entered `draining`,
+   - container logs were consistent across restarts.
+3. The container log signature is explicit:
+   - `usage: gunicorn [OPTIONS] [APP_MODULE]`
+   - `gunicorn: error: unrecognized arguments: --factory`
+4. Production interpretation:
+   - the live defect is not in `DDB`, `Kafka`, private networking, or the ingress business logic yet,
+   - the service never reaches Python app initialization because the process command is invalid for the pinned `gunicorn` version.
+5. This is a shell/runtime packaging defect in the service wrapper layer, not a reason to retreat from the service-backed architecture.
+6. Chosen correction:
+   - remove the unsupported `--factory` CLI flag,
+   - keep the factory invocation in the supported `module:create_app()` form,
+   - redeploy the task definition and recheck ECS/ALB health before any replay load is sent.
+7. This is exactly why the bounded health-first rollout was pinned: the first live failure is cheap to isolate and correct before it pollutes PR3 throughput evidence.
+## Entry: 2026-03-06 21:15:00 +00:00 - Managed IG service reached healthy live posture after the shell fix
+1. After removing the unsupported `gunicorn --factory` flag and forcing a clean rollout on task definition revision `:2`, the service reached the expected live baseline:
+   - ECS `desiredCount=6`,
+   - ECS `runningCount=6`,
+   - ALB target health reports healthy targets on both private subnets,
+   - SSM service URL remains published at `/fraud-platform/dev_full/ig/service_url`.
+2. The log signature on the healthy tasks confirms the service shell is now correct:
+   - `Starting gunicorn 23.0.0`,
+   - `Listening at: http://0.0.0.0:8080`,
+   - worker boot messages with no immediate exit loop.
+3. Production interpretation:
+   - the service-backed ingress correction has cleared bootstrap/runtime-shell defects,
+   - the next boundary is actual bounded replay throughput and latency under canonical remote `WSP` traffic.
+4. This closes the infrastructure-materialization gate for the service edge:
+   - no boot-loop,
+   - no health-check flap,
+   - no unresolved ALB/ECS liveness fault.
+5. The next work remains strictly on the PR3 evidence path:
+   - run bounded canonical `PR3-S1` against the SSM-resolved service endpoint,
+   - inspect impact metrics first (`admitted_eps`, latency tails, `4xx/5xx`, sample volume),
+   - remediate whichever production bottleneck the fresh bounded window exposes.
