@@ -145,6 +145,9 @@ Intent:
 1. Run full rehearsal mission with controlled incident and controlled change.
 2. Close with bounded cost and idle-safe teardown.
 
+Binding rehearsal profile:
+PR5 SHALL execute G4 as a single continuous 24-hour wall-clock mission under `RC2-S` using a declared `injection_path` (`via_IG` preferred for end-to-end claimability). The 24-hour duration is mandatory for PR5 claimability: it is not advisory, may not be replaced by a shorter “meaningful window,” and may not be split across multiple runs. `S1` SHALL be interpreted as the entry into this 24-hour continuous mission, with `S2`–`S5` executed as required mission events/artifact closures within the same run. Any underrun, segmentation, or substitute shorter duration SHALL be treated as an explicit blocker and PR5 MUST exit non-PASS / `HOLD_REMEDIATE`.
+
 Subphase template:
 1. `S0` rehearsal entry lock.
 2. `S1` sustained operation segment.
