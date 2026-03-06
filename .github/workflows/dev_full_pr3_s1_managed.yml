@@ -76,6 +76,11 @@ on:
         required: true
         default: "fraud-platform-rtdl"
         type: string
+      msk_cluster_arn:
+        description: "Pinned MSK cluster ARN for runtime IAM remediation"
+        required: true
+        default: "arn:aws:kafka:eu-west-2:230372904534:cluster/fraud-platform-dev-full-msk/6d6d345b-fb39-4e7b-a245-53525b4648b6-s3"
+        type: string
       worker_image_uri:
         description: "Worker image used by the managed fallback lane"
         required: true
@@ -189,43 +194,21 @@ jobs:
         shell: bash
         env:
           RUN_DIR: ${{ steps.remediation_meta.outputs.run_dir }}
+          MSK_CLUSTER_ARN: ${{ inputs.msk_cluster_arn }}
         run: |
           set -euo pipefail
           python - <<'PY'
           import json
           import os
-          import subprocess
           from pathlib import Path
 
           run_dir = Path(os.environ["RUN_DIR"])
-
-          proc = subprocess.run(
-              [
-                  "aws",
-                  "kafka",
-                  "list-clusters-v2",
-                  "--query",
-                  "ClusterInfoList[?ClusterName=='fraud-platform-dev-full-msk'] | [0]",
-                  "--output",
-                  "json",
-              ],
-              check=True,
-              capture_output=True,
-              text=True,
-          )
-          cluster = json.loads(proc.stdout)
-          cluster_arn = str(cluster.get("ClusterArn", "")).strip()
-          cluster_name = str(cluster.get("ClusterName", "")).strip()
-          if not cluster_arn or not cluster_name:
-              raise SystemExit("LIVE_MSK_CLUSTER_NOT_RESOLVED")
+          cluster_arn = str(os.environ["MSK_CLUSTER_ARN"]).strip()
+          if "cluster/" not in cluster_arn:
+              raise SystemExit("PINNED_MSK_CLUSTER_ARN_INVALID")
           cluster_suffix = cluster_arn.split("cluster/", 1)[1]
-          _cluster_name_from_arn, cluster_uuid = cluster_suffix.split("/", 1)
-          account = subprocess.run(
-              ["aws", "sts", "get-caller-identity", "--query", "Account", "--output", "text"],
-              check=True,
-              capture_output=True,
-              text=True,
-          ).stdout.strip()
+          cluster_name, cluster_uuid = cluster_suffix.split("/", 1)
+          account = cluster_arn.split(":", 5)[4]
           region = os.environ["AWS_REGION"]
 
           policy = {

@@ -3423,3 +3423,17 @@ Reasoning:
   - `dev_full_pr3_s1_managed.yml` now resolves the live MSK cluster via AWS APIs, generates the exact role policy document on the runner, applies it to the `rtdl` and `decision_lane` IRSA roles, restarts the affected deployments, and verifies post-restart logs for cleared auth errors.
 - Follow-on requirement retained:
   - the GitHub OIDC role still needs a future fix for `tfstate` bucket access so that remote Terraform reconciliation can become fully self-hosted again.
+### 2026-03-06 13:38:00 +00:00 - Live MSK discovery via AWS control-plane permissions is unnecessary for the PR3 repair, so the workflow is repinned to the canonical cluster ARN
+- The first runner-side AWS-API remediation attempt failed before mutation because the GitHub OIDC role could not execute `kafka:list-clusters-v2`.
+- This is another control-plane permission gap, but unlike the runtime IAM defect it is not semantically necessary for the repair itself.
+- Reasoning:
+  - the remediation only needs the canonical MSK cluster ARN to derive the topic/group wildcard resource ARNs,
+  - the cluster ARN is already pinned for the environment and stable for this execution boundary,
+  - requiring extra Kafka control-plane discovery permissions would broaden the GitHub runner role without improving runtime correctness.
+- Decision:
+  - remove the `list-clusters-v2` dependency from the workflow,
+  - pass/use the pinned `MSK_CLUSTER_ARN` input directly and derive `cluster_name`, `cluster_uuid`, `account`, and the topic/group resource scopes from that ARN.
+- Production benefit:
+  - narrower execution permissions on the GitHub runner,
+  - fewer control-plane dependencies between the repair job and the runtime hot path,
+  - faster deterministic reruns for the same PR3 boundary.
