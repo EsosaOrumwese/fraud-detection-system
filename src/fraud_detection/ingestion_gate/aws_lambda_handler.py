@@ -8,6 +8,7 @@ import logging
 import os
 import time
 import hmac
+import threading
 from decimal import Decimal
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -58,6 +59,7 @@ _API_KEY_CACHE = {
 }
 
 _GATE_CACHE: dict[str, IngestionGate] = {}
+_GATE_CACHE_LOCK = threading.Lock()
 
 
 def _bundle_root() -> Path:
@@ -460,127 +462,133 @@ def _gate_for(platform_run_id: str) -> IngestionGate:
     if cached is not None:
         return cached
 
-    init_started = time.perf_counter()
-    _ensure_kafka_bootstrap_env()
+    with _GATE_CACHE_LOCK:
+        cached = _GATE_CACHE.get(platform_run_id)
+        if cached is not None:
+            return cached
 
-    schema_policy_ref = _runtime_path("config", "platform", "ig", "schema_policy_v0.yaml")
-    class_map_ref = _runtime_path("config", "platform", "ig", "class_map_v0.yaml")
-    partitioning_profiles_ref = _runtime_path("config", "platform", "ig", "partitioning_profiles_v0.yaml")
-    schema_root = Path(_runtime_path("docs", "model_spec", "platform", "contracts"))
-    engine_contracts_root = Path(_runtime_path("docs", "model_spec", "data-engine", "interface_pack", "contracts"))
+        init_started = time.perf_counter()
+        _ensure_kafka_bootstrap_env()
 
-    policy = SchemaPolicy.load(Path(schema_policy_ref))
-    class_map = ClassMap.load(Path(class_map_ref))
-    _validate_rtdl_policy_alignment(policy, class_map)
-    policy_digest = compute_policy_digest(
-        [
-            Path(schema_policy_ref),
-            Path(class_map_ref),
-            Path(partitioning_profiles_ref),
-        ]
-    )
-    policy_rev = PolicyRev(
-        policy_id="ig_policy",
-        revision=_policy_revision(),
-        content_digest=policy_digest,
-    )
-    partitioning = PartitioningProfiles(partitioning_profiles_ref)
-    schema_enforcer = SchemaEnforcer(
-        envelope_registry=SchemaRegistry(engine_contracts_root),
-        payload_registry_root=_bundle_root(),
-        policy=policy,
-    )
-    contract_registry = SchemaRegistry(schema_root / "ingestion_gate")
-    store = observe_object_store(
-        build_object_store(
-            _object_store_root(),
-            s3_endpoint_url=str(os.getenv("OBJECT_STORE_ENDPOINT", "")).strip() or None,
-            s3_region=str(os.getenv("OBJECT_STORE_REGION") or os.getenv("AWS_REGION") or os.getenv("AWS_DEFAULT_REGION") or "").strip() or None,
-            s3_path_style=_env_bool("OBJECT_STORE_PATH_STYLE", False),
+        schema_policy_ref = _runtime_path("config", "platform", "ig", "schema_policy_v0.yaml")
+        class_map_ref = _runtime_path("config", "platform", "ig", "class_map_v0.yaml")
+        partitioning_profiles_ref = _runtime_path("config", "platform", "ig", "partitioning_profiles_v0.yaml")
+        schema_root = Path(_runtime_path("docs", "model_spec", "platform", "contracts"))
+        engine_contracts_root = Path(_runtime_path("docs", "model_spec", "data-engine", "interface_pack", "contracts"))
+
+        policy = SchemaPolicy.load(Path(schema_policy_ref))
+        class_map = ClassMap.load(Path(class_map_ref))
+        _validate_rtdl_policy_alignment(policy, class_map)
+        policy_digest = compute_policy_digest(
+            [
+                Path(schema_policy_ref),
+                Path(class_map_ref),
+                Path(partitioning_profiles_ref),
+            ]
         )
-    )
-    receipt_writer = ReceiptWriter(store=store, prefix=f"{platform_run_id}/ig")
-    admission_index = DdbAdmissionIndex(
-        table_name=str(os.getenv("IG_IDEMPOTENCY_TABLE", "")).strip(),
-        hash_key_name=str(os.getenv("IG_HASH_KEY", "dedupe_key")).strip() or "dedupe_key",
-    )
-    ops_index = NoopOpsIndex()
-    bus = build_kafka_publisher(client_id=f"ig-{_platform_profile_id()}-lambda")
-    wiring = SimpleNamespace(
-        profile_id=_platform_profile_id(),
-        policy_rev=policy_rev.revision,
-        event_bus_kind="kafka",
-        event_bus_path=None,
-        partitioning_profile_id=_partitioning_profile_id(),
-        health_deny_on_amber=False,
-        health_amber_sleep_seconds=0.0,
-        auth_mode="api_key",
-        auth_allowlist=[],
-        service_token_secrets=[],
-        api_key_header=str(os.getenv("IG_AUTH_HEADER_NAME", "X-IG-Api-Key")).strip() or "X-IG-Api-Key",
-    )
-    bus_probe_streams = _bus_probe_streams(wiring, partitioning, class_map)
-    health = HealthProbe(
-        store=store,
-        bus=bus,
-        ops_index=ops_index,
-        probe_interval_seconds=_env_int("IG_HEALTH_PROBE_INTERVAL_SECONDS", 30),
-        max_publish_failures=_env_int("IG_BUS_PUBLISH_FAILURE_THRESHOLD", 3),
-        max_read_failures=_env_int("IG_STORE_READ_FAILURE_THRESHOLD", 3),
-        health_path=f"{platform_run_id}/ig/health/last_probe.json",
-        bus_probe_mode=str(os.getenv("IG_HEALTH_BUS_PROBE_MODE", "describe")).strip().lower(),
-        bus_probe_streams=bus_probe_streams,
-    )
-    metrics = MetricsRecorder(flush_interval_seconds=_env_int("IG_METRICS_FLUSH_SECONDS", 30))
-    governance = GovernanceEmitter(
-        store=store,
-        bus=bus,
-        partitioning=partitioning,
-        quarantine_spike_threshold=_env_int("IG_QUARANTINE_SPIKE_THRESHOLD", 25),
-        quarantine_spike_window_seconds=_env_int("IG_QUARANTINE_SPIKE_WINDOW_SECONDS", 60),
-        policy_id=policy_rev.policy_id,
-        prefix=platform_run_id,
-        policy_activation_audit_mode=str(
-            os.getenv("IG_POLICY_ACTIVATION_AUDIT_MODE", "store_only")
-        ).strip()
-        or "store_only",
-    )
-    governance.emit_policy_activation(
-        {
-            "policy_id": policy_rev.policy_id,
-            "revision": policy_rev.revision,
-            "content_digest": policy_rev.content_digest,
-        }
-    )
-    gate = IngestionGate(
-        wiring=wiring,
-        policy=policy,
-        class_map=class_map,
-        policy_rev=policy_rev,
-        partitioning=partitioning,
-        schema_enforcer=schema_enforcer,
-        contract_registry=contract_registry,
-        receipt_writer=receipt_writer,
-        admission_index=admission_index,
-        ops_index=ops_index,
-        bus=bus,
-        store=store,
-        health=health,
-        metrics=metrics,
-        governance=governance,
-        auth_mode="api_key",
-        auth_allowlist=[],
-        auth_service_token_secrets=[],
-        api_key_header=str(os.getenv("IG_AUTH_HEADER_NAME", "X-IG-Api-Key")).strip() or "X-IG-Api-Key",
-        push_limiter=RateLimiter(0),
-    )
-    _GATE_CACHE[platform_run_id] = gate
-    LOGGER.info(
-        "IG gate initialized platform_run_id=%s init_seconds=%.3f",
-        platform_run_id,
-        time.perf_counter() - init_started,
-    )
-    return gate
+        policy_rev = PolicyRev(
+            policy_id="ig_policy",
+            revision=_policy_revision(),
+            content_digest=policy_digest,
+        )
+        partitioning = PartitioningProfiles(partitioning_profiles_ref)
+        schema_enforcer = SchemaEnforcer(
+            envelope_registry=SchemaRegistry(engine_contracts_root),
+            payload_registry_root=_bundle_root(),
+            policy=policy,
+        )
+        contract_registry = SchemaRegistry(schema_root / "ingestion_gate")
+        store = observe_object_store(
+            build_object_store(
+                _object_store_root(),
+                s3_endpoint_url=str(os.getenv("OBJECT_STORE_ENDPOINT", "")).strip() or None,
+                s3_region=str(os.getenv("OBJECT_STORE_REGION") or os.getenv("AWS_REGION") or os.getenv("AWS_DEFAULT_REGION") or "").strip() or None,
+                s3_path_style=_env_bool("OBJECT_STORE_PATH_STYLE", False),
+            )
+        )
+        receipt_writer = ReceiptWriter(store=store, prefix=f"{platform_run_id}/ig")
+        admission_index = DdbAdmissionIndex(
+            table_name=str(os.getenv("IG_IDEMPOTENCY_TABLE", "")).strip(),
+            hash_key_name=str(os.getenv("IG_HASH_KEY", "dedupe_key")).strip() or "dedupe_key",
+        )
+        ops_index = NoopOpsIndex()
+        bus = build_kafka_publisher(client_id=f"ig-{_platform_profile_id()}-lambda")
+        wiring = SimpleNamespace(
+            profile_id=_platform_profile_id(),
+            policy_rev=policy_rev.revision,
+            event_bus_kind="kafka",
+            event_bus_path=None,
+            partitioning_profile_id=_partitioning_profile_id(),
+            health_deny_on_amber=False,
+            health_amber_sleep_seconds=0.0,
+            auth_mode="api_key",
+            auth_allowlist=[],
+            service_token_secrets=[],
+            api_key_header=str(os.getenv("IG_AUTH_HEADER_NAME", "X-IG-Api-Key")).strip() or "X-IG-Api-Key",
+        )
+        bus_probe_streams = _bus_probe_streams(wiring, partitioning, class_map)
+        health = HealthProbe(
+            store=store,
+            bus=bus,
+            ops_index=ops_index,
+            probe_interval_seconds=_env_int("IG_HEALTH_PROBE_INTERVAL_SECONDS", 30),
+            max_publish_failures=_env_int("IG_BUS_PUBLISH_FAILURE_THRESHOLD", 3),
+            max_read_failures=_env_int("IG_STORE_READ_FAILURE_THRESHOLD", 3),
+            health_path=f"{platform_run_id}/ig/health/last_probe.json",
+            bus_probe_mode=str(os.getenv("IG_HEALTH_BUS_PROBE_MODE", "describe")).strip().lower(),
+            bus_probe_streams=bus_probe_streams,
+        )
+        health.check()
+        metrics = MetricsRecorder(flush_interval_seconds=_env_int("IG_METRICS_FLUSH_SECONDS", 30))
+        governance = GovernanceEmitter(
+            store=store,
+            bus=bus,
+            partitioning=partitioning,
+            quarantine_spike_threshold=_env_int("IG_QUARANTINE_SPIKE_THRESHOLD", 25),
+            quarantine_spike_window_seconds=_env_int("IG_QUARANTINE_SPIKE_WINDOW_SECONDS", 60),
+            policy_id=policy_rev.policy_id,
+            prefix=platform_run_id,
+            policy_activation_audit_mode=str(
+                os.getenv("IG_POLICY_ACTIVATION_AUDIT_MODE", "store_only")
+            ).strip()
+            or "store_only",
+        )
+        governance.emit_policy_activation(
+            {
+                "policy_id": policy_rev.policy_id,
+                "revision": policy_rev.revision,
+                "content_digest": policy_rev.content_digest,
+            }
+        )
+        gate = IngestionGate(
+            wiring=wiring,
+            policy=policy,
+            class_map=class_map,
+            policy_rev=policy_rev,
+            partitioning=partitioning,
+            schema_enforcer=schema_enforcer,
+            contract_registry=contract_registry,
+            receipt_writer=receipt_writer,
+            admission_index=admission_index,
+            ops_index=ops_index,
+            bus=bus,
+            store=store,
+            health=health,
+            metrics=metrics,
+            governance=governance,
+            auth_mode="api_key",
+            auth_allowlist=[],
+            auth_service_token_secrets=[],
+            api_key_header=str(os.getenv("IG_AUTH_HEADER_NAME", "X-IG-Api-Key")).strip() or "X-IG-Api-Key",
+            push_limiter=RateLimiter(0),
+        )
+        _GATE_CACHE[platform_run_id] = gate
+        LOGGER.info(
+            "IG gate initialized platform_run_id=%s init_seconds=%.3f",
+            platform_run_id,
+            time.perf_counter() - init_started,
+        )
+        return gate
 
 
 def _send_dlq(payload: dict[str, Any], reason: str, correlation_headers: dict[str, str]) -> None:

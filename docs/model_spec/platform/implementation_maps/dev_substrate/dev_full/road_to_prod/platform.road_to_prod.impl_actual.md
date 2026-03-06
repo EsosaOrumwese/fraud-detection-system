@@ -5310,3 +5310,83 @@ Reasoning:
    - commit/push the WSP concurrency and PR3 metric fixes,
    - repack the remote image,
    - rerun PR3-S1 with the canonical lane using the new `WSP_IG_PUSH_CONCURRENCY` control.
+## Entry: 2026-03-06 21:53:00 +00:00 - Materialized the WSP concurrency boundary into the remote runtime by repacking the shared platform image and registering WSP task definition revision 30
+1. The code changes alone were not enough because PR3-S1 launches remote ECS tasks from the pinned `fraud-platform-dev-full-wsp-ephemeral` task definition.
+2. I repacked the shared platform image from commit `fba6d353de6389183caafb7d7f01899595edc984` through workflow run `22783424960` and obtained immutable digest `sha256:8f70c1f862fe28f14398b292f271f6fa7085a0c25eead2d1574c8a5e846c0143`.
+3. I then registered `fraud-platform-dev-full-wsp-ephemeral:30` pinned to that digest. This is the critical materialization step because `resolve_task_definition(...)` in the PR3 dispatcher will now pick up the WSP runner that includes:
+   - bounded intra-output HTTP push concurrency,
+   - corrected ALB latency derivation wiring,
+   - the new PR3 dispatcher control surface for `WSP_IG_PUSH_CONCURRENCY`.
+4. Evidence for the task-definition refresh is stored under `runs/dev_substrate/dev_full/road_to_prod/run_control/pr3_20260306T021900Z/wsp_taskdef_refresh_20260306T215258Z/`.
+5. Next action is the first truthful rerun against the remotely materialized WSP concurrency boundary. That run will tell us whether the replay lane can finally drive the platform into the actual 3k certification band, and, if it can, whether ingress latency and 4xx posture remain production blockers.
+
+## Entry: 2026-03-06 22:05:30 +00:00 - PR3-S1 ingress collapse is now traced to two internal concurrency stampedes, not just insufficient task count
+1. I reviewed the red canonical `PR3-S1` window using the live ECS service history, ALB metrics, and raw ingress logs for `2026-03-06T21:54Z` through `2026-03-06T21:57Z`.
+2. Impact metrics from that red window:
+   - ALB `RequestCount`: `2512`, `7529`, `9699` per minute across the active three-minute measurement window.
+   - Target `2xx`: `2782` then `4193`; ALB-side `5xx`: `119` then `1`.
+   - ALB tail latency: `p95=24.428s`, `p99=29.034s` at the worst minute.
+   - ECS service CPU: `84.18%` average at `21:54`, `65.65%` at `21:55`, `93.73%` at `21:56`, with `max=100%` in each hot minute.
+   - ECS memory stayed low (`16%` to `22%` average), so this is not a memory-pressure failure mode.
+3. The service events make the runtime consequence explicit: tasks were repeatedly marked unhealthy because the container health check timed out, which means the ingress service starved its own `/healthz` path under load and began self-replacing tasks during the certification window.
+4. I pulled the raw ingress log corpus and found two internal concurrency defects that better explain the collapse than simple under-scaling:
+   - `_gate_for(platform_run_id)` is not thread-safe, so first-hit concurrency on a new run stampedes gate construction. The red window emitted `313` separate `IG gate initialized` lines, each costing roughly `p50=6.234s`, `p95=12.052s`, `max=15.8s`.
+   - `HealthProbe.check()` runs on the request path, and the ECS service pins `IG_HEALTH_BUS_PROBE_MODE="describe"`. On a stale or cold health cache, request threads perform object-store probe writes and Kafka metadata checks inline. Because that path is also unsynchronized, multiple threads can stampede the same expensive refresh boundary.
+5. The phase logs confirm this is not primarily an S3 receipt problem anymore. In the red window:
+   - `phase.validate_seconds` was the dominant exploding phase, repeatedly landing in the `20s` to `95s` band.
+   - `phase.publish_seconds` was materially lower (`~1s` to `4.5s`).
+   - `phase.receipt_seconds` was materially lower again (`~0.8s` to `6.4s`).
+6. A second production defect is also now proven: the ingress service keeps working on requests long after the client budget is already lost. The managed request logs show:
+   - `p50 elapsed_ms ~= 988.6`,
+   - `p95 elapsed_ms ~= 95449.9`,
+   - `p99 elapsed_ms ~= 110377.0`,
+   - `max elapsed_ms ~= 134819.2`.
+   This means request threads continue burning CPU for tens of seconds after ALB should already have abandoned the response, which amplifies backlog and directly contributes to health starvation.
+7. Production interpretation:
+   - increasing task count alone would be lazy and insufficient because it would scale an internally stampeding request path;
+   - the first correct remediation is to remove the hot-path stampedes and enforce a request lifecycle that cannot keep consuming compute far beyond the caller timeout;
+   - only after that should the service concurrency envelope be re-tuned and scaled for the 3k steady target.
+8. Chosen remediation sequence:
+   - make gate construction single-flight per process/run,
+   - make health evaluation cached and background-refresh driven instead of request-thread driven,
+   - repin the ECS service away from `IG_HEALTH_BUS_PROBE_MODE=describe` on the hot path,
+   - tighten the request lifecycle so work is not allowed to continue unbounded after the ingress budget is effectively lost,
+   - then rerun the same canonical `PR3-S1` boundary before deciding how much horizontal scale is still required.
+
+## Entry: 2026-03-06 22:14:00 +00:00 - Implemented the anti-stampede ingress fix set and repinned the ECS service health posture for PR3-S1
+1. I implemented the first structural remediation set directly against the service-backed ingress code instead of spending another PR3 rerun on the known broken request lifecycle.
+2. Code-path changes made:
+   - `src/fraud_detection/ingestion_gate/aws_lambda_handler.py`
+     - added `_GATE_CACHE_LOCK` so `_gate_for(platform_run_id)` is now single-flight per process/run;
+     - moved the first `health.check()` into gate construction so the first request burst does not stampede cold health refresh inline;
+     - preserved the same DDB/Kafka/S3 admission semantics after gate initialization.
+   - `src/fraud_detection/ingestion_gate/health.py`
+     - added lock-protected state and refresh coordination;
+     - changed `check()` so cached health is returned immediately to request threads when stale health is being refreshed;
+     - introduced background refresh for stale cached health instead of forcing live request threads to perform probe writes and Kafka metadata checks;
+     - changed `bus_probe_mode in {"", "none"}` to mean "do not degrade request-path health just because metadata probing is intentionally disabled".
+3. Infrastructure pin changes made:
+   - `infra/terraform/dev_full/runtime/main.tf` now binds `IG_HEALTH_BUS_PROBE_MODE` from a variable instead of hardcoding `describe` into the ECS ingress task definition.
+   - `infra/terraform/dev_full/runtime/variables.tf` now pins:
+     - `ig_service_health_bus_probe_mode = "none"`
+     - `ig_service_desired_count = 12`
+4. Why the desired-count change is included in the same boundary:
+   - once the hot-path stampedes are removed, the next limit should be measured on a service with a more credible horizontal envelope than the prior `6` tasks;
+   - `12` is not the final production claim, but it is a better first post-fix envelope for a truthful bounded rerun without jumping blindly to an extreme fleet size.
+5. Validation completed:
+   - `py_compile` passed for the changed ingress runtime modules;
+   - `terraform fmt -check infra/terraform/dev_full/runtime` passed;
+   - targeted ingress tests passed via `py -3.12 -m pytest`:
+     - `tests/services/ingestion_gate/test_health_governance.py`
+     - `tests/services/ingestion_gate/test_managed_service.py`
+     - `tests/services/ingestion_gate/test_admission.py`
+6. Test additions/updates capture the new intended semantics:
+   - request-path health now returns cached status immediately while a stale refresh runs in the background;
+   - `bus_probe_mode=none` is no longer treated as an automatic amber state;
+   - publish/store health still escalates to `RED`, but no longer by synchronously blocking every request thread.
+7. Production expectation from this boundary:
+   - materially fewer `IG gate initialized` events during a single run window;
+   - no Kafka metadata-probe storm on request threads;
+   - a large reduction in the pathological `phase.validate_seconds` tail;
+   - fewer health-check timeouts and less task churn under bounded PR3 pressure.
+8. I am not assuming this closes PR3-S1 by itself. The next rerun will tell us whether the post-stampede frontier is now honest service capacity, synchronous Kafka ACK cost, or another remaining lifecycle defect.

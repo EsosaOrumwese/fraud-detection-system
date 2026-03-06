@@ -1193,7 +1193,7 @@ resource "aws_ecs_task_definition" "ig_service" {
         },
         {
           name  = "IG_HEALTH_BUS_PROBE_MODE"
-          value = "describe"
+          value = var.ig_service_health_bus_probe_mode
         },
         {
           name  = "IG_POLICY_ACTIVATION_AUDIT_MODE"

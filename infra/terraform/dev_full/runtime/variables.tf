@@ -286,7 +286,7 @@ variable "ig_service_task_memory" {
 
 variable "ig_service_desired_count" {
   type    = number
-  default = 6
+  default = 12
 }
 
 variable "ig_service_gunicorn_workers" {
@@ -302,6 +302,11 @@ variable "ig_service_gunicorn_threads" {
 variable "ig_service_request_timeout_ms" {
   type    = number
   default = 30000
+}
+
+variable "ig_service_health_bus_probe_mode" {
+  type    = string
+  default = "none"
 }
 
 variable "ig_service_log_group_name" {
