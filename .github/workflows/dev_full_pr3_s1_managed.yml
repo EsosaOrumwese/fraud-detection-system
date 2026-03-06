@@ -76,11 +76,6 @@ on:
         required: true
         default: "fraud-platform-rtdl"
         type: string
-      msk_cluster_arn:
-        description: "Pinned MSK cluster ARN for runtime IAM remediation"
-        required: true
-        default: "arn:aws:kafka:eu-west-2:230372904534:cluster/fraud-platform-dev-full-msk/6d6d345b-fb39-4e7b-a245-53525b4648b6-s3"
-        type: string
       worker_image_uri:
         description: "Worker image used by the managed fallback lane"
         required: true
@@ -157,6 +152,7 @@ jobs:
     env:
       ROLE_RTDL_NAME: fraud-platform-dev-full-irsa-rtdl
       ROLE_DECISION_NAME: fraud-platform-dev-full-irsa-decision-lane
+      PINNED_MSK_CLUSTER_ARN: arn:aws:kafka:eu-west-2:230372904534:cluster/fraud-platform-dev-full-msk/6d6d345b-fb39-4e7b-a245-53525b4648b6-s3
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -194,7 +190,6 @@ jobs:
         shell: bash
         env:
           RUN_DIR: ${{ steps.remediation_meta.outputs.run_dir }}
-          MSK_CLUSTER_ARN: ${{ inputs.msk_cluster_arn }}
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -203,7 +198,7 @@ jobs:
           from pathlib import Path
 
           run_dir = Path(os.environ["RUN_DIR"])
-          cluster_arn = str(os.environ["MSK_CLUSTER_ARN"]).strip()
+          cluster_arn = str(os.environ["PINNED_MSK_CLUSTER_ARN"]).strip()
           if "cluster/" not in cluster_arn:
               raise SystemExit("PINNED_MSK_CLUSTER_ARN_INVALID")
           cluster_suffix = cluster_arn.split("cluster/", 1)[1]

@@ -3437,3 +3437,13 @@ Reasoning:
   - narrower execution permissions on the GitHub runner,
   - fewer control-plane dependencies between the repair job and the runtime hot path,
   - faster deterministic reruns for the same PR3 boundary.
+### 2026-03-06 13:43:00 +00:00 - GitHub workflow-dispatch input ceiling forced the MSK cluster pin into job env rather than a new manual parameter
+- After replacing live Kafka discovery with a pinned cluster ARN, GitHub rejected dispatch because `workflow_dispatch` only allows up to `25` inputs and `dev_full_pr3_s1_managed.yml` was already at that limit.
+- This is purely a GitHub workflow-shape constraint.
+- Decision:
+  - remove the extra manual input,
+  - pin the canonical `MSK_CLUSTER_ARN` directly in the remediation job environment for this PR3 boundary.
+- Reason:
+  - it preserves the narrower permission model,
+  - avoids further control-plane branching or a second workflow file just to carry one static runtime handle,
+  - keeps the dispatch contract stable while still using the correct cluster scope.
