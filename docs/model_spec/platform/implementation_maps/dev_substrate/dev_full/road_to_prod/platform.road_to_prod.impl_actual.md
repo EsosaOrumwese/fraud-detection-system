@@ -3982,3 +3982,25 @@ Reasoning:
 7. Next step:
    - redeploy the ingress edge again,
    - expect the handler to move beyond `psycopg` import and into actual health-handler execution.
+## Entry: 2026-03-06 19:14:00 +00:00 - Private ingress Lambda requires an SSM VPC endpoint because auth/bootstrap is intentionally Parameter Store backed
+1. After removing the import-time blockers, the live Lambda stopped failing init and began executing requests.
+2. The next observed behavior was a strict 30-second timeout on `GET /ops/health` with no application logs.
+3. Code-path inspection of `aws_lambda_handler.lambda_handler` shows that `/ops/health` still passes through `_authorize(...)`, which loads the expected API key from SSM Parameter Store.
+4. The same runtime also resolves MSK bootstrap brokers from SSM before building the hot push path.
+5. Live VPC inspection confirmed the Lambda runs in `vpc-036a11d413ffce15b` and that the runtime endpoints present were:
+   - `ec2`, `ecr.api`, `ecr.dkr`, `execute-api`, `logs`, `sts`, and S3 gateway,
+   - but **not** `ssm`.
+6. Production interpretation:
+   - the timeout is not an application logic defect,
+   - it is a private-network completeness defect,
+   - for a private Lambda that intentionally depends on Parameter Store, an SSM interface endpoint is part of the minimal production substrate.
+7. Correction chosen:
+   - repin runtime interface endpoints to include `ssm`,
+   - update the remote ingress materialization workflow to target `aws_vpc_endpoint.runtime_interface["ssm"]` in the same recovery lane so the missing endpoint can be materialized remotely.
+8. Why this is the correct production fix:
+   - preserves the existing secret/bootstrap contract rather than weakening auth,
+   - keeps the Lambda private without requiring NAT as a crutch,
+   - aligns the network substrate with the actual runtime dependency graph.
+9. Follow-on expectation:
+   - once the SSM endpoint is live, `/ops/health` should stop timing out and return a real HTTP result,
+   - the next remaining blocker, if any, should be inside explicit application logic rather than hidden network starvation.
