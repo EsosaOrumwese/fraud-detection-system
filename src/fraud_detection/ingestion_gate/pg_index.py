@@ -134,7 +134,10 @@ class PostgresAdmissionIndex:
         eb_ref: dict[str, Any],
         admitted_at_utc: str,
         payload_hash: str,
+        receipt_ref: str | None = None,
+        receipt_payload: dict[str, Any] | None = None,
     ) -> None:
+        receipt_ref_value = receipt_ref or ""
         conn = self._get_conn()
         conn.execute(
             """
@@ -142,6 +145,8 @@ class PostgresAdmissionIndex:
                 state = %s,
                 payload_hash = %s,
                 admitted_at_utc = %s,
+                receipt_ref = CASE WHEN %s != '' THEN %s ELSE receipt_ref END,
+                receipt_write_failed = CASE WHEN %s != '' THEN 0 ELSE receipt_write_failed END,
                 eb_topic = %s,
                 eb_partition = %s,
                 eb_offset = %s,
@@ -153,6 +158,9 @@ class PostgresAdmissionIndex:
                 "ADMITTED",
                 payload_hash,
                 admitted_at_utc,
+                receipt_ref_value,
+                receipt_ref_value,
+                receipt_ref_value,
                 eb_ref.get("topic"),
                 eb_ref.get("partition"),
                 eb_ref.get("offset"),

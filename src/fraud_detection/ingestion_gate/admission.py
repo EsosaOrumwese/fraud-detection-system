@@ -316,36 +316,6 @@ class IngestionGate:
             return self._quarantine(envelope, IngestionError("PUBLISH_AMBIGUOUS"), start, auth_context=auth_context)
         self.health.record_publish_success()
         admitted_at_utc = datetime.now(tz=timezone.utc).isoformat()
-        admitted_started = time.perf_counter()
-        self.admission_index.record_admitted(
-            dedupe,
-            eb_ref=_eb_ref_payload(eb_ref),
-            admitted_at_utc=admitted_at_utc,
-            payload_hash=payload_hash_hex,
-        )
-        self.metrics.record_latency("phase.dedupe_admitted_seconds", time.perf_counter() - admitted_started)
-        logger.info(
-            "IG admitted event_id=%s event_type=%s topic=%s partition=%s offset=%s",
-            envelope.get("event_id"),
-            envelope.get("event_type"),
-            eb_ref.topic,
-            eb_ref.partition,
-            eb_ref.offset,
-        )
-        narrative_logger.info(
-            "IG published to EB event_id=%s topic=%s partition=%s offset=%s",
-            envelope.get("event_id"),
-            eb_ref.topic,
-            eb_ref.partition,
-            eb_ref.offset,
-        )
-        eb_logger.info(
-            "EB publish event_id=%s topic=%s partition=%s offset=%s",
-            envelope.get("event_id"),
-            eb_ref.topic,
-            eb_ref.partition,
-            eb_ref.offset,
-        )
         decision = AdmissionDecision(
             decision="ADMIT",
             reason_codes=[],
@@ -370,13 +340,54 @@ class IngestionGate:
         self.contract_registry.validate("ingestion_receipt.schema.yaml", receipt_payload)
         try:
             if self._receipt_storage_mode() == "ddb_hot":
-                receipt_ref = self._store_receipt_hot(dedupe, receipt_payload)
+                receipt_ref = self.admission_index.receipt_ref_for(dedupe)
+                admitted_started = time.perf_counter()
+                self.admission_index.record_admitted(
+                    dedupe,
+                    eb_ref=_eb_ref_payload(eb_ref),
+                    admitted_at_utc=admitted_at_utc,
+                    payload_hash=payload_hash_hex,
+                    receipt_ref=receipt_ref,
+                    receipt_payload=receipt_payload,
+                )
+                self.metrics.record_latency("phase.dedupe_admitted_seconds", time.perf_counter() - admitted_started)
+                self.metrics.record_latency("phase.receipt_store_seconds", 0.0)
             else:
+                admitted_started = time.perf_counter()
+                self.admission_index.record_admitted(
+                    dedupe,
+                    eb_ref=_eb_ref_payload(eb_ref),
+                    admitted_at_utc=admitted_at_utc,
+                    payload_hash=payload_hash_hex,
+                )
+                self.metrics.record_latency("phase.dedupe_admitted_seconds", time.perf_counter() - admitted_started)
                 receipt_ref = self._store_receipt_object(dedupe, receipt_payload, envelope=envelope)
         except Exception:
             self.admission_index.mark_receipt_failed(dedupe)
             logger.exception("IG receipt write failed after publish event_id=%s", event_id)
             raise
+        logger.info(
+            "IG admitted event_id=%s event_type=%s topic=%s partition=%s offset=%s",
+            envelope.get("event_id"),
+            envelope.get("event_type"),
+            eb_ref.topic,
+            eb_ref.partition,
+            eb_ref.offset,
+        )
+        narrative_logger.info(
+            "IG published to EB event_id=%s topic=%s partition=%s offset=%s",
+            envelope.get("event_id"),
+            eb_ref.topic,
+            eb_ref.partition,
+            eb_ref.offset,
+        )
+        eb_logger.info(
+            "EB publish event_id=%s topic=%s partition=%s offset=%s",
+            envelope.get("event_id"),
+            eb_ref.topic,
+            eb_ref.partition,
+            eb_ref.offset,
+        )
         self._record_ops_receipt(receipt_payload, receipt_ref)
         logger.info(
             "IG receipt stored receipt_id=%s receipt_ref=%s eb_ref=%s",

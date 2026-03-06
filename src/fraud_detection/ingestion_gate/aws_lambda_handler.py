@@ -106,10 +106,13 @@ def _aws_runtime_config() -> Config:
     max_pool_connections = max(16, _env_int("IG_AWS_MAX_POOL_CONNECTIONS", 256))
     connect_timeout = max(1, _env_int("IG_AWS_CONNECT_TIMEOUT_SECONDS", 2))
     read_timeout = max(connect_timeout, _env_int("IG_AWS_READ_TIMEOUT_SECONDS", 5))
+    retry_mode = str(os.getenv("IG_AWS_RETRY_MODE", "adaptive")).strip().lower() or "adaptive"
+    if retry_mode not in {"adaptive", "standard", "legacy"}:
+        retry_mode = "adaptive"
     return Config(
         connect_timeout=connect_timeout,
         read_timeout=read_timeout,
-        retries={"max_attempts": max(1, _env_int("IG_AWS_MAX_ATTEMPTS", 3)), "mode": "standard"},
+        retries={"max_attempts": max(1, _env_int("IG_AWS_MAX_ATTEMPTS", 8)), "mode": retry_mode},
         max_pool_connections=max_pool_connections,
     )
 
@@ -341,25 +344,44 @@ class DdbAdmissionIndex:
         eb_ref: dict[str, Any],
         admitted_at_utc: str,
         payload_hash: str,
+        receipt_ref: str | None = None,
+        receipt_payload: dict[str, Any] | None = None,
     ) -> None:
+        update_expression = (
+            "SET #state = :state, payload_hash = :payload_hash, admitted_at_utc = :admitted_at_utc, "
+            "eb_topic = :eb_topic, eb_partition = :eb_partition, eb_offset = :eb_offset, "
+            "eb_offset_kind = :eb_offset_kind, eb_published_at_utc = :eb_published_at_utc"
+        )
+        values: dict[str, Any] = {
+            ":state": "ADMITTED",
+            ":payload_hash": payload_hash,
+            ":admitted_at_utc": admitted_at_utc,
+            ":eb_topic": eb_ref.get("topic"),
+            ":eb_partition": eb_ref.get("partition"),
+            ":eb_offset": eb_ref.get("offset"),
+            ":eb_offset_kind": eb_ref.get("offset_kind"),
+            ":eb_published_at_utc": eb_ref.get("published_at_utc"),
+        }
+        if receipt_ref is not None:
+            payload_json = ""
+            if receipt_payload is not None:
+                payload_json = json.dumps(receipt_payload, sort_keys=True, ensure_ascii=True, separators=(",", ":"))
+            update_expression += (
+                ", receipt_ref = :receipt_ref, receipt_write_failed = :receipt_write_failed, "
+                "receipt_payload_json = :receipt_payload_json"
+            )
+            values.update(
+                {
+                    ":receipt_ref": receipt_ref,
+                    ":receipt_write_failed": 0,
+                    ":receipt_payload_json": payload_json,
+                }
+            )
         self._table.update_item(
             Key={self.hash_key_name: dedupe_key},
-            UpdateExpression=(
-                "SET #state = :state, payload_hash = :payload_hash, admitted_at_utc = :admitted_at_utc, "
-                "eb_topic = :eb_topic, eb_partition = :eb_partition, eb_offset = :eb_offset, "
-                "eb_offset_kind = :eb_offset_kind, eb_published_at_utc = :eb_published_at_utc"
-            ),
+            UpdateExpression=update_expression,
             ExpressionAttributeNames={"#state": "state"},
-            ExpressionAttributeValues={
-                ":state": "ADMITTED",
-                ":payload_hash": payload_hash,
-                ":admitted_at_utc": admitted_at_utc,
-                ":eb_topic": eb_ref.get("topic"),
-                ":eb_partition": eb_ref.get("partition"),
-                ":eb_offset": eb_ref.get("offset"),
-                ":eb_offset_kind": eb_ref.get("offset_kind"),
-                ":eb_published_at_utc": eb_ref.get("published_at_utc"),
-            },
+            ExpressionAttributeValues=values,
         )
 
     def record_ambiguous(self, dedupe_key: str, payload_hash: str | None) -> None:

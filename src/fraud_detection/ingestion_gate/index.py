@@ -125,7 +125,10 @@ class AdmissionIndex:
         eb_ref: dict[str, Any],
         admitted_at_utc: str,
         payload_hash: str,
+        receipt_ref: str | None = None,
+        receipt_payload: dict[str, Any] | None = None,
     ) -> None:
+        receipt_ref_value = receipt_ref or ""
         with self._connect() as conn:
             conn.execute(
                 """
@@ -133,6 +136,8 @@ class AdmissionIndex:
                     state = ?,
                     payload_hash = ?,
                     admitted_at_utc = ?,
+                    receipt_ref = CASE WHEN ? != '' THEN ? ELSE receipt_ref END,
+                    receipt_write_failed = CASE WHEN ? != '' THEN 0 ELSE receipt_write_failed END,
                     eb_topic = ?,
                     eb_partition = ?,
                     eb_offset = ?,
@@ -144,6 +149,9 @@ class AdmissionIndex:
                     "ADMITTED",
                     payload_hash,
                     admitted_at_utc,
+                    receipt_ref_value,
+                    receipt_ref_value,
+                    receipt_ref_value,
                     eb_ref.get("topic"),
                     eb_ref.get("partition"),
                     eb_ref.get("offset"),

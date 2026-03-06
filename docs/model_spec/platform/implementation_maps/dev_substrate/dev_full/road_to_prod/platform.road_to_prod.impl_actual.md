@@ -5768,3 +5768,37 @@ Reasoning:
    - the service is on the intended hot-receipt design and is now a valid target for the next canonical `PR3-S1` rerun.
 4. This change matters beyond the immediate rerun because it corrects a real production-operations defect: image refreshes for the ingress lane must be materially deployable inside the environment's quota envelope, not just theoretically deployable on paper.
 5. Immediate next action is to rerun the canonical `PR3-S1` steady window and re-measure throughput/tail latency now that the admit path is no longer synchronously blocked on cold receipt object persistence.
+## Entry: 2026-03-06 23:52:00 +00:00 - PR3-S1 throughput and latency are now production-grade, but zero-5xx closure failed because the new DDB hot-receipt path was still over-writing the idempotency table three times per admit under peak load
+1. The rerun on the corrected ingress service materially cleared the main steady-state performance targets:
+   - observed admitted throughput: `3171.35 eps`
+   - request throughput: `3174.42 eps`
+   - `p95` latency: `154.98 ms`
+   - `p99` latency: `353.33 ms`
+2. That proves the previous S3 hot-path bottleneck is resolved.
+3. The only blocker left in the rerun was `32` target-side `5xx` responses (`0.0168%`).
+4. Root cause from ingress logs and CloudWatch is specific and non-ambiguous:
+   - DynamoDB table `fraud-platform-dev-full-ig-idempotency` emitted `3117` `WriteThrottleEvents` in the hot minute;
+   - the ingress error logs show `PutItem` and `UpdateItem` `ThrottlingException` failures against that same table while persisting admit-path state/receipt data;
+   - this was not the HTTP edge failing independently and not the event-bus publish failing.
+5. Design-level diagnosis:
+   - a new admit on the DDB-hot path was still doing three table writes:
+     - `PutItem` for `PUBLISH_IN_FLIGHT`,
+     - `UpdateItem` for `ADMITTED + eb_ref`,
+     - `UpdateItem` again for `receipt_ref + receipt_payload_json`;
+   - at roughly `3171 eps`, that means the hot path was demanding roughly three DDB writes per accepted event before any duplicate or retry overhead.
+6. Production correction chosen:
+   - keep DDB hot receipts as the correct storage posture;
+   - collapse the post-publish `ADMITTED` state write and receipt write into a single durable update so a fresh admit pays two writes instead of three;
+   - harden AWS SDK retry posture for the ingress runtime from `standard / 3 attempts` to `adaptive / 8 attempts` so transient on-demand scaling lag does not surface as client-facing `5xx` prematurely.
+7. Why this is the right production move:
+   - it preserves the low-latency DDB hot-receipt design that already unlocked the throughput frontier;
+   - it reduces hot-path write amplification materially without weakening the idempotency boundary;
+   - it treats transient DDB scaling lag as a storage concern to absorb, not a reason to fail the client at a healthy request rate.
+8. Local validation status:
+   - `py_compile` passed for the changed ingress modules;
+   - targeted ingress tests passed (`15 passed`);
+   - `test_phase510_efficiency.py` could not be executed in this local environment because `psycopg` is not installed, so the Postgres-backed efficiency lane remains unexecuted locally.
+9. Immediate next action:
+   - publish a fresh immutable image carrying this reduced-write DDB correction,
+   - roll the ingress service again,
+   - rerun canonical `PR3-S1` and verify the remaining `5xx` blocker is eliminated.
