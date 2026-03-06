@@ -1935,3 +1935,96 @@ ext_state=PR3-S1.
 ### Governance
 1. No branch operations.
 2. No commit/push.
+
+## Entry: 2026-03-06 03:14:29 +00:00 - PR3-S1 speedup requirement pinned; managed in-cloud load lane implementation plan
+### Trigger
+1. USER directive: "Document this and proceed" after confirming S1 blocker root-cause includes missing active stream speedup on strict PR3 boundary.
+
+### Root-cause pin (documented as binding for current PR3-S1 scope)
+1. Current `PR3-S1` executor is strict evidence adjudication only (`EVIDENCE_ONLY_REUSE_STRICT`) and does not perform runtime load generation.
+2. Fresh evidence script currently computes `observed_events_per_second` from charter-window Athena averages, which cannot reflect newly generated high-rate campaigns unless the runtime measurement window is explicit.
+3. Therefore, `PR3.B10_STEADY_THRESHOLD_BREACH` cannot be remediated by repeated telemetry-only reruns; an active managed load lane is required.
+
+### Decision (chosen lane)
+1. Use a managed in-cloud load lane on ECS Fargate (`fraud-platform-dev-full-wsp-ephemeral`) rather than local load generation.
+2. Run one-shot tasks in public subnets (`subnet-005205ea65a9027fc`, `subnet-01fd5f1585bfcca47`) with `assignPublicIp=ENABLED` because private-subnet launches fail on CloudWatch logger initialization in current posture.
+3. Keep strict PR3 boundary execution id unchanged (`pr3_20260306T021900Z`); emit new speedup and evidence artifacts under this run root only.
+
+### Planned implementation
+1. Add `scripts/dev_substrate/pr3_s1_managed_speedup_dispatch.py`:
+   - validates strict S0 lock for current PR3 execution,
+   - launches N parallel Fargate tasks with deterministic per-lane ids,
+   - each task runs inline Python load generator against IG `POST /v1/ingest/push` using pinned `platform_run_id`/`scenario_run_id`,
+   - polls task completion and captures per-lane exit/stop status,
+   - writes deterministic artifacts:
+     - `g3a_s1_speedup_dispatch_manifest.json`
+     - `g3a_s1_speedup_dispatch_summary.json`.
+2. Extend `scripts/dev_substrate/pr3_s1_fresh_steady_evidence.py`:
+   - add explicit performance-window override inputs (`--perf-window-start-utc`, `--perf-window-end-utc`),
+   - keep sample-minima window bound to charter by default for strict-boundary continuity,
+   - compute throughput/error/latency from IG CloudWatch metrics over performance window and explicitly record dual-window provenance.
+3. Execute chain:
+   - run managed speedup dispatch,
+   - recompute fresh S1 evidence using emitted performance window,
+   - rerun `pr3_s1_executor.py` with new evidence refs.
+
+### Acceptance policy for this remediation pass
+1. No local load orchestration loops; only remote Fargate task orchestration and artifact adjudication locally.
+2. Fail-closed if managed dispatch has unresolved lane failures or evidence artifacts are incomplete/unreadable.
+3. Keep all artifacts in `runs/dev_substrate/dev_full/road_to_prod/run_control/pr3_20260306T021900Z/`.
+
+### Governance
+1. No branch operations.
+2. No commit/push.
+
+## Entry: 2026-03-06 03:58:12 +00:00 - PR3-S1 fail-fast correction after runaway managed speedup attempt
+### Trigger
+1. USER escalation: long-running PR3-S1 speedup run is wasting resources; stop immediately on detected bottleneck and remediate before rerun.
+
+### What happened
+1. Managed speedup dispatch was launched at high envelope (lane_count=8, 	arget_rps_per_lane=450, duration_seconds=900) without early-cutoff controls in the dispatcher.
+2. Command timed out locally while remote ECS tasks kept running, creating avoidable resource burn window.
+
+### Immediate containment executed
+1. Listed and force-stopped active ECS tasks in cluster raud-platform-dev-full-wsp-ephemeral.
+2. Verified cluster posture after stop:
+   - RUNNING=0
+   - PENDING=0
+
+### Root-cause and corrective decision
+1. Root cause is tooling control-gap in scripts/dev_substrate/pr3_s1_managed_speedup_dispatch.py: no heartbeat telemetry, no throughput floor gate, no early shutdown action.
+2. Corrective design pinned (binding for PR3-S1 speedup lane):
+   - emit per-lane heartbeat telemetry during run,
+   - compute aggregate observed admitted EPS during polling,
+   - enforce early cutoff if throughput floor is not met after grace window,
+   - enforce early cutoff if telemetry coverage remains too low,
+   - stop all running lane tasks immediately on cutoff trigger.
+
+### Implemented in code
+1. Updated scripts/dev_substrate/pr3_s1_managed_speedup_dispatch.py with:
+   - lane heartbeat emission from in-task loader,
+   - incremental CloudWatch log polling for heartbeat parsing,
+   - new fail-fast args:
+     - --heartbeat-seconds
+     - --early-cutoff-grace-seconds
+     - --early-cutoff-min-throughput-fraction
+     - --early-cutoff-min-lane-coverage-fraction
+     - --disable-early-cutoff
+   - stopper helper that terminates running tasks when early cutoff triggers,
+   - explicit blocker ids for early shortfall / low-coverage conditions and stop-task failures,
+   - dispatch summary fields for expected EPS floor and early-cutoff state.
+
+### Governance
+1. No branch operations.
+2. No commit/push.
+
+## Entry: 2026-03-06 04:05:28 +00:00 - PR3-S1 bottleneck diagnosis from fail-fast calibration
+### Observed blocker facts
+1. Latest calibration summary reports:
+   - PR3.S1.SPD.B12_EARLY_THROUGHPUT_SHORTFALL with observed=214.180 vs floor 490.000 (coverage 1.000).
+2. Lane heartbeat status counts show dominant 429 responses (rate-limit/backpressure), not service crash.
+3. Previous nonzero lane exit code (137) was caused by intentional early-cutoff stop-task action, not an independent runtime defect.
+
+### Decision and code correction
+1. Treat ingress throttling (429-driven admitted EPS collapse) as primary bottleneck for PR3-S1.
+2. Updated dispatcher classification so forced early-cutoff xit_code=137 is annotated as EARLY_CUTOFF_FORCED_STOP and not emitted as B06 blocker.

@@ -186,6 +186,11 @@ def main() -> None:
         "--athena-output-location",
         default="s3://fraud-platform-dev-full-evidence/evidence/dev_full/road_to_prod/athena_results/",
     )
+    ap.add_argument("--sample-window-start-utc", default="")
+    ap.add_argument("--sample-window-end-utc", default="")
+    ap.add_argument("--perf-window-start-utc", default="")
+    ap.add_argument("--perf-window-end-utc", default="")
+    ap.add_argument("--throughput-mode", default="cloudwatch_count_sum_per_second")
     ap.add_argument("--generated-by", default="codex-gpt5")
     ap.add_argument("--version", default="1.0.0")
     args = ap.parse_args()
@@ -200,13 +205,23 @@ def main() -> None:
 
     charter = load_json(pr3_root / "g3a_run_charter.active.json")
     mission = charter.get("mission_binding", {})
-    window_start_utc = str(mission.get("window_start_ts_utc", "")).strip()
-    window_end_utc = str(mission.get("window_end_ts_utc", "")).strip()
-    if not window_start_utc or not window_end_utc:
+    charter_window_start_utc = str(mission.get("window_start_ts_utc", "")).strip()
+    charter_window_end_utc = str(mission.get("window_end_ts_utc", "")).strip()
+    if not charter_window_start_utc or not charter_window_end_utc:
         raise RuntimeError("Mission window missing in g3a_run_charter.active.json")
-    window_start = parse_time_utc(window_start_utc)
-    window_end = parse_time_utc(window_end_utc)
-    window_seconds = max(1.0, (window_end - window_start).total_seconds())
+
+    sample_window_start_utc = str(args.sample_window_start_utc).strip() or charter_window_start_utc
+    sample_window_end_utc = str(args.sample_window_end_utc).strip() or charter_window_end_utc
+    perf_window_start_utc = str(args.perf_window_start_utc).strip() or charter_window_start_utc
+    perf_window_end_utc = str(args.perf_window_end_utc).strip() or charter_window_end_utc
+
+    sample_window_start = parse_time_utc(sample_window_start_utc)
+    sample_window_end = parse_time_utc(sample_window_end_utc)
+    perf_window_start = parse_time_utc(perf_window_start_utc)
+    perf_window_end = parse_time_utc(perf_window_end_utc)
+
+    sample_window_seconds = max(1.0, (sample_window_end - sample_window_start).total_seconds())
+    perf_window_seconds = max(1.0, (perf_window_end - perf_window_start).total_seconds())
 
     athena = boto3.client("athena", region_name=args.region)
     cw = boto3.client("cloudwatch", region_name=args.region)
@@ -223,8 +238,8 @@ def main() -> None:
             athena=athena,
             database=args.athena_database,
             table=args.athena_table,
-            window_start_utc=window_start_utc,
-            window_end_utc=window_end_utc,
+            window_start_utc=sample_window_start_utc,
+            window_end_utc=sample_window_end_utc,
             output_location=args.athena_output_location,
         )
         status_payload = wait_athena_query(athena, query_id)
@@ -240,8 +255,6 @@ def main() -> None:
         blockers.append("PR3.FRESH.B01_ATHENA_QUERY_FAILED")
         query_reason = f"{type(exc).__name__}:{exc}"
 
-    observed_steady_eps = (float(sample_size_events) / window_seconds) if sample_size_events > 0 else 0.0
-
     dims = [{"Name": "ApiId", "Value": args.api_id}, {"Name": "Stage", "Value": args.api_stage}]
     latency_rows: list[dict[str, Any]] = []
     count_rows: list[dict[str, Any]] = []
@@ -252,8 +265,8 @@ def main() -> None:
             cw=cw,
             metric_name="Latency",
             dimensions=dims,
-            start_time=window_start,
-            end_time=window_end,
+            start_time=perf_window_start,
+            end_time=perf_window_end,
             period_seconds=600,
             extended_statistics=["p95", "p99"],
         )
@@ -261,8 +274,8 @@ def main() -> None:
             cw=cw,
             metric_name="Count",
             dimensions=dims,
-            start_time=window_start,
-            end_time=window_end,
+            start_time=perf_window_start,
+            end_time=perf_window_end,
             period_seconds=600,
             statistics=["Sum"],
         )
@@ -270,8 +283,8 @@ def main() -> None:
             cw=cw,
             metric_name="4xx",
             dimensions=dims,
-            start_time=window_start,
-            end_time=window_end,
+            start_time=perf_window_start,
+            end_time=perf_window_end,
             period_seconds=600,
             statistics=["Sum"],
         )
@@ -279,8 +292,8 @@ def main() -> None:
             cw=cw,
             metric_name="5xx",
             dimensions=dims,
-            start_time=window_start,
-            end_time=window_end,
+            start_time=perf_window_start,
+            end_time=perf_window_end,
             period_seconds=600,
             statistics=["Sum"],
         )
@@ -299,6 +312,14 @@ def main() -> None:
     if total_count <= 0.0:
         blockers.append("PR3.FRESH.B04_REQUEST_COUNT_ZERO")
 
+    mode = str(args.throughput_mode or "").strip().lower()
+    if mode == "athena_sample_window_avg":
+        observed_steady_eps = (float(sample_size_events) / sample_window_seconds) if sample_size_events > 0 else 0.0
+        throughput_derivation = "athena_sample_window_avg"
+    else:
+        observed_steady_eps = (float(total_count) / perf_window_seconds) if total_count > 0.0 else 0.0
+        throughput_derivation = "cloudwatch_count_sum_per_second"
+
     evidence_payload = {
         "phase": "PR3",
         "state": "S1",
@@ -309,12 +330,22 @@ def main() -> None:
         "evidence_mode": "FRESH_AWS_TELEMETRY_AND_ATHENA_RECOMPUTE",
         "measurement_surface": "IG_ADMITTED_EVENTS_PER_SEC",
         "window": {
-            "start_utc": window_start_utc,
-            "end_utc": window_end_utc,
-            "duration_seconds": window_seconds,
+            "start_utc": perf_window_start_utc,
+            "end_utc": perf_window_end_utc,
+            "duration_seconds": perf_window_seconds,
+        },
+        "sample_window": {
+            "start_utc": sample_window_start_utc,
+            "end_utc": sample_window_end_utc,
+            "duration_seconds": sample_window_seconds,
+        },
+        "charter_window": {
+            "start_utc": charter_window_start_utc,
+            "end_utc": charter_window_end_utc,
         },
         "sample_size_events": int(sample_size_events),
         "observed_events_per_second": observed_steady_eps,
+        "throughput_derivation": throughput_derivation,
         "error_rate_pct_observed": error_rate_pct,
         "decision_latency_ms_p95": latency_p95_ms if latency_p95_ms >= 0.0 else None,
         "decision_latency_ms_p99": latency_p99_ms if latency_p99_ms >= 0.0 else None,
@@ -335,6 +366,8 @@ def main() -> None:
             "query_state": query_state,
             "query_state_reason": query_reason,
             "output_location": args.athena_output_location,
+            "window_start_utc": sample_window_start_utc,
+            "window_end_utc": sample_window_end_utc,
         },
         "overall_pass": len(blockers) == 0,
         "source_notes": source_notes,
@@ -380,4 +413,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
