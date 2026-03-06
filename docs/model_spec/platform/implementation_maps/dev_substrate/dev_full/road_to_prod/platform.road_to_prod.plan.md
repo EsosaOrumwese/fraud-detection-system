@@ -119,7 +119,7 @@ Exit / DoD:
 2. Required runtime drill artifacts complete.
 3. `G3A` pack has `open_blockers=0`.
 4. Closure demonstrates runtime gate intent (not probe-only or checklist-only pass).
-5. Execution status: `IN_PROGRESS` (`S0` complete in `pr3_20260306T021900Z`; `S1` pending).
+5. Execution status: `IN_PROGRESS` (`S0` complete; `S1` rerun with fresh evidence and currently `HOLD_REMEDIATE` on threshold breach).
 
 ### PR4 - G3B Ops/Gov Operational Certification Pack
 Intent:
@@ -216,14 +216,16 @@ This plan's intent is satisfied only when:
 3. The final production-ready verdict is claimable, auditable, and has `open_blockers=0`.
 
 ## 10) Immediate Next Step
-1. Proceed to `PR3-S1`: execute steady-profile certification from strict S0 closure.
-2. Use `PR3-S0` receipt as immediate upstream authority:
+1. Remediate `PR3.B10_STEADY_THRESHOLD_BREACH` and rerun `PR3-S1` from strict upstream `PR3-S0` boundary.
+2. Active S1 blocker to clear:
+   - `PR3.B10_STEADY_THRESHOLD_BREACH`.
+3. Use strict upstream authority:
    - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr3_20260306T021900Z/pr3_s0_execution_receipt.json`.
-3. Keep Section 11 target status table as the active blocker-routing surface during `PR3` execution.
-4. Use this main plan + PR3 authority as active execution sources:
+4. Keep Section 11 target status table as the active blocker-routing surface during `PR3` execution.
+5. Use this main plan + PR3 authority as active execution sources:
    - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.road_to_prod.plan.md`
    - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR3.road_to_prod.md`.
-5. Keep `platform.PR2.road_to_prod.md` as upstream closure reference only (not active PR3 execution authority).
+6. Keep `platform.PR2.road_to_prod.md` as upstream closure reference only (not active PR3 execution authority).
 
 ### 10.1 PR1-S1 Findings Summary (Readable)
 | Area | What was found | Interpretation |
@@ -326,6 +328,18 @@ This plan's intent is satisfied only when:
 | Target routing posture | `TGT-08` and `TGT-09` set to `IN_PROGRESS` in S0 receipt | G3A critical targets are actively routed with deterministic evidence refs. |
 | Runtime and cost posture | `elapsed=0.0 min` (budget `20`), `spend=0.0 USD` (envelope `250.0`) | S0 remained minute-scale and spend-neutral. |
 
+### 10.12 PR3-S1 Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Gate outcome | `HOLD_REMEDIATE`, `open_blockers=1`, `next_state=PR3-S1` | S1 still fails closed, but only one blocker remains. |
+| Steady goal vs observed throughput | target `3000.0 eps`; observed `61.365051256613754 eps` | Fresh steady evidence is still materially below RC2-S target, so production-steady claim remains invalid. |
+| Sample minima | required `5,400,000` steady events; observed `37,113,583` | Sample minima is now met and no longer blocks S1. |
+| Measurement surface validity | expected `IG_ADMITTED_EVENTS_PER_SEC`; observed surface `IG_ADMITTED_EVENTS_PER_SEC` | Surface provenance is explicit and now passes S1 scope checks. |
+| Threshold-family completeness | latency now present (`p95=31.8504 ms`, `p99=64.5343 ms`) | Scorecard completeness is now met and no longer blocks S1. |
+| Error posture | observed error ratio `0.039144` vs max `0.002` | Error-rate threshold breach contributes to remaining threshold blocker. |
+| Runtime and cost posture | `elapsed=0.0 min` (budget `60`), `spend=0.0 USD` (envelope `250.0`) | S1 evaluation remained budget-safe while preserving fail-closed rigor. |
+| Goal-level verdict | S1 remains open pending threshold remediation rerun | PR3 cannot move to `S2` until `PR3.B10` is remediated and cleared. |
+
 ## 11) Required TBD Closure Sheet (Binding)
 This section defines the mandatory closure routing for unresolved targets in:
 1. `docs/model_spec/platform/pre-design_decisions/dev-full_road-to-production-ready.md` Section 15.1 (open decisions `OD-01..OD-09`).
@@ -388,8 +402,8 @@ As-of execution: `pr1_20260305T174744Z`
 | TGT-05 | PINNED | PR1-S5 | S4 pinned `label_maturity_lag=3d` from charter-window maturity distribution using explicit `ts_utc` availability proxy semantics and fail-closed selection policy. |
 | TGT-06 | PINNED | PR1-S5 | S2 pinned join/fanout/unmatched bounds with explicit thresholds and decision register. |
 | TGT-07 | PINNED | PR1-S5 | S4 activated monitoring baseline contract (`status=ACTIVE`) with bound `G2/G3A/G3B` refs and required metric families. |
-| TGT-08 | IN_PROGRESS | PR3-S5 | PR3-S0 emitted runtime metric-surface map and S0 receipt routed threshold-family closure to `S1..S5`. |
-| TGT-09 | IN_PROGRESS | PR3-S5 | PR3-S0 pinned archive sink design/backpressure posture with evidence refs; validation boundaries set to `S2/S4`. |
+| TGT-08 | IN_PROGRESS | PR3-S5 | PR3-S0 bound runtime metric surfaces; PR3-S1 rerun cleared minima/surface/completeness and remains `HOLD_REMEDIATE` on `PR3.B10` threshold breach. |
+| TGT-09 | IN_PROGRESS | PR3-S5 | PR3-S0 pinned archive sink/backpressure posture; downstream validation remains scheduled for `S2/S4` after S1 clearance. |
 | TGT-10 | OPEN | PR4-S5 | Decision explainability schema pending G3B audit closure. |
 | TGT-11 | OPEN | PR4-S5 | Promotion observation window pending G3B corridor closure. |
 | TGT-12 | OPEN | PR4-S5 | Gate and mission cost budgets pending G3B cost governance closure. |

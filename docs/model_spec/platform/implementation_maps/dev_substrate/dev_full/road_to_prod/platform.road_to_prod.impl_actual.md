@@ -1896,3 +1896,42 @@ ext_state=PR3-S1.
 ### Governance
 1. No branch operations.
 2. No commit/push.
+
+## Entry: 2026-03-06 02:25:25 +00:00 - Pre-edit plan for PR3-S1 strict execution from pr3_20260306T021900Z
+### Trigger
+1. USER directed planning + execution of PR3-S1 from strict upstream pr3_20260306T021900Z with human-readable goal-level interpretation.
+
+### Strict upstream lock (to enforce)
+1. uns/dev_substrate/dev_full/road_to_prod/run_control/pr3_20260306T021900Z/pr3_s0_execution_receipt.json must be:
+   - erdict=PR3_S0_READY,
+   - open_blockers=0,
+   - 
+ext_state=PR3-S1.
+
+### Evidence posture discovered before execution
+1. Existing throughput evidence candidate:
+   - uns/dev_substrate/dev_full/m7/m7s_m7k_cert_20260226T000002Z/m7k_throughput_cert_snapshot.json.
+2. Candidate observed steady throughput is ~49.49 eps, while PR3 charter target is 3000 eps.
+3. This implies likely S1 fail-closed unless fresh steady-window evidence exists at PR3 target envelope.
+
+### Implementation plan
+1. Add scripts/dev_substrate/pr3_s1_executor.py.
+2. Executor behavior:
+   - strict S0 lock verification,
+   - produce S1 artifacts (g3a_scorecard_steady.json, g3a_component_health_steady.json, g3a_steady_sample_minima_receipt.json, pr3_s1_execution_receipt.json),
+   - enforce S1 blocker map:
+     - PR3.B07_STEADY_PROFILE_NOT_EXECUTED,
+     - PR3.B08_STEADY_SAMPLE_MINIMA_FAIL,
+     - PR3.B09_STEADY_SURFACE_SCOPE_MISMATCH,
+     - PR3.B10_STEADY_THRESHOLD_BREACH,
+     - PR3.B11_STEADY_SCORECARD_INCOMPLETE.
+3. Execution mode for this step: evidence-only strict evaluation (no local runtime orchestration).
+
+### Documentation sync after execution
+1. Update PR3 authority execution record and add PR3-S1 findings summary table.
+2. Update main plan immediate next step and add PR3-S1 findings summary table.
+3. Ensure findings explain outcome in terms of S1 goal (steady-profile certification intent).
+
+### Governance
+1. No branch operations.
+2. No commit/push.

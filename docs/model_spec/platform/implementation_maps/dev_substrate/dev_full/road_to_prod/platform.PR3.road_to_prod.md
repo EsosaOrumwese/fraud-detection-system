@@ -428,7 +428,7 @@ Cost budget:
 
 ## 11) Execution Record
 Status:
-1. `IN_PROGRESS` (`S0` complete from strict upstream; `S1` pending).
+1. `IN_PROGRESS` (`S0` complete; `S1` executed and currently `HOLD_REMEDIATE`).
 
 Strict upstream lock for first execution:
 1. `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_s3_execution_receipt.json`
@@ -437,7 +437,7 @@ Strict upstream lock for first execution:
 Active control root:
 1. `runs/dev_substrate/dev_full/road_to_prod/run_control/pr3_20260306T021900Z/`
 2. Latest pointer:
-   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr3_latest.json` (`latest_state=S0`).
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr3_latest.json` (`latest_state=S1`).
 
 State closure:
 1. `S0` executed from strict upstream:
@@ -446,6 +446,10 @@ State closure:
    - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr3_20260306T021900Z/pr3_s0_execution_receipt.json`.
 3. `S0` verdict:
    - `PR3_S0_READY`, `open_blockers=0`, `next_state=PR3-S1`.
+4. `S1` receipt:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr3_20260306T021900Z/pr3_s1_execution_receipt.json`.
+5. `S1` verdict:
+   - `HOLD_REMEDIATE`, `open_blockers=1`, `next_state=PR3-S1`, `next_gate=PR3_REMEDIATE_S1`.
 
 ### 11.1 PR3-S0 Findings Summary (Readable)
 | Area | What was found | Interpretation |
@@ -459,3 +463,16 @@ State closure:
 | Target posture update | `TGT-08` and `TGT-09` moved to `IN_PROGRESS` in S0 receipt | Required G3A targets are actively routed with explicit evidence refs. |
 | Runtime and cost posture | `elapsed=0.0 min` (budget `20`), `attributable_spend_usd=0.0` (envelope `250.0`) | S0 stayed minute-scale and spend-neutral as an evidence preflight step. |
 | Advisory continuity | `PR2.S1.CN01_BURST_SHAPER_REQUIRED` carried forward | Burst proof constraint remains explicit for `PR3-S1` and cannot be silently ignored. |
+
+### 11.2 PR3-S1 Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Gate outcome | `HOLD_REMEDIATE`, `open_blockers=1`, `next_state=PR3-S1` | S1 still fails closed, but blocker scope is now narrowed to threshold breach only. |
+| State goal vs observed throughput | target `3000.0 eps`; observed `61.365051256613754 eps` | Fresh steady evidence remains materially below RC2-S target, so production-steady claim is still invalid. |
+| Sample minima posture | required `5,400,000` steady processed events; observed sample `37,113,583` | Sample minima is now met; the anti-toy sample gate is cleared. |
+| Measurement-surface posture | required steady surface `IG_ADMITTED_EVENTS_PER_SEC`; observed surface `IG_ADMITTED_EVENTS_PER_SEC` | Surface provenance is now explicit and valid for S1 scope. |
+| Threshold-family completeness | latency p95/p99 now present (`31.8504 ms` / `64.5343 ms`) | Scorecard completeness is now met; missing-latency blocker has been removed. |
+| Error posture | observed error ratio `0.039144` vs max `0.002` | Error-rate threshold is breached and contributes to the remaining threshold blocker. |
+| Blockers raised | `PR3.B10` only | S1 remediation succeeded for minima, surface validity, and scorecard completeness; performance/SLO target is the only remaining blocker. |
+| Runtime and cost posture | `elapsed=0.0 min` (budget `60`), `attributable_spend_usd=0.0` (envelope `250.0`) | S1 evaluation remained budget-safe while still fail-closing on evidence quality and performance intent. |
+| Goal-level conclusion | S1 steady-profile certification remains open and requires threshold remediation/rerun | The platform is not yet claimable for PR3 steady gate until `PR3.B10` is cleared. |
