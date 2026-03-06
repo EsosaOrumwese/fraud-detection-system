@@ -367,7 +367,7 @@ def main() -> None:
     ap.add_argument("--profile-path", default="config/platform/profiles/dev_full.yaml")
     ap.add_argument("--cluster", default="fraud-platform-dev-full-wsp-ephemeral")
     ap.add_argument("--task-definition", default="fraud-platform-dev-full-wsp-ephemeral")
-    ap.add_argument("--subnet-ids", default="subnet-005205ea65a9027fc,subnet-01fd5f1585bfcca47")
+    ap.add_argument("--subnet-ids", default="subnet-0a7a35898d0ca31a8,subnet-0e9647425f02e2f27")
     ap.add_argument("--security-group-ids", default="sg-01bfefedcd75ec4b2")
     ap.add_argument("--assign-public-ip", default="DISABLED")
     ap.add_argument("--api-id", default="ehwznd2uw7")

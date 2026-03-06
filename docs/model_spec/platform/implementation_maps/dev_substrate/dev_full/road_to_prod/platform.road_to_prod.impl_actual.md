@@ -4600,3 +4600,24 @@ Reasoning:
    - keep Docker support as an optional escape hatch only,
    - set the authoritative build path back to explicit host-mode cross-platform wheel staging,
    - rerun IG edge materialization with this verified builder path.
+## Entry: 2026-03-06 18:49:00 +00:00 - Canonical WSP replay still had subnet default drift after ingress repair
+1. After the ingress edge was repaired and rematerialized locally, I ran a bounded one-lane canonical `WSP` smoke before reattempting the full `PR3-S1` steady window.
+2. That smoke did not hit the old ingress failure. Instead it exposed the next upstream runtime defect immediately:
+   - ECS task failed before start with `TaskFailedToStart`,
+   - root reason: `CannotPullContainerError` while pulling the WSP image digest from ECR,
+   - the task was launched with `assignPublicIp=DISABLED` but still using the old public-subnet defaults.
+3. This is a real production drift in the canonical replay injector:
+   - disabling public IP is correct for the production posture,
+   - but that posture only works if the task is also launched into the runtime private subnets that are wired to the interface endpoints,
+   - keeping the old public-subnet defaults turns a correct security posture into a startup failure.
+4. Therefore the next correct remediation is not to relax the network back to public-IP operation, but to repin the dispatcher defaults to the private runtime subnets:
+   - `subnet-0a7a35898d0ca31a8`
+   - `subnet-0e9647425f02e2f27`
+5. Why this is production-correct:
+   - it preserves the private runtime objective,
+   - it allows ECR pull/bootstrap through the endpoint-backed runtime network,
+   - it removes another silent mismatch between canonical replay code and the actual runtime substrate.
+6. Immediate next action pinned:
+   - update the dispatcher subnet defaults to the private runtime subnets,
+   - rerun the bounded one-lane WSP smoke,
+   - only after that passes return to the full `PR3-S1` steady window.
