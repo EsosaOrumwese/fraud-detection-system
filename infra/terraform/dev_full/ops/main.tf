@@ -369,6 +369,71 @@ resource "aws_iam_policy" "github_actions_pr3_runtime" {
         Resource = "arn:aws:s3:::${var.github_actions_artifacts_bucket}/artifacts/lambda/ig_handler/*"
       },
       {
+        Sid    = "PR3TfStateBucketList"
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket",
+          "s3:GetBucketLocation"
+        ]
+        Resource = "arn:aws:s3:::fraud-platform-dev-full-tfstate"
+        Condition = {
+          StringLike = {
+            "s3:prefix" = [
+              "dev_full/core/terraform.tfstate",
+              "dev_full/streaming/terraform.tfstate",
+              "dev_full/runtime/terraform.tfstate"
+            ]
+          }
+        }
+      },
+      {
+        Sid    = "PR3TfStateRead"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject"
+        ]
+        Resource = [
+          "arn:aws:s3:::fraud-platform-dev-full-tfstate/dev_full/core/terraform.tfstate",
+          "arn:aws:s3:::fraud-platform-dev-full-tfstate/dev_full/streaming/terraform.tfstate",
+          "arn:aws:s3:::fraud-platform-dev-full-tfstate/dev_full/runtime/terraform.tfstate"
+        ]
+      },
+      {
+        Sid    = "PR3TfStateWrite"
+        Effect = "Allow"
+        Action = [
+          "s3:PutObject",
+          "s3:DeleteObject"
+        ]
+        Resource = "arn:aws:s3:::fraud-platform-dev-full-tfstate/dev_full/runtime/terraform.tfstate"
+      },
+      {
+        Sid    = "PR3TfLockControl"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:DescribeTable",
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:UpdateItem"
+        ]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/fraud-platform-dev-full-tf-locks"
+      },
+      {
+        Sid    = "PR3IngressReadRefresh"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:DescribeTable",
+          "dynamodb:ListTagsOfResource",
+          "sqs:GetQueueAttributes",
+          "sqs:ListQueueTags"
+        ]
+        Resource = [
+          "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/fraud-platform-dev-full-ig-idempotency",
+          "arn:aws:sqs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:fraud-platform-dev-full-ig-dlq"
+        ]
+      },
+      {
         Sid    = "PR3ManagedFlinkRead"
         Effect = "Allow"
         Action = [

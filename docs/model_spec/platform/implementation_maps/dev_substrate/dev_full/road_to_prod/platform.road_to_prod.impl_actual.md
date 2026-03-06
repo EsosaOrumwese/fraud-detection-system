@@ -3806,3 +3806,36 @@ Reasoning:
    - preserves the declared remote-state path (`fraud-platform-dev-full-tfstate` / `dev_full/runtime/terraform.tfstate`),
    - avoids inventing a one-off backend path for this workflow,
    - keeps the ingress materialization lane aligned with existing dev_full Terraform operating practice.
+
+## Entry: 2026-03-06 17:54:00 +00:00 - Remote Terraform state access for PR3 requires runtime write plus core/streaming read, not just the artifacts lane
+1. The latest ingress materialization run proved that:
+   - bundle creation works,
+   - artifacts-bucket upload works,
+   - Terraform/backend bootstrap syntax works.
+2. The next failure was `403 Forbidden` on `s3://fraud-platform-dev-full-tfstate/dev_full/runtime/terraform.tfstate` during state refresh.
+3. I inspected the runtime module and confirmed why the policy must be broader than one object:
+   - runtime uses `data.terraform_remote_state.core`,
+   - runtime uses `data.terraform_remote_state.streaming`,
+   - runtime backend uses `fraud-platform-dev-full-tf-locks` for locking.
+4. Therefore the correct PR3 deployment policy scope is:
+   - read access to tfstate objects for `core`, `streaming`, and `runtime`,
+   - write access to the `runtime` tfstate object only,
+   - lock-table control on `fraud-platform-dev-full-tf-locks`.
+5. This is still least-privilege for the deployment lane:
+   - no write access to `core` or `streaming` tfstate,
+   - no blanket `tfstate/*` write,
+   - exact lock-table scope only.
+
+## Entry: 2026-03-06 18:01:00 +00:00 - Targeted runtime apply still needs refresh rights on the pre-existing ingress table and DLQ
+1. The latest workflow cleared all bootstrap barriers and reached the real targeted apply.
+2. Terraform then failed during refresh on two existing resources that are not themselves the new targets but are referenced by the runtime stack:
+   - `fraud-platform-dev-full-ig-idempotency` (`dynamodb:DescribeTable` denied),
+   - `fraud-platform-dev-full-ig-dlq` (`sqs:GetQueueAttributes` denied).
+3. Interpretation:
+   - the deployment lane is now behaving like real infrastructure automation,
+   - even a narrow targeted apply still has to read the current state of adjacent runtime resources.
+4. Correction:
+   - extend the managed PR3 deployment policy with refresh-only read permissions for those two ingress resources.
+5. Why this remains production-correct:
+   - no write scope added to DDB or SQS,
+   - only the exact read actions Terraform needs for refresh (`DescribeTable`, `ListTagsOfResource`, `GetQueueAttributes`, `ListQueueTags`).
