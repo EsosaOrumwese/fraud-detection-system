@@ -264,6 +264,16 @@ data "aws_iam_policy_document" "assume_role_step_functions" {
   }
 }
 
+data "aws_iam_policy_document" "assume_role_ecs_tasks" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "Service"
+      identifiers = ["ecs-tasks.amazonaws.com"]
+    }
+  }
+}
+
 data "aws_iam_policy_document" "assume_role_flink" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -754,6 +764,534 @@ resource "aws_lambda_permission" "allow_apigw" {
   function_name = aws_lambda_function.ig_handler.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.ig_edge.execution_arn}/*/*"
+}
+
+resource "aws_ecs_cluster" "ig_service" {
+  count = var.ig_service_enabled ? 1 : 0
+
+  name = var.ig_service_cluster_name
+
+  setting {
+    name  = "containerInsights"
+    value = "enabled"
+  }
+
+  tags = merge(local.common_tags, {
+    fp_resource = "ig_service_cluster"
+  })
+}
+
+resource "aws_security_group" "ig_service_alb" {
+  count = var.ig_service_enabled ? 1 : 0
+
+  name        = "${var.ig_service_name}-alb-sg"
+  description = "Internal ALB ingress for managed IG service"
+  vpc_id      = local.vpc_id
+
+  ingress {
+    description = "HTTP from private runtime subnets"
+    from_port   = floor(var.ig_service_listener_port)
+    to_port     = floor(var.ig_service_listener_port)
+    protocol    = "tcp"
+    cidr_blocks = local.private_subnet_cidrs
+  }
+
+  egress {
+    description = "ALB egress to managed IG service tasks"
+    from_port   = floor(var.ig_service_container_port)
+    to_port     = floor(var.ig_service_container_port)
+    protocol    = "tcp"
+    cidr_blocks = local.private_subnet_cidrs
+  }
+
+  tags = merge(local.common_tags, {
+    fp_resource = "ig_service_alb_sg"
+  })
+}
+
+resource "aws_security_group" "ig_service_tasks" {
+  count = var.ig_service_enabled ? 1 : 0
+
+  name        = "${var.ig_service_name}-tasks-sg"
+  description = "Managed IG service tasks"
+  vpc_id      = local.vpc_id
+
+  ingress {
+    description     = "HTTP from internal ALB"
+    from_port       = floor(var.ig_service_container_port)
+    to_port         = floor(var.ig_service_container_port)
+    protocol        = "tcp"
+    security_groups = [aws_security_group.ig_service_alb[0].id]
+  }
+
+  egress {
+    description = "Runtime egress"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = merge(local.common_tags, {
+    fp_resource = "ig_service_tasks_sg"
+  })
+}
+
+resource "aws_lb" "ig_service" {
+  count = var.ig_service_enabled ? 1 : 0
+
+  name               = "fp-dev-full-ig-svc"
+  internal           = true
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.ig_service_alb[0].id]
+  subnets            = local.private_subnet_ids
+
+  lifecycle {
+    precondition {
+      condition     = length(local.private_subnet_ids) >= 2
+      error_message = "Managed IG service ALB requires at least two private subnets."
+    }
+  }
+
+  tags = merge(local.common_tags, {
+    fp_resource = "ig_service_alb"
+  })
+}
+
+resource "aws_lb_target_group" "ig_service" {
+  count = var.ig_service_enabled ? 1 : 0
+
+  name                 = "fp-dev-full-ig-svc"
+  port                 = floor(var.ig_service_container_port)
+  protocol             = "HTTP"
+  target_type          = "ip"
+  vpc_id               = local.vpc_id
+  deregistration_delay = 10
+
+  health_check {
+    enabled             = true
+    path                = "/healthz"
+    matcher             = "200"
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    interval            = 15
+    timeout             = 5
+  }
+
+  tags = merge(local.common_tags, {
+    fp_resource = "ig_service_tg"
+  })
+}
+
+resource "aws_lb_listener" "ig_service" {
+  count = var.ig_service_enabled ? 1 : 0
+
+  load_balancer_arn = aws_lb.ig_service[0].arn
+  port              = floor(var.ig_service_listener_port)
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.ig_service[0].arn
+  }
+}
+
+resource "aws_cloudwatch_log_group" "ig_service" {
+  count = var.ig_service_enabled ? 1 : 0
+
+  name              = var.ig_service_log_group_name
+  retention_in_days = 14
+
+  tags = merge(local.common_tags, {
+    fp_resource = "ig_service_log_group"
+  })
+}
+
+resource "aws_iam_role" "ecs_ig_task_execution" {
+  count = var.ig_service_enabled ? 1 : 0
+
+  name               = var.role_ecs_ig_task_execution_name
+  assume_role_policy = data.aws_iam_policy_document.assume_role_ecs_tasks.json
+  tags               = local.common_tags
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_ig_task_execution_managed" {
+  count = var.ig_service_enabled ? 1 : 0
+
+  role       = aws_iam_role.ecs_ig_task_execution[0].name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+resource "aws_iam_role" "ecs_ig_task_runtime" {
+  count = var.ig_service_enabled ? 1 : 0
+
+  name               = var.role_ecs_ig_task_runtime_name
+  assume_role_policy = data.aws_iam_policy_document.assume_role_ecs_tasks.json
+  tags               = local.common_tags
+}
+
+resource "aws_iam_role_policy" "ecs_ig_task_runtime" {
+  count = var.ig_service_enabled ? 1 : 0
+
+  name = "${var.role_ecs_ig_task_runtime_name}-policy"
+  role = aws_iam_role.ecs_ig_task_runtime[0].id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = concat(
+      [
+        {
+          Effect = "Allow"
+          Action = [
+            "dynamodb:DescribeTable",
+            "dynamodb:GetItem",
+            "dynamodb:PutItem",
+            "dynamodb:UpdateItem",
+            "dynamodb:DeleteItem",
+            "dynamodb:Query"
+          ]
+          Resource = aws_dynamodb_table.ig_idempotency.arn
+        },
+        {
+          Effect = "Allow"
+          Action = [
+            "ssm:GetParameter",
+            "ssm:GetParameters"
+          ]
+          Resource = [
+            "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_ig_api_key_path}",
+            "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_msk_bootstrap_brokers_path}",
+          ]
+        },
+        {
+          Effect = "Allow"
+          Action = [
+            "sqs:SendMessage"
+          ]
+          Resource = aws_sqs_queue.ig_dlq.arn
+        },
+        {
+          Effect = "Allow"
+          Action = [
+            "s3:ListBucket"
+          ]
+          Resource = "arn:aws:s3:::${local.core_object_store_bucket}"
+        },
+        {
+          Effect = "Allow"
+          Action = [
+            "s3:GetObject",
+            "s3:PutObject"
+          ]
+          Resource = "arn:aws:s3:::${local.core_object_store_bucket}/*"
+        },
+        {
+          Effect = "Allow"
+          Action = [
+            "kafka-cluster:Connect",
+            "kafka-cluster:DescribeCluster"
+          ]
+          Resource = local.msk_cluster_arn
+        },
+        {
+          Effect = "Allow"
+          Action = [
+            "kafka-cluster:DescribeTopic",
+            "kafka-cluster:ReadData",
+            "kafka-cluster:WriteData"
+          ]
+          Resource = local.msk_topic_wildcard_arn
+        },
+        {
+          Effect = "Allow"
+          Action = [
+            "kafka-cluster:DescribeGroup",
+            "kafka-cluster:AlterGroup"
+          ]
+          Resource = local.msk_group_wildcard_arn
+        }
+      ],
+      local.core_kms_key_arn != "" ? [
+        {
+          Effect = "Allow"
+          Action = [
+            "kms:Decrypt",
+            "kms:Encrypt",
+            "kms:GenerateDataKey",
+            "kms:DescribeKey"
+          ]
+          Resource = local.core_kms_key_arn
+        }
+      ] : []
+    )
+  })
+}
+
+resource "aws_ecs_task_definition" "ig_service" {
+  count = var.ig_service_enabled ? 1 : 0
+
+  family                   = var.ig_service_name
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = tostring(floor(var.ig_service_task_cpu))
+  memory                   = tostring(floor(var.ig_service_task_memory))
+  execution_role_arn       = aws_iam_role.ecs_ig_task_execution[0].arn
+  task_role_arn            = aws_iam_role.ecs_ig_task_runtime[0].arn
+
+  container_definitions = jsonencode([
+    {
+      name      = "ig"
+      image     = var.ig_service_image_uri
+      essential = true
+      portMappings = [
+        {
+          containerPort = floor(var.ig_service_container_port)
+          hostPort      = floor(var.ig_service_container_port)
+          protocol      = "tcp"
+        }
+      ]
+      command = [
+        "/bin/sh",
+        "-lc",
+        "exec gunicorn --bind 0.0.0.0:$${IG_SERVICE_PORT} --workers $${IG_GUNICORN_WORKERS} --threads $${IG_GUNICORN_THREADS} --worker-class gthread --timeout $${IG_GUNICORN_TIMEOUT_SECONDS} --factory 'fraud_detection.ingestion_gate.managed_service:create_app()'"
+      ]
+      environment = [
+        {
+          name  = "AWS_REGION"
+          value = var.aws_region
+        },
+        {
+          name  = "IG_SERVICE_PORT"
+          value = tostring(floor(var.ig_service_container_port))
+        },
+        {
+          name  = "IG_GUNICORN_WORKERS"
+          value = tostring(floor(var.ig_service_gunicorn_workers))
+        },
+        {
+          name  = "IG_GUNICORN_THREADS"
+          value = tostring(floor(var.ig_service_gunicorn_threads))
+        },
+        {
+          name  = "IG_GUNICORN_TIMEOUT_SECONDS"
+          value = tostring(ceil(var.ig_service_request_timeout_ms / 1000))
+        },
+        {
+          name  = "IG_IDEMPOTENCY_TABLE"
+          value = aws_dynamodb_table.ig_idempotency.name
+        },
+        {
+          name  = "IG_HASH_KEY"
+          value = var.ddb_ig_idempotency_hash_key
+        },
+        {
+          name  = "IG_TTL_ATTRIBUTE"
+          value = var.ddb_ig_idempotency_ttl_attribute
+        },
+        {
+          name  = "IG_API_KEY_PATH"
+          value = aws_ssm_parameter.ig_api_key.name
+        },
+        {
+          name  = "IG_AUTH_MODE"
+          value = var.ig_auth_mode
+        },
+        {
+          name  = "IG_AUTH_HEADER_NAME"
+          value = var.ig_auth_header_name
+        },
+        {
+          name  = "IG_MAX_REQUEST_BYTES"
+          value = tostring(var.ig_max_request_bytes)
+        },
+        {
+          name  = "IG_REQUEST_TIMEOUT_SECONDS"
+          value = tostring(var.ig_request_timeout_seconds)
+        },
+        {
+          name  = "IG_INTERNAL_RETRY_MAX_ATTEMPTS"
+          value = tostring(var.ig_internal_retry_max_attempts)
+        },
+        {
+          name  = "IG_INTERNAL_RETRY_BACKOFF_MS"
+          value = tostring(var.ig_internal_retry_backoff_ms)
+        },
+        {
+          name  = "IG_IDEMPOTENCY_TTL_SECONDS"
+          value = tostring(var.ig_idempotency_ttl_seconds)
+        },
+        {
+          name  = "IG_DLQ_MODE"
+          value = var.ig_dlq_mode
+        },
+        {
+          name  = "IG_DLQ_QUEUE_NAME"
+          value = var.ig_dlq_queue_name
+        },
+        {
+          name  = "IG_DLQ_URL"
+          value = aws_sqs_queue.ig_dlq.url
+        },
+        {
+          name  = "IG_REPLAY_MODE"
+          value = var.ig_replay_mode
+        },
+        {
+          name  = "IG_RATE_LIMIT_RPS"
+          value = tostring(var.ig_rate_limit_rps)
+        },
+        {
+          name  = "IG_RATE_LIMIT_BURST"
+          value = tostring(var.ig_rate_limit_burst)
+        },
+        {
+          name  = "PLATFORM_PROFILE_ID"
+          value = var.environment
+        },
+        {
+          name  = "PLATFORM_CONFIG_REVISION"
+          value = "dev-full-v0"
+        },
+        {
+          name  = "PLATFORM_STORE_ROOT"
+          value = "s3://${local.core_object_store_bucket}"
+        },
+        {
+          name  = "OBJECT_STORE_REGION"
+          value = var.aws_region
+        },
+        {
+          name  = "OBJECT_STORE_PATH_STYLE"
+          value = "false"
+        },
+        {
+          name  = "KAFKA_AWS_REGION"
+          value = var.aws_region
+        },
+        {
+          name  = "KAFKA_SECURITY_PROTOCOL"
+          value = "SASL_SSL"
+        },
+        {
+          name  = "KAFKA_SASL_MECHANISM"
+          value = "OAUTHBEARER"
+        },
+        {
+          name  = "KAFKA_REQUEST_TIMEOUT_MS"
+          value = tostring(var.lambda_ig_kafka_request_timeout_ms)
+        },
+        {
+          name  = "KAFKA_PUBLISH_RETRIES"
+          value = "3"
+        },
+        {
+          name  = "KAFKA_BOOTSTRAP_BROKERS_PARAM_PATH"
+          value = var.ssm_msk_bootstrap_brokers_path
+        },
+        {
+          name  = "IG_HEALTH_BUS_PROBE_MODE"
+          value = "describe"
+        },
+        {
+          name  = "IG_POLICY_ACTIVATION_AUDIT_MODE"
+          value = var.lambda_ig_policy_activation_audit_mode
+        }
+      ]
+      healthCheck = {
+        command = [
+          "CMD-SHELL",
+          "python -c \"import sys, urllib.request; urllib.request.urlopen('http://127.0.0.1:$${IG_SERVICE_PORT}/healthz', timeout=2).read(); sys.exit(0)\" || exit 1"
+        ]
+        interval    = 15
+        timeout     = 5
+        retries     = 3
+        startPeriod = 30
+      }
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = aws_cloudwatch_log_group.ig_service[0].name
+          awslogs-region        = var.aws_region
+          awslogs-stream-prefix = "ecs"
+        }
+      }
+    }
+  ])
+
+  lifecycle {
+    precondition {
+      condition     = trimspace(var.ig_service_image_uri) != ""
+      error_message = "ig_service_image_uri must be pinned when ig_service_enabled=true."
+    }
+  }
+
+  tags = merge(local.common_tags, {
+    fp_resource = "ig_service_task_definition"
+  })
+}
+
+resource "aws_ecs_service" "ig_service" {
+  count = var.ig_service_enabled ? 1 : 0
+
+  name            = var.ig_service_name
+  cluster         = aws_ecs_cluster.ig_service[0].id
+  task_definition = aws_ecs_task_definition.ig_service[0].arn
+  desired_count   = floor(var.ig_service_desired_count)
+  launch_type     = "FARGATE"
+
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
+
+  deployment_minimum_healthy_percent = 50
+  deployment_maximum_percent         = 200
+  health_check_grace_period_seconds  = 60
+
+  network_configuration {
+    subnets          = local.private_subnet_ids
+    security_groups  = [aws_security_group.ig_service_tasks[0].id]
+    assign_public_ip = false
+  }
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.ig_service[0].arn
+    container_name   = "ig"
+    container_port   = floor(var.ig_service_container_port)
+  }
+
+  depends_on = [
+    aws_lb_listener.ig_service,
+    aws_iam_role_policy_attachment.ecs_ig_task_execution_managed,
+    aws_iam_role_policy.ecs_ig_task_runtime,
+  ]
+
+  lifecycle {
+    precondition {
+      condition     = length(local.private_subnet_ids) >= 2
+      error_message = "Managed IG service requires at least two private subnets."
+    }
+    precondition {
+      condition     = floor(var.ig_service_desired_count) > 0
+      error_message = "Managed IG service desired count must be positive."
+    }
+  }
+
+  tags = merge(local.common_tags, {
+    fp_resource = "ig_service_ecs_service"
+  })
+}
+
+resource "aws_ssm_parameter" "ig_service_url" {
+  count = var.ig_service_enabled ? 1 : 0
+
+  name      = var.ssm_ig_service_url_path
+  type      = "String"
+  value     = "http://${aws_lb.ig_service[0].dns_name}/v1/ingest/push"
+  overwrite = true
+
+  tags = merge(local.common_tags, {
+    fp_resource = "ig_service_url"
+  })
 }
 
 resource "aws_sfn_state_machine" "platform_run_orchestrator" {

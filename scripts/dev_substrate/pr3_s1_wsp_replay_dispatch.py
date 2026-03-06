@@ -389,6 +389,7 @@ def main() -> None:
     ap.add_argument("--api-id", default="ehwznd2uw7")
     ap.add_argument("--api-stage", default="v1")
     ap.add_argument("--ssm-ig-api-key-path", default="/fraud-platform/dev_full/ig/api_key")
+    ap.add_argument("--ssm-ig-service-url-path", default="/fraud-platform/dev_full/ig/service_url")
     ap.add_argument("--ssm-aurora-endpoint-path", default="/fraud-platform/dev_full/aurora/endpoint")
     ap.add_argument("--ssm-aurora-username-path", default="/fraud-platform/dev_full/aurora/username")
     ap.add_argument("--ssm-aurora-password-path", default="/fraud-platform/dev_full/aurora/password")
@@ -401,7 +402,8 @@ def main() -> None:
     ap.add_argument("--oracle-root", default="s3://fraud-platform-dev-full-object-store")
     ap.add_argument("--scenario-id", default="baseline_v1")
     ap.add_argument("--object-store-root", default="s3://fraud-platform-dev-full-object-store")
-    ap.add_argument("--ig-ingest-url", default="https://ehwznd2uw7.execute-api.eu-west-2.amazonaws.com/v1/ingest/push")
+    ap.add_argument("--ig-ingest-url", default="")
+    ap.add_argument("--ig-ingest-url-fallback", default="https://ehwznd2uw7.execute-api.eu-west-2.amazonaws.com/v1/ingest/push")
     ap.add_argument("--traffic-output-ids", default="s3_event_stream_with_fraud_6B")
     ap.add_argument(
         "--context-output-ids",
@@ -451,6 +453,15 @@ def main() -> None:
     task_definition = resolve_task_definition(ecs, args.task_definition)
 
     ig_api_key = ssm.get_parameter(Name=args.ssm_ig_api_key_path, WithDecryption=True)["Parameter"]["Value"]
+    resolved_ig_ingest_url = str(args.ig_ingest_url).strip()
+    if not resolved_ig_ingest_url:
+        try:
+            service_url = ssm.get_parameter(Name=args.ssm_ig_service_url_path, WithDecryption=False)["Parameter"]["Value"]
+            resolved_ig_ingest_url = str(service_url or "").strip()
+        except (BotoCoreError, ClientError):
+            resolved_ig_ingest_url = ""
+    if not resolved_ig_ingest_url:
+        resolved_ig_ingest_url = str(args.ig_ingest_url_fallback).strip()
     wsp_checkpoint_dsn = str(args.wsp_checkpoint_dsn).strip()
     if not wsp_checkpoint_dsn:
         aurora_payload = ssm.get_parameters(
@@ -500,7 +511,7 @@ def main() -> None:
         {"name": "AWS_REGION", "value": args.region},
         {"name": "WSP_PROFILE_PATH", "value": args.profile_path},
         {"name": "IG_API_KEY", "value": ig_api_key},
-        {"name": "IG_INGEST_URL", "value": args.ig_ingest_url},
+        {"name": "IG_INGEST_URL", "value": resolved_ig_ingest_url},
         {"name": "PLATFORM_RUN_ID", "value": args.platform_run_id},
         {"name": "SCENARIO_RUN_ID", "value": args.scenario_run_id},
         {"name": "ORACLE_ENGINE_RUN_ROOT", "value": args.oracle_engine_run_root},
@@ -651,6 +662,11 @@ def main() -> None:
         "oracle": {
             "oracle_root": args.oracle_root,
             "oracle_engine_run_root": args.oracle_engine_run_root,
+        },
+        "ingress": {
+            "resolved_ig_ingest_url": resolved_ig_ingest_url,
+            "ig_ingest_url_fallback": str(args.ig_ingest_url_fallback).strip(),
+            "ssm_ig_service_url_path": args.ssm_ig_service_url_path,
         },
     }
     manifest_path = pr3_root / "g3a_s1_wsp_runtime_manifest.json"

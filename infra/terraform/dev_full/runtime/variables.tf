@@ -244,6 +244,86 @@ variable "lambda_ig_package_sha256_base64" {
   default = ""
 }
 
+variable "ig_service_enabled" {
+  type    = bool
+  default = false
+}
+
+variable "ig_service_cluster_name" {
+  type    = string
+  default = "fraud-platform-dev-full-ingress"
+}
+
+variable "ig_service_name" {
+  type    = string
+  default = "fraud-platform-dev-full-ig-service"
+}
+
+variable "ig_service_image_uri" {
+  type    = string
+  default = ""
+}
+
+variable "ig_service_container_port" {
+  type    = number
+  default = 8080
+}
+
+variable "ig_service_listener_port" {
+  type    = number
+  default = 80
+}
+
+variable "ig_service_task_cpu" {
+  type    = number
+  default = 2048
+}
+
+variable "ig_service_task_memory" {
+  type    = number
+  default = 4096
+}
+
+variable "ig_service_desired_count" {
+  type    = number
+  default = 6
+}
+
+variable "ig_service_gunicorn_workers" {
+  type    = number
+  default = 4
+}
+
+variable "ig_service_gunicorn_threads" {
+  type    = number
+  default = 32
+}
+
+variable "ig_service_request_timeout_ms" {
+  type    = number
+  default = 30000
+}
+
+variable "ig_service_log_group_name" {
+  type    = string
+  default = "/ecs/fraud-platform-dev-full-ig-service"
+}
+
+variable "role_ecs_ig_task_execution_name" {
+  type    = string
+  default = "fraud-platform-dev-full-ecs-ig-task-execution"
+}
+
+variable "role_ecs_ig_task_runtime_name" {
+  type    = string
+  default = "fraud-platform-dev-full-ecs-ig-task-runtime"
+}
+
+variable "ssm_ig_service_url_path" {
+  type    = string
+  default = "/fraud-platform/dev_full/ig/service_url"
+}
+
 variable "sfn_platform_run_orchestrator_name" {
   type    = string
   default = "fraud-platform-dev-full-platform-run-v0"

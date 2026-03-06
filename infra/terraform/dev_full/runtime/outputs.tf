@@ -34,6 +34,26 @@ output "ssm_ig_api_key_path" {
   value = aws_ssm_parameter.ig_api_key.name
 }
 
+output "ig_service_cluster_name" {
+  value = var.ig_service_enabled ? aws_ecs_cluster.ig_service[0].name : null
+}
+
+output "ig_service_name" {
+  value = var.ig_service_enabled ? aws_ecs_service.ig_service[0].name : null
+}
+
+output "ig_service_internal_dns_name" {
+  value = var.ig_service_enabled ? aws_lb.ig_service[0].dns_name : null
+}
+
+output "ig_service_url" {
+  value = var.ig_service_enabled ? "http://${aws_lb.ig_service[0].dns_name}/v1/ingest/push" : null
+}
+
+output "ssm_ig_service_url_path" {
+  value = var.ig_service_enabled ? aws_ssm_parameter.ig_service_url[0].name : null
+}
+
 output "sfn_platform_run_orchestrator_arn" {
   value = aws_sfn_state_machine.platform_run_orchestrator.arn
 }
@@ -162,6 +182,11 @@ output "runtime_handle_materialization" {
     APIGW_IG_STAGE_THROTTLE_RPS        = aws_apigatewayv2_stage.ig_v1.default_route_settings[0].throttling_rate_limit
     APIGW_IG_STAGE_THROTTLE_BURST      = aws_apigatewayv2_stage.ig_v1.default_route_settings[0].throttling_burst_limit
     APIGW_IG_INTEGRATION_TIMEOUT_MS    = aws_apigatewayv2_integration.ig_lambda.timeout_milliseconds
+    IG_SERVICE_ENABLED                 = var.ig_service_enabled
+    IG_SERVICE_CLUSTER_NAME            = var.ig_service_enabled ? aws_ecs_cluster.ig_service[0].name : null
+    IG_SERVICE_NAME                    = var.ig_service_enabled ? aws_ecs_service.ig_service[0].name : null
+    IG_SERVICE_URL                     = var.ig_service_enabled ? "http://${aws_lb.ig_service[0].dns_name}/v1/ingest/push" : null
+    SSM_IG_SERVICE_URL_PATH            = var.ig_service_enabled ? aws_ssm_parameter.ig_service_url[0].name : null
     PHASE_RUNTIME_PATH_MODE            = var.phase_runtime_path_mode
     PHASE_RUNTIME_PATH_EVIDENCE_TARGET = var.phase_runtime_path_evidence_path_pattern
   }

@@ -531,3 +531,13 @@ State closure:
 | Latency posture | `p95=351.865 ms`, `p99=870.573 ms` against maxima `350/700 ms` | Tail latency is now near the line at `p95` but still above the production gate, which is consistent with residual concurrency pressure rather than a broken hot path. |
 | Comparative gain | throughput improved from `1591.678 eps` at `300` concurrency to `2350.333 eps` at `360` concurrency | The path responds materially to capacity uplift, which argues that the remaining miss is a capacity-governance problem rather than a hidden semantic defect. |
 | Decision implication | more reruns on the same account-limited Lambda posture are low-value; next work is quota uplift and/or service-backed ingress materialization | PR3-S1 should now pivot toward removing the account ceiling, not repeating the same bounded evidence loop. |
+
+### 11.6 PR3-S1 Service-Edge Decision Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Production question | account-limited Lambda proof plateaued at `2350.333 eps` with the legal ceiling already applied | Waiting for quota alone is not a sufficient production-hardening strategy. |
+| Existing service option | repo contains a real Flask IG service, but its default runtime path uses `IG_ADMISSION_DSN`/Aurora-backed indices | Promoting that path unchanged would move the hot idempotency boundary onto Aurora without enough throughput proof. |
+| Preserved hot-path semantics | current managed edge already proves `DDB idempotency + S3 receipts/governance + Kafka publish` semantics | These semantics are the safer scaling base for the ingress trust boundary. |
+| Chosen correction | promote IG to a horizontally scaled ECS/Fargate service but reuse the managed-edge DDB/Kafka request logic rather than the older Postgres-backed service path | This removes the Lambda regional ceiling without weakening the trust boundary or inventing a different ingestion contract. |
+| Runtime placement | `WSP` stays a remote replay producer; `Managed Flink` stays downstream on `IEG/OFP/RTDL`; only the IG request-execution shell changes | The graph stays production-coherent instead of conflating stream processing with the ingress producer edge. |
+| Active next step | materialize reusable managed-edge HTTP service + ALB/ECS ingress endpoint, then rerun bounded `PR3-S1` from the same strict root | PR3 remains at `S1`; the open work is architecture correction followed by fresh evidence, not threshold waiver. |

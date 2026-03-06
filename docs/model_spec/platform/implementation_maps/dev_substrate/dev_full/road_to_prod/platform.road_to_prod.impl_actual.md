@@ -4891,3 +4891,63 @@ Reasoning:
    - do not waste more bounded reruns on the same account-limited Lambda posture,
    - evaluate and, if feasible, materialize the existing `ingestion_gate.service` runtime as an ECS service-backed ingress alternative so PR3-S1 is no longer held hostage by the Lambda regional quota in this account,
    - preserve the current Lambda evidence because it proves the hot path is close and that the blocker has narrowed to capacity governance rather than semantic correctness.
+## Entry: 2026-03-06 20:05:00 +00:00 - PR3-S1 service-edge decision: promote ingress to a horizontally scaled ECS service, but keep DDB/Kafka hot-path semantics rather than regressing to the older profile-backed Postgres edge
+1. I stopped treating the account-quota ceiling as "the blocker" and instead re-evaluated the production question directly:
+   - what ingress posture should this platform use if the real requirement is `3000 eps steady / 6000 burst`,
+   - not "what can I rerun fastest."
+2. The repo currently exposes three candidate directions:
+   - wait for the pending Lambda quota increase and keep `API Gateway -> Lambda -> DDB -> MSK`,
+   - promote the existing Flask `ingestion_gate.service` app as-is, which uses the profile-driven `IngestionGate.build(...)` path and therefore moves idempotency/ops indexing onto `IG_ADMISSION_DSN` (Aurora/Postgres),
+   - promote a service-backed ingress edge, but reuse the already-proven managed-edge semantics from `aws_lambda_handler.py` (`DDB idempotency + S3 receipts + Kafka publish + strict auth`) instead of the older Postgres-backed service path.
+3. I rejected "wait for quota" as the primary plan:
+   - the quota request is valid and should stay open,
+   - but a pending quota case is not a production-hardening strategy,
+   - it leaves PR3-S1 blocked on account governance rather than on platform design.
+4. I also rejected promoting the old profile-backed IG service as the canonical throughput path:
+   - it is operationally real code, but its hot idempotency path is `lookup -> insert/update -> receipt lookup` on Aurora/Postgres,
+   - that path has not yet been proven for the required ingress envelope,
+   - moving the trust boundary from DynamoDB to Aurora simply because the old Flask wrapper already exists would be a convenience decision, not a production one.
+5. The better production choice is therefore:
+   - keep the ingress trust-boundary semantics already proven under the managed edge (`DDB` for idempotency state, `S3` receipts/governance, `Kafka/MSK` publish),
+   - move only the request-execution shell from Lambda to a horizontally scaled service,
+   - expose that service through a real load-balanced ingress endpoint so the edge can scale independently of Lambda regional concurrency.
+6. This gives the right separation of concerns:
+   - `WSP` remains the real remote replay producer,
+   - `IG` remains the trust boundary and only writer to `EB`,
+   - `Managed Flink` remains scoped to downstream stream-processing lanes (`IEG/OFP/RTDL`),
+   - the only thing changing is the execution substrate of the IG request handler.
+7. Immediate implementation plan pinned:
+   - factor the managed IG request logic out of `aws_lambda_handler.py` into a reusable HTTP-safe edge core,
+   - add a service runner that serves the same ingest/health contract over HTTP,
+   - run it behind an internet-facing ALB and private ECS/Fargate service,
+   - size the service explicitly for the PR3 steady window rather than leaving it on tiny defaults,
+   - repoint PR3-S1 canonical WSP replay to the new managed service endpoint,
+   - rerun bounded `S1` from the same strict PR3 execution root before proceeding to later states.
+8. The Lambda path is not being discarded:
+   - it remains useful as compatibility evidence and as a lower-throughput managed edge posture,
+   - but it is no longer the canonical PR3 throughput-certification path for this account because the live account ceiling is already proven to be below the target envelope.
+## Entry: 2026-03-06 20:35:00 +00:00 - Managed IG service implementation checkpoint: local service wrapper and private ALB/ECS substrate are validated before live materialization
+1. I chose the lowest-risk way to preserve the managed-edge semantics:
+   - instead of rewriting the admission core again, the new HTTP service wrapper adapts inbound HTTP requests into the existing `aws_lambda_handler.lambda_handler(...)` contract,
+   - this means the service path keeps the exact same DDB idempotency index, S3 receipt/governance writes, Kafka publish path, auth checks, and correlation echo behavior already proven in the Lambda lane.
+2. This is intentionally not "just reusing Flask":
+   - a new `managed_service.py` exposes `/v1/ingest/push`, `/v1/ops/health`, and an unprotected `/healthz` for infrastructure liveness,
+   - the intended runtime server is `gunicorn` with explicit thread/worker sizing, not Flask's development server.
+3. I then added the `dev_full` substrate needed for that path:
+   - internal ALB across private subnets,
+   - ECS/Fargate cluster + task definition + service,
+   - dedicated ALB/task security groups,
+   - dedicated ECS execution/runtime roles,
+   - CloudWatch log group,
+   - SSM parameter publication of the resolved internal ingest URL.
+4. The ALB is pinned `internal`, not internet-facing, because the active PR3 caller is remote `WSP` inside the same VPC and the current goal is truthful platform-runtime certification rather than public internet exposure.
+5. The WSP dispatcher is updated to auto-resolve the service URL from SSM and only fall back to the old API Gateway URL if the service path is not materialized.
+6. Local validation completed before live apply:
+   - `py_compile` passed for the touched Python modules,
+   - focused IG tests passed (`17 passed`),
+   - `terraform validate` passed after the new service resources were added.
+7. Immediate live steps pinned:
+   - build and push a new immutable platform image that includes `managed_service.py` and `gunicorn`,
+   - apply the runtime stack with `ig_service_enabled=true` and the pinned image URI,
+   - verify ECS service health and resolved SSM URL,
+   - rerun bounded `PR3-S1` against the service endpoint from the existing strict PR3 execution root.
