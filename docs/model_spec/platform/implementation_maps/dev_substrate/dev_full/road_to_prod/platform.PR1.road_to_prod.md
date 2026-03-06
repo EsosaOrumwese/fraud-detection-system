@@ -542,18 +542,15 @@ Artifacts emitted in this state:
 | S2 verdict | `PR1_S2_READY`, `open_blockers=0`, `next_state=PR1-S3` | PR1 can proceed to S3. |
 | Advisory posture | `none` | No unresolved S2 scope caveat remains after strict recompute. |
 
-## 14) PR1 Analytical Ledger Snapshot (Standardized)
-| Signal | Observed Value | Threshold/Expectation | Status | Interpretation | Decision/Next Action |
-| --- | --- | --- | --- | --- | --- |
-| `S1` gate verdict | `PR1_S1_READY`, `open_blockers=0` | `open_blockers=0` | `PASS` | S1 closure is valid for S2 handoff. | Keep S1 evidence refs as authoritative upstream for S2/S3. |
-| `S1` steady-rate baseline | `61.365 eps` (natural charter window) | bounded/claimable candidate required | `PASS` | Provides measured natural baseline for envelope seeding. | Finalize numeric envelope at S5 rollup. |
-| `S2` gate verdict | `PR1_S2_READY`, `open_blockers=0` | `open_blockers=0` | `PASS` | S2 closure is valid for S3 handoff. | Proceed to `PR1-S3`. |
-| `S2` highest unmatched rate | `0.00000407` (`J1`) | `<= 0.001` | `PASS` | Join-loss risk is materially below pinned cap. | Retain cap and monitor in downstream runtime windows. |
-| `S2` max fanout estimate | `1.0` (`J1`) | `<= 2.0` | `PASS` | Fanout posture is comfortably below cap. | Keep current fanout cap and monitor downstream. |
-| `S2` duplicate-key rate | `0.0` on mandatory join sides | `<= 0.001` | `PASS` | No duplicate-key pressure on mandatory join paths. | No remediation needed; retain guardrail. |
-| Runtime evidence completeness | `S1=0.645 min`, `S2=3.185 min` emitted | required per-state | `PASS` | Runtime is now numerically claimable in receipt surfaces. | Keep runtime fields mandatory for all future states. |
-| Cost evidence completeness | `S1=0.102349 USD`, `S2=0.369668 USD` emitted | required per-state | `PASS` | Spend posture is now numerically claimable in receipt surfaces. | Keep spend fields mandatory for all future states. |
-| Scope caveat | `none` | charter-window alignment required | `PASS` | S2 scope is now fully charter-window aligned. | Maintain strict charter scope for downstream states. |
+## 14) PR1 Cross-State Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| State continuity | `S1` and `S2` both closed with `open_blockers=0` | Upstream state chain is deterministic and legally sequenced. |
+| Baseline posture | natural baseline `61.365 eps` was measured and carried to closure routing | Early envelope claims are evidence-backed and bounded. |
+| Join integrity posture | highest unmatched `0.00000407`; max fanout `1.0`; duplicate-key `0.0` | Join integrity risk is materially below pinned thresholds. |
+| Runtime claimability | `S1=0.645 min`; `S2=3.185 min` | Runtime evidence is explicit and reproducible, not inferred. |
+| Cost claimability | `S1=0.102349 USD`; `S2=0.369668 USD` | Spend evidence is attributable and mapped to state outcomes. |
+| Scope integrity | no remaining charter-window caveat at S2 closure | Downstream states can proceed without scope debt carryover. |
 
 ## 15) PR1-S3 Findings Summary (Readable)
 | Area | What was found | Interpretation |

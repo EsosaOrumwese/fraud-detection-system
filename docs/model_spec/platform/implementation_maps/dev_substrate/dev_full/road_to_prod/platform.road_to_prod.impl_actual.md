@@ -1682,3 +1682,26 @@ uns/; docs/logbook/impl map synced after run.
 ### Governance
 1. No branch operations, no commit/push.
 2. Scope limited to S3 executor, run-control artifacts, docs, implementation map, and logbook.
+
+## Entry: 2026-03-06 02:01:22 +00:00 - Findings summaries normalized to human-readable analytical tables (PR1/PR2/main plan)
+### Trigger
+1. USER directed continuation after revert with explicit requirement: readable findings must be analytical summaries, not JSON pointer/file-dump tables.
+
+### Decisions
+1. Preserve artifact inventories/evidence references in authority and execution sections.
+2. Normalize findings surfaces to one schema: Area | What was found | Interpretation.
+3. Remove the remaining PR1 standardized ledger block so findings are fully consistent across PR1, PR2, and the main plan.
+
+### Changes applied
+1. Updated platform.PR2.road_to_prod.md findings sections (11.1..11.4) to summary format.
+2. Updated platform.road_to_prod.plan.md findings sections (10.1..10.10) to summary format.
+3. Updated platform.PR1.road_to_prod.md section 14 to PR1 Cross-State Findings Summary (Readable) with the same 3-column summary structure.
+
+### Verification
+1. Confirmed no remaining Findings Snapshot headings in PR1/PR2/main-plan findings surfaces.
+2. Confirmed no remaining old 6-column findings table schema (Signal/Observed/Threshold/Status/Interpretation/Decision) in the normalized findings sections.
+3. Confirmed modified scope remains documentation-only.
+
+### Governance
+1. No branch operations.
+2. No commit/push.

@@ -317,53 +317,44 @@ State closure:
 10. PR2 summary:
    - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_execution_summary.json` (`verdict=PR3_READY`, `next_gate=PR3_READY`).
 
-### 11.1 PR2-S0 Findings Snapshot (Readable)
-| Signal | Observed Value | Threshold/Expectation | Status | Interpretation | Decision/Next Action |
-| --- | --- | --- | --- | --- | --- |
-| `PR2-S0` gate verdict | `PR2_S0_READY`, `open_blockers=0` | `open_blockers=0` | `PASS` | Entry lock and inventory stage passed fail-closed. | Proceed to `PR2-S1` contract population. |
-| Upstream continuity lock | `PR1_S5_READY` from `pr1_20260305T174744Z` | strict upstream required | `PASS` | PR2 started from a legal PR1 closure boundary. | Keep strict upstream binding for all PR2 states. |
-| Inventory coverage | `total=36`, `required=34`, `prefilled_required=25`, `pending_required=9` | required rows must be enumerated | `PASS` | Active RC2-S required scope is explicit and measurable. | Use this inventory as S1 fill ledger baseline. |
-| Owner/due-state coverage | `owner_gap_row_ids=[]` | no orphan pending required rows | `PASS` | Every required pending row has explicit owner lane and due state. | Fail closed in S1 if any row remains ownerless or unbound. |
-| Pending rows by lane | `runtime_perf=6`, `cost_governance=1`, `ops_gov_observability=2` | all pending required rows due in `S1` | `PASS` | S1 scope is focused and lane-routable. | Execute S1 with deterministic per-row closure mapping. |
-| Deferred optional scope | `PR2.O010` -> `PR3`, `PR2.O011` -> `PR4` | only non-required rows may be deferred | `PASS` | Deferred set is explicitly out-of-scope for PR2 activation gate. | Keep deferred register explicit; do not leak into required blockers. |
-| Runtime budget posture (`S0`) | `elapsed_minutes=0.0` | `<= 10.0` | `PASS` | S0 stayed minute-scale and deterministic. | Preserve this posture for S1/S2/S3. |
-| Cost posture (`S0`) | `attributable_spend_usd=0.0` | `<= 2.0` and attributable | `PASS` | Evidence-first S0 incurred no incremental execution spend. | Keep attributable spend receipt fields mandatory in all states. |
-| Advisory carry-forward | `PR1.S4.AD01_LABEL_TS_PROXY_SEMANTICS` | advisories must be explicit and non-hidden | `PASS` | Known maturity-proxy semantics remain transparent across phase handoff. | Retain advisory until true `label_available_ts` is available. |
+### 11.1 PR2-S0 Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Gate outcome | `PR2_S0_READY`, `open_blockers=0` | Entry gate closed cleanly; PR2 can proceed to S1. |
+| Upstream continuity | PR1 closure lock was valid and strict | PR2 started from a legal upstream boundary, not a partial state. |
+| Inventory scope | `total=36`, `required=34`, `pending_required=9` | Required activation scope is fully enumerated and auditable. |
+| Ownership completeness | no orphan pending required rows (`owner_gap=0`) | S1 remediation/closure lanes are deterministic by owner. |
+| Deferred optional scope | optional rows routed to later phases (`PR3`/`PR4`) | Deferred scope is explicit and does not dilute PR2 required gates. |
+| Runtime and cost posture | `elapsed=0.0 min` (budget `10`), `attributable_spend_usd=0.0` (envelope `2.0`) | S0 remained minute-scale and spend-neutral under evidence-first execution. |
+| Advisory continuity | maturity proxy advisory remains explicit | Known semantic caveat is transparent and tracked, not hidden. |
 
-### 11.2 PR2-S1 Findings Snapshot (Readable)
-| Signal | Observed Value | Threshold/Expectation | Status | Interpretation | Decision/Next Action |
-| --- | --- | --- | --- | --- | --- |
-| `PR2-S1` gate verdict | `PR2_S1_READY`, `open_blockers=0` | `open_blockers=0` | `PASS` | S1 contract materialization passed fail-closed checks. | Proceed to `PR2-S2` activation validation. |
-| Contract presence (`B05/B06`) | runtime + ops/gov ACTIVE contracts emitted | both required | `PASS` | Required S1 contract artifacts are present/readable. | Keep these as canonical S2 validator inputs. |
-| Required `TBD` posture (`B07`) | `required_tbd_rows=[]` | none allowed in active required scope | `PASS` | All required RC2-S S1 rows are now concretely populated. | Enforce no regression to TBD in S2/S3. |
-| Measurement surfaces (`B08`) | throughput `IG_ADMITTED_EVENTS_PER_SEC`; latency `IG_ADMISSION_TS -> DECISION_COMMIT_TS` | all required surfaces bound | `PASS` | Claim surfaces are explicit and aligned to injection path `via_IG`. | Validate surface semantics and anti-gaming in S2. |
-| Calibration traceability (`B09`) | required trace rows present for `R006/R007/R010/R022/R023/R024/R025` | trace row coverage required | `PASS` | Threshold pins are auditable against baseline/target pairs. | Carry trace rows into S2 sanity checks. |
-| Runtime envelope repin | steady `3000 eps`, burst `6000 eps` | production-target pin | `PASS` | PR2 moved from PR1 baseline envelope to explicit production target. | Use this as required S2/S3 activation baseline. |
-| Burst realism constraint | projected burst with uniform speedup `3568.809582 eps`; gap `2431.190418 eps` | explicit carry-forward constraint required | `PASS` | Uniform `stream_speedup` cannot alone realize 6000 burst from current natural shape. | Implement burst-shaper lane in `PR3-S1` before claiming 6000 burst runtime proof. |
-| Runtime posture (`S1`) | `elapsed_minutes=0.0` vs budget `25` | `<= 25` | `PASS` | S1 stayed minute-scale with evidence-first execution. | Preserve minute-scale execution posture for S2/S3. |
-| Cost posture (`S1`) | `attributable_spend_usd=0.0` vs envelope `5.0` | attributable and `<= 5.0` | `PASS` | S1 remained spend-neutral while producing deterministic artifacts. | Keep attributable spend fields mandatory in S2/S3. |
+### 11.2 PR2-S1 Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Gate outcome | `PR2_S1_READY`, `open_blockers=0` | Contract materialization gate closed cleanly; handoff to S2 is legal. |
+| Required contract closure | required `TBD` count reduced to `0` | Active scope is fully populated for activation validation. |
+| Measurement binding | throughput and latency surfaces explicitly bound on hot path | S2 can validate real claim surfaces instead of inferred proxies. |
+| Calibration readiness | required calibration rows covered (`R006/R007/R010/R022/R023/R024/R025`) | Threshold decisions remain auditable and reproducible. |
+| Runtime envelope pin | steady `3000 eps`, burst `6000 eps` pinned | PR2 moved from baseline envelope to production-target envelope. |
+| Burst constraint | projected burst under uniform speedup `3568.809582 eps` (gap `2431.190418 eps`) | Burst-shaper proof is required in PR3; no premature burst claim in PR2. |
+| Runtime and cost posture | `elapsed=0.0 min` (budget `25`), `attributable_spend_usd=0.0` (envelope `5.0`) | S1 stayed minute-scale and spend-neutral. |
 
-### 11.3 PR2-S2 Findings Snapshot (Readable)
-| Signal | Observed Value | Threshold/Expectation | Status | Interpretation | Decision/Next Action |
-| --- | --- | --- | --- | --- | --- |
-| `PR2-S2` gate verdict | `PR2_S2_READY`, `open_blockers=0`, `next_state=PR2-S3` | `open_blockers=0` | `PASS` | Activation validation and anti-gaming gate closed fail-closed cleanly. | Proceed to `PR2-S3` rollup and verdict emission. |
-| Runtime activatability (`B10`) | `overall_valid=true` in `pr2_runtime_contract_validator.json` | runtime contract activatable | `PASS` | RC2-S runtime contract is ACTIVE, complete, and surface-bound. | Keep runtime contract immutable through S3. |
-| Ops/gov activatability (`B11`) | `overall_valid=true` in `pr2_opsgov_contract_validator.json` | baselines activatable | `PASS` | Ops/gov active scope is complete with no required `TBD`. | Carry baseline refs and owner bindings into S3 rollup. |
-| Threshold sanity (`B12`) | all `TS01..TS07` checks pass | sanity checks all pass | `PASS` | Numeric threshold set is logically consistent and bounded. | Promote this set as PR2 activated contract baseline. |
-| Alert/runbook binding (`B13`) | `alert_runbook_binding_valid=true`, `missing=[]`, `missing_owner_for=[]` | zero unresolved bindings | `PASS` | Every required critical alert has owner and runbook resolution. | Keep this as hard prerequisite in PR3/PR4 ops lanes. |
-| Anti-gaming posture (`B14`) | `AG01..AG04` all pass | anti-gaming checks all pass | `PASS` | Claim surfaces are non-proxy, sample minima are non-drift, and burst-gap routing is explicit. | Preserve `PR2.S1.CN01_BURST_SHAPER_REQUIRED` due `PR3-S1`. |
-| Burst-gap governance | projected burst `3568.809582 eps` vs target `6000 eps`; carry-forward present | explicit routing required when gap exists | `PASS` | 6000 burst is not over-claimed in PR2; it is routed to PR3 shaping lane. | Implement burst-shaper proof in `PR3-S1` before burst claim. |
-| Runtime posture (`S2`) | `elapsed_minutes=0.0` vs budget `20` | `<= 20` | `PASS` | S2 remained minute-scale and deterministic. | Preserve runtime discipline in S3 rollup. |
-| Cost posture (`S2`) | `attributable_spend_usd=0.0` vs envelope `5.0` | attributable and `<= 5.0` | `PASS` | S2 validation remained spend-neutral. | Keep attributable spend fields mandatory for S3 closure. |
+### 11.3 PR2-S2 Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Gate outcome | `PR2_S2_READY`, `open_blockers=0` | Activation validation gate closed cleanly; S3 rollup is unblocked. |
+| Runtime activatability | all runtime activatability checks passed | Runtime contract is claimable for downstream execution gates. |
+| Ops/gov activatability | all ops/gov activatability checks passed | Ops/governance contract is enforceable and complete in active scope. |
+| Threshold sanity | all threshold sanity checks passed | Numeric thresholds are logically consistent and bounded. |
+| Alert/runbook actionability | no missing owners and no unresolved runbook bindings | Critical alert posture is actionable, not dashboard-only. |
+| Anti-gaming posture | non-proxy surfaces + sample-minima consistency + burst-gap routing all passed | PR2 claims remain realistic and non-gamed. |
+| Runtime and cost posture | `elapsed=0.0 min` (budget `20`), `attributable_spend_usd=0.0` (envelope `5.0`) | S2 remained minute-scale and spend-neutral. |
 
-### 11.4 PR2-S3 Findings Snapshot (Readable)
-| Signal | Observed Value | Threshold/Expectation | Status | Interpretation | Decision/Next Action |
-| --- | --- | --- | --- | --- | --- |
-| `PR2-S3` gate verdict | `PR2_S3_READY`, `open_blockers=0`, `next_state=PR3-S0` | `open_blockers=0` | `PASS` | PR2 closure rollup passed fail-closed checks. | Handoff to `PR3-S0`. |
-| PR2 phase verdict | `PR3_READY`, `next_gate=PR3_READY` | both required for closure | `PASS` | PR2 exits with deterministic gate verdict and no unresolved blockers. | Treat PR2 as complete and immutable baseline. |
-| Activation index completeness (`B15`) | `pr2_numeric_contract_activation_index.json` exists/readable with required keys | index required | `PASS` | Contract refs + validator statuses are fully compiled. | Use as PR3 upstream activation authority. |
-| Execution summary completeness (`B16`) | `pr2_execution_summary.json` exists/readable and schema-complete | summary required | `PASS` | Closure decision is explicit and auditable. | Keep summary contract unchanged unless fail-closed rerun. |
-| Open blocker posture (`B17`) | `open_blockers=0`, `blocker_ids=[]` | zero blockers required | `PASS` | No residual PR2 blockers remain. | Do not rerun PR2 states unless new drift appears. |
-| Verdict coherence (`B18`) | `verdict=PR3_READY`, `next_gate=PR3_READY` | both required when blockers=0 | `PASS` | Handoff signal is unambiguous and deterministic. | Start PR3 from strict PR2-S3 upstream. |
-| Spend attribution (`B19`) | `attributable_spend_usd=0.0` present and non-negative | attribution required | `PASS` | Closure run remains spend-disciplined and attributable. | Preserve explicit spend fields in all PR3 states. |
-| Evidence index completeness | `missing_required=[]`, `unreadable_required=[]` | no missing/unreadable required artifacts | `PASS` | Full PR2 artifact contract is now readback-complete. | Carry evidence index as canonical PR2 closure receipt. |
+### 11.4 PR2-S3 Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Gate outcome | `PR2_S3_READY`, `open_blockers=0`, `next_state=PR3-S0` | PR2 closure is complete and handoff boundary is legal. |
+| Phase verdict | `PR3_READY`, `next_gate=PR3_READY` | PR2 exits with a deterministic green verdict and no unresolved blockers. |
+| Closure checks | `B15..B19` all passed | Activation index, summary, blocker posture, verdict coherence, and spend attribution all closed fail-closed. |
+| Evidence completeness | required artifacts are present and readable (`missing=0`, `unreadable=0`) | PR2 closure remains fully auditable without evidence holes. |
+| Runtime and cost posture | `elapsed=0.0 min` (budget `10`), `attributable_spend_usd=0.0` (envelope `5.0`) | Final rollup stayed minute-scale and spend-neutral. |

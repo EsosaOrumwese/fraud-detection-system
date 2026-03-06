@@ -224,127 +224,95 @@ This plan's intent is satisfied only when:
    - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.road_to_prod.plan.md`
    - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR2.road_to_prod.md`.
 
-### 10.1 PR1-S1 Findings Snapshot (Readable)
-| Signal | Value | Why it matters for PR1 |
+### 10.1 PR1-S1 Findings Summary (Readable)
+| Area | What was found | Interpretation |
 | --- | --- | --- |
-| S1 verdict | `PR1_S1_READY` | Confirms S1 closure and legal handoff to S2. |
-| Open blockers | `0` | No fail-closed blocker carried from S1 into S2. |
-| Natural charter-window profile | `rows=37,113,583`, `steady=61.365 eps`, `event_type_count=2` | Baseline behavior is now strictly charter-window measured (no cross-window carry-forward). |
-| Pressure cohort contract | duplicate `0.75%`, out-of-order `0.3%`, hotkey top1 `35.0%`, mixed-event types `8` | Required pressure lanes are explicitly derived from injected realism contract evidence, preventing toy-clean closure. |
-| Parse errors | `0` | No profile-quality parsing defect carried forward. |
-| Envelope candidate (S1) | steady `61.365 eps`, burst `73 eps`, durations `30/5/5/30 min` | S1 candidate is bounded; final numeric pin remains S5 responsibility. |
-| Runtime posture (`S1`) | `elapsed_minutes=0.645` vs budget `20` | S1 recompute remained minute-scale under strict charter extraction. |
-| Cost posture (`S1`) | `attributable_spend_usd=0.102349` vs envelope `25.0` | S1 spend is explicitly attributable and bounded. |
-| Gate checks | `B04=true`, `B05=true`, `B06=true` | Required S1 acceptance checks all passed. |
+| Gate outcome | `PR1_S1_READY`, `open_blockers=0` | S1 closed fail-closed and can legally hand off to S2. |
+| Charter scope and baseline | charter window held; baseline `rows=37,113,583`, natural `steady=61.365 eps` | Baseline evidence is representative and claimable for envelope seeding. |
+| Stress-lane realism | duplicate/out-of-order/hotkey minima were explicitly bound | S1 avoided toy-clean profiling by preserving pressure cohorts. |
+| Runtime and cost posture | `elapsed=0.645 min` (budget `20`), `spend=0.102349 USD` (envelope `25.0`) | State stayed minute-scale with attributable spend. |
+| Closure checks | `B04/B05/B06` all `true` | Required S1 controls are complete with no blocker carry-forward. |
 
-### 10.2 PR1-S2 Findings Snapshot (Readable)
-| Signal | Value | Why it matters for PR1 |
+### 10.2 PR1-S2 Findings Summary (Readable)
+| Area | What was found | Interpretation |
 | --- | --- | --- |
-| S2 verdict | `PR1_S2_READY` | Confirms legal handoff to S3. |
-| Open blockers | `0` | No S2 fail-closed blocker remains. |
-| Mandatory joins covered | `4/4` | Required join graph is fully represented in S2 matrix. |
-| Highest unmatched rate | `0.00000407` (`J1`) | Well below pinned unmatched cap (`0.001`). |
-| Fanout posture | `J1 p95/p99=1.0`, others `1.0` | Within pinned fanout cap (`2.0`). |
-| Duplicate-key rates | `0.0` on mandatory joins (canonical identity keys) | No duplicate-key pressure seen in mandatory S2 paths after cardinality-safe keying. |
-| `TGT-06` thresholds pinned | `max_unmatched_join_rate=0.001`, `max_fanout_p99=2.0`, `max_duplicate_key_rate_each_side=0.001` | Join/fanout/unmatched contract moved from TBD to pinned values. |
-| Runtime posture (`S2`) | `elapsed_minutes=3.185` vs budget `15` | S2 remained inside runtime budget with explicit receipt evidence. |
-| Cost posture (`S2`) | `attributable_spend_usd=0.369668` vs envelope `35.0` | S2 spend is explicitly attributable and bounded. |
-| Gate checks | `B07=true`, `B08=true`, `B09=true` | S2 acceptance checks all passed. |
-| Scope caveat | `none` | S2 evidence is now charter-window aligned; prior cross-window caveat is cleared. |
+| Gate outcome | `PR1_S2_READY`, `open_blockers=0` | S2 closed cleanly and can hand off to S3. |
+| Join realism coverage | mandatory joins covered `4/4`; unmatched `0.00000407`; fanout `1.0`; duplicate-key `0.0` | Join quality is materially better than pinned bounds and free of integrity pressure. |
+| Threshold closure | `TGT-06` bounds pinned (`unmatched=0.001`, `fanout=2.0`, `dup-key=0.001`) | Join/fanout policy moved from TBD to explicit standards. |
+| Runtime and cost posture | `elapsed=3.185 min` (budget `15`), `spend=0.369668 USD` (envelope `35.0`) | S2 stayed within budget and cost controls. |
+| Closure checks | `B07/B08/B09` all `true`; no scope caveat | S2 evidence is charter-aligned and fail-closed complete. |
 
-### 10.3 PR1 Analytical Ledger Snapshot (Standardized)
-| Signal | Observed Value | Threshold/Expectation | Status | Interpretation | Decision/Next Action |
-| --- | --- | --- | --- | --- | --- |
-| `PR1-S2` gate verdict | `PR1_S2_READY`, `open_blockers=0` | `open_blockers=0` | `PASS` | S2 closure is fail-closed clean. | Proceed to `PR1-S3`. |
-| Highest unmatched join rate | `0.00000407` (`J1`) | `<= 0.001` | `PASS` | Join loss is materially below cap. | Keep current unmatched cap; monitor in S3/S5 rollup. |
-| Max fanout estimate | `1.0` (`J1 p95/p99_est`) | `<= 2.0` | `PASS` | Fanout pressure is comfortably below cap. | Maintain current fanout cap and monitor downstream. |
-| Duplicate-key rate (mandatory joins) | `0.0` | `<= 0.001` | `PASS` | No duplicate-key pressure observed on mandatory join paths. | Keep current duplicate-key cap; no remediation now. |
-| Runtime budget posture (`S2`) | `elapsed_minutes=3.185` | `<= 15 min` | `PASS` | Runtime evidence is now explicitly claimable. | Keep runtime receipt fields mandatory for all future states. |
-| Cost posture (`S2`) | `attributable_spend_usd=0.369668` | `<= 35.0` | `PASS` | Spend evidence is now explicitly attributable. | Keep per-state spend receipts mandatory. |
-| Scope/provenance caveat | `none` | Charter-window alignment required | `PASS` | S2 extraction is fully charter-window aligned. | Maintain this strict scope posture for S4/S5. |
+### 10.3 PR1 Cross-State Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| State continuity | `S1` and `S2` both closed with `open_blockers=0` | PR1 early-state chain is deterministic and legally sequenced. |
+| Join-risk posture | unmatched/fanout/duplicate-key metrics all below caps | No immediate remediation pressure on join integrity. |
+| Runtime evidence | `S1=0.645 min`, `S2=3.185 min` | Runtime claimability is explicit, not inferred. |
+| Cost evidence | `S1=0.102349 USD`, `S2=0.369668 USD` | Cost claimability is explicit and attributable. |
+| Scope integrity | no remaining charter-window caveat | Upstream PR1 lanes remain aligned to declared scope. |
 
-### 10.4 PR1-S3 Findings Snapshot (Readable)
-| Signal | Observed Value | Threshold/Expectation | Status | Why it matters for PR1 | Decision/Next Action |
-| --- | --- | --- | --- | --- | --- |
-| S3 verdict | `PR1_S3_READY`, `open_blockers=0` | `open_blockers=0` | `PASS` | Confirms legal handoff to S4. | Proceed to `PR1-S4`. |
-| `B10` RTDL scope check | allowlist/denylist emitted and readable | required | `PASS` | Runtime-safe data boundary is explicit, not implied. | Keep as active runtime boundary contract. |
-| `B11` IEG scope check | minimal graph pinned (`edge_count=6`) + TTL/state bounds | required | `PASS` | Graph scope is bounded and auditable for G2. | Use this as S4/S5 graph-scope baseline. |
-| `B12` lateness-policy check | fail-closed as-of policy pinned; enforceability checks all `true` | required | `PASS` | Time-causality/lateness posture is enforceable, not narrative only. | Carry policy to S4 learning closure and S5 rollup. |
-| Runtime posture (`S3`) | `elapsed_minutes=0.656` vs budget `15` | `<= 15` | `PASS` | S3 recompute stayed minute-scale with explicit runtime evidence. | Preserve this execution posture for remaining PR1 states. |
-| Cost posture (`S3`) | `attributable_spend_usd=0.046417` vs envelope `10.0` | `<= 10.0` | `PASS` | S3 spend is attributable and bounded even with fresh boundary checks. | Continue spend receipts even on low-spend states. |
-| Target closure impact | `TGT-03=PINNED`, `TGT-04=PINNED` | both pinned by PR1-S5 latest | `PASS` | Two mandatory G2 targets are now closed earlier at S3. | Focus S4/S5 on `TGT-05`, `TGT-07`, and final `TGT-02`. |
-| Scope caveat | `none` | charter-window alignment required | `PASS` | S3 policy and boundary checks are now charter-window aligned. | Keep charter-as-of binding in downstream states. |
+### 10.4 PR1-S3 Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Gate outcome | `PR1_S3_READY`, `open_blockers=0` | S3 can legally hand off to S4. |
+| Boundary governance | RTDL allow/deny controls and IEG bounded scope passed | Runtime/graph scope is explicit and enforceable for G2. |
+| Time-causality posture | strict lateness + quarantine route + enforceability checks all passed | Causality policy is enforceable, not narrative-only. |
+| Runtime and cost posture | `elapsed=0.656 min` (budget `15`), `spend=0.046417 USD` (envelope `10.0`) | S3 stayed minute-scale and low-cost. |
+| Closure impact | `TGT-03` and `TGT-04` pinned | Two required G2 targets closed at S3 boundary. |
 
-### 10.5 PR1-S4 Findings Snapshot (Readable)
-| Signal | Observed Value | Threshold/Expectation | Status | Why it matters for PR1 | Decision/Next Action |
-| --- | --- | --- | --- | --- | --- |
-| S4 verdict | `PR1_S4_READY`, `open_blockers=0` | `open_blockers=0` | `PASS` | Confirms legal handoff to S5. | Proceed to `PR1-S5` rollup closure. |
-| `B13` label maturity check | candidate coverage `1d=0.857648`, `3d=0.57411`, `7d=0.0`; selected lag `3d` | selected lag required with fail-closed coverage policy | `PASS` | `TGT-05` moves from candidate to pinned with measurable maturity semantics. | Keep `3d` lag and carry to S5 pack index. |
-| `B14` leakage guardrail check | `m9d=true`, `m9e=true`, `m11e=true`, hard-fail enabled | all true | `PASS` | Learning-time causality is enforceable, not stated-only. | Keep fail-closed guardrail posture unchanged. |
-| `B15` monitoring baseline check | baseline status `ACTIVE`; refs `G2/G3A/G3B` non-empty; required metric families present | all true | `PASS` | `TGT-07` is pinned and downstream gates can consume baseline contract. | Carry baseline contract into S5 verdict and PR3/PR4 refs. |
-| Runtime posture (`S4`) | `elapsed_minutes=0.015` vs budget `15` | `<= 15` | `PASS` | S4 closure stayed minute-scale. | Preserve this posture for S5. |
-| Cost posture (`S4`) | `attributable_spend_usd=0.018179` vs envelope `10.0` | `<= 10.0` | `PASS` | S4 spend is attributable and bounded. | Keep attributable receipts mandatory in S5. |
-| Advisory posture | `PR1.S4.AD01_LABEL_TS_PROXY_SEMANTICS` | explicit advisory allowed when documented | `PASS` | Proxy semantics are transparent and auditable (no hidden field assumptions). | Keep migration note active until true `label_available_ts` is available. |
+### 10.5 PR1-S4 Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Gate outcome | `PR1_S4_READY`, `open_blockers=0` | S4 can legally hand off to S5. |
+| Label maturity decision | candidate rates `1d/3d/7d = 0.857648/0.57411/0.0`; selected lag `3d` | `TGT-05` is pinned with measurable non-toy maturity semantics. |
+| Leakage and monitoring posture | leakage guard checks all true; monitoring baseline active with required families | `TGT-07` is operationally usable for downstream gates. |
+| Runtime and cost posture | `elapsed=0.015 min` (budget `15`), `spend=0.018179 USD` (envelope `10.0`) | S4 remained minute-scale and cost-bounded. |
+| Advisory | maturity proxy advisory retained explicitly | Semantic caveat remains transparent and tracked. |
 
-### 10.6 PR1-S5 Findings Snapshot (Readable)
-| Signal | Observed Value | Threshold/Expectation | Status | Why it matters for PR1 | Decision/Next Action |
-| --- | --- | --- | --- | --- | --- |
-| S5 verdict | `PR1_S5_READY`, `open_blockers=0`, `next_state=PR2-S0` | `open_blockers=0` | `PASS` | Confirms legal closure of PR1 phase. | Move to `PR2-S0`. |
-| G2 gate verdict | `PASS`, `next_gate=PR2_READY`, `open_blockers=0` | `PASS` + zero blockers | `PASS` | `G2` gate closure is now claimable and auditable. | Treat PR1 as complete. |
-| `B16` target set check | `TGT-02..TGT-07` all `PINNED` | all required targets pinned | `PASS` | Removes remaining target incompleteness risk from G2. | Carry this set as immutable baseline for PR2+. |
-| `B17` pack/index check | all required S5 rollup artifacts readable | required artifacts present | `PASS` | Deterministic pack/index contract is complete. | Preserve artifact paths for downstream references. |
-| `TGT-02` RC2-S activation | steady `61.365 eps`, burst `73 eps`, durations `30/5/5/30`, min processed `37,113,583` | numeric set required at S5 | `PASS` | Converts envelope from candidate into activated numeric contract for PR1 scope. | Carry activated envelope to PR2 contract activation. |
-| Runtime posture (`S5`) | `elapsed_minutes=0.001` vs budget `10` | `<= 10` | `PASS` | Rollup closure stayed minute-scale. | Keep this posture for future rollup states. |
-| Cost posture (`S5`) | `attributable_spend_usd=0.0` vs envelope `5.0` | `<= 5.0` | `PASS` | Evidence-first rollup remained spend-neutral. | Preserve by-reference rollup policy where applicable. |
-| Advisory posture | `PR1.S4.AD01_LABEL_TS_PROXY_SEMANTICS` retained | explicit advisory allowed when documented | `PASS` | Maintains semantic transparency for label maturity pinning basis. | Keep migration note active until schema exposes true availability timestamp. |
+### 10.6 PR1-S5 Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Gate outcome | `PR1_S5_READY`, `open_blockers=0`, `next_state=PR2-S0` | PR1 closure is legal and deterministic. |
+| G2 closure | `PASS`, `next_gate=PR2_READY`; `TGT-02..TGT-07` pinned | Required PR1/G2 targets are complete and claimable. |
+| RC2-S activation | steady `61.365 eps`, burst `73 eps`, durations `30/5/5/30`, min processed `37,113,583` | Candidate envelope became active numeric baseline for PR2 handoff. |
+| Runtime and cost posture | `elapsed=0.001 min` (budget `10`), `spend=0.0 USD` (envelope `5.0`) | Rollup stayed minute-scale and spend-neutral. |
+| Closure checks | `B16/B17/B18/B19` all `true` | No PR1 closure blocker remains. |
 
-### 10.7 PR2-S0 Findings Snapshot (Readable)
-| Signal | Observed Value | Threshold/Expectation | Status | Why it matters for PR2 | Decision/Next Action |
-| --- | --- | --- | --- | --- | --- |
-| S0 verdict | `PR2_S0_READY`, `open_blockers=0`, `next_state=PR2-S1` | `open_blockers=0` | `PASS` | PR2 entry lock and inventory stage closed fail-closed cleanly. | Start `PR2-S1` materialization from this S0 boundary. |
-| Upstream lock | `PR1_S5_READY` (`pr1_20260305T174744Z`) | strict upstream required | `PASS` | PR2 is anchored to a legal PR1 closure state. | Keep strict upstream continuity for S1..S3. |
-| Required-row inventory | `required=34`, `prefilled=25`, `pending=9` | required active scope must be fully enumerated | `PASS` | S1 fill scope is explicit and bounded. | Use inventory rows as deterministic S1 fill ledger. |
-| Ownership coverage | `owner_gap_row_ids=[]` | no orphan required pending rows | `PASS` | Prevents ambiguous remediation ownership. | Fail closed in S1 if ownership/due-state drift appears. |
-| Pending distribution | `runtime_perf=6`, `cost_governance=1`, `ops_gov_observability=2` | all pending required rows must map to S1 | `PASS` | S1 execution lanes are clear before threshold population begins. | Route S1 fills per owner lane and emit traceability. |
-| Optional deferred rows | `PR2.O010->PR3`, `PR2.O011->PR4` | only optional rows can be deferred | `PASS` | PR2 focus remains on required RC2-S activation scope. | Keep deferred register explicit and untouched in PR2 blockers. |
-| Runtime posture (`S0`) | `elapsed_minutes=0.0` vs budget `10` | `<= 10` | `PASS` | S0 stayed within minute-scale runtime budget. | Preserve minute-scale posture in S1/S2/S3. |
-| Cost posture (`S0`) | `attributable_spend_usd=0.0` vs envelope `2.0` | attributable and `<= 2.0` | `PASS` | S0 remained spend-neutral under evidence-first execution. | Keep attributable spend receipt mandatory in every PR2 state. |
-| Advisory carry-forward | `PR1.S4.AD01_LABEL_TS_PROXY_SEMANTICS` | advisories must be explicit | `PASS` | Known semantics caveat remains transparent during PR2 handoff. | Retain advisory until true `label_available_ts` field exists. |
+### 10.7 PR2-S0 Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Gate outcome | `PR2_S0_READY`, `open_blockers=0` | PR2 entry stage closed and can proceed to S1. |
+| Scope inventory | required rows `34` with pending `9`; ownership gaps `0` | Required activation scope is explicit and lane-routable. |
+| Deferred optional scope | optional rows explicitly routed to later phases | Deferred scope does not contaminate PR2 required closure. |
+| Runtime and cost posture | `elapsed=0.0 min` (budget `10`), `spend=0.0 USD` (envelope `2.0`) | S0 remained minute-scale and spend-neutral. |
+| Advisory continuity | maturity proxy advisory retained explicitly | Known semantic caveat remained transparent. |
 
-### 10.8 PR2-S1 Findings Snapshot (Readable)
-| Signal | Observed Value | Threshold/Expectation | Status | Why it matters for PR2 | Decision/Next Action |
-| --- | --- | --- | --- | --- | --- |
-| S1 verdict | `PR2_S1_READY`, `open_blockers=0`, `next_state=PR2-S2` | `open_blockers=0` | `PASS` | Confirms legal handoff from S1 to S2. | Execute `PR2-S2` from this strict upstream. |
-| Contract artifact checks | `B05=true`, `B06=true` | runtime + ops/gov contracts required | `PASS` | S1 produced both required ACTIVE contract artifacts. | Use these exact artifacts for S2 validation. |
-| Required TBD posture | `B07=true`, `required_tbd_rows=[]` | no required TBD allowed | `PASS` | Active RC2-S required scope is fully populated. | Fail closed if any required row regresses to TBD. |
-| Measurement surface binding | `B08=true` (`IG_ADMITTED_EVENTS_PER_SEC`, `IG_ADMISSION_TS -> DECISION_COMMIT_TS`) | required surfaces bound | `PASS` | Prevents wrong-surface certification in downstream states. | Validate surface semantics/anti-gaming in S2. |
-| Calibration traceability | `B09=true` with trace rows for `R006/R007/R010/R022/R023/R024/R025` | required trace rows present | `PASS` | Numeric target pinning is auditable and reproducible. | Carry trace rows into S2 sanity matrix. |
-| Runtime envelope pin | steady `3000 eps`, burst `6000 eps` | production-target pin required | `PASS` | PR2 now targets production-grade load posture rather than PR1 baseline envelope. | Keep as hard pin for PR3 runtime certification. |
-| Burst realization constraint | projected burst under uniform speedup `3568.809582 eps`; gap `2431.190418 eps` | explicit carry-forward constraint | `PASS` | Documents why speedup-only pacing cannot prove 6000 burst claim. | Implement burst-shaper lane in `PR3-S1` before 6000 burst claim. |
-| Runtime posture (`S1`) | `elapsed_minutes=0.0` vs budget `25` | `<= 25` | `PASS` | S1 stayed minute-scale with deterministic artifact output. | Preserve minute-scale posture in S2/S3. |
-| Cost posture (`S1`) | `attributable_spend_usd=0.0` vs envelope `5.0` | attributable and `<= 5.0` | `PASS` | S1 remained evidence-first and spend-neutral. | Keep attributable spend receipts mandatory through PR2 closure. |
+### 10.8 PR2-S1 Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Gate outcome | `PR2_S1_READY`, `open_blockers=0` | S1 contract materialization closed cleanly for S2 handoff. |
+| Required closure | required `TBD` count is `0`; required contract checks passed | Active contract scope is fully populated and activatable. |
+| Envelope pin | steady `3000 eps`, burst `6000 eps` | PR2 target posture moved to production envelope. |
+| Burst realism caveat | projected burst `3568.809582 eps` under uniform speedup (gap `2431.190418 eps`) | Burst-shaper proof is explicitly deferred to PR3, avoiding over-claim. |
+| Runtime and cost posture | `elapsed=0.0 min` (budget `25`), `spend=0.0 USD` (envelope `5.0`) | S1 remained minute-scale and spend-neutral. |
 
-### 10.9 PR2-S2 Findings Snapshot (Readable)
-| Signal | Observed Value | Threshold/Expectation | Status | Why it matters for PR2 | Decision/Next Action |
-| --- | --- | --- | --- | --- | --- |
-| S2 verdict | `PR2_S2_READY`, `open_blockers=0`, `next_state=PR2-S3` | `open_blockers=0` | `PASS` | Confirms legal handoff from activation validation to PR2 rollup closure. | Execute `PR2-S3` from this strict upstream. |
-| Runtime activatability (`B10`) | `overall_valid=true` (`pr2_runtime_contract_validator.json`) | runtime contract activatable | `PASS` | Prevents non-activatable RC2-S from leaking into PR3. | Keep runtime contract immutable through S3. |
-| Ops/gov activatability (`B11`) | `overall_valid=true` (`pr2_opsgov_contract_validator.json`) | baselines activatable | `PASS` | Confirms active-scope ops/gov contract is enforceable. | Carry owner/runbook coverage into S3 evidence index. |
-| Threshold sanity (`B12`) | `TS01..TS07` all pass | sanity checks all pass | `PASS` | Numeric target set is logically coherent and bounded. | Promote this set as PR2 activated baseline. |
-| Alert/runbook binding (`B13`) | `alert_runbook_binding_valid=true`, no missing runbooks/owners | zero unresolved bindings | `PASS` | Ensures critical alerts are actionable, not dashboard-only. | Preserve as hard requirement for PR3/PR4 gates. |
-| Anti-gaming (`B14`) | `AG01..AG04` all pass | anti-gaming checks all pass | `PASS` | Confirms non-proxy claim surfaces and explicit burst-gap governance. | Keep `PR2.S1.CN01_BURST_SHAPER_REQUIRED` due `PR3-S1`. |
-| Runtime posture (`S2`) | `elapsed_minutes=0.0` vs budget `20` | `<= 20` | `PASS` | S2 stayed minute-scale and deterministic. | Preserve budget discipline in S3 rollup. |
-| Cost posture (`S2`) | `attributable_spend_usd=0.0` vs envelope `5.0` | attributable and `<= 5.0` | `PASS` | Validation remained spend-neutral and attributable. | Keep explicit spend fields mandatory for S3 closure. |
+### 10.9 PR2-S2 Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Gate outcome | `PR2_S2_READY`, `open_blockers=0` | S2 activation validation closed and can proceed to S3. |
+| Activatability posture | runtime and ops/gov activatability checks passed | Contract activation is enforceable in active scope. |
+| Sanity and anti-gaming posture | threshold sanity and anti-gaming checks passed | PR2 claims are bounded to realistic, non-proxy surfaces. |
+| Alert/runbook actionability | no missing critical owners or runbook bindings | Ops posture remains actionable, not dashboard-only. |
+| Runtime and cost posture | `elapsed=0.0 min` (budget `20`), `spend=0.0 USD` (envelope `5.0`) | S2 remained minute-scale and spend-neutral. |
 
-### 10.10 PR2-S3 Findings Snapshot (Readable)
-| Signal | Observed Value | Threshold/Expectation | Status | Why it matters for PR2 | Decision/Next Action |
-| --- | --- | --- | --- | --- | --- |
-| S3 verdict | `PR2_S3_READY`, `open_blockers=0`, `next_state=PR3-S0` | `open_blockers=0` | `PASS` | Confirms legal PR2 closure and transition to PR3 entry. | Start `PR3-S0` from this strict upstream. |
-| Phase verdict | `PR3_READY`, `next_gate=PR3_READY` | both required for PR2 close | `PASS` | Declares PR2 closure claimability under deterministic contract rules. | Treat PR2 artifacts as frozen upstream baseline. |
-| `B15/B16` closure checks | activation index + execution summary exist/readable and schema-complete | both required | `PASS` | Ensures closure artifacts are auditable and machine-consumable. | Carry refs into PR3 preflight bindings. |
-| `B17/B18` closure checks | no open blockers and verdict coherence holds | blockers zero + coherent verdict | `PASS` | Prevents ambiguous handoff states. | Advance to PR3 with fail-closed continuity. |
-| `B19` spend attribution | `attributable_spend_usd=0.0` present and non-negative | attribution required | `PASS` | Maintains cost-control law in closure state. | Keep explicit cost fields mandatory in PR3 receipts. |
-| Evidence contract completeness | `missing_required=[]`, `unreadable_required=[]` in PR2 evidence index | no missing/unreadable required files | `PASS` | Verifies full PR2 artifact contract readback. | Use PR2 evidence index as canonical closure manifest. |
+### 10.10 PR2-S3 Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Gate outcome | `PR2_S3_READY`, `open_blockers=0`, `next_state=PR3-S0` | PR2 closure state is legal and complete. |
+| Phase verdict | `PR3_READY`, `next_gate=PR3_READY` | PR2 exits with deterministic handoff gate. |
+| Closure checks | `B15..B19` all passed | Activation index, summary coherence, blocker posture, and spend attribution all closed fail-closed. |
+| Evidence completeness | required artifact set is complete and readable | PR2 closure remains fully auditable with no evidence holes. |
+| Runtime and cost posture | `elapsed=0.0 min` (budget `10`), `spend=0.0 USD` (envelope `5.0`) | Final rollup stayed minute-scale and spend-neutral. |
 
 ## 11) Required TBD Closure Sheet (Binding)
 This section defines the mandatory closure routing for unresolved targets in:
