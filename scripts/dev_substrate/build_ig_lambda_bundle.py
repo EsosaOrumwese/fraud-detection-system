@@ -118,8 +118,9 @@ def main() -> None:
         default="requirements/ig-lambda.requirements.txt",
         help="Pinned requirements file",
     )
-    ap.add_argument("--build-mode", choices=["auto", "host", "docker"], default="auto", help="Bundle build execution mode")
+    ap.add_argument("--build-mode", choices=["auto", "host", "docker"], default="host", help="Bundle build execution mode")
     ap.add_argument("--docker-image", default=DEFAULT_DOCKER_IMAGE, help="Container image used for Lambda-compatible builds")
+    ap.add_argument("--generic-platform", default="manylinux2014_x86_64", help="Wheel platform tag for generic Linux-compatible dependencies")
     ap.add_argument("--target-platform", default="manylinux_2_28_x86_64", help="Wheel platform tag")
     ap.add_argument("--target-python-version", default="3.12", help="Target Python minor version")
     ap.add_argument("--target-abi", default="cp312", help="Target CPython ABI tag")
@@ -159,6 +160,15 @@ def main() -> None:
                     "pip",
                     "install",
                     "--upgrade",
+                    "--only-binary=:all:",
+                    "--platform",
+                    str(args.generic_platform),
+                    "--implementation",
+                    "cp",
+                    "--python-version",
+                    str(args.target_python_version),
+                    "--abi",
+                    str(args.target_abi),
                     "--target",
                     str(stage_root),
                     "--no-compile",

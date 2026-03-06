@@ -87,7 +87,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "${RUN_DIR}"
-          python scripts/dev_substrate/build_ig_lambda_bundle.py --repo-root . --output "${ZIP_PATH}" --build-mode docker
+          python scripts/dev_substrate/build_ig_lambda_bundle.py --repo-root . --output "${ZIP_PATH}" --build-mode host
           python - <<'PY' >> "$GITHUB_OUTPUT"
           import base64
           import hashlib

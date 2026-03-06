@@ -4580,3 +4580,23 @@ Reasoning:
    - repin `pr3_s1_wsp_replay_dispatch.py` default `assign_public_ip` to `DISABLED`,
    - rematerialize the ingress edge,
    - rerun `PR3-S1` from the same strict boundary and judge it only on the production impact metrics.
+## Entry: 2026-03-06 18:42:00 +00:00 - IG bundle builder refined from container attempt to verified cross-platform wheel strategy
+1. The first remediation version added a containerized Lambda-image build path because the packaging problem was clearly ABI-sensitive.
+2. That was the right concern, but the wrong primary execution path for this workflow boundary:
+   - the GitHub run failed inside `Build deterministic IG Lambda bundle` before any live apply,
+   - local inspection showed the risk was not the packaging goal itself, but reliance on Docker availability/daemon posture as an extra moving part.
+3. I then validated a simpler and still production-correct approach locally:
+   - install the generic dependency set against Linux-compatible `cp312` wheels under `manylinux2014_x86_64`,
+   - install `confluent-kafka==2.13.0` separately against `manylinux_2_28_x86_64`,
+   - zip the resulting staged tree and verify the bundle actually contains:
+     - `confluent_kafka/...`,
+     - bundled native Kafka libs (`confluent_kafka.libs`/`librdkafka`),
+     - Linux `rpds_py` extension artifacts rather than host-native wheels.
+4. That host-mode cross-platform build succeeded locally and produced the correct Linux-targeted artifact contents.
+5. Production reasoning:
+   - this removes an unnecessary dependency on Docker runtime posture inside GitHub Actions,
+   - while preserving the actual requirement that the published Lambda package be ABI-correct for Python 3.12 on the live Lambda runtime.
+6. Decision refinement pinned:
+   - keep Docker support as an optional escape hatch only,
+   - set the authoritative build path back to explicit host-mode cross-platform wheel staging,
+   - rerun IG edge materialization with this verified builder path.
