@@ -13,4 +13,5 @@ werkzeug==2.2.3
 referencing==0.36.2
 kafka-python==2.2.15
 confluent-kafka==2.13.2
+aws-msk-iam-sasl-signer-python==1.0.2
 orjson==3.11.5

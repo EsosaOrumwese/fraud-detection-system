@@ -3257,3 +3257,23 @@ Reasoning:
 - Impact on the production path:
   - the RTDL projection code is now transport-compatible with the live dev_full MSK spine,
   - next step is to materialize the remote RTDL workers and then resume PR3 on the actual hot path.
+### 2026-03-06 11:24:00 +00:00 - Transport-layer blocker discovered: dev_full pins MSK IAM but the shared Kafka adapter still expects static SASL credentials
+- While moving from local projector validation to remote RTDL materialization, I checked the auth posture needed by the shared Kafka adapter against the actual dev_full bus handles.
+- Result:
+  - dev_full bus posture is pinned to `AWS MSK Serverless` with `SASL_IAM`,
+  - but `src/fraud_detection/event_bus/kafka.py` currently only supports username/password-style SASL through `confluent_kafka`.
+- Production consequence:
+  - simply adding Kafka branches to `IEG/OFP` is not enough,
+  - remote workers would still fail to authenticate to the live brokers, so any claimed MSK consumption path would remain non-material.
+- Candidate remediation options considered:
+  - `A` inject static SASL credentials:
+    - rejected because it contradicts the pinned dev_full MSK IAM posture and weakens the security model.
+  - `B` bypass the shared adapter and build one-off MSK IAM logic only for `IEG/OFP`:
+    - rejected because it would fork transport semantics across the platform.
+  - `C` upgrade the shared Kafka adapter to support MSK IAM/OAUTHBEARER and keep that adapter authoritative for all Kafka consumers/publishers:
+    - accepted because it fixes the real platform defect once and preserves consistent transport behavior.
+- Planned implementation:
+  - extend `event_bus/kafka.py` with an MSK-IAM path using the already-proven `kafka-python + aws-msk-iam-sasl-signer-python` approach used in the repo’s topic-readiness tooling,
+  - preserve the current `confluent_kafka` path for standard username/password SASL or plaintext cases,
+  - add focused tests for OAUTH/IAM auth resolution,
+  - then refresh the remote worker image so the RTDL jobs can actually reach MSK.

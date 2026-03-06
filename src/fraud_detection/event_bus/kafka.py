@@ -10,7 +10,11 @@ import os
 import time
 from typing import Any
 
+from aws_msk_iam_sasl_signer import MSKAuthTokenProvider
 from confluent_kafka import Consumer, KafkaError, Producer, TopicPartition
+from kafka import KafkaConsumer, KafkaProducer
+from kafka import TopicPartition as PyKafkaTopicPartition
+from kafka.sasl.oauth import AbstractTokenProvider
 
 from .publisher import EbRef
 
@@ -27,6 +31,7 @@ class KafkaConfig:
     client_id: str = "fraud-platform"
     request_timeout_ms: int = 15000
     retries: int = 3
+    aws_region: str | None = None
 
 
 @dataclass(frozen=True)
@@ -40,6 +45,7 @@ class KafkaReaderConfig:
     request_timeout_ms: int = 15000
     poll_timeout_ms: int = 500
     max_poll_records: int = 500
+    aws_region: str | None = None
 
 
 def _strip_scheme(value: str) -> str:
@@ -52,6 +58,29 @@ def _strip_scheme(value: str) -> str:
 
 def _uses_sasl(security_protocol: str) -> bool:
     return str(security_protocol or "").strip().upper().startswith("SASL_")
+
+
+def _uses_oauth_bearer(security_protocol: str, sasl_mechanism: str) -> bool:
+    return _uses_sasl(security_protocol) and str(sasl_mechanism or "").strip().upper() == "OAUTHBEARER"
+
+
+def _resolve_region(explicit: str | None) -> str:
+    return (
+        str(explicit or "").strip()
+        or (os.getenv("KAFKA_AWS_REGION") or "").strip()
+        or (os.getenv("AWS_DEFAULT_REGION") or "").strip()
+        or (os.getenv("AWS_REGION") or "").strip()
+        or "eu-west-2"
+    )
+
+
+class _MskIamTokenProvider(AbstractTokenProvider):
+    def __init__(self, region: str) -> None:
+        self._region = _resolve_region(region)
+
+    def token(self) -> str:
+        token, _expiry_ms = MSKAuthTokenProvider.generate_auth_token(self._region)
+        return token
 
 
 def _producer_conf(config: KafkaConfig) -> dict[str, Any]:
@@ -97,15 +126,55 @@ class KafkaEventBusPublisher:
             client_id=config.client_id,
             request_timeout_ms=config.request_timeout_ms,
             retries=config.retries,
+            aws_region=_resolve_region(config.aws_region),
         )
-        if _uses_sasl(self.config.security_protocol) and not (self.config.sasl_username and self.config.sasl_password):
+        self._producer_mode = "oauth" if _uses_oauth_bearer(self.config.security_protocol, self.config.sasl_mechanism) else "standard"
+        self._oauth_provider = _MskIamTokenProvider(self.config.aws_region) if self._producer_mode == "oauth" else None
+        if (
+            _uses_sasl(self.config.security_protocol)
+            and self._producer_mode != "oauth"
+            and not (self.config.sasl_username and self.config.sasl_password)
+        ):
             raise RuntimeError("KAFKA_SASL_CREDENTIALS_MISSING")
-        self._producer = Producer(_producer_conf(self.config))
+        if self._producer_mode == "oauth":
+            self._producer = KafkaProducer(
+                bootstrap_servers=[self.config.bootstrap_servers],
+                security_protocol=self.config.security_protocol,
+                sasl_mechanism=self.config.sasl_mechanism,
+                sasl_oauth_token_provider=self._oauth_provider,
+                client_id=self.config.client_id,
+                request_timeout_ms=max(1000, int(self.config.request_timeout_ms)),
+                retries=max(0, int(self.config.retries)),
+            )
+        else:
+            self._producer = Producer(_producer_conf(self.config))
 
     def publish(self, topic: str, partition_key: str, payload: dict[str, Any]) -> EbRef:
         if not topic:
             raise RuntimeError("KAFKA_TOPIC_MISSING")
         payload_bytes = json.dumps(payload, ensure_ascii=True, separators=(",", ":")).encode("utf-8")
+        if self._producer_mode == "oauth":
+            future = self._producer.send(
+                topic=topic,
+                key=(partition_key or "").encode("utf-8"),
+                value=payload_bytes,
+            )
+            metadata = future.get(timeout=max(1.0, self.config.request_timeout_ms / 1000.0))
+            published_at = datetime.now(tz=timezone.utc).isoformat()
+            logger.info(
+                "EB publish kafka topic=%s partition=%s offset=%s bytes=%s",
+                topic,
+                metadata.partition,
+                metadata.offset,
+                len(payload_bytes),
+            )
+            return EbRef(
+                topic=topic,
+                partition=int(metadata.partition),
+                offset=str(metadata.offset),
+                offset_kind="kafka_offset",
+                published_at_utc=published_at,
+            )
         delivery: dict[str, Any] = {}
 
         def _on_delivery(err, msg) -> None:
@@ -159,14 +228,40 @@ class KafkaEventBusReader:
             request_timeout_ms=config.request_timeout_ms,
             poll_timeout_ms=config.poll_timeout_ms,
             max_poll_records=config.max_poll_records,
+            aws_region=_resolve_region(config.aws_region),
         )
-        if _uses_sasl(self.config.security_protocol) and not (self.config.sasl_username and self.config.sasl_password):
+        self._consumer_mode = "oauth" if _uses_oauth_bearer(self.config.security_protocol, self.config.sasl_mechanism) else "standard"
+        self._oauth_provider = _MskIamTokenProvider(self.config.aws_region) if self._consumer_mode == "oauth" else None
+        if (
+            _uses_sasl(self.config.security_protocol)
+            and self._consumer_mode != "oauth"
+            and not (self.config.sasl_username and self.config.sasl_password)
+        ):
             raise RuntimeError("KAFKA_SASL_CREDENTIALS_MISSING")
-        self._consumer = Consumer(_consumer_conf(self.config))
+        if self._consumer_mode == "oauth":
+            self._consumer = KafkaConsumer(
+                bootstrap_servers=[self.config.bootstrap_servers],
+                security_protocol=self.config.security_protocol,
+                sasl_mechanism=self.config.sasl_mechanism,
+                sasl_oauth_token_provider=self._oauth_provider,
+                client_id=self.config.client_id,
+                enable_auto_commit=False,
+                auto_offset_reset="latest",
+                request_timeout_ms=max(1000, int(self.config.request_timeout_ms)),
+            )
+        else:
+            self._consumer = Consumer(_consumer_conf(self.config))
 
     def list_partitions(self, topic: str) -> list[int]:
         if not topic:
             return []
+        if self._consumer_mode == "oauth":
+            try:
+                partitions = self._consumer.partitions_for_topic(topic) or set()
+                return sorted(int(partition) for partition in partitions)
+            except Exception as exc:
+                logger.warning("Kafka list_partitions failed topic=%s detail=%s", topic, str(exc)[:256])
+                return []
         try:
             metadata = self._consumer.list_topics(topic=topic, timeout=max(1.0, self.config.request_timeout_ms / 1000.0))
             topic_meta = metadata.topics.get(topic)
@@ -188,6 +283,46 @@ class KafkaEventBusReader:
     ) -> list[dict[str, Any]]:
         if not topic:
             return []
+        if self._consumer_mode == "oauth":
+            max_records = max(1, int(limit))
+            base_tp = PyKafkaTopicPartition(topic, int(partition))
+            try:
+                self._consumer.assign([base_tp])
+                if from_offset is None:
+                    if str(start_position).strip().lower() == "latest":
+                        end_offsets = self._consumer.end_offsets([base_tp])
+                        start_offset = int(end_offsets.get(base_tp, 0))
+                    else:
+                        beginning_offsets = self._consumer.beginning_offsets([base_tp])
+                        start_offset = int(beginning_offsets.get(base_tp, 0))
+                else:
+                    start_offset = max(0, int(from_offset))
+                self._consumer.seek(base_tp, start_offset)
+                rows: list[dict[str, Any]] = []
+                records_map = self._consumer.poll(timeout_ms=max(50, int(self.config.poll_timeout_ms)), max_records=max_records)
+                for tp, messages in records_map.items():
+                    if int(tp.partition) != int(partition):
+                        continue
+                    for msg in messages:
+                        rows.append(
+                            {
+                                "offset": int(msg.offset),
+                                "payload": _decode_kafka_payload(msg.value),
+                                "published_at_utc": _kafka_record_timestamp_utc(getattr(msg, "timestamp", None)),
+                            }
+                        )
+                        if len(rows) >= max_records:
+                            return rows
+                return rows
+            except Exception as exc:
+                logger.warning(
+                    "Kafka read failed topic=%s partition=%s from_offset=%s detail=%s",
+                    topic,
+                    partition,
+                    from_offset,
+                    str(exc)[:256],
+                )
+                return []
         max_records = max(1, int(limit))
         base_tp = TopicPartition(topic, int(partition))
         try:
@@ -236,6 +371,9 @@ class KafkaEventBusReader:
 
     def close(self) -> None:
         try:
+            if self._consumer_mode == "oauth":
+                self._consumer.close()
+                return
             self._consumer.close()
         except Exception:
             return
@@ -249,6 +387,7 @@ def build_kafka_publisher(*, client_id: str) -> KafkaEventBusPublisher:
     mechanism = (os.getenv("KAFKA_SASL_MECHANISM") or "PLAIN").strip()
     timeout_ms = int(os.getenv("KAFKA_REQUEST_TIMEOUT_MS") or "15000")
     retries = int(os.getenv("KAFKA_PUBLISH_RETRIES") or "3")
+    aws_region = (os.getenv("KAFKA_AWS_REGION") or "").strip() or None
     return KafkaEventBusPublisher(
         KafkaConfig(
             bootstrap_servers=bootstrap,
@@ -259,6 +398,7 @@ def build_kafka_publisher(*, client_id: str) -> KafkaEventBusPublisher:
             client_id=client_id,
             request_timeout_ms=timeout_ms,
             retries=retries,
+            aws_region=aws_region,
         )
     )
 
@@ -272,6 +412,7 @@ def build_kafka_reader(*, client_id: str) -> KafkaEventBusReader:
     timeout_ms = int(os.getenv("KAFKA_REQUEST_TIMEOUT_MS") or "15000")
     poll_timeout_ms = int(os.getenv("KAFKA_POLL_TIMEOUT_MS") or "500")
     max_poll_records = int(os.getenv("KAFKA_MAX_POLL_RECORDS") or "500")
+    aws_region = (os.getenv("KAFKA_AWS_REGION") or "").strip() or None
     return KafkaEventBusReader(
         KafkaReaderConfig(
             bootstrap_servers=bootstrap,
@@ -283,6 +424,7 @@ def build_kafka_reader(*, client_id: str) -> KafkaEventBusReader:
             request_timeout_ms=timeout_ms,
             poll_timeout_ms=poll_timeout_ms,
             max_poll_records=max_poll_records,
+            aws_region=aws_region,
         )
     )
 
