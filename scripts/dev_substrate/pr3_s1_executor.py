@@ -10,10 +10,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
 
-import boto3
-from botocore.exceptions import BotoCoreError, ClientError
-
-
 def now_utc() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
@@ -42,91 +38,6 @@ def parse_int(value: Any, default: int = 0) -> int:
         return int(float(value))
     except (TypeError, ValueError):
         return default
-
-
-def parse_time_utc(value: str) -> datetime:
-    return datetime.fromisoformat(str(value).replace("Z", "+00:00")).astimezone(timezone.utc)
-
-
-def get_cloudwatch_metric(
-    *,
-    cw: Any,
-    metric_name: str,
-    dimensions: list[dict[str, str]],
-    start_time: datetime,
-    end_time: datetime,
-    period_seconds: int,
-    statistics: list[str] | None = None,
-    extended_statistics: list[str] | None = None,
-) -> list[dict[str, Any]]:
-    kwargs: Dict[str, Any] = {
-        "Namespace": "AWS/ApiGateway",
-        "MetricName": metric_name,
-        "Dimensions": dimensions,
-        "StartTime": start_time,
-        "EndTime": end_time,
-        "Period": period_seconds,
-    }
-    if statistics:
-        kwargs["Statistics"] = statistics
-    if extended_statistics:
-        kwargs["ExtendedStatistics"] = extended_statistics
-    result = cw.get_metric_statistics(**kwargs)
-    return list(result.get("Datapoints", []))
-
-
-def sum_stat(datapoints: list[dict[str, Any]], key: str = "Sum") -> float:
-    total = 0.0
-    for row in datapoints:
-        total += parse_float(row.get(key), 0.0)
-    return total
-
-
-def resolve_weighted_latency(
-    latency_rows: list[dict[str, Any]],
-    count_rows: list[dict[str, Any]],
-) -> tuple[float, float, str]:
-    count_by_ts: Dict[str, float] = {}
-    for row in count_rows:
-        ts = row.get("Timestamp")
-        if ts is None:
-            continue
-        count_by_ts[str(ts)] = parse_float(row.get("Sum"), 0.0)
-
-    p95_num = 0.0
-    p99_num = 0.0
-    weight_total = 0.0
-    for row in latency_rows:
-        ts = row.get("Timestamp")
-        if ts is None:
-            continue
-        ext = row.get("ExtendedStatistics", {})
-        p95 = parse_float(ext.get("p95"), -1.0)
-        p99 = parse_float(ext.get("p99"), -1.0)
-        if p95 < 0.0 or p99 < 0.0:
-            continue
-        w = count_by_ts.get(str(ts), 0.0)
-        if w <= 0.0:
-            continue
-        p95_num += p95 * w
-        p99_num += p99 * w
-        weight_total += w
-    if weight_total > 0.0:
-        return (p95_num / weight_total, p99_num / weight_total, "weighted_by_count")
-
-    p95_vals: list[float] = []
-    p99_vals: list[float] = []
-    for row in latency_rows:
-        ext = row.get("ExtendedStatistics", {})
-        p95 = parse_float(ext.get("p95"), -1.0)
-        p99 = parse_float(ext.get("p99"), -1.0)
-        if p95 >= 0.0:
-            p95_vals.append(p95)
-        if p99 >= 0.0:
-            p99_vals.append(p99)
-    if not p95_vals or not p99_vals:
-        return (-1.0, -1.0, "unavailable")
-    return (max(p95_vals), max(p99_vals), "max_percentile_fallback")
 
 
 def resolve_pr3_execution_id(root: Path, explicit: str) -> str:
@@ -203,45 +114,10 @@ def main() -> None:
     observed_sample_events = parse_int(runtime_summary.get("observed", {}).get("admitted_request_count"), 0)
     observed_error_rate_ratio = parse_float(runtime_summary.get("observed", {}).get("error_rate_ratio"), 1.0)
     observed_surface = "IG_ADMITTED_EVENTS_PER_SEC" if runtime_summary_exists else ""
-
-    observed_latency_p95 = -1.0
-    observed_latency_p99 = -1.0
-    latency_derivation_method = "unavailable"
-    latency_blocker = False
-    if runtime_summary_exists:
-        start_utc = str(runtime_summary.get("performance_window", {}).get("metric_effective_start_utc", "")).strip()
-        end_utc = str(runtime_summary.get("performance_window", {}).get("metric_effective_end_utc", "")).strip()
-        if start_utc and end_utc:
-            cw = boto3.client("cloudwatch", region_name=args.region)
-            dims = [{"Name": "ApiId", "Value": args.api_id}, {"Name": "Stage", "Value": args.api_stage}]
-            try:
-                latency_rows = get_cloudwatch_metric(
-                    cw=cw,
-                    metric_name="Latency",
-                    dimensions=dims,
-                    start_time=parse_time_utc(start_utc),
-                    end_time=parse_time_utc(end_utc),
-                    period_seconds=60,
-                    extended_statistics=["p95", "p99"],
-                )
-                count_rows = get_cloudwatch_metric(
-                    cw=cw,
-                    metric_name="Count",
-                    dimensions=dims,
-                    start_time=parse_time_utc(start_utc),
-                    end_time=parse_time_utc(end_utc),
-                    period_seconds=60,
-                    statistics=["Sum"],
-                )
-                observed_latency_p95, observed_latency_p99, latency_derivation_method = resolve_weighted_latency(
-                    latency_rows, count_rows
-                )
-            except (BotoCoreError, ClientError):
-                latency_blocker = True
-        else:
-            latency_blocker = True
-    else:
-        latency_blocker = True
+    observed_latency_p95 = parse_float(runtime_summary.get("observed", {}).get("latency_p95_ms"), -1.0)
+    observed_latency_p99 = parse_float(runtime_summary.get("observed", {}).get("latency_p99_ms"), -1.0)
+    latency_derivation_method = str(runtime_summary.get("observed", {}).get("latency_derivation_method", "")).strip() or "unavailable"
+    latency_blocker = not runtime_summary_exists or observed_latency_p95 < 0.0 or observed_latency_p99 < 0.0
 
     sample_minima_pass = observed_sample_events >= bounded_expected_events and bounded_expected_events > 0
     surface_scope_pass = observed_surface == expected_surface and expected_surface != ""

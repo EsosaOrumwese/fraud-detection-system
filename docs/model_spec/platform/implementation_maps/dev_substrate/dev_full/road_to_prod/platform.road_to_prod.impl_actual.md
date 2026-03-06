@@ -5057,3 +5057,56 @@ Reasoning:
    - set `PLATFORM_BUNDLE_ROOT=/app` in the ECS service task definition,
    - rebuild the immutable image, redeploy the service, and rerun the bounded `PR3-S1` proof immediately.
 7. This is the correct production move because it removes a packaging assumption at the source instead of papering over missing files one-by-one.
+## Entry: 2026-03-06 22:05:00 +00:00 - Active IG revision verification cleared the stale-log ambiguity before the next PR3-S1 replay
+1. I verified the live ingress service against the current ECS deployment only, not against historical CloudWatch streams.
+2. The active service state is now explicit:
+   - ECS service raud-platform-dev-full-ig-service is on task definition revision :3,
+   - all six running tasks are HEALTHY,
+   - all ALB targets in target group p-dev-full-ig-svc are healthy,
+   - each running task is pinned to image digest sha256:28deae6b0752b116ab44f0c286805df8be35761059d06df939069e95501a18cb,
+   - the active task definition includes PLATFORM_BUNDLE_ROOT=/app.
+3. I then pulled only the current task log streams:
+   - cs/ig/21d9769aeb71436592f82dd779858d25
+   - cs/ig/26fcea06e75a498db0f4fd0f8ba3e3ab
+   - cs/ig/2d202841ec91448a802d7f6f8573fa5d
+   - cs/ig/390adb9cc61940c1836271226c7be8bc
+   - cs/ig/88ce0c3630a5437eb9702ecb92bfb557
+   - cs/ig/8cf0f30ef7304ce9afba1822a6af9122
+4. Those current streams show only healthy gunicorn startup with no FileNotFoundError, no schema-path failure, and no boot-loop behavior.
+5. Production interpretation:
+   - the previous /app/src/config/... path error belonged to drained revision-:2 work and is not the active runtime truth anymore,
+   - the service-backed ingress edge is now materially healthy enough for the next bounded replay,
+   - the next failure signal, if any, should be treated as genuine throughput/latency/error evidence under load rather than a stale deployment artifact.
+6. Immediate next step pinned:
+   - rerun bounded canonical PR3-S1 from the same strict PR3 root against the service path,
+   - keep the active metric surface on ALB,
+   - evaluate admitted EPS, 4xx/5xx, and latency tails directly from the live service edge.
+## Entry: 2026-03-06 22:15:00 +00:00 - PR3-S1 replay launcher hit Fargate quota because the WSP lane shape is oversized for the current service-backed architecture
+1. The first bounded rerun against the corrected service-backed ingress did not fail inside IG.
+2. It failed during WSP fleet launch with:
+   - PR3.S1.WSP.B01_RUN_TASK_FAILED:wsp_lane_128:You’ve reached the limit on the number of vCPUs you can run concurrently.
+3. Live capacity facts are explicit:
+   - account Fargate on-demand quota in u-west-2 is 140 vCPU,
+   - current WSP task definition (raud-platform-dev-full-wsp-ephemeral:29) is pinned cpu=1024, memory=2048,
+   - current service-backed IG runs 6 x 2 vCPU = 12 vCPU continuously.
+4. Therefore the prior S1 calibration shape no longer fits the materialized architecture:
+   - 138 WSP lanes at 1 vCPU each require 138 vCPU,
+   - combined with 12 vCPU on the ingress service, the run attempts 150 vCPU,
+   - the launch predictably fails before the full lane fleet materializes.
+5. Production interpretation:
+   - this is a test-rig capacity-shape defect, not an ingress throughput defect,
+   - keeping 1 vCPU per WSP lane is unjustified for an HTTP replay emitter and wastes account concurrency that now belongs to the always-on ingress shell.
+6. Chosen correction:
+   - keep the steady objective fixed at 3000 admitted eps,
+   - keep the canonical 138 lane topology for now,
+   - right-size each WSP lane to  .5 vCPU / 1 GiB for the next bounded replay (	ask_cpu=512, 	ask_memory=1024).
+7. Why this is the correct production move:
+   - the emitter workload is network/HTTP paced and checkpoint-light, not transform-heavy,
+   - the per-lane target at 3005/138 ~= 21.8 eps does not justify 1 vCPU reservations,
+   - right-sizing the replay fleet removes an artificial account-quota blocker without diluting the production throughput claim.
+8. Additional evidence-governance fix applied in parallel:
+   - pr3_s1_executor.py now consumes the runtime summary latency surface directly instead of re-reading AWS/ApiGateway latencies after the active S1 edge moved to the service-backed ALB path.
+9. Immediate next step pinned:
+   - rerun bounded canonical PR3-S1 with 	ask_cpu=512, 	ask_memory=1024,
+   - keep lane_count=138, stream_speedup=95, 	arget_request_rate_eps=3005,
+   - adjudicate on the corrected ALB-surface runtime summary plus the synced S1 receipt layer.

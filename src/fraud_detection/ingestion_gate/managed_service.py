@@ -7,6 +7,8 @@ adapting incoming HTTP requests into the existing managed-edge handler.
 from __future__ import annotations
 
 import argparse
+import logging
+import os
 import time
 from typing import Any
 
@@ -24,10 +26,23 @@ class _RequestContext:
         return max(0, int(remaining * 1000))
 
 
+def _configure_logging() -> None:
+    gunicorn_error = logging.getLogger("gunicorn.error")
+    root_logger = logging.getLogger()
+    if gunicorn_error.handlers:
+        root_logger.handlers = list(gunicorn_error.handlers)
+    root_logger.setLevel(logging.INFO)
+    logging.getLogger(__name__).setLevel(logging.INFO)
+    logging.getLogger("fraud_detection").setLevel(logging.INFO)
+
+
 def create_app(*, stage_name: str = "v1", request_timeout_ms: int = 30000) -> Flask:
+    _configure_logging()
     app = Flask(__name__)
     stage = str(stage_name).strip() or "v1"
     timeout_ms = max(1000, int(request_timeout_ms))
+    slow_request_log_ms = max(1, int(str(os.getenv("IG_SLOW_REQUEST_LOG_MS", "500")).strip() or "500"))
+    logger = logging.getLogger(__name__)
 
     @app.get("/healthz")
     def healthz() -> Any:
@@ -36,6 +51,7 @@ def create_app(*, stage_name: str = "v1", request_timeout_ms: int = 30000) -> Fl
     @app.post("/v1/ingest/push")
     @app.get("/v1/ops/health")
     def managed_edge_proxy() -> Response:
+        started = time.monotonic()
         body_bytes = request.get_data(cache=True)
         event = {
             "version": "2.0",
@@ -55,6 +71,16 @@ def create_app(*, stage_name: str = "v1", request_timeout_ms: int = 30000) -> Fl
         status_code = int(result.get("statusCode", 500) or 500)
         payload = str(result.get("body", "") or "")
         headers = dict(result.get("headers") or {})
+        elapsed_ms = (time.monotonic() - started) * 1000.0
+        if status_code >= 400 or elapsed_ms >= float(slow_request_log_ms):
+            logger.info(
+                "IG managed request path=%s method=%s status=%s elapsed_ms=%.3f body_bytes=%s",
+                request.path,
+                request.method,
+                status_code,
+                elapsed_ms,
+                len(body_bytes),
+            )
         return Response(payload, status=status_code, headers=headers, mimetype=headers.get("Content-Type"))
 
     @app.get("/v1/ops/lookup")

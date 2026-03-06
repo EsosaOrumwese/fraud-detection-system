@@ -350,6 +350,40 @@ def get_alb_metric_statistics(
     dims = [{"Name": "LoadBalancer", "Value": load_balancer_dimension}]
     if metric_name == "TargetResponseTime":
         dims = dims + [{"Name": "TargetGroup", "Value": target_group_dimension}]
+    if metric_name == "TargetResponseTime" and extended_statistics:
+        queries: list[dict[str, Any]] = []
+        for idx, stat in enumerate(extended_statistics):
+            queries.append(
+                {
+                    "Id": f"q{idx}",
+                    "MetricStat": {
+                        "Metric": {
+                            "Namespace": "AWS/ApplicationELB",
+                            "MetricName": metric_name,
+                            "Dimensions": dims,
+                        },
+                        "Period": period_seconds,
+                        "Stat": stat,
+                    },
+                    "ReturnData": True,
+                }
+            )
+        result = cw.get_metric_data(
+            MetricDataQueries=queries,
+            StartTime=effective_start,
+            EndTime=effective_end,
+        )
+        by_timestamp: dict[str, dict[str, Any]] = {}
+        for query, series in zip(queries, result.get("MetricDataResults", []), strict=False):
+            stat = str(query["MetricStat"]["Stat"]).lower()
+            for timestamp, value in zip(series.get("Timestamps", []), series.get("Values", []), strict=False):
+                key = to_iso_utc(timestamp)
+                row = by_timestamp.setdefault(
+                    key,
+                    {"Timestamp": timestamp, "ExtendedStatistics": {}},
+                )
+                row["ExtendedStatistics"][stat] = float(value)
+        return list(by_timestamp.values())
     req: dict[str, Any] = {
         "Namespace": "AWS/ApplicationELB",
         "MetricName": metric_name,
