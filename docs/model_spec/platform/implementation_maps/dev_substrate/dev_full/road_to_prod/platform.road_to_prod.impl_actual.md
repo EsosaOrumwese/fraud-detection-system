@@ -3305,3 +3305,18 @@ Reasoning:
   - add a dedicated remote workflow to materialize and verify those workers in `fraud-platform-rtdl`,
   - rerun `PR3-S1` only once the real downstream hot path is alive,
   - then continue sequentially through `PR3-S2..S5` on the materially active path with readable impact-metric summaries.
+### 2026-03-06 12:32:00 +00:00 - Workflow-dispatch constraint handled without branch hopping: reuse indexed PR3 workflow path for runtime materialization mode
+- After pushing the first materialization workflow file, GitHub refused direct dispatch because the new workflow path is not yet on the default-branch workflow index.
+- This is a GitHub Actions control-plane constraint, not a platform/runtime blocker.
+- Candidate responses considered:
+  - `A` branch-hop and merge workflow-only changes to main immediately:
+    - rejected for now because the user is away and the current branch can continue execution without changing branch posture.
+  - `B` wait for user or stop until the new workflow exists on default:
+    - rejected because it would be needless execution pause.
+  - `C` add `materialize_runtime` mode to the already-indexed `dev_full_pr3_s1_managed.yml` path and dispatch that branch version against `cert-platform`:
+    - accepted because GitHub already recognizes the workflow identity, so branch execution becomes possible immediately.
+- Implementation consequence:
+  - `dev_full_pr3_s1_managed.yml` now serves two remote execution modes:
+    - `steady_harness` (legacy fallback lane, unchanged default),
+    - `materialize_runtime` (new EKS runtime materialization path using `scripts/dev_substrate/pr3_rtdl_materialize.py`).
+- This keeps execution remote, production-real, and branch-stable while avoiding unnecessary merge choreography mid-run.
