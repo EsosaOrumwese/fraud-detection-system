@@ -3696,3 +3696,82 @@ Reasoning:
 3. Additional note:
    - `config/platform/profiles/dev_full.yaml` does not currently pin `wiring.admission_db_path`, which is another sign that the repo's internal IG-service profile and the live ingress edge have drifted apart.
    - Because the accepted production fix keeps DDB as the edge dedupe surface, that profile hole is now recorded as design drift rather than being forced into the public-edge runtime.
+
+## Entry: 2026-03-06 17:08:00 +00:00 - Workflow registration path completed and synced back into cert-platform so ingress materialization can be executed without branch drift
+1. The new ingress-edge materialization workflow had to exist on `main` for GitHub to register it as a dispatchable workflow, but it also had to build the code on `cert-platform` because the actual ingress correction code and Terraform surfaces are still progressing there.
+2. Production concern:
+   - if the workflow checked out `main`, it would build against stale code and produce a fake green deployment path,
+   - if it lived only on `cert-platform`, GitHub workflow registration would remain unreliable for remote execution.
+3. Resolution implemented:
+   - added `code_ref` as a required workflow input,
+   - made the workflow check out `inputs.code_ref`,
+   - merged the workflow-only commit through the approved `dev -> main -> dev -> cert-platform` path,
+   - resolved the final `cert-platform` merge conflict in favor of the `main/dev`-safe variant so the dispatch surface and the active code ref remain aligned.
+4. Why this matters for production readiness:
+   - the remote deployment lane is now branch-truthful,
+   - workflow registration no longer forces stale-code deployment,
+   - future reruns can materialize remote runtime corrections from the active implementation branch without corrupting branch hierarchy.
+
+## Entry: 2026-03-06 17:13:00 +00:00 - Next execution boundary pinned: materialize the live ingress edge before any further PR3 runtime certification
+1. I reloaded the active production authorities before taking the next live step:
+   - `dev-full_road-to-production-ready.md`,
+   - `platform.road_to_prod.plan.md`,
+   - `platform.PR3.road_to_prod.md`,
+   - the current `pr3_s1_executor.py` steady-gate logic.
+2. Key implication from re-reading the PR3 authority:
+   - `PR3-S1` is not allowed to close from ingress-only rate evidence,
+   - the correct certification surface is the real `via_IG` hot path with downstream runtime behavior and deterministic evidence.
+3. Therefore the next executable boundary is not another `S1` replay attempt. It is:
+   - deploy the corrected Lambda ingress runtime,
+   - verify handler/VPC mode and downstream publish behavior,
+   - only then resume the `PR3-S1` chain from the same strict upstream.
+4. This sequencing is now pinned as the active correction boundary because it is the narrowest rerun that restores truthful `via_IG` certification without pretending the current edge is good enough.
+
+## Entry: 2026-03-06 17:20:00 +00:00 - First remote ingress deploy failed on the packaging lane because the OIDC role could not write the Lambda bundle to the chosen S3 location
+1. The workflow itself ran correctly through bundle creation and failed at the first remote-write boundary: `aws s3 cp` of the deterministic Lambda package.
+2. Exact failure:
+   - assumed role: `arn:aws:sts::230372904534:assumed-role/GitHubAction-AssumeRoleWithAction/GitHubActions`,
+   - denied action: `s3:PutObject`,
+   - denied resource: `arn:aws:s3:::fraud-platform-dev-full-object-store/artifacts/lambda/ig_handler/...`.
+3. Production interpretation:
+   - this is not just an IAM omission,
+   - it also exposes that `object-store` was the wrong semantic destination for deployment artifacts.
+4. Why the original package destination is weak:
+   - `fraud-platform-dev-full-object-store` is the runtime/oracle truth surface,
+   - deployment bundles are build artifacts and should not be mixed into truth/object-store storage if an artifact lane already exists,
+   - forcing package uploads into object-store would blur runtime-data and deployment-artifact ownership.
+5. Chosen correction:
+   - repin the workflow package bucket default to `fraud-platform-dev-full-artifacts`,
+   - extend the GitHub OIDC role to write only the Lambda artifact prefix used by this PR3 ingress materialization lane,
+   - simultaneously add the long-needed read permissions for Managed Flink inspection and CloudWatch metric reads so later managed reruns do not trip on another preventable IAM gap.
+6. This correction is production-first because it fixes the packaging lane as a proper artifact path rather than widening access around the wrong storage boundary.
+
+## Entry: 2026-03-06 17:28:00 +00:00 - The GitHub OIDC role hit AWS inline-policy size limits, so PR3 runtime permissions were split into a dedicated policy surface
+1. I first attempted the cleanest Terraform apply by extending the existing `GitHubActionsM6FRemoteDevFull` inline policy.
+2. AWS rejected the apply with `LimitExceeded: Maximum policy size of 10240 bytes exceeded for role GitHubAction-AssumeRoleWithAction`.
+3. Production interpretation:
+   - the old policy had become an overloaded catch-all,
+   - continuing to stuff more runtime capabilities into it would make reviewability and least-privilege posture worse even if it barely fit.
+4. Chosen correction:
+   - keep the existing M6/M10/M11/M12 policy focused on its original lanes,
+   - create a separate inline policy `GitHubActionsPR3RuntimeDevFull` for the PR3 runtime-cert needs,
+   - place only the new permissions there:
+     - artifact-prefix list/write on `fraud-platform-dev-full-artifacts/artifacts/lambda/ig_handler/*`,
+     - Managed Flink read (`ListApplications`, `DescribeApplication`),
+     - CloudWatch metric reads (`GetMetricData`, `GetMetricStatistics`, `ListMetrics`).
+5. Why this is the better production posture:
+   - policy ownership becomes phase/lane-specific instead of monolithic,
+   - future review of the GitHub OIDC role is tractable,
+   - the PR3 runtime-cert lane can evolve without pushing the legacy remote policy back to its size ceiling again.
+
+## Entry: 2026-03-06 17:34:00 +00:00 - AWS enforces the inline-policy ceiling at the role level, so the PR3 rights must be an attached managed policy instead
+1. The second apply attempt proved that even a separate inline policy cannot be added: AWS still returned `LimitExceeded` for the same role.
+2. This means the role has exhausted the total inline-policy budget, not merely the size of one policy blob.
+3. Corrected implementation direction:
+   - replace the proposed inline `GitHubActionsPR3RuntimeDevFull` policy with an `aws_iam_policy`,
+   - attach it to `GitHubAction-AssumeRoleWithAction` via `aws_iam_role_policy_attachment`,
+   - keep the permission surface unchanged (artifacts bucket prefix, Managed Flink read, CloudWatch metric read).
+4. Why this is the right production move:
+   - managed policy attachment scales beyond the inline-policy ceiling,
+   - the automation role stays evolvable for later PR lanes,
+   - the PR3 rights remain auditable as one named, separable policy surface.

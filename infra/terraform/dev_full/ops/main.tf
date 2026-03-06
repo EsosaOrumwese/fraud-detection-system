@@ -335,3 +335,63 @@ resource "aws_iam_role_policy" "github_actions_m6f_remote" {
     ]
   })
 }
+
+resource "aws_iam_policy" "github_actions_pr3_runtime" {
+  name = "GitHubActionsPR3RuntimeDevFull"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "PR3ArtifactsBucketList"
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket",
+          "s3:GetBucketLocation"
+        ]
+        Resource = "arn:aws:s3:::${var.github_actions_artifacts_bucket}"
+        Condition = {
+          StringLike = {
+            "s3:prefix" = [
+              "artifacts/lambda/ig_handler",
+              "artifacts/lambda/ig_handler/*"
+            ]
+          }
+        }
+      },
+      {
+        Sid    = "PR3ArtifactsObjectRW"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:AbortMultipartUpload"
+        ]
+        Resource = "arn:aws:s3:::${var.github_actions_artifacts_bucket}/artifacts/lambda/ig_handler/*"
+      },
+      {
+        Sid    = "PR3ManagedFlinkRead"
+        Effect = "Allow"
+        Action = [
+          "kinesisanalytics:ListApplications",
+          "kinesisanalytics:DescribeApplication"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "PR3CloudWatchMetricsRead"
+        Effect = "Allow"
+        Action = [
+          "cloudwatch:GetMetricData",
+          "cloudwatch:GetMetricStatistics",
+          "cloudwatch:ListMetrics"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "github_actions_pr3_runtime" {
+  role       = data.aws_iam_role.github_actions.name
+  policy_arn = aws_iam_policy.github_actions_pr3_runtime.arn
+}
