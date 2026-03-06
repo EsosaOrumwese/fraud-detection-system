@@ -3491,3 +3491,39 @@ Reasoning:
   - steady evidence rollup is rebuilt from the canonical WSP runtime manifest/summary so the PR3 receipts remain readable and continuous.
 - Important operational consequence:
   - these topic-config corrections live inside the immutable platform image, so they require a fresh packaging run and runtime rematerialization before the PR3 steady rerun can claim the corrected contract.
+### 2026-03-06 14:18:00 +00:00 - PR3-S1 canonical rerun exposed evidence-bootstrap drift on the GitHub runner, so the workflow must hydrate strict upstream receipts before dispatch
+- Latest canonical PR3-S1 rerun (22761391121) failed before any traffic was sent.
+- Exact failure:
+  - FileNotFoundError on uns/dev_substrate/dev_full/road_to_prod/run_control/pr3_20260306T021900Z/pr3_s0_execution_receipt.json inside pr3_s1_wsp_replay_dispatch.py.
+- Interpretation:
+  - the dispatcher is behaving correctly because PR3-S1 is defined to run fail-closed from a strict PR3-S0 READY boundary,
+  - the workflow created the RUN_DIR path locally on the runner but did not hydrate the upstream PR3 evidence set that the canonical dispatcher reads.
+- Why this is not a reason to weaken the dispatcher:
+  - allowing PR3-S1 to synthesize or skip PR3-S0 receipts would sever state continuity,
+  - it would also make the production evidence chain less trustworthy by letting a state run without its declared upstream acceptance boundary.
+- Candidate fixes considered:
+  - A relax pr3_s1_wsp_replay_dispatch.py so missing PR3-S0 receipts are tolerated:
+    - rejected because it weakens the strict-boundary contract and makes reruns less auditable.
+  - B commit/copy local uns/ artifacts into the workflow checkout:
+    - rejected because the authoritative evidence is the S3-backed run-control store, not the laptop worktree.
+  - C add an explicit workflow bootstrap step that syncs the authoritative PR3 evidence prefix from the evidence bucket into RUN_DIR before launching the canonical dispatcher:
+    - accepted because it preserves runner statelessness, keeps the evidence chain authoritative, and lets each rerun reconstruct the exact declared upstream boundary.
+- Implementation sequence from this point:
+  1. inspect the S3 evidence prefix shape for pr3_20260306T021900Z,
+  2. patch dev_full_pr3_s1_managed.yml to sync the authoritative PR3 run-control artifacts into RUN_DIR,
+  3. rerun the canonical PR3-S1 lane immediately,
+  4. only if the next failure is inside live throughput/error/latency metrics treat it as the next production problem.
+### 2026-03-06 14:26:00 +00:00 - PR3 workflow now bootstraps and mirrors the full run-control tree so strict upstream state can be reconstructed remotely
+- dev_full_pr3_s1_managed.yml now syncs the authoritative vidence/dev_full/run_control/<pr3_execution_id>/ prefix into RUN_DIR before launching the canonical dispatcher.
+- The same workflow now syncs the full RUN_DIR back to S3 on exit before the targeted rollup copies.
+- Reasoning:
+  - the production issue was not just one missing file but a continuity gap: selected rollups were being mirrored remotely while the strict run-control tree remained only on the workstation,
+  - future remote reruns should be able to reconstruct the execution boundary from the evidence bucket without depending on a checked-out uns/ tree.
+- Why this is the right fix:
+  - it preserves the strict state-machine contract (S1 still requires S0 READY),
+  - keeps the GitHub runner stateless,
+  - promotes the evidence bucket toward the real remote source of truth for road-to-prod state transitions.
+- Immediate operational step after patching:
+  - seed the existing pr3_20260306T021900Z run-control tree into the evidence bucket once so the newly bootstrapped workflow has a complete starting state,
+  - rerun canonical PR3-S1,
+  - if green, continue the same remote-mirror pattern for later PR3/PR4 states.

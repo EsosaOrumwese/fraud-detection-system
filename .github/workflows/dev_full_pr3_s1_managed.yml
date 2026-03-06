@@ -527,6 +527,20 @@ jobs:
           mkdir -p "${RUN_DIR}"
           echo "run_dir=${RUN_DIR}" >> "$GITHUB_OUTPUT"
 
+      - name: Bootstrap authoritative PR3 run-control evidence
+        shell: bash
+        env:
+          EVIDENCE_BUCKET: ${{ inputs.evidence_bucket }}
+          PR3_EXECUTION_ID: ${{ inputs.pr3_execution_id }}
+          RUN_DIR: ${{ steps.meta.outputs.run_dir }}
+        run: |
+          set -euo pipefail
+          aws s3 sync \
+            "s3://${EVIDENCE_BUCKET}/evidence/dev_full/run_control/${PR3_EXECUTION_ID}/" \
+            "${RUN_DIR}/" \
+            --no-progress || true
+          test -f "${RUN_DIR}/pr3_s0_execution_receipt.json"
+
       - name: Configure kubeconfig for PR3 runtime
         shell: bash
         run: |
@@ -724,6 +738,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          aws s3 sync "${{ steps.meta.outputs.run_dir }}/" "s3://${{ inputs.evidence_bucket }}/evidence/dev_full/run_control/${{ inputs.pr3_execution_id }}/" --no-progress || true
           aws s3 cp "${{ steps.meta.outputs.run_dir }}/g3a_s1_managed_runtime_path_selection.json" "s3://${{ inputs.evidence_bucket }}/evidence/dev_full/run_control/${{ inputs.pr3_execution_id }}/road_to_prod/pr3_s1_managed/g3a_s1_managed_runtime_path_selection.json" || true
           aws s3 cp "${{ steps.meta.outputs.run_dir }}/g3a_s1_managed_dispatch_manifest.json" "s3://${{ inputs.evidence_bucket }}/evidence/dev_full/run_control/${{ inputs.pr3_execution_id }}/road_to_prod/pr3_s1_managed/g3a_s1_managed_dispatch_manifest.json" || true
           aws s3 cp "${{ steps.meta.outputs.run_dir }}/g3a_s1_managed_dispatch_summary.json" "s3://${{ inputs.evidence_bucket }}/evidence/dev_full/run_control/${{ inputs.pr3_execution_id }}/road_to_prod/pr3_s1_managed/g3a_s1_managed_dispatch_summary.json" || true
