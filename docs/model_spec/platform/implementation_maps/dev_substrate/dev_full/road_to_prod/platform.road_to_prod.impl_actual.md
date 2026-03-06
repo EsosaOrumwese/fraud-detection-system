@@ -1705,3 +1705,95 @@ uns/; docs/logbook/impl map synced after run.
 ### Governance
 1. No branch operations.
 2. No commit/push.
+
+## Entry: 2026-03-06 02:05:10 +00:00 - Pre-edit plan for PR3 authority doc materialization (G3A runtime certification)
+### Trigger
+1. USER directed: "Let's move to planning out PR3 and its own doc".
+
+### Problem framing
+1. Main plan currently has only high-level PR3 lane intent but no dedicated PR3 authority doc.
+2. PR2 closed PR3_READY and now requires a deterministic, fail-closed PR3 state plan before execution.
+3. PR3 must explicitly close TGT-08 (runtime threshold families) and TGT-09 (archive sink design/backpressure posture) by PR3-S5.
+
+### Authorities and constraints
+1. Binding source for PR3 gate semantics:
+   - docs/model_spec/platform/pre-design_decisions/dev-full_road-to-production-ready.md Section 10A (G3A) and related anti-gaming/measurement-surface laws.
+2. Upstream strict handoff authority:
+   - uns/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_s3_execution_receipt.json.
+3. Existing execution posture constraints:
+   - no local orchestration for runtime certification; local machine used only for planning/docs/validation logic.
+
+### Design decisions
+1. Create standalone PR3 authority doc:
+   - docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR3.road_to_prod.md.
+2. Keep structure consistent with PR1/PR2 authority docs for operator continuity:
+   - Purpose, authorities, scope, exit standard, capability lanes, execution posture, state plan, artifact contract, budgets, rerun discipline, DoD, execution record.
+3. Use six-state PR3 chain aligned to G3A scorecard shape and drills:
+   - S0 preflight + run binding,
+   - S1 steady,
+   - S2 burst,
+   - S3 recovery,
+   - S4 soak + mandatory runtime drills,
+   - S5 rollup + verdict.
+4. Artifact naming strategy:
+   - preserve g3a_* canonical evidence object names from design authority,
+   - include pr3_s*_execution_receipt.json and pr3_execution_summary.json for state continuity.
+5. Blocker taxonomy strategy:
+   - fail-closed blocker codes mapped per state (entry lock, measurement surfaces, sample minima, threshold breaches, drill failures, evidence index/verdict incoherence, unattributed spend).
+
+### Main-plan sync changes
+1. Update PR3 phase block in platform.road_to_prod.plan.md to reference PR3 authority doc explicitly.
+2. Add explicit PR3 execution status line (NOT_STARTED) and route immediate-next-step to PR3 authority doc (instead of temporary PR2-only routing).
+
+### Risks and mitigations
+1. Risk: vague PR3 plan leads to checklist closure without gate-intent proof.
+   - Mitigation: codify required metrics families, measurement surfaces, cohorts, drills, and deterministic evidence bundle as hard pass conditions.
+2. Risk: budget/run posture drifts into expensive reruns.
+   - Mitigation: declare profile-scoped rerun boundaries and forbid rerun-the-world for metric/artifact defects.
+
+### Governance
+1. Scope is documentation planning only (no branch operations, no commit/push).
+
+## Entry: 2026-03-06 02:08:14 +00:00 - PR3 authority doc created and main-plan routing synchronized
+### What was implemented
+1. Added standalone PR3 authority doc:
+   - docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR3.road_to_prod.md.
+2. PR3 authority structure includes:
+   - purpose, binding authorities, scope boundary,
+   - hard exit standard,
+   - capability-lane coverage,
+   - performance/cost execution posture,
+   - detailed fail-closed S0..S5 state plan,
+   - artifact contract,
+   - runtime/cost budgets,
+   - rerun discipline,
+   - DoD checklist,
+   - execution record (NOT_STARTED).
+3. Blocker taxonomy and gate routing added:
+   - PR3.B01..PR3.B32 mapped across entry lock, profile windows, drills, rollup, and spend attribution.
+4. Main plan synchronized:
+   - PR3 phase block now references PR3 authority doc,
+   - PR3 execution status set to PLANNED,
+   - immediate-next-step routing switched to main plan + PR3 authority, with PR2 retained as upstream closure reference only.
+5. Digest-standard consistency fixed:
+   - section 8.1 in main plan now reflects agreed summary format columns (Area | What was found | Interpretation).
+
+### Why this design
+1. Prevents checklist-style PR3 execution by forcing explicit runtime profile/drill evidence at each state boundary.
+2. Aligns PR3 directly to design authority 10A requirements (scorecard phases, cohorts, drills, deterministic bundle/verdict).
+3. Ensures TGT-08 and TGT-09 cannot close implicitly; closure artifacts are hard-required in PR3 pass criteria.
+
+### Verification
+1. Confirmed PR3 doc contains:
+   - explicit TGT-08/TGT-09 closure hooks,
+   - PR4_READY handoff condition,
+   - NOT_STARTED execution state.
+2. Confirmed main-plan updates applied at:
+   - PR3 phase block,
+   - immediate-next-step routing,
+   - digest standard section.
+3. Scope remains documentation-only.
+
+### Governance
+1. No branch operations.
+2. No commit/push.

@@ -103,6 +103,8 @@ Exit / DoD:
 Intent:
 1. Certify runtime hot-path behavior under `steady -> burst -> recovery -> soak`.
 2. Prove runtime drills with claimable artifacts.
+3. Execute detailed state plan in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR3.road_to_prod.md`.
 
 Subphase template:
 1. `S0` preflight and run binding.
@@ -117,6 +119,7 @@ Exit / DoD:
 2. Required runtime drill artifacts complete.
 3. `G3A` pack has `open_blockers=0`.
 4. Closure demonstrates runtime gate intent (not probe-only or checklist-only pass).
+5. Execution status: `PLANNED` (authority doc materialized; execution not started).
 
 ### PR4 - G3B Ops/Gov Operational Certification Pack
 Intent:
@@ -186,12 +189,9 @@ Exit / DoD:
 For every state attempt (`PASS`, `HOLD_REMEDIATE`, or `FAIL`), publish an analytical digest that a human reviewer can interpret without opening JSON artifacts.
 
 Required digest columns:
-1. `Signal`
-2. `Observed Value`
-3. `Threshold/Expectation`
-4. `Status` (`PASS`/`WARN`/`FAIL`)
-5. `Interpretation` (why it matters)
-6. `Decision/Next Action`
+1. `Area`
+2. `What was found`
+3. `Interpretation`
 
 Required digest rows:
 1. Gate verdict and blocker count.
@@ -220,9 +220,10 @@ This plan's intent is satisfied only when:
 2. Use `PR2-S3` receipt as immediate upstream authority:
    - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_s3_execution_receipt.json`.
 3. Keep Section 11 target status table as the active blocker-routing surface during `PR3` execution.
-4. Use this main plan + PR2 authority as active execution sources until PR3 authority doc is materialized in `PR3-S0`:
+4. Use this main plan + PR3 authority as active execution sources:
    - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.road_to_prod.plan.md`
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR2.road_to_prod.md`.
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR3.road_to_prod.md`.
+5. Keep `platform.PR2.road_to_prod.md` as upstream closure reference only (not active PR3 execution authority).
 
 ### 10.1 PR1-S1 Findings Summary (Readable)
 | Area | What was found | Interpretation |
