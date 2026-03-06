@@ -102,6 +102,28 @@ ofp:
     poll_max_records: 500
     poll_sleep_seconds: 0.1
     event_bus_start_position: latest
+context_store_flow_binding:
+  policy:
+    stream_id: csfb.v0
+    class_map_ref: config/platform/ig/class_map_v0.yaml
+    context_event_classes:
+      - context_arrival
+      - context_arrival_entities
+      - context_flow_baseline
+      - context_flow_fraud
+  wiring:
+    required_platform_run_id: ${CSFB_REQUIRED_PLATFORM_RUN_ID}
+    projection_db_dsn: ${CSFB_PROJECTION_DSN}
+    event_bus_kind: kafka
+    event_bus:
+      stream: ${KAFKA_BOOTSTRAP_SERVERS}
+      region: ${KAFKA_AWS_REGION}
+      endpoint_url: ${KAFKA_ENDPOINT_URL}
+      topics_ref: config/platform/context_store_flow_binding/topics_v0.yaml
+      start_position: latest
+    engine_contracts_root: docs/model_spec/data-engine/interface_pack/contracts
+    poll_max_records: 500
+    poll_sleep_seconds: 0.1
 dl:
   policy:
     profiles_ref: config/platform/dl/policy_profiles_v0.yaml

@@ -133,6 +133,15 @@ def secret_manifest(namespace: str, name: str, string_data: dict[str, str]) -> d
     }
 
 
+def config_map_manifest(namespace: str, name: str, data: dict[str, str]) -> dict[str, Any]:
+    return {
+        "apiVersion": "v1",
+        "kind": "ConfigMap",
+        "metadata": {"name": name, "namespace": namespace},
+        "data": data,
+    }
+
+
 def service_account_manifest(namespace: str, name: str, role_arn: str) -> dict[str, Any]:
     return {
         "apiVersion": "v1",
@@ -166,6 +175,8 @@ def deployment_manifest(
     image: str,
     command: list[str],
     env: list[dict[str, Any]],
+    volume_mounts: list[dict[str, Any]],
+    volumes: list[dict[str, Any]],
     cpu_request: str,
     cpu_limit: str,
     mem_request: str,
@@ -192,12 +203,14 @@ def deployment_manifest(
                             "imagePullPolicy": "Always",
                             "command": command,
                             "env": env,
+                            "volumeMounts": volume_mounts,
                             "resources": {
                                 "requests": {"cpu": cpu_request, "memory": mem_request},
                                 "limits": {"cpu": cpu_limit, "memory": mem_limit},
                             },
                         }
                     ],
+                    "volumes": volumes,
                 },
             },
         },
@@ -258,7 +271,8 @@ def main() -> int:
     ap.add_argument("--scenario-run-id", required=True)
     ap.add_argument("--region", default="eu-west-2")
     ap.add_argument("--namespace", default="")
-    ap.add_argument("--profile-path", default="/app/config/platform/profiles/dev_full.yaml")
+    ap.add_argument("--profile-path", default="/runtime-profile/dev_full.yaml")
+    ap.add_argument("--profile-source-path", default="config/platform/profiles/dev_full.yaml")
     ap.add_argument("--wsp-task-family", default="fraud-platform-dev-full-wsp-ephemeral")
     ap.add_argument("--image-uri", default="")
     ap.add_argument("--aurora-db-name", default="fraud_platform")
@@ -362,11 +376,18 @@ def main() -> int:
         "fp.platform_run_id": args.platform_run_id,
     }
     secret_name = "fp-pr3-runtime-secrets"
+    profile_configmap_name = "fp-pr3-runtime-profile"
     rtdl_sa = "fp-rtdl-runtime"
     decision_sa = "fp-decision-runtime"
 
+    profile_source_path = Path(args.profile_source_path)
+    if not profile_source_path.exists():
+        raise RuntimeError(f"profile source path missing: {profile_source_path}")
+    profile_text = profile_source_path.read_text(encoding="utf-8")
+
     kubectl_apply(service_account_manifest(namespace, rtdl_sa, str(registry["ROLE_EKS_IRSA_RTDL"]).strip()))
     kubectl_apply(service_account_manifest(namespace, decision_sa, str(registry["ROLE_EKS_IRSA_DECISION_LANE"]).strip()))
+    kubectl_apply(config_map_manifest(namespace, profile_configmap_name, {"dev_full.yaml": profile_text}))
 
     secret_data = {
         "KAFKA_BOOTSTRAP_SERVERS": str(registry["MSK_BOOTSTRAP_BROKERS_SASL_IAM"]).strip(),
@@ -379,6 +400,7 @@ def main() -> int:
         "OBJECT_STORE_REGION": args.region,
         "PLATFORM_RUN_ID": args.platform_run_id,
         "ACTIVE_PLATFORM_RUN_ID": args.platform_run_id,
+        "CSFB_REQUIRED_PLATFORM_RUN_ID": args.platform_run_id,
         "IEG_REQUIRED_PLATFORM_RUN_ID": args.platform_run_id,
         "OFP_REQUIRED_PLATFORM_RUN_ID": args.platform_run_id,
         "DF_REQUIRED_PLATFORM_RUN_ID": args.platform_run_id,
@@ -389,6 +411,7 @@ def main() -> int:
         "AL_IG_API_KEY": ig_api_key,
         "IG_API_KEY": ig_api_key,
         "IG_INGEST_URL": args.ig_ingest_url,
+        "CSFB_PROJECTION_DSN": aurora_dsn,
         "IEG_PROJECTION_DSN": aurora_dsn,
         "OFP_PROJECTION_DSN": aurora_dsn,
         "OFP_SNAPSHOT_INDEX_DSN": aurora_dsn,
@@ -421,6 +444,19 @@ def main() -> int:
         env_ref("ACTIVE_PLATFORM_RUN_ID", secret_name, "ACTIVE_PLATFORM_RUN_ID"),
         plain_env("PYTHONUNBUFFERED", "1"),
     ]
+    profile_volume_mounts = [
+        {
+            "name": "runtime-profile",
+            "mountPath": str(Path(args.profile_path).parent),
+            "readOnly": True,
+        }
+    ]
+    profile_volumes = [
+        {
+            "name": "runtime-profile",
+            "configMap": {"name": profile_configmap_name},
+        }
+    ]
 
     workloads = [
         {
@@ -429,6 +465,8 @@ def main() -> int:
             "command": ["python", "-m", "fraud_detection.identity_entity_graph.projector", "--profile", args.profile_path],
             "env": common_secret_env
             + [
+                env_ref("CSFB_REQUIRED_PLATFORM_RUN_ID", secret_name, "CSFB_REQUIRED_PLATFORM_RUN_ID"),
+                env_ref("CSFB_PROJECTION_DSN", secret_name, "CSFB_PROJECTION_DSN"),
                 env_ref("IEG_REQUIRED_PLATFORM_RUN_ID", secret_name, "IEG_REQUIRED_PLATFORM_RUN_ID"),
                 env_ref("IEG_PROJECTION_DSN", secret_name, "IEG_PROJECTION_DSN"),
             ],
@@ -444,6 +482,8 @@ def main() -> int:
             "command": ["python", "-m", "fraud_detection.online_feature_plane.projector", "--profile", args.profile_path],
             "env": common_secret_env
             + [
+                env_ref("CSFB_REQUIRED_PLATFORM_RUN_ID", secret_name, "CSFB_REQUIRED_PLATFORM_RUN_ID"),
+                env_ref("CSFB_PROJECTION_DSN", secret_name, "CSFB_PROJECTION_DSN"),
                 env_ref("OFP_REQUIRED_PLATFORM_RUN_ID", secret_name, "OFP_REQUIRED_PLATFORM_RUN_ID"),
                 env_ref("OFP_PROJECTION_DSN", secret_name, "OFP_PROJECTION_DSN"),
                 env_ref("OFP_SNAPSHOT_INDEX_DSN", secret_name, "OFP_SNAPSHOT_INDEX_DSN"),
@@ -475,6 +515,8 @@ def main() -> int:
             "command": ["python", "-m", "fraud_detection.decision_fabric.worker", "--profile", args.profile_path],
             "env": common_secret_env
             + [
+                env_ref("CSFB_REQUIRED_PLATFORM_RUN_ID", secret_name, "CSFB_REQUIRED_PLATFORM_RUN_ID"),
+                env_ref("CSFB_PROJECTION_DSN", secret_name, "CSFB_PROJECTION_DSN"),
                 env_ref("DF_REQUIRED_PLATFORM_RUN_ID", secret_name, "DF_REQUIRED_PLATFORM_RUN_ID"),
                 env_ref("DF_REPLAY_DSN", secret_name, "DF_REPLAY_DSN"),
                 env_ref("DF_CHECKPOINT_DSN", secret_name, "DF_CHECKPOINT_DSN"),
@@ -533,6 +575,8 @@ def main() -> int:
             image=image_uri,
             command=list(workload["command"]),
             env=list(workload["env"]),
+            volume_mounts=profile_volume_mounts,
+            volumes=profile_volumes,
             cpu_request=str(workload["cpu_request"]),
             cpu_limit=str(workload["cpu_limit"]),
             mem_request=str(workload["mem_request"]),
@@ -569,6 +613,7 @@ def main() -> int:
         "image_uri": image_uri,
         "profile_path": args.profile_path,
         "secret_name": secret_name,
+        "profile_configmap_name": profile_configmap_name,
         "service_accounts": {
             "rtdl": {"name": rtdl_sa, "role_arn": str(registry["ROLE_EKS_IRSA_RTDL"]).strip()},
             "decision": {"name": decision_sa, "role_arn": str(registry["ROLE_EKS_IRSA_DECISION_LANE"]).strip()},

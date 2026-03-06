@@ -3320,3 +3320,16 @@ Reasoning:
     - `steady_harness` (legacy fallback lane, unchanged default),
     - `materialize_runtime` (new EKS runtime materialization path using `scripts/dev_substrate/pr3_rtdl_materialize.py`).
 - This keeps execution remote, production-real, and branch-stable while avoiding unnecessary merge choreography mid-run.
+### 2026-03-06 12:45:00 +00:00 - First EKS runtime rollout exposed two real configuration defects: stale image-baked profile and missing CSFB surface for DF
+- The first remote materialization run got `IEG`, `OFP`, `AL`, and `archive_writer` into `Running/Ready`, but `DF` and `DLA` entered restart loops.
+- Pod-level readback showed two distinct root causes:
+  - `DF` crashed because `ContextStoreFlowBindingQueryService.build_from_policy(...)` could not resolve `CSFB_PROJECTION_DSN`; the `dev_full` runtime profile being read by the container did not yet define the `context_store_flow_binding` surface,
+  - `DLA` crashed because it resolved `storage_profile_id='dev_full'`, which means the pod was still reading the old image-baked `dev_full.yaml` instead of the branch-updated profile that pins `storage_profile_id=prod`.
+- Why this matters:
+  - fixing only the deployment object would not help; the wrong profile surface would continue to be read from the image,
+  - and without `CSFB` being at least queryable, `DF` cannot even initialize its context-acquisition path.
+- Remediation chosen:
+  - mount the branch-side `config/platform/profiles/dev_full.yaml` into every runtime pod through a Kubernetes `ConfigMap`, making the runtime profile authoritative at deploy time rather than image-baked,
+  - add the missing `context_store_flow_binding` section plus `CSFB_PROJECTION_DSN`/`CSFB_REQUIRED_PLATFORM_RUN_ID` secret/env surfaces,
+  - redeploy the runtime in place on the same namespace.
+- This is the correct production-grade fix because it removes a real config-governance defect (stale baked runtime config) instead of just changing pod arguments until the crash disappears.
