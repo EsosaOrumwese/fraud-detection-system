@@ -4448,3 +4448,24 @@ Reasoning:
    - convert the generated tfvars path to an absolute filesystem path before invoking Terraform,
    - rerun RC2.R2 again,
    - only then inspect the first actual live uplift result.
+## Entry: 2026-03-06 17:51:00 +00:00 - First real RC2.R2 live-apply blocker identified: runtime module refresh requires Step Functions + IAM OIDC-provider reads
+1. The latest RC2.R2 rerun finally moved past all workflow plumbing defects and into a real Terraform plan for the runtime module.
+2. The plan failed on two missing read permissions under the active GitHub OIDC role:
+   - `states:DescribeStateMachine` on `arn:aws:states:eu-west-2:230372904534:stateMachine:fraud-platform-dev-full-platform-run-v0`,
+   - `iam:GetOpenIDConnectProvider` on `arn:aws:iam::230372904534:oidc-provider/oidc.eks.eu-west-2.amazonaws.com/id/6D0DBB7743A87C0ACB0A4645B431D308`.
+3. Production interpretation:
+   - this is the first true live-apply blocker after the control-plane workflow was stabilized,
+   - because the RC2.R2 gate is using the full runtime Terraform module as the source of truth, the OIDC role must be able to refresh the module's existing state surfaces even if the immediate uplift targets are APIGW/Lambda/EKS,
+   - restricting the role so tightly that it cannot even read the runtime module's already-managed resources produces a brittle, non-production control plane.
+4. Alternatives considered:
+   - change RC2.R2 to use targeted applies on only APIGW/Lambda/EKS resources:
+     - rejected for now because it hides shared runtime-module drift and weakens the authoritative apply path,
+   - patch over the missing reads by skipping refresh:
+     - rejected because that would make the gate less truthful at exactly the point we need strong production evidence,
+   - extend the role with the minimum additional read surfaces required for the current runtime module:
+     - chosen because it preserves full-module truth while remaining least-privilege.
+5. Immediate remediation pinned:
+   - add `states:DescribeStateMachine` for the pinned platform-run state machine ARN to the managed PR3 runtime policy,
+   - add `iam:GetOpenIDConnectProvider` for the pinned EKS OIDC provider ARN to the same policy,
+   - apply that policy live,
+   - rerun RC2.R2 again from the same uplift target.

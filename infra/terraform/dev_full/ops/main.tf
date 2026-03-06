@@ -504,6 +504,22 @@ resource "aws_iam_policy" "github_actions_pr3_runtime" {
         ]
       },
       {
+        Sid    = "PR3RuntimeStepFunctionsRead"
+        Effect = "Allow"
+        Action = [
+          "states:DescribeStateMachine"
+        ]
+        Resource = "arn:aws:states:${var.aws_region}:${data.aws_caller_identity.current.account_id}:stateMachine:fraud-platform-dev-full-platform-run-v0"
+      },
+      {
+        Sid    = "PR3RuntimeEksOidcRead"
+        Effect = "Allow"
+        Action = [
+          "iam:GetOpenIDConnectProvider"
+        ]
+        Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/oidc.eks.${var.aws_region}.amazonaws.com/id/6D0DBB7743A87C0ACB0A4645B431D308"
+      },
+      {
         Sid    = "PR3ManagedFlinkRead"
         Effect = "Allow"
         Action = [
