@@ -23,6 +23,7 @@ from botocore.exceptions import BotoCoreError, ClientError
 from fraud_detection.event_bus.kafka import build_kafka_publisher
 from fraud_detection.ingestion_gate.admission import IngestionGate, _bus_probe_streams, _validate_rtdl_policy_alignment
 from fraud_detection.ingestion_gate.config import ClassMap, PolicyRev, SchemaPolicy
+from fraud_detection.ingestion_gate.errors import IngestionError
 from fraud_detection.ingestion_gate.health import HealthProbe
 from fraud_detection.ingestion_gate.metrics import MetricsRecorder
 from fraud_detection.ingestion_gate.policy_digest import compute_policy_digest
@@ -677,6 +678,44 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         }
         status_code = 202 if decision.decision in {"ADMIT", "DUPLICATE"} else 400
         return _response(status_code, response_body)
+    except IngestionError as exc:
+        if exc.code in {"PUBLISH_IN_FLIGHT_RETRY", "PUBLISH_AMBIGUOUS_RETRY"}:
+            LOGGER.warning(
+                "IG transient retry required path=%s platform_run_id=%s reason=%s",
+                path,
+                platform_run_id,
+                exc.code,
+            )
+            return _response(
+                503,
+                {
+                    "error": "retry_required",
+                    "reason": exc.code,
+                    "body_size_bytes": body_size,
+                    "correlation_echo": correlation_echo,
+                },
+            )
+        reason = str(exc)
+        LOGGER.exception(
+            json.dumps(
+                {
+                    "event": "ig_publish_failure",
+                    "timestamp_epoch": int(time.time()),
+                    "correlation_echo": correlation_echo,
+                    "reason": reason,
+                }
+            )
+        )
+        _send_dlq(payload, reason, headers)
+        return _response(
+            503,
+            {
+                "error": "ingress_publish_failed",
+                "reason": reason,
+                "body_size_bytes": body_size,
+                "correlation_echo": correlation_echo,
+            },
+        )
     except Exception as exc:
         reason = str(exc)
         LOGGER.exception(

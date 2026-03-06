@@ -226,7 +226,16 @@ class IngestionGate:
                 return self._quarantine(envelope, IngestionError("PAYLOAD_HASH_MISMATCH"), start, auth_context=auth_context)
             state = existing_row.get("state") or ("ADMITTED" if existing_row.get("eb_ref") else None)
             if state in {"PUBLISH_IN_FLIGHT", "PUBLISH_AMBIGUOUS"}:
-                return self._quarantine(envelope, IngestionError(state), start, auth_context=auth_context)
+                latest = self._wait_for_existing_resolution(dedupe, existing_row)
+                resolved_state = (latest.get("state") if latest else None) or (
+                    "ADMITTED" if latest and latest.get("eb_ref") else None
+                )
+                if resolved_state in {"PUBLISH_IN_FLIGHT", "PUBLISH_AMBIGUOUS"}:
+                    retry_code = "PUBLISH_IN_FLIGHT_RETRY" if resolved_state == "PUBLISH_IN_FLIGHT" else "PUBLISH_AMBIGUOUS_RETRY"
+                    raise IngestionError(retry_code, envelope.get("event_id"))
+                if latest:
+                    existing_row = latest
+                    state = resolved_state
             if state not in {"ADMITTED", None}:
                 return self._quarantine(envelope, IngestionError("ADMISSION_STATE_INVALID", state), start, auth_context=auth_context)
             logger.info("IG duplicate event_id=%s event_type=%s", event_id, event_type)
@@ -385,6 +394,26 @@ class IngestionGate:
         self.metrics.record_latency("admission_seconds", time.perf_counter() - start)
         self.metrics.flush_if_due(self._metrics_context(envelope))
         return decision, Receipt(payload=receipt_payload, ref=receipt_ref)
+
+    def _wait_for_existing_resolution(
+        self,
+        dedupe_key: str,
+        existing_row: dict[str, Any],
+    ) -> dict[str, Any]:
+        wait_seconds = max(0.0, float(getattr(self.wiring, "inflight_wait_seconds", 2.0)))
+        poll_seconds = max(0.01, float(getattr(self.wiring, "inflight_poll_seconds", 0.05)))
+        deadline = time.monotonic() + wait_seconds
+        latest = dict(existing_row)
+        while time.monotonic() < deadline:
+            time.sleep(min(poll_seconds, max(0.0, deadline - time.monotonic())))
+            observed = self.admission_index.lookup(dedupe_key)
+            if not observed:
+                continue
+            latest = observed
+            state = observed.get("state") or ("ADMITTED" if observed.get("eb_ref") else None)
+            if state not in {"PUBLISH_IN_FLIGHT", "PUBLISH_AMBIGUOUS"}:
+                return latest
+        return latest
 
     def _quarantine(
         self,

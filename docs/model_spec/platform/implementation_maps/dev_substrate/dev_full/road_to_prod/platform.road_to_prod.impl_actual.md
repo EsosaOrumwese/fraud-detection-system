@@ -5390,3 +5390,79 @@ Reasoning:
    - a large reduction in the pathological `phase.validate_seconds` tail;
    - fewer health-check timeouts and less task churn under bounded PR3 pressure.
 8. I am not assuming this closes PR3-S1 by itself. The next rerun will tell us whether the post-stampede frontier is now honest service capacity, synchronous Kafka ACK cost, or another remaining lifecycle defect.
+
+## Entry: 2026-03-06 22:24:00 +00:00 - Live rollout is now materially aligned with the ingress anti-stampede fixes, so the next PR3-S1 rerun is a truthful post-remediation measurement
+1. I verified the live runtime posture after the image refresh and targeted ECS rollout instead of assuming the previous update succeeded.
+2. The ingress service is now materially running the corrected image and corrected hot-path health posture:
+   - ECS service `fraud-platform-dev-full-ig-service` is on task definition `:6`,
+   - the container image is pinned to immutable digest `sha256:1f33883cf7c53e8b6f5aaae3e79e62a880048ff97ec35142fb73b3da7e3be80c`,
+   - `IG_HEALTH_BUS_PROBE_MODE=none`,
+   - desired/running count is `12/12`,
+   - network posture remains private-subnet only with `assignPublicIp=DISABLED`.
+3. The remote WSP replay runtime is also materially aligned to the same corrected digest:
+   - task definition `fraud-platform-dev-full-wsp-ephemeral:31`,
+   - image digest `sha256:1f33883cf7c53e8b6f5aaae3e79e62a880048ff97ec35142fb73b3da7e3be80c`.
+4. This matters because the next `PR3-S1` measurement is no longer polluted by stale image drift. If the state is still red after this rerun, the remaining limiter is now a live platform behavior issue rather than a packaging/materialization mistake.
+5. Production interpretation:
+   - the next rerun is the first honest measurement of the anti-stampede ingress boundary plus the concurrency-capable WSP path on remote compute;
+   - success now requires impact metrics to move materially toward the production band, not just a smaller blocker count;
+   - if throughput remains below the `3000 eps` steady target or latency/error metrics remain outside the pinned envelope, I will keep pushing on the next real limiter instead of treating this rollout as a soft win.
+6. Immediate action after this note is a bounded canonical `PR3-S1` rerun on the same strict execution root so I can measure whether the validate-path collapse is actually fixed and what residual constraint remains.
+
+## Entry: 2026-03-06 22:31:00 +00:00 - Post-remediation PR3-S1 proves the next frontier is transient retry handling plus service-edge latency, not another correctness collapse
+1. I reran the same bounded canonical `PR3-S1` window on the refreshed WSP image and corrected ingress service posture.
+2. The run moved materially in the right direction:
+   - admitted throughput increased from `46.367 eps` to `621.800 eps`,
+   - ALB `5xx` fell from `119` to `0`,
+   - ALB `p95` latency improved from `24.428s` to `7.138s`,
+   - ALB `p99` latency improved from `29.034s` to `10.966s`.
+3. This proves the anti-stampede fix set was necessary and effective. The service is no longer collapsing into self-replacement and broad 5xx failure under the same campaign shape.
+4. The state is still far from production, and the remaining defects are now clearer:
+   - steady admitted throughput is still only `621.8 eps` against the `3000 eps` target;
+   - error ratio is still `3.986%` against a `0.2%` ceiling;
+   - almost all residual failures are retry-driven client-side rejections, not backend 5xx.
+5. I inspected the new WSP and IG logs and found the next real production defect:
+   - WSP retries timed-out pushes with the same `event_id`;
+   - IG currently sees the duplicate while the first publish is still in flight and emits `decision=QUARANTINE` with `reason=PUBLISH_IN_FLIGHT`;
+   - WSP treats that 4xx-style rejection as terminal `IG_PUSH_REJECTED`, which kills the affected lane even though the underlying event is not bad data.
+6. This is not acceptable for a production at-least-once ingress boundary. A retry overlap on the same idempotency key is an expected transport reality under pressure; it should be coalesced into duplicate success or surfaced as a transient retryable condition, not persisted as quarantine truth.
+7. Supporting live evidence from the rerun:
+   - IG emitted repeated `PUBLISH_IN_FLIGHT` quarantines across business and context event types during the hot minute;
+   - WSP lane failures explicitly show `reason=IG_PUSH_REJECTED` after timeout/retry activity;
+   - target-side `4xx` counts are small but non-zero, which is enough to poison lane continuity and inflate the overall error ratio;
+   - ECS CPU still hit `100%` maxima while average CPU sat in the `52%` to `79%` band, meaning the service is improved but still not efficiently shaped for the target load.
+8. Chosen remediation sequence from this evidence:
+   - stop writing quarantine truth for `PUBLISH_IN_FLIGHT` retry overlap;
+   - coalesce in-flight duplicates by waiting briefly for the original publish to resolve, and return retryable transport errors when it does not;
+   - map transient in-flight/ambiguous conditions at the managed edge to retryable `5xx` instead of terminal client rejection;
+   - retune the ingress service concurrency envelope after the retry storm is removed so the next rerun measures honest service capacity rather than duplicate amplification.
+
+## Entry: 2026-03-06 22:42:00 +00:00 - Implemented retry-safe in-flight dedupe handling and repinned the service-edge concurrency envelope away from the oversubscribed thread posture
+1. I implemented the next ingress correction directly against the retry boundary instead of trying to brute-force through it with more campaign volume.
+2. In `src/fraud_detection/ingestion_gate/admission.py`:
+   - existing rows in `PUBLISH_IN_FLIGHT` or `PUBLISH_AMBIGUOUS` are no longer immediately turned into quarantine truth;
+   - the gate now waits briefly for the original publish attempt to resolve and then reuses the resolved state if it becomes `ADMITTED`;
+   - if the row is still unresolved after the bounded wait, the gate raises a retryable transport error (`PUBLISH_IN_FLIGHT_RETRY` or `PUBLISH_AMBIGUOUS_RETRY`) instead of persisting a false semantic quarantine.
+3. In `src/fraud_detection/ingestion_gate/aws_lambda_handler.py`:
+   - retryable in-flight/ambiguous transport conditions are now mapped to `503 retry_required`;
+   - those conditions do not get DLQ-written, because they are not malformed data and should not pollute downstream operational truth.
+4. In the test suite:
+   - added proof that an in-flight duplicate resolves into `DUPLICATE` once the original publish commits;
+   - added proof that unresolved in-flight duplicates raise the new retryable error;
+   - added proof that the managed edge maps the retryable in-flight boundary to `503` without DLQ side effects.
+5. I also repinned the service concurrency envelope in `infra/terraform/dev_full/runtime/variables.tf`:
+   - `ig_service_desired_count` moved from `12` to `16`;
+   - `ig_service_gunicorn_threads` moved from `32` to `8`;
+   - workers remain `4`.
+6. Why this concurrency repin is paired with the retry fix:
+   - the prior `4 x 32` thread posture on a `2 vCPU` Python task is a poor production fit for a mixed CPU/network admission path because it oversubscribes the interpreter, amplifies queueing, and hides real service capacity behind long tail latency;
+   - reducing thread count while modestly widening the fleet gives the next rerun a more credible process/thread balance and a better chance of exposing the honest throughput frontier.
+7. Validation completed before any rollout:
+   - `py_compile` passed for the changed ingress modules;
+   - ingress test suite passed (`24 passed`);
+   - `terraform fmt -check infra/terraform/dev_full/runtime` passed.
+8. Immediate next steps:
+   - commit/push this boundary,
+   - repack the shared platform image,
+   - roll the corrected image and new service posture live,
+   - rerun the same bounded canonical `PR3-S1` state and measure whether transient retry handling plus thread/fleet tuning materially lifts admitted `eps` and collapses the latency tail.
