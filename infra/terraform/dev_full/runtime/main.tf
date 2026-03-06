@@ -487,14 +487,15 @@ resource "aws_sqs_queue" "ig_dlq" {
 }
 
 resource "aws_lambda_function" "ig_handler" {
-  function_name    = var.lambda_ig_handler_name
-  role             = aws_iam_role.lambda_ig_execution.arn
-  runtime          = "python3.12"
-  handler          = "ig_handler.lambda_handler"
-  filename         = data.archive_file.ig_handler_zip.output_path
-  source_code_hash = data.archive_file.ig_handler_zip.output_base64sha256
-  timeout          = 30
-  memory_size      = 256
+  function_name                  = var.lambda_ig_handler_name
+  role                           = aws_iam_role.lambda_ig_execution.arn
+  runtime                        = "python3.12"
+  handler                        = "ig_handler.lambda_handler"
+  filename                       = data.archive_file.ig_handler_zip.output_path
+  source_code_hash               = data.archive_file.ig_handler_zip.output_base64sha256
+  timeout                        = floor(var.lambda_ig_timeout_seconds)
+  memory_size                    = floor(var.lambda_ig_memory_size_mb)
+  reserved_concurrent_executions = floor(var.lambda_ig_reserved_concurrency)
 
   environment {
     variables = {
@@ -522,6 +523,21 @@ resource "aws_lambda_function" "ig_handler" {
     aws_iam_role_policy_attachment.lambda_ig_basic,
     aws_iam_role_policy.lambda_ig_runtime
   ]
+
+  lifecycle {
+    precondition {
+      condition     = floor(var.lambda_ig_timeout_seconds) >= floor(var.ig_request_timeout_seconds)
+      error_message = "Lambda timeout must be >= IG request timeout seconds."
+    }
+    precondition {
+      condition     = floor(var.lambda_ig_memory_size_mb) >= 256
+      error_message = "Lambda memory must be at least 256 MB."
+    }
+    precondition {
+      condition     = floor(var.lambda_ig_reserved_concurrency) > 0
+      error_message = "Lambda reserved concurrency must be positive for cert-time explicit envelope control."
+    }
+  }
 
   tags = merge(local.common_tags, {
     fp_resource = "ig_lambda_handler"

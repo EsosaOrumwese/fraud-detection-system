@@ -499,8 +499,11 @@ Allowed tokens in pattern handles:
 * `IG_DLQ_MODE = "sqs"`
 * `IG_DLQ_QUEUE_NAME = "fraud-platform-dev-full-ig-dlq"`
 * `IG_REPLAY_MODE = "dlq_replay_workflow"`
-* `IG_RATE_LIMIT_RPS = 200`
-* `IG_RATE_LIMIT_BURST = 400`
+* `IG_RATE_LIMIT_RPS = 3000`
+* `IG_RATE_LIMIT_BURST = 6000`
+* `LAMBDA_IG_MEMORY_MB = 1024`
+* `LAMBDA_IG_RESERVED_CONCURRENCY = 300`
+* `LAMBDA_IG_TIMEOUT_SECONDS = 30`
 
 ### 7.5 Runtime service/deployment handles (legacy EKS fallback refs only)
 
@@ -570,7 +573,8 @@ Allowed tokens in pattern handles:
 
 * `SR_RUNTIME = "STEP_FUNCTIONS_PLUS_LAMBDA_JOB"`
 * `SR_READY_COMPUTE_MODE = "control_plane_orchestration_not_flink"`
-* `WSP_RUNTIME = "ECS_FARGATE_RUNTASK_EPHEMERAL"`
+* `WSP_RUNTIME = "MSF_MANAGED_PRIMARY"`
+* `WSP_RUNTIME_FALLBACK_ALLOWED = "EKS_FLINK_OPERATOR"`
 * `WSP_TRIGGER_MODE = "READY_EVENT_TRIGGERED"`
 
 ### 7.8 Runtime control knobs

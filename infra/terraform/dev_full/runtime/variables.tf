@@ -196,12 +196,27 @@ variable "ig_replay_mode" {
 
 variable "ig_rate_limit_rps" {
   type    = number
-  default = 200
+  default = 3000
 }
 
 variable "ig_rate_limit_burst" {
   type    = number
-  default = 400
+  default = 6000
+}
+
+variable "lambda_ig_memory_size_mb" {
+  type    = number
+  default = 1024
+}
+
+variable "lambda_ig_reserved_concurrency" {
+  type    = number
+  default = 300
+}
+
+variable "lambda_ig_timeout_seconds" {
+  type    = number
+  default = 30
 }
 
 variable "sfn_platform_run_orchestrator_name" {

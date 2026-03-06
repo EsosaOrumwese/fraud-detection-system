@@ -154,6 +154,9 @@ output "runtime_handle_materialization" {
     IG_REPLAY_MODE                     = var.ig_replay_mode
     IG_RATE_LIMIT_RPS                  = var.ig_rate_limit_rps
     IG_RATE_LIMIT_BURST                = var.ig_rate_limit_burst
+    LAMBDA_IG_MEMORY_MB                = var.lambda_ig_memory_size_mb
+    LAMBDA_IG_RESERVED_CONCURRENCY     = var.lambda_ig_reserved_concurrency
+    LAMBDA_IG_TIMEOUT_SECONDS          = var.lambda_ig_timeout_seconds
     APIGW_IG_STAGE_THROTTLE_RPS        = aws_apigatewayv2_stage.ig_v1.default_route_settings[0].throttling_rate_limit
     APIGW_IG_STAGE_THROTTLE_BURST      = aws_apigatewayv2_stage.ig_v1.default_route_settings[0].throttling_burst_limit
     APIGW_IG_INTEGRATION_TIMEOUT_MS    = aws_apigatewayv2_integration.ig_lambda.timeout_milliseconds

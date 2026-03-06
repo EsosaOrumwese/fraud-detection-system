@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Dispatch in-cloud PR3-S1 steady speedup lanes on ECS Fargate."""
+"""Temporary noncanonical ECS pressure harness for PR3-S1.
+
+This is not the authoritative WSP runtime path. It exists only as a bounded
+diagnostic harness while the platform stack is being repinned toward managed
+stream runtime and a higher-capacity ingress envelope.
+"""
 
 from __future__ import annotations
 

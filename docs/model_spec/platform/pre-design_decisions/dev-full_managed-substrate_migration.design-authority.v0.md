@@ -254,7 +254,8 @@ The following values are now explicitly pinned for v0 execution:
    * `STREAM_ENGINE_HOSTING_FALLBACK_BLOCKER = "M6P6-B2_OR_EQUIVALENT_MANAGED_UNAVAILABLE"`
    * `INGRESS_EDGE_MODE = "APIGW_LAMBDA_DDB_DEFAULT"`
    * `SR_RUNTIME_MODE = "SFN_LAMBDA_JOB"`
-   * `WSP_RUNTIME_MODE = "ECS_FARGATE_EPHEMERAL"`
+   * `WSP_RUNTIME_MODE = "MSF_MANAGED_PRIMARY"`
+   * `WSP_RUNTIME_FALLBACK_ALLOWED = "EKS_FLINK_OPERATOR"`
    * `M5_STREAM_SORT_RUNTIME_MODE = "EMR_SERVERLESS_SPARK"`
    * `ECS_USE_POLICY = "DEFAULT_FOR_NON_K8S_CUSTOM_SERVICES"`
    * `EKS_USE_POLICY = "EXCEPTION_ONLY_WITH_ADMISSION_RULE"`
@@ -280,8 +281,11 @@ The following values are now explicitly pinned for v0 execution:
    * `IG_INTERNAL_RETRY_BACKOFF_MS = 250`
    * `IG_IDEMPOTENCY_TTL_SECONDS = 259200` (72h)
    * `IG_DLQ_MODE = "SQS"`
-   * `IG_RATE_LIMIT_RPS = 200`
-   * `IG_RATE_LIMIT_BURST = 400`
+   * `IG_RATE_LIMIT_RPS = 3000`
+   * `IG_RATE_LIMIT_BURST = 6000`
+   * `LAMBDA_IG_MEMORY_MB = 1024`
+   * `LAMBDA_IG_RESERVED_CONCURRENCY = 300`
+   * `LAMBDA_IG_TIMEOUT_SECONDS = 30`
 13. **Cross-runtime correlation contract**
    * `CORRELATION_MODE = "W3C_TRACE_CONTEXT_PLUS_RUN_HEADERS"`
    * required correlation fields: `platform_run_id,scenario_run_id,phase_id,event_id,runtime_lane,trace_id`.

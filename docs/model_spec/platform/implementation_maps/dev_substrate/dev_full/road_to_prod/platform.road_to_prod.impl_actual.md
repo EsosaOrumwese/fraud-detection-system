@@ -2028,3 +2028,105 @@ ext_state=PR3-S1.
 ### Decision and code correction
 1. Treat ingress throttling (429-driven admitted EPS collapse) as primary bottleneck for PR3-S1.
 2. Updated dispatcher classification so forced early-cutoff xit_code=137 is annotated as EARLY_CUTOFF_FORCED_STOP and not emitted as B06 blocker.
+
+## Entry: 2026-03-06 04:18:00 +00:00 - WSP runtime authority drift and IG edge envelope correction plan
+### Trigger
+1. USER directed immediate correction of stack drift so platform posture matches the expected production flow.
+
+### Drift confirmed
+1. WSP placement is inconsistent across authorities:
+   - migration authority and handles pin `WSP_RUNTIME` to ECS/Fargate,
+   - later authority text says SR/WSP stream lanes run on MSK-integrated Flink jobs,
+   - live managed Flink materialization exists only for RTDL (`fraud-platform-dev-full-rtdl-ieg-ofp-v0`).
+2. IG ingress envelope is inconsistent across sources:
+   - handles + runtime Terraform defaults pin `IG_RATE_LIMIT_RPS=200`, `IG_RATE_LIMIT_BURST=400`,
+   - RC2/PR3 capacity-envelope workflow and runtime-cert gate already target `3000/6000`.
+3. Lambda envelope remains under-pinned:
+   - runtime Terraform hardcodes `memory_size=256`,
+   - reserved concurrency is not explicitly managed in IaC,
+   - cert workflow observes lambda envelope but does not currently apply/verify target lambda knobs.
+
+### Corrective decisions
+1. Repin WSP authority away from ECS one-shot posture and toward managed stream-job posture:
+   - `WSP_RUNTIME_MODE = MSF_MANAGED_PRIMARY`,
+   - `WSP_RUNTIME_FALLBACK_ALLOWED = EKS_FLINK_OPERATOR`,
+   - `WSP_TRIGGER_MODE = READY_EVENT_TRIGGERED`.
+2. Keep SR control authority unchanged:
+   - `SR_RUNTIME_MODE = SFN_LAMBDA_JOB`,
+   - `SR_READY_COMMIT_AUTHORITY = STEP_FUNCTIONS_ONLY`.
+3. Repin the baseline IG edge contract to the active cert floor:
+   - `IG_RATE_LIMIT_RPS = 3000`,
+   - `IG_RATE_LIMIT_BURST = 6000`.
+4. Make lambda envelope explicit and IaC-controlled:
+   - add Terraform vars / outputs / workflow inputs for:
+     - IG lambda memory size,
+     - IG lambda reserved concurrency,
+     - IG lambda timeout.
+5. Carry the same pins into authority docs and runtime workflow checks so no source continues claiming the stale ECS or `200/400` posture.
+
+### Implementation scope
+1. Update authority docs:
+   - `docs/model_spec/platform/pre-design_decisions/dev-full_managed-substrate_migration.design-authority.v0.md`
+   - `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/build/platform.M6.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/build/platform.M14.build_plan.md`
+2. Update runtime IaC:
+   - `infra/terraform/dev_full/runtime/variables.tf`
+   - `infra/terraform/dev_full/runtime/main.tf`
+   - `infra/terraform/dev_full/runtime/outputs.tf`
+3. Update managed uplift workflow:
+   - `.github/workflows/dev_full_rc2_r2_capacity_envelope.yml`
+
+### Boundary note
+1. This patch corrects authority and managed configuration surfaces.
+2. It does not claim WSP managed-Flint materialization is complete until the corresponding managed WSP runtime artifact exists and is verified in a later execution gate.
+
+### Governance
+1. No branch operations.
+2. No commit/push.
+
+## Entry: 2026-03-06 04:29:00 +00:00 - WSP/IG authority correction implemented
+### Implemented
+1. Corrected authority drift in:
+   - `docs/model_spec/platform/pre-design_decisions/dev-full_managed-substrate_migration.design-authority.v0.md`
+   - `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/build/platform.M6.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/build/platform.M14.build_plan.md`
+2. WSP is now repinned in authority to managed stream runtime primary posture:
+   - `WSP_RUNTIME_MODE/WSP_RUNTIME = MSF_MANAGED_PRIMARY`
+   - fallback remains explicit `EKS_FLINK_OPERATOR`.
+3. IG edge baseline contract is now aligned to runtime-cert target:
+   - `IG_RATE_LIMIT_RPS = 3000`
+   - `IG_RATE_LIMIT_BURST = 6000`
+4. IG lambda envelope is now explicit in IaC and workflow authority:
+   - memory `1024 MB`
+   - reserved concurrency `300`
+   - timeout `30s`
+
+### Runtime code/config updated
+1. `infra/terraform/dev_full/runtime/variables.tf`
+   - added lambda envelope vars,
+   - repinned IG throttle defaults to `3000/6000`.
+2. `infra/terraform/dev_full/runtime/main.tf`
+   - lambda now consumes explicit memory / timeout / reserved-concurrency vars,
+   - preconditions enforce timeout >= request timeout and positive reserved concurrency.
+3. `infra/terraform/dev_full/runtime/outputs.tf`
+   - runtime handle materialization now emits lambda envelope handles.
+4. `.github/workflows/dev_full_rc2_r2_capacity_envelope.yml`
+   - added lambda envelope inputs,
+   - managed terraform apply now passes lambda vars,
+   - post-apply verification now fail-closes on lambda envelope shortfall, not APIGW-only.
+
+### Validation
+1. `python -m py_compile scripts/dev_substrate/pr3_s1_managed_speedup_dispatch.py` passed.
+2. `terraform -chdir=infra/terraform/dev_full/runtime fmt -check` passed after formatting normalization.
+3. `terraform -chdir=infra/terraform/dev_full/runtime validate` passed.
+4. Workflow YAML parse passed for `.github/workflows/dev_full_rc2_r2_capacity_envelope.yml`.
+
+### Remaining explicit gap
+1. This patch corrects authority and managed configuration posture.
+2. Live managed WSP materialization is still not proven; current live MSF app is RTDL-only, so WSP managed runtime still requires a dedicated execution/verification pass before it can be claimed green.
+
+### Governance
+1. No branch operations.
+2. No commit/push.
