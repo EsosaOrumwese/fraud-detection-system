@@ -70,6 +70,21 @@ on:
         required: true
         default: "store_only"
         type: string
+      lambda_ig_package_s3_bucket:
+        description: "Optional remote Lambda package bucket to preserve corrected IG bundle"
+        required: false
+        default: ""
+        type: string
+      lambda_ig_package_s3_key:
+        description: "Optional remote Lambda package key to preserve corrected IG bundle"
+        required: false
+        default: ""
+        type: string
+      lambda_ig_package_sha256_base64:
+        description: "Optional remote Lambda package sha256 (base64) to preserve corrected IG bundle"
+        required: false
+        default: ""
+        type: string
       eks_nodegroup_instance_types_json:
         description: "JSON list of nodegroup instance types"
         required: true
@@ -226,20 +241,33 @@ jobs:
 
       - name: Apply RC2.R2 capacity envelope uplift (managed terraform)
         shell: bash
+        env:
+          LAMBDA_IG_PACKAGE_S3_BUCKET: ${{ inputs.lambda_ig_package_s3_bucket }}
+          LAMBDA_IG_PACKAGE_S3_KEY: ${{ inputs.lambda_ig_package_s3_key }}
+          LAMBDA_IG_PACKAGE_SHA256_BASE64: ${{ inputs.lambda_ig_package_sha256_base64 }}
         run: |
           set -euo pipefail
-          terraform -chdir="${TF_DIR}" apply -input=false -auto-approve \
-            -var "ig_rate_limit_rps=${{ inputs.ig_rate_limit_rps }}" \
-            -var "ig_rate_limit_burst=${{ inputs.ig_rate_limit_burst }}" \
-            -var "lambda_ig_memory_size_mb=${{ inputs.lambda_ig_memory_mb }}" \
-            -var "lambda_ig_reserved_concurrency=${{ inputs.lambda_ig_reserved_concurrency }}" \
-            -var "lambda_ig_timeout_seconds=${{ inputs.lambda_ig_timeout_seconds }}" \
-            -var "lambda_ig_kafka_request_timeout_ms=${{ inputs.lambda_ig_kafka_request_timeout_ms }}" \
-            -var "lambda_ig_policy_activation_audit_mode=${{ inputs.lambda_ig_policy_activation_audit_mode }}" \
-            -var "eks_nodegroup_instance_types=${{ inputs.eks_nodegroup_instance_types_json }}" \
-            -var "eks_nodegroup_desired_size=${{ inputs.eks_nodegroup_desired_size }}" \
-            -var "eks_nodegroup_min_size=${{ inputs.eks_nodegroup_min_size }}" \
+          tf_args=(
+            -var "ig_rate_limit_rps=${{ inputs.ig_rate_limit_rps }}"
+            -var "ig_rate_limit_burst=${{ inputs.ig_rate_limit_burst }}"
+            -var "lambda_ig_memory_size_mb=${{ inputs.lambda_ig_memory_mb }}"
+            -var "lambda_ig_reserved_concurrency=${{ inputs.lambda_ig_reserved_concurrency }}"
+            -var "lambda_ig_timeout_seconds=${{ inputs.lambda_ig_timeout_seconds }}"
+            -var "lambda_ig_kafka_request_timeout_ms=${{ inputs.lambda_ig_kafka_request_timeout_ms }}"
+            -var "lambda_ig_policy_activation_audit_mode=${{ inputs.lambda_ig_policy_activation_audit_mode }}"
+            -var "eks_nodegroup_instance_types=${{ inputs.eks_nodegroup_instance_types_json }}"
+            -var "eks_nodegroup_desired_size=${{ inputs.eks_nodegroup_desired_size }}"
+            -var "eks_nodegroup_min_size=${{ inputs.eks_nodegroup_min_size }}"
             -var "eks_nodegroup_max_size=${{ inputs.eks_nodegroup_max_size }}"
+          )
+          if [[ -n "${LAMBDA_IG_PACKAGE_S3_BUCKET}" && -n "${LAMBDA_IG_PACKAGE_S3_KEY}" && -n "${LAMBDA_IG_PACKAGE_SHA256_BASE64}" ]]; then
+            tf_args+=(
+              -var "lambda_ig_package_s3_bucket=${LAMBDA_IG_PACKAGE_S3_BUCKET}"
+              -var "lambda_ig_package_s3_key=${LAMBDA_IG_PACKAGE_S3_KEY}"
+              -var "lambda_ig_package_sha256_base64=${LAMBDA_IG_PACKAGE_SHA256_BASE64}"
+            )
+          fi
+          terraform -chdir="${TF_DIR}" apply -input=false -auto-approve "${tf_args[@]}"
           terraform -chdir="${TF_DIR}" output -json > "${{ steps.run_meta.outputs.run_dir }}/terraform_outputs_post.json"
 
       - name: Build RC2.R2 gate artifacts and publish with readback
