@@ -1797,3 +1797,102 @@ uns/; docs/logbook/impl map synced after run.
 ### Governance
 1. No branch operations.
 2. No commit/push.
+
+## Entry: 2026-03-06 02:13:23 +00:00 - Pre-edit plan for PR3-S0 strict execution from pr2_20260305T200521Z
+### Trigger
+1. USER directed: "Proceed with the planning and execution of PR3-S0 from strict upstream pr2_20260305T200521Z fail-closed".
+
+### Strict upstream lock (to be enforced)
+1. uns/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_s3_execution_receipt.json must be:
+   - erdict=PR2_S3_READY,
+   - open_blockers=0,
+   - 
+ext_gate=PR3_READY.
+2. uns/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_execution_summary.json must be coherent with receipt.
+3. pr2_runtime_numeric_contract.rc2s.active.yaml and pr2_opsgov_numeric_contract.rc2s.active.yaml must exist/readable and remain ACTIVE.
+
+### PR3-S0 implementation approach
+1. Materialize dedicated executor:
+   - scripts/dev_substrate/pr3_s0_executor.py.
+2. Executor responsibilities:
+   - enforce strict upstream gate lock,
+   - create deterministic pr3_execution_id and run root,
+   - emit S0 artifacts:
+     - pr3_entry_lock.json,
+     - g3a_run_charter.active.json,
+     - g3a_measurement_surface_map.json,
+     - g3a_preflight_snapshot.json,
+     - g3a_archive_sink_design_decision.json,
+     - pr3_s0_execution_receipt.json.
+3. Preflight evidence posture for S0:
+   - use prior validated runtime readiness artifacts (M13/M14 summaries and PR2 validators) as deterministic preflight evidence;
+   - no local runtime orchestration/probing.
+4. Update latest pointer:
+   - uns/dev_substrate/dev_full/road_to_prod/run_control/pr3_latest.json.
+
+### Fail-closed blocker mapping for S0
+1. PR3.B01_ENTRY_LOCK_MISSING
+2. PR3.B02_UPSTREAM_PR2_NOT_READY
+3. PR3.B03_CHARTER_INCOMPLETE
+4. PR3.B04_MEASUREMENT_SURFACE_MAP_MISSING
+5. PR3.B05_PREFLIGHT_DEPENDENCY_UNREADY
+6. PR3.B06_ARCHIVE_SINK_DESIGN_UNPINNED
+
+### Documentation sync after execution
+1. Update PR3 authority execution record (Section 11) with active execution id and S0 verdict.
+2. Add readable findings summary table for PR3-S0 in PR3 doc.
+3. Update main plan immediate next step to PR3-S1 if S0 is green.
+4. Add corresponding readable findings summary in main plan.
+
+### Validation and governance
+1. Validate executor syntax via python -m py_compile.
+2. Execute one strict run from provided upstream id.
+3. No branch operations; no commit/push.
+
+## Entry: 2026-03-06 02:20:46 +00:00 - PR3-S0 executed fail-closed from strict upstream pr2_20260305T200521Z
+### Implementation completed
+1. Added executor:
+   - scripts/dev_substrate/pr3_s0_executor.py.
+2. Executor enforces strict upstream lock against:
+   - pr2_s3_execution_receipt.json (PR2_S3_READY, open_blockers=0, 
+ext_gate=PR3_READY),
+   - pr2_execution_summary.json (PR3_READY, open_blockers=0),
+   - active PR2 runtime/opsgov contracts and activation matrix pass state.
+3. Executor emits deterministic S0 artifacts under run root:
+   - pr3_entry_lock.json,
+   - g3a_run_charter.active.json,
+   - g3a_measurement_surface_map.json,
+   - g3a_preflight_snapshot.json,
+   - g3a_archive_sink_design_decision.json,
+   - pr3_s0_execution_receipt.json,
+   - and updates pr3_latest.json.
+
+### Execution result
+1. Executed command:
+   - python scripts/dev_substrate/pr3_s0_executor.py --upstream-pr2-execution-id pr2_20260305T200521Z.
+2. Generated PR3 execution root:
+   - uns/dev_substrate/dev_full/road_to_prod/run_control/pr3_20260306T021900Z/.
+3. S0 verdict:
+   - PR3_S0_READY, open_blockers=0, 
+ext_state=PR3-S1.
+4. S0 fail-closed checks:
+   - B01..B06 all 	rue.
+5. Dependency preflight posture:
+   - 8/8 checks passed in evidence-only mode (no local orchestration).
+
+### Planning authority and status sync
+1. Updated PR3 authority execution record:
+   - status moved to IN_PROGRESS with S0 closure details.
+2. Added PR3 S0 human-readable findings summary in PR3 doc.
+3. Updated main plan:
+   - immediate next step now routes to PR3-S1 from strict S0 receipt,
+   - added 10.11 PR3-S0 Findings Summary (Readable),
+   - updated TGT-08 and TGT-09 status to IN_PROGRESS.
+
+### Performance and cost posture
+1. S0 runtime: lapsed_minutes=0.0 vs budget 20.
+2. S0 spend: ttributable_spend_usd=0.0 vs envelope 250.0.
+
+### Governance
+1. No branch operations.
+2. No commit/push.

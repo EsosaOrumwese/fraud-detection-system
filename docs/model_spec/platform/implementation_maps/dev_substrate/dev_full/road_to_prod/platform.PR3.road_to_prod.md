@@ -428,11 +428,34 @@ Cost budget:
 
 ## 11) Execution Record
 Status:
-1. `NOT_STARTED` (planning authority materialized; execution pending).
+1. `IN_PROGRESS` (`S0` complete from strict upstream; `S1` pending).
 
 Strict upstream lock for first execution:
 1. `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_s3_execution_receipt.json`
 2. `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_execution_summary.json`
 
 Active control root:
-1. `TBD at first run` (`runs/dev_substrate/dev_full/road_to_prod/run_control/<pr3_execution_id>/`).
+1. `runs/dev_substrate/dev_full/road_to_prod/run_control/pr3_20260306T021900Z/`
+2. Latest pointer:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr3_latest.json` (`latest_state=S0`).
+
+State closure:
+1. `S0` executed from strict upstream:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_s3_execution_receipt.json`.
+2. `S0` receipt:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr3_20260306T021900Z/pr3_s0_execution_receipt.json`.
+3. `S0` verdict:
+   - `PR3_S0_READY`, `open_blockers=0`, `next_state=PR3-S1`.
+
+### 11.1 PR3-S0 Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Gate outcome | `PR3_S0_READY`, `open_blockers=0`, `next_state=PR3-S1` | S0 preflight closed fail-closed and unblocks steady-window execution. |
+| Strict upstream lock | `PR2_S3_READY` and `PR3_READY` coherence checks all true | PR3 started from the exact required upstream boundary with no gate ambiguity. |
+| Charter freeze | `via_IG`, `RC2-S`, budget `250.0`, profiles `steady/burst/recovery/soak` pinned | Runtime certification scope and budget are now explicitly bound before pressure execution. |
+| Measurement surfaces | required runtime metric surface map emitted with canonical throughput and latency boundaries | PR3 has explicit measurement-surface governance and avoids proxy-only claim drift. |
+| Dependency preflight | `8/8` evidence-only preflight checks passed (`M13`, `M14E`, `M14F`, runbook index, owner bindings, distribution policy) | Runtime path readiness is evidenced without local orchestration side effects. |
+| Archive sink design posture | archive sink decision pinned for PR3 validation (`TGT-09`), sink parity shows no missing event ids | Archive/backpressure validation can proceed deterministically in `S2/S4` without design drift. |
+| Target posture update | `TGT-08` and `TGT-09` moved to `IN_PROGRESS` in S0 receipt | Required G3A targets are actively routed with explicit evidence refs. |
+| Runtime and cost posture | `elapsed=0.0 min` (budget `20`), `attributable_spend_usd=0.0` (envelope `250.0`) | S0 stayed minute-scale and spend-neutral as an evidence preflight step. |
+| Advisory continuity | `PR2.S1.CN01_BURST_SHAPER_REQUIRED` carried forward | Burst proof constraint remains explicit for `PR3-S1` and cannot be silently ignored. |
