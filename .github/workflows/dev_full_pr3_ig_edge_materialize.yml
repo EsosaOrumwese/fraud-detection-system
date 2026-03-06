@@ -17,6 +17,11 @@ on:
         required: true
         default: "pr3_20260306T021900Z"
         type: string
+      code_ref:
+        description: "Branch/ref containing the ingress correction code and Terraform surfaces"
+        required: true
+        default: "cert-platform"
+        type: string
       package_bucket:
         description: "S3 bucket for the Lambda bundle"
         required: true
@@ -50,6 +55,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.code_ref }}
 
       - name: Reject static AWS credential posture
         shell: bash
