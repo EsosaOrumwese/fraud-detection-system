@@ -254,7 +254,6 @@ class IngestionGate:
                 admitted_at_utc=admitted_at_utc,
                 auth_context=auth_context,
             )
-            receipt = Receipt(payload=receipt_payload)
             receipt_id = receipt_payload["receipt_id"]
             self.contract_registry.validate("ingestion_receipt.schema.yaml", receipt_payload)
             receipt_ref = self.receipt_writer.write_receipt(
@@ -269,10 +268,11 @@ class IngestionGate:
             self.metrics.record_decision("DUPLICATE")
             self.metrics.record_latency("admission_seconds", time.perf_counter() - start)
             self.metrics.flush_if_due(self._metrics_context(envelope))
-            return decision, receipt
+            return decision, Receipt(payload=receipt_payload, ref=receipt_ref)
 
         dedupe_started = time.perf_counter()
         existing = self.admission_index.lookup(dedupe)
+        self.metrics.record_latency("phase.dedupe_lookup_seconds", time.perf_counter() - dedupe_started)
         self.metrics.record_latency("phase.dedupe_seconds", time.perf_counter() - dedupe_started)
         if existing:
             return _handle_existing(existing)
@@ -282,6 +282,7 @@ class IngestionGate:
         except IngestionError as exc:
             return self._quarantine(envelope, exc, start, auth_context=auth_context)
 
+        inflight_started = time.perf_counter()
         inserted = self.admission_index.record_in_flight(
             dedupe,
             platform_run_id=platform_run_id or "",
@@ -289,6 +290,7 @@ class IngestionGate:
             event_id=event_id,
             payload_hash=payload_hash_hex,
         )
+        self.metrics.record_latency("phase.dedupe_inflight_seconds", time.perf_counter() - inflight_started)
         if not inserted:
             existing = self.admission_index.lookup(dedupe)
             if existing:
@@ -304,7 +306,14 @@ class IngestionGate:
             return self._quarantine(envelope, IngestionError("PUBLISH_AMBIGUOUS"), start, auth_context=auth_context)
         self.health.record_publish_success()
         admitted_at_utc = datetime.now(tz=timezone.utc).isoformat()
-        self.admission_index.record_admitted(dedupe, eb_ref=_eb_ref_payload(eb_ref), admitted_at_utc=admitted_at_utc, payload_hash=payload_hash_hex)
+        admitted_started = time.perf_counter()
+        self.admission_index.record_admitted(
+            dedupe,
+            eb_ref=_eb_ref_payload(eb_ref),
+            admitted_at_utc=admitted_at_utc,
+            payload_hash=payload_hash_hex,
+        )
+        self.metrics.record_latency("phase.dedupe_admitted_seconds", time.perf_counter() - admitted_started)
         logger.info(
             "IG admitted event_id=%s event_type=%s topic=%s partition=%s offset=%s",
             envelope.get("event_id"),
@@ -347,20 +356,23 @@ class IngestionGate:
             eb_ref=eb_ref,
             auth_context=auth_context,
         )
-        receipt = Receipt(payload=receipt_payload)
         receipt_id = receipt_payload["receipt_id"]
         self.contract_registry.validate("ingestion_receipt.schema.yaml", receipt_payload)
         try:
+            receipt_object_started = time.perf_counter()
             receipt_ref = self.receipt_writer.write_receipt(
                 receipt_id,
                 receipt_payload,
                 prefix=self._receipt_prefix(envelope),
             )
+            self.metrics.record_latency("phase.receipt_object_seconds", time.perf_counter() - receipt_object_started)
         except Exception:
             self.admission_index.mark_receipt_failed(dedupe)
             logger.exception("IG receipt write failed after publish event_id=%s", event_id)
             raise
+        receipt_index_started = time.perf_counter()
         self.admission_index.record_receipt(dedupe, receipt_ref)
+        self.metrics.record_latency("phase.receipt_index_seconds", time.perf_counter() - receipt_index_started)
         self._record_ops_receipt(receipt_payload, receipt_ref)
         logger.info(
             "IG receipt stored receipt_id=%s receipt_ref=%s eb_ref=%s",
@@ -372,7 +384,7 @@ class IngestionGate:
         self.metrics.record_decision("ADMIT")
         self.metrics.record_latency("admission_seconds", time.perf_counter() - start)
         self.metrics.flush_if_due(self._metrics_context(envelope))
-        return decision, receipt
+        return decision, Receipt(payload=receipt_payload, ref=receipt_ref)
 
     def _quarantine(
         self,
@@ -475,7 +487,7 @@ class IngestionGate:
         )
         self.governance.emit_quarantine_spike(self.metrics.counters.get("decision.QUARANTINE", 0))
         self.metrics.flush_if_due(self._metrics_context(envelope))
-        receipt = Receipt(payload=receipt_payload)
+        receipt = Receipt(payload=receipt_payload, ref=receipt_ref)
         return decision, receipt
 
     def _metrics_context(self, envelope: dict[str, Any]) -> dict[str, Any]:

@@ -51,15 +51,6 @@ PROTECTED_ROUTES = {
     ("POST", "/ingest/push"),
 }
 
-_AWS_CONTROL_PLANE_CONFIG = Config(
-    connect_timeout=2,
-    read_timeout=5,
-    retries={"max_attempts": 2, "mode": "standard"},
-)
-_SSM_CLIENT = boto3.client("ssm", config=_AWS_CONTROL_PLANE_CONFIG)
-_SQS_CLIENT = boto3.client("sqs", config=_AWS_CONTROL_PLANE_CONFIG)
-_DDB_RESOURCE = boto3.resource("dynamodb", config=_AWS_CONTROL_PLANE_CONFIG)
-
 _API_KEY_CACHE = {
     "path": None,
     "value": None,
@@ -106,6 +97,24 @@ def _env_bool(name: str, default: bool) -> bool:
     if value in {"0", "false", "no", "off"}:
         return False
     return default
+
+
+def _aws_runtime_config() -> Config:
+    max_pool_connections = max(16, _env_int("IG_AWS_MAX_POOL_CONNECTIONS", 256))
+    connect_timeout = max(1, _env_int("IG_AWS_CONNECT_TIMEOUT_SECONDS", 2))
+    read_timeout = max(connect_timeout, _env_int("IG_AWS_READ_TIMEOUT_SECONDS", 5))
+    return Config(
+        connect_timeout=connect_timeout,
+        read_timeout=read_timeout,
+        retries={"max_attempts": max(1, _env_int("IG_AWS_MAX_ATTEMPTS", 3)), "mode": "standard"},
+        max_pool_connections=max_pool_connections,
+    )
+
+
+_AWS_CONTROL_PLANE_CONFIG = _aws_runtime_config()
+_SSM_CLIENT = boto3.client("ssm", config=_AWS_CONTROL_PLANE_CONFIG)
+_SQS_CLIENT = boto3.client("sqs", config=_AWS_CONTROL_PLANE_CONFIG)
+_DDB_RESOURCE = boto3.resource("dynamodb", config=_AWS_CONTROL_PLANE_CONFIG)
 
 
 def _configured_envelope() -> dict[str, Any]:
@@ -651,13 +660,10 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         )
         gate = _gate_for(platform_run_id)
         decision, receipt = gate.admit_push_with_decision(payload, auth_context=auth_context)
-        dedupe = receipt.payload.get("dedupe_key")
-        stored = gate.admission_index.lookup(dedupe) if dedupe else None
-        receipt_ref = stored.get("receipt_ref") if stored else None
         response_body = {
             "decision": decision.decision,
             "receipt": receipt.payload,
-            "receipt_ref": receipt_ref,
+            "receipt_ref": receipt.ref,
             "body_size_bytes": body_size,
             "correlation_echo": correlation_echo,
         }

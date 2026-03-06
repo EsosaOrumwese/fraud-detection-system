@@ -29,12 +29,7 @@ def create_app(profile_path: str) -> Flask:
             auth_context = _require_auth(gate, request)
             gate.enforce_push_rate_limit()
             decision, receipt = gate.admit_push_with_decision(payload, auth_context=auth_context)
-            receipt_id = receipt.payload.get("receipt_id")
-            receipt_ref = None
-            if receipt_id:
-                lookup = gate.ops_index.lookup_receipt(receipt_id)
-                receipt_ref = lookup.get("receipt_ref") if lookup else None
-            return jsonify({"decision": decision.decision, "receipt": receipt.payload, "receipt_ref": receipt_ref})
+            return jsonify({"decision": decision.decision, "receipt": receipt.payload, "receipt_ref": receipt.ref})
         except IngestionError as exc:
             return jsonify({"error": exc.code, "detail": exc.detail}), _error_status(exc)
         except Exception as exc:  # pragma: no cover - defensive

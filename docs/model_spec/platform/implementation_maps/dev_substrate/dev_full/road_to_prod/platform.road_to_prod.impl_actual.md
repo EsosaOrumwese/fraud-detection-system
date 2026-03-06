@@ -5110,3 +5110,127 @@ Reasoning:
    - rerun bounded canonical PR3-S1 with 	ask_cpu=512, 	ask_memory=1024,
    - keep lane_count=138, stream_speedup=95, 	arget_request_rate_eps=3005,
    - adjudicate on the corrected ALB-surface runtime summary plus the synced S1 receipt layer.
+## Entry: 2026-03-06 22:30:00 +00:00 - Right-sized WSP lanes cleared the launcher quota, exposing the real service-backed IG hot-path bottleneck
+1. I reran bounded canonical PR3-S1 with the same steady objective and calibrated source setpoint but with WSP lane overrides 	ask_cpu=512, 	ask_memory=1024.
+2. That right-sizing solved the Fargate quota blocker completely:
+   - all 138 WSP lanes launched,
+   - no B01_RUN_TASK_FAILED,
+   - the fleet reached the measurement window cleanly.
+3. The resulting impact metrics are materially red:
+   - equest_count_total=66,642,
+   - dmitted_request_count=65,029,
+   - observed_request_eps=370.233,
+   - observed_admitted_eps=361.272,
+   - rror_rate_ratio=0.024204,
+   - 4xx_total=1,219,
+   - 5xx_total=394.
+4. CloudWatch/ECS evidence narrows the fault domain:
+   - ALB TargetResponseTime p95 ranged about  .769s -> 3.480s,
+   - ALB TargetResponseTime p99 ranged about 2.382s -> 4.335s,
+   - ECS service CPU stayed around 54-60%,
+   - ECS service memory stayed around 10-12%.
+5. Production interpretation:
+   - the service is not failing because raw container CPU or memory is exhausted,
+   - the active bottleneck is a slow synchronous request path that drives WSP retries (	imeout, http_502) and edge-generated ALB 4xx/5xx,
+   - this is the first materially trustworthy service-backed hot-path failure signal.
+6. WSP lane logs confirm the pressure signature:
+   - repeated IG push retry attempt=1/5 reason=timeout,
+   - intermittent eason=http_502,
+   - lane emission rates collapse during the steady window because each blocked request stalls replay progress.
+7. The current observability gap is unacceptable for production hardening:
+   - IG already measures phase.publish_seconds, phase.receipt_seconds, and total dmission_seconds,
+   - but those metrics are not reaching CloudWatch from the gunicorn-managed service shell,
+   - so the existing service posture is hiding the precise dependency that is stalling the hot path.
+8. Chosen next correction:
+   - route raud_detection logging through the gunicorn error handlers,
+   - emit per-request managed-edge slow-request logs (status + lapsed_ms) for degraded calls,
+   - fix the dispatcher's ALB latency collection so S1 no longer carries a false LATENCY_UNREADABLE blocker,
+   - rebuild the immutable image, rematerialize the service, and run a smaller diagnostic window to surface the phase timings before the next full steady rerun.
+9. This is a production correction, not a diagnostic shortcut:
+   - without hot-path phase visibility, any further throughput tuning would be guesswork,
+   - with it, the next remediation can target the real synchronous dependency rather than blindly changing thread counts or lane counts.
+## Entry: 2026-03-06 22:45:00 +00:00 - PR3-S1 runtime evidence is currently contaminated by duplicate-path replay because the dispatcher reuses a stale platform_run_id
+1. I inspected the bounded revision-4 diagnostic window before making further capacity changes.
+2. The key finding is that the observed PR3-S1 window is not measuring fresh admit-path throughput. It is measuring mostly duplicate-path throughput.
+3. Evidence chain:
+   - dispatcher manifest still injected `platform_run_id=platform_20260223T184232Z`,
+   - IG metrics logs for the same window are dominated by `decision.DUPLICATE`,
+   - duplicate-path latency summaries are materially lower than the managed-edge request latencies seen at the ALB edge,
+   - therefore the current S1 score is polluted by idempotency replays against an old namespace.
+4. Why this matters for production readiness:
+   - duplicate-path performance is useful realism evidence, but it is not the canonical proof for steady admit-path capacity,
+   - claiming fresh-ingest throughput from a duplicate-heavy window would be a false certification claim,
+   - any further scaling/remediation based on this polluted score would target the wrong bottleneck.
+5. Root cause is not in the platform runtime itself. It is in the PR3-S1 dispatcher contract:
+   - `scripts/dev_substrate/pr3_s1_wsp_replay_dispatch.py` hardcodes a stale default `platform_run_id`,
+   - that causes every rerun to land in an already-populated idempotency namespace unless the operator manually overrides it.
+6. Production-grade correction chosen:
+   - remove the stale hardcoded default,
+   - mint a fresh attempt-scoped `platform_run_id` by default for every PR3-S1 replay attempt,
+   - preserve explicit override capability only when a deliberate same-run replay is actually intended.
+7. This is the correct design move because fresh-admit certification and duplicate/replay certification are different evidence lanes and must not be silently mixed.
+8. Immediate implementation steps pinned:
+   - patch the dispatcher default run identity behavior,
+   - rerun bounded S1 with a fresh run namespace,
+   - inspect admit-path metrics separately from duplicate-path metrics,
+   - only then decide whether the next bottleneck is WSP emission, IG hot path, or downstream publish/receipt work.
+## Entry: 2026-03-06 23:05:00 +00:00 - PR3-S1 hot-path remediation pivot: remove synchronous receipt-path drag before scaling the ingress fleet
+1. I reviewed the truthful fresh-admit PR3-S1 evidence after the stale `platform_run_id` fix. The runtime is now measuring real `ADMIT` behavior, not duplicate-path throughput.
+2. The measured bottleneck is structurally consistent with the managed IG implementation:
+   - request thread performs DDB dedupe lookup / state mutation,
+   - waits for synchronous Kafka ACK before declaring `ADMIT`,
+   - then writes the full receipt object to S3 on the same request thread,
+   - then performs an additional idempotency lookup only to echo `receipt_ref` in the HTTP response,
+   - and returns the full receipt payload inline.
+3. Evidence already collected narrows the dominant substeps:
+   - `phase.publish_seconds` is materially non-trivial,
+   - `phase.receipt_seconds` is materially non-trivial and often larger than publish,
+   - task CPU and memory are not saturated,
+   - therefore simply scaling task size/count without changing the critical path would be expensive and still structurally weak.
+4. I considered three remediation classes:
+   - A) revert WSP/IG path assumptions or lower PR3 expectations so the current path can go green faster,
+   - B) keep the path as-is and only scale the ingress fleet/worker counts aggressively,
+   - C) reduce synchronous per-request work first, then scale only from measured need.
+5. I am rejecting A because it is certification gaming and would preserve a toy-grade hot path.
+6. I am rejecting B as the first move because it pays to carry avoidable latency: one admitted event currently forces a durable receipt object write plus a redundant post-write lookup before the response returns.
+7. Chosen production-grade posture is C:
+   - keep `ADMIT` semantics tied to durable EB append,
+   - stop paying for unnecessary synchronous response work on the request thread,
+   - retain explicit receipt truth but decouple its object-store materialization from the latency-critical edge response where possible,
+   - add fine-grained substep metrics so later scaling decisions are grounded in measured latency shares instead of guesswork.
+8. The concrete changes I intend to make now are:
+   - remove the redundant post-admission lookup in the managed HTTP/Lambda response path,
+   - stop returning the full receipt body inline on the hot path and return a lean acknowledgement contract instead,
+   - instrument DDB lookup/in-flight/admitted/receipt-ref update and object-store receipt write latencies separately,
+   - preserve receipt/object truth while giving the runtime evidence needed to decide whether the next limiter is Kafka ACK latency, DDB latency, or residual receipt persistence.
+9. Why this is the correct production move:
+   - real production ingress edges minimize synchronous payload/lookup overhead on the request path,
+   - the durable truth requirement remains intact because `ADMIT` still waits for EB append and persistent dedupe state,
+   - the next rerun will tell us whether the remaining latency can be solved by configuration/right-sizing or whether the receipt materialization itself must move behind an asynchronous durability boundary.
+## Entry: 2026-03-06 23:20:00 +00:00 - Implemented first hot-path fix set: remove redundant lookup, expose receipt refs directly, and raise AWS client pool ceilings for managed IG
+1. I implemented the first production-grade remediation boundary in the ingress code rather than continuing to rerun the same red PR3-S1 window.
+2. Code changes made:
+   - `Receipt` now carries `ref` directly so callers do not need to re-query idempotency state after admission to learn the receipt locator.
+   - `aws_lambda_handler.py` and `service.py` now return `receipt.ref` directly instead of doing a second lookup after `admit_push_with_decision(...)`.
+   - `store.py` now builds S3 clients with an explicit runtime botocore config, including a materially larger connection pool (`IG_AWS_MAX_POOL_CONNECTIONS`, default `256`) and explicit timeout/retry knobs.
+   - `aws_lambda_handler.py` now applies the same runtime config pattern to SSM/SQS/DynamoDB clients/resources instead of accepting the tiny default botocore pool.
+   - `admission.py` now emits finer-grained timings for:
+     - `phase.dedupe_lookup_seconds`
+     - `phase.dedupe_inflight_seconds`
+     - `phase.dedupe_admitted_seconds`
+     - `phase.receipt_object_seconds`
+     - `phase.receipt_index_seconds`
+3. Why this boundary was chosen first:
+   - the previous managed-edge code was running 100+ request threads per task against botocore clients that default to a very small HTTP connection pool,
+   - that is a classic source of request-thread queuing under load and fits the observed `phase.receipt_seconds` inflation with moderate CPU usage,
+   - the redundant post-admission lookup was guaranteed wasted work on every successful request and had no production value.
+4. Validation completed locally:
+   - `py_compile` passed for all changed IG modules,
+   - targeted ingress tests passed (`test_managed_service.py`, `test_phase4_service.py`, `test_admission.py`),
+   - the only skipped/blocked local suite was `test_phase510_efficiency.py` because `psycopg` is absent in the local environment, which is unrelated to the new hot-path change itself.
+5. Expected production effect of this boundary:
+   - lower tail latency on DDB/S3-backed request phases by reducing client-side connection starvation,
+   - remove one entire extra DDB lookup from every successful managed-edge response,
+   - improve the next PR3-S1 rerun's diagnostic power because the logs will now show whether residual bottleneck mass remains in Kafka ACK or in object-store receipt persistence.
+6. I have intentionally not claimed victory from this change alone.
+   - If the rerun remains materially red, the next production-grade decision point will be whether receipt-object materialization itself must move behind a durable asynchronous boundary rather than staying inline.

@@ -661,8 +661,8 @@ def main() -> None:
     ap.add_argument("--ssm-aurora-endpoint-path", default="/fraud-platform/dev_full/aurora/endpoint")
     ap.add_argument("--ssm-aurora-username-path", default="/fraud-platform/dev_full/aurora/username")
     ap.add_argument("--ssm-aurora-password-path", default="/fraud-platform/dev_full/aurora/password")
-    ap.add_argument("--platform-run-id", default="platform_20260223T184232Z")
-    ap.add_argument("--scenario-run-id", default="scenario_38753050f3b70c666e16f7552016b330")
+    ap.add_argument("--platform-run-id", default="")
+    ap.add_argument("--scenario-run-id", default="")
     ap.add_argument(
         "--oracle-engine-run-root",
         default="s3://fraud-platform-dev-full-object-store/oracle-store/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1",
@@ -778,6 +778,8 @@ def main() -> None:
     checkpoint_attempt_id = submitted_at.strftime("%Y%m%dT%H%M%SZ")
 
     lane_count = max(1, int(args.lane_count))
+    resolved_platform_run_id = str(args.platform_run_id).strip() or f"platform_{checkpoint_attempt_id}"
+    resolved_scenario_run_id = str(args.scenario_run_id).strip() or f"scenario_{checkpoint_attempt_id.lower()}"
     target_request_rate_eps = float(args.target_request_rate_eps) if float(args.target_request_rate_eps) > 0.0 else float(
         args.expected_steady_eps
     )
@@ -787,8 +789,8 @@ def main() -> None:
         {"name": "WSP_PROFILE_PATH", "value": args.profile_path},
         {"name": "IG_API_KEY", "value": ig_api_key},
         {"name": "IG_INGEST_URL", "value": resolved_ig_ingest_url},
-        {"name": "PLATFORM_RUN_ID", "value": args.platform_run_id},
-        {"name": "SCENARIO_RUN_ID", "value": args.scenario_run_id},
+        {"name": "PLATFORM_RUN_ID", "value": resolved_platform_run_id},
+        {"name": "SCENARIO_RUN_ID", "value": resolved_scenario_run_id},
         {"name": "ORACLE_ENGINE_RUN_ROOT", "value": args.oracle_engine_run_root},
         {"name": "ORACLE_ROOT", "value": args.oracle_root},
         {"name": "ORACLE_SCENARIO_ID", "value": args.scenario_id},
@@ -930,8 +932,8 @@ def main() -> None:
             "task_memory_override": task_memory_override or None,
         },
         "identity": {
-            "platform_run_id": args.platform_run_id,
-            "scenario_run_id": args.scenario_run_id,
+            "platform_run_id": resolved_platform_run_id,
+            "scenario_run_id": resolved_scenario_run_id,
             "scenario_id": args.scenario_id,
         },
         "oracle": {

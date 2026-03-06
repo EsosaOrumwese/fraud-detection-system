@@ -25,6 +25,27 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
+def _botocore_config(*, path_style: bool | None = None):
+    from botocore.config import Config
+
+    max_pool_connections = max(16, _env_int("IG_AWS_MAX_POOL_CONNECTIONS", 256))
+    connect_timeout = max(1, _env_int("IG_AWS_CONNECT_TIMEOUT_SECONDS", 2))
+    read_timeout = max(connect_timeout, _env_int("IG_AWS_READ_TIMEOUT_SECONDS", 5))
+    retries = {
+        "max_attempts": max(1, _env_int("IG_AWS_MAX_ATTEMPTS", 3)),
+        "mode": os.getenv("IG_AWS_RETRY_MODE", "standard").strip() or "standard",
+    }
+    extra: dict[str, Any] = {
+        "connect_timeout": connect_timeout,
+        "read_timeout": read_timeout,
+        "retries": retries,
+        "max_pool_connections": max_pool_connections,
+    }
+    if path_style:
+        extra["s3"] = {"addressing_style": "path"}
+    return Config(**extra)
+
+
 @dataclass(frozen=True)
 class ArtifactRef:
     path: str
@@ -217,18 +238,14 @@ class S3ObjectStore:
         path_style: bool | None = None,
     ) -> None:
         import boto3
-        from botocore.config import Config
 
         self.bucket = bucket
         self.prefix = prefix.strip("/")
-        config = None
-        if path_style:
-            config = Config(s3={"addressing_style": "path"})
         self._client = boto3.client(
             "s3",
             endpoint_url=endpoint_url,
             region_name=region_name,
-            config=config,
+            config=_botocore_config(path_style=path_style),
         )
 
     def _key(self, relative_path: str) -> str:
