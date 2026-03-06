@@ -4432,3 +4432,19 @@ Reasoning:
    - patch `.github/workflows/dev_full_rc2_r2_capacity_envelope.yml` to generate a structured tfvars payload,
    - rerun RC2.R2 immediately,
    - only once the actual uplift runs and verifies cleanly do we return to canonical `PR3-S1`.
+## Entry: 2026-03-06 17:42:00 +00:00 - RC2.R2 tfvars serialization fix proved out; remaining defect is path resolution under terraform -chdir
+1. The latest rerun proved the structured-input remediation itself is correct:
+   - the workflow generated `rc2_r2_capacity_uplift.auto.tfvars.json`,
+   - the JSON list for `eks_nodegroup_instance_types` parsed cleanly,
+   - the apply no longer fails on shell tokenization.
+2. The remaining failure is a path-resolution defect introduced by `terraform -chdir="${TF_DIR}"`:
+   - the tfvars file is written from the repo-root working directory into `${RUN_DIR}`,
+   - but `terraform -chdir=infra/terraform/dev_full/runtime ... -var-file="${RUN_DIR}/..."` resolves that path relative to the module directory,
+   - therefore Terraform reports the file does not exist even though it was created successfully.
+3. Production interpretation:
+   - this is still a control-plane execution bug, not a runtime-capacity blocker,
+   - the fix is to pass an absolute tfvars path (or write the file inside the module directory), so the managed gate has a single stable filesystem reference regardless of `-chdir`.
+4. Next immediate correction pinned:
+   - convert the generated tfvars path to an absolute filesystem path before invoking Terraform,
+   - rerun RC2.R2 again,
+   - only then inspect the first actual live uplift result.

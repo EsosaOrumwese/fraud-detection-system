@@ -331,9 +331,15 @@ jobs:
 
           tfvars_path = run_dir / "rc2_r2_capacity_uplift.auto.tfvars.json"
           tfvars_path.write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
-          print(tfvars_path)
+          print(tfvars_path.resolve())
           PY
-          terraform -chdir="${TF_DIR}" apply -input=false -auto-approve -var-file="${RUN_DIR}/rc2_r2_capacity_uplift.auto.tfvars.json"
+          TFVARS_PATH="$(python - <<'PY'
+          import os
+          from pathlib import Path
+          print((Path(os.environ["RUN_DIR"]) / "rc2_r2_capacity_uplift.auto.tfvars.json").resolve())
+          PY
+          )"
+          terraform -chdir="${TF_DIR}" apply -input=false -auto-approve -var-file="${TFVARS_PATH}"
           terraform -chdir="${TF_DIR}" output -json > "${{ steps.run_meta.outputs.run_dir }}/terraform_outputs_post.json"
 
       - name: Build RC2.R2 gate artifacts and publish with readback
