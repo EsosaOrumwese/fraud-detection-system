@@ -378,6 +378,39 @@ _As of 2026-03-05_
 1. No branch operation.
 2. Active-branch commit/push is required because the corrected runtime image must be rebuilt from the new source head.
 
+## Entry: 2026-03-06 06:45:58 +00:00 - The next remediation is lane-sharded WSP, not more speedup-only retries
+### What the latest canonical smoke proved
+1. The refreshed public-edge WSP lane now reaches `IG` correctly:
+   - admitted request count is non-zero,
+   - API Gateway `Count` shows corresponding traffic,
+   - `4xx` and `5xx` remain zero.
+2. The bottleneck is therefore no longer ingress wiring.
+3. WSP progress logs show each output advancing at only about `40 eps`, for aggregate throughput around `170 eps`, materially below the `3000 eps` target.
+
+### Root cause
+1. The current WSP runner parallelizes only across outputs.
+2. Inside each output stream, send/ack remains single-threaded and synchronous.
+3. That creates a serialization ceiling on the producer side even when the ingress path is healthy.
+
+### Production interpretation
+1. Turning the `stream_speedup` knob further is not a real fix once the sender is serialized.
+2. The production-correct scaling model is the one already pinned in the WSP design authority:
+   - deterministic lane sharding within a run,
+   - bounded per-lane in-flight work,
+   - per-lane cursors/checkpoints,
+   - horizontal multi-worker replay on remote compute.
+3. This preserves the outside-world semantics while removing the single-sender ceiling.
+
+### Chosen remediation
+1. Add deterministic WSP lane sharding (`lane_count`, `lane_index`) at the event-selection layer.
+2. Scope WSP checkpoints by run + lane so resume remains truthful per lane.
+3. Extend the canonical PR3-S1 WSP dispatcher to launch and observe multiple lane tasks, not a single replay task.
+4. Calibrate lane count from observed single-task throughput and rerun the bounded smoke before the full steady window.
+
+### Governance
+1. No branch operation.
+2. Commit/push on the active branch will be required after the runner/dispatcher lane set is coherent.
+
 ## Entry: 2026-03-06 05:46:02 +00:00 - Production-first correction for PR3-S1 execution shape
 ### Problem actual
 1. I had previously treated `PR3-S1` as though the main question was "how do I rerun the state cleanly".

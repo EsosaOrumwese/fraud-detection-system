@@ -70,6 +70,7 @@ class WorldStreamProducer:
         self._producer_allowlist_ref = profile.wiring.producer_allowlist_ref
         self._producer_allowlist: set[str] | None = None
         self._http_local = threading.local()
+        self._lane_count, self._lane_index = _resolve_lane_config()
 
     def stream_engine_world(
         self,
@@ -496,6 +497,9 @@ class WorldStreamProducer:
                     envelope["trace_id"] = pack_key
                 if engine_release and not envelope.get("span_id"):
                     envelope["span_id"] = engine_release
+                event_id = str(envelope.get("event_id", "")).strip()
+                if event_id and not _lane_accepts_event(event_id, self._lane_count, self._lane_index):
+                    continue
                 current_ts = _parse_ts(envelope.get("ts_utc"))
                 if last_ts and current_ts:
                     delay = _delay_seconds(last_ts, current_ts, speedup)
@@ -573,6 +577,8 @@ class WorldStreamProducer:
             pack_key=pack_key,
             platform_run_id=platform_run_id,
             scenario_run_id=scenario_run_id,
+            lane_count=self._lane_count,
+            lane_index=self._lane_index,
         )
 
         def _save_checkpoint(cursor: CheckpointCursor, *, reason: str) -> None:
@@ -627,12 +633,14 @@ class WorldStreamProducer:
                 raise IngestionError("STREAM_VIEW_OUTPUT_MISMATCH", output_id)
 
             narrative_logger.info(
-                "WSP stream start run_id=%s output_id=%s max_events=%s speedup=%.2f concurrency=%s",
+                "WSP stream start run_id=%s output_id=%s max_events=%s speedup=%.2f concurrency=%s lane=%s/%s",
                 run_id,
                 output_id,
                 max_events_output if max_events_output is not None else "all",
                 speedup,
                 output_parallelism,
+                self._lane_index,
+                self._lane_count,
             )
 
             files = _list_stream_view_files(store)
@@ -663,6 +671,8 @@ class WorldStreamProducer:
                         "run_id": run_id,
                     }
                     event_id = derive_engine_event_id(output_id, entry.primary_key, payload, pins)
+                    if not _lane_accepts_event(event_id, self._lane_count, self._lane_index):
+                        continue
                     ts_utc = row.get("ts_utc")
                     envelope = {
                         "event_id": event_id,
@@ -730,10 +740,12 @@ class WorldStreamProducer:
             if cursor:
                 _save_checkpoint(cursor, reason="output_complete")
             narrative_logger.info(
-                "WSP stream complete run_id=%s output_id=%s emitted=%s",
+                "WSP stream complete run_id=%s output_id=%s emitted=%s lane=%s/%s",
                 run_id,
                 output_id,
                 emitted_output,
+                self._lane_index,
+                self._lane_count,
             )
             return emitted_output
 
@@ -1005,10 +1017,41 @@ def _fallback_pack_key(engine_root: str) -> str:
     return hashlib.sha256(engine_root.encode("utf-8")).hexdigest()
 
 
-def _checkpoint_scope_key(*, pack_key: str, platform_run_id: str, scenario_run_id: str) -> str:
+def _checkpoint_scope_key(
+    *,
+    pack_key: str,
+    platform_run_id: str,
+    scenario_run_id: str,
+    lane_count: int = 1,
+    lane_index: int = 0,
+) -> str:
     # Keep checkpoint scope run-bound so new platform runs never resume prior offsets.
-    payload = "|".join((pack_key, platform_run_id, scenario_run_id))
+    payload = "|".join((pack_key, platform_run_id, scenario_run_id, str(lane_count), str(lane_index)))
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _resolve_lane_config() -> tuple[int, int]:
+    raw_count = str(os.getenv("WSP_LANE_COUNT", "1")).strip()
+    raw_index = str(os.getenv("WSP_LANE_INDEX", "0")).strip()
+    try:
+        lane_count = max(1, int(raw_count))
+    except ValueError:
+        lane_count = 1
+    try:
+        lane_index = int(raw_index)
+    except ValueError:
+        lane_index = 0
+    if lane_index < 0 or lane_index >= lane_count:
+        raise IngestionError("WSP_LANE_CONFIG_INVALID", f"lane_index={lane_index} lane_count={lane_count}")
+    return lane_count, lane_index
+
+
+def _lane_accepts_event(event_id: str, lane_count: int, lane_index: int) -> bool:
+    if lane_count <= 1:
+        return True
+    digest = hashlib.sha256(str(event_id).encode("utf-8")).digest()
+    bucket = int.from_bytes(digest[:8], byteorder="big", signed=False) % lane_count
+    return bucket == lane_index
 
 
 def _should_skip(cursor: CheckpointCursor, path: str, row_index: int) -> bool:

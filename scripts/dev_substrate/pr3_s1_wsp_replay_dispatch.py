@@ -118,6 +118,34 @@ def refresh_task_status(ecs: Any, cluster: str, task_arn: str) -> dict[str, Any]
     }
 
 
+def refresh_task_statuses(ecs: Any, cluster: str, task_arns: list[str]) -> dict[str, dict[str, Any]]:
+    results: dict[str, dict[str, Any]] = {}
+    for offset in range(0, len(task_arns), 100):
+        batch = [arn for arn in task_arns[offset : offset + 100] if arn]
+        if not batch:
+            continue
+        payload = ecs.describe_tasks(cluster=cluster, tasks=batch)
+        for task in payload.get("tasks", []):
+            task_arn = str(task.get("taskArn", "")).strip()
+            if not task_arn:
+                continue
+            container = (task.get("containers") or [{}])[0]
+            results[task_arn] = {
+                "last_status": str(task.get("lastStatus", "")).upper(),
+                "desired_status": str(task.get("desiredStatus", "")).upper(),
+                "stop_code": str(task.get("stopCode", "")).strip(),
+                "stopped_reason": str(task.get("stoppedReason", "")).strip(),
+                "created_at_utc": to_iso_utc(task.get("createdAt")),
+                "started_at_utc": to_iso_utc(task.get("startedAt")),
+                "stopped_at_utc": to_iso_utc(task.get("stoppedAt")),
+                "container_last_status": str(container.get("lastStatus", "")).upper(),
+                "container_exit_code": container.get("exitCode"),
+                "container_reason": str(container.get("reason", "")).strip(),
+                "container_runtime_id": str(container.get("runtimeId", "")).strip(),
+            }
+    return results
+
+
 def get_apigw_totals(
     cw: Any,
     *,
@@ -253,6 +281,8 @@ def main() -> None:
     ap.add_argument("--early-cutoff-seconds", type=int, default=300)
     ap.add_argument("--early-cutoff-floor-ratio", type=float, default=0.70)
     ap.add_argument("--expected-steady-eps", type=float, default=3000.0)
+    ap.add_argument("--lane-count", type=int, default=24)
+    ap.add_argument("--lane-launch-stagger-seconds", type=float, default=0.5)
     ap.add_argument("--output-concurrency", type=int, default=4)
     ap.add_argument("--http-pool-maxsize", type=int, default=256)
     ap.add_argument("--log-group", default="/ecs/fraud-platform-dev-full-wsp-ephemeral")
@@ -314,7 +344,8 @@ def main() -> None:
     blockers: list[str] = []
     submitted_at = datetime.now(timezone.utc)
 
-    env_rows = [
+    lane_count = max(1, int(args.lane_count))
+    base_env_rows = [
         {"name": "AWS_REGION", "value": args.region},
         {"name": "WSP_PROFILE_PATH", "value": args.profile_path},
         {"name": "IG_API_KEY", "value": ig_api_key},
@@ -335,43 +366,58 @@ def main() -> None:
         {"name": "WSP_PROGRESS_SECONDS", "value": "30"},
     ]
     command_list = build_wsp_command()
-
-    try:
-        run_resp = ecs.run_task(
-            cluster=args.cluster,
-            taskDefinition=task_definition,
-            launchType="FARGATE",
-            count=1,
-            networkConfiguration={
-                "awsvpcConfiguration": {
-                    "subnets": subnets,
-                    "securityGroups": security_groups,
-                    "assignPublicIp": str(args.assign_public_ip).strip().upper(),
-                }
-            },
-            overrides={
-                "containerOverrides": [
-                    {
-                        "name": "wsp",
-                        "command": command_list,
-                        "environment": env_rows,
+    launched_lanes: list[dict[str, Any]] = []
+    for lane_index in range(lane_count):
+        lane_id = f"wsp_lane_{lane_index:02d}"
+        env_rows = list(base_env_rows) + [
+            {"name": "WSP_LANE_COUNT", "value": str(lane_count)},
+            {"name": "WSP_LANE_INDEX", "value": str(lane_index)},
+        ]
+        try:
+            run_resp = ecs.run_task(
+                cluster=args.cluster,
+                taskDefinition=task_definition,
+                launchType="FARGATE",
+                count=1,
+                networkConfiguration={
+                    "awsvpcConfiguration": {
+                        "subnets": subnets,
+                        "securityGroups": security_groups,
+                        "assignPublicIp": str(args.assign_public_ip).strip().upper(),
                     }
-                ]
-            },
+                },
+                overrides={
+                    "containerOverrides": [
+                        {
+                            "name": "wsp",
+                            "command": command_list,
+                            "environment": env_rows,
+                        }
+                    ]
+                },
+            )
+        except (BotoCoreError, ClientError) as exc:
+            raise RuntimeError(f"PR3.S1.WSP.B01_RUN_TASK_FAILED:{lane_id}:{type(exc).__name__}:{exc}") from exc
+        failures = run_resp.get("failures", [])
+        if failures:
+            reason = str(failures[0].get("reason", "unknown"))
+            raise RuntimeError(f"PR3.S1.WSP.B01_RUN_TASK_FAILED:{lane_id}:{reason}")
+        task = (run_resp.get("tasks") or [{}])[0]
+        task_arn = str(task.get("taskArn", "")).strip()
+        if not task_arn:
+            raise RuntimeError(f"PR3.S1.WSP.B01_RUN_TASK_FAILED:{lane_id}:empty_task_arn")
+        task_id = task_id_from_arn(task_arn)
+        launched_lanes.append(
+            {
+                "lane_id": lane_id,
+                "lane_index": lane_index,
+                "task_arn": task_arn,
+                "task_id": task_id,
+                "log_stream_name": f"ecs/wsp/{task_id}",
+            }
         )
-    except (BotoCoreError, ClientError) as exc:
-        raise RuntimeError(f"PR3.S1.WSP.B01_RUN_TASK_FAILED:{type(exc).__name__}:{exc}") from exc
-
-    failures = run_resp.get("failures", [])
-    if failures:
-        reason = failures[0].get("reason", "unknown")
-        raise RuntimeError(f"PR3.S1.WSP.B01_RUN_TASK_FAILED:{reason}")
-    task = (run_resp.get("tasks") or [{}])[0]
-    task_arn = str(task.get("taskArn", "")).strip()
-    if not task_arn:
-        raise RuntimeError("PR3.S1.WSP.B01_RUN_TASK_FAILED:empty_task_arn")
-    task_id = task_id_from_arn(task_arn)
-    log_stream_name = ""
+        if args.lane_launch_stagger_seconds > 0:
+            time.sleep(max(0.0, float(args.lane_launch_stagger_seconds)))
 
     manifest = {
         "phase": "PR3",
@@ -383,9 +429,9 @@ def main() -> None:
         "dispatch_mode": "CANONICAL_REMOTE_WSP_REPLAY",
         "cluster": args.cluster,
         "task_definition": task_definition,
-        "task_arn": task_arn,
         "log_group": args.log_group,
-        "log_stream_name": log_stream_name,
+        "lane_count": lane_count,
+        "lanes": launched_lanes,
         "network": {
             "subnets": subnets,
             "security_groups": security_groups,
@@ -397,6 +443,7 @@ def main() -> None:
             "early_cutoff_seconds": args.early_cutoff_seconds,
             "early_cutoff_floor_ratio": args.early_cutoff_floor_ratio,
             "stream_speedup": args.stream_speedup,
+            "lane_count": lane_count,
             "output_concurrency": max(1, args.output_concurrency),
             "http_pool_maxsize": max(16, args.http_pool_maxsize),
             "traffic_output_ids": parse_csv(args.traffic_output_ids),
@@ -422,34 +469,41 @@ def main() -> None:
 
     expected_floor_eps = float(args.expected_steady_eps) * float(args.early_cutoff_floor_ratio)
     active_start = submitted_at
-    running_status: dict[str, Any] = {}
     start_wait_deadline = time.time() + 900
+    lane_by_arn = {str(lane["task_arn"]): lane for lane in launched_lanes}
     while time.time() < start_wait_deadline:
-        running_status = refresh_task_status(ecs, args.cluster, task_arn)
-        if running_status.get("last_status") == "RUNNING" and running_status.get("started_at_utc"):
-            active_start = datetime.fromisoformat(
-                str(running_status["started_at_utc"]).replace("Z", "+00:00")
-            ).astimezone(timezone.utc)
-            break
-        if running_status.get("last_status") == "STOPPED":
-            blockers.append("PR3.S1.WSP.B03_TASK_STOPPED_BEFORE_RUNNING")
+        statuses = refresh_task_statuses(ecs, args.cluster, list(lane_by_arn))
+        started_at_values: list[datetime] = []
+        all_running = True
+        for task_arn, lane in lane_by_arn.items():
+            status = statuses.get(task_arn, {})
+            lane["status"] = status
+            started_at = status.get("started_at_utc")
+            if started_at:
+                started_at_values.append(datetime.fromisoformat(str(started_at).replace("Z", "+00:00")).astimezone(timezone.utc))
+            if status.get("last_status") != "RUNNING":
+                all_running = False
+            if status.get("last_status") == "STOPPED" and not started_at:
+                blockers.append(f"PR3.S1.WSP.B03_TASK_STOPPED_BEFORE_RUNNING:{lane['lane_id']}")
+        if started_at_values:
+            active_start = min(started_at_values)
+        if blockers or all_running:
             break
         time.sleep(5)
-    if not running_status:
-        running_status = refresh_task_status(ecs, args.cluster, task_arn)
-    if running_status.get("last_status") != "RUNNING" and "PR3.S1.WSP.B03_TASK_STOPPED_BEFORE_RUNNING" not in blockers:
-        blockers.append("PR3.S1.WSP.B04_TASK_START_TIMEOUT")
     if not blockers:
-        log_stream_name = resolve_log_stream_name(logs, log_group=args.log_group, window_start=active_start)
-        manifest["log_stream_name"] = log_stream_name
-        dump_json(pr3_root / "g3a_s1_wsp_runtime_manifest.json", manifest)
+        never_started = [lane["lane_id"] for lane in launched_lanes if not lane.get("status", {}).get("started_at_utc")]
+        if never_started:
+            blockers.extend(f"PR3.S1.WSP.B04_TASK_START_TIMEOUT:{lane_id}" for lane_id in never_started)
 
     hard_deadline = time.time() + max(120, args.duration_seconds + 600)
     window_end = time.time() + max(60, args.duration_seconds)
     early_cutoff_triggered = False
     telemetry_error = ""
     while time.time() < hard_deadline and not blockers:
-        status = refresh_task_status(ecs, args.cluster, task_arn)
+        statuses = refresh_task_statuses(ecs, args.cluster, list(lane_by_arn))
+        for task_arn, lane in lane_by_arn.items():
+            lane["status"] = statuses.get(task_arn, {})
+        pending = [lane for lane in launched_lanes if lane.get("status", {}).get("last_status") != "STOPPED"]
         elapsed = max(1.0, time.time() - active_start.timestamp())
         try:
             totals = get_apigw_totals(
@@ -470,63 +524,87 @@ def main() -> None:
                 f"PR3.S1.WSP.B12_EARLY_THROUGHPUT_SHORTFALL:observed={observed_eps:.3f}:floor={expected_floor_eps:.3f}"
             )
             early_cutoff_triggered = True
-            try:
-                ecs.stop_task(
-                    cluster=args.cluster,
-                    task=task_arn,
-                    reason="PR3-S1 early cutoff: canonical WSP replay below throughput floor",
-                )
-            except (BotoCoreError, ClientError) as exc:
-                blockers.append(f"PR3.S1.WSP.B13_STOP_TASK_FAILED:{type(exc).__name__}")
+            for lane in pending:
+                try:
+                    ecs.stop_task(
+                        cluster=args.cluster,
+                        task=str(lane["task_arn"]),
+                        reason="PR3-S1 early cutoff: canonical WSP replay below throughput floor",
+                    )
+                except (BotoCoreError, ClientError) as exc:
+                    blockers.append(f"PR3.S1.WSP.B13_STOP_TASK_FAILED:{lane['lane_id']}:{type(exc).__name__}")
             break
 
         if time.time() >= window_end:
-            try:
-                ecs.stop_task(
-                    cluster=args.cluster,
-                    task=task_arn,
-                    reason="PR3-S1 steady window complete: canonical WSP replay bounded by certification window",
-                )
-            except (BotoCoreError, ClientError) as exc:
-                blockers.append(f"PR3.S1.WSP.B14_WINDOW_STOP_FAILED:{type(exc).__name__}")
+            for lane in pending:
+                try:
+                    ecs.stop_task(
+                        cluster=args.cluster,
+                        task=str(lane["task_arn"]),
+                        reason="PR3-S1 steady window complete: canonical WSP replay bounded by certification window",
+                    )
+                except (BotoCoreError, ClientError) as exc:
+                    blockers.append(f"PR3.S1.WSP.B14_WINDOW_STOP_FAILED:{lane['lane_id']}:{type(exc).__name__}")
             break
 
-        if status.get("last_status") == "STOPPED":
+        if not pending:
             break
         time.sleep(30)
 
     settle_deadline = time.time() + 180
-    final_status: dict[str, Any] = {}
+    final_statuses: dict[str, dict[str, Any]] = {}
     while time.time() < settle_deadline:
-        final_status = refresh_task_status(ecs, args.cluster, task_arn)
-        if final_status.get("last_status") == "STOPPED":
+        final_statuses = refresh_task_statuses(ecs, args.cluster, list(lane_by_arn))
+        for task_arn, lane in lane_by_arn.items():
+            lane["final_status"] = final_statuses.get(task_arn, {})
+        if all(lane.get("final_status", {}).get("last_status") == "STOPPED" for lane in launched_lanes):
             break
         time.sleep(10)
-    if final_status.get("last_status") != "STOPPED":
-        blockers.append("PR3.S1.WSP.B15_TASK_NOT_STOPPED")
-    exit_code = final_status.get("container_exit_code")
-    if exit_code not in (None, 0):
-        blockers.append(f"PR3.S1.WSP.B18_CONTAINER_EXIT_NONZERO:{exit_code}")
+    for lane in launched_lanes:
+        final_status = lane.get("final_status", {})
+        if final_status.get("last_status") != "STOPPED":
+            blockers.append(f"PR3.S1.WSP.B15_TASK_NOT_STOPPED:{lane['lane_id']}")
+        exit_code = final_status.get("container_exit_code")
+        stop_code = str(final_status.get("stop_code", "")).strip()
+        if exit_code not in (None, 0) and stop_code != "UserInitiated":
+            blockers.append(f"PR3.S1.WSP.B18_CONTAINER_EXIT_NONZERO:{lane['lane_id']}:{exit_code}")
 
-    log_events: list[dict[str, Any]] = []
+    all_log_events: list[dict[str, Any]] = []
     log_error = ""
-    if not log_stream_name:
-        log_stream_name = resolve_log_stream_name(
-            logs,
-            log_group=args.log_group,
-            window_start=active_start,
-            window_end=datetime.now(timezone.utc),
-        )
-    if log_stream_name:
+    lane_results: list[dict[str, Any]] = []
+    for lane in launched_lanes:
+        log_stream_name = str(lane.get("log_stream_name", "")).strip()
+        if not log_stream_name:
+            log_stream_name = resolve_log_stream_name(
+                logs,
+                log_group=args.log_group,
+                window_start=active_start,
+                window_end=datetime.now(timezone.utc),
+            )
+            lane["log_stream_name"] = log_stream_name
+        if not log_stream_name:
+            log_error = "LOG_STREAM_NOT_RESOLVED"
+            blockers.append(f"PR3.S1.WSP.B16_LOG_UNREADABLE:{lane['lane_id']}")
+            continue
         try:
             log_events = get_log_events(logs, log_group=args.log_group, stream_name=log_stream_name)
+            all_log_events.extend(log_events)
         except (BotoCoreError, ClientError) as exc:
             log_error = f"{type(exc).__name__}:{exc}"
-            blockers.append("PR3.S1.WSP.B16_LOG_UNREADABLE")
-    else:
-        log_error = "LOG_STREAM_NOT_RESOLVED"
-        blockers.append("PR3.S1.WSP.B16_LOG_UNREADABLE")
-    cli_result = parse_result_from_logs(log_events) if log_events else None
+            blockers.append(f"PR3.S1.WSP.B16_LOG_UNREADABLE:{lane['lane_id']}")
+            continue
+        cli_result = parse_result_from_logs(log_events) if log_events else None
+        lane_results.append(
+            {
+                "lane_id": lane["lane_id"],
+                "lane_index": lane["lane_index"],
+                "task_arn": lane["task_arn"],
+                "log_stream_name": log_stream_name,
+                "log_event_count": len(log_events),
+                "cli_result": cli_result or {},
+                "final_status": lane.get("final_status", {}),
+            }
+        )
 
     totals = {"count_sum": 0.0, "4xx_sum": 0.0, "5xx_sum": 0.0}
     metrics_error = ""
@@ -542,7 +620,13 @@ def main() -> None:
         metrics_error = f"{type(exc).__name__}:{exc}"
         blockers.append("PR3.S1.WSP.B17_METRICS_UNREADABLE")
 
-    perf_end = final_status.get("stopped_at_utc") or now_utc()
+    stopped_times = [
+        datetime.fromisoformat(str(lane["final_status"]["stopped_at_utc"]).replace("Z", "+00:00")).astimezone(timezone.utc)
+        for lane in launched_lanes
+        if lane.get("final_status", {}).get("stopped_at_utc")
+    ]
+    perf_end_dt = max(stopped_times) if stopped_times else datetime.now(timezone.utc)
+    perf_end = to_iso_utc(perf_end_dt)
     elapsed_seconds = max(
         1.0,
         (
@@ -550,6 +634,11 @@ def main() -> None:
         ).total_seconds(),
     )
     observed_eps = totals["count_sum"] / elapsed_seconds
+    aggregate_cli_emitted = sum(
+        int(result.get("cli_result", {}).get("emitted", 0) or 0)
+        for result in lane_results
+        if isinstance(result.get("cli_result"), dict)
+    )
 
     summary = {
         "phase": "PR3",
@@ -575,14 +664,11 @@ def main() -> None:
             "4xx_total": int(totals["4xx_sum"]),
             "5xx_total": int(totals["5xx_sum"]),
             "early_cutoff_triggered": early_cutoff_triggered,
-            "log_event_count": len(log_events),
-            "cli_result": cli_result or {},
+            "log_event_count": len(all_log_events),
+            "aggregate_cli_emitted": aggregate_cli_emitted,
+            "lane_result_count": len(lane_results),
         },
-        "task_status": {
-            **final_status,
-            "task_arn": task_arn,
-            "log_stream_name": log_stream_name,
-        },
+        "lane_results": lane_results,
         "notes": {
             "telemetry_error": telemetry_error,
             "metrics_error": metrics_error,
