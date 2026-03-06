@@ -4621,3 +4621,81 @@ Reasoning:
    - update the dispatcher subnet defaults to the private runtime subnets,
    - rerun the bounded one-lane WSP smoke,
    - only after that passes return to the full `PR3-S1` steady window.
+## Entry: 2026-03-06 17:40:00 +00:00 - PR3-S1 canonical source posture corrected; the current hot-path blockers are inside IG, not the replay transport
+1. I reran the bounded one-lane `PR3-S1` smoke on the old public-subnet/public-IP WSP posture to test whether the recent private-subnet repin was actually proving a production requirement or merely adding an internal routing constraint.
+2. The result materially changed the diagnosis:
+   - WSP no longer timed out before the edge,
+   - requests reached `API Gateway -> Lambda`,
+   - Lambda logs showed real handler execution on the same wall-clock window.
+3. That means the previous private-runtime repin was solving the wrong problem for `PR3`.
+4. Production reasoning:
+   - `WSP` is pinned as the platform's outside-world traffic producer,
+   - `PR3-S1` is supposed to prove the real outside-world steady path into the public ingress edge,
+   - forcing `WSP` into a private no-NAT path to the public API turns the runtime proof into an internal routing experiment rather than a truthful bank-like ingress certification.
+5. I am therefore correcting the canonical `PR3-S1` source posture back to public-edge replay:
+   - public subnets,
+   - public IP enabled,
+   - same public `IG` edge URL,
+   - private-runtime-to-IG direct-path work remains a separate bridge-equivalence hardening lane, not the canonical runtime-cert source path.
+6. The bounded public-edge smoke also exposed the actual current hot-path blockers inside `IG` itself:
+   - Lambda idempotency lookups are timing out on `https://dynamodb.eu-west-2.amazonaws.com/`, proving the VPC Lambda still lacks a usable DynamoDB path,
+   - payload validation for real `6B` event types is failing with `Unresolvable: schemas.layer3.yaml#/$defs/hex64`, proving the deployed Lambda bundle is still schema-incomplete for the data-engine contract chain it claims to enforce.
+7. These are the real production blockers now:
+   - no truthful steady-cert claim can stand while the idempotency store is unreachable,
+   - no truthful semantic-ingest claim can stand while valid upstream contract refs are missing from the Lambda bundle.
+8. Alternatives considered:
+   - keep chasing the private `execute-api` path:
+     - rejected because it is not the canonical `PR3` source proof and would continue to burn time on a secondary routing lane,
+   - add NAT to rescue the private caller path:
+     - rejected because it increases cost/surface area and still does not solve the actual IG DynamoDB/schema failures,
+   - correct canonical WSP source posture, add first-class DynamoDB private access for the Lambda idempotency store, and make the Lambda bundle include the full transitive schema closure:
+     - chosen because it addresses the true hot-path failures while preserving the production meaning of `PR3-S1`.
+9. Immediate remediation pinned:
+   - repin `PR3-S1` dispatcher defaults back to the public WSP source posture,
+   - add a DynamoDB gateway endpoint on the runtime private route tables for the VPC Lambda,
+   - extend the IG bundle builder to package the full transitive data-engine schema contract directories required by `5B/6B` payload validation,
+   - rematerialize the edge and rerun the bounded smoke before returning to the full steady window.
+## Entry: 2026-03-06 17:41:00 +00:00 - Lambda bundle and runtime edge need contract closure, not partial file copies or public AWS fallback
+1. The current Lambda bundle copies only these data-engine payload schema files:
+   - `docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml`
+   - `docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml`
+2. That is insufficient because those files carry transitive refs to sibling shared schema packs:
+   - `schemas.6B.yaml -> schemas.layer3.yaml#/$defs/hex64`
+   - `schemas.5B.yaml -> schemas.layer1.yaml#/$defs/...`
+3. The production issue is not that the WSP data is malformed; it is that the edge artifact is claiming to enforce the contract without carrying the full contract graph.
+4. The correct remediation is to package the contract directories that close the reference graph, not to loosen validation or patch the WSP payloads.
+5. On the infrastructure side, the Lambda timeout against `dynamodb.eu-west-2.amazonaws.com` proves the ingress idempotency boundary is still depending on implicit public AWS reachability.
+6. For this platform posture the correct fix is explicit private AWS service access, not a hidden internet dependency:
+   - DynamoDB gateway endpoint on the private route tables,
+   - keep SQS/SSM/logs endpoints already added,
+   - preserve the no-local-runtime and evidence-first posture.
+## Entry: 2026-03-06 17:49:00 +00:00 - Bounded public-edge PR3-S1 smoke is green after DynamoDB path + schema-closure remediation
+1. I rebuilt the IG Lambda bundle with the transitive schema graph included and applied a live DynamoDB gateway endpoint for the private Lambda subnets.
+2. Live correction evidence:
+   - Lambda code hash is now `pyOm/xQe7B324/rL2GSB/iMOF9BhXPUz/5xjXyGhIvI=`,
+   - DynamoDB gateway endpoint materialized as `vpce-0e4cacff57266a01c` on the private runtime route table,
+   - canonical WSP dispatcher defaults are corrected back to public-edge source posture for `PR3`.
+3. I then reran the same bounded one-lane `PR3-S1` smoke on the canonical public-edge source path.
+4. Impact metrics from the run:
+   - `request_count_total=60`,
+   - `admitted_request_count=60`,
+   - `observed_admitted_eps=1.0`,
+   - `error_rate_ratio=0.0`,
+   - `4xx_rate_ratio=0.0`,
+   - `5xx_rate_ratio=0.0`,
+   - `latency_p95_ms=129.13`,
+   - `latency_p99_ms=152.32`,
+   - verdict `REMOTE_WSP_WINDOW_READY`, `open_blockers=0`.
+5. Production interpretation:
+   - the ingress hot path is now materially functional on the real canonical route,
+   - WSP -> API Gateway -> Lambda -> DynamoDB -> Kafka no longer fails at low-rate proof,
+   - schema enforcement on real `5B/6B` payloads is no longer internally broken,
+   - idempotency lookup is no longer blocked by missing AWS-private reachability.
+6. This does not close `PR3-S1` yet because the state target is `3000 eps steady`, not `1 eps`.
+7. However, it changes the next action decisively:
+   - the remaining work is throughput calibration and capacity proof,
+   - not correctness triage of a broken edge artifact.
+8. Next calibration posture pinned:
+   - start from the last credible high-throughput operating point already recorded in the plan (`lane_count=138`, `stream_speedup=95.0`, `target_request_rate_eps=3000`),
+   - use a bounded fail-fast steady window first,
+   - only if that bounded proof is green do the full `S1` certification window.

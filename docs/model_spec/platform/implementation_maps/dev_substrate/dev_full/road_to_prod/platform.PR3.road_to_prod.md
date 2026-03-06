@@ -509,3 +509,13 @@ State closure:
 | Smoke-chain outcome | canonical lane now exposed and cleared sequential blockers in the right order: public-subnet bootstrap drift, missing private `logs` endpoint, then stale runtime-image code | The road-to-prod pass is now measuring the real runtime chain rather than guessing at one defect. |
 | Current active blocker | remote ECS task still runs an older image digest that does not include the latest `WSP` loader fix | More reruns of the current task definition would be wasteful and non-informative. |
 | Rerun implication | bounded smoke is deferred until the WSP runtime image is refreshed with the validated fixes; full `PR3-S1` remains blocked after that until smoke is clean | Next work is runtime-image refresh first, then bounded smoke, then steady certification. |
+
+### 11.4 PR3-S1 Bounded Smoke Recovery Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Hot-path correction outcome | bounded canonical rerun verdict `REMOTE_WSP_WINDOW_READY`, `open_blockers=0` | The ingress edge is no longer broken at the contract/dependency layer. |
+| Request/admit posture | `60` requests observed, `60` admitted, `1.0 eps` admitted throughput | Real WSP traffic now traverses `WSP -> IG -> DDB -> Kafka` cleanly on the canonical source path. |
+| Error posture | `error_rate=0.0`, `4xx=0`, `5xx=0` | The previous systemic 503 failure is resolved. |
+| Latency posture | `p95=129.13 ms`, `p99=152.32 ms` against smoke maxima `2000/4000 ms` | The repaired edge is comfortably inside the bounded smoke corridor and ready for throughput scaling. |
+| Defects cleared | DynamoDB idempotency timeout and missing transitive schema refs are both resolved in the live edge | PR3-S1 no longer needs correctness triage before throughput calibration. |
+| Remaining state goal | bounded smoke green is necessary but not sufficient; S1 still requires `3000 eps steady` evidence | The remaining work is calibration/capacity proof, not semantic repair. |

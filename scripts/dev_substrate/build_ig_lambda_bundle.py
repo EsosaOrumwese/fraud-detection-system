@@ -21,8 +21,9 @@ INCLUDE_PATHS = [
     ("config/platform", "config/platform"),
     ("docs/model_spec/platform/contracts", "docs/model_spec/platform/contracts"),
     ("docs/model_spec/data-engine/interface_pack", "docs/model_spec/data-engine/interface_pack"),
-    ("docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml", "docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml"),
-    ("docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml", "docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml"),
+    ("docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml", "docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml"),
+    ("docs/model_spec/data-engine/layer-2/specs/contracts/5B", "docs/model_spec/data-engine/layer-2/specs/contracts/5B"),
+    ("docs/model_spec/data-engine/layer-3/specs/contracts/6B", "docs/model_spec/data-engine/layer-3/specs/contracts/6B"),
 ]
 
 

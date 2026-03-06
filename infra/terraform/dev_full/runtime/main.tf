@@ -212,6 +212,28 @@ resource "aws_vpc_endpoint" "runtime_s3_gateway" {
   })
 }
 
+resource "aws_vpc_endpoint" "runtime_dynamodb_gateway" {
+  vpc_id            = local.vpc_id
+  service_name      = "com.amazonaws.${var.aws_region}.dynamodb"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = local.private_route_table_ids
+
+  lifecycle {
+    precondition {
+      condition     = trimspace(local.vpc_id) != ""
+      error_message = "VPC id is missing from core outputs. M2.B must be applied before runtime endpoint materialization."
+    }
+    precondition {
+      condition     = length(local.private_route_table_ids) > 0
+      error_message = "No private route table associations resolved from core private subnets."
+    }
+  }
+
+  tags = merge(local.common_tags, {
+    fp_resource = "runtime_endpoint_dynamodb_gateway"
+  })
+}
+
 data "aws_iam_policy_document" "assume_role_lambda" {
   statement {
     actions = ["sts:AssumeRole"]

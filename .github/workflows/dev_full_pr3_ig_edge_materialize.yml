@@ -140,6 +140,7 @@ jobs:
         run: |
           set -euo pipefail
           terraform apply -input=false -auto-approve \
+            -target=aws_vpc_endpoint.runtime_dynamodb_gateway \
             -target='aws_vpc_endpoint.runtime_interface["ssm"]' \
             -target='aws_vpc_endpoint.runtime_interface["sqs"]' \
             -target=aws_iam_role_policy_attachment.lambda_ig_vpc_access \
