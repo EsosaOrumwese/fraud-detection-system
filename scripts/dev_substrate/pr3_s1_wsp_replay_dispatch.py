@@ -311,6 +311,22 @@ def get_log_events(logs: Any, *, log_group: str, stream_name: str) -> list[dict[
     return rows
 
 
+def get_log_stream_metadata(logs: Any, *, log_group: str, stream_name: str) -> dict[str, Any]:
+    paginator = logs.get_paginator("describe_log_streams")
+    for page in paginator.paginate(logGroupName=log_group, logStreamNamePrefix=stream_name):
+        for row in page.get("logStreams", []):
+            if str(row.get("logStreamName", "")).strip() != stream_name:
+                continue
+            return {
+                "creation_time_epoch_ms": int(row.get("creationTime", 0) or 0),
+                "first_event_timestamp_epoch_ms": int(row.get("firstEventTimestamp", 0) or 0),
+                "last_event_timestamp_epoch_ms": int(row.get("lastEventTimestamp", 0) or 0),
+                "last_ingestion_time_epoch_ms": int(row.get("lastIngestionTime", 0) or 0),
+                "stored_bytes": int(row.get("storedBytes", 0) or 0),
+            }
+    return {}
+
+
 def resolve_log_stream_name(
     logs: Any,
     *,
@@ -415,6 +431,7 @@ def main() -> None:
     ap.add_argument("--max-latency-p99-ms", type=float, default=700.0)
     ap.add_argument("--metric-settle-seconds", type=int, default=90)
     ap.add_argument("--log-group", default="/ecs/fraud-platform-dev-full-wsp-ephemeral")
+    ap.add_argument("--lane-log-mode", choices=["auto", "full", "metadata"], default="auto")
     ap.add_argument("--generated-by", default="codex-gpt5")
     ap.add_argument("--version", default="1.0.0")
     args = ap.parse_args()
@@ -774,6 +791,9 @@ def main() -> None:
     all_log_events: list[dict[str, Any]] = []
     log_error = ""
     lane_results: list[dict[str, Any]] = []
+    lane_log_mode = str(args.lane_log_mode).strip().lower()
+    if lane_log_mode == "auto":
+        lane_log_mode = "metadata" if lane_count > 32 else "full"
     for lane in launched_lanes:
         log_stream_name = str(lane.get("log_stream_name", "")).strip()
         if not log_stream_name:
@@ -784,25 +804,33 @@ def main() -> None:
                 window_end=datetime.now(timezone.utc),
             )
             lane["log_stream_name"] = log_stream_name
-        if not log_stream_name:
-            log_error = "LOG_STREAM_NOT_RESOLVED"
-            blockers.append(f"PR3.S1.WSP.B16_LOG_UNREADABLE:{lane['lane_id']}")
-            continue
+            if not log_stream_name:
+                log_error = "LOG_STREAM_NOT_RESOLVED"
+                blockers.append(f"PR3.S1.WSP.B16_LOG_UNREADABLE:{lane['lane_id']}")
+                continue
+        log_events: list[dict[str, Any]] = []
+        log_metadata: dict[str, Any] = {}
+        cli_result = None
         try:
-            log_events = get_log_events(logs, log_group=args.log_group, stream_name=log_stream_name)
-            all_log_events.extend(log_events)
+            if lane_log_mode == "full":
+                log_events = get_log_events(logs, log_group=args.log_group, stream_name=log_stream_name)
+                all_log_events.extend(log_events)
+                cli_result = parse_result_from_logs(log_events) if log_events else None
+            else:
+                log_metadata = get_log_stream_metadata(logs, log_group=args.log_group, stream_name=log_stream_name)
         except (BotoCoreError, ClientError) as exc:
             log_error = f"{type(exc).__name__}:{exc}"
             blockers.append(f"PR3.S1.WSP.B16_LOG_UNREADABLE:{lane['lane_id']}")
             continue
-        cli_result = parse_result_from_logs(log_events) if log_events else None
         lane_results.append(
             {
                 "lane_id": lane["lane_id"],
                 "lane_index": lane["lane_index"],
                 "task_arn": lane["task_arn"],
                 "log_stream_name": log_stream_name,
-                "log_event_count": len(log_events),
+                "log_capture_mode": lane_log_mode,
+                "log_event_count": len(log_events) if lane_log_mode == "full" else None,
+                "log_metadata": log_metadata,
                 "cli_result": cli_result or {},
                 "final_status": lane.get("final_status", {}),
             }
@@ -958,6 +986,7 @@ def main() -> None:
             "log_event_count": len(all_log_events),
             "aggregate_cli_emitted": aggregate_cli_emitted,
             "lane_result_count": len(lane_results),
+            "lane_log_capture_mode": lane_log_mode,
         },
         "lane_results": lane_results,
         "notes": {

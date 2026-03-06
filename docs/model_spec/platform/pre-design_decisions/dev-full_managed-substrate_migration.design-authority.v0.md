@@ -283,8 +283,8 @@ The following values are now explicitly pinned for v0 execution:
    * `IG_DLQ_MODE = "SQS"`
    * `IG_RATE_LIMIT_RPS = 3000`
    * `IG_RATE_LIMIT_BURST = 6000`
-   * `LAMBDA_IG_MEMORY_MB = 1024`
-   * `LAMBDA_IG_RESERVED_CONCURRENCY = 300`
+   * `LAMBDA_IG_MEMORY_MB = 2048`
+   * `LAMBDA_IG_RESERVED_CONCURRENCY = 1000`
    * `LAMBDA_IG_TIMEOUT_SECONDS = 30`
 13. **Cross-runtime correlation contract**
    * `CORRELATION_MODE = "W3C_TRACE_CONTEXT_PLUS_RUN_HEADERS"`

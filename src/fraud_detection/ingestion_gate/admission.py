@@ -28,7 +28,7 @@ from .receipts import ReceiptWriter
 from .security import AuthContext, authorize
 from .schema import SchemaEnforcer
 from .schemas import SchemaRegistry
-from .store import ObjectStore, S3ObjectStore, build_object_store
+from .store import ObjectStore, S3ObjectStore, build_object_store, observe_object_store, unwrap_object_store
 from ..platform_runtime import platform_run_prefix, resolve_platform_run_id
 from ..platform_provenance import runtime_provenance
 from ..platform_governance.anomaly_taxonomy import classify_anomaly
@@ -99,11 +99,13 @@ class IngestionGate:
             policy=policy,
         )
         contract_registry = SchemaRegistry(Path(wiring.schema_root) / "ingestion_gate")
-        store = build_object_store(
+        store = observe_object_store(
+            build_object_store(
             wiring.object_store_root,
             s3_endpoint_url=wiring.object_store_endpoint,
             s3_region=wiring.object_store_region,
             s3_path_style=wiring.object_store_path_style,
+            )
         )
         run_prefix = platform_run_prefix(create_if_missing=True)
         if not run_prefix:
@@ -497,7 +499,8 @@ class IngestionGate:
         }
 
     def _run_prefix_for(self, platform_run_id: str) -> str:
-        if isinstance(self.store, S3ObjectStore):
+        base_store = unwrap_object_store(self.store)
+        if isinstance(base_store, S3ObjectStore):
             return platform_run_id
         root = Path(self.wiring.object_store_root)
         if root.name == "fraud-platform":
@@ -874,13 +877,18 @@ def _eb_ref_payload(eb_ref: EbRef) -> dict[str, Any]:
 def _normalize_eb_ref(eb_ref: dict[str, Any] | None) -> dict[str, Any] | None:
     if not eb_ref:
         return None
+    normalized = dict(eb_ref)
     if "offset_kind" not in eb_ref:
-        eb_ref = dict(eb_ref)
-        eb_ref["offset_kind"] = "file_line"
-    if "offset" in eb_ref and eb_ref["offset"] is not None:
-        eb_ref = dict(eb_ref)
-        eb_ref["offset"] = str(eb_ref["offset"])
-    return eb_ref
+        normalized["offset_kind"] = "file_line"
+    if normalized.get("partition") is not None:
+        partition_value = normalized.get("partition")
+        try:
+            normalized["partition"] = int(partition_value)
+        except (TypeError, ValueError):
+            normalized["partition"] = partition_value
+    if normalized.get("offset") is not None:
+        normalized["offset"] = str(normalized["offset"])
+    return normalized
 
 
 def _payload_hash(envelope: dict[str, Any]) -> tuple[dict[str, Any], str]:

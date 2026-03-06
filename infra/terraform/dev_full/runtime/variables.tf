@@ -206,12 +206,12 @@ variable "ig_rate_limit_burst" {
 
 variable "lambda_ig_memory_size_mb" {
   type    = number
-  default = 1024
+  default = 2048
 }
 
 variable "lambda_ig_reserved_concurrency" {
   type    = number
-  default = 300
+  default = 1000
 }
 
 variable "lambda_ig_timeout_seconds" {

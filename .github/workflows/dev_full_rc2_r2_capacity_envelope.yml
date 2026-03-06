@@ -48,12 +48,12 @@ on:
       lambda_ig_memory_mb:
         description: "Target IG lambda memory size (MB)"
         required: true
-        default: "1024"
+        default: "2048"
         type: string
       lambda_ig_reserved_concurrency:
         description: "Target IG lambda reserved concurrency"
         required: true
-        default: "300"
+        default: "1000"
         type: string
       lambda_ig_timeout_seconds:
         description: "Target IG lambda timeout seconds"

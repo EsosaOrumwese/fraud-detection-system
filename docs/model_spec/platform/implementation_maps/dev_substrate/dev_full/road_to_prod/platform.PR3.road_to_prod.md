@@ -519,3 +519,15 @@ State closure:
 | Latency posture | `p95=129.13 ms`, `p99=152.32 ms` against smoke maxima `2000/4000 ms` | The repaired edge is comfortably inside the bounded smoke corridor and ready for throughput scaling. |
 | Defects cleared | DynamoDB idempotency timeout and missing transitive schema refs are both resolved in the live edge | PR3-S1 no longer needs correctness triage before throughput calibration. |
 | Remaining state goal | bounded smoke green is necessary but not sufficient; S1 still requires `3000 eps steady` evidence | The remaining work is calibration/capacity proof, not semantic repair. |
+
+### 11.5 PR3-S1 Capacity-Bound Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Account concurrency ceiling | AWS regional Lambda quota is `400`, leaving a maximum legal single-function reservation of `360` after the mandatory unreserved floor | The current account cannot host the originally repinned `1000` reserved-concurrency envelope, so certification on this path is quota-bound as well as runtime-bound. |
+| Quota action | quota increase request to `1500` concurrent executions submitted; status `PENDING` | The production target is now backed by an explicit cloud-capacity uplift request rather than hidden as an assumption. |
+| Max-feasible bounded run | bounded rerun at `reserved_concurrency=360`, `memory=2048 MB` admitted `423060` requests over the 180-second window | The ingress edge remains materially functional under the strongest legal Lambda posture in this account. |
+| Steady throughput posture | `observed_admitted_eps=2350.333` against the `3000 eps` target | The current Lambda path in this account is close but still not certifiable at the required steady target. |
+| Error posture | `error_rate=4.2047%`, `5xx_total=18568`, `4xx_total=1` | Residual failure is now almost entirely `503` pressure, not validation drift or duplicate-path breakage. |
+| Latency posture | `p95=351.865 ms`, `p99=870.573 ms` against maxima `350/700 ms` | Tail latency is now near the line at `p95` but still above the production gate, which is consistent with residual concurrency pressure rather than a broken hot path. |
+| Comparative gain | throughput improved from `1591.678 eps` at `300` concurrency to `2350.333 eps` at `360` concurrency | The path responds materially to capacity uplift, which argues that the remaining miss is a capacity-governance problem rather than a hidden semantic defect. |
+| Decision implication | more reruns on the same account-limited Lambda posture are low-value; next work is quota uplift and/or service-backed ingress materialization | PR3-S1 should now pivot toward removing the account ceiling, not repeating the same bounded evidence loop. |

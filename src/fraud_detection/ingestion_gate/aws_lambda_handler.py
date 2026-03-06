@@ -8,6 +8,7 @@ import logging
 import os
 import time
 import hmac
+from decimal import Decimal
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -31,7 +32,7 @@ from fraud_detection.ingestion_gate.schema import SchemaEnforcer
 from fraud_detection.ingestion_gate.schemas import SchemaRegistry
 from fraud_detection.ingestion_gate.partitioning import PartitioningProfiles
 from fraud_detection.ingestion_gate.security import AuthContext
-from fraud_detection.ingestion_gate.store import build_object_store
+from fraud_detection.ingestion_gate.store import build_object_store, observe_object_store
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.INFO)
@@ -246,7 +247,7 @@ class DdbAdmissionIndex:
             Key={self.hash_key_name: dedupe_key},
             ConsistentRead=True,
         )
-        item = response.get("Item")
+        item = _ddb_normalize(response.get("Item"))
         if not item:
             return None
         eb_topic = item.get("eb_topic")
@@ -386,6 +387,18 @@ class NoopOpsIndex:
         return True
 
 
+def _ddb_normalize(value: Any) -> Any:
+    if isinstance(value, Decimal):
+        if value == value.to_integral_value():
+            return int(value)
+        return float(value)
+    if isinstance(value, dict):
+        return {str(k): _ddb_normalize(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_ddb_normalize(item) for item in value]
+    return value
+
+
 def _runtime_path(*parts: str) -> str:
     return str((_bundle_root() / Path(*parts)).resolve())
 
@@ -457,11 +470,13 @@ def _gate_for(platform_run_id: str) -> IngestionGate:
         policy=policy,
     )
     contract_registry = SchemaRegistry(schema_root / "ingestion_gate")
-    store = build_object_store(
-        _object_store_root(),
-        s3_endpoint_url=str(os.getenv("OBJECT_STORE_ENDPOINT", "")).strip() or None,
-        s3_region=str(os.getenv("OBJECT_STORE_REGION") or os.getenv("AWS_REGION") or os.getenv("AWS_DEFAULT_REGION") or "").strip() or None,
-        s3_path_style=_env_bool("OBJECT_STORE_PATH_STYLE", False),
+    store = observe_object_store(
+        build_object_store(
+            _object_store_root(),
+            s3_endpoint_url=str(os.getenv("OBJECT_STORE_ENDPOINT", "")).strip() or None,
+            s3_region=str(os.getenv("OBJECT_STORE_REGION") or os.getenv("AWS_REGION") or os.getenv("AWS_DEFAULT_REGION") or "").strip() or None,
+            s3_path_style=_env_bool("OBJECT_STORE_PATH_STYLE", False),
+        )
     )
     receipt_writer = ReceiptWriter(store=store, prefix=f"{platform_run_id}/ig")
     admission_index = DdbAdmissionIndex(

@@ -5,13 +5,17 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
+import logging
 from pathlib import Path
 from typing import Any
 
 from fraud_detection.event_bus import FileEventBusPublisher
 from fraud_detection.platform_runtime import platform_run_prefix
 from .ops_index import OpsIndex
-from .store import ObjectStore
+from .store import ObjectStore, ObservedObjectStore
+
+
+logger = logging.getLogger(__name__)
 
 
 class HealthState(str, Enum):
@@ -95,10 +99,23 @@ class HealthProbe:
         return result
 
     def _store_ok(self) -> bool:
+        if isinstance(self.store, ObservedObjectStore):
+            snapshot = self.store.health_snapshot()
+            if snapshot.consecutive_failures <= 0:
+                return True
+            logger.warning(
+                "IG object store observed unhealthy consecutive_failures=%s operation=%s error=%s last_failure_at=%s",
+                snapshot.consecutive_failures,
+                snapshot.last_failure_operation,
+                snapshot.last_failure_error,
+                snapshot.last_failure_at_utc,
+            )
+            return False
         try:
             self.store.write_json(self._health_path, {"ts": datetime.now(tz=timezone.utc).isoformat()})
             return True
         except Exception:
+            logger.exception("IG object store synthetic health probe failed path=%s", self._health_path)
             return False
 
     def _bus_ok(self) -> str | None:

@@ -6,6 +6,7 @@ import json
 import os
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Protocol
 from urllib.parse import urlparse
@@ -30,6 +31,18 @@ class ArtifactRef:
     digest: str | None = None
 
 
+@dataclass(frozen=True)
+class StoreHealthSnapshot:
+    last_success_at_utc: str | None = None
+    last_failure_at_utc: str | None = None
+    last_failure_operation: str | None = None
+    last_failure_error: str | None = None
+    consecutive_failures: int = 0
+    last_benign_conflict_at_utc: str | None = None
+    last_benign_conflict_operation: str | None = None
+    last_benign_conflict_error: str | None = None
+
+
 class ObjectStore(Protocol):
     def write_json(self, relative_path: str, payload: dict[str, Any]) -> ArtifactRef:
         ...
@@ -48,6 +61,86 @@ class ObjectStore(Protocol):
 
     def exists(self, relative_path: str) -> bool:
         ...
+
+
+class ObservedObjectStore:
+    def __init__(self, inner: ObjectStore) -> None:
+        self.inner = inner
+        self._last_success_at_utc: str | None = None
+        self._last_failure_at_utc: str | None = None
+        self._last_failure_operation: str | None = None
+        self._last_failure_error: str | None = None
+        self._consecutive_failures = 0
+        self._last_benign_conflict_at_utc: str | None = None
+        self._last_benign_conflict_operation: str | None = None
+        self._last_benign_conflict_error: str | None = None
+
+    def write_json(self, relative_path: str, payload: dict[str, Any]) -> ArtifactRef:
+        return self._observe("write_json", lambda: self.inner.write_json(relative_path, payload))
+
+    def write_json_if_absent(self, relative_path: str, payload: dict[str, Any]) -> ArtifactRef:
+        return self._observe("write_json_if_absent", lambda: self.inner.write_json_if_absent(relative_path, payload))
+
+    def read_json(self, relative_path: str) -> dict[str, Any]:
+        return self._observe("read_json", lambda: self.inner.read_json(relative_path))
+
+    def write_text(self, relative_path: str, content: str) -> ArtifactRef:
+        return self._observe("write_text", lambda: self.inner.write_text(relative_path, content))
+
+    def append_jsonl(self, relative_path: str, records: Iterable[dict[str, Any]]) -> ArtifactRef:
+        buffered = list(records)
+        return self._observe("append_jsonl", lambda: self.inner.append_jsonl(relative_path, buffered))
+
+    def exists(self, relative_path: str) -> bool:
+        return self._observe("exists", lambda: self.inner.exists(relative_path))
+
+    def health_snapshot(self) -> StoreHealthSnapshot:
+        return StoreHealthSnapshot(
+            last_success_at_utc=self._last_success_at_utc,
+            last_failure_at_utc=self._last_failure_at_utc,
+            last_failure_operation=self._last_failure_operation,
+            last_failure_error=self._last_failure_error,
+            consecutive_failures=self._consecutive_failures,
+            last_benign_conflict_at_utc=self._last_benign_conflict_at_utc,
+            last_benign_conflict_operation=self._last_benign_conflict_operation,
+            last_benign_conflict_error=self._last_benign_conflict_error,
+        )
+
+    def _observe(self, operation: str, fn: Any) -> Any:
+        try:
+            value = fn()
+        except FileExistsError as exc:
+            if operation == "write_json_if_absent":
+                self._record_benign_conflict(operation, exc)
+                raise
+            self._record_failure(operation, exc)
+            raise
+        except Exception as exc:
+            self._record_failure(operation, exc)
+            raise
+        self._record_success()
+        return value
+
+    def _record_success(self) -> None:
+        self._last_success_at_utc = datetime.now(tz=timezone.utc).isoformat()
+        self._consecutive_failures = 0
+
+    def _record_failure(self, operation: str, exc: Exception) -> None:
+        self._last_failure_at_utc = datetime.now(tz=timezone.utc).isoformat()
+        self._last_failure_operation = operation
+        self._last_failure_error = f"{type(exc).__name__}:{exc}"
+        self._consecutive_failures += 1
+
+    def _record_benign_conflict(self, operation: str, exc: Exception) -> None:
+        now = datetime.now(tz=timezone.utc).isoformat()
+        self._last_success_at_utc = now
+        self._last_benign_conflict_at_utc = now
+        self._last_benign_conflict_operation = operation
+        self._last_benign_conflict_error = f"{type(exc).__name__}:{exc}"
+        self._consecutive_failures = 0
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self.inner, name)
 
 
 class LocalObjectStore:
@@ -269,3 +362,15 @@ def build_object_store(
             path_style=path_style,
         )
     return LocalObjectStore(Path(root))
+
+
+def observe_object_store(store: ObjectStore) -> ObservedObjectStore:
+    if isinstance(store, ObservedObjectStore):
+        return store
+    return ObservedObjectStore(store)
+
+
+def unwrap_object_store(store: ObjectStore) -> ObjectStore:
+    if isinstance(store, ObservedObjectStore):
+        return store.inner
+    return store

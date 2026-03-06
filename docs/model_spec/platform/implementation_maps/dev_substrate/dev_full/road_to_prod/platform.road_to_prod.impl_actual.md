@@ -4699,3 +4699,195 @@ Reasoning:
    - start from the last credible high-throughput operating point already recorded in the plan (`lane_count=138`, `stream_speedup=95.0`, `target_request_rate_eps=3000`),
    - use a bounded fail-fast steady window first,
    - only if that bounded proof is green do the full `S1` certification window.
+## Entry: 2026-03-06 18:05:00 +00:00 - PR3-S1 bounded high-rate failure traced to synthetic object-store health gating that does not scale with concurrency
+1. I inspected the live `PR3-S1` bounded high-rate failure after the ingress edge hot-path fixes were already green at low-rate.
+2. The new bounded calibration outcome was:
+   - `observed_admitted_eps=1351.178` against a `3000 eps` target,
+   - `error_rate_ratio=0.061885`,
+   - `5xx_total=16043`,
+   - `latency_p95_ms=506.455`,
+   - `latency_p99_ms=1351.005`.
+3. CloudWatch log inspection on `/aws/lambda/fraud-platform-dev-full-ig-handler` showed the dominant server-side reason was not random transport failure and not DynamoDB anymore. The request path was failing with `IG_UNHEALTHY:OBJECT_STORE_UNHEALTHY`.
+4. I then verified the obvious infra hypotheses before changing code:
+   - private runtime route table already carries an `S3` gateway endpoint and the new `DynamoDB` gateway endpoint,
+   - the Lambda execution role already has `s3:GetObject`, `s3:PutObject`, `s3:ListBucket`, and matching KMS permissions for the object-store key,
+   - the low-rate bounded proof succeeded on the same bucket/key family.
+5. This means the current failure is not best explained by "S3 unreachable". The stronger production explanation is the health model itself:
+   - `HealthProbe._store_ok()` performs a synthetic `store.write_json()` to `platform_run_id/ig/health/last_probe.json`,
+   - the admission spine calls `health.check()` before validating or admitting every event,
+   - on a concurrency fan-out, each fresh Lambda environment can decide gate health by attempting the same KMS-encrypted S3 write on the hot path,
+   - a single transient failure then turns the environment health state `RED` and causes request-level 5xx for the cached probe interval.
+6. Production judgement:
+   - this is not a sound way to protect a high-EPS ingress edge,
+   - the platform is amplifying a secondary observability write into a hard admission dependency,
+   - even if S3 is healthy overall, this probe shape is an avoidable concurrency multiplier and therefore a design defect for the target envelope.
+7. Alternatives considered:
+   - increase Lambda memory/concurrency/timeouts only:
+     - rejected because it does not remove the incorrect gate dependency; it merely gives the synthetic probe more room to fail later,
+   - lengthen the health probe interval only:
+     - rejected because the first write per fresh environment still occurs on the hot path and still couples admission to a nonessential overwrite of a single health object,
+   - weaken the gate by ignoring object-store health completely:
+     - rejected because the ingress path genuinely depends on object-store writes for receipts/quarantine/governance and cannot pretend that surface does not matter,
+   - move store health from synthetic probe writes to observed outcomes of real store operations, while logging exact exceptions for future evidence:
+     - chosen because it keeps fail-closed semantics on genuine store failure while removing an unnecessary hot-path amplifier that is not production-sound.
+8. Implementation plan pinned:
+   - add a small `ObservedObjectStore` wrapper in `ingestion_gate.store` that records last success/failure of real object-store operations,
+   - update `HealthProbe` to consume observed store state instead of issuing synthetic writes on the admission path,
+   - add exception logging so the next real store fault carries actionable evidence instead of a swallowed boolean,
+   - cover the new behavior with focused ingestion-gate tests,
+   - rebuild/rematerialize the Lambda bundle and rerun bounded `PR3-S1` calibration before resuming the full steady window.
+## Entry: 2026-03-06 18:30:00 +00:00 - PR3-S1 evidence runner itself violated runtime-budget discipline after the object-store fix
+1. After rematerializing the IG Lambda with observed store health, I reran the same bounded `PR3-S1` calibration.
+2. The runtime conditions materially improved in one important way before the evidence runner stalled:
+   - the Lambda code hash updated to `dnFcCI/li0e9vYozKAnk/oB9EaqQ4B9HcAsOQrsPnVA=`,
+   - no fresh `OBJECT_STORE_UNHEALTHY` log events appeared in the new run window,
+   - all WSP lanes completed and ECS showed no leaked running tasks.
+3. The remaining problem was not the production edge itself; it was the certification tooling:
+   - `pr3_s1_wsp_replay_dispatch.py` remained live long after the window closed,
+   - inspection showed it was performing full `get_log_events()` harvest across all `138` WSP streams before emitting the summary,
+   - that is disproportional to the actual binding evidence needed for `PR3-S1`, which is primarily `API Gateway` metric families plus final lane stop status.
+4. Production judgement:
+   - this is an implementation defect in the certification runner, not a valid reason to delay platform closure,
+   - high-lane certification tooling must obey the same runtime-budget law as the platform itself,
+   - reading every ECS log event from every lane is not required to prove ingress steady-state thresholds and therefore should not dominate execution time.
+5. Alternatives considered:
+   - wait longer for the runner to finish:
+     - rejected because it repeats the same budget violation and wastes time without increasing evidence quality,
+   - drop all lane-level evidence entirely:
+     - rejected because some lane termination metadata is still useful for audit and failure triage,
+   - switch high-lane runs to metadata-only lane evidence while preserving full metric-surface proof and explicit final task status:
+     - chosen because it retains auditable lane closure while removing the expensive nonbinding full-log sweep.
+6. Implementation plan pinned:
+   - add explicit lane-log collection modes to `pr3_s1_wsp_replay_dispatch.py`,
+   - default `auto` to metadata-only for high-lane windows,
+   - keep full log parsing for smaller investigative reruns where it is proportionate,
+   - rerun the bounded calibration immediately after the runner budget fix.
+## Entry: 2026-03-06 18:55:00 +00:00 - PR3-S1 canonical high-rate failure now isolated to duplicate-path receipt normalization, not object-store health or edge reachability
+1. After the observed object-store health remediation landed live, I re-read the bounded canonical `PR3-S1` evidence rather than treating the remaining red state as a generic throughput miss.
+2. The high-rate window still failed, but the metric pattern changed materially:
+   - API Gateway `Count` matched `5xx` exactly for the failing bins,
+   - Lambda `Errors` stayed at `0`,
+   - Lambda concurrency remained low relative to the pinned envelope,
+   - Lambda duration after cold start was not showing a uniform full-timeout pattern anymore.
+3. That combination means the ingress edge is executing and returning handled failures, not collapsing from raw saturation.
+4. CloudWatch Lambda logs then exposed the dominant hot-path exception on duplicate/retry handling:
+   - `Schema validation failed for ingestion_receipt.schema.yaml: Decimal('4') is not of type 'integer'`.
+5. The production root cause is specific:
+   - the duplicate path reloads the existing idempotency row from DynamoDB,
+   - DynamoDB materializes numeric members as `Decimal`,
+   - the existing-row `eb_ref.partition` and similar fields are fed back into receipt validation without normalization,
+   - receipt validation correctly rejects `Decimal` because the contract requires integer/string JSON primitives,
+   - the duplicate/retry path then raises inside Lambda and surfaces as API Gateway `503`.
+6. Production judgement:
+   - this is not a harmless serialization quirk,
+   - at target EPS the platform must survive duplicates/retries as a first-class reality,
+   - a retry path that fails schema revalidation under load is a correctness defect and a production throughput defect at the same time because it converts normal duplicate pressure into 5xx amplification.
+7. Alternatives considered:
+   - loosen the receipt schema to accept `Decimal`-like values:
+     - rejected because the contract is JSON-facing and should stay type-clean,
+   - suppress duplicate receipt validation on the hot path:
+     - rejected because it would hide contract drift precisely where at-least-once semantics need deterministic proof,
+   - normalize DynamoDB-returned numeric values back to JSON-native primitives before revalidating and emitting receipts:
+     - chosen because it preserves the schema, preserves duplicate-path determinism, and fixes the real runtime defect without weakening guarantees.
+8. Immediate remediation pinned:
+   - normalize DynamoDB `Decimal` values recursively in the Lambda lookup path,
+   - normalize `eb_ref.partition` to native integer and `offset` to string before duplicate receipt validation,
+   - validate the change with focused ingestion-gate tests,
+   - rebuild and republish the IG Lambda bundle,
+   - rerun the bounded canonical `PR3-S1` window with metadata-only lane evidence and reassess the next real throughput limiter from fresh impact metrics.
+## Entry: 2026-03-06 19:15:00 +00:00 - PR3-S1 redeploy cleared duplicate-path 503s and exposed two remaining health-model defects under real duplicate pressure
+1. After redeploying the IG Lambda with DynamoDB Decimal normalization, the canonical bounded `PR3-S1` rerun changed failure shape again:
+   - `5xx_total` dropped to `0`,
+   - all observed failures became `4xx`,
+   - WSP lane logs now report `IG_PUSH_REJECTED` with a quarantine receipt instead of transport timeout.
+2. That means the duplicate-path schema defect is fixed live; the platform moved to a new, more truthful boundary.
+3. Fresh Lambda logs exposed two distinct implementation defects inside the health path:
+   - `AttributeError: 'NoopOpsIndex' object has no attribute 'probe'`,
+   - `ObservedObjectStore` marked the object store unhealthy after `FileExistsError` from `write_json_if_absent` on governance marker paths.
+4. Production interpretation of defect one:
+   - the Lambda posture intentionally uses a no-op ops index because DDB already owns the live idempotency boundary for this edge,
+   - a no-op implementation that violates the `probe()` contract is a coding defect, not a missing platform dependency,
+   - this defect is currently turning healthy requests into quarantined `4xx` responses.
+5. Production interpretation of defect two:
+   - `write_json_if_absent` conflict on an already-created receipt/quarantine/governance marker is an expected idempotent outcome under retries and fan-out,
+   - treating that as object-store failure poisons health with false negatives,
+   - under production duplicate pressure this would incorrectly gate admission based on benign first-writer-wins collisions.
+6. Alternatives considered:
+   - disable store/ops health entirely for Lambda:
+     - rejected because it removes real protection and hides genuine backing-store failure,
+   - suppress all `FileExistsError` logging globally:
+     - rejected because the outcome should remain observable, just not classified as unhealthy,
+   - implement the missing no-op probe contract and classify `write_json_if_absent` conflicts as healthy idempotent completion while preserving true exceptions as failures:
+     - chosen because it matches the semantics of at-least-once production operation.
+7. Immediate remediation pinned:
+   - restore `lookup_event()` and `probe()` as real `NoopOpsIndex` methods,
+   - teach `ObservedObjectStore` to record `FileExistsError` from `write_json_if_absent` as a benign idempotent success state rather than a health failure,
+   - add focused tests for both behaviors,
+   - rebuild and redeploy the IG Lambda again,
+   - rerun the bounded canonical `PR3-S1` window from the same strict boundary and reassess the next throughput limiter from fresh impact metrics.
+## Entry: 2026-03-06 19:30:00 +00:00 - PR3-S1 now reduced to a true ingress capacity-envelope miss; repin Lambda for measured 3k steady target
+1. The latest bounded canonical `PR3-S1` rerun after the health fixes produced a materially cleaner picture:
+   - `request_count_total = 337410`,
+   - `admitted_request_count = 286502`,
+   - `observed_admitted_eps = 1591.678`,
+   - `5xx_total = 50907`,
+   - `p95 = 474.367 ms`,
+   - `p99 = 1441.531 ms`,
+   - only `5` blockers remain and all are capacity/latency blockers.
+2. CloudWatch runtime metrics isolate the limiter precisely:
+   - Lambda `ConcurrentExecutions` averaged ~`292` and hit `Maximum = 300` in all three measured minutes,
+   - Lambda `Throttles` were `17473`, `16936`, `16498` across the three bins,
+   - the WSP side saw widespread `http_503` retries in the same window.
+3. Production interpretation:
+   - the edge is no longer failing because of broken contracts or false-negative health logic,
+   - the ingress Lambda is simply pinned below the concurrency needed for the declared `3000 eps` steady target,
+   - every further rerun on the current `300` concurrency pin would just restate the same limit and waste budget.
+4. Sizing rationale from live evidence:
+   - at `~1591.7 admitted eps` with `~300` active concurrency, the observed average in-flight service time is roughly `0.188 s` by Little's Law,
+   - sustaining `3000 eps` at that same service time requires about `565` concurrent executions before headroom,
+   - meeting the `p95 <= 350 ms` acceptance target under the same target throughput implies capacity on the order of `1050` concurrent executions for the tail,
+   - therefore the old `300` pin is not merely conservative; it is mathematically inconsistent with the production target.
+5. Repin decision:
+   - `LAMBDA_IG_RESERVED_CONCURRENCY = 1000`,
+   - `LAMBDA_IG_MEMORY_MB = 2048`.
+6. Why this pair is chosen:
+   - reserved concurrency is the current hard limiter and must move close to the measured tail-capacity requirement,
+   - `1000` stays inside the common account-level default envelope while being large enough to remove the current flat throttle wall,
+   - raising memory to `2048` is primarily a CPU/network allocation decision, not a RAM-usage decision, and is intended to lower per-request service time and tail latency without introducing idle spend.
+7. Alternatives considered:
+   - rerun at the same envelope and hope retries smooth it out:
+     - rejected because the throttles prove the envelope itself is too small,
+   - move immediately to a new ingress architecture:
+     - rejected for this boundary because the current canonical architecture is not yet exhausted; its first measured hard limit is simply underprovisioned concurrency,
+   - add provisioned concurrency first:
+     - deferred because the current blocker is steady-state throttle saturation, not primarily cold-start variance; reserved concurrency + CPU uplift is the first truthful correction.
+8. Immediate remediation pinned:
+   - update authority and Terraform defaults to `2048 MB / 1000 reserved concurrency`,
+   - apply the new live Lambda envelope with the current validated bundle still pinned,
+   - rerun bounded canonical `PR3-S1`,
+   - only if throttles remain or latency still misses materially after that do deeper hot-path or architectural changes become the next justified move.
+## Entry: 2026-03-06 19:40:00 +00:00 - PR3-S1 bounded proof at the account's Lambda ceiling shows the remaining gap is quota-bounded, not a hidden semantic defect
+1. After AWS rejected `1000` reserved concurrency, I queried the actual regional account quota and found:
+   - `ConcurrentExecutions = 400`,
+   - required unreserved floor effectively leaves `360` as the highest legal single-function reservation in this account.
+2. I requested a quota increase to `1500` (`Service Quotas` request id `712a9a7a12174f7798304b4b0ad60407M9HoApfX`), status `PENDING`, and did not wait for it.
+3. I then reran the bounded canonical `PR3-S1` window at the account ceiling (`reserved concurrency = 360`, `memory = 2048 MB`).
+4. Impact metrics from that run:
+   - `request_count_total = 441629`,
+   - `admitted_request_count = 423060`,
+   - `observed_admitted_eps = 2350.333`,
+   - `error_rate_ratio = 0.042047`,
+   - `5xx_total = 18568`,
+   - `latency_p95_ms = 351.865`,
+   - `latency_p99_ms = 870.573`.
+5. Production interpretation:
+   - the edge improved materially from the prior `300`-concurrency run (`1591.678 eps -> 2350.333 eps`),
+   - `p95` is now effectively on the acceptance boundary, which strongly suggests the hot path itself is not catastrophically inefficient anymore,
+   - the remaining miss is dominated by the environment-level concurrency ceiling and its resulting residual `503` pressure.
+6. This is the key decision point:
+   - if the quota increase lands and the same architecture scales linearly enough from `360` to the required range, Lambda may still satisfy the production target in a properly sized account,
+   - but in this account the current architecture cannot be fully certified to `3000 eps` because the regional account quota blocks the required concurrency headroom.
+7. Production-minded next move pinned while quota request is pending:
+   - do not waste more bounded reruns on the same account-limited Lambda posture,
+   - evaluate and, if feasible, materialize the existing `ingestion_gate.service` runtime as an ECS service-backed ingress alternative so PR3-S1 is no longer held hostage by the Lambda regional quota in this account,
+   - preserve the current Lambda evidence because it proves the hot path is close and that the blocker has narrowed to capacity governance rather than semantic correctness.

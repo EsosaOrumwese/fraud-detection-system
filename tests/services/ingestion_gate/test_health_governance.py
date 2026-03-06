@@ -1,10 +1,11 @@
 from pathlib import Path
+import pytest
 
 from fraud_detection.ingestion_gate.governance import GovernanceEmitter
 from fraud_detection.ingestion_gate.health import HealthProbe, HealthState
 from fraud_detection.ingestion_gate.ops_index import OpsIndex
 from fraud_detection.ingestion_gate.partitioning import PartitioningProfiles
-from fraud_detection.ingestion_gate.store import LocalObjectStore
+from fraud_detection.ingestion_gate.store import LocalObjectStore, observe_object_store
 from fraud_detection.event_bus import FileEventBusPublisher
 
 
@@ -35,6 +36,77 @@ def test_health_probe_bus_failure_threshold(tmp_path: Path) -> None:
     assert probe.check().state == HealthState.AMBER
     probe.record_publish_failure()
     assert probe.check().state == HealthState.RED
+
+
+def test_health_probe_uses_observed_store_failures(tmp_path: Path) -> None:
+    class FlakyStore:
+        def __init__(self) -> None:
+            self.fail = False
+
+        def write_json(self, relative_path: str, payload: dict) -> object:
+            if self.fail:
+                raise RuntimeError("store_down")
+            return object()
+
+        def write_json_if_absent(self, relative_path: str, payload: dict) -> object:
+            if self.fail:
+                raise RuntimeError("store_down")
+            return object()
+
+        def read_json(self, relative_path: str) -> dict:
+            if self.fail:
+                raise RuntimeError("store_down")
+            return {}
+
+        def write_text(self, relative_path: str, content: str) -> object:
+            if self.fail:
+                raise RuntimeError("store_down")
+            return object()
+
+        def append_jsonl(self, relative_path: str, records: list[dict]) -> object:
+            if self.fail:
+                raise RuntimeError("store_down")
+            return object()
+
+        def exists(self, relative_path: str) -> bool:
+            if self.fail:
+                raise RuntimeError("store_down")
+            return False
+
+    flaky = FlakyStore()
+    store = observe_object_store(flaky)
+    bus = FileEventBusPublisher(tmp_path / "bus")
+    ops = OpsIndex(tmp_path / "ops.db")
+    probe = HealthProbe(store, bus, ops, probe_interval_seconds=0, max_publish_failures=2)
+
+    store.write_json("ok.json", {"ok": True})
+    assert probe.check().state == HealthState.GREEN
+
+    flaky.fail = True
+    try:
+        store.write_json("fail.json", {"ok": False})
+    except RuntimeError:
+        pass
+
+    result = probe.check()
+    assert result.state == HealthState.RED
+    assert "OBJECT_STORE_UNHEALTHY" in result.reasons
+
+
+def test_observed_store_write_if_absent_conflict_is_not_unhealthy(tmp_path: Path) -> None:
+    store = observe_object_store(LocalObjectStore(tmp_path / "store"))
+    bus = FileEventBusPublisher(tmp_path / "bus")
+    ops = OpsIndex(tmp_path / "ops.db")
+    probe = HealthProbe(store, bus, ops, probe_interval_seconds=0, max_publish_failures=2)
+
+    store.write_json_if_absent("markers/seen.json", {"ok": True})
+    with pytest.raises(FileExistsError):
+        store.write_json_if_absent("markers/seen.json", {"ok": True})
+
+    snapshot = store.health_snapshot()
+    assert snapshot.consecutive_failures == 0
+    assert snapshot.last_benign_conflict_operation == "write_json_if_absent"
+    assert probe.check().state == HealthState.GREEN
 
 
 def test_governance_quarantine_spike_emits_once(tmp_path: Path) -> None:
