@@ -14,6 +14,7 @@ from typing import Any, Iterable
 from collections import deque
 
 from fraud_detection.event_bus import EbRecord, EventBusReader
+from fraud_detection.event_bus.kafka import build_kafka_reader
 from fraud_detection.ingestion_gate.config import ClassMap
 from fraud_detection.ingestion_gate.schemas import SchemaRegistry
 from fraud_detection.platform_runtime import RUNS_ROOT
@@ -59,9 +60,11 @@ class IdentityGraphProjector:
         self._replay_manifest: ReplayManifest | None = None
         self._file_reader = None
         self._kinesis_reader = None
+        self._kafka_reader = None
         self._buffers: dict[tuple[str, int], deque[BusRecord]] = {}
         self._file_next_offsets: dict[tuple[str, int], int] = {}
         self._kinesis_next_offsets: dict[tuple[str, int], str | None] = {}
+        self._kafka_next_offsets: dict[tuple[str, int], int] = {}
         self._last_health_emit = 0.0
         self._last_metrics_emit = 0.0
         self._last_reconcile_emit = 0.0
@@ -78,6 +81,8 @@ class IdentityGraphProjector:
                 region=profile.wiring.event_bus_region,
                 endpoint_url=profile.wiring.event_bus_endpoint_url,
             )
+        elif profile.wiring.event_bus_kind == "kafka":
+            self._kafka_reader = build_kafka_reader(client_id=f"ieg-projector-{profile.policy.graph_stream_base}")
         else:
             raise RuntimeError("IEG_EVENT_BUS_KIND_UNSUPPORTED")
 
@@ -95,13 +100,16 @@ class IdentityGraphProjector:
             for topic in topics:
                 for partition in self._file_partitions(topic):
                     processed += self._consume_file_topic(topic, partition)
-        else:
+        elif self.profile.wiring.event_bus_kind == "kinesis":
             fixed_stream = self.profile.wiring.event_bus_stream
             if fixed_stream and str(fixed_stream).lower() not in {"", "auto", "topic"}:
                 processed += self._consume_kinesis_topic(str(fixed_stream))
             else:
                 for topic in topics:
                     processed += self._consume_kinesis_topic(topic)
+        else:
+            for topic in topics:
+                processed += self._consume_kafka_topic(topic)
         self._emit_operational_artifacts()
         return processed
 
@@ -119,10 +127,13 @@ class IdentityGraphProjector:
                 for topic_range in manifest.topics:
                     for partition_range in topic_range.partitions:
                         processed += self._consume_file_topic_range(topic_range, partition_range)
-            else:
+            elif self.profile.wiring.event_bus_kind == "kinesis":
                 for topic_range in manifest.topics:
                     stream_name = self._stream_name(topic_range.topic, override=manifest.stream_id)
                     processed += self._consume_kinesis_topic_range(stream_name, topic_range)
+            else:
+                for topic_range in manifest.topics:
+                    processed += self._consume_kafka_topic_range(topic_range)
         finally:
             self._replay_manifest = None
         return processed
@@ -190,6 +201,16 @@ class IdentityGraphProjector:
             processed += self._drain_buffer(buffer, batch_size=self.profile.wiring.batch_size)
         return processed
 
+    def _consume_kafka_topic(self, topic: str) -> int:
+        assert self._kafka_reader is not None
+        processed = 0
+        for partition in self._kafka_partitions(topic):
+            key = (topic, partition)
+            buffer = self._buffer_for(key)
+            self._fill_kafka_buffer(topic, partition, buffer)
+            processed += self._drain_buffer(buffer, batch_size=self.profile.wiring.batch_size)
+        return processed
+
     def _consume_kinesis_topic_range(self, stream: str, topic_range: ReplayTopicRange) -> int:
         assert self._kinesis_reader is not None
         shard_ids = self._kinesis_reader.list_shards(stream)
@@ -205,6 +226,17 @@ class IdentityGraphProjector:
                 shard_id=shard_id,
                 partition_range=partition_range,
             )
+        return processed
+
+    def _consume_kafka_topic_range(self, topic_range: ReplayTopicRange) -> int:
+        assert self._kafka_reader is not None
+        partition_map = {partition: partition for partition in self._kafka_partitions(topic_range.topic)}
+        processed = 0
+        for partition_range in topic_range.partitions:
+            partition = partition_map.get(partition_range.partition)
+            if partition is None:
+                raise RuntimeError(f"KAFKA_PARTITION_MISSING partition={partition_range.partition}")
+            processed += self._consume_kafka_partition_range(topic=topic_range.topic, partition_range=partition_range)
         return processed
 
     def _consume_kinesis_partition_range(
@@ -248,6 +280,52 @@ class IdentityGraphProjector:
                 processed += 1
                 cursor = sequence
                 if end_offset is not None and _sequence_equal_or_after(sequence, end_offset):
+                    return processed
+            if len(records) < self.profile.wiring.poll_max_records:
+                break
+        return processed
+
+    def _consume_kafka_partition_range(self, *, topic: str, partition_range: ReplayPartitionRange) -> int:
+        assert self._kafka_reader is not None
+        start_offset = _coerce_kafka_offset(partition_range.from_offset, default=0)
+        end_offset = _coerce_kafka_offset(partition_range.to_offset, default=None)
+        if end_offset is not None and start_offset > end_offset:
+            return 0
+        processed = 0
+        cursor = start_offset
+        while True:
+            records = self._kafka_reader.read(
+                topic=topic,
+                partition=partition_range.partition,
+                from_offset=cursor,
+                limit=self.profile.wiring.poll_max_records,
+                start_position="earliest",
+            )
+            if not records:
+                break
+            for record in records:
+                offset = record.get("offset")
+                if offset is None:
+                    continue
+                current_offset = int(offset)
+                if end_offset is not None and current_offset > end_offset:
+                    return processed
+                envelope = record.get("payload")
+                if not isinstance(envelope, dict):
+                    cursor = current_offset + 1
+                    continue
+                bus_record = BusRecord(
+                    topic=topic,
+                    partition=partition_range.partition,
+                    offset=str(current_offset),
+                    offset_kind="kafka_offset",
+                    payload=envelope,
+                    published_at_utc=record.get("published_at_utc"),
+                )
+                self._process_record(bus_record)
+                processed += 1
+                cursor = current_offset + 1
+                if end_offset is not None and current_offset >= end_offset:
                     return processed
             if len(records) < self.profile.wiring.poll_max_records:
                 break
@@ -367,6 +445,54 @@ class IdentityGraphProjector:
         if last_sequence:
             self._kinesis_next_offsets[key] = last_sequence
 
+    def _fill_kafka_buffer(self, topic: str, partition: int, buffer: deque[BusRecord]) -> None:
+        assert self._kafka_reader is not None
+        max_inflight = self.profile.wiring.max_inflight
+        if len(buffer) >= max_inflight:
+            self._record_backpressure(topic, partition, len(buffer))
+            return
+        key = (topic, partition)
+        from_offset = self._kafka_next_offsets.get(key)
+        if from_offset is None:
+            checkpoint = self.store.get_checkpoint(topic=topic, partition=partition)
+            if checkpoint and checkpoint.offset_kind == "kafka_offset":
+                checkpoint_offset = _coerce_kafka_offset(checkpoint.next_offset, default=None)
+                from_offset = None if checkpoint_offset is None else checkpoint_offset + 1
+        read_max = min(self.profile.wiring.poll_max_records, max_inflight - len(buffer))
+        if read_max <= 0:
+            return
+        records = self._kafka_reader.read(
+            topic=topic,
+            partition=partition,
+            from_offset=from_offset,
+            limit=read_max,
+            start_position="earliest",
+        )
+        if not records:
+            return
+        last_offset = from_offset
+        for record in records:
+            offset = record.get("offset")
+            if offset is None:
+                continue
+            current_offset = int(offset)
+            last_offset = current_offset
+            envelope = record.get("payload")
+            if not isinstance(envelope, dict):
+                continue
+            buffer.append(
+                BusRecord(
+                    topic=topic,
+                    partition=partition,
+                    offset=str(current_offset),
+                    offset_kind="kafka_offset",
+                    payload=envelope,
+                    published_at_utc=record.get("published_at_utc"),
+                )
+            )
+        if last_offset is not None:
+            self._kafka_next_offsets[key] = int(last_offset) + 1
+
     def _drain_buffer(self, buffer: deque[BusRecord], *, batch_size: int) -> int:
         processed = 0
         count = min(len(buffer), max(1, batch_size))
@@ -393,6 +519,11 @@ class IdentityGraphProjector:
             self._process_record(bus_record)
             processed += 1
         return processed
+
+    def _kafka_partitions(self, topic: str) -> list[int]:
+        assert self._kafka_reader is not None
+        partitions = self._kafka_reader.list_partitions(topic)
+        return partitions if partitions else [0]
 
     def _process_record(self, record: BusRecord) -> ApplyResult:
         envelope = record.payload
@@ -747,6 +878,15 @@ def _partition_id_from_shard(shard_id: str) -> int:
 
 
 def _coerce_file_offset(value: str | None, *, default: int | None) -> int | None:
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _coerce_kafka_offset(value: str | None, *, default: int | None) -> int | None:
     if value is None:
         return default
     try:

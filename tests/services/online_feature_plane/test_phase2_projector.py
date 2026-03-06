@@ -93,7 +93,7 @@ def _write_features(path: Path) -> None:
     path.write_text(json.dumps(payload), encoding="utf-8")
 
 
-def _write_profile(path: Path, *, bus_root: Path, db_path: Path, topics: list[str]) -> None:
+def _write_profile(path: Path, *, bus_root: Path, db_path: Path, topics: list[str], event_bus_kind: str = "file") -> None:
     features_path = path.parent / "features.json"
     _write_features(features_path)
     profile = {
@@ -108,7 +108,7 @@ def _write_profile(path: Path, *, bus_root: Path, db_path: Path, topics: list[st
             },
             "wiring": {
                 "projection_db_dsn": str(db_path),
-                "event_bus_kind": "file",
+                "event_bus_kind": event_bus_kind,
                 "required_platform_run_id": "platform_20260206T000000Z",
                 "event_bus": {
                     "root": str(bus_root),
@@ -352,6 +352,85 @@ def test_projector_file_bus_supports_multiple_topics_and_topic_metrics(tmp_path)
     assert basis["stream"] == "multi"
     assert {"topic": traffic_topic, "partition": 0, "offset": "1"} in basis["offsets"]
     assert {"topic": context_topic, "partition": 0, "offset": "1"} in basis["offsets"]
+
+
+def test_projector_kafka_bus_updates_state_and_checkpoint(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+    topic = "fp.bus.traffic.fraud.v1"
+    db_path = tmp_path / "ofp_projection.db"
+    profile_path = tmp_path / "profile.json"
+    _write_profile(profile_path, bus_root=tmp_path / "unused", db_path=db_path, topics=[topic], event_bus_kind="kafka")
+
+    class FakeKafkaReader:
+        def __init__(self) -> None:
+            self.rows = {
+                (topic, 0): [
+                    {
+                        "offset": 0,
+                        "payload": _envelope(
+                            event_id="a" * 64,
+                            ts_utc="2026-02-06T00:00:01.000000Z",
+                            flow_id="flow-kafka",
+                            amount=10.0,
+                        ),
+                        "published_at_utc": "2026-02-06T00:00:01.000000Z",
+                    },
+                    {
+                        "offset": 1,
+                        "payload": _envelope(
+                            event_id="b" * 64,
+                            ts_utc="2026-02-06T00:00:02.000000Z",
+                            flow_id="flow-kafka",
+                            amount=5.0,
+                        ),
+                        "published_at_utc": "2026-02-06T00:00:02.000000Z",
+                    },
+                ]
+            }
+
+        def list_partitions(self, topic_name: str) -> list[int]:
+            assert topic_name == topic
+            return [0]
+
+        def read(
+            self,
+            *,
+            topic: str,
+            partition: int,
+            from_offset: int | None,
+            limit: int,
+            start_position: str = "earliest",
+        ) -> list[dict[str, object]]:
+            rows = list(self.rows.get((topic, partition), []))
+            if from_offset is None:
+                start = 0 if start_position == "earliest" else len(rows)
+            else:
+                start = int(from_offset)
+            return [row for row in rows if int(row["offset"]) >= start][:limit]
+
+    monkeypatch.setattr(
+        "fraud_detection.online_feature_plane.projector.build_kafka_reader",
+        lambda *, client_id: FakeKafkaReader(),
+    )
+
+    projector = OnlineFeatureProjector.build(str(profile_path))
+    assert projector.run_once() == 2
+    assert projector.run_once() == 0
+
+    state = projector.store.get_group_state(
+        platform_run_id="platform_20260206T000000Z",
+        scenario_run_id="a" * 32,
+        key_type="flow_id",
+        key_id="flow-kafka",
+        group_name="core_features",
+        group_version="v1",
+    )
+    assert state is not None
+    assert state["event_count"] == 2
+    assert state["amount_sum"] == 15.0
+
+    basis = projector.store.input_basis()
+    assert basis is not None
+    assert basis["offsets"] == [{"topic": topic, "partition": 0, "offset": "1"}]
 
 
 @pytest.mark.parametrize("event_type", ["decision_response", "action_intent", "action_outcome"])

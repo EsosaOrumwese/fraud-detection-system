@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from fraud_detection.event_bus import EventBusReader
+from fraud_detection.event_bus.kafka import build_kafka_reader
 from fraud_detection.ingestion_gate.schemas import SchemaRegistry
 
 from .config import OfpProfile
@@ -67,6 +68,7 @@ class OnlineFeatureProjector:
         self.envelope_registry = SchemaRegistry(Path(profile.wiring.engine_contracts_root))
         self._file_reader = None
         self._kinesis_reader = None
+        self._kafka_reader = None
         if profile.wiring.event_bus_kind == "file":
             root = profile.wiring.event_bus_root or "runs/fraud-platform/eb"
             self._file_reader = EventBusReader(Path(root))
@@ -78,6 +80,8 @@ class OnlineFeatureProjector:
                 region=profile.wiring.event_bus_region,
                 endpoint_url=profile.wiring.event_bus_endpoint_url,
             )
+        elif profile.wiring.event_bus_kind == "kafka":
+            self._kafka_reader = build_kafka_reader(client_id=f"ofp-projector-{profile.policy.stream_id_base}")
         else:
             raise RuntimeError("OFP_EVENT_BUS_KIND_UNSUPPORTED")
         self._scenario_run_id: str | None = None
@@ -99,8 +103,12 @@ class OnlineFeatureProjector:
             self._maybe_export_observability(force=processed > 0)
             return processed
         processed = 0
-        for topic in topics:
-            processed += self._consume_kinesis_topic(topic)
+        if self.profile.wiring.event_bus_kind == "kinesis":
+            for topic in topics:
+                processed += self._consume_kinesis_topic(topic)
+        else:
+            for topic in topics:
+                processed += self._consume_kafka_topic(topic)
         self._maybe_export_observability(force=processed > 0)
         return processed
 
@@ -156,6 +164,41 @@ class OnlineFeatureProjector:
                     partition=partition,
                     offset=str(record.get("sequence_number") or ""),
                     offset_kind="kinesis_sequence",
+                    payload=record.get("payload") if isinstance(record.get("payload"), dict) else {},
+                    published_at_utc=record.get("published_at_utc"),
+                )
+                self._process_record(bus_record)
+                processed += 1
+        return processed
+
+    def _consume_kafka_topic(self, topic: str) -> int:
+        assert self._kafka_reader is not None
+        processed = 0
+        for partition in self._kafka_partitions(topic):
+            checkpoint = self.store.get_checkpoint(topic=topic, partition=partition)
+            from_offset: int | None = None
+            if checkpoint and checkpoint.offset_kind == "kafka_offset":
+                checkpoint_offset = _coerce_kafka_offset(checkpoint.next_offset, default=None)
+                from_offset = None if checkpoint_offset is None else checkpoint_offset + 1
+            start_position = "earliest"
+            if checkpoint is None and self.profile.wiring.event_bus_start_position == "latest":
+                start_position = "latest"
+            records = self._kafka_reader.read(
+                topic=topic,
+                partition=partition,
+                from_offset=from_offset,
+                limit=self.profile.wiring.poll_max_records,
+                start_position=start_position,
+            )
+            for record in records:
+                offset = record.get("offset")
+                if offset is None:
+                    continue
+                bus_record = BusRecord(
+                    topic=topic,
+                    partition=partition,
+                    offset=str(offset),
+                    offset_kind="kafka_offset",
                     payload=record.get("payload") if isinstance(record.get("payload"), dict) else {},
                     published_at_utc=record.get("published_at_utc"),
                 )
@@ -310,6 +353,11 @@ class OnlineFeatureProjector:
             return [0]
         return sorted(set(partitions))
 
+    def _kafka_partitions(self, topic: str) -> list[int]:
+        assert self._kafka_reader is not None
+        partitions = self._kafka_reader.list_partitions(topic)
+        return partitions if partitions else [0]
+
     def _maybe_export_observability(self, *, force: bool) -> None:
         if not self._scenario_run_id:
             return
@@ -414,6 +462,15 @@ def _partition_id_from_shard(shard_id: str) -> int:
         return int(shard_id.split("-")[-1])
     except ValueError:
         return 0
+
+
+def _coerce_kafka_offset(value: str | None, *, default: int | None) -> int | None:
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
 
 
 def main() -> None:

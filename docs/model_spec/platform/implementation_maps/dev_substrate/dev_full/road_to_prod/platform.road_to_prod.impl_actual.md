@@ -3160,3 +3160,100 @@ Reasoning:
 - Closure decision:
   - `PR3-S1` is now legitimately closed because the platform cleared the unchanged production target on the authoritative surface,
   - the small source overdrive is recorded as calibration of the test rig, not as relaxation of the platform standard.
+### 2026-03-06 10:35:00 +00:00 - PR3 runtime authority drift discovered: ingress was exercised, RTDL hot path was not materially running
+- While planning `PR3-S2`, I checked the live managed/runtime surfaces instead of assuming the earlier `PR3-S1` ingress closure implied end-to-end runtime readiness.
+- Findings:
+  - live Managed Flink app `fraud-platform-dev-full-rtdl-ieg-ofp-v0` exists but is only in `ApplicationStatus=READY`, not `RUNNING`,
+  - the app currently has default shell configuration only (checkpoint interval/parallelism), with no deployed application code description visible,
+  - EKS cluster `fraud-platform-dev-full` exists and namespace `fraud-platform-rtdl` exists, but there are no RTDL workloads running in it,
+  - the only live ECS cluster is `fraud-platform-dev-full-wsp-ephemeral`, which is the ingress harness, not the stream compute lane.
+- Production consequence:
+  - the prior `PR3-S1` result is valid as an ingress-capacity proof on the authoritative IG surface,
+  - but it is not sufficient evidence for the full RTDL hot path because the downstream stream-processing lane is not materially active.
+- Decision:
+  - do not hide this by pretending `PR3-S2` can certify lag/checkpoint/backpressure against a non-running stream lane,
+  - treat this as a real production-readiness defect and remediate the runtime data plane before advancing the PR3 chain.
+### 2026-03-06 10:40:00 +00:00 - Root-cause decomposition of the missing RTDL runtime lane
+- The issue is not just "the app is stopped". The deeper problem is a three-part implementation gap:
+  1. managed Flink cutover only proved materialization of the app shell, not a running RTDL workload,
+  2. the dev_full substrate has no always-on RTDL workloads materialized in EKS or ECS,
+  3. the RTDL projection components (`IEG`, `OFP`) are not currently MSK-capable in code.
+- Code inspection shows:
+  - `decision_fabric`, `action_layer`, `decision_log_audit`, and `case_trigger` already support `event_bus_kind=kafka`,
+  - `archive_writer` supports `event_bus_kind=kafka`,
+  - `identity_entity_graph` and `online_feature_plane` still only support `file|kinesis` and therefore cannot consume the live dev_full Kafka/MSK traffic bus.
+- Why this matters in production terms:
+  - even if I launch remote jobs on EKS today, the RTDL projection lane will not consume the real production bus,
+  - so any scorecard built on top of the current projector code would still be structurally false.
+- Remediation plan adopted:
+  - add first-class Kafka/MSK reader support to `IEG` and `OFP`,
+  - wire dev_full runtime profiles/launchers for RTDL core on remote compute,
+  - materialize the RTDL lane in EKS,
+  - then re-run the PR3 chain from the earliest state whose claim depended on a materially active hot path.
+### 2026-03-06 10:52:00 +00:00 - Pre-change design for IEG/OFP Kafka support on the managed RTDL lane
+- Problem being solved:
+  - the live dev_full transport spine is Kafka/MSK,
+  - `IEG` and `OFP` are still pinned in code to `file|kinesis`,
+  - therefore the managed RTDL lane cannot consume the same authoritative admitted-event traffic already used by the other runtime workers.
+- Why this must be fixed in code before more PR3 execution:
+  - `PR3-S2` onward is supposed to measure burst handling, lag, checkpoint behavior, and state freshness under the real hot path,
+  - without Kafka/MSK reader support in `IEG`/`OFP`, any downstream runtime proof would be structurally false even if ingress remains green.
+- Candidate solutions considered:
+  - `A` repin RTDL back to Kinesis or file replay:
+    - rejected because it would move the runtime away from the live dev_full substrate and produce non-production evidence.
+  - `B` rely on an external bridge from Kafka to Kinesis just for `IEG`/`OFP`:
+    - rejected because it adds an unnecessary extra failure surface and latency surface for a problem already solved in-repo by other workers.
+  - `C` add first-class Kafka/MSK consumption to `IEG` and `OFP` by reusing the existing `build_kafka_reader` adapter and existing checkpoint semantics:
+    - accepted because it preserves transport uniformity across the RTDL lane, keeps the dev_full substrate coherent, and minimizes new code by following proven worker patterns already present in `DF`, `AL`, `DLA`, `CT`, and `Archive Writer`.
+- Performance and correctness design:
+  - use the shared Kafka reader already used elsewhere rather than building bespoke consumer logic,
+  - preserve checkpoint semantics by storing `kafka_offset` as the committed record offset and letting the store advance to `offset+1` where those stores already treat `kafka_offset` as incrementing offsets,
+  - preserve run-scope filters and replay manifest gates exactly as file/kinesis paths already do,
+  - preserve `poll_max_records`, `max_inflight`, and `batch_size` controls so no new unbounded memory posture is introduced.
+- Planned mechanics:
+  - `identity_entity_graph/projector.py`
+    - add Kafka reader initialization,
+    - add normal streaming consumption by topic/partition,
+    - add replay-manifest partition range consumption by Kafka offset,
+    - reuse existing buffer/drain logic so batch behavior remains consistent across transports.
+  - `online_feature_plane/projector.py`
+    - add Kafka reader initialization,
+    - add normal streaming consumption by topic/partition using the existing checkpoint store,
+    - honor `event_bus_start_position` only when no checkpoint exists.
+- Validation plan:
+  - add focused unit tests that monkeypatch the Kafka reader rather than requiring a live broker,
+  - verify that `IEG` and `OFP` process Kafka rows, persist state, and advance checkpoints with `offset_kind=kafka_offset`,
+  - then move to remote materialization of the RTDL lane.
+- Production-standard rationale:
+  - this is not a convenience refactor to make `PR3` pass,
+  - it is the minimal substrate correction required for the managed RTDL path to consume the same high-eps authoritative bus the rest of the platform already uses.
+### 2026-03-06 11:08:00 +00:00 - Kafka/MSK support implemented and validated for IEG/OFP
+- Code changes completed:
+  - `src/fraud_detection/identity_entity_graph/projector.py`
+    - added Kafka reader initialization via `build_kafka_reader`,
+    - added normal topic/partition consumption,
+    - added replay-manifest Kafka partition-range consumption,
+    - added Kafka partition discovery and buffered Kafka draining.
+  - `src/fraud_detection/online_feature_plane/projector.py`
+    - added Kafka reader initialization via `build_kafka_reader`,
+    - added normal topic/partition consumption and partition discovery,
+    - kept observability export behavior unchanged.
+- Important checkpoint finding surfaced during validation:
+  - the `IEG` and `OFP` stores do **not** normalize `kafka_offset` to `offset+1`;
+  - they persist the **last consumed Kafka offset**,
+  - therefore the consumer must resume from `checkpoint+1` when a Kafka checkpoint already exists.
+- Why I preserved that contract instead of changing the stores:
+  - changing store semantics would ripple into graph/input-basis receipts and historical meaning of persisted offsets,
+  - the safer production move is to honor the established store contract at the reader edge.
+- Additional correctness decision:
+  - `IEG` first-read Kafka posture was set to `earliest` when no checkpoint exists,
+  - because `IEG` has no explicit start-position config and defaulting to `latest` would silently drop the pre-existing admitted stream during first materialization.
+- Validation executed:
+  - `py_compile` on the modified projectors and tests,
+  - focused projector tests:
+    - `tests/services/identity_entity_graph/test_projector_determinism.py`
+    - `tests/services/online_feature_plane/test_phase2_projector.py`
+  - result: `18 passed`.
+- Impact on the production path:
+  - the RTDL projection code is now transport-compatible with the live dev_full MSK spine,
+  - next step is to materialize the remote RTDL workers and then resume PR3 on the actual hot path.
