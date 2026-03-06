@@ -4494,3 +4494,39 @@ Reasoning:
    - patch the workflow apply step to use targeted Terraform apply for those three resources,
    - rerun RC2.R2 again,
    - if the targeted uplift succeeds, capture/readback and move back to canonical `PR3-S1`.
+## Entry: 2026-03-06 18:09:00 +00:00 - RC2.R2 closed green with truthful live-edge evidence; PR3-S1 resumption plan pinned
+1. Authoritative RC2.R2 run:
+   - workflow run: `22772124603`
+   - execution id: `rc2_r2_capacity_envelope_20260306T162513Z`
+   - verdict: `overall_pass=true`, `blocker_count=0`, `next_gate=READY_FOR_RC2_R5`.
+2. Live pre/post envelope evidence shows the edge is now materially pinned at the required production posture:
+   - APIGW stage `ehwznd2uw7/v1`: `rate=3000.0 rps`, `burst=6000`,
+   - Lambda `fraud-platform-dev-full-ig-handler`: `memory=1024 MB`, `timeout=30 s`, `reserved_concurrency=300`,
+   - Lambda env pins verified live:
+     - `KAFKA_REQUEST_TIMEOUT_MS=1500`,
+     - `IG_POLICY_ACTIVATION_AUDIT_MODE=store_only`,
+   - EKS nodegroup `fraud-platform-dev-full-m6f-workers`: `desired/min/max=4/2/8`, `instance_types=["t3.xlarge"]`, `status=ACTIVE`.
+3. Evidence quality is also green:
+   - `iam_read_errors=[]` pre and post,
+   - `rc2_r2_blocker_register.json` is empty,
+   - S3 readback receipt recorded `overall_readback_ok=true` for all five authoritative artifacts.
+4. Important design correction that made this closure truthful:
+   - RC2.R2 managed apply is now scoped to the capacity-defining surfaces only (`APIGW stage`, `IG Lambda`, `M6F node group`),
+   - this prevents unrelated runtime-module drift from contaminating the ingress-capacity gate,
+   - while preserving strict live verification on the actual edge resources.
+5. Production interpretation:
+   - the ingress edge envelope is no longer an unverified assumption,
+   - PR3-S1 can now resume from a truthful boundary where ingress throttling, Lambda concurrency, and supporting worker capacity are all pinned to the required target.
+6. PR3-S1 resumption decision:
+   - resume canonical remote `WSP` replay from the same strict `pr3_20260306T021900Z` boundary,
+   - use the refreshed WSP image digest `sha256:619f45f27db151c8cda0b1c0e574b670e4def8bfd874fae8a39133645dba27a2`,
+   - use the last valid high-throughput calibration family as the starting point:
+     - `lane_count=138`,
+     - `stream_speedup=95.0`,
+     - `target_steady_eps=3000`,
+     - `duration_seconds=1800`,
+     - `min_sample_events=5400000`.
+7. Reason for choosing that resumption point:
+   - `138 @ 95.0` was the last canonical configuration that previously cleared the throughput gate before the ingress hot-path invalidation,
+   - the invalidation has now been corrected at the edge envelope,
+   - therefore the correct next action is a direct rerun at the last credible calibration point rather than redoing low-speed exploratory underdrive runs.
