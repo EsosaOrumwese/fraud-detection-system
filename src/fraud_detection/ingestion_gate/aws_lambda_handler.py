@@ -15,6 +15,7 @@ from types import SimpleNamespace
 from typing import Any
 
 import boto3
+from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
 
 from fraud_detection.event_bus.kafka import build_kafka_publisher
@@ -49,7 +50,12 @@ PROTECTED_ROUTES = {
     ("POST", "/ingest/push"),
 }
 
-_SSM_CLIENT = boto3.client("ssm")
+_AWS_CONTROL_PLANE_CONFIG = Config(
+    connect_timeout=2,
+    read_timeout=5,
+    retries={"max_attempts": 2, "mode": "standard"},
+)
+_SSM_CLIENT = boto3.client("ssm", config=_AWS_CONTROL_PLANE_CONFIG)
 _SQS_CLIENT = boto3.client("sqs")
 _DDB_RESOURCE = boto3.resource("dynamodb")
 
@@ -189,9 +195,11 @@ def _load_expected_api_key() -> tuple[str | None, str | None]:
     ):
         return str(_API_KEY_CACHE["value"]), None
 
+    LOGGER.info("IG auth cache miss; resolving api key from SSM path=%s", api_key_path)
     try:
         response = _SSM_CLIENT.get_parameter(Name=api_key_path, WithDecryption=True)
     except (BotoCoreError, ClientError) as exc:
+        LOGGER.exception("IG api key resolution failed path=%s", api_key_path)
         return None, f"ssm_get_parameter_failed:{type(exc).__name__}"
     value = response.get("Parameter", {}).get("Value") if isinstance(response, dict) else None
     if not value:
@@ -199,6 +207,7 @@ def _load_expected_api_key() -> tuple[str | None, str | None]:
     _API_KEY_CACHE["path"] = api_key_path
     _API_KEY_CACHE["value"] = value
     _API_KEY_CACHE["loaded_at_epoch"] = now
+    LOGGER.info("IG auth cache refresh succeeded path=%s ttl_seconds=%s", api_key_path, ttl_seconds)
     return str(value), None
 
 
@@ -566,12 +575,16 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     if (method, path) not in PROTECTED_ROUTES:
         return _response(404, {"error": "route_not_found", "path": path, "method": method})
 
+    if method == "GET" and path == "/ops/health":
+        LOGGER.info("IG health request received")
+
     headers = _extract_headers(event if isinstance(event, dict) else {})
     auth_context, auth_failure = _authorize(headers)
     if auth_failure is not None:
         return auth_failure
 
     if method == "GET" and path == "/ops/health":
+        LOGGER.info("IG health request authorized; returning static health envelope")
         return _health_response()
 
     body_size = _body_size_bytes(event if isinstance(event, dict) else {})

@@ -4004,3 +4004,22 @@ Reasoning:
 9. Follow-on expectation:
    - once the SSM endpoint is live, `/ops/health` should stop timing out and return a real HTTP result,
    - the next remaining blocker, if any, should be inside explicit application logic rather than hidden network starvation.
+## Entry: 2026-03-06 19:24:00 +00:00 - Health/auth control-plane dependencies are now latency-bounded and instrumented for truthful ingress diagnosis
+1. Even after the SSM endpoint was materialized, `/ops/health` continued to time out at the Lambda timeout boundary.
+2. Given the handler path, that stall can only occur before the static health payload is returned, most likely in API-key resolution via SSM.
+3. Production issue with the previous implementation:
+   - the SSM client inherited broad default botocore timeouts,
+   - a control-plane dependency stall could therefore consume the entire 30-second Lambda budget,
+   - this is unacceptable for both health diagnosis and high-EPS ingress posture.
+4. Correction applied in `aws_lambda_handler.py`:
+   - added a bounded botocore config for SSM (`connect_timeout=2`, `read_timeout=5`, retries capped),
+   - added low-cardinality INFO logs around health-route entry and API-key cache refresh.
+5. Why this is production-correct:
+   - health/auth control-plane calls should fail fast and surface explicit reasons,
+   - bounded dependency latency prevents hidden 30-second stalls from masking root causes,
+   - the added logs are not high-cardinality and are scoped to diagnosis-critical transitions.
+6. Validation:
+   - `py_compile` passed,
+   - source import of the handler still succeeds.
+7. Expected next result:
+   - either `/ops/health` returns `200`, or the next failure surfaces as an explicit SSM/client/auth error rather than a blind timeout.
