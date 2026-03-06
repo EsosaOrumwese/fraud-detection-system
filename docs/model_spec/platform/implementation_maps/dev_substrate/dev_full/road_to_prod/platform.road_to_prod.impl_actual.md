@@ -4093,3 +4093,28 @@ Reasoning:
    - rerun canonical PR3-S1 on that refreshed image,
    - remediate any further real runtime defects without dropping back to noncanonical paths,
    - only then advance to PR3-S2 and beyond.
+## Entry: 2026-03-06 14:31:49 +00:00 - The packaging lane itself had an execution defect: optional S3 evidence upload was able to invalidate a successful immutable build
+1. I dispatched `dev_full_m1_packaging` on `cert-platform` to refresh the immutable image for PR3.
+2. The build/push portion succeeded and published a new digest:
+   - image tag: `git-f0a7707d2e066e0c8899eb9e82fc1b61a308e2a3-run-22767772233`
+   - image digest: `sha256:d0817106b09769503072bc1a8a3372e3db67d186b75d54b064870e6f7a5a4292`
+3. The workflow still concluded `failure`, but the failure was not in packaging correctness:
+   - the only failing step was `Optional direct upload to S3 evidence bucket`,
+   - it hard-failed on `HeadBucket 403 Forbidden`,
+   - that happened after the image digest had already been resolved and after the CI-local evidence files had already been written.
+4. Production interpretation:
+   - the lane semantics were wrong,
+   - a secondary evidence-export path must not invalidate the primary contract result when the core outputs already exist,
+   - otherwise execution time is wasted and the run registry becomes noisier than the actual system health.
+5. Corrective decision:
+   - keep direct S3 upload best-effort,
+   - if the workflow role cannot read the requested bucket, emit a warning and continue,
+   - keep the artifact-pack upload step active so the CI evidence remains retrievable from GitHub even when S3 access is intentionally narrower.
+6. Why this is the production-grade correction:
+   - it preserves immutable build truth,
+   - it avoids false-red workflow posture,
+   - it keeps evidence export strict where it matters (artifact creation) and tolerant where the path is auxiliary (secondary copy).
+7. Immediate next move after this fix:
+   - rerun the packaging workflow cleanly on `cert-platform`,
+   - use the same immutable digest or the rerun digest to drive the canonical PR3-S1 lane,
+   - continue execution from the truthful remote replay path.

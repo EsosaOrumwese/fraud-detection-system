@@ -530,11 +530,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          aws s3api head-bucket --bucket "${{ inputs.s3_evidence_bucket }}" --region "${{ inputs.aws_region }}" > /dev/null
-          aws s3 cp \
-            "evidence/runs/${{ inputs.platform_run_id }}/P(-1)/" \
-            "s3://${{ inputs.s3_evidence_bucket }}/evidence/runs/${{ inputs.platform_run_id }}/P(-1)/" \
-            --recursive
+          if aws s3api head-bucket --bucket "${{ inputs.s3_evidence_bucket }}" --region "${{ inputs.aws_region }}" > /dev/null 2>&1; then
+            aws s3 cp \
+              "evidence/runs/${{ inputs.platform_run_id }}/P(-1)/" \
+              "s3://${{ inputs.s3_evidence_bucket }}/evidence/runs/${{ inputs.platform_run_id }}/P(-1)/" \
+              --recursive
+          else
+            echo "::warning::Skipping direct S3 evidence upload because bucket '${{ inputs.s3_evidence_bucket }}' is not readable from this workflow role."
+          fi
 
       - name: Upload CI evidence artifact pack
         uses: actions/upload-artifact@v4
