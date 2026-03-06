@@ -159,7 +159,7 @@ resource "aws_vpc_endpoint" "runtime_interface" {
   vpc_id              = local.vpc_id
   service_name        = "com.amazonaws.${var.aws_region}.${each.value}"
   vpc_endpoint_type   = "Interface"
-  private_dns_enabled = true
+  private_dns_enabled = each.value == "execute-api" ? false : true
   subnet_ids          = local.private_subnet_ids
   security_group_ids  = [aws_security_group.runtime_endpoints.id]
 

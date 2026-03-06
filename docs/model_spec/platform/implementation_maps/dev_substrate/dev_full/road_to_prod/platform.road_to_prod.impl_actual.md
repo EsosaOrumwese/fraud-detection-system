@@ -2948,3 +2948,215 @@ Reasoning:
 ### Governance
 1. No branch operation.
 2. Active-branch commit/push is allowed and expected after meaningful progress.
+
+## Entry: 2026-03-06 07:34:31 +00:00 - First shaped bounded run cleared 429s and exposed a steady-window accounting defect
+### What the first shaped run proved
+1. Deterministic sender-side shaping removed the prior `429` problem completely.
+2. The bounded run produced:
+   - admitted request count `746,559`
+   - `4xx_total=0`
+   - `5xx_total=0`
+3. The only remaining blocker was final steady-rate shortfall (`2745.237 eps` vs `3000 eps`).
+
+### Additional diagnosis
+1. The runtime summary still anchored elapsed steady time to the latest observed task `started_at` timestamp.
+2. That is still too early for the real certification window because the run should start when the whole fleet is confirmed `RUNNING`, not when some tasks were merely started by ECS.
+3. This undercounts true steady throughput by including ramp and ECS state-propagation time in the denominator.
+
+### Chosen correction
+1. Keep sender-side shaping because it has already eliminated avoidable error traffic.
+2. Move the canonical steady-window start to the moment the full fleet is confirmed `RUNNING`.
+3. Keep `fleet_started_utc` as a separate field for auditability so ramp characteristics are not hidden.
+4. Rerun the same shaped bounded window immediately after this accounting fix before changing rate targets again.
+
+## Entry: 2026-03-06 07:48:40 +00:00 - Certification window end must be the stop-request boundary, not ECS stop completion
+### Additional diagnostic result
+1. The shaped runs still showed inflated elapsed windows relative to the declared 180-second certification duration.
+2. Root cause is the same class of accounting issue as the start boundary:
+   - the dispatcher was using the latest ECS `stopped_at` timestamp as the performance end,
+   - but Fargate task termination lags the actual moment the certification window is closed,
+   - so the denominator included post-window shutdown time.
+
+### Production interpretation
+1. For a bounded certification window, the valid performance interval is:
+   - start: full-fleet confirmed `RUNNING`,
+   - end: the instant the window is intentionally closed (`stop_task` issuance or early-cutoff decision).
+2. Measuring through container shutdown would understate throughput and distort error accounting.
+
+### Chosen correction
+1. Record `window_closed_at` at the exact moment the run closes.
+2. Query CloudWatch metrics only through that boundary.
+3. Keep task stop timestamps only as operational teardown evidence, not as the hot-path performance end marker.
+4. Rerun the exact same shaped bounded window after this correction before any further target changes.
+### 2026-03-06 08:18:00 +00:00 - PR3-S1 regression analysis before next rerun
+- Problem under analysis:
+  - the latest bounded `PR3-S1` rerun dropped from the prior `2934.068 eps` posture to `1991.749 eps` admitted with zero `4xx`/`5xx`.
+  - this is inconsistent with the immediately prior shaped run and points to a measurement/control regression rather than a new ingress-capacity collapse.
+- Findings:
+  - the dispatcher still computes `window_end` from submit-time launch rather than from `active_confirmed_at`, so the declared 180-second steady window can be truncated materially by fleet start latency.
+  - the canonical dispatcher default still advertises `assignPublicIp=ENABLED`, which contradicts the intended private-subnet posture and makes the runtime contract drift-prone.
+- Production-standard decision:
+  - fix the duration anchor first; the steady contract must be measured from the moment the full fleet is confirmed active, not from orchestration submit time.
+  - repin the dispatcher default to private-subnet execution (`DISABLED`) so the canonical path matches the intended production network shape.
+  - rerun bounded calibration only after both are corrected and recorded.
+### 2026-03-06 08:24:00 +00:00 - Private WSP launch failure triage and chosen remediation
+- Latest bounded rerun did not prove a private-network dead end; it exposed stale launcher defaults plus a status-decoding bug.
+- Findings from live AWS:
+  - runtime VPC endpoints already exist for `ecr.api`, `ecr.dkr`, `logs`, `sts`, and S3 gateway in the private subnets,
+  - the canonical dispatcher still defaulted to the public subnets (`subnet-005205ea65a9027fc`, `subnet-01fd5f1585bfcca47`) until the last patch and does not yet default to the authoritative private subnets,
+  - `to_iso_utc()` currently converts missing ECS timestamps into `now_utc()`, which can falsely make failed tasks look as if they had start timestamps.
+- Production-standard decision:
+  - repin the canonical dispatcher subnet defaults to the authoritative private subnets (`subnet-0a7a35898d0ca31a8`, `subnet-0e9647425f02e2f27`),
+  - make absent ECS timestamps remain absent so startup failure detection is truthful,
+  - rerun bounded calibration after those corrections; if private image pulls still fail, only then move deeper into endpoint/route inspection.
+### 2026-03-06 08:32:00 +00:00 - Private WSP to IG path needs execute-api endpoint, not public fallback
+- New bounded smoke outcome after launcher fixes:
+  - tasks started correctly in private subnets,
+  - WSP logs show repeated `IG push retry ... reason=timeout`,
+  - no admissions were recorded because the worker lane cannot reach the Regional API Gateway endpoint from the private subnets.
+- Production interpretation:
+  - the correct no-NAT production posture is not to move the WSP lane back to public subnets,
+  - it is to add the private `execute-api` interface endpoint so private workers can reach the ingress edge without Internet egress dependence.
+- Additional small code correction to make with this:
+  - guard CloudWatch metric reads against zero-width windows so early loop iterations do not raise `StartTime must be less than EndTime` and muddy telemetry.
+- Chosen remediation:
+  - add `execute-api` to the runtime interface endpoint set in Terraform,
+  - apply only the new endpoint live,
+  - patch the dispatcher metric guard,
+  - rerun a bounded private smoke before returning to the 75-lane calibration window.
+### 2026-03-06 08:36:00 +00:00 - execute-api private endpoint materialized live for no-NAT WSP to IG path
+- Applied targeted Terraform remediation:
+  - created `aws_vpc_endpoint.runtime_interface["execute-api"]`,
+  - live endpoint id `vpce-05d4ac7f9e8ddf16a`.
+- Purpose:
+  - allow private-subnet WSP worker lanes to resolve and reach the Regional API Gateway ingress endpoint without NAT/public routing.
+- Boundaries observed:
+  - targeted apply only; no unrelated runtime replacements were pulled into this remediation.
+- Next action:
+  - rerun a 2-lane bounded smoke against the private canonical path,
+  - if clean, return to the 75-lane calibration window.
+### 2026-03-06 08:40:00 +00:00 - PR3-S1 canonical source posture corrected: WSP replay must emulate outside-world traffic
+- The `execute-api` endpoint remediation proved private workers can now reach the API surface, but the next result was `403 Forbidden` from API Gateway rather than a Lambda auth response.
+- Design-intent review matters here:
+  - `WSP` is explicitly pinned as the platform's **outside-world traffic producer**,
+  - `PR3-S1` is validating ingress readiness under realistic incoming traffic,
+  - so the source lane should behave like an external producer hitting the public ingress edge, not like an internal private service caller.
+- Production-standard decision:
+  - keep the newly added `execute-api` endpoint because it is still useful for no-NAT private worker patterns elsewhere,
+  - but repin the **canonical PR3-S1 replay dispatcher** back to public-subnet Fargate tasks with public IPs,
+  - treat that not as a shortcut but as the correct semantics for stressing the public ingress boundary.
+- Consequence:
+  - PR3-S1 remains the real WSP path,
+  - but its network posture is `outside-world -> public IG edge`, not `private internal worker -> IG`.
+### 2026-03-06 08:45:00 +00:00 - execute-api private DNS poisoned the public-edge WSP path; keep endpoint, disable private DNS
+- After restoring public-subnet defaults, WSP still received `403 Forbidden` from API Gateway with `IG_PUSH_REJECTED`.
+- Production diagnosis:
+  - this is no longer an auth-header problem,
+  - it is the consequence of enabling `private_dns_enabled=true` on the new `execute-api` VPC endpoint,
+  - which overrides the standard `*.execute-api.eu-west-2.amazonaws.com` hostname inside the VPC,
+  - causing the canonical public-edge WSP path to stop behaving like external traffic.
+- Production-standard decision:
+  - preserve the endpoint resource itself for future explicit private-use cases,
+  - but disable private DNS specifically for `execute-api`,
+  - so the default API hostname again resolves to the true public ingress edge for PR3-S1.
+- This is the correct compromise:
+  - canonical ingress stress remains outside-world -> public IG,
+  - the VPC can still retain an `execute-api` endpoint if a later internal lane needs explicit endpoint DNS.
+### 2026-03-06 08:51:00 +00:00 - execute-api endpoint recreated without private DNS
+- Applied targeted Terraform replacement for the `execute-api` endpoint so `private_dns_enabled=false`.
+- New live endpoint id: `vpce-0db82483efe7d9939`.
+- Purpose:
+  - stop overriding the default public `execute-api` hostname inside the VPC,
+  - preserve the endpoint resource for explicit future use,
+  - restore PR3-S1 public-edge replay semantics.
+### 2026-03-06 08:55:00 +00:00 - PR3-S1 next calibration should scale producer fanout, not IG envelope
+- Latest 75-lane bounded canonical run produced:
+  - admitted count `216,607`,
+  - admitted steady rate `1707.253 eps`,
+  - `4xx_total=0`, `5xx_total=0`.
+- Interpretation:
+  - IG is not rejecting traffic;
+  - the WSP replay topology is simply not generating enough concurrent producer fanout to reach the `3000 eps` ingress target under current lane count.
+- Quantitative reading:
+  - observed admitted rate per lane is about `22.76 eps` (`1707.253 / 75`).
+  - to reach `3000 eps` at roughly that lane-level posture requires about `132` concurrent lanes.
+- Production-standard decision:
+  - do not widen IG again,
+  - do not lean on wrong proxy metrics,
+  - increase WSP replay fanout to approximately `144` lanes while keeping the total target at `3000 eps`.
+- Why this is production-valid:
+  - WSP is an outside-world simulator, so horizontal producer fanout is the realistic way to model many concurrent upstream clients.
+  - This changes the realism of the source population, not the acceptance criteria of the platform.
+### 2026-03-06 09:05:00 +00:00 - Quota-bound partial launch cleanup and right-sizing plan
+- The 144-lane attempt failed at lane `140` with the live Fargate concurrent vCPU limit.
+- Current WSP task definition is overprovisioned for this purpose:
+  - task CPU `1024`
+  - task memory `2048`
+- Production-standard remediation:
+  - add explicit task-size overrides to the PR3-S1 dispatcher so the replay harness can be right-sized per campaign,
+  - add automatic cleanup of already-launched tasks when a later lane fails to launch,
+  - test `512 CPU / 1024 MiB` lane posture first, then retry higher fanout.
+- Reasoning:
+  - the WSP replay lane is a stress harness for outside-world client fanout, not the production hot service itself,
+  - right-sizing harness tasks is valid cost/performance engineering, not target cheating.
+### 2026-03-06 09:18:00 +00:00 - PR3-S1 runtime evidence now points to a measurement-window defect, not an ingress failure
+- The latest `136`-lane canonical run looked materially short on the emitted summary (`2241.826 eps`), but direct lane logs did not agree with that result.
+- Cross-check performed:
+  - lane logs show each WSP lane sustaining about the configured `22.0588 eps` aggregate send rate once active,
+  - API Gateway `Count` and Lambda `Invocations` both returned about `357.9k` requests for the same query,
+  - the query returned only two full `60s` CloudWatch bins (`08:55`, `08:56`) while the dispatcher divided by the wall-clock span `159.655s`.
+- Root cause:
+  - PR3-S1 is measuring a non-minute-aligned window on a metric surface that publishes minute-bucket sums,
+  - so the numerator is approximately `120s` worth of admitted requests while the denominator is `159.655s`,
+  - which artificially suppresses the computed eps by about `25%`.
+- Production interpretation:
+  - this is not a cosmetic reporting bug,
+  - it changes the certification verdict and would incorrectly fail-close a platform that is materially much closer to the target than the current summary claims.
+- Immediate production-grade correction:
+  - repin PR3-S1 steady measurement to whole CloudWatch periods only,
+  - compute covered seconds from the returned datapoint bins rather than from arbitrary wall-clock stop time,
+  - align the certification window start to the next full minute after fleet readiness so `IG_ADMITTED_EVENTS_PER_SEC` is measured on an authoritative surface without partial-bin ambiguity.
+- Secondary conclusion:
+  - with the correct two-minute denominator, the latest run is about `2982.7 eps`, still slightly below the `3000 eps` target,
+  - so after the measurement correction the next likely clearance move is a modest `stream_speedup` uplift rather than another architecture change.
+### 2026-03-06 09:14:00 +00:00 - PR3-S1 aligned-window rerun shows CloudWatch publication lag still contaminates early cutoff
+- First rerun after the aligned-window fix was executed at `136` lanes with `stream_speedup=90`.
+- Result highlights:
+  - final settled two-bin readback: `359,796` admitted requests over `120s` = `2998.3 eps`,
+  - zero `4xx`, zero `5xx`,
+  - blocker ids emitted were:
+    - `B12_EARLY_THROUGHPUT_SHORTFALL observed=1896.017 floor=2100`,
+    - `B19_FINAL_THROUGHPUT_SHORTFALL observed=2998.300 target=3000`.
+- Root cause of the contradictory blocker pair:
+  - early cutoff is still evaluating too near the live minute boundary,
+  - at that instant only one settled CloudWatch minute was visible, so the floor calculation read a stale undercount,
+  - the later final read already showed the lane shape was effectively at target.
+- Production-grade correction:
+  - add an explicit metric-settle grace to `PR3-S1`,
+  - only use CloudWatch bins whose close time is at least the settle-grace behind wall clock,
+  - wait through that settle grace after the measurement window closes before issuing the final verdict.
+- Throughput interpretation after this rerun:
+  - the platform is now materially at the `3k eps` edge on the authoritative measurement surface,
+  - so the remaining clearance move is not architectural; it is a small margin uplift (`stream_speedup`/shape headroom) plus proper settled-bin adjudication.
+### 2026-03-06 09:46:00 +00:00 - PR3-S1 closed by calibrating the generator setpoint, not by weakening the platform target
+- After settled-bin adjudication was fixed, repeated open-loop runs at nominal `3000 eps` source setpoints (`136-139` lanes) consistently landed just under target (`2994-2999 eps`) with zero errors.
+- Engineering interpretation:
+  - this was no longer a platform bottleneck,
+  - it was a source-controller underdelivery artifact caused by token-bucket/setpoint quantization and small replay-shape losses,
+  - so the right move was calibration of the injector setpoint while keeping the acceptance target fixed.
+- Chosen production-grade correction:
+  - keep the acceptance contract at `3000 admitted eps`,
+  - raise the generator setpoint slightly to `3005 eps`,
+  - retain canonical remote-WSP replay, settled-minute-bin adjudication, zero-error requirements, and unchanged latency thresholds.
+- Final closure evidence:
+  - `lane_count=138`,
+  - `stream_speedup=95`,
+  - `target_request_rate_eps=3005`,
+  - observed admitted throughput `3003.4222 eps`,
+  - admitted events `540,616` across `180s`,
+  - `4xx_total=0`,
+  - `5xx_total=0`,
+  - settled metric bins `3`.
+- Closure decision:
+  - `PR3-S1` is now legitimately closed because the platform cleared the unchanged production target on the authoritative surface,
+  - the small source overdrive is recorded as calibration of the test rig, not as relaxation of the platform standard.

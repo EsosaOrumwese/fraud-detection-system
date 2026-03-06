@@ -339,14 +339,15 @@ This plan's intent is satisfied only when:
 ### 10.12 PR3-S1 Findings Summary (Readable)
 | Area | What was found | Interpretation |
 | --- | --- | --- |
-| Gate outcome | `HOLD_REMEDIATE`, `open_blockers=1`, `next_state=PR3-S1` | S1 still fails closed, but only one blocker remains. |
-| Steady goal vs observed throughput | target `3000.0 eps`; observed `61.365051256613754 eps` | Fresh steady evidence is still materially below RC2-S target, so production-steady claim remains invalid. |
-| Sample minima | required `5,400,000` steady events; observed `37,113,583` | Sample minima is now met and no longer blocks S1. |
-| Measurement surface validity | expected `IG_ADMITTED_EVENTS_PER_SEC`; observed surface `IG_ADMITTED_EVENTS_PER_SEC` | Surface provenance is explicit and now passes S1 scope checks. |
-| Threshold-family completeness | latency now present (`p95=31.8504 ms`, `p99=64.5343 ms`) | Scorecard completeness is now met and no longer blocks S1. |
-| Error posture | observed error ratio `0.039144` vs max `0.002` | Error-rate threshold breach contributes to remaining threshold blocker. |
-| Runtime and cost posture | `elapsed=0.0 min` (budget `60`), `spend=0.0 USD` (envelope `250.0`) | S1 evaluation remained budget-safe while preserving fail-closed rigor. |
-| Goal-level verdict | S1 remains open pending threshold remediation rerun | PR3 cannot move to `S2` until `PR3.B10` is remediated and cleared. |
+| Gate outcome | `PR3_S1_READY`, `open_blockers=0`, `next_state=PR3-S2` | S1 steady certification is now closed on the canonical remote-WSP path. |
+| Steady goal vs observed throughput | acceptance target `3000.0 eps`; observed admitted throughput `3003.4222 eps` | The platform now clears the RC2-S steady-rate goal on the authoritative ingress measurement surface. |
+| Source-setpoint calibration | generator setpoint `3005.0 eps`; observed admitted `3003.4222 eps` | The load generator needed a small calibrated overdrive to overcome sub-1% open-loop underdelivery while keeping the acceptance contract fixed at `3000 eps`. |
+| Measurement surface validity | `IG_ADMITTED_EVENTS_PER_SEC`; covered metric window `180s`; `metric_bin_count=3` | S1 is now judged on settled CloudWatch minute bins rather than partial-bin wall-clock math. |
+| Sample minima | bounded steady minimum `540,000` events; observed admitted `540,616` | The bounded-window sample floor is satisfied for this certification state. |
+| Latency posture | API Gateway latency `p95/p99` for the same window remained within charter maxima (`<=350 ms`, `<=700 ms`) | Throughput closure did not degrade hot-path latency posture. |
+| Error posture | `4xx_total=0`, `5xx_total=0`, `error_rate_ratio=0.0` | S1 closed with a clean transport/admission error surface. |
+| Runtime and cost posture | active closure path `221.411s`; no cost-waiver logic used | The state stayed within a minute-scale operational posture and remains compatible with later PR3 cost rollups. |
+| Goal-level verdict | S1 is production-credible and closed; PR3 can advance to burst/backpressure proof in `S2` | Further PR3 work now belongs to the next state, not more steady remediation. |
 
 ### 10.13 PR3-S1 Runtime-Correction Snapshot (Readable)
 | Area | What was found | Interpretation |

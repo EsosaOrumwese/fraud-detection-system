@@ -10,8 +10,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from textwrap import dedent
 from typing import Any
@@ -37,8 +38,29 @@ def dump_json(path: Path, payload: dict[str, Any]) -> None:
         f.write("\n")
 
 
+def archive_existing_artifact(path: Path) -> None:
+    if not path.exists():
+        return
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    archive_dir = path.parent / "attempt_history"
+    archive_dir.mkdir(parents=True, exist_ok=True)
+    archived_path = archive_dir / f"{path.stem}.{timestamp}{path.suffix}"
+    archived_path.write_text(path.read_text(encoding="utf-8"), encoding="utf-8")
+
+
 def parse_csv(raw: str) -> list[str]:
     return [item.strip() for item in str(raw).split(",") if item.strip()]
+
+
+def stop_partial_launches(ecs: Any, *, cluster: str, lanes: list[dict[str, Any]], reason: str) -> None:
+    for lane in lanes:
+        task_arn = str(lane.get("task_arn", "")).strip()
+        if not task_arn:
+            continue
+        try:
+            ecs.stop_task(cluster=cluster, task=task_arn, reason=reason[:255])
+        except (BotoCoreError, ClientError):
+            continue
 
 
 def resolve_task_definition(ecs: Any, family_or_revision: str) -> str:
@@ -66,7 +88,19 @@ def to_iso_utc(value: Any) -> str:
         return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
     if isinstance(value, str) and value.strip():
         return value.strip()
-    return now_utc()
+    return ""
+
+
+def align_up_to_period(dt: datetime, period_seconds: int) -> datetime:
+    ts = dt.astimezone(timezone.utc).timestamp()
+    aligned = math.ceil(ts / period_seconds) * period_seconds
+    return datetime.fromtimestamp(aligned, tz=timezone.utc)
+
+
+def align_down_to_period(dt: datetime, period_seconds: int) -> datetime:
+    ts = dt.astimezone(timezone.utc).timestamp()
+    aligned = math.floor(ts / period_seconds) * period_seconds
+    return datetime.fromtimestamp(aligned, tz=timezone.utc)
 
 
 def build_wsp_command() -> list[str]:
@@ -155,24 +189,45 @@ def get_apigw_totals(
     end_time: datetime,
     period_seconds: int = 60,
 ) -> dict[str, float]:
+    effective_start = align_up_to_period(start_time, period_seconds)
+    effective_end = align_down_to_period(end_time, period_seconds)
+    covered_seconds = max(0.0, (effective_end - effective_start).total_seconds())
+    if covered_seconds < float(period_seconds):
+        return {
+            "count_sum": 0.0,
+            "4xx_sum": 0.0,
+            "5xx_sum": 0.0,
+            "covered_seconds": 0.0,
+            "effective_start_utc": to_iso_utc(effective_start),
+            "effective_end_utc": to_iso_utc(effective_end),
+            "bin_count": 0,
+        }
     dims = [{"Name": "ApiId", "Value": api_id}, {"Name": "Stage", "Value": stage}]
 
-    def metric_sum(metric_name: str) -> float:
+    def metric_stats(metric_name: str) -> list[dict[str, Any]]:
         result = cw.get_metric_statistics(
             Namespace="AWS/ApiGateway",
             MetricName=metric_name,
             Dimensions=dims,
-            StartTime=start_time,
-            EndTime=end_time,
+            StartTime=effective_start,
+            EndTime=effective_end,
             Period=period_seconds,
             Statistics=["Sum"],
         )
-        return float(sum(float(row.get("Sum", 0.0) or 0.0) for row in result.get("Datapoints", [])))
+        return list(result.get("Datapoints", []))
+
+    count_points = metric_stats("Count")
+    four_xx_points = metric_stats("4xx")
+    five_xx_points = metric_stats("5xx")
 
     return {
-        "count_sum": metric_sum("Count"),
-        "4xx_sum": metric_sum("4xx"),
-        "5xx_sum": metric_sum("5xx"),
+        "count_sum": float(sum(float(row.get("Sum", 0.0) or 0.0) for row in count_points)),
+        "4xx_sum": float(sum(float(row.get("Sum", 0.0) or 0.0) for row in four_xx_points)),
+        "5xx_sum": float(sum(float(row.get("Sum", 0.0) or 0.0) for row in five_xx_points)),
+        "covered_seconds": covered_seconds,
+        "effective_start_utc": to_iso_utc(effective_start),
+        "effective_end_utc": to_iso_utc(effective_end),
+        "bin_count": int(covered_seconds // period_seconds),
     }
 
 
@@ -288,9 +343,12 @@ def main() -> None:
     ap.add_argument("--target-request-rate-eps", type=float, default=0.0)
     ap.add_argument("--target-burst-seconds", type=float, default=0.25)
     ap.add_argument("--target-initial-tokens", type=float, default=0.25)
+    ap.add_argument("--task-cpu", default="")
+    ap.add_argument("--task-memory", default="")
     ap.add_argument("--max-error-rate-ratio", type=float, default=0.002)
     ap.add_argument("--max-4xx-ratio", type=float, default=0.002)
     ap.add_argument("--max-5xx-ratio", type=float, default=0.0)
+    ap.add_argument("--metric-settle-seconds", type=int, default=90)
     ap.add_argument("--log-group", default="/ecs/fraud-platform-dev-full-wsp-ephemeral")
     ap.add_argument("--generated-by", default="codex-gpt5")
     ap.add_argument("--version", default="1.0.0")
@@ -380,12 +438,27 @@ def main() -> None:
     ]
     command_list = build_wsp_command()
     launched_lanes: list[dict[str, Any]] = []
+    task_cpu_override = str(args.task_cpu).strip()
+    task_memory_override = str(args.task_memory).strip()
     for lane_index in range(lane_count):
         lane_id = f"wsp_lane_{lane_index:02d}"
         env_rows = list(base_env_rows) + [
             {"name": "WSP_LANE_COUNT", "value": str(lane_count)},
             {"name": "WSP_LANE_INDEX", "value": str(lane_index)},
         ]
+        run_overrides: dict[str, Any] = {
+            "containerOverrides": [
+                {
+                    "name": "wsp",
+                    "command": command_list,
+                    "environment": env_rows,
+                }
+            ]
+        }
+        if task_cpu_override:
+            run_overrides["cpu"] = task_cpu_override
+        if task_memory_override:
+            run_overrides["memory"] = task_memory_override
         try:
             run_resp = ecs.run_task(
                 cluster=args.cluster,
@@ -399,25 +472,35 @@ def main() -> None:
                         "assignPublicIp": str(args.assign_public_ip).strip().upper(),
                     }
                 },
-                overrides={
-                    "containerOverrides": [
-                        {
-                            "name": "wsp",
-                            "command": command_list,
-                            "environment": env_rows,
-                        }
-                    ]
-                },
+                overrides=run_overrides,
             )
         except (BotoCoreError, ClientError) as exc:
+            stop_partial_launches(
+                ecs,
+                cluster=args.cluster,
+                lanes=launched_lanes,
+                reason="PR3-S1 partial launch cleanup after run_task failure",
+            )
             raise RuntimeError(f"PR3.S1.WSP.B01_RUN_TASK_FAILED:{lane_id}:{type(exc).__name__}:{exc}") from exc
         failures = run_resp.get("failures", [])
         if failures:
             reason = str(failures[0].get("reason", "unknown"))
+            stop_partial_launches(
+                ecs,
+                cluster=args.cluster,
+                lanes=launched_lanes,
+                reason="PR3-S1 partial launch cleanup after quota-bound failure",
+            )
             raise RuntimeError(f"PR3.S1.WSP.B01_RUN_TASK_FAILED:{lane_id}:{reason}")
         task = (run_resp.get("tasks") or [{}])[0]
         task_arn = str(task.get("taskArn", "")).strip()
         if not task_arn:
+            stop_partial_launches(
+                ecs,
+                cluster=args.cluster,
+                lanes=launched_lanes,
+                reason="PR3-S1 partial launch cleanup after empty task arn",
+            )
             raise RuntimeError(f"PR3.S1.WSP.B01_RUN_TASK_FAILED:{lane_id}:empty_task_arn")
         task_id = task_id_from_arn(task_arn)
         launched_lanes.append(
@@ -471,6 +554,8 @@ def main() -> None:
             "checkpoint_backend": "postgres",
             "checkpoint_dsn_mode": "explicit_or_ssm_aurora",
             "aurora_db_name": args.aurora_db_name,
+            "task_cpu_override": task_cpu_override or None,
+            "task_memory_override": task_memory_override or None,
         },
         "identity": {
             "platform_run_id": args.platform_run_id,
@@ -482,10 +567,13 @@ def main() -> None:
             "oracle_engine_run_root": args.oracle_engine_run_root,
         },
     }
-    dump_json(pr3_root / "g3a_s1_wsp_runtime_manifest.json", manifest)
+    manifest_path = pr3_root / "g3a_s1_wsp_runtime_manifest.json"
+    archive_existing_artifact(manifest_path)
+    dump_json(manifest_path, manifest)
 
     expected_floor_eps = float(args.expected_steady_eps) * float(args.early_cutoff_floor_ratio)
     active_start = submitted_at
+    active_confirmed_at = submitted_at
     start_wait_deadline = time.time() + 900
     lane_by_arn = {str(lane["task_arn"]): lane for lane in launched_lanes}
     while time.time() < start_wait_deadline:
@@ -504,6 +592,7 @@ def main() -> None:
                 blockers.append(f"PR3.S1.WSP.B03_TASK_STOPPED_BEFORE_RUNNING:{lane['lane_id']}")
         if started_at_values and all_running:
             active_start = max(started_at_values)
+            active_confirmed_at = datetime.now(timezone.utc)
         if blockers or all_running:
             break
         time.sleep(5)
@@ -512,33 +601,57 @@ def main() -> None:
         if never_started:
             blockers.extend(f"PR3.S1.WSP.B04_TASK_START_TIMEOUT:{lane_id}" for lane_id in never_started)
 
-    hard_deadline = time.time() + max(120, args.duration_seconds + 600)
-    window_end = time.time() + max(60, args.duration_seconds)
+    hard_deadline = time.time() + max(120, args.duration_seconds + 900)
+    steady_window_seconds = int(math.ceil(max(60, args.duration_seconds) / 60.0) * 60)
+    measurement_start_at = align_up_to_period(active_confirmed_at, 60)
+    measurement_end_at = measurement_start_at + timedelta(seconds=steady_window_seconds)
+    window_end = measurement_end_at.timestamp()
     early_cutoff_triggered = False
     telemetry_error = ""
+    window_closed_at: datetime | None = None
     while time.time() < hard_deadline and not blockers:
         statuses = refresh_task_statuses(ecs, args.cluster, list(lane_by_arn))
         for task_arn, lane in lane_by_arn.items():
             lane["status"] = statuses.get(task_arn, {})
         pending = [lane for lane in launched_lanes if lane.get("status", {}).get("last_status") != "STOPPED"]
-        elapsed = max(1.0, time.time() - active_start.timestamp())
+        now_dt = datetime.now(timezone.utc)
+        elapsed = max(1.0, time.time() - active_confirmed_at.timestamp())
+        settled_observation_end = min(
+            measurement_end_at,
+            now_dt - timedelta(seconds=max(0, int(args.metric_settle_seconds))),
+        )
         try:
             totals = get_apigw_totals(
                 cw,
                 api_id=args.api_id,
                 stage=args.api_stage,
-                start_time=active_start,
-                end_time=datetime.now(timezone.utc),
+                start_time=measurement_start_at,
+                end_time=settled_observation_end,
             )
-            observed_eps = totals["count_sum"] / elapsed
+            covered_seconds = max(0.0, float(totals.get("covered_seconds", 0.0) or 0.0))
+            observed_eps = totals["count_sum"] / covered_seconds if covered_seconds > 0.0 else 0.0
         except (BotoCoreError, ClientError) as exc:
-            totals = {"count_sum": 0.0, "4xx_sum": 0.0, "5xx_sum": 0.0}
+            totals = {
+                "count_sum": 0.0,
+                "4xx_sum": 0.0,
+                "5xx_sum": 0.0,
+                "covered_seconds": 0.0,
+                "effective_start_utc": "",
+                "effective_end_utc": "",
+                "bin_count": 0,
+            }
             observed_eps = 0.0
             telemetry_error = f"{type(exc).__name__}:{exc}"
         success_count = max(0.0, totals["count_sum"] - totals["4xx_sum"] - totals["5xx_sum"])
-        observed_admitted_eps = success_count / elapsed
+        covered_seconds = max(0.0, float(totals.get("covered_seconds", 0.0) or 0.0))
+        observed_admitted_eps = success_count / covered_seconds if covered_seconds > 0.0 else 0.0
 
-        if elapsed >= max(60, args.early_cutoff_seconds) and observed_admitted_eps < expected_floor_eps:
+        if (
+            now_dt >= measurement_start_at + timedelta(seconds=max(60, args.early_cutoff_seconds))
+            and covered_seconds >= float(max(60, args.early_cutoff_seconds))
+            and observed_admitted_eps < expected_floor_eps
+        ):
+            window_closed_at = datetime.now(timezone.utc)
             blockers.append(
                 f"PR3.S1.WSP.B12_EARLY_THROUGHPUT_SHORTFALL:observed={observed_admitted_eps:.3f}:floor={expected_floor_eps:.3f}"
             )
@@ -555,6 +668,7 @@ def main() -> None:
             break
 
         if time.time() >= window_end:
+            window_closed_at = datetime.now(timezone.utc)
             for lane in pending:
                 try:
                     ecs.stop_task(
@@ -625,15 +739,27 @@ def main() -> None:
             }
         )
 
-    totals = {"count_sum": 0.0, "4xx_sum": 0.0, "5xx_sum": 0.0}
+    totals = {
+        "count_sum": 0.0,
+        "4xx_sum": 0.0,
+        "5xx_sum": 0.0,
+        "covered_seconds": 0.0,
+        "effective_start_utc": "",
+        "effective_end_utc": "",
+        "bin_count": 0,
+    }
     metrics_error = ""
+    metrics_end_time = min(window_closed_at or datetime.now(timezone.utc), measurement_end_at)
+    metrics_ready_at = metrics_end_time + timedelta(seconds=max(0, int(args.metric_settle_seconds)))
+    while datetime.now(timezone.utc) < metrics_ready_at:
+        time.sleep(5)
     try:
         totals = get_apigw_totals(
             cw,
             api_id=args.api_id,
             stage=args.api_stage,
-            start_time=active_start,
-            end_time=datetime.now(timezone.utc),
+            start_time=measurement_start_at,
+            end_time=metrics_end_time,
         )
     except (BotoCoreError, ClientError) as exc:
         metrics_error = f"{type(exc).__name__}:{exc}"
@@ -644,20 +770,24 @@ def main() -> None:
         for lane in launched_lanes
         if lane.get("final_status", {}).get("stopped_at_utc")
     ]
-    perf_end_dt = max(stopped_times) if stopped_times else datetime.now(timezone.utc)
+    if window_closed_at is not None:
+        perf_end_dt = window_closed_at
+    elif stopped_times:
+        perf_end_dt = max(stopped_times)
+    else:
+        perf_end_dt = datetime.now(timezone.utc)
     perf_end = to_iso_utc(perf_end_dt)
     elapsed_seconds = max(
         1.0,
-        (
-            datetime.fromisoformat(perf_end.replace("Z", "+00:00")) - active_start
-        ).total_seconds(),
+        (datetime.fromisoformat(perf_end.replace("Z", "+00:00")) - active_confirmed_at).total_seconds(),
     )
+    covered_seconds = max(0.0, float(totals.get("covered_seconds", 0.0) or 0.0))
     request_count_total = max(0.0, totals["count_sum"])
     request_4xx_total = max(0.0, totals["4xx_sum"])
     request_5xx_total = max(0.0, totals["5xx_sum"])
     success_count = max(0.0, request_count_total - request_4xx_total - request_5xx_total)
-    observed_eps = request_count_total / elapsed_seconds
-    observed_admitted_eps = success_count / elapsed_seconds
+    observed_eps = request_count_total / covered_seconds if covered_seconds > 0.0 else 0.0
+    observed_admitted_eps = success_count / covered_seconds if covered_seconds > 0.0 else 0.0
     error_ratio = ((request_4xx_total + request_5xx_total) / request_count_total) if request_count_total > 0.0 else 1.0
     error_4xx_ratio = (request_4xx_total / request_count_total) if request_count_total > 0.0 else 1.0
     error_5xx_ratio = (request_5xx_total / request_count_total) if request_count_total > 0.0 else 1.0
@@ -696,9 +826,18 @@ def main() -> None:
         "blocker_ids": sorted(set(blockers)),
         "performance_window": {
             "submitted_at_utc": to_iso_utc(submitted_at),
-            "start_utc": to_iso_utc(active_start),
+            "fleet_started_utc": to_iso_utc(active_start),
+            "start_utc": to_iso_utc(active_confirmed_at),
+            "active_confirmed_utc": to_iso_utc(active_confirmed_at),
+            "measurement_start_utc": to_iso_utc(measurement_start_at),
+            "measurement_target_end_utc": to_iso_utc(measurement_end_at),
+            "metric_effective_start_utc": str(totals.get("effective_start_utc", "") or ""),
+            "metric_effective_end_utc": str(totals.get("effective_end_utc", "") or ""),
             "end_utc": perf_end,
             "elapsed_seconds": elapsed_seconds,
+            "covered_metric_seconds": covered_seconds,
+            "metric_period_seconds": 60,
+            "metric_bin_count": int(totals.get("bin_count", 0) or 0),
         },
         "campaign": manifest["campaign"],
         "observed": {
@@ -722,9 +861,12 @@ def main() -> None:
             "metrics_error": metrics_error,
             "log_error": log_error,
             "window_stop_reason": "steady window bounded by certification duration",
+            "metric_settle_seconds": int(args.metric_settle_seconds),
         },
     }
-    dump_json(pr3_root / "g3a_s1_wsp_runtime_summary.json", summary)
+    summary_path = pr3_root / "g3a_s1_wsp_runtime_summary.json"
+    archive_existing_artifact(summary_path)
+    dump_json(summary_path, summary)
 
     print(json.dumps(summary, indent=2))
 
