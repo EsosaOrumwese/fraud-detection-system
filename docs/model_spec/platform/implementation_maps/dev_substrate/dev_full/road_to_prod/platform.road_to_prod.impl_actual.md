@@ -4023,3 +4023,73 @@ Reasoning:
    - source import of the handler still succeeds.
 7. Expected next result:
    - either `/ops/health` returns `200`, or the next failure surfaces as an explicit SSM/client/auth error rather than a blind timeout.
+## Entry: 2026-03-06 19:26:00 +00:00 - PR3 ingress materialization is now materially green; live IG health succeeds on the private production-shaped path
+1. Workflow run `22767511603` completed successfully after the SSM endpoint and bounded auth instrumentation changes.
+2. Live verification evidence from the workflow shows:
+   - `handler = fraud_detection.ingestion_gate.aws_lambda_handler.lambda_handler`,
+   - `memory_size = 1024`, `timeout = 30`, `vpc_subnet_count = 2`,
+   - `health_status_code = 200`,
+   - `health_mode = apigw_lambda_ddb_kafka`,
+   - `health_service = ig-edge`.
+3. CloudWatch logs for the live request confirm the actual runtime sequence:
+   - health request received,
+   - API-key SSM cache miss resolved successfully,
+   - health response returned,
+   - request duration `59.57 ms` after cold start.
+4. This closes the ingress materialization recovery chain:
+   - package-root defect fixed,
+   - eager package re-exports fixed,
+   - eager Postgres backend import fixed,
+   - missing private `logs` and `ssm` endpoint dependencies fixed,
+   - health/auth dependency latency now bounded.
+5. Production interpretation:
+   - the live ingress edge is now materially aligned with the intended private production shape,
+   - PR3 can resume from a truthful `via_IG` boundary rather than synthetic or broken ingress proof.
+6. Next step:
+   - rerun PR3-S1 on the corrected ingress path,
+   - then continue sequentially through the remaining PR3 states with impact-metric reporting only from truthful live boundaries.
+## Entry: 2026-03-06 14:28:32 +00:00 - PR3 restart plan is pinned around stale remote WSP image drift, not around more synthetic reruns
+1. I resumed from the now-green live ingress boundary and rechecked the active PR3 execution authority:
+   - `platform.PR3.road_to_prod.md`,
+   - `platform.road_to_prod.plan.md`,
+   - `.github/workflows/dev_full_pr3_s1_managed.yml`,
+   - `scripts/dev_substrate/pr3_s1_wsp_replay_dispatch.py`.
+2. The actual active defect is now narrow and specific:
+   - the canonical PR3-S1 path already exists and is the correct one,
+   - it launches the real remote `WSP` replay on ECS/Fargate into the live `IG`,
+   - but the workflow/task surfaces are still pinned to an old immutable image digest,
+   - therefore the remote lane cannot execute the local WSP/IG fixes that were already made.
+3. Production interpretation of this defect:
+   - this is not a reason to invent a new harness,
+   - not a reason to weaken the target,
+   - not a reason to mark S1 green from stale evidence,
+   - it is simply remote image drift between source truth and live replay runtime.
+4. Alternatives considered:
+   - keep rerunning PR3-S1 on the stale digest:
+     - rejected because it would waste remote compute and only reproduce already-understood failure modes,
+   - repin PR3 back to the temporary synthetic speedup harness:
+     - rejected because it is explicitly noncanonical and would not prove the real producer hot path,
+   - repin `WSP` into Managed Flink just to reuse other streaming infrastructure:
+     - rejected for PR3 because the real WSP implementation in-repo is a replay producer, not a Flink transform application,
+   - build a fresh immutable image and feed that digest into the canonical PR3-S1 lane:
+     - accepted because it preserves the truthful runtime path while moving the live system to the actual code we intend to certify.
+5. The chosen production-grade path is therefore:
+   - use the existing deterministic packaging lane to build a fresh immutable image from the current branch,
+   - pass that digest explicitly into the canonical PR3 runtime/workflow surfaces,
+   - rerun PR3-S1 from the strict upstream boundary only after the live replay runtime reflects current code,
+   - then continue sequentially through PR3-S2..S5 and PR4.
+6. This is the correct production decision because:
+   - it keeps the certification path tied to the real ingress emitter hot path,
+   - it avoids proxy evidence,
+   - it keeps the immutable-image discipline intact,
+   - it proves that the live platform, not just the local repo, can sustain the target posture.
+7. I also pinned the reporting expectation for all remaining PR states:
+   - findings summaries must lead with impact metrics derived from the actual run,
+   - each summary must state the threshold/target for that state,
+   - each summary must include an explicit analytical judgement on whether the metrics meet production-ready intent,
+   - raw JSON references are supporting evidence only and must not replace the readable impact summary.
+8. Immediate execution plan:
+   - refresh the immutable platform image,
+   - rerun canonical PR3-S1 on that refreshed image,
+   - remediate any further real runtime defects without dropping back to noncanonical paths,
+   - only then advance to PR3-S2 and beyond.
