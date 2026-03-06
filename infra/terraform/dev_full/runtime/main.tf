@@ -70,6 +70,11 @@ locals {
   core_kms_key_arn                   = var.use_core_remote_state ? try(data.terraform_remote_state.core[0].outputs.kms_key_arn, "") : ""
 
   msk_cluster_arn           = var.use_streaming_remote_state ? try(data.terraform_remote_state.streaming[0].outputs.msk_cluster_arn, var.msk_cluster_arn_fallback) : var.msk_cluster_arn_fallback
+  msk_cluster_suffix        = try(split("cluster/", local.msk_cluster_arn)[1], "")
+  msk_cluster_name          = try(split("/", local.msk_cluster_suffix)[0], "")
+  msk_cluster_uuid          = try(split("/", local.msk_cluster_suffix)[1], "")
+  msk_topic_wildcard_arn    = local.msk_cluster_name != "" && local.msk_cluster_uuid != "" ? "arn:aws:kafka:${var.aws_region}:${data.aws_caller_identity.current.account_id}:topic/${local.msk_cluster_name}/${local.msk_cluster_uuid}/*" : ""
+  msk_group_wildcard_arn    = local.msk_cluster_name != "" && local.msk_cluster_uuid != "" ? "arn:aws:kafka:${var.aws_region}:${data.aws_caller_identity.current.account_id}:group/${local.msk_cluster_name}/${local.msk_cluster_uuid}/*" : ""
   ig_integration_timeout_ms = min(30000, floor(var.ig_request_timeout_seconds * 1000))
 
   irsa_targets = {
@@ -99,6 +104,10 @@ locals {
       service_account = var.irsa_service_account_obs_gov
     }
   }
+  irsa_targets_with_msk = local.msk_cluster_arn != "" && local.msk_topic_wildcard_arn != "" && local.msk_group_wildcard_arn != "" ? {
+    for key, value in local.irsa_targets :
+    key => value if contains(["rtdl", "decision_lane"], key)
+  } : {}
 }
 
 data "aws_subnet" "private" {
@@ -764,6 +773,43 @@ resource "aws_iam_role_policy" "eks_irsa_ssm_read" {
           "ssm:GetParameters"
         ]
         Resource = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/fraud-platform/dev_full/*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "eks_irsa_msk_data_plane" {
+  for_each = local.irsa_targets_with_msk
+
+  name = "${each.value.role_name}-msk-data-plane"
+  role = aws_iam_role.eks_irsa[each.key].id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "kafka-cluster:Connect",
+          "kafka-cluster:DescribeCluster"
+        ]
+        Resource = local.msk_cluster_arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "kafka-cluster:DescribeTopic",
+          "kafka-cluster:ReadData",
+          "kafka-cluster:WriteData"
+        ]
+        Resource = local.msk_topic_wildcard_arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "kafka-cluster:DescribeGroup",
+          "kafka-cluster:AlterGroup"
+        ]
+        Resource = local.msk_group_wildcard_arn
       }
     ]
   })

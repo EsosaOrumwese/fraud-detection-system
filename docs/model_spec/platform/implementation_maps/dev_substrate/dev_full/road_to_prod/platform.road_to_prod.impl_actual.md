@@ -3380,3 +3380,25 @@ Reasoning:
 - Why this is the production-grade fix:
   - it preserves least-privilege IAM and uses the already-pinned trust contract,
   - it removes a real dependency-contract hole in `DF` instead of masking it with broader secret exposure or weaker startup checks.
+### 2026-03-06 13:18:00 +00:00 - PR3 runtime is blocked by missing IRSA-to-MSK data-plane policy, not by pod shape or stale app code
+- After the service-account realignment and fresh immutable image rollout, all six PR3 runtime deployments (`IEG`, `OFP`, `AL`, `DF`, `DLA`, `archive_writer`) reached `1/1 Ready` in `fraud-platform-rtdl`.
+- Live logs then converged on the next shared failure mode:
+  - `AL`, `DF`, and `DLA` each reached the MSK broker and failed during SASL/IAM broker authentication with `SaslAuthenticationFailedError (...: Access denied)`.
+- IAM readback confirmed the root cause is structural:
+  - `fraud-platform-dev-full-irsa-rtdl` only has inline policy `fraud-platform-dev-full-irsa-rtdl-ssm-read`,
+  - `fraud-platform-dev-full-irsa-decision-lane` only has inline policy `fraud-platform-dev-full-irsa-decision-lane-ssm-read`.
+- This means the EKS runtime roles can read runtime secrets from SSM but cannot perform the MSK data-plane actions required to authenticate to, read from, or write to the serverless Kafka cluster.
+- Why this matters for production-readiness:
+  - the platform cannot claim hot-path readiness while the true runtime principals lack the managed-bus permissions the design requires,
+  - further reruns of `PR3-S1` or more app-level tweaks would only produce repetitive noise while the broker-authority boundary remains broken.
+- Candidate remediations considered:
+  - `A` apply an ad hoc inline IAM policy from the laptop:
+    - rejected because it would repair the symptom outside the owned infrastructure graph and would repeat the local-orchestration drift the user explicitly rejected.
+  - `B` broaden the application code with fallback auth paths or static credentials:
+    - rejected because it would weaken the intended production security model and harden around a misconfigured platform rather than fixing the platform.
+  - `C` extend the Terraform-owned IRSA role policies for the runtime principals (`rtdl`, `decision_lane`) to include the required MSK data-plane actions and execute that correction remotely through an indexed GitHub workflow:
+    - accepted because it restores the correct production contract: least-privilege workload identity, managed MSK IAM auth, and repeatable evidence-backed execution.
+- Production-grade implementation direction:
+  - patch `infra/terraform/dev_full/runtime/main.tf` so the runtime IRSA roles receive MSK cluster/topic/group permissions derived from the live cluster handle,
+  - add a dedicated remote remediation mode to the already-indexed `dev_full_pr3_s1_managed.yml` workflow so the IAM fix is applied/verified without laptop-side orchestration,
+  - rerun PR3 runtime verification after the role policy correction before any further steady-window certification work.
