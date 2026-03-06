@@ -5035,3 +5035,25 @@ Reasoning:
    - this is not cosmetic instrumentation work,
    - it is necessary to keep the PR3 throughput, latency, and error evidence bound to the actual edge under test.
 5. The bounded `PR3-S1` replay can now produce truthful service-path metrics instead of stale API Gateway proxies.
+## Entry: 2026-03-06 21:35:00 +00:00 - PR3-S1 bounded replay isolated a bundle-root defect in the service container
+1. The first truthful bounded replay against the internal ALB did exactly what it should:
+   - it measured the service path (`metric_surface_mode=ALB`),
+   - it failed fast at `15.3 admitted eps`,
+   - it preserved the next real bottleneck in both `WSP` and `IG` logs.
+2. The dominant symptom from `WSP` was repeated `http_503` and `IG_PUSH_RETRY_EXHAUSTED`.
+3. The actual root cause came from the `IG` service logs, not from speculation:
+   - `FileNotFoundError: [Errno 2] No such file or directory: '/app/src/config/platform/ig/schema_policy_v0.yaml'`
+   - raised while `_gate_for(...)` tried to load `schema_policy_v0.yaml`.
+4. This reveals a packaging/runtime assumption mismatch:
+   - the Lambda handler computes `_bundle_root()` from `Path(__file__).parents[2]`,
+   - that works in the Lambda bundle layout,
+   - but in the container image the repo root is `/app` while the Python package root is `/app/src`,
+   - so the service looked for config under `/app/src/config/...` instead of `/app/config/...`.
+5. Production interpretation:
+   - the ingress logic is still the right one to preserve,
+   - but it must not rely on a Lambda-specific filesystem shape when promoted to a service shell.
+6. Chosen correction:
+   - make `_bundle_root()` runtime-aware and accept an explicit bundle-root override,
+   - set `PLATFORM_BUNDLE_ROOT=/app` in the ECS service task definition,
+   - rebuild the immutable image, redeploy the service, and rerun the bounded `PR3-S1` proof immediately.
+7. This is the correct production move because it removes a packaging assumption at the source instead of papering over missing files one-by-one.

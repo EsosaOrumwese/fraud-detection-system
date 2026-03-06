@@ -1152,6 +1152,10 @@ resource "aws_ecs_task_definition" "ig_service" {
           value = "dev-full-v0"
         },
         {
+          name  = "PLATFORM_BUNDLE_ROOT"
+          value = "/app"
+        },
+        {
           name  = "PLATFORM_STORE_ROOT"
           value = "s3://${local.core_object_store_bucket}"
         },

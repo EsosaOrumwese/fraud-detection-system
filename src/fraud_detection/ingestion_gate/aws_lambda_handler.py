@@ -70,7 +70,19 @@ _GATE_CACHE: dict[str, IngestionGate] = {}
 
 
 def _bundle_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    override = str(os.getenv("PLATFORM_BUNDLE_ROOT") or os.getenv("IG_BUNDLE_ROOT") or "").strip()
+    if override:
+        return Path(override).resolve()
+    here = Path(__file__).resolve()
+    candidates = [
+        here.parents[2],
+        here.parents[3],
+        Path.cwd(),
+    ]
+    for candidate in candidates:
+        if (candidate / "config" / "platform" / "ig" / "schema_policy_v0.yaml").exists():
+            return candidate.resolve()
+    return here.parents[2]
 
 
 def _env_int(name: str, default: int) -> int:
