@@ -4228,3 +4228,23 @@ Reasoning:
    - rebuild the immutable image remotely,
    - refresh the live WSP runtime onto that new image,
    - rerun canonical `PR3-S1` and evaluate the impact metrics again from the truthful path.
+## Entry: 2026-03-06 15:27:00 +00:00 - The remote packaging workflow had its own stale deterministic-context allowlist and needed to be repinned to the corrected schema-pack boundary
+1. After pushing the runtime-pack remediation, I attempted to dispatch `dev_full_m1_packaging.yml` and re-read the workflow inputs/staging logic.
+2. The workflow stages a deterministic build context in CI using its own explicit `include_paths` list.
+3. That list still reflected the old, broken packaging boundary:
+   - it only staged `5B/schemas.5B.yaml`,
+   - it only staged `6B/schemas.6B.yaml`,
+   - it did not stage `1A/schemas.layer1.yaml` or the `6B/schemas.layer3.yaml` dependency,
+   - therefore remote CI would have rebuilt the same incomplete runtime even though the branch source had been corrected.
+4. Production interpretation:
+   - the build contract exists in two places (`Dockerfile` and workflow staging),
+   - both must agree or the immutable artifact is not truthful.
+5. Remediation applied:
+   - updated `.github/workflows/dev_full_m1_packaging.yml` deterministic `include_paths` to stage:
+     - `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml`,
+     - `docs/model_spec/data-engine/layer-2/specs/contracts/5B`,
+     - `docs/model_spec/data-engine/layer-3/specs/contracts/6B`.
+6. Next step:
+   - commit/push this workflow repin,
+   - rerun the packaging workflow from the corrected branch,
+   - only then use the new immutable digest for the live runtime refresh.
