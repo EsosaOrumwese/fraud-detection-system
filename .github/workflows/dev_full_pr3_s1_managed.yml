@@ -114,11 +114,6 @@ on:
         required: true
         default: "192"
         type: string
-      request_timeout_seconds:
-        description: "Per-request timeout"
-        required: true
-        default: "5"
-        type: string
       retry_max_attempts:
         description: "Retry attempts per event"
         required: true
@@ -430,7 +425,7 @@ jobs:
           DURATION_SECONDS: ${{ inputs.duration_seconds }}
           MIN_SAMPLE_EVENTS: ${{ inputs.min_sample_events }}
           MAX_WORKERS_PER_LANE: ${{ inputs.max_workers_per_lane }}
-          REQUEST_TIMEOUT_SECONDS: ${{ inputs.request_timeout_seconds }}
+          REQUEST_TIMEOUT_SECONDS: "5"
           RETRY_MAX_ATTEMPTS: ${{ inputs.retry_max_attempts }}
           RETRY_BACKOFF_MS: ${{ inputs.retry_backoff_ms }}
           EARLY_CUTOFF_SECONDS: ${{ inputs.early_cutoff_seconds }}
