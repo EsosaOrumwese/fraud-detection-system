@@ -3277,3 +3277,31 @@ Reasoning:
   - preserve the current `confluent_kafka` path for standard username/password SASL or plaintext cases,
   - add focused tests for OAUTH/IAM auth resolution,
   - then refresh the remote worker image so the RTDL jobs can actually reach MSK.
+### 2026-03-06 12:05:00 +00:00 - Runtime-shape decision for PR3 onward: empty Managed Flink shell is non-claimable; current production-correct path is remote EKS worker materialization
+- Live inspection was used to decide the next execution path instead of assuming the earlier design notes were materially true:
+  - `fraud-platform-dev-full-rtdl-ieg-ofp-v0` exists in `Managed Service for Apache Flink`, but only as a shell with `ApplicationStatus=READY`, default checkpoint/parallelism settings, and no evidence of deployed application code,
+  - `fraud-platform-rtdl` namespace exists on `EKS`, there are active worker nodes, but there are no RTDL workloads running,
+  - the canonical remote `WSP` ECS task definition is now on refreshed image digest `sha256:b0f707c52274e35330dc412ca610399afa550662c53347f0e967c4d95dec84b8`, so ingress replay runtime drift is no longer the active blocker.
+- Problem actual:
+  - the repo does not currently contain a real Flink application implementation for `IEG/OFP` hot-path processing,
+  - therefore keeping `FLINK_RUNTIME_PATH_ACTIVE=MSF_MANAGED` as if it were production-ready would be a false claim,
+  - but refusing to proceed until a brand-new Flink application is authored would also leave the current platform non-operational despite already having remote worker code that can run on production substrate.
+- Candidate remediation paths considered:
+  - `A` keep chasing the current MSF shell:
+    - rejected for current PR3 closure because it would certify an empty application envelope rather than a material runtime lane.
+  - `B` stop and wait for explicit design repin before any more work:
+    - rejected because the defect is now understood well enough to resolve autonomously and the user explicitly directed continuation with production-first judgment.
+  - `C` materialize the repo's actual RTDL/decision/archive workers on remote `EKS` using the refreshed immutable image, real `MSK IAM`, and `Aurora` durability, while recording the Managed Flink shell as non-claimable until real job code exists:
+    - accepted because it gives the platform a materially running hot path on remote production substrate,
+    - preserves the production goal (real remote compute, real brokers, real stores, no local orchestration),
+    - and turns the remaining work into measurable throughput/lag/backpressure problems instead of fictional runtime-shape problems.
+- Important design consequence:
+  - for road-to-production execution, the authoritative runtime claim is now bifurcated:
+    - `WSP`: canonical remote `ECS` replay injector,
+    - `RTDL/decision/archive`: canonical remote `EKS` worker materialization from the existing Python services,
+    - `Managed Flink` app shell: retained as a future target but explicitly not claimable for `PR3` until real application code and metrics surfaces are materialized.
+- Planned implementation from this point:
+  - expand `config/platform/profiles/dev_full.yaml` so it actually defines the RTDL/decision/archive workers against Kafka/MSK + Aurora-backed stores,
+  - add a dedicated remote workflow to materialize and verify those workers in `fraud-platform-rtdl`,
+  - rerun `PR3-S1` only once the real downstream hot path is alive,
+  - then continue sequentially through `PR3-S2..S5` on the materially active path with readable impact-metric summaries.

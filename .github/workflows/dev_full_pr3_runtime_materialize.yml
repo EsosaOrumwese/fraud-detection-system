@@ -1,0 +1,122 @@
+name: dev-full-pr3-runtime-materialize
+
+on:
+  workflow_dispatch:
+    inputs:
+      aws_region:
+        description: "AWS region"
+        required: true
+        default: "eu-west-2"
+        type: string
+      aws_role_to_assume:
+        description: "OIDC role ARN used by GitHub Actions"
+        required: true
+        type: string
+      pr3_execution_id:
+        description: "Strict PR3 execution id"
+        required: true
+        default: "pr3_20260306T021900Z"
+        type: string
+      platform_run_id:
+        description: "Pinned platform run id for runtime certification"
+        required: true
+        default: "platform_20260223T184232Z"
+        type: string
+      scenario_run_id:
+        description: "Pinned scenario run id for runtime certification"
+        required: true
+        default: "scenario_38753050f3b70c666e16f7552016b330"
+        type: string
+      eks_cluster_name:
+        description: "EKS cluster name"
+        required: true
+        default: "fraud-platform-dev-full"
+        type: string
+      eks_namespace:
+        description: "EKS namespace"
+        required: true
+        default: "fraud-platform-rtdl"
+        type: string
+      image_uri:
+        description: "Optional immutable image URI override"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: dev-full-pr3-runtime-materialize-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  materialize_pr3_runtime:
+    name: Materialize PR3 RTDL runtime on EKS
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject static AWS credential posture
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${AWS_ACCESS_KEY_ID:-}" || -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+            echo "Static AWS credentials are forbidden; use OIDC role assumption."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ inputs.aws_region }}
+          role-to-assume: ${{ inputs.aws_role_to_assume }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: "latest"
+
+      - name: Install runtime dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install boto3 botocore
+
+      - name: Configure kubeconfig
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws eks update-kubeconfig \
+            --region "${{ inputs.aws_region }}" \
+            --name "${{ inputs.eks_cluster_name }}"
+
+      - name: Materialize runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/pr3_rtdl_materialize.py \
+            --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
+            --platform-run-id "${{ inputs.platform_run_id }}" \
+            --scenario-run-id "${{ inputs.scenario_run_id }}" \
+            --region "${{ inputs.aws_region }}" \
+            --namespace "${{ inputs.eks_namespace }}" \
+            --image-uri "${{ inputs.image_uri }}"
+
+      - name: Upload workflow artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr3-runtime-materialization-${{ inputs.pr3_execution_id }}
+          path: |
+            runs/dev_substrate/dev_full/road_to_prod/run_control/${{ inputs.pr3_execution_id }}/g3a_runtime_materialization_manifest.json
+            runs/dev_substrate/dev_full/road_to_prod/run_control/${{ inputs.pr3_execution_id }}/g3a_runtime_materialization_summary.json
+          if-no-files-found: warn
