@@ -4410,3 +4410,25 @@ Reasoning:
    - rerun `dev-full-rc2-r2-capacity-envelope` with the corrected IG package coordinates preserved,
    - verify live APIGW/Lambda envelope truthfully,
    - then resume canonical `PR3-S1` from that corrected ingress boundary.
+## Entry: 2026-03-06 17:34:00 +00:00 - RC2.R2 apply failure narrowed to workflow-side structured-input handling, not live runtime capacity
+1. Two fresh RC2.R2 reruns reached the real Terraform apply step after the OIDC/APIGW repair.
+2. Both failed before any runtime change for the same deterministic reason:
+   - the workflow constructs Terraform `-var` arguments in bash,
+   - `eks_nodegroup_instance_types_json` is a structured JSON/list input,
+   - once interpolated into the shell line it becomes syntactically unstable (`["t3.xlarge"]` turns into a broken token stream),
+   - Terraform then fails with `Variables not allowed` before planning the actual uplift.
+3. Production interpretation:
+   - this is an orchestration defect in the control plane, not evidence of a live platform-capacity issue,
+   - structured infra inputs for production gates must be passed through a deterministic data serialization boundary, not through ad hoc shell quoting.
+4. Corrective decision:
+   - stop passing RC2.R2 uplift inputs as bash-composed `-var` fragments,
+   - emit a generated `.tfvars.json` file from the workflow instead,
+   - validate/parse the JSON list explicitly before invoking Terraform.
+5. Why this is the right fix:
+   - it removes shell-quoting ambiguity entirely,
+   - it keeps the gate deterministic under manual dispatch, workflow dispatch, and future automation,
+   - it aligns with the production-readiness goal of making control-plane execution robust instead of operator-fragile.
+6. Next action pinned:
+   - patch `.github/workflows/dev_full_rc2_r2_capacity_envelope.yml` to generate a structured tfvars payload,
+   - rerun RC2.R2 immediately,
+   - only once the actual uplift runs and verifies cleanly do we return to canonical `PR3-S1`.

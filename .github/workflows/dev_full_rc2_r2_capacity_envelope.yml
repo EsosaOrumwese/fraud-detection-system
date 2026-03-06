@@ -280,32 +280,60 @@ jobs:
       - name: Apply RC2.R2 capacity envelope uplift (managed terraform)
         shell: bash
         env:
+          RUN_DIR: ${{ steps.run_meta.outputs.run_dir }}
+          IG_RATE_LIMIT_RPS: ${{ inputs.ig_rate_limit_rps }}
+          IG_RATE_LIMIT_BURST: ${{ inputs.ig_rate_limit_burst }}
+          LAMBDA_IG_MEMORY_MB: ${{ inputs.lambda_ig_memory_mb }}
+          LAMBDA_IG_RESERVED_CONCURRENCY: ${{ inputs.lambda_ig_reserved_concurrency }}
+          LAMBDA_IG_TIMEOUT_SECONDS: ${{ inputs.lambda_ig_timeout_seconds }}
+          LAMBDA_IG_KAFKA_REQUEST_TIMEOUT_MS: ${{ inputs.lambda_ig_kafka_request_timeout_ms }}
+          LAMBDA_IG_POLICY_ACTIVATION_AUDIT_MODE: ${{ inputs.lambda_ig_policy_activation_audit_mode }}
           LAMBDA_IG_PACKAGE_S3_BUCKET: ${{ inputs.lambda_ig_package_s3_bucket }}
           LAMBDA_IG_PACKAGE_S3_KEY: ${{ inputs.lambda_ig_package_s3_key }}
           LAMBDA_IG_PACKAGE_SHA256_BASE64: ${{ inputs.lambda_ig_package_sha256_base64 }}
+          EKS_NODEGROUP_INSTANCE_TYPES_JSON: ${{ inputs.eks_nodegroup_instance_types_json }}
+          EKS_NODEGROUP_DESIRED_SIZE: ${{ inputs.eks_nodegroup_desired_size }}
+          EKS_NODEGROUP_MIN_SIZE: ${{ inputs.eks_nodegroup_min_size }}
+          EKS_NODEGROUP_MAX_SIZE: ${{ inputs.eks_nodegroup_max_size }}
         run: |
           set -euo pipefail
-          tf_args=(
-            -var "ig_rate_limit_rps=${{ inputs.ig_rate_limit_rps }}"
-            -var "ig_rate_limit_burst=${{ inputs.ig_rate_limit_burst }}"
-            -var "lambda_ig_memory_size_mb=${{ inputs.lambda_ig_memory_mb }}"
-            -var "lambda_ig_reserved_concurrency=${{ inputs.lambda_ig_reserved_concurrency }}"
-            -var "lambda_ig_timeout_seconds=${{ inputs.lambda_ig_timeout_seconds }}"
-            -var "lambda_ig_kafka_request_timeout_ms=${{ inputs.lambda_ig_kafka_request_timeout_ms }}"
-            -var "lambda_ig_policy_activation_audit_mode=${{ inputs.lambda_ig_policy_activation_audit_mode }}"
-            -var "eks_nodegroup_instance_types=${{ inputs.eks_nodegroup_instance_types_json }}"
-            -var "eks_nodegroup_desired_size=${{ inputs.eks_nodegroup_desired_size }}"
-            -var "eks_nodegroup_min_size=${{ inputs.eks_nodegroup_min_size }}"
-            -var "eks_nodegroup_max_size=${{ inputs.eks_nodegroup_max_size }}"
-          )
-          if [[ -n "${LAMBDA_IG_PACKAGE_S3_BUCKET}" && -n "${LAMBDA_IG_PACKAGE_S3_KEY}" && -n "${LAMBDA_IG_PACKAGE_SHA256_BASE64}" ]]; then
-            tf_args+=(
-              -var "lambda_ig_package_s3_bucket=${LAMBDA_IG_PACKAGE_S3_BUCKET}"
-              -var "lambda_ig_package_s3_key=${LAMBDA_IG_PACKAGE_S3_KEY}"
-              -var "lambda_ig_package_sha256_base64=${LAMBDA_IG_PACKAGE_SHA256_BASE64}"
-            )
-          fi
-          terraform -chdir="${TF_DIR}" apply -input=false -auto-approve "${tf_args[@]}"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          run_dir = Path(os.environ["RUN_DIR"])
+          instance_types = json.loads(os.environ["EKS_NODEGROUP_INSTANCE_TYPES_JSON"])
+          if not isinstance(instance_types, list) or not all(isinstance(v, str) for v in instance_types):
+              raise SystemExit("EKS_NODEGROUP_INSTANCE_TYPES_JSON must decode to a JSON string list.")
+
+          payload = {
+              "ig_rate_limit_rps": int(os.environ["IG_RATE_LIMIT_RPS"]),
+              "ig_rate_limit_burst": int(os.environ["IG_RATE_LIMIT_BURST"]),
+              "lambda_ig_memory_size_mb": int(os.environ["LAMBDA_IG_MEMORY_MB"]),
+              "lambda_ig_reserved_concurrency": int(os.environ["LAMBDA_IG_RESERVED_CONCURRENCY"]),
+              "lambda_ig_timeout_seconds": int(os.environ["LAMBDA_IG_TIMEOUT_SECONDS"]),
+              "lambda_ig_kafka_request_timeout_ms": int(os.environ["LAMBDA_IG_KAFKA_REQUEST_TIMEOUT_MS"]),
+              "lambda_ig_policy_activation_audit_mode": os.environ["LAMBDA_IG_POLICY_ACTIVATION_AUDIT_MODE"],
+              "eks_nodegroup_instance_types": instance_types,
+              "eks_nodegroup_desired_size": int(os.environ["EKS_NODEGROUP_DESIRED_SIZE"]),
+              "eks_nodegroup_min_size": int(os.environ["EKS_NODEGROUP_MIN_SIZE"]),
+              "eks_nodegroup_max_size": int(os.environ["EKS_NODEGROUP_MAX_SIZE"]),
+          }
+          if (
+              os.environ["LAMBDA_IG_PACKAGE_S3_BUCKET"]
+              and os.environ["LAMBDA_IG_PACKAGE_S3_KEY"]
+              and os.environ["LAMBDA_IG_PACKAGE_SHA256_BASE64"]
+          ):
+              payload["lambda_ig_package_s3_bucket"] = os.environ["LAMBDA_IG_PACKAGE_S3_BUCKET"]
+              payload["lambda_ig_package_s3_key"] = os.environ["LAMBDA_IG_PACKAGE_S3_KEY"]
+              payload["lambda_ig_package_sha256_base64"] = os.environ["LAMBDA_IG_PACKAGE_SHA256_BASE64"]
+
+          tfvars_path = run_dir / "rc2_r2_capacity_uplift.auto.tfvars.json"
+          tfvars_path.write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+          print(tfvars_path)
+          PY
+          terraform -chdir="${TF_DIR}" apply -input=false -auto-approve -var-file="${RUN_DIR}/rc2_r2_capacity_uplift.auto.tfvars.json"
           terraform -chdir="${TF_DIR}" output -json > "${{ steps.run_meta.outputs.run_dir }}/terraform_outputs_post.json"
 
       - name: Build RC2.R2 gate artifacts and publish with readback
