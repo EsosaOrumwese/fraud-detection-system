@@ -150,7 +150,6 @@ jobs:
     if: ${{ inputs.execution_mode == 'remediate_irsa_msk_auth' }}
     runs-on: ubuntu-latest
     env:
-      TF_DIR: infra/terraform/dev_full/runtime
       ROLE_RTDL_NAME: fraud-platform-dev-full-irsa-rtdl
       ROLE_DECISION_NAME: fraud-platform-dev-full-irsa-decision-lane
     steps:
@@ -172,11 +171,6 @@ jobs:
           aws-region: ${{ inputs.aws_region }}
           role-to-assume: ${{ inputs.aws_role_to_assume }}
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_wrapper: false
-
       - name: Setup kubectl
         uses: azure/setup-kubectl@v4
         with:
@@ -191,12 +185,99 @@ jobs:
           mkdir -p "${RUN_DIR}"
           echo "run_dir=${RUN_DIR}" >> "$GITHUB_OUTPUT"
 
-      - name: Terraform init and validate
+      - name: Resolve live MSK policy document
         shell: bash
+        env:
+          RUN_DIR: ${{ steps.remediation_meta.outputs.run_dir }}
         run: |
           set -euo pipefail
-          terraform -chdir="${TF_DIR}" init -reconfigure -backend-config=backend.hcl.example
-          terraform -chdir="${TF_DIR}" validate
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+
+          run_dir = Path(os.environ["RUN_DIR"])
+
+          proc = subprocess.run(
+              [
+                  "aws",
+                  "kafka",
+                  "list-clusters-v2",
+                  "--query",
+                  "ClusterInfoList[?ClusterName=='fraud-platform-dev-full-msk'] | [0]",
+                  "--output",
+                  "json",
+              ],
+              check=True,
+              capture_output=True,
+              text=True,
+          )
+          cluster = json.loads(proc.stdout)
+          cluster_arn = str(cluster.get("ClusterArn", "")).strip()
+          cluster_name = str(cluster.get("ClusterName", "")).strip()
+          if not cluster_arn or not cluster_name:
+              raise SystemExit("LIVE_MSK_CLUSTER_NOT_RESOLVED")
+          cluster_suffix = cluster_arn.split("cluster/", 1)[1]
+          _cluster_name_from_arn, cluster_uuid = cluster_suffix.split("/", 1)
+          account = subprocess.run(
+              ["aws", "sts", "get-caller-identity", "--query", "Account", "--output", "text"],
+              check=True,
+              capture_output=True,
+              text=True,
+          ).stdout.strip()
+          region = os.environ["AWS_REGION"]
+
+          policy = {
+              "Version": "2012-10-17",
+              "Statement": [
+                  {
+                      "Effect": "Allow",
+                      "Action": [
+                          "kafka-cluster:Connect",
+                          "kafka-cluster:DescribeCluster",
+                      ],
+                      "Resource": cluster_arn,
+                  },
+                  {
+                      "Effect": "Allow",
+                      "Action": [
+                          "kafka-cluster:DescribeTopic",
+                          "kafka-cluster:ReadData",
+                          "kafka-cluster:WriteData",
+                      ],
+                      "Resource": f"arn:aws:kafka:{region}:{account}:topic/{cluster_name}/{cluster_uuid}/*",
+                  },
+                  {
+                      "Effect": "Allow",
+                      "Action": [
+                          "kafka-cluster:DescribeGroup",
+                          "kafka-cluster:AlterGroup",
+                      ],
+                      "Resource": f"arn:aws:kafka:{region}:{account}:group/{cluster_name}/{cluster_uuid}/*",
+                  },
+              ],
+          }
+          (run_dir / "irsa_msk_data_plane_policy.json").write_text(
+              json.dumps(policy, indent=2, ensure_ascii=True) + "\n",
+              encoding="utf-8",
+          )
+          (run_dir / "irsa_msk_cluster_resolution.json").write_text(
+              json.dumps(
+                  {
+                      "cluster_name": cluster_name,
+                      "cluster_arn": cluster_arn,
+                      "cluster_uuid": cluster_uuid,
+                      "region": region,
+                      "account": account,
+                  },
+                  indent=2,
+                  ensure_ascii=True,
+              )
+              + "\n",
+              encoding="utf-8",
+          )
+          PY
 
       - name: Capture pre-remediation IAM posture
         shell: bash
@@ -221,11 +302,18 @@ jobs:
 
       - name: Apply targeted IRSA MSK auth remediation
         shell: bash
+        env:
+          RUN_DIR: ${{ steps.remediation_meta.outputs.run_dir }}
         run: |
           set -euo pipefail
-          terraform -chdir="${TF_DIR}" apply -input=false -auto-approve \
-            -target='aws_iam_role_policy.eks_irsa_msk_data_plane["rtdl"]' \
-            -target='aws_iam_role_policy.eks_irsa_msk_data_plane["decision_lane"]'
+          aws iam put-role-policy \
+            --role-name "${ROLE_RTDL_NAME}" \
+            --policy-name "${ROLE_RTDL_NAME}-msk-data-plane" \
+            --policy-document "file://${RUN_DIR}/irsa_msk_data_plane_policy.json"
+          aws iam put-role-policy \
+            --role-name "${ROLE_DECISION_NAME}" \
+            --policy-name "${ROLE_DECISION_NAME}-msk-data-plane" \
+            --policy-document "file://${RUN_DIR}/irsa_msk_data_plane_policy.json"
 
       - name: Configure kubeconfig
         shell: bash
@@ -332,6 +420,8 @@ jobs:
         with:
           name: pr3-irsa-msk-auth-remediation-${{ inputs.pr3_execution_id }}
           path: |
+            ${{ steps.remediation_meta.outputs.run_dir }}/irsa_msk_cluster_resolution.json
+            ${{ steps.remediation_meta.outputs.run_dir }}/irsa_msk_data_plane_policy.json
             ${{ steps.remediation_meta.outputs.run_dir }}/g3a_runtime_irsa_msk_auth_manifest.json
             ${{ steps.remediation_meta.outputs.run_dir }}/g3a_runtime_irsa_msk_auth_summary.json
             ${{ steps.remediation_meta.outputs.run_dir }}/fp_pr3_df_logs_post.txt
