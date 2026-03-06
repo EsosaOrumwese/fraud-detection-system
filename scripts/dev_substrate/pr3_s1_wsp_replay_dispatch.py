@@ -16,7 +16,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from textwrap import dedent
 from typing import Any
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urlparse
 
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
@@ -50,6 +50,14 @@ def archive_existing_artifact(path: Path) -> None:
 
 def parse_csv(raw: str) -> list[str]:
     return [item.strip() for item in str(raw).split(",") if item.strip()]
+
+
+def arn_suffix(arn: str, marker: str) -> str:
+    raw = str(arn).strip()
+    token = f"{marker}/"
+    if token in raw:
+        return raw.split(token, 1)[1]
+    return raw
 
 
 def stop_partial_launches(ecs: Any, *, cluster: str, lanes: list[dict[str, Any]], reason: str) -> None:
@@ -263,6 +271,232 @@ def get_apigw_metric_statistics(
     return list(result.get("Datapoints", []))
 
 
+def get_alb_totals(
+    cw: Any,
+    *,
+    load_balancer_dimension: str,
+    target_group_dimension: str,
+    start_time: datetime,
+    end_time: datetime,
+    period_seconds: int = 60,
+) -> dict[str, float]:
+    effective_start = align_up_to_period(start_time, period_seconds)
+    effective_end = align_down_to_period(end_time, period_seconds)
+    covered_seconds = max(0.0, (effective_end - effective_start).total_seconds())
+    if covered_seconds < float(period_seconds):
+        return {
+            "count_sum": 0.0,
+            "4xx_sum": 0.0,
+            "5xx_sum": 0.0,
+            "covered_seconds": 0.0,
+            "effective_start_utc": to_iso_utc(effective_start),
+            "effective_end_utc": to_iso_utc(effective_end),
+            "bin_count": 0,
+        }
+    lb_dims = [{"Name": "LoadBalancer", "Value": load_balancer_dimension}]
+    tg_dims = lb_dims + [{"Name": "TargetGroup", "Value": target_group_dimension}]
+
+    def metric_stats(metric_name: str, dimensions: list[dict[str, str]]) -> list[dict[str, Any]]:
+        result = cw.get_metric_statistics(
+            Namespace="AWS/ApplicationELB",
+            MetricName=metric_name,
+            Dimensions=dimensions,
+            StartTime=effective_start,
+            EndTime=effective_end,
+            Period=period_seconds,
+            Statistics=["Sum"],
+        )
+        return list(result.get("Datapoints", []))
+
+    request_points = metric_stats("RequestCount", lb_dims)
+    target_four_xx_points = metric_stats("HTTPCode_Target_4XX_Count", tg_dims)
+    target_five_xx_points = metric_stats("HTTPCode_Target_5XX_Count", tg_dims)
+    elb_four_xx_points = metric_stats("HTTPCode_ELB_4XX_Count", lb_dims)
+    elb_five_xx_points = metric_stats("HTTPCode_ELB_5XX_Count", lb_dims)
+
+    return {
+        "count_sum": float(sum(float(row.get("Sum", 0.0) or 0.0) for row in request_points)),
+        "4xx_sum": float(
+            sum(float(row.get("Sum", 0.0) or 0.0) for row in target_four_xx_points)
+            + sum(float(row.get("Sum", 0.0) or 0.0) for row in elb_four_xx_points)
+        ),
+        "5xx_sum": float(
+            sum(float(row.get("Sum", 0.0) or 0.0) for row in target_five_xx_points)
+            + sum(float(row.get("Sum", 0.0) or 0.0) for row in elb_five_xx_points)
+        ),
+        "covered_seconds": covered_seconds,
+        "effective_start_utc": to_iso_utc(effective_start),
+        "effective_end_utc": to_iso_utc(effective_end),
+        "bin_count": int(covered_seconds // period_seconds),
+    }
+
+
+def get_alb_metric_statistics(
+    cw: Any,
+    *,
+    load_balancer_dimension: str,
+    target_group_dimension: str,
+    metric_name: str,
+    start_time: datetime,
+    end_time: datetime,
+    period_seconds: int = 60,
+    statistics: list[str] | None = None,
+    extended_statistics: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    effective_start = align_up_to_period(start_time, period_seconds)
+    effective_end = align_down_to_period(end_time, period_seconds)
+    if (effective_end - effective_start).total_seconds() < float(period_seconds):
+        return []
+    dims = [{"Name": "LoadBalancer", "Value": load_balancer_dimension}]
+    if metric_name == "TargetResponseTime":
+        dims = dims + [{"Name": "TargetGroup", "Value": target_group_dimension}]
+    req: dict[str, Any] = {
+        "Namespace": "AWS/ApplicationELB",
+        "MetricName": metric_name,
+        "Dimensions": dims,
+        "StartTime": effective_start,
+        "EndTime": effective_end,
+        "Period": period_seconds,
+    }
+    if statistics:
+        req["Statistics"] = statistics
+    if extended_statistics:
+        req["ExtendedStatistics"] = extended_statistics
+    result = cw.get_metric_statistics(**req)
+    return list(result.get("Datapoints", []))
+
+
+def resolve_ingress_surface(
+    *,
+    elbv2: Any,
+    ingest_url: str,
+    api_id: str,
+    api_stage: str,
+) -> dict[str, Any]:
+    parsed = urlparse(str(ingest_url).strip())
+    host = str(parsed.netloc or "").strip().split(":", 1)[0]
+    if ".execute-api." in host:
+        return {
+            "mode": "APIGW",
+            "host": host,
+            "api_id": api_id,
+            "api_stage": api_stage,
+        }
+    if host.endswith(".elb.amazonaws.com"):
+        paginator = elbv2.get_paginator("describe_load_balancers")
+        matched_lb: dict[str, Any] | None = None
+        for page in paginator.paginate():
+            for row in page.get("LoadBalancers", []):
+                if str(row.get("DNSName", "")).strip() == host:
+                    matched_lb = row
+                    break
+            if matched_lb:
+                break
+        if not matched_lb:
+            raise RuntimeError(f"PR3.S1.WSP.B05_INGRESS_SURFACE_UNRESOLVED:alb_dns_not_found:{host}")
+        lb_arn = str(matched_lb.get("LoadBalancerArn", "")).strip()
+        target_groups = list(elbv2.describe_target_groups(LoadBalancerArn=lb_arn).get("TargetGroups", []))
+        if not target_groups:
+            raise RuntimeError(f"PR3.S1.WSP.B05_INGRESS_SURFACE_UNRESOLVED:no_target_group:{host}")
+        target_group = target_groups[0]
+        return {
+            "mode": "ALB",
+            "host": host,
+            "load_balancer_arn": lb_arn,
+            "load_balancer_dimension": arn_suffix(lb_arn, "loadbalancer"),
+            "target_group_arn": str(target_group.get("TargetGroupArn", "")).strip(),
+            "target_group_dimension": arn_suffix(str(target_group.get("TargetGroupArn", "")).strip(), "targetgroup"),
+            "target_group_count": len(target_groups),
+        }
+    raise RuntimeError(f"PR3.S1.WSP.B05_INGRESS_SURFACE_UNRESOLVED:unsupported_host:{host}")
+
+
+def get_ingress_totals(
+    cw: Any,
+    *,
+    surface: dict[str, Any],
+    start_time: datetime,
+    end_time: datetime,
+    period_seconds: int = 60,
+) -> dict[str, float]:
+    mode = str(surface.get("mode", "")).upper()
+    if mode == "APIGW":
+        return get_apigw_totals(
+            cw,
+            api_id=str(surface.get("api_id", "")).strip(),
+            stage=str(surface.get("api_stage", "")).strip(),
+            start_time=start_time,
+            end_time=end_time,
+            period_seconds=period_seconds,
+        )
+    if mode == "ALB":
+        return get_alb_totals(
+            cw,
+            load_balancer_dimension=str(surface.get("load_balancer_dimension", "")).strip(),
+            target_group_dimension=str(surface.get("target_group_dimension", "")).strip(),
+            start_time=start_time,
+            end_time=end_time,
+            period_seconds=period_seconds,
+        )
+    raise RuntimeError(f"Unsupported ingress surface mode: {mode}")
+
+
+def get_ingress_latency_statistics(
+    cw: Any,
+    *,
+    surface: dict[str, Any],
+    start_time: datetime,
+    end_time: datetime,
+    period_seconds: int = 60,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    mode = str(surface.get("mode", "")).upper()
+    if mode == "APIGW":
+        latency_rows = get_apigw_metric_statistics(
+            cw,
+            api_id=str(surface.get("api_id", "")).strip(),
+            stage=str(surface.get("api_stage", "")).strip(),
+            metric_name="Latency",
+            start_time=start_time,
+            end_time=end_time,
+            period_seconds=period_seconds,
+            extended_statistics=["p95", "p99"],
+        )
+        count_rows = get_apigw_metric_statistics(
+            cw,
+            api_id=str(surface.get("api_id", "")).strip(),
+            stage=str(surface.get("api_stage", "")).strip(),
+            metric_name="Count",
+            start_time=start_time,
+            end_time=end_time,
+            period_seconds=period_seconds,
+            statistics=["Sum"],
+        )
+        return latency_rows, count_rows
+    if mode == "ALB":
+        latency_rows = get_alb_metric_statistics(
+            cw,
+            load_balancer_dimension=str(surface.get("load_balancer_dimension", "")).strip(),
+            target_group_dimension=str(surface.get("target_group_dimension", "")).strip(),
+            metric_name="TargetResponseTime",
+            start_time=start_time,
+            end_time=end_time,
+            period_seconds=period_seconds,
+            extended_statistics=["p95", "p99"],
+        )
+        count_rows = get_alb_metric_statistics(
+            cw,
+            load_balancer_dimension=str(surface.get("load_balancer_dimension", "")).strip(),
+            target_group_dimension=str(surface.get("target_group_dimension", "")).strip(),
+            metric_name="RequestCount",
+            start_time=start_time,
+            end_time=end_time,
+            period_seconds=period_seconds,
+            statistics=["Sum"],
+        )
+        return latency_rows, count_rows
+    raise RuntimeError(f"Unsupported ingress surface mode: {mode}")
+
+
 def weighted_latency_ms(
     latency_points: list[dict[str, Any]],
     count_points: list[dict[str, Any]],
@@ -447,6 +681,7 @@ def main() -> None:
         raise RuntimeError("Strict upstream lock failed: PR3-S0 is not READY.")
 
     ecs = boto3.client("ecs", region_name=args.region)
+    elbv2 = boto3.client("elbv2", region_name=args.region)
     ssm = boto3.client("ssm", region_name=args.region)
     logs = boto3.client("logs", region_name=args.region)
     cw = boto3.client("cloudwatch", region_name=args.region)
@@ -462,6 +697,12 @@ def main() -> None:
             resolved_ig_ingest_url = ""
     if not resolved_ig_ingest_url:
         resolved_ig_ingest_url = str(args.ig_ingest_url_fallback).strip()
+    ingress_surface = resolve_ingress_surface(
+        elbv2=elbv2,
+        ingest_url=resolved_ig_ingest_url,
+        api_id=args.api_id,
+        api_stage=args.api_stage,
+    )
     wsp_checkpoint_dsn = str(args.wsp_checkpoint_dsn).strip()
     if not wsp_checkpoint_dsn:
         aurora_payload = ssm.get_parameters(
@@ -667,6 +908,7 @@ def main() -> None:
             "resolved_ig_ingest_url": resolved_ig_ingest_url,
             "ig_ingest_url_fallback": str(args.ig_ingest_url_fallback).strip(),
             "ssm_ig_service_url_path": args.ssm_ig_service_url_path,
+            "metric_surface": ingress_surface,
         },
     }
     manifest_path = pr3_root / "g3a_s1_wsp_runtime_manifest.json"
@@ -723,10 +965,9 @@ def main() -> None:
             now_dt - timedelta(seconds=max(0, int(args.metric_settle_seconds))),
         )
         try:
-            totals = get_apigw_totals(
+            totals = get_ingress_totals(
                 cw,
-                api_id=args.api_id,
-                stage=args.api_stage,
+                surface=ingress_surface,
                 start_time=measurement_start_at,
                 end_time=settled_observation_end,
             )
@@ -870,30 +1111,17 @@ def main() -> None:
     while datetime.now(timezone.utc) < metrics_ready_at:
         time.sleep(5)
     try:
-        totals = get_apigw_totals(
+        totals = get_ingress_totals(
             cw,
-            api_id=args.api_id,
-            stage=args.api_stage,
+            surface=ingress_surface,
             start_time=measurement_start_at,
             end_time=metrics_end_time,
         )
-        latency_rows = get_apigw_metric_statistics(
+        latency_rows, count_rows = get_ingress_latency_statistics(
             cw,
-            api_id=args.api_id,
-            stage=args.api_stage,
-            metric_name="Latency",
+            surface=ingress_surface,
             start_time=measurement_start_at,
             end_time=metrics_end_time,
-            extended_statistics=["p95", "p99"],
-        )
-        count_rows = get_apigw_metric_statistics(
-            cw,
-            api_id=args.api_id,
-            stage=args.api_stage,
-            metric_name="Count",
-            start_time=measurement_start_at,
-            end_time=metrics_end_time,
-            statistics=["Sum"],
         )
         latency_p95_ms, latency_p99_ms, latency_method = weighted_latency_ms(latency_rows, count_rows)
     except (BotoCoreError, ClientError) as exc:
@@ -983,6 +1211,7 @@ def main() -> None:
             "covered_metric_seconds": covered_seconds,
             "metric_period_seconds": 60,
             "metric_bin_count": int(totals.get("bin_count", 0) or 0),
+            "metric_surface_mode": str(ingress_surface.get("mode", "")).upper(),
         },
         "campaign": manifest["campaign"],
         "observed": {
@@ -1003,6 +1232,7 @@ def main() -> None:
             "aggregate_cli_emitted": aggregate_cli_emitted,
             "lane_result_count": len(lane_results),
             "lane_log_capture_mode": lane_log_mode,
+            "metric_surface_mode": str(ingress_surface.get("mode", "")).upper(),
         },
         "lane_results": lane_results,
         "notes": {
@@ -1011,6 +1241,7 @@ def main() -> None:
             "log_error": log_error,
             "window_stop_reason": "steady window bounded by certification duration",
             "metric_settle_seconds": int(args.metric_settle_seconds),
+            "ingress_metric_surface": ingress_surface,
         },
     }
     summary_path = pr3_root / "g3a_s1_wsp_runtime_summary.json"

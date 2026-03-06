@@ -5020,3 +5020,18 @@ Reasoning:
    - run bounded canonical `PR3-S1` against the SSM-resolved service endpoint,
    - inspect impact metrics first (`admitted_eps`, latency tails, `4xx/5xx`, sample volume),
    - remediate whichever production bottleneck the fresh bounded window exposes.
+## Entry: 2026-03-06 21:25:00 +00:00 - PR3-S1 measurement drift corrected so the bounded replay will measure the active ingress edge truthfully
+1. Before launching the bounded replay, I inspected `pr3_s1_wsp_replay_dispatch.py` and found an evidence defect:
+   - even when the dispatcher resolves `IG_INGEST_URL` from the internal ALB SSM path,
+   - its CloudWatch measurement code still read `AWS/ApiGateway` metrics only.
+2. That would have made the next bounded run non-authoritative:
+   - replay traffic would hit the ECS/ALB service path,
+   - but the scorecard would still read the old API Gateway surface and therefore undercount or misclassify the real service behavior.
+3. Chosen correction:
+   - add automatic ingress-surface resolution from the active ingest URL,
+   - keep `AWS/ApiGateway` metrics when the live edge host is `execute-api`,
+   - switch to `AWS/ApplicationELB` metrics (`RequestCount`, target/ELB `4xx/5xx`, `TargetResponseTime`) when the active edge host is an internal ALB.
+4. Production interpretation:
+   - this is not cosmetic instrumentation work,
+   - it is necessary to keep the PR3 throughput, latency, and error evidence bound to the actual edge under test.
+5. The bounded `PR3-S1` replay can now produce truthful service-path metrics instead of stale API Gateway proxies.
