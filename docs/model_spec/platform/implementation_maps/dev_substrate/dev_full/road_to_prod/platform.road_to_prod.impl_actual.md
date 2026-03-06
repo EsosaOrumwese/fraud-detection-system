@@ -3775,3 +3775,18 @@ Reasoning:
    - managed policy attachment scales beyond the inline-policy ceiling,
    - the automation role stays evolvable for later PR lanes,
    - the PR3 rights remain auditable as one named, separable policy surface.
+
+## Entry: 2026-03-06 17:40:00 +00:00 - Second remote ingress deploy proved the packaging/IAM lane is fixed; the remaining failure is workflow runtime bootstrap
+1. The rerun successfully completed:
+   - deterministic bundle build,
+   - S3 upload to the artifacts bucket,
+   - evidence sync.
+2. It then failed at the first Terraform step with `/bin/sh: terraform: command not found` on the GitHub runner.
+3. Interpretation:
+   - the remote deployment lane itself is now correctly authorized,
+   - the workflow definition omitted explicit Terraform bootstrap and therefore cannot yet execute its own infrastructure phase.
+4. Correction applied:
+   - add `hashicorp/setup-terraform@v3` before the Terraform init/validate/apply steps.
+5. Why this matters:
+   - we now know the next rerun is blocked by workflow runner completeness, not by platform IAM or package storage,
+   - once the workflow bootstrap is corrected on `main`, the remote ingress deployment should progress into the actual infrastructure boundary.

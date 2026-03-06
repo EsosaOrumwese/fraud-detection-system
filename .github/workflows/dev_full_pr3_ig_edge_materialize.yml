@@ -78,6 +78,9 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
       - name: Build deterministic IG Lambda bundle
         id: bundle
         shell: bash
