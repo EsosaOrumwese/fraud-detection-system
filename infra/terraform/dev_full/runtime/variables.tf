@@ -286,7 +286,7 @@ variable "ig_service_task_memory" {
 
 variable "ig_service_desired_count" {
   type    = number
-  default = 16
+  default = 24
 }
 
 variable "ig_service_gunicorn_workers" {
@@ -296,7 +296,7 @@ variable "ig_service_gunicorn_workers" {
 
 variable "ig_service_gunicorn_threads" {
   type    = number
-  default = 8
+  default = 16
 }
 
 variable "ig_service_request_timeout_ms" {

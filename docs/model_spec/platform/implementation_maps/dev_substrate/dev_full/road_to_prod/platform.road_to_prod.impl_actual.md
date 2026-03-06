@@ -5466,3 +5466,44 @@ Reasoning:
    - repack the shared platform image,
    - roll the corrected image and new service posture live,
    - rerun the same bounded canonical `PR3-S1` state and measure whether transient retry handling plus thread/fleet tuning materially lifts admitted `eps` and collapses the latency tail.
+
+## Entry: 2026-03-06 22:36:44 +00:00 - The retry-safe ingress boundary is now materially live on the dev_full runtime, so the next PR3-S1 rerun is again an honest production-shape measurement
+1. I repacked the shared platform image from commit `5d656d5384ed165b551e1ec2e476fa8799b4b40a` through workflow run `22784762559`.
+2. The new immutable runtime digest is `sha256:aa9cc0b2ff129d93e1082ab74fbe1dd2b406c3a43fd08dfab6d6ebc4f24e38a0`.
+3. I rolled that digest live and recorded the refresh evidence under `runs/dev_substrate/dev_full/road_to_prod/run_control/pr3_20260306T021900Z/runtime_refresh_20260306T223644Z/`.
+4. Live posture after the refresh:
+   - WSP task definition: `fraud-platform-dev-full-wsp-ephemeral:32`
+   - IG task definition: `fraud-platform-dev-full-ig-service:7`
+   - IG desired/running count: `16/16`
+   - IG image digest: `sha256:aa9cc0b2ff129d93e1082ab74fbe1dd2b406c3a43fd08dfab6d6ebc4f24e38a0`
+   - IG gunicorn posture: `workers=4`, `threads=8`
+   - IG hot-path health probe mode remains `none`
+5. Production interpretation:
+   - transient retry overlap should no longer pollute semantic quarantine truth or kill lanes as 4xx-style terminal failures;
+   - the ingress service is now running a materially saner Python concurrency model than the previous `4 x 32` posture;
+   - the next bounded rerun will tell me whether the platform frontier has moved from retry amplification toward honest service capacity, and by how much.
+
+## Entry: 2026-03-06 22:46:00 +00:00 - The next PR3-S1 limiter is front-door queueing, so the ingress plan now shifts from semantic correction to concurrency-slot expansion
+1. I inspected the latest hot minute after the retry-safe rollout and found a clear split between application work time and end-to-end edge time:
+   - ALB `p95` latency was `13.862s`, `p99` was `23.672s`;
+   - inside the app, `admission_seconds p95` across the active IG workers was only about `0.35s` to `0.40s`;
+   - `phase.validate/publish/receipt` p95 values were all in sub-second bands.
+2. Production interpretation:
+   - the service is no longer spending its time inside business logic, dedupe, Kafka publish, or receipt writes;
+   - requests are now mostly waiting before they even reach useful application work;
+   - the remaining bottleneck is therefore front-door concurrency capacity (worker/thread/task slots), not semantic admission correctness.
+3. This explains the current shape:
+   - admitted throughput improved again to `1186.5 eps`,
+   - `PUBLISH_IN_FLIGHT` noise is gone,
+   - residual 4xx/5xx is now relatively small,
+   - but ALB queueing keeps the latency tail far above the production envelope and still caps throughput below `3000 eps`.
+4. The previous `16 tasks x 4 workers x 8 threads` posture created roughly `512` request-handling slots. That is not enough headroom for a `3000 eps` target when the observed in-app p95 is still around `0.35s+`, because the front door needs materially more concurrent service capacity before queueing collapses.
+5. Chosen next repin:
+   - raise ingress desired count from `16` to `24`,
+   - raise gunicorn threads from `8` to `16`,
+   - keep workers at `4`.
+6. Why this shape instead of restoring the old `32` threads immediately:
+   - the old `4 x 32` posture proved it can oversubscribe the Python runtime badly on `2 vCPU` tasks;
+   - `4 x 16` is a controlled expansion that materially increases concurrent request slots while avoiding the worst oversubscription extreme;
+   - `24` tasks gives the service a broader front-door fleet so ALB queueing is less likely to pin a subset of tasks into local saturation.
+7. The next rerun after this repin should tell me whether the platform is still slot-limited or whether the next ceiling becomes the WSP pressure path itself.
