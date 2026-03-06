@@ -45,6 +45,21 @@ on:
         required: true
         default: "6000"
         type: string
+      lambda_ig_memory_mb:
+        description: "Target IG lambda memory size (MB)"
+        required: true
+        default: "1024"
+        type: string
+      lambda_ig_reserved_concurrency:
+        description: "Target IG lambda reserved concurrency"
+        required: true
+        default: "300"
+        type: string
+      lambda_ig_timeout_seconds:
+        description: "Target IG lambda timeout seconds"
+        required: true
+        default: "30"
+        type: string
       eks_nodegroup_instance_types_json:
         description: "JSON list of nodegroup instance types"
         required: true
@@ -206,6 +221,9 @@ jobs:
           terraform -chdir="${TF_DIR}" apply -input=false -auto-approve \
             -var "ig_rate_limit_rps=${{ inputs.ig_rate_limit_rps }}" \
             -var "ig_rate_limit_burst=${{ inputs.ig_rate_limit_burst }}" \
+            -var "lambda_ig_memory_size_mb=${{ inputs.lambda_ig_memory_mb }}" \
+            -var "lambda_ig_reserved_concurrency=${{ inputs.lambda_ig_reserved_concurrency }}" \
+            -var "lambda_ig_timeout_seconds=${{ inputs.lambda_ig_timeout_seconds }}" \
             -var "eks_nodegroup_instance_types=${{ inputs.eks_nodegroup_instance_types_json }}" \
             -var "eks_nodegroup_desired_size=${{ inputs.eks_nodegroup_desired_size }}" \
             -var "eks_nodegroup_min_size=${{ inputs.eks_nodegroup_min_size }}" \
@@ -223,6 +241,9 @@ jobs:
           EVIDENCE_BUCKET: ${{ inputs.evidence_bucket }}
           EXPECTED_IG_RATE_LIMIT_RPS: ${{ inputs.ig_rate_limit_rps }}
           EXPECTED_IG_RATE_LIMIT_BURST: ${{ inputs.ig_rate_limit_burst }}
+          EXPECTED_LAMBDA_MEMORY_MB: ${{ inputs.lambda_ig_memory_mb }}
+          EXPECTED_LAMBDA_RESERVED_CONCURRENCY: ${{ inputs.lambda_ig_reserved_concurrency }}
+          EXPECTED_LAMBDA_TIMEOUT_SECONDS: ${{ inputs.lambda_ig_timeout_seconds }}
           EXPECTED_NODEGROUP_DESIRED: ${{ inputs.eks_nodegroup_desired_size }}
           EXPECTED_NODEGROUP_MIN: ${{ inputs.eks_nodegroup_min_size }}
           EXPECTED_NODEGROUP_MAX: ${{ inputs.eks_nodegroup_max_size }}
@@ -245,6 +266,9 @@ jobs:
           stage_name = os.environ["APIGW_IG_STAGE_NAME"]
           expected_rate = float(os.environ["EXPECTED_IG_RATE_LIMIT_RPS"])
           expected_burst = int(float(os.environ["EXPECTED_IG_RATE_LIMIT_BURST"]))
+          expected_lambda_memory = int(float(os.environ["EXPECTED_LAMBDA_MEMORY_MB"]))
+          expected_lambda_reserved = int(float(os.environ["EXPECTED_LAMBDA_RESERVED_CONCURRENCY"]))
+          expected_lambda_timeout = int(float(os.environ["EXPECTED_LAMBDA_TIMEOUT_SECONDS"]))
           expected_desired = int(os.environ["EXPECTED_NODEGROUP_DESIRED"])
           expected_min = int(os.environ["EXPECTED_NODEGROUP_MIN"])
           expected_max = int(os.environ["EXPECTED_NODEGROUP_MAX"])
@@ -311,6 +335,25 @@ jobs:
           if burst_live is None or int(burst_live) < expected_burst:
               blockers.append({"code": "RC2R2-B1", "message": f"APIGW throttle burst below target ({burst_live} < {expected_burst})."})
 
+          lambda_memory_live = post["lambda"].get("memory_size")
+          lambda_timeout_live = post["lambda"].get("timeout_seconds")
+          lambda_reserved_live = post["lambda"].get("reserved_concurrency")
+          if lambda_memory_live is None or int(lambda_memory_live) < expected_lambda_memory:
+              blockers.append({
+                  "code": "RC2R2-B1",
+                  "message": f"Lambda memory below target ({lambda_memory_live} < {expected_lambda_memory}).",
+              })
+          if lambda_timeout_live is None or int(lambda_timeout_live) < expected_lambda_timeout:
+              blockers.append({
+                  "code": "RC2R2-B1",
+                  "message": f"Lambda timeout below target ({lambda_timeout_live} < {expected_lambda_timeout}).",
+              })
+          if lambda_reserved_live is None or int(lambda_reserved_live) < expected_lambda_reserved:
+              blockers.append({
+                  "code": "RC2R2-B1",
+                  "message": f"Lambda reserved concurrency below target ({lambda_reserved_live} < {expected_lambda_reserved}).",
+              })
+
           desired_live = int(scaling.get("desiredSize", -1))
           min_live = int(scaling.get("minSize", -1))
           max_live = int(scaling.get("maxSize", -1))
@@ -350,6 +393,9 @@ jobs:
               "expected_targets": {
                   "ig_rate_limit_rps": expected_rate,
                   "ig_rate_limit_burst": expected_burst,
+                  "lambda_ig_memory_mb": expected_lambda_memory,
+                  "lambda_ig_reserved_concurrency": expected_lambda_reserved,
+                  "lambda_ig_timeout_seconds": expected_lambda_timeout,
                   "eks_nodegroup_desired_size": expected_desired,
                   "eks_nodegroup_min_size": expected_min,
                   "eks_nodegroup_max_size": expected_max,
