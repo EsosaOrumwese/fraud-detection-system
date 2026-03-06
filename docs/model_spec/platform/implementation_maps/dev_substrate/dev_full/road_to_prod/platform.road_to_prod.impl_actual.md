@@ -3906,3 +3906,56 @@ Reasoning:
    - push the bundler fix on `cert-platform`,
    - rerun the same ingress materialization workflow from `main` with `code_ref=cert-platform`,
    - expect the health verification to move past import bootstrap and into real handler logic.
+## Entry: 2026-03-06 18:58:00 +00:00 - The persisted Lambda import failure is a package-initialization dependency-shape defect, not a bundle-path defect
+1. I pulled the exact live Lambda package from AWS and compared it to the workflow-uploaded S3 bundle used by run `22766235881`.
+2. Both artifacts are byte-identical (`CodeSha256 = eOyOOBwLwV3tEP9zdxHLuVEcwA0b99bp/yARZ+p/cx0=`) and both contain `fraud_detection/...` at the zip root.
+3. This falsifies the previous hypothesis that the live Lambda was still serving a stale or mis-rooted package.
+4. I then imported the deployed zip locally exactly as a zip-path and traced the handler import chain.
+5. The first failing point is not the top-level package itself. The import graph is:
+   - `fraud_detection.ingestion_gate.aws_lambda_handler`
+   - `ingestion_gate.admission`
+   - `ingestion_gate.governance`
+   - `fraud_detection.platform_governance`
+   - `platform_governance.__init__`
+   - `platform_governance.evidence_corridor`
+   - `fraud_detection.scenario_runner.storage`
+   - `scenario_runner.__init__`
+   - `scenario_runner.runner`
+   - `scenario_runner.schemas`
+   - `jsonschema -> referencing -> rpds`
+6. On local verification that chain fails at `rpds.rpds` because the native extension is cp312 Linux-specific. Lambda is likely collapsing a deeper import-time failure into the generic `Unable to import module ... No module named 'fraud_detection'` message.
+7. Production interpretation:
+   - the ingress edge is booting with the wrong dependency shape,
+   - its cold-start path is pulling broad scenario-runner and schema-validation surfaces that are not needed to admit and publish ingress traffic,
+   - this is architecturally wrong for a high-EPS ingress lane even if the package could be forced to import.
+8. Therefore the correct remediation is not to keep bloating the Lambda bundle or to repin the ingress edge back to a toy path.
+9. The correct remediation is to shrink the import surface so IG init only loads the runtime dependencies it truly needs:
+   - make `platform_governance` exports lazy so `emit_platform_governance_event` does not eagerly import `evidence_corridor`,
+   - make `scenario_runner` exports lazy so importing `scenario_runner.storage` does not eagerly import `runner`/`schemas`/`jsonschema`,
+   - preserve existing public package names so downstream callers do not break.
+10. Why this is the production-grade fix:
+   - lower cold-start latency,
+   - smaller blast radius from optional subsystems,
+   - fewer native binary constraints in the hot ingress path,
+   - clearer ownership boundaries between ingress runtime and scenario-runner authoring machinery.
+11. After this refactor, the same ingress deployment lane should be rerun before any PR3 state evidence is trusted again.
+## Entry: 2026-03-06 19:03:00 +00:00 - Package export surfaces are refactored to protect the IG cold-start path from optional subsystem imports
+1. I changed `fraud_detection.platform_governance.__init__` from eager re-exports to lazy attribute loading.
+2. I changed `fraud_detection.scenario_runner.__init__` from eager re-exports to lazy attribute loading.
+3. Public import names are preserved:
+   - `emit_platform_governance_event`, `PlatformGovernanceWriter`, and evidence-corridor names still resolve,
+   - `ScenarioRunner`, `RunRequest`, `RunResponse`, `ReemitRequest`, `ReemitResponse` still resolve.
+4. Operational effect:
+   - importing `fraud_detection.platform_governance.emit_platform_governance_event` no longer forces `evidence_corridor` into memory,
+   - importing `fraud_detection.scenario_runner.storage` no longer forces `scenario_runner.runner` and `scenario_runner.schemas` into memory.
+5. This is the correct production remediation because it addresses the architectural fault directly:
+   - Lambda init path becomes narrower,
+   - optional authoring/analysis machinery is no longer part of ingress boot,
+   - import-time failure blast radius is reduced,
+   - cold-start posture improves instead of regressing.
+6. Validation performed:
+   - direct source import of `fraud_detection.ingestion_gate.aws_lambda_handler` now succeeds immediately,
+   - py_compile of the changed `__init__` modules succeeds.
+7. Remaining boundary:
+   - redeploy the ingress edge with this change,
+   - then verify live `/ops/health` and a real publish path before resuming PR3 states.
