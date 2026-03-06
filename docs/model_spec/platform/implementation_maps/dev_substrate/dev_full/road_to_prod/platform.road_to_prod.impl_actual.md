@@ -3527,3 +3527,38 @@ Reasoning:
   - seed the existing pr3_20260306T021900Z run-control tree into the evidence bucket once so the newly bootstrapped workflow has a complete starting state,
   - rerun canonical PR3-S1,
   - if green, continue the same remote-mirror pattern for later PR3/PR4 states.
+### 2026-03-06 14:50:00 +00:00 - Live PR3-S1 run shows the platform hot path is healthy at ~1.3k-1.45k eps, so the next limiter is injector calibration not ingress/runtime stability
+- The current canonical rerun (22761560319) is still active, but live measurement already exposes the relevant production signal.
+- Live API Gateway metrics during the steady window show:
+  - request count roughly 80k-88k per minute,
+  - equivalent throughput roughly 1330-1460 eps,
+  - 4XXError=0,
+  - 5XXError=0,
+  - latency approximately p95=21-23 ms, p99=27-31 ms.
+- Live WSP lane logs confirm real replay progress from the oracle-store data:
+  - multiple Fargate lanes are reading stream-view files and steadily emitting traffic/context events,
+  - example lanes show aggregate output rates in the tens of events per second per lane,
+  - the hot path is therefore moving meaningful real traffic, not idling.
+- Interpretation against the PR3-S1 production target:
+  - platform intake/stability is materially healthy at the current load envelope,
+  - the current hardcoded stream_speedup=19.7 underdrives the source replay relative to the 3000 eps target,
+  - there is no evidence at this point that API Gateway, Lambda, DynamoDB idempotency, MSK auth, or the PR3 EKS runtime are the limiting surfaces.
+- Calibration conclusion:
+  - observed admitted eps (~1.4k) versus target (3000) implies the next replay attempt should increase effective source speed by roughly 3000 / 1400 ~= 2.14x,
+  - applied to the current 19.7 speedup, the next calibrated target is approximately 42-50,
+  - choosing 50 is the production-minded next step because it aims to clear the target with margin while the current latency/error posture suggests real headroom remains.
+- Required implementation change:
+  - stop hardcoding 19.7 in dev_full_pr3_s1_managed.yml,
+  - expose stream_speedup as an explicit workflow input so calibration can be evidence-backed and repeatable,
+  - use 50.0 for the next PR3-S1 rerun unless the still-running attempt exposes a contrary end-of-window metric.
+### 2026-03-06 14:56:00 +00:00 - Replaced a dead manual knob with explicit stream_speedup control for PR3-S1 calibration
+- dev_full_pr3_s1_managed.yml was already at GitHub's workflow-dispatch input ceiling, so adding a brand-new calibration input would have broken dispatch again.
+- Review of the workflow showed max_workers_per_lane was a dead manual parameter for this path.
+- Decision:
+  - replace max_workers_per_lane with stream_speedup,
+  - default it to 50.0 based on the live evidence from the current run,
+  - pass that value straight through to pr3_s1_wsp_replay_dispatch.py instead of hardcoding 19.7 in the workflow body.
+- Why this is the correct production move:
+  - calibration becomes explicit and auditable,
+  - the dispatch surface stays within GitHub limits,
+  - future reruns can be tuned from measured ingress evidence without editing workflow code every time.

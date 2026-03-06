@@ -110,10 +110,10 @@ on:
         required: true
         default: "5400000"
         type: string
-      max_workers_per_lane:
-        description: "Thread workers per lane"
+      stream_speedup:
+        description: "Oracle replay speedup multiplier"
         required: true
-        default: "192"
+        default: "50.0"
         type: string
       retry_max_attempts:
         description: "Retry attempts per event"
@@ -575,6 +575,7 @@ jobs:
           DURATION_SECONDS: ${{ inputs.duration_seconds }}
           EARLY_CUTOFF_SECONDS: ${{ inputs.early_cutoff_seconds }}
           EARLY_CUTOFF_FLOOR_RATIO: ${{ inputs.early_cutoff_floor_ratio }}
+          STREAM_SPEEDUP: ${{ inputs.stream_speedup }}
         run: |
           set -euo pipefail
           python scripts/dev_substrate/pr3_s1_wsp_replay_dispatch.py \
@@ -589,7 +590,7 @@ jobs:
             --duration-seconds "${DURATION_SECONDS}" \
             --early-cutoff-seconds "${EARLY_CUTOFF_SECONDS}" \
             --early-cutoff-floor-ratio "${EARLY_CUTOFF_FLOOR_RATIO}" \
-            --stream-speedup 19.7 \
+            --stream-speedup "${STREAM_SPEEDUP}" \
             --max-latency-p95-ms 350 \
             --max-latency-p99-ms 700
 
