@@ -432,7 +432,7 @@ Cost budget:
 
 ## 11) Execution Record
 Status:
-1. `IN_PROGRESS` (`S0` and `S1` complete; `S2` is the next execution boundary).
+1. `IN_PROGRESS` (`S0` complete; `S1` reopened under strict canonical rerun and remains the active remediation boundary).
 
 Strict upstream lock for first execution:
 1. `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_s3_execution_receipt.json`
@@ -453,7 +453,11 @@ State closure:
 4. `S1` receipt:
    - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr3_20260306T021900Z/pr3_s1_execution_receipt.json`.
 5. `S1` verdict:
-   - `PR3_S1_READY`, `open_blockers=0`, `next_state=PR3-S2`, `next_gate=PR3_RUNTIME_S1_READY`.
+   - historic receipt remains present from the earlier calibration pass,
+   - active truth boundary is now the canonical rerun evidence:
+     - `g3a_s1_wsp_runtime_summary.json`
+     - `g3a_steady_evidence_managed_summary.json`
+   - current verdict: `HOLD_REMEDIATE`, `open_blockers=144`, `next_state=PR3-S1`.
 
 ### 11.0 Active Production-Correction Note
 1. `PR3-S1` is not being treated as a simple rerun blocker anymore.
@@ -483,15 +487,15 @@ State closure:
 ### 11.2 PR3-S1 Findings Summary (Readable)
 | Area | What was found | Interpretation |
 | --- | --- | --- |
-| Gate outcome | `PR3_S1_READY`, `open_blockers=0`, `next_state=PR3-S2` | S1 steady certification is now closed on the canonical remote-WSP path. |
-| Steady goal vs observed throughput | acceptance target `3000.0 eps`; observed admitted throughput `3003.4222 eps` on settled minute bins | The ingress path now clears the RC2-S steady-rate target on the authoritative measurement surface. |
-| Source-setpoint calibration | generator setpoint `3005.0 eps`; observed admitted `3003.4222 eps` | Open-loop `3000` setpoints underdelivered slightly; calibrated source shaping was required to hit the platform target exactly without relaxing the acceptance contract. |
-| Measurement-surface posture | surface `IG_ADMITTED_EVENTS_PER_SEC`; covered metric window `180s`; `metric_bin_count=3` | S1 is now judged on fully settled CloudWatch minute bins instead of partial-bin wall-clock math. |
-| Sample minima posture | bounded steady minimum `540,000` events; observed admitted `540,616` | The bounded-window sample floor is satisfied for this S1 certification window. |
-| Latency posture | API Gateway latency `p95/p99` resolved on the same measurement window and remained within charter maxima (`<=350 ms`, `<=700 ms`) | Steady throughput clearance did not come at the expense of hot-path latency posture. |
-| Error posture | `4xx_total=0`, `5xx_total=0`, `error_rate_ratio=0.0` | S1 is clean on transport/admission failure posture. |
-| Runtime and cost posture | wall-clock `221.411s` for the active window closure path; spend receipt still pending later PR3 cost rollups | S1 is minute-scale and operationally controlled, with no cost-waiver logic used to obtain closure. |
-| Goal-level conclusion | canonical steady window is production-credible and closed; PR3 can advance to burst/backpressure proof in `S2` | The remaining PR3 work is downstream of a valid S1 closure, not more S1 remediation. |
+| Gate outcome | canonical rerun verdict `HOLD_REMEDIATE`, `open_blockers=144`, active rerun boundary remains `PR3-S1` | Earlier green calibration is no longer the authoritative truth for S1 under the stricter production path. |
+| Steady goal vs observed throughput | target `3000.0 eps`; observed admitted throughput `0.0 eps` | The canonical remote WSP -> IG path is not production-ready yet and currently fails before admitting any useful load. |
+| Request volume posture | API Gateway count sum `2449` over the measured bins | Requests do reach the ingress edge, so this is not a WSP launch failure or a missing route. |
+| Error posture | `4xx_sum=0`, `5xx_sum=2449`, `error_rate_pct_observed=100.0` | Every measured request failed at the ingress/runtime path; there is no acceptable partial-pass interpretation here. |
+| Latency posture | API Gateway latency `p95=29969.101 ms`, `p99=30000.323 ms` against S1 maxima `350/700 ms` | The ingress hot path is saturating the full request timeout budget, which is a severe production defect rather than a small tuning miss. |
+| WSP lane posture | `138/138` lanes exited non-zero with `IG_PUSH_RETRY_EXHAUSTED`, `aggregate_cli_emitted=0` | The producer path is uniformly failing under canonical replay, so the defect is systemic and not isolated to a few hot shards. |
+| Lambda posture | Lambda duration averaged `30000 ms` in every active minute; reserved concurrency `300` also hit throttles during the window | The current synchronous admission path blocks until timeout, then drives concurrency exhaustion and secondary throttling. |
+| Root-cause signal | WSP logs show repeated `timeout` and `http_503`; IG metrics show full-timeout behavior with no clean response budget left | The active bottleneck is inside the live ingress hot path, most likely around synchronous publish/quarantine behavior, not the WSP source rate-shaper. |
+| Goal-level conclusion | S1 is not closed; PR3 must remain at `S1` until steady ingress admission can sustain target throughput within latency/error thresholds on the canonical path | Advancing to `S2` now would be a false production claim. |
 
 ### 11.3 PR3-S1 Runtime-Correction Findings (Readable)
 | Area | What was found | Interpretation |

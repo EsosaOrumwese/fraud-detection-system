@@ -59,3 +59,36 @@ def test_governance_quarantine_spike_emits_once(tmp_path: Path) -> None:
 
     log = (tmp_path / "bus" / "fp.bus.audit.v1" / "partition=0.jsonl").read_text(encoding="utf-8")
     assert len(log.splitlines()) == 1
+
+
+def test_policy_activation_defaults_to_store_only(tmp_path: Path) -> None:
+    store = LocalObjectStore(tmp_path / "store")
+    bus = FileEventBusPublisher(tmp_path / "bus")
+    profiles_path = tmp_path / "partitioning.yaml"
+    _write_partitioning(profiles_path)
+    partitioning = PartitioningProfiles(str(profiles_path))
+    emitter = GovernanceEmitter(
+        store=store,
+        bus=bus,
+        partitioning=partitioning,
+        quarantine_spike_threshold=2,
+        quarantine_spike_window_seconds=60,
+        policy_id="ig_policy",
+        prefix="platform_20260306T160000Z",
+    )
+
+    emitter.emit_policy_activation(
+        {
+            "policy_id": "ig_policy",
+            "revision": "dev-full-v0",
+            "content_digest": "a" * 64,
+        }
+    )
+
+    active_path = tmp_path / "store" / "platform_20260306T160000Z" / "ig" / "policy" / "active.json"
+    governance_events = (
+        tmp_path / "store" / "fraud-platform" / "platform_20260306T160000Z" / "obs" / "governance" / "events.jsonl"
+    )
+    assert active_path.exists()
+    assert governance_events.exists()
+    assert not (tmp_path / "bus" / "fp.bus.audit.v1").exists()

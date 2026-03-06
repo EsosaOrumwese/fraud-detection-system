@@ -11,7 +11,7 @@ import time
 from typing import Any
 
 from aws_msk_iam_sasl_signer import MSKAuthTokenProvider
-from kafka import KafkaConsumer, KafkaProducer
+from kafka import KafkaConsumer
 from kafka import TopicPartition as PyKafkaTopicPartition
 from kafka.sasl.oauth import AbstractTokenProvider
 
@@ -89,17 +89,35 @@ class _MskIamTokenProvider(AbstractTokenProvider):
 
 
 def _producer_conf(config: KafkaConfig) -> dict[str, Any]:
-    return {
+    conf = {
         "bootstrap.servers": config.bootstrap_servers,
         "security.protocol": config.security_protocol,
         "sasl.mechanism": config.sasl_mechanism,
-        "sasl.username": config.sasl_username or "",
-        "sasl.password": config.sasl_password or "",
         "client.id": config.client_id,
         "request.timeout.ms": max(1000, int(config.request_timeout_ms)),
+        "delivery.timeout.ms": max(1000, int(config.request_timeout_ms)),
+        "socket.timeout.ms": max(1000, int(config.request_timeout_ms)),
         "message.send.max.retries": max(0, int(config.retries)),
         "enable.idempotence": True,
+        "acks": "all",
     }
+    if _uses_oauth_bearer(config.security_protocol, config.sasl_mechanism):
+        conf["oauth_cb"] = _confluent_oauth_cb(config.aws_region)
+    else:
+        conf["sasl.username"] = config.sasl_username or ""
+        conf["sasl.password"] = config.sasl_password or ""
+    return conf
+
+
+def _confluent_oauth_cb(region: str | None):
+    resolved_region = _resolve_region(region)
+
+    def _callback(_oauth_config: dict[str, Any] | None = None) -> tuple[str, float]:
+        token, expiry_ms = MSKAuthTokenProvider.generate_auth_token(resolved_region)
+        expiry_seconds = max(1.0, float(expiry_ms) / 1000.0)
+        return token, expiry_seconds
+
+    return _callback
 
 
 def _consumer_conf(config: KafkaReaderConfig) -> dict[str, Any]:
@@ -134,53 +152,19 @@ class KafkaEventBusPublisher:
             aws_region=_resolve_region(config.aws_region),
         )
         self._producer_mode = "oauth" if _uses_oauth_bearer(self.config.security_protocol, self.config.sasl_mechanism) else "standard"
-        self._oauth_provider = _MskIamTokenProvider(self.config.aws_region) if self._producer_mode == "oauth" else None
         if (
             _uses_sasl(self.config.security_protocol)
             and self._producer_mode != "oauth"
             and not (self.config.sasl_username and self.config.sasl_password)
         ):
             raise RuntimeError("KAFKA_SASL_CREDENTIALS_MISSING")
-        if self._producer_mode == "oauth":
-            self._producer = KafkaProducer(
-                bootstrap_servers=[self.config.bootstrap_servers],
-                security_protocol=self.config.security_protocol,
-                sasl_mechanism=self.config.sasl_mechanism,
-                sasl_oauth_token_provider=self._oauth_provider,
-                client_id=self.config.client_id,
-                request_timeout_ms=max(1000, int(self.config.request_timeout_ms)),
-                retries=max(0, int(self.config.retries)),
-            )
-        else:
-            _consumer_cls, _kafka_error_cls, producer_cls, _topic_partition_cls = _import_confluent()
-            self._producer = producer_cls(_producer_conf(self.config))
+        _consumer_cls, _kafka_error_cls, producer_cls, _topic_partition_cls = _import_confluent()
+        self._producer = producer_cls(_producer_conf(self.config))
 
     def publish(self, topic: str, partition_key: str, payload: dict[str, Any]) -> EbRef:
         if not topic:
             raise RuntimeError("KAFKA_TOPIC_MISSING")
         payload_bytes = json.dumps(payload, ensure_ascii=True, separators=(",", ":")).encode("utf-8")
-        if self._producer_mode == "oauth":
-            future = self._producer.send(
-                topic=topic,
-                key=(partition_key or "").encode("utf-8"),
-                value=payload_bytes,
-            )
-            metadata = future.get(timeout=max(1.0, self.config.request_timeout_ms / 1000.0))
-            published_at = datetime.now(tz=timezone.utc).isoformat()
-            logger.info(
-                "EB publish kafka topic=%s partition=%s offset=%s bytes=%s",
-                topic,
-                metadata.partition,
-                metadata.offset,
-                len(payload_bytes),
-            )
-            return EbRef(
-                topic=topic,
-                partition=int(metadata.partition),
-                offset=str(metadata.offset),
-                offset_kind="kafka_offset",
-                published_at_utc=published_at,
-            )
         delivery: dict[str, Any] = {}
 
         def _on_delivery(err, msg) -> None:
@@ -379,9 +363,6 @@ class KafkaEventBusReader:
 
     def close(self) -> None:
         try:
-            if self._consumer_mode == "oauth":
-                self._consumer.close()
-                return
             self._consumer.close()
         except Exception:
             return

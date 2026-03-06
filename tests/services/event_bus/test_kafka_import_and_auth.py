@@ -65,6 +65,7 @@ def test_kafka_auth_required_only_for_sasl_protocols(monkeypatch) -> None:
 def test_kafka_oauthbearer_does_not_require_static_sasl_credentials(monkeypatch) -> None:
     class _NoopProducer:
         def __init__(self, *_args, **_kwargs):
+            self.args = _args
             self.kwargs = _kwargs
 
     class _NoopConsumer:
@@ -153,3 +154,4 @@ def test_kafka_oauthbearer_does_not_require_static_sasl_credentials(monkeypatch)
 
     assert publisher is not None
     assert reader is not None
+    assert callable(publisher._producer.args[0].get("oauth_cb"))

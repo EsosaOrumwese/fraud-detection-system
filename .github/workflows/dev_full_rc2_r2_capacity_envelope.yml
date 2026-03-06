@@ -60,6 +60,16 @@ on:
         required: true
         default: "30"
         type: string
+      lambda_ig_kafka_request_timeout_ms:
+        description: "Target IG lambda Kafka publish timeout (ms)"
+        required: true
+        default: "1500"
+        type: string
+      lambda_ig_policy_activation_audit_mode:
+        description: "Target IG policy-activation audit mode"
+        required: true
+        default: "store_only"
+        type: string
       eks_nodegroup_instance_types_json:
         description: "JSON list of nodegroup instance types"
         required: true
@@ -224,6 +234,8 @@ jobs:
             -var "lambda_ig_memory_size_mb=${{ inputs.lambda_ig_memory_mb }}" \
             -var "lambda_ig_reserved_concurrency=${{ inputs.lambda_ig_reserved_concurrency }}" \
             -var "lambda_ig_timeout_seconds=${{ inputs.lambda_ig_timeout_seconds }}" \
+            -var "lambda_ig_kafka_request_timeout_ms=${{ inputs.lambda_ig_kafka_request_timeout_ms }}" \
+            -var "lambda_ig_policy_activation_audit_mode=${{ inputs.lambda_ig_policy_activation_audit_mode }}" \
             -var "eks_nodegroup_instance_types=${{ inputs.eks_nodegroup_instance_types_json }}" \
             -var "eks_nodegroup_desired_size=${{ inputs.eks_nodegroup_desired_size }}" \
             -var "eks_nodegroup_min_size=${{ inputs.eks_nodegroup_min_size }}" \
@@ -244,6 +256,8 @@ jobs:
           EXPECTED_LAMBDA_MEMORY_MB: ${{ inputs.lambda_ig_memory_mb }}
           EXPECTED_LAMBDA_RESERVED_CONCURRENCY: ${{ inputs.lambda_ig_reserved_concurrency }}
           EXPECTED_LAMBDA_TIMEOUT_SECONDS: ${{ inputs.lambda_ig_timeout_seconds }}
+          EXPECTED_LAMBDA_KAFKA_REQUEST_TIMEOUT_MS: ${{ inputs.lambda_ig_kafka_request_timeout_ms }}
+          EXPECTED_POLICY_ACTIVATION_AUDIT_MODE: ${{ inputs.lambda_ig_policy_activation_audit_mode }}
           EXPECTED_NODEGROUP_DESIRED: ${{ inputs.eks_nodegroup_desired_size }}
           EXPECTED_NODEGROUP_MIN: ${{ inputs.eks_nodegroup_min_size }}
           EXPECTED_NODEGROUP_MAX: ${{ inputs.eks_nodegroup_max_size }}
@@ -269,6 +283,8 @@ jobs:
           expected_lambda_memory = int(float(os.environ["EXPECTED_LAMBDA_MEMORY_MB"]))
           expected_lambda_reserved = int(float(os.environ["EXPECTED_LAMBDA_RESERVED_CONCURRENCY"]))
           expected_lambda_timeout = int(float(os.environ["EXPECTED_LAMBDA_TIMEOUT_SECONDS"]))
+          expected_lambda_kafka_timeout = int(float(os.environ["EXPECTED_LAMBDA_KAFKA_REQUEST_TIMEOUT_MS"]))
+          expected_policy_activation_audit_mode = os.environ["EXPECTED_POLICY_ACTIVATION_AUDIT_MODE"]
           expected_desired = int(os.environ["EXPECTED_NODEGROUP_DESIRED"])
           expected_min = int(os.environ["EXPECTED_NODEGROUP_MIN"])
           expected_max = int(os.environ["EXPECTED_NODEGROUP_MAX"])
@@ -317,6 +333,11 @@ jobs:
                   "memory_size": lambda_cfg.get("MemorySize"),
                   "timeout_seconds": lambda_cfg.get("Timeout"),
                   "reserved_concurrency": lambda_cfg.get("ReservedConcurrentExecutions"),
+                  "environment": (
+                      lambda_cfg.get("Environment", {}).get("Variables", {})
+                      if isinstance(lambda_cfg.get("Environment"), dict)
+                      else {}
+                  ),
               },
               "eks_m6f_nodegroup": {
                   "cluster_name": cluster_name,
@@ -338,6 +359,7 @@ jobs:
           lambda_memory_live = post["lambda"].get("memory_size")
           lambda_timeout_live = post["lambda"].get("timeout_seconds")
           lambda_reserved_live = post["lambda"].get("reserved_concurrency")
+          lambda_env_live = post["lambda"].get("environment", {})
           if lambda_memory_live is None or int(lambda_memory_live) < expected_lambda_memory:
               blockers.append({
                   "code": "RC2R2-B1",
@@ -352,6 +374,24 @@ jobs:
               blockers.append({
                   "code": "RC2R2-B1",
                   "message": f"Lambda reserved concurrency below target ({lambda_reserved_live} < {expected_lambda_reserved}).",
+              })
+          kafka_timeout_live = lambda_env_live.get("KAFKA_REQUEST_TIMEOUT_MS")
+          if kafka_timeout_live is None or int(kafka_timeout_live) != expected_lambda_kafka_timeout:
+              blockers.append({
+                  "code": "RC2R2-B1",
+                  "message": (
+                      "Lambda Kafka request timeout drift "
+                      f"({kafka_timeout_live} != {expected_lambda_kafka_timeout})."
+                  ),
+              })
+          audit_mode_live = lambda_env_live.get("IG_POLICY_ACTIVATION_AUDIT_MODE")
+          if audit_mode_live != expected_policy_activation_audit_mode:
+              blockers.append({
+                  "code": "RC2R2-B1",
+                  "message": (
+                      "Lambda policy-activation audit mode drift "
+                      f"({audit_mode_live} != {expected_policy_activation_audit_mode})."
+                  ),
               })
 
           desired_live = int(scaling.get("desiredSize", -1))
@@ -396,6 +436,8 @@ jobs:
                   "lambda_ig_memory_mb": expected_lambda_memory,
                   "lambda_ig_reserved_concurrency": expected_lambda_reserved,
                   "lambda_ig_timeout_seconds": expected_lambda_timeout,
+                  "lambda_ig_kafka_request_timeout_ms": expected_lambda_kafka_timeout,
+                  "lambda_ig_policy_activation_audit_mode": expected_policy_activation_audit_mode,
                   "eks_nodegroup_desired_size": expected_desired,
                   "eks_nodegroup_min_size": expected_min,
                   "eks_nodegroup_max_size": expected_max,

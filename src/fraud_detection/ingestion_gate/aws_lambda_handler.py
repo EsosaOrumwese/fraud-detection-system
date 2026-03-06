@@ -56,8 +56,8 @@ _AWS_CONTROL_PLANE_CONFIG = Config(
     retries={"max_attempts": 2, "mode": "standard"},
 )
 _SSM_CLIENT = boto3.client("ssm", config=_AWS_CONTROL_PLANE_CONFIG)
-_SQS_CLIENT = boto3.client("sqs")
-_DDB_RESOURCE = boto3.resource("dynamodb")
+_SQS_CLIENT = boto3.client("sqs", config=_AWS_CONTROL_PLANE_CONFIG)
+_DDB_RESOURCE = boto3.resource("dynamodb", config=_AWS_CONTROL_PLANE_CONFIG)
 
 _API_KEY_CACHE = {
     "path": None,
@@ -426,6 +426,7 @@ def _gate_for(platform_run_id: str) -> IngestionGate:
     if cached is not None:
         return cached
 
+    init_started = time.perf_counter()
     _ensure_kafka_bootstrap_env()
 
     schema_policy_ref = _runtime_path("config", "platform", "ig", "schema_policy_v0.yaml")
@@ -503,6 +504,10 @@ def _gate_for(platform_run_id: str) -> IngestionGate:
         quarantine_spike_window_seconds=_env_int("IG_QUARANTINE_SPIKE_WINDOW_SECONDS", 60),
         policy_id=policy_rev.policy_id,
         prefix=platform_run_id,
+        policy_activation_audit_mode=str(
+            os.getenv("IG_POLICY_ACTIVATION_AUDIT_MODE", "store_only")
+        ).strip()
+        or "store_only",
     )
     governance.emit_policy_activation(
         {
@@ -534,6 +539,11 @@ def _gate_for(platform_run_id: str) -> IngestionGate:
         push_limiter=RateLimiter(0),
     )
     _GATE_CACHE[platform_run_id] = gate
+    LOGGER.info(
+        "IG gate initialized platform_run_id=%s init_seconds=%.3f",
+        platform_run_id,
+        time.perf_counter() - init_started,
+    )
     return gate
 
 
@@ -604,6 +614,14 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     correlation_echo = {k: payload.get(k) for k in CORRELATION_FIELDS}
 
     try:
+        remaining_ms = getattr(_context, "get_remaining_time_in_millis", lambda: None)()
+        LOGGER.info(
+            "IG request start path=%s method=%s platform_run_id=%s remaining_ms=%s",
+            path,
+            method,
+            platform_run_id,
+            remaining_ms,
+        )
         gate = _gate_for(platform_run_id)
         decision, receipt = gate.admit_push_with_decision(payload, auth_context=auth_context)
         dedupe = receipt.payload.get("dedupe_key")

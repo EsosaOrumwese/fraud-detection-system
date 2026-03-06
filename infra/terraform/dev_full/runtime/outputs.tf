@@ -157,6 +157,8 @@ output "runtime_handle_materialization" {
     LAMBDA_IG_MEMORY_MB                = var.lambda_ig_memory_size_mb
     LAMBDA_IG_RESERVED_CONCURRENCY     = var.lambda_ig_reserved_concurrency
     LAMBDA_IG_TIMEOUT_SECONDS          = var.lambda_ig_timeout_seconds
+    LAMBDA_IG_KAFKA_REQUEST_TIMEOUT_MS = var.lambda_ig_kafka_request_timeout_ms
+    IG_POLICY_ACTIVATION_AUDIT_MODE    = var.lambda_ig_policy_activation_audit_mode
     APIGW_IG_STAGE_THROTTLE_RPS        = aws_apigatewayv2_stage.ig_v1.default_route_settings[0].throttling_rate_limit
     APIGW_IG_STAGE_THROTTLE_BURST      = aws_apigatewayv2_stage.ig_v1.default_route_settings[0].throttling_burst_limit
     APIGW_IG_INTEGRATION_TIMEOUT_MS    = aws_apigatewayv2_integration.ig_lambda.timeout_milliseconds

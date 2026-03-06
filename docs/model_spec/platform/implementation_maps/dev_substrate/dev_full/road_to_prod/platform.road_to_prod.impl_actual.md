@@ -4248,3 +4248,106 @@ Reasoning:
    - commit/push this workflow repin,
    - rerun the packaging workflow from the corrected branch,
    - only then use the new immutable digest for the live runtime refresh.
+## Entry: 2026-03-06 15:55:00 +00:00 - Canonical PR3-S1 rerun proved the schema-pack repair worked, but exposed a deeper ingress hot-path timeout defect that must be fixed before any further phase advancement
+1. I pulled the canonical rerun evidence after refreshing the live WSP runtime to the rebuilt image digest and reread the runtime and scorecard artifacts instead of relying on the workflow conclusion alone.
+2. The good news is precise:
+   - the previous schema-pack failure is gone,
+   - the WSP lanes now start correctly on the refreshed image,
+   - the live error signature changed completely from `referencing.exceptions.Unresolvable` to remote ingress timeout/`503` behavior.
+3. The current impact metrics are unambiguously red:
+   - target steady throughput: `3000.0 eps`,
+   - observed admitted throughput: `0.0 eps`,
+   - API Gateway count sum across the measured bins: `2449`,
+   - `4xx_sum=0`, `5xx_sum=2449`, error rate `100%`,
+   - API Gateway latency `p95=29969.101 ms`, `p99=30000.323 ms`,
+   - `138/138` WSP lanes exited non-zero with `IG_PUSH_RETRY_EXHAUSTED`,
+   - Lambda duration sat at the full `30000 ms` for every active minute,
+   - Lambda throttles appeared once concurrency pressure accumulated.
+4. That changes the diagnosis materially:
+   - the request path now reaches API Gateway and Lambda,
+   - the failure is no longer packaging or route reachability,
+   - the ingress hot path is consuming the full request budget before returning a response,
+   - the platform is therefore not production-ready at this boundary even though the source replay path is now truthful.
+5. I inspected the live Lambda configuration and found a production-shape design bug:
+   - Lambda timeout is `30s`,
+   - `KAFKA_REQUEST_TIMEOUT_MS` is also pinned to `30000`,
+   - the handler performs synchronous `bus.publish(...)` on the request path before it can return any admission outcome,
+   - therefore a blocked publish can consume the entire Lambda budget and prevent a controlled quarantine or explicit fast-fail response.
+6. The surrounding evidence supports that interpretation:
+   - WSP lane logs show alternating `timeout` and `http_503` retries before exhaustion,
+   - there are no DLQ messages from the window, which is consistent with raw handler timeout rather than clean exception handling,
+   - CloudWatch shows Lambda duration pegged at the exact timeout ceiling,
+   - throttles occur only after the concurrency pool starts filling with stuck invocations.
+7. Production reasoning:
+   - simply raising concurrency again would be the wrong move because it would only allow more invocations to block for the full timeout window,
+   - simply lowering the acceptance target would be worse because the defect is architectural at the hot path and would still exist at higher real production load,
+   - the correct correction is to preserve admission semantics while forcing the handler to fail or quarantine within a bounded sub-timeout budget, leaving response headroom and surfacing explicit reasons.
+8. Alternatives considered:
+   - scale Lambda concurrency only:
+     - rejected because the handler is already timing out before returning anything useful,
+   - repin away from the canonical remote WSP path:
+     - rejected because the current evidence is finally on the truthful production replay corridor,
+   - leave the hot path synchronous and only reduce WSP retry aggressiveness:
+     - rejected because that would hide the ingress defect rather than fix it,
+   - repin the ingress architecture immediately to a fully asynchronous front-door:
+     - plausible longer-term, but too large a unilateral substrate change to make before first correcting the hot-path budget bug and remeasuring the current pinned corridor.
+9. Chosen remediation direction:
+   - instrument and bound the IG Lambda admission path using the real Lambda remaining-time budget,
+   - force event-bus publish and failure-path side effects to complete within a sub-timeout envelope that preserves time to return a controlled response,
+   - make timeout reasons explicit in metrics/logs so the next rerun distinguishes event-bus stalls from object-store/quarantine stalls,
+   - only after that rerun the canonical `PR3-S1` steady window and decide whether the remaining gap is true throughput scaling or a second-order dependency bottleneck.
+10. Success criteria for the next pass:
+    - API Gateway `5xx` rate drops from `100%` to within the S1 contract,
+    - latency falls well below the `30s` ceiling and into the PR3 S1 threshold family,
+    - WSP lanes produce admitted events instead of exhausting retries at zero emission,
+    - any remaining failure reason is explicit and bounded rather than silent timeout saturation.
+## Entry: 2026-03-06 16:12:00 +00:00 - Implemented the ingress hot-path remediation around cold-start governance publish and MSK IAM producer posture
+1. I implemented the next remediation as a production hot-path correction, not as a one-off test bypass.
+2. The first correction removes non-essential broker work from the Lambda cold-start request path:
+   - `GovernanceEmitter.emit_policy_activation(...)` now defaults to `store_only` for the audit path,
+   - the platform-governance store event still records the activation deterministically,
+   - but the extra audit-topic bus publish is no longer attempted on the first request unless explicitly re-enabled.
+3. Why that matters:
+   - the old cold-start path could call `bus.publish(...)` before a real ingress event was even processed,
+   - if the audit topic or broker path stalled, each fresh Lambda worker could burn its whole request budget during initialization,
+   - that is an invalid design for a production ingress edge.
+4. The second correction strengthens the Kafka client posture for the MSK IAM data plane:
+   - `KafkaEventBusPublisher` now uses `confluent-kafka` for `OAUTHBEARER` producer mode as well,
+   - MSK IAM tokens are provided through a dedicated `oauth_cb`,
+   - delivery/request/socket timeout posture is now controlled by a single bounded configuration surface.
+5. Why that client change is warranted:
+   - the prior OAUTH producer path relied on `kafka-python`,
+   - that is not the client I would pin for a high-EPS managed broker path when the system is already exhibiting publish stalls,
+   - moving the producer onto `librdkafka` gives the ingress edge the stronger transport implementation that the rest of the production goal implies.
+6. I also bounded the Lambda-side synchronous control-plane calls further:
+   - SQS and DynamoDB resource clients now use the same short botocore timeout config as the SSM client,
+   - gate initialization now logs its elapsed time explicitly,
+   - request start logging now captures remaining Lambda budget for correlation.
+7. Infra/runtime envelope was corrected alongside the code:
+   - new runtime Terraform pins expose `lambda_ig_kafka_request_timeout_ms`,
+   - new runtime Terraform pins expose `lambda_ig_policy_activation_audit_mode`,
+   - default posture is now `1500 ms` Kafka publish timeout and `store_only` policy-activation audit mode,
+   - RC2 capacity-envelope workflow verification was widened so these pins are checked after apply instead of assumed.
+8. Alternatives I rejected:
+   - increasing Lambda concurrency again:
+     - rejected because it would amplify a stuck hot path,
+   - leaving cold-start governance audit publishing in place and only lowering timeouts:
+     - rejected because it preserves unnecessary broker dependency on the first request,
+   - skipping the client change and hoping the old producer path was fine:
+     - rejected because the current evidence already points at the broker publish corridor as a primary production risk.
+9. Local proof completed:
+   - targeted tests:
+     - `python -m pytest tests/services/event_bus/test_kafka_import_and_auth.py tests/services/ingestion_gate/test_health_governance.py tests/services/ingestion_gate/test_admission.py tests/services/ingestion_gate/test_schema_resolution.py tests/services/platform_governance/test_writer.py -q`
+     - result: `18 passed`
+   - syntax validation:
+     - `python -m py_compile src/fraud_detection/event_bus/kafka.py src/fraud_detection/ingestion_gate/governance.py src/fraud_detection/ingestion_gate/aws_lambda_handler.py ...`
+     - result: clean
+   - infra validation:
+     - `terraform -chdir=infra/terraform/dev_full/runtime validate`
+     - result: valid
+10. Next execution step:
+    - commit/push this remediation milestone,
+    - rebuild/publish the updated package,
+    - apply the runtime envelope changes live,
+    - rerun canonical `PR3-S1`,
+    - then decide whether the remaining gap is true broker-path throughput or a second-order downstream dependency.

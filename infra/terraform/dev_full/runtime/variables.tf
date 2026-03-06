@@ -219,6 +219,16 @@ variable "lambda_ig_timeout_seconds" {
   default = 30
 }
 
+variable "lambda_ig_kafka_request_timeout_ms" {
+  type    = number
+  default = 1500
+}
+
+variable "lambda_ig_policy_activation_audit_mode" {
+  type    = string
+  default = "store_only"
+}
+
 variable "lambda_ig_package_s3_bucket" {
   type    = string
   default = ""
