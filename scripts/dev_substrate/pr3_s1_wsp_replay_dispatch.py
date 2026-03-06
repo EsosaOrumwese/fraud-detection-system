@@ -285,6 +285,12 @@ def main() -> None:
     ap.add_argument("--lane-launch-stagger-seconds", type=float, default=0.5)
     ap.add_argument("--output-concurrency", type=int, default=4)
     ap.add_argument("--http-pool-maxsize", type=int, default=256)
+    ap.add_argument("--target-request-rate-eps", type=float, default=0.0)
+    ap.add_argument("--target-burst-seconds", type=float, default=0.25)
+    ap.add_argument("--target-initial-tokens", type=float, default=0.25)
+    ap.add_argument("--max-error-rate-ratio", type=float, default=0.002)
+    ap.add_argument("--max-4xx-ratio", type=float, default=0.002)
+    ap.add_argument("--max-5xx-ratio", type=float, default=0.0)
     ap.add_argument("--log-group", default="/ecs/fraud-platform-dev-full-wsp-ephemeral")
     ap.add_argument("--generated-by", default="codex-gpt5")
     ap.add_argument("--version", default="1.0.0")
@@ -345,6 +351,10 @@ def main() -> None:
     submitted_at = datetime.now(timezone.utc)
 
     lane_count = max(1, int(args.lane_count))
+    target_request_rate_eps = float(args.target_request_rate_eps) if float(args.target_request_rate_eps) > 0.0 else float(
+        args.expected_steady_eps
+    )
+    per_lane_target_eps = target_request_rate_eps / float(lane_count)
     base_env_rows = [
         {"name": "AWS_REGION", "value": args.region},
         {"name": "WSP_PROFILE_PATH", "value": args.profile_path},
@@ -362,6 +372,9 @@ def main() -> None:
         {"name": "WSP_CHECKPOINT_DSN", "value": wsp_checkpoint_dsn},
         {"name": "WSP_OUTPUT_CONCURRENCY", "value": str(max(1, args.output_concurrency))},
         {"name": "WSP_HTTP_POOL_MAXSIZE", "value": str(max(16, args.http_pool_maxsize))},
+        {"name": "WSP_TARGET_EPS", "value": f"{per_lane_target_eps:.9f}"},
+        {"name": "WSP_TARGET_BURST_SECONDS", "value": f"{max(0.0, float(args.target_burst_seconds)):.6f}"},
+        {"name": "WSP_TARGET_INITIAL_TOKENS", "value": f"{max(0.0, float(args.target_initial_tokens)):.6f}"},
         {"name": "WSP_PROGRESS_EVERY", "value": "50000"},
         {"name": "WSP_PROGRESS_SECONDS", "value": "30"},
     ]
@@ -439,6 +452,8 @@ def main() -> None:
         },
         "campaign": {
             "expected_steady_eps": args.expected_steady_eps,
+            "target_request_rate_eps": target_request_rate_eps,
+            "per_lane_target_eps": per_lane_target_eps,
             "duration_seconds": args.duration_seconds,
             "early_cutoff_seconds": args.early_cutoff_seconds,
             "early_cutoff_floor_ratio": args.early_cutoff_floor_ratio,
@@ -446,6 +461,8 @@ def main() -> None:
             "lane_count": lane_count,
             "output_concurrency": max(1, args.output_concurrency),
             "http_pool_maxsize": max(16, args.http_pool_maxsize),
+            "target_burst_seconds": max(0.0, float(args.target_burst_seconds)),
+            "target_initial_tokens": max(0.0, float(args.target_initial_tokens)),
             "traffic_output_ids": parse_csv(args.traffic_output_ids),
             "context_output_ids": parse_csv(args.context_output_ids),
         },
@@ -485,8 +502,8 @@ def main() -> None:
                 all_running = False
             if status.get("last_status") == "STOPPED" and not started_at:
                 blockers.append(f"PR3.S1.WSP.B03_TASK_STOPPED_BEFORE_RUNNING:{lane['lane_id']}")
-        if started_at_values:
-            active_start = min(started_at_values)
+        if started_at_values and all_running:
+            active_start = max(started_at_values)
         if blockers or all_running:
             break
         time.sleep(5)
@@ -518,10 +535,12 @@ def main() -> None:
             totals = {"count_sum": 0.0, "4xx_sum": 0.0, "5xx_sum": 0.0}
             observed_eps = 0.0
             telemetry_error = f"{type(exc).__name__}:{exc}"
+        success_count = max(0.0, totals["count_sum"] - totals["4xx_sum"] - totals["5xx_sum"])
+        observed_admitted_eps = success_count / elapsed
 
-        if elapsed >= max(60, args.early_cutoff_seconds) and observed_eps < expected_floor_eps:
+        if elapsed >= max(60, args.early_cutoff_seconds) and observed_admitted_eps < expected_floor_eps:
             blockers.append(
-                f"PR3.S1.WSP.B12_EARLY_THROUGHPUT_SHORTFALL:observed={observed_eps:.3f}:floor={expected_floor_eps:.3f}"
+                f"PR3.S1.WSP.B12_EARLY_THROUGHPUT_SHORTFALL:observed={observed_admitted_eps:.3f}:floor={expected_floor_eps:.3f}"
             )
             early_cutoff_triggered = True
             for lane in pending:
@@ -633,12 +652,36 @@ def main() -> None:
             datetime.fromisoformat(perf_end.replace("Z", "+00:00")) - active_start
         ).total_seconds(),
     )
-    observed_eps = totals["count_sum"] / elapsed_seconds
+    request_count_total = max(0.0, totals["count_sum"])
+    request_4xx_total = max(0.0, totals["4xx_sum"])
+    request_5xx_total = max(0.0, totals["5xx_sum"])
+    success_count = max(0.0, request_count_total - request_4xx_total - request_5xx_total)
+    observed_eps = request_count_total / elapsed_seconds
+    observed_admitted_eps = success_count / elapsed_seconds
+    error_ratio = ((request_4xx_total + request_5xx_total) / request_count_total) if request_count_total > 0.0 else 1.0
+    error_4xx_ratio = (request_4xx_total / request_count_total) if request_count_total > 0.0 else 1.0
+    error_5xx_ratio = (request_5xx_total / request_count_total) if request_count_total > 0.0 else 1.0
     aggregate_cli_emitted = sum(
         int(result.get("cli_result", {}).get("emitted", 0) or 0)
         for result in lane_results
         if isinstance(result.get("cli_result"), dict)
     )
+    if observed_admitted_eps < float(args.expected_steady_eps):
+        blockers.append(
+            f"PR3.S1.WSP.B19_FINAL_THROUGHPUT_SHORTFALL:observed={observed_admitted_eps:.3f}:target={float(args.expected_steady_eps):.3f}"
+        )
+    if error_ratio > float(args.max_error_rate_ratio):
+        blockers.append(
+            f"PR3.S1.WSP.B20_ERROR_RATE_BREACH:observed={error_ratio:.6f}:max={float(args.max_error_rate_ratio):.6f}"
+        )
+    if error_4xx_ratio > float(args.max_4xx_ratio):
+        blockers.append(
+            f"PR3.S1.WSP.B21_4XX_RATE_BREACH:observed={error_4xx_ratio:.6f}:max={float(args.max_4xx_ratio):.6f}"
+        )
+    if error_5xx_ratio > float(args.max_5xx_ratio):
+        blockers.append(
+            f"PR3.S1.WSP.B22_5XX_RATE_BREACH:observed={error_5xx_ratio:.6f}:max={float(args.max_5xx_ratio):.6f}"
+        )
 
     summary = {
         "phase": "PR3",
@@ -659,10 +702,15 @@ def main() -> None:
         },
         "campaign": manifest["campaign"],
         "observed": {
-            "admitted_request_count": int(totals["count_sum"]),
-            "observed_admitted_eps": observed_eps,
-            "4xx_total": int(totals["4xx_sum"]),
-            "5xx_total": int(totals["5xx_sum"]),
+            "request_count_total": int(request_count_total),
+            "admitted_request_count": int(success_count),
+            "observed_request_eps": observed_eps,
+            "observed_admitted_eps": observed_admitted_eps,
+            "error_rate_ratio": error_ratio,
+            "4xx_rate_ratio": error_4xx_ratio,
+            "5xx_rate_ratio": error_5xx_ratio,
+            "4xx_total": int(request_4xx_total),
+            "5xx_total": int(request_5xx_total),
             "early_cutoff_triggered": early_cutoff_triggered,
             "log_event_count": len(all_log_events),
             "aggregate_cli_emitted": aggregate_cli_emitted,

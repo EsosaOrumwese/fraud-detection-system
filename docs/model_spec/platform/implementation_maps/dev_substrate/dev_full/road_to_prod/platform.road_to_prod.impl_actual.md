@@ -2893,3 +2893,58 @@ Reasoning:
 ### Governance
 1. No branch operation.
 2. No commit/push.
+
+## Entry: 2026-03-06 07:21:14 +00:00 - PR3-S1 is now limited by producer-side rate control truthfulness, not unknown infra drift
+### Observed runtime facts
+1. Live ingress envelope is materially aligned with the production pin:
+   - API Gateway stage throttle `3000 rps / 6000 burst`.
+   - Lambda `reserved_concurrency=300`, `memory=1024 MB`, `timeout=30s`.
+2. Canonical remote WSP replay can now drive the ingress edge close to target throughput on AWS compute:
+   - admitted requests `756,704`
+   - observed admitted throughput `2789.805 eps`
+   - `5xx_total=0`
+3. The remaining runtime quality defect is explicit in lane logs:
+   - repeated `http_429` retries across multiple WSP lanes.
+4. Current canonical dispatcher summary is not yet strict enough:
+   - it marks the window `REMOTE_WSP_WINDOW_READY` if early-cutoff, logs, and metrics succeed,
+   - but it does not fail on final steady-rate shortfall or error-rate breach.
+
+### Problem actual
+1. We solved the infra/bootstrap/image-drift chain already.
+2. The active defect is now a control defect in the sender itself:
+   - once `stream_speedup` is raised high enough to approach the required ingress rate,
+   - the producer overshoots the stage envelope,
+   - API Gateway returns `429`,
+   - retries amplify waste,
+   - and the run can look "nearly green" on admitted throughput while still being production-invalid.
+3. This is exactly the kind of false green that the road-to-prod exercise is supposed to prevent.
+
+### Production-standard reasoning
+1. In a real financial production system, the correct answer is not to keep widening ingress or to accept a noisy near-target run.
+2. The correct answer is to shape the producer so it can hit the declared steady envelope cleanly and repeatably.
+3. Therefore the canonical WSP runtime needs:
+   - explicit deterministic sender-side rate control,
+   - bounded burst allowance,
+   - truthful state gating on final throughput and error posture.
+4. This is also the right foundation for later PR3 burst/recovery work because burst proof should come from an explicit shaped load contract, not accidental overshoot.
+
+### Alternatives considered
+1. Lower `stream_speedup` only.
+   - Rejected as insufficient because it relies on guesswork and cannot guarantee repeatable convergence at `3000 eps` without fresh overshoot/undershoot loops.
+2. Increase ingress throttle again.
+   - Rejected because live ingress is already aligned with the active production envelope; widening it would hide the sender defect instead of fixing it.
+3. Accept the current run because admitted throughput is close.
+   - Rejected because `429` volume and admitted-rate shortfall violate the pinned production contract.
+
+### Chosen remediation
+1. Add deterministic per-process WSP rate shaping with shared thread-safe coordination.
+2. Surface explicit shaping knobs through the canonical dispatcher so the run contract is declared rather than implicit.
+3. Tighten the canonical runtime summary so it fail-closes on:
+   - final steady-rate shortfall,
+   - 4xx/error-rate breach,
+   - any 5xx breach.
+4. Rebuild the WSP image, rerun bounded PR3-S1 windows, and tune against the contract until the canonical steady window is truly clean.
+
+### Governance
+1. No branch operation.
+2. Active-branch commit/push is allowed and expected after meaningful progress.

@@ -56,6 +56,39 @@ class StreamResult:
     output_ids: list[str] | None = None
 
 
+class _TokenBucketRateLimiter:
+    def __init__(self, *, rate_per_second: float, burst_seconds: float, initial_tokens: float) -> None:
+        self._rate = max(0.0, float(rate_per_second))
+        burst_window = max(0.0, float(burst_seconds))
+        self._capacity = max(1.0, self._rate * burst_window) if self._rate > 0.0 else 0.0
+        seeded = max(0.0, float(initial_tokens))
+        self._tokens = min(self._capacity, seeded) if self._capacity > 0.0 else 0.0
+        self._updated_at = time.monotonic()
+        self._lock = threading.Lock()
+
+    def enabled(self) -> bool:
+        return self._rate > 0.0 and self._capacity > 0.0
+
+    def acquire(self, tokens: float = 1.0) -> None:
+        if not self.enabled():
+            return
+        need = max(0.0, float(tokens))
+        while True:
+            sleep_for = 0.0
+            with self._lock:
+                now = time.monotonic()
+                elapsed = max(0.0, now - self._updated_at)
+                if elapsed > 0.0:
+                    self._tokens = min(self._capacity, self._tokens + elapsed * self._rate)
+                    self._updated_at = now
+                if self._tokens >= need:
+                    self._tokens -= need
+                    return
+                deficit = need - self._tokens
+                sleep_for = deficit / self._rate if self._rate > 0.0 else 0.0
+            time.sleep(min(max(sleep_for, 0.001), 1.0))
+
+
 class WorldStreamProducer:
     def __init__(self, profile: WspProfile) -> None:
         self.profile = profile
@@ -71,6 +104,7 @@ class WorldStreamProducer:
         self._producer_allowlist: set[str] | None = None
         self._http_local = threading.local()
         self._lane_count, self._lane_index = _resolve_lane_config()
+        self._rate_limiter = _build_rate_limiter(self._lane_count, self._lane_index)
 
     def stream_engine_world(
         self,
@@ -802,6 +836,7 @@ class WorldStreamProducer:
         session = self._http_session()
         while attempt < max_attempts:
             attempt += 1
+            self._rate_limiter.acquire()
             try:
                 response = session.post(url, json=payload, headers=headers, timeout=30)
             except requests.Timeout:
@@ -900,6 +935,38 @@ def _json_safe(value: Any) -> Any:
     if isinstance(value, list):
         return [_json_safe(v) for v in value]
     return value
+
+
+def _env_float(name: str, default: float = 0.0) -> float:
+    raw = str(os.getenv(name, "")).strip()
+    if not raw:
+        return float(default)
+    try:
+        return float(raw)
+    except ValueError:
+        logger.warning("WSP invalid float env name=%s value=%s", name, raw)
+        return float(default)
+
+
+def _build_rate_limiter(lane_count: int, lane_index: int) -> _TokenBucketRateLimiter:
+    target_eps = max(0.0, _env_float("WSP_TARGET_EPS", 0.0))
+    burst_seconds = max(0.0, _env_float("WSP_TARGET_BURST_SECONDS", 0.25))
+    initial_tokens = max(0.0, _env_float("WSP_TARGET_INITIAL_TOKENS", 0.25))
+    limiter = _TokenBucketRateLimiter(
+        rate_per_second=target_eps,
+        burst_seconds=burst_seconds,
+        initial_tokens=initial_tokens,
+    )
+    if limiter.enabled():
+        logger.info(
+            "WSP rate limiter active lane=%s/%s target_eps=%.6f burst_seconds=%.3f initial_tokens=%.3f",
+            lane_index,
+            lane_count,
+            target_eps,
+            burst_seconds,
+            initial_tokens,
+        )
+    return limiter
 
 
 def _resolve_ig_push_url(raw_url: str) -> str:
