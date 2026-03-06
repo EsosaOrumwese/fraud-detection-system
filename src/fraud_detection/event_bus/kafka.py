@@ -11,7 +11,6 @@ import time
 from typing import Any
 
 from aws_msk_iam_sasl_signer import MSKAuthTokenProvider
-from confluent_kafka import Consumer, KafkaError, Producer, TopicPartition
 from kafka import KafkaConsumer, KafkaProducer
 from kafka import TopicPartition as PyKafkaTopicPartition
 from kafka.sasl.oauth import AbstractTokenProvider
@@ -19,6 +18,12 @@ from kafka.sasl.oauth import AbstractTokenProvider
 from .publisher import EbRef
 
 logger = logging.getLogger("fraud_detection.event_bus")
+
+
+def _import_confluent() -> tuple[Any, Any, Any, Any]:
+    from confluent_kafka import Consumer, KafkaError, Producer, TopicPartition
+
+    return Consumer, KafkaError, Producer, TopicPartition
 
 
 @dataclass(frozen=True)
@@ -147,7 +152,8 @@ class KafkaEventBusPublisher:
                 retries=max(0, int(self.config.retries)),
             )
         else:
-            self._producer = Producer(_producer_conf(self.config))
+            _consumer_cls, _kafka_error_cls, producer_cls, _topic_partition_cls = _import_confluent()
+            self._producer = producer_cls(_producer_conf(self.config))
 
     def publish(self, topic: str, partition_key: str, payload: dict[str, Any]) -> EbRef:
         if not topic:
@@ -250,7 +256,8 @@ class KafkaEventBusReader:
                 request_timeout_ms=max(1000, int(self.config.request_timeout_ms)),
             )
         else:
-            self._consumer = Consumer(_consumer_conf(self.config))
+            consumer_cls, kafka_error_cls, producer_cls, topic_partition_cls = _import_confluent()
+            self._consumer = consumer_cls(_consumer_conf(self.config))
 
     def list_partitions(self, topic: str) -> list[int]:
         if not topic:
@@ -324,14 +331,15 @@ class KafkaEventBusReader:
                 )
                 return []
         max_records = max(1, int(limit))
-        base_tp = TopicPartition(topic, int(partition))
+        _consumer_cls, kafka_error_cls, _producer_cls, topic_partition_cls = _import_confluent()
+        base_tp = topic_partition_cls(topic, int(partition))
         try:
             if from_offset is None:
                 low, high = self._consumer.get_watermark_offsets(base_tp, timeout=max(1.0, self.config.request_timeout_ms / 1000.0))
                 start_offset = high if str(start_position).strip().lower() == "latest" else low
             else:
                 start_offset = max(0, int(from_offset))
-            self._consumer.assign([TopicPartition(topic, int(partition), int(start_offset))])
+            self._consumer.assign([topic_partition_cls(topic, int(partition), int(start_offset))])
             rows: list[dict[str, Any]] = []
             poll_timeout = max(0.05, int(self.config.poll_timeout_ms) / 1000.0)
             while len(rows) < max_records:
@@ -339,7 +347,7 @@ class KafkaEventBusReader:
                 if msg is None:
                     break
                 if msg.error():
-                    if msg.error().code() != KafkaError._PARTITION_EOF:
+                    if msg.error().code() != kafka_error_cls._PARTITION_EOF:
                         logger.warning(
                             "Kafka read failed topic=%s partition=%s from_offset=%s detail=%s",
                             topic,

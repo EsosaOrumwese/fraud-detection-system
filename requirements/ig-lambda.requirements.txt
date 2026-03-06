@@ -1,0 +1,6 @@
+PyYAML==6.0.2
+jsonschema==4.23.0
+referencing==0.35.0
+requests==2.32.3
+kafka-python==2.2.15
+aws-msk-iam-sasl-signer-python==1.0.2

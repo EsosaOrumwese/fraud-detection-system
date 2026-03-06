@@ -3613,3 +3613,86 @@ Reasoning:
   1. rebuild immutable image,
   2. repin WSP ECS family to the new digest,
   3. rerun PR3-S1 on stream_speedup=50.0 with a fresh checkpoint namespace.
+### 2026-03-06 16:09:00 +00:00 - Fresh checkpoint fix validated; next calibrated PR3-S1 speedup is 65.0
+- The first fresh-attempt rerun (22762626536) proved the checkpoint fix worked:
+  - lanes restarted from early row offsets instead of resuming mid-run,
+  - API Gateway throughput improved to about 2.3k-2.5k eps,
+  - 4XX=0, latency remained around p95 22-23 ms, p99 ~30 ms.
+- Interpretation:
+  - platform path is still healthy,
+  - remaining shortfall is purely replay calibration,
+  - stream_speedup=50.0 is still insufficient for the 3000 eps / 5.4M sample-minima target.
+- Calibration math:
+  - observed eps ~2400, target 3000, multiplier needed ~1.25x,
+  - next speedup therefore 50.0 * 1.25 = 62.5, rounded up to 65.0 for target-clearing margin.
+- Decision:
+  - terminate 22762626536 early,
+  - rerun immediately at stream_speedup=65.0 with the fresh-attempt checkpoint namespace still in place.
+### 2026-03-06 16:18:00 +00:00 - PR3-S1 calibration is moving to stream_speedup=100.0 because the rate limiter already caps the target envelope
+- The 65.0 rerun improved throughput again, but live evidence still sat below target at roughly 2.6k-2.8k eps.
+- Key insight from the WSP runtime:
+  - each lane already enforces WSP_TARGET_EPS=125,
+  - total target envelope is therefore capped at 24 * 125 = 3000 eps by design,
+  - raising stream_speedup above the required source density cannot push the system beyond the target envelope because the token bucket prevents overshoot.
+- Decision:
+  - stop incrementing cautiously,
+  - jump to stream_speedup=100.0 to seek saturation against the existing per-lane cap,
+  - keep acceptance strict (3000 eps, 5.4M samples, latency/error gates unchanged).
+- Reason this is production-correct:
+  - we are no longer using speedup as an unsafe throughput dial; it is now only a source-availability dial beneath an explicit cap,
+  - the platform still has to prove it can sustain the capped envelope without errors or latency breach.
+## Entry: 2026-03-06 16:42:00 +00:00 - PR3-S1 end-to-end claim invalidated because the live IG edge is still a stub
+1. I inspected the live ingress Lambda source (`infra/terraform/dev_full/runtime/lambda/ig_handler.py`) rather than relying on the earlier steady-window receipts.
+2. The live function only performs:
+   - API-key auth,
+   - DDB idempotency insertion,
+   - correlation logging,
+   - `202` response.
+3. It does **not** publish to Kafka, does not write the canonical IG receipt/quarantine surfaces, and does not move traffic into the downstream runtime graph.
+4. I verified the runtime consequence directly:
+   - CloudWatch logs for `fraud-platform-dev-full-ig-handler` show only `ig_ingest_boundary` records,
+   - direct Kafka reads from the active PR3 pods returned no rows on the expected hot-path topics,
+   - archive-writer health files and Aurora ledger tables remained at zero despite the prior S1 "green" decision.
+5. Therefore the prior `PR3-S1` closure is valid only as an ingress-admission proof, not as an end-to-end `WSP -> IG -> MSK -> RTDL -> archive` proof.
+6. Under the production-readiness charter, that is insufficient and must be corrected before PR3 can legitimately advance.
+
+## Entry: 2026-03-06 16:47:00 +00:00 - Production-first remediation choice for the IG edge
+1. I evaluated three concrete remediation directions against the real target (`3000 eps` steady, `6000 eps` burst) rather than against the quickest path to another S1 rerun.
+2. Option A: force the internal Flask/Aurora IG service into Lambda unchanged.
+   - Rejected.
+   - Reason:
+     - it would introduce an avoidable per-request Aurora dependency at the public ingress boundary,
+     - it does not match the live pinned edge shape (`API Gateway -> Lambda -> DDB`),
+     - it solves code reuse but not the actual production need for a high-throughput remote ingress edge.
+3. Option B: repin the edge away from Lambda or keep using synthetic pressure lanes.
+   - Rejected.
+   - Reason:
+     - it would weaken the real `via_IG` claim path,
+     - it would continue certifying around the edge instead of through it.
+4. Option C: harden the pinned `API Gateway -> Lambda -> DDB` ingress edge into a truthful publisher.
+   - Accepted.
+   - Required mechanics:
+     - keep DDB as the fast ingress idempotency surface,
+     - add real Kafka publish into the active fraud lane,
+     - emit canonical receipt/provenance artifacts to object storage,
+     - preserve schema/class/partitioning semantics from the shared IG contracts,
+     - place Lambda inside the VPC with MSK reachability and the correct IAM/package surface.
+5. This is the best production fit for the current platform:
+   - DDB-backed dedupe is a better public-edge posture than forcing Aurora writes on every ingress request,
+   - the edge remains low-latency and stateless where possible,
+   - the downstream graph receives real traffic through the true public ingress contract.
+
+## Entry: 2026-03-06 16:53:00 +00:00 - Coordinated remediation scope pinned before code changes
+1. The ingress defect is not a single-file bug. It is a four-lane runtime gap:
+   - code semantics gap: Lambda is a stub,
+   - packaging gap: Terraform only zips a single file and does not ship the shared platform code/contracts,
+   - network gap: Lambda is not attached to the VPC and therefore cannot reach private MSK brokers,
+   - IAM gap: Lambda lacks MSK data-plane and object-store receipt permissions.
+2. I am therefore treating the fix as one coordinated ingress correction pass:
+   - implement a Lambda-native IG handler that uses the shared schema/class/partitioning contracts and performs real publish + receipt emission,
+   - materialize a deterministic remote bundle that includes the required `src/`, `config/`, and contract surfaces,
+   - update Terraform to support the remote IG package, VPC attachment, and expanded runtime permissions,
+   - deploy the corrected ingress edge before any more PR3 state work.
+3. Additional note:
+   - `config/platform/profiles/dev_full.yaml` does not currently pin `wiring.admission_db_path`, which is another sign that the repo's internal IG-service profile and the live ingress edge have drifted apart.
+   - Because the accepted production fix keeps DDB as the edge dedupe surface, that profile hole is now recorded as design drift rather than being forced into the public-edge runtime.

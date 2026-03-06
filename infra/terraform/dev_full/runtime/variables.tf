@@ -219,6 +219,21 @@ variable "lambda_ig_timeout_seconds" {
   default = 30
 }
 
+variable "lambda_ig_package_s3_bucket" {
+  type    = string
+  default = ""
+}
+
+variable "lambda_ig_package_s3_key" {
+  type    = string
+  default = ""
+}
+
+variable "lambda_ig_package_sha256_base64" {
+  type    = string
+  default = ""
+}
+
 variable "sfn_platform_run_orchestrator_name" {
   type    = string
   default = "fraud-platform-dev-full-platform-run-v0"

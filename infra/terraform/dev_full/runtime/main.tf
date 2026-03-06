@@ -69,13 +69,15 @@ locals {
   core_artifacts_bucket              = var.use_core_remote_state ? try(data.terraform_remote_state.core[0].outputs.s3_bucket_names.artifacts, "fraud-platform-dev-full-artifacts") : "fraud-platform-dev-full-artifacts"
   core_kms_key_arn                   = var.use_core_remote_state ? try(data.terraform_remote_state.core[0].outputs.kms_key_arn, "") : ""
 
-  msk_cluster_arn           = var.use_streaming_remote_state ? try(data.terraform_remote_state.streaming[0].outputs.msk_cluster_arn, var.msk_cluster_arn_fallback) : var.msk_cluster_arn_fallback
-  msk_cluster_suffix        = try(split("cluster/", local.msk_cluster_arn)[1], "")
-  msk_cluster_name          = try(split("/", local.msk_cluster_suffix)[0], "")
-  msk_cluster_uuid          = try(split("/", local.msk_cluster_suffix)[1], "")
-  msk_topic_wildcard_arn    = local.msk_cluster_name != "" && local.msk_cluster_uuid != "" ? "arn:aws:kafka:${var.aws_region}:${data.aws_caller_identity.current.account_id}:topic/${local.msk_cluster_name}/${local.msk_cluster_uuid}/*" : ""
-  msk_group_wildcard_arn    = local.msk_cluster_name != "" && local.msk_cluster_uuid != "" ? "arn:aws:kafka:${var.aws_region}:${data.aws_caller_identity.current.account_id}:group/${local.msk_cluster_name}/${local.msk_cluster_uuid}/*" : ""
-  ig_integration_timeout_ms = min(30000, floor(var.ig_request_timeout_seconds * 1000))
+  msk_cluster_arn              = var.use_streaming_remote_state ? try(data.terraform_remote_state.streaming[0].outputs.msk_cluster_arn, var.msk_cluster_arn_fallback) : var.msk_cluster_arn_fallback
+  msk_cluster_suffix           = try(split("cluster/", local.msk_cluster_arn)[1], "")
+  msk_cluster_name             = try(split("/", local.msk_cluster_suffix)[0], "")
+  msk_cluster_uuid             = try(split("/", local.msk_cluster_suffix)[1], "")
+  msk_topic_wildcard_arn       = local.msk_cluster_name != "" && local.msk_cluster_uuid != "" ? "arn:aws:kafka:${var.aws_region}:${data.aws_caller_identity.current.account_id}:topic/${local.msk_cluster_name}/${local.msk_cluster_uuid}/*" : ""
+  msk_group_wildcard_arn       = local.msk_cluster_name != "" && local.msk_cluster_uuid != "" ? "arn:aws:kafka:${var.aws_region}:${data.aws_caller_identity.current.account_id}:group/${local.msk_cluster_name}/${local.msk_cluster_uuid}/*" : ""
+  ig_integration_timeout_ms    = min(30000, floor(var.ig_request_timeout_seconds * 1000))
+  lambda_ig_use_remote_package = trimspace(var.lambda_ig_package_s3_bucket) != "" && trimspace(var.lambda_ig_package_s3_key) != "" && trimspace(var.lambda_ig_package_sha256_base64) != ""
+  lambda_ig_source_code_hash   = local.lambda_ig_use_remote_package ? var.lambda_ig_package_sha256_base64 : data.archive_file.ig_handler_zip.output_base64sha256
 
   irsa_targets = {
     ig = {
@@ -376,39 +378,126 @@ resource "aws_iam_role_policy_attachment" "lambda_ig_basic" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
+resource "aws_iam_role_policy_attachment" "lambda_ig_vpc_access" {
+  role       = aws_iam_role.lambda_ig_execution.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+}
+
 resource "aws_iam_role_policy" "lambda_ig_runtime" {
   name = "${var.role_lambda_ig_execution_name}-runtime-policy"
   role = aws_iam_role.lambda_ig_execution.id
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "dynamodb:DescribeTable",
-          "dynamodb:GetItem",
-          "dynamodb:PutItem",
-          "dynamodb:UpdateItem",
-          "dynamodb:DeleteItem",
-          "dynamodb:Query"
-        ]
-        Resource = aws_dynamodb_table.ig_idempotency.arn
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "ssm:GetParameter"
-        ]
-        Resource = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_ig_api_key_path}"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "sqs:SendMessage"
-        ]
-        Resource = aws_sqs_queue.ig_dlq.arn
-      }
-    ]
+    Statement = concat(
+      [
+        {
+          Effect = "Allow"
+          Action = [
+            "dynamodb:DescribeTable",
+            "dynamodb:GetItem",
+            "dynamodb:PutItem",
+            "dynamodb:UpdateItem",
+            "dynamodb:DeleteItem",
+            "dynamodb:Query"
+          ]
+          Resource = aws_dynamodb_table.ig_idempotency.arn
+        },
+        {
+          Effect = "Allow"
+          Action = [
+            "ssm:GetParameter"
+          ]
+          Resource = [
+            "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_ig_api_key_path}",
+            "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_msk_bootstrap_brokers_path}",
+          ]
+        },
+        {
+          Effect = "Allow"
+          Action = [
+            "sqs:SendMessage"
+          ]
+          Resource = aws_sqs_queue.ig_dlq.arn
+        },
+        {
+          Effect = "Allow"
+          Action = [
+            "s3:ListBucket"
+          ]
+          Resource = "arn:aws:s3:::${local.core_object_store_bucket}"
+        },
+        {
+          Effect = "Allow"
+          Action = [
+            "s3:GetObject",
+            "s3:PutObject"
+          ]
+          Resource = "arn:aws:s3:::${local.core_object_store_bucket}/*"
+        },
+        {
+          Effect = "Allow"
+          Action = [
+            "kafka-cluster:Connect",
+            "kafka-cluster:DescribeCluster"
+          ]
+          Resource = local.msk_cluster_arn
+        },
+        {
+          Effect = "Allow"
+          Action = [
+            "kafka-cluster:DescribeTopic",
+            "kafka-cluster:ReadData",
+            "kafka-cluster:WriteData"
+          ]
+          Resource = local.msk_topic_wildcard_arn
+        },
+        {
+          Effect = "Allow"
+          Action = [
+            "kafka-cluster:DescribeGroup",
+            "kafka-cluster:AlterGroup"
+          ]
+          Resource = local.msk_group_wildcard_arn
+        }
+      ],
+      local.core_kms_key_arn != "" ? [
+        {
+          Effect = "Allow"
+          Action = [
+            "kms:Decrypt",
+            "kms:Encrypt",
+            "kms:GenerateDataKey",
+            "kms:DescribeKey"
+          ]
+          Resource = local.core_kms_key_arn
+        }
+      ] : []
+    )
+  })
+}
+
+resource "aws_security_group" "lambda_ig" {
+  name        = "${var.lambda_ig_handler_name}-sg"
+  description = "Private runtime egress for ingress Lambda"
+  vpc_id      = local.vpc_id
+
+  egress {
+    description = "Allow private runtime egress"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  lifecycle {
+    precondition {
+      condition     = trimspace(local.vpc_id) != ""
+      error_message = "Ingress Lambda security group requires a VPC from core outputs."
+    }
+  }
+
+  tags = merge(local.common_tags, {
+    fp_resource = "ig_lambda_sg"
   })
 }
 
@@ -510,37 +599,57 @@ resource "aws_lambda_function" "ig_handler" {
   function_name                  = var.lambda_ig_handler_name
   role                           = aws_iam_role.lambda_ig_execution.arn
   runtime                        = "python3.12"
-  handler                        = "ig_handler.lambda_handler"
-  filename                       = data.archive_file.ig_handler_zip.output_path
-  source_code_hash               = data.archive_file.ig_handler_zip.output_base64sha256
+  handler                        = local.lambda_ig_use_remote_package ? "fraud_detection.ingestion_gate.aws_lambda_handler.lambda_handler" : "ig_handler.lambda_handler"
+  filename                       = local.lambda_ig_use_remote_package ? null : data.archive_file.ig_handler_zip.output_path
+  s3_bucket                      = local.lambda_ig_use_remote_package ? var.lambda_ig_package_s3_bucket : null
+  s3_key                         = local.lambda_ig_use_remote_package ? var.lambda_ig_package_s3_key : null
+  source_code_hash               = local.lambda_ig_source_code_hash
   timeout                        = floor(var.lambda_ig_timeout_seconds)
   memory_size                    = floor(var.lambda_ig_memory_size_mb)
   reserved_concurrent_executions = floor(var.lambda_ig_reserved_concurrency)
 
+  vpc_config {
+    subnet_ids         = local.private_subnet_ids
+    security_group_ids = [aws_security_group.lambda_ig.id]
+  }
+
   environment {
     variables = {
-      IG_IDEMPOTENCY_TABLE           = aws_dynamodb_table.ig_idempotency.name
-      IG_HASH_KEY                    = var.ddb_ig_idempotency_hash_key
-      IG_TTL_ATTRIBUTE               = var.ddb_ig_idempotency_ttl_attribute
-      IG_API_KEY_PATH                = aws_ssm_parameter.ig_api_key.name
-      IG_AUTH_MODE                   = var.ig_auth_mode
-      IG_AUTH_HEADER_NAME            = var.ig_auth_header_name
-      IG_MAX_REQUEST_BYTES           = tostring(var.ig_max_request_bytes)
-      IG_REQUEST_TIMEOUT_SECONDS     = tostring(var.ig_request_timeout_seconds)
-      IG_INTERNAL_RETRY_MAX_ATTEMPTS = tostring(var.ig_internal_retry_max_attempts)
-      IG_INTERNAL_RETRY_BACKOFF_MS   = tostring(var.ig_internal_retry_backoff_ms)
-      IG_IDEMPOTENCY_TTL_SECONDS     = tostring(var.ig_idempotency_ttl_seconds)
-      IG_DLQ_MODE                    = var.ig_dlq_mode
-      IG_DLQ_QUEUE_NAME              = var.ig_dlq_queue_name
-      IG_DLQ_URL                     = aws_sqs_queue.ig_dlq.url
-      IG_REPLAY_MODE                 = var.ig_replay_mode
-      IG_RATE_LIMIT_RPS              = tostring(var.ig_rate_limit_rps)
-      IG_RATE_LIMIT_BURST            = tostring(var.ig_rate_limit_burst)
+      IG_IDEMPOTENCY_TABLE               = aws_dynamodb_table.ig_idempotency.name
+      IG_HASH_KEY                        = var.ddb_ig_idempotency_hash_key
+      IG_TTL_ATTRIBUTE                   = var.ddb_ig_idempotency_ttl_attribute
+      IG_API_KEY_PATH                    = aws_ssm_parameter.ig_api_key.name
+      IG_AUTH_MODE                       = var.ig_auth_mode
+      IG_AUTH_HEADER_NAME                = var.ig_auth_header_name
+      IG_MAX_REQUEST_BYTES               = tostring(var.ig_max_request_bytes)
+      IG_REQUEST_TIMEOUT_SECONDS         = tostring(var.ig_request_timeout_seconds)
+      IG_INTERNAL_RETRY_MAX_ATTEMPTS     = tostring(var.ig_internal_retry_max_attempts)
+      IG_INTERNAL_RETRY_BACKOFF_MS       = tostring(var.ig_internal_retry_backoff_ms)
+      IG_IDEMPOTENCY_TTL_SECONDS         = tostring(var.ig_idempotency_ttl_seconds)
+      IG_DLQ_MODE                        = var.ig_dlq_mode
+      IG_DLQ_QUEUE_NAME                  = var.ig_dlq_queue_name
+      IG_DLQ_URL                         = aws_sqs_queue.ig_dlq.url
+      IG_REPLAY_MODE                     = var.ig_replay_mode
+      IG_RATE_LIMIT_RPS                  = tostring(var.ig_rate_limit_rps)
+      IG_RATE_LIMIT_BURST                = tostring(var.ig_rate_limit_burst)
+      PLATFORM_PROFILE_ID                = var.environment
+      PLATFORM_CONFIG_REVISION           = "dev-full-v0"
+      PLATFORM_STORE_ROOT                = "s3://${local.core_object_store_bucket}"
+      OBJECT_STORE_REGION                = var.aws_region
+      OBJECT_STORE_PATH_STYLE            = "false"
+      KAFKA_AWS_REGION                   = var.aws_region
+      KAFKA_SECURITY_PROTOCOL            = "SASL_SSL"
+      KAFKA_SASL_MECHANISM               = "OAUTHBEARER"
+      KAFKA_REQUEST_TIMEOUT_MS           = "30000"
+      KAFKA_PUBLISH_RETRIES              = "3"
+      KAFKA_BOOTSTRAP_BROKERS_PARAM_PATH = var.ssm_msk_bootstrap_brokers_path
+      IG_HEALTH_BUS_PROBE_MODE           = "describe"
     }
   }
 
   depends_on = [
     aws_iam_role_policy_attachment.lambda_ig_basic,
+    aws_iam_role_policy_attachment.lambda_ig_vpc_access,
     aws_iam_role_policy.lambda_ig_runtime
   ]
 
@@ -556,6 +665,14 @@ resource "aws_lambda_function" "ig_handler" {
     precondition {
       condition     = floor(var.lambda_ig_reserved_concurrency) > 0
       error_message = "Lambda reserved concurrency must be positive for cert-time explicit envelope control."
+    }
+    precondition {
+      condition     = length(local.private_subnet_ids) >= 2
+      error_message = "Ingress Lambda requires at least two private subnets from core outputs."
+    }
+    precondition {
+      condition     = trimspace(local.msk_cluster_arn) != ""
+      error_message = "Ingress Lambda requires a resolved MSK cluster ARN."
     }
   }
 
