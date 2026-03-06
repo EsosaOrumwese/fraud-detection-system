@@ -177,7 +177,8 @@ class WorldStreamProducer:
                 output_ids=chosen_outputs,
             )
         except IngestionError as exc:
-            logger.warning("WSP stream failed reason=%s", exc.code)
+            detail = f" detail={exc.detail}" if getattr(exc, "detail", "") else ""
+            logger.warning("WSP stream failed reason=%s%s", exc.code, detail)
             return StreamResult(
                 resolved_root, scenario_value, "FAILED", 0, exc.code, output_ids=chosen_outputs
             )
@@ -777,7 +778,7 @@ class WorldStreamProducer:
         if not envelope.get("schema_version"):
             envelope["schema_version"] = "v1"
         payload = _json_safe(envelope)
-        url = self.profile.wiring.ig_ingest_url.rstrip("/")
+        url = _resolve_ig_push_url(self.profile.wiring.ig_ingest_url)
         max_attempts = max(1, int(self.profile.wiring.ig_retry_max_attempts))
         base_delay = max(0, int(self.profile.wiring.ig_retry_base_delay_ms)) / 1000.0
         max_delay = max(base_delay, int(self.profile.wiring.ig_retry_max_delay_ms) / 1000.0)
@@ -790,7 +791,7 @@ class WorldStreamProducer:
         while attempt < max_attempts:
             attempt += 1
             try:
-                response = session.post(f"{url}/v1/ingest/push", json=payload, headers=headers, timeout=30)
+                response = session.post(url, json=payload, headers=headers, timeout=30)
             except requests.Timeout:
                 last_error = "timeout"
                 retryable = True
@@ -887,6 +888,15 @@ def _json_safe(value: Any) -> Any:
     if isinstance(value, list):
         return [_json_safe(v) for v in value]
     return value
+
+
+def _resolve_ig_push_url(raw_url: str) -> str:
+    base = str(raw_url or "").strip().rstrip("/")
+    if not base:
+        return "/v1/ingest/push"
+    if base.endswith("/v1/ingest/push"):
+        return base
+    return f"{base}/v1/ingest/push"
 
 
 def _path_exists(path: str, *, endpoint: str | None, region: str | None, path_style: bool | None) -> bool:

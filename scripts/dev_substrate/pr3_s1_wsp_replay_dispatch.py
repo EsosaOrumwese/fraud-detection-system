@@ -41,6 +41,22 @@ def parse_csv(raw: str) -> list[str]:
     return [item.strip() for item in str(raw).split(",") if item.strip()]
 
 
+def resolve_task_definition(ecs: Any, family_or_revision: str) -> str:
+    raw = str(family_or_revision).strip()
+    if not raw:
+        raise RuntimeError("Task definition value is empty.")
+    if ":" in raw:
+        return raw
+    try:
+        result = ecs.list_task_definitions(familyPrefix=raw, sort="DESC", status="ACTIVE", maxResults=1)
+    except (BotoCoreError, ClientError) as exc:
+        raise RuntimeError(f"Unable to resolve active task definition for family {raw}: {type(exc).__name__}") from exc
+    task_definitions = list(result.get("taskDefinitionArns", []))
+    if not task_definitions:
+        raise RuntimeError(f"No active task definitions found for family {raw}.")
+    return str(task_definitions[0]).rsplit("/", 1)[-1]
+
+
 def task_id_from_arn(task_arn: str) -> str:
     return str(task_arn).rsplit("/", 1)[-1]
 
@@ -204,10 +220,10 @@ def main() -> None:
     ap.add_argument("--region", default="eu-west-2")
     ap.add_argument("--profile-path", default="config/platform/profiles/dev_full.yaml")
     ap.add_argument("--cluster", default="fraud-platform-dev-full-wsp-ephemeral")
-    ap.add_argument("--task-definition", default="fraud-platform-dev-full-wsp-ephemeral:17")
-    ap.add_argument("--subnet-ids", default="subnet-0a7a35898d0ca31a8,subnet-0e9647425f02e2f27")
+    ap.add_argument("--task-definition", default="fraud-platform-dev-full-wsp-ephemeral")
+    ap.add_argument("--subnet-ids", default="subnet-005205ea65a9027fc,subnet-01fd5f1585bfcca47")
     ap.add_argument("--security-group-ids", default="sg-01bfefedcd75ec4b2")
-    ap.add_argument("--assign-public-ip", default="DISABLED")
+    ap.add_argument("--assign-public-ip", default="ENABLED")
     ap.add_argument("--api-id", default="ehwznd2uw7")
     ap.add_argument("--api-stage", default="v1")
     ap.add_argument("--ssm-ig-api-key-path", default="/fraud-platform/dev_full/ig/api_key")
@@ -256,6 +272,7 @@ def main() -> None:
     ssm = boto3.client("ssm", region_name=args.region)
     logs = boto3.client("logs", region_name=args.region)
     cw = boto3.client("cloudwatch", region_name=args.region)
+    task_definition = resolve_task_definition(ecs, args.task_definition)
 
     ig_api_key = ssm.get_parameter(Name=args.ssm_ig_api_key_path, WithDecryption=True)["Parameter"]["Value"]
     wsp_checkpoint_dsn = str(args.wsp_checkpoint_dsn).strip()
@@ -322,7 +339,7 @@ def main() -> None:
     try:
         run_resp = ecs.run_task(
             cluster=args.cluster,
-            taskDefinition=args.task_definition,
+            taskDefinition=task_definition,
             launchType="FARGATE",
             count=1,
             networkConfiguration={
@@ -365,7 +382,7 @@ def main() -> None:
         "execution_id": args.pr3_execution_id,
         "dispatch_mode": "CANONICAL_REMOTE_WSP_REPLAY",
         "cluster": args.cluster,
-        "task_definition": args.task_definition,
+        "task_definition": task_definition,
         "task_arn": task_arn,
         "log_group": args.log_group,
         "log_stream_name": log_stream_name,

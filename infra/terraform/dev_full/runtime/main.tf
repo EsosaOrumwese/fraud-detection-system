@@ -45,12 +45,18 @@ locals {
   )
 
   private_subnet_ids = var.use_core_remote_state ? try(data.terraform_remote_state.core[0].outputs.private_subnet_ids, []) : []
+  public_subnet_ids  = var.use_core_remote_state ? try(data.terraform_remote_state.core[0].outputs.public_subnet_ids, []) : []
   vpc_id             = var.use_core_remote_state ? try(data.terraform_remote_state.core[0].outputs.vpc_id, "") : ""
   msk_security_group = var.use_core_remote_state ? try(data.terraform_remote_state.core[0].outputs.msk_security_group_id, "") : ""
   private_subnet_cidrs = [
     for subnet in data.aws_subnet.private :
     subnet.cidr_block
   ]
+  public_subnet_cidrs = [
+    for subnet in data.aws_subnet.public :
+    subnet.cidr_block
+  ]
+  runtime_endpoint_client_cidrs = distinct(concat(local.private_subnet_cidrs, local.public_subnet_cidrs))
   private_route_table_ids = distinct([
     for route_table in data.aws_route_table.private_by_subnet :
     route_table.id
@@ -100,6 +106,11 @@ data "aws_subnet" "private" {
   id       = each.value
 }
 
+data "aws_subnet" "public" {
+  for_each = toset(local.public_subnet_ids)
+  id       = each.value
+}
+
 data "aws_route_table" "private_by_subnet" {
   for_each  = toset(local.private_subnet_ids)
   subnet_id = each.value
@@ -111,11 +122,11 @@ resource "aws_security_group" "runtime_endpoints" {
   vpc_id      = local.vpc_id
 
   ingress {
-    description = "TLS from runtime private subnets"
+    description = "TLS from runtime worker subnets"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
-    cidr_blocks = local.private_subnet_cidrs
+    cidr_blocks = local.runtime_endpoint_client_cidrs
   }
 
   egress {

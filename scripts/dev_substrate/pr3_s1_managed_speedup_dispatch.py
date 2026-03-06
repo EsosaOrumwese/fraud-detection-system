@@ -48,6 +48,22 @@ def parse_csv(raw: str) -> list[str]:
     return [item.strip() for item in str(raw).split(",") if item.strip()]
 
 
+def resolve_task_definition(ecs: Any, family_or_revision: str) -> str:
+    raw = str(family_or_revision).strip()
+    if not raw:
+        raise RuntimeError("Task definition value is empty.")
+    if ":" in raw:
+        return raw
+    try:
+        result = ecs.list_task_definitions(familyPrefix=raw, sort="DESC", status="ACTIVE", maxResults=1)
+    except (BotoCoreError, ClientError) as exc:
+        raise RuntimeError(f"Unable to resolve active task definition for family {raw}: {type(exc).__name__}") from exc
+    task_definitions = list(result.get("taskDefinitionArns", []))
+    if not task_definitions:
+        raise RuntimeError(f"No active task definitions found for family {raw}.")
+    return str(task_definitions[0]).rsplit("/", 1)[-1]
+
+
 def build_loader_command() -> str:
     script = """import json
 import math
@@ -301,7 +317,7 @@ def main() -> None:
     ap.add_argument("--pr3-execution-id", required=True)
     ap.add_argument("--region", default="eu-west-2")
     ap.add_argument("--cluster", default="fraud-platform-dev-full-wsp-ephemeral")
-    ap.add_argument("--task-definition", default="fraud-platform-dev-full-wsp-ephemeral:17")
+    ap.add_argument("--task-definition", default="fraud-platform-dev-full-wsp-ephemeral")
     ap.add_argument("--subnets", default="subnet-005205ea65a9027fc,subnet-01fd5f1585bfcca47")
     ap.add_argument("--security-groups", default="sg-01bfefedcd75ec4b2")
     ap.add_argument("--assign-public-ip", default="ENABLED")
@@ -351,6 +367,7 @@ def main() -> None:
     ssm = boto3.client("ssm", region_name=args.region)
     ecs = boto3.client("ecs", region_name=args.region)
     logs = boto3.client("logs", region_name=args.region)
+    task_definition = resolve_task_definition(ecs, args.task_definition)
 
     param = ssm.get_parameter(Name=args.ig_api_key_param, WithDecryption=True)
     ig_api_key = str(param.get("Parameter", {}).get("Value", "")).strip()
@@ -381,7 +398,7 @@ def main() -> None:
         try:
             run_resp = ecs.run_task(
                 cluster=args.cluster,
-                taskDefinition=args.task_definition,
+                taskDefinition=task_definition,
                 launchType="FARGATE",
                 count=1,
                 networkConfiguration={
@@ -633,7 +650,7 @@ def main() -> None:
         "execution_id": args.pr3_execution_id,
         "dispatch_mode": "ECS_FARGATE_MANAGED_SPEEDUP",
         "cluster": args.cluster,
-        "task_definition": args.task_definition,
+        "task_definition": task_definition,
         "network": {
             "subnets": subnets,
             "security_groups": sec_groups,

@@ -319,6 +319,65 @@ _As of 2026-03-05_
 1. No branch operation.
 2. Commit/push on the active branch is now warranted because the remote packaging workflow must build the current validated source, and the user explicitly requested periodic commits for observability.
 
+## Entry: 2026-03-06 06:36:42 +00:00 - The refreshed WSP image cleared stale-code drift and exposed the actual egress-shape defect
+### What changed
+1. I rebuilt the immutable runtime image from `cert-platform` using the managed packaging workflow and repinned the live WSP task definition to revision `18`.
+2. I removed hardcoded task-definition revision drift from the replay dispatchers so future image refreshes resolve the latest active revision instead of silently targeting stale revisions.
+
+### What the new bounded smoke proved
+1. The refreshed image now starts correctly and enters the real WSP send loop.
+2. The log surface no longer shows the old blank-endpoint loader failure.
+3. The live warnings are now repeated `IG push retry ... reason=timeout` events.
+4. The route table for the private runtime subnets shows:
+   - local VPC route only,
+   - S3 gateway endpoint route,
+   - no default egress route and no NAT gateway.
+5. Therefore a private-subnet WSP worker cannot reach the public API Gateway ingress URL.
+
+### Production interpretation
+1. This invalidates the earlier assumption that private runtime subnets were the correct canonical posture for `WSP`.
+2. `WSP` is the outside-world traffic producer, not an internal transform lane.
+3. For a public `IG` endpoint, the production-fit posture is:
+   - `WSP` runs on the public edge (public subnets + public IP) or another explicitly internet-capable producer edge,
+   - internal/private runtime lanes remain private.
+4. Adding NAT just to let the outside-world replay producer reach a public API would spend more and express the wrong network semantics for this component.
+
+### Chosen remediation
+1. Move canonical `PR3-S1` WSP replay defaults back to the public edge subnets with public IP enabled.
+2. Widen the runtime interface-endpoint security group so endpoint-backed bootstrap also admits the public WSP subnets.
+3. Keep the rest of the internal runtime stack private.
+4. After that targeted infra correction, rerun the bounded canonical WSP smoke again.
+
+### Governance
+1. No branch operation.
+2. Active-branch commit/push is warranted once the code + IaC correction set is coherent.
+
+## Entry: 2026-03-06 06:40:11 +00:00 - Public-edge WSP routing exposed an IG URL composition defect
+### What the corrected public-edge smoke showed
+1. After moving `WSP` back onto the public edge and widening endpoint bootstrap ingress, the task stopped timing out and reached the immediate `IG` response path.
+2. The worker now fails fast with `IG_PUSH_REJECTED` rather than timing out.
+3. No API Gateway request-count datapoints were recorded for that window, which means the rejection likely occurred before the request hit the intended ingress resource.
+
+### Root cause
+1. `config/platform/profiles/dev_full.yaml` already defines `wiring.ig_ingest_url` as the full ingest endpoint:
+   - `https://.../v1/ingest/push`
+2. `world_streamer_producer.runner` was still appending `/v1/ingest/push` again inside `_push_to_ig(...)`.
+3. The effective request URL therefore became:
+   - `https://.../v1/ingest/push/v1/ingest/push`
+4. That is a canonical wiring defect, not a throughput or capacity result.
+
+### Chosen remediation
+1. Normalize `IG` push URL resolution in `runner.py` so:
+   - full ingest path stays unchanged,
+   - base API URL is upgraded to `/v1/ingest/push`,
+   - blank value remains invalid/obvious.
+2. Improve `IG_PUSH_REJECTED` logging to include reject detail text so future routing defects are diagnosable from the first smoke.
+3. Rebuild the immutable image again and repin the WSP task definition before another bounded smoke.
+
+### Governance
+1. No branch operation.
+2. Active-branch commit/push is required because the corrected runtime image must be rebuilt from the new source head.
+
 ## Entry: 2026-03-06 05:46:02 +00:00 - Production-first correction for PR3-S1 execution shape
 ### Problem actual
 1. I had previously treated `PR3-S1` as though the main question was "how do I rerun the state cleanly".

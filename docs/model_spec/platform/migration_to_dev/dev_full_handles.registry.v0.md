@@ -546,7 +546,7 @@ Allowed tokens in pattern handles:
 * `ARCHIVE_CONNECTOR_RUN_SCOPE_PROOF_MODE = "object_path_plus_payload_readback"`
 * `ARCHIVE_CONNECTOR_PROBE_EMIT_MODE = "ECS_MSK_PRODUCER_TASK"`
 * `ARCHIVE_CONNECTOR_PROBE_ECS_CLUSTER = "fraud-platform-dev-full-wsp-ephemeral"`
-* `ARCHIVE_CONNECTOR_PROBE_TASK_DEFINITION = "fraud-platform-dev-full-wsp-ephemeral:17"`
+* `ARCHIVE_CONNECTOR_PROBE_TASK_DEFINITION = "fraud-platform-dev-full-wsp-ephemeral"` (resolve latest active revision at execution time; do not hardcode stale revisions in probe lanes)
 * `ARCHIVE_CONNECTOR_PROBE_SUBNET_IDS = ["subnet-005205ea65a9027fc","subnet-01fd5f1585bfcca47"]`
 * `ARCHIVE_CONNECTOR_PROBE_SECURITY_GROUP_ID = "sg-01bfefedcd75ec4b2"`
 * `ARCHIVE_CONNECTOR_CONSUMER_TIMEOUT_SECONDS = 180`
