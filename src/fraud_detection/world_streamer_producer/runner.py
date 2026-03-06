@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, as_completed, wait
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -689,93 +689,162 @@ class WorldStreamProducer:
             emitted_output = 0
             last_progress_time = time.monotonic()
             last_progress_emitted = 0
-            for file_path in files:
-                for row_index, row in _read_stream_view_rows_with_index(
-                    file_path,
-                    endpoint=self.profile.wiring.object_store_endpoint,
-                    region=self.profile.wiring.object_store_region,
-                    path_style=self.profile.wiring.object_store_path_style,
+            push_concurrency = max(1, int(os.getenv("WSP_IG_PUSH_CONCURRENCY", "1") or "1"))
+            next_sequence = 0
+            next_checkpoint_sequence = 0
+            pending_by_future: dict[Future[None], tuple[int, CheckpointCursor, str, int, str | None]] = {}
+            checkpoint_ready: dict[int, CheckpointCursor] = {}
+            last_checkpoint_cursor: CheckpointCursor | None = cursor
+
+            def _emit_progress(*, file_path_current: str, row_index_current: int, ts_current: str | None) -> None:
+                nonlocal last_progress_time, last_progress_emitted
+                if (
+                    emitted_output - last_progress_emitted >= progress_every
+                    or (time.monotonic() - last_progress_time) >= progress_seconds
                 ):
-                    if cursor and _should_skip(cursor, file_path, row_index):
-                        continue
-                    payload = _payload_from_stream_row(row)
-                    entry = self._catalogue.get(output_id)
-                    pins = {
-                        "manifest_fingerprint": world_key.manifest_fingerprint,
-                        "parameter_hash": world_key.parameter_hash,
-                        "scenario_id": world_key.scenario_id,
-                        "seed": world_key.seed,
-                        "run_id": run_id,
-                    }
-                    event_id = derive_engine_event_id(output_id, entry.primary_key, payload, pins)
-                    if not _lane_accepts_event(event_id, self._lane_count, self._lane_index):
-                        continue
-                    ts_utc = row.get("ts_utc")
-                    envelope = {
-                        "event_id": event_id,
-                        "event_type": output_id,
-                        "schema_version": "v1",
-                        "ts_utc": _normalize_ts(ts_utc),
-                        "manifest_fingerprint": world_key.manifest_fingerprint,
-                        "parameter_hash": world_key.parameter_hash,
-                        "seed": world_key.seed,
-                        "scenario_id": world_key.scenario_id,
-                        "run_id": run_id,
-                        "platform_run_id": platform_run_id,
-                        "scenario_run_id": scenario_run_id,
-                        "producer": producer_id,
-                        "payload": payload,
-                    }
-                    if pack_key and not envelope.get("trace_id"):
-                        envelope["trace_id"] = pack_key
-                    if engine_release and not envelope.get("span_id"):
-                        envelope["span_id"] = engine_release
-                    current_ts = _parse_ts(envelope.get("ts_utc"))
-                    if last_ts and current_ts:
-                        delay = _delay_seconds(last_ts, current_ts, speedup)
-                        if delay > 0:
-                            time.sleep(delay)
-                    if current_ts:
-                        last_ts = current_ts
-                    self._push_to_ig(envelope)
-                    emitted_output += 1
-                    cursor = CheckpointCursor(
-                        pack_key=checkpoint_pack_key,
-                        output_id=output_id,
-                        last_file=file_path,
-                        last_row_index=row_index,
-                        last_ts_utc=envelope.get("ts_utc"),
+                    logger.info(
+                        "WSP stream_view progress output_id=%s emitted=%s last_file=%s row=%s ts=%s",
+                        output_id,
+                        emitted_output,
+                        file_path_current,
+                        row_index_current,
+                        ts_current,
                     )
-                    if emitted_output % checkpoint_every == 0:
-                        _save_checkpoint(cursor, reason="periodic_flush")
-                    if (
-                        emitted_output - last_progress_emitted >= progress_every
-                        or (time.monotonic() - last_progress_time) >= progress_seconds
+                    last_progress_time = time.monotonic()
+                    last_progress_emitted = emitted_output
+
+            def _record_completion(
+                *,
+                sequence: int,
+                cursor_done: CheckpointCursor,
+                file_path_done: str,
+                row_index_done: int,
+                ts_done: str | None,
+            ) -> None:
+                nonlocal emitted_output, next_checkpoint_sequence, last_checkpoint_cursor
+                emitted_output += 1
+                checkpoint_ready[sequence] = cursor_done
+                while next_checkpoint_sequence in checkpoint_ready:
+                    last_checkpoint_cursor = checkpoint_ready.pop(next_checkpoint_sequence)
+                    next_checkpoint_sequence += 1
+                    if next_checkpoint_sequence % checkpoint_every == 0 and last_checkpoint_cursor is not None:
+                        _save_checkpoint(last_checkpoint_cursor, reason="periodic_flush")
+                _emit_progress(
+                    file_path_current=file_path_done,
+                    row_index_current=row_index_done,
+                    ts_current=ts_done,
+                )
+
+            def _drain_push_futures(*, executor: ThreadPoolExecutor, force: bool) -> None:
+                if not pending_by_future:
+                    return
+                while pending_by_future and (force or len(pending_by_future) >= push_concurrency):
+                    done, _ = wait(list(pending_by_future.keys()), return_when=FIRST_COMPLETED)
+                    for future in done:
+                        sequence, cursor_done, file_path_done, row_index_done, ts_done = pending_by_future.pop(future)
+                        try:
+                            future.result()
+                        except Exception:
+                            for pending in pending_by_future:
+                                pending.cancel()
+                            executor.shutdown(wait=False, cancel_futures=True)
+                            raise
+                        _record_completion(
+                            sequence=sequence,
+                            cursor_done=cursor_done,
+                            file_path_done=file_path_done,
+                            row_index_done=row_index_done,
+                            ts_done=ts_done,
+                        )
+                    if not force:
+                        break
+
+            push_executor = ThreadPoolExecutor(max_workers=push_concurrency)
+            try:
+                for file_path in files:
+                    for row_index, row in _read_stream_view_rows_with_index(
+                        file_path,
+                        endpoint=self.profile.wiring.object_store_endpoint,
+                        region=self.profile.wiring.object_store_region,
+                        path_style=self.profile.wiring.object_store_path_style,
                     ):
-                        logger.info(
-                            "WSP stream_view progress output_id=%s emitted=%s last_file=%s row=%s ts=%s",
-                            output_id,
-                            emitted_output,
+                        if cursor and _should_skip(cursor, file_path, row_index):
+                            continue
+                        payload = _payload_from_stream_row(row)
+                        entry = self._catalogue.get(output_id)
+                        pins = {
+                            "manifest_fingerprint": world_key.manifest_fingerprint,
+                            "parameter_hash": world_key.parameter_hash,
+                            "scenario_id": world_key.scenario_id,
+                            "seed": world_key.seed,
+                            "run_id": run_id,
+                        }
+                        event_id = derive_engine_event_id(output_id, entry.primary_key, payload, pins)
+                        if not _lane_accepts_event(event_id, self._lane_count, self._lane_index):
+                            continue
+                        ts_utc = row.get("ts_utc")
+                        envelope = {
+                            "event_id": event_id,
+                            "event_type": output_id,
+                            "schema_version": "v1",
+                            "ts_utc": _normalize_ts(ts_utc),
+                            "manifest_fingerprint": world_key.manifest_fingerprint,
+                            "parameter_hash": world_key.parameter_hash,
+                            "seed": world_key.seed,
+                            "scenario_id": world_key.scenario_id,
+                            "run_id": run_id,
+                            "platform_run_id": platform_run_id,
+                            "scenario_run_id": scenario_run_id,
+                            "producer": producer_id,
+                            "payload": payload,
+                        }
+                        if pack_key and not envelope.get("trace_id"):
+                            envelope["trace_id"] = pack_key
+                        if engine_release and not envelope.get("span_id"):
+                            envelope["span_id"] = engine_release
+                        current_ts = _parse_ts(envelope.get("ts_utc"))
+                        if last_ts and current_ts:
+                            delay = _delay_seconds(last_ts, current_ts, speedup)
+                            if delay > 0:
+                                time.sleep(delay)
+                        if current_ts:
+                            last_ts = current_ts
+                        cursor_candidate = CheckpointCursor(
+                            pack_key=checkpoint_pack_key,
+                            output_id=output_id,
+                            last_file=file_path,
+                            last_row_index=row_index,
+                            last_ts_utc=envelope.get("ts_utc"),
+                        )
+                        future = push_executor.submit(self._push_to_ig, envelope)
+                        pending_by_future[future] = (
+                            next_sequence,
+                            cursor_candidate,
                             file_path,
                             row_index,
                             envelope.get("ts_utc"),
                         )
-                        last_progress_time = time.monotonic()
-                        last_progress_emitted = emitted_output
-                    if max_events_output is not None and emitted_output >= max_events_output:
-                        if cursor:
-                            _save_checkpoint(cursor, reason="max_events")
-                        narrative_logger.info(
-                            "WSP stream stop run_id=%s output_id=%s emitted=%s reason=max_events",
-                            run_id,
-                            output_id,
-                            emitted_output,
-                        )
-                        return emitted_output
-                if cursor:
-                    _save_checkpoint(cursor, reason="file_complete")
-            if cursor:
-                _save_checkpoint(cursor, reason="output_complete")
+                        next_sequence += 1
+                        _drain_push_futures(executor=push_executor, force=False)
+                        if max_events_output is not None and next_sequence >= max_events_output:
+                            _drain_push_futures(executor=push_executor, force=True)
+                            if last_checkpoint_cursor:
+                                _save_checkpoint(last_checkpoint_cursor, reason="max_events")
+                            narrative_logger.info(
+                                "WSP stream stop run_id=%s output_id=%s emitted=%s reason=max_events",
+                                run_id,
+                                output_id,
+                                emitted_output,
+                            )
+                            return emitted_output
+                    _drain_push_futures(executor=push_executor, force=True)
+                    if last_checkpoint_cursor:
+                        _save_checkpoint(last_checkpoint_cursor, reason="file_complete")
+                _drain_push_futures(executor=push_executor, force=True)
+            finally:
+                push_executor.shutdown(wait=True, cancel_futures=False)
+            if last_checkpoint_cursor:
+                _save_checkpoint(last_checkpoint_cursor, reason="output_complete")
             narrative_logger.info(
                 "WSP stream complete run_id=%s output_id=%s emitted=%s lane=%s/%s",
                 run_id,

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import threading
+import time
 from pathlib import Path
 
 import pyarrow as pa
@@ -195,6 +197,39 @@ def test_wsp_checkpoint_resume(monkeypatch, tmp_path: Path) -> None:
     )
     assert second.status == "STREAMED"
     assert second.emitted == 1
+
+
+def test_wsp_stream_view_supports_inflight_push_concurrency(monkeypatch, tmp_path: Path) -> None:
+    engine_root = tmp_path / "engine_run"
+    engine_root.mkdir()
+    receipt = _write_run_receipt(engine_root)
+    rows = _write_arrival_events(engine_root, receipt, "baseline_v1", count=8)
+    _write_stream_view(engine_root, output_id="arrival_events_5B", rows=rows)
+    profile = _profile(engine_root, output_ids=["arrival_events_5B"], checkpoint_root=tmp_path / "cp")
+    producer = WorldStreamProducer(profile)
+
+    state = {"active": 0, "max_active": 0}
+    lock = threading.Lock()
+
+    def _fake_push(_envelope: dict) -> None:
+        with lock:
+            state["active"] += 1
+            state["max_active"] = max(state["max_active"], state["active"])
+        time.sleep(0.01)
+        with lock:
+            state["active"] -= 1
+
+    monkeypatch.setenv("WSP_IG_PUSH_CONCURRENCY", "4")
+    monkeypatch.setattr(producer, "_push_to_ig", _fake_push)
+    result = producer.stream_engine_world(
+        engine_run_root=str(engine_root),
+        scenario_id="baseline_v1",
+        max_events=8,
+    )
+
+    assert result.status == "STREAMED"
+    assert result.emitted == 8
+    assert state["max_active"] > 1
 
 
 def test_wsp_checkpoint_isolated_by_platform_run_scope(monkeypatch, tmp_path: Path) -> None:

@@ -5234,3 +5234,79 @@ Reasoning:
    - improve the next PR3-S1 rerun's diagnostic power because the logs will now show whether residual bottleneck mass remains in Kafka ACK or in object-store receipt persistence.
 6. I have intentionally not claimed victory from this change alone.
    - If the rerun remains materially red, the next production-grade decision point will be whether receipt-object materialization itself must move behind a durable asynchronous boundary rather than staying inline.
+## Entry: 2026-03-06 23:34:00 +00:00 - Verified live rollout of IG revision 5 and prepared the next bounded canonical PR3-S1 rerun
+1. I verified that the managed ingress service has materially picked up the new hot-path build. The live ECS service is now deploying task definition `fraud-platform-dev-full-ig-service:5` and the task definition image is pinned to `230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-full@sha256:0803c98e947e8b2dfd243d085b860fbdcdca603785e7362a14522766b897a341`.
+2. The live runtime posture matches the intended production envelope for this test boundary:
+   - private subnets only (`assignPublicIp=DISABLED`),
+   - 6-task service backing the ALB edge,
+   - task shape `2048 CPU / 4096 MiB`,
+   - IG rate-limit env pinned to `3000 rps / 6000 burst`,
+   - gunicorn shape still `4 workers x 32 threads`.
+3. This matters because the next PR3-S1 window must test the changed ingress hot path, not the stale revision-4 code. Without this check the rerun would risk repeating old evidence under a new narrative.
+4. I am not treating rollout success as closure. The only meaningful next proof is a fresh bounded canonical WSP->IG run with a fresh platform namespace, followed by impact-metric analysis against the production thresholds already pinned for PR3 steady ingress.
+5. If the rerun remains materially red after this hot-path boundary, the next decision point will be structural rather than cosmetic: either the synchronous Kafka/S3 receipt work still dominates, or the current gunicorn/service concurrency shape is itself mismatched to the I/O pattern under 3k steady EPS aspirations.
+## Entry: 2026-03-06 21:48:00 +00:00 - Separated the remaining PR3-S1 red into two distinct problems: one real replay-envelope miss and one measurement bug
+1. The bounded rerun on the new ingress build produced a materially cleaner result than the previous boundary:
+   - `observed_admitted_eps=465.75` over the 60-second measurement window,
+   - `admitted_request_count=27945`,
+   - `4xx_total=0`,
+   - `5xx_total=0`.
+2. This means the last ingress hot-path hardening did matter. The platform is no longer failing the steady window through HTTP errors at this load level. But the result is still nowhere near production-ready because steady throughput remains only ~15.5% of the 3k EPS requirement.
+3. I investigated whether this remaining shortfall is still primarily ingress-side. The truthful answer is more nuanced:
+   - the replay harness did not actually drive 3k candidate requests/sec,
+   - and the latency collector reported `unavailable` even though live latency metrics exist.
+4. Replay-envelope finding:
+   - lane logs show the canonical WSP path is using all four oracle-backed outputs (`arrival_events_5B`, `s1_arrival_entities_6B`, `s3_event_stream_with_fraud_6B`, `s3_flow_anchor_with_fraud_6B`),
+   - with `stream_speedup=95` and `24` lanes, the measured aggregate request rate landed at ~`465.75` EPS,
+   - therefore this boundary was under-driven by the certification harness itself and cannot reveal true 3k-edge behaviour.
+5. Production interpretation of the replay-envelope finding:
+   - this is not a reason to lower the PR3 target,
+   - it is evidence that our oracle-backed replay multiplier is still calibrated for a much smaller world clock than the target production envelope,
+   - so the next correct move is to increase the replay multiplier (and, if needed, lane count) until the driver can materially challenge the edge at the declared 3k steady EPS requirement.
+6. Measurement-bug finding:
+   - direct CloudWatch inspection shows `AWS/ApplicationELB TargetResponseTime p95/p99` datapoints exist for the same measurement minute,
+   - but the dispatcher stores `target_group_dimension` as `fp-dev-full-ig-svc/...` instead of CloudWatch's required `targetgroup/fp-dev-full-ig-svc/...`,
+   - so the latency query is structurally wrong and `B23` is a tooling bug, not absence of latency evidence.
+7. I considered three paths:
+   - A) keep rerunning with `stream_speedup=95` and hope ingress-only changes close a target the harness is not even driving,
+   - B) lower PR3's declared target to match the current replay envelope,
+   - C) fix the latency collector, then repin the next replay envelope to a mathematically credible speedup for 3k steady proof.
+8. I am choosing C. A is wasted spend and B is certification dishonesty. The current measured ratio implies the next attempt should use a replay multiplier on the order of ~`650-700` rather than `95` if we keep the same 24-lane topology.
+9. Immediate actions pinned:
+   - patch the ALB target-group dimension handling so latency evidence is truthful,
+   - rerun PR3-S1 with a materially higher replay multiplier on the same canonical remote path,
+   - use the first high-drive truthful latency/throughput window to decide whether the next production remediation belongs in IG concurrency/right-sizing, receipt-path redesign, or WSP replay topology.
+## Entry: 2026-03-06 21:46:00 +00:00 - PR3-S1 now points to a structural WSP replay bottleneck, not oracle pacing, and the next fix must add intra-output HTTP concurrency
+1. I reran PR3-S1 after fixing the ALB target-group dimension and after materially increasing the replay multiplier from `95` to `700`.
+2. Result:
+   - latency evidence is now truthful from CloudWatch ALB percentiles,
+   - but throughput did not rise; it actually stayed in the same class (`~431 admitted EPS` vs `~466` before).
+3. This falsifies the earlier possibility that oracle time-density was still the dominant limiter. The dominant limiter is now the WSP implementation itself.
+4. Evidence for the WSP bottleneck:
+   - lane logs at `speedup=700` show per-output emitted counts almost identical to the earlier `speedup=95` run,
+   - therefore removing more inter-event sleep does not increase effective request rate,
+   - so the runtime is spending most of its wall clock blocked in the synchronous push path rather than in replay pacing.
+5. Code-path cause:
+   - each `_stream_output(...)` loop calls `self._push_to_ig(envelope)` synchronously per event,
+   - `WSP_OUTPUT_CONCURRENCY` only parallelizes across distinct outputs, and this PR3 lane uses four outputs,
+   - therefore each lane tops out at four in-flight HTTP pushes regardless of target rate.
+6. Production meaning:
+   - scaling lanes into the hundreds just to compensate for a serialized replay client would be the wrong engineering move and an avoidable spend failure,
+   - the correct production-grade move is to add bounded intra-output in-flight push concurrency while preserving truthful checkpoint safety and rate-limiter control.
+7. Additional tooling bug found at the same boundary:
+   - ALB `TargetResponseTime` is reported in seconds, but the dispatcher currently records the value as if it were already milliseconds,
+   - so the truthful tail on this run is roughly `p95≈681 ms`, `p99≈1004 ms`, not `0.68 ms / 1.00 ms`.
+8. Chosen remediation set:
+   - fix latency units in the dispatcher,
+   - extend WSP with bounded per-output push concurrency and contiguous checkpoint advancement on success,
+   - expose that concurrency via the PR3 dispatcher so the canonical lane can be driven to the real 3k certification band without brute-force lane explosion.
+## Entry: 2026-03-06 21:55:00 +00:00 - Local validation for the WSP concurrency boundary succeeded via direct smoke even though pytest collection is blocked by missing psycopg in the workstation env
+1. I validated the new WSP intra-output concurrency path in two layers:
+   - `py_compile` passed for `src/fraud_detection/world_streamer_producer/runner.py` and `scripts/dev_substrate/pr3_s1_wsp_replay_dispatch.py`,
+   - a direct local smoke using an oracle-style temporary stream view and `WSP_IG_PUSH_CONCURRENCY=4` produced `status=STREAMED`, `emitted=8`, `max_concurrency=4`.
+2. This direct smoke matters more than a handwave because it confirms the new path is actually issuing concurrent pushes rather than merely carrying dead configuration.
+3. Pytest collection for the WSP service tests is still blocked by the workstation missing `psycopg`, which is an environment gap rather than a code-path regression. I am explicitly not conflating that with a functional failure in the new concurrency boundary.
+4. Next production action is therefore valid:
+   - commit/push the WSP concurrency and PR3 metric fixes,
+   - repack the remote image,
+   - rerun PR3-S1 with the canonical lane using the new `WSP_IG_PUSH_CONCURRENCY` control.

@@ -60,6 +60,16 @@ def arn_suffix(arn: str, marker: str) -> str:
     return raw
 
 
+def alb_target_group_dimension(arn: str) -> str:
+    raw = str(arn).strip()
+    if not raw:
+        return ""
+    token = "targetgroup/"
+    if token in raw:
+        return f"{token}{raw.split(token, 1)[1]}"
+    return raw
+
+
 def stop_partial_launches(ecs: Any, *, cluster: str, lanes: list[dict[str, Any]], reason: str) -> None:
     for lane in lanes:
         task_arn = str(lane.get("task_arn", "")).strip()
@@ -439,7 +449,7 @@ def resolve_ingress_surface(
             "load_balancer_arn": lb_arn,
             "load_balancer_dimension": arn_suffix(lb_arn, "loadbalancer"),
             "target_group_arn": str(target_group.get("TargetGroupArn", "")).strip(),
-            "target_group_dimension": arn_suffix(str(target_group.get("TargetGroupArn", "")).strip(), "targetgroup"),
+            "target_group_dimension": alb_target_group_dimension(str(target_group.get("TargetGroupArn", "")).strip()),
             "target_group_count": len(target_groups),
         }
     raise RuntimeError(f"PR3.S1.WSP.B05_INGRESS_SURFACE_UNRESOLVED:unsupported_host:{host}")
@@ -558,7 +568,7 @@ def weighted_latency_ms(
         p99_num += p99 * weight
         weight_total += weight
     if weight_total > 0.0:
-        return p95_num / weight_total, p99_num / weight_total, "weighted_by_count"
+        return (p95_num / weight_total) * 1000.0, (p99_num / weight_total) * 1000.0, "weighted_by_count_alb_seconds"
     return -1.0, -1.0, "unavailable"
 
 
@@ -688,6 +698,7 @@ def main() -> None:
     ap.add_argument("--lane-count", type=int, default=24)
     ap.add_argument("--lane-launch-stagger-seconds", type=float, default=0.5)
     ap.add_argument("--output-concurrency", type=int, default=4)
+    ap.add_argument("--ig-push-concurrency", type=int, default=1)
     ap.add_argument("--http-pool-maxsize", type=int, default=256)
     ap.add_argument("--target-request-rate-eps", type=float, default=0.0)
     ap.add_argument("--target-burst-seconds", type=float, default=0.25)
@@ -801,6 +812,7 @@ def main() -> None:
         {"name": "WSP_CHECKPOINT_ATTEMPT_ID", "value": checkpoint_attempt_id},
         {"name": "WSP_CHECKPOINT_DSN", "value": wsp_checkpoint_dsn},
         {"name": "WSP_OUTPUT_CONCURRENCY", "value": str(max(1, args.output_concurrency))},
+        {"name": "WSP_IG_PUSH_CONCURRENCY", "value": str(max(1, args.ig_push_concurrency))},
         {"name": "WSP_HTTP_POOL_MAXSIZE", "value": str(max(16, args.http_pool_maxsize))},
         {"name": "WSP_TARGET_EPS", "value": f"{per_lane_target_eps:.9f}"},
         {"name": "WSP_TARGET_BURST_SECONDS", "value": f"{max(0.0, float(args.target_burst_seconds)):.6f}"},
@@ -916,6 +928,7 @@ def main() -> None:
             "checkpoint_attempt_id": checkpoint_attempt_id,
             "lane_count": lane_count,
             "output_concurrency": max(1, args.output_concurrency),
+            "ig_push_concurrency": max(1, args.ig_push_concurrency),
             "http_pool_maxsize": max(16, args.http_pool_maxsize),
             "target_burst_seconds": max(0.0, float(args.target_burst_seconds)),
             "target_initial_tokens": max(0.0, float(args.target_initial_tokens)),
