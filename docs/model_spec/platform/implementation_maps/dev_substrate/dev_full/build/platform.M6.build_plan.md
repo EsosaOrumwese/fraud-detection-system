@@ -5,7 +5,7 @@ _Last updated: 2026-02-25_
 
 ## 0.1) v0.2 Repin Note (Authoritative for new execution)
 - Historical M6 closure references include fallback windows on `EKS_FLINK_OPERATOR` / `EKS_EMR_ON_EKS`.
-- Forward execution is repinned to `STREAM_PROCESSING_CANONICAL=MSF_MANAGED`, `SR_RUNTIME=STEP_FUNCTIONS_PLUS_LAMBDA_JOB`, and `WSP_RUNTIME=MSF_MANAGED_PRIMARY` (`EKS_FLINK_OPERATOR` fallback remains explicit only).
+- Forward execution is repinned to `STREAM_PROCESSING_CANONICAL=MSF_MANAGED`, `SR_RUNTIME=STEP_FUNCTIONS_PLUS_LAMBDA_JOB`, and `WSP_RUNTIME=ECS_FARGATE_RUN_SCOPED_REPLAY_JOB` (`EKS_REPLAY_JOB_EXCEPTION_ONLY` fallback remains explicit only).
 - Historical artifacts remain valid history but are not canonical runtime targets for new M6 re-certification runs.
 
 ## 0) Purpose

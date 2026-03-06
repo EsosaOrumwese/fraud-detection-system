@@ -5,12 +5,46 @@ policy:
   partitioning_profile_id: ig.partitioning.v0.traffic
   require_gate_pass: true
   stream_speedup: 1
+  traffic_output_ids_ref: config/platform/wsp/traffic_outputs_v0.yaml
+  context_output_ids_ref: config/platform/wsp/context_fraud_outputs_v0.yaml
+  context_output_ids_baseline_ref: config/platform/wsp/context_baseline_outputs_v0.yaml
 wiring:
   object_store:
     root: s3://fraud-platform-dev-full-object-store
     endpoint: ${OBJECT_STORE_ENDPOINT}
     region: ${OBJECT_STORE_REGION}
     path_style: false
+  health_bus_probe_mode: describe
+  oracle_root: ${ORACLE_ROOT:-s3://fraud-platform-dev-full-object-store}
+  oracle_engine_run_root: ${ORACLE_ENGINE_RUN_ROOT:-}
+  oracle_scenario_id: ${ORACLE_SCENARIO_ID:-}
+  oracle_stream_view_root: ${ORACLE_STREAM_VIEW_ROOT:-}
+  ig_ingest_url: ${IG_INGEST_URL:-https://ehwznd2uw7.execute-api.eu-west-2.amazonaws.com/v1/ingest/push}
+  control_bus:
+    kind: kafka
+    topic: fp.bus.control.v1
+  wsp_checkpoint:
+    backend: postgres
+    dsn: ${WSP_CHECKPOINT_DSN:-}
+    flush_every: 100
+  wsp_retry:
+    max_attempts: 5
+    base_delay_ms: 250
+    max_delay_ms: 5000
+  wsp_producer:
+    producer_id: svc:world_stream_producer
+    allowlist_ref: config/platform/wsp/producer_allowlist_v0.txt
+  security:
+    auth_mode: api_key
+    api_key_header: X-IG-Api-Key
+    auth_allowlist:
+      - world_stream_producer
+      - platform_run_reporter
+      - decision_fabric
+      - action_layer
+    wsp_auth_token: ${IG_API_KEY:-}
+    push_rate_limit_per_minute: 0
+    store_read_failure_threshold: 3
 ofp:
   policy:
     features_ref: config/platform/ofp/features_v0.yaml

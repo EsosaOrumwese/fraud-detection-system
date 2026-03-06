@@ -288,6 +288,109 @@ _As of 2026-03-05_
 1. No branch operation.
 2. No commit/push.
 
+## Entry: 2026-03-06 05:46:02 +00:00 - Production-first correction for PR3-S1 execution shape
+### Problem actual
+1. I had previously treated `PR3-S1` as though the main question was "how do I rerun the state cleanly".
+2. That framing was wrong for the production goal.
+3. The real question is:
+   - how should the platform generate production-shaped ingress pressure through the real `via_IG` path,
+   - using the real `WSP`,
+   - at the declared `RC2-S` envelope,
+   - without inventing a toy harness or misclassifying a stream processor as a producer.
+
+### What the evidence now says
+1. Live `IG` is already uplifted to the declared envelope:
+   - API Gateway stage throttle is now `3000 rps / 6000 burst`,
+   - Lambda memory is `1024 MB`,
+   - Lambda timeout is `30 s`,
+   - reserved concurrency is `300`.
+2. The prior `PR3-S1` blocker is therefore no longer "IG is certainly capped at 200/400".
+3. The real remaining defect is the injection path:
+   - synthetic load harness is noncanonical,
+   - `WSP`-as-Managed-Flink is conceptually wrong,
+   - canonical remote `WSP` replay lane is not yet materialized.
+
+### Production decision
+1. `PR3-S1` should be split conceptually into two proofs inside the same state boundary:
+   - `control compatibility proof`:
+     `READY` publication/consumption remains required as a correctness proof for the declared control plane,
+   - `throughput proof`:
+     the actual steady-window throughput proof must use the real `WSP` replay emitter on remote managed compute.
+2. For `S1` throughput certification, the correct canonical runtime is:
+   - remote `WSP` replay job,
+   - run-scoped,
+   - window-bounded,
+   - paced by `stream_speedup`,
+   - emitting through `IG`,
+   - measured on the declared `IG` surfaces.
+3. This keeps the platform claim honest:
+   - producer path is real,
+   - ingress boundary is real,
+   - stream-processing remains Managed Flink where it belongs (`IEG/OFP/RTDL`),
+   - control-plane semantics are not silently discarded.
+
+### Rejected alternatives
+1. Reverting to "canonical ECS/Fargate because it is easier" was rejected as insufficient reasoning.
+2. Forcing `WSP` into Managed Flink was rejected because it solves the wrong problem and changes the component's nature.
+3. Reusing the synthetic remote loader was rejected because it proves only that API Gateway can receive synthetic POSTs.
+4. Local orchestration of the certification run was rejected because it violates the road-to-prod posture.
+
+### Immediate implementation plan
+1. Materialize a canonical remote `WSP` replay dispatcher for `PR3-S1`.
+2. Make the dispatcher use:
+   - the existing `WSP` ECS task definition,
+   - a scratch profile written inside the remote container,
+   - explicit `stream_speedup`,
+   - actual oracle `stream_view` roots in S3,
+   - actual `IG` URL + API-key auth,
+   - real output-set composition (`traffic + context`).
+3. Bound the run by certification window, not by "emit until natural completion".
+4. Use fail-fast cutoff only where throughput evidence shows the active window cannot satisfy the declared floor.
+5. After dispatcher materialization, use fresh telemetry/Athena evidence to evaluate `PR3-S1` again.
+
+### Governance
+1. No branch operation.
+2. No commit/push.
+
+## Entry: 2026-03-06 05:46:02 +00:00 - Real oracle-rate calibration for canonical WSP replay
+### Why this calibration is mandatory
+1. `stream_speedup` cannot be guessed if we want a production-grade window.
+2. Overstating or understating it would recreate the same toy-certification problem under a new name.
+
+### Measured evidence
+1. Read the real oracle `stream_view` manifests and boundary parquet rows for the active engine root:
+   - engine root: `s3://fraud-platform-dev-full-object-store/oracle-store/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1`
+   - scenario id found in the real stream rows: `baseline_v1`
+2. For the main traffic lane:
+   - `s3_event_stream_with_fraud_6B` row count = `473,383,388`
+   - first observed `ts_utc` = `2026-01-01T00:00:00.001940Z`
+   - last observed `ts_utc` = `2026-04-01T00:01:41.104298Z`
+   - natural average throughput is therefore about `60.9 eps`.
+3. For the full realistic `WSP` output set (`traffic + context`):
+   - `arrival_events_5B` row count = `236,691,694`
+   - `s1_arrival_entities_6B` expected same family scale as arrival/context lane set,
+   - `s3_flow_anchor_with_fraud_6B` row count = `236,691,694`,
+   - `s3_event_stream_with_fraud_6B` row count = `473,383,388`.
+4. Using the realistic four-output posture, the natural aggregate rate is approximately `152 eps`.
+5. Hitting `RC2-S steady = 3000 eps` therefore requires a first-pass calibration around:
+   - `stream_speedup ~= 19.7`.
+
+### Decision from the calibration
+1. First canonical `PR3-S1` replay should not use arbitrary lane fanout.
+2. It should use:
+   - one real `WSP` task,
+   - actual merged output set,
+   - `stream_speedup` calibrated from real oracle time density,
+   - window-bounded stop at the certification duration.
+3. If that single real producer cannot reach the floor, that is real bottleneck evidence:
+   - producer-side pacing/concurrency,
+   - IG/Lambda/DynamoDB pressure,
+   - or downstream platform saturation.
+
+### Governance
+1. No branch operation.
+2. No commit/push.
+
 ## Entry: 2026-03-05 17:35 +00:00 - Remediation complete: PR0 artifacts relocated to runs/ and docs authority corrected
 ### What was remediated
 1. Moved execution artifacts from wrong docs path to canonical runs path:
@@ -2129,4 +2232,541 @@ ext_state=PR3-S1.
 
 ### Governance
 1. No branch operations.
+2. No commit/push.
+
+## Entry: 2026-03-06 05:31:37 +00:00 - Production-first blocker handling doctrine applied to WSP/PR3-S1
+### Trigger
+1. USER corrected the blocker-handling posture for road-to-prod work:
+   - do not optimize for the fastest path to a green rerun,
+   - optimize for the production-grade architecture that would be recommended under real financial-institution load,
+   - document the actual problem, contributing areas, and competing solutions before choosing the remediation path.
+
+### Immediate correction to my prior reasoning
+1. My prior recommendation to repin `WSP` back to canonical `ECS/Fargate` was too compressed and was framed around clearing `PR3-S1` safely rather than first stating the production problem in full.
+2. That framing was wrong for this stage of the project because `PR3` is not a workflow-completion exercise; it is a production-readiness gate.
+3. The correct first question is:
+   - if this platform had to support production-realistic `3000 eps steady / 6000 eps burst` on the declared `via_IG` claim path, what runtime shape should `WSP` take so the platform stays operationally correct and measurable?
+
+### Problem statement (actual, not shortcut-framed)
+1. `PR3-S1` is not blocked merely because a rerun lane is missing.
+2. The real defect is a runtime-shape mismatch:
+   - the repo's actual `WSP` is a Python oracle-backed ingress replayer that emits HTTP requests into `IG`,
+   - some authority surfaces were repinned to `MSF_MANAGED_PRIMARY`,
+   - the current `PR3-S1` remote execution path diverged from the real `WSP` and used a synthetic pressure harness instead of the actual `WSP` runtime.
+3. That means we are currently mixing three different things as if they were the same:
+   - stream processing runtime (`Managed Flink` for `IEG/OFP/RTDL`),
+   - ingress replay producer runtime (`WSP`),
+   - temporary load-generation harness for certification.
+
+### Concrete evidence gathered
+1. Actual `WSP` implementation is Python HTTP replay code, not Flink job code:
+   - `src/fraud_detection/world_streamer_producer/runner.py`
+   - `src/fraud_detection/world_streamer_producer/ready_consumer.py`
+2. Actual `WSP` already has the pacing primitive needed for production-style replay:
+   - `stream_speedup` policy in `src/fraud_detection/world_streamer_producer/config.py`
+   - event-time pacing in `src/fraud_detection/world_streamer_producer/runner.py`
+3. Live AWS currently contains only the RTDL managed Flink app:
+   - `fraud-platform-dev-full-rtdl-ieg-ofp-v0`
+   - there is no live `WSP` managed Flink application.
+4. Authority drift is real and internal:
+   - `docs/model_spec/platform/pre-design_decisions/dev-full_managed-substrate_migration.design-authority.v0.md`
+     simultaneously states:
+     - `WSP` is repinned to `ECS/Fargate` ephemeral task,
+     - `WSP_RUNTIME_MODE = "MSF_MANAGED_PRIMARY"`.
+5. The active `PR3-S1` managed workflow currently reasons about a `WSP`-on-`MSF` path that is not materially implemented in the repo or live runtime.
+
+### Consequence if left uncorrected
+1. We would be certifying the platform against a non-canonical producer path.
+2. A green `PR3-S1` under that posture would not be a trustworthy production-readiness claim.
+3. Continued work would drift into "make the run pass" behavior rather than proving the platform against its real hot path.
+
+### Governance
+1. No branch operation.
+2. No commit/push.
+
+## Entry: 2026-03-06 05:31:37 +00:00 - WSP production-shape options evaluated against the real goal
+### Production question
+1. For a real financial-institution-style platform targeting `3000 eps steady / 6000 eps burst` on the `via_IG` certification path, what is the correct production-grade runtime for `WSP`?
+
+### Option A - Force `WSP` onto Managed Flink (`MSF`)
+Status:
+1. Rejected as the primary recommendation.
+
+Reasoning:
+1. `WSP` is not a stream transform/join lane. It is an ingress replay producer with external side effects (`HTTP -> IG`).
+2. Flink is a strong fit for stateful stream processing, watermarking, checkpoints, and keyed transforms; it is a weak fit for a side-effect-heavy ingress producer whose success criteria are:
+   - stable idempotent HTTP emission,
+   - producer retry discipline,
+   - replay checkpoints keyed to oracle position,
+   - controlled backpressure against the ingress edge.
+3. Forcing `WSP` onto `MSF` would require us to invent a new application shape that does not exist in the repo today, while gaining little architectural benefit on the `WSP -> IG` edge itself.
+4. It would also blur accountability between:
+   - `WSP` as the outside-world replay producer,
+   - `IEG/OFP/RTDL` as the managed Flink stream-processing plane.
+5. This is not rejected because it is hard; it is rejected because it is the wrong abstraction for the role `WSP` actually plays.
+
+### Option B - Keep the synthetic ad hoc ECS pressure harness
+Status:
+1. Rejected.
+
+Reasoning:
+1. The current harness is not the real `WSP`.
+2. It bypasses the actual `WSP` pacing/checkpoint/replay logic and therefore cannot be the canonical certification path.
+3. It is useful only as bounded diagnostic evidence.
+
+### Option C - Bypass `IG` and push directly to bus/runtime
+Status:
+1. Rejected.
+
+Reasoning:
+1. Violates the pinned `via_IG` production claim path.
+2. Would produce incorrect `PR3` evidence because admission behavior, idempotency, `429` posture, and edge SLOs would be skipped.
+
+### Option D - Treat `WSP` as a dedicated distributed ingress replay service on remote managed compute
+Status:
+1. Accepted as the production-grade direction.
+
+Reasoning:
+1. This matches the actual `WSP` role:
+   - replay oracle traffic,
+   - preserve event-time pacing semantics,
+   - emit into `IG`,
+   - honor retry/idempotency/checkpoint semantics.
+2. This keeps `Managed Flink` where it belongs:
+   - `IEG/OFP/RTDL` stream-processing lanes.
+3. This also aligns the certification path with what actually matters for `PR3-S1`:
+   - can the platform edge admit and process realistic high-rate traffic through the real producer boundary?
+4. The right question is not "ECS vs Flink" in isolation.
+5. The right separation is:
+   - replay producer runtime (`WSP`) vs stream-processing runtime (`IEG/OFP/RTDL`).
+
+### Decision rule pinned from this evaluation
+1. `WSP` must be treated as a distributed remote ingress replay service, not as a managed Flink application by default.
+2. `Managed Flink` remains canonical for stream-processing lanes only.
+3. `PR3-S1` must be rerouted onto the real remote `WSP` implementation, not the synthetic pressure harness.
+
+### Governance
+1. No branch operation.
+2. No commit/push.
+
+## Entry: 2026-03-06 05:31:37 +00:00 - Production-grade remediation path chosen for WSP/PR3-S1
+### Chosen remediation
+1. Correct the authority drift by separating:
+   - `WSP` as distributed remote replay producer,
+   - `Managed Flink` as stream-processing runtime for `IEG/OFP/RTDL`.
+2. Retire the idea that `PR3-S1` should search for a `WSP` `MSF` app.
+3. Replace the current synthetic `PR3-S1` pressure path with the actual remote `WSP` code path using:
+   - oracle-backed `WSP`,
+   - explicit `stream_speedup`,
+   - remote managed compute only,
+   - deterministic run-scoped checkpoints and evidence.
+
+### What this means concretely
+1. `PR3-S1` remediation is no longer "rerun with a different harness".
+2. It becomes a runtime correction with these work items:
+   - fix authority/plan surfaces so they no longer imply `WSP` should be `MSF`,
+   - wire `dev_full` profile/runtime config so remote `WSP` can run against oracle store and live `IG`,
+   - build a canonical remote launch lane for the real `WSP`,
+   - rerun `PR3-S1` only after that correction exists.
+
+### Important nuance on compute choice
+1. The accepted architectural decision is "distributed replay producer on remote managed compute".
+2. In this repo, the nearest correct execution substrate is still likely ECS/Fargate unless measured evidence later proves it cannot satisfy the envelope.
+3. That is not a lazy fallback; it is the natural managed-compute fit for a Python HTTP replay producer.
+4. If measured evidence later shows ECS cannot meet the declared envelope with the real `WSP` implementation, then the next move is to escalate compute shape based on evidence, not to force `WSP` into `MSF` by assumption.
+
+### Next implementation step pinned
+1. Update active road-to-prod authority to state that `PR3-S1` is blocked on canonical `WSP` runtime correction, not merely on a rerun threshold defect.
+2. Begin wiring `dev_full` so the real remote `WSP` can be launched with explicit `stream_speedup` and live `IG`/oracle configuration.
+
+### Governance
+1. No branch operation.
+2. No commit/push.
+
+## Entry: 2026-03-06 05:31:37 +00:00 - Pre-edit plan for MSK control-bus correction on the real WSP path
+### New issue discovered while wiring the canonical path
+1. `dev_full` authority pins control on `fp.bus.control.v1` over MSK.
+2. The current `SR`/`WSP` control-bus implementation only supports:
+   - `file`
+   - `kinesis`
+3. This means that even if the remote `WSP` replay path is corrected, the platform would still be bypassing the declared READY-trigger bus semantics unless control-bus support is fixed.
+
+### Why this matters for production-readiness
+1. `WSP_TRIGGER_MODE = READY_EVENT_TRIGGERED` is part of the declared platform behavior.
+2. If `PR3` claims steady-runtime readiness while `WSP` is launched through an out-of-band direct trigger, we would still have a gap between:
+   - platform control-plane semantics,
+   - actual runtime execution semantics.
+3. For production-grade closure, I want the next canonical path to preserve both:
+   - real producer runtime (`WSP`),
+   - real control trigger semantics (`READY` over the pinned control bus).
+
+### Available implementation leverage
+1. `scenario_runner.bus.py` already has file and kinesis control-bus publishers.
+2. `world_streamer_producer.control_bus.py` already has file and kinesis control-bus readers.
+3. The repo already contains Kafka/MSK adapters in:
+   - `src/fraud_detection/event_bus/kafka.py`
+4. Therefore the missing piece is not a greenfield Kafka client stack; it is the control-bus integration layer.
+
+### Planned implementation
+1. Add Kafka/MSK-backed control-bus publisher support to `SR`.
+2. Add Kafka/MSK-backed control-bus reader support to `WSP`.
+3. Update `dev_full` profile wiring so the real remote `WSP` path can use:
+   - oracle store over S3,
+   - live `IG` endpoint,
+   - API-key auth posture,
+   - Postgres checkpoints,
+   - Kafka/MSK control bus.
+4. Keep the implementation additive and fail-closed:
+   - no silent fallback to file/kinesis in `dev_full`,
+   - missing Kafka env/config should error explicitly.
+
+### Governance
+1. No branch operation.
+2. No commit/push.
+
+## Entry: 2026-03-06 05:31:37 +00:00 - MSK control-bus support and dev_full WSP remote wiring implemented
+### Implemented
+1. Added Kafka/MSK control-bus publisher support for `SR` in:
+   - `src/fraud_detection/scenario_runner/bus.py`
+   - `src/fraud_detection/scenario_runner/runner.py`
+2. Added Kafka/MSK control-bus reader support for `WSP` in:
+   - `src/fraud_detection/world_streamer_producer/control_bus.py`
+   - `src/fraud_detection/world_streamer_producer/ready_consumer.py`
+3. Expanded `config/platform/profiles/dev_full.yaml` so the real remote `WSP` path now carries the missing runtime wiring surfaces:
+   - traffic/context output refs,
+   - oracle root / engine root / stream-view refs,
+   - live `IG` ingest URL,
+   - Kafka control-bus kind/topic,
+   - Postgres checkpoint backend,
+   - producer identity,
+   - API-key auth posture,
+   - retry knobs.
+4. Fixed a profile-loader defect in `src/fraud_detection/world_streamer_producer/config.py`:
+   - `${VAR:-default}` placeholders now resolve correctly,
+   - this was required because the new `dev_full` profile intentionally uses defaults for non-secret wiring where safe.
+
+### Why this matters
+1. The repo can now preserve the declared READY-trigger semantics over the pinned MSK control bus instead of bypassing them.
+2. The `dev_full` `WSP` profile is now usable for real remote replay against:
+   - oracle store in S3,
+   - live `IG`,
+   - remote checkpointing,
+   - Kafka control bus.
+3. This is a prerequisite to replacing the synthetic `PR3-S1` pressure harness with the actual `WSP` path.
+
+### Validation
+1. `python -m py_compile` passed for:
+   - `src/fraud_detection/scenario_runner/bus.py`
+   - `src/fraud_detection/scenario_runner/runner.py`
+   - `src/fraud_detection/world_streamer_producer/control_bus.py`
+   - `src/fraud_detection/world_streamer_producer/ready_consumer.py`
+   - `src/fraud_detection/world_streamer_producer/config.py`
+2. `WspProfile.load(Path('config/platform/profiles/dev_full.yaml'))` succeeded with:
+   - `control_bus_kind = kafka`
+   - `control_bus_topic = fp.bus.control.v1`
+   - `ig_ingest_url = https://ehwznd2uw7.execute-api.eu-west-2.amazonaws.com/v1/ingest/push`
+   - `checkpoint_backend = postgres`
+   - `stream_speedup = 1.0`
+
+### Remaining work after this implementation
+1. Authority docs still need a deliberate correction so `WSP` is described as a distributed replay producer runtime rather than `MSF`-primary.
+2. `PR3-S1` still needs a canonical remote launch lane for the real `WSP`; current workflow surface still points at the synthetic pressure harness.
+3. Only after that lane exists should `PR3-S1` be rerun.
+
+### Governance
+1. No branch operation.
+2. No commit/push.
+
+## Entry: 2026-03-06 05:31:37 +00:00 - Pre-edit plan for authority correction of the WSP runtime shape
+### Why this edit is next
+1. The repo now has the first mechanical pieces needed for the real remote `WSP` path.
+2. Leaving authority surfaces at `WSP = MSF_MANAGED_PRIMARY` would keep the active source-of-truth wrong even though implementation work has moved in the opposite, production-correct direction.
+
+### Exact authority correction to apply
+1. Reframe `WSP` as a remote distributed replay producer, not a managed Flink app.
+2. Keep `Managed Flink` canonical for `IEG/OFP/RTDL` only.
+3. Update the concrete `WSP` runtime pins to a run-scoped replay posture on remote managed compute.
+
+### Files targeted
+1. `docs/model_spec/platform/pre-design_decisions/dev-full_managed-substrate_migration.design-authority.v0.md`
+2. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/build/platform.M6.build_plan.md`
+4. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/build/platform.M14.build_plan.md`
+
+### Guardrail for this edit
+1. I am not repinning `WSP` to local or ad hoc compute.
+2. I am making the authority say what the production-first analysis actually concluded:
+   - remote replay producer on managed compute,
+   - not `MSF` by default.
+
+### Governance
+1. No branch operation.
+2. No commit/push.
+
+## Entry: 2026-03-06 05:31:37 +00:00 - WSP authority surfaces corrected to the production runtime shape
+### Implemented
+1. Corrected WSP runtime pins in:
+   - `docs/model_spec/platform/pre-design_decisions/dev-full_managed-substrate_migration.design-authority.v0.md`
+   - `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/build/platform.M6.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/build/platform.M14.build_plan.md`
+2. New active WSP runtime pin is:
+   - `ECS_FARGATE_RUN_SCOPED_REPLAY_JOB`
+3. New bounded fallback language is:
+   - `EKS_REPLAY_JOB_EXCEPTION_ONLY`
+4. The authority now states explicitly that:
+   - `Managed Flink` remains the stream-processing substrate,
+   - `WSP` is the remote replay-producer runtime.
+
+### Notes on historical evidence
+1. Historical M14 closure artifacts still mention `ECS_FARGATE_RUNTASK_EPHEMERAL`.
+2. I am leaving that as historical evidence rather than rewriting history.
+3. The active forward authority is now the run-scoped replay-job pin above.
+
+### Remaining implementation gap after authority correction
+1. The canonical remote launch lane for the real `WSP` still needs to be built.
+2. `PR3-S1` should remain unrerun until that launch lane replaces the synthetic harness.
+
+### Governance
+1. No branch operation.
+2. No commit/push.
+
+## Entry: 2026-03-06 05:52:27 +00:00 - Production-fit reassessment of the WSP pressure lane after user escalation
+### Problem actual
+1. The wrong question had started to creep into `PR3-S1`:
+   - "what is the easiest runtime shape that lets the state rerun?"
+2. That is not the production question.
+3. The production question is:
+   - "if this platform had to withstand a real financial-institution ingress envelope around `3000 eps`, what producer/runtime shape would preserve realistic data semantics, preserve the `via_IG` trust boundary, and still be operable at that envelope?"
+
+### Re-evaluated options with the correct production lens
+#### Option A - force `WSP` onto Managed Flink because Flink is the streaming substrate
+Status:
+1. Rejected again, this time for production-fit reasons rather than convenience.
+
+Reasoning:
+1. `WSP` is not a stateful stream-processing operator; it is an outside-world replay emitter.
+2. Its authoritative duties are:
+   - read oracle-backed stream views,
+   - pace according to event-time and `stream_speedup`,
+   - emit canonical envelopes into `IG`,
+   - retain replay/checkpoint semantics.
+3. Managed Flink is a strong fit for long-running keyed/stateful processing (`IEG/OFP/RTDL`), but it is the wrong abstraction for a run-scoped HTTP side-effecting replay producer.
+4. Forcing `WSP` onto Managed Flink would solve a category mistake, not the actual throughput problem.
+
+#### Option B - keep a single remote `WSP` task and just increase `stream_speedup`
+Status:
+1. Rejected as insufficient for a production claim.
+
+Reasoning:
+1. This leaves the hot path effectively constrained by one producer thread per output stream.
+2. For the currently selected output set, that means the throughput ceiling is governed by:
+   - output count,
+   - per-request latency,
+   - retry posture,
+   - connection reuse efficiency.
+3. With steady target `3000 eps`, a single task with weak internal fanout is not a credible production-grade producer shape.
+
+#### Option C - distributed remote `WSP` replay on managed compute, preserving `via_IG`
+Status:
+1. Accepted as the production direction.
+
+Reasoning:
+1. This preserves the real platform edge:
+   - `WSP -> IG -> EB -> downstream`.
+2. It keeps `Managed Flink` on the processing side where it belongs.
+3. It frames the next work correctly:
+   - improve the real replay producer hot path,
+   - add durable runtime surfaces,
+   - then measure whether one task is enough or whether deterministic sharding/fanout is required.
+4. This is not "ECS because it is easy".
+5. This is "managed replay workers because `WSP` is a producer runtime, not a Flink job".
+
+### Decision pinned from this reassessment
+1. `WSP` remains a managed remote replay-producer lane.
+2. `Managed Flink` remains canonical for `IEG/OFP/RTDL` stream-processing lanes.
+3. `PR3-S1` must certify the real producer path through `IG`, not an easier substitute.
+
+### Governance
+1. No branch operation.
+2. No commit/push.
+
+## Entry: 2026-03-06 05:52:27 +00:00 - Newly identified WSP hot-path bottlenecks against the `3000 eps` envelope
+### Problem actual
+1. The corrected runtime shape alone is not enough.
+2. The current `WSP` implementation itself exposes a material producer bottleneck:
+   - concurrency is primarily across `output_id`s,
+   - the hot path uses `requests.post(...)` per event,
+   - no persistent HTTP session/pool is reused,
+   - one remote task therefore has a weak multi-kEPS posture before `IG` is even the limiting component.
+
+### Concrete code evidence
+1. `src/fraud_detection/world_streamer_producer/runner.py`
+   - `output_parallelism` is derived from output count or `WSP_OUTPUT_CONCURRENCY`,
+   - but the executor fans out by output stream, not by a high-cardinality producer shard model,
+   - `_push_to_ig(...)` uses `requests.post(...)` directly on every event.
+2. This means that the producer-side ceiling is currently dominated by transport overhead and per-output serialization characteristics.
+
+### Why this matters for production
+1. If producer transport overhead is the binding limit, then a failed `PR3-S1` rerun would say more about the replay worker than about the platform edge.
+2. That would again produce misleading readiness evidence.
+3. The correct next move is to harden the replay worker before spending on more large pressure windows.
+
+### Immediate remediation plan
+1. Improve the `WSP` transport hot path first:
+   - introduce persistent HTTP session reuse/connection pooling,
+   - keep retry/idempotency semantics unchanged.
+2. Tighten the canonical dispatcher so it uses the real `dev_full` profile and durable checkpoint surfaces, not an invented scratch profile.
+3. After that, run a bounded smoke to learn whether the remaining limit is:
+   - producer transport,
+   - `IG` admission,
+   - or both.
+4. If a single hardened task still cannot approach the declared envelope, the next production-grade step is deterministic remote replay fanout/sharding rather than a doc-level repin.
+
+### Governance
+1. No branch operation.
+2. No commit/push.
+
+## Entry: 2026-03-06 06:03:11 +00:00 - Smoke evidence exposed a real network-posture defect in the canonical dispatcher
+### What the bounded smoke actually proved
+1. The previous `PR3-S1` smoke no longer failed on the old "timer starts before runtime" bug.
+2. The first honest blocker is now infrastructure:
+   - `TaskFailedToStart`
+   - `ResourceInitializationError`
+   - ECR auth/token pull timed out before container start.
+
+### Root-cause analysis
+1. The dispatcher was launching the WSP task in the public subnets:
+   - `subnet-005205ea65a9027fc`
+   - `subnet-01fd5f1585bfcca47`
+2. In this VPC, private DNS is enabled for:
+   - `ecr.api`
+   - `ecr.dkr`
+3. Those interface endpoints are attached to the private subnets and their endpoint security group only permits `443` from:
+   - `10.70.128.0/20`
+   - `10.70.144.0/20`
+4. Therefore the public-subnet WSP task resolves ECR to the private endpoint IPs but is not allowed through the endpoint SG.
+5. That is why the task fails before producer logic starts.
+
+### Production interpretation
+1. This is not a reason to abandon the canonical WSP lane.
+2. It is evidence that the launcher posture was wrong.
+3. A production-grade replay worker should run on private runtime subnets with endpoint-backed bootstrap, not on public subnets with incidental internet posture.
+
+### Chosen remediation
+1. Repin the canonical dispatcher network defaults to:
+   - private runtime subnets,
+   - `assignPublicIp=DISABLED`.
+2. Keep the worker on remote managed compute.
+3. Rerun the same bounded smoke after this change before spending on a longer pressure window.
+
+### Governance
+1. No branch operation.
+2. No commit/push.
+
+## Entry: 2026-03-06 06:08:54 +00:00 - Private-subnet correction exposed the next missing bootstrap dependency
+### What changed
+1. I moved the canonical WSP dispatcher defaults onto the private runtime subnets and disabled public IP assignment.
+2. That was the correct production move and it cleared the earlier ECR-endpoint mismatch.
+
+### New blocker surfaced immediately after that correction
+1. The task now fails with:
+   - `ResourceInitializationError`
+   - CloudWatch log group/logger validation could not complete due network reachability.
+2. This means the task is now getting further into bootstrap and has progressed beyond the earlier ECR auth path.
+
+### Root cause
+1. `dev_full` runtime interface endpoints currently cover:
+   - `ec2`
+   - `ecr.api`
+   - `ecr.dkr`
+   - `sts`
+2. They do not currently cover:
+   - `logs`
+3. Private runtime workers therefore still lack a complete bootstrap path for the ECS `awslogs` log driver.
+
+### Production interpretation
+1. This is the correct kind of blocker to resolve in infrastructure, not by weakening the launcher back to public subnet posture.
+2. A production-grade private replay worker needs deterministic reachability for:
+   - image auth/pull,
+   - STS,
+   - CloudWatch Logs,
+   - S3,
+   - Aurora.
+
+### Chosen remediation
+1. Extend the runtime interface-endpoint set to include `logs`.
+2. Validate the Terraform surface.
+3. If the plan is clean, apply the endpoint so the private runtime bootstrap path becomes complete.
+4. Then rerun the same bounded smoke again before any larger `PR3-S1` pressure window.
+
+### Additional guardrail discovered during Terraform plan
+1. The full runtime plan also proposes unrelated `EKS` node-group replacement drift.
+2. That is not part of this blocker and should not be pulled into the fix implicitly.
+3. Therefore the endpoint remediation should be applied in a targeted way for `aws_vpc_endpoint.runtime_interface["logs"]`, with the broader node-group drift left for separate review.
+
+### Governance
+1. No branch operation.
+2. No commit/push.
+
+## Entry: 2026-03-06 06:16:14 +00:00 - The next blocker is a real WSP profile-loader defect, not infrastructure
+### Diagnostic result
+1. A tiny diagnostic task proved the container image, working directory, and shell override are all valid.
+2. A second task with the real WSP command and shell tracing produced the actual failure text:
+   - `WSP run_receipt unreadable ... error=Invalid endpoint:`
+   - result reason `RUN_RECEIPT_UNREADABLE`
+
+### Root cause
+1. `config/platform/profiles/dev_full.yaml` sets:
+   - `object_store.endpoint: ${OBJECT_STORE_ENDPOINT}`
+2. In the ECS runtime, `OBJECT_STORE_ENDPOINT` is intentionally unset because the correct target is native AWS S3, not MinIO.
+3. `src/fraud_detection/world_streamer_producer/config.py` currently resolves that placeholder to `""` rather than `None`.
+4. The reader path later hands that empty string to boto3 as `endpoint_url=""`, which causes:
+   - `Invalid endpoint:`
+
+### Production interpretation
+1. This is exactly the kind of subtle runtime defect that destroys a production cutover:
+   - the surface looks pinned correctly,
+   - but one unset env token collapses the S3 client path at runtime.
+2. The correct behavior for native AWS posture is:
+   - blank endpoint token => no custom endpoint => let boto3 use the regional default.
+
+### Chosen remediation
+1. Normalize blank env-resolved endpoint strings to `None` in `WSP` profile loading.
+2. Keep the same `dev_full` profile pins.
+3. Rerun the bounded smoke immediately after that fix.
+
+### Governance
+1. No branch operation.
+2. No commit/push.
+
+## Entry: 2026-03-06 06:18:44 +00:00 - The remaining blocker is remote image drift, not another code hypothesis
+### What the latest smoke proved
+1. The canonical WSP task now:
+   - launches in private subnets,
+   - pulls image successfully,
+   - starts the container,
+   - emits logs,
+   - fails with the same old `Invalid endpoint:` symptom.
+
+### Why that matters
+1. The local source fix for blank endpoint normalization is correct.
+2. But the remote ECS task definition still points at the previously built image digest:
+   - `sha256:49eb6cb0c5e33061fae4d1aaceeac2e44600adb5c4250436be9ac8395ed29cb2`
+3. That image was built before the new `WSP` config-loader fix existed.
+4. Therefore the live task is still executing stale code.
+
+### Production interpretation
+1. Continuing to rerun the current task definition would waste time and cost.
+2. The blocker is no longer "find a different explanation".
+3. The blocker is:
+   - the canonical lane needs a refreshed runtime image carrying the validated `WSP` fixes.
+
+### Chosen next action
+1. Record the boundary clearly in the road-to-prod documents.
+2. Do not keep rerunning the stale image.
+3. Next execution-worthy move is a controlled image refresh for the WSP runtime lane, then rerun the bounded smoke again before any larger `PR3-S1` window.
+
+### Governance
+1. No branch operation.
 2. No commit/push.

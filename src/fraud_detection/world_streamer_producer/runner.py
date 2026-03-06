@@ -11,6 +11,7 @@ import os
 import json
 import logging
 import random
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -19,6 +20,7 @@ from urllib.parse import urlparse
 import boto3
 from botocore.config import Config
 import requests
+from requests.adapters import HTTPAdapter
 import yaml
 
 from fraud_detection.ingestion_gate.catalogue import OutputCatalogue
@@ -67,6 +69,7 @@ class WorldStreamProducer:
         self._producer_id = profile.wiring.producer_id
         self._producer_allowlist_ref = profile.wiring.producer_allowlist_ref
         self._producer_allowlist: set[str] | None = None
+        self._http_local = threading.local()
 
     def stream_engine_world(
         self,
@@ -783,10 +786,11 @@ class WorldStreamProducer:
             headers[self.profile.wiring.ig_auth_header] = self.profile.wiring.ig_auth_token
         attempt = 0
         last_error: str | None = None
+        session = self._http_session()
         while attempt < max_attempts:
             attempt += 1
             try:
-                response = requests.post(f"{url}/v1/ingest/push", json=payload, headers=headers, timeout=30)
+                response = session.post(f"{url}/v1/ingest/push", json=payload, headers=headers, timeout=30)
             except requests.Timeout:
                 last_error = "timeout"
                 retryable = True
@@ -815,6 +819,18 @@ class WorldStreamProducer:
                 envelope.get("event_id"),
             )
             time.sleep(delay + jitter)
+
+    def _http_session(self) -> requests.Session:
+        session = getattr(self._http_local, "session", None)
+        if session is not None:
+            return session
+        pool_maxsize = max(16, int(os.getenv("WSP_HTTP_POOL_MAXSIZE", "256")))
+        adapter = HTTPAdapter(pool_connections=pool_maxsize, pool_maxsize=pool_maxsize, max_retries=0)
+        session = requests.Session()
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+        self._http_local.session = session
+        return session
 
     def _ensure_producer_allowed(self) -> str | None:
         if not self._producer_id:

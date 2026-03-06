@@ -271,7 +271,7 @@ variable "eks_nodegroup_max_size" {
 
 variable "runtime_interface_vpc_endpoint_services" {
   type    = list(string)
-  default = ["ec2", "ecr.api", "ecr.dkr", "sts"]
+  default = ["ec2", "ecr.api", "ecr.dkr", "logs", "sts"]
 }
 
 variable "eks_namespace_ingress" {

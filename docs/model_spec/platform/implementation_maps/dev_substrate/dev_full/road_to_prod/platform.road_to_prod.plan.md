@@ -219,16 +219,21 @@ This plan's intent is satisfied only when:
 3. The final production-ready verdict is claimable, auditable, and has `open_blockers=0`.
 
 ## 10) Immediate Next Step
-1. Remediate `PR3.B10_STEADY_THRESHOLD_BREACH` and rerun `PR3-S1` from strict upstream `PR3-S0` boundary.
-2. Active S1 blocker to clear:
-   - `PR3.B10_STEADY_THRESHOLD_BREACH`.
-3. Use strict upstream authority:
+1. Correct the canonical `WSP` runtime path for `PR3-S1` before any further steady-profile rerun.
+2. Active `PR3-S1` work is now treated as a runtime-architecture correction:
+   - remove the assumption that `WSP` should be searched for as a managed Flink app,
+   - wire the real remote `WSP` path with explicit `stream_speedup`,
+   - then rerun `PR3-S1` from the same strict upstream boundary.
+3. Active S1 blocker to clear remains:
+   - `PR3.B10_STEADY_THRESHOLD_BREACH`,
+   - but canonical remediation now includes the producer-runtime correction needed to generate valid steady evidence.
+4. Use strict upstream authority:
    - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr3_20260306T021900Z/pr3_s0_execution_receipt.json`.
-4. Keep Section 11 target status table as the active blocker-routing surface during `PR3` execution.
-5. Use this main plan + PR3 authority as active execution sources:
+5. Keep Section 11 target status table as the active blocker-routing surface during `PR3` execution.
+6. Use this main plan + PR3 authority as active execution sources:
    - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.road_to_prod.plan.md`
    - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR3.road_to_prod.md`.
-6. Keep `platform.PR2.road_to_prod.md` as upstream closure reference only (not active PR3 execution authority).
+7. Keep `platform.PR2.road_to_prod.md` as upstream closure reference only (not active PR3 execution authority).
 
 ### 10.1 PR1-S1 Findings Summary (Readable)
 | Area | What was found | Interpretation |
@@ -343,6 +348,19 @@ This plan's intent is satisfied only when:
 | Runtime and cost posture | `elapsed=0.0 min` (budget `60`), `spend=0.0 USD` (envelope `250.0`) | S1 evaluation remained budget-safe while preserving fail-closed rigor. |
 | Goal-level verdict | S1 remains open pending threshold remediation rerun | PR3 cannot move to `S2` until `PR3.B10` is remediated and cleared. |
 
+### 10.13 PR3-S1 Runtime-Correction Snapshot (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Problem actual | current `PR3-S1` proof path is not the real `WSP` path | A green rerun on the current path would not be a valid production-readiness claim. |
+| WSP runtime reality | actual `WSP` is Python HTTP replay with `stream_speedup`, not Flink transform code | `WSP` must be treated as a replay producer runtime, not a managed Flink lane by assumption. |
+| Authority drift | design/runbook surfaces disagree on `WSP` placement (`ECS/Fargate` vs `MSF_MANAGED_PRIMARY`) | Runtime authority must be corrected before S1 can be considered canonical again. |
+| Production-grade decision | use the real remote `WSP` path; keep Managed Flink for `IEG/OFP/RTDL` only | This aligns the certification lane with the actual platform hot path. |
+| Execution split | `READY` remains required for control compatibility, but steady certification uses window-bounded remote WSP replay | Throughput proof should depend on the emitter hot path, not on synthetic or control-only launch behavior. |
+| Real calibration | realistic four-output oracle pace is about `152 eps`, so first-pass `stream_speedup` to target `3000 eps` is about `19.7` | The next run can be calibrated from measured oracle density instead of guesses. |
+| Smoke progression | bounded canonical smokes successively exposed wrong subnet posture, missing private `logs` endpoint, and then stale runtime-image behavior | The runtime-correction work is now evidence-led and stripping blockers in the right order. |
+| Active boundary | the live ECS task definition still runs the pre-fix image digest, so the latest WSP loader correction is not yet in service | More reruns of the same image would be wasteful and misleading. |
+| Immediate consequence | S1 rerun is deferred until the WSP runtime image is refreshed and the bounded smoke is re-cleared | The next correct action is image refresh first, bounded smoke second, rerun third. |
+
 ## 11) Required TBD Closure Sheet (Binding)
 This section defines the mandatory closure routing for unresolved targets in:
 1. `docs/model_spec/platform/pre-design_decisions/dev-full_road-to-production-ready.md` Section 15.1 (open decisions `OD-01..OD-09`).
@@ -405,7 +423,7 @@ As-of execution: `pr1_20260305T174744Z`
 | TGT-05 | PINNED | PR1-S5 | S4 pinned `label_maturity_lag=3d` from charter-window maturity distribution using explicit `ts_utc` availability proxy semantics and fail-closed selection policy. |
 | TGT-06 | PINNED | PR1-S5 | S2 pinned join/fanout/unmatched bounds with explicit thresholds and decision register. |
 | TGT-07 | PINNED | PR1-S5 | S4 activated monitoring baseline contract (`status=ACTIVE`) with bound `G2/G3A/G3B` refs and required metric families. |
-| TGT-08 | IN_PROGRESS | PR3-S5 | PR3-S0 bound runtime metric surfaces; PR3-S1 rerun cleared minima/surface/completeness and remains `HOLD_REMEDIATE` on `PR3.B10` threshold breach. |
+| TGT-08 | IN_PROGRESS | PR3-S5 | PR3-S0 bound runtime metric surfaces; PR3-S1 cleared minima/surface/completeness but exposed canonical `WSP` runtime-path drift. Runtime correction has now progressed through subnet/bootstrap fixes and isolated stale-image drift; image refresh plus post-refresh steady proof remain required before TGT-08 can close. |
 | TGT-09 | IN_PROGRESS | PR3-S5 | PR3-S0 pinned archive sink/backpressure posture; downstream validation remains scheduled for `S2/S4` after S1 clearance. |
 | TGT-10 | OPEN | PR4-S5 | Decision explainability schema pending G3B audit closure. |
 | TGT-11 | OPEN | PR4-S5 | Promotion observation window pending G3B corridor closure. |

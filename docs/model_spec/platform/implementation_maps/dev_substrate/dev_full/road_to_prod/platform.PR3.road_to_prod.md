@@ -161,6 +161,10 @@ S1 planning expansion (execution checklist):
    - enforce declared boundary surfaces; no proxy-only substitutions.
 4. closure lock:
    - all steady threshold breaches must emit blocker records with rerun boundary.
+5. runtime-shape lock:
+   - keep `READY` control semantics as a compatibility proof,
+   - use real remote `WSP` replay as the steady-window injector,
+   - do not certify `S1` from synthetic HTTP loaders.
 
 ### S2 - Burst Profile And Backpressure Certification Window
 Objective:
@@ -451,6 +455,18 @@ State closure:
 5. `S1` verdict:
    - `HOLD_REMEDIATE`, `open_blockers=1`, `next_state=PR3-S1`, `next_gate=PR3_REMEDIATE_S1`.
 
+### 11.0 Active Production-Correction Note
+1. `PR3-S1` is not being treated as a simple rerun blocker anymore.
+2. The active defect is a runtime-architecture mismatch:
+   - current proof path diverged from the real `WSP`,
+   - some authority surfaces implied `WSP` should be a managed Flink app,
+   - the repo's actual `WSP` is a Python oracle-backed HTTP replay producer into `IG`.
+3. Production-grade remediation is therefore pinned as:
+   - correct the `WSP` runtime model,
+   - use the real remote `WSP` path with `stream_speedup`,
+   - keep `Managed Flink` scoped to `IEG/OFP/RTDL` stream-processing lanes.
+4. `PR3-S1` must not claim closure from the synthetic pressure harness.
+
 ### 11.1 PR3-S0 Findings Summary (Readable)
 | Area | What was found | Interpretation |
 | --- | --- | --- |
@@ -476,3 +492,16 @@ State closure:
 | Blockers raised | `PR3.B10` only | S1 remediation succeeded for minima, surface validity, and scorecard completeness; performance/SLO target is the only remaining blocker. |
 | Runtime and cost posture | `elapsed=0.0 min` (budget `60`), `attributable_spend_usd=0.0` (envelope `250.0`) | S1 evaluation remained budget-safe while still fail-closing on evidence quality and performance intent. |
 | Goal-level conclusion | S1 steady-profile certification remains open and requires threshold remediation/rerun | The platform is not yet claimable for PR3 steady gate until `PR3.B10` is cleared. |
+
+### 11.3 PR3-S1 Runtime-Correction Findings (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Problem actual | active `PR3-S1` path used fresh telemetry plus a synthetic remote pressure harness, not the real `WSP` | The current execution path is insufficient for a production-grade steady certification claim. |
+| WSP runtime reality | `WSP` implementation is Python oracle-backed HTTP replay with `stream_speedup` support | `WSP` is an ingress replay producer, not a Flink transform application. |
+| Authority drift | some docs say `WSP` is `ECS/Fargate`; later pins say `MSF_MANAGED_PRIMARY` | The control surface is internally inconsistent and must be corrected before canonical rerun. |
+| Live runtime posture | only RTDL managed Flink app exists; no live `WSP` managed Flink app exists | Searching for a `WSP` MSF app is solving the wrong problem. |
+| Production-grade direction | treat `WSP` as distributed remote replay service; keep Managed Flink for `IEG/OFP/RTDL` only | This preserves the real producer boundary while keeping stream processing on the correct managed substrate. |
+| S1 proof split | keep `READY` as control compatibility proof, but drive steady throughput from real remote `WSP` replay | This avoids collapsing the throughput gate into a control-bus implementation detail. |
+| Smoke-chain outcome | canonical lane now exposed and cleared sequential blockers in the right order: public-subnet bootstrap drift, missing private `logs` endpoint, then stale runtime-image code | The road-to-prod pass is now measuring the real runtime chain rather than guessing at one defect. |
+| Current active blocker | remote ECS task still runs an older image digest that does not include the latest `WSP` loader fix | More reruns of the current task definition would be wasteful and non-informative. |
+| Rerun implication | bounded smoke is deferred until the WSP runtime image is refreshed with the validated fixes; full `PR3-S1` remains blocked after that until smoke is clean | Next work is runtime-image refresh first, then bounded smoke, then steady certification. |
