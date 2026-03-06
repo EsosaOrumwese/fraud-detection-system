@@ -5507,3 +5507,192 @@ Reasoning:
    - `4 x 16` is a controlled expansion that materially increases concurrent request slots while avoiding the worst oversubscription extreme;
    - `24` tasks gives the service a broader front-door fleet so ALB queueing is less likely to pin a subset of tasks into local saturation.
 7. The next rerun after this repin should tell me whether the platform is still slot-limited or whether the next ceiling becomes the WSP pressure path itself.
+
+## Entry: 2026-03-06 22:45:22 +00:00 - The front-door concurrency expansion is now live, so the next PR3-S1 rerun specifically tests whether ALB queueing can be collapsed without reintroducing retry-path drift
+1. I rolled the ingress capacity repin directly onto the live ECS service without rebuilding the image, because this boundary only changes runtime concurrency settings.
+2. Evidence for the live repin is stored under `runs/dev_substrate/dev_full/road_to_prod/run_control/pr3_20260306T021900Z/ig_capacity_repin_20260306T224522Z/`.
+3. Live posture after the repin:
+   - IG task definition: `fraud-platform-dev-full-ig-service:8`
+   - IG desired/running count: `24/24`
+   - gunicorn posture: `workers=4`, `threads=16`
+   - image digest is unchanged from the retry-safe boundary (`sha256:aa9cc0b2ff129d93e1082ab74fbe1dd2b406c3a43fd08dfab6d6ebc4f24e38a0`)
+4. This is now a targeted test of queue-collapse capacity, not a semantic change:
+   - retry overlap remains fixed,
+   - the only new question is whether materially more front-door request slots move the admitted `eps` and latency curve toward the production band.
+
+## Entry: 2026-03-06 22:53:00 +00:00 - After the `24 x 4 x 16` ingress repin, the next suspected limiter is producer fan-out shape rather than server-side correctness or business-logic time
+1. The latest bounded rerun improved again:
+   - admitted throughput reached `1799.183 eps`,
+   - 4xx errors fell below threshold and disappeared from the blocker set,
+   - only four blockers remain: throughput shortfall, tiny 5xx residue, and latency p95/p99.
+2. The hot-minute evidence sharpens the diagnosis:
+   - ALB `p95` remained about `10.107s`, `p99` about `17.412s`,
+   - inside the app, `admission_seconds p95` was mostly in the `0.13s` to `0.16s` band on healthy workers, with some slower workers still well below the ALB tail,
+   - WSP still logged timeout retries in the hot slice, but only `40` retry lines instead of the earlier storm shapes.
+3. Production interpretation:
+   - the semantic and in-app execution path is now largely healthy;
+   - the front door is better, but the current `24-lane` WSP campaign still may not be fanning traffic broadly enough across the widened ingress fleet;
+   - with long-lived HTTP sessions, too few producer lanes can create connection pinning/hot-target behavior that is not representative of a real multi-producer production edge.
+4. Chosen next step:
+   - keep the target campaign at `3200 eps`,
+   - widen WSP lane fan-out from `24` to `48`,
+   - lower the launch stagger so the wider producer fleet materializes fast enough to keep the certification window honest,
+   - keep the current ingress service posture fixed so the next measurement isolates producer-shape effects.
+5. This is a production-realism change, not a shortcut:
+   - a financial-institution ingress edge does not receive traffic from twenty-four perfectly sticky long-lived producers only;
+   - broader client concurrency is part of realistic ingress preparation, especially when validating load balancing and front-door behavior.
+
+## Entry: 2026-03-06 23:12:00 +00:00 - The 48-lane rerun proved producer fan-out is not the primary remaining PR3-S1 limiter; ingress task churn and edge-capacity posture now become the production-critical remediation lane
+1. I inspected the latest canonical `PR3-S1` run after widening `WSP` fan-out from `24` lanes to `48` while holding the ingress service posture fixed.
+2. Impact metrics from that run:
+   - observed request throughput: `1812.800 eps`
+   - observed admitted throughput: `1799.783 eps`
+   - error ratio: `0.7180%`
+   - `4xx` ratio: `0.7088%`
+   - `5xx` ratio: `0.0092%`
+   - ALB `p95`: `11.259s`
+   - ALB `p99`: `16.762s`
+3. Comparison against the previous `24-lane` frontier:
+   - admitted throughput moved only from about `1799.183 eps` to `1799.783 eps`, which is effectively no gain;
+   - latency remained far outside the production envelope;
+   - widening client fan-out alone did not collapse queueing or move the steady frontier toward `3000 eps`.
+4. Production interpretation:
+   - the platform is no longer primarily limited by narrow producer fan-out;
+   - if a `2x` increase in producer lanes leaves admitted throughput flat, the dominant bottleneck now sits at the ingress service edge rather than the replay emitter side;
+   - continuing to spend runs on wider producer fleets without changing the service edge would be wasteful.
+5. I then inspected live ECS service events during the same hot minute and found repeated task replacement with the explicit reason `Request timed out` on the target-group health check.
+6. This is a production-significant defect, not an observability footnote:
+   - unhealthy replacements remove live request-serving capacity during the exact hot window we are trying to certify;
+   - target churn also inflates tail latency by draining connections and forcing ALB rebalance during pressure;
+   - any throughput result produced under this kind of avoidable self-inflicted churn understates the real service capacity and cannot be treated as the final frontier.
+7. Chosen remediation in light of the production goal rather than the easiest rerun path:
+   - increase per-task CPU and memory so the Python ingress service has more honest compute headroom;
+   - shift gunicorn away from a thread-heavy posture and toward more worker processes with fewer threads per worker;
+   - widen the fleet again, but as a service-capacity move rather than a producer-fanout move;
+   - relax ALB and ECS health-check aggressiveness so healthy-but-busy tasks are not killed during a short hot window.
+8. Explicitly rejected alternatives:
+   - do nothing and rerun: rejected because it would just measure the same churn-limited frontier again;
+   - widen `WSP` lanes further: rejected because `48` lanes already demonstrated that producer fan-out is not the primary limiter;
+   - repin back to Lambda or synthetic harnesses: rejected because the current production-shape path is the managed ingress service and the goal is to harden the real path, not find an easier certificate lane.
+9. Implementation plan from this evidence:
+   - repin IG service from `2 vCPU / 4 GiB / 24 tasks / 4 workers / 16 threads` to a more credible service posture;
+   - repin health-check interval/timeout/unhealthy thresholds and grace periods to avoid false eviction under bounded hot windows;
+   - rerun the same canonical `PR3-S1` boundary after the live repin and judge it only on impact metrics.
+
+## Entry: 2026-03-06 23:18:00 +00:00 - Applied the next ingress capacity and health-envelope repin in Terraform so PR3-S1 can measure the real service frontier instead of health-check self-sabotage
+1. I updated the runtime authority in Terraform to a stronger managed ingress posture:
+   - `ig_service_task_cpu: 2048 -> 4096`
+   - `ig_service_task_memory: 4096 -> 8192`
+   - `ig_service_desired_count: 24 -> 32`
+   - `ig_service_gunicorn_workers: 4 -> 8`
+   - `ig_service_gunicorn_threads: 16 -> 8`
+2. Why this exact shape:
+   - the previous posture relied heavily on threads inside a `2 vCPU` Python container, which is a poor production fit once the service is hot and doing repeated JSON, DDB, S3, and Kafka-bound work;
+   - increasing worker-process count while reducing per-process threads gives the service more independent accept loops and reduces the chance that health checks sit behind a saturated thread queue;
+   - widening the fleet from `24` to `32` tasks provides additional front-door capacity without depending on producer-shape luck.
+3. I also introduced explicit health-envelope pins instead of hardcoded aggressive values:
+   - health interval `30s`
+   - health timeout `10s`
+   - healthy threshold `2`
+   - unhealthy threshold `5`
+   - container health start period `60s`
+   - ECS service grace period `180s`
+4. Production reasoning for the health repin:
+   - the previous `15s / 5s / 2 failures` target-group posture is too eager for a bounded but intense hot window and was actively causing target eviction while the service was still useful;
+   - the corrected posture still fails closed on genuinely dead tasks, but it does not destroy capacity because a busy task momentarily queues a `/healthz` response.
+5. I also aligned the container-local health probe runtime with the same corrected timeout window by replacing the prior hardcoded `2s` probe timeout with an environment-driven timeout derived from the pinned health setting.
+6. This keeps ALB health, ECS health, and container-local health operating under a coherent service-safety contract rather than three different hidden timeout assumptions.
+7. Immediate next steps:
+   - validate the Terraform delta,
+   - apply only the managed ingress target resources needed for this repin,
+   - rerun canonical `PR3-S1` on the new live posture,
+   - record the resulting impact metrics in the readable state findings.
+
+## Entry: 2026-03-06 23:22:00 +00:00 - A runtime-control defect surfaced during the ingress repin: the Terraform module still defaults the managed ingress service off, so target-only applies must pin the canonical service posture explicitly
+1. While applying the new ingress capacity and health-envelope repin, I discovered that `infra/terraform/dev_full/runtime` still defaults `ig_service_enabled=false` unless the canonical managed-ingress posture is supplied explicitly as input.
+2. Practical consequence:
+   - a target-only Terraform apply against the IG service resources without `ig_service_enabled=true` and an explicit pinned `ig_service_image_uri` does not update the service;
+   - it destroys the managed ingress service boundary because Terraform sees the target resources as count `0` under the default posture.
+3. That is a control-plane defect, not just an operator mistake:
+   - the canonical production ingress path has moved to the managed service, but the runtime module default still reflects an older disabled posture;
+   - this creates a dangerous gap between declared production reality and default infrastructure behavior.
+4. I immediately recovered the live service by explicitly applying:
+   - `ig_service_enabled=true`
+   - `ig_service_image_uri=230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-full@sha256:aa9cc0b2ff129d93e1082ab74fbe1dd2b406c3a43fd08dfab6d6ebc4f24e38a0`
+   - plus the recreated listener/target-group/task-definition/service resources.
+5. Recovery result:
+   - service restored on task definition `fraud-platform-dev-full-ig-service:9`
+   - live fleet `32/32` on `4096 CPU / 8192 MiB`
+   - gunicorn posture `8 workers x 8 threads`
+   - corrected health envelope now live (`30s interval / 10s timeout / 5 failures / 180s grace`)
+6. I am recording this separately because it is operationally important and auditable:
+   - the service was not left down;
+   - the recovery was immediate and successful;
+   - future Terraform service applies for this managed ingress lane must be executed with the explicit canonical enable/image pins until the control default is corrected structurally.
+
+## Entry: 2026-03-06 23:26:00 +00:00 - The new PR3-S1 frontier shows the remaining bottleneck is synchronous receipt object persistence, not container health or raw compute capacity
+1. I reran canonical `PR3-S1` after recovering and stabilizing the new ingress fleet.
+2. Impact metrics from the current frontier:
+   - observed request throughput: `1935.183 eps`
+   - observed admitted throughput: `1934.633 eps`
+   - error ratio: `0.0284%`
+   - `4xx` ratio: `0.0138%`
+   - `5xx` ratio: `0.0146%`
+   - ALB `p95`: `13.774s`
+   - ALB `p99`: `21.662s`
+3. Health and compute interpretation from live runtime telemetry:
+   - ECS service remained stable with `32/32` tasks and no unhealthy replacement churn during the run;
+   - ECS CPU averaged only about `30.6%` with max about `53.6%`;
+   - ECS memory averaged about `9.3%`.
+4. This means the new frontier is not a CPU ceiling and not a health-eviction issue anymore.
+5. The decisive in-app signal is from the managed ingress metrics logs:
+   - `phase.publish_seconds p95` generally remained in the low hundreds of milliseconds or below;
+   - `phase.dedupe_*` remained small;
+   - `phase.receipt_object_seconds` repeatedly spiked into the multi-second range, with several workers showing `p95` values around `1.9s` to `2.5s` and maxima from roughly `5s` to `11s`.
+6. Managed request logs align with that diagnosis:
+   - many requests still completed in sub-second or low-single-second times;
+   - a meaningful subset of otherwise successful `202` admits spent `15s` to `26s` on the request path.
+7. Production conclusion:
+   - scaling the ingress fleet further is now low-value because the service is no longer compute-bound;
+   - the synchronous S3 receipt object write is now the dominant tail-latency source and the main reason we are still far below the required `3000 eps` steady proof;
+   - continuing to pay this S3 write on the hot acknowledge path is the wrong design for a high-EPS production ingress boundary.
+8. Chosen next remediation direction:
+   - remove full receipt-object persistence from the synchronous admit path;
+   - keep durable hot-path provenance in a fast operational store suitable for this edge;
+   - move cold receipt object archival off the request path.
+9. I am now evaluating the least risky production-grade way to do that without weakening truth ownership or replay/audit provenance.
+
+## Entry: 2026-03-06 23:34:00 +00:00 - Chosen production correction for the new PR3-S1 bottleneck: durable hot receipts move to DDB on the admit path, while cold object archival is removed from the synchronous edge
+1. After the `32 x 4096/8192 x 8x8` repin, the evidence showed the ingress service was healthy and underutilized on CPU/memory, but still paying large multi-second tails in `phase.receipt_object_seconds`.
+2. I inspected the receipt path and confirmed the hot path still performs a synchronous `S3 put_object` before the admit response completes.
+3. Production reasoning:
+   - a high-EPS ingress edge should not block client acknowledgement on cold object archival for every admitted event;
+   - the durable truth needed at the trust boundary is that the event was admitted, what its receipt payload is, and how to reference that receipt deterministically;
+   - cold archival to object storage is still valuable, but it should not be the synchronous gate for the request/ack path.
+4. Alternatives considered:
+   - more ECS scale: rejected because the fleet is no longer compute-bound;
+   - keep synchronous S3 and attempt more minor tuning: rejected because the observed tail is already decisively on the S3 receipt write;
+   - async in-process background receipt writes: rejected because it weakens durability if a task dies before flush;
+   - new queue + dedicated materializer lane: valid long-term option, but heavier than necessary for the immediate hot-path correction and slower to materialize while the current defect is already isolated.
+5. Chosen corrective shape:
+   - durable hot receipt persistence moves into the existing DDB admission record for the canonical managed ingress path;
+   - `receipt_ref` becomes a deterministic DDB-backed reference (`ddb://...`) rather than an S3 object path on the admit hot path;
+   - cold object archival remains a later lane concern instead of a synchronous response dependency.
+6. Why this is acceptable for production realism:
+   - the ingress path already trusts DDB as its idempotency and state boundary;
+   - DDB-backed hot receipts are operationally appropriate for low-latency lookup and duplicate handling;
+   - object-store archival can be restored later as an off-path durability/export layer without reintroducing request-path tail latency.
+7. Implementation details now applied:
+   - `DdbAdmissionIndex.record_receipt(...)` now stores `receipt_payload_json` alongside `receipt_ref` on the existing admission row;
+   - `DdbAdmissionIndex.receipt_ref_for(...)` creates the deterministic DDB-backed receipt reference;
+   - `IngestionGate` now switches between `object_store` and `ddb_hot` receipt modes via `IG_RECEIPT_STORAGE_MODE`;
+   - managed ingress Terraform pins `IG_RECEIPT_STORAGE_MODE=ddb_hot` for the ECS service path.
+8. Local validation passed:
+   - `py_compile` for the changed ingress modules;
+   - targeted ingress tests (`15 passed`);
+   - `terraform fmt -check` and `terraform validate`.
+9. Immediate next steps:
+   - commit/push this hot-path receipt correction,
+   - rebuild and redeploy the shared image,
+   - rerun canonical `PR3-S1` on the new receipt mode,
+   - judge the result only on impact metrics.

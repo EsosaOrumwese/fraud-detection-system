@@ -6,6 +6,7 @@ import logging
 import time
 import hashlib
 import json
+import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -368,20 +369,14 @@ class IngestionGate:
         receipt_id = receipt_payload["receipt_id"]
         self.contract_registry.validate("ingestion_receipt.schema.yaml", receipt_payload)
         try:
-            receipt_object_started = time.perf_counter()
-            receipt_ref = self.receipt_writer.write_receipt(
-                receipt_id,
-                receipt_payload,
-                prefix=self._receipt_prefix(envelope),
-            )
-            self.metrics.record_latency("phase.receipt_object_seconds", time.perf_counter() - receipt_object_started)
+            if self._receipt_storage_mode() == "ddb_hot":
+                receipt_ref = self._store_receipt_hot(dedupe, receipt_payload)
+            else:
+                receipt_ref = self._store_receipt_object(dedupe, receipt_payload, envelope=envelope)
         except Exception:
             self.admission_index.mark_receipt_failed(dedupe)
             logger.exception("IG receipt write failed after publish event_id=%s", event_id)
             raise
-        receipt_index_started = time.perf_counter()
-        self.admission_index.record_receipt(dedupe, receipt_ref)
-        self.metrics.record_latency("phase.receipt_index_seconds", time.perf_counter() - receipt_index_started)
         self._record_ops_receipt(receipt_payload, receipt_ref)
         logger.info(
             "IG receipt stored receipt_id=%s receipt_ref=%s eb_ref=%s",
@@ -553,6 +548,39 @@ class IngestionGate:
         if platform_run_id:
             return f"{self._run_prefix_for(platform_run_id)}/ig"
         return self.receipt_writer.prefix
+
+    def _receipt_storage_mode(self) -> str:
+        return str(os.getenv("IG_RECEIPT_STORAGE_MODE", "object_store")).strip().lower() or "object_store"
+
+    def _store_receipt_hot(self, dedupe_key_value: str, receipt_payload: dict[str, Any]) -> str:
+        receipt_store_started = time.perf_counter()
+        receipt_ref = self.admission_index.receipt_ref_for(dedupe_key_value)
+        self.admission_index.record_receipt(
+            dedupe_key_value,
+            receipt_ref,
+            receipt_payload=receipt_payload,
+        )
+        self.metrics.record_latency("phase.receipt_store_seconds", time.perf_counter() - receipt_store_started)
+        return receipt_ref
+
+    def _store_receipt_object(
+        self,
+        dedupe_key_value: str,
+        receipt_payload: dict[str, Any],
+        *,
+        envelope: dict[str, Any],
+    ) -> str:
+        receipt_object_started = time.perf_counter()
+        receipt_ref = self.receipt_writer.write_receipt(
+            receipt_payload["receipt_id"],
+            receipt_payload,
+            prefix=self._receipt_prefix(envelope),
+        )
+        self.metrics.record_latency("phase.receipt_object_seconds", time.perf_counter() - receipt_object_started)
+        receipt_index_started = time.perf_counter()
+        self.admission_index.record_receipt(dedupe_key_value, receipt_ref)
+        self.metrics.record_latency("phase.receipt_index_seconds", time.perf_counter() - receipt_index_started)
+        return receipt_ref
 
     def _validate_envelope(self, envelope: dict[str, Any]) -> None:
         self.schema_enforcer.validate_envelope(envelope)

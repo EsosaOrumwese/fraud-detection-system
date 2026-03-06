@@ -288,6 +288,7 @@ class DdbAdmissionIndex:
             "state": item.get("state"),
             "payload_hash": item.get("payload_hash"),
             "receipt_ref": item.get("receipt_ref"),
+            "receipt_payload_json": item.get("receipt_payload_json"),
             "receipt_write_failed": bool(item.get("receipt_write_failed", 0)),
             "admitted_at_utc": item.get("admitted_at_utc"),
             "eb_ref": eb_ref,
@@ -372,13 +373,29 @@ class DdbAdmissionIndex:
             },
         )
 
-    def record_receipt(self, dedupe_key: str, receipt_ref: str) -> None:
+    def receipt_ref_for(self, dedupe_key: str) -> str:
+        return f"ddb://{self.table_name}/{self.hash_key_name}/{dedupe_key}#receipt"
+
+    def record_receipt(
+        self,
+        dedupe_key: str,
+        receipt_ref: str,
+        *,
+        receipt_payload: dict[str, Any] | None = None,
+    ) -> None:
+        payload_json = ""
+        if receipt_payload is not None:
+            payload_json = json.dumps(receipt_payload, sort_keys=True, ensure_ascii=True, separators=(",", ":"))
         self._table.update_item(
             Key={self.hash_key_name: dedupe_key},
-            UpdateExpression="SET receipt_ref = :receipt_ref, receipt_write_failed = :receipt_write_failed",
+            UpdateExpression=(
+                "SET receipt_ref = :receipt_ref, receipt_write_failed = :receipt_write_failed, "
+                "receipt_payload_json = :receipt_payload_json"
+            ),
             ExpressionAttributeValues={
                 ":receipt_ref": receipt_ref,
                 ":receipt_write_failed": 0,
+                ":receipt_payload_json": payload_json,
             },
         )
 

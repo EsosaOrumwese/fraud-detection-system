@@ -872,10 +872,10 @@ resource "aws_lb_target_group" "ig_service" {
     enabled             = true
     path                = "/healthz"
     matcher             = "200"
-    healthy_threshold   = 2
-    unhealthy_threshold = 2
-    interval            = 15
-    timeout             = 5
+    healthy_threshold   = floor(var.ig_service_health_check_healthy_threshold)
+    unhealthy_threshold = floor(var.ig_service_health_check_unhealthy_threshold)
+    interval            = floor(var.ig_service_health_check_interval_seconds)
+    timeout             = floor(var.ig_service_health_check_timeout_seconds)
   }
 
   tags = merge(local.common_tags, {
@@ -1076,6 +1076,14 @@ resource "aws_ecs_task_definition" "ig_service" {
           value = tostring(ceil(var.ig_service_request_timeout_ms / 1000))
         },
         {
+          name  = "IG_RECEIPT_STORAGE_MODE"
+          value = var.ig_service_receipt_storage_mode
+        },
+        {
+          name  = "IG_HEALTH_CHECK_TIMEOUT_SECONDS"
+          value = tostring(floor(var.ig_service_health_check_timeout_seconds))
+        },
+        {
           name  = "IG_IDEMPOTENCY_TABLE"
           value = aws_dynamodb_table.ig_idempotency.name
         },
@@ -1203,12 +1211,12 @@ resource "aws_ecs_task_definition" "ig_service" {
       healthCheck = {
         command = [
           "CMD-SHELL",
-          "python -c \"import sys, urllib.request; urllib.request.urlopen('http://127.0.0.1:$${IG_SERVICE_PORT}/healthz', timeout=2).read(); sys.exit(0)\" || exit 1"
+          "python -c \"import os, sys, urllib.request; timeout=float(os.getenv('IG_HEALTH_CHECK_TIMEOUT_SECONDS', '10')); urllib.request.urlopen('http://127.0.0.1:$${IG_SERVICE_PORT}/healthz', timeout=timeout).read(); sys.exit(0)\" || exit 1"
         ]
-        interval    = 15
-        timeout     = 5
-        retries     = 3
-        startPeriod = 30
+        interval    = floor(var.ig_service_health_check_interval_seconds)
+        timeout     = floor(var.ig_service_health_check_timeout_seconds)
+        retries     = floor(var.ig_service_health_check_unhealthy_threshold)
+        startPeriod = floor(var.ig_service_health_check_start_period_seconds)
       }
       logConfiguration = {
         logDriver = "awslogs"
@@ -1249,7 +1257,7 @@ resource "aws_ecs_service" "ig_service" {
 
   deployment_minimum_healthy_percent = 50
   deployment_maximum_percent         = 200
-  health_check_grace_period_seconds  = 60
+  health_check_grace_period_seconds  = floor(var.ig_service_health_check_grace_period_seconds)
 
   network_configuration {
     subnets          = local.private_subnet_ids

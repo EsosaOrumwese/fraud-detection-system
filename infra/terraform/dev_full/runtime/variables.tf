@@ -276,32 +276,67 @@ variable "ig_service_listener_port" {
 
 variable "ig_service_task_cpu" {
   type    = number
-  default = 2048
+  default = 4096
 }
 
 variable "ig_service_task_memory" {
   type    = number
-  default = 4096
+  default = 8192
 }
 
 variable "ig_service_desired_count" {
   type    = number
-  default = 24
+  default = 32
 }
 
 variable "ig_service_gunicorn_workers" {
   type    = number
-  default = 4
+  default = 8
 }
 
 variable "ig_service_gunicorn_threads" {
   type    = number
-  default = 16
+  default = 8
 }
 
 variable "ig_service_request_timeout_ms" {
   type    = number
   default = 30000
+}
+
+variable "ig_service_receipt_storage_mode" {
+  type    = string
+  default = "ddb_hot"
+}
+
+variable "ig_service_health_check_interval_seconds" {
+  type    = number
+  default = 30
+}
+
+variable "ig_service_health_check_timeout_seconds" {
+  type    = number
+  default = 10
+}
+
+variable "ig_service_health_check_healthy_threshold" {
+  type    = number
+  default = 2
+}
+
+variable "ig_service_health_check_unhealthy_threshold" {
+  type    = number
+  default = 5
+}
+
+variable "ig_service_health_check_start_period_seconds" {
+  type    = number
+  default = 60
+}
+
+variable "ig_service_health_check_grace_period_seconds" {
+  type    = number
+  default = 180
 }
 
 variable "ig_service_health_bus_probe_mode" {

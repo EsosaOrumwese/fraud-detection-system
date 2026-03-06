@@ -81,6 +81,7 @@ class PostgresAdmissionIndex:
             "state": row[0],
             "payload_hash": row[1],
             "receipt_ref": receipt_ref,
+            "receipt_payload_json": None,
             "receipt_write_failed": bool(row[3]) if row[3] is not None else None,
             "admitted_at_utc": row[4],
             "eb_ref": {
@@ -173,7 +174,16 @@ class PostgresAdmissionIndex:
             ("PUBLISH_AMBIGUOUS", payload_hash, dedupe_key),
         )
 
-    def record_receipt(self, dedupe_key: str, receipt_ref: str) -> None:
+    def receipt_ref_for(self, dedupe_key: str) -> str:
+        return f"postgres://admissions/{dedupe_key}#receipt"
+
+    def record_receipt(
+        self,
+        dedupe_key: str,
+        receipt_ref: str,
+        *,
+        receipt_payload: dict[str, Any] | None = None,
+    ) -> None:
         conn = self._get_conn()
         conn.execute(
             """
