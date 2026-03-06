@@ -288,6 +288,37 @@ _As of 2026-03-05_
 1. No branch operation.
 2. No commit/push.
 
+## Entry: 2026-03-06 06:27:18 +00:00 - Remote image refresh is now the only execution-worthy move
+### What I verified
+1. The live WSP task definition is still:
+   - family `fraud-platform-dev-full-wsp-ephemeral`,
+   - revision `17`,
+   - image `230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-full@sha256:49eb6cb0c5e33061fae4d1aaceeac2e44600adb5c4250436be9ac8395ed29cb2`.
+2. The repo branch head on `cert-platform` contains the WSP runtime fixes, but the live task obviously does not.
+3. Therefore the next bounded smoke would only re-prove stale-code behavior unless the remote image is rebuilt and the task definition is repinned.
+
+### Production interpretation
+1. This is not a documentation blocker or a convenience task.
+2. It is the normal production promotion boundary:
+   - validated source fix,
+   - immutable image rebuild,
+   - task-definition repin to the new digest,
+   - bounded proof,
+   - then steady certification.
+3. Anything else would either:
+   - waste cost on known-stale artifacts, or
+   - weaken provenance for the canonical `WSP -> IG` replay lane.
+
+### Chosen remediation
+1. Build a fresh immutable image from the current `cert-platform` head using the existing managed M1 packaging workflow.
+2. Keep the image refresh on the active branch only; no cross-branch merge path is needed for this execution.
+3. Register a new WSP task-definition revision pinned to the new digest.
+4. Rerun the bounded canonical smoke immediately against that new revision before spending on the full `PR3-S1` steady window.
+
+### Governance
+1. No branch operation.
+2. Commit/push on the active branch is now warranted because the remote packaging workflow must build the current validated source, and the user explicitly requested periodic commits for observability.
+
 ## Entry: 2026-03-06 05:46:02 +00:00 - Production-first correction for PR3-S1 execution shape
 ### Problem actual
 1. I had previously treated `PR3-S1` as though the main question was "how do I rerun the state cleanly".
