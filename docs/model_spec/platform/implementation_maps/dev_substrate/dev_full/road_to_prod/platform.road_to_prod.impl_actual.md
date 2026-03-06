@@ -3333,3 +3333,50 @@ Reasoning:
   - add the missing `context_store_flow_binding` section plus `CSFB_PROJECTION_DSN`/`CSFB_REQUIRED_PLATFORM_RUN_ID` secret/env surfaces,
   - redeploy the runtime in place on the same namespace.
 - This is the correct production-grade fix because it removes a real config-governance defect (stale baked runtime config) instead of just changing pod arguments until the crash disappears.
+### 2026-03-06 12:44:00 +00:00 - Second runtime rollout proves the remaining blocker is stale immutable image, not missing secret/env surface
+- After the ConfigMap/profile remount remediation, the second runtime materialization workflow still returned success while all six live deployments remained `0/1`.
+- Live pod logs after the second rollout showed:
+  - `IEG`: `RuntimeError("IEG_EVENT_BUS_KIND_UNSUPPORTED")`,
+  - `OFP`: `RuntimeError("OFP_EVENT_BUS_KIND_UNSUPPORTED")`,
+  - `DF`: `ValueError("PLATFORM_RUN_ID required to resolve projection_db_dsn.")`,
+  - `AL`, `DLA`, `archive_writer`: `KAFKA_SASL_CREDENTIALS_MISSING`.
+- I verified the Kubernetes deployment surfaces directly:
+  - the mounted profile path is now `/runtime-profile/dev_full.yaml` from `ConfigMap/fp-pr3-runtime-profile`,
+  - the secret `fp-pr3-runtime-secrets` contains `PLATFORM_RUN_ID`, `ACTIVE_PLATFORM_RUN_ID`, `KAFKA_SASL_MECHANISM=OAUTHBEARER`, `KAFKA_SECURITY_PROTOCOL=SASL_SSL`, and the Aurora DSNs,
+  - the deployments reference those secret keys correctly.
+- Production interpretation:
+  - the live pods are not behaving according to the current branch code or the current deployment env/profile contract,
+  - therefore the active runtime image is materially stale relative to the branch source even though the image tag is newer than the earlier WSP-only refresh.
+- Candidate remediations considered:
+  - `A` keep patching deployment env vars:
+    - rejected because the env surface already contains the required values and further tweaks would be symptom-chasing.
+  - `B` alter the code to add even more backwards-compatible fallbacks:
+    - rejected because that would harden around stale artifact drift instead of removing it.
+  - `C` rebuild the single authoritative immutable platform image from current `cert-platform`, then repin both the PR3 EKS workers and the canonical WSP ECS family to that digest:
+    - accepted because the platform is designed around one authoritative runtime image and the production-correct fix is to refresh the artifact, not excuse divergence between source and runtime.
+- Planned execution:
+  - dispatch `dev-full-m1-packaging` from `cert-platform`,
+  - capture the new digest,
+  - register a fresh `fraud-platform-dev-full-wsp-ephemeral` task-definition revision on that digest,
+  - rerun PR3 runtime materialization with the same digest passed explicitly,
+  - only then resume bounded PR3 steady evidence.
+### 2026-03-06 12:52:00 +00:00 - Fresh image closed five workers; final PR3 runtime defects are service-account trust drift and incomplete DF dependency env
+- After rebuilding the immutable platform image to digest `sha256:c12122cc4da6df03bf79c1d43a11a7825960740f7db4329de39f74816d1fd159` and repinning the canonical WSP ECS family to revision `24`, I reran PR3 runtime materialization against that same digest.
+- Outcome:
+  - `IEG`, `OFP`, `AL`, `DLA`, and `archive_writer` all reached `1/1 Ready`,
+  - `DF` remained in restart.
+- Additional live diagnosis:
+  - `AL` and `DLA` now connect far enough to hit MSK IAM token generation, which exposed `AssumeRoleWithWebIdentity` denial under the current service-account posture,
+  - IAM trust readback showed the pre-materialized roles trust `system:serviceaccount:fraud-platform-rtdl:rtdl` and `system:serviceaccount:fraud-platform-rtdl:decision-lane`,
+  - but the materializer had created ad hoc service accounts `fp-rtdl-runtime` and `fp-decision-runtime`,
+  - therefore the earlier IRSA materialization was internally inconsistent even though the role ARNs themselves were correct.
+- For `DF`, an in-cluster debug pod proved the profile and secret data are valid when all runtime secret keys are present:
+  - `PLATFORM_RUN_ID` and `IEG_PROJECTION_DSN` resolve correctly inside the container,
+  - therefore the `DF` crash was not a broken profile file,
+  - it was a deployment-env completeness defect: `DF` starts `IEG` and `OFP` query/services during initialization, but the materializer only injected `CSFB`, `DF`, and `DL` surfaces into the `DF` pod.
+- Accepted remediation:
+  - realign the materializer to the canonical IRSA subject names `rtdl` and `decision-lane`,
+  - extend `DF` pod env injection to include the `IEG_*` and `OFP_*` projection/index surfaces it actually depends on.
+- Why this is the production-grade fix:
+  - it preserves least-privilege IAM and uses the already-pinned trust contract,
+  - it removes a real dependency-contract hole in `DF` instead of masking it with broader secret exposure or weaker startup checks.

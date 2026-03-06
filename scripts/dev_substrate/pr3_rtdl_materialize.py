@@ -377,8 +377,10 @@ def main() -> int:
     }
     secret_name = "fp-pr3-runtime-secrets"
     profile_configmap_name = "fp-pr3-runtime-profile"
-    rtdl_sa = "fp-rtdl-runtime"
-    decision_sa = "fp-decision-runtime"
+    # Match the pre-materialized IRSA trust subjects instead of inventing new
+    # service-account names that bypass the pinned IAM posture.
+    rtdl_sa = "rtdl"
+    decision_sa = "decision-lane"
 
     profile_source_path = Path(args.profile_source_path)
     if not profile_source_path.exists():
@@ -517,6 +519,11 @@ def main() -> int:
             + [
                 env_ref("CSFB_REQUIRED_PLATFORM_RUN_ID", secret_name, "CSFB_REQUIRED_PLATFORM_RUN_ID"),
                 env_ref("CSFB_PROJECTION_DSN", secret_name, "CSFB_PROJECTION_DSN"),
+                env_ref("IEG_REQUIRED_PLATFORM_RUN_ID", secret_name, "IEG_REQUIRED_PLATFORM_RUN_ID"),
+                env_ref("IEG_PROJECTION_DSN", secret_name, "IEG_PROJECTION_DSN"),
+                env_ref("OFP_REQUIRED_PLATFORM_RUN_ID", secret_name, "OFP_REQUIRED_PLATFORM_RUN_ID"),
+                env_ref("OFP_PROJECTION_DSN", secret_name, "OFP_PROJECTION_DSN"),
+                env_ref("OFP_SNAPSHOT_INDEX_DSN", secret_name, "OFP_SNAPSHOT_INDEX_DSN"),
                 env_ref("DF_REQUIRED_PLATFORM_RUN_ID", secret_name, "DF_REQUIRED_PLATFORM_RUN_ID"),
                 env_ref("DF_REPLAY_DSN", secret_name, "DF_REPLAY_DSN"),
                 env_ref("DF_CHECKPOINT_DSN", secret_name, "DF_CHECKPOINT_DSN"),
