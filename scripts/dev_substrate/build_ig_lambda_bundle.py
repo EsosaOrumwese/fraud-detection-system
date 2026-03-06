@@ -14,20 +14,20 @@ from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
 
 INCLUDE_PATHS = [
-    "src/fraud_detection",
-    "config/platform",
-    "docs/model_spec/platform/contracts",
-    "docs/model_spec/data-engine/interface_pack",
-    "docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml",
-    "docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml",
+    ("src/fraud_detection", "fraud_detection"),
+    ("config/platform", "config/platform"),
+    ("docs/model_spec/platform/contracts", "docs/model_spec/platform/contracts"),
+    ("docs/model_spec/data-engine/interface_pack", "docs/model_spec/data-engine/interface_pack"),
+    ("docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml", "docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml"),
+    ("docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml", "docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml"),
 ]
 
 
-def copy_path(repo_root: Path, stage_root: Path, rel_path: str) -> None:
-    source = (repo_root / rel_path).resolve()
+def copy_path(repo_root: Path, stage_root: Path, source_rel_path: str, target_rel_path: str) -> None:
+    source = (repo_root / source_rel_path).resolve()
     if not source.exists():
-        raise SystemExit(f"Missing bundle path: {rel_path}")
-    target = (stage_root / rel_path).resolve()
+        raise SystemExit(f"Missing bundle path: {source_rel_path}")
+    target = (stage_root / target_rel_path).resolve()
     target.parent.mkdir(parents=True, exist_ok=True)
     if source.is_dir():
         shutil.copytree(source, target, dirs_exist_ok=True)
@@ -67,8 +67,8 @@ def main() -> None:
         stage_root = Path(temp_dir) / "stage"
         stage_root.mkdir(parents=True, exist_ok=True)
 
-        for rel in INCLUDE_PATHS:
-            copy_path(repo_root, stage_root, rel)
+        for source_rel, target_rel in INCLUDE_PATHS:
+            copy_path(repo_root, stage_root, source_rel, target_rel)
 
         subprocess.check_call(
             [

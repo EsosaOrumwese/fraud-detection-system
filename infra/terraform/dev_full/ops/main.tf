@@ -424,6 +424,8 @@ resource "aws_iam_policy" "github_actions_pr3_runtime" {
         Effect = "Allow"
         Action = [
           "dynamodb:DescribeTable",
+          "dynamodb:DescribeContinuousBackups",
+          "dynamodb:DescribeTimeToLive",
           "dynamodb:ListTagsOfResource",
           "sqs:GetQueueAttributes",
           "sqs:ListQueueTags"
@@ -431,6 +433,62 @@ resource "aws_iam_policy" "github_actions_pr3_runtime" {
         Resource = [
           "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/fraud-platform-dev-full-ig-idempotency",
           "arn:aws:sqs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:fraud-platform-dev-full-ig-dlq"
+        ]
+      },
+      {
+        Sid    = "PR3IngressLambdaControl"
+        Effect = "Allow"
+        Action = [
+          "lambda:Get*",
+          "lambda:ListVersionsByFunction",
+          "lambda:CreateFunction",
+          "lambda:Update*",
+          "lambda:TagResource",
+          "lambda:UntagResource"
+        ]
+        Resource = "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:fraud-platform-dev-full-ig-handler"
+      },
+      {
+        Sid    = "PR3IngressLambdaRoleControl"
+        Effect = "Allow"
+        Action = [
+          "iam:GetRole",
+          "iam:PassRole",
+          "iam:AttachRolePolicy",
+          "iam:DetachRolePolicy",
+          "iam:ListAttachedRolePolicies",
+          "iam:PutRolePolicy",
+          "iam:GetRolePolicy",
+          "iam:ListRolePolicies"
+        ]
+        Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/fraud-platform-dev-full-lambda-ig-execution"
+      },
+      {
+        Sid    = "PR3IngressNetworkControl"
+        Effect = "Allow"
+        Action = [
+          "ec2:CreateSecurityGroup",
+          "ec2:DeleteSecurityGroup",
+          "ec2:CreateTags",
+          "ec2:AuthorizeSecurityGroupIngress",
+          "ec2:AuthorizeSecurityGroupEgress",
+          "ec2:RevokeSecurityGroupIngress",
+          "ec2:RevokeSecurityGroupEgress",
+          "ec2:DescribeSecurityGroups",
+          "ec2:DescribeVpcs",
+          "ec2:DescribeSubnets"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "PR3IngressVerifyRead"
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameter"
+        ]
+        Resource = [
+          "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/fraud-platform/dev_full/ig/api_key",
+          "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/fraud-platform/dev_full/msk/bootstrap_brokers"
         ]
       },
       {

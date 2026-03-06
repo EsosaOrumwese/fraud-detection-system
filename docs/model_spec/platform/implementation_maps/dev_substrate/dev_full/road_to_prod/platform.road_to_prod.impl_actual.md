@@ -3839,3 +3839,70 @@ Reasoning:
 5. Why this remains production-correct:
    - no write scope added to DDB or SQS,
    - only the exact read actions Terraform needs for refresh (`DescribeTable`, `ListTagsOfResource`, `GetQueueAttributes`, `ListQueueTags`).
+
+## Entry: 2026-03-06 18:07:00 +00:00 - DynamoDB table refresh requires the full refresh-safe read set, not only DescribeTable
+1. After granting `DescribeTable`, the next targeted apply failed on `dynamodb:DescribeContinuousBackups` for the same `ig_idempotency` table.
+2. I verified the table's actual posture:
+   - TTL is enabled,
+   - continuous backups are enabled,
+   - point-in-time recovery is disabled.
+3. Terraform is therefore reading the table through multiple read APIs during refresh, which means the refresh-safe policy must include:
+   - `DescribeTable`,
+   - `DescribeContinuousBackups`,
+   - `DescribeTimeToLive`,
+   - `ListTagsOfResource`.
+4. This is still a narrow read-only extension and remains preferable to repeated single-action firefighting.
+
+## Entry: 2026-03-06 18:13:00 +00:00 - The ingress materialization lane now needs the full targeted-resource control surface, not just refresh reads
+1. The latest apply cleared DDB/SQS refresh and then failed on `lambda:GetFunction` for `fraud-platform-dev-full-ig-handler`.
+2. At this point the targeted apply has proven the real shape of the deployment lane:
+   - it must read and update the existing Lambda function,
+   - update the Lambda execution role inline policy,
+   - attach the Lambda VPC access managed policy,
+   - create the Lambda security group,
+   - read SSM parameters during verification.
+3. Rather than discovering these one action at a time, I expanded the managed PR3 deployment policy to the full control/read set for the four targeted resources.
+4. Scope added:
+   - Lambda function read/update/create actions on `fraud-platform-dev-full-ig-handler`,
+   - IAM role/policy control on `fraud-platform-dev-full-lambda-ig-execution`,
+   - EC2 security-group create/update/read actions required for the Lambda VPC SG,
+   - SSM `GetParameter` for the IG API key and MSK bootstrap broker parameter.
+5. This is still bounded to the ingress correction lane and is preferable to repeated single-action firefighting because it matches the actual targeted Terraform plan surface.
+
+## Entry: 2026-03-06 18:20:00 +00:00 - Lambda provider refresh needs the function-scoped read set, so the policy is widened at the single-function boundary
+1. After `lambda:GetFunction` was granted, Terraform failed again on `lambda:ListVersionsByFunction` for the same IG Lambda.
+2. This is a provider-surface issue, not a platform-topology issue:
+   - the Lambda resource refresh path performs multiple read calls on the same function,
+   - discovering them one by one is no longer useful.
+3. Correction:
+   - widen the Lambda statement from a handpicked list to the function-scoped set:
+     - `lambda:Get*`,
+     - `lambda:ListVersionsByFunction`,
+     - `lambda:Update*`,
+     - `lambda:CreateFunction`,
+     - tag operations.
+4. Boundary remains strict because the scope is still one function ARN only: `fraud-platform-dev-full-ig-handler`.
+
+## Entry: 2026-03-06 18:27:00 +00:00 - Live ingress correction is deployed; remaining 500 is a bundle-layout defect in the Lambda package
+1. The latest workflow run (`22765859266`) completed the targeted Terraform apply successfully.
+2. Live post-apply inspection confirms the runtime posture is materially corrected on AWS:
+   - handler = `fraud_detection.ingestion_gate.aws_lambda_handler.lambda_handler`,
+   - memory = `1024 MB`, timeout = `30s`, reserved concurrency = `300`,
+   - VPC attachment present with two private subnets and the new SG,
+   - package hash matches the remote uploaded bundle.
+3. The health endpoint still returned `500`, so I pulled CloudWatch logs from `/aws/lambda/fraud-platform-dev-full-ig-handler`.
+4. Exact runtime error:
+   - `Runtime.ImportModuleError: Unable to import module 'fraud_detection.ingestion_gate.aws_lambda_handler': No module named 'fraud_detection'`.
+5. Root cause:
+   - `build_ig_lambda_bundle.py` was copying `src/fraud_detection` into the stage as `src/fraud_detection/...`,
+   - Lambda imports from the zip root and therefore could not resolve the package.
+6. Correction applied:
+   - bundle staging now maps `src/fraud_detection -> fraud_detection` at the zip root,
+   - config and contract/docs paths remain preserved at their expected relative locations.
+7. Local verification after the patch:
+   - rebuilt a test bundle,
+   - confirmed the zip now contains `fraud_detection/...` entries at the root.
+8. Next boundary:
+   - push the bundler fix on `cert-platform`,
+   - rerun the same ingress materialization workflow from `main` with `code_ref=cert-platform`,
+   - expect the health verification to move past import bootstrap and into real handler logic.
