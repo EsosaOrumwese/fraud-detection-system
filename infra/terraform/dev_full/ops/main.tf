@@ -492,6 +492,18 @@ resource "aws_iam_policy" "github_actions_pr3_runtime" {
         ]
       },
       {
+        Sid    = "PR3IngressApigwStageControl"
+        Effect = "Allow"
+        Action = [
+          "apigateway:GET",
+          "apigateway:PATCH"
+        ]
+        Resource = [
+          "arn:aws:apigateway:${var.aws_region}::/apis/ehwznd2uw7",
+          "arn:aws:apigateway:${var.aws_region}::/apis/ehwznd2uw7/*"
+        ]
+      },
+      {
         Sid    = "PR3ManagedFlinkRead"
         Effect = "Allow"
         Action = [

@@ -4351,3 +4351,62 @@ Reasoning:
     - apply the runtime envelope changes live,
     - rerun canonical `PR3-S1`,
     - then decide whether the remaining gap is true broker-path throughput or a second-order downstream dependency.
+## Entry: 2026-03-06 17:05:00 +00:00 - RC2.R2/PR3 observability blind spot and verification defect pinned before further execution
+1. I pulled the failed `dev-full-rc2-r2-capacity-envelope` workflow log instead of rerunning blindly.
+2. The immediate failure is not a runtime-capacity failure. It is an OIDC role observability/control gap:
+   - the role `GitHubAction-AssumeRoleWithAction` is denied `apigateway:GET` on `arn:aws:apigateway:eu-west-2::/apis/ehwznd2uw7/stages/v1`,
+   - therefore the capacity workflow aborts in pre-change capture before the managed apply even starts.
+3. Production interpretation:
+   - a production control plane must be able to both change and verify the live ingress envelope,
+   - blindness on the read surface is itself a production defect because it prevents deterministic adjudication of the capacity state,
+   - the correct response is not to weaken the gate, but to give the control plane the least-privilege read/control permissions it materially needs.
+4. I also found a workflow-side correctness bug that would have produced a false blocker even after IAM repair:
+   - the workflow tries to read `ReservedConcurrentExecutions` from `lambda.get_function_configuration(...)`,
+   - that field is not returned there,
+   - the correct source is `lambda.get_function_concurrency(...)`.
+5. Therefore there are two linked remediation lanes, both required for truthful production evidence:
+   - IAM lane: extend the active OIDC role policy to include the APIGW stage control/read surface plus the remaining PR3/RC2 runtime-read surfaces already modeled in `infra/terraform/dev_full/ops` but not materially active on the role,
+   - workflow lane: make RC2.R2 envelope capture and post-apply verification publish explicit blocker evidence on unreadable surfaces instead of crashing, and fix reserved-concurrency verification to use the correct API.
+6. Alternatives rejected:
+   - ignoring the APIGW read gap and trusting Terraform apply output alone:
+     - rejected because that is not production-grade verification,
+   - bypassing RC2.R2 and continuing PR3 steady runs:
+     - rejected because the ingress edge envelope is still not truthfully pinned live,
+   - loosening the gate to tolerate unknown reserved concurrency:
+     - rejected because that would admit an unverified hot path into later production-readiness states.
+7. Execution order pinned:
+   - first patch the live OIDC role so the managed workflows can actually observe/control the edge,
+   - second patch the workflow verification defect,
+   - third rerun RC2.R2 with the authoritative Lambda package coordinates preserved,
+   - only then resume canonical `PR3-S1` and the remaining PR chain.
+## Entry: 2026-03-06 17:24:00 +00:00 - OIDC runtime-read/control lane corrected via attached managed policy; RC2.R2 verifier corrected to survive unreadable surfaces and verify Lambda concurrency truthfully
+1. I attempted the most direct Terraform repair first by extending the inline policy `GitHubActionsM6FRemoteDevFull`.
+2. That failed for a real AWS reason, not a tooling glitch:
+   - `PutRolePolicy` returned `LimitExceeded` because the inline role-policy document is already at the 10,240-byte AWS limit.
+3. Production interpretation:
+   - the old inline policy has become a capacity bottleneck for the control plane itself,
+   - continuing to grow it is the wrong design even if I could somehow squeeze one more statement into it,
+   - the correct posture is to place new PR3/RC2 runtime permissions on the dedicated attached managed policy `GitHubActionsPR3RuntimeDevFull` that is already materially attached to the role.
+4. I corrected the repo accordingly:
+   - reverted the attempted PR3 runtime additions from the oversized inline M6F policy in `infra/terraform/dev_full/ops/main.tf`,
+   - added `apigateway:GET` and `apigateway:PATCH` for the pinned IG API/stage resource to the attached managed policy resource `aws_iam_policy.github_actions_pr3_runtime` instead.
+5. I then applied that managed-policy update live through Terraform state in `infra/terraform/dev_full/ops` with a targeted apply on `aws_iam_policy.github_actions_pr3_runtime`.
+6. Result:
+   - the live role `GitHubAction-AssumeRoleWithAction` now materially carries the API Gateway stage control/read surface through the attached managed policy,
+   - the attached policy already carried the Lambda envelope controls and the Managed Flink/CloudWatch read surfaces, so this closes the last identified RC2.R2/PR3 observability-control gap on that role.
+7. In parallel I corrected the RC2.R2 workflow itself:
+   - pre/post capture now use safe boto calls and record IAM read failures into the snapshot instead of crashing before artifact publication,
+   - blocker code `RC2R2-BIAM` is emitted deterministically from those unreadable surfaces,
+   - Lambda reserved concurrency is now read from `lambda.get_function_concurrency(...)`, which is the authoritative API, not from `get_function_configuration(...)`.
+8. Why this combination is the right production fix:
+   - it restores truthful live-edge verification rather than trusting declarative apply output,
+   - it prevents a future recurrence where the gate dies on a missing read permission instead of emitting auditable blocker evidence,
+   - it removes a false-negative on reserved concurrency that would otherwise have contaminated later throughput claims.
+9. Validation completed before rerun:
+   - `terraform validate` in `infra/terraform/dev_full/ops`: clean,
+   - workflow YAML parse for `.github/workflows/dev_full_rc2_r2_capacity_envelope.yml`: clean,
+   - Terraform targeted apply on managed policy: success.
+10. Next ordered step pinned:
+   - rerun `dev-full-rc2-r2-capacity-envelope` with the corrected IG package coordinates preserved,
+   - verify live APIGW/Lambda envelope truthfully,
+   - then resume canonical `PR3-S1` from that corrected ingress boundary.

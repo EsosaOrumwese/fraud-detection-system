@@ -178,12 +178,14 @@ jobs:
           set -euo pipefail
           python - <<'PY'
           import json
+          import os
           from datetime import datetime, timezone
           from pathlib import Path
 
           import boto3
+          from botocore.exceptions import ClientError
 
-          run_dir = Path(__import__("os").environ["RUN_DIR"])
+          run_dir = Path(os.environ["RUN_DIR"])
           outputs = json.loads((run_dir / "terraform_outputs_pre.json").read_text(encoding="utf-8"))
           apigw_id = str(outputs.get("apigw_ig_api_id", {}).get("value", "")).strip()
           lambda_name = str(outputs.get("lambda_ig_handler_name", {}).get("value", "")).strip()
@@ -195,24 +197,60 @@ jobs:
           lam = boto3.client("lambda")
           eks = boto3.client("eks")
 
-          stage_name = __import__("os").environ["APIGW_IG_STAGE_NAME"]
-          stage = apigw.get_stage(ApiId=apigw_id, StageName=stage_name) if apigw_id else {}
+          stage_name = os.environ["APIGW_IG_STAGE_NAME"]
+
+          def safe_call(fn, *, error_code: str):
+              try:
+                  return fn(), None
+              except ClientError as exc:
+                  err = exc.response.get("Error", {})
+                  return None, {
+                      "code": error_code,
+                      "error_type": err.get("Code", exc.__class__.__name__),
+                      "message": str(exc),
+                  }
+
+          iam_read_errors = []
+
+          stage, stage_err = safe_call(
+              lambda: apigw.get_stage(ApiId=apigw_id, StageName=stage_name) if apigw_id else {},
+              error_code="RC2R2-BIAM-APIGW-GET",
+          )
+          if stage_err:
+              iam_read_errors.append(stage_err)
           route = stage.get("DefaultRouteSettings", {}) if isinstance(stage, dict) else {}
 
-          lambda_cfg = lam.get_function_configuration(FunctionName=lambda_name) if lambda_name else {}
-          nodegroup = (
-              eks.describe_nodegroup(clusterName=cluster_name, nodegroupName=nodegroup_name).get("nodegroup", {})
-              if cluster_name and nodegroup_name
-              else {}
+          lambda_cfg, lambda_cfg_err = safe_call(
+              lambda: lam.get_function_configuration(FunctionName=lambda_name) if lambda_name else {},
+              error_code="RC2R2-BIAM-LAMBDA-CONFIG",
           )
+          if lambda_cfg_err:
+              iam_read_errors.append(lambda_cfg_err)
+          lambda_concurrency, lambda_conc_err = safe_call(
+              lambda: lam.get_function_concurrency(FunctionName=lambda_name) if lambda_name else {},
+              error_code="RC2R2-BIAM-LAMBDA-CONCURRENCY",
+          )
+          if lambda_conc_err:
+              iam_read_errors.append(lambda_conc_err)
+          nodegroup, nodegroup_err = safe_call(
+              lambda: (
+                  eks.describe_nodegroup(clusterName=cluster_name, nodegroupName=nodegroup_name).get("nodegroup", {})
+                  if cluster_name and nodegroup_name
+                  else {}
+              ),
+              error_code="RC2R2-BIAM-EKS-NODEGROUP",
+          )
+          if nodegroup_err:
+              iam_read_errors.append(nodegroup_err)
           scaling = nodegroup.get("scalingConfig", {}) if isinstance(nodegroup, dict) else {}
 
           pre = {
               "captured_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
               "phase": "RC2.R2",
-              "execution_id": __import__("os").environ["EXECUTION_ID"],
-              "platform_run_id": __import__("os").environ["PLATFORM_RUN_ID"],
-              "scenario_run_id": __import__("os").environ["SCENARIO_RUN_ID"],
+              "execution_id": os.environ["EXECUTION_ID"],
+              "platform_run_id": os.environ["PLATFORM_RUN_ID"],
+              "scenario_run_id": os.environ["SCENARIO_RUN_ID"],
+              "iam_read_errors": iam_read_errors,
               "apigw": {
                   "api_id": apigw_id,
                   "stage_name": stage_name,
@@ -223,7 +261,7 @@ jobs:
                   "function_name": lambda_name,
                   "memory_size": lambda_cfg.get("MemorySize"),
                   "timeout_seconds": lambda_cfg.get("Timeout"),
-                  "reserved_concurrency": lambda_cfg.get("ReservedConcurrentExecutions"),
+                  "reserved_concurrency": lambda_concurrency.get("ReservedConcurrentExecutions"),
               },
               "eks_m6f_nodegroup": {
                   "cluster_name": cluster_name,
@@ -299,6 +337,7 @@ jobs:
           from pathlib import Path
 
           import boto3
+          from botocore.exceptions import ClientError
 
           run_dir = Path(os.environ["RUN_DIR"])
           exec_id = os.environ["EXECUTION_ID"]
@@ -334,14 +373,47 @@ jobs:
           eks = boto3.client("eks")
           s3 = boto3.client("s3")
 
-          stage = apigw.get_stage(ApiId=apigw_id, StageName=stage_name) if apigw_id else {}
-          route = stage.get("DefaultRouteSettings", {}) if isinstance(stage, dict) else {}
-          lambda_cfg = lam.get_function_configuration(FunctionName=lambda_name) if lambda_name else {}
-          nodegroup = (
-              eks.describe_nodegroup(clusterName=cluster_name, nodegroupName=nodegroup_name).get("nodegroup", {})
-              if cluster_name and nodegroup_name
-              else {}
+          def safe_call(fn, *, error_code: str):
+              try:
+                  return fn(), None
+              except ClientError as exc:
+                  err = exc.response.get("Error", {})
+                  return None, {
+                      "code": error_code,
+                      "error_type": err.get("Code", exc.__class__.__name__),
+                      "message": str(exc),
+                  }
+
+          iam_read_errors = []
+          stage, stage_err = safe_call(
+              lambda: apigw.get_stage(ApiId=apigw_id, StageName=stage_name) if apigw_id else {},
+              error_code="RC2R2-BIAM-APIGW-GET",
           )
+          if stage_err:
+              iam_read_errors.append(stage_err)
+          route = stage.get("DefaultRouteSettings", {}) if isinstance(stage, dict) else {}
+          lambda_cfg, lambda_cfg_err = safe_call(
+              lambda: lam.get_function_configuration(FunctionName=lambda_name) if lambda_name else {},
+              error_code="RC2R2-BIAM-LAMBDA-CONFIG",
+          )
+          if lambda_cfg_err:
+              iam_read_errors.append(lambda_cfg_err)
+          lambda_concurrency, lambda_conc_err = safe_call(
+              lambda: lam.get_function_concurrency(FunctionName=lambda_name) if lambda_name else {},
+              error_code="RC2R2-BIAM-LAMBDA-CONCURRENCY",
+          )
+          if lambda_conc_err:
+              iam_read_errors.append(lambda_conc_err)
+          nodegroup, nodegroup_err = safe_call(
+              lambda: (
+                  eks.describe_nodegroup(clusterName=cluster_name, nodegroupName=nodegroup_name).get("nodegroup", {})
+                  if cluster_name and nodegroup_name
+                  else {}
+              ),
+              error_code="RC2R2-BIAM-EKS-NODEGROUP",
+          )
+          if nodegroup_err:
+              iam_read_errors.append(nodegroup_err)
           scaling = nodegroup.get("scalingConfig", {}) if isinstance(nodegroup, dict) else {}
 
           post = {
@@ -350,6 +422,7 @@ jobs:
               "execution_id": exec_id,
               "platform_run_id": platform_run_id,
               "scenario_run_id": scenario_run_id,
+              "iam_read_errors": iam_read_errors,
               "apigw": {
                   "api_id": apigw_id,
                   "stage_name": stage_name,
@@ -360,7 +433,7 @@ jobs:
                   "function_name": lambda_name,
                   "memory_size": lambda_cfg.get("MemorySize"),
                   "timeout_seconds": lambda_cfg.get("Timeout"),
-                  "reserved_concurrency": lambda_cfg.get("ReservedConcurrentExecutions"),
+                  "reserved_concurrency": lambda_concurrency.get("ReservedConcurrentExecutions"),
                   "environment": (
                       lambda_cfg.get("Environment", {}).get("Variables", {})
                       if isinstance(lambda_cfg.get("Environment"), dict)
@@ -377,6 +450,11 @@ jobs:
           }
 
           blockers: list[dict] = []
+          for err in iam_read_errors:
+              blockers.append({
+                  "code": "RC2R2-BIAM",
+                  "message": f"{err['code']}:{err['error_type']}",
+              })
           rate_live = post["apigw"].get("throttling_rate_limit")
           burst_live = post["apigw"].get("throttling_burst_limit")
           if rate_live is None or float(rate_live) < expected_rate:
