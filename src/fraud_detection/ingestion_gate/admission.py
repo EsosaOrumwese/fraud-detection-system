@@ -588,35 +588,42 @@ class IngestionGate:
         actor_id = auth_context.actor_id if auth_context else "SYSTEM::ingestion_gate"
         source_type = auth_context.source_type if auth_context else "SYSTEM"
         anomaly_category = classify_anomaly(reason_code)
-        emit_platform_governance_event(
-            store=self.store,
-            event_family="CORRIDOR_ANOMALY",
-            actor_id=actor_id,
-            source_type=source_type,
-            source_component="ingestion_gate",
-            platform_run_id=platform_run_id,
-            scenario_run_id=scenario_run_id,
-            manifest_fingerprint=manifest_fingerprint,
-            parameter_hash=parameter_hash,
-            seed=seed,
-            scenario_id=scenario_id,
-            dedupe_key=dedupe_key,
-            details={
-                "boundary": "ingestion_gate",
-                "reason_code": reason_code,
-                "anomaly_category": anomaly_category,
-                "event_id": event_id,
-                "event_type": envelope.get("event_type"),
-                "quarantine_ref": quarantine_ref,
-                "receipt_ref": receipt_ref,
-                "policy_rev": {
-                    "policy_id": self.policy_rev.policy_id,
-                    "revision": self.policy_rev.revision,
-                    "content_digest": self.policy_rev.content_digest,
+        try:
+            emit_platform_governance_event(
+                store=self.store,
+                event_family="CORRIDOR_ANOMALY",
+                actor_id=actor_id,
+                source_type=source_type,
+                source_component="ingestion_gate",
+                platform_run_id=platform_run_id,
+                scenario_run_id=scenario_run_id,
+                manifest_fingerprint=manifest_fingerprint,
+                parameter_hash=parameter_hash,
+                seed=seed,
+                scenario_id=scenario_id,
+                dedupe_key=dedupe_key,
+                details={
+                    "boundary": "ingestion_gate",
+                    "reason_code": reason_code,
+                    "anomaly_category": anomaly_category,
+                    "event_id": event_id,
+                    "event_type": envelope.get("event_type"),
+                    "quarantine_ref": quarantine_ref,
+                    "receipt_ref": receipt_ref,
+                    "policy_rev": {
+                        "policy_id": self.policy_rev.policy_id,
+                        "revision": self.policy_rev.revision,
+                        "content_digest": self.policy_rev.content_digest,
+                    },
+                    "run_config_digest": self.policy_rev.content_digest,
                 },
-                "run_config_digest": self.policy_rev.content_digest,
-            },
-        )
+            )
+        except Exception:
+            logger.exception(
+                "IG governance anomaly emit failed event_id=%s reason=%s",
+                event_id,
+                reason_code,
+            )
 
     def _partitioning(self, envelope: dict[str, Any]) -> tuple[str, PartitionProfile]:
         class_name = self.class_map.class_for(envelope["event_type"])

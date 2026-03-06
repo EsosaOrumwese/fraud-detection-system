@@ -266,3 +266,32 @@ def test_policy_activation_emits_platform_governance_event(tmp_path: Path, monke
     assert policy_events
     provenance = policy_events[-1].get("provenance") or {}
     assert provenance.get("service_release_id") == "dev-local"
+
+
+def test_quarantine_survives_governance_emit_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    gate = _build_gate(tmp_path, required_pins=["manifest_fingerprint", "run_id"])
+    envelope = _envelope("evt-governance-fail")
+    envelope.pop("run_id", None)
+
+    def _boom(*_args, **_kwargs):
+        raise RuntimeError("governance corridor unavailable")
+
+    monkeypatch.setattr("fraud_detection.ingestion_gate.admission.emit_platform_governance_event", _boom)
+
+    decision, receipt = gate.admit_push_with_decision(envelope)
+
+    assert decision.decision == "QUARANTINE"
+    assert receipt.payload["decision"] == "QUARANTINE"
+    receipt_path = (
+        tmp_path
+        / "store"
+        / "fraud-platform"
+        / envelope["platform_run_id"]
+        / "ig"
+        / "receipts"
+        / f"{receipt.payload['receipt_id']}.json"
+    )
+    assert receipt_path.exists()

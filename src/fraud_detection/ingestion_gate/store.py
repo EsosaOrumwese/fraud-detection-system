@@ -11,6 +11,19 @@ from typing import Any, Iterable, Protocol
 from urllib.parse import urlparse
 
 
+def _env_int(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    value = value.strip()
+    if not value:
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return default
+
+
 @dataclass(frozen=True)
 class ArtifactRef:
     path: str
@@ -174,37 +187,48 @@ class S3ObjectStore:
         from botocore.exceptions import ClientError
 
         key = self._key(relative_path)
-        existing = ""
-        etag = None
-        if self.exists(relative_path):
-            response = self._client.get_object(Bucket=self.bucket, Key=key)
-            existing = response["Body"].read().decode("utf-8")
-            etag = response.get("ETag")
         lines = []
         for record in records:
             line = json.dumps(record, sort_keys=True, ensure_ascii=True, separators=(",", ":"))
             lines.append(line)
-        content = existing + "".join(line + "\n" for line in lines)
-        try:
-            if etag:
-                self._client.put_object(
-                    Bucket=self.bucket,
-                    Key=key,
-                    Body=content.encode("utf-8"),
-                    IfMatch=etag,
-                )
-            else:
-                self._client.put_object(
-                    Bucket=self.bucket,
-                    Key=key,
-                    Body=content.encode("utf-8"),
-                    IfNoneMatch="*",
-                )
-        except ClientError as exc:
-            error_code = exc.response.get("Error", {}).get("Code")
-            if error_code in {"PreconditionFailed", "412"}:
-                raise RuntimeError("S3_APPEND_CONFLICT") from exc
-            raise
+        append_block = "".join(line + "\n" for line in lines)
+        max_attempts = max(1, _env_int("IG_OBJECT_STORE_APPEND_MAX_ATTEMPTS", 5))
+        sleep_seconds = max(0.0, _env_int("IG_OBJECT_STORE_APPEND_BACKOFF_MS", 50) / 1000.0)
+        last_conflict: ClientError | None = None
+        for attempt in range(1, max_attempts + 1):
+            existing = ""
+            etag = None
+            if self.exists(relative_path):
+                response = self._client.get_object(Bucket=self.bucket, Key=key)
+                existing = response["Body"].read().decode("utf-8")
+                etag = response.get("ETag")
+            content = existing + append_block
+            try:
+                if etag:
+                    self._client.put_object(
+                        Bucket=self.bucket,
+                        Key=key,
+                        Body=content.encode("utf-8"),
+                        IfMatch=etag,
+                    )
+                else:
+                    self._client.put_object(
+                        Bucket=self.bucket,
+                        Key=key,
+                        Body=content.encode("utf-8"),
+                        IfNoneMatch="*",
+                    )
+                return ArtifactRef(path=f"s3://{self.bucket}/{key}")
+            except ClientError as exc:
+                error_code = exc.response.get("Error", {}).get("Code")
+                if error_code not in {"PreconditionFailed", "412"}:
+                    raise
+                last_conflict = exc
+                if attempt >= max_attempts:
+                    break
+                time.sleep(sleep_seconds * attempt)
+        if last_conflict is not None:
+            raise RuntimeError("S3_APPEND_CONFLICT") from last_conflict
         return ArtifactRef(path=f"s3://{self.bucket}/{key}")
 
     def exists(self, relative_path: str) -> bool:

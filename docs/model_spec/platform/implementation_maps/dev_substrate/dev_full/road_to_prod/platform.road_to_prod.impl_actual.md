@@ -4118,3 +4118,113 @@ Reasoning:
    - rerun the packaging workflow cleanly on `cert-platform`,
    - use the same immutable digest or the rerun digest to drive the canonical PR3-S1 lane,
    - continue execution from the truthful remote replay path.
+## Entry: 2026-03-06 14:37:32 +00:00 - The live WSP ECS family is now repointed to the fresh immutable image, and PR3-S1 rerun inputs are pinned from measured success rather than guesswork
+1. I reran the packaging workflow after hardening the optional upload behavior.
+2. The green packaging run produced the fresh authoritative image:
+   - image tag: `git-7794c8fdf38f86425fc17859ca4a2cad0efd6b9e-run-22767906946`
+   - image digest: `sha256:b9fd2375fc79154c95bcfb58a502b35ebb77c09df94f2222dc4ced1eca291b58`
+3. I then inspected the live ECS family that the canonical PR3-S1 replay lane actually uses:
+   - family: `fraud-platform-dev-full-wsp-ephemeral`
+   - active revision before change: `26`
+   - active image before change: `sha256:56c4eaa4347279d56d156b5e6f16736b0ddd0c26d685588d06357e5f88377349`
+4. That confirmed the earlier diagnosis was still materially true:
+   - the canonical replay family had not yet picked up the refreshed image,
+   - therefore a PR3 rerun without a task-definition refresh would still be measuring stale runtime code.
+5. Corrective action executed:
+   - registered new ECS task-definition revision `27`,
+   - same family, same IAM/network/log posture,
+   - only the `wsp` container image was changed to the new immutable digest.
+6. Evidence written under `runs/dev_substrate/dev_full/road_to_prod/run_control/pr3_20260306T021900Z/`:
+   - `g3a_s1_wsp_taskdef_refresh_request.json`
+   - `g3a_s1_wsp_taskdef_refresh_result.json`
+   - `g3a_s1_wsp_taskdef_refresh_summary.json`
+7. I also re-read the last successful canonical S1 calibration from the same PR3 control root:
+   - lane count `138`,
+   - `stream_speedup=95.0`,
+   - window `180s`,
+   - target request rate `3005 eps`,
+   - observed admitted throughput `3003.4222 eps`,
+   - admitted sample size `540,616`,
+   - `4xx=0`, `5xx=0`, error ratio `0.0`.
+8. Decision for the rerun:
+   - do not drop back to the workflow defaults (`24` lanes / `50.0` speedup / `1800s`),
+   - reuse the measured successful calibration on the newly refreshed image,
+   - this keeps the rerun anchored to an already-proven realistic shape instead of burning time rediscovering a known good operating point.
+9. Why this is the production-grade move:
+   - it isolates image drift as the only intentional variable,
+   - it preserves the real canonical path,
+   - it turns the next rerun into a true regression/proof check rather than a parameter-search exercise.
+## Entry: 2026-03-06 15:10:00 +00:00 - PR3-S1 canonical replay exposed a production defect in the ingress runtime bundle and a secondary failure-path weakness
+1. I treated the latest `PR3-S1` red result as a real production-path defect, not as a reason to lower the bar or switch back to a proxy harness.
+2. Live ingress telemetry for the failed window showed:
+   - API Gateway stage throttle is correctly uplifted (`3000 rps / 6000 burst`),
+   - Lambda reserved concurrency is pinned at `300`,
+   - concurrency hit the ceiling (`max=300`),
+   - API Gateway `IntegrationLatency p95/p99` sat at roughly `30000 ms`,
+   - WSP lanes observed `0 admitted`, `100% 5xx`, and exhausted retries.
+3. I then pulled the Lambda logs for the same window and found the first hard defect is earlier than pure capacity:
+   - `IG admission validation error` with `referencing.exceptions.Unresolvable: schemas.layer3.yaml#/$defs/hex64`,
+   - this is reached while validating real `6B` payloads referenced by `config/platform/ig/schema_policy_v0.yaml`,
+   - the live image contains `schemas.6B.yaml` but not the transitive `schemas.layer3.yaml` file that the schema pack requires.
+4. This means the live runtime packaging contract is materially wrong for production:
+   - the image boundary was previously tightened to exclude `schemas.layer3.yaml` based on a static reference scan,
+   - that scan was insufficient because it missed transitive runtime schema dependencies,
+   - therefore the platform can appear "wired" while still being unable to validate real production payloads.
+5. I also found a second defect on the quarantine/anomaly path:
+   - once validation fails, the handler emits governance anomaly events,
+   - the current S3 JSONL append corridor can raise `S3_APPEND_CONFLICT` under concurrent append,
+   - that turns what should be a deterministic quarantine into a `503 ingress_publish_failed` response.
+6. Production interpretation:
+   - simply raising Lambda concurrency would be the wrong first move because it would only make the broken failure path scale harder,
+   - the correct order is to first restore runtime contract completeness and failure-path integrity,
+   - only then re-measure throughput and decide whether further envelope or architecture changes are needed.
+7. Alternatives considered:
+   - increase concurrency immediately:
+     - rejected because it does not solve the schema-pack defect and would waste cost on invalid traffic handling,
+   - repin PR3 back to a synthetic or easier harness:
+     - rejected because that would weaken the claim and avoid the real WSP -> IG -> Lambda -> DDB -> Kafka hot path,
+   - repin WSP away from the canonical producer just to make the replay easier:
+     - rejected because the production question at PR3 is about the actual ingress producer path.
+8. Chosen remediation plan:
+   - repair the image/build contract so the runtime ships the complete transitive schema surface needed by `schema_policy_v0.yaml`,
+   - add a deterministic packaging preflight that proves every live IG payload schema reference resolves before the image can be published,
+   - harden the governance S3 append corridor and/or anomaly emission path so quarantine cannot escalate to `503` purely because of concurrent append races,
+   - rebuild/publish a fresh immutable image, refresh the live runtime, and rerun canonical `PR3-S1` on the truthful path.
+9. Success criteria for this remediation:
+   - no `Unresolvable` schema errors in IG logs for live `5B/6B` payloads,
+   - no anomaly-path `S3_APPEND_CONFLICT` causing `503` responses,
+   - PR3-S1 impact metrics become meaningful again (`admitted_eps`, `error_rate`, `5xx_rate`, `p95/p99`) so throughput tuning can proceed from a sound base instead of corrupted ingress behavior.
+## Entry: 2026-03-06 15:21:00 +00:00 - Implemented the ingress runtime-pack remediation and hardened the quarantine-side governance corridor before rebuilding the image
+1. I implemented the remediation directly on the real production surfaces rather than on a proxy harness.
+2. Runtime packaging contract changes:
+   - widened the Docker build surface from single-file schema copies to the actual schema-pack directories needed by live IG policy resolution,
+   - added Layer-1 shared schema surface required transitively by `5B` contracts,
+   - kept the change bounded to the policy-relevant contract packs rather than broad repo copy.
+3. Deterministic preflight added to the image build itself:
+   - Dockerfile now runs an inline Python check after dependency installation,
+   - it loads `config/platform/ig/schema_policy_v0.yaml`,
+   - resolves every declared payload schema reference through `SchemaEnforcer`,
+   - and fails the image build if any transitive reference is missing or unreadable.
+4. Failure-path hardening changes:
+   - `scenario_runner.storage.S3ObjectStore.append_jsonl(...)` now retries optimistic S3 append conflicts before failing,
+   - `ingestion_gate.store.S3ObjectStore.append_jsonl(...)` was aligned to the same behavior for parity and future ingress-side use,
+   - `IngestionGate._emit_governance_anomaly(...)` now catches governance corridor failures and logs them instead of converting an already-determined quarantine into a hard `503` response.
+5. Why these were the right production corrections:
+   - they remove the image contract hole that made real payload validation impossible,
+   - they preserve fail-closed schema discipline by proving refs at build time,
+   - they stop secondary governance evidence races from destabilizing the primary ingress decision path.
+6. Local validation executed:
+   - targeted tests:
+     - `python -m pytest tests/services/ingestion_gate/test_admission.py tests/services/ingestion_gate/test_schema_resolution.py tests/services/platform_governance/test_writer.py -q`
+     - result: `12 passed`
+   - syntax validation:
+     - `python -m py_compile src/fraud_detection/scenario_runner/storage.py src/fraud_detection/ingestion_gate/store.py src/fraud_detection/ingestion_gate/admission.py tests/services/ingestion_gate/test_admission.py tests/services/ingestion_gate/test_schema_resolution.py`
+     - result: clean.
+7. Regression proof added:
+   - new test asserts live IG schema policy refs resolve transitively against the repo contract packs,
+   - new admission test asserts a governance emission failure does not destroy the quarantine receipt path.
+8. Next execution step:
+   - commit/push this remediation milestone on `cert-platform`,
+   - rebuild the immutable image remotely,
+   - refresh the live WSP runtime onto that new image,
+   - rerun canonical `PR3-S1` and evaluate the impact metrics again from the truthful path.
