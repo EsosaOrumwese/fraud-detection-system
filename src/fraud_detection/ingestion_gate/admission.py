@@ -9,7 +9,7 @@ import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .config import ClassMap, PolicyRev, SchemaPolicy, WiringProfile
 from fraud_detection.event_bus import EbRef, EventBusPublisher, FileEventBusPublisher
@@ -21,7 +21,6 @@ from .index import AdmissionIndex
 from .metrics import MetricsRecorder
 from .models import AdmissionDecision, Receipt, QuarantineRecord
 from .ops_index import OpsIndex
-from .pg_index import PostgresAdmissionIndex, PostgresOpsIndex, is_postgres_dsn
 from .partitioning import PartitionProfile, PartitioningProfiles
 from .policy_digest import compute_policy_digest
 from .rate_limit import RateLimiter
@@ -34,6 +33,9 @@ from ..platform_runtime import platform_run_prefix, resolve_platform_run_id
 from ..platform_provenance import runtime_provenance
 from ..platform_governance.anomaly_taxonomy import classify_anomaly
 from ..platform_governance import emit_platform_governance_event
+
+if TYPE_CHECKING:
+    from .pg_index import PostgresAdmissionIndex, PostgresOpsIndex
 
 logger = logging.getLogger(__name__)
 narrative_logger = logging.getLogger("fraud_detection.platform_narrative")
@@ -706,8 +708,15 @@ class IngestionGate:
         return payload
 
 
+def _is_postgres_dsn(value: str | None) -> bool:
+    text = str(value or "").strip().lower()
+    return text.startswith("postgres://") or text.startswith("postgresql://")
+
+
 def _build_indices(admission_db_path: str) -> tuple[AdmissionIndex | PostgresAdmissionIndex, OpsIndex | PostgresOpsIndex]:
-    if is_postgres_dsn(admission_db_path):
+    if _is_postgres_dsn(admission_db_path):
+        from .pg_index import PostgresAdmissionIndex, PostgresOpsIndex
+
         return PostgresAdmissionIndex(admission_db_path), PostgresOpsIndex(admission_db_path)
     path = Path(admission_db_path)
     return AdmissionIndex(path), OpsIndex(path)

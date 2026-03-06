@@ -3959,3 +3959,26 @@ Reasoning:
 7. Remaining boundary:
    - redeploy the ingress edge with this change,
    - then verify live `/ops/health` and a real publish path before resuming PR3 states.
+## Entry: 2026-03-06 19:08:00 +00:00 - IG admission now loads Postgres support lazily so the pinned DDB ingress lane does not require psycopg at cold start
+1. The live Lambda logs after the last redeploy changed from the generic package-root failure to a concrete init error:
+   - `Runtime.ImportModuleError: No module named 'psycopg'`.
+2. I traced that to `fraud_detection.ingestion_gate.admission` importing `.pg_index` eagerly at module import time.
+3. This is incorrect for the current pinned ingress lane:
+   - authority is `API Gateway -> Lambda -> DDB -> Kafka`,
+   - DDB-backed idempotency/admission does not need `psycopg` during Lambda boot.
+4. Correction applied:
+   - removed the eager top-level `.pg_index` import from `admission.py`,
+   - added a local `_is_postgres_dsn(...)` predicate,
+   - import `PostgresAdmissionIndex` / `PostgresOpsIndex` only inside `_build_indices(...)` when the actual `admission_db_path` is a Postgres DSN.
+5. Why this is the production-correct fix:
+   - preserves Postgres capability for lanes that explicitly choose it,
+   - removes an unnecessary native dependency from the hot ingress path,
+   - reduces cold-start failure blast radius,
+   - aligns runtime dependencies with the actual live wiring rather than optional alternate backends.
+6. Validation performed:
+   - `py_compile` passed for `admission.py`,
+   - direct source import of `fraud_detection.ingestion_gate.aws_lambda_handler` still succeeds,
+   - the DSN branch predicate behaves correctly for both filesystem and postgres inputs.
+7. Next step:
+   - redeploy the ingress edge again,
+   - expect the handler to move beyond `psycopg` import and into actual health-handler execution.
