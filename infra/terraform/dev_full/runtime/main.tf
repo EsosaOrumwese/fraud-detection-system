@@ -673,7 +673,7 @@ resource "aws_lambda_function" "ig_handler" {
       KAFKA_SECURITY_PROTOCOL            = "SASL_SSL"
       KAFKA_SASL_MECHANISM               = "OAUTHBEARER"
       KAFKA_REQUEST_TIMEOUT_MS           = tostring(var.lambda_ig_kafka_request_timeout_ms)
-      KAFKA_PUBLISH_RETRIES              = "3"
+      KAFKA_PUBLISH_RETRIES              = tostring(var.ig_kafka_publish_retries)
       KAFKA_BOOTSTRAP_BROKERS_PARAM_PATH = var.ssm_msk_bootstrap_brokers_path
       IG_HEALTH_BUS_PROBE_MODE           = "describe"
       IG_POLICY_ACTIVATION_AUDIT_MODE    = var.lambda_ig_policy_activation_audit_mode
@@ -1193,7 +1193,7 @@ resource "aws_ecs_task_definition" "ig_service" {
         },
         {
           name  = "KAFKA_PUBLISH_RETRIES"
-          value = "3"
+          value = tostring(var.ig_kafka_publish_retries)
         },
         {
           name  = "KAFKA_BOOTSTRAP_BROKERS_PARAM_PATH"

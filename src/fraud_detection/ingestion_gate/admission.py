@@ -80,6 +80,36 @@ class IngestionGate:
     api_key_header: str
     push_limiter: RateLimiter
 
+    def _internal_retry_attempts(self) -> int:
+        return max(1, int(getattr(self.wiring, "internal_retry_max_attempts", 1) or 1))
+
+    def _internal_retry_backoff_seconds(self) -> float:
+        return max(0.0, float(getattr(self.wiring, "internal_retry_backoff_ms", 0) or 0) / 1000.0)
+
+    def _retry_idempotent(self, operation: str, fn: Any, /, *args: Any, **kwargs: Any) -> Any:
+        attempts = self._internal_retry_attempts()
+        base_delay = self._internal_retry_backoff_seconds()
+        max_delay = max(base_delay, 2.0)
+        attempt = 0
+        while True:
+            attempt += 1
+            try:
+                return fn(*args, **kwargs)
+            except Exception as exc:
+                if attempt >= attempts:
+                    raise
+                delay = min(max_delay, base_delay * (2 ** (attempt - 1))) if base_delay > 0.0 else 0.0
+                logger.warning(
+                    "IG internal retry operation=%s attempt=%s/%s delay=%.3fs error=%s",
+                    operation,
+                    attempt,
+                    attempts,
+                    delay,
+                    str(exc)[:256],
+                )
+                if delay > 0.0:
+                    time.sleep(delay)
+
     @classmethod
     def build(cls, wiring: WiringProfile) -> "IngestionGate":
         policy = SchemaPolicy.load(Path(wiring.schema_policy_ref))
@@ -266,13 +296,21 @@ class IngestionGate:
             )
             receipt_id = receipt_payload["receipt_id"]
             self.contract_registry.validate("ingestion_receipt.schema.yaml", receipt_payload)
-            receipt_ref = self.receipt_writer.write_receipt(
+            receipt_ref = self._retry_idempotent(
+                "write_duplicate_receipt",
+                self.receipt_writer.write_receipt,
                 receipt_id,
                 receipt_payload,
                 prefix=self._receipt_prefix(envelope),
             )
             if not existing_row.get("receipt_ref") or existing_row.get("receipt_write_failed"):
-                self.admission_index.record_receipt(dedupe, receipt_ref)
+                self._retry_idempotent(
+                    "record_duplicate_receipt_ref",
+                    self.admission_index.record_receipt,
+                    dedupe,
+                    receipt_ref,
+                    receipt_payload=receipt_payload,
+                )
             self._record_ops_receipt(receipt_payload, receipt_ref)
             self.metrics.record_latency("phase.receipt_seconds", time.perf_counter() - receipt_started)
             self.metrics.record_decision("DUPLICATE")
@@ -342,7 +380,9 @@ class IngestionGate:
             if self._receipt_storage_mode() == "ddb_hot":
                 receipt_ref = self.admission_index.receipt_ref_for(dedupe)
                 admitted_started = time.perf_counter()
-                self.admission_index.record_admitted(
+                self._retry_idempotent(
+                    "record_admitted_hot",
+                    self.admission_index.record_admitted,
                     dedupe,
                     eb_ref=_eb_ref_payload(eb_ref),
                     admitted_at_utc=admitted_at_utc,
@@ -354,16 +394,24 @@ class IngestionGate:
                 self.metrics.record_latency("phase.receipt_store_seconds", 0.0)
             else:
                 admitted_started = time.perf_counter()
-                self.admission_index.record_admitted(
+                self._retry_idempotent(
+                    "record_admitted",
+                    self.admission_index.record_admitted,
                     dedupe,
                     eb_ref=_eb_ref_payload(eb_ref),
                     admitted_at_utc=admitted_at_utc,
                     payload_hash=payload_hash_hex,
                 )
                 self.metrics.record_latency("phase.dedupe_admitted_seconds", time.perf_counter() - admitted_started)
-                receipt_ref = self._store_receipt_object(dedupe, receipt_payload, envelope=envelope)
+                receipt_ref = self._retry_idempotent(
+                    "store_receipt_object",
+                    self._store_receipt_object,
+                    dedupe,
+                    receipt_payload,
+                    envelope=envelope,
+                )
         except Exception:
-            self.admission_index.mark_receipt_failed(dedupe)
+            self._retry_idempotent("mark_receipt_failed", self.admission_index.mark_receipt_failed, dedupe)
             logger.exception("IG receipt write failed after publish event_id=%s", event_id)
             raise
         logger.info(

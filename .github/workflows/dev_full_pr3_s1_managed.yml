@@ -93,7 +93,7 @@ on:
       lane_count:
         description: "Number of remote pressure lanes"
         required: true
-        default: "24"
+        default: "32"
         type: string
       target_steady_eps:
         description: "Total target steady EPS"

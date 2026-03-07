@@ -32,6 +32,35 @@ on:
         required: true
         default: "fraud-platform-dev-full-evidence"
         type: string
+      platform_image_uri:
+        description: "Immutable platform image URI used by the ingress ECS service"
+        required: true
+        type: string
+      ig_internal_retry_max_attempts:
+        description: "IG idempotent internal retry attempts"
+        required: true
+        default: "5"
+        type: string
+      ig_internal_retry_backoff_ms:
+        description: "IG idempotent internal retry backoff"
+        required: true
+        default: "400"
+        type: string
+      lambda_ig_kafka_request_timeout_ms:
+        description: "Lambda IG Kafka request timeout"
+        required: true
+        default: "10000"
+        type: string
+      ig_service_kafka_request_timeout_ms:
+        description: "Service IG Kafka request timeout"
+        required: true
+        default: "15000"
+        type: string
+      ig_kafka_publish_retries:
+        description: "Kafka publish retries for IG runtimes"
+        required: true
+        default: "5"
+        type: string
       ig_api_key_ssm_path:
         description: "SSM path for the IG API key"
         required: true
@@ -147,10 +176,18 @@ jobs:
             -target=aws_iam_role_policy.lambda_ig_runtime \
             -target=aws_security_group.lambda_ig \
             -target=aws_lambda_function.ig_handler \
+            -target=aws_ecs_task_definition.ig_service[0] \
+            -target=aws_ecs_service.ig_service[0] \
             -var 'runtime_interface_vpc_endpoint_services=["ec2","ecr.api","ecr.dkr","execute-api","logs","sqs","ssm","sts"]' \
             -var "lambda_ig_package_s3_bucket=${{ inputs.package_bucket }}" \
             -var "lambda_ig_package_s3_key=${{ steps.bundle.outputs.package_key }}" \
-            -var "lambda_ig_package_sha256_base64=${{ steps.bundle.outputs.sha256_base64 }}"
+            -var "lambda_ig_package_sha256_base64=${{ steps.bundle.outputs.sha256_base64 }}" \
+            -var "ig_service_image_uri=${{ inputs.platform_image_uri }}" \
+            -var "ig_internal_retry_max_attempts=${{ inputs.ig_internal_retry_max_attempts }}" \
+            -var "ig_internal_retry_backoff_ms=${{ inputs.ig_internal_retry_backoff_ms }}" \
+            -var "lambda_ig_kafka_request_timeout_ms=${{ inputs.lambda_ig_kafka_request_timeout_ms }}" \
+            -var "ig_service_kafka_request_timeout_ms=${{ inputs.ig_service_kafka_request_timeout_ms }}" \
+            -var "ig_kafka_publish_retries=${{ inputs.ig_kafka_publish_retries }}"
 
       - name: Verify live ingress edge posture
         shell: bash
@@ -176,6 +213,22 @@ jobs:
               "--region", region,
               "--output", "json",
           ], text=True))
+          svc = json.loads(subprocess.check_output([
+              "aws", "ecs", "describe-services",
+              "--cluster", "fraud-platform-dev-full-ingress",
+              "--services", "fraud-platform-dev-full-ig-service",
+              "--region", region,
+              "--output", "json",
+          ], text=True))["services"][0]
+          task_def_arn = svc["taskDefinition"]
+          task_def = json.loads(subprocess.check_output([
+              "aws", "ecs", "describe-task-definition",
+              "--task-definition", task_def_arn,
+              "--region", region,
+              "--output", "json",
+          ], text=True))["taskDefinition"]
+          container = task_def["containerDefinitions"][0]
+          env_map = {row["name"]: row["value"] for row in container.get("environment", [])}
           api_key = json.loads(subprocess.check_output([
               "aws", "ssm", "get-parameter",
               "--name", os.environ["IG_API_KEY_SSM_PATH"],
@@ -196,8 +249,17 @@ jobs:
               "memory_size": cfg.get("MemorySize"),
               "timeout": cfg.get("Timeout"),
               "reserved_concurrency": cfg.get("ReservedConcurrentExecutions"),
+              "lambda_kafka_request_timeout_ms": (cfg.get("Environment", {}).get("Variables", {}) or {}).get("KAFKA_REQUEST_TIMEOUT_MS"),
               "vpc_subnet_count": len((cfg.get("VpcConfig") or {}).get("SubnetIds") or []),
               "vpc_security_group_count": len((cfg.get("VpcConfig") or {}).get("SecurityGroupIds") or []),
+              "ecs_service_task_definition": task_def_arn,
+              "ecs_service_running_count": svc.get("runningCount"),
+              "ecs_service_desired_count": svc.get("desiredCount"),
+              "ecs_service_image": container.get("image"),
+              "ecs_service_internal_retry_max_attempts": env_map.get("IG_INTERNAL_RETRY_MAX_ATTEMPTS"),
+              "ecs_service_internal_retry_backoff_ms": env_map.get("IG_INTERNAL_RETRY_BACKOFF_MS"),
+              "ecs_service_kafka_request_timeout_ms": env_map.get("KAFKA_REQUEST_TIMEOUT_MS"),
+              "ecs_service_kafka_publish_retries": env_map.get("KAFKA_PUBLISH_RETRIES"),
               "health_status_code": status_code,
               "health_mode": health.get("mode"),
               "health_service": health.get("service"),
@@ -212,9 +274,25 @@ jobs:
               raise SystemExit("Ingress Lambda VPC attachment missing.")
           if summary["health_status_code"] != 200:
               raise SystemExit("Ingress Lambda health check failed.")
+          if summary["ecs_service_image"] != os.environ["EXPECTED_PLATFORM_IMAGE_URI"]:
+              raise SystemExit("Ingress ECS service image drift remains.")
+          if summary["ecs_service_internal_retry_max_attempts"] != os.environ["EXPECTED_INTERNAL_RETRY_MAX_ATTEMPTS"]:
+              raise SystemExit("Ingress ECS internal retry attempt drift remains.")
+          if summary["ecs_service_internal_retry_backoff_ms"] != os.environ["EXPECTED_INTERNAL_RETRY_BACKOFF_MS"]:
+              raise SystemExit("Ingress ECS internal retry backoff drift remains.")
+          if summary["ecs_service_kafka_request_timeout_ms"] != os.environ["EXPECTED_SERVICE_KAFKA_REQUEST_TIMEOUT_MS"]:
+              raise SystemExit("Ingress ECS Kafka timeout drift remains.")
+          if summary["ecs_service_kafka_publish_retries"] != os.environ["EXPECTED_KAFKA_PUBLISH_RETRIES"]:
+              raise SystemExit("Ingress ECS Kafka retry drift remains.")
           if summary["health_mode"] != "apigw_lambda_ddb_kafka":
               raise SystemExit("Ingress Lambda health mode drift remains.")
           PY
+        env:
+          EXPECTED_PLATFORM_IMAGE_URI: ${{ inputs.platform_image_uri }}
+          EXPECTED_INTERNAL_RETRY_MAX_ATTEMPTS: ${{ inputs.ig_internal_retry_max_attempts }}
+          EXPECTED_INTERNAL_RETRY_BACKOFF_MS: ${{ inputs.ig_internal_retry_backoff_ms }}
+          EXPECTED_SERVICE_KAFKA_REQUEST_TIMEOUT_MS: ${{ inputs.ig_service_kafka_request_timeout_ms }}
+          EXPECTED_KAFKA_PUBLISH_RETRIES: ${{ inputs.ig_kafka_publish_retries }}
 
       - name: Sync ingress evidence to remote store
         if: always()

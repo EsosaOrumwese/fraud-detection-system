@@ -565,6 +565,8 @@ def _gate_for(platform_run_id: str) -> IngestionGate:
             auth_allowlist=[],
             service_token_secrets=[],
             api_key_header=str(os.getenv("IG_AUTH_HEADER_NAME", "X-IG-Api-Key")).strip() or "X-IG-Api-Key",
+            internal_retry_max_attempts=_env_int("IG_INTERNAL_RETRY_MAX_ATTEMPTS", 3),
+            internal_retry_backoff_ms=_env_int("IG_INTERNAL_RETRY_BACKOFF_MS", 250),
         )
         bus_probe_streams = _bus_probe_streams(wiring, partitioning, class_map)
         health = HealthProbe(

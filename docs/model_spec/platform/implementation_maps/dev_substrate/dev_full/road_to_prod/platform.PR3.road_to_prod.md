@@ -541,3 +541,16 @@ State closure:
 | Chosen correction | promote IG to a horizontally scaled ECS/Fargate service but reuse the managed-edge DDB/Kafka request logic rather than the older Postgres-backed service path | This removes the Lambda regional ceiling without weakening the trust boundary or inventing a different ingestion contract. |
 | Runtime placement | `WSP` stays a remote replay producer; `Managed Flink` stays downstream on `IEG/OFP/RTDL`; only the IG request-execution shell changes | The graph stays production-coherent instead of conflating stream processing with the ingress producer edge. |
 | Active next step | materialize reusable managed-edge HTTP service + ALB/ECS ingress endpoint, then rerun bounded `PR3-S1` from the same strict root | PR3 remains at `S1`; the open work is architecture correction followed by fresh evidence, not threshold waiver. |
+
+### 11.7 PR3-S1 Strict Rerun Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Gate outcome | strict rerun `22789024407` returned `HOLD_REMEDIATE`, `open_blockers=2` | `S1` is materially close, but still not certifiable. |
+| Throughput posture | target `3000.0 eps`; observed admitted throughput `2610.900 eps`; admitted count `4,699,620` over `1800 s` | The platform handled a large realistic steady window, but the real WSP replay width still under-drove the target by `389.1 eps`. |
+| Error posture | `4xx=0`, `5xx=26`, `5xx_rate_ratio=0.000006` | Failure is now rare, but strict production readiness still requires zero leaked `5xx` in the certified window. |
+| Latency posture | `p95=106.9998 ms`, `p99=141.5351 ms` against `350/700 ms` maxima | Tail latency is comfortably green; the residual defect is not latency saturation. |
+| Ingress fleet posture | ECS ingress stayed `32/32` healthy; CPU roughly `22%..25%` avg, `~31%` max; memory `~7.2%..7.9%` | The ingress plane itself still has substantial headroom and is not the limiting resource. |
+| Host-health posture | ALB healthy hosts stayed `32`, unhealthy hosts stayed `0` | The residual `5xx` leak is not caused by task churn or target health loss. |
+| Fault signature | sparse tail stalls exist while averages stay low; WSP/IG duplicate traces are consistent with retries after small transient failures | The remaining `5xx` leak looks like transient downstream publish/receipt instability rather than systemic platform overload. |
+| Config/code drift found | retry pins `IG_INTERNAL_RETRY_MAX_ATTEMPTS` and `IG_INTERNAL_RETRY_BACKOFF_MS` exist in env/Terraform but are not meaningfully wired into the admission hot path | The current resilience posture is weaker in reality than the pinned runtime contract suggests. |
+| Production conclusion | `S1` must stay open until both the resilience leak and the steady-volume shortfall are closed | The correct fix is hot-path resilience hardening plus wider horizontal WSP replay, not waivers or blind vertical scaling. |

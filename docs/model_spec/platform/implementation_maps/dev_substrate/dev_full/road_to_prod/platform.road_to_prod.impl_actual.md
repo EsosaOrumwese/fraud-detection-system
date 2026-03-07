@@ -6000,3 +6000,85 @@ Reasoning:
    - patch the canonical launch lane to pass `--ig-push-concurrency 4` and a larger HTTP pool,
    - rerun strict `PR3-S1`,
    - then decide if a further source multiplier or lane-count repin is actually needed.
+
+
+## Entry: 2026-03-07 02:20:00 +00:00 - PR3-S1 is now close enough that the remaining misses have to be treated as production-hardening defects, not generic blocker labels
+1. I inspected the full authoritative evidence from strict rerun `22789024407` instead of relying on the job-level failure bit. The actual steady-window result is:
+   - admitted throughput `2610.900 eps`,
+   - admitted count `4,699,620`,
+   - request count `4,699,646`,
+   - `4xx=0`,
+   - `5xx=26` in the current lane summary,
+   - `p95=106.9998 ms`,
+   - `p99=141.5351 ms`,
+   - window `1800 s`.
+2. The open blockers are now narrow and concrete:
+   - `PR3.S1.WSP.B19_FINAL_THROUGHPUT_SHORTFALL: observed=2610.900 target=3000.000`;
+   - `PR3.S1.WSP.B22_5XX_RATE_BREACH: observed=0.000006 max=0.000000`.
+3. I then checked live platform utilization during the same window because the correct production question is whether the platform itself was saturated. It was not:
+   - ingress ECS service stayed at `32/32` running tasks with no unhealthy hosts,
+   - ECS CPU averaged roughly `22%..25%`, maxing around `31%`,
+   - ECS memory stayed around `7.2%..7.9%`,
+   - ALB healthy-host count remained `32`, unhealthy-host count remained `0`.
+4. That means the residual throughput miss is not evidence that the ingress plane has reached its ceiling. The ingress fleet still has substantial headroom. The miss instead comes from the source side still under-driving the target steady lane.
+5. The production interpretation is therefore split:
+   - throughput miss: this is a horizontal replay-width issue on the real WSP producer path, not an ingress-capacity failure;
+   - 5xx leak: this is a resilience defect because a production-grade ingress edge should absorb transient downstream publish/receipt turbulence instead of surfacing even a tiny number of `503` responses during a five-million-request steady window.
+6. I investigated the 5xx leak further rather than jumping straight to lane-count inflation:
+   - ALB target errors are sparse and scattered, not correlated with unhealthy hosts or ingress CPU/memory saturation;
+   - some ALB minutes show long-tail single-request spikes (`TargetResponseTime max ~2.2s`) while average latency stays low;
+   - the duplicate pattern seen in IG logs is consistent with a small number of transient failures that are retried by WSP and then re-enter IG as clean duplicates after the original admission/publish path already succeeded.
+7. A real implementation defect also surfaced in the code/config boundary:
+   - `IG_INTERNAL_RETRY_MAX_ATTEMPTS` and `IG_INTERNAL_RETRY_BACKOFF_MS` are pinned into the runtime environment and Terraform surfaces;
+   - but the active admission path does not meaningfully use these knobs to harden the post-publish receipt/update boundary;
+   - in other words, we have been carrying resilience pins that were not actually wired into the hot path.
+8. Chosen production-grade remediation direction:
+   - wire the existing internal-retry envelope into the admission hot path for idempotent post-publish operations (especially the DDB admitted-state/receipt persistence boundary), because that is where transient failure can leak a `503` even after the event bus side-effect already happened;
+   - raise the service Kafka publish envelope modestly so transient broker/service jitter is absorbed inside IG instead of leaking outward;
+   - widen canonical PR3-S1 replay horizontally by lane count rather than by oversized per-lane compute, because that matches the actual distributed WSP producer model and preserves the production graph.
+9. Rejected shortcuts:
+   - scaling ingress service resources further right now, because the measured CPU/memory/host posture does not justify it;
+   - accepting the current run as "basically green", because the user-set standard is strict no-waiver production readiness;
+   - rerunning immediately with only a higher lane count, because that could hide the resilience leak instead of fixing it.
+10. Immediate execution sequence:
+   - append this evidence/decision boundary to implementation notes and logbook,
+   - patch the admission code so the pinned retry contract becomes real behavior,
+   - patch runtime Terraform/workflows so the live service picks up the strengthened ingress envelope and a fresh immutable image,
+   - repin canonical PR3-S1 replay width to the horizontal lane count that can actually prove `3000 eps`,
+   - rerun strict `PR3-S1` from the same upstream boundary and continue only from the new impact metrics.
+
+
+## Entry: 2026-03-07 02:28:00 +00:00 - The PR3-S1 resilience and replay-width correction boundary is now implemented in code and remote rollout surfaces
+1. I implemented the hot-path resilience fix in `src/fraud_detection/ingestion_gate/admission.py` rather than trying to paper over the remaining `503` leak with more source pressure. The key change is a new `_retry_idempotent(...)` helper that now wraps:
+   - duplicate receipt object writes,
+   - duplicate receipt-ref recording,
+   - admitted-state/receipt persistence for the hot `ddb_hot` path,
+   - admitted-state persistence for the object-store receipt path,
+   - `mark_receipt_failed(...)` on the failure boundary.
+2. This is deliberately scoped to idempotent post-publish operations only. I did **not** add naive application-level retries around `bus.publish(...)` itself because that would risk turning an already ambiguous publish boundary into duplicate event-bus side effects. That would be the wrong production tradeoff.
+3. I also wired the resilience pins back into the active runtime boundary:
+   - `src/fraud_detection/ingestion_gate/aws_lambda_handler.py` now passes `IG_INTERNAL_RETRY_MAX_ATTEMPTS` and `IG_INTERNAL_RETRY_BACKOFF_MS` into the managed-edge `SimpleNamespace` wiring that actually constructs `IngestionGate`;
+   - `src/fraud_detection/ingestion_gate/config.py` now carries the same fields in `WiringProfile` so the non-managed build path stays structurally aligned.
+4. On the runtime/IaC side I added the missing shared Kafka retry pin:
+   - new Terraform variable `ig_kafka_publish_retries` in `infra/terraform/dev_full/runtime/variables.tf` (default `5`);
+   - both Lambda IG and ECS service IG now consume this variable in `infra/terraform/dev_full/runtime/main.tf`;
+   - service Kafka request timeout default is repinned from `10000 ms` to `15000 ms`.
+5. On the execution-tooling side I corrected the rollout and rerun posture:
+   - `.github/workflows/dev_full_pr3_s1_managed.yml` now defaults canonical `PR3-S1` replay width to `32` lanes instead of `24`; this is the chosen horizontal replay pin for the `3000 eps` proof window because ingress headroom is already demonstrated and the 24-lane run under-drove the target;
+   - `.github/workflows/dev_full_pr3_ig_edge_materialize.yml` now accepts:
+     - immutable `platform_image_uri`,
+     - `ig_internal_retry_max_attempts`,
+     - `ig_internal_retry_backoff_ms`,
+     - Lambda/service Kafka timeout inputs,
+     - shared Kafka publish retry count;
+   - the same workflow now targets ECS ingress service materialization (`aws_ecs_task_definition.ig_service[0]`, `aws_ecs_service.ig_service[0]`) in addition to the Lambda edge, and performs live readback on the ECS task-definition environment to prove the expected pins actually landed.
+6. Local validation completed before any remote execution:
+   - `python -m py_compile` passed for the touched ingress modules;
+   - both workflow YAML files parse cleanly;
+   - `terraform -chdir=infra/terraform/dev_full/runtime fmt -check` passed.
+7. Production interpretation:
+   - the repo now contains a coherent fix boundary that matches the actual problem we measured;
+   - the next remaining task is not more local reasoning but remote realization:
+     - build fresh immutable image,
+     - roll the ingress edge to that image and the strengthened retry/publish envelope,
+     - rerun strict `PR3-S1` on the widened canonical replay width using the same image digest.

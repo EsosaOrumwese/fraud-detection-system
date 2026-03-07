@@ -224,6 +224,11 @@ variable "lambda_ig_kafka_request_timeout_ms" {
   default = 5000
 }
 
+variable "ig_kafka_publish_retries" {
+  type    = number
+  default = 5
+}
+
 variable "lambda_ig_policy_activation_audit_mode" {
   type    = string
   default = "store_only"
@@ -306,7 +311,7 @@ variable "ig_service_request_timeout_ms" {
 
 variable "ig_service_kafka_request_timeout_ms" {
   type    = number
-  default = 10000
+  default = 15000
 }
 
 variable "ig_service_receipt_storage_mode" {
