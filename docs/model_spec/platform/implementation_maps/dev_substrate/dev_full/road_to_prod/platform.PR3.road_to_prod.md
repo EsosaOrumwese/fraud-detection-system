@@ -197,11 +197,25 @@ S2 planning expansion (execution checklist):
 1. burst lock:
    - enforce burst duration and min events from charter.
 2. backpressure lock:
-   - include lag-growth slope and sink backlog-growth evidence.
+   - include run-scoped EKS worker samples throughout the active burst window, not just a single post-window read.
+   - authoritative downstream surfaces for this state are:
+     - `RUNSCOPED_IEG_BACKPRESSURE_HITS`,
+     - `RUNSCOPED_OFP_LAG_SECONDS`,
+     - `RUNSCOPED_IEG_OFP_DLA_CHECKPOINT_AGE_SECONDS`,
+     - `RUNSCOPED_ARCHIVE_BACKLOG_EVENTS`,
+     - `RUNSCOPED_DF_AL_PUBLISH_QUARANTINE_TOTAL`.
 3. archive lock:
-   - map archive sink design assumptions to observed burst behavior.
+   - map archive sink design assumptions to observed burst behavior from `seen_total`, `archived_total`, `payload_mismatch_total`, and `write_error_total`.
+   - backlog visibility is mandatory; silent sink pressure is a blocker.
 4. rerun lock:
    - burst-only failures rerun `S2`; no full-chain rerun.
+5. threshold lock:
+   - ingress burst target remains `6000 eps` on the same canonical remote `WSP -> IG` path.
+   - hot-path burst thresholds remain fail-closed at `p95<=350 ms`, `p99<=700 ms`, `5xx=0`, and `error_rate<=0.002`.
+   - bounded-degrade still forbids red worker health, new `DF/AL` quarantine/fail-closed growth, new `DLA` append/replay divergence growth, and new archive write/payload mismatch growth.
+6. runtime-shape lock:
+   - materialize a fresh `platform_run_id` / `scenario_run_id` on the EKS runtime before every `S2` execution.
+   - do not certify burst from ingress-only evidence or from inactive MSF/Flink placeholders.
 
 ### S3 - Recovery Profile Certification Window
 Objective:

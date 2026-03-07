@@ -6744,3 +6744,71 @@ eason=http_502,
    - define the burst profile setpoint and duration from the active RC2-S contract,
    - identify the authoritative burst metric surfaces for throughput, 4xx/5xx, latency, and backlog/lag,
    - prove archive/backpressure behavior instead of merely inferring it from ingress counts.
+## Entry: 2026-03-07 06:35:00 +00:00 - PR3-S2 must be repinned onto the real EKS downstream runtime surfaces before burst evidence is valid
+1. I inspected the current `PR3` execution surfaces instead of assuming the old `S0` surface map was still valid after the `S1` ingress remediation.
+2. The current authority drift is concrete:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr3_20260306T021900Z/g3a_measurement_surface_map.json` still declares `consumer_lag = MSK_CONSUMER_LAG` and `checkpoint_health = FLINK_CHECKPOINT_METRICS`.
+   - The live runtime currently under test for `PR3` is the EKS worker lane materialized by `scripts/dev_substrate/pr3_rtdl_materialize.py`, not a running Flink/MSF topology for the hot path.
+   - AWS confirms the only MSF application present is the RTDL shell app while the materially active workers are the EKS deployments `fp-pr3-ieg`, `fp-pr3-ofp`, `fp-pr3-df`, `fp-pr3-al`, `fp-pr3-dla`, and `fp-pr3-archive-writer`.
+3. Why this matters for production readiness:
+   - `PR3-S2` is meant to prove burst handling, bounded degradation, and archive/backpressure posture of the actual platform path that would carry the traffic.
+   - Certifying burst on `via_IG` while reading lag/checkpoint health from an inactive or non-authoritative surface would produce a false green and directly violate the user's requirement that every state be judged by impact metrics on the real path.
+4. I then inspected the runtime code to enumerate the real downstream impact surfaces already emitted by the running components:
+   - `IEG` writes run-scoped health/metrics including `backpressure_hits`, checkpoint age, watermark age, and apply-failure posture.
+   - `OFP` writes run-scoped health/metrics including `lag_seconds`, `watermark_age_seconds`, `checkpoint_age_seconds`, `snapshot_failures`, and `missing_features`.
+   - `DLA` writes run-scoped health/metrics including `checkpoint_age_seconds`, `quarantine_total`, `append_failure_total`, and `replay_divergence_total`.
+   - `Archive Writer` writes run-scoped health/metrics including `seen_total`, `archived_total`, `duplicate_total`, `payload_mismatch_total`, and `write_error_total`.
+   - `DF` and `AL` already emit decision-path observability and quarantine counters suitable for bounded-degrade interpretation.
+5. Important runtime fact discovered during live inspection:
+   - those artifacts are written under each pod's own `runs/fraud-platform/<platform_run_id>/...` tree,
+   - there is no shared-volume collector already present for `PR3`,
+   - therefore `S2` needs an explicit collector that queries each live pod for the run-scoped JSON artifacts instead of pretending a single central report already exists.
+6. Threshold posture for `S2`:
+   - the pre-design document still leaves lag/checkpoint/backpressure numerics as `TBD`, which is not acceptable for fail-closed production execution,
+   - however the runtime components already encode health thresholds that represent the current material behavior envelope:
+     - `OFP` default amber/red watermark and checkpoint thresholds are `120s/300s`,
+     - `DLA` default amber/red checkpoint thresholds are `120s/300s` with append-failure and replay-divergence red at very low counts,
+     - `IEG` records backpressure directly and exposes checkpoint/watermark ages via its query health payload.
+7. Production-minded choice:
+   - keep ingress burst proof on the canonical remote `WSP -> IG` path,
+   - repin downstream burst measurement to the real EKS worker artifacts,
+   - use a fresh run identity for `S2`,
+   - capture baseline and post-window snapshots from every active worker component,
+   - derive bounded-degrade verdicts from explicit impact metrics: admitted EPS, p95/p99 latency, 4xx/5xx, IEG backpressure delta, OFP lag/checkpoint delta, DLA append/quarantine/divergence delta, and archive sink backlog delta (`seen_total - archived_total`).
+8. Chosen acceptance frame for `S2` before implementation:
+   - ingress burst must achieve the declared burst target on the authoritative edge surface with no 5xx and the same hot-path latency/error discipline as `S1` unless the burst-specific threshold is explicitly stricter in the state doc,
+   - downstream components may degrade under burst only within bounded, explicitly measured posture,
+   - archive backlog may rise during the burst, but it must remain observable, non-divergent, and free of write/payload mismatch errors,
+   - no waivers: any missing component artifact, unreadable surface, or threshold miss is a blocker to be remediated, not excused.
+9. Implementation plan chosen from this diagnosis:
+   - update the `PR3` plan and readable summaries so `S2` explicitly states the real measurement surfaces and the burst acceptance metrics,
+   - create a run-scoped EKS runtime snapshot collector for `IEG/OFP/DF/AL/DLA/Archive Writer`,
+   - create a dedicated `PR3-S2` workflow that materializes a fresh runtime identity, captures pre-burst state, runs the canonical remote burst window, captures post-burst state, synthesizes scorecards, and emits deterministic blocker codes and receipts,
+   - keep rerun boundaries state-local (`S2` only) if burst/backpressure remediation is needed.
+## Entry: 2026-03-07 06:40:00 +00:00 - The first live EKS collector smoke exposed a semantic trap: event-time watermark age is not a valid production gate for historical oracle replay, so PR3-S2 must judge processing freshness by checkpoint age and lag instead
+1. I ran the new EKS runtime snapshot collector against the currently materialized PR3 runtime (`platform_20260307T035824Z`) before dispatching the real burst window.
+2. The smoke succeeded mechanically, which proves the collector can read the run-scoped pod-local artifacts from the live EKS workers.
+3. The smoke also exposed an important interpretation problem that would have produced a false red if left uncorrected:
+   - `IEG` and `OFP` report `WATERMARK_TOO_OLD` with values on the order of millions of seconds,
+   - those watermarks are derived from the historical event timestamps in the oracle replay window, not from current wall-clock arrival,
+   - because the certification data window is intentionally historical, comparing event-time watermark directly to wall clock will always look stale even when the pipeline is processing correctly.
+4. Production interpretation:
+   - for a live bank platform, watermark-vs-now can be meaningful when the input stream is also live-now,
+   - for this certification method, where real historical data is being replayed at production-equivalent throughput, the correct freshness question is not “is the event timestamp near wall clock now?” but “is the runtime advancing and checkpointing within bounded processing delay while preserving the event-time ordering semantics of the replay?”
+5. Therefore the production-valid `S2` gates must be narrowed to the signals that still truthfully measure health under historical replay:
+   - `checkpoint_age_seconds` (processing freshness),
+   - `lag_seconds` where emitted by the component,
+   - incrementing error / quarantine / fail-closed counters,
+   - `IEG backpressure_hits` growth,
+   - archive sink backlog and write/payload mismatch deltas.
+6. I am explicitly rejecting a lazy alternative here:
+   - rejecting every run because watermark age is old relative to wall clock would not make the platform more production ready,
+   - it would simply confuse event-time semantics with processing-freshness semantics and block valid throughput proof forever.
+7. Additional smoke findings that matter for the next execution:
+   - `DF` already showed prior fail-closed/quarantine counts on the old run, so `S2` must evaluate deltas from a fresh pre-burst baseline instead of absolute counters,
+   - `Archive Writer` showed a large old `write_error_total`, which again means delta-based interpretation on the fresh run is mandatory,
+   - `AL` and `DLA` artifacts were absent on the stale run, so the rollup must treat unreadable/missing post-burst artifacts as blockers, but not fail the pre-burst baseline simply because no events have flowed yet.
+8. Immediate implementation changes from this finding:
+   - the burst rollup will stop using raw `health_state == RED` as the generic gate for `IEG/OFP/DLA`,
+   - it will instead use explicit numeric processing-freshness and correctness counters/deltas that remain meaningful under historical replay,
+   - the readable findings for `S2` will state this clearly so the production claim remains honest and auditable.
