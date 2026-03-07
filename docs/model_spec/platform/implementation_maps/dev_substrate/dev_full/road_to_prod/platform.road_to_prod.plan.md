@@ -388,6 +388,19 @@ This plan's intent is satisfied only when:
 | Capacity-accounting note | first repinned attempt hit Fargate vCPU contention because ingress consumed `128 / 140 vCPU`; quota-safe rerun used `44` lanes at `256 CPU` | Account headroom, not platform hot-path collapse, was the reason the first stronger burst launch failed. |
 | Production interpretation | the next remediation belongs at the pre-burst warm boundary and, if needed, ingress/right-sizing or replay-shape tuning; it does not belong in waiving the p99/DF defects | PR3-S2 now has a specific, production-meaningful closure target: settled-burst timing with DF-current-run correctness and `6000 eps` throughput intact. |
 
+### 10.16 PR3-S2 Warmed-Rerun Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Gate outcome | latest warmed receipt is `HOLD_REMEDIATE`, `open_blockers=2`, `next_state=PR3-S2` | The warmup remediation materially improved the state and removed the startup-boundary defects, but S2 is still not closed. |
+| Attempt-scope integrity | active attempt `platform_20260307T154847Z`; `13` snapshots selected; `0` excluded | This rerun is attempt-pure and fully auditable from the downloaded GitHub artifact. |
+| Burst goal vs observed throughput | target `6000 eps`; observed admitted throughput `4675.573 eps`; observed request throughput `4675.577 eps` | Warmup improved stability, but the platform still falls short of the required production burst rate by about `1324 eps`. |
+| Error posture | `4xx_total=0`, `5xx_total=1`, `error_rate_ratio=7.13e-07` | Transport remained almost perfectly clean; one residual `5xx` is enough to keep the state red because burst policy is fail-closed at `5xx=0`. |
+| Latency posture | ALB latency `p95=138.30 ms`, `p99=189.09 ms` against maxima `<=350 ms`, `<=700 ms` | The warmup fix successfully removed the p99 tail defect; latency is now comfortably inside contract. |
+| RTDL posture | `IEG backpressure delta=0`; `OFP lag p95=0.0107s`; `IEG checkpoint age p95=0.0604s`; `DLA checkpoint age p95=0.7645s`; `DF fail_closed/quarantine deltas=0` | The real-time decision-learning plane is no longer the active limiter for this state. |
+| Ingress fleet posture | ECS ingress CPU averaged about `52..53%`; memory about `21.9%` during the measured window | The front door is not presenting as a broad saturation collapse, which shifts attention to replay-shape and residual code-path defects. |
+| Residual 5xx root cause | ingress log traceback pins the lone `5xx` to `MetricsRecorder.flush_if_due()` mutating over a live dict (`dictionary changed size during iteration`) | This is a concrete IG thread-safety bug, not a mystery overload symptom; it must be fixed and rerun. |
+| Production interpretation | the next remediation is twofold: remove the metrics-race 5xx and then push the remaining throughput ceiling with a justified replay or ingress-shape change | S2 is much closer to closure, but it is still not production-ready until both the reliability floor and the `6000 eps` target are met simultaneously. |
+
 ## 11) Required TBD Closure Sheet (Binding)
 This section defines the mandatory closure routing for unresolved targets in:
 1. `docs/model_spec/platform/pre-design_decisions/dev-full_road-to-production-ready.md` Section 15.1 (open decisions `OD-01..OD-09`).

@@ -7920,3 +7920,46 @@ ot ready because pods are broken from eady to accept first traffic on a fresh r
 4. This is an execution-surface repin, not the final production architecture pin:
    - longer-term ingress right-sizing remains a real production item because `32 x 4 vCPU` is excessive for the observed service utilization,
    - but for the current PR3-S2 closure lane, the workflow must first be runnable and measure settled behavior rather than fail in the launcher.
+## Entry: 2026-03-07 16:03:00 +00:00 - Same-run warmup cleared the tail-latency and DF correctness defects, leaving only a real throughput gap and one residual 5xx
+1. The strict warmed rerun on `platform_run_id=platform_20260307T154847Z` completed successfully and produced a materially better `S2` receipt:
+   - admitted throughput `4675.573 eps`,
+   - `4xx=0`, `5xx=1`,
+   - latency `p95=138.30 ms`, `p99=189.09 ms`,
+   - DF fail-closed/quarantine deltas both `0`.
+2. This proves the warmup correction did the job it was designed to do:
+   - the first-minute `p99` spike is gone,
+   - the prior DF context-wait/fail-close artifact is gone,
+   - RTDL backpressure remains green (`IEG/OFP/DLA` all well inside posture).
+3. The state is still red, but for a much cleaner reason set:
+   - one target-side `5xx`,
+   - a sustained burst throughput ceiling at about `4676 eps`.
+4. Additional live evidence gathered during this rerun:
+   - ingress service CPU sat around `52..53%` during the measured window,
+   - memory sat around `21.9%`,
+   - ALB per-minute `p95/p99` stayed stable across the whole measured window,
+   - the single `5xx` occurred in the final minute (`15:59 UTC`), not in the startup boundary.
+5. Production interpretation:
+   - ingress is not presenting as a broad saturation failure,
+   - the remaining work belongs to removing the concrete `5xx` defect and then determining whether the burst ceiling is replay-fleet-limited or ingress-shape-limited.
+## Entry: 2026-03-07 16:07:00 +00:00 - The residual PR3-S2 5xx is a thread-safety defect in IG metrics flushing, not a capacity symptom
+1. I traced the lone `5xx` to the ingress service logs for the exact run window. The failure is precise:
+   - `ig_publish_failure`,
+   - `reason="dictionary changed size during iteration"`,
+   - traceback lands in `ingestion_gate.metrics.MetricsRecorder.flush_if_due()`.
+2. The exception path is:
+   - `aws_lambda_handler.lambda_handler()`,
+   - `admission._admit_event()`,
+   - `self.metrics.flush_if_due(...)`,
+   - comprehension over `self.latencies.items()` while other request threads are still appending latency samples.
+3. Production interpretation:
+   - this is not an overload 5xx,
+   - it is a concurrency bug in process-local observability code,
+   - leaving it in place would invalidate any "high-eps ready" claim because one threaded race is enough to drop requests under load.
+4. Chosen correction:
+   - add a lock to `MetricsRecorder`,
+   - snapshot and clear counters/latencies under the lock,
+   - log the frozen snapshot outside the critical section,
+   - preserve the existing operator-visible metrics contract while making it thread-safe.
+5. Added proof:
+   - new concurrency regression test in `tests/services/ingestion_gate/test_metrics.py`,
+   - targeted validation passes together with the PR3 dispatcher/rollup tests.
