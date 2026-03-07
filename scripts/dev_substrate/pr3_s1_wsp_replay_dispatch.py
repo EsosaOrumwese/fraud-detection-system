@@ -730,6 +730,11 @@ def main() -> None:
         help="Allow PR3-S1 to reuse a platform_run_id that already has persisted IG state.",
     )
     ap.add_argument(
+        "--skip-runtime-identity-probe",
+        action="store_true",
+        help="Skip the runner-local platform_run_id probe when the workflow already performed an in-VPC preflight.",
+    )
+    ap.add_argument(
         "--oracle-engine-run-root",
         default="s3://fraud-platform-dev-full-object-store/oracle-store/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1",
     )
@@ -856,18 +861,27 @@ def main() -> None:
     lane_count = max(1, int(args.lane_count))
     resolved_platform_run_id = str(args.platform_run_id).strip() or f"platform_{checkpoint_attempt_id}"
     resolved_scenario_run_id = str(args.scenario_run_id).strip() or f"scenario_{checkpoint_attempt_id.lower()}"
-    identity_probe = probe_platform_run_identity_usage(wsp_checkpoint_dsn, resolved_platform_run_id)
-    reused_runtime_identity = (
-        int(identity_probe.get("admissions_count", 0) or 0) > 0
-        or int(identity_probe.get("receipts_count", 0) or 0) > 0
-    )
-    if reused_runtime_identity and not args.allow_runtime_identity_reuse:
-        raise RuntimeError(
-            "PR3.S1.WSP.B26_RUNTIME_ID_REUSED:"
-            f"platform_run_id={resolved_platform_run_id}:"
-            f"admissions={int(identity_probe.get('admissions_count', 0) or 0)}:"
-            f"receipts={int(identity_probe.get('receipts_count', 0) or 0)}"
+    if args.skip_runtime_identity_probe:
+        identity_probe = {
+            "platform_run_id": resolved_platform_run_id,
+            "probe_mode": "skipped_runner_local_probe",
+            "admissions_count": None,
+            "receipts_count": None,
+            "tables_present": {},
+        }
+    else:
+        identity_probe = probe_platform_run_identity_usage(wsp_checkpoint_dsn, resolved_platform_run_id)
+        reused_runtime_identity = (
+            int(identity_probe.get("admissions_count", 0) or 0) > 0
+            or int(identity_probe.get("receipts_count", 0) or 0) > 0
         )
+        if reused_runtime_identity and not args.allow_runtime_identity_reuse:
+            raise RuntimeError(
+                "PR3.S1.WSP.B26_RUNTIME_ID_REUSED:"
+                f"platform_run_id={resolved_platform_run_id}:"
+                f"admissions={int(identity_probe.get('admissions_count', 0) or 0)}:"
+                f"receipts={int(identity_probe.get('receipts_count', 0) or 0)}"
+            )
     target_request_rate_eps = float(args.target_request_rate_eps) if float(args.target_request_rate_eps) > 0.0 else float(
         args.expected_steady_eps
     )

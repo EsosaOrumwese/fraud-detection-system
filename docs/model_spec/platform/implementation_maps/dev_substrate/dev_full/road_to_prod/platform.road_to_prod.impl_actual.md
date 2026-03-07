@@ -6441,3 +6441,28 @@ eason=http_502,
    - patch the `steady_harness` job install surface,
    - push,
    - rerun on the same fresh runtime identity pair.
+
+## Entry: 2026-03-07 04:31:00 +00:00 - Runtime-identity reuse probing must execute from inside the VPC, not from the GitHub-hosted runner
+1. Once the launcher could import `psycopg`, the next failure was a private-network reality check:
+   - `psycopg.errors.ConnectionTimeout: connection timeout expired`
+2. This happened during the Aurora-backed runtime-identity probe, before any remote replay dispatch.
+3. Root cause:
+   - the GitHub-hosted runner is outside the VPC,
+   - Aurora is private,
+   - so a direct runner-to-Aurora probe is the wrong control-plane shape for this environment.
+4. Production interpretation:
+   - the identity reuse guard itself is still correct and necessary,
+   - but the execution location of that guard must respect the private-network boundary,
+   - exposing Aurora to GitHub-hosted runners would be the wrong production move.
+5. Chosen remediation:
+   - run the identity probe from inside the VPC using an already-ready PR3 pod (`kubectl exec` on a runtime deployment),
+   - keep the database check fail-closed,
+   - teach the dispatcher to skip its runner-local probe when the workflow has already completed the in-VPC preflight.
+6. Why this is the correct production fix:
+   - private data-plane surfaces remain private,
+   - CI still gets deterministic identity-guard enforcement,
+   - and the guard is executed from a runtime surface that already has the right network reachability.
+7. Immediate next sequence:
+   - add workflow step for in-VPC identity probing,
+   - add dispatcher flag to skip the local probe when that preflight has passed,
+   - rerun strict `PR3-S1` on the same fresh identity pair.

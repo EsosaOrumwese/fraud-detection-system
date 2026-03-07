@@ -581,6 +581,64 @@ jobs:
           echo "platform_run_id=${PLATFORM_RUN_ID}" >> "$GITHUB_OUTPUT"
           echo "scenario_run_id=${SCENARIO_RUN_ID}" >> "$GITHUB_OUTPUT"
 
+      - name: Probe runtime identity from inside VPC
+        shell: bash
+        env:
+          EKS_NAMESPACE: ${{ inputs.eks_namespace }}
+          PLATFORM_RUN_ID: ${{ steps.runtime_identity.outputs.platform_run_id }}
+        run: |
+          set -euo pipefail
+          POD_NAME="$(kubectl get pods -n "${EKS_NAMESPACE}" -l app=fp-pr3-df -o jsonpath='{.items[0].metadata.name}')"
+          if [[ -z "${POD_NAME}" ]]; then
+            echo "PR3.S1.WSP.B27_IDENTITY_PROBE_POD_MISSING"
+            exit 1
+          fi
+          kubectl exec -n "${EKS_NAMESPACE}" "${POD_NAME}" -- env PLATFORM_RUN_ID="${PLATFORM_RUN_ID}" python - <<'PY'
+          import json
+          import os
+          import psycopg
+
+          platform_run_id = os.environ["PLATFORM_RUN_ID"].strip()
+          dsn = os.environ["DF_CHECKPOINT_DSN"].strip()
+          if not platform_run_id:
+              raise SystemExit("PR3.S1.WSP.B27_RUNTIME_ID_EMPTY")
+          if not dsn:
+              raise SystemExit("PR3.S1.WSP.B27_DSN_EMPTY")
+
+          counts = {}
+          with psycopg.connect(dsn, autocommit=True) as conn:
+              with conn.cursor() as cur:
+                  for table in ("admissions", "receipts"):
+                      cur.execute("SELECT to_regclass(%s)", (f"public.{table}",))
+                      row = cur.fetchone()
+                      if not row or not row[0]:
+                          counts[table] = 0
+                          continue
+                      cur.execute(f"SELECT COUNT(*) FROM public.{table} WHERE platform_run_id = %s", (platform_run_id,))
+                      value = cur.fetchone()
+                      counts[table] = int(value[0] or 0) if value else 0
+
+          if counts["admissions"] > 0 or counts["receipts"] > 0:
+              raise SystemExit(
+                  "PR3.S1.WSP.B26_RUNTIME_ID_REUSED:"
+                  f"platform_run_id={platform_run_id}:"
+                  f"admissions={counts['admissions']}:"
+                  f"receipts={counts['receipts']}"
+              )
+
+          print(
+              json.dumps(
+                  {
+                      "platform_run_id": platform_run_id,
+                      "probe_mode": "in_vpc_kubectl_exec",
+                      "admissions_count": counts["admissions"],
+                      "receipts_count": counts["receipts"],
+                  },
+                  indent=2,
+              )
+          )
+          PY
+
       - name: Launch canonical remote WSP replay
         shell: bash
         env:
@@ -631,6 +689,7 @@ jobs:
             --stream-speedup "${STREAM_SPEEDUP}" \
             --max-latency-p95-ms 350 \
             --max-latency-p99-ms 700 \
+            --skip-runtime-identity-probe \
             "${EXTRA_ARGS[@]}"
 
       - name: Build PR3-S1 steady evidence rollup
