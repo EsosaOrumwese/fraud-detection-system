@@ -424,6 +424,131 @@ jobs:
               fh.write("registered_new_revision=true\n")
           PY
 
+      - name: Repin live ingress ECS service to resolved image
+        id: repin_ingress_service
+        shell: bash
+        env:
+          ECS_CLUSTER: fraud-platform-dev-full-ingress
+          ECS_SERVICE: fraud-platform-dev-full-ig-service
+          IMAGE_URI: ${{ steps.platform_image.outputs.image_uri }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          import tempfile
+
+          region = "${{ inputs.aws_region }}"
+          cluster = os.environ["ECS_CLUSTER"]
+          service = os.environ["ECS_SERVICE"]
+          image_uri = os.environ["IMAGE_URI"]
+
+          def aws_json(args):
+              proc = subprocess.run(
+                  ["aws", *args, "--region", region, "--output", "json"],
+                  check=True,
+                  capture_output=True,
+                  text=True,
+              )
+              return json.loads(proc.stdout or "{}")
+
+          service_desc = aws_json(["ecs", "describe-services", "--cluster", cluster, "--services", service])
+          services = service_desc.get("services") or []
+          if not services:
+              raise SystemExit(f"ECS service not found: {cluster}/{service}")
+          service_row = services[0]
+          task_definition = str(service_row.get("taskDefinition") or "").strip()
+          if not task_definition:
+              raise SystemExit(f"ECS service {cluster}/{service} has no task definition.")
+          task_def_desc = aws_json(["ecs", "describe-task-definition", "--task-definition", task_definition, "--include", "TAGS"])
+          task_def = dict(task_def_desc.get("taskDefinition") or {})
+          current_images = [str(cd.get("image") or "").strip() for cd in list(task_def.get("containerDefinitions") or [])]
+          task_definition_arn = str(task_def.get("taskDefinitionArn") or "").strip()
+
+          if current_images and all(image == image_uri for image in current_images):
+              subprocess.run(
+                  ["aws", "ecs", "wait", "services-stable", "--cluster", cluster, "--services", service, "--region", region],
+                  check=True,
+                  capture_output=True,
+                  text=True,
+              )
+              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+                  fh.write(f"task_definition_arn={task_definition_arn}\n")
+                  fh.write("registered_new_revision=false\n")
+              raise SystemExit(0)
+
+          allowed_fields = [
+              "family",
+              "taskRoleArn",
+              "executionRoleArn",
+              "networkMode",
+              "containerDefinitions",
+              "volumes",
+              "placementConstraints",
+              "requiresCompatibilities",
+              "cpu",
+              "memory",
+              "pidMode",
+              "ipcMode",
+              "proxyConfiguration",
+              "inferenceAccelerators",
+              "ephemeralStorage",
+              "runtimePlatform",
+          ]
+          register_payload = {key: task_def[key] for key in allowed_fields if key in task_def}
+          containers = list(register_payload.get("containerDefinitions") or [])
+          for container in containers:
+              container["image"] = image_uri
+          register_payload["containerDefinitions"] = containers
+          tags = task_def_desc.get("tags") or []
+          if tags:
+              register_payload["tags"] = tags
+
+          with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as tmp:
+              json.dump(register_payload, tmp)
+              tmp.write("\n")
+              tmp_path = tmp.name
+
+          registered = aws_json(["ecs", "register-task-definition", "--cli-input-json", f"file://{tmp_path}"])
+          new_task_definition_arn = str((registered.get("taskDefinition") or {}).get("taskDefinitionArn") or "").strip()
+          if not new_task_definition_arn:
+              raise SystemExit("Ingress repin did not return a new task definition arn.")
+
+          subprocess.run(
+              [
+                  "aws", "ecs", "update-service",
+                  "--cluster", cluster,
+                  "--service", service,
+                  "--task-definition", new_task_definition_arn,
+                  "--force-new-deployment",
+                  "--region", region,
+                  "--output", "json",
+              ],
+              check=True,
+              capture_output=True,
+              text=True,
+          )
+          subprocess.run(
+              ["aws", "ecs", "wait", "services-stable", "--cluster", cluster, "--services", service, "--region", region],
+              check=True,
+              capture_output=True,
+              text=True,
+          )
+
+          verified = aws_json(["ecs", "describe-services", "--cluster", cluster, "--services", service])
+          verified_service = (verified.get("services") or [{}])[0]
+          verified_task_definition = str(verified_service.get("taskDefinition") or "").strip()
+          if verified_task_definition != new_task_definition_arn:
+              raise SystemExit(
+                  "Ingress service did not converge to the repinned task definition: "
+                  f"expected={new_task_definition_arn} observed={verified_task_definition}"
+              )
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"task_definition_arn={new_task_definition_arn}\n")
+              fh.write("registered_new_revision=true\n")
+          PY
+
       - name: Materialize fresh PR3 runtime identity on EKS
         shell: bash
         run: |

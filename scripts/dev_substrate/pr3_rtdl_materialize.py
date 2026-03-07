@@ -444,6 +444,7 @@ def main() -> int:
         "OBJECT_STORE_REGION": args.region,
         "PLATFORM_RUN_ID": args.platform_run_id,
         "ACTIVE_PLATFORM_RUN_ID": args.platform_run_id,
+        "DL_SCENARIO_RUN_ID": args.scenario_run_id,
         "AL_SCENARIO_RUN_ID": args.scenario_run_id,
         "DLA_SCENARIO_RUN_ID": args.scenario_run_id,
         "CSFB_REQUIRED_PLATFORM_RUN_ID": args.platform_run_id,
@@ -578,6 +579,11 @@ def main() -> int:
             "command": ["python", "-m", "fraud_detection.degrade_ladder.worker", "--profile", args.profile_path],
             "env": common_secret_env
             + [
+                env_ref("DL_SCENARIO_RUN_ID", secret_name, "DL_SCENARIO_RUN_ID"),
+                env_ref("CSFB_PROJECTION_DSN", secret_name, "CSFB_PROJECTION_DSN"),
+                env_ref("IEG_PROJECTION_DSN", secret_name, "IEG_PROJECTION_DSN"),
+                env_ref("OFP_PROJECTION_DSN", secret_name, "OFP_PROJECTION_DSN"),
+                env_ref("OFP_SNAPSHOT_INDEX_DSN", secret_name, "OFP_SNAPSHOT_INDEX_DSN"),
                 env_ref("DL_POSTURE_DSN", secret_name, "DL_POSTURE_DSN"),
                 env_ref("DL_OUTBOX_DSN", secret_name, "DL_OUTBOX_DSN"),
                 env_ref("DL_OPS_DSN", secret_name, "DL_OPS_DSN"),

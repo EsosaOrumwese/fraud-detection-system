@@ -7998,3 +7998,74 @@ ot ready because pods are broken from eady to accept first traffic on a fresh r
    - no local orchestration of runtime lanes,
    - no manual hidden repins,
    - one auditable workflow run that both selects and proves the active image boundary.
+## Entry: 2026-03-07 16:40:00 +00:00 - Latest strict PR3-S2 rerun proved the remaining red lane is mixed deployment drift plus RTDL decision-surface contract drift
+1. The strict warmed rerun from workflow `22802557396` produced these authoritative impact metrics for `platform_run_id=platform_20260307T161800Z`:
+   - admitted throughput `4634.4 eps` against target `6000 eps`,
+   - request throughput `4634.403 eps`,
+   - `4xx=0`, `5xx=1`,
+   - latency `p95=136.08 ms`, `p99=189.41 ms`,
+   - DF deltas `fail_closed_total=+1`, `publish_quarantine_total=+1`.
+2. Production verdict for the state is still negative:
+   - reliability is not yet clean because even one request-drop defect invalidates a high-EPS claim,
+   - throughput is still materially below the burst target,
+   - RTDL decision participation remains incomplete because DF still emitted one fail-closed/quarantine.
+3. Two follow-up investigations were required before changing anything else:
+   - verify whether the ingress service that serves the real edge is actually running the same branch digest as WSP/EKS,
+   - verify whether DL's apparent replay-health failure is a logic defect or a runtime contract defect.
+4. Live control-surface evidence confirmed ingress drift remains:
+   - WSP ECS family is on branch digest `sha256:51cc792d74dcb9891454657c4a89c058fe485367e4d20358dd1276f040390808`,
+   - the live ingress ECS service `fraud-platform-dev-full-ig-service` is still on older digest `sha256:843750a949a94a5a0eaf984ce231c0e91e3ced0032b1f3b0bfa4af81514aeb64`,
+   - so the single residual `5xx` has not yet been tested against the fixed ingress branch image.
+5. Production decision from this evidence:
+   - before interpreting any more PR3-S2 throughput or reliability numbers, the workflow must repin the ingress ECS service to the current audited branch image and wait for steady state.
+## Entry: 2026-03-07 16:46:00 +00:00 - DL replay fail-close is not a policy problem; it is an incomplete shared-surface env contract in RTDL materialization
+1. I first verified the source logic rather than assuming the DL policy needed to be relaxed. The current `degrade_ladder.worker` already does the production-correct thing on the shared path:
+   - `IEG` and `OFP` are evaluated by checkpoint freshness and correctness counters,
+   - replay watermark age is not used to fail-close the shared status path.
+2. That means the runtime symptom (`eb_consumer_lag=ERROR`, `ieg_health=ERROR`, `ofp_health=ERROR`) must come from the shared readers not being available at runtime.
+3. Live proof from `kubectl exec` inside the active DL pod:
+   - `worker._shared_csfb_snapshot() -> null`,
+   - `worker._shared_ieg_status() -> null`,
+   - `worker._shared_ofp_status() -> null`.
+4. Directly invoking the shared readers in the pod exposed the concrete fault:
+   - `IdentityGraphQuery.from_profile('/runtime-profile/dev_full.yaml')` fails with `ValueError('PLATFORM_RUN_ID required to resolve projection_db_dsn.')`,
+   - `OfpObservabilityReporter.build('/runtime-profile/dev_full.yaml')` fails with `ValueError('PLATFORM_RUN_ID required to resolve OFP projection_db_dsn.')`.
+5. Root cause is not absence of `PLATFORM_RUN_ID` itself. `pr3_rtdl_materialize.py` injects `PLATFORM_RUN_ID`, but the DL pod does not receive the projection/index DSN envs that the shared readers need:
+   - `CSFB_PROJECTION_DSN`,
+   - `IEG_PROJECTION_DSN`,
+   - `OFP_PROJECTION_DSN`,
+   - `OFP_SNAPSHOT_INDEX_DSN`.
+6. Because those DSNs are absent in the DL pod only, the worker silently falls back to pod-local `last_health.json` files. In replay those local files are often `RED` solely because of `WATERMARK_TOO_OLD`, so DL fail-closes for the wrong reason.
+7. Production decision:
+   - do not weaken DL fail-closed semantics,
+   - do not repin the platform back to a local-file health model,
+   - instead, repair the RTDL materialization env contract so the DL pod can always read the authoritative shared surfaces it already knows how to interpret correctly.
+8. Additional hardening choice:
+   - while fixing the env contract, improve DL diagnostics so shared-surface reader failures are explicit in evidence instead of silently collapsing into pod-local fallback. This avoids repeating the same hidden drift class later in PR4/PR5.
+## Entry: 2026-03-07 16:55:00 +00:00 - Implemented PR3-S2 ingress repin and DL authoritative-surface remediation with no policy loosening
+1. Workflow remediation:
+   - extended `dev_full_pr3_s2_burst.yml` so it now repins the live ingress ECS service `fraud-platform-dev-full-ig-service` to the same immutable branch image already used for WSP/EKS,
+   - the workflow registers a fresh task-definition revision only when needed, updates the live service, waits for `services-stable`, and verifies the service converged to the new task definition before any burst traffic begins.
+2. RTDL materialization remediation:
+   - extended `pr3_rtdl_materialize.py` so the DL deployment now receives:
+     - `DL_SCENARIO_RUN_ID`,
+     - `CSFB_PROJECTION_DSN`,
+     - `IEG_PROJECTION_DSN`,
+     - `OFP_PROJECTION_DSN`,
+     - `OFP_SNAPSHOT_INDEX_DSN`.
+3. Why this is the production-grade correction:
+   - it restores DL's ability to read the shared authoritative surfaces rather than weakening fail-closed policy,
+   - it keeps the replay-health decision tied to checkpoint freshness and correctness counters as originally designed,
+   - it removes a hidden deployment-drift class at the real ingress edge so the next run can be interpreted honestly.
+4. Diagnostics hardening:
+   - DL now records shared-surface reader exceptions into both `degrade_ladder/metrics/last_metrics.json` and `degrade_ladder/health/last_health.json`,
+   - this preserves fallback behavior where local files are still valid, but makes authoritative-reader drift explicitly visible in evidence.
+5. Local validation after the remediation:
+   - `python -m py_compile scripts/dev_substrate/pr3_rtdl_materialize.py src/fraud_detection/degrade_ladder/worker.py` -> clean,
+   - workflow YAML parse for `.github/workflows/dev_full_pr3_s2_burst.yml` -> clean,
+   - `python -m pytest tests/services/degrade_ladder/test_phase7_worker_observability.py` -> `7 passed`.
+6. Next execution sequence is pinned:
+   - commit/push this checkpoint,
+   - rebuild immutable branch image,
+   - rerun strict PR3-S2 on the same warmed boundary,
+   - assess the next impact summary with zero waivers.

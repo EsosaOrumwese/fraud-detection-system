@@ -213,3 +213,35 @@ def test_worker_uses_shared_store_surfaces_when_remote_pod_files_are_absent(
     assert payload["required_signal_states"]["eb_consumer_lag"] == "OK"
     assert payload["required_signal_states"]["ieg_health"] == "OK"
     assert payload["required_signal_states"]["ofp_health"] == "OK"
+
+
+def test_worker_records_shared_surface_errors_when_authoritative_reader_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from fraud_detection.identity_entity_graph.query import IdentityGraphQuery
+
+    run_id = "platform_20260209T220500Z"
+    worker = _build_worker(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        run_id=run_id,
+        include_component_health=True,
+        include_operate_status=False,
+    )
+
+    def _boom(profile_path: str) -> IdentityGraphQuery:
+        raise ValueError("IEG shared surface unavailable")
+
+    monkeypatch.setattr(IdentityGraphQuery, "from_profile", staticmethod(_boom))
+
+    payload = worker.run_once()
+
+    assert payload["mode"] == "NORMAL"
+
+    health_path = tmp_path / "runs" / "fraud-platform" / run_id / "degrade_ladder" / "health" / "last_health.json"
+    metrics_path = tmp_path / "runs" / "fraud-platform" / run_id / "degrade_ladder" / "metrics" / "last_metrics.json"
+    health = json.loads(health_path.read_text(encoding="utf-8"))
+    metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+    assert health["shared_surface_errors"]["identity_entity_graph"] == "IEG shared surface unavailable"
+    assert metrics["shared_surface_errors"]["identity_entity_graph"] == "IEG shared surface unavailable"

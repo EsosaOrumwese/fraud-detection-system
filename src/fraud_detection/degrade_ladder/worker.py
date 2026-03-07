@@ -86,6 +86,7 @@ class DegradeLadderWorker:
         self._csfb_reporter: Any | None = None
         self._ofp_reporter: Any | None = None
         self._ieg_query: Any | None = None
+        self._shared_surface_errors: dict[str, str] = {}
 
     def run_once(self) -> dict[str, Any]:
         now_utc = _utc_now()
@@ -628,11 +629,14 @@ class DegradeLadderWorker:
                     locator=policy.projection_db_dsn,
                     stream_id=policy.stream_id,
                 )
-            return self._csfb_reporter.collect(
+            payload = self._csfb_reporter.collect(
                 platform_run_id=self.config.platform_run_id,
                 scenario_run_id=self.config.scenario_run_id,
             )
-        except Exception:
+            self._shared_surface_errors.pop("context_store_flow_binding", None)
+            return payload
+        except Exception as exc:
+            self._shared_surface_errors["context_store_flow_binding"] = str(exc)[:256]
             return None
 
     def _shared_ieg_status(self) -> dict[str, Any] | None:
@@ -641,8 +645,11 @@ class DegradeLadderWorker:
                 from fraud_detection.identity_entity_graph.query import IdentityGraphQuery
 
                 self._ieg_query = IdentityGraphQuery.from_profile(str(self.config.profile_path))
-            return self._ieg_query.status(scenario_run_id=self.config.scenario_run_id or "")
-        except Exception:
+            payload = self._ieg_query.status(scenario_run_id=self.config.scenario_run_id or "")
+            self._shared_surface_errors.pop("identity_entity_graph", None)
+            return payload
+        except Exception as exc:
+            self._shared_surface_errors["identity_entity_graph"] = str(exc)[:256]
             return None
 
     def _shared_ofp_status(self) -> dict[str, Any] | None:
@@ -651,8 +658,11 @@ class DegradeLadderWorker:
                 from fraud_detection.online_feature_plane.observability import OfpObservabilityReporter
 
                 self._ofp_reporter = OfpObservabilityReporter.build(str(self.config.profile_path))
-            return self._ofp_reporter.collect(scenario_run_id=self.config.scenario_run_id or "")
-        except Exception:
+            payload = self._ofp_reporter.collect(scenario_run_id=self.config.scenario_run_id or "")
+            self._shared_surface_errors.pop("online_feature_plane", None)
+            return payload
+        except Exception as exc:
+            self._shared_surface_errors["online_feature_plane"] = str(exc)[:256]
             return None
 
     def _within_bootstrap_window(self, *, observed_at_utc: str) -> bool:
@@ -752,6 +762,7 @@ class DegradeLadderWorker:
             "optional_signal_states": optional_signal_states,
             "decision_mode": str(decision.mode),
             "posture_seq": int(decision.posture_seq),
+            "shared_surface_errors": dict(self._shared_surface_errors),
         }
         health_payload = {
             "platform_run_id": self.config.platform_run_id,
@@ -765,6 +776,7 @@ class DegradeLadderWorker:
             "bad_required_signals": bad_required,
             "outbox_failed": int(self._last_drain_result.failed) if self._last_drain_result else 0,
             "outbox_dead_lettered": int(self._last_drain_result.dead_lettered) if self._last_drain_result else 0,
+            "shared_surface_errors": dict(self._shared_surface_errors),
         }
         self._write_json(metrics_path, metrics_payload)
         self._write_json(health_path, health_payload)
