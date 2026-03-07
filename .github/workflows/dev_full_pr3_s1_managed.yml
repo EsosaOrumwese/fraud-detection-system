@@ -664,7 +664,6 @@ jobs:
           TASK_MEMORY: "1024"
           SUBNET_IDS: "subnet-0a7a35898d0ca31a8,subnet-0e9647425f02e2f27"
           ASSIGN_PUBLIC_IP: "DISABLED"
-          IG_PUSH_CONCURRENCY: "4"
           HTTP_POOL_MAXSIZE: "512"
           TARGET_STEADY_EPS: ${{ inputs.target_steady_eps }}
           TARGET_REQUEST_RATE_EPS: ${{ inputs.target_request_rate_eps }}
