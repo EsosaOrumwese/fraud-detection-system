@@ -462,10 +462,12 @@ class DecisionContextAcquirer:
 
             missing_groups = _to_list((ofp_snapshot.get("freshness") or {}).get("missing_groups"))
             missing_keys = _to_list((ofp_snapshot.get("freshness") or {}).get("missing_feature_keys"))
+            has_usable_features = _snapshot_has_usable_features(ofp_snapshot)
             missing_reasons = [
                 *(f"OFP_MISSING_GROUP:{name}" for name in missing_groups),
-                *(f"OFP_MISSING_FEATURE:{name}" for name in missing_keys),
             ]
+            if not has_usable_features:
+                missing_reasons.extend(f"OFP_MISSING_FEATURE:{name}" for name in missing_keys)
             if missing_reasons:
                 return DecisionContextResult(
                     status=CONTEXT_MISSING,
@@ -659,6 +661,11 @@ def _coerce_mapping(value: Any) -> dict[str, Any] | None:
     if isinstance(value, Mapping):
         return dict(value)
     return None
+
+
+def _snapshot_has_usable_features(snapshot: Mapping[str, Any]) -> bool:
+    features = snapshot.get("features")
+    return isinstance(features, Mapping) and bool(features)
 
 
 def _canonical_json(value: Mapping[str, Any]) -> str:

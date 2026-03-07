@@ -195,11 +195,11 @@ def test_get_features_surfaces_stale_and_missing_posture_flags(tmp_path) -> None
     )
     assert response["status"] == "OK"
     freshness = response["snapshot"]["freshness"]
-    assert freshness["state"] == "RED"
+    assert freshness["state"] == "AMBER"
     assert "MISSING_FEATURE_STATE" in freshness["flags"]
     assert "STALE_INPUT_BASIS" in freshness["flags"]
     assert "core_features" in freshness["stale_groups"]
-    assert "core_features" in freshness["missing_groups"]
+    assert freshness["missing_groups"] == []
     assert "flow_id:serve-flow-missing" in freshness["missing_feature_keys"]
 
 

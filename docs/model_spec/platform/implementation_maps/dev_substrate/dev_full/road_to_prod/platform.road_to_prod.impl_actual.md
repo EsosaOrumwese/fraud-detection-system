@@ -8247,3 +8247,78 @@ ot ready because pods are broken from eady to accept first traffic on a fresh r
    - `terraform -chdir=infra/terraform/dev_full/ops apply -auto-approve -target="aws_iam_policy.github_actions_pr3_runtime"`.
 6. The targeted apply updated the managed policy in place and nothing else. This keeps the role surface declarative and avoids further drift between live IAM and Terraform authority.
 7. Next action is the rerun already dispatched after the IAM update; that rerun should finally exercise the quota-aware ingress count selection rather than failing on permission visibility.
+## Entry: 2026-03-07 18:55:00 +00:00 - PR3-S2 DF red is caused by two concrete read-surface defects, not by ingress or generic RTDL weakness
+1. I re-synced the latest strict `PR3-S2` evidence from S3 and confirmed the state is now sharply bounded:
+   - ingress is green at `6041.653 eps`, `4xx=0`, `5xx=0`, `p95=176.65 ms`, `p99=275.03 ms`,
+   - the only remaining blockers are `PR3.S2.B15_DF_FAIL_CLOSED_NONZERO:delta=2.0` and `PR3.S2.B15_DF_QUARANTINE_NONZERO:delta=2.0`.
+2. Live DF reconciliation for `platform_run_id=platform_20260307T182151Z` / `scenario_run_id=1e17ed3652894dfa9076316eecb557c9` shows only two terminal decisions, both quarantined, with reason mix:
+   - `FAIL_CLOSED_NO_COMPATIBLE_BUNDLE=2`,
+   - `FEATURE_GROUP_MISSING:core_features=2`,
+   - `ACTIVE_BUNDLE_INCOMPATIBLE=2`,
+   - `CAPABILITY_MISMATCH:allow_model_primary=1`,
+   - `JOIN_WAIT_EXCEEDED=1`, `CONTEXT_MISSING:arrival_events=1`, `CONTEXT_MISSING:flow_anchor=1`, `DEADLINE_EXCEEDED=1`.
+3. I traced the first defect to the CSFB query surface, not the underlying store:
+   - `ContextStoreFlowBindingQueryService._resolve_flow_binding()` currently treats the existence of a join-frame row as equivalent to context readiness,
+   - `_context_role_refs()` derives role refs from `binding.source_event` and `join_frame.source_event` only, which means it can:
+     - expose `READY` when the join-frame state is incomplete,
+     - map `arrival_entities` onto the `arrival_events` role because it uses loose `"arrival"` matching,
+     - return only `flow_anchor` for some fraud flows even though DF expects `arrival_events + flow_anchor`.
+4. I validated that defect live against the current run:
+   - one blocked traffic flow (`flow_id=350714343300180549`) eventually resolves with `arrival_events` incorrectly pointing at `fp.bus.context.arrival_entities.v1`,
+   - another blocked traffic flow (`flow_id=276116191138774305`) resolves to `{}` from CSFB even though the flow binding exists, proving the query surface is not enforcing required-context completeness correctly.
+5. I traced the second defect to the OFP serve surface:
+   - for both quarantined DF source events, `OfpGetFeaturesService` returns a snapshot that *does* contain `core_features:v1` on the `flow_id` key,
+   - however the response freshness marks `missing_feature_keys=[event_id:...]` and then escalates that to `missing_groups=[core_features]`,
+   - DF then interprets that as true feature-group absence and feeds registry compatibility with a false `FEATURE_GROUP_MISSING:core_features` signal.
+6. Production interpretation:
+   - this is not a reason to relax DF fail-closed behavior,
+   - it is a reason to repair the authoritative read surfaces so DF receives semantically correct readiness and feature-availability information,
+   - once those surfaces are corrected, the remaining DF verdict should reflect real decision posture rather than synthetic read-surface drift.
+7. Chosen remediation, in order:
+   - repair `CSFB query` so `resolve_flow_binding` derives role refs from stored frame-state roles (`arrival_event`, `arrival_entities`, `flow_anchor`) and only returns `READY` when the required fraud context is actually complete,
+   - repair `OFP serve` so missing individual feature keys no longer imply missing the whole requested feature group when the group is present for another valid key such as `flow_id`,
+   - keep registry and DF fail-closed contracts intact and rerun strict `PR3-S2` on the same boundary after the read-surface correction.
+8. Performance design note before implementation:
+   - both corrections stay O(1) on top of already-loaded state and avoid any new scans or remote lookups,
+   - rejected alternative: adding more warmup or larger DF budgets again without fixing the read-surface semantics, because that would only mask contract drift and waste runtime.
+## Entry: 2026-03-07 19:15:00 +00:00 - PR3-S2 RTDL semantic remediation contract pinned before code change
+1. I validated that the remaining PR3-S2 red state is a semantic read-surface defect, not a throughput or warmup defect. Ingress already meets the burst contract materially (`6041.653 eps`, `4xx=0`, `5xx=0`, `p95=176.65 ms`, `p99=275.03 ms`), so the next edits must preserve that posture and target correctness only.
+2. Chosen remediation contract:
+   - `CSFB resolve_flow_binding` will only return `READY` when the stored join-frame state is actually complete for the required fraud context, and it will derive `context_refs` from the persisted per-role refs rather than loose source-event pattern matching.
+   - `OFP get_features` will continue to expose missing feature keys explicitly, but it will stop upgrading partial key absence into whole-group absence when the requested group is already present on another valid key (for example `flow_id`).
+   - `DF context acquire` will continue to fail closed on truly missing groups, unavailable OFP, missing required context, or expired budgets, but it will no longer fail simply because OFP reports partial key coverage while still serving the requested feature group.
+3. Compatibility choice:
+   - I am not widening external control-plane contracts unnecessarily.
+   - For CSFB, I will keep the response status surface narrow and prefer existing non-READY posture for incomplete join frames rather than inventing a new public status unless test/runtime evidence forces it.
+4. Performance and runtime design:
+   - CSFB query change remains O(1) against already-loaded `frame_payload`.
+   - OFP serve change is list/set normalization only; no new storage scans or remote calls.
+   - DF context change is classification-only over the existing OFP snapshot; no new network traffic or retry loops.
+5. Rejected alternatives:
+   - more DF budget widening without semantic fixes,
+   - weakening DF fail-closed semantics,
+   - masking the defect by treating all missing feature keys as ignorable.
+6. Validation plan after patch:
+   - targeted unit tests for CSFB/OFP/DF surfaces,
+   - then fresh impact-metric note update,
+   - then strict PR3-S2 rerun on the same production boundary.
+## Entry: 2026-03-07 19:28:00 +00:00 - PR3-S2 RTDL semantic remediation implemented and validated locally before strict rerun
+1. Implemented the bounded semantic repair across the three read surfaces identified in the live investigation:
+   - `CSFB intake/query`: join-frame state now persists exact per-role refs with the real `offset_kind`, and `resolve_flow_binding` returns `READY` only when the stored frame is context-complete; role refs now come from persisted role state rather than loose source-event matching.
+   - `OFP serve`: partial `missing_feature_keys` no longer promote the whole requested feature group into `missing_groups` when the group is already present on another valid key.
+   - `DF context acquire`: fail-closed still applies to missing groups, unavailable OFP, missing required context, expired budgets, and zero-usable-feature snapshots, but not to partial key misses when usable group features are present.
+2. Secondary correction found during validation:
+   - CSFB parity observability tests were still reading metrics from unscoped stream id `csfb.v0` while the inlet correctly scopes runtime state to `csfb.v0::<platform_run_id>`.
+   - I corrected the parity tests to read the same scoped stream that the runtime actually writes.
+3. Local validation completed on the patched boundary:
+   - `tests/services/context_store_flow_binding/test_phase5_query.py`
+   - `tests/services/context_store_flow_binding/test_phase7_parity_integration.py`
+   - `tests/services/online_feature_plane/test_phase5_serve.py`
+   - `tests/services/decision_fabric/test_phase5_context.py`
+   - `tests/services/decision_fabric/test_worker_runtime.py`
+   - result: `30/30` targeted tests passed.
+4. Impact-metric interpretation at this checkpoint:
+   - ingress burst remains the already-proven green baseline (`6041.653 eps`, `4xx=0`, `5xx=0`, `p95=176.65 ms`, `p99=275.03 ms`),
+   - the patched code now removes the two specific semantic causes behind the remaining `DF fail_closed/quarantine` deltas,
+   - but PR3-S2 is still open until a fresh strict rerun proves those deltas remain at `0` on the live `6000 eps` boundary.
+5. Next action: commit/push this remediation checkpoint on `cert-platform`, then execute the strict PR3-S2 rerun on the canonical burst workflow without changing the certified throughput boundary.

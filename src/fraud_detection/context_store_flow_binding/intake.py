@@ -642,6 +642,7 @@ class ContextStoreFlowBindingInlet:
             topic=record.topic,
             partition=record.partition,
             offset=record.offset,
+            offset_kind=record.offset_kind,
             event_ts_utc=event_ts_utc,
         )
 
@@ -931,16 +932,26 @@ def _merge_join_frame_state(
     topic: str,
     partition: int,
     offset: str,
+    offset_kind: str,
     event_ts_utc: str | None,
 ) -> dict[str, Any]:
     state = dict(existing_state or {})
     state["join_frame_key"] = join_key.as_dict()
+    source_ref = {
+        "topic": topic,
+        "partition": partition,
+        "offset": offset,
+        "offset_kind": offset_kind,
+    }
     if event_type == "arrival_events_5B":
         state["arrival_event"] = dict(payload)
+        state["arrival_event_ref"] = dict(source_ref)
     elif event_type == "s1_arrival_entities_6B":
         state["arrival_entities"] = dict(payload)
+        state["arrival_entities_ref"] = dict(source_ref)
     elif event_type in {"s2_flow_anchor_baseline_6B", "s3_flow_anchor_with_fraud_6B"}:
         state["flow_anchor"] = dict(payload)
+        state["flow_anchor_ref"] = dict(source_ref)
         flow_id = payload.get("flow_id")
         if flow_id not in (None, ""):
             state["flow_id"] = str(flow_id)

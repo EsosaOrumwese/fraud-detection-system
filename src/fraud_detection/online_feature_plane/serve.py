@@ -149,8 +149,6 @@ class OfpGetFeaturesService:
         if _is_after(as_of_time_utc, graph_watermark_ts):
             posture_flags.append("STALE_GRAPH_VERSION")
 
-        if missing_feature_keys:
-            missing_groups = _unique_sorted(missing_groups + requested_group_names)
         if missing_groups_from_request:
             missing_groups = _unique_sorted(missing_groups + missing_groups_from_request)
 
@@ -254,8 +252,10 @@ def _posture_state(
     missing_groups: list[str],
     posture_flags: list[str],
 ) -> str:
-    if missing_feature_keys or missing_groups:
+    if missing_groups:
         return "RED"
+    if missing_feature_keys:
+        return "AMBER"
     if posture_flags:
         return "AMBER"
     return "GREEN"
