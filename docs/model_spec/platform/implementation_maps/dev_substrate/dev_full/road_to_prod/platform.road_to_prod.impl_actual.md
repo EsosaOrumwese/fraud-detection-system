@@ -6111,3 +6111,53 @@ eason=http_502,
    - Terraform must no longer plan any destroy on the managed ingress surface due to count drift;
    - live readback must prove ECS service image/env pins match the new immutable image and retry envelope;
    - only then does `PR3-S1` rerun resume.
+
+## Entry: 2026-03-07 02:38:00 +00:00 - The ingress materialization rerun is now blocked by an incomplete ELBv2 read envelope on the GitHub OIDC role, so the durable fix is to widen the policy at the resource-family level
+1. I pulled the next failed rollout run 22790176136 after fixing the ig_service_enabled workflow defect. This confirmed the first defect is actually closed: Terraform no longer planned the earlier count-based destroy wave.
+2. The new plan boundary is materially better and also more informative:
+   - Terraform now reaches a bounded ingress update plan (1 to add, 1 to change, 1 to destroy),
+   - the intended Lambda environment deltas are visible (IG_INTERNAL_RETRY_*, KAFKA_PUBLISH_RETRIES, KAFKA_REQUEST_TIMEOUT_MS),
+   - the apply then fails during provider refresh of the live ALB/TG surfaces.
+3. The exact hard failures are:
+   - lasticloadbalancing:DescribeLoadBalancerAttributes denied on ws_lb.ig_service[0];
+   - lasticloadbalancing:DescribeTargetGroupAttributes denied on ws_lb_target_group.ig_service[0].
+4. This is not a reason to retreat from the managed ingress service or to keep playing action-whack-a-mole manually in the console. The correct production question is: what read surface does Terraform need to safely manage the live ALB/TG family over time?
+5. Chosen production-grade answer:
+   - widen policy GitHubActionsPR3RuntimeDevFull from the minimal metric-discovery read set to the full ELBv2 resource-family read envelope that a Terraform-managed ALB/TG path reasonably requires.
+6. Actions added in code:
+   - lasticloadbalancing:DescribeLoadBalancerAttributes
+   - lasticloadbalancing:DescribeTargetGroupAttributes
+   - lasticloadbalancing:DescribeListeners
+   - lasticloadbalancing:DescribeRules
+   - lasticloadbalancing:DescribeTags
+7. Why this is the right line instead of only adding the two immediately failing actions:
+   - the platform is already telling us the certification/remediation lane must refresh a managed ALB/TG family,
+   - production rollout tooling should not need repeated stop-start IAM increments for adjacent read APIs in the same resource family,
+   - the read-only scope remains bounded to ELBv2 describe actions on *, which is operationally acceptable for GitHub OIDC orchestration and does not broaden write authority.
+8. Immediate next sequence:
+   - validate the dev_full/ops Terraform change locally,
+   - apply the IAM delta live to role GitHubAction-AssumeRoleWithAction,
+   - rerun ingress materialization immediately,
+   - if the rollout verifies live pins, resume strict PR3-S1.
+
+## Entry: 2026-03-07 02:40:00 +00:00 - The ELBv2 read-envelope remediation is now live on the GitHub OIDC role
+1. I validated the repo-side policy change in infra/terraform/dev_full/ops/main.tf (	erraform fmt -check, 	erraform validate) and then initialized the dev_full/ops stack backend successfully.
+2. I applied the IAM delta live with targeted Terraform against ws_iam_policy.github_actions_pr3_runtime. This is the managed policy already attached to role GitHubAction-AssumeRoleWithAction, so the change landed without any role/attachment churn.
+3. Applied live delta:
+   - added lasticloadbalancing:DescribeLoadBalancerAttributes
+   - added lasticloadbalancing:DescribeTargetGroupAttributes
+   - added lasticloadbalancing:DescribeListeners
+   - added lasticloadbalancing:DescribeRules
+   - added lasticloadbalancing:DescribeTags
+4. Existing retained ELBv2 read actions remain:
+   - lasticloadbalancing:DescribeLoadBalancers
+   - lasticloadbalancing:DescribeTargetGroups
+5. Why I kept this as a targeted live apply instead of a full ops apply:
+   - the failing boundary is isolated to the PR3 runtime policy,
+   - the user asked for continuous execution toward production closure,
+   - the targeted update gives the workflow the exact missing read surface without dragging unrelated ops drift into the lane.
+6. Operational consequence:
+   - the ingress materialization workflow should now be able to refresh the managed ALB/TG family and proceed to the actual service rollout/verification boundary.
+7. Next action:
+   - rerun ingress materialization immediately from cert-platform,
+   - if the rollout verifies the live image/env pins, resume strict PR3-S1 without waiting.
