@@ -8213,3 +8213,23 @@ ot ready because pods are broken from eady to accept first traffic on a fresh r
    - workflow YAML parse clean,
    - `terraform fmt -check infra/terraform/dev_full/runtime/variables.tf` clean.
 4. Next action is to commit and push this checkpoint, rerun strict PR3-S2 on the same immutable image digest `sha256:50d9953e34433457ce556988b496fa0bf36fa4dbea119d96640d37427b5a33e9`, and judge success only if all impact gates clear without waiver.
+## Entry: 2026-03-07 18:15:00 +00:00 - PR3-S2 rerun exposed a Fargate account-quota blocker, so ingress right-sizing must become quota-aware instead of blindly restoring count 32
+1. The rerun on branch head `ccd17559f` did not reach a valid burst measurement. The WSP dispatcher failed during lane startup with:
+   - `PR3.S2.WSP.B01_RUN_TASK_FAILED:wsp_lane_24:You’ve reached the limit on the number of vCPUs you can run concurrently`.
+2. I quantified the account posture immediately after the failure:
+   - regional Fargate On-Demand vCPU quota is `140`,
+   - ingress service at `32 x 4096 CPU` consumes `128 vCPU`,
+   - the PR3-S2 replay fleet at `32 x 512 CPU` requires `16 vCPU`,
+   - requested concurrent posture is therefore `144 vCPU`, which cannot fit under the current account ceiling.
+3. This changes the remediation choice. A blind restore to `32` ingress tasks is not executable in the current dev account, but dropping back to `30` would knowingly reintroduce the already measured tail-latency defect. The correct immediate control update is to preserve the `32` authority target while letting the workflow compute the highest ingress count that can coexist with the full replay fleet under the live quota.
+4. I am therefore changing the PR3-S2 workflow so the ingress right-size step:
+   - reads the live Fargate On-Demand vCPU quota,
+   - resolves the ingress task CPU from the active task definition,
+   - computes the quota-limited ingress ceiling after reserving full WSP burst-lane CPU,
+   - selects `min(authority_target, quota_limited_ceiling)`,
+   - fails closed if the resulting ingress count is below the minimum evidenced viable headroom (`31`),
+   - writes the full calculation to `g3a_s2_fargate_quota_posture.json`.
+5. Why this is the right production-minded control:
+   - it does not weaken the burst contract or lane shape,
+   - it does not silently hide account-capacity constraints,
+   - it remains future-proof because if the quota is later raised above `144 vCPU`, the workflow will naturally return to the authority target of `32` ingress tasks without another code edit.

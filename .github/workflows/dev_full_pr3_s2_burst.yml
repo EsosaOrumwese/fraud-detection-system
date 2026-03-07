@@ -684,18 +684,27 @@ jobs:
         env:
           ECS_CLUSTER: fraud-platform-dev-full-ingress
           ECS_SERVICE: fraud-platform-dev-full-ig-service
-          TARGET_DESIRED_COUNT: "32"
+          AUTHORITY_TARGET_DESIRED_COUNT: "32"
+          MIN_PROVEN_INGRESS_COUNT: "31"
+          RUN_DIR: ${{ steps.meta.outputs.run_dir }}
+          LANE_COUNT: ${{ inputs.lane_count }}
+          WSP_TASK_CPU: ${{ inputs.wsp_task_cpu }}
         run: |
           set -euo pipefail
           python - <<'PY'
           import json
+          import math
           import os
           import subprocess
 
           region = "${{ inputs.aws_region }}"
           cluster = os.environ["ECS_CLUSTER"]
           service = os.environ["ECS_SERVICE"]
-          target_desired = int(os.environ["TARGET_DESIRED_COUNT"])
+          authority_target = int(os.environ["AUTHORITY_TARGET_DESIRED_COUNT"])
+          min_proven = int(os.environ["MIN_PROVEN_INGRESS_COUNT"])
+          run_dir = os.environ["RUN_DIR"]
+          lane_count = int(os.environ["LANE_COUNT"])
+          wsp_task_cpu_units = int(os.environ["WSP_TASK_CPU"])
 
           def aws_json(args):
               proc = subprocess.run(
@@ -706,9 +715,44 @@ jobs:
               )
               return json.loads(proc.stdout or "{}")
 
+          quota_payload = aws_json(["service-quotas", "list-service-quotas", "--service-code", "fargate"])
+          quota_rows = quota_payload.get("Quotas") or []
+          quota_value = None
+          for row in quota_rows:
+              quota_name = str(row.get("QuotaName") or "")
+              if quota_name == "Fargate On-Demand vCPU resource count":
+                  quota_value = float(row.get("Value") or 0.0)
+                  break
+          if quota_value is None or quota_value <= 0:
+              raise SystemExit("Could not resolve Fargate On-Demand vCPU quota.")
+
           current = aws_json(["ecs", "describe-services", "--cluster", cluster, "--services", service])
           row = (current.get("services") or [{}])[0]
           current_desired = int(row.get("desiredCount") or 0)
+          task_definition_arn = str(row.get("taskDefinition") or "").strip()
+          if not task_definition_arn:
+              raise SystemExit(f"ECS service {cluster}/{service} has no active task definition.")
+          task_definition = aws_json(["ecs", "describe-task-definition", "--task-definition", task_definition_arn])
+          task_cpu_units = int(str((task_definition.get("taskDefinition") or {}).get("cpu") or "0"))
+          if task_cpu_units <= 0:
+              raise SystemExit(f"Could not resolve ingress task cpu for {task_definition_arn}.")
+
+          ig_task_vcpu = task_cpu_units / 1024.0
+          wsp_lane_vcpu = wsp_task_cpu_units / 1024.0
+          reserved_wsp_vcpu = lane_count * wsp_lane_vcpu
+          quota_limited_ingress = math.floor((quota_value - reserved_wsp_vcpu) / ig_task_vcpu)
+          target_desired = min(authority_target, quota_limited_ingress)
+
+          if target_desired < min_proven:
+              raise SystemExit(
+                  "PR3.S2.WSP.B02_FARGATE_QUOTA_HEADROOM_INSUFFICIENT:"
+                  f"quota_vcpu={quota_value}"
+                  f":reserved_wsp_vcpu={reserved_wsp_vcpu}"
+                  f":ig_task_vcpu={ig_task_vcpu}"
+                  f":computed_ingress_desired={target_desired}"
+                  f":minimum_required={min_proven}"
+              )
+
           if current_desired != target_desired:
               subprocess.run(
                   [
@@ -733,9 +777,9 @@ jobs:
           subprocess.run(
               ["aws", "ecs", "wait", "services-stable", "--cluster", cluster, "--services", service, "--region", region],
               check=True,
-              capture_output=True,
-              text=True,
-          )
+                  capture_output=True,
+                  text=True,
+              )
           verified = aws_json(["ecs", "describe-services", "--cluster", cluster, "--services", service])
           verified_row = (verified.get("services") or [{}])[0]
           verified_desired = int(verified_row.get("desiredCount") or 0)
@@ -744,6 +788,21 @@ jobs:
               raise SystemExit(
                   f"Ingress right-size did not converge. desired={verified_desired} running={verified_running} expected={target_desired}"
               )
+          snapshot = {
+              "authority_target_desired_count": authority_target,
+              "minimum_proven_ingress_count": min_proven,
+              "fargate_on_demand_vcpu_quota": quota_value,
+              "reserved_wsp_lane_vcpu": reserved_wsp_vcpu,
+              "ingress_task_vcpu": ig_task_vcpu,
+              "quota_limited_ingress_count": quota_limited_ingress,
+              "selected_ingress_desired_count": target_desired,
+              "current_desired_before_change": current_desired,
+              "verified_desired_after_change": verified_desired,
+              "verified_running_after_change": verified_running,
+          }
+          with open(os.path.join(run_dir, "g3a_s2_fargate_quota_posture.json"), "w", encoding="utf-8") as fh:
+              json.dump(snapshot, fh, indent=2)
+              fh.write("\n")
           PY
 
       - name: Materialize fresh PR3 runtime identity on EKS
