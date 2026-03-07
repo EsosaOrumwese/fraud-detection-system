@@ -5955,3 +5955,20 @@ Reasoning:
    - patch the workflow so canonical `PR3-S1` passes explicit lean task overrides to the replay dispatcher,
    - rerun strict `PR3-S1`,
    - then judge whether the next blocker is actual ingress performance or just remaining harness inefficiency.
+
+
+## Entry: 2026-03-07 01:31:00 +00:00 - Fresh PR3-S1 evidence shows the lean replay harness is viable, but the canonical dispatcher had silently regressed back to the wrong network defaults
+1. The rerun on workflow `22788594376` succeeded in launching all 24 replay lanes with the lean `256/1024` Fargate override, so the vCPU headroom defect is resolved.
+2. However, the fresh runtime summary still showed `observed_request_eps=0.0`, `observed_admitted_eps=0.0`, and every lane ended with `IG_PUSH_RETRY_EXHAUSTED`.
+3. I pulled the actual CloudWatch log streams for the replay lanes. They show repeated `reason=timeout` on every IG push retry, followed by `WSP stream failed reason=IG_PUSH_RETRY_EXHAUSTED detail=timeout`.
+4. The authoritative manifest explains why:
+   - current network posture in the rerun was `subnet-005205ea65a9027fc,subnet-01fd5f1585bfcca47` with `assign_public_ip=ENABLED`;
+   - those are the old public-subnet defaults, not the private-subnet posture previously proven for the internal ALB-backed ingress service.
+5. This is a regression in the canonical dispatcher defaults, not a new platform limitation. Earlier near-green runs used the private ingress-adjacent subnets `subnet-0a7a35898d0ca31a8,subnet-0e9647425f02e2f27` with `assignPublicIp=DISABLED`.
+6. Production interpretation:
+   - an internal ALB-backed ingress lane should be exercised from private VPC subnets by default;
+   - allowing the canonical replay harness to fall back to public-subnet defaults is a design-intent drift and yields meaningless timeout evidence.
+7. Chosen fix:
+   - repin `pr3_s1_wsp_replay_dispatch.py` defaults to the private subnet pair and `assign_public_ip=DISABLED`;
+   - keep the lean task override from the previous correction boundary;
+   - rerun strict `PR3-S1` immediately after the network default correction.
