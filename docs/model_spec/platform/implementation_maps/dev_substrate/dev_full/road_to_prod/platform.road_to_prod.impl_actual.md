@@ -6858,3 +6858,29 @@ eason=http_502,
    - add `pr2_runbook_index.json` to the hydrated PR2 evidence set in the workflow,
    - rerun immediately on the same strict upstream ids,
    - only once the burst window actually launches do we start diagnosing throughput or downstream behavior.
+## Entry: 2026-03-07 07:20:00 +00:00 - Burst harness will be reshaped around the proven 40-lane launch envelope instead of the failing 80-lane fan-out
+1. I inspected the green steady-state proof on the authoritative S3-backed `PR3-S1` summary rather than relying on the stale local copy.
+2. The real steady-state closure facts are:
+   - `lane_count = 40`,
+   - `target_request_rate_eps = 3030`,
+   - `stream_speedup = 51.2`,
+   - `ig_push_concurrency = 4`,
+   - observed admitted throughput `3025.36 eps`,
+   - zero 4xx/5xx and clean p95/p99 latency.
+3. I then compared that with the failed burst attempt:
+   - `lane_count = 80`,
+   - `target_request_rate_eps = 6060`,
+   - `stream_speedup = 102.4`,
+   - launch failed at `wsp_lane_48` with ECS reporting a concurrent vCPU limit breach,
+   - the account headline Fargate quota (`140 vCPU`) does not match that failure string, so the practical launch envelope is lower than the published quota surface for this pattern.
+4. Production-minded interpretation:
+   - this is a certification-harness scaling issue, not yet evidence that the ingress/runtime path itself cannot handle burst.
+   - For a bank production scenario, external traffic would not be judged by how many internal ephemeral WSP tasks we can fan out; the correct harness is the one that can generate the required edge pressure reliably and repeatably inside the available execution envelope.
+5. Chosen remediation:
+   - keep the burst target fixed at `6000 eps` and do not lower thresholds,
+   - keep the proven `40`-lane task fan-out that already launches cleanly,
+   - double the per-lane request budget (`6060 / 40 = 151.5 eps` per lane) and increase push concurrency so each lane carries more of the burst rather than multiplying task count,
+   - then rerun `PR3-S2` immediately and only move on to downstream/archive remediation once the burst window actually executes.
+6. Secondary observation from the launched WSP task logs:
+   - tasks log `WSP pack manifest missing` and `WSP pack not sealed` against the oracle root, but the same posture existed on the clean steady-state run and therefore is not the immediate cause of the burst harness failure.
+   - I am recording it as a follow-up audit item, not treating it as the current blocker.
