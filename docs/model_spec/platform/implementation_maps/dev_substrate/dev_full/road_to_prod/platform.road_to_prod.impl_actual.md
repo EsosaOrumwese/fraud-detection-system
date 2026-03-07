@@ -8129,3 +8129,19 @@ ot ready because pods are broken from eady to accept first traffic on a fresh r
 5. This keeps the workflow honest:
    - workflow-only and authority-only corrections can execute immediately on the already-audited image,
    - real runtime-code changes still demand a fresh immutable package build before PR3 evidence can continue.
+## Entry: 2026-03-07 17:46:00 +00:00 - Fallback image resolution must repin task-family tag references back to ECR digests rather than weakening the immutable-image contract
+1. The second rerun on workflow head `5867c4bfd` still failed in `Resolve current-branch immutable platform image`, but the failure mode was narrower than the first one. The branch commit was image-neutral and the workflow correctly entered the task-family fallback branch.
+2. The new defect is that the fallback control surface can return a mutable `repo:tag` image string even when the live runtime was originally published immutably. Treating that tag as acceptable would break the production rule that PR3 evidence must always run on a digest-pinned image.
+3. Production-minded correction chosen:
+   - keep the image-neutral fallback branch,
+   - if the fallback image is already `repo@sha256:...`, use it,
+   - if it is `repo:tag`, resolve that tag back to its authoritative ECR `imageDigest` and reconstruct `repo@sha256:...`,
+   - fail closed if the tag cannot be resolved or resolves without a valid digest.
+4. Why this is the correct fix:
+   - it preserves immutable image discipline for certification evidence,
+   - it avoids an unnecessary rebuild when the branch commit is workflow/docs/Terraform only,
+   - it keeps the workflow honest about the exact runtime bits used for the burst proof.
+5. Next execution remains unchanged once this control-surface fix is in place:
+   - commit/push the workflow correction,
+   - rerun strict PR3-S2 on the rebalanced runtime shape,
+   - assess the impact metrics and proceed only if the throughput gap is genuinely closed.

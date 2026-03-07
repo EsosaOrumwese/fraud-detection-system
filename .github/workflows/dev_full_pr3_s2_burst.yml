@@ -373,9 +373,42 @@ jobs:
               image_uri = images[0]
               digest = image_uri.rsplit("@", 1)[-1] if "@" in image_uri else ""
               if not digest.startswith("sha256:"):
-                  raise SystemExit(
-                      "Fallback image is not pinned by digest; refusing to run on a mutable image reference."
+                  if ":" not in image_uri.rsplit("/", 1)[-1]:
+                      raise SystemExit(
+                          "Fallback image is not pinned by digest and does not expose a resolvable tag."
+                      )
+                  repo_part, image_tag = image_uri.rsplit(":", 1)
+                  repo_name_fallback = repo_part.rsplit("/", 1)[-1]
+                  tag_lookup_proc = subprocess.run(
+                      [
+                          "aws",
+                          "ecr",
+                          "describe-images",
+                          "--repository-name",
+                          repo_name_fallback,
+                          "--image-ids",
+                          f"imageTag={image_tag}",
+                          "--region",
+                          region,
+                          "--output",
+                          "json",
+                      ],
+                      check=True,
+                      capture_output=True,
+                      text=True,
                   )
+                  tag_lookup_payload = json.loads(tag_lookup_proc.stdout or "{}")
+                  image_details = list(tag_lookup_payload.get("imageDetails") or [])
+                  if not image_details:
+                      raise SystemExit(
+                          f"Fallback image tag could not be resolved to a digest: {image_uri}"
+                      )
+                  digest = str(image_details[0].get("imageDigest", "")).strip()
+                  if not digest.startswith("sha256:"):
+                      raise SystemExit(
+                          f"Fallback image tag resolved without a valid digest: {image_uri}"
+                      )
+                  image_uri = f"{repo_part}@{digest}"
               resolution_mode = "task_family_fallback"
 
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
