@@ -6587,3 +6587,20 @@ eason=http_502,
    - the real platform question is whether distributed WSP replay can hold the steady target without leaking edge errors,
    - shaping the producer burst envelope is a valid producer-runtime control,
    - it is more honest than claiming the stack is fine while ignoring transport spikes caused by an avoidable load-shape artifact.
+## Entry: 2026-03-07 05:32:33 +00:00 - The PR3-S1 workflow dispatch surface itself drifted past GitHub's hard input limit, so I am removing dead inputs rather than carrying a non-runnable certification control plane
+1. After committing the new burst-shape controls, the first rerun attempt failed before execution with GitHub `HTTP 422`:
+   - `you may only define up to 25 inputs for a workflow_dispatch event`.
+2. This is a tooling defect, not a platform defect, but it still blocks production work because the certification lane becomes non-runnable from the official dispatch path.
+3. I checked the workflow surface and confirmed the two retry inputs were dead:
+   - `retry_max_attempts`,
+   - `retry_backoff_ms`,
+   - both were still declared in `.github/workflows/dev_full_pr3_s1_managed.yml`,
+   - neither is consumed anywhere in the workflow or dispatcher invocation path.
+4. Chosen remediation:
+   - delete those unused inputs,
+   - keep the newly added burst-shape inputs,
+   - preserve the live behavior of the actual replay lane while restoring a valid dispatch contract.
+5. Why this is the right production-minded response:
+   - production control planes should not expose dead knobs,
+   - carrying non-functional inputs increases ambiguity and can silently block emergency reruns,
+   - removing unused surface is a hardening improvement, not just a convenience.

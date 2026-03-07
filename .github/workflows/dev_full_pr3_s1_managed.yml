@@ -121,16 +121,6 @@ on:
         required: true
         default: "0.25"
         type: string
-      retry_max_attempts:
-        description: "Retry attempts per event"
-        required: true
-        default: "3"
-        type: string
-      retry_backoff_ms:
-        description: "Retry backoff in milliseconds"
-        required: true
-        default: "200"
-        type: string
       early_cutoff_seconds:
         description: "Fail-fast evaluation point in seconds"
         required: true
