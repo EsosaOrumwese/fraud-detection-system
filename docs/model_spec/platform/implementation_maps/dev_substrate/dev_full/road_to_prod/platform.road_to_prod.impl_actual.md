@@ -8168,3 +8168,13 @@ ot ready because pods are broken from eady to accept first traffic on a fresh r
 4. Expected outcome from the next rerun:
    - either the resolver proceeds and the runtime burst window finally executes,
    - or the workflow emits a concrete resolver error string that can be corrected without guesswork.
+## Entry: 2026-03-07 18:14:00 +00:00 - PR3-S2 workflow now supports explicit immutable image pinning to break control-surface ambiguity
+1. The auto-resolver still failed opaquely inside GitHub Actions even after tightening ECR authority and adding diagnostics. At that point the right production move is not to keep gambling on workflow introspection; it is to let the execution be pinned directly to a known immutable runtime artifact.
+2. I therefore added an optional `platform_image_uri` workflow input that accepts only `repo@sha256:...` references.
+3. Authority order is now:
+   - explicit immutable input if provided,
+   - current-SHA image if present,
+   - latest immutable git-tagged ECR package for image-neutral commits,
+   - ECS family image as a last operational fallback.
+4. This is production-safe because explicit digest pinning is the strongest possible runtime-artifact contract for a certification lane. It removes uncertainty about what bits are under test and prevents the workflow from being blocked by stale deployment metadata.
+5. The next rerun will use the latest audited immutable digest `sha256:50d9953e34433457ce556988b496fa0bf36fa4dbea119d96640d37427b5a33e9` explicitly so the platform work can proceed.
