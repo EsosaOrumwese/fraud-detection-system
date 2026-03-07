@@ -194,6 +194,11 @@ jobs:
         env:
           RUN_DIR: ${{ steps.bundle.outputs.run_dir }}
           IG_API_KEY_SSM_PATH: ${{ inputs.ig_api_key_ssm_path }}
+          EXPECTED_PLATFORM_IMAGE_URI: ${{ inputs.platform_image_uri }}
+          EXPECTED_INTERNAL_RETRY_MAX_ATTEMPTS: ${{ inputs.ig_internal_retry_max_attempts }}
+          EXPECTED_INTERNAL_RETRY_BACKOFF_MS: ${{ inputs.ig_internal_retry_backoff_ms }}
+          EXPECTED_SERVICE_KAFKA_REQUEST_TIMEOUT_MS: ${{ inputs.ig_service_kafka_request_timeout_ms }}
+          EXPECTED_KAFKA_PUBLISH_RETRIES: ${{ inputs.ig_kafka_publish_retries }}
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -287,12 +292,6 @@ jobs:
           if summary["health_mode"] != "apigw_lambda_ddb_kafka":
               raise SystemExit("Ingress Lambda health mode drift remains.")
           PY
-        env:
-          EXPECTED_PLATFORM_IMAGE_URI: ${{ inputs.platform_image_uri }}
-          EXPECTED_INTERNAL_RETRY_MAX_ATTEMPTS: ${{ inputs.ig_internal_retry_max_attempts }}
-          EXPECTED_INTERNAL_RETRY_BACKOFF_MS: ${{ inputs.ig_internal_retry_backoff_ms }}
-          EXPECTED_SERVICE_KAFKA_REQUEST_TIMEOUT_MS: ${{ inputs.ig_service_kafka_request_timeout_ms }}
-          EXPECTED_KAFKA_PUBLISH_RETRIES: ${{ inputs.ig_kafka_publish_retries }}
 
       - name: Sync ingress evidence to remote store
         if: always()
