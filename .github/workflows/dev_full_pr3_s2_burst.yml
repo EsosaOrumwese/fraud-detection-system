@@ -117,11 +117,6 @@ on:
         required: true
         default: "0.50"
         type: string
-      target_initial_tokens:
-        description: "Per-lane initial token-bucket fill ratio"
-        required: true
-        default: "0.50"
-        type: string
       early_cutoff_seconds:
         description: "Fail-fast evaluation point in seconds"
         required: true
@@ -344,7 +339,7 @@ jobs:
           WSP_TASK_CPU: ${{ inputs.wsp_task_cpu }}
           WSP_TASK_MEMORY: ${{ inputs.wsp_task_memory }}
           TARGET_BURST_SECONDS: ${{ inputs.target_burst_seconds }}
-          TARGET_INITIAL_TOKENS: ${{ inputs.target_initial_tokens }}
+          TARGET_INITIAL_TOKENS: 0.50
           EARLY_CUTOFF_SECONDS: ${{ inputs.early_cutoff_seconds }}
           EARLY_CUTOFF_FLOOR_RATIO: ${{ inputs.early_cutoff_floor_ratio }}
         run: |
