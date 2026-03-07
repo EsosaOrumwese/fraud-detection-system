@@ -7653,3 +7653,29 @@ Implementation sequence
    - rebuild the shared runtime image,
    - rerun strict PR3-S2 on the corrected runtime with DL materially present,
    - then judge whether any residual red is true throughput/tail-latency pressure rather than decision-plane miswiring.
+## Entry: 2026-03-07 14:18:00 +00:00 - Corrected DL startup semantics after warm-gate proof: fresh remote runtime without current-run traffic is bootstrap, not degradation
+1. The first rerun on the new decision-plane branch failed at the new warm gate with a single blocker: PR3.S2.WARM.B12_DL_FAIL_CLOSED.
+2. The evidence made the problem precise:
+   - p-pr3-dl was materially deployed and writing posture records,
+   - but it immediately emitted FAIL_CLOSED because required signals b_consumer_lag, ieg_health, and ofp_health were still absent on a brand-new run before any current-run traffic had been injected.
+3. Production interpretation:
+   - that fail-closed decision is too strict for startup and would incorrectly classify a fresh, healthy-but-not-yet-fed runtime as broken,
+   - a production decision lane must distinguish ootstrap pending from degradation under load.
+4. Implemented correction in src/fraud_detection/degrade_ladder/worker.py:
+   - component health signals (IEG / OFP) now treat missing run-scoped health artifacts as OK with bootstrap detail during a bounded startup window derived from the run timestamp and signal freshness budget,
+   - remote consumer-lag fallback likewise treats absent remote lag surfaces as OK bootstrap pending during the same bounded window,
+   - outside that bootstrap window the old fail-closed behavior remains intact.
+5. Why this is the correct production posture:
+   - it does not relax steady-state correctness,
+   - it avoids poisoning the posture store with false fail-closed decisions before the runtime has had any chance to consume current-run traffic,
+   - and it lets the warm gate differentiate 
+ot ready because pods are broken from eady to accept first traffic on a fresh run.
+6. Added targeted proof in 	ests/services/degrade_ladder/test_phase7_worker_observability.py showing a fresh run with no remote health/operate surfaces yet still resolves NORMAL during the bounded bootstrap window.
+7. Local validation for this correction is green:
+   - .venv\Scripts\python.exe -m pytest tests/services/degrade_ladder/test_phase7_worker_observability.py -> 4 passed
+   - .venv\Scripts\python.exe -m py_compile src/fraud_detection/degrade_ladder/worker.py
+8. Next step remains the same strict loop:
+   - commit/push this bootstrap correction,
+   - rebuild the immutable image,
+   - rerun PR3-S2 on the same boundary,
+   - and only then judge the remaining red on actual burst/decision impact metrics.

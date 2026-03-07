@@ -223,16 +223,18 @@ class DegradeLadderWorker:
             return self._signal_component_health(
                 component="online_feature_plane",
                 key="health_state",
+                observed_at_utc=observed_at_utc,
             )
         if name == "ieg_health":
             return self._signal_component_health(
                 component="identity_entity_graph",
                 key="health_state",
+                observed_at_utc=observed_at_utc,
             )
         if name == "registry_health":
             return self._signal_registry_health()
         if name == "eb_consumer_lag":
-            return self._signal_orchestrator_ready()
+            return self._signal_orchestrator_ready(observed_at_utc=observed_at_utc)
         if name == "control_publish_health":
             return self._signal_control_publish_health()
         return SignalState(
@@ -259,9 +261,16 @@ class DegradeLadderWorker:
             source="dl.worker",
         )
 
-    def _signal_component_health(self, *, component: str, key: str) -> SignalState:
+    def _signal_component_health(self, *, component: str, key: str, observed_at_utc: str) -> SignalState:
         path = self._run_root() / component / "health" / "last_health.json"
         if not path.exists():
+            if self._within_bootstrap_window(observed_at_utc=observed_at_utc):
+                return SignalState(
+                    status="OK",
+                    value={"path": str(path), "state": "BOOTSTRAP_PENDING"},
+                    detail="HEALTH_ARTIFACT_BOOTSTRAP_PENDING",
+                    source=f"dl.worker:{component}",
+                )
             return SignalState(
                 status="ERROR",
                 value={"path": str(path)},
@@ -340,7 +349,7 @@ class DegradeLadderWorker:
             source="dl.worker:registry",
         )
 
-    def _signal_orchestrator_ready(self) -> SignalState:
+    def _signal_orchestrator_ready(self, *, observed_at_utc: str) -> SignalState:
         operate_root = RUNS_ROOT / "operate"
         candidate_paths = [
             operate_root / "local_parity_rtdl_core_v0" / "status" / "last_status.json",
@@ -366,7 +375,10 @@ class DegradeLadderWorker:
                     }
                 )
         if not readiness:
-            return self._signal_remote_consumer_lag(status_paths=candidate_paths)
+            return self._signal_remote_consumer_lag(
+                status_paths=candidate_paths,
+                observed_at_utc=observed_at_utc,
+            )
         not_ready = [row["process_id"] for row in readiness if not row["ready"]]
         if not_ready:
             return SignalState(
@@ -382,7 +394,7 @@ class DegradeLadderWorker:
             source="dl.worker:run_operate",
         )
 
-    def _signal_remote_consumer_lag(self, *, status_paths: list[Path]) -> SignalState:
+    def _signal_remote_consumer_lag(self, *, status_paths: list[Path], observed_at_utc: str) -> SignalState:
         surfaces = [
             ("context_store_flow_binding", self._run_root() / "context_store_flow_binding" / "health" / "last_health.json"),
             ("identity_entity_graph", self._run_root() / "identity_entity_graph" / "health" / "last_health.json"),
@@ -413,6 +425,17 @@ class DegradeLadderWorker:
                 continue
             lag_rows.append({"component": component, "lag_seconds": lag, "path": str(path)})
         if not lag_rows:
+            if self._within_bootstrap_window(observed_at_utc=observed_at_utc):
+                return SignalState(
+                    status="OK",
+                    value={
+                        "status_paths": [str(path) for path in status_paths],
+                        "missing_components": missing,
+                        "state": "BOOTSTRAP_PENDING",
+                    },
+                    detail="REMOTE_CONSUMER_BOOTSTRAP_PENDING",
+                    source="dl.worker:remote_health",
+                )
             return SignalState(
                 status="ERROR",
                 value={
@@ -447,6 +470,15 @@ class DegradeLadderWorker:
             detail=None,
             source="dl.worker:remote_health",
         )
+
+    def _within_bootstrap_window(self, *, observed_at_utc: str) -> bool:
+        started = _platform_run_started_at(self.config.platform_run_id)
+        observed = _parse_platform_utc(observed_at_utc)
+        if started is None or observed is None:
+            return False
+        grace_seconds = max(30, min(90, int(self.profile.signal_policy.required_max_age_seconds)))
+        elapsed = int((observed - started).total_seconds())
+        return elapsed >= 0 and elapsed <= grace_seconds
 
     def _signal_control_publish_health(self) -> SignalState:
         if self._last_drain_result is None:
@@ -708,6 +740,31 @@ def _coerce_float(*values: Any) -> float | None:
         except (TypeError, ValueError):
             continue
     return None
+
+
+def _platform_run_started_at(platform_run_id: str | None) -> datetime | None:
+    text = str(platform_run_id or "").strip()
+    if not text.startswith("platform_"):
+        return None
+    stamp = text.removeprefix("platform_")
+    try:
+        return datetime.strptime(stamp, "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+
+
+def _parse_platform_utc(value: str | None) -> datetime | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    normalized = text.replace("Z", "+00:00")
+    try:
+        dt = datetime.fromisoformat(normalized)
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
 
 
 def _utc_now() -> str:

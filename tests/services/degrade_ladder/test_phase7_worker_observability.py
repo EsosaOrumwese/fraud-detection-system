@@ -136,3 +136,23 @@ def test_worker_uses_remote_component_lag_when_operate_status_missing(
 
     assert payload["mode"] == "NORMAL"
     assert payload["run_observability"]["health_state"] == "GREEN"
+
+
+def test_worker_treats_missing_remote_surfaces_as_bootstrap_pending_for_fresh_run(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_id = "platform_20260209T220300Z"
+    monkeypatch.setattr("fraud_detection.degrade_ladder.worker._utc_now", lambda: "2026-02-09T22:03:20+00:00")
+    worker = _build_worker(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        run_id=run_id,
+        include_component_health=False,
+        include_operate_status=False,
+    )
+
+    payload = worker.run_once()
+
+    assert payload["mode"] == "NORMAL"
+    assert payload["run_observability"]["health_state"] == "GREEN"
