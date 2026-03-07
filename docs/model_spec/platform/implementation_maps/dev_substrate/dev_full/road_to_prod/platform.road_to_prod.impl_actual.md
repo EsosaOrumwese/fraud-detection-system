@@ -6812,3 +6812,30 @@ eason=http_502,
    - the burst rollup will stop using raw `health_state == RED` as the generic gate for `IEG/OFP/DLA`,
    - it will instead use explicit numeric processing-freshness and correctness counters/deltas that remain meaningful under historical replay,
    - the readable findings for `S2` will state this clearly so the production claim remains honest and auditable.
+## Entry: 2026-03-07 07:05:00 +00:00 - PR3-S2 workflow failed because it was mixing repo checkout state with evidence state; the fix is to hydrate strict upstream proof from S3 before any state execution
+1. I pulled the failed `PR3-S2` workflow logs from run `22794165103` instead of assuming the burst lane itself had broken.
+2. The first hard failure happened before any runtime materialization or burst dispatch:
+   - `scripts/dev_substrate/pr3_s0_executor.py` attempted to open `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_s3_execution_receipt.json` inside the GitHub runner workspace.
+   - That file is available on my workstation under the local run-control tree, but it is not part of the checked-out source tree in GitHub Actions.
+3. This is a production-significant workflow defect, not an incidental missing file:
+   - it means the workflow is still assuming local repository state can stand in for authoritative certification evidence,
+   - that violates the road-to-production rule that reruns must bind to authoritative evidence/oracle surfaces rather than residue from the developer machine.
+4. The second failure (`kubectl` defaulting to `localhost:8080`) was only a noisy secondary consequence:
+   - the post-burst snapshot step is marked `if: always()` and therefore executed even though the earlier failure prevented kubeconfig setup,
+   - this should not be treated as an independent blocker on the platform path.
+5. I also checked the evidence bucket posture and found a related drift:
+   - some PR3/M14 evidence already exists in `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/...`,
+   - but the exact strict upstream artifacts for `PR2`, `M13 stress`, and `M14E cutover` used by `pr3_s0_executor.py` are not consistently hydrated for the workflow path.
+6. Production-minded remediation decision:
+   - keep `PR3-S2` evidence-first,
+   - explicitly hydrate all strict upstream artifacts from S3 into the ephemeral runner before state execution,
+   - repair the bucket for any strict upstream evidence that exists locally but was never published,
+   - make the workflow suppress the misleading post-burst snapshot failure when kubeconfig never became valid.
+7. Rejected alternative:
+   - I am rejecting the lazy option of rewriting `PR3-S0` to ignore strict upstream receipts or loosening the dependency checks just to get to the burst run.
+   - That would produce a false green by weakening proof discipline rather than fixing the execution path.
+8. Immediate implementation steps chosen:
+   - upload the missing strict upstream evidence set (`PR2`, `M13 stress S5`, `M14E cutover`) to the evidence bucket,
+   - patch the `PR3-S2` workflow to hydrate those artifacts before invoking `pr3_s0_executor.py`,
+   - gate the post-burst snapshot on successful kubeconfig setup,
+   - rerun `PR3-S2` immediately on the corrected evidence-first path.

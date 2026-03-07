@@ -22,6 +22,26 @@ on:
         required: true
         default: "pr2_20260305T200521Z"
         type: string
+      upstream_m13_execution_id:
+        description: "Strict upstream M13 closure execution id"
+        required: true
+        default: "m13_stress_s5_20260305T111321Z"
+        type: string
+      upstream_m14e_cutover_execution_id:
+        description: "Strict upstream M14E cutover execution id"
+        required: true
+        default: "m14e_msf_cutover_20260305T113525Z"
+        type: string
+      upstream_m14e_projection_execution_id:
+        description: "Strict upstream M14E projection execution id"
+        required: true
+        default: "m14e_rtdl_projection_20260305T114720Z"
+        type: string
+      upstream_m14f_archive_execution_id:
+        description: "Strict upstream M14F archive execution id"
+        required: true
+        default: "m14f_archive_connector_20260302T051741Z"
+        type: string
       evidence_bucket:
         description: "Evidence bucket for remote artifact backup"
         required: true
@@ -153,10 +173,65 @@ jobs:
           set -euo pipefail
           RUN_DIR="runs/dev_substrate/dev_full/road_to_prod/run_control/${{ inputs.pr3_execution_id }}"
           mkdir -p "${RUN_DIR}"
+          mkdir -p "${RUN_DIR}/upstream_support"
           NOW_UTC="$(date -u +'%Y%m%dT%H%M%SZ')"
           echo "run_dir=${RUN_DIR}" >> "$GITHUB_OUTPUT"
+          echo "support_dir=${RUN_DIR}/upstream_support" >> "$GITHUB_OUTPUT"
           echo "platform_run_id=platform_${NOW_UTC}" >> "$GITHUB_OUTPUT"
           echo "scenario_run_id=scenario_${NOW_UTC,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Hydrate strict upstream evidence from S3
+        shell: bash
+        env:
+          EVIDENCE_BUCKET: ${{ inputs.evidence_bucket }}
+          PR2_EXECUTION_ID: ${{ inputs.upstream_pr2_execution_id }}
+          M13_EXECUTION_ID: ${{ inputs.upstream_m13_execution_id }}
+          M14E_CUTOVER_EXECUTION_ID: ${{ inputs.upstream_m14e_cutover_execution_id }}
+          M14E_PROJECTION_EXECUTION_ID: ${{ inputs.upstream_m14e_projection_execution_id }}
+          M14F_ARCHIVE_EXECUTION_ID: ${{ inputs.upstream_m14f_archive_execution_id }}
+          RUN_DIR: ${{ steps.meta.outputs.run_dir }}
+          SUPPORT_DIR: ${{ steps.meta.outputs.support_dir }}
+        run: |
+          set -euo pipefail
+          PR2_DIR="runs/dev_substrate/dev_full/road_to_prod/run_control/${PR2_EXECUTION_ID}"
+          mkdir -p "${PR2_DIR}"
+          for name in \
+            pr2_s3_execution_receipt.json \
+            pr2_execution_summary.json \
+            pr2_runtime_numeric_contract.rc2s.active.yaml \
+            pr2_opsgov_numeric_contract.rc2s.active.yaml \
+            pr2_activation_validation_matrix.json \
+            pr2_deferred_scope_register.json; do
+            aws s3 cp \
+              "s3://${EVIDENCE_BUCKET}/evidence/dev_full/run_control/${PR2_EXECUTION_ID}/${name}" \
+              "${PR2_DIR}/${name}" \
+              --no-progress
+          done
+
+          aws s3 cp \
+            "s3://${EVIDENCE_BUCKET}/evidence/dev_full/run_control/${M13_EXECUTION_ID}/m13_execution_summary.json" \
+            "${SUPPORT_DIR}/m13_execution_summary.json" \
+            --no-progress
+          aws s3 cp \
+            "s3://${EVIDENCE_BUCKET}/evidence/dev_full/run_control/${M14E_CUTOVER_EXECUTION_ID}/m14e_msf_cutover_execution_summary.json" \
+            "${SUPPORT_DIR}/m14e_msf_cutover_execution_summary.json" \
+            --no-progress
+          aws s3 cp \
+            "s3://${EVIDENCE_BUCKET}/evidence/dev_full/run_control/${M14E_PROJECTION_EXECUTION_ID}/m14e_execution_summary.json" \
+            "${SUPPORT_DIR}/m14e_execution_summary.json" \
+            --no-progress
+          aws s3 cp \
+            "s3://${EVIDENCE_BUCKET}/evidence/dev_full/run_control/${M14E_PROJECTION_EXECUTION_ID}/m14e_rtdl_projection_snapshot.json" \
+            "${SUPPORT_DIR}/m14e_rtdl_projection_snapshot.json" \
+            --no-progress
+          aws s3 cp \
+            "s3://${EVIDENCE_BUCKET}/evidence/dev_full/run_control/${M14F_ARCHIVE_EXECUTION_ID}/m14f_execution_summary.json" \
+            "${SUPPORT_DIR}/m14f_execution_summary.json" \
+            --no-progress
+          aws s3 cp \
+            "s3://${EVIDENCE_BUCKET}/evidence/dev_full/run_control/${M14F_ARCHIVE_EXECUTION_ID}/m14f_archive_connector_snapshot.json" \
+            "${SUPPORT_DIR}/m14f_archive_connector_snapshot.json" \
+            --no-progress
 
       - name: Refresh PR3-S0 authority artifacts on corrected runtime surfaces
         shell: bash
@@ -164,9 +239,16 @@ jobs:
           set -euo pipefail
           python scripts/dev_substrate/pr3_s0_executor.py \
             --upstream-pr2-execution-id "${{ inputs.upstream_pr2_execution_id }}" \
-            --pr3-execution-id "${{ inputs.pr3_execution_id }}"
+            --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
+            --m13-summary-ref "${{ steps.meta.outputs.support_dir }}/m13_execution_summary.json" \
+            --m14e-cutover-summary-ref "${{ steps.meta.outputs.support_dir }}/m14e_msf_cutover_execution_summary.json" \
+            --m14e-projection-summary-ref "${{ steps.meta.outputs.support_dir }}/m14e_execution_summary.json" \
+            --m14e-projection-snapshot-ref "${{ steps.meta.outputs.support_dir }}/m14e_rtdl_projection_snapshot.json" \
+            --m14f-archive-summary-ref "${{ steps.meta.outputs.support_dir }}/m14f_execution_summary.json" \
+            --m14f-archive-snapshot-ref "${{ steps.meta.outputs.support_dir }}/m14f_archive_connector_snapshot.json"
 
       - name: Configure kubeconfig
+        id: kubeconfig
         shell: bash
         run: |
           set -euo pipefail
@@ -264,7 +346,7 @@ jobs:
           wait "${BURST_PID}"
 
       - name: Capture post-burst runtime snapshot
-        if: always()
+        if: ${{ always() && steps.kubeconfig.outcome == 'success' }}
         shell: bash
         run: |
           set -euo pipefail
