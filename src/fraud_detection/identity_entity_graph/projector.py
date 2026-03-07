@@ -299,7 +299,7 @@ class IdentityGraphProjector:
                 partition=partition_range.partition,
                 from_offset=cursor,
                 limit=self.profile.wiring.poll_max_records,
-                start_position="earliest",
+                start_position=self.profile.wiring.event_bus_start_position,
             )
             if not records:
                 break
@@ -458,6 +458,9 @@ class IdentityGraphProjector:
             if checkpoint and checkpoint.offset_kind == "kafka_offset":
                 checkpoint_offset = _coerce_kafka_offset(checkpoint.next_offset, default=None)
                 from_offset = None if checkpoint_offset is None else checkpoint_offset + 1
+        start_position = "earliest"
+        if from_offset is None and self.profile.wiring.event_bus_start_position == "latest":
+            start_position = "latest"
         read_max = min(self.profile.wiring.poll_max_records, max_inflight - len(buffer))
         if read_max <= 0:
             return
@@ -466,7 +469,7 @@ class IdentityGraphProjector:
             partition=partition,
             from_offset=from_offset,
             limit=read_max,
-            start_position="earliest",
+            start_position=start_position,
         )
         if not records:
             return

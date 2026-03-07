@@ -6884,3 +6884,40 @@ eason=http_502,
 6. Secondary observation from the launched WSP task logs:
    - tasks log `WSP pack manifest missing` and `WSP pack not sealed` against the oracle root, but the same posture existed on the clean steady-state run and therefore is not the immediate cause of the burst harness failure.
    - I am recording it as a follow-up audit item, not treating it as the current blocker.
+## Entry: 2026-03-07 07:40:00 +00:00 - PR3-S2 downstream red is now traced to two real runtime defects: scenario identity drift on the replay path and archive-writer IRSA KMS under-permissioning
+1. I reran the repaired `PR3-S2` rollup locally against the S3-backed burst artifacts and converted the previous script crash into a deterministic state receipt.
+2. The repaired rollup proves `S2` is materially red for production reasons, not tooling reasons:
+   - admitted burst throughput plateaued at `3740.961 eps` against the fail-closed `6000 eps` target,
+   - `archive_writer` saw `940` events and archived `0`, with `write_error_total_delta=940`,
+   - `DF/AL/DLA` run-scoped health artifacts were absent in the captured runtime snapshots.
+3. I then inspected the live EKS runtime rather than treating those three blocker families as one generic failure bucket.
+4. Archive writer root cause is explicit and production-significant:
+   - live pod logs show `AccessDenied` on `kms:GenerateDataKey` for CMK `arn:aws:kms:eu-west-2:230372904534:key/29a7acf2-da57-4b3f-8dd1-d9172d845a5c` while writing to the S3-backed archive root,
+   - the active IRSA role `fraud-platform-dev-full-irsa-rtdl` only carries `ssm-read` and `msk-data-plane` inline policies today,
+   - therefore the archive sink was not failing because of replay semantics or payload shape; it is missing the exact encryption permission needed by the real object-store path.
+5. I inspected the live Kafka traffic topic from inside the RTDL pod and proved that the topic tail currently carries:
+   - `platform_run_id=platform_20260307T071510Z` (current burst run),
+   - but `scenario_run_id=a3bd8cac9a4284cd36072c6b9624a0c1` (the oracle engine run id, not the fresh certification scenario id we attempted to pass to the dispatcher).
+6. This exposed a second real runtime defect:
+   - `pr3_wsp_replay_dispatch.py` passes `SCENARIO_RUN_ID` into the ECS task environment,
+   - but `fraud_detection.world_streamer_producer.cli` never accepts or forwards `--scenario-run-id`,
+   - so the WSP stream defaults back to the engine receipt `run_id`, contaminating downstream observability identity across certification reruns.
+7. I also reproduced the OFP start-position path inside the live pod and found another authority-to-runtime drift:
+   - the mounted `/runtime-profile/dev_full.yaml` yields `event_bus_start_position=trim_horizon` for OFP even though the source profile intends `latest`,
+   - the cause is parser mismatch: `OfpProfile.load()` reads `event_bus.start_position`, but the profile pins `wiring.event_bus_start_position`, so the intended latest posture is silently dropped at runtime.
+8. Production interpretation:
+   - `PR3-S2` is currently measuring a mixed-quality runtime: the hot ingress edge is healthy, but the replay identity and downstream storage/consumer posture are not yet production safe,
+   - closing `S2` without fixing these would create a false claim that the system can absorb burst pressure while its audit/archive lane is actually nonfunctional and its rerun identity is nondeterministic.
+9. Chosen remediation sequence:
+   - patch WSP CLI/dispatcher so the certification `scenario_run_id` is materially propagated into emitted envelopes,
+   - patch OFP runtime config loading so the declared `latest` start-position pin is actually honored,
+   - patch IEG start-position handling as well so the RTDL core does not silently default back to topic-history semantics on fresh certification runs,
+   - add the missing IRSA KMS permission for the archive/object-store CMK on the RTDL lane,
+   - rerun `PR3-S2` on a fresh runtime after those corrections and only then reassess the remaining throughput ceiling.
+
+
+## 2026-03-07 07:45:17 GMT Standard Time - PR3-S2 remediation validation and start-position closure
+- Validation pass completed for the pending PR3-S2 remediation set before any live rebuild/apply work. `py_compile` passed for the WSP replay dispatcher, S2 rollup, WSP CLI, OFP config, IEG config, and IEG projector. `config/platform/profiles/dev_full.yaml` parsed cleanly with `ieg.wiring.event_bus.start_position=latest` and `ofp.wiring.event_bus.start_position=latest`. `terraform fmt -check` and `terraform validate` both passed for `infra/terraform/dev_full/runtime`.
+- During validation I found one remaining defect in the supposed run-scope fix: `src/fraud_detection/identity_entity_graph/projector.py` still forced Kafka `start_position="earliest"` in `_fill_kafka_buffer()` whenever no checkpoint existed. That would have reintroduced history contamination on any fresh EKS rerun even after the config loader fix. I corrected the bootstrap path so empty-checkpoint reads honor `profile.wiring.event_bus_start_position`, matching the intended `latest` runtime posture for fresh PR3 reruns.
+- Production interpretation: this is not a cosmetic config cleanup. Without this closure, a fresh runtime could still bind to prior-topic history, produce artificial `RUN_SCOPE_MISMATCH` growth, and pollute any downstream claim about throughput or sink readiness. The current state is now structurally aligned for a live rerun; remaining work is live image refresh and runtime repin, not more local code debugging.
+- Immediate next actions locked from this point: build/publish refreshed runtime image carrying the WSP identity and run-scope fixes, refresh the remote runtime/task definitions onto that digest, apply the narrow RTDL IRSA KMS policy live, rerun `PR3-S2` on the canonical remote WSP->IG path, and only then judge the remaining burst ceiling and downstream stability.

@@ -176,16 +176,16 @@ def main() -> None:
         if observed is None or float(observed) > max_allowed:
             blockers.append(f"PR3.{args.state_id}.B15_BACKPRESSURE_POSTURE_UNPROVEN:{metric_id}:observed={observed}:max={max_allowed}")
 
-    ieg_apply_failure_delta = delta("ieg", "apply_failure_count")
-    if ieg_apply_failure_delta is None or ieg_apply_failure_delta > 0:
-        blockers.append(f"PR3.{args.state_id}.B15_IEG_APPLY_FAILURE_NONZERO:delta={ieg_apply_failure_delta}")
-
     def delta(component: str, field: str) -> float | None:
         start = snap_value(pre, component, field)
         end = snap_value(post, component, field)
         if start is None or end is None:
             return None
         return end - start
+
+    ieg_apply_failure_delta = delta("ieg", "apply_failure_count")
+    if ieg_apply_failure_delta is None or ieg_apply_failure_delta > 0:
+        blockers.append(f"PR3.{args.state_id}.B15_IEG_APPLY_FAILURE_NONZERO:delta={ieg_apply_failure_delta}")
 
     ieg_backpressure_delta = delta("ieg", "backpressure_hits")
     if ieg_backpressure_delta is None:

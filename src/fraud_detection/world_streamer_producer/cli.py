@@ -26,6 +26,7 @@ def main() -> None:
     parser.add_argument("--profile", required=True, help="Path to platform profile YAML")
     parser.add_argument("--engine-run-root", help="Engine run root (overrides profile wiring)")
     parser.add_argument("--scenario-id", help="Scenario id (required if not discoverable)")
+    parser.add_argument("--scenario-run-id", help="Scenario run id override for emitted envelopes")
     parser.add_argument("--output-ids", help="Comma-separated output_ids override (subset of policy)")
     parser.add_argument("--max-events", type=int, default=None, help="Max events to emit")
     args = parser.parse_args()
@@ -36,6 +37,7 @@ def main() -> None:
     result = producer.stream_engine_world(
         engine_run_root=args.engine_run_root,
         scenario_id=args.scenario_id,
+        scenario_run_id=args.scenario_run_id,
         output_ids=_parse_output_ids(args.output_ids),
         max_events=args.max_events,
     )

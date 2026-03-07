@@ -1508,3 +1508,28 @@ resource "aws_iam_role_policy" "eks_irsa_msk_data_plane" {
     ]
   })
 }
+
+
+resource "aws_iam_role_policy" "eks_irsa_rtdl_core_kms" {
+  count = local.core_kms_key_arn != "" ? 1 : 0
+
+  name = "${var.role_eks_irsa_rtdl_name}-core-kms"
+  role = aws_iam_role.eks_irsa["rtdl"].id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:Encrypt",
+          "kms:ReEncrypt*",
+          "kms:GenerateDataKey",
+          "kms:DescribeKey"
+        ]
+        Resource = local.core_kms_key_arn
+      }
+    ]
+  })
+}
+

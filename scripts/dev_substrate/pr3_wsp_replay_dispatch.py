@@ -155,7 +155,8 @@ def build_wsp_command() -> list[str]:
         exec python -m fraud_detection.world_streamer_producer.cli \
           --profile /tmp/pr3_s1_wsp_profile.yaml \
           --engine-run-root "$ORACLE_ENGINE_RUN_ROOT" \
-          --scenario-id "$ORACLE_SCENARIO_ID"
+          --scenario-id "$ORACLE_SCENARIO_ID" \
+          --scenario-run-id "$SCENARIO_RUN_ID"
         """
     ).strip()
     return ["/bin/sh", "-lc", script]

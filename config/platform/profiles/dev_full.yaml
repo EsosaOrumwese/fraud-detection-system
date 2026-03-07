@@ -67,6 +67,7 @@ ieg:
       region: ${KAFKA_AWS_REGION}
       endpoint_url: ${KAFKA_ENDPOINT_URL}
       topics_ref: config/platform/ieg/topics_v0.yaml
+      start_position: latest
     engine_contracts_root: docs/model_spec/data-engine/interface_pack/contracts
     poll_max_records: 500
     poll_sleep_seconds: 0.1
@@ -98,6 +99,7 @@ ofp:
       region: ${KAFKA_AWS_REGION}
       endpoint_url: ${KAFKA_ENDPOINT_URL}
       topics_ref: config/platform/ofp/topics_v0.yaml
+      start_position: latest
     engine_contracts_root: docs/model_spec/data-engine/interface_pack/contracts
     poll_max_records: 500
     poll_sleep_seconds: 0.1
