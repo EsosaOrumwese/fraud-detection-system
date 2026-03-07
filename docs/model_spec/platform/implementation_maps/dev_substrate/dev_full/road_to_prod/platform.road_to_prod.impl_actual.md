@@ -6409,3 +6409,22 @@ eason=http_502,
    - remove the stale workflow default,
    - register a new canonical WSP task-definition revision on the freshly built digest,
    - rerun PR3 runtime materialization and then strict `PR3-S1` on that corrected image boundary.
+
+## Entry: 2026-03-07 04:24:00 +00:00 - PR3-S1 launcher is now blocked by missing psycopg on the GitHub Actions runner, not by the platform runtime
+1. After correcting the image lineage, the fresh PR3 runtime rematerialized successfully and all six deployments reached `1/1` available on digest `sha256:8ec634853ae03cfa624633ddde8ccb2108a2915973cee7eeaaa7c653b875c873`.
+2. The next strict `PR3-S1` rerun then failed immediately in the launcher step before any remote WSP task dispatch.
+3. Exact error:
+   - `ModuleNotFoundError: No module named 'psycopg'`
+4. Cause:
+   - `pr3_s1_wsp_replay_dispatch.py` now imports `psycopg` for the runtime-identity reuse probe,
+   - the workflow runner dependency step still installed only `boto3` and `botocore`.
+5. Production interpretation:
+   - this is a CI runner dependency gap,
+   - it does not invalidate the earlier platform-runtime remediation,
+   - but it must be fixed because otherwise the fail-closed identity guard never executes in CI.
+6. Chosen fix:
+   - add `psycopg[binary]` to the workflow runner dependency install for the steady-harness job,
+   - keep the database-backed identity probe as-is.
+7. Immediate next sequence:
+   - patch and push the workflow dependency correction,
+   - rerun strict `PR3-S1` on the same fresh runtime identity pair because no traffic was admitted before the import failure.

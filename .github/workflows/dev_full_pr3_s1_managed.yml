@@ -431,7 +431,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m pip install --upgrade pip
-          python -m pip install boto3 botocore
+          python -m pip install boto3 botocore "psycopg[binary]"
 
       - name: Configure kubeconfig
         shell: bash
