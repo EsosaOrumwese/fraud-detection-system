@@ -7080,3 +7080,50 @@ eason=http_502,
    - refresh the runtime image carrying this code,
    - rerun `PR3-S2`,
    - verify that CSFB stays healthy and that DF/AL/DLA begin publishing run-scoped evidence surfaces.
+
+## Entry: 2026-03-07 10:08:14 +00:00 - The post-CSFB PR3-S2 stop reason is downstream decision-lane drift, not missing context publication
+1. After the CSFB Kafka remediation was materially active, I re-opened the live PR3-S2 runtime instead of assuming the earlier "empty context topics" read was still true.
+2. That earlier empty-topic conclusion was wrong because it sampled Kafka with a `latest` read and no explicit offset window. I corrected the probe by reading the tail offsets directly from the context topics.
+3. The corrected live bus evidence proves the WSP replay lane is publishing the current certification run's context correctly:
+   - `fp.bus.context.arrival_events.v1` carries current-run `arrival_events_5B`,
+   - `fp.bus.context.arrival_entities.v1` carries current-run `s1_arrival_entities_6B`,
+   - `fp.bus.context.flow_anchor.fraud.v1` carries current-run `s3_flow_anchor_with_fraud_6B`,
+   - all three topic tails carry `platform_run_id=platform_20260307T090843Z` and `scenario_run_id=132f468e8c894bd2bd46b88c21684322`.
+4. I then verified the CSFB projection store directly in Aurora. Current-run state is materially present:
+   - `22,733` join frames,
+   - `4,100` complete join frames,
+   - `11,991` flow bindings,
+   - only `LATE_CONTEXT_EVENT` apply failures, which are expected under historical replay pressure and do not indicate missing publication.
+5. Production consequence:
+   - the active PR3-S2 red state is no longer a WSP publication problem,
+   - it is no longer a CSFB capability problem,
+   - and any further remediation on those two areas would be wasted movement rather than real platform hardening.
+6. The real stop reason is now downstream in the decision lane: DF/AL/DLA are not materially participating in the run the way PR3-S2 expects, despite context and archive now being live.
+
+## Entry: 2026-03-07 10:08:14 +00:00 - PR3-S2 is currently blocked by two coupled decision-plane defects: DF run-window starvation and dev_full registry snapshot drift
+1. I inspected the current decision-plane evidence after confirming context publication and CSFB projection were healthy.
+2. The current burst run still shows only a tiny DF footprint:
+   - run-scoped DF metrics show `decisions_total=1`, `missing_context_total=1`, `fail_closed_total=1`, `publish_quarantine_total=1`,
+   - direct inspection of `decision_replay_ledger` shows only `4` current-run decisions for `platform_20260307T090843Z`,
+   - all of them are `CONTEXT_WAITING` plus `REGISTRY_FAIL_CLOSED`,
+   - and `fp.bus.rtdl.v1` remains empty, which explains why AL and DLA stay dark.
+3. The first defect is a run-window participation problem in DF:
+   - the burst traffic topic tail is full of current-run `s3_event_stream_with_fraud_6B` events,
+   - but DF only registered a handful of tail decisions and did not materially advance into a normal burst-processing posture,
+   - so the current PR3-S2 scorecard is measuring a decision lane that barely entered the burst window at all.
+4. The second defect is a hard configuration drift that guarantees fail-closed registry outcomes in `dev_full`:
+   - `config/platform/profiles/dev_full.yaml` still points DF at `config/platform/df/registry_snapshot_local_parity_v0.yaml`,
+   - that snapshot only contains `environment: local_parity` records,
+   - but DF runtime scope is `environment: dev_full`, `mode: fraud`, `bundle_slot: primary`,
+   - so registry resolution deterministically returns `SCOPE_NOT_FOUND` and `REGISTRY_FAIL_CLOSED` for every attempted decision.
+5. Production interpretation:
+   - even if DF had perfect context availability, it would still fail-closed because the active registry authority for `dev_full` is wrong,
+   - and even after fixing registry scope, PR3-S2 still needs DF to materially participate across the full burst window rather than only processing a few tail records.
+6. Rejected shortcuts:
+   - I am not waiving the DF/AL/DLA red state as an acceptable bounded-degrade result,
+   - I am not treating the current `fp.bus.rtdl.v1` emptiness as an AL/DLA-only issue,
+   - and I am not blaming WSP or CSFB now that both have direct positive live evidence behind them.
+7. Chosen remediation direction from this point:
+   - repin `dev_full` DF to a real `dev_full` registry snapshot so registry resolution can produce production-meaningful decisions,
+   - then harden PR3 runtime readiness / consumer posture so DF enters the burst window only after the required context/registry surfaces are materially available,
+   - then rerun PR3-S2 on the same strict boundary and judge it by actual burst throughput plus downstream decision-lane participation.
