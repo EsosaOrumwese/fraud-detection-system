@@ -8145,3 +8145,16 @@ ot ready because pods are broken from eady to accept first traffic on a fresh r
    - commit/push the workflow correction,
    - rerun strict PR3-S2 on the rebalanced runtime shape,
    - assess the impact metrics and proceed only if the throughput gap is genuinely closed.
+## Entry: 2026-03-07 17:58:00 +00:00 - Image-neutral fallback must prefer latest immutable ECR package when ECS family metadata is stale or tag-only
+1. Reproducing the resolver locally against live AWS showed the code path itself is sound, but the failed workflow run still proved a real control-surface gap: on the runner, the fallback task-family surface yielded a tag reference whose tag could not be resolved back to an existing ECR digest.
+2. That means the ECS family metadata is not a reliable sole authority for image-neutral reruns. It can lag behind the immutable packaging surface or point at a tag that no longer exists even though the repository still contains valid immutable digests.
+3. I queried ECR directly and confirmed the repository does contain a clean ordered history of immutable git-tagged packages, with the latest digest currently `sha256:50d9953e34433457ce556988b496fa0bf36fa4dbea119d96640d37427b5a33e9` from run `22802948609`.
+4. Production-grade correction chosen:
+   - keep current-SHA image lookup as the first choice,
+   - for image-neutral commits, prefer the latest immutable git-tagged digest in ECR,
+   - use ECS task-family image only as a secondary hint if ECR cannot provide a git-tagged digest,
+   - keep fail-closed behavior if neither surface yields an immutable digest.
+5. Why this is stronger than the previous fallback:
+   - immutable ECR packaging is the real runtime artifact authority,
+   - ECS family metadata is operational state and may drift or retain mutable/tag-only references,
+   - certification runs should anchor to immutable packages first and deployment metadata second.

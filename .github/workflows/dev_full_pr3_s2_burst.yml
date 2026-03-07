@@ -347,47 +347,29 @@ jobs:
                       "No immutable image found for current branch SHA and commit is not image-neutral; "
                       f"changed_paths={changed_paths}"
                   )
-              task_def_proc = subprocess.run(
-                  [
-                      "aws",
-                      "ecs",
-                      "describe-task-definition",
-                      "--task-definition",
-                      fallback_family,
-                      "--region",
-                      region,
-                      "--output",
-                      "json",
-                  ],
-                  check=True,
-                  capture_output=True,
-                  text=True,
-              )
-              task_def_payload = json.loads(task_def_proc.stdout or "{}")
-              containers = list((task_def_payload.get("taskDefinition") or {}).get("containerDefinitions") or [])
-              images = [str(container.get("image", "")).strip() for container in containers if str(container.get("image", "")).strip()]
-              if not images:
-                  raise SystemExit(
-                      "No immutable image found for current branch SHA and fallback task family has no active image."
-                  )
-              image_uri = images[0]
-              digest = image_uri.rsplit("@", 1)[-1] if "@" in image_uri else ""
-              if not digest.startswith("sha256:"):
-                  if ":" not in image_uri.rsplit("/", 1)[-1]:
+              git_tagged_rows = []
+              for row in payload.get("imageDetails", []):
+                  tags = [str(tag).strip() for tag in (row.get("imageTags") or []) if str(tag).strip()]
+                  if any(tag.startswith("git-") for tag in tags):
+                      git_tagged_rows.append(row)
+              if git_tagged_rows:
+                  git_tagged_rows.sort(key=lambda row: row.get("imagePushedAt", ""), reverse=True)
+                  selected = git_tagged_rows[0]
+                  digest = str(selected.get("imageDigest", "")).strip()
+                  if not digest.startswith("sha256:"):
                       raise SystemExit(
-                          "Fallback image is not pinned by digest and does not expose a resolvable tag."
+                          f"Latest immutable git-tagged package resolved without a valid digest: {digest!r}"
                       )
-                  repo_part, image_tag = image_uri.rsplit(":", 1)
-                  repo_name_fallback = repo_part.rsplit("/", 1)[-1]
-                  tag_lookup_proc = subprocess.run(
+                  image_uri = f"{repo_uri}@{digest}"
+                  resolution_mode = "latest_git_tagged_digest"
+              else:
+                  task_def_proc = subprocess.run(
                       [
                           "aws",
-                          "ecr",
-                          "describe-images",
-                          "--repository-name",
-                          repo_name_fallback,
-                          "--image-ids",
-                          f"imageTag={image_tag}",
+                          "ecs",
+                          "describe-task-definition",
+                          "--task-definition",
+                          fallback_family,
                           "--region",
                           region,
                           "--output",
@@ -397,19 +379,54 @@ jobs:
                       capture_output=True,
                       text=True,
                   )
-                  tag_lookup_payload = json.loads(tag_lookup_proc.stdout or "{}")
-                  image_details = list(tag_lookup_payload.get("imageDetails") or [])
-                  if not image_details:
+                  task_def_payload = json.loads(task_def_proc.stdout or "{}")
+                  containers = list((task_def_payload.get("taskDefinition") or {}).get("containerDefinitions") or [])
+                  images = [str(container.get("image", "")).strip() for container in containers if str(container.get("image", "")).strip()]
+                  if not images:
                       raise SystemExit(
-                          f"Fallback image tag could not be resolved to a digest: {image_uri}"
+                          "No immutable image found for current branch SHA, latest git-tagged package missing, "
+                          "and fallback task family has no active image."
                       )
-                  digest = str(image_details[0].get("imageDigest", "")).strip()
+                  image_uri = images[0]
+                  digest = image_uri.rsplit("@", 1)[-1] if "@" in image_uri else ""
                   if not digest.startswith("sha256:"):
-                      raise SystemExit(
-                          f"Fallback image tag resolved without a valid digest: {image_uri}"
+                      if ":" not in image_uri.rsplit("/", 1)[-1]:
+                          raise SystemExit(
+                              "Fallback image is not pinned by digest and does not expose a resolvable tag."
+                          )
+                      repo_part, image_tag = image_uri.rsplit(":", 1)
+                      repo_name_fallback = repo_part.rsplit("/", 1)[-1]
+                      tag_lookup_proc = subprocess.run(
+                          [
+                              "aws",
+                              "ecr",
+                              "describe-images",
+                              "--repository-name",
+                              repo_name_fallback,
+                              "--image-ids",
+                              f"imageTag={image_tag}",
+                              "--region",
+                              region,
+                              "--output",
+                              "json",
+                          ],
+                          check=True,
+                          capture_output=True,
+                          text=True,
                       )
-                  image_uri = f"{repo_part}@{digest}"
-              resolution_mode = "task_family_fallback"
+                      tag_lookup_payload = json.loads(tag_lookup_proc.stdout or "{}")
+                      image_details = list(tag_lookup_payload.get("imageDetails") or [])
+                      if not image_details:
+                          raise SystemExit(
+                              f"Fallback image tag could not be resolved to a digest: {image_uri}"
+                          )
+                      digest = str(image_details[0].get("imageDigest", "")).strip()
+                      if not digest.startswith("sha256:"):
+                          raise SystemExit(
+                              f"Fallback image tag resolved without a valid digest: {image_uri}"
+                          )
+                      image_uri = f"{repo_part}@{digest}"
+                  resolution_mode = "task_family_fallback"
 
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
               fh.write(f"image_digest={digest}\n")
