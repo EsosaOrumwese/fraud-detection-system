@@ -478,6 +478,21 @@ def main() -> int:
 
     workloads = [
         {
+            "name": "fp-pr3-csfb",
+            "service_account": rtdl_sa,
+            "command": ["python", "-m", "fraud_detection.context_store_flow_binding.intake", "--policy", args.profile_path],
+            "env": common_secret_env
+            + [
+                env_ref("CSFB_REQUIRED_PLATFORM_RUN_ID", secret_name, "CSFB_REQUIRED_PLATFORM_RUN_ID"),
+                env_ref("CSFB_PROJECTION_DSN", secret_name, "CSFB_PROJECTION_DSN"),
+            ],
+            "cpu_request": "500m",
+            "cpu_limit": "2",
+            "mem_request": "1Gi",
+            "mem_limit": "4Gi",
+            "lane": "RTDL_CORE",
+        },
+        {
             "name": "fp-pr3-ieg",
             "service_account": rtdl_sa,
             "command": ["python", "-m", "fraud_detection.identity_entity_graph.projector", "--profile", args.profile_path],

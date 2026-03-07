@@ -6983,3 +6983,34 @@ eason=http_502,
    - commit and push this closure set so branch-observed workflow runs match the documented logic,
    - rerun `PR3-S2` on the same strict boundary with the refreshed WSP image/task revision already in place,
    - use the rerun scorecard to identify the next true platform bottleneck once admission is again possible.
+
+## Entry: 2026-03-07 09:05:00 +00:00 - PR3-S2 downstream red is narrowed to missing CSFB runtime composition plus object-store archive write under-permissioning
+1. I re-read the authoritative `PR3-S2` burst rerun (`22795572161`) from the impact-metric perspective rather than treating the remaining blockers as one generic red state.
+2. The run now proves three things at once:
+   - ingress admission itself is healthy enough to take real burst pressure (`744,984` admitted requests, `4,138.8 eps`, `5xx=0`, `p95=128.08 ms`, `p99=177.30 ms`),
+   - the state is still fail-closed because the target burst envelope is `6,000 eps` and the measured edge stayed below that floor,
+   - downstream bounded-degrade proof is incomplete because archive, DF, AL, and DLA did not all produce the required run-scoped impact surfaces.
+3. I then decomposed the remaining red state into root causes instead of reaching for another rerun.
+4. Archive writer root cause has changed from the earlier KMS defect to an object-store authorization defect:
+   - live pod logs now show `AccessDenied` on `s3:PutObject` for the RTDL IRSA role while writing to `fraud-platform-dev-full-object-store`,
+   - therefore the archive lane is not red because of payload shape or replay disorder; it is red because the runtime IAM contract still does not grant write rights to the exact object-store sink we pinned for PR3.
+5. DF/AL/DLA root cause is not generic downstream instability either. It is a runtime composition omission:
+   - `DF` consumed current-run traffic and still produced only one fail-closed decision with `missing_context_total=1`,
+   - direct in-pod query of CSFB for that same `flow_id` returned `MISSING_BINDING` / `FLOW_BINDING_NOT_FOUND`,
+   - the PR3 runtime pod set does not contain any `context_store_flow_binding` worker at all,
+   - yet the `dev_full` runtime profile and DF context policy both require CSFB-backed flow bindings.
+6. Production interpretation:
+   - closing `PR3-S2` without CSFB would be analytically false because DF would be judged on a runtime graph that is missing one of its declared truth inputs,
+   - closing `PR3-S2` without archive object-store write rights would be analytically false because the audit/archive lane would still be structurally unable to persist the evidence we claim to be validating.
+7. Rejected shortcut:
+   - I am not waiving DF/AL/DLA as downstream optional surfaces,
+   - I am not lowering the burst target to match the current partial runtime,
+   - I am not treating archive failure as an acceptable advisory.
+8. Chosen remediation is the production-grade one:
+   - add CSFB into the PR3 runtime materializer so the deployed runtime graph matches the declared RTDL/decision topology,
+   - extend the RTDL IRSA role through canonical Terraform so archive/object-store writes are materially authorized,
+   - rerun `PR3-S2` only after those two runtime defects are removed, so the next burst scorecard measures the real graph rather than a known-incomplete one.
+9. Important authority note carried forward for later closure work:
+   - the current PR3 replay path is still measuring ingress on the internal ALB service URL from SSM rather than API Gateway,
+   - I am not changing that blindly in this step because internal high-throughput production posture may intentionally use the private managed edge,
+   - but the choice must be made explicit in PR3/PR4 as part of final production-readiness closure, not left as a silent drift.
