@@ -6667,3 +6667,80 @@ eason=http_502,
    - run the canonical IG edge materialization workflow against the active immutable platform image,
    - verify the service rolls to a task definition carrying the keepalive pin,
    - rerun strict PR3-S1 on the strongest remote WSP -> IG shape and evaluate impact metrics again.
+## Entry: 2026-03-07 05:57:03 +00:00 - The live ingress fleet has now rolled to task definition 14 with the explicit keepalive pin, so the next PR3-S1 rerun will measure a fully converged edge
+1. Canonical rollout workflow dev-full-pr3-ig-edge-materialize completed successfully on run 22793240194 from branch commit 08cb80bf905adefa02f314c046aed8c47b797f4.
+2. Post-rollout AWS verification confirms:
+   - ECS service task definition is now raud-platform-dev-full-ig-service:14,
+   - deployment rollout state is COMPLETED,
+   - running and desired counts have reconverged at 32/32,
+   - the container environment now exposes IG_GUNICORN_KEEPALIVE_SECONDS=75,
+   - the Gunicorn launch command now includes explicit --keep-alive {IG_GUNICORN_KEEPALIVE_SECONDS}.
+3. Production interpretation:
+   - the ingress edge under test is now materially different from the one that leaked the residual ELB 5xx on the previous strongest run,
+   - the next PR3-S1 rerun is therefore a valid remediation proof and not just a repeated load experiment on unchanged infra.
+4. Immediate next action:
+   - rerun strict PR3-S1 on the strongest proven remote replay shape (40 lanes, 3015 eps setpoint, stream_speedup=51.2, 180s, 540000 sample minimum) and evaluate whether the keepalive hardening removes the final zero-5xx breach without sacrificing throughput.
+## Entry: 2026-03-07 06:06:25 +00:00 - The keepalive remediation removed the residual 5xx leak, so PR3-S1 is now reduced to a narrow setpoint-calibration problem on an otherwise production-clean steady window
+1. Strict rerun 22793355853 executed on the corrected ingress fleet (raud-platform-dev-full-ig-service:14, IG_GUNICORN_KEEPALIVE_SECONDS=75) with the same strongest replay shape:
+   - 40 lanes,
+   - 	arget_request_rate_eps=3015,
+   - stream_speedup=51.2,
+   - 180s measured window,
+   - 540000 sample minimum.
+2. Observed impact metrics from the rollup:
+   - observed_admitted_eps=2992.3,
+   - dmitted_request_count=538614,
+   - 4xx_total=0,
+   - 5xx_total=0,
+   - latency_p95_ms=106.58,
+   - latency_p99_ms=131.55.
+3. What materially changed relative to the prior strongest run:
+   - the residual ELB 5xx leak is gone,
+   - tail latency improved modestly,
+   - only blocker left is PR3.S1.WSP.B19_FINAL_THROUGHPUT_SHORTFALL at -7.7 eps (-0.26% below target).
+4. Production interpretation:
+   - the ingress edge reliability fault line was real and the keepalive fix addressed it,
+   - this is no longer an architectural or transport-stability problem,
+   - the remaining miss is a small calibration gap between generator request setpoint and admitted measured throughput on the declared ALB surface.
+5. Rejected responses:
+   - accept 2992.3 eps as "close enough": rejected because the closure standard is strict and explicitly anti-waiver;
+   - widen or re-architect the edge again immediately: rejected because the corrected fleet has already proven zero errors and healthy latency at almost the full target;
+   - relax the measurement surface or window: rejected because that would weaken the claim instead of improving the platform.
+6. Chosen next remediation:
+   - keep the corrected ingress fleet and the same 40-lane replay topology,
+   - keep the same duration, sample minimum, and zero-error bar,
+   - raise only the generator setpoint slightly above 3015 to recover the observed  .26% admission gap while preserving the now-clean reliability posture.
+7. Immediate next run choice:
+   - rerun PR3-S1 with 	arget_request_rate_eps=3030 on the same corrected fleet and same replay shape.
+8. Why 3030:
+   - it is a small calibrated uplift (+15 eps, +0.5% over target),
+   - it covers the observed 7.7 eps deficit with margin for normal run-to-run variance,
+   - it avoids a larger overshoot that would risk reintroducing unnecessary edge turbulence.
+## Entry: 2026-03-07 06:16:39 +00:00 - PR3-S1 is now closed on the canonical corrected ingress edge and the next sequential state is PR3-S2 burst/backpressure proof
+1. Final passing PR3-S1 run is workflow 22793503797.
+2. Final certified impact metrics:
+   - observed_admitted_eps=3025.3556,
+   - dmitted_request_count=544564,
+   - 4xx_total=0,
+   - 5xx_total=0,
+   - latency_p95_ms=108.05,
+   - latency_p99_ms=131.60,
+   - covered_metric_seconds=180.
+3. State interpretation:
+   - steady-state runtime proof is now credible on the real remote WSP -> IG path,
+   - the earlier ingress reliability leak is resolved,
+   - the acceptance bar is met without waivers.
+4. What actually closed S1:
+   - canonical runtime-path correction,
+   - private-runtime dependency completion,
+   - ingress keepalive hardening on the ECS service edge,
+   - small setpoint calibration from 3015 to 3030 after the reliability leak was removed.
+5. This is the correct production sequence because the final green did not come from lowering the bar or changing measurement surfaces; it came from fixing the real runtime chain and then calibrating the producer setpoint on that corrected chain.
+6. Sequential consequence:
+   - PR3 now moves to S2,
+   - S2 must prove burst handling, bounded degradation, and archive/backpressure posture on the same corrected runtime path,
+   - TGT-08 remains IN_PROGRESS until S2..S5 close even though steady-state is now green.
+7. Next planning focus for S2:
+   - define the burst profile setpoint and duration from the active RC2-S contract,
+   - identify the authoritative burst metric surfaces for throughput, 4xx/5xx, latency, and backlog/lag,
+   - prove archive/backpressure behavior instead of merely inferring it from ingress counts.

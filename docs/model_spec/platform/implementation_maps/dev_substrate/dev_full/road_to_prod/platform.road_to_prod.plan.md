@@ -341,13 +341,13 @@ This plan's intent is satisfied only when:
 | Area | What was found | Interpretation |
 | --- | --- | --- |
 | Gate outcome | `PR3_S1_READY`, `open_blockers=0`, `next_state=PR3-S2` | S1 steady certification is now closed on the canonical remote-WSP path. |
-| Steady goal vs observed throughput | acceptance target `3000.0 eps`; observed admitted throughput `3003.4222 eps` | The platform now clears the RC2-S steady-rate goal on the authoritative ingress measurement surface. |
-| Source-setpoint calibration | generator setpoint `3005.0 eps`; observed admitted `3003.4222 eps` | The load generator needed a small calibrated overdrive to overcome sub-1% open-loop underdelivery while keeping the acceptance contract fixed at `3000 eps`. |
+| Steady goal vs observed throughput | acceptance target `3000.0 eps`; observed admitted throughput `3025.3556 eps` | The platform clears the RC2-S steady-rate goal on the authoritative ALB-backed ingress measurement surface with margin. |
+| Source-setpoint calibration | generator setpoint `3030.0 eps`; observed admitted `3025.3556 eps` | The final closure needed only a small calibrated overdrive (`+1.0%` over the contract floor) to absorb open-loop delivery variance while keeping the acceptance contract fixed at `3000 eps`. |
 | Measurement surface validity | `IG_ADMITTED_EVENTS_PER_SEC`; covered metric window `180s`; `metric_bin_count=3` | S1 is now judged on settled CloudWatch minute bins rather than partial-bin wall-clock math. |
-| Sample minima | bounded steady minimum `540,000` events; observed admitted `540,616` | The bounded-window sample floor is satisfied for this certification state. |
-| Latency posture | API Gateway latency `p95/p99` for the same window remained within charter maxima (`<=350 ms`, `<=700 ms`) | Throughput closure did not degrade hot-path latency posture. |
+| Sample minima | bounded steady minimum `540,000` events; observed admitted `544,564` | The bounded-window sample floor is satisfied with explicit margin. |
+| Latency posture | ALB target-response latency `p95=108.05 ms`, `p99=131.60 ms` against maxima `<=350 ms`, `<=700 ms` | Throughput closure did not degrade hot-path latency posture and remains comfortably inside the steady envelope. |
 | Error posture | `4xx_total=0`, `5xx_total=0`, `error_rate_ratio=0.0` | S1 closed with a clean transport/admission error surface. |
-| Runtime and cost posture | active closure path `221.411s`; no cost-waiver logic used | The state stayed within a minute-scale operational posture and remains compatible with later PR3 cost rollups. |
+| Runtime and cost posture | active closure path `218.722s`; no cost-waiver logic used | The state stayed within a minute-scale operational posture and remains compatible with later PR3 cost rollups. |
 | Goal-level verdict | S1 is production-credible and closed; PR3 can advance to burst/backpressure proof in `S2` | Further PR3 work now belongs to the next state, not more steady remediation. |
 
 ### 10.13 PR3-S1 Runtime-Correction Snapshot (Readable)
@@ -436,7 +436,7 @@ As-of execution: `pr1_20260305T174744Z`
 | TGT-05 | PINNED | PR1-S5 | S4 pinned `label_maturity_lag=3d` from charter-window maturity distribution using explicit `ts_utc` availability proxy semantics and fail-closed selection policy. |
 | TGT-06 | PINNED | PR1-S5 | S2 pinned join/fanout/unmatched bounds with explicit thresholds and decision register. |
 | TGT-07 | PINNED | PR1-S5 | S4 activated monitoring baseline contract (`status=ACTIVE`) with bound `G2/G3A/G3B` refs and required metric families. |
-| TGT-08 | IN_PROGRESS | PR3-S5 | PR3-S0 bound runtime metric surfaces; PR3-S1 cleared minima/surface/completeness but exposed canonical `WSP` runtime-path drift. Runtime correction has now progressed through subnet/bootstrap fixes and isolated stale-image drift; image refresh plus post-refresh steady proof remain required before TGT-08 can close. |
+| TGT-08 | IN_PROGRESS | PR3-S5 | PR3-S0 bound runtime metric surfaces and PR3-S1 is now closed on the canonical corrected `WSP -> IG` path (`3025.3556 eps`, `4xx=0`, `5xx=0`, `p95=108.05 ms`, `p99=131.60 ms`). Remaining closure work belongs to PR3 `S2..S5` (burst, recovery, soak/drills, rollup), not to steady-state correction. |
 | TGT-09 | IN_PROGRESS | PR3-S5 | PR3-S0 pinned archive sink/backpressure posture; downstream validation remains scheduled for `S2/S4` after S1 clearance. |
 | TGT-10 | OPEN | PR4-S5 | Decision explainability schema pending G3B audit closure. |
 | TGT-11 | OPEN | PR4-S5 | Promotion observation window pending G3B corridor closure. |

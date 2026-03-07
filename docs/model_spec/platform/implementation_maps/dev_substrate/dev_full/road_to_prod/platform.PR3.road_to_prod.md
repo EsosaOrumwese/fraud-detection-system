@@ -487,15 +487,24 @@ State closure:
 ### 11.2 PR3-S1 Findings Summary (Readable)
 | Area | What was found | Interpretation |
 | --- | --- | --- |
-| Gate outcome | canonical rerun verdict `HOLD_REMEDIATE`, `open_blockers=144`, active rerun boundary remains `PR3-S1` | Earlier green calibration is no longer the authoritative truth for S1 under the stricter production path. |
-| Steady goal vs observed throughput | target `3000.0 eps`; observed admitted throughput `0.0 eps` | The canonical remote WSP -> IG path is not production-ready yet and currently fails before admitting any useful load. |
-| Request volume posture | API Gateway count sum `2449` over the measured bins | Requests do reach the ingress edge, so this is not a WSP launch failure or a missing route. |
-| Error posture | `4xx_sum=0`, `5xx_sum=2449`, `error_rate_pct_observed=100.0` | Every measured request failed at the ingress/runtime path; there is no acceptable partial-pass interpretation here. |
-| Latency posture | API Gateway latency `p95=29969.101 ms`, `p99=30000.323 ms` against S1 maxima `350/700 ms` | The ingress hot path is saturating the full request timeout budget, which is a severe production defect rather than a small tuning miss. |
-| WSP lane posture | `138/138` lanes exited non-zero with `IG_PUSH_RETRY_EXHAUSTED`, `aggregate_cli_emitted=0` | The producer path is uniformly failing under canonical replay, so the defect is systemic and not isolated to a few hot shards. |
-| Lambda posture | Lambda duration averaged `30000 ms` in every active minute; reserved concurrency `300` also hit throttles during the window | The current synchronous admission path blocks until timeout, then drives concurrency exhaustion and secondary throttling. |
-| Root-cause signal | WSP logs show repeated `timeout` and `http_503`; IG metrics show full-timeout behavior with no clean response budget left | The active bottleneck is inside the live ingress hot path, most likely around synchronous publish/quarantine behavior, not the WSP source rate-shaper. |
-| Goal-level conclusion | S1 is not closed; PR3 must remain at `S1` until steady ingress admission can sustain target throughput within latency/error thresholds on the canonical path | Advancing to `S2` now would be a false production claim. |
+| Gate outcome | strict rerun `22793503797` returned `PR3_S1_READY`, `open_blockers=0`, `next_state=PR3-S2` | S1 steady certification is now closed on the canonical remote `WSP -> IG` path. |
+| Steady goal vs observed throughput | target `3000.0 eps`; observed admitted throughput `3025.3556 eps` | The corrected ingress edge and calibrated remote replay now clear the steady production floor with margin. |
+| Sample minima | bounded steady minimum `540,000` events; observed admitted `544,564` | The 180-second certification window contains enough first-admission volume to make the claim statistically credible for S1. |
+| Error posture | `4xx_total=0`, `5xx_total=0`, `error_rate_pct_observed=0.0` | The prior residual ELB leak is gone and S1 now closes with a clean error surface. |
+| Latency posture | weighted ALB target-response latency `p95=108.05 ms`, `p99=131.60 ms` against maxima `350/700 ms` | Tail latency remains comfortably green at the certified steady rate. |
+| Measurement posture | authoritative measurement surface `IG_ADMITTED_EVENTS_PER_SEC` from ALB counts minus `4xx/5xx`; `metric_bin_count=3` over a settled `180s` window | The acceptance math is now tied to the correct production ingress surface rather than to proxy or partial-bin math. |
+| Replay-shape posture | `40` remote WSP lanes, `stream_speedup=51.2`, generator setpoint `3030.0 eps`, no synthetic local injector | The closure proof is on the real remote producer boundary and remains production-coherent. |
+| Runtime posture | corrected ingress fleet on task definition `fraud-platform-dev-full-ig-service:14` with explicit Gunicorn keepalive `75s` | The fix that removed the last reliability leak is materially present in the certified edge, not just noted in docs. |
+| Goal-level conclusion | S1 is production-credible and closed; PR3 can advance to burst/backpressure proof in `S2` | Further PR3 work belongs to the next state, not more steady remediation. |
+
+### 11.9 PR3-S1 Final Closure Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Final passing run | workflow run `22793503797` from branch head `f08cb80bf905adefa02f314c046aed8c47b797f4` | S1 closure is pinned to a concrete, auditable run after the ingress keepalive remediation. |
+| Certified impact metrics | throughput `3025.3556 eps`; admitted events `544,564`; `4xx=0`; `5xx=0`; `p95=108.05 ms`; `p99=131.60 ms` | The steady window now meets the production-ready bar across throughput, reliability, and latency at the same time. |
+| Fix sequence that mattered | private-runtime correction -> missing `logs` endpoint -> stale runtime refresh -> ingress keepalive pin -> final setpoint calibration to `3030 eps` | The passing result came from removing real runtime defects, not from weakening the gate. |
+| What changed vs the last red run | keepalive pin removed the residual 5xx leak; final setpoint uplift closed the remaining `7.7 eps` gap | The last S1 problems were narrow and were solved directly at their true fault lines. |
+| Remaining PR3 work | `S2` burst/backpressure, `S3` recovery, `S4` soak/drills/cost, `S5` runtime-pack rollup | `TGT-08` is not fully closed yet, but steady-state runtime proof is no longer the limiting lane. |
 
 ### 11.3 PR3-S1 Runtime-Correction Findings (Readable)
 | Area | What was found | Interpretation |
