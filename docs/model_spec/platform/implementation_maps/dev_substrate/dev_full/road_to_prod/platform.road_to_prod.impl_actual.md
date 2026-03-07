@@ -5855,3 +5855,79 @@ Reasoning:
    - publish a new immutable runtime image carrying these hot-path changes;
    - redeploy the managed ingress service with the new service Kafka timeout pin;
    - rerun strict `PR3-S1` from the existing run-control root and judge only the impact metrics.
+
+## Entry: 2026-03-07 00:44:00 +00:00 - Fresh immutable image is now live on the managed ingress fleet with the Kafka timeout correction pinned materially, so PR3-S1 can be judged again on a valid runtime boundary
+1. Immutable build completed from commit `c6481c1fbd89987676e89f032af3ed205a18acf4` via GitHub Actions run `22787785477`.
+2. New canonical image digest:
+   - `sha256:b4e132e49e14d7c4dff921001227defe1b416c0901967c29e92e53c55b90deda`
+   - full URI `230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-full@sha256:b4e132e49e14d7c4dff921001227defe1b416c0901967c29e92e53c55b90deda`.
+3. I rolled the managed ingress service only, using explicit pins for:
+   - `ig_service_enabled=true`,
+   - `ig_service_image_uri=<new digest>`,
+   - `ig_service_kafka_request_timeout_ms=10000`.
+4. I kept this as a constrained ingress-only rollout because the runtime state still contains unrelated surfaces and PR3-S1 only needs the ingress service/task definition boundary refreshed for honest measurement.
+5. Live verification after ECS reached steady state:
+   - service `fraud-platform-dev-full-ig-service` on task definition `:12`;
+   - `desired_count=32`, `running_count=32`, `pending_count=0`;
+   - deployment rollout state `COMPLETED`;
+   - container image matches the new immutable digest;
+   - container env confirms `KAFKA_REQUEST_TIMEOUT_MS=10000` and `IG_RECEIPT_STORAGE_MODE=ddb_hot`.
+6. Operational interpretation:
+   - the hot ingress fleet is now actually executing both of the intended corrections: the new governance writer behavior from the rebuilt image and the corrected Kafka timeout posture from the new service pin;
+   - any further `PR3-S1` result from this point is attributable to the corrected runtime, not stale image drift or stale task-definition env.
+7. Immediate next action is therefore legitimate and necessary:
+   - rerun strict canonical `PR3-S1` from `pr3_20260306T021900Z` and re-evaluate the impact metrics on the live corrected service.
+
+
+## Entry: 2026-03-07 01:08:00 +00:00 - PR3-S1 is presently blocked by harness authority/read-path defects, so the next remediation must harden the certification tooling itself before any more platform judgment is made
+1. I inspected the just-finished GitHub Actions rerun `22788053348` instead of assuming the local `g3a_s1_wsp_runtime_summary.json` had been refreshed. It had not. The workflow failed before it could emit a new authoritative runtime summary.
+2. The actual hard failure in that run is precise and non-platform:
+   - `botocore.exceptions.ClientError: ... elasticloadbalancing:DescribeTargetGroups ... AccessDenied` raised during `Launch canonical remote WSP replay`.
+3. This is not an inconsequential nuisance. The canonical `PR3-S1` path now measures ingress on the ALB surface when the managed service URL is active. If the certification harness cannot resolve the target-group dimension, then the lane cannot produce trustworthy throughput/latency evidence against the live service-backed ingress boundary.
+4. A second tooling defect surfaced in the same run before launch:
+   - the bootstrap step performs `aws s3 sync s3://.../run_control/<pr3_id>/ ${RUN_DIR}/` against the entire execution root;
+   - that prefix now contains oversized historical materialization artifacts, including recursive path explosions under `ig_edge_materialize/.../bin/X11/...`;
+   - the workflow burned significant time downloading irrelevant evidence before even reaching the runtime launch step.
+5. Production interpretation:
+   - a certification/hardening lane that cannot observe the real ingress surface or that wastes minutes pulling irrelevant artifacts is itself not production-grade tooling;
+   - this must be treated as part of the system we are hardening, not an external annoyance to work around casually.
+6. Chosen remediation direction:
+   - widen the GitHub OIDC role with the missing least-privilege ELB read action required by the canonical ALB metric path (`elasticloadbalancing:DescribeTargetGroups`);
+   - keep the existing CloudWatch/MSF read grants already pinned in `infra/terraform/dev_full/ops/main.tf`;
+   - shrink workflow bootstrap from a full run-root sync to the exact authoritative artifacts actually required by `pr3_s1_wsp_replay_dispatch.py` (at minimum `pr3_s0_execution_receipt.json`, with optional targeted copies for charter/scorecard if later needed);
+   - add a fallback in the dispatcher so previously resolved ALB metric dimensions can be honored without making `DescribeTargetGroups` a single-point-of-failure when equivalent authoritative dimensions are already available.
+7. Rejected shortcut:
+   - rerunning locally or through an easier legacy path just to keep the chain moving. That would hide a real certification-tooling defect and undermine later reproducibility.
+8. Immediate implementation sequence:
+   - patch docs/logbook first;
+   - patch the workflow/bootstrap boundary and dispatcher fallback;
+   - patch the IAM policy in code and apply it live;
+   - validate locally;
+   - commit/push the new correction boundary;
+   - rerun strict `PR3-S1` and continue from the new authoritative evidence.
+
+
+## Entry: 2026-03-07 01:16:00 +00:00 - PR3-S1 harness authority/read-path remediation is implemented and live, so the next rerun can return to judging platform behavior instead of failing inside the certification tooling
+1. I patched `scripts/dev_substrate/pr3_s1_wsp_replay_dispatch.py` so ALB metric-surface discovery can reuse a previously resolved `g3a_s1_wsp_runtime_manifest.json` surface when the host matches and the necessary dimensions are already authoritative. This does not weaken the live path; it removes an unnecessary single-point-of-failure in the certification harness when equivalent resolved dimensions are already pinned from the same execution family.
+2. I patched `.github/workflows/dev_full_pr3_s1_managed.yml` so the bootstrap stage no longer syncs the entire `run_control/<pr3_id>/` prefix. It now copies only the strict upstream lock receipt (`pr3_s0_execution_receipt.json`) plus the prior runtime manifest on a best-effort basis.
+3. Why the bootstrap narrowing is the correct production move:
+   - `pr3_s1_wsp_replay_dispatch.py` only requires `pr3_s0_execution_receipt.json` for strict upstream gating;
+   - full-root sync was spending minutes downloading irrelevant historical materialization artifacts and path-exploded files under `ig_edge_materialize/...`;
+   - a certification lane that wastes setup time on irrelevant evidence is violating the performance-first law itself.
+4. I also corrected the workflow rollup generation so `g3a_steady_evidence_managed.json` no longer hardcodes API Gateway as the measurement surface. It now records whether the authoritative metric surface was `APIGW` or `ALB` and populates the relevant dimensions accordingly.
+5. On the IAM side, I extended `infra/terraform/dev_full/ops/main.tf` so managed policy `GitHubActionsPR3RuntimeDevFull` grants:
+   - `elasticloadbalancing:DescribeLoadBalancers`
+   - `elasticloadbalancing:DescribeTargetGroups`
+6. I then applied that IAM delta live using targeted Terraform against the `dev_full/ops` stack. The apply updated the in-place policy on role `GitHubAction-AssumeRoleWithAction`; no other resources changed.
+7. Local validation completed before the live apply:
+   - `python -m py_compile scripts/dev_substrate/pr3_s1_wsp_replay_dispatch.py` -> pass;
+   - workflow YAML parse for `dev_full_pr3_s1_managed.yml` -> pass;
+   - `terraform -chdir=infra/terraform/dev_full/ops fmt -check && terraform validate` -> pass.
+8. Operational interpretation:
+   - the next `PR3-S1` rerun should no longer die before launch on `DescribeTargetGroups` authorization;
+   - the workflow bootstrap should reach launch materially faster and without dragging oversized stale evidence into the working directory;
+   - the resulting evidence rollup will finally describe the live ALB-backed ingress measurement surface honestly.
+9. Next immediate action:
+   - commit/push this harness correction boundary,
+   - rerun strict `PR3-S1`,
+   - continue remediation only from the new platform-impact metrics that come back.

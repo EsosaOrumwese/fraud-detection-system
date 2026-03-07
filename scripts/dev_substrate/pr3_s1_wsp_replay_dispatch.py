@@ -416,6 +416,7 @@ def resolve_ingress_surface(
     ingest_url: str,
     api_id: str,
     api_stage: str,
+    prior_surface: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     parsed = urlparse(str(ingest_url).strip())
     host = str(parsed.netloc or "").strip().split(":", 1)[0]
@@ -427,19 +428,41 @@ def resolve_ingress_surface(
             "api_stage": api_stage,
         }
     if host.endswith(".elb.amazonaws.com"):
-        paginator = elbv2.get_paginator("describe_load_balancers")
-        matched_lb: dict[str, Any] | None = None
-        for page in paginator.paginate():
-            for row in page.get("LoadBalancers", []):
-                if str(row.get("DNSName", "")).strip() == host:
-                    matched_lb = row
+        prior_surface = prior_surface or {}
+        try:
+            paginator = elbv2.get_paginator("describe_load_balancers")
+            matched_lb: dict[str, Any] | None = None
+            for page in paginator.paginate():
+                for row in page.get("LoadBalancers", []):
+                    if str(row.get("DNSName", "")).strip() == host:
+                        matched_lb = row
+                        break
+                if matched_lb:
                     break
-            if matched_lb:
-                break
+        except (BotoCoreError, ClientError):
+            matched_lb = None
         if not matched_lb:
+            if (
+                str(prior_surface.get("mode", "")).upper() == "ALB"
+                and str(prior_surface.get("host", "")).strip() == host
+                and str(prior_surface.get("load_balancer_dimension", "")).strip()
+                and str(prior_surface.get("target_group_dimension", "")).strip()
+            ):
+                return dict(prior_surface)
             raise RuntimeError(f"PR3.S1.WSP.B05_INGRESS_SURFACE_UNRESOLVED:alb_dns_not_found:{host}")
         lb_arn = str(matched_lb.get("LoadBalancerArn", "")).strip()
-        target_groups = list(elbv2.describe_target_groups(LoadBalancerArn=lb_arn).get("TargetGroups", []))
+        try:
+            target_groups = list(elbv2.describe_target_groups(LoadBalancerArn=lb_arn).get("TargetGroups", []))
+        except (BotoCoreError, ClientError):
+            if (
+                str(prior_surface.get("mode", "")).upper() == "ALB"
+                and str(prior_surface.get("host", "")).strip() == host
+                and str(prior_surface.get("load_balancer_arn", "")).strip() == lb_arn
+                and str(prior_surface.get("load_balancer_dimension", "")).strip()
+                and str(prior_surface.get("target_group_dimension", "")).strip()
+            ):
+                return dict(prior_surface)
+            raise
         if not target_groups:
             raise RuntimeError(f"PR3.S1.WSP.B05_INGRESS_SURFACE_UNRESOLVED:no_target_group:{host}")
         target_group = target_groups[0]
@@ -742,11 +765,20 @@ def main() -> None:
             resolved_ig_ingest_url = ""
     if not resolved_ig_ingest_url:
         resolved_ig_ingest_url = str(args.ig_ingest_url_fallback).strip()
+    prior_surface: dict[str, Any] | None = None
+    prior_manifest_path = pr3_root / "g3a_s1_wsp_runtime_manifest.json"
+    if prior_manifest_path.exists():
+        try:
+            prior_manifest = load_json(prior_manifest_path)
+            prior_surface = dict(prior_manifest.get("ingress", {}).get("metric_surface", {}) or {})
+        except Exception:
+            prior_surface = None
     ingress_surface = resolve_ingress_surface(
         elbv2=elbv2,
         ingest_url=resolved_ig_ingest_url,
         api_id=args.api_id,
         api_stage=args.api_stage,
+        prior_surface=prior_surface,
     )
     wsp_checkpoint_dsn = str(args.wsp_checkpoint_dsn).strip()
     if not wsp_checkpoint_dsn:

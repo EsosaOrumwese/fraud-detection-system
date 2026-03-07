@@ -535,9 +535,12 @@ jobs:
           RUN_DIR: ${{ steps.meta.outputs.run_dir }}
         run: |
           set -euo pipefail
-          aws s3 sync \
-            "s3://${EVIDENCE_BUCKET}/evidence/dev_full/run_control/${PR3_EXECUTION_ID}/" \
-            "${RUN_DIR}/" \
+          aws s3 cp \
+            "s3://${EVIDENCE_BUCKET}/evidence/dev_full/run_control/${PR3_EXECUTION_ID}/pr3_s0_execution_receipt.json" \
+            "${RUN_DIR}/pr3_s0_execution_receipt.json"
+          aws s3 cp \
+            "s3://${EVIDENCE_BUCKET}/evidence/dev_full/run_control/${PR3_EXECUTION_ID}/g3a_s1_wsp_runtime_manifest.json" \
+            "${RUN_DIR}/g3a_s1_wsp_runtime_manifest.json" \
             --no-progress || true
           test -f "${RUN_DIR}/pr3_s0_execution_receipt.json"
 
@@ -622,6 +625,8 @@ jobs:
           observed = dict(summary.get("observed", {}))
           perf = dict(summary.get("performance_window", {}))
           campaign = dict(summary.get("campaign", {}))
+          metric_surface = dict(manifest.get("ingress", {}).get("metric_surface", {}) or {})
+          metric_surface_mode = str(metric_surface.get("mode", "APIGW") or "APIGW").upper()
 
           selection = {
               "phase": "PR3",
@@ -690,8 +695,11 @@ jobs:
               "latency_derivation_method": observed.get("latency_derivation_method"),
               "cloudwatch_aggregation": {
                   "period_seconds": perf.get("metric_period_seconds"),
-                  "api_id": os.environ["API_ID"],
-                  "stage": os.environ["API_STAGE"],
+                  "metric_surface_mode": metric_surface_mode,
+                  "api_id": os.environ["API_ID"] if metric_surface_mode == "APIGW" else None,
+                  "stage": os.environ["API_STAGE"] if metric_surface_mode == "APIGW" else None,
+                  "load_balancer_dimension": metric_surface.get("load_balancer_dimension") if metric_surface_mode == "ALB" else None,
+                  "target_group_dimension": metric_surface.get("target_group_dimension") if metric_surface_mode == "ALB" else None,
                   "count_sum": observed.get("request_count_total"),
                   "4xx_sum": observed.get("4xx_total"),
                   "5xx_sum": observed.get("5xx_total"),
@@ -706,8 +714,8 @@ jobs:
               "overall_pass": overall_pass,
               "source_notes": [
                   "runtime_path_active=CANONICAL_REMOTE_WSP_REPLAY",
-                  "throughput_derived_from_AWS/ApiGateway_count_minus_4xx_5xx",
-                  "latency_derived_from_AWS/ApiGateway_Latency_weighted_by_count",
+                  f"throughput_derived_from_AWS/{'ApplicationELB' if metric_surface_mode == 'ALB' else 'ApiGateway'}_count_minus_4xx_5xx",
+                  f"latency_derived_from_AWS/{'ApplicationELB_TargetResponseTime' if metric_surface_mode == 'ALB' else 'ApiGateway_Latency'}_weighted_by_count",
               ],
           }
           evidence_summary = {

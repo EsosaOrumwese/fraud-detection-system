@@ -537,6 +537,15 @@ resource "aws_iam_policy" "github_actions_pr3_runtime" {
           "cloudwatch:ListMetrics"
         ]
         Resource = "*"
+      },
+      {
+        Sid    = "PR3ElbRuntimeRead"
+        Effect = "Allow"
+        Action = [
+          "elasticloadbalancing:DescribeLoadBalancers",
+          "elasticloadbalancing:DescribeTargetGroups"
+        ]
+        Resource = "*"
       }
     ]
   })
