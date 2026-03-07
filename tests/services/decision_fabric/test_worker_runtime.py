@@ -114,8 +114,9 @@ def test_worker_defers_context_waiting_without_publish_or_advance() -> None:
     worker._metrics = None
     worker._reconciliation = None
 
-    worker._process_record(row)
+    outcome = worker._process_record(row)
 
+    assert outcome == "BLOCKED"
     assert worker.consumer_checkpoints.deferred == [
         (candidate.source_eb_ref.topic, candidate.source_eb_ref.partition, candidate.source_eb_ref.offset, candidate.source_eb_ref.offset_kind)
     ]
@@ -172,3 +173,29 @@ def test_consumer_checkpoint_store_clears_first_seen_on_advance(tmp_path: Path) 
 
     assert first == "2026-03-07T15:01:00.000000Z"
     assert second == "2026-03-07T15:01:07.000000Z"
+
+
+def test_run_once_blocks_later_rows_from_same_partition_after_defer() -> None:
+    worker = DecisionFabricWorker.__new__(DecisionFabricWorker)
+    rows = [
+        {"topic": "fp.bus.traffic.fraud.v1", "partition": 0, "offset_kind": "kafka_offset", "offset": "101"},
+        {"topic": "fp.bus.traffic.fraud.v1", "partition": 0, "offset_kind": "kafka_offset", "offset": "102"},
+        {"topic": "fp.bus.traffic.fraud.v1", "partition": 1, "offset_kind": "kafka_offset", "offset": "201"},
+    ]
+    seen: list[str] = []
+
+    worker._iter_records = lambda: rows
+    worker._export = lambda: None
+
+    def _process(row: dict[str, str]) -> str:
+        seen.append(str(row["offset"]))
+        if str(row["partition"]) == "0" or row["partition"] == 0:
+            return "BLOCKED" if str(row["offset"]) == "101" else "ADVANCED"
+        return "ADVANCED"
+
+    worker._process_record = _process
+
+    processed = worker.run_once()
+
+    assert processed == 2
+    assert seen == ["101", "201"]

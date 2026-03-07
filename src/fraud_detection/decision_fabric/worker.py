@@ -46,6 +46,8 @@ from .synthesis import DecisionSynthesizer
 
 logger = logging.getLogger("fraud_detection.df.worker")
 _ENV_PATTERN = re.compile(r"^\$\{([^}:]+)(?::-([^}]*))?\}$")
+_DF_ADVANCED = "ADVANCED"
+_DF_BLOCKED = "BLOCKED"
 
 
 @dataclass(frozen=True)
@@ -299,8 +301,14 @@ class DecisionFabricWorker:
 
     def run_once(self) -> int:
         processed = 0
+        blocked_partitions: set[tuple[str, int, str]] = set()
         for row in self._iter_records():
-            self._process_record(row)
+            key = (str(row["topic"]), int(row["partition"]), str(row["offset_kind"]))
+            if key in blocked_partitions:
+                continue
+            outcome = self._process_record(row)
+            if outcome == _DF_BLOCKED:
+                blocked_partitions.add(key)
             processed += 1
         self._export()
         return processed
@@ -311,7 +319,7 @@ class DecisionFabricWorker:
             if processed == 0:
                 time.sleep(self.config.poll_sleep_seconds)
 
-    def _process_record(self, row: dict[str, Any]) -> None:
+    def _process_record(self, row: dict[str, Any]) -> str:
         topic = str(row["topic"])
         partition = int(row["partition"])
         offset = str(row["offset"])
@@ -328,14 +336,14 @@ class DecisionFabricWorker:
         inlet = self.inlet.evaluate(bus)
         if not inlet.accepted or inlet.candidate is None:
             self.consumer_checkpoints.advance(topic=topic, partition=partition, offset=offset, offset_kind=offset_kind)
-            return
+            return _DF_ADVANCED
         candidate = inlet.candidate
         if self.config.required_platform_run_id and str(candidate.pins.get("platform_run_id") or "") != self.config.required_platform_run_id:
             self.consumer_checkpoints.advance(topic=topic, partition=partition, offset=offset, offset_kind=offset_kind)
-            return
+            return _DF_ADVANCED
         if not self._ensure_scenario(candidate):
             self.consumer_checkpoints.advance(topic=topic, partition=partition, offset=offset, offset_kind=offset_kind)
-            return
+            return _DF_ADVANCED
 
         observed_at_utc = _utc_now()
         published_at_utc = bus.published_at_utc or candidate.source_eb_ref.published_at_utc
@@ -373,7 +381,7 @@ class DecisionFabricWorker:
                 offset,
                 list(getattr(context, "reasons", ()) or ()),
             )
-            return
+            return _DF_BLOCKED
         registry = self.registry_resolver.resolve(
             scope_key=self._registry_scope(candidate, envelope),
             posture=posture,
@@ -455,6 +463,7 @@ class DecisionFabricWorker:
                 decision_receipt_ref=decision_receipt_ref,
                 action_receipt_refs=action_receipt_refs,
             )
+        return _DF_ADVANCED if commit.status == CHECKPOINT_COMMITTED else _DF_BLOCKED
 
     def _resolve_graph_version(self, request: dict[str, Any]) -> dict[str, Any] | None:
         scenario_run_id = str(((request.get("pins") or {}).get("scenario_run_id") or "")).strip()

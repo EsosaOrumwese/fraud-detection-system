@@ -7523,3 +7523,68 @@ Implementation sequence
    - local code proof is green,
    - the remote PR3 runtime is still on the previous image, so the next meaningful step is image refresh plus strict `PR3-S2` rerun,
    - if `DF` still shows a high fail-closed volume after this patch is materially live, that remaining red will be a true context-correlation/data-contract problem rather than a retry-budget liveness bug.
+## Entry: 2026-03-07 15:36:00 +00:00 - Remote materialization plan after local RTDL fix: rebuild image, repin WSP ECS family, then rerun strict PR3-S2
+1. Local proofs are complete, but PR3-S2 still depends on two live runtime surfaces that must both move to the new code before another burst run is honest:
+   - EKS RTDL workers consume `worker_image_uri` directly in `pr3_rtdl_materialize.py`.
+   - The canonical WSP replay lane still launches from ECS family `fraud-platform-dev-full-wsp-ephemeral`, which does not take an image override at run time.
+2. I rebuilt the shared immutable image from commit `9c29b4dbfa187f85b3aae590cf9295d35a3fa6e8` via workflow run `22799372854` and obtained authoritative digest `sha256:ac1f05cd84d7925570693146efa9cd9e23b3b0719f0db2617d2a8cdc0fde97bc`.
+3. The next live change is therefore not a rerun; it is a materialization correction:
+   - inspect the current latest active WSP ECS task-definition revision,
+   - if it is not already on the new digest, register a fresh revision pinned to `230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-full@sha256:ac1f05cd84d7925570693146efa9cd9e23b3b0719f0db2617d2a8cdc0fde97bc`,
+   - record the revision/evidence under the active PR3 run-control tree,
+   - then launch strict `PR3-S2` with the same digest passed into `worker_image_uri` so both ECS replay and EKS runtime are on one audited artifact.
+4. Why this remains the correct production posture:
+   - it preserves immutable provenance across both runtime planes,
+   - it removes stale-image ambiguity from the burst evidence,
+   - it ensures any remaining red after rerun is a real platform behavior issue rather than deployment drift.
+5. If the current task-definition family is already on the new digest, I will not churn it; I will record that the live replay lane is already materially aligned and proceed directly to the PR3-S2 rerun.
+## Entry: 2026-03-07 16:05:00 +00:00 - PR3-S2 post-rerun diagnosis: current blocker is DF same-batch partition overrun after defer, not missing wait-state persistence on this replay surface
+1. I inspected the live `DF` pod and its run-scoped checkpoint SQLite after the rerun instead of relying on the rollup alone.
+2. What the rerun proved:
+   - the zero-state observability remediation worked; `AL` and `DLA` now emit run-scoped surfaces and no longer block `PR3-S2` with missing files,
+   - `DF` is still not materializing decisions on the active run `platform_20260307T125447Z`,
+   - ingress remains below the `6000 eps` / latency target, but RTDL is still partially dark, so another pure ingress tuning loop would still be premature.
+3. The decisive `DF` evidence from the live pod:
+   - log tail shows a monotonic series of `CONTEXT_WAITING` defers on successive offsets within the same partition (`2782494`, `2782495`, `2782496` on partition 0; analogous progression on partitions 1 and 2),
+   - run-scoped checkpoint SQLite now holds `next_offset` values that already moved past the first deferred offsets (`2782499`, `2782078`, `2777130`),
+   - `df_worker_wait_state` is empty on this run, which means the canonical replay lane is currently carrying valid publish timestamps and therefore does not need the fallback first-seen ledger for the active evidence window.
+4. Production interpretation of that evidence:
+   - `DecisionFabricWorker.run_once()` is currently processing a whole read batch for a partition even after the first head-of-partition event returns `CONTEXT_WAITING`,
+   - each later defer on the same partition overwrites the stored consumer checkpoint with a newer offset,
+   - the true partition head therefore never gets retried long enough to age into deterministic `CONTEXT_MISSING` or to observe late-arriving context,
+   - this is a stronger correctness/liveness defect than the earlier first-seen bug because it violates ordered partition semantics directly.
+5. Chosen remediation before any further remote rerun:
+   - change `DF` batch execution so the worker stops processing later records from a partition as soon as one record in that partition returns a non-advanced state (`CONTEXT_WAITING` or any other no-advance condition),
+   - preserve work on other partitions in the same cycle so throughput remains partition-parallel,
+   - add regression coverage proving that a deferred head record blocks later same-partition rows in the same batch but does not block other partitions.
+6. Why this is the correct production posture:
+   - ordered Kafka partition consumption must not let later records leapfrog an unresolved head record,
+   - preserving per-partition stop-on-defer semantics restores deterministic liveness and makes the checkpoint store truthful,
+   - it reduces wasted context queries and remote compute because the worker will stop thrashing later rows that cannot yet be legally advanced.
+## Entry: 2026-03-07 16:18:00 +00:00 - Implemented DF stop-on-defer per partition to restore ordered checkpoint semantics under burst replay
+1. I implemented the second RTDL liveness correction in `src/fraud_detection/decision_fabric/worker.py` after proving from the live pod that the checkpoint store was leaping forward within a single batch.
+2. Exact change set:
+   - `DecisionFabricWorker.run_once()` now tracks blocked partitions for the current cycle using `(topic, partition, offset_kind)`.
+   - `_process_record()` now returns a processing outcome instead of `None`.
+   - Any path that advances the consumer checkpoint returns `ADVANCED`.
+   - `CONTEXT_WAITING` returns `BLOCKED`, which causes `run_once()` to skip later rows from that same partition for the remainder of the batch.
+   - Any terminal path that fails to commit the checkpoint also returns `BLOCKED`, preserving the same ordered-boundary discipline.
+3. Why this fixes the active production defect:
+   - Kafka partition order is now respected inside a single batch, not only across loop iterations,
+   - a head-of-partition wait can no longer be overwritten by later offsets from the same read call,
+   - the consumer checkpoint once again represents the true next legal offset rather than the last row touched in the batch.
+4. This remediation complements, rather than replaces, the earlier first-seen persistence fix:
+   - first-seen persistence still protects replay surfaces where publish timestamps are absent,
+   - stop-on-defer per partition fixes the currently active canonical replay surface where publish timestamps are present but ordered-batch semantics were still broken.
+5. Regression coverage added in `tests/services/decision_fabric/test_worker_runtime.py`:
+   - `_process_record()` still returns `BLOCKED` for `CONTEXT_WAITING`,
+   - `run_once()` now proves that once one row in partition 0 blocks, the next row in partition 0 is skipped while work on partition 1 still proceeds,
+   - all earlier worker-runtime and context-policy tests remain green.
+6. Local validation completed cleanly:
+   - `.venv\Scripts\python.exe -m pytest tests/services/decision_fabric/test_worker_runtime.py tests/services/decision_fabric/test_phase5_context.py` -> `12 passed`
+   - `.venv\Scripts\python.exe -m py_compile src/fraud_detection/decision_fabric/worker.py tests/services/decision_fabric/test_worker_runtime.py`
+7. Next remote action is deterministic:
+   - commit/push this DF batch-order correction,
+   - rebuild the shared image again,
+   - repin the WSP ECS family to the new digest,
+   - rerun strict `PR3-S2` on the same execution boundary.
