@@ -201,7 +201,8 @@ jobs:
             pr2_runtime_numeric_contract.rc2s.active.yaml \
             pr2_opsgov_numeric_contract.rc2s.active.yaml \
             pr2_activation_validation_matrix.json \
-            pr2_deferred_scope_register.json; do
+            pr2_deferred_scope_register.json \
+            pr2_runbook_index.json; do
             aws s3 cp \
               "s3://${EVIDENCE_BUCKET}/evidence/dev_full/run_control/${PR2_EXECUTION_ID}/${name}" \
               "${PR2_DIR}/${name}" \

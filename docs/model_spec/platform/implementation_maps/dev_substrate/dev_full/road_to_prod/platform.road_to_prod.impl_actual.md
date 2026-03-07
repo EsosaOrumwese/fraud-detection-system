@@ -6839,3 +6839,22 @@ eason=http_502,
    - patch the `PR3-S2` workflow to hydrate those artifacts before invoking `pr3_s0_executor.py`,
    - gate the post-burst snapshot on successful kubeconfig setup,
    - rerun `PR3-S2` immediately on the corrected evidence-first path.
+## Entry: 2026-03-07 07:10:00 +00:00 - The first evidence-first rerun proved the setup repair, then exposed one remaining strict-input hole: PR3-S0 also needs the PR2 runbook index hydrated from S3
+1. The corrected `PR3-S2` rerun (`22794289341`) cleared all setup and runtime-materialization steps:
+   - strict upstream evidence hydration succeeded,
+   - `PR3-S0` executed on the GitHub runner,
+   - kubeconfig setup succeeded,
+   - fresh EKS runtime materialization succeeded,
+   - readiness and pre-burst snapshot both succeeded.
+2. The burst window still did not launch because `pr3_wsp_replay_dispatch.py` re-checked the strict upstream boundary and found `pr3_s0_execution_receipt.json` in `HOLD_REMEDIATE`.
+3. I diffed the runner-produced `PR3-S0` artifacts against the local validated ones and found the exact delta:
+   - `DP06_PR2_RUNBOOK_INDEX` passed locally but failed on the runner,
+   - the runner-side hydration step copied `pr2_s3_execution_receipt.json`, `pr2_execution_summary.json`, both active contracts, the activation matrix, and the deferred scope register,
+   - but it omitted `pr2_runbook_index.json`, which `PR3-S0` explicitly requires as part of the ops/governance evidence discipline.
+4. Why I am treating this as a real blocker instead of weakening the gate:
+   - the runbook index is part of the operational readiness proof for production reruns,
+   - allowing `PR3-S0` to proceed without it would be another shortcut that makes the certification chain less auditable.
+5. The correct remediation is therefore narrow and strict:
+   - add `pr2_runbook_index.json` to the hydrated PR2 evidence set in the workflow,
+   - rerun immediately on the same strict upstream ids,
+   - only once the burst window actually launches do we start diagnosing throughput or downstream behavior.
