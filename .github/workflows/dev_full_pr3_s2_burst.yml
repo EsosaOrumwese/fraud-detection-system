@@ -57,11 +57,6 @@ on:
         required: true
         default: "fraud-platform-dev-full"
         type: string
-      eks_namespace:
-        description: "EKS namespace for PR3 runtime"
-        required: true
-        default: "fraud-platform-rtdl"
-        type: string
       lane_count:
         description: "Number of remote WSP burst lanes"
         required: true
@@ -145,6 +140,8 @@ jobs:
   run_pr3_s2_burst:
     name: Run PR3-S2 burst and backpressure proof
     runs-on: ubuntu-latest
+    env:
+      EKS_NAMESPACE: fraud-platform-rtdl
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -758,7 +755,7 @@ jobs:
             --platform-run-id "${{ steps.meta.outputs.platform_run_id }}" \
             --scenario-run-id "${{ steps.meta.outputs.scenario_run_id }}" \
             --region "${{ inputs.aws_region }}" \
-            --namespace "${{ inputs.eks_namespace }}" \
+            --namespace "${{ env.EKS_NAMESPACE }}" \
             --image-uri "${{ steps.platform_image.outputs.image_uri }}"
 
       - name: Verify fresh runtime readiness
@@ -766,7 +763,7 @@ jobs:
         run: |
           set -euo pipefail
           for deployment in fp-pr3-csfb fp-pr3-ieg fp-pr3-ofp fp-pr3-dl fp-pr3-df fp-pr3-al fp-pr3-dla fp-pr3-archive-writer; do
-            kubectl rollout status "deployment/${deployment}" -n "${{ inputs.eks_namespace }}" --timeout=240s
+            kubectl rollout status "deployment/${deployment}" -n "${{ env.EKS_NAMESPACE }}" --timeout=240s
           done
 
       - name: Warm-gate runtime before burst injection
@@ -776,7 +773,7 @@ jobs:
           python scripts/dev_substrate/pr3_runtime_warm_gate.py \
             --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
             --state-id S2 \
-            --namespace "${{ inputs.eks_namespace }}" \
+            --namespace "${{ env.EKS_NAMESPACE }}" \
             --platform-run-id "${{ steps.meta.outputs.platform_run_id }}" \
             --profile-path "/runtime-profile/dev_full.yaml" \
             --settle-seconds 30
@@ -789,7 +786,7 @@ jobs:
             --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
             --state-id S2 \
             --snapshot-label pre \
-            --namespace "${{ inputs.eks_namespace }}" \
+            --namespace "${{ env.EKS_NAMESPACE }}" \
             --platform-run-id "${{ steps.meta.outputs.platform_run_id }}"
 
       - name: Run canonical burst window with live runtime sampling
@@ -799,7 +796,7 @@ jobs:
           PLATFORM_RUN_ID: ${{ steps.meta.outputs.platform_run_id }}
           SCENARIO_RUN_ID: ${{ steps.meta.outputs.scenario_run_id }}
           AWS_REGION: ${{ inputs.aws_region }}
-          EKS_NAMESPACE: ${{ inputs.eks_namespace }}
+          EKS_NAMESPACE: ${{ env.EKS_NAMESPACE }}
           LANE_COUNT: ${{ inputs.lane_count }}
           TARGET_BURST_EPS: ${{ inputs.target_burst_eps }}
           TARGET_REQUEST_RATE_EPS: ${{ inputs.target_request_rate_eps }}
@@ -867,7 +864,7 @@ jobs:
             --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
             --state-id S2 \
             --snapshot-label post \
-            --namespace "${{ inputs.eks_namespace }}" \
+            --namespace "${{ env.EKS_NAMESPACE }}" \
             --platform-run-id "${{ steps.meta.outputs.platform_run_id }}"
 
       - name: Build PR3-S2 burst rollup

@@ -8178,3 +8178,8 @@ ot ready because pods are broken from eady to accept first traffic on a fresh r
    - ECS family image as a last operational fallback.
 4. This is production-safe because explicit digest pinning is the strongest possible runtime-artifact contract for a certification lane. It removes uncertainty about what bits are under test and prevents the workflow from being blocked by stale deployment metadata.
 5. The next rerun will use the latest audited immutable digest `sha256:50d9953e34433457ce556988b496fa0bf36fa4dbea119d96640d37427b5a33e9` explicitly so the platform work can proceed.
+## Entry: 2026-03-07 18:20:00 +00:00 - PR3-S2 workflow input surface reduced back under GitHub dispatch limit
+1. Adding explicit immutable-image pinning revealed a separate GitHub control-plane limit: `workflow_dispatch` supports at most `25` inputs, and the PR3-S2 workflow had grown to `26`.
+2. I removed `eks_namespace` as an operator input and repinned it internally to the canonical namespace `fraud-platform-rtdl`.
+3. This is a safe reduction because namespace choice is not an experimental certification knob in this lane; it is fixed runtime authority.
+4. Result: the workflow can now accept the explicit `platform_image_uri` pin without violating GitHub dispatch limits.
