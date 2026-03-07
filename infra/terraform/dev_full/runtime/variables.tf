@@ -406,7 +406,7 @@ variable "eks_nodegroup_m6f_name" {
 
 variable "eks_nodegroup_instance_types" {
   type    = list(string)
-  default = ["t3.large"]
+  default = ["m6i.xlarge"]
 }
 
 variable "eks_nodegroup_ami_type" {
@@ -421,22 +421,22 @@ variable "eks_nodegroup_capacity_type" {
 
 variable "eks_nodegroup_disk_size" {
   type    = number
-  default = 20
+  default = 80
 }
 
 variable "eks_nodegroup_desired_size" {
   type    = number
-  default = 1
+  default = 4
 }
 
 variable "eks_nodegroup_min_size" {
   type    = number
-  default = 1
+  default = 2
 }
 
 variable "eks_nodegroup_max_size" {
   type    = number
-  default = 2
+  default = 8
 }
 
 variable "runtime_interface_vpc_endpoint_services" {

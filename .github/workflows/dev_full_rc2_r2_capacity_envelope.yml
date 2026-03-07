@@ -88,7 +88,12 @@ on:
       eks_nodegroup_instance_types_json:
         description: "JSON list of nodegroup instance types"
         required: true
-        default: "[\"t3.xlarge\"]"
+        default: "[\"m6i.xlarge\"]"
+        type: string
+      eks_nodegroup_disk_size_gib:
+        description: "Target nodegroup disk size (GiB)"
+        required: true
+        default: "80"
         type: string
       eks_nodegroup_desired_size:
         description: "Target nodegroup desired size"
@@ -267,6 +272,7 @@ jobs:
                   "cluster_name": cluster_name,
                   "nodegroup_name": nodegroup_name,
                   "instance_types": nodegroup.get("instanceTypes"),
+                  "disk_size_gib": nodegroup.get("diskSize"),
                   "scaling_config": scaling,
                   "status": nodegroup.get("status"),
               },
@@ -292,6 +298,7 @@ jobs:
           LAMBDA_IG_PACKAGE_S3_KEY: ${{ inputs.lambda_ig_package_s3_key }}
           LAMBDA_IG_PACKAGE_SHA256_BASE64: ${{ inputs.lambda_ig_package_sha256_base64 }}
           EKS_NODEGROUP_INSTANCE_TYPES_JSON: ${{ inputs.eks_nodegroup_instance_types_json }}
+          EKS_NODEGROUP_DISK_SIZE_GIB: ${{ inputs.eks_nodegroup_disk_size_gib }}
           EKS_NODEGROUP_DESIRED_SIZE: ${{ inputs.eks_nodegroup_desired_size }}
           EKS_NODEGROUP_MIN_SIZE: ${{ inputs.eks_nodegroup_min_size }}
           EKS_NODEGROUP_MAX_SIZE: ${{ inputs.eks_nodegroup_max_size }}
@@ -316,6 +323,7 @@ jobs:
               "lambda_ig_kafka_request_timeout_ms": int(os.environ["LAMBDA_IG_KAFKA_REQUEST_TIMEOUT_MS"]),
               "lambda_ig_policy_activation_audit_mode": os.environ["LAMBDA_IG_POLICY_ACTIVATION_AUDIT_MODE"],
               "eks_nodegroup_instance_types": instance_types,
+              "eks_nodegroup_disk_size": int(os.environ["EKS_NODEGROUP_DISK_SIZE_GIB"]),
               "eks_nodegroup_desired_size": int(os.environ["EKS_NODEGROUP_DESIRED_SIZE"]),
               "eks_nodegroup_min_size": int(os.environ["EKS_NODEGROUP_MIN_SIZE"]),
               "eks_nodegroup_max_size": int(os.environ["EKS_NODEGROUP_MAX_SIZE"]),
@@ -362,6 +370,8 @@ jobs:
           EXPECTED_LAMBDA_TIMEOUT_SECONDS: ${{ inputs.lambda_ig_timeout_seconds }}
           EXPECTED_LAMBDA_KAFKA_REQUEST_TIMEOUT_MS: ${{ inputs.lambda_ig_kafka_request_timeout_ms }}
           EXPECTED_POLICY_ACTIVATION_AUDIT_MODE: ${{ inputs.lambda_ig_policy_activation_audit_mode }}
+          EXPECTED_NODEGROUP_INSTANCE_TYPES_JSON: ${{ inputs.eks_nodegroup_instance_types_json }}
+          EXPECTED_NODEGROUP_DISK_SIZE_GIB: ${{ inputs.eks_nodegroup_disk_size_gib }}
           EXPECTED_NODEGROUP_DESIRED: ${{ inputs.eks_nodegroup_desired_size }}
           EXPECTED_NODEGROUP_MIN: ${{ inputs.eks_nodegroup_min_size }}
           EXPECTED_NODEGROUP_MAX: ${{ inputs.eks_nodegroup_max_size }}
@@ -390,6 +400,8 @@ jobs:
           expected_lambda_timeout = int(float(os.environ["EXPECTED_LAMBDA_TIMEOUT_SECONDS"]))
           expected_lambda_kafka_timeout = int(float(os.environ["EXPECTED_LAMBDA_KAFKA_REQUEST_TIMEOUT_MS"]))
           expected_policy_activation_audit_mode = os.environ["EXPECTED_POLICY_ACTIVATION_AUDIT_MODE"]
+          expected_instance_types = json.loads(os.environ["EXPECTED_NODEGROUP_INSTANCE_TYPES_JSON"])
+          expected_disk_size_gib = int(os.environ["EXPECTED_NODEGROUP_DISK_SIZE_GIB"])
           expected_desired = int(os.environ["EXPECTED_NODEGROUP_DESIRED"])
           expected_min = int(os.environ["EXPECTED_NODEGROUP_MIN"])
           expected_max = int(os.environ["EXPECTED_NODEGROUP_MAX"])
@@ -482,6 +494,7 @@ jobs:
                   "cluster_name": cluster_name,
                   "nodegroup_name": nodegroup_name,
                   "instance_types": nodegroup.get("instanceTypes"),
+                  "disk_size_gib": nodegroup.get("diskSize"),
                   "scaling_config": scaling,
                   "status": nodegroup.get("status"),
               },
@@ -541,6 +554,24 @@ jobs:
           desired_live = int(scaling.get("desiredSize", -1))
           min_live = int(scaling.get("minSize", -1))
           max_live = int(scaling.get("maxSize", -1))
+          instance_types_live = post["eks_m6f_nodegroup"].get("instance_types") or []
+          disk_size_live = int(post["eks_m6f_nodegroup"].get("disk_size_gib") or -1)
+          if sorted(instance_types_live) != sorted(expected_instance_types):
+              blockers.append({
+                  "code": "RC2R2-B2",
+                  "message": (
+                      "EKS nodegroup instance types drift "
+                      f"(live={instance_types_live}, expected={expected_instance_types})."
+                  ),
+              })
+          if disk_size_live < expected_disk_size_gib:
+              blockers.append({
+                  "code": "RC2R2-B2",
+                  "message": (
+                      "EKS nodegroup disk size below target "
+                      f"({disk_size_live} < {expected_disk_size_gib})."
+                  ),
+              })
           if desired_live < expected_desired or min_live < expected_min or max_live < expected_max:
               blockers.append({
                   "code": "RC2R2-B2",
@@ -559,6 +590,8 @@ jobs:
               "target_restore_knobs": {
                   "ig_rate_limit_rps": pre.get("apigw", {}).get("throttling_rate_limit"),
                   "ig_rate_limit_burst": pre.get("apigw", {}).get("throttling_burst_limit"),
+                  "eks_nodegroup_instance_types": pre.get("eks_m6f_nodegroup", {}).get("instance_types"),
+                  "eks_nodegroup_disk_size_gib": pre.get("eks_m6f_nodegroup", {}).get("disk_size_gib"),
                   "eks_nodegroup_desired_size": pre.get("eks_m6f_nodegroup", {}).get("scaling_config", {}).get("desiredSize"),
                   "eks_nodegroup_min_size": pre.get("eks_m6f_nodegroup", {}).get("scaling_config", {}).get("minSize"),
                   "eks_nodegroup_max_size": pre.get("eks_m6f_nodegroup", {}).get("scaling_config", {}).get("maxSize"),
@@ -582,6 +615,8 @@ jobs:
                   "lambda_ig_timeout_seconds": expected_lambda_timeout,
                   "lambda_ig_kafka_request_timeout_ms": expected_lambda_kafka_timeout,
                   "lambda_ig_policy_activation_audit_mode": expected_policy_activation_audit_mode,
+                  "eks_nodegroup_instance_types": expected_instance_types,
+                  "eks_nodegroup_disk_size_gib": expected_disk_size_gib,
                   "eks_nodegroup_desired_size": expected_desired,
                   "eks_nodegroup_min_size": expected_min,
                   "eks_nodegroup_max_size": expected_max,

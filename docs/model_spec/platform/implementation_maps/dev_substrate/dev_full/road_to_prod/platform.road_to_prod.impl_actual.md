@@ -8546,3 +8546,50 @@ uns/.../degrade_ladder/* on its own filesystem,
    - it prevents ingress from being re-regressed by an unrelated shared-image rebuild,
    - it keeps the no-waiver production bar intact because both planes are measured on their best current authoritative code paths rather than on an accidentally coupled rollout.
 6. Next action is immediate: dispatch strict `PR3-S2` with those exact image pins, then judge only the impact metrics that matter for S2 (burst EPS, p95/p99 latency, and downstream fail-closed/quarantine/backpressure posture).
+
+## Entry: 2026-03-07 21:33:00 +00:00 - PR3-S2 workflow activation cap repaired after ingress-pin control update
+1. The first attempt to dispatch the corrected PR3-S2 workflow failed before execution with GitHub validation error `you may only define up to 25 inputs for a workflow_dispatch event`.
+2. Root cause is purely control-plane and specific:
+   - the workflow already sat at GitHub's `25` input ceiling,
+   - adding `ingress_image_uri` as the necessary new production control pushed the file to `26` inputs,
+   - GitHub therefore refused to activate the lane at all.
+3. I did not back out the ingress-image split because that would reintroduce the known shared-image blast radius.
+4. Instead I collapsed one existing strict tuning knob back into a pinned workflow constant:
+   - removed `early_cutoff_floor_ratio` from workflow inputs,
+   - pinned `EARLY_CUTOFF_FLOOR_RATIO="0.70"` directly inside the S2 execution job.
+5. Why this is the correct repair:
+   - it preserves the exact same fail-fast certification threshold already in force,
+   - it keeps the new ingress-image control, which is materially required for honest production measurement,
+   - it restores workflow activatability without weakening the lane or introducing a new side channel.
+6. Validation after the repair: YAML parse is clean, so the workflow is dispatchable again.
+
+## Entry: 2026-03-07 21:42:00 +00:00 - PR3-S2 warm-gate red narrowed to EKS worker storage posture and remote remediation path chosen
+1. The strict rerun `22807169466` proved that the workflow/image corrections are no longer the blocker:
+   - WSP family repin succeeded,
+   - ingress repin succeeded,
+   - quota-aware ingress right-size succeeded,
+   - PR3 runtime materialization on EKS succeeded.
+2. The lane then fail-closed at warm gate on a real substrate defect:
+   - `PR3.S2.WARM.B15_NODE_DISK_PRESSURE:ip-10-70-137-71...`
+   - `PR3.S2.WARM.B15_NODE_DISK_PRESSURE:ip-10-70-147-17...`
+   - `PR3.S2.WARM.B15_NODE_DISK_PRESSURE:ip-10-70-158-167...`
+3. I pulled the authoritative warm-gate artifact and post-runtime snapshot from S3 for `platform_20260307T210216Z` and the evidence is consistent:
+   - three of four EKS workers reported `disk_pressure=true` with active `node.kubernetes.io/disk-pressure:NoSchedule` taints,
+   - `DL`, `DF`, and `DLA` each accumulated multiple `Evicted` pods,
+   - the active nodegroup is still `BOTTLEROCKET_x86_64`, `instanceTypes=["t3.xlarge"]`, `diskSize=20`, `desired/min/max=4/2/8`.
+4. Additional node inspection clarifies the production cause:
+   - allocatable ephemeral storage is only ~18 GiB on the pressured workers,
+   - current non-terminated pod resource requests are low, so this is not live workload memory/CPU saturation,
+   - repeated immutable image pulls and rollout churn are exhausting local container/image storage on too-small disks.
+5. Production conclusion:
+   - the current `t3.xlarge + 20 GiB` posture is not a production-grade RTDL worker substrate,
+   - burstable instances are also a poor fit for sustained decision/data-plane replay because CPU-credit variability is an unnecessary risk even if disk pressure is the immediate symptom,
+   - the right remediation is to uplift the worker substrate, not weaken warm gate.
+6. Chosen remediation path:
+   - extend the managed capacity-envelope workflow so it can mutate and verify nodegroup disk size in addition to instance types and scale,
+   - repin the RTDL worker substrate to `m6i.xlarge`, `80 GiB`, `desired/min/max=4/2/8`,
+   - execute that uplift remotely through GitHub Actions/Terraform, then rerun strict `PR3-S2`.
+7. Rejected shortcuts and why:
+   - simply deleting pressured nodes would clear symptoms temporarily but leave the undersized disk contract intact,
+   - relaxing warm gate would be dishonest because the evictions are real,
+   - continuing on `t3` would preserve CPU-credit unpredictability in a lane that is supposed to support production-like replay.
