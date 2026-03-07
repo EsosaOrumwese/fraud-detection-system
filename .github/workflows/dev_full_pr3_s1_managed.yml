@@ -95,6 +95,16 @@ on:
         required: true
         default: "24"
         type: string
+      task_cpu:
+        description: "Per-lane Fargate CPU units for WSP replay"
+        required: true
+        default: "256"
+        type: string
+      task_memory:
+        description: "Per-lane Fargate memory (MiB) for WSP replay"
+        required: true
+        default: "1024"
+        type: string
       target_steady_eps:
         description: "Total target steady EPS"
         required: true
@@ -574,6 +584,8 @@ jobs:
           API_ID: ${{ inputs.api_id }}
           API_STAGE: ${{ inputs.api_stage }}
           LANE_COUNT: ${{ inputs.lane_count }}
+          TASK_CPU: ${{ inputs.task_cpu }}
+          TASK_MEMORY: ${{ inputs.task_memory }}
           TARGET_STEADY_EPS: ${{ inputs.target_steady_eps }}
           DURATION_SECONDS: ${{ inputs.duration_seconds }}
           EARLY_CUTOFF_SECONDS: ${{ inputs.early_cutoff_seconds }}
@@ -589,6 +601,8 @@ jobs:
             --api-id "${API_ID}" \
             --api-stage "${API_STAGE}" \
             --lane-count "${LANE_COUNT}" \
+            --task-cpu "${TASK_CPU}" \
+            --task-memory "${TASK_MEMORY}" \
             --expected-steady-eps "${TARGET_STEADY_EPS}" \
             --duration-seconds "${DURATION_SECONDS}" \
             --early-cutoff-seconds "${EARLY_CUTOFF_SECONDS}" \

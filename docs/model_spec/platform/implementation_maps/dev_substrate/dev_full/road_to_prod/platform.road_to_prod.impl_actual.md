@@ -5931,3 +5931,27 @@ Reasoning:
    - commit/push this harness correction boundary,
    - rerun strict `PR3-S1`,
    - continue remediation only from the new platform-impact metrics that come back.
+
+
+## Entry: 2026-03-07 01:24:00 +00:00 - PR3-S1 has now returned to a real runtime-capacity issue: the replay harness itself is overprovisioned relative to the live ingress fleet's Fargate envelope
+1. After fixing ELB read authority and bootstrap waste, I reran strict `PR3-S1` on workflow run `22788481700`. The run progressed through bootstrap and runtime readiness, then failed in `Launch canonical remote WSP replay` with `PR3.S1.WSP.B01_RUN_TASK_FAILED:wsp_lane_12:You’ve reached the limit on the number of vCPUs you can run concurrently`.
+2. I quantified the live Fargate envelope rather than guessing:
+   - account quota `L-3032A538` (`Fargate On-Demand vCPU resource count`) is `140` vCPU in `eu-west-2`;
+   - current ingress service task definition `fraud-platform-dev-full-ig-service:12` is pinned at `4096 CPU / 8192 MiB` per task;
+   - the live ingress fleet is `32` tasks, so ingress alone occupies `128` vCPU;
+   - current replay task definition `fraud-platform-dev-full-wsp-ephemeral:32` defaults to `1024 CPU / 2048 MiB` per task, so the 24-lane canonical rerun would require another `24` vCPU if un-overridden.
+3. That explains the exact failure point: only ~`12` vCPU remain beneath the account quota, so the launch fails at lane `12`/`13` depending on transient headroom.
+4. Production interpretation:
+   - this is not evidence that the ingress platform cannot sustain the target rate;
+   - it is evidence that the current certification harness is badly right-sized for a shared dev capacity envelope;
+   - a WSP replay producer whose job is HTTP push should not need `1 vCPU / 2 GiB` per lane merely to generate ~`133 eps` per lane.
+5. Chosen remediation direction:
+   - repin canonical `PR3-S1` replay lanes to a lower Fargate override footprint (`256 CPU / 1024 MiB`) so the harness fits alongside the live ingress service while still preserving remote/oracle-backed execution;
+   - keep lane count at `24` initially so the source distribution shape remains unchanged and only the wasteful per-lane envelope is corrected;
+   - if throughput becomes source-limited under the leaner per-lane footprint, then tune concurrency or lane count from measured evidence rather than restoring the oversized default.
+6. Rejected alternative:
+   - shrinking or destabilizing the live ingress fleet simply to make room for the harness. That would contaminate the very platform posture we are trying to certify.
+7. Immediate next action:
+   - patch the workflow so canonical `PR3-S1` passes explicit lean task overrides to the replay dispatcher,
+   - rerun strict `PR3-S1`,
+   - then judge whether the next blocker is actual ingress performance or just remaining harness inefficiency.
