@@ -6226,3 +6226,38 @@ eason=http_502,
    - rerun ingress materialization with the corrected 600 concurrency authority,
    - verify the live Lambda reserved concurrency lands at 600,
    - then resume strict PR3-S1 on the corrected ingress boundary.
+
+## Entry: 2026-03-07 02:52:00 +00:00 - The ingress materialization boundary is now fully green and verified against live AWS state
+1. Materialization rerun 22790437771 completed end-to-end, including the explicit verification step.
+2. Verified live Lambda posture:
+   - function: raud-platform-dev-full-ig-handler
+   - handler: raud_detection.ingestion_gate.aws_lambda_handler.lambda_handler
+   - timeout: 30 s
+   - memory: 2048 MB
+   - VPC attachment: 2 subnets / 1 security group
+   - Kafka request timeout: 10000 ms
+   - reserved concurrency verified directly via ws lambda get-function-concurrency: 600
+3. Verified live managed ingress ECS posture:
+   - cluster: raud-platform-dev-full-ingress
+   - service: raud-platform-dev-full-ig-service
+   - task definition: revision 13
+   - image digest: 230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-full@sha256:843750a949a94a5a0eaf984ce231c0e91e3ced0032b1f3b0bfa4af81514aeb64
+   - desired/running count: 32/32
+   - deployment rollout state: COMPLETED
+   - network posture: private subnets only, ssignPublicIp=DISABLED
+4. Verified live managed ingress ECS environment:
+   - IG_INTERNAL_RETRY_MAX_ATTEMPTS=5
+   - IG_INTERNAL_RETRY_BACKOFF_MS=400
+   - KAFKA_REQUEST_TIMEOUT_MS=15000
+   - KAFKA_PUBLISH_RETRIES=5
+   - IG_RATE_LIMIT_RPS=3000
+   - IG_RATE_LIMIT_BURST=6000
+5. Verified edge health result:
+   - status code 200
+   - mode pigw_lambda_ddb_kafka
+   - service ig-edge
+   - envelope confirms retry contract + 3000/6000 ingress rate envelope.
+6. Important interpretation:
+   - the ingress correction lane is no longer blocked by workflow defects, IAM defects, or impossible overspecified capacity pins;
+   - the live ingress boundary now materially reflects the production-ready envelope we intended to test.
+7. This closes the ingress-materialization remediation loop for PR3-S1. The next valid action is to rerun strict PR3-S1 against this corrected live boundary and judge only the resulting impact metrics.
