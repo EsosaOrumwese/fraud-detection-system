@@ -374,6 +374,18 @@ This plan's intent is satisfied only when:
 | Required correction | keep the same oracle world but issue a fresh runtime `platform_run_id`/`scenario_run_id` per PR3 certification attempt | This restores production-realistic first-seen mission semantics without wiping dedupe state. |
 | Next rerun boundary | `PR3-S1` only | The next valid action is tooling correction plus a fresh-identity S1 rerun, not a broader PR3 restart. |
 
+### 10.15 PR3-S2 Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Gate outcome | current truthful receipt is `HOLD_REMEDIATE`, `open_blockers=2`, `next_state=PR3-S2` | S2 remains open, but the blocker set is now narrow and trustworthy. |
+| Attempt-scope integrity | active attempt `platform_20260307T144230Z`; `11` snapshots selected; `14` historical snapshots excluded from other `platform_run_id`s | PR3-S2 evidence is now judged on the active burst attempt only; prior DF red signals from mixed reruns are no longer admissible. |
+| Burst goal vs observed throughput | target `6000 eps`; observed admitted throughput `4187.033 eps`; observed request throughput `4187.039 eps` | The active shortfall is launcher-side underdrive of the burst window, not downstream rejection or RTDL collapse. |
+| Error posture | `4xx_total=0`, `5xx_total=1`, `error_rate_ratio=1.3268e-06` | The error surface is nearly clean, but the single target-side `5xx` keeps the state red because PR3 burst policy is fail-closed at `5xx=0`. |
+| Latency posture | ALB target-response latency `p95=132.01 ms`, `p99=183.75 ms` against maxima `<=350 ms`, `<=700 ms` | Burst traffic is not currently degrading the hot path; latency headroom remains strong. |
+| RTDL backpressure posture | `IEG backpressure delta=0`; `OFP lag p95=0.010s`; `IEG checkpoint age p95=0.048s`; `DLA checkpoint age p95=0.712s` | The real-time decision-learning plane is not the active limiter for the burst window anymore. |
+| Downstream correctness posture | `DF/AL/DLA/archive` new error-growth deltas all `0`; archive backlog final `0` | The earlier DF fail-close/quarantine blockers were evidence-contamination artifacts, not current-run runtime failures. |
+| Production interpretation | current burst lane uses `stream_speedup=102.4`, `48` lanes, `ig_push_concurrency=8`, replay task `256/1024` | This posture is no longer sufficient to claim a `6000 eps` production burst proof; the next rerun must repin the burst launcher, not rework RTDL again. |
+
 ## 11) Required TBD Closure Sheet (Binding)
 This section defines the mandatory closure routing for unresolved targets in:
 1. `docs/model_spec/platform/pre-design_decisions/dev-full_road-to-production-ready.md` Section 15.1 (open decisions `OD-01..OD-09`).

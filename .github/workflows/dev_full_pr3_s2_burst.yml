@@ -90,12 +90,32 @@ on:
       stream_speedup:
         description: "Oracle replay speedup multiplier"
         required: true
-        default: "102.4"
+        default: "180"
         type: string
       ig_push_concurrency:
         description: "Per-lane concurrent IG pushes"
         required: true
-        default: "8"
+        default: "16"
+        type: string
+      output_concurrency:
+        description: "Concurrent output streams per WSP lane"
+        required: true
+        default: "4"
+        type: string
+      http_pool_maxsize:
+        description: "HTTP connection pool size per WSP lane"
+        required: true
+        default: "1024"
+        type: string
+      wsp_task_cpu:
+        description: "Fargate CPU units per WSP burst lane"
+        required: true
+        default: "512"
+        type: string
+      wsp_task_memory:
+        description: "Fargate memory MiB per WSP burst lane"
+        required: true
+        default: "2048"
         type: string
       target_burst_seconds:
         description: "Per-lane token-bucket burst allowance in seconds"
@@ -322,7 +342,11 @@ jobs:
           TARGET_REQUEST_RATE_EPS: ${{ inputs.target_request_rate_eps }}
           DURATION_SECONDS: ${{ inputs.duration_seconds }}
           STREAM_SPEEDUP: ${{ inputs.stream_speedup }}
+          OUTPUT_CONCURRENCY: ${{ inputs.output_concurrency }}
           IG_PUSH_CONCURRENCY: ${{ inputs.ig_push_concurrency }}
+          HTTP_POOL_MAXSIZE: ${{ inputs.http_pool_maxsize }}
+          WSP_TASK_CPU: ${{ inputs.wsp_task_cpu }}
+          WSP_TASK_MEMORY: ${{ inputs.wsp_task_memory }}
           TARGET_BURST_SECONDS: ${{ inputs.target_burst_seconds }}
           TARGET_INITIAL_TOKENS: ${{ inputs.target_initial_tokens }}
           EARLY_CUTOFF_SECONDS: ${{ inputs.early_cutoff_seconds }}
@@ -345,11 +369,13 @@ jobs:
             --early-cutoff-seconds "${EARLY_CUTOFF_SECONDS}" \
             --early-cutoff-floor-ratio "${EARLY_CUTOFF_FLOOR_RATIO}" \
             --stream-speedup "${STREAM_SPEEDUP}" \
+            --output-concurrency "${OUTPUT_CONCURRENCY}" \
             --ig-push-concurrency "${IG_PUSH_CONCURRENCY}" \
+            --http-pool-maxsize "${HTTP_POOL_MAXSIZE}" \
             --target-burst-seconds "${TARGET_BURST_SECONDS}" \
             --target-initial-tokens "${TARGET_INITIAL_TOKENS}" \
-            --task-cpu "256" \
-            --task-memory "1024" \
+            --task-cpu "${WSP_TASK_CPU}" \
+            --task-memory "${WSP_TASK_MEMORY}" \
             --max-latency-p95-ms 350 \
             --max-latency-p99-ms 700 \
             --skip-runtime-identity-probe &

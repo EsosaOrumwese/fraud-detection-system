@@ -7743,3 +7743,74 @@ ot ready because pods are broken from eady to accept first traffic on a fresh r
    - .venv\Scripts\python.exe -m pytest tests/services/degrade_ladder/test_phase7_worker_observability.py -> 6 passed
    - .venv\Scripts\python.exe -m py_compile src/fraud_detection/degrade_ladder/worker.py -> clean
 8. Next step is again strict and singular: rebuild the image, repin ECS WSP, rerun PR3-S2, then judge whether the remaining red is now limited to true throughput or residual DF context-ordering behavior.
+## Entry: 2026-03-07 18:08:00 +00:00 - PR3-S2 evidence bug isolated: fresh-run pre-snapshot missing counter files is being misclassified as a runtime blocker
+1. The latest strict rerun materially changed the RTDL state again:
+   - DL no longer presents as the live red lane,
+   - DF live metrics on the active pod show decisions_total=0, ail_closed_total=0, and publish_quarantine_total=0, with a GREEN health file,
+   - yet the rollup receipt still emits PR3.S2.B15_DF_FAIL_CLOSED_NONZERO:delta=None and PR3.S2.B15_DF_QUARANTINE_NONZERO:delta=None.
+2. The discrepancy is in the evidence synthesis, not the runtime:
+   - pr3_s2_rollup.py computes counter deltas from pre and post snapshots,
+   - on a fresh run the pre snapshot can legitimately occur before a component has emitted its first metrics file,
+   - the script currently interprets that as None instead of the correct monotonic zero baseline.
+3. Production interpretation:
+   - a fresh-run missing pre-snapshot counter file is not a fail-close or quarantine event,
+   - for monotonic counters, the correct baseline is zero until proven otherwise,
+   - otherwise the gate produces false red outcomes and obscures the real blockers (	hroughput and any actual 5xx/runtime faults).
+4. Chosen remediation:
+   - adjust the PR3-S2 rollup to coerce missing pre-snapshot monotonic counters to zero while still fail-closing on missing post-snapshot evidence,
+   - rerun PR3-S2 so the receipt reflects the actual runtime state.
+## Entry: 2026-03-07 15:07:00 +00:00 - Fixed PR3-S2 mixed-rerun evidence contamination and recovered the truthful blocker set
+1. The fresh-run zero-baseline bug was only the first half of the evidence problem. After implementing it, local recompute still diverged from the live pod state because `pr3_s2_rollup.py` was reading every `g3a_s2_component_snapshot_*.json` in the shared `pr3_execution_id` directory across multiple historical reruns.
+2. Why this is a production-grade blocker:
+   - PR3-S2 is a bounded certification window and must be judged on one specific `platform_run_id`,
+   - mixing snapshots across reruns makes the receipt non-auditable and can manufacture false DF / latency / quarantine regressions that do not belong to the active attempt,
+   - any receipt built on mixed attempts is unclaimable even if it happens to look green.
+3. Chosen correction:
+   - derive the active attempt from the authoritative runtime manifest identity block,
+   - select only snapshots whose `platform_run_id` matches that manifest,
+   - fail closed if the selected attempt is incomplete (`pre`/`post` missing),
+   - carry explicit `attempt_scope` metadata into the scorecard, component-health report, backpressure report, and final receipt.
+4. The patch is intentionally narrow and auditable:
+   - added `select_attempt_snapshots(...)` to `scripts/dev_substrate/pr3_s2_rollup.py`,
+   - kept the prior monotonic-zero-baseline fix,
+   - added regression tests proving mixed historical reruns are excluded and that missing `post` for the current attempt still fails closed.
+5. Local validation is green:
+   - `.venv\Scripts\pytest.exe tests\scripts\test_pr3_s2_rollup.py` -> `4 passed`
+   - `.venv\Scripts\python.exe -m py_compile scripts\dev_substrate\pr3_s2_rollup.py` -> clean
+6. I then refreshed the latest S3-backed `g3a_s2_wsp_runtime_manifest.json`, `g3a_s2_wsp_runtime_summary.json`, and current-attempt `g3a_s2_component_snapshot_*.json` into the local run-control mirror and reran the rollup on a consistent evidence set.
+7. The truthful PR3-S2 result for `platform_run_id=platform_20260307T144230Z` is now precise:
+   - observed admitted throughput `4187.033 eps`,
+   - latency `p95=132.01 ms`, `p99=183.75 ms`,
+   - transport errors `4xx=0`, `5xx=1`,
+   - downstream backpressure posture green:
+     - `IEG backpressure delta=0`,
+     - `OFP lag p95=0.010s`,
+     - `IEG checkpoint age p95=0.048s`,
+     - `DLA checkpoint age p95=0.712s`,
+     - `DF/AL/DLA/archive` new error-growth deltas all zero.
+8. Therefore the previous DF fail-close/quarantine blockers were evidence contamination, not live runtime reality. The remaining red is now isolated to ingress-window closure only:
+   - `PR3.S2.B14_BURST_THROUGHPUT_SHORTFALL`,
+   - `PR3.S2.B14_BURST_5XX_BREACH`.
+## Entry: 2026-03-07 15:09:00 +00:00 - Next PR3-S2 remediation is burst-shape repinning, not more RTDL surgery
+1. With the clean attempt-scoped receipt in hand, the current platform picture is materially different:
+   - RTDL is not the active limiting plane for `S2`,
+   - ingress latency remains comfortably inside contract at burst (`p95=132.01 ms`, `p99=183.75 ms`),
+   - the active shortfall is that the replay lane itself only generated `753,667` requests over the authoritative `180s` window, i.e. `4187.039 req/s`, and admitted `4187.033 eps`.
+2. Production interpretation:
+   - the current replay posture is under-driving the declared `6000 eps` mission,
+   - `stream_speedup=102.4` is no longer a defensible burst calibration for this target because it leaves the certification lane constrained by source timing rather than by the platform envelope,
+   - `48` lanes at `ig_push_concurrency=8` are also too close to the concurrency floor for a `126.25 eps/lane` target once live request latency is considered.
+3. I am not accepting the lazy interpretation that “the platform tops out at 4187 eps.” The evidence does not support that:
+   - edge latency is healthy,
+   - downstream RTDL posture is healthy,
+   - only one target-side `5xx` occurred in the whole authoritative window,
+   - the replay harness stopped at the early cutoff because the launcher never crossed the `0.70 * 6000 = 4200 eps` floor with adequate margin.
+4. Chosen next remediation for the strict rerun:
+   - repin PR3-S2 burst replay defaults to a source-density-clearing `stream_speedup=180`,
+   - repin `ig_push_concurrency=16` to give each lane enough in-flight headroom for the burst target,
+   - repin ECS replay task sizing to `512 CPU / 2048 MiB` so the launcher is not bottlenecked by a quarter-vCPU task while driving 16 concurrent pushes and 4 output streams.
+5. Why these values are production-reasoned instead of arbitrary:
+   - required speedup to clear `6000 eps` from the current measured density is about `6000 / (4187.033 / 102.4) ~= 146.6`; `180` gives sufficient headroom while the token bucket still caps the declared envelope,
+   - concurrency needed to sustain roughly `126 req/s` per lane at observed burst latencies is materially above `8`; `16` provides headroom without exploding the thread model,
+   - `512/2048` is a conservative right-size increase for a network-bound Python replay task and avoids drawing conclusions from an obviously thin `256/1024` task posture.
+6. The next PR3-S2 rerun will therefore test the platform against the declared production burst contract instead of retesting an underpowered replay posture.

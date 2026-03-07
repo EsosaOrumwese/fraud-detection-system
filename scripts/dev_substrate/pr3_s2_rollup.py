@@ -59,6 +59,10 @@ def health_state(snapshot: dict[str, Any], component: str) -> str:
     return str((((snapshot.get("components") or {}).get(component) or {}).get("summary") or {}).get("health_state") or "UNKNOWN")
 
 
+def snapshot_platform_run_id(snapshot: dict[str, Any]) -> str:
+    return str(snapshot.get("platform_run_id", "")).strip()
+
+
 def latest_snapshot(snapshots: list[dict[str, Any]], label: str) -> dict[str, Any]:
     for row in snapshots:
         if str(row.get("snapshot_label", "")).strip().lower() == label:
@@ -69,6 +73,46 @@ def latest_snapshot(snapshots: list[dict[str, Any]], label: str) -> dict[str, An
 def payload_missing(snapshot: dict[str, Any], component: str, payload_kind: str) -> bool:
     payload = ((((snapshot.get("components") or {}).get(component) or {}).get(f"{payload_kind}_payload")) or {})
     return bool(payload.get("__missing__")) or bool(payload.get("__unreadable__"))
+
+
+def counter_delta(pre: dict[str, Any], post: dict[str, Any], component: str, field: str) -> float | None:
+    start = snap_value(pre, component, field)
+    end = snap_value(post, component, field)
+    if end is None:
+        return None
+    if start is None and payload_missing(pre, component, "metrics"):
+        start = 0.0
+    if start is None:
+        return None
+    return end - start
+
+
+def select_attempt_snapshots(
+    snapshots: list[dict[str, Any]],
+    *,
+    expected_platform_run_id: str,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    expected = str(expected_platform_run_id).strip()
+    if not expected:
+        raise RuntimeError("PR3.S2.B12_PLATFORM_RUN_ID_MISSING")
+
+    selected = [row for row in snapshots if snapshot_platform_run_id(row) == expected]
+    observed_other = sorted({snapshot_platform_run_id(row) for row in snapshots if snapshot_platform_run_id(row) and snapshot_platform_run_id(row) != expected})
+    labels = [str(row.get("snapshot_label", "")).strip().lower() for row in selected]
+    meta = {
+        "expected_platform_run_id": expected,
+        "selected_count": len(selected),
+        "excluded_snapshot_count": len(snapshots) - len(selected),
+        "excluded_platform_run_ids": observed_other,
+        "labels": labels,
+    }
+    if not selected:
+        raise RuntimeError(f"PR3.S2.B12_COMPONENT_SNAPSHOTS_MISSING:platform_run_id={expected}")
+    if "pre" not in labels:
+        raise RuntimeError(f"PR3.S2.B12_COMPONENT_SNAPSHOT_PRE_MISSING:platform_run_id={expected}")
+    if "post" not in labels:
+        raise RuntimeError(f"PR3.S2.B12_COMPONENT_SNAPSHOT_POST_MISSING:platform_run_id={expected}")
+    return selected, meta
 
 
 def main() -> None:
@@ -90,12 +134,17 @@ def main() -> None:
     root = Path(args.run_control_root) / args.pr3_execution_id
     summary = load_json(root / f"{args.artifact_prefix}_wsp_runtime_summary.json")
     manifest = load_json(root / f"{args.artifact_prefix}_wsp_runtime_manifest.json")
-    snapshots = sorted(
+    all_snapshots = sorted(
         [load_json(path) for path in root.glob(f"g3a_{str(args.state_id).strip().lower()}_component_snapshot_*.json")],
         key=lambda row: str(row.get("generated_at_utc", "")),
     )
-    if not snapshots:
+    if not all_snapshots:
         raise RuntimeError(f"PR3.{args.state_id}.B12_COMPONENT_SNAPSHOTS_MISSING")
+    manifest_platform_run_id = str((((manifest.get("identity") or {}).get("platform_run_id")) or "")).strip()
+    snapshots, attempt_scope = select_attempt_snapshots(
+        all_snapshots,
+        expected_platform_run_id=manifest_platform_run_id,
+    )
 
     blockers: list[str] = []
     ingress = dict(summary.get("observed", {}) or {})
@@ -177,11 +226,7 @@ def main() -> None:
             blockers.append(f"PR3.{args.state_id}.B15_BACKPRESSURE_POSTURE_UNPROVEN:{metric_id}:observed={observed}:max={max_allowed}")
 
     def delta(component: str, field: str) -> float | None:
-        start = snap_value(pre, component, field)
-        end = snap_value(post, component, field)
-        if start is None or end is None:
-            return None
-        return end - start
+        return counter_delta(pre, post, component, field)
 
     ieg_apply_failure_delta = delta("ieg", "apply_failure_count")
     if ieg_apply_failure_delta is None or ieg_apply_failure_delta > 0:
@@ -221,8 +266,11 @@ def main() -> None:
         "generated_by": args.generated_by,
         "version": args.version,
         "execution_id": args.pr3_execution_id,
+        "platform_run_id": manifest_platform_run_id,
+        "scenario_run_id": str((((manifest.get("identity") or {}).get("scenario_run_id")) or "")).strip(),
         "window_label": "burst",
         "runtime_path_active": "CANONICAL_REMOTE_WSP_REPLAY",
+        "attempt_scope": attempt_scope,
         "campaign": manifest.get("campaign", {}),
         "ingress": {
             "measurement_surface_mode": (((summary.get("notes") or {}).get("ingress_metric_surface") or {}).get("mode")),
@@ -255,7 +303,10 @@ def main() -> None:
         "state": args.state_id,
         "generated_at_utc": now_utc(),
         "execution_id": args.pr3_execution_id,
+        "platform_run_id": manifest_platform_run_id,
+        "scenario_run_id": str((((manifest.get("identity") or {}).get("scenario_run_id")) or "")).strip(),
         "sample_count": len(snapshots),
+        "attempt_scope": attempt_scope,
         "components": {
             component: {
                 "states": [health_state(snapshot, component) for snapshot in snapshots],
@@ -272,6 +323,7 @@ def main() -> None:
         "state": args.state_id,
         "generated_at_utc": now_utc(),
         "execution_id": args.pr3_execution_id,
+        "platform_run_id": manifest_platform_run_id,
         "ieg_backpressure_delta": ieg_backpressure_delta,
         "ieg_apply_failure_count_delta": ieg_apply_failure_delta,
         "ofp_lag_seconds": time_series["ofp.lag_seconds"]["summary"],
@@ -291,6 +343,7 @@ def main() -> None:
         "state": args.state_id,
         "generated_at_utc": now_utc(),
         "execution_id": args.pr3_execution_id,
+        "platform_run_id": manifest_platform_run_id,
         "archive_backlog_peak_events": archive_peak,
         "archive_backlog_final_events": archive_final,
         "archive_write_error_total_delta": delta("archive_writer", "write_error_total"),
@@ -308,10 +361,13 @@ def main() -> None:
         "generated_by": args.generated_by,
         "version": args.version,
         "execution_id": args.pr3_execution_id,
+        "platform_run_id": manifest_platform_run_id,
+        "scenario_run_id": str((((manifest.get("identity") or {}).get("scenario_run_id")) or "")).strip(),
         "verdict": f"PR3_{args.state_id}_READY" if len(blockers) == 0 else "HOLD_REMEDIATE",
         "next_state": "PR3-S3" if len(blockers) == 0 else "PR3-S2",
         "open_blockers": len(set(blockers)),
         "blocker_ids": sorted(set(blockers)),
+        "attempt_scope": attempt_scope,
         "evidence_refs": {
             "scorecard_ref": str(root / "g3a_scorecard_burst.json"),
             "component_health_ref": str(root / "g3a_component_health_burst.json"),
