@@ -554,3 +554,16 @@ State closure:
 | Fault signature | sparse tail stalls exist while averages stay low; WSP/IG duplicate traces are consistent with retries after small transient failures | The remaining `5xx` leak looks like transient downstream publish/receipt instability rather than systemic platform overload. |
 | Config/code drift found | retry pins `IG_INTERNAL_RETRY_MAX_ATTEMPTS` and `IG_INTERNAL_RETRY_BACKOFF_MS` exist in env/Terraform but are not meaningfully wired into the admission hot path | The current resilience posture is weaker in reality than the pinned runtime contract suggests. |
 | Production conclusion | `S1` must stay open until both the resilience leak and the steady-volume shortfall are closed | The correct fix is hot-path resilience hardening plus wider horizontal WSP replay, not waivers or blind vertical scaling. |
+
+### 11.8 PR3-S1 Fresh-Identity Root-Cause Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Gate outcome | strict rerun `22790499579` returned `HOLD_REMEDIATE`, `open_blockers=4` | The corrected ingress rollout still leaves `S1` open, but the blocker mix now needs a more exact interpretation. |
+| Measured impact metrics | observed request/admitted throughput `2242.2 eps`; `5xx_total=43`; weighted ALB latency `p95=803 ms`, `p99=1113 ms` | On the surface this looks like a steady-capacity miss, but the supporting evidence shows the lane is no longer measuring fresh-admission behavior. |
+| Fleet posture | ECS ingress remained `32/32` healthy; ALB healthy hosts stayed `32`; ECS CPU mostly `14%..26%`; memory `7%..8%` | The managed ingress fleet is not obviously saturated, so blind scaling would be guesswork. |
+| Error source | ALB `ELB_5XX` dominates while target `5xx` is only `5` and target connection errors are absent | Most failures are timeout/edge-side misses rather than explicit application `5xx` responses. |
+| Request-mix evidence | live IG task logs show summaries such as `admit=12 duplicate=898 quarantine=0` during the steady window | The lane is spending most of its work on duplicate processing, not first-seen admission. |
+| Hot-path timing evidence | duplicate-heavy workers show `phase.receipt_seconds p95≈1.374s` and `admission_seconds p95≈1.382s` while fresh-publish timings stay tiny (`publish p95≈9 ms`) | The measured tail is being driven by duplicate receipt persistence, not by the fresh-admission publish path. |
+| Root cause | PR3-S1 kept reusing `platform_run_id=platform_20260223T184232Z`; IG dedupe key is `platform_run_id + event_class + event_id` | IG is behaving correctly; the rerun identity contract is wrong for fresh steady certification. |
+| Production-grade remediation | keep oracle-store inputs fixed, preserve stable event identities, but assign a fresh runtime `platform_run_id` and `scenario_run_id` per certification attempt | This preserves production semantics without clearing dedupe state and returns the lane to the real question: first-seen steady admission under load. |
+| Phase implication | `S1` cannot close off the current duplicate-heavy rerun, and the next valid rerun boundary is still `PR3-S1` | The immediate task is tooling correction plus a fresh-identity rerun, not threshold waiver or random capacity scaling. |

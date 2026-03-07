@@ -19,6 +19,7 @@ from typing import Any
 from urllib.parse import quote_plus, urlparse
 
 import boto3
+import psycopg
 from botocore.exceptions import BotoCoreError, ClientError
 
 
@@ -676,6 +677,33 @@ def build_aurora_dsn(*, endpoint: str, username: str, password: str, db_name: st
     )
 
 
+def probe_platform_run_identity_usage(dsn: str, platform_run_id: str) -> dict[str, Any]:
+    usage = {
+        "platform_run_id": str(platform_run_id).strip(),
+        "admissions_count": 0,
+        "receipts_count": 0,
+        "tables_present": {"admissions": False, "receipts": False},
+    }
+    if not usage["platform_run_id"]:
+        return usage
+    with psycopg.connect(dsn, autocommit=True) as conn:
+        with conn.cursor() as cur:
+            for table in ("admissions", "receipts"):
+                cur.execute("SELECT to_regclass(%s)", (f"public.{table}",))
+                row = cur.fetchone()
+                present = bool(row and row[0])
+                usage["tables_present"][table] = present
+                if not present:
+                    continue
+                cur.execute(
+                    f"SELECT COUNT(*) FROM public.{table} WHERE platform_run_id = %s",
+                    (usage["platform_run_id"],),
+                )
+                count_row = cur.fetchone()
+                usage[f"{table}_count"] = int(count_row[0] or 0) if count_row else 0
+    return usage
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Dispatch canonical remote WSP replay for PR3-S1.")
     ap.add_argument("--run-control-root", default="runs/dev_substrate/dev_full/road_to_prod/run_control")
@@ -696,6 +724,11 @@ def main() -> None:
     ap.add_argument("--ssm-aurora-password-path", default="/fraud-platform/dev_full/aurora/password")
     ap.add_argument("--platform-run-id", default="")
     ap.add_argument("--scenario-run-id", default="")
+    ap.add_argument(
+        "--allow-runtime-identity-reuse",
+        action="store_true",
+        help="Allow PR3-S1 to reuse a platform_run_id that already has persisted IG state.",
+    )
     ap.add_argument(
         "--oracle-engine-run-root",
         default="s3://fraud-platform-dev-full-object-store/oracle-store/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1",
@@ -823,6 +856,18 @@ def main() -> None:
     lane_count = max(1, int(args.lane_count))
     resolved_platform_run_id = str(args.platform_run_id).strip() or f"platform_{checkpoint_attempt_id}"
     resolved_scenario_run_id = str(args.scenario_run_id).strip() or f"scenario_{checkpoint_attempt_id.lower()}"
+    identity_probe = probe_platform_run_identity_usage(wsp_checkpoint_dsn, resolved_platform_run_id)
+    reused_runtime_identity = (
+        int(identity_probe.get("admissions_count", 0) or 0) > 0
+        or int(identity_probe.get("receipts_count", 0) or 0) > 0
+    )
+    if reused_runtime_identity and not args.allow_runtime_identity_reuse:
+        raise RuntimeError(
+            "PR3.S1.WSP.B26_RUNTIME_ID_REUSED:"
+            f"platform_run_id={resolved_platform_run_id}:"
+            f"admissions={int(identity_probe.get('admissions_count', 0) or 0)}:"
+            f"receipts={int(identity_probe.get('receipts_count', 0) or 0)}"
+        )
     target_request_rate_eps = float(args.target_request_rate_eps) if float(args.target_request_rate_eps) > 0.0 else float(
         args.expected_steady_eps
     )
@@ -980,6 +1025,8 @@ def main() -> None:
             "platform_run_id": resolved_platform_run_id,
             "scenario_run_id": resolved_scenario_run_id,
             "scenario_id": args.scenario_id,
+            "allow_runtime_identity_reuse": bool(args.allow_runtime_identity_reuse),
+            "fresh_identity_probe": identity_probe,
         },
         "oracle": {
             "oracle_root": args.oracle_root,

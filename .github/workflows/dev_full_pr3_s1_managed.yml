@@ -27,15 +27,20 @@ on:
         default: "pr3_20260306T021900Z"
         type: string
       platform_run_id:
-        description: "Pinned platform run id for the pressure window"
-        required: true
-        default: "platform_20260223T184232Z"
+        description: "Runtime platform run id (leave blank to mint a fresh attempt id)"
+        required: false
+        default: ""
         type: string
       scenario_run_id:
-        description: "Pinned scenario run id for the pressure window"
-        required: true
-        default: "scenario_38753050f3b70c666e16f7552016b330"
+        description: "Runtime scenario run id (leave blank to mint a fresh attempt id)"
+        required: false
+        default: ""
         type: string
+      allow_runtime_identity_reuse:
+        description: "Allow reuse of an existing runtime platform_run_id"
+        required: false
+        default: false
+        type: boolean
       evidence_bucket:
         description: "Evidence bucket for remote artifact backup"
         required: true
@@ -456,13 +461,25 @@ jobs:
             --name "${{ inputs.eks_cluster_name }}"
 
       - name: Materialize runtime
+        env:
+          RAW_PLATFORM_RUN_ID: ${{ inputs.platform_run_id }}
+          RAW_SCENARIO_RUN_ID: ${{ inputs.scenario_run_id }}
         shell: bash
         run: |
           set -euo pipefail
+          NOW_UTC="$(date -u +'%Y%m%dT%H%M%SZ')"
+          PLATFORM_RUN_ID="${RAW_PLATFORM_RUN_ID:-}"
+          SCENARIO_RUN_ID="${RAW_SCENARIO_RUN_ID:-}"
+          if [[ -z "${PLATFORM_RUN_ID}" ]]; then
+            PLATFORM_RUN_ID="platform_${NOW_UTC}"
+          fi
+          if [[ -z "${SCENARIO_RUN_ID}" ]]; then
+            SCENARIO_RUN_ID="scenario_${NOW_UTC,,}"
+          fi
           python scripts/dev_substrate/pr3_rtdl_materialize.py \
             --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
-            --platform-run-id "${{ inputs.platform_run_id }}" \
-            --scenario-run-id "${{ inputs.scenario_run_id }}" \
+            --platform-run-id "${PLATFORM_RUN_ID}" \
+            --scenario-run-id "${SCENARIO_RUN_ID}" \
             --region "${{ inputs.aws_region }}" \
             --namespace "${{ inputs.eks_namespace }}" \
             --ig-api-key-ssm-path "${{ inputs.ig_api_key_ssm_path }}" \
@@ -479,7 +496,7 @@ jobs:
           if-no-files-found: warn
 
   run_pr3_s1_managed:
-    name: Run PR3-S1 managed fallback pressure lane
+    name: Run PR3-S1 canonical remote WSP replay
     if: ${{ inputs.execution_mode == 'steady_harness' }}
     runs-on: ubuntu-latest
     steps:
@@ -563,13 +580,33 @@ jobs:
           kubectl rollout status deployment/fp-pr3-dla -n "${{ inputs.eks_namespace }}" --timeout=180s
           kubectl rollout status deployment/fp-pr3-archive-writer -n "${{ inputs.eks_namespace }}" --timeout=180s
 
+      - name: Resolve fresh runtime identity
+        id: runtime_identity
+        shell: bash
+        env:
+          RAW_PLATFORM_RUN_ID: ${{ inputs.platform_run_id }}
+          RAW_SCENARIO_RUN_ID: ${{ inputs.scenario_run_id }}
+        run: |
+          set -euo pipefail
+          NOW_UTC="$(date -u +'%Y%m%dT%H%M%SZ')"
+          PLATFORM_RUN_ID="${RAW_PLATFORM_RUN_ID:-}"
+          SCENARIO_RUN_ID="${RAW_SCENARIO_RUN_ID:-}"
+          if [[ -z "${PLATFORM_RUN_ID}" ]]; then
+            PLATFORM_RUN_ID="platform_${NOW_UTC}"
+          fi
+          if [[ -z "${SCENARIO_RUN_ID}" ]]; then
+            SCENARIO_RUN_ID="scenario_${NOW_UTC,,}"
+          fi
+          echo "platform_run_id=${PLATFORM_RUN_ID}" >> "$GITHUB_OUTPUT"
+          echo "scenario_run_id=${SCENARIO_RUN_ID}" >> "$GITHUB_OUTPUT"
+
       - name: Launch canonical remote WSP replay
         shell: bash
         env:
           AWS_REGION: ${{ inputs.aws_region }}
           PR3_EXECUTION_ID: ${{ inputs.pr3_execution_id }}
-          PLATFORM_RUN_ID: ${{ inputs.platform_run_id }}
-          SCENARIO_RUN_ID: ${{ inputs.scenario_run_id }}
+          PLATFORM_RUN_ID: ${{ steps.runtime_identity.outputs.platform_run_id }}
+          SCENARIO_RUN_ID: ${{ steps.runtime_identity.outputs.scenario_run_id }}
           RUN_DIR: ${{ steps.meta.outputs.run_dir }}
           API_ID: ${{ inputs.api_id }}
           API_STAGE: ${{ inputs.api_stage }}
@@ -585,8 +622,13 @@ jobs:
           EARLY_CUTOFF_SECONDS: ${{ inputs.early_cutoff_seconds }}
           EARLY_CUTOFF_FLOOR_RATIO: ${{ inputs.early_cutoff_floor_ratio }}
           STREAM_SPEEDUP: ${{ inputs.stream_speedup }}
+          ALLOW_RUNTIME_ID_REUSE: ${{ inputs.allow_runtime_identity_reuse }}
         run: |
           set -euo pipefail
+          EXTRA_ARGS=()
+          if [[ "${ALLOW_RUNTIME_ID_REUSE}" == "true" ]]; then
+            EXTRA_ARGS+=(--allow-runtime-identity-reuse)
+          fi
           python scripts/dev_substrate/pr3_s1_wsp_replay_dispatch.py \
             --pr3-execution-id "${PR3_EXECUTION_ID}" \
             --region "${AWS_REGION}" \
@@ -607,7 +649,8 @@ jobs:
             --early-cutoff-floor-ratio "${EARLY_CUTOFF_FLOOR_RATIO}" \
             --stream-speedup "${STREAM_SPEEDUP}" \
             --max-latency-p95-ms 350 \
-            --max-latency-p99-ms 700
+            --max-latency-p99-ms 700 \
+            "${EXTRA_ARGS[@]}"
 
       - name: Build PR3-S1 steady evidence rollup
         shell: bash

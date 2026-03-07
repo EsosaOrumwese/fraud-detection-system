@@ -219,14 +219,15 @@ This plan's intent is satisfied only when:
 3. The final production-ready verdict is claimable, auditable, and has `open_blockers=0`.
 
 ## 10) Immediate Next Step
-1. Correct the canonical `WSP` runtime path for `PR3-S1` before any further steady-profile rerun.
-2. Active `PR3-S1` work is now treated as a runtime-architecture correction:
-   - remove the assumption that `WSP` should be searched for as a managed Flink app,
-   - wire the real remote `WSP` path with explicit `stream_speedup`,
+1. Keep the corrected canonical remote `WSP` runtime path for `PR3-S1`; do not revert to synthetic or non-`WSP` pressure.
+2. Active `PR3-S1` work is now treated as a **fresh-runtime-identity correction**:
+   - keep the oracle-store world fixed,
+   - preserve stable event identities,
+   - issue fresh runtime `platform_run_id` and `scenario_run_id` per certification attempt,
    - then rerun `PR3-S1` from the same strict upstream boundary.
 3. Active S1 blocker to clear remains:
    - `PR3.B10_STEADY_THRESHOLD_BREACH`,
-   - but canonical remediation now includes the producer-runtime correction needed to generate valid steady evidence.
+   - but the immediate correction is no longer ingress topology; it is restoring a truthful first-seen-admission steady window.
 4. Use strict upstream authority:
    - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr3_20260306T021900Z/pr3_s0_execution_receipt.json`.
 5. Keep Section 11 target status table as the active blocker-routing surface during `PR3` execution.
@@ -361,6 +362,17 @@ This plan's intent is satisfied only when:
 | Smoke progression | bounded canonical smokes successively exposed wrong subnet posture, missing private `logs` endpoint, and then stale runtime-image behavior | The runtime-correction work is now evidence-led and stripping blockers in the right order. |
 | Active boundary | the live ECS task definition still runs the pre-fix image digest, so the latest WSP loader correction is not yet in service | More reruns of the same image would be wasteful and misleading. |
 | Immediate consequence | S1 rerun is deferred until the WSP runtime image is refreshed and the bounded smoke is re-cleared | The next correct action is image refresh first, bounded smoke second, rerun third. |
+
+### 10.14 PR3-S1 Fresh-Identity Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Gate outcome | latest strict rerun `22790499579` returned `HOLD_REMEDIATE`, `open_blockers=4` | S1 remains open after ingress rollout completion. |
+| Impact metrics | throughput `2242.2 eps`; `5xx_total=43`; ALB latency `p95=803 ms`, `p99=1113 ms` | The raw numbers are red, but they are not yet the right first-admission truth to certify against. |
+| Fleet posture | ingress stayed `32/32` healthy with CPU mostly `14%..26%` and memory `7%..8%` | The front-door fleet is not presenting as saturated. |
+| Duplicate dominance | live worker summaries show `admit=12 duplicate=898 quarantine=0` during the window | The lane has drifted into a duplicate-heavy benchmark rather than a fresh-ingest benchmark. |
+| Root cause | reruns reused `platform_run_id=platform_20260223T184232Z`; IG dedupe key includes `platform_run_id` and stable `event_id` | IG is correctly honoring idempotency across reruns, which invalidates this window as fresh steady-admission proof. |
+| Required correction | keep the same oracle world but issue a fresh runtime `platform_run_id`/`scenario_run_id` per PR3 certification attempt | This restores production-realistic first-seen mission semantics without wiping dedupe state. |
+| Next rerun boundary | `PR3-S1` only | The next valid action is tooling correction plus a fresh-identity S1 rerun, not a broader PR3 restart. |
 
 ## 11) Required TBD Closure Sheet (Binding)
 This section defines the mandatory closure routing for unresolved targets in:

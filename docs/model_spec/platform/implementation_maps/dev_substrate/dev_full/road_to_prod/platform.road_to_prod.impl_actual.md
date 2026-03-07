@@ -6261,3 +6261,99 @@ eason=http_502,
    - the ingress correction lane is no longer blocked by workflow defects, IAM defects, or impossible overspecified capacity pins;
    - the live ingress boundary now materially reflects the production-ready envelope we intended to test.
 7. This closes the ingress-materialization remediation loop for PR3-S1. The next valid action is to rerun strict PR3-S1 against this corrected live boundary and judge only the resulting impact metrics.
+
+## Entry: 2026-03-07 03:46:00 +00:00 - The latest strict PR3-S1 miss is primarily a stale-runtime-identity problem, not a front-door capacity problem
+1. I pulled the full artifact set from strict rerun `22790499579` and then cross-checked it against live ALB, ECS, and CloudWatch evidence instead of treating the summary blocker list as sufficient on its own.
+2. Raw steady-window outcome from the authoritative receipt:
+   - observed admitted/request throughput about `2242.2 eps` against the `3000 eps` target,
+   - `43` total `5xx`,
+   - weighted ALB latency about `p95=803 ms`, `p99=1113 ms`,
+   - no early-cutoff trigger.
+3. Live infrastructure evidence rules out the easy but wrong explanation that the front door is simply out of raw capacity:
+   - ECS ingress service stayed `32/32` healthy for the full window,
+   - ALB healthy-host count stayed `32`,
+   - ECS CPU averaged mostly in the `14%..26%` band with only a brief first-minute max spike,
+   - ECS memory stayed about `7%..8%`.
+4. The error signature is also more specific than a generic app failure:
+   - ALB `HTTPCode_ELB_5XX_Count` summed to the same order as the run blocker (`43` total),
+   - target-side `HTTPCode_Target_5XX_Count` was only `5`,
+   - `TargetConnectionErrorCount` stayed empty.
+5. That means most failures are edge-generated timeout/response failures rather than the application explicitly returning many `5xx` responses.
+6. The more important discovery came from the live ingress task logs. During the same steady window the managed edge repeatedly logged summaries like:
+   - `admit=12 duplicate=898 quarantine=0`
+   - `phase.receipt_seconds p95≈1.374s`
+   - `admission_seconds p95≈1.382s`
+   while the same worker's publish path for fresh admits remained tiny (`phase.publish_seconds p95≈9 ms`, `phase.dedupe_admitted_seconds p95≈5.5 ms`).
+7. This proves the window is not primarily measuring first-seen admission anymore. It is spending most of its time on duplicate handling and duplicate receipt persistence.
+8. I traced that back to the identity contract in code:
+   - `dedupe_key(platform_run_id, event_class, event_id)` in `src/fraud_detection/ingestion_gate/ids.py`,
+   - `event_id` is intentionally stable across reruns of the same oracle world,
+   - the strict workflow keeps reusing the same `platform_run_id=platform_20260223T184232Z`.
+9. Consequence:
+   - every strict rerun after the first successful ingest of a given event set will naturally become a duplicate-heavy workload,
+   - IG is behaving correctly,
+   - but the certification lane is no longer answering the production question we care about for PR3-S1, namely first-seen steady admission at the target EPS.
+10. Production-grade decision:
+   - do **not** purge the idempotency table,
+   - do **not** weaken dedupe semantics,
+   - do **not** pretend the duplicate-heavy rerun is acceptable steady proof.
+11. Chosen remediation:
+   - keep the oracle-store input world fixed,
+   - keep stable event identities,
+   - generate a **fresh runtime `platform_run_id` and `scenario_run_id` per certification attempt** so each attempt is a new runtime mission and IG evaluates the events as first-seen traffic for that mission,
+   - continue to preserve duplicate behavior only when we intentionally test duplicate cohorts, not accidentally through stale run identity reuse.
+12. Why this is the correct production posture:
+   - in a real institution, each production window or rehearsal mission is a new runtime mission with its own run identity,
+   - you do not clear the dedupe system to get a benchmark,
+   - but you also do not certify steady first-ingest throughput using a lane that is mostly replaying already-seen identities from previous failed attempts.
+13. Secondary implication:
+   - the latest latency miss (`~1.35s..1.45s` live ALB p95 during the hot minutes) is still useful evidence because it quantifies the duplicate-receipt path cost,
+   - but it is not the final steady-admission truth we should certify against.
+14. Immediate next sequence:
+   - repin PR3 execution tooling so attempt identities are fresh by default,
+   - rerun strict `PR3-S1` from the same upstream boundary and same oracle-store world with a new runtime identity,
+   - only if the fresh-identity run still misses do we treat the remaining latency/throughput gap as a real first-admit capacity problem.
+
+## Entry: 2026-03-07 04:02:00 +00:00 - PR3-S1 execution tooling must mint fresh runtime identities by default and fail closed on accidental reuse
+1. I am now converting the stale-identity diagnosis into an explicit execution guard instead of relying on operator memory.
+2. The practical failure mode is simple:
+   - the workflow required or defaulted a previously used `platform_run_id` and `scenario_run_id`,
+   - the dispatcher then replayed oracle-store events whose `event_id`s are intentionally stable,
+   - IG correctly treated most of that traffic as duplicates,
+   - the resulting throughput/latency evidence answered the wrong question for `PR3-S1`.
+3. Production reasoning for the tooling change:
+   - a certification attempt is a fresh runtime mission and therefore needs a fresh runtime identity by default;
+   - reuse must be an explicit, audited choice only for deliberate duplicate/replay experiments;
+   - the safe default is therefore "mint fresh identity unless the operator knowingly overrides it."
+4. Chosen execution hardening:
+   - make `platform_run_id` optional in the workflow and mint a fresh UTC-derived value when blank;
+   - make `scenario_run_id` optional in the workflow and mint a matching fresh value when blank;
+   - add an explicit `allow_runtime_identity_reuse` switch that remains `false` by default;
+   - keep the dispatcher-side database probe so the run fails closed if a reused runtime identity still slips through.
+5. Why both workflow-side minting and dispatcher-side probing are required:
+   - workflow minting prevents ordinary operator error,
+   - dispatcher probing prevents silent contamination from stale defaults, copied inputs, or future workflow regressions.
+6. This is not a cosmetic convenience change. It is part of the production-certification contract because it ensures `PR3-S1` measures first-seen steady admission rather than duplicate receipt handling unless we intentionally test duplicates.
+7. Immediate next sequence:
+   - finish the workflow patch cleanly,
+   - validate YAML and Python locally,
+   - rerun strict `PR3-S1` from the same upstream boundary with fresh runtime identities and `allow_runtime_identity_reuse=false`.
+
+## Entry: 2026-03-07 04:08:00 +00:00 - Fresh-identity execution guard is now implemented and locally validated
+1. The dispatcher now probes Aurora-backed `admissions` and `receipts` for the chosen `platform_run_id` before launch.
+2. If prior state exists and `allow_runtime_identity_reuse=false`, the dispatcher raises `PR3.S1.WSP.B26_RUNTIME_ID_REUSED` and refuses to run.
+3. The workflow now:
+   - accepts blank runtime identifiers,
+   - mints fresh UTC-derived `platform_run_id` and `scenario_run_id` when blank,
+   - passes those resolved values through both runtime materialization and the canonical WSP replay lane,
+   - exposes reuse as an explicit boolean switch instead of a hidden stale default.
+4. Local validation completed before remote execution:
+   - `python -m py_compile scripts/dev_substrate/pr3_s1_wsp_replay_dispatch.py`
+   - YAML parse of `.github/workflows/dev_full_pr3_s1_managed.yml`
+5. Production interpretation:
+   - the next strict rerun should now answer the right question for `PR3-S1`,
+   - if it still misses, that miss will be about first-seen production admission capacity/latency rather than accidental duplicate benchmarking.
+6. Immediate next sequence:
+   - push the corrected execution path,
+   - dispatch strict `PR3-S1`,
+   - remediate only the remaining first-admit bottlenecks surfaced by that fresh-identity run.
