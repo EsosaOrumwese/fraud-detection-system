@@ -8183,3 +8183,33 @@ ot ready because pods are broken from eady to accept first traffic on a fresh r
 2. I removed `eks_namespace` as an operator input and repinned it internally to the canonical namespace `fraud-platform-rtdl`.
 3. This is a safe reduction because namespace choice is not an experimental certification knob in this lane; it is fixed runtime authority.
 4. Result: the workflow can now accept the explicit `platform_image_uri` pin without violating GitHub dispatch limits.
+## Entry: 2026-03-07 18:32:00 +00:00 - PR3-S2 runtime blocker narrowed to ingress tail latency plus DF context skew under burst
+1. The explicit-image rerun `22803961969` finally executed the full PR3-S2 burst window on the intended runtime path. This materially changed the evidence picture:
+   - throughput target is now met (`6045.04 eps` admitted against `6000 eps` target),
+   - `4xx=0`, `5xx=0`,
+   - latency `p95=332.96 ms` remains inside the `350 ms` ceiling,
+   - latency `p99=851.86 ms` breaches the `700 ms` ceiling,
+   - DF still emitted `2` fail-closed / quarantine outcomes.
+2. Live ingress utilization explains the p99 miss. During the certified window with ingress desired count reduced to `30`, the service ran around `71.7..72.5%` average CPU with `93.2..94.5%` max CPU. That is no longer the relaxed headroom posture seen in earlier runs and is sufficient to explain a tail-latency spike without 4xx/5xx growth.
+3. DF diagnosis is now precise from live pod logs: the worker is repeatedly blocking on `CONTEXT_WAITING:arrival_events` and `CONTEXT_WAITING:flow_anchor` for burst traffic on `fp.bus.traffic.fraud.v1`. This is no longer registry drift; it is burst-time context skew.
+4. The current DF policy is too tight for this certified posture:
+   - `decision_deadline_ms = 1500`,
+   - `join_wait_budget_ms = 900`.
+   Those values are not production-realistic for a `6000 eps` burst where ingress `p99` alone is already `~852 ms`; they leave almost no budget for context convergence plus decision publication.
+5. Production correction chosen:
+   - restore ingress desired count from `30` to `32` to recover tail headroom while keeping the now-proven `32 x 512 CPU` WSP replay fleet,
+   - repin DF context budgets to `decision_deadline_ms = 3000` and `join_wait_budget_ms = 2000`.
+6. Why this is the right next move:
+   - it addresses the two measured blockers directly without weakening throughput or error-rate gates,
+   - it keeps the RTDL lane strict but no longer toy-tight,
+   - it preserves the new proof that the platform can physically admit `6000 eps` while we make the decision path production-material.
+## Entry: 2026-03-07 18:38:00 +00:00 - PR3-S2 remediation applied on branch: restore ingress headroom and widen DF context budgets before next strict rerun
+1. Applied the two measured corrections from the `22803961969` diagnosis directly in branch state:
+   - `config/platform/df/context_policy_v0.yaml` now carries `decision_deadline_ms=3000` and `join_wait_budget_ms=2000`,
+   - `.github/workflows/dev_full_pr3_s2_burst.yml` now restores ingress right-size target back to `32`,
+   - `infra/terraform/dev_full/runtime/variables.tf` now repins `ig_service_desired_count` default back to `32` so IaC authority matches the live certification posture.
+2. These are intentionally narrow changes. No throughput thresholds, error-rate thresholds, or lane counts were relaxed. The only goal is to recover p99 headroom and give DF a production-realistic context convergence budget at the already proven `6000 eps` burst rate.
+3. Validation completed before the next rerun:
+   - workflow YAML parse clean,
+   - `terraform fmt -check infra/terraform/dev_full/runtime/variables.tf` clean.
+4. Next action is to commit and push this checkpoint, rerun strict PR3-S2 on the same immutable image digest `sha256:50d9953e34433457ce556988b496fa0bf36fa4dbea119d96640d37427b5a33e9`, and judge success only if all impact gates clear without waiver.

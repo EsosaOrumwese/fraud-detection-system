@@ -2,8 +2,8 @@ version: v1
 policy_id: df.context.v0
 revision: r1
 budgets:
-  decision_deadline_ms: 1500
-  join_wait_budget_ms: 900
+  decision_deadline_ms: 3000
+  join_wait_budget_ms: 2000
 context_roles:
   required: [arrival_events, flow_anchor]
   optional: [arrival_entities]

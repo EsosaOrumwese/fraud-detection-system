@@ -291,7 +291,7 @@ variable "ig_service_task_memory" {
 
 variable "ig_service_desired_count" {
   type    = number
-  default = 30
+  default = 32
 }
 
 variable "ig_service_gunicorn_workers" {

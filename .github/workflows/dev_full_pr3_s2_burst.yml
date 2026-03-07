@@ -684,7 +684,7 @@ jobs:
         env:
           ECS_CLUSTER: fraud-platform-dev-full-ingress
           ECS_SERVICE: fraud-platform-dev-full-ig-service
-          TARGET_DESIRED_COUNT: "30"
+          TARGET_DESIRED_COUNT: "32"
         run: |
           set -euo pipefail
           python - <<'PY'
