@@ -183,6 +183,7 @@ temp/
 .env.localstack.example
 .tmp/
 .tmp_*
+tmp
 
 # SR runtime artifacts (sensitive, generated)
 runs/fraud-platform/
