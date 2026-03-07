@@ -542,13 +542,7 @@ resource "aws_iam_policy" "github_actions_pr3_runtime" {
         Sid    = "PR3ElbRuntimeRead"
         Effect = "Allow"
         Action = [
-          "elasticloadbalancing:DescribeLoadBalancers",
-          "elasticloadbalancing:DescribeLoadBalancerAttributes",
-          "elasticloadbalancing:DescribeTargetGroups",
-          "elasticloadbalancing:DescribeTargetGroupAttributes",
-          "elasticloadbalancing:DescribeListeners",
-          "elasticloadbalancing:DescribeRules",
-          "elasticloadbalancing:DescribeTags"
+          "elasticloadbalancing:Describe*"
         ]
         Resource = "*"
       }

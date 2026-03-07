@@ -6161,3 +6161,18 @@ eason=http_502,
 7. Next action:
    - rerun ingress materialization immediately from cert-platform,
    - if the rollout verifies the live image/env pins, resume strict PR3-S1 without waiting.
+
+## Entry: 2026-03-07 02:42:00 +00:00 - The listener-attribute denial confirms the ELBv2 policy should use the full Describe* surface instead of continued piecemeal additions
+1. The very next ingress materialization rerun (22790256328) proved the previous IAM widening worked partially: Terraform refreshed load balancer, target group, and listener resources further than before.
+2. The new hard failure was narrower but structurally identical:
+   - lasticloadbalancing:DescribeListenerAttributes denied on ws_lb_listener.ig_service[0].
+3. That failure confirms the production judgment from the prior note: the certification/remediation lane is managing a real ELBv2 resource family, so trying to enumerate one more Describe...Attributes action per rerun is the wrong maintenance posture.
+4. I am therefore repinning PR3ElbRuntimeRead to a single read-only family grant: lasticloadbalancing:Describe* on *.
+5. Why this is the correct production tradeoff:
+   - the role remains read-only for ELBv2;
+   - Terraform/provider refresh of the managed ingress ALB/TG/listener family is no longer vulnerable to future adjacent Describe... surprises;
+   - this directly serves the user mandate to remove unnecessary stop-start cycles in the production-hardening path.
+6. Immediate next sequence:
+   - apply the repinned ELBv2 read family live on GitHubActionsPR3RuntimeDevFull,
+   - rerun ingress materialization again,
+   - continue to service verification if the apply finally clears the IAM surface.
