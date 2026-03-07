@@ -7963,3 +7963,21 @@ ot ready because pods are broken from eady to accept first traffic on a fresh r
 5. Added proof:
    - new concurrency regression test in `tests/services/ingestion_gate/test_metrics.py`,
    - targeted validation passes together with the PR3 dispatcher/rollup tests.
+## Entry: 2026-03-07 16:10:30 +00:00 - PR3-S2 must publish the ingress reliability fix before any further burst interpretation is trusted
+1. The residual `5xx` defect is no longer a theory. It is a concrete code path in ingress metrics flushing and it has already been corrected locally.
+2. The active warmed `PR3-S2` receipt still came from the pre-fix image, so reading more into that artifact would not answer the only important reliability question: does the live runtime still drop a request after the lock fix is deployed?
+3. I rejected the obvious shortcuts:
+   - rerun on the old image and hope the defect does not recur: rejected because a deterministic race must be removed, not statistically ignored;
+   - start throughput tuning immediately: rejected because capacity proof on a path with a known request-dropping defect is not production-grade;
+   - mix more RTDL or replay-shape edits into the same rerun: rejected because it would destroy causal clarity between the reliability fix and the next impact delta.
+4. Chosen next sequence:
+   - build and push a fresh immutable `dev_full` image from the active branch,
+   - verify the new digest is the one used by the strict PR3 burst runtime,
+   - rerun warmed `PR3-S2` with the same quota-safe parameters and the same strict upstream boundary,
+   - only if `5xx=0` and the state is still red, treat the remaining `4675 eps -> 6000 eps` gap as the sole active production problem.
+5. Impact metrics that must drive the next state summary are pinned now:
+   - admitted/request EPS,
+   - `4xx_total`, `5xx_total`,
+   - ALB `p95`/`p99`,
+   - RTDL error-growth deltas (`DF`, `AL`, `DLA`, archive, IEG/OFP freshness/backpressure),
+   - one explicit production verdict line stating whether the state meets the target with no waivers.

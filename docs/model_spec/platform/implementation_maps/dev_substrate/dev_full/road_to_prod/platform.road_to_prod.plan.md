@@ -401,6 +401,14 @@ This plan's intent is satisfied only when:
 | Residual 5xx root cause | ingress log traceback pins the lone `5xx` to `MetricsRecorder.flush_if_due()` mutating over a live dict (`dictionary changed size during iteration`) | This is a concrete IG thread-safety bug, not a mystery overload symptom; it must be fixed and rerun. |
 | Production interpretation | the next remediation is twofold: remove the metrics-race 5xx and then push the remaining throughput ceiling with a justified replay or ingress-shape change | S2 is much closer to closure, but it is still not production-ready until both the reliability floor and the `6000 eps` target are met simultaneously. |
 
+### 10.17 PR3-S2 Immediate Execution Contract
+| Item | Pinned value | Interpretation |
+| --- | --- | --- |
+| First next action | Publish a fresh immutable image carrying the ingress metrics-race fix | The current warmed receipt still reflects pre-fix code, so reliability must be re-proved on the live runtime before more burst tuning is meaningful. |
+| Comparison boundary | Keep `lane_count=44`, `wsp_task_cpu=256`, `wsp_task_memory=2048`, `warmup_seconds=90`, `stream_speedup=180`, `ig_push_concurrency=16`, `output_concurrency=4`, `http_pool_maxsize=1024` unchanged for the next rerun | This preserves apples-to-apples comparison against the latest authoritative warmed run and avoids mixing reliability and capacity deltas. |
+| Required state digest | Summaries must lead with admitted/request EPS, `4xx`, `5xx`, `p95`, `p99`, RTDL error-growth/freshness deltas, and a one-line production verdict | PR3 reporting stays impact-metric-driven and fail-closed rather than collapsing back into artifact pointers or work-log prose. |
+| Capacity-work trigger | Treat the remaining throughput gap as the active blocker only if the rerun proves `5xx=0` with the refreshed image | Production posture requires reliability closure first; only then is it analytically sound to treat the remaining red as pure throughput. |
+
 ## 11) Required TBD Closure Sheet (Binding)
 This section defines the mandatory closure routing for unresolved targets in:
 1. `docs/model_spec/platform/pre-design_decisions/dev-full_road-to-production-ready.md` Section 15.1 (open decisions `OD-01..OD-09`).
