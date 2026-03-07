@@ -6197,3 +6197,32 @@ eason=http_502,
    - apply the lambda-concurrency IAM delta live,
    - rerun ingress materialization,
    - let the verify step confirm both ECS and Lambda now match the intended production envelope.
+
+## Entry: 2026-03-07 02:48:00 +00:00 - The previous 1000 Lambda IG concurrency pin is an overspecified authority and must be repinned to a production-valid value derived from measured throughput and the real AWS account envelope
+1. I measured the actual Lambda account posture after the last rerun instead of continuing to fight the failed 1000 target blindly.
+2. Current AWS account settings are:
+   - ConcurrentExecutions = 1000
+   - UnreservedConcurrentExecutions = 640
+3. Current reserved-concurrency footprint is therefore only 360, and it is entirely on raud-platform-dev-full-ig-handler.
+4. AWS then rejected the 1000 uplift with a real platform constraint, not an IAM or tooling error:
+   - InvalidParameterValueException: Specified ReservedConcurrentExecutions for function decreases account's UnreservedConcurrentExecution below its minimum value of [40].
+5. Production reasoning:
+   - the old 1000 pin is not materially deployable in this account and therefore is not a valid authority for this environment;
+   - keeping it would be exactly the kind of overspecified bolt the user asked me to remove;
+   - the pin should instead be derived from measured service behavior and the real account envelope.
+6. Measured evidence available for sizing:
+   - strict PR3-S1 already reached 2610.9 eps with current Lambda reserved concurrency 360 and latency around p95=107 ms, p99=142 ms;
+   - concurrency needed for 3000 eps at that latency band is materially below 600 (3000 * 0.142 ~= 426 at p99-level service time, before headroom).
+7. Chosen new pin: LAMBDA_IG_RESERVED_CONCURRENCY = 600.
+8. Why 600 is the right production compromise here:
+   - it is well above the observed concurrency demand implied by the measured PR3 window,
+   - it leaves substantial safety margin over the derived ~426 concurrency need,
+   - it remains valid inside the real account limit while preserving 400 unreserved concurrency for the rest of the account.
+9. I have therefore repinned:
+   - runtime Terraform default in infra/terraform/dev_full/runtime/variables.tf
+   - design authority note in docs/model_spec/platform/pre-design_decisions/dev-full_managed-substrate_migration.design-authority.v0.md
+   - handles registry pin in docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md
+10. Immediate next sequence:
+   - rerun ingress materialization with the corrected 600 concurrency authority,
+   - verify the live Lambda reserved concurrency lands at 600,
+   - then resume strict PR3-S1 on the corrected ingress boundary.

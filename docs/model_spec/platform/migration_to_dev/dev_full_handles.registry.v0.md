@@ -502,7 +502,7 @@ Allowed tokens in pattern handles:
 * `IG_RATE_LIMIT_RPS = 3000`
 * `IG_RATE_LIMIT_BURST = 6000`
 * `LAMBDA_IG_MEMORY_MB = 2048`
-* `LAMBDA_IG_RESERVED_CONCURRENCY = 1000`
+* `LAMBDA_IG_RESERVED_CONCURRENCY = 600`
 * `LAMBDA_IG_TIMEOUT_SECONDS = 30`
 
 ### 7.5 Runtime service/deployment handles (legacy EKS fallback refs only)

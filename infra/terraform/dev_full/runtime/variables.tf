@@ -211,7 +211,7 @@ variable "lambda_ig_memory_size_mb" {
 
 variable "lambda_ig_reserved_concurrency" {
   type    = number
-  default = 1000
+  default = 600
 }
 
 variable "lambda_ig_timeout_seconds" {
