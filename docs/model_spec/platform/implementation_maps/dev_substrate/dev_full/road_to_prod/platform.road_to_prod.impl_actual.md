@@ -8118,3 +8118,14 @@ ot ready because pods are broken from eady to accept first traffic on a fresh r
    - it reduces control-plane/task-launch overhead by using fewer lanes,
    - it unlocks full per-lane log capture automatically (`lane_count <= 32`), improving evidence quality on the next rerun,
    - it does not weaken any threshold or fail-closed rule.
+## Entry: 2026-03-07 17:38:00 +00:00 - PR3-S2 workflow image resolution must distinguish image-neutral branch commits from real runtime-code commits
+1. The first rerun after the burst-shape rebalance failed before any live platform step. The workflow could not resolve an immutable ECR image for branch head `921e5b9f...` because that commit only changed workflow/docs/Terraform posture and did not produce a new container build.
+2. This is not a runtime blocker and it should not force a wasteful packaging run when the active runtime image is already the correct audited one.
+3. At the same time, a blanket fallback to the currently deployed image would be unsafe if the branch commit had changed `src/`, `scripts/`, or other container material without publishing a new digest.
+4. Production-grade correction chosen:
+   - keep fail-closed behavior for commits that touch runtime/image material,
+   - allow fallback to the currently active WSP task-family digest only when the branch commit is image-neutral (`.github/workflows/`, `docs/`, `infra/terraform/` only),
+   - require the fallback image to be digest-pinned, not tag-based.
+5. This keeps the workflow honest:
+   - workflow-only and authority-only corrections can execute immediately on the already-audited image,
+   - real runtime-code changes still demand a fresh immutable package build before PR3 evidence can continue.
