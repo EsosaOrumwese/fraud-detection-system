@@ -7362,3 +7362,28 @@ Implementation sequence
    - a fresh PR3 materialization should let `CSFB` start consuming the active run immediately instead of replaying stale backlog,
    - `CSFB` current-run `join_frames` and `flow_bindings` should appear during `PR3-S2`,
    - if the state remains red after this, the next blocker will be a truthful downstream throughput or decision-plane correctness limit rather than checkpoint bleed.
+
+## Entry: 2026-03-07 13:24:00 +00:00 - Planned materialization path after the CSFB run-scope fix: rebuild immutable image, repin WSP task family, then rerun strict PR3-S2
+1. The CSFB code remediation is only locally validated at this point. `PR3-S2` cannot truthfully improve until the active remote runtime actually runs the corrected image.
+2. The active PR3 burst posture has two separate image consumers:
+   - EKS runtime workloads (`CSFB`, `IEG`, `OFP`, `DF`, `AL`, `DLA`, `archive-writer`) can consume an explicit `--image-uri` through `pr3_rtdl_materialize.py`.
+   - the burst injector still launches remote ECS/Fargate tasks from family `fraud-platform-dev-full-wsp-ephemeral` through `pr3_wsp_replay_dispatch.py`.
+3. I inspected the dispatcher and confirmed it cannot swap the container image at `run_task` time. It only overrides:
+   - container command,
+   - environment,
+   - task CPU/memory.
+   Therefore, a fresh immutable image digest alone is insufficient; the WSP ECS task-definition family must also be repinned to that digest.
+4. Production reasoning for the chosen sequence:
+   - rebuilding the image ensures both the EKS runtime plane and the remote replay lane can converge on the same audited artifact,
+   - repinning the WSP task family removes stale-code ambiguity from the burst injector,
+   - rerunning only after both are aligned ensures any remaining red is a real production limit in the RTDL/decision path instead of artifact drift.
+5. Alternatives considered and rejected:
+   - rerun `PR3-S2` with only EKS updated: rejected because the burst injector would still run stale WSP image code and contaminate the evidence.
+   - manually tweak old running pods/tasks without immutable image refresh: rejected because it breaks provenance and makes certification evidence non-auditable.
+   - relax the burst state and move on: rejected because the state is still red and does not meet the no-waiver production standard.
+6. Immediate execution plan:
+   - dispatch `dev_full_m1_packaging.yml` on `cert-platform` with explicit run scope and ECR inputs,
+   - wait for a successful immutable digest,
+   - register a fresh `fraud-platform-dev-full-wsp-ephemeral` task definition revision pinned to that digest,
+   - run strict `PR3-S2` with the same digest injected into EKS via `worker_image_uri`,
+   - assess the result by impact metrics and continue remediation if downstream RTDL/decision blockers remain.
