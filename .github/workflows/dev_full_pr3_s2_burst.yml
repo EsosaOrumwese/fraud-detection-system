@@ -17,6 +17,11 @@ on:
         required: false
         default: ""
         type: string
+      ingress_image_uri:
+        description: "Optional explicit immutable ingress image URI (repo@sha256:...). Defaults to the resolved platform image."
+        required: false
+        default: ""
+        type: string
       pr3_execution_id:
         description: "Strict PR3 execution id"
         required: true
@@ -560,7 +565,7 @@ jobs:
         env:
           ECS_CLUSTER: fraud-platform-dev-full-ingress
           ECS_SERVICE: fraud-platform-dev-full-ig-service
-          IMAGE_URI: ${{ steps.platform_image.outputs.image_uri }}
+          IMAGE_URI: ${{ inputs.ingress_image_uri != '' && inputs.ingress_image_uri || steps.platform_image.outputs.image_uri }}
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -573,6 +578,9 @@ jobs:
           cluster = os.environ["ECS_CLUSTER"]
           service = os.environ["ECS_SERVICE"]
           image_uri = os.environ["IMAGE_URI"]
+          digest = image_uri.rsplit("@", 1)[-1] if "@" in image_uri else ""
+          if not digest.startswith("sha256:"):
+              raise SystemExit(f"Ingress image must be digest-pinned: {image_uri}")
 
           def aws_json(args):
               proc = subprocess.run(

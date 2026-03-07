@@ -198,6 +198,7 @@ def test_join_wait_and_missing_context() -> None:
         feature_keys=[{"key_type": "flow_id", "key_id": "flow_1"}],
     )
     assert waiting.status == CONTEXT_WAITING
+    assert waiting.reasons == ("CONTEXT_WAITING:flow_anchor",)
 
     missing = acquirer.acquire(
         candidate=_candidate(),
@@ -208,6 +209,37 @@ def test_join_wait_and_missing_context() -> None:
         feature_keys=[{"key_type": "flow_id", "key_id": "flow_1"}],
     )
     assert missing.status == CONTEXT_MISSING
+    assert set(missing.reasons) == {"CONTEXT_MISSING:flow_anchor", "JOIN_WAIT_EXCEEDED"}
+
+
+def test_flow_anchor_only_context_is_ready_when_ofp_features_are_usable() -> None:
+    policy = _policy()
+    snapshot = _ofp_snapshot()
+    snapshot["freshness"] = {
+        "state": "AMBER",
+        "flags": ["MISSING_FEATURE_STATE"],
+        "stale_groups": [],
+        "missing_groups": [],
+        "missing_feature_keys": ["event_id:evt_001"],
+    }
+    stub = StubOfpClient(snapshot=snapshot)
+    acquirer = DecisionContextAcquirer(policy=policy, ofp_client=stub)
+    result = acquirer.acquire(
+        candidate=_candidate(),
+        posture=_posture(allow_ieg=True, allowed_feature_groups=("core_features",)),
+        decision_started_at_utc="2026-02-07T11:00:00Z",
+        now_utc="2026-02-07T11:00:00Z",
+        context_refs={
+            "flow_anchor": {"topic": "fp.bus.context.flow_anchor.fraud.v1", "partition": 0, "offset": "2"},
+        },
+        feature_keys=[
+            {"key_type": "event_id", "key_id": "evt_001"},
+            {"key_type": "flow_id", "key_id": "flow_1"},
+        ],
+    )
+    assert result.status == CONTEXT_READY
+    assert stub.last_payload is not None
+    assert set(result.evidence.context_refs) == {"flow_anchor"}
 
 
 def test_evidence_refs_include_ofp_basis() -> None:

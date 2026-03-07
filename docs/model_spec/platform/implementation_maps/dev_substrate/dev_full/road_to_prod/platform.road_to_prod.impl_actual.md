@@ -8465,3 +8465,66 @@ uns/.../degrade_ladder/* on its own filesystem,
    - the stale evicted pods still exist in the namespace history and remain useful evidence of the earlier node-pressure event,
    - but they are no longer allowed to falsify runtime readiness once a healthy replacement pod is already active.
 7. Next action is immediate and unchanged in principle: commit/push this gate correction, then rerun strict PR3-S2 on the same image and throughput boundary.
+
+## Entry: 2026-03-07 21:05:00 +00:00 - PR3-S2 final red split narrowed to ingress rollout coupling and DF overspecified context contract
+1. I rechecked the latest strict PR3-S2 evidence after the warm-gate correction and the platform is now red on two concrete, production-meaningful defects rather than an ambiguous mixed failure.
+2. Ingress defect:
+   - admitted throughput recovered close to target at `5819.557 eps` with `4xx=0` and `5xx=0`,
+   - but latency remains far outside production budget (`p95=1991.483 ms`, `p99=5994.665 ms`) and admitted EPS still misses the `6000 eps` burst contract,
+   - live ECS inspection confirms the PR3-S2 workflow is still rolling ingress onto the same branch image used for RTDL/WSP, so the current S2 run is not isolating the ingress hot path from unrelated RTDL semantic changes.
+3. Production interpretation of the ingress defect:
+   - this is not evidence that the control/ingress design cannot reach `6000 eps`; prior strict evidence already proved `6041.653 eps`, `p95=176.652 ms`, `p99=275.033 ms` on the same S2 boundary,
+   - it is evidence that shared-image rollout coupling is reintroducing a hot-path regression whenever RTDL code is rebuilt,
+   - the correct immediate production action is to decouple the S2 workflow image pins so ingress can stay on the last proven digest while RTDL/WSP continue on the current branch image.
+4. DF defect:
+   - only a single DF fail-closed / quarantine delta remains,
+   - live reconciliation on the blocked decision shows `CONTEXT_MISSING:arrival_events`, `CONTEXT_MISSING:flow_anchor`, `FEATURE_GROUP_MISSING:core_features`, and registry fail-closed reasons,
+   - direct live investigation of the exact source event proved the real current-run topic set contains the traffic event and a `flow_anchor`, but no matching `arrival_events` context record at all for that flow binding.
+5. I then checked whether treating missing `arrival_events` as fatal is actually justified by the production decision path.
+   - `DecisionFabricWorker` already derives feature keys from the source event and flow identifiers, not from the arrival-event payload itself,
+   - live OFP serve for the blocked flow returns usable `core_features:v1` keyed by `flow_id`,
+   - therefore a decision with `flow_anchor` present and OFP features available is semantically actionable even when `arrival_events` is absent in the current-run context stream.
+6. Production interpretation of the DF defect:
+   - keeping `arrival_events` hard-required is overspecification against the real platform data shape,
+   - this causes deterministic false fail-closed behavior that would under-utilize the decision lane in production,
+   - the correct production correction is to repin the DF minimum context contract to require `flow_anchor` only while leaving `arrival_events` and `arrival_entities` as optional evidence roles.
+7. Rejected alternatives and why:
+   - do not relax PR3-S2 thresholds; the evidence already shows the platform can and must meet the pinned S2 burst/latency budgets,
+   - do not paper over the DF delta with waivers; one false fail-closed is enough to invalidate the no-waiver production posture,
+   - do not rerun again without these code/workflow corrections because that would spend more burst budget on the same known defects.
+8. Locked remediation sequence from here:
+   - update the impl/log record first,
+   - decouple ingress image pinning in the PR3-S2 workflow,
+   - repin the DF context policy and add regression tests proving `flow_anchor`-only readiness with usable OFP features,
+   - validate locally, commit/push, then rerun strict PR3-S2 on the corrected production boundary.
+
+## Entry: 2026-03-07 21:16:00 +00:00 - PR3-S2 ingress/DF remediation implemented and locally validated before remote rerun
+1. I implemented the bounded production fixes exactly as planned and kept them limited to the two proven defect surfaces.
+2. Workflow correction in `.github/workflows/dev_full_pr3_s2_burst.yml`:
+   - added optional `ingress_image_uri` input,
+   - kept existing default behavior intact when no override is supplied,
+   - enforced digest-pinned ingress images so the rerun cannot silently use a mutable tag.
+3. Why this workflow change is production-correct:
+   - it lets S2 hold ingress on the last-proven hot-path digest while RTDL/WSP advance on the new immutable branch image,
+   - it removes the current shared-image blast radius without inventing a new rollout mechanism,
+   - it preserves an auditable, explicit image contract for the rerun boundary.
+4. DF correction in `config/platform/df/context_policy_v0.yaml`:
+   - revised the policy from `r1` to `r2`,
+   - changed required context roles from `[arrival_events, flow_anchor]` to `[flow_anchor]`,
+   - left `arrival_events` and `arrival_entities` as optional evidence roles.
+5. Why this DF change is production-correct:
+   - live current-run evidence proved that some valid fraud traffic has no matching `arrival_events` context record,
+   - `DF` does not directly require arrival-event payload content to derive feature keys,
+   - `OFP` can still serve usable `core_features:v1` on `flow_id`, so hard-failing those events is false conservatism rather than robust production behavior.
+6. Regression coverage added/updated:
+   - `tests/services/decision_fabric/test_phase5_context.py` now asserts the new waiting/missing reasons and proves that `flow_anchor` alone is sufficient when usable OFP features exist,
+   - `tests/services/decision_fabric/test_worker_runtime.py` now reflects the reduced minimum wait contract.
+7. Local validation completed cleanly:
+   - `python -m pytest tests/services/decision_fabric/test_phase5_context.py tests/services/decision_fabric/test_worker_runtime.py` -> `16 passed`,
+   - YAML parse for `dev_full_pr3_s2_burst.yml` and `context_policy_v0.yaml` -> clean,
+   - `python -m py_compile` on the affected DF files/tests -> clean.
+8. Next production step is not another blind rerun.
+   - the RTDL code changes require a new immutable platform image for this branch,
+   - the strict S2 rerun must then supply:
+     - `platform_image_uri=<new immutable branch digest>` for RTDL/WSP,
+     - `ingress_image_uri=230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-full@sha256:50d9953e34433457ce556988b496fa0bf36fa4dbea119d96640d37427b5a33e9` for ingress.

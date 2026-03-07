@@ -108,7 +108,7 @@ def test_worker_defers_context_waiting_without_publish_or_advance() -> None:
     worker.acquirer = SimpleNamespace(
         acquire=lambda **_kwargs: SimpleNamespace(
             status=CONTEXT_WAITING,
-            reasons=("CONTEXT_WAITING:arrival_events", "CONTEXT_WAITING:flow_anchor"),
+            reasons=("CONTEXT_WAITING:flow_anchor",),
         )
     )
     worker._metrics = None

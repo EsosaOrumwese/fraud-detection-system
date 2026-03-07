@@ -1,12 +1,12 @@
 version: v1
 policy_id: df.context.v0
-revision: r1
+revision: r2
 budgets:
   decision_deadline_ms: 3000
   join_wait_budget_ms: 2000
 context_roles:
-  required: [arrival_events, flow_anchor]
-  optional: [arrival_entities]
+  required: [flow_anchor]
+  optional: [arrival_entities, arrival_events]
 ofp:
   require_ofp: true
   graph_resolution_mode: resolve_if_needed
