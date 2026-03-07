@@ -8702,3 +8702,31 @@ uns/.../degrade_ladder/* on its own filesystem,
    - `publish_quarantine_total_delta` should drop to zero for the current burst lane,
    - `DLA` should begin receiving current-run decisions instead of remaining dark behind DF quarantine,
    - any remaining red after that rerun is likely to be the ingress tail/headroom issue, which can then be treated in isolation.
+
+## Entry: 2026-03-07 22:30:00 +00:00 - PR3-S2 rerun cleared throughput but exposed DF bundle-identity contract drift
+1. I inspected the live DF pod directly after the strict rerun instead of guessing from the rollup:
+   - pod `fp-pr3-df-7f8c6fb675-t2tdm` stayed `Running` but had `restartCount=7`,
+   - previous container logs show the process reaches synthesis and then exits with `DecisionFabricContractError: bundle_ref.bundle_id must be 64-char lowercase hex`.
+2. This changes the interpretation of the remaining `B15` blockers:
+   - the new fallback path is no longer being blocked by context/quarantine semantics,
+   - DF is now crashing at the decision-contract boundary before it can persist metrics, which is why the rollup sees `delta=None` rather than a positive fail-closed count.
+3. Evidence proving the new state:
+   - `PR3-S2` ingress now exceeds the throughput target at `6035.777 eps` with `4xx=0` and `5xx=0`,
+   - the only ingress defects left are latency tail (`p95=414.706 ms`, `p99=1253.794 ms`),
+   - the DF pod stack trace points exactly at `DecisionResponse.from_payload(...)` contract validation for `bundle_ref.bundle_id`.
+4. Root cause analysis:
+   - the promoted managed bundle evidence used for fallback/active identity carries `bundle_id=40d27a4c62e2438e` (16 hex chars),
+   - DF/DLA decision contracts require bundle ids to be fixed-width `hex64`,
+   - that means the RTDL decision plane and the learning/promotion artifact chain are currently using incompatible bundle-id shapes.
+5. Production judgment:
+   - the contract requirement (`hex64`) is the stronger and more future-proof boundary because decisions/audit records need stable fixed-width identity,
+   - changing decision/audit contracts downward to accept short ids would spread drift into the rest of RTDL,
+   - the correct fix is to normalize legacy short bundle ids at the DF decision boundary while preserving bundle version + registry ref provenance, and separately note that upstream learning/promotion should later be harmonized to emit canonical `hex64` bundle ids natively.
+6. Selected immediate remediation:
+   - patch DF synthesis bundle-ref normalization so any legacy non-hex64 bundle id is deterministically mapped to a canonical `hex64` identity derived from the original bundle-ref tuple (`bundle_id`, `bundle_version`, `registry_ref`),
+   - keep `bundle_version` and `registry_ref` untouched for auditability,
+   - add regression coverage proving short upstream bundle ids do not crash DF and are normalized deterministically.
+7. Why this is production-correct:
+   - it preserves a fixed-width contract at the decision/audit plane,
+   - it avoids rewriting or inventing upstream registry events during a PR3 runtime proof,
+   - it makes the boundary deterministic and replay-safe while still surfacing the legacy-id drift explicitly in notes.

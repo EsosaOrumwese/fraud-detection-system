@@ -428,14 +428,27 @@ def _normalize_bundle_ref(bundle_ref: Mapping[str, Any] | None) -> dict[str, Any
             "registry_ref": "registry://fail_closed",
             "bundle_version": "fail_closed",
         }
-    bundle_id = str(bundle_ref.get("bundle_id") or "").strip()
+    bundle_id = str(bundle_ref.get("bundle_id") or "").strip().lower()
+    registry_ref = str(bundle_ref.get("registry_ref") or "").strip()
+    bundle_version = str(bundle_ref.get("bundle_version") or "").strip()
     if not bundle_id:
         bundle_id = "0" * 64
+    elif len(bundle_id) != 64 or any(ch not in "0123456789abcdef" for ch in bundle_id):
+        # Normalize legacy non-hex64 bundle ids into the fixed-width decision/audit identity contract.
+        bundle_id = hashlib.sha256(
+            _canonical_json(
+                {
+                    "legacy_bundle_id": bundle_id,
+                    "bundle_version": bundle_version,
+                    "registry_ref": registry_ref,
+                }
+            ).encode("utf-8")
+        ).hexdigest()
     payload = {"bundle_id": bundle_id}
-    if bundle_ref.get("registry_ref"):
-        payload["registry_ref"] = str(bundle_ref.get("registry_ref"))
-    if bundle_ref.get("bundle_version"):
-        payload["bundle_version"] = str(bundle_ref.get("bundle_version"))
+    if registry_ref:
+        payload["registry_ref"] = registry_ref
+    if bundle_version:
+        payload["bundle_version"] = bundle_version
     return payload
 
 
