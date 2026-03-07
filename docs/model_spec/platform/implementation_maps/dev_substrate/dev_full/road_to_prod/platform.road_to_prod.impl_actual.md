@@ -6428,3 +6428,16 @@ eason=http_502,
 7. Immediate next sequence:
    - patch and push the workflow dependency correction,
    - rerun strict `PR3-S1` on the same fresh runtime identity pair because no traffic was admitted before the import failure.
+
+## Entry: 2026-03-07 04:28:00 +00:00 - The first psycopg workflow fix landed in the wrong job and must be corrected on the steady-harness lane itself
+1. The first dependency patch was directionally correct but materially incomplete.
+2. I added `psycopg[binary]` to the workflow, but it landed on the `materialize_runtime` job instead of the `steady_harness` job that actually executes `pr3_s1_wsp_replay_dispatch.py`.
+3. The repeated rerun therefore failed with the same import error, which is consistent with the logs.
+4. Production interpretation:
+   - platform runtime remains healthy,
+   - the defect is still confined to CI job completeness,
+   - and the safe correction is to add the dependency to the exact launcher job rather than changing the application code or disabling the identity probe.
+5. Immediate next sequence:
+   - patch the `steady_harness` job install surface,
+   - push,
+   - rerun on the same fresh runtime identity pair.
