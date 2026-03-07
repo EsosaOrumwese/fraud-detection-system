@@ -7629,7 +7629,8 @@ Implementation sequence
    - src/fraud_detection/context_store_flow_binding/contracts.py now validates optional structured context_refs in query responses,
    - src/fraud_detection/context_store_flow_binding/query.py now derives those refs from the ready binding/join sources so DF can consume role-aligned event-bus refs instead of reverse-engineering them from lossy evidence strings.
 3. DF now prefers those structured refs:
-   - src/fraud_detection/decision_fabric/worker.py::_context_refs() first consumes esponse["context_refs"],
+   - src/fraud_detection/decision_fabric/worker.py::_context_refs() first consumes 
+esponse["context_refs"],
    - only if they are absent does it fall back to legacy heuristics.
 4. Why this is the correct production correction:
    - the prior worker path could mis-map rrival_events to a low_anchor source and could never emit a real low_anchor event-bus ref when only a logical join key was present,
@@ -7640,10 +7641,12 @@ Implementation sequence
    - scripts/dev_substrate/pr3_runtime_warm_gate.py now probes the DL store and blocks injection if posture is missing or already fail-closed,
    - scripts/dev_substrate/pr3_runtime_surface_snapshot.py now records DL health/metrics in the runtime snapshots.
 6. I also corrected the DL signal source itself for remote production posture:
-   - src/fraud_detection/degrade_ladder/worker.py no longer treats missing local un_operate status as the only admissible consumer-readiness source,
+   - src/fraud_detection/degrade_ladder/worker.py no longer treats missing local 
+un_operate status as the only admissible consumer-readiness source,
    - when those local files are absent, it now falls back to the run-scoped remote component health surfaces (CSFB, IEG, OFP, DLA) and evaluates actual checkpoint/lag values against the signal freshness budget.
 7. This is a stronger production posture than the previous wiring because:
-   - PR3 runs on remote EKS runtime surfaces, not local un_operate artifacts,
+   - PR3 runs on remote EKS runtime surfaces, not local 
+un_operate artifacts,
    - posture gating now reasons from real remote lag/checkpoint evidence rather than a local-only orchestration trace.
 8. Local validation completed cleanly:
    - .venv\Scripts\python.exe -m pytest tests/services/context_store_flow_binding/test_phase5_query.py tests/services/decision_fabric/test_worker_runtime.py tests/services/degrade_ladder/test_phase7_worker_observability.py -> 16 passed
@@ -7669,7 +7672,8 @@ Implementation sequence
    - it does not relax steady-state correctness,
    - it avoids poisoning the posture store with false fail-closed decisions before the runtime has had any chance to consume current-run traffic,
    - and it lets the warm gate differentiate 
-ot ready because pods are broken from eady to accept first traffic on a fresh run.
+ot ready because pods are broken from 
+eady to accept first traffic on a fresh run.
 6. Added targeted proof in 	ests/services/degrade_ladder/test_phase7_worker_observability.py showing a fresh run with no remote health/operate surfaces yet still resolves NORMAL during the bounded bootstrap window.
 7. Local validation for this correction is green:
    - .venv\Scripts\python.exe -m pytest tests/services/degrade_ladder/test_phase7_worker_observability.py -> 4 passed
@@ -7681,7 +7685,8 @@ ot ready because pods are broken from eady to accept first traffic on a fresh r
    - and only then judge the remaining red on actual burst/decision impact metrics.
 ## Entry: 2026-03-07 17:05:00 +00:00 - Next strict PR3-S2 boundary pinned on the DL bootstrap correction image
 1. The active code state is now materially different from the previous warm-gate failure: digest sha256:756442c29d3c1a87d2195a64abaaae209069324ad882e9c2d8c96dee302bb0ed includes the DL bootstrap semantics correction, so the next rerun is expected to differentiate startup-posture defects from genuine RTDL or burst-pressure defects.
-2. Before another burst window, the canonical replay surface must be repinned at the ECS task-definition boundary because raud-platform-dev-full-wsp-ephemeral cannot take an image override at un_task time. EKS materialization will use the same immutable digest so both surfaces are auditable and aligned.
+2. Before another burst window, the canonical replay surface must be repinned at the ECS task-definition boundary because raud-platform-dev-full-wsp-ephemeral cannot take an image override at 
+un_task time. EKS materialization will use the same immutable digest so both surfaces are auditable and aligned.
 3. Success criteria for this rerun are pinned on impact metrics rather than checklist closure:
    - warm gate must pass without DL fail-closing a fresh runtime,
    - DF, AL, and DLA must all emit current-run participation surfaces,
@@ -7691,9 +7696,11 @@ ot ready because pods are broken from eady to accept first traffic on a fresh r
 1. The strict rerun on digest sha256:756442c29d3c1a87d2195a64abaaae209069324ad882e9c2d8c96dee302bb0ed did exactly what the gate is supposed to do: it stopped before the burst window and produced a precise blocker rather than burning another 300-second injection on a known-bad runtime.
 2. The evidence now isolates the defect to timing semantics, not correctness or image drift:
    - all PR3 pods are running and ready,
-   - DF scope bridge is correct (egistry_snapshot_dev_full_v0.yaml is mounted and the required scopes are present),
+   - DF scope bridge is correct (
+egistry_snapshot_dev_full_v0.yaml is mounted and the required scopes are present),
    - DL store is writable and returns a current record,
-   - the sole blocker is that the DL decision still enters FAIL_CLOSED with equired_signal_gap:eb_consumer_lag,ieg_health,ofp_health before first current-run traffic exists.
+   - the sole blocker is that the DL decision still enters FAIL_CLOSED with 
+equired_signal_gap:eb_consumer_lag,ieg_health,ofp_health before first current-run traffic exists.
 3. The specific implementation mistake is now clear: _within_bootstrap_window() in degrade_ladder.worker anchors grace to platform_run_id time. In PR3, platform_run_id is minted well before all EKS deployments finish materializing, so by the time the first DL tick evaluates posture the run-id age can already exceed the hard-capped 90-second bootstrap window.
 4. Production interpretation:
    - bootstrap grace belongs to the runtime activation boundary, not the orchestration identifier mint time,
@@ -7725,7 +7732,8 @@ ot ready because pods are broken from eady to accept first traffic on a fresh r
    - judge the outcome first on warm-gate posture and then on downstream decision/burst impact metrics.
 ## Entry: 2026-03-07 17:52:00 +00:00 - Replaced DL's cross-pod file dependency with shared-store signals from the authoritative RTDL stores
 1. Live diagnosis after the successful full burst run confirmed a deeper architectural defect:
-   - the DL pod only contains uns/.../degrade_ladder/* on its own filesystem,
+   - the DL pod only contains 
+uns/.../degrade_ladder/* on its own filesystem,
    - IEG, OFP, and CSFB emit their run-scoped health files inside their own pods,
    - therefore the previous DL "remote" fallback still depended on non-shared pod-local files and was guaranteed to age into FAIL_CLOSED after bootstrap.
 2. This is why PR3-S2 still showed DF quarantine/fail-close despite the warm gate passing and despite IEG/OFP being materially healthy during the burst window.
@@ -8322,3 +8330,90 @@ ot ready because pods are broken from eady to accept first traffic on a fresh r
    - the patched code now removes the two specific semantic causes behind the remaining `DF fail_closed/quarantine` deltas,
    - but PR3-S2 is still open until a fresh strict rerun proves those deltas remain at `0` on the live `6000 eps` boundary.
 5. Next action: commit/push this remediation checkpoint on `cert-platform`, then execute the strict PR3-S2 rerun on the canonical burst workflow without changing the certified throughput boundary.
+## Entry: 2026-03-07 19:38:08 +00:00 - PR3-S2 rerun analysis shows a shared-image deployment regression on ingress, not a renewed RTDL semantic failure
+1. I re-read the latest strict PR3-S2 artifacts for `platform_run_id=platform_20260307T190115Z` after the RTDL semantic fix landed. The latest live posture is now sharply split:
+   - RTDL/backpressure is green again (`df_fail_closed_total_delta=0`, `df_publish_quarantine_total_delta=0`, `al_publish_quarantine_total_delta=0`, `al_publish_ambiguous_total_delta=0`),
+   - but ingress regressed to `5934.503 eps` and `p99=4676.110 ms`, which is below the production burst contract.
+2. I compared that red run against the immediately prior canonical burst proof that had already reached the intended production target on the same PR3-S2 path:
+   - earlier canonical run (`platform_run_id=platform_20260307T182151Z`) measured `6041.653 eps`, `4xx=0`, `5xx=0`, `p95=176.652 ms`, `p99=275.033 ms`,
+   - that earlier run stayed red only because DF still emitted `fail_closed/quarantine` outcomes before the semantic repair.
+3. The hot-path configuration of the ingress service did not change between service task definitions `:15` and `:16` except for the image digest:
+   - same CPU/memory (`4096 / 8192`),
+   - same gunicorn topology (`workers=8`, `threads=8`, `gthread`),
+   - same rate limits, DDB table, Kafka posture, timeout, keepalive, and health settings.
+4. Therefore the only material runtime change on the ingress plane between the clean-ingress run and the regressed-ingress run is the shared image digest:
+   - revision `:15` used digest `sha256:50d9953e34433457ce556988b496fa0bf36fa4dbea119d96640d37427b5a33e9`,
+   - revision `:16` used digest `sha256:094753306dc4d336d31dc2fcb7179c2ae6ca01c83919b3b7e087ce342f1fa154`.
+5. This is a production-relevant blast-radius defect in the current deployment model:
+   - the RTDL semantic repair required a new shared platform image for EKS runtime workers,
+   - the ingress ECS service was then rolled onto that same shared image even though ingress code itself was not part of the intended remediation,
+   - the result is cross-plane coupling where a decision-plane fix can silently degrade the control/ingress plane.
+6. I also checked the latest live ingress evidence to avoid blaming the wrong layer:
+   - ALB healthy hosts stayed `31/31`,
+   - service-wide CPU averaged roughly `68.6%..74.1%` with maxima around `94.4%..94.6%`,
+   - no target or ELB `5xx`, no target connection errors,
+   - latency split by ALB availability zone shows `eu-west-2a` remains near budget while `eu-west-2b` carries the long tail (`p95` up to `6.36s`, `p99` up to `7.95s`).
+7. The production conclusion is not to relax the PR3-S2 thresholds and not to attribute the regression to RTDL after it has already been repaired. The immediate best correction is to repin the ingress service back to the last known good ingress digest while keeping the new RTDL worker image on EKS.
+8. Why this is the correct production move:
+   - ingress and RTDL are separate runtime responsibilities and should not be forced to co-deploy when only one plane changed,
+   - repinning ingress to the last proven digest restores the narrower blast radius that a production platform would expect even if the repo still builds from a shared image today,
+   - this keeps the S2 rerun honest: ingress is measured on its last-proven code path, RTDL is measured on the newly corrected code path.
+9. Longer-term corrective note:
+   - the substrate should eventually move toward component-scoped image pinning so ingress, WSP, and RTDL workers do not share an unnecessary rollout boundary,
+   - but that broader build split is not required to clear PR3-S2 immediately; the bounded corrective action is ingress repin plus a fresh strict rerun.
+
+## Entry: 2026-03-07 20:08:00 +00:00 - PR3-S2 DF zero-surface root cause narrowed to fresh-latest Kafka reader posture
+1. I inspected the fresh strict PR3-S2 artifact bundle from run `22805950886` directly rather than trusting the partial local mirror. The run is red on two independent fronts:
+   - ingress regressed again to `5792.883 eps`, `p95=615.047 ms`, `p99=6973.606 ms`,
+   - `DF` exported no run-scoped metrics or health at all (`PR3.S2.B15_COMPONENT_SURFACE_MISSING:df`).
+2. I then proved the `DF` absence is not a schema-mismatch defect:
+   - the live `fp.bus.traffic.fraud.v1` tail records for `platform_20260307T194611Z` carry all required top-level pins (`platform_run_id`, `scenario_run_id`, `manifest_fingerprint`, `parameter_hash`, `scenario_id`, `seed`),
+   - `DecisionFabricInlet.evaluate()` accepts those live tail records as `ACCEPT` on the running pod,
+   - a read-only replay of the same tail record through `DfPostureResolver` and `DecisionContextAcquirer` returns quickly (`posture` in ~2 ms, `context` in ~7 ms), so the DF semantic path itself is not hanging on that tail sample.
+3. The real live symptom is narrower and more operational:
+   - the running DF pod stayed `Running` with `restart_count=0`,
+   - its run-scoped filesystem contained only `decision_fabric/consumer_checkpoints.sqlite` and no `metrics/last_metrics.json` or `health/last_health.json`,
+   - the consumer checkpoint sqlite held zero rows in both `df_worker_consumer_checkpoints` and `df_worker_wait_state`,
+   - the process main thread was sleeping in `do_poll.constprop.0`, i.e. blocked in Kafka poll rather than downstream context or publish work.
+4. Therefore the best current explanation is the fresh-reader posture in `KafkaEventBusReader`, not DF logic:
+   - DF uses `event_bus_start_position=latest` on a fresh run with no checkpoint,
+   - the Kafka reader reassigns/seeks on every read call and then performs a single short poll,
+   - on a fresh `latest` boundary this can leave the consumer permanently starved because each loop resets the partition before the fetch state can mature into delivery of newly arrived records.
+5. Why I accept this as production-relevant and worth fixing in code instead of rerunning again:
+   - the live pod can read the topic manually, so network/auth/topic access is not the blocker,
+   - the inlet accepts live run-scoped traffic, so schema shape is not the blocker,
+   - the runtime process never materialized a single checkpoint row, so another rerun without a reader fix would just spend more burst budget on the same silent zero-consume posture.
+6. Chosen remediation:
+   - patch the Kafka reader so fresh `latest` consumers preserve fetch state across empty poll cycles instead of reinitializing the partition on every loop,
+   - add regression coverage around the `latest` startup boundary,
+   - rerun strict PR3-S2 immediately after validation, then reassess ingress separately if the DF surface is restored and ingress remains red.
+7. Performance note:
+   - this change improves production realism and efficiency because it reduces pointless consumer reset churn and avoids wasting burst windows on empty reads,
+   - rejected alternative: masking the defect by emitting synthetic zero-metric DF files without proving DF actually consumes current-run traffic.
+
+## Entry: 2026-03-07 20:16:00 +00:00 - Kafka fresh-latest startup fix implemented and validated before next PR3-S2 rerun
+1. I implemented the bounded runtime fix in `src/fraud_detection/event_bus/kafka.py` instead of papering over DF silence with synthetic metrics.
+2. The change is deliberately narrow:
+   - on a fresh Kafka reader boundary (`from_offset is None` and `start_position=latest`), the reader now performs one additional poll before returning empty,
+   - this applies to both the OAuth/MSK path and the standard consumer path,
+   - no thresholds were relaxed and no DF fail-closed semantics were changed.
+3. Why this fix is production-correct:
+   - it preserves the intended meaning of `latest` while removing reset churn on a fetch-establishment boundary,
+   - it attacks wasted empty-read windows directly rather than spending more replay budget on a reader that has not materially attached to new traffic yet,
+   - it is lower risk than widening warmup or emitting fake zero-state evidence because it changes only the fresh-consumer fetch handshake.
+4. Regression coverage added in `tests/services/event_bus/test_kafka_import_and_auth.py`:
+   - standard reader now has an explicit fresh-`latest` second-poll test,
+   - OAuth/MSK reader now has the same explicit fresh-`latest` second-poll test,
+   - the earlier latest-boundary tests were updated to reflect the stronger same-call fetch behavior.
+5. Local validation completed successfully:
+   - `python -m pytest tests/services/event_bus/test_kafka_import_and_auth.py` -> `8 passed`,
+   - `python -m py_compile src/fraud_detection/event_bus/kafka.py tests/services/event_bus/test_kafka_import_and_auth.py` -> clean.
+6. Remaining state interpretation before rerun:
+   - this fix specifically targets `PR3.S2.B15_COMPONENT_SURFACE_MISSING:df`,
+   - ingress remains independently red on the latest run (`5792.883 eps`, `p95=615.047 ms`, `p99=6973.606 ms`),
+   - so the next rerun must judge both planes separately: DF surface restoration first, ingress contract second.
+7. Next sequence locked:
+   - commit/push current checkpoint,
+   - build/publish a new immutable platform image from this branch,
+   - rerun strict PR3-S2 on the same production boundary,
+   - only then decide whether remaining work is purely ingress tuning or mixed-plane again.

@@ -298,20 +298,24 @@ class KafkaEventBusReader:
                 )
                 self._consumer.seek(base_tp, start_offset)
                 rows: list[dict[str, Any]] = []
-                records_map = self._consumer.poll(timeout_ms=max(50, int(self.config.poll_timeout_ms)), max_records=max_records)
-                for tp, messages in records_map.items():
-                    if int(tp.partition) != int(partition):
-                        continue
-                    for msg in messages:
-                        rows.append(
-                            {
-                                "offset": int(msg.offset),
-                                "payload": _decode_kafka_payload(msg.value),
-                                "published_at_utc": _kafka_record_timestamp_utc(getattr(msg, "timestamp", None)),
-                            }
-                        )
-                        if len(rows) >= max_records:
-                            return rows
+                for records_map in self._oauth_poll_windows(
+                    max_records=max_records,
+                    startup_without_checkpoint=from_offset is None,
+                    start_position=start_position,
+                ):
+                    for tp, messages in records_map.items():
+                        if int(tp.partition) != int(partition):
+                            continue
+                        for msg in messages:
+                            rows.append(
+                                {
+                                    "offset": int(msg.offset),
+                                    "payload": _decode_kafka_payload(msg.value),
+                                    "published_at_utc": _kafka_record_timestamp_utc(getattr(msg, "timestamp", None)),
+                                }
+                            )
+                            if len(rows) >= max_records:
+                                return rows
                 return rows
             except Exception as exc:
                 logger.warning(
@@ -336,8 +340,11 @@ class KafkaEventBusReader:
             self._consumer.assign([topic_partition_cls(topic, int(partition), int(start_offset))])
             rows: list[dict[str, Any]] = []
             poll_timeout = max(0.05, int(self.config.poll_timeout_ms) / 1000.0)
-            while len(rows) < max_records:
-                msg = self._consumer.poll(timeout=poll_timeout)
+            for msg in self._standard_poll_windows(
+                poll_timeout=poll_timeout,
+                startup_without_checkpoint=from_offset is None,
+                start_position=start_position,
+            ):
                 if msg is None:
                     break
                 if msg.error():
@@ -360,6 +367,8 @@ class KafkaEventBusReader:
                         "published_at_utc": _kafka_record_timestamp_utc(ts_ms),
                     }
                 )
+                if len(rows) >= max_records:
+                    break
             return rows
         except Exception as exc:
             logger.warning(
@@ -427,6 +436,43 @@ class KafkaEventBusReader:
             self._consumer.close()
         except Exception:
             return
+
+    def _oauth_poll_windows(
+        self,
+        *,
+        max_records: int,
+        startup_without_checkpoint: bool,
+        start_position: str,
+    ) -> list[dict[Any, list[Any]]]:
+        windows: list[dict[Any, list[Any]]] = []
+        windows.append(
+            self._consumer.poll(timeout_ms=max(50, int(self.config.poll_timeout_ms)), max_records=max_records)
+        )
+        if windows[0]:
+            return windows
+        if startup_without_checkpoint and str(start_position).strip().lower() == "latest":
+            # A fresh "latest" assignment can require one empty poll to establish fetch state
+            # before the broker will deliver the first new records on the next poll.
+            windows.append(
+                self._consumer.poll(timeout_ms=max(50, int(self.config.poll_timeout_ms)), max_records=max_records)
+            )
+        return windows
+
+    def _standard_poll_windows(
+        self,
+        *,
+        poll_timeout: float,
+        startup_without_checkpoint: bool,
+        start_position: str,
+    ) -> list[Any]:
+        first = self._consumer.poll(timeout=poll_timeout)
+        if first is not None:
+            return [first]
+        if startup_without_checkpoint and str(start_position).strip().lower() == "latest":
+            second = self._consumer.poll(timeout=poll_timeout)
+            if second is not None:
+                return [second]
+        return []
 
 
 def build_kafka_publisher(*, client_id: str) -> KafkaEventBusPublisher:
