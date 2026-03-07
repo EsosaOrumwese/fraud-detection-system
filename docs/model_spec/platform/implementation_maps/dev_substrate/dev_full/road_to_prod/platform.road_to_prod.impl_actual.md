@@ -7723,3 +7723,23 @@ ot ready because pods are broken from eady to accept first traffic on a fresh r
    - rebuild the immutable dev_full image,
    - rerun strict PR3-S2,
    - judge the outcome first on warm-gate posture and then on downstream decision/burst impact metrics.
+## Entry: 2026-03-07 17:52:00 +00:00 - Replaced DL's cross-pod file dependency with shared-store signals from the authoritative RTDL stores
+1. Live diagnosis after the successful full burst run confirmed a deeper architectural defect:
+   - the DL pod only contains uns/.../degrade_ladder/* on its own filesystem,
+   - IEG, OFP, and CSFB emit their run-scoped health files inside their own pods,
+   - therefore the previous DL "remote" fallback still depended on non-shared pod-local files and was guaranteed to age into FAIL_CLOSED after bootstrap.
+2. This is why PR3-S2 still showed DF quarantine/fail-close despite the warm gate passing and despite IEG/OFP being materially healthy during the burst window.
+3. Production correction chosen:
+   - DL now queries the authoritative shared stores directly for cross-component readiness,
+   - CSFB is read through CsfbObservabilityReporter on the shared projection DSN,
+   - IEG is read through IdentityGraphQuery.status(...) on the shared projection store,
+   - OFP is read through OfpObservabilityReporter.collect(...) on the shared projection store.
+4. Equally important, the gating semantics were tightened to the correct production criterion for replayed historical traffic:
+   - DL now evaluates IEG/OFP readiness on checkpoint freshness and correctness counters (pply_failure_count, missing_features, snapshot_failures),
+   - it no longer treats replay watermark age as an admission blocker, because watermark age on historical oracle data is not runtime lag.
+5. b_consumer_lag is now derived from shared checkpoint-age surfaces (CSFB, IEG, OFP) instead of pod-local run files. This removes the cross-pod blind spot while preserving the bounded freshness gate.
+6. Added targeted proof in 	ests/services/degrade_ladder/test_phase7_worker_observability.py showing that an expired bootstrap window still resolves NORMAL when only the shared-store surfaces are present and pod-local component files are absent.
+7. Local validation is green:
+   - .venv\Scripts\python.exe -m pytest tests/services/degrade_ladder/test_phase7_worker_observability.py -> 6 passed
+   - .venv\Scripts\python.exe -m py_compile src/fraud_detection/degrade_ladder/worker.py -> clean
+8. Next step is again strict and singular: rebuild the image, repin ECS WSP, rerun PR3-S2, then judge whether the remaining red is now limited to true throughput or residual DF context-ordering behavior.

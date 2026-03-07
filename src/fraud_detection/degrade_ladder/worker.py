@@ -45,6 +45,7 @@ class DlWorkerConfig:
     outbox_max_attempts: int
     outbox_backoff_seconds: int
     platform_run_id: str | None
+    scenario_run_id: str | None
     registry_snapshot_ref: Path | None
 
 
@@ -82,6 +83,9 @@ class DegradeLadderWorker:
         self._last_drain_result: DlDrainResult | None = None
         self._policy_activation_recorded = False
         self._worker_started_at = _parse_platform_utc(_utc_now()) or datetime.now(timezone.utc)
+        self._csfb_reporter: Any | None = None
+        self._ofp_reporter: Any | None = None
+        self._ieg_query: Any | None = None
 
     def run_once(self) -> dict[str, Any]:
         now_utc = _utc_now()
@@ -263,6 +267,9 @@ class DegradeLadderWorker:
         )
 
     def _signal_component_health(self, *, component: str, key: str, observed_at_utc: str) -> SignalState:
+        shared_state = self._signal_shared_component_health(component=component, observed_at_utc=observed_at_utc)
+        if shared_state is not None:
+            return shared_state
         path = self._run_root() / component / "health" / "last_health.json"
         if not path.exists():
             if self._within_bootstrap_window(observed_at_utc=observed_at_utc):
@@ -396,6 +403,9 @@ class DegradeLadderWorker:
         )
 
     def _signal_remote_consumer_lag(self, *, status_paths: list[Path], observed_at_utc: str) -> SignalState:
+        shared_state = self._signal_shared_consumer_lag(observed_at_utc=observed_at_utc)
+        if shared_state is not None:
+            return shared_state
         surfaces = [
             ("context_store_flow_binding", self._run_root() / "context_store_flow_binding" / "health" / "last_health.json"),
             ("identity_entity_graph", self._run_root() / "identity_entity_graph" / "health" / "last_health.json"),
@@ -471,6 +481,179 @@ class DegradeLadderWorker:
             detail=None,
             source="dl.worker:remote_health",
         )
+
+    def _signal_shared_component_health(self, *, component: str, observed_at_utc: str) -> SignalState | None:
+        payload = self._shared_component_status(component)
+        if payload is None:
+            return None
+        checkpoint_age = _coerce_float(payload.get("checkpoint_age_seconds"), payload.get("lag_seconds"))
+        if checkpoint_age is None:
+            if self._within_bootstrap_window(observed_at_utc=observed_at_utc):
+                return SignalState(
+                    status="OK",
+                    value={"component": component, "state": "BOOTSTRAP_PENDING"},
+                    detail="SHARED_COMPONENT_BOOTSTRAP_PENDING",
+                    source=f"dl.worker:{component}:shared",
+                )
+            return SignalState(
+                status="ERROR",
+                value={"component": component, "payload": payload},
+                detail="SHARED_COMPONENT_CHECKPOINT_MISSING",
+                source=f"dl.worker:{component}:shared",
+            )
+        required_max_age = float(self.profile.signal_policy.required_max_age_seconds)
+        if checkpoint_age > required_max_age:
+            return SignalState(
+                status="ERROR",
+                value={
+                    "component": component,
+                    "checkpoint_age_seconds": checkpoint_age,
+                    "required_max_age_seconds": required_max_age,
+                },
+                detail="SHARED_COMPONENT_CHECKPOINT_TOO_OLD",
+                source=f"dl.worker:{component}:shared",
+            )
+        if component == "identity_entity_graph":
+            failures = int(payload.get("apply_failure_count", 0) or 0)
+            if failures > 0:
+                return SignalState(
+                    status="ERROR",
+                    value={"component": component, "apply_failure_count": failures},
+                    detail="SHARED_COMPONENT_APPLY_FAILURES_PRESENT",
+                    source=f"dl.worker:{component}:shared",
+                )
+        elif component == "online_feature_plane":
+            metrics = payload.get("metrics") if isinstance(payload.get("metrics"), dict) else {}
+            missing_features = int(metrics.get("missing_features", payload.get("missing_features", 0)) or 0)
+            snapshot_failures = int(metrics.get("snapshot_failures", payload.get("snapshot_failures", 0)) or 0)
+            if missing_features > 0:
+                return SignalState(
+                    status="ERROR",
+                    value={"component": component, "missing_features": missing_features},
+                    detail="SHARED_COMPONENT_MISSING_FEATURES_PRESENT",
+                    source=f"dl.worker:{component}:shared",
+                )
+            if snapshot_failures > 0:
+                return SignalState(
+                    status="ERROR",
+                    value={"component": component, "snapshot_failures": snapshot_failures},
+                    detail="SHARED_COMPONENT_SNAPSHOT_FAILURES_PRESENT",
+                    source=f"dl.worker:{component}:shared",
+                )
+        return SignalState(
+            status="OK",
+            value={
+                "component": component,
+                "checkpoint_age_seconds": checkpoint_age,
+                "state": "READY",
+            },
+            detail=None,
+            source=f"dl.worker:{component}:shared",
+        )
+
+    def _signal_shared_consumer_lag(self, *, observed_at_utc: str) -> SignalState | None:
+        snapshots = [
+            ("context_store_flow_binding", self._shared_csfb_snapshot()),
+            ("identity_entity_graph", self._shared_ieg_status()),
+            ("online_feature_plane", self._shared_ofp_status()),
+        ]
+        if not any(payload is not None for _, payload in snapshots):
+            return None
+        lag_rows: list[dict[str, Any]] = []
+        missing: list[str] = []
+        for component, payload in snapshots:
+            if payload is None:
+                missing.append(component)
+                continue
+            lag = _coerce_float(payload.get("checkpoint_age_seconds"), payload.get("lag_seconds"))
+            if lag is None:
+                missing.append(component)
+                continue
+            lag_rows.append({"component": component, "lag_seconds": lag})
+        if not lag_rows:
+            if self._within_bootstrap_window(observed_at_utc=observed_at_utc):
+                return SignalState(
+                    status="OK",
+                    value={"missing_components": missing, "state": "BOOTSTRAP_PENDING"},
+                    detail="SHARED_CONSUMER_BOOTSTRAP_PENDING",
+                    source="dl.worker:shared_health",
+                )
+            return SignalState(
+                status="ERROR",
+                value={"missing_components": missing},
+                detail="SHARED_CONSUMER_CHECKPOINTS_MISSING",
+                source="dl.worker:shared_health",
+            )
+        required_max_age = float(self.profile.signal_policy.required_max_age_seconds)
+        max_lag = max(float(row["lag_seconds"]) for row in lag_rows)
+        if max_lag > required_max_age:
+            return SignalState(
+                status="ERROR",
+                value={
+                    "max_lag_seconds": max_lag,
+                    "required_max_age_seconds": required_max_age,
+                    "components": lag_rows,
+                    "missing_components": missing,
+                },
+                detail="SHARED_CONSUMER_LAG_EXCEEDED",
+                source="dl.worker:shared_health",
+            )
+        return SignalState(
+            status="OK",
+            value={
+                "max_lag_seconds": max_lag,
+                "required_max_age_seconds": required_max_age,
+                "components": lag_rows,
+                "missing_components": missing,
+            },
+            detail=None,
+            source="dl.worker:shared_health",
+        )
+
+    def _shared_component_status(self, component: str) -> dict[str, Any] | None:
+        if component == "identity_entity_graph":
+            return self._shared_ieg_status()
+        if component == "online_feature_plane":
+            return self._shared_ofp_status()
+        return None
+
+    def _shared_csfb_snapshot(self) -> dict[str, Any] | None:
+        try:
+            if self._csfb_reporter is None:
+                from fraud_detection.context_store_flow_binding.intake import CsfbInletPolicy
+                from fraud_detection.context_store_flow_binding.observability import CsfbObservabilityReporter
+
+                policy = CsfbInletPolicy.load(self.config.profile_path)
+                self._csfb_reporter = CsfbObservabilityReporter.build(
+                    locator=policy.projection_db_dsn,
+                    stream_id=policy.stream_id,
+                )
+            return self._csfb_reporter.collect(
+                platform_run_id=self.config.platform_run_id,
+                scenario_run_id=self.config.scenario_run_id,
+            )
+        except Exception:
+            return None
+
+    def _shared_ieg_status(self) -> dict[str, Any] | None:
+        try:
+            if self._ieg_query is None:
+                from fraud_detection.identity_entity_graph.query import IdentityGraphQuery
+
+                self._ieg_query = IdentityGraphQuery.from_profile(str(self.config.profile_path))
+            return self._ieg_query.status(scenario_run_id=self.config.scenario_run_id or "")
+        except Exception:
+            return None
+
+    def _shared_ofp_status(self) -> dict[str, Any] | None:
+        try:
+            if self._ofp_reporter is None:
+                from fraud_detection.online_feature_plane.observability import OfpObservabilityReporter
+
+                self._ofp_reporter = OfpObservabilityReporter.build(str(self.config.profile_path))
+            return self._ofp_reporter.collect(scenario_run_id=self.config.scenario_run_id or "")
+        except Exception:
+            return None
 
     def _within_bootstrap_window(self, *, observed_at_utc: str) -> bool:
         observed = _parse_platform_utc(observed_at_utc)
@@ -692,6 +875,11 @@ def load_worker_config(profile_path: Path) -> DlWorkerConfig:
         outbox_max_attempts=max(1, int(_resolve_env_token(wiring.get("outbox_max_attempts") or os.getenv("DL_OUTBOX_MAX_ATTEMPTS") or 5))),
         outbox_backoff_seconds=max(1, int(_resolve_env_token(wiring.get("outbox_backoff_seconds") or os.getenv("DL_OUTBOX_BACKOFF_SECONDS") or 1))),
         platform_run_id=platform_run_id,
+        scenario_run_id=_none_if_blank(
+            os.getenv("DL_SCENARIO_RUN_ID")
+            or os.getenv("AL_SCENARIO_RUN_ID")
+            or os.getenv("DLA_SCENARIO_RUN_ID")
+        ),
         registry_snapshot_ref=registry_snapshot_path,
     )
 
