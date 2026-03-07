@@ -276,6 +276,154 @@ jobs:
             --region "${{ inputs.aws_region }}" \
             --name "${{ inputs.eks_cluster_name }}"
 
+      - name: Resolve current-branch immutable platform image
+        id: platform_image
+        shell: bash
+        env:
+          ECR_REPO_NAME: fraud-platform-dev-full
+          ECR_REPO_URI: 230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-full
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          import sys
+
+          repo_name = os.environ["ECR_REPO_NAME"]
+          repo_uri = os.environ["ECR_REPO_URI"]
+          region = "${{ inputs.aws_region }}"
+          git_sha = "${{ github.sha }}"
+          tag_prefix = f"git-{git_sha}-run-"
+
+          proc = subprocess.run(
+              [
+                  "aws",
+                  "ecr",
+                  "describe-images",
+                  "--repository-name",
+                  repo_name,
+                  "--region",
+                  region,
+                  "--output",
+                  "json",
+              ],
+              check=True,
+              capture_output=True,
+              text=True,
+          )
+          payload = json.loads(proc.stdout or "{}")
+          matches = []
+          for row in payload.get("imageDetails", []):
+              tags = row.get("imageTags") or []
+              if any(str(tag).startswith(tag_prefix) for tag in tags):
+                  matches.append(row)
+          if not matches:
+              raise SystemExit(f"No immutable image found in ECR for current branch SHA {git_sha}")
+          matches.sort(key=lambda row: row.get("imagePushedAt", ""), reverse=True)
+          selected = matches[0]
+          digest = str(selected.get("imageDigest", "")).strip()
+          if not digest.startswith("sha256:"):
+              raise SystemExit(f"Invalid image digest resolved for SHA {git_sha}: {digest!r}")
+          image_uri = f"{repo_uri}@{digest}"
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"image_digest={digest}\n")
+              fh.write(f"image_uri={image_uri}\n")
+          PY
+
+      - name: Repin WSP ECS family to resolved image
+        id: repin_wsp_family
+        shell: bash
+        env:
+          TASK_FAMILY: fraud-platform-dev-full-wsp-ephemeral
+          IMAGE_URI: ${{ steps.platform_image.outputs.image_uri }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          import tempfile
+
+          family = os.environ["TASK_FAMILY"]
+          image_uri = os.environ["IMAGE_URI"]
+          region = "${{ inputs.aws_region }}"
+
+          def aws_json(args):
+              proc = subprocess.run(
+                  ["aws", *args, "--region", region, "--output", "json"],
+                  check=True,
+                  capture_output=True,
+                  text=True,
+              )
+              return json.loads(proc.stdout or "{}")
+
+          describe = aws_json(["ecs", "describe-task-definition", "--task-definition", family, "--include", "TAGS"])
+          task_def = describe["taskDefinition"]
+          current_images = [str(cd.get("image", "")).strip() for cd in task_def.get("containerDefinitions", [])]
+          if current_images and all(img == image_uri for img in current_images):
+              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+                  fh.write(f"task_definition_arn={task_def['taskDefinitionArn']}\n")
+                  fh.write("registered_new_revision=false\n")
+              raise SystemExit(0)
+
+          allowed_fields = [
+              "family",
+              "taskRoleArn",
+              "executionRoleArn",
+              "networkMode",
+              "containerDefinitions",
+              "volumes",
+              "placementConstraints",
+              "requiresCompatibilities",
+              "cpu",
+              "memory",
+              "pidMode",
+              "ipcMode",
+              "proxyConfiguration",
+              "inferenceAccelerators",
+              "ephemeralStorage",
+              "runtimePlatform",
+          ]
+          register_payload = {key: task_def[key] for key in allowed_fields if key in task_def}
+          containers = list(register_payload.get("containerDefinitions") or [])
+          for container in containers:
+              container["image"] = image_uri
+          register_payload["containerDefinitions"] = containers
+          tags = describe.get("tags") or []
+          if tags:
+              register_payload["tags"] = tags
+
+          with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as tmp:
+              json.dump(register_payload, tmp)
+              tmp.write("\n")
+              tmp_path = tmp.name
+
+          proc = subprocess.run(
+              [
+                  "aws",
+                  "ecs",
+                  "register-task-definition",
+                  "--region",
+                  region,
+                  "--cli-input-json",
+                  f"file://{tmp_path}",
+                  "--output",
+                  "json",
+              ],
+              check=True,
+              capture_output=True,
+              text=True,
+          )
+          registered = json.loads(proc.stdout or "{}")
+          task_definition_arn = str(registered.get("taskDefinition", {}).get("taskDefinitionArn", "")).strip()
+          if not task_definition_arn:
+              raise SystemExit("Task-definition repin did not return a taskDefinitionArn.")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"task_definition_arn={task_definition_arn}\n")
+              fh.write("registered_new_revision=true\n")
+          PY
+
       - name: Materialize fresh PR3 runtime identity on EKS
         shell: bash
         run: |
@@ -286,7 +434,7 @@ jobs:
             --scenario-run-id "${{ steps.meta.outputs.scenario_run_id }}" \
             --region "${{ inputs.aws_region }}" \
             --namespace "${{ inputs.eks_namespace }}" \
-            --image-uri ""
+            --image-uri "${{ steps.platform_image.outputs.image_uri }}"
 
       - name: Verify fresh runtime readiness
         shell: bash

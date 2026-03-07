@@ -7981,3 +7981,20 @@ ot ready because pods are broken from eady to accept first traffic on a fresh r
    - ALB `p95`/`p99`,
    - RTDL error-growth deltas (`DF`, `AL`, `DLA`, archive, IEG/OFP freshness/backpressure),
    - one explicit production verdict line stating whether the state meets the target with no waivers.
+## Entry: 2026-03-07 16:14:00 +00:00 - PR3-S2 workflow must self-resolve and self-repin the branch image before launching the next strict rerun
+1. The packaging lane succeeded and produced immutable digest `sha256:b28eaa25b5a936107ded7ab738ed6db586530a816d656ff01a9065c4206536aa` for the current branch head.
+2. That build alone is not enough to make the next strict rerun honest because the active PR3-S2 workflow still:
+   - materializes EKS workers from whatever image the ECS family currently advertises when `--image-uri ""`,
+   - launches ECS replay lanes from the latest active `fraud-platform-dev-full-wsp-ephemeral` task definition,
+   - does not itself verify that either surface has moved to the freshly built digest.
+3. Production interpretation:
+   - a rerun that does not force both surfaces onto the same audited image can still pass or fail for the wrong reason,
+   - deployment drift is a real production defect because it decouples observed runtime behavior from the branch under test.
+4. Chosen correction is workflow-only and remote-only:
+   - resolve the latest immutable image for the current `GITHUB_SHA` from ECR,
+   - register a fresh `fraud-platform-dev-full-wsp-ephemeral` revision on that image only if the family is not already pinned there,
+   - feed the same `image_uri` explicitly into `pr3_rtdl_materialize.py`.
+5. This keeps the execution path aligned with the user's guardrails:
+   - no local orchestration of runtime lanes,
+   - no manual hidden repins,
+   - one auditable workflow run that both selects and proves the active image boundary.
