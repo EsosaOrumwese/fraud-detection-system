@@ -7133,15 +7133,16 @@ eason=http_502,
 Problem statement
 - PR3-S2 is no longer blocked by ingress or context publication. The active red lane is DF -> AL -> DLA under production burst certification.
 - Three coupled defects now explain the observed posture:
-  1. DF registry authority drift: config/platform/profiles/dev_full.yaml still pins egistry_snapshot_local_parity_v0.yaml, which cannot resolve nvironment=dev_full and therefore guarantees SCOPE_NOT_FOUND / REGISTRY_FAIL_CLOSED for live dev_full decisions.
-  2. Missing runtime bridge from learning promotion to DF execution scope: M12 promotion artifacts exist, but they are not materialized into a DF-consumable active snapshot for operational scopes such as dev_full/fraud/primary. Promotion evidence is currently scoped as managed training/runtime activation (nvironment=dev_full, mode=managed, bundle_slot=active, tenant_id=<training-scope>), while DF resolves runtime traffic scopes (nvironment=dev_full, mode=fraud|baseline, bundle_slot=primary, tenant_id optional). This is a production integration gap, not a single bad path string.
+  1. DF registry authority drift: config/platform/profiles/dev_full.yaml still pins 
+egistry_snapshot_local_parity_v0.yaml, which cannot resolve environment=dev_full and therefore guarantees SCOPE_NOT_FOUND / REGISTRY_FAIL_CLOSED for live dev_full decisions.
+  2. Missing runtime bridge from learning promotion to DF execution scope: M12 promotion artifacts exist, but they are not materialized into a DF-consumable active snapshot for operational scopes such as dev_full/fraud/primary. Promotion evidence is currently scoped as managed training/runtime activation (environment=dev_full, mode=managed, bundle_slot=active, tenant_id=<training-scope>), while DF resolves runtime traffic scopes (environment=dev_full, mode=fraud|baseline, bundle_slot=primary, tenant_id optional). This is a production integration gap, not a single bad path string.
   3. DF transient-context handling is wrong for production readiness: DecisionContextAcquirer returns CONTEXT_WAITING while still inside join-wait budget, but DecisionFabricWorker immediately synthesizes and publishes a fail-closed/quarantine path and then checkpoints that event. That turns a transient join race into a permanent decision. The older local-parity choice to synthesize immediately on waiting was acceptable for proving a fail-closed corridor, but it is not acceptable for production certification where correctness under realistic arrival skew matters.
 
 Observed evidence pinned
-- Current run-scoped context traffic exists on rrival_events, rrival_entities, and low_anchor topics with correct platform_run_id / scenario_run_id.
-- CSFB is materially healthy and projecting current-run data into Aurora (join_frames, complete join frames, low bindings present).
-- DF current-run metrics/reconciliation show only a tiny tail of decisions, all fail-closed, and p.bus.rtdl.v1 remains empty; AL and DLA are therefore starved rather than independently proven broken.
-- vent_bus_start_position=latest plus fresh run-scoped deployments creates a realistic second-order risk: if decision-lane consumers are not materially warm before the burst starts, they will only see the tail of the burst window. The observed 4 current-run DF decisions is consistent with this failure mode and is not compatible with a production certification claim.
+- Current run-scoped context traffic exists on arrival_events, arrival_entities, and flow_anchor topics with correct platform_run_id / scenario_run_id.
+- CSFB is materially healthy and projecting current-run data into Aurora (join_frames, complete join frames, flow bindings present).
+- DF current-run metrics/reconciliation show only a tiny tail of decisions, all fail-closed, and fp.bus.rtdl.v1 remains empty; AL and DLA are therefore starved rather than independently proven broken.
+- event_bus_start_position=latest plus fresh run-scoped deployments creates a realistic second-order risk: if decision-lane consumers are not materially warm before the burst starts, they will only see the tail of the burst window. The observed 4 current-run DF decisions is consistent with this failure mode and is not compatible with a production certification claim.
 
 Alternatives considered
 1. Fast shortcut: repin DF back to a toy/local-parity snapshot or relax the blocker logic so PR3-S2 can rerun.
@@ -7150,15 +7151,15 @@ Alternatives considered
 2. Keep immediate fail-closed behavior on CONTEXT_WAITING and simply slow the burst / add more retries outside DF.
 - Rejected. This treats transient join skew as if it were terminal missing context and destroys correctness under realistic arrival ordering.
 
-3. Change DF consumers to arliest permanently for PR3 reruns.
+3. Change DF consumers to earliest permanently for PR3 reruns.
 - Rejected as the primary fix. It would reduce missed-burst risk on cold startup, but on shared live topics it would also drag through unrelated backlog and distort runtime budgets. It is a useful fallback for debugging, not the production certification posture.
 
 Chosen production remediation
 1. Materialize a real dev_full DF registry snapshot from the latest promoted managed-bundle evidence.
 - Source from the latest M11/M12 managed promotion artifacts already pinned in the repo/evidence.
 - Normalize that promoted bundle into DF operational scopes required by runtime certification:
-  - nvironment=dev_full, mode=fraud, bundle_slot=primary
-  - nvironment=dev_full, mode=baseline, bundle_slot=primary
+  - environment=dev_full, mode=fraud, bundle_slot=primary
+  - environment=dev_full, mode=baseline, bundle_slot=primary
 - Carry explicit compatibility compatible with the promoted runtime bundle and current DL/OFP posture, not with local-parity placeholders.
 - Mount that generated snapshot into the PR3 runtime profile so EKS workers consume the same active authority that certification is claiming.
 
@@ -7200,3 +7201,36 @@ Implementation sequence
    - run local validation on these pending edits (`pytest`, `py_compile`, YAML parse),
    - correct any defects found,
    - then rerun strict `PR3-S2` and rewrite the state findings as impact-metric digests rather than raw artifact references.
+## Entry: 2026-03-07 11:07:49 +00:00 - PR3-S2 exposed a CSFB replay-idempotency crash on failure ledger writes
+1. The live RTDL rerun changed the blocker shape again. CSFB is no longer missing Kafka reachability or DB reachability; it is crash-looping because it tries to persist the same deterministic apply-failure row more than once.
+2. The restart loop is production-significant because the failing path is exactly what a replay-safe platform must survive: a poison or conflicting record is consumed, the failure is durably recorded, the process dies before or during checkpoint advance, and on restart the same record is seen again. If the failure ledger insert is not idempotent, the component turns one bad event into a permanent outage.
+3. The stack trace proves this is the active defect:
+   - psycopg.errors.UniqueViolation
+   - constraint csfb_join_apply_failures_pkey
+   - duplicate failure_id=402b0687271806e60900d8af054d354e
+4. Production-standard interpretation:
+   - duplicate failure persistence for the same record/reason/details is not a semantic conflict,
+   - it is an idempotent replay of already-known failure truth,
+   - therefore the correct behavior is ledger no-op + continue to checkpoint advance, not process crash.
+5. Alternatives considered:
+   - delete failure rows between reruns: rejected; destroys audit truth and is not replay-safe.
+   - randomize failure_id to avoid collision: rejected; hides duplicates instead of making the ledger idempotent.
+   - catch-and-ignore all DB write exceptions: rejected; would mask real storage corruption.
+6. Chosen remediation:
+   - make `record_apply_failure()` treat duplicate-key insertion of the same deterministic failure_id as idempotent success for both SQLite and Postgres,
+   - add tests that prove the duplicate call does not raise and does not multiply rows,
+   - rerun PR3-S2 only after that behavior is validated locally.
+## Entry: 2026-03-07 11:11:09 +00:00 - CSFB failure-ledger idempotency hardening validated locally before rerun
+1. I implemented the narrow production-safe fix in `src/fraud_detection/context_store_flow_binding/store.py`: `record_apply_failure()` now treats duplicate-key insertion of the same deterministic `failure_id` as idempotent success instead of process-fatal storage failure.
+2. The remediation is intentionally narrow:
+   - it only absorbs duplicate-key errors,
+   - it does not swallow generic DB failures,
+   - and it preserves the existing deterministic failure identity, which means audit truth is still stable and deduplicated.
+3. I added a direct regression test in `tests/services/context_store_flow_binding/test_phase2_store.py` proving the same failure ledger write can be replayed twice without raising and without multiplying rows.
+4. Local validation completed successfully:
+   - `.venv\Scripts\python.exe -m pytest tests/services/context_store_flow_binding/test_phase2_store.py tests/services/context_store_flow_binding/test_phase3_intake.py tests/services/context_store_flow_binding/test_phase6_observability.py`
+   - `13 passed`
+   - `py_compile` on `src/fraud_detection/context_store_flow_binding/store.py`
+5. Production interpretation:
+   - the specific CSFB crash-loop cause exposed by PR3-S2 is now removed at code level,
+   - so the next rerun should reveal the real remaining runtime blockers instead of repeatedly dying on duplicated failure truth.
