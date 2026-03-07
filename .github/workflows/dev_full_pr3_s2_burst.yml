@@ -1,0 +1,326 @@
+name: dev-full-pr3-s2-burst
+
+on:
+  workflow_dispatch:
+    inputs:
+      aws_region:
+        description: "AWS region"
+        required: true
+        default: "eu-west-2"
+        type: string
+      aws_role_to_assume:
+        description: "OIDC role ARN used by GitHub Actions"
+        required: true
+        type: string
+      pr3_execution_id:
+        description: "Strict PR3 execution id"
+        required: true
+        default: "pr3_20260306T021900Z"
+        type: string
+      upstream_pr2_execution_id:
+        description: "Strict upstream PR2 execution id"
+        required: true
+        default: "pr2_20260305T200521Z"
+        type: string
+      evidence_bucket:
+        description: "Evidence bucket for remote artifact backup"
+        required: true
+        default: "fraud-platform-dev-full-evidence"
+        type: string
+      eks_cluster_name:
+        description: "EKS cluster name"
+        required: true
+        default: "fraud-platform-dev-full"
+        type: string
+      eks_namespace:
+        description: "EKS namespace for PR3 runtime"
+        required: true
+        default: "fraud-platform-rtdl"
+        type: string
+      worker_image_uri:
+        description: "Optional explicit worker image URI"
+        required: false
+        default: ""
+        type: string
+      lane_count:
+        description: "Number of remote WSP burst lanes"
+        required: true
+        default: "80"
+        type: string
+      target_burst_eps:
+        description: "Certified burst EPS target"
+        required: true
+        default: "6000"
+        type: string
+      target_request_rate_eps:
+        description: "Optional calibrated generator setpoint EPS"
+        required: false
+        default: "6060"
+        type: string
+      duration_seconds:
+        description: "Burst window duration in seconds"
+        required: true
+        default: "300"
+        type: string
+      min_sample_events:
+        description: "Required admitted events"
+        required: true
+        default: "1800000"
+        type: string
+      stream_speedup:
+        description: "Oracle replay speedup multiplier"
+        required: true
+        default: "102.4"
+        type: string
+      ig_push_concurrency:
+        description: "Per-lane concurrent IG pushes"
+        required: true
+        default: "4"
+        type: string
+      target_burst_seconds:
+        description: "Per-lane token-bucket burst allowance in seconds"
+        required: true
+        default: "0.50"
+        type: string
+      target_initial_tokens:
+        description: "Per-lane initial token-bucket fill ratio"
+        required: true
+        default: "0.50"
+        type: string
+      early_cutoff_seconds:
+        description: "Fail-fast evaluation point in seconds"
+        required: true
+        default: "120"
+        type: string
+      early_cutoff_floor_ratio:
+        description: "Minimum admitted EPS ratio required at fail-fast check"
+        required: true
+        default: "0.70"
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: dev-full-pr3-s2-burst-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  run_pr3_s2_burst:
+    name: Run PR3-S2 burst and backpressure proof
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject static AWS credential posture
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${AWS_ACCESS_KEY_ID:-}" || -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+            echo "Static AWS credentials are forbidden; use OIDC role assumption."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ inputs.aws_region }}
+          role-to-assume: ${{ inputs.aws_role_to_assume }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: "latest"
+
+      - name: Install runtime dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install boto3 botocore "psycopg[binary]" pyyaml
+
+      - name: Compute execution metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUN_DIR="runs/dev_substrate/dev_full/road_to_prod/run_control/${{ inputs.pr3_execution_id }}"
+          mkdir -p "${RUN_DIR}"
+          NOW_UTC="$(date -u +'%Y%m%dT%H%M%SZ')"
+          echo "run_dir=${RUN_DIR}" >> "$GITHUB_OUTPUT"
+          echo "platform_run_id=platform_${NOW_UTC}" >> "$GITHUB_OUTPUT"
+          echo "scenario_run_id=scenario_${NOW_UTC,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Refresh PR3-S0 authority artifacts on corrected runtime surfaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/pr3_s0_executor.py \
+            --upstream-pr2-execution-id "${{ inputs.upstream_pr2_execution_id }}" \
+            --pr3-execution-id "${{ inputs.pr3_execution_id }}"
+
+      - name: Configure kubeconfig
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws eks update-kubeconfig \
+            --region "${{ inputs.aws_region }}" \
+            --name "${{ inputs.eks_cluster_name }}"
+
+      - name: Materialize fresh PR3 runtime identity on EKS
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/pr3_rtdl_materialize.py \
+            --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
+            --platform-run-id "${{ steps.meta.outputs.platform_run_id }}" \
+            --scenario-run-id "${{ steps.meta.outputs.scenario_run_id }}" \
+            --region "${{ inputs.aws_region }}" \
+            --namespace "${{ inputs.eks_namespace }}" \
+            --image-uri "${{ inputs.worker_image_uri }}"
+
+      - name: Verify fresh runtime readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          for deployment in fp-pr3-ieg fp-pr3-ofp fp-pr3-df fp-pr3-al fp-pr3-dla fp-pr3-archive-writer; do
+            kubectl rollout status "deployment/${deployment}" -n "${{ inputs.eks_namespace }}" --timeout=240s
+          done
+
+      - name: Capture pre-burst runtime snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/pr3_runtime_surface_snapshot.py \
+            --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
+            --state-id S2 \
+            --snapshot-label pre \
+            --namespace "${{ inputs.eks_namespace }}" \
+            --platform-run-id "${{ steps.meta.outputs.platform_run_id }}"
+
+      - name: Run canonical burst window with live runtime sampling
+        shell: bash
+        env:
+          PR3_EXECUTION_ID: ${{ inputs.pr3_execution_id }}
+          PLATFORM_RUN_ID: ${{ steps.meta.outputs.platform_run_id }}
+          SCENARIO_RUN_ID: ${{ steps.meta.outputs.scenario_run_id }}
+          AWS_REGION: ${{ inputs.aws_region }}
+          EKS_NAMESPACE: ${{ inputs.eks_namespace }}
+          LANE_COUNT: ${{ inputs.lane_count }}
+          TARGET_BURST_EPS: ${{ inputs.target_burst_eps }}
+          TARGET_REQUEST_RATE_EPS: ${{ inputs.target_request_rate_eps }}
+          DURATION_SECONDS: ${{ inputs.duration_seconds }}
+          STREAM_SPEEDUP: ${{ inputs.stream_speedup }}
+          IG_PUSH_CONCURRENCY: ${{ inputs.ig_push_concurrency }}
+          TARGET_BURST_SECONDS: ${{ inputs.target_burst_seconds }}
+          TARGET_INITIAL_TOKENS: ${{ inputs.target_initial_tokens }}
+          EARLY_CUTOFF_SECONDS: ${{ inputs.early_cutoff_seconds }}
+          EARLY_CUTOFF_FLOOR_RATIO: ${{ inputs.early_cutoff_floor_ratio }}
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/pr3_wsp_replay_dispatch.py \
+            --pr3-execution-id "${PR3_EXECUTION_ID}" \
+            --state-id S2 \
+            --window-label burst \
+            --artifact-prefix g3a_s2 \
+            --blocker-prefix PR3.S2.WSP \
+            --region "${AWS_REGION}" \
+            --platform-run-id "${PLATFORM_RUN_ID}" \
+            --scenario-run-id "${SCENARIO_RUN_ID}" \
+            --lane-count "${LANE_COUNT}" \
+            --expected-window-eps "${TARGET_BURST_EPS}" \
+            --target-request-rate-eps "${TARGET_REQUEST_RATE_EPS}" \
+            --duration-seconds "${DURATION_SECONDS}" \
+            --early-cutoff-seconds "${EARLY_CUTOFF_SECONDS}" \
+            --early-cutoff-floor-ratio "${EARLY_CUTOFF_FLOOR_RATIO}" \
+            --stream-speedup "${STREAM_SPEEDUP}" \
+            --ig-push-concurrency "${IG_PUSH_CONCURRENCY}" \
+            --target-burst-seconds "${TARGET_BURST_SECONDS}" \
+            --target-initial-tokens "${TARGET_INITIAL_TOKENS}" \
+            --task-cpu "256" \
+            --task-memory "1024" \
+            --max-latency-p95-ms 350 \
+            --max-latency-p99-ms 700 \
+            --skip-runtime-identity-probe &
+          BURST_PID=$!
+          SAMPLE_INDEX=1
+          while kill -0 "${BURST_PID}" 2>/dev/null; do
+            sleep 30
+            python scripts/dev_substrate/pr3_runtime_surface_snapshot.py \
+              --pr3-execution-id "${PR3_EXECUTION_ID}" \
+              --state-id S2 \
+              --snapshot-label "during_${SAMPLE_INDEX}" \
+              --namespace "${EKS_NAMESPACE}" \
+              --platform-run-id "${PLATFORM_RUN_ID}" || true
+            SAMPLE_INDEX=$((SAMPLE_INDEX + 1))
+          done
+          wait "${BURST_PID}"
+
+      - name: Capture post-burst runtime snapshot
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/pr3_runtime_surface_snapshot.py \
+            --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
+            --state-id S2 \
+            --snapshot-label post \
+            --namespace "${{ inputs.eks_namespace }}" \
+            --platform-run-id "${{ steps.meta.outputs.platform_run_id }}"
+
+      - name: Build PR3-S2 burst rollup
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/pr3_s2_rollup.py \
+            --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
+            --state-id S2 \
+            --artifact-prefix g3a_s2 \
+            --expected-burst-eps "${{ inputs.target_burst_eps }}" \
+            --max-error-rate-ratio 0.002 \
+            --max-4xx-ratio 0.002 \
+            --max-5xx-ratio 0.0 \
+            --max-latency-p95-ms 350 \
+            --max-latency-p99-ms 700
+
+      - name: Upload remote artifact backup to S3
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws s3 sync "${{ steps.meta.outputs.run_dir }}/" "s3://${{ inputs.evidence_bucket }}/evidence/dev_full/run_control/${{ inputs.pr3_execution_id }}/" --no-progress || true
+          for name in \
+            g3a_s2_wsp_runtime_manifest.json \
+            g3a_s2_wsp_runtime_summary.json \
+            g3a_scorecard_burst.json \
+            g3a_component_health_burst.json \
+            g3a_burst_backpressure_report.json \
+            g3a_archive_sink_backpressure_report.json \
+            pr3_s2_execution_receipt.json; do
+            if [[ -f "${{ steps.meta.outputs.run_dir }}/${name}" ]]; then
+              aws s3 cp "${{ steps.meta.outputs.run_dir }}/${name}" "s3://${{ inputs.evidence_bucket }}/evidence/dev_full/run_control/${{ inputs.pr3_execution_id }}/road_to_prod/pr3_s2_burst/${name}" || true
+            fi
+          done
+
+      - name: Upload workflow artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr3-s2-burst-${{ inputs.pr3_execution_id }}
+          path: |
+            ${{ steps.meta.outputs.run_dir }}/g3a_s2_wsp_runtime_manifest.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_s2_wsp_runtime_summary.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_s2_component_snapshot_*.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_scorecard_burst.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_component_health_burst.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_burst_backpressure_report.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_archive_sink_backpressure_report.json
+            ${{ steps.meta.outputs.run_dir }}/pr3_s2_execution_receipt.json
+          if-no-files-found: warn
