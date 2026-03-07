@@ -8730,3 +8730,44 @@ uns/.../degrade_ladder/* on its own filesystem,
    - it preserves a fixed-width contract at the decision/audit plane,
    - it avoids rewriting or inventing upstream registry events during a PR3 runtime proof,
    - it makes the boundary deterministic and replay-safe while still surfacing the legacy-id drift explicitly in notes.
+
+## Entry: 2026-03-07 22:55:00 +00:00 - PR3-S2 rerun proves DF no longer crashes but still misses the certified burst window due to startup-readiness drift
+1. I reran strict `PR3-S2` on fresh image digest `sha256:6d29781c713f6859e5aba04542b46ee0d471cd03ba82065022a9dacf5ac7bae5` after the bundle-id normalization fix.
+2. Impact metrics from the rerun:
+   - admitted burst throughput `6049.89 eps` against target `6000 eps`,
+   - `4xx=0`, `5xx=0`, `error_rate_ratio=0`,
+   - ingress latency improved but still breaches production pins at `p95=370.092 ms`, `p99=1091.581 ms`.
+3. The important RTDL change is that DF is now stable:
+   - live pod `fp-pr3-df-87fd4b874-v5jjb` stayed `Running` with `restart_count=0`,
+   - the previous hard crash on `bundle_ref.bundle_id` is gone.
+4. However, the rerun still failed `B15` because the certification snapshots could not observe DF metrics or health during the burst window.
+5. I inspected the live pod and the topic directly instead of treating this as an opaque “missing surface” failure:
+   - `fp.bus.traffic.fraud.v1` definitely contains the current run’s records at tail offsets carrying `platform_run_id=platform_20260307T223245Z`,
+   - DF inlet accepts the traffic envelopes as valid `s3_event_stream_with_fraud_6B` candidates,
+   - DF process working directory is `/app`, so this is not a path-root mismatch,
+   - DF eventually emitted run-scoped files after the certification window:
+     - `decision_fabric/metrics/last_metrics.json`,
+     - `decision_fabric/health/last_health.json`,
+     - `decision_fabric/reconciliation/reconciliation.json`.
+6. Late-emitted DF evidence proves the real runtime behavior:
+   - only `3` decisions were produced,
+   - all `3` were quarantined,
+   - observed DF latencies were extreme (`p50~605759 ms`, `p95~908466 ms`) because those decisions were emitted long after the source events arrived,
+   - reason codes show `ACTIVE_BUNDLE_INCOMPATIBLE`, `FEATURE_GROUP_MISSING:core_features`, `CONTEXT_STATUS:DECISION_DEADLINE_EXCEEDED`, and one `FAIL_CLOSED`.
+7. Production interpretation:
+   - this is no longer a crash defect,
+   - it is a startup/readiness defect combined with a late-consumption defect,
+   - PR3’s warm gate currently blesses DF as “ready” after checking only pod health, topic metadata, and registry scopes, but it does not prove that DF has established a run-scoped consumer boundary or emitted run-scoped observability surfaces before the burst starts.
+8. Why the current posture is unacceptable for production:
+   - a decision lane that comes alive only after the certified burst window is functionally absent during the period that matters,
+   - late-emitted degraded decisions inflate apparent stability while silently starving AL/DLA during the actual window,
+   - “pod is running” is too weak a readiness definition for a production streaming lane.
+9. Candidate remediations considered:
+   - rerun harder and hope DF wakes up earlier: rejected because the lane already proved it can miss the window while still appearing healthy at the pod level,
+   - weaken `B15` to tolerate delayed DF observability: rejected because that would certify an absent decision lane,
+   - harden DF startup so it materializes a real consumer boundary and run-scoped observability before WSP injection begins, and make warm-gate fail closed until that proof exists: selected.
+10. Concrete remediation plan selected from this diagnosis:
+   - seed DF with the authoritative `scenario_run_id` at runtime materialization so it can emit run-scoped zero-state metrics/health before the first decision,
+   - prime DF consumer checkpoints for the admitted traffic partitions at startup so “latest” becomes an auditable persisted boundary rather than an in-memory race,
+   - extend the PR3 warm gate to require DF checkpoint/bootstrap proof and present metrics/health surfaces before burst injection begins,
+   - rerun strict `PR3-S2` only after those readiness proofs exist.

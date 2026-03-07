@@ -66,11 +66,13 @@ def exec_json(namespace: str, pod: str, script: str, env_map: dict[str, str]) ->
 
 DF_WARM_SCRIPT = r"""
 import json
+import sqlite3
 from pathlib import Path
 
 from fraud_detection.decision_fabric.registry import RegistryScopeKey, RegistrySnapshot
 from fraud_detection.decision_fabric.worker import load_worker_config
 from fraud_detection.event_bus.kafka import build_kafka_reader
+from fraud_detection.platform_runtime import RUNS_ROOT
 
 profile_path = Path(__import__("os").environ["FP_PROFILE_PATH"])
 cfg = load_worker_config(profile_path)
@@ -78,6 +80,27 @@ snapshot = RegistrySnapshot.load(cfg.registry_snapshot_ref)
 reader = build_kafka_reader(client_id="pr3-df-warm-gate")
 topic = "fp.bus.traffic.fraud.v1"
 partitions = reader.list_partitions(topic)
+checkpoint_path = Path(cfg.consumer_checkpoint_path)
+checkpoint_partitions = []
+if checkpoint_path.exists():
+    with sqlite3.connect(checkpoint_path) as conn:
+        checkpoint_partitions = [
+            int(row[0])
+            for row in conn.execute(
+                "SELECT partition_id FROM df_worker_consumer_checkpoints WHERE stream_id = ? AND topic = ? ORDER BY partition_id",
+                (cfg.stream_id, topic),
+            ).fetchall()
+        ]
+run_root = RUNS_ROOT / str(cfg.platform_run_id or "_unknown")
+metrics_path = run_root / "decision_fabric" / "metrics" / "last_metrics.json"
+health_path = run_root / "decision_fabric" / "health" / "last_health.json"
+def load_json(path):
+    if not path.exists():
+        return {"__missing__": True, "__path__": str(path)}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return {"__unreadable__": True, "__path__": str(path), "__error__": str(exc)}
 required = [
     RegistryScopeKey(environment="dev_full", mode="fraud", bundle_slot="primary").canonical_key(),
     RegistryScopeKey(environment="dev_full", mode="baseline", bundle_slot="primary").canonical_key(),
@@ -85,6 +108,7 @@ required = [
 present = sorted(snapshot.records_by_scope.keys())
 print(json.dumps({
     "required_platform_run_id": cfg.required_platform_run_id,
+    "scenario_run_id_hint": cfg.scenario_run_id_hint,
     "event_bus_start_position": cfg.event_bus_start_position,
     "registry_snapshot_ref": str(cfg.registry_snapshot_ref),
     "snapshot_id": snapshot.snapshot_id,
@@ -94,6 +118,12 @@ print(json.dumps({
     "present_scopes": present,
     "kafka_topic": topic,
     "kafka_partitions": partitions,
+    "checkpoint_path": str(checkpoint_path),
+    "checkpoint_partitions": checkpoint_partitions,
+    "metrics_path": str(metrics_path),
+    "metrics_payload": load_json(metrics_path),
+    "health_path": str(health_path),
+    "health_payload": load_json(health_path),
 }))
 """
 
@@ -332,6 +362,20 @@ def main() -> None:
                 blockers.append(f"PR3.{args.state_id}.WARM.B08_DF_SCOPE_BRIDGE_MISSING")
             if not list(df_probe.get("kafka_partitions") or []):
                 blockers.append(f"PR3.{args.state_id}.WARM.B09_DF_KAFKA_METADATA_UNREADABLE")
+            checkpoint_partitions = sorted(int(item) for item in list(df_probe.get("checkpoint_partitions") or []))
+            kafka_partitions = sorted(int(item) for item in list(df_probe.get("kafka_partitions") or []))
+            if checkpoint_partitions != kafka_partitions:
+                blockers.append(f"PR3.{args.state_id}.WARM.B09A_DF_CHECKPOINT_BOUNDARY_MISSING")
+            metrics_payload = dict(df_probe.get("metrics_payload") or {})
+            health_payload = dict(df_probe.get("health_payload") or {})
+            if bool(metrics_payload.get("__missing__")):
+                blockers.append(f"PR3.{args.state_id}.WARM.B09B_DF_METRICS_SURFACE_MISSING")
+            if bool(health_payload.get("__missing__")):
+                blockers.append(f"PR3.{args.state_id}.WARM.B09C_DF_HEALTH_SURFACE_MISSING")
+            if str(metrics_payload.get("platform_run_id") or "").strip() not in {"", args.platform_run_id}:
+                blockers.append(f"PR3.{args.state_id}.WARM.B09D_DF_METRICS_SCOPE_MISMATCH")
+            if str(health_payload.get("platform_run_id") or "").strip() not in {"", args.platform_run_id}:
+                blockers.append(f"PR3.{args.state_id}.WARM.B09E_DF_HEALTH_SCOPE_MISMATCH")
 
         dl_status = next(row for row in pre_status if row.get("app") == "fp-pr3-dl")
         dl_probe, dl_probe_error = exec_json(

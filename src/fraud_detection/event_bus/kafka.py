@@ -437,6 +437,39 @@ class KafkaEventBusReader:
         except Exception:
             return
 
+    def resolve_start_offset(
+        self,
+        *,
+        topic: str,
+        partition: int,
+        from_offset: int | None,
+        start_position: str = "latest",
+    ) -> int:
+        if not topic:
+            return 0
+        if self._consumer_mode == "oauth":
+            base_tp = PyKafkaTopicPartition(topic, int(partition))
+            return int(
+                self._resolve_oauth_start_offset(
+                    topic=topic,
+                    partition=partition,
+                    from_offset=from_offset,
+                    start_position=start_position,
+                    base_tp=base_tp,
+                )
+            )
+        _consumer_cls, _kafka_error_cls, _producer_cls, topic_partition_cls = _import_confluent()
+        base_tp = topic_partition_cls(topic, int(partition))
+        return int(
+            self._resolve_standard_start_offset(
+                topic=topic,
+                partition=partition,
+                from_offset=from_offset,
+                start_position=start_position,
+                base_tp=base_tp,
+            )
+        )
+
     def _oauth_poll_windows(
         self,
         *,

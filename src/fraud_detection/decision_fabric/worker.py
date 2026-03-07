@@ -85,6 +85,7 @@ class DfWorkerConfig:
     environment: str
     bundle_slot: str
     tenant_id: str | None
+    scenario_run_id_hint: str | None
 
 
 class _ConsumerCheckpointStore:
@@ -145,6 +146,9 @@ class _ConsumerCheckpointStore:
 
     def defer(self, *, topic: str, partition: int, offset: str, offset_kind: str) -> None:
         self._write(topic=topic, partition=partition, next_offset=str(offset), offset_kind=offset_kind)
+
+    def bootstrap(self, *, topic: str, partition: int, next_offset: str, offset_kind: str) -> None:
+        self._write(topic=topic, partition=partition, next_offset=str(next_offset), offset_kind=offset_kind)
 
     def ensure_first_seen(
         self,
@@ -298,8 +302,10 @@ class DecisionFabricWorker:
             else None
         )
         self._kafka_reader = build_kafka_reader(client_id=f"df-worker-{config.stream_id}") if config.event_bus_kind == "kafka" else None
+        self._seed_run_scope_from_config()
 
     def run_once(self) -> int:
+        self._prime_consumer_boundaries()
         processed = 0
         blocked_partitions: set[tuple[str, int, str]] = set()
         for row in self._iter_records():
@@ -567,6 +573,35 @@ class DecisionFabricWorker:
             return True
         return self._scenario_run_id == scenario_run_id
 
+    def _seed_run_scope_from_config(self) -> None:
+        platform_run_id = str(self.config.platform_run_id or "").strip()
+        scenario_run_id = str(self.config.scenario_run_id_hint or "").strip()
+        if not platform_run_id or not scenario_run_id or self._scenario_run_id is not None:
+            return
+        self._scenario_run_id = scenario_run_id
+        self._metrics = DfRunMetrics(platform_run_id=platform_run_id, scenario_run_id=scenario_run_id)
+        self._reconciliation = DfReconciliationBuilder(platform_run_id=platform_run_id, scenario_run_id=scenario_run_id)
+
+    def _prime_consumer_boundaries(self) -> None:
+        if self.config.event_bus_kind != "kafka" or self._kafka_reader is None:
+            return
+        for topic in self.trigger_policy.admitted_traffic_topics:
+            for partition in self._kafka_partitions(topic):
+                if self.consumer_checkpoints.next_offset(topic=topic, partition=partition) is not None:
+                    continue
+                start_offset = self._kafka_reader.resolve_start_offset(
+                    topic=topic,
+                    partition=partition,
+                    from_offset=None,
+                    start_position=self.config.event_bus_start_position,
+                )
+                self.consumer_checkpoints.bootstrap(
+                    topic=topic,
+                    partition=partition,
+                    next_offset=str(start_offset),
+                    offset_kind="kafka_offset",
+                )
+
     def _iter_records(self) -> list[dict[str, Any]]:
         if self.config.event_bus_kind == "kinesis":
             return self._read_kinesis()
@@ -769,6 +804,9 @@ def load_worker_config(profile_path: Path) -> DfWorkerConfig:
         environment=str(_env(df_wiring.get("environment") or profile_id)).strip(),
         bundle_slot=str(_env(df_wiring.get("bundle_slot") or "primary")).strip(),
         tenant_id=_none_if_blank(_env(df_wiring.get("tenant_id"))),
+        scenario_run_id_hint=_none_if_blank(
+            _env(df_wiring.get("scenario_run_id_hint") or os.getenv("DF_SCENARIO_RUN_ID"))
+        ),
     )
 
 

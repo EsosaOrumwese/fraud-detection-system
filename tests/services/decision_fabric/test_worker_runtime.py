@@ -5,6 +5,8 @@ from types import SimpleNamespace
 
 from fraud_detection.decision_fabric.context import CONTEXT_WAITING
 from fraud_detection.decision_fabric.inlet import DecisionTriggerCandidate, DfInletResult, SourceEbRef
+from fraud_detection.decision_fabric.observability import DfRunMetrics
+from fraud_detection.decision_fabric.reconciliation import DfReconciliationBuilder
 from fraud_detection.decision_fabric.worker import DecisionFabricWorker, _ConsumerCheckpointStore, _decision_started_at
 
 
@@ -184,6 +186,7 @@ def test_run_once_blocks_later_rows_from_same_partition_after_defer() -> None:
     ]
     seen: list[str] = []
 
+    worker.config = SimpleNamespace(event_bus_kind="file")
     worker._iter_records = lambda: rows
     worker._export = lambda: None
 
@@ -239,3 +242,78 @@ def test_worker_context_refs_prefer_structured_csfb_context_refs() -> None:
 
     assert refs["arrival_events"]["topic"] == "fp.bus.context.arrival_events.v1"
     assert refs["flow_anchor"]["topic"] == "fp.bus.context.flow_anchor.fraud.v1"
+
+
+def test_prime_consumer_boundaries_bootstraps_kafka_offsets() -> None:
+    class _Checkpoints:
+        def __init__(self) -> None:
+            self.bootstrapped: list[tuple[str, int, str, str]] = []
+
+        def next_offset(self, *, topic: str, partition: int) -> None:
+            return None
+
+        def bootstrap(self, *, topic: str, partition: int, next_offset: str, offset_kind: str) -> None:
+            self.bootstrapped.append((topic, partition, next_offset, offset_kind))
+
+    class _Reader:
+        def resolve_start_offset(self, *, topic: str, partition: int, from_offset: int | None, start_position: str) -> int:
+            assert from_offset is None
+            assert start_position == "latest"
+            return 1000 + int(partition)
+
+    worker = DecisionFabricWorker.__new__(DecisionFabricWorker)
+    worker.config = SimpleNamespace(event_bus_kind="kafka", event_bus_start_position="latest")
+    worker.trigger_policy = SimpleNamespace(admitted_traffic_topics=("fp.bus.traffic.fraud.v1",))
+    worker.consumer_checkpoints = _Checkpoints()
+    worker._kafka_reader = _Reader()
+    worker._kafka_partitions = lambda _topic: [0, 1, 2]
+
+    worker._prime_consumer_boundaries()
+
+    assert worker.consumer_checkpoints.bootstrapped == [
+        ("fp.bus.traffic.fraud.v1", 0, "1000", "kafka_offset"),
+        ("fp.bus.traffic.fraud.v1", 1, "1001", "kafka_offset"),
+        ("fp.bus.traffic.fraud.v1", 2, "1002", "kafka_offset"),
+    ]
+
+
+def test_run_once_exports_zero_state_when_run_scope_seeded(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    worker = DecisionFabricWorker.__new__(DecisionFabricWorker)
+    worker.config = SimpleNamespace(event_bus_kind="file", platform_run_id="platform_20260307T223245Z")
+    worker._kafka_reader = None
+    worker.trigger_policy = SimpleNamespace(admitted_traffic_topics=tuple())
+    worker.consumer_checkpoints = None
+    worker._iter_records = lambda: []
+    worker._scenario_run_id = "a" * 32
+    worker._metrics = DfRunMetrics(platform_run_id="platform_20260307T223245Z", scenario_run_id="a" * 32)
+    worker._reconciliation = DfReconciliationBuilder(
+        platform_run_id="platform_20260307T223245Z",
+        scenario_run_id="a" * 32,
+    )
+
+    processed = worker.run_once()
+
+    metrics_path = (
+        tmp_path
+        / "runs"
+        / "fraud-platform"
+        / "platform_20260307T223245Z"
+        / "decision_fabric"
+        / "metrics"
+        / "last_metrics.json"
+    )
+    health_path = (
+        tmp_path
+        / "runs"
+        / "fraud-platform"
+        / "platform_20260307T223245Z"
+        / "decision_fabric"
+        / "health"
+        / "last_health.json"
+    )
+
+    assert processed == 0
+    assert metrics_path.exists()
+    assert health_path.exists()
