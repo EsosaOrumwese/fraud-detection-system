@@ -112,7 +112,10 @@ class CsfbInletPolicy:
         context_topics = tuple(_load_topics(policy=policy, event_bus=event_bus, base_dir=path.parent))
 
         return cls(
-            stream_id=str(policy.get("stream_id") or "csfb.v0"),
+            stream_id=_scoped_stream_id(
+                str(policy.get("stream_id") or "csfb.v0"),
+                required_platform_run_id=required_platform_run_id,
+            ),
             class_map_ref=str(class_map_ref),
             context_event_classes=tuple(
                 policy.get("context_event_classes")
@@ -880,6 +883,16 @@ def _load_topics_from_ref(ref: str, *, base_dir: Path) -> list[str]:
     if not isinstance(topics, list):
         return []
     return [str(item).strip() for item in topics if str(item).strip()]
+
+
+def _scoped_stream_id(base_stream_id: str, *, required_platform_run_id: str | None) -> str:
+    normalized = str(base_stream_id or "").strip() or "csfb.v0"
+    scoped_run = str(required_platform_run_id or "").strip()
+    if not scoped_run:
+        return normalized
+    if normalized.endswith(f"::{scoped_run}"):
+        return normalized
+    return f"{normalized}::{scoped_run}"
 
 
 def _unwrap_envelope(value: dict[str, Any] | None) -> dict[str, Any] | None:

@@ -7284,3 +7284,81 @@ Implementation sequence
 6. Production expectation from this change set:
    - the next fresh PR3 runtime should stop missing the head of the current-run context/decision traffic merely because a worker started on `latest`,
    - and if PR3-S2 is still red after this, the remaining blocker will be a truthful runtime-capacity or downstream-correctness issue rather than an invisible consumer-startup skip.
+
+## Entry: 2026-03-07 13:02:00 +00:00 - PR3-S2 current-run context is present at ingress; CSFB is blocked by global checkpoint reuse and backlog replay
+1. I traced the post-rerun `PR3-S2` red state end-to-end and pinned the next root cause with live evidence rather than another synthetic assumption.
+2. What is definitively working:
+   - the canonical remote WSP replay is hitting the internal IG service, not a dead path,
+   - the internal IG service is admitting and publishing the current run's context surfaces for `platform_20260307T114007Z`,
+   - live ECS logs show current-run admissions for all three CSFB-required event types:
+     - `arrival_events_5B -> fp.bus.context.arrival_events.v1`,
+     - `s1_arrival_entities_6B -> fp.bus.context.arrival_entities.v1`,
+     - `s3_flow_anchor_with_fraud_6B -> fp.bus.context.flow_anchor.fraud.v1`.
+3. What is not working:
+   - `CSFB` still writes zero current-run `csfb_join_frames`,
+   - zero current-run `csfb_flow_bindings`,
+   - zero current-run `csfb_intake_dedupe` rows,
+   - zero current-run `csfb_join_apply_failures`.
+4. The decisive reconciliation is in the offsets:
+   - live IG logs show current-run context being published around:
+     - `arrival_events` offsets about `1006895..1118374`,
+     - `arrival_entities` offsets about `1028115..1131505`,
+     - `flow_anchor.fraud` offsets about `1029327..1033141`,
+   - but the `CSFB` post-run checkpoint snapshot is still much earlier:
+     - `arrival_events` about `825795..934147`,
+     - `arrival_entities` about `795507..936680`,
+     - `flow_anchor.fraud` about `856176..859725`.
+5. Production interpretation:
+   - the current run is not missing from ingress,
+   - `CSFB` is replaying old shared-topic backlog and never reaches the head of the active run inside the PR3 burst window,
+   - therefore the defect is checkpoint identity/watermark reuse, not context publication failure.
+6. Why this happens:
+   - `CSFB` still uses fixed `stream_id = csfb.v0`,
+   - its checkpoint ledger is keyed by `stream_id + topic + partition`,
+   - so a new PR3 runtime on a new `platform_run_id` inherits old global Kafka offsets and starts from historical backlog instead of the intended fresh certification window boundary.
+7. Why this is not acceptable for production certification:
+   - a run-scoped production certification lane must not inherit unrelated historical backlog from earlier runs on shared topics,
+   - otherwise the measured state becomes "how much old traffic can the worker chew through in five minutes" instead of "can this runtime stay correct under the current production-shaped window",
+   - this also creates false darkness in downstream lanes (`DF`, `AL`, `DLA`) even when ingress and topic publication are healthy.
+8. Alternatives considered and rejected:
+   - simply lengthen the PR3 window until `CSFB` catches up: rejected because it hides the run-isolation defect and wastes runtime/cost.
+   - delete old Kafka data or reset topics: rejected because this mutates shared infra truth and is not a production-safe posture.
+   - manually advance checkpoints to topic end before each run: rejected as the primary solution because it is operationally fragile and does not fix the component's identity model.
+9. Chosen remediation:
+   - scope `CSFB` operational stream identity to the active `platform_run_id`, the same way the stronger RTDL components already scope their runtime stores,
+   - make fresh PR3 materialization start `CSFB` with run-scoped checkpoints/dedupe lanes so it can consume the active window instead of stale backlog,
+   - add local coverage proving the scoped stream id is derived deterministically from `required_platform_run_id`,
+   - then rerun strict `PR3-S2` and judge the impact metrics again.
+10. Expected impact after remediation:
+   - `CSFB` should begin creating current-run `join_frames` and `flow_bindings` during the active burst window,
+   - `DF` should stop remaining dark purely due to missing join state,
+   - remaining PR3-S2 red, if any, will then represent real downstream throughput/correctness limits rather than cross-run backlog bleed.
+
+## Entry: 2026-03-07 13:14:00 +00:00 - CSFB checkpoint identity is now scoped to the active platform run and validated locally
+1. I implemented the remediation in `src/fraud_detection/context_store_flow_binding/intake.py`.
+2. The `CSFB` inlet no longer uses a global fixed operational stream id when a run scope is known:
+   - base policy value remains `csfb.v0`,
+   - effective runtime stream id now becomes `csfb.v0::{required_platform_run_id}` whenever `required_platform_run_id` is set.
+3. Why this is the correct production posture:
+   - it preserves prior-run checkpoint and dedupe truth instead of deleting or mutating it,
+   - it prevents a fresh certification run from inheriting unrelated Kafka backlog,
+   - it makes `CSFB` operational identity match the already stronger run-scoped posture used by the other PR3 runtime lanes.
+4. Scope of the change:
+   - checkpoint isolation,
+   - intake dedupe isolation,
+   - observability/reporting stream identity,
+   - no change to business-row keys, which already include `platform_run_id` and `scenario_run_id`.
+5. I added two concrete proofs:
+   - `tests/services/context_store_flow_binding/test_phase1_config.py`
+     - verifies `CsfbInletPolicy.load()` derives `csfb.v0::{platform_run_id}` deterministically.
+   - `tests/services/context_store_flow_binding/test_phase3_intake.py`
+     - seeds a stale checkpoint under an earlier run-scoped stream id,
+     - then proves a fresh run with a different platform run id still consumes and writes current-run join state instead of being blocked by the stale checkpoint.
+6. Local validation completed cleanly:
+   - `.venv\Scripts\python.exe -m pytest tests/services/context_store_flow_binding/test_phase1_config.py tests/services/context_store_flow_binding/test_phase3_intake.py`
+   - result: `11 passed`
+   - `.venv\Scripts\python.exe -m py_compile src/fraud_detection/context_store_flow_binding/intake.py tests/services/context_store_flow_binding/test_phase1_config.py tests/services/context_store_flow_binding/test_phase3_intake.py`
+7. Production expectation from this remediation:
+   - a fresh PR3 materialization should let `CSFB` start consuming the active run immediately instead of replaying stale backlog,
+   - `CSFB` current-run `join_frames` and `flow_bindings` should appear during `PR3-S2`,
+   - if the state remains red after this, the next blocker will be a truthful downstream throughput or decision-plane correctness limit rather than checkpoint bleed.
