@@ -16,6 +16,7 @@ from urllib.parse import quote_plus
 
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
+import yaml
 
 
 REGISTRY = Path("docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md")
@@ -283,6 +284,7 @@ def main() -> int:
     ap.add_argument("--namespace", default="")
     ap.add_argument("--profile-path", default="/runtime-profile/dev_full.yaml")
     ap.add_argument("--profile-source-path", default="config/platform/profiles/dev_full.yaml")
+    ap.add_argument("--df-registry-snapshot-source-path", default="config/platform/df/registry_snapshot_dev_full_v0.yaml")
     ap.add_argument("--wsp-task-family", default="fraud-platform-dev-full-wsp-ephemeral")
     ap.add_argument("--image-uri", default="")
     ap.add_argument("--aurora-db-name", default="fraud_platform")
@@ -401,11 +403,35 @@ def main() -> int:
     profile_source_path = Path(args.profile_source_path)
     if not profile_source_path.exists():
         raise RuntimeError(f"profile source path missing: {profile_source_path}")
-    profile_text = profile_source_path.read_text(encoding="utf-8")
+    snapshot_source_path = Path(args.df_registry_snapshot_source_path)
+    if not snapshot_source_path.exists():
+        raise RuntimeError(f"DF registry snapshot source path missing: {snapshot_source_path}")
+    profile_payload = yaml.safe_load(profile_source_path.read_text(encoding="utf-8"))
+    if not isinstance(profile_payload, dict):
+        raise RuntimeError(f"profile source path invalid YAML mapping: {profile_source_path}")
+    df_payload = profile_payload.setdefault("df", {})
+    if not isinstance(df_payload, dict):
+        raise RuntimeError("profile df stanza must be a mapping")
+    df_policy = df_payload.setdefault("policy", {})
+    if not isinstance(df_policy, dict):
+        raise RuntimeError("profile df.policy stanza must be a mapping")
+    mounted_snapshot_ref = str(Path(args.profile_path).parent / snapshot_source_path.name)
+    df_policy["registry_snapshot_ref"] = mounted_snapshot_ref
+    profile_text = yaml.safe_dump(profile_payload, sort_keys=False)
+    snapshot_text = snapshot_source_path.read_text(encoding="utf-8")
 
     kubectl_apply(service_account_manifest(namespace, rtdl_sa, str(registry["ROLE_EKS_IRSA_RTDL"]).strip()))
     kubectl_apply(service_account_manifest(namespace, decision_sa, str(registry["ROLE_EKS_IRSA_DECISION_LANE"]).strip()))
-    kubectl_apply(config_map_manifest(namespace, profile_configmap_name, {"dev_full.yaml": profile_text}))
+    kubectl_apply(
+        config_map_manifest(
+            namespace,
+            profile_configmap_name,
+            {
+                "dev_full.yaml": profile_text,
+                snapshot_source_path.name: snapshot_text,
+            },
+        )
+    )
 
     secret_data = {
         "KAFKA_BOOTSTRAP_SERVERS": str(registry["MSK_BOOTSTRAP_BROKERS_SASL_IAM"]).strip(),
@@ -650,6 +676,8 @@ def main() -> int:
         "namespace": namespace,
         "image_uri": image_uri,
         "profile_path": args.profile_path,
+        "df_registry_snapshot_source_path": str(snapshot_source_path),
+        "df_registry_snapshot_mounted_ref": mounted_snapshot_ref,
         "secret_name": secret_name,
         "profile_configmap_name": profile_configmap_name,
         "service_accounts": {

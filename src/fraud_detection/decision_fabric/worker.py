@@ -33,7 +33,7 @@ from fraud_detection.platform_runtime import RUNS_ROOT, resolve_platform_run_id,
 
 from .checkpoints import CHECKPOINT_COMMITTED, DecisionCheckpointGate
 from .config import load_trigger_policy
-from .context import DecisionContextAcquirer, DecisionContextPolicy
+from .context import CONTEXT_WAITING, DecisionContextAcquirer, DecisionContextPolicy
 from .inlet import DfBusInput, DecisionFabricInlet, DecisionTriggerCandidate
 from .observability import DfRunMetrics
 from .posture import DfPostureResolver, DfPostureStamp
@@ -123,6 +123,12 @@ class _ConsumerCheckpointStore:
         next_offset = str(offset)
         if offset_kind in {"file_line", "kafka_offset"}:
             next_offset = str(int(offset) + 1)
+        self._write(topic=topic, partition=partition, next_offset=next_offset, offset_kind=offset_kind)
+
+    def defer(self, *, topic: str, partition: int, offset: str, offset_kind: str) -> None:
+        self._write(topic=topic, partition=partition, next_offset=str(offset), offset_kind=offset_kind)
+
+    def _write(self, *, topic: str, partition: int, next_offset: str, offset_kind: str) -> None:
         with sqlite3.connect(self.path) as conn:
             conn.execute(
                 """
@@ -134,7 +140,7 @@ class _ConsumerCheckpointStore:
                     offset_kind = excluded.offset_kind,
                     updated_at_utc = excluded.updated_at_utc
                 """,
-                (self.stream_id, topic, int(partition), next_offset, offset_kind, _utc_now()),
+                (self.stream_id, topic, int(partition), str(next_offset), offset_kind, _utc_now()),
             )
 
 
@@ -243,17 +249,32 @@ class DecisionFabricWorker:
             self.consumer_checkpoints.advance(topic=topic, partition=partition, offset=offset, offset_kind=offset_kind)
             return
 
-        started = _utc_now()
+        observed_at_utc = _utc_now()
+        started = _decision_started_at(
+            published_at_utc=bus.published_at_utc or candidate.source_eb_ref.published_at_utc,
+            observed_at_utc=observed_at_utc,
+        )
         posture = self._resolve_posture(candidate)
         context = self.acquirer.acquire(
             candidate=candidate,
             posture=posture,
             decision_started_at_utc=started,
-            now_utc=_utc_now(),
+            now_utc=observed_at_utc,
             context_refs=self._context_refs(candidate, envelope),
             feature_keys=_feature_keys(candidate, envelope),
             compatibility=None,
         )
+        if context.status == CONTEXT_WAITING:
+            self.consumer_checkpoints.defer(topic=topic, partition=partition, offset=offset, offset_kind=offset_kind)
+            logger.info(
+                "DF deferring transient context wait source_event_id=%s topic=%s partition=%s offset=%s reasons=%s",
+                candidate.source_event_id,
+                topic,
+                partition,
+                offset,
+                list(getattr(context, "reasons", ()) or ()),
+            )
+            return
         registry = self.registry_resolver.resolve(
             scope_key=self._registry_scope(candidate, envelope),
             posture=posture,
@@ -725,6 +746,13 @@ def _latency_ms(started_at_utc: str, ended_at_utc: str) -> float:
     return max(0.0, (end - start).total_seconds() * 1000.0)
 
 
+def _decision_started_at(*, published_at_utc: str | None, observed_at_utc: str) -> str:
+    parsed = _parse_rfc3339_or_none(published_at_utc)
+    if parsed is not None:
+        return parsed.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    return observed_at_utc
+
+
 def _sha256(payload: Mapping[str, Any]) -> str:
     return hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=True, separators=(",", ":")).encode("utf-8")).hexdigest()
 
@@ -732,6 +760,16 @@ def _sha256(payload: Mapping[str, Any]) -> str:
 def _none_if_blank(value: Any) -> str | None:
     text = str(value or "").strip()
     return text or None
+
+
+def _parse_rfc3339_or_none(value: Any) -> datetime | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        return datetime.fromisoformat(text.replace("Z", "+00:00")).astimezone(timezone.utc)
+    except ValueError:
+        return None
 
 
 def _utc_now() -> str:

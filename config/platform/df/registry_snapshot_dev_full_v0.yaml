@@ -1,0 +1,46 @@
+version: "0.1.0"
+snapshot_id: df.registry.snapshot.dev_full.v0
+generated_at_utc: "2026-03-05T08:34:00.319875Z"
+records:
+  - scope:
+      environment: dev_full
+      mode: fraud
+      bundle_slot: primary
+    bundle_ref:
+      bundle_id: "5ba79a547ad6b8cd"
+      bundle_version: "m11g_stress_s3_20260305T034205Z"
+      registry_ref: "s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/mf/candidate_bundle.json"
+    compatibility:
+      required_feature_groups:
+        core_features: v1
+      require_ieg: false
+      require_model_primary: true
+      require_model_stage2: false
+      require_fallback_heuristics: true
+      required_action_posture: STEP_UP_ONLY
+    registry_event_id: 4c9424df7228013747bc9db70fe819de9446906ee8bae23e1e12c3222445b11c
+    activated_at_utc: "2026-03-05T08:34:00.319875Z"
+    policy_rev:
+      policy_id: df.registry_resolution.v0
+      revision: r1
+  - scope:
+      environment: dev_full
+      mode: baseline
+      bundle_slot: primary
+    bundle_ref:
+      bundle_id: "5ba79a547ad6b8cd"
+      bundle_version: "m11g_stress_s3_20260305T034205Z"
+      registry_ref: "s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/mf/candidate_bundle.json"
+    compatibility:
+      required_feature_groups:
+        core_features: v1
+      require_ieg: false
+      require_model_primary: true
+      require_model_stage2: false
+      require_fallback_heuristics: true
+      required_action_posture: STEP_UP_ONLY
+    registry_event_id: 4c9424df7228013747bc9db70fe819de9446906ee8bae23e1e12c3222445b11c
+    activated_at_utc: "2026-03-05T08:34:00.319875Z"
+    policy_rev:
+      policy_id: df.registry_resolution.v0
+      revision: r1

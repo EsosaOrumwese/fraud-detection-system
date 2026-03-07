@@ -143,7 +143,7 @@ df:
     trigger_policy_ref: config/platform/df/trigger_policy_v0.yaml
     context_policy_ref: config/platform/df/context_policy_v0.yaml
     registry_resolution_policy_ref: config/platform/df/registry_resolution_policy_v0.yaml
-    registry_snapshot_ref: config/platform/df/registry_snapshot_local_parity_v0.yaml
+    registry_snapshot_ref: config/platform/df/registry_snapshot_dev_full_v0.yaml
   wiring:
     stream_id: df.v0
     required_platform_run_id: ${DF_REQUIRED_PLATFORM_RUN_ID}

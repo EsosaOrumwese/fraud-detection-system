@@ -7127,3 +7127,76 @@ eason=http_502,
    - repin `dev_full` DF to a real `dev_full` registry snapshot so registry resolution can produce production-meaningful decisions,
    - then harden PR3 runtime readiness / consumer posture so DF enters the burst window only after the required context/registry surfaces are materially available,
    - then rerun PR3-S2 on the same strict boundary and judge it by actual burst throughput plus downstream decision-lane participation.
+
+## Entry: 2026-03-07 10:42:23 +00:00 — PR3-S2 decision-lane remediation plan pinned from production root-cause analysis
+
+Problem statement
+- PR3-S2 is no longer blocked by ingress or context publication. The active red lane is DF -> AL -> DLA under production burst certification.
+- Three coupled defects now explain the observed posture:
+  1. DF registry authority drift: config/platform/profiles/dev_full.yaml still pins egistry_snapshot_local_parity_v0.yaml, which cannot resolve nvironment=dev_full and therefore guarantees SCOPE_NOT_FOUND / REGISTRY_FAIL_CLOSED for live dev_full decisions.
+  2. Missing runtime bridge from learning promotion to DF execution scope: M12 promotion artifacts exist, but they are not materialized into a DF-consumable active snapshot for operational scopes such as dev_full/fraud/primary. Promotion evidence is currently scoped as managed training/runtime activation (nvironment=dev_full, mode=managed, bundle_slot=active, tenant_id=<training-scope>), while DF resolves runtime traffic scopes (nvironment=dev_full, mode=fraud|baseline, bundle_slot=primary, tenant_id optional). This is a production integration gap, not a single bad path string.
+  3. DF transient-context handling is wrong for production readiness: DecisionContextAcquirer returns CONTEXT_WAITING while still inside join-wait budget, but DecisionFabricWorker immediately synthesizes and publishes a fail-closed/quarantine path and then checkpoints that event. That turns a transient join race into a permanent decision. The older local-parity choice to synthesize immediately on waiting was acceptable for proving a fail-closed corridor, but it is not acceptable for production certification where correctness under realistic arrival skew matters.
+
+Observed evidence pinned
+- Current run-scoped context traffic exists on rrival_events, rrival_entities, and low_anchor topics with correct platform_run_id / scenario_run_id.
+- CSFB is materially healthy and projecting current-run data into Aurora (join_frames, complete join frames, low bindings present).
+- DF current-run metrics/reconciliation show only a tiny tail of decisions, all fail-closed, and p.bus.rtdl.v1 remains empty; AL and DLA are therefore starved rather than independently proven broken.
+- vent_bus_start_position=latest plus fresh run-scoped deployments creates a realistic second-order risk: if decision-lane consumers are not materially warm before the burst starts, they will only see the tail of the burst window. The observed 4 current-run DF decisions is consistent with this failure mode and is not compatible with a production certification claim.
+
+Alternatives considered
+1. Fast shortcut: repin DF back to a toy/local-parity snapshot or relax the blocker logic so PR3-S2 can rerun.
+- Rejected. This would restore movement while preserving a false authority surface and would not create a claimable production path.
+
+2. Keep immediate fail-closed behavior on CONTEXT_WAITING and simply slow the burst / add more retries outside DF.
+- Rejected. This treats transient join skew as if it were terminal missing context and destroys correctness under realistic arrival ordering.
+
+3. Change DF consumers to arliest permanently for PR3 reruns.
+- Rejected as the primary fix. It would reduce missed-burst risk on cold startup, but on shared live topics it would also drag through unrelated backlog and distort runtime budgets. It is a useful fallback for debugging, not the production certification posture.
+
+Chosen production remediation
+1. Materialize a real dev_full DF registry snapshot from the latest promoted managed-bundle evidence.
+- Source from the latest M11/M12 managed promotion artifacts already pinned in the repo/evidence.
+- Normalize that promoted bundle into DF operational scopes required by runtime certification:
+  - nvironment=dev_full, mode=fraud, bundle_slot=primary
+  - nvironment=dev_full, mode=baseline, bundle_slot=primary
+- Carry explicit compatibility compatible with the promoted runtime bundle and current DL/OFP posture, not with local-parity placeholders.
+- Mount that generated snapshot into the PR3 runtime profile so EKS workers consume the same active authority that certification is claiming.
+
+2. Change DF worker behavior so CONTEXT_WAITING is deferred, not synthesized/published.
+- While still inside join wait budget, do not register replay, do not publish, and do not advance the consumer checkpoint for that event.
+- Allow the worker to retry the same event until context becomes ready or the join wait budget expires into CONTEXT_MISSING / fail-closed.
+- This preserves correctness under realistic join lag without inventing new points of failure.
+
+3. Add a runtime warm/readiness gate before PR3-S2 injection.
+- Rollout status alone is not enough. We need an application-level readiness proof that the materialized workers are running with the intended profile/registry inputs and are ready to observe the active traffic boundary before the burst starts.
+- Keep latest as the live posture, but do not start the burst until the decision/runtime lane passes that warm gate.
+
+4. Tighten reporting to impact metrics.
+- PR3 state findings should explicitly describe impact metrics and whether they meet production intent, instead of merely listing executed steps or raw artifact names.
+
+Implementation sequence
+1. Add a PR3 registry materialization helper and integrate it into pr3_rtdl_materialize.py.
+2. Patch DecisionFabricWorker to defer on CONTEXT_WAITING and preserve join-wait correctness.
+3. Add tests around deferred waiting / no checkpoint advance / later expiry behavior.
+4. Add a runtime warm gate into PR3 S2 workflow/orchestration before burst injection.
+5. Rerun strict PR3-S2 from the same upstream boundary and update analytical findings in PR3 docs + main plan + logbook.
+
+## Entry: 2026-03-07 10:48:24 +00:00 - Pending PR3-S2 DF remediation edits validated before local test execution
+1. I re-verified the exact working-tree remediation set before running any new remote pressure. The branch is already carrying the intended production fixes, so the immediate task is to validate and complete them rather than branch into another workaround.
+2. The current pending changes are coherent with the previously pinned production analysis:
+   - `config/platform/profiles/dev_full.yaml` now repins DF to `registry_snapshot_dev_full_v0.yaml` instead of the local-parity snapshot.
+   - `config/platform/df/registry_snapshot_dev_full_v0.yaml` materializes a real `dev_full` operational snapshot for `fraud/primary` and `baseline/primary`, sourced from the latest promoted managed bundle evidence (`bundle_id=5ba79a547ad6b8cd`, activation `2026-03-05T08:34:00.319875Z`).
+   - `scripts/dev_substrate/pr3_rtdl_materialize.py` now mounts that snapshot into the runtime ConfigMap and rewrites the deployed profile so PR3 workers consume the same registry authority the certification claim refers to.
+   - `src/fraud_detection/decision_fabric/worker.py` now introduces consumer-checkpoint deferral for `CONTEXT_WAITING` and anchors the join-wait budget to the bus publish timestamp rather than resetting on local observation time.
+   - `.github/workflows/dev_full_pr3_s2_burst.yml` now inserts an application-level warm gate before burst injection.
+   - `scripts/dev_substrate/pr3_runtime_warm_gate.py` probes the live DF pod for profile scope, snapshot scope bridge, and Kafka metadata availability before the burst starts.
+3. I explicitly validated the risky point in the defer design: DF can safely retry the same Kafka event because `_ConsumerCheckpointStore.defer()` stores the exact current offset and `_read_kafka()` seeks to that exact offset on the next loop. This means the change does not silently drop transiently-waiting events.
+4. Production rationale remains unchanged:
+   - this is not a convenience fix for PR3-S2;
+   - it is a correctness fix so transient context skew does not become a permanent fail-closed decision;
+   - it is an authority fix so `dev_full` decisions resolve against the real promoted bundle instead of a toy/local snapshot;
+   - and it is a runtime-readiness fix so burst certification does not start on a rollout-only notion of readiness.
+5. Next action locked:
+   - run local validation on these pending edits (`pytest`, `py_compile`, YAML parse),
+   - correct any defects found,
+   - then rerun strict `PR3-S2` and rewrite the state findings as impact-metric digests rather than raw artifact references.

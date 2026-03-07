@@ -286,6 +286,18 @@ jobs:
             kubectl rollout status "deployment/${deployment}" -n "${{ inputs.eks_namespace }}" --timeout=240s
           done
 
+      - name: Warm-gate runtime before burst injection
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/pr3_runtime_warm_gate.py \
+            --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
+            --state-id S2 \
+            --namespace "${{ inputs.eks_namespace }}" \
+            --platform-run-id "${{ steps.meta.outputs.platform_run_id }}" \
+            --profile-path "/runtime-profile/dev_full.yaml" \
+            --settle-seconds 30
+
       - name: Capture pre-burst runtime snapshot
         shell: bash
         run: |
