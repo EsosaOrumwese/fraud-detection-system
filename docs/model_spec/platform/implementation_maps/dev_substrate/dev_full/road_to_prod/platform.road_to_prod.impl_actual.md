@@ -7041,3 +7041,42 @@ eason=http_502,
 6. Production interpretation:
    - this does not weaken the `6000 eps` target,
    - it only ensures the generator and runtime graph are both in a known-valid posture before we spend more burst-window budget.
+
+## Entry: 2026-03-07 10:05:00 +00:00 - CSFB runtime is currently a Kafka capability gap, not an infra or orchestration defect
+1. I inspected the live post-rerun cluster after `PR3-S2` completed and found the decisive signal: `fp-pr3-csfb` is in `CrashLoopBackOff` while the other PR3 workers remain running.
+2. Live logs make the failure unambiguous:
+   - `RuntimeError: CSFB_EVENT_BUS_KIND_UNSUPPORTED`.
+3. I then compared the CSFB intake worker with the other runtime workers already proven on `dev_full`.
+4. Result of that comparison:
+   - `DF`, `AL`, `DLA`, `Archive Writer`, `IEG`, and `OFP` all carry Kafka/MSK-capable bus readers in the repo,
+   - `CSFB` only supports `file` and `kinesis`, even though the `dev_full` runtime profile pins `event_bus_kind: kafka`.
+5. Production interpretation:
+   - this is a real component capability gap in the runtime graph,
+   - not a Kubernetes rollout issue,
+   - not a missing secret,
+   - and not a reason to drop CSFB from PR3.
+6. Why this matters for production readiness:
+   - CSFB is part of the declared RTDL/decision context surface,
+   - DF depends on it for flow binding resolution,
+   - and without Kafka capability on CSFB, the runtime graph can never be considered production-ready on the same MSK substrate the rest of the platform already uses.
+7. Chosen remediation:
+   - extend CSFB intake to support Kafka using the shared `fraud_detection.event_bus.kafka.KafkaEventBusReader`, matching the existing runtime worker pattern,
+   - rebuild/publish the runtime image carrying that capability,
+   - rerun `PR3-S2` on the same strict boundary so we can verify whether DF/AL/DLA evidence surfaces come alive once CSFB is materially on-bus.
+
+## Entry: 2026-03-07 10:20:00 +00:00 - CSFB Kafka remediation validated at policy-load level before image refresh
+1. I patched `fraud_detection.context_store_flow_binding.intake` to use the shared Kafka reader path already proven by the other runtime workers.
+2. Concrete capability added:
+   - `event_bus_kind == kafka` now builds a Kafka reader,
+   - normal consumption now supports Kafka partitions,
+   - replay-range consumption now supports Kafka offsets as well.
+3. Validation completed before image work:
+   - `py_compile` passed for the modified CSFB intake worker,
+   - loading `config/platform/profiles/dev_full.yaml` with real `dev_full` env bindings now resolves `event_bus_kind='kafka'` and the expected context topics instead of crashing on policy construction.
+4. Boundary note:
+   - this is still only a repo/code fix until the shared runtime image is rebuilt and repinned,
+   - the currently running PR3 workers are still on digest `sha256:f08ec7fc...` and therefore do not yet contain the CSFB Kafka capability.
+5. Next action locked:
+   - refresh the runtime image carrying this code,
+   - rerun `PR3-S2`,
+   - verify that CSFB stays healthy and that DF/AL/DLA begin publishing run-scoped evidence surfaces.

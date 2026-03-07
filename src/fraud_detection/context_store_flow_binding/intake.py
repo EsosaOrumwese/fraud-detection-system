@@ -16,6 +16,7 @@ from typing import Any, Mapping
 import yaml
 
 from fraud_detection.event_bus import EventBusReader
+from fraud_detection.event_bus.kafka import build_kafka_reader
 from fraud_detection.event_bus.kinesis import KinesisEventBusReader
 from fraud_detection.ingestion_gate.config import ClassMap
 from fraud_detection.ingestion_gate.schemas import SchemaRegistry
@@ -162,6 +163,7 @@ class ContextStoreFlowBindingInlet:
         )
         self._file_reader: EventBusReader | None = None
         self._kinesis_reader: KinesisEventBusReader | None = None
+        self._kafka_reader = None
         if policy.event_bus_kind == "file":
             self._file_reader = EventBusReader(Path(policy.event_bus_root or "runs/fraud-platform/eb"))
         elif policy.event_bus_kind == "kinesis":
@@ -170,6 +172,8 @@ class ContextStoreFlowBindingInlet:
                 region=policy.event_bus_region,
                 endpoint_url=policy.event_bus_endpoint_url,
             )
+        elif policy.event_bus_kind == "kafka":
+            self._kafka_reader = build_kafka_reader(client_id=f"csfb-intake-{policy.stream_id}")
         else:
             raise RuntimeError("CSFB_EVENT_BUS_KIND_UNSUPPORTED")
 
@@ -187,6 +191,8 @@ class ContextStoreFlowBindingInlet:
             if self.policy.event_bus_kind == "file":
                 for partition in self._file_partitions(topic):
                     processed += self._consume_file_partition(topic, partition)
+            elif self.policy.event_bus_kind == "kafka":
+                processed += self._consume_kafka_topic(topic)
             else:
                 processed += self._consume_kinesis_topic(topic)
         self._maybe_export_observability(force=processed > 0)
@@ -207,6 +213,12 @@ class ContextStoreFlowBindingInlet:
             for partition_range in topic_range.partitions:
                 if self.policy.event_bus_kind == "file":
                     processed += self._consume_file_partition_range(
+                        topic=topic_range.topic,
+                        partition_range=partition_range,
+                        replay_pins=replay_pins,
+                    )
+                elif self.policy.event_bus_kind == "kafka":
+                    processed += self._consume_kafka_partition_range(
                         topic=topic_range.topic,
                         partition_range=partition_range,
                         replay_pins=replay_pins,
@@ -366,6 +378,95 @@ class ContextStoreFlowBindingInlet:
                 processed += 1
                 if sequence:
                     current_from = sequence
+            if len(records) < self.policy.poll_max_records:
+                break
+        return processed
+
+    def _consume_kafka_topic(self, topic: str) -> int:
+        assert self._kafka_reader is not None
+        processed = 0
+        for partition in self._kafka_partitions(topic):
+            checkpoint = self.store.get_checkpoint(topic=topic, partition_id=partition)
+            from_offset: int | None = None
+            if checkpoint and checkpoint.offset_kind == "kafka_offset":
+                try:
+                    from_offset = int(checkpoint.next_offset)
+                except Exception:
+                    from_offset = None
+            records = self._kafka_reader.read(
+                topic=topic,
+                partition=partition,
+                from_offset=from_offset,
+                limit=self.policy.poll_max_records,
+                start_position=self.policy.event_bus_start_position,
+            )
+            for record in records:
+                payload = record.get("payload")
+                if not isinstance(payload, dict):
+                    continue
+                self._process_record(
+                    BusRecord(
+                        topic=topic,
+                        partition=partition,
+                        offset=str(record.get("offset") if record.get("offset") is not None else ""),
+                        offset_kind="kafka_offset",
+                        payload=payload,
+                        published_at_utc=str(record.get("published_at_utc") or "") or None,
+                    )
+                )
+                processed += 1
+        return processed
+
+    def _consume_kafka_partition_range(
+        self,
+        *,
+        topic: str,
+        partition_range: CsfbReplayPartitionRange,
+        replay_pins: Mapping[str, Any] | None,
+    ) -> int:
+        assert self._kafka_reader is not None
+        from_offset = _coerce_kafka_offset(partition_range.from_offset, default=0)
+        to_offset = _coerce_kafka_offset(partition_range.to_offset, default=None)
+        if from_offset is None:
+            from_offset = 0
+        if to_offset is not None and to_offset < from_offset:
+            return 0
+
+        processed = 0
+        cursor: int | None = from_offset
+        while True:
+            records = self._kafka_reader.read(
+                topic=topic,
+                partition=partition_range.partition,
+                from_offset=cursor,
+                limit=self.policy.poll_max_records,
+                start_position=self.policy.event_bus_start_position,
+            )
+            if not records:
+                break
+            for record in records:
+                offset = _coerce_kafka_offset(record.get("offset"), default=None)
+                if to_offset is not None and offset is not None and offset > to_offset:
+                    return processed
+                payload = record.get("payload")
+                if not isinstance(payload, dict):
+                    continue
+                self._process_record(
+                    BusRecord(
+                        topic=topic,
+                        partition=partition_range.partition,
+                        offset=str(record.get("offset") if record.get("offset") is not None else ""),
+                        offset_kind=partition_range.offset_kind or "kafka_offset",
+                        payload=payload,
+                        published_at_utc=str(record.get("published_at_utc") or "") or None,
+                    ),
+                    replay_pins=replay_pins,
+                )
+                processed += 1
+                if offset is not None:
+                    cursor = offset + 1
+            if to_offset is not None and cursor is not None and cursor > to_offset:
+                break
             if len(records) < self.policy.poll_max_records:
                 break
         return processed
@@ -685,6 +786,11 @@ class ContextStoreFlowBindingInlet:
                 continue
         return sorted(set(partitions)) or [0]
 
+    def _kafka_partitions(self, topic: str) -> list[int]:
+        assert self._kafka_reader is not None
+        partitions = self._kafka_reader.list_partitions(topic)
+        return partitions if partitions else [0]
+
     def _stream_name(self, topic: str) -> str:
         stream = self.policy.event_bus_stream
         if stream and str(stream).lower() not in {"", "auto", "topic"}:
@@ -930,6 +1036,15 @@ def _partition_id_from_shard(shard_id: str) -> int:
 
 def _coerce_file_offset(value: str | None, *, default: int | None) -> int | None:
     if value is None:
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _coerce_kafka_offset(value: Any, *, default: int | None) -> int | None:
+    if value in (None, ""):
         return default
     try:
         return int(value)
