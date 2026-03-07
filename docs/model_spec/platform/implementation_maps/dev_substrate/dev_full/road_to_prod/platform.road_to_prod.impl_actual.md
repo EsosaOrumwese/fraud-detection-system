@@ -6921,3 +6921,65 @@ eason=http_502,
 - During validation I found one remaining defect in the supposed run-scope fix: `src/fraud_detection/identity_entity_graph/projector.py` still forced Kafka `start_position="earliest"` in `_fill_kafka_buffer()` whenever no checkpoint existed. That would have reintroduced history contamination on any fresh EKS rerun even after the config loader fix. I corrected the bootstrap path so empty-checkpoint reads honor `profile.wiring.event_bus_start_position`, matching the intended `latest` runtime posture for fresh PR3 reruns.
 - Production interpretation: this is not a cosmetic config cleanup. Without this closure, a fresh runtime could still bind to prior-topic history, produce artificial `RUN_SCOPE_MISMATCH` growth, and pollute any downstream claim about throughput or sink readiness. The current state is now structurally aligned for a live rerun; remaining work is live image refresh and runtime repin, not more local code debugging.
 - Immediate next actions locked from this point: build/publish refreshed runtime image carrying the WSP identity and run-scope fixes, refresh the remote runtime/task definitions onto that digest, apply the narrow RTDL IRSA KMS policy live, rerun `PR3-S2` on the canonical remote WSP->IG path, and only then judge the remaining burst ceiling and downstream stability.
+
+
+## 2026-03-07 07:57:07 GMT Standard Time - PR3-S2 live repin and harness-capacity blocker analysis
+- Live repin actions completed before rerun: targeted Terraform apply created inline policy `fraud-platform-dev-full-irsa-rtdl-core-kms` on role `fraud-platform-dev-full-irsa-rtdl`, closing the archive-writer `kms:GenerateDataKey` denial on the RTDL side. Separately, I registered new ECS task definition revision `fraud-platform-dev-full-wsp-ephemeral:34` pinned to immutable image `230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-full@sha256:f08ec7fc93045df1b28b6b5d5303c04758095d0919a5729f4f1d02767f28640b`.
+- I then reran `PR3-S2` remotely on the corrected branch/image through GitHub Actions run `22795069056`. Bootstrap, authority refresh, EKS materialization, and runtime readiness all passed. Failure occurred inside the actual burst-launch step, not in runtime startup or downstream health.
+- Root cause from workflow log: `PR3.S2.WSP.B01_RUN_TASK_FAILED:wsp_lane_48:You’ve reached the limit on the number of vCPUs you can run concurrently`. This is a remote injector-capacity failure in the Fargate-based WSP harness, not a platform throughput failure. The platform under test had already reached fresh runtime readiness, and the state aborted before a valid burst scorecard could be produced.
+- Production reasoning: the WSP replay fleet is certification harness compute, not the thing we are certifying. Treating a generator quota ceiling as a platform red result would be analytically wrong. The correct remediation is to increase harness density, not to weaken platform thresholds. Concretely, the next rerun will use fewer remote WSP tasks with higher per-lane concurrency so the generator remains within quota while still targeting the same canonical `WSP -> IG` burst envelope. If that denser harness still cannot sustain the declared rate, only then do we escalate to a structural injector migration or quota increase request.
+- Immediate rerun decision pinned: keep `target_burst_eps=6000` unchanged, keep remote WSP replay canonical, reduce lane count to a quota-safe band, raise per-lane push concurrency, and rerun `S2` on the same strict execution boundary.
+## Entry: 2026-03-07 08:25:00 +00:00 - PR3-S2 burst failure is a contract-invalid replay identity defect at IG, not an ingress saturation result
+1. I pulled the authoritative `PR3-S2` rerun artifacts from GitHub Actions run `22795156129` and re-read the burst scorecard before making any further runtime changes.
+2. The impact metrics are unambiguous:
+   - `request_count_total = 7270`,
+   - `admitted_request_count = 0`,
+   - `observed_admitted_eps = 0.0`,
+   - `5xx_total = 7270`,
+   - `4xx_total = 0`,
+   - `latency_p95_ms = 16.23`,
+   - `latency_p99_ms = 57.47`.
+3. Production interpretation of those numbers:
+   - the ingress edge remained responsive at low latency,
+   - the system was not saturated on request handling,
+   - every request failed deterministically before admission, so the red state is a correctness/contract failure, not a capacity ceiling.
+4. I then tailed the live IG ECS logs to identify the first failing invariant rather than treating `5xx=100%` as a generic platform crash.
+5. The live failure is explicit:
+   - canonical envelope validation rejects `scenario_run_id='scenario_20260307t075139z'` because the schema requires `^[a-f0-9]{32}$`,
+   - the quarantine record path then fails for the same reason, so the service returns `503` rather than a clean quarantine response.
+6. This means the current PR3 replay harness is emitting a scenario identity that is invalid under the same platform contract we are trying to certify.
+7. Root cause sits in workflow metadata generation, not downstream runtime ambiguity:
+   - `dev_full_pr3_s2_burst.yml` currently sets `scenario_run_id=scenario_${NOW_UTC,,}`,
+   - `dev_full_pr3_s1_managed.yml` does the same in both identity-generation branches,
+   - these values are structurally incapable of passing the canonical envelope schema at IG.
+8. Rejected shortcut:
+   - I am not weakening the IG schema, and I am not reclassifying these requests as acceptable quarantine noise.
+   - In a real production financial platform, run identity must remain canonical because it is part of replay isolation, audit traceability, and downstream join correctness.
+9. Chosen remediation:
+   - move PR3 workflow identity generation onto deterministic 32-hex `scenario_run_id` values,
+   - add preflight validation in the workflow before any remote WSP lane launch,
+   - propagate the same fix across both steady and burst PR3 workflows so we do not certify one path while leaving the sibling path capable of burning compute on known-invalid run scope.
+10. Acceptance rule from this point:
+   - any PR3 execution that presents a non-canonical `scenario_run_id` is a launcher defect and must fail before remote work begins,
+   - only once admissions begin with canonical IDs do we evaluate the true throughput and downstream bounded-degrade posture.
+## Entry: 2026-03-07 08:40:00 +00:00 - PR3 identity generation is now fail-fast and canonical on both workflow and runtime launcher surfaces
+1. I patched the PR3 workflow surfaces that mint or accept runtime identity so they now enforce the canonical scenario-run contract before any remote compute is launched.
+2. Concrete changes made:
+   - `dev_full_pr3_s2_burst.yml` now generates `scenario_run_id` as `uuid4().hex` and rejects any non-`^[a-f0-9]{32}$` value before hydration or WSP launch.
+   - `dev_full_pr3_s1_managed.yml` now does the same in both the runtime materialization branch and the fresh steady-window identity branch.
+   - `dev_full_pr3_runtime_materialize.yml` now rejects invalid operator-supplied `scenario_run_id` values instead of accepting legacy `scenario_*` examples.
+3. I also patched the runtime launchers themselves so they cannot silently recreate this drift if a workflow omission or manual call bypasses the GitHub YAML guards:
+   - `pr3_wsp_replay_dispatch.py` now requires a canonical 32-hex `scenario_run_id` and no longer falls back to `scenario_<timestamp>`.
+   - `pr3_s1_wsp_replay_dispatch.py` now requires the same canonical ID and also passes `--scenario-run-id` into the WSP CLI command, closing a second propagation hole on the steady replay path.
+   - `pr3_rtdl_materialize.py` now validates `platform_run_id` presence and canonical `scenario_run_id` shape before materializing any PR3 runtime pods.
+4. Why this is the production-grade fix rather than a local workaround:
+   - the canonical scenario identity is part of the platform contract used by IG, quarantine, replay isolation, and downstream audit joins,
+   - generating an arbitrary human-readable label would continue to make the replay harness non-representative of the real production contract,
+   - enforcing the same rule in the workflow and in the runtime launcher prevents repeated compute burn from a class of defect that is completely knowable at submit time.
+5. Validation completed on the patched surfaces:
+   - YAML parse passed for the three PR3 workflows,
+   - `py_compile` passed for the patched PR3 scripts.
+6. Immediate execution decision pinned from this point:
+   - commit and push this closure set so branch-observed workflow runs match the documented logic,
+   - rerun `PR3-S2` on the same strict boundary with the refreshed WSP image/task revision already in place,
+   - use the rerun scorecard to identify the next true platform bottleneck once admission is again possible.

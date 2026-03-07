@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -143,10 +144,14 @@ def build_wsp_command() -> list[str]:
         exec python -m fraud_detection.world_streamer_producer.cli \
           --profile /tmp/pr3_s1_wsp_profile.yaml \
           --engine-run-root "$ORACLE_ENGINE_RUN_ROOT" \
-          --scenario-id "$ORACLE_SCENARIO_ID"
+          --scenario-id "$ORACLE_SCENARIO_ID" \
+          --scenario-run-id "$SCENARIO_RUN_ID"
         """
     ).strip()
     return ["/bin/sh", "-lc", script]
+
+
+SCENARIO_RUN_ID_RX = re.compile(r"^[a-f0-9]{32}$")
 
 
 def refresh_task_status(ecs: Any, cluster: str, task_arn: str) -> dict[str, Any]:
@@ -704,6 +709,13 @@ def probe_platform_run_identity_usage(dsn: str, platform_run_id: str) -> dict[st
     return usage
 
 
+def require_canonical_scenario_run_id(value: str) -> str:
+    resolved = str(value).strip()
+    if not SCENARIO_RUN_ID_RX.fullmatch(resolved):
+        raise RuntimeError(f"PR3.S1.WSP.B00_INVALID_SCENARIO_RUN_ID:{resolved or 'empty'}")
+    return resolved
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Dispatch canonical remote WSP replay for PR3-S1.")
     ap.add_argument("--run-control-root", default="runs/dev_substrate/dev_full/road_to_prod/run_control")
@@ -860,7 +872,7 @@ def main() -> None:
 
     lane_count = max(1, int(args.lane_count))
     resolved_platform_run_id = str(args.platform_run_id).strip() or f"platform_{checkpoint_attempt_id}"
-    resolved_scenario_run_id = str(args.scenario_run_id).strip() or f"scenario_{checkpoint_attempt_id.lower()}"
+    resolved_scenario_run_id = require_canonical_scenario_run_id(args.scenario_run_id)
     if args.skip_runtime_identity_probe:
         identity_probe = {
             "platform_run_id": resolved_platform_run_id,

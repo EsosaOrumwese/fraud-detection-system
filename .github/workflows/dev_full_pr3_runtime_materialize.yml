@@ -25,7 +25,7 @@ on:
       scenario_run_id:
         description: "Pinned scenario run id for runtime certification"
         required: true
-        default: "scenario_38753050f3b70c666e16f7552016b330"
+        default: "38753050f3b70c666e16f7552016b330"
         type: string
       eks_cluster_name:
         description: "EKS cluster name"
@@ -103,6 +103,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if [[ ! "${{ inputs.scenario_run_id }}" =~ ^[a-f0-9]{32}$ ]]; then
+            echo "PR3.RUNTIME.B00_INVALID_SCENARIO_RUN_ID:${{ inputs.scenario_run_id }}"
+            exit 1
+          fi
           python scripts/dev_substrate/pr3_rtdl_materialize.py \
             --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
             --platform-run-id "${{ inputs.platform_run_id }}" \

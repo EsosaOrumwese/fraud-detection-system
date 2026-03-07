@@ -175,10 +175,19 @@ jobs:
           mkdir -p "${RUN_DIR}"
           mkdir -p "${RUN_DIR}/upstream_support"
           NOW_UTC="$(date -u +'%Y%m%dT%H%M%SZ')"
+          SCENARIO_RUN_ID="$(python - <<'PY'
+          import uuid
+          print(uuid.uuid4().hex)
+          PY
+          )"
+          if [[ ! "${SCENARIO_RUN_ID}" =~ ^[a-f0-9]{32}$ ]]; then
+            echo "PR3.S2.WSP.B00_INVALID_SCENARIO_RUN_ID:${SCENARIO_RUN_ID}"
+            exit 1
+          fi
           echo "run_dir=${RUN_DIR}" >> "$GITHUB_OUTPUT"
           echo "support_dir=${RUN_DIR}/upstream_support" >> "$GITHUB_OUTPUT"
           echo "platform_run_id=platform_${NOW_UTC}" >> "$GITHUB_OUTPUT"
-          echo "scenario_run_id=scenario_${NOW_UTC,,}" >> "$GITHUB_OUTPUT"
+          echo "scenario_run_id=${SCENARIO_RUN_ID}" >> "$GITHUB_OUTPUT"
 
       - name: Hydrate strict upstream evidence from S3
         shell: bash

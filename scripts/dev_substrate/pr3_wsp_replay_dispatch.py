@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -55,6 +56,9 @@ def blocker_code(prefix: str, code: str, detail: str = "") -> str:
 
 def artifact_name(prefix: str, suffix: str) -> str:
     return f"{str(prefix).strip()}_{str(suffix).strip()}.json"
+
+
+SCENARIO_RUN_ID_RX = re.compile(r"^[a-f0-9]{32}$")
 
 
 def remap_blocker_prefix(prefix: str, message: str) -> str:
@@ -718,6 +722,15 @@ def probe_platform_run_identity_usage(dsn: str, platform_run_id: str) -> dict[st
     return usage
 
 
+def require_canonical_scenario_run_id(value: str, *, blocker_prefix: str) -> str:
+    resolved = str(value).strip()
+    if not SCENARIO_RUN_ID_RX.fullmatch(resolved):
+        raise RuntimeError(
+            blocker_code(blocker_prefix, "B00_INVALID_SCENARIO_RUN_ID", resolved or "empty")
+        )
+    return resolved
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Dispatch canonical remote WSP replay for a PR3 runtime window.")
     ap.add_argument("--run-control-root", default="runs/dev_substrate/dev_full/road_to_prod/run_control")
@@ -877,7 +890,10 @@ def main() -> None:
 
     lane_count = max(1, int(args.lane_count))
     resolved_platform_run_id = str(args.platform_run_id).strip() or f"platform_{checkpoint_attempt_id}"
-    resolved_scenario_run_id = str(args.scenario_run_id).strip() or f"scenario_{checkpoint_attempt_id.lower()}"
+    resolved_scenario_run_id = require_canonical_scenario_run_id(
+        args.scenario_run_id,
+        blocker_prefix=args.blocker_prefix,
+    )
     if args.skip_runtime_identity_probe:
         identity_probe = {
             "platform_run_id": resolved_platform_run_id,

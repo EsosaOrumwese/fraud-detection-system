@@ -19,6 +19,7 @@ from botocore.exceptions import BotoCoreError, ClientError
 
 
 REGISTRY = Path("docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md")
+SCENARIO_RUN_ID_RX = re.compile(r"^[a-f0-9]{32}$")
 
 
 def now_utc() -> str:
@@ -263,6 +264,15 @@ def tail_logs(namespace: str, pod_name: str, *, tail: int = 80) -> str:
     return (proc.stdout or proc.stderr or "").strip()
 
 
+def validate_run_identity(*, platform_run_id: str, scenario_run_id: str) -> list[str]:
+    blockers: list[str] = []
+    if not str(platform_run_id).strip():
+        blockers.append("PR3.RUNTIME.B00_PLATFORM_RUN_ID_EMPTY")
+    if not SCENARIO_RUN_ID_RX.fullmatch(str(scenario_run_id).strip()):
+        blockers.append(f"PR3.RUNTIME.B00_INVALID_SCENARIO_RUN_ID:{str(scenario_run_id).strip() or 'empty'}")
+    return blockers
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Materialize PR3 runtime workers on remote EKS.")
     ap.add_argument("--run-control-root", default="runs/dev_substrate/dev_full/road_to_prod/run_control")
@@ -294,6 +304,12 @@ def main() -> int:
 
     blockers: list[str] = []
     notes: list[str] = []
+    blockers.extend(
+        validate_run_identity(
+            platform_run_id=args.platform_run_id,
+            scenario_run_id=args.scenario_run_id,
+        )
+    )
 
     ssm_paths = [
         str(registry.get("SSM_AURORA_ENDPOINT_PATH", "")).strip(),

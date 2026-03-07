@@ -465,7 +465,15 @@ jobs:
             PLATFORM_RUN_ID="platform_${NOW_UTC}"
           fi
           if [[ -z "${SCENARIO_RUN_ID}" ]]; then
-            SCENARIO_RUN_ID="scenario_${NOW_UTC,,}"
+            SCENARIO_RUN_ID="$(python - <<'PY'
+            import uuid
+            print(uuid.uuid4().hex)
+            PY
+            )"
+          fi
+          if [[ ! "${SCENARIO_RUN_ID}" =~ ^[a-f0-9]{32}$ ]]; then
+            echo "PR3.S1.WSP.B00_INVALID_SCENARIO_RUN_ID:${SCENARIO_RUN_ID}"
+            exit 1
           fi
           python scripts/dev_substrate/pr3_rtdl_materialize.py \
             --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
@@ -586,7 +594,15 @@ jobs:
             PLATFORM_RUN_ID="platform_${NOW_UTC}"
           fi
           if [[ -z "${SCENARIO_RUN_ID}" ]]; then
-            SCENARIO_RUN_ID="scenario_${NOW_UTC,,}"
+            SCENARIO_RUN_ID="$(python - <<'PY'
+            import uuid
+            print(uuid.uuid4().hex)
+            PY
+            )"
+          fi
+          if [[ ! "${SCENARIO_RUN_ID}" =~ ^[a-f0-9]{32}$ ]]; then
+            echo "PR3.S1.WSP.B00_INVALID_SCENARIO_RUN_ID:${SCENARIO_RUN_ID}"
+            exit 1
           fi
           echo "platform_run_id=${PLATFORM_RUN_ID}" >> "$GITHUB_OUTPUT"
           echo "scenario_run_id=${SCENARIO_RUN_ID}" >> "$GITHUB_OUTPUT"
