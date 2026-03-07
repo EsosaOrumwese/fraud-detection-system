@@ -7014,3 +7014,30 @@ eason=http_502,
    - the current PR3 replay path is still measuring ingress on the internal ALB service URL from SSM rather than API Gateway,
    - I am not changing that blindly in this step because internal high-throughput production posture may intentionally use the private managed edge,
    - but the choice must be made explicit in PR3/PR4 as part of final production-readiness closure, not left as a silent drift.
+
+## Entry: 2026-03-07 09:25:00 +00:00 - PR3-S2 workflow surface drift would have reintroduced the identity defect and hidden the corrected runtime graph
+1. Before dispatching the next rerun I re-opened the checked-in `dev_full_pr3_s2_burst.yml` on the active branch instead of assuming the workflow still matched the last reasoning pass.
+2. That check found a real execution-surface drift:
+   - the branch version still minted `scenario_run_id=scenario_${NOW_UTC,,}`,
+   - the readiness gate still ignored the new `fp-pr3-csfb` deployment,
+   - and the workflow surface no longer reflected the stricter evidence-hydration posture I had reasoned from earlier artifacts.
+3. Production consequence if left unfixed:
+   - the next rerun would have burned remote compute on a launcher defect we already know violates the canonical envelope contract,
+   - and the runtime-readiness proof would still have been capable of declaring success without the now-required CSFB worker actually being healthy.
+4. Chosen action:
+   - patch the branch workflow before any rerun so the branch-executed automation matches the production-grade decisions already pinned in the implementation trail,
+   - keep the rerun boundary unchanged (`PR3-S2`), but ensure the workflow materially launches a canonical identity and verifies the full runtime graph including CSFB.
+
+## Entry: 2026-03-07 09:35:00 +00:00 - PR3-S2 workflow defaults are repinned to the quota-safe burst launcher shape and readiness now includes CSFB
+1. After finding the execution-surface drift, I compared the branch defaults with the last successful launch-capable burst manifest instead of guessing a new shape.
+2. The authoritative launch-capable burst manifest (`22795572161`) shows:
+   - `lane_count=48`,
+   - `target_request_rate_eps=6060`,
+   - `stream_speedup=102.4`,
+   - `ig_push_concurrency=8`.
+3. That matters because the older `80`-lane default is already proven to exceed the practical ECS/Fargate concurrent-vCPU envelope for this account, while the `48`-lane shape launches and produces meaningful pressure against the ingress edge.
+4. I therefore repinned the workflow defaults to the proven launcher shape rather than wasting another rerun on a harness ceiling we already understand.
+5. I also expanded the runtime-readiness loop to require `fp-pr3-csfb` rollout success before the burst window starts.
+6. Production interpretation:
+   - this does not weaken the `6000 eps` target,
+   - it only ensures the generator and runtime graph are both in a known-valid posture before we spend more burst-window budget.

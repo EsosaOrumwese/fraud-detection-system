@@ -65,7 +65,7 @@ on:
       lane_count:
         description: "Number of remote WSP burst lanes"
         required: true
-        default: "80"
+        default: "48"
         type: string
       target_burst_eps:
         description: "Certified burst EPS target"
@@ -95,7 +95,7 @@ on:
       ig_push_concurrency:
         description: "Per-lane concurrent IG pushes"
         required: true
-        default: "4"
+        default: "8"
         type: string
       target_burst_seconds:
         description: "Per-lane token-bucket burst allowance in seconds"
@@ -282,7 +282,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for deployment in fp-pr3-ieg fp-pr3-ofp fp-pr3-df fp-pr3-al fp-pr3-dla fp-pr3-archive-writer; do
+          for deployment in fp-pr3-csfb fp-pr3-ieg fp-pr3-ofp fp-pr3-df fp-pr3-al fp-pr3-dla fp-pr3-archive-writer; do
             kubectl rollout status "deployment/${deployment}" -n "${{ inputs.eks_namespace }}" --timeout=240s
           done
 
