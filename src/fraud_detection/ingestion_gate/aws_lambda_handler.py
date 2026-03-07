@@ -58,6 +58,7 @@ _API_KEY_CACHE = {
     "value": None,
     "loaded_at_epoch": 0,
 }
+_API_KEY_CACHE_LOCK = threading.Lock()
 
 _GATE_CACHE: dict[str, IngestionGate] = {}
 _GATE_CACHE_LOCK = threading.Lock()
@@ -210,33 +211,50 @@ def _api_key_cache_ttl_seconds() -> int:
 
 
 def _load_expected_api_key() -> tuple[str | None, str | None]:
+    direct_value = str(os.getenv("IG_API_KEY_VALUE", "")).strip()
+    if direct_value:
+        return direct_value, None
+
     api_key_path = str(os.getenv("IG_API_KEY_PATH", "")).strip()
     if not api_key_path:
         return None, "ig_api_key_path_missing"
 
-    now = int(time.time())
     ttl_seconds = _api_key_cache_ttl_seconds()
-    if (
-        _API_KEY_CACHE["path"] == api_key_path
-        and _API_KEY_CACHE["value"]
-        and (now - int(_API_KEY_CACHE["loaded_at_epoch"])) < ttl_seconds
-    ):
-        return str(_API_KEY_CACHE["value"]), None
 
-    LOGGER.info("IG auth cache miss; resolving api key from SSM path=%s", api_key_path)
-    try:
-        response = _SSM_CLIENT.get_parameter(Name=api_key_path, WithDecryption=True)
-    except (BotoCoreError, ClientError) as exc:
-        LOGGER.exception("IG api key resolution failed path=%s", api_key_path)
-        return None, f"ssm_get_parameter_failed:{type(exc).__name__}"
-    value = response.get("Parameter", {}).get("Value") if isinstance(response, dict) else None
-    if not value:
-        return None, "ig_api_key_empty"
-    _API_KEY_CACHE["path"] = api_key_path
-    _API_KEY_CACHE["value"] = value
-    _API_KEY_CACHE["loaded_at_epoch"] = now
-    LOGGER.info("IG auth cache refresh succeeded path=%s ttl_seconds=%s", api_key_path, ttl_seconds)
-    return str(value), None
+    def _cached_value(now_epoch: int) -> str | None:
+        if (
+            _API_KEY_CACHE["path"] == api_key_path
+            and _API_KEY_CACHE["value"]
+            and (now_epoch - int(_API_KEY_CACHE["loaded_at_epoch"])) < ttl_seconds
+        ):
+            return str(_API_KEY_CACHE["value"])
+        return None
+
+    now = int(time.time())
+    cached = _cached_value(now)
+    if cached:
+        return cached, None
+
+    with _API_KEY_CACHE_LOCK:
+        now = int(time.time())
+        cached = _cached_value(now)
+        if cached:
+            return cached, None
+
+        LOGGER.info("IG auth cache miss; resolving api key from SSM path=%s", api_key_path)
+        try:
+            response = _SSM_CLIENT.get_parameter(Name=api_key_path, WithDecryption=True)
+        except (BotoCoreError, ClientError) as exc:
+            LOGGER.exception("IG api key resolution failed path=%s", api_key_path)
+            return None, f"ssm_get_parameter_failed:{type(exc).__name__}"
+        value = response.get("Parameter", {}).get("Value") if isinstance(response, dict) else None
+        if not value:
+            return None, "ig_api_key_empty"
+        _API_KEY_CACHE["path"] = api_key_path
+        _API_KEY_CACHE["value"] = value
+        _API_KEY_CACHE["loaded_at_epoch"] = now
+        LOGGER.info("IG auth cache refresh succeeded path=%s ttl_seconds=%s", api_key_path, ttl_seconds)
+        return str(value), None
 
 
 def _authorize(headers: dict[str, str]) -> tuple[AuthContext | None, dict[str, Any] | None]:

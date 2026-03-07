@@ -8771,3 +8771,79 @@ uns/.../degrade_ladder/* on its own filesystem,
    - prime DF consumer checkpoints for the admitted traffic partitions at startup so “latest” becomes an auditable persisted boundary rather than an in-memory race,
    - extend the PR3 warm gate to require DF checkpoint/bootstrap proof and present metrics/health surfaces before burst injection begins,
    - rerun strict `PR3-S2` only after those readiness proofs exist.
+
+## Entry: 2026-03-07 23:18:46 +00:00 - PR3-S2 now isolates the ingress tail to runtime auth design drift, not RTDL instability
+1. I inspected the fresh strict `PR3-S2` rerun `pr3_20260307T225900Z` after the DF startup-readiness remediation landed.
+2. The rerun proves the previous RTDL gating defect is materially closed at the state boundary:
+   - `DF` metrics/health surfaces are present from the pre snapshot instead of missing during the burst window,
+   - `PR3.S2.B15_*` blockers are gone,
+   - component backpressure remains clean (`OFP lag p99 ~= 0.029 s`, `IEG checkpoint-age p99 ~= 0.056 s`, `DLA checkpoint-age p99 ~= 0.994 s`).
+3. The remaining state blockers are now only ingress-facing production metrics:
+   - admitted throughput `5994.813 eps` vs target `6000 eps` (narrow miss, `-0.086%`),
+   - ALB `TargetResponseTime p95 = 302.541 ms` (within budget),
+   - ALB `TargetResponseTime p99 = 6795.450 ms` (severe tail breach),
+   - `4xx = 0`, `5xx = 0`.
+4. I validated that the `p99` breach is not a rollup artifact by querying CloudWatch directly for the five one-minute bins inside the measurement window. Every minute shows the same qualitative posture:
+   - `p95` remains roughly `278-328 ms`,
+   - `p99` remains roughly `6.1-7.6 s`.
+   This means the tail is real and persistent, not a single anomalous datapoint or a bad percentile aggregation.
+5. The live target path behind the ALB is the managed ECS ingress service, not API Gateway/Lambda for this certification lane:
+   - target group `fp-dev-full-ig-svc` is `ip` targets on port `8080`,
+   - live service `fraud-platform-dev-full-ig-service` is running `31` Fargate tasks on task definition revision `18`,
+   - each task is currently `4096 CPU / 8192 MiB`, `8` gunicorn workers, `8` threads, `30 s` timeout, `75 s` keep-alive.
+6. I then inspected the ingress service logs instead of guessing. The important findings are:
+   - the application hot path itself is not broadly slow: sampled IG `admission_seconds p95` stays around `121 ms`, `phase.publish_seconds p95` around `95 ms`, and there are no publish failures,
+   - however the service emitted `3259` request-completion logs above `500 ms` during the five-minute measurement window,
+   - those slow requests cluster most strongly around minute `23:07`, where logged application request times reach `8-11 s`.
+7. The most important production defect uncovered in the logs is auth-path drift:
+   - the managed ingress service refreshed the API key from SSM `639` times during the same five-minute window,
+   - the configured cache TTL is `300 s`, so a production-correct hot path should not be repeatedly calling SSM during the burst window,
+   - current code resolves auth by calling `_load_expected_api_key()` inside request authorization, which falls back to live `GetParameter` when the in-process cache is absent/stale.
+8. Why this is the right root-cause candidate:
+   - the ingress path is meant to certify a high-eps private managed service, not a control-plane-backed toy edge,
+   - pulling SSM into the request path creates exactly the kind of small-fraction long tail that keeps `p95` healthy but destroys `p99`,
+   - because the service uses multiple gunicorn worker processes, a process-local cache still permits a startup/thundering-herd burst of control-plane calls even when the cache TTL is long.
+9. Candidate remediations considered:
+   - raise task count/workers/threads again: rejected as a first response because it treats the symptom while leaving a control-plane dependency in the hot path,
+   - weaken the p99 target or wave it through because throughput is nearly met: rejected because the platform-production-standard is explicit that tail latency is a production metric, not an optional advisory,
+   - remove control-plane auth lookup from the request path by injecting the IG API key into the ECS task as a startup secret and keep a locked SSM fallback only for safety: selected.
+10. Selected production remediation plan:
+   - add `IG_API_KEY_VALUE` to the managed ingress ECS task definition via ECS `secrets` sourced from the existing SSM parameter,
+   - update `aws_lambda_handler.py` auth loading to prefer `IG_API_KEY_VALUE` immediately and bypass SSM when present,
+   - add a lock around the fallback API-key cache so any non-secret fallback path remains single-flight and deterministic under concurrency,
+   - validate locally, roll the ingress task definition, and rerun strict `PR3-S2`.
+11. Expected production impact if this diagnosis is correct:
+   - repeated SSM `GetParameter` calls should fall to zero for the certification lane,
+   - the long-tail ingress waits should collapse materially,
+   - the tiny throughput miss should clear because the service will stop burning request time on auth control-plane calls.
+
+## Entry: 2026-03-07 23:21:15 +00:00 - Implemented the ingress auth hot-path remediation as startup-secret injection plus single-flight fallback
+1. I implemented the selected ingress fix in the code and IaC surfaces rather than attempting another capacity-only rerun.
+2. Managed ingress runtime change in `aws_lambda_handler.py`:
+   - `_load_expected_api_key()` now prefers `IG_API_KEY_VALUE` immediately when the task receives the secret at startup,
+   - the previous SSM fallback path remains only as a safety net,
+   - the fallback path is now protected by `_API_KEY_CACHE_LOCK` with double-checked cache semantics so concurrent requests cannot stampede `GetParameter` when the injected secret is unavailable.
+3. Managed ingress infrastructure change in Terraform:
+   - ECS task definition `aws_ecs_task_definition.ig_service` now injects `IG_API_KEY_VALUE` from `aws_ssm_parameter.ig_api_key.arn` using ECS `secrets`,
+   - `IG_API_KEY_PATH` is still preserved in the environment so the fallback path remains diagnosable and usable if the secret injection is ever absent.
+4. Why this is the correct production posture:
+   - auth material is resolved at task start by the ECS control plane rather than during request admission,
+   - the ingress service no longer relies on SSM control-plane latency inside the certification window,
+   - fallback behavior remains fail-closed and deterministic instead of silently weakening auth.
+5. I also expanded the ingress regression surface to make the fix auditable:
+   - added tests proving injected `IG_API_KEY_VALUE` bypasses SSM entirely,
+   - added a concurrency test proving the fallback path uses single-flight cache population instead of concurrent `GetParameter` calls,
+   - normalized the existing `Flask` test harness for the current Werkzeug package by pinning a compatibility `__version__` value when absent so the ingress test client remains runnable in this environment.
+6. Local validation after implementation:
+   - `python -m pytest tests/services/ingestion_gate/test_managed_service.py tests/services/ingestion_gate/test_phase5_auth_rate.py tests/services/ingestion_gate/test_phase4_service.py` -> `12 passed`,
+   - `python -m py_compile src/fraud_detection/ingestion_gate/aws_lambda_handler.py` -> clean,
+   - `terraform fmt` and `terraform fmt -check` on `infra/terraform/dev_full/runtime/main.tf` -> clean.
+7. Expected impact on the next live rollout/rerun:
+   - ingress auth SSM refresh count during the certification window should collapse from hundreds to zero in the normal case,
+   - the rare multi-second request tail should reduce materially if the hot-path diagnosis is correct,
+   - admitted throughput should recover the missing `~5.2 eps` headroom and clear the strict `6000 eps` gate without changing production thresholds.
+8. Next execution sequence selected:
+   - commit/push this ingress remediation milestone so the remote workflow runs against an auditable branch state,
+   - rebuild/publish the new platform image,
+   - roll the managed ingress task definition so the secret-backed auth posture is live,
+   - rerun strict `PR3-S2` and re-evaluate both the ingress state metrics and downstream decision-plane participation.

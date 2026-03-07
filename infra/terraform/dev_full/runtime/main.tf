@@ -1212,6 +1212,12 @@ resource "aws_ecs_task_definition" "ig_service" {
           value = var.lambda_ig_policy_activation_audit_mode
         }
       ]
+      secrets = [
+        {
+          name      = "IG_API_KEY_VALUE"
+          valueFrom = aws_ssm_parameter.ig_api_key.arn
+        }
+      ]
       healthCheck = {
         command = [
           "CMD-SHELL",
