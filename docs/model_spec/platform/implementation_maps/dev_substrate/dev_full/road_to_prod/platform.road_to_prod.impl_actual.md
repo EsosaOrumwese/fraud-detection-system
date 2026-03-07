@@ -8069,3 +8069,52 @@ ot ready because pods are broken from eady to accept first traffic on a fresh r
    - rebuild immutable branch image,
    - rerun strict PR3-S2 on the same warmed boundary,
    - assess the next impact summary with zero waivers.
+## Entry: 2026-03-07 17:12:00 +00:00 - Corrected warmed PR3-S2 rerun removed the last correctness blockers and isolated burst throughput as the only active red lane
+1. I re-read the authoritative artifact bundle from workflow `22802974989` before making any more tuning changes. The state result is now materially simpler than the previous mixed red runs:
+   - verdict `HOLD_REMEDIATE`,
+   - `open_blockers=1`,
+   - sole blocker `PR3.S2.B14_BURST_THROUGHPUT_SHORTFALL:observed=4554.700:target=6000.000`.
+2. The impact metrics that matter for production interpretation on this rerun are:
+   - admitted throughput `4554.7 eps`,
+   - request throughput `4554.7 eps`,
+   - `1,366,410` admitted requests over the certified `300 s` burst window,
+   - `4xx=0`, `5xx=0`,
+   - latency `p95=129.93 ms`, `p99=179.73 ms`.
+3. The downstream correctness surfaces are now materially clean on the same run:
+   - `DF` deltas `fail_closed=0`, `publish_quarantine=0`,
+   - `AL` deltas `publish_quarantine=0`, `publish_ambiguous=0`,
+   - `IEG` backpressure delta `0`,
+   - `OFP` lag `p95=0.017 s`,
+   - `DLA` checkpoint age `p95=1.109 s`,
+   - archive writer write-error delta `0`.
+4. Production interpretation:
+   - ingress reliability is re-proved for `S2` because both error classes are now zero,
+   - RTDL correctness is re-proved for `S2` because the decision and archive lanes no longer leak fail-closed/quarantine growth during the burst,
+   - the only reason the state stays red is that the replay fleet still under-drives the declared burst contract by about `1445 eps`.
+5. This matters analytically because `request_eps == admitted_eps` with zero `4xx/5xx` means the active ceiling is no longer an ingress rejection problem. The platform is accepting everything it is being sent; the launcher/runtime is not yet generating enough first-admission traffic to test the true `6000 eps` boundary.
+6. Chosen next work from that evidence:
+   - do not touch ingress capacity again until new evidence says it is rejecting or saturating,
+   - inspect the WSP replay fleet shape and per-lane production evidence,
+   - retune source-driving parameters (`lane_count`, task CPU/memory, push/output concurrency, and stream-speedup interaction) on the canonical remote path,
+   - rerun strict warmed `PR3-S2` after each tuned change until the burst contract is met with the same zero-error and zero-quarantine posture.
+## Entry: 2026-03-07 17:28:00 +00:00 - WSP emitter shape, not oracle density, is the active PR3-S2 ceiling; next correction is quota rebalance plus larger per-lane compute
+1. I verified the source-density question directly against the oracle store instead of guessing from ALB throughput:
+   - the combined replay set (`s3_event_stream_with_fraud_6B` plus the three context outputs) carries baseline density about `152.19 eps`,
+   - at the currently configured `stream_speedup=180`, the source side can theoretically support about `27,394 eps`,
+   - even the traffic stream alone can theoretically support about `10,958 eps`.
+2. That closes off the lazy explanation that `180x` replay is simply too slow. The source is dense enough; the replay fleet is failing to turn that density into admitted requests.
+3. I then re-read the live WSP task logs for the latest burst run. They show all four outputs streaming continuously in every sampled lane, but only at about `82..135 eps` total per lane with median near `91 eps` and mean near `102.5 eps`.
+4. The logs also show simulated event time advancing far slower than the configured `180x` intent once the tasks are hot. In other words, each WSP task is spending most of its wall time on runtime overhead (parquet/object-store read, envelope build, thread scheduling, HTTP post path) rather than on replay sleeps.
+5. Cross-plane quota evidence explains why that matters operationally:
+   - ingress service is still provisioned at `32` Fargate tasks while the measured burst window only used about `44%` CPU and `7.3%` memory,
+   - the regional Fargate quota is therefore over-allocated to the ingress fleet and under-allocated to the WSP certification fleet,
+   - keeping that skew would force repeated underpowered burst reruns and would not be a production-grade use of capacity.
+6. Production-minded correction chosen from this evidence:
+   - right-size ingress desired count from `32` to `30` for this runtime posture; the measured CPU line still leaves safe burst headroom at the `6000 eps` target while freeing quota,
+   - move WSP burst lanes from `44 x 256 CPU` to `32 x 512 CPU`,
+   - keep the same replay semantics (`stream_speedup=180`, same outputs, same warmup, same thresholds) so the next delta is attributable to compute shape rather than to changed source semantics.
+7. Why this is the best next step:
+   - it attacks the proven bottleneck directly at the WSP execution layer,
+   - it reduces control-plane/task-launch overhead by using fewer lanes,
+   - it unlocks full per-lane log capture automatically (`lane_count <= 32`), improving evidence quality on the next rerun,
+   - it does not weaken any threshold or fail-closed rule.

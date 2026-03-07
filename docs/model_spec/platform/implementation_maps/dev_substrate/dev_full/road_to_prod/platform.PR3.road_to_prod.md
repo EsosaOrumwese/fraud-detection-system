@@ -520,6 +520,18 @@ State closure:
 | What changed vs the last red run | keepalive pin removed the residual 5xx leak; final setpoint uplift closed the remaining `7.7 eps` gap | The last S1 problems were narrow and were solved directly at their true fault lines. |
 | Remaining PR3 work | `S2` burst/backpressure, `S3` recovery, `S4` soak/drills/cost, `S5` runtime-pack rollup | `TGT-08` is not fully closed yet, but steady-state runtime proof is no longer the limiting lane. |
 
+### 11.10 PR3-S2 Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Gate outcome | warmed strict rerun `22802974989` returned `HOLD_REMEDIATE`, `open_blockers=1`, `next_state=PR3-S2` | `S2` is still open, but only one production blocker remains. |
+| Burst goal vs observed throughput | target admitted throughput `6000.0 eps`; observed admitted throughput `4554.7 eps`; request throughput `4554.7 eps` | The platform accepted everything it was sent, but the canonical replay fleet still under-drove the burst contract by about `1445 eps`. |
+| Window volume | `1,366,410` admitted requests over the measured `300 s` burst window after `90 s` warmup | The burst proof is statistically meaningful, but not yet strong enough to certify the required burst envelope. |
+| Error posture | `4xx_total=0`, `5xx_total=0`, `error_rate_ratio=0.0` | Ingress reliability is now re-proved for `S2`; the red state is no longer caused by request rejection or request drops. |
+| Latency posture | weighted ALB latency `p95=129.93 ms`, `p99=179.73 ms` against maxima `350/700 ms` | Tail latency remains comfortably inside the production budget at the current burst density. |
+| RTDL correctness posture | `DF fail_closed delta=0`, `DF quarantine delta=0`, `AL ambiguity/quarantine deltas=0`, archive writer error delta `0` | The earlier decision-plane and archive correctness defects have been cleared on the same burst run. |
+| Stream-processing freshness posture | `IEG` backpressure delta `0`, `OFP lag p95=0.017 s`, `DLA checkpoint age p95=1.109 s` | The managed downstream surfaces stayed materially healthy during the burst window and are not the reason the state remains open. |
+| Production conclusion | `S2` is no longer a mixed-quality state; it is a throughput-only miss on the canonical remote replay path | Next work must focus on source-driving and replay-fleet tuning, not on ingress capacity or fail-closed policy changes. |
+
 ### 11.3 PR3-S1 Runtime-Correction Findings (Readable)
 | Area | What was found | Interpretation |
 | --- | --- | --- |

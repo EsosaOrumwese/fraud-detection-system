@@ -60,7 +60,7 @@ on:
       lane_count:
         description: "Number of remote WSP burst lanes"
         required: true
-        default: "44"
+        default: "32"
         type: string
       target_burst_eps:
         description: "Certified burst EPS target"
@@ -105,7 +105,7 @@ on:
       wsp_task_cpu:
         description: "Fargate CPU units per WSP burst lane"
         required: true
-        default: "256"
+        default: "512"
         type: string
       wsp_task_memory:
         description: "Fargate memory MiB per WSP burst lane"
@@ -547,6 +547,73 @@ jobs:
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
               fh.write(f"task_definition_arn={new_task_definition_arn}\n")
               fh.write("registered_new_revision=true\n")
+          PY
+
+      - name: Right-size ingress fleet for PR3 burst quota posture
+        shell: bash
+        env:
+          ECS_CLUSTER: fraud-platform-dev-full-ingress
+          ECS_SERVICE: fraud-platform-dev-full-ig-service
+          TARGET_DESIRED_COUNT: "30"
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+
+          region = "${{ inputs.aws_region }}"
+          cluster = os.environ["ECS_CLUSTER"]
+          service = os.environ["ECS_SERVICE"]
+          target_desired = int(os.environ["TARGET_DESIRED_COUNT"])
+
+          def aws_json(args):
+              proc = subprocess.run(
+                  ["aws", *args, "--region", region, "--output", "json"],
+                  check=True,
+                  capture_output=True,
+                  text=True,
+              )
+              return json.loads(proc.stdout or "{}")
+
+          current = aws_json(["ecs", "describe-services", "--cluster", cluster, "--services", service])
+          row = (current.get("services") or [{}])[0]
+          current_desired = int(row.get("desiredCount") or 0)
+          if current_desired != target_desired:
+              subprocess.run(
+                  [
+                      "aws",
+                      "ecs",
+                      "update-service",
+                      "--cluster",
+                      cluster,
+                      "--service",
+                      service,
+                      "--desired-count",
+                      str(target_desired),
+                      "--region",
+                      region,
+                      "--output",
+                      "json",
+                  ],
+                  check=True,
+                  capture_output=True,
+                  text=True,
+              )
+          subprocess.run(
+              ["aws", "ecs", "wait", "services-stable", "--cluster", cluster, "--services", service, "--region", region],
+              check=True,
+              capture_output=True,
+              text=True,
+          )
+          verified = aws_json(["ecs", "describe-services", "--cluster", cluster, "--services", service])
+          verified_row = (verified.get("services") or [{}])[0]
+          verified_desired = int(verified_row.get("desiredCount") or 0)
+          verified_running = int(verified_row.get("runningCount") or 0)
+          if verified_desired != target_desired or verified_running != target_desired:
+              raise SystemExit(
+                  f"Ingress right-size did not converge. desired={verified_desired} running={verified_running} expected={target_desired}"
+              )
           PY
 
       - name: Materialize fresh PR3 runtime identity on EKS
