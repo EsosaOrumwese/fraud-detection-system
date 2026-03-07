@@ -7588,3 +7588,68 @@ Implementation sequence
    - rebuild the shared image again,
    - repin the WSP ECS family to the new digest,
    - rerun strict `PR3-S2` on the same execution boundary.
+## Entry: 2026-03-07 16:42:00 +00:00 - Prepared second immutable runtime refresh for PR3-S2 after proving DF batch-ordering is the active production defect
+1. I extracted the authoritative packaging outputs from workflow run 22799973701 for commit  813d17531284f3cd499fecdaeff834251ff7a6a.
+2. The shared runtime image to materialize next is now pinned exactly to 230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-full@sha256:9aa8346c4e40e28cd56cc2e68a432666927cbc6b14c6a7de1a4212001c0e6531.
+3. Why this rerun is still required before any further tuning:
+   - the active red state is still coming from the remote runtime, not local code,
+   - DF batch-order correctness is a decision-plane liveness prerequisite and must be proven materially live before judging whether the remaining burst gap is an ingress ceiling or a downstream saturation effect,
+   - rerunning on the older digest would only recycle already-invalid evidence.
+4. The next live sequence is therefore locked:
+   - repin ECS family raud-platform-dev-full-wsp-ephemeral to the new digest,
+   - launch strict PR3-S2 with the same digest passed to the RTDL materialization workflow,
+   - read impact metrics from the run receipt/scorecard first, then inspect live pods only if the metrics still show a decision-plane deficit.
+5. Production acceptance standard for this rerun:
+   - DF must materially emit current-run decisions rather than remain dark behind partition-head waits,
+   - AL/DLA must show run-scoped participation once DF emits,
+   - if throughput/latency remain red after RTDL becomes materially alive, that residual red will be treated as a true platform capacity problem and tuned as such rather than waived.
+## Entry: 2026-03-07 13:55:00 +00:00 - PR3-S2 split-root-cause pinned: DF context-ref derivation is lossy and DL posture service is fail-closed broken on the live run
+1. The latest strict rerun on digest sha256:9aa8346c4e40e28cd56cc2e68a432666927cbc6b14c6a7de1a4212001c0e6531 improved edge posture but did not close PR3-S2:
+   - admitted burst throughput = 4141.883 eps against 6000 eps,
+   - p95 = 133.801 ms is now within the 350 ms bound,
+   - p99 = 977.076 ms still breaches the 700 ms bound,
+   - DF remains materially dark in the rollup.
+2. Live inspection removed two wrong hypotheses:
+   - the new image is materially live in the DF pod (imageID=@sha256:9aa8346c...),
+   - the Kafka reader can reread the same blocked offset repeatedly on one reader instance, so the remaining red is not a generic MSK replay limitation.
+3. Direct CSFB query proof for the three blocked partition-head flows shows the bindings are now READY, with concrete low_binding_source_event and join_frame_source_event evidence present on the active run.
+4. That proves the next active decision-plane defects are inside DF itself:
+   - _context_refs() is building role refs from the wrong CSFB fields (for flow-binding results sourced from low_anchor, it currently feeds rrival_events with the flow-anchor b_ref and feeds low_anchor with a logical join key instead of an event-bus ref),
+   - DL posture resolution on the same candidate is currently FAIL_CLOSED from FAILSAFE_HEALTH_GATE with reasons POSTURE_MISSING, POSTURE_STORE_ERROR, and SERVE_SURFACE_ERROR.
+5. Production interpretation:
+   - even once CSFB catches up, DF still cannot make forward progress because it is missing a trustworthy, production-grade mapping from CSFB evidence to DF context roles,
+   - and even after that mapping is corrected, the decision lane would remain fail-closed because the DL posture surface is materially broken in the live PR3 runtime.
+6. Chosen remediation order:
+   - first fix DF context-ref derivation so the worker consumes structured current-run context truth rather than lossy heuristics,
+   - then repair the DL posture serve/store surface on the live PR3 runtime so core_features are admitted under the intended run posture,
+   - rerun strict PR3-S2 only after both are materially corrected, because either defect on its own keeps the state red.
+## Entry: 2026-03-07 14:12:00 +00:00 - Implemented the next PR3 decision-plane correction set: structured CSFB context refs, remote-native DL signals, and live DL workload materialization path
+1. I converted the PR3 diagnosis into two concrete software remediations instead of more blind burst reruns.
+2. CSFB query surface now emits explicit context_refs in READY responses:
+   - src/fraud_detection/context_store_flow_binding/contracts.py now validates optional structured context_refs in query responses,
+   - src/fraud_detection/context_store_flow_binding/query.py now derives those refs from the ready binding/join sources so DF can consume role-aligned event-bus refs instead of reverse-engineering them from lossy evidence strings.
+3. DF now prefers those structured refs:
+   - src/fraud_detection/decision_fabric/worker.py::_context_refs() first consumes esponse["context_refs"],
+   - only if they are absent does it fall back to legacy heuristics.
+4. Why this is the correct production correction:
+   - the prior worker path could mis-map rrival_events to a low_anchor source and could never emit a real low_anchor event-bus ref when only a logical join key was present,
+   - the decision lane needs structured cross-component context truth, not brittle caller-side reconstruction.
+5. DL remote posture service is now being corrected at the actual runtime boundary rather than treated as an abstract upstream assumption:
+   - scripts/dev_substrate/pr3_rtdl_materialize.py now deploys p-pr3-dl alongside the other PR3 workloads,
+   - .github/workflows/dev_full_pr3_s2_burst.yml runtime verification now waits for p-pr3-dl rollout too,
+   - scripts/dev_substrate/pr3_runtime_warm_gate.py now probes the DL store and blocks injection if posture is missing or already fail-closed,
+   - scripts/dev_substrate/pr3_runtime_surface_snapshot.py now records DL health/metrics in the runtime snapshots.
+6. I also corrected the DL signal source itself for remote production posture:
+   - src/fraud_detection/degrade_ladder/worker.py no longer treats missing local un_operate status as the only admissible consumer-readiness source,
+   - when those local files are absent, it now falls back to the run-scoped remote component health surfaces (CSFB, IEG, OFP, DLA) and evaluates actual checkpoint/lag values against the signal freshness budget.
+7. This is a stronger production posture than the previous wiring because:
+   - PR3 runs on remote EKS runtime surfaces, not local un_operate artifacts,
+   - posture gating now reasons from real remote lag/checkpoint evidence rather than a local-only orchestration trace.
+8. Local validation completed cleanly:
+   - .venv\Scripts\python.exe -m pytest tests/services/context_store_flow_binding/test_phase5_query.py tests/services/decision_fabric/test_worker_runtime.py tests/services/degrade_ladder/test_phase7_worker_observability.py -> 16 passed
+   - .venv\Scripts\python.exe -m py_compile ... clean for the patched runtime/query/materialization files.
+9. Next live sequence is now justified:
+   - commit/push this milestone,
+   - rebuild the shared runtime image,
+   - rerun strict PR3-S2 on the corrected runtime with DL materially present,
+   - then judge whether any residual red is true throughput/tail-latency pressure rather than decision-plane miswiring.

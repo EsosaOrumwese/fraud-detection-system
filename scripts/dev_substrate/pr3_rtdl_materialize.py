@@ -573,6 +573,22 @@ def main() -> int:
             "lane": "ARCHIVE",
         },
         {
+            "name": "fp-pr3-dl",
+            "service_account": decision_sa,
+            "command": ["python", "-m", "fraud_detection.degrade_ladder.worker", "--profile", args.profile_path],
+            "env": common_secret_env
+            + [
+                env_ref("DL_POSTURE_DSN", secret_name, "DL_POSTURE_DSN"),
+                env_ref("DL_OUTBOX_DSN", secret_name, "DL_OUTBOX_DSN"),
+                env_ref("DL_OPS_DSN", secret_name, "DL_OPS_DSN"),
+            ],
+            "cpu_request": "250m",
+            "cpu_limit": "1",
+            "mem_request": "512Mi",
+            "mem_limit": "2Gi",
+            "lane": "DECISION",
+        },
+        {
             "name": "fp-pr3-df",
             "service_account": decision_sa,
             "command": ["python", "-m", "fraud_detection.decision_fabric.worker", "--profile", args.profile_path],

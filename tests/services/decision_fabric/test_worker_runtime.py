@@ -199,3 +199,43 @@ def test_run_once_blocks_later_rows_from_same_partition_after_defer() -> None:
 
     assert processed == 2
     assert seen == ["101", "201"]
+
+
+def test_worker_context_refs_prefer_structured_csfb_context_refs() -> None:
+    candidate = _candidate()
+    worker = DecisionFabricWorker.__new__(DecisionFabricWorker)
+    worker.csfb_query = SimpleNamespace(
+        query=lambda _payload: {
+            "status": "READY",
+            "context_refs": {
+                "arrival_events": {
+                    "topic": "fp.bus.context.arrival_events.v1",
+                    "partition": 1,
+                    "offset": "25",
+                    "offset_kind": "kafka_offset",
+                },
+                "flow_anchor": {
+                    "topic": "fp.bus.context.flow_anchor.fraud.v1",
+                    "partition": 2,
+                    "offset": "77",
+                    "offset_kind": "kafka_offset",
+                },
+            },
+            "flow_binding": {
+                "source_event": {
+                    "event_type": "s3_flow_anchor_with_fraud_6B",
+                    "eb_ref": {
+                        "topic": "wrong-topic",
+                        "partition": 9,
+                        "offset": "999",
+                        "offset_kind": "kafka_offset",
+                    },
+                }
+            },
+        }
+    )
+
+    refs = worker._context_refs(candidate, {"payload": {"flow_id": "flow-1"}})
+
+    assert refs["arrival_events"]["topic"] == "fp.bus.context.arrival_events.v1"
+    assert refs["flow_anchor"]["topic"] == "fp.bus.context.flow_anchor.fraud.v1"

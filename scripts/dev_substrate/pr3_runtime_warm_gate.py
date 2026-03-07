@@ -85,6 +85,29 @@ print(json.dumps({
 }))
 """
 
+DL_WARM_SCRIPT = r"""
+import json
+from pathlib import Path
+
+from fraud_detection.degrade_ladder.worker import load_worker_config
+from fraud_detection.degrade_ladder.store import build_store
+
+profile_path = Path(__import__("os").environ["FP_PROFILE_PATH"])
+cfg = load_worker_config(profile_path)
+store = build_store(cfg.store_dsn, stream_id=cfg.stream_id)
+record = store.read_current(scope_key=cfg.scope_key)
+payload = {
+    "scope_key": cfg.scope_key,
+    "stream_id": cfg.stream_id,
+    "store_dsn": cfg.store_dsn,
+    "record_present": record is not None,
+}
+if record is not None:
+    payload["decision"] = record.decision.as_dict()
+    payload["updated_at_utc"] = record.updated_at_utc
+print(json.dumps(payload))
+"""
+
 CSFB_WARM_SCRIPT = r"""
 import json
 from pathlib import Path
@@ -152,6 +175,7 @@ def main() -> None:
         "fp-pr3-csfb",
         "fp-pr3-ieg",
         "fp-pr3-ofp",
+        "fp-pr3-dl",
         "fp-pr3-df",
         "fp-pr3-al",
         "fp-pr3-dla",
@@ -167,6 +191,7 @@ def main() -> None:
 
     df_probe, df_probe_error = ({}, "")
     csfb_probe, csfb_probe_error = ({}, "")
+    dl_probe, dl_probe_error = ({}, "")
     if not blockers:
         csfb_status = next(row for row in pre_status if row.get("app") == "fp-pr3-csfb")
         csfb_probe, csfb_probe_error = exec_json(
@@ -208,6 +233,21 @@ def main() -> None:
             if not list(df_probe.get("kafka_partitions") or []):
                 blockers.append(f"PR3.{args.state_id}.WARM.B09_DF_KAFKA_METADATA_UNREADABLE")
 
+        dl_status = next(row for row in pre_status if row.get("app") == "fp-pr3-dl")
+        dl_probe, dl_probe_error = exec_json(
+            args.namespace,
+            str(dl_status["pod_name"]),
+            DL_WARM_SCRIPT,
+            {"FP_PROFILE_PATH": args.profile_path},
+        )
+        if dl_probe_error:
+            blockers.append(f"PR3.{args.state_id}.WARM.B10_DL_PROBE_FAILED:{dl_probe_error}")
+        else:
+            if not bool(dl_probe.get("record_present")):
+                blockers.append(f"PR3.{args.state_id}.WARM.B11_DL_POSTURE_MISSING")
+            elif str(((dl_probe.get('decision') or {}).get('mode') or '')).strip().upper() == "FAIL_CLOSED":
+                blockers.append(f"PR3.{args.state_id}.WARM.B12_DL_FAIL_CLOSED")
+
     if not blockers and args.settle_seconds > 0:
         time.sleep(args.settle_seconds)
 
@@ -215,12 +255,12 @@ def main() -> None:
     if not blockers:
         for before, after in zip(pre_status, post_status, strict=False):
             if after.get("pod_missing"):
-                blockers.append(f"PR3.{args.state_id}.WARM.B10_POD_DISAPPEARED:{after['app']}")
+                blockers.append(f"PR3.{args.state_id}.WARM.B13_POD_DISAPPEARED:{after['app']}")
                 continue
             if after.get("phase") != "Running" or not bool(after.get("ready")):
-                blockers.append(f"PR3.{args.state_id}.WARM.B11_POD_NOT_STABLE:{after['app']}")
+                blockers.append(f"PR3.{args.state_id}.WARM.B14_POD_NOT_STABLE:{after['app']}")
             if int(after.get("restart_count", 0) or 0) > int(before.get("restart_count", 0) or 0):
-                blockers.append(f"PR3.{args.state_id}.WARM.B12_RESTART_DURING_SETTLE:{after['app']}")
+                blockers.append(f"PR3.{args.state_id}.WARM.B15_RESTART_DURING_SETTLE:{after['app']}")
 
     payload = {
         "phase": "PR3",
@@ -236,6 +276,8 @@ def main() -> None:
         "pre_status": pre_status,
         "csfb_probe": csfb_probe,
         "csfb_probe_error": csfb_probe_error,
+        "dl_probe": dl_probe,
+        "dl_probe_error": dl_probe_error,
         "df_probe": df_probe,
         "df_probe_error": df_probe_error,
         "post_status": post_status,

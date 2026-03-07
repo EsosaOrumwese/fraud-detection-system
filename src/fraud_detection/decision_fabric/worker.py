@@ -519,16 +519,26 @@ class DecisionFabricWorker:
         )
         if str(response.get("status") or "") != "READY":
             return {}
+        explicit_refs = response.get("context_refs")
+        if isinstance(explicit_refs, Mapping):
+            refs = {
+                str(role): dict(ref)
+                for role, ref in explicit_refs.items()
+                if str(role).strip() and isinstance(ref, Mapping)
+            }
+            if refs:
+                return refs
         refs: dict[str, dict[str, Any]] = {}
         flow_binding = response.get("flow_binding") if isinstance(response.get("flow_binding"), Mapping) else {}
         source_event = flow_binding.get("source_event") if isinstance(flow_binding.get("source_event"), Mapping) else {}
         eb_ref = source_event.get("eb_ref") if isinstance(source_event.get("eb_ref"), Mapping) else {}
+        event_type = str(source_event.get("event_type") or "").strip().lower()
         if eb_ref:
-            refs["arrival_events"] = dict(eb_ref)
-            refs["arrival_entities"] = dict(eb_ref)
-        join_key = response.get("join_frame_key") if isinstance(response.get("join_frame_key"), Mapping) else {}
-        if join_key:
-            refs["flow_anchor"] = dict(join_key)
+            if "flow_anchor" in event_type:
+                refs["flow_anchor"] = dict(eb_ref)
+            elif "arrival" in event_type:
+                refs["arrival_events"] = dict(eb_ref)
+                refs["arrival_entities"] = dict(eb_ref)
         return refs
 
     def _registry_scope(self, candidate: DecisionTriggerCandidate, envelope: Mapping[str, Any]) -> RegistryScopeKey:

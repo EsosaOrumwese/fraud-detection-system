@@ -114,6 +114,9 @@ def test_phase5_resolve_flow_binding_ready_returns_evidence(tmp_path: Path) -> N
     assert response["flow_id"] == "flow-1"
     assert response["join_frame_key"] == join_key.as_dict()
     assert response["flow_binding"]["flow_id"] == "flow-1"
+    assert response["context_refs"]["flow_anchor"]["topic"] == "fp.bus.context.flow_anchor.baseline.v1"
+    assert response["context_refs"]["arrival_events"]["topic"] == "fp.bus.context.arrival_events.v1"
+    assert response["context_refs"]["arrival_entities"]["topic"] == "fp.bus.context.arrival_events.v1"
     kinds = {item["kind"] for item in response.get("evidence_refs", [])}
     assert "flow_binding_source_event" in kinds
     assert "join_frame_source_event" in kinds

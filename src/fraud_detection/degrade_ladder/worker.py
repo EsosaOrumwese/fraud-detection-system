@@ -366,12 +366,7 @@ class DegradeLadderWorker:
                     }
                 )
         if not readiness:
-            return SignalState(
-                status="ERROR",
-                value={"status_paths": [str(path) for path in candidate_paths]},
-                detail="ORCHESTRATOR_STATUS_MISSING",
-                source="dl.worker:run_operate",
-            )
+            return self._signal_remote_consumer_lag(status_paths=candidate_paths)
         not_ready = [row["process_id"] for row in readiness if not row["ready"]]
         if not_ready:
             return SignalState(
@@ -385,6 +380,72 @@ class DegradeLadderWorker:
             value={"ready_processes": len(readiness)},
             detail=None,
             source="dl.worker:run_operate",
+        )
+
+    def _signal_remote_consumer_lag(self, *, status_paths: list[Path]) -> SignalState:
+        surfaces = [
+            ("context_store_flow_binding", self._run_root() / "context_store_flow_binding" / "health" / "last_health.json"),
+            ("identity_entity_graph", self._run_root() / "identity_entity_graph" / "health" / "last_health.json"),
+            ("online_feature_plane", self._run_root() / "online_feature_plane" / "health" / "last_health.json"),
+            ("decision_log_audit", self._run_root() / "decision_log_audit" / "health" / "last_health.json"),
+        ]
+        lag_rows: list[dict[str, Any]] = []
+        missing: list[str] = []
+        for component, path in surfaces:
+            if not path.exists():
+                missing.append(component)
+                continue
+            try:
+                payload = json.loads(path.read_text(encoding="utf-8"))
+            except Exception as exc:
+                return SignalState(
+                    status="ERROR",
+                    value={"component": component, "path": str(path), "error": str(exc)[:256]},
+                    detail="REMOTE_CONSUMER_SURFACE_INVALID",
+                    source=f"dl.worker:{component}",
+                )
+            lag = _coerce_float(
+                payload.get("lag_seconds"),
+                payload.get("checkpoint_age_seconds"),
+            )
+            if lag is None:
+                missing.append(component)
+                continue
+            lag_rows.append({"component": component, "lag_seconds": lag, "path": str(path)})
+        if not lag_rows:
+            return SignalState(
+                status="ERROR",
+                value={
+                    "status_paths": [str(path) for path in status_paths],
+                    "missing_components": missing,
+                },
+                detail="ORCHESTRATOR_STATUS_MISSING",
+                source="dl.worker:run_operate",
+            )
+        max_lag = max(float(row["lag_seconds"]) for row in lag_rows)
+        required_max_age = float(self.profile.signal_policy.required_max_age_seconds)
+        if max_lag > required_max_age:
+            return SignalState(
+                status="ERROR",
+                value={
+                    "max_lag_seconds": max_lag,
+                    "required_max_age_seconds": required_max_age,
+                    "components": lag_rows,
+                    "missing_components": missing,
+                },
+                detail="REMOTE_CONSUMER_LAG_EXCEEDED",
+                source="dl.worker:remote_health",
+            )
+        return SignalState(
+            status="OK",
+            value={
+                "max_lag_seconds": max_lag,
+                "required_max_age_seconds": required_max_age,
+                "components": lag_rows,
+                "missing_components": missing,
+            },
+            detail=None,
+            source="dl.worker:remote_health",
         )
 
     def _signal_control_publish_health(self) -> SignalState:
@@ -638,6 +699,15 @@ def _resolve_env_token(value: Any) -> Any:
 def _none_if_blank(value: Any) -> str | None:
     text = str(value or "").strip()
     return text or None
+
+
+def _coerce_float(*values: Any) -> float | None:
+    for value in values:
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            continue
+    return None
 
 
 def _utc_now() -> str:

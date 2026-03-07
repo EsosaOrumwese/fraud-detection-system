@@ -282,7 +282,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for deployment in fp-pr3-csfb fp-pr3-ieg fp-pr3-ofp fp-pr3-df fp-pr3-al fp-pr3-dla fp-pr3-archive-writer; do
+          for deployment in fp-pr3-csfb fp-pr3-ieg fp-pr3-ofp fp-pr3-dl fp-pr3-df fp-pr3-al fp-pr3-dla fp-pr3-archive-writer; do
             kubectl rollout status "deployment/${deployment}" -n "${{ inputs.eks_namespace }}" --timeout=240s
           done
 

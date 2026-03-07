@@ -101,6 +101,15 @@ COMPONENTS: dict[str, dict[str, Any]] = {
             "snapshot_failures": {"amber": 1, "red": 5},
         },
     },
+    "dl": {
+        "app": "fp-pr3-dl",
+        "metrics_path": "runs/fraud-platform/{platform_run_id}/degrade_ladder/metrics/last_metrics.json",
+        "health_path": "runs/fraud-platform/{platform_run_id}/degrade_ladder/health/last_health.json",
+        "threshold_defaults": {
+            "decision_mode": "NORMAL",
+            "required_signal_states_ok": True,
+        },
+    },
     "df": {
         "app": "fp-pr3-df",
         "metrics_path": "runs/fraud-platform/{platform_run_id}/decision_fabric/metrics/last_metrics.json",
@@ -225,6 +234,16 @@ def pick_summary(component: str, metrics_payload: dict[str, Any], health_payload
                 "publish_quarantine_total": to_float(metrics.get("publish_quarantine_total")),
                 "latency_p95_ms": to_float(lat.get("p95")),
                 "latency_p99_ms": to_float(lat.get("p99")),
+            }
+        )
+    elif component == "dl":
+        required_signal_states = dict(metrics_payload.get("required_signal_states", {}) or {})
+        summary.update(
+            {
+                "decision_mode": metrics_payload.get("decision_mode"),
+                "posture_seq": to_float(metrics_payload.get("posture_seq")),
+                "required_signal_states": required_signal_states,
+                "bad_required_signals": health_payload.get("bad_required_signals"),
             }
         )
     elif component == "al":

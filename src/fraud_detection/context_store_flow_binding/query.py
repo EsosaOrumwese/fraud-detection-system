@@ -105,6 +105,7 @@ class ContextStoreFlowBindingQueryService:
             topic=str(join_frame.source_event.get("eb_ref", {}).get("topic") or ""),
             partition=_as_int(join_frame.source_event.get("eb_ref", {}).get("partition"), default=0),
         )
+        context_refs = _context_role_refs(binding_source=binding.source_event, join_source=join_frame.source_event)
         return self._response(
             request_id=request.request_id,
             status="READY",
@@ -114,6 +115,7 @@ class ContextStoreFlowBindingQueryService:
             flow_id=request.flow_id,
             join_frame_key=binding.join_frame_key.as_dict(),
             flow_binding=binding.as_dict(),
+            context_refs=context_refs,
             evidence_refs=evidence_refs,
         )
 
@@ -154,6 +156,10 @@ class ContextStoreFlowBindingQueryService:
         )
         if flow_binding is not None:
             evidence_refs = _binding_evidence(binding=flow_binding) + evidence_refs
+        context_refs = _context_role_refs(
+            binding_source=None if flow_binding is None else flow_binding.source_event,
+            join_source=join_frame.source_event,
+        )
 
         return self._response(
             request_id=request.request_id,
@@ -164,6 +170,7 @@ class ContextStoreFlowBindingQueryService:
             flow_id=flow_id,
             join_frame_key=request.join_frame_key.as_dict(),
             flow_binding=flow_binding.as_dict() if flow_binding is not None else None,
+            context_refs=context_refs,
             evidence_refs=evidence_refs,
         )
 
@@ -196,6 +203,7 @@ class ContextStoreFlowBindingQueryService:
         flow_id: str | None = None,
         join_frame_key: Mapping[str, Any] | None = None,
         flow_binding: Mapping[str, Any] | None = None,
+        context_refs: Mapping[str, Mapping[str, Any]] | None = None,
         evidence_refs: tuple[dict[str, str], ...] = (),
     ) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -211,6 +219,12 @@ class ContextStoreFlowBindingQueryService:
             payload["join_frame_key"] = dict(join_frame_key)
         if flow_binding is not None:
             payload["flow_binding"] = dict(flow_binding)
+        if context_refs:
+            payload["context_refs"] = {
+                str(role): dict(ref)
+                for role, ref in sorted(context_refs.items())
+                if isinstance(ref, Mapping)
+            }
         if evidence_refs:
             payload["evidence_refs"] = [dict(item) for item in evidence_refs]
         response = QueryResponse.from_mapping(payload)
@@ -268,6 +282,36 @@ def _checkpoint_evidence(*, store: ContextStoreFlowBindingStore, topic: str, par
         f"offset_kind={checkpoint.offset_kind};watermark_ts_utc={checkpoint.watermark_ts_utc}"
     )
     return ({"kind": "join_checkpoint", "ref": ref},)
+
+
+def _context_role_refs(
+    *,
+    binding_source: Mapping[str, Any] | None,
+    join_source: Mapping[str, Any] | None,
+) -> dict[str, dict[str, Any]]:
+    refs: dict[str, dict[str, Any]] = {}
+    for source in (binding_source, join_source):
+        if not isinstance(source, Mapping):
+            continue
+        event_type = str(source.get("event_type") or "").strip().lower()
+        eb_ref = source.get("eb_ref")
+        if not isinstance(eb_ref, Mapping):
+            continue
+        normalized = {
+            "topic": str(eb_ref.get("topic") or "").strip(),
+            "partition": _as_int(eb_ref.get("partition"), default=0),
+            "offset": str(eb_ref.get("offset") or "").strip(),
+            "offset_kind": str(eb_ref.get("offset_kind") or "").strip(),
+        }
+        if not normalized["topic"] or not normalized["offset"] or not normalized["offset_kind"]:
+            continue
+        if "flow_anchor" in event_type:
+            refs["flow_anchor"] = dict(normalized)
+            continue
+        if "arrival" in event_type:
+            refs.setdefault("arrival_events", dict(normalized))
+            refs.setdefault("arrival_entities", dict(normalized))
+    return refs
 
 
 def _as_int(value: Any, *, default: int) -> int:

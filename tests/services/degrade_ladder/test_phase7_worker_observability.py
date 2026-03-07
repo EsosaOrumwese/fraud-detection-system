@@ -19,6 +19,7 @@ def _build_worker(
     monkeypatch: pytest.MonkeyPatch,
     run_id: str,
     include_component_health: bool,
+    include_operate_status: bool = True,
 ) -> DegradeLadderWorker:
     runs_root = tmp_path / "runs" / "fraud-platform"
     monkeypatch.setattr("fraud_detection.degrade_ladder.worker.RUNS_ROOT", runs_root)
@@ -27,17 +28,26 @@ def _build_worker(
     if include_component_health:
         _write_json(
             run_root / "online_feature_plane" / "health" / "last_health.json",
-            {"health_state": "GREEN"},
+            {"health_state": "GREEN", "lag_seconds": 0.25, "checkpoint_age_seconds": 0.25},
         )
         _write_json(
             run_root / "identity_entity_graph" / "health" / "last_health.json",
-            {"health_state": "GREEN"},
+            {"health_state": "GREEN", "checkpoint_age_seconds": 0.5},
+        )
+        _write_json(
+            run_root / "context_store_flow_binding" / "health" / "last_health.json",
+            {"health_state": "GREEN", "checkpoint_age_seconds": 0.75},
+        )
+        _write_json(
+            run_root / "decision_log_audit" / "health" / "last_health.json",
+            {"health_state": "GREEN", "checkpoint_age_seconds": 0.1},
         )
 
-    _write_json(
-        runs_root / "operate" / "local_parity_rtdl_core_v0" / "status" / "last_status.json",
-        {"processes": [{"process_id": "ofp_projector", "readiness": {"ready": True}}]},
-    )
+    if include_operate_status:
+        _write_json(
+            runs_root / "operate" / "local_parity_rtdl_core_v0" / "status" / "last_status.json",
+            {"processes": [{"process_id": "ofp_projector", "readiness": {"ready": True}}]},
+        )
     registry_snapshot = tmp_path / "registry_snapshot.yaml"
     registry_snapshot.write_text("snapshot_id: snap-1\n", encoding="utf-8")
 
@@ -107,3 +117,22 @@ def test_worker_marks_health_red_when_required_signals_missing(tmp_path: Path, m
     assert "REQUIRED_SIGNAL_NOT_OK" in health["reason_codes"]
     assert "ofp_health" in health["bad_required_signals"]
     assert "ieg_health" in health["bad_required_signals"]
+
+
+def test_worker_uses_remote_component_lag_when_operate_status_missing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_id = "platform_20260209T220200Z"
+    worker = _build_worker(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        run_id=run_id,
+        include_component_health=True,
+        include_operate_status=False,
+    )
+
+    payload = worker.run_once()
+
+    assert payload["mode"] == "NORMAL"
+    assert payload["run_observability"]["health_state"] == "GREEN"
