@@ -46,16 +46,6 @@ on:
         required: true
         default: "fraud-platform-dev-full-evidence"
         type: string
-      ig_base_url:
-        description: "IG base URL"
-        required: true
-        default: "https://ehwznd2uw7.execute-api.eu-west-2.amazonaws.com/v1"
-        type: string
-      ig_ingest_path:
-        description: "IG ingest path"
-        required: true
-        default: "/ingest/push"
-        type: string
       ig_api_key_ssm_path:
         description: "SSM path for the IG API key"
         required: true
@@ -86,15 +76,6 @@ on:
         required: true
         default: "230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-full@sha256:49eb6cb0c5e33061fae4d1aaceeac2e44600adb5c4250436be9ac8395ed29cb2"
         type: string
-      runtime_path_requested:
-        description: "AUTO, MSF_MANAGED, or EKS_FLINK_OPERATOR"
-        required: true
-        default: "AUTO"
-        type: choice
-        options:
-          - AUTO
-          - MSF_MANAGED
-          - EKS_FLINK_OPERATOR
       lane_count:
         description: "Number of remote pressure lanes"
         required: true

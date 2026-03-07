@@ -6357,3 +6357,24 @@ eason=http_502,
    - push the corrected execution path,
    - dispatch strict `PR3-S1`,
    - remediate only the remaining first-admit bottlenecks surfaced by that fresh-identity run.
+
+## Entry: 2026-03-07 04:11:00 +00:00 - GitHub Actions dispatch surface exceeded the control-plane input limit and must be reduced without weakening the runtime contract
+1. The first remote attempt to rerun the corrected `PR3-S1` lane failed before execution with GitHub API `HTTP 422`.
+2. Exact blocker:
+   - `you may only define up to 25 inputs for a workflow_dispatch event`
+3. This is a GitHub control-plane constraint, not an AWS/runtime/platform throughput problem.
+4. The workflow currently exposes `26` dispatch inputs. The fresh-identity guard added one more boolean and pushed it over the platform limit.
+5. Production interpretation:
+   - the right fix is not to remove the identity guard;
+   - the right fix is to shrink the operator-facing surface to only the knobs that are materially useful for this lane.
+6. Inputs that are dead or overly exposed for this workflow:
+   - `runtime_path_requested` is no longer meaningful because the lane is pinned to canonical remote WSP replay;
+   - `ig_base_url` and `ig_ingest_path` are not used by the workflow jobs and therefore do not belong on the dispatch surface.
+7. Chosen remediation:
+   - remove those dead inputs from `workflow_dispatch`,
+   - keep the production runtime values pinned inside the workflow/script path,
+   - preserve the fresh-identity reuse guard and all execution semantics.
+8. Immediate next sequence:
+   - trim the dispatch surface to <=25 inputs,
+   - push the correction,
+   - rerun fresh-identity materialization and the strict steady lane on the same identity pair.
