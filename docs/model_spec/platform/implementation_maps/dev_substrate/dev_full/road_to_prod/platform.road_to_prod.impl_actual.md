@@ -6466,3 +6466,51 @@ eason=http_502,
    - add workflow step for in-VPC identity probing,
    - add dispatcher flag to skip the local probe when that preflight has passed,
    - rerun strict `PR3-S1` on the same fresh identity pair.
+
+## Entry: 2026-03-07 04:52:49 +00:00 - PR3-S1 run-control authority is internally inconsistent, so I am re-establishing S1 on a fresh calibrated rerun instead of trusting the stale root receipt
+1. Before touching `PR3-S2`, I reconciled the local PR3 control root and found an authority defect in the evidence layer itself:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr3_20260306T021900Z/pr3_s1_execution_receipt.json` still says `PR3_S1_READY`,
+   - but the same root's current `g3a_s1_wsp_runtime_summary.json` was later overwritten by a failed strict attempt (`generated_at_utc=2026-03-07T00:17:49.659708Z`, `open_blockers=31`),
+   - and a still newer red attempt exists outside the root in downloaded workflow artifacts from run `22791751009`.
+2. This is not a cosmetic bookkeeping issue. It means the canonical run-control root is currently capable of presenting:
+   - a green receipt,
+   - a red active summary,
+   - and no single unambiguous statement of which attempt is the authoritative truth.
+3. Production interpretation:
+   - this kind of control-root ambiguity is itself a certification defect because later phases would be built on uncertain evidence lineage,
+   - I will not advance from `PR3-S1` to `S2` based only on the stale pass receipt.
+4. I then looked for the strongest already-proven `S1` calibration in attempt history rather than guessing another load shape. The best clean attempt is:
+   - `attempt_history/g3a_s1_wsp_runtime_summary.20260306T145845Z.json`,
+   - `open_blockers=0`,
+   - `observed_admitted_eps=3003.4222`,
+   - `5xx_total=0`,
+   - `latency_p95_ms=20.9828`,
+   - `latency_p99_ms=26.7389`,
+   - measurement window `180 s` with `540616` admitted events,
+   - replay profile `lane_count=138`, `target_request_rate_eps=3005.0`, `stream_speedup=95.0`.
+5. Why I am reusing that calibration:
+   - it is not a toy probe; it is the exact WSP->IG canonical remote replay path,
+   - it already proved the hot-path can clear the `3000 eps` acceptance target when the generator is slightly overdriven to compensate for open-loop underdelivery,
+   - it gives me a production-minded way to re-establish `S1` on the current live boundary without another round of blind trial-and-error.
+6. Why I am not treating the older green receipt as sufficient:
+   - the root was dirtied by later failed reruns,
+   - later notes and summary tables in `platform.PR3.road_to_prod.md` explicitly reopened `S1`,
+   - therefore the only defensible way to close `S1` now is to run a fresh authoritative calibrated attempt and then republish the readable findings against that result.
+7. Chosen execution decision:
+   - dispatch a fresh strict `PR3-S1` rerun on the canonical remote WSP path using the proven settled configuration:
+     - `lane_count=138`,
+     - `target_steady_eps=3000`,
+     - generator setpoint `3005` via workflow `target_steady_eps=3000` plus the previously proven replay calibration where the actual lane model clears `3000`,
+     - `duration_seconds=180`,
+     - `min_sample_events=540000`,
+     - `stream_speedup=95.0`,
+     - fresh blank runtime identities so the workflow mints new `platform_run_id` and `scenario_run_id`.
+8. Live execution launched:
+   - workflow `dev-full-pr3-s1-managed`,
+   - run id `22792386082`,
+   - branch `cert-platform`,
+   - role `arn:aws:iam::230372904534:role/GitHubAction-AssumeRoleWithAction`.
+9. Immediate next sequence:
+   - wait for `22792386082`,
+   - if green, repair the readable `PR3-S1` findings and active-state text so they point to the current pass rather than the stale/red mixed root,
+   - then expand and execute `PR3-S2` sequentially from that clean boundary.

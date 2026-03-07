@@ -86,6 +86,11 @@ on:
         required: true
         default: "3000"
         type: string
+      target_request_rate_eps:
+        description: "Optional generator setpoint EPS; leave blank to use target_steady_eps"
+        required: false
+        default: ""
+        type: string
       duration_seconds:
         description: "Steady window duration in seconds"
         required: true
@@ -100,6 +105,11 @@ on:
         description: "Oracle replay speedup multiplier"
         required: true
         default: "50.0"
+        type: string
+      ig_push_concurrency:
+        description: "Per-lane concurrent IG pushes"
+        required: true
+        default: "4"
         type: string
       retry_max_attempts:
         description: "Retry attempts per event"
@@ -657,16 +667,22 @@ jobs:
           IG_PUSH_CONCURRENCY: "4"
           HTTP_POOL_MAXSIZE: "512"
           TARGET_STEADY_EPS: ${{ inputs.target_steady_eps }}
+          TARGET_REQUEST_RATE_EPS: ${{ inputs.target_request_rate_eps }}
           DURATION_SECONDS: ${{ inputs.duration_seconds }}
           EARLY_CUTOFF_SECONDS: ${{ inputs.early_cutoff_seconds }}
           EARLY_CUTOFF_FLOOR_RATIO: ${{ inputs.early_cutoff_floor_ratio }}
           STREAM_SPEEDUP: ${{ inputs.stream_speedup }}
+          IG_PUSH_CONCURRENCY: ${{ inputs.ig_push_concurrency }}
           ALLOW_RUNTIME_ID_REUSE: ${{ inputs.allow_runtime_identity_reuse }}
         run: |
           set -euo pipefail
           EXTRA_ARGS=()
+          TARGET_REQUEST_RATE_ARGS=()
           if [[ "${ALLOW_RUNTIME_ID_REUSE}" == "true" ]]; then
             EXTRA_ARGS+=(--allow-runtime-identity-reuse)
+          fi
+          if [[ -n "${TARGET_REQUEST_RATE_EPS}" ]]; then
+            TARGET_REQUEST_RATE_ARGS+=(--target-request-rate-eps "${TARGET_REQUEST_RATE_EPS}")
           fi
           python scripts/dev_substrate/pr3_s1_wsp_replay_dispatch.py \
             --pr3-execution-id "${PR3_EXECUTION_ID}" \
@@ -690,6 +706,7 @@ jobs:
             --max-latency-p95-ms 350 \
             --max-latency-p99-ms 700 \
             --skip-runtime-identity-probe \
+            "${TARGET_REQUEST_RATE_ARGS[@]}" \
             "${EXTRA_ARGS[@]}"
 
       - name: Build PR3-S1 steady evidence rollup
