@@ -5972,3 +5972,31 @@ Reasoning:
    - repin `pr3_s1_wsp_replay_dispatch.py` defaults to the private subnet pair and `assign_public_ip=DISABLED`;
    - keep the lean task override from the previous correction boundary;
    - rerun strict `PR3-S1` immediately after the network default correction.
+
+
+## Entry: 2026-03-07 01:36:00 +00:00 - PR3-S1 is now source-limited by the replay harness' single-flight push posture, not by the ingress platform
+1. After restoring the private replay network path, workflow `22788814078` produced fresh, clean ALB evidence:
+   - admitted throughput `1475.1625 eps`
+   - request throughput `1475.1625 eps`
+   - `error_rate=0.0`
+   - `p95=62.21 ms`
+   - `p99=90.65 ms`
+2. Only two blockers remain:
+   - `B12_EARLY_THROUGHPUT_SHORTFALL: observed=1476.467 floor=2100.000`
+   - `B19_FINAL_THROUGHPUT_SHORTFALL: observed=1475.162 target=3000.000`
+3. Production interpretation:
+   - ingress is healthy under the measured pressure; latency and error posture are comfortably green;
+   - the miss is purely on admitted volume, which means the source harness is under-driving the platform.
+4. The current harness configuration explains the number almost exactly:
+   - `24` lanes at `IG_PUSH_CONCURRENCY=1` produced ~`1475 eps`, i.e. ~`61.5 eps/lane`;
+   - this is consistent with a single in-flight request per lane and the observed request/response timing envelope rather than with a saturated ingress edge.
+5. Therefore the current `ig_push_concurrency=1` pin is analytically a toy/posture-limiting value for a 3000-eps production proof. It serializes each lane too aggressively and prevents the harness from actually exercising the available platform headroom.
+6. Chosen remediation:
+   - repin canonical `PR3-S1` replay to multi-flight push concurrency (`IG_PUSH_CONCURRENCY=4`) while retaining the lean task footprint and private-VPC posture;
+   - widen the HTTP connection pool accordingly so the concurrency increase is not neutralized by the client transport.
+7. Rejected alternative:
+   - interpreting the current `1475 eps` as an ingress scaling ceiling and resizing the platform again. The metrics do not support that story because latency and errors remain far below threshold while admitted volume tracks the single-flight harness posture.
+8. Next action:
+   - patch the canonical launch lane to pass `--ig-push-concurrency 4` and a larger HTTP pool,
+   - rerun strict `PR3-S1`,
+   - then decide if a further source multiplier or lane-count repin is actually needed.

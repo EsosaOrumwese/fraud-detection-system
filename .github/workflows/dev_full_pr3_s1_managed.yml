@@ -578,6 +578,8 @@ jobs:
           TASK_MEMORY: "1024"
           SUBNET_IDS: "subnet-0a7a35898d0ca31a8,subnet-0e9647425f02e2f27"
           ASSIGN_PUBLIC_IP: "DISABLED"
+          IG_PUSH_CONCURRENCY: "4"
+          HTTP_POOL_MAXSIZE: "512"
           TARGET_STEADY_EPS: ${{ inputs.target_steady_eps }}
           DURATION_SECONDS: ${{ inputs.duration_seconds }}
           EARLY_CUTOFF_SECONDS: ${{ inputs.early_cutoff_seconds }}
@@ -597,6 +599,8 @@ jobs:
             --task-memory "${TASK_MEMORY}" \
             --subnet-ids "${SUBNET_IDS}" \
             --assign-public-ip "${ASSIGN_PUBLIC_IP}" \
+            --ig-push-concurrency "${IG_PUSH_CONCURRENCY}" \
+            --http-pool-maxsize "${HTTP_POOL_MAXSIZE}" \
             --expected-steady-eps "${TARGET_STEADY_EPS}" \
             --duration-seconds "${DURATION_SECONDS}" \
             --early-cutoff-seconds "${EARLY_CUTOFF_SECONDS}" \
