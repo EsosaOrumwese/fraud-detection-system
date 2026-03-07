@@ -34,6 +34,18 @@ def get_json(cmd: list[str], *, timeout: int = 180) -> dict[str, Any]:
     return json.loads(text) if text else {}
 
 
+def parse_timestamp(value: str) -> datetime:
+    text = str(value or "").strip()
+    if not text:
+        return datetime.fromtimestamp(0, tz=timezone.utc)
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    try:
+        return datetime.fromisoformat(text)
+    except ValueError:
+        return datetime.fromtimestamp(0, tz=timezone.utc)
+
+
 def exec_json(namespace: str, pod: str, script: str, env_map: dict[str, str]) -> tuple[dict[str, Any], str]:
     env_bits = [f"{key}={value}" for key, value in sorted(env_map.items())]
     proc = run(
@@ -137,20 +149,106 @@ print(json.dumps({
 """
 
 
+def summarize_pod(pod: dict[str, Any]) -> dict[str, Any]:
+    metadata = dict(pod.get("metadata", {}) or {})
+    status = dict(pod.get("status", {}) or {})
+    statuses = list(status.get("containerStatuses", []) or [])
+    return {
+        "pod_name": str(metadata.get("name", "")).strip(),
+        "phase": str(status.get("phase", "")).strip(),
+        "reason": str(status.get("reason", "")).strip(),
+        "ready": all(bool(row.get("ready")) for row in statuses) if statuses else False,
+        "restart_count": int(sum(int(row.get("restartCount", 0) or 0) for row in statuses)),
+        "node_name": str(pod.get("spec", {}).get("nodeName", "")).strip(),
+        "start_time": str(status.get("startTime", "")).strip(),
+        "creation_timestamp": str(metadata.get("creationTimestamp", "")).strip(),
+        "deletion_timestamp": str(metadata.get("deletionTimestamp", "")).strip(),
+    }
+
+
+def select_active_pod(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    def sort_key(row: dict[str, Any]) -> tuple[int, int, int, datetime, datetime]:
+        return (
+            1 if not row.get("deletion_timestamp") else 0,
+            1 if row.get("phase") == "Running" else 0,
+            1 if bool(row.get("ready")) else 0,
+            parse_timestamp(str(row.get("start_time") or "")),
+            parse_timestamp(str(row.get("creation_timestamp") or "")),
+        )
+
+    return sorted(rows, key=sort_key, reverse=True)[0]
+
+
+def node_health(node_name: str) -> dict[str, Any]:
+    if not node_name:
+        return {"node_name": node_name, "node_missing": True}
+    node = get_json(["kubectl", "get", "node", node_name, "-o", "json"], timeout=120)
+    conditions = list(node.get("status", {}).get("conditions", []) or [])
+    cond_map = {
+        str(item.get("type", "")).strip(): {
+            "status": str(item.get("status", "")).strip(),
+            "reason": str(item.get("reason", "")).strip(),
+            "message": str(item.get("message", "")).strip(),
+        }
+        for item in conditions
+    }
+    return {
+        "node_name": node_name,
+        "ready": str(cond_map.get("Ready", {}).get("status", "")).strip() == "True",
+        "memory_pressure": str(cond_map.get("MemoryPressure", {}).get("status", "")).strip() == "True",
+        "disk_pressure": str(cond_map.get("DiskPressure", {}).get("status", "")).strip() == "True",
+        "pid_pressure": str(cond_map.get("PIDPressure", {}).get("status", "")).strip() == "True",
+        "taints": list(node.get("spec", {}).get("taints", []) or []),
+    }
+
+
+def dl_bootstrap_pending(dl_probe: dict[str, Any], csfb_probe: dict[str, Any]) -> bool:
+    decision = dict(dl_probe.get("decision", {}) or {})
+    if str(decision.get("mode") or "").strip().upper() != "FAIL_CLOSED":
+        return False
+    reason = str(decision.get("reason") or "").strip()
+    marker = "required_signal_gap:"
+    if marker not in reason:
+        return False
+    gap_suffix = reason.split(marker, 1)[1].split(";", 1)[0].strip()
+    gap_items = {item.strip() for item in gap_suffix.split(",") if item.strip()}
+    if not gap_items:
+        return False
+    allowed_bootstrap_gaps = {"eb_consumer_lag", "ieg_health", "ofp_health"}
+    if not gap_items.issubset(allowed_bootstrap_gaps):
+        return False
+    metrics = dict(csfb_probe.get("metrics", {}) or {})
+    health_reasons = {str(item).strip() for item in (csfb_probe.get("health_reasons") or []) if str(item).strip()}
+    no_context_activity = all(int(metrics.get(key, 0) or 0) == 0 for key in ("join_hits", "join_misses", "binding_conflicts"))
+    missing_watermark = {"WATERMARK_MISSING", "CHECKPOINT_MISSING"}.issubset(health_reasons)
+    return no_context_activity and missing_watermark
+
+
 def pod_status(namespace: str, app: str) -> dict[str, Any]:
     pods = get_json(["kubectl", "get", "pods", "-n", namespace, "-l", f"app={app}", "-o", "json"], timeout=120)
     items = list(pods.get("items", []) or [])
     if not items:
         return {"app": app, "pod_missing": True}
-    pod = items[0]
-    statuses = list(pod.get("status", {}).get("containerStatuses", []) or [])
-    return {
+    candidates = [summarize_pod(item) for item in items]
+    selected = select_active_pod(candidates)
+    anomalies = [
+        row
+        for row in candidates
+        if row.get("pod_name") != selected.get("pod_name")
+        and (
+            row.get("phase") in {"Failed", "Succeeded"}
+            or row.get("reason") in {"Evicted"}
+            or bool(row.get("deletion_timestamp"))
+        )
+    ]
+    payload = {
         "app": app,
-        "pod_name": str(pod.get("metadata", {}).get("name", "")).strip(),
-        "phase": str(pod.get("status", {}).get("phase", "")).strip(),
-        "ready": all(bool(row.get("ready")) for row in statuses) if statuses else False,
-        "restart_count": int(sum(int(row.get("restartCount", 0) or 0) for row in statuses)),
+        **selected,
+        "candidate_pod_count": len(candidates),
+        "anomaly_count": len(anomalies),
+        "anomalies": anomalies[:10],
     }
+    return payload
 
 
 def main() -> None:
@@ -192,6 +290,8 @@ def main() -> None:
     df_probe, df_probe_error = ({}, "")
     csfb_probe, csfb_probe_error = ({}, "")
     dl_probe, dl_probe_error = ({}, "")
+    node_health_rows: list[dict[str, Any]] = []
+    dl_bootstrap_pending_flag = False
     if not blockers:
         csfb_status = next(row for row in pre_status if row.get("app") == "fp-pr3-csfb")
         csfb_probe, csfb_probe_error = exec_json(
@@ -245,8 +345,29 @@ def main() -> None:
         else:
             if not bool(dl_probe.get("record_present")):
                 blockers.append(f"PR3.{args.state_id}.WARM.B11_DL_POSTURE_MISSING")
+            elif dl_bootstrap_pending(dl_probe, csfb_probe):
+                dl_bootstrap_pending_flag = True
             elif str(((dl_probe.get('decision') or {}).get('mode') or '')).strip().upper() == "FAIL_CLOSED":
                 blockers.append(f"PR3.{args.state_id}.WARM.B12_DL_FAIL_CLOSED")
+
+        node_names = sorted(
+            {
+                str(row.get("node_name") or "").strip()
+                for row in pre_status
+                for row in [row] + list(row.get("anomalies") or [])
+                if str(row.get("node_name") or "").strip()
+            }
+        )
+        node_health_rows = [node_health(node_name) for node_name in node_names]
+        for node_row in node_health_rows:
+            node_name = str(node_row.get("node_name") or "").strip()
+            if bool(node_row.get("node_missing")):
+                blockers.append(f"PR3.{args.state_id}.WARM.B13_NODE_MISSING:{node_name}")
+                continue
+            if not bool(node_row.get("ready")):
+                blockers.append(f"PR3.{args.state_id}.WARM.B14_NODE_NOT_READY:{node_name}")
+            if bool(node_row.get("disk_pressure")):
+                blockers.append(f"PR3.{args.state_id}.WARM.B15_NODE_DISK_PRESSURE:{node_name}")
 
     if not blockers and args.settle_seconds > 0:
         time.sleep(args.settle_seconds)
@@ -255,12 +376,12 @@ def main() -> None:
     if not blockers:
         for before, after in zip(pre_status, post_status, strict=False):
             if after.get("pod_missing"):
-                blockers.append(f"PR3.{args.state_id}.WARM.B13_POD_DISAPPEARED:{after['app']}")
+                blockers.append(f"PR3.{args.state_id}.WARM.B16_POD_DISAPPEARED:{after['app']}")
                 continue
             if after.get("phase") != "Running" or not bool(after.get("ready")):
-                blockers.append(f"PR3.{args.state_id}.WARM.B14_POD_NOT_STABLE:{after['app']}")
+                blockers.append(f"PR3.{args.state_id}.WARM.B17_POD_NOT_STABLE:{after['app']}")
             if int(after.get("restart_count", 0) or 0) > int(before.get("restart_count", 0) or 0):
-                blockers.append(f"PR3.{args.state_id}.WARM.B15_RESTART_DURING_SETTLE:{after['app']}")
+                blockers.append(f"PR3.{args.state_id}.WARM.B18_RESTART_DURING_SETTLE:{after['app']}")
 
     payload = {
         "phase": "PR3",
@@ -277,9 +398,11 @@ def main() -> None:
         "csfb_probe": csfb_probe,
         "csfb_probe_error": csfb_probe_error,
         "dl_probe": dl_probe,
+        "dl_bootstrap_pending": dl_bootstrap_pending_flag,
         "dl_probe_error": dl_probe_error,
         "df_probe": df_probe,
         "df_probe_error": df_probe_error,
+        "node_health": node_health_rows,
         "post_status": post_status,
         "overall_pass": len(blockers) == 0,
         "blocker_ids": sorted(set(blockers)),

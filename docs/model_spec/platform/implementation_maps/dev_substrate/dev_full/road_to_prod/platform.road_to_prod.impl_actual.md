@@ -8417,3 +8417,51 @@ uns/.../degrade_ladder/* on its own filesystem,
    - build/publish a new immutable platform image from this branch,
    - rerun strict PR3-S2 on the same production boundary,
    - only then decide whether remaining work is purely ingress tuning or mixed-plane again.
+## Entry: 2026-03-07 20:28:00 +00:00 - PR3-S2 warm-gate false negative isolated from real EKS substrate risk
+1. I investigated the fresh strict PR3-S2 rerun `22806384543` after the Kafka reader fix because the run stopped at warm gate before any burst traffic was injected.
+2. The immediate warm-gate blocker report was:
+   - `PR3.S2.WARM.B02_POD_NOT_READY:fp-pr3-df`
+   - `PR3.S2.WARM.B02_POD_NOT_READY:fp-pr3-dl`
+3. Live cluster evidence showed the blocker is split into two different facts that must not be conflated:
+   - the gate logic is selecting `items[0]` from `kubectl get pods -l app=...`, which can be an old `Failed/Evicted` pod even when the deployment has already replaced it with a healthy `Running/Ready` pod,
+   - one EKS worker node in the `fraud-platform-dev-full-m6f-workers` nodegroup (`ip-10-70-129-68`) is genuinely unhealthy with `DiskPressure=True` and `node.kubernetes.io/disk-pressure:NoSchedule`.
+4. Why this matters operationally:
+   - the first issue is an evidence bug: it can fail a healthy runtime and therefore wastes reruns and masks the real bottleneck,
+   - the second issue is a real substrate defect: a disk-pressured worker can evict live pods during rollout and is not acceptable for production-claimable RTDL evidence.
+5. Evidence gathered:
+   - `kubectl rollout status` had already passed for `fp-pr3-df` and `fp-pr3-dl`,
+   - `kubectl get rs` shows each deployment has `DESIRED=1 CURRENT=1 READY=1`,
+   - `kubectl get pods` simultaneously showed healthy replacements (`fp-pr3-df-...-z45c8`, `fp-pr3-dl-...-kjt2k`) while the stale evicted pods remained in the label set,
+   - `kubectl describe pod` on the stale pods reports `Reason: Evicted`, `Message: Pod was rejected: The node had condition: [DiskPressure]`,
+   - `aws eks describe-nodegroup` confirms the runtime nodegroup is still pinned to `instance_types=["t3.xlarge"]`, `diskSize=20`, `desired/min/max=4/2/8`.
+6. Production reasoning and chosen remediation:
+   - I will fix the warm gate so it selects the active pod for each deployment and records stale failed pods as anomalies rather than treating the first returned pod as authoritative.
+   - I will also clear the unhealthy worker from the nodegroup before the next rerun so the certification path is not being measured on a known-bad substrate.
+   - I am not treating the gate fix alone as sufficient closure because the node pressure is a real platform issue, not just a reporting problem.
+7. Broader production conclusion:
+   - `t3.xlarge` with a `20 GiB` Bottlerocket disk is a weak posture for sustained RTDL certification because repeated image churn and runtime logs can exhaust local storage too easily,
+   - the immediate rerun boundary only needs the bad node removed and the gate fixed,
+   - but the nodegroup capacity pin itself likely needs uplifting later so this does not recur under production-grade replay and soak windows.
+## Entry: 2026-03-07 20:31:00 +00:00 - PR3-S2 warm-gate sequencing corrected for active pods and bootstrap-pending DL
+1. I implemented the warm-gate repair in `scripts/dev_substrate/pr3_runtime_warm_gate.py` and revalidated it live against the current `platform_20260307T201301Z` runtime.
+2. The gate now does three production-correct things that it did not do before:
+   - selects the active deployment pod rather than blindly taking `items[0]` from the label selector result,
+   - records stale failed/evicted pods as evidence anomalies instead of letting them become false readiness blockers,
+   - checks node health explicitly and reports node pressure as its own blocker family when present.
+3. I also corrected the DL pre-traffic sequencing rule rather than weakening the overall PR3 bar:
+   - if `DL` is `FAIL_CLOSED` only because `required_signal_gap:eb_consumer_lag,ieg_health,ofp_health` exists before first current-run traffic,
+   - and `CSFB` simultaneously shows the expected bootstrap-empty posture (`join_hits=0`, `join_misses=0`, missing checkpoint/watermark),
+   - then the gate records `dl_bootstrap_pending=true` and allows execution to proceed.
+4. Why this is the production-correct choice:
+   - before the first replay traffic arrives, a fresh runtime cannot honestly prove current-run lag/health signals for IEG/OFP,
+   - treating that bootstrap boundary as a hard runtime failure makes the certification lane fail on sequence rather than on platform quality,
+   - the fix is tightly bounded to the explicit bootstrap-empty signature and does not suppress real DL fail-closed states once current-run traffic exists.
+5. Live validation outcome on the existing runtime:
+   - the same `platform_20260307T201301Z` environment now passes warm gate with `overall_pass=true`,
+   - `DF` probe is green on required scope bridge + Kafka metadata,
+   - `DL` is marked `bootstrap_pending=true` instead of blocking,
+   - node health is currently green across all four EKS workers (the earlier disk-pressure node has recovered).
+6. Operational note:
+   - the stale evicted pods still exist in the namespace history and remain useful evidence of the earlier node-pressure event,
+   - but they are no longer allowed to falsify runtime readiness once a healthy replacement pod is already active.
+7. Next action is immediate and unchanged in principle: commit/push this gate correction, then rerun strict PR3-S2 on the same image and throughput boundary.
