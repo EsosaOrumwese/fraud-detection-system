@@ -522,6 +522,32 @@ resource "aws_iam_policy" "github_actions_pr3_runtime" {
         Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/oidc.eks.${var.aws_region}.amazonaws.com/id/6D0DBB7743A87C0ACB0A4645B431D308"
       },
       {
+        Sid    = "PR3RuntimeEksNodegroupControl"
+        Effect = "Allow"
+        Action = [
+          "eks:CreateNodegroup",
+          "eks:DeleteNodegroup",
+          "eks:DescribeNodegroup",
+          "eks:ListNodegroups",
+          "eks:UpdateNodegroupConfig",
+          "eks:UpdateNodegroupVersion",
+          "eks:DescribeUpdate",
+          "eks:ListUpdates",
+          "eks:TagResource",
+          "eks:UntagResource"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "PR3RuntimeEksNodegroupPassRole"
+        Effect = "Allow"
+        Action = [
+          "iam:PassRole",
+          "iam:GetRole"
+        ]
+        Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/fraud-platform-dev-full-eks-nodegroup"
+      },
+      {
         Sid    = "PR3ManagedFlinkRead"
         Effect = "Allow"
         Action = [

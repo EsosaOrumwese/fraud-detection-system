@@ -8593,3 +8593,24 @@ uns/.../degrade_ladder/* on its own filesystem,
    - simply deleting pressured nodes would clear symptoms temporarily but leave the undersized disk contract intact,
    - relaxing warm gate would be dishonest because the evictions are real,
    - continuing on `t3` would preserve CPU-credit unpredictability in a lane that is supposed to support production-like replay.
+
+## Entry: 2026-03-07 21:50:00 +00:00 - Managed EKS uplift lane narrowed after first replacement attempt exposed IAM and blast-radius defects
+1. I executed the first managed nodegroup uplift attempt through `dev_full_rc2_r2_capacity_envelope.yml` run `22807404495`.
+2. The plan itself proved the intended substrate change is correct:
+   - Terraform planned replacement of `aws_eks_node_group.m6f_workers` from `t3.xlarge / 20 GiB` to `m6i.xlarge / 80 GiB`,
+   - replacement is required because both `disk_size` and `instance_types` are force-new on this resource.
+3. The apply then exposed two control defects that needed correction before a second run:
+   - OIDC role denied `eks:DeleteNodegroup`, so the workflow can describe/update but cannot execute a replacement,
+   - the capacity workflow is too broad for this purpose and also tried to mutate Lambda reserved concurrency to `1000`, which failed on the account-level unreserved concurrency floor.
+4. Production interpretation:
+   - the nodegroup replacement itself is still the right remediation,
+   - but the actuator must be narrowed so EKS uplift does not perturb ingress,
+   - and the workflow role must carry the full replacement verb set (`Create/Delete/Describe/List/Update` plus nodegroup role pass-role) or the managed path is not real.
+5. Implemented corrective action:
+   - `dev_full_rc2_r2_capacity_envelope.yml` now supports `capacity_scope=nodegroup_only`,
+   - in `nodegroup_only` mode the workflow builds tfvars only for the EKS worker resource, targets only `aws_eks_node_group.m6f_workers`, and skips IG/Lambda verification blockers,
+   - `infra/terraform/dev_full/ops/main.tf` now extends `GitHubActionsPR3RuntimeDevFull` with the missing EKS nodegroup replacement verbs and pass-role surface for `fraud-platform-dev-full-eks-nodegroup`.
+6. This keeps the production goal intact:
+   - nodegroup uplift remains managed and auditable,
+   - ingress stays on its proven contract instead of being touched opportunistically,
+   - the next rerun will judge the substrate change itself rather than another mixed control-plane failure.
