@@ -291,6 +291,10 @@ jobs:
           import subprocess
           import sys
 
+          def fail(message):
+              print(message, file=sys.stderr, flush=True)
+              raise SystemExit(message)
+
           repo_name = os.environ["ECR_REPO_NAME"]
           repo_uri = os.environ["ECR_REPO_URI"]
           fallback_family = os.environ["FALLBACK_TASK_FAMILY"]
@@ -305,6 +309,8 @@ jobs:
                   "describe-images",
                   "--repository-name",
                   repo_name,
+                  "--filter",
+                  "tagStatus=TAGGED",
                   "--region",
                   region,
                   "--output",
@@ -327,7 +333,7 @@ jobs:
               selected = matches[0]
               digest = str(selected.get("imageDigest", "")).strip()
               if not digest.startswith("sha256:"):
-                  raise SystemExit(f"Invalid image digest resolved for SHA {git_sha}: {digest!r}")
+                  fail(f"Invalid image digest resolved for SHA {git_sha}: {digest!r}")
               image_uri = f"{repo_uri}@{digest}"
           else:
               changed_proc = subprocess.run(
@@ -343,7 +349,7 @@ jobs:
                   "infra/terraform/",
               )
               if not changed_paths or not all(path.startswith(allowed_prefixes) for path in changed_paths):
-                  raise SystemExit(
+                  fail(
                       "No immutable image found for current branch SHA and commit is not image-neutral; "
                       f"changed_paths={changed_paths}"
                   )
@@ -357,7 +363,7 @@ jobs:
                   selected = git_tagged_rows[0]
                   digest = str(selected.get("imageDigest", "")).strip()
                   if not digest.startswith("sha256:"):
-                      raise SystemExit(
+                      fail(
                           f"Latest immutable git-tagged package resolved without a valid digest: {digest!r}"
                       )
                   image_uri = f"{repo_uri}@{digest}"
@@ -383,7 +389,7 @@ jobs:
                   containers = list((task_def_payload.get("taskDefinition") or {}).get("containerDefinitions") or [])
                   images = [str(container.get("image", "")).strip() for container in containers if str(container.get("image", "")).strip()]
                   if not images:
-                      raise SystemExit(
+                      fail(
                           "No immutable image found for current branch SHA, latest git-tagged package missing, "
                           "and fallback task family has no active image."
                       )
@@ -391,7 +397,7 @@ jobs:
                   digest = image_uri.rsplit("@", 1)[-1] if "@" in image_uri else ""
                   if not digest.startswith("sha256:"):
                       if ":" not in image_uri.rsplit("/", 1)[-1]:
-                          raise SystemExit(
+                          fail(
                               "Fallback image is not pinned by digest and does not expose a resolvable tag."
                           )
                       repo_part, image_tag = image_uri.rsplit(":", 1)
@@ -417,17 +423,28 @@ jobs:
                       tag_lookup_payload = json.loads(tag_lookup_proc.stdout or "{}")
                       image_details = list(tag_lookup_payload.get("imageDetails") or [])
                       if not image_details:
-                          raise SystemExit(
+                          fail(
                               f"Fallback image tag could not be resolved to a digest: {image_uri}"
                           )
                       digest = str(image_details[0].get("imageDigest", "")).strip()
                       if not digest.startswith("sha256:"):
-                          raise SystemExit(
+                          fail(
                               f"Fallback image tag resolved without a valid digest: {image_uri}"
                           )
                       image_uri = f"{repo_part}@{digest}"
                   resolution_mode = "task_family_fallback"
 
+          print(
+              json.dumps(
+                  {
+                      "image_resolution_mode": resolution_mode,
+                      "image_digest": digest,
+                      "image_uri": image_uri,
+                  },
+                  sort_keys=True,
+              ),
+              flush=True,
+          )
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
               fh.write(f"image_digest={digest}\n")
               fh.write(f"image_uri={image_uri}\n")

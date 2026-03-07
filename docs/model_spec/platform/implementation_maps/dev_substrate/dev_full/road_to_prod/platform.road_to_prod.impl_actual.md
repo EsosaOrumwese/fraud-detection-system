@@ -8158,3 +8158,13 @@ ot ready because pods are broken from eady to accept first traffic on a fresh r
    - immutable ECR packaging is the real runtime artifact authority,
    - ECS family metadata is operational state and may drift or retain mutable/tag-only references,
    - certification runs should anchor to immutable packages first and deployment metadata second.
+## Entry: 2026-03-07 18:06:00 +00:00 - PR3-S2 resolver diagnostics hardened and ECR query narrowed to tagged images only
+1. After the second fallback-authority correction, the workflow still failed with an opaque `exit code 1` in the image resolver and without a useful message in the GitHub step log.
+2. That is itself a workflow defect because control-surface failures must be diagnosable before we spend more runtime trying the same lane again.
+3. Correction applied:
+   - narrow the initial ECR query to `tagStatus=TAGGED` so the resolver reasons only over immutable packaged images that still carry tags,
+   - replace silent `SystemExit(...)` calls with explicit stderr emission through a small `fail(...)` helper,
+   - print the resolved `image_resolution_mode`, `image_digest`, and `image_uri` before writing step outputs.
+4. Expected outcome from the next rerun:
+   - either the resolver proceeds and the runtime burst window finally executes,
+   - or the workflow emits a concrete resolver error string that can be corrected without guesswork.
