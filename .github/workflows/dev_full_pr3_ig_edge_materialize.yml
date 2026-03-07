@@ -178,6 +178,7 @@ jobs:
             -target=aws_lambda_function.ig_handler \
             -target=aws_ecs_task_definition.ig_service[0] \
             -target=aws_ecs_service.ig_service[0] \
+            -var 'ig_service_enabled=true' \
             -var 'runtime_interface_vpc_endpoint_services=["ec2","ecr.api","ecr.dkr","execute-api","logs","sqs","ssm","sts"]' \
             -var "lambda_ig_package_s3_bucket=${{ inputs.package_bucket }}" \
             -var "lambda_ig_package_s3_key=${{ steps.bundle.outputs.package_key }}" \

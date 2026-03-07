@@ -77,7 +77,7 @@ _As of 2026-03-05_
    - claimability/evidence check,
    - blocker-zero check.
 3. Add explicit anti-patterns that are forbidden as closure rationale (toy windows, proxy metrics, missing drill evidence, checklist-only closure).
-4. Add a final document-intent completion rule to prevent circular “green status” without mission completion.
+4. Add a final document-intent completion rule to prevent circular green status without mission completion.
 
 ### Governance
 1. Documentation-only change.
@@ -1154,7 +1154,7 @@ _As of 2026-03-05_
 ## Entry: 2026-03-05 18:47 +00:00 - S1 blocker analysis and remediation plan (B05 cohort derivation)
 ### Observed blocker
 1. Strict S1 charter-window recompute produced `HOLD_REMEDIATE` with `PR1.B05_COHORT_DERIVATION_MISSING`.
-2. Natural stream profile in charter window is clean (`duplicate≈0`, `out_of_order≈0`, very low hotkey share), so a pure-natural derivation underrepresents required production pressure cohorts.
+2. Natural stream profile in charter window is clean (`duplicate0`, `out_of_order0`, very low hotkey share), so a pure-natural derivation underrepresents required production pressure cohorts.
 
 ### Root cause
 1. This is not a data-access or query-failure issue.
@@ -1309,7 +1309,7 @@ uns/dev_substrate/dev_full/road_to_prod/run_control/pr1_20260305T174744Z/pr1_s3_
 ### Execution design
 1. Run a bounded Athena maturity query over charter window (2026-02-26 to 2026-03-05) and as-of (2026-03-05T00:00:00Z).
 2. Evaluate candidate lags [1,3,7] with explicit coverage rates.
-3. Select lag deterministically as the largest candidate with coverage >=  .50; else fail B13.
+3. Select lag deterministically as the largest candidate with coverage >= .50; else fail B13.
 4. Fuse leakage/time-causality controls from m9d/m9e/m11e and fail B14 on any false guard.
 5. Emit monitoring baseline contract with bound refs for G2/G3A/G3B; fail B15 if refs/metrics missing.
 
@@ -1347,10 +1347,10 @@ ext_state=PR1-S5.
 4. TGT-07 pinned: monitoring baseline contract set ACTIVE with bound refs for G2/G3A/G3B and required metric families.
 
 ### Key measured evidence
-1. Label maturity query id: 86893e1-ad3b-4699-8e70-200204e0a5f0.
+1. Label maturity query id: 86893e1-ad3b-4699-8e70-200204e0a5f0.
 2. Label age distribution: p50=3d, p90=6d, p95=6d; no future labels.
 3. Candidate coverage: 1d=0.857648, 3d=0.57411, 7d=0.0.
-4. Runtime/cost posture: lapsed_minutes=0.015 vs budget 15; ttributable_spend_usd=0.018179 vs envelope 10.0.
+4. Runtime/cost posture: lapsed_minutes=0.015 vs budget 15; ttributable_spend_usd=0.018179 vs envelope 10.0.
 
 ### Semantic guardrail note
 1. s4_event_labels_6B does not expose label_available_ts; S4 maturity pin uses explicit proxy label_ts_proxy_utc := ts_utc.
@@ -1536,7 +1536,7 @@ uns/dev_substrate/dev_full/road_to_prod/run_control/pr2_latest.json.
 
 ### Performance and cost posture
 1. No external queries or runtime load execution for S0.
-2. Runtime budget target: <=10 min; cost posture:  .0 attributable for S0.
+2. Runtime budget target: <=10 min; cost posture: .0 attributable for S0.
 
 ### Governance
 1. No branch operations, no commit/push.
@@ -1945,7 +1945,8 @@ uns/; docs/logbook/impl map synced after run.
 1. Binding source for PR3 gate semantics:
    - docs/model_spec/platform/pre-design_decisions/dev-full_road-to-production-ready.md Section 10A (G3A) and related anti-gaming/measurement-surface laws.
 2. Upstream strict handoff authority:
-   - uns/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_s3_execution_receipt.json.
+   - 
+uns/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_s3_execution_receipt.json.
 3. Existing execution posture constraints:
    - no local orchestration for runtime certification; local machine used only for planning/docs/validation logic.
 
@@ -2029,12 +2030,14 @@ uns/; docs/logbook/impl map synced after run.
 1. USER directed: "Proceed with the planning and execution of PR3-S0 from strict upstream pr2_20260305T200521Z fail-closed".
 
 ### Strict upstream lock (to be enforced)
-1. uns/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_s3_execution_receipt.json must be:
-   - erdict=PR2_S3_READY,
+1. 
+uns/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_s3_execution_receipt.json must be:
+   - erdict=PR2_S3_READY,
    - open_blockers=0,
    - 
 ext_gate=PR3_READY.
-2. uns/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_execution_summary.json must be coherent with receipt.
+2. 
+uns/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_execution_summary.json must be coherent with receipt.
 3. pr2_runtime_numeric_contract.rc2s.active.yaml and pr2_opsgov_numeric_contract.rc2s.active.yaml must exist/readable and remain ACTIVE.
 
 ### PR3-S0 implementation approach
@@ -2054,7 +2057,8 @@ ext_gate=PR3_READY.
    - use prior validated runtime readiness artifacts (M13/M14 summaries and PR2 validators) as deterministic preflight evidence;
    - no local runtime orchestration/probing.
 4. Update latest pointer:
-   - uns/dev_substrate/dev_full/road_to_prod/run_control/pr3_latest.json.
+   - 
+uns/dev_substrate/dev_full/road_to_prod/run_control/pr3_latest.json.
 
 ### Fail-closed blocker mapping for S0
 1. PR3.B01_ENTRY_LOCK_MISSING
@@ -2097,7 +2101,8 @@ ext_gate=PR3_READY),
 1. Executed command:
    - python scripts/dev_substrate/pr3_s0_executor.py --upstream-pr2-execution-id pr2_20260305T200521Z.
 2. Generated PR3 execution root:
-   - uns/dev_substrate/dev_full/road_to_prod/run_control/pr3_20260306T021900Z/.
+   - 
+uns/dev_substrate/dev_full/road_to_prod/run_control/pr3_20260306T021900Z/.
 3. S0 verdict:
    - PR3_S0_READY, open_blockers=0, 
 ext_state=PR3-S1.
@@ -2116,8 +2121,8 @@ ext_state=PR3-S1.
    - updated TGT-08 and TGT-09 status to IN_PROGRESS.
 
 ### Performance and cost posture
-1. S0 runtime: lapsed_minutes=0.0 vs budget 20.
-2. S0 spend: ttributable_spend_usd=0.0 vs envelope 250.0.
+1. S0 runtime: lapsed_minutes=0.0 vs budget 20.
+2. S0 spend: ttributable_spend_usd=0.0 vs envelope 250.0.
 
 ### Governance
 1. No branch operations.
@@ -2128,15 +2133,17 @@ ext_state=PR3-S1.
 1. USER directed planning + execution of PR3-S1 from strict upstream pr3_20260306T021900Z with human-readable goal-level interpretation.
 
 ### Strict upstream lock (to enforce)
-1. uns/dev_substrate/dev_full/road_to_prod/run_control/pr3_20260306T021900Z/pr3_s0_execution_receipt.json must be:
-   - erdict=PR3_S0_READY,
+1. 
+uns/dev_substrate/dev_full/road_to_prod/run_control/pr3_20260306T021900Z/pr3_s0_execution_receipt.json must be:
+   - erdict=PR3_S0_READY,
    - open_blockers=0,
    - 
 ext_state=PR3-S1.
 
 ### Evidence posture discovered before execution
 1. Existing throughput evidence candidate:
-   - uns/dev_substrate/dev_full/m7/m7s_m7k_cert_20260226T000002Z/m7k_throughput_cert_snapshot.json.
+   - 
+uns/dev_substrate/dev_full/m7/m7s_m7k_cert_20260226T000002Z/m7k_throughput_cert_snapshot.json.
 2. Candidate observed steady throughput is ~49.49 eps, while PR3 charter target is 3000 eps.
 3. This implies likely S1 fail-closed unless fresh steady-window evidence exists at PR3 target envelope.
 
@@ -2212,7 +2219,7 @@ ext_state=PR3-S1.
 2. Command timed out locally while remote ECS tasks kept running, creating avoidable resource burn window.
 
 ### Immediate containment executed
-1. Listed and force-stopped active ECS tasks in cluster raud-platform-dev-full-wsp-ephemeral.
+1. Listed and force-stopped active ECS tasks in cluster raud-platform-dev-full-wsp-ephemeral.
 2. Verified cluster posture after stop:
    - RUNNING=0
    - PENDING=0
@@ -2253,7 +2260,7 @@ ext_state=PR3-S1.
 
 ### Decision and code correction
 1. Treat ingress throttling (429-driven admitted EPS collapse) as primary bottleneck for PR3-S1.
-2. Updated dispatcher classification so forced early-cutoff xit_code=137 is annotated as EARLY_CUTOFF_FORCED_STOP and not emitted as B06 blocker.
+2. Updated dispatcher classification so forced early-cutoff xit_code=137 is annotated as EARLY_CUTOFF_FORCED_STOP and not emitted as B06 blocker.
 
 ## Entry: 2026-03-06 04:18:00 +00:00 - WSP runtime authority drift and IG edge envelope correction plan
 ### Trigger
@@ -3273,7 +3280,7 @@ Reasoning:
   - `C` upgrade the shared Kafka adapter to support MSK IAM/OAUTHBEARER and keep that adapter authoritative for all Kafka consumers/publishers:
     - accepted because it fixes the real platform defect once and preserves consistent transport behavior.
 - Planned implementation:
-  - extend `event_bus/kafka.py` with an MSK-IAM path using the already-proven `kafka-python + aws-msk-iam-sasl-signer-python` approach used in the repo’s topic-readiness tooling,
+  - extend `event_bus/kafka.py` with an MSK-IAM path using the already-proven `kafka-python + aws-msk-iam-sasl-signer-python` approach used in the repos topic-readiness tooling,
   - preserve the current `confluent_kafka` path for standard username/password SASL or plaintext cases,
   - add focused tests for OAUTH/IAM auth resolution,
   - then refresh the remote worker image so the RTDL jobs can actually reach MSK.
@@ -3494,7 +3501,8 @@ Reasoning:
 ### 2026-03-06 14:18:00 +00:00 - PR3-S1 canonical rerun exposed evidence-bootstrap drift on the GitHub runner, so the workflow must hydrate strict upstream receipts before dispatch
 - Latest canonical PR3-S1 rerun (22761391121) failed before any traffic was sent.
 - Exact failure:
-  - FileNotFoundError on uns/dev_substrate/dev_full/road_to_prod/run_control/pr3_20260306T021900Z/pr3_s0_execution_receipt.json inside pr3_s1_wsp_replay_dispatch.py.
+  - FileNotFoundError on 
+uns/dev_substrate/dev_full/road_to_prod/run_control/pr3_20260306T021900Z/pr3_s0_execution_receipt.json inside pr3_s1_wsp_replay_dispatch.py.
 - Interpretation:
   - the dispatcher is behaving correctly because PR3-S1 is defined to run fail-closed from a strict PR3-S0 READY boundary,
   - the workflow created the RUN_DIR path locally on the runner but did not hydrate the upstream PR3 evidence set that the canonical dispatcher reads.
@@ -3504,7 +3512,8 @@ Reasoning:
 - Candidate fixes considered:
   - A relax pr3_s1_wsp_replay_dispatch.py so missing PR3-S0 receipts are tolerated:
     - rejected because it weakens the strict-boundary contract and makes reruns less auditable.
-  - B commit/copy local uns/ artifacts into the workflow checkout:
+  - B commit/copy local 
+uns/ artifacts into the workflow checkout:
     - rejected because the authoritative evidence is the S3-backed run-control store, not the laptop worktree.
   - C add an explicit workflow bootstrap step that syncs the authoritative PR3 evidence prefix from the evidence bucket into RUN_DIR before launching the canonical dispatcher:
     - accepted because it preserves runner statelessness, keeps the evidence chain authoritative, and lets each rerun reconstruct the exact declared upstream boundary.
@@ -3514,11 +3523,12 @@ Reasoning:
   3. rerun the canonical PR3-S1 lane immediately,
   4. only if the next failure is inside live throughput/error/latency metrics treat it as the next production problem.
 ### 2026-03-06 14:26:00 +00:00 - PR3 workflow now bootstraps and mirrors the full run-control tree so strict upstream state can be reconstructed remotely
-- dev_full_pr3_s1_managed.yml now syncs the authoritative vidence/dev_full/run_control/<pr3_execution_id>/ prefix into RUN_DIR before launching the canonical dispatcher.
+- dev_full_pr3_s1_managed.yml now syncs the authoritative vidence/dev_full/run_control/<pr3_execution_id>/ prefix into RUN_DIR before launching the canonical dispatcher.
 - The same workflow now syncs the full RUN_DIR back to S3 on exit before the targeted rollup copies.
 - Reasoning:
   - the production issue was not just one missing file but a continuity gap: selected rollups were being mirrored remotely while the strict run-control tree remained only on the workstation,
-  - future remote reruns should be able to reconstruct the execution boundary from the evidence bucket without depending on a checked-out uns/ tree.
+  - future remote reruns should be able to reconstruct the execution boundary from the evidence bucket without depending on a checked-out 
+uns/ tree.
 - Why this is the right fix:
   - it preserves the strict state-machine contract (S1 still requires S0 READY),
   - keeps the GitHub runner stateless,
@@ -3598,7 +3608,7 @@ Reasoning:
   - patch WSP checkpoint scoping before any further PR3-S1 rerun.
 ### 2026-03-06 15:18:00 +00:00 - Implemented fresh-attempt checkpoint namespacing for PR3 certification reruns
 - Code change applied in src/fraud_detection/world_streamer_producer/runner.py:
-  - _checkpoint_scope_key(...) now accepts an ttempt_id,
+  - _checkpoint_scope_key(...) now accepts an ttempt_id,
   - runtime reads WSP_CHECKPOINT_ATTEMPT_ID,
   - checkpoint payloads/session events now record the attempt namespace.
 - Dispatcher change applied in scripts/dev_substrate/pr3_s1_wsp_replay_dispatch.py:
@@ -5060,18 +5070,18 @@ Reasoning:
 ## Entry: 2026-03-06 22:05:00 +00:00 - Active IG revision verification cleared the stale-log ambiguity before the next PR3-S1 replay
 1. I verified the live ingress service against the current ECS deployment only, not against historical CloudWatch streams.
 2. The active service state is now explicit:
-   - ECS service raud-platform-dev-full-ig-service is on task definition revision :3,
+   - ECS service raud-platform-dev-full-ig-service is on task definition revision :3,
    - all six running tasks are HEALTHY,
-   - all ALB targets in target group p-dev-full-ig-svc are healthy,
+   - all ALB targets in target group p-dev-full-ig-svc are healthy,
    - each running task is pinned to image digest sha256:28deae6b0752b116ab44f0c286805df8be35761059d06df939069e95501a18cb,
    - the active task definition includes PLATFORM_BUNDLE_ROOT=/app.
 3. I then pulled only the current task log streams:
-   - cs/ig/21d9769aeb71436592f82dd779858d25
-   - cs/ig/26fcea06e75a498db0f4fd0f8ba3e3ab
-   - cs/ig/2d202841ec91448a802d7f6f8573fa5d
-   - cs/ig/390adb9cc61940c1836271226c7be8bc
-   - cs/ig/88ce0c3630a5437eb9702ecb92bfb557
-   - cs/ig/8cf0f30ef7304ce9afba1822a6af9122
+   - cs/ig/21d9769aeb71436592f82dd779858d25
+   - cs/ig/26fcea06e75a498db0f4fd0f8ba3e3ab
+   - cs/ig/2d202841ec91448a802d7f6f8573fa5d
+   - cs/ig/390adb9cc61940c1836271226c7be8bc
+   - cs/ig/88ce0c3630a5437eb9702ecb92bfb557
+   - cs/ig/8cf0f30ef7304ce9afba1822a6af9122
 4. Those current streams show only healthy gunicorn startup with no FileNotFoundError, no schema-path failure, and no boot-loop behavior.
 5. Production interpretation:
    - the previous /app/src/config/... path error belonged to drained revision-:2 work and is not the active runtime truth anymore,
@@ -5084,10 +5094,10 @@ Reasoning:
 ## Entry: 2026-03-06 22:15:00 +00:00 - PR3-S1 replay launcher hit Fargate quota because the WSP lane shape is oversized for the current service-backed architecture
 1. The first bounded rerun against the corrected service-backed ingress did not fail inside IG.
 2. It failed during WSP fleet launch with:
-   - PR3.S1.WSP.B01_RUN_TASK_FAILED:wsp_lane_128:You’ve reached the limit on the number of vCPUs you can run concurrently.
+   - PR3.S1.WSP.B01_RUN_TASK_FAILED:wsp_lane_128:Youve reached the limit on the number of vCPUs you can run concurrently.
 3. Live capacity facts are explicit:
-   - account Fargate on-demand quota in u-west-2 is 140 vCPU,
-   - current WSP task definition (raud-platform-dev-full-wsp-ephemeral:29) is pinned cpu=1024, memory=2048,
+   - account Fargate on-demand quota in u-west-2 is 140 vCPU,
+   - current WSP task definition (raud-platform-dev-full-wsp-ephemeral:29) is pinned cpu=1024, memory=2048,
    - current service-backed IG runs 6 x 2 vCPU = 12 vCPU continuously.
 4. Therefore the prior S1 calibration shape no longer fits the materialized architecture:
    - 138 WSP lanes at 1 vCPU each require 138 vCPU,
@@ -5099,7 +5109,7 @@ Reasoning:
 6. Chosen correction:
    - keep the steady objective fixed at 3000 admitted eps,
    - keep the canonical 138 lane topology for now,
-   - right-size each WSP lane to  .5 vCPU / 1 GiB for the next bounded replay (	ask_cpu=512, 	ask_memory=1024).
+   - right-size each WSP lane to .5 vCPU / 1 GiB for the next bounded replay (	ask_cpu=512, 	ask_memory=1024).
 7. Why this is the correct production move:
    - the emitter workload is network/HTTP paced and checkpoint-light, not transform-heavy,
    - the per-lane target at 3005/138 ~= 21.8 eps does not justify 1 vCPU reservations,
@@ -5117,15 +5127,16 @@ Reasoning:
    - no B01_RUN_TASK_FAILED,
    - the fleet reached the measurement window cleanly.
 3. The resulting impact metrics are materially red:
-   - equest_count_total=66,642,
-   - dmitted_request_count=65,029,
+   - 
+equest_count_total=66,642,
+   - dmitted_request_count=65,029,
    - observed_request_eps=370.233,
    - observed_admitted_eps=361.272,
-   - rror_rate_ratio=0.024204,
+   - rror_rate_ratio=0.024204,
    - 4xx_total=1,219,
    - 5xx_total=394.
 4. CloudWatch/ECS evidence narrows the fault domain:
-   - ALB TargetResponseTime p95 ranged about  .769s -> 3.480s,
+   - ALB TargetResponseTime p95 ranged about .769s -> 3.480s,
    - ALB TargetResponseTime p99 ranged about 2.382s -> 4.335s,
    - ECS service CPU stayed around 54-60%,
    - ECS service memory stayed around 10-12%.
@@ -5135,15 +5146,16 @@ Reasoning:
    - this is the first materially trustworthy service-backed hot-path failure signal.
 6. WSP lane logs confirm the pressure signature:
    - repeated IG push retry attempt=1/5 reason=timeout,
-   - intermittent eason=http_502,
+   - intermittent 
+eason=http_502,
    - lane emission rates collapse during the steady window because each blocked request stalls replay progress.
 7. The current observability gap is unacceptable for production hardening:
-   - IG already measures phase.publish_seconds, phase.receipt_seconds, and total dmission_seconds,
+   - IG already measures phase.publish_seconds, phase.receipt_seconds, and total dmission_seconds,
    - but those metrics are not reaching CloudWatch from the gunicorn-managed service shell,
    - so the existing service posture is hiding the precise dependency that is stalling the hot path.
 8. Chosen next correction:
-   - route raud_detection logging through the gunicorn error handlers,
-   - emit per-request managed-edge slow-request logs (status + lapsed_ms) for degraded calls,
+   - route raud_detection logging through the gunicorn error handlers,
+   - emit per-request managed-edge slow-request logs (status + lapsed_ms) for degraded calls,
    - fix the dispatcher's ALB latency collection so S1 no longer carries a false LATENCY_UNREADABLE blocker,
    - rebuild the immutable image, rematerialize the service, and run a smaller diagnostic window to surface the phase timings before the next full steady rerun.
 9. This is a production correction, not a diagnostic shortcut:
@@ -5295,7 +5307,7 @@ Reasoning:
    - the correct production-grade move is to add bounded intra-output in-flight push concurrency while preserving truthful checkpoint safety and rate-limiter control.
 7. Additional tooling bug found at the same boundary:
    - ALB `TargetResponseTime` is reported in seconds, but the dispatcher currently records the value as if it were already milliseconds,
-   - so the truthful tail on this run is roughly `p95≈681 ms`, `p99≈1004 ms`, not `0.68 ms / 1.00 ms`.
+   - so the truthful tail on this run is roughly `p95681 ms`, `p991004 ms`, not `0.68 ms / 1.00 ms`.
 8. Chosen remediation set:
    - fix latency units in the dispatcher,
    - extend WSP with bounded per-output push concurrency and contiguous checkpoint advancement on success,
@@ -5934,7 +5946,7 @@ Reasoning:
 
 
 ## Entry: 2026-03-07 01:24:00 +00:00 - PR3-S1 has now returned to a real runtime-capacity issue: the replay harness itself is overprovisioned relative to the live ingress fleet's Fargate envelope
-1. After fixing ELB read authority and bootstrap waste, I reran strict `PR3-S1` on workflow run `22788481700`. The run progressed through bootstrap and runtime readiness, then failed in `Launch canonical remote WSP replay` with `PR3.S1.WSP.B01_RUN_TASK_FAILED:wsp_lane_12:You’ve reached the limit on the number of vCPUs you can run concurrently`.
+1. After fixing ELB read authority and bootstrap waste, I reran strict `PR3-S1` on workflow run `22788481700`. The run progressed through bootstrap and runtime readiness, then failed in `Launch canonical remote WSP replay` with `PR3.S1.WSP.B01_RUN_TASK_FAILED:wsp_lane_12:Youve reached the limit on the number of vCPUs you can run concurrently`.
 2. I quantified the live Fargate envelope rather than guessing:
    - account quota `L-3032A538` (`Fargate On-Demand vCPU resource count`) is `140` vCPU in `eu-west-2`;
    - current ingress service task definition `fraud-platform-dev-full-ig-service:12` is pinned at `4096 CPU / 8192 MiB` per task;
@@ -6082,3 +6094,20 @@ Reasoning:
      - build fresh immutable image,
      - roll the ingress edge to that image and the strengthened retry/publish envelope,
      - rerun strict `PR3-S1` on the widened canonical replay width using the same image digest.
+
+## Entry: 2026-03-07 02:34:00 +00:00 - The first ingress materialization rerun exposed workflow-level destructive drift because `ig_service_enabled` was left implicit
+1. I pulled the failed rollout run `22790080603` and inspected the actual Terraform apply output instead of treating it as a generic workflow failure.
+2. The apply did not fail because AWS rejected the image, the Lambda bundle, or the retry pins. It failed earlier because the workflow never asserted `ig_service_enabled=true` while simultaneously targeting `aws_ecs_task_definition.ig_service[0]` and `aws_ecs_service.ig_service[0]`.
+3. In this Terraform module the managed ingress service is guarded by `count = var.ig_service_enabled ? 1 : 0` across the full ECS/ALB/log-group/security-group surface. The default remains `false`.
+4. That means the workflow accidentally asked Terraform to update indexed ingress resources while also leaving the count gate closed. Terraform therefore evaluated the live ingress ECS surface as out-of-range and planned destructive drift (`0 to add, 1 to change, 9 to destroy`).
+5. This is a tooling defect, not a production-capacity defect. The live ingress service already exists and is the canonical high-throughput path we are hardening. The materialization workflow must therefore always operate under an explicit enablement contract when touching that surface.
+6. Production-minded decision:
+   - do not repin the platform away from the managed ingress ECS path simply because the workflow was under-specified;
+   - fix the workflow so the managed ingress surface is explicitly enabled during rollout, because in a real production system rollout tooling must not rely on hidden defaults when updating a live service.
+7. Immediate remediation chosen:
+   - pass `-var 'ig_service_enabled=true'` in the targeted apply;
+   - keep the targeted correction bounded to the intended ingress surface so the rollout remains surgical while avoiding the false destructive plan generated by the implicit default.
+8. Acceptance for the next rerun:
+   - Terraform must no longer plan any destroy on the managed ingress surface due to count drift;
+   - live readback must prove ECS service image/env pins match the new immutable image and retry envelope;
+   - only then does `PR3-S1` rerun resume.
