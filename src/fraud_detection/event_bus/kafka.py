@@ -234,6 +234,10 @@ class KafkaEventBusReader:
             and not (self.config.sasl_username and self.config.sasl_password)
         ):
             raise RuntimeError("KAFKA_SASL_CREDENTIALS_MISSING")
+        # Hold the initial startup boundary for fresh readers until the caller
+        # persists a real checkpoint. Without this, "latest" readers can skip
+        # records that arrive between empty poll cycles.
+        self._startup_offsets: dict[tuple[str, int], int] = {}
         if self._consumer_mode == "oauth":
             self._consumer = KafkaConsumer(
                 bootstrap_servers=[self.config.bootstrap_servers],
@@ -285,15 +289,13 @@ class KafkaEventBusReader:
             base_tp = PyKafkaTopicPartition(topic, int(partition))
             try:
                 self._consumer.assign([base_tp])
-                if from_offset is None:
-                    if str(start_position).strip().lower() == "latest":
-                        end_offsets = self._consumer.end_offsets([base_tp])
-                        start_offset = int(end_offsets.get(base_tp, 0))
-                    else:
-                        beginning_offsets = self._consumer.beginning_offsets([base_tp])
-                        start_offset = int(beginning_offsets.get(base_tp, 0))
-                else:
-                    start_offset = max(0, int(from_offset))
+                start_offset = self._resolve_oauth_start_offset(
+                    topic=topic,
+                    partition=partition,
+                    from_offset=from_offset,
+                    start_position=start_position,
+                    base_tp=base_tp,
+                )
                 self._consumer.seek(base_tp, start_offset)
                 rows: list[dict[str, Any]] = []
                 records_map = self._consumer.poll(timeout_ms=max(50, int(self.config.poll_timeout_ms)), max_records=max_records)
@@ -324,11 +326,13 @@ class KafkaEventBusReader:
         _consumer_cls, kafka_error_cls, _producer_cls, topic_partition_cls = _import_confluent()
         base_tp = topic_partition_cls(topic, int(partition))
         try:
-            if from_offset is None:
-                low, high = self._consumer.get_watermark_offsets(base_tp, timeout=max(1.0, self.config.request_timeout_ms / 1000.0))
-                start_offset = high if str(start_position).strip().lower() == "latest" else low
-            else:
-                start_offset = max(0, int(from_offset))
+            start_offset = self._resolve_standard_start_offset(
+                topic=topic,
+                partition=partition,
+                from_offset=from_offset,
+                start_position=start_position,
+                base_tp=base_tp,
+            )
             self._consumer.assign([topic_partition_cls(topic, int(partition), int(start_offset))])
             rows: list[dict[str, Any]] = []
             poll_timeout = max(0.05, int(self.config.poll_timeout_ms) / 1000.0)
@@ -366,6 +370,57 @@ class KafkaEventBusReader:
                 str(exc)[:256],
             )
             return []
+
+    def _startup_key(self, *, topic: str, partition: int) -> tuple[str, int]:
+        return (str(topic), int(partition))
+
+    def _remember_start_offset(self, *, topic: str, partition: int, offset: int) -> int:
+        resolved = max(0, int(offset))
+        self._startup_offsets[self._startup_key(topic=topic, partition=partition)] = resolved
+        return resolved
+
+    def _startup_offset(self, *, topic: str, partition: int) -> int | None:
+        return self._startup_offsets.get(self._startup_key(topic=topic, partition=partition))
+
+    def _resolve_oauth_start_offset(
+        self,
+        *,
+        topic: str,
+        partition: int,
+        from_offset: int | None,
+        start_position: str,
+        base_tp: Any,
+    ) -> int:
+        if from_offset is not None:
+            return self._remember_start_offset(topic=topic, partition=partition, offset=max(0, int(from_offset)))
+        remembered = self._startup_offset(topic=topic, partition=partition)
+        if remembered is not None:
+            return remembered
+        if str(start_position).strip().lower() == "latest":
+            end_offsets = self._consumer.end_offsets([base_tp])
+            start_offset = int(end_offsets.get(base_tp, 0))
+        else:
+            beginning_offsets = self._consumer.beginning_offsets([base_tp])
+            start_offset = int(beginning_offsets.get(base_tp, 0))
+        return self._remember_start_offset(topic=topic, partition=partition, offset=start_offset)
+
+    def _resolve_standard_start_offset(
+        self,
+        *,
+        topic: str,
+        partition: int,
+        from_offset: int | None,
+        start_position: str,
+        base_tp: Any,
+    ) -> int:
+        if from_offset is not None:
+            return self._remember_start_offset(topic=topic, partition=partition, offset=max(0, int(from_offset)))
+        remembered = self._startup_offset(topic=topic, partition=partition)
+        if remembered is not None:
+            return remembered
+        low, high = self._consumer.get_watermark_offsets(base_tp, timeout=max(1.0, self.config.request_timeout_ms / 1000.0))
+        start_offset = high if str(start_position).strip().lower() == "latest" else low
+        return self._remember_start_offset(topic=topic, partition=partition, offset=start_offset)
 
     def close(self) -> None:
         try:

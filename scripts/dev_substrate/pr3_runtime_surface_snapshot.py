@@ -66,6 +66,18 @@ def to_float(value: Any) -> float | None:
 
 
 COMPONENTS: dict[str, dict[str, Any]] = {
+    "csfb": {
+        "app": "fp-pr3-csfb",
+        "metrics_path": "runs/fraud-platform/{platform_run_id}/context_store_flow_binding/metrics/last_metrics.json",
+        "health_path": "runs/fraud-platform/{platform_run_id}/context_store_flow_binding/health/last_health.json",
+        "threshold_defaults": {
+            "watermark_age_seconds": {"amber": 120.0, "red": 300.0},
+            "checkpoint_age_seconds": {"amber": 120.0, "red": 300.0},
+            "join_misses": {"amber": 1, "red": 10},
+            "binding_conflicts": {"amber": 1, "red": 5},
+            "apply_failures_hard": {"amber": 1, "red": 10},
+        },
+    },
     "ieg": {
         "app": "fp-pr3-ieg",
         "metrics_path": "runs/fraud-platform/{platform_run_id}/identity_entity_graph/metrics/last_metrics.json",
@@ -163,7 +175,21 @@ def pick_summary(component: str, metrics_payload: dict[str, Any], health_payload
         "health_state": health_payload.get("health_state"),
         "health_reasons": health_payload.get("health_reasons"),
     }
-    if component == "ieg":
+    if component == "csfb":
+        summary.update(
+            {
+                "join_hits": to_float(metrics.get("join_hits")),
+                "join_misses": to_float(metrics.get("join_misses")),
+                "binding_conflicts": to_float(metrics.get("binding_conflicts")),
+                "apply_failures_hard": to_float(metrics.get("apply_failures_hard")),
+                "checkpoint_age_seconds": to_float(metrics_payload.get("checkpoint_age_seconds"))
+                or to_float(health_payload.get("checkpoint_age_seconds")),
+                "watermark_age_seconds": to_float(metrics_payload.get("watermark_age_seconds"))
+                or to_float(health_payload.get("watermark_age_seconds")),
+                "lag_seconds": to_float(metrics_payload.get("lag_seconds")),
+            }
+        )
+    elif component == "ieg":
         summary.update(
             {
                 "backpressure_hits": to_float(metrics_payload.get("backpressure_hits")),

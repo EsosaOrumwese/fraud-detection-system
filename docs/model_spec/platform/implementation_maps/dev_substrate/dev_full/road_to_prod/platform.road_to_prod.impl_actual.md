@@ -7234,3 +7234,53 @@ Implementation sequence
 5. Production interpretation:
    - the specific CSFB crash-loop cause exposed by PR3-S2 is now removed at code level,
    - so the next rerun should reveal the real remaining runtime blockers instead of repeatedly dying on duplicated failure truth.
+
+## Entry: 2026-03-07 12:05:00 +00:00 - PR3-S2 startup miss is rooted in shared Kafka latest-offset semantics, not only in warm-gate weakness
+1. I traced the fresh-runtime PR3-S2 miss one layer deeper than the current warm-gate story. The application-level warm gate is weak, but the more important defect is in the shared Kafka reader that multiple PR3 workers rely on (`CSFB`, `DF`, `AL`, `DLA`, `Archive`, and other live consumers).
+2. The current reader behavior on `from_offset is None` plus `start_position=latest` is unsafe for production startup:
+   - each read call reassigns the consumer,
+   - recalculates the current high watermark,
+   - and seeks to that latest offset again before polling.
+3. That means a fresh consumer with no checkpoint can silently skip records that arrive between polling cycles. In other words, "consumer is running" does not imply "consumer can observe the head of the new run". Under PR3 this is exactly the wrong behavior because workers are materialized fresh for a new `platform_run_id` and then asked to certify the active burst window.
+4. Why this is the stronger root cause than warm-gate weakness alone:
+   - warm-gate weakness explains why we failed to detect the problem before the burst,
+   - but the shared reader defect explains how `Kafka has current-run context` and `CSFB projected zero current-run rows` can both be true at the same time,
+   - and it generalizes beyond CSFB to every other worker using the same startup posture.
+5. Production interpretation:
+   - a production platform cannot claim replay-safe, high-throughput streaming correctness if fresh consumers can miss first-seen events merely because they started on `latest` and polled at the wrong instant,
+   - this is a correctness bug first and a certification bug second.
+6. Alternatives considered:
+   - rely only on a stronger warm gate or a canary: rejected as primary remediation because it would paper over a broken shared reader.
+   - force all PR3 consumers to `earliest`: rejected as primary remediation because it would drag shared-topic backlog into fresh certification windows and distort runtime budgets.
+   - persist synthetic initial checkpoints externally before injection: rejected because the reader itself should preserve the chosen startup boundary once established.
+7. Chosen remediation sequence:
+   - fix `src/fraud_detection/event_bus/kafka.py` so a no-checkpoint startup boundary is established once per topic/partition and then held across empty polls instead of being recomputed each read call,
+   - add direct reader tests proving fresh `latest` startup does not skip messages between polls in both the standard and MSK/OAUTH reader paths,
+   - extend PR3 runtime evidence to expose CSFB run-scoped surfaces alongside the existing RTDL components,
+   - strengthen `pr3_runtime_warm_gate.py` so it probes both `DF` and `CSFB` runtime inputs/surfaces, making startup posture inspectable before burst execution,
+   - then rerun strict `PR3-S2` and judge the new impact metrics and downstream participation only after the shared reader semantics are corrected.
+8. Expected effect on the current red state:
+   - if this diagnosis is correct, `CSFB` current-run projection should stop collapsing to zero on fresh runs,
+   - `DF` should stop seeing only the tail of the traffic window,
+   - and any remaining blocker after rerun will be a truthful downstream capacity/correctness issue rather than a hidden startup-offset bug.
+
+## Entry: 2026-03-07 12:18:00 +00:00 - Shared Kafka startup-boundary fix implemented and validated locally before the next PR3 rerun
+1. I implemented the primary production fix in `src/fraud_detection/event_bus/kafka.py` rather than trying to compensate for the problem in PR3-only orchestration.
+2. The reader now preserves the initial startup boundary per `(topic, partition)` when no explicit checkpoint exists:
+   - on the first `latest` or `earliest` read it resolves the start offset once,
+   - stores that startup offset in reader memory,
+   - and reuses it across subsequent empty polls until the caller begins supplying a real checkpoint offset.
+3. Why this is the correct production behavior:
+   - fresh consumers still honor the chosen startup posture (`latest` or `earliest`),
+   - but they no longer silently skip records that arrive between poll cycles,
+   - and the fix applies uniformly to both the Confluent and MSK/OAUTH reader paths that the platform uses.
+4. I also tightened PR3 evidence around the same fault line instead of leaving CSFB as a blind spot:
+   - `scripts/dev_substrate/pr3_runtime_warm_gate.py` now probes both `CSFB` and `DF` for run-scope and topic-metadata readiness,
+   - `scripts/dev_substrate/pr3_runtime_surface_snapshot.py` now captures run-scoped `CSFB` metrics/health so the state evidence can show whether the context-binding lane is materially alive during the window.
+5. Local validation completed cleanly:
+   - `.venv\Scripts\python.exe -m pytest tests/services/event_bus/test_kafka_import_and_auth.py tests/services/decision_fabric/test_worker_runtime.py`
+   - result: `9 passed`
+   - `.venv\Scripts\python.exe -m py_compile src/fraud_detection/event_bus/kafka.py scripts/dev_substrate/pr3_runtime_warm_gate.py scripts/dev_substrate/pr3_runtime_surface_snapshot.py`
+6. Production expectation from this change set:
+   - the next fresh PR3 runtime should stop missing the head of the current-run context/decision traffic merely because a worker started on `latest`,
+   - and if PR3-S2 is still red after this, the remaining blocker will be a truthful runtime-capacity or downstream-correctness issue rather than an invisible consumer-startup skip.

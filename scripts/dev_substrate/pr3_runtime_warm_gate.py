@@ -85,6 +85,34 @@ print(json.dumps({
 }))
 """
 
+CSFB_WARM_SCRIPT = r"""
+import json
+from pathlib import Path
+
+from fraud_detection.context_store_flow_binding.intake import CsfbInletPolicy
+from fraud_detection.context_store_flow_binding.observability import CsfbObservabilityReporter
+from fraud_detection.event_bus.kafka import build_kafka_reader
+
+profile_path = Path(__import__("os").environ["FP_PROFILE_PATH"])
+policy = CsfbInletPolicy.load(profile_path)
+reader = build_kafka_reader(client_id="pr3-csfb-warm-gate")
+topic_partitions = {topic: reader.list_partitions(topic) for topic in policy.context_topics}
+reporter = CsfbObservabilityReporter.build(locator=policy.projection_db_dsn, stream_id=policy.stream_id)
+snapshot = reporter.collect(platform_run_id=policy.required_platform_run_id)
+print(json.dumps({
+    "required_platform_run_id": policy.required_platform_run_id,
+    "event_bus_start_position": policy.event_bus_start_position,
+    "projection_db_dsn": policy.projection_db_dsn,
+    "stream_id": policy.stream_id,
+    "context_topics": list(policy.context_topics),
+    "topic_partitions": topic_partitions,
+    "metrics": snapshot.get("metrics", {}),
+    "checkpoints": snapshot.get("checkpoints", {}),
+    "health_state": snapshot.get("health_state"),
+    "health_reasons": snapshot.get("health_reasons", []),
+}))
+"""
+
 
 def pod_status(namespace: str, app: str) -> dict[str, Any]:
     pods = get_json(["kubectl", "get", "pods", "-n", namespace, "-l", f"app={app}", "-o", "json"], timeout=120)
@@ -138,7 +166,28 @@ def main() -> None:
             blockers.append(f"PR3.{args.state_id}.WARM.B02_POD_NOT_READY:{row['app']}")
 
     df_probe, df_probe_error = ({}, "")
+    csfb_probe, csfb_probe_error = ({}, "")
     if not blockers:
+        csfb_status = next(row for row in pre_status if row.get("app") == "fp-pr3-csfb")
+        csfb_probe, csfb_probe_error = exec_json(
+            args.namespace,
+            str(csfb_status["pod_name"]),
+            CSFB_WARM_SCRIPT,
+            {"FP_PROFILE_PATH": args.profile_path},
+        )
+        if csfb_probe_error:
+            blockers.append(f"PR3.{args.state_id}.WARM.B03_CSFB_PROBE_FAILED:{csfb_probe_error}")
+        else:
+            if str(csfb_probe.get("required_platform_run_id") or "").strip() != args.platform_run_id:
+                blockers.append(
+                    f"PR3.{args.state_id}.WARM.B04_CSFB_PLATFORM_RUN_SCOPE_MISMATCH:"
+                    f"{csfb_probe.get('required_platform_run_id')}"
+                )
+            topic_partitions = dict(csfb_probe.get("topic_partitions") or {})
+            for topic in csfb_probe.get("context_topics") or []:
+                if not list(topic_partitions.get(topic) or []):
+                    blockers.append(f"PR3.{args.state_id}.WARM.B05_CSFB_TOPIC_METADATA_UNREADABLE:{topic}")
+
         df_status = next(row for row in pre_status if row.get("app") == "fp-pr3-df")
         df_probe, df_probe_error = exec_json(
             args.namespace,
@@ -147,17 +196,17 @@ def main() -> None:
             {"FP_PROFILE_PATH": args.profile_path},
         )
         if df_probe_error:
-            blockers.append(f"PR3.{args.state_id}.WARM.B03_DF_PROBE_FAILED:{df_probe_error}")
+            blockers.append(f"PR3.{args.state_id}.WARM.B06_DF_PROBE_FAILED:{df_probe_error}")
         else:
             if str(df_probe.get("required_platform_run_id") or "").strip() != args.platform_run_id:
                 blockers.append(
-                    f"PR3.{args.state_id}.WARM.B04_PLATFORM_RUN_SCOPE_MISMATCH:"
+                    f"PR3.{args.state_id}.WARM.B07_PLATFORM_RUN_SCOPE_MISMATCH:"
                     f"{df_probe.get('required_platform_run_id')}"
                 )
             if not bool(df_probe.get("required_scopes_present")):
-                blockers.append(f"PR3.{args.state_id}.WARM.B05_DF_SCOPE_BRIDGE_MISSING")
+                blockers.append(f"PR3.{args.state_id}.WARM.B08_DF_SCOPE_BRIDGE_MISSING")
             if not list(df_probe.get("kafka_partitions") or []):
-                blockers.append(f"PR3.{args.state_id}.WARM.B06_DF_KAFKA_METADATA_UNREADABLE")
+                blockers.append(f"PR3.{args.state_id}.WARM.B09_DF_KAFKA_METADATA_UNREADABLE")
 
     if not blockers and args.settle_seconds > 0:
         time.sleep(args.settle_seconds)
@@ -166,12 +215,12 @@ def main() -> None:
     if not blockers:
         for before, after in zip(pre_status, post_status, strict=False):
             if after.get("pod_missing"):
-                blockers.append(f"PR3.{args.state_id}.WARM.B07_POD_DISAPPEARED:{after['app']}")
+                blockers.append(f"PR3.{args.state_id}.WARM.B10_POD_DISAPPEARED:{after['app']}")
                 continue
             if after.get("phase") != "Running" or not bool(after.get("ready")):
-                blockers.append(f"PR3.{args.state_id}.WARM.B08_POD_NOT_STABLE:{after['app']}")
+                blockers.append(f"PR3.{args.state_id}.WARM.B11_POD_NOT_STABLE:{after['app']}")
             if int(after.get("restart_count", 0) or 0) > int(before.get("restart_count", 0) or 0):
-                blockers.append(f"PR3.{args.state_id}.WARM.B09_RESTART_DURING_SETTLE:{after['app']}")
+                blockers.append(f"PR3.{args.state_id}.WARM.B12_RESTART_DURING_SETTLE:{after['app']}")
 
     payload = {
         "phase": "PR3",
@@ -185,6 +234,8 @@ def main() -> None:
         "profile_path": args.profile_path,
         "settle_seconds": args.settle_seconds,
         "pre_status": pre_status,
+        "csfb_probe": csfb_probe,
+        "csfb_probe_error": csfb_probe_error,
         "df_probe": df_probe,
         "df_probe_error": df_probe_error,
         "post_status": post_status,
