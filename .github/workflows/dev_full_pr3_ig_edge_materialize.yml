@@ -56,6 +56,11 @@ on:
         required: true
         default: "15000"
         type: string
+      ig_service_gunicorn_keepalive_seconds:
+        description: "Service IG Gunicorn keepalive seconds"
+        required: true
+        default: "75"
+        type: string
       ig_kafka_publish_retries:
         description: "Kafka publish retries for IG runtimes"
         required: true
@@ -187,6 +192,7 @@ jobs:
             -var "ig_internal_retry_max_attempts=${{ inputs.ig_internal_retry_max_attempts }}" \
             -var "ig_internal_retry_backoff_ms=${{ inputs.ig_internal_retry_backoff_ms }}" \
             -var "lambda_ig_kafka_request_timeout_ms=${{ inputs.lambda_ig_kafka_request_timeout_ms }}" \
+            -var "ig_service_gunicorn_keepalive_seconds=${{ inputs.ig_service_gunicorn_keepalive_seconds }}" \
             -var "ig_service_kafka_request_timeout_ms=${{ inputs.ig_service_kafka_request_timeout_ms }}" \
             -var "ig_kafka_publish_retries=${{ inputs.ig_kafka_publish_retries }}"
 
@@ -198,6 +204,7 @@ jobs:
           EXPECTED_PLATFORM_IMAGE_URI: ${{ inputs.platform_image_uri }}
           EXPECTED_INTERNAL_RETRY_MAX_ATTEMPTS: ${{ inputs.ig_internal_retry_max_attempts }}
           EXPECTED_INTERNAL_RETRY_BACKOFF_MS: ${{ inputs.ig_internal_retry_backoff_ms }}
+          EXPECTED_GUNICORN_KEEPALIVE_SECONDS: ${{ inputs.ig_service_gunicorn_keepalive_seconds }}
           EXPECTED_SERVICE_KAFKA_REQUEST_TIMEOUT_MS: ${{ inputs.ig_service_kafka_request_timeout_ms }}
           EXPECTED_KAFKA_PUBLISH_RETRIES: ${{ inputs.ig_kafka_publish_retries }}
         run: |
@@ -264,6 +271,7 @@ jobs:
               "ecs_service_image": container.get("image"),
               "ecs_service_internal_retry_max_attempts": env_map.get("IG_INTERNAL_RETRY_MAX_ATTEMPTS"),
               "ecs_service_internal_retry_backoff_ms": env_map.get("IG_INTERNAL_RETRY_BACKOFF_MS"),
+              "ecs_service_gunicorn_keepalive_seconds": env_map.get("IG_GUNICORN_KEEPALIVE_SECONDS"),
               "ecs_service_kafka_request_timeout_ms": env_map.get("KAFKA_REQUEST_TIMEOUT_MS"),
               "ecs_service_kafka_publish_retries": env_map.get("KAFKA_PUBLISH_RETRIES"),
               "health_status_code": status_code,
@@ -286,6 +294,8 @@ jobs:
               raise SystemExit("Ingress ECS internal retry attempt drift remains.")
           if summary["ecs_service_internal_retry_backoff_ms"] != os.environ["EXPECTED_INTERNAL_RETRY_BACKOFF_MS"]:
               raise SystemExit("Ingress ECS internal retry backoff drift remains.")
+          if summary["ecs_service_gunicorn_keepalive_seconds"] != os.environ["EXPECTED_GUNICORN_KEEPALIVE_SECONDS"]:
+              raise SystemExit("Ingress ECS Gunicorn keepalive drift remains.")
           if summary["ecs_service_kafka_request_timeout_ms"] != os.environ["EXPECTED_SERVICE_KAFKA_REQUEST_TIMEOUT_MS"]:
               raise SystemExit("Ingress ECS Kafka timeout drift remains.")
           if summary["ecs_service_kafka_publish_retries"] != os.environ["EXPECTED_KAFKA_PUBLISH_RETRIES"]:

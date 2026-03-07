@@ -309,6 +309,11 @@ variable "ig_service_request_timeout_ms" {
   default = 30000
 }
 
+variable "ig_service_gunicorn_keepalive_seconds" {
+  type    = number
+  default = 75
+}
+
 variable "ig_service_kafka_request_timeout_ms" {
   type    = number
   default = 15000

@@ -6604,3 +6604,66 @@ eason=http_502,
    - production control planes should not expose dead knobs,
    - carrying non-functional inputs increases ambiguity and can silently block emergency reruns,
    - removing unused surface is a hardening improvement, not just a convenience.
+## Entry: 2026-03-07 05:46:25 +00:00 - PR3-S1 residual 5xx leak is most plausibly ALB-to-Gunicorn keepalive drift, so the next production fix is explicit backend connection lifetime control rather than more replay-shape churn
+1. Current live PR3-S1 frontier after the widened remote WSP -> IG reruns:
+   - throughput has already crossed the production bar (3008.3222 eps on the best run),
+   - sample minimum and steady-window duration are already satisfied,
+   - p95/p99 remain inside the strict steady budget,
+   - the only remaining blocker on the strongest run is a tiny but non-zero ELB 5xx count (2).
+2. I checked the live authoritative surfaces before deciding on the next remediation:
+   - the leaked errors are showing on HTTPCode_ELB_5XX_Count,
+   - HTTPCode_Target_5XX_Count did not show a corresponding target-side exception spike,
+   - HealthyHostCount remained stable across the run,
+   - target-connection-error counters did not expose a broader service collapse.
+3. I then inspected the live ingress-service runtime posture in Terraform and AWS:
+   - Gunicorn is started with explicit workers, threads, and timeout,
+   - there is no explicit Gunicorn --keep-alive pin,
+   - the ALB idle timeout remains 60s,
+   - Gunicorn's default backend keepalive is materially shorter than that ALB idle window.
+4. Production diagnosis:
+   - this combination is a classic rare-502/ELB-5xx fault line under sustained connection reuse,
+   - the platform can already sustain the required steady-rate envelope, but the target-side connection lifetime is not yet pinned tightly enough for a production ingress edge,
+   - continuing to churn replay shape without correcting the backend connection contract would be an engineering shortcut and would leave a latent reliability defect in place.
+5. Alternatives considered and rejected:
+   - accept the current result because the error rate is tiny: rejected because the closure standard is zero-waiver and because a financial-platform ingress edge should not normalize even rare edge-generated 5xx at the declared steady target;
+   - widen service count again: rejected because the live evidence does not show health loss or app saturation as the dominant defect;
+   - lower target EPS back below 3000: rejected because the target is already the pinned production floor and the platform has shown it can hit it on throughput terms;
+   - keep calibrating producer burst knobs first: rejected as the primary move because the smoothed run proved that replay-shape churn can degrade throughput without removing the ELB leak.
+6. Chosen remediation:
+   - add an explicit ingress-service Gunicorn keepalive variable and command pin,
+   - set the backend keepalive above the ALB idle timeout so the target, not the load balancer, governs connection lifetime cleanly,
+   - materialize the change via the canonical dev_full_pr3_ig_edge_materialize.yml workflow so the live service/task definition and verification receipts remain authoritative.
+7. Proposed production pin:
+   - IG_GUNICORN_KEEPALIVE_SECONDS = 75.
+8. Why 75 seconds:
+   - it is intentionally above the ALB 60s idle timeout,
+   - it avoids backend-side premature close races during sustained keepalive reuse,
+   - it remains bounded and operationally simple.
+9. Immediate next actions:
+   - wire the keepalive pin through Terraform variables, task-definition command/environment, and outputs,
+   - extend the IG edge materialization workflow to accept, apply, and verify the keepalive pin,
+   - rerun PR3-S1 on the strongest proven replay shape once the live ingress edge has rolled to the new task definition,
+   - judge closure strictly from impact metrics and not from implementation intent.
+## Entry: 2026-03-07 05:48:07 +00:00 - The ingress keepalive fix is now wired through the canonical runtime surfaces so the next PR3-S1 rerun will test a materially changed edge, not just a new replay shape
+1. I added ig_service_gunicorn_keepalive_seconds to the dev_full runtime Terraform variables with a default of 75.
+2. I updated the ingress ECS task definition so Gunicorn now starts with:
+   - explicit --keep-alive {IG_GUNICORN_KEEPALIVE_SECONDS},
+   - matching container environment export IG_GUNICORN_KEEPALIVE_SECONDS.
+3. I updated runtime-handle outputs so the active ingress surface now exposes the keepalive pin alongside the other IG envelope values.
+4. I extended .github/workflows/dev_full_pr3_ig_edge_materialize.yml so the canonical IG materialization lane:
+   - accepts ig_service_gunicorn_keepalive_seconds as a dispatch input,
+   - passes that value into the targeted Terraform apply,
+   - verifies the rolled ECS task definition exposes the expected keepalive value before declaring success.
+5. Validation completed locally before live rollout:
+   - workflow YAML parsed cleanly,
+   - Terraform validate passed on infra/terraform/dev_full/runtime,
+   - runtime formatting was normalized after the new output row was added.
+6. Production significance:
+   - this is not a cosmetic runtime knob,
+   - it tightens the connection-lifetime contract between ALB and the ingress targets,
+   - it directly addresses the only remaining defect on the strongest PR3-S1 run without weakening the 3000 eps bar.
+7. Next execution sequence:
+   - commit and push this checkpoint so the workflow runner can consume the new materialization contract,
+   - run the canonical IG edge materialization workflow against the active immutable platform image,
+   - verify the service rolls to a task definition carrying the keepalive pin,
+   - rerun strict PR3-S1 on the strongest remote WSP -> IG shape and evaluate impact metrics again.
