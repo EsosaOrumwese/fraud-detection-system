@@ -204,3 +204,27 @@ def test_phase7_security_policy_blocks_unapproved_output_root(tmp_path: Path) ->
     )
     with pytest.raises(DecisionLogAuditObservabilityError):
         reporter.export(output_root=tmp_path / "outside")
+
+
+def test_phase7_zero_state_export_is_readable(tmp_path: Path) -> None:
+    store = DecisionLogAuditIntakeStore(locator=str(tmp_path / "dla_intake.sqlite"))
+    reporter = DecisionLogAuditObservabilityReporter(
+        store=store,
+        platform_run_id=PINS["platform_run_id"],
+        scenario_run_id=PINS["scenario_run_id"],
+        security_policy=DecisionLogAuditSecurityPolicy(allow_custom_output_root=True, allowed_root=tmp_path),
+    )
+
+    payload = reporter.export(output_root=tmp_path / PINS["platform_run_id"])
+
+    metrics_path = tmp_path / PINS["platform_run_id"] / "decision_log_audit" / "metrics" / "last_metrics.json"
+    health_path = tmp_path / PINS["platform_run_id"] / "decision_log_audit" / "health" / "last_health.json"
+    assert metrics_path.exists()
+    assert health_path.exists()
+
+    metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+    health = json.loads(health_path.read_text(encoding="utf-8"))
+    assert payload["metrics"]["append_success_total"] == 0
+    assert metrics["metrics"]["append_success_total"] == 0
+    assert health["platform_run_id"] == PINS["platform_run_id"]
+    assert health["scenario_run_id"] == PINS["scenario_run_id"]

@@ -7387,3 +7387,139 @@ Implementation sequence
    - register a fresh `fraud-platform-dev-full-wsp-ephemeral` task definition revision pinned to that digest,
    - run strict `PR3-S2` with the same digest injected into EKS via `worker_image_uri`,
    - assess the result by impact metrics and continue remediation if downstream RTDL/decision blockers remain.
+## Entry: 2026-03-07 14:08:00 +00:00 - PR3-S2 active red state reduced to two production defects: RTDL decision-lane non-materialization and ingress burst headroom gap
+1. I re-read the strict `PR3-S2` evidence bundle after the runtime image refresh and the CSFB checkpoint isolation fix to avoid pushing another partial theory.
+2. What is now materially proven on the active run `platform_20260307T121427Z`:
+   - ingress burst is real and clean but still below the required envelope: `4067.356 eps`, `4xx=2`, `5xx=0`, `p95=554.704 ms`, `p99=1546.689 ms`,
+   - `CSFB` is alive on run-scoped identity `csfb.v0::platform_20260307T121427Z` and is projecting current-run state in volume (`join_hits=5478`, `join_misses=0`, `binding_conflicts=0`, `apply_failures_hard=0`),
+   - `IEG`, `OFP`, and `archive_writer` are materially participating with clean write/backpressure posture,
+   - `AL` and `DLA` remain dark only because upstream RTDL decision traffic is not materializing.
+3. The decisive problem in the decision lane is more precise than the earlier broad `DF` diagnosis:
+   - `DF` runtime is running and no longer fail-closing on registry drift,
+   - current-run `decision_fabric/metrics/last_metrics.json` is still stuck at zero decisions and zero publishes,
+   - `AL` and `DLA` surfaces are missing because no `fp.bus.rtdl.v1` current-run traffic is being generated, not because those pods are absent.
+4. The evidence says this is not a generic RTDL outage:
+   - `CSFB` already has current-run bindings and join frames,
+   - the live fraud topic record for the run contains `payload.flow_id`,
+   - `DF` logs previously showed repeated `CONTEXT_WAITING` against the same roles,
+   - therefore the remaining gap is the runtime semantics between traffic arrival, binding visibility, and DF retry/materialization, not missing upstream data publication.
+5. Production implication:
+   - `PR3-S2` cannot close while the decision lane is effectively ingress-only.
+   - A production-ready claim at this state requires end-to-end decision-path materialization under burst, not just healthy ingress and context planes.
+6. I also re-evaluated the burst ingress miss in production terms instead of as a single tuning number:
+   - the active `4067 eps` result with clean `5xx` and low archive pressure does not look like a hard correctness ceiling,
+   - but the latency breach (`p95/p99`) means the ingress plane still needs real headroom work before a `6000 eps` claim is honest.
+7. Alternatives considered and rejected:
+   - close `S2` on the ingress/context surfaces alone: rejected because the decision path is part of the production claim surface.
+   - force a threshold waiver on burst EPS or tail latency: rejected because the user explicitly required no waivers and the truth anchor requires claimable evidence.
+   - widen budgets blindly and rerun harder: rejected because it would spend more remote compute before the decision lane can even emit meaningful downstream traffic.
+8. Chosen remediation order:
+   - first, make the RTDL lane materially produce decisions and downstream artifacts on the current run by fixing the true DF/AL/DLA runtime contracts,
+   - second, once `DF -> AL/DLA` is alive, retune the burst path against the full end-to-end surface rather than the current partial lane,
+   - third, rerun strict `PR3-S2` and judge only on impact metrics with human-readable findings.
+9. Immediate investigation targets pinned from this decision:
+   - `DF` context resolution and retry/export semantics under current-run burst order,
+   - `AL` observability file path/materialization behavior under zero/near-zero intake,
+   - `DLA` observability file path/materialization behavior and whether its worker contract requires a first event before exporting health.
+10. Success definition for this remediation step:
+   - current-run `DF` produces non-zero decisions on `fp.bus.rtdl.v1`,
+   - `AL` and `DLA` emit readable run-scoped observability surfaces during the burst window,
+   - then the next `PR3-S2` rerun can truthfully measure end-to-end burst behavior instead of ingress-only partial proof.
+## Entry: 2026-03-07 14:42:00 +00:00 - Chosen PR3-S2 decision-lane remediation: stable DF wait budgets and zero-state downstream observability before any threshold reinterpretation
+1. I completed the live root-cause analysis inside the running RTDL pods rather than inferring from stale JSON files.
+2. The decisive findings are now pinned:
+   - `DF` is repeatedly re-reading the same first current-run offsets on all three traffic partitions and logging `CONTEXT_WAITING:arrival_events|flow_anchor`.
+   - Direct CSFB query from inside the `DF` runtime confirms that these partition-head `flow_id`s currently return `MISSING_BINDING`, not `READY`.
+   - A wider 300-event sample from the same current-run traffic window shows the issue is mixed rather than universal: `238/300` flow ids already resolve `READY`, while `62/300` return `MISSING_BINDING`.
+   - Because the first unresolved event on each partition sits at the head of the consumer cursor, the current worker never progresses into the many later `READY` events on those partitions.
+3. The production-significant software defect is not just “missing context exists”; it is that the `DF` wait budget is effectively non-persistent.
+   - `DecisionFabricWorker` currently computes `decision_started_at_utc` from the current observation time whenever Kafka `published_at_utc` is absent.
+   - On a deferred retry, that observation time is recomputed, which resets the join-wait budget.
+   - Result: a partition-head miss can defer forever and block the whole partition even when the policy nominally says “after 900ms treat it as missing.”
+4. Why this must be fixed first:
+   - it is a correctness and liveness bug independent of threshold policy,
+   - it prevents the platform from expressing truthful downstream behavior (`fail_closed`, `quarantine`, `AL`, `DLA`) on the actual unresolved events,
+   - it contaminates every burst measurement because the RTDL lane is stuck behind three partition-head blockers.
+5. I also confirmed a second, smaller but real defect:
+   - `AL` and `DLA` pods are live, but their run-scoped metrics/health files are missing until they process material traffic,
+   - this makes the state evidence report `COMPONENT_SURFACE_MISSING` instead of distinguishing “healthy idle” from “broken.”
+6. Alternatives considered and rejected:
+   - increase `join_wait_budget_ms` only: rejected because the budget reset bug would still allow infinite defer under missing `published_at_utc`.
+   - skip unresolved events immediately: rejected because the policy intentionally allows transient context catch-up and immediate skip would over-harden the lane.
+   - reinterpret thresholds before fixing liveness: rejected because we do not yet have truthful downstream evidence to interpret.
+7. Chosen remediation sequence:
+   - add a run-scoped persistent first-seen ledger for `DF` deferred events so the join/deadline budgets survive retries,
+   - once the budget expires, let the existing context policy surface `CONTEXT_MISSING` so the worker synthesizes and publishes a deterministic fail-closed decision instead of deferring forever,
+   - add startup/idle export for `AL` and `DLA` so run-scoped health files exist even before the first material event,
+   - rerun strict `PR3-S2` and only then judge whether remaining fail-closed volume is a true data-contract problem that needs a deeper RTDL correlation fix.
+8. Why this is the correct production posture:
+   - regulated decision systems cannot allow a single unresolved message to stall an entire hot partition indefinitely,
+   - they must either resolve within a bounded wait window or emit a deterministic fail-safe outcome with full auditability,
+   - and their downstream operators must remain observable even when upstream volume is zero or blocked.
+## Entry: 2026-03-07 15:05:00 +00:00 - Code-level remediation plan before touching PR3-S2 RTDL liveness: persist DF first-seen wait state and export downstream zero-state health
+1. I have now reduced the active PR3-S2 engineering work to two code changes that are both required before another honest rerun:
+   - `DF` must stop resetting join-wait budgets on every retry of the same partition-head event.
+   - `AL` and `DLA` must export run-scoped health/metrics even when upstream traffic is zero, so the state evidence distinguishes healthy idle from broken materialization.
+2. Exact defect boundary in `DF`:
+   - `_decision_started_at()` correctly prefers `published_at_utc` when present, but current Kafka traffic often lacks that field.
+   - `_process_record()` therefore falls back to a fresh `observed_at_utc` on every retry.
+   - `DecisionContextPolicy` is budget-driven (`join_wait_budget_ms`, `decision_deadline_ms`), so recomputing start time on the same offset makes the budget effectively infinite.
+   - The consumer checkpoint store currently persists only `next_offset`, not the first-seen time needed to preserve liveness semantics.
+3. Chosen `DF` implementation shape:
+   - extend `_ConsumerCheckpointStore` with a second SQLite table keyed by `(stream_id, topic, partition_id, offset_kind, current_offset)` storing `first_seen_at_utc` and `updated_at_utc`,
+   - expose `first_seen_at(...)`, `ensure_first_seen(...)`, and `clear_first_seen(...)` helpers,
+   - in `_process_record()`, derive `started_at_utc` from the source publish timestamp when valid; otherwise read-or-create the persisted first-seen time for the exact current offset,
+   - on `CONTEXT_WAITING`, keep the same offset checkpoint and retain the stored first-seen timestamp,
+   - on any terminal path that advances past the offset (skip, publish, duplicate, quarantine, etc.), clear the wait-state record so the ledger cannot leak across offsets.
+4. Why this design is preferred over alternatives:
+   - storing the timing state beside consumer checkpoints preserves the existing operational boundary and reuses the same run-scoped SQLite lifecycle,
+   - per-offset persistence gives deterministic behavior through process restarts, which is what a production worker must guarantee,
+   - no policy values are loosened and no head-of-line message is silently dropped; the existing context policy still decides between transient waiting and deterministic fail-closed once the budget genuinely expires.
+5. Performance and cost posture of the chosen design:
+   - single-row point lookups/updates in the same local SQLite file are negligible relative to the current network-bound Kafka + query workload,
+   - clearing wait-state on advance prevents unbounded table growth during long runs,
+   - no extra remote service, queue, or infra dependency is introduced.
+6. Required regression coverage before rerun:
+   - extend `tests/services/decision_fabric/test_worker_runtime.py` to prove the first-seen timestamp persists across repeated retries on the same offset when `published_at_utc` is absent,
+   - prove the wait-state record is cleared when the worker advances past the offset,
+   - preserve the existing deferral behavior when context is still transiently waiting.
+7. Downstream observability plan pinned at the same time:
+   - `AL` already creates run-scoped metrics only after `_ensure_scenario()` sees the first action intent; for zero-input windows it therefore emits no files.
+   - `DLA` similarly waits for `_latest_scenario_run_id(...)` before exporting and returns early when no scenario run id is discoverable.
+   - I will add an explicit zero-state export path driven by the existing `platform_run_id` and the scenario scope already available in the runtime env/materialization surface, with counters initialized to zero and health derived from zero intake instead of missing files.
+8. Success definition before next remote execution:
+   - `DF` can no longer defer the same partition-head miss indefinitely; it must age into deterministic downstream behavior,
+   - `AL` and `DLA` surfaces must exist for the active run even if traffic is zero,
+   - only after both conditions are locally validated will the next strict PR3-S2 rerun be worth the remote spend.
+## Entry: 2026-03-07 15:26:00 +00:00 - DF wait-budget persistence and downstream zero-state observability implemented and locally validated
+1. I implemented the RTDL liveness correction in `src/fraud_detection/decision_fabric/worker.py`.
+2. Exact `DF` change set:
+   - `_ConsumerCheckpointStore` now owns a second SQLite table `df_worker_wait_state` keyed by `(stream_id, topic, partition_id, current_offset, offset_kind)`.
+   - Added a small in-process cache for first-seen timestamps so repeated retries on the same offset avoid unnecessary repeated SQLite reads.
+   - Added `ensure_first_seen(...)` to read-or-create a stable `first_seen_at_utc` for the exact current offset.
+   - Added `clear_first_seen(...)` and wired `advance(...)` to clear the stored wait state whenever the worker moves past an offset.
+   - `_process_record()` now uses the source publish timestamp when valid; otherwise it falls back to the persisted first-seen timestamp instead of a fresh observation time.
+3. Production effect of the `DF` change:
+   - a partition-head message with temporarily missing context can still wait within policy,
+   - but once the join-wait budget truly expires, the same event will age into deterministic fail-safe behavior instead of stalling the entire partition indefinitely,
+   - this restores liveness without weakening the existing context policy.
+4. Regression coverage added in `tests/services/decision_fabric/test_worker_runtime.py`:
+   - existing deferral behavior still holds,
+   - first-seen timestamp persists across a store restart for the same offset,
+   - first-seen state is cleared when the worker advances to the next offset.
+5. I also implemented the downstream zero-state evidence fix.
+   - `src/fraud_detection/action_layer/worker.py` now accepts `scenario_run_id` in config and bootstraps `ActionLayerRunMetrics` immediately when `platform_run_id + scenario_run_id` are provided at startup.
+   - This allows `AL` to export run-scoped metrics/health files even before the first action intent arrives.
+   - `scripts/dev_substrate/pr3_rtdl_materialize.py` now injects `AL_SCENARIO_RUN_ID` and `DLA_SCENARIO_RUN_ID` into the remote runtime secret/env so both lanes can export run-scoped zero-state surfaces deterministically.
+   - `DLA` code itself did not need a semantic change because it already supports scenario-scoped export when the scenario run id is present in env; the missing surface was a materialization gap.
+6. Added focused proofs for the zero-state surfaces:
+   - new `tests/services/action_layer/test_worker_runtime.py` proves `AL` bootstraps zero-state metrics/health and writes readable run-scoped files with zero counters.
+   - `tests/services/decision_log_audit/test_dla_phase7_observability.py` now proves `DLA` zero-state export is readable and run-scoped on an empty store.
+7. Local validation completed cleanly:
+   - `.venv\Scripts\python.exe -m pytest tests/services/decision_fabric/test_worker_runtime.py tests/services/decision_fabric/test_phase5_context.py` -> `11 passed`
+   - `.venv\Scripts\python.exe -m pytest tests/services/action_layer/test_phase7_observability.py tests/services/action_layer/test_worker_runtime.py tests/services/decision_log_audit/test_dla_phase7_observability.py` -> `10 passed`
+   - `.venv\Scripts\python.exe -m py_compile src/fraud_detection/decision_fabric/worker.py src/fraud_detection/action_layer/worker.py scripts/dev_substrate/pr3_rtdl_materialize.py tests/services/decision_fabric/test_worker_runtime.py tests/services/action_layer/test_worker_runtime.py tests/services/decision_log_audit/test_dla_phase7_observability.py`
+8. Acceptance interpretation at this checkpoint:
+   - local code proof is green,
+   - the remote PR3 runtime is still on the previous image, so the next meaningful step is image refresh plus strict `PR3-S2` rerun,
+   - if `DF` still shows a high fail-closed volume after this patch is materially live, that remaining red will be a true context-correlation/data-contract problem rather than a retry-budget liveness bug.

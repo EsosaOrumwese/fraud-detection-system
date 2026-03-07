@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
 
 from fraud_detection.decision_fabric.context import CONTEXT_WAITING
 from fraud_detection.decision_fabric.inlet import DecisionTriggerCandidate, DfInletResult, SourceEbRef
-from fraud_detection.decision_fabric.worker import DecisionFabricWorker, _decision_started_at
+from fraud_detection.decision_fabric.worker import DecisionFabricWorker, _ConsumerCheckpointStore, _decision_started_at
 
 
 def _candidate() -> DecisionTriggerCandidate:
@@ -75,12 +76,25 @@ def test_worker_defers_context_waiting_without_publish_or_advance() -> None:
         def __init__(self) -> None:
             self.deferred: list[tuple[str, int, str, str]] = []
             self.advanced: list[tuple[str, int, str, str]] = []
+            self.first_seen_requests: list[tuple[str, int, str, str, str]] = []
 
         def defer(self, *, topic: str, partition: int, offset: str, offset_kind: str) -> None:
             self.deferred.append((topic, partition, offset, offset_kind))
 
         def advance(self, *, topic: str, partition: int, offset: str, offset_kind: str) -> None:
             self.advanced.append((topic, partition, offset, offset_kind))
+
+        def ensure_first_seen(
+            self,
+            *,
+            topic: str,
+            partition: int,
+            offset: str,
+            offset_kind: str,
+            observed_at_utc: str,
+        ) -> str:
+            self.first_seen_requests.append((topic, partition, offset, offset_kind, observed_at_utc))
+            return observed_at_utc
 
     worker = DecisionFabricWorker.__new__(DecisionFabricWorker)
     worker.config = SimpleNamespace(required_platform_run_id=candidate.pins["platform_run_id"])
@@ -106,3 +120,55 @@ def test_worker_defers_context_waiting_without_publish_or_advance() -> None:
         (candidate.source_eb_ref.topic, candidate.source_eb_ref.partition, candidate.source_eb_ref.offset, candidate.source_eb_ref.offset_kind)
     ]
     assert worker.consumer_checkpoints.advanced == []
+
+
+def test_consumer_checkpoint_store_persists_first_seen_for_same_offset(tmp_path: Path) -> None:
+    path = tmp_path / "df_consumer_checkpoints.sqlite"
+    store = _ConsumerCheckpointStore(path, "df.v0::run")
+
+    first = store.ensure_first_seen(
+        topic="fp.bus.traffic.fraud.v1",
+        partition=1,
+        offset="42",
+        offset_kind="kafka_offset",
+        observed_at_utc="2026-03-07T15:00:00.000000Z",
+    )
+    restarted_store = _ConsumerCheckpointStore(path, "df.v0::run")
+    second = restarted_store.ensure_first_seen(
+        topic="fp.bus.traffic.fraud.v1",
+        partition=1,
+        offset="42",
+        offset_kind="kafka_offset",
+        observed_at_utc="2026-03-07T15:00:05.000000Z",
+    )
+
+    assert first == "2026-03-07T15:00:00.000000Z"
+    assert second == first
+
+
+def test_consumer_checkpoint_store_clears_first_seen_on_advance(tmp_path: Path) -> None:
+    store = _ConsumerCheckpointStore(tmp_path / "df_consumer_checkpoints.sqlite", "df.v0::run")
+
+    first = store.ensure_first_seen(
+        topic="fp.bus.traffic.fraud.v1",
+        partition=2,
+        offset="99",
+        offset_kind="kafka_offset",
+        observed_at_utc="2026-03-07T15:01:00.000000Z",
+    )
+    store.advance(
+        topic="fp.bus.traffic.fraud.v1",
+        partition=2,
+        offset="99",
+        offset_kind="kafka_offset",
+    )
+    second = store.ensure_first_seen(
+        topic="fp.bus.traffic.fraud.v1",
+        partition=2,
+        offset="100",
+        offset_kind="kafka_offset",
+        observed_at_utc="2026-03-07T15:01:07.000000Z",
+    )
+
+    assert first == "2026-03-07T15:01:00.000000Z"
+    assert second == "2026-03-07T15:01:07.000000Z"

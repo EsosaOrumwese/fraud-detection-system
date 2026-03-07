@@ -90,6 +90,7 @@ class _ConsumerCheckpointStore:
         self.path = path
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.stream_id = stream_id
+        self._first_seen_cache: dict[tuple[str, int, str, str], str] = {}
         with sqlite3.connect(self.path) as conn:
             conn.execute(
                 """
@@ -101,6 +102,20 @@ class _ConsumerCheckpointStore:
                     offset_kind TEXT NOT NULL,
                     updated_at_utc TEXT NOT NULL,
                     PRIMARY KEY (stream_id, topic, partition_id)
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS df_worker_wait_state (
+                    stream_id TEXT NOT NULL,
+                    topic TEXT NOT NULL,
+                    partition_id INTEGER NOT NULL,
+                    current_offset TEXT NOT NULL,
+                    offset_kind TEXT NOT NULL,
+                    first_seen_at_utc TEXT NOT NULL,
+                    updated_at_utc TEXT NOT NULL,
+                    PRIMARY KEY (stream_id, topic, partition_id, current_offset, offset_kind)
                 )
                 """
             )
@@ -123,10 +138,83 @@ class _ConsumerCheckpointStore:
         next_offset = str(offset)
         if offset_kind in {"file_line", "kafka_offset"}:
             next_offset = str(int(offset) + 1)
+        self.clear_first_seen(topic=topic, partition=partition, offset=offset, offset_kind=offset_kind)
         self._write(topic=topic, partition=partition, next_offset=next_offset, offset_kind=offset_kind)
 
     def defer(self, *, topic: str, partition: int, offset: str, offset_kind: str) -> None:
         self._write(topic=topic, partition=partition, next_offset=str(offset), offset_kind=offset_kind)
+
+    def ensure_first_seen(
+        self,
+        *,
+        topic: str,
+        partition: int,
+        offset: str,
+        offset_kind: str,
+        observed_at_utc: str,
+    ) -> str:
+        key = (topic, int(partition), str(offset_kind), str(offset))
+        cached = self._first_seen_cache.get(key)
+        if cached:
+            return cached
+        with sqlite3.connect(self.path) as conn:
+            row = conn.execute(
+                """
+                SELECT first_seen_at_utc
+                FROM df_worker_wait_state
+                WHERE stream_id = ? AND topic = ? AND partition_id = ? AND current_offset = ? AND offset_kind = ?
+                """,
+                (self.stream_id, topic, int(partition), str(offset), str(offset_kind)),
+            ).fetchone()
+            if row is None:
+                conn.execute(
+                    """
+                    INSERT INTO df_worker_wait_state (
+                        stream_id, topic, partition_id, current_offset, offset_kind, first_seen_at_utc, updated_at_utc
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        self.stream_id,
+                        topic,
+                        int(partition),
+                        str(offset),
+                        str(offset_kind),
+                        observed_at_utc,
+                        observed_at_utc,
+                    ),
+                )
+                first_seen = observed_at_utc
+            else:
+                first_seen = str(row[0])
+                conn.execute(
+                    """
+                    UPDATE df_worker_wait_state
+                    SET updated_at_utc = ?
+                    WHERE stream_id = ? AND topic = ? AND partition_id = ? AND current_offset = ? AND offset_kind = ?
+                    """,
+                    (
+                        observed_at_utc,
+                        self.stream_id,
+                        topic,
+                        int(partition),
+                        str(offset),
+                        str(offset_kind),
+                    ),
+                )
+        self._first_seen_cache[key] = first_seen
+        return first_seen
+
+    def clear_first_seen(self, *, topic: str, partition: int, offset: str, offset_kind: str) -> None:
+        key = (topic, int(partition), str(offset_kind), str(offset))
+        self._first_seen_cache.pop(key, None)
+        with sqlite3.connect(self.path) as conn:
+            conn.execute(
+                """
+                DELETE FROM df_worker_wait_state
+                WHERE stream_id = ? AND topic = ? AND partition_id = ? AND current_offset = ? AND offset_kind = ?
+                """,
+                (self.stream_id, topic, int(partition), str(offset), str(offset_kind)),
+            )
 
     def _write(self, *, topic: str, partition: int, next_offset: str, offset_kind: str) -> None:
         with sqlite3.connect(self.path) as conn:
@@ -250,9 +338,20 @@ class DecisionFabricWorker:
             return
 
         observed_at_utc = _utc_now()
+        published_at_utc = bus.published_at_utc or candidate.source_eb_ref.published_at_utc
+        if _parse_rfc3339_or_none(published_at_utc) is not None:
+            started_observed_at_utc = observed_at_utc
+        else:
+            started_observed_at_utc = self.consumer_checkpoints.ensure_first_seen(
+                topic=topic,
+                partition=partition,
+                offset=offset,
+                offset_kind=offset_kind,
+                observed_at_utc=observed_at_utc,
+            )
         started = _decision_started_at(
-            published_at_utc=bus.published_at_utc or candidate.source_eb_ref.published_at_utc,
-            observed_at_utc=observed_at_utc,
+            published_at_utc=published_at_utc,
+            observed_at_utc=started_observed_at_utc,
         )
         posture = self._resolve_posture(candidate)
         context = self.acquirer.acquire(

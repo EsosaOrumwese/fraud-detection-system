@@ -444,6 +444,8 @@ def main() -> int:
         "OBJECT_STORE_REGION": args.region,
         "PLATFORM_RUN_ID": args.platform_run_id,
         "ACTIVE_PLATFORM_RUN_ID": args.platform_run_id,
+        "AL_SCENARIO_RUN_ID": args.scenario_run_id,
+        "DLA_SCENARIO_RUN_ID": args.scenario_run_id,
         "CSFB_REQUIRED_PLATFORM_RUN_ID": args.platform_run_id,
         "IEG_REQUIRED_PLATFORM_RUN_ID": args.platform_run_id,
         "OFP_REQUIRED_PLATFORM_RUN_ID": args.platform_run_id,
@@ -486,6 +488,8 @@ def main() -> int:
         env_ref("OBJECT_STORE_REGION", secret_name, "OBJECT_STORE_REGION"),
         env_ref("PLATFORM_RUN_ID", secret_name, "PLATFORM_RUN_ID"),
         env_ref("ACTIVE_PLATFORM_RUN_ID", secret_name, "ACTIVE_PLATFORM_RUN_ID"),
+        env_ref("AL_SCENARIO_RUN_ID", secret_name, "AL_SCENARIO_RUN_ID"),
+        env_ref("DLA_SCENARIO_RUN_ID", secret_name, "DLA_SCENARIO_RUN_ID"),
         plain_env("PYTHONUNBUFFERED", "1"),
     ]
     profile_volume_mounts = [
