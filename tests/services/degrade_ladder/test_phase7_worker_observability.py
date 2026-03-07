@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import json
 from pathlib import Path
 
@@ -106,6 +107,8 @@ def test_worker_marks_health_red_when_required_signals_missing(tmp_path: Path, m
         run_id=run_id,
         include_component_health=False,
     )
+    worker._worker_started_at = datetime(2026, 2, 9, 22, 1, 0, tzinfo=timezone.utc)
+    monkeypatch.setattr("fraud_detection.degrade_ladder.worker._utc_now", lambda: "2026-02-09T22:05:00+00:00")
 
     payload = worker.run_once()
     assert payload["mode"] == "FAIL_CLOSED"
@@ -144,6 +147,33 @@ def test_worker_treats_missing_remote_surfaces_as_bootstrap_pending_for_fresh_ru
 ) -> None:
     run_id = "platform_20260209T220300Z"
     monkeypatch.setattr("fraud_detection.degrade_ladder.worker._utc_now", lambda: "2026-02-09T22:03:20+00:00")
+    worker = _build_worker(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        run_id=run_id,
+        include_component_health=False,
+        include_operate_status=False,
+    )
+
+    payload = worker.run_once()
+
+    assert payload["mode"] == "NORMAL"
+    assert payload["run_observability"]["health_state"] == "GREEN"
+
+
+def test_worker_bootstrap_grace_tracks_worker_start_not_stale_run_id(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_id = "platform_20260209T220300Z"
+    ticks = iter(
+        [
+            "2026-02-09T22:10:00+00:00",
+            "2026-02-09T22:10:20+00:00",
+            "2026-02-09T22:10:20+00:00",
+        ]
+    )
+    monkeypatch.setattr("fraud_detection.degrade_ladder.worker._utc_now", lambda: next(ticks))
     worker = _build_worker(
         tmp_path=tmp_path,
         monkeypatch=monkeypatch,

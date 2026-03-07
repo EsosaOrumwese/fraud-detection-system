@@ -81,6 +81,7 @@ class DegradeLadderWorker:
         self.publisher = DlJsonlPublisher(path=self._control_events_path())
         self._last_drain_result: DlDrainResult | None = None
         self._policy_activation_recorded = False
+        self._worker_started_at = _parse_platform_utc(_utc_now()) or datetime.now(timezone.utc)
 
     def run_once(self) -> dict[str, Any]:
         now_utc = _utc_now()
@@ -472,12 +473,17 @@ class DegradeLadderWorker:
         )
 
     def _within_bootstrap_window(self, *, observed_at_utc: str) -> bool:
-        started = _platform_run_started_at(self.config.platform_run_id)
         observed = _parse_platform_utc(observed_at_utc)
-        if started is None or observed is None:
+        if observed is None:
+            return False
+        anchor = _bootstrap_anchor_time(
+            platform_run_id=self.config.platform_run_id,
+            worker_started_at=self._worker_started_at,
+        )
+        if anchor is None:
             return False
         grace_seconds = max(30, min(90, int(self.profile.signal_policy.required_max_age_seconds)))
-        elapsed = int((observed - started).total_seconds())
+        elapsed = int((observed - anchor).total_seconds())
         return elapsed >= 0 and elapsed <= grace_seconds
 
     def _signal_control_publish_health(self) -> SignalState:
@@ -751,6 +757,19 @@ def _platform_run_started_at(platform_run_id: str | None) -> datetime | None:
         return datetime.strptime(stamp, "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
     except ValueError:
         return None
+
+
+def _bootstrap_anchor_time(
+    *,
+    platform_run_id: str | None,
+    worker_started_at: datetime | None,
+) -> datetime | None:
+    started = _platform_run_started_at(platform_run_id)
+    if started is None:
+        return worker_started_at
+    if worker_started_at is None:
+        return started
+    return max(started, worker_started_at)
 
 
 def _parse_platform_utc(value: str | None) -> datetime | None:

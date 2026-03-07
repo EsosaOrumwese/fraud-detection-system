@@ -7679,3 +7679,47 @@ ot ready because pods are broken from eady to accept first traffic on a fresh r
    - rebuild the immutable image,
    - rerun PR3-S2 on the same boundary,
    - and only then judge the remaining red on actual burst/decision impact metrics.
+## Entry: 2026-03-07 17:05:00 +00:00 - Next strict PR3-S2 boundary pinned on the DL bootstrap correction image
+1. The active code state is now materially different from the previous warm-gate failure: digest sha256:756442c29d3c1a87d2195a64abaaae209069324ad882e9c2d8c96dee302bb0ed includes the DL bootstrap semantics correction, so the next rerun is expected to differentiate startup-posture defects from genuine RTDL or burst-pressure defects.
+2. Before another burst window, the canonical replay surface must be repinned at the ECS task-definition boundary because raud-platform-dev-full-wsp-ephemeral cannot take an image override at un_task time. EKS materialization will use the same immutable digest so both surfaces are auditable and aligned.
+3. Success criteria for this rerun are pinned on impact metrics rather than checklist closure:
+   - warm gate must pass without DL fail-closing a fresh runtime,
+   - DF, AL, and DLA must all emit current-run participation surfaces,
+   - burst scorecard must show whether the remaining red is true throughput/tail-latency pressure or another correctness defect.
+4. If the rerun is still red, the next remediation will target the concrete residual blocker only. No design retreat, no waiver, and no fallback to a toy envelope are acceptable.
+## Entry: 2026-03-07 17:18:00 +00:00 - Warm-gate blocker reduced to a single timing defect: DL bootstrap grace is anchored to run creation instead of worker activation
+1. The strict rerun on digest sha256:756442c29d3c1a87d2195a64abaaae209069324ad882e9c2d8c96dee302bb0ed did exactly what the gate is supposed to do: it stopped before the burst window and produced a precise blocker rather than burning another 300-second injection on a known-bad runtime.
+2. The evidence now isolates the defect to timing semantics, not correctness or image drift:
+   - all PR3 pods are running and ready,
+   - DF scope bridge is correct (egistry_snapshot_dev_full_v0.yaml is mounted and the required scopes are present),
+   - DL store is writable and returns a current record,
+   - the sole blocker is that the DL decision still enters FAIL_CLOSED with equired_signal_gap:eb_consumer_lag,ieg_health,ofp_health before first current-run traffic exists.
+3. The specific implementation mistake is now clear: _within_bootstrap_window() in degrade_ladder.worker anchors grace to platform_run_id time. In PR3, platform_run_id is minted well before all EKS deployments finish materializing, so by the time the first DL tick evaluates posture the run-id age can already exceed the hard-capped 90-second bootstrap window.
+4. Production interpretation:
+   - bootstrap grace belongs to the runtime activation boundary, not the orchestration identifier mint time,
+   - otherwise a healthy remote deployment can deterministically fail-closed before it has had any opportunity to receive first traffic or emit first component health surfaces,
+   - this is especially wrong for distributed, multi-workload startup where rollout/verification naturally consumes more than a minute.
+5. Chosen remediation:
+   - anchor bootstrap grace to worker activation time (with platform_run_id time kept only as a lower-bound provenance value),
+   - preserve the bounded grace semantics so this is not a steady-state relaxation,
+   - re-run strict PR3-S2 immediately after validating the corrected behavior locally.
+## Entry: 2026-03-07 17:28:00 +00:00 - Implemented the DL startup-anchor correction and validated it locally
+1. The warm-gate blocker required a runtime semantic fix, not a threshold waiver. I changed degrade_ladder.worker so bootstrap grace is now anchored to the later of:
+   - platform_run_id creation time, and
+   - the actual DL worker activation timestamp.
+2. Why this is the correct production behavior:
+   - a distributed remote deployment naturally spends time materializing pods, mounting config, and becoming ready,
+   - those seconds must not count against a component before that component is even alive,
+   - but the grace window remains bounded, so this is not a steady-state relaxation.
+3. The actual code change is intentionally narrow:
+   - DegradeLadderWorker.__init__() now records _worker_started_at,
+   - _within_bootstrap_window() now evaluates from _bootstrap_anchor_time(...) instead of only from platform_run_id time.
+4. Added targeted proof in 	ests/services/degrade_ladder/test_phase7_worker_observability.py showing a stale platform_run_id still receives bounded bootstrap grace when the worker itself has only just started. The older failure-path test was also tightened to force a genuinely expired bootstrap boundary instead of implicitly depending on startup-time fail-close.
+5. Local validation is green:
+   - .venv\Scripts\python.exe -m pytest tests/services/degrade_ladder/test_phase7_worker_observability.py -> 5 passed
+   - .venv\Scripts\python.exe -m py_compile src/fraud_detection/degrade_ladder/worker.py -> clean
+6. Next remote sequence is again fixed and auditable:
+   - commit/push this correction,
+   - rebuild the immutable dev_full image,
+   - rerun strict PR3-S2,
+   - judge the outcome first on warm-gate posture and then on downstream decision/burst impact metrics.
