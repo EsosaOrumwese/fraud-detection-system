@@ -377,14 +377,16 @@ This plan's intent is satisfied only when:
 ### 10.15 PR3-S2 Findings Summary (Readable)
 | Area | What was found | Interpretation |
 | --- | --- | --- |
-| Gate outcome | current truthful receipt is `HOLD_REMEDIATE`, `open_blockers=2`, `next_state=PR3-S2` | S2 remains open, but the blocker set is now narrow and trustworthy. |
-| Attempt-scope integrity | active attempt `platform_20260307T144230Z`; `11` snapshots selected; `14` historical snapshots excluded from other `platform_run_id`s | PR3-S2 evidence is now judged on the active burst attempt only; prior DF red signals from mixed reruns are no longer admissible. |
-| Burst goal vs observed throughput | target `6000 eps`; observed admitted throughput `4187.033 eps`; observed request throughput `4187.039 eps` | The active shortfall is launcher-side underdrive of the burst window, not downstream rejection or RTDL collapse. |
-| Error posture | `4xx_total=0`, `5xx_total=1`, `error_rate_ratio=1.3268e-06` | The error surface is nearly clean, but the single target-side `5xx` keeps the state red because PR3 burst policy is fail-closed at `5xx=0`. |
-| Latency posture | ALB target-response latency `p95=132.01 ms`, `p99=183.75 ms` against maxima `<=350 ms`, `<=700 ms` | Burst traffic is not currently degrading the hot path; latency headroom remains strong. |
-| RTDL backpressure posture | `IEG backpressure delta=0`; `OFP lag p95=0.010s`; `IEG checkpoint age p95=0.048s`; `DLA checkpoint age p95=0.712s` | The real-time decision-learning plane is not the active limiter for the burst window anymore. |
-| Downstream correctness posture | `DF/AL/DLA/archive` new error-growth deltas all `0`; archive backlog final `0` | The earlier DF fail-close/quarantine blockers were evidence-contamination artifacts, not current-run runtime failures. |
-| Production interpretation | current burst lane uses `stream_speedup=102.4`, `48` lanes, `ig_push_concurrency=8`, replay task `256/1024` | This posture is no longer sufficient to claim a `6000 eps` production burst proof; the next rerun must repin the burst launcher, not rework RTDL again. |
+| Gate outcome | latest authoritative receipt is `HOLD_REMEDIATE`, `open_blockers=4`, `next_state=PR3-S2` | S2 remains open, and the red state is now tied to real current-run behavior rather than evidence contamination. |
+| Attempt-scope integrity | active attempt `platform_20260307T151808Z`; `12` snapshots selected; `0` historical snapshots excluded in the downloaded artifact | The latest S2 judgment is attempt-pure and can be audited directly from the GitHub run artifact. |
+| Burst goal vs observed throughput | target `6000 eps`; observed admitted throughput `4575.657 eps`; observed request throughput `4575.677 eps` | The stronger replay posture materially improved the burst lane, but the platform is still below the required production burst target. |
+| Error posture | `4xx_total=6`, `5xx_total=0`, `error_rate_ratio=4.37e-06` | Transport integrity is now effectively clean; the prior single `5xx` blocker was removed in the latest rerun. |
+| Latency posture | ALB target-response latency `p95=157.46 ms`, `p99=1638.29 ms` against maxima `<=350 ms`, `<=700 ms` | Median and p95 posture remain strong, but the burst state is still non-compliant because the tail is breaking the p99 budget. |
+| First-minute tail shape | ALB minute-level query shows `15:23 UTC p99 ~= 7.41s`, while later minutes hold `p99 ~= 0.188..0.196s` | The p99 breach is concentrated at the startup boundary, which points to warm-window contamination rather than steady-state latency collapse. |
+| RTDL backpressure posture | `IEG backpressure delta=0`; `OFP lag p95=0.0138s`; `IEG checkpoint age p95=0.0305s`; `DLA checkpoint age p95=0.6565s` | The RTDL plane is broadly healthy under this burst rate; systemic backpressure is not the active limiter. |
+| DF correctness posture | `DF fail_closed_total_delta=1`, `publish_quarantine_total_delta=1` with logs showing repeated `CONTEXT_WAITING:arrival_events` and `CONTEXT_WAITING:flow_anchor` | The remaining RTDL defect is now narrow and startup-bound: DF sees at least one current-run head record before the required context surfaces are materially ready. |
+| Capacity-accounting note | first repinned attempt hit Fargate vCPU contention because ingress consumed `128 / 140 vCPU`; quota-safe rerun used `44` lanes at `256 CPU` | Account headroom, not platform hot-path collapse, was the reason the first stronger burst launch failed. |
+| Production interpretation | the next remediation belongs at the pre-burst warm boundary and, if needed, ingress/right-sizing or replay-shape tuning; it does not belong in waiving the p99/DF defects | PR3-S2 now has a specific, production-meaningful closure target: settled-burst timing with DF-current-run correctness and `6000 eps` throughput intact. |
 
 ## 11) Required TBD Closure Sheet (Binding)
 This section defines the mandatory closure routing for unresolved targets in:

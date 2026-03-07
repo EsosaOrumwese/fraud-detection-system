@@ -60,7 +60,7 @@ on:
       lane_count:
         description: "Number of remote WSP burst lanes"
         required: true
-        default: "48"
+        default: "44"
         type: string
       target_burst_eps:
         description: "Certified burst EPS target"
@@ -76,6 +76,11 @@ on:
         description: "Burst window duration in seconds"
         required: true
         default: "300"
+        type: string
+      warmup_seconds:
+        description: "Same-run warmup before certification measurement begins"
+        required: true
+        default: "90"
         type: string
       stream_speedup:
         description: "Oracle replay speedup multiplier"
@@ -100,7 +105,7 @@ on:
       wsp_task_cpu:
         description: "Fargate CPU units per WSP burst lane"
         required: true
-        default: "512"
+        default: "256"
         type: string
       wsp_task_memory:
         description: "Fargate memory MiB per WSP burst lane"
@@ -331,6 +336,7 @@ jobs:
           TARGET_BURST_EPS: ${{ inputs.target_burst_eps }}
           TARGET_REQUEST_RATE_EPS: ${{ inputs.target_request_rate_eps }}
           DURATION_SECONDS: ${{ inputs.duration_seconds }}
+          WARMUP_SECONDS: ${{ inputs.warmup_seconds }}
           STREAM_SPEEDUP: ${{ inputs.stream_speedup }}
           OUTPUT_CONCURRENCY: ${{ inputs.output_concurrency }}
           IG_PUSH_CONCURRENCY: ${{ inputs.ig_push_concurrency }}
@@ -356,6 +362,7 @@ jobs:
             --expected-window-eps "${TARGET_BURST_EPS}" \
             --target-request-rate-eps "${TARGET_REQUEST_RATE_EPS}" \
             --duration-seconds "${DURATION_SECONDS}" \
+            --warmup-seconds "${WARMUP_SECONDS}" \
             --early-cutoff-seconds "${EARLY_CUTOFF_SECONDS}" \
             --early-cutoff-floor-ratio "${EARLY_CUTOFF_FLOOR_RATIO}" \
             --stream-speedup "${STREAM_SPEEDUP}" \

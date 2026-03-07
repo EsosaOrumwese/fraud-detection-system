@@ -138,6 +138,11 @@ def align_down_to_period(dt: datetime, period_seconds: int) -> datetime:
     return datetime.fromtimestamp(aligned, tz=timezone.utc)
 
 
+def measurement_start_boundary(active_confirmed_at: datetime, *, warmup_seconds: int, period_seconds: int = 60) -> datetime:
+    effective_warmup = max(0, int(warmup_seconds))
+    return align_up_to_period(active_confirmed_at + timedelta(seconds=effective_warmup), period_seconds)
+
+
 def build_wsp_command() -> list[str]:
     script = dedent(
         """
@@ -784,6 +789,7 @@ def main() -> None:
     ap.add_argument("--aurora-db-name", default="fraud_platform")
     ap.add_argument("--aurora-port", type=int, default=5432)
     ap.add_argument("--duration-seconds", type=int, default=1800)
+    ap.add_argument("--warmup-seconds", type=int, default=0)
     ap.add_argument("--early-cutoff-seconds", type=int, default=300)
     ap.add_argument("--early-cutoff-floor-ratio", type=float, default=0.70)
     ap.add_argument("--expected-window-eps", type=float, default=3000.0)
@@ -1052,6 +1058,7 @@ def main() -> None:
             "target_request_rate_eps": target_request_rate_eps,
             "per_lane_target_eps": per_lane_target_eps,
             "duration_seconds": args.duration_seconds,
+            "warmup_seconds": max(0, int(args.warmup_seconds)),
             "early_cutoff_seconds": args.early_cutoff_seconds,
             "early_cutoff_floor_ratio": args.early_cutoff_floor_ratio,
             "stream_speedup": args.stream_speedup,
@@ -1128,7 +1135,11 @@ def main() -> None:
 
     hard_deadline = time.time() + max(120, args.duration_seconds + 900)
     steady_window_seconds = int(math.ceil(max(60, args.duration_seconds) / 60.0) * 60)
-    measurement_start_at = align_up_to_period(active_confirmed_at, 60)
+    measurement_start_at = measurement_start_boundary(
+        active_confirmed_at,
+        warmup_seconds=args.warmup_seconds,
+        period_seconds=60,
+    )
     measurement_end_at = measurement_start_at + timedelta(seconds=steady_window_seconds)
     window_end = measurement_end_at.timestamp()
     early_cutoff_triggered = False
@@ -1389,6 +1400,7 @@ def main() -> None:
             "fleet_started_utc": to_iso_utc(active_start),
             "start_utc": to_iso_utc(active_confirmed_at),
             "active_confirmed_utc": to_iso_utc(active_confirmed_at),
+            "warmup_seconds": max(0, int(args.warmup_seconds)),
             "measurement_start_utc": to_iso_utc(measurement_start_at),
             "measurement_target_end_utc": to_iso_utc(measurement_end_at),
             "metric_effective_start_utc": str(totals.get("effective_start_utc", "") or ""),
