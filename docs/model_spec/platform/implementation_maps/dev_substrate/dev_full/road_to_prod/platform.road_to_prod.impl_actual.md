@@ -6514,3 +6514,76 @@ eason=http_502,
    - wait for `22792386082`,
    - if green, repair the readable `PR3-S1` findings and active-state text so they point to the current pass rather than the stale/red mixed root,
    - then expand and execute `PR3-S2` sequentially from that clean boundary.
+
+## Entry: 2026-03-07 05:19:25 +00:00 - PR3-S1 is now a calibration-shape problem at the live frontier, so the next remediation is wider horizontal WSP replay rather than a harder per-lane overdrive
+1. I reviewed the two most recent authoritative strict `PR3-S1` attempts instead of assuming more speedup would be the right answer:
+   - run `22792475132` produced `observed_admitted_eps=2981.3444`, `4xx_total=0`, `5xx_total=0`, `latency_p95_ms=112.7800`, `latency_p99_ms=136.7923`, `sample_size_events=536642`, and failed only on `PR3.S1.WSP.B19_FINAL_THROUGHPUT_SHORTFALL`;
+   - run `22792607084` produced `observed_admitted_eps=2993.0444`, `4xx_total=0`, `5xx_total=2`, `latency_p95_ms=112.4280`, `latency_p99_ms=138.7087`, `sample_size_events=538748`, and failed on the combination of `B19_FINAL_THROUGHPUT_SHORTFALL` plus `PR3.S1.WSP.B22_5XX_RATE_BREACH`.
+2. Production interpretation:
+   - the ingress stack is no longer generally broken,
+   - it is operating on a narrow frontier where extra per-lane pressure adds a few more admitted events but starts to leak tiny transport errors,
+   - this is exactly where "just overdrive it harder until it goes green" becomes the wrong production response.
+3. I also checked the current account envelope instead of pretending the old `138`-lane pass still fits today's fleet posture:
+   - `AWS/Usage ResourceCount` for Fargate on-demand vCPU peaked at `136.0` during the `32`-lane run,
+   - the same metric sits around `133.5` when the replay fleet is idle,
+   - therefore there is real but bounded headroom for modest horizontal widening before the account quota becomes the dominant limiter again.
+4. Why the next correction is horizontal replay shape rather than more speedup on the same lane width:
+   - historical clean success came from many narrower lanes (`138` lanes at `~21.8 eps/lane`),
+   - the live near-frontier misses are happening with only `32` lanes at roughly `94.5 eps/lane`,
+   - production `WSP` is fundamentally a distributed producer surface, so widening the fan-out while lowering per-lane stress is closer to the real graph than forcing each lane to behave like an oversized synthetic cannon.
+5. Rejected alternatives:
+   - more `stream_speedup` or higher request setpoint on the same `32` lanes: rejected because the last increment already converted a clean low-error miss into a 5xx leak;
+   - accepting `2993 eps` or waiving `2` 5xx: rejected because the user explicitly requires no waivers and that would directly dilute the production claim;
+   - reverting to synthetic injectors or local loaders: rejected because `PR3-S1` must remain a real remote `WSP -> IG` proof.
+6. Chosen next experiment:
+   - keep `target_steady_eps=3000`,
+   - keep the strict `180s` settled window and `540000` sample minimum,
+   - widen replay modestly above `32` lanes so the aggregate target is distributed across more remote producers,
+   - lower the per-lane target pressure while staying near the proven aggregate setpoint boundary,
+   - judge success only from the impact metrics (`admitted eps`, `4xx/5xx`, `p95/p99`) on the live authoritative surface.
+7. Immediate next action:
+   - dispatch the next strict `PR3-S1` rerun with a horizontally widened WSP replay shape on the same canonical remote path,
+   - if that closes `S1`, immediately repair the readable PR3 findings and move to `PR3-S2`;
+   - if it still misses, continue bounded calibration on the same principles rather than reopening architecture already shown healthy at this boundary.
+## Entry: 2026-03-07 05:32:33 +00:00 - Horizontal widening solved throughput, so the remaining PR3-S1 defect is now a tiny ALB-side 5xx leak and the next fix is replay burst-shape hardening
+1. I dispatched the widened strict rerun on workflow `22792803516` with:
+   - `lane_count=40`,
+   - `target_request_rate_eps=3015`,
+   - `stream_speedup=51.2`,
+   - `duration_seconds=180`,
+   - `min_sample_events=540000`,
+   - the same canonical remote `WSP -> IG` path and fresh runtime identity posture.
+2. The outcome materially changed the state boundary:
+   - `observed_admitted_eps=3008.3222`,
+   - `sample_size_events=541498`,
+   - `latency_p95_ms=111.0739`,
+   - `latency_p99_ms=134.1351`,
+   - `4xx_total=0`,
+   - `5xx_total=2`,
+   - only remaining blocker: `PR3.S1.WSP.B22_5XX_RATE_BREACH`.
+3. Production interpretation:
+   - the widening choice was correct,
+   - throughput, sample minimum, and latency are now all green at the required `3000 eps` standard,
+   - `PR3-S1` is no longer a throughput-capacity problem; it is a strict reliability-hardening problem.
+4. I then checked the live AWS evidence surfaces instead of speculating:
+   - ALB `HTTPCode_ELB_5XX_Count` shows the leaked errors on the edge-facing ELB metric, not as application target `5xx`,
+   - target-group `HTTPCode_Target_5XX_Count` is empty for the same window,
+   - `HealthyHostCount` remained `32` across the entire measured interval,
+   - `TargetConnectionErrorCount` did not register a concurrent spike.
+5. What that means:
+   - this does not look like broad service churn, health loss, or a systematic application exception storm,
+   - the fault signature is consistent with a tiny edge-side transport blip under the current replay shape,
+   - therefore random service scaling or another throughput overdrive would be the wrong remediation.
+6. Rejected next moves:
+   - accept the run because it is "almost green": rejected because the production goal is explicit zero-waiver closure;
+   - raise ingress service count immediately: rejected because CPU/memory/health evidence already shows ample service headroom and no target-health loss;
+   - cut target EPS back below the achieved boundary: rejected because that would deliberately throw away a now-proven `3000+ eps` throughput shape.
+7. Chosen remediation:
+   - keep the widened horizontal replay shape,
+   - expose and tune the replay token-bucket controls (`target_burst_seconds`, `target_initial_tokens`) at workflow level,
+   - reduce initial and intra-window burstiness while preserving the same aggregate steady target,
+   - rerun strict `PR3-S1` and require the same `3000 eps` / `0 5xx` closure.
+8. Why this is the production-minded fix:
+   - the real platform question is whether distributed WSP replay can hold the steady target without leaking edge errors,
+   - shaping the producer burst envelope is a valid producer-runtime control,
+   - it is more honest than claiming the stack is fine while ignoring transport spikes caused by an avoidable load-shape artifact.

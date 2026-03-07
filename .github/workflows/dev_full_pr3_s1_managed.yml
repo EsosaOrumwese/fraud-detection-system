@@ -111,6 +111,16 @@ on:
         required: true
         default: "4"
         type: string
+      target_burst_seconds:
+        description: "Per-lane token-bucket burst allowance in seconds"
+        required: true
+        default: "0.25"
+        type: string
+      target_initial_tokens:
+        description: "Per-lane initial token-bucket fill ratio"
+        required: true
+        default: "0.25"
+        type: string
       retry_max_attempts:
         description: "Retry attempts per event"
         required: true
@@ -672,6 +682,8 @@ jobs:
           EARLY_CUTOFF_FLOOR_RATIO: ${{ inputs.early_cutoff_floor_ratio }}
           STREAM_SPEEDUP: ${{ inputs.stream_speedup }}
           IG_PUSH_CONCURRENCY: ${{ inputs.ig_push_concurrency }}
+          TARGET_BURST_SECONDS: ${{ inputs.target_burst_seconds }}
+          TARGET_INITIAL_TOKENS: ${{ inputs.target_initial_tokens }}
           ALLOW_RUNTIME_ID_REUSE: ${{ inputs.allow_runtime_identity_reuse }}
         run: |
           set -euo pipefail
@@ -702,6 +714,8 @@ jobs:
             --early-cutoff-seconds "${EARLY_CUTOFF_SECONDS}" \
             --early-cutoff-floor-ratio "${EARLY_CUTOFF_FLOOR_RATIO}" \
             --stream-speedup "${STREAM_SPEEDUP}" \
+            --target-burst-seconds "${TARGET_BURST_SECONDS}" \
+            --target-initial-tokens "${TARGET_INITIAL_TOKENS}" \
             --max-latency-p95-ms 350 \
             --max-latency-p99-ms 700 \
             --skip-runtime-identity-probe \
