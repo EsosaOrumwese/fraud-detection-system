@@ -155,3 +155,33 @@ def test_kafka_oauthbearer_does_not_require_static_sasl_credentials(monkeypatch)
     assert publisher is not None
     assert reader is not None
     assert callable(publisher._producer.args[0].get("oauth_cb"))
+
+
+def test_kafka_publisher_uses_extended_delivery_deadline(monkeypatch) -> None:
+    class _RecordingProducer:
+        def __init__(self, conf):
+            self.conf = conf
+
+    fake_module = types.SimpleNamespace(
+        Producer=_RecordingProducer,
+        Consumer=object,
+        KafkaError=types.SimpleNamespace(_PARTITION_EOF=-191),
+        TopicPartition=object,
+    )
+    monkeypatch.setitem(sys.modules, "confluent_kafka", fake_module)
+    sys.modules.pop("fraud_detection.event_bus.kafka", None)
+
+    kafka = importlib.import_module("fraud_detection.event_bus.kafka")
+
+    publisher = kafka.KafkaEventBusPublisher(
+        kafka.KafkaConfig(
+            bootstrap_servers="localhost:9092",
+            security_protocol="PLAINTEXT",
+            request_timeout_ms=2000,
+        )
+    )
+
+    conf = publisher._producer.conf
+    assert conf["request.timeout.ms"] == 3000
+    assert conf["delivery.timeout.ms"] == 6000
+    assert conf["socket.timeout.ms"] == 6000

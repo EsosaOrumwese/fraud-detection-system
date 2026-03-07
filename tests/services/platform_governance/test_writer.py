@@ -75,6 +75,39 @@ def test_writer_query_filters_and_limits(tmp_path: Path) -> None:
     assert ended_rows[0]["event_family"] == "RUN_ENDED"
 
 
+def test_writer_survives_projection_append_conflict_using_event_objects(tmp_path: Path) -> None:
+    class _ConflictStore(LocalObjectStore):
+        def append_jsonl(self, relative_path: str, records: list[dict[str, object]]) -> object:
+            raise RuntimeError("S3_APPEND_CONFLICT")
+
+    store = _ConflictStore(tmp_path / "store")
+    writer = PlatformGovernanceWriter(store)
+    run_id = "platform_20260307T002600Z"
+
+    payload = writer.emit(
+        GovernanceEvent(
+            event_family="CORRIDOR_ANOMALY",
+            actor_id="svc:test",
+            source_type="service",
+            source_component="unit_test",
+            platform_run_id=run_id,
+            details={"reason_code": "PUBLISH_AMBIGUOUS"},
+            dedupe_key="anomaly:evt-1",
+        )
+    )
+
+    assert payload is not None
+    events_projection = tmp_path / "store" / "fraud-platform" / run_id / "obs" / "governance" / "events.jsonl"
+    assert not events_projection.exists()
+
+    event_objects = list((tmp_path / "store" / "fraud-platform" / run_id / "obs" / "governance" / "events").glob("*.json"))
+    assert len(event_objects) == 1
+
+    rows = writer.query(platform_run_id=run_id)
+    assert len(rows) == 1
+    assert rows[0]["event_family"] == "CORRIDOR_ANOMALY"
+
+
 def test_writer_fails_closed_on_missing_mandatory_fields(tmp_path: Path) -> None:
     store = LocalObjectStore(tmp_path / "store")
     writer = PlatformGovernanceWriter(store)

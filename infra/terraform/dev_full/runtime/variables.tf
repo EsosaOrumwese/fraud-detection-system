@@ -221,7 +221,7 @@ variable "lambda_ig_timeout_seconds" {
 
 variable "lambda_ig_kafka_request_timeout_ms" {
   type    = number
-  default = 1500
+  default = 5000
 }
 
 variable "lambda_ig_policy_activation_audit_mode" {
@@ -302,6 +302,11 @@ variable "ig_service_gunicorn_threads" {
 variable "ig_service_request_timeout_ms" {
   type    = number
   default = 30000
+}
+
+variable "ig_service_kafka_request_timeout_ms" {
+  type    = number
+  default = 10000
 }
 
 variable "ig_service_receipt_storage_mode" {

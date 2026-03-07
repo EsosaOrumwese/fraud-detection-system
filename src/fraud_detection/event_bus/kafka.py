@@ -89,15 +89,20 @@ class _MskIamTokenProvider(AbstractTokenProvider):
 
 
 def _producer_conf(config: KafkaConfig) -> dict[str, Any]:
+    request_timeout_ms = _producer_request_timeout_ms(config)
+    publish_deadline_ms = _producer_publish_deadline_ms(config)
     conf = {
         "bootstrap.servers": config.bootstrap_servers,
         "security.protocol": config.security_protocol,
         "sasl.mechanism": config.sasl_mechanism,
         "client.id": config.client_id,
-        "request.timeout.ms": max(1000, int(config.request_timeout_ms)),
-        "delivery.timeout.ms": max(1000, int(config.request_timeout_ms)),
-        "socket.timeout.ms": max(1000, int(config.request_timeout_ms)),
+        "request.timeout.ms": request_timeout_ms,
+        "delivery.timeout.ms": publish_deadline_ms,
+        "socket.timeout.ms": publish_deadline_ms,
         "message.send.max.retries": max(0, int(config.retries)),
+        "retry.backoff.ms": 250,
+        "retry.backoff.max.ms": 2000,
+        "socket.keepalive.enable": True,
         "enable.idempotence": True,
         "acks": "all",
     }
@@ -177,7 +182,8 @@ class KafkaEventBusPublisher:
             value=payload_bytes,
             on_delivery=_on_delivery,
         )
-        deadline = time.monotonic() + (max(1000, int(self.config.request_timeout_ms)) / 1000.0)
+        publish_deadline_seconds = _producer_publish_deadline_ms(self.config) / 1000.0
+        deadline = time.monotonic() + publish_deadline_seconds
         while "message" not in delivery and "error" not in delivery:
             self._producer.poll(0.1)
             if time.monotonic() >= deadline:
@@ -416,6 +422,15 @@ def build_kafka_reader(*, client_id: str) -> KafkaEventBusReader:
             aws_region=aws_region,
         )
     )
+
+
+def _producer_request_timeout_ms(config: KafkaConfig) -> int:
+    return max(3000, int(config.request_timeout_ms))
+
+
+def _producer_publish_deadline_ms(config: KafkaConfig) -> int:
+    request_timeout_ms = _producer_request_timeout_ms(config)
+    return max(5000, request_timeout_ms * 2)
 
 
 def _decode_kafka_payload(value: Any) -> dict[str, Any]:

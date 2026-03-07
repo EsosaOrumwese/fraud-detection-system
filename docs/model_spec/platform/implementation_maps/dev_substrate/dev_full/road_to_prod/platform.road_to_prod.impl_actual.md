@@ -5802,3 +5802,56 @@ Reasoning:
    - publish a fresh immutable image carrying this reduced-write DDB correction,
    - roll the ingress service again,
    - rerun canonical `PR3-S1` and verify the remaining `5xx` blocker is eliminated.
+
+## Entry: 2026-03-07 00:25:48 +00:00 - PR3-S1 root-cause boundary has shifted again: ingress no longer fails on receipt persistence, but the next two production defects are Kafka publish timeout posture and conflict-unsafe governance anomaly persistence
+1. I investigated the latest strict `PR3-S1` regression instead of assuming the previous near-green run still represented the live system. The current failed summary is `runs/dev_substrate/dev_full/road_to_prod/run_control/pr3_20260306T021900Z/g3a_s1_wsp_runtime_summary.json` (`generated_at_utc=2026-03-07T00:17:49.659708Z`, `verdict=HOLD_REMEDIATE`, `observed_request_eps=157.4333`, `observed_admitted_eps=123.2`, `error_rate_ratio=0.2174465`, `latency_p95_ms=10845.037`, `latency_p99_ms=17783.295`).
+2. The runtime collapse is not a generic ECS/WSP crash. Live ECS and CloudWatch evidence shows the WSP tasks are reaching the ingress edge and then exiting because IG returns fail-closed decisions after downstream publish ambiguity. The immediate WSP-side symptom is `IG_PUSH_REJECTED` with `decision=QUARANTINE`, not a bootloader or subnet fault.
+3. The first root cause is specific and production-material:
+   - live IG logs show repeated Confluent/MSK timeout lines such as `Timed out ApiVersionRequest in flight (after 2002ms...)`;
+   - the publish path raises `RuntimeError("KAFKA_PUBLISH_TIMEOUT")` from `src/fraud_detection/event_bus/kafka.py`;
+   - IG correctly converts that unknown publish outcome into `PUBLISH_AMBIGUOUS` and quarantines rather than risking duplicate publish.
+4. This is not a reason to weaken fail-closed semantics. The correct interpretation is that the current Kafka timeout pin is too tight for the real MSK Serverless + IAM/OAUTH handshake posture at hot ingress rates. Once receipt persistence stopped being the bottleneck, the artificially tight publish deadline became the new frontier. Keeping the low timeout would be optimizing for a toy network path, not a production AWS-managed stream boundary.
+5. The second root cause is also specific and production-material:
+   - while IG is emitting `CORRIDOR_ANOMALY` governance facts for quarantine decisions, the object-store append path can raise `S3_APPEND_CONFLICT` / `PreconditionFailed`;
+   - this comes from the shared JSONL append design in `src/fraud_detection/platform_governance/writer.py` and the S3 append CAS loop in `src/fraud_detection/scenario_runner/storage.py` / `src/fraud_detection/ingestion_gate/store.py`;
+   - under concurrent quarantine spikes this means the audit path itself is built on a non-scalable single-writer assumption.
+6. Rejected shortcut: repinning WSP back to some easier low-rate path or treating the current behavior as an acceptable blocker. That would only make `PR3-S1` easier to rerun, not make the platform more production-ready at the required ingress rate.
+7. Chosen production-grade remediation direction:
+   - keep the real `WSP -> IG -> DDB -> MSK` canonical path;
+   - harden Kafka publish posture for real MSK Serverless latency instead of preserving a toy timeout pin;
+   - move platform-governance durability onto conflict-free per-event persistence so governance truth remains append-only without shared-object contention;
+   - retain `events.jsonl` only as a projection/compatibility surface where safe, not as the sole authoritative persistence primitive for concurrent S3 writers.
+8. Before changing code I also verified a naming/config drift that contributed to mis-tuning:
+   - Terraform uses `lambda_ig_kafka_request_timeout_ms` for both Lambda and the ECS IG service env injection;
+   - that means the managed service inherited a Lambda-oriented timeout label and value, which is analytically wrong because the service hot path and concurrency model are different.
+9. Immediate implementation plan now pinned:
+   - add explicit ingress-service Kafka timeout variables and repin them to realistic MSK values;
+   - harden the Kafka publisher loop so producer flush/delivery windows align with the configured deadline rather than a premature manual abort posture;
+   - redesign governance writer persistence so each event is durably materialized without append conflicts, then retain query/projection compatibility for the rest of the platform;
+   - rerun focused ingress/governance tests, rebuild the image, redeploy the managed ingress service, and rerun strict `PR3-S1` from the same run-control root.
+
+## Entry: 2026-03-07 00:34:00 +00:00 - The Kafka/governance hardening pass is now implemented locally and validated before any new live image is built
+1. I changed the governance writer so append-only truth is no longer dependent on a shared JSONL S3 append succeeding on the hot path. The durable authority is now one event object per governance event under `obs/governance/events/<event_id>.json`; `events.jsonl` remains a projection path and append conflicts on that projection are tolerated instead of being allowed to invalidate the durable event truth.
+2. Why this is the correct production posture:
+   - unique event objects preserve append-only semantics under concurrent writers;
+   - event id determinism still provides idempotency;
+   - query/read surfaces can reconstruct truth from authoritative event objects instead of assuming a single mutable blob is safe at scale.
+3. I also corrected the ingress Kafka timeout posture in two layers:
+   - publisher config now enforces a more realistic request timeout floor and a wider delivery/socket deadline (`request.timeout.ms >= 3000`, delivery deadline at least `5000` and normally `2x request`);
+   - Terraform now stops reusing the Lambda Kafka timeout pin for the managed ingress ECS service and instead exposes `ig_service_kafka_request_timeout_ms` separately.
+4. Repins chosen for now:
+   - `lambda_ig_kafka_request_timeout_ms = 5000` (removes the toy 1500 ms posture while retaining a bounded edge timeout);
+   - `ig_service_kafka_request_timeout_ms = 10000` (gives the service path enough room for real MSK Serverless metadata/auth handshakes without conflating it with request-latency targets).
+5. Rejected alternative:
+   - leaving `events.jsonl` as the sole governance authority and merely increasing append retry count. That only hides the concurrency defect for a while and still depends on a shared-object mutation pattern that does not scale honestly.
+6. Local validation completed before any artifact rebuild:
+   - `python -m pytest tests/services/platform_governance/test_writer.py tests/services/event_bus/test_kafka_import_and_auth.py tests/services/ingestion_gate/test_admission.py tests/services/ingestion_gate/test_health_governance.py` -> `26 passed`;
+   - `python -m py_compile src/fraud_detection/platform_governance/writer.py src/fraud_detection/event_bus/kafka.py` -> pass;
+   - `terraform fmt -check infra/terraform/dev_full/runtime && terraform -chdir=infra/terraform/dev_full/runtime validate` -> pass.
+7. Additional guard added in tests:
+   - explicit proof that governance event query still works when the projection append raises `S3_APPEND_CONFLICT`;
+   - explicit proof that Kafka producer config now stretches delivery/socket timeouts beyond the raw request timeout floor.
+8. Next action boundary is now valid:
+   - publish a new immutable runtime image carrying these hot-path changes;
+   - redeploy the managed ingress service with the new service Kafka timeout pin;
+   - rerun strict `PR3-S1` from the existing run-control root and judge only the impact metrics.

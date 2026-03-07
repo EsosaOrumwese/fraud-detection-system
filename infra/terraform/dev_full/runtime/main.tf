@@ -1189,7 +1189,7 @@ resource "aws_ecs_task_definition" "ig_service" {
         },
         {
           name  = "KAFKA_REQUEST_TIMEOUT_MS"
-          value = tostring(var.lambda_ig_kafka_request_timeout_ms)
+          value = tostring(var.ig_service_kafka_request_timeout_ms)
         },
         {
           name  = "KAFKA_PUBLISH_RETRIES"
