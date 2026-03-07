@@ -8528,3 +8528,21 @@ uns/.../degrade_ladder/* on its own filesystem,
    - the strict S2 rerun must then supply:
      - `platform_image_uri=<new immutable branch digest>` for RTDL/WSP,
      - `ingress_image_uri=230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-full@sha256:50d9953e34433457ce556988b496fa0bf36fa4dbea119d96640d37427b5a33e9` for ingress.
+
+## Entry: 2026-03-07 21:28:00 +00:00 - Fresh immutable RTDL image packaged and PR3-S2 rerun boundary pinned explicitly
+1. I built the new immutable branch image through the existing packaging lane instead of relying on local Docker or mutable tags.
+2. Packaging run details:
+   - workflow: `dev_full_m1_packaging.yml`
+   - run id: `22807091783`
+   - head SHA: `6a079e5031f69c38cf63d8016667a7ba294e8bdd`
+   - result: `success`
+3. Resolved new immutable platform image from ECR:
+   - `230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-full@sha256:1a727cffec94aaeec990feb8c226ff5a3b8e8d2f1176e7f45b2cc6f688210375`
+4. Rerun image contract is now explicit and production-correct:
+   - RTDL/WSP image: new branch digest `sha256:1a727cffec94aaeec990feb8c226ff5a3b8e8d2f1176e7f45b2cc6f688210375`,
+   - ingress image: last-known-good hot-path digest `sha256:50d9953e34433457ce556988b496fa0bf36fa4dbea119d96640d37427b5a33e9`.
+5. Why this boundary is the correct S2 proof posture:
+   - it proves the RTDL semantic correction materially on the new code,
+   - it prevents ingress from being re-regressed by an unrelated shared-image rebuild,
+   - it keeps the no-waiver production bar intact because both planes are measured on their best current authoritative code paths rather than on an accidentally coupled rollout.
+6. Next action is immediate: dispatch strict `PR3-S2` with those exact image pins, then judge only the impact metrics that matter for S2 (burst EPS, p95/p99 latency, and downstream fail-closed/quarantine/backpressure posture).

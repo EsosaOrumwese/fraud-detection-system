@@ -127,11 +127,6 @@ on:
         required: true
         default: "120"
         type: string
-      early_cutoff_floor_ratio:
-        description: "Minimum admitted EPS ratio required at fail-fast check"
-        required: true
-        default: "0.70"
-        type: string
 
 permissions:
   contents: read
@@ -878,7 +873,7 @@ jobs:
           TARGET_BURST_SECONDS: ${{ inputs.target_burst_seconds }}
           TARGET_INITIAL_TOKENS: 0.50
           EARLY_CUTOFF_SECONDS: ${{ inputs.early_cutoff_seconds }}
-          EARLY_CUTOFF_FLOOR_RATIO: ${{ inputs.early_cutoff_floor_ratio }}
+          EARLY_CUTOFF_FLOOR_RATIO: "0.70"
         run: |
           set -euo pipefail
           python scripts/dev_substrate/pr3_wsp_replay_dispatch.py \
