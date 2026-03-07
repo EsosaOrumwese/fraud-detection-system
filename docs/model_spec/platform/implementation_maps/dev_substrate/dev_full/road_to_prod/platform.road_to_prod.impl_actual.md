@@ -6176,3 +6176,24 @@ eason=http_502,
    - apply the repinned ELBv2 read family live on GitHubActionsPR3RuntimeDevFull,
    - rerun ingress materialization again,
    - continue to service verification if the apply finally clears the IAM surface.
+
+## Entry: 2026-03-07 02:44:00 +00:00 - The rollout is now past ELB/IAM friction; the remaining gate is Lambda concurrency control authority
+1. Ingress materialization rerun 22790311956 cleared the ELBv2 permission boundary entirely. Terraform refreshed the managed ALB/TG/listener surface and executed real rollout steps.
+2. Important live consequence already observed in that run:
+   - ECS task definition replacement completed,
+   - ECS service update completed,
+   - therefore the managed ingress ECS path materially moved closer to the desired image/env pins even though the workflow still ended non-green.
+3. The remaining hard failure happened later and is precise:
+   - lambda:PutFunctionConcurrency denied while Terraform was updating ws_lambda_function.ig_handler reserved concurrency from 360 to 1000.
+4. This matters to production-readiness because the target ingress envelope is not only the ECS managed service. The API Gateway -> Lambda edge still fronts the canonical ingress admission path and must be able to hold the pinned concurrency posture.
+5. Chosen remediation:
+   - extend PR3IngressLambdaControl on policy GitHubActionsPR3RuntimeDevFull with:
+     - lambda:PutFunctionConcurrency
+     - lambda:DeleteFunctionConcurrency
+6. Why both actions:
+   - PutFunctionConcurrency is required for the current uplift to the pinned reserved concurrency target,
+   - DeleteFunctionConcurrency keeps the same Terraform-managed surface symmetrically controllable for future rollback/right-sizing without another IAM stop-start.
+7. Immediate next sequence:
+   - apply the lambda-concurrency IAM delta live,
+   - rerun ingress materialization,
+   - let the verify step confirm both ECS and Lambda now match the intended production envelope.

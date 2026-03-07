@@ -443,6 +443,8 @@ resource "aws_iam_policy" "github_actions_pr3_runtime" {
           "lambda:ListVersionsByFunction",
           "lambda:CreateFunction",
           "lambda:Update*",
+          "lambda:PutFunctionConcurrency",
+          "lambda:DeleteFunctionConcurrency",
           "lambda:TagResource",
           "lambda:UntagResource"
         ]
