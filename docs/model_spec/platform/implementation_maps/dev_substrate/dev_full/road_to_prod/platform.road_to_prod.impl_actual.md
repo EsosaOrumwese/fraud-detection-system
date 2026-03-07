@@ -8614,3 +8614,91 @@ uns/.../degrade_ladder/* on its own filesystem,
    - nodegroup uplift remains managed and auditable,
    - ingress stays on its proven contract instead of being touched opportunistically,
    - the next rerun will judge the substrate change itself rather than another mixed control-plane failure.
+
+## Entry: 2026-03-07 21:35:00 +00:00 - Managed nodegroup-only uplift completed and removed the EKS warm-gate substrate blocker
+1. I executed the narrowed managed capacity lane as `dev_full_rc2_r2_capacity_envelope.yml` run `22807522184` with `capacity_scope=nodegroup_only`.
+2. This time the lane completed successfully end to end:
+   - Terraform apply replaced the worker nodegroup cleanly,
+   - post-apply verification artifact published successfully,
+   - the live cluster now reports `fraud-platform-dev-full-m6f-workers` as `ACTIVE`.
+3. The live worker substrate has materially changed to the intended production baseline:
+   - `instanceTypes=["m6i.xlarge"]`,
+   - `diskSize=80`,
+   - `desired/min/max=4/2/8`,
+   - `amiType=BOTTLEROCKET_x86_64`,
+   - `capacityType=ON_DEMAND`.
+4. Why this matters for production:
+   - it removes the previously proven `DiskPressure`/pod eviction cause without weakening the warm gate,
+   - it eliminates burstable-instance CPU-credit uncertainty from the RTDL worker plane,
+   - it gives the replay/runtime substrate enough local storage headroom to tolerate immutable image churn and replay windows without collapsing.
+5. Operational note:
+   - I cancelled a newer duplicate dispatch (`22807554039`) after confirming `22807522184` was the active in-flight run, to avoid redundant replacement work and wasted spend.
+6. The next sequential proof step is now correct again:
+   - rerun strict `PR3-S2` on the already pinned split-image boundary,
+   - judge only the impact metrics that matter for S2 after the substrate uplift: admitted burst EPS, ingress p95/p99, DF/RTDL participation, and downstream fail-closed/quarantine posture.
+
+## Entry: 2026-03-07 22:05:00 +00:00 - PR3-S2 rerun proves ingress is now near-target while DF online contract remains production-invalid
+1. I pulled the authoritative `PR3-S2` execution receipt and component artifacts for `pr3_20260307T213548Z` / `platform_20260307T213613Z` after the worker-substrate uplift.
+2. The ingress side is no longer the dominant uncertainty:
+   - admitted burst throughput reached `5987.673 eps` against a `6000 eps` target,
+   - `4xx_total = 0`, `5xx_total = 0`, `error_rate_ratio = 0`,
+   - `p95 = 274.283 ms`,
+   - only two ingress-facing defects remain: tiny throughput shortfall (`12.327 eps`) and a severe tail breach (`p99 = 4128.572 ms` vs `700 ms` limit).
+3. The more material blocker is now decisively inside the RTDL plane, specifically DF:
+   - scorecard still reports `PR3.S2.B15_DF_FAIL_CLOSED_NONZERO` and `PR3.S2.B15_DF_QUARANTINE_NONZERO`,
+   - post-run DF summary shows only one decision, one fail-closed, one quarantine, and essentially no meaningful participation in the burst window,
+   - DLA remains dark because DF starved the downstream lane.
+4. The active DF failure mode is not the earlier scope-registry drift. Current evidence shows:
+   - the runtime profile already points at `registry_snapshot_dev_full_v0.yaml`, not the old local-parity snapshot,
+   - the quarantine reconciliation report for the current run carries `ACTIVE_BUNDLE_INCOMPATIBLE`, `CAPABILITY_MISMATCH:allow_model_primary`, `CONTEXT_MISSING:flow_anchor`, `FEATURE_GROUP_MISSING:core_features`, `JOIN_WAIT_EXCEEDED`, and `REGISTRY_FAIL_CLOSED`.
+5. Cross-plane interpretation of those reason codes:
+   - `flow_anchor` is still treated as hard-required online context in `config/platform/df/context_policy_v0.yaml`,
+   - CSFB post metrics show substantial late context application under burst, so DF is head-of-partition blocked waiting for graph-anchor materialization that is not guaranteed inside an online decision latency budget,
+   - once join-wait expires, the active bundle becomes incompatible because the OFP/core-feature contract is still not materially ready for that blocked event,
+   - registry policy then has no explicit production fallback and therefore fail-closes/quarantines.
+6. Production judgment:
+   - this is an overspecified online contract, not a reason to weaken the certification threshold,
+   - in a real production fraud path, graph-anchor enrichment can improve fidelity but cannot be allowed to stall or fail-close the online decision lane for the general event stream,
+   - the correct fix is to repin DF so the online path is capable of safe decisioning without mandatory `flow_anchor` and to provide a deterministic, auditable fallback when the active bundle is temporarily incompatible under burst.
+7. Candidate remediations considered:
+   - increase join-wait / decision deadlines again: rejected because it would trade availability and p99 for continued dependence on a late-arriving context role,
+   - keep `flow_anchor` required and simply retry/rerun harder: rejected because the current evidence already shows the problem is semantic contract shape, not lack of load,
+   - make `flow_anchor` optional online, preserve it as evidence when available, and supply bounded registry fallback for incompatible active bundle: selected because it preserves throughput/latency goals and keeps decisions deterministic and explainable.
+8. Immediate implementation sequence pinned from this diagnosis:
+   - allow an empty `required_context_roles` policy in DF code,
+   - repin `context_policy_v0.yaml` so `required=[]` and `flow_anchor` becomes optional online context evidence,
+   - add explicit fallback bundle resolution for the `dev_full|fraud|primary|` and `dev_full|baseline|primary|` scopes so temporary active-bundle incompatibility degrades safely instead of fail-closing.
+9. Remaining ingress investigation is still required after DF repair:
+   - the quota posture shows ingress is capped at `31` tasks by regional Fargate vCPU availability and lane reservations,
+   - if DF repair clears the RTDL stall but `5987 eps` / p99 tail remains, the next production fix should rebalance WSP/ingress quota or raise the Fargate vCPU ceiling instead of pretending `5987` equals `6000`.
+
+## Entry: 2026-03-07 22:18:00 +00:00 - DF online contract repinned to production-safe fallback semantics and active bundle provenance corrected
+1. I implemented the first production remediation for the `PR3-S2` DF blocker across code and runtime config.
+2. Context-policy repair:
+   - `src/fraud_detection/decision_fabric/context.py` now accepts an explicit empty `context_roles.required` list instead of rejecting it as invalid,
+   - `config/platform/df/context_policy_v0.yaml` is revised from `r2` to `r3`,
+   - online context contract is repinned to `required=[]` and `optional=[arrival_entities, arrival_events, flow_anchor]`.
+3. Why this is the correct online contract:
+   - burst evidence already proved `flow_anchor` can arrive materially later than the traffic event,
+   - forcing it as a hard precondition in the hot path creates head-of-line blocking and then synthetic fail-closed outcomes,
+   - `flow_anchor` remains valuable provenance/evidence, but it is no longer allowed to dictate whether the online lane can make a bounded degraded decision.
+4. Registry/fallback repair:
+   - `config/platform/df/registry_resolution_policy_v0.yaml` is revised from `r1` to `r2`,
+   - explicit safe fallback is now pinned for both `dev_full|fraud|primary|` and `dev_full|baseline|primary|`,
+   - the fallback bundle ref is the actually promoted managed bundle from M11/M12: `bundle_id=40d27a4c62e2438e`, `bundle_version=m11g_candidate_bundle_20260227T081200Z`, `registry_ref=s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/mf/candidate_bundle.json`.
+5. Provenance drift repair performed at the same time:
+   - `config/platform/df/registry_snapshot_dev_full_v0.yaml` previously pointed to the older stress-lane bundle identity `5ba79a547ad6b8cd / m11g_stress_s3_20260305T034205Z`,
+   - that did not match the actual managed promotion evidence recorded in `runs/dev_substrate/dev_full/m12/.../m12d_registry_lifecycle_event.json`,
+   - the snapshot is now repinned to the real promoted bundle `40d27a4c62e2438e / m11g_candidate_bundle_20260227T081200Z` so DF decision provenance is auditable again.
+6. Why fallback is still explicit and not silent:
+   - registry policy now declares the exact scope keys and exact bundle ref used when the active bundle is temporarily incompatible under burst,
+   - reason codes still preserve incompatibility and fallback facts,
+   - this converts the lane from fail-closed quarantine to deterministic constrained decisioning rather than pretending the normal model path succeeded.
+7. Validation completed locally before any remote rerun:
+   - `python -m pytest tests/services/decision_fabric/test_phase5_context.py tests/services/decision_fabric/test_phase4_registry.py tests/services/decision_fabric/test_worker_runtime.py` -> `24 passed`,
+   - `py_compile` on DF context/registry/worker surfaces -> clean.
+8. Expected production impact on the next strict rerun:
+   - `DF fail_closed_total_delta` should drop to zero for the current burst lane,
+   - `publish_quarantine_total_delta` should drop to zero for the current burst lane,
+   - `DLA` should begin receiving current-run decisions instead of remaining dark behind DF quarantine,
+   - any remaining red after that rerun is likely to be the ingress tail/headroom issue, which can then be treated in isolation.

@@ -67,8 +67,8 @@ class DecisionContextPolicy:
         roles = payload.get("context_roles") or {}
         if not isinstance(roles, Mapping):
             raise DecisionContextError("context_roles must be a mapping")
-        required_roles = _non_empty_list(roles.get("required"), "context_roles.required")
-        optional_roles = _unique_list(roles.get("optional"))
+        required_roles = _string_list(roles.get("required"), "context_roles.required", allow_empty=True)
+        optional_roles = _string_list(roles.get("optional"), "context_roles.optional", allow_empty=True)
 
         ofp = payload.get("ofp") or {}
         if not isinstance(ofp, Mapping):
@@ -639,16 +639,13 @@ def _positive_int(value: Any, field_name: str) -> int:
     return number
 
 
-def _non_empty_list(value: Any, field_name: str) -> list[str]:
-    if not isinstance(value, list) or not value:
-        raise DecisionContextError(f"{field_name} must be a non-empty list")
-    return [str(item).strip() for item in value if str(item).strip()]
-
-
-def _unique_list(value: Any) -> list[str]:
+def _string_list(value: Any, field_name: str, *, allow_empty: bool) -> list[str]:
     if not isinstance(value, list):
-        return []
-    return sorted({str(item).strip() for item in value if str(item).strip()})
+        raise DecisionContextError(f"{field_name} must be a list")
+    values = sorted({str(item).strip() for item in value if str(item).strip()})
+    if not values and not allow_empty:
+        raise DecisionContextError(f"{field_name} must not be empty")
+    return values
 
 
 def _to_list(value: Any) -> list[str]:

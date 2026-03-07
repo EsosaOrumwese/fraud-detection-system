@@ -197,8 +197,8 @@ def test_join_wait_and_missing_context() -> None:
         context_refs={},
         feature_keys=[{"key_type": "flow_id", "key_id": "flow_1"}],
     )
-    assert waiting.status == CONTEXT_WAITING
-    assert waiting.reasons == ("CONTEXT_WAITING:flow_anchor",)
+    assert waiting.status == CONTEXT_READY
+    assert waiting.reasons == ()
 
     missing = acquirer.acquire(
         candidate=_candidate(),
@@ -208,8 +208,15 @@ def test_join_wait_and_missing_context() -> None:
         context_refs={},
         feature_keys=[{"key_type": "flow_id", "key_id": "flow_1"}],
     )
-    assert missing.status == CONTEXT_MISSING
-    assert set(missing.reasons) == {"CONTEXT_MISSING:flow_anchor", "JOIN_WAIT_EXCEEDED"}
+    assert missing.status == CONTEXT_READY
+    assert missing.reasons == ()
+
+
+def test_policy_allows_zero_required_context_roles() -> None:
+    policy = _policy()
+    assert policy.revision == "r3"
+    assert policy.required_context_roles == ()
+    assert set(policy.optional_context_roles) == {"arrival_entities", "arrival_events", "flow_anchor"}
 
 
 def test_flow_anchor_only_context_is_ready_when_ofp_features_are_usable() -> None:
