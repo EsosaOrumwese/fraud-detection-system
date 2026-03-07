@@ -8233,3 +8233,17 @@ ot ready because pods are broken from eady to accept first traffic on a fresh r
    - it does not weaken the burst contract or lane shape,
    - it does not silently hide account-capacity constraints,
    - it remains future-proof because if the quota is later raised above `144 vCPU`, the workflow will naturally return to the authority target of `32` ingress tasks without another code edit.
+## Entry: 2026-03-07 18:25:00 +00:00 - PR3-S2 quota-aware workflow needed a new OIDC permission surface, so I widened the attached managed policy and applied it live via targeted Terraform
+1. The first quota-aware rerun (`22804505410`) did not fail on quota arithmetic; it failed because the GitHub OIDC role still lacked `servicequotas:ListServiceQuotas` and the workflow could not read the account's Fargate vCPU ceiling.
+2. This is a legitimate runtime-control permission, not scope creep. Once PR3-S2 reasons about executable quota headroom, the workflow must be able to read service quotas deterministically.
+3. I chose the existing attached managed policy path rather than another inline-role patch:
+   - policy: `GitHubActionsPR3RuntimeDevFull`,
+   - Terraform resource: `aws_iam_policy.github_actions_pr3_runtime`,
+   - role attachment already exists on `GitHubAction-AssumeRoleWithAction`.
+4. Terraform change applied in `infra/terraform/dev_full/ops/main.tf`:
+   - added `PR3ServiceQuotasRead` with `servicequotas:ListServiceQuotas` and `servicequotas:GetServiceQuota` on `*`.
+5. Live remediation applied immediately with:
+   - `terraform -chdir=infra/terraform/dev_full/ops init -input=false`,
+   - `terraform -chdir=infra/terraform/dev_full/ops apply -auto-approve -target="aws_iam_policy.github_actions_pr3_runtime"`.
+6. The targeted apply updated the managed policy in place and nothing else. This keeps the role surface declarative and avoids further drift between live IAM and Terraform authority.
+7. Next action is the rerun already dispatched after the IAM update; that rerun should finally exercise the quota-aware ingress count selection rather than failing on permission visibility.

@@ -541,6 +541,15 @@ resource "aws_iam_policy" "github_actions_pr3_runtime" {
         Resource = "*"
       },
       {
+        Sid    = "PR3ServiceQuotasRead"
+        Effect = "Allow"
+        Action = [
+          "servicequotas:ListServiceQuotas",
+          "servicequotas:GetServiceQuota"
+        ]
+        Resource = "*"
+      },
+      {
         Sid    = "PR3ElbRuntimeRead"
         Effect = "Allow"
         Action = [
