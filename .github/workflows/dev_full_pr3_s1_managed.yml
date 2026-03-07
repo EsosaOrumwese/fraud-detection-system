@@ -72,9 +72,9 @@ on:
         default: "fraud-platform-rtdl"
         type: string
       worker_image_uri:
-        description: "Worker image used by the managed fallback lane"
-        required: true
-        default: "230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-full@sha256:49eb6cb0c5e33061fae4d1aaceeac2e44600adb5c4250436be9ac8395ed29cb2"
+        description: "Optional explicit worker image URI; leave blank to resolve from the canonical WSP task family"
+        required: false
+        default: ""
         type: string
       lane_count:
         description: "Number of remote pressure lanes"

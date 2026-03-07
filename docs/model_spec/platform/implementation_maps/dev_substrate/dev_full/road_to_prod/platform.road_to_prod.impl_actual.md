@@ -6378,3 +6378,34 @@ eason=http_502,
    - trim the dispatch surface to <=25 inputs,
    - push the correction,
    - rerun fresh-identity materialization and the strict steady lane on the same identity pair.
+
+## Entry: 2026-03-07 04:20:00 +00:00 - PR3-S1 runtime readiness failure is caused by stale image lineage on the EKS materialization path
+1. Fresh-identity `PR3-S1` did not fail on throughput. It failed earlier because the PR3 runtime deployments could not stay ready.
+2. Direct live inspection showed the real state:
+   - all PR3 deployments were `0/1` available in `fraud-platform-rtdl`,
+   - `fp-pr3-al`, `fp-pr3-df`, `fp-pr3-dla`, and `fp-pr3-archive-writer` were crashing with `KAFKA_SASL_CREDENTIALS_MISSING`,
+   - `fp-pr3-ieg` and `fp-pr3-ofp` were crashing with `*_EVENT_BUS_KIND_UNSUPPORTED`.
+3. I verified that the Kubernetes secret surface itself is correct:
+   - `KAFKA_SECURITY_PROTOCOL=SASL_SSL`
+   - `KAFKA_SASL_MECHANISM=OAUTHBEARER`
+   - run-id and DSN pins are present and populated.
+4. I also verified that current source on this branch already supports the intended posture:
+   - `src/fraud_detection/event_bus/kafka.py` supports MSK IAM/OAUTHBEARER for both producer and reader,
+   - local `IEG` and `OFP` sources support `event_bus_kind == "kafka"`.
+5. Therefore the production diagnosis is not "missing secrets" and not "bad profile wiring." It is stale immutable image lineage.
+6. The exact design flaw is in the PR3 workflow surface:
+   - the canonical ECS WSP task family is already on a newer digest,
+   - but `dev_full_pr3_s1_managed.yml` hardcodes a much older `worker_image_uri` default for EKS materialization,
+   - so the PR3 runtime was being pinned backward to obsolete application code.
+7. Production-grade fix:
+   - remove the stale hardcoded EKS image default so materialization resolves from the canonical task-family lineage unless explicitly overridden,
+   - build a fresh immutable platform image from the current branch,
+   - repin the canonical `fraud-platform-dev-full-wsp-ephemeral` task definition to that digest so both ECS WSP replay and EKS PR3 materialization consume the same code lineage.
+8. Why this is the right fix:
+   - it restores a single authoritative runtime image source,
+   - it prevents silent divergence between replay injection and downstream runtime workers,
+   - it avoids the toy fix of supplying fake SASL credentials to an image that should be using IAM/OAUTH.
+9. Immediate next sequence:
+   - remove the stale workflow default,
+   - register a new canonical WSP task-definition revision on the freshly built digest,
+   - rerun PR3 runtime materialization and then strict `PR3-S1` on that corrected image boundary.
