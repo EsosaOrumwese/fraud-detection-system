@@ -57,11 +57,6 @@ on:
         required: true
         default: "fraud-platform-rtdl"
         type: string
-      worker_image_uri:
-        description: "Optional explicit worker image URI"
-        required: false
-        default: ""
-        type: string
       lane_count:
         description: "Number of remote WSP burst lanes"
         required: true
@@ -81,11 +76,6 @@ on:
         description: "Burst window duration in seconds"
         required: true
         default: "300"
-        type: string
-      min_sample_events:
-        description: "Required admitted events"
-        required: true
-        default: "1800000"
         type: string
       stream_speedup:
         description: "Oracle replay speedup multiplier"
@@ -296,7 +286,7 @@ jobs:
             --scenario-run-id "${{ steps.meta.outputs.scenario_run_id }}" \
             --region "${{ inputs.aws_region }}" \
             --namespace "${{ inputs.eks_namespace }}" \
-            --image-uri "${{ inputs.worker_image_uri }}"
+            --image-uri ""
 
       - name: Verify fresh runtime readiness
         shell: bash

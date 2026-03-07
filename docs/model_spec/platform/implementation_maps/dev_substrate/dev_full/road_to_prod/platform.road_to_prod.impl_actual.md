@@ -7814,3 +7814,14 @@ ot ready because pods are broken from eady to accept first traffic on a fresh r
    - concurrency needed to sustain roughly `126 req/s` per lane at observed burst latencies is materially above `8`; `16` provides headroom without exploding the thread model,
    - `512/2048` is a conservative right-size increase for a network-bound Python replay task and avoids drawing conclusions from an obviously thin `256/1024` task posture.
 6. The next PR3-S2 rerun will therefore test the platform against the declared production burst contract instead of retesting an underpowered replay posture.
+## Entry: 2026-03-07 15:12:00 +00:00 - Corrected a workflow-packaging defect that blocked the repinned PR3-S2 burst rerun
+1. The first attempt to dispatch the repinned `dev_full_pr3_s2_burst.yml` failed before runtime work began because the workflow had grown to `27` `workflow_dispatch` inputs and GitHub caps dispatch inputs at `25`.
+2. This is not a platform or certification blocker. It is a control-surface packaging defect that would only waste operator time if left unresolved.
+3. Chosen correction:
+   - remove the unused `min_sample_events` input from the burst workflow,
+   - remove the nonessential `worker_image_uri` dispatch override and pass the current runtime materialization path a blank image override instead.
+4. Why this is the correct production posture:
+   - `min_sample_events` is not consumed anywhere in the workflow or dispatcher,
+   - `worker_image_uri` is not part of the active burst-cert operator contract; the run should materialize the audited current runtime unless a future explicit cutover state says otherwise,
+   - trimming these two inputs keeps the operator surface within GitHub limits without changing the burst-cert logic or the repinned burst runtime values.
+5. After this correction, the strict rerun can proceed on the intended `180 / 16 / 512 / 2048` burst posture.
