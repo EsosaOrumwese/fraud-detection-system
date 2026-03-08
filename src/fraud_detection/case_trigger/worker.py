@@ -532,8 +532,6 @@ class CaseTriggerWorker:
                         )
                         continue
                     payload = record.get("payload") if isinstance(record.get("payload"), Mapping) else {}
-                    if isinstance(payload.get("payload"), Mapping):
-                        payload = dict(payload.get("payload") or {})
                     rows.append(
                         {
                             "topic": topic,

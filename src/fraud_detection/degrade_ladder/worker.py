@@ -525,23 +525,42 @@ class DegradeLadderWorker:
                 )
         elif component == "online_feature_plane":
             metrics = payload.get("metrics") if isinstance(payload.get("metrics"), dict) else {}
+            derived_metrics = payload.get("derived_metrics") if isinstance(payload.get("derived_metrics"), dict) else {}
             missing_features = int(metrics.get("missing_features", payload.get("missing_features", 0)) or 0)
             snapshot_failures = int(metrics.get("snapshot_failures", payload.get("snapshot_failures", 0)) or 0)
             red_missing_features = _int_env("OFP_HEALTH_RED_MISSING_FEATURES", 10)
+            red_missing_feature_rate = _float_env("OFP_HEALTH_RED_MISSING_FEATURE_RATE", 0.005)
             red_snapshot_failures = _int_env("OFP_HEALTH_RED_SNAPSHOT_FAILURES", 5)
+            event_basis = max(
+                int(derived_metrics.get("event_basis", 0) or 0),
+                int(metrics.get("events_applied", 0) or 0),
+                int(metrics.get("events_seen", 0) or 0),
+            )
+            missing_feature_rate = derived_metrics.get("missing_feature_rate")
+            if missing_feature_rate in (None, "") and event_basis > 0:
+                missing_feature_rate = float(missing_features) / float(event_basis)
             advisory_reason = self._shared_ofp_recovered_advisory_reason(
                 payload=payload,
                 required_max_age=required_max_age,
                 missing_features=missing_features,
                 snapshot_failures=snapshot_failures,
             )
-            if missing_features >= red_missing_features:
+            if (
+                (event_basis <= 0 and missing_features >= red_missing_features)
+                or (
+                    missing_features >= red_missing_features
+                    and missing_feature_rate not in (None, "")
+                    and float(missing_feature_rate) >= red_missing_feature_rate
+                )
+            ):
                 return SignalState(
                     status="ERROR",
                     value={
                         "component": component,
                         "missing_features": missing_features,
                         "red_threshold": red_missing_features,
+                        "missing_feature_rate": missing_feature_rate,
+                        "red_rate_threshold": red_missing_feature_rate,
                     },
                     detail="SHARED_COMPONENT_MISSING_FEATURES_PRESENT",
                     source=f"dl.worker:{component}:shared",
@@ -1107,6 +1126,16 @@ def _int_env(name: str, default: int) -> int:
         return default
     try:
         return int(raw)
+    except ValueError:
+        return default
+
+
+def _float_env(name: str, default: float) -> float:
+    raw = str(os.getenv(name) or "").strip()
+    if not raw:
+        return default
+    try:
+        return float(raw)
     except ValueError:
         return default
 

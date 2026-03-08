@@ -317,7 +317,7 @@ def test_worker_allows_single_ofp_missing_feature_as_decision_local_not_plane_gl
     assert payload["required_signal_states"]["ofp_health"] == "OK"
 
 
-def test_worker_keeps_ofp_fail_closed_when_missing_features_hit_red_threshold(
+def test_worker_keeps_ofp_fail_closed_when_missing_features_hit_material_red_threshold(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -336,9 +336,13 @@ def test_worker_keeps_ofp_fail_closed_when_missing_features_hit_red_threshold(
     worker._shared_ofp_status = lambda: {
         "checkpoint_age_seconds": 0.3,
         "health_reasons": ["WATERMARK_TOO_OLD", "MISSING_FEATURES_RED"],
+        "derived_metrics": {
+            "event_basis": 1000,
+            "missing_feature_rate": 0.01,
+        },
         "metrics": {
-            "events_applied": 148280,
-            "events_seen": 148280,
+            "events_applied": 1000,
+            "events_seen": 1000,
             "missing_features": 10,
             "snapshot_failures": 0,
             "stale_graph_version": 0,

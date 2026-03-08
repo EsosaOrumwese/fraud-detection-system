@@ -10063,3 +10063,65 @@ uns/.../degrade_ladder/* on its own filesystem,
    - package the new runtime image,
    - dispatch strict `PR3-S4` on the same authority boundary,
    - inspect the post-rerun impact metrics with special focus on `DF`, `case_trigger`, `case_mgmt`, `label_store`, and the new dependency/schema/cost drill receipts.
+## Entry: 2026-03-08 15:05:00 +00:00 - Latest strict PR3-S4 rerun moved the red surface from ingress/runtime topology to decision-plane semantics and case/label observability
+1. I re-read the latest strict S4 artifacts rather than treating the blocker list as self-explanatory. The hot path is no longer the main problem:
+   - admitted throughput remained above the S4 target,
+   - latency and 4xx/5xx posture remained production-clean,
+   - the WSP/IG/RTDL backbone is no longer the reason the state is red.
+2. The remaining red is now concentrated in three narrower areas:
+   - `decision_fabric`/`degrade_ladder` semantics are still too punitive for this production-shaped replay window,
+   - `case_trigger` is still not materializing current-run outputs even when RTDL traffic exists,
+   - `decision_log_audit` still lacks a complete explanation for why it remains dark under the same current-run traffic.
+3. I checked the current branch code before editing because I did not want to patch the same defect twice. Important conclusion:
+   - `case_trigger._extract_platform_run_id()` already understands direct `pins.platform_run_id`,
+   - so the active case-trigger failure is not the previously suspected root-only run-scope extraction bug anymore.
+4. The more material production issue is the OFP/DL interaction:
+   - `online_feature_plane.observability` still marks OFP red from absolute cumulative counters (`missing_features >= 10`) and wall-clock watermark age,
+   - the latest run evidence shows OFP with near-zero lag/checkpoint age and zero snapshot failures while still being marked red,
+   - that red OFP posture then propagates into DL required-signal failure and DF fail-closed behavior,
+   - which in turn starves downstream case/label surfaces of meaningful traffic.
+5. In production terms this is an overspecified health contract, not a legitimate safety response:
+   - a tiny cumulative feature-miss count over a large applied-event base should not collapse the decision plane,
+   - replay wall-clock watermark age by itself is not a sufficient signal for whole-plane red when checkpoint freshness and snapshot integrity are healthy.
+6. Chosen correction direction:
+   - move OFP health from absolute-count-only logic toward materially meaningful severity, using ratios and integrity signals together,
+   - preserve fail-closed for real failures (`snapshot_failures`, severe checkpoint/watermark staleness, stale graph version, materially high miss rate),
+   - keep DL strict on genuinely bad OFP states but stop allowing replay-shaped advisory conditions to masquerade as hard production faults.
+7. For the case/label side, the next checks are intentionally narrow:
+   - verify whether `case_trigger` is now blocked by payload-shape inference rather than run-scope filtering,
+   - verify whether `decision_log_audit` is dark because of intake gating, missing scenario-run seeding, or missing startup export,
+   - patch only the concrete live defect once confirmed.
+8. This keeps the remediation aligned with the production goal:
+   - do not rerun a red state harder,
+   - remove semantics that are stricter than production safety requires,
+   - then rerun the same S4 boundary and score it by cross-plane impact metrics rather than spine-only receipts.
+## Entry: 2026-03-08 15:32:00 +00:00 - Applied the next bounded PR3-S4 code corrections against the live red semantics before any new remote run
+1. I implemented the next three code-level corrections locally and validated them before rebuilding the runtime image.
+2. `case_trigger` Kafka intake correction:
+   - `case_trigger.worker._read_kafka()` no longer strips canonical RTDL envelopes down to the nested business payload whenever a `payload` field exists.
+   - The previous behavior was production-hostile because it discarded top-level canonical metadata (`event_type`, schema identity, top-level pins) and forced the worker to infer event family from a reduced payload shape.
+   - The corrected behavior preserves the full canonical envelope and lets the existing unwrap/inference code operate from authoritative structure instead of accidental shape.
+3. OFP health correction:
+   - `online_feature_plane.observability` now derives explicit runtime metrics (`event_basis`, `missing_feature_rate`) alongside the raw counters.
+   - Missing-feature severity is now ratio-aware rather than pure absolute-count based:
+     - low absolute misses over a large processed-event base no longer trigger whole-plane red by themselves,
+     - materially high miss ratios still do.
+   - Replay-shaped stale watermark conditions are now downgraded to advisory when checkpoint freshness, snapshot integrity, graph freshness, and miss severity remain healthy.
+4. DL shared-OFP correction:
+   - `degrade_ladder.worker` now consumes the OFP-derived rate semantics rather than treating every `missing_features >= red_count` outcome as a production-fatal plane error.
+   - This preserves fail-closed posture for materially bad OFP states while removing the toy-grade outcome where a tiny cumulative miss count could collapse the whole decision plane.
+5. Local regression coverage added for the exact defects:
+   - case-trigger Kafka canonical-envelope preservation,
+   - OFP replay-window low miss-rate health behavior,
+   - DL fail-closed only when OFP miss severity is materially red.
+6. Validation passed before any remote packaging:
+   - `python -m py_compile` over the touched runtime files and new tests passed,
+   - targeted pytest passed: `16 passed`.
+7. Production interpretation:
+   - this is another semantics-hardening slice, not a waiver,
+   - the platform remains strict on genuine OFP/decision-lane failures,
+   - but it stops self-inflicting red posture on replay-advisory conditions and non-authoritative envelope handling.
+8. Exact next step:
+   - rebuild/publish the shared runtime image,
+   - rerun strict `PR3-S4` on the same boundary,
+   - inspect whether `DF`, `case_trigger`, `case_mgmt`, and `label_store` now move into materially exercised green posture.
