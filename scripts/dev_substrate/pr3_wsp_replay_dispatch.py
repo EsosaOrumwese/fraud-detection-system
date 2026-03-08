@@ -127,6 +127,16 @@ def to_iso_utc(value: Any) -> str:
     return ""
 
 
+def parse_utc(value: Any) -> datetime | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        return datetime.fromisoformat(text.replace("Z", "+00:00")).astimezone(timezone.utc)
+    except ValueError:
+        return None
+
+
 def align_up_to_period(dt: datetime, period_seconds: int) -> datetime:
     ts = dt.astimezone(timezone.utc).timestamp()
     aligned = math.ceil(ts / period_seconds) * period_seconds

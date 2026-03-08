@@ -9362,3 +9362,23 @@ uns/.../degrade_ladder/* on its own filesystem,
 8. Risk accepted going into the rerun:
    - the continuous design uses the burst-shaped WSP task/concurrency envelope for the whole campaign, which is intentional because recovery no longer needs its own cold-start fleet,
    - if the next red state persists, it will be much closer to the real platform behavior we care about, not the old launcher restart artifact.
+
+## Entry: 2026-03-08 05:05:02 +00:00 - The first continuous PR3-S3 rerun failed in the dispatcher harness, not in the platform; fix is narrow and the state should be rerun immediately
+1. I validated the first strict rerun after the continuous-campaign redesign (`workflow run 22814158620`) before changing direction again. The failure happened inside `scripts/dev_substrate/pr3_wsp_replay_dispatch.py`, not inside IG, WSP runtime, or any RTDL component.
+2. The concrete defect was a missing helper definition:
+   - the new continuous-path code called `parse_utc(args.campaign_start_utc)`,
+   - the helper itself was absent from the committed dispatcher version,
+   - the run therefore stopped with `NameError: name 'parse_utc' is not defined` during the campaign-launch step.
+3. Production interpretation:
+   - this is a harness-integrity defect only,
+   - it does not weaken the earlier reasoning that `PR3-S3` must be measured as one continuous live campaign,
+   - it also does not provide any new evidence against the platform itself because the state did not materially enter the burst-to-recovery measurement window.
+4. I fixed the defect narrowly by adding `parse_utc(...)` to the dispatcher near the existing UTC-format helpers and revalidated the file with `python -m py_compile scripts/dev_substrate/pr3_wsp_replay_dispatch.py`.
+5. I deliberately did not widen the change or reinterpret the state based on this run:
+   - no thresholds changed,
+   - no component logic changed,
+   - no production contract changed.
+6. Next action selected:
+   - commit the dispatcher-only harness fix,
+   - rerun strict `PR3-S3` immediately on the same continuous-campaign design,
+   - judge the next state only on impact metrics from a materially executed campaign rather than on this harness exception.
