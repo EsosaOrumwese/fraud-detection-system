@@ -223,8 +223,8 @@ def job_manifest(
                                 }
                             ],
                             "resources": {
-                                "requests": {"cpu": "250m", "memory": "512Mi"},
-                                "limits": {"cpu": "1", "memory": "1Gi"},
+                                "requests": {"cpu": "500m", "memory": "1Gi"},
+                                "limits": {"cpu": "2", "memory": "2Gi"},
                             },
                         }
                     ],
@@ -256,6 +256,13 @@ def get_pod_name(namespace: str, job_name: str) -> str:
     if not items:
         return ""
     return str(items[0].get("metadata", {}).get("name", "")).strip()
+
+
+def get_pod_payload(namespace: str, pod_name: str) -> dict[str, Any]:
+    if not pod_name:
+        return {}
+    proc = run(["kubectl", "get", "pod", pod_name, "-n", namespace, "-o", "json"], timeout=60, check=True)
+    return json.loads(proc.stdout or "{}")
 
 
 def pod_logs(namespace: str, pod_name: str) -> str:
@@ -425,10 +432,12 @@ def main() -> None:
 
         ok, status_payload = wait_for_job(args.namespace, job_name, timeout_seconds=args.job_timeout_seconds)
         pod_name = get_pod_name(args.namespace, job_name)
+        pod_payload = get_pod_payload(args.namespace, pod_name)
         logs = pod_logs(args.namespace, pod_name)
         summary = parse_summary_from_logs(logs)
         if not ok:
             if not summary:
+                container_statuses = ((pod_payload.get("status") or {}).get("containerStatuses") or []) if isinstance(pod_payload, dict) else []
                 summary = {
                     "phase": "PR3",
                     "state": "S4",
@@ -445,8 +454,10 @@ def main() -> None:
                         "pod_name": pod_name,
                         "status": status_payload.get("status", {}) if isinstance(status_payload, dict) else {},
                     },
-                    "log_excerpt": logs.splitlines()[-20:],
-                    "pod_describe_excerpt": pod_describe(args.namespace, pod_name).splitlines()[-40:],
+                    "pod_status": (pod_payload.get("status") or {}) if isinstance(pod_payload, dict) else {},
+                    "container_statuses": container_statuses,
+                    "log_excerpt": logs.splitlines()[-200:],
+                    "pod_describe_excerpt": pod_describe(args.namespace, pod_name).splitlines()[-120:],
                 }
             dump_json(summary_path, summary)
             raise SystemExit(1)
@@ -468,7 +479,8 @@ def main() -> None:
                     "pod_name": pod_name,
                     "status": status_payload.get("status", {}) if isinstance(status_payload, dict) else {},
                 },
-                "log_excerpt": logs.splitlines()[-20:],
+                "pod_status": (pod_payload.get("status") or {}) if isinstance(pod_payload, dict) else {},
+                "log_excerpt": logs.splitlines()[-200:],
             }
             dump_json(summary_path, summary)
             raise SystemExit(1)

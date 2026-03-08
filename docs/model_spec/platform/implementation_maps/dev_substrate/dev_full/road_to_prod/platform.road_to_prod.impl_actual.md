@@ -10490,6 +10490,20 @@ uns/.../degrade_ladder/* on its own filesystem,
 5. This is a bootstrap-only code defect, not a platform/runtime defect.
 6. Chosen remediation is to replace that set-membership shortcut with an explicit missing-value predicate that handles strings, lists, tuples, dicts, sets, and `None` safely.
 7. After that patch the same bounded S4 rerun should reach the actual Scenario Runner submission path.
+## Entry: 2026-03-08 18:01:00 +00:00 - First in-VPC PR3-S4 rerun proved the runner/MSK topology fix; next blocker is inside remote SR execution, so the bootstrap now captures pod termination state and uses a slightly larger memory envelope
+1. Remote bounded rerun `22826528068` proved the main topology correction. `Bootstrap active run through Scenario Runner` no longer failed at GitHub-runner DNS/MSK reachability. The worker emitted real SR events from inside the VPC through `PLAN_COMMITTED`.
+2. That means direct runner -> private MSK is no longer the active blocker category. The remaining failure is now deeper inside Scenario Runner execution after plan commit.
+3. The issue with this rerun was lack of diagnosability, not lack of progression:
+   - the worker exited before printing its final summary JSON,
+   - the orchestrator therefore only had `EKS_JOB_FAILED` plus the earliest SR log lines,
+   - which is enough to show that the network fix worked, but not enough to choose the next remediation precisely.
+4. Chosen follow-up correction for the exact same rerun boundary:
+   - capture full pod/container termination state (`containerStatuses`, exit code, reason, finishedAt) before cleanup,
+   - preserve a much longer log tail and pod-describe excerpt in `g3a_control_plane_bootstrap.json`,
+   - widen the temporary bootstrap Job resources from `250m/512Mi request` + `1Gi limit` to `500m/1Gi request` + `2 CPU/2Gi limit` so the next rerun can either clear a simple container kill or return a precise terminated-state reason.
+5. I am not treating the resource increase as the final answer. It is a bounded diagnostic right-sizing paired with stronger receipts so the next rerun is actionable either way.
+6. File touched for this follow-up:
+   - `scripts/dev_substrate/pr3_control_plane_bootstrap.py`
 ## Entry: 2026-03-08 17:47:27 +00:00 - PR3-S4 control bootstrap will move from GitHub-runner Kafka publish to an in-VPC EKS one-shot job that authors real SR truth
 1. The current pr3_control_plane_bootstrap.py is structurally wrong for production because it executes ScenarioRunner.submit_run(...) on the GitHub runner while pointing Kafka to MSK_BOOTSTRAP_BROKERS_SASL_IAM. The live failure on run 22826243668 (Failed to resolve ... kafka-serverless ...) confirms the runner cannot and should not be treated as a private-MSK client.
 2. I checked the existing Step Functions surface (raud-platform-dev-full-platform-run-v0) and it is only a trivial Pass state used earlier for READY-commit authority proof. It does not materialize sr/run_status or sr/run_facts_view, so simply switching S4 to StartExecution would not satisfy the Scenario Runner control contract needed by learning and ops/gov.
