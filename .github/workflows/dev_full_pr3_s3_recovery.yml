@@ -253,6 +253,60 @@ jobs:
             kubectl rollout status "deployment/${deployment}" -n "${{ env.EKS_NAMESPACE }}" --timeout=240s
           done
 
+      - name: Drain stale WSP ephemeral tasks before quota packing
+        shell: bash
+        env:
+          AWS_REGION: ${{ inputs.aws_region }}
+          RUN_DIR: ${{ steps.meta.outputs.run_dir }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from datetime import datetime, timezone
+          import json
+          import os
+          from pathlib import Path
+
+          import boto3
+
+          region = os.environ["AWS_REGION"]
+          run_dir = Path(os.environ["RUN_DIR"])
+          cluster = "fraud-platform-dev-full-wsp-ephemeral"
+          ecs = boto3.client("ecs", region_name=region)
+
+          task_arns = ecs.list_tasks(cluster=cluster, desiredStatus="RUNNING").get("taskArns", [])
+          stopped = []
+          if task_arns:
+              described = ecs.describe_tasks(cluster=cluster, tasks=task_arns).get("tasks", [])
+              for task in described:
+                  task_arn = str(task.get("taskArn") or "").strip()
+                  if not task_arn:
+                      continue
+                  ecs.stop_task(
+                      cluster=cluster,
+                      task=task_arn,
+                      reason="PR3-S3 preflight stale WSP cleanup to restore deterministic Fargate headroom",
+                  )
+                  stopped.append(
+                      {
+                          "task_arn": task_arn.rsplit("/", 1)[-1],
+                          "task_definition": str(task.get("taskDefinitionArn") or "").rsplit("/", 1)[-1],
+                          "started_at": task.get("startedAt").isoformat().replace("+00:00", "Z") if task.get("startedAt") else "",
+                          "group": str(task.get("group") or ""),
+                      }
+                  )
+              ecs.get_waiter("tasks_stopped").wait(cluster=cluster, tasks=task_arns, WaiterConfig={"Delay": 6, "MaxAttempts": 30})
+
+          payload = {
+              "generated_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+              "cluster": cluster,
+              "stopped_task_count": len(stopped),
+              "stopped_tasks": stopped,
+          }
+          out_path = run_dir / "g3a_s3_preflight_wsp_cleanup.json"
+          out_path.parent.mkdir(parents=True, exist_ok=True)
+          out_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+          PY
+
       - name: Compute quota-aware WSP packing
         id: packing
         shell: bash
@@ -600,6 +654,61 @@ jobs:
             --max-lag-p99-seconds 5.0 \
             --max-checkpoint-p99-seconds 30.0
 
+      - name: Drain WSP ephemeral tasks after PR3-S3
+        if: always()
+        shell: bash
+        env:
+          AWS_REGION: ${{ inputs.aws_region }}
+          RUN_DIR: ${{ steps.meta.outputs.run_dir }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from datetime import datetime, timezone
+          import json
+          import os
+          from pathlib import Path
+
+          import boto3
+
+          region = os.environ["AWS_REGION"]
+          run_dir = Path(os.environ["RUN_DIR"])
+          cluster = "fraud-platform-dev-full-wsp-ephemeral"
+          ecs = boto3.client("ecs", region_name=region)
+
+          task_arns = ecs.list_tasks(cluster=cluster, desiredStatus="RUNNING").get("taskArns", [])
+          stopped = []
+          if task_arns:
+              described = ecs.describe_tasks(cluster=cluster, tasks=task_arns).get("tasks", [])
+              for task in described:
+                  task_arn = str(task.get("taskArn") or "").strip()
+                  if not task_arn:
+                      continue
+                  ecs.stop_task(
+                      cluster=cluster,
+                      task=task_arn,
+                      reason="PR3-S3 final cleanup enforcing idle-safe WSP ephemeral posture",
+                  )
+                  stopped.append(
+                      {
+                          "task_arn": task_arn.rsplit("/", 1)[-1],
+                          "task_definition": str(task.get("taskDefinitionArn") or "").rsplit("/", 1)[-1],
+                          "started_at": task.get("startedAt").isoformat().replace("+00:00", "Z") if task.get("startedAt") else "",
+                          "group": str(task.get("group") or ""),
+                      }
+                  )
+              ecs.get_waiter("tasks_stopped").wait(cluster=cluster, tasks=task_arns, WaiterConfig={"Delay": 6, "MaxAttempts": 30})
+
+          payload = {
+              "generated_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+              "cluster": cluster,
+              "stopped_task_count": len(stopped),
+              "stopped_tasks": stopped,
+          }
+          out_path = run_dir / "g3a_s3_final_wsp_cleanup.json"
+          out_path.parent.mkdir(parents=True, exist_ok=True)
+          out_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+          PY
+
       - name: Upload remote artifact backup to S3
         if: always()
         shell: bash
@@ -624,5 +733,7 @@ jobs:
             ${{ steps.meta.outputs.run_dir }}/g3a_scorecard_recovery.json
             ${{ steps.meta.outputs.run_dir }}/g3a_recovery_timeline.json
             ${{ steps.meta.outputs.run_dir }}/g3a_recovery_bound_report.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_s3_preflight_wsp_cleanup.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_s3_final_wsp_cleanup.json
             ${{ steps.meta.outputs.run_dir }}/pr3_s3_execution_receipt.json
           if-no-files-found: warn

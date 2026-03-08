@@ -9382,3 +9382,60 @@ uns/.../degrade_ladder/* on its own filesystem,
    - commit the dispatcher-only harness fix,
    - rerun strict `PR3-S3` immediately on the same continuous-campaign design,
    - judge the next state only on impact metrics from a materially executed campaign rather than on this harness exception.
+
+## Entry: 2026-03-08 05:11:02 +00:00 - Strict PR3-S3 rerun exposed stranded WSP injector tasks consuming all Fargate headroom; the workflow itself must enforce preflight and final cleanup
+1. I reran strict `PR3-S3` after the `parse_utc` fix (`workflow run 22814435280`) and pulled the failed packing logs instead of assuming the platform had regressed again.
+2. The stop occurred in `Compute quota-aware WSP packing` with:
+   - `PR3.S3.PACK.B01_FARGATE_HEADROOM_INSUFFICIENT`,
+   - `available_cpu_units=0`,
+   - `minimum_required_cpu_units=8192` for the `32` prestress lanes at the smallest allowed shape.
+3. I then inspected live ECS/Fargate occupancy directly:
+   - the ingress cluster is legitimately running about `31` `IG` tasks at `4096` CPU units each (`~124 vCPU`),
+   - the WSP ephemeral cluster still had `32` running `fraud-platform-dev-full-wsp-ephemeral:54` tasks at `1024` CPU units each (`32 vCPU`),
+   - combined occupancy exceeded the account quota envelope, which made the new strict rerun fail before it could even size its lane.
+4. Production interpretation:
+   - the problem is not that the production platform inherently lacks burst headroom,
+   - the problem is that a previous failed workflow left injector tasks alive and the next strict rerun treated those leaked tasks as normal background occupancy,
+   - that is an invalid certification posture because a strict lane must start from a deterministic, idle-safe injection surface.
+5. Alternatives considered and rejected:
+   - manually stop the stale tasks out-of-band and rerun without changing the workflow: rejected because the same leak would poison later reruns again,
+   - lower the prestress lane count to fit around leaked tasks: rejected because it would hide a harness hygiene defect by weakening the test,
+   - ignore the shared quota and request a bigger quota first: rejected because the immediate defect is stranded capacity, not a proven quota ceiling.
+6. Selected remediation:
+   - add a workflow preflight step that drains all running tasks in the dedicated `fraud-platform-dev-full-wsp-ephemeral` cluster and records a cleanup receipt before packing,
+   - add an `always()` final cleanup step that drains any residual WSP injector tasks after the run and records a second receipt,
+   - keep both receipts in the run directory/artifacts so later audits can tell whether the run started clean and ended idle-safe.
+7. Expected production effect:
+   - strict `PR3-S3` reruns regain deterministic Fargate headroom,
+   - failed or aborted campaigns cannot strand injector capacity and distort later evidence,
+   - the lane remains honest about the real platform under test instead of conflating platform performance with stale harness leakage.
+
+## Entry: 2026-03-08 05:14:18 +00:00 - Corrected the evaluation posture: PR3 and onward must score the whole platform, not only the WSP/IG/RTDL spine
+1. The current active blocker has been inside the `PR3-S3` WSP/IG/RTDL path, but the user is correct that my recent summaries have leaned too heavily on the platform spine. That is acceptable for local root-cause isolation, but it is not acceptable as a closure posture for production readiness.
+2. Production interpretation:
+   - a platform state is not green just because the source, ingress edge, and RTDL substrate are healthy,
+   - the case/label management plane, the learning/evolution plane, and any other downstream plane materially touched by the run must either:
+     - participate and meet their own impact budgets, or
+     - be explicitly marked red as starved, latent, inconsistent, or otherwise not production-ready.
+3. I am therefore tightening the reporting contract for `PR3` onward:
+   - state findings must be impact-metric oriented by plane/component, not work-log oriented,
+   - omitted planes are not neutral; they are unresolved scope holes,
+   - “starved because upstream failed” is still a platform defect until the upstream defect is fixed and the downstream lane is re-exercised materially.
+4. Operational consequence for the next states:
+   - `PR3-S3` remains focused on removing the active burst/recovery blocker, because unresolved upstream starvation prevents honest downstream scoring,
+   - but once the state runs materially, the summary/rollup must include RTDL, Case/Label, Learning/Evolution, and substrate-control evidence in one closure picture,
+   - no later `PR3`/`PR4` state will be treated as complete on a spine-only narrative.
+5. I also reaffirm the workflow-PR review rule for any future workflow promotion PR:
+   - wait `4-5` minutes for Copilot/Codex review,
+   - address or explicitly disposition their comments before merge,
+   - do not bypass that review loop.
+
+## Entry: 2026-03-08 05:15:02 +00:00 - Executed a live cleanup of stranded WSP tasks immediately rather than leaving avoidable cost running until the next rerun
+1. After confirming the quota blocker, I did not leave the `32` stranded `fraud-platform-dev-full-wsp-ephemeral` tasks running while preparing the workflow fix.
+2. I executed a direct ECS cleanup against the dedicated WSP ephemeral cluster:
+   - `running_before=32`,
+   - stop reason set to a PR3 cleanup rationale,
+   - waiter confirmed `running_after=0`.
+3. This was a cost-control and lane-hygiene action, not a substitute for the workflow remediation:
+   - it restores the surface immediately for the next strict rerun,
+   - but the real fix remains the preflight + final cleanup steps in the workflow so the lane becomes self-healing under later failures.
