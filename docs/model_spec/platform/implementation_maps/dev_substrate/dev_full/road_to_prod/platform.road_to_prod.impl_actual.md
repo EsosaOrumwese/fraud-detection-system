@@ -10479,3 +10479,14 @@ uns/.../degrade_ladder/* on its own filesystem,
    - CI can read the authoritative oracle-store input root required to author a run,
    - CI still does not gain arbitrary object-store write access outside already-pinned prefixes.
 8. Next step is to rerun the same bounded `PR3-S4` correctness gate unchanged so the next blocker, if any, occurs deeper in the real whole-platform execution chain.
+## Entry: 2026-03-08 17:35:30 +00:00 - Oracle-store read is fixed; next blocker is a bootstrap script bug in request-field completeness checking
+1. Reran bounded `PR3-S4` as GitHub Actions run `22826199850` immediately after the IAM remediation.
+2. Artifact inspection confirms the previous `s3:GetObject` denial is gone.
+3. New blocker from `g3a_control_plane_bootstrap.json` is pure code:
+   - error: `unhashable type: 'list'`.
+4. Root cause is in `pr3_control_plane_bootstrap.py`:
+   - the completeness check uses `value in {"", [], None}` inside a list comprehension,
+   - which causes Python to attempt hashing the list-valued `traffic_output_ids` request field.
+5. This is a bootstrap-only code defect, not a platform/runtime defect.
+6. Chosen remediation is to replace that set-membership shortcut with an explicit missing-value predicate that handles strings, lists, tuples, dicts, sets, and `None` safely.
+7. After that patch the same bounded S4 rerun should reach the actual Scenario Runner submission path.

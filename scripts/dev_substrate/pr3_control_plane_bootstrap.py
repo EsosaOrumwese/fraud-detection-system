@@ -80,6 +80,16 @@ def sha256_json(payload: dict[str, Any]) -> str:
     return hashlib.sha256(data.encode("utf-8")).hexdigest()
 
 
+def is_missing_value(value: Any) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return not value.strip()
+    if isinstance(value, (list, tuple, set, dict)):
+        return len(value) == 0
+    return False
+
+
 def resolve_scenario_id(root: Path, fallback: str) -> str:
     for name in (
         "g3a_correctness_wsp_runtime_manifest.json",
@@ -199,7 +209,7 @@ def main() -> None:
             "window_end_ts_utc": str(((charter.get("mission_binding") or {}).get("window_end_ts_utc")) or "").strip(),
             "traffic_output_ids": list((load_policy(POLICY_PATH).traffic_output_ids)),
         }
-        missing_request_fields = [key for key, value in request_identity.items() if value in {"", [], None}]
+        missing_request_fields = [key for key, value in request_identity.items() if is_missing_value(value)]
         if missing_request_fields:
             raise RuntimeError(
                 "PR3.B20_CONTROL_BOOTSTRAP_FAIL:MISSING_REQUEST_FIELDS:" + ",".join(sorted(missing_request_fields))
