@@ -10587,3 +10587,21 @@ uns/.../degrade_ladder/* on its own filesystem,
    - it narrows cost to a short-lived bounded job instead of broad environment changes,
    - it preserves a readable first-class learning receipt in the run-control evidence surface for the rollup.
 8. I am not touching PR3-S4 soak authorization yet. The state remains red until learning is green and then the remaining case/label / integrity blockers can be analyzed on the same bounded method.
+## Entry: 2026-03-08 18:42:20 +00:00 - The in-VPC learning job closes the Aurora network timeout but exposes a packaging/content drift between the repo and the runtime image
+1. Reran bounded `PR3-S4` as workflow `22827162362` after moving the learning lane into a VPC EKS job.
+2. The learning lane failed much earlier and more precisely than before. This is good evidence quality.
+3. The failed-step trace shows:
+   - runner-side orchestrator launched the in-VPC job successfully,
+   - the pod emitted a failure summary containing `[Errno 2] No such file or directory: 'docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md'`,
+   - the orchestrator then failed closed on that emitted blocker.
+4. Meaning:
+   - the previous runner-edge Aurora timeout is now closed,
+   - the new blocker is image-content drift: the runtime image used for the learning job does not include the docs-based registry authority file that the learning script still treats as a local dependency.
+5. Production-minded options considered:
+   - rebuild and republish the entire platform image immediately just to include docs: rejected for this bounded gate because it is slower and broader than needed to validate the lane.
+   - rewrite the learning script wholesale to stop using the authority file in this slice: rejected as too much change at once.
+   - inject the exact required authority file into the temporary job and make the script honor an explicit path override: chosen.
+6. Chosen remediation:
+   - patch `pr3_s4_learning_bound.py` to read `PR3_REGISTRY_PATH` when set,
+   - patch `pr3_s4_learning_bound_remote.py` to mount `dev_full_handles.registry.v0.md` into the job and export that override env var.
+7. This is the correct bounded fix because it addresses the precise remote-lane dependency without pretending the runtime image is already perfectly content-complete. If additional missing local authority files appear after this, each one will be surfaced explicitly and closed the same way or rolled into a later image-hardening slice once the bounded correctness proof is fully understood.

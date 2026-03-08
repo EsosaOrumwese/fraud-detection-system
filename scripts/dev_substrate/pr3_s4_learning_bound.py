@@ -23,7 +23,12 @@ from fraud_detection.offline_feature_plane.worker import OfsJobWorker, enqueue_b
 from fraud_detection.scenario_runner.storage import build_object_store
 
 
-REGISTRY_PATH = Path("docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md")
+REGISTRY_PATH = Path(
+    str(
+        os.environ.get("PR3_REGISTRY_PATH")
+        or "docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md"
+    ).strip()
+)
 
 
 def now_utc() -> str:

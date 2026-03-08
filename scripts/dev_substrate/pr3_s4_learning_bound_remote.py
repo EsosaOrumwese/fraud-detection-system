@@ -169,6 +169,7 @@ def job_manifest(
                                 {"name": "PLATFORM_RUN_ID", "value": platform_run_id},
                                 {"name": "ACTIVE_PLATFORM_RUN_ID", "value": platform_run_id},
                                 {"name": "ACTIVE_SCENARIO_RUN_ID", "value": scenario_run_id},
+                                {"name": "PR3_REGISTRY_PATH", "value": "/learning/dev_full_handles.registry.v0.md"},
                             ],
                             "volumeMounts": [
                                 {
@@ -307,7 +308,10 @@ def main() -> None:
             config_map_manifest(
                 args.namespace,
                 config_map_name,
-                {"pr3_s4_learning_bound.py": WORKER_PATH.read_text(encoding="utf-8")},
+                {
+                    "pr3_s4_learning_bound.py": WORKER_PATH.read_text(encoding="utf-8"),
+                    "dev_full_handles.registry.v0.md": REGISTRY_PATH.read_text(encoding="utf-8"),
+                },
             )
         )
         kubectl_apply(
