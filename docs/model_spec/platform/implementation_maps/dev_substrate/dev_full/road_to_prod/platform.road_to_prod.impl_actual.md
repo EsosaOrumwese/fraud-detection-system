@@ -10751,3 +10751,37 @@ uns/.../degrade_ladder/* on its own filesystem,
 ### Performance/cost posture
 1. This is the cheapest defensible fix because it changes subject selection rather than widening runtime duration or paying for another soak.
 2. It also reduces replay discovery cost materially: earliest committed labels align with the earliest archived traffic slice, so the archive scan short-circuits quickly instead of sweeping a long unmatched tail.
+## Entry: 2026-03-08 20:44:00 +00:00 - PR3-S4 bounded learning now fails on its own unresolved run-scoped template, not on replay evidence selection
+### Problem actual
+1. The rerun after the stable-prefix label selection fix no longer fails on `REPLAY_EVENTS_SHORTFALL`. The learning proof advances far enough to instantiate OFS/MF/MPR and then dies with `OFS_RUN_SCOPE_INVALID`.
+2. The error payload is precise:
+   - active run id is concrete (`platform_20260308T202443Z`),
+   - configured OFS required run id is still the literal nested token `${OFS_REQUIRED_PLATFORM_RUN_ID:-${ACTIVE_PLATFORM_RUN_ID:-}}`.
+3. Source inspection confirms the cause is local to the bounded learning script:
+   - `scripts/dev_substrate/pr3_s4_learning_bound.py` still calls `load_ofs_worker_config(Path("config/platform/profiles/dev_full.yaml"))`,
+   - the same script still calls `load_mf_worker_config(Path("config/platform/profiles/dev_full.yaml"))`,
+   - and `load_mpr_worker_config(profile_path=Path("config/platform/profiles/dev_full.yaml"), ...)`.
+4. This bypasses the earlier PR3 runtime materialization logic in `pr3_rtdl_materialize.py`, which already proves that the platform needs a concretely rewritten active-run profile before worker config is trustworthy.
+5. Therefore the live blocker is not another platform replay/learning semantic failure. It is a bounded-lane config materialization defect inside the proof harness itself.
+
+### Production interpretation
+1. The bounded correctness lane has to exercise the same concrete run-scoped configuration posture as the live runtime. Anything else is not a valid production check; it is a test harness artifact.
+2. Continuing to rerun without fixing this would just pay cloud cost to rediscover a deterministic template-resolution failure.
+3. The correction must remain narrow:
+   - keep the same `PR3-S4` bounded boundary,
+   - keep OFS -> MF -> MPR real and in-VPC,
+   - fix only the learning lane's config materialization so it reads an authoritative active-run profile.
+
+### Chosen remediation
+1. Patch `scripts/dev_substrate/pr3_s4_learning_bound.py` to materialize a temporary active-run profile YAML under the current execution root.
+2. Concretize at minimum:
+   - `ofs.wiring.required_platform_run_id`,
+   - `ofs.wiring.request_prefix`,
+   - `mf.wiring.required_platform_run_id`,
+   - `mf.wiring.request_prefix`.
+3. Then load OFS/MF/MPR configs from that materialized profile path instead of the raw image template.
+4. Emit the materialized profile path in the bounded summary scope so the proof is auditable.
+
+### Performance/cost posture
+1. This is the cheapest valid remediation available because it eliminates a deterministic harness defect locally before another cloud rerun.
+2. It also aligns the learning lane with the already-pinned production execution method: concrete active-run config first, then bounded proof, then only broader windows when the cheap proof is green.

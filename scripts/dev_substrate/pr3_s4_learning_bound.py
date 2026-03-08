@@ -16,6 +16,7 @@ from urllib.parse import quote_plus, urlparse
 
 import boto3
 import psycopg
+import yaml
 
 from fraud_detection.learning_registry.worker import LearningRegistryWorker, load_worker_config as load_mpr_worker_config
 from fraud_detection.model_factory.worker import MfJobWorker, enqueue_train_build_request, load_worker_config as load_mf_worker_config
@@ -27,6 +28,12 @@ REGISTRY_PATH = Path(
     str(
         os.environ.get("PR3_REGISTRY_PATH")
         or "docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md"
+    ).strip()
+)
+PROFILE_TEMPLATE_PATH = Path(
+    str(
+        os.environ.get("PR3_PROFILE_TEMPLATE_PATH")
+        or "config/platform/profiles/dev_full.yaml"
     ).strip()
 )
 
@@ -95,6 +102,39 @@ def ensure_s3_ref(ref: str, object_store_root: str) -> str:
 def s3_relative_path(ref: str) -> tuple[str, str]:
     parsed = urlparse(ref)
     return parsed.netloc, parsed.path.lstrip("/")
+
+
+def _ensure_mapping(parent: dict[str, Any], key: str) -> dict[str, Any]:
+    value = parent.setdefault(key, {})
+    if not isinstance(value, dict):
+        raise RuntimeError(f"PR3.B29_LEARNING_BOUND_FAIL:PROFILE_FIELD_NOT_MAPPING:{key}")
+    return value
+
+
+def materialize_learning_profile(
+    *,
+    template_path: Path,
+    output_path: Path,
+    platform_run_id: str,
+) -> Path:
+    payload = yaml.safe_load(template_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise RuntimeError("PR3.B29_LEARNING_BOUND_FAIL:PROFILE_TEMPLATE_INVALID")
+
+    for component, request_prefix in (
+        ("ofs", f"{platform_run_id}/ofs/job_requests"),
+        ("mf", f"{platform_run_id}/mf/job_requests"),
+    ):
+        comp_payload = payload.get(component)
+        if not isinstance(comp_payload, dict):
+            raise RuntimeError(f"PR3.B29_LEARNING_BOUND_FAIL:PROFILE_COMPONENT_MISSING:{component}")
+        wiring = _ensure_mapping(comp_payload, "wiring")
+        wiring["required_platform_run_id"] = platform_run_id
+        wiring["request_prefix"] = request_prefix
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+    return output_path
 
 
 def query_label_subjects(
@@ -224,6 +264,7 @@ def main() -> None:
     summary_path = run_root / args.summary_name
     blockers: list[str] = []
     notes: list[str] = []
+    materialized_profile_path: Path | None = None
 
     try:
         registry = parse_registry(REGISTRY_PATH)
@@ -359,10 +400,18 @@ def main() -> None:
         os.environ["LABEL_STORE_LOCATOR"] = aurora_dsn
         os.environ["OFS_REQUIRED_PLATFORM_RUN_ID"] = args.platform_run_id
         os.environ["OFS_RUN_LEDGER_DSN"] = aurora_dsn
+        os.environ["OFS_REQUEST_PREFIX"] = f"{args.platform_run_id}/ofs/job_requests"
         os.environ["MF_REQUIRED_PLATFORM_RUN_ID"] = args.platform_run_id
         os.environ["MF_RUN_LEDGER_DSN"] = aurora_dsn
+        os.environ["MF_REQUEST_PREFIX"] = f"{args.platform_run_id}/mf/job_requests"
 
-        ofs_config = load_ofs_worker_config(Path("config/platform/profiles/dev_full.yaml"))
+        materialized_profile_path = materialize_learning_profile(
+            template_path=PROFILE_TEMPLATE_PATH,
+            output_path=run_root / "g3a_learning_runtime_profile.yaml",
+            platform_run_id=args.platform_run_id,
+        )
+
+        ofs_config = load_ofs_worker_config(materialized_profile_path)
         ofs_request_ref = enqueue_build_request(
             config=ofs_config,
             intent_path=intent_path,
@@ -407,7 +456,7 @@ def main() -> None:
             "publish_allowed": True,
         }
         dump_json(mf_request_path, mf_request_payload)
-        mf_config = load_mf_worker_config(Path("config/platform/profiles/dev_full.yaml"))
+        mf_config = load_mf_worker_config(materialized_profile_path)
         mf_request_ref = enqueue_train_build_request(
             config=mf_config,
             request_path=mf_request_path,
@@ -430,7 +479,7 @@ def main() -> None:
         eval_payload = json.loads(
             boto3.client("s3").get_object(Bucket=eval_bucket, Key=eval_key)["Body"].read().decode("utf-8")
         )
-        mpr_config = load_mpr_worker_config(profile_path=Path("config/platform/profiles/dev_full.yaml"), poll_seconds=5.0)
+        mpr_config = load_mpr_worker_config(profile_path=materialized_profile_path, poll_seconds=5.0)
         mpr_worker = LearningRegistryWorker(mpr_config)
         lifecycle_bucket, lifecycle_key = s3_relative_path(lifecycle_ref)
         lifecycle_local_path = run_root / "g3a_learning_registry_event.json"
@@ -469,6 +518,7 @@ def main() -> None:
                 "label_selection_mode": args.label_selection_mode,
                 "label_asof_utc": label_asof_utc,
                 "sample_limit": args.sample_limit,
+                "materialized_profile_path": str(materialized_profile_path) if materialized_profile_path else "",
             },
             "refs": {
                 "run_facts_ref": run_facts_ref,
