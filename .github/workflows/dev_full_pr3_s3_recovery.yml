@@ -206,16 +206,23 @@ jobs:
           done
 
       - name: Validate strict upstream boundary
+        id: upstream
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
           import json
+          import os
           from pathlib import Path
           path = Path("runs/dev_substrate/dev_full/road_to_prod/run_control/${{ inputs.pr3_execution_id }}/pr3_s2_execution_receipt.json")
           payload = json.loads(path.read_text(encoding="utf-8"))
           if payload.get("verdict") != "PR3_S2_READY" or int(payload.get("open_blockers", 1)) != 0:
               raise SystemExit(f"PR3-S3 strict upstream invalid: {payload.get('verdict')} blockers={payload.get('open_blockers')}")
+          platform_run_id = str(payload.get("platform_run_id") or "").strip()
+          if not platform_run_id:
+              raise SystemExit("PR3-S3 strict upstream missing platform_run_id in PR3-S2 receipt.")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"upstream_platform_run_id={platform_run_id}\n")
           PY
 
       - name: Configure kubeconfig
@@ -243,7 +250,7 @@ jobs:
             --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
             --state-id S3 \
             --namespace "${{ env.EKS_NAMESPACE }}" \
-            --platform-run-id "${{ steps.meta.outputs.prestress_platform_run_id }}" \
+            --platform-run-id "${{ steps.upstream.outputs.upstream_platform_run_id }}" \
             --profile-path "/runtime-profile/dev_full.yaml" \
             --settle-seconds 30
 

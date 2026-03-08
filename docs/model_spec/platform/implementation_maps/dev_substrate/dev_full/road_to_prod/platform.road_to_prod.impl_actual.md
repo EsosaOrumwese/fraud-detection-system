@@ -9096,3 +9096,30 @@ uns/.../degrade_ladder/* on its own filesystem,
    - validate locally,
    - package/push the workflow milestone,
    - execute strict `PR3-S3` from the current `PR3` root.
+
+## Entry: 2026-03-08 02:22:00 +00:00 - First PR3-S3 run failed at warm gate; root cause is prestress identity misuse, not runtime instability
+1. The first strict `PR3-S3` execution (`22812001103`) failed before any prestress traffic was launched. That is the correct failure point because the warm gate is part of the certified state boundary and should reject a false readiness assumption before spend begins.
+2. I inspected the failed warm-gate logs directly. The runtime pods were healthy and ready, but `pr3_runtime_warm_gate.py` rejected the fresh prestress `platform_run_id` with:
+   - `PR3.S3.WARM.B04_CSFB_PLATFORM_RUN_SCOPE_MISMATCH`,
+   - `PR3.S3.WARM.B07_PLATFORM_RUN_SCOPE_MISMATCH`,
+   - `PR3.S3.WARM.B09D_DF_METRICS_SCOPE_MISMATCH`,
+   - `PR3.S3.WARM.B09E_DF_HEALTH_SCOPE_MISMATCH`.
+3. This is not a live instability defect. It is a misuse of the warm-gate contract:
+   - the warm gate expects an already-material run scope so it can verify that the runtime is settled on a known current run,
+   - I passed the brand-new `S3` prestress run id before any prestress events existed,
+   - the gate therefore compared live runtime artifacts from the last closed `S2` run (`platform_20260308T012604Z`) against a nonexistent fresh run and correctly failed closed.
+4. Production interpretation:
+   - the gate logic itself is correct and should not be weakened,
+   - the workflow sequencing was wrong,
+   - the right answer is to warm-gate on the last closed upstream `S2` run scope, then start the fresh `S3` prestress identity after that proof.
+5. Alternatives considered and rejected:
+   - remove the warm gate entirely: rejected because it would hide real carry-over instability before prestress,
+   - force the warm gate to accept an empty/fresh run id: rejected because that would convert a material scope check into a placebo,
+   - reuse the `S2` platform run id for prestress: rejected because `S3` prestress needs a fresh first-admission replay identity after the gate closes.
+6. Selected remediation:
+   - parse the upstream `PR3-S2` receipt inside `dev_full_pr3_s3_recovery.yml`,
+   - use its `platform_run_id` as the warm-gate scope,
+   - keep prestress and recovery on fresh `S3` identities exactly as originally designed.
+7. This preserves the intended production meaning of the state:
+   - prove the runtime is already settled on the last closed boundary,
+   - then apply fresh burst pressure and measure return to stable under new traffic.
