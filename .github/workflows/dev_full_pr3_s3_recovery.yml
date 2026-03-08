@@ -243,6 +243,127 @@ jobs:
             kubectl rollout status "deployment/${deployment}" -n "${{ env.EKS_NAMESPACE }}" --timeout=240s
           done
 
+      - name: Compute quota-aware WSP packing
+        id: packing
+        shell: bash
+        env:
+          AWS_REGION: ${{ inputs.aws_region }}
+          RUN_DIR: ${{ steps.meta.outputs.run_dir }}
+          PRESTRESS_LANE_COUNT: ${{ inputs.prestress_lane_count }}
+          RECOVERY_LANE_COUNT: ${{ inputs.recovery_lane_count }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from datetime import datetime, timezone
+          import json
+          import os
+          from pathlib import Path
+
+          import boto3
+
+          region = os.environ["AWS_REGION"]
+          run_dir = Path(os.environ["RUN_DIR"])
+          prestress_lane_count = max(1, int(os.environ["PRESTRESS_LANE_COUNT"]))
+          recovery_lane_count = max(1, int(os.environ["RECOVERY_LANE_COUNT"]))
+          reserve_cpu_units = 2048
+          cpu_memory_pairs = {
+              256: 1024,
+              512: 1024,
+              1024: 2048,
+          }
+
+          ecs = boto3.client("ecs", region_name=region)
+          sq = boto3.client("service-quotas", region_name=region)
+
+          quota = sq.get_service_quota(serviceCode="fargate", quotaCode="L-3032A538")["Quota"]
+          quota_vcpu = float(quota["Value"])
+          quota_cpu_units = int(quota_vcpu * 1024)
+
+          cluster_arns = ecs.list_clusters().get("clusterArns", [])
+          task_cpu_cache = {}
+          total_running_cpu_units = 0
+          running_tasks = []
+          for cluster_arn in cluster_arns:
+              cluster_name = cluster_arn.rsplit("/", 1)[-1]
+              task_arns = ecs.list_tasks(cluster=cluster_arn, desiredStatus="RUNNING").get("taskArns", [])
+              if not task_arns:
+                  continue
+              described = ecs.describe_tasks(cluster=cluster_arn, tasks=task_arns).get("tasks", [])
+              for task in described:
+                  task_def_arn = str(task.get("taskDefinitionArn") or "").strip()
+                  if not task_def_arn:
+                      continue
+                  if task_def_arn not in task_cpu_cache:
+                      task_def = ecs.describe_task_definition(taskDefinition=task_def_arn)["taskDefinition"]
+                      task_cpu_cache[task_def_arn] = int(str(task_def.get("cpu") or "0") or "0")
+                  cpu_units = int(task_cpu_cache[task_def_arn])
+                  total_running_cpu_units += cpu_units
+                  running_tasks.append(
+                      {
+                          "cluster": cluster_name,
+                          "task_definition": task_def_arn.rsplit("/", 1)[-1],
+                          "task_arn": str(task.get("taskArn") or "").rsplit("/", 1)[-1],
+                          "cpu_units": cpu_units,
+                          "cpu_vcpu": cpu_units / 1024.0,
+                      }
+                  )
+
+          usable_cpu_units = quota_cpu_units - total_running_cpu_units - reserve_cpu_units
+          if usable_cpu_units < 0:
+              usable_cpu_units = 0
+
+          def choose_shape(lane_count: int) -> tuple[int, int]:
+              selected_cpu = None
+              for cpu_units in sorted(cpu_memory_pairs.keys(), reverse=True):
+                  required_cpu_units = lane_count * cpu_units
+                  if required_cpu_units <= usable_cpu_units:
+                      selected_cpu = cpu_units
+                      break
+              if selected_cpu is None:
+                  raise SystemExit(
+                      "PR3.S3.PACK.B01_FARGATE_HEADROOM_INSUFFICIENT:"
+                      f"usable_cpu_units={usable_cpu_units}:lane_count={lane_count}:"
+                      f"minimum_required_cpu_units={lane_count * min(cpu_memory_pairs.keys())}"
+                  )
+              return selected_cpu, cpu_memory_pairs[selected_cpu]
+
+          prestress_cpu, prestress_memory = choose_shape(prestress_lane_count)
+          recovery_cpu, recovery_memory = choose_shape(recovery_lane_count)
+
+          summary = {
+              "generated_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+              "quota_code": "L-3032A538",
+              "quota_vcpu": quota_vcpu,
+              "quota_cpu_units": quota_cpu_units,
+              "reserve_cpu_units": reserve_cpu_units,
+              "running_cpu_units": total_running_cpu_units,
+              "usable_cpu_units": usable_cpu_units,
+              "running_tasks": running_tasks,
+              "selected_shapes": {
+                  "prestress": {
+                      "lane_count": prestress_lane_count,
+                      "task_cpu_units": prestress_cpu,
+                      "task_memory_mib": prestress_memory,
+                      "total_cpu_units": prestress_lane_count * prestress_cpu,
+                  },
+                  "recovery": {
+                      "lane_count": recovery_lane_count,
+                      "task_cpu_units": recovery_cpu,
+                      "task_memory_mib": recovery_memory,
+                      "total_cpu_units": recovery_lane_count * recovery_cpu,
+                  },
+              },
+          }
+          out_path = run_dir / "g3a_s3_wsp_packing_summary.json"
+          out_path.parent.mkdir(parents=True, exist_ok=True)
+          out_path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"prestress_task_cpu={prestress_cpu}\n")
+              fh.write(f"prestress_task_memory={prestress_memory}\n")
+              fh.write(f"recovery_task_cpu={recovery_cpu}\n")
+              fh.write(f"recovery_task_memory={recovery_memory}\n")
+          PY
+
       - name: Warm-gate runtime before prestress
         shell: bash
         run: |
@@ -281,6 +402,8 @@ jobs:
             --http-pool-maxsize "${{ inputs.prestress_http_pool_maxsize }}" \
             --target-burst-seconds 0.50 \
             --target-initial-tokens 0.50 \
+            --task-cpu "${{ steps.packing.outputs.prestress_task_cpu }}" \
+            --task-memory "${{ steps.packing.outputs.prestress_task_memory }}" \
             --max-latency-p95-ms 350 \
             --max-latency-p99-ms 700 \
             --skip-runtime-identity-probe
@@ -328,6 +451,8 @@ jobs:
             --http-pool-maxsize "${{ inputs.recovery_http_pool_maxsize }}" \
             --target-burst-seconds 0.25 \
             --target-initial-tokens 0.25 \
+            --task-cpu "${{ steps.packing.outputs.recovery_task_cpu }}" \
+            --task-memory "${{ steps.packing.outputs.recovery_task_memory }}" \
             --max-latency-p95-ms 350 \
             --max-latency-p99-ms 700 \
             --skip-runtime-identity-probe &

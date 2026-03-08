@@ -9145,3 +9145,33 @@ uns/.../degrade_ladder/* on its own filesystem,
 6. Production interpretation:
    - the current stop is an execution-rig completeness defect, not a throughput, latency, or decision-plane regression,
    - fixing the hydration surface is the only production-coherent next step because it restores the intended certification chain without relaxing any runtime or correctness standard.
+
+## Entry: 2026-03-08 02:31:00 +00:00 - Third PR3-S3 run reached the real prestress launcher ceiling; the production fix is quota-aware WSP packing, not shrinking the certified ingress fleet
+1. The next strict rerun (`22812132277`) cleared the rig defects and failed at `Run prestress burst` with a concrete infrastructure blocker from ECS/Fargate:
+   - `PR3.S3.PRESTRESS.B01_RUN_TASK_FAILED:wsp_lane_16:You’ve reached the limit on the number of vCPUs you can run concurrently`.
+2. I measured the actual account/runtime posture immediately instead of assuming a generic quota problem:
+   - Fargate On-Demand regional vCPU quota in `eu-west-2` is `140 vCPU`,
+   - live managed ingress service currently runs `31` tasks on `fraud-platform-dev-full-ig-service:22`,
+   - each ingress task is pinned to `4096 CPU / 8192 MiB`, so ingress alone occupies `124 vCPU`,
+   - current WSP task definition `fraud-platform-dev-full-wsp-ephemeral:54` is `1024 CPU / 2048 MiB`, so the prestress launcher tries to add `32 vCPU` for the burst segment and `40 vCPU` for the recovery segment.
+3. The consequence is mechanical:
+   - `124 + 32 = 156 vCPU`, so the prestress fleet cannot fully launch,
+   - the current recovery segment would also be impossible at `124 + 40 = 164 vCPU`,
+   - this explains why the failure occurs during task launch rather than as throughput degradation or hot-path latency growth.
+4. Alternatives considered and rejected:
+   - shrink the live ingress fleet to make room for WSP: rejected because that would alter the certified platform boundary and contaminate the very state we are trying to prove,
+   - request or wait for a higher Fargate quota before proceeding: rejected as the immediate primary fix because the current launcher is also wasteful and would carry the same inefficiency into later states,
+   - reduce WSP lane count to fit the quota: rejected as the first move because it changes the replay fan-out shape and risks turning a quota fix into a different traffic topology.
+5. Selected direction:
+   - keep the certified ingress fleet unchanged,
+   - repack WSP launch tasks to a smaller per-task Fargate shape so the same lane fan-out fits within the shared account envelope,
+   - make the `PR3-S3` workflow explicitly quota-aware so it computes the available vCPU headroom before launch and fails closed only if even the smallest acceptable WSP task shape cannot fit.
+6. Why this is the production-coherent answer:
+   - the launcher is a certification pressure source, not the platform under test, so it should not consume wasteful compute merely because a larger default task definition exists,
+   - the ingress plane has already been tuned and certified on its current runtime boundary; mutating it to satisfy the harness would be the wrong optimization target,
+   - quota-aware source packing is also a cost-control improvement and should carry forward into later `PR3/PR4` states.
+7. Implementation choice for the next patch:
+   - add a workflow preflight that reads live Fargate quota plus ingress-service CPU occupancy,
+   - derive WSP task overrides from the remaining headroom,
+   - pass the selected `--task-cpu` / `--task-memory` overrides to both prestress and recovery dispatcher invocations,
+   - preserve strict fail-closed behavior if the remaining headroom cannot support the required lane fan-out at the minimum allowed WSP shape.
