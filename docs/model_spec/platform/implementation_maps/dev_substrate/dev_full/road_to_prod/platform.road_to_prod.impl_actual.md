@@ -9439,3 +9439,26 @@ uns/.../degrade_ladder/* on its own filesystem,
 3. This was a cost-control and lane-hygiene action, not a substitute for the workflow remediation:
    - it restores the surface immediately for the next strict rerun,
    - but the real fix remains the preflight + final cleanup steps in the workflow so the lane becomes self-healing under later failures.
+
+## Entry: 2026-03-08 05:45:08 +00:00 - PR3-S3 closed green on the continuous recovery contract, but only as a state-level RTDL/runtime result; whole-platform closure remains broader
+1. The hardened rerun (`workflow run 22814568179`, commit `3db5f9e53`) completed successfully end-to-end after the self-cleaning WSP posture was added.
+2. Certified impact metrics for the state:
+   - prestress admitted throughput `6032.03 eps` against a `6000 eps` target,
+   - recovery admitted throughput `6027.23 eps` against a `3000 eps` recovery floor,
+   - `4xx_total=0`, `5xx_total=0`,
+   - weighted ALB latency remained inside contract (`prestress p95/p99 = 164.69 / 237.81 ms`, `recovery p95/p99 = 165.31 / 242.82 ms`),
+   - `stable_utc` resolved one minute after recovery start (`recovery_seconds=60.0`, bound `<=180.0`).
+3. RTDL integrity evidence during the certified recovery window remained clean:
+   - `ofp lag p99 = 0.054 s`,
+   - `max checkpoint age p99 = 1.097 s`,
+   - counter deltas for `DF fail_closed/quarantine`, `AL quarantine/ambiguous`, `DLA append_failure/replay_divergence`, and `archive_writer write_error/payload_mismatch` all remained `0`.
+4. Harness-hygiene evidence is also now deterministic:
+   - `g3a_s3_preflight_wsp_cleanup.json` shows no stale WSP tasks remained by the time the strict rerun started,
+   - `g3a_s3_final_wsp_cleanup.json` shows the lane ended clean as well.
+5. I updated the readable findings in `platform.PR3.road_to_prod.md` and advanced the main plan to `S4`, but I am explicitly not overclaiming what this means:
+   - `PR3-S3` is green as a recovery-certification state,
+   - it is not a whole-platform production-ready verdict on its own,
+   - case/label management and learning/evolution still need explicit state/pact coverage later in the road-to-prod sequence and cannot be silently inferred from this result.
+6. Selected next direction:
+   - move directly into `PR3-S4` soak/drill planning,
+   - make the next readable findings explicitly cross-plane so later closure cannot collapse back into a spine-only narrative.
