@@ -96,7 +96,7 @@ class DecisionFabricIgPublisher:
         payload = dict(envelope)
         self._validate_envelope(payload)
 
-        url = self.ig_ingest_url.rstrip("/") + "/v1/ingest/push"
+        url = _resolve_ig_push_url(self.ig_ingest_url)
         headers: dict[str, str] = {}
         if self.api_key:
             headers[self.api_key_header] = self.api_key
@@ -169,3 +169,12 @@ def _response_text(response: Any) -> str:
     value = getattr(response, "text", "")
     text = str(value or "").strip()
     return text[:256]
+
+
+def _resolve_ig_push_url(raw_url: str) -> str:
+    base = str(raw_url or "").strip().rstrip("/")
+    if not base:
+        return "/v1/ingest/push"
+    if base.endswith("/v1/ingest/push"):
+        return base
+    return f"{base}/v1/ingest/push"

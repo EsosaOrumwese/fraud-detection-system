@@ -73,6 +73,13 @@ def health_state(snapshot: dict[str, Any], component: str) -> str:
     return str((((snapshot.get("components") or {}).get(component) or {}).get("summary") or {}).get("health_state") or "UNKNOWN")
 
 
+def health_reasons(snapshot: dict[str, Any], component: str) -> list[str]:
+    raw = ((((snapshot.get("components") or {}).get(component) or {}).get("summary") or {}).get("health_reasons"))
+    if not isinstance(raw, list):
+        return []
+    return [str(item).strip() for item in raw if str(item).strip()]
+
+
 def snap_value(snapshot: dict[str, Any], component: str, field: str) -> float | None:
     return to_float((((snapshot.get("components") or {}).get(component) or {}).get("summary") or {}).get(field))
 
@@ -92,6 +99,38 @@ def counter_delta(pre: dict[str, Any], post: dict[str, Any], component: str, fie
     if start is None:
         return None
     return float(end - start)
+
+
+def replay_health_is_advisory_only(
+    snapshot: dict[str, Any],
+    *,
+    component: str,
+    max_checkpoint_p99_seconds: float,
+    max_lag_p99_seconds: float,
+) -> bool:
+    if component not in {"ieg", "ofp"}:
+        return False
+    state = health_state(snapshot, component).upper()
+    reasons = set(health_reasons(snapshot, component))
+    if state not in {"RED", "FAILED", "UNHEALTHY"}:
+        return False
+    if reasons != {"WATERMARK_TOO_OLD"}:
+        return False
+    checkpoint_age = snap_value(snapshot, component, "checkpoint_age_seconds")
+    if checkpoint_age is None or checkpoint_age > max_checkpoint_p99_seconds:
+        return False
+    if component == "ofp":
+        lag_seconds = snap_value(snapshot, component, "lag_seconds")
+        if lag_seconds is None or lag_seconds > max_lag_p99_seconds:
+            return False
+    if component == "ieg":
+        apply_failures = snap_value(snapshot, component, "apply_failure_count")
+        backpressure_hits = snap_value(snapshot, component, "backpressure_hits")
+        if (apply_failures or 0.0) > 0.0:
+            return False
+        if (backpressure_hits or 0.0) > 0.0:
+            return False
+    return True
 
 
 def select_attempt_snapshots(snapshots: list[dict[str, Any]], *, expected_platform_run_id: str) -> tuple[list[dict[str, Any]], dict[str, Any]]:
@@ -234,7 +273,17 @@ def main() -> None:
             blockers.append(f"PR3.S4.B21_COMPONENT_SURFACE_MISSING:{component}")
         state = health_state(post, component).upper()
         if state in {"RED", "FAILED", "UNHEALTHY"}:
-            blockers.append(f"PR3.S4.B22_COMPONENT_HEALTH_RED:{component}:{state}")
+            if replay_health_is_advisory_only(
+                post,
+                component=component,
+                max_checkpoint_p99_seconds=float(args.max_checkpoint_p99_seconds),
+                max_lag_p99_seconds=float(args.max_lag_p99_seconds),
+            ):
+                notes.append(
+                    f"Replay advisory only for {component}: WATERMARK_TOO_OLD present while checkpoint/lag integrity remained within threshold."
+                )
+            else:
+                blockers.append(f"PR3.S4.B22_COMPONENT_HEALTH_RED:{component}:{state}")
 
     if (time_series["ofp.lag_seconds"]["summary"]["p99"] or 0.0) > float(args.max_lag_p99_seconds):
         blockers.append(

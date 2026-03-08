@@ -9537,3 +9537,105 @@ uns/.../degrade_ladder/* on its own filesystem,
    - the first `pr3_s4_rollup.py` implementation is intentionally fail-closed on fresh `schema_evolution`, `dependency_degrade`, `cost_guardrail_idle_safe`, and cohort-isolated delta evidence,
    - that means the first strict `S4` run is expected to tell us which of those surfaces remain unproven after the case/label runtime lane is finally live,
    - this is acceptable because it produces explicit blockers on the right state boundary instead of continuing the old silent overclaim.
+
+## Entry: 2026-03-08 07:32:00 +00:00 - First strict PR3-S4 run proved the soak envelope but exposed a real case/label IRSA defect and a second-order S4 scoring defect
+1. I completed the first strict `PR3-S4` workflow run (`22815674922`) after promoting the workflow to `main` under the agreed workflow-only merge path, then pulling the reviewed workflow definition back down through `dev` to `cert-platform`.
+2. The measured soak envelope itself is materially healthy and should be preserved as the new S4 baseline:
+   - admitted throughput `3028.34 eps` against the `3000 eps` soak target,
+   - admitted request count `5,451,013` against the `5,400,000` minimum-processed-events floor,
+   - `4xx_ratio=0.0`, `5xx_ratio=0.0`, `error_rate_ratio=0.0`,
+   - ingress latency `p95=103.47 ms`, `p99=122.42 ms`, both well inside the `350/700 ms` thresholds,
+   - the workflow itself completed cleanly, which confirms the S4 orchestration surface is materially runnable.
+3. The state still failed closed, but the blocker set is now much more precise than before:
+   - case/label surface missing from the metrics rollup,
+   - replay-integrity deltas red in `DF`,
+   - `IEG`/`OFP` marked red due to health-state interpretation,
+   - unexecuted schema/dependency/cost drill placeholders,
+   - unproven cohort-isolated deltas.
+4. I pulled the `S4` component snapshot and live pod logs instead of assuming the case/label workers were simply not started. The snapshots show that `fp-pr3-case-trigger`, `fp-pr3-case-mgmt`, and `fp-pr3-label-store` were live on EKS for the whole run, but their expected run-scoped metrics files were missing. That eliminated the simple theory of “workflow forgot to materialize them.”
+5. Live pod logs then exposed the real blocker:
+   - both `case_trigger` and `case_mgmt` are failing Kafka/MSK auth with repeated `AccessDenied` on `sts:AssumeRoleWithWebIdentity`,
+   - this means the case/label plane was not actually connected to the bus during the soak window,
+   - the cross-plane failure is therefore real runtime drift, not a snapshot formatting defect.
+6. I inspected the live IRSA role and found a two-part design/runtime mismatch:
+   - the service account actually used by PR3 is `system:serviceaccount:fraud-platform-rtdl:case-labels`,
+   - the live IAM trust on `fraud-platform-dev-full-irsa-case-labels` is pinned to `system:serviceaccount:fraud-platform-case-labels:case-labels`,
+   - the Terraform IRSA fanout currently grants MSK data-plane policy only to `rtdl` and `decision_lane`, explicitly excluding `case_labels`.
+7. Production interpretation:
+   - this is not a cosmetic or documentation blocker; the case/label plane is materially disconnected from Kafka under the current IRSA posture,
+   - fixing only the trust subject would still leave the role without MSK data-plane rights, so both the trust namespace and the policy fanout must be corrected,
+   - `S4` cannot close until the case/label plane is actually live on the bus and produces run-scoped metrics/health.
+8. A second-order scoring defect is also now explicit:
+   - `IEG` and `OFP` were flagged red because their health files still treat historical/replay event-time watermark age as an always-red signal,
+   - yet the same `S4` drift report shows their operational freshness is healthy (`checkpoint_age_seconds` and `lag_seconds` are well within threshold),
+   - for replay-driven production certification, `S4` should score operational freshness on checkpoint/lag and treat event-time watermark age as advisory unless the state explicitly certifies wall-clock freshness.
+9. Selected remediation sequence pinned before coding:
+   - fix Terraform/IaC so `case_labels` trusts the actual RTDL namespace service account and receives MSK data-plane policy,
+   - apply that IRSA correction live on the narrowest possible surface,
+   - rerun `PR3-S4` to verify case/label metrics now materialize and the plane participates under soak,
+   - then tighten `pr3_s4_rollup.py` so replay watermark age does not incorrectly downgrade healthy replay consumers,
+   - only after those runtime truths are fixed should I convert the current placeholder drill blockers (`schema`, `dependency`, `cost`, cohort-isolated deltas) into materially executed surfaces.
+
+## Entry: 2026-03-08 07:32:45 +00:00 - Reopening PR3-S4 on the exact remaining defects: replay-aware scoring, shared IG publish URL drift, and a warm-gate hole that still permits DL bootstrap failure into the soak
+1. I reopened the post-IRSA `PR3-S4` evidence instead of jumping straight into a rerun. The aim was to prove which blockers still belonged to the live platform and which ones were self-inflicted by the certification tooling around it.
+2. What the evidence now shows clearly:
+   - the soak traffic path itself is healthy and `OFP` materially advances on the current run,
+   - `IEG` and `OFP` are being marked red in the current rollup only because their health payloads carry `WATERMARK_TOO_OLD` on replayed January event-time, even though their operational checkpoint/lag posture is healthy,
+   - `DF` is not merely "a bit slow"; on the current run it processed only a tiny set of partition-head records while `OFP` moved through tens of thousands of events,
+   - those `DF` records show `publish_decision=QUARANTINE`, `checkpoint_committed=0`, and `halt_reason=IG_PUSH_RETRY_EXHAUSTED:timeout`,
+   - the configured `dev_full` `ig_ingest_url` already includes `/v1/ingest/push`, while the shared publishers in `decision_fabric`, `action_layer`, and `case_trigger` each append `/v1/ingest/push` again.
+3. Production interpretation of the shared publish helper issue:
+   - this is not an S4-only harness defect; it is a cross-plane corridor bug,
+   - if left unchanged it means `DF`, `AL`, and `case_trigger` are all allowed to point at a malformed IG endpoint whenever the profile already stores the canonical route,
+   - that in turn blocks downstream checkpoint commit, causes artificial quarantine/ambiguity, and makes the platform look weaker than it is while also hiding the real remaining throughput/latency constraints.
+4. Production interpretation of the warm-gate issue:
+   - the current warm gate was too lenient because it treated the initial `DL` `required_signal_gap:eb_consumer_lag,ieg_health,ofp_health` posture as acceptable bootstrap debt,
+   - the first current-run `DF` decision then hit that exact gap and fail-closed before the runtime had materially converged,
+   - for production certification that is not acceptable because the soak window must start only after the run-scoped decision surfaces are genuinely ready, not merely after pods are `Running`.
+5. Alternatives considered before coding:
+   - patch only `DF` worker partition handling immediately: rejected because the cheaper root-cause fixes (publish corridor and warm gate) are more likely to restore material throughput without invasive queue semantics changes,
+   - leave replay-health scoring unchanged and simply explain it away in notes: rejected because the current rollup would keep producing a false-red on healthy replay consumers and pollute later state decisions,
+   - change the profile to strip the IG path suffix everywhere: rejected because the system should tolerate canonical full-path inputs and not depend on one fragile config formatting convention.
+6. Selected remediation sequence:
+   - patch `pr3_s4_rollup.py` so replay consumers (`IEG`, `OFP`) are only blocked when their operational lag/checkpoint integrity is actually bad; `WATERMARK_TOO_OLD` alone becomes advisory in replay certification,
+   - patch the shared publishers in `decision_fabric`, `action_layer`, and `case_trigger` to normalize `ig_ingest_url` the same way `WSP` already does,
+   - strengthen `pr3_runtime_warm_gate.py` so it probes current-run `IEG`/`OFP` surfaces and does not pass while `DL` is still fail-closed on bootstrap readiness gaps,
+   - rerun the same strict `PR3-S4` boundary after those corrections and only then decide whether deeper `DF` worker scheduling logic still needs intervention.
+7. Boundaries explicitly preserved while doing this:
+   - no data-engine regeneration or oracle-store mutation,
+   - no rollback of the already-live IRSA fix,
+   - no branch/history operation,
+   - no touching the saved Terraform plan artifact unless the user later asks for cleanup.
+
+## Entry: 2026-03-08 07:43:57 +00:00 - The strengthened warm gate isolated the next real blocker: DL still treats replay-complete CSFB context as stale consumer lag
+1. I ran the tightened `PR3-S4` warm gate directly against the live runtime after patching the replay scoring and shared publish corridor. This was a bounded verification step before spending another full soak window.
+2. The warm gate now behaves correctly in two important ways:
+   - it no longer hangs on a heavyweight `CSFB` observability collect; the probe was reduced to bounded topic metadata,
+   - it no longer masks the initial `DL` bootstrap posture; it failed explicitly on `PR3.S4.WARM.B12A_DL_BOOTSTRAP_PENDING`.
+3. The live probe evidence is precise:
+   - `IEG` probe is materially healthy for the current run (`checkpoint_age_seconds ~= 0.08`, zero apply failures/backpressure, replay watermark only advisory),
+   - `OFP` probe is materially healthy for the current run (`lag_seconds ~= 0.07`, `checkpoint_age_seconds ~= 0.07`, replay watermark only advisory),
+   - `DF` metrics/health surfaces are present but still red and barely advancing,
+   - `DL` remains `FAIL_CLOSED` with `reason=baseline=required_signal_gap:eb_consumer_lag`.
+4. I then reopened `degrade_ladder/worker.py` instead of guessing. The root cause is inside `DL` signal resolution:
+   - `eb_consumer_lag` resolves through `_signal_orchestrator_ready()` -> `_signal_shared_consumer_lag()`,
+   - `_signal_shared_consumer_lag()` currently includes `context_store_flow_binding` in the same freshness max-lag calculation as `IEG` and `OFP`,
+   - for replay certification, `CSFB` can legitimately have old checkpoint age once the relevant context/join surface is already materialized for the run,
+   - the live/current run had exactly that posture: the join surface was clean (`join_hits>0`, no join misses/conflicts, no hard apply failures), but `CSFB` checkpoint age was still high because no new context was arriving.
+5. Production interpretation:
+   - this is another false-red, but this time inside the runtime decisioning control rather than the reporting layer,
+   - leaving it unchanged would cause `DL` to downshift/fail-close at the start of any replay-soak where context is materially complete but quiescent,
+   - that would keep the platform from ever proving stable decisioning under replayed production load even when the actual join/feature surfaces are ready.
+6. Selected remediation:
+   - patch `DL` shared consumer-lag evaluation so `CSFB` contributes an advisory-zero lag when all of the following are true:
+     - run-scoped join surface is present,
+     - `join_hits > 0`,
+     - `join_misses == 0`,
+     - `binding_conflicts == 0`,
+     - `apply_failures_hard == 0`,
+     - the only health reasons are replay-age advisories (`WATERMARK_TOO_OLD`, `CHECKPOINT_TOO_OLD`),
+   - keep fail-closed behavior for real `CSFB` faults or missing join surfaces,
+   - after that patch, rebuild/publish the platform image and repin the runtime image before rerunning `PR3-S4`.
+7. Why I am not jumping straight to a DF worker rewrite yet:
+   - the warm gate proves the state would still start under a false decision-ladder clamp,
+   - until that clamp is removed from the live image, any deeper `DF` throughput experiment would still be polluted by artificial early fail-closed posture.

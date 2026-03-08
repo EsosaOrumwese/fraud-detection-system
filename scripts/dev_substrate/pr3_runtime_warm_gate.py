@@ -155,28 +155,57 @@ import json
 from pathlib import Path
 
 from fraud_detection.context_store_flow_binding.intake import CsfbInletPolicy
-from fraud_detection.context_store_flow_binding.observability import CsfbObservabilityReporter
 from fraud_detection.event_bus.kafka import build_kafka_reader
 
 profile_path = Path(__import__("os").environ["FP_PROFILE_PATH"])
 policy = CsfbInletPolicy.load(profile_path)
 reader = build_kafka_reader(client_id="pr3-csfb-warm-gate")
 topic_partitions = {topic: reader.list_partitions(topic) for topic in policy.context_topics}
-reporter = CsfbObservabilityReporter.build(locator=policy.projection_db_dsn, stream_id=policy.stream_id)
-snapshot = reporter.collect(platform_run_id=policy.required_platform_run_id)
 print(json.dumps({
     "required_platform_run_id": policy.required_platform_run_id,
     "event_bus_start_position": policy.event_bus_start_position,
-    "projection_db_dsn": policy.projection_db_dsn,
     "stream_id": policy.stream_id,
     "context_topics": list(policy.context_topics),
     "topic_partitions": topic_partitions,
-    "metrics": snapshot.get("metrics", {}),
-    "checkpoints": snapshot.get("checkpoints", {}),
-    "health_state": snapshot.get("health_state"),
-    "health_reasons": snapshot.get("health_reasons", []),
 }))
 """
+
+COMPONENT_SURFACE_SCRIPT = r"""
+import json
+import os
+from pathlib import Path
+
+platform_run_id = os.environ["FP_PLATFORM_RUN_ID"]
+metrics_path = Path(os.environ["FP_METRICS_PATH"].format(platform_run_id=platform_run_id))
+health_path = Path(os.environ["FP_HEALTH_PATH"].format(platform_run_id=platform_run_id))
+
+def load_json(path: Path):
+    if not path.exists():
+        return {"__missing__": True, "__path__": str(path)}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return {"__unreadable__": True, "__path__": str(path), "__error__": str(exc)}
+
+print(json.dumps({
+    "platform_run_id": platform_run_id,
+    "metrics_path": str(metrics_path),
+    "health_path": str(health_path),
+    "metrics_payload": load_json(metrics_path),
+    "health_payload": load_json(health_path),
+}))
+"""
+
+COMPONENT_SURFACE_PATHS: dict[str, dict[str, str]] = {
+    "ieg": {
+        "metrics_path": "runs/fraud-platform/{platform_run_id}/identity_entity_graph/metrics/last_metrics.json",
+        "health_path": "runs/fraud-platform/{platform_run_id}/identity_entity_graph/health/last_health.json",
+    },
+    "ofp": {
+        "metrics_path": "runs/fraud-platform/{platform_run_id}/online_feature_plane/metrics/last_metrics.json",
+        "health_path": "runs/fraud-platform/{platform_run_id}/online_feature_plane/health/last_health.json",
+    },
+}
 
 
 def summarize_pod(pod: dict[str, Any]) -> dict[str, Any]:
@@ -209,6 +238,63 @@ def select_active_pod(rows: list[dict[str, Any]]) -> dict[str, Any]:
     return sorted(rows, key=sort_key, reverse=True)[0]
 
 
+def to_float(value: Any) -> float | None:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def state_sequence(state_id: str) -> int:
+    text = str(state_id or "").strip().upper()
+    if text.startswith("S"):
+        text = text[1:]
+    try:
+        return int(text)
+    except ValueError:
+        return 0
+
+
+def replay_advisory_only(component: str, probe: dict[str, Any], *, max_checkpoint_seconds: float, max_lag_seconds: float) -> bool:
+    health_payload = dict(probe.get("health_payload") or {})
+    metrics_payload = dict(probe.get("metrics_payload") or {})
+    state = str(health_payload.get("health_state") or "").strip().upper()
+    reasons = {str(item).strip() for item in (health_payload.get("health_reasons") or []) if str(item).strip()}
+    if state not in {"RED", "FAILED", "UNHEALTHY"}:
+        return False
+    if reasons != {"WATERMARK_TOO_OLD"}:
+        return False
+    checkpoint_age = to_float(health_payload.get("checkpoint_age_seconds"))
+    if checkpoint_age is None:
+        checkpoint_age = to_float(metrics_payload.get("checkpoint_age_seconds"))
+    if checkpoint_age is None or checkpoint_age > max_checkpoint_seconds:
+        return False
+    if component == "ofp":
+        lag_seconds = to_float(metrics_payload.get("lag_seconds"))
+        if lag_seconds is None or lag_seconds > max_lag_seconds:
+            return False
+    if component == "ieg":
+        if (to_float(health_payload.get("apply_failure_count")) or 0.0) > 0.0:
+            return False
+        if (to_float(health_payload.get("backpressure_hits")) or 0.0) > 0.0:
+            return False
+    return True
+
+
+def probe_component_surface(namespace: str, pod_name: str, component: str, platform_run_id: str) -> tuple[dict[str, Any], str]:
+    paths = COMPONENT_SURFACE_PATHS[component]
+    return exec_json(
+        namespace,
+        pod_name,
+        COMPONENT_SURFACE_SCRIPT,
+        {
+            "FP_PLATFORM_RUN_ID": platform_run_id,
+            "FP_METRICS_PATH": paths["metrics_path"],
+            "FP_HEALTH_PATH": paths["health_path"],
+        },
+    )
+
+
 def node_health(node_name: str) -> dict[str, Any]:
     if not node_name:
         return {"node_name": node_name, "node_missing": True}
@@ -232,7 +318,7 @@ def node_health(node_name: str) -> dict[str, Any]:
     }
 
 
-def dl_bootstrap_pending(dl_probe: dict[str, Any], csfb_probe: dict[str, Any]) -> bool:
+def dl_bootstrap_pending(dl_probe: dict[str, Any]) -> bool:
     decision = dict(dl_probe.get("decision", {}) or {})
     if str(decision.get("mode") or "").strip().upper() != "FAIL_CLOSED":
         return False
@@ -245,13 +331,7 @@ def dl_bootstrap_pending(dl_probe: dict[str, Any], csfb_probe: dict[str, Any]) -
     if not gap_items:
         return False
     allowed_bootstrap_gaps = {"eb_consumer_lag", "ieg_health", "ofp_health"}
-    if not gap_items.issubset(allowed_bootstrap_gaps):
-        return False
-    metrics = dict(csfb_probe.get("metrics", {}) or {})
-    health_reasons = {str(item).strip() for item in (csfb_probe.get("health_reasons") or []) if str(item).strip()}
-    no_context_activity = all(int(metrics.get(key, 0) or 0) == 0 for key in ("join_hits", "join_misses", "binding_conflicts"))
-    missing_watermark = {"WATERMARK_MISSING", "CHECKPOINT_MISSING"}.issubset(health_reasons)
-    return no_context_activity and missing_watermark
+    return gap_items.issubset(allowed_bootstrap_gaps)
 
 
 def pod_status(namespace: str, app: str) -> dict[str, Any]:
@@ -290,6 +370,10 @@ def main() -> None:
     ap.add_argument("--profile-path", default="/runtime-profile/dev_full.yaml")
     ap.add_argument("--platform-run-id", required=True)
     ap.add_argument("--settle-seconds", type=int, default=30)
+    ap.add_argument("--runtime-ready-timeout-seconds", type=int, default=180)
+    ap.add_argument("--probe-interval-seconds", type=int, default=15)
+    ap.add_argument("--max-operational-checkpoint-seconds", type=float, default=30.0)
+    ap.add_argument("--max-operational-lag-seconds", type=float, default=5.0)
     ap.add_argument("--generated-by", default="codex-gpt5")
     ap.add_argument("--version", default="1.0.0")
     args = ap.parse_args()
@@ -309,6 +393,14 @@ def main() -> None:
         "fp-pr3-dla",
         "fp-pr3-archive-writer",
     ]
+    if state_sequence(args.state_id) >= 4:
+        components.extend(
+            [
+                "fp-pr3-case-trigger",
+                "fp-pr3-case-mgmt",
+                "fp-pr3-label-store",
+            ]
+        )
     pre_status = [pod_status(args.namespace, app) for app in components]
     for row in pre_status:
         if row.get("pod_missing"):
@@ -320,80 +412,11 @@ def main() -> None:
     df_probe, df_probe_error = ({}, "")
     csfb_probe, csfb_probe_error = ({}, "")
     dl_probe, dl_probe_error = ({}, "")
+    ieg_probe, ieg_probe_error = ({}, "")
+    ofp_probe, ofp_probe_error = ({}, "")
     node_health_rows: list[dict[str, Any]] = []
     dl_bootstrap_pending_flag = False
     if not blockers:
-        csfb_status = next(row for row in pre_status if row.get("app") == "fp-pr3-csfb")
-        csfb_probe, csfb_probe_error = exec_json(
-            args.namespace,
-            str(csfb_status["pod_name"]),
-            CSFB_WARM_SCRIPT,
-            {"FP_PROFILE_PATH": args.profile_path},
-        )
-        if csfb_probe_error:
-            blockers.append(f"PR3.{args.state_id}.WARM.B03_CSFB_PROBE_FAILED:{csfb_probe_error}")
-        else:
-            if str(csfb_probe.get("required_platform_run_id") or "").strip() != args.platform_run_id:
-                blockers.append(
-                    f"PR3.{args.state_id}.WARM.B04_CSFB_PLATFORM_RUN_SCOPE_MISMATCH:"
-                    f"{csfb_probe.get('required_platform_run_id')}"
-                )
-            topic_partitions = dict(csfb_probe.get("topic_partitions") or {})
-            for topic in csfb_probe.get("context_topics") or []:
-                if not list(topic_partitions.get(topic) or []):
-                    blockers.append(f"PR3.{args.state_id}.WARM.B05_CSFB_TOPIC_METADATA_UNREADABLE:{topic}")
-
-        df_status = next(row for row in pre_status if row.get("app") == "fp-pr3-df")
-        df_probe, df_probe_error = exec_json(
-            args.namespace,
-            str(df_status["pod_name"]),
-            DF_WARM_SCRIPT,
-            {"FP_PROFILE_PATH": args.profile_path},
-        )
-        if df_probe_error:
-            blockers.append(f"PR3.{args.state_id}.WARM.B06_DF_PROBE_FAILED:{df_probe_error}")
-        else:
-            if str(df_probe.get("required_platform_run_id") or "").strip() != args.platform_run_id:
-                blockers.append(
-                    f"PR3.{args.state_id}.WARM.B07_PLATFORM_RUN_SCOPE_MISMATCH:"
-                    f"{df_probe.get('required_platform_run_id')}"
-                )
-            if not bool(df_probe.get("required_scopes_present")):
-                blockers.append(f"PR3.{args.state_id}.WARM.B08_DF_SCOPE_BRIDGE_MISSING")
-            if not list(df_probe.get("kafka_partitions") or []):
-                blockers.append(f"PR3.{args.state_id}.WARM.B09_DF_KAFKA_METADATA_UNREADABLE")
-            checkpoint_partitions = sorted(int(item) for item in list(df_probe.get("checkpoint_partitions") or []))
-            kafka_partitions = sorted(int(item) for item in list(df_probe.get("kafka_partitions") or []))
-            if checkpoint_partitions != kafka_partitions:
-                blockers.append(f"PR3.{args.state_id}.WARM.B09A_DF_CHECKPOINT_BOUNDARY_MISSING")
-            metrics_payload = dict(df_probe.get("metrics_payload") or {})
-            health_payload = dict(df_probe.get("health_payload") or {})
-            if bool(metrics_payload.get("__missing__")):
-                blockers.append(f"PR3.{args.state_id}.WARM.B09B_DF_METRICS_SURFACE_MISSING")
-            if bool(health_payload.get("__missing__")):
-                blockers.append(f"PR3.{args.state_id}.WARM.B09C_DF_HEALTH_SURFACE_MISSING")
-            if str(metrics_payload.get("platform_run_id") or "").strip() not in {"", args.platform_run_id}:
-                blockers.append(f"PR3.{args.state_id}.WARM.B09D_DF_METRICS_SCOPE_MISMATCH")
-            if str(health_payload.get("platform_run_id") or "").strip() not in {"", args.platform_run_id}:
-                blockers.append(f"PR3.{args.state_id}.WARM.B09E_DF_HEALTH_SCOPE_MISMATCH")
-
-        dl_status = next(row for row in pre_status if row.get("app") == "fp-pr3-dl")
-        dl_probe, dl_probe_error = exec_json(
-            args.namespace,
-            str(dl_status["pod_name"]),
-            DL_WARM_SCRIPT,
-            {"FP_PROFILE_PATH": args.profile_path},
-        )
-        if dl_probe_error:
-            blockers.append(f"PR3.{args.state_id}.WARM.B10_DL_PROBE_FAILED:{dl_probe_error}")
-        else:
-            if not bool(dl_probe.get("record_present")):
-                blockers.append(f"PR3.{args.state_id}.WARM.B11_DL_POSTURE_MISSING")
-            elif dl_bootstrap_pending(dl_probe, csfb_probe):
-                dl_bootstrap_pending_flag = True
-            elif str(((dl_probe.get('decision') or {}).get('mode') or '')).strip().upper() == "FAIL_CLOSED":
-                blockers.append(f"PR3.{args.state_id}.WARM.B12_DL_FAIL_CLOSED")
-
         node_names = sorted(
             {
                 str(row.get("node_name") or "").strip()
@@ -412,6 +435,156 @@ def main() -> None:
                 blockers.append(f"PR3.{args.state_id}.WARM.B14_NODE_NOT_READY:{node_name}")
             if bool(node_row.get("disk_pressure")):
                 blockers.append(f"PR3.{args.state_id}.WARM.B15_NODE_DISK_PRESSURE:{node_name}")
+
+    probe_attempts: list[dict[str, Any]] = []
+    if not blockers:
+        deadline = time.time() + max(0, int(args.runtime_ready_timeout_seconds))
+        while True:
+            attempt_blockers: list[str] = []
+            attempt_started = now_utc()
+
+            csfb_status = next(row for row in pre_status if row.get("app") == "fp-pr3-csfb")
+            csfb_probe, csfb_probe_error = exec_json(
+                args.namespace,
+                str(csfb_status["pod_name"]),
+                CSFB_WARM_SCRIPT,
+                {"FP_PROFILE_PATH": args.profile_path},
+            )
+            if csfb_probe_error:
+                attempt_blockers.append(f"PR3.{args.state_id}.WARM.B03_CSFB_PROBE_FAILED:{csfb_probe_error}")
+            else:
+                if str(csfb_probe.get("required_platform_run_id") or "").strip() != args.platform_run_id:
+                    attempt_blockers.append(
+                        f"PR3.{args.state_id}.WARM.B04_CSFB_PLATFORM_RUN_SCOPE_MISMATCH:"
+                        f"{csfb_probe.get('required_platform_run_id')}"
+                    )
+                topic_partitions = dict(csfb_probe.get("topic_partitions") or {})
+                for topic in csfb_probe.get("context_topics") or []:
+                    if not list(topic_partitions.get(topic) or []):
+                        attempt_blockers.append(f"PR3.{args.state_id}.WARM.B05_CSFB_TOPIC_METADATA_UNREADABLE:{topic}")
+
+            df_status = next(row for row in pre_status if row.get("app") == "fp-pr3-df")
+            df_probe, df_probe_error = exec_json(
+                args.namespace,
+                str(df_status["pod_name"]),
+                DF_WARM_SCRIPT,
+                {"FP_PROFILE_PATH": args.profile_path},
+            )
+            if df_probe_error:
+                attempt_blockers.append(f"PR3.{args.state_id}.WARM.B06_DF_PROBE_FAILED:{df_probe_error}")
+            else:
+                if str(df_probe.get("required_platform_run_id") or "").strip() != args.platform_run_id:
+                    attempt_blockers.append(
+                        f"PR3.{args.state_id}.WARM.B07_PLATFORM_RUN_SCOPE_MISMATCH:"
+                        f"{df_probe.get('required_platform_run_id')}"
+                    )
+                if not bool(df_probe.get("required_scopes_present")):
+                    attempt_blockers.append(f"PR3.{args.state_id}.WARM.B08_DF_SCOPE_BRIDGE_MISSING")
+                if not list(df_probe.get("kafka_partitions") or []):
+                    attempt_blockers.append(f"PR3.{args.state_id}.WARM.B09_DF_KAFKA_METADATA_UNREADABLE")
+                checkpoint_partitions = sorted(int(item) for item in list(df_probe.get("checkpoint_partitions") or []))
+                kafka_partitions = sorted(int(item) for item in list(df_probe.get("kafka_partitions") or []))
+                if checkpoint_partitions != kafka_partitions:
+                    attempt_blockers.append(f"PR3.{args.state_id}.WARM.B09A_DF_CHECKPOINT_BOUNDARY_MISSING")
+                metrics_payload = dict(df_probe.get("metrics_payload") or {})
+                health_payload = dict(df_probe.get("health_payload") or {})
+                if bool(metrics_payload.get("__missing__")):
+                    attempt_blockers.append(f"PR3.{args.state_id}.WARM.B09B_DF_METRICS_SURFACE_MISSING")
+                if bool(health_payload.get("__missing__")):
+                    attempt_blockers.append(f"PR3.{args.state_id}.WARM.B09C_DF_HEALTH_SURFACE_MISSING")
+                if str(metrics_payload.get("platform_run_id") or "").strip() not in {"", args.platform_run_id}:
+                    attempt_blockers.append(f"PR3.{args.state_id}.WARM.B09D_DF_METRICS_SCOPE_MISMATCH")
+                if str(health_payload.get("platform_run_id") or "").strip() not in {"", args.platform_run_id}:
+                    attempt_blockers.append(f"PR3.{args.state_id}.WARM.B09E_DF_HEALTH_SCOPE_MISMATCH")
+
+            dl_status = next(row for row in pre_status if row.get("app") == "fp-pr3-dl")
+            dl_probe, dl_probe_error = exec_json(
+                args.namespace,
+                str(dl_status["pod_name"]),
+                DL_WARM_SCRIPT,
+                {"FP_PROFILE_PATH": args.profile_path},
+            )
+            dl_bootstrap_pending_flag = False
+            if dl_probe_error:
+                attempt_blockers.append(f"PR3.{args.state_id}.WARM.B10_DL_PROBE_FAILED:{dl_probe_error}")
+            else:
+                if not bool(dl_probe.get("record_present")):
+                    attempt_blockers.append(f"PR3.{args.state_id}.WARM.B11_DL_POSTURE_MISSING")
+                else:
+                    dl_bootstrap_pending_flag = dl_bootstrap_pending(dl_probe)
+                    if dl_bootstrap_pending_flag:
+                        attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12A_DL_BOOTSTRAP_PENDING")
+                    elif str(((dl_probe.get('decision') or {}).get('mode') or '')).strip().upper() == "FAIL_CLOSED":
+                        attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12_DL_FAIL_CLOSED")
+
+            ieg_status = next(row for row in pre_status if row.get("app") == "fp-pr3-ieg")
+            ieg_probe, ieg_probe_error = probe_component_surface(
+                args.namespace,
+                str(ieg_status["pod_name"]),
+                "ieg",
+                args.platform_run_id,
+            )
+            if ieg_probe_error:
+                attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12B_IEG_PROBE_FAILED:{ieg_probe_error}")
+            else:
+                ieg_metrics = dict(ieg_probe.get("metrics_payload") or {})
+                ieg_health = dict(ieg_probe.get("health_payload") or {})
+                if bool(ieg_metrics.get("__missing__")):
+                    attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12C_IEG_METRICS_SURFACE_MISSING")
+                if bool(ieg_health.get("__missing__")):
+                    attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12D_IEG_HEALTH_SURFACE_MISSING")
+                if str(ieg_health.get("platform_run_id") or "").strip() not in {"", args.platform_run_id}:
+                    attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12E_IEG_SCOPE_MISMATCH")
+                elif str(ieg_health.get("health_state") or "").strip().upper() in {"RED", "FAILED", "UNHEALTHY"} and not replay_advisory_only(
+                    "ieg",
+                    ieg_probe,
+                    max_checkpoint_seconds=float(args.max_operational_checkpoint_seconds),
+                    max_lag_seconds=float(args.max_operational_lag_seconds),
+                ):
+                    attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12F_IEG_NOT_OPERATIONALLY_READY")
+
+            ofp_status = next(row for row in pre_status if row.get("app") == "fp-pr3-ofp")
+            ofp_probe, ofp_probe_error = probe_component_surface(
+                args.namespace,
+                str(ofp_status["pod_name"]),
+                "ofp",
+                args.platform_run_id,
+            )
+            if ofp_probe_error:
+                attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12G_OFP_PROBE_FAILED:{ofp_probe_error}")
+            else:
+                ofp_metrics = dict(ofp_probe.get("metrics_payload") or {})
+                ofp_health = dict(ofp_probe.get("health_payload") or {})
+                if bool(ofp_metrics.get("__missing__")):
+                    attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12H_OFP_METRICS_SURFACE_MISSING")
+                if bool(ofp_health.get("__missing__")):
+                    attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12I_OFP_HEALTH_SURFACE_MISSING")
+                if str(ofp_health.get("platform_run_id") or "").strip() not in {"", args.platform_run_id}:
+                    attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12J_OFP_SCOPE_MISMATCH")
+                elif str(ofp_health.get("health_state") or "").strip().upper() in {"RED", "FAILED", "UNHEALTHY"} and not replay_advisory_only(
+                    "ofp",
+                    ofp_probe,
+                    max_checkpoint_seconds=float(args.max_operational_checkpoint_seconds),
+                    max_lag_seconds=float(args.max_operational_lag_seconds),
+                ):
+                    attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12K_OFP_NOT_OPERATIONALLY_READY")
+
+            probe_attempts.append(
+                {
+                    "attempt_started_utc": attempt_started,
+                    "blocker_ids": sorted(set(attempt_blockers)),
+                    "dl_bootstrap_pending": dl_bootstrap_pending_flag,
+                    "df_metrics_present": not bool(dict(df_probe.get("metrics_payload") or {}).get("__missing__")),
+                    "ieg_metrics_present": not bool(dict(ieg_probe.get("metrics_payload") or {}).get("__missing__")),
+                    "ofp_metrics_present": not bool(dict(ofp_probe.get("metrics_payload") or {}).get("__missing__")),
+                }
+            )
+            blockers = attempt_blockers
+            if not blockers:
+                break
+            if time.time() >= deadline:
+                break
+            time.sleep(max(1, int(args.probe_interval_seconds)))
 
     if not blockers and args.settle_seconds > 0:
         time.sleep(args.settle_seconds)
@@ -446,6 +619,13 @@ def main() -> None:
         "dl_probe_error": dl_probe_error,
         "df_probe": df_probe,
         "df_probe_error": df_probe_error,
+        "ieg_probe": ieg_probe,
+        "ieg_probe_error": ieg_probe_error,
+        "ofp_probe": ofp_probe,
+        "ofp_probe_error": ofp_probe_error,
+        "probe_attempts": probe_attempts,
+        "runtime_ready_timeout_seconds": args.runtime_ready_timeout_seconds,
+        "probe_interval_seconds": args.probe_interval_seconds,
         "node_health": node_health_rows,
         "post_status": post_status,
         "overall_pass": len(blockers) == 0,
