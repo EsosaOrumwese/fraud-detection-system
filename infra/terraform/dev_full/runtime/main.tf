@@ -922,6 +922,26 @@ resource "aws_iam_role_policy_attachment" "ecs_ig_task_execution_managed" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+resource "aws_iam_role_policy" "ecs_ig_task_execution_secret_read" {
+  count = var.ig_service_enabled ? 1 : 0
+
+  name = "${var.role_ecs_ig_task_execution_name}-secret-read"
+  role = aws_iam_role.ecs_ig_task_execution[0].id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameter",
+          "ssm:GetParameters"
+        ]
+        Resource = aws_ssm_parameter.ig_api_key.arn
+      }
+    ]
+  })
+}
+
 resource "aws_iam_role" "ecs_ig_task_runtime" {
   count = var.ig_service_enabled ? 1 : 0
 

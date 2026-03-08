@@ -8915,3 +8915,36 @@ uns/.../degrade_ladder/* on its own filesystem,
    - PR3-S2 must stay green on the current ingress metrics,
    - `DF fail_closed_total_delta` and `publish_quarantine_total_delta` must return to `0`,
    - DF/AL/DLA must show current-run participation rather than zero-traffic or quarantine-only artifacts.
+
+## Entry: 2026-03-08 00:40:53 +00:00 - IG startup-secret rollout exposed execution-role drift and verification weakness
+1. I dispatched the targeted ingress materialization workflow against image digest `sha256:2d085b7723f1923fb1d7761b7b909e087c4e9e5e49be42d7c80b6b82507614c3` after confirming that the live task definition had previously been missing the `IG_API_KEY_VALUE` startup secret. The immediate intent was to make the secret-backed auth posture materially live before another strict `PR3-S2` rerun.
+2. The workflow succeeded and the new task definition advanced to `fraud-platform-dev-full-ig-service:21`. Direct live inspection confirmed the task definition now carries:
+   - image `230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-full@sha256:2d085b7723f1923fb1d7761b7b909e087c4e9e5e49be42d7c80b6b82507614c3`,
+   - environment pins `IG_RATE_LIMIT_RPS=3000`, `IG_RATE_LIMIT_BURST=6000`, retry/backoff and gunicorn pins,
+   - ECS secret `IG_API_KEY_VALUE -> arn:aws:ssm:eu-west-2:230372904534:parameter/fraud-platform/dev_full/ig/api_key`.
+3. That looked correct at the task-definition layer, but waiting for service stability exposed the real production defect. The service stalled at `desired=32`, `running=16`, `pending=0`, with the primary deployment still `IN_PROGRESS`. ECS service events show repeated `ResourceInitializationError` failures:
+   - execution role `fraud-platform-dev-full-ecs-ig-task-execution` is not authorized for `ssm:GetParameters` on `/fraud-platform/dev_full/ig/api_key`,
+   - old revision `:20` tasks stay alive while new revision `:21` tasks fail during secret retrieval.
+4. Production interpretation:
+   - the startup-secret design is still the right fix for the p99 ingress tail because it removes control-plane auth lookup from the hot path,
+   - however the runtime materialization was incomplete because the ECS **execution** role, not just the runtime role, needs SSM read for startup secret resolution,
+   - certifying off the current workflow success would have been wrong because the service can remain partially rolled while lambda health and task-definition inspection still look green.
+5. I verified that this is execution-role drift, not parameter/key drift:
+   - the parameter exists as `SecureString` at `/fraud-platform/dev_full/ig/api_key`,
+   - it uses AWS-managed key `alias/aws/ssm`,
+   - the ECS runtime role already has `ssm:GetParameter/GetParameters`,
+   - the ECS execution role only had the default `AmazonECSTaskExecutionRolePolicy`, which is insufficient for this startup-secret fetch.
+6. Candidate remediations considered:
+   - revert to path-only auth and keep request-time SSM lookup: rejected because it reintroduces the proven p99 production defect,
+   - grant broad `ssm:GetParameters` on `/fraud-platform/dev_full/*` to the execution role and move on: rejected because the execution role only needs the IG startup secret and broadening it is unnecessary privilege,
+   - add a least-privilege execution-role policy for the IG API-key parameter, update the targeted materialization workflow to apply that policy, and strengthen the workflow verification to require ECS service stability plus explicit secret presence: selected.
+7. Implementation plan selected before further runs:
+   - add a dedicated IAM policy on `aws_iam_role.ecs_ig_task_execution` granting `ssm:GetParameter` and `ssm:GetParameters` on the IG API-key parameter ARN,
+   - update `dev_full_pr3_ig_edge_materialize.yml` targeted apply list so the new execution-role policy is materially applied,
+   - make the workflow wait for ECS service stability and fail if `runningCount != desiredCount`,
+   - make verification assert the container definition still carries `IG_API_KEY_VALUE` secret wiring,
+   - rerun targeted ingress materialization, confirm `32/32` stable on revision `:21+`, then rerun strict `PR3-S2`.
+8. Acceptance criteria for this remediation:
+   - ECS ingress service reaches full stability on the secret-backed task definition with no `ResourceInitializationError`,
+   - live task definition still exposes the startup secret and the expected runtime image/config pins,
+   - only after that do we spend another PR3 burst window.
