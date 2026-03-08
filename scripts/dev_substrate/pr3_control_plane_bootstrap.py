@@ -1,30 +1,28 @@
 #!/usr/bin/env python3
-"""Author PR3-S4 run-scoped SR artifacts on the active platform run."""
+"""Orchestrate PR3-S4 control bootstrap through an in-VPC EKS job."""
 
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
-import os
 import re
+import subprocess
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote_plus
 
 import boto3
-import yaml
 
-from fraud_detection.scenario_runner.config import load_policy, load_wiring
-from fraud_detection.scenario_runner.engine import LocalEngineInvoker
-from fraud_detection.scenario_runner.models import RunRequest, RunWindow, ScenarioBinding
-from fraud_detection.scenario_runner.runner import ScenarioRunner
+from fraud_detection.scenario_runner.config import load_policy
 from fraud_detection.scenario_runner.storage import build_object_store
 
 
 REGISTRY_PATH = Path("docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md")
 POLICY_PATH = Path("config/platform/sr/policy_v0.yaml")
+WORKER_PATH = Path("scripts/dev_substrate/pr3_control_plane_bootstrap_worker.py")
 
 
 def now_utc() -> str:
@@ -75,21 +73,6 @@ def build_aurora_dsn(*, endpoint: str, username: str, password: str, db_name: st
     )
 
 
-def sha256_json(payload: dict[str, Any]) -> str:
-    data = json.dumps(payload, sort_keys=True, ensure_ascii=True, separators=(",", ":"))
-    return hashlib.sha256(data.encode("utf-8")).hexdigest()
-
-
-def is_missing_value(value: Any) -> bool:
-    if value is None:
-        return True
-    if isinstance(value, str):
-        return not value.strip()
-    if isinstance(value, (list, tuple, set, dict)):
-        return len(value) == 0
-    return False
-
-
 def resolve_scenario_id(root: Path, fallback: str) -> str:
     for name in (
         "g3a_correctness_wsp_runtime_manifest.json",
@@ -110,40 +93,213 @@ def resolve_scenario_id(root: Path, fallback: str) -> str:
     return fallback
 
 
-def write_wiring(
-    *,
-    path: Path,
-    object_store_root: str,
-    oracle_engine_run_root: str,
-    authority_store_dsn: str,
-    control_bus_topic: str,
-    kafka_bootstrap_servers: str,
-    aws_region: str,
-) -> None:
-    payload = {
-        "profile_id": "dev_full_pr3_control_bootstrap",
-        "object_store_root": object_store_root,
-        "control_bus_topic": control_bus_topic,
-        "control_bus_root": "runs/fraud-platform/control_bus",
-        "control_bus_kind": "kafka",
-        "engine_catalogue_path": "docs/model_spec/data-engine/interface_pack/engine_outputs.catalogue.yaml",
-        "gate_map_path": "docs/model_spec/data-engine/interface_pack/engine_gates.map.yaml",
-        "schema_root": "docs/model_spec/platform/contracts/scenario_runner",
-        "engine_contracts_root": "docs/model_spec/data-engine/interface_pack/contracts",
-        "oracle_engine_run_root": oracle_engine_run_root,
-        "authority_store_dsn": authority_store_dsn,
-        "s3_region": aws_region,
-        "s3_path_style": False,
-        "auth_mode": "disabled",
-        "acceptance_mode": "dev_full",
-        "execution_mode": "managed",
-        "state_mode": "managed",
-        "execution_identity_env": "GITHUB_RUN_ID",
-        "control_bus_stream": kafka_bootstrap_servers,
-        "control_bus_region": aws_region,
+def resolve_task_image(*, family: str, region: str) -> str:
+    ecs = boto3.client("ecs", region_name=region)
+    resp = ecs.describe_task_definition(taskDefinition=family)
+    task_def = resp.get("taskDefinition", {})
+    containers = list(task_def.get("containerDefinitions", []) or [])
+    if not containers:
+        raise RuntimeError(f"PR3.B20_CONTROL_BOOTSTRAP_FAIL:TASKDEF_EMPTY:{family}")
+    image = str(containers[0].get("image", "")).strip()
+    if not image:
+        raise RuntimeError(f"PR3.B20_CONTROL_BOOTSTRAP_FAIL:TASKDEF_IMAGE_EMPTY:{family}")
+    return image
+
+
+def run(cmd: list[str], *, input_text: str | None = None, timeout: int = 300, check: bool = True) -> subprocess.CompletedProcess[str]:
+    proc = subprocess.run(
+        cmd,
+        input=input_text,
+        text=True,
+        capture_output=True,
+        timeout=timeout,
+        check=False,
+    )
+    if check and proc.returncode != 0:
+        raise RuntimeError(
+            f"command_failed:{' '.join(cmd)}\nstdout={proc.stdout}\nstderr={proc.stderr}"
+        )
+    return proc
+
+
+def kubectl_apply(document: dict[str, Any]) -> None:
+    run(["kubectl", "apply", "-f", "-"], input_text=json.dumps(document), timeout=300, check=True)
+
+
+def kubectl_delete(kind: str, name: str, namespace: str | None = None) -> None:
+    cmd = ["kubectl", "delete", kind, name, "--ignore-not-found=true"]
+    if namespace:
+        cmd.extend(["-n", namespace])
+    run(cmd, timeout=180, check=False)
+
+
+def namespace_manifest(name: str) -> dict[str, Any]:
+    return {
+        "apiVersion": "v1",
+        "kind": "Namespace",
+        "metadata": {"name": name},
     }
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+
+def service_account_manifest(namespace: str, name: str, role_arn: str) -> dict[str, Any]:
+    return {
+        "apiVersion": "v1",
+        "kind": "ServiceAccount",
+        "metadata": {
+            "name": name,
+            "namespace": namespace,
+            "annotations": {"eks.amazonaws.com/role-arn": role_arn},
+        },
+    }
+
+
+def config_map_manifest(namespace: str, name: str, data: dict[str, str]) -> dict[str, Any]:
+    return {
+        "apiVersion": "v1",
+        "kind": "ConfigMap",
+        "metadata": {"name": name, "namespace": namespace},
+        "data": data,
+    }
+
+
+def secret_manifest(namespace: str, name: str, string_data: dict[str, str]) -> dict[str, Any]:
+    return {
+        "apiVersion": "v1",
+        "kind": "Secret",
+        "metadata": {"name": name, "namespace": namespace},
+        "type": "Opaque",
+        "stringData": string_data,
+    }
+
+
+def job_manifest(
+    *,
+    namespace: str,
+    name: str,
+    image: str,
+    service_account_name: str,
+    config_map_name: str,
+    secret_name: str,
+) -> dict[str, Any]:
+    return {
+        "apiVersion": "batch/v1",
+        "kind": "Job",
+        "metadata": {
+            "name": name,
+            "namespace": namespace,
+            "labels": {
+                "fp.phase": "PR3",
+                "fp.state": "S4",
+                "fp.component": "control-bootstrap",
+            },
+        },
+        "spec": {
+            "backoffLimit": 0,
+            "ttlSecondsAfterFinished": 300,
+            "template": {
+                "metadata": {
+                    "labels": {
+                        "job-name": name,
+                        "fp.phase": "PR3",
+                        "fp.state": "S4",
+                        "fp.component": "control-bootstrap",
+                    }
+                },
+                "spec": {
+                    "restartPolicy": "Never",
+                    "serviceAccountName": service_account_name,
+                    "containers": [
+                        {
+                            "name": "bootstrap",
+                            "image": image,
+                            "imagePullPolicy": "Always",
+                            "command": ["python", "/bootstrap/pr3_control_plane_bootstrap_worker.py"],
+                            "envFrom": [{"secretRef": {"name": secret_name}}],
+                            "volumeMounts": [
+                                {
+                                    "name": "bootstrap-script",
+                                    "mountPath": "/bootstrap",
+                                    "readOnly": True,
+                                }
+                            ],
+                            "resources": {
+                                "requests": {"cpu": "250m", "memory": "512Mi"},
+                                "limits": {"cpu": "1", "memory": "1Gi"},
+                            },
+                        }
+                    ],
+                    "volumes": [
+                        {
+                            "name": "bootstrap-script",
+                            "configMap": {"name": config_map_name},
+                        }
+                    ],
+                },
+            },
+        },
+    }
+
+
+def get_job_status(namespace: str, name: str) -> dict[str, Any]:
+    proc = run(["kubectl", "get", "job", name, "-n", namespace, "-o", "json"], timeout=60, check=True)
+    return json.loads(proc.stdout or "{}")
+
+
+def get_pod_name(namespace: str, job_name: str) -> str:
+    proc = run(
+        ["kubectl", "get", "pods", "-n", namespace, "-l", f"job-name={job_name}", "-o", "json"],
+        timeout=60,
+        check=True,
+    )
+    payload = json.loads(proc.stdout or "{}")
+    items = list(payload.get("items", []) or [])
+    if not items:
+        return ""
+    return str(items[0].get("metadata", {}).get("name", "")).strip()
+
+
+def pod_logs(namespace: str, pod_name: str) -> str:
+    if not pod_name:
+        return ""
+    proc = run(["kubectl", "logs", pod_name, "-n", namespace], timeout=120, check=False)
+    return (proc.stdout or proc.stderr or "").strip()
+
+
+def pod_describe(namespace: str, pod_name: str) -> str:
+    if not pod_name:
+        return ""
+    proc = run(["kubectl", "describe", "pod", pod_name, "-n", namespace], timeout=120, check=False)
+    return (proc.stdout or proc.stderr or "").strip()
+
+
+def wait_for_job(namespace: str, name: str, *, timeout_seconds: int) -> tuple[bool, dict[str, Any]]:
+    deadline = time.time() + max(timeout_seconds, 30)
+    latest: dict[str, Any] = {}
+    while time.time() < deadline:
+        latest = get_job_status(namespace, name)
+        status = latest.get("status", {}) if isinstance(latest, dict) else {}
+        if int(status.get("succeeded", 0) or 0) >= 1:
+            return True, latest
+        if int(status.get("failed", 0) or 0) >= 1:
+            return False, latest
+        time.sleep(5)
+    return False, latest
+
+
+def parse_summary_from_logs(log_text: str) -> dict[str, Any]:
+    for line in reversed([row.strip() for row in log_text.splitlines() if row.strip()]):
+        try:
+            payload = json.loads(line)
+        except Exception:
+            continue
+        if isinstance(payload, dict) and payload.get("phase") == "PR3" and payload.get("state") == "S4":
+            return payload
+    return {}
+
+
+def stable_suffix(*parts: str) -> str:
+    digest = hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()
+    return digest[:10]
 
 
 def main() -> None:
@@ -154,15 +310,26 @@ def main() -> None:
     parser.add_argument("--aws-region", default="eu-west-2")
     parser.add_argument("--scenario-id", default="baseline_v1")
     parser.add_argument("--bootstrap-summary-name", default="g3a_control_plane_bootstrap.json")
-    parser.add_argument("--wiring-name", default="g3a_sr_wiring.dev_full.yaml")
+    parser.add_argument("--namespace", default="fraud-platform-rtdl")
+    parser.add_argument("--service-account-name", default="rtdl")
+    parser.add_argument("--service-account-role-arn", default="")
+    parser.add_argument("--wsp-task-family", default="fraud-platform-dev-full-wsp-ephemeral")
+    parser.add_argument("--image-uri", default="")
+    parser.add_argument("--job-timeout-seconds", type=int, default=360)
     args = parser.parse_args()
 
     run_root = Path(args.run_control_root) / args.pr3_execution_id
     summary_path = run_root / args.bootstrap_summary_name
-    wiring_path = run_root / args.wiring_name
     blockers: list[str] = []
 
+    config_map_name = ""
+    secret_name = ""
+    job_name = ""
+    pod_name = ""
+
     try:
+        if not WORKER_PATH.exists():
+            raise RuntimeError(f"PR3.B20_CONTROL_BOOTSTRAP_FAIL:WORKER_SCRIPT_MISSING:{WORKER_PATH}")
         registry = parse_registry(REGISTRY_PATH)
         charter = load_json(run_root / "g3a_run_charter.active.json")
         ssm_values = resolve_ssm(
@@ -181,119 +348,143 @@ def main() -> None:
         oracle_receipt_ref = f"{oracle_engine_run_root}/run_receipt.json"
         store = build_object_store(object_store_root, s3_region=args.aws_region, s3_path_style=False)
         oracle_receipt = store.read_json(oracle_receipt_ref.replace(f"{object_store_root}/", "", 1))
+        policy = load_policy(POLICY_PATH)
         scenario_id = resolve_scenario_id(run_root, args.scenario_id)
-        authority_store_dsn = build_aurora_dsn(
+        image_uri = str(args.image_uri).strip() or resolve_task_image(
+            family=args.wsp_task_family,
+            region=args.aws_region,
+        )
+        role_arn = str(args.service_account_role_arn).strip() or str(registry.get("ROLE_EKS_IRSA_RTDL", "")).strip()
+        if not role_arn:
+            raise RuntimeError("PR3.B20_CONTROL_BOOTSTRAP_FAIL:IRSA_ROLE_UNRESOLVED")
+
+        aurora_dsn = build_aurora_dsn(
             endpoint=ssm_values[str(registry["SSM_AURORA_ENDPOINT_PATH"]).strip()],
             username=ssm_values[str(registry["SSM_AURORA_USERNAME_PATH"]).strip()],
             password=ssm_values[str(registry["SSM_AURORA_PASSWORD_PATH"]).strip()],
             db_name=str(registry.get("AURORA_DB_NAME", "fraud_platform")).strip() or "fraud_platform",
             port=int(str(registry.get("AURORA_PORT", "5432")).strip() or "5432"),
         )
-        write_wiring(
-            path=wiring_path,
-            object_store_root=object_store_root,
-            oracle_engine_run_root=oracle_engine_run_root,
-            authority_store_dsn=authority_store_dsn,
-            control_bus_topic=str(registry["FP_BUS_CONTROL_V1"]).strip(),
-            kafka_bootstrap_servers=str(registry["MSK_BOOTSTRAP_BROKERS_SASL_IAM"]).strip(),
-            aws_region=args.aws_region,
-        )
 
-        request_identity = {
-            "oracle_engine_run_root": oracle_engine_run_root,
-            "manifest_fingerprint": str(oracle_receipt.get("manifest_fingerprint") or "").strip(),
-            "parameter_hash": str(oracle_receipt.get("parameter_hash") or "").strip(),
-            "seed": int(oracle_receipt.get("seed") or 0),
-            "scenario_id": scenario_id,
-            "window_start_ts_utc": str(((charter.get("mission_binding") or {}).get("window_start_ts_utc")) or "").strip(),
-            "window_end_ts_utc": str(((charter.get("mission_binding") or {}).get("window_end_ts_utc")) or "").strip(),
-            "traffic_output_ids": list((load_policy(POLICY_PATH).traffic_output_ids)),
-        }
-        missing_request_fields = [key for key, value in request_identity.items() if is_missing_value(value)]
-        if missing_request_fields:
-            raise RuntimeError(
-                "PR3.B20_CONTROL_BOOTSTRAP_FAIL:MISSING_REQUEST_FIELDS:" + ",".join(sorted(missing_request_fields))
-            )
-        run_equivalence_key = sha256_json(request_identity)
+        run_window = charter.get("mission_binding") or {}
+        window_start = str(run_window.get("window_start_ts_utc") or "").strip()
+        window_end = str(run_window.get("window_end_ts_utc") or "").strip()
+        if not window_start or not window_end:
+            raise RuntimeError("PR3.B20_CONTROL_BOOTSTRAP_FAIL:RUN_WINDOW_MISSING")
 
-        os.environ["PLATFORM_RUN_ID"] = str(args.platform_run_id).strip()
-        os.environ["ACTIVE_PLATFORM_RUN_ID"] = str(args.platform_run_id).strip()
-        os.environ["PLATFORM_STORE_ROOT"] = object_store_root
-        os.environ["KAFKA_BOOTSTRAP_SERVERS"] = str(registry["MSK_BOOTSTRAP_BROKERS_SASL_IAM"]).strip()
-        os.environ["KAFKA_SECURITY_PROTOCOL"] = "SASL_SSL"
-        os.environ["KAFKA_SASL_MECHANISM"] = "OAUTHBEARER"
-        os.environ["KAFKA_AWS_REGION"] = args.aws_region
+        suffix = stable_suffix(args.pr3_execution_id, args.platform_run_id)
+        config_map_name = f"pr3-s4-bootstrap-script-{suffix}"
+        secret_name = f"pr3-s4-bootstrap-env-{suffix}"
+        job_name = f"pr3-s4-bootstrap-{suffix}"
 
-        wiring = load_wiring(wiring_path)
-        policy = load_policy(POLICY_PATH)
-        runner = ScenarioRunner(
-            wiring=wiring,
-            policy=policy,
-            engine_invoker=LocalEngineInvoker(default_engine_root=oracle_engine_run_root),
-            run_prefix=str(args.platform_run_id).strip(),
-        )
-        response = runner.submit_run(
-            RunRequest(
-                run_equivalence_key=run_equivalence_key,
-                manifest_fingerprint=str(request_identity["manifest_fingerprint"]),
-                parameter_hash=str(request_identity["parameter_hash"]),
-                seed=int(request_identity["seed"]),
-                scenario=ScenarioBinding(scenario_id=scenario_id, scenario_set=None),
-                window=RunWindow(
-                    window_start_utc=datetime.fromisoformat(str(request_identity["window_start_ts_utc"]).replace("Z", "+00:00")),
-                    window_end_utc=datetime.fromisoformat(str(request_identity["window_end_ts_utc"]).replace("Z", "+00:00")),
-                    window_tz="UTC",
-                ),
-                engine_run_root=oracle_engine_run_root,
-                output_ids=list(policy.traffic_output_ids),
-                invoker="SYSTEM::pr3_s4_control_bootstrap",
+        kubectl_apply(namespace_manifest(args.namespace))
+        kubectl_apply(service_account_manifest(args.namespace, args.service_account_name, role_arn))
+        kubectl_apply(
+            config_map_manifest(
+                args.namespace,
+                config_map_name,
+                {
+                    "pr3_control_plane_bootstrap_worker.py": WORKER_PATH.read_text(encoding="utf-8"),
+                },
             )
         )
-        facts_view_ref = str(response.facts_view_ref or "").strip()
-        status_ref = str(response.status_ref or "").strip()
-        if not facts_view_ref or not status_ref:
-            raise RuntimeError("PR3.B20_CONTROL_BOOTSTRAP_FAIL:SR_OUTPUT_REFS_MISSING")
-        relative_facts_ref = facts_view_ref.replace(f"{object_store_root}/", "", 1)
-        relative_status_ref = status_ref.replace(f"{object_store_root}/", "", 1)
-        status_payload = store.read_json(relative_status_ref)
-        facts_payload = store.read_json(relative_facts_ref)
-        if str(status_payload.get("state") or "").strip().upper() != "READY":
-            raise RuntimeError(f"PR3.B20_CONTROL_BOOTSTRAP_FAIL:SR_NOT_READY:{status_payload.get('state')}")
-        scenario_run_id = str(facts_payload.get("run_id") or response.run_id or "").strip()
-        if not scenario_run_id:
-            raise RuntimeError("PR3.B20_CONTROL_BOOTSTRAP_FAIL:SCENARIO_RUN_ID_EMPTY")
+        kubectl_apply(
+            secret_manifest(
+                args.namespace,
+                secret_name,
+                {
+                    "PR3_EXECUTION_ID": args.pr3_execution_id,
+                    "AWS_REGION": args.aws_region,
+                    "PLATFORM_RUN_ID": str(args.platform_run_id).strip(),
+                    "SCENARIO_ID": scenario_id,
+                    "WINDOW_START_TS_UTC": window_start,
+                    "WINDOW_END_TS_UTC": window_end,
+                    "OBJECT_STORE_ROOT": object_store_root,
+                    "ORACLE_ENGINE_RUN_ROOT": oracle_engine_run_root,
+                    "CONTROL_BUS_TOPIC": str(registry["FP_BUS_CONTROL_V1"]).strip(),
+                    "KAFKA_BOOTSTRAP_SERVERS": str(registry["MSK_BOOTSTRAP_BROKERS_SASL_IAM"]).strip(),
+                    "AURORA_DSN": aurora_dsn,
+                    "TRAFFIC_OUTPUT_IDS_JSON": json.dumps(list(policy.traffic_output_ids)),
+                    "WORKER_SUMMARY_FORMAT": "json_line",
+                    "ORACLE_RECEIPT_REF": oracle_receipt_ref,
+                    "EXPECTED_MANIFEST_FINGERPRINT": str(oracle_receipt.get("manifest_fingerprint") or "").strip(),
+                    "EXPECTED_PARAMETER_HASH": str(oracle_receipt.get("parameter_hash") or "").strip(),
+                },
+            )
+        )
+        kubectl_apply(
+            job_manifest(
+                namespace=args.namespace,
+                name=job_name,
+                image=image_uri,
+                service_account_name=args.service_account_name,
+                config_map_name=config_map_name,
+                secret_name=secret_name,
+            )
+        )
 
-        summary = {
-            "phase": "PR3",
-            "state": "S4",
-            "generated_at_utc": now_utc(),
-            "execution_id": args.pr3_execution_id,
-            "platform_run_id": str(args.platform_run_id).strip(),
-            "scenario_run_id": scenario_run_id,
-            "scenario_id": scenario_id,
-            "overall_pass": True,
-            "blocker_ids": [],
-            "wiring_ref": str(wiring_path),
-            "oracle": {
-                "oracle_engine_run_root": oracle_engine_run_root,
-                "oracle_run_receipt_ref": oracle_receipt_ref,
-                "manifest_fingerprint": request_identity["manifest_fingerprint"],
-                "parameter_hash": request_identity["parameter_hash"],
-                "seed": request_identity["seed"],
-            },
-            "run_window": {
-                "window_start_ts_utc": request_identity["window_start_ts_utc"],
-                "window_end_ts_utc": request_identity["window_end_ts_utc"],
-            },
-            "sr": {
-                "run_equivalence_key": run_equivalence_key,
-                "run_id": response.run_id,
-                "state": str(response.state.value),
-                "record_ref": response.record_ref,
-                "status_ref": status_ref,
-                "facts_view_ref": facts_view_ref,
-            },
+        ok, status_payload = wait_for_job(args.namespace, job_name, timeout_seconds=args.job_timeout_seconds)
+        pod_name = get_pod_name(args.namespace, job_name)
+        logs = pod_logs(args.namespace, pod_name)
+        summary = parse_summary_from_logs(logs)
+        if not ok:
+            if not summary:
+                summary = {
+                    "phase": "PR3",
+                    "state": "S4",
+                    "generated_at_utc": now_utc(),
+                    "execution_id": args.pr3_execution_id,
+                    "platform_run_id": str(args.platform_run_id).strip(),
+                    "scenario_run_id": "",
+                    "overall_pass": False,
+                    "blocker_ids": ["PR3.B20_CONTROL_BOOTSTRAP_FAIL:EKS_JOB_FAILED"],
+                    "error": "Remote control bootstrap job failed before producing a summary.",
+                    "job": {
+                        "namespace": args.namespace,
+                        "job_name": job_name,
+                        "pod_name": pod_name,
+                        "status": status_payload.get("status", {}) if isinstance(status_payload, dict) else {},
+                    },
+                    "log_excerpt": logs.splitlines()[-20:],
+                    "pod_describe_excerpt": pod_describe(args.namespace, pod_name).splitlines()[-40:],
+                }
+            dump_json(summary_path, summary)
+            raise SystemExit(1)
+
+        if not summary:
+            summary = {
+                "phase": "PR3",
+                "state": "S4",
+                "generated_at_utc": now_utc(),
+                "execution_id": args.pr3_execution_id,
+                "platform_run_id": str(args.platform_run_id).strip(),
+                "scenario_run_id": "",
+                "overall_pass": False,
+                "blocker_ids": ["PR3.B20_CONTROL_BOOTSTRAP_FAIL:EKS_JOB_NO_SUMMARY"],
+                "error": "Remote control bootstrap job completed without a parseable JSON summary.",
+                "job": {
+                    "namespace": args.namespace,
+                    "job_name": job_name,
+                    "pod_name": pod_name,
+                    "status": status_payload.get("status", {}) if isinstance(status_payload, dict) else {},
+                },
+                "log_excerpt": logs.splitlines()[-20:],
+            }
+            dump_json(summary_path, summary)
+            raise SystemExit(1)
+
+        summary["orchestration"] = {
+            "mode": "eks_in_vpc_job",
+            "namespace": args.namespace,
+            "service_account_name": args.service_account_name,
+            "service_account_role_arn": role_arn,
+            "job_name": job_name,
+            "pod_name": pod_name,
+            "image_uri": image_uri,
         }
+        dump_json(summary_path, summary)
+        if not bool(summary.get("overall_pass")):
+            raise SystemExit(1)
     except Exception as exc:  # noqa: BLE001
         blockers.append(str(exc))
         summary = {
@@ -306,11 +497,21 @@ def main() -> None:
             "overall_pass": False,
             "blocker_ids": blockers,
             "error": str(exc),
+            "job": {
+                "namespace": args.namespace,
+                "job_name": job_name,
+                "pod_name": pod_name,
+            },
         }
         dump_json(summary_path, summary)
         raise SystemExit(1)
-
-    dump_json(summary_path, summary)
+    finally:
+        if job_name:
+            kubectl_delete("job", job_name, args.namespace)
+        if secret_name:
+            kubectl_delete("secret", secret_name, args.namespace)
+        if config_map_name:
+            kubectl_delete("configmap", config_map_name, args.namespace)
 
 
 if __name__ == "__main__":

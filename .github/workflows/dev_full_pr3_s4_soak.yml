@@ -221,6 +221,15 @@ jobs:
               raise SystemExit(f"PR3-S4 strict upstream invalid: {payload.get('verdict')} blockers={payload.get('open_blockers')}")
           PY
 
+      - name: Configure kubeconfig
+        id: kubeconfig
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws eks update-kubeconfig \
+            --region "${{ inputs.aws_region }}" \
+            --name "${{ inputs.eks_cluster_name }}"
+
       - name: Bootstrap active run through Scenario Runner
         shell: bash
         env:
@@ -231,7 +240,9 @@ jobs:
           python scripts/dev_substrate/pr3_control_plane_bootstrap.py \
             --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
             --platform-run-id "${{ steps.meta.outputs.active_platform_run_id }}" \
-            --aws-region "${{ inputs.aws_region }}"
+            --aws-region "${{ inputs.aws_region }}" \
+            --namespace "${{ env.EKS_NAMESPACE }}" \
+            --image-uri "${{ inputs.platform_image_uri }}"
 
       - name: Expose bootstrap outputs
         id: bootstrap
@@ -254,15 +265,6 @@ jobs:
               fh.write(f"status_ref={sr.get('status_ref', '')}\n")
               fh.write(f"facts_view_ref={sr.get('facts_view_ref', '')}\n")
           PY
-
-      - name: Configure kubeconfig
-        id: kubeconfig
-        shell: bash
-        run: |
-          set -euo pipefail
-          aws eks update-kubeconfig \
-            --region "${{ inputs.aws_region }}" \
-            --name "${{ inputs.eks_cluster_name }}"
 
       - name: Materialize fresh S4 runtime identity on EKS
         shell: bash
@@ -647,3 +649,4 @@ jobs:
             ${{ steps.meta.outputs.run_dir }}/g3a_sr_wiring.dev_full.yaml
             ${{ steps.meta.outputs.run_dir }}/g3a_learning_*.json
             ${{ steps.meta.outputs.run_dir }}/pr3_s4_execution_receipt.json
+

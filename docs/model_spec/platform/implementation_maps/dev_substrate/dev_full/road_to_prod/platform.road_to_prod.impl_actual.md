@@ -10490,3 +10490,28 @@ uns/.../degrade_ladder/* on its own filesystem,
 5. This is a bootstrap-only code defect, not a platform/runtime defect.
 6. Chosen remediation is to replace that set-membership shortcut with an explicit missing-value predicate that handles strings, lists, tuples, dicts, sets, and `None` safely.
 7. After that patch the same bounded S4 rerun should reach the actual Scenario Runner submission path.
+## Entry: 2026-03-08 17:47:27 +00:00 - PR3-S4 control bootstrap will move from GitHub-runner Kafka publish to an in-VPC EKS one-shot job that authors real SR truth
+1. The current pr3_control_plane_bootstrap.py is structurally wrong for production because it executes ScenarioRunner.submit_run(...) on the GitHub runner while pointing Kafka to MSK_BOOTSTRAP_BROKERS_SASL_IAM. The live failure on run 22826243668 (Failed to resolve ... kafka-serverless ...) confirms the runner cannot and should not be treated as a private-MSK client.
+2. I checked the existing Step Functions surface (raud-platform-dev-full-platform-run-v0) and it is only a trivial Pass state used earlier for READY-commit authority proof. It does not materialize sr/run_status or sr/run_facts_view, so simply switching S4 to StartExecution would not satisfy the Scenario Runner control contract needed by learning and ops/gov.
+3. The production-valid fix is to keep the GitHub workflow as the outer orchestrator but move SR run authoring into the VPC. The cleanest low-risk surface already available is the EKS cluster because:
+   - the workflow already updates kubeconfig for the same cluster later in S4,
+   - the platform image is already used there,
+   - the pinned tdl IRSA role has the exact minimum lane permissions needed for this bootstrap (MSK data-plane, object-store rw, SSM read, KMS),
+   - this avoids adding a new IAM role or expanding GitHub-runner trust just to reach private brokers.
+4. Chosen implementation shape:
+   - split the bootstrap into a runner-side orchestrator and an in-cluster worker,
+   - runner-side orchestrator resolves handles/DSN/image and creates a short-lived ConfigMap + Secret + Job,
+   - in-cluster worker runs ScenarioRunner.submit_run(...) using the current platform image and writes/prints the resulting SR refs,
+   - runner-side orchestrator waits for Job completion, reads the worker JSON summary from pod logs, writes g3a_control_plane_bootstrap.json into the run-control root, and deletes the temporary Job/ConfigMap/Secret.
+5. I am deliberately not choosing a temporary Lambda bundle here because that would require packaging and transporting a heavier Python environment on every bounded rerun. EKS already has the correct network shape and platform image, so it is the cheaper repeated boundary for this road.
+6. I am also deliberately not creating a new dedicated control-bootstrap IRSA in this slice because that adds IAM + Terraform churn before correctness is proven. The temporary S4 bootstrap job will reuse the existing pinned tdl service-account trust surface, and this reuse will be recorded explicitly so we can revisit dedicated control authority later if needed for PR4/PR5 hardening.
+7. Files to change in this slice:
+   - scripts/dev_substrate/pr3_control_plane_bootstrap.py
+   - scripts/dev_substrate/pr3_control_plane_bootstrap_worker.py (new)
+   - .github/workflows/dev_full_pr3_s4_soak.yml
+   - docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.road_to_prod.impl_actual.md
+   - docs/logbook/03-2026/2026-03-08.md
+8. Validation plan before another bounded rerun:
+   - python -m py_compile on the new/updated bootstrap scripts,
+   - a very small remote bootstrap execution through the real workflow boundary (same PR3-S4 run, fail-fast),
+   - only if control bootstrap goes green do learning/ops/gov and the rest of bounded correctness proceed.
