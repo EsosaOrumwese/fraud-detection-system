@@ -620,6 +620,177 @@ def weighted_latency_ms(
     return -1.0, -1.0, "unavailable"
 
 
+def get_ingress_metric_bins(
+    cw: Any,
+    *,
+    surface: dict[str, Any],
+    start_time: datetime,
+    end_time: datetime,
+    period_seconds: int = 60,
+) -> list[dict[str, Any]]:
+    mode = str(surface.get("mode", "")).upper()
+    count_rows: list[dict[str, Any]]
+    four_xx_rows: list[dict[str, Any]]
+    five_xx_rows: list[dict[str, Any]]
+    latency_rows: list[dict[str, Any]]
+    if mode == "APIGW":
+        count_rows = get_apigw_metric_statistics(
+            cw,
+            api_id=str(surface.get("api_id", "")).strip(),
+            stage=str(surface.get("api_stage", "")).strip(),
+            metric_name="Count",
+            start_time=start_time,
+            end_time=end_time,
+            period_seconds=period_seconds,
+            statistics=["Sum"],
+        )
+        four_xx_rows = get_apigw_metric_statistics(
+            cw,
+            api_id=str(surface.get("api_id", "")).strip(),
+            stage=str(surface.get("api_stage", "")).strip(),
+            metric_name="4xx",
+            start_time=start_time,
+            end_time=end_time,
+            period_seconds=period_seconds,
+            statistics=["Sum"],
+        )
+        five_xx_rows = get_apigw_metric_statistics(
+            cw,
+            api_id=str(surface.get("api_id", "")).strip(),
+            stage=str(surface.get("api_stage", "")).strip(),
+            metric_name="5xx",
+            start_time=start_time,
+            end_time=end_time,
+            period_seconds=period_seconds,
+            statistics=["Sum"],
+        )
+        latency_rows = get_apigw_metric_statistics(
+            cw,
+            api_id=str(surface.get("api_id", "")).strip(),
+            stage=str(surface.get("api_stage", "")).strip(),
+            metric_name="Latency",
+            start_time=start_time,
+            end_time=end_time,
+            period_seconds=period_seconds,
+            extended_statistics=["p95", "p99"],
+        )
+    elif mode == "ALB":
+        count_rows = get_alb_metric_statistics(
+            cw,
+            load_balancer_dimension=str(surface.get("load_balancer_dimension", "")).strip(),
+            target_group_dimension=str(surface.get("target_group_dimension", "")).strip(),
+            metric_name="RequestCount",
+            start_time=start_time,
+            end_time=end_time,
+            period_seconds=period_seconds,
+            statistics=["Sum"],
+        )
+        four_xx_rows = get_alb_metric_statistics(
+            cw,
+            load_balancer_dimension=str(surface.get("load_balancer_dimension", "")).strip(),
+            target_group_dimension=str(surface.get("target_group_dimension", "")).strip(),
+            metric_name="HTTPCode_Target_4XX_Count",
+            start_time=start_time,
+            end_time=end_time,
+            period_seconds=period_seconds,
+            statistics=["Sum"],
+        ) + get_alb_metric_statistics(
+            cw,
+            load_balancer_dimension=str(surface.get("load_balancer_dimension", "")).strip(),
+            target_group_dimension=str(surface.get("target_group_dimension", "")).strip(),
+            metric_name="HTTPCode_ELB_4XX_Count",
+            start_time=start_time,
+            end_time=end_time,
+            period_seconds=period_seconds,
+            statistics=["Sum"],
+        )
+        five_xx_rows = get_alb_metric_statistics(
+            cw,
+            load_balancer_dimension=str(surface.get("load_balancer_dimension", "")).strip(),
+            target_group_dimension=str(surface.get("target_group_dimension", "")).strip(),
+            metric_name="HTTPCode_Target_5XX_Count",
+            start_time=start_time,
+            end_time=end_time,
+            period_seconds=period_seconds,
+            statistics=["Sum"],
+        ) + get_alb_metric_statistics(
+            cw,
+            load_balancer_dimension=str(surface.get("load_balancer_dimension", "")).strip(),
+            target_group_dimension=str(surface.get("target_group_dimension", "")).strip(),
+            metric_name="HTTPCode_ELB_5XX_Count",
+            start_time=start_time,
+            end_time=end_time,
+            period_seconds=period_seconds,
+            statistics=["Sum"],
+        )
+        latency_rows = get_alb_metric_statistics(
+            cw,
+            load_balancer_dimension=str(surface.get("load_balancer_dimension", "")).strip(),
+            target_group_dimension=str(surface.get("target_group_dimension", "")).strip(),
+            metric_name="TargetResponseTime",
+            start_time=start_time,
+            end_time=end_time,
+            period_seconds=period_seconds,
+            extended_statistics=["p95", "p99"],
+        )
+    else:
+        raise RuntimeError(f"Unsupported ingress surface mode: {mode}")
+
+    def _sum_map(rows: list[dict[str, Any]]) -> dict[str, float]:
+        totals: dict[str, float] = {}
+        for row in rows:
+            stamp = to_iso_utc(row.get("Timestamp"))
+            if not stamp:
+                continue
+            totals[stamp] = totals.get(stamp, 0.0) + float(row.get("Sum", 0.0) or 0.0)
+        return totals
+
+    count_map = _sum_map(count_rows)
+    four_xx_map = _sum_map(four_xx_rows)
+    five_xx_map = _sum_map(five_xx_rows)
+    latency_map: dict[str, dict[str, float | None]] = {}
+    for row in latency_rows:
+        stamp = to_iso_utc(row.get("Timestamp"))
+        if not stamp:
+            continue
+        ext = row.get("ExtendedStatistics", {}) or {}
+        latency_map[stamp] = {
+            "p95_ms": (float(ext.get("p95", -1.0) or -1.0) * 1000.0) if ext.get("p95") is not None else None,
+            "p99_ms": (float(ext.get("p99", -1.0) or -1.0) * 1000.0) if ext.get("p99") is not None else None,
+        }
+
+    effective_start = align_up_to_period(start_time, period_seconds)
+    effective_end = align_down_to_period(end_time, period_seconds)
+    bins: list[dict[str, Any]] = []
+    cursor = effective_start
+    while cursor < effective_end:
+        stamp = to_iso_utc(cursor) or ""
+        request_count = float(count_map.get(stamp, 0.0))
+        total_4xx = float(four_xx_map.get(stamp, 0.0))
+        total_5xx = float(five_xx_map.get(stamp, 0.0))
+        admitted = max(0.0, request_count - total_4xx - total_5xx)
+        latency = latency_map.get(stamp, {})
+        bins.append(
+            {
+                "timestamp_utc": stamp,
+                "window_end_utc": to_iso_utc(cursor + timedelta(seconds=period_seconds)),
+                "request_count": request_count,
+                "admitted_count": admitted,
+                "observed_request_eps": (request_count / float(period_seconds)) if request_count > 0.0 else 0.0,
+                "observed_admitted_eps": (admitted / float(period_seconds)) if request_count > 0.0 else 0.0,
+                "4xx_total": total_4xx,
+                "5xx_total": total_5xx,
+                "error_rate_ratio": ((total_4xx + total_5xx) / request_count) if request_count > 0.0 else 0.0,
+                "4xx_rate_ratio": (total_4xx / request_count) if request_count > 0.0 else 0.0,
+                "5xx_rate_ratio": (total_5xx / request_count) if request_count > 0.0 else 0.0,
+                "latency_p95_ms": latency.get("p95_ms"),
+                "latency_p99_ms": latency.get("p99_ms"),
+            }
+        )
+        cursor += timedelta(seconds=period_seconds)
+    return bins
+
+
 def get_log_events(logs: Any, *, log_group: str, stream_name: str) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     next_token = None
@@ -812,6 +983,9 @@ def main() -> None:
     ap.add_argument("--target-request-rate-eps", type=float, default=0.0)
     ap.add_argument("--target-burst-seconds", type=float, default=0.25)
     ap.add_argument("--target-initial-tokens", type=float, default=0.25)
+    ap.add_argument("--campaign-start-utc", default="")
+    ap.add_argument("--rate-plan-json", default="")
+    ap.add_argument("--skip-final-threshold-check", action="store_true")
     ap.add_argument("--task-cpu", default="")
     ap.add_argument("--task-memory", default="")
     ap.add_argument("--max-error-rate-ratio", type=float, default=0.002)
@@ -942,6 +1116,15 @@ def main() -> None:
         args.expected_window_eps
     )
     per_lane_target_eps = target_request_rate_eps / float(lane_count)
+    raw_rate_plan = str(args.rate_plan_json).strip()
+    parsed_rate_plan: list[dict[str, Any]] = []
+    if raw_rate_plan:
+        try:
+            payload = json.loads(raw_rate_plan)
+            if isinstance(payload, list):
+                parsed_rate_plan = [row for row in payload if isinstance(row, dict)]
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(blocker_code(args.blocker_prefix, "B27_RATE_PLAN_INVALID", type(exc).__name__)) from exc
     base_env_rows = [
         {"name": "AWS_REGION", "value": args.region},
         {"name": "WSP_PROFILE_PATH", "value": args.profile_path},
@@ -967,6 +1150,10 @@ def main() -> None:
         {"name": "WSP_PROGRESS_EVERY", "value": "50000"},
         {"name": "WSP_PROGRESS_SECONDS", "value": "30"},
     ]
+    if str(args.campaign_start_utc).strip():
+        base_env_rows.append({"name": "WSP_CAMPAIGN_START_UTC", "value": str(args.campaign_start_utc).strip()})
+    if raw_rate_plan:
+        base_env_rows.append({"name": "WSP_RATE_PLAN_JSON", "value": raw_rate_plan})
     command_list = build_wsp_command()
     launched_lanes: list[dict[str, Any]] = []
     task_cpu_override = str(args.task_cpu).strip()
@@ -1083,6 +1270,8 @@ def main() -> None:
             "http_pool_maxsize": max(16, args.http_pool_maxsize),
             "target_burst_seconds": max(0.0, float(args.target_burst_seconds)),
             "target_initial_tokens": max(0.0, float(args.target_initial_tokens)),
+            "campaign_start_utc": str(args.campaign_start_utc).strip() or None,
+            "rate_plan": parsed_rate_plan,
             "traffic_output_ids": parse_csv(args.traffic_output_ids),
             "context_output_ids": parse_csv(args.context_output_ids),
         },
@@ -1149,10 +1338,15 @@ def main() -> None:
 
     hard_deadline = time.time() + max(120, args.duration_seconds + 900)
     steady_window_seconds = int(math.ceil(max(60, args.duration_seconds) / 60.0) * 60)
-    measurement_start_at = measurement_start_boundary(
-        active_confirmed_at,
-        warmup_seconds=args.warmup_seconds,
-        period_seconds=60,
+    configured_campaign_start = parse_utc(args.campaign_start_utc) if str(args.campaign_start_utc).strip() else None
+    measurement_start_at = (
+        configured_campaign_start
+        if configured_campaign_start is not None
+        else measurement_start_boundary(
+            active_confirmed_at,
+            warmup_seconds=args.warmup_seconds,
+            period_seconds=60,
+        )
     )
     measurement_end_at = measurement_start_at + timedelta(seconds=steady_window_seconds)
     window_end = measurement_end_at.timestamp()
@@ -1333,6 +1527,18 @@ def main() -> None:
     except (BotoCoreError, ClientError) as exc:
         metrics_error = f"{type(exc).__name__}:{exc}"
         blockers.append("PR3.S1.WSP.B17_METRICS_UNREADABLE")
+    ingress_bins: list[dict[str, Any]] = []
+    if not metrics_error:
+        try:
+            ingress_bins = get_ingress_metric_bins(
+                cw,
+                surface=ingress_surface,
+                start_time=measurement_start_at,
+                end_time=metrics_end_time,
+            )
+        except (BotoCoreError, ClientError) as exc:
+            metrics_error = f"{type(exc).__name__}:{exc}"
+            blockers.append("PR3.S1.WSP.B17_METRIC_BINS_UNREADABLE")
 
     stopped_times = [
         datetime.fromisoformat(str(lane["final_status"]["stopped_at_utc"]).replace("Z", "+00:00")).astimezone(timezone.utc)
@@ -1366,36 +1572,37 @@ def main() -> None:
         if isinstance(result.get("cli_result"), dict)
     )
     blockers = [remap_blocker_prefix(args.blocker_prefix, item) for item in blockers]
-    if observed_admitted_eps < float(args.expected_window_eps):
-        blockers.append(
-            blocker_code(
-                args.blocker_prefix,
-                "B19_FINAL_THROUGHPUT_SHORTFALL",
-                f"observed={observed_admitted_eps:.3f}:target={float(args.expected_window_eps):.3f}",
+    if not args.skip_final_threshold_check:
+        if observed_admitted_eps < float(args.expected_window_eps):
+            blockers.append(
+                blocker_code(
+                    args.blocker_prefix,
+                    "B19_FINAL_THROUGHPUT_SHORTFALL",
+                    f"observed={observed_admitted_eps:.3f}:target={float(args.expected_window_eps):.3f}",
+                )
             )
-        )
-    if error_ratio > float(args.max_error_rate_ratio):
-        blockers.append(
-            f"PR3.S1.WSP.B20_ERROR_RATE_BREACH:observed={error_ratio:.6f}:max={float(args.max_error_rate_ratio):.6f}"
-        )
-    if error_4xx_ratio > float(args.max_4xx_ratio):
-        blockers.append(
-            f"PR3.S1.WSP.B21_4XX_RATE_BREACH:observed={error_4xx_ratio:.6f}:max={float(args.max_4xx_ratio):.6f}"
-        )
-    if error_5xx_ratio > float(args.max_5xx_ratio):
-        blockers.append(
-            f"PR3.S1.WSP.B22_5XX_RATE_BREACH:observed={error_5xx_ratio:.6f}:max={float(args.max_5xx_ratio):.6f}"
-        )
-    if request_count_total > 0.0 and (latency_p95_ms < 0.0 or latency_p99_ms < 0.0):
-        blockers.append("PR3.S1.WSP.B23_LATENCY_UNREADABLE")
-    if latency_p95_ms >= 0.0 and latency_p95_ms > float(args.max_latency_p95_ms):
-        blockers.append(
-            f"PR3.S1.WSP.B24_P95_LATENCY_BREACH:observed={latency_p95_ms:.3f}:max={float(args.max_latency_p95_ms):.3f}"
-        )
-    if latency_p99_ms >= 0.0 and latency_p99_ms > float(args.max_latency_p99_ms):
-        blockers.append(
-            f"PR3.S1.WSP.B25_P99_LATENCY_BREACH:observed={latency_p99_ms:.3f}:max={float(args.max_latency_p99_ms):.3f}"
-        )
+        if error_ratio > float(args.max_error_rate_ratio):
+            blockers.append(
+                f"PR3.S1.WSP.B20_ERROR_RATE_BREACH:observed={error_ratio:.6f}:max={float(args.max_error_rate_ratio):.6f}"
+            )
+        if error_4xx_ratio > float(args.max_4xx_ratio):
+            blockers.append(
+                f"PR3.S1.WSP.B21_4XX_RATE_BREACH:observed={error_4xx_ratio:.6f}:max={float(args.max_4xx_ratio):.6f}"
+            )
+        if error_5xx_ratio > float(args.max_5xx_ratio):
+            blockers.append(
+                f"PR3.S1.WSP.B22_5XX_RATE_BREACH:observed={error_5xx_ratio:.6f}:max={float(args.max_5xx_ratio):.6f}"
+            )
+        if request_count_total > 0.0 and (latency_p95_ms < 0.0 or latency_p99_ms < 0.0):
+            blockers.append("PR3.S1.WSP.B23_LATENCY_UNREADABLE")
+        if latency_p95_ms >= 0.0 and latency_p95_ms > float(args.max_latency_p95_ms):
+            blockers.append(
+                f"PR3.S1.WSP.B24_P95_LATENCY_BREACH:observed={latency_p95_ms:.3f}:max={float(args.max_latency_p95_ms):.3f}"
+            )
+        if latency_p99_ms >= 0.0 and latency_p99_ms > float(args.max_latency_p99_ms):
+            blockers.append(
+                f"PR3.S1.WSP.B25_P99_LATENCY_BREACH:observed={latency_p99_ms:.3f}:max={float(args.max_latency_p99_ms):.3f}"
+            )
     blockers = [remap_blocker_prefix(args.blocker_prefix, item) for item in blockers]
 
     summary = {
@@ -1454,12 +1661,32 @@ def main() -> None:
             "log_error": log_error,
             "window_stop_reason": "steady window bounded by certification duration",
             "metric_settle_seconds": int(args.metric_settle_seconds),
+            "skip_final_threshold_check": bool(args.skip_final_threshold_check),
             "ingress_metric_surface": ingress_surface,
         },
     }
     summary_path = pr3_root / artifact_name(args.artifact_prefix, "wsp_runtime_summary")
     archive_existing_artifact(summary_path)
     dump_json(summary_path, summary)
+    ingress_bins_path = pr3_root / artifact_name(args.artifact_prefix, "ingress_bins")
+    archive_existing_artifact(ingress_bins_path)
+    dump_json(
+        ingress_bins_path,
+        {
+            "phase": "PR3",
+            "state": args.state_id,
+            "generated_at_utc": now_utc(),
+            "generated_by": args.generated_by,
+            "version": args.version,
+            "execution_id": args.pr3_execution_id,
+            "artifact_prefix": args.artifact_prefix,
+            "window_label": str(args.window_label).strip().lower(),
+            "measurement_start_utc": to_iso_utc(measurement_start_at),
+            "measurement_end_utc": to_iso_utc(metrics_end_time),
+            "metric_surface": ingress_surface,
+            "bins": ingress_bins,
+        },
+    )
 
     print(json.dumps(summary, indent=2))
 

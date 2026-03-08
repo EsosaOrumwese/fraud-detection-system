@@ -437,18 +437,7 @@ jobs:
             --max-latency-p99-ms 700 \
             --skip-runtime-identity-probe
 
-      - name: Capture post-prestress snapshot
-        shell: bash
-        run: |
-          set -euo pipefail
-          python scripts/dev_substrate/pr3_runtime_surface_snapshot.py \
-            --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
-            --state-id S3 \
-            --snapshot-label prestress_post \
-            --namespace "${{ env.EKS_NAMESPACE }}" \
-            --platform-run-id "${{ steps.meta.outputs.active_platform_run_id }}"
-
-      - name: Run recovery steady with live sampling
+      - name: Run continuous burst-to-recovery campaign with live sampling
         shell: bash
         env:
           PR3_EXECUTION_ID: ${{ inputs.pr3_execution_id }}
@@ -457,40 +446,107 @@ jobs:
           WSP_CHECKPOINT_ATTEMPT_ID: ${{ steps.meta.outputs.wsp_checkpoint_attempt_id }}
           AWS_REGION: ${{ inputs.aws_region }}
           EKS_NAMESPACE: ${{ env.EKS_NAMESPACE }}
+          PRESTRESS_DURATION_SECONDS: ${{ inputs.prestress_duration_seconds }}
+          RECOVERY_DURATION_SECONDS: ${{ inputs.recovery_duration_seconds }}
+          PRESTRESS_TARGET_REQUEST_RATE_EPS: ${{ inputs.prestress_target_request_rate_eps }}
+          RECOVERY_TARGET_REQUEST_RATE_EPS: ${{ inputs.recovery_target_request_rate_eps }}
+          PRESTRESS_LANE_COUNT: ${{ inputs.prestress_lane_count }}
         run: |
           set -euo pipefail
+          readarray -t CAMPAIGN_METADATA < <(python - <<'PY'
+          from datetime import datetime, timedelta, timezone
+          import json
+          import os
+
+          def align_up(dt, period_seconds=60):
+              ts = int(dt.timestamp())
+              aligned = ((ts + period_seconds - 1) // period_seconds) * period_seconds
+              return datetime.fromtimestamp(aligned, tz=timezone.utc)
+
+          prestress_duration = int(os.environ["PRESTRESS_DURATION_SECONDS"])
+          recovery_duration = int(os.environ["RECOVERY_DURATION_SECONDS"])
+          lane_count = max(1, int(os.environ["PRESTRESS_LANE_COUNT"]))
+          now = datetime.now(timezone.utc)
+          campaign_start = align_up(now + timedelta(seconds=180), 60)
+          prestress_end = campaign_start + timedelta(seconds=prestress_duration)
+          total_duration = prestress_duration + recovery_duration
+          rate_plan = [
+              {
+                  "start_offset_seconds": 0,
+                  "target_eps": float(os.environ["PRESTRESS_TARGET_REQUEST_RATE_EPS"]) / float(lane_count),
+                  "burst_seconds": 0.50,
+                  "initial_tokens": 0.50,
+              },
+              {
+                  "start_offset_seconds": prestress_duration,
+                  "target_eps": float(os.environ["RECOVERY_TARGET_REQUEST_RATE_EPS"]) / float(lane_count),
+                  "burst_seconds": 0.25,
+                  "initial_tokens": 0.25,
+              },
+          ]
+          print(campaign_start.isoformat().replace("+00:00", "Z"))
+          print(prestress_end.isoformat().replace("+00:00", "Z"))
+          print(str(total_duration))
+          print(json.dumps(rate_plan, separators=(",", ":")))
+          PY
+          )
+          CAMPAIGN_START_UTC="${CAMPAIGN_METADATA[0]}"
+          PRESTRESS_POST_UTC="${CAMPAIGN_METADATA[1]}"
+          TOTAL_DURATION_SECONDS="${CAMPAIGN_METADATA[2]}"
+          RATE_PLAN_JSON="${CAMPAIGN_METADATA[3]}"
+          PRESTRESS_CAPTURED=0
           python scripts/dev_substrate/pr3_wsp_replay_dispatch.py \
             --pr3-execution-id "${PR3_EXECUTION_ID}" \
             --state-id S3 \
-            --window-label recovery \
-            --artifact-prefix g3a_s3_recovery \
-            --blocker-prefix PR3.S3.RECOVERY \
+            --window-label burst_recovery_continuous \
+            --artifact-prefix g3a_s3_continuous \
+            --blocker-prefix PR3.S3.CONTINUOUS \
             --region "${AWS_REGION}" \
             --platform-run-id "${ACTIVE_PLATFORM_RUN_ID}" \
             --scenario-run-id "${ACTIVE_SCENARIO_RUN_ID}" \
             --checkpoint-attempt-id "${WSP_CHECKPOINT_ATTEMPT_ID}" \
             --lane-count "${{ inputs.prestress_lane_count }}" \
-            --expected-window-eps "${{ inputs.recovery_target_steady_eps }}" \
-            --target-request-rate-eps "${{ inputs.recovery_target_request_rate_eps }}" \
-            --duration-seconds "${{ inputs.recovery_duration_seconds }}" \
+            --expected-window-eps "0" \
+            --target-request-rate-eps "${{ inputs.prestress_target_request_rate_eps }}" \
+            --duration-seconds "${TOTAL_DURATION_SECONDS}" \
             --warmup-seconds 0 \
-            --early-cutoff-seconds 120 \
+            --early-cutoff-seconds 99999 \
             --early-cutoff-floor-ratio 0.70 \
-            --stream-speedup "${{ inputs.recovery_stream_speedup }}" \
-            --output-concurrency "${{ inputs.recovery_output_concurrency }}" \
-            --ig-push-concurrency "${{ inputs.recovery_ig_push_concurrency }}" \
-            --http-pool-maxsize "${{ inputs.recovery_http_pool_maxsize }}" \
-            --target-burst-seconds 0.25 \
-            --target-initial-tokens 0.25 \
-            --task-cpu "${{ steps.packing.outputs.recovery_task_cpu }}" \
-            --task-memory "${{ steps.packing.outputs.recovery_task_memory }}" \
+            --stream-speedup "${{ inputs.prestress_stream_speedup }}" \
+            --output-concurrency "${{ inputs.prestress_output_concurrency }}" \
+            --ig-push-concurrency "${{ inputs.prestress_ig_push_concurrency }}" \
+            --http-pool-maxsize "${{ inputs.prestress_http_pool_maxsize }}" \
+            --target-burst-seconds 0.50 \
+            --target-initial-tokens 0.50 \
+            --task-cpu "${{ steps.packing.outputs.prestress_task_cpu }}" \
+            --task-memory "${{ steps.packing.outputs.prestress_task_memory }}" \
+            --campaign-start-utc "${CAMPAIGN_START_UTC}" \
+            --rate-plan-json "${RATE_PLAN_JSON}" \
+            --skip-final-threshold-check \
             --max-latency-p95-ms 350 \
             --max-latency-p99-ms 700 \
             --skip-runtime-identity-probe &
-          RECOVERY_PID=$!
+          CAMPAIGN_PID=$!
           SAMPLE_INDEX=1
           sleep 15
-          while kill -0 "${RECOVERY_PID}" 2>/dev/null; do
+          while kill -0 "${CAMPAIGN_PID}" 2>/dev/null; do
+            if [[ "${PRESTRESS_CAPTURED}" -eq 0 ]]; then
+              if python - "${PRESTRESS_POST_UTC}" <<'PY'
+          from datetime import datetime, timezone
+          import sys
+          target = datetime.fromisoformat(sys.argv[1].replace("Z", "+00:00")).astimezone(timezone.utc)
+          raise SystemExit(0 if datetime.now(timezone.utc) >= target else 1)
+          PY
+              then
+                python scripts/dev_substrate/pr3_runtime_surface_snapshot.py \
+                  --pr3-execution-id "${PR3_EXECUTION_ID}" \
+                  --state-id S3 \
+                  --snapshot-label prestress_post \
+                  --namespace "${EKS_NAMESPACE}" \
+                  --platform-run-id "${ACTIVE_PLATFORM_RUN_ID}" || true
+                PRESTRESS_CAPTURED=1
+              fi
+            fi
             python scripts/dev_substrate/pr3_runtime_surface_snapshot.py \
               --pr3-execution-id "${PR3_EXECUTION_ID}" \
               --state-id S3 \
@@ -500,7 +556,15 @@ jobs:
             SAMPLE_INDEX=$((SAMPLE_INDEX + 1))
             sleep 30
           done
-          wait "${RECOVERY_PID}"
+          wait "${CAMPAIGN_PID}"
+          if [[ "${PRESTRESS_CAPTURED}" -eq 0 ]]; then
+            python scripts/dev_substrate/pr3_runtime_surface_snapshot.py \
+              --pr3-execution-id "${PR3_EXECUTION_ID}" \
+              --state-id S3 \
+              --snapshot-label prestress_post \
+              --namespace "${EKS_NAMESPACE}" \
+              --platform-run-id "${ACTIVE_PLATFORM_RUN_ID}" || true
+          fi
 
       - name: Capture post-recovery snapshot
         if: ${{ always() && steps.kubeconfig.outcome == 'success' }}
@@ -521,6 +585,9 @@ jobs:
           python scripts/dev_substrate/pr3_s3_rollup.py \
             --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
             --state-id S3 \
+            --continuous-artifact-prefix g3a_s3_continuous \
+            --burst-duration-seconds "${{ inputs.prestress_duration_seconds }}" \
+            --recovery-duration-seconds "${{ inputs.recovery_duration_seconds }}" \
             --region "${{ inputs.aws_region }}" \
             --expected-burst-eps "${{ inputs.prestress_target_burst_eps }}" \
             --expected-steady-eps "${{ inputs.recovery_target_steady_eps }}" \
@@ -546,6 +613,9 @@ jobs:
         with:
           name: pr3-s3-recovery-${{ inputs.pr3_execution_id }}
           path: |
+            ${{ steps.meta.outputs.run_dir }}/g3a_s3_continuous_wsp_runtime_manifest.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_s3_continuous_wsp_runtime_summary.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_s3_continuous_ingress_bins.json
             ${{ steps.meta.outputs.run_dir }}/g3a_s3_prestress_wsp_runtime_manifest.json
             ${{ steps.meta.outputs.run_dir }}/g3a_s3_prestress_wsp_runtime_summary.json
             ${{ steps.meta.outputs.run_dir }}/g3a_s3_recovery_wsp_runtime_manifest.json

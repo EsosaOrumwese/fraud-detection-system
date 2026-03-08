@@ -89,6 +89,54 @@ class _TokenBucketRateLimiter:
             time.sleep(min(max(sleep_for, 0.001), 1.0))
 
 
+class _ScheduledTokenBucketRateLimiter:
+    def __init__(self, *, campaign_start_utc: datetime, segments: list[dict[str, float]]) -> None:
+        self._campaign_start_utc = campaign_start_utc.astimezone(timezone.utc)
+        self._segments = sorted(segments, key=lambda row: float(row.get("start_offset_seconds", 0.0) or 0.0))
+        self._active_index: int | None = None
+        self._active_limiter: _TokenBucketRateLimiter | None = None
+        self._lock = threading.Lock()
+
+    def _sleep_until_campaign_start(self) -> None:
+        while True:
+            remaining = (self._campaign_start_utc - datetime.now(timezone.utc)).total_seconds()
+            if remaining <= 0.0:
+                return
+            time.sleep(min(max(remaining, 0.05), 1.0))
+
+    def _segment_for_elapsed(self, elapsed_seconds: float) -> tuple[int, dict[str, float]]:
+        selected_index = 0
+        for idx, segment in enumerate(self._segments):
+            if elapsed_seconds >= float(segment.get("start_offset_seconds", 0.0) or 0.0):
+                selected_index = idx
+            else:
+                break
+        return selected_index, self._segments[selected_index]
+
+    def acquire(self, tokens: float = 1.0) -> None:
+        self._sleep_until_campaign_start()
+        elapsed_seconds = max(0.0, (datetime.now(timezone.utc) - self._campaign_start_utc).total_seconds())
+        selected_index, segment = self._segment_for_elapsed(elapsed_seconds)
+        with self._lock:
+            if selected_index != self._active_index or self._active_limiter is None:
+                self._active_index = selected_index
+                self._active_limiter = _TokenBucketRateLimiter(
+                    rate_per_second=float(segment.get("target_eps", 0.0) or 0.0),
+                    burst_seconds=float(segment.get("burst_seconds", 0.25) or 0.25),
+                    initial_tokens=float(segment.get("initial_tokens", 0.25) or 0.25),
+                )
+                logger.info(
+                    "WSP scheduled limiter segment=%s start_offset_seconds=%.3f target_eps=%.6f burst_seconds=%.3f initial_tokens=%.3f",
+                    selected_index,
+                    float(segment.get("start_offset_seconds", 0.0) or 0.0),
+                    float(segment.get("target_eps", 0.0) or 0.0),
+                    float(segment.get("burst_seconds", 0.25) or 0.25),
+                    float(segment.get("initial_tokens", 0.25) or 0.25),
+                )
+            limiter = self._active_limiter
+        limiter.acquire(tokens)
+
+
 class WorldStreamProducer:
     def __init__(self, profile: WspProfile) -> None:
         self.profile = profile
@@ -596,6 +644,7 @@ class WorldStreamProducer:
         )
         emitted_total = 0
         speedup = self.profile.policy.stream_speedup
+        _wait_for_campaign_start_if_configured()
         checkpoint_every = max(1, self.profile.wiring.checkpoint_every)
         progress_every = max(1, int(os.getenv("WSP_PROGRESS_EVERY", "1000")))
         progress_seconds = max(1.0, float(os.getenv("WSP_PROGRESS_SECONDS", "30")))
@@ -1025,6 +1074,39 @@ def _env_float(name: str, default: float = 0.0) -> float:
 
 
 def _build_rate_limiter(lane_count: int, lane_index: int) -> _TokenBucketRateLimiter:
+    raw_rate_plan = str(os.getenv("WSP_RATE_PLAN_JSON", "")).strip()
+    raw_campaign_start = str(os.getenv("WSP_CAMPAIGN_START_UTC", "")).strip()
+    if raw_rate_plan and raw_campaign_start:
+        try:
+            campaign_start_utc = datetime.fromisoformat(raw_campaign_start.replace("Z", "+00:00")).astimezone(timezone.utc)
+            payload = json.loads(raw_rate_plan)
+            if isinstance(payload, list):
+                segments: list[dict[str, float]] = []
+                for row in payload:
+                    if not isinstance(row, dict):
+                        continue
+                    segments.append(
+                        {
+                            "start_offset_seconds": max(0.0, float(row.get("start_offset_seconds", 0.0) or 0.0)),
+                            "target_eps": max(0.0, float(row.get("target_eps", row.get("rate_per_second", 0.0)) or 0.0)),
+                            "burst_seconds": max(0.0, float(row.get("burst_seconds", 0.25) or 0.25)),
+                            "initial_tokens": max(0.0, float(row.get("initial_tokens", 0.25) or 0.25)),
+                        }
+                    )
+                if segments:
+                    logger.info(
+                        "WSP scheduled limiter active lane=%s/%s campaign_start_utc=%s segments=%s",
+                        lane_index,
+                        lane_count,
+                        campaign_start_utc.isoformat().replace("+00:00", "Z"),
+                        json.dumps(segments, sort_keys=True),
+                    )
+                    return _ScheduledTokenBucketRateLimiter(
+                        campaign_start_utc=campaign_start_utc,
+                        segments=segments,
+                    )
+        except Exception as exc:
+            logger.warning("WSP scheduled limiter parse failed lane=%s/%s error=%s", lane_index, lane_count, str(exc))
     target_eps = max(0.0, _env_float("WSP_TARGET_EPS", 0.0))
     burst_seconds = max(0.0, _env_float("WSP_TARGET_BURST_SECONDS", 0.25))
     initial_tokens = max(0.0, _env_float("WSP_TARGET_INITIAL_TOKENS", 0.25))
@@ -1043,6 +1125,22 @@ def _build_rate_limiter(lane_count: int, lane_index: int) -> _TokenBucketRateLim
             initial_tokens,
         )
     return limiter
+
+
+def _wait_for_campaign_start_if_configured() -> None:
+    raw_campaign_start = str(os.getenv("WSP_CAMPAIGN_START_UTC", "")).strip()
+    if not raw_campaign_start:
+        return
+    try:
+        campaign_start_utc = datetime.fromisoformat(raw_campaign_start.replace("Z", "+00:00")).astimezone(timezone.utc)
+    except ValueError:
+        logger.warning("WSP campaign start invalid value=%s", raw_campaign_start)
+        return
+    while True:
+        remaining = (campaign_start_utc - datetime.now(timezone.utc)).total_seconds()
+        if remaining <= 0.0:
+            return
+        time.sleep(min(max(remaining, 0.05), 1.0))
 
 
 def _resolve_ig_push_url(raw_url: str) -> str:

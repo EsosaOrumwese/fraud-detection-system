@@ -300,6 +300,94 @@ def sustained_green_start(rows: list[dict[str, Any]], *, pass_key: str, stable_t
     return None
 
 
+def summarize_ingress_bins(
+    *,
+    bins: list[dict[str, Any]],
+    measurement_start_utc: datetime,
+    measurement_end_utc: datetime,
+    expected_eps: float,
+    window_label: str,
+    metric_surface_mode: str,
+    ingress_surface: dict[str, Any],
+    generated_by: str,
+    version: str,
+    phase: str,
+    state: str,
+    execution_id: str,
+    continuous_prefix: str,
+) -> dict[str, Any]:
+    request_count_total = float(sum(float(row.get("request_count", 0.0) or 0.0) for row in bins))
+    admitted_count = float(sum(float(row.get("admitted_count", 0.0) or 0.0) for row in bins))
+    four_xx_total = float(sum(float(row.get("4xx_total", 0.0) or 0.0) for row in bins))
+    five_xx_total = float(sum(float(row.get("5xx_total", 0.0) or 0.0) for row in bins))
+    covered_seconds = max(0.0, (measurement_end_utc - measurement_start_utc).total_seconds())
+    observed_request_eps = request_count_total / covered_seconds if covered_seconds > 0.0 else 0.0
+    observed_admitted_eps = admitted_count / covered_seconds if covered_seconds > 0.0 else 0.0
+    error_rate_ratio = ((four_xx_total + five_xx_total) / request_count_total) if request_count_total > 0.0 else 0.0
+    error_4xx_ratio = (four_xx_total / request_count_total) if request_count_total > 0.0 else 0.0
+    error_5xx_ratio = (five_xx_total / request_count_total) if request_count_total > 0.0 else 0.0
+    latency_weight = sum(float(row.get("request_count", 0.0) or 0.0) for row in bins if float(row.get("request_count", 0.0) or 0.0) > 0.0)
+    latency_p95_ms = (
+        sum((float(row.get("latency_p95_ms", 0.0) or 0.0) * float(row.get("request_count", 0.0) or 0.0)) for row in bins if row.get("latency_p95_ms") is not None)
+        / latency_weight
+        if latency_weight > 0.0
+        else None
+    )
+    latency_p99_ms = (
+        sum((float(row.get("latency_p99_ms", 0.0) or 0.0) * float(row.get("request_count", 0.0) or 0.0)) for row in bins if row.get("latency_p99_ms") is not None)
+        / latency_weight
+        if latency_weight > 0.0
+        else None
+    )
+    pass_window = observed_admitted_eps >= float(expected_eps)
+    return {
+        "phase": phase,
+        "state": state,
+        "generated_at_utc": now_utc(),
+        "generated_by": generated_by,
+        "version": version,
+        "execution_id": execution_id,
+        "dispatch_mode": "CANONICAL_REMOTE_WSP_REPLAY_CONTINUOUS_DERIVED",
+        "verdict": "REMOTE_WSP_WINDOW_READY" if pass_window else "HOLD_REMEDIATE",
+        "open_blockers": 0 if pass_window else 1,
+        "blocker_ids": ([] if pass_window else [f"DERIVED_{window_label.upper()}_THROUGHPUT_SHORTFALL"]),
+        "performance_window": {
+            "measurement_start_utc": to_iso_utc(measurement_start_utc),
+            "measurement_target_end_utc": to_iso_utc(measurement_end_utc),
+            "metric_effective_start_utc": to_iso_utc(measurement_start_utc),
+            "metric_effective_end_utc": to_iso_utc(measurement_end_utc),
+            "covered_metric_seconds": covered_seconds,
+            "metric_period_seconds": 60,
+            "metric_bin_count": len(bins),
+            "metric_surface_mode": metric_surface_mode,
+        },
+        "campaign": {
+            "expected_window_eps": float(expected_eps),
+            "window_label": window_label,
+            "derived_from_continuous_prefix": continuous_prefix,
+        },
+        "observed": {
+            "request_count_total": int(request_count_total),
+            "admitted_request_count": int(admitted_count),
+            "observed_request_eps": observed_request_eps,
+            "observed_admitted_eps": observed_admitted_eps,
+            "error_rate_ratio": error_rate_ratio,
+            "4xx_rate_ratio": error_4xx_ratio,
+            "5xx_rate_ratio": error_5xx_ratio,
+            "4xx_total": int(four_xx_total),
+            "5xx_total": int(five_xx_total),
+            "latency_p95_ms": latency_p95_ms,
+            "latency_p99_ms": latency_p99_ms,
+            "latency_derivation_method": "count_weighted_from_continuous_minute_bins",
+            "metric_surface_mode": metric_surface_mode,
+        },
+        "notes": {
+            "derived_from_continuous_prefix": continuous_prefix,
+            "ingress_metric_surface": ingress_surface,
+        },
+    }
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Build PR3-S3 recovery rollup.")
     ap.add_argument("--run-control-root", default="runs/dev_substrate/dev_full/road_to_prod/run_control")
@@ -307,6 +395,9 @@ def main() -> None:
     ap.add_argument("--state-id", default="S3")
     ap.add_argument("--prestress-artifact-prefix", default="g3a_s3_prestress")
     ap.add_argument("--recovery-artifact-prefix", default="g3a_s3_recovery")
+    ap.add_argument("--continuous-artifact-prefix", default="")
+    ap.add_argument("--burst-duration-seconds", type=int, default=300)
+    ap.add_argument("--recovery-duration-seconds", type=int, default=180)
     ap.add_argument("--region", default="eu-west-2")
     ap.add_argument("--expected-burst-eps", type=float, default=6000.0)
     ap.add_argument("--expected-steady-eps", type=float, default=3000.0)
@@ -323,10 +414,76 @@ def main() -> None:
     args = ap.parse_args()
 
     root = Path(args.run_control_root) / args.pr3_execution_id
-    prestress_summary = load_json(root / f"{args.prestress_artifact_prefix}_wsp_runtime_summary.json")
-    recovery_summary = load_json(root / f"{args.recovery_artifact_prefix}_wsp_runtime_summary.json")
-    recovery_manifest = load_json(root / f"{args.recovery_artifact_prefix}_wsp_runtime_manifest.json")
-    prestress_manifest = load_json(root / f"{args.prestress_artifact_prefix}_wsp_runtime_manifest.json")
+    continuous_prefix = str(args.continuous_artifact_prefix).strip()
+    if continuous_prefix:
+        continuous_summary = load_json(root / f"{continuous_prefix}_wsp_runtime_summary.json")
+        continuous_manifest = load_json(root / f"{continuous_prefix}_wsp_runtime_manifest.json")
+        continuous_bins_payload = load_json(root / f"{continuous_prefix}_ingress_bins.json")
+        continuous_bins = list(continuous_bins_payload.get("bins", []) or [])
+        campaign = dict(continuous_manifest.get("campaign", {}) or {})
+        ingress_surface = dict((((continuous_summary.get("notes") or {}).get("ingress_metric_surface")) or {}))
+        campaign_start_utc = parse_utc(campaign.get("campaign_start_utc")) or parse_utc(
+            continuous_summary.get("performance_window", {}).get("measurement_start_utc")
+        )
+        if campaign_start_utc is None:
+            raise RuntimeError("PR3.S3.B19_CONTINUOUS_CAMPAIGN_START_UNREADABLE")
+        prestress_start_utc = campaign_start_utc
+        prestress_end_utc = prestress_start_utc + timedelta(seconds=int(args.burst_duration_seconds))
+        recovery_start_utc = prestress_end_utc
+        recovery_end_utc = recovery_start_utc + timedelta(seconds=int(args.recovery_duration_seconds))
+        prestress_bins = [
+            row
+            for row in continuous_bins
+            if (parse_utc(row.get("timestamp_utc")) or prestress_start_utc) >= prestress_start_utc
+            and (parse_utc(row.get("timestamp_utc")) or prestress_end_utc) < prestress_end_utc
+        ]
+        recovery_bins = [
+            row
+            for row in continuous_bins
+            if (parse_utc(row.get("timestamp_utc")) or recovery_start_utc) >= recovery_start_utc
+            and (parse_utc(row.get("timestamp_utc")) or recovery_end_utc) < recovery_end_utc
+        ]
+        prestress_summary = summarize_ingress_bins(
+            bins=prestress_bins,
+            measurement_start_utc=prestress_start_utc,
+            measurement_end_utc=prestress_end_utc,
+            expected_eps=float(args.expected_burst_eps),
+            window_label="burst_prestress",
+            metric_surface_mode=str((continuous_summary.get("performance_window") or {}).get("metric_surface_mode") or ""),
+            ingress_surface=ingress_surface,
+            generated_by=args.generated_by,
+            version=args.version,
+            phase="PR3",
+            state=args.state_id,
+            execution_id=args.pr3_execution_id,
+            continuous_prefix=continuous_prefix,
+        )
+        recovery_summary = summarize_ingress_bins(
+            bins=recovery_bins,
+            measurement_start_utc=recovery_start_utc,
+            measurement_end_utc=recovery_end_utc,
+            expected_eps=float(args.expected_steady_eps),
+            window_label="recovery",
+            metric_surface_mode=str((continuous_summary.get("performance_window") or {}).get("metric_surface_mode") or ""),
+            ingress_surface=ingress_surface,
+            generated_by=args.generated_by,
+            version=args.version,
+            phase="PR3",
+            state=args.state_id,
+            execution_id=args.pr3_execution_id,
+            continuous_prefix=continuous_prefix,
+        )
+        prestress_manifest = dict(continuous_manifest)
+        recovery_manifest = dict(continuous_manifest)
+        dump_json(root / f"{args.prestress_artifact_prefix}_wsp_runtime_summary.json", prestress_summary)
+        dump_json(root / f"{args.recovery_artifact_prefix}_wsp_runtime_summary.json", recovery_summary)
+        dump_json(root / f"{args.prestress_artifact_prefix}_wsp_runtime_manifest.json", prestress_manifest)
+        dump_json(root / f"{args.recovery_artifact_prefix}_wsp_runtime_manifest.json", recovery_manifest)
+    else:
+        prestress_summary = load_json(root / f"{args.prestress_artifact_prefix}_wsp_runtime_summary.json")
+        recovery_summary = load_json(root / f"{args.recovery_artifact_prefix}_wsp_runtime_summary.json")
+        recovery_manifest = load_json(root / f"{args.recovery_artifact_prefix}_wsp_runtime_manifest.json")
+        prestress_manifest = load_json(root / f"{args.prestress_artifact_prefix}_wsp_runtime_manifest.json")
     snapshots = sorted(
         [load_json(path) for path in root.glob(f"g3a_{str(args.state_id).strip().lower()}_component_snapshot_*.json")],
         key=lambda row: str(row.get("generated_at_utc", "")),
@@ -344,12 +501,16 @@ def main() -> None:
 
     recovery_observed = dict(recovery_summary.get("observed", {}) or {})
     recovery_window = dict(recovery_summary.get("performance_window", {}) or {})
-    recovery_start_utc = parse_utc(recovery_window.get("measurement_start_utc"))
-    recovery_end_utc = parse_utc(recovery_window.get("measurement_target_end_utc") or recovery_window.get("metric_effective_end_utc"))
+    if continuous_prefix:
+        recovery_start_utc = parse_utc(recovery_window.get("measurement_start_utc"))
+        recovery_end_utc = parse_utc(recovery_window.get("measurement_target_end_utc") or recovery_window.get("metric_effective_end_utc"))
+        ingress_surface = dict((((recovery_summary.get("notes") or {}).get("ingress_metric_surface")) or {}))
+    else:
+        recovery_start_utc = parse_utc(recovery_window.get("measurement_start_utc"))
+        recovery_end_utc = parse_utc(recovery_window.get("measurement_target_end_utc") or recovery_window.get("metric_effective_end_utc"))
+        ingress_surface = dict(((recovery_summary.get("notes") or {}).get("ingress_metric_surface")) or {})
     if recovery_start_utc is None or recovery_end_utc is None:
         blockers.append("PR3.B19_RECOVERY_EVIDENCE_INCOMPLETE:recovery_window_missing")
-
-    ingress_surface = dict(((recovery_summary.get("notes") or {}).get("ingress_metric_surface")) or {})
     if str(ingress_surface.get("mode", "")).upper() != "ALB":
         blockers.append(f"PR3.B19_RECOVERY_EVIDENCE_INCOMPLETE:unsupported_ingress_surface={ingress_surface.get('mode')}")
 
@@ -359,7 +520,9 @@ def main() -> None:
         blockers.append(f"PR3.B19_RECOVERY_EVIDENCE_INCOMPLETE:recovery_snapshots_missing:platform_run_id={recovery_platform_run_id}")
 
     ingress_bins: list[dict[str, Any]] = []
-    if recovery_start_utc and recovery_end_utc and str(ingress_surface.get("mode", "")).upper() == "ALB":
+    if continuous_prefix:
+        ingress_bins = recovery_bins
+    elif recovery_start_utc and recovery_end_utc and str(ingress_surface.get("mode", "")).upper() == "ALB":
         ingress_bins = build_alb_recovery_bins(
             region=args.region,
             load_balancer_dimension=str(ingress_surface.get("load_balancer_dimension", "")).strip(),
@@ -559,7 +722,8 @@ def main() -> None:
         "state": args.state_id,
         "generated_at_utc": now_utc(),
         "execution_id": args.pr3_execution_id,
-        "prestress_end_utc": prestress_summary.get("performance_window", {}).get("end_utc"),
+        "prestress_end_utc": prestress_summary.get("performance_window", {}).get("end_utc")
+        or prestress_summary.get("performance_window", {}).get("measurement_target_end_utc"),
         "recovery_start_utc": to_iso_utc(recovery_start_utc),
         "recovery_end_utc": to_iso_utc(recovery_end_utc),
         "ingress_first_sustained_green_utc": ingress_green_utc,

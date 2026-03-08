@@ -9289,3 +9289,76 @@ uns/.../degrade_ladder/* on its own filesystem,
    - recovery should stop burning the first `2-3` minutes rehydrating already-covered file prefixes,
    - first useful emissions should arrive near the start of the recovery measurement window,
    - `PR3-S3` should then be decided on actual recovery capacity rather than source-reader waste.
+
+## Entry: 2026-03-08 04:36:16 +00:00 - PR3-S3 is still red because the harness restarts WSP between burst and recovery; the production fix is a single continuous campaign with a scheduled rate shift
+1. I re-read the latest strict `PR3-S3` evidence after the batch-fast-forward change rather than assuming the remaining recovery miss was still just a low-level parquet-reader problem. The latest evidence root is still `runs/dev_substrate/dev_full/road_to_prod/run_control/pr3_20260306T021900Z/`.
+2. The recovery output is now diagnostically clear:
+   - `g3a_s3_recovery_wsp_runtime_summary.json` shows `observed_admitted_eps=21.4611`, `4xx=0`, `5xx=0`, `p95=329.26 ms`, `p99=415.54 ms`,
+   - `g3a_recovery_timeline.json` shows `0 eps`, `0 eps`, then only `64.383 eps` in the final minute,
+   - component samples remain largely healthy on lag/checkpoint posture; the state is not red because RTDL collapsed under pressure.
+3. I pulled lane `0` and lane `31` recovery logs directly from CloudWatch and compared them with the current run design:
+   - all lanes start around `04:24`,
+   - first logged progress for context outputs appears only around `04:27:33` to `04:28:11`,
+   - first logged progress for the traffic output appears only around `04:27:52` to `04:28:24`,
+   - there is therefore a `~3-4 minute` dead zone after the prestress-to-recovery handoff.
+4. That delay is not a production property of the platform-under-test. It is a harness artifact caused by the current workflow shape:
+   - `S3` runs prestress in one remote WSP fleet,
+   - then stops that fleet,
+   - then launches a new recovery fleet and asks it to resume from persisted checkpoints,
+   - the certification window therefore includes injector restart, ECS task relaunch, parquet re-open, and checkpoint reacquisition cost before the first post-burst event reaches IG.
+5. That is the wrong thing to certify for this state. `PR3-S3` is meant to prove platform stabilization after burst pressure, not whether a cold-restarted replay injector can reacquire its place inside a bounded three-minute window.
+6. The earlier batch-fast-forward optimization was still valid and should remain:
+   - it removed a real Python-materialization defect from WSP,
+   - it improves any future restart or failover path,
+   - but it does not fix the more important design issue that the state itself currently includes a synthetic restart boundary.
+7. Alternatives considered and rejected:
+   - keep the two-dispatch design and continue optimizing checkpoint resume: rejected because it keeps measuring injector restart overhead instead of burst-to-steady recovery,
+   - widen the `180 s` bound: rejected because the current miss is methodological, not a justified production SLO change,
+   - accept ingress-only recovery proof and ignore the restart penalty: rejected because that would leave the state logically mis-specified and under-defended.
+8. Selected production-grade redesign:
+   - `PR3-S3` should run as one continuous WSP campaign on one active `platform_run_id` / `scenario_run_id`,
+   - the WSP fleet remains alive across the full `burst -> recovery` sequence,
+   - burst and recovery are produced by a scheduled per-lane rate-plan transition, not by stopping and relaunching the source fleet,
+   - the recovery bound begins at the rate-step boundary, not at a fresh launcher start.
+9. Concrete implementation direction chosen:
+   - extend WSP runner with an absolute-time scheduled rate limiter so a single task can shift from burst to recovery without restart,
+   - extend the remote dispatcher to pass the rate plan and a shared campaign start timestamp into every lane,
+   - emit minute bins for the full continuous window so `PR3-S3` can derive burst and recovery impact metrics from one run,
+   - update the `S3` workflow to capture snapshots across the full campaign and mark `prestress_post` exactly at the step-down boundary,
+   - update `pr3_s3_rollup.py` so it derives the required burst/recovery summaries and stable-time evidence from the continuous campaign instead of two separate launcher runs.
+10. Expected production effect:
+   - remove the non-production WSP restart artifact from `S3`,
+   - measure the actual post-burst stabilization of IG/RTDL on a continuous traffic stream,
+   - keep restart-path hardening as a separate concern for later runtime drills rather than letting it dominate recovery certification.
+
+## Entry: 2026-03-08 04:52:00 +00:00 - Implemented the continuous PR3-S3 campaign shape and the derived-evidence path needed to keep the state auditable
+1. I implemented the redesign instead of trying another incremental resume optimization, because the current red state is no longer dominated by a simple code hot path. The state definition itself was the problem.
+2. WSP runtime changes in `src/fraud_detection/world_streamer_producer/runner.py`:
+   - added a scheduled token-bucket controller keyed by `WSP_CAMPAIGN_START_UTC` plus `WSP_RATE_PLAN_JSON`,
+   - added a campaign-start wait so tasks hold before the declared start boundary instead of free-running into the measurement window,
+   - preserved the existing fixed-rate limiter path for non-scheduled states.
+3. Remote dispatcher changes in `scripts/dev_substrate/pr3_wsp_replay_dispatch.py`:
+   - added optional `--campaign-start-utc` and `--rate-plan-json` inputs,
+   - threaded those values into lane environments,
+   - allowed a metrics-only dispatch mode via `--skip-final-threshold-check` so a continuous multi-segment campaign can be launched once and adjudicated later at the segment level,
+   - added deterministic ingress minute-bin artifact emission (`<artifact_prefix>_ingress_bins.json`) so downstream rollup can compute burst/recovery impact metrics from one continuous run.
+4. Rollup changes in `scripts/dev_substrate/pr3_s3_rollup.py`:
+   - added a continuous-campaign mode (`--continuous-artifact-prefix`),
+   - derived `g3a_s3_prestress_*` and `g3a_s3_recovery_*` summaries from the single continuous ingress-bin stream,
+   - kept the final `PR3-S3` contract unchanged from the reviewer’s perspective: the state still emits burst summary, recovery summary, recovery timeline, bound report, and receipt.
+5. Workflow changes in `.github/workflows/dev_full_pr3_s3_recovery.yml`:
+   - replaced the separate prestress and recovery dispatcher launches with one background continuous dispatcher,
+   - generated an absolute campaign start timestamp aligned to a future minute boundary,
+   - applied a two-step rate plan (`burst` then `recovery`) across the same WSP fleet and same runtime identity,
+   - captured `prestress_post` at the planned step-down boundary and continued snapshot sampling through the full campaign.
+6. I also corrected the authority text in `platform.PR3.road_to_prod.md` so the `S3` identity lock now describes the live intended design:
+   - one active runtime identity,
+   - one live source fleet,
+   - in-flight rate change rather than a second launcher run.
+7. Validation completed before remote execution:
+   - `python -m py_compile` passed for the modified Python files,
+   - workflow YAML parsed cleanly,
+   - scheduled limiter smoke passed under `PYTHONPATH=src`.
+8. Risk accepted going into the rerun:
+   - the continuous design uses the burst-shaped WSP task/concurrency envelope for the whole campaign, which is intentional because recovery no longer needs its own cold-start fleet,
+   - if the next red state persists, it will be much closer to the real platform behavior we care about, not the old launcher restart artifact.

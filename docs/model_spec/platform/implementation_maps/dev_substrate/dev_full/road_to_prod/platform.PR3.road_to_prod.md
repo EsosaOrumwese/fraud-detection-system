@@ -259,9 +259,9 @@ S3 planning expansion (execution checklist):
    - timeline must provide deterministic ordering of mitigation and stabilization events.
    - `stable_utc` is the first sampled instant at or after recovery start where all stable-definition checks pass and all later samples in the window remain green.
 4. identity lock:
-   - `S3` runs as a two-segment campaign: `burst prestress -> steady recovery`.
-   - recovery uses a fresh `platform_run_id` / `scenario_run_id`; reusing the burst run identity would turn the second segment into duplicate-heavy traffic because WSP replays stable oracle event ids.
-   - the production claim is about platform stabilization under live pressure, not about preserving a synthetic single-run identity across replay restarts.
+   - `S3` runs as one continuous campaign on one active `platform_run_id` / `scenario_run_id`: burst segment first, recovery segment second.
+   - the WSP fleet stays alive across the segment boundary; `S3` must not stop and relaunch the injector between burst and recovery because that would contaminate the recovery bound with source-restart overhead.
+   - rate changes are applied by a scheduled in-flight traffic-shape transition, not by run-scope churn.
 5. sampling lock:
    - capture runtime snapshots every `30 s` across the recovery window so the `180 s` bound yields enough samples to prove stabilization timing rather than just end-state posture.
 
