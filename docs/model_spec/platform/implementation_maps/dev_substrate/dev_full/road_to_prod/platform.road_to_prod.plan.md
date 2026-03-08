@@ -119,7 +119,7 @@ Exit / DoD:
 2. Required runtime drill artifacts complete.
 3. `G3A` pack has `open_blockers=0`.
 4. Closure demonstrates runtime gate intent (not probe-only or checklist-only pass).
-5. Execution status: `IN_PROGRESS` (`S0` complete; `S1` rerun with fresh evidence and currently `HOLD_REMEDIATE` on threshold breach).
+5. Execution status: `IN_PROGRESS` (`S0`, `S1`, and `S2` complete; active next boundary is `S3` recovery certification).
 
 ### PR4 - G3B Ops/Gov Operational Certification Pack
 Intent:

@@ -612,3 +612,15 @@ State closure:
 | DF classification correction | DF now keeps fail-closed on truly missing groups/unavailable OFP/no usable features, but no longer fails simply because OFP reports partial key coverage while serving the requested feature group | The fail-closed policy remains strict while aligning to the real serving semantics used in production. |
 | Local validation evidence | targeted remediation suites passed: `11` CSFB tests and `19` OFP/DF tests (`30` total) | The read-surface correction is locally stable and bounded before the next strict rerun. |
 | Production verdict | `PR3-S2` remains open until a fresh strict rerun proves `DF fail_closed delta=0` and `DF quarantine delta=0` on the same `6000 eps` boundary | The state is close, but not yet certifiable until the semantic fix is re-proved live. |
+
+### 11.11 PR3-S2 Closure Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Gate outcome | strict rerun `22811242551` returned `PR3_S2_READY`, `open_blockers=0`, `next_state=PR3-S3` | `S2` is now closed and can legally hand off to recovery certification. |
+| Burst goal vs observed throughput | target admitted throughput `6000.0 eps`; observed admitted throughput `6051.86 eps`; request throughput `6051.86 eps` | The platform now clears the required production burst contract on the canonical remote `WSP -> IG` path. |
+| Error posture | `4xx_total=0`, `5xx_total=0`, `error_rate_ratio=0.0` | Burst closure is not masking request rejection or transport instability. |
+| Latency posture | weighted ALB latency `p95=146.91 ms`, `p99=394.43 ms` against maxima `350/700 ms` | The hot-path latency budget remains comfortably green at the closed burst rate. |
+| RTDL/backpressure posture | `IEG backpressure/apply_failure delta=0`; `DF fail_closed/quarantine delta=0`; `AL quarantine/ambiguous delta=0`; `DLA append/replay divergence delta=0` | The RTDL plane remained materially healthy under burst and is no longer the active blocker surface. |
+| Archive sink posture | archive write-error delta `0`, payload-mismatch delta `0`, and archived count stable across late snapshots | `TGT-09` burst/backpressure evidence is clean for this state; the sink did not degrade silently under the certified load. |
+| Boundary-quality check | selected counter window ended `51.6 s` before nominal measurement end, but `during_9` (`+5.7 s`) and `post` preserved the same zero-growth RTDL/archive counters | The green verdict is not hiding a late-window blocker spike and remains claimable. |
+| Production conclusion | `S2` is production-credible and closed; remaining PR3 work belongs to recovery, soak/drills, and final pack rollup | Additional burst remediation would be drift unless a later state reveals a new regression. |

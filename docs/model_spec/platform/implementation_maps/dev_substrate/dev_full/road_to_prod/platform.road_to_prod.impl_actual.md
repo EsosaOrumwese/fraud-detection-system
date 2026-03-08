@@ -9019,3 +9019,39 @@ uns/.../degrade_ladder/* on its own filesystem,
    - RTDL blocker accounting should stop failing on post-window or pre-window contamination,
    - ingress p95/p99 should contract if the per-event log drag was materially contributing to the hot path,
    - the remaining verdict, if any, will be cleaner and closer to the actual production defect surface instead of mixed measurement noise.
+
+## Entry: 2026-03-08 01:49:15 +00:00 - PR3-S2 strict rerun closes burst certification on impact metrics and clears the active blocker surface
+1. I ran the next strict `PR3-S2` rerun on branch commit `1573652a0` after packaging the refreshed immutable image and letting the workflow repin both the WSP burst family and the live ingress ECS service to that digest. The workflow run was `22811242551`; the authoritative receipt is `pr3_s2_execution_receipt.json` for `platform_run_id=platform_20260308T012604Z`.
+2. The burst state is now green on the required impact metrics:
+   - admitted throughput `6051.86 eps` against target `6000 eps`,
+   - `4xx_total = 0`,
+   - `5xx_total = 0`,
+   - `p95 = 146.91 ms` against max `350 ms`,
+   - `p99 = 394.43 ms` against max `700 ms`,
+   - covered metric window `300 s`.
+3. The RTDL/backpressure surface is also clean on the same run:
+   - `IEG backpressure delta = 0`,
+   - `IEG apply_failure_count delta = 0`,
+   - `DF fail_closed_total delta = 0`,
+   - `DF publish_quarantine_total delta = 0`,
+   - `AL publish_quarantine_total delta = 0`,
+   - `AL publish_ambiguous_total delta = 0`,
+   - `DLA append_failure_total delta = 0`,
+   - `DLA replay_divergence_total delta = 0`,
+   - archive write-error and payload-mismatch deltas both `0`.
+4. I checked the counter-window rigor after the green receipt because the boundary snapshots are not exactly on the minute edges:
+   - baseline snapshot selected `during_3` at `01:38:22Z`, `37.9 s` before measurement start,
+   - end snapshot selected `during_8` at `01:43:08Z`, `51.6 s` before measurement end,
+   - later snapshots `during_9` at `01:44:05Z` and `post` at `01:46:27Z` remained unchanged on the RTDL/archive blocker counters.
+5. Production interpretation of that boundary check:
+   - the current green result is not a false pass created by skipping a late counter spike,
+   - the later snapshots confirmed the same zero-growth posture for `DF/AL/DLA/archive_writer`,
+   - therefore `PR3-S2` is claimable and can hand off to `PR3-S3`.
+6. Why the remediation worked:
+   - reducing ingress hot-path per-event logging removed a self-inflicted latency tax and restored the burst tail margin,
+   - correcting the rollup to use certified-window counters removed false RTDL blocker contamination from coarse `pre -> post` math.
+7. State closure outcome:
+   - `verdict = PR3_S2_READY`,
+   - `open_blockers = 0`,
+   - `next_state = PR3-S3`.
+8. Active PR3 focus now moves to recovery certification (`S3`), not more burst remediation. Any further S2 work would be drift unless a later state exposes a new burst regression.
