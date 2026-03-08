@@ -465,6 +465,9 @@ def main() -> int:
         "CASE_TRIGGER_SCENARIO_RUN_ID": args.scenario_run_id,
         "CASE_MGMT_SCENARIO_RUN_ID": args.scenario_run_id,
         "LABEL_STORE_SCENARIO_RUN_ID": args.scenario_run_id,
+        "DF_PUBLISH_MODE": "internal_bus",
+        "AL_PUBLISH_MODE": "internal_bus",
+        "CASE_TRIGGER_PUBLISH_MODE": "internal_bus",
         "CSFB_REQUIRED_PLATFORM_RUN_ID": args.platform_run_id,
         "IEG_REQUIRED_PLATFORM_RUN_ID": args.platform_run_id,
         "OFP_REQUIRED_PLATFORM_RUN_ID": args.platform_run_id,
@@ -523,6 +526,9 @@ def main() -> int:
         env_ref("CASE_TRIGGER_SCENARIO_RUN_ID", secret_name, "CASE_TRIGGER_SCENARIO_RUN_ID"),
         env_ref("CASE_MGMT_SCENARIO_RUN_ID", secret_name, "CASE_MGMT_SCENARIO_RUN_ID"),
         env_ref("LABEL_STORE_SCENARIO_RUN_ID", secret_name, "LABEL_STORE_SCENARIO_RUN_ID"),
+        env_ref("DF_PUBLISH_MODE", secret_name, "DF_PUBLISH_MODE"),
+        env_ref("AL_PUBLISH_MODE", secret_name, "AL_PUBLISH_MODE"),
+        env_ref("CASE_TRIGGER_PUBLISH_MODE", secret_name, "CASE_TRIGGER_PUBLISH_MODE"),
         plain_env("PYTHONUNBUFFERED", "1"),
     ]
     profile_volume_mounts = [

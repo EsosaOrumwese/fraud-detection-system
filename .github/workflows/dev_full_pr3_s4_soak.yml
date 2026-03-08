@@ -465,25 +465,24 @@ jobs:
             --namespace "${{ env.EKS_NAMESPACE }}" \
             --platform-run-id "${{ steps.meta.outputs.active_platform_run_id }}"
 
-      - name: Build PR3-S4 soak rollup
-        if: ${{ always() }}
+      - name: Run PR3-S4 dependency degrade drill
         shell: bash
         run: |
           set -euo pipefail
-          python scripts/dev_substrate/pr3_s4_rollup.py \
+          python scripts/dev_substrate/pr3_s4_dependency_drill.py \
             --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
             --state-id S4 \
-            --artifact-prefix g3a_s4 \
-            --expected-soak-eps "${{ inputs.target_steady_eps }}" \
-            --min-processed-events 5400000 \
-            --max-error-rate-ratio 0.002 \
-            --max-4xx-ratio 0.002 \
-            --max-5xx-ratio 0.0 \
-            --max-latency-p95-ms 350 \
-            --max-latency-p99-ms 700 \
-            --max-lag-p99-seconds 5.0 \
-            --max-checkpoint-p99-seconds 30.0 \
-            --budget-envelope-usd 250.0
+            --namespace "${{ env.EKS_NAMESPACE }}" \
+            --platform-run-id "${{ steps.meta.outputs.active_platform_run_id }}" \
+            --profile-path "/runtime-profile/dev_full.yaml"
+
+      - name: Run PR3-S4 schema evolution drill
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/pr3_s4_schema_drill.py \
+            --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
+            --state-id S4
 
       - name: Drain WSP ephemeral tasks after PR3-S4
         if: always()
@@ -527,6 +526,40 @@ jobs:
           }
           (run_dir / "g3a_s4_final_wsp_cleanup.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
           PY
+
+      - name: Build PR3-S4 cost and idle-safe receipts
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/pr3_s4_cost_guardrail.py \
+            --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
+            --state-id S4 \
+            --aws-region "${{ inputs.aws_region }}" \
+            --cluster fraud-platform-dev-full-wsp-ephemeral \
+            --wsp-task-cpu "${{ inputs.wsp_task_cpu }}" \
+            --wsp-task-memory "${{ inputs.wsp_task_memory }}" \
+            --budget-envelope-usd 250.0
+
+      - name: Build PR3-S4 soak rollup
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/pr3_s4_rollup.py \
+            --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
+            --state-id S4 \
+            --artifact-prefix g3a_s4 \
+            --expected-soak-eps "${{ inputs.target_steady_eps }}" \
+            --min-processed-events 5400000 \
+            --max-error-rate-ratio 0.002 \
+            --max-4xx-ratio 0.002 \
+            --max-5xx-ratio 0.0 \
+            --max-latency-p95-ms 350 \
+            --max-latency-p99-ms 700 \
+            --max-lag-p99-seconds 5.0 \
+            --max-checkpoint-p99-seconds 30.0 \
+            --budget-envelope-usd 250.0
 
       - name: Upload PR3-S4 artifacts
         if: always()

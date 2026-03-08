@@ -43,6 +43,7 @@ class LabelStoreWorker:
         self.config = config
         self.backend = "postgres" if is_postgres_dsn(config.locator) else "sqlite"
         self._scenario_run_id = config.scenario_run_id
+        self._seed_run_scope_from_config()
 
     def run_once(self) -> int:
         platform_run_id = self.config.platform_run_id
@@ -77,6 +78,36 @@ class LabelStoreWorker:
                 time.sleep(self.config.poll_seconds)
                 continue
             time.sleep(self.config.poll_seconds)
+
+    def _seed_run_scope_from_config(self) -> None:
+        platform_run_id = str(self.config.platform_run_id or "").strip()
+        scenario_run_id = str(self._scenario_run_id or "").strip()
+        if not platform_run_id or not scenario_run_id:
+            return
+        self._export_snapshot(
+            platform_run_id=platform_run_id,
+            scenario_run_id=scenario_run_id,
+        )
+
+    def _export_snapshot(self, *, platform_run_id: str, scenario_run_id: str) -> None:
+        try:
+            reporter = LabelStoreRunReporter(
+                locator=self.config.locator,
+                platform_run_id=platform_run_id,
+                scenario_run_id=scenario_run_id,
+            )
+            reporter.export()
+        except sqlite3.OperationalError as exc:
+            text = str(exc).lower()
+            if "no such table" in text:
+                logger.warning("LabelStore worker deferred startup export: schema not ready yet (%s)", str(exc)[:256])
+                return
+            raise
+        except psycopg.Error as exc:
+            if "does not exist" in str(exc).lower():
+                logger.warning("LabelStore worker deferred startup export: schema not ready yet (%s)", str(exc)[:256])
+                return
+            raise
 
     def _discover_scenario_run_id(self, *, platform_run_id: str) -> str | None:
         sql = (

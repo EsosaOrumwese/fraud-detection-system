@@ -9954,3 +9954,112 @@ uns/.../degrade_ladder/* on its own filesystem,
    - refresh the shared runtime image,
    - rerun the exact strict `PR3-S4` boundary,
    - score the rerun by impact metrics across RTDL, case/label, and the participating substrate surfaces.
+## Entry: 2026-03-08 12:28:00 +00:00 - PR3-S4 now needs explicit remote image pinning inside the workflow rather than local task-definition mutation
+1. The refreshed platform image is now built and published from commit `b11cc20979eb2359aeadd824c0576682e4a7b279` through packaging run `22820719910`, yielding immutable digest `sha256:47b559549016138b081f9fac1276f5b37b4574b46aa0acc41d80d981c91c8551`.
+2. I then re-checked the active execution path for `PR3-S4` and found a determinism gap:
+   - `dev_full_pr3_s4_soak.yml` checks out the branch ref for scripts/workflow logic,
+   - but `pr3_rtdl_materialize.py` still resolves the runtime image from the live `fraud-platform-dev-full-wsp-ephemeral` task family unless an explicit `--image-uri` override is supplied,
+   - and `pr3_wsp_replay_dispatch.py` also launches the WSP replay lanes from the latest active revision of that ECS family.
+3. A local AWS CLI task-definition repin would be the quickest way to force the new digest into the family, but it is the wrong posture for this project:
+   - it reintroduces local orchestration for a production-state execution,
+   - it makes the state less auditable than a workflow-driven remote mutation,
+   - and it weakens rerun determinism because the exact image pin becomes implicit in live ECS family state instead of explicit in the state contract.
+4. The production-correct remediation is therefore to upgrade the `PR3-S4` workflow itself so that the state can:
+   - accept an optional immutable `platform_image_uri` input,
+   - repin the WSP task family to that digest inside GitHub Actions before the soak begins,
+   - pass the same digest into `pr3_rtdl_materialize.py` so RTDL/case-label deployments and WSP replay tasks are pinned to the same runtime build.
+5. This keeps the execution fully remote, digest-pinned, and repeatable. It also avoids hiding runtime provenance behind whichever ECS revision happened to be last registered outside the workflow.
+6. Next bounded action:
+   - patch `dev_full_pr3_s4_soak.yml` with explicit image-pin support and remote WSP task-definition repin,
+   - commit/push that workflow-only change,
+   - dispatch `PR3-S4` against the new digest and score the rerun by cross-plane impact metrics.
+## Entry: 2026-03-08 12:55:00 +00:00 - Strict PR3-S4 rerun materially improved the state, and the remaining red is now concentrated in DF, label_store startup export, and missing S4 drill lanes
+1. I dispatched the exact `PR3-S4` boundary remotely after:
+   - pushing the code remediation commit (`b11cc20979eb2359aeadd824c0576682e4a7b279`),
+   - packaging the new immutable image via run `22820719910`,
+   - patching `dev_full_pr3_s4_soak.yml` so the state could repin the WSP task family and pass the same digest into RTDL materialization entirely inside GitHub Actions,
+   - rerunning the state as workflow run `22820789580` with explicit image `230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-full@sha256:47b559549016138b081f9fac1276f5b37b4574b46aa0acc41d80d981c91c8551`.
+2. Impact metrics that are now genuinely green for this S4 window:
+   - ingress admitted throughput `3028.987 eps` over the full 1800-second soak against the 3000 eps target,
+   - `4xx=0`, `5xx=0`, `error_rate=0`,
+   - `latency_p95=102.20 ms`, `latency_p99=123.14 ms`, well inside the 350/700 ms envelope,
+   - OFP lag/checkpoint posture stayed materially clean (`p99 ~= 0.036 s`),
+   - IEG checkpoint posture stayed materially clean (`p99 ~= 0.053 s`),
+   - DLA checkpoint posture stayed materially clean (`p99 ~= 1.14 s`),
+   - archive backlog remained `0`.
+3. The previous whole-plane DL false red is now resolved in the live rerun:
+   - DL health is `GREEN`,
+   - `decision_mode=NORMAL`,
+   - all required signal states are `OK`.
+   This is important because it proves the earlier remediation changed real runtime behavior and did not merely satisfy local tests.
+4. Cross-plane observability also improved materially:
+   - `case_trigger` now emits run-scoped metrics/health files and is reported as `GREEN` healthy-idle rather than `missing`,
+   - `case_mgmt` now emits run-scoped metrics/health files and is also reported as `GREEN` healthy-idle.
+5. Remaining active blockers are narrower and more actionable:
+   - `label_store` still fails to emit run-scoped artifacts at startup, so S4 still sees it as `missing`,
+   - DF remains the only participating component that is health-red in the post snapshot (`decisions_total=6`, `publish_quarantine_total=6`, `fail_closed_total=1`, latency p95/p99 ~ 303s),
+   - because DF still quarantines instead of producing usable downstream decisions, `case_trigger` remains unexercised (`df_decisions_delta=6`, `case_trigger_delta=0`),
+   - the workflow itself still does not materialize the required S4 drill lanes (`schema`, `dependency`, `cost/idle-safe`), so those blockers are structural rather than workload-derived.
+6. Production interpretation:
+   - the runtime spine plus case/case-mgmt observability are now strong enough for the soak window,
+   - but S4 is still not production-ready because one downstream plane surface (`label_store`) is absent, one key decision component (`DF`) is still semantically red, and three required validation lanes are unimplemented.
+7. Bounded next actions for the same state:
+   - add explicit startup export in `label_store` so healthy-idle run scope is visible just like `case_trigger` and `case_mgmt`,
+   - inspect DF reconciliation/health reasons from the live run and remove the remaining semantically incorrect quarantine cause if it is production-hostile overspecification,
+   - extend `dev_full_pr3_s4_soak.yml` to execute the required dependency/schema/cost-idlesafe drills and publish their receipts before rollup.
+## Entry: 2026-03-08 13:35:00 +00:00 - PR3-S4 remaining red is now pinned to an internal publish-topology defect plus two observability/certification gaps
+1. I re-read the latest PR3 authorities, the active S4 workflow, and the live runtime code after the strict rerun rather than guessing from the blocker labels alone.
+2. The important conclusion is that the remaining `DF -> AL -> CaseTrigger` failure is not primarily an ingress-capacity problem anymore. It is an internal platform topology problem:
+   - `decision_fabric`, `action_layer`, and `case_trigger` still publish their downstream envelopes back through `IG_INGEST_URL` over HTTP,
+   - those envelopes are already canonical platform events with pinned classes (`rtdl_decision`, `rtdl_action_intent`, `rtdl_action_outcome`, `case_trigger`),
+   - IG itself already routes those classes onto the native event bus using `class_map_v0.yaml` + `partitioning_profiles_v0.yaml`.
+3. In a production-shaped platform this hairpin is the wrong design for internal hops:
+   - it burns the public ingress path on internal plane-to-plane traffic,
+   - it adds avoidable timeout/retry failure modes to the decision chain,
+   - it couples downstream plane health to the external admission boundary when the event class is already trusted and schema-anchored inside the platform.
+4. I considered two alternatives and rejected both:
+   - keep the current IG hairpin and just relax timeouts/retries: rejected because it preserves the wrong topology and would only mask the defect under higher EPS,
+   - bypass all routing rules with ad hoc direct-topic publishes in each plane: rejected because it would fork the routing contract away from the existing IG authority and create drift.
+5. Selected remediation:
+   - introduce a shared internal event-bus publisher that reuses the existing IG class-map and partitioning-profile contract to derive stream + partition key for canonical internal envelopes,
+   - switch `decision_fabric`, `action_layer`, and `case_trigger` to that publisher for internal downstream events,
+   - preserve schema validation and deterministic receipts so replay/audit surfaces remain intact,
+   - keep external WSP ingress on IG; this change is only for internal platform hops.
+6. The other two remaining S4 defects are narrower:
+   - `label_store` still lacks an explicit startup export path even though manual live export succeeded; this makes a healthy-idle plane appear missing,
+   - the S4 workflow still does not materialize the dependency/schema/cost-idlesafe drill receipts that the state contract already requires.
+7. Production interpretation:
+   - the next correct move is not to rerun S4 harder,
+   - it is to fix the internal topology so RTDL/case flows move over the native bus, add the missing label-store startup export, then complete the missing drill lanes and rerun the exact same state boundary.
+## Entry: 2026-03-08 14:20:00 +00:00 - Implemented the production-grade internal publish correction and materialized the missing S4 drill lanes locally before any rerun
+1. I implemented the selected topology correction rather than inflating IG timeouts or continuing to rerun the same red boundary.
+2. New shared routing helper: `src/fraud_detection/platform_internal_publish.py`.
+   - It validates canonical envelopes against the existing engine contract registry,
+   - enforces required pins from `config/platform/ig/class_map_v0.yaml`,
+   - derives stream + partition key from the existing IG partitioning profiles,
+   - publishes onto the native bus (`file` / `kafka` / `kinesis`) using the same routing contract IG would have used.
+3. I then wired the internal downstream planes onto that shared helper in a compatibility-safe way:
+   - `decision_fabric`, `action_layer`, and `case_trigger` now support explicit `publish_mode=internal_bus`,
+   - existing `ig` publish mode remains available as the compatibility/default posture,
+   - `pr3_rtdl_materialize.py` now forces `DF/AL/CASE_TRIGGER` to `internal_bus` for the PR3 runtime materialization so the live certification path stops hairpinning internal traffic through public ingress.
+4. I also finished the remaining code-side observability defect for the case/label plane:
+   - `label_store.worker` now performs an explicit startup export when `platform_run_id` + `scenario_run_id` are already pinned,
+   - this converts a healthy-idle label plane from `missing` into a visible run-scoped surface at state start.
+5. The S4 workflow/certification lane was also extended materially rather than cosmetically:
+   - added `pr3_s4_dependency_drill.py` to execute a real dependency degrade on `fp-pr3-ofp` (scale-to-zero, capture degraded snapshot, restore, warm-gate, capture recovered snapshot),
+   - added `pr3_s4_schema_drill.py` to execute a fresh compatible/incompatible schema validation drill against the active IG schema contract,
+   - added `pr3_s4_cost_guardrail.py` to emit attributable modeled Fargate spend from actual WSP task-seconds and verify zero residual WSP tasks after cleanup,
+   - patched `dev_full_pr3_s4_soak.yml` so those drill receipts are produced before rollup,
+   - patched `pr3_s4_rollup.py` so it now consumes real drill/cost receipts when present instead of hardcoding those lanes red.
+6. Local validation completed before packaging/rerun:
+   - `python -m py_compile` passed for all touched runtime/drill files,
+   - focused tests passed: `30 passed` across the new internal publish and label-store startup-export slices plus the existing DF/AL/CaseTrigger publish suites,
+   - workflow YAML parsed cleanly after the step reordering.
+7. Production interpretation:
+   - this is not a waiver or a shortcut,
+   - it removes an internal topology defect that would have remained a scaling liability at higher EPS,
+   - it upgrades the S4 state from "missing structural lanes" to an executable certification boundary that can now honestly prove or disprove the remaining DF/case-label posture.
+8. Exact next step:
+   - package the new runtime image,
+   - dispatch strict `PR3-S4` on the same authority boundary,
+   - inspect the post-rerun impact metrics with special focus on `DF`, `case_trigger`, `case_mgmt`, `label_store`, and the new dependency/schema/cost drill receipts.

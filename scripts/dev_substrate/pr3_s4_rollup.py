@@ -29,6 +29,12 @@ def load_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def load_optional_json(path: Path) -> dict[str, Any] | None:
+    if not path.exists():
+        return None
+    return load_json(path)
+
+
 def dump_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
@@ -443,55 +449,78 @@ def main() -> None:
         }
         blockers.append("PR3.S4.B25_LAG_RECOVERY_DRILL_FAIL")
 
-    schema_drill = {
-        "drill_id": "schema_evolution",
-        "phase": "PR3",
-        "state": args.state_id,
-        "generated_at_utc": now_utc(),
-        "execution_id": args.pr3_execution_id,
-        "platform_run_id": manifest_platform_run_id,
-        "overall_pass": False,
-        "blocker_ids": ["PR3.S4.B26_SCHEMA_DRILL_UNEXECUTED"],
-        "notes": ["Fresh schema evolution drill artifact is not yet materialized in this S4 attempt."],
-    }
-    dependency_drill = {
-        "drill_id": "dependency_degrade",
-        "phase": "PR3",
-        "state": args.state_id,
-        "generated_at_utc": now_utc(),
-        "execution_id": args.pr3_execution_id,
-        "platform_run_id": manifest_platform_run_id,
-        "overall_pass": False,
-        "blocker_ids": ["PR3.S4.B26_DEPENDENCY_DRILL_UNEXECUTED"],
-        "notes": ["Fresh dependency degrade drill artifact is not yet materialized in this S4 attempt."],
-    }
-    blockers.extend(["PR3.S4.B26_SCHEMA_DRILL_UNEXECUTED", "PR3.S4.B26_DEPENDENCY_DRILL_UNEXECUTED"])
+    schema_drill_path = root / "g3a_drill_schema_evolution.json"
+    schema_drill = load_optional_json(schema_drill_path)
+    if schema_drill is None:
+        schema_drill = {
+            "drill_id": "schema_evolution",
+            "phase": "PR3",
+            "state": args.state_id,
+            "generated_at_utc": now_utc(),
+            "execution_id": args.pr3_execution_id,
+            "platform_run_id": manifest_platform_run_id,
+            "overall_pass": False,
+            "blocker_ids": ["PR3.S4.B26_SCHEMA_DRILL_UNEXECUTED"],
+            "notes": ["Fresh schema evolution drill artifact is not yet materialized in this S4 attempt."],
+        }
+    if not bool(schema_drill.get("overall_pass")):
+        blockers.extend([str(row) for row in schema_drill.get("blocker_ids", []) or ["PR3.S4.B26_SCHEMA_DRILL_UNEXECUTED"]])
 
-    cost_receipt = {
-        "phase": "PR3",
-        "state": args.state_id,
-        "generated_at_utc": now_utc(),
-        "execution_id": args.pr3_execution_id,
-        "platform_run_id": manifest_platform_run_id,
-        "budget_envelope_usd": float(args.budget_envelope_usd),
-        "attributed_spend_usd": None,
-        "idle_safe_verified": False,
-        "overall_pass": False,
-        "blocker_ids": ["PR3.S4.B27_COST_GUARDRAIL_OR_IDLESAFE_FAIL"],
-        "notes": ["Attributable runtime cost receipt and idle-safe verification are not yet materialized in this S4 attempt."],
-    }
-    cost_drill = {
-        "drill_id": "cost_guardrail_idle_safe",
-        "phase": "PR3",
-        "state": args.state_id,
-        "generated_at_utc": now_utc(),
-        "execution_id": args.pr3_execution_id,
-        "platform_run_id": manifest_platform_run_id,
-        "overall_pass": False,
-        "blocker_ids": ["PR3.S4.B27_COST_GUARDRAIL_OR_IDLESAFE_FAIL"],
-        "notes": ["Cost/idle-safe drill awaits dedicated S4 cost attribution + residual-scan execution."],
-    }
-    blockers.append("PR3.S4.B27_COST_GUARDRAIL_OR_IDLESAFE_FAIL")
+    dependency_drill_path = root / "g3a_drill_dependency_degrade.json"
+    dependency_drill = load_optional_json(dependency_drill_path)
+    if dependency_drill is None:
+        dependency_drill = {
+            "drill_id": "dependency_degrade",
+            "phase": "PR3",
+            "state": args.state_id,
+            "generated_at_utc": now_utc(),
+            "execution_id": args.pr3_execution_id,
+            "platform_run_id": manifest_platform_run_id,
+            "overall_pass": False,
+            "blocker_ids": ["PR3.S4.B26_DEPENDENCY_DRILL_UNEXECUTED"],
+            "notes": ["Fresh dependency degrade drill artifact is not yet materialized in this S4 attempt."],
+        }
+    if not bool(dependency_drill.get("overall_pass")):
+        blockers.extend([str(row) for row in dependency_drill.get("blocker_ids", []) or ["PR3.S4.B26_DEPENDENCY_DRILL_UNEXECUTED"]])
+
+    cost_receipt_path = root / "g3a_runtime_cost_receipt.json"
+    cost_receipt = load_optional_json(cost_receipt_path)
+    if cost_receipt is None:
+        cost_receipt = {
+            "phase": "PR3",
+            "state": args.state_id,
+            "generated_at_utc": now_utc(),
+            "execution_id": args.pr3_execution_id,
+            "platform_run_id": manifest_platform_run_id,
+            "budget_envelope_usd": float(args.budget_envelope_usd),
+            "attributed_spend_usd": None,
+            "idle_safe_verified": False,
+            "overall_pass": False,
+            "blocker_ids": ["PR3.S4.B27_COST_GUARDRAIL_OR_IDLESAFE_FAIL"],
+            "notes": ["Attributable runtime cost receipt and idle-safe verification are not yet materialized in this S4 attempt."],
+        }
+
+    cost_drill_path = root / "g3a_drill_cost_guardrail.json"
+    cost_drill = load_optional_json(cost_drill_path)
+    if cost_drill is None:
+        cost_drill = {
+            "drill_id": "cost_guardrail_idle_safe",
+            "phase": "PR3",
+            "state": args.state_id,
+            "generated_at_utc": now_utc(),
+            "execution_id": args.pr3_execution_id,
+            "platform_run_id": manifest_platform_run_id,
+            "overall_pass": False,
+            "blocker_ids": ["PR3.S4.B27_COST_GUARDRAIL_OR_IDLESAFE_FAIL"],
+            "notes": ["Cost/idle-safe drill awaits dedicated S4 cost attribution + residual-scan execution."],
+        }
+    cost_pass = bool(cost_receipt.get("overall_pass")) and bool(cost_drill.get("overall_pass"))
+    if not cost_pass:
+        blockers.extend(
+            [str(row) for row in (cost_receipt.get("blocker_ids", []) or [])]
+            or [str(row) for row in (cost_drill.get("blocker_ids", []) or [])]
+            or ["PR3.S4.B27_COST_GUARDRAIL_OR_IDLESAFE_FAIL"]
+        )
 
     scorecard = {
         "phase": "PR3",

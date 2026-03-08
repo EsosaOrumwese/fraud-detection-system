@@ -13,6 +13,10 @@ import requests
 
 from fraud_detection.case_mgmt.contracts import CaseTrigger
 from fraud_detection.ingestion_gate.schemas import SchemaRegistry
+from fraud_detection.platform_internal_publish import (
+    InternalCanonicalEventPublisher,
+    InternalEventPublishError,
+)
 
 from .storage import CaseTriggerPublishStore
 
@@ -294,3 +298,88 @@ def _actor_principal_from_token(token: str | None) -> str:
 
 def _utc_now() -> str:
     return datetime.now(tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
+
+@dataclass
+class CaseTriggerInternalPublisher:
+    event_bus_kind: str
+    event_bus_root: str
+    event_bus_stream: str | None
+    event_bus_region: str | None
+    event_bus_endpoint_url: str | None
+    class_map_ref: Path | str
+    partitioning_profiles_ref: Path | str
+    publish_store: CaseTriggerPublishStore | None = None
+    actor_principal: str = "SYSTEM::case_trigger_internal_bus"
+    actor_source_type: str = "SYSTEM"
+    engine_contracts_root: Path | str = "docs/model_spec/data-engine/interface_pack/contracts"
+    client_id: str = "case-trigger-internal-publisher"
+
+    def __post_init__(self) -> None:
+        self._publisher = InternalCanonicalEventPublisher(
+            event_bus_kind=self.event_bus_kind,
+            event_bus_root=self.event_bus_root,
+            event_bus_stream=self.event_bus_stream,
+            event_bus_region=self.event_bus_region,
+            event_bus_endpoint_url=self.event_bus_endpoint_url,
+            class_map_ref=self.class_map_ref,
+            partitioning_profiles_ref=self.partitioning_profiles_ref,
+            engine_contracts_root=self.engine_contracts_root,
+            client_id=self.client_id,
+        )
+
+    def publish_case_trigger(
+        self,
+        trigger: CaseTrigger,
+        *,
+        producer: str = "case_trigger",
+    ) -> PublishedCaseTriggerRecord:
+        envelope = build_case_trigger_envelope(
+            trigger,
+            producer=producer,
+        )
+        record = self.publish_envelope(envelope)
+        if self.publish_store is not None:
+            self.publish_store.register_publish_result(
+                case_trigger_id=trigger.case_trigger_id,
+                event_id=record.event_id,
+                event_type=record.event_type,
+                publish_decision=record.decision,
+                receipt=record.receipt,
+                receipt_ref=record.receipt_ref,
+                reason_code=record.reason_code,
+                actor_principal=record.actor_principal,
+                actor_source_type=record.actor_source_type,
+                published_at_utc=_utc_now(),
+            )
+        return record
+
+    def publish_envelope(self, envelope: Mapping[str, Any]) -> PublishedCaseTriggerRecord:
+        try:
+            result = self._publisher.publish_envelope(envelope)
+        except InternalEventPublishError as exc:
+            raise CaseTriggerPublishError(str(exc)) from exc
+        return PublishedCaseTriggerRecord(
+            case_trigger_id=str((envelope.get("payload") or {}).get("case_trigger_id") or envelope.get("event_id") or ""),
+            event_id=result.event_id,
+            event_type=result.event_type,
+            decision=PUBLISH_ADMIT,
+            receipt={"eb_ref": _eb_ref_receipt(result.eb_ref)},
+            receipt_ref=None,
+            reason_code=None,
+            actor_principal=self.actor_principal,
+            actor_source_type=self.actor_source_type,
+        )
+
+
+def _eb_ref_receipt(eb_ref: Any) -> dict[str, Any]:
+    payload = {
+        "topic": str(getattr(eb_ref, "topic", "") or ""),
+        "partition": getattr(eb_ref, "partition", None),
+        "offset": str(getattr(eb_ref, "offset", "") or ""),
+        "offset_kind": str(getattr(eb_ref, "offset_kind", "") or ""),
+    }
+    published_at_utc = str(getattr(eb_ref, "published_at_utc", "") or "").strip()
+    if published_at_utc:
+        payload["published_at_utc"] = published_at_utc
+    return payload

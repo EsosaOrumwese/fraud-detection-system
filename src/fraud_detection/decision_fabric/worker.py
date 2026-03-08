@@ -37,7 +37,7 @@ from .context import CONTEXT_WAITING, DecisionContextAcquirer, DecisionContextPo
 from .inlet import DfBusInput, DecisionFabricInlet, DecisionTriggerCandidate
 from .observability import DfRunMetrics
 from .posture import DfPostureResolver, DfPostureStamp
-from .publish import DecisionFabricIgPublisher, DecisionFabricPublishError
+from .publish import DecisionFabricIgPublisher, DecisionFabricInternalPublisher, DecisionFabricPublishError
 from .reconciliation import DfReconciliationBuilder
 from .registry import RegistryResolutionPolicy, RegistryResolver, RegistryScopeKey, RegistrySnapshot
 from .replay import REPLAY_NEW, DecisionReplayLedger
@@ -86,6 +86,8 @@ class DfWorkerConfig:
     bundle_slot: str
     tenant_id: str | None
     scenario_run_id_hint: str | None
+    partitioning_profiles_ref: Path = Path("config/platform/ig/partitioning_profiles_v0.yaml")
+    publish_mode: str = "ig"
 
 
 class _ConsumerCheckpointStore:
@@ -273,12 +275,25 @@ class DecisionFabricWorker:
             guarded_service=DlGuardedPostureService(base_service=dl_base, health_gate=DlHealthGateController(DlHealthPolicy())),
             max_age_seconds=config.dl_max_age_seconds,
         )
-        self.publisher = DecisionFabricIgPublisher(
-            ig_ingest_url=config.ig_ingest_url,
-            api_key=config.ig_api_key,
-            api_key_header=config.ig_api_key_header,
-            engine_contracts_root=config.engine_contracts_root,
-        )
+        publish_mode = str(config.publish_mode or "ig").strip().lower()
+        if publish_mode == "internal_bus":
+            self.publisher = DecisionFabricInternalPublisher(
+                event_bus_kind=config.event_bus_kind,
+                event_bus_root=config.event_bus_root,
+                event_bus_stream=config.event_bus_stream,
+                event_bus_region=config.event_bus_region,
+                event_bus_endpoint_url=config.event_bus_endpoint_url,
+                class_map_ref=config.class_map_ref,
+                partitioning_profiles_ref=config.partitioning_profiles_ref,
+                engine_contracts_root=config.engine_contracts_root,
+            )
+        else:
+            self.publisher = DecisionFabricIgPublisher(
+                ig_ingest_url=config.ig_ingest_url,
+                api_key=config.ig_api_key,
+                api_key_header=config.ig_api_key_header,
+                engine_contracts_root=config.engine_contracts_root,
+            )
         self.synthesizer = DecisionSynthesizer()
         self.run_config_digest = _sha256(
             {
@@ -777,6 +792,9 @@ def load_worker_config(profile_path: Path) -> DfWorkerConfig:
         registry_snapshot_ref=Path(str(_env(df_policy.get("registry_snapshot_ref") or "config/platform/df/registry_snapshot_local_parity_v0.yaml"))),
         engine_contracts_root=Path(str(_env(df_wiring.get("engine_contracts_root") or "docs/model_spec/data-engine/interface_pack/contracts"))),
         class_map_ref=Path(str(_env(df_wiring.get("class_map_ref") or "config/platform/ig/class_map_v0.yaml"))),
+        partitioning_profiles_ref=Path(
+            str(_env(df_wiring.get("partitioning_profiles_ref") or wiring.get("partitioning_profiles_ref") or "config/platform/ig/partitioning_profiles_v0.yaml"))
+        ),
         event_bus_kind=str(_env(df_wiring.get("event_bus_kind") or wiring.get("event_bus_kind") or "kinesis")).strip().lower(),
         event_bus_root=str(_env(df_wiring.get("event_bus_root") or "runs/fraud-platform/eb")).strip(),
         event_bus_stream=_none_if_blank(_env(df_wiring.get("event_bus_stream") or event_bus.get("stream") or "auto")),
@@ -806,6 +824,7 @@ def load_worker_config(profile_path: Path) -> DfWorkerConfig:
         scenario_run_id_hint=_none_if_blank(
             _env(df_wiring.get("scenario_run_id_hint") or os.getenv("DF_SCENARIO_RUN_ID"))
         ),
+        publish_mode=str(_env(df_wiring.get("publish_mode") or os.getenv("DF_PUBLISH_MODE") or "ig")).strip().lower(),
     )
 
 
