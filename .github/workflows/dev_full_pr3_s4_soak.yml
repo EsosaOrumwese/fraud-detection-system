@@ -3,6 +3,8 @@ name: dev-full-pr3-s4-soak
 run-name: >-
   PR3 S4 soak (${{
     inputs.pr3_execution_id
+  }}, ref=${{
+    inputs.code_ref
   }}) @ ${{
     inputs.target_steady_eps
   }} eps
@@ -18,6 +20,11 @@ on:
       aws_role_to_assume:
         description: "OIDC role ARN used by GitHub Actions"
         required: true
+        type: string
+      code_ref:
+        description: "Git ref containing the PR3 scripts and runtime code to execute"
+        required: true
+        default: "cert-platform"
         type: string
       pr3_execution_id:
         description: "Strict PR3 execution id"
@@ -107,6 +114,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.code_ref }}
+          fetch-depth: 0
 
       - name: Reject static AWS credential posture
         shell: bash
@@ -434,6 +444,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dev-full-pr3-s4-${{ inputs.pr3_execution_id }}
+          if-no-files-found: error
           path: |
             ${{ steps.meta.outputs.run_dir }}/g3a_s4_*.json
             ${{ steps.meta.outputs.run_dir }}/g3a_scorecard_soak.json
