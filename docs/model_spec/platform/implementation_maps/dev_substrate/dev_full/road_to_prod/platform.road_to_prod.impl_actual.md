@@ -9252,3 +9252,40 @@ uns/.../degrade_ladder/* on its own filesystem,
    - it aligns the harness to production behavior: one active runtime, one run scope, burst followed by recovery,
    - it preserves replay realism because checkpoint continuation prevents duplicate-heavy restart behavior,
    - it makes component snapshots meaningful again because the queried run scope will actually exist in the live workers.
+
+## Entry: 2026-03-08 04:06:58 +00:00 - PR3-S3 recovery is red because WSP resume still pays Python-row replay cost from the beginning of large parquet files; the correct fix is batch-level fast-forward, not design rollback
+1. I paused on the live `PR3-S3` evidence to isolate whether the remaining red was caused by:
+   - downstream RTDL instability,
+   - ingress throttling,
+   - or source-side replay inefficiency inside WSP recovery.
+2. The evidence is now strong and internally consistent:
+   - `g3a_s3_prestress_wsp_runtime_summary.json` is green at `6034.083 eps`, so the burst path is proven on the same substrate,
+   - `g3a_s3_recovery_wsp_runtime_summary.json` is red at `274.861 eps` with `4xx=0`, `5xx=0`, so the recovery deficit is not an IG rejection problem,
+   - `g3a_recovery_timeline.json` shows `0 eps` for the first two one-minute bins and only `824.583 eps` in the final bin,
+   - component snapshots remain healthy early in the window, so RTDL is not collapsing before traffic arrives.
+3. The WSP lane logs make the source-side defect explicit:
+   - prestress lane `0` logs first progress around `03:43:05` at rows `11k-19k`,
+   - recovery lane `0` logs first progress only around `03:56:05` to `03:56:26` at rows `83k-885k`,
+   - this is the signature of resume spending minutes traversing already-covered parquet prefixes before it reaches the first post-checkpoint emission point.
+4. I verified the underlying oracle stream_view geometry:
+   - traffic output `s3_event_stream_with_fraud_6B` has `473,383,388` rows across `400` files and `7.5 GiB`,
+   - each inspected parquet file has exactly `1` row group, so a row-group seek redesign would not materially help this dataset,
+   - recovery cursor positions are deep inside those files (for example traffic around `833k-947k` rows, context around `140k-190k` rows).
+5. The runner defect is narrower than the original “checkpoint model is wrong” suspicion:
+   - checkpoint continuity itself is still the right production posture and should be preserved,
+   - the expensive part is that `_read_stream_view_rows_with_index()` eagerly converts every skipped batch into Python rows,
+   - then `_stream_from_stream_view()` discards them via `_should_skip(cursor, file_path, row_index)`,
+   - with one large row group per file, this means recovery re-pays Python object materialization for hundreds of thousands of rows before sending useful traffic.
+6. Alternatives considered and rejected:
+   - repin recovery to a fresh run id or disable checkpoint continuation: rejected because that breaks the actual meaning of burst-to-steady recovery,
+   - repartition/rebuild oracle stream_view files: rejected because the data engine/oracle artifacts are out of bounds for platform hardening,
+   - weaken the recovery threshold or accept ingress-only proof: rejected because the state’s purpose is production recovery, not a partial green.
+7. Selected remediation:
+   - keep the current checkpoint scope and platform identity model unchanged,
+   - refactor WSP stream_view reading so recovery can fast-forward numerically at the Arrow batch layer before converting rows to Python objects,
+   - thread an explicit `start_row_index` into the parquet reader and skip whole batches when they lie entirely before the cursor,
+   - preserve deterministic row indexing and current cursor semantics so no contract drift is introduced.
+8. Expected production effect:
+   - recovery should stop burning the first `2-3` minutes rehydrating already-covered file prefixes,
+   - first useful emissions should arrive near the start of the recovery measurement window,
+   - `PR3-S3` should then be decided on actual recovery capacity rather than source-reader waste.

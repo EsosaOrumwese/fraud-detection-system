@@ -685,6 +685,8 @@ class WorldStreamProducer:
                 raise IngestionError("STREAM_VIEW_EMPTY", output_id)
             files = sorted([path for path in files if path.endswith(".parquet")])
             cursor = checkpoint_store.load(checkpoint_pack_key, output_id)
+            if cursor:
+                files = [path for path in files if path >= cursor.last_file]
             last_ts: datetime | None = None
             emitted_output = 0
             last_progress_time = time.monotonic()
@@ -762,14 +764,16 @@ class WorldStreamProducer:
             push_executor = ThreadPoolExecutor(max_workers=push_concurrency)
             try:
                 for file_path in files:
+                    start_row_index = 0
+                    if cursor and file_path == cursor.last_file:
+                        start_row_index = max(0, int(cursor.last_row_index) + 1)
                     for row_index, row in _read_stream_view_rows_with_index(
                         file_path,
                         endpoint=self.profile.wiring.object_store_endpoint,
                         region=self.profile.wiring.object_store_region,
                         path_style=self.profile.wiring.object_store_path_style,
+                        start_row_index=start_row_index,
                     ):
-                        if cursor and _should_skip(cursor, file_path, row_index):
-                            continue
                         payload = _payload_from_stream_row(row)
                         entry = self._catalogue.get(output_id)
                         pins = {
@@ -1271,10 +1275,29 @@ def _read_stream_view_rows_with_index(
     endpoint: str | None,
     region: str | None,
     path_style: bool | None,
+    start_row_index: int = 0,
 ) -> Any:
-    import pyarrow as pa
     import pyarrow.fs as fs
     import pyarrow.parquet as pq
+
+    effective_start_row = max(0, int(start_row_index))
+
+    def _yield_from_parquet(parquet: Any) -> Any:
+        row_index = 0
+        batch_size = int(os.getenv("WSP_STREAM_VIEW_BATCH_SIZE", "1024"))
+        for batch in parquet.iter_batches(batch_size=batch_size):
+            batch_rows = int(batch.num_rows)
+            batch_end = row_index + batch_rows
+            if batch_end <= effective_start_row:
+                row_index = batch_end
+                continue
+            slice_offset = max(0, effective_start_row - row_index)
+            current_row_index = row_index + slice_offset
+            materialized = batch.slice(slice_offset) if slice_offset else batch
+            for row in materialized.to_pylist():
+                yield current_row_index, row
+                current_row_index += 1
+            row_index = batch_end
 
     if path.startswith("s3://"):
         parsed = urlparse(path)
@@ -1300,19 +1323,11 @@ def _read_stream_view_rows_with_index(
         key = parsed.path.lstrip("/")
         with filesystem.open_input_file(f"{parsed.netloc}/{key}") as handle:
             parquet = pq.ParquetFile(handle)
-            row_index = 0
-            for batch in parquet.iter_batches(batch_size=int(os.getenv("WSP_STREAM_VIEW_BATCH_SIZE", "1024"))):
-                for row in batch.to_pylist():
-                    yield row_index, row
-                    row_index += 1
+            yield from _yield_from_parquet(parquet)
         return
     local_path = Path(path)
     parquet = pq.ParquetFile(local_path)
-    row_index = 0
-    for batch in parquet.iter_batches(batch_size=int(os.getenv("WSP_STREAM_VIEW_BATCH_SIZE", "1024"))):
-        for row in batch.to_pylist():
-            yield row_index, row
-            row_index += 1
+    yield from _yield_from_parquet(parquet)
     return
 
 
