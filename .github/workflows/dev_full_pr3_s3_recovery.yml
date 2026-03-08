@@ -169,30 +169,22 @@ jobs:
           set -euo pipefail
           RUN_DIR="runs/dev_substrate/dev_full/road_to_prod/run_control/${{ inputs.pr3_execution_id }}"
           mkdir -p "${RUN_DIR}"
-          readarray -t RUN_IDS < <(python - <<'PY'
-          from datetime import datetime, timedelta, timezone
+          readarray -t RUN_METADATA < <(python - <<'PY'
+          from datetime import datetime, timezone
+          import uuid
           base = datetime.now(timezone.utc).replace(microsecond=0)
           print(base.strftime("platform_%Y%m%dT%H%M%SZ"))
-          print((base + timedelta(seconds=1)).strftime("platform_%Y%m%dT%H%M%SZ"))
+          print(uuid.uuid4().hex)
+          print(base.strftime("%Y%m%dT%H%M%SZ"))
           PY
           )
-          PRESTRESS_RUN_ID="${RUN_IDS[0]}"
-          RECOVERY_RUN_ID="${RUN_IDS[1]}"
-          PRESTRESS_SCENARIO_RUN_ID="$(python - <<'PY'
-          import uuid
-          print(uuid.uuid4().hex)
-          PY
-          )"
-          RECOVERY_SCENARIO_RUN_ID="$(python - <<'PY'
-          import uuid
-          print(uuid.uuid4().hex)
-          PY
-          )"
+          ACTIVE_RUN_ID="${RUN_METADATA[0]}"
+          ACTIVE_SCENARIO_RUN_ID="${RUN_METADATA[1]}"
+          CHECKPOINT_ATTEMPT_ID="${RUN_METADATA[2]}"
           echo "run_dir=${RUN_DIR}" >> "$GITHUB_OUTPUT"
-          echo "prestress_platform_run_id=${PRESTRESS_RUN_ID}" >> "$GITHUB_OUTPUT"
-          echo "recovery_platform_run_id=${RECOVERY_RUN_ID}" >> "$GITHUB_OUTPUT"
-          echo "prestress_scenario_run_id=${PRESTRESS_SCENARIO_RUN_ID}" >> "$GITHUB_OUTPUT"
-          echo "recovery_scenario_run_id=${RECOVERY_SCENARIO_RUN_ID}" >> "$GITHUB_OUTPUT"
+          echo "active_platform_run_id=${ACTIVE_RUN_ID}" >> "$GITHUB_OUTPUT"
+          echo "active_scenario_run_id=${ACTIVE_SCENARIO_RUN_ID}" >> "$GITHUB_OUTPUT"
+          echo "wsp_checkpoint_attempt_id=${CHECKPOINT_ATTEMPT_ID}" >> "$GITHUB_OUTPUT"
 
       - name: Hydrate PR3 upstream evidence from S3
         shell: bash
@@ -242,6 +234,17 @@ jobs:
             --region "${{ inputs.aws_region }}" \
             --name "${{ inputs.eks_cluster_name }}"
 
+      - name: Materialize fresh S3 runtime identity on EKS
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/pr3_rtdl_materialize.py \
+            --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
+            --platform-run-id "${{ steps.meta.outputs.active_platform_run_id }}" \
+            --scenario-run-id "${{ steps.meta.outputs.active_scenario_run_id }}" \
+            --region "${{ inputs.aws_region }}" \
+            --namespace "${{ env.EKS_NAMESPACE }}"
+
       - name: Verify runtime deployments ready
         shell: bash
         run: |
@@ -271,7 +274,8 @@ jobs:
           region = os.environ["AWS_REGION"]
           run_dir = Path(os.environ["RUN_DIR"])
           prestress_lane_count = max(1, int(os.environ["PRESTRESS_LANE_COUNT"]))
-          recovery_lane_count = max(1, int(os.environ["RECOVERY_LANE_COUNT"]))
+          requested_recovery_lane_count = max(1, int(os.environ["RECOVERY_LANE_COUNT"]))
+          recovery_lane_count = prestress_lane_count
           cpu_memory_pairs = {
               256: 1024,
               512: 1024,
@@ -368,6 +372,7 @@ jobs:
                       "total_cpu_units": prestress_lane_count * prestress_cpu,
                   },
                   "recovery": {
+                      "requested_lane_count": requested_recovery_lane_count,
                       "lane_count": recovery_lane_count,
                       "reserve_cpu_units": segment_reserve_cpu_units["recovery"],
                       "usable_cpu_units": recovery_usable_cpu_units,
@@ -395,7 +400,7 @@ jobs:
             --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
             --state-id S3 \
             --namespace "${{ env.EKS_NAMESPACE }}" \
-            --platform-run-id "${{ steps.upstream.outputs.upstream_platform_run_id }}" \
+            --platform-run-id "${{ steps.meta.outputs.active_platform_run_id }}" \
             --profile-path "/runtime-profile/dev_full.yaml" \
             --settle-seconds 30
 
@@ -410,8 +415,9 @@ jobs:
             --artifact-prefix g3a_s3_prestress \
             --blocker-prefix PR3.S3.PRESTRESS \
             --region "${{ inputs.aws_region }}" \
-            --platform-run-id "${{ steps.meta.outputs.prestress_platform_run_id }}" \
-            --scenario-run-id "${{ steps.meta.outputs.prestress_scenario_run_id }}" \
+            --platform-run-id "${{ steps.meta.outputs.active_platform_run_id }}" \
+            --scenario-run-id "${{ steps.meta.outputs.active_scenario_run_id }}" \
+            --checkpoint-attempt-id "${{ steps.meta.outputs.wsp_checkpoint_attempt_id }}" \
             --lane-count "${{ inputs.prestress_lane_count }}" \
             --expected-window-eps "${{ inputs.prestress_target_burst_eps }}" \
             --target-request-rate-eps "${{ inputs.prestress_target_request_rate_eps }}" \
@@ -440,14 +446,15 @@ jobs:
             --state-id S3 \
             --snapshot-label prestress_post \
             --namespace "${{ env.EKS_NAMESPACE }}" \
-            --platform-run-id "${{ steps.meta.outputs.prestress_platform_run_id }}"
+            --platform-run-id "${{ steps.meta.outputs.active_platform_run_id }}"
 
       - name: Run recovery steady with live sampling
         shell: bash
         env:
           PR3_EXECUTION_ID: ${{ inputs.pr3_execution_id }}
-          RECOVERY_PLATFORM_RUN_ID: ${{ steps.meta.outputs.recovery_platform_run_id }}
-          RECOVERY_SCENARIO_RUN_ID: ${{ steps.meta.outputs.recovery_scenario_run_id }}
+          ACTIVE_PLATFORM_RUN_ID: ${{ steps.meta.outputs.active_platform_run_id }}
+          ACTIVE_SCENARIO_RUN_ID: ${{ steps.meta.outputs.active_scenario_run_id }}
+          WSP_CHECKPOINT_ATTEMPT_ID: ${{ steps.meta.outputs.wsp_checkpoint_attempt_id }}
           AWS_REGION: ${{ inputs.aws_region }}
           EKS_NAMESPACE: ${{ env.EKS_NAMESPACE }}
         run: |
@@ -459,9 +466,10 @@ jobs:
             --artifact-prefix g3a_s3_recovery \
             --blocker-prefix PR3.S3.RECOVERY \
             --region "${AWS_REGION}" \
-            --platform-run-id "${RECOVERY_PLATFORM_RUN_ID}" \
-            --scenario-run-id "${RECOVERY_SCENARIO_RUN_ID}" \
-            --lane-count "${{ inputs.recovery_lane_count }}" \
+            --platform-run-id "${ACTIVE_PLATFORM_RUN_ID}" \
+            --scenario-run-id "${ACTIVE_SCENARIO_RUN_ID}" \
+            --checkpoint-attempt-id "${WSP_CHECKPOINT_ATTEMPT_ID}" \
+            --lane-count "${{ inputs.prestress_lane_count }}" \
             --expected-window-eps "${{ inputs.recovery_target_steady_eps }}" \
             --target-request-rate-eps "${{ inputs.recovery_target_request_rate_eps }}" \
             --duration-seconds "${{ inputs.recovery_duration_seconds }}" \
@@ -488,7 +496,7 @@ jobs:
               --state-id S3 \
               --snapshot-label "during_${SAMPLE_INDEX}" \
               --namespace "${EKS_NAMESPACE}" \
-              --platform-run-id "${RECOVERY_PLATFORM_RUN_ID}" || true
+              --platform-run-id "${ACTIVE_PLATFORM_RUN_ID}" || true
             SAMPLE_INDEX=$((SAMPLE_INDEX + 1))
             sleep 30
           done
@@ -504,7 +512,7 @@ jobs:
             --state-id S3 \
             --snapshot-label post \
             --namespace "${{ env.EKS_NAMESPACE }}" \
-            --platform-run-id "${{ steps.meta.outputs.recovery_platform_run_id }}"
+            --platform-run-id "${{ steps.meta.outputs.active_platform_run_id }}"
 
       - name: Build PR3-S3 recovery rollup
         shell: bash

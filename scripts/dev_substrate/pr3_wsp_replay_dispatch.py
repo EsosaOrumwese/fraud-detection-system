@@ -808,6 +808,7 @@ def main() -> None:
     ap.add_argument("--output-concurrency", type=int, default=4)
     ap.add_argument("--ig-push-concurrency", type=int, default=4)
     ap.add_argument("--http-pool-maxsize", type=int, default=512)
+    ap.add_argument("--checkpoint-attempt-id", default="")
     ap.add_argument("--target-request-rate-eps", type=float, default=0.0)
     ap.add_argument("--target-burst-seconds", type=float, default=0.25)
     ap.add_argument("--target-initial-tokens", type=float, default=0.25)
@@ -902,7 +903,7 @@ def main() -> None:
     security_groups = parse_csv(args.security_group_ids)
     blockers: list[str] = []
     submitted_at = datetime.now(timezone.utc)
-    checkpoint_attempt_id = submitted_at.strftime("%Y%m%dT%H%M%SZ")
+    checkpoint_attempt_id = str(args.checkpoint_attempt_id).strip() or submitted_at.strftime("%Y%m%dT%H%M%SZ")
 
     lane_count = max(1, int(args.lane_count))
     resolved_platform_run_id = require_canonical_platform_run_id(

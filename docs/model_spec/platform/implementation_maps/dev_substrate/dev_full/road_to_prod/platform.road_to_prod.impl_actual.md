@@ -9221,3 +9221,34 @@ uns/.../degrade_ladder/* on its own filesystem,
    - the platform under test has not yet shown a hard `6000 eps` burst ceiling,
    - the current red state is dominated by harness correctness and launcher efficiency defects,
    - fixing those defects is required before any honest architectural conclusion can be drawn about `PR3-S3`.
+
+## Entry: 2026-03-08 03:42:30 +00:00 - PR3-S3 now proves ingress burst/recovery, and exposes the deeper design defect: S3 is still coupled to the old S2 runtime scope instead of a single fresh S3 scope
+1. The latest strict rerun (`22812794980`) cleared the previously known launcher defects:
+   - prestress now reached `6028.253 eps` against the `6000 eps` target,
+   - recovery held `3018.033 eps` against the `3000 eps` target,
+   - both windows were clean on edge quality (`4xx=0`, `5xx=0`, latency well inside budget).
+2. The remaining `HOLD_REMEDIATE` verdict is entirely inside the runtime evidence lane:
+   - `g3a_s3_component_snapshot_*` files show every RTDL component path under `runs/fraud-platform/platform_20260308T031412Z/...` as `__missing__`,
+   - rollup therefore emits `lag_p99=None`, `checkpoint_p99=None`, all counter deltas `None`, and `stable_utc_unresolved`,
+   - this is not because the components are unhealthy; it is because the workflow never materialized the live RTDL deployments to the S3 run identity.
+3. The evidence shows S3 is still implicitly leaning on the prior `S2` runtime materialization:
+   - `S2` snapshots for `platform_20260308T012604Z` contain real run-scoped metrics and health payloads,
+   - `S3` warm gate still uses the upstream `S2` `platform_run_id`,
+   - `S3` launches fresh prestress/recovery WSP identities against that still-running `S2` runtime, so the recovery component snapshots query a run scope that no pod has adopted.
+4. This exposes a more important production-realism problem than the original `_r` suffix bug:
+   - real recovery after burst should be measured on the same active runtime scope that absorbed the burst,
+   - the current `S3` harness splits the state into two isolated WSP identities without first materializing a fresh S3 runtime identity,
+   - the result is an ingress-only recovery proof rather than an end-to-end RTDL recovery proof.
+5. Alternatives considered and rejected:
+   - rematerialize only between prestress and recovery with a new recovery platform id: rejected because that would reset the runtime and convert recovery into a new-run steady test, not a burst-to-steady recovery measurement,
+   - keep fresh prestress/recovery ids and teach the snapshot collector to fall back to `S2` paths: rejected because it would hide a real run-scope mismatch and silently decouple component evidence from the traffic under test,
+   - accept ingress-only green and move on: rejected because `PR3-S3` exists specifically to prove bounded end-to-end recovery, not just edge stability.
+6. Selected production-coherent redesign:
+   - materialize a fresh `S3` runtime identity on EKS before prestress, exactly as `S2` materialized a fresh `S2` identity,
+   - keep `prestress` and `recovery` on the same `platform_run_id` and `scenario_run_id`,
+   - reuse the same WSP checkpoint namespace across both windows so recovery continues from persisted offsets instead of restarting from the beginning,
+   - keep the same lane count across both windows because checkpoint scope is lane-bound; only rate targets and task sizing may change.
+7. Why this is the right answer:
+   - it aligns the harness to production behavior: one active runtime, one run scope, burst followed by recovery,
+   - it preserves replay realism because checkpoint continuation prevents duplicate-heavy restart behavior,
+   - it makes component snapshots meaningful again because the queried run scope will actually exist in the live workers.
