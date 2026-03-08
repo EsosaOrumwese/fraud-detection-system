@@ -26,6 +26,11 @@ on:
         required: true
         default: "cert-platform"
         type: string
+      platform_image_uri:
+        description: "Optional explicit immutable platform image URI (repo@sha256:...)"
+        required: false
+        default: ""
+        type: string
       pr3_execution_id:
         description: "Strict PR3 execution id"
         required: true
@@ -224,7 +229,8 @@ jobs:
             --platform-run-id "${{ steps.meta.outputs.active_platform_run_id }}" \
             --scenario-run-id "${{ steps.meta.outputs.active_scenario_run_id }}" \
             --region "${{ inputs.aws_region }}" \
-            --namespace "${{ env.EKS_NAMESPACE }}"
+            --namespace "${{ env.EKS_NAMESPACE }}" \
+            --image-uri "${{ inputs.platform_image_uri }}"
 
       - name: Verify runtime deployments ready
         shell: bash
@@ -267,6 +273,89 @@ jobs:
             --snapshot-label pre \
             --namespace "${{ env.EKS_NAMESPACE }}" \
             --platform-run-id "${{ steps.meta.outputs.active_platform_run_id }}"
+
+      - name: Repin WSP task family to explicit immutable image
+        if: ${{ inputs.platform_image_uri != '' }}
+        id: repin_wsp_taskdef
+        shell: bash
+        env:
+          IMAGE_URI: ${{ inputs.platform_image_uri }}
+          TASK_FAMILY: fraud-platform-dev-full-wsp-ephemeral
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          import tempfile
+
+          region = "${{ inputs.aws_region }}"
+          family = os.environ["TASK_FAMILY"]
+          image_uri = os.environ["IMAGE_URI"].strip()
+          if "@" not in image_uri or not image_uri.rsplit("@", 1)[-1].startswith("sha256:"):
+              raise SystemExit(f"PR3.S4.RUNTIME.B00_IMAGE_NOT_DIGEST_PINNED:{image_uri}")
+
+          def aws_json(args):
+              proc = subprocess.run(
+                  ["aws", *args, "--region", region, "--output", "json"],
+                  check=True,
+                  capture_output=True,
+                  text=True,
+              )
+              return json.loads(proc.stdout or "{}")
+
+          describe = aws_json(["ecs", "describe-task-definition", "--task-definition", family, "--include", "TAGS"])
+          task_def = dict(describe.get("taskDefinition") or {})
+          containers = list(task_def.get("containerDefinitions") or [])
+          if not containers:
+              raise SystemExit(f"PR3.S4.RUNTIME.B01_TASKDEF_EMPTY:{family}")
+          current_images = [str(row.get("image") or "").strip() for row in containers]
+          current_taskdef_arn = str(task_def.get("taskDefinitionArn") or "").strip()
+          if current_images and all(current == image_uri for current in current_images):
+              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+                  fh.write(f"task_definition_arn={current_taskdef_arn}\n")
+                  fh.write("registered_new_revision=false\n")
+              raise SystemExit(0)
+
+          allowed_fields = [
+              "family",
+              "taskRoleArn",
+              "executionRoleArn",
+              "networkMode",
+              "containerDefinitions",
+              "volumes",
+              "placementConstraints",
+              "requiresCompatibilities",
+              "cpu",
+              "memory",
+              "pidMode",
+              "ipcMode",
+              "proxyConfiguration",
+              "inferenceAccelerators",
+              "ephemeralStorage",
+              "runtimePlatform",
+          ]
+          register_payload = {key: task_def[key] for key in allowed_fields if key in task_def}
+          for container in containers:
+              container["image"] = image_uri
+          register_payload["containerDefinitions"] = containers
+          tags = describe.get("tags") or []
+          if tags:
+              register_payload["tags"] = tags
+
+          with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as tmp:
+              json.dump(register_payload, tmp)
+              tmp.write("\n")
+              tmp_path = tmp.name
+
+          registered = aws_json(["ecs", "register-task-definition", "--cli-input-json", f"file://{tmp_path}"])
+          task_definition_arn = str((registered.get("taskDefinition") or {}).get("taskDefinitionArn") or "").strip()
+          if not task_definition_arn:
+              raise SystemExit("PR3.S4.RUNTIME.B02_WSP_TASKDEF_REPIN_EMPTY")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"task_definition_arn={task_definition_arn}\n")
+              fh.write("registered_new_revision=true\n")
+          PY
 
       - name: Drain stale WSP ephemeral tasks before soak
         shell: bash
