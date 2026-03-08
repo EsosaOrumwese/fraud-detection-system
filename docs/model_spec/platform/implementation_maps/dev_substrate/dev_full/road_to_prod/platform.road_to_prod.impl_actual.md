@@ -9055,3 +9055,44 @@ uns/.../degrade_ladder/* on its own filesystem,
    - `open_blockers = 0`,
    - `next_state = PR3-S3`.
 8. Active PR3 focus now moves to recovery certification (`S3`), not more burst remediation. Any further S2 work would be drift unless a later state exposes a new burst regression.
+
+## Entry: 2026-03-08 02:14:00 +00:00 - PR3-S3 recovery contract pinned before implementation
+1. I moved from the closed `PR3-S2` burst boundary into `PR3-S3`, whose job is to prove recovery-to-stable after burst pressure. I explicitly pinned the `S3` contract before coding because the repo did not yet have a dedicated `S3` executor/workflow and the stable-definition could not be left implicit.
+2. The first design choice is the recovery execution shape. I rejected “reuse the same WSP replay under the same `platform_run_id` at a lower rate” because WSP replays the same oracle event ids. Reusing the burst identity would therefore turn the recovery segment into a duplicate-heavy benchmark and contaminate the answer to the production question.
+3. The selected posture is:
+   - segment A: burst prestress on the certified canonical remote `WSP -> IG` path,
+   - segment B: immediate return to steady load on the same live infrastructure but under a fresh recovery `platform_run_id` / `scenario_run_id`.
+4. Why this is production-coherent:
+   - the platform components and infrastructure remain hot and pressured from segment A,
+   - the recovery proof remains first-admission valid for ingress and downstream run-scoped artifacts,
+   - the claim being made is “the live platform returns to stable under resumed steady traffic after burst pressure,” not “the same replay ids can be resent inside the same logical run.”
+5. I pinned the `PR3-S3` stable definition to concrete production-facing impact metrics:
+   - admitted throughput `>= 3000 eps`,
+   - `4xx_ratio <= 0.002`, `5xx_ratio = 0`, `error_rate_ratio <= 0.002`,
+   - `p95 <= 350 ms`, `p99 <= 700 ms`,
+   - `ofp.lag_seconds p99 <= 5.0 s`,
+   - `max(ieg/ofp/dla checkpoint_age_seconds) p99 <= 30.0 s`,
+   - `DL decision_mode = NORMAL` with required signals recovered,
+   - zero growth in `DF fail_closed/quarantine`, `AL quarantine/ambiguous`, `DLA append_failure/replay_divergence`, and `archive_writer write_error/payload_mismatch`.
+6. I selected those numbers deliberately:
+   - ingress recovery thresholds reuse the already pinned steady-state contract, which avoids creating a weaker “recovery-only” hot-path standard,
+   - the lag/checkpoint limits are much tighter than the generic red health defaults (`300 s`) because a platform that needs minutes to clear checkpoint-age noise after a burst is not production-ready for this target envelope,
+   - the values still leave large margin over the best observed `S1/S2` health posture, so they are not toy-tight or tuned to fail by construction.
+7. I also pinned the stable-time rule so the implementation cannot game the receipt:
+   - `recovery_start_utc` is the beginning of the steady-recovery measurement window,
+   - `stable_utc` is the first sampled instant at or after `recovery_start_utc` where all stable-definition checks pass,
+   - to count as stable, all later samples in the recovery window must stay green,
+   - `stable_utc - recovery_start_utc` must be `<= 180 s`.
+8. Sampling posture selected for implementation:
+   - reuse the existing live runtime snapshot collector,
+   - capture snapshots every `30 s` during the recovery window plus `pre` / `post`,
+   - emit a timeline artifact that records threshold crossing times and the exact stable point.
+9. Candidate implementation approaches considered:
+   - extend `pr3_wsp_replay_dispatch.py` to support a multi-segment campaign in one script: rejected for now because it would entangle already-validated state logic and increase rollback risk,
+   - orchestrate two dispatcher invocations in a dedicated `S3` workflow and compute recovery truth in a dedicated `pr3_s3_rollup.py`: selected because it reuses proven state primitives while keeping the new recovery logic isolated and auditable.
+10. Immediate implementation sequence chosen:
+   - materialize `pr3_s3_rollup.py`,
+   - materialize `dev_full_pr3_s3_recovery.yml`,
+   - validate locally,
+   - package/push the workflow milestone,
+   - execute strict `PR3-S3` from the current `PR3` root.

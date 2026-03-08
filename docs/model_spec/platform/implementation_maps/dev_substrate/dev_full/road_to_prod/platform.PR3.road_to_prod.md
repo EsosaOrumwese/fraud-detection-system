@@ -244,10 +244,26 @@ Fail-closed blockers:
 S3 planning expansion (execution checklist):
 1. stable-definition lock:
    - enforce pinned stable criteria for lag/latency/error normalization.
+   - pin recovery stable definition as:
+     - admitted throughput `>= 3000 eps` on `IG_ADMITTED_EVENTS_PER_SEC`,
+     - `4xx_ratio <= 0.002`, `5xx_ratio = 0`, `error_rate_ratio <= 0.002`,
+     - `p95 <= 350 ms`, `p99 <= 700 ms`,
+     - `ofp.lag_seconds p99 <= 5.0 s`,
+     - `max(ieg/ofp/dla checkpoint_age_seconds) p99 <= 30.0 s`,
+     - `DF fail_closed/quarantine`, `AL quarantine/ambiguous`, `DLA append_failure/replay_divergence`, and `archive_writer write_error/payload_mismatch` deltas all remain `0`,
+     - `DL decision_mode = NORMAL` with no bad required signals.
 2. bound lock:
    - all recovery limits must include observed and threshold values.
+   - recovery bound remains `180 s`; `stable_utc - recovery_start_utc` must be `<= 180 s`.
 3. causality lock:
    - timeline must provide deterministic ordering of mitigation and stabilization events.
+   - `stable_utc` is the first sampled instant at or after recovery start where all stable-definition checks pass and all later samples in the window remain green.
+4. identity lock:
+   - `S3` runs as a two-segment campaign: `burst prestress -> steady recovery`.
+   - recovery uses a fresh `platform_run_id` / `scenario_run_id`; reusing the burst run identity would turn the second segment into duplicate-heavy traffic because WSP replays stable oracle event ids.
+   - the production claim is about platform stabilization under live pressure, not about preserving a synthetic single-run identity across replay restarts.
+5. sampling lock:
+   - capture runtime snapshots every `30 s` across the recovery window so the `180 s` bound yields enough samples to prove stabilization timing rather than just end-state posture.
 
 ### S4 - Soak Certification Window Plus Mandatory Runtime Drills
 Objective:
