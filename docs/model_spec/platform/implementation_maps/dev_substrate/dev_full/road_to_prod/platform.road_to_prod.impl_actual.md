@@ -10719,3 +10719,35 @@ uns/.../degrade_ladder/* on its own filesystem,
 ### Local validation
 1. `python -m py_compile scripts/dev_substrate/pr3_rtdl_materialize.py scripts/dev_substrate/pr3_runtime_warm_gate.py` passed.
 2. No broader rerun has happened yet in this slice; the next boundary remains the same bounded `PR3-S4` window.
+## Entry: 2026-03-08 23:35:00 +00:00 - PR3-S4 learning proof must select a stable archived-labelled prefix, not the freshest label tail
+### Problem actual
+1. The active bounded PR3-S4 learning failure (PR3.B29_LEARNING_BOUND_FAIL:REPLAY_EVENTS_SHORTFALL:0<10) is not evidence that the learning plane is absent.
+2. Direct inspection of the live run shows two important facts:
+   - archive-backed traffic events for the active run do exist and are label-linked,
+   - but the current learning proof samples labels by committed_at_utc DESC, i.e. the freshest tail of the run.
+3. That selection policy is wrong for bounded correctness because the freshest label tail is not yet a closed replay surface. The active run keeps producing case/label records after the bounded traffic window, while the archive-backed traffic slice that learning needs is an earlier stable prefix.
+4. Empirical proof from the active run platform_20260308T195500Z:
+   - querying recent labels (ORDER BY committed_at_utc DESC LIMIT 1000) yielded zero matches in the archived traffic slice,
+   - querying earliest labels (ORDER BY committed_at_utc ASC LIMIT 300) immediately yielded replayable traffic matches; the first 15 archived traffic events all matched labelled subjects.
+5. Therefore the blocker is a bounded-proof cut defect: the script is selecting the wrong slice of a partially advancing run, not proving that OFS -> MF -> MPR cannot work.
+
+### Production interpretation
+1. For bounded whole-platform correctness, learning must operate on a consistent, closed prefix where:
+   - label truth exists,
+   - replayable traffic evidence exists,
+   - the join is deterministic and cheap to falsify.
+2. Using the freshest tail is production-incorrect for this boundary because it couples learning proof to downstream lag and archive completion race conditions rather than to a stable certified cut.
+3. A soak or longer stress window may later evaluate moving-tail freshness; S4 should not. S4 is the cheap correctness gate.
+
+### Chosen remediation
+1. Patch scripts/dev_substrate/pr3_s4_learning_bound.py so bounded learning samples labelled subjects from the earliest committed stable prefix rather than the latest tail.
+2. Make the selection mode explicit in the script summary so the receipt states that the proof used a closed archived-labelled prefix.
+3. Keep the replay source semantically correct:
+   - continue to require archived traffic events for OFS replay,
+   - do not substitute case-trigger payloads as dataset rows,
+   - do not weaken the learning corridor into a proxy-only proof.
+4. After local validation, rerun the same bounded PR3-S4 correctness boundary only.
+
+### Performance/cost posture
+1. This is the cheapest defensible fix because it changes subject selection rather than widening runtime duration or paying for another soak.
+2. It also reduces replay discovery cost materially: earliest committed labels align with the earliest archived traffic slice, so the archive scan short-circuits quickly instead of sweeping a long unmatched tail.

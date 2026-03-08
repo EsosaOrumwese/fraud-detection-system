@@ -97,14 +97,27 @@ def s3_relative_path(ref: str) -> tuple[str, str]:
     return parsed.netloc, parsed.path.lstrip("/")
 
 
-def query_label_subjects(*, dsn: str, platform_run_id: str, limit: int, label_type: str) -> list[dict[str, str]]:
-    sql = """
+def query_label_subjects(
+    *,
+    dsn: str,
+    platform_run_id: str,
+    limit: int,
+    label_type: str,
+    selection_mode: str,
+) -> list[dict[str, str]]:
+    if selection_mode == "stable_prefix":
+        order_clause = "ORDER BY MAX(committed_at_utc) ASC"
+    elif selection_mode == "latest_tail":
+        order_clause = "ORDER BY MAX(committed_at_utc) DESC"
+    else:
+        raise RuntimeError(f"PR3.B29_LEARNING_BOUND_FAIL:LABEL_SELECTION_MODE_INVALID:{selection_mode}")
+    sql = f"""
         SELECT event_id, MAX(observed_time) AS observed_time, MAX(committed_at_utc) AS committed_at_utc
         FROM ls_label_timeline
         WHERE platform_run_id = %s
           AND label_type = %s
         GROUP BY event_id
-        ORDER BY MAX(committed_at_utc) DESC
+        {order_clause}
         LIMIT %s
     """
     rows: list[dict[str, str]] = []
@@ -204,6 +217,7 @@ def main() -> None:
     parser.add_argument("--min-labelled-subjects", type=int, default=10)
     parser.add_argument("--min-replay-events", type=int, default=10)
     parser.add_argument("--label-type", default="fraud_disposition")
+    parser.add_argument("--label-selection-mode", choices=("stable_prefix", "latest_tail"), default="stable_prefix")
     args = parser.parse_args()
 
     run_root = Path(args.run_control_root) / args.pr3_execution_id
@@ -247,6 +261,7 @@ def main() -> None:
             platform_run_id=args.platform_run_id,
             limit=max(args.sample_limit * 4, args.min_labelled_subjects),
             label_type=args.label_type,
+            selection_mode=args.label_selection_mode,
         )
         if len(subjects) < args.min_labelled_subjects:
             raise RuntimeError(
@@ -451,6 +466,7 @@ def main() -> None:
                 "archive_topic_candidates": list(topic_candidates),
                 "archive_topic_used": topic_used,
                 "label_type": args.label_type,
+                "label_selection_mode": args.label_selection_mode,
                 "label_asof_utc": label_asof_utc,
                 "sample_limit": args.sample_limit,
             },
