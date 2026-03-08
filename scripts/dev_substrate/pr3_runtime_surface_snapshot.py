@@ -150,6 +150,34 @@ COMPONENTS: dict[str, dict[str, Any]] = {
             "payload_mismatch_total_delta_max": 0,
         },
     },
+    "case_trigger": {
+        "app": "fp-pr3-case-trigger",
+        "metrics_path": "runs/fraud-platform/{platform_run_id}/case_trigger/metrics/last_metrics.json",
+        "health_path": "runs/fraud-platform/{platform_run_id}/case_trigger/health/last_health.json",
+        "threshold_defaults": {
+            "publish_quarantine_total_delta_max": 0,
+            "publish_ambiguous_total_delta_max": 0,
+            "payload_mismatch_total_delta_max": 0,
+        },
+    },
+    "case_mgmt": {
+        "app": "fp-pr3-case-mgmt",
+        "metrics_path": "runs/fraud-platform/{platform_run_id}/case_mgmt/metrics/last_metrics.json",
+        "health_path": "runs/fraud-platform/{platform_run_id}/case_mgmt/health/last_health.json",
+        "threshold_defaults": {
+            "mismatches_total_delta_max": 0,
+            "anomalies_total_delta_max": 0,
+        },
+    },
+    "label_store": {
+        "app": "fp-pr3-label-store",
+        "metrics_path": "runs/fraud-platform/{platform_run_id}/label_store/metrics/last_metrics.json",
+        "health_path": "runs/fraud-platform/{platform_run_id}/label_store/health/last_health.json",
+        "threshold_defaults": {
+            "rejected_delta_max": 0,
+            "pending_backlog_red": 500.0,
+        },
+    },
 }
 
 
@@ -282,6 +310,36 @@ def pick_summary(component: str, metrics_payload: dict[str, Any], health_payload
                 "payload_mismatch_total": to_float(metrics.get("payload_mismatch_total")),
                 "write_error_total": to_float(metrics.get("write_error_total")),
                 "backlog_events": max(0.0, seen - archived),
+            }
+        )
+    elif component == "case_trigger":
+        summary.update(
+            {
+                "triggers_seen": to_float(metrics.get("triggers_seen")),
+                "publish_admitted_total": to_float(metrics.get("publish_admitted_total")),
+                "publish_quarantine_total": to_float(metrics.get("publish_quarantine_total")),
+                "publish_ambiguous_total": to_float(metrics.get("publish_ambiguous_total")),
+                "replay_mismatch_total": to_float(metrics.get("payload_mismatch_total")),
+            }
+        )
+    elif component == "case_mgmt":
+        anomalies = dict(health_payload.get("anomalies", {}) or {})
+        summary.update(
+            {
+                "case_triggers": to_float(metrics.get("case_triggers")),
+                "cases_created": to_float(metrics.get("cases_created")),
+                "case_replays": to_float(metrics.get("case_replays")),
+                "payload_mismatches": to_float(metrics.get("payload_mismatches")),
+                "anomalies_total": to_float(anomalies.get("total")),
+            }
+        )
+    elif component == "label_store":
+        summary.update(
+            {
+                "pending": to_float(metrics.get("pending")),
+                "accepted": to_float(metrics.get("accepted")),
+                "rejected": to_float(metrics.get("rejected")),
+                "reconciliation_anomalies": to_float(metrics.get("reconciliation_anomalies")),
             }
         )
     return summary

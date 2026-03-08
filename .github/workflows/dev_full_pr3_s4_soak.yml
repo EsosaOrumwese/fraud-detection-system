@@ -1,0 +1,437 @@
+name: dev-full-pr3-s4-soak
+
+on:
+  workflow_dispatch:
+    inputs:
+      aws_region:
+        description: "AWS region"
+        required: true
+        default: "eu-west-2"
+        type: string
+      aws_role_to_assume:
+        description: "OIDC role ARN used by GitHub Actions"
+        required: true
+        type: string
+      pr3_execution_id:
+        description: "Strict PR3 execution id"
+        required: true
+        default: "pr3_20260306T021900Z"
+        type: string
+      evidence_bucket:
+        description: "Evidence bucket"
+        required: true
+        default: "fraud-platform-dev-full-evidence"
+        type: string
+      eks_cluster_name:
+        description: "EKS cluster name"
+        required: true
+        default: "fraud-platform-dev-full"
+        type: string
+      lane_count:
+        description: "Remote WSP soak lane count"
+        required: true
+        default: "32"
+        type: string
+      target_steady_eps:
+        description: "Soak EPS target"
+        required: true
+        default: "3000"
+        type: string
+      target_request_rate_eps:
+        description: "Generator setpoint EPS"
+        required: true
+        default: "3030"
+        type: string
+      duration_seconds:
+        description: "Soak duration seconds"
+        required: true
+        default: "1800"
+        type: string
+      warmup_seconds:
+        description: "Same-run warmup before certification measurement begins"
+        required: true
+        default: "120"
+        type: string
+      stream_speedup:
+        description: "Oracle replay speedup multiplier"
+        required: true
+        default: "51.2"
+        type: string
+      ig_push_concurrency:
+        description: "Per-lane concurrent IG pushes"
+        required: true
+        default: "4"
+        type: string
+      output_concurrency:
+        description: "Concurrent output streams per WSP lane"
+        required: true
+        default: "4"
+        type: string
+      http_pool_maxsize:
+        description: "HTTP connection pool size per WSP lane"
+        required: true
+        default: "512"
+        type: string
+      wsp_task_cpu:
+        description: "Fargate CPU units per WSP soak lane"
+        required: true
+        default: "512"
+        type: string
+      wsp_task_memory:
+        description: "Fargate memory MiB per WSP soak lane"
+        required: true
+        default: "2048"
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: dev-full-pr3-s4-soak-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  run_pr3_s4_soak:
+    runs-on: ubuntu-latest
+    env:
+      EKS_NAMESPACE: fraud-platform-rtdl
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject static AWS credential posture
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${AWS_ACCESS_KEY_ID:-}" || -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+            echo "Static AWS credentials are forbidden; use OIDC role assumption."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ inputs.aws_region }}
+          role-to-assume: ${{ inputs.aws_role_to_assume }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: "latest"
+
+      - name: Install runtime dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install boto3 botocore "psycopg[binary]" pyyaml
+
+      - name: Compute execution metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUN_DIR="runs/dev_substrate/dev_full/road_to_prod/run_control/${{ inputs.pr3_execution_id }}"
+          mkdir -p "${RUN_DIR}"
+          readarray -t RUN_METADATA < <(python - <<'PY'
+          from datetime import datetime, timezone
+          import uuid
+          base = datetime.now(timezone.utc).replace(microsecond=0)
+          print(base.strftime("platform_%Y%m%dT%H%M%SZ"))
+          print(uuid.uuid4().hex)
+          print(base.strftime("%Y%m%dT%H%M%SZ"))
+          PY
+          )
+          echo "run_dir=${RUN_DIR}" >> "$GITHUB_OUTPUT"
+          echo "active_platform_run_id=${RUN_METADATA[0]}" >> "$GITHUB_OUTPUT"
+          echo "active_scenario_run_id=${RUN_METADATA[1]}" >> "$GITHUB_OUTPUT"
+          echo "wsp_checkpoint_attempt_id=${RUN_METADATA[2]}" >> "$GITHUB_OUTPUT"
+
+      - name: Hydrate PR3 upstream evidence from S3
+        shell: bash
+        env:
+          EVIDENCE_BUCKET: ${{ inputs.evidence_bucket }}
+          PR3_EXECUTION_ID: ${{ inputs.pr3_execution_id }}
+          RUN_DIR: ${{ steps.meta.outputs.run_dir }}
+        run: |
+          set -euo pipefail
+          for name in \
+            pr3_s0_execution_receipt.json \
+            g3a_run_charter.active.json \
+            g3a_measurement_surface_map.json \
+            pr3_s1_execution_receipt.json \
+            pr3_s2_execution_receipt.json \
+            pr3_s3_execution_receipt.json \
+            g3a_scorecard_recovery.json \
+            g3a_recovery_bound_report.json; do
+            aws s3 cp \
+              "s3://${EVIDENCE_BUCKET}/evidence/dev_full/run_control/${PR3_EXECUTION_ID}/${name}" \
+              "${RUN_DIR}/${name}" \
+              --no-progress
+          done
+
+      - name: Validate strict upstream boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path("runs/dev_substrate/dev_full/road_to_prod/run_control/${{ inputs.pr3_execution_id }}/pr3_s3_execution_receipt.json")
+          payload = json.loads(path.read_text(encoding="utf-8"))
+          if payload.get("verdict") != "PR3_S3_READY" or int(payload.get("open_blockers", 1)) != 0:
+              raise SystemExit(f"PR3-S4 strict upstream invalid: {payload.get('verdict')} blockers={payload.get('open_blockers')}")
+          PY
+
+      - name: Configure kubeconfig
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws eks update-kubeconfig \
+            --region "${{ inputs.aws_region }}" \
+            --name "${{ inputs.eks_cluster_name }}"
+
+      - name: Materialize fresh S4 runtime identity on EKS
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/pr3_rtdl_materialize.py \
+            --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
+            --platform-run-id "${{ steps.meta.outputs.active_platform_run_id }}" \
+            --scenario-run-id "${{ steps.meta.outputs.active_scenario_run_id }}" \
+            --region "${{ inputs.aws_region }}" \
+            --namespace "${{ env.EKS_NAMESPACE }}"
+
+      - name: Verify runtime deployments ready
+        shell: bash
+        run: |
+          set -euo pipefail
+          for deployment in \
+            fp-pr3-csfb \
+            fp-pr3-ieg \
+            fp-pr3-ofp \
+            fp-pr3-dl \
+            fp-pr3-df \
+            fp-pr3-al \
+            fp-pr3-dla \
+            fp-pr3-archive-writer \
+            fp-pr3-case-trigger \
+            fp-pr3-case-mgmt \
+            fp-pr3-label-store; do
+            kubectl rollout status "deployment/${deployment}" -n "${{ env.EKS_NAMESPACE }}" --timeout=300s
+          done
+
+      - name: Warm-gate runtime before soak
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/pr3_runtime_warm_gate.py \
+            --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
+            --state-id S4 \
+            --namespace "${{ env.EKS_NAMESPACE }}" \
+            --platform-run-id "${{ steps.meta.outputs.active_platform_run_id }}" \
+            --profile-path "/runtime-profile/dev_full.yaml" \
+            --settle-seconds 30
+
+      - name: Capture pre-soak runtime snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/pr3_runtime_surface_snapshot.py \
+            --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
+            --state-id S4 \
+            --snapshot-label pre \
+            --namespace "${{ env.EKS_NAMESPACE }}" \
+            --platform-run-id "${{ steps.meta.outputs.active_platform_run_id }}"
+
+      - name: Drain stale WSP ephemeral tasks before soak
+        shell: bash
+        env:
+          AWS_REGION: ${{ inputs.aws_region }}
+          RUN_DIR: ${{ steps.meta.outputs.run_dir }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from datetime import datetime, timezone
+          import json
+          import os
+          from pathlib import Path
+          import boto3
+
+          region = os.environ["AWS_REGION"]
+          run_dir = Path(os.environ["RUN_DIR"])
+          cluster = "fraud-platform-dev-full-wsp-ephemeral"
+          ecs = boto3.client("ecs", region_name=region)
+          task_arns = ecs.list_tasks(cluster=cluster, desiredStatus="RUNNING").get("taskArns", [])
+          stopped = []
+          if task_arns:
+              described = ecs.describe_tasks(cluster=cluster, tasks=task_arns).get("tasks", [])
+              for task in described:
+                  task_arn = str(task.get("taskArn") or "").strip()
+                  if not task_arn:
+                      continue
+                  ecs.stop_task(
+                      cluster=cluster,
+                      task=task_arn,
+                      reason="PR3-S4 preflight stale WSP cleanup to restore deterministic Fargate headroom",
+                  )
+                  stopped.append({"task_arn": task_arn.rsplit('/', 1)[-1]})
+              ecs.get_waiter("tasks_stopped").wait(cluster=cluster, tasks=task_arns, WaiterConfig={"Delay": 6, "MaxAttempts": 30})
+          payload = {
+              "generated_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+              "cluster": cluster,
+              "stopped_task_count": len(stopped),
+              "stopped_tasks": stopped,
+          }
+          (run_dir / "g3a_s4_preflight_wsp_cleanup.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+          PY
+
+      - name: Run soak campaign with live sampling
+        shell: bash
+        env:
+          PR3_EXECUTION_ID: ${{ inputs.pr3_execution_id }}
+          ACTIVE_PLATFORM_RUN_ID: ${{ steps.meta.outputs.active_platform_run_id }}
+          ACTIVE_SCENARIO_RUN_ID: ${{ steps.meta.outputs.active_scenario_run_id }}
+          WSP_CHECKPOINT_ATTEMPT_ID: ${{ steps.meta.outputs.wsp_checkpoint_attempt_id }}
+          AWS_REGION: ${{ inputs.aws_region }}
+          EKS_NAMESPACE: ${{ env.EKS_NAMESPACE }}
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/pr3_wsp_replay_dispatch.py \
+            --pr3-execution-id "${PR3_EXECUTION_ID}" \
+            --state-id S4 \
+            --window-label soak \
+            --artifact-prefix g3a_s4 \
+            --blocker-prefix PR3.S4.WSP \
+            --region "${AWS_REGION}" \
+            --platform-run-id "${ACTIVE_PLATFORM_RUN_ID}" \
+            --scenario-run-id "${ACTIVE_SCENARIO_RUN_ID}" \
+            --checkpoint-attempt-id "${WSP_CHECKPOINT_ATTEMPT_ID}" \
+            --lane-count "${{ inputs.lane_count }}" \
+            --expected-window-eps "${{ inputs.target_steady_eps }}" \
+            --target-request-rate-eps "${{ inputs.target_request_rate_eps }}" \
+            --duration-seconds "${{ inputs.duration_seconds }}" \
+            --warmup-seconds "${{ inputs.warmup_seconds }}" \
+            --early-cutoff-seconds 600 \
+            --early-cutoff-floor-ratio 0.70 \
+            --stream-speedup "${{ inputs.stream_speedup }}" \
+            --output-concurrency "${{ inputs.output_concurrency }}" \
+            --ig-push-concurrency "${{ inputs.ig_push_concurrency }}" \
+            --http-pool-maxsize "${{ inputs.http_pool_maxsize }}" \
+            --target-burst-seconds 0.25 \
+            --target-initial-tokens 0.25 \
+            --task-cpu "${{ inputs.wsp_task_cpu }}" \
+            --task-memory "${{ inputs.wsp_task_memory }}" \
+            --max-latency-p95-ms 350 \
+            --max-latency-p99-ms 700 \
+            --skip-runtime-identity-probe &
+          CAMPAIGN_PID=$!
+          SAMPLE_INDEX=1
+          sleep 30
+          while kill -0 "${CAMPAIGN_PID}" 2>/dev/null; do
+            python scripts/dev_substrate/pr3_runtime_surface_snapshot.py \
+              --pr3-execution-id "${PR3_EXECUTION_ID}" \
+              --state-id S4 \
+              --snapshot-label "during_${SAMPLE_INDEX}" \
+              --namespace "${EKS_NAMESPACE}" \
+              --platform-run-id "${ACTIVE_PLATFORM_RUN_ID}" || true
+            SAMPLE_INDEX=$((SAMPLE_INDEX + 1))
+            sleep 60
+          done
+          wait "${CAMPAIGN_PID}"
+
+      - name: Capture post-soak runtime snapshot
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/pr3_runtime_surface_snapshot.py \
+            --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
+            --state-id S4 \
+            --snapshot-label post \
+            --namespace "${{ env.EKS_NAMESPACE }}" \
+            --platform-run-id "${{ steps.meta.outputs.active_platform_run_id }}"
+
+      - name: Build PR3-S4 soak rollup
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/pr3_s4_rollup.py \
+            --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
+            --state-id S4 \
+            --artifact-prefix g3a_s4 \
+            --expected-soak-eps "${{ inputs.target_steady_eps }}" \
+            --min-processed-events 5400000 \
+            --max-error-rate-ratio 0.002 \
+            --max-4xx-ratio 0.002 \
+            --max-5xx-ratio 0.0 \
+            --max-latency-p95-ms 350 \
+            --max-latency-p99-ms 700 \
+            --max-lag-p99-seconds 5.0 \
+            --max-checkpoint-p99-seconds 30.0 \
+            --budget-envelope-usd 250.0
+
+      - name: Drain WSP ephemeral tasks after PR3-S4
+        if: always()
+        shell: bash
+        env:
+          AWS_REGION: ${{ inputs.aws_region }}
+          RUN_DIR: ${{ steps.meta.outputs.run_dir }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from datetime import datetime, timezone
+          import json
+          import os
+          from pathlib import Path
+          import boto3
+
+          region = os.environ["AWS_REGION"]
+          run_dir = Path(os.environ["RUN_DIR"])
+          cluster = "fraud-platform-dev-full-wsp-ephemeral"
+          ecs = boto3.client("ecs", region_name=region)
+          task_arns = ecs.list_tasks(cluster=cluster, desiredStatus="RUNNING").get("taskArns", [])
+          stopped = []
+          if task_arns:
+              described = ecs.describe_tasks(cluster=cluster, tasks=task_arns).get("tasks", [])
+              for task in described:
+                  task_arn = str(task.get("taskArn") or "").strip()
+                  if not task_arn:
+                      continue
+                  ecs.stop_task(
+                      cluster=cluster,
+                      task=task_arn,
+                      reason="PR3-S4 final cleanup enforcing idle-safe WSP ephemeral posture",
+                  )
+                  stopped.append({"task_arn": task_arn.rsplit('/', 1)[-1]})
+              ecs.get_waiter("tasks_stopped").wait(cluster=cluster, tasks=task_arns, WaiterConfig={"Delay": 6, "MaxAttempts": 30})
+          payload = {
+              "generated_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+              "cluster": cluster,
+              "stopped_task_count": len(stopped),
+              "stopped_tasks": stopped,
+          }
+          (run_dir / "g3a_s4_final_wsp_cleanup.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+          PY
+
+      - name: Upload PR3-S4 artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dev-full-pr3-s4-${{ inputs.pr3_execution_id }}
+          path: |
+            ${{ steps.meta.outputs.run_dir }}/g3a_s4_*.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_scorecard_soak.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_soak_drift_report.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_cohort_manifest.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_cohort_results.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_drill_*.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_runtime_cost_receipt.json
+            ${{ steps.meta.outputs.run_dir }}/pr3_s4_execution_receipt.json

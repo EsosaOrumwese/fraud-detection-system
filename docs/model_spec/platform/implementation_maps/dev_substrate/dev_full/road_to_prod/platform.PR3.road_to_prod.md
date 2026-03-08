@@ -272,6 +272,7 @@ Objective:
 Required actions:
 1. execute soak profile and measure drift/backlog/cost posture,
 2. execute cohort realism pass and publish cohort deltas,
+3. materially exercise runtime-adjacent downstream truth surfaces (`case_trigger`, `case_mgmt`, `label_store`) on the same active run scope and publish their impact metrics,
 3. execute required runtime drills:
    - replay integrity,
    - lag recovery,
@@ -314,6 +315,17 @@ S4 planning expansion (execution checklist):
    - each drill output must include scenario, expected behavior, observed timeline, recovery bound, integrity checks.
 4. cost lock:
    - require attributable spend and idle-safe evidence in drill/cost outputs.
+5. cross-plane lock:
+   - `S4` cannot be adjudicated from `WSP/IG/RTDL` alone.
+   - live case/label participation must be measured on the same `platform_run_id` through:
+     - `case_trigger` trigger intake / replay integrity,
+     - `case_mgmt` case creation + anomaly posture,
+     - `label_store` accepted/rejected/pending posture under writer-boundary semantics.
+   - if the case/label plane is absent from the live runtime boundary, `S4` is red until the runtime shape is corrected.
+6. learning-scope lock:
+   - `OFS/MF/MPR` are not silently treated as green inside `S4`.
+   - `S4` rollup must state explicitly whether learning/evolution was materially exercised in this pack or remains deferred to later packs.
+   - deferred learning/evolution surfaces remain unresolved scope, not neutral evidence.
 
 ### S5 - Runtime Pack Rollup, Verdict, And Gate Handoff
 Objective:
@@ -351,6 +363,13 @@ S5 planning expansion (execution checklist):
    - `PASS` allowed only when all required checks are green with zero open blockers.
 3. target lock:
    - mark `TGT-08` and `TGT-09` as `PINNED` only when supporting closure artifacts are present.
+4. cross-plane digest lock:
+   - readable findings must include impact-metric rows for:
+     - ingress/runtime spine,
+     - case/label plane,
+     - learning/evolution scope posture,
+     - cost and idle-safe closure.
+   - any plane not materially exercised must be called out explicitly in the digest and blocker register; omission is not allowed.
 
 ## 7) PR3 Artifact Contract
 Deterministic control root:

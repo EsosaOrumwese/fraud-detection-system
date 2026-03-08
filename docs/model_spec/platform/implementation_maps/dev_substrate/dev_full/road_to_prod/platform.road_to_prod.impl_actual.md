@@ -9462,3 +9462,78 @@ uns/.../degrade_ladder/* on its own filesystem,
 6. Selected next direction:
    - move directly into `PR3-S4` soak/drill planning,
    - make the next readable findings explicitly cross-plane so later closure cannot collapse back into a spine-only narrative.
+
+## Entry: 2026-03-08 06:13:24 +00:00 - PR3-S4 must materialize the missing case/label runtime lane; otherwise G3A will keep over-scoring the spine and under-scoring the platform
+1. I reopened the `PR3-S4` contract, the production-ready source, the current `dev_full` profile, and the PR3 runtime materializer before adding another workflow. The aim was to answer a concrete design question first: what exactly is missing from the live `G3A` runtime surface, and which missing planes belong inside `S4` rather than later packs.
+2. What the repo now shows clearly:
+   - `PR3` today materializes only the RTDL/runtime spine on EKS (`CSFB`, `IEG`, `OFP`, `archive_writer`, `DL`, `DF`, `AL`, `DLA`) via `scripts/dev_substrate/pr3_rtdl_materialize.py`,
+   - the `dev_full` runtime profile currently includes `OFS` and `MF` stanzas but does **not** include `case_trigger`, `case_mgmt`, `label_store`, or `MPR`,
+   - local-parity already has the missing `case_trigger`, `case_mgmt`, and `label_store` profile blocks in a production-shaped form,
+   - `platform_reporter` and the component code already know how to observe `case_trigger`, `case_mgmt`, and `label_store`; the gap is live orchestration, not component existence.
+3. Production interpretation:
+   - the recent user criticism is correct in substance: with the current PR3 runtime shape, `G3A` can prove ingress/RTDL/archive behavior, but it cannot honestly say the case/label plane was exercised under runtime pressure,
+   - that omission is material because the production-ready source explicitly includes case/labels as runtime outputs and because cases/labels are the first downstream truth surfaces needed for auditability and later learning realism,
+   - by contrast, the full learning/promotion corridor (`OFS`, `MF`, `MPR`) is not a hot-path always-on runtime lane and should not be forced into the same meaning as `S4` soak unless the contract explicitly requires a governed learning run in this state. It still must be tracked, but not silently conflated with the runtime hot path.
+4. Alternatives considered:
+   - keep `S4` as an RTDL-only soak and merely add caveat text about case/labels: rejected because that repeats the exact scope hole the user identified and leaves `G3A` overstated,
+   - force `OFS`, `MF`, and `MPR` into the `S4` hot path right now: rejected because it mixes asynchronous learning/promotion responsibilities into a runtime-soak lane and risks measuring the wrong thing for the wrong reason,
+   - materialize the missing runtime-adjacent downstream plane (`case_trigger`, `case_mgmt`, `label_store`) now, then score learning/evolution explicitly as not-yet-runtime-exercised in `G3A` and reserve its governed closure for later packs: selected.
+5. Selected production-coherent design for `PR3-S4`:
+   - extend the `dev_full` profile with `case_trigger`, `case_mgmt`, and `label_store` blocks using the existing local-parity schema but `dev_full` Kafka/Aurora/object-store posture,
+   - extend `pr3_rtdl_materialize.py` so PR3 runtime materialization can stand up the case/label workloads alongside the current RTDL services using the pinned `ROLE_EKS_IRSA_CASE_LABELS` surface instead of reusing the wrong identity,
+   - extend the runtime snapshot surface so `S4` can read and adjudicate `case_trigger`, `case_mgmt`, and `label_store` metrics/health from live run-scoped pods,
+   - keep `OFS`/`MF`/`MPR` out of the `S4` hot-path materialization, but add explicit cross-plane scoring rows so the rollup says exactly what was proven in `G3A` and what remains for later packs.
+6. Why this is the right next move:
+   - it resolves a real platform scope hole rather than polishing the already-green spine,
+   - it uses existing code and pinned handles instead of inventing a second case/label architecture,
+   - it preserves the semantics of `G3A` as a runtime certification pack while making that runtime meaningfully closer to the actual platform graph.
+7. Immediate implementation steps pinned before coding:
+   - update the PR3 authority doc so `S4/S5` explicitly require cross-plane impact reporting and case/label participation,
+   - update `config/platform/profiles/dev_full.yaml` with the missing case/label stanzas,
+   - update `scripts/dev_substrate/pr3_rtdl_materialize.py` and `scripts/dev_substrate/pr3_runtime_surface_snapshot.py` to materialize and read those components,
+   - then add the dedicated `PR3-S4` soak/drill workflow and rollup surfaces on top of the corrected runtime shape.
+
+## Entry: 2026-03-08 06:31:12 +00:00 - Implemented the first PR3-S4 runtime shape correction and soak lane so the next strict run can measure the case/label plane instead of assuming it away
+1. I implemented the runtime-boundary correction immediately after the planning entry instead of waiting to see the same scope defect again in a fresh soak run.
+2. Profile changes in `config/platform/profiles/dev_full.yaml`:
+   - added `case_trigger` wiring on the `dev_full` Kafka bus with run-scope enforcement and Aurora-backed replay/checkpoint/publish stores,
+   - added `case_mgmt` wiring with run-scope enforcement and Aurora-backed case + label-store locators,
+   - added `label_store` wiring with required `platform_run_id` and `scenario_run_id` inputs so the writer-boundary worker can publish run-scoped observability.
+3. Runtime materialization changes in `scripts/dev_substrate/pr3_rtdl_materialize.py`:
+   - added the dedicated `case-labels` service account using the pinned `ROLE_EKS_IRSA_CASE_LABELS` authority instead of reusing the decision-lane identity,
+   - extended runtime secret materialization with the case/label DSNs and run-scope env vars,
+   - added three new deployments to the PR3 runtime set:
+     - `fp-pr3-case-trigger`,
+     - `fp-pr3-case-mgmt`,
+     - `fp-pr3-label-store`,
+   - extended the runtime manifest handles to include `FP_BUS_CASE_TRIGGERS_V1` and `FP_BUS_LABELS_EVENTS_V1`.
+4. Runtime snapshot changes in `scripts/dev_substrate/pr3_runtime_surface_snapshot.py`:
+   - added live readback support for `case_trigger`, `case_mgmt`, and `label_store`,
+   - added summary extraction for:
+     - trigger intake / publish anomalies,
+     - case creation / mismatch posture,
+     - label pending / accepted / rejected posture.
+5. PR3 authority changes already made before these code edits are now backed by execution surfaces:
+   - `platform.PR3.road_to_prod.md` explicitly requires case/label participation and cross-plane readable digests in `S4/S5`.
+6. New `S4` execution surfaces:
+   - workflow: `.github/workflows/dev_full_pr3_s4_soak.yml`
+     - hydrates strict upstream `S0..S3`,
+     - rematerializes the corrected runtime on EKS,
+     - verifies the expanded deployment set,
+     - runs a real soak campaign on the canonical remote `WSP -> IG` path,
+     - samples runtime surfaces throughout the window,
+     - drains WSP ephemeral tasks before and after the run,
+     - builds the first `S4` rollup.
+   - rollup: `scripts/dev_substrate/pr3_s4_rollup.py`
+     - adjudicates soak ingress posture,
+     - scores RTDL plus case/label participation from run-scoped snapshots,
+     - emits explicit blockers for still-missing drill evidence rather than silently treating it as pass,
+     - synthesizes the `S4` artifact family (`scorecard`, `drift`, `cohort`, `drill`, `cost receipt`, `execution receipt`).
+7. Validation completed locally before commit:
+   - `python -m py_compile scripts/dev_substrate/pr3_rtdl_materialize.py scripts/dev_substrate/pr3_runtime_surface_snapshot.py scripts/dev_substrate/pr3_s4_rollup.py`
+   - workflow YAML parse passed for `.github/workflows/dev_full_pr3_s4_soak.yml`
+   - `dev_full.yaml` reloaded cleanly with the new `case_trigger`, `case_mgmt`, and `label_store` stanzas present.
+8. Important current limitation recorded explicitly:
+   - the first `pr3_s4_rollup.py` implementation is intentionally fail-closed on fresh `schema_evolution`, `dependency_degrade`, `cost_guardrail_idle_safe`, and cohort-isolated delta evidence,
+   - that means the first strict `S4` run is expected to tell us which of those surfaces remain unproven after the case/label runtime lane is finally live,
+   - this is acceptable because it produces explicit blockers on the right state boundary instead of continuing the old silent overclaim.

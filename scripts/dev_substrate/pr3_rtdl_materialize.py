@@ -399,6 +399,7 @@ def main() -> int:
     # service-account names that bypass the pinned IAM posture.
     rtdl_sa = "rtdl"
     decision_sa = "decision-lane"
+    case_labels_sa = "case-labels"
 
     profile_source_path = Path(args.profile_source_path)
     if not profile_source_path.exists():
@@ -422,6 +423,7 @@ def main() -> int:
 
     kubectl_apply(service_account_manifest(namespace, rtdl_sa, str(registry["ROLE_EKS_IRSA_RTDL"]).strip()))
     kubectl_apply(service_account_manifest(namespace, decision_sa, str(registry["ROLE_EKS_IRSA_DECISION_LANE"]).strip()))
+    kubectl_apply(service_account_manifest(namespace, case_labels_sa, str(registry["ROLE_EKS_IRSA_CASE_LABELS"]).strip()))
     kubectl_apply(
         config_map_manifest(
             namespace,
@@ -448,6 +450,7 @@ def main() -> int:
         "DF_SCENARIO_RUN_ID": args.scenario_run_id,
         "AL_SCENARIO_RUN_ID": args.scenario_run_id,
         "DLA_SCENARIO_RUN_ID": args.scenario_run_id,
+        "LABEL_STORE_SCENARIO_RUN_ID": args.scenario_run_id,
         "CSFB_REQUIRED_PLATFORM_RUN_ID": args.platform_run_id,
         "IEG_REQUIRED_PLATFORM_RUN_ID": args.platform_run_id,
         "OFP_REQUIRED_PLATFORM_RUN_ID": args.platform_run_id,
@@ -455,8 +458,12 @@ def main() -> int:
         "AL_REQUIRED_PLATFORM_RUN_ID": args.platform_run_id,
         "DLA_REQUIRED_PLATFORM_RUN_ID": args.platform_run_id,
         "ARCHIVE_WRITER_REQUIRED_PLATFORM_RUN_ID": args.platform_run_id,
+        "CASE_TRIGGER_REQUIRED_PLATFORM_RUN_ID": args.platform_run_id,
+        "CASE_MGMT_REQUIRED_PLATFORM_RUN_ID": args.platform_run_id,
+        "LABEL_STORE_REQUIRED_PLATFORM_RUN_ID": args.platform_run_id,
         "DF_IG_API_KEY": ig_api_key,
         "AL_IG_API_KEY": ig_api_key,
+        "CASE_TRIGGER_IG_API_KEY": ig_api_key,
         "IG_API_KEY": ig_api_key,
         "IG_INGEST_URL": args.ig_ingest_url,
         "CSFB_PROJECTION_DSN": aurora_dsn,
@@ -474,6 +481,11 @@ def main() -> int:
         "AL_CHECKPOINT_DSN": aurora_dsn,
         "DLA_INDEX_DSN": aurora_dsn,
         "ARCHIVE_WRITER_LEDGER_DSN": aurora_dsn,
+        "CASE_TRIGGER_REPLAY_DSN": aurora_dsn,
+        "CASE_TRIGGER_CHECKPOINT_DSN": aurora_dsn,
+        "CASE_TRIGGER_PUBLISH_STORE_DSN": aurora_dsn,
+        "CASE_MGMT_LOCATOR": aurora_dsn,
+        "LABEL_STORE_LOCATOR": aurora_dsn,
     }
     kubectl_apply(secret_manifest(namespace, secret_name, secret_data))
 
@@ -493,6 +505,7 @@ def main() -> int:
         env_ref("DF_SCENARIO_RUN_ID", secret_name, "DF_SCENARIO_RUN_ID"),
         env_ref("AL_SCENARIO_RUN_ID", secret_name, "AL_SCENARIO_RUN_ID"),
         env_ref("DLA_SCENARIO_RUN_ID", secret_name, "DLA_SCENARIO_RUN_ID"),
+        env_ref("LABEL_STORE_SCENARIO_RUN_ID", secret_name, "LABEL_STORE_SCENARIO_RUN_ID"),
         plain_env("PYTHONUNBUFFERED", "1"),
     ]
     profile_volume_mounts = [
@@ -657,6 +670,57 @@ def main() -> int:
             "mem_limit": "2Gi",
             "lane": "DECISION",
         },
+        {
+            "name": "fp-pr3-case-trigger",
+            "service_account": case_labels_sa,
+            "command": ["python", "-m", "fraud_detection.case_trigger.worker", "--profile", args.profile_path],
+            "env": common_secret_env
+            + [
+                env_ref("CASE_TRIGGER_REQUIRED_PLATFORM_RUN_ID", secret_name, "CASE_TRIGGER_REQUIRED_PLATFORM_RUN_ID"),
+                env_ref("CASE_TRIGGER_REPLAY_DSN", secret_name, "CASE_TRIGGER_REPLAY_DSN"),
+                env_ref("CASE_TRIGGER_CHECKPOINT_DSN", secret_name, "CASE_TRIGGER_CHECKPOINT_DSN"),
+                env_ref("CASE_TRIGGER_PUBLISH_STORE_DSN", secret_name, "CASE_TRIGGER_PUBLISH_STORE_DSN"),
+                env_ref("CASE_TRIGGER_IG_API_KEY", secret_name, "CASE_TRIGGER_IG_API_KEY"),
+                env_ref("IG_INGEST_URL", secret_name, "IG_INGEST_URL"),
+            ],
+            "cpu_request": "250m",
+            "cpu_limit": "1",
+            "mem_request": "512Mi",
+            "mem_limit": "2Gi",
+            "lane": "CASE_LABELS",
+        },
+        {
+            "name": "fp-pr3-case-mgmt",
+            "service_account": case_labels_sa,
+            "command": ["python", "-m", "fraud_detection.case_mgmt.worker", "--profile", args.profile_path],
+            "env": common_secret_env
+            + [
+                env_ref("CASE_MGMT_REQUIRED_PLATFORM_RUN_ID", secret_name, "CASE_MGMT_REQUIRED_PLATFORM_RUN_ID"),
+                env_ref("CASE_MGMT_LOCATOR", secret_name, "CASE_MGMT_LOCATOR"),
+                env_ref("LABEL_STORE_LOCATOR", secret_name, "LABEL_STORE_LOCATOR"),
+            ],
+            "cpu_request": "250m",
+            "cpu_limit": "1",
+            "mem_request": "512Mi",
+            "mem_limit": "2Gi",
+            "lane": "CASE_LABELS",
+        },
+        {
+            "name": "fp-pr3-label-store",
+            "service_account": case_labels_sa,
+            "command": ["python", "-m", "fraud_detection.label_store.worker", "--profile", args.profile_path],
+            "env": common_secret_env
+            + [
+                env_ref("LABEL_STORE_REQUIRED_PLATFORM_RUN_ID", secret_name, "LABEL_STORE_REQUIRED_PLATFORM_RUN_ID"),
+                env_ref("LABEL_STORE_SCENARIO_RUN_ID", secret_name, "LABEL_STORE_SCENARIO_RUN_ID"),
+                env_ref("LABEL_STORE_LOCATOR", secret_name, "LABEL_STORE_LOCATOR"),
+            ],
+            "cpu_request": "250m",
+            "cpu_limit": "1",
+            "mem_request": "512Mi",
+            "mem_limit": "2Gi",
+            "lane": "CASE_LABELS",
+        },
     ]
 
     for workload in workloads:
@@ -711,6 +775,7 @@ def main() -> int:
         "service_accounts": {
             "rtdl": {"name": rtdl_sa, "role_arn": str(registry["ROLE_EKS_IRSA_RTDL"]).strip()},
             "decision": {"name": decision_sa, "role_arn": str(registry["ROLE_EKS_IRSA_DECISION_LANE"]).strip()},
+            "case_labels": {"name": case_labels_sa, "role_arn": str(registry["ROLE_EKS_IRSA_CASE_LABELS"]).strip()},
         },
         "workloads": [
             {
@@ -730,6 +795,8 @@ def main() -> int:
             "MSK_BOOTSTRAP_BROKERS_SASL_IAM": str(registry["MSK_BOOTSTRAP_BROKERS_SASL_IAM"]).strip(),
             "FP_BUS_RTDL_V1": str(registry["FP_BUS_RTDL_V1"]).strip(),
             "FP_BUS_AUDIT_V1": str(registry["FP_BUS_AUDIT_V1"]).strip(),
+            "FP_BUS_CASE_TRIGGERS_V1": str(registry["FP_BUS_CASE_TRIGGERS_V1"]).strip(),
+            "FP_BUS_LABELS_EVENTS_V1": str(registry["FP_BUS_LABELS_EVENTS_V1"]).strip(),
         },
     }
     summary = {
