@@ -196,6 +196,75 @@ print(json.dumps({
 }))
 """
 
+CASE_TRIGGER_WARM_SCRIPT = r"""
+import json
+from pathlib import Path
+
+from fraud_detection.case_trigger.worker import load_worker_config
+
+profile_path = Path(__import__("os").environ["FP_PROFILE_PATH"])
+cfg = load_worker_config(profile_path)
+print(json.dumps({
+    "required_platform_run_id": cfg.required_platform_run_id,
+    "scenario_run_id": cfg.scenario_run_id,
+    "event_bus_start_position": cfg.event_bus_start_position,
+    "stream_id": cfg.stream_id,
+    "admitted_topics": list(cfg.admitted_topics),
+}))
+"""
+
+CASE_MGMT_WARM_SCRIPT = r"""
+import json
+from pathlib import Path
+
+from fraud_detection.case_mgmt.worker import load_worker_config
+
+profile_path = Path(__import__("os").environ["FP_PROFILE_PATH"])
+cfg = load_worker_config(profile_path)
+print(json.dumps({
+    "required_platform_run_id": cfg.required_platform_run_id,
+    "scenario_run_id": cfg.scenario_run_id,
+    "event_bus_start_position": cfg.event_bus_start_position,
+    "stream_id": cfg.stream_id,
+    "admitted_topics": list(cfg.admitted_topics),
+}))
+"""
+
+LABEL_STORE_WARM_SCRIPT = r"""
+import json
+from pathlib import Path
+
+from fraud_detection.label_store.worker import load_worker_config
+
+profile_path = Path(__import__("os").environ["FP_PROFILE_PATH"])
+cfg = load_worker_config(profile_path)
+print(json.dumps({
+    "required_platform_run_id": cfg.required_platform_run_id,
+    "scenario_run_id": cfg.scenario_run_id,
+    "stream_id": cfg.stream_id,
+}))
+"""
+
+DLA_WARM_SCRIPT = r"""
+import json
+from pathlib import Path
+
+from fraud_detection.decision_log_audit.config import load_intake_policy
+from fraud_detection.decision_log_audit.worker import load_worker_config
+
+profile_path = Path(__import__("os").environ["FP_PROFILE_PATH"])
+cfg = load_worker_config(profile_path)
+policy = load_intake_policy(cfg.policy_ref)
+print(json.dumps({
+    "required_platform_run_id": cfg.required_platform_run_id,
+    "event_bus_start_position": cfg.event_bus_start_position,
+    "stream_id": cfg.stream_id,
+    "policy_ref": str(cfg.policy_ref),
+    "admitted_topics": list(policy.admitted_topics),
+    "policy_required_platform_run_id": policy.required_platform_run_id,
+}))
+"""
+
 COMPONENT_SURFACE_PATHS: dict[str, dict[str, str]] = {
     "ieg": {
         "metrics_path": "runs/fraud-platform/{platform_run_id}/identity_entity_graph/metrics/last_metrics.json",
@@ -383,6 +452,15 @@ def probe_component_surface(namespace: str, pod_name: str, component: str, platf
     )
 
 
+def probe_worker_config(namespace: str, pod_name: str, script: str, profile_path: str) -> tuple[dict[str, Any], str]:
+    return exec_json(
+        namespace,
+        pod_name,
+        script,
+        {"FP_PROFILE_PATH": profile_path},
+    )
+
+
 def node_health(node_name: str) -> dict[str, Any]:
     if not node_name:
         return {"node_name": node_name, "node_missing": True}
@@ -502,6 +580,10 @@ def main() -> None:
     dl_probe, dl_probe_error = ({}, "")
     ieg_probe, ieg_probe_error = ({}, "")
     ofp_probe, ofp_probe_error = ({}, "")
+    case_trigger_probe, case_trigger_probe_error = ({}, "")
+    case_mgmt_probe, case_mgmt_probe_error = ({}, "")
+    label_store_probe, label_store_probe_error = ({}, "")
+    dla_probe, dla_probe_error = ({}, "")
     node_health_rows: list[dict[str, Any]] = []
     dl_bootstrap_pending_flag = False
     if not blockers:
@@ -659,6 +741,73 @@ def main() -> None:
                 ):
                     attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12K_OFP_NOT_OPERATIONALLY_READY")
 
+            if state_sequence(args.state_id) >= 4:
+                case_trigger_status = next(row for row in pre_status if row.get("app") == "fp-pr3-case-trigger")
+                case_trigger_probe, case_trigger_probe_error = probe_worker_config(
+                    args.namespace,
+                    str(case_trigger_status["pod_name"]),
+                    CASE_TRIGGER_WARM_SCRIPT,
+                    args.profile_path,
+                )
+                if case_trigger_probe_error:
+                    attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12L_CASE_TRIGGER_PROBE_FAILED:{case_trigger_probe_error}")
+                else:
+                    if str(case_trigger_probe.get("required_platform_run_id") or "").strip() != args.platform_run_id:
+                        attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12M_CASE_TRIGGER_SCOPE_MISMATCH")
+                    if not str(case_trigger_probe.get("scenario_run_id") or "").strip():
+                        attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12N_CASE_TRIGGER_SCENARIO_MISSING")
+                    if list(case_trigger_probe.get("admitted_topics") or []) != ["fp.bus.rtdl.v1"]:
+                        attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12O_CASE_TRIGGER_TOPIC_DRIFT")
+
+                case_mgmt_status = next(row for row in pre_status if row.get("app") == "fp-pr3-case-mgmt")
+                case_mgmt_probe, case_mgmt_probe_error = probe_worker_config(
+                    args.namespace,
+                    str(case_mgmt_status["pod_name"]),
+                    CASE_MGMT_WARM_SCRIPT,
+                    args.profile_path,
+                )
+                if case_mgmt_probe_error:
+                    attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12P_CASE_MGMT_PROBE_FAILED:{case_mgmt_probe_error}")
+                else:
+                    if str(case_mgmt_probe.get("required_platform_run_id") or "").strip() != args.platform_run_id:
+                        attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12Q_CASE_MGMT_SCOPE_MISMATCH")
+                    if not str(case_mgmt_probe.get("scenario_run_id") or "").strip():
+                        attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12R_CASE_MGMT_SCENARIO_MISSING")
+                    if list(case_mgmt_probe.get("admitted_topics") or []) != ["fp.bus.case.triggers.v1"]:
+                        attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12S_CASE_MGMT_TOPIC_DRIFT")
+
+                label_store_status = next(row for row in pre_status if row.get("app") == "fp-pr3-label-store")
+                label_store_probe, label_store_probe_error = probe_worker_config(
+                    args.namespace,
+                    str(label_store_status["pod_name"]),
+                    LABEL_STORE_WARM_SCRIPT,
+                    args.profile_path,
+                )
+                if label_store_probe_error:
+                    attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12T_LABEL_STORE_PROBE_FAILED:{label_store_probe_error}")
+                else:
+                    if str(label_store_probe.get("required_platform_run_id") or "").strip() != args.platform_run_id:
+                        attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12U_LABEL_STORE_SCOPE_MISMATCH")
+                    if not str(label_store_probe.get("scenario_run_id") or "").strip():
+                        attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12V_LABEL_STORE_SCENARIO_MISSING")
+
+                dla_status = next(row for row in pre_status if row.get("app") == "fp-pr3-dla")
+                dla_probe, dla_probe_error = probe_worker_config(
+                    args.namespace,
+                    str(dla_status["pod_name"]),
+                    DLA_WARM_SCRIPT,
+                    args.profile_path,
+                )
+                if dla_probe_error:
+                    attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12W_DLA_PROBE_FAILED:{dla_probe_error}")
+                else:
+                    if str(dla_probe.get("required_platform_run_id") or "").strip() != args.platform_run_id:
+                        attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12X_DLA_SCOPE_MISMATCH")
+                    if list(dla_probe.get("admitted_topics") or []) != ["fp.bus.rtdl.v1"]:
+                        attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12Y_DLA_TOPIC_DRIFT")
+                    if "::" not in str(dla_probe.get("stream_id") or "").strip():
+                        attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12Z_DLA_STREAM_UNSCOPED")
+
             pretraffic_allowed, pretraffic_advisory = pretraffic_bootstrap_allowed(
                 args.state_id,
                 attempt_blockers,
@@ -730,6 +879,14 @@ def main() -> None:
         "ieg_probe_error": ieg_probe_error,
         "ofp_probe": ofp_probe,
         "ofp_probe_error": ofp_probe_error,
+        "case_trigger_probe": case_trigger_probe,
+        "case_trigger_probe_error": case_trigger_probe_error,
+        "case_mgmt_probe": case_mgmt_probe,
+        "case_mgmt_probe_error": case_mgmt_probe_error,
+        "label_store_probe": label_store_probe,
+        "label_store_probe_error": label_store_probe_error,
+        "dla_probe": dla_probe,
+        "dla_probe_error": dla_probe_error,
         "probe_attempts": probe_attempts,
         "runtime_ready_timeout_seconds": args.runtime_ready_timeout_seconds,
         "probe_interval_seconds": args.probe_interval_seconds,

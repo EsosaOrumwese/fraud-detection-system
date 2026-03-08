@@ -10619,3 +10619,103 @@ uns/.../degrade_ladder/* on its own filesystem,
    - pass the actual required datum (`run_facts_ref`) directly into the learning lane,
    - patch the learning script so it prefers an explicit `PR3_RUN_FACTS_REF` env override and only falls back to reading the bootstrap file when that override is absent.
 6. This is the correct production-style correction because remote jobs should consume explicit pins/refs, not invisible local runner files.
+## Entry: 2026-03-08 20:35:00 +00:00 - PR3-S4 active red is a mounted-profile run-scope materialization defect plus an early-readiness gap on downstream planes
+### Problem actual
+1. The current bounded `PR3-S4` run (`platform_20260308T185939Z`) is not first failing inside OFS/MF/MPR. The learning failure is downstream of a prior case/label non-participation defect.
+2. Live pod inspection on the active EKS runtime shows:
+   - `case_trigger.load_worker_config(...)` resolves `required_platform_run_id` to the literal token `${CASE_TRIGGER_REQUIRED_PLATFORM_RUN_ID:-${ACTIVE_PLATFORM_RUN_ID:-}}`, not the active run id.
+   - `case_mgmt.load_worker_config(...)` resolves `required_platform_run_id` to the literal token `${CASE_MGMT_REQUIRED_PLATFORM_RUN_ID:-${ACTIVE_PLATFORM_RUN_ID:-}}`.
+   - `label_store.load_worker_config(...)` resolves `required_platform_run_id` to the literal token `${LABEL_STORE_REQUIRED_PLATFORM_RUN_ID:-${ACTIVE_PLATFORM_RUN_ID:-}}`.
+3. Runtime consequence is deterministic and severe:
+   - `case_trigger` drops every RTDL record because the active envelope run scope can never equal the unresolved literal token.
+   - `case_mgmt` and `label_store` then stay dark because no case triggers or accepted labels are produced for the active run.
+   - learning proof later reports `LABELLED_SUBJECTS_SHORTFALL`, but that is a downstream symptom.
+4. This is a production defect in the executable runtime profile shape, not merely a dev convenience issue. Active run-critical fields cannot be left to image-side token parsing for a bounded correctness gate.
+
+### Evidence gathered
+1. Mounted profile inside the live pod still contains nested shell-style defaults for the case/label plane and later learning plane run-scoped fields.
+2. The repo-side `env_tokens.py` supports nested defaults, but the live runtime behavior proves the active image/runtime path cannot be trusted to resolve these fields correctly in this gate.
+3. `case_trigger` consumer checkpoints advance on `fp.bus.rtdl.v1` while metrics remain zero, which is consistent with deterministic run-scope filtering against an unresolved literal.
+4. The warm gate did not catch this because it only proved a subset of the runtime spine and did not interrogate the case/label workers' resolved config surfaces before traffic.
+
+### Production decision
+1. The mounted runtime profile produced by `pr3_rtdl_materialize.py` will be fully materialized for active run-critical fields instead of passing nested token expressions through to remote pods.
+2. The materialization will pin concrete values for:
+   - `required_platform_run_id` across RTDL, decision, case/label, and learning workers,
+   - `scenario_run_id` where the worker relies on it directly,
+   - learning request prefixes that currently depend on nested token expansion.
+3. `pr3_runtime_warm_gate.py` will be extended so bounded correctness fails before traffic if downstream planes still show unresolved run-scope config or other pre-traffic readiness defects.
+4. This is the correct production-style fix because an active bounded run should execute against a concrete runtime contract, not a partially templated one.
+
+### Rejected alternatives
+1. Rebuild the full image first and hope the runtime token resolver catches up: rejected because the mounted profile is still the authoritative runtime contract for this gate and should be explicit anyway.
+2. Ignore the case/label red and patch the learning script again: rejected because that would only mask the upstream defect and waste more bounded reruns.
+3. Continue with the current warm gate and rely on post-run rollups: rejected because it spends cloud resources to discover a deterministic pre-traffic config defect.
+
+### Implementation scope now
+1. `scripts/dev_substrate/pr3_rtdl_materialize.py`
+2. `scripts/dev_substrate/pr3_runtime_warm_gate.py`
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.road_to_prod.impl_actual.md`
+4. `docs/logbook/03-2026/2026-03-08.md`
+## Entry: 2026-03-08 20:50:00 +00:00 - DLA is also red for a concrete runtime-authority reason: the live image carries an older intake policy that still points at `fp.bus.traffic.fraud.v1`
+### What I verified live
+1. Inside the active `fp-pr3-dla` pod, `load_intake_policy(config/platform/dla/intake_policy_v0.yaml)` resolves `admitted_topics = ['fp.bus.traffic.fraud.v1']`.
+2. The repo authority for the same file is `admitted_topics = ['fp.bus.rtdl.v1']`.
+3. Live DLA checkpoints confirm the effect: the worker is currently advancing offsets on `fp.bus.traffic.fraud.v1` under the active runtime.
+4. Therefore the current `DLA` zero-participation result is not a generic downstream weakness; it is runtime-authority drift between the repo and the image.
+
+### Production interpretation
+1. Bounded runtime correctness cannot depend on image-bundled policy files when those files have already drifted from repo authority.
+2. For this gate, the mounted runtime bundle must carry the authoritative DLA policy just as it already carries the profile and DF registry snapshot.
+
+### Chosen remediation
+1. Extend `pr3_rtdl_materialize.py` so the runtime ConfigMap also mounts the repo-side DLA intake policy file and rewrites the active profile to reference that mounted file.
+2. Extend the warm gate so it probes DLA's resolved admitted topics and fails before traffic if the lane is still attached to the wrong topic family.
+3. Keep the rerun boundary exactly the same (`PR3-S4` bounded correctness) after this remediation.
+## Entry: 2026-03-08 21:05:00 +00:00 - Warm gate must now enforce whole-platform bounded correctness before any further PR3-S4 spend
+### Problem framing
+1. The current PR3 execution method is already conceptually corrected in the plan (`correctness -> stress -> soak`), but the active warm gate still only proves a subset of the runtime spine before traffic.
+2. That gap is now concretely expensive: repeated PR3-S4 reruns can still spend cloud resources only to discover deterministic pre-traffic defects in the case/label and audit lanes.
+3. The live evidence is unambiguous:
+   - `case_trigger`, `case_mgmt`, and `label_store` were running with unresolved literal run-scope tokens,
+   - `DLA` was consuming the wrong topic family from an image-stale intake policy.
+4. These are not soak-only failures. They are correctness failures that should be blocked before traffic is authorized.
+
+### Production decision
+1. `pr3_runtime_warm_gate.py` becomes the hard pre-traffic correctness sentinel for downstream PR3-S4 participating planes.
+2. It must interrogate the live resolved config of:
+   - `case_trigger`,
+   - `case_mgmt`,
+   - `label_store`,
+   - `DLA`.
+3. It must fail closed before traffic if any of these hold:
+   - required platform run scope is not concretely equal to the active run id,
+   - scenario pin is missing where required,
+   - admitted topics drift from the authoritative topic family,
+   - DLA stream id is not run-scoped.
+4. This is cheaper and more production-correct than spending on another broader bounded run. It converts deterministic downstream configuration drift into a pre-traffic gate failure with a precise blocker id.
+
+### Implementation scope
+1. Add explicit pod-side warm scripts for case trigger, case management, label store, and DLA.
+2. Extend the attempt payload so the resulting receipt is inspectable and ties each blocker to a concrete live config surface.
+3. Keep the rerun boundary unchanged: same bounded `PR3-S4` correctness window after local validation.
+
+## Entry: 2026-03-08 21:18:00 +00:00 - Run-scoped profile materialization and downstream warm probes are now implemented and locally validated
+### What changed
+1. `pr3_rtdl_materialize.py` now materializes the mounted runtime profile for the active run instead of trusting nested token evaluation inside the live image.
+2. The runtime bundle now also mounts the repo-authoritative DLA intake policy and repoints the active profile at that mounted file.
+3. `pr3_runtime_warm_gate.py` now probes live resolved config for:
+   - `case_trigger`,
+   - `case_mgmt`,
+   - `label_store`,
+   - `DLA`.
+4. The warm gate now fails before traffic if any of these lanes show run-scope drift, missing scenario pins where required, topic-family drift, or an unscoped DLA stream id.
+
+### Why this is the correct next production move
+1. These checks convert deterministic configuration defects into a pre-traffic receipt instead of another cloud spend cycle.
+2. This aligns the PR3 execution method with the now-pinned production ladder: bounded correctness first, then bounded stress, then soak only if both are green.
+3. It also tightens whole-platform claimability because case/label and decision-audit participation are no longer treated as late passive observations.
+
+### Local validation
+1. `python -m py_compile scripts/dev_substrate/pr3_rtdl_materialize.py scripts/dev_substrate/pr3_runtime_warm_gate.py` passed.
+2. No broader rerun has happened yet in this slice; the next boundary remains the same bounded `PR3-S4` window.

@@ -144,6 +144,71 @@ def config_map_manifest(namespace: str, name: str, data: dict[str, str]) -> dict
     }
 
 
+def _ensure_mapping(parent: dict[str, Any], key: str) -> dict[str, Any]:
+    value = parent.setdefault(key, {})
+    if not isinstance(value, dict):
+        raise RuntimeError(f"profile field {key} must be a mapping")
+    return value
+
+
+def _materialize_run_scoped_profile(
+    profile_payload: dict[str, Any],
+    *,
+    platform_run_id: str,
+    scenario_run_id: str,
+    mounted_df_snapshot_ref: str,
+    mounted_dla_policy_ref: str,
+) -> dict[str, Any]:
+    payload = json.loads(json.dumps(profile_payload))
+
+    df_payload = _ensure_mapping(payload, "df")
+    df_policy = _ensure_mapping(df_payload, "policy")
+    df_policy["registry_snapshot_ref"] = mounted_df_snapshot_ref
+
+    dla_payload = _ensure_mapping(payload, "dla")
+    dla_policy = _ensure_mapping(dla_payload, "policy")
+    dla_policy["intake_policy_ref"] = mounted_dla_policy_ref
+    dla_wiring = _ensure_mapping(dla_payload, "wiring")
+    dla_wiring["required_platform_run_id"] = platform_run_id
+    dla_wiring["stream_id"] = f"dla.intake.v0::{platform_run_id}"
+    dla_wiring["event_bus_start_position"] = "latest"
+
+    for component in (
+        "context_store_flow_binding",
+        "ieg",
+        "ofp",
+        "df",
+        "al",
+        "archive_writer",
+        "case_trigger",
+        "case_mgmt",
+        "label_store",
+        "ofs",
+        "mf",
+    ):
+        comp_payload = payload.get(component)
+        if not isinstance(comp_payload, dict):
+            continue
+        wiring = _ensure_mapping(comp_payload, "wiring")
+        wiring["required_platform_run_id"] = platform_run_id
+
+    label_store_payload = _ensure_mapping(payload, "label_store")
+    label_store_wiring = _ensure_mapping(label_store_payload, "wiring")
+    label_store_wiring["scenario_run_id"] = scenario_run_id
+
+    for component, request_prefix in (
+        ("ofs", f"{platform_run_id}/ofs/job_requests"),
+        ("mf", f"{platform_run_id}/mf/job_requests"),
+    ):
+        comp_payload = payload.get(component)
+        if not isinstance(comp_payload, dict):
+            continue
+        wiring = _ensure_mapping(comp_payload, "wiring")
+        wiring["request_prefix"] = request_prefix
+
+    return payload
+
+
 def service_account_manifest(namespace: str, name: str, role_arn: str) -> dict[str, Any]:
     return {
         "apiVersion": "v1",
@@ -294,6 +359,7 @@ def main() -> int:
     ap.add_argument("--profile-path", default="/runtime-profile/dev_full.yaml")
     ap.add_argument("--profile-source-path", default="config/platform/profiles/dev_full.yaml")
     ap.add_argument("--df-registry-snapshot-source-path", default="config/platform/df/registry_snapshot_dev_full_v0.yaml")
+    ap.add_argument("--dla-intake-policy-source-path", default="config/platform/dla/intake_policy_v0.yaml")
     ap.add_argument("--wsp-task-family", default="fraud-platform-dev-full-wsp-ephemeral")
     ap.add_argument("--image-uri", default="")
     ap.add_argument("--aurora-db-name", default="fraud_platform")
@@ -418,19 +484,24 @@ def main() -> int:
     snapshot_source_path = Path(args.df_registry_snapshot_source_path)
     if not snapshot_source_path.exists():
         raise RuntimeError(f"DF registry snapshot source path missing: {snapshot_source_path}")
+    dla_policy_source_path = Path(args.dla_intake_policy_source_path)
+    if not dla_policy_source_path.exists():
+        raise RuntimeError(f"DLA intake policy source path missing: {dla_policy_source_path}")
     profile_payload = yaml.safe_load(profile_source_path.read_text(encoding="utf-8"))
     if not isinstance(profile_payload, dict):
         raise RuntimeError(f"profile source path invalid YAML mapping: {profile_source_path}")
-    df_payload = profile_payload.setdefault("df", {})
-    if not isinstance(df_payload, dict):
-        raise RuntimeError("profile df stanza must be a mapping")
-    df_policy = df_payload.setdefault("policy", {})
-    if not isinstance(df_policy, dict):
-        raise RuntimeError("profile df.policy stanza must be a mapping")
     mounted_snapshot_ref = str(PurePosixPath(profile_mount_dir) / snapshot_source_path.name)
-    df_policy["registry_snapshot_ref"] = mounted_snapshot_ref
+    mounted_dla_policy_ref = str(PurePosixPath(profile_mount_dir) / dla_policy_source_path.name)
+    profile_payload = _materialize_run_scoped_profile(
+        profile_payload,
+        platform_run_id=args.platform_run_id,
+        scenario_run_id=args.scenario_run_id,
+        mounted_df_snapshot_ref=mounted_snapshot_ref,
+        mounted_dla_policy_ref=mounted_dla_policy_ref,
+    )
     profile_text = yaml.safe_dump(profile_payload, sort_keys=False)
     snapshot_text = snapshot_source_path.read_text(encoding="utf-8")
+    dla_policy_text = dla_policy_source_path.read_text(encoding="utf-8")
 
     kubectl_apply(service_account_manifest(namespace, rtdl_sa, str(registry["ROLE_EKS_IRSA_RTDL"]).strip()))
     kubectl_apply(service_account_manifest(namespace, decision_sa, str(registry["ROLE_EKS_IRSA_DECISION_LANE"]).strip()))
@@ -442,6 +513,7 @@ def main() -> int:
             {
                 "dev_full.yaml": profile_text,
                 snapshot_source_path.name: snapshot_text,
+                dla_policy_source_path.name: dla_policy_text,
             },
         )
     )
@@ -793,6 +865,8 @@ def main() -> int:
         "profile_path": profile_path_in_container,
         "df_registry_snapshot_source_path": str(snapshot_source_path),
         "df_registry_snapshot_mounted_ref": mounted_snapshot_ref,
+        "dla_intake_policy_source_path": str(dla_policy_source_path),
+        "dla_intake_policy_mounted_ref": mounted_dla_policy_ref,
         "secret_name": secret_name,
         "profile_configmap_name": profile_configmap_name,
         "service_accounts": {
