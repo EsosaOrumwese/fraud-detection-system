@@ -48,6 +48,7 @@ class CaseMgmtWorkerConfig:
     stream_id: str
     platform_run_id: str | None
     required_platform_run_id: str | None
+    scenario_run_id: str | None
     locator: str
     label_store_locator: str
     consumer_checkpoint_path: Path
@@ -134,6 +135,7 @@ class CaseMgmtWorker:
             else None
         )
         self._kafka_reader = build_kafka_reader(client_id=f"case-mgmt-worker-{config.stream_id}") if config.event_bus_kind == "kafka" else None
+        self._seed_run_scope_from_config()
 
     def run_once(self) -> int:
         processed = 0
@@ -234,6 +236,12 @@ class CaseMgmtWorker:
             self._scenario_run_id = scenario_run_id
             return True
         return self._scenario_run_id == scenario_run_id
+
+    def _seed_run_scope_from_config(self) -> None:
+        scenario_run_id = str(self.config.scenario_run_id or "").strip()
+        if not scenario_run_id or self._scenario_run_id is not None:
+            return
+        self._scenario_run_id = scenario_run_id
 
     def _iter_records(self) -> list[dict[str, Any]]:
         if self.config.event_bus_kind == "kinesis":
@@ -404,6 +412,14 @@ def load_worker_config(profile_path: Path) -> CaseMgmtWorkerConfig:
                 cm_wiring.get("required_platform_run_id")
                 or os.getenv("CASE_MGMT_REQUIRED_PLATFORM_RUN_ID")
                 or platform_run_id
+            )
+        ),
+        scenario_run_id=_none_if_blank(
+            _env(
+                cm_wiring.get("scenario_run_id")
+                or os.getenv("CASE_MGMT_SCENARIO_RUN_ID")
+                or os.getenv("ACTIVE_SCENARIO_RUN_ID")
+                or os.getenv("LABEL_STORE_SCENARIO_RUN_ID")
             )
         ),
         locator=_locator(cm_wiring.get("locator"), "case_mgmt/case_mgmt.sqlite"),

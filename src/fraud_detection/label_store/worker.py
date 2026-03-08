@@ -139,7 +139,13 @@ def load_worker_config(profile_path: Path) -> LabelStoreWorkerConfig:
         required_platform_run_id=_none_if_blank(
             _env(ls_wiring.get("required_platform_run_id") or os.getenv("LABEL_STORE_REQUIRED_PLATFORM_RUN_ID") or platform_run_id)
         ),
-        scenario_run_id=_none_if_blank(_env(ls_wiring.get("scenario_run_id") or os.getenv("LABEL_STORE_SCENARIO_RUN_ID"))),
+        scenario_run_id=_none_if_blank(
+            _env(
+                ls_wiring.get("scenario_run_id")
+                or os.getenv("LABEL_STORE_SCENARIO_RUN_ID")
+                or os.getenv("ACTIVE_SCENARIO_RUN_ID")
+            )
+        ),
         poll_seconds=max(0.1, float(_env(ls_wiring.get("poll_seconds") or 2.0))),
     )
 

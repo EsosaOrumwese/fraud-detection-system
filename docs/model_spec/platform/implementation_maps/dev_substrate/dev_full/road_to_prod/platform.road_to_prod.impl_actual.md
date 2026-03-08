@@ -9821,3 +9821,136 @@ uns/.../degrade_ladder/* on its own filesystem,
    - repin the runtime source task family to the new digest,
    - rerun strict `PR3-S4`,
    - then inspect whether `DF` and the case/label plane now materialize enough current-run deltas to clear the remaining blockers.
+
+## Entry: 2026-03-08 10:19:20 +00:00 - Rebuilt the remote image for the DL/OFP fix and repinned the shared PR3 runtime source family before rerunning the exact S4 boundary
+1. Pushed commit `7dc6ff55b` (`PR3 narrow DL OFP replay recovery gate`) to `origin/cert-platform` after focused local validation.
+2. Ran immutable packaging workflow `dev_full_m1_packaging` on `cert-platform`:
+   - run id: `22819038500`
+   - result: `success`
+   - new image digest: `sha256:82a0d26e8c2760d236535cb8c22cb94a693030bae803f433992239b687124bd7`
+3. Repinned the shared runtime source task family used by the canonical remote WSP/PR3 path:
+   - family: `fraud-platform-dev-full-wsp-ephemeral`
+   - previous active revision observed: `:56`
+   - new registered revision: `:57`
+   - container image now points at `230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-full@sha256:82a0d26e8c2760d236535cb8c22cb94a693030bae803f433992239b687124bd7`
+4. Important posture note:
+   - I did not change the certification boundary or relax the rollup logic,
+   - the next step remains a strict rerun of `PR3-S4` on the same boundary so the new RTDL semantics can prove themselves against the existing cross-plane checks.
+
+## Entry: 2026-03-08 11:07:22 +00:00 - PR3-S4 narrowed to decision-lane IAM drift at the embedded OFP snapshot boundary
+1. I re-read the latest strict PR3-S4 soak artifacts before changing code again because the active blocker signature had shifted from generic RTDL red to a very specific DF/OFP serve-path failure while ingress and soak stability remained green.
+2. The decisive runtime facts are now:
+   - soak hot-path metrics are still production-grade for this state (~3029 eps, 4xx=0, 5xx=0, latency inside the pinned envelope),
+   - OFP projector freshness is healthy enough to keep applying events (vents_applied=142,938, missing_features=0, stale_graph_version=0),
+   - yet snapshots_built stays pinned at   while snapshot_failures climbs from   to 5,
+   - DF then records OFP_UNAVAILABLE, FEATURE_GROUP_MISSING:core_features, ACTIVE_BUNDLE_INCOMPATIBLE, and quarantines/fail-closes the few current-run decisions that do appear,
+   - downstream case_trigger, case_mgmt, and label_store remain starved rather than independently disproven.
+3. The important implementation fact is that DF does **not** call the p-pr3-ofp pod over a network service. decision_fabric.worker builds OfpGetFeaturesService in-process, so snapshot materialization executes under the decision-lane pod identity, not the tdl pod identity.
+4. I verified the runtime/IAM asymmetry in the current materialization posture:
+   - p-pr3-ofp runs under ROLE_EKS_IRSA_RTDL,
+   - p-pr3-df runs under ROLE_EKS_IRSA_DECISION_LANE,
+   - Terraform currently grants ks_irsa_rtdl_object_store_rw (and tdl KMS access) to the tdl role only,
+   - there is no equivalent object-store/KMS policy attached to the decision_lane IRSA role even though the shared dev_full profile pins ofp.snapshot_store_root = s3://fraud-platform-dev-full-object-store.
+5. Production interpretation:
+   - this is a real platform defect, not a harmless test quirk,
+   - a production decision lane that embeds feature-snapshot materialization must carry the exact object-store and key permissions required by that materialization path,
+   - otherwise the system appears healthy at the projector plane while the actual decision path remains unable to serve features under load,
+   - that in turn falsely starves the case/label plane and would later contaminate learning/evolution evidence as well.
+6. Alternatives considered:
+   - externalize OFP serving into a separate RPC surface immediately: valid long-term architecture option, but too broad for the bounded PR3-S4 rerun and would add new failure surfaces before we have closed the current state,
+   - relax DF or registry contracts again: rejected because the blocker is now identity/IAM drift, not semantic policy,
+   - continue rerunning soak without fixing IAM: rejected as resource waste because the state is deterministically red until the embedded OFP writer can access the object store.
+7. Selected remediation for the active boundary:
+   - extend ROLE_EKS_IRSA_DECISION_LANE with the same object-store read/write bucket/object permissions already pinned for ROLE_EKS_IRSA_RTDL,
+   - extend the decision-lane role with the same core KMS rights needed to read/write encrypted object-store artifacts,
+   - apply that change live in a bounded Terraform step,
+   - then rerun the exact PR3-S4 boundary and inspect whether DF/case-label deltas materialize or whether a second-order serve-path issue remains.
+8. Evidence expectation after remediation:
+   - snapshots_built must rise above   during the soak,
+   - snapshot_failures must stop monotonically climbing,
+   - DF should stop emitting OFP_UNAVAILABLE for the corrected path,
+   - only after that can case_trigger, case_mgmt, and label_store be judged honestly on the same run scope.
+
+## Entry: 2026-03-08 11:14:30 +00:00 - Applied the bounded live IAM fix for the embedded DF/OFP snapshot path before rerunning the same S4 boundary
+1. I validated the Terraform configuration in infra/terraform/dev_full/runtime after adding the decision-lane policies.
+2. I then created a targeted plan against exactly two resources only:
+   - ws_iam_role_policy.eks_irsa_decision_lane_core_kms
+   - ws_iam_role_policy.eks_irsa_decision_lane_object_store_rw
+3. The plan was intentionally bounded because the runtime stack still carries unrelated drift and this remediation only needed the live identity/IAM lane corrected for the active PR3-S4 blocker.
+4. Apply completed successfully:
+   - created raud-platform-dev-full-irsa-decision-lane-core-kms,
+   - created raud-platform-dev-full-irsa-decision-lane-object-store-rw.
+5. Production effect of that live change:
+   - the decision-lane pod identity now has the same object-store bucket/object rights and core KMS rights that the embedded OFP materializer requires to publish snapshots to s3://fraud-platform-dev-full-object-store,
+   - this removes the identity drift between the projector lane (tdl) and the decision-serving lane (decision-lane) for the shared OFP snapshot path.
+6. I did not broaden the change beyond the active blocker:
+   - no workflow contract changed,
+   - no runtime thresholds changed,
+   - no state rollup logic changed,
+   - no unrelated runtime drift was applied.
+7. Exact next step remains fail-closed and bounded:
+   - rerun strict PR3-S4 on the same authority boundary,
+   - inspect whether snapshots_built becomes non-zero, snapshot_failures stops climbing, DF stops surfacing OFP_UNAVAILABLE, and whether the case/label plane finally receives material current-run participation.
+## Entry: 2026-03-08 12:02:00 +00:00 - PR3-S4 narrowed again: the remaining red is DL whole-plane overspecification plus missing idle observability on the case/label plane
+1. I continued from the corrected PR3-S4 rerun (`22819855110`) with the production-readiness rule that later states must be judged by whole-platform impact, not only the WSP/IG/RTDL spine.
+2. The live decision-lane inspection materially changed the diagnosis:
+   - DF is no longer blocked by registry-scope drift or OFP snapshot write permission,
+   - live DF reconciliation now shows `ACTIVE_BUNDLE_INCOMPATIBLE`, `CAPABILITY_BLOCK:feature_group=core_features`, `CAPABILITY_MISMATCH:allow_model_primary`, `FALLBACK_EXPLICIT`, and `CONTEXT_STATUS:CONTEXT_BLOCKED`,
+   - the decision counts remain tiny because DF is being clamped by the live degrade posture rather than by missing context or missing registry scope.
+3. I verified the upstream source of that clamp directly from the live degrade-ladder pod for the same `platform_run_id`:
+   - `decision_mode=FAIL_CLOSED`,
+   - `bad_required_signals=["ofp_health"]`,
+   - the control-event history shows the lane oscillating from `NORMAL` into `FAIL_CLOSED` on `ofp_health` and earlier on `eb_consumer_lag, ieg_health, ofp_health`.
+4. I then compared the live OFP runtime surface that DL is reacting to:
+   - `checkpoint_age_seconds ~= 0.01`,
+   - `snapshot_failures = 0`,
+   - `stale_graph_version = 0`,
+   - `events_applied = 148280`,
+   - `missing_features = 1`,
+   - `health_reasons = ["WATERMARK_TOO_OLD"]` only.
+5. That is a design-intent mismatch and a production defect. The owning OFP surface is effectively saying "runtime projection is fresh; replay watermark is old/advisory." DL then overrides that with a hard whole-plane failure because it treats any aggregate `missing_features > 0` as a terminal runtime error even when OFP health does not classify feature availability as materially degraded.
+6. Production interpretation:
+   - a single aggregate feature miss over a large replay/soak window should affect the impacted decision(s), not automatically collapse the entire decision plane into fail-closed,
+   - whole-plane degrade should follow rate/severity and the owning component health classification, not an unconditional counter > 0 rule,
+   - otherwise the platform becomes brittle and self-throttles under production-like replay/soak even when the real hot-path surfaces are healthy.
+7. The case/label plane diagnosis also sharpened:
+   - the pods are running and not crash-looping,
+   - `case_trigger` and `case_mgmt` only create metrics/reconciliation surfaces after they infer `scenario_run_id` from live traffic,
+   - `label_store` has `LABEL_STORE_SCENARIO_RUN_ID` in env already, but its worker still emits nothing when the reporter is not reached or when there is no explicit startup export,
+   - this means a healthy-but-idle or still-starved case/label plane is reported as `missing` instead of `present and idle`, which breaks cross-plane certification rigor.
+8. Selected remediation path for the next bounded code slice:
+   - adjust DL shared OFP health interpretation so whole-plane red follows materially severe feature/snapshot failure posture rather than any raw `missing_features > 0`, while preserving fail-closed for genuinely broken OFP states,
+   - add explicit scenario seeding and zero-state export support to `case_trigger` and `case_mgmt`,
+   - ensure the materializer passes the case/label scenario identity explicitly so those workers can emit run-scoped idle surfaces immediately,
+   - then rebuild/publish the image, repin the runtime source family, and rerun the exact PR3-S4 boundary.
+9. Rejected alternatives:
+   - leave DL as-is and keep rerunning soak: rejected as resource waste because the decision lane will deterministically self-clamp,
+   - hide the case/label absence in rollup logic: rejected because it would create a fake green on the whole-platform claim,
+   - widen the state by changing upstream traffic/data: rejected because the problem is platform semantics and observability, not oracle content.
+## Entry: 2026-03-08 12:18:00 +00:00 - Completed the bounded PR3-S4 code remediation and validated it locally before refreshing the runtime image
+1. I implemented the bounded code changes selected in the previous entry rather than broadening the state or weakening the acceptance criteria.
+2. Degrade-ladder remediation completed in `src/fraud_detection/degrade_ladder/worker.py`:
+   - shared OFP health no longer escalates the entire decision plane to `ERROR` on any raw `missing_features > 0`,
+   - whole-plane red now follows materially severe thresholds only (`OFP_HEALTH_RED_MISSING_FEATURES`, `OFP_HEALTH_RED_SNAPSHOT_FAILURES`),
+   - the default posture remains fail-closed for genuinely broken OFP states, but avoids production-hostile collapse on a tiny aggregate miss inside an otherwise healthy replay window.
+3. Case/label run-scope observability remediation completed:
+   - `case_trigger` now accepts explicit `scenario_run_id` and seeds metrics, reconciliation, and governance emitters at startup when the platform/scenario run pins are already known,
+   - `case_mgmt` now accepts explicit `scenario_run_id` and seeds its run scope at startup so a healthy-idle plane can still emit run-scoped artifacts,
+   - `label_store` now falls back to `ACTIVE_SCENARIO_RUN_ID` so the whole case/label path can share the same explicit run identity when materialized.
+4. Runtime materializer remediation completed in `scripts/dev_substrate/pr3_rtdl_materialize.py`:
+   - propagated `ACTIVE_SCENARIO_RUN_ID`, `CASE_TRIGGER_SCENARIO_RUN_ID`, and `CASE_MGMT_SCENARIO_RUN_ID` through the shared secret/env surface,
+   - this removes the hidden dependency on workers discovering scenario identity only from live downstream traffic.
+5. I also extended local tests rather than relying on narrative reasoning only:
+   - added a positive test proving DL stays `NORMAL` when OFP is fresh and only a single aggregate missing feature is present,
+   - added a red-threshold test proving DL still fails closed when missing features reach the materially severe threshold.
+6. Local validation completed successfully before any runtime rebuild:
+   - `pytest tests/services/degrade_ladder/test_phase7_worker_observability.py -q` passed,
+   - `python -m py_compile` passed for the touched worker/materializer files.
+7. Production interpretation of this code slice:
+   - it does not hide failures,
+   - it narrows an over-eager global failure policy to a severity-based one more consistent with production behavior,
+   - it upgrades cross-plane observability so healthy-idle case/label lanes are no longer misclassified as missing simply because startup export was absent.
+8. Exact next step remains bounded and auditable:
+   - refresh the shared runtime image,
+   - rerun the exact strict `PR3-S4` boundary,
+   - score the rerun by impact metrics across RTDL, case/label, and the participating substrate surfaces.

@@ -527,16 +527,22 @@ class DegradeLadderWorker:
             metrics = payload.get("metrics") if isinstance(payload.get("metrics"), dict) else {}
             missing_features = int(metrics.get("missing_features", payload.get("missing_features", 0)) or 0)
             snapshot_failures = int(metrics.get("snapshot_failures", payload.get("snapshot_failures", 0)) or 0)
+            red_missing_features = _int_env("OFP_HEALTH_RED_MISSING_FEATURES", 10)
+            red_snapshot_failures = _int_env("OFP_HEALTH_RED_SNAPSHOT_FAILURES", 5)
             advisory_reason = self._shared_ofp_recovered_advisory_reason(
                 payload=payload,
                 required_max_age=required_max_age,
                 missing_features=missing_features,
                 snapshot_failures=snapshot_failures,
             )
-            if missing_features > 0:
+            if missing_features >= red_missing_features:
                 return SignalState(
                     status="ERROR",
-                    value={"component": component, "missing_features": missing_features},
+                    value={
+                        "component": component,
+                        "missing_features": missing_features,
+                        "red_threshold": red_missing_features,
+                    },
                     detail="SHARED_COMPONENT_MISSING_FEATURES_PRESENT",
                     source=f"dl.worker:{component}:shared",
                 )
@@ -547,16 +553,21 @@ class DegradeLadderWorker:
                         "component": component,
                         "checkpoint_age_seconds": checkpoint_age,
                         "snapshot_failures": snapshot_failures,
+                        "missing_features": missing_features,
                         "state": "READY",
                         "advisory_reason": advisory_reason,
                     },
                     detail=advisory_reason,
                     source=f"dl.worker:{component}:shared",
                 )
-            if snapshot_failures > 0:
+            if snapshot_failures >= red_snapshot_failures:
                 return SignalState(
                     status="ERROR",
-                    value={"component": component, "snapshot_failures": snapshot_failures},
+                    value={
+                        "component": component,
+                        "snapshot_failures": snapshot_failures,
+                        "red_threshold": red_snapshot_failures,
+                    },
                     detail="SHARED_COMPONENT_SNAPSHOT_FAILURES_PRESENT",
                     source=f"dl.worker:{component}:shared",
                 )
@@ -1088,6 +1099,16 @@ def _parse_platform_utc(value: str | None) -> datetime | None:
 
 def _utc_now() -> str:
     return datetime.now(tz=timezone.utc).isoformat()
+
+
+def _int_env(name: str, default: int) -> int:
+    raw = str(os.getenv(name) or "").strip()
+    if not raw:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
 
 
 def main() -> None:

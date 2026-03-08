@@ -57,6 +57,7 @@ class CaseTriggerWorkerConfig:
     stream_id: str
     platform_run_id: str | None
     required_platform_run_id: str | None
+    scenario_run_id: str | None
     event_class: str
     ig_ingest_url: str
     ig_api_key: str | None
@@ -177,6 +178,7 @@ class CaseTriggerWorker:
             )
         except Exception as exc:
             logger.warning("CaseTrigger governance store disabled: %s", str(exc)[:256])
+        self._seed_run_scope_from_config()
 
     def run_once(self) -> int:
         processed = 0
@@ -393,6 +395,30 @@ class CaseTriggerWorker:
             return True
         return self._scenario_run_id == scenario_run_id
 
+    def _seed_run_scope_from_config(self) -> None:
+        platform_run_id = str(self.config.platform_run_id or "").strip()
+        scenario_run_id = str(self.config.scenario_run_id or "").strip()
+        if not platform_run_id or not scenario_run_id or self._scenario_run_id is not None:
+            return
+        self._scenario_run_id = scenario_run_id
+        self._metrics = CaseTriggerRunMetrics(
+            platform_run_id=platform_run_id,
+            scenario_run_id=scenario_run_id,
+        )
+        self._reconciliation = CaseTriggerReconciliationBuilder(
+            platform_run_id=platform_run_id,
+            scenario_run_id=scenario_run_id,
+        )
+        if self._governance_store is not None:
+            self._governance = CaseTriggerGovernanceEmitter(
+                store=self._governance_store,
+                platform_run_id=platform_run_id,
+                scenario_run_id=scenario_run_id,
+                source_component="case_trigger",
+                environment=self.config.environment,
+                config_revision=self.config.config_revision,
+            )
+
     def _iter_records(self) -> list[dict[str, Any]]:
         if self.config.event_bus_kind == "kinesis":
             return self._read_kinesis()
@@ -603,6 +629,13 @@ def load_worker_config(profile_path: Path) -> CaseTriggerWorkerConfig:
                 ct_wiring.get("required_platform_run_id")
                 or os.getenv("CASE_TRIGGER_REQUIRED_PLATFORM_RUN_ID")
                 or platform_run_id
+            )
+        ),
+        scenario_run_id=_none_if_blank(
+            _env(
+                ct_wiring.get("scenario_run_id")
+                or os.getenv("CASE_TRIGGER_SCENARIO_RUN_ID")
+                or os.getenv("ACTIVE_SCENARIO_RUN_ID")
             )
         ),
         event_class=str(_env(ct_wiring.get("event_class") or "traffic_fraud")).strip(),
