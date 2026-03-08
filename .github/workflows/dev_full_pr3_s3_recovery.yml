@@ -275,7 +275,7 @@ jobs:
           ecs = boto3.client("ecs", region_name=region)
           sq = boto3.client("service-quotas", region_name=region)
 
-          quota = sq.get_service_quota(serviceCode="fargate", quotaCode="L-3032A538")["Quota"]
+          quota = sq.get_service_quota(ServiceCode="fargate", QuotaCode="L-3032A538")["Quota"]
           quota_vcpu = float(quota["Value"])
           quota_cpu_units = int(quota_vcpu * 1024)
 

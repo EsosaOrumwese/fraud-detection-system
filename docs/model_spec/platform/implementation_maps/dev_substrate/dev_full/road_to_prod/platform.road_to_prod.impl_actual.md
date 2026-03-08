@@ -9175,3 +9175,18 @@ uns/.../degrade_ladder/* on its own filesystem,
    - derive WSP task overrides from the remaining headroom,
    - pass the selected `--task-cpu` / `--task-memory` overrides to both prestress and recovery dispatcher invocations,
    - preserve strict fail-closed behavior if the remaining headroom cannot support the required lane fan-out at the minimum allowed WSP shape.
+
+## Entry: 2026-03-08 02:36:20 +00:00 - The first quota-aware packing rerun failed on boto3 parameter casing; the headroom method remains correct
+1. The first run of the quota-aware packing workflow (`22812241501`) failed in the preflight step before any runtime change or launcher decision was made.
+2. Root cause is a workflow implementation bug in the inline boto3 call:
+   - I used CLI-style argument names `serviceCode` and `quotaCode`,
+   - boto3 requires `ServiceCode` and `QuotaCode`,
+   - the call therefore failed fast with `ParamValidationError` before the headroom calculation executed.
+3. This does not invalidate the selected remediation direction:
+   - the quota-aware packing method is still the right production answer,
+   - no platform evidence was consumed or altered by this failure,
+   - the next action is a narrow implementation correction, not a design change.
+4. Selected fix:
+   - correct the boto3 parameter casing,
+   - rerun the same strict `PR3-S3` boundary immediately,
+   - only revisit the design if the corrected preflight reports that even the minimum WSP task shape cannot fit.
