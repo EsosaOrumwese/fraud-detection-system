@@ -10448,3 +10448,34 @@ uns/.../degrade_ladder/* on its own filesystem,
    - commit the updated `pr3_s4_cost_guardrail.py` contract that the workflow already expects,
    - harden `pr3_s4_correctness_rollup.py` so missing upstream correctness artifacts become deterministic blocker receipts rather than Python exceptions.
 6. This is not a change in production intent. It is harness hardening so the next rerun measures the platform and not missing remote-runner dependencies or artifact-contract skew.
+## Entry: 2026-03-08 17:31:30 +00:00 - PR3-S4 first real blocker is GitHub OIDC read denial on the canonical oracle-store root, so control-plane authoring cannot start
+1. After the harness hardening commit, reran bounded `PR3-S4` as GitHub Actions run `22826105594`.
+2. This rerun is important because the harness stayed clean: cost guardrail and rollup emitted structured blocker receipts, and the only failed execution step was `Bootstrap active run through Scenario Runner`.
+3. Downloaded the run artifact into the controlled transient debug area and inspected `g3a_control_plane_bootstrap.json`.
+4. The actual blocker is now explicit:
+   - role: `arn:aws:sts::230372904534:assumed-role/GitHubAction-AssumeRoleWithAction/GitHubActions`
+   - denied action: `s3:GetObject`
+   - denied object: `arn:aws:s3:::fraud-platform-dev-full-object-store/oracle-store/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/run_receipt.json`
+5. Production meaning:
+   - this is not a convenience permission gap; it blocks the control plane from reading the authoritative oracle-backed run root that later runtime planes are expected to consume by reference,
+   - therefore `PR3-S4` cannot truthfully bootstrap a whole-platform run until the CI control authority can read that oracle-store root.
+6. Options considered:
+   - broad `s3:*` on the object-store bucket: rejected as lazy and overprivileged,
+   - ad hoc one-off inline role patch outside Terraform: rejected because the repo already manages `GitHubActionsPR3RuntimeDevFull`,
+   - targeted read-only expansion of the existing managed policy to cover `oracle-store/*` plus bucket list on the object-store bucket: chosen.
+7. Chosen remediation is to extend `aws_iam_policy.github_actions_pr3_runtime` in `infra/terraform/dev_full/ops/main.tf` with the minimum S3 list/get permissions required for canonical oracle-store reads, then apply that policy delta live with targeted Terraform before the next bounded rerun.
+8. This keeps the permission aligned with production intent: CI can read the authoritative run inputs needed to author control-plane state, but it still does not gain arbitrary object-store write power outside already-pinned prefixes.
+## Entry: 2026-03-08 17:34:30 +00:00 - Applied live IAM remediation so PR3-S4 control bootstrap can read the canonical oracle-store root
+1. Updated `infra/terraform/dev_full/ops/main.tf` inside the managed policy resource `aws_iam_policy.github_actions_pr3_runtime`.
+2. Added two read-only statements only:
+   - `PR3OracleStoreBucketRead`: `s3:ListBucket` + `s3:GetBucketLocation` on `fraud-platform-dev-full-object-store` limited to `oracle-store` / `oracle-store/*` prefixes.
+   - `PR3OracleStoreObjectRead`: `s3:GetObject` on `fraud-platform-dev-full-object-store/oracle-store/*`.
+3. I rejected broader alternatives (`s3:*`, object-store write, ad hoc inline role patch) because the real need is only control-plane by-reference reads of the authoritative oracle run root.
+4. Ran `terraform fmt`, `terraform init`, then a targeted plan/apply in `infra/terraform/dev_full/ops` against `aws_iam_policy.github_actions_pr3_runtime`.
+5. Targeted plan result was exactly one in-place policy update; no other resources changed.
+6. Targeted apply completed successfully:
+   - resources: `0 added, 1 changed, 0 destroyed`.
+7. This is now the correct production posture for the control bootstrap:
+   - CI can read the authoritative oracle-store input root required to author a run,
+   - CI still does not gain arbitrary object-store write access outside already-pinned prefixes.
+8. Next step is to rerun the same bounded `PR3-S4` correctness gate unchanged so the next blocker, if any, occurs deeper in the real whole-platform execution chain.

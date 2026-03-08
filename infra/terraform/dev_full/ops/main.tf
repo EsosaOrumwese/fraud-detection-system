@@ -408,6 +408,31 @@ resource "aws_iam_policy" "github_actions_pr3_runtime" {
         Resource = "arn:aws:s3:::fraud-platform-dev-full-tfstate/dev_full/runtime/terraform.tfstate"
       },
       {
+        Sid    = "PR3OracleStoreBucketRead"
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket",
+          "s3:GetBucketLocation"
+        ]
+        Resource = "arn:aws:s3:::fraud-platform-dev-full-object-store"
+        Condition = {
+          StringLike = {
+            "s3:prefix" = [
+              "oracle-store",
+              "oracle-store/*"
+            ]
+          }
+        }
+      },
+      {
+        Sid    = "PR3OracleStoreObjectRead"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject"
+        ]
+        Resource = "arn:aws:s3:::fraud-platform-dev-full-object-store/oracle-store/*"
+      },
+      {
         Sid    = "PR3TfLockControl"
         Effect = "Allow"
         Action = [
