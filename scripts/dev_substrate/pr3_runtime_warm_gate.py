@@ -281,6 +281,94 @@ def replay_advisory_only(component: str, probe: dict[str, Any], *, max_checkpoin
     return True
 
 
+def bootstrap_marker_only(reasons: list[Any] | tuple[Any, ...] | set[Any], allowed: set[str]) -> bool:
+    normalized = {str(item).strip() for item in reasons if str(item).strip()}
+    return bool(normalized) and normalized.issubset(allowed)
+
+
+def zero_df_activity(df_probe: dict[str, Any]) -> bool:
+    metrics_payload = dict(df_probe.get("metrics_payload") or {})
+    if bool(metrics_payload.get("__missing__")):
+        return False
+    metrics = dict(metrics_payload.get("metrics") or {})
+    required_zero_fields = (
+        "decisions_total",
+        "degrade_total",
+        "fail_closed_total",
+        "missing_context_total",
+        "publish_admit_total",
+        "publish_duplicate_total",
+        "publish_quarantine_total",
+        "resolver_failures_total",
+    )
+    return all((to_float(metrics.get(field)) or 0.0) == 0.0 for field in required_zero_fields)
+
+
+def ieg_bootstrap_pending(ieg_probe: dict[str, Any]) -> bool:
+    metrics_payload = dict(ieg_probe.get("metrics_payload") or {})
+    health_payload = dict(ieg_probe.get("health_payload") or {})
+    if bool(metrics_payload.get("__missing__")) and bool(health_payload.get("__missing__")):
+        return True
+    if str(health_payload.get("health_state") or "").strip().upper() not in {"", "AMBER", "YELLOW"}:
+        return False
+    if not bootstrap_marker_only(
+        list(health_payload.get("health_reasons") or []),
+        {"WATERMARK_MISSING", "CHECKPOINT_MISSING"},
+    ):
+        return False
+    return (to_float(health_payload.get("apply_failure_count")) or 0.0) == 0.0 and (
+        to_float(health_payload.get("backpressure_hits")) or 0.0
+    ) == 0.0
+
+
+def ofp_bootstrap_pending(ofp_probe: dict[str, Any]) -> bool:
+    metrics_payload = dict(ofp_probe.get("metrics_payload") or {})
+    health_payload = dict(ofp_probe.get("health_payload") or {})
+    if bool(metrics_payload.get("__missing__")) and bool(health_payload.get("__missing__")):
+        return True
+    if str(health_payload.get("health_state") or "").strip().upper() not in {"", "AMBER", "YELLOW"}:
+        return False
+    return bootstrap_marker_only(
+        list(health_payload.get("health_reasons") or []),
+        {"WATERMARK_MISSING", "CHECKPOINT_MISSING"},
+    )
+
+
+def pretraffic_bootstrap_allowed(
+    state_id: str,
+    attempt_blockers: list[str],
+    *,
+    dl_bootstrap_pending_flag: bool,
+    df_probe: dict[str, Any],
+    ieg_probe: dict[str, Any],
+    ofp_probe: dict[str, Any],
+) -> tuple[bool, str]:
+    if state_sequence(state_id) < 4:
+        return False, ""
+    if not dl_bootstrap_pending_flag:
+        return False, ""
+    base_id = f"PR3.{state_id}.WARM."
+    allowed_blockers = {
+        f"{base_id}B12A_DL_BOOTSTRAP_PENDING",
+        f"{base_id}B12C_IEG_METRICS_SURFACE_MISSING",
+        f"{base_id}B12D_IEG_HEALTH_SURFACE_MISSING",
+        f"{base_id}B12F_IEG_NOT_OPERATIONALLY_READY",
+        f"{base_id}B12H_OFP_METRICS_SURFACE_MISSING",
+        f"{base_id}B12I_OFP_HEALTH_SURFACE_MISSING",
+        f"{base_id}B12K_OFP_NOT_OPERATIONALLY_READY",
+    }
+    blocker_set = set(attempt_blockers)
+    if not blocker_set or not blocker_set.issubset(allowed_blockers):
+        return False, ""
+    if not zero_df_activity(df_probe):
+        return False, ""
+    if not ieg_bootstrap_pending(ieg_probe):
+        return False, ""
+    if not ofp_bootstrap_pending(ofp_probe):
+        return False, ""
+    return True, f"{base_id}A01_PRETRAFFIC_BOOTSTRAP_PENDING_ALLOWED"
+
+
 def probe_component_surface(namespace: str, pod_name: str, component: str, platform_run_id: str) -> tuple[dict[str, Any], str]:
     paths = COMPONENT_SURFACE_PATHS[component]
     return exec_json(
@@ -437,10 +525,12 @@ def main() -> None:
                 blockers.append(f"PR3.{args.state_id}.WARM.B15_NODE_DISK_PRESSURE:{node_name}")
 
     probe_attempts: list[dict[str, Any]] = []
+    advisory_ids: list[str] = []
     if not blockers:
         deadline = time.time() + max(0, int(args.runtime_ready_timeout_seconds))
         while True:
             attempt_blockers: list[str] = []
+            attempt_advisory_ids: list[str] = []
             attempt_started = now_utc()
 
             csfb_status = next(row for row in pre_status if row.get("app") == "fp-pr3-csfb")
@@ -569,14 +659,31 @@ def main() -> None:
                 ):
                     attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12K_OFP_NOT_OPERATIONALLY_READY")
 
+            pretraffic_allowed, pretraffic_advisory = pretraffic_bootstrap_allowed(
+                args.state_id,
+                attempt_blockers,
+                dl_bootstrap_pending_flag=dl_bootstrap_pending_flag,
+                df_probe=df_probe,
+                ieg_probe=ieg_probe,
+                ofp_probe=ofp_probe,
+            )
+            if pretraffic_allowed:
+                attempt_advisory_ids.append(pretraffic_advisory)
+                advisory_ids.append(pretraffic_advisory)
+                attempt_blockers = []
+
             probe_attempts.append(
                 {
                     "attempt_started_utc": attempt_started,
                     "blocker_ids": sorted(set(attempt_blockers)),
+                    "advisory_ids": sorted(set(attempt_advisory_ids)),
                     "dl_bootstrap_pending": dl_bootstrap_pending_flag,
                     "df_metrics_present": not bool(dict(df_probe.get("metrics_payload") or {}).get("__missing__")),
                     "ieg_metrics_present": not bool(dict(ieg_probe.get("metrics_payload") or {}).get("__missing__")),
                     "ofp_metrics_present": not bool(dict(ofp_probe.get("metrics_payload") or {}).get("__missing__")),
+                    "df_zero_activity": zero_df_activity(df_probe),
+                    "ieg_bootstrap_pending": ieg_bootstrap_pending(ieg_probe),
+                    "ofp_bootstrap_pending": ofp_bootstrap_pending(ofp_probe),
                 }
             )
             blockers = attempt_blockers
@@ -628,6 +735,7 @@ def main() -> None:
         "probe_interval_seconds": args.probe_interval_seconds,
         "node_health": node_health_rows,
         "post_status": post_status,
+        "advisory_ids": sorted(set(advisory_ids)),
         "overall_pass": len(blockers) == 0,
         "blocker_ids": sorted(set(blockers)),
     }

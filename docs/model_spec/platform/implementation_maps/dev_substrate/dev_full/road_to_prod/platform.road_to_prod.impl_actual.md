@@ -9657,3 +9657,55 @@ uns/.../degrade_ladder/* on its own filesystem,
    - normalize `args.profile_path` and all ConfigMap mount-path derivations to POSIX container paths inside `pr3_rtdl_materialize.py`,
    - keep the container-facing runtime path contract pinned as `/runtime-profile/...` regardless of the host OS executing the materializer,
    - then rerun local materialization once to restore the live runtime and re-check the warm gate before the next full `PR3-S4` soak workflow.
+
+## Entry: 2026-03-08 08:12:56 +00:00 - Fresh-run S4 warm gate still over-constrains the pre-traffic bootstrap boundary
+1. The first GitHub rerun of strict `PR3-S4` after the image/materializer fixes failed before the soak window again, but the failure mode shifted.
+2. The run-scoped warm-gate evidence for fresh `platform_run_id=platform_20260308T080707Z` shows:
+   - all pods were healthy and ready,
+   - `DF` was clean and idle (`decisions_total=0`, `publish_quarantine_total=0`),
+   - `DL` remained `FAIL_CLOSED` on `required_signal_gap:eb_consumer_lag,ieg_health,ofp_health`,
+   - `IEG` existed but still showed `WATERMARK_MISSING/CHECKPOINT_MISSING`,
+   - `OFP` metrics/health files were still missing entirely,
+   - no traffic had been injected yet because the warm gate runs before the WSP soak launch.
+3. Production interpretation:
+   - this is not the same defect as the earlier old-run false fail-close,
+   - on a truly fresh run it is impossible for `OFP` current-run metrics to exist before traffic arrives,
+   - therefore the current warm gate is over-constraining the pre-traffic boundary by demanding evidence that can only materialize during the same-run warmup window.
+4. Why I am not simply deleting the gate:
+   - we still need the gate to catch real pod/readiness/runtime faults before a 30-minute soak,
+   - we still need it to reject stale/bootstrap debt after traffic has already started,
+   - the right change is to admit only the narrow pre-traffic bootstrap posture and keep everything else fail-closed.
+5. Selected remediation:
+   - teach `pr3_runtime_warm_gate.py` to treat the following combination as an admissible pre-traffic bootstrap posture:
+     - `DL_BOOTSTRAP_PENDING`,
+     - zero `DF` activity,
+     - `IEG`/`OFP` current-run surfaces missing or still in `WATERMARK_MISSING/CHECKPOINT_MISSING` bootstrap state,
+     - no evidence of real runtime errors or restarts,
+   - emit that as an explicit advisory note in the gate payload rather than a hidden bypass,
+   - continue to block once those conditions are not met or once real runtime faults appear.
+
+## Entry: 2026-03-08 09:02:00 +00:00 - Narrowing the S4 warm-gate fix to a provable pre-traffic bootstrap signature
+1. Before patching the gate I re-read the `PR3` `S4` contract and the captured artifact from workflow `22817060358`. The important design question is not "how do I make the gate pass?" but "what runtime shape is production-honest before the soak traffic exists?"
+2. The answer is narrower than a generic bootstrap waiver:
+   - `S4` launches a fresh `platform_run_id`, runs warm gate, and only then starts the WSP soak with a pinned `warmup_seconds=120`,
+   - therefore the pre-traffic runtime can legitimately have zero current-run `DF` decisions and missing `OFP` current-run files,
+   - but it must not have any pod instability, node pressure, scope drift, registry drift, or non-bootstrap `IEG/OFP` faults.
+3. I am intentionally not broadening the earlier `S2` bootstrap relaxation into a blanket rule for all states:
+   - `S3` is a continuous recovery campaign and should still require an already-material run boundary,
+   - `S4` is different because its certification window explicitly includes a same-run warmup stage after the gate.
+4. Selected implementation shape:
+   - add a pure helper in `pr3_runtime_warm_gate.py` that decides whether the current attempt is a valid `pre_traffic_bootstrap_pending` posture,
+   - require all of the following simultaneously:
+     - `state_id` is `S4` or later,
+     - blockers are limited to `DL bootstrap pending` plus `IEG/OFP` missing/bootstrap-only surfaces,
+     - `DF` metrics prove zero current-run activity and zero quarantine/fail-close growth,
+     - `IEG` is either absent only on bootstrap markers or amber on exactly `WATERMARK_MISSING/CHECKPOINT_MISSING`,
+     - `OFP` is either missing entirely or amber on the same bootstrap markers,
+     - earlier pod/node checks remain clean.
+5. Evidence posture:
+   - do not suppress the blocker trail,
+   - instead record an explicit advisory id and note on the successful attempt so the later human-readable findings can say "the run entered soak from a valid pre-traffic bootstrap posture" rather than pretending the surfaces were already warm.
+6. Validation before any rerun:
+   - `python -m py_compile scripts/dev_substrate/pr3_runtime_warm_gate.py` passed,
+   - the new helper evaluated the captured `22817060358` gate artifact as `allowed=true` with advisory `PR3.S4.WARM.A01_PRETRAFFIC_BOOTSTRAP_PENDING_ALLOWED`,
+   - the same helper returned `allowed=false` immediately when I injected an extra non-bootstrap blocker, which proves the fix stays narrow instead of becoming a general bypass.
