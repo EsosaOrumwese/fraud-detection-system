@@ -29,6 +29,10 @@ def dump_json(path: Path, payload: dict[str, Any]) -> None:
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
 
 
+def load_json(path: Path) -> dict[str, Any]:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 def parse_registry(path: Path) -> dict[str, str]:
     payload: dict[str, str] = {}
     pattern = re.compile(r"^\*\s*`([^`]+)`")
@@ -117,6 +121,7 @@ def job_manifest(
     pr3_execution_id: str,
     platform_run_id: str,
     scenario_run_id: str,
+    run_facts_ref: str,
     aws_region: str,
 ) -> dict[str, Any]:
     return {
@@ -170,6 +175,7 @@ def job_manifest(
                                 {"name": "ACTIVE_PLATFORM_RUN_ID", "value": platform_run_id},
                                 {"name": "ACTIVE_SCENARIO_RUN_ID", "value": scenario_run_id},
                                 {"name": "PR3_REGISTRY_PATH", "value": "/learning/dev_full_handles.registry.v0.md"},
+                                {"name": "PR3_RUN_FACTS_REF", "value": run_facts_ref},
                             ],
                             "volumeMounts": [
                                 {
@@ -285,11 +291,18 @@ def main() -> None:
     pod_name = ""
     image_uri = ""
     role_arn = ""
+    run_facts_ref = ""
 
     try:
         if not WORKER_PATH.exists():
             raise RuntimeError(f"PR3.B29_LEARNING_BOUND_FAIL:WORKER_SCRIPT_MISSING:{WORKER_PATH}")
         registry = parse_registry(REGISTRY_PATH)
+        bootstrap = load_json(run_root / "g3a_control_plane_bootstrap.json")
+        if not bool(bootstrap.get("overall_pass")):
+            raise RuntimeError("PR3.B29_LEARNING_BOUND_FAIL:CONTROL_BOOTSTRAP_NOT_GREEN")
+        run_facts_ref = str(((bootstrap.get("sr") or {}).get("facts_view_ref")) or "").strip()
+        if not run_facts_ref:
+            raise RuntimeError("PR3.B29_LEARNING_BOUND_FAIL:RUN_FACTS_REF_EMPTY")
         image_uri = str(args.image_uri).strip() or resolve_task_image(
             family=args.wsp_task_family,
             region=args.aws_region,
@@ -324,6 +337,7 @@ def main() -> None:
                 pr3_execution_id=args.pr3_execution_id,
                 platform_run_id=args.platform_run_id,
                 scenario_run_id=args.scenario_run_id,
+                run_facts_ref=run_facts_ref,
                 aws_region=args.aws_region,
             )
         )

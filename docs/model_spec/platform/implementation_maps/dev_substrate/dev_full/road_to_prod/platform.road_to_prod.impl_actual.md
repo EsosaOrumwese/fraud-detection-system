@@ -10605,3 +10605,17 @@ uns/.../degrade_ladder/* on its own filesystem,
    - patch `pr3_s4_learning_bound.py` to read `PR3_REGISTRY_PATH` when set,
    - patch `pr3_s4_learning_bound_remote.py` to mount `dev_full_handles.registry.v0.md` into the job and export that override env var.
 7. This is the correct bounded fix because it addresses the precise remote-lane dependency without pretending the runtime image is already perfectly content-complete. If additional missing local authority files appear after this, each one will be surfaced explicitly and closed the same way or rolled into a later image-hardening slice once the bounded correctness proof is fully understood.
+## Entry: 2026-03-08 18:57:40 +00:00 - The learning pod no longer fails on the registry file, but it still leaks a runner-local control artifact assumption into the remote lane
+1. Reran bounded `PR3-S4` as workflow `22827403598` after injecting the registry authority file into the learning job.
+2. New failure is again earlier and more precise, which is useful.
+3. The learning pod now fails on:
+   - `[Errno 2] No such file or directory: 'runs/dev_substrate/dev_full/road_to_prod/run_control/pr3_20260306T021900Z/g3a_control_plane_bootstrap.json'`.
+4. Meaning:
+   - the pod no longer depends on the docs authority file problem,
+   - but `pr3_s4_learning_bound.py` still assumes the runner-local bootstrap summary exists on the pod filesystem,
+   - that is a boundary leak between runner-local orchestration artifacts and remote in-VPC execution.
+5. Chosen remediation:
+   - stop passing the bootstrap summary file implicitly through filesystem assumptions,
+   - pass the actual required datum (`run_facts_ref`) directly into the learning lane,
+   - patch the learning script so it prefers an explicit `PR3_RUN_FACTS_REF` env override and only falls back to reading the bootstrap file when that override is absent.
+6. This is the correct production-style correction because remote jobs should consume explicit pins/refs, not invisible local runner files.

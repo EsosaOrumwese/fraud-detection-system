@@ -213,11 +213,19 @@ def main() -> None:
 
     try:
         registry = parse_registry(REGISTRY_PATH)
-        bootstrap = load_json(run_root / "g3a_control_plane_bootstrap.json")
-        if not bool(bootstrap.get("overall_pass")):
-            raise RuntimeError("PR3.B29_LEARNING_BOUND_FAIL:CONTROL_BOOTSTRAP_NOT_GREEN")
-
         object_store_root = f"s3://{str(registry['S3_OBJECT_STORE_BUCKET']).strip()}"
+        run_facts_ref = ensure_s3_ref(str(os.environ.get("PR3_RUN_FACTS_REF", "")).strip(), object_store_root)
+        if not run_facts_ref:
+            bootstrap_path = Path(
+                str(os.environ.get("PR3_CONTROL_BOOTSTRAP_PATH") or (run_root / "g3a_control_plane_bootstrap.json")).strip()
+            )
+            bootstrap = load_json(bootstrap_path)
+            if not bool(bootstrap.get("overall_pass")):
+                raise RuntimeError("PR3.B29_LEARNING_BOUND_FAIL:CONTROL_BOOTSTRAP_NOT_GREEN")
+            run_facts_ref = ensure_s3_ref(str(((bootstrap.get("sr") or {}).get("facts_view_ref")) or ""), object_store_root)
+        if not run_facts_ref:
+            raise RuntimeError("PR3.B29_LEARNING_BOUND_FAIL:RUN_FACTS_REF_EMPTY")
+
         ssm_values = resolve_ssm(
             args.aws_region,
             [
@@ -262,10 +270,6 @@ def main() -> None:
         ]
         matched_subject_meta = {row["event_id"]: row for row in subjects if row["event_id"] in {e["event_id"] for e in selected_events}}
         label_asof_utc = max(row["observed_time"] for row in matched_subject_meta.values())
-        run_facts_ref = ensure_s3_ref(str(((bootstrap.get("sr") or {}).get("facts_view_ref")) or ""), object_store_root)
-        if not run_facts_ref:
-            raise RuntimeError("PR3.B29_LEARNING_BOUND_FAIL:RUN_FACTS_REF_EMPTY")
-
         intent_payload = {
             "schema_version": "learning.ofs_build_intent.v0",
             "request_id": f"pr3.s4.ofs.{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}",
