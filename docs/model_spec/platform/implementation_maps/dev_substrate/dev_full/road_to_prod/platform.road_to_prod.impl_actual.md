@@ -9709,3 +9709,66 @@ uns/.../degrade_ladder/* on its own filesystem,
    - `python -m py_compile scripts/dev_substrate/pr3_runtime_warm_gate.py` passed,
    - the new helper evaluated the captured `22817060358` gate artifact as `allowed=true` with advisory `PR3.S4.WARM.A01_PRETRAFFIC_BOOTSTRAP_PENDING_ALLOWED`,
    - the same helper returned `allowed=false` immediately when I injected an extra non-bootstrap blocker, which proves the fix stays narrow instead of becoming a general bypass.
+
+## Entry: 2026-03-08 09:20:25 +00:00 - PR3-S4 RTDL root-cause narrowed to a replay-time contract bug in DF, with the case/label plane still downstream of that defect rather than independently broken
+1. I reopened `PR3-S4` after the successful warm-gate rerun and the first strict soak receipt because the measured state still said the hot path was green while `DF` and the case/label plane remained red. The production question was not "how do I push S4 through?" but "what exact runtime contract is invalidating the RTDL and downstream planes under oracle-backed replay?"
+2. The soak evidence itself remains strong and should not be disturbed:
+   - admitted throughput stays above the `3000 eps` soak target,
+   - `4xx=0`, `5xx=0`, and latency remains comfortably inside the pinned `350/700 ms` envelope,
+   - `OFP`, `IEG`, `DLA`, and `archive_writer` all show healthy operational freshness on checkpoint/lag surfaces.
+3. The downstream blocker set is now precise:
+   - `DF` produced only `10` decisions for the current `S4` run,
+   - all `10` were published as `QUARANTINE`,
+   - `9/10` recorded `DECISION_DEADLINE_EXCEEDED`,
+   - all `10` still carried `ACTIVE_BUNDLE_INCOMPATIBLE`, `FEATURE_GROUP_MISSING:core_features`, and `FALLBACK_EXPLICIT`,
+   - `case_trigger`, `case_mgmt`, and `label_store` remained unexercised because they never received meaningful `RTDL` traffic.
+4. The critical discovery is in the live `DF` timing evidence, not in the case plane:
+   - `decision_fabric/metrics/last_metrics.json` shows latency samples on the order of `1.5M..3.0M ms`,
+   - that magnitude is impossible for an actual in-run service delay but exactly consistent with comparing "now" to January replay event timestamps,
+   - `worker.py` currently sets `decision_started_at_utc` to the parsed `published_at_utc` whenever that field is present.
+5. Production interpretation:
+   - this is a real contract bug, not a harness quirk,
+   - in a production replay/backfill or oracle-store certification run, `published_at_utc` is event-time provenance, not the SLA start for online decision processing,
+   - decision latency and `decision_deadline_ms` must be measured from run-local observation / first-seen processing time, otherwise replayed events are deterministically forced to fail closed even when the actual runtime is healthy.
+6. Why I am not treating this as a one-off "testing artifact":
+   - the whole platform goal explicitly includes realistic replay/backfill correctness and time-causal learning,
+   - if `DF` cannot preserve decision semantics under replay because it ties the online budget to historical event time, then the platform is not production-ready for backfills, audit reruns, or controlled recovery windows,
+   - leaving that behavior in place would also falsely starve case management and learning loops and make later phases look red for the wrong reason.
+7. Alternatives considered:
+   - increase `decision_deadline_ms` from `3000` to something huge: rejected because that would hide the bug rather than fix the contract; the wrong clock origin would still exist and later latency evidence would become meaningless,
+   - waive `DECISION_DEADLINE_EXCEEDED` during replay: rejected because production replay must still respect bounded online processing once the runtime has observed the event,
+   - rewrite `DF` partition handling first: deferred, because the current evidence already shows the worker is being poisoned by the wrong start time before more invasive consumer mechanics need to be blamed.
+8. Selected remediation sequence:
+   - patch `DF` so replay and oracle-backed runtime windows anchor decision budgets to run-local observation / first-seen time rather than historical `published_at_utc`,
+   - keep source event timestamps in the evidence payload for provenance, but stop using them as the online deadline clock,
+   - add worker-level tests that prove replay timestamps no longer explode the budget while ordinary malformed timestamps still fall back safely,
+   - then rebuild the live runtime image, rematerialize the PR3 runtime, and rerun the exact `PR3-S4` boundary before deciding whether a second-order `DF` throughput or case-plane issue still exists.
+9. Secondary production note captured now so it is not lost:
+   - `case_trigger`, `case_mgmt`, and `label_store` are currently healthy-but-starved, not independently disproven,
+   - they still need better zero-state observability for later states, but that is not the active root cause for `S4` today.
+
+## Entry: 2026-03-08 09:24:40 +00:00 - Applied the DF replay-time fix narrowly at the online budget boundary and validated it before touching the live runtime image
+1. I implemented the fix in `src/fraud_detection/decision_fabric/worker.py` rather than trying to tune thresholds or add replay-specific waivers.
+2. Exact mechanics:
+   - `DF` now always captures `decision_started_at_utc` from the worker's run-local first-seen state for the `(topic, partition, offset, offset_kind)` candidate,
+   - the helper that computes the decision start time now returns the observed/first-seen timestamp instead of parsed historical `published_at_utc`,
+   - source `published_at_utc` remains available for provenance and evidence, but it no longer defines the online `decision_deadline_ms` budget.
+3. Why this shape is the correct production fix:
+   - it keeps the online SLA fail-closed,
+   - it preserves retry/defer semantics across multiple worker loops because the first-seen timestamp is persisted until the checkpoint advances,
+   - it prevents replay/backfill/oracle-driven runs from being auto-failed by historical event time while still expiring genuinely stuck context acquisition after the bounded wait window.
+4. I intentionally did **not** raise the `3000 ms` deadline or introduce a replay-only waiver:
+   - those options would make the metric easier to "pass" while leaving the wrong contract in place,
+   - they would also pollute later latency evidence and weaken the production claim.
+5. Focused local validation completed:
+   - `python -m py_compile src/fraud_detection/decision_fabric/worker.py tests/services/decision_fabric/test_worker_runtime.py`
+   - `python -m pytest tests/services/decision_fabric/test_worker_runtime.py -q`
+   - result: `9 passed`
+6. Test coverage updated with the code change:
+   - the worker-runtime helper test now proves that a valid historical publish timestamp does **not** override the run-local observed timestamp,
+   - the defer-path test now proves the worker records first-seen state even when the source record has a parseable `published_at_utc`, which is necessary for bounded replay waits.
+7. Next runtime step selected after validation:
+   - commit and push this slice on `cert-platform`,
+   - rebuild/publish the remote platform image,
+   - rematerialize the PR3 runtime with the new digest,
+   - rerun strict `PR3-S4` on the same boundary and inspect what remains once `DF` is no longer poisoned by replay event-time.

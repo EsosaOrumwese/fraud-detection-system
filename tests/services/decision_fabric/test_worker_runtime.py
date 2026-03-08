@@ -36,13 +36,13 @@ def _candidate() -> DecisionTriggerCandidate:
     )
 
 
-def test_decision_started_at_prefers_valid_publish_timestamp() -> None:
+def test_decision_started_at_uses_observed_timestamp_even_when_publish_timestamp_is_valid() -> None:
     assert (
         _decision_started_at(
             published_at_utc="2026-03-07T10:00:01.123456Z",
             observed_at_utc="2026-03-07T10:00:05.000000Z",
         )
-        == "2026-03-07T10:00:01.123456Z"
+        == "2026-03-07T10:00:05.000000Z"
     )
 
 
@@ -123,6 +123,13 @@ def test_worker_defers_context_waiting_without_publish_or_advance() -> None:
         (candidate.source_eb_ref.topic, candidate.source_eb_ref.partition, candidate.source_eb_ref.offset, candidate.source_eb_ref.offset_kind)
     ]
     assert worker.consumer_checkpoints.advanced == []
+    assert len(worker.consumer_checkpoints.first_seen_requests) == 1
+    assert worker.consumer_checkpoints.first_seen_requests[0][:4] == (
+        candidate.source_eb_ref.topic,
+        candidate.source_eb_ref.partition,
+        candidate.source_eb_ref.offset,
+        candidate.source_eb_ref.offset_kind,
+    )
 
 
 def test_consumer_checkpoint_store_persists_first_seen_for_same_offset(tmp_path: Path) -> None:

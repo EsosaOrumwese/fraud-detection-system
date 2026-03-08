@@ -353,16 +353,15 @@ class DecisionFabricWorker:
 
         observed_at_utc = _utc_now()
         published_at_utc = bus.published_at_utc or candidate.source_eb_ref.published_at_utc
-        if _parse_rfc3339_or_none(published_at_utc) is not None:
-            started_observed_at_utc = observed_at_utc
-        else:
-            started_observed_at_utc = self.consumer_checkpoints.ensure_first_seen(
-                topic=topic,
-                partition=partition,
-                offset=offset,
-                offset_kind=offset_kind,
-                observed_at_utc=observed_at_utc,
-            )
+        # Runtime budgets must follow the first time this worker observed the candidate,
+        # not historical event-time from replayed oracle payloads.
+        started_observed_at_utc = self.consumer_checkpoints.ensure_first_seen(
+            topic=topic,
+            partition=partition,
+            offset=offset,
+            offset_kind=offset_kind,
+            observed_at_utc=observed_at_utc,
+        )
         started = _decision_started_at(
             published_at_utc=published_at_utc,
             observed_at_utc=started_observed_at_utc,
@@ -903,9 +902,6 @@ def _latency_ms(started_at_utc: str, ended_at_utc: str) -> float:
 
 
 def _decision_started_at(*, published_at_utc: str | None, observed_at_utc: str) -> str:
-    parsed = _parse_rfc3339_or_none(published_at_utc)
-    if parsed is not None:
-        return parsed.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
     return observed_at_utc
 
 
