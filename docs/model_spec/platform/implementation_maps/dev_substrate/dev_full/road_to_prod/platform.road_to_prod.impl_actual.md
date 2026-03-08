@@ -10125,3 +10125,311 @@ uns/.../degrade_ladder/* on its own filesystem,
    - rebuild/publish the shared runtime image,
    - rerun strict `PR3-S4` on the same boundary,
    - inspect whether `DF`, `case_trigger`, `case_mgmt`, and `label_store` now move into materially exercised green posture.
+## Entry: 2026-03-08 15:12:00 +00:00 - PR3-S4 remaining case-label red is now traced to a real run-scope resolver defect plus a DLA audit-topic authority defect
+1. I stopped guessing from receipts and executed live bounded probes inside the active `fp-pr3-case-trigger` and `fp-pr3-dla` pods against the current run `platform_20260308T141818Z`.
+2. The `case_trigger` lane is not broken at Kafka, payload shape, or publish boundary anymore:
+   - live checkpoint windows around offsets `27690..28553` on `fp.bus.rtdl.v1` contain valid `decision_response` and `action_outcome` canonical envelopes for the active run,
+   - direct invocation of `CaseTriggerWorker._adapt_trigger()` on a live `decision_response` succeeds and produces a valid `DECISION_ESCALATION` trigger with stable pins/evidence refs,
+   - direct invocation of `record_trigger_seen()` plus `_publish_trigger()` increments counters correctly and publishes `ADMIT`.
+3. The actual case-trigger defect is the worker config resolver, not the trigger logic:
+   - `load_worker_config()` leaves `required_platform_run_id` as the literal string `${CASE_TRIGGER_REQUIRED_PLATFORM_RUN_ID:-${ACTIVE_PLATFORM_RUN_ID:-}}`,
+   - `_process_record()` therefore drops every real run-scoped record at the run-scope comparison before metrics/publish are touched,
+   - this is why the lane looks healthy-idle while consuming/checkpointing real traffic.
+4. This is a production-grade defect, not a toy edge case:
+   - run-scope gating is one of the cross-plane safety rails,
+   - if nested env/default expressions are treated as literals, whole downstream planes can silently self-starve while reporting clean health,
+   - that is worse than a loud crash because it hides missing business participation under apparently healthy infrastructure posture.
+5. I then checked `DLA` instead of assuming it was blocked by the same thing only.
+   - the current profile does not override admitted topics for `DLA`,
+   - `config/platform/dla/intake_policy_v0.yaml` still pins `admitted_topics: [fp.bus.traffic.fraud.v1]`,
+   - but the audit/lineage lane that production S4 is supposed to prove is the RTDL lineage stream, not the upstream traffic input.
+6. This means `DLA` has two independent issues:
+   - the same nested-env resolver hazard on `required_platform_run_id`, which can create silent run-scope starvation,
+   - a more material authority drift where the intake policy is auditing the wrong topic family for the S4 decision/case-label closure intent.
+7. I also inspected adjacent case/label planes because the same defect pattern likely extends there:
+   - `case_mgmt.worker` and `label_store.worker` use the same single-pass env-token parser and the same nested default syntax for `required_platform_run_id`,
+   - so fixing only `case_trigger` would still leave the downstream case/label closure chain vulnerable to the same silent literal-string run-scope bug.
+8. Chosen production correction direction:
+   - replace the current single-pass env parser in the affected downstream workers with a resolver that handles nested `${A:-${B:-}}` defaults deterministically,
+   - repin `DLA` intake to the RTDL audit stream for production S4 (`fp.bus.rtdl.v1`) so lineage reflects actual decision/action traffic,
+   - add targeted tests that prove the nested run-scope resolution and DLA admitted-topic contract instead of relying on runtime luck.
+9. I am treating this as the next bounded S4 remediation slice because it is a real cross-plane correctness issue that directly explains why `case_trigger`, `case_mgmt`, `label_store`, and `DLA` appear under-exercised despite a healthy RTDL backbone.
+## Entry: 2026-03-08 15:37:00 +00:00 - Runtime-cert execution method is repinned from soak-first to correctness -> stress -> soak
+1. I am changing the active road-to-prod execution method because the current soak-first cadence has become cost-inefficient and analytically wrong for the remaining work.
+2. Evidence from the recent PR3 slice is clear:
+   - several failures were basic correctness/configuration defects (`case_trigger` literal run-scope token, DLA wrong topic family, OFP restore gating),
+   - those defects did not require a 30m+ soak to discover,
+   - repeatedly learning them only after long expensive runs is poor production engineering because it burns spend before basic cross-plane correctness is proven.
+3. The new binding execution ladder is:
+   - `correctness window` first,
+   - `stress window` second,
+   - `soak` third.
+4. Meanings in this program:
+   - correctness window = bounded integrated run proving the whole participating platform can complete one full run across all relevant planes/components with no silent starvation, wiring defects, scope defects, or semantic contract failures,
+   - stress window = short, harder-pressure run that proves the same integrated platform survives meaningful pressure with fail-fast enabled and impact metrics still green,
+   - soak = long-duration stability/durability run, authorized only after correctness and stress are both green.
+5. This changes the role of `PR3-S4` specifically:
+   - `S4` is no longer treated operationally as "launch soak and discover what breaks",
+   - `S4` now becomes a gated runtime-cert boundary whose first required segment is bounded whole-platform correctness,
+   - only after that segment passes do we authorize the short stress segment,
+   - only after both pass do we authorize the long-duration soak segment and the remaining runtime drills.
+6. Production rationale:
+   - a platform that cannot complete a bounded integrated run should not be put into a long soak,
+   - soak is for sustained-stability evidence, not for discovering basic wiring/scope/semantic mistakes,
+   - this lowers spend while increasing signal quality because each expensive run begins from a platform already shown to be materially coherent.
+7. Cost-control implication:
+   - every future expensive run must now be justified by cheaper boundary proofs already being green,
+   - fail-fast remains mandatory inside correctness, stress, and soak windows alike.
+8. Immediate implementation consequence:
+   - update the main road-to-prod plan and the active PR3 authority so this method is explicit,
+   - continue the current `PR3-S4` work by finishing the cheap downstream correctness fixes and running bounded full-platform correctness probes before any new soak is dispatched.
+## Entry: 2026-03-08 16:10:00 +00:00 - PR3-S4 execution surface still contradicts the new correctness-first method, so I am repinning S4 from soak-discovery to bounded whole-platform correctness
+1. I re-read the active `PR3` authority, the updated main road-to-prod plan, and the current `dev_full_pr3_s4_soak.yml` execution path before dispatching anything else.
+2. The execution drift is now explicit:
+   - the docs say `S4` must first prove a bounded integrated whole-platform correctness window,
+   - but the workflow still launches a `1800 s` soak campaign before scoring the downstream planes,
+   - the existing rollup script (`pr3_s4_rollup.py`) still assumes `g3a_s4_*` soak artifacts, large soak sample minima, and pass/fail logic built around long-duration throughput instead of cheap cross-plane correctness.
+3. That drift is not cosmetic. It is a direct cost-control and methodology defect:
+   - it repeats the exact mistake that already burned spend,
+   - it lets basic scope/semantic defects survive until after the expensive part of the run has already happened,
+   - and it makes `S4` analytically dishonest because a state described as a correctness gate is still implemented as a soak-first discovery run.
+4. I am correcting this at the execution layer now rather than only in prose.
+5. Chosen production-grade correction:
+   - keep `S4` as the bounded whole-platform correctness gate,
+   - create a dedicated correctness rollup that reads a short integrated replay window and scores cross-plane participation, replay integrity, drills, cost, and soak authorization,
+   - repoint the `S4` workflow so it runs the short correctness campaign first and exits there with a deterministic authorization decision instead of launching the 30-minute soak,
+   - leave the higher-pressure stress and conditional soak behavior to `S5`, which already owns that intent in the plan.
+6. Why this is the right production move:
+   - it matches the active authority exactly,
+   - it preserves fail-fast and cost-control posture,
+   - it keeps the expensive long-duration window gated behind actual proof that the whole participating platform can complete a bounded correct run.
+7. Immediate implementation steps:
+   - validate the fresh local case/label/DLA fixes (now green locally),
+   - add the new `S4` correctness rollup/artifact generation surface,
+   - refit the `S4` workflow inputs/steps/upload contract to the correctness gate,
+   - then use the cheaper live correctness boundary before any future stress/soak work.
+## Entry: 2026-03-08 16:36:00 +00:00 - Implemented the bounded PR3-S4 correctness gate surface and validated it locally before touching live runtime again
+1. I completed the local S4 execution refit so the state now has an actual bounded correctness runner instead of only prose saying it should.
+2. Runtime code validation remains green after the downstream fix slice:
+   - targeted pytest for `case_trigger`, `case_mgmt`, `label_store`, and `DLA` passed (`19 passed`),
+   - `python -m py_compile` passed for the touched workers plus the new S4 scripts.
+3. I generalized the existing S4 drill surfaces so they no longer depend on the old soak artifact names:
+   - `pr3_s4_dependency_drill.py` now accepts `--artifact-prefix`,
+   - `pr3_s4_schema_drill.py` now accepts `--artifact-prefix`,
+   - `pr3_s4_cost_guardrail.py` now accepts `--artifact-prefix` and an explicit receipt output path.
+4. I added a new dedicated rollup surface: `scripts/dev_substrate/pr3_s4_correctness_rollup.py`.
+   - It reads the bounded correctness runtime summary and run-scoped component snapshots,
+   - scores whole-platform participation across runtime spine, case/label, learning-input readiness, and ops/gov drill posture,
+   - emits the new S4 artifact set:
+     - `g3a_correctness_scorecard.json`,
+     - `g3a_correctness_component_snapshot.json`,
+     - `g3a_correctness_cross_plane_report.json`,
+     - `g3a_drill_replay_integrity.json`,
+     - `g3a_soak_authorization.json`,
+     - `pr3_s4_execution_receipt.json`.
+5. I then repinned `.github/workflows/dev_full_pr3_s4_soak.yml` so the live state matches the new method instead of contradicting it:
+   - workflow identity and run-name now describe correctness rather than soak,
+   - defaults were reduced to a bounded gate (`8` lanes, `600 eps`, `180 s`, `30 s` warmup),
+   - the WSP dispatch now runs with `window_label=correctness` and `artifact_prefix=g3a_correctness`,
+   - live sampling cadence was shortened for earlier failure visibility,
+   - cleanup artifacts and cost receipts were renamed to correctness-scope outputs,
+   - the rollup step now calls `pr3_s4_correctness_rollup.py` instead of the soak rollup.
+6. Local validation of the execution surface passed:
+   - workflow YAML parse passed,
+   - the new correctness rollup CLI help renders cleanly,
+   - no new syntax/runtime defects were introduced in the runner/drill scripts.
+7. Production interpretation:
+   - S4 is now structurally aligned with the cost-controlled methodology,
+   - the next expensive mistake would only happen if I reran against a stale remote image,
+   - so the next correct move is to rebuild/publish the shared platform image and run the live bounded correctness window on that refreshed digest.
+## Entry: 2026-03-08 16:30:54 +00:00 - Reclassified the first bounded PR3-S4 run as diagnostic only, then narrowed the remaining red to one real DLA boundary defect plus a non-authoritative warm-gate breach
+1. I did not accept the first bounded `PR3-S4` correctness receipt at face value because the run had already proven to be polluted by our own execution surface: the local chain did not fail-closed on a red warm gate and two cheap drill artifacts were missing for avoidable reasons.
+2. I corrected the cheap evidence side first before touching the live runtime again:
+   - `pr3_s4_schema_drill.py` is now self-bootstrapping against `src/` so schema evidence no longer depends on ad hoc `PYTHONPATH` setup,
+   - `pr3_s4_correctness_rollup.py` now treats fresh-run missing pre-counters as zero baselines instead of `null`,
+   - `CSFB` replay-only `WATERMARK_TOO_OLD` now scores as advisory when join/conflict/failure posture is otherwise clean,
+   - `S4` now synthesizes `g3a_drill_lag_recovery.json` directly from the already-bound `PR3-S3` recovery receipts when that drill artifact is absent.
+3. Those corrections changed the blocker interpretation immediately:
+   - the synthetic `IEG` delta gap disappeared,
+   - `CSFB` no longer blocks simply because replay event-time is old,
+   - `S4` now correctly retains only the real remaining red surfaces from that bounded run.
+4. I then reopened the live runtime directly instead of rerunning another correctness window. The important question was not "what still makes the receipt red?" but "which surfaces are genuinely broken under production semantics and which ones are delayed because the invalid run started from a red warm gate?"
+5. The live post-window snapshot proved the platform is materially healthier than the stale `post` snapshot suggested:
+   - `AL` is in fact alive (`intake_total=3876`, `outcome_executed_total=3876`, `publish_admit_total=3876`, health `GREEN`),
+   - `case_trigger`, `case_mgmt`, and `label_store` continued advancing into five-figure counts and remained `GREEN`,
+   - `DLA` remained the only downstream plane still materially dark (`append_success_total=0`, `candidate_total=0`, no lineage state).
+6. I then traced `DLA` directly against its live store and consumer posture instead of assuming a generic semantic failure:
+   - `DLA` had more than ten million intake attempts and more than one million quarantine rows globally, but zero accepted candidates for the active `platform_run_id`,
+   - its checkpoint table was keyed under the fixed stream id `dla.intake.v0` and still carried old topic partitions from prior runs,
+   - the most recent attempts in the shared index were still dominated by older run ids and `RUN_SCOPE_MISMATCH`, which means the worker was spending its bounded window burning backlog from previous runs rather than reaching the active run scope.
+7. That is a real production defect, not a test inconvenience:
+   - `dev_full` explicitly pins `event_bus_start_position: latest` for `DLA`,
+   - but `decision_log_audit/intake.py` force-overrode fresh required-run consumers back to `earliest`,
+   - and `decision_log_audit/worker.py` accepted the fixed `stream_id: dla.intake.v0` without run-scoping it, so checkpoints leaked across runs.
+8. I chose the production-honest correction rather than the quickest receipt-only hack:
+   - `DLA` now appends `::{required_platform_run_id}` to the configured stream id whenever the profile pin is not already scoped,
+   - fresh `DLA` consumers now honor the explicitly pinned `latest` posture for required-run windows instead of being forced to replay inherited backlog,
+   - `AL` received the same start-position correction so fresh required-run windows no longer self-inflict backlog burn when the profile already pins `latest`.
+9. This is the right production move because our `correctness` method already requires workers to be warm before traffic. Under that contract, honoring `latest` on a fresh run-scoped consumer is the correct way to enter the current window without cross-run contamination. Persisted checkpoints still remain authoritative after the run starts.
+10. Local validation after the code correction stayed green:
+   - targeted pytest passed for `action_layer` and `decision_log_audit` runtime tests (`3 passed`),
+   - `python -m py_compile` passed for the touched `AL/DLA` runtime files.
+11. Immediate next step from this point:
+   - rebuild/publish the shared platform image so the live runtime actually carries the `AL/DLA` fresh-run corrections,
+   - rematerialize the PR3 runtime,
+   - rerun the bounded `PR3-S4` correctness gate cleanly from a green warm boundary before judging the remaining `OFP/DL` health semantics.
+## Entry: 2026-03-08 18:05:00 +00:00 - Material drift found: PR3-S4 synthetic run identity cannot support whole-platform correctness because learning/governance control-plane artifacts do not exist for the active run
+1. While expanding `PR3-S4` from a spine-centric correctness gate to a true whole-platform boundary, I traced the actual `dev_full` learning/runtime surfaces instead of continuing to score learning/evolution from proxy inputs only.
+2. The repo already contains real learning-plane workers and contracts:
+   - `offline_feature_plane.worker` (`OFS`)
+   - `model_factory.worker` (`MF`)
+   - `learning_registry.worker` (`MPR`)
+   - `platform_reporter.worker` plus run-scoped governance append surfaces.
+3. That means the current `S4` rollup posture is too weak: scoring learning/evolution as `DLA append + archive persistence + label movement` is not enough for the user's whole-platform requirement.
+4. I then checked whether the active `PR3-S4` run identity can actually support real learning/governance participation.
+5. Evidence:
+   - current active bounded-correctness run scope from `g3a_correctness_wsp_runtime_manifest.json` is `platform_run_id=platform_20260308T155913Z`,
+   - object-store listing for `s3://fraud-platform-dev-full-object-store/platform_20260308T155913Z/` only shows:
+     - `archive/`
+     - `ig/`
+     - `online_feature_plane/`
+   - there is no `sr/` prefix and no `obs/` prefix for that active run.
+6. Runtime consequence:
+   - `OFS` build intents require `run_facts_ref` tied to the active `platform_run_id`,
+   - governance/reporter closure expects run-scoped `obs/` artifacts,
+   - therefore the current synthetic PR3 runtime identity cannot truthfully execute a whole-platform correctness gate that includes learning/evolution and ops/gov.
+7. This is not a minor harness bug. It is a design-intent drift:
+   - `PR3` currently materializes fresh runtime identities inside the workflow meta step,
+   - but those identities are not being created through the control-plane path that would also seat `SR` / governance artifacts,
+   - as a result, the active runtime can look healthy on the hot path while still being structurally incapable of whole-platform closure.
+8. Production interpretation:
+   - continuing to "fix S4" without first correcting this run-identity shape would produce false evidence,
+   - the platform would still be missing the control-plane-to-learning/governance continuity required for production-ready whole-platform certification.
+9. Candidate remediation directions identified:
+   - `Option A`: repin `PR3` active run creation so the bounded-correctness run uses a control-plane-authored `platform_run_id` that already has `sr/run_facts_view` and governance seating,
+   - `Option B`: add an explicit pre-correctness control-plane bootstrap inside `PR3-S4` that materializes the missing `sr/` and `obs/` artifacts for the active run before any learning/governance proof is attempted.
+10. Under the repo's Drift Sentinel Law this is blocker-grade drift, so execution should not silently continue past it.
+## Entry: 2026-03-08 16:54:57 +00:00 - Chosen PR3-S4 whole-platform correction is a control-plane-authored run bootstrap plus bounded learning and obs/gov participation on the same run scope
+1. I re-read the current `PR3` authority, the main road-to-prod plan, the active S4 correctness workflow, and the actual repo/runtime surfaces for `scenario_runner`, `offline_feature_plane`, `model_factory`, `platform_reporter`, and `platform_conformance` before choosing the next correction.
+2. The design problem is now sharper than the earlier drift note:
+   - the current workflow mints `platform_run_id` / `scenario_run_id` inside the workflow metadata step,
+   - that synthetic identity is good enough for `WSP -> IG -> RTDL -> case/label` participation,
+   - but it is not good enough for whole-platform correctness because the learning plane and ops/gov plane depend on run-scoped `SR` and `obs/` artifacts that only exist when the run is authored through the control-plane path.
+3. I verified that the missing planes are real, not hypothetical placeholders:
+   - `scenario_runner` can author a run against a pinned oracle-store engine root without touching engine internals,
+   - `platform_reporter.worker` and `platform_conformance.worker` can emit run-scoped `obs/` artifacts on demand,
+   - `offline_feature_plane.worker` and `model_factory.worker` both expose bounded `enqueue-*` plus `run --once` CLI surfaces and can process request objects from the same active `platform_run_id`.
+4. That means the correct production fix is not to keep broadening S4 proxy scoring. The correct fix is to make S4 whole-platform by construction.
+5. Options considered:
+   - `Option A`: keep synthetic runtime identities and just patch in missing `sr/` / `obs/` files.
+   - `Option B`: repin S4 so it first bootstraps a real control-plane-authored run via `scenario_runner`, then materializes runtime and bounded downstream planes against that authored run.
+   - `Option C`: defer learning/obs-gov to PR4/PR5 and keep S4 spine-centric.
+6. I am rejecting `Option A` because it would create fake continuity. Backfilling `sr/` / `obs/` receipts around a workflow-authored run id is analytically weaker than letting the control plane own the run from the beginning.
+7. I am rejecting `Option C` because it would repeat the same narrow-closure mistake the user already called out. A `PR3-S4` whole-platform correctness state cannot be truthful if learning/evolution and ops/gov are still unexercised.
+8. Chosen direction is `Option B`:
+   - add an explicit pre-correctness bootstrap that invokes `scenario_runner` against the already-pinned oracle-store run root,
+   - derive the active `platform_run_id` and `run_facts_view` from that SR-authored run instead of fabricating them in the workflow meta step,
+   - run the reporter/conformance one-shot surfaces on that same run so `obs/` is real,
+   - then enqueue and process bounded OFS/MF requests on that same run so the learning plane is materially exercised before S4 can authorize stress.
+9. Why this is the right production move:
+   - it keeps the data engine sealed while still using the authoritative oracle-store world,
+   - it restores one authoritative run identity across control, ingress, RTDL, case/label, learning, and governance,
+   - it avoids another expensive integrated run before basic whole-platform correctness is actually provable,
+   - and it gives later PR3 stress/soak work a truthful upstream run scope instead of a synthetic one.
+10. Required implementation lanes now exposed for this correction:
+   - authority lane: add SR bootstrap script/artifacts under the active PR3 execution root,
+   - identity lane: export the SR-authored `platform_run_id` / `scenario_run_id` to all downstream workers,
+   - learning lane: add bounded OFS/MF request generation plus one-shot worker execution on the active run,
+   - ops/gov lane: add bounded reporter/conformance execution and artifact verification,
+   - evidence lane: expand S4 rollup so it scores these planes directly instead of via runtime proxies only,
+   - budget lane: keep this as a short correctness gate and block stress/soak unless all participating planes are green.
+11. Exact next code steps:
+   - create a PR3 control-plane bootstrap script that resolves oracle root + SR wiring + Aurora/MSK handles, invokes `scenario_runner`, and records the authored run refs,
+   - update `dev_full_pr3_s4_soak.yml` to use that bootstrap output instead of minting synthetic run ids in the workflow meta step,
+   - add bounded one-shot invokers for reporter/conformance and OFS/MF request execution,
+   - then update `pr3_s4_correctness_rollup.py` so S4 requires direct proof for learning/evolution and ops/gov on the same active run.
+## Entry: 2026-03-08 19:10:00 +00:00 - PR3-S4 implementation slice will replace synthetic run minting with Scenario Runner bootstrap and bounded whole-platform downstream checks before any further expensive execution
+1. I revalidated the user’s new cost-control method against the active `S4` workflow and the repo’s real worker surfaces before editing code.
+2. The production-correct reading is now:
+   - `S4` must be a bounded correctness run,
+   - it must prove one authoritative run scope across control, RTDL, case/label, learning, and ops/gov,
+   - and it must fail cheaply before any soak is even considered.
+3. The current workflow still violates that because it mints synthetic `platform_run_id` / `scenario_run_id` in metadata and only materializes RTDL/case-label deployments.
+4. I considered two implementation shapes for the missing planes:
+   - extend the EKS materializer immediately so learning + obs/gov also run in-cluster, or
+   - use the existing bounded worker CLIs from the remote GitHub runner to author the run, enqueue learning work, and emit ops/gov artifacts against the real AWS-backed object store and Aurora surfaces.
+5. For this correction slice I am choosing the second shape first because it is the cheaper correctness gate and uses the exact same contracts without requiring another large runtime expansion before basic whole-platform continuity is even proven.
+6. This is not a shortcut back to laptop orchestration. The execution surface is the remote workflow runner with real AWS authority and the same object-store / Aurora / MSK handles the platform already uses. It keeps the user’s `no local compute dependency` rule intact while avoiding another costly integrated soak just to discover missing run wiring.
+7. The concrete edit set is now pinned as:
+   - add a `pr3_control_plane_bootstrap.py` script that authors the active run through `scenario_runner` using the pinned oracle-store root and emits strict bootstrap evidence,
+   - update `dev_full_pr3_s4_soak.yml` so downstream steps consume the authored `platform_run_id`, `scenario_run_id`, `run_facts_ref`, and `status_ref` instead of fabricating them,
+   - add canonical `config/platform/mf/training_profile_v0.yaml` and `config/platform/mf/governance_profile_v0.yaml` because `MF` currently points at files that do not materially exist,
+   - add bounded `S4` downstream scripts that execute learning and ops/gov on the authored run scope and write direct impact-metric receipts for rollup.
+8. For learning-plane bounded correctness I am intentionally using a small labeled slice derived from the active platform run’s own archived case-trigger path rather than another broad replay. This is the right cost-aware correctness proof because it exercises real run-scoped labels and archive evidence without pretending that a first learning proof must already be a full production-volume training campaign.
+9. For ops/gov bounded correctness I am intentionally requiring real run-scoped `obs/` artifact emission and profile conformance outputs, not only proxy notes in the rollup.
+10. After these edits the next validation tier should be:
+   - cheap syntax/unit checks,
+   - bounded control bootstrap,
+   - bounded learning + ops/gov checks on the same run scope,
+   - only then reconsider whether any broader runtime stress is authorized.
+
+## Entry: 2026-03-08 19:35:00 +00:00 - PR3-S4 implementation will promote bounded whole-platform correctness by authoring one shared run scope and direct learning/ops receipts
+1. I confirmed the current `dev_full_pr3_s4_soak.yml` still mints `active_platform_run_id` and `active_scenario_run_id` inside `Compute execution metadata`, which means every later S4 receipt is rooted in a synthetic runtime scope rather than a control-authored one.
+2. That is now the main technical defect for S4 because the runtime spine, case/label plane, learning plane, and governance plane need one common run identity if the user is going to trust this state as a whole-platform correctness boundary.
+3. The concrete implementation shape for this slice is therefore:
+   - add `pr3_control_plane_bootstrap.py` to derive a real control-authored run from the PR3 charter + oracle receipt + AWS handles,
+   - add `pr3_s4_learning_bound.py` to build a small but real labeled learning slice from run-scoped archive + label truth,
+   - add `pr3_s4_ops_gov_bound.py` to emit direct environment/governance receipts on the same run scope,
+   - add canonical MF training/governance profile files because the worker currently expects them but they do not exist in repo,
+   - then repin the workflow and rollup so those direct receipts are mandatory before S4 can authorize anything heavier.
+4. I am deliberately not expanding the EKS runtime set for OFS/MF/MPR in this slice because that would add more moving parts before we have even proven the bounded whole-platform path is wired correctly. The cheaper and more rigorous first step is to use the remote workflow runner to author the control run and execute one-shot bounded learning/governance commands against the real AWS-backed stores and Aurora ledgers.
+5. Runtime/cost posture for this slice:
+   - no new soak,
+   - no new broad integrated rerun until the bounded control + learning + ops/gov receipts pass,
+   - any failure should now occur in minutes and with a much tighter blocker surface.
+6. Files to change in this slice:
+   - `.github/workflows/dev_full_pr3_s4_soak.yml`
+   - `scripts/dev_substrate/pr3_s4_correctness_rollup.py`
+   - `scripts/dev_substrate/pr3_control_plane_bootstrap.py`
+   - `scripts/dev_substrate/pr3_s4_learning_bound.py`
+   - `scripts/dev_substrate/pr3_s4_ops_gov_bound.py`
+   - `config/platform/mf/training_profile_v0.yaml`
+   - `config/platform/mf/governance_profile_v0.yaml`
+
+## Entry: 2026-03-08 20:10:00 +00:00 - PR3-S4 code now materially enforces bounded whole-platform correctness through direct control, learning, and ops/gov receipts
+1. Implemented `scripts/dev_substrate/pr3_control_plane_bootstrap.py`.
+2. The bootstrap uses the pinned oracle root + Aurora handles + MSK control topic to author real `sr/run_status` and `sr/run_facts_view` artifacts on the active S4 `platform_run_id` before runtime materialization or correctness replay continues.
+3. The bootstrap deliberately uses `LocalEngineInvoker(default_engine_root=<oracle root>)` only as the SR contract adapter; it does not run the data engine locally and will fail closed if the external oracle-backed control path cannot reach `READY`.
+4. Implemented missing MF authority profiles:
+   - `config/platform/mf/training_profile_v0.yaml`
+   - `config/platform/mf/governance_profile_v0.yaml`
+5. Implemented `scripts/dev_substrate/pr3_s4_learning_bound.py`.
+6. The learning proof shape chosen is:
+   - query real label truth from `ls_label_timeline` for the active run,
+   - select a bounded sample of matching archived platform events from `archive/events/topic=fp.bus.traffic.fraud.v1` (fall back to case-trigger archive only if needed),
+   - build a real OFS dataset-build request on that run scope,
+   - execute one-shot OFS worker,
+   - execute one-shot MF worker on the produced manifest,
+   - validate the resulting registry lifecycle event through `learning_registry.worker promote`.
+7. This is intentionally not a production-volume learning mission; it is the cheapest direct correctness proof that the learning plane is wired and semantically continuous with the active platform run.
+8. Implemented `scripts/dev_substrate/pr3_s4_ops_gov_bound.py`.
+9. The ops/gov proof shape chosen is:
+   - run environment conformance on the active run scope,
+   - upload the conformance artifact to `<platform_run_id>/obs/environment_conformance.json`,
+   - emit `<platform_run_id>/obs/governance_closure_receipt.json`,
+   - fail closed if run-scoped `sr`, `ig`, `archive`, or `online_feature_plane` roots are absent.
+10. Updated `.github/workflows/dev_full_pr3_s4_soak.yml` so S4 now:
+    - keeps the active `platform_run_id`,
+    - derives `scenario_run_id` from the SR bootstrap rather than synthetic UUID minting,
+    - runs bounded learning proof after post-correctness snapshot,
+    - runs bounded ops/gov proof before rollup,
+    - uploads the new receipts as first-class artifacts.
+11. Updated `scripts/dev_substrate/pr3_s4_correctness_rollup.py` so S4 now fails closed on:
+    - `PR3.B20_CONTROL_BOOTSTRAP_FAIL`,
+    - `PR3.B29_LEARNING_BOUND_FAIL`,
+    - `PR3.B30_OPS_GOV_BOUND_FAIL`.
+12. This changes the meaning of S4 materially: a green result now requires one shared run scope across control, runtime, case/label, learning, and ops/gov rather than proxy-only runtime participation.
+13. Local validation completed before remote execution:
+    - `python -m py_compile` on the new scripts and updated rollup: pass,
+    - YAML parse of updated workflow + new MF profile files: pass.
+14. Next execution step is the bounded remote S4 correctness run on `cert-platform`; this should now fail in a much tighter and cheaper way if any whole-platform continuity defect remains.

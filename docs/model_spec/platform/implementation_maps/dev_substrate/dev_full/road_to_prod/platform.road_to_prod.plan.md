@@ -17,7 +17,7 @@ Complete the production-grade mission objective (not toy validation) and declare
 3. Final verdict has `open_blockers=0`.
 
 Mission-level intent that must be true at closure:
-1. Platform sustains meaningful load (`steady -> burst -> recovery -> soak`) with SLO posture on correct measurement surfaces.
+1. Platform first completes a bounded whole-platform correctness window, then a bounded stress window, and only then sustains a meaningful soak with SLO posture on correct measurement surfaces.
 2. Platform preserves correctness under realistic data messiness (duplicates, replay, out-of-order, skew/hotkeys, join sparsity).
 3. Platform is operationally governable (promotion proof, rollback proof, audit answerability, runbook/alert ownership).
 4. Platform demonstrates bounded spend and clean idle-safe closure.
@@ -101,7 +101,7 @@ Exit / DoD:
 
 ### PR3 - G3A Runtime Operational Certification Pack
 Intent:
-1. Certify runtime hot-path behavior under `steady -> burst -> recovery -> soak`.
+1. Certify runtime hot-path behavior under the mandatory execution ladder `correctness -> stress window -> soak`.
 2. Prove runtime drills with claimable artifacts.
 3. Execute detailed state plan in:
    - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR3.road_to_prod.md`.
@@ -111,15 +111,16 @@ Subphase template:
 2. `S1` steady profile.
 3. `S2` burst profile.
 4. `S3` recovery profile.
-5. `S4` soak profile plus runtime drills.
-6. `S5` pack rollup and verdict.
+5. `S4` bounded whole-platform correctness gate plus soak authorization decision.
+6. `S5` bounded stress window, conditional soak, pack rollup, and verdict.
 
 Exit / DoD:
 1. Required runtime metrics present on correct surfaces and pass thresholds.
 2. Required runtime drill artifacts complete.
 3. `G3A` pack has `open_blockers=0`.
-4. Closure demonstrates runtime gate intent (not probe-only or checklist-only pass).
-5. Execution status: `IN_PROGRESS` (`S0`, `S1`, `S2`, and `S3` complete; active next boundary is `S4` soak/drill certification).
+4. Closure demonstrates runtime gate intent across the whole participating platform, not just the runtime spine.
+5. No soak evidence is claimable unless both the bounded correctness window and bounded stress window were green first.
+6. Execution status: `IN_PROGRESS` (`S0`, `S1`, `S2`, and `S3` complete; active next boundary is `S4` bounded whole-platform correctness certification with mandatory control bootstrap + bounded learning + bounded ops/gov receipts before any heavier run is authorized).
 
 ### PR4 - G3B Ops/Gov Operational Certification Pack
 Intent:
@@ -170,6 +171,9 @@ Exit / DoD:
 5. No rerun-the-world posture; rerun only declared blocker boundary.
 6. No closure from checklist completion alone without gate-intent proof.
 7. No state can be marked complete if its human-readable analytical metric digest is missing.
+8. No soak run is authorized until the same participating scope completes a bounded correctness window with zero unresolved blockers.
+9. No soak run is authorized until the bounded stress window for the same participating scope is also green.
+10. Fail-fast remains mandatory inside correctness, stress, and soak windows alike.
 
 ## 6) Rerun Discipline
 1. Each blocker record must carry exact rerun boundary.

@@ -5,7 +5,7 @@ _As of 2026-03-06_
 `PR3` is the runtime operational certification pack (`G3A`) for `dev_full`.
 
 `PR3` is fail-closed. It cannot pass unless:
-1. runtime scorecard windows (`steady -> burst -> recovery -> soak`) complete under `RC2-S`,
+1. runtime scorecard windows complete under the mandatory ladder `correctness -> stress -> soak`,
 2. required runtime metrics are measured on declared surfaces with required distributions and minima,
 3. mandatory cohorts and runtime drills are executed with claimable artifacts,
 4. runtime cost posture and idle-safe closure evidence are complete,
@@ -22,7 +22,7 @@ _As of 2026-03-06_
 ## 2) Scope Boundary
 In scope:
 1. strict preflight and run binding from `PR2_S3_READY`,
-2. canonical runtime scorecard execution across `steady`, `burst`, `recovery`, `soak`,
+2. canonical runtime scorecard execution across `steady`, `burst`, `recovery`, then bounded whole-platform correctness, then bounded stress, then conditional soak,
 3. runtime cohort realism execution and reporting (`duplicates`, `out-of-order`, `hot-key`, `payload extremes`, `mixed event types`),
 4. mandatory runtime drill execution and bundling (`replay integrity`, `lag recovery`, `schema evolution`, `dependency degrade`, `cost guardrail`),
 5. deterministic runtime evidence index and verdict emission,
@@ -36,7 +36,7 @@ Out of scope:
 ## 3) PR3 Exit Standard (Hard)
 `PR3` can close only if all conditions are true:
 1. `S0..S5` receipts are present/readable with deterministic run root paths,
-2. scorecard windows complete with required durations and sample minima,
+2. scorecard windows complete with required durations and sample minima, and no long soak evidence is claimed before bounded correctness and bounded stress are both green,
 3. required runtime metric families pass `RC2-S` thresholds on correct measurement surfaces,
 4. cohort artifacts are complete and cohort deltas are published,
 5. all mandatory runtime drills pass recovery bounds and integrity checks,
@@ -81,6 +81,11 @@ Out of scope:
    - rerun only failed boundary profile or drill.
 6. Cost-control enforcement:
    - require attributable spend outputs and explicit idle-safe closure evidence.
+7. Soak authorization discipline:
+   - soak is never the first discovery boundary for a state,
+   - bounded correctness on the whole participating platform must pass first,
+   - bounded stress must pass second,
+   - only then may a long-duration soak be executed and claimed.
 
 ## 6) PR3 State Plan (`S0..S5`)
 
@@ -265,78 +270,96 @@ S3 planning expansion (execution checklist):
 5. sampling lock:
    - capture runtime snapshots every `30 s` across the recovery window so the `180 s` bound yields enough samples to prove stabilization timing rather than just end-state posture.
 
-### S4 - Soak Certification Window Plus Mandatory Runtime Drills
+### S4 - Bounded Whole-Platform Correctness Gate Plus Soak Authorization
 Objective:
-1. certify long-window stability and runtime failure-mode behavior under realistic cohorts.
+1. prove the whole participating platform can complete one bounded integrated run with correct cross-plane behavior before any long-duration soak is authorized.
 
 Required actions:
-1. execute soak profile and measure drift/backlog/cost posture,
-2. execute cohort realism pass and publish cohort deltas,
-3. materially exercise runtime-adjacent downstream truth surfaces (`case_trigger`, `case_mgmt`, `label_store`) on the same active run scope and publish their impact metrics,
-3. execute required runtime drills:
-   - replay integrity,
-   - lag recovery,
-   - schema evolution,
-   - dependency degrade,
-   - cost guardrail + idle-safe,
-4. emit attributable runtime cost receipt for the certification window.
+1. execute a bounded integrated correctness window on one active run scope and verify the whole participating platform is materially alive:
+   - `WSP`, `IG`, `CSFB`, `IEG`, `OFP`, `DL`, `DF`, `AL`, `DLA`, `archive_writer`, `case_trigger`, `case_mgmt`, `label_store`,
+   - learning/evolution and ops/gov surfaces must be explicitly scored as either materially exercised or explicitly unresolved for this boundary; omission is not allowed,
+2. fail fast on any scope/wiring/semantic defect before long-duration execution,
+3. execute the mandatory short dependency/schema/replay/cost drills needed to validate the correctness boundary cheaply,
+4. emit a soak-authorization decision that is `PASS` only if the bounded correctness boundary is green with zero unresolved blockers.
 
 Outputs:
-1. `g3a_scorecard_soak.json`
-2. `g3a_soak_drift_report.json`
-3. `g3a_cohort_manifest.json`
-4. `g3a_cohort_results.json`
-5. `g3a_drill_replay_integrity.json`
-6. `g3a_drill_lag_recovery.json`
-7. `g3a_drill_schema_evolution.json`
-8. `g3a_drill_dependency_degrade.json`
-9. `g3a_drill_cost_guardrail.json`
-10. `g3a_runtime_cost_receipt.json`
+1. `g3a_correctness_scorecard.json`
+2. `g3a_correctness_component_snapshot.json`
+3. `g3a_correctness_cross_plane_report.json`
+4. `g3a_drill_replay_integrity.json`
+5. `g3a_drill_lag_recovery.json`
+6. `g3a_drill_schema_evolution.json`
+7. `g3a_drill_dependency_degrade.json`
+8. `g3a_drill_cost_guardrail.json`
+9. `g3a_correctness_cost_receipt.json`
+10. `g3a_soak_authorization.json`
 11. `pr3_s4_execution_receipt.json`
 
 Pass condition:
-1. soak drift checks pass, cohort coverage is complete, and all mandatory runtime drills pass with bounds/integrity evidence.
+1. the bounded correctness window is green on the whole participating platform, mandatory cheap drills pass with bounds/integrity evidence, and `g3a_soak_authorization.json` records `authorized=true`.
 
 Fail-closed blockers:
-1. `PR3.B21_SOAK_PROFILE_NOT_EXECUTED`
-2. `PR3.B22_SOAK_DRIFT_BREACH`
-3. `PR3.B23_REQUIRED_COHORT_MISSING`
-4. `PR3.B24_REPLAY_INTEGRITY_DRILL_FAIL`
-5. `PR3.B25_LAG_RECOVERY_DRILL_FAIL`
-6. `PR3.B26_SCHEMA_OR_DEPENDENCY_DRILL_FAIL`
-7. `PR3.B27_COST_GUARDRAIL_OR_IDLESAFE_FAIL`
+1. `PR3.B20_CONTROL_BOOTSTRAP_FAIL`
+2. `PR3.B21_CORRECTNESS_WINDOW_NOT_EXECUTED`
+3. `PR3.B22_CROSS_PLANE_PARTICIPATION_UNPROVEN`
+4. `PR3.B23_REQUIRED_COHORT_DELTA_UNPROVEN`
+5. `PR3.B24_REPLAY_OR_INTEGRITY_DRILL_FAIL`
+6. `PR3.B25_LAG_RECOVERY_DRILL_FAIL`
+7. `PR3.B26_SCHEMA_OR_DEPENDENCY_DRILL_FAIL`
+8. `PR3.B27_COST_GUARDRAIL_OR_IDLESAFE_FAIL`
+9. `PR3.B28_SOAK_NOT_AUTHORIZED`
+10. `PR3.B29_LEARNING_BOUND_FAIL`
+11. `PR3.B30_OPS_GOV_BOUND_FAIL`
 
 S4 planning expansion (execution checklist):
-1. soak lock:
-   - ensure soak duration is meaningful and drift checks are explicit.
+1. correctness lock:
+   - the first S4 boundary is bounded and cheap by design; it exists to catch whole-platform wiring/scope/semantic defects before any long-duration burn.
+   - if the bounded correctness window is not green, soak is blocked automatically.
 2. cohort lock:
-   - include all mandatory cohorts; publish cohort-specific metric deltas.
+   - include all mandatory cohorts needed to prove whole-platform semantic participation; publish cohort-specific metric deltas.
 3. drill lock:
    - each drill output must include scenario, expected behavior, observed timeline, recovery bound, integrity checks.
+   - default to the cheapest drill shape that can falsify the defect precisely before authorizing any expensive run.
 4. cost lock:
-   - require attributable spend and idle-safe evidence in drill/cost outputs.
-5. cross-plane lock:
+   - require attributable spend and idle-safe evidence in correctness/drill outputs.
+   - if correctness fails early, the state exits immediately without soak authorization.
+5. run-scope lock:
+   - every participating consumer must bind to the active `platform_run_id` and `scenario_run_id` on the same bounded window.
+   - `scenario_run_id` for the S4 correctness window is no longer synthetic; it must come from the Scenario Runner bootstrap executed on the same active `platform_run_id`.
+   - the S4 correctness rollup must fail closed unless `g3a_control_plane_bootstrap.json` proves `sr/run_status` and `sr/run_facts_view` exist and are `READY`.
+   - any lane whose durable checkpoints live in a shared external store must scope that checkpoint identity by the active run before `S4` can be claimed.
+   - if a profile explicitly pins `event_bus_start_position=latest` for a pre-traffic correctness launch, the runtime must honor that pin rather than silently replay inherited backlog.
+   - if run-scope isolation is not provable, `S4` is red even if hot-path throughput looks green.
+6. cross-plane lock:
    - `S4` cannot be adjudicated from `WSP/IG/RTDL` alone.
    - live case/label participation must be measured on the same `platform_run_id` through:
      - `case_trigger` trigger intake / replay integrity,
      - `case_mgmt` case creation + anomaly posture,
      - `label_store` accepted/rejected/pending posture under writer-boundary semantics.
    - if the case/label plane is absent from the live runtime boundary, `S4` is red until the runtime shape is corrected.
-6. learning-scope lock:
-   - `OFS/MF/MPR` are not silently treated as green inside `S4`.
-   - `S4` rollup must state explicitly whether learning/evolution was materially exercised in this pack or remains deferred to later packs.
-   - deferred learning/evolution surfaces remain unresolved scope, not neutral evidence.
+7. learning-scope lock:
+   - `OFS/MF/MPR` and the broader learning/evolution plane are not silently treated as green inside `S4`.
+   - bounded learning proof in `S4` must execute the real `OFS -> MF -> MPR` corridor on the same run scope, using run-scoped archive plus label truth rather than a proxy-only indicator.
+   - the correctness digest must state explicitly whether learning/evolution and ops/gov surfaces were materially exercised in this boundary or remain unresolved for the current pack.
+   - unresolved learning/evolution surfaces remain blockers to whole-platform correctness claimability unless explicitly deferred by active phase design.
+8. ops/gov lock:
+   - the S4 correctness window must emit a run-scoped ops/gov receipt, not only static drill proxies.
+   - `g3a_correctness_ops_gov_summary.json` must prove active-run observability roots and run-scoped conformance receipt upload under `obs/`.
+9. authorization lock:
+   - no soak dispatch from `S4` unless `g3a_soak_authorization.json` is green.
 
-### S5 - Runtime Pack Rollup, Verdict, And Gate Handoff
+### S5 - Bounded Stress Window, Conditional Soak, Runtime Pack Rollup, And Gate Handoff
 Objective:
-1. emit deterministic `G3A` pack verdict and handoff posture to `PR4`.
+1. execute the short harder-pressure stress window after correctness is green, run the long soak only if stress stays green, then emit deterministic `G3A` pack verdict and handoff posture to `PR4`.
 
 Required actions:
-1. compile consolidated runtime scorecard report,
-2. build runtime evidence index with all required artifact refs/readback states,
-3. compute blocker register from `S0..S4`,
-4. emit runtime verdict and phase summary,
-5. set `next_gate=PR4_READY` only when `open_blockers=0`.
+1. execute bounded higher-pressure stress window with fail-fast enabled,
+2. authorize and execute long-duration soak only if the stress window is green,
+3. compile consolidated runtime scorecard report,
+4. build runtime evidence index with all required artifact refs/readback states,
+5. compute blocker register from `S0..S5`,
+6. emit runtime verdict and phase summary,
+7. set `next_gate=PR4_READY` only when `open_blockers=0`.
 
 Outputs:
 1. `g3a_scorecard_report.md`
@@ -347,20 +370,23 @@ Outputs:
 6. `pr3_s5_execution_receipt.json`
 
 Pass condition:
-1. runtime pack verdict is `PASS`, `open_blockers=0`, evidence index is complete/readable, and handoff is `PR4_READY`.
+1. runtime pack verdict is `PASS`, `open_blockers=0`, evidence index is complete/readable, handoff is `PR4_READY`, and any claimed soak was preceded by green correctness and stress windows.
 
 Fail-closed blockers:
-1. `PR3.B28_RUNTIME_EVIDENCE_INDEX_MISSING`
-2. `PR3.B29_RUNTIME_VERDICT_INCOHERENT`
-3. `PR3.B30_OPEN_BLOCKERS_NONZERO`
-4. `PR3.B31_NEXT_GATE_NOT_PR4_READY`
-5. `PR3.B32_UNATTRIBUTED_RUNTIME_SPEND`
+1. `PR3.B29_STRESS_WINDOW_NOT_EXECUTED`
+2. `PR3.B30_STRESS_WINDOW_FAIL`
+3. `PR3.B31_RUNTIME_EVIDENCE_INDEX_MISSING`
+4. `PR3.B32_RUNTIME_VERDICT_INCOHERENT`
+5. `PR3.B33_OPEN_BLOCKERS_NONZERO`
+6. `PR3.B34_NEXT_GATE_NOT_PR4_READY`
+7. `PR3.B35_UNATTRIBUTED_RUNTIME_SPEND`
 
 S5 planning expansion (execution checklist):
 1. rollup lock:
    - include scorecard windows, cohort artifacts, and drill artifacts in evidence index.
 2. verdict lock:
    - `PASS` allowed only when all required checks are green with zero open blockers.
+   - soak evidence is ignored for closure if correctness or stress authorization was bypassed.
 3. target lock:
    - mark `TGT-08` and `TGT-09` as `PINNED` only when supporting closure artifacts are present.
 4. cross-plane digest lock:
@@ -391,27 +417,35 @@ Required artifacts:
 13. `g3a_scorecard_recovery.json`
 14. `g3a_recovery_bound_report.json`
 15. `g3a_recovery_timeline.json`
-16. `g3a_scorecard_soak.json`
-17. `g3a_soak_drift_report.json`
-18. `g3a_cohort_manifest.json`
-19. `g3a_cohort_results.json`
-20. `g3a_drill_replay_integrity.json`
-21. `g3a_drill_lag_recovery.json`
-22. `g3a_drill_schema_evolution.json`
-23. `g3a_drill_dependency_degrade.json`
-24. `g3a_drill_cost_guardrail.json`
-25. `g3a_runtime_cost_receipt.json`
-26. `g3a_scorecard_report.md`
-27. `g3a_runtime_evidence_index.json`
-28. `g3a_runtime_verdict.json`
-29. `pr3_blocker_register.json`
-30. `pr3_execution_summary.json`
-31. `pr3_s0_execution_receipt.json`
-32. `pr3_s1_execution_receipt.json`
-33. `pr3_s2_execution_receipt.json`
-34. `pr3_s3_execution_receipt.json`
-35. `pr3_s4_execution_receipt.json`
-36. `pr3_s5_execution_receipt.json`
+16. `g3a_correctness_scorecard.json`
+17. `g3a_correctness_component_snapshot.json`
+18. `g3a_correctness_cross_plane_report.json`
+19. `g3a_control_plane_bootstrap.json`
+20. `g3a_correctness_learning_summary.json`
+21. `g3a_correctness_ops_gov_summary.json`
+22. `g3a_soak_authorization.json`
+23. `g3a_scorecard_soak.json` (only if correctness and stress are both green)
+24. `g3a_soak_drift_report.json` (only if correctness and stress are both green)
+25. `g3a_cohort_manifest.json`
+26. `g3a_cohort_results.json`
+27. `g3a_drill_replay_integrity.json`
+28. `g3a_drill_lag_recovery.json`
+26. `g3a_drill_schema_evolution.json`
+27. `g3a_drill_dependency_degrade.json`
+28. `g3a_drill_cost_guardrail.json`
+29. `g3a_correctness_cost_receipt.json`
+30. `g3a_runtime_cost_receipt.json`
+31. `g3a_scorecard_report.md`
+32. `g3a_runtime_evidence_index.json`
+33. `g3a_runtime_verdict.json`
+34. `pr3_blocker_register.json`
+35. `pr3_execution_summary.json`
+36. `pr3_s0_execution_receipt.json`
+37. `pr3_s1_execution_receipt.json`
+38. `pr3_s2_execution_receipt.json`
+39. `pr3_s3_execution_receipt.json`
+40. `pr3_s4_execution_receipt.json`
+41. `pr3_s5_execution_receipt.json`
 
 Schema minimums:
 1. every JSON artifact includes: `phase`, `state`, `generated_at_utc`, `generated_by`, `version`,
@@ -455,7 +489,7 @@ Cost budget:
 1. run charter must declare `budget_envelope_usd` before `S1` starts,
 2. each state receipt must emit attributable spend,
 3. `S4` must emit `g3a_runtime_cost_receipt.json` with unit-cost fields and budget adherence posture,
-4. unattributed spend or missing cost fields are fail-closed (`PR3.B32_UNATTRIBUTED_RUNTIME_SPEND`).
+4. unattributed spend or missing cost fields are fail-closed (`PR3.B35_UNATTRIBUTED_RUNTIME_SPEND`).
 
 ## 9) Rerun Discipline
 1. Rerun only failed boundary state:

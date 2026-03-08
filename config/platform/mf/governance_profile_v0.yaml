@@ -1,0 +1,7 @@
+policy_id: mf.governance.policy.v0
+revision: r12
+controls:
+  require_pass_gate: true
+eval_thresholds:
+  min_auc_roc: 0.1
+  min_precision_at_50: 0.1
