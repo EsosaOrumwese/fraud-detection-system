@@ -10,7 +10,7 @@ import subprocess
 import sys
 import time
 from datetime import datetime, timezone
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import quote_plus
 
@@ -167,6 +167,15 @@ def env_ref(name: str, secret_name: str, key: str) -> dict[str, Any]:
 
 def plain_env(name: str, value: str) -> dict[str, Any]:
     return {"name": name, "value": value}
+
+
+def normalize_container_path(raw_path: str) -> str:
+    text = str(raw_path or "").strip().replace("\\", "/")
+    if not text:
+        raise RuntimeError("container path must be non-empty")
+    if not text.startswith("/"):
+        text = "/" + text.lstrip("/")
+    return PurePosixPath(text).as_posix()
 
 
 def deployment_manifest(
@@ -400,6 +409,8 @@ def main() -> int:
     rtdl_sa = "rtdl"
     decision_sa = "decision-lane"
     case_labels_sa = "case-labels"
+    profile_path_in_container = normalize_container_path(args.profile_path)
+    profile_mount_dir = str(PurePosixPath(profile_path_in_container).parent)
 
     profile_source_path = Path(args.profile_source_path)
     if not profile_source_path.exists():
@@ -416,7 +427,7 @@ def main() -> int:
     df_policy = df_payload.setdefault("policy", {})
     if not isinstance(df_policy, dict):
         raise RuntimeError("profile df.policy stanza must be a mapping")
-    mounted_snapshot_ref = str(Path(args.profile_path).parent / snapshot_source_path.name)
+    mounted_snapshot_ref = str(PurePosixPath(profile_mount_dir) / snapshot_source_path.name)
     df_policy["registry_snapshot_ref"] = mounted_snapshot_ref
     profile_text = yaml.safe_dump(profile_payload, sort_keys=False)
     snapshot_text = snapshot_source_path.read_text(encoding="utf-8")
@@ -511,7 +522,7 @@ def main() -> int:
     profile_volume_mounts = [
         {
             "name": "runtime-profile",
-            "mountPath": str(Path(args.profile_path).parent),
+            "mountPath": profile_mount_dir,
             "readOnly": True,
         }
     ]
@@ -526,7 +537,7 @@ def main() -> int:
         {
             "name": "fp-pr3-csfb",
             "service_account": rtdl_sa,
-            "command": ["python", "-m", "fraud_detection.context_store_flow_binding.intake", "--policy", args.profile_path],
+            "command": ["python", "-m", "fraud_detection.context_store_flow_binding.intake", "--policy", profile_path_in_container],
             "env": common_secret_env
             + [
                 env_ref("CSFB_REQUIRED_PLATFORM_RUN_ID", secret_name, "CSFB_REQUIRED_PLATFORM_RUN_ID"),
@@ -541,7 +552,7 @@ def main() -> int:
         {
             "name": "fp-pr3-ieg",
             "service_account": rtdl_sa,
-            "command": ["python", "-m", "fraud_detection.identity_entity_graph.projector", "--profile", args.profile_path],
+            "command": ["python", "-m", "fraud_detection.identity_entity_graph.projector", "--profile", profile_path_in_container],
             "env": common_secret_env
             + [
                 env_ref("CSFB_REQUIRED_PLATFORM_RUN_ID", secret_name, "CSFB_REQUIRED_PLATFORM_RUN_ID"),
@@ -558,7 +569,7 @@ def main() -> int:
         {
             "name": "fp-pr3-ofp",
             "service_account": rtdl_sa,
-            "command": ["python", "-m", "fraud_detection.online_feature_plane.projector", "--profile", args.profile_path],
+            "command": ["python", "-m", "fraud_detection.online_feature_plane.projector", "--profile", profile_path_in_container],
             "env": common_secret_env
             + [
                 env_ref("CSFB_REQUIRED_PLATFORM_RUN_ID", secret_name, "CSFB_REQUIRED_PLATFORM_RUN_ID"),
@@ -576,7 +587,7 @@ def main() -> int:
         {
             "name": "fp-pr3-archive-writer",
             "service_account": rtdl_sa,
-            "command": ["python", "-m", "fraud_detection.archive_writer.worker", "--profile", args.profile_path],
+            "command": ["python", "-m", "fraud_detection.archive_writer.worker", "--profile", profile_path_in_container],
             "env": common_secret_env
             + [
                 env_ref("ARCHIVE_WRITER_REQUIRED_PLATFORM_RUN_ID", secret_name, "ARCHIVE_WRITER_REQUIRED_PLATFORM_RUN_ID"),
@@ -591,7 +602,7 @@ def main() -> int:
         {
             "name": "fp-pr3-dl",
             "service_account": decision_sa,
-            "command": ["python", "-m", "fraud_detection.degrade_ladder.worker", "--profile", args.profile_path],
+            "command": ["python", "-m", "fraud_detection.degrade_ladder.worker", "--profile", profile_path_in_container],
             "env": common_secret_env
             + [
                 env_ref("DL_SCENARIO_RUN_ID", secret_name, "DL_SCENARIO_RUN_ID"),
@@ -612,7 +623,7 @@ def main() -> int:
         {
             "name": "fp-pr3-df",
             "service_account": decision_sa,
-            "command": ["python", "-m", "fraud_detection.decision_fabric.worker", "--profile", args.profile_path],
+            "command": ["python", "-m", "fraud_detection.decision_fabric.worker", "--profile", profile_path_in_container],
             "env": common_secret_env
             + [
                 env_ref("CSFB_REQUIRED_PLATFORM_RUN_ID", secret_name, "CSFB_REQUIRED_PLATFORM_RUN_ID"),
@@ -638,7 +649,7 @@ def main() -> int:
         {
             "name": "fp-pr3-al",
             "service_account": decision_sa,
-            "command": ["python", "-m", "fraud_detection.action_layer.worker", "--profile", args.profile_path],
+            "command": ["python", "-m", "fraud_detection.action_layer.worker", "--profile", profile_path_in_container],
             "env": common_secret_env
             + [
                 env_ref("AL_REQUIRED_PLATFORM_RUN_ID", secret_name, "AL_REQUIRED_PLATFORM_RUN_ID"),
@@ -658,7 +669,7 @@ def main() -> int:
         {
             "name": "fp-pr3-dla",
             "service_account": decision_sa,
-            "command": ["python", "-m", "fraud_detection.decision_log_audit.worker", "--profile", args.profile_path],
+            "command": ["python", "-m", "fraud_detection.decision_log_audit.worker", "--profile", profile_path_in_container],
             "env": common_secret_env
             + [
                 env_ref("DLA_REQUIRED_PLATFORM_RUN_ID", secret_name, "DLA_REQUIRED_PLATFORM_RUN_ID"),
@@ -673,7 +684,7 @@ def main() -> int:
         {
             "name": "fp-pr3-case-trigger",
             "service_account": case_labels_sa,
-            "command": ["python", "-m", "fraud_detection.case_trigger.worker", "--profile", args.profile_path],
+            "command": ["python", "-m", "fraud_detection.case_trigger.worker", "--profile", profile_path_in_container],
             "env": common_secret_env
             + [
                 env_ref("CASE_TRIGGER_REQUIRED_PLATFORM_RUN_ID", secret_name, "CASE_TRIGGER_REQUIRED_PLATFORM_RUN_ID"),
@@ -692,7 +703,7 @@ def main() -> int:
         {
             "name": "fp-pr3-case-mgmt",
             "service_account": case_labels_sa,
-            "command": ["python", "-m", "fraud_detection.case_mgmt.worker", "--profile", args.profile_path],
+            "command": ["python", "-m", "fraud_detection.case_mgmt.worker", "--profile", profile_path_in_container],
             "env": common_secret_env
             + [
                 env_ref("CASE_MGMT_REQUIRED_PLATFORM_RUN_ID", secret_name, "CASE_MGMT_REQUIRED_PLATFORM_RUN_ID"),
@@ -708,7 +719,7 @@ def main() -> int:
         {
             "name": "fp-pr3-label-store",
             "service_account": case_labels_sa,
-            "command": ["python", "-m", "fraud_detection.label_store.worker", "--profile", args.profile_path],
+            "command": ["python", "-m", "fraud_detection.label_store.worker", "--profile", profile_path_in_container],
             "env": common_secret_env
             + [
                 env_ref("LABEL_STORE_REQUIRED_PLATFORM_RUN_ID", secret_name, "LABEL_STORE_REQUIRED_PLATFORM_RUN_ID"),
@@ -767,7 +778,7 @@ def main() -> int:
         "scenario_run_id": args.scenario_run_id,
         "namespace": namespace,
         "image_uri": image_uri,
-        "profile_path": args.profile_path,
+        "profile_path": profile_path_in_container,
         "df_registry_snapshot_source_path": str(snapshot_source_path),
         "df_registry_snapshot_mounted_ref": mounted_snapshot_ref,
         "secret_name": secret_name,

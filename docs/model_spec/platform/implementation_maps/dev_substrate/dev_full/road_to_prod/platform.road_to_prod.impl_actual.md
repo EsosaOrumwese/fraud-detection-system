@@ -9639,3 +9639,21 @@ uns/.../degrade_ladder/* on its own filesystem,
 7. Why I am not jumping straight to a DF worker rewrite yet:
    - the warm gate proves the state would still start under a false decision-ladder clamp,
    - until that clamp is removed from the live image, any deeper `DF` throughput experiment would still be polluted by artificial early fail-closed posture.
+
+## Entry: 2026-03-08 08:01:50 +00:00 - The first post-image local rematerialization exposed a host-path bug in PR3 runtime materialization, not a runtime-image defect
+1. After publishing the corrected platform image and repinning `fraud-platform-dev-full-wsp-ephemeral` to the new digest, I used the existing local `pr3_rtdl_materialize.py` path to rematerialize the live PR3 runtime before spending another full soak workflow run.
+2. The resulting pods all crash-looped immediately, but the logs were consistent across components:
+   - every worker failed with `FileNotFoundError: /runtime-profile/dev_full.yaml`,
+   - the generated pod spec mounted the profile ConfigMap at `\\runtime-profile` rather than `/runtime-profile`.
+3. Root cause:
+   - `pr3_rtdl_materialize.py` currently derives the runtime mount path with `Path(args.profile_path).parent`,
+   - when that script is executed from Windows, the host `Path` semantics leak into the Kubernetes manifest and produce backslash paths,
+   - the workers themselves still expect Linux container paths, so the profile volume mounts at the wrong location and every process fails before startup.
+4. Production interpretation:
+   - this is not a platform-plane defect and it is not a reason to distrust the new image digest,
+   - it is a cross-host orchestration bug in the PR3 materializer and it matters because the user explicitly allows local dev/orchestration work as long as the platform itself remains remote,
+   - leaving it in place would make Windows-hosted remediation and bounded readback unsafe and non-deterministic.
+5. Selected remediation:
+   - normalize `args.profile_path` and all ConfigMap mount-path derivations to POSIX container paths inside `pr3_rtdl_materialize.py`,
+   - keep the container-facing runtime path contract pinned as `/runtime-profile/...` regardless of the host OS executing the materializer,
+   - then rerun local materialization once to restore the live runtime and re-check the warm gate before the next full `PR3-S4` soak workflow.
