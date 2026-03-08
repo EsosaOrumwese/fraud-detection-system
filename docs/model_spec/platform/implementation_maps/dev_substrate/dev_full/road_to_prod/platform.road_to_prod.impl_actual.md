@@ -9772,3 +9772,52 @@ uns/.../degrade_ladder/* on its own filesystem,
    - rebuild/publish the remote platform image,
    - rematerialize the PR3 runtime with the new digest,
    - rerun strict `PR3-S4` on the same boundary and inspect what remains once `DF` is no longer poisoned by replay event-time.
+
+## Entry: 2026-03-08 10:15:40 +00:00 - PR3-S4 narrowed again: DL is persisting a recovered OFP transient as a hard fail-closed signal, which keeps RTDL and the case plane red after ingress/feature freshness are already green
+1. I did not patch immediately after the last `PR3-S4` rerun because the observed blocker shape had changed and I needed live runtime evidence rather than another guess. I reopened the live EKS surfaces and the downloaded `22818266405` soak artifacts together.
+2. The live evidence is now specific:
+   - `OFP` remains operationally current for `platform_20260308T092643Z` with `checkpoint_age_seconds ~= 0.03..0.07`, `lag_seconds ~= 0.03..0.07`, and `missing_features = 0`,
+   - `OFP` health payload still reports `health_reasons=["WATERMARK_TOO_OLD"]` because the replay/oracle watermark reflects January event time,
+   - run-scoped `snapshot_failures = 1` remains present while `events_applied` continues increasing,
+   - `DL` live logs show a material sequence rather than a constant failure: it recovered to `NORMAL` with all required signals `OK`, then later reverted to `FAIL_CLOSED` on `ofp_health` alone while `eb_consumer_lag` and `ieg_health` remained `OK`.
+3. This sequencing matters. It means the current red state is not caused by a permanently broken OFP consumer or a stale bootstrap surface. The runtime can become healthy and then gets forced back to fail-closed when `DL` re-evaluates `ofp_health` against a recovered-but-sticky transient counter.
+4. Code inspection matches the live evidence:
+   - `degrade_ladder/worker.py::_signal_shared_component_health()` errors `online_feature_plane` whenever `snapshot_failures > 0`,
+   - it does that even when checkpoint freshness is current, `missing_features == 0`, and the only component health reason is replay-age advisory (`WATERMARK_TOO_OLD` / `CHECKPOINT_TOO_OLD`),
+   - therefore a single recovered snapshot failure can permanently keep `DL` red for the rest of the certification window.
+5. Production interpretation:
+   - a transient snapshot build failure that self-recovers while the feature plane remains current is not a valid reason to hold the whole decision path in permanent fail-closed posture,
+   - the correct production posture is still fail-closed on active OFP corruption (`missing_features`, stale graph, repeated/red snapshot failures, checkpoint drift), but not on a recovered single transient hidden behind replay-age advisory,
+   - leaving the current logic untouched would continue to starve `DF`, `case_trigger`, `case_mgmt`, and `label_store` even when the real-time feature plane is healthy enough to serve the run.
+6. Selected remediation:
+   - patch `DL` shared OFP health evaluation so it admits a narrow `replay_recovered_transient_snapshot_failure` posture when all of the following are simultaneously true:
+     - checkpoint freshness is within the required max age,
+     - `missing_features == 0`,
+     - `stale_graph_version == 0`,
+     - the OFP health reasons are a subset of replay-age advisories only,
+     - current run metrics prove the plane is actively applying events,
+     - no explicit red snapshot-failure reason is present,
+   - keep fail-closed behavior for all other OFP error shapes,
+   - add worker-level tests that prove the narrow allow path and prove that real OFP faults still block.
+7. I am intentionally not weakening `PR3-S4` rollup or case-plane requirements yet. The next honest move is to remove this RTDL false-red first, then rerun the exact state boundary and let the case/label deltas speak for themselves.
+
+## Entry: 2026-03-08 10:21:55 +00:00 - Applied the narrow DL/OFP recovered-transient fix and validated that it preserves fail-closed behavior for real OFP faults
+1. I implemented the next `PR3-S4` remediation in `src/fraud_detection/degrade_ladder/worker.py`.
+2. Exact behavior change:
+   - `DL` still hard-fails `online_feature_plane` when checkpoints are stale, `missing_features > 0`, graph version is stale, or explicit red snapshot-failure reasons are present,
+   - but it now recognizes one narrow recovered posture as non-blocking: current checkpoint freshness, active event application, zero missing features, zero stale graph version, replay-age advisory reasons only, and no explicit red snapshot-failure reason.
+3. The intent is not to make `DL` permissive. The intent is to stop treating a recovered OFP transient as if it were a live integrity breach for the entire remainder of the run.
+4. I kept the patch local to `DL` rather than altering `OFP` health derivation itself because the production defect is in how the shared signal is consumed by posture control, not in the existence of the underlying counter.
+5. Test coverage expanded in `tests/services/degrade_ladder/test_phase7_worker_observability.py`:
+   - new test proves replay-recovered transient snapshot failure remains `OK` for `ofp_health`,
+   - second test proves an explicit red snapshot-failure condition still forces `FAIL_CLOSED`.
+6. Local validation completed before any remote rebuild:
+   - `python -m py_compile src/fraud_detection/degrade_ladder/worker.py tests/services/degrade_ladder/test_phase7_worker_observability.py`
+   - `python -m pytest tests/services/degrade_ladder/test_phase7_worker_observability.py -q`
+   - result: `9 passed`
+7. Next runtime sequence remains exact and bounded:
+   - commit/push the active-branch code slice,
+   - rebuild/publish the platform image,
+   - repin the runtime source task family to the new digest,
+   - rerun strict `PR3-S4`,
+   - then inspect whether `DF` and the case/label plane now materialize enough current-run deltas to clear the remaining blockers.

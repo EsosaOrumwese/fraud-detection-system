@@ -215,6 +215,74 @@ def test_worker_uses_shared_store_surfaces_when_remote_pod_files_are_absent(
     assert payload["required_signal_states"]["ofp_health"] == "OK"
 
 
+def test_worker_allows_replay_recovered_ofp_transient_snapshot_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_id = "platform_20260209T220450Z"
+    worker = _build_worker(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        run_id=run_id,
+        include_component_health=False,
+        include_operate_status=False,
+    )
+    worker._worker_started_at = datetime(2026, 2, 9, 22, 0, 0, tzinfo=timezone.utc)
+    monkeypatch.setattr("fraud_detection.degrade_ladder.worker._utc_now", lambda: "2026-02-09T22:05:00+00:00")
+    worker._shared_csfb_snapshot = lambda: {"checkpoint_age_seconds": 0.25}
+    worker._shared_ieg_status = lambda: {"checkpoint_age_seconds": 0.4, "apply_failure_count": 0}
+    worker._shared_ofp_status = lambda: {
+        "checkpoint_age_seconds": 0.3,
+        "health_reasons": ["WATERMARK_TOO_OLD"],
+        "metrics": {
+            "events_applied": 1200,
+            "events_seen": 1200,
+            "missing_features": 0,
+            "snapshot_failures": 1,
+            "stale_graph_version": 0,
+        },
+    }
+
+    payload = worker.run_once()
+
+    assert payload["mode"] == "NORMAL"
+    assert payload["required_signal_states"]["ofp_health"] == "OK"
+
+
+def test_worker_keeps_ofp_fail_closed_when_snapshot_failure_is_active_red(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_id = "platform_20260209T220451Z"
+    worker = _build_worker(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        run_id=run_id,
+        include_component_health=False,
+        include_operate_status=False,
+    )
+    worker._worker_started_at = datetime(2026, 2, 9, 22, 0, 0, tzinfo=timezone.utc)
+    monkeypatch.setattr("fraud_detection.degrade_ladder.worker._utc_now", lambda: "2026-02-09T22:05:00+00:00")
+    worker._shared_csfb_snapshot = lambda: {"checkpoint_age_seconds": 0.25}
+    worker._shared_ieg_status = lambda: {"checkpoint_age_seconds": 0.4, "apply_failure_count": 0}
+    worker._shared_ofp_status = lambda: {
+        "checkpoint_age_seconds": 0.3,
+        "health_reasons": ["WATERMARK_TOO_OLD", "SNAPSHOT_FAILURES_RED"],
+        "metrics": {
+            "events_applied": 1200,
+            "events_seen": 1200,
+            "missing_features": 0,
+            "snapshot_failures": 5,
+            "stale_graph_version": 0,
+        },
+    }
+
+    payload = worker.run_once()
+
+    assert payload["mode"] == "FAIL_CLOSED"
+    assert payload["required_signal_states"]["ofp_health"] == "ERROR"
+
+
 def test_worker_records_shared_surface_errors_when_authoritative_reader_fails(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

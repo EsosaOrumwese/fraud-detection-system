@@ -527,11 +527,30 @@ class DegradeLadderWorker:
             metrics = payload.get("metrics") if isinstance(payload.get("metrics"), dict) else {}
             missing_features = int(metrics.get("missing_features", payload.get("missing_features", 0)) or 0)
             snapshot_failures = int(metrics.get("snapshot_failures", payload.get("snapshot_failures", 0)) or 0)
+            advisory_reason = self._shared_ofp_recovered_advisory_reason(
+                payload=payload,
+                required_max_age=required_max_age,
+                missing_features=missing_features,
+                snapshot_failures=snapshot_failures,
+            )
             if missing_features > 0:
                 return SignalState(
                     status="ERROR",
                     value={"component": component, "missing_features": missing_features},
                     detail="SHARED_COMPONENT_MISSING_FEATURES_PRESENT",
+                    source=f"dl.worker:{component}:shared",
+                )
+            if advisory_reason is not None:
+                return SignalState(
+                    status="OK",
+                    value={
+                        "component": component,
+                        "checkpoint_age_seconds": checkpoint_age,
+                        "snapshot_failures": snapshot_failures,
+                        "state": "READY",
+                        "advisory_reason": advisory_reason,
+                    },
+                    detail=advisory_reason,
                     source=f"dl.worker:{component}:shared",
                 )
             if snapshot_failures > 0:
@@ -657,6 +676,40 @@ class DegradeLadderWorker:
         if join_misses > 0 or binding_conflicts > 0 or hard_apply_failures > 0:
             return None
         return "REPLAY_CONTEXT_READY"
+
+    def _shared_ofp_recovered_advisory_reason(
+        self,
+        *,
+        payload: dict[str, Any],
+        required_max_age: float,
+        missing_features: int,
+        snapshot_failures: int,
+    ) -> str | None:
+        if snapshot_failures <= 0 or missing_features > 0:
+            return None
+        checkpoint_age = _coerce_float(payload.get("checkpoint_age_seconds"), payload.get("lag_seconds"))
+        if checkpoint_age is None or checkpoint_age > required_max_age:
+            return None
+        metrics = payload.get("metrics") if isinstance(payload.get("metrics"), dict) else {}
+        stale_graph_version = int(metrics.get("stale_graph_version", payload.get("stale_graph_version", 0)) or 0)
+        if stale_graph_version > 0:
+            return None
+        events_applied = int(metrics.get("events_applied", 0) or 0)
+        events_seen = int(metrics.get("events_seen", 0) or 0)
+        if max(events_applied, events_seen) <= 0:
+            return None
+        health_reasons = {
+            str(item).strip()
+            for item in (payload.get("health_reasons") or [])
+            if str(item).strip()
+        }
+        if not health_reasons:
+            return None
+        if "SNAPSHOT_FAILURES_RED" in health_reasons:
+            return None
+        if not health_reasons.issubset({"WATERMARK_TOO_OLD", "CHECKPOINT_TOO_OLD"}):
+            return None
+        return "SHARED_COMPONENT_REPLAY_RECOVERED_TRANSIENT_SNAPSHOT_FAILURE_ALLOWED"
 
     def _shared_component_status(self, component: str) -> dict[str, Any] | None:
         if component == "identity_entity_graph":
