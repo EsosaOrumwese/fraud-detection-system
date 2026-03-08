@@ -181,7 +181,7 @@ profiles:
         max: 900
       hysteresis:
         downshift_immediate: true
-        upshift_quiet_period_seconds: 180
+        upshift_quiet_period_seconds: 60
       signal_freshness_seconds:
         required_max_age: 120
     modes:

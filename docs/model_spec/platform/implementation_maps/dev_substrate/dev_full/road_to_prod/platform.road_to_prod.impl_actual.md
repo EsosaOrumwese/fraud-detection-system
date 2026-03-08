@@ -8847,3 +8847,71 @@ uns/.../degrade_ladder/* on its own filesystem,
    - rebuild/publish the new platform image,
    - roll the managed ingress task definition so the secret-backed auth posture is live,
    - rerun strict `PR3-S2` and re-evaluate both the ingress state metrics and downstream decision-plane participation.
+
+## Entry: 2026-03-07 23:24:23 +00:00 - PR3-S2 live rollout sequence selected after ingress-tail root cause isolation
+1. I have completed the code/IaC remediation for the managed ingress auth hot-path drift and verified it locally, but PR3-S2 cannot move forward on repo-only changes. The next bottleneck is live materialization.
+2. The strict state remains blocked by two measured production metrics from the last rerun:
+   - admitted throughput 5994.813 eps vs the pinned 6000 eps burst floor,
+   - ALB TargetResponseTime p99 = 6795.450 ms vs the pinned 700 ms ceiling.
+3. The supporting evidence from CloudWatch and ingress service logs is already strong enough to avoid another exploratory run:
+   - minute-bin ALB p99 remained about 6.1-7.6 s throughout the whole certified burst window,
+   - the managed ingress service performed 639 SSM API-key refreshes during that same five-minute window,
+   - hot-path publish timings remained healthy, which makes the auth lookup drift the most credible remaining cause.
+4. That means the correct next execution sequence is operational, not analytical:
+   - rebuild the runtime image so the pushed ingress auth changes exist in a deployable artifact,
+   - roll the managed ingress ECS task definition so `IG_API_KEY_VALUE` is injected by the control plane at task start,
+   - rerun strict PR3-S2 from the same upstream discipline,
+   - evaluate impact metrics first (`throughput`, `p95`, `p99`, `4xx/5xx`, downstream deltas, SSM refresh count) before deciding whether the state can close.
+5. I explicitly rejected two weaker alternatives before proceeding:
+   - rerun PR3-S2 immediately on the old runtime: rejected because it would only reconfirm the known hot-path defect and waste budget,
+   - scale ingress further before removing the SSM lookup drift: rejected because it treats the symptom and leaves a control-plane dependency in the admission path.
+6. Production interpretation of the selected route:
+   - if the diagnosis is correct, live ingress auth refresh count should collapse toward zero,
+   - the severe p99 tail should contract materially,
+   - the residual ~5.2 eps shortfall should disappear without relaxing any threshold.
+7. If the rerun still breaches the burst target after this rollout, the next analysis should focus on remaining ingress long-tail sources or residual source-drive under-delivery, not on document-driven threshold compromise.
+
+## Entry: 2026-03-07 23:58:00 +00:00 - PR3-S2 rerun proves ingress closure and isolates the remaining blocker to DL recovery semantics
+1. I inspected the strict PR3-S2 rerun after the managed ingress auth hot-path rollout completed and the runtime image/materialization were refreshed to that code.
+2. The ingress side of PR3-S2 is now materially production-grade on the declared burst surface:
+   - admitted throughput `6042.74 eps`,
+   - request throughput `6042.74 eps`,
+   - `4xx_total = 0`,
+   - `5xx_total = 0`,
+   - `p95 = 183.12 ms`,
+   - `p99 = 597.29 ms`,
+   - covered measurement window `300 s`.
+3. Production interpretation of those impact metrics:
+   - the previously narrow throughput miss is closed,
+   - the severe p99 tail defect is closed,
+   - ingress is no longer the active blocker for PR3-S2 and should not receive further tuning work before the downstream state defect is fixed.
+4. The strict state is still red because the decision lane remains functionally absent during a meaningful part of the burst window:
+   - receipt blocker deltas are now `PR3.S2.B15_DF_FAIL_CLOSED_NONZERO:delta=1.0` and `PR3.S2.B15_DF_QUARANTINE_NONZERO:delta=2.0`,
+   - live DF reconciliation for the current run shows only `2` decisions, both quarantined,
+   - active reason-code mix is `ACTIVE_BUNDLE_INCOMPATIBLE`, `FEATURE_GROUP_MISSING:core_features`, `FALLBACK_EXPLICIT`, plus one `CAPABILITY_BLOCK:feature_group=core_features`, one `CAPABILITY_MISMATCH:allow_model_primary`, and one deadline/context miss.
+5. I then inspected the live DL and DF runtime state directly instead of inferring from the rollup:
+   - DL transitioned to `FAIL_CLOSED` when `eb_consumer_lag`, `ieg_health`, and `ofp_health` briefly presented as `ERROR`,
+   - those required signals later recovered to `OK`,
+   - but DL then remained in an overstrict posture long enough that DF resolved against `FAIL_CLOSED` and later `DEGRADED_2` capability masks during the certified burst window.
+6. The concrete design problem is not transport or registry resolution anymore. It is DL recovery semantics:
+   - downshift is immediate, which is correct,
+   - but upshift currently requires a full quiet period for each rung and only restores one rung at a time,
+   - with the active `prod` profile this means a transient early `FAIL_CLOSED` can consume most of the burst window before the decision lane regains a compatible capability mask.
+7. Why this is unacceptable for production:
+   - a bounded transient observability/startup flap should not suppress materially healthy decisioning for multiple minutes after signals recover,
+   - this makes the safety mechanism itself the dominant availability defect,
+   - it undermines the production-standard requirement that degrade and recovery be time-bounded, inspectable, and fast enough to preserve meaningful service during realistic incidents.
+8. Candidate remediations considered:
+   - widen warm-gate only and rerun harder: rejected because the live evidence already shows the core defect is recovery semantics after the downshift occurs,
+   - weaken DF blocker acceptance: rejected because that would certify a decision lane that is materially absent during the burst window,
+   - keep the current one-rung recovery but shorten the quiet period only: rejected as incomplete because it still scales recovery time with the number of degraded rungs instead of the actual recovered baseline,
+   - change DL hysteresis so recovery returns directly to the recovered baseline after one stable quiet period, and reduce the `prod` quiet period to a production-bounded value: selected.
+9. Selected implementation plan:
+   - update DL evaluator hysteresis so once the quiet period is satisfied it restores directly to `baseline_mode` instead of climbing one rung at a time,
+   - repin the `prod` DL `upshift_quiet_period_seconds` from `180` to `60` so transient startup/recovery gaps do not occupy most of a five-minute certification burst,
+   - add evaluator tests that prove bounded direct recovery from `FAIL_CLOSED` to a recovered baseline,
+   - validate locally, then rebuild/materialize and rerun strict PR3-S2 before advancing to PR3-S3.
+10. Acceptance test for this remediation:
+   - PR3-S2 must stay green on the current ingress metrics,
+   - `DF fail_closed_total_delta` and `publish_quarantine_total_delta` must return to `0`,
+   - DF/AL/DLA must show current-run participation rather than zero-traffic or quarantine-only artifacts.
