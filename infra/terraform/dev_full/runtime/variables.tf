@@ -456,7 +456,7 @@ variable "eks_namespace_rtdl" {
 
 variable "eks_namespace_case_labels" {
   type    = string
-  default = "fraud-platform-case-labels"
+  default = "fraud-platform-rtdl"
 }
 
 variable "eks_namespace_obs_gov" {

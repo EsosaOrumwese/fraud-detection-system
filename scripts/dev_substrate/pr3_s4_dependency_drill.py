@@ -45,6 +45,7 @@ def main() -> None:
     ap.add_argument("--run-control-root", default="runs/dev_substrate/dev_full/road_to_prod/run_control")
     ap.add_argument("--pr3-execution-id", required=True)
     ap.add_argument("--state-id", default="S4")
+    ap.add_argument("--artifact-prefix", default="g3a_correctness")
     ap.add_argument("--namespace", required=True)
     ap.add_argument("--platform-run-id", required=True)
     ap.add_argument("--profile-path", required=True)
@@ -54,7 +55,7 @@ def main() -> None:
     args = ap.parse_args()
 
     root = Path(args.run_control_root) / args.pr3_execution_id
-    manifest = load_json(root / "g3a_s4_wsp_runtime_manifest.json")
+    manifest = load_json(root / f"{str(args.artifact_prefix).strip()}_wsp_runtime_manifest.json")
     platform_run_id = str(args.platform_run_id).strip()
 
     drill_started_utc = now_utc()
@@ -149,7 +150,7 @@ def main() -> None:
         "generated_at_utc": now_utc(),
         "execution_id": args.pr3_execution_id,
         "platform_run_id": platform_run_id,
-        "scenario": f"Scale {args.deployment} to zero after soak, verify degrade is visible, restore and recover within bound.",
+        "scenario": f"Scale {args.deployment} to zero after bounded correctness, verify degrade is visible, restore and recover within bound.",
         "expected_behavior": "Dependency loss becomes visible on runtime surfaces and the lane recovers cleanly after restore.",
         "observed_outcome": {
             "degrade_started_utc": drill_started_utc,

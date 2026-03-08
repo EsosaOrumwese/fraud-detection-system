@@ -5,8 +5,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+SRC_ROOT = REPO_ROOT / "src"
+if str(SRC_ROOT) not in sys.path:
+    sys.path.insert(0, str(SRC_ROOT))
 
 from fraud_detection.action_layer.contracts import ActionOutcome
 from fraud_detection.action_layer.publish import build_action_outcome_envelope
@@ -29,10 +35,11 @@ def main() -> None:
     ap.add_argument("--run-control-root", default="runs/dev_substrate/dev_full/road_to_prod/run_control")
     ap.add_argument("--pr3-execution-id", required=True)
     ap.add_argument("--state-id", default="S4")
+    ap.add_argument("--artifact-prefix", default="g3a_correctness")
     args = ap.parse_args()
 
     root = Path(args.run_control_root) / args.pr3_execution_id
-    manifest = json.loads((root / "g3a_s4_wsp_runtime_manifest.json").read_text(encoding="utf-8"))
+    manifest = json.loads((root / f"{str(args.artifact_prefix).strip()}_wsp_runtime_manifest.json").read_text(encoding="utf-8"))
     platform_run_id = str((((manifest.get("identity") or {}).get("platform_run_id")) or "")).strip()
     scenario_run_id = str((((manifest.get("identity") or {}).get("scenario_run_id")) or "")).strip()
 

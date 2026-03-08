@@ -184,6 +184,7 @@ temp/
 .tmp/
 .tmp_*
 tmp
+_debug_tmp
 
 # SR runtime artifacts (sensitive, generated)
 runs/fraud-platform/

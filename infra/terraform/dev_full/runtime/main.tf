@@ -108,7 +108,7 @@ locals {
   }
   irsa_targets_with_msk = local.msk_cluster_arn != "" && local.msk_topic_wildcard_arn != "" && local.msk_group_wildcard_arn != "" ? {
     for key, value in local.irsa_targets :
-    key => value if contains(["rtdl", "decision_lane"], key)
+    key => value if contains(["rtdl", "decision_lane", "case_labels"], key)
   } : {}
 }
 
@@ -1559,9 +1559,60 @@ resource "aws_iam_role_policy" "eks_irsa_rtdl_core_kms" {
   })
 }
 
+resource "aws_iam_role_policy" "eks_irsa_decision_lane_core_kms" {
+  count = local.core_kms_key_arn != "" ? 1 : 0
+
+  name = "${var.role_eks_irsa_decision_lane_name}-core-kms"
+  role = aws_iam_role.eks_irsa["decision_lane"].id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:Encrypt",
+          "kms:ReEncrypt*",
+          "kms:GenerateDataKey",
+          "kms:DescribeKey"
+        ]
+        Resource = local.core_kms_key_arn
+      }
+    ]
+  })
+}
+
 resource "aws_iam_role_policy" "eks_irsa_rtdl_object_store_rw" {
   name = "${var.role_eks_irsa_rtdl_name}-object-store-rw"
   role = aws_iam_role.eks_irsa["rtdl"].id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket",
+          "s3:GetBucketLocation"
+        ]
+        Resource = "arn:aws:s3:::${local.core_object_store_bucket}"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject",
+          "s3:AbortMultipartUpload"
+        ]
+        Resource = "arn:aws:s3:::${local.core_object_store_bucket}/*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "eks_irsa_decision_lane_object_store_rw" {
+  name = "${var.role_eks_irsa_decision_lane_name}-object-store-rw"
+  role = aws_iam_role.eks_irsa["decision_lane"].id
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [

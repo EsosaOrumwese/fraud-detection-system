@@ -380,7 +380,11 @@ class ActionLayerWorker:
                 checkpoint = self.consumer_checkpoints.next_offset(topic=topic, partition=partition)
                 from_sequence = checkpoint[0] if checkpoint else None
                 start_position = self.config.event_bus_start_position
-                if checkpoint is None and self.config.required_platform_run_id:
+                if (
+                    checkpoint is None
+                    and self.config.required_platform_run_id
+                    and str(start_position).strip().lower() != "latest"
+                ):
                     start_position = "trim_horizon"
                 for row in self._kinesis_reader.read(
                     stream_name=stream,
@@ -415,7 +419,11 @@ class ActionLayerWorker:
                 start_position = "earliest"
                 if checkpoint is None and self.config.event_bus_start_position == "latest":
                     start_position = "latest"
-                if checkpoint is None and self.config.required_platform_run_id:
+                if (
+                    checkpoint is None
+                    and self.config.required_platform_run_id
+                    and self.config.event_bus_start_position != "latest"
+                ):
                     start_position = "earliest"
                 for record in self._kafka_reader.read(
                     topic=topic,

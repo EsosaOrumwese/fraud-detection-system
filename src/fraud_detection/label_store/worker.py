@@ -8,7 +8,6 @@ import json
 import logging
 import os
 from pathlib import Path
-import re
 import sqlite3
 import time
 from typing import Any, Mapping
@@ -17,6 +16,7 @@ import psycopg
 from fraud_detection.postgres_runtime import postgres_threadlocal_connection
 import yaml
 
+from fraud_detection.env_tokens import resolve_env_token
 from fraud_detection.ingestion_gate.pg_index import is_postgres_dsn
 from fraud_detection.platform_runtime import resolve_platform_run_id, resolve_run_scoped_path
 
@@ -24,7 +24,6 @@ from .observability import LabelStoreRunReporter
 
 
 logger = logging.getLogger("fraud_detection.label_store.worker")
-_ENV_PATTERN = re.compile(r"^\$\{([^}:]+)(?::-([^}]*))?\}$")
 
 
 @dataclass(frozen=True)
@@ -182,13 +181,7 @@ def load_worker_config(profile_path: Path) -> LabelStoreWorkerConfig:
 
 
 def _env(value: Any) -> Any:
-    if not isinstance(value, str):
-        return value
-    token = value.strip()
-    match = _ENV_PATTERN.fullmatch(token)
-    if not match:
-        return value
-    return os.getenv(match.group(1), match.group(2) or "")
+    return resolve_env_token(value)
 
 
 def _locator(value: Any, suffix: str) -> str:

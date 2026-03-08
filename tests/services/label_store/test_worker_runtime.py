@@ -4,9 +4,8 @@ import json
 from pathlib import Path
 
 import fraud_detection.label_store.observability as observability_mod
-import fraud_detection.label_store.worker as worker_mod
 from fraud_detection.label_store import LabelStoreWriterBoundary
-from fraud_detection.label_store.worker import LabelStoreWorker, LabelStoreWorkerConfig
+from fraud_detection.label_store.worker import LabelStoreWorker, LabelStoreWorkerConfig, load_worker_config
 
 
 def test_worker_bootstraps_startup_export_with_explicit_run_scope(monkeypatch, tmp_path: Path) -> None:
@@ -42,3 +41,26 @@ def test_worker_bootstraps_startup_export_with_explicit_run_scope(monkeypatch, t
     assert metrics["scenario_run_id"] == "a" * 32
     assert metrics["metrics"]["accepted"] == 0
     assert health["health_state"] == "GREEN"
+
+
+def test_label_store_load_worker_config_resolves_nested_run_scope_default(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("ACTIVE_PLATFORM_RUN_ID", "platform_20260308T141818Z")
+    profile = tmp_path / "dev_full.yaml"
+    profile.write_text(
+        "\n".join(
+            [
+                "profile_id: dev_full",
+                "label_store:",
+                "  wiring:",
+                "    locator: " + str(tmp_path / "label_store.sqlite"),
+                "    required_platform_run_id: ${LABEL_STORE_REQUIRED_PLATFORM_RUN_ID:-${ACTIVE_PLATFORM_RUN_ID:-}}",
+                "    scenario_run_id: ${ACTIVE_SCENARIO_RUN_ID:-" + "a" * 32 + "}",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    config = load_worker_config(profile)
+
+    assert config.required_platform_run_id == "platform_20260308T141818Z"

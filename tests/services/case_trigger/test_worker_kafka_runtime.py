@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import fraud_detection.case_trigger.worker as worker_module
-from fraud_detection.case_trigger.worker import CaseTriggerWorker, CaseTriggerWorkerConfig
+from fraud_detection.case_trigger.worker import CaseTriggerWorker, CaseTriggerWorkerConfig, load_worker_config
 
 
 class _FakeKafkaReader:
@@ -133,3 +133,32 @@ def test_case_trigger_kafka_reader_preserves_canonical_envelope(monkeypatch, tmp
     assert rows[0]["payload"]["event_type"] == "decision_response"
     assert rows[0]["payload"]["platform_run_id"] == "platform_20260308T131411Z"
     assert rows[0]["payload"]["payload"]["decision_id"] == "d" * 32
+
+
+def test_case_trigger_load_worker_config_resolves_nested_run_scope_default(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("ACTIVE_PLATFORM_RUN_ID", "platform_20260308T141818Z")
+    profile = tmp_path / "dev_full.yaml"
+    profile.write_text(
+        "\n".join(
+            [
+                "profile_id: dev_full",
+                "wiring:",
+                "  event_bus_kind: kafka",
+                "case_trigger:",
+                "  policy: {}",
+                "  wiring:",
+                "    required_platform_run_id: ${CASE_TRIGGER_REQUIRED_PLATFORM_RUN_ID:-${ACTIVE_PLATFORM_RUN_ID:-}}",
+                "    scenario_run_id: ${ACTIVE_SCENARIO_RUN_ID:-" + "1" * 32 + "}",
+                "    replay_dsn: " + str(tmp_path / "replay.sqlite"),
+                "    checkpoint_dsn: " + str(tmp_path / "checkpoints.sqlite"),
+                "    publish_store_dsn: " + str(tmp_path / "publish.sqlite"),
+                "    platform_store_root: " + str(tmp_path / "platform_store"),
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    config = load_worker_config(profile)
+
+    assert config.required_platform_run_id == "platform_20260308T141818Z"

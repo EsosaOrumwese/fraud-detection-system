@@ -9,13 +9,13 @@ import json
 import logging
 import os
 from pathlib import Path
-import re
 import sqlite3
 import time
 from typing import Any, Mapping
 
 import yaml
 
+from fraud_detection.env_tokens import resolve_env_token
 from fraud_detection.event_bus import EventBusReader
 from fraud_detection.event_bus.kafka import build_kafka_reader
 from fraud_detection.event_bus.kinesis import KinesisEventBusReader
@@ -29,7 +29,6 @@ from fraud_detection.label_store import LabelStoreWriterBoundary
 
 
 logger = logging.getLogger("fraud_detection.case_mgmt.worker")
-_ENV_PATTERN = re.compile(r"^\$\{([^}:]+)(?::-([^}]*))?\}$")
 
 
 @dataclass(frozen=True)
@@ -433,13 +432,7 @@ def load_worker_config(profile_path: Path) -> CaseMgmtWorkerConfig:
 
 
 def _env(value: Any) -> Any:
-    if not isinstance(value, str):
-        return value
-    token = value.strip()
-    match = _ENV_PATTERN.fullmatch(token)
-    if not match:
-        return value
-    return os.getenv(match.group(1), match.group(2) or "")
+    return resolve_env_token(value)
 
 
 def _locator(value: Any, suffix: str) -> str:
