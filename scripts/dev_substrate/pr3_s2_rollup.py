@@ -15,6 +15,16 @@ def now_utc() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
+def parse_utc(value: Any) -> datetime | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        return datetime.fromisoformat(text.replace("Z", "+00:00")).astimezone(timezone.utc)
+    except ValueError:
+        return None
+
+
 def load_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
@@ -68,6 +78,73 @@ def latest_snapshot(snapshots: list[dict[str, Any]], label: str) -> dict[str, An
         if str(row.get("snapshot_label", "")).strip().lower() == label:
             return row
     return snapshots[-1]
+
+
+def snapshot_generated_at(snapshot: dict[str, Any]) -> datetime | None:
+    return parse_utc(snapshot.get("generated_at_utc"))
+
+
+def select_counter_window_bounds(
+    snapshots: list[dict[str, Any]],
+    *,
+    measurement_start_utc: datetime | None,
+    measurement_end_utc: datetime | None,
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    if not snapshots:
+        raise RuntimeError("PR3.S2.B12_COMPONENT_SNAPSHOTS_MISSING")
+
+    ordered = sorted(
+        [row for row in snapshots if snapshot_generated_at(row) is not None],
+        key=lambda row: snapshot_generated_at(row) or datetime.min.replace(tzinfo=timezone.utc),
+    )
+    if not ordered:
+        raise RuntimeError("PR3.S2.B12_COMPONENT_SNAPSHOT_TIMESTAMPS_UNREADABLE")
+
+    baseline = ordered[0]
+    baseline_mode = "earliest_available"
+    if measurement_start_utc is not None:
+        at_or_before_start = [row for row in ordered if (snapshot_generated_at(row) or measurement_start_utc) <= measurement_start_utc]
+        if at_or_before_start:
+            baseline = at_or_before_start[-1]
+            baseline_mode = "latest_at_or_before_measurement_start"
+        else:
+            at_or_after_start = [row for row in ordered if (snapshot_generated_at(row) or measurement_start_utc) >= measurement_start_utc]
+            if at_or_after_start:
+                baseline = at_or_after_start[0]
+                baseline_mode = "earliest_at_or_after_measurement_start"
+
+    window_end = ordered[-1]
+    window_end_mode = "latest_available"
+    if measurement_end_utc is not None:
+        at_or_before_end = [row for row in ordered if (snapshot_generated_at(row) or measurement_end_utc) <= measurement_end_utc]
+        if at_or_before_end:
+            window_end = at_or_before_end[-1]
+            window_end_mode = "latest_at_or_before_measurement_end"
+        else:
+            at_or_after_end = [row for row in ordered if (snapshot_generated_at(row) or measurement_end_utc) >= measurement_end_utc]
+            if at_or_after_end:
+                window_end = at_or_after_end[0]
+                window_end_mode = "earliest_at_or_after_measurement_end"
+
+    baseline_ts = snapshot_generated_at(baseline)
+    end_ts = snapshot_generated_at(window_end)
+    meta = {
+        "baseline_snapshot_label": baseline.get("snapshot_label"),
+        "baseline_snapshot_generated_at_utc": baseline.get("generated_at_utc"),
+        "baseline_selection_mode": baseline_mode,
+        "window_end_snapshot_label": window_end.get("snapshot_label"),
+        "window_end_snapshot_generated_at_utc": window_end.get("generated_at_utc"),
+        "window_end_selection_mode": window_end_mode,
+        "measurement_start_utc": measurement_start_utc.isoformat().replace("+00:00", "Z") if measurement_start_utc else None,
+        "measurement_end_utc": measurement_end_utc.isoformat().replace("+00:00", "Z") if measurement_end_utc else None,
+        "baseline_gap_seconds_from_measurement_start": (
+            abs((measurement_start_utc - baseline_ts).total_seconds()) if measurement_start_utc and baseline_ts else None
+        ),
+        "window_end_gap_seconds_from_measurement_end": (
+            abs((measurement_end_utc - end_ts).total_seconds()) if measurement_end_utc and end_ts else None
+        ),
+    }
+    return baseline, window_end, meta
 
 
 def payload_missing(snapshot: dict[str, Any], component: str, payload_kind: str) -> bool:
@@ -148,6 +225,11 @@ def main() -> None:
 
     blockers: list[str] = []
     ingress = dict(summary.get("observed", {}) or {})
+    performance_window = dict(summary.get("performance_window", {}) or {})
+    measurement_start_utc = parse_utc(performance_window.get("measurement_start_utc"))
+    measurement_end_utc = parse_utc(
+        performance_window.get("measurement_target_end_utc") or performance_window.get("metric_effective_end_utc")
+    )
     admitted_eps = float(ingress.get("observed_admitted_eps", 0.0) or 0.0)
     error_rate = float(ingress.get("error_rate_ratio", 1.0) or 0.0)
     error_4xx = float(ingress.get("4xx_rate_ratio", 1.0) or 0.0)
@@ -170,6 +252,11 @@ def main() -> None:
 
     pre = latest_snapshot(snapshots, "pre")
     post = latest_snapshot(snapshots, "post")
+    window_counter_start, window_counter_end, counter_window_meta = select_counter_window_bounds(
+        snapshots,
+        measurement_start_utc=measurement_start_utc,
+        measurement_end_utc=measurement_end_utc,
+    )
     series_defs = {
         "ieg.backpressure_hits": ("ieg", "backpressure_hits"),
         "ieg.checkpoint_age_seconds": ("ieg", "checkpoint_age_seconds"),
@@ -226,7 +313,7 @@ def main() -> None:
             blockers.append(f"PR3.{args.state_id}.B15_BACKPRESSURE_POSTURE_UNPROVEN:{metric_id}:observed={observed}:max={max_allowed}")
 
     def delta(component: str, field: str) -> float | None:
-        return counter_delta(pre, post, component, field)
+        return counter_delta(window_counter_start, window_counter_end, component, field)
 
     ieg_apply_failure_delta = delta("ieg", "apply_failure_count")
     if ieg_apply_failure_delta is None or ieg_apply_failure_delta > 0:
@@ -271,6 +358,7 @@ def main() -> None:
         "window_label": "burst",
         "runtime_path_active": "CANONICAL_REMOTE_WSP_REPLAY",
         "attempt_scope": attempt_scope,
+        "counter_window": counter_window_meta,
         "campaign": manifest.get("campaign", {}),
         "ingress": {
             "measurement_surface_mode": (((summary.get("notes") or {}).get("ingress_metric_surface") or {}).get("mode")),
@@ -307,6 +395,7 @@ def main() -> None:
         "scenario_run_id": str((((manifest.get("identity") or {}).get("scenario_run_id")) or "")).strip(),
         "sample_count": len(snapshots),
         "attempt_scope": attempt_scope,
+        "counter_window": counter_window_meta,
         "components": {
             component: {
                 "states": [health_state(snapshot, component) for snapshot in snapshots],
@@ -324,6 +413,7 @@ def main() -> None:
         "generated_at_utc": now_utc(),
         "execution_id": args.pr3_execution_id,
         "platform_run_id": manifest_platform_run_id,
+        "counter_window": counter_window_meta,
         "ieg_backpressure_delta": ieg_backpressure_delta,
         "ieg_apply_failure_count_delta": ieg_apply_failure_delta,
         "ofp_lag_seconds": time_series["ofp.lag_seconds"]["summary"],
@@ -344,6 +434,7 @@ def main() -> None:
         "generated_at_utc": now_utc(),
         "execution_id": args.pr3_execution_id,
         "platform_run_id": manifest_platform_run_id,
+        "counter_window": counter_window_meta,
         "archive_backlog_peak_events": archive_peak,
         "archive_backlog_final_events": archive_final,
         "archive_write_error_total_delta": delta("archive_writer", "write_error_total"),
@@ -368,6 +459,7 @@ def main() -> None:
         "open_blockers": len(set(blockers)),
         "blocker_ids": sorted(set(blockers)),
         "attempt_scope": attempt_scope,
+        "counter_window": counter_window_meta,
         "evidence_refs": {
             "scorecard_ref": str(root / "g3a_scorecard_burst.json"),
             "component_health_ref": str(root / "g3a_component_health_burst.json"),

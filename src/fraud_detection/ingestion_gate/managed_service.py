@@ -31,9 +31,11 @@ def _configure_logging() -> None:
     root_logger = logging.getLogger()
     if gunicorn_error.handlers:
         root_logger.handlers = list(gunicorn_error.handlers)
-    root_logger.setLevel(logging.INFO)
-    logging.getLogger(__name__).setLevel(logging.INFO)
-    logging.getLogger("fraud_detection").setLevel(logging.INFO)
+    level_name = str(os.getenv("IG_LOG_LEVEL", "INFO") or "INFO").strip().upper()
+    level = getattr(logging, level_name, logging.INFO)
+    root_logger.setLevel(level)
+    logging.getLogger(__name__).setLevel(level)
+    logging.getLogger("fraud_detection").setLevel(level)
 
 
 def create_app(*, stage_name: str = "v1", request_timeout_ms: int = 30000) -> Flask:

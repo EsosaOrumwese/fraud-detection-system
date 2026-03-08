@@ -135,3 +135,46 @@ def test_select_attempt_snapshots_fails_closed_when_post_missing_for_current_att
         assert "PR3.S2.B12_COMPONENT_SNAPSHOT_POST_MISSING" in str(exc)
     else:
         raise AssertionError("expected fail-closed missing-post error")
+
+
+def test_select_counter_window_bounds_uses_certified_window_not_coarse_post() -> None:
+    module = _load_module()
+    snapshots = [
+        {
+            "snapshot_label": "pre",
+            "generated_at_utc": "2026-03-08T00:54:09Z",
+            "components": {"df": {"summary": {"fail_closed_total": 0}}},
+        },
+        {
+            "snapshot_label": "during_4",
+            "generated_at_utc": "2026-03-08T00:57:56Z",
+            "components": {"df": {"summary": {"fail_closed_total": 0}}},
+        },
+        {
+            "snapshot_label": "during_5",
+            "generated_at_utc": "2026-03-08T00:58:53Z",
+            "components": {"df": {"summary": {"fail_closed_total": 0}}},
+        },
+        {
+            "snapshot_label": "during_9",
+            "generated_at_utc": "2026-03-08T01:02:40Z",
+            "components": {"df": {"summary": {"fail_closed_total": 0}}},
+        },
+        {
+            "snapshot_label": "post",
+            "generated_at_utc": "2026-03-08T01:05:00Z",
+            "components": {"df": {"summary": {"fail_closed_total": 1}}},
+        },
+    ]
+
+    baseline, end_snapshot, meta = module.select_counter_window_bounds(
+        snapshots,
+        measurement_start_utc=module.parse_utc("2026-03-08T00:58:00Z"),
+        measurement_end_utc=module.parse_utc("2026-03-08T01:03:00Z"),
+    )
+
+    assert baseline["snapshot_label"] == "during_4"
+    assert end_snapshot["snapshot_label"] == "during_9"
+    assert meta["baseline_selection_mode"] == "latest_at_or_before_measurement_start"
+    assert meta["window_end_selection_mode"] == "latest_at_or_before_measurement_end"
+    assert module.counter_delta(baseline, end_snapshot, "df", "fail_closed_total") == 0.0

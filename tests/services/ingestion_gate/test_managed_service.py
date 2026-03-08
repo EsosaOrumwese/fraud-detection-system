@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import concurrent.futures
 import json
+import logging
 from types import SimpleNamespace
 
 import werkzeug
@@ -148,3 +149,11 @@ def test_load_expected_api_key_uses_single_flight_cache(monkeypatch) -> None:
     assert error is None
     assert value == "ssm-secret"
     assert call_count["value"] == 1
+
+
+def test_create_app_honors_configured_log_level(monkeypatch) -> None:
+    monkeypatch.setenv("IG_LOG_LEVEL", "WARNING")
+
+    managed_service.create_app()
+
+    assert logging.getLogger("fraud_detection").level == logging.WARNING

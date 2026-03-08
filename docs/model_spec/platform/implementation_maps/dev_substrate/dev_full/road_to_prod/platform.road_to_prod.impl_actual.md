@@ -8948,3 +8948,74 @@ uns/.../degrade_ladder/* on its own filesystem,
    - ECS ingress service reaches full stability on the secret-backed task definition with no `ResourceInitializationError`,
    - live task definition still exposes the startup secret and the expected runtime image/config pins,
    - only after that do we spend another PR3 burst window.
+
+## Entry: 2026-03-08 01:14:33 +00:00 - PR3-S2 second strict burst rerun isolates two fixable defects: rollup boundary contamination and ingress hot-path logging drag
+1. I inspected the current strict `PR3-S2` rerun after the secret-backed ingress rollout stabilized live. The state remains red, but the red surface is now narrow and mechanically understandable rather than diffuse:
+   - admitted throughput `5984.303 eps` against the pinned `6000 eps` target,
+   - `4xx_total = 0`,
+   - `5xx_total = 0`,
+   - rollup-reported `p95 = 1168.118 ms` against the pinned `350 ms` ceiling,
+   - rollup-reported `p99 = 2740.757 ms` against the pinned `700 ms` ceiling,
+   - `DF fail_closed_total_delta = 1`,
+   - `DF publish_quarantine_total_delta = 2`.
+2. I then cross-checked the ingress percentile surface directly in CloudWatch rather than trusting the rollup blindly. The direct 300-second ALB percentile query for the certified burst window returned:
+   - `p95 = 855.151 ms`,
+   - `p99 = 3083.875 ms`.
+3. Production interpretation of those ingress metrics:
+   - the rollup likely overstates the tail because it composes minute-bin percentiles, which is not mathematically identical to direct window percentiles,
+   - however the direct CloudWatch query still materially breaches the platform-production-standard latency envelope,
+   - therefore ingress is still a real blocker even after correcting for measurement method.
+4. I also checked the downstream DL/DF evidence at run scope and found that the current `B15` surface is not yet trustworthy as a measured-window signal:
+   - the DF reconciliation evidence tied the two quarantined/fail-closed actions to source events published around `00:55:08Z`,
+   - the certified burst measurement window starts at `00:58:00Z`,
+   - the current rollup computes DL/DF/AL/DLA deltas from the coarse `pre -> post` snapshots only, so warmup activity before the certified window is contaminating the state verdict.
+5. That means the strict state currently combines two different defect classes:
+   - a **real production defect** in ingress latency/throughput behavior under burst,
+   - a **measurement defect** in the PR3-S2 rollup that can falsely fail RTDL on pre-window actions and therefore makes the downstream evidence harder to trust.
+6. I reviewed ingress service logs to isolate the tail source before making more infrastructure changes. The strongest current evidence is that the managed Python ingress path is still over-logging in the hot path:
+   - per-event `INFO` logging exists for request start, validation, duplicate detection, admission, event-bus publish, and receipt storage,
+   - CloudWatch log streams show uneven slow-request incidence even when admitted volume is balanced across workers,
+   - metrics logs contain transient multi-second `phase.validate_seconds` / `admission_seconds` spikes on only some workers, which is consistent with intermittent runtime stalls rather than systemic capacity rejection.
+7. I explicitly rejected weaker next moves:
+   - rerun strict `PR3-S2` again without changing anything: rejected because the evidence is already sufficient to identify the two concrete defects and another burst would mostly burn cost,
+   - relax the latency thresholds or accept the current throughput as “close enough”: rejected because the production-standard document treats threshold misses as a real non-certification condition,
+   - keep tuning RTDL before fixing the rollup boundary: rejected because it would entangle real DL behavior with known measurement contamination.
+8. Selected remediation path before more certified spend:
+   - patch `scripts/dev_substrate/pr3_s2_rollup.py` so RTDL deltas align to the certified measurement window rather than coarse pre/post snapshot boundaries,
+   - reduce or gate high-cardinality per-event ingress `INFO` logging while preserving periodic summary metrics, warnings, and error evidence,
+   - validate locally,
+   - commit/push the milestone,
+   - rerun strict `PR3-S2` and judge it on impact metrics only.
+9. Reporting posture pinned from this point onward:
+   - each state summary must foreground the relevant impact metrics first,
+   - each summary must include a direct production interpretation line stating whether the metrics meet the pinned threshold or still represent a cert-blocking defect,
+   - raw JSON artifacts remain evidence refs, not the human-readable result surface.
+
+## Entry: 2026-03-08 01:21:25 +00:00 - Implemented PR3-S2 measurement-boundary hardening and ingress logging-budget reduction before the next certified rerun
+1. I implemented the two selected code remediations from the previous analysis entry rather than spending another burst window on the known defects.
+2. Rollup hardening in `scripts/dev_substrate/pr3_s2_rollup.py`:
+   - added timestamp parsing and explicit certified-window boundary selection,
+   - blocker deltas for `IEG/DF/AL/DLA/archive_writer` now use the certified counter window instead of coarse `pre -> post`,
+   - the rollup now records the exact boundary snapshots used and the gap from the requested measurement start/end in the emitted artifacts.
+3. Why this is the correct production fix:
+   - it removes contamination from post-window counter increments when the state is meant to judge the certified window only,
+   - it preserves fail-closed behavior because missing/unreadable counters still block,
+   - it makes the evidence auditable by exposing the boundary-selection mode and timing gaps instead of silently changing the math.
+4. Ingress logging-budget hardening in `src/fraud_detection/ingestion_gate/`:
+   - downgraded per-event hot-path logs (`admit_push`, `validated`, `duplicate`, `admitted`, `published to EB`, `receipt stored`, request-start) from `INFO` to `DEBUG`,
+   - preserved periodic summary metrics, warnings, slow-request logs, and error logs at the normal operational levels,
+   - added `IG_LOG_LEVEL` support in the managed HTTP edge so trace-level recovery is still available deliberately without forcing noisy production defaults.
+5. Why this is the correct production fix:
+   - per-event `INFO` logging at multi-kEPS is a self-inflicted latency tax and not a meaningful production evidence surface,
+   - periodic summaries plus warnings/errors retain auditability and diagnosability without saturating stdout/CloudWatch on the request path,
+   - the explicit log-level pin keeps the behavior reversible and inspectable instead of burying it in implicit logger inheritance.
+6. Validation completed locally before any new remote run:
+   - `python -m pytest tests/scripts/test_pr3_s2_rollup.py tests/services/ingestion_gate/test_managed_service.py tests/services/ingestion_gate/test_phase5_auth_rate.py tests/services/ingestion_gate/test_phase4_service.py` -> `18 passed`,
+   - `python -m py_compile scripts/dev_substrate/pr3_s2_rollup.py src/fraud_detection/ingestion_gate/admission.py src/fraud_detection/ingestion_gate/aws_lambda_handler.py src/fraud_detection/ingestion_gate/managed_service.py` -> clean.
+7. Additional regression coverage added:
+   - PR3-S2 counter-window selection now has a test that proves the rollup uses the certified window instead of coarse `post`,
+   - managed ingress logging now has a test that proves `IG_LOG_LEVEL` is honored.
+8. Expected impact on the next strict PR3-S2 run:
+   - RTDL blocker accounting should stop failing on post-window or pre-window contamination,
+   - ingress p95/p99 should contract if the per-event log drag was materially contributing to the hot path,
+   - the remaining verdict, if any, will be cleaner and closer to the actual production defect surface instead of mixed measurement noise.

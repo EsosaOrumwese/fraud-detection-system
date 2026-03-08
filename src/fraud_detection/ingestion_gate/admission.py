@@ -194,7 +194,7 @@ class IngestionGate:
         )
 
     def admit_push(self, envelope: dict[str, Any], *, auth_context: AuthContext | None = None) -> Receipt:
-        logger.info("IG admit_push start event_id=%s event_type=%s", envelope.get("event_id"), envelope.get("event_type"))
+        logger.debug("IG admit_push start event_id=%s event_type=%s", envelope.get("event_id"), envelope.get("event_type"))
         decision, receipt = self._admit_event(envelope, auth_context=auth_context)
         if decision.decision == "QUARANTINE":
             raise RuntimeError("QUARANTINED")
@@ -206,7 +206,7 @@ class IngestionGate:
         *,
         auth_context: AuthContext | None = None,
     ) -> tuple[AdmissionDecision, Receipt]:
-        logger.info(
+        logger.debug(
             "IG admit_push(decision) event_id=%s event_type=%s",
             envelope.get("event_id"),
             envelope.get("event_type"),
@@ -237,7 +237,7 @@ class IngestionGate:
         except Exception as exc:  # pragma: no cover - defensive
             logger.exception("IG admission validation error")
             return self._quarantine(envelope, IngestionError("INTERNAL_ERROR"), start, auth_context=auth_context)
-        logger.info(
+        logger.debug(
             "IG validated event_id=%s event_type=%s",
             envelope.get("event_id"),
             envelope.get("event_type"),
@@ -269,7 +269,7 @@ class IngestionGate:
                     state = resolved_state
             if state not in {"ADMITTED", None}:
                 return self._quarantine(envelope, IngestionError("ADMISSION_STATE_INVALID", state), start, auth_context=auth_context)
-            logger.info("IG duplicate event_id=%s event_type=%s", event_id, event_type)
+            logger.debug("IG duplicate event_id=%s event_type=%s", event_id, event_type)
             eb_ref = _normalize_eb_ref(existing_row.get("eb_ref"))
             admitted_at_utc = existing_row.get("admitted_at_utc") or (
                 eb_ref.get("published_at_utc") if eb_ref else None
@@ -414,7 +414,7 @@ class IngestionGate:
             self._retry_idempotent("mark_receipt_failed", self.admission_index.mark_receipt_failed, dedupe)
             logger.exception("IG receipt write failed after publish event_id=%s", event_id)
             raise
-        logger.info(
+        logger.debug(
             "IG admitted event_id=%s event_type=%s topic=%s partition=%s offset=%s",
             envelope.get("event_id"),
             envelope.get("event_type"),
@@ -422,14 +422,14 @@ class IngestionGate:
             eb_ref.partition,
             eb_ref.offset,
         )
-        narrative_logger.info(
+        narrative_logger.debug(
             "IG published to EB event_id=%s topic=%s partition=%s offset=%s",
             envelope.get("event_id"),
             eb_ref.topic,
             eb_ref.partition,
             eb_ref.offset,
         )
-        eb_logger.info(
+        eb_logger.debug(
             "EB publish event_id=%s topic=%s partition=%s offset=%s",
             envelope.get("event_id"),
             eb_ref.topic,
@@ -437,7 +437,7 @@ class IngestionGate:
             eb_ref.offset,
         )
         self._record_ops_receipt(receipt_payload, receipt_ref)
-        logger.info(
+        logger.debug(
             "IG receipt stored receipt_id=%s receipt_ref=%s eb_ref=%s",
             receipt_id,
             receipt_ref,

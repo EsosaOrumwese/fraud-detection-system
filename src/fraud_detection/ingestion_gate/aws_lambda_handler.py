@@ -719,7 +719,7 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
 
     try:
         remaining_ms = getattr(_context, "get_remaining_time_in_millis", lambda: None)()
-        LOGGER.info(
+        LOGGER.debug(
             "IG request start path=%s method=%s platform_run_id=%s remaining_ms=%s",
             path,
             method,
