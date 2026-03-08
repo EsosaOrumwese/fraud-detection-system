@@ -7,7 +7,8 @@ Use this to orient yourself before touching code. It captures what is in scope, 
 
 ## 0) Scope (current focus)
 - **Build status:** Data Engine is sealed + green; treat it as a **black box** for platform work. Use `docs\model_spec\data-engine\interface_pack\` as the boundary contract.
-- **Current focus:** Dev substrate promotion (`local_parity -> dev`) for the platform while preserving existing rails/contracts and truth ownership boundaries.
+- **Current focus:** `dev_full` platform hardening toward production-ready status. The platform is already built/wired on the `dev_full` track; the AGENT must not redesign it from scratch or reason primarily from old `local_parity` posture.
+- **Primary implementation authority:** active `dev_full` build plans in `docs\model_spec\platform\implementation_maps\dev_substrate\dev_full\build\`, then active `dev_full` implementation maps in `docs\model_spec\platform\implementation_maps\dev_substrate\dev_full\`, then active road-to-prod plans in `docs\model_spec\platform\implementation_maps\dev_substrate\dev_full\road_to_prod\`.
 - **Engine code:** Only touch the engine if explicitly requested; if so, follow `packages\engine\AGENTS.md`.
 
 ---
@@ -24,26 +25,27 @@ The AGENT is expected to **lead the design and implementation**, not wait for st
 
 ---
 
-## 1) Reading order (not that strict anymore. more laid back. If you feel its important, read it. Else, skip)
-Read these in order before modifying code so you share the project context:
-1. `docs\model_spec\platform\platform-wide\platform_blueprint_notes_v0.md`
-   * New component (WSP) to replace data engine (as it now exists outside the platform): `docs\model_spec\platform\component-specific\world_streamer_producer.design-authority.md`. This trumps all other assumptions of the data engine as a vertex in the network
-2. `docs\model_spec\platform\platform-wide\deployment_tooling_notes_v0.md`
-3. `docs\model_spec\data-engine\interface_pack`
-4. Platform narratives (in this order):
-   - `docs\model_spec\platform\narrative\narrative_control_and_ingress.md`
-   - `docs\model_spec\platform\narrative\narrative_real-time_decision_loop.md`
-   - `docs\model_spec\platform\narrative\narrative_label_and_case.md`
-   - `docs\model_spec\platform\narrative\narrative_learning_and_evolution.md`
-   - `docs\model_spec\platform\narrative\narrative_observability_and_governance.md`
-5. Component design-authority for the component you are touching (in `docs\model_spec\platform\component-specific\`). [Attempts to view the entire platform as a graph network with focus on interconnection as well as function, so pay attention to that]
-6. Implementation decisions taken so far:
-   - Active track: `docs\model_spec\platform\implementation_maps\dev_substrate\{TRACK}\{COMP}.impl_actual.md` (`{TRACK}` = `dev_min` or `dev_full`)
-   - Baseline history: `docs\model_spec\platform\implementation_maps\local_parity\{COMP}.impl_actual.md`
-7. Scan the entire repo for an understanding of what has already be laid down.
-7. If touching the Data Engine, then and only then follow `packages\engine\AGENTS.md` [USER has to explicitly state this].
+## 1) Reading order (primary authority first)
+Read these in order before modifying code so you share the active `dev_full` context:
+1. `docs\model_spec\platform\implementation_maps\dev_substrate\dev_full\build\platform.build_plan.md`
+2. The relevant `M*` / `M*P*` build plans in `docs\model_spec\platform\implementation_maps\dev_substrate\dev_full\build\` for the plane/component you are touching.
+3. The active `dev_full` implementation maps for the same scope:
+   - `docs\model_spec\platform\implementation_maps\dev_substrate\dev_full\platform.impl_actual.md`
+   - `docs\model_spec\platform\implementation_maps\dev_substrate\dev_full\{COMP}.impl_actual.md`
+4. The active production-hardening plans for the current runtime-cert / road-to-prod slice:
+   - `docs\model_spec\platform\implementation_maps\dev_substrate\dev_full\road_to_prod\platform.road_to_prod.plan.md`
+   - the relevant `platform.PR*.road_to_prod.md`
+   - relevant `docs\model_spec\platform\pre-design_decisions\` files for pinned runtime/posture decisions
+5. `docs\model_spec\data-engine\interface_pack`
+6. Only after the above, supporting context docs as needed:
+   - platform narratives in `docs\model_spec\platform\narrative\`
+   - component-specific design-authority docs in `docs\model_spec\platform\component-specific\`
+   - platform-wide notes in `docs\model_spec\platform\platform-wide\`
+7. Baseline history only if needed for continuity/debugging, not as active authority:
+   - `docs\model_spec\platform\implementation_maps\local_parity\*.md`
+8. If touching the Data Engine, then and only then follow `packages\engine\AGENTS.md` [USER has to explicitly state this].
 
-_Note: while the platform narratives are merely conceptual, the other docs in `platform-wide` and `component-specific` are not. However, that doesn't mean they're rigid or binding specifications. They mere attempt to paint the kind of design that will be needed. You (AGENT) as the implementer and design are free to design and implement based on the design intent (and this may not have been fully capture in those "design authority" docs)_
+_Authority rule: for platform work on `dev_full`, the AGENT must reason from the active `dev_full` build plans and `dev_full` implementation maps first. Conceptual narratives, component design-authority docs, platform-wide notes, and `local_parity` history are supporting references only. They must not override or replace the active `dev_full` build authority unless the USER explicitly approves a repin._
 
 ---
 
@@ -57,14 +59,16 @@ _Note: while the platform narratives are merely conceptual, the other docs in `p
 This is a hard law for platform work. The AGENT must behave as a design-intent sentinel, not just a code editor.
 
 - **Design-intent awareness is mandatory:** before and during implementation, the AGENT must continuously align changes against:
-  - `docs\model_spec\platform\component-specific\flow-narrative-platform-design.md`,
-  - active phase DoD in `docs\model_spec\platform\implementation_maps\dev_substrate\{TRACK}\platform.build_plan.md` or the component specific build plans in `docs\model_spec\platform\implementation_maps\dev_substrate\{TRACK}\`,
-  - pinned decisions in relevant `docs\model_spec\platform\pre-design_decisions` files.
-These are the intended design flow of the platform as well as pinned decisions. A study of it, as well as discussions with the USER, can lead the AGENT to an understanding of how the platform should operate
+  - active `dev_full` phase DoD in `docs\model_spec\platform\implementation_maps\dev_substrate\dev_full\build\platform.build_plan.md` or the relevant component/subphase build plans in `docs\model_spec\platform\implementation_maps\dev_substrate\dev_full\build\`,
+  - active `dev_full` implementation maps in `docs\model_spec\platform\implementation_maps\dev_substrate\dev_full\`,
+  - pinned decisions in relevant `docs\model_spec\platform\pre-design_decisions` files,
+  - supporting flow intent in `docs\model_spec\platform\component-specific\flow-narrative-platform-design.md` only after the active `dev_full` authorities above are understood.
+These are the intended and already-materialized design flow of the platform. The AGENT must understand how `dev_full` was actually built before proposing or executing hardening changes.
 - **Continuous drift assessment is mandatory:** at each substantial step, the AGENT must ask and answer. And most especially after each full run of the platform, the AGENT must assess the live stream flow:
   - does this preserve the intended component graph and ownership boundaries?
+  - does this preserve the already-built `dev_full` runtime posture and only harden it where required for production?
   - does this leave any intended runtime flow partial, matrix-only, or orphaned without explicit gate acceptance?
-  - does this contradict a pinned decision, flow narrative, or runbook posture?
+  - does this contradict an active `dev_full` build/impl decision, a pinned pre-design decision, or an explicitly accepted production repin?
 - **Fail-closed escalation protocol on detected/suspected drift:**
   - **STOP implementation** (do not continue as if green),
   - alert the user immediately with severity, impacted components/planes, and runtime consequences,
@@ -123,7 +127,7 @@ This is a hard law for all platform implementation and execution work. "Green" i
 - **Scope separation (platform vs component impl_actual):**
   - `dev_substrate\{TRACK}\platform.impl_actual.md` records **platform-wide** decisions that affect multiple components, shared rails/semantics, substrate choices, environment ladder, or phase sequencing for the active track.
   - `dev_substrate\{TRACK}\{COMP}.impl_actual.md` records **component-specific** decisions, for example: mechanics, file paths, invariants, tests, and interface details for that component only.
-  - `local_parity\*.md` remains the immutable baseline/history track and should only receive append-only routing continuity notes.
+  - `local_parity\*.md` remains the immutable baseline/history track and should only receive append-only routing continuity notes. It is not active build authority for `dev_full`.
 - Each entry MUST be detailed and auditable. Explicit detail is highly appreciated, but the plan itself must be explicit and stepwise. No vague "we will implement" phrasing and no skipped rationale.
 - The implementation map is a running **brainstorming notebook**. As you reason through a problem, capture the full thought process (e.g. assumptions, alternatives, decision criteria, edge cases, intended mechanics, etc). Do this **during** the design, not just before/after. The goal is to make the entire reasoning trail reviewable later, not a minimal recap.
 - This is NOT a two-time update doc. Append entries repeatedly while you are actively thinking and deciding. If you explore multiple approaches or adjust your plan mid-stream, record each thread as it happens so the reader can see the full evolution of the decision process.
