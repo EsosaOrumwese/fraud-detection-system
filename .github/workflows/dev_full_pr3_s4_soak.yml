@@ -1,5 +1,12 @@
 name: dev-full-pr3-s4-soak
 
+run-name: >-
+  PR3 S4 soak (${{
+    inputs.pr3_execution_id
+  }}) @ ${{
+    inputs.target_steady_eps
+  }} eps
+
 on:
   workflow_dispatch:
     inputs:
@@ -94,6 +101,7 @@ concurrency:
 jobs:
   run_pr3_s4_soak:
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     env:
       EKS_NAMESPACE: fraud-platform-rtdl
     steps:
