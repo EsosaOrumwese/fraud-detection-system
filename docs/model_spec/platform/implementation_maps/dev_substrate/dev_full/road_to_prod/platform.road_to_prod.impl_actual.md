@@ -9190,3 +9190,34 @@ uns/.../degrade_ladder/* on its own filesystem,
    - correct the boto3 parameter casing,
    - rerun the same strict `PR3-S3` boundary immediately,
    - only revisit the design if the corrected preflight reports that even the minimum WSP task shape cannot fit.
+
+## Entry: 2026-03-08 02:49:10 +00:00 - The latest PR3-S3 run separates two real issues: prestress is underdriven by conservative WSP packing, and recovery is invalidated by non-canonical platform identity
+1. The corrected quota-aware rerun (`22812282378`) completed end-to-end and produced the first full `PR3-S3` evidence surface. The workflow itself is now materially functional; the remaining red is in the state semantics and the launcher configuration.
+2. Prestress failure is not a platform collapse. It is a harness underdrive problem:
+   - the packing preflight selected `32` prestress lanes at `256 CPU / 1024 MiB`,
+   - prestress admitted throughput was `3324.061 eps` against the `6000 eps` burst target,
+   - `4xx_total=0`, `5xx_total=0`, and latency remained healthy (`p95=130.36 ms`, `p99=185.64 ms`),
+   - early cutoff fired because the launcher could not inject enough pressure, not because IG or the downstream runtime rejected the load.
+3. Recovery failure is materially different and more important:
+   - recovery launched `40` lanes, but all lanes exited `1`,
+   - admitted requests were `0` and `5xx_total=3200`,
+   - inspection of `/ecs/fraud-platform-dev-full-ig-service` shows quarantine schema validation rejecting `platform_20260308T023845Z_r`,
+   - the `_r` suffix violates the canonical platform run id regex `^platform_[0-9]{8}T[0-9]{6}Z$`,
+   - IG is correct to fail closed here, so the recovery segment is invalid by identity contract before any meaningful recovery measurement can exist.
+4. Why the current workflow shape is insufficient:
+   - the metadata step currently creates prestress and recovery ids with `date` plus a literal suffix for the second segment,
+   - this pushes canonical validation downstream into IG, which is too late and too noisy for a certification harness,
+   - the packing step uses one global headroom reserve and one shared chooser for prestress and recovery, which biases prestress toward the smallest fitting task shape even when the live quota evidence supports a higher-throughput shape.
+5. Alternatives considered and rejected:
+   - keep `_r` and relax IG validation: rejected because the identity regex is part of the platform envelope and should not be weakened to accommodate a bad harness,
+   - reuse the prestress run id for recovery: rejected because replaying the same oracle event ids under the same run scope would convert recovery traffic into duplicate-heavy behavior and destroy the measurement meaning,
+   - request a higher Fargate quota before retuning the launcher: rejected as the first step because current evidence already shows the harness is leaving usable headroom on the table.
+6. Selected remediation:
+   - generate two distinct canonical platform ids in the workflow by using a UTC base timestamp and `+1 second` for recovery,
+   - add source-side canonical `platform_run_id` validation inside `pr3_wsp_replay_dispatch.py` so bad ids fail before any remote launch,
+   - make WSP packing segment-specific: prestress should target `512 CPU / 1024 MiB` if the exact measured headroom fits it, while recovery can remain at `256 CPU / 1024 MiB`,
+   - rerun strict `PR3-S3` immediately after those fixes and only move on if prestress reaches the burst target and recovery returns to stable inside the pinned bound.
+7. Production interpretation:
+   - the platform under test has not yet shown a hard `6000 eps` burst ceiling,
+   - the current red state is dominated by harness correctness and launcher efficiency defects,
+   - fixing those defects is required before any honest architectural conclusion can be drawn about `PR3-S3`.

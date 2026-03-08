@@ -169,8 +169,15 @@ jobs:
           set -euo pipefail
           RUN_DIR="runs/dev_substrate/dev_full/road_to_prod/run_control/${{ inputs.pr3_execution_id }}"
           mkdir -p "${RUN_DIR}"
-          PRESTRESS_RUN_ID="platform_$(date -u +'%Y%m%dT%H%M%SZ')"
-          RECOVERY_RUN_ID="platform_$(date -u +'%Y%m%dT%H%M%SZ')_r"
+          readarray -t RUN_IDS < <(python - <<'PY'
+          from datetime import datetime, timedelta, timezone
+          base = datetime.now(timezone.utc).replace(microsecond=0)
+          print(base.strftime("platform_%Y%m%dT%H%M%SZ"))
+          print((base + timedelta(seconds=1)).strftime("platform_%Y%m%dT%H%M%SZ"))
+          PY
+          )
+          PRESTRESS_RUN_ID="${RUN_IDS[0]}"
+          RECOVERY_RUN_ID="${RUN_IDS[1]}"
           PRESTRESS_SCENARIO_RUN_ID="$(python - <<'PY'
           import uuid
           print(uuid.uuid4().hex)
@@ -265,11 +272,14 @@ jobs:
           run_dir = Path(os.environ["RUN_DIR"])
           prestress_lane_count = max(1, int(os.environ["PRESTRESS_LANE_COUNT"]))
           recovery_lane_count = max(1, int(os.environ["RECOVERY_LANE_COUNT"]))
-          reserve_cpu_units = 2048
           cpu_memory_pairs = {
               256: 1024,
               512: 1024,
               1024: 2048,
+          }
+          segment_reserve_cpu_units = {
+              "prestress": 0,
+              "recovery": 1024,
           }
 
           ecs = boto3.client("ecs", region_name=region)
@@ -308,11 +318,13 @@ jobs:
                       }
                   )
 
-          usable_cpu_units = quota_cpu_units - total_running_cpu_units - reserve_cpu_units
-          if usable_cpu_units < 0:
-              usable_cpu_units = 0
+          available_cpu_units = quota_cpu_units - total_running_cpu_units
+          if available_cpu_units < 0:
+              available_cpu_units = 0
 
-          def choose_shape(lane_count: int) -> tuple[int, int]:
+          def choose_shape(*, lane_count: int, segment_label: str) -> tuple[int, int, int]:
+              reserve_cpu_units = max(0, int(segment_reserve_cpu_units.get(segment_label, 0)))
+              usable_cpu_units = max(0, available_cpu_units - reserve_cpu_units)
               selected_cpu = None
               for cpu_units in sorted(cpu_memory_pairs.keys(), reverse=True):
                   required_cpu_units = lane_count * cpu_units
@@ -322,32 +334,43 @@ jobs:
               if selected_cpu is None:
                   raise SystemExit(
                       "PR3.S3.PACK.B01_FARGATE_HEADROOM_INSUFFICIENT:"
-                      f"usable_cpu_units={usable_cpu_units}:lane_count={lane_count}:"
+                      f"segment={segment_label}:available_cpu_units={available_cpu_units}:"
+                      f"reserve_cpu_units={reserve_cpu_units}:usable_cpu_units={usable_cpu_units}:"
+                      f"lane_count={lane_count}:"
                       f"minimum_required_cpu_units={lane_count * min(cpu_memory_pairs.keys())}"
                   )
-              return selected_cpu, cpu_memory_pairs[selected_cpu]
+              return selected_cpu, cpu_memory_pairs[selected_cpu], usable_cpu_units
 
-          prestress_cpu, prestress_memory = choose_shape(prestress_lane_count)
-          recovery_cpu, recovery_memory = choose_shape(recovery_lane_count)
+          prestress_cpu, prestress_memory, prestress_usable_cpu_units = choose_shape(
+              lane_count=prestress_lane_count,
+              segment_label="prestress",
+          )
+          recovery_cpu, recovery_memory, recovery_usable_cpu_units = choose_shape(
+              lane_count=recovery_lane_count,
+              segment_label="recovery",
+          )
 
           summary = {
               "generated_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
               "quota_code": "L-3032A538",
               "quota_vcpu": quota_vcpu,
               "quota_cpu_units": quota_cpu_units,
-              "reserve_cpu_units": reserve_cpu_units,
+              "available_cpu_units": available_cpu_units,
               "running_cpu_units": total_running_cpu_units,
-              "usable_cpu_units": usable_cpu_units,
               "running_tasks": running_tasks,
               "selected_shapes": {
                   "prestress": {
                       "lane_count": prestress_lane_count,
+                      "reserve_cpu_units": segment_reserve_cpu_units["prestress"],
+                      "usable_cpu_units": prestress_usable_cpu_units,
                       "task_cpu_units": prestress_cpu,
                       "task_memory_mib": prestress_memory,
                       "total_cpu_units": prestress_lane_count * prestress_cpu,
                   },
                   "recovery": {
                       "lane_count": recovery_lane_count,
+                      "reserve_cpu_units": segment_reserve_cpu_units["recovery"],
+                      "usable_cpu_units": recovery_usable_cpu_units,
                       "task_cpu_units": recovery_cpu,
                       "task_memory_mib": recovery_memory,
                       "total_cpu_units": recovery_lane_count * recovery_cpu,

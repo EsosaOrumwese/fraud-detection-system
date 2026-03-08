@@ -58,6 +58,7 @@ def artifact_name(prefix: str, suffix: str) -> str:
     return f"{str(prefix).strip()}_{str(suffix).strip()}.json"
 
 
+PLATFORM_RUN_ID_RX = re.compile(r"^platform_[0-9]{8}T[0-9]{6}Z$")
 SCENARIO_RUN_ID_RX = re.compile(r"^[a-f0-9]{32}$")
 
 
@@ -736,6 +737,15 @@ def require_canonical_scenario_run_id(value: str, *, blocker_prefix: str) -> str
     return resolved
 
 
+def require_canonical_platform_run_id(value: str, *, blocker_prefix: str) -> str:
+    resolved = str(value).strip()
+    if not PLATFORM_RUN_ID_RX.fullmatch(resolved):
+        raise RuntimeError(
+            blocker_code(blocker_prefix, "B00_INVALID_PLATFORM_RUN_ID", resolved or "empty")
+        )
+    return resolved
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Dispatch canonical remote WSP replay for a PR3 runtime window.")
     ap.add_argument("--run-control-root", default="runs/dev_substrate/dev_full/road_to_prod/run_control")
@@ -895,7 +905,10 @@ def main() -> None:
     checkpoint_attempt_id = submitted_at.strftime("%Y%m%dT%H%M%SZ")
 
     lane_count = max(1, int(args.lane_count))
-    resolved_platform_run_id = str(args.platform_run_id).strip() or f"platform_{checkpoint_attempt_id}"
+    resolved_platform_run_id = require_canonical_platform_run_id(
+        str(args.platform_run_id).strip() or f"platform_{checkpoint_attempt_id}",
+        blocker_prefix=args.blocker_prefix,
+    )
     resolved_scenario_run_id = require_canonical_scenario_run_id(
         args.scenario_run_id,
         blocker_prefix=args.blocker_prefix,
