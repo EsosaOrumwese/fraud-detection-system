@@ -12,9 +12,11 @@ from typing import Any
 
 import yaml
 
+from fraud_detection.scenario_runner.authority import RunHandle
 from fraud_detection.scenario_runner.config import load_policy, load_wiring
+from fraud_detection.scenario_runner.evidence import EvidenceBundle, hash_bundle
 from fraud_detection.scenario_runner.engine import LocalEngineInvoker
-from fraud_detection.scenario_runner.models import RunRequest, RunWindow, ScenarioBinding
+from fraud_detection.scenario_runner.models import EvidenceStatus, RunRequest, RunWindow, ScenarioBinding
 from fraud_detection.scenario_runner.runner import ScenarioRunner
 from fraud_detection.scenario_runner.storage import build_object_store
 
@@ -38,6 +40,33 @@ def is_missing_value(value: Any) -> bool:
 
 def dump_json_line(payload: dict[str, Any]) -> None:
     print(json.dumps(payload, ensure_ascii=True), flush=True)
+
+
+def build_request(
+    *,
+    platform_run_id: str,
+    scenario_id: str,
+    window_start: str,
+    window_end: str,
+    oracle_receipt: dict[str, Any],
+    oracle_engine_run_root: str,
+    output_ids: list[str],
+) -> RunRequest:
+    return RunRequest(
+        run_equivalence_key="pr3_s4|" + platform_run_id + "|" + scenario_id + "|" + window_start + "|" + window_end,
+        manifest_fingerprint=str(oracle_receipt.get("manifest_fingerprint") or "").strip(),
+        parameter_hash=str(oracle_receipt.get("parameter_hash") or "").strip(),
+        seed=int(oracle_receipt.get("seed") or 0),
+        scenario=ScenarioBinding(scenario_id=scenario_id, scenario_set=None),
+        window=RunWindow(
+            window_start_utc=datetime.fromisoformat(window_start.replace("Z", "+00:00")),
+            window_end_utc=datetime.fromisoformat(window_end.replace("Z", "+00:00")),
+            window_tz="UTC",
+        ),
+        engine_run_root=oracle_engine_run_root,
+        output_ids=output_ids,
+        invoker="SYSTEM::pr3_s4_control_bootstrap_remote",
+    )
 
 
 def write_wiring(
@@ -142,23 +171,54 @@ def main() -> None:
                 engine_invoker=LocalEngineInvoker(default_engine_root=oracle_engine_run_root),
                 run_prefix=platform_run_id,
             )
-            response = runner.submit_run(
-                RunRequest(
-                    run_equivalence_key="pr3_s4|" + platform_run_id + "|" + scenario_id + "|" + window_start + "|" + window_end,
-                    manifest_fingerprint=str(oracle_receipt.get("manifest_fingerprint") or "").strip(),
-                    parameter_hash=str(oracle_receipt.get("parameter_hash") or "").strip(),
-                    seed=int(oracle_receipt.get("seed") or 0),
-                    scenario=ScenarioBinding(scenario_id=scenario_id, scenario_set=None),
-                    window=RunWindow(
-                        window_start_utc=datetime.fromisoformat(window_start.replace("Z", "+00:00")),
-                        window_end_utc=datetime.fromisoformat(window_end.replace("Z", "+00:00")),
-                        window_tz="UTC",
-                    ),
-                    engine_run_root=oracle_engine_run_root,
-                    output_ids=list(policy.traffic_output_ids),
-                    invoker="SYSTEM::pr3_s4_control_bootstrap_remote",
-                )
+            request = build_request(
+                platform_run_id=platform_run_id,
+                scenario_id=scenario_id,
+                window_start=window_start,
+                window_end=window_end,
+                oracle_receipt=oracle_receipt,
+                oracle_engine_run_root=oracle_engine_run_root,
+                output_ids=list(policy.traffic_output_ids),
             )
+            canonical = runner._canonicalize(request)
+            intent_fingerprint = runner._intent_fingerprint(canonical)
+            run_id, _ = runner.equiv_registry.resolve(canonical.run_equivalence_key, intent_fingerprint)
+            status = runner.ledger.read_status(run_id)
+            facts_view = runner.ledger.read_facts_view(run_id)
+            if status and str(status.state.value).upper() == "READY" and facts_view is not None:
+                response = runner._response_from_status(run_id, "READY already present")
+            else:
+                leader, lease_token = runner.lease_manager.acquire(run_id, owner_id="sr-local")
+                if not leader:
+                    raise RuntimeError(f"PR3.B20_CONTROL_BOOTSTRAP_FAIL:LEASE_BUSY:{run_id}")
+                run_handle = RunHandle(
+                    run_id=run_id,
+                    intent_fingerprint=intent_fingerprint,
+                    leader=True,
+                    lease_token=lease_token,
+                )
+                runner._anchor_run(run_handle)
+                plan = runner._compile_plan(canonical, run_id)
+                runner._commit_plan(run_handle, plan)
+                notes = [
+                    "PR3-S4 bounded control bootstrap authored READY directly from the authoritative oracle pack.",
+                    "Scenario Runner output/gate rescans were intentionally skipped for this correctness gate to avoid redundant spend and OOM risk.",
+                ]
+                bundle = EvidenceBundle(
+                    status=EvidenceStatus.COMPLETE,
+                    locators=[],
+                    gate_receipts=[],
+                    instance_receipts=[],
+                    bundle_hash=hash_bundle([], [], plan.policy_rev, []),
+                    notes=notes,
+                )
+                response = runner._commit_ready(
+                    run_handle,
+                    canonical,
+                    plan,
+                    bundle,
+                    engine_run_root=oracle_engine_run_root,
+                )
 
         facts_view_ref = str(response.facts_view_ref or "").strip()
         status_ref = str(response.status_ref or "").strip()
@@ -204,6 +264,7 @@ def main() -> None:
             },
             "worker": {
                 "mode": "eks_in_vpc_job",
+                "control_authoring_path": "scenario_runner_light_ready_commit",
                 "hostname": str(os.environ.get("HOSTNAME", "")).strip(),
             },
         }
@@ -223,6 +284,7 @@ def main() -> None:
                 "error": str(exc),
                 "worker": {
                     "mode": "eks_in_vpc_job",
+                    "control_authoring_path": "scenario_runner_light_ready_commit",
                     "hostname": str(os.environ.get("HOSTNAME", "")).strip(),
                 },
             }

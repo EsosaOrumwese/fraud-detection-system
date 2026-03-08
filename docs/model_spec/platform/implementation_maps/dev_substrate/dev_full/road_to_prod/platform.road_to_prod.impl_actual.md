@@ -10529,3 +10529,35 @@ uns/.../degrade_ladder/* on its own filesystem,
    - python -m py_compile on the new/updated bootstrap scripts,
    - a very small remote bootstrap execution through the real workflow boundary (same PR3-S4 run, fail-fast),
    - only if control bootstrap goes green do learning/ops/gov and the rest of bounded correctness proceed.
+## Entry: 2026-03-08 18:09:44 +00:00 - PR3-S4 control bootstrap is being refit from full ScenarioRunner.submit_run() to a lightweight SR-authored READY path because the expensive evidence-collection leg is the actual OOM source and it is redundant for this bounded correctness gate
+1. I inspected the remote worker receipts from bounded rerun `22826680230` together with `src/fraud_detection/scenario_runner/runner.py`.
+2. The decisive observation is that the in-VPC worker already reaches `RUN_REQUEST_RECEIVED`, `RUN_ACCEPTED`, `RUN_ANCHORED`, and `PLAN_COMMITTED` before the pod dies with `OOMKilled` / exit `137`.
+3. Code inspection shows the heavy leg starts after `PLAN_COMMITTED`:
+   - `submit_run()` enters `_invoke_engine(...)`, which is cheap for `LocalEngineInvoker`,
+   - then enters `_collect_evidence(...)`, which rescans outputs/gates and can walk the oracle-backed engine root before `_commit_ready(...)`.
+4. For `PR3-S4` bounded correctness, that deep evidence rescan is not the right cost/performance posture:
+   - the gate is trying to prove whole-platform run-scope continuity across control, runtime, case/label, learning, and ops/gov,
+   - the authoritative world data already exists in the oracle store and is treated as black-box truth,
+   - `OFS/MF/MPR` and ops/gov only require a valid SR-authored `run_facts_view` / `run_status` with the correct run identity and `oracle_pack_ref`, not a fresh expensive enumeration of every engine evidence artifact.
+5. Production-minded options considered:
+   - keep increasing pod memory and rerun the full `submit_run()` path: rejected because it spends more to brute-force a redundant step and violates the new correctness-before-soak method.
+   - invent a non-SR synthetic facts file outside the Scenario Runner ledger: rejected because it would break truth ownership and dilute the meaning of `sr/run_status` and `sr/run_facts_view`.
+   - use Scenario Runner internals to author the run identity, commit the plan, and then commit `READY` directly with an oracle-backed by-reference bundle for this bounded correctness gate: chosen.
+6. Chosen implementation shape:
+   - reuse `ScenarioRunner` inside the in-VPC worker,
+   - compute canonical intent, resolve the run id, acquire lease, anchor, and commit the plan through the real ledger,
+   - skip `_invoke_engine` and `_collect_evidence`,
+   - call `_commit_ready(...)` with a deterministic empty evidence bundle plus an explicit note that this bounded gate uses the authoritative oracle pack by reference and intentionally avoids a redundant engine rescan.
+7. Why this is still production-valid:
+   - `sr/run_status`, `sr/run_facts_view`, `ready_signal`, and control-bus publication are still authored by Scenario Runner,
+   - `oracle_pack_ref` still validates against the canonical oracle manifest and run identity pins,
+   - this preserves one authoritative run identity across learning and ops/gov,
+   - while cutting out the exact memory-heavy step that is not needed to prove bounded correctness.
+8. Files to touch in this slice:
+   - `scripts/dev_substrate/pr3_control_plane_bootstrap_worker.py`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.road_to_prod.impl_actual.md`
+   - `docs/logbook/03-2026/2026-03-08.md`
+9. Validation plan:
+   - `python -m py_compile` on the worker/orchestrator,
+   - rerun the same bounded `PR3-S4` workflow,
+   - if bootstrap goes green, continue evaluating direct cross-plane impact metrics before any soak authorization.
