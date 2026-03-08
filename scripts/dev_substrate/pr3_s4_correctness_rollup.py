@@ -170,8 +170,8 @@ def main() -> None:
 
     root = Path(args.run_control_root) / args.pr3_execution_id
     prefix = str(args.artifact_prefix).strip()
-    summary = load_json(root / f"{prefix}_wsp_runtime_summary.json")
-    manifest = load_json(root / f"{prefix}_wsp_runtime_manifest.json")
+    summary = load_optional_json(root / f"{prefix}_wsp_runtime_summary.json")
+    manifest = load_optional_json(root / f"{prefix}_wsp_runtime_manifest.json")
     charter = load_json(root / "g3a_run_charter.active.json")
     control_bootstrap = load_optional_json(root / "g3a_control_plane_bootstrap.json") or {"overall_pass": False}
     learning_summary = load_optional_json(root / "g3a_correctness_learning_summary.json") or {"overall_pass": False}
@@ -180,10 +180,222 @@ def main() -> None:
         [load_json(path) for path in root.glob(f"g3a_{str(args.state_id).strip().lower()}_component_snapshot_*.json")],
         key=lambda row: str(row.get("generated_at_utc", "")),
     )
-    platform_run_id = str((((manifest.get("identity") or {}).get("platform_run_id")) or "")).strip()
+    platform_run_id = str((((manifest or {}).get("identity") or {}).get("platform_run_id") or "")).strip()
     if control_bootstrap.get("platform_run_id"):
         platform_run_id = str(control_bootstrap.get("platform_run_id") or "").strip() or platform_run_id
-    selected = select_snapshots(snapshots, platform_run_id)
+    if summary is None or manifest is None:
+        blockers = ["PR3.B21_CORRECTNESS_WINDOW_NOT_EXECUTED"]
+        if not bool(control_bootstrap.get("overall_pass")):
+            blockers.append("PR3.B20_CONTROL_BOOTSTRAP_FAIL")
+        if not bool(learning_summary.get("overall_pass")):
+            blockers.append("PR3.B29_LEARNING_BOUND_FAIL")
+        if not bool(ops_gov_summary.get("overall_pass")):
+            blockers.append("PR3.B30_OPS_GOV_BOUND_FAIL")
+        blockers.append("PR3.B28_SOAK_NOT_AUTHORIZED")
+        notes = [
+            "Correctness runtime artifacts were missing, so the rollup degraded to blocker-only receipt emission.",
+            f"Missing artifacts: {', '.join(name for name, payload in ((f'{prefix}_wsp_runtime_summary.json', summary), (f'{prefix}_wsp_runtime_manifest.json', manifest)) if payload is None)}",
+        ]
+        cross_plane = {
+            "control_bootstrap": "PASS" if bool(control_bootstrap.get("overall_pass")) else "HOLD_REMEDIATE",
+            "runtime_spine": "HOLD_REMEDIATE",
+            "case_label_management": "HOLD_REMEDIATE",
+            "learning_evolution": "PASS" if bool(learning_summary.get("overall_pass")) else "HOLD_REMEDIATE",
+            "ops_gov": "PASS" if bool(ops_gov_summary.get("overall_pass")) else "HOLD_REMEDIATE",
+        }
+        lag_recovery_drill = load_optional_json(root / "g3a_drill_lag_recovery.json") or build_lag_recovery_drill(
+            root, args.state_id, args.pr3_execution_id, platform_run_id
+        )
+        scorecard = {
+            "phase": "PR3",
+            "state": args.state_id,
+            "generated_at_utc": now_utc(),
+            "execution_id": args.pr3_execution_id,
+            "platform_run_id": platform_run_id,
+            "window_label": "correctness",
+            "control_bootstrap": {
+                "overall_pass": bool(control_bootstrap.get("overall_pass")),
+                "scenario_run_id": control_bootstrap.get("scenario_run_id"),
+                "facts_view_ref": ((control_bootstrap.get("sr") or {}).get("facts_view_ref")),
+                "status_ref": ((control_bootstrap.get("sr") or {}).get("status_ref")),
+            },
+            "ingress": {},
+            "component_deltas": {},
+            "cross_plane": cross_plane,
+            "overall_pass": False,
+            "blocker_ids": sorted(set(blockers)),
+            "notes": notes,
+        }
+        component_snapshot = {
+            "phase": "PR3",
+            "state": args.state_id,
+            "generated_at_utc": now_utc(),
+            "execution_id": args.pr3_execution_id,
+            "platform_run_id": platform_run_id,
+            "snapshot": {},
+        }
+        cross_plane_report = {
+            "phase": "PR3",
+            "state": args.state_id,
+            "generated_at_utc": now_utc(),
+            "execution_id": args.pr3_execution_id,
+            "platform_run_id": platform_run_id,
+            "cross_plane": cross_plane,
+            "metrics": {},
+            "integrity": {},
+            "control_bootstrap": control_bootstrap,
+            "learning_summary": learning_summary,
+            "ops_gov_summary": ops_gov_summary,
+            "notes": notes,
+        }
+        replay_drill = {
+            "drill_id": "replay_integrity",
+            "phase": "PR3",
+            "state": args.state_id,
+            "generated_at_utc": now_utc(),
+            "execution_id": args.pr3_execution_id,
+            "platform_run_id": platform_run_id,
+            "observed_outcome": {},
+            "overall_pass": False,
+            "blocker_ids": ["PR3.B24_REPLAY_OR_INTEGRITY_DRILL_FAIL"],
+        }
+        soak_authorization = {
+            "phase": "PR3",
+            "state": args.state_id,
+            "generated_at_utc": now_utc(),
+            "execution_id": args.pr3_execution_id,
+            "platform_run_id": platform_run_id,
+            "authorized": False,
+            "reason": "S4 bounded correctness gate remains red; soak stays blocked.",
+        }
+        receipt = {
+            "phase": "PR3",
+            "state": args.state_id,
+            "generated_at_utc": now_utc(),
+            "execution_id": args.pr3_execution_id,
+            "platform_run_id": platform_run_id,
+            "verdict": "HOLD_REMEDIATE",
+            "next_state": "PR3-S4",
+            "open_blockers": len(set(blockers)),
+            "blocker_ids": sorted(set(blockers)),
+        }
+        dump_json(root / "g3a_correctness_scorecard.json", scorecard)
+        dump_json(root / "g3a_correctness_component_snapshot.json", component_snapshot)
+        dump_json(root / "g3a_correctness_cross_plane_report.json", cross_plane_report)
+        dump_json(root / "g3a_drill_replay_integrity.json", replay_drill)
+        dump_json(root / "g3a_drill_lag_recovery.json", lag_recovery_drill)
+        dump_json(root / "g3a_soak_authorization.json", {**soak_authorization, "blocker_ids": sorted(set(blockers))})
+        dump_json(root / "pr3_s4_execution_receipt.json", receipt)
+        print(json.dumps(receipt, indent=2))
+        return
+
+    try:
+        selected = select_snapshots(snapshots, platform_run_id)
+    except RuntimeError:
+        blockers = ["PR3.B21_CORRECTNESS_WINDOW_NOT_EXECUTED", "PR3.B22_CROSS_PLANE_PARTICIPATION_UNPROVEN:snapshots_missing"]
+        if not bool(control_bootstrap.get("overall_pass")):
+            blockers.append("PR3.B20_CONTROL_BOOTSTRAP_FAIL")
+        if not bool(learning_summary.get("overall_pass")):
+            blockers.append("PR3.B29_LEARNING_BOUND_FAIL")
+        if not bool(ops_gov_summary.get("overall_pass")):
+            blockers.append("PR3.B30_OPS_GOV_BOUND_FAIL")
+        blockers.append("PR3.B28_SOAK_NOT_AUTHORIZED")
+        notes = [
+            "Correctness runtime snapshots were incomplete, so the rollup degraded to blocker-only receipt emission.",
+            f"Observed snapshot count for platform_run_id '{platform_run_id}': {len([row for row in snapshots if str(row.get('platform_run_id', '')).strip() == platform_run_id])}",
+        ]
+        cross_plane = {
+            "control_bootstrap": "PASS" if bool(control_bootstrap.get("overall_pass")) else "HOLD_REMEDIATE",
+            "runtime_spine": "HOLD_REMEDIATE",
+            "case_label_management": "HOLD_REMEDIATE",
+            "learning_evolution": "PASS" if bool(learning_summary.get("overall_pass")) else "HOLD_REMEDIATE",
+            "ops_gov": "PASS" if bool(ops_gov_summary.get("overall_pass")) else "HOLD_REMEDIATE",
+        }
+        lag_recovery_drill = load_optional_json(root / "g3a_drill_lag_recovery.json") or build_lag_recovery_drill(
+            root, args.state_id, args.pr3_execution_id, platform_run_id
+        )
+        scorecard = {
+            "phase": "PR3",
+            "state": args.state_id,
+            "generated_at_utc": now_utc(),
+            "execution_id": args.pr3_execution_id,
+            "platform_run_id": platform_run_id,
+            "window_label": str((summary.get("window_label") if summary else "") or "correctness"),
+            "control_bootstrap": {
+                "overall_pass": bool(control_bootstrap.get("overall_pass")),
+                "scenario_run_id": control_bootstrap.get("scenario_run_id"),
+                "facts_view_ref": ((control_bootstrap.get("sr") or {}).get("facts_view_ref")),
+                "status_ref": ((control_bootstrap.get("sr") or {}).get("status_ref")),
+            },
+            "ingress": dict((summary or {}).get("observed") or {}),
+            "component_deltas": {},
+            "cross_plane": cross_plane,
+            "overall_pass": False,
+            "blocker_ids": sorted(set(blockers)),
+            "notes": notes,
+        }
+        component_snapshot = {
+            "phase": "PR3",
+            "state": args.state_id,
+            "generated_at_utc": now_utc(),
+            "execution_id": args.pr3_execution_id,
+            "platform_run_id": platform_run_id,
+            "snapshot": {},
+        }
+        cross_plane_report = {
+            "phase": "PR3",
+            "state": args.state_id,
+            "generated_at_utc": now_utc(),
+            "execution_id": args.pr3_execution_id,
+            "platform_run_id": platform_run_id,
+            "cross_plane": cross_plane,
+            "metrics": {},
+            "integrity": {},
+            "control_bootstrap": control_bootstrap,
+            "learning_summary": learning_summary,
+            "ops_gov_summary": ops_gov_summary,
+            "notes": notes,
+        }
+        replay_drill = {
+            "drill_id": "replay_integrity",
+            "phase": "PR3",
+            "state": args.state_id,
+            "generated_at_utc": now_utc(),
+            "execution_id": args.pr3_execution_id,
+            "platform_run_id": platform_run_id,
+            "observed_outcome": {},
+            "overall_pass": False,
+            "blocker_ids": ["PR3.B24_REPLAY_OR_INTEGRITY_DRILL_FAIL"],
+        }
+        soak_authorization = {
+            "phase": "PR3",
+            "state": args.state_id,
+            "generated_at_utc": now_utc(),
+            "execution_id": args.pr3_execution_id,
+            "platform_run_id": platform_run_id,
+            "authorized": False,
+            "reason": "S4 bounded correctness gate remains red; soak stays blocked.",
+        }
+        receipt = {
+            "phase": "PR3",
+            "state": args.state_id,
+            "generated_at_utc": now_utc(),
+            "execution_id": args.pr3_execution_id,
+            "platform_run_id": platform_run_id,
+            "verdict": "HOLD_REMEDIATE",
+            "next_state": "PR3-S4",
+            "open_blockers": len(set(blockers)),
+            "blocker_ids": sorted(set(blockers)),
+        }
+        dump_json(root / "g3a_correctness_scorecard.json", scorecard)
+        dump_json(root / "g3a_correctness_component_snapshot.json", component_snapshot)
+        dump_json(root / "g3a_correctness_cross_plane_report.json", cross_plane_report)
+        dump_json(root / "g3a_drill_replay_integrity.json", replay_drill)
+        dump_json(root / "g3a_drill_lag_recovery.json", lag_recovery_drill)
+        dump_json(root / "g3a_soak_authorization.json", {**soak_authorization, "blocker_ids": sorted(set(blockers))})
+        dump_json(root / "pr3_s4_execution_receipt.json", receipt)
+        print(json.dumps(receipt, indent=2))
+        return
     pre = latest_snapshot(selected, "pre")
     post = latest_snapshot(selected, "post")
 

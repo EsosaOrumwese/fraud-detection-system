@@ -154,7 +154,18 @@ jobs:
         run: |
           set -euo pipefail
           python -m pip install --upgrade pip
-          python -m pip install boto3 botocore "psycopg[binary]" pyyaml
+          python -m pip install \
+            boto3 \
+            botocore \
+            "psycopg[binary]" \
+            pyyaml \
+            pydantic \
+            pydantic-settings \
+            jsonschema \
+            referencing \
+            kafka-python \
+            confluent-kafka \
+            aws-msk-iam-sasl-signer-python
 
       - name: Compute execution metadata
         id: meta
@@ -245,6 +256,7 @@ jobs:
           PY
 
       - name: Configure kubeconfig
+        id: kubeconfig
         shell: bash
         run: |
           set -euo pipefail
@@ -486,7 +498,7 @@ jobs:
           wait "${CAMPAIGN_PID}"
 
       - name: Capture post-correctness runtime snapshot
-        if: ${{ always() }}
+        if: ${{ always() && steps.bootstrap.conclusion == 'success' && steps.kubeconfig.conclusion == 'success' }}
         shell: bash
         run: |
           set -euo pipefail

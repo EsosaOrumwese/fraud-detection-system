@@ -10433,3 +10433,18 @@ uns/.../degrade_ladder/* on its own filesystem,
     - `python -m py_compile` on the new scripts and updated rollup: pass,
     - YAML parse of updated workflow + new MF profile files: pass.
 14. Next execution step is the bounded remote S4 correctness run on `cert-platform`; this should now fail in a much tighter and cheaper way if any whole-platform continuity defect remains.
+## Entry: 2026-03-08 17:26:24 +00:00 - First remote PR3-S4 bounded correctness run exposed harness defects before any real platform blocker, so the next slice is harness hardening not another spend-heavy rerun
+1. Dispatched the first bounded remote `PR3-S4` correctness run on active branch `cert-platform` as GitHub Actions run `22826024606` using the pinned `dev_full` OIDC role `arn:aws:iam::230372904534:role/GitHubAction-AssumeRoleWithAction`.
+2. The run failed in under one minute, which is the correct cost posture for this stage, but the failure was still partly harness-level rather than platform-level.
+3. Exact defects found from the failed-step logs:
+   - `pr3_control_plane_bootstrap.py` failed before any control-plane proof because the workflow only installed `boto3/botocore/psycopg/pyyaml`; `scenario_runner.config` imports `pydantic`, so the runner died with `ModuleNotFoundError: No module named 'pydantic'`.
+   - the unconditional `always()` post-correctness runtime snapshot then failed noisily because kubeconfig had never been created once bootstrap stopped early, so `kubectl` fell back to `localhost:8080`.
+   - the workflow invoked `pr3_s4_cost_guardrail.py` with the newer `--artifact-prefix` and `--receipt-path` arguments, but the committed branch copy of the script still carried the older argument contract, so the run hit `unrecognized arguments`.
+   - the correctness rollup then attempted to read non-existent runtime summary artifacts and crashed with `FileNotFoundError` instead of emitting a single clean blocker register.
+4. This is analytically useful because it proves the cheaper correctness ladder is working: the workflow surfaced four cheap harness defects in 41 seconds rather than burning another 30-minute soak.
+5. Chosen remediation for the next slice:
+   - expand the workflow install step to cover the minimal SR/Kafka/schema dependency set actually imported by the bounded control bootstrap,
+   - guard post-bootstrap snapshotting on successful kubeconfig creation so a prior bootstrap failure does not create extra misleading red steps,
+   - commit the updated `pr3_s4_cost_guardrail.py` contract that the workflow already expects,
+   - harden `pr3_s4_correctness_rollup.py` so missing upstream correctness artifacts become deterministic blocker receipts rather than Python exceptions.
+6. This is not a change in production intent. It is harness hardening so the next rerun measures the platform and not missing remote-runner dependencies or artifact-contract skew.
