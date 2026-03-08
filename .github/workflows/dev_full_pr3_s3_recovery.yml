@@ -196,6 +196,7 @@ jobs:
         run: |
           set -euo pipefail
           for name in \
+            pr3_s0_execution_receipt.json \
             g3a_run_charter.active.json \
             g3a_measurement_surface_map.json \
             pr3_s2_execution_receipt.json; do

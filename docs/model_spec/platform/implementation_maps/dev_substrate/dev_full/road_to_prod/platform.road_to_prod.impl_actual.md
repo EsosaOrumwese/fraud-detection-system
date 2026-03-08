@@ -9123,3 +9123,25 @@ uns/.../degrade_ladder/* on its own filesystem,
 7. This preserves the intended production meaning of the state:
    - prove the runtime is already settled on the last closed boundary,
    - then apply fresh burst pressure and measure return to stable under new traffic.
+
+## Entry: 2026-03-08 02:26:06 +00:00 - Second PR3-S3 run exposed an upstream-evidence hydration hole; the fix is to complete the strict artifact surface, not weaken the dispatcher
+1. After correcting the warm-gate sequencing, I reran strict `PR3-S3` as workflow `22812047750`. The state progressed further and failed at the first prestress dispatcher invocation, before any new production interpretation should be made about burst or recovery behavior.
+2. The failure is not a platform-runtime defect. It is a workflow evidence-hydration defect:
+   - `pr3_wsp_replay_dispatch.py` requires the `PR3` root directory to contain `pr3_s0_execution_receipt.json`,
+   - the recovery workflow hydrated `g3a_run_charter.active.json`, `g3a_measurement_surface_map.json`, and `pr3_s2_execution_receipt.json`, but omitted the `S0` receipt,
+   - the dispatcher therefore failed closed with `FileNotFoundError` at `pr3_root / "pr3_s0_execution_receipt.json"`.
+3. Why the dispatcher contract is correct:
+   - `PR3-S3` still depends on the canonical `PR3` root and must inherit the same strict upstream chain as `S1` and `S2`,
+   - `S0` is the root readiness lock for the full `PR3` lane, so letting `S3` proceed without it would silently weaken the certification boundary,
+   - the dispatcher already treats the prior manifest as optional, which means the hard-required surface is intentionally small and should be preserved.
+4. Alternatives considered and rejected:
+   - remove the `S0` receipt requirement from `pr3_wsp_replay_dispatch.py`: rejected because it would decouple later `PR3` states from the phase root contract and create a false-green path,
+   - bypass the dispatcher strict check only for `S3`: rejected because state-specific bypasses create audit drift and would make the `PR3` chain non-uniform,
+   - hydrate the full root evidence set from S3: partially rejected because it adds noise and cost; only the artifacts the dispatcher materially reads should be restored.
+5. Selected remediation:
+   - extend `Hydrate PR3 upstream evidence from S3` in `dev_full_pr3_s3_recovery.yml` to fetch `pr3_s0_execution_receipt.json`,
+   - keep the dispatcher unchanged,
+   - rerun strict `PR3-S3` from the same upstream boundary after the hydration surface matches the actual artifact contract.
+6. Production interpretation:
+   - the current stop is an execution-rig completeness defect, not a throughput, latency, or decision-plane regression,
+   - fixing the hydration surface is the only production-coherent next step because it restores the intended certification chain without relaxing any runtime or correctness standard.
