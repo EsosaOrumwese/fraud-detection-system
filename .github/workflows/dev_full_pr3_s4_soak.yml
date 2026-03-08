@@ -519,11 +519,13 @@ jobs:
           ACTIVE_SCENARIO_RUN_ID: ${{ steps.bootstrap.outputs.active_scenario_run_id }}
         run: |
           set -euo pipefail
-          python scripts/dev_substrate/pr3_s4_learning_bound.py \
+          python scripts/dev_substrate/pr3_s4_learning_bound_remote.py \
             --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
             --platform-run-id "${{ steps.meta.outputs.active_platform_run_id }}" \
             --scenario-run-id "${{ steps.bootstrap.outputs.active_scenario_run_id }}" \
-            --aws-region "${{ inputs.aws_region }}"
+            --aws-region "${{ inputs.aws_region }}" \
+            --namespace "${{ env.EKS_NAMESPACE }}" \
+            --image-uri "${{ inputs.platform_image_uri }}"
 
       - name: Run PR3-S4 dependency degrade drill
         shell: bash

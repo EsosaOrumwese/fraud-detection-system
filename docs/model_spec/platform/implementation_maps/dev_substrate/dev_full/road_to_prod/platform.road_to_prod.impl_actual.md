@@ -10561,3 +10561,29 @@ uns/.../degrade_ladder/* on its own filesystem,
    - `python -m py_compile` on the worker/orchestrator,
    - rerun the same bounded `PR3-S4` workflow,
    - if bootstrap goes green, continue evaluating direct cross-plane impact metrics before any soak authorization.
+## Entry: 2026-03-08 18:26:30 +00:00 - PR3-S4 bounded correctness has now cleared control bootstrap and runtime ingress, so the next red lane is the learning proof still being executed from the wrong network boundary
+1. Bounded rerun `22826852334` is a material improvement over the prior attempts because the new control-bootstrap path is fully green:
+   - `sr/run_status` and `sr/run_facts_view` were authored on the active run scope,
+   - runtime materialization, warm gate, pre/post snapshots, and the bounded correctness campaign all completed,
+   - the measured ingress window came back clean at `659.93 eps`, `118,788` admitted requests, `0` 4xx, `0` 5xx, `p95=34.83ms`, `p99=50.15ms`.
+2. The run now fails at exactly one earlier infrastructure boundary: `Run PR3-S4 bounded learning proof`.
+3. The failed-step log plus the produced `g3a_correctness_learning_summary.json` narrow the defect sharply:
+   - step runs on the GitHub runner,
+   - summary blocker is `connection timeout expired`,
+   - the learning script's first private dependency is Aurora via `psycopg.connect(...)` during label-subject query,
+   - therefore the red surface is runner-edge access to private learning dependencies, not a proven semantic failure in OFS/MF/MPR.
+4. This is the same category of mistake that originally existed in the control bootstrap: trying to run a private-data-plane operation on the GitHub runner.
+5. Production-minded options considered:
+   - widen public/private network reach for the GitHub runner toward Aurora: rejected because it is the wrong control boundary and increases attack surface for a dev correctness gate.
+   - keep rerunning from the runner and hope the timeout is transient: rejected as wasteful and unserious.
+   - move bounded learning proof into the VPC as a one-shot EKS job using the existing platform image + IRSA, and bring only the summary receipt back to the runner: chosen.
+6. Chosen implementation shape for the next slice:
+   - update `pr3_s4_learning_bound.py` so it always emits its summary JSON on stdout as well as to the run-control file,
+   - add a dedicated runner-side orchestrator `scripts/dev_substrate/pr3_s4_learning_bound_remote.py` that launches the learning proof as a temporary EKS Job,
+   - update `.github/workflows/dev_full_pr3_s4_soak.yml` so the learning step calls that orchestrator instead of running the script directly on the GitHub runner.
+7. Why this is the correct fix:
+   - it preserves the same active `platform_run_id` / `scenario_run_id`,
+   - it keeps private Aurora/object-store/MSK-adjacent learning work inside the VPC,
+   - it narrows cost to a short-lived bounded job instead of broad environment changes,
+   - it preserves a readable first-class learning receipt in the run-control evidence surface for the rollup.
+8. I am not touching PR3-S4 soak authorization yet. The state remains red until learning is green and then the remaining case/label / integrity blockers can be analyzed on the same bounded method.

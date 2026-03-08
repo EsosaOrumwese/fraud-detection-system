@@ -7,6 +7,7 @@ import argparse
 import json
 import os
 import re
+import traceback
 from collections import OrderedDict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -36,6 +37,10 @@ def load_json(path: Path) -> dict[str, Any]:
 def dump_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+
+
+def emit_summary(payload: dict[str, Any]) -> None:
+    print(json.dumps(payload, ensure_ascii=True), flush=True)
 
 
 def parse_registry(path: Path) -> dict[str, str]:
@@ -466,12 +471,16 @@ def main() -> None:
             "overall_pass": False,
             "blocker_ids": blockers,
             "notes": notes,
+            "error_type": type(exc).__name__,
+            "traceback_tail": traceback.format_exc().strip().splitlines()[-5:],
             "error": str(exc),
         }
         dump_json(summary_path, summary)
+        emit_summary(summary)
         raise SystemExit(1)
 
     dump_json(summary_path, summary)
+    emit_summary(summary)
 
 
 if __name__ == "__main__":
