@@ -1,0 +1,394 @@
+name: dev-full-pr3-s3-recovery
+
+on:
+  workflow_dispatch:
+    inputs:
+      aws_region:
+        description: "AWS region"
+        required: true
+        default: "eu-west-2"
+        type: string
+      aws_role_to_assume:
+        description: "OIDC role ARN used by GitHub Actions"
+        required: true
+        type: string
+      pr3_execution_id:
+        description: "Strict PR3 execution id"
+        required: true
+        default: "pr3_20260306T021900Z"
+        type: string
+      evidence_bucket:
+        description: "Evidence bucket"
+        required: true
+        default: "fraud-platform-dev-full-evidence"
+        type: string
+      eks_cluster_name:
+        description: "EKS cluster name"
+        required: true
+        default: "fraud-platform-dev-full"
+        type: string
+      prestress_lane_count:
+        description: "Burst prestress lane count"
+        required: true
+        default: "32"
+        type: string
+      prestress_target_burst_eps:
+        description: "Prestress burst EPS target"
+        required: true
+        default: "6000"
+        type: string
+      prestress_target_request_rate_eps:
+        description: "Prestress generator setpoint EPS"
+        required: true
+        default: "6060"
+        type: string
+      prestress_duration_seconds:
+        description: "Prestress burst duration seconds"
+        required: true
+        default: "300"
+        type: string
+      prestress_warmup_seconds:
+        description: "Prestress burst warmup seconds"
+        required: true
+        default: "90"
+        type: string
+      prestress_stream_speedup:
+        description: "Prestress replay speedup"
+        required: true
+        default: "180"
+        type: string
+      prestress_ig_push_concurrency:
+        description: "Prestress per-lane IG concurrency"
+        required: true
+        default: "16"
+        type: string
+      prestress_output_concurrency:
+        description: "Prestress output concurrency"
+        required: true
+        default: "4"
+        type: string
+      prestress_http_pool_maxsize:
+        description: "Prestress HTTP pool size"
+        required: true
+        default: "1024"
+        type: string
+      recovery_lane_count:
+        description: "Recovery steady lane count"
+        required: true
+        default: "40"
+        type: string
+      recovery_target_steady_eps:
+        description: "Recovery steady EPS target"
+        required: true
+        default: "3000"
+        type: string
+      recovery_target_request_rate_eps:
+        description: "Recovery generator setpoint EPS"
+        required: true
+        default: "3030"
+        type: string
+      recovery_duration_seconds:
+        description: "Recovery steady duration seconds"
+        required: true
+        default: "180"
+        type: string
+      recovery_stream_speedup:
+        description: "Recovery replay speedup"
+        required: true
+        default: "51.2"
+        type: string
+      recovery_ig_push_concurrency:
+        description: "Recovery per-lane IG concurrency"
+        required: true
+        default: "4"
+        type: string
+      recovery_output_concurrency:
+        description: "Recovery output concurrency"
+        required: true
+        default: "4"
+        type: string
+      recovery_http_pool_maxsize:
+        description: "Recovery HTTP pool size"
+        required: true
+        default: "512"
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: dev-full-pr3-s3-recovery-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  run_pr3_s3_recovery:
+    runs-on: ubuntu-latest
+    env:
+      EKS_NAMESPACE: fraud-platform-rtdl
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject static AWS credential posture
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${AWS_ACCESS_KEY_ID:-}" || -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+            echo "Static AWS credentials are forbidden; use OIDC role assumption."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ inputs.aws_region }}
+          role-to-assume: ${{ inputs.aws_role_to_assume }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: "latest"
+
+      - name: Install runtime dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install boto3 botocore "psycopg[binary]" pyyaml
+
+      - name: Compute execution metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUN_DIR="runs/dev_substrate/dev_full/road_to_prod/run_control/${{ inputs.pr3_execution_id }}"
+          mkdir -p "${RUN_DIR}"
+          PRESTRESS_RUN_ID="platform_$(date -u +'%Y%m%dT%H%M%SZ')"
+          RECOVERY_RUN_ID="platform_$(date -u +'%Y%m%dT%H%M%SZ')_r"
+          PRESTRESS_SCENARIO_RUN_ID="$(python - <<'PY'
+          import uuid
+          print(uuid.uuid4().hex)
+          PY
+          )"
+          RECOVERY_SCENARIO_RUN_ID="$(python - <<'PY'
+          import uuid
+          print(uuid.uuid4().hex)
+          PY
+          )"
+          echo "run_dir=${RUN_DIR}" >> "$GITHUB_OUTPUT"
+          echo "prestress_platform_run_id=${PRESTRESS_RUN_ID}" >> "$GITHUB_OUTPUT"
+          echo "recovery_platform_run_id=${RECOVERY_RUN_ID}" >> "$GITHUB_OUTPUT"
+          echo "prestress_scenario_run_id=${PRESTRESS_SCENARIO_RUN_ID}" >> "$GITHUB_OUTPUT"
+          echo "recovery_scenario_run_id=${RECOVERY_SCENARIO_RUN_ID}" >> "$GITHUB_OUTPUT"
+
+      - name: Hydrate PR3 upstream evidence from S3
+        shell: bash
+        env:
+          EVIDENCE_BUCKET: ${{ inputs.evidence_bucket }}
+          PR3_EXECUTION_ID: ${{ inputs.pr3_execution_id }}
+          RUN_DIR: ${{ steps.meta.outputs.run_dir }}
+        run: |
+          set -euo pipefail
+          for name in \
+            g3a_run_charter.active.json \
+            g3a_measurement_surface_map.json \
+            pr3_s2_execution_receipt.json; do
+            aws s3 cp \
+              "s3://${EVIDENCE_BUCKET}/evidence/dev_full/run_control/${PR3_EXECUTION_ID}/${name}" \
+              "${RUN_DIR}/${name}" \
+              --no-progress
+          done
+
+      - name: Validate strict upstream boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path("runs/dev_substrate/dev_full/road_to_prod/run_control/${{ inputs.pr3_execution_id }}/pr3_s2_execution_receipt.json")
+          payload = json.loads(path.read_text(encoding="utf-8"))
+          if payload.get("verdict") != "PR3_S2_READY" or int(payload.get("open_blockers", 1)) != 0:
+              raise SystemExit(f"PR3-S3 strict upstream invalid: {payload.get('verdict')} blockers={payload.get('open_blockers')}")
+          PY
+
+      - name: Configure kubeconfig
+        id: kubeconfig
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws eks update-kubeconfig \
+            --region "${{ inputs.aws_region }}" \
+            --name "${{ inputs.eks_cluster_name }}"
+
+      - name: Verify runtime deployments ready
+        shell: bash
+        run: |
+          set -euo pipefail
+          for deployment in fp-pr3-csfb fp-pr3-ieg fp-pr3-ofp fp-pr3-dl fp-pr3-df fp-pr3-al fp-pr3-dla fp-pr3-archive-writer; do
+            kubectl rollout status "deployment/${deployment}" -n "${{ env.EKS_NAMESPACE }}" --timeout=240s
+          done
+
+      - name: Warm-gate runtime before prestress
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/pr3_runtime_warm_gate.py \
+            --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
+            --state-id S3 \
+            --namespace "${{ env.EKS_NAMESPACE }}" \
+            --platform-run-id "${{ steps.meta.outputs.prestress_platform_run_id }}" \
+            --profile-path "/runtime-profile/dev_full.yaml" \
+            --settle-seconds 30
+
+      - name: Run prestress burst
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/pr3_wsp_replay_dispatch.py \
+            --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
+            --state-id S3 \
+            --window-label burst_prestress \
+            --artifact-prefix g3a_s3_prestress \
+            --blocker-prefix PR3.S3.PRESTRESS \
+            --region "${{ inputs.aws_region }}" \
+            --platform-run-id "${{ steps.meta.outputs.prestress_platform_run_id }}" \
+            --scenario-run-id "${{ steps.meta.outputs.prestress_scenario_run_id }}" \
+            --lane-count "${{ inputs.prestress_lane_count }}" \
+            --expected-window-eps "${{ inputs.prestress_target_burst_eps }}" \
+            --target-request-rate-eps "${{ inputs.prestress_target_request_rate_eps }}" \
+            --duration-seconds "${{ inputs.prestress_duration_seconds }}" \
+            --warmup-seconds "${{ inputs.prestress_warmup_seconds }}" \
+            --early-cutoff-seconds 120 \
+            --early-cutoff-floor-ratio 0.70 \
+            --stream-speedup "${{ inputs.prestress_stream_speedup }}" \
+            --output-concurrency "${{ inputs.prestress_output_concurrency }}" \
+            --ig-push-concurrency "${{ inputs.prestress_ig_push_concurrency }}" \
+            --http-pool-maxsize "${{ inputs.prestress_http_pool_maxsize }}" \
+            --target-burst-seconds 0.50 \
+            --target-initial-tokens 0.50 \
+            --max-latency-p95-ms 350 \
+            --max-latency-p99-ms 700 \
+            --skip-runtime-identity-probe
+
+      - name: Capture post-prestress snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/pr3_runtime_surface_snapshot.py \
+            --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
+            --state-id S3 \
+            --snapshot-label prestress_post \
+            --namespace "${{ env.EKS_NAMESPACE }}" \
+            --platform-run-id "${{ steps.meta.outputs.prestress_platform_run_id }}"
+
+      - name: Run recovery steady with live sampling
+        shell: bash
+        env:
+          PR3_EXECUTION_ID: ${{ inputs.pr3_execution_id }}
+          RECOVERY_PLATFORM_RUN_ID: ${{ steps.meta.outputs.recovery_platform_run_id }}
+          RECOVERY_SCENARIO_RUN_ID: ${{ steps.meta.outputs.recovery_scenario_run_id }}
+          AWS_REGION: ${{ inputs.aws_region }}
+          EKS_NAMESPACE: ${{ env.EKS_NAMESPACE }}
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/pr3_wsp_replay_dispatch.py \
+            --pr3-execution-id "${PR3_EXECUTION_ID}" \
+            --state-id S3 \
+            --window-label recovery \
+            --artifact-prefix g3a_s3_recovery \
+            --blocker-prefix PR3.S3.RECOVERY \
+            --region "${AWS_REGION}" \
+            --platform-run-id "${RECOVERY_PLATFORM_RUN_ID}" \
+            --scenario-run-id "${RECOVERY_SCENARIO_RUN_ID}" \
+            --lane-count "${{ inputs.recovery_lane_count }}" \
+            --expected-window-eps "${{ inputs.recovery_target_steady_eps }}" \
+            --target-request-rate-eps "${{ inputs.recovery_target_request_rate_eps }}" \
+            --duration-seconds "${{ inputs.recovery_duration_seconds }}" \
+            --warmup-seconds 0 \
+            --early-cutoff-seconds 120 \
+            --early-cutoff-floor-ratio 0.70 \
+            --stream-speedup "${{ inputs.recovery_stream_speedup }}" \
+            --output-concurrency "${{ inputs.recovery_output_concurrency }}" \
+            --ig-push-concurrency "${{ inputs.recovery_ig_push_concurrency }}" \
+            --http-pool-maxsize "${{ inputs.recovery_http_pool_maxsize }}" \
+            --target-burst-seconds 0.25 \
+            --target-initial-tokens 0.25 \
+            --max-latency-p95-ms 350 \
+            --max-latency-p99-ms 700 \
+            --skip-runtime-identity-probe &
+          RECOVERY_PID=$!
+          SAMPLE_INDEX=1
+          sleep 15
+          while kill -0 "${RECOVERY_PID}" 2>/dev/null; do
+            python scripts/dev_substrate/pr3_runtime_surface_snapshot.py \
+              --pr3-execution-id "${PR3_EXECUTION_ID}" \
+              --state-id S3 \
+              --snapshot-label "during_${SAMPLE_INDEX}" \
+              --namespace "${EKS_NAMESPACE}" \
+              --platform-run-id "${RECOVERY_PLATFORM_RUN_ID}" || true
+            SAMPLE_INDEX=$((SAMPLE_INDEX + 1))
+            sleep 30
+          done
+          wait "${RECOVERY_PID}"
+
+      - name: Capture post-recovery snapshot
+        if: ${{ always() && steps.kubeconfig.outcome == 'success' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/pr3_runtime_surface_snapshot.py \
+            --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
+            --state-id S3 \
+            --snapshot-label post \
+            --namespace "${{ env.EKS_NAMESPACE }}" \
+            --platform-run-id "${{ steps.meta.outputs.recovery_platform_run_id }}"
+
+      - name: Build PR3-S3 recovery rollup
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/pr3_s3_rollup.py \
+            --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
+            --state-id S3 \
+            --region "${{ inputs.aws_region }}" \
+            --expected-burst-eps "${{ inputs.prestress_target_burst_eps }}" \
+            --expected-steady-eps "${{ inputs.recovery_target_steady_eps }}" \
+            --recovery-bound-seconds 180 \
+            --max-error-rate-ratio 0.002 \
+            --max-4xx-ratio 0.002 \
+            --max-5xx-ratio 0.0 \
+            --max-latency-p95-ms 350 \
+            --max-latency-p99-ms 700 \
+            --max-lag-p99-seconds 5.0 \
+            --max-checkpoint-p99-seconds 30.0
+
+      - name: Upload remote artifact backup to S3
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws s3 sync "${{ steps.meta.outputs.run_dir }}/" "s3://${{ inputs.evidence_bucket }}/evidence/dev_full/run_control/${{ inputs.pr3_execution_id }}/" --no-progress || true
+
+      - name: Upload workflow artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr3-s3-recovery-${{ inputs.pr3_execution_id }}
+          path: |
+            ${{ steps.meta.outputs.run_dir }}/g3a_s3_prestress_wsp_runtime_manifest.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_s3_prestress_wsp_runtime_summary.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_s3_recovery_wsp_runtime_manifest.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_s3_recovery_wsp_runtime_summary.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_s3_component_snapshot_*.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_scorecard_recovery.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_recovery_timeline.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_recovery_bound_report.json
+            ${{ steps.meta.outputs.run_dir }}/pr3_s3_execution_receipt.json
+          if-no-files-found: warn
