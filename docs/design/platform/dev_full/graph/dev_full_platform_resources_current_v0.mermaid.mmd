@@ -36,7 +36,7 @@ flowchart LR
     IGSVCCLUSTER["ECS cluster<br>fraud-platform-dev-full-ingress"]
     ALB["ALB<br>fp-dev-full-ig-svc"]
     TG["Target group<br>fp-dev-full-ig-svc"]
-    IGSVC["ECS service<br>fraud-platform-dev-full-ig-service<br>currently idled"]
+    IGSVC["ECS service<br>fraud-platform-dev-full-ig-service"]
     IGTASKDEF["Task definition family<br>fraud-platform-dev-full-ig-service"]
     IGDDB["DynamoDB table<br>fraud-platform-dev-full-ig-idempotency"]
     IGDLQ["SQS queue<br>fraud-platform-dev-full-ig-dlq"]
@@ -63,7 +63,7 @@ flowchart LR
 
   subgraph RTDL["RTDL Resources"]
     EKS["EKS cluster<br>fraud-platform-dev-full"]
-    NG["Nodegroup<br>fraud-platform-dev-full-m6f-workers<br>currently idled"]
+    NG["Nodegroup<br>fraud-platform-dev-full-m6f-workers"]
     NSRTDL["Namespace<br>fraud-platform-rtdl"]
     SARTDL["ServiceAccount<br>rtdl"]
     SADEC["ServiceAccount<br>decision-lane"]

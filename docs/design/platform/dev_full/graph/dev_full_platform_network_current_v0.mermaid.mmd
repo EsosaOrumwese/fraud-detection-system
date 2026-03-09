@@ -4,7 +4,7 @@ config:
   theme: default
 ---
 %% dev_full implemented distributed platform network
-%% current truth snapshot as observed on 2026-03-09 after idling workload compute
+%% current implemented/provisioned dev_full platform topology
 flowchart LR
 
   EXT["External Data Engine<br>black-box upstream producer<br>feeds oracle-store only"]
@@ -46,7 +46,7 @@ flowchart LR
     IGSVC_CLUSTER["ECS cluster<br>fraud-platform-dev-full-ingress"]
     ALB["Internal ALB<br>fp-dev-full-ig-svc<br>internal-fp-dev-full-ig-svc-1208840173.eu-west-2.elb.amazonaws.com"]
     TG["Target group<br>fp-dev-full-ig-svc"]
-    IGSVC["Ingress ECS service<br>fraud-platform-dev-full-ig-service<br>task def :24<br>idled 0/0"]
+    IGSVC["Ingress ECS service<br>fraud-platform-dev-full-ig-service<br>task def :24"]
     IGDDB[("DynamoDB<br>fraud-platform-dev-full-ig-idempotency")]
     IGDLQ["SQS DLQ<br>fraud-platform-dev-full-ig-dlq"]
     IGRECEIPTS["IG receipts / quarantine refs"]
@@ -78,7 +78,7 @@ flowchart LR
   %% =========================================================
   subgraph RTDL["4. Real-Time Decision Network"]
     EKS["EKS cluster<br>fraud-platform-dev-full"]
-    NG["Nodegroup<br>fraud-platform-dev-full-m6f-workers<br>idled min=0 desired=0"]
+    NG["Nodegroup<br>fraud-platform-dev-full-m6f-workers"]
     NSRTDL["Namespace<br>fraud-platform-rtdl"]
     SARTDL["ServiceAccount<br>rtdl"]
     SADEC["ServiceAccount<br>decision-lane"]
