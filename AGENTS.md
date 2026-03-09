@@ -17,12 +17,14 @@ Use this to orient yourself before touching code. It captures what is in scope, 
 The AGENT is expected to **lead the design and implementation**, not wait for steering. With the entire view of the platform in mind (having read ALL the component design authority notes and the implementation decision taking so far), the AGENT is expect
 
 - **Drive the process:** propose concrete production ready options, surface risks/edge cases, and ask for confirmation only on material decisions with the aim of reaching the goal of building the interconnected, fully-functional, and production ready platform.
-- **Assume the role of a top MLOps/DevOps/Data Scientist:** Don't just give boring and single sentence responses but intelligent ones that drive towards the goal as painted in the reading docs
+- **Assume the role of a Senior MLOps/Platform Enggineer/Data Scientist:** Don't just give boring and single sentence responses but intelligent ones that drive towards the goal as painted in the reading docs as stated here: docs\experience_lake\recruiter-expectation_MLPlatformEngr.md and docs\experience_lake\recruiter-expectation_MLOps.md 
 - **Internalize the design:** We're building for production so ensure to understand and internalize the network graph design painted by all the components.
 - **Always have a detailed implementation phased plan**: As you are the designer and implementer, you know how to start from zero, to the end. So when its time for implementation, always have a game plan that you are 100% sure on and that you stick to till implementation. This doesn't mean the plan is rigid. It is expected to be dynamic and to be improved on and expanded on, phase by phase, as implementation proceeds so as to not be handwavy on details but to nail it down succinctly. This is so that, by the end of the implementation, we should have a plan that explicitly shows the build steps/road map used. Active living docs reside in: `docs\model_spec\platform\implementation_maps\dev_substrate\{TRACK}\{COMP}.build_plan.md` where `{TRACK}` is `dev_min` or `dev_full`.
 - **Living plan = progressive elaboration**: Start with Phase 1..Phase X only. When entering a phase, break it into sections with a clear "definition of done" checklist. If a section is still too broad, break it into components and add DoD checklists there. Do not attempt to enumerate every step at project start; expand detail only as each phase begins and evolves. 
 - **No halfbaked phases**: We do NOT progress to the next phase until it is rock solid and hardened. No halfbaked phases or sections for any reason what so ever. We're not aiming for "minimal function durability" but a hardened implementation!
-
+- Work with cost effeciency in mind. There are no need for expensive runs or tests when we aren't certain of the platform working well. Before we bump up to expensive runs, whilst still maintaining the production standard of highthroughput, low latency, etc, one thing you can reduce is the amount of events and amount of time spent in each test run. You can bump it up to the expected number when confident of the platform's correctness. Spending 30mins and running 50M events 30times just wastes resources. Even the S3 buckets (apart from oracle store) contain dev_min and some stale dev_full data, that can be cleared out.
+- Also ensure to regularly flush the resources so we don't accumulate cost due to resources accumalating data from all these many runs. E.g. I noticed that DynamoDB had at a time 419Gb worth of data and counting. So that's not good. Even our ECR shouldn't contain outdated images, and much more.
+- I prefer you go for runs where you can accurately monitor the progress and debug each failure early on and in detail before commiting to ones that are just blind. THat said, make it a habit to ensure that failures can easily either in logs or whatever way is best, instead of blind runs
 ---
 
 ## 1) Reading order (primary authority first)
@@ -41,8 +43,6 @@ Read these in order before modifying code so you share the active `dev_full` con
    - platform narratives in `docs\model_spec\platform\narrative\`
    - component-specific design-authority docs in `docs\model_spec\platform\component-specific\`
    - platform-wide notes in `docs\model_spec\platform\platform-wide\`
-7. Baseline history only if needed for continuity/debugging, not as active authority:
-   - `docs\model_spec\platform\implementation_maps\local_parity\*.md`
 8. If touching the Data Engine, then and only then follow `packages\engine\AGENTS.md` [USER has to explicitly state this].
 
 _Authority rule: for platform work on `dev_full`, the AGENT must reason from the active `dev_full` build plans and `dev_full` implementation maps first. Conceptual narratives, component design-authority docs, platform-wide notes, and `local_parity` history are supporting references only. They must not override or replace the active `dev_full` build authority unless the USER explicitly approves a repin._
@@ -52,42 +52,8 @@ _Authority rule: for platform work on `dev_full`, the AGENT must reason from the
 ## 2) Test-yourself policy (no prescribed runner)
 - Own your test plan; build tests according to the design validation and not just random stuff. 
 - Record the test plan and results in each PR or working log entry.
+- DO NOT LITTER FILES AROUND THE REPO. ENSURE THAT YOU WORK NEATLY. Keep temp file in a `.temp/` file, keep run files neatly in `runs/` and don't just lay files any and everywhere
 
----
-
-## 2.5) Drift Sentinel Law (binding)
-This is a hard law for platform work. The AGENT must behave as a design-intent sentinel, not just a code editor.
-
-- **Design-intent awareness is mandatory:** before and during implementation, the AGENT must continuously align changes against:
-  - active `dev_full` phase DoD in `docs\model_spec\platform\implementation_maps\dev_substrate\dev_full\build\platform.build_plan.md` or the relevant component/subphase build plans in `docs\model_spec\platform\implementation_maps\dev_substrate\dev_full\build\`,
-  - active `dev_full` implementation maps in `docs\model_spec\platform\implementation_maps\dev_substrate\dev_full\`,
-  - pinned decisions in relevant `docs\model_spec\platform\pre-design_decisions` files,
-  - supporting flow intent in `docs\model_spec\platform\component-specific\flow-narrative-platform-design.md` only after the active `dev_full` authorities above are understood.
-These are the intended and already-materialized design flow of the platform. The AGENT must understand how `dev_full` was actually built before proposing or executing hardening changes.
-- **Continuous drift assessment is mandatory:** at each substantial step, the AGENT must ask and answer. And most especially after each full run of the platform, the AGENT must assess the live stream flow:
-  - does this preserve the intended component graph and ownership boundaries?
-  - does this preserve the already-built `dev_full` runtime posture and only harden it where required for production?
-  - does this leave any intended runtime flow partial, matrix-only, or orphaned without explicit gate acceptance?
-  - does this contradict an active `dev_full` build/impl decision, a pinned pre-design decision, or an explicitly accepted production repin?
-- **Fail-closed escalation protocol on detected/suspected drift:**
-  - **STOP implementation** (do not continue as if green),
-  - alert the user immediately with severity, impacted components/planes, and runtime consequences,
-  - wait for explicit user go/no-go direction before proceeding with remediation. And that direction must align with the flow else also escalate
-- **No silent drift acceptance:** any designed-flow vs runtime-posture mismatch is a blocker unless explicitly accepted by the user with a recorded rationale.
-- **Bias-to-warning rule:** if uncertain whether a mismatch is material, treat it as material and escalate.
-- **Rigorously inspect the full platform run:** Once the USER asks for a full live stream run, once done, we should evaluate every aspect of it to make sure there's no silent drift whatsoever
-- **Decision-completeness law (fail-closed):** when the USER says "proceed" to a phase/option/command, the AGENT MUST first verify that all required decisions/inputs for that scope are explicitly pinned. If any hole remains, the AGENT MUST stop execution and report the unresolved items to the USER (no defaults, no assumptions, no improvisation). The AGENT must keep doing this until the unresolved set is closed and only then proceed.
-- **Phase-coverage law (anti-cram, fail-closed):** before execution starts for any phase, the AGENT MUST explicitly expose all required capability lanes for that phase (authority/handles, identity/IAM, network, data stores, messaging, secrets, observability/evidence, rollback/rerun, teardown, budget as applicable). The AGENT MUST NOT force work into an assumed fixed number of sections/sub-phases; the plan must expand until closure-grade coverage is achieved. If any missing lane/hole is discovered at any point, execution MUST pause and the AGENT must report unresolved items to the USER and continue only after explicit closure.
-- **Branch-governance law (user-controlled, binding):**
-  - Before any branch-history operation, the AGENT MUST stop and obtain explicit USER go-ahead. Covered operations include: branch create/switch/delete, merge, rebase, cherry-pick, reset, cross-branch push, PR create/merge, and any workflow dispatch that depends on a branch other than the active one.
-  - The AGENT MUST request the USER's branch method first (or ask the USER to confirm the existing method), then restate the exact planned sequence using concrete branch names and expected outcomes.
-  - After restating the plan, the AGENT MUST wait for explicit USER confirmation before executing any covered operation.
-  - If confirmation is not explicit, execution remains blocked (fail-closed). No improvisation, no branch hopping, and no "best-effort" recovery is allowed.
-  - If the USER is actively working with another agent/project, the AGENT MUST assume cross-branch operations are unsafe and remain blocked until USER confirms a safe sequence.
-  - Default posture: stay on the active branch and avoid cross-branch operations unless the above protocol is completed.
-  - **Commit-scope law (hard bound):** The AGENT MUST NOT create commits except for GitHub Actions workflow files (for example under `.github/workflows/`) unless the USER gives explicit one-time approval for a broader commit scope.
-  - If a commit is required for workflow execution, the AGENT MUST stage only the workflow file(s) and explicitly exclude all non-workflow files.
-  - If non-workflow files are modified during implementation, the AGENT MUST leave them uncommitted and hand them to the USER for review/commit unless explicit approval is provided.
 ---
 
 ## 2.6) Performance-First Law (binding, platformwide)
@@ -96,28 +62,9 @@ This is a hard law for all implementation work (platform services, pipelines, jo
 - **Pre-implementation performance design is mandatory:** before coding, the AGENT must document expected complexity, candidate data structures, search/join strategy, memory/IO model, and rejected alternatives with rationale.
 - **No "wait-it-out" execution posture:** long runtimes are implementation defects until proven otherwise. The AGENT must optimize code paths before accepting slow runs.
 - **Algorithmic efficiency before resource scaling:** prefer better data structures, search/index strategy, join strategy, vectorization, streaming/chunking, and I/O layout over throwing CPU/RAM at the problem.
-- **Single-process efficient baseline first:** design for fast deterministic execution without requiring parallelism. Parallelism is optional and secondary, never the default crutch.
-- **Runtime-budget gates are mandatory:** each phase/state must carry explicit runtime budgets and measured elapsed evidence. "Hours" for a single state/segment is unacceptable unless explicitly approved by the USER with rationale recorded.
 - **Performance gate blocks implementation/remediation:** do not proceed past design or tuning steps unless measured runtime evidence shows improvement over baseline and movement toward (or achievement of) the minute-scale budget.
 - **Logging is budgeted:** keep required auditability, but cap log frequency/volume to avoid material runtime drag. Use heartbeat/progress checkpoints with practical cadence and make high-cardinality/per-event logs opt-in.
-- **Determinism and quality are non-negotiable:** performance work must preserve deterministic artifacts and target statistical realism; optimization cannot degrade correctness or contract compliance.
 - **Fail-closed on unexplained regressions:** if runtime materially regresses or stalls, stop and perform bottleneck analysis (hot path, I/O wait, memory pressure, external tool latency) before proceeding.
-- **Definition of done includes speed:** a phase is not complete unless both quality targets and runtime targets are met (or explicit USER waiver is recorded).
-
----
-
-## 2.7) Cost-Control Law (binding, platformwide)
-This is a hard law for all platform implementation and execution work. "Green" is invalid if spend discipline is missing.
-
-- **Cost efficiency is a first-class acceptance criterion:** success means "works correctly" and "works without avoidable spend."
-- **Cost-to-outcome proof is mandatory per phase:** each active phase must publish a spend envelope before execution and a closure receipt that maps spend to concrete proof/decision outcomes.
-- **Default idle-safe posture is mandatory:** non-active runtime lanes must remain stopped (`desired_count=0` or equivalent).
-- **Ephemeral execution over always-on is default:** use one-shot/job posture for non-daemon lanes unless explicit always-on justification is pinned.
-- **Auto-teardown is mandatory for dev windows:** idle environments must have bounded lifetime and deterministic teardown path.
-- **Right-sizing is mandatory:** CPU/memory/storage must be tuned from observed usage (p95/p99 posture), not generous static defaults.
-- **Cross-platform billing visibility is mandatory:** daily posture must include all active cost surfaces for the track (at minimum AWS; plus Confluent/Databricks when in scope).
-- **Fail-closed on unattributed or unexplained spend:** if cost appears without a mapped lane/outcome, stop phase advancement and remediate before proceeding.
-- **Cost exceptions require explicit USER approval:** any temporary cost waiver must be time-bounded, reasoned, and recorded in build plan + implementation map + logbook.
 
 ---
 
@@ -141,21 +88,13 @@ This is a hard law for all platform implementation and execution work. "Green" i
 
 ## Extra information
 - Stay proactive: surface TODOs, challenge suspect contract assumptions, and suggest stronger designs where appropriate.
-- Keep in mind that you're building for production 
+- Keep in mind that you're building for production as stated here: docs\experience_lake\platform-production-standard.md, and not a toy project
 - Keep `pyproject.toml` aligned with any new dependencies you introduce.
 - Ensure to check truly large files into git LFS.
-- **Sensitive artifacts and credentials (platformwide):** Runtime artifacts/logs may include capability tokens, lease tokens, or other secrets. Never commit these or paste them into implementation maps, build plans, or logbooks. If a run creates such artifacts, explicitly alert the user so they can decide whether to delete or quarantine them.
 - Log every decision and action in `docs\logbook` with local time (create the day file if needed).
 
 ---
 
-## Implementation doctrine (binding for every agent)
-- **Treat the platform pins as law.** ContextPins + canonical envelope, by‑ref artifacts, no‑PASS‑no‑read, idempotency, append‑only truths, deterministic registry resolution, and explicit degrade posture are non‑negotiable.
-- **Respect truth ownership boundaries.** SR owns run readiness + join surface; IG owns admission decisions; EB owns replay offsets; Engine owns world artifacts; DLA owns audit truth; Label Store owns labels; Registry owns ACTIVE bundle resolution; AL owns side‑effects/outcomes.
-- **Fail closed when compatibility is unknown.** If schema version, bundle compatibility, or gate evidence is missing/invalid, reject/quarantine rather than guessing.
-- **Build for at‑least‑once reality.** All side effects and state transitions must be safe under duplicates and replay; idempotency keys and append‑only histories are required.
-- **Make provenance first‑class.** Every cross‑component output must carry the pins, policy/bundle version, and evidence refs needed for replay and audit.
-- **Engineer for throughput as a first-class property.** Every implementation must target minute-scale runtime under expected workload, with explicit profiling evidence and justified tradeoffs.
 
 _This router stays deliberately light on mechanics so it evolves slowly while the project grows._
 

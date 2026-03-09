@@ -153,4 +153,17 @@ Read these in order before touching code so you align with the frozen specs. Not
 - **Correctness + determinism remain mandatory:** optimization is valid only if contracts pass, outputs remain deterministic, and statistical realism does not regress.
 - **Definition of done requires both:** a remediation step is only done when it meets quality thresholds and runtime budget (or has explicit USER waiver recorded).
 
+## Performance-First Law (binding, platformwide)
+This is a hard law for all implementation work (platform services, pipelines, joins, batch states, and tooling).
+
+- **Pre-implementation performance design is mandatory:** before coding, the AGENT must document expected complexity, candidate data structures, search/join strategy, memory/IO model, and rejected alternatives with rationale.
+- **No "wait-it-out" execution posture:** long runtimes are implementation defects until proven otherwise. The AGENT must optimize code paths before accepting slow runs.
+- **Algorithmic efficiency before resource scaling:** prefer better data structures, search/index strategy, join strategy, vectorization, streaming/chunking, and I/O layout over throwing CPU/RAM at the problem.
+- **Single-process efficient baseline first:** design for fast deterministic execution without requiring parallelism. Parallelism is optional and secondary, never the default crutch.
+- **Performance gate blocks implementation/remediation:** do not proceed past design or tuning steps unless measured runtime evidence shows improvement over baseline and movement toward (or achievement of) the minute-scale budget.
+- **Logging is budgeted:** keep required auditability, but cap log frequency/volume to avoid material runtime drag. Use heartbeat/progress checkpoints with practical cadence and make high-cardinality/per-event logs opt-in.
+- **Determinism and quality are non-negotiable:** performance work must preserve deterministic artifacts and target statistical realism; optimization cannot degrade correctness or contract compliance.
+- **Fail-closed on unexplained regressions:** if runtime materially regresses or stalls, stop and perform bottleneck analysis (hot path, I/O wait, memory pressure, external tool latency) before proceeding.
+- **Definition of done includes speed:** a phase is not complete unless both quality targets and runtime targets are met (or explicit USER waiver is recorded).
+
 _This router remains command-free by design. Execution strategy, test harness, and internal folder improvements stay up to you while respecting the governing specs._
