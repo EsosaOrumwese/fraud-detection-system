@@ -1,0 +1,82 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph LEARN["dev_full Learning / MLOps Graph"]
+    ORACLE["Oracle store inputs<br>read-only runtime boundary"]
+    OBJ[("S3 object store<br>datasets / manifests / evidence refs")]
+    TLABELS[["fp.bus.labels.events.v1"]]
+    TOFSREQ[["fp.bus.learning.ofs.requests.v1"]]
+    TOFSEVT[["fp.bus.learning.ofs.events.v1"]]
+    TMFREQ[["fp.bus.learning.mf.requests.v1"]]
+    TMFEVT[["fp.bus.learning.mf.events.v1"]]
+    TREG[["fp.bus.learning.registry.events.v1"]]
+
+    OFS["OFS<br>dataset build / replay materialization"]
+    DBX["Databricks workspace"]
+    DBXBUILD["OFS build job<br>fraud-platform-dev-full-ofs-build-v0"]
+    DBXQUAL["OFS quality job<br>fraud-platform-dev-full-ofs-quality-v0"]
+    GLUEDB[("Glue DBs<br>fraud_platform_dev_full_ofs<br>fraud_platform_dev_full_m15")]
+
+    MF["MF<br>train / eval / candidate bundle creation"]
+    SM["SageMaker"]
+    MLFLOW["MLflow<br>Databricks-managed tracking"]
+    SMPKG["Model package group<br>fraud-platform-dev-full-models"]
+    SMENDPT["Pinned serving handle<br>fraud-platform-dev-full-online-v0"]
+
+    MPR["MPR<br>promotion / rollback / active resolution"]
+    REGACTIVE["Active bundle / policy truth"]
+    DF["Runtime consumer<br>Decision Fabric"]
+
+    EVID[("S3 evidence bucket")]
+    PROMO["Promotion receipts"]
+    ROLLBACK["Rollback drill receipts"]
+    SSM["SSM handles<br>Databricks / MLflow / SageMaker refs"]
+    ROLEDBX["Databricks cross-account role"]
+    ROLESM["SageMaker execution role"]
+  end
+
+  ORACLE --> OBJ
+  TLABELS --> OFS
+  OBJ --> OFS
+  TOFSREQ --> OFS
+  OFS --> DBX
+  DBX --> DBXBUILD
+  DBX --> DBXQUAL
+  DBXBUILD --> GLUEDB
+  DBXBUILD --> OBJ
+  DBXQUAL --> EVID
+  OFS --> TOFSEVT
+  TOFSEVT --> MF
+  TMFREQ --> MF
+  MF --> SM
+  MF --> MLFLOW
+  MF --> TMFEVT
+  SM --> SMPKG
+  SMPKG -. bundle lineage .-> MPR
+  TMFEVT --> MPR
+  MPR --> TREG
+  MPR --> PROMO
+  MPR --> ROLLBACK
+  MPR --> REGACTIVE
+  SMENDPT -. pinned runtime serving surface .-> REGACTIVE
+  REGACTIVE --> DF
+  PROMO --> EVID
+  ROLLBACK --> EVID
+  SSM --> DBX
+  SSM --> MLFLOW
+  SSM --> SM
+  ROLEDBX --> DBX
+  ROLESM --> SM
+
+  classDef live fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.4px;
+  classDef store fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.4px;
+  classDef managed fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.4px;
+  classDef retained fill:#f5f5f5,stroke:#616161,color:#111,stroke-dasharray: 5 3;
+  class OFS,MF,MPR,DF live;
+  class ORACLE,OBJ,GLUEDB,EVID,SSM,TOFSREQ,TOFSEVT,TMFREQ,TMFEVT,TREG,TLABELS store;
+  class DBX,DBXBUILD,DBXQUAL,SM,MLFLOW,SMPKG,ROLEDBX,ROLESM managed;
+  class SMENDPT,REGACTIVE,PROMO,ROLLBACK retained;

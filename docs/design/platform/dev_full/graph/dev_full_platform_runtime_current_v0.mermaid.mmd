@@ -1,0 +1,169 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph RUNTIME["dev_full Runtime Graph"]
+    subgraph CONTROL["Control"]
+      GHA["GitHub Actions<br>bounded run dispatch"]
+      SFN["Step Functions<br>platform-run orchestrator"]
+      RUNID["Run identity pins<br>platform_run_id / scenario_run_id<br>phase_id / trace_id"]
+      CTRLBUS[["fp.bus.control.v1"]]
+    end
+
+    subgraph INGRESS["Ingress"]
+      WSPCLUSTER["ECS cluster<br>fraud-platform-dev-full-wsp-ephemeral"]
+      WSP["WSP replay producer<br>ECS/Fargate ephemeral task"]
+      HTTPAPI["HTTP API Gateway<br>fraud-platform-dev-full-ig-edge<br>v1 / 3000 rps / 6000 burst"]
+      IGLAMBDA["Ingress Lambda<br>fraud-platform-dev-full-ig-handler"]
+      ALB["Internal ALB<br>fp-dev-full-ig-svc"]
+      IGSVC_CLUSTER["ECS cluster<br>fraud-platform-dev-full-ingress"]
+      IGSVC["Ingress ECS service<br>fraud-platform-dev-full-ig-service"]
+      IGDDB[("DynamoDB<br>IG idempotency ledger")]
+      IGDLQ["SQS DLQ<br>fraud-platform-dev-full-ig-dlq"]
+    end
+
+    subgraph BUS["Event Transport"]
+      MSK[("MSK Serverless<br>fraud-platform-dev-full-msk")]
+      GLUEREG["Glue Schema Registry<br>fraud-platform-dev-full"]
+      TTRAFFIC[["fp.bus.traffic.fraud.v1"]]
+      TCTXE[["fp.bus.context.arrival_events.v1"]]
+      TCTXT[["fp.bus.context.arrival_entities.v1"]]
+      TFLOW[["fp.bus.context.flow_anchor.fraud.v1"]]
+      TRTDL[["fp.bus.rtdl.v1"]]
+      TAUDIT[["fp.bus.audit.v1"]]
+      TCASE[["fp.bus.case.triggers.v1"]]
+      TLABELS[["fp.bus.labels.events.v1"]]
+    end
+
+    subgraph RTDL["Real-Time Decision"]
+      EKS["EKS cluster<br>fraud-platform-dev-full"]
+      NG["Nodegroup<br>fraud-platform-dev-full-m6f-workers<br>idled to zero"]
+      NSRTDL["Namespace<br>fraud-platform-rtdl"]
+      CSFB["CSFB<br>fp-pr3-csfb"]
+      IEG["IEG<br>fp-pr3-ieg"]
+      OFP["OFP<br>fp-pr3-ofp"]
+      DL["DL<br>fp-pr3-dl"]
+      DF["DF<br>fp-pr3-df"]
+      AL["AL<br>fp-pr3-al"]
+      DLA["DLA<br>fp-pr3-dla"]
+      ARCHIVE["Archive Writer<br>fp-pr3-archive-writer"]
+      MSF["Managed Flink<br>fraud-platform-dev-full-rtdl-ieg-ofp-v0<br>retained path"]
+    end
+
+    subgraph CASELABEL["Case / Label"]
+      NSCL["Namespace<br>fraud-platform-case-labels"]
+      CASETRIG["Case Trigger<br>fp-pr3-case-trigger"]
+      CM["Case Mgmt<br>fp-pr3-case-mgmt"]
+      LS["Label Store<br>fp-pr3-label-store"]
+    end
+
+    subgraph STATE["Runtime State"]
+      AURORA[("Aurora Serverless v2<br>fraud-platform-dev-full-aurora")]
+      REDISH["Redis endpoint handle<br>SSM-backed"]
+      OBJ[("S3 object store<br>archive / quarantine / refs")]
+      EVID[("S3 evidence bucket")]
+    end
+  end
+
+  GHA --> SFN
+  RUNID -.-> SFN
+  RUNID -.-> WSP
+  RUNID -.-> IGLAMBDA
+  RUNID -.-> IGSVC
+  RUNID -.-> CSFB
+  RUNID -.-> IEG
+  RUNID -.-> OFP
+  RUNID -.-> DL
+  RUNID -.-> DF
+  RUNID -.-> AL
+  RUNID -.-> DLA
+  RUNID -.-> CASETRIG
+  RUNID -.-> CM
+  RUNID -.-> LS
+  SFN --> CTRLBUS
+  CTRLBUS --> MSK
+  SFN --> WSP
+
+  WSPCLUSTER --> WSP
+  WSP --> HTTPAPI
+  WSP --> ALB
+  HTTPAPI --> IGLAMBDA
+  ALB --> IGSVC
+  IGSVC_CLUSTER --> IGSVC
+  IGLAMBDA --> IGDDB
+  IGLAMBDA --> IGDLQ
+  IGSVC --> IGDDB
+  IGLAMBDA --> TTRAFFIC
+  IGLAMBDA --> TCTXE
+  IGLAMBDA --> TCTXT
+  IGLAMBDA --> TFLOW
+  IGSVC --> TTRAFFIC
+  IGSVC --> TCTXE
+  IGSVC --> TCTXT
+  IGSVC --> TFLOW
+
+  TTRAFFIC --> MSK
+  TCTXE --> MSK
+  TCTXT --> MSK
+  TFLOW --> MSK
+  TRTDL --> MSK
+  TAUDIT --> MSK
+  TCASE --> MSK
+  TLABELS --> MSK
+  MSK --> GLUEREG
+
+  NG --> EKS
+  EKS --> NSRTDL
+  NSRTDL --> CSFB
+  NSRTDL --> IEG
+  NSRTDL --> OFP
+  NSRTDL --> DL
+  NSRTDL --> DF
+  NSRTDL --> AL
+  NSRTDL --> DLA
+  NSRTDL --> ARCHIVE
+  TTRAFFIC --> CSFB
+  TCTXE --> CSFB
+  TCTXT --> CSFB
+  TFLOW --> CSFB
+  CSFB --> IEG
+  CSFB --> OFP
+  IEG --> AURORA
+  OFP --> AURORA
+  OFP -.-> REDISH
+  IEG -. retained managed parity .-> MSF
+  OFP -. retained managed parity .-> MSF
+  DL --> DF
+  DF --> TRTDL
+  DF --> TAUDIT
+  AL --> TAUDIT
+  DLA --> TAUDIT
+  ARCHIVE --> OBJ
+  ARCHIVE --> EVID
+
+  EKS --> NSCL
+  NSCL --> CASETRIG
+  NSCL --> CM
+  NSCL --> LS
+  TRTDL --> CASETRIG
+  TAUDIT --> CASETRIG
+  CASETRIG --> TCASE
+  TCASE --> CM
+  CM --> AURORA
+  CM --> LS
+  LS --> AURORA
+  LS --> TLABELS
+  TLABELS --> OBJ
+  TLABELS --> EVID
+
+  classDef live fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.4px;
+  classDef store fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.4px;
+  classDef control fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.4px;
+  classDef retained fill:#f5f5f5,stroke:#616161,color:#111,stroke-dasharray: 5 3;
+  class GHA,SFN,RUNID,CTRLBUS control;
+  class WSPCLUSTER,WSP,HTTPAPI,IGLAMBDA,ALB,IGSVC_CLUSTER,IGSVC,MSK,GLUEREG,EKS,NG,NSRTDL,CSFB,IEG,OFP,DL,DF,AL,DLA,ARCHIVE,NSCL,CASETRIG,CM,LS live;
+  class IGDDB,IGDLQ,AURORA,REDISH,OBJ,EVID store;
+  class MSF retained;

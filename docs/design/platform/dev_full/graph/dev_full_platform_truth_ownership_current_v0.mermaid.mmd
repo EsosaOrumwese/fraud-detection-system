@@ -1,0 +1,114 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph OWNERSHIP["dev_full Truth Ownership Graph"]
+    INBOUND["External inbound payload truth<br>owned outside platform"]
+    ORACLE["Oracle-store truth<br>read-only runtime boundary"]
+    IG["Ingress truth<br>admission / idempotency / quarantine"]
+    EB["Event-bus truth<br>topic offsets / replay boundary"]
+    RTDL["RTDL truth<br>context / features / decisions / actions / audit"]
+    CASE["Case truth<br>append-only case timeline"]
+    LABEL["Label truth<br>append-only label assertions"]
+    ARCHIVE["Archive truth<br>immutable event history"]
+    OFS["Dataset truth<br>replay-built manifests / tables"]
+    MF["Model-eval truth<br>train/eval lineage"]
+    REG["Registry truth<br>active bundle / policy resolution"]
+    GOV["Governance truth<br>run reports / receipts / append-only facts"]
+
+    DENGINE["Data Engine / upstream producer"]
+    WSP["WSP"]
+    IGLAMBDA["Ingress Lambda"]
+    IGSVC["Ingress ECS service"]
+    DDB[("IG idempotency DDB")]
+    MSK[("MSK Serverless")]
+    CSFB["CSFB"]
+    IEG["IEG"]
+    OFP["OFP"]
+    DF["DF"]
+    AL["AL"]
+    DLA["DLA"]
+    ARCHWR["Archive Writer"]
+    CM["Case Mgmt"]
+    LS["Label Store"]
+    DBX["Databricks / OFS"]
+    SM["SageMaker / MF"]
+    MLFLOW["MLflow"]
+    MPR["MPR"]
+    EVID[("Evidence bucket")]
+    OBJ[("Object store")]
+    AURORA[("Aurora")]
+  end
+
+  DENGINE --> INBOUND
+  DENGINE --> ORACLE
+  WSP --> INBOUND
+  WSP --> IGLAMBDA
+  WSP --> IGSVC
+
+  IGLAMBDA --> IG
+  IGSVC --> IG
+  IG --> DDB
+  IG --> MSK
+
+  MSK --> EB
+  EB --> CSFB
+  EB --> IEG
+  EB --> OFP
+  EB --> DF
+  EB --> AL
+  EB --> DLA
+  EB --> CM
+  EB --> LS
+  EB --> DBX
+  EB --> SM
+  EB --> MPR
+
+  CSFB --> RTDL
+  IEG --> RTDL
+  OFP --> RTDL
+  DF --> RTDL
+  AL --> RTDL
+  DLA --> RTDL
+  RTDL --> AURORA
+  RTDL --> OBJ
+
+  CM --> CASE
+  CASE --> AURORA
+  CASE --> EVID
+
+  LS --> LABEL
+  LABEL --> AURORA
+  LABEL --> OBJ
+  LABEL --> EVID
+
+  ARCHWR --> ARCHIVE
+  ARCHIVE --> OBJ
+  ARCHIVE --> EVID
+
+  DBX --> OFS
+  OFS --> OBJ
+  OFS --> EVID
+
+  SM --> MF
+  MLFLOW --> MF
+  MF --> EVID
+  MF --> MPR
+
+  MPR --> REG
+  REG --> DF
+  REG --> EVID
+
+  EVID --> GOV
+  OBJ --> GOV
+  AURORA --> GOV
+
+  classDef owner fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.4px;
+  classDef component fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.4px;
+  classDef store fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.4px;
+  class INBOUND,ORACLE,IG,EB,RTDL,CASE,LABEL,ARCHIVE,OFS,MF,REG,GOV owner;
+  class DENGINE,WSP,IGLAMBDA,IGSVC,CSFB,IEG,OFP,DF,AL,DLA,ARCHWR,CM,LS,DBX,SM,MLFLOW,MPR component;
+  class DDB,MSK,EVID,OBJ,AURORA store;
