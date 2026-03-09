@@ -1,0 +1,344 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% dev_full platform resource topology
+%% concrete implemented resources grouped by platform section
+flowchart LR
+
+  subgraph CONTROL["Control Resources"]
+    GHA["GitHub Actions"]
+    TFCORE["Terraform stack<br>core"]
+    TFSTREAM["Terraform stack<br>streaming"]
+    TFRUNTIME["Terraform stack<br>runtime"]
+    TFDML["Terraform stack<br>data_ml"]
+    TFOPS["Terraform stack<br>ops"]
+    SFN["Step Functions<br>fraud-platform-dev-full-platform-run-v0"]
+    ECR["ECR repo<br>fraud-platform-dev-full"]
+  end
+
+  subgraph INGRESS["Ingress Resources"]
+    WSPCLUSTER["ECS cluster<br>fraud-platform-dev-full-wsp-ephemeral"]
+    WSPTASK["WSP ephemeral task family"]
+    WSPTASKDEF["Task definition family<br>WSP ephemeral replay task"]
+    HTTPAPI["HTTP API<br>fraud-platform-dev-full-ig-edge"]
+    APISTAGE["Stage<br>v1"]
+    APIRPOST["Route<br>POST /ingest/push"]
+    APIRHEALTH["Route<br>GET /ops/health"]
+    IGLAMBDA["Lambda<br>fraud-platform-dev-full-ig-handler"]
+    IGSVCCLUSTER["ECS cluster<br>fraud-platform-dev-full-ingress"]
+    ALB["ALB<br>fp-dev-full-ig-svc"]
+    TG["Target group<br>fp-dev-full-ig-svc"]
+    IGSVC["ECS service<br>fraud-platform-dev-full-ig-service"]
+    IGTASKDEF["Task definition family<br>fraud-platform-dev-full-ig-service"]
+    IGDDB["DynamoDB table<br>fraud-platform-dev-full-ig-idempotency"]
+    IGDLQ["SQS queue<br>fraud-platform-dev-full-ig-dlq"]
+  end
+
+  subgraph TRANSPORT["Event Transport Resources"]
+    MSK["MSK Serverless cluster<br>fraud-platform-dev-full-msk"]
+    GLUEREG["Glue Schema Registry<br>fraud-platform-dev-full"]
+    TCTRL["Topic<br>fp.bus.control.v1"]
+    TTRAFFIC["Topic<br>fp.bus.traffic.fraud.v1"]
+    TCTXE["Topic<br>fp.bus.context.arrival_events.v1"]
+    TCTXT["Topic<br>fp.bus.context.arrival_entities.v1"]
+    TFLOW["Topic<br>fp.bus.context.flow_anchor.fraud.v1"]
+    TRTDL["Topic<br>fp.bus.rtdl.v1"]
+    TAUDIT["Topic<br>fp.bus.audit.v1"]
+    TCASE["Topic<br>fp.bus.case.triggers.v1"]
+    TLABELS["Topic<br>fp.bus.labels.events.v1"]
+    TOFSREQ["Topic<br>fp.bus.learning.ofs.requests.v1"]
+    TOFSEVT["Topic<br>fp.bus.learning.ofs.events.v1"]
+    TMFREQ["Topic<br>fp.bus.learning.mf.requests.v1"]
+    TMFEVT["Topic<br>fp.bus.learning.mf.events.v1"]
+    TREG["Topic<br>fp.bus.learning.registry.events.v1"]
+  end
+
+  subgraph RTDL["RTDL Resources"]
+    EKS["EKS cluster<br>fraud-platform-dev-full"]
+    NG["Nodegroup<br>fraud-platform-dev-full-m6f-workers"]
+    NSRTDL["Namespace<br>fraud-platform-rtdl"]
+    SARTDL["ServiceAccount<br>rtdl"]
+    SADEC["ServiceAccount<br>decision-lane"]
+    CSFB["Deployment<br>fp-pr3-csfb"]
+    IEG["Deployment<br>fp-pr3-ieg"]
+    OFP["Deployment<br>fp-pr3-ofp"]
+    DL["Deployment<br>fp-pr3-dl"]
+    DF["Deployment<br>fp-pr3-df"]
+    AL["Deployment<br>fp-pr3-al"]
+    DLA["Deployment<br>fp-pr3-dla"]
+    ARCHIVE["Deployment<br>fp-pr3-archive-writer"]
+    MSF["Managed Flink app<br>fraud-platform-dev-full-rtdl-ieg-ofp-v0"]
+  end
+
+  subgraph CASELABEL["Case / Label Resources"]
+    NSCL["Namespace<br>fraud-platform-case-labels"]
+    SACL["ServiceAccount<br>case-labels"]
+    CASETRIG["Deployment<br>fp-pr3-case-trigger"]
+    CM["Deployment<br>fp-pr3-case-mgmt"]
+    LS["Deployment<br>fp-pr3-label-store"]
+  end
+
+  subgraph LEARNING["Learning / Evolution Resources"]
+    DBX["Databricks workspace"]
+    DBXBUILD["Databricks job<br>fraud-platform-dev-full-ofs-build-v0"]
+    DBXQUAL["Databricks job<br>fraud-platform-dev-full-ofs-quality-v0"]
+    GLUEDB1["Glue DB<br>fraud_platform_dev_full_ofs"]
+    GLUEDB2["Glue DB<br>fraud_platform_dev_full_m15"]
+    SM["SageMaker control surface"]
+    SMPKG["Model package group<br>fraud-platform-dev-full-models"]
+    SMENDPT["Endpoint handle<br>fraud-platform-dev-full-online-v0"]
+    MLFLOW["MLflow tracking surface<br>Databricks-managed"]
+  end
+
+  subgraph GOV["Governance / Provenance Resources"]
+    NSOBS["Namespace<br>fraud-platform-obs-gov"]
+    SAOBS["ServiceAccount<br>obs-gov"]
+    EVID["S3 bucket<br>fraud-platform-dev-full-evidence"]
+    DASHOPS["CloudWatch dashboard<br>fraud-platform-dev-full-operations"]
+    DASHCOST["CloudWatch dashboard<br>fraud-platform-dev-full-cost-guardrail"]
+    BUDGET["Budget<br>fraud-platform-dev-full-monthly"]
+  end
+
+  subgraph STATE["Shared State / Storage Resources"]
+    OBJ["S3 bucket<br>fraud-platform-dev-full-object-store"]
+    ART["S3 bucket<br>fraud-platform-dev-full-artifacts"]
+    TFSTATE["S3 bucket<br>fraud-platform-dev-full-tfstate"]
+    AURORA["Aurora cluster<br>fraud-platform-dev-full-aurora"]
+    AURWRITER["Aurora writer instance<br>fraud-platform-dev-full-aurora-writer-1"]
+    REDISH["Redis endpoint handle<br>SSM-backed"]
+  end
+
+  subgraph SUBSTRATE["Substrate / Network / Identity Resources"]
+    VPC["VPC<br>vpc-0e7f9d89e5d468c06"]
+    PUB1["Subnet<br>fraud-platform-dev-full-public_01"]
+    PUB2["Subnet<br>fraud-platform-dev-full-public_02"]
+    PRIV1["Subnet<br>fraud-platform-dev-full-private_01"]
+    PRIV2["Subnet<br>fraud-platform-dev-full-private_02"]
+    VPCESTS["VPC endpoint<br>STS"]
+    VPCESSM["VPC endpoint<br>SSM"]
+    VPCELOGS["VPC endpoint<br>CloudWatch Logs"]
+    VPCEECRAPI["VPC endpoint<br>ECR API"]
+    VPCEECRDKR["VPC endpoint<br>ECR DKR"]
+    VPCEEC2["VPC endpoint<br>EC2"]
+    VPCEEXECAPI["VPC endpoint<br>execute-api"]
+    VPCESQS["VPC endpoint<br>SQS"]
+    VPCES3["Gateway endpoint<br>S3"]
+    VPCEDDB["Gateway endpoint<br>DynamoDB"]
+    SSM["SSM Parameter Store"]
+    OIDC["GitHub OIDC trust"]
+    ROLETF["IAM identity<br>fraud-dev"]
+    ROLEBASE["IAM role<br>runtime-platform-base"]
+    ROLENODE["IAM role<br>eks-nodegroup"]
+    ROLEFLINK["IAM role<br>flink-execution"]
+    ROLELAMBDA["IAM role<br>lambda-ig-execution"]
+    ROLEAPIGW["IAM role<br>apigw-ig-invoke"]
+    ROLEDDB["IAM role<br>ddb-ig-idempotency-rw"]
+    ROLESFN["IAM role<br>stepfunctions-orchestrator"]
+    ROLEECSEXEC["IAM role<br>ecs-ig-task-execution"]
+    ROLEECSRUNTIME["IAM role<br>ecs-ig-task-runtime"]
+    ROLEWSPEXEC["IAM role<br>wsp task-exec"]
+    ROLEWSPRUN["IAM role<br>wsp task-runtime"]
+    ROLEIRSARTDL["IAM role<br>irsa-rtdl"]
+    ROLEIRSADEC["IAM role<br>irsa-decision-lane"]
+    ROLEIRSACL["IAM role<br>irsa-case-labels"]
+    ROLEIRSAOBS["IAM role<br>irsa-obs-gov"]
+    ROLEDBX["IAM role<br>databricks cross-account"]
+    ROLESM["IAM role<br>sagemaker execution"]
+    ROLEMWAA["IAM role<br>mwaa-execution"]
+  end
+
+  GHA --> TFCORE
+  GHA --> TFSTREAM
+  GHA --> TFRUNTIME
+  GHA --> TFDML
+  GHA --> TFOPS
+  GHA --> SFN
+  GHA --> ECR
+  GHA --> OIDC
+  TFCORE --> TFSTATE
+  TFSTREAM --> TFSTATE
+  TFRUNTIME --> TFSTATE
+  TFDML --> TFSTATE
+  TFOPS --> TFSTATE
+  ECR --> IGTASKDEF
+  ECR --> WSPTASKDEF
+
+  SFN --> TCTRL
+  SFN --> WSPTASK
+  WSPCLUSTER --> WSPTASK
+  WSPTASK --> WSPTASKDEF
+  WSPTASK --> HTTPAPI
+  WSPTASK --> ALB
+  HTTPAPI --> APISTAGE
+  APISTAGE --> APIRPOST
+  APISTAGE --> APIRHEALTH
+  APIRPOST --> IGLAMBDA
+  APIRHEALTH --> IGLAMBDA
+  IGSVCCLUSTER --> IGSVC
+  ALB --> TG
+  TG --> IGSVC
+  IGSVC --> IGTASKDEF
+  IGLAMBDA --> IGDDB
+  IGLAMBDA --> IGDLQ
+  IGLAMBDA --> TTRAFFIC
+  IGLAMBDA --> TCTXE
+  IGLAMBDA --> TCTXT
+  IGLAMBDA --> TFLOW
+  IGSVC --> IGDDB
+  IGSVC --> TTRAFFIC
+  IGSVC --> TCTXE
+  IGSVC --> TCTXT
+  IGSVC --> TFLOW
+
+  TCTRL --> MSK
+  TTRAFFIC --> MSK
+  TCTXE --> MSK
+  TCTXT --> MSK
+  TFLOW --> MSK
+  TRTDL --> MSK
+  TAUDIT --> MSK
+  TCASE --> MSK
+  TLABELS --> MSK
+  TOFSREQ --> MSK
+  TOFSEVT --> MSK
+  TMFREQ --> MSK
+  TMFEVT --> MSK
+  TREG --> MSK
+  MSK --> GLUEREG
+
+  EKS --> NG
+  EKS --> NSRTDL
+  NSRTDL --> SARTDL
+  NSRTDL --> SADEC
+  NSRTDL --> CSFB
+  NSRTDL --> IEG
+  NSRTDL --> OFP
+  NSRTDL --> DL
+  NSRTDL --> DF
+  NSRTDL --> AL
+  NSRTDL --> DLA
+  NSRTDL --> ARCHIVE
+  IEG -. retained parity path .-> MSF
+  OFP -. retained parity path .-> MSF
+
+  EKS --> NSCL
+  NSCL --> SACL
+  NSCL --> CASETRIG
+  NSCL --> CM
+  NSCL --> LS
+
+  DBX --> DBXBUILD
+  DBX --> DBXQUAL
+  DBXBUILD --> GLUEDB1
+  DBXQUAL --> GLUEDB2
+  SM --> SMPKG
+  SM -. pinned serving handle .-> SMENDPT
+
+  EKS --> NSOBS
+  NSOBS --> SAOBS
+  EVID --> DASHOPS
+  EVID --> DASHCOST
+  BUDGET --> DASHCOST
+
+  AURORA --> AURWRITER
+
+  VPC --> PUB1
+  VPC --> PUB2
+  VPC --> PRIV1
+  VPC --> PRIV2
+  PRIV1 --> VPCESTS
+  PRIV1 --> VPCESSM
+  PRIV1 --> VPCELOGS
+  PRIV1 --> VPCEECRAPI
+  PRIV1 --> VPCEECRDKR
+  PRIV1 --> VPCEEC2
+  PRIV1 --> VPCEEXECAPI
+  PRIV1 --> VPCESQS
+  PRIV1 --> VPCES3
+  PRIV1 --> VPCEDDB
+  PRIV2 --> VPCESTS
+  PRIV2 --> VPCESSM
+  PRIV2 --> VPCELOGS
+  PRIV2 --> VPCEECRAPI
+  PRIV2 --> VPCEECRDKR
+  PRIV2 --> VPCEEC2
+  PRIV2 --> VPCEEXECAPI
+  PRIV2 --> VPCESQS
+  PRIV2 --> VPCES3
+  PRIV2 --> VPCEDDB
+  PUB1 --> ALB
+  PUB2 --> ALB
+  PRIV1 --> EKS
+  PRIV2 --> EKS
+  PRIV1 --> AURORA
+  PRIV2 --> AURORA
+  PRIV1 --> IGSVCCLUSTER
+  PRIV2 --> IGSVCCLUSTER
+  SSM --> HTTPAPI
+  SSM --> IGLAMBDA
+  SSM --> IGSVC
+  SSM --> AURORA
+  SSM --> REDISH
+  SSM --> DBX
+  SSM --> SM
+  SSM --> MLFLOW
+
+  OIDC --> ROLETF
+  OIDC --> ROLEBASE
+  OIDC --> ROLENODE
+  OIDC --> ROLEFLINK
+  OIDC --> ROLELAMBDA
+  OIDC --> ROLEAPIGW
+  OIDC --> ROLEDDB
+  OIDC --> ROLESFN
+  OIDC --> ROLEECSEXEC
+  OIDC --> ROLEECSRUNTIME
+  OIDC --> ROLEWSPEXEC
+  OIDC --> ROLEWSPRUN
+  OIDC --> ROLEIRSARTDL
+  OIDC --> ROLEIRSADEC
+  OIDC --> ROLEIRSACL
+  OIDC --> ROLEIRSAOBS
+  OIDC --> ROLEDBX
+  OIDC --> ROLESM
+  OIDC --> ROLEMWAA
+
+  ROLETF --> TFCORE
+  ROLETF --> TFSTREAM
+  ROLETF --> TFRUNTIME
+  ROLETF --> TFDML
+  ROLETF --> TFOPS
+  ROLESFN --> SFN
+  ROLELAMBDA --> IGLAMBDA
+  ROLEAPIGW --> HTTPAPI
+  ROLEDDB --> IGDDB
+  ROLEECSEXEC --> IGSVC
+  ROLEECSRUNTIME --> IGSVC
+  ROLEWSPEXEC --> WSPTASK
+  ROLEWSPRUN --> WSPTASK
+  ROLEBASE --> EKS
+  ROLENODE --> NG
+  ROLEFLINK --> MSF
+  ROLEIRSARTDL --> SARTDL
+  ROLEIRSADEC --> SADEC
+  ROLEIRSACL --> SACL
+  ROLEIRSAOBS --> SAOBS
+  ROLEDBX --> DBX
+  ROLESM --> SM
+
+  classDef control fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.4px;
+  classDef ingress fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.4px;
+  classDef transport fill:#fff8e1,stroke:#ef6c00,color:#111,stroke-width:1.4px;
+  classDef state fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.4px;
+  classDef infra fill:#ede7f6,stroke:#4527a0,color:#111,stroke-width:1.4px;
+  classDef retained fill:#f5f5f5,stroke:#616161,color:#111,stroke-dasharray: 5 3;
+
+  class GHA,TFCORE,TFSTREAM,TFRUNTIME,TFDML,TFOPS,SFN,ECR control;
+  class WSPCLUSTER,WSPTASK,WSPTASKDEF,HTTPAPI,APISTAGE,APIRPOST,APIRHEALTH,IGLAMBDA,IGSVCCLUSTER,ALB,TG,IGSVC,IGTASKDEF,IGDDB,IGDLQ ingress;
+  class MSK,GLUEREG,TCTRL,TTRAFFIC,TCTXE,TCTXT,TFLOW,TRTDL,TAUDIT,TCASE,TLABELS,TOFSREQ,TOFSEVT,TMFREQ,TMFEVT,TREG transport;
+  class EKS,NG,NSRTDL,SARTDL,SADEC,CSFB,IEG,OFP,DL,DF,AL,DLA,ARCHIVE,NSCL,SACL,CASETRIG,CM,LS,DBX,DBXBUILD,DBXQUAL,SM,SMPKG,MLFLOW,NSOBS,SAOBS,DASHOPS,DASHCOST,BUDGET ingress;
+  class EVID,OBJ,ART,TFSTATE,AURORA,AURWRITER,REDISH state;
+  class VPC,PUB1,PUB2,PRIV1,PRIV2,VPCESTS,VPCESSM,VPCELOGS,VPCEECRAPI,VPCEECRDKR,VPCEEC2,VPCEEXECAPI,VPCESQS,VPCES3,VPCEDDB,SSM,OIDC,ROLETF,ROLEBASE,ROLENODE,ROLEFLINK,ROLELAMBDA,ROLEAPIGW,ROLEDDB,ROLESFN,ROLEECSEXEC,ROLEECSRUNTIME,ROLEWSPEXEC,ROLEWSPRUN,ROLEIRSARTDL,ROLEIRSADEC,ROLEIRSACL,ROLEIRSAOBS,ROLEDBX,ROLESM,ROLEMWAA infra;
+  class MSF,SMENDPT retained;

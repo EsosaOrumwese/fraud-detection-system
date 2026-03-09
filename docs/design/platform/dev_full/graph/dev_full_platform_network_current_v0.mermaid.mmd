@@ -101,17 +101,14 @@ flowchart LR
   %% 6. LEARNING / EVOLUTION NETWORK
   %% =========================================================
   subgraph LEARN["6. Learning / Evolution Network"]
-    OFS["OFS logical component<br>dataset build / replay materialization"]
-    MF["MF logical component<br>train / eval / candidate bundle"]
-    MPR["MPR logical component<br>promotion / rollback / active resolution"]
-    DBX["Databricks workspace<br>managed OFS substrate"]
+    DBX["Databricks (OFS)<br>dataset build / replay materialization"]
     DBXBUILD["Job<br>fraud-platform-dev-full-ofs-build-v0"]
     DBXQUAL["Job<br>fraud-platform-dev-full-ofs-quality-v0"]
     GLUEDB[("Glue DBs<br>fraud_platform_dev_full_ofs<br>fraud_platform_dev_full_m15")]
-    SM["SageMaker managed substrate"]
+    SM["SageMaker (MF)<br>train / eval / candidate bundle"]
     SMPKG["Model package group<br>fraud-platform-dev-full-models"]
     SMENDPT["Endpoint handle<br>fraud-platform-dev-full-online-v0<br>pinned, not active now"]
-    MLFLOW["MLflow<br>databricks-managed tracking URI<br>/Shared/fraud-platform/dev_full/mlflow_exp_v0"]
+    MLFLOW["MLflow (MPR)<br>databricks-managed tracking URI<br>/Shared/fraud-platform/dev_full/mlflow_exp_v0"]
     REGACTIVE["Active bundle / policy resolution<br>runtime-consumed registry truth"]
   end
 
@@ -234,9 +231,9 @@ flowchart LR
   RUNID -. required pins .-> CASETRIG
   RUNID -. required pins .-> CM
   RUNID -. required pins .-> LS
-  RUNID -. required pins .-> OFS
-  RUNID -. required pins .-> MF
-  RUNID -. required pins .-> MPR
+  RUNID -. required pins .-> DBX
+  RUNID -. required pins .-> SM
+  RUNID -. required pins .-> MLFLOW
   RUNID -. required pins .-> REPORTS
   RUNTIMEPATH -. selection rule .-> SFN
   RUNTIMEPATH -. selection rule .-> IGLAMBDA
@@ -359,29 +356,27 @@ flowchart LR
   %% Learning / evolution edges
   %% =========================================================
   ORACLE --> OBJ
-  OBJ --> OFS
-  TLABELS --> OFS
-  TOFSREQ --> OFS
-  OFS --> DBX
+  OBJ --> DBX
+  TLABELS --> DBX
+  TOFSREQ --> DBX
   DBX --> DBXBUILD
   DBX --> DBXQUAL
   DBXBUILD --> GLUEDB
   DBXBUILD --> OBJ
   DBXQUAL --> EVID
-  OFS --> TOFSEVT
-  TOFSEVT --> MF
-  TMFREQ --> MF
-  MF --> SM
-  MF --> MLFLOW
-  MF --> TMFEVT
+  DBX --> TOFSEVT
+  TOFSEVT --> SM
+  TMFREQ --> SM
+  SM --> MLFLOW
+  SM --> TMFEVT
   SM --> SMPKG
-  SMPKG -. candidate / promoted bundle lineage .-> MPR
+  SMPKG -. candidate / promoted bundle lineage .-> MLFLOW
   SMENDPT -. pinned runtime serving handle .-> REGACTIVE
-  TMFEVT --> MPR
-  MPR --> TREG
-  MPR --> PROMO
-  MPR --> ROLLBACK
-  MPR --> REGACTIVE
+  TMFEVT --> MLFLOW
+  MLFLOW --> TREG
+  MLFLOW --> PROMO
+  MLFLOW --> ROLLBACK
+  MLFLOW --> REGACTIVE
   REGACTIVE --> DF
 
   %% =========================================================

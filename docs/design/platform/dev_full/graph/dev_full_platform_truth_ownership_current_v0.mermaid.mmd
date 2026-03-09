@@ -14,9 +14,9 @@ flowchart LR
     CASE["Case truth<br>append-only case timeline"]
     LABEL["Label truth<br>append-only label assertions"]
     ARCHIVE["Archive truth<br>immutable event history"]
-    OFS["Dataset truth<br>replay-built manifests / tables"]
-    MF["Model-eval truth<br>train/eval lineage"]
-    REG["Registry truth<br>active bundle / policy resolution"]
+    OFS["Dataset truth<br>Databricks-built manifests / tables"]
+    MF["Model-eval truth<br>SageMaker train/eval lineage"]
+    REG["Registry truth<br>MLflow-backed active bundle resolution"]
     GOV["Governance truth<br>run reports / receipts / append-only facts"]
 
     DENGINE["Data Engine / upstream producer"]
@@ -34,10 +34,9 @@ flowchart LR
     ARCHWR["Archive Writer"]
     CM["Case Mgmt"]
     LS["Label Store"]
-    DBX["Databricks / OFS"]
-    SM["SageMaker / MF"]
-    MLFLOW["MLflow"]
-    MPR["MPR"]
+    DBX["Databricks (OFS)"]
+    SM["SageMaker (MF)"]
+    MLFLOW["MLflow (MPR)"]
     EVID[("Evidence bucket")]
     OBJ[("Object store")]
     AURORA[("Aurora")]
@@ -65,7 +64,6 @@ flowchart LR
   EB --> LS
   EB --> DBX
   EB --> SM
-  EB --> MPR
 
   CSFB --> RTDL
   IEG --> RTDL
@@ -94,11 +92,9 @@ flowchart LR
   OFS --> EVID
 
   SM --> MF
-  MLFLOW --> MF
+  MLFLOW --> REG
   MF --> EVID
-  MF --> MPR
 
-  MPR --> REG
   REG --> DF
   REG --> EVID
 
@@ -110,5 +106,5 @@ flowchart LR
   classDef component fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.4px;
   classDef store fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.4px;
   class INBOUND,ORACLE,IG,EB,RTDL,CASE,LABEL,ARCHIVE,OFS,MF,REG,GOV owner;
-  class DENGINE,WSP,IGLAMBDA,IGSVC,CSFB,IEG,OFP,DF,AL,DLA,ARCHWR,CM,LS,DBX,SM,MLFLOW,MPR component;
+  class DENGINE,WSP,IGLAMBDA,IGSVC,CSFB,IEG,OFP,DF,AL,DLA,ARCHWR,CM,LS,DBX,SM,MLFLOW component;
   class DDB,MSK,EVID,OBJ,AURORA store;

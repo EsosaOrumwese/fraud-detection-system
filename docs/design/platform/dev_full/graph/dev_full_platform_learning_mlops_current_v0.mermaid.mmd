@@ -15,19 +15,16 @@ flowchart LR
     TMFEVT[["fp.bus.learning.mf.events.v1"]]
     TREG[["fp.bus.learning.registry.events.v1"]]
 
-    OFS["OFS<br>dataset build / replay materialization"]
-    DBX["Databricks workspace"]
+    DBX["Databricks (OFS)<br>dataset build / replay materialization"]
     DBXBUILD["OFS build job<br>fraud-platform-dev-full-ofs-build-v0"]
     DBXQUAL["OFS quality job<br>fraud-platform-dev-full-ofs-quality-v0"]
     GLUEDB[("Glue DBs<br>fraud_platform_dev_full_ofs<br>fraud_platform_dev_full_m15")]
 
-    MF["MF<br>train / eval / candidate bundle creation"]
-    SM["SageMaker"]
-    MLFLOW["MLflow<br>Databricks-managed tracking"]
+    SM["SageMaker (MF)<br>train / eval / candidate bundle creation"]
+    MLFLOW["MLflow (MPR)<br>Databricks-managed tracking<br>promotion / rollback / active resolution"]
     SMPKG["Model package group<br>fraud-platform-dev-full-models"]
     SMENDPT["Pinned serving handle<br>fraud-platform-dev-full-online-v0"]
 
-    MPR["MPR<br>promotion / rollback / active resolution"]
     REGACTIVE["Active bundle / policy truth"]
     DF["Runtime consumer<br>Decision Fabric"]
 
@@ -40,28 +37,26 @@ flowchart LR
   end
 
   ORACLE --> OBJ
-  TLABELS --> OFS
-  OBJ --> OFS
-  TOFSREQ --> OFS
-  OFS --> DBX
+  TLABELS --> DBX
+  OBJ --> DBX
+  TOFSREQ --> DBX
   DBX --> DBXBUILD
   DBX --> DBXQUAL
   DBXBUILD --> GLUEDB
   DBXBUILD --> OBJ
   DBXQUAL --> EVID
-  OFS --> TOFSEVT
-  TOFSEVT --> MF
-  TMFREQ --> MF
-  MF --> SM
-  MF --> MLFLOW
-  MF --> TMFEVT
+  DBX --> TOFSEVT
+  TOFSEVT --> SM
+  TMFREQ --> SM
+  SM --> MLFLOW
+  SM --> TMFEVT
   SM --> SMPKG
-  SMPKG -. bundle lineage .-> MPR
-  TMFEVT --> MPR
-  MPR --> TREG
-  MPR --> PROMO
-  MPR --> ROLLBACK
-  MPR --> REGACTIVE
+  SMPKG -. bundle lineage .-> MLFLOW
+  TMFEVT --> MLFLOW
+  MLFLOW --> TREG
+  MLFLOW --> PROMO
+  MLFLOW --> ROLLBACK
+  MLFLOW --> REGACTIVE
   SMENDPT -. pinned runtime serving surface .-> REGACTIVE
   REGACTIVE --> DF
   PROMO --> EVID
@@ -76,7 +71,7 @@ flowchart LR
   classDef store fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.4px;
   classDef managed fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.4px;
   classDef retained fill:#f5f5f5,stroke:#616161,color:#111,stroke-dasharray: 5 3;
-  class OFS,MF,MPR,DF live;
+  class DF live;
   class ORACLE,OBJ,GLUEDB,EVID,SSM,TOFSREQ,TOFSEVT,TMFREQ,TMFEVT,TREG,TLABELS store;
-  class DBX,DBXBUILD,DBXQUAL,SM,MLFLOW,SMPKG,ROLEDBX,ROLESM managed;
+  class DBX,SM,MLFLOW,DBXBUILD,DBXQUAL,SMPKG,ROLEDBX,ROLESM managed;
   class SMENDPT,REGACTIVE,PROMO,ROLLBACK retained;
