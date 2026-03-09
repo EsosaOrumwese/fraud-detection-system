@@ -1,0 +1,325 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% dev_full distributed platform network - implemented current truth / idle snapshot
+%% as observed on 2026-03-09 after compute idling
+flowchart LR
+
+  %% =========================================================
+  %% 1. CONTROL NETWORK
+  %% =========================================================
+  subgraph CONTROL["1. Control Network"]
+    CI["GitHub Actions + Terraform\nworkflow dispatch / infra apply / runtime materialization"]
+    SFN["Step Functions\nfraud-platform-dev-full-platform-run-v0\nrun orchestration + state transitions"]
+    CTRLTOPIC[["fp.bus.control.v1\ncontrol bus"]]
+    RUNID["Run identity pins\nplatform_run_id / scenario_run_id / phase_id / trace_id"]
+  end
+
+  %% =========================================================
+  %% 2. INGRESS NETWORK
+  %% =========================================================
+  subgraph INGRESS["2. Ingress Network"]
+    WSP["WSP\nECS/Fargate ephemeral producer\ncurrent load injector"]
+    ALB["Internal ALB\nfp-dev-full-ig-svc\nlive ingress edge"]
+    IGSVC["IG Service\nECS service fraud-platform-dev-full-ig-service\ncurrent primary ingress runtime\n(idled: desired=0 / running=0)"]
+    IGLAMBDA["IG Lambda\nfraud-platform-dev-full-ig-handler\nretained ingress implementation"]
+    IGDDB[("DynamoDB\nfraud-platform-dev-full-ig-idempotency\nidempotency + admit ledger")]
+    IGRECEIPTS["IG receipts / quarantine refs\nobject-store evidence surfaces"]
+  end
+
+  %% =========================================================
+  %% 3. EVENT TRANSPORT NETWORK
+  %% =========================================================
+  subgraph TRANSPORT["3. Event Transport Network"]
+    MSK[("MSK Serverless\nfraud-platform-dev-full-msk")]
+    TTRAFFIC[["fp.bus.traffic.fraud.v1"]]
+    TCTXEVENTS[["fp.bus.context.arrival_events.v1"]]
+    TCTXENT[["fp.bus.context.arrival_entities.v1"]]
+    TFLOW[["fp.bus.context.flow_anchor.fraud.v1"]]
+    TRTDL[["fp.bus.rtdl.v1"]]
+    TAUDIT[["fp.bus.audit.v1"]]
+    TCASE[["fp.bus.case.triggers.v1"]]
+    TLABELS[["fp.bus.labels.events.v1"]]
+    TOFSREQ[["fp.bus.learning.ofs.requests.v1"]]
+    TOFSEVT[["fp.bus.learning.ofs.events.v1"]]
+    TMFREQ[["fp.bus.learning.mf.requests.v1"]]
+    TMFEVT[["fp.bus.learning.mf.events.v1"]]
+    TREG[["fp.bus.learning.registry.events.v1"]]
+  end
+
+  %% =========================================================
+  %% 4. RTDL NETWORK
+  %% =========================================================
+  subgraph RTDL["4. Real-Time Decision Network"]
+    EKS["EKS cluster\nfraud-platform-dev-full"]
+    RTDLNS["Namespace\nfraud-platform-rtdl"]
+    CSFB["CSFB deployment\nfp-pr3-csfb"]
+    IEG["IEG deployment\nfp-pr3-ieg"]
+    OFP["OFP deployment\nfp-pr3-ofp"]
+    DL["DL deployment\nfp-pr3-dl"]
+    DF["DF deployment\nfp-pr3-df"]
+    AL["AL deployment\nfp-pr3-al"]
+    DLA["DLA deployment\nfp-pr3-dla"]
+    ARCHIVE["Archive Writer deployment\nfp-pr3-archive-writer"]
+    MSF["Managed Flink app\nfraud-platform-dev-full-rtdl-ieg-ofp-v0\nretained managed stream lane\n(status: READY)"]
+  end
+
+  %% =========================================================
+  %% 5. CASE / LABEL NETWORK
+  %% =========================================================
+  subgraph CASELABEL["5. Case / Label Truth Network"]
+    CLNS["Namespace\nfraud-platform-case-labels"]
+    CASETRIG["Case Trigger deployment\nfp-pr3-case-trigger"]
+    CM["Case Mgmt deployment\nfp-pr3-case-mgmt"]
+    LS["Label Store deployment\nfp-pr3-label-store"]
+  end
+
+  %% =========================================================
+  %% 6. LEARNING / EVOLUTION NETWORK
+  %% =========================================================
+  subgraph LEARN["6. Learning / Evolution Network"]
+    OFS["OFS logical component\ndataset build / replay materialization"]
+    MF["MF logical component\ntrain / eval / candidate bundle creation"]
+    MPR["MPR logical component\npromotion / rollback / active bundle resolution"]
+    DBX["Databricks workspace\nmanaged OFS substrate"]
+    DBXJOB1["Job\nfraud-platform-dev-full-ofs-build-v0"]
+    DBXJOB2["Job\nfraud-platform-dev-full-ofs-quality-v0"]
+    GLUE[("Glue Catalog\nfraud_platform_dev_full_ofs / fraud_platform_dev_full_m15")]
+    SM["SageMaker managed substrate"]
+    SMPKG["Model package group\nfraud-platform-dev-full-models"]
+    MLFLOW["MLflow tracking\nDatabricks-managed tracking URI"]
+    REGACTIVE["Active bundle / policy resolution\nruntime consume surface"]
+  end
+
+  %% =========================================================
+  %% 7. GOVERNANCE / PROVENANCE NETWORK
+  %% =========================================================
+  subgraph GOV["7. Governance / Provenance Network"]
+    OBSNS["Namespace\nfraud-platform-obs-gov"]
+    EVIDENCE[("S3 Evidence Bucket\nfraud-platform-dev-full-evidence")]
+    RUNCTL["Run control / receipts / conformance outputs"]
+    PROMO["Promotion receipts"]
+    ROLLBACK["Rollback drill receipts"]
+    GOVAPPEND["Governance append\nrun-scoped immutable facts"]
+  end
+
+  %% =========================================================
+  %% 8. IDENTITY / TRUST NETWORK
+  %% =========================================================
+  subgraph IDENTITY["8. Identity / Trust Network"]
+    OIDC["GitHub OIDC trust"]
+    SSM["SSM Parameter Store\nconfig + handles + service endpoints"]
+    ROLECTRL["Roles\nStep Functions / Lambda IG / Flink exec"]
+    ROLERTDL["IRSA roles\nRTDL + decision-lane"]
+    ROLECL["IRSA role\ncase-labels"]
+    ROLEOBS["IRSA role\nobs-gov"]
+    ROLELEARN["Learning roles\nSageMaker exec + Databricks cross-account\n(no dedicated EKS learning IRSA pinned)"]
+  end
+
+  %% =========================================================
+  %% 9. STATE / STORAGE NETWORK
+  %% =========================================================
+  subgraph STATE["9. State / Storage Network"]
+    OBJECTS[("S3 Object Store / Oracle Store\nfraud-platform-dev-full-object-store")]
+    AURORA[("Aurora Serverless v2\nfraud-platform-dev-full-aurora")]
+    REDIS[("Redis endpoint\nlow-latency state / cache")]
+    PLATFORMROOT["Platform store root\nrun-scoped artifacts / refs / archives"]
+  end
+
+  %% =========================================================
+  %% 10. OPERATIONAL NETWORK
+  %% =========================================================
+  subgraph OPS["10. Operational Network"]
+    CW["CloudWatch\nmetrics / logs / alarms"]
+    TG["ALB target group\nfp-dev-full-ig-svc"]
+    NODEGROUP["EKS nodegroup\nfraud-platform-dev-full-m6f-workers\n(idled to 0)"]
+    IDLE["Idle / teardown posture\nscale-to-zero / compute off when not active"]
+    COST["Cost control surfaces\nresidual spend + idle discipline"]
+  end
+
+  %% =========================================================
+  %% Cross-network edges
+  %% =========================================================
+  CI --> SFN
+  CI --> OIDC
+  SFN --> CTRLTOPIC
+  RUNID -. propagates .-> SFN
+  RUNID -. propagates .-> WSP
+  RUNID -. propagates .-> IGSVC
+  RUNID -. propagates .-> IGLAMBDA
+  RUNID -. propagates .-> CSFB
+  RUNID -. propagates .-> IEG
+  RUNID -. propagates .-> OFP
+  RUNID -. propagates .-> DL
+  RUNID -. propagates .-> DF
+  RUNID -. propagates .-> AL
+  RUNID -. propagates .-> DLA
+  RUNID -. propagates .-> CASETRIG
+  RUNID -. propagates .-> CM
+  RUNID -. propagates .-> LS
+  RUNID -. propagates .-> OFS
+  RUNID -. propagates .-> MF
+  RUNID -. propagates .-> MPR
+  RUNID -. propagates .-> RUNCTL
+
+  SFN --> RUNCTL
+  SFN --> EVIDENCE
+  SFN --> WSP
+  WSP --> ALB
+  ALB --> TG
+  TG --> IGSVC
+  IGLAMBDA -. retained ingress lane .-> IGDDB
+  IGLAMBDA -. retained ingress lane .-> MSK
+  IGSVC --> IGDDB
+  IGSVC --> IGRECEIPTS
+  IGRECEIPTS --> PLATFORMROOT
+  PLATFORMROOT --> OBJECTS
+  PLATFORMROOT --> EVIDENCE
+
+  IGSVC --> TTRAFFIC
+  IGSVC --> TCTXEVENTS
+  IGSVC --> TCTXENT
+  IGSVC --> TFLOW
+  CTRLTOPIC --> MSK
+  TTRAFFIC --> MSK
+  TCTXEVENTS --> MSK
+  TCTXENT --> MSK
+  TFLOW --> MSK
+  TRTDL --> MSK
+  TAUDIT --> MSK
+  TCASE --> MSK
+  TLABELS --> MSK
+  TOFSREQ --> MSK
+  TOFSEVT --> MSK
+  TMFREQ --> MSK
+  TMFEVT --> MSK
+  TREG --> MSK
+
+  EKS --> RTDLNS
+  EKS --> CLNS
+  EKS --> OBSNS
+  NODEGROUP --> EKS
+  RTDLNS --> CSFB
+  RTDLNS --> IEG
+  RTDLNS --> OFP
+  RTDLNS --> DL
+  RTDLNS --> DF
+  RTDLNS --> AL
+  RTDLNS --> DLA
+  RTDLNS --> ARCHIVE
+  CLNS --> CASETRIG
+  CLNS --> CM
+  CLNS --> LS
+
+  TTRAFFIC --> CSFB
+  TCTXEVENTS --> CSFB
+  TCTXENT --> CSFB
+  TFLOW --> CSFB
+  CSFB --> IEG
+  CSFB --> OFP
+  IEG --> AURORA
+  OFP --> REDIS
+  OFP --> AURORA
+  OFP -. retained managed stream parity .-> MSF
+  IEG -. retained managed stream parity .-> MSF
+  DL --> DF
+  DF --> TRTDL
+  DF --> TAUDIT
+  AL --> TAUDIT
+  DLA --> TAUDIT
+  ARCHIVE --> OBJECTS
+  ARCHIVE --> EVIDENCE
+
+  TRTDL --> CASETRIG
+  TAUDIT --> CASETRIG
+  CASETRIG --> TCASE
+  TCASE --> CM
+  CM --> AURORA
+  CM --> LS
+  LS --> AURORA
+  LS --> TLABELS
+  TLABELS --> OBJECTS
+  TLABELS --> EVIDENCE
+
+  OBJECTS --> OFS
+  TLABELS --> OFS
+  TOFSREQ --> OFS
+  OFS --> DBX
+  DBX --> DBXJOB1
+  DBX --> DBXJOB2
+  DBXJOB1 --> GLUE
+  DBXJOB1 --> OBJECTS
+  DBXJOB2 --> EVIDENCE
+  OFS --> TOFSEVT
+  TOFSEVT --> MF
+  TMFREQ --> MF
+  MF --> SM
+  MF --> MLFLOW
+  MF --> TMFEVT
+  SM --> SMPKG
+  TMFEVT --> MPR
+  MPR --> TREG
+  MPR --> PROMO
+  MPR --> ROLLBACK
+  MPR --> REGACTIVE
+  REGACTIVE --> DF
+
+  RUNCTL --> GOVAPPEND
+  RUNCTL --> EVIDENCE
+  PROMO --> EVIDENCE
+  ROLLBACK --> EVIDENCE
+  GOVAPPEND --> EVIDENCE
+
+  OIDC --> ROLECTRL
+  OIDC --> ROLERTDL
+  OIDC --> ROLECL
+  OIDC --> ROLEOBS
+  OIDC --> ROLELEARN
+  SSM --> IGSVC
+  SSM --> IGLAMBDA
+  SSM --> WSP
+  SSM --> EKS
+  SSM --> DBX
+  SSM --> SM
+  SSM --> REDIS
+  SSM --> AURORA
+  ROLECTRL --> SFN
+  ROLECTRL --> IGLAMBDA
+  ROLECTRL --> MSF
+  ROLERTDL --> RTDLNS
+  ROLECL --> CLNS
+  ROLEOBS --> OBSNS
+  ROLELEARN --> DBX
+  ROLELEARN --> SM
+
+  CW --> ALB
+  CW --> IGSVC
+  CW --> IGLAMBDA
+  CW --> EKS
+  CW --> MSF
+  CW --> SFN
+  CW --> SM
+  CW --> AURORA
+  CW --> MSK
+  IDLE --> WSP
+  IDLE --> IGSVC
+  IDLE --> NODEGROUP
+  COST --> IDLE
+  COST --> EVIDENCE
+
+  %% =========================================================
+  %% classes
+  %% =========================================================
+  classDef runtime fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.5px;
+  classDef store fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.5px;
+  classDef managed fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.5px;
+  classDef control fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.5px;
+  classDef retained fill:#f5f5f5,stroke:#616161,color:#111,stroke-dasharray: 5 3;
+
+  class CI,SFN,CTRLTOPIC,RUNID,RUNCTL,GOVAPPEND control;
+  class WSP,ALB,IGSVC,CSFB,IEG,OFP,DL,DF,AL,DLA,ARCHIVE,CASETRIG,CM,LS,EKS,RTDLNS,CLNS,OBSNS,TG,NODEGROUP runtime;
+  class IGDDB,MSK,OBJECTS,AURORA,REDIS,EVIDENCE,GLUE,PLATFORMROOT store;
+  class DBX,DBXJOB1,DBXJOB2,SM,SMPKG,MLFLOW,MSF managed;
+  class IGLAMBDA,ROLELEARN,IDLE,COST retained;
