@@ -508,7 +508,7 @@ def main() -> None:
         bool(item.get("overall_pass")) for item in (schema_drill, dependency_drill, lag_recovery_drill, cost_drill, cost_receipt)
     )
     notes.append("Learning/evolution is direct in S4 only when OFS, MF, and MPR all produce green receipts on the active run scope.")
-    notes.append("Ops/gov is direct in S4 only when run-scoped conformance/observability receipts are green alongside schema/dependency/recovery/cost drills.")
+    notes.append("Ops/gov is direct in S4 only when same-run dev_full observability/closure receipts are green alongside schema/dependency/recovery/cost drills.")
 
     cross_plane = {
         "control_bootstrap": "PASS" if bool(control_bootstrap.get("overall_pass")) else "HOLD_REMEDIATE",
@@ -519,6 +519,38 @@ def main() -> None:
         "learning_evolution": "PASS" if learning_ready else "HOLD_REMEDIATE",
         "ops_gov": "PASS" if ops_ready else "HOLD_REMEDIATE",
     }
+    plane_assessment = {
+        "control_bootstrap": (
+            "Meets the bounded control continuity goal on the active run."
+            if cross_plane["control_bootstrap"] == "PASS"
+            else "Does not meet the bounded control continuity goal; the active run lacks a green SR bootstrap."
+        ),
+        "runtime_spine": (
+            "Meets the bounded runtime correctness goal: ingress and RTDL spine stayed within the declared correctness window."
+            if cross_plane["runtime_spine"] == "PASS"
+            else "Does not meet the bounded runtime correctness goal; ingress or participating runtime lanes remain unproven."
+        ),
+        "case_label_management": (
+            "Meets the bounded case/label goal: triggers, case progression, and label activity all moved on the same active run."
+            if cross_plane["case_label_management"] == "PASS"
+            else "Does not meet the bounded case/label goal; one or more case/label lanes are missing, red, or materially idle."
+        ),
+        "learning_evolution": (
+            "Meets the bounded learning/evolution goal: OFS, MF, and MPR all produced same-run proof artifacts on a real point-in-time slice."
+            if cross_plane["learning_evolution"] == "PASS"
+            else "Does not meet the bounded learning/evolution goal; OFS, MF, or MPR proof is still unresolved on the active run."
+        ),
+        "ops_gov": (
+            "Meets the bounded ops/gov goal: same-run dev_full closure and observability receipts are readable and coherent."
+            if cross_plane["ops_gov"] == "PASS"
+            else "Does not meet the bounded ops/gov goal; same-run closure, drill, or observability receipts are still incomplete."
+        ),
+    }
+    overall_assessment = (
+        "PR3-S4 meets the bounded whole-platform correctness goal and may authorize the next stress gate."
+        if len(set(blockers)) == 0
+        else "PR3-S4 does not meet the bounded whole-platform correctness goal; soak remains blocked and only the failed boundary should be remediated."
+    )
 
     scorecard = {
         "phase": "PR3",
@@ -545,6 +577,10 @@ def main() -> None:
         },
         "component_deltas": metrics,
         "cross_plane": cross_plane,
+        "plane_assessment": plane_assessment,
+        "learning_impact_metrics": dict(learning_summary.get("impact_metrics") or {}),
+        "ops_gov_impact_metrics": dict(ops_gov_summary.get("impact_metrics") or {}),
+        "assessment": overall_assessment,
         "overall_pass": len(set(blockers)) == 0,
         "blocker_ids": sorted(set(blockers)),
         "notes": notes,
@@ -566,9 +602,11 @@ def main() -> None:
         "cross_plane": cross_plane,
         "metrics": metrics,
         "integrity": integrity,
+        "plane_assessment": plane_assessment,
         "control_bootstrap": control_bootstrap,
         "learning_summary": learning_summary,
         "ops_gov_summary": ops_gov_summary,
+        "assessment": overall_assessment,
         "notes": notes,
     }
     replay_drill = {
@@ -590,6 +628,7 @@ def main() -> None:
         "platform_run_id": platform_run_id,
         "authorized": len(set(blockers)) == 0,
         "reason": "S4 bounded correctness gate is green." if len(set(blockers)) == 0 else "S4 bounded correctness gate remains red; soak stays blocked.",
+        "assessment": overall_assessment,
     }
     if not soak_authorization["authorized"]:
         blockers.append("PR3.B28_SOAK_NOT_AUTHORIZED")

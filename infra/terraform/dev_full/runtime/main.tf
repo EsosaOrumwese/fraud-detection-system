@@ -127,6 +127,10 @@ data "aws_route_table" "private_by_subnet" {
   subnet_id = each.value
 }
 
+data "aws_vpc" "core" {
+  id = local.vpc_id
+}
+
 resource "aws_security_group" "runtime_endpoints" {
   name        = "${var.name_prefix}-runtime-endpoints-sg"
   description = "Private interface endpoint ingress for runtime worker bootstrap lanes"
@@ -231,6 +235,160 @@ resource "aws_vpc_endpoint" "runtime_dynamodb_gateway" {
 
   tags = merge(local.common_tags, {
     fp_resource = "runtime_endpoint_dynamodb_gateway"
+  })
+}
+
+resource "random_password" "aurora_master" {
+  length           = 32
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}:?"
+}
+
+resource "aws_security_group" "aurora" {
+  name        = "${var.name_prefix}-aurora-sg"
+  description = "Aurora runtime datastore access for dev_full platform services"
+  vpc_id      = local.vpc_id
+
+  ingress {
+    description = "PostgreSQL from VPC workloads"
+    from_port   = var.aurora_port
+    to_port     = var.aurora_port
+    protocol    = "tcp"
+    cidr_blocks = [data.aws_vpc.core.cidr_block]
+  }
+
+  egress {
+    description = "Permit datastore egress"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  lifecycle {
+    precondition {
+      condition     = trimspace(local.vpc_id) != ""
+      error_message = "VPC id is missing from core outputs. M2.B must be applied before Aurora materialization."
+    }
+  }
+
+  tags = merge(local.common_tags, {
+    fp_resource = "aurora_security_group"
+  })
+}
+
+resource "aws_db_subnet_group" "aurora" {
+  name       = "${var.name_prefix}-aurora"
+  subnet_ids = local.private_subnet_ids
+
+  lifecycle {
+    precondition {
+      condition     = length(local.private_subnet_ids) >= 2
+      error_message = "Aurora materialization requires at least two private subnets from core outputs."
+    }
+  }
+
+  tags = merge(local.common_tags, {
+    fp_resource = "aurora_db_subnet_group"
+  })
+}
+
+resource "aws_rds_cluster" "aurora" {
+  cluster_identifier              = var.aurora_cluster_identifier
+  engine                          = var.aurora_engine
+  engine_version                  = var.aurora_engine_version
+  database_name                   = var.aurora_database_name
+  master_username                 = var.aurora_master_username
+  master_password                 = random_password.aurora_master.result
+  port                            = var.aurora_port
+  db_subnet_group_name            = aws_db_subnet_group.aurora.name
+  vpc_security_group_ids          = [aws_security_group.aurora.id]
+  storage_encrypted               = true
+  kms_key_id                      = local.core_kms_key_arn
+  backup_retention_period         = var.aurora_backup_retention_period
+  preferred_backup_window         = var.aurora_preferred_backup_window
+  preferred_maintenance_window    = var.aurora_preferred_maintenance_window
+  copy_tags_to_snapshot           = true
+  deletion_protection             = var.aurora_deletion_protection
+  skip_final_snapshot             = var.aurora_skip_final_snapshot
+  allow_major_version_upgrade     = false
+  db_cluster_parameter_group_name = "default.aurora-postgresql16"
+  enabled_cloudwatch_logs_exports = ["postgresql"]
+
+  serverlessv2_scaling_configuration {
+    min_capacity = var.aurora_serverless_min_capacity
+    max_capacity = var.aurora_serverless_max_capacity
+  }
+
+  lifecycle {
+    precondition {
+      condition     = trimspace(local.core_kms_key_arn) != ""
+      error_message = "KMS key ARN is missing from core outputs. M2.B must be applied before Aurora materialization."
+    }
+  }
+
+  tags = merge(local.common_tags, {
+    fp_resource = "aurora_cluster"
+  })
+}
+
+resource "aws_rds_cluster_instance" "aurora_writer" {
+  identifier                 = var.aurora_writer_instance_identifier
+  cluster_identifier         = aws_rds_cluster.aurora.id
+  instance_class             = "db.serverless"
+  engine                     = aws_rds_cluster.aurora.engine
+  engine_version             = aws_rds_cluster.aurora.engine_version
+  db_subnet_group_name       = aws_db_subnet_group.aurora.name
+  publicly_accessible        = false
+  auto_minor_version_upgrade = true
+  apply_immediately          = var.aurora_apply_immediately
+
+  tags = merge(local.common_tags, {
+    fp_resource = "aurora_writer"
+  })
+}
+
+resource "aws_ssm_parameter" "aurora_endpoint" {
+  name      = var.ssm_aurora_endpoint_path
+  type      = "String"
+  overwrite = true
+  value     = aws_rds_cluster.aurora.endpoint
+
+  tags = merge(local.common_tags, {
+    fp_resource = "aurora_endpoint"
+  })
+}
+
+resource "aws_ssm_parameter" "aurora_reader_endpoint" {
+  name      = var.ssm_aurora_reader_endpoint_path
+  type      = "String"
+  overwrite = true
+  value     = aws_rds_cluster.aurora.reader_endpoint
+
+  tags = merge(local.common_tags, {
+    fp_resource = "aurora_reader_endpoint"
+  })
+}
+
+resource "aws_ssm_parameter" "aurora_username" {
+  name      = var.ssm_aurora_username_path
+  type      = "String"
+  overwrite = true
+  value     = var.aurora_master_username
+
+  tags = merge(local.common_tags, {
+    fp_resource = "aurora_username"
+  })
+}
+
+resource "aws_ssm_parameter" "aurora_password" {
+  name      = var.ssm_aurora_password_path
+  type      = "SecureString"
+  overwrite = true
+  value     = random_password.aurora_master.result
+
+  tags = merge(local.common_tags, {
+    fp_resource = "aurora_password"
   })
 }
 

@@ -10785,3 +10785,606 @@ uns/.../degrade_ladder/* on its own filesystem,
 ### Performance/cost posture
 1. This is the cheapest valid remediation available because it eliminates a deterministic harness defect locally before another cloud rerun.
 2. It also aligns the learning lane with the already-pinned production execution method: concrete active-run config first, then bounded proof, then only broader windows when the cheap proof is green.
+## Entry: 2026-03-08 23:58:00 +00:00 - PR3-S4 is re-anchored to the actual dev_full build authority and must now be treated as a bounded whole-platform correctness gate, not a spine-only runtime check
+### Why this entry is necessary
+1. The recent PR3 work materially hardened the runtime spine, but some of the reasoning for `case/label`, `learning/evolution`, and `ops/gov` was still leaning too heavily on conceptual/component docs rather than the active `dev_full` build plans.
+2. That authority drift is exactly how a lane can look locally coherent while still being wrong for the already-built `dev_full` platform.
+3. Before any further code changes, the active `PR3-S4` contract has to be re-stated against the real `dev_full` sources of truth:
+   - `platform.build_plan.md`,
+   - `platform.M7.build_plan.md`,
+   - `platform.M8.build_plan.md`,
+   - `platform.M9.build_plan.md`,
+   - `platform.M10.build_plan.md`,
+   - `platform.M11.build_plan.md`,
+   - `platform.M12.build_plan.md`,
+   - `platform.M15.build_plan.md`,
+   - current `road_to_prod` plan/docs.
+
+### Corrected interpretation of what PR3-S4 must prove
+1. `PR3-S4` is not a second burst/recovery state and it is not a general soak placeholder.
+2. `PR3-S4` is the cheapest bounded integrated correctness gate that must falsify whole-platform wiring, run-scope, semantic, and evidence defects before any longer stress/soak spend is authorized.
+3. Therefore a green `PR3-S4` requires materially correct participation, or explicitly scored same-run evidence continuity where that lane is inherently job-based, across these `dev_full` planes:
+   - runtime spine continuity already established upstream: `WSP`, `IG`, `CSFB`, `IEG`, `OFP`, `DL`, `DF`, `AL`, `DLA`, `archive_writer`,
+   - `M7` case/label plane: `CaseTrigger bridge`, `CM`, `LS`,
+   - `M8` ops/gov lane: run-scoped reporter/reconciliation/governance closure artifacts,
+   - `M9` learning-input readiness: replay-basis, as-of, maturity, no-future-leakage posture,
+   - `M10` OFS managed dataset surface,
+   - `M11` MF train/eval + candidate bundle lineage,
+   - `M12` MPR promotion/rollback/ACTIVE-resolution evidence continuity,
+   - `M15` semantic-realization overlay: learning must use real data semantics and stable point-in-time cuts, not bootstrap placeholders.
+
+### Concrete lane map now pinned for the next implementation slice
+1. `M7` lane obligations inside PR3-S4:
+   - active-run `case_trigger` intake from the authoritative upstream trigger surface,
+   - deterministic case creation/anomaly posture in `CM`,
+   - writer-boundary label truth in `LS`,
+   - no silent starvation under the active `platform_run_id`.
+2. `M8` lane obligations inside PR3-S4:
+   - same-run `sr/run_status` and `sr/run_facts_view` already proven by bootstrap,
+   - report/reconciliation/governance closure outputs must exist or the gate stays red as `PR3.B30_OPS_GOV_BOUND_FAIL`.
+3. `M9` lane obligations inside PR3-S4:
+   - learning proof must not bypass replay-basis/as-of/maturity constraints,
+   - bounded correctness cannot use latest-tail or future-leaking slices.
+4. `M10` lane obligations inside PR3-S4:
+   - OFS proof must be driven from authoritative archived/truth surfaces and emit a deterministic manifest/fingerprint-ready summary.
+5. `M11` lane obligations inside PR3-S4:
+   - MF proof must be tied to the OFS output of the same bounded correctness cut and produce train/eval lineage evidence, not a bootstrap placeholder.
+6. `M12` lane obligations inside PR3-S4:
+   - MPR proof must keep registry/promotion semantics deterministic and auditable on the same bounded run.
+7. `M15` overlay obligations inside PR3-S4:
+   - no closure claim is valid if the learning corridor is fed by bootstrap synthetic placeholders,
+   - no closure claim is valid if the bounded proof uses semantically unstable freshest-tail cuts when a stable archived-labelled prefix is required.
+
+### What this changes operationally
+1. The next code inspection must not ask "what is the easiest way to make the lane pass".
+2. It must ask:
+   - does the current PR3-S4 runner/orchestrator actually exercise the already-built `dev_full` lane as intended,
+   - does it emit human-readable impact metrics for that lane,
+   - does it fail fast before cloud spend when the lane is deterministically miswired,
+   - does it preserve the production-standard discipline `correctness -> bounded stress -> soak`.
+3. The previous runtime-spine work remains valid where it matches the `dev_full` build authority. It is not being discarded.
+4. The active inspection scope for the next slice is now explicitly:
+   - `scripts/dev_substrate/pr3_s4_learning_bound.py`,
+   - `scripts/dev_substrate/pr3_s4_learning_bound_remote.py`,
+   - `scripts/dev_substrate/pr3_runtime_warm_gate.py`,
+   - `scripts/dev_substrate/pr3_rtdl_materialize.py`,
+   - any PR3-S4 rollup/reporting surfaces that still summarize work instead of impact metrics.
+
+### Cost/performance decision
+1. No new long run is authorized from this reasoning entry alone.
+2. The next rerun boundary remains the same bounded `PR3-S4` correctness gate, after the code path is inspected and only the cheapest valid remediations are applied.
+3. This is consistent with the now-pinned production method:
+   - bounded correctness first,
+   - bounded stress second,
+   - soak only if both are green and attributable.
+## Entry: 2026-03-09 00:10:00 +00:00 - PR3-S4 ops/gov proof is still checking the wrong thing; it must be repinned from static environment parity to same-run whole-platform evidence continuity
+### Problem actual
+1. Inspection of `scripts/dev_substrate/pr3_s4_ops_gov_bound.py` shows the current bounded ops/gov proof still calls `run_environment_conformance(...)` with:
+   - `config/platform/profiles/local_parity.yaml`,
+   - `config/platform/profiles/dev.yaml`,
+   - `config/platform/profiles/prod.yaml`.
+2. That checker is explicitly a static environment-parity comparator for older profile families, not a `dev_full` whole-platform run-scoped correctness proof.
+3. The same script then only requires four active-run roots:
+   - `sr/`,
+   - `ig/`,
+   - `archive/`,
+   - `online_feature_plane/`.
+4. That is materially too narrow for the `PR3-S4` gate we have now pinned from `M7/M8/M9/M10/M11/M12/M15`. It can pass even if:
+   - case/label roots are absent,
+   - learning/evolution refs are not tied to the same run,
+   - ops/gov does not actually prove same-run closure over the participating platform.
+
+### Why this matters
+1. `PR3-S4` is the gate that decides whether the whole platform is even eligible for longer stress/soak spend.
+2. If the ops/gov proof still scores only a narrow subset, then the rollup can overclaim "whole-platform correctness" from partial observability.
+3. That is exactly the sort of drift the user asked to stop carrying forward.
+
+### Chosen remediation
+1. Remove the `local_parity/dev/prod` environment-parity call from `pr3_s4_ops_gov_bound.py` for this boundary.
+2. Replace it with a `dev_full` same-run whole-platform observability/closure proof that checks:
+   - control continuity refs from bootstrap (`status_ref`, `facts_view_ref`),
+   - required active-run roots for participating runtime/case-label/learning surfaces,
+   - readback of learning refs already emitted by the bounded learning proof,
+   - presence of bounded ops/gov receipt outputs under `obs/`.
+3. Keep the script cheap:
+   - object-store/list/read checks only,
+   - no long-running reporters,
+   - no broader cloud spend.
+4. Patch `pr3_s4_correctness_rollup.py` so:
+   - it consumes the strengthened ops/gov summary,
+   - it emits plane-oriented impact assessment, not just blocker lists.
+
+### Why this is the correct production move
+1. It aligns S4 with `M8` observability/governance continuity, `M7` case-label participation, and `M10..M12` learning/evolution artifact continuity.
+2. It does not redesign the platform; it corrects the bounded proof so it measures the already-built `dev_full` system on the same active run.
+3. It is cheaper than another bounded rerun because the defect is purely in the proof surface and can be fixed locally first.
+## Entry: 2026-03-09 00:22:00 +00:00 - The bounded PR3-S4 ops/gov proof and rollup are now corrected locally and validated before any rerun
+### What changed
+1. `scripts/dev_substrate/pr3_s4_ops_gov_bound.py`
+   - removed the static `local_parity/dev/prod` environment-parity call from the active S4 bounded proof,
+   - repinned the proof to same-run `dev_full` evidence continuity:
+     - bootstrap `status_ref` + `facts_view_ref` readback,
+     - required active-run roots: `sr`, `ig`, `archive`, `online_feature_plane`, `ofs`, `mf`, `obs`,
+     - case/label snapshot coverage from the active `g3a_s4_component_snapshot_*` artifacts,
+     - learning ref readback from the bounded learning summary (`ofs_manifest_ref`, `mf_eval_report_ref`, `mf_gate_receipt_ref`, `mf_bundle_publication_ref`, `mf_registry_lifecycle_event_ref`).
+   - kept the bounded receipt cheap by using object-store/list/read checks only.
+2. `scripts/dev_substrate/pr3_s4_correctness_rollup.py`
+   - retained the existing blocker logic,
+   - added plane-level impact assessment strings for:
+     - control bootstrap,
+     - runtime spine,
+     - case/label,
+     - learning/evolution,
+     - ops/gov,
+   - added top-level bounded-goal assessment text so the scorecard is not just a blocker dump.
+
+### Why this matters
+1. The previous ops/gov proof could still look green while ignoring the actual `M7/M8/M9/M10/M11/M12/M15` whole-platform closure we now require.
+2. The corrected proof is still bounded and cheap, but it now scores the right same-run surfaces.
+3. The rollup output is now closer to the user's requested reporting style:
+   - impact metrics,
+   - explicit assessment against the bounded production goal,
+   - no vague "work done" summary in place of state judgment.
+
+### Validation
+1. `python -m py_compile scripts/dev_substrate/pr3_s4_ops_gov_bound.py scripts/dev_substrate/pr3_s4_correctness_rollup.py` passed.
+2. No rerun has been authorized from this slice alone.
+3. The next execution decision must still respect the cheaper ladder:
+   - local/static validation first,
+   - then the cheapest bounded active-run proof,
+   - then only broader windows if that proof is green.
+## Entry: 2026-03-09 00:28:00 +00:00 - Runtime materialization preflight is tightened so case/label IAM drift is rejected before cloud execution
+1. During the minimum-substrate pass, I inspected `scripts/dev_substrate/pr3_rtdl_materialize.py` against the corrected `PR3-S4` whole-platform lane map.
+2. The script already materializes the case/label lane under its own service account:
+   - `case_labels_sa = "case-labels"`,
+   - `ROLE_EKS_IRSA_CASE_LABELS` is applied live to that service account.
+3. But its preflight `required_handles` set did not include `ROLE_EKS_IRSA_CASE_LABELS`, which means the materializer could still advance into cloud-side work before failing on a deterministic missing handle.
+4. That is a correctness and cost-control defect for the new execution method because case/label is now a first-class S4 lane, not an optional downstream observation.
+5. Remediation applied:
+   - add `ROLE_EKS_IRSA_CASE_LABELS` to the materializer's required-handle gate.
+6. Validation:
+   - `python -m py_compile scripts/dev_substrate/pr3_rtdl_materialize.py scripts/dev_substrate/pr3_s4_ops_gov_bound.py scripts/dev_substrate/pr3_s4_correctness_rollup.py` passed.
+## Entry: 2026-03-09 00:40:00 +00:00 - The next program step is a dedicated pre-PR whole-platform substrate restoration phase, not an implicit PR3 dependency cleanup
+### Why this phase is necessary
+1. The live `dev_full` stacks were intentionally torn down earlier to stop waste and reset the environment.
+2. That means the current road-to-prod posture has changed materially:
+   - `PR3-S4` is still the next certification boundary,
+   - but the platform substrate needed to execute any meaningful whole-platform gate no longer exists live.
+3. If this is treated as an informal side task under `PR3`, two failures become likely:
+   - we bias back into runtime-spine-only restoration (`EKS/MSK/Aurora`) and forget the other planes,
+   - we start spending on partial bring-up work without one authoritative gate for readiness, cost, and closure.
+
+### Production interpretation
+1. The restore must be planned as one whole-platform restoration, even if execution is layered.
+2. The restoration scope must therefore cover four substrate families explicitly:
+   - core runtime substrate,
+   - case/label substrate dependencies,
+   - learning/evolution managed substrate,
+   - ops/gov closure surfaces.
+3. Restoration is not certification, but it must still be held to production standards:
+   - managed-first where already pinned,
+   - fail-fast on missing handles/IAM/network/data stores,
+   - cost-aware and idle-safe,
+   - no local-runtime substitution,
+   - impact-metric summaries per state.
+
+### Chosen document and execution posture
+1. Create a dedicated pre-PR authority doc under `road_to_prod` rather than hiding this in `platform.PR3.road_to_prod.md`.
+2. The new doc will be the execution authority for substrate restoration states before PR3 resumes.
+3. The main `platform.road_to_prod.plan.md` will be updated so the active path is:
+   - `PREPR` whole-platform restoration,
+   - then resume `PR3-S4`,
+   - then continue `PR3-S5 -> PR4`.
+
+### Planned PREPR state families
+1. `S0` authority freeze, restoration scope, and current-state inventory.
+2. `S1` core runtime substrate restore (`M2/M4/M14` aligned).
+3. `S2` case/label substrate restore (`M7/M14.G` aligned).
+4. `S3` learning/evolution managed substrate restore (`M9/M10/M11/M12/M15` aligned).
+5. `S4` ops/gov closure-surface restore (`M8/M12.G/M13` aligned).
+6. `S5` whole-platform restoration validation, cost/idle-safe posture, and handoff verdict back to `PR3-S4`.
+
+### Cost/performance stance
+1. Restoration states must not default to "restore everything and hope".
+2. Each state must:
+   - restore only the surfaces needed for its declared whole-platform capability lane,
+   - validate those surfaces immediately,
+   - publish impact metrics and a production verdict before advancing.
+## Entry: 2026-03-09 00:52:12 +00:00 - PREPR-S0 live inventory confirms the platform is intentionally torn down and pins the exact restoration order
+### Live-state evidence captured
+1. Published run-control pack:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/prepr_s0_20260309T005216Z/`
+2. Generated receipts:
+   - `prepr_s0_authority_refs.json`,
+   - `prepr_s0_live_state_inventory.json`,
+   - `prepr_s0_restore_matrix.json`,
+   - `prepr_s0_execution_receipt.json`.
+
+### What the live inventory proved
+1. Core runtime substrate is materially absent:
+   - `EKS` cluster missing,
+   - `MSK` cluster missing,
+   - `Aurora` cluster missing,
+   - `API Gateway` / `Lambda` IG edge missing,
+   - IG DynamoDB table missing,
+   - `dev_full` runtime `SSM` parameters missing,
+   - Glue schema registry absent.
+2. Durable truth/history surfaces remain and should be reused:
+   - `fraud-platform-dev-full-artifacts`,
+   - `fraud-platform-dev-full-evidence`,
+   - `fraud-platform-dev-full-object-store`,
+   - `fraud-platform-dev-full-tfstate`,
+   - `alias/fraud-platform-dev-full`,
+   - `230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-full`,
+   - `fraud-platform-dev-full-tf-locks`.
+3. Case/label executable substrate is absent:
+   - `ROLE_EKS_IRSA_CASE_LABELS` missing,
+   - no runtime cluster exists to bind `CaseTrigger`, `CM`, or `LS`,
+   - no live case/label dependency surface is reachable from current state.
+4. Learning/evolution substrate retains history but not live authority:
+   - SageMaker model package group `fraud-platform-dev-full-models` still exists,
+   - multiple historical training jobs exist,
+   - SageMaker endpoint is absent,
+   - SageMaker execution role is absent,
+   - Databricks cross-account role and `SSM` handles are absent,
+   - Step Functions learning surfaces are absent.
+5. Ops/gov closure surfaces are absent:
+   - no Step Functions state machines,
+   - no MWAA environment,
+   - no `dev_full` CloudWatch dashboards,
+   - no `fraud-platform-dev-full-monthly` budget,
+   - `ROLE_EKS_IRSA_OBS_GOV` absent.
+
+### Production interpretation
+1. `PREPR-S0` is complete because the live state is now unambiguous and the restoration order is pinned with `open_blockers=0`.
+2. The restore must start at `PREPR-S1` because every later plane depends on core runtime, network, data-store, messaging, and secret surfaces that are currently gone.
+3. Historical managed artifacts are not enough to resume certification:
+   - they are useful retained truth/history surfaces,
+   - but they do not provide current execution authority or same-run closure capability.
+4. This confirms the earlier cost-control decision:
+   - no `PR3/PR4` rerun is allowed yet,
+   - and no expensive soak/stress window should be attempted before the substrate families are re-established and validated.
+
+### Impact metrics
+1. retained surfaces: `13`
+2. missing restore-required surfaces: `28`
+3. substrate families requiring restoration: `4/4`
+4. substrate families with reusable retained state: `4/4`
+5. runtime-plane missing ratio: `0.53`
+6. attributable spend for S0: `0.0 USD`
+
+### Next state
+1. `PREPR-S1` core runtime substrate restore.
+2. Entry intent:
+   - restore only the minimum production-shaped core surfaces,
+   - validate them immediately,
+   - then hand off to `PREPR-S2` without rebuilding unrelated managed lanes prematurely.
+## Entry: 2026-03-09 01:03:00 +00:00 - PREPR-S1 must codify Aurora into the runtime substrate instead of restoring the old seeded-placeholder drift
+### Problem
+1. `PREPR-S0` proved the live Aurora cluster is gone.
+2. Current `dev_full` Terraform does not restore Aurora itself:
+   - `core` owns network/base IAM,
+   - `streaming` owns `MSK` + Glue schema,
+   - `runtime` owns `IG/EKS/DDB/SFN`,
+   - `ops` only seeds `SSM_AURORA_*` parameters with placeholder values.
+3. That means a naïve `core -> streaming -> runtime` apply would still leave:
+   - no real PostgreSQL/Aurora runtime datastore,
+   - no valid DSN source for RTDL/case-label/reporter,
+   - and later `ops` apply would overwrite any real endpoint path with `*.cluster.local` drift if left unchanged.
+
+### Production interpretation
+1. This is not a cosmetic gap; it is a restore-authority defect.
+2. A production restore path must be:
+   - executable from code,
+   - deterministic,
+   - and free of hidden manual control-plane mutations.
+3. Recreating the former live manual-Aurora posture would repeat the same failure mode that M8 already documented as unacceptable drift.
+
+### Chosen remediation
+1. Repin Aurora ownership into `infra/terraform/dev_full/runtime`:
+   - security group,
+   - subnet group,
+   - Aurora PostgreSQL serverless-v2 cluster,
+   - at least one `db.serverless` instance,
+   - generated admin/runtime credential material,
+   - `SSM_AURORA_*` parameter publication from live cluster outputs.
+2. Remove placeholder ownership of `SSM_AURORA_*` from `infra/terraform/dev_full/ops` so future ops applies cannot reintroduce fake endpoints.
+3. Keep `ops` responsible only for genuinely ops-owned surfaces (for this area):
+   - MWAA seed path,
+   - redis placeholder/path if still needed later,
+   - bootstrap log group / GitHub policies.
+
+### Why this is the correct production move
+1. Aurora is a first-class runtime datastore dependency for:
+   - RTDL projections,
+   - decision lane ledgers/checkpoints,
+   - case/label truth surfaces,
+   - reporter/obs-gov lock and closure flows.
+2. Putting the real datastore under runtime restore authority makes `PREPR-S1` materially executable instead of partially fake.
+3. Removing placeholder `SSM_AURORA_*` ownership from `ops` prevents later drift regression during `PREPR-S4`.
+
+### Immediate implementation plan
+1. Patch runtime Terraform providers/variables/resources/outputs for Aurora serverless-v2.
+2. Patch ops Terraform so Aurora paths are no longer materialized from seed strings.
+3. Validate with Terraform:
+   - `fmt`,
+   - `init`,
+   - `validate`,
+   - `plan` in `runtime`,
+   - then run ordered `PREPR-S1` applies (`core`, `streaming`, `runtime`) if the plan is coherent.
+## Entry: 2026-03-09 01:05:19 +00:00 - PREPR-S1 runtime restore is blocked by Terraform output sensitivity, not by substrate design
+### Problem
+1. `PREPR-S1/core` and `PREPR-S1/streaming` have already restored successfully.
+2. `PREPR-S1/runtime` fails at `terraform plan`, but the failure is confined to output handling:
+   - `output \"ssm_aurora_password_path\"` is now considered sensitive because it is derived from an `aws_ssm_parameter` whose `value` is sourced from `random_password.aurora_master.result`.
+   - `output \"runtime_handle_materialization\"` inherits the same sensitivity because it currently includes `SSM_AURORA_PASSWORD_PATH`.
+3. The runtime resource graph itself is already coherent:
+   - `IG` edge,
+   - `EKS` cluster and node group,
+   - `IRSA` roles,
+   - `Step Functions`,
+   - `Aurora`,
+   - interface/gateway endpoints.
+4. So the active red state is a secret-boundary publication defect, not a restore-architecture defect.
+
+### Production interpretation
+1. The restore path must not weaken the secret boundary just to get a plan file.
+2. A production-grade handle pack can expose:
+   - non-secret SSM parameter names for ordinary handles,
+   - but any aggregate output that contains a secret-derived path or value must be marked sensitive or split so non-sensitive consumers are not contaminated.
+3. For this restore phase, the cleanest posture is:
+   - keep the dedicated password-path output sensitive,
+   - remove the password path from the broad non-sensitive `runtime_handle_materialization` pack.
+4. This preserves deterministic restoration while keeping routine handle consumers readable and preventing accidental overexposure in receipts.
+
+### Chosen remediation
+1. Mark `output \"ssm_aurora_password_path\"` as `sensitive = true`.
+2. Remove `SSM_AURORA_PASSWORD_PATH` from `runtime_handle_materialization`.
+3. Keep the other Aurora handle-path outputs (`endpoint`, `reader`, `username`) in the aggregate pack because they are required for downstream restore steps and are not secret material.
+4. Re-run `runtime` Terraform validate/plan/apply immediately after patching.
+
+### Expected result
+1. `PREPR-S1/runtime` should advance past plan generation.
+2. The runtime restore receipt will remain production-grade:
+   - secrets are still reachable through their authoritative SSM path,
+   - but bulk handle outputs stay safe for analytical receipts and downstream orchestration.
+## Entry: 2026-03-09 01:21:00 +00:00 - PREPR-S1 closed green and exposed the next real plane-specific drift at PREPR-S2
+### PREPR-S1 closure
+1. I reran `infra/terraform/dev_full/runtime` after fixing the output-sensitivity defect.
+2. `runtime` restored successfully with `63` resources added and zero unresolved Terraform blockers.
+3. The restored core runtime substrate is now materially runnable:
+   - `MSK` serverless bootstrap brokers restored,
+   - `Aurora` serverless-v2 cluster + writer + SSM path publication restored,
+   - `EKS` cluster + worker node group restored and `ACTIVE`,
+   - `IG` edge restored (`API Gateway`, `Lambda`, `DynamoDB`, DLQ),
+   - runtime interface/gateway VPC endpoints restored,
+   - `IRSA` roles restored for `rtdl`, `decision_lane`, `case_labels`, and `obs_gov`,
+   - `Step Functions` orchestrator restored.
+4. `PREPR-S1` is therefore closed with the exact intended meaning from the PREPR plan:
+   - core runtime substrate is back in a production-shaped runnable posture,
+   - but later substrate families still require explicit plane-level restoration and validation.
+
+### PREPR-S2 blocker actual
+1. The next red item is not missing compute. It is case/label authority drift.
+2. Active authority pins:
+   - `EKS_NAMESPACE_CASE_LABELS = "fraud-platform-case-labels"` in `dev_full_handles.registry.v0.md`,
+   - `P10` required handle set explicitly includes that namespace.
+3. Current runtime restore posture still defaults the case-label IRSA trust namespace to `fraud-platform-rtdl` because `infra/terraform/dev_full/runtime/variables.tf` sets:
+   - `eks_namespace_case_labels = "fraud-platform-rtdl"`.
+4. The current PR3 runtime materializer also keeps the same drift alive because it:
+   - resolves only one namespace from `EKS_NAMESPACE_RTDL`,
+   - creates the `case-labels` service account in that namespace,
+   - deploys `case_trigger`, `case_mgmt`, and `label_store` into that same RTDL namespace.
+5. That means the platform can look runnable while the case/label plane is still violating the built `dev_full` authority boundary.
+
+### Production interpretation
+1. `PREPR-S2` must not accept "case-labels IRSA exists" as sufficient.
+2. It must restore case/label as its own production surface with:
+   - canonical namespace boundary,
+   - matching IRSA trust subject,
+   - runtime materialization that respects the same boundary.
+3. Carrying the RTDL namespace shortcut forward would recreate the same hidden coupling that previously made PR3 case/label evidence ambiguous.
+
+### Chosen remediation
+1. Repin `infra/terraform/dev_full/runtime` so `eks_namespace_case_labels` defaults to `fraud-platform-case-labels`.
+2. Refactor `scripts/dev_substrate/pr3_rtdl_materialize.py` so case/label workloads can materialize in their own namespace while RTDL and decision lanes remain in `fraud-platform-rtdl`.
+3. Validate the restored trust + namespace posture directly in `PREPR-S2` before touching learning/evolution or ops/gov restoration.
+## Entry: 2026-03-09 01:29:00 +00:00 - PREPR-S3 must restore managed learning control surfaces through the remote managed lane, not local placeholder Terraform
+### Problem
+1. `infra/terraform/dev_full/data_ml` is the right control-surface stack for `PREPR-S3`, but its local defaults are intentionally non-production:
+   - `databricks_workspace_url_seed = https://dbc-placeholder.cloud.databricks.com`
+   - `databricks_token_seed = rotate-me-dev-full-databricks-token`
+2. A local Terraform apply without real secret injection would therefore reseed placeholder values into SSM and falsely appear green.
+3. Active repo workflow authority already contains the production-correct restore lane:
+   - `.github/workflows/dev_full_m10_ab_managed.yml`
+   - validates repository secrets are present,
+   - materializes `data_ml`,
+   - then immediately verifies the Databricks readiness/control surfaces.
+
+### Production interpretation
+1. `PREPR-S3` is a managed-surface restore problem, not a local-IaC convenience problem.
+2. The correct restore path is the one that:
+   - uses the real Databricks workspace/token seeds,
+   - restores SageMaker/Databricks/MLflow handles,
+   - and emits readiness evidence on the same execution boundary.
+3. Using local placeholder defaults would violate the production-standard rule against toy-green restoration.
+
+### Chosen remediation
+1. Dispatch the existing managed workflow on the active branch (`cert-platform`) so the real repository secrets are used.
+2. Treat the `M10.A/M10.B` managed lane as the authoritative `PREPR-S3` restore executor for `data_ml` control surfaces.
+3. On successful completion, read back the resulting SSM and IAM surfaces and emit `PREPR-S3` receipts mapped to the PREPR contract.
+## Entry: 2026-03-09 01:42:00 +00:00 - PREPR-S4 must restore real ops/gov closure surfaces, not just seed placeholders
+### Problem
+1. `PREPR-S1..S3` restored the runtime, case/label, and managed learning substrate families, but `PREPR-S4` is still red because the `ops` stack does not yet provide enough real closure surfaces for whole-platform bounded proofs.
+2. The pre-existing `infra/terraform/dev_full/ops` stack mainly seeded placeholder handle paths:
+   - MWAA webserver URL,
+   - Redis endpoint,
+   - GitHub Actions IAM policies,
+   - runtime bootstrap log group.
+3. That is insufficient for the production-standard role of `PREPR-S4`, which must restore measurable ops/gov surfaces for:
+   - cost guardrails,
+   - platform dashboard readback,
+   - same-run closure evidence visibility,
+   - idle-safe accountability.
+4. If I accept the old placeholder-only posture, `PREPR-S4` would look green while still lacking the concrete guardrail and observability surfaces needed to close later `PR3/PR4` gates honestly.
+
+### Production interpretation
+1. `PREPR-S4` is not about recreating every future ops feature; it is about restoring the minimum real ops/gov surfaces required to:
+   - measure platform health,
+   - attribute spend,
+   - prove closure visibility,
+   - and fail fast on cost or observability blind spots.
+2. For this phase, the most important missing live surfaces are:
+   - an AWS budget resource with deterministic thresholds,
+   - CloudWatch dashboards for platform operations and cost guardrail visibility,
+   - retained runtime bootstrap log group continuity,
+   - continued MWAA/Redis handle publication required by the built `dev_full` control plane.
+3. These are whole-platform substrate requirements, not optional reporting niceties, because later bounded correctness/stress states must be able to cite real cost and ops surfaces instead of placeholder text.
+
+### Alternatives considered
+1. Keep `ops` unchanged and treat placeholder SSM seeds + log group as sufficient.
+   - Rejected because this produces fake-green `PREPR-S4` evidence and leaves cost/ops closure materially weak.
+2. Restore only budget resources and defer dashboards.
+   - Rejected because the production-standard asks for readable impact metrics and operational visibility, not just a billing alarm.
+3. Restore dashboards but not budgets.
+   - Rejected because the repo has already shown cost blow-up; omitting a concrete guardrail would violate the cost-control law.
+
+### Chosen remediation
+1. Extend `infra/terraform/dev_full/ops` with:
+   - monthly AWS budget resource,
+   - alert thresholds,
+   - platform operations CloudWatch dashboard,
+   - cost guardrail CloudWatch dashboard.
+2. Publish those handles in `ops_handle_materialization` so later road-to-prod states can read them without ad hoc discovery.
+3. Use the repository owner's configured email as the default budget notification target for now, because `AWS_BUDGET_NOTIFICATION_EMAIL` remains otherwise unpinned and `PREPR-S4` must restore a real notification surface rather than stop on an avoidable placeholder.
+4. Validate Terraform locally before apply, then restore the `ops` stack and emit `PREPR-S4` receipts tied to the real resources.
+
+### Expected result
+1. `PREPR-S4` closes with real ops/gov surfaces:
+   - readable dashboard names,
+   - live AWS budget handle,
+   - runtime bootstrap log visibility,
+   - MWAA execution role and SSM handles intact.
+2. `PREPR-S5` can then score whole-platform restoration using actual ops/gov resources instead of inferred readiness.
+## Entry: 2026-03-09 01:34:00 +00:00 - PREPR-S4 live readback exposed a fake-green budget filter and the guardrail must become materially effective
+### Problem
+1. The `ops` stack applied and created the AWS budget resource, but live readback shows the budget currently carries:
+   - `TagKeyValue = "project${var.project}"`.
+2. That means the cost filter was restored with a literal interpolation fragment instead of a real value, so the budget is not a trustworthy cost guardrail.
+3. Even if the interpolation were corrected to `project$fraud-platform`, a tag-filtered budget would still depend on cost-allocation tag activation and broad tagging discipline across all restored surfaces.
+4. For `PREPR-S4`, the user goal is not a decorative budget object; it is a budget that will actually alarm when spend rises again.
+
+### Production interpretation
+1. A fake-green cost guardrail is worse than no guardrail because it falsely suggests spend is controlled while the alert path may never fire.
+2. At this restoration stage, the safer and more production-honest posture is:
+   - account-effective monthly guardrail first,
+   - finer tag-scoped attribution later when tag activation and coverage are explicitly proven.
+3. This matches the current repo reality:
+   - whole-platform restoration is happening in one account,
+   - the active need is to prevent more uncontrolled spend while finishing production hardening.
+
+### Chosen remediation
+1. Remove the broken `cost_filter` block from `aws_budgets_budget.dev_full_monthly`.
+2. Keep the budget as a real monthly account-level spend guardrail with explicit thresholds and notification target.
+3. Re-apply `ops`, read the budget back again, and only then close `PREPR-S4`.
+4. If the provider does not reconcile the budget drift in-place, force replacement of only the budget resource rather than broadening the `ops` rerun.
+
+### Expected result
+1. `PREPR-S4` cost guardrail becomes materially effective immediately.
+2. Later phases can add finer-grained attribution evidence without relying on an unproven tag-filtered budget to catch spend spikes.
+## Entry: 2026-03-09 01:36:00 +00:00 - PREPR-S4 and PREPR-S5 closed green; PR3-S4 can now resume on the restored whole-platform substrate
+### PREPR-S4 closure
+1. After forcing replacement of the budget resource, live readback confirmed the corrected ops/gov restore posture:
+   - AWS budget `fraud-platform-dev-full-monthly` exists without the broken literal filter,
+   - thresholds `120/210/270` are materialized,
+   - current account spend is already above threshold and the budget is in `ALARM`,
+   - CloudWatch dashboards are readable,
+   - runtime bootstrap log group is readable,
+   - MWAA and Redis SSM handles are readable,
+   - `fraud-platform-obs-gov/obs-gov` namespace + service account are materialized and role-bound to `fraud-platform-dev-full-irsa-obs-gov`,
+   - evidence/object-store closure roots are readable.
+2. That means the active remaining ops/gov problem is no longer substrate absence. The cost guardrail is now honest and already signaling the prior spend overrun.
+
+### PREPR-S5 closure
+1. I aggregated `PREPR-S1..S4` and all four substrate families passed:
+   - core runtime,
+   - case/label,
+   - learning/evolution,
+   - ops/gov.
+2. Deterministic reentry verdict:
+   - `PR3_S4_REENTRY_READY`
+   - `open_blockers=0`
+   - `next_state=PR3-S4`
+3. The right execution posture after PREPR is:
+   - resume on the restored whole-platform substrate,
+   - bounded correctness first,
+   - bounded stress second,
+   - soak only after both are green,
+   - keep cost discipline explicit because the account-level budget is already alarming.
+
+### Production interpretation
+1. PREPR did what it needed to do:
+   - it restored the whole-platform substrate, not just the runtime spine.
+2. The platform is now legally and technically able to resume whole-platform production-hardening states.
+3. The next engineering problem is no longer restoration. It is proving `PR3-S4` whole-platform correctness on this restored substrate without regressing into expensive, long soak-first behavior.
+
+## Entry: 2026-03-09 09:24:00 +00:00 - PR3-S4 launcher still contains spine-biased namespace and IRSA assumptions that would make the whole-platform correctness gate structurally red
+### Problem
+1. `PREPR` restored the whole-platform substrate in four families, including:
+   - `EKS_NAMESPACE_CASE_LABELS=fraud-platform-case-labels`,
+   - `EKS_NAMESPACE_OBS_GOV=fraud-platform-obs-gov`,
+   - `EKS_NAMESPACE_LEARNING=fraud-platform-learning`,
+   - `ROLE_EKS_IRSA_CASE_LABELS`,
+   - `ROLE_EKS_IRSA_OBS_GOV`,
+   - `ROLE_EKS_IRSA_LEARNING`.
+2. The active `PR3-S4` workflow (`.github/workflows/dev_full_pr3_s4_soak.yml`) still assumes a single runtime namespace `fraud-platform-rtdl` for:
+   - rollout checks,
+   - runtime warm-gate,
+   - component snapshots,
+   - bounded learning invocation.
+3. `scripts/dev_substrate/pr3_rtdl_materialize.py` already deploys:
+   - RTDL/decision workloads into `fraud-platform-rtdl`,
+   - case/label workloads into `fraud-platform-case-labels`.
+4. Therefore the current `PR3-S4` harness would fail or mis-measure before correctness actually begins:
+   - case/label rollout checks would look in the wrong namespace,
+   - warm-gate would declare pods missing for `case_trigger`, `case_mgmt`, `label_store`,
+   - runtime snapshots would report false component absence for the same lanes.
+5. A second drift exists in the bounded learning runner:
+   - `pr3_s4_learning_bound_remote.py` defaults to `namespace=fraud-platform-rtdl`,
+   - `service_account_name=rtdl`,
+   - fallback IRSA role `ROLE_EKS_IRSA_RTDL`.
+6. That violates the restored `dev_full` substrate intent because bounded learning proof should use the learning surface, not piggyback on the RTDL IRSA posture.
+
+### Production interpretation
+1. This is not a cosmetic workflow issue. If left as-is, `PR3-S4` would still look like a whole-platform gate in docs while actually executing a spine-only or structurally incomplete slice.
+2. That would recreate the same bad pattern the user explicitly rejected:
+   - treating the platform as `WSP + IG + RTDL`,
+   - then discovering case/label and learning failures only after expensive windows.
+3. The right production posture is:
+   - route each participating plane through its restored namespace/identity boundary,
+   - let the bounded correctness gate validate the real multi-plane topology,
+   - fail on actual runtime or semantic defects rather than harness self-sabotage.
+
+### Alternatives considered
+1. Collapse case/label back into the RTDL namespace for convenience.
+   - Rejected because `PREPR-S2` already corrected that boundary and the restored substrate must remain authoritative.
+2. Keep learning proof on RTDL IRSA because it is "only bounded correctness".
+   - Rejected because whole-platform correctness must prove the real learning lane and its identity boundary, not a shortcut.
+3. Skip case/label and learning from warm-gate/snapshots and rely on later rollup logic.
+   - Rejected because omission would make `PR3-S4` fake-green and violate the whole-platform contract.
+
+### Chosen remediation
+1. Patch the `PR3-S4` workflow so it resolves and passes:
+   - RTDL namespace,
+   - case/label namespace,
+   - learning namespace,
+   - learning IRSA/service-account surface.
+2. Patch `pr3_runtime_warm_gate.py` to probe RTDL and case/label components in their correct namespaces and emit one combined readiness receipt.
+3. Patch `pr3_runtime_surface_snapshot.py` to capture RTDL and case/label components from their real namespaces in one snapshot.
+4. Patch `pr3_s4_learning_bound_remote.py` so the bounded learning proof defaults to the restored learning namespace and `ROLE_EKS_IRSA_LEARNING`, with explicit readback in the orchestration receipt.
+5. Keep dependency/schema/cost/ops-gov lanes on their existing surfaces unless authority drift is found during code readback.
+
+### Expected result
+1. The next `PR3-S4` run will measure the restored whole platform rather than a single-namespace approximation.
+2. Any blocker emitted after these harness corrections will be attributable to real platform behavior, not preflight topology drift.
+3. Bounded correctness remains the cheapest legal gate before any higher-cost stress or soak work.

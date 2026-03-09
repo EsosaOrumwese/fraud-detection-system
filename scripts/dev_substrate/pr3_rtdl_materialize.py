@@ -144,6 +144,14 @@ def config_map_manifest(namespace: str, name: str, data: dict[str, str]) -> dict
     }
 
 
+def namespace_manifest(name: str) -> dict[str, Any]:
+    return {
+        "apiVersion": "v1",
+        "kind": "Namespace",
+        "metadata": {"name": name},
+    }
+
+
 def _ensure_mapping(parent: dict[str, Any], key: str) -> dict[str, Any]:
     value = parent.setdefault(key, {})
     if not isinstance(value, dict):
@@ -322,6 +330,7 @@ def collect_deployment_status(namespace: str, name: str) -> dict[str, Any]:
             }
         )
     return {
+        "namespace": namespace,
         "deployment": {
             "name": name,
             "namespace": namespace,
@@ -356,6 +365,7 @@ def main() -> int:
     ap.add_argument("--scenario-run-id", required=True)
     ap.add_argument("--region", default="eu-west-2")
     ap.add_argument("--namespace", default="")
+    ap.add_argument("--case-labels-namespace", default="")
     ap.add_argument("--profile-path", default="/runtime-profile/dev_full.yaml")
     ap.add_argument("--profile-source-path", default="config/platform/profiles/dev_full.yaml")
     ap.add_argument("--df-registry-snapshot-source-path", default="config/platform/df/registry_snapshot_dev_full_v0.yaml")
@@ -372,6 +382,10 @@ def main() -> int:
 
     registry = parse_registry(REGISTRY)
     namespace = str(args.namespace or registry.get("EKS_NAMESPACE_RTDL", "")).strip() or "fraud-platform-rtdl"
+    case_labels_namespace = (
+        str(args.case_labels_namespace or registry.get("EKS_NAMESPACE_CASE_LABELS", "")).strip()
+        or "fraud-platform-case-labels"
+    )
     pr3_root = Path(args.run_control_root) / args.pr3_execution_id
     pr3_root.mkdir(parents=True, exist_ok=True)
     manifest_path = pr3_root / "g3a_runtime_materialization_manifest.json"
@@ -397,6 +411,7 @@ def main() -> int:
     required_handles = [
         "ROLE_EKS_IRSA_RTDL",
         "ROLE_EKS_IRSA_DECISION_LANE",
+        "ROLE_EKS_IRSA_CASE_LABELS",
         "MSK_BOOTSTRAP_BROKERS_SASL_IAM",
         "FP_BUS_RTDL_V1",
         "FP_BUS_AUDIT_V1",
@@ -503,20 +518,26 @@ def main() -> int:
     snapshot_text = snapshot_source_path.read_text(encoding="utf-8")
     dla_policy_text = dla_policy_source_path.read_text(encoding="utf-8")
 
+    for ns in {namespace, case_labels_namespace}:
+        kubectl_apply(namespace_manifest(ns))
+
     kubectl_apply(service_account_manifest(namespace, rtdl_sa, str(registry["ROLE_EKS_IRSA_RTDL"]).strip()))
     kubectl_apply(service_account_manifest(namespace, decision_sa, str(registry["ROLE_EKS_IRSA_DECISION_LANE"]).strip()))
-    kubectl_apply(service_account_manifest(namespace, case_labels_sa, str(registry["ROLE_EKS_IRSA_CASE_LABELS"]).strip()))
     kubectl_apply(
-        config_map_manifest(
-            namespace,
-            profile_configmap_name,
-            {
-                "dev_full.yaml": profile_text,
-                snapshot_source_path.name: snapshot_text,
-                dla_policy_source_path.name: dla_policy_text,
-            },
-        )
+        service_account_manifest(case_labels_namespace, case_labels_sa, str(registry["ROLE_EKS_IRSA_CASE_LABELS"]).strip())
     )
+    for ns in {namespace, case_labels_namespace}:
+        kubectl_apply(
+            config_map_manifest(
+                ns,
+                profile_configmap_name,
+                {
+                    "dev_full.yaml": profile_text,
+                    snapshot_source_path.name: snapshot_text,
+                    dla_policy_source_path.name: dla_policy_text,
+                },
+            )
+        )
 
     secret_data = {
         "KAFKA_BOOTSTRAP_SERVERS": str(registry["MSK_BOOTSTRAP_BROKERS_SASL_IAM"]).strip(),
@@ -576,7 +597,8 @@ def main() -> int:
         "CASE_MGMT_LOCATOR": aurora_dsn,
         "LABEL_STORE_LOCATOR": aurora_dsn,
     }
-    kubectl_apply(secret_manifest(namespace, secret_name, secret_data))
+    for ns in {namespace, case_labels_namespace}:
+        kubectl_apply(secret_manifest(ns, secret_name, secret_data))
 
     common_secret_env = [
         env_ref("AWS_REGION", secret_name, "KAFKA_AWS_REGION"),
@@ -635,6 +657,7 @@ def main() -> int:
         },
         {
             "name": "fp-pr3-ieg",
+            "namespace": namespace,
             "service_account": rtdl_sa,
             "command": ["python", "-m", "fraud_detection.identity_entity_graph.projector", "--profile", profile_path_in_container],
             "env": common_secret_env
@@ -652,6 +675,7 @@ def main() -> int:
         },
         {
             "name": "fp-pr3-ofp",
+            "namespace": namespace,
             "service_account": rtdl_sa,
             "command": ["python", "-m", "fraud_detection.online_feature_plane.projector", "--profile", profile_path_in_container],
             "env": common_secret_env
@@ -670,6 +694,7 @@ def main() -> int:
         },
         {
             "name": "fp-pr3-archive-writer",
+            "namespace": namespace,
             "service_account": rtdl_sa,
             "command": ["python", "-m", "fraud_detection.archive_writer.worker", "--profile", profile_path_in_container],
             "env": common_secret_env
@@ -685,6 +710,7 @@ def main() -> int:
         },
         {
             "name": "fp-pr3-dl",
+            "namespace": namespace,
             "service_account": decision_sa,
             "command": ["python", "-m", "fraud_detection.degrade_ladder.worker", "--profile", profile_path_in_container],
             "env": common_secret_env
@@ -706,6 +732,7 @@ def main() -> int:
         },
         {
             "name": "fp-pr3-df",
+            "namespace": namespace,
             "service_account": decision_sa,
             "command": ["python", "-m", "fraud_detection.decision_fabric.worker", "--profile", profile_path_in_container],
             "env": common_secret_env
@@ -732,6 +759,7 @@ def main() -> int:
         },
         {
             "name": "fp-pr3-al",
+            "namespace": namespace,
             "service_account": decision_sa,
             "command": ["python", "-m", "fraud_detection.action_layer.worker", "--profile", profile_path_in_container],
             "env": common_secret_env
@@ -752,6 +780,7 @@ def main() -> int:
         },
         {
             "name": "fp-pr3-dla",
+            "namespace": namespace,
             "service_account": decision_sa,
             "command": ["python", "-m", "fraud_detection.decision_log_audit.worker", "--profile", profile_path_in_container],
             "env": common_secret_env
@@ -767,6 +796,7 @@ def main() -> int:
         },
         {
             "name": "fp-pr3-case-trigger",
+            "namespace": case_labels_namespace,
             "service_account": case_labels_sa,
             "command": ["python", "-m", "fraud_detection.case_trigger.worker", "--profile", profile_path_in_container],
             "env": common_secret_env
@@ -786,6 +816,7 @@ def main() -> int:
         },
         {
             "name": "fp-pr3-case-mgmt",
+            "namespace": case_labels_namespace,
             "service_account": case_labels_sa,
             "command": ["python", "-m", "fraud_detection.case_mgmt.worker", "--profile", profile_path_in_container],
             "env": common_secret_env
@@ -802,6 +833,7 @@ def main() -> int:
         },
         {
             "name": "fp-pr3-label-store",
+            "namespace": case_labels_namespace,
             "service_account": case_labels_sa,
             "command": ["python", "-m", "fraud_detection.label_store.worker", "--profile", profile_path_in_container],
             "env": common_secret_env
@@ -820,7 +852,7 @@ def main() -> int:
 
     for workload in workloads:
         doc = deployment_manifest(
-            namespace=namespace,
+            namespace=str(workload["namespace"]),
             name=str(workload["name"]),
             service_account=str(workload["service_account"]),
             image=image_uri,
@@ -838,18 +870,22 @@ def main() -> int:
 
     rollout_results = []
     for workload in workloads:
-        ok, detail = rollout_status(namespace, str(workload["name"]), timeout_seconds=300)
-        rollout_results.append({"name": workload["name"], "ok": ok, "detail": detail})
+        workload_namespace = str(workload["namespace"])
+        ok, detail = rollout_status(workload_namespace, str(workload["name"]), timeout_seconds=300)
+        rollout_results.append({"name": workload["name"], "namespace": workload_namespace, "ok": ok, "detail": detail})
         if not ok:
             blockers.append(f"PR3.RUNTIME.B04_ROLLOUT_FAILED:{workload['name']}")
 
-    deployment_statuses = [collect_deployment_status(namespace, str(workload["name"])) for workload in workloads]
+    deployment_statuses = [
+        collect_deployment_status(str(workload["namespace"]), str(workload["name"])) for workload in workloads
+    ]
     failure_logs = {}
     if blockers:
         for status in deployment_statuses:
+            status_namespace = str(status.get("namespace", "")).strip() or namespace
             for pod in status.get("pods", []):
                 if not bool(pod.get("ready")):
-                    failure_logs[str(pod["name"])] = tail_logs(namespace, str(pod["name"]))
+                    failure_logs[f"{status_namespace}/{pod['name']}"] = tail_logs(status_namespace, str(pod["name"]))
 
     manifest = {
         "phase": "PR3",
@@ -860,7 +896,10 @@ def main() -> int:
         "execution_id": args.pr3_execution_id,
         "platform_run_id": args.platform_run_id,
         "scenario_run_id": args.scenario_run_id,
-        "namespace": namespace,
+        "namespaces": {
+            "rtdl": namespace,
+            "case_labels": case_labels_namespace,
+        },
         "image_uri": image_uri,
         "profile_path": profile_path_in_container,
         "df_registry_snapshot_source_path": str(snapshot_source_path),
@@ -870,13 +909,22 @@ def main() -> int:
         "secret_name": secret_name,
         "profile_configmap_name": profile_configmap_name,
         "service_accounts": {
-            "rtdl": {"name": rtdl_sa, "role_arn": str(registry["ROLE_EKS_IRSA_RTDL"]).strip()},
-            "decision": {"name": decision_sa, "role_arn": str(registry["ROLE_EKS_IRSA_DECISION_LANE"]).strip()},
-            "case_labels": {"name": case_labels_sa, "role_arn": str(registry["ROLE_EKS_IRSA_CASE_LABELS"]).strip()},
+            "rtdl": {"name": rtdl_sa, "namespace": namespace, "role_arn": str(registry["ROLE_EKS_IRSA_RTDL"]).strip()},
+            "decision": {
+                "name": decision_sa,
+                "namespace": namespace,
+                "role_arn": str(registry["ROLE_EKS_IRSA_DECISION_LANE"]).strip(),
+            },
+            "case_labels": {
+                "name": case_labels_sa,
+                "namespace": case_labels_namespace,
+                "role_arn": str(registry["ROLE_EKS_IRSA_CASE_LABELS"]).strip(),
+            },
         },
         "workloads": [
             {
                 "name": workload["name"],
+                "namespace": workload["namespace"],
                 "lane": workload["lane"],
                 "command": workload["command"],
                 "resources": {

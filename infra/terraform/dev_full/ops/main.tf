@@ -17,6 +17,83 @@ locals {
     },
     var.additional_tags
   )
+
+  platform_operations_dashboard_body = jsonencode({
+    widgets = [
+      {
+        type   = "metric"
+        x      = 0
+        y      = 0
+        width  = 12
+        height = 6
+        properties = {
+          title   = "Ingress Lambda Errors and Duration"
+          region  = var.aws_region
+          view    = "timeSeries"
+          stacked = false
+          metrics = [
+            ["AWS/Lambda", "Errors", "FunctionName", "fraud-platform-dev-full-ig-handler"],
+            [".", "Duration", ".", ".", { stat = "p95", yAxis = "right" }]
+          ]
+        }
+      },
+      {
+        type   = "metric"
+        x      = 12
+        y      = 0
+        width  = 12
+        height = 6
+        properties = {
+          title   = "Ingress API Gateway HTTP Anomalies"
+          region  = var.aws_region
+          view    = "timeSeries"
+          stacked = false
+          metrics = [
+            ["AWS/ApiGateway", "4xx", "ApiId", "pd7rtjze95", "Stage", "v1"],
+            [".", "5xx", ".", ".", ".", "."]
+          ]
+        }
+      }
+    ]
+  })
+
+  cost_guardrail_dashboard_body = jsonencode({
+    widgets = [
+      {
+        type   = "metric"
+        x      = 0
+        y      = 0
+        width  = 12
+        height = 6
+        properties = {
+          title   = "Estimated Charges"
+          region  = "us-east-1"
+          view    = "timeSeries"
+          stacked = false
+          metrics = [
+            ["AWS/Billing", "EstimatedCharges", "Currency", var.budget_limit_unit]
+          ]
+        }
+      },
+      {
+        type   = "text"
+        x      = 12
+        y      = 0
+        width  = 12
+        height = 6
+        properties = {
+          markdown = join("\n", [
+            "# Budget Guardrail",
+            "",
+            "- Budget name: `${var.budget_name}`",
+            "- Monthly limit: `${var.budget_limit_amount} ${var.budget_limit_unit}`",
+            "- Alert thresholds: `${join(", ", [for t in var.budget_alert_thresholds : tostring(t)])}`",
+            "- Notification email: `${var.budget_alert_email}`"
+          ])
+        }
+      }
+    ]
+  })
 }
 
 data "aws_iam_policy_document" "assume_role_mwaa" {
@@ -66,50 +143,6 @@ resource "aws_ssm_parameter" "mwaa_webserver_url" {
   })
 }
 
-resource "aws_ssm_parameter" "aurora_endpoint" {
-  name      = var.ssm_aurora_endpoint_path
-  type      = "String"
-  value     = var.aurora_endpoint_seed
-  overwrite = true
-
-  tags = merge(local.common_tags, {
-    fp_resource = "aurora_endpoint"
-  })
-}
-
-resource "aws_ssm_parameter" "aurora_reader_endpoint" {
-  name      = var.ssm_aurora_reader_endpoint_path
-  type      = "String"
-  value     = var.aurora_reader_endpoint_seed
-  overwrite = true
-
-  tags = merge(local.common_tags, {
-    fp_resource = "aurora_reader_endpoint"
-  })
-}
-
-resource "aws_ssm_parameter" "aurora_username" {
-  name      = var.ssm_aurora_username_path
-  type      = "String"
-  value     = var.aurora_username_seed
-  overwrite = true
-
-  tags = merge(local.common_tags, {
-    fp_resource = "aurora_username"
-  })
-}
-
-resource "aws_ssm_parameter" "aurora_password" {
-  name      = var.ssm_aurora_password_path
-  type      = "SecureString"
-  value     = var.aurora_password_seed
-  overwrite = true
-
-  tags = merge(local.common_tags, {
-    fp_resource = "aurora_password"
-  })
-}
-
 resource "aws_ssm_parameter" "redis_endpoint" {
   name      = var.ssm_redis_endpoint_path
   type      = "String"
@@ -128,6 +161,37 @@ resource "aws_cloudwatch_log_group" "runtime_bootstrap" {
   tags = merge(local.common_tags, {
     fp_resource = "runtime_bootstrap_log_group"
   })
+}
+
+resource "aws_budgets_budget" "dev_full_monthly" {
+  count = trimspace(var.budget_alert_email) != "" ? 1 : 0
+
+  name         = var.budget_name
+  budget_type  = "COST"
+  limit_amount = tostring(var.budget_limit_amount)
+  limit_unit   = var.budget_limit_unit
+  time_unit    = "MONTHLY"
+
+  dynamic "notification" {
+    for_each = var.budget_alert_thresholds
+    content {
+      comparison_operator        = "GREATER_THAN"
+      threshold                  = notification.value
+      threshold_type             = "ABSOLUTE_VALUE"
+      notification_type          = "ACTUAL"
+      subscriber_email_addresses = [var.budget_alert_email]
+    }
+  }
+}
+
+resource "aws_cloudwatch_dashboard" "platform_operations" {
+  dashboard_name = var.dashboard_platform_operations_name
+  dashboard_body = local.platform_operations_dashboard_body
+}
+
+resource "aws_cloudwatch_dashboard" "cost_guardrail" {
+  dashboard_name = var.dashboard_cost_guardrail_name
+  dashboard_body = local.cost_guardrail_dashboard_body
 }
 
 resource "aws_iam_role_policy" "github_actions_m6f_remote" {

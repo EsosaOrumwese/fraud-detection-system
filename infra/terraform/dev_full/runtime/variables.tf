@@ -456,7 +456,7 @@ variable "eks_namespace_rtdl" {
 
 variable "eks_namespace_case_labels" {
   type    = string
-  default = "fraud-platform-rtdl"
+  default = "fraud-platform-case-labels"
 }
 
 variable "eks_namespace_obs_gov" {
@@ -537,4 +537,100 @@ variable "runtime_fallback_requires_new_phase_execution_id" {
 variable "phase_runtime_path_evidence_path_pattern" {
   type    = string
   default = "evidence/dev_full/run_control/{phase_execution_id}/runtime_path_selection.json"
+}
+
+variable "aurora_cluster_identifier" {
+  type    = string
+  default = "fraud-platform-dev-full-aurora"
+}
+
+variable "aurora_engine" {
+  type    = string
+  default = "aurora-postgresql"
+}
+
+variable "aurora_engine_version" {
+  type    = string
+  default = "16.6"
+}
+
+variable "aurora_database_name" {
+  type    = string
+  default = "fraud_platform"
+}
+
+variable "aurora_master_username" {
+  type    = string
+  default = "fp_runtime"
+}
+
+variable "aurora_port" {
+  type    = number
+  default = 5432
+}
+
+variable "aurora_serverless_min_capacity" {
+  type    = number
+  default = 0.5
+}
+
+variable "aurora_serverless_max_capacity" {
+  type    = number
+  default = 4
+}
+
+variable "aurora_backup_retention_period" {
+  type    = number
+  default = 7
+}
+
+variable "aurora_preferred_backup_window" {
+  type    = string
+  default = "03:00-04:00"
+}
+
+variable "aurora_preferred_maintenance_window" {
+  type    = string
+  default = "sun:04:00-sun:05:00"
+}
+
+variable "aurora_skip_final_snapshot" {
+  type    = bool
+  default = true
+}
+
+variable "aurora_deletion_protection" {
+  type    = bool
+  default = false
+}
+
+variable "aurora_apply_immediately" {
+  type    = bool
+  default = true
+}
+
+variable "aurora_writer_instance_identifier" {
+  type    = string
+  default = "fraud-platform-dev-full-aurora-writer-1"
+}
+
+variable "ssm_aurora_endpoint_path" {
+  type    = string
+  default = "/fraud-platform/dev_full/aurora/endpoint"
+}
+
+variable "ssm_aurora_reader_endpoint_path" {
+  type    = string
+  default = "/fraud-platform/dev_full/aurora/reader_endpoint"
+}
+
+variable "ssm_aurora_username_path" {
+  type    = string
+  default = "/fraud-platform/dev_full/aurora/username"
+}
+
+variable "ssm_aurora_password_path" {
+  type      = string
+  default   = "/fraud-platform/dev_full/aurora/password"
+  sensitive = true
 }

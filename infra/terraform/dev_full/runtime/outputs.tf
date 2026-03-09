@@ -74,6 +74,35 @@ output "eks_nodegroup_m6f_status" {
   value = aws_eks_node_group.m6f_workers.status
 }
 
+output "aurora_cluster_identifier" {
+  value = aws_rds_cluster.aurora.cluster_identifier
+}
+
+output "aurora_endpoint" {
+  value = aws_rds_cluster.aurora.endpoint
+}
+
+output "aurora_reader_endpoint" {
+  value = aws_rds_cluster.aurora.reader_endpoint
+}
+
+output "ssm_aurora_endpoint_path" {
+  value = aws_ssm_parameter.aurora_endpoint.name
+}
+
+output "ssm_aurora_reader_endpoint_path" {
+  value = aws_ssm_parameter.aurora_reader_endpoint.name
+}
+
+output "ssm_aurora_username_path" {
+  value = aws_ssm_parameter.aurora_username.name
+}
+
+output "ssm_aurora_password_path" {
+  value     = aws_ssm_parameter.aurora_password.name
+  sensitive = true
+}
+
 output "runtime_interface_vpc_endpoint_ids" {
   value = {
     for service, endpoint in aws_vpc_endpoint.runtime_interface :
@@ -153,6 +182,13 @@ output "runtime_handle_materialization" {
     EKS_CLUSTER_ARN                  = aws_eks_cluster.platform.arn
     EKS_NODEGROUP_M6F_NAME           = aws_eks_node_group.m6f_workers.node_group_name
     EKS_NODEGROUP_M6F_STATUS         = aws_eks_node_group.m6f_workers.status
+    AURORA_CLUSTER_IDENTIFIER        = aws_rds_cluster.aurora.cluster_identifier
+    AURORA_ENGINE                    = var.aurora_engine
+    AURORA_MODE                      = "serverless-v2"
+    AURORA_DB_NAME                   = var.aurora_database_name
+    SSM_AURORA_ENDPOINT_PATH         = aws_ssm_parameter.aurora_endpoint.name
+    SSM_AURORA_READER_ENDPOINT_PATH  = aws_ssm_parameter.aurora_reader_endpoint.name
+    SSM_AURORA_USERNAME_PATH         = aws_ssm_parameter.aurora_username.name
     VPC_ENDPOINT_S3_GATEWAY_ID       = aws_vpc_endpoint.runtime_s3_gateway.id
     VPC_ENDPOINT_INTERFACE_IDS = {
       for service, endpoint in aws_vpc_endpoint.runtime_interface :

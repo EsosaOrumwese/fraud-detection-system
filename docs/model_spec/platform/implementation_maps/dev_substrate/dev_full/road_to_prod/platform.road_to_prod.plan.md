@@ -38,9 +38,40 @@ Every phase and subphase must satisfy all closure tests below before it can be m
 ## 3) Current Posture
 1. Foundation wiring and control-plane hardening work is already present from prior stress program.
 2. Production-ready declaration is not yet closed.
-3. Remaining closure focus is data realism, operational certification packs, and go-live rehearsal.
+3. The live `dev_full` substrate was torn down after earlier costly iterations, so the next executable move is a whole-platform substrate restoration program before `PR3-S4` resumes.
+4. Remaining closure focus is now:
+   - whole-platform substrate restoration,
+   - bounded whole-platform correctness/stress/soak gates,
+   - operational certification packs,
+   - go-live rehearsal.
 
-## 4) Phase Ladder (PR0-PR5)
+## 4) Phase Ladder (PREPR, PR0-PR5)
+
+### PREPR - Whole-Platform Substrate Restoration
+Intent:
+1. Restore `dev_full` as a production-shaped whole-platform substrate before further certification execution.
+2. Restore the platform in explicit families:
+   - core runtime substrate,
+   - case/label substrate dependencies,
+   - learning/evolution managed substrate,
+   - ops/gov closure surfaces.
+3. Execute detailed state plan in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PREPR.road_to_prod.md`.
+
+Subphase template:
+1. `S0` authority freeze and live-state inventory.
+2. `S1` core runtime substrate restore.
+3. `S2` case/label substrate restore.
+4. `S3` learning/evolution managed substrate restore.
+5. `S4` ops/gov closure-surface restore.
+6. `S5` whole-platform restoration validation and PR3 reentry verdict.
+
+Exit / DoD:
+1. Whole-platform substrate families are restored or explicitly proven unnecessary for the next certification boundary.
+2. Every restored family has a readable validation receipt and attributable spend receipt.
+3. Idle-safe and cost posture are explicit and acceptable.
+4. `open_blockers=0` and verdict is `PR3_S4_REENTRY_READY`.
+5. Execution status: `COMPLETE` (`PREPR-S5` closed on `prepr_s4_20260309T013003Z` with `verdict=PR3_S4_REENTRY_READY`; the next legal state is `PR3-S4` on the restored whole-platform substrate).
 
 ### PR0 - Program Lock And Status Owner Sync
 Intent:
@@ -120,7 +151,7 @@ Exit / DoD:
 3. `G3A` pack has `open_blockers=0`.
 4. Closure demonstrates runtime gate intent across the whole participating platform, not just the runtime spine.
 5. No soak evidence is claimable unless both the bounded correctness window and bounded stress window were green first.
-6. Execution status: `IN_PROGRESS` (`S0`, `S1`, `S2`, and `S3` complete; active next boundary is `S4` bounded whole-platform correctness certification with mandatory control bootstrap + bounded learning + bounded ops/gov receipts before any heavier run is authorized).
+6. Execution status: `READY_TO_RESUME` (`PREPR` exited `PR3_S4_REENTRY_READY`; `PR3-S4` is now the next certification boundary and must resume on the restored whole-platform substrate under the bounded correctness -> bounded stress -> soak-last ladder).
 
 ### PR4 - G3B Ops/Gov Operational Certification Pack
 Intent:
@@ -412,6 +443,59 @@ This plan's intent is satisfied only when:
 | Comparison boundary | Keep `lane_count=44`, `wsp_task_cpu=256`, `wsp_task_memory=2048`, `warmup_seconds=90`, `stream_speedup=180`, `ig_push_concurrency=16`, `output_concurrency=4`, `http_pool_maxsize=1024` unchanged for the next rerun | This preserves apples-to-apples comparison against the latest authoritative warmed run and avoids mixing reliability and capacity deltas. |
 | Required state digest | Summaries must lead with admitted/request EPS, `4xx`, `5xx`, `p95`, `p99`, RTDL error-growth/freshness deltas, and a one-line production verdict | PR3 reporting stays impact-metric-driven and fail-closed rather than collapsing back into artifact pointers or work-log prose. |
 | Capacity-work trigger | Treat the remaining throughput gap as the active blocker only if the rerun proves `5xx=0` with the refreshed image | Production posture requires reliability closure first; only then is it analytically sound to treat the remaining red as pure throughput. |
+
+### 10.18 PREPR-S0 Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Gate outcome | `PREPR_S0_READY`, `open_blockers=0`, `next_state=PREPR-S1` in `prepr_s0_20260309T005216Z` | Restoration authority and live inventory are now frozen; execution can move to actual rebuild work without more discovery ambiguity. |
+| Retained truth/history surfaces | `S3` buckets, `KMS` alias, `ECR` repo, Terraform lock table, SageMaker package-group and training-job history remain live | The restore does not start from zero; durable truth and image-history surfaces can be reused and should not be recreated blindly. |
+| Missing core runtime surfaces | `EKS`, `MSK`, `Aurora`, `API Gateway`, `Lambda`, IG DynamoDB, runtime `SSM` parameters, schema registry are absent | The executable runtime substrate is materially gone, so `PREPR-S1` must restore core runtime first before any certification gate can run honestly. |
+| Missing case/label surfaces | case-label `IRSA`, runtime bindings, case/label truth connectivity, and policy/topic handles are absent | Case and label management cannot be inferred from retained buckets; it needs explicit substrate restoration in `PREPR-S2`. |
+| Missing learning/evolution surfaces | SageMaker execution role, endpoint, Databricks/MLflow handles, and learning state-machine surfaces are absent, while historical learning artifacts remain | Managed learning retains history but not active execution authority, so `PREPR-S3` must restore managed lanes rather than pretending historical jobs prove current readiness. |
+| Missing ops/gov surfaces | Step Functions, MWAA, dashboards, budget guardrail, and obs/gov IRSA surfaces are absent | Whole-platform closure would be dishonest if resumed now; `PREPR-S4` must rebuild the measurement and governance rails before `PR3-S4` reentry. |
+| Runtime and spend posture | elapsed `0.0 min` vs budget `30`; attributable spend `0.0 USD` vs envelope `5.0` | `S0` stayed within the cheap-discovery contract and did not repeat the previous expensive “restore by trial and error” posture. |
+
+### 10.19 PREPR-S1 Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Gate outcome | `PREPR_S1_READY`, `open_blockers=0`, `next_state=PREPR-S2` in `prepr_s1_20260309T010910Z` | Core runtime restoration is complete and the platform is materially runnable again. |
+| Restored runtime surfaces | `MSK`, `Aurora`, `EKS`, `API Gateway`, `Lambda`, IG `DynamoDB`, runtime VPC endpoints, Step Functions, runtime IRSA roles | The executable substrate is back in place and later phases no longer depend on placeholder control surfaces. |
+| Core ingress posture | IG throttle `3000 rps / 6000 burst`; Lambda `2048 MB`, reserved concurrency `600` | The restored front door matches the current production-shaped throughput envelope rather than the older toy-scale defaults. |
+| Runtime and spend posture | elapsed `12.44 min` vs budget `120`; no unresolved blockers | `S1` stayed within the pre-restore budget and restored the runtime without reopening trial-and-error cost burn. |
+
+### 10.20 PREPR-S2 Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Gate outcome | `PREPR_S2_READY`, `open_blockers=0`, `next_state=PREPR-S3` in `prepr_s2_20260309T012300Z` | Case/label substrate restoration is complete and can support bounded whole-platform execution. |
+| Boundary alignment | canonical namespace restored to `fraud-platform-case-labels`; IRSA trust subject matches `system:serviceaccount:fraud-platform-case-labels:case-labels` | Case/label is restored as a first-class plane with its own runtime boundary, not as an RTDL shortcut. |
+| Materializer readiness | `pr3_rtdl_materialize.py` now supports a true namespace split for RTDL vs case/label | Later PR states can judge case/label on authoritative production surfaces rather than shared namespace convenience. |
+| Runtime and spend posture | elapsed `0.0 min` vs budget `60`; no unresolved blockers | The restore stayed cheap and deterministic while closing a real ownership-boundary defect. |
+
+### 10.21 PREPR-S3 Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Gate outcome | `PREPR_S3_READY`, `open_blockers=0`, `next_state=PREPR-S4` in `prepr_s3_20260309T013100Z` | Learning/evolution managed substrate restoration is complete and non-placeholder. |
+| Managed surface reality | Databricks workspace/token, MLflow tracking URI, SageMaker execution role, and managed job upsert receipts all read back successfully | The learning/evolution plane can now be proven on real managed control surfaces instead of bootstrap placeholders. |
+| Restore method | secret-backed GitHub managed lane used instead of local `data_ml` defaults | This avoided a fake-green restore and preserved production realism for later learning proofs. |
+| Runtime and spend posture | managed surfaces restored with `2` job receipts and no blockers | `S3` closed the learning/evolution substrate gap without broadening live spend beyond what the authoritative managed lane required. |
+
+### 10.22 PREPR-S4 Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Gate outcome | `PREPR_S4_READY`, `open_blockers=0`, `next_state=PREPR-S5` in `prepr_s4_20260309T013003Z` | Ops/gov closure surfaces are restored and readable for honest whole-platform bounded proofs. |
+| Cost guardrail | monthly budget `300 USD`; thresholds `120/210/270`; actual spend `1778.043 USD`; notification state `ALARM` | The guardrail is now materially effective and immediately shows that account spend is already above the intended envelope. |
+| Ops visibility | dashboards `fraud-platform-dev-full-operations` and `fraud-platform-dev-full-cost-guardrail` are readable; runtime bootstrap log group exists | Later phases now have real ops/gov visibility surfaces instead of placeholder reporting. |
+| Governance runtime boundary | `fraud-platform-obs-gov/obs-gov` service account is materialized and role-bound to `fraud-platform-dev-full-irsa-obs-gov` | Same-run reporter/reconciliation lanes can now execute on an authoritative namespace + IRSA boundary. |
+| Closure root readability | object-store `oracle-store/` and evidence-bucket `evidence/runs/` prefixes are readable | Whole-platform closure paths are materially visible before PR3-S4 resumes. |
+| Runtime and spend posture | elapsed `5.9 min` vs budget `60`; no unresolved blockers | `S4` stayed bounded while restoring the real measurement and governance rails needed for later whole-platform gates. |
+
+### 10.23 PREPR-S5 Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Gate outcome | `PR3_S4_REENTRY_READY`, `open_blockers=0`, `next_state=PR3-S4` in `prepr_s5_20260309T013003Z` | `PREPR` is complete and PR3 can legally resume on the restored whole-platform substrate. |
+| Whole-platform restore scorecard | restored substrate families `4/4` (`core_runtime`, `case_label`, `learning_evolution`, `ops_gov`) | No required substrate family remains unresolved. |
+| Cost posture | month-to-date spend `1778.043 USD` against budget `300 USD`; budget alarm active `true` | Reentry is authorized, but later execution must stay on the bounded correctness -> bounded stress -> soak-last ladder to avoid repeating prior cost blowups. |
+| Runtime posture | total PREPR elapsed `18.34 min` across `S1..S4` | The restoration program stayed inside minute-scale budgets instead of reverting to expensive full-stack trial runs. |
 
 ## 11) Required TBD Closure Sheet (Binding)
 This section defines the mandatory closure routing for unresolved targets in:
