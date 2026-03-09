@@ -5,6 +5,12 @@ config:
 ---
 flowchart LR
 
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = identity, network, or operational control surface"]
+    LG2[("Round store = persistent state store")]
+    LG3["Dashed edge = retained or handle-only relationship"]
+  end
+
   subgraph ISO["dev_full Identity / State / Ops Graph"]
     subgraph IDENTITY["Identity / Trust"]
       OIDC["GitHub OIDC trust"]
@@ -66,7 +72,6 @@ flowchart LR
       DASHOPS["operations dashboard"]
       DASHCOST["cost-guardrail dashboard"]
       BUDGET["monthly budget"]
-      IDLE["idle posture<br>workload compute off"]
       HTTPAPI["HTTP API Gateway"]
       IGLAMBDA["Ingress Lambda"]
       ALB["Internal ALB"]
@@ -78,90 +83,87 @@ flowchart LR
     end
   end
 
-  OIDC --> ROLETF
-  OIDC --> ROLEBASE
-  OIDC --> ROLENODE
-  OIDC --> ROLEFLINK
-  OIDC --> ROLELAMBDA
-  OIDC --> ROLEAPIGW
-  OIDC --> ROLEDDB
-  OIDC --> ROLESFN
-  OIDC --> ROLEECSEXEC
-  OIDC --> ROLEECSRUNTIME
-  OIDC --> ROLEWSPEXEC
-  OIDC --> ROLEWSPRUN
-  OIDC --> ROLEIRSARTDL
-  OIDC --> ROLEIRSADEC
-  OIDC --> ROLEIRSACL
-  OIDC --> ROLEIRSAOBS
-  OIDC --> ROLEDBX
-  OIDC --> ROLESM
-  OIDC --> ROLEMWAA
+  OIDC -->|trusts workflow assumption of| ROLETF
+  OIDC -->|trusts workflow assumption of| ROLEBASE
+  OIDC -->|trusts workflow assumption of| ROLENODE
+  OIDC -->|trusts workflow assumption of| ROLEFLINK
+  OIDC -->|trusts workflow assumption of| ROLELAMBDA
+  OIDC -->|trusts workflow assumption of| ROLEAPIGW
+  OIDC -->|trusts workflow assumption of| ROLEDDB
+  OIDC -->|trusts workflow assumption of| ROLESFN
+  OIDC -->|trusts workflow assumption of| ROLEECSEXEC
+  OIDC -->|trusts workflow assumption of| ROLEECSRUNTIME
+  OIDC -->|trusts workflow assumption of| ROLEWSPEXEC
+  OIDC -->|trusts workflow assumption of| ROLEWSPRUN
+  OIDC -->|trusts workflow assumption of| ROLEIRSARTDL
+  OIDC -->|trusts workflow assumption of| ROLEIRSADEC
+  OIDC -->|trusts workflow assumption of| ROLEIRSACL
+  OIDC -->|trusts workflow assumption of| ROLEIRSAOBS
+  OIDC -->|trusts workflow assumption of| ROLEDBX
+  OIDC -->|trusts workflow assumption of| ROLESM
+  OIDC -->|trusts workflow assumption of| ROLEMWAA
 
-  SSM --> HTTPAPI
-  SSM --> IGLAMBDA
-  SSM --> IGSVC
-  SSM --> AURORA
-  SSM --> REDISH
-  SSM --> SM
-  ROLETF --> TFSTATE
-  ROLEBASE --> EKS
-  ROLENODE --> EKS
-  ROLEFLINK --> MSF
-  ROLELAMBDA --> IGLAMBDA
-  ROLEAPIGW --> HTTPAPI
-  ROLEDDB --> IGDDB
-  ROLEECSEXEC --> IGSVC
-  ROLEECSRUNTIME --> IGSVC
-  ROLESM --> SM
+  SSM -->|provides handles to| HTTPAPI
+  SSM -->|provides handles to| IGLAMBDA
+  SSM -->|provides handles to| IGSVC
+  SSM -->|provides handles to| AURORA
+  SSM -->|provides handles to| REDISH
+  SSM -->|provides handles to| SM
+  ROLETF -->|applies infrastructure into| TFSTATE
+  ROLEBASE -->|administers| EKS
+  ROLENODE -->|backs compute for| EKS
+  ROLEFLINK -->|executes| MSF
+  ROLELAMBDA -->|executes| IGLAMBDA
+  ROLEAPIGW -->|invokes| HTTPAPI
+  ROLEDDB -->|writes| IGDDB
+  ROLEECSEXEC -->|starts tasks for| IGSVC
+  ROLEECSRUNTIME -->|runs task code for| IGSVC
+  ROLESM -->|executes| SM
 
-  VPC --> PUB1
-  VPC --> PUB2
-  VPC --> PRIV1
-  VPC --> PRIV2
-  PRIV1 --> VPCESTS
-  PRIV1 --> VPCESSM
-  PRIV1 --> VPCELOGS
-  PRIV1 --> VPCEECRAPI
-  PRIV1 --> VPCEECRDKR
-  PRIV1 --> VPCEEC2
-  PRIV1 --> VPCEEXECAPI
-  PRIV1 --> VPCESQS
-  PRIV1 --> VPCES3
-  PRIV1 --> VPCEDDB
-  PRIV2 --> VPCESTS
-  PRIV2 --> VPCESSM
-  PRIV2 --> VPCELOGS
-  PRIV2 --> VPCEECRAPI
-  PRIV2 --> VPCEECRDKR
-  PRIV2 --> VPCEEC2
-  PRIV2 --> VPCEEXECAPI
-  PRIV2 --> VPCESQS
-  PRIV2 --> VPCES3
-  PRIV2 --> VPCEDDB
-  PUB1 --> ALB
-  PUB2 --> ALB
+  VPC -->|contains| PUB1
+  VPC -->|contains| PUB2
+  VPC -->|contains| PRIV1
+  VPC -->|contains| PRIV2
+  PRIV1 -->|reaches AWS APIs through| VPCESTS
+  PRIV1 -->|reaches AWS APIs through| VPCESSM
+  PRIV1 -->|reaches AWS APIs through| VPCELOGS
+  PRIV1 -->|reaches AWS APIs through| VPCEECRAPI
+  PRIV1 -->|reaches AWS APIs through| VPCEECRDKR
+  PRIV1 -->|reaches AWS APIs through| VPCEEC2
+  PRIV1 -->|reaches AWS APIs through| VPCEEXECAPI
+  PRIV1 -->|reaches AWS APIs through| VPCESQS
+  PRIV1 -->|reaches AWS APIs through| VPCES3
+  PRIV1 -->|reaches AWS APIs through| VPCEDDB
+  PRIV2 -->|reaches AWS APIs through| VPCESTS
+  PRIV2 -->|reaches AWS APIs through| VPCESSM
+  PRIV2 -->|reaches AWS APIs through| VPCELOGS
+  PRIV2 -->|reaches AWS APIs through| VPCEECRAPI
+  PRIV2 -->|reaches AWS APIs through| VPCEECRDKR
+  PRIV2 -->|reaches AWS APIs through| VPCEEC2
+  PRIV2 -->|reaches AWS APIs through| VPCEEXECAPI
+  PRIV2 -->|reaches AWS APIs through| VPCESQS
+  PRIV2 -->|reaches AWS APIs through| VPCES3
+  PRIV2 -->|reaches AWS APIs through| VPCEDDB
+  PUB1 -->|exposes edge for| ALB
+  PUB2 -->|exposes edge for| ALB
 
-  OBJ --> ORACLE
-  OBJ --> ARCHIVEPATH
-  OBJ --> QUARPATH
-  AURORA --> AURW
-  AURORA --> AURR
-  CW --> HTTPAPI
-  CW --> IGLAMBDA
-  CW --> ALB
-  CW --> IGSVC
-  CW --> EKS
-  CW --> MSK
-  CW --> MSF
-  CW --> AURORA
-  CW --> SM
-  CW --> DASHOPS
-  CW --> DASHCOST
-  BUDGET --> DASHCOST
-  IDLE --> IGSVC
-  IDLE --> EKS
-  IDLE --> SM
+  OBJ -->|contains| ORACLE
+  OBJ -->|contains| ARCHIVEPATH
+  OBJ -->|contains| QUARPATH
+  AURORA -->|serves writes through| AURW
+  AURORA -->|serves reads through| AURR
+  CW -->|observes| HTTPAPI
+  CW -->|observes| IGLAMBDA
+  CW -->|observes| ALB
+  CW -->|observes| IGSVC
+  CW -->|observes| EKS
+  CW -->|observes| MSK
+  CW -->|observes| MSF
+  CW -->|observes| AURORA
+  CW -->|observes| SM
+  CW -->|materializes| DASHOPS
+  CW -->|materializes| DASHCOST
+  BUDGET -->|feeds budget posture into| DASHCOST
 
   classDef infra fill:#ede7f6,stroke:#4527a0,color:#111,stroke-width:1.4px;
   classDef store fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.4px;
@@ -170,4 +172,4 @@ flowchart LR
   class OIDC,SSM,ROLETF,ROLEBASE,ROLENODE,ROLEFLINK,ROLELAMBDA,ROLEAPIGW,ROLEDDB,ROLESFN,ROLEECSEXEC,ROLEECSRUNTIME,ROLEWSPEXEC,ROLEWSPRUN,ROLEIRSARTDL,ROLEIRSADEC,ROLEIRSACL,ROLEIRSAOBS,ROLEDBX,ROLESM infra;
   class TFSTATE,OBJ,ART,EVID,ORACLE,ARCHIVEPATH,QUARPATH,AURORA,AURW,AURR,REDISH,IGDDB,IGDLQ store;
   class VPC,PUB1,PUB2,PRIV1,PRIV2,VPCESTS,VPCESSM,VPCELOGS,VPCEECRAPI,VPCEECRDKR,VPCEEC2,VPCEEXECAPI,VPCESQS,VPCES3,VPCEDDB,CW,DASHOPS,DASHCOST,BUDGET,HTTPAPI,IGLAMBDA,ALB,IGSVC,EKS,MSK,SM ops;
-  class ROLEMWAA,MSF,IDLE retained;
+  class ROLEMWAA,MSF retained;

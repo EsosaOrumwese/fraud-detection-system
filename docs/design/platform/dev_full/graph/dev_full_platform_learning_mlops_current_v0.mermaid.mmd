@@ -5,6 +5,12 @@ config:
 ---
 flowchart LR
 
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = managed learning / MLOps surface"]
+    LG2[("Round store = persistent dataset, evidence, or registry state")]
+    LG3["Dashed edge = pinned serving handle or lineage-only relationship"]
+  end
+
   subgraph LEARN["dev_full Learning / MLOps Graph"]
     ORACLE["Oracle store inputs<br>read-only runtime boundary"]
     OBJ[("S3 object store<br>datasets / manifests / evidence refs")]
@@ -36,36 +42,36 @@ flowchart LR
     ROLESM["SageMaker execution role"]
   end
 
-  ORACLE --> OBJ
-  TLABELS --> DBX
-  OBJ --> DBX
-  TOFSREQ --> DBX
-  DBX --> DBXBUILD
-  DBX --> DBXQUAL
-  DBXBUILD --> GLUEDB
-  DBXBUILD --> OBJ
-  DBXQUAL --> EVID
-  DBX --> TOFSEVT
-  TOFSEVT --> SM
-  TMFREQ --> SM
-  SM --> MLFLOW
-  SM --> TMFEVT
-  SM --> SMPKG
+  ORACLE -->|stored inside| OBJ
+  TLABELS -->|consumed by| DBX
+  OBJ -->|replayed by| DBX
+  TOFSREQ -->|consumed by| DBX
+  DBX -->|runs| DBXBUILD
+  DBX -->|runs| DBXQUAL
+  DBXBUILD -->|writes dataset tables to| GLUEDB
+  DBXBUILD -->|writes manifests to| OBJ
+  DBXQUAL -->|stores quality receipts in| EVID
+  DBX -->|publishes OFS completion to| TOFSEVT
+  TOFSEVT -->|consumed by| SM
+  TMFREQ -->|consumed by| SM
+  SM -->|writes train/eval lineage to| MLFLOW
+  SM -->|publishes MF events to| TMFEVT
+  SM -->|publishes model packages to| SMPKG
   SMPKG -. bundle lineage .-> MLFLOW
-  TMFEVT --> MLFLOW
-  MLFLOW --> TREG
-  MLFLOW --> PROMO
-  MLFLOW --> ROLLBACK
-  MLFLOW --> REGACTIVE
+  TMFEVT -->|captured by| MLFLOW
+  MLFLOW -->|publishes registry events to| TREG
+  MLFLOW -->|writes promotion receipts to| PROMO
+  MLFLOW -->|writes rollback receipts to| ROLLBACK
+  MLFLOW -->|resolves active bundle truth in| REGACTIVE
   SMENDPT -. pinned runtime serving surface .-> REGACTIVE
-  REGACTIVE --> DF
-  PROMO --> EVID
-  ROLLBACK --> EVID
-  SSM --> DBX
-  SSM --> MLFLOW
-  SSM --> SM
-  ROLEDBX --> DBX
-  ROLESM --> SM
+  REGACTIVE -->|read by| DF
+  PROMO -->|stored in| EVID
+  ROLLBACK -->|stored in| EVID
+  SSM -->|provides handles to| DBX
+  SSM -->|provides handles to| MLFLOW
+  SSM -->|provides handles to| SM
+  ROLEDBX -->|cross-account access for| DBX
+  ROLESM -->|executes| SM
 
   classDef live fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.4px;
   classDef store fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.4px;

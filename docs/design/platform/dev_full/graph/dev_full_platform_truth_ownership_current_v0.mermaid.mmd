@@ -5,6 +5,12 @@ config:
 ---
 flowchart LR
 
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Green node = truth domain / authoritative ownership boundary"]
+    LG2["Purple node = component that writes or consumes that truth"]
+    LG3[("Blue store = durable store holding the truth by value or by ref")]
+  end
+
   subgraph OWNERSHIP["dev_full Truth Ownership Graph"]
     INBOUND["External inbound payload truth<br>owned outside platform"]
     ORACLE["Oracle-store truth<br>read-only runtime boundary"]
@@ -42,65 +48,65 @@ flowchart LR
     AURORA[("Aurora")]
   end
 
-  DENGINE --> INBOUND
-  DENGINE --> ORACLE
-  WSP --> INBOUND
-  WSP --> IGLAMBDA
-  WSP --> IGSVC
+  DENGINE -->|owns upstream payload truth for| INBOUND
+  DENGINE -->|writes black-box artifacts into| ORACLE
+  WSP -->|replays inbound payloads for| INBOUND
+  WSP -->|sends traffic through| IGLAMBDA
+  WSP -->|sends traffic through| IGSVC
 
-  IGLAMBDA --> IG
-  IGSVC --> IG
-  IG --> DDB
-  IG --> MSK
+  IGLAMBDA -->|materializes admit / quarantine truth in| IG
+  IGSVC -->|materializes admit / quarantine truth in| IG
+  IG -->|persisted in| DDB
+  IG -->|publishes admitted events into| MSK
 
-  MSK --> EB
-  EB --> CSFB
-  EB --> IEG
-  EB --> OFP
-  EB --> DF
-  EB --> AL
-  EB --> DLA
-  EB --> CM
-  EB --> LS
-  EB --> DBX
-  EB --> SM
+  MSK -->|carries| EB
+  EB -->|consumed by| CSFB
+  EB -->|consumed by| IEG
+  EB -->|consumed by| OFP
+  EB -->|consumed by| DF
+  EB -->|consumed by| AL
+  EB -->|consumed by| DLA
+  EB -->|consumed by| CM
+  EB -->|consumed by| LS
+  EB -->|consumed by| DBX
+  EB -->|consumed by| SM
 
-  CSFB --> RTDL
-  IEG --> RTDL
-  OFP --> RTDL
-  DF --> RTDL
-  AL --> RTDL
-  DLA --> RTDL
-  RTDL --> AURORA
-  RTDL --> OBJ
+  CSFB -->|writes joined context into| RTDL
+  IEG -->|writes feature / entity state into| RTDL
+  OFP -->|writes online feature state into| RTDL
+  DF -->|writes decision truth into| RTDL
+  AL -->|writes action truth into| RTDL
+  DLA -->|writes lineage / audit truth into| RTDL
+  RTDL -->|persisted in| AURORA
+  RTDL -->|archived by ref in| OBJ
 
-  CM --> CASE
-  CASE --> AURORA
-  CASE --> EVID
+  CM -->|owns and writes| CASE
+  CASE -->|persisted in| AURORA
+  CASE -->|evidenced in| EVID
 
-  LS --> LABEL
-  LABEL --> AURORA
-  LABEL --> OBJ
-  LABEL --> EVID
+  LS -->|owns and writes| LABEL
+  LABEL -->|persisted in| AURORA
+  LABEL -->|archived by ref in| OBJ
+  LABEL -->|evidenced in| EVID
 
-  ARCHWR --> ARCHIVE
-  ARCHIVE --> OBJ
-  ARCHIVE --> EVID
+  ARCHWR -->|owns and writes| ARCHIVE
+  ARCHIVE -->|stored in| OBJ
+  ARCHIVE -->|evidenced in| EVID
 
-  DBX --> OFS
-  OFS --> OBJ
-  OFS --> EVID
+  DBX -->|owns and writes| OFS
+  OFS -->|stored in| OBJ
+  OFS -->|evidenced in| EVID
 
-  SM --> MF
-  MLFLOW --> REG
-  MF --> EVID
+  SM -->|owns and writes| MF
+  MLFLOW -->|owns and resolves| REG
+  MF -->|evidenced in| EVID
 
-  REG --> DF
-  REG --> EVID
+  REG -->|read by| DF
+  REG -->|evidenced in| EVID
 
-  EVID --> GOV
-  OBJ --> GOV
-  AURORA --> GOV
+  EVID -->|feeds| GOV
+  OBJ -->|feeds| GOV
+  AURORA -->|feeds| GOV
 
   classDef owner fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.4px;
   classDef component fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.4px;

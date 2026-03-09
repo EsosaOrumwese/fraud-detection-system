@@ -9,6 +9,13 @@ flowchart LR
 
   EXT["External Data Engine<br>black-box upstream producer<br>feeds oracle-store only"]
 
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active platform component / control surface"]
+    LG2[("Round store = durable state / truth store")]
+    LG3["Dashed edge = retained, pinned, or indirect relationship"]
+    LG4["Edge labels describe the exact contract:<br>dispatches / publishes / consumes / writes / reads / resolves"]
+  end
+
   %% =========================================================
   %% 1. CONTROL NETWORK
   %% =========================================================
@@ -192,31 +199,30 @@ flowchart LR
     DASHOPS["Dashboard<br>fraud-platform-dev-full-operations"]
     DASHCOST["Dashboard<br>fraud-platform-dev-full-cost-guardrail"]
     BUDGET["Budget<br>fraud-platform-dev-full-monthly"]
-    IDLE["Idle posture<br>workload compute scaled to zero"]
   end
 
   %% =========================================================
   %% External boundary
   %% =========================================================
-  EXT --> ORACLE
+  EXT -->|writes upstream artifacts| ORACLE
 
   %% =========================================================
   %% Control edges
   %% =========================================================
-  GHA --> TFCORE
-  GHA --> TFSTREAM
-  GHA --> TFRUNTIME
-  GHA --> TFDML
-  GHA --> TFOPS
-  GHA --> SFN
-  GHA --> OIDC
-  GHA --> ECR
-  GHA --> RUNCTL
-  TFCORE --> TFSTATE
-  TFSTREAM --> TFSTATE
-  TFRUNTIME --> TFSTATE
-  TFDML --> TFSTATE
-  TFOPS --> TFSTATE
+  GHA -->|applies| TFCORE
+  GHA -->|applies| TFSTREAM
+  GHA -->|applies| TFRUNTIME
+  GHA -->|applies| TFDML
+  GHA -->|applies| TFOPS
+  GHA -->|dispatches| SFN
+  GHA -->|authenticates through| OIDC
+  GHA -->|publishes images to| ECR
+  GHA -->|writes execution receipts| RUNCTL
+  TFCORE -->|stores state in| TFSTATE
+  TFSTREAM -->|stores state in| TFSTATE
+  TFRUNTIME -->|stores state in| TFSTATE
+  TFDML -->|stores state in| TFSTATE
+  TFOPS -->|stores state in| TFSTATE
   RUNID -. required pins .-> SFN
   RUNID -. required pins .-> WSP
   RUNID -. required pins .-> IGLAMBDA
@@ -239,257 +245,252 @@ flowchart LR
   RUNTIMEPATH -. selection rule .-> IGLAMBDA
   RUNTIMEPATH -. selection rule .-> IGSVC
   RUNTIMEPATH -. selection rule .-> MSF
-  SFN --> CTRLBUS
-  SFN --> RUNCTL
-  SFN --> EVID
-  CTRLBUS --> MSK
-  SFN --> WSP
+  SFN -->|publishes orchestration signals to| CTRLBUS
+  SFN -->|writes run-control facts to| RUNCTL
+  SFN -->|stores control receipts in| EVID
+  CTRLBUS -->|transported by| MSK
+  SFN -->|starts replay producer| WSP
 
   %% =========================================================
   %% Ingress edges
   %% =========================================================
-  WSPCLUSTER --> WSP
-  WSP --> HTTPAPI
-  WSP --> ALB
-  HTTPAPI --> APIR1
-  HTTPAPI --> APIR2
-  APIR1 --> IGLAMBDA
-  APIR2 --> IGLAMBDA
-  ALB --> TG
-  IGSVC_CLUSTER --> IGSVC
-  TG --> IGSVC
-  IGLAMBDA --> IGDDB
-  IGLAMBDA --> IGDLQ
-  IGLAMBDA --> IGRECEIPTS
-  IGLAMBDA --> TTRAFFIC
-  IGLAMBDA --> TCTXE
-  IGLAMBDA --> TCTXT
-  IGLAMBDA --> TFLOW
-  IGSVC --> IGDDB
-  IGSVC --> IGRECEIPTS
-  IGSVC --> TTRAFFIC
-  IGSVC --> TCTXE
-  IGSVC --> TCTXT
-  IGSVC --> TFLOW
-  IGRECEIPTS --> EVID
-  IGRECEIPTS --> QUARPATH
+  WSPCLUSTER -->|runs| WSP
+  WSP -->|pushes ingress load to| HTTPAPI
+  WSP -->|pushes ingress load to| ALB
+  HTTPAPI -->|routes POST ingest traffic| APIR1
+  HTTPAPI -->|routes health checks| APIR2
+  APIR1 -->|invokes| IGLAMBDA
+  APIR2 -->|invokes| IGLAMBDA
+  ALB -->|forwards to| TG
+  IGSVC_CLUSTER -->|hosts| IGSVC
+  TG -->|targets| IGSVC
+  IGLAMBDA -->|writes idempotency state to| IGDDB
+  IGLAMBDA -->|sends failures to| IGDLQ
+  IGLAMBDA -->|emits admit / quarantine receipts| IGRECEIPTS
+  IGLAMBDA -->|publishes admitted traffic to| TTRAFFIC
+  IGLAMBDA -->|publishes arrival events to| TCTXE
+  IGLAMBDA -->|publishes arrival entities to| TCTXT
+  IGLAMBDA -->|publishes flow anchors to| TFLOW
+  IGSVC -->|writes idempotency state to| IGDDB
+  IGSVC -->|emits admit / quarantine receipts| IGRECEIPTS
+  IGSVC -->|publishes admitted traffic to| TTRAFFIC
+  IGSVC -->|publishes arrival events to| TCTXE
+  IGSVC -->|publishes arrival entities to| TCTXT
+  IGSVC -->|publishes flow anchors to| TFLOW
+  IGRECEIPTS -->|stores receipts in| EVID
+  IGRECEIPTS -->|stores quarantined payload refs in| QUARPATH
 
   %% =========================================================
   %% Transport edges
   %% =========================================================
-  MSK --> GLUEREG
-  TTRAFFIC --> MSK
-  TCTXE --> MSK
-  TCTXT --> MSK
-  TFLOW --> MSK
-  TRTDL --> MSK
-  TAUDIT --> MSK
-  TCASE --> MSK
-  TLABELS --> MSK
-  TOFSREQ --> MSK
-  TOFSEVT --> MSK
-  TMFREQ --> MSK
-  TMFEVT --> MSK
-  TREG --> MSK
+  MSK -->|schemas governed by| GLUEREG
+  TTRAFFIC -->|transported by| MSK
+  TCTXE -->|transported by| MSK
+  TCTXT -->|transported by| MSK
+  TFLOW -->|transported by| MSK
+  TRTDL -->|transported by| MSK
+  TAUDIT -->|transported by| MSK
+  TCASE -->|transported by| MSK
+  TLABELS -->|transported by| MSK
+  TOFSREQ -->|transported by| MSK
+  TOFSEVT -->|transported by| MSK
+  TMFREQ -->|transported by| MSK
+  TMFEVT -->|transported by| MSK
+  TREG -->|transported by| MSK
 
   %% =========================================================
   %% RTDL edges
   %% =========================================================
-  VPC --> PUB1
-  VPC --> PUB2
-  VPC --> PRIV1
-  VPC --> PRIV2
-  PRIV1 --> EKS
-  PRIV2 --> EKS
-  NG --> EKS
-  EKS --> NSRTDL
-  NSRTDL --> SARTDL
-  NSRTDL --> SADEC
-  NSRTDL --> CSFB
-  NSRTDL --> IEG
-  NSRTDL --> OFP
-  NSRTDL --> DL
-  NSRTDL --> DF
-  NSRTDL --> AL
-  NSRTDL --> DLA
-  NSRTDL --> ARCHIVE
-  TTRAFFIC --> CSFB
-  TCTXE --> CSFB
-  TCTXT --> CSFB
-  TFLOW --> CSFB
-  CSFB --> IEG
-  CSFB --> OFP
-  IEG --> AURORA
-  OFP --> AURORA
-  OFP -. endpoint handle only .-> REDISH
-  DL --> DF
-  DF --> TRTDL
-  DF --> TAUDIT
-  AL --> TAUDIT
-  DLA --> TAUDIT
-  ARCHIVE --> ARCHIVEPATH
-  ARCHIVEPATH --> OBJ
-  ARCHIVE --> EVID
-  IEG -. retained managed parity .-> MSF
-  OFP -. retained managed parity .-> MSF
+  VPC -->|contains| PUB1
+  VPC -->|contains| PUB2
+  VPC -->|contains| PRIV1
+  VPC -->|contains| PRIV2
+  PRIV1 -->|hosts worker plane| EKS
+  PRIV2 -->|hosts worker plane| EKS
+  NG -->|scales compute for| EKS
+  EKS -->|contains| NSRTDL
+  NSRTDL -->|binds identity| SARTDL
+  NSRTDL -->|binds identity| SADEC
+  NSRTDL -->|runs| CSFB
+  NSRTDL -->|runs| IEG
+  NSRTDL -->|runs| OFP
+  NSRTDL -->|runs| DL
+  NSRTDL -->|runs| DF
+  NSRTDL -->|runs| AL
+  NSRTDL -->|runs| DLA
+  NSRTDL -->|runs| ARCHIVE
+  TTRAFFIC -->|consumed by| CSFB
+  TCTXE -->|consumed by| CSFB
+  TCTXT -->|consumed by| CSFB
+  TFLOW -->|consumed by| CSFB
+  CSFB -->|projects joined context to| IEG
+  CSFB -->|projects joined context to| OFP
+  IEG -->|writes feature / entity state to| AURORA
+  OFP -->|writes online feature state to| AURORA
+  OFP -. reads endpoint handle from .-> REDISH
+  DL -->|hands adjudication input to| DF
+  DF -->|publishes decisions to| TRTDL
+  DF -->|publishes decision audit to| TAUDIT
+  AL -->|publishes action outcomes to| TAUDIT
+  DLA -->|publishes lineage audit to| TAUDIT
+  ARCHIVE -->|writes immutable history to| ARCHIVEPATH
+  ARCHIVEPATH -->|stored in| OBJ
+  ARCHIVE -->|stores archive receipts in| EVID
+  IEG -. retained managed stream parity .-> MSF
+  OFP -. retained managed stream parity .-> MSF
 
   %% =========================================================
   %% Case/label edges
   %% =========================================================
-  EKS --> NSCL
-  NSCL --> SACL
-  NSCL --> CASETRIG
-  NSCL --> CM
-  NSCL --> LS
-  TRTDL --> CASETRIG
-  TAUDIT --> CASETRIG
-  CASETRIG --> TCASE
-  TCASE --> CM
-  CM --> AURORA
-  CM --> LS
-  LS --> AURORA
-  LS --> TLABELS
-  TLABELS --> EVID
-  TLABELS --> OBJ
+  EKS -->|contains| NSCL
+  NSCL -->|binds identity| SACL
+  NSCL -->|runs| CASETRIG
+  NSCL -->|runs| CM
+  NSCL -->|runs| LS
+  TRTDL -->|consumed by| CASETRIG
+  TAUDIT -->|consumed by| CASETRIG
+  CASETRIG -->|publishes case intents to| TCASE
+  TCASE -->|consumed by| CM
+  CM -->|writes append-only case timeline to| AURORA
+  CM -->|submits label work to| LS
+  LS -->|writes append-only label timeline to| AURORA
+  LS -->|publishes label events to| TLABELS
+  TLABELS -->|evidenced in| EVID
+  TLABELS -->|archived by ref in| OBJ
 
   %% =========================================================
   %% Learning / evolution edges
   %% =========================================================
-  ORACLE --> OBJ
-  OBJ --> DBX
-  TLABELS --> DBX
-  TOFSREQ --> DBX
-  DBX --> DBXBUILD
-  DBX --> DBXQUAL
-  DBXBUILD --> GLUEDB
-  DBXBUILD --> OBJ
-  DBXQUAL --> EVID
-  DBX --> TOFSEVT
-  TOFSEVT --> SM
-  TMFREQ --> SM
-  SM --> MLFLOW
-  SM --> TMFEVT
-  SM --> SMPKG
+  ORACLE -->|stored inside| OBJ
+  OBJ -->|replayed by| DBX
+  TLABELS -->|consumed by| DBX
+  TOFSREQ -->|consumed by| DBX
+  DBX -->|runs| DBXBUILD
+  DBX -->|runs| DBXQUAL
+  DBXBUILD -->|writes dataset tables to| GLUEDB
+  DBXBUILD -->|writes dataset manifests to| OBJ
+  DBXQUAL -->|stores quality receipts in| EVID
+  DBX -->|publishes OFS completion to| TOFSEVT
+  TOFSEVT -->|consumed by| SM
+  TMFREQ -->|consumed by| SM
+  SM -->|writes train/eval lineage to| MLFLOW
+  SM -->|publishes model-factory events to| TMFEVT
+  SM -->|publishes bundles to| SMPKG
   SMPKG -. candidate / promoted bundle lineage .-> MLFLOW
-  SMENDPT -. pinned runtime serving handle .-> REGACTIVE
-  TMFEVT --> MLFLOW
-  MLFLOW --> TREG
-  MLFLOW --> PROMO
-  MLFLOW --> ROLLBACK
-  MLFLOW --> REGACTIVE
-  REGACTIVE --> DF
+  SMENDPT -. pinned serving handle resolved by .-> REGACTIVE
+  TMFEVT -->|captured by| MLFLOW
+  MLFLOW -->|publishes registry events to| TREG
+  MLFLOW -->|writes promotion receipts to| PROMO
+  MLFLOW -->|writes rollback receipts to| ROLLBACK
+  MLFLOW -->|resolves active bundle truth in| REGACTIVE
+  REGACTIVE -->|read by| DF
 
   %% =========================================================
   %% Governance / provenance edges
   %% =========================================================
-  EKS --> NSOBS
-  NSOBS --> SAOBS
-  RUNCTL --> REPORTS
-  RUNCTL --> GOVAPPEND
-  RUNCTL --> EVID
-  PROMO --> EVID
-  ROLLBACK --> EVID
-  GOVAPPEND --> EVID
+  EKS -->|contains| NSOBS
+  NSOBS -->|binds identity| SAOBS
+  RUNCTL -->|materializes| REPORTS
+  RUNCTL -->|appends immutable facts to| GOVAPPEND
+  RUNCTL -->|stores control receipts in| EVID
+  PROMO -->|stored in| EVID
+  ROLLBACK -->|stored in| EVID
+  GOVAPPEND -->|stored in| EVID
 
   %% =========================================================
   %% Identity / trust edges
   %% =========================================================
-  OIDC --> ROLETF
-  OIDC --> ROLEBASE
-  OIDC --> ROLENODE
-  OIDC --> ROLEFLINK
-  OIDC --> ROLELAMBDA
-  OIDC --> ROLEAPIGW
-  OIDC --> ROLEDDB
-  OIDC --> ROLESFN
-  OIDC --> ROLEECSEXEC
-  OIDC --> ROLEECSRUNTIME
-  OIDC --> ROLEWSPEXEC
-  OIDC --> ROLEWSPRUN
-  OIDC --> ROLEIRSARTDL
-  OIDC --> ROLEIRSADEC
-  OIDC --> ROLEIRSACL
-  OIDC --> ROLEIRSAOBS
-  OIDC --> ROLEDBX
-  OIDC --> ROLESM
-  OIDC --> ROLEMWAA
+  OIDC -->|trusts workflow assumption of| ROLETF
+  OIDC -->|trusts workflow assumption of| ROLEBASE
+  OIDC -->|trusts workflow assumption of| ROLENODE
+  OIDC -->|trusts workflow assumption of| ROLEFLINK
+  OIDC -->|trusts workflow assumption of| ROLELAMBDA
+  OIDC -->|trusts workflow assumption of| ROLEAPIGW
+  OIDC -->|trusts workflow assumption of| ROLEDDB
+  OIDC -->|trusts workflow assumption of| ROLESFN
+  OIDC -->|trusts workflow assumption of| ROLEECSEXEC
+  OIDC -->|trusts workflow assumption of| ROLEECSRUNTIME
+  OIDC -->|trusts workflow assumption of| ROLEWSPEXEC
+  OIDC -->|trusts workflow assumption of| ROLEWSPRUN
+  OIDC -->|trusts workflow assumption of| ROLEIRSARTDL
+  OIDC -->|trusts workflow assumption of| ROLEIRSADEC
+  OIDC -->|trusts workflow assumption of| ROLEIRSACL
+  OIDC -->|trusts workflow assumption of| ROLEIRSAOBS
+  OIDC -->|trusts workflow assumption of| ROLEDBX
+  OIDC -->|trusts workflow assumption of| ROLESM
+  OIDC -->|trusts workflow assumption of| ROLEMWAA
 
-  SSM --> HTTPAPI
-  SSM --> IGLAMBDA
-  SSM --> IGSVC
-  SSM --> AURORA
-  SSM --> REDISH
-  SSM --> DBX
-  SSM --> MLFLOW
-  SSM --> SM
-  ROLETF --> TFCORE
-  ROLETF --> TFSTREAM
-  ROLETF --> TFRUNTIME
-  ROLETF --> TFDML
-  ROLETF --> TFOPS
-  ROLESFN --> SFN
-  ROLELAMBDA --> IGLAMBDA
-  ROLEAPIGW --> HTTPAPI
-  ROLEDDB --> IGDDB
-  ROLEECSEXEC --> IGSVC
-  ROLEECSRUNTIME --> IGSVC
-  ROLEWSPEXEC --> WSP
-  ROLEWSPRUN --> WSP
-  ROLEFLINK --> MSF
-  ROLENODE --> NG
-  ROLEBASE --> EKS
-  ROLEIRSARTDL --> SARTDL
-  ROLEIRSADEC --> SADEC
-  ROLEIRSACL --> SACL
-  ROLEIRSAOBS --> SAOBS
-  ROLEDBX --> DBX
-  ROLESM --> SM
+  SSM -->|provides handles to| HTTPAPI
+  SSM -->|provides handles to| IGLAMBDA
+  SSM -->|provides handles to| IGSVC
+  SSM -->|provides handles to| AURORA
+  SSM -->|provides handles to| REDISH
+  SSM -->|provides handles to| DBX
+  SSM -->|provides handles to| MLFLOW
+  SSM -->|provides handles to| SM
+  ROLETF -->|applies| TFCORE
+  ROLETF -->|applies| TFSTREAM
+  ROLETF -->|applies| TFRUNTIME
+  ROLETF -->|applies| TFDML
+  ROLETF -->|applies| TFOPS
+  ROLESFN -->|executes| SFN
+  ROLELAMBDA -->|executes| IGLAMBDA
+  ROLEAPIGW -->|invokes| HTTPAPI
+  ROLEDDB -->|writes| IGDDB
+  ROLEECSEXEC -->|starts tasks for| IGSVC
+  ROLEECSRUNTIME -->|runs task code for| IGSVC
+  ROLEWSPEXEC -->|starts tasks for| WSP
+  ROLEWSPRUN -->|runs task code for| WSP
+  ROLEFLINK -->|executes| MSF
+  ROLENODE -->|backs compute for| NG
+  ROLEBASE -->|administers| EKS
+  ROLEIRSARTDL -->|bound to| SARTDL
+  ROLEIRSADEC -->|bound to| SADEC
+  ROLEIRSACL -->|bound to| SACL
+  ROLEIRSAOBS -->|bound to| SAOBS
+  ROLEDBX -->|cross-account access for| DBX
+  ROLESM -->|executes| SM
 
   %% =========================================================
   %% Operational edges
   %% =========================================================
-  PRIV1 --> VPCESTS
-  PRIV1 --> VPCESSM
-  PRIV1 --> VPCELOGS
-  PRIV1 --> VPCEECRAPI
-  PRIV1 --> VPCEECRDKR
-  PRIV1 --> VPCEEC2
-  PRIV1 --> VPCEEXECAPI
-  PRIV1 --> VPCESQS
-  PRIV1 --> VPCES3
-  PRIV1 --> VPCEDDB
-  PRIV2 --> VPCESTS
-  PRIV2 --> VPCESSM
-  PRIV2 --> VPCELOGS
-  PRIV2 --> VPCEECRAPI
-  PRIV2 --> VPCEECRDKR
-  PRIV2 --> VPCEEC2
-  PRIV2 --> VPCEEXECAPI
-  PRIV2 --> VPCESQS
-  PRIV2 --> VPCES3
-  PRIV2 --> VPCEDDB
-  PUB1 --> ALB
-  PUB2 --> ALB
-  AURORA --> AURW
-  AURORA --> AURR
-  CW --> SFN
-  CW --> HTTPAPI
-  CW --> IGLAMBDA
-  CW --> ALB
-  CW --> IGSVC
-  CW --> EKS
-  CW --> MSF
-  CW --> AURORA
-  CW --> MSK
-  CW --> SM
-  CW --> DASHOPS
-  CW --> DASHCOST
-  BUDGET --> DASHCOST
-  IDLE --> WSP
-  IDLE --> IGSVC
-  IDLE --> NG
-  IDLE --> SMENDPT
-  IDLE --> DBX
+  PRIV1 -->|reaches AWS APIs through| VPCESTS
+  PRIV1 -->|reaches AWS APIs through| VPCESSM
+  PRIV1 -->|reaches AWS APIs through| VPCELOGS
+  PRIV1 -->|reaches AWS APIs through| VPCEECRAPI
+  PRIV1 -->|reaches AWS APIs through| VPCEECRDKR
+  PRIV1 -->|reaches AWS APIs through| VPCEEC2
+  PRIV1 -->|reaches AWS APIs through| VPCEEXECAPI
+  PRIV1 -->|reaches AWS APIs through| VPCESQS
+  PRIV1 -->|reaches AWS APIs through| VPCES3
+  PRIV1 -->|reaches AWS APIs through| VPCEDDB
+  PRIV2 -->|reaches AWS APIs through| VPCESTS
+  PRIV2 -->|reaches AWS APIs through| VPCESSM
+  PRIV2 -->|reaches AWS APIs through| VPCELOGS
+  PRIV2 -->|reaches AWS APIs through| VPCEECRAPI
+  PRIV2 -->|reaches AWS APIs through| VPCEECRDKR
+  PRIV2 -->|reaches AWS APIs through| VPCEEC2
+  PRIV2 -->|reaches AWS APIs through| VPCEEXECAPI
+  PRIV2 -->|reaches AWS APIs through| VPCESQS
+  PRIV2 -->|reaches AWS APIs through| VPCES3
+  PRIV2 -->|reaches AWS APIs through| VPCEDDB
+  PUB1 -->|exposes public edge for| ALB
+  PUB2 -->|exposes public edge for| ALB
+  AURORA -->|serves writes through| AURW
+  AURORA -->|serves reads through| AURR
+  CW -->|observes| SFN
+  CW -->|observes| HTTPAPI
+  CW -->|observes| IGLAMBDA
+  CW -->|observes| ALB
+  CW -->|observes| IGSVC
+  CW -->|observes| EKS
+  CW -->|observes| MSF
+  CW -->|observes| AURORA
+  CW -->|observes| MSK
+  CW -->|observes| SM
+  CW -->|materializes| DASHOPS
+  CW -->|materializes| DASHCOST
+  BUDGET -->|feeds budget posture into| DASHCOST
 
   %% =========================================================
   %% visual classes
@@ -505,6 +506,6 @@ flowchart LR
   class WSPCLUSTER,WSP,HTTPAPI,APIR1,APIR2,IGLAMBDA,IGSVC_CLUSTER,ALB,TG,IGSVC,MSK,GLUEREG,EKS,NG,NSRTDL,SARTDL,SADEC,CSFB,IEG,OFP,DL,DF,AL,DLA,ARCHIVE,NSCL,SACL,CASETRIG,CM,LS,NSOBS,SAOBS,CW,DASHOPS,DASHCOST,BUDGET,VPCESTS,VPCESSM,VPCELOGS,VPCEECRAPI,VPCEECRDKR,VPCEEC2,VPCEEXECAPI,VPCESQS,VPCES3,VPCEDDB,VPC,PUB1,PUB2,PRIV1,PRIV2 live;
   class IGDDB,IGDLQ,EVID,OBJ,ART,TFSTATE,AURORA,AURW,AURR,ORACLE,ARCHIVEPATH,QUARPATH,GLUEDB store;
   class DBX,DBXBUILD,DBXQUAL,SM,SMPKG,MLFLOW,MSF managed;
-  class SMENDPT,ROLEMWAA,REDISH,IDLE retained;
+  class SMENDPT,ROLEMWAA,REDISH retained;
   class OIDC,SSM,ROLETF,ROLEBASE,ROLENODE,ROLEFLINK,ROLELAMBDA,ROLEAPIGW,ROLEDDB,ROLESFN,ROLEECSEXEC,ROLEECSRUNTIME,ROLEWSPEXEC,ROLEWSPRUN,ROLEIRSARTDL,ROLEIRSADEC,ROLEIRSACL,ROLEIRSAOBS,ROLEDBX,ROLESM infra;
 

@@ -7,6 +7,12 @@ config:
 %% concrete implemented resources grouped by platform section
 flowchart LR
 
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete cloud / platform resource"]
+    LG2["Subgraph title = platform section that owns or uses the resource"]
+    LG3["Dashed edge = retained or pinned surface, not an always-on active lane"]
+  end
+
   subgraph CONTROL["Control Resources"]
     GHA["GitHub Actions"]
     TFCORE["Terraform stack<br>core"]
@@ -20,7 +26,7 @@ flowchart LR
 
   subgraph INGRESS["Ingress Resources"]
     WSPCLUSTER["ECS cluster<br>fraud-platform-dev-full-wsp-ephemeral"]
-    WSPTASK["WSP ephemeral task family"]
+    WSPTASK["WSP ephemeral task family<br>started only for bounded replay runs"]
     WSPTASKDEF["Task definition family<br>WSP ephemeral replay task"]
     HTTPAPI["HTTP API<br>fraud-platform-dev-full-ig-edge"]
     APISTAGE["Stage<br>v1"]
@@ -30,7 +36,7 @@ flowchart LR
     IGSVCCLUSTER["ECS cluster<br>fraud-platform-dev-full-ingress"]
     ALB["ALB<br>fp-dev-full-ig-svc"]
     TG["Target group<br>fp-dev-full-ig-svc"]
-    IGSVC["ECS service<br>fraud-platform-dev-full-ig-service"]
+    IGSVC["ECS service<br>fraud-platform-dev-full-ig-service<br>currently idled"]
     IGTASKDEF["Task definition family<br>fraud-platform-dev-full-ig-service"]
     IGDDB["DynamoDB table<br>fraud-platform-dev-full-ig-idempotency"]
     IGDLQ["SQS queue<br>fraud-platform-dev-full-ig-dlq"]
@@ -57,7 +63,7 @@ flowchart LR
 
   subgraph RTDL["RTDL Resources"]
     EKS["EKS cluster<br>fraud-platform-dev-full"]
-    NG["Nodegroup<br>fraud-platform-dev-full-m6f-workers"]
+    NG["Nodegroup<br>fraud-platform-dev-full-m6f-workers<br>currently idled"]
     NSRTDL["Namespace<br>fraud-platform-rtdl"]
     SARTDL["ServiceAccount<br>rtdl"]
     SADEC["ServiceAccount<br>decision-lane"]
@@ -149,184 +155,184 @@ flowchart LR
     ROLEMWAA["IAM role<br>mwaa-execution"]
   end
 
-  GHA --> TFCORE
-  GHA --> TFSTREAM
-  GHA --> TFRUNTIME
-  GHA --> TFDML
-  GHA --> TFOPS
-  GHA --> SFN
-  GHA --> ECR
-  GHA --> OIDC
-  TFCORE --> TFSTATE
-  TFSTREAM --> TFSTATE
-  TFRUNTIME --> TFSTATE
-  TFDML --> TFSTATE
-  TFOPS --> TFSTATE
-  ECR --> IGTASKDEF
-  ECR --> WSPTASKDEF
+  GHA -->|applies| TFCORE
+  GHA -->|applies| TFSTREAM
+  GHA -->|applies| TFRUNTIME
+  GHA -->|applies| TFDML
+  GHA -->|applies| TFOPS
+  GHA -->|dispatches| SFN
+  GHA -->|publishes images to| ECR
+  GHA -->|authenticates through| OIDC
+  TFCORE -->|stores state in| TFSTATE
+  TFSTREAM -->|stores state in| TFSTATE
+  TFRUNTIME -->|stores state in| TFSTATE
+  TFDML -->|stores state in| TFSTATE
+  TFOPS -->|stores state in| TFSTATE
+  ECR -->|supplies image to| IGTASKDEF
+  ECR -->|supplies image to| WSPTASKDEF
 
-  SFN --> TCTRL
-  SFN --> WSPTASK
-  WSPCLUSTER --> WSPTASK
-  WSPTASK --> WSPTASKDEF
-  WSPTASK --> HTTPAPI
-  WSPTASK --> ALB
-  HTTPAPI --> APISTAGE
-  APISTAGE --> APIRPOST
-  APISTAGE --> APIRHEALTH
-  APIRPOST --> IGLAMBDA
-  APIRHEALTH --> IGLAMBDA
-  IGSVCCLUSTER --> IGSVC
-  ALB --> TG
-  TG --> IGSVC
-  IGSVC --> IGTASKDEF
-  IGLAMBDA --> IGDDB
-  IGLAMBDA --> IGDLQ
-  IGLAMBDA --> TTRAFFIC
-  IGLAMBDA --> TCTXE
-  IGLAMBDA --> TCTXT
-  IGLAMBDA --> TFLOW
-  IGSVC --> IGDDB
-  IGSVC --> TTRAFFIC
-  IGSVC --> TCTXE
-  IGSVC --> TCTXT
-  IGSVC --> TFLOW
+  SFN -->|publishes control signals to| TCTRL
+  SFN -->|starts| WSPTASK
+  WSPCLUSTER -->|runs| WSPTASK
+  WSPTASK -->|uses definition| WSPTASKDEF
+  WSPTASK -->|pushes load to| HTTPAPI
+  WSPTASK -->|pushes load to| ALB
+  HTTPAPI -->|serves| APISTAGE
+  APISTAGE -->|contains| APIRPOST
+  APISTAGE -->|contains| APIRHEALTH
+  APIRPOST -->|invokes| IGLAMBDA
+  APIRHEALTH -->|invokes| IGLAMBDA
+  IGSVCCLUSTER -->|hosts| IGSVC
+  ALB -->|forwards to| TG
+  TG -->|targets| IGSVC
+  IGSVC -->|uses definition| IGTASKDEF
+  IGLAMBDA -->|writes to| IGDDB
+  IGLAMBDA -->|sends failures to| IGDLQ
+  IGLAMBDA -->|publishes to| TTRAFFIC
+  IGLAMBDA -->|publishes to| TCTXE
+  IGLAMBDA -->|publishes to| TCTXT
+  IGLAMBDA -->|publishes to| TFLOW
+  IGSVC -->|writes to| IGDDB
+  IGSVC -->|publishes to| TTRAFFIC
+  IGSVC -->|publishes to| TCTXE
+  IGSVC -->|publishes to| TCTXT
+  IGSVC -->|publishes to| TFLOW
 
-  TCTRL --> MSK
-  TTRAFFIC --> MSK
-  TCTXE --> MSK
-  TCTXT --> MSK
-  TFLOW --> MSK
-  TRTDL --> MSK
-  TAUDIT --> MSK
-  TCASE --> MSK
-  TLABELS --> MSK
-  TOFSREQ --> MSK
-  TOFSEVT --> MSK
-  TMFREQ --> MSK
-  TMFEVT --> MSK
-  TREG --> MSK
-  MSK --> GLUEREG
+  TCTRL -->|transported by| MSK
+  TTRAFFIC -->|transported by| MSK
+  TCTXE -->|transported by| MSK
+  TCTXT -->|transported by| MSK
+  TFLOW -->|transported by| MSK
+  TRTDL -->|transported by| MSK
+  TAUDIT -->|transported by| MSK
+  TCASE -->|transported by| MSK
+  TLABELS -->|transported by| MSK
+  TOFSREQ -->|transported by| MSK
+  TOFSEVT -->|transported by| MSK
+  TMFREQ -->|transported by| MSK
+  TMFEVT -->|transported by| MSK
+  TREG -->|transported by| MSK
+  MSK -->|schemas governed by| GLUEREG
 
-  EKS --> NG
-  EKS --> NSRTDL
-  NSRTDL --> SARTDL
-  NSRTDL --> SADEC
-  NSRTDL --> CSFB
-  NSRTDL --> IEG
-  NSRTDL --> OFP
-  NSRTDL --> DL
-  NSRTDL --> DF
-  NSRTDL --> AL
-  NSRTDL --> DLA
-  NSRTDL --> ARCHIVE
+  EKS -->|uses compute from| NG
+  EKS -->|contains| NSRTDL
+  NSRTDL -->|binds identity| SARTDL
+  NSRTDL -->|binds identity| SADEC
+  NSRTDL -->|runs| CSFB
+  NSRTDL -->|runs| IEG
+  NSRTDL -->|runs| OFP
+  NSRTDL -->|runs| DL
+  NSRTDL -->|runs| DF
+  NSRTDL -->|runs| AL
+  NSRTDL -->|runs| DLA
+  NSRTDL -->|runs| ARCHIVE
   IEG -. retained parity path .-> MSF
   OFP -. retained parity path .-> MSF
 
-  EKS --> NSCL
-  NSCL --> SACL
-  NSCL --> CASETRIG
-  NSCL --> CM
-  NSCL --> LS
+  EKS -->|contains| NSCL
+  NSCL -->|binds identity| SACL
+  NSCL -->|runs| CASETRIG
+  NSCL -->|runs| CM
+  NSCL -->|runs| LS
 
-  DBX --> DBXBUILD
-  DBX --> DBXQUAL
-  DBXBUILD --> GLUEDB1
-  DBXQUAL --> GLUEDB2
-  SM --> SMPKG
+  DBX -->|runs| DBXBUILD
+  DBX -->|runs| DBXQUAL
+  DBXBUILD -->|writes dataset tables to| GLUEDB1
+  DBXQUAL -->|writes quality / M15 tables to| GLUEDB2
+  SM -->|publishes bundles to| SMPKG
   SM -. pinned serving handle .-> SMENDPT
 
-  EKS --> NSOBS
-  NSOBS --> SAOBS
-  EVID --> DASHOPS
-  EVID --> DASHCOST
-  BUDGET --> DASHCOST
+  EKS -->|contains| NSOBS
+  NSOBS -->|binds identity| SAOBS
+  EVID -->|feeds evidence posture into| DASHOPS
+  EVID -->|feeds cost posture into| DASHCOST
+  BUDGET -->|feeds budget posture into| DASHCOST
 
-  AURORA --> AURWRITER
+  AURORA -->|serves writes through| AURWRITER
 
-  VPC --> PUB1
-  VPC --> PUB2
-  VPC --> PRIV1
-  VPC --> PRIV2
-  PRIV1 --> VPCESTS
-  PRIV1 --> VPCESSM
-  PRIV1 --> VPCELOGS
-  PRIV1 --> VPCEECRAPI
-  PRIV1 --> VPCEECRDKR
-  PRIV1 --> VPCEEC2
-  PRIV1 --> VPCEEXECAPI
-  PRIV1 --> VPCESQS
-  PRIV1 --> VPCES3
-  PRIV1 --> VPCEDDB
-  PRIV2 --> VPCESTS
-  PRIV2 --> VPCESSM
-  PRIV2 --> VPCELOGS
-  PRIV2 --> VPCEECRAPI
-  PRIV2 --> VPCEECRDKR
-  PRIV2 --> VPCEEC2
-  PRIV2 --> VPCEEXECAPI
-  PRIV2 --> VPCESQS
-  PRIV2 --> VPCES3
-  PRIV2 --> VPCEDDB
-  PUB1 --> ALB
-  PUB2 --> ALB
-  PRIV1 --> EKS
-  PRIV2 --> EKS
-  PRIV1 --> AURORA
-  PRIV2 --> AURORA
-  PRIV1 --> IGSVCCLUSTER
-  PRIV2 --> IGSVCCLUSTER
-  SSM --> HTTPAPI
-  SSM --> IGLAMBDA
-  SSM --> IGSVC
-  SSM --> AURORA
-  SSM --> REDISH
-  SSM --> DBX
-  SSM --> SM
-  SSM --> MLFLOW
+  VPC -->|contains| PUB1
+  VPC -->|contains| PUB2
+  VPC -->|contains| PRIV1
+  VPC -->|contains| PRIV2
+  PRIV1 -->|reaches AWS APIs through| VPCESTS
+  PRIV1 -->|reaches AWS APIs through| VPCESSM
+  PRIV1 -->|reaches AWS APIs through| VPCELOGS
+  PRIV1 -->|reaches AWS APIs through| VPCEECRAPI
+  PRIV1 -->|reaches AWS APIs through| VPCEECRDKR
+  PRIV1 -->|reaches AWS APIs through| VPCEEC2
+  PRIV1 -->|reaches AWS APIs through| VPCEEXECAPI
+  PRIV1 -->|reaches AWS APIs through| VPCESQS
+  PRIV1 -->|reaches AWS APIs through| VPCES3
+  PRIV1 -->|reaches AWS APIs through| VPCEDDB
+  PRIV2 -->|reaches AWS APIs through| VPCESTS
+  PRIV2 -->|reaches AWS APIs through| VPCESSM
+  PRIV2 -->|reaches AWS APIs through| VPCELOGS
+  PRIV2 -->|reaches AWS APIs through| VPCEECRAPI
+  PRIV2 -->|reaches AWS APIs through| VPCEECRDKR
+  PRIV2 -->|reaches AWS APIs through| VPCEEC2
+  PRIV2 -->|reaches AWS APIs through| VPCEEXECAPI
+  PRIV2 -->|reaches AWS APIs through| VPCESQS
+  PRIV2 -->|reaches AWS APIs through| VPCES3
+  PRIV2 -->|reaches AWS APIs through| VPCEDDB
+  PUB1 -->|exposes edge for| ALB
+  PUB2 -->|exposes edge for| ALB
+  PRIV1 -->|hosts| EKS
+  PRIV2 -->|hosts| EKS
+  PRIV1 -->|reaches| AURORA
+  PRIV2 -->|reaches| AURORA
+  PRIV1 -->|hosts| IGSVCCLUSTER
+  PRIV2 -->|hosts| IGSVCCLUSTER
+  SSM -->|provides handles to| HTTPAPI
+  SSM -->|provides handles to| IGLAMBDA
+  SSM -->|provides handles to| IGSVC
+  SSM -->|provides handles to| AURORA
+  SSM -->|provides handles to| REDISH
+  SSM -->|provides handles to| DBX
+  SSM -->|provides handles to| SM
+  SSM -->|provides handles to| MLFLOW
 
-  OIDC --> ROLETF
-  OIDC --> ROLEBASE
-  OIDC --> ROLENODE
-  OIDC --> ROLEFLINK
-  OIDC --> ROLELAMBDA
-  OIDC --> ROLEAPIGW
-  OIDC --> ROLEDDB
-  OIDC --> ROLESFN
-  OIDC --> ROLEECSEXEC
-  OIDC --> ROLEECSRUNTIME
-  OIDC --> ROLEWSPEXEC
-  OIDC --> ROLEWSPRUN
-  OIDC --> ROLEIRSARTDL
-  OIDC --> ROLEIRSADEC
-  OIDC --> ROLEIRSACL
-  OIDC --> ROLEIRSAOBS
-  OIDC --> ROLEDBX
-  OIDC --> ROLESM
-  OIDC --> ROLEMWAA
+  OIDC -->|trusts workflow assumption of| ROLETF
+  OIDC -->|trusts workflow assumption of| ROLEBASE
+  OIDC -->|trusts workflow assumption of| ROLENODE
+  OIDC -->|trusts workflow assumption of| ROLEFLINK
+  OIDC -->|trusts workflow assumption of| ROLELAMBDA
+  OIDC -->|trusts workflow assumption of| ROLEAPIGW
+  OIDC -->|trusts workflow assumption of| ROLEDDB
+  OIDC -->|trusts workflow assumption of| ROLESFN
+  OIDC -->|trusts workflow assumption of| ROLEECSEXEC
+  OIDC -->|trusts workflow assumption of| ROLEECSRUNTIME
+  OIDC -->|trusts workflow assumption of| ROLEWSPEXEC
+  OIDC -->|trusts workflow assumption of| ROLEWSPRUN
+  OIDC -->|trusts workflow assumption of| ROLEIRSARTDL
+  OIDC -->|trusts workflow assumption of| ROLEIRSADEC
+  OIDC -->|trusts workflow assumption of| ROLEIRSACL
+  OIDC -->|trusts workflow assumption of| ROLEIRSAOBS
+  OIDC -->|trusts workflow assumption of| ROLEDBX
+  OIDC -->|trusts workflow assumption of| ROLESM
+  OIDC -->|trusts workflow assumption of| ROLEMWAA
 
-  ROLETF --> TFCORE
-  ROLETF --> TFSTREAM
-  ROLETF --> TFRUNTIME
-  ROLETF --> TFDML
-  ROLETF --> TFOPS
-  ROLESFN --> SFN
-  ROLELAMBDA --> IGLAMBDA
-  ROLEAPIGW --> HTTPAPI
-  ROLEDDB --> IGDDB
-  ROLEECSEXEC --> IGSVC
-  ROLEECSRUNTIME --> IGSVC
-  ROLEWSPEXEC --> WSPTASK
-  ROLEWSPRUN --> WSPTASK
-  ROLEBASE --> EKS
-  ROLENODE --> NG
-  ROLEFLINK --> MSF
-  ROLEIRSARTDL --> SARTDL
-  ROLEIRSADEC --> SADEC
-  ROLEIRSACL --> SACL
-  ROLEIRSAOBS --> SAOBS
-  ROLEDBX --> DBX
-  ROLESM --> SM
+  ROLETF -->|applies| TFCORE
+  ROLETF -->|applies| TFSTREAM
+  ROLETF -->|applies| TFRUNTIME
+  ROLETF -->|applies| TFDML
+  ROLETF -->|applies| TFOPS
+  ROLESFN -->|executes| SFN
+  ROLELAMBDA -->|executes| IGLAMBDA
+  ROLEAPIGW -->|invokes| HTTPAPI
+  ROLEDDB -->|writes| IGDDB
+  ROLEECSEXEC -->|starts tasks for| IGSVC
+  ROLEECSRUNTIME -->|runs task code for| IGSVC
+  ROLEWSPEXEC -->|starts tasks for| WSPTASK
+  ROLEWSPRUN -->|runs task code for| WSPTASK
+  ROLEBASE -->|administers| EKS
+  ROLENODE -->|backs compute for| NG
+  ROLEFLINK -->|executes| MSF
+  ROLEIRSARTDL -->|bound to| SARTDL
+  ROLEIRSADEC -->|bound to| SADEC
+  ROLEIRSACL -->|bound to| SACL
+  ROLEIRSAOBS -->|bound to| SAOBS
+  ROLEDBX -->|cross-account access for| DBX
+  ROLESM -->|executes| SM
 
   classDef control fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.4px;
   classDef ingress fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.4px;

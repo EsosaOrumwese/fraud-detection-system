@@ -5,6 +5,12 @@ config:
 ---
 flowchart LR
 
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = runtime component or control surface"]
+    LG2[("Round store = durable state store")]
+    LG3["Dashed edge = retained / indirect / handle-based relationship"]
+  end
+
   subgraph RUNTIME["dev_full Runtime Graph"]
     subgraph CONTROL["Control"]
       GHA["GitHub Actions<br>bounded run dispatch"]
@@ -68,7 +74,7 @@ flowchart LR
     end
   end
 
-  GHA --> SFN
+  GHA -->|dispatches| SFN
   RUNID -.-> SFN
   RUNID -.-> WSP
   RUNID -.-> IGLAMBDA
@@ -83,81 +89,81 @@ flowchart LR
   RUNID -.-> CASETRIG
   RUNID -.-> CM
   RUNID -.-> LS
-  SFN --> CTRLBUS
-  CTRLBUS --> MSK
-  SFN --> WSP
+  SFN -->|publishes orchestration signals to| CTRLBUS
+  CTRLBUS -->|transported by| MSK
+  SFN -->|starts| WSP
 
-  WSPCLUSTER --> WSP
-  WSP --> HTTPAPI
-  WSP --> ALB
-  HTTPAPI --> IGLAMBDA
-  ALB --> IGSVC
-  IGSVC_CLUSTER --> IGSVC
-  IGLAMBDA --> IGDDB
-  IGLAMBDA --> IGDLQ
-  IGSVC --> IGDDB
-  IGLAMBDA --> TTRAFFIC
-  IGLAMBDA --> TCTXE
-  IGLAMBDA --> TCTXT
-  IGLAMBDA --> TFLOW
-  IGSVC --> TTRAFFIC
-  IGSVC --> TCTXE
-  IGSVC --> TCTXT
-  IGSVC --> TFLOW
+  WSPCLUSTER -->|runs| WSP
+  WSP -->|pushes ingress load to| HTTPAPI
+  WSP -->|pushes ingress load to| ALB
+  HTTPAPI -->|invokes| IGLAMBDA
+  ALB -->|forwards to| IGSVC
+  IGSVC_CLUSTER -->|hosts| IGSVC
+  IGLAMBDA -->|writes idempotency state to| IGDDB
+  IGLAMBDA -->|sends failures to| IGDLQ
+  IGSVC -->|writes idempotency state to| IGDDB
+  IGLAMBDA -->|publishes traffic to| TTRAFFIC
+  IGLAMBDA -->|publishes arrival events to| TCTXE
+  IGLAMBDA -->|publishes arrival entities to| TCTXT
+  IGLAMBDA -->|publishes flow anchors to| TFLOW
+  IGSVC -->|publishes traffic to| TTRAFFIC
+  IGSVC -->|publishes arrival events to| TCTXE
+  IGSVC -->|publishes arrival entities to| TCTXT
+  IGSVC -->|publishes flow anchors to| TFLOW
 
-  TTRAFFIC --> MSK
-  TCTXE --> MSK
-  TCTXT --> MSK
-  TFLOW --> MSK
-  TRTDL --> MSK
-  TAUDIT --> MSK
-  TCASE --> MSK
-  TLABELS --> MSK
-  MSK --> GLUEREG
+  TTRAFFIC -->|transported by| MSK
+  TCTXE -->|transported by| MSK
+  TCTXT -->|transported by| MSK
+  TFLOW -->|transported by| MSK
+  TRTDL -->|transported by| MSK
+  TAUDIT -->|transported by| MSK
+  TCASE -->|transported by| MSK
+  TLABELS -->|transported by| MSK
+  MSK -->|schemas governed by| GLUEREG
 
-  NG --> EKS
-  EKS --> NSRTDL
-  NSRTDL --> CSFB
-  NSRTDL --> IEG
-  NSRTDL --> OFP
-  NSRTDL --> DL
-  NSRTDL --> DF
-  NSRTDL --> AL
-  NSRTDL --> DLA
-  NSRTDL --> ARCHIVE
-  TTRAFFIC --> CSFB
-  TCTXE --> CSFB
-  TCTXT --> CSFB
-  TFLOW --> CSFB
-  CSFB --> IEG
-  CSFB --> OFP
-  IEG --> AURORA
-  OFP --> AURORA
-  OFP -.-> REDISH
+  NG -->|provides compute for| EKS
+  EKS -->|contains| NSRTDL
+  NSRTDL -->|runs| CSFB
+  NSRTDL -->|runs| IEG
+  NSRTDL -->|runs| OFP
+  NSRTDL -->|runs| DL
+  NSRTDL -->|runs| DF
+  NSRTDL -->|runs| AL
+  NSRTDL -->|runs| DLA
+  NSRTDL -->|runs| ARCHIVE
+  TTRAFFIC -->|consumed by| CSFB
+  TCTXE -->|consumed by| CSFB
+  TCTXT -->|consumed by| CSFB
+  TFLOW -->|consumed by| CSFB
+  CSFB -->|projects joined context to| IEG
+  CSFB -->|projects joined context to| OFP
+  IEG -->|writes state to| AURORA
+  OFP -->|writes online features to| AURORA
+  OFP -. reads handle from .-> REDISH
   IEG -. retained managed parity .-> MSF
   OFP -. retained managed parity .-> MSF
-  DL --> DF
-  DF --> TRTDL
-  DF --> TAUDIT
-  AL --> TAUDIT
-  DLA --> TAUDIT
-  ARCHIVE --> OBJ
-  ARCHIVE --> EVID
+  DL -->|hands adjudication input to| DF
+  DF -->|publishes decisions to| TRTDL
+  DF -->|publishes decision audit to| TAUDIT
+  AL -->|publishes action audit to| TAUDIT
+  DLA -->|publishes lineage audit to| TAUDIT
+  ARCHIVE -->|writes immutable history to| OBJ
+  ARCHIVE -->|stores receipts in| EVID
 
-  EKS --> NSCL
-  NSCL --> CASETRIG
-  NSCL --> CM
-  NSCL --> LS
-  TRTDL --> CASETRIG
-  TAUDIT --> CASETRIG
-  CASETRIG --> TCASE
-  TCASE --> CM
-  CM --> AURORA
-  CM --> LS
-  LS --> AURORA
-  LS --> TLABELS
-  TLABELS --> OBJ
-  TLABELS --> EVID
+  EKS -->|contains| NSCL
+  NSCL -->|runs| CASETRIG
+  NSCL -->|runs| CM
+  NSCL -->|runs| LS
+  TRTDL -->|consumed by| CASETRIG
+  TAUDIT -->|consumed by| CASETRIG
+  CASETRIG -->|publishes case intents to| TCASE
+  TCASE -->|consumed by| CM
+  CM -->|writes case timeline to| AURORA
+  CM -->|submits label work to| LS
+  LS -->|writes label timeline to| AURORA
+  LS -->|publishes label events to| TLABELS
+  TLABELS -->|archived by ref in| OBJ
+  TLABELS -->|evidenced in| EVID
 
   classDef live fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.4px;
   classDef store fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.4px;
