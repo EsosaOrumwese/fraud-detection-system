@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import sqlite3
 
 import pytest
 
@@ -101,6 +102,43 @@ def _envelope(*, event_id: str, decision_id: str = "a" * 32, amount: float = 100
     }
 
 
+def _action_intent_envelope(*, event_id: str, decision_id: str, action_id: str) -> dict[str, object]:
+    return {
+        "event_id": event_id,
+        "event_type": "action_intent",
+        "schema_version": "v1",
+        "ts_utc": "2026-02-07T10:45:01.000000Z",
+        "manifest_fingerprint": PINS["manifest_fingerprint"],
+        "parameter_hash": PINS["parameter_hash"],
+        "seed": PINS["seed"],
+        "scenario_id": PINS["scenario_id"],
+        "platform_run_id": PINS["platform_run_id"],
+        "scenario_run_id": PINS["scenario_run_id"],
+        "run_id": PINS["run_id"],
+        "payload": {
+            "action_id": action_id,
+            "decision_id": decision_id,
+            "action_kind": "txn_disposition_publish",
+            "idempotency_key": "merchant_42:evt_123:publish",
+            "pins": {
+                "platform_run_id": PINS["platform_run_id"],
+                "scenario_run_id": PINS["scenario_run_id"],
+                "manifest_fingerprint": PINS["manifest_fingerprint"],
+                "parameter_hash": PINS["parameter_hash"],
+                "scenario_id": PINS["scenario_id"],
+                "seed": PINS["seed"],
+                "run_id": PINS["run_id"],
+            },
+            "requested_at_utc": "2026-02-07T10:45:01.000000Z",
+            "actor_principal": "SYSTEM::decision_fabric",
+            "origin": "DF",
+            "policy_rev": {"policy_id": "df.policy.v0", "revision": "r8"},
+            "run_config_digest": "4" * 64,
+            "action_payload": {"target": "fraud.disposition"},
+        },
+    }
+
+
 def _process(processor: DecisionLogAuditIntakeProcessor, *, offset: str, payload: dict[str, object]):
     return processor.process_record(
         DlaBusInput(
@@ -117,6 +155,15 @@ def test_phase7_observability_collects_metrics_reconciliation_and_governance(tmp
     store = DecisionLogAuditIntakeStore(locator=str(tmp_path / "dla_intake.sqlite"))
     processor = DecisionLogAuditIntakeProcessor(_policy(), store)
 
+    processor.process_record(
+        DlaBusInput(
+            topic="fp.bus.rtdl.v1",
+            partition=0,
+            offset="0",
+            offset_kind="file_line",
+            payload=_envelope(event_id="evt_decision_good"),
+        )
+    )
     _process(processor, offset="0", payload=_envelope(event_id="evt_decision_a"))
     _process(processor, offset="0", payload=_envelope(event_id="evt_decision_drift", amount=999.0))
     _process(processor, offset="1", payload={"bad": "envelope"})
@@ -138,9 +185,10 @@ def test_phase7_observability_collects_metrics_reconciliation_and_governance(tmp
     assert metrics["rejected_total"] >= 1
     assert metrics["candidate_total"] == 1
     assert metrics["quarantine_total"] >= 1
-    assert metrics["replay_divergence_total"] >= 1
-    assert payload["health_state"] == "RED"
-    assert "REPLAY_DIVERGENCE_RED" in payload["health_reasons"]
+    assert metrics["append_failure_total"] >= 1
+    assert payload["health_state"] == "AMBER"
+    assert "QUARANTINE_AMBER" in payload["health_reasons"]
+    assert "APPEND_FAILURE_AMBER" in payload["health_reasons"]
 
     governance = payload["governance_stamps"]
     assert "policy://df.policy.v0@r8" in governance["policy_refs"]
@@ -228,3 +276,55 @@ def test_phase7_zero_state_export_is_readable(tmp_path: Path) -> None:
     assert metrics["metrics"]["append_success_total"] == 0
     assert health["platform_run_id"] == PINS["platform_run_id"]
     assert health["scenario_run_id"] == PINS["scenario_run_id"]
+
+
+def test_phase7_transient_unresolved_is_not_red_until_it_is_stale(tmp_path: Path) -> None:
+    store = DecisionLogAuditIntakeStore(locator=str(tmp_path / "dla_intake.sqlite"))
+    processor = DecisionLogAuditIntakeProcessor(_policy(), store)
+
+    processor.process_record(
+        DlaBusInput(
+            topic="fp.bus.rtdl.v1",
+            partition=0,
+            offset="0",
+            offset_kind="file_line",
+            payload=_action_intent_envelope(
+                event_id="evt_intent_only",
+                decision_id="d" * 32,
+                action_id="e" * 32,
+            ),
+        )
+    )
+
+    reporter = DecisionLogAuditObservabilityReporter(
+        store=store,
+        platform_run_id=PINS["platform_run_id"],
+        scenario_run_id=PINS["scenario_run_id"],
+        thresholds=DecisionLogAuditHealthThresholds(
+            amber_checkpoint_age_seconds=9999.0,
+            red_checkpoint_age_seconds=19999.0,
+            amber_unresolved_stale_seconds=60.0,
+            red_unresolved_stale_seconds=240.0,
+            amber_unresolved_stale_total=1,
+            red_unresolved_stale_total=2,
+        ),
+    )
+    payload = reporter.collect()
+
+    assert payload["health_state"] == "GREEN"
+    assert "UNRESOLVED_IN_FLIGHT" in payload["health_reasons"]
+    assert "UNRESOLVED_RED" not in payload["health_reasons"]
+    lineage = payload["reconciliation"]["lineage"]["unresolved_age_seconds"]
+    assert lineage["stale_over_amber_total"] == 0
+    assert lineage["stale_over_red_total"] == 0
+
+    with sqlite3.connect(str(tmp_path / "dla_intake.sqlite")) as conn:
+        conn.execute(
+            "UPDATE dla_lineage_chains SET updated_at_utc = ?",
+            ("2026-02-07T10:20:00.000000Z",),
+        )
+        conn.commit()
+
+    stale_payload = reporter.collect()
+    assert stale_payload["health_state"] == "AMBER"
+    assert "UNRESOLVED_AMBER" in stale_payload["health_reasons"]

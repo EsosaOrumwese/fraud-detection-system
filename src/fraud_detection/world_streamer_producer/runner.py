@@ -665,7 +665,6 @@ class WorldStreamProducer:
             lane_index=self._lane_index,
             attempt_id=checkpoint_attempt_id,
         )
-
         def _save_checkpoint(cursor: CheckpointCursor, *, reason: str) -> None:
             checkpoint_store.save(cursor)
             append_session_event(
@@ -1037,7 +1036,7 @@ def _gate_templates(gate_map: dict[str, Any]) -> dict[str, str]:
 def _merge_outputs(traffic_outputs: list[str], context_outputs: list[str]) -> list[str]:
     merged: list[str] = []
     seen: set[str] = set()
-    for item in traffic_outputs + context_outputs:
+    for item in context_outputs + traffic_outputs:
         if item in seen:
             continue
         seen.add(item)

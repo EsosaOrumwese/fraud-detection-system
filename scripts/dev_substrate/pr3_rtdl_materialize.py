@@ -358,6 +358,9 @@ def _materialize_run_scoped_profile(
     dla_wiring = _ensure_mapping(dla_payload, "wiring")
     dla_wiring["required_platform_run_id"] = platform_run_id
     dla_wiring["stream_id"] = f"dla.intake.v0::{platform_run_id}"
+    # Fresh bounded certification runs materialize the runtime before traffic
+    # dispatch, so "latest" avoids historical RTDL backlog drowning the active
+    # run scope on the shared topic while still admitting all new traffic.
     dla_wiring["event_bus_start_position"] = "latest"
 
     for component in (

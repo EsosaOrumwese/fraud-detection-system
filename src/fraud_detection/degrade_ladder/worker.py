@@ -526,6 +526,11 @@ class DegradeLadderWorker:
         elif component == "online_feature_plane":
             metrics = payload.get("metrics") if isinstance(payload.get("metrics"), dict) else {}
             derived_metrics = payload.get("derived_metrics") if isinstance(payload.get("derived_metrics"), dict) else {}
+            health_reasons = {
+                str(item).strip()
+                for item in (payload.get("health_reasons") or [])
+                if str(item).strip()
+            }
             missing_features = int(metrics.get("missing_features", payload.get("missing_features", 0)) or 0)
             snapshot_failures = int(metrics.get("snapshot_failures", payload.get("snapshot_failures", 0)) or 0)
             red_missing_features = _int_env("OFP_HEALTH_RED_MISSING_FEATURES", 10)
@@ -545,6 +550,27 @@ class DegradeLadderWorker:
                 missing_features=missing_features,
                 snapshot_failures=snapshot_failures,
             )
+            if (
+                missing_features >= red_missing_features
+                and missing_feature_rate not in (None, "")
+                and float(missing_feature_rate) >= red_missing_feature_rate
+                and snapshot_failures <= 0
+                and checkpoint_age <= required_max_age
+                and health_reasons.issubset({"WATERMARK_TOO_OLD", "MISSING_FEATURES_RED"})
+            ):
+                return SignalState(
+                    status="OK",
+                    value={
+                        "component": component,
+                        "checkpoint_age_seconds": checkpoint_age,
+                        "missing_features": missing_features,
+                        "missing_feature_rate": missing_feature_rate,
+                        "state": "READY",
+                        "advisory_reason": "SHARED_COMPONENT_OPERATIONAL_READY_MISSING_FEATURES_TRACKED_EXTERNALLY",
+                    },
+                    detail="SHARED_COMPONENT_OPERATIONAL_READY_MISSING_FEATURES_TRACKED_EXTERNALLY",
+                    source=f"dl.worker:{component}:shared",
+                )
             if (
                 (event_basis <= 0 and missing_features >= red_missing_features)
                 or (

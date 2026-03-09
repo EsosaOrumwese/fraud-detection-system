@@ -84,7 +84,7 @@ class OnlineFeatureProjector:
             self._kafka_reader = build_kafka_reader(client_id=f"ofp-projector-{profile.policy.stream_id_base}")
         else:
             raise RuntimeError("OFP_EVENT_BUS_KIND_UNSUPPORTED")
-        self._scenario_run_id: str | None = None
+        self._scenario_run_id: str | None = _initial_scenario_run_id()
         self._last_observability_export = 0.0
         self._observability = OfpObservabilityReporter.from_runtime(profile=self.profile, store=self.store)
 
@@ -471,6 +471,14 @@ def _coerce_kafka_offset(value: str | None, *, default: int | None) -> int | Non
         return int(value)
     except (TypeError, ValueError):
         return default
+
+
+def _initial_scenario_run_id() -> str | None:
+    for env_name in ("ACTIVE_SCENARIO_RUN_ID", "OFP_SCENARIO_RUN_ID", "SCENARIO_RUN_ID"):
+        value = str(os.getenv(env_name) or "").strip()
+        if value:
+            return value
+    return None
 
 
 def main() -> None:

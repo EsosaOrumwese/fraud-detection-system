@@ -463,8 +463,19 @@ class DecisionContextAcquirer:
             missing_groups = _to_list((ofp_snapshot.get("freshness") or {}).get("missing_groups"))
             missing_keys = _to_list((ofp_snapshot.get("freshness") or {}).get("missing_feature_keys"))
             has_usable_features = _snapshot_has_usable_features(ofp_snapshot)
+            requested_group_names = {name for name, _ in requirements.feature_groups}
+            served_group_names = set(feature_group_versions)
+            effective_missing_groups = [
+                name
+                for name in missing_groups
+                if not (
+                    has_usable_features
+                    and name in requested_group_names
+                    and name in served_group_names
+                )
+            ]
             missing_reasons = [
-                *(f"OFP_MISSING_GROUP:{name}" for name in missing_groups),
+                *(f"OFP_MISSING_GROUP:{name}" for name in effective_missing_groups),
             ]
             if not has_usable_features:
                 missing_reasons.extend(f"OFP_MISSING_FEATURE:{name}" for name in missing_keys)

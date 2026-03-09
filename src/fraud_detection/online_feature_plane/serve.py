@@ -165,8 +165,12 @@ class OfpGetFeaturesService:
             "missing_groups": missing_groups,
             "missing_feature_keys": _unique_sorted(missing_feature_keys),
         }
+        count_missing_features = bool(missing_feature_keys) and (
+            not filtered_features or bool(missing_groups_from_request)
+        )
+
         if scenario_run_id:
-            if missing_feature_keys:
+            if count_missing_features:
                 self._safe_increment_metric(
                     scenario_run_id=scenario_run_id,
                     metric_name="missing_features",

@@ -281,13 +281,34 @@ def _health_thresholds_from_env() -> DecisionLogAuditHealthThresholds:
         except ValueError:
             return default
 
+    def _i_fallback(name: str, fallback_name: str, default: int) -> int:
+        raw = os.getenv(name)
+        if raw in (None, ""):
+            raw = os.getenv(fallback_name)
+        if raw in (None, ""):
+            return default
+        try:
+            return int(raw)
+        except ValueError:
+            return default
+
     return DecisionLogAuditHealthThresholds(
         amber_checkpoint_age_seconds=_f("DLA_HEALTH_AMBER_CHECKPOINT_AGE_SECONDS", 120.0),
         red_checkpoint_age_seconds=_f("DLA_HEALTH_RED_CHECKPOINT_AGE_SECONDS", 300.0),
         amber_quarantine_total=_i("DLA_HEALTH_AMBER_QUARANTINE_TOTAL", 1),
         red_quarantine_total=_i("DLA_HEALTH_RED_QUARANTINE_TOTAL", 25),
-        amber_unresolved_total=_i("DLA_HEALTH_AMBER_UNRESOLVED_TOTAL", 1),
-        red_unresolved_total=_i("DLA_HEALTH_RED_UNRESOLVED_TOTAL", 20),
+        amber_unresolved_stale_seconds=_f("DLA_HEALTH_AMBER_UNRESOLVED_STALE_SECONDS", 60.0),
+        red_unresolved_stale_seconds=_f("DLA_HEALTH_RED_UNRESOLVED_STALE_SECONDS", 240.0),
+        amber_unresolved_stale_total=_i_fallback(
+            "DLA_HEALTH_AMBER_UNRESOLVED_STALE_TOTAL",
+            "DLA_HEALTH_AMBER_UNRESOLVED_TOTAL",
+            1,
+        ),
+        red_unresolved_stale_total=_i_fallback(
+            "DLA_HEALTH_RED_UNRESOLVED_STALE_TOTAL",
+            "DLA_HEALTH_RED_UNRESOLVED_TOTAL",
+            20,
+        ),
         amber_append_failure_total=_i("DLA_HEALTH_AMBER_APPEND_FAILURE_TOTAL", 1),
         red_append_failure_total=_i("DLA_HEALTH_RED_APPEND_FAILURE_TOTAL", 5),
         amber_replay_divergence_total=_i("DLA_HEALTH_AMBER_REPLAY_DIVERGENCE_TOTAL", 1),

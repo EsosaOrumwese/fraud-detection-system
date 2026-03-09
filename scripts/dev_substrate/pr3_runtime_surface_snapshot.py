@@ -116,7 +116,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "health_path": "runs/fraud-platform/{platform_run_id}/decision_fabric/health/last_health.json",
         "threshold_defaults": {
             "publish_quarantine_total_delta_max": 0,
-            "fail_closed_total_delta_max": 0,
+            "hard_fail_closed_total_delta_max": 0,
         },
     },
     "al": {
@@ -264,9 +264,14 @@ def pick_summary(component: str, metrics_payload: dict[str, Any], health_payload
             {
                 "decisions_total": to_float(metrics.get("decisions_total")),
                 "degrade_total": to_float(metrics.get("degrade_total")),
+                "step_up_total": to_float(metrics.get("step_up_total")),
+                "explicit_fallback_total": to_float(metrics.get("explicit_fallback_total")),
                 "missing_context_total": to_float(metrics.get("missing_context_total")),
                 "resolver_failures_total": to_float(metrics.get("resolver_failures_total")),
                 "fail_closed_total": to_float(metrics.get("fail_closed_total")),
+                "hard_fail_closed_total": to_float(metrics.get("hard_fail_closed_total"))
+                if metrics.get("hard_fail_closed_total") is not None
+                else to_float(metrics.get("fail_closed_total")),
                 "publish_quarantine_total": to_float(metrics.get("publish_quarantine_total")),
                 "latency_p95_ms": to_float(lat.get("p95")),
                 "latency_p99_ms": to_float(lat.get("p99")),

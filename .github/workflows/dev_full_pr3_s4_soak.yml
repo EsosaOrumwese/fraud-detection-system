@@ -115,7 +115,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
-      EKS_NAMESPACE: fraud-platform-rtdl
+      RTDL_NAMESPACE: fraud-platform-rtdl
+      CASE_LABELS_NAMESPACE: fraud-platform-case-labels
+      LEARNING_NAMESPACE: fraud-platform-learning
       PYTHONPATH: src
     steps:
       - name: Checkout
@@ -241,7 +243,7 @@ jobs:
             --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
             --platform-run-id "${{ steps.meta.outputs.active_platform_run_id }}" \
             --aws-region "${{ inputs.aws_region }}" \
-            --namespace "${{ env.EKS_NAMESPACE }}" \
+            --namespace "${{ env.RTDL_NAMESPACE }}" \
             --image-uri "${{ inputs.platform_image_uri }}"
 
       - name: Expose bootstrap outputs
@@ -275,7 +277,7 @@ jobs:
             --platform-run-id "${{ steps.meta.outputs.active_platform_run_id }}" \
             --scenario-run-id "${{ steps.bootstrap.outputs.active_scenario_run_id }}" \
             --region "${{ inputs.aws_region }}" \
-            --namespace "${{ env.EKS_NAMESPACE }}" \
+            --namespace "${{ env.RTDL_NAMESPACE }}" \
             --image-uri "${{ inputs.platform_image_uri }}"
 
       - name: Verify runtime deployments ready
@@ -290,11 +292,14 @@ jobs:
             fp-pr3-df \
             fp-pr3-al \
             fp-pr3-dla \
-            fp-pr3-archive-writer \
+            fp-pr3-archive-writer; do
+            kubectl rollout status "deployment/${deployment}" -n "${{ env.RTDL_NAMESPACE }}" --timeout=300s
+          done
+          for deployment in \
             fp-pr3-case-trigger \
             fp-pr3-case-mgmt \
             fp-pr3-label-store; do
-            kubectl rollout status "deployment/${deployment}" -n "${{ env.EKS_NAMESPACE }}" --timeout=300s
+            kubectl rollout status "deployment/${deployment}" -n "${{ env.CASE_LABELS_NAMESPACE }}" --timeout=300s
           done
 
       - name: Warm-gate runtime before correctness
@@ -304,7 +309,8 @@ jobs:
           python scripts/dev_substrate/pr3_runtime_warm_gate.py \
             --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
             --state-id S4 \
-            --namespace "${{ env.EKS_NAMESPACE }}" \
+            --namespace "${{ env.RTDL_NAMESPACE }}" \
+            --case-labels-namespace "${{ env.CASE_LABELS_NAMESPACE }}" \
             --platform-run-id "${{ steps.meta.outputs.active_platform_run_id }}" \
             --profile-path "/runtime-profile/dev_full.yaml" \
             --settle-seconds 30
@@ -317,7 +323,8 @@ jobs:
             --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
             --state-id S4 \
             --snapshot-label pre \
-            --namespace "${{ env.EKS_NAMESPACE }}" \
+            --namespace "${{ env.RTDL_NAMESPACE }}" \
+            --case-labels-namespace "${{ env.CASE_LABELS_NAMESPACE }}" \
             --platform-run-id "${{ steps.meta.outputs.active_platform_run_id }}"
 
       - name: Repin WSP task family to explicit immutable image
@@ -453,7 +460,8 @@ jobs:
           ACTIVE_SCENARIO_RUN_ID: ${{ steps.bootstrap.outputs.active_scenario_run_id }}
           WSP_CHECKPOINT_ATTEMPT_ID: ${{ steps.meta.outputs.wsp_checkpoint_attempt_id }}
           AWS_REGION: ${{ inputs.aws_region }}
-          EKS_NAMESPACE: ${{ env.EKS_NAMESPACE }}
+          EKS_NAMESPACE: ${{ env.RTDL_NAMESPACE }}
+          CASE_LABELS_NAMESPACE: ${{ env.CASE_LABELS_NAMESPACE }}
         run: |
           set -euo pipefail
           python scripts/dev_substrate/pr3_wsp_replay_dispatch.py \
@@ -493,6 +501,7 @@ jobs:
               --state-id S4 \
               --snapshot-label "during_${SAMPLE_INDEX}" \
               --namespace "${EKS_NAMESPACE}" \
+              --case-labels-namespace "${CASE_LABELS_NAMESPACE}" \
               --platform-run-id "${ACTIVE_PLATFORM_RUN_ID}" || true
             SAMPLE_INDEX=$((SAMPLE_INDEX + 1))
             sleep 30
@@ -508,7 +517,8 @@ jobs:
             --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
             --state-id S4 \
             --snapshot-label post \
-            --namespace "${{ env.EKS_NAMESPACE }}" \
+            --namespace "${{ env.RTDL_NAMESPACE }}" \
+            --case-labels-namespace "${{ env.CASE_LABELS_NAMESPACE }}" \
             --platform-run-id "${{ steps.meta.outputs.active_platform_run_id }}"
 
       - name: Run PR3-S4 bounded learning proof
@@ -524,7 +534,8 @@ jobs:
             --platform-run-id "${{ steps.meta.outputs.active_platform_run_id }}" \
             --scenario-run-id "${{ steps.bootstrap.outputs.active_scenario_run_id }}" \
             --aws-region "${{ inputs.aws_region }}" \
-            --namespace "${{ env.EKS_NAMESPACE }}" \
+            --namespace "${{ env.LEARNING_NAMESPACE }}" \
+            --service-account-name learning \
             --image-uri "${{ inputs.platform_image_uri }}"
 
       - name: Run PR3-S4 dependency degrade drill
@@ -535,7 +546,7 @@ jobs:
             --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
             --state-id S4 \
             --artifact-prefix g3a_correctness \
-            --namespace "${{ env.EKS_NAMESPACE }}" \
+            --namespace "${{ env.RTDL_NAMESPACE }}" \
             --platform-run-id "${{ steps.meta.outputs.active_platform_run_id }}" \
             --profile-path "/runtime-profile/dev_full.yaml"
 

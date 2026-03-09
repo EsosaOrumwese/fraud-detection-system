@@ -1260,23 +1260,31 @@ class DecisionLogAuditIntakeStore:
         limit: int = 100,
     ) -> list[DecisionLogAuditLineageChain]:
         bounded_limit = max(1, int(limit))
-        with self._connect() as conn:
-            rows = _query_all(
-                conn,
-                self.backend,
-                """
+        sql = (
+            """
                 SELECT decision_id, platform_run_id, scenario_run_id, run_config_digest, decision_event_id, decision_payload_hash,
                        decision_ref_json, intent_count, outcome_count, unresolved_reasons_json, chain_status,
                        created_at_utc, updated_at_utc
                 FROM dla_lineage_chains
                 WHERE platform_run_id = {p1}
                   AND scenario_run_id = {p2}
-                  AND ({p3} IS NULL OR COALESCE(decision_ts_utc, updated_at_utc) >= {p4})
-                  AND ({p5} IS NULL OR COALESCE(decision_ts_utc, updated_at_utc) <= {p6})
-                ORDER BY COALESCE(decision_ts_utc, updated_at_utc), decision_id
-                LIMIT {p7}
-                """,
-                (platform_run_id, scenario_run_id, start_ts_utc, start_ts_utc, end_ts_utc, end_ts_utc, bounded_limit),
+            """
+        )
+        params: list[Any] = [platform_run_id, scenario_run_id]
+        if start_ts_utc is not None:
+            sql += "\n                  AND COALESCE(decision_ts_utc, updated_at_utc) >= {p3}"
+            params.append(start_ts_utc)
+        if end_ts_utc is not None:
+            sql += f"\n                  AND COALESCE(decision_ts_utc, updated_at_utc) <= {{p{len(params) + 1}}}"
+            params.append(end_ts_utc)
+        sql += f"\n                ORDER BY COALESCE(decision_ts_utc, updated_at_utc), decision_id\n                LIMIT {{p{len(params) + 1}}}\n                "
+        params.append(bounded_limit)
+        with self._connect() as conn:
+            rows = _query_all(
+                conn,
+                self.backend,
+                sql,
+                tuple(params),
             )
         return [_row_to_lineage_chain(row) for row in rows]
 
