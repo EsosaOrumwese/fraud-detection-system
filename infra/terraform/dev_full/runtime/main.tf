@@ -28,12 +28,6 @@ data "aws_caller_identity" "current" {}
 
 data "aws_region" "current" {}
 
-data "archive_file" "ig_handler_zip" {
-  type        = "zip"
-  source_file = "${path.module}/lambda/ig_handler.py"
-  output_path = "${path.module}/.terraform/ig_handler.zip"
-}
-
 locals {
   common_tags = merge(
     {
@@ -76,8 +70,7 @@ locals {
   msk_topic_wildcard_arn       = local.msk_cluster_name != "" && local.msk_cluster_uuid != "" ? "arn:aws:kafka:${var.aws_region}:${data.aws_caller_identity.current.account_id}:topic/${local.msk_cluster_name}/${local.msk_cluster_uuid}/*" : ""
   msk_group_wildcard_arn       = local.msk_cluster_name != "" && local.msk_cluster_uuid != "" ? "arn:aws:kafka:${var.aws_region}:${data.aws_caller_identity.current.account_id}:group/${local.msk_cluster_name}/${local.msk_cluster_uuid}/*" : ""
   ig_integration_timeout_ms    = min(30000, floor(var.ig_request_timeout_seconds * 1000))
-  lambda_ig_use_remote_package = trimspace(var.lambda_ig_package_s3_bucket) != "" && trimspace(var.lambda_ig_package_s3_key) != "" && trimspace(var.lambda_ig_package_sha256_base64) != ""
-  lambda_ig_source_code_hash   = local.lambda_ig_use_remote_package ? var.lambda_ig_package_sha256_base64 : data.archive_file.ig_handler_zip.output_base64sha256
+  lambda_ig_remote_package_ready = trimspace(var.lambda_ig_package_s3_bucket) != "" && trimspace(var.lambda_ig_package_s3_key) != "" && trimspace(var.lambda_ig_package_sha256_base64) != ""
 
   irsa_targets = {
     ig = {
@@ -789,11 +782,10 @@ resource "aws_lambda_function" "ig_handler" {
   function_name                  = var.lambda_ig_handler_name
   role                           = aws_iam_role.lambda_ig_execution.arn
   runtime                        = "python3.12"
-  handler                        = local.lambda_ig_use_remote_package ? "fraud_detection.ingestion_gate.aws_lambda_handler.lambda_handler" : "ig_handler.lambda_handler"
-  filename                       = local.lambda_ig_use_remote_package ? null : data.archive_file.ig_handler_zip.output_path
-  s3_bucket                      = local.lambda_ig_use_remote_package ? var.lambda_ig_package_s3_bucket : null
-  s3_key                         = local.lambda_ig_use_remote_package ? var.lambda_ig_package_s3_key : null
-  source_code_hash               = local.lambda_ig_source_code_hash
+  handler                        = "fraud_detection.ingestion_gate.aws_lambda_handler.lambda_handler"
+  s3_bucket                      = var.lambda_ig_package_s3_bucket
+  s3_key                         = var.lambda_ig_package_s3_key
+  source_code_hash               = var.lambda_ig_package_sha256_base64
   timeout                        = floor(var.lambda_ig_timeout_seconds)
   memory_size                    = floor(var.lambda_ig_memory_size_mb)
   reserved_concurrent_executions = floor(var.lambda_ig_reserved_concurrency)
@@ -856,6 +848,10 @@ resource "aws_lambda_function" "ig_handler" {
     precondition {
       condition     = floor(var.lambda_ig_reserved_concurrency) > 0
       error_message = "Lambda reserved concurrency must be positive for cert-time explicit envelope control."
+    }
+    precondition {
+      condition     = local.lambda_ig_remote_package_ready
+      error_message = "dev_full ingress Lambda requires the authoritative remote bundle triplet (lambda_ig_package_s3_bucket, lambda_ig_package_s3_key, lambda_ig_package_sha256_base64). Inline fallback packaging is not allowed."
     }
     precondition {
       condition     = length(local.private_subnet_ids) >= 2

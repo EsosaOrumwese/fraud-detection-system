@@ -47,6 +47,7 @@ def main() -> None:
     ap.add_argument("--state-id", default="S4")
     ap.add_argument("--artifact-prefix", default="g3a_correctness")
     ap.add_argument("--namespace", required=True)
+    ap.add_argument("--case-labels-namespace", default="")
     ap.add_argument("--platform-run-id", required=True)
     ap.add_argument("--profile-path", required=True)
     ap.add_argument("--deployment", default="fp-pr3-ofp")
@@ -73,6 +74,8 @@ def main() -> None:
             "dependency_degrade",
             "--namespace",
             args.namespace,
+            "--case-labels-namespace",
+            str(args.case_labels_namespace or args.namespace).strip(),
             "--platform-run-id",
             platform_run_id,
         ],
@@ -96,6 +99,8 @@ def main() -> None:
             args.state_id,
             "--namespace",
             args.namespace,
+            "--case-labels-namespace",
+            str(args.case_labels_namespace or args.namespace).strip(),
             "--platform-run-id",
             platform_run_id,
             "--profile-path",
@@ -117,6 +122,8 @@ def main() -> None:
             "dependency_recovered",
             "--namespace",
             args.namespace,
+            "--case-labels-namespace",
+            str(args.case_labels_namespace or args.namespace).strip(),
             "--platform-run-id",
             platform_run_id,
         ],

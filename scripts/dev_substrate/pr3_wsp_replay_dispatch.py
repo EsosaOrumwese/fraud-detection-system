@@ -70,6 +70,102 @@ def parse_csv(raw: str) -> list[str]:
     return [item.strip() for item in str(raw).split(",") if item.strip()]
 
 
+def parse_execute_api_id(ingest_url: str) -> str:
+    host = str(urlparse(str(ingest_url).strip()).netloc or "").strip().split(":", 1)[0]
+    if ".execute-api." not in host:
+        return ""
+    return host.split(".", 1)[0].strip()
+
+
+def resolve_live_ig_api(apigw: Any, *, api_name: str, api_id_hint: str) -> tuple[str, str]:
+    hinted_id = str(api_id_hint).strip()
+    if hinted_id:
+        try:
+            payload = apigw.get_api(ApiId=hinted_id)
+        except (BotoCoreError, ClientError):
+            payload = {}
+        api_id = str(payload.get("ApiId", "")).strip()
+        endpoint = str(payload.get("ApiEndpoint", "")).strip()
+        if api_id and endpoint:
+            return api_id, endpoint
+    next_token: str | None = None
+    wanted_name = str(api_name).strip()
+    while True:
+        kwargs: dict[str, Any] = {"MaxResults": "100"}
+        if next_token:
+            kwargs["NextToken"] = next_token
+        payload = apigw.get_apis(**kwargs)
+        for item in payload.get("Items", []) or []:
+            if str(item.get("Name", "")).strip() != wanted_name:
+                continue
+            api_id = str(item.get("ApiId", "")).strip()
+            endpoint = str(item.get("ApiEndpoint", "")).strip()
+            if api_id and endpoint:
+                return api_id, endpoint
+        next_token = str(payload.get("NextToken", "")).strip() or None
+        if not next_token:
+            break
+    raise RuntimeError(f"live ig api unresolved: name={wanted_name or 'empty'} hint={hinted_id or 'none'}")
+
+
+def resolve_live_msk_network(kafka: Any, cluster_name: str) -> tuple[list[str], list[str]]:
+    try:
+        payload = kafka.list_clusters_v2(ClusterNameFilter=str(cluster_name).strip())
+    except (BotoCoreError, ClientError):
+        payload = {}
+    items = list(payload.get("ClusterInfoList", []) or []) if isinstance(payload, dict) else []
+    for item in items:
+        if str(item.get("ClusterName", "")).strip() != str(cluster_name).strip():
+            continue
+        serverless = item.get("Serverless", {}) if isinstance(item, dict) else {}
+        vpc_configs = list(serverless.get("VpcConfigs", []) or []) if isinstance(serverless, dict) else []
+        if not vpc_configs:
+            continue
+        first = vpc_configs[0] if isinstance(vpc_configs[0], dict) else {}
+        subnets = [str(value).strip() for value in (first.get("SubnetIds", []) or []) if str(value).strip()]
+        security_groups = [str(value).strip() for value in (first.get("SecurityGroupIds", []) or []) if str(value).strip()]
+        if subnets and security_groups:
+            return subnets, security_groups
+    return [], []
+
+
+def resolve_vpc_id_for_subnets(ec2: Any, subnet_ids: list[str]) -> str:
+    cleaned = [str(value).strip() for value in subnet_ids if str(value).strip()]
+    if not cleaned:
+        return ""
+    try:
+        payload = ec2.describe_subnets(SubnetIds=cleaned)
+    except (BotoCoreError, ClientError):
+        return ""
+    for subnet in payload.get("Subnets", []) or []:
+        vpc_id = str(subnet.get("VpcId", "")).strip()
+        if vpc_id:
+            return vpc_id
+    return ""
+
+
+def resolve_public_edge_subnets(ec2: Any, *, vpc_id: str) -> list[str]:
+    if not str(vpc_id).strip():
+        return []
+    try:
+        payload = ec2.describe_subnets(Filters=[{"Name": "vpc-id", "Values": [str(vpc_id).strip()]}])
+    except (BotoCoreError, ClientError):
+        return []
+    ranked: list[tuple[str, str, str]] = []
+    for subnet in payload.get("Subnets", []) or []:
+        subnet_id = str(subnet.get("SubnetId", "")).strip()
+        if not subnet_id:
+            continue
+        tags = {str(row.get("Key", "")).strip(): str(row.get("Value", "")).strip() for row in (subnet.get("Tags", []) or [])}
+        is_public = bool(subnet.get("MapPublicIpOnLaunch", False)) or tags.get("fp_subnet_tier", "").strip().lower() == "public"
+        if not is_public:
+            continue
+        az = str(subnet.get("AvailabilityZone", "")).strip()
+        ranked.append((az, subnet_id, tags.get("Name", "").strip()))
+    ranked.sort(key=lambda row: (row[0], row[2], row[1]))
+    return [subnet_id for _az, subnet_id, _name in ranked]
+
+
 def arn_suffix(arn: str, marker: str) -> str:
     raw = str(arn).strip()
     token = f"{marker}/"
@@ -602,6 +698,8 @@ def get_ingress_latency_statistics(
 def weighted_latency_ms(
     latency_points: list[dict[str, Any]],
     count_points: list[dict[str, Any]],
+    *,
+    mode: str,
 ) -> tuple[float, float, str]:
     count_by_ts: dict[str, float] = {}
     for row in count_points:
@@ -626,7 +724,10 @@ def weighted_latency_ms(
         p99_num += p99 * weight
         weight_total += weight
     if weight_total > 0.0:
-        return (p95_num / weight_total) * 1000.0, (p99_num / weight_total) * 1000.0, "weighted_by_count_alb_seconds"
+        upper_mode = str(mode).upper()
+        scale = 1.0 if upper_mode == "APIGW" else 1000.0
+        method = "weighted_by_count_apigw_ms" if upper_mode == "APIGW" else "weighted_by_count_alb_seconds"
+        return (p95_num / weight_total) * scale, (p99_num / weight_total) * scale, method
     return -1.0, -1.0, "unavailable"
 
 
@@ -764,9 +865,10 @@ def get_ingress_metric_bins(
         if not stamp:
             continue
         ext = row.get("ExtendedStatistics", {}) or {}
+        scale = 1.0 if mode == "APIGW" else 1000.0
         latency_map[stamp] = {
-            "p95_ms": (float(ext.get("p95", -1.0) or -1.0) * 1000.0) if ext.get("p95") is not None else None,
-            "p99_ms": (float(ext.get("p99", -1.0) or -1.0) * 1000.0) if ext.get("p99") is not None else None,
+            "p95_ms": (float(ext.get("p95", -1.0) or -1.0) * scale) if ext.get("p95") is not None else None,
+            "p99_ms": (float(ext.get("p99", -1.0) or -1.0) * scale) if ext.get("p99") is not None else None,
         }
 
     effective_start = align_up_to_period(start_time, period_seconds)
@@ -888,24 +990,30 @@ def probe_platform_run_identity_usage(dsn: str, platform_run_id: str) -> dict[st
         "admissions_count": 0,
         "receipts_count": 0,
         "tables_present": {"admissions": False, "receipts": False},
+        "probe_mode": "runner_local_probe",
+        "probe_error": "",
     }
     if not usage["platform_run_id"]:
         return usage
-    with psycopg.connect(dsn, autocommit=True) as conn:
-        with conn.cursor() as cur:
-            for table in ("admissions", "receipts"):
-                cur.execute("SELECT to_regclass(%s)", (f"public.{table}",))
-                row = cur.fetchone()
-                present = bool(row and row[0])
-                usage["tables_present"][table] = present
-                if not present:
-                    continue
-                cur.execute(
-                    f"SELECT COUNT(*) FROM public.{table} WHERE platform_run_id = %s",
-                    (usage["platform_run_id"],),
-                )
-                count_row = cur.fetchone()
-                usage[f"{table}_count"] = int(count_row[0] or 0) if count_row else 0
+    try:
+        with psycopg.connect(dsn, autocommit=True) as conn:
+            with conn.cursor() as cur:
+                for table in ("admissions", "receipts"):
+                    cur.execute("SELECT to_regclass(%s)", (f"public.{table}",))
+                    row = cur.fetchone()
+                    present = bool(row and row[0])
+                    usage["tables_present"][table] = present
+                    if not present:
+                        continue
+                    cur.execute(
+                        f"SELECT COUNT(*) FROM public.{table} WHERE platform_run_id = %s",
+                        (usage["platform_run_id"],),
+                    )
+                    count_row = cur.fetchone()
+                    usage[f"{table}_count"] = int(count_row[0] or 0) if count_row else 0
+    except Exception as exc:
+        usage["probe_mode"] = "runner_local_probe_unreachable"
+        usage["probe_error"] = f"{type(exc).__name__}:{str(exc).strip()[:240]}"
     return usage
 
 
@@ -941,8 +1049,11 @@ def main() -> None:
     ap.add_argument("--task-definition", default="fraud-platform-dev-full-wsp-ephemeral")
     ap.add_argument("--subnet-ids", default="subnet-0a7a35898d0ca31a8,subnet-0e9647425f02e2f27")
     ap.add_argument("--security-group-ids", default="sg-01bfefedcd75ec4b2")
+    ap.add_argument("--msk-cluster-name", default="fraud-platform-dev-full-msk")
+    ap.add_argument("--source-posture", choices=["auto", "public_edge", "private_runtime"], default="auto")
     ap.add_argument("--assign-public-ip", default="DISABLED")
-    ap.add_argument("--api-id", default="ehwznd2uw7")
+    ap.add_argument("--api-id", default="")
+    ap.add_argument("--ig-api-name", default="fraud-platform-dev-full-ig-edge")
     ap.add_argument("--api-stage", default="v1")
     ap.add_argument("--ssm-ig-api-key-path", default="/fraud-platform/dev_full/ig/api_key")
     ap.add_argument("--ssm-ig-service-url-path", default="/fraud-platform/dev_full/ig/service_url")
@@ -969,7 +1080,7 @@ def main() -> None:
     ap.add_argument("--scenario-id", default="baseline_v1")
     ap.add_argument("--object-store-root", default="s3://fraud-platform-dev-full-object-store")
     ap.add_argument("--ig-ingest-url", default="")
-    ap.add_argument("--ig-ingest-url-fallback", default="https://ehwznd2uw7.execute-api.eu-west-2.amazonaws.com/v1/ingest/push")
+    ap.add_argument("--ig-ingest-url-fallback", default="")
     ap.add_argument("--traffic-output-ids", default="s3_event_stream_with_fraud_6B")
     ap.add_argument(
         "--context-output-ids",
@@ -1020,19 +1131,32 @@ def main() -> None:
 
     ecs = boto3.client("ecs", region_name=args.region)
     elbv2 = boto3.client("elbv2", region_name=args.region)
+    kafka = boto3.client("kafka", region_name=args.region)
     ssm = boto3.client("ssm", region_name=args.region)
     logs = boto3.client("logs", region_name=args.region)
     cw = boto3.client("cloudwatch", region_name=args.region)
+    apigw = boto3.client("apigatewayv2", region_name=args.region)
+    ec2 = boto3.client("ec2", region_name=args.region)
     task_definition = resolve_task_definition(ecs, args.task_definition)
 
     ig_api_key = ssm.get_parameter(Name=args.ssm_ig_api_key_path, WithDecryption=True)["Parameter"]["Value"]
-    resolved_ig_ingest_url = str(args.ig_ingest_url).strip()
+    resolved_api_id, live_api_endpoint = resolve_live_ig_api(
+        apigw,
+        api_name=args.ig_api_name,
+        api_id_hint=args.api_id,
+    )
+    live_ig_ingest_url = f"{str(live_api_endpoint).rstrip('/')}/{str(args.api_stage).strip().strip('/')}/ingest/push"
+    requested_ig_ingest_url = str(args.ig_ingest_url).strip()
+    requested_api_id = parse_execute_api_id(requested_ig_ingest_url)
+    resolved_ig_ingest_url = requested_ig_ingest_url
     if not resolved_ig_ingest_url:
         try:
             service_url = ssm.get_parameter(Name=args.ssm_ig_service_url_path, WithDecryption=False)["Parameter"]["Value"]
             resolved_ig_ingest_url = str(service_url or "").strip()
         except (BotoCoreError, ClientError):
             resolved_ig_ingest_url = ""
+    if not resolved_ig_ingest_url or (requested_api_id and requested_api_id != resolved_api_id):
+        resolved_ig_ingest_url = live_ig_ingest_url
     if not resolved_ig_ingest_url:
         resolved_ig_ingest_url = str(args.ig_ingest_url_fallback).strip()
     prior_surface: dict[str, Any] | None = None
@@ -1046,7 +1170,7 @@ def main() -> None:
     ingress_surface = resolve_ingress_surface(
         elbv2=elbv2,
         ingest_url=resolved_ig_ingest_url,
-        api_id=args.api_id,
+        api_id=resolved_api_id,
         api_stage=args.api_stage,
         blocker_prefix=args.blocker_prefix,
         prior_surface=prior_surface,
@@ -1083,8 +1207,21 @@ def main() -> None:
             db_name=args.aurora_db_name,
             port=args.aurora_port,
         )
-    subnets = parse_csv(args.subnet_ids)
-    security_groups = parse_csv(args.security_group_ids)
+    live_private_subnets, live_security_groups = resolve_live_msk_network(kafka, args.msk_cluster_name)
+    subnets = list(live_private_subnets or parse_csv(args.subnet_ids))
+    security_groups = list(live_security_groups or parse_csv(args.security_group_ids))
+    resolved_source_posture = str(args.source_posture).strip().lower() or "auto"
+    resolved_assign_public_ip = str(args.assign_public_ip).strip().upper() or "DISABLED"
+    if resolved_source_posture == "auto":
+        resolved_source_posture = "public_edge" if str(ingress_surface.get("mode", "")).upper() == "APIGW" else "private_runtime"
+    if resolved_source_posture == "public_edge":
+        vpc_id = resolve_vpc_id_for_subnets(ec2, subnets)
+        public_subnets = resolve_public_edge_subnets(ec2, vpc_id=vpc_id)
+        if public_subnets:
+            subnets = public_subnets
+        resolved_assign_public_ip = "ENABLED"
+    elif resolved_source_posture == "private_runtime":
+        resolved_assign_public_ip = "DISABLED"
     blockers: list[str] = []
     submitted_at = datetime.now(timezone.utc)
     checkpoint_attempt_id = str(args.checkpoint_attempt_id).strip() or submitted_at.strftime("%Y%m%dT%H%M%SZ")
@@ -1197,7 +1334,7 @@ def main() -> None:
                     "awsvpcConfiguration": {
                         "subnets": subnets,
                         "securityGroups": security_groups,
-                        "assignPublicIp": str(args.assign_public_ip).strip().upper(),
+                        "assignPublicIp": resolved_assign_public_ip,
                     }
                 },
                 overrides=run_overrides,
@@ -1261,7 +1398,8 @@ def main() -> None:
         "network": {
             "subnets": subnets,
             "security_groups": security_groups,
-            "assign_public_ip": str(args.assign_public_ip).strip().upper(),
+            "assign_public_ip": resolved_assign_public_ip,
+            "resolved_source_posture": resolved_source_posture,
         },
         "campaign": {
             "expected_window_eps": args.expected_window_eps,
@@ -1309,6 +1447,8 @@ def main() -> None:
             "resolved_ig_ingest_url": resolved_ig_ingest_url,
             "ig_ingest_url_fallback": str(args.ig_ingest_url_fallback).strip(),
             "ssm_ig_service_url_path": args.ssm_ig_service_url_path,
+            "resolved_api_id": resolved_api_id,
+            "ig_api_name": args.ig_api_name,
             "metric_surface": ingress_surface,
         },
     }
@@ -1533,7 +1673,11 @@ def main() -> None:
             start_time=measurement_start_at,
             end_time=metrics_end_time,
         )
-        latency_p95_ms, latency_p99_ms, latency_method = weighted_latency_ms(latency_rows, count_rows)
+        latency_p95_ms, latency_p99_ms, latency_method = weighted_latency_ms(
+            latency_rows,
+            count_rows,
+            mode=str(ingress_surface.get("mode", "")).upper(),
+        )
     except (BotoCoreError, ClientError) as exc:
         metrics_error = f"{type(exc).__name__}:{exc}"
         blockers.append("PR3.S1.WSP.B17_METRICS_UNREADABLE")

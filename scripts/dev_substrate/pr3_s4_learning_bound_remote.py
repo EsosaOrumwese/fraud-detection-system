@@ -275,8 +275,8 @@ def main() -> None:
     parser.add_argument("--run-control-root", default="runs/dev_substrate/dev_full/road_to_prod/run_control")
     parser.add_argument("--summary-name", default="g3a_correctness_learning_summary.json")
     parser.add_argument("--aws-region", default="eu-west-2")
-    parser.add_argument("--namespace", default="fraud-platform-rtdl")
-    parser.add_argument("--service-account-name", default="rtdl")
+    parser.add_argument("--namespace", default="")
+    parser.add_argument("--service-account-name", default="learning")
     parser.add_argument("--service-account-role-arn", default="")
     parser.add_argument("--wsp-task-family", default="fraud-platform-dev-full-wsp-ephemeral")
     parser.add_argument("--image-uri", default="")
@@ -303,11 +303,12 @@ def main() -> None:
         run_facts_ref = str(((bootstrap.get("sr") or {}).get("facts_view_ref")) or "").strip()
         if not run_facts_ref:
             raise RuntimeError("PR3.B29_LEARNING_BOUND_FAIL:RUN_FACTS_REF_EMPTY")
+        args.namespace = str(args.namespace).strip() or str(registry.get("EKS_NAMESPACE_LEARNING", "")).strip() or "fraud-platform-learning"
         image_uri = str(args.image_uri).strip() or resolve_task_image(
             family=args.wsp_task_family,
             region=args.aws_region,
         )
-        role_arn = str(args.service_account_role_arn).strip() or str(registry.get("ROLE_EKS_IRSA_RTDL", "")).strip()
+        role_arn = str(args.service_account_role_arn).strip() or str(registry.get("ROLE_EKS_IRSA_LEARNING", "")).strip()
         if not role_arn:
             raise RuntimeError("PR3.B29_LEARNING_BOUND_FAIL:IRSA_ROLE_UNRESOLVED")
 

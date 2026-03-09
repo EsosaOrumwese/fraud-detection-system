@@ -180,6 +180,14 @@ COMPONENTS: dict[str, dict[str, Any]] = {
     },
 }
 
+CASE_LABEL_COMPONENTS = {"case_trigger", "case_mgmt", "label_store"}
+
+
+def component_namespace(component: str, *, runtime_namespace: str, case_labels_namespace: str) -> str:
+    if component in CASE_LABEL_COMPONENTS:
+        return str(case_labels_namespace or runtime_namespace).strip()
+    return str(runtime_namespace).strip()
+
 
 REMOTE_SCRIPT = r"""
 import json
@@ -352,6 +360,7 @@ def main() -> None:
     ap.add_argument("--state-id", default="S2")
     ap.add_argument("--snapshot-label", required=True)
     ap.add_argument("--namespace", default="fraud-platform-rtdl")
+    ap.add_argument("--case-labels-namespace", default="")
     ap.add_argument("--platform-run-id", required=True)
     ap.add_argument("--generated-by", default="codex-gpt5")
     ap.add_argument("--version", default="1.0.0")
@@ -371,26 +380,34 @@ def main() -> None:
         "execution_id": args.pr3_execution_id,
         "snapshot_label": args.snapshot_label,
         "platform_run_id": args.platform_run_id,
-        "namespace": args.namespace,
+        "namespaces": {
+            "runtime": args.namespace,
+            "case_labels": str(args.case_labels_namespace or args.namespace).strip(),
+        },
         "components": {},
         "blocker_ids": [],
     }
 
     for component, spec in COMPONENTS.items():
+        namespace = component_namespace(
+            component,
+            runtime_namespace=args.namespace,
+            case_labels_namespace=args.case_labels_namespace,
+        )
         pods = get_json(
-            ["kubectl", "get", "pods", "-n", args.namespace, "-l", f"app={spec['app']}", "-o", "json"],
+            ["kubectl", "get", "pods", "-n", namespace, "-l", f"app={spec['app']}", "-o", "json"],
             timeout=120,
         )
         items = list(pods.get("items", []))
         if not items:
             snapshot["blocker_ids"].append(f"PR3.{args.state_id}.RUNTIME.B01_COMPONENT_POD_MISSING:{component}")
-            snapshot["components"][component] = {"pod_missing": True}
+            snapshot["components"][component] = {"pod_missing": True, "namespace": namespace}
             continue
         pod = items[0]
         pod_name = str(pod.get("metadata", {}).get("name", "")).strip()
         container_statuses = list(pod.get("status", {}).get("containerStatuses", []) or [])
         metrics_payload, metrics_error = exec_json(
-            args.namespace,
+            namespace,
             pod_name,
             REMOTE_SCRIPT,
             {
@@ -405,6 +422,7 @@ def main() -> None:
         payload_health = dict(metrics_payload.get("health", {}) or {})
         snapshot["components"][component] = {
             "app": spec["app"],
+            "namespace": namespace,
             "pod_name": pod_name,
             "pod_phase": pod.get("status", {}).get("phase"),
             "restart_count": int(sum(int(row.get("restartCount", 0) or 0) for row in container_statuses)),

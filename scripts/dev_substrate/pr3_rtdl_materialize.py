@@ -4,15 +4,19 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import subprocess
 import sys
 import time
+import tempfile
+import zipfile
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urlparse
+from uuid import uuid4
 
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
@@ -21,6 +25,147 @@ import yaml
 
 REGISTRY = Path("docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md")
 SCENARIO_RUN_ID_RX = re.compile(r"^[a-f0-9]{32}$")
+TOPIC_PROBE_ROLE_NAME = "fraud-platform-dev-full-m5p4-s3-probe-role"
+TOPIC_PARTITIONS_BY_HANDLE = {
+    "FP_BUS_CONTROL_V1": 3,
+    "FP_BUS_TRAFFIC_FRAUD_V1": 6,
+    "FP_BUS_CONTEXT_ARRIVAL_EVENTS_V1": 6,
+    "FP_BUS_CONTEXT_ARRIVAL_ENTITIES_V1": 6,
+    "FP_BUS_CONTEXT_FLOW_ANCHOR_FRAUD_V1": 6,
+    "FP_BUS_RTDL_V1": 6,
+    "FP_BUS_AUDIT_V1": 3,
+    "FP_BUS_CASE_TRIGGERS_V1": 3,
+    "FP_BUS_LABELS_EVENTS_V1": 3,
+}
+
+
+def parse_execute_api_id(ingest_url: str) -> str:
+    host = str(urlparse(str(ingest_url).strip()).netloc or "").strip().split(":", 1)[0]
+    if ".execute-api." not in host:
+        return ""
+    return host.split(".", 1)[0].strip()
+
+
+def resolve_live_ig_api(apigw: Any, *, api_name: str, api_id_hint: str) -> tuple[str, str]:
+    hinted_id = str(api_id_hint).strip()
+    if hinted_id:
+        try:
+            payload = apigw.get_api(ApiId=hinted_id)
+        except (BotoCoreError, ClientError):
+            payload = {}
+        api_id = str(payload.get("ApiId", "")).strip()
+        endpoint = str(payload.get("ApiEndpoint", "")).strip()
+        if api_id and endpoint:
+            return api_id, endpoint
+    next_token: str | None = None
+    wanted_name = str(api_name).strip()
+    while True:
+        kwargs: dict[str, Any] = {"MaxResults": "100"}
+        if next_token:
+            kwargs["NextToken"] = next_token
+        payload = apigw.get_apis(**kwargs)
+        for item in payload.get("Items", []) or []:
+            if str(item.get("Name", "")).strip() != wanted_name:
+                continue
+            api_id = str(item.get("ApiId", "")).strip()
+            endpoint = str(item.get("ApiEndpoint", "")).strip()
+            if api_id and endpoint:
+                return api_id, endpoint
+        next_token = str(payload.get("NextToken", "")).strip() or None
+        if not next_token:
+            break
+    raise RuntimeError(f"live ig api unresolved: name={wanted_name or 'empty'} hint={hinted_id or 'none'}")
+
+
+def topic_probe_lambda_source() -> str:
+    return """import json
+import time
+
+from aws_msk_iam_sasl_signer import MSKAuthTokenProvider
+from kafka import KafkaAdminClient
+from kafka.admin import NewTopic
+from kafka.sasl.oauth import AbstractTokenProvider
+
+
+class TokenProvider(AbstractTokenProvider):
+    def __init__(self, region: str) -> None:
+        self._region = region
+
+    def token(self) -> str:
+        token, _expiry = MSKAuthTokenProvider.generate_auth_token(self._region)
+        return token
+
+
+def lambda_handler(event, context):
+    started = time.time()
+    bootstrap = str(event.get("bootstrap", "")).strip()
+    region = str(event.get("region", "eu-west-2")).strip() or "eu-west-2"
+    required_topics = [str(x).strip() for x in (event.get("required_topics") or []) if str(x).strip()]
+    topic_partitions = event.get("topic_partitions") or {}
+    allow_create = bool(event.get("allow_create", False))
+    out = {
+        "overall_pass": False,
+        "bootstrap": bootstrap,
+        "existing_topics_before": [],
+        "existing_topics_after": [],
+        "created_topics": [],
+        "topic_status": [],
+        "missing_topics": [],
+        "errors": [],
+        "elapsed_seconds": 0.0,
+    }
+    if bootstrap == "":
+        out["errors"].append("missing bootstrap")
+        return out
+    if not required_topics:
+        out["errors"].append("required topic list is empty")
+        return out
+    client = None
+    try:
+        provider = TokenProvider(region)
+        client = KafkaAdminClient(
+            bootstrap_servers=[bootstrap],
+            security_protocol="SASL_SSL",
+            sasl_mechanism="OAUTHBEARER",
+            sasl_oauth_token_provider=provider,
+            request_timeout_ms=15000,
+            api_version_auto_timeout_ms=10000,
+            client_id="pr3-topic-readiness-probe",
+        )
+        topics = sorted(list(client.list_topics()))
+        topic_set = set(topics)
+        out["existing_topics_before"] = topics
+        missing = [name for name in required_topics if name not in topic_set]
+        out["missing_topics"] = missing
+        if missing and allow_create:
+            new_topics = []
+            for name in missing:
+                partitions = int(topic_partitions.get(name, 3) or 3)
+                new_topics.append(NewTopic(name=name, num_partitions=partitions, replication_factor=1))
+            if new_topics:
+                out["created_topics"] = [x.name for x in new_topics]
+                try:
+                    client.create_topics(new_topics=new_topics, validate_only=False)
+                except Exception as exc:
+                    out["errors"].append(f"create_topics_failed: {exc}")
+            topics_after = sorted(list(client.list_topics()))
+            out["existing_topics_after"] = topics_after
+            topic_set = set(topics_after)
+            missing = [name for name in required_topics if name not in topic_set]
+        out["missing_topics"] = missing
+        out["topic_status"] = [{"topic": name, "ready": name in topic_set} for name in required_topics]
+        out["overall_pass"] = len(missing) == 0
+    except Exception as exc:
+        out["errors"].append(str(exc))
+    finally:
+        if client is not None:
+            try:
+                client.close()
+            except Exception:
+                pass
+    out["elapsed_seconds"] = round(max(0.0, time.time() - started), 3)
+    return out
+"""
 
 
 def now_utc() -> str:
@@ -46,6 +191,40 @@ def archive_existing(path: Path) -> None:
     hist.mkdir(parents=True, exist_ok=True)
     hist_path = hist / f"{path.stem}.{stamp}{path.suffix}"
     hist_path.write_text(path.read_text(encoding="utf-8"), encoding="utf-8")
+
+
+def build_topic_probe_bundle(bundle_zip: Path) -> None:
+    with tempfile.TemporaryDirectory(prefix="pr3_topic_probe_") as tmp:
+        root = Path(tmp)
+        pkg = root / "pkg"
+        pkg.mkdir(parents=True, exist_ok=True)
+        (pkg / "lambda_function.py").write_text(topic_probe_lambda_source(), encoding="utf-8")
+        run(
+            [
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+                "--disable-pip-version-check",
+                "--no-input",
+                "--target",
+                str(pkg),
+                "kafka-python==2.2.2",
+                "aws-msk-iam-sasl-signer-python==1.0.2",
+            ],
+            timeout=300,
+            check=True,
+        )
+        bundle_zip.parent.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(bundle_zip, "w", zipfile.ZIP_DEFLATED) as zf:
+            for p in pkg.rglob("*"):
+                if p.is_file():
+                    zf.write(p, p.relative_to(pkg).as_posix())
+
+
+def stable_digest(*parts: str) -> str:
+    body = "|".join(str(part) for part in parts)
+    return hashlib.sha256(body.encode("utf-8")).hexdigest()
 
 
 def parse_registry(path: Path) -> dict[str, str]:
@@ -229,6 +408,42 @@ def service_account_manifest(namespace: str, name: str, role_arn: str) -> dict[s
     }
 
 
+def job_manifest(
+    *,
+    namespace: str,
+    name: str,
+    service_account: str,
+    image: str,
+    command: list[str],
+    env: list[dict[str, Any]],
+) -> dict[str, Any]:
+    return {
+        "apiVersion": "batch/v1",
+        "kind": "Job",
+        "metadata": {"name": name, "namespace": namespace},
+        "spec": {
+            "backoffLimit": 0,
+            "ttlSecondsAfterFinished": 300,
+            "template": {
+                "metadata": {"labels": {"job-name": name}},
+                "spec": {
+                    "serviceAccountName": service_account,
+                    "restartPolicy": "Never",
+                    "containers": [
+                        {
+                            "name": "worker",
+                            "image": image,
+                            "imagePullPolicy": "Always",
+                            "command": command,
+                            "env": env,
+                        }
+                    ],
+                },
+            },
+        },
+    }
+
+
 def env_ref(name: str, secret_name: str, key: str) -> dict[str, Any]:
     return {
         "name": name,
@@ -240,6 +455,203 @@ def env_ref(name: str, secret_name: str, key: str) -> dict[str, Any]:
 
 def plain_env(name: str, value: str) -> dict[str, Any]:
     return {"name": name, "value": value}
+
+
+def wait_for_job_completion(namespace: str, name: str, *, timeout_seconds: int = 180) -> tuple[bool, str]:
+    proc = run(
+        ["kubectl", "wait", "--for=condition=complete", f"job/{name}", "-n", namespace, f"--timeout={timeout_seconds}s"],
+        timeout=timeout_seconds + 30,
+        check=False,
+    )
+    return proc.returncode == 0, (proc.stdout or proc.stderr or "").strip()
+
+
+def first_job_pod_name(namespace: str, name: str) -> str:
+    pods = get_json(["kubectl", "get", "pods", "-n", namespace, "-l", f"job-name={name}", "-o", "json"], timeout=120)
+    items = list(pods.get("items", []) or [])
+    if not items:
+        return ""
+    return str(items[0].get("metadata", {}).get("name", "")).strip()
+
+
+def parse_last_json_line(text: str) -> dict[str, Any]:
+    for raw_line in reversed([row.strip() for row in text.splitlines() if row.strip()]):
+        try:
+            payload = json.loads(raw_line)
+        except Exception:
+            continue
+        if isinstance(payload, dict):
+            return payload
+    return {}
+
+
+def parse_handle_list(raw_value: str) -> list[str]:
+    text = str(raw_value or "").strip()
+    if not text:
+        return []
+    if text.startswith("["):
+        try:
+            parsed = json.loads(text)
+        except Exception:
+            parsed = None
+        if isinstance(parsed, list):
+            return [str(item).strip() for item in parsed if str(item).strip()]
+    return [part.strip().strip('"').strip("'") for part in text.split(",") if part.strip().strip('"').strip("'")]
+
+
+def resolve_live_msk_cluster_info(kafka_client: Any, registry: dict[str, str]) -> dict[str, Any]:
+    cluster_name = ""
+    cluster_arn = str(registry.get("MSK_CLUSTER_ARN", "")).strip()
+    if cluster_arn:
+        parts = cluster_arn.split(":cluster/", 1)
+        if len(parts) == 2:
+            cluster_name = parts[1].split("/", 1)[0].strip()
+    if cluster_name:
+        try:
+            payload = kafka_client.list_clusters_v2(ClusterNameFilter=cluster_name)
+        except ClientError:
+            payload = {}
+        items = list(payload.get("ClusterInfoList", []) or []) if isinstance(payload, dict) else []
+        for item in items:
+            if str(item.get("ClusterName", "")).strip() == cluster_name:
+                return item if isinstance(item, dict) else {}
+    if cluster_arn:
+        try:
+            payload = kafka_client.describe_cluster_v2(ClusterArn=cluster_arn)
+        except ClientError:
+            payload = {}
+        cluster = payload.get("ClusterInfo", {}) if isinstance(payload, dict) else {}
+        if isinstance(cluster, dict):
+            return cluster
+    return {}
+
+
+def resolve_live_msk_vpc_config(kafka_client: Any, registry: dict[str, str]) -> tuple[list[str], str]:
+    cluster = resolve_live_msk_cluster_info(kafka_client, registry)
+    serverless = cluster.get("Serverless", {}) if isinstance(cluster, dict) else {}
+    vpc_configs = list(serverless.get("VpcConfigs", []) or []) if isinstance(serverless, dict) else []
+    if vpc_configs:
+        first = vpc_configs[0] if isinstance(vpc_configs[0], dict) else {}
+        subnet_ids = [str(x).strip() for x in (first.get("SubnetIds", []) or []) if str(x).strip()]
+        security_group_ids = [str(x).strip() for x in (first.get("SecurityGroupIds", []) or []) if str(x).strip()]
+        if subnet_ids and security_group_ids:
+            return subnet_ids, security_group_ids[0]
+    return parse_handle_list(str(registry.get("MSK_CLIENT_SUBNET_IDS", ""))), str(registry.get("MSK_SECURITY_GROUP_ID", "")).strip()
+
+
+def resolve_topic_probe_role_arn(iam: Any, registry: dict[str, str]) -> str:
+    try:
+        role = iam.get_role(RoleName=TOPIC_PROBE_ROLE_NAME).get("Role", {})
+    except ClientError:
+        role = {}
+    role_arn = str(role.get("Arn", "")).strip()
+    if role_arn:
+        return role_arn
+    return str(registry.get("ROLE_LAMBDA_IG_EXECUTION", "")).strip()
+
+
+def ensure_topic_readiness_via_lambda(
+    *,
+    lambda_client: Any,
+    iam: Any,
+    kafka_client: Any,
+    registry: dict[str, str],
+    region: str,
+    platform_run_id: str,
+    scenario_run_id: str,
+    namespace: str,
+    bootstrap: str,
+    required_topics: list[str],
+    topic_partitions: dict[str, int],
+) -> dict[str, Any]:
+    summary: dict[str, Any] = {
+        "probe_mode": "lambda_in_vpc_kafka_admin",
+        "attempted": False,
+        "overall_pass": False,
+        "errors": [],
+        "missing_topics": required_topics.copy(),
+        "existing_topics_before": [],
+        "existing_topics_after": [],
+        "created_topics": [],
+        "topic_status": [],
+        "lambda": {},
+    }
+    role_arn = resolve_topic_probe_role_arn(iam, registry)
+    if not role_arn:
+        summary["errors"].append("topic_probe_role_unresolved")
+        return summary
+    subnet_ids, security_group_id = resolve_live_msk_vpc_config(kafka_client, registry)
+    if not subnet_ids:
+        summary["errors"].append("msk_client_subnet_ids_empty")
+        return summary
+    if not security_group_id:
+        summary["errors"].append("msk_security_group_empty")
+        return summary
+
+    function_name = f"fraud-platform-dev-full-pr3-topic-ready-{stable_digest(platform_run_id, scenario_run_id)[:10]}-{uuid4().hex[:6]}"
+    bundle_dir = Path(tempfile.mkdtemp(prefix="pr3_topic_probe_bundle_"))
+    bundle_path = bundle_dir / "pr3_topic_probe_lambda.zip"
+    summary["attempted"] = True
+    summary["lambda"] = {
+        "function_name": function_name,
+        "role_arn": role_arn,
+        "namespace": namespace,
+        "subnet_ids": subnet_ids,
+        "security_group_id": security_group_id,
+    }
+    try:
+        build_topic_probe_bundle(bundle_path)
+        create_resp = lambda_client.create_function(
+            FunctionName=function_name,
+            Runtime="python3.12",
+            Role=role_arn,
+            Handler="lambda_function.lambda_handler",
+            Code={"ZipFile": bundle_path.read_bytes()},
+            Timeout=90,
+            MemorySize=512,
+            VpcConfig={"SubnetIds": subnet_ids, "SecurityGroupIds": [security_group_id]},
+            Publish=True,
+            Description="PR3 temporary topic readiness probe",
+        )
+        summary["lambda"]["create_arn"] = str(create_resp.get("FunctionArn", "")).strip()
+        lambda_client.get_waiter("function_active_v2").wait(FunctionName=function_name)
+        payload = {
+            "bootstrap": bootstrap,
+            "region": region,
+            "required_topics": required_topics,
+            "topic_partitions": topic_partitions,
+            "allow_create": True,
+        }
+        invoke_resp = lambda_client.invoke(
+            FunctionName=function_name,
+            InvocationType="RequestResponse",
+            Payload=json.dumps(payload).encode("utf-8"),
+        )
+        summary["lambda"]["status_code"] = int(invoke_resp.get("StatusCode", 0) or 0)
+        summary["lambda"]["function_error"] = str(invoke_resp.get("FunctionError", "")).strip()
+        raw_payload = invoke_resp.get("Payload").read() if invoke_resp.get("Payload") is not None else b""
+        parsed = json.loads(raw_payload.decode("utf-8") or "{}")
+        if not isinstance(parsed, dict):
+            summary["errors"].append("topic_probe_response_invalid")
+            return summary
+        summary.update(parsed)
+        if summary["lambda"]["function_error"]:
+            summary["errors"].append(f"lambda_function_error:{summary['lambda']['function_error']}")
+    except Exception as exc:  # noqa: BLE001
+        summary["errors"].append(f"{type(exc).__name__}:{exc}")
+    finally:
+        try:
+            lambda_client.delete_function(FunctionName=function_name)
+        except Exception:
+            summary["lambda"]["delete_failed"] = True
+        try:
+            if bundle_path.exists():
+                bundle_path.unlink()
+            if bundle_dir.exists():
+                bundle_dir.rmdir()
+        except Exception:
+            summary["lambda"]["bundle_cleanup_failed"] = True
+    return summary
 
 
 def normalize_container_path(raw_path: str) -> str:
@@ -266,6 +678,7 @@ def deployment_manifest(
     mem_request: str,
     mem_limit: str,
     labels: dict[str, str],
+    pod_annotations: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     return {
         "apiVersion": "apps/v1",
@@ -276,7 +689,10 @@ def deployment_manifest(
             "revisionHistoryLimit": 2,
             "selector": {"matchLabels": {"app": name}},
             "template": {
-                "metadata": {"labels": {**labels, "app": name}},
+                "metadata": {
+                    "labels": {**labels, "app": name},
+                    "annotations": dict(pod_annotations or {}),
+                },
                 "spec": {
                     "serviceAccountName": service_account,
                     "restartPolicy": "Always",
@@ -374,7 +790,10 @@ def main() -> int:
     ap.add_argument("--image-uri", default="")
     ap.add_argument("--aurora-db-name", default="fraud_platform")
     ap.add_argument("--aurora-port", type=int, default=5432)
-    ap.add_argument("--ig-ingest-url", default="https://ehwznd2uw7.execute-api.eu-west-2.amazonaws.com/v1/ingest/push")
+    ap.add_argument("--ig-ingest-url", default="")
+    ap.add_argument("--ig-api-id", default="")
+    ap.add_argument("--ig-api-name", default="fraud-platform-dev-full-ig-edge")
+    ap.add_argument("--ig-api-stage", default="v1")
     ap.add_argument("--ig-api-key-ssm-path", default="/fraud-platform/dev_full/ig/api_key")
     ap.add_argument("--generated-by", default="codex-gpt5")
     ap.add_argument("--version", default="1.0.0")
@@ -406,6 +825,7 @@ def main() -> int:
         str(registry.get("SSM_AURORA_ENDPOINT_PATH", "")).strip(),
         str(registry.get("SSM_AURORA_USERNAME_PATH", "")).strip(),
         str(registry.get("SSM_AURORA_PASSWORD_PATH", "")).strip(),
+        str(registry.get("SSM_MSK_BOOTSTRAP_BROKERS_PATH", "")).strip(),
         str(args.ig_api_key_ssm_path).strip(),
     ]
     required_handles = [
@@ -413,8 +833,16 @@ def main() -> int:
         "ROLE_EKS_IRSA_DECISION_LANE",
         "ROLE_EKS_IRSA_CASE_LABELS",
         "MSK_BOOTSTRAP_BROKERS_SASL_IAM",
+        "SSM_MSK_BOOTSTRAP_BROKERS_PATH",
+        "FP_BUS_CONTROL_V1",
+        "FP_BUS_TRAFFIC_FRAUD_V1",
+        "FP_BUS_CONTEXT_ARRIVAL_EVENTS_V1",
+        "FP_BUS_CONTEXT_ARRIVAL_ENTITIES_V1",
+        "FP_BUS_CONTEXT_FLOW_ANCHOR_FRAUD_V1",
         "FP_BUS_RTDL_V1",
         "FP_BUS_AUDIT_V1",
+        "FP_BUS_CASE_TRIGGERS_V1",
+        "FP_BUS_LABELS_EVENTS_V1",
     ]
     for handle in required_handles:
         if not str(registry.get(handle, "")).strip():
@@ -439,6 +867,10 @@ def main() -> int:
 
     ecs = boto3.client("ecs", region_name=args.region)
     ssm = boto3.client("ssm", region_name=args.region)
+    iam = boto3.client("iam", region_name=args.region)
+    lambda_client = boto3.client("lambda", region_name=args.region)
+    kafka_client = boto3.client("kafka", region_name=args.region)
+    apigw = boto3.client("apigatewayv2", region_name=args.region)
 
     try:
         resolved_ssm = resolve_ssm_parameters(ssm, names=ssm_paths)
@@ -451,6 +883,27 @@ def main() -> int:
     except Exception as exc:  # noqa: BLE001
         blockers.append(f"PR3.RUNTIME.B03_IMAGE_UNRESOLVED:{type(exc).__name__}")
         image_uri = ""
+    resolved_ig_ingest_url = str(args.ig_ingest_url).strip()
+    resolved_ig_api_id = ""
+    try:
+        resolved_ig_api_id, live_api_endpoint = resolve_live_ig_api(
+            apigw,
+            api_name=args.ig_api_name,
+            api_id_hint=args.ig_api_id,
+        )
+        live_ig_ingest_url = f"{str(live_api_endpoint).rstrip('/')}/{str(args.ig_api_stage).strip().strip('/')}/ingest/push"
+        requested_ig_api_id = parse_execute_api_id(resolved_ig_ingest_url)
+        if not resolved_ig_ingest_url or requested_ig_api_id != resolved_ig_api_id:
+            if requested_ig_api_id and requested_ig_api_id != resolved_ig_api_id:
+                notes.append(
+                    "PR3 runtime materialization overrode stale IG ingest URL with the live APIGW edge published by the restored runtime substrate."
+                )
+            resolved_ig_ingest_url = live_ig_ingest_url
+    except RuntimeError as exc:
+        if not resolved_ig_ingest_url:
+            blockers.append(f"PR3.RUNTIME.B04_IG_URL_UNRESOLVED:{exc}")
+        else:
+            notes.append(f"PR3 runtime materialization kept explicit IG ingest URL after live discovery failure: {exc}")
 
     if blockers:
         dump_json(
@@ -477,6 +930,13 @@ def main() -> int:
         port=args.aurora_port,
     )
     ig_api_key = resolved_ssm[str(args.ig_api_key_ssm_path).strip()]
+    live_msk_bootstrap = resolved_ssm.get(str(registry.get("SSM_MSK_BOOTSTRAP_BROKERS_PATH", "")).strip(), "").strip()
+    if not live_msk_bootstrap:
+        live_msk_bootstrap = str(registry["MSK_BOOTSTRAP_BROKERS_SASL_IAM"]).strip()
+    elif live_msk_bootstrap != str(registry["MSK_BOOTSTRAP_BROKERS_SASL_IAM"]).strip():
+        notes.append(
+            "PR3 runtime materialization overrode stale registry MSK bootstrap with the live SSM-published broker from the restored streaming substrate."
+        )
 
     labels = {
         "fp.phase": "PR3",
@@ -540,7 +1000,7 @@ def main() -> int:
         )
 
     secret_data = {
-        "KAFKA_BOOTSTRAP_SERVERS": str(registry["MSK_BOOTSTRAP_BROKERS_SASL_IAM"]).strip(),
+        "KAFKA_BOOTSTRAP_SERVERS": live_msk_bootstrap,
         "KAFKA_AWS_REGION": args.region,
         "KAFKA_SECURITY_PROTOCOL": "SASL_SSL",
         "KAFKA_SASL_MECHANISM": "OAUTHBEARER",
@@ -575,7 +1035,7 @@ def main() -> int:
         "AL_IG_API_KEY": ig_api_key,
         "CASE_TRIGGER_IG_API_KEY": ig_api_key,
         "IG_API_KEY": ig_api_key,
-        "IG_INGEST_URL": args.ig_ingest_url,
+        "IG_INGEST_URL": resolved_ig_ingest_url,
         "CSFB_PROJECTION_DSN": aurora_dsn,
         "IEG_PROJECTION_DSN": aurora_dsn,
         "OFP_PROJECTION_DSN": aurora_dsn,
@@ -597,6 +1057,12 @@ def main() -> int:
         "CASE_MGMT_LOCATOR": aurora_dsn,
         "LABEL_STORE_LOCATOR": aurora_dsn,
     }
+    pod_config_digest = stable_digest(
+        profile_text,
+        snapshot_text,
+        dla_policy_text,
+        json.dumps(secret_data, sort_keys=True),
+    )
     for ns in {namespace, case_labels_namespace}:
         kubectl_apply(secret_manifest(ns, secret_name, secret_data))
 
@@ -625,6 +1091,42 @@ def main() -> int:
         env_ref("CASE_TRIGGER_PUBLISH_MODE", secret_name, "CASE_TRIGGER_PUBLISH_MODE"),
         plain_env("PYTHONUNBUFFERED", "1"),
     ]
+    required_topics = [str(registry[key]).strip() for key in TOPIC_PARTITIONS_BY_HANDLE]
+    topic_partitions = {str(registry[key]).strip(): int(partitions) for key, partitions in TOPIC_PARTITIONS_BY_HANDLE.items()}
+    topic_readiness = ensure_topic_readiness_via_lambda(
+        lambda_client=lambda_client,
+        iam=iam,
+        kafka_client=kafka_client,
+        registry=registry,
+        region=args.region,
+        platform_run_id=args.platform_run_id,
+        scenario_run_id=args.scenario_run_id,
+        namespace=namespace,
+        bootstrap=live_msk_bootstrap,
+        required_topics=required_topics,
+        topic_partitions=topic_partitions,
+    )
+    if not bool(topic_readiness.get("overall_pass")):
+        blockers.append("PR3.RUNTIME.B03A_TOPIC_READINESS_FAILED")
+    if blockers:
+        dump_json(
+            summary_path,
+            {
+                "phase": "PR3",
+                "state": "S1_RUNTIME",
+                "generated_at_utc": now_utc(),
+                "generated_by": args.generated_by,
+                "version": args.version,
+                "execution_id": args.pr3_execution_id,
+                "overall_pass": False,
+                "blocker_ids": blockers,
+                "notes": notes,
+                "topic_readiness": {
+                    "summary": topic_readiness,
+                },
+            },
+        )
+        return 1
     profile_volume_mounts = [
         {
             "name": "runtime-profile",
@@ -642,6 +1144,7 @@ def main() -> int:
     workloads = [
         {
             "name": "fp-pr3-csfb",
+            "namespace": namespace,
             "service_account": rtdl_sa,
             "command": ["python", "-m", "fraud_detection.context_store_flow_binding.intake", "--policy", profile_path_in_container],
             "env": common_secret_env
@@ -865,6 +1368,7 @@ def main() -> int:
             mem_request=str(workload["mem_request"]),
             mem_limit=str(workload["mem_limit"]),
             labels={**labels, "fp.workload": str(workload["name"]), "fp.lane": str(workload["lane"])},
+            pod_annotations={"fp.config-hash": pod_config_digest},
         )
         kubectl_apply(doc)
 
@@ -908,6 +1412,10 @@ def main() -> int:
         "dla_intake_policy_mounted_ref": mounted_dla_policy_ref,
         "secret_name": secret_name,
         "profile_configmap_name": profile_configmap_name,
+        "pod_config_digest": pod_config_digest,
+        "topic_readiness": {
+            "summary": topic_readiness,
+        },
         "service_accounts": {
             "rtdl": {"name": rtdl_sa, "namespace": namespace, "role_arn": str(registry["ROLE_EKS_IRSA_RTDL"]).strip()},
             "decision": {
@@ -937,7 +1445,7 @@ def main() -> int:
             for workload in workloads
         ],
         "handles": {
-            "MSK_BOOTSTRAP_BROKERS_SASL_IAM": str(registry["MSK_BOOTSTRAP_BROKERS_SASL_IAM"]).strip(),
+            "MSK_BOOTSTRAP_BROKERS_SASL_IAM": live_msk_bootstrap,
             "FP_BUS_RTDL_V1": str(registry["FP_BUS_RTDL_V1"]).strip(),
             "FP_BUS_AUDIT_V1": str(registry["FP_BUS_AUDIT_V1"]).strip(),
             "FP_BUS_CASE_TRIGGERS_V1": str(registry["FP_BUS_CASE_TRIGGERS_V1"]).strip(),

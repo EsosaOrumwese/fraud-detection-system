@@ -504,7 +504,7 @@ def pod_status(namespace: str, app: str) -> dict[str, Any]:
     pods = get_json(["kubectl", "get", "pods", "-n", namespace, "-l", f"app={app}", "-o", "json"], timeout=120)
     items = list(pods.get("items", []) or [])
     if not items:
-        return {"app": app, "pod_missing": True}
+        return {"app": app, "namespace": namespace, "pod_missing": True}
     candidates = [summarize_pod(item) for item in items]
     selected = select_active_pod(candidates)
     anomalies = [
@@ -519,6 +519,7 @@ def pod_status(namespace: str, app: str) -> dict[str, Any]:
     ]
     payload = {
         "app": app,
+        "namespace": namespace,
         **selected,
         "candidate_pod_count": len(candidates),
         "anomaly_count": len(anomalies),
@@ -533,6 +534,7 @@ def main() -> None:
     ap.add_argument("--pr3-execution-id", required=True)
     ap.add_argument("--state-id", default="S2")
     ap.add_argument("--namespace", default="fraud-platform-rtdl")
+    ap.add_argument("--case-labels-namespace", default="")
     ap.add_argument("--profile-path", default="/runtime-profile/dev_full.yaml")
     ap.add_argument("--platform-run-id", required=True)
     ap.add_argument("--settle-seconds", type=int, default=30)
@@ -549,25 +551,26 @@ def main() -> None:
     out_path = root / f"g3a_{str(args.state_id).strip().lower()}_runtime_warm_gate.json"
 
     blockers: list[str] = []
-    components = [
-        "fp-pr3-csfb",
-        "fp-pr3-ieg",
-        "fp-pr3-ofp",
-        "fp-pr3-dl",
-        "fp-pr3-df",
-        "fp-pr3-al",
-        "fp-pr3-dla",
-        "fp-pr3-archive-writer",
+    case_labels_namespace = str(args.case_labels_namespace or args.namespace).strip()
+    runtime_components = [
+        {"app": "fp-pr3-csfb", "namespace": args.namespace},
+        {"app": "fp-pr3-ieg", "namespace": args.namespace},
+        {"app": "fp-pr3-ofp", "namespace": args.namespace},
+        {"app": "fp-pr3-dl", "namespace": args.namespace},
+        {"app": "fp-pr3-df", "namespace": args.namespace},
+        {"app": "fp-pr3-al", "namespace": args.namespace},
+        {"app": "fp-pr3-dla", "namespace": args.namespace},
+        {"app": "fp-pr3-archive-writer", "namespace": args.namespace},
     ]
     if state_sequence(args.state_id) >= 4:
-        components.extend(
+        runtime_components.extend(
             [
-                "fp-pr3-case-trigger",
-                "fp-pr3-case-mgmt",
-                "fp-pr3-label-store",
+                {"app": "fp-pr3-case-trigger", "namespace": case_labels_namespace},
+                {"app": "fp-pr3-case-mgmt", "namespace": case_labels_namespace},
+                {"app": "fp-pr3-label-store", "namespace": case_labels_namespace},
             ]
         )
-    pre_status = [pod_status(args.namespace, app) for app in components]
+    pre_status = [pod_status(str(spec["namespace"]), str(spec["app"])) for spec in runtime_components]
     for row in pre_status:
         if row.get("pod_missing"):
             blockers.append(f"PR3.{args.state_id}.WARM.B01_POD_MISSING:{row['app']}")
@@ -617,7 +620,7 @@ def main() -> None:
 
             csfb_status = next(row for row in pre_status if row.get("app") == "fp-pr3-csfb")
             csfb_probe, csfb_probe_error = exec_json(
-                args.namespace,
+                str(csfb_status["namespace"]),
                 str(csfb_status["pod_name"]),
                 CSFB_WARM_SCRIPT,
                 {"FP_PROFILE_PATH": args.profile_path},
@@ -637,7 +640,7 @@ def main() -> None:
 
             df_status = next(row for row in pre_status if row.get("app") == "fp-pr3-df")
             df_probe, df_probe_error = exec_json(
-                args.namespace,
+                str(df_status["namespace"]),
                 str(df_status["pod_name"]),
                 DF_WARM_SCRIPT,
                 {"FP_PROFILE_PATH": args.profile_path},
@@ -671,7 +674,7 @@ def main() -> None:
 
             dl_status = next(row for row in pre_status if row.get("app") == "fp-pr3-dl")
             dl_probe, dl_probe_error = exec_json(
-                args.namespace,
+                str(dl_status["namespace"]),
                 str(dl_status["pod_name"]),
                 DL_WARM_SCRIPT,
                 {"FP_PROFILE_PATH": args.profile_path},
@@ -691,7 +694,7 @@ def main() -> None:
 
             ieg_status = next(row for row in pre_status if row.get("app") == "fp-pr3-ieg")
             ieg_probe, ieg_probe_error = probe_component_surface(
-                args.namespace,
+                str(ieg_status["namespace"]),
                 str(ieg_status["pod_name"]),
                 "ieg",
                 args.platform_run_id,
@@ -717,7 +720,7 @@ def main() -> None:
 
             ofp_status = next(row for row in pre_status if row.get("app") == "fp-pr3-ofp")
             ofp_probe, ofp_probe_error = probe_component_surface(
-                args.namespace,
+                str(ofp_status["namespace"]),
                 str(ofp_status["pod_name"]),
                 "ofp",
                 args.platform_run_id,
@@ -744,7 +747,7 @@ def main() -> None:
             if state_sequence(args.state_id) >= 4:
                 case_trigger_status = next(row for row in pre_status if row.get("app") == "fp-pr3-case-trigger")
                 case_trigger_probe, case_trigger_probe_error = probe_worker_config(
-                    args.namespace,
+                    str(case_trigger_status["namespace"]),
                     str(case_trigger_status["pod_name"]),
                     CASE_TRIGGER_WARM_SCRIPT,
                     args.profile_path,
@@ -761,7 +764,7 @@ def main() -> None:
 
                 case_mgmt_status = next(row for row in pre_status if row.get("app") == "fp-pr3-case-mgmt")
                 case_mgmt_probe, case_mgmt_probe_error = probe_worker_config(
-                    args.namespace,
+                    str(case_mgmt_status["namespace"]),
                     str(case_mgmt_status["pod_name"]),
                     CASE_MGMT_WARM_SCRIPT,
                     args.profile_path,
@@ -778,7 +781,7 @@ def main() -> None:
 
                 label_store_status = next(row for row in pre_status if row.get("app") == "fp-pr3-label-store")
                 label_store_probe, label_store_probe_error = probe_worker_config(
-                    args.namespace,
+                    str(label_store_status["namespace"]),
                     str(label_store_status["pod_name"]),
                     LABEL_STORE_WARM_SCRIPT,
                     args.profile_path,
@@ -793,7 +796,7 @@ def main() -> None:
 
                 dla_status = next(row for row in pre_status if row.get("app") == "fp-pr3-dla")
                 dla_probe, dla_probe_error = probe_worker_config(
-                    args.namespace,
+                    str(dla_status["namespace"]),
                     str(dla_status["pod_name"]),
                     DLA_WARM_SCRIPT,
                     args.profile_path,
@@ -845,7 +848,7 @@ def main() -> None:
     if not blockers and args.settle_seconds > 0:
         time.sleep(args.settle_seconds)
 
-    post_status = [pod_status(args.namespace, app) for app in components]
+    post_status = [pod_status(str(spec["namespace"]), str(spec["app"])) for spec in runtime_components]
     if not blockers:
         for before, after in zip(pre_status, post_status, strict=False):
             if after.get("pod_missing"):
@@ -864,7 +867,10 @@ def main() -> None:
         "version": args.version,
         "execution_id": args.pr3_execution_id,
         "platform_run_id": args.platform_run_id,
-        "namespace": args.namespace,
+        "namespaces": {
+            "runtime": args.namespace,
+            "case_labels": case_labels_namespace,
+        },
         "profile_path": args.profile_path,
         "settle_seconds": args.settle_seconds,
         "pre_status": pre_status,
