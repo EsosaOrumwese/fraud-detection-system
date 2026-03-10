@@ -1318,3 +1318,75 @@ So the next truthful run shape is now:
 - set burst segment duration to `2 s` on the shared schedule
 
 If that run stays semantically clean, it becomes the first real answer to the `6000 burst` question on the live edge.
+
+## 2026-03-10 20:27:50 +00:00
+The common-rate-plan rerun (`phase0_20260310T201418Z`) is the cleanest `Phase 0.C` result so far.
+
+What is now green:
+
+- dispatcher green
+- `4xx = 0`
+- `5xx = 0`
+- Lambda `Errors = 0`
+- Lambda `Throttles = 0`
+- DLQ delta `= 0`
+- recovery is green immediately and stays green
+
+So the front door is no longer the active problem.
+
+The remaining red is now purely source realization:
+
+- steady admitted `= 2875.89 eps`
+- burst admitted `= 4672.00 eps`
+
+The per-second APIGW counts show exactly why.
+
+Steady window:
+
+- starts around `1578 eps`
+- ramps upward for about `20 s`
+- then settles right around `3000 eps`
+
+Burst window:
+
+- `3089` requests in the first second
+- `3086` requests in the second second
+
+That is not an ingress throttle story and not a semantic rejection story. It is the `WSP` scheduled limiter changing segments with almost-empty buckets.
+
+The cause is in the current per-segment limiter construction:
+
+- each segment re-instantiates a token bucket
+- bucket capacity is `target_eps * burst_seconds`
+- but `initial_tokens` is still being seeded at the old fixed tiny value (`0.25`)
+
+So every segment begins by starving its own bucket and ramping up slowly. That is why:
+
+- steady takes about `20 s` to reach the declared rate
+- the short burst segment never actually realizes the declared `6000 eps` before it ends
+
+This is now the next narrow fix:
+
+- keep the same clean common-rate-plan proof shape
+- seed each segment with at least its own bucket capacity (`target_eps * target_burst_seconds`)
+- rerun the same bounded `Phase 0.C` shape
+
+If that works, the remaining red should disappear without changing the ingress boundary at all.
+
+## 2026-03-10 20:28:52 +00:00
+The limiter-seeding correction is now in place.
+
+`Phase 0.C` no longer seeds each new scheduled segment with the old fixed tiny token value. It now seeds each segment with at least its own bucket capacity:
+
+- `initial_tokens >= target_eps * target_burst_seconds`
+
+For the current `40`-lane proof shape, the dry-run rate plan is now:
+
+- presteady `37.5 eps` lane target -> `9.375` initial tokens
+- steady `75.0 eps` lane target -> `18.75` initial tokens
+- burst `150.0 eps` lane target -> `37.5` initial tokens
+- recovery `75.0 eps` lane target -> `18.75` initial tokens
+
+That is exactly the narrow fix I wanted: same ingress boundary, same timing model, same proof windows, but segment transitions are no longer self-starved by the limiter itself.
+
+Next step is simply to rerun the same clean common-rate-plan `Phase 0.C` shape and see whether the remaining steady / burst shortfalls disappear.

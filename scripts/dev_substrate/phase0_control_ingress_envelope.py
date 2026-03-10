@@ -58,6 +58,11 @@ def resolve_python_executable() -> str:
     return sys.executable
 
 
+def seeded_segment_tokens(*, target_eps: float, burst_seconds: float, minimum_tokens: float) -> float:
+    bucket_capacity = max(0.0, float(target_eps)) * max(0.0, float(burst_seconds))
+    return max(float(minimum_tokens), bucket_capacity)
+
+
 def _cwli_scalar(rows: list[list[dict[str, str]]], field_name: str) -> str:
     for row in rows:
         for cell in row:
@@ -378,6 +383,8 @@ def main() -> None:
     steady_per_lane_eps = float(args.steady_eps) / float(lane_count)
     burst_per_lane_eps = float(args.burst_eps) / float(lane_count)
     recovery_per_lane_eps = float(args.steady_eps) / float(lane_count)
+    segment_burst_seconds = max(0.0, float(args.target_burst_seconds))
+    segment_minimum_tokens = max(0.0, float(args.target_initial_tokens))
     rate_plan: list[dict[str, Any]] = []
     segment_offset = 0
     if presteady_seconds > 0:
@@ -385,8 +392,12 @@ def main() -> None:
             {
                 "start_offset_seconds": segment_offset,
                 "target_eps": presteady_per_lane_eps,
-                "burst_seconds": max(0.0, float(args.target_burst_seconds)),
-                "initial_tokens": max(0.0, float(args.target_initial_tokens)),
+                "burst_seconds": segment_burst_seconds,
+                "initial_tokens": seeded_segment_tokens(
+                    target_eps=presteady_per_lane_eps,
+                    burst_seconds=segment_burst_seconds,
+                    minimum_tokens=segment_minimum_tokens,
+                ),
             }
         )
         segment_offset += presteady_seconds
@@ -395,20 +406,32 @@ def main() -> None:
             {
                 "start_offset_seconds": segment_offset,
                 "target_eps": steady_per_lane_eps,
-                "burst_seconds": max(0.0, float(args.target_burst_seconds)),
-                "initial_tokens": max(0.0, float(args.target_initial_tokens)),
+                "burst_seconds": segment_burst_seconds,
+                "initial_tokens": seeded_segment_tokens(
+                    target_eps=steady_per_lane_eps,
+                    burst_seconds=segment_burst_seconds,
+                    minimum_tokens=segment_minimum_tokens,
+                ),
             },
             {
                 "start_offset_seconds": segment_offset + steady_seconds,
                 "target_eps": burst_per_lane_eps,
-                "burst_seconds": max(0.0, float(args.target_burst_seconds)),
-                "initial_tokens": max(0.0, float(args.target_initial_tokens)),
+                "burst_seconds": segment_burst_seconds,
+                "initial_tokens": seeded_segment_tokens(
+                    target_eps=burst_per_lane_eps,
+                    burst_seconds=segment_burst_seconds,
+                    minimum_tokens=segment_minimum_tokens,
+                ),
             },
             {
                 "start_offset_seconds": segment_offset + steady_seconds + burst_seconds,
                 "target_eps": recovery_per_lane_eps,
-                "burst_seconds": max(0.0, float(args.target_burst_seconds)),
-                "initial_tokens": max(0.0, float(args.target_initial_tokens)),
+                "burst_seconds": segment_burst_seconds,
+                "initial_tokens": seeded_segment_tokens(
+                    target_eps=recovery_per_lane_eps,
+                    burst_seconds=segment_burst_seconds,
+                    minimum_tokens=segment_minimum_tokens,
+                ),
             },
         ]
     )
