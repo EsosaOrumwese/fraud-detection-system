@@ -459,3 +459,24 @@ This is a meaningful methodological shift even though it does not lower a single
 - only then narrow runtime remediation if the truthful baseline still stays red
 
 I have therefore updated the parent production-readiness plan and the `Phase 0` expansion so this posture is no longer implicit in notebook text alone.
+
+## 2026-03-10 16:06:49 +00:00
+The readiness graphs also needed the same correction. They had fallen behind the current `Phase 0` truth in two important ways.
+
+First, the two "production-ready current" graphs were still visually carrying the retained internal ALB / ECS ingress path as though it were part of the currently accepted external admission boundary. That no longer matches the pinned `Phase 0.A` preflight truth. The active external front door for this revalidation is:
+
+- `HTTP API Gateway v2`
+- `POST /ingest/push`
+- `fraud-platform-dev-full-ig-handler`
+
+So I rewrote the network and resource graphs to show the currently promoted Control + Ingress core through `API Gateway -> Lambda`, and to make the retained internal ingress service absent on purpose rather than silently overclaimed.
+
+Second, the readiness-delta graph was still telling an older green closure story. That was materially false against the current work. The live story now is:
+
+- active boundary drift hazard was removed,
+- ingress semantics on the truthful unsynchronized baseline are now clean,
+- the remaining blocker is the repeatable steady-state proof boundary,
+- synchronized and unstable warmup reshapes are diagnostic only,
+- `Phase 0.B` is still open and `Phase 0.C` is blocked.
+
+I regenerated the PNGs immediately after updating the Mermaid sources so the visual artifacts now match the text artifacts. This matters because the graphs are for operator understanding; if they lag behind the notes, they create the same blindness in a different form.

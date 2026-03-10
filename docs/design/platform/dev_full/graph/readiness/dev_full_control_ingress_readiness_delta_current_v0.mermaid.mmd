@@ -6,86 +6,84 @@ config:
 flowchart LR
 
   subgraph LEGEND["How to Read This Graph"]
-    L1["Left to right = problem -> remediation -> measured impact -> verdict"]
-    L2["Red = defect or blocker"]
-    L3["Amber = remediation or hardening change"]
-    L4["Blue = measured production metric or proof"]
-    L5["Green = closure or working-plane verdict"]
-    L6["Gray = residual caveat that does not reopen the hot-path closure"]
+    L1["Left to right = component / issue -> remediation -> measured impact -> current verdict"]
+    L2["Red = active blocker or invalid proof shape"]
+    L3["Amber = remediation / posture correction"]
+    L4["Blue = measured production evidence"]
+    L5["Green = semantically clean sub-result"]
+    L6["Gray = operator caveat or next-step constraint"]
   end
 
-  subgraph COMPONENTS["Control + Ingress Components"]
-    WSP["World Streamer Producer (WSP)<br>remote ECS/Fargate replay producer"]
-    EDGE["Ingress edge<br>HTTP API Gateway + internal ALB"]
-    IG["Ingestion Gate (IG)<br>Lambda / ECS admission shell"]
-    DDB["DynamoDB idempotency ledger"]
-    PUB["Kafka publish boundary<br>MSK + schema registry"]
-    EVID["Receipts / quarantine / run evidence"]
+  subgraph COMPONENTS["Control + Ingress Components Under Hardening"]
+    WSP["World Streamer Producer (WSP)<br>bounded replay producer"]
+    EDGE["External ingress edge<br>HTTP API Gateway v2"]
+    IG["Ingress Lambda hot path"]
+    DDB["Idempotency / append continuity"]
+    PUB["Kafka publish boundary"]
+    EVID["Receipts / run evidence / metrics"]
   end
 
-  subgraph DEFECTS["Defects Found"]
-    D1["Stress run reused stale run identity<br>WSP self-deduped its own traffic<br>false low throughput evidence"]
-    D2["Live ingress deployment drift<br>older Lambda package admitted to DDB but did not publish to Kafka<br>downstream starvation"]
-    D3["Ingress envelope was pinned too low for the declared dev_full target<br>edge and handler budget mismatch"]
-    D4["Bounded-run evidence was polluted by harness-side ambiguity<br>receipts and stress deltas were not always honest"]
+  subgraph DEFECTS["Active Readiness Story"]
+    D1["Boundary drift hazard<br>SSM service_url still points to retained internal ALB<br>proof could hit the wrong front door"]
+    D2["False runtime red<br>IG_HEALTH_BUS_PROBE_MODE=describe raised BUS_UNHEALTHY under load"]
+    D3["Blind spots in live proof<br>phase timings not emitted clearly<br>benign append conflicts looked unhealthy"]
+    D4["Proof-boundary instability<br>unsynchronized baseline stays semantically clean but slightly underfills the APIGW steady gate"]
+    D5["Invalid proof reshapes<br>synchronized starts create 503/quarantine overload<br>warmed single-bin proof not yet repeatable"]
   end
 
-  subgraph REMEDIATION["Hardening Changes"]
-    R1["Enforced fresh bounded-run identity per execution<br>stopped stale run reuse in WSP executor"]
-    R2["Repinned live ingress to the authoritative Kafka-publishing implementation<br>restored admit -> publish continuity"]
-    R3["Repinned ingress contract to current declared envelope<br>3000 steady / 6000 burst<br>with corrected Lambda / IG shell posture"]
-    R4["Tightened bounded-run evidence and receipt discipline<br>fail-fast and cleaner attribution"]
+  subgraph REMEDIATION["Remediation / Posture Changes"]
+    R1["Explicitly pin execute-api ingress URL in the Phase 0 wrapper<br>do not allow fallback to retained ALB"]
+    R2["Repin live Lambda hot path<br>IG_HEALTH_BUS_PROBE_MODE = none"]
+    R3["Improve observability and attribution<br>raise Lambda logger hierarchy<br>widen benign append-conflict handling<br>preserve abnormal lane tails<br>record fleet confirmation mode"]
+    R4["Close Phase 0.B through proof-boundary discipline<br>freeze the unsynchronized truthful baseline<br>make measurement-start attribution explicit<br>require repeatability before Phase 0.C"]
   end
 
-  subgraph IMPACT["Measured Production Impact"]
-    M1["Steady throughput<br>3025.36 eps observed<br>3000 eps target"]
-    M2["Burst throughput<br>6041.65 eps observed<br>6000 eps target"]
-    M3["Latency<br>steady p95 108.05 ms / p99 131.60 ms<br>burst p95 176.65 ms / p99 275.03 ms<br>within 350 / 700 ms budget"]
-    M4["Reliability<br>valid traffic 4xx = 0<br>5xx = 0"]
-    M5["Recovery<br>60 s observed<br>180 s bound"]
-    M6["Publish continuity restored<br>admitted ingress now reaches Kafka and downstream consumers"]
-    M7["Evidence quality improved<br>bounded runs now reflect true pressure rather than self-deduped artifacts"]
+  subgraph IMPACT["Measured Impact"]
+    M1["Active boundary pinned<br>API pd7rtjze95 stage v1 route POST /ingest/push<br>Lambda fraud-platform-dev-full-ig-handler"]
+    M2["Semantic bounded reruns clean<br>phase0_20260310T143110Z = 2999.925 eps<br>phase0_20260310T143801Z = 2999.650 eps<br>4xx = 0 / 5xx = 0<br>p95 approx 49-50 ms / p99 approx 56-57 ms"]
+    M3["CloudWatch lag ruled out<br>full-log probe phase0_20260310T145355Z showed about 75 requests missing over 120 s<br>miss concentrated in the first measured minute"]
+    M4["Reshaped proofs rejected<br>phase0_20260310T150019Z synchronized start caused 503 / quarantine overload<br>phase0_20260310T153432Z warmup probe near-green once<br>phase0_20260310T154004Z repeat collapsed"]
   end
 
-  subgraph VERDICT["Closure"]
-    V1["Control + Ingress plane<br>production-credible at current declared envelope<br>3000 steady / 6000 burst"]
-    V2["Working-plane status<br>keep as strongest proven plane in the platform"]
-    V3["Residual caveat<br>deployment-drift resistance still needs to stay tight<br>but does not negate current hot-path closure"]
+  subgraph VERDICT["Current Verdict"]
+    V1["Current runtime truth<br>API Gateway -> Lambda ingress semantics are clean on the truthful unsynchronized baseline"]
+    V2["Phase 0.B remains open<br>Control + Ingress has not been reclosed under the fresh proving method yet"]
+    V3["Active blocker<br>repeatable steady-state proof boundary<br>not a newly rediscovered ingress semantic defect"]
+    V4["Constraint<br>do not start Phase 0.C until Phase 0.B is green on the same repeatable truthful baseline"]
   end
 
   WSP --> D1
-  EDGE --> D3
+  EDGE --> D1
   IG --> D2
-  DDB --> D2
-  PUB --> D2
+  DDB --> D3
+  PUB --> D3
+  EVID --> D3
+  WSP --> D4
+  EDGE --> D4
   EVID --> D4
+  WSP --> D5
+  EDGE --> D5
 
   D1 --> R1
   D2 --> R2
   D3 --> R3
   D4 --> R4
+  D5 --> R4
 
   R1 --> M1
-  R1 --> M2
-  R1 --> M7
-  R2 --> M6
-  R2 --> M4
-  R3 --> M1
+  R2 --> M2
   R3 --> M2
   R3 --> M3
-  R3 --> M5
-  R4 --> M7
+  R4 --> M3
   R4 --> M4
 
   M1 --> V1
   M2 --> V1
-  M3 --> V1
-  M4 --> V1
-  M5 --> V1
-  M6 --> V1
-  M7 --> V1
+  M3 --> V3
+  M4 --> V3
   V1 --> V2
-  V1 -. with governance caveat .-> V3
+  V3 --> V2
+  V2 --> V4
 
   classDef comp fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.3px;
   classDef defect fill:#ffebee,stroke:#c62828,color:#111,stroke-width:1.3px;
@@ -95,8 +93,9 @@ flowchart LR
   classDef caveat fill:#f5f5f5,stroke:#616161,color:#111,stroke-dasharray: 5 3;
 
   class WSP,EDGE,IG,DDB,PUB,EVID comp;
-  class D1,D2,D3,D4 defect;
+  class D1,D2,D3,D4,D5 defect;
   class R1,R2,R3,R4 fix;
-  class M1,M2,M3,M4,M5,M6,M7 metric;
-  class V1,V2 ok;
-  class V3 caveat;
+  class M1,M2,M3,M4 metric;
+  class V1 ok;
+  class V2,V3 defect;
+  class V4 caveat;
