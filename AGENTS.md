@@ -125,6 +125,7 @@ Note: This only applies when we are production hardening the platform and not el
   7. merge the PR,
   8. merge `main` back into `dev`,
   9. merge `dev` back into the working branch.
+- Ensure your PR is formatted properly and contains essential information needed for the reviewer to understand the commits in there. Formatting is essential as its GitHub markdown and it could appear messy if care is not taken
 - Do not merge the whole working branch when only workflow changes are intended.
 - Do not create commits except when the user has approved that scope. If the approval is workflow-only, stage only workflow files.
 - Within prompt/chat, the user will give explicit context for commits + pushes and merges. Most times in long run works.
