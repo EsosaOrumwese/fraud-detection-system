@@ -1,0 +1,112 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Confirmed production-ready network only
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    L1["Only confirmed production-ready surfaces are shown"]
+    L2["If a plane, component, or path is absent, it is not yet promoted into the working platform"]
+    L3["Square node = active component or control surface"]
+    L4["Round store = durable state / truth store"]
+    L5["Edge labels describe the production-ready contract currently accepted"]
+  end
+
+  subgraph READYNOTE["Current Working Platform"]
+    NOTE["Confirmed production-ready network today:<br>Control + Ingress only<br>Current declared envelope: 3000 steady eps / 6000 burst eps"]
+  end
+
+  subgraph CONTROL["Control Network - Confirmed Ready"]
+    GHA["GitHub Actions<br>workflow dispatch / bounded runs"]
+    SFN["Step Functions<br>platform-run orchestration"]
+    CTRLBUS[["fp.bus.control.v1"]]
+    RUNID["Run identity pins<br>platform_run_id / scenario_run_id<br>phase_id / trace_id / config_digest"]
+    RUNCTL["Run control<br>receipts / reconciliation / proof story"]
+  end
+
+  subgraph INGRESS["Ingress Network - Confirmed Ready"]
+    WSP["World Streamer Producer (WSP)<br>remote ECS/Fargate replay producer"]
+    HTTPAPI["HTTP API Gateway<br>fraud-platform-dev-full-ig-edge<br>3000 rps / 6000 burst"]
+    ALB["Internal ALB<br>fp-dev-full-ig-svc"]
+    IGLAMBDA["Ingress Lambda<br>Kafka-publishing handler"]
+    IGSVC["Ingress ECS service<br>admission shell"]
+    IGDDB[("DynamoDB idempotency ledger<br>fraud-platform-dev-full-ig-idempotency")]
+    IGDLQ["SQS DLQ<br>fraud-platform-dev-full-ig-dlq"]
+    IGREC["Ingress receipts / quarantine refs"]
+  end
+
+  subgraph TRANSPORT["Event Transport Boundary - Confirmed Ready"]
+    MSK[("MSK Serverless<br>fraud-platform-dev-full-msk")]
+    GLUEREG["Glue Schema Registry<br>fraud-platform-dev-full<br>BACKWARD"]
+    TCTRL[["fp.bus.control.v1"]]
+    TTRAFFIC[["fp.bus.traffic.fraud.v1"]]
+  end
+
+  subgraph TRUSTSTATE["Supporting Trust / State / Evidence - Confirmed Ready"]
+    OIDC["GitHub OIDC trust"]
+    SSM["SSM Parameter Store<br>active handles / endpoints / credentials"]
+    OBJ[("S3 object/oracle store<br>ingress replay basis")]
+    EVID[("S3 evidence bucket<br>fraud-platform-dev-full-evidence")]
+    CW["CloudWatch<br>logs / metrics / alarms"]
+  end
+
+  NOTE --> CONTROL
+  NOTE --> INGRESS
+  NOTE --> TRANSPORT
+
+  GHA -->|authenticates through| OIDC
+  GHA -->|dispatches| SFN
+  SFN -->|assigns and persists| RUNID
+  SFN -->|writes control receipts to| RUNCTL
+  SFN -->|publishes orchestration signals to| CTRLBUS
+  CTRLBUS -->|transported by| MSK
+  CTRLBUS --> TCTRL
+  SFN -->|starts bounded replay| WSP
+
+  OBJ -->|provides replay basis to| WSP
+  RUNID -->|pins active run scope for| WSP
+  RUNID -->|pins active run scope for| IGLAMBDA
+  RUNID -->|pins active run scope for| IGSVC
+  RUNID -->|pins active run scope for| RUNCTL
+
+  WSP -->|pushes ingress load to| HTTPAPI
+  WSP -->|pushes ingress load to| ALB
+  HTTPAPI -->|invokes| IGLAMBDA
+  ALB -->|routes to| IGSVC
+
+  IGLAMBDA -->|deduplicates in| IGDDB
+  IGSVC -->|deduplicates in| IGDDB
+  IGLAMBDA -->|publishes admitted traffic to| TTRAFFIC
+  IGSVC -->|publishes admitted traffic to| TTRAFFIC
+  TTRAFFIC -->|transported by| MSK
+  GLUEREG -. enforces schema compatibility for .-> TTRAFFIC
+
+  IGLAMBDA -->|writes failure disposition to| IGDLQ
+  IGSVC -->|writes failure disposition to| IGDLQ
+  IGLAMBDA -->|writes ingress receipts to| IGREC
+  IGSVC -->|writes ingress receipts to| IGREC
+  RUNCTL -->|stores proof receipts in| EVID
+  IGREC -->|stores ingress evidence in| EVID
+
+  IGLAMBDA -->|emits logs and metrics to| CW
+  IGSVC -->|emits logs and metrics to| CW
+  SFN -->|emits logs and metrics to| CW
+  CW -. exposes operator visibility for .-> RUNCTL
+  SSM -. resolves active handles for .-> IGLAMBDA
+  SSM -. resolves active handles for .-> IGSVC
+  SSM -. resolves active handles for .-> WSP
+
+  classDef note fill:#fff8e1,stroke:#f9a825,color:#111,stroke-width:1.3px;
+  classDef control fill:#e8eaf6,stroke:#3949ab,color:#111,stroke-width:1.3px;
+  classDef ingress fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.3px;
+  classDef transport fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.3px;
+  classDef support fill:#f1f8e9,stroke:#558b2f,color:#111,stroke-width:1.3px;
+
+  class NOTE note;
+  class GHA,SFN,CTRLBUS,RUNID,RUNCTL,TCTRL control;
+  class WSP,HTTPAPI,ALB,IGLAMBDA,IGSVC,IGDLQ,IGREC,IGDDB ingress;
+  class MSK,GLUEREG,TTRAFFIC transport;
+  class OIDC,SSM,OBJ,EVID,CW support;
+
