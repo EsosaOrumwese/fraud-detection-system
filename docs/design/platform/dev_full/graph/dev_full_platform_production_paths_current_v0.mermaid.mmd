@@ -6,31 +6,40 @@ config:
 flowchart LR
 
   subgraph LEGEND["How to Read This Graph"]
-    LG1["This is a path-centric companion graph, not the full topology map"]
-    LG2["Edges are labeled by production path prefix: HP, AP, CL, LP, RC, DG, RP, RB, OP, CP"]
-    LG3["Nodes are the real implemented dev_full components and stores"]
+    LG1["This is a path-centric companion graph,<br>not the full topology map"]
+    LG2["Nodes are the real implemented dev_full<br>components and stores"]
+    LG3["HP = Hot path"]
+    LG4["AP = Admission path"]
+    LG5["CL = Case + label path"]
+    LG6["LP = Learning path"]
+    LG7["RC = Recovery path"]
+    LG8["DG = Degrade path"]
+    LG9["RP = Replay path"]
+    LG10["RB = Rollback path"]
+    LG11["OP = Observability path"]
+    LG12["CP = Cost-control path"]
   end
 
   subgraph CONTROL["Control + Run Authority"]
-    GHA["GitHub Actions\nbounded run dispatch"]
-    SFN["Step Functions\nplatform-run orchestrator"]
-    RUNID["Run identity pins\nplatform_run_id / scenario_run_id / trace_id"]
+    GHA["GitHub Actions<br>bounded run dispatch"]
+    SFN["Step Functions<br>platform-run orchestrator"]
+    RUNID["Run identity pins<br>platform_run_id / scenario_run_id / trace_id"]
   end
 
   subgraph INGRESS["Ingress + Admission"]
-    ORACLE["Oracle store\nread-only replay basis"]
-    WSP["World Streamer Producer (WSP)\nECS/Fargate replay producer"]
-    HTTPAPI["HTTP API Gateway\ningress edge"]
-    ALB["Internal ALB\ningress service edge"]
-    IGLAMBDA["Ingestion Gate (IG) Lambda\nadmission shell"]
-    IGSVC["Ingestion Gate (IG) ECS service\nadmission shell"]
-    IGDDB[("DynamoDB\nIG idempotency ledger")]
-    IGDLQ["SQS DLQ\nretryable / poison boundary"]
-    IGRECEIPTS[("S3 evidence\nIG receipts / quarantine refs")]
+    ORACLE["Oracle store<br>read-only replay basis"]
+    WSP["World Streamer Producer (WSP)<br>ECS/Fargate replay producer"]
+    HTTPAPI["HTTP API Gateway<br>ingress edge"]
+    ALB["Internal ALB<br>ingress service edge"]
+    IGLAMBDA["Ingestion Gate (IG) Lambda<br>admission shell"]
+    IGSVC["Ingestion Gate (IG) ECS service<br>admission shell"]
+    IGDDB[("DynamoDB<br>IG idempotency ledger")]
+    IGDLQ["SQS DLQ<br>retryable / poison boundary"]
+    IGRECEIPTS[("S3 evidence<br>IG receipts / quarantine refs")]
   end
 
   subgraph BUS["Event Transport"]
-    MSK[("MSK Serverless\nKafka transport")]
+    MSK[("MSK Serverless<br>Kafka transport")]
     TTRAFFIC[["fp.bus.traffic.fraud.v1"]]
     TCTXE[["fp.bus.context.arrival_events.v1"]]
     TCTXT[["fp.bus.context.arrival_entities.v1"]]
@@ -55,8 +64,8 @@ flowchart LR
     AL["Action Layer (AL)"]
     DLA["Decision Log Audit (DLA)"]
     ARCHIVE["Archive Writer"]
-    AURORA[("Aurora Serverless v2\nRTDL / case / label state")]
-    ARCHIVEPATH[("S3 object store\narchive / replay refs")]
+    AURORA[("Aurora Serverless v2<br>RTDL / case / label state")]
+    ARCHIVEPATH[("S3 object store<br>archive / replay refs")]
   end
 
   subgraph CASELABEL["Case + Label"]
@@ -70,12 +79,12 @@ flowchart LR
     SM["SageMaker (Model Factory / MF)"]
     MLFLOW["MLflow (Model Promotion and Registry / MPR)"]
     REGACTIVE[("Active bundle / policy truth")]
-    EVID[("S3 evidence bucket\nreports / receipts / comparisons")]
+    EVID[("S3 evidence bucket<br>reports / receipts / comparisons")]
     DASHOPS["Operations dashboard"]
     DASHCOST["Cost dashboard"]
     BUDGET["Monthly budget"]
   end
-
+ 
   GHA -->|AP-0 dispatch bounded run| SFN
   SFN -->|AP-1 start replay producer| WSP
   RUNID -. AP / HP / RP / RC run scope .-> WSP
