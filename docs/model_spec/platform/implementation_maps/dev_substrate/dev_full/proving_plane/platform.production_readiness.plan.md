@@ -365,6 +365,9 @@ Everything else remains to be proven under this plan.
 Purpose:
 - reconfirm the current working-platform member under the bounded-production method before coupling anything else to it.
 
+Phase expansion document:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/proving_plane/platform.production_readiness.phase0.md`
+
 Why this phase exists:
 - earlier evidence is strong, but the working platform must be established under the exact method this plan will use for every other plane.
 
