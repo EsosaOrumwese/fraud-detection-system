@@ -4,46 +4,48 @@
 
 Production readiness means:
 
-**The platform can run its real job, on its real runtime surfaces, at its intended operating envelope, repeatedly and predictably, without breaking correctness, operability, or cost discipline.**
+**The platform can run its real job, on its real runtime surfaces, at its intended operating envelope, repeatedly and predictably, without breaking semantic correctness, timing correctness, auditability, operability, or cost discipline.**
 
 More specifically, for your platform, it means all of these are true at the same time:
 
 **1. The platform is functionally correct**
-- ingress accepts and classifies traffic correctly
-- RTDL produces the right features, decisions, actions, audit outputs, and lineage
-- case management creates the right cases
-- label management commits authoritative labels correctly
-- learning builds the right datasets, trains/evaluates correctly, and promotes the right bundles
-- governance can reconstruct what happened and why
+- the ingress edge admits valid traffic, rejects invalid traffic, deduplicates repeated traffic, and publishes admitted events into the event transport network without ambiguity
+- the Real-Time Decision Loop (RTDL) turns admitted events into the right context, the right online features, the right decisions, the right action outcomes, and the right audit trail
+- the Case + Label plane creates the right operational cases and commits authoritative labels without silently mutating or duplicating truth
+- the Learning + Evolution / MLOps plane builds datasets from authoritative runtime and label truth, trains and evaluates from the right basis, and promotes only governed deployable bundles
+- the Ops / Governance / Meta layers can reconstruct the exact run story, including what happened, why it happened, and which runtime, model, and evidence surfaces were involved
 
 **2. The platform is semantically correct**
-- data is interpreted correctly, not just transported
-- time boundaries are respected
-- no future leakage
-- no silent context loss
-- no false readiness from partial or stale state
+- data is interpreted correctly, not merely transported from one service to another
+- event-time, as-of time, freshness, and maturity boundaries are respected instead of being collapsed into a vague notion of “current”
+- no future leakage is allowed into runtime decisions, case/label truth, or learning datasets
+- no silent context loss is allowed between ingress, RTDL, case handling, label truth, and learning replay surfaces
+- no component is allowed to report false readiness from partial, stale, or mis-scoped state
 - truth ownership boundaries are preserved:
   - ingress truth stays ingress truth
-  - decision truth stays RTDL truth
+  - RTDL decision, action, and lineage truth stays RTDL truth
+  - case truth stays case-management truth
   - label truth stays label truth
-  - model truth stays registry truth
+  - dataset truth stays offline feature truth
+  - model-eval truth stays model-factory truth
+  - active model and policy truth stays registry truth
 
 **3. The platform performs at the intended production envelope**
-- required throughput is met
-- latency budgets are met
-- recovery budgets are met
-- error rates are bounded
-- tail behavior is acceptable
-- no hidden starvation or backlog growth under realistic load
+- each plane meets the throughput it is actually expected to carry; for ingress this is explicit event-per-second pressure, while for learning it is bounded job throughput and completion latency
+- latency budgets are met at the component and path level, especially for admission, decisioning, case creation, label commit, dataset build, and promotion or rollback actions
+- recovery budgets are met after restart, dependency loss, backpressure, or bounded rerun
+- error rates are bounded and classified; poison, retryable, quarantined, and fail-closed outcomes must not be mixed together
+- tail behavior remains bounded instead of looking good only at the median
+- no hidden starvation, hidden backlog, or hidden “green because nothing happened” state is allowed under realistic load
 
 **4. The platform is operationally reliable**
-- it starts correctly
-- restarts correctly
-- recovers correctly
-- scales correctly
-- tears down or idles safely
-- emits usable logs/metrics/evidence
-- failures are diagnosable without guesswork
+- it starts on the intended runtime surfaces without relying on a one-off script to make the system coherent
+- it restarts without corrupting run scope, duplicate handling, context surfaces, or active bundle resolution
+- it recovers from bounded faults without manual cleanup being the hidden reason it works again
+- it scales or degrades in the intended way instead of turning pressure into silent corruption
+- it tears down or idles safely without leaving hidden compute, hidden spend, or stale state that falsifies the next run
+- it emits logs, metrics, receipts, and evidence that are actually usable for diagnosis rather than decorative
+- failures are diagnosable from platform evidence without guesswork, hand reconstruction, or lucky operator memory
 
 **5. The platform is explainable and auditable**
 - every important output can be traced back to:
@@ -56,10 +58,10 @@ More specifically, for your platform, it means all of these are true at the same
 - a reviewer can reconstruct a run without handwaving
 
 **6. The platform is production-real, not test-harness-dependent**
-- managed surfaces do the real work where they are supposed to
-- helper scripts do not secretly act as the real platform
-- the platform does not only work because of one-off orchestration tricks
-- it works through its intended runtime architecture
+- managed surfaces do the real work where they are supposed to do it
+- helper scripts may orchestrate, probe, or collect evidence, but they must not secretly be the thing making the plane function
+- the platform must not appear healthy only because a one-off workaround or sequencing trick papered over an actual runtime defect
+- the platform works through its intended runtime architecture and truth boundaries, not through operator folklore
 
 **7. The platform is durable across planes, not just on the hot path**
 It is not enough for the `World Streamer Producer (WSP) -> Ingestion Gate (IG) -> Real-Time Decision Loop (RTDL)` path to work.
@@ -73,14 +75,14 @@ Production-ready means:
 - and they work together
 
 **8. The platform is economically sane**
-- it does not require wasteful overprovisioning
-- idle posture is controlled
-- spend is attributable
-- proving readiness does not rely on sloppy, repeated expensive failures
+- it does not require wasteful overprovisioning just to look stable
+- idle posture is controlled and deliberate rather than accidental
+- spend is attributable to the run, the plane, and the proof outcome that justified it
+- proving readiness does not rely on repeated long expensive failures that are really just rediscovering basic defects
 
 So the strict definition is:
 
-**Production readiness is the state where the full platform is correct, semantically trustworthy, performant, recoverable, observable, auditable, and economically operable at its intended real-world workload.**
+**Production readiness is the state where the full platform is semantically trustworthy, temporally correct, performant at its declared envelope, recoverable under bounded faults, observable without guesswork, auditable after the fact, and economically operable on the runtime surfaces it is actually supposed to use.**
 
 For your platform, I would reduce it to one sentence:
 
@@ -118,26 +120,25 @@ In your platform, this plane is roughly:
 A component is production-ready only if all 5 are true:
 
 1. **Contract correctness**
-- it does the right thing
-- inputs/outputs are deterministic
-- no ambiguous ownership
+- it does the exact job it owns at this boundary, rather than doing “something useful” that happens to let the next component continue
+- its inputs and outputs are deterministic for the same bounded run basis
+- ownership is explicit: the component is not silently stealing responsibility from another boundary
 
 2. **Performance at envelope**
-- it meets throughput and latency targets under the intended load
+- it meets the steady and burst throughput targets, as well as the latency budget, under the declared production envelope rather than only in low-pressure runs
 
 3. **Failure behavior**
-- it fails closed or degrades in the intended way
-- no silent corruption
-- no ambiguous duplicate side effects
+- it fails closed or degrades in the intended way when data, dependencies, or publish outcomes are incomplete
+- it never silently corrupts admission, idempotency, publish, or receipt truth
+- it does not turn duplicates or retries into ambiguous side effects
 
 4. **Operability**
-- observable
-- diagnosable
-- restart-safe
-- deploy-safe
+- it is observable enough to explain its own behavior in production
+- it is diagnosable without having to infer what happened from scattered partial logs
+- it is restart-safe and redeploy-safe under bounded replay and duplicate pressure
 
 5. **Integration correctness**
-- it behaves correctly when connected to upstream and downstream components, not just alone
+- it behaves correctly when connected to the real upstream and downstream boundaries, not only when exercised in isolation or with a forgiving harness
 
 ---
 
@@ -146,11 +147,11 @@ A component is production-ready only if all 5 are true:
 #### 1. World Streamer Producer (WSP)
 Production-ready means:
 
-- replays at the intended setpoint without local-machine dependency
-- produces stable, bounded request pressure
-- supports fresh run identities per run
-- does not self-dedupe by accidentally reusing run identity
-- can stop cleanly and not leak tasks
+- it replays at the intended setpoint without relying on local-machine compute or operator babysitting
+- it produces stable, bounded request pressure instead of bursty, self-distorting traffic that makes ingress evidence dishonest
+- it uses a fresh run identity for each bounded run
+- it does not self-dedupe by accidentally reusing a prior run identity
+- it can stop cleanly without leaving leaked tasks or hidden background pressure
 - can surface:
   - sent rate
   - success/failure counts
@@ -167,11 +168,11 @@ Concrete criteria:
 #### 2. Step Functions / control orchestration
 Production-ready means:
 
-- every run gets one authoritative run identity
-- no phase/state ambiguity
-- retries are deterministic
+- every run gets one authoritative run identity and one authoritative execution story
+- there is no phase or state ambiguity where two different bounded runs could be interpreted as the same story
+- retries are deterministic and do not create duplicate business effects
 - reruns do not cross-contaminate prior runs
-- receipts are durable and reconstructable
+- receipts are durable enough to reconstruct the exact run later
 
 Concrete criteria:
 - unique `platform_run_id` and `scenario_run_id` per bounded run
@@ -183,10 +184,10 @@ Concrete criteria:
 #### 3. API Gateway / ALB edge
 Production-ready means:
 
-- stable admission at target steady and burst rates
-- no uncontrolled 4xx/5xx leakage
-- latency stays within budget
-- no queueing collapse at intended concurrency
+- stable admission at the target steady and burst rates for valid traffic
+- no uncontrolled `4xx` or `5xx` leakage for traffic that should be admitted
+- latency stays within budget at the edge, not only after the run is averaged out
+- no queueing collapse, uncontrolled backlog, or head-of-line blocking at intended concurrency
 
 Concrete criteria:
 - `steady_eps >= target`
@@ -206,12 +207,12 @@ For your current declared envelope, that has been:
 #### 4. Ingress Lambda / ECS admission shell
 Production-ready means:
 
-- deterministic admission decision
-- correct idempotency behavior
-- correct publish behavior
-- retries do not create false quarantine truth
-- no hidden timeout bottlenecks
-- no stale package drift from repo authority
+- deterministic admission decision based on the declared ingress contract rather than on incidental runtime behavior
+- correct idempotency behavior under duplicates and retries
+- correct publish behavior into the event transport network
+- retries do not create false quarantine truth or false duplicate truth
+- no hidden timeout bottlenecks or partial-success ambiguity
+- no stale package drift from repo authority or active deployment intent
 
 Concrete criteria:
 - valid first-seen event -> admitted exactly once
@@ -224,10 +225,10 @@ Concrete criteria:
 #### 5. DynamoDB idempotency ledger
 Production-ready means:
 
-- one authoritative dedupe boundary
-- duplicate-safe under concurrent arrivals
-- no false-positive dedupe due to bad key shape
-- no hot partition collapse at target load
+- there is one authoritative dedupe boundary for the ingress plane
+- the boundary is duplicate-safe under concurrent arrivals, not only under clean single-threaded replay
+- no false-positive dedupe is introduced by a weak or ambiguous key shape
+- target load does not collapse the ledger into hot-partition behavior
 
 Concrete criteria:
 - idempotency key contract is explicit and stable
@@ -239,11 +240,11 @@ Concrete criteria:
 #### 6. Kafka publish boundary
 Production-ready means:
 
-- admitted events actually reach the event bus
-- offsets/topic/partition truth is durable
-- schema compatibility is enforced
-- publish ambiguity is handled correctly
-- downstream consumers receive complete event families
+- admitted events actually reach the event bus instead of stopping at receipts or idempotency state
+- topic, partition, and offset truth is durable and reconstructable
+- schema compatibility is enforced at the real publish boundary
+- publish ambiguity is handled explicitly instead of being silently treated as success
+- downstream consumers receive complete event families, not just whichever topic happened to publish first
 
 Concrete criteria:
 - admitted ingress => corresponding Kafka publish truth exists
@@ -255,10 +256,10 @@ Concrete criteria:
 #### 7. SQS DLQ / quarantine / receipts
 Production-ready means:
 
-- failures are classifiable
-- retryable failures are not mixed with semantic poison
-- quarantine truth is explainable
-- receipts are durable and inspectable
+- failures are classifiable into meaningful operational categories
+- retryable failures are not mixed with semantic poison, invalid payloads, or duplicate-safe outcomes
+- quarantine truth is explainable after the fact
+- receipts are durable and inspectable enough to support replay, audit, and diagnosis
 
 Concrete criteria:
 - each failed event has one clear disposition:
@@ -382,12 +383,12 @@ For the **RTDL plane**, production-ready does **not** mean:
 - a few decisions were emitted
 
 It means each RTDL component is:
-- semantically correct
-- temporally correct
-- stable under bounded production load
-- observable
-- explainable
-- safe under replay/duplicates/restarts
+- semantically correct about what entity, feature, policy, and action truth it is producing
+- temporally correct about freshness, as-of boundaries, and event-time interpretation
+- stable under bounded production load rather than only under low-volume clean-room traffic
+- observable enough to distinguish true dependency failure from semantic-quality advisory
+- explainable enough that a later reviewer can reconstruct why a decision or fail-closed outcome happened
+- safe under replay, duplicates, restart, and bounded rerun
 
 ### Real-Time Decision Loop (RTDL) plane
 In your platform, the RTDL plane is roughly:
@@ -399,7 +400,7 @@ In your platform, the RTDL plane is roughly:
 - `Decision Fabric (DF)`
 - `Action Layer (AL)`
 - `Decision Log Audit (DLA)`
-- `archive_writer`
+- `Archive Writer`
 
 And the plane-level question is:
 
@@ -412,19 +413,19 @@ And the plane-level question is:
 Each RTDL component must satisfy:
 
 1. **Semantic correctness**
-- it computes or transforms the right thing
+- it computes or transforms the right runtime truth for its boundary, not an approximation that merely keeps the next component alive
 
 2. **Time correctness**
-- it respects event-time / as-of / freshness boundaries
+- it respects event-time, as-of, freshness, and readiness boundaries instead of silently collapsing them into “latest available”
 
 3. **Replay and duplicate safety**
-- restart/replay/duplicate traffic does not corrupt truth
+- restart, replay, and duplicate traffic do not corrupt context, features, decisions, audit truth, or append-only stores
 
 4. **Performance**
-- throughput, lag, latency, and backlog are within bounds
+- throughput, lag, latency, checkpoint age, and backlog remain within bounded operational envelopes for the declared run shape
 
 5. **Observability**
-- you can see whether it is healthy, stale, degraded, or wrong
+- you can tell whether the component is healthy, stale, degraded, semantically wrong, or merely waiting on an upstream dependency
 
 ---
 
@@ -436,12 +437,12 @@ Purpose:
 
 Production-ready means:
 
-- all required context joins are present when declared ready
-- no false-ready state
-- no mislabeled role refs
-- no silent missing-context drift
-- join fanout remains bounded
-- duplicate/upsert behavior is deterministic
+- all required context joins are actually present when the component declares readiness
+- no false-ready state is emitted from partial or mis-scoped context
+- role references and source families are labeled correctly
+- no silent missing-context drift is allowed to masquerade as a downstream Decision Fabric problem
+- join fanout remains bounded enough not to turn one event into pathological downstream amplification
+- duplicate and upsert behavior is deterministic across bounded reruns
 
 What we specifically need:
 - `join completeness rate`
@@ -463,11 +464,11 @@ Purpose:
 
 Production-ready means:
 
-- identity/entity updates are correct
-- relationship state converges deterministically
-- checkpointing and lag stay healthy
-- no uncontrolled backpressure
-- no graph corruption under replay or duplicates
+- identity and entity updates are correct for the admitted event stream rather than merely syntactically accepted
+- relationship state converges deterministically instead of oscillating or depending on arrival luck
+- checkpointing and lag stay healthy enough that downstream feature and decision truth are still timely
+- no uncontrolled backpressure hides under “eventually consistent” language
+- graph state is not corrupted by replay, late arrival, or duplicates
 
 What we specifically need:
 - `consumer lag p95/p99`
@@ -489,11 +490,11 @@ Purpose:
 
 Production-ready means:
 
-- required feature groups are actually present when claimed
-- freshness truth is correct
+- required feature groups are actually present when the Online Feature Plane says they are available
+- freshness truth is correct and explicit, rather than guessed from the last write time
 - partial key coverage does not masquerade as total feature absence
-- restart recovery is fast and visible
-- no stale or future-broken feature serving
+- restart recovery is fast, visible, and bounded
+- no stale feature serving and no feature state that is “fresh” only because the platform forgot older events
 
 What we specifically need:
 - `required feature-group availability`
@@ -515,10 +516,10 @@ Purpose:
 
 Production-ready means:
 
-- it distinguishes true dependency outage from semantic-quality advisory
-- fail-closed only when it should
-- no sticky false-red state from cumulative counters
-- recovery clears promptly when dependencies recover
+- it distinguishes true dependency outage from semantic-quality advisories and benign lag
+- it fails closed only when the runtime really lacks sufficient trusted inputs
+- cumulative counters or stale health artifacts do not leave the plane in a sticky false-red state
+- recovery clears promptly when dependencies recover, instead of requiring operator superstition to go green again
 
 What we specifically need:
 - `false fail-closed rate`
@@ -539,11 +540,11 @@ Purpose:
 
 Production-ready means:
 
-- decisions are correct for the available context/features/policy
-- fail-closed only on real insufficiency
-- quarantine only on real ambiguity
-- decision identity and provenance are complete
-- latency stays within decision budget
+- decisions are correct for the actual context, online features, and active bundle or policy in scope
+- fail-closed happens only on real insufficiency, incompatibility, or unsafe ambiguity
+- quarantine happens only on real ambiguity that deserves later inspection
+- decision identity, provenance, and explanation fields are complete enough to survive audit and replay
+- latency stays within the decision budget while preserving correctness
 
 What we specifically need:
 - `decision latency p95/p99`
@@ -567,10 +568,10 @@ Purpose:
 
 Production-ready means:
 
-- side effects are duplicate-safe
-- action commits are deterministic
-- no ambiguity leaks
-- outcomes are attributable to the right decision/run/policy
+- side effects are duplicate-safe under the platform’s at-least-once reality
+- action commits are deterministic and not dependent on arrival luck or operator cleanup
+- no ambiguity leaks into operational outcomes without being recorded as ambiguity
+- outcomes are attributable to the right decision, run, bundle, and policy context
 
 What we specifically need:
 - `action commit success rate`
@@ -590,11 +591,11 @@ Purpose:
 
 Production-ready means:
 
-- append-only behavior is intact
-- replay divergence is zero
-- lineage is complete
-- unresolved lineage is bounded by age, not silently growing forever
-- readback works
+- append-only behavior is intact even when replay and duplicate pressure are present
+- replay divergence is zero for the same bounded basis
+- lineage is complete from decision to outcome to audit artifact
+- unresolved lineage is bounded by age and surfaced as a problem, not allowed to silently grow forever
+- readback works well enough to support audit, incident review, and downstream learning
 
 What we specifically need:
 - `append_failure_total = 0`
@@ -609,16 +610,16 @@ Why this matters:
 
 ---
 
-#### 8. archive_writer
+#### 8. Archive Writer
 Purpose:
 - durably preserve immutable event history / refs for replay and audit
 
 Production-ready means:
 
-- every required archived event is written exactly as required
-- no payload mismatch
-- no write error leakage
-- replay references are durable and consistent
+- every required archived event is written exactly as required for replay and later audit
+- no payload mismatch is hidden under successful write counters
+- no write-error leakage is silently tolerated
+- replay references are durable, consistent, and still point to the bounded run truth that was actually processed
 
 What we specifically need:
 - `write_error_total = 0`
@@ -687,8 +688,8 @@ At a strict level, something like this is what I would look for.
 - `AL ambiguity/quarantine delta = 0`
 - `DLA append_failure_total = 0`
 - `DLA replay_divergence_total = 0`
-- `archive_writer write_error_total = 0`
-- `archive_writer payload_mismatch_total = 0`
+- `Archive Writer write_error_total = 0`
+- `Archive Writer payload_mismatch_total = 0`
 - `OFP lag p99 <= 2s`
 - `checkpoint age p99 <= 2s`
 - `IEG backpressure delta = 0`
@@ -717,7 +718,7 @@ It is:
 
 ---
 
-## What makes Case & Label Mangement Plane Production Ready?
+## What makes the Case & Label Management Plane Production Ready?
 
 For the **Case + Label Management plane**, production-ready means:
 
@@ -742,20 +743,20 @@ In your platform, the main components are roughly:
 Each component must satisfy:
 
 1. **Semantic correctness**
-- it creates or commits the right truth
+- it creates or commits the right operational or supervisory truth for its boundary
 
 2. **Ownership correctness**
-- it does not steal truth from another component
+- it does not steal truth from another component or silently become a shadow source of truth
 
 3. **Duplicate / replay safety**
-- repeated triggers or replays do not corrupt case or label truth
+- repeated triggers, retries, or replays do not corrupt case truth or label truth
 
 4. **Latency / throughput**
-- operational work appears fast enough to matter
-- commits keep up with the event volume they are meant to absorb
+- operational work appears quickly enough to be meaningful
+- commits keep up with the event volume they are supposed to absorb instead of silently backlogging review truth
 
 5. **Auditability**
-- every case and label can be explained later
+- every case and label can be reconstructed later from decision, action, operator, and evidence history
 
 ---
 
@@ -767,11 +768,11 @@ Purpose:
 
 Production-ready means:
 
-- it selects the right upstream events for case creation
-- it does not create false-positive case intents
+- it selects the right upstream decisions and audit events for case creation
+- it does not create false-positive case intents that waste operator attention
 - it does not miss real case-worthy events
-- duplicates do not explode case volume
-- trigger semantics remain stable under replay and load
+- duplicates and retries do not explode case volume
+- trigger semantics remain stable under replay and under bounded production pressure
 
 What we specifically need:
 - `trigger precision`
@@ -792,12 +793,12 @@ Purpose:
 
 Production-ready means:
 
-- case identity is deterministic
-- case creation is idempotent
-- timeline transitions are append-only
-- no overwrite-style corruption
-- case state is reconstructable and queryable
-- it does not pretend to own label truth
+- case identity is deterministic for the same operational incident
+- case creation is idempotent under duplicate triggers
+- timeline transitions are append-only and auditable
+- no overwrite-style corruption is hidden behind the latest state snapshot
+- case state is reconstructable and queryable after the fact
+- Case Management does not pretend to own label truth
 
 What we specifically need:
 - `case creation success rate`
@@ -822,8 +823,8 @@ Production-ready means:
 - label assertions are append-only
 - label identity and provenance are complete
 - duplicate label writes are idempotent
-- conflicting label assertions are explicit, not silently overwritten
-- label truth is queryable by as-of and maturity
+- conflicting label assertions are explicit instead of silently overwritten
+- label truth is queryable by as-of and maturity so learning does not train on immature or future-visible labels
 
 What we specifically need:
 - `label commit success rate`
@@ -973,7 +974,7 @@ In your platform, this is mainly:
 Each component must satisfy:
 
 1. **Data correctness**
-- dataset and feature/label construction are right
+- dataset and feature or label construction are right for the exact runtime and label basis being claimed
 
 2. **Time correctness**
 - no future leakage
@@ -981,13 +982,13 @@ Each component must satisfy:
 - correct maturity behavior
 
 3. **Lineage / provenance correctness**
-- every output can be traced to source truth, code, config, and run identity
+- every output can be traced to source truth, code, config, experiment or job identity, and run identity
 
 4. **Operational correctness**
-- training/eval/promotion/rollback actually work on the intended managed surfaces
+- training, evaluation, promotion, and rollback actually work on the intended managed surfaces rather than on a hidden local or fallback path
 
 5. **Governance correctness**
-- promotion decisions are explicit, auditable, and reversible
+- promotion decisions are explicit, auditable, reversible, and fail-closed when compatibility is unknown
 
 ---
 
@@ -1000,11 +1001,11 @@ Purpose:
 Production-ready means:
 
 - datasets are built from the right truth sources only
-- dataset logic respects point-in-time constraints
+- dataset logic respects point-in-time constraints and does not smuggle future truth into training
 - dataset manifests are deterministic and complete
-- quality gates are real
-- leakage checks are enforced
-- rollback recipe / rebuild recipe is real
+- quality gates are real and tied to production-relevant defects
+- leakage checks are enforced rather than documented only in principle
+- rollback recipe and rebuild recipe are real, not aspirational
 
 What we specifically need:
 - `dataset row-count sanity`
@@ -1028,11 +1029,11 @@ Purpose:
 
 Production-ready means:
 
-- train/eval inputs are the right OFS outputs
+- train and evaluation inputs are the right Offline Feature Plane outputs
 - training and evaluation are reproducible enough within pinned tolerances
-- evaluation metrics are real and tied to the right data
+- evaluation metrics are real and tied to the right dataset basis
 - candidate bundles are complete and attributable
-- no local or synthetic hidden training path exists
+- no hidden local, synthetic, or bypass training path exists
 
 What we specifically need:
 - `training success rate`
@@ -1056,11 +1057,11 @@ Purpose:
 
 Production-ready means:
 
-- the active bundle can be resolved deterministically
+- the active bundle can be resolved deterministically for the runtime that will actually consume it
 - promotion is explicit and auditable
-- rollback works within target RTO/RPO
-- lineage is complete from dataset -> train/eval -> bundle -> active runtime
-- no shadow promotion path exists
+- rollback works within target RTO and RPO
+- lineage is complete from dataset to train/eval to bundle to active runtime
+- no shadow promotion path exists outside the governed corridor
 
 What we specifically need:
 - `active bundle resolution correctness`
@@ -1189,7 +1190,7 @@ It is:
 
 ---
 
-## What makes Operation and Observation Meta Layer Production Ready?
+## What makes the Operations / Governance / Meta layer production-ready?
 
 For the **Ops / Gov / Meta** layers, production-ready means:
 
@@ -1220,19 +1221,19 @@ This layer is broader and less cleanly bounded than RTDL or Case/Label, but in y
 Each component must satisfy:
 
 1. **Observability correctness**
-- it reports reality, not fiction
+- it reports the real runtime and evidence posture rather than stale, partial, or guessed state
 
 2. **Operational usefulness**
-- operators can actually use it to diagnose and manage the system
+- operators can actually use it to diagnose, recover, rerun, and cost-control the system without guesswork
 
 3. **Auditability**
-- decisions and runs can be reconstructed later
+- runs, decisions, promotions, and rollbacks can be reconstructed later from durable evidence rather than memory or operator folklore
 
 4. **Governance integrity**
-- important records are immutable, attributable, and bounded
+- important records are immutable, attributable, scoped to the right run or actor, and bounded by explicit ownership rules
 
 5. **Economic discipline**
-- spend is visible and controlled
+- spend is visible, attributable, bounded, and reducible when the platform is not actively proving or serving
 
 ---
 
@@ -1551,9 +1552,9 @@ That means:
 
 ---
 
-## Wht makes the platform as a whole Production Ready?
+## What makes the platform as a whole production-ready?
 
-Yes. The platform as a whole becomes production-ready only when the **cross-plane paths** are production-ready, not just the planes in isolation.
+The platform as a whole becomes production-ready only when the **cross-plane paths** are production-ready, not just the planes in isolation.
 
 A multi-plane platform fails in production mostly at the boundaries:
 - one plane emits something another plane misreads
@@ -1564,8 +1565,6 @@ A multi-plane platform fails in production mostly at the boundaries:
 So full-platform production readiness means:
 
 **every plane is individually production-ready, and every critical cross-plane path is also production-ready.**
-
-### What makes the platform as a whole production-ready?
 
 All of these must be true at once:
 
@@ -1701,10 +1700,10 @@ Definition:
 - replayable runtime truth plus authoritative labels become learning truth
 
 What it includes:
-- archive / object-store refs
+- Archive Writer / object-store refs
 - RTDL truth surfaces
 - label truth
-- Databricks / OFS
+- `Databricks (Offline Feature Plane / OFS)`
 
 What makes it production-ready:
 - datasets are built only from authoritative runtime + label truth
@@ -1725,7 +1724,7 @@ Definition:
 What it includes:
 - Databricks
 - SageMaker
-- MLflow / MPR corridor
+- `MLflow (Model Promotion and Registry / MPR)` corridor
 
 What makes it production-ready:
 - train/eval lineage is complete
@@ -1867,13 +1866,13 @@ The shortest strict version is:
 
 ---
 
-## Production Paths that exist in Platform
+## Production paths that exist in the platform
 
 In a production-ready platform like yours, the important thing is not just the **hot path**. It is the full set of **operationally meaningful paths** through the system.
 
-I would define these paths.
+These are the paths that matter when you stop thinking about boxes and start asking what the running platform must actually do under production conditions.
 
-1. Hot Path
+### 1. Hot Path
 The real-time serving path.
 
 Flow:
@@ -1891,7 +1890,7 @@ This is usually the most visible path, but not the only important one.
 
 ---
 
-2. Admission Path
+### 2. Admission Path
 The path that decides whether traffic enters the platform and how.
 
 Flow:
@@ -1907,7 +1906,7 @@ Question it answers:
 
 ---
 
-3. Context Formation Path
+### 3. Context Formation Path
 The path that turns raw admitted events into usable runtime context.
 
 Flow:
@@ -1922,14 +1921,14 @@ Question it answers:
 
 ---
 
-4. Decision Path
+### 4. Decision Path
 The core decisioning path.
 
 Flow:
 - context
 - online features
 - active bundle/policy resolution
-- decision fabric
+- Decision Fabric
 - action logic
 - decision outcome
 
@@ -1938,7 +1937,7 @@ Question it answers:
 
 ---
 
-5. Audit / Lineage Path
+### 5. Audit / Lineage Path
 The path that makes the hot path explainable later.
 
 Flow:
@@ -1952,12 +1951,12 @@ Question it answers:
 
 ---
 
-6. Case Escalation Path
+### 6. Case Escalation Path
 The operational-review path.
 
 Flow:
 - RTDL decision/audit outputs
-- case trigger
+- CaseTrigger
 - case creation
 - case timeline updates
 
@@ -1966,7 +1965,7 @@ Question it answers:
 
 ---
 
-7. Label Truth Path
+### 7. Label Truth Path
 The supervised-truth path.
 
 Flow:
@@ -1980,7 +1979,7 @@ Question it answers:
 
 ---
 
-8. Replay Path
+### 8. Replay Path
 The path that lets you re-run or reconstruct behavior safely.
 
 Flow:
@@ -1995,7 +1994,7 @@ Question it answers:
 
 ---
 
-9. Learning Data Path
+### 9. Learning Data Path
 The runtime-to-offline path.
 
 Flow:
@@ -2009,7 +2008,7 @@ Question it answers:
 
 ---
 
-10. Train / Eval Path
+### 10. Train / Eval Path
 The model-building path.
 
 Flow:
@@ -2024,7 +2023,7 @@ Question it answers:
 
 ---
 
-11. Promotion Path
+### 11. Promotion Path
 The path from candidate to active runtime authority.
 
 Flow:
@@ -2038,7 +2037,7 @@ Question it answers:
 
 ---
 
-12. Rollback Path
+### 12. Rollback Path
 The failure-containment path for learning/runtime changes.
 
 Flow:
@@ -2052,7 +2051,7 @@ Question it answers:
 
 ---
 
-13. Recovery Path
+### 13. Recovery Path
 The path after disruption.
 
 Flow:
@@ -2066,7 +2065,7 @@ Question it answers:
 
 ---
 
-14. Degrade Path
+### 14. Degrade Path
 The safe failure path.
 
 Flow:
@@ -2079,7 +2078,7 @@ Question it answers:
 
 ---
 
-15. Observability Path
+### 15. Observability Path
 The operator-visibility path.
 
 Flow:
@@ -2092,7 +2091,7 @@ Question it answers:
 
 ---
 
-16. Governance / Evidence Path
+### 16. Governance / Evidence Path
 The certification and audit path.
 
 Flow:
@@ -2107,7 +2106,7 @@ Question it answers:
 
 ---
 
-17. Cost-Control / Idle Path
+### 17. Cost-Control / Idle Path
 The economic-operability path.
 
 Flow:
@@ -2122,7 +2121,7 @@ Question it answers:
 
 ---
 
-18. Identity / Secret Resolution Path
+### 18. Identity / Secret Resolution Path
 The trust path.
 
 Flow:
