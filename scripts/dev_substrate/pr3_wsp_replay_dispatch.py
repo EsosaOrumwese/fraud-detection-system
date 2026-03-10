@@ -1507,6 +1507,7 @@ def main() -> None:
     expected_floor_eps = float(args.expected_window_eps) * float(args.early_cutoff_floor_ratio)
     active_start = submitted_at
     active_confirmed_at = submitted_at
+    fleet_confirmation_mode = "submitted_at_fallback"
     start_wait_deadline = time.time() + 900
     lane_by_arn = {str(lane["task_arn"]): lane for lane in launched_lanes}
     while time.time() < start_wait_deadline:
@@ -1523,10 +1524,16 @@ def main() -> None:
                 all_running = False
             if status.get("last_status") == "STOPPED" and not started_at:
                 blockers.append(f"PR3.S1.WSP.B03_TASK_STOPPED_BEFORE_RUNNING:{lane['lane_id']}")
+        all_started = len(started_at_values) == len(lane_by_arn)
         if started_at_values and all_running:
             active_start = max(started_at_values)
             active_confirmed_at = datetime.now(timezone.utc)
-        if blockers or all_running:
+            fleet_confirmation_mode = "all_running"
+        elif all_started:
+            active_start = max(started_at_values)
+            active_confirmed_at = datetime.now(timezone.utc)
+            fleet_confirmation_mode = "all_started"
+        if blockers or all_running or all_started:
             break
         time.sleep(5)
     if not blockers:
@@ -1837,6 +1844,7 @@ def main() -> None:
             "fleet_started_utc": to_iso_utc(active_start),
             "start_utc": to_iso_utc(active_confirmed_at),
             "active_confirmed_utc": to_iso_utc(active_confirmed_at),
+            "fleet_confirmation_mode": fleet_confirmation_mode,
             "warmup_seconds": max(0, int(args.warmup_seconds)),
             "measurement_start_utc": to_iso_utc(measurement_start_at),
             "measurement_target_end_utc": to_iso_utc(measurement_end_at),

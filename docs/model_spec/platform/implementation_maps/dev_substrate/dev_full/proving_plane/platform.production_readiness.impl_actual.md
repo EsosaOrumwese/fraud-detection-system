@@ -265,3 +265,170 @@ Current engineering judgment from the truthful `13:58` rerun:
   - reduce or absorb the cold-start / gate-init penalty,
   - isolate the dominant cost inside `admit_ms`,
   - pin the exact quarantine reason family for the long duplicate-resolution cases
+
+## 2026-03-10 14:30:49 +00:00
+That `13:58` judgment did not survive the next telemetry pass unchanged. Once the repaired Lambda timing build was live and the object-store health path was read against the new logs, I found that another failure family was still being misclassified as ingress-runtime sickness.
+
+The concrete clue was in the fresh bounded red `phase0_20260310T142125Z`:
+
+- Lambda logs still showed benign governance append contention:
+  - `Governance projection append deferred ... reason=S3_APPEND_CONFLICT`
+- but the health observer was also marking the same append path unhealthy through the live S3 exception shape:
+  - `ClientError ... ConditionalRequestConflict`
+- once that happened, valid traffic started failing closed through `IG_UNHEALTHY:OBJECT_STORE_UNHEALTHY`.
+
+So the earlier store-health hardening had been too narrow. It treated the in-process `RuntimeError("S3_APPEND_CONFLICT")` family as benign, but not the equivalent live `botocore ClientError` surface. I patched `src/fraud_detection/ingestion_gate/store.py` so append contention is now treated as benign for both shapes:
+
+- `S3_APPEND_CONFLICT`
+- `ConditionalRequestConflict`
+- `PreconditionFailed` / `412`
+
+I then rebuilt and redeployed the Lambda (`phase0_ig_lambda_20260310T143049Z`, live code hash `Nnc6Es87IZewxrfoAoDMks1vlO+h+c6mNsmul8RgRSA=`) and reran bounded `Phase 0.B`.
+
+Those reruns changed the production judgment materially.
+
+`phase0_20260310T143110Z`
+
+- admitted throughput `2999.925 eps`
+- `4xx = 0`
+- `5xx = 0`
+- `p95 = 49.576 ms`
+- `p99 = 57.463 ms`
+
+`phase0_20260310T143801Z`
+
+- admitted throughput `2999.650 eps`
+- `4xx = 0`
+- `5xx = 0`
+- `p95 = 49.315 ms`
+- `p99 = 56.726 ms`
+
+That is a very different picture from the earlier hot-path diagnosis. The ingress runtime is now semantically clean under the bounded correctness shape. The old runtime blockers that were dominating the story at `13:58` are no longer the right explanation for the active red posture.
+
+What remains red after the store-health fix is much narrower:
+
+- a tiny repeatable throughput shortfall on the metric surface only
+- no valid-traffic `4xx`
+- no valid-traffic `5xx`
+- no Lambda errors
+- no Lambda throttles
+
+I also tried the obvious but methodologically weak probe of nudging the requested rate upward (`phase0_20260310T144447Z`, `target_request_rate_eps = 3000.5`). That did not solve the problem. It only shifted which measured minute underfilled. So the issue is not “the platform needs a higher target”; it is a proof-boundary calibration issue.
+
+Current judgment at this point:
+
+- the ingress runtime is no longer the active `Phase 0.B` blocker
+- the active blocker has moved back to the proving surface
+- the next work should stay on the proof boundary, not reopen ingress-runtime remediation blindly
+
+## 2026-03-10 15:25:52 +00:00
+I then spent the next bounded runs trying to attribute that last proof-boundary miss cleanly rather than patching by instinct.
+
+First diagnostic run: `phase0_20260310T145355Z` with `lane_log_mode=full`
+
+This was the right telemetry move even though it still returned red:
+
+- admitted throughput `2999.375 eps`
+- `4xx = 0`
+- `5xx = 0`
+- `p95 = 49.363 ms`
+- `p99 = 56.808 ms`
+
+The important thing was what the full lane logs proved:
+
+- CloudWatch was not lagging; later metric re-queries matched the original counts exactly
+- the WSP lanes were materially participating and landing close to their intended rate
+- the bounded miss was on the order of `75` requests total across the entire `120 s` window, which is only about `1-2` requests per lane
+- the second measured minute was effectively on target while the first measured minute carried almost all of the deficit
+
+That sharply narrows the defect to the proving window itself: the current `Phase 0.B` gate is still mixing a little bit of driver fleet stabilization into what it is judging as steady-state throughput.
+
+I tested two candidate corrections to see whether they were honest fixes or bad proof shapes.
+
+1. Forced synchronized campaign start: `phase0_20260310T150019Z`
+
+- explicit `campaign_start_utc = 2026-03-10T15:04:00Z`
+- result was materially worse and clearly invalid as a new baseline:
+  - widespread `http_503`
+  - `IG_PUSH_RETRY_EXHAUSTED`
+  - `IG_PUSH_REJECTED`
+  - quarantines on valid traffic
+  - `p95 ≈ 28.1 s`
+  - `p99 ≈ 29.9 s`
+
+This matters because it proves that perfect fleet phase alignment changes the arrival shape enough to create a new overload/fail-closed regime. So that is not an acceptable proof correction.
+
+2. Warmup-shaped one-minute probe: `phase0_20260310T150824Z`
+
+- `warmup_seconds = 60`
+- `duration_seconds = 60`
+- this also did not produce an honest green
+- it stopped early with widespread lane exits and `IG_PUSH_REJECTED`
+
+So the two obvious corrections both failed for good reasons:
+
+- forced alignment creates an artificial synchronized arrival pattern and breaks the boundary
+- the quick warmup probe is not yet a stable replacement for the current bounded correctness gate
+
+Current judgment now is tighter than before:
+
+- the semantically trustworthy `Phase 0.B` baseline is still the unsynchronized bounded run shape that gives:
+  - `4xx = 0`
+  - `5xx = 0`
+  - clean latency
+  - admitted throughput within a few dozen requests of the target
+- the remaining blocker is specifically the proof-window definition for steady-state correctness
+- the next correct move is to rework the bounded correctness measurement posture itself so it measures a truly stable steady minute without introducing synchronized-arrival artifacts
+
+That is different from “the platform is green” and different from “ingress is broken.” It means `Phase 0.B` is open because the current proof gate is not yet shaped tightly enough to render a truthful final verdict on a runtime that now looks semantically healthy.
+
+## 2026-03-10 15:45:36 +00:00
+I pushed one more level down into the proof harness because the first warmup-shaped probe had been invalid for a harness reason, not a platform reason.
+
+The concrete defect was in `scripts/dev_substrate/pr3_wsp_replay_dispatch.py`: the dispatcher only moved `active_confirmed_at` forward when every lane was `RUNNING` at the same instant. On a large `40`-lane fleet, that is too strict. If some lanes have already started but the fleet never reaches a perfect simultaneous `RUNNING` moment, the proof clock falls back to `submitted_at`, which contaminates `measurement_start_utc`.
+
+I patched that boundary so the dispatcher now records the fleet as confirmed once all lanes have at least started, even if the fleet never hits a perfect simultaneous `RUNNING` state. The run summary now also records `fleet_confirmation_mode` so later interpretation can distinguish:
+
+- `all_running`
+- `all_started`
+- `submitted_at_fallback`
+
+That patch immediately paid off on the next warmup-shaped steady-state probe:
+
+`phase0_20260310T153432Z`
+
+- `warmup_seconds = 60`
+- `duration_seconds = 60`
+- `fleet_confirmation_mode = all_running`
+- admitted throughput `2999.617 eps`
+- `4xx = 0`
+- `5xx = 0`
+- `p95 = 49.743 ms`
+- `p99 = 57.593 ms`
+
+This is important because it proved the earlier catastrophic warmup run was not a trustworthy argument against warmup-shaped measurement. After the dispatcher fix, that same basic posture became semantically clean and landed only `23` requests short on a single `60 s` APIGW bin.
+
+I then immediately repeated the same warmup one-bin posture to test whether it was stable enough to adopt as the new bounded correctness gate.
+
+That repeat failed badly:
+
+`phase0_20260310T154004Z`
+
+- widespread non-zero WSP lane exits
+- repeated `IG_PUSH_REJECTED`
+- admitted throughput collapsed to `630.433 eps`
+- latency stayed low only because most traffic never made it through normal admission
+
+So the current state is more complicated than “warmup fixed it”:
+
+- the dispatcher timing bug was real and is now fixed
+- a warmed single-bin proof can be truthful
+- but that warmed posture is not yet repeatable enough to adopt as the new `Phase 0.B` baseline
+
+That repeatability failure matters methodologically. It suggests the warmed posture is changing the semantic slice of source traffic enough that later duplicate/quarantine behavior can re-enter the proof in a way the original bounded shape did not. In other words, I do not yet have a replan I trust.
+
+Current judgment right now:
+
+- keep the dispatcher timing fix; it is a real harness hardening improvement
+- do **not** promote the warmed single-bin posture into the plan yet
+- `Phase 0.B` is still open on proof-shape instability, not on a newly rediscovered ingress-runtime fault

@@ -335,31 +335,63 @@ Definition of done:
 
 ### Current live `Phase 0.B` status
 
-Fresh execution evidence on `2026-03-10` now separates the remaining blockers cleanly.
+Fresh execution evidence on `2026-03-10` now separates the runtime truth from the remaining proof-gate truth.
 
-Latest truthful bounded rerun:
+Latest semantically trustworthy bounded reruns:
 
-- execution `phase0_20260310T135855Z`
+- execution `phase0_20260310T143110Z`
+- admitted throughput `2999.925 eps`
 - valid-traffic `4xx = 0`
 - valid-traffic `5xx = 0`
-- admitted throughput `1324.508 eps`
-- `p95 = 553.894 ms`
-- `p99 = 1472.352 ms`
-- Lambda `Throttles = 0`
+- `p95 = 49.576 ms`
+- `p99 = 57.463 ms`
+
+- execution `phase0_20260310T143801Z`
+- admitted throughput `2999.650 eps`
+- valid-traffic `4xx = 0`
+- valid-traffic `5xx = 0`
+- `p95 = 49.315 ms`
+- `p99 = 56.726 ms`
 
 Current judgment:
 
 - `Phase 0.B` is still red
-- the active red is no longer explained by WSP under-drive, Lambda throttling, or the earlier `KAFKA_PUBLISH_TIMEOUT` failure family from the failed `900`-concurrency probe
-- the dominant current blockers are:
-  - broad cold-fleet churn causing hundreds of gate initializations around `1.4 s` each
-  - successful admit-path work still taking roughly `0.8-0.9 s`
-  - a smaller set of long duplicate/in-flight resolution requests taking `11-15 s` and returning `400 QUARANTINE`
+- the active red is no longer explained by ingress semantic failure
+- after widening the benign object-store append-conflict handling and redeploying the Lambda, the bounded correctness runs became:
+  - semantically clean
+  - latency-clean
+  - free of valid-traffic `4xx` / `5xx`
+- the remaining blocker is now a tiny repeatable throughput shortfall on the proof surface only
 
 One additional note matters for interpretation:
 
-- the immediately prior run `phase0_20260310T135126Z` is not authoritative proof because a newly added telemetry helper threw `NameError: _prune_none` inside the Lambda and created `5xx` on otherwise successful requests
-- that proving-agent defect was repaired and redeployed before the truthful rerun above
+- later diagnostic probes were run specifically to understand that proof-boundary shortfall and should not be mistaken for new baselines:
+  - `phase0_20260310T144447Z` (`target_request_rate_eps = 3000.5`) only shifted the miss across metric minutes; it did not prove a runtime defect or a valid correction
+  - `phase0_20260310T145355Z` (`lane_log_mode = full`) proved CloudWatch was not lagging and showed the miss was on the order of `1-2` requests per lane across the measured `120 s` window
+  - `phase0_20260310T150019Z` (forced synchronized `campaign_start_utc`) caused widespread `503` / quarantine behavior and is not an acceptable proving posture
+  - `phase0_20260310T150824Z` (warmup-shaped one-minute probe) also failed and is not an acceptable proving posture
+
+Current engineering interpretation:
+
+- the unsynchronized bounded run shape is still the only semantically trustworthy `Phase 0.B` baseline
+- the runtime now looks healthy enough that the active work should move from ingress remediation back to proof-gate remediation
+- `Phase 0.B` remains open because the current bounded correctness window is still not measuring a fully stable steady-state minute cleanly enough to support a final green verdict
+
+One additional proving-loop nuance now matters:
+
+- the shared dispatcher had a real fleet-start timing defect when used on large `40`-lane warmup probes
+- that defect is now patched so the run summary records how the fleet was confirmed:
+  - `all_running`
+  - `all_started`
+  - or fallback to submission time
+- after that fix, a warmed one-bin probe (`phase0_20260310T153432Z`) became semantically clean and nearly on target (`2999.617 eps`)
+- but the very next warmed one-bin repeat (`phase0_20260310T154004Z`) reintroduced widespread `IG_PUSH_REJECTED` lane exits and throughput collapse
+
+So the current truthful posture is:
+
+- the dispatcher timing fix should stay
+- the warmed single-bin proof shape is not yet repeatable enough to become the new `Phase 0.B` baseline
+- `Phase 0.B` is still open on proof-shape instability
 
 ### Phase 0.C - Envelope and recovery proof
 Goal:
