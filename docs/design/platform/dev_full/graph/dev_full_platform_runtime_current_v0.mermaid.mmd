@@ -56,7 +56,7 @@ flowchart LR
       AL["AL<br>fp-pr3-al"]
       DLA["DLA<br>fp-pr3-dla"]
       ARCHIVE["Archive Writer<br>fp-pr3-archive-writer"]
-      MSF["Managed Flink<br>fraud-platform-dev-full-rtdl-ieg-ofp-v0<br>retained path"]
+      MSF["Managed Flink<br>fraud-platform-dev-full-rtdl-ieg-ofp-v0<br>retained surface only, not current active processing path"]
     end
 
     subgraph CASELABEL["Case / Label"]
@@ -68,7 +68,7 @@ flowchart LR
 
     subgraph STATE["Runtime State"]
       AURORA[("Aurora Serverless v2<br>fraud-platform-dev-full-aurora")]
-      REDISH["Redis endpoint handle<br>SSM-backed"]
+      REDISH["Redis endpoint handle<br>SSM-backed handle only, no live Redis resource shown here"]
       OBJ[("S3 object store<br>archive / quarantine / refs")]
       EVID[("S3 evidence bucket")]
     end

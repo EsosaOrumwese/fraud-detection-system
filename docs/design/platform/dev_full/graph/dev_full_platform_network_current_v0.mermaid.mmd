@@ -90,7 +90,7 @@ flowchart LR
     AL["Deployment<br>fp-pr3-al"]
     DLA["Deployment<br>fp-pr3-dla"]
     ARCHIVE["Deployment<br>fp-pr3-archive-writer"]
-    MSF["Managed Flink app<br>fraud-platform-dev-full-rtdl-ieg-ofp-v0<br>status READY<br>retained managed stream lane"]
+    MSF["Managed Flink app<br>fraud-platform-dev-full-rtdl-ieg-ofp-v0<br>status READY only<br>retained surface, not current active output path"]
   end
 
   %% =========================================================
@@ -114,7 +114,7 @@ flowchart LR
     GLUEDB[("Glue DBs<br>fraud_platform_dev_full_ofs<br>fraud_platform_dev_full_m15")]
     SM["SageMaker (MF)<br>train / eval / candidate bundle"]
     SMPKG["Model package group<br>fraud-platform-dev-full-models"]
-    SMENDPT["Endpoint handle<br>fraud-platform-dev-full-online-v0<br>pinned, not active now"]
+    SMENDPT["Serving endpoint handle<br>fraud-platform-dev-full-online-v0<br>pinned reference only, not current active serving path"]
     MLFLOW["MLflow (MPR)<br>databricks-managed tracking URI<br>/Shared/fraud-platform/dev_full/mlflow_exp_v0"]
     REGACTIVE["Active bundle / policy resolution<br>runtime-consumed registry truth"]
   end
@@ -157,7 +157,7 @@ flowchart LR
     ROLEIRSAOBS["fraud-platform-dev-full-irsa-obs-gov"]
     ROLEDBX["fraud-platform-dev-full-databricks-cross-account-access"]
     ROLESM["fraud-platform-dev-full-sagemaker-execution"]
-    ROLEMWAA["fraud-platform-dev-full-mwaa-execution<br>role exists; MWAA env not materialized"]
+    ROLEMWAA["fraud-platform-dev-full-mwaa-execution<br>IAM role only; MWAA environment not materialized"]
   end
 
   %% =========================================================
@@ -173,7 +173,7 @@ flowchart LR
     AURORA[("Aurora Serverless v2<br>fraud-platform-dev-full-aurora<br>aurora-postgresql<br>min 0.5 / max 4 ACU")]
     AURW["writer endpoint"]
     AURR["reader endpoint"]
-    REDISH["Redis endpoint handle in SSM<br>no live ElastiCache resource observed"]
+    REDISH["Redis endpoint handle in SSM<br>handle exists, no live ElastiCache resource currently observed"]
   end
 
   %% =========================================================

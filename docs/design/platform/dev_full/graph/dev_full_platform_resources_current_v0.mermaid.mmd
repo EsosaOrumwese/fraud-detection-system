@@ -75,7 +75,7 @@ flowchart LR
     AL["Deployment<br>fp-pr3-al"]
     DLA["Deployment<br>fp-pr3-dla"]
     ARCHIVE["Deployment<br>fp-pr3-archive-writer"]
-    MSF["Managed Flink app<br>fraud-platform-dev-full-rtdl-ieg-ofp-v0"]
+    MSF["Managed Flink app<br>fraud-platform-dev-full-rtdl-ieg-ofp-v0<br>retained surface only, not current active processing path"]
   end
 
   subgraph CASELABEL["Case / Label Resources"]
@@ -94,7 +94,7 @@ flowchart LR
     GLUEDB2["Glue DB<br>fraud_platform_dev_full_m15"]
     SM["SageMaker control surface"]
     SMPKG["Model package group<br>fraud-platform-dev-full-models"]
-    SMENDPT["Endpoint handle<br>fraud-platform-dev-full-online-v0"]
+    SMENDPT["Serving endpoint handle<br>fraud-platform-dev-full-online-v0<br>pinned reference only, not current active serving path"]
     MLFLOW["MLflow tracking surface<br>Databricks-managed"]
   end
 
@@ -113,7 +113,7 @@ flowchart LR
     TFSTATE["S3 bucket<br>fraud-platform-dev-full-tfstate"]
     AURORA["Aurora cluster<br>fraud-platform-dev-full-aurora"]
     AURWRITER["Aurora writer instance<br>fraud-platform-dev-full-aurora-writer-1"]
-    REDISH["Redis endpoint handle<br>SSM-backed"]
+    REDISH["Redis endpoint handle<br>SSM-backed handle only, no live Redis resource shown here"]
   end
 
   subgraph SUBSTRATE["Substrate / Network / Identity Resources"]
@@ -152,7 +152,7 @@ flowchart LR
     ROLEIRSAOBS["IAM role<br>irsa-obs-gov"]
     ROLEDBX["IAM role<br>databricks cross-account"]
     ROLESM["IAM role<br>sagemaker execution"]
-    ROLEMWAA["IAM role<br>mwaa-execution"]
+    ROLEMWAA["IAM role<br>mwaa-execution<br>role only, MWAA environment not materialized"]
   end
 
   GHA -->|applies| TFCORE

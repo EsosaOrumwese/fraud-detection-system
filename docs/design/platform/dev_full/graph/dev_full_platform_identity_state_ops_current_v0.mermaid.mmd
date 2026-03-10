@@ -33,7 +33,7 @@ flowchart LR
       ROLEIRSAOBS["irsa-obs-gov role"]
       ROLEDBX["databricks cross-account role"]
       ROLESM["sagemaker execution role"]
-      ROLEMWAA["mwaa-execution role<br>env not materialized"]
+      ROLEMWAA["mwaa-execution role<br>role only, MWAA environment not materialized"]
     end
 
     subgraph STATE["State / Storage"]
@@ -47,7 +47,7 @@ flowchart LR
       AURORA[("Aurora Serverless v2")]
       AURW["writer endpoint"]
       AURR["reader endpoint"]
-      REDISH["Redis endpoint handle<br>SSM-backed"]
+      REDISH["Redis endpoint handle<br>SSM-backed handle only, no live Redis resource shown here"]
       IGDDB[("DynamoDB<br>IG idempotency ledger")]
       IGDLQ["SQS DLQ"]
     end
@@ -78,7 +78,7 @@ flowchart LR
       IGSVC["Ingress ECS service"]
       EKS["EKS cluster"]
       MSK["MSK Serverless"]
-      MSF["Managed Flink<br>retained"]
+      MSF["Managed Flink<br>retained surface only, not current active processing path"]
       SM["SageMaker"]
     end
   end
