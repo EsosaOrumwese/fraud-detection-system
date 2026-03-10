@@ -7,14 +7,14 @@ flowchart LR
 
   subgraph LEGEND["How to Read This Graph"]
     L1["Left to right = component / issue -> remediation -> measured impact -> current verdict"]
-    L2["Red = active blocker or invalid proof shape"]
-    L3["Amber = remediation / posture correction"]
+    L2["Red = production defect found during hardening"]
+    L3["Amber = accepted remediation / posture correction"]
     L4["Blue = measured production evidence"]
-    L5["Green = semantically clean sub-result"]
-    L6["Gray = operator caveat or next-step constraint"]
+    L5["Green = closed readiness result"]
+    L6["Gray = next-plane handoff constraint"]
   end
 
-  subgraph COMPONENTS["Control + Ingress Components Under Hardening"]
+  subgraph COMPONENTS["Control + Ingress Components Proven in Phase 0"]
     WSP["World Streamer Producer (WSP)<br>bounded replay producer"]
     EDGE["External ingress edge<br>HTTP API Gateway v2"]
     IG["Ingress Lambda hot path"]
@@ -23,74 +23,65 @@ flowchart LR
     EVID["Receipts / run evidence / metrics"]
   end
 
-  subgraph DEFECTS["Active Readiness Story"]
-    D1["Boundary drift hazard<br>SSM service_url still points to retained internal ALB<br>proof could hit the wrong front door"]
-    D2["False runtime red<br>IG_HEALTH_BUS_PROBE_MODE=describe raised BUS_UNHEALTHY under load"]
-    D3["Blind spots in live proof<br>phase timings not emitted clearly<br>benign append conflicts looked unhealthy"]
-    D4["Proof-boundary instability<br>unsynchronized baseline stays semantically clean but slightly underfills the APIGW steady gate"]
-    D5["Invalid proof reshapes<br>synchronized starts create 503/quarantine overload<br>warmed single-bin proof not yet repeatable"]
-    D6["DynamoDB hot-path write amplification<br>idempotency rows carried large inline receipt bodies<br>write cost dominated successful bounded runs"]
+  subgraph DEFECTS["Material Defects Found During Hardening"]
+    D1["Boundary drift hazard<br>retained ALB path could be hit instead of execute-api"]
+    D2["Observability blindness<br>missing phase timings / weak lane attribution / stale minute-bin gate"]
+    D3["Hot-path cost defect<br>DynamoDB rows carried oversized inline receipt bodies"]
+    D4["Burst proof defect<br>stale runtime image and replay pacing under-realized the declared burst"]
+    D5["Overload mis-tuning<br>higher per-lane push concurrency reopened 4xx/5xx pressure"]
   end
 
-  subgraph REMEDIATION["Remediation / Posture Changes"]
-    R1["Explicitly pin execute-api ingress URL in the Phase 0 wrapper<br>do not allow fallback to retained ALB"]
-    R2["Repin live Lambda hot path<br>IG_HEALTH_BUS_PROBE_MODE = none"]
-    R3["Improve observability and attribution<br>raise Lambda logger hierarchy<br>widen benign append-conflict handling<br>preserve abnormal lane tails<br>record fleet confirmation mode"]
-    R4["Close Phase 0.B through proof-boundary discipline<br>freeze the unsynchronized truthful baseline<br>make measurement-start attribution explicit<br>require repeatability before Phase 0.C"]
-    R5["Keep ddb_hot but compact the inline receipt body<br>reject object_store on Lambda at the current envelope<br>reduce write cost without changing the proven ingress shape"]
+  subgraph REMEDIATION["Accepted Remediation"]
+    R1["Pin execute-api ingress URL explicitly in the Phase 0 harness"]
+    R2["Enable APIGW detailed metrics and access logs<br>codify exact access-log scoring<br>preserve abnormal lane tails and fleet-start truth"]
+    R3["Keep `ddb_hot` but compact inline receipt payloads<br>reduce WRU cost without changing ingress semantics"]
+    R4["Deploy fresh WSP runtime revision :61<br>enable replay-delay bypass for scheduled rate-plan replay"]
+    R5["Move from per-lane aggression to geometry tuning<br>keep `ig_push_concurrency = 1` and raise lane count only as needed"]
   end
 
   subgraph IMPACT["Measured Impact"]
-    M1["Active boundary pinned<br>API pd7rtjze95 stage v1 route POST /ingest/push<br>Lambda fraud-platform-dev-full-ig-handler"]
-    M2["Semantic bounded reruns clean<br>phase0_20260310T143110Z = 2999.925 eps<br>phase0_20260310T143801Z = 2999.650 eps<br>4xx = 0 / 5xx = 0<br>p95 approx 49-50 ms / p99 approx 56-57 ms"]
-    M3["CloudWatch lag ruled out<br>full-log probe phase0_20260310T145355Z showed about 75 requests missing over 120 s<br>miss concentrated in the first measured minute"]
-    M4["Reshaped proofs rejected<br>phase0_20260310T150019Z synchronized start caused 503 / quarantine overload<br>phase0_20260310T153432Z warmup probe near-green once<br>phase0_20260310T154004Z repeat collapsed"]
-    M5["Cost correction proved on the same baseline<br>phase0_20260310T165309Z stayed semantically clean<br>fresh live receipt_payload_json = 392 bytes<br>DDB write pressure dropped to about 488k-540k WRU/min from about 720k WRU/min"]
+    M1["Active boundary pinned truthfully<br>API pd7rtjze95 stage v1 route POST /ingest/push<br>Lambda fraud-platform-dev-full-ig-handler"]
+    M2["Phase 0.B closed on truthful steady-state gate<br>exact APIGW access-log window above 3000 eps<br>semantic clean runs repeatable"]
+    M3["Hot-path cost corrected<br>fresh receipt row about 392 bytes<br>DDB write pressure dropped materially while staying semantically clean"]
+    M4["Fresh runtime proved burst source truth<br>aggressive replay now visible and attributable on AWS-real telemetry"]
+    M5["Phase 0.C closeout run<br>phase0_20260310T223332Z<br>steady 3025.30 eps / burst 6019.50 eps / recovery 3019.21 eps<br>4xx = 0 / 5xx = 0 / Lambda clean / DLQ delta = 0"]
   end
 
   subgraph VERDICT["Current Verdict"]
-    V1["Current runtime truth<br>API Gateway -> Lambda ingress semantics are clean on the truthful unsynchronized baseline"]
-    V2["Phase 0.B remains open<br>Control + Ingress has not been reclosed under the fresh proving method yet"]
-    V3["Active blocker<br>repeatable steady-state proof boundary<br>not a newly rediscovered ingress semantic defect"]
-    V4["Constraint<br>do not start Phase 0.C until Phase 0.B is green on the same repeatable truthful baseline"]
+    V1["Phase 0 closed green<br>Control + Ingress reaffirmed as the working-platform base"]
+    V2["Production claim now supported<br>declared 3000 steady / 6000 burst envelope remains real on the active external path"]
+    V3["Next constraint<br>Phase 1 may attribute new red posture to RTDL and its coupled paths rather than unresolved ingress ambiguity"]
   end
 
   WSP --> D1
   EDGE --> D1
   IG --> D2
+  EVID --> D2
   DDB --> D3
-  PUB --> D3
-  EVID --> D3
   WSP --> D4
   EDGE --> D4
-  EVID --> D4
   WSP --> D5
-  EDGE --> D5
-  DDB --> D6
+  IG --> D5
 
   D1 --> R1
   D2 --> R2
   D3 --> R3
   D4 --> R4
-  D5 --> R4
-  D6 --> R5
+  D5 --> R5
 
   R1 --> M1
   R2 --> M2
-  R3 --> M2
   R3 --> M3
-  R4 --> M3
   R4 --> M4
   R5 --> M5
 
   M1 --> V1
   M2 --> V1
-  M3 --> V3
-  M4 --> V3
-  M5 --> V1
-  V1 --> V2
-  V3 --> V2
-  V2 --> V4
+  M3 --> V2
+  M4 --> V2
+  M5 --> V2
+  V1 --> V3
+  V2 --> V3
 
   classDef comp fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.3px;
   classDef defect fill:#ffebee,stroke:#c62828,color:#111,stroke-width:1.3px;
@@ -100,9 +91,8 @@ flowchart LR
   classDef caveat fill:#f5f5f5,stroke:#616161,color:#111,stroke-dasharray: 5 3;
 
   class WSP,EDGE,IG,DDB,PUB,EVID comp;
-  class D1,D2,D3,D4,D5,D6 defect;
+  class D1,D2,D3,D4,D5 defect;
   class R1,R2,R3,R4,R5 fix;
   class M1,M2,M3,M4,M5 metric;
-  class V1 ok;
-  class V2,V3 defect;
-  class V4 caveat;
+  class V1,V2 ok;
+  class V3 caveat;

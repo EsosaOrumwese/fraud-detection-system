@@ -1390,3 +1390,382 @@ For the current `40`-lane proof shape, the dry-run rate plan is now:
 That is exactly the narrow fix I wanted: same ingress boundary, same timing model, same proof windows, but segment transitions are no longer self-starved by the limiter itself.
 
 Next step is simply to rerun the same clean common-rate-plan `Phase 0.C` shape and see whether the remaining steady / burst shortfalls disappear.
+
+## 2026-03-10 20:43:30 +00:00
+The seeded-bucket rerun (`phase0_20260310T202917Z`) clarified the final active limiter for `Phase 0.C`.
+
+It did **not** materially change the burst result:
+
+- steady admitted `= 2881.91 eps`
+- burst admitted `= 4718.50 eps`
+- still `4xx = 0`, `5xx = 0`
+
+The APIGW per-second counts, together with the WSP code path and live ECS logs, show why:
+
+- WSP still applies oracle-timestamp replay delay (`_delay_seconds(..., speedup)`) before each push
+- the ingress limiter sits later, inside `_push_to_ig`
+- with `stream_speedup = 51.2`, the replay clock itself is still capping how fast events even arrive at the ingress limiter
+
+This matches the live evidence:
+
+- steady ramps for roughly `20 s`, then stabilizes right around `3000 eps`
+- burst never gets near `6000 eps`; it stays around low-`3000` per-second counts in the scored window
+- the segment-transition logs prove the limiter is entering segment `2`, but the source still is not feeding it fast enough for the burst target to matter
+
+So the next correction is not an ingress change and not another limiter change.
+
+It is a source-posture correction:
+
+- keep the same clean common-rate-plan proof
+- keep the same safe startup spread
+- keep the same burst/recovery timing
+- raise `stream_speedup` so oracle replay delay no longer dominates the proof
+
+At that point the limiter, not the replay clock, should become the true driver of the ingress envelope.
+
+## 2026-03-10 20:59:49 +00:00
+I have paused before another rerun because the error class is now specific enough that another unmodified run would just spend money on the same ambiguity.
+
+The active defect is not in the ingress edge:
+
+- APIGW remains semantically clean on the common-rate-plan shape
+- Lambda stays clean
+- DLQ stays flat
+- recovery is materially strong once the immediate post-burst disturbance passes
+
+The active defect is also no longer in the scheduled limiter itself:
+
+- the common rate-plan clock is correct
+- segment bucket seeding is correct
+- increasing `stream_speedup` to `100` improved burst realization only partially and introduced first-bin recovery `4xx`, which means raw replay acceleration alone is the wrong lever
+
+The remaining structural problem is that `WSP` is still double-pacing `Phase 0.C`:
+
+1. oracle timestamp replay delay runs first
+2. the scheduled ingress limiter runs second
+
+For a proof whose explicit purpose is to verify the ingress envelope under a scheduled rate plan, that is the wrong source posture. It means the proof is still being materially shaped by the oracle replay clock rather than by the declared envelope driver. That is why:
+
+- steady takes too long to reach the target window
+- the `2 s` burst segment never fully realizes the declared `6000 eps`
+- higher replay speed helps somewhat but does not remove the structural cap cleanly
+
+So the next narrow correction is to let scheduled-rate mode own pacing for `Phase 0.C`.
+
+I do **not** want to remove replay pacing globally. The right change is:
+
+- introduce an explicit runtime switch for scheduled-rate proof mode
+- when that switch is enabled and a scheduled rate plan is active, bypass the oracle replay delay
+- keep the scheduled limiter in place
+- keep the existing lane staggering and common rate-plan clock
+
+That keeps the correction narrow and honest:
+
+- normal replay behavior remains unchanged elsewhere
+- only the envelope proof stops double-pacing itself
+- the ingress edge is still being tested against the declared schedule rather than against an arbitrary synthetic flood
+
+If the rerun goes green after that change, the conclusion will be that `Phase 0.C` was blocked by source-path proof posture, not by ingress capacity.
+
+## 2026-03-10 21:02:16 +00:00
+The narrow source-path correction is now implemented and locally validated.
+
+What changed:
+
+- `WSP` now has an explicit scheduled-rate proof switch:
+  - `WSP_DISABLE_REPLAY_DELAY_WHEN_RATE_PLAN=true`
+- the bypass only activates when that switch is on **and** a scheduled rate plan is present
+- when active, oracle replay delay is skipped and the scheduled ingress limiter becomes the sole pacing surface for the proof
+- `Phase 0.C` now passes that switch through the replay dispatcher automatically
+
+I intentionally kept the correction scoped:
+
+- normal replay behavior is unchanged for non-rate-plan runs
+- no ingress-edge thresholds were changed
+- no APIGW or Lambda sizing was changed
+
+Local validation:
+
+- touched Python files compile cleanly
+- `tests/services/world_streamer_producer/test_runner.py` passes
+- `tests/services/world_streamer_producer/test_push_retry.py` passes
+
+Those test runs also flushed out a small amount of local test drift:
+
+- one stray assertion fragment in `test_runner.py`
+- `test_push_retry.py` was still patching `requests.post` while the runner now uses a session object
+
+I corrected both before proceeding. So the repo is back to a truthful local baseline for the next AWS proof.
+
+## 2026-03-10 21:18:40 +00:00
+The bounded rerun (`phase0_20260310T210242Z`) changed the problem again.
+
+What the run itself proved:
+
+- semantics stayed clean
+- recovery became fully green:
+  - no `4xx`
+  - no `5xx`
+  - Lambda clean
+  - DLQ flat
+- but steady and burst remained red:
+  - steady `= 2882.96 eps`
+  - burst `= 4732.00 eps`
+
+That alone would still suggest a deeper source-path cap. But the live ECS logs showed something more important:
+
+- the running WSP tasks were still logging the **old** scheduled-limiter message shape
+- the new `replay delay bypass active ...` log line never appeared
+
+So the actual AWS runtime for `fraud-platform-dev-full-wsp-ephemeral` is still on the old image/task revision (`:60`) and does not contain the local code change I just made.
+
+That means the last rerun is **not** evidence against the correction itself. It is evidence that I was still exercising stale runtime code.
+
+This is now the correct blocker statement for `Phase 0.C`:
+
+- live WSP runtime image drift is preventing truthful revalidation of the latest source-path correction
+
+The next move is therefore not another proof-shape change. It is:
+
+- build and push a fresh runtime image from the current repo state
+- register a fresh `fraud-platform-dev-full-wsp-ephemeral` task definition revision
+- rerun the same bounded `Phase 0.C` proof against the updated live runtime
+
+That is the only honest way to decide whether the remaining red is real runtime capacity or just stale image drift.
+
+## 2026-03-10 21:35:10 +00:00
+The fresh runtime rerun (`phase0_20260310T212058Z`) finally exercised the new source-path code, and the failure mode changed exactly as the logs suggested it would.
+
+What changed materially:
+
+- the new log lines appeared on ECS:
+  - `rate_plan_start_utc=...`
+  - `WSP replay delay bypass active ...`
+- so the live task family drift is resolved
+- the source correction is now truly on the AWS surface
+
+What the run then showed:
+
+- the old under-realization problem is gone as the dominant story
+- burst admitted jumped to `7271 eps`
+- but that came with real red posture:
+  - burst `4xx`
+  - steady `5xx`
+  - Lambda `Errors`
+  - Lambda `Throttles`
+  - one lane (`wsp_lane_34`) failed with repeated `http_503 -> IG_PUSH_REJECTED`
+
+That means the current posture is now **too aggressive**, not too weak.
+
+The important engineering point is that this is still progress. The stale-image ambiguity is gone, and I now have a truthful live failure mode:
+
+- the scheduled-rate proof can drive the edge hard enough
+- but the current per-lane push shape is too bursty for a semantically clean `Phase 0.C` proof
+
+The lane logs make that concrete:
+
+- `http_503` retries begin during steady, not only at the burst segment
+- that points to intra-lane emission burstiness rather than just the `2 s` burst segment
+- with `4` outputs processed concurrently and `4` push workers per output, each lane can express too much local parallelism once replay delay is removed
+
+So the next narrow correction is not to back out the replay-bypass work. It is to smooth the source posture:
+
+- keep the fresh runtime image
+- keep replay bypass
+- keep the common rate-plan clock
+- reduce intra-output push concurrency first
+- rerun the exact same bounded `Phase 0.C` shape
+
+That is the cheapest truthful next move because it preserves the successful parts of the correction while targeting the now-observed overload mechanism directly.
+
+## 2026-03-10 21:49:50 +00:00
+The smoothed rerun (`phase0_20260310T213535Z`) is the first near-complete `Phase 0.C` answer on the fresh runtime.
+
+What went green:
+
+- dispatcher green
+- steady green:
+  - `3005.09 eps`
+  - `4xx = 0`
+  - `5xx = 0`
+- recovery green:
+  - `3016.65 eps`
+  - immediate sustained green
+  - Lambda clean
+  - DLQ flat
+- no lane failures
+
+What remains red:
+
+- burst admitted `= 5044.50 eps`
+- still semantically clean, but below the declared `6000 eps` target
+
+This is a much better posture than the previous rerun because it removes the overload ambiguity without falling back to the old weak source shape. The current picture is now:
+
+- replay bypass is correct
+- fresh runtime image is correct
+- lane-level push smoothing fixed the overload defect
+- only the burst realization is still under target
+
+So the next narrow correction is to increase the source bucket burst window while keeping the now-correct smoothing posture:
+
+- keep `ig_push_concurrency = 1`
+- keep the fresh task revision
+- keep replay bypass
+- keep the common `2 s` scored burst segment
+- raise the source token-bucket `burst_seconds` only
+
+That change should let the source express more of the declared burst without reintroducing the earlier steady-state overload.
+
+## 2026-03-10 22:03:15 +00:00
+The widened source bucket rerun (`phase0_20260310T215010Z`) ruled out the next obvious hypothesis cleanly.
+
+What stayed good:
+
+- steady remained green
+- recovery remained green
+- semantics remained clean
+- Lambda remained clean
+
+What changed badly:
+
+- burst fell further to `4847.50 eps`
+
+So the burst shortfall is **not** because the source bucket window was too small. Widening it made the source smoother still, which is the opposite of what the remaining burst gate needs.
+
+That narrows the remaining problem again:
+
+- the live runtime now needs a slightly more aggressive concurrency envelope than `ig_push_concurrency = 1`
+- but it cannot jump back to the old `ig_push_concurrency = 4` posture, because that reintroduced real overload
+
+So the next truthful move is the obvious midpoint:
+
+- restore the original source bucket window (`0.25 s`)
+- keep replay bypass
+- keep the fresh runtime image
+- raise `ig_push_concurrency` from `1` to `2`
+- rerun the same bounded `Phase 0.C` shape
+
+If that lands green, `Phase 0.C` closes. If it still misses burst, then the remaining question becomes whether the declared `6000` burst needs to be proven through a different yet still truthful source-lane geometry rather than through more per-lane parallelism.
+
+## 2026-03-10 22:17:25 +00:00
+The midpoint concurrency rerun (`phase0_20260310T220334Z`) settled the last open tuning fork for the current `40`-lane geometry.
+
+What happened:
+
+- raising `ig_push_concurrency` from `1` to `2` reintroduced burst `4xx`
+- steady fell back under target
+- recovery picked up `4xx` again in the first recovery bin
+
+So the `40`-lane geometry now has a clear shape:
+
+- `ig_push_concurrency = 1` is the only semantically clean posture so far
+- any higher per-lane push concurrency pushes the source back into overload behavior
+
+That means more per-lane parallelism is no longer the right tuning direction.
+
+The remaining truthful option inside `Phase 0.C` is to change source-lane geometry, not source-lane aggression:
+
+- keep the clean `ig_push_concurrency = 1` posture
+- keep replay bypass
+- keep the fresh runtime image
+- raise lane count so each lane carries less per-lane target load while the aggregate burst target is still `6000`
+
+This is still a truthful proving move because it does not lower the production target; it changes only how the bounded source fleet expresses that target.
+
+## 2026-03-10 22:32:27 +00:00
+The first higher-lane geometry rerun (`phase0_20260310T221746Z`) is the best `Phase 0.C` posture so far and, importantly, it stayed clean while moving the burst proof almost all the way to closure.
+
+What changed:
+
+- raised lane count from `40` to `48`
+- kept the fresh WSP runtime revision
+- kept replay-delay bypass
+- kept `ig_push_concurrency = 1`
+- kept the original `0.25 s` source bucket window
+
+What stayed green:
+
+- steady admitted `= 3038.51 eps`
+- recovery admitted `= 3019.37 eps`
+- `4xx = 0`
+- `5xx = 0`
+- Lambda stayed clean
+- no lane collapse reopened
+
+What remains red:
+
+- burst admitted `= 5965.50 eps`
+- only blocker emitted was `BURST_THROUGHPUT_SHORTFALL:observed=5965.500:target=6000.000`
+
+This matters because it changes the posture again. The remaining gap is now only `34.5 eps`, and it is being missed from an otherwise semantically green and operationally explainable run shape. That is close enough that the next move should stay narrow and geometric:
+
+- do not raise per-lane push concurrency again
+- do not widen the bucket window again
+- keep the clean `48`-lane / `ig_push_concurrency = 1` posture as the baseline
+- test the next small lane-count increment only, so the platform sees slightly less per-lane pressure while the aggregate target remains unchanged
+
+If that closes burst without reopening `4xx` or `5xx`, `Phase 0.C` closes. If it misses again, then the burst gate itself is still cleanly attributable and the remaining question becomes whether another equally narrow geometry increment is needed.
+
+## 2026-03-10 22:47:37 +00:00
+The next narrow geometry step (`phase0_20260310T223332Z`) closed the open `Phase 0.C` burst defect without reopening any of the earlier overload or semantic failures.
+
+What changed:
+
+- raised lane count from `48` to `50`
+- kept the fresh WSP runtime revision (`fraud-platform-dev-full-wsp-ephemeral:61`)
+- kept replay-delay bypass
+- kept `ig_push_concurrency = 1`
+- kept the original `0.25 s` source bucket window
+
+What the run proved:
+
+- steady admitted `= 3025.30 eps`
+- burst admitted `= 6019.50 eps`
+- recovery admitted `= 3019.21 eps`
+- `4xx = 0`
+- `5xx = 0`
+- Lambda `Errors = 0`
+- Lambda `Throttles = 0`
+- DLQ delta `= 0`
+- recovery returned to sustained green immediately (`0 s`)
+- dispatcher stayed green with no lane-level blockers
+
+This is the first bounded `Phase 0.C` run that is fully green on the truthful APIGW access-log gate while still preserving the production target and the semantically clean source posture.
+
+That means the `Phase 0` picture has now changed materially:
+
+- `Phase 0.B` is green on the truthful steady-state proof boundary
+- `Phase 0.C` is green on steady, burst, and recovery
+- the cost-corrected hot path remains intact
+- the active external ingress boundary is explainable, attributable, and auditable on AWS-real telemetry
+
+The only remaining work inside `Phase 0` is documentary rather than diagnostic:
+
+- record the reaffirmation decision in the phase doc
+- refresh the readiness graphs so they stop showing an open `Phase 0.C` blocker
+- commit and push the current state so the working-platform base is visible remotely
+
+Judgment:
+
+- `Control + Ingress` is now truthfully reaffirmed as the working-platform base under the proving method in force on `2026-03-10`
+- `Phase 0` can be closed once the authority docs and graphs reflect that green verdict explicitly
+
+## 2026-03-10 22:49:51 +00:00
+The follow-through work is now done as well, so `Phase 0` is not only green in the run folder but green in the repo authority and reflection surfaces.
+
+Completed after the decisive `phase0_20260310T223332Z` run:
+
+- updated the `Phase 0` authority doc to mark `Phase 0.D` green and `Phase 0` closed
+- moved the plan's immediate next action from `Phase 0` to `Phase 1 - RTDL plane readiness`
+- refreshed the production-ready network graph, production-ready resource graph, and Control + Ingress readiness-delta graph so they no longer show an open burst blocker
+- re-rendered all three readiness PNGs from the updated Mermaid sources
+
+That closes the last stale state mismatch between:
+
+- the live bounded evidence under `runs/`
+- the implementation reasoning trail
+- the phase authority doc
+- the reflected readiness graphs
+
+`Phase 0` is now closed green in a way that is inspectable remotely, not only recoverable from a local run folder.

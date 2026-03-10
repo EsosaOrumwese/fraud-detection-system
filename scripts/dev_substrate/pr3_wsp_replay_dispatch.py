@@ -1394,6 +1394,7 @@ def main() -> None:
     ap.add_argument("--campaign-start-utc", default="")
     ap.add_argument("--campaign-start-stagger-seconds", type=float, default=0.0)
     ap.add_argument("--rate-plan-json", default="")
+    ap.add_argument("--wsp-disable-replay-delay-when-rate-plan", action="store_true")
     ap.add_argument("--skip-final-threshold-check", action="store_true")
     ap.add_argument("--task-cpu", default="")
     ap.add_argument("--task-memory", default="")
@@ -1604,6 +1605,8 @@ def main() -> None:
         )
     if raw_rate_plan:
         base_env_rows.append({"name": "WSP_RATE_PLAN_JSON", "value": raw_rate_plan})
+    if bool(args.wsp_disable_replay_delay_when_rate_plan):
+        base_env_rows.append({"name": "WSP_DISABLE_REPLAY_DELAY_WHEN_RATE_PLAN", "value": "true"})
     command_list = build_wsp_command()
     launched_lanes: list[dict[str, Any]] = []
     task_cpu_override = str(args.task_cpu).strip()

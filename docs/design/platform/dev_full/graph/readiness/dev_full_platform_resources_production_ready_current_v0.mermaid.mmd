@@ -10,7 +10,7 @@ flowchart LR
     L1["Only resources backing the currently promoted working-platform core are shown"]
     L2["This is the active external Control + Ingress path accepted today"]
     L3["Retained internal ALB / ECS ingress resources are intentionally absent from this ready-resource view"]
-    L4["Fresh Phase 0 revalidation remains open even though this is the current promoted core"]
+    L4["Phase 0 revalidation closed green on 2026-03-10 for this promoted core"]
   end
 
   subgraph NOTE["Scope"]
@@ -29,7 +29,7 @@ flowchart LR
     HTTPAPI["HTTP API Gateway<br>fraud-platform-dev-full-ig-edge<br>API ID pd7rtjze95<br>stage v1<br>throttle 3000 rps / 6000 burst"]
     APIRPOST["Route<br>POST /ingest/push"]
     APIRHEALTH["Route<br>GET /ops/health"]
-    APISTAGE["Stage posture<br>DetailedMetricsEnabled = false<br>no visible APIGW access-log group in current hardening window"]
+    APISTAGE["Stage posture<br>DetailedMetricsEnabled = true<br>access-log group /aws/apigateway/fraud-platform-dev-full-ig-edge-v1-access"]
     IGLAMBDA["Lambda<br>fraud-platform-dev-full-ig-handler<br>runtime python3.12<br>memory 2048 MB<br>reserved concurrency 600<br>timeout 30 s"]
     IGLAMBDAENV["Lambda ingress contract<br>IG_HEALTH_BUS_PROBE_MODE = none<br>kafka timeout 5000 ms<br>publish retries 5"]
     CWLAMBDA["CloudWatch log group<br>/aws/lambda/fraud-platform-dev-full-ig-handler"]
@@ -37,7 +37,7 @@ flowchart LR
 
   subgraph WSP["Replay Producer Resources"]
     WSPCLUSTER["ECS cluster<br>fraud-platform-dev-full-wsp-ephemeral"]
-    WSPTASK["WSP task family<br>remote bounded replay producer"]
+    WSPTASK["WSP task family<br>remote bounded replay producer<br>Phase 0 proof revision :61"]
     CWWSP["CloudWatch log group<br>/ecs/fraud-platform-dev-full-wsp-ephemeral"]
   end
 

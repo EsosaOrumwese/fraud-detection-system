@@ -506,6 +506,7 @@ def main() -> None:
         str(to_iso_utc(campaign_start)),
         "--rate-plan-json",
         json.dumps(rate_plan, separators=(",", ":")),
+        "--wsp-disable-replay-delay-when-rate-plan",
         "--metric-settle-seconds",
         str(max(0, int(args.metric_settle_seconds))),
         "--lane-log-mode",

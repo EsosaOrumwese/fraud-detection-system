@@ -153,6 +153,13 @@ class WorldStreamProducer:
         self._http_local = threading.local()
         self._lane_count, self._lane_index = _resolve_lane_config()
         self._rate_limiter = _build_rate_limiter(self._lane_count, self._lane_index)
+        self._bypass_replay_delay_for_scheduled_rate_plan = _should_bypass_replay_delay_for_scheduled_rate_plan()
+        if self._bypass_replay_delay_for_scheduled_rate_plan:
+            logger.info(
+                "WSP replay delay bypass active lane=%s/%s reason=scheduled_rate_plan_proof_mode",
+                self._lane_index,
+                self._lane_count,
+            )
 
     def stream_engine_world(
         self,
@@ -584,7 +591,12 @@ class WorldStreamProducer:
                     continue
                 current_ts = _parse_ts(envelope.get("ts_utc"))
                 if last_ts and current_ts:
-                    delay = _delay_seconds(last_ts, current_ts, speedup)
+                    delay = _replay_delay_seconds(
+                        last_ts,
+                        current_ts,
+                        speedup,
+                        bypass=self._bypass_replay_delay_for_scheduled_rate_plan,
+                    )
                     if delay > 0:
                         time.sleep(delay)
                 if current_ts:
@@ -856,7 +868,12 @@ class WorldStreamProducer:
                             envelope["span_id"] = engine_release
                         current_ts = _parse_ts(envelope.get("ts_utc"))
                         if last_ts and current_ts:
-                            delay = _delay_seconds(last_ts, current_ts, speedup)
+                            delay = _replay_delay_seconds(
+                                last_ts,
+                                current_ts,
+                                speedup,
+                                bypass=self._bypass_replay_delay_for_scheduled_rate_plan,
+                            )
                             if delay > 0:
                                 time.sleep(delay)
                         if current_ts:
@@ -1228,6 +1245,19 @@ def _delay_seconds(prev: datetime, current: datetime, speedup: float) -> float:
     if delta <= 0:
         return 0.0
     return delta / speedup
+
+
+def _replay_delay_seconds(prev: datetime, current: datetime, speedup: float, *, bypass: bool) -> float:
+    if bypass:
+        return 0.0
+    return _delay_seconds(prev, current, speedup)
+
+
+def _should_bypass_replay_delay_for_scheduled_rate_plan() -> bool:
+    raw_toggle = str(os.getenv("WSP_DISABLE_REPLAY_DELAY_WHEN_RATE_PLAN", "")).strip().lower()
+    if raw_toggle not in {"1", "true", "yes", "on"}:
+        return False
+    return bool(str(os.getenv("WSP_RATE_PLAN_JSON", "")).strip())
 
 
 def _read_run_receipt(engine_root: str, profile: WspProfile) -> dict[str, Any]:

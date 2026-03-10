@@ -1255,12 +1255,12 @@ After a phase is complete, update as needed:
 ---
 
 ## Immediate next action
-Proceed with `Phase 0 - Control + Ingress revalidation`.
+Proceed with `Phase 1 - RTDL plane readiness`.
 
-The purpose of the immediate next action is not to rediscover ingress from scratch. It is to establish the first confirmed member of the working platform under this exact plan so the rest of the platform can be added to a trustworthy base.
+`Phase 0` is now closed green, so the immediate purpose shifts to proving the next plane on top of a trusted `Control + Ingress` base.
 
-Execution order inside Phase 0 is:
-1. pin the Control + Ingress telemetry set and fail-fast conditions,
-2. verify the live resource posture against the current proven envelope,
-3. run the bounded revalidation window,
-4. only then mark Phase 0 green or reopen ingress remediation.
+Execution order now is:
+1. pin the RTDL telemetry set and fail-fast conditions,
+2. verify the live RTDL runtime boundary and its immediate dependency paths from the proven ingress base,
+3. run bounded RTDL plane-readiness proof,
+4. only then decide whether `Phase 1` is green or RTDL remediation must remain open.
