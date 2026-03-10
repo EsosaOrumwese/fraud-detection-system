@@ -432,3 +432,30 @@ Current judgment right now:
 - keep the dispatcher timing fix; it is a real harness hardening improvement
 - do **not** promote the warmed single-bin posture into the plan yet
 - `Phase 0.B` is still open on proof-shape instability, not on a newly rediscovered ingress-runtime fault
+
+## 2026-03-10 15:58:47 +00:00
+At this point the work needed a posture correction in the authoritative plan itself, not just another rerun.
+
+The main thing I have learned from the `14:31`, `14:55`, `15:08`, `15:34`, and `15:40` bounded probes is that `Phase 0` is no longer blocked by a broad ingress mystery. The active issue is narrower:
+
+- the unsynchronized bounded run shape is semantically trustworthy,
+- the remaining miss is at the proof boundary for steady-state admitted throughput,
+- the synchronized-start correction is invalid because it creates a new overload regime,
+- the warmed single-bin correction is not yet repeatable enough to adopt as a new baseline.
+
+That combination changes how `Phase 0` should be closed. The right move now is not “keep trying more shapes until one goes green.” The right move is:
+
+1. freeze the semantically trustworthy unsynchronized bounded run as the active baseline,
+2. tighten telemetry on that exact baseline so the steady-state boundary is attributable rather than inferred,
+3. make the measurement start explicit from confirmed fleet participation where that differs from raw submission time,
+4. repeat the same truthful baseline until the verdict is either:
+   - repeatably green, or
+   - repeatably red for a real capacity / hot-path reason.
+
+This is a meaningful methodological shift even though it does not lower a single target. The throughput target remains `3000 eps`. The point is to stop spending money on proof-shape churn and instead force `Phase 0` into a small decisive closure matrix:
+
+- truthful baseline
+- repeatability check
+- only then narrow runtime remediation if the truthful baseline still stays red
+
+I have therefore updated the parent production-readiness plan and the `Phase 0` expansion so this posture is no longer implicit in notebook text alone.

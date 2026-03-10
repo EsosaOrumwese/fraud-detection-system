@@ -91,6 +91,25 @@ Every phase expansion must define, before the first AWS run:
 
 The point is to eliminate blind runs and reduce guesswork. If the phase cannot be observed live, the phase is not yet execution-ready.
 
+### 6. Truthful steady-state measurement
+When a phase is proving a steady-state envelope, the measurement window must reflect the real steady-state boundary rather than a launcher artifact.
+
+This means:
+- the target itself does not move,
+- the run shape must remain production-legitimate,
+- the measurement start must be attributable to confirmed plane participation rather than raw submission time when those differ materially,
+- a measurement correction is valid only if it is explicit, explainable, and repeatable on the same run shape,
+- traffic-shape changes that create synchronized-arrival artifacts or otherwise change the boundary are diagnostic tools only, not valid promotion evidence.
+
+### 7. Narrow rerun discipline
+Once a phase has one semantically trustworthy baseline, that baseline should be frozen while the remaining ambiguity is removed.
+
+This means:
+- do not keep inventing new run shapes to chase a green receipt,
+- prefer fixing telemetry, attribution, or a narrow runtime defect first,
+- repeat the same truthful baseline to prove repeatability,
+- only widen or reshape the run if the current baseline is itself shown to be invalid.
+
 ---
 
 ## Working platform promotion rule
@@ -412,6 +431,7 @@ Success criteria:
 - publish continuity into the event transport boundary is intact
 - receipts remain coherent and attributable
 - recovery remains within the existing bound
+- the steady-state verdict is repeatable on the same truthful run shape rather than dependent on ad hoc reshaping
 
 Telemetry plan:
 - live logs:
@@ -438,6 +458,17 @@ Telemetry plan:
   - one live summary
   - one optional metric snapshot
   - one implementation-note entry
+
+Current closeout posture:
+- the semantically trustworthy unsynchronized bounded run shape is the current `Phase 0.B` baseline
+- the remaining blocker is proof-boundary stability at the steady admitted-throughput gate, not a currently active ingress semantic defect
+- synchronized-start and unstable warmed single-bin probes are diagnostic evidence only and must not become the promotion baseline
+- `Phase 0` should close through:
+  - telemetry lock on the active ingress path,
+  - one frozen truthful steady-state baseline,
+  - repeatable green bounded correctness on that same baseline,
+  - only then bounded burst / recovery proof
+- if the frozen truthful baseline stays red after the measurement boundary is made explicit, the red must be treated as a real capacity or hot-path defect and remediated narrowly before promotion
 
 Definition of done:
 - Control + Ingress is reconfirmed as the working-platform base

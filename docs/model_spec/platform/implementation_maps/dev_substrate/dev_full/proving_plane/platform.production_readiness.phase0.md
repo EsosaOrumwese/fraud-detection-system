@@ -310,6 +310,7 @@ Default CLI entrypoint for this subphase:
 - gate initialization frequency / `init_seconds`
 - request timing split for successful and abnormal requests
 - quarantine reason family for any non-`5xx` abnormal lanes
+- fleet confirmation mode and `measurement_start_utc` attribution for the active baseline
 
 #### Success posture
 - fresh run ids remain consistent through the active boundary
@@ -317,6 +318,8 @@ Default CLI entrypoint for this subphase:
 - every admitted first-seen event reaches publish continuity
 - receipts remain coherent and attributable
 - valid traffic has `4xx = 0` and `5xx = 0`
+- the steady-state measurement window is explicitly derived from confirmed fleet participation on the same run shape that will be repeated for verdicting
+- the same truthful bounded baseline can be repeated without introducing new traffic-shape artifacts
 
 #### Red posture
 - stale or reused run identity
@@ -393,6 +396,28 @@ So the current truthful posture is:
 - the warmed single-bin proof shape is not yet repeatable enough to become the new `Phase 0.B` baseline
 - `Phase 0.B` is still open on proof-shape instability
 
+### Phase 0.B closeout posture as of 2026-03-10
+
+`Phase 0.B` should now be closed using a narrow proof-boundary method rather than further broad run-shape experimentation.
+
+That means:
+
+1. keep the semantically trustworthy unsynchronized bounded run shape as the active baseline,
+2. tighten the live telemetry on that same baseline, including:
+   - API Gateway detailed metrics / access visibility during the active hardening window where practical,
+   - Lambda phase and request timing visibility,
+   - WSP lane confirmation and abnormal-tail evidence,
+   - run-scoped publish, receipt, quarantine, and DLQ continuity,
+3. make the steady-state measurement boundary explicit from confirmed fleet participation rather than raw submission time if those differ materially,
+4. rerun that same truthful baseline for repeatable bounded correctness proof,
+5. if the same truthful baseline remains below `3000 eps` after the measurement boundary is explicit and attributable, treat that as a real ingress capacity or hot-path defect and remediate narrowly instead of reshaping the traffic again.
+
+The following probes are therefore diagnostic-only and must not be used as promotion baselines:
+
+- synchronized `campaign_start_utc` runs,
+- warmed single-bin runs that are not yet repeatable,
+- target-rate nudges that only move underfill between metric minutes.
+
 ### Phase 0.C - Envelope and recovery proof
 Goal:
 - prove that the plane still holds the declared envelope and bounded recovery posture.
@@ -443,6 +468,9 @@ Definition of done:
 - the declared envelope remains real,
 - the recovery bound remains real,
 - pressure does not silently destroy explainability.
+
+Entry rule:
+- `Phase 0.C` does not begin until `Phase 0.B` is green on a repeatable truthful baseline rather than on a one-off or reshaped proof.
 
 ### Phase 0.D - Working-platform base reaffirmation
 Goal:
