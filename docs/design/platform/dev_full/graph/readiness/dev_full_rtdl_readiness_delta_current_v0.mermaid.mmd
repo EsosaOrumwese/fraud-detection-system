@@ -1,0 +1,80 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    L1["Left to right = RTDL scope -> live blocker -> accepted posture / remediation -> measured impact -> current verdict"]
+    L2["Red = blocker or misleading readiness surface"]
+    L3["Amber = accepted next posture"]
+    L4["Blue = live measured evidence"]
+    L5["Gray = still-open readiness constraint"]
+  end
+
+  subgraph RTDL["RTDL Scope Under Hardening in Phase 1"]
+    C0["Control + Ingress base<br>already proven green"]
+    C1["RTDL runtime boundary<br>EKS namespace fraud-platform-rtdl"]
+    C2["Projectors<br>CSFB / IEG / OFP"]
+    C3["Decision lane<br>DL / DF / AL / DLA / archive"]
+  end
+
+  subgraph BLOCKERS["Live Blockers Now Pinned"]
+    B1["Closed blocker<br>RTDL had been pinned to stale run scope platform_20260309T164209Z"]
+    B2["Open telemetry-truth defect<br>IEG and projector pod health surfaces treat historical event watermark as hard red during bounded replay"]
+    B3["Open proof-boundary defect<br>short bounded pulse goes idle and DL later fail-closes on checkpoint age, which can be mistaken for active-run semantic failure"]
+  end
+
+  subgraph POSTURE["Accepted Current Posture"]
+    P1["Repin through pr3_rtdl_materialize.py<br>fresh secret + rollout + broker truth"]
+    P2["Use cheap bounded participation probe before richer semantic proof"]
+    P3["Separate active-window proof from post-pulse idle<br>and harden projector health semantics for bounded historical replay"]
+  end
+
+  subgraph EVIDENCE["Measured Evidence"]
+    E1["Fresh run scope adopted<br>platform_20260310T225349Z in secret and deployment labels"]
+    E2["Participation probe green enough to trust<br>phase1_rtdl_probe_20260310T230000Z<br>4xx = 0 / 5xx = 0 / DF decisions_total = 702 / publish_admit_total = 702"]
+    E3["IEG shared status proves active processing<br>mutating_applied = 6922 / checkpoint_age_seconds = 0.080539 / apply_failure_count = 0<br>but pod health still RED on WATERMARK_TOO_OLD"]
+    E4["DL stayed NORMAL through active probe window<br>first fail-closed happened later at 23:05:27 on eb_consumer_lag after the pulse went idle"]
+  end
+
+  subgraph VERDICT["Current Verdict"]
+    V1["Phase 1 execution-readiness repin is green"]
+    V2["RTDL participation is real for the current run"]
+    V3["Phase 1 not closeable yet<br>operator health story is still misleading for bounded replay and active-window proof must be separated from idle lag"]
+  end
+
+  C1 --> B1
+  C2 --> B2
+  C3 --> B3
+
+  B1 --> P1
+  B2 --> P3
+  B3 --> P2
+  B3 --> P3
+
+  P1 --> E1
+  P2 --> E2
+  P3 --> E3
+  P3 --> E4
+
+  E1 --> V1
+  E2 --> V2
+  E3 --> V3
+  E4 --> V3
+  V1 --> V2
+  V2 --> V3
+
+  classDef comp fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+  classDef defect fill:#ffebee,stroke:#c62828,color:#111,stroke-width:1.3px;
+  classDef fix fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef metric fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.3px;
+  classDef caveat fill:#f5f5f5,stroke:#616161,color:#111,stroke-dasharray: 5 3;
+
+  class C0,C1,C2,C3 comp;
+  class B1,B2,B3 defect;
+  class P1,P2,P3 fix;
+  class E1,E2,E3,E4 metric;
+  class V1,V2 comp;
+  class V3 caveat;

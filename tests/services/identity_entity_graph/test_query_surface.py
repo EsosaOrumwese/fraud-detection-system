@@ -118,8 +118,25 @@ def test_health_thresholds_support_env_overrides(monkeypatch) -> None:
 
     health = query_module._derive_health(
         failure_count=0,
+        metrics=None,
         watermark_age_seconds=15.0,
         checkpoint_age_seconds=0.0,
     )
     assert health["state"] == "AMBER"
     assert "WATERMARK_LAGGING" in health["reasons"]
+
+
+def test_health_uses_replay_advisory_when_checkpoint_is_fresh(monkeypatch) -> None:
+    monkeypatch.setenv("IEG_HEALTH_RED_WATERMARK_AGE_SECONDS", "20")
+    monkeypatch.setenv("IEG_HEALTH_AMBER_CHECKPOINT_AGE_SECONDS", "120")
+
+    health = query_module._derive_health(
+        failure_count=0,
+        metrics={"events_seen": 6922, "mutating_applied": 6922},
+        watermark_age_seconds=60.0,
+        checkpoint_age_seconds=0.08,
+    )
+
+    assert health["state"] == "AMBER"
+    assert "WATERMARK_REPLAY_ADVISORY" in health["reasons"]
+    assert "WATERMARK_TOO_OLD" not in health["reasons"]

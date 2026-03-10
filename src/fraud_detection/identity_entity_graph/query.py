@@ -106,6 +106,7 @@ class IdentityGraphQuery:
         checkpoint_age = _age_seconds(checkpoints.get("updated_at_utc"))
         health = _derive_health(
             failure_count=failure_count,
+            metrics=metrics,
             watermark_age_seconds=watermark_age,
             checkpoint_age_seconds=checkpoint_age,
         )
@@ -395,7 +396,11 @@ def _age_seconds(value: str | None) -> float | None:
 
 
 def _derive_health(
-    *, failure_count: int, watermark_age_seconds: float | None, checkpoint_age_seconds: float | None
+    *,
+    failure_count: int,
+    metrics: dict[str, Any] | None,
+    watermark_age_seconds: float | None,
+    checkpoint_age_seconds: float | None,
 ) -> dict[str, Any]:
     amber_watermark_age = _env_float("IEG_HEALTH_AMBER_WATERMARK_AGE_SECONDS", 120.0)
     red_watermark_age = _env_float("IEG_HEALTH_RED_WATERMARK_AGE_SECONDS", 300.0)
@@ -403,6 +408,15 @@ def _derive_health(
     red_checkpoint_age = _env_float("IEG_HEALTH_RED_CHECKPOINT_AGE_SECONDS", 300.0)
     amber_failures = _env_int("IEG_HEALTH_AMBER_APPLY_FAILURES", 1)
     red_failures = _env_int("IEG_HEALTH_RED_APPLY_FAILURES", 100)
+    counters = metrics if isinstance(metrics, dict) else {}
+    replay_advisory = _is_watermark_replay_advisory(
+        metrics=counters,
+        failure_count=failure_count,
+        watermark_age_seconds=watermark_age_seconds,
+        checkpoint_age_seconds=checkpoint_age_seconds,
+        amber_checkpoint_age_seconds=amber_checkpoint_age,
+        red_watermark_age_seconds=red_watermark_age,
+    )
 
     reasons: list[str] = []
     state = "GREEN"
@@ -411,8 +425,12 @@ def _derive_health(
         reasons.append("WATERMARK_MISSING")
         state = "AMBER"
     elif watermark_age_seconds >= red_watermark_age:
-        reasons.append("WATERMARK_TOO_OLD")
-        state = "RED"
+        if replay_advisory:
+            reasons.append("WATERMARK_REPLAY_ADVISORY")
+            state = "AMBER"
+        else:
+            reasons.append("WATERMARK_TOO_OLD")
+            state = "RED"
     elif watermark_age_seconds >= amber_watermark_age:
         reasons.append("WATERMARK_LAGGING")
         state = "AMBER"
@@ -435,6 +453,28 @@ def _derive_health(
         state = "AMBER"
 
     return {"state": state, "reasons": reasons}
+
+
+def _is_watermark_replay_advisory(
+    *,
+    metrics: dict[str, Any],
+    failure_count: int,
+    watermark_age_seconds: float | None,
+    checkpoint_age_seconds: float | None,
+    amber_checkpoint_age_seconds: float,
+    red_watermark_age_seconds: float,
+) -> bool:
+    if failure_count > 0:
+        return False
+    if watermark_age_seconds is None or checkpoint_age_seconds is None:
+        return False
+    if watermark_age_seconds < red_watermark_age_seconds:
+        return False
+    if checkpoint_age_seconds > amber_checkpoint_age_seconds:
+        return False
+    events_seen = int(metrics.get("events_seen", 0) or 0)
+    mutating_applied = int(metrics.get("mutating_applied", 0) or 0)
+    return max(events_seen, mutating_applied) > 0
 
 
 def _env_float(name: str, default: float) -> float:

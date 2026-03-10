@@ -1816,3 +1816,108 @@ So the RTDL opening posture is now explicit:
 - only after that run the first bounded RTDL proof
 
 I created `platform.production_readiness.phase1.md` to keep that reasoning from collapsing back into the generic implementation note.
+
+## 2026-03-10 23:10:53 +00:00
+The first `Phase 1` blocker is now actually closed, and the important part is that it closed through the intended runtime path rather than by me hand-editing the cluster into compliance.
+
+I used `scripts/dev_substrate/pr3_rtdl_materialize.py` with:
+
+- `platform_run_id = platform_20260310T225349Z`
+- `scenario_run_id = 80173048a5f341a0a5893aa11b23aaca`
+- `pr3_execution_id = phase1_rtdl_materialize_20260310T225349Z`
+
+The materializer came back `overall_pass = true`, rolled the RTDL deployments, refreshed the runtime secret, and also corrected the stale registry MSK bootstrap by overriding it with the live SSM-published broker. That is a meaningful correction because it means the fresh run scope is not only in Kubernetes labels but in the runtime wiring that the pods will actually use.
+
+Verification afterward was straightforward:
+
+- secret values now pin `PLATFORM_RUN_ID`, `ACTIVE_PLATFORM_RUN_ID`, and the main RTDL required run ids to `platform_20260310T225349Z`
+- deployment labels now also pin to the same run id
+
+That changes the `Phase 1` starting point completely. The old stale-scope blocker is now gone, so the next red signal had to come from inside the active RTDL lane rather than from yesterday's run lingering underneath it.
+
+I then ran the smallest bounded RTDL probe that could answer a real question without spending on a full semantic campaign:
+
+- execution `phase1_rtdl_probe_20260310T230000Z`
+- `120 s`
+- `100 eps`
+- `4` lanes
+
+Ingress stayed clean, but the more important thing is what the RTDL plane did with the traffic:
+
+- `DF` exported `702` decisions for the current run
+- `publish_admit_total = 702`
+- `degrade_total = 557`
+- `fail_closed_total = 0` during the active probe window
+- current-run artifacts appeared under `runs/fraud-platform/platform_20260310T225349Z/...` in the RTDL pods
+
+So the current-run RTDL lane is materially participating. That rules out an easy but wrong explanation that the plane is still effectively idle or pinned elsewhere.
+
+The live telemetry pass then exposed the more interesting problem shape.
+
+`IEG` is actively mutating the current run:
+
+- `mutating_applied = 6922`
+- `events_seen = 6922`
+- `checkpoint_age_seconds = 0.080539`
+- `apply_failure_count = 0`
+
+yet its pod-local health artifact still reports:
+
+- `health_state = RED`
+- `health_reasons = ["WATERMARK_TOO_OLD"]`
+
+That is not truthful operator health for a bounded historical replay window. The component is processing current-run traffic, the checkpoint is fresh, and there are no apply failures, but the health surface still screams red because the event watermark itself is historical.
+
+`OFP` shows a related but slightly different shape. The later artifact I pulled showed:
+
+- `events_applied = 5369`
+- `events_seen = 5369`
+- `missing_features = 0`
+- `snapshot_failures = 0`
+- `checkpoint_age_seconds = 291.313837`
+- `health_state = RED`
+- `health_reasons = ["WATERMARK_TOO_OLD"]`
+
+The DL timeline is what makes this interpretable rather than speculative:
+
+- DL stayed `NORMAL` with all required signals `OK` through the active probe window
+- the first fail-closed transition did not happen until `2026-03-10T23:05:27.668100+00:00`
+- that first transition was `required_signal_gap:eb_consumer_lag`
+- `ofp_health` only turned `ERROR` later once the OFP checkpoint aged out too
+
+So I do not think the correct reading is "RTDL broke while processing the probe." The correct reading is narrower:
+
+- the bounded participation probe worked,
+- then the pulse stopped,
+- then the shared RTDL checkpoints stopped advancing,
+- then DL quite reasonably treated that idle checkpoint age as red under the current profile,
+- while the pod-local projector health artifacts remain misleading for this proving method because they treat historical event watermark age as a hard red even when the active run is being processed correctly.
+
+That means the next `Phase 1` problem is not general runtime breakage. It is operator-truth hardening:
+
+- separate active-window proof from post-window idle behavior,
+- fix or qualify projector health semantics for bounded historical replay,
+- then move to the next bounded RTDL proof with a health story that is explainable instead of contradictory.
+
+## 2026-03-10 23:10:53 +00:00 - IEG replay advisory patched locally
+I took the narrower of the two RTDL health issues first.
+
+The `DL` idle-lag transition after the probe may or may not be a policy problem, but the `IEG` pod-local health artifact was plainly a truth problem: it could report `RED` on `WATERMARK_TOO_OLD` while all of the following were simultaneously true:
+
+- `checkpoint_age_seconds` was effectively zero,
+- `apply_failure_count = 0`,
+- `mutating_applied` and `events_seen` were both increasing for the current run.
+
+That is not a useful operator surface for bounded historical replay. It makes active processing look like failure.
+
+So I patched `src/fraud_detection/identity_entity_graph/query.py` to give `IEG` the same general treatment that `OFP` already had in spirit:
+
+- when the event watermark is historically old,
+- but the checkpoint is still fresh,
+- and the graph is actively mutating with no apply failures,
+
+the health surface now emits `WATERMARK_REPLAY_ADVISORY` and holds `AMBER` instead of falsely going hard `RED`.
+
+I added a targeted test for that behavior in `tests/services/identity_entity_graph/test_query_surface.py` and reran the focused test file successfully (`5 passed`).
+
+This does not close `Phase 1`. It only removes one misleading health signal so the next RTDL bounded proof can be interpreted more honestly.
