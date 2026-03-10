@@ -1075,9 +1075,10 @@ def _env_float(name: str, default: float = 0.0) -> float:
 def _build_rate_limiter(lane_count: int, lane_index: int) -> _TokenBucketRateLimiter:
     raw_rate_plan = str(os.getenv("WSP_RATE_PLAN_JSON", "")).strip()
     raw_campaign_start = str(os.getenv("WSP_CAMPAIGN_START_UTC", "")).strip()
-    if raw_rate_plan and raw_campaign_start:
+    raw_rate_plan_start = str(os.getenv("WSP_RATE_PLAN_START_UTC", "")).strip() or raw_campaign_start
+    if raw_rate_plan and raw_rate_plan_start:
         try:
-            campaign_start_utc = datetime.fromisoformat(raw_campaign_start.replace("Z", "+00:00")).astimezone(timezone.utc)
+            campaign_start_utc = datetime.fromisoformat(raw_rate_plan_start.replace("Z", "+00:00")).astimezone(timezone.utc)
             payload = json.loads(raw_rate_plan)
             if isinstance(payload, list):
                 segments: list[dict[str, float]] = []
@@ -1094,10 +1095,11 @@ def _build_rate_limiter(lane_count: int, lane_index: int) -> _TokenBucketRateLim
                     )
                 if segments:
                     logger.info(
-                        "WSP scheduled limiter active lane=%s/%s campaign_start_utc=%s segments=%s",
+                        "WSP scheduled limiter active lane=%s/%s rate_plan_start_utc=%s lane_start_utc=%s segments=%s",
                         lane_index,
                         lane_count,
                         campaign_start_utc.isoformat().replace("+00:00", "Z"),
+                        raw_campaign_start or None,
                         json.dumps(segments, sort_keys=True),
                     )
                     return _ScheduledTokenBucketRateLimiter(

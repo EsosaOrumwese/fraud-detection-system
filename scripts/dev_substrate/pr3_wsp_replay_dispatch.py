@@ -1610,6 +1610,8 @@ def main() -> None:
     task_memory_override = str(args.task_memory).strip()
     configured_campaign_start = parse_utc(args.campaign_start_utc) if str(args.campaign_start_utc).strip() else None
     campaign_start_stagger_seconds = max(0.0, float(args.campaign_start_stagger_seconds))
+    if raw_rate_plan and configured_campaign_start is not None:
+        base_env_rows.append({"name": "WSP_RATE_PLAN_START_UTC", "value": to_iso_utc(configured_campaign_start)})
     for lane_index in range(lane_count):
         lane_id = f"wsp_lane_{lane_index:02d}"
         env_rows = list(base_env_rows) + [

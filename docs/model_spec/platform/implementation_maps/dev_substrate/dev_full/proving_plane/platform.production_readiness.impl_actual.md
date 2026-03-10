@@ -1257,3 +1257,64 @@ Next move:
 
 - checkpoint these corrections in git
 - rerun `Phase 0.C` with a burst window derived from the live edge semantics, not from the earlier arbitrary duration
+
+## 2026-03-10 20:03:05 +00:00
+I now have a concrete next run shape that is derived from the live edge instead of from hand-wavy "bounded burst" wording.
+
+Given the current APIGW stage:
+
+- rate limit `= 3000`
+- burst bucket `= 6000`
+
+the clean no-throttle burst proof needs a short full-overlap window around `2 s`, not a long multi-second average.
+
+To make that burst window both truthful and measurable:
+
+- use a total fleet spread of `1.0 s`
+- with `40` lanes, that means `campaign_start_stagger_seconds = 1 / 39 ≈ 0.025641`
+- set `burst_seconds = 3`
+- score only the full-overlap burst window, which then becomes exactly `2.0 s`
+
+That gives three useful properties at once:
+
+1. the burst proof now matches the live token-bucket semantics
+2. the scored burst window lands on exact-second boundaries, which keeps the APIGW access-log query honest
+3. the fleet is still slightly spread instead of perfectly synchronized
+
+The next run will therefore keep the already-proven steady source posture (`40` lanes / `51.2x`) and change only the burst proof shape to this token-bucket-derived form.
+
+## 2026-03-10 20:13:45 +00:00
+The short-spread rerun (`phase0_20260310T200312Z`) failed usefully because it exposed a design error in my own timing model.
+
+Shrinking total fleet spread back to `1 s` reintroduced the original startup-collapse pattern:
+
+- all `40` lanes went red
+- WSP logs showed repeated `http_503`
+- every lane ended `IG_PUSH_REJECTED`
+- APIGW exact window only admitted about `260.93 eps`
+- `5xx = 1126`
+- `p95 ≈ 2004.87 ms`
+- `p99 ≈ 26653.88 ms`
+
+That means the small-spread run shape is not promotion-safe, even though its burst window was mathematically closer to the live token bucket.
+
+The real issue is that I was still using one knob for two different jobs:
+
+1. startup staggering, which needs to be large enough to avoid the fresh-run collapse
+2. rate-plan segment timing, which needs to stay common so steady / burst / recovery can be scored truthfully
+
+I have now split those responsibilities:
+
+- `WSP_CAMPAIGN_START_UTC` remains per-lane and can stay safely staggered
+- new `WSP_RATE_PLAN_START_UTC` is shared across lanes, so the scheduled limiter changes segments on one common clock
+
+This is the missing methodological correction. It lets me keep the safe `19.5 s` startup spread while still scoring a common short burst segment without shrinking the burst window itself.
+
+So the next truthful run shape is now:
+
+- keep `40` lanes / `51.2x`
+- keep safe startup spread `= 19.5 s` (`0.5 s` per lane)
+- keep common rate-plan origin
+- set burst segment duration to `2 s` on the shared schedule
+
+If that run stays semantically clean, it becomes the first real answer to the `6000 burst` question on the live edge.
