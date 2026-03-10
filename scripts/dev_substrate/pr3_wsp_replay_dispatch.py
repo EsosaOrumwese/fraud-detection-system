@@ -1392,6 +1392,7 @@ def main() -> None:
     ap.add_argument("--target-burst-seconds", type=float, default=0.25)
     ap.add_argument("--target-initial-tokens", type=float, default=0.25)
     ap.add_argument("--campaign-start-utc", default="")
+    ap.add_argument("--campaign-start-stagger-seconds", type=float, default=0.0)
     ap.add_argument("--rate-plan-json", default="")
     ap.add_argument("--skip-final-threshold-check", action="store_true")
     ap.add_argument("--task-cpu", default="")
@@ -1601,20 +1602,23 @@ def main() -> None:
         base_env_rows.append(
             {"name": "WSP_CHECKPOINT_FLUSH_EVERY", "value": str(args.wsp_checkpoint_flush_every).strip()}
         )
-    if str(args.campaign_start_utc).strip():
-        base_env_rows.append({"name": "WSP_CAMPAIGN_START_UTC", "value": str(args.campaign_start_utc).strip()})
     if raw_rate_plan:
         base_env_rows.append({"name": "WSP_RATE_PLAN_JSON", "value": raw_rate_plan})
     command_list = build_wsp_command()
     launched_lanes: list[dict[str, Any]] = []
     task_cpu_override = str(args.task_cpu).strip()
     task_memory_override = str(args.task_memory).strip()
+    configured_campaign_start = parse_utc(args.campaign_start_utc) if str(args.campaign_start_utc).strip() else None
+    campaign_start_stagger_seconds = max(0.0, float(args.campaign_start_stagger_seconds))
     for lane_index in range(lane_count):
         lane_id = f"wsp_lane_{lane_index:02d}"
         env_rows = list(base_env_rows) + [
             {"name": "WSP_LANE_COUNT", "value": str(lane_count)},
             {"name": "WSP_LANE_INDEX", "value": str(lane_index)},
         ]
+        if configured_campaign_start is not None:
+            lane_campaign_start = configured_campaign_start + timedelta(seconds=float(lane_index) * campaign_start_stagger_seconds)
+            env_rows.append({"name": "WSP_CAMPAIGN_START_UTC", "value": to_iso_utc(lane_campaign_start)})
         run_overrides: dict[str, Any] = {
             "containerOverrides": [
                 {
@@ -1723,6 +1727,7 @@ def main() -> None:
             "target_burst_seconds": max(0.0, float(args.target_burst_seconds)),
             "target_initial_tokens": max(0.0, float(args.target_initial_tokens)),
             "campaign_start_utc": str(args.campaign_start_utc).strip() or None,
+            "campaign_start_stagger_seconds": campaign_start_stagger_seconds,
             "rate_plan": parsed_rate_plan,
             "traffic_output_ids": parse_csv(args.traffic_output_ids),
             "context_output_ids": parse_csv(args.context_output_ids),
@@ -1799,7 +1804,6 @@ def main() -> None:
 
     hard_deadline = time.time() + max(120, args.duration_seconds + 900)
     steady_window_seconds = int(math.ceil(max(60, args.duration_seconds) / 60.0) * 60)
-    configured_campaign_start = parse_utc(args.campaign_start_utc) if str(args.campaign_start_utc).strip() else None
     measurement_start_at = (
         configured_campaign_start
         if configured_campaign_start is not None

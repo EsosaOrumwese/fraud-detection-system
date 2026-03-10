@@ -315,7 +315,9 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--steady-seconds", type=int, default=90)
     ap.add_argument("--burst-seconds", type=int, default=30)
     ap.add_argument("--recovery-seconds", type=int, default=180)
+    ap.add_argument("--presteady-seconds", type=int, default=60)
     ap.add_argument("--campaign-start-lead-seconds", type=int, default=120)
+    ap.add_argument("--presteady-eps", type=float, default=1500.0)
     ap.add_argument("--steady-eps", type=float, default=3000.0)
     ap.add_argument("--burst-eps", type=float, default=6000.0)
     ap.add_argument("--recovery-bound-seconds", type=float, default=180.0)
@@ -323,6 +325,7 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--lane-count", type=int, default=48)
     ap.add_argument("--stream-speedup", type=float, default=600.0)
     ap.add_argument("--lane-launch-stagger-seconds", type=float, default=0.5)
+    ap.add_argument("--campaign-start-stagger-seconds", type=float, default=0.5)
     ap.add_argument("--output-concurrency", type=int, default=4)
     ap.add_argument("--ig-push-concurrency", type=int, default=4)
     ap.add_argument("--http-pool-maxsize", type=int, default=512)
@@ -359,34 +362,58 @@ def main() -> None:
     platform_run_id = str(args.platform_run_id).strip() or f"platform_{now_stamp()}"
     scenario_run_id = str(args.scenario_run_id).strip() or uuid.uuid4().hex
     campaign_start = align_future_campaign_start(lead_seconds=args.campaign_start_lead_seconds)
+    presteady_seconds = max(0, int(args.presteady_seconds))
     steady_seconds = max(60, int(args.steady_seconds))
     burst_seconds = max(1, int(args.burst_seconds))
     recovery_seconds = max(60, int(args.recovery_seconds))
-    duration_seconds = steady_seconds + burst_seconds + recovery_seconds
     lane_count = max(1, int(args.lane_count))
+    campaign_start_stagger_seconds = max(0.0, float(args.campaign_start_stagger_seconds))
+    campaign_start_spread_seconds = max(0.0, float(lane_count - 1) * campaign_start_stagger_seconds)
+    duration_seconds = (
+        presteady_seconds
+        + steady_seconds
+        + burst_seconds
+        + recovery_seconds
+        + int(math.ceil(campaign_start_spread_seconds))
+    )
+    presteady_per_lane_eps = float(args.presteady_eps) / float(lane_count)
     steady_per_lane_eps = float(args.steady_eps) / float(lane_count)
     burst_per_lane_eps = float(args.burst_eps) / float(lane_count)
     recovery_per_lane_eps = float(args.steady_eps) / float(lane_count)
-    rate_plan = [
-        {
-            "start_offset_seconds": 0,
-            "target_eps": steady_per_lane_eps,
-            "burst_seconds": max(0.0, float(args.target_burst_seconds)),
-            "initial_tokens": max(0.0, float(args.target_initial_tokens)),
-        },
-        {
-            "start_offset_seconds": steady_seconds,
-            "target_eps": burst_per_lane_eps,
-            "burst_seconds": max(0.0, float(args.target_burst_seconds)),
-            "initial_tokens": max(0.0, float(args.target_initial_tokens)),
-        },
-        {
-            "start_offset_seconds": steady_seconds + burst_seconds,
-            "target_eps": recovery_per_lane_eps,
-            "burst_seconds": max(0.0, float(args.target_burst_seconds)),
-            "initial_tokens": max(0.0, float(args.target_initial_tokens)),
-        },
-    ]
+    rate_plan: list[dict[str, Any]] = []
+    segment_offset = 0
+    if presteady_seconds > 0:
+        rate_plan.append(
+            {
+                "start_offset_seconds": segment_offset,
+                "target_eps": presteady_per_lane_eps,
+                "burst_seconds": max(0.0, float(args.target_burst_seconds)),
+                "initial_tokens": max(0.0, float(args.target_initial_tokens)),
+            }
+        )
+        segment_offset += presteady_seconds
+    rate_plan.extend(
+        [
+            {
+                "start_offset_seconds": segment_offset,
+                "target_eps": steady_per_lane_eps,
+                "burst_seconds": max(0.0, float(args.target_burst_seconds)),
+                "initial_tokens": max(0.0, float(args.target_initial_tokens)),
+            },
+            {
+                "start_offset_seconds": segment_offset + steady_seconds,
+                "target_eps": burst_per_lane_eps,
+                "burst_seconds": max(0.0, float(args.target_burst_seconds)),
+                "initial_tokens": max(0.0, float(args.target_initial_tokens)),
+            },
+            {
+                "start_offset_seconds": segment_offset + steady_seconds + burst_seconds,
+                "target_eps": recovery_per_lane_eps,
+                "burst_seconds": max(0.0, float(args.target_burst_seconds)),
+                "initial_tokens": max(0.0, float(args.target_initial_tokens)),
+            },
+        ]
+    )
     execution_root = Path(args.run_control_root) / execution_id
     execution_root.mkdir(parents=True, exist_ok=True)
     compatibility_receipt = execution_root / "pr3_s0_execution_receipt.json"
@@ -440,6 +467,8 @@ def main() -> None:
         str(lane_count),
         "--lane-launch-stagger-seconds",
         str(float(args.lane_launch_stagger_seconds)),
+        "--campaign-start-stagger-seconds",
+        str(campaign_start_stagger_seconds),
         "--output-concurrency",
         str(max(1, int(args.output_concurrency))),
         "--ig-push-concurrency",
@@ -493,6 +522,8 @@ def main() -> None:
         "platform_run_id": platform_run_id,
         "scenario_run_id": scenario_run_id,
         "campaign_start_utc": to_iso_utc(campaign_start),
+        "campaign_start_stagger_seconds": campaign_start_stagger_seconds,
+        "campaign_start_spread_seconds": campaign_start_spread_seconds,
         "duration_seconds": duration_seconds,
         "rate_plan_per_lane": rate_plan,
         "dispatch_command": dispatch_command,
@@ -517,7 +548,8 @@ def main() -> None:
     if not access_log_group:
         raise RuntimeError("Phase 0.C APIGW access log group unresolved from dispatcher summary")
 
-    steady_start = campaign_start
+    scored_offset_seconds = presteady_seconds + campaign_start_spread_seconds
+    steady_start = campaign_start + timedelta(seconds=scored_offset_seconds)
     steady_end = steady_start + timedelta(seconds=steady_seconds)
     burst_start = steady_end
     burst_end = burst_start + timedelta(seconds=burst_seconds)
@@ -663,6 +695,10 @@ def main() -> None:
         },
         "campaign": {
             "campaign_start_utc": to_iso_utc(campaign_start),
+            "campaign_start_stagger_seconds": campaign_start_stagger_seconds,
+            "campaign_start_spread_seconds": campaign_start_spread_seconds,
+            "presteady_seconds": presteady_seconds,
+            "presteady_eps": float(args.presteady_eps),
             "steady_seconds": steady_seconds,
             "burst_seconds": burst_seconds,
             "recovery_seconds": recovery_seconds,
