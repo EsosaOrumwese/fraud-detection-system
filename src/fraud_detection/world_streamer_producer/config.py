@@ -148,14 +148,17 @@ class WspProfile:
         ig_auth_header = str(security.get("api_key_header") or "X-IG-Api-Key").strip() or "X-IG-Api-Key"
         ig_auth_token = _resolve_env(security.get("wsp_auth_token"))
 
-        checkpoint_backend = checkpoint.get("backend", "file")
+        checkpoint_backend = str(
+            _resolve_env(os.getenv("WSP_CHECKPOINT_BACKEND") or checkpoint.get("backend") or "file")
+        ).strip() or "file"
         checkpoint_root = resolve_run_scoped_path(
-            _resolve_env(checkpoint.get("root") or "runs/fraud-platform/wsp/checkpoints"),
+            _resolve_env(os.getenv("WSP_CHECKPOINT_ROOT") or checkpoint.get("root") or "runs/fraud-platform/wsp/checkpoints"),
             suffix="wsp/checkpoints",
             create_if_missing=True,
         )
-        checkpoint_dsn = _resolve_env(checkpoint.get("dsn"))
-        checkpoint_every = int(checkpoint.get("flush_every", 1))
+        checkpoint_dsn = _resolve_env(os.getenv("WSP_CHECKPOINT_DSN") or checkpoint.get("dsn"))
+        checkpoint_every_raw = os.getenv("WSP_CHECKPOINT_FLUSH_EVERY") or checkpoint.get("flush_every", 1)
+        checkpoint_every = max(1, int(checkpoint_every_raw))
         producer_id = (producer.get("producer_id") or "svc:world_stream_producer").strip()
         producer_allowlist_ref = _resolve_env(
             producer.get("allowlist_ref") or "config/platform/wsp/producer_allowlist_v0.txt"

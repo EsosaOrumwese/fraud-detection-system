@@ -1396,6 +1396,9 @@ def main() -> None:
     ap.add_argument("--skip-final-threshold-check", action="store_true")
     ap.add_argument("--task-cpu", default="")
     ap.add_argument("--task-memory", default="")
+    ap.add_argument("--wsp-checkpoint-backend", default="")
+    ap.add_argument("--wsp-checkpoint-root", default="")
+    ap.add_argument("--wsp-checkpoint-flush-every", default="")
     ap.add_argument("--max-error-rate-ratio", type=float, default=0.002)
     ap.add_argument("--max-4xx-ratio", type=float, default=0.002)
     ap.add_argument("--max-5xx-ratio", type=float, default=0.0)
@@ -1590,6 +1593,14 @@ def main() -> None:
         {"name": "WSP_PROGRESS_EVERY", "value": "50000"},
         {"name": "WSP_PROGRESS_SECONDS", "value": "30"},
     ]
+    if str(args.wsp_checkpoint_backend).strip():
+        base_env_rows.append({"name": "WSP_CHECKPOINT_BACKEND", "value": str(args.wsp_checkpoint_backend).strip()})
+    if str(args.wsp_checkpoint_root).strip():
+        base_env_rows.append({"name": "WSP_CHECKPOINT_ROOT", "value": str(args.wsp_checkpoint_root).strip()})
+    if str(args.wsp_checkpoint_flush_every).strip():
+        base_env_rows.append(
+            {"name": "WSP_CHECKPOINT_FLUSH_EVERY", "value": str(args.wsp_checkpoint_flush_every).strip()}
+        )
     if str(args.campaign_start_utc).strip():
         base_env_rows.append({"name": "WSP_CAMPAIGN_START_UTC", "value": str(args.campaign_start_utc).strip()})
     if raw_rate_plan:

@@ -57,8 +57,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--early-cutoff-seconds", type=int, default=45)
     parser.add_argument("--early-cutoff-floor-ratio", type=float, default=0.70)
     parser.add_argument("--expected-window-eps", type=float, default=3000.0)
-    parser.add_argument("--stream-speedup", type=float, default=19.7)
-    parser.add_argument("--lane-count", type=int, default=24)
+    parser.add_argument("--stream-speedup", type=float, default=51.2)
+    parser.add_argument("--lane-count", type=int, default=40)
     parser.add_argument("--lane-launch-stagger-seconds", type=float, default=0.5)
     parser.add_argument("--output-concurrency", type=int, default=4)
     parser.add_argument("--ig-push-concurrency", type=int, default=4)
@@ -70,6 +70,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--rate-plan-json", default="")
     parser.add_argument("--metric-settle-seconds", type=int, default=90)
     parser.add_argument("--lane-log-mode", choices=("auto", "full", "metadata"), default="auto")
+    parser.add_argument("--task-cpu", default="")
+    parser.add_argument("--task-memory", default="")
+    parser.add_argument("--wsp-checkpoint-backend", default="file")
+    parser.add_argument("--wsp-checkpoint-root", default="/tmp/wsp-checkpoints")
+    parser.add_argument("--wsp-checkpoint-flush-every", default="50000")
     parser.add_argument("--traffic-output-ids", default="s3_event_stream_with_fraud_6B")
     parser.add_argument(
         "--context-output-ids",
@@ -152,6 +157,16 @@ def main() -> None:
         str(int(args.metric_settle_seconds)),
         "--lane-log-mode",
         str(args.lane_log_mode),
+        "--task-cpu",
+        str(args.task_cpu),
+        "--task-memory",
+        str(args.task_memory),
+        "--wsp-checkpoint-backend",
+        str(args.wsp_checkpoint_backend),
+        "--wsp-checkpoint-root",
+        str(args.wsp_checkpoint_root),
+        "--wsp-checkpoint-flush-every",
+        str(args.wsp_checkpoint_flush_every),
         "--traffic-output-ids",
         str(args.traffic_output_ids),
         "--context-output-ids",

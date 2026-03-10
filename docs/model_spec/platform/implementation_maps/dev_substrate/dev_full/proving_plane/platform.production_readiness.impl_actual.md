@@ -787,3 +787,103 @@ That means the next active technical blocker returns cleanly to `Phase 0.B` itse
 
 - WSP-side instability under the candidate steady-state shape
 - specifically the lane-level `IG_PUSH_REJECTED` failure family that made repeatability collapse
+
+## 2026-03-10 18:24:00 +00:00
+Before returning to the remaining `Phase 0.B` repeatability blocker, I started the next explicit cost-discipline pass the user called out: `ECS | MSK | relational database`.
+
+The posture for this pass is narrow and production-honest. I am not looking for cosmetic bill reduction or topology cuts that weaken the active proving boundary. I am looking for spend caused by retained drift, overprovisioned proving defaults, duplicated evidence paths, or hardening-side runtime behavior that does not materially help the platform reach production readiness.
+
+The first live split already changed the question materially:
+
+- `ECS` is no longer an idle-service problem after removing the retained internal ingress stack
+- `MSK` is not mainly a topic-storage problem
+- `Aurora` is not mainly a database-size problem
+
+So the useful work here is to identify the proving-side behaviors that are inflating those bills before I spend more money on another `Phase 0.B` iteration.
+
+## 2026-03-10 18:33:00 +00:00
+The live cost surfaces are now clear enough to stop guessing.
+
+For `ECS`, the only remaining live cluster is `fraud-platform-dev-full-wsp-ephemeral`. It is idle right now (`runningTasksCount = 0`, `activeServicesCount = 0`), so the bill is not coming from a retained always-on ECS surface anymore. Cost Explorer shows the spend on March 7-9 was almost entirely:
+
+- `EUW2-Fargate-vCPU-Hours:perCPU`
+- `EUW2-Fargate-GB-Hours`
+
+That immediately points to the proving harness itself: remote WSP replay tasks. The live task definition confirms those tasks are being launched at `cpu = 1024` and `memory = 2048`. For bounded `Phase 0` proof this is expensive enough that I should not keep treating it as free just because it is “only the load generator”.
+
+For `MSK`, the dominant daily line items are:
+
+- `KafkaServerless-ClusterHours`
+- then `KafkaServerless-In-Bytes`
+- then `KafkaServerless-Out-Bytes`
+
+`PartitionHours` and storage are small by comparison. That means the main MSK bill is a combination of the unavoidable serverless floor plus run traffic, not runaway topic retention. This is important because it means a blind topic-partition cleanup would not materially solve the current bill and could still create churn. There is no truthful MSK cut to make yet without changing runtime shape or deleting substrate, which I do not want to do during active hardening.
+
+For `Aurora`, the bill shape is even clearer:
+
+- `Aurora:StorageIOUsage` dominates
+- `Aurora:ServerlessV2Usage` is second
+- storage footprint itself is tiny
+
+CloudWatch supports that reading. `VolumeWriteIOPs` spikes into the millions during active hardening windows, `ACUUtilization` sits near saturation in those same windows, and `DatabaseConnections` spikes above `200`. So the relational-database spend is being driven by high write churn and connection churn during proving, not by a simple baseline floor.
+
+That changes the next accepted remediation. The strongest proving-side suspects are now:
+
+- WSP Fargate task sizing for bounded replay
+- WSP checkpoint pressure on Aurora
+- WSP ECS logs retaining forever
+
+Those three are all worth fixing before spending on another full `Phase 0.B` repetition because they are hardening-side costs, not platform truths that must be preserved as-is.
+
+## 2026-03-10 18:39:00 +00:00
+I have now pushed this cost pass far enough to separate the accepted fixes from the still-ambiguous ones.
+
+The accepted fixes are:
+
+1. WSP log retention is no longer unbounded.
+   The log group `/ecs/fraud-platform-dev-full-wsp-ephemeral` was live with `retentionInDays = null`. I set it to `7` days. That is a direct cost/housekeeping correction with no impact on runtime truth.
+
+2. `Phase 0` WSP checkpoints no longer need to default to Aurora durability.
+   I patched WSP config loading so checkpoint backend, root, DSN, and flush frequency can be overridden by environment. Then I patched the `Phase 0` wrapper / dispatcher path so the bounded `Phase 0` run can default to:
+   - `WSP_CHECKPOINT_BACKEND=file`
+   - `WSP_CHECKPOINT_ROOT=/tmp/wsp-checkpoints`
+   - `WSP_CHECKPOINT_FLUSH_EVERY=50000`
+
+   That is the right proving posture. WSP checkpoint durability is a harness concern, not part of the active `Control + Ingress` production boundary, so there is no reason to keep paying Aurora write I/O for it by default during short bounded proof windows.
+
+3. The wrapper defaults are repinned to the truthful frozen `Phase 0` shape.
+   The local CLI wrapper was still carrying old default values (`24` lanes / `19.7x`) even though the current accepted baseline is `40` lanes / `51.2x`. I corrected that so future local invocations are less likely to rerun the wrong shape by accident.
+
+I also tested WSP task right-sizing, because that is where most of the remaining ECS cost lives. The result is not clean enough yet to promote:
+
+- first calibration at the stale `24`-lane shape proved only that the cheap posture can run syntactically; it was not the truthful `Phase 0` baseline and therefore not decision-worthy
+- second calibration at the truthful `40`-lane / `51.2x` shape, with `512 CPU / 1024 MiB` overrides and file checkpoints, stayed semantically clean but produced an ambiguous measurement split:
+  - aligned APIGW bins were essentially at target (`2999.908 eps`)
+  - exact access-log window came back materially lower (`2903.800 eps`)
+
+That discrepancy is too large to treat as noise. Under the telemetry-first posture, I cannot call that task right-sizing safe yet. So I am not keeping reduced WSP task size as the default. I am keeping the override capability in place for future narrow calibration, but the accepted default remains the task-definition size until the exact-window evidence is trustworthy.
+
+So the current truthful cost judgment is:
+
+- accepted now:
+  - WSP log retention `7d`
+  - file-backed WSP checkpoints for bounded `Phase 0`
+  - drastically reduced checkpoint flush pressure
+  - wrapper repinned to the real frozen baseline
+- not yet accepted:
+  - reduced WSP task CPU / memory as the default `Phase 0` posture
+
+That means I have removed the clear proving-side waste without weakening the active proof boundary, and I have deliberately left the ambiguous ECS right-sizing change out of the default path.
+
+## 2026-03-10 18:24:00 +00:00
+Before returning to the remaining `Phase 0.B` repeatability blocker, I am doing the next cost-discipline pass the user explicitly called out: `ECS | MSK | relational database`.
+
+The posture for this pass is intentionally narrow. I am not looking for a cosmetic bill reduction or for topology cuts that would weaken the active proving boundary. I am looking for spend that is being created by retained drift, overprovisioned defaults, duplicated evidence paths, or runtime behaviors that do not materially help the platform reach production readiness.
+
+The immediate questions are:
+
+- which ECS surfaces are still live and whether any of them are retained but not serving the active Control + Ingress proving boundary
+- whether MSK cost is dominated by unavoidable serverless baseline versus avoidable traffic duplication or retention posture
+- whether Aurora cost is baseline floor, connection churn, or write amplification driven by current proving / telemetry behavior
+
+I am treating this as another engineering problem to be understood before changing anything. Any accepted change from here has to preserve the production shape and keep `Phase 0` attribution truthful.
