@@ -62,7 +62,7 @@ More specifically, for your platform, it means all of these are true at the same
 - it works through its intended runtime architecture
 
 **7. The platform is durable across planes, not just on the hot path**
-It is not enough for `WSP -> IG -> RTDL` to work.
+It is not enough for the `World Streamer Producer (WSP) -> Ingestion Gate (IG) -> Real-Time Decision Loop (RTDL)` path to work.
 
 Production-ready means:
 - `Control + Ingress` works
@@ -104,7 +104,7 @@ In your platform, this plane is roughly:
 - `GitHub Actions / run dispatcher`
 - `Step Functions`
 - `run identity / pins propagation`
-- `WSP`
+- `World Streamer Producer (WSP)`
 - `HTTP API Gateway`
 - `Ingress Lambda`
 - `Ingress ECS service + ALB`
@@ -143,7 +143,7 @@ A component is production-ready only if all 5 are true:
 
 ### Component-by-component case study
 
-#### 1. WSP
+#### 1. World Streamer Producer (WSP)
 Production-ready means:
 
 - replays at the intended setpoint without local-machine dependency
@@ -372,7 +372,7 @@ It is:
 
 ---
 
-## What makes the Real Time Decision Lane Plane Production Ready?
+## What makes the Real-Time Decision Loop (RTDL) Plane Production Ready?
 
 Yes. This is the right way to do it.
 
@@ -389,16 +389,16 @@ It means each RTDL component is:
 - explainable
 - safe under replay/duplicates/restarts
 
-### RTDL plane
+### Real-Time Decision Loop (RTDL) plane
 In your platform, the RTDL plane is roughly:
 
-- `CSFB`
-- `IEG`
-- `OFP`
-- `DL`
-- `DF`
-- `AL`
-- `DLA`
+- `Context Store Flow Binding (CSFB)`
+- `Identity Entity Graph (IEG)`
+- `Online Feature Plane (OFP)`
+- `Degrade Ladder (DL)`
+- `Decision Fabric (DF)`
+- `Action Layer (AL)`
+- `Decision Log Audit (DLA)`
 - `archive_writer`
 
 And the plane-level question is:
@@ -430,7 +430,7 @@ Each RTDL component must satisfy:
 
 ### Component-by-component
 
-#### 1. CSFB
+#### 1. Context Store Flow Binding (CSFB)
 Purpose:
 - create the joined context surface the downstream RTDL graph depends on
 
@@ -457,7 +457,7 @@ Why this matters:
 
 ---
 
-#### 2. IEG
+#### 2. Identity Entity Graph (IEG)
 Purpose:
 - build identity/entity relationship state from the incoming platform data
 
@@ -483,7 +483,7 @@ Why this matters:
 
 ---
 
-#### 3. OFP
+#### 3. Online Feature Plane (OFP)
 Purpose:
 - materialize online feature state for the live decision path
 
@@ -509,7 +509,7 @@ Why this matters:
 
 ---
 
-#### 4. DL
+#### 4. Degrade Ladder (DL)
 Purpose:
 - adjudicate runtime health and dependency posture for decisioning
 
@@ -533,7 +533,7 @@ Why this matters:
 
 ---
 
-#### 5. DF
+#### 5. Decision Fabric (DF)
 Purpose:
 - produce the actual decision output from live context, features, and active bundle/policy
 
@@ -561,7 +561,7 @@ Why this matters:
 
 ---
 
-#### 6. AL
+#### 6. Action Layer (AL)
 Purpose:
 - commit and/or publish action/outcome surfaces from decisions
 
@@ -584,7 +584,7 @@ Why this matters:
 
 ---
 
-#### 7. DLA
+#### 7. Decision Log Audit (DLA)
 Purpose:
 - append authoritative audit / lineage truth for the real-time lane
 
@@ -962,9 +962,9 @@ It means the learning system is:
 
 In your platform, this is mainly:
 
-- `Databricks (OFS)`
-- `SageMaker (MF)`
-- `MLflow (MPR)`
+- `Databricks (Offline Feature Plane / OFS)`
+- `SageMaker (Model Factory / MF)`
+- `MLflow (Model Promotion and Registry / MPR)`
 
 ---
 
@@ -993,7 +993,7 @@ Each component must satisfy:
 
 ### Component-by-component
 
-#### 1. Databricks (OFS)
+#### 1. Databricks (Offline Feature Plane / OFS)
 Purpose:
 - build authoritative offline datasets from replayable platform truth and label truth
 
@@ -1022,7 +1022,7 @@ Why this matters:
 
 ---
 
-#### 2. SageMaker (MF)
+#### 2. SageMaker (Model Factory / MF)
 Purpose:
 - run managed training/evaluation and produce candidate model bundles
 
@@ -1050,7 +1050,7 @@ Why this matters:
 
 ---
 
-#### 3. MLflow (MPR)
+#### 3. MLflow (Model Promotion and Registry / MPR)
 Purpose:
 - own lineage, promotion evidence, active bundle resolution, and rollback discipline
 
