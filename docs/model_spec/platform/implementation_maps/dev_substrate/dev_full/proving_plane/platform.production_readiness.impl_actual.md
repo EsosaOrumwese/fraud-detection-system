@@ -675,3 +675,115 @@ So before I continue `Phase 0.B` remediation I am pinning the next active branch
 - the purpose is not to weaken the platform or remove needed evidence, but to find spend that is not serving the production-ready goal of the current proving method
 
 I also need to restore branch hygiene while this is in flight. The repo now has enough material change that it should be committed and pushed on the active working branch rather than left only in the local workspace.
+
+## 2026-03-10 18:12:41 +00:00
+The cost pass is now specific enough to act on.
+
+The first useful narrowing was ECS. Cost Explorer had already shown the large ECS spikes were Fargate task-hours, not transfer. The live AWS inspection now tells me something narrower and more operationally useful:
+
+- the active external `Phase 0` boundary is still `API Gateway -> Lambda`
+- the retained internal ingress ECS service is still provisioned live
+- but it is not serving the current boundary and is already scaled to `desiredCount = 0`
+- Terraform's current desired posture already says `ig_service_enabled = false`
+
+That means the remaining ECS ingress cost problem is not "we need to tune the service." It is "we are carrying live drift that no longer serves the current proving boundary." The internal ALB, ECS cluster/service shell, task definition lineage, security groups, ECS log group, and stale SSM service URL are all still materially present even though the current proving method explicitly excludes that path from the active Control + Ingress boundary.
+
+The Terraform plan made that explicit. Once I supplied the current code changes locally and ran the runtime plan, the desired diff was:
+
+- create the codified APIGW access-log resources that now support the truthful Phase 0 proof boundary
+- destroy the retained internal ingress ECS / ALB / SSM stack because `ig_service_enabled = false`
+
+That is the right cost posture for the current phase: remove the live ingress stack that is no longer part of the accepted production-ready network instead of leaving it around simply because it was useful earlier.
+
+The only thing that stopped immediate apply was not uncertainty about the destroy. It was deployment hygiene around the Lambda package. The runtime workspace now enforces the remote-bundle triplet for `aws_lambda_function.ig_handler`, and the live Lambda has drifted ahead of Terraform state because recent bounded Phase 0 deploys updated the function directly. So I need to repin the current ingress Lambda into a fresh remote artifact first, then apply the runtime reconciliation safely.
+
+Aurora and MSK do not currently justify the same kind of blunt live removal.
+
+For Aurora:
+
+- the cluster is serverless-v2 with `MinCapacity = 0.5`, `MaxCapacity = 4.0`
+- quiet periods do settle back near the floor
+- the expensive periods are tied to heavy write I/O and connection churn during active platform work
+
+So Aurora is not the same as the retained internal ingress stack. It is not obviously "wired but unused." It is being driven by runtime write patterns. The right next move there is attribution of which platform writers are causing unnecessary churn, not just lowering capacity and risking a false green or a later latent bottleneck.
+
+For MSK:
+
+- the fixed serverless cluster-hour cost is real and always on
+- the variable spike is bytes in/out during hardening windows
+- that again points more toward traffic and duplication discipline than toward an immediate safe topology cut
+
+So the current engineering judgment is:
+
+- the next accepted cost remediation is to reconcile away the retained internal ingress ECS / ALB / SSM drift
+- Aurora and MSK remain in the cost-investigation set, but their spend is currently tied to active runtime behavior rather than to an obviously obsolete retained surface
+- I should not weaken those two yet just to make the bill look cleaner
+
+The next action from here is therefore:
+
+- build a fresh authoritative ingress Lambda artifact from the current repo state
+- upload it to the runtime artifacts bucket
+- apply the runtime stack so the APIGW telemetry resources are codified and the unused internal ingress stack is removed without rolling the live Lambda backward
+
+## 2026-03-10 18:17:03 +00:00
+The cost reconciliation is now materially complete for the obsolete ingress surface.
+
+I built a fresh authoritative Lambda artifact from the current repo state using the existing deterministic bundle path, uploaded it as:
+
+- `s3://fraud-platform-dev-full-artifacts/artifacts/lambda/ig_handler/manual-20260310T181500Z.zip`
+- `sha256_base64 = 3DxIaUwPXkI7syppAvP03Ut+c9gOOsNw+bFA4PHmqn8=`
+
+That step mattered because the runtime workspace would not safely plan or apply otherwise. The earlier apply had already shown the right destroy set, but the live Lambda had moved ahead of Terraform state through bounded `Phase 0` deploys, so a careless reconcile would have risked rolling ingress code backward while trying to save cost. Re-pinning the live bundle first removed that risk.
+
+While verifying the workspace before apply I also found a local proving-harness defect that would have become another blindspot later: `scripts/dev_substrate/pr3_wsp_replay_dispatch.py` contained an invalid f-string expression in the APIGW access-log query builder. That is now fixed by precomputing the escaped route key before formatting the query. The harness compiles again.
+
+The runtime reconcile then proceeded in two passes:
+
+1. first apply:
+   - refreshed the live Lambda to the fresh remote artifact
+   - destroyed the retained internal ingress surface
+   - failed only because the APIGW access-log group already existed live from the earlier manual telemetry bootstrap
+2. state recovery + second apply:
+   - imported `/aws/apigateway/fraud-platform-dev-full-ig-edge-v1-access` into Terraform state
+   - reran the plan
+   - applied the final stage/log-group reconciliation cleanly
+
+The important production outcome is that the obsolete internal ingress surface is now gone:
+
+- ALB `fp-dev-full-ig-svc` is removed
+- stale SSM parameter `/fraud-platform/dev_full/ig/service_url` is removed
+- the ingress ECS cluster is now `INACTIVE`
+- `runtime_handle_materialization` now truthfully shows:
+  - `IG_SERVICE_ENABLED = false`
+  - `IG_SERVICE_NAME = null`
+  - `IG_SERVICE_CLUSTER_NAME = null`
+  - `SSM_IG_SERVICE_URL_PATH = null`
+
+The APIGW telemetry surface is also now properly codified rather than being partly manual:
+
+- stage `v1` now shows `DetailedMetricsEnabled = true`
+- access logs are attached to `/aws/apigateway/fraud-platform-dev-full-ig-edge-v1-access`
+- the managed CloudWatch Logs resource policy is `fraud-platform-dev-full-ig-api-access`
+- the earlier manual duplicate policy has been removed, so this surface is back to single ownership
+
+The live Lambda is now pinned to the fresh bundle and remains on the intended `Phase 0` posture:
+
+- `LastModified = 2026-03-10T18:14:47.000+0000`
+- `CodeSha256 = 3DxIaUwPXkI7syppAvP03Ut+c9gOOsNw+bFA4PHmqn8=`
+- `IG_HEALTH_BUS_PROBE_MODE = none`
+- `IG_RECEIPT_STORAGE_MODE = ddb_hot`
+- reserved concurrency remains `600`
+
+So the current truthful judgment after this cost pass is:
+
+- the obsolete retained ingress ECS / ALB / SSM path was a real cost-and-drift defect
+- it has now been reconciled away without weakening the active Control + Ingress proving boundary
+- APIGW telemetry is now codified in Terraform rather than partly manual
+- Aurora and MSK are still open cost questions, but of a different class:
+  - they are being actively driven by runtime behavior rather than by an obviously obsolete retained surface
+  - so they require narrow write-path and traffic attribution, not topology removal by instinct
+
+That means the next active technical blocker returns cleanly to `Phase 0.B` itself:
+
+- WSP-side instability under the candidate steady-state shape
+- specifically the lane-level `IG_PUSH_REJECTED` failure family that made repeatability collapse

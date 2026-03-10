@@ -716,10 +716,11 @@ def get_apigw_access_log_window_stats(
             "records_scanned": 0.0,
             "bytes_scanned": 0.0,
         }
+    escaped_route_key = str(route_key).replace('"', '\\"')
     query = dedent(
         f"""
         fields @timestamp, status, route_key, response_latency_ms
-        | filter route_key = "{str(route_key).replace('"', '\\"')}"
+        | filter route_key = "{escaped_route_key}"
         | stats count(*) as request_count_total,
                 sum(if(status >= 400 and status < 500, 1, 0)) as request_4xx_total,
                 sum(if(status >= 500 and status < 600, 1, 0)) as request_5xx_total,
