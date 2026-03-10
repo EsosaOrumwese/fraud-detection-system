@@ -44,10 +44,29 @@ It's important to note that as you go through the repo, `local-parity`, `dev_min
 - Prefer bounded AWS-first runs with fail-fast behavior and precise diagnostics over long expensive blind runs.
 - Make the platform work plane by plane before escalating duration and volume.
 - Do not touch or rerun the Data Engine unless the user explicitly asks. Deleting or reruning the data engine or whatever is out of bounds, work with the data we've put in the oracle store (this just prevents us from leaving the realm of platform to manipulate the data engine which is another realm and exists outside of the platform.)
+- While the platform only receives from the oracle store (effectively treating the data engine as a blackbox), the AGENT as the builder has access to the docs that built the data engine and define the data for a better understanding of the data when dealing with planes and components that need a proper understanding of the content of the data e.g. components in the RTDL plane, learning and evolution plane and case management. 
+- That said, while the platform only relies on the interface pack `docs\model_spec\data-engine\interface_pack\data_engine_interface.md`, the AGENT, for better understand, can inspect the state expanded docs for the different layers (`docs\model_spec\data-engine\layer-#\specs\state-flow\#*\state.#*.s#.expanded.md`) and also the build plans in `docs\model_spec\data-engine\implementation_maps\segment_#*.build_plan.md` to see what was actually implemented. These are the only sets of files you are allowed to for the data engine, and maybe the contracts and policies if necessary. You are not allowed to edit it.
 - Keep the workspace neat:
   - durable run evidence in `runs/`
   - no scattered temp directories or dumped artifacts in repo root
 
+
+### 3A) Approach to Hardening + Confirmation of Platform Readiness
+- I noticed that our former approach to production readiness suffered from two ends: i. ensuring platform readiness/hardening before running expensive certification and ii. blind debugging and guesswork to identify problems.
+- The first is solved with our approach in `docs\model_spec\platform\implementation_maps\dev_substrate\dev_full\proving_plane\platform.production_readiness.md` as we're not running expensive stress and soak tests until we can confirm the full platform is production ready.
+- The second is one where we need to anticipate and ensure it doesn't happen. For the production readiness, we will move to CLI-first, AWS-first executions with rich live telemetry, minimal artificats and fast iterations. Focus is on the "rich live telemetry".
+- For now, stop using GitHub workflows as the default execution surface unless structly needed. Use CLI-driven execution for active hardening:
+   - local command starts the bounded run but the runtime remains on AWS / managed surfaces
+   - local machine is only control console, log/metric viewer and command orchestrator.
+   - this avoids local compute dependence while still giving us real operator visibility
+- This means that when working on every phase, indepth reasoning has to be given into the provision of a hardened live debugging posture so we have complete visibility, with no blindspots, of what we're hardening. Before every plane begins and as we harden and work in that plane, we need to develop our rich telemetry set. This should keep on evolving and we shouldn't just stick with what we think is enough as we need complete visibility for better problem analysis:
+   - Live logs only for the active plane and immediate dependencies. Example (in no way limited to these) ingress service, RTDL workers under work, case/label workers under work, managed job logs when on learning
+   - Live progress counters e.g. admitted rate, downstream participation, lag/checkpoint age, fail-closed/quarantine deltas, append/write deltas, case/label deltas, learning job state, etc. It shouldn't be limited to this
+   - Live boundary health: "are the correct run ids present?", "are the right topics moving?", "are the right stores being written?", "is the plane materially participating?"
+   - Fail-fast triggers: "if the active signals go red early, stop the run early and inspect immediately"
+- Minimize artifacts during hardening: I do think we produced too many artifacts for the hardening phase. During hardening, artifacts should be reduced, instead focus on the telemetry
+- Ensure all these are kept in an organized folder and not all over the place. runs/ is sufficient. Prune dead runs or fault ones so we don't accumulate excessive runs
+- Ensure that every phase, sub-phase, task you embark on starts with identifying the neccesary telemtry to aid your understanding of the task. With live telemetry in place you can proceed with your hardening, problem identifying and resolution due to the complete sight you have.
 ---
 
 ## 4) Implementation notes and logbook
