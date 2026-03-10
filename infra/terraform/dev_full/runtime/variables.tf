@@ -234,6 +234,11 @@ variable "lambda_ig_policy_activation_audit_mode" {
   default = "store_only"
 }
 
+variable "lambda_ig_health_bus_probe_mode" {
+  type    = string
+  default = "none"
+}
+
 variable "lambda_ig_package_s3_bucket" {
   type    = string
   default = ""

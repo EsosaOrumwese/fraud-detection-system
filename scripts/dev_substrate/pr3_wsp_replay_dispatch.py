@@ -920,6 +920,22 @@ def get_log_events(logs: Any, *, log_group: str, stream_name: str) -> list[dict[
     return rows
 
 
+def get_log_event_tail(
+    logs: Any,
+    *,
+    log_group: str,
+    stream_name: str,
+    limit: int = 12,
+) -> list[dict[str, Any]]:
+    resp = logs.get_log_events(
+        logGroupName=log_group,
+        logStreamName=stream_name,
+        startFromHead=False,
+        limit=max(1, int(limit)),
+    )
+    return list(resp.get("events", []))
+
+
 def get_log_stream_metadata(logs: Any, *, log_group: str, stream_name: str) -> dict[str, Any]:
     paginator = logs.get_paginator("describe_log_streams")
     for page in paginator.paginate(logGroupName=log_group, logStreamNamePrefix=stream_name):
@@ -975,6 +991,38 @@ def parse_result_from_logs(events: list[dict[str, Any]]) -> dict[str, Any] | Non
         if isinstance(payload, dict) and "status" in payload and "engine_run_root" in payload:
             return payload
     return None
+
+
+def summarize_log_tail(events: list[dict[str, Any]], *, max_lines: int = 8) -> list[str]:
+    lines: list[str] = []
+    for row in events[-max(1, int(max_lines)) :]:
+        message = " ".join(str(row.get("message", "")).strip().split())
+        if not message:
+            continue
+        lines.append(message[:400])
+    return lines
+
+
+def extract_failure_markers(lines: list[str]) -> list[str]:
+    markers: list[str] = []
+    wanted = (
+        "IG_PUSH_REJECTED",
+        "PUBLISH_AMBIGUOUS",
+        "KAFKA_PUBLISH_TIMEOUT",
+        "IG_UNHEALTHY",
+        "BUS_UNHEALTHY",
+        "http_503",
+        "http_429",
+        "timeout",
+    )
+    for line in lines:
+        upper = line.upper()
+        for marker in wanted:
+            if marker.upper() not in upper:
+                continue
+            if marker not in markers:
+                markers.append(marker)
+    return markers
 
 
 def build_aurora_dsn(*, endpoint: str, username: str, password: str, db_name: str, port: int) -> str:
@@ -1617,6 +1665,7 @@ def main() -> None:
                 continue
         log_events: list[dict[str, Any]] = []
         log_metadata: dict[str, Any] = {}
+        log_tail_events: list[dict[str, Any]] = []
         cli_result = None
         try:
             if lane_log_mode == "full":
@@ -1625,10 +1674,21 @@ def main() -> None:
                 cli_result = parse_result_from_logs(log_events) if log_events else None
             else:
                 log_metadata = get_log_stream_metadata(logs, log_group=args.log_group, stream_name=log_stream_name)
+                final_status = lane.get("final_status", {})
+                exit_code = final_status.get("container_exit_code")
+                stop_code = str(final_status.get("stop_code", "")).strip()
+                if exit_code not in (None, 0) and stop_code != "UserInitiated":
+                    log_tail_events = get_log_event_tail(
+                        logs,
+                        log_group=args.log_group,
+                        stream_name=log_stream_name,
+                        limit=12,
+                    )
         except (BotoCoreError, ClientError) as exc:
             log_error = f"{type(exc).__name__}:{exc}"
             blockers.append(f"PR3.S1.WSP.B16_LOG_UNREADABLE:{lane['lane_id']}")
             continue
+        log_tail_messages = summarize_log_tail(log_tail_events) if log_tail_events else []
         lane_results.append(
             {
                 "lane_id": lane["lane_id"],
@@ -1638,6 +1698,8 @@ def main() -> None:
                 "log_capture_mode": lane_log_mode,
                 "log_event_count": len(log_events) if lane_log_mode == "full" else None,
                 "log_metadata": log_metadata,
+                "log_tail_messages": log_tail_messages,
+                "failure_markers": extract_failure_markers(log_tail_messages) if log_tail_messages else [],
                 "cli_result": cli_result or {},
                 "final_status": lane.get("final_status", {}),
             }

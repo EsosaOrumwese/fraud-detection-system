@@ -96,7 +96,7 @@ The currently pinned live external admission path is:
    - `fraud-platform-dev-full-ig-dlq`
 7. front-door health endpoint:
    - `GET /ops/health`
-   - current response `200`
+   - current response `200` when `X-IG-Api-Key` is supplied
    - current mode `apigw_lambda_ddb_kafka`
    - current declared envelope `3000 / 6000`
 
@@ -142,6 +142,11 @@ Current telemetry posture:
 - the front-door health endpoint is live and self-reports the expected ingress mode and envelope,
 - recent datapoints are sparse right now because the plane is not actively running,
 - `Phase 0.B` therefore needs an intentional fresh bounded run to warm the metric and log surfaces before verdicting them.
+
+Current drift hazard discovered in preflight:
+- `/fraud-platform/dev_full/ig/service_url` in SSM still points at the retained internal ALB ingress surface.
+- that path must not be allowed to decide the target for `Phase 0.B`.
+- the proving wrapper therefore has to pass the execute-api ingress URL explicitly so the active run cannot silently fall back to the retained ALB path.
 
 ### Telemetry sub-ledger for Phase 0.A
 
@@ -189,6 +194,8 @@ Current concrete checks:
   - `IG_IDEMPOTENCY_TABLE=fraud-platform-dev-full-ig-idempotency`
   - `IG_DLQ_URL=https://sqs.eu-west-2.amazonaws.com/230372904534/fraud-platform-dev-full-ig-dlq`
   - `KAFKA_BOOTSTRAP_BROKERS_PARAM_PATH=/fraud-platform/dev_full/msk/bootstrap_brokers`
+  - `KAFKA_REQUEST_TIMEOUT_MS=5000`
+  - `IG_HEALTH_BUS_PROBE_MODE=none`
 - operator can resolve:
   - `/fraud-platform/dev_full/ig/api_key`
   - `/fraud-platform/dev_full/msk/bootstrap_brokers`
@@ -214,6 +221,8 @@ Concrete early-stop conditions for Phase 0:
 - valid-traffic `5xx` appears early in the bounded window
 - DLQ depth rises for current-run valid traffic
 - WSP is sending but the Lambda log stream remains dark for the active run
+- abnormal WSP lane tails show `IG_PUSH_REJECTED`, `PUBLISH_AMBIGUOUS`, `IG_UNHEALTHY`, or `KAFKA_PUBLISH_TIMEOUT`
+- run-scoped quarantine outputs start growing for valid traffic before the bounded window reaches a stable measurement minute
 
 ### Phase 0.A operator loop
 
@@ -237,6 +246,7 @@ The default operator loop for `Phase 0.B` and `Phase 0.C` is:
 6. confirm active-run DDB writes on:
    - `fraud-platform-dev-full-ig-idempotency`
 7. confirm active-run publish continuity through Lambda log output and receipts
+8. probe `GET /ops/health` with `X-IG-Api-Key` before launch so the operator verifies the live mode and envelope on the same authenticated surface the ingress runtime expects
 
 If these surfaces cannot be watched live during the run, the run is not Phase-0-authorized.
 
@@ -275,7 +285,8 @@ Default CLI entrypoint for this subphase:
   - early cutoff `45 s`
 - the wrapper must explicitly target the live execute-api ingress URL:
   - `https://pd7rtjze95.execute-api.eu-west-2.amazonaws.com/v1/ingest/push`
-  - not the retained internal ALB `service_url` parameter
+  - not the retained internal ALB `service_url` parameter still present in SSM
+- when `lane_count` is high enough that the shared dispatcher uses metadata-only lane capture, the bounded-run summary must still retain short abnormal-lane log tails and extracted failure markers so early lane collapse remains attributable from the durable artifact set
 
 ### Telemetry sub-ledger for Phase 0.B
 
@@ -285,6 +296,8 @@ Default CLI entrypoint for this subphase:
 - admitted-with-publish continuity
 - receipt / quarantine coherence
 - valid-traffic error rate
+- publish ambiguity / quarantine spike rate
+- abnormal WSP lane tail markers when metadata-only lane capture is used
 
 #### Success posture
 - fresh run ids remain consistent through the active boundary

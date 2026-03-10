@@ -37,7 +37,19 @@ from fraud_detection.ingestion_gate.security import AuthContext
 from fraud_detection.ingestion_gate.store import build_object_store, observe_object_store
 
 LOGGER = logging.getLogger(__name__)
-LOGGER.setLevel(logging.INFO)
+
+
+def _configure_logging() -> None:
+    level_name = str(os.getenv("IG_LOG_LEVEL", "INFO") or "INFO").strip().upper()
+    level = getattr(logging, level_name, logging.INFO)
+    root_logger = logging.getLogger()
+    root_logger.setLevel(level)
+    logging.getLogger("fraud_detection").setLevel(level)
+    logging.getLogger("fraud_detection.platform_narrative").setLevel(level)
+    LOGGER.setLevel(level)
+
+
+_configure_logging()
 
 CORRELATION_FIELDS = (
     "platform_run_id",

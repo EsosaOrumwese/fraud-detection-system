@@ -29,6 +29,14 @@ def dump_json(path: Path, payload: dict[str, Any]) -> None:
         handle.write("\n")
 
 
+def resolve_python_executable() -> str:
+    override = str(Path.cwd() / ".venv" / "Scripts" / "python.exe")
+    candidate = Path(override)
+    if candidate.exists():
+        return str(candidate)
+    return sys.executable
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Run Phase 0 bounded Control + Ingress correctness proof on AWS."
@@ -79,9 +87,14 @@ def main() -> None:
     checkpoint_attempt_id = now_stamp()
     platform_run_id = str(args.platform_run_id).strip() or f"platform_{checkpoint_attempt_id}"
     scenario_run_id = str(args.scenario_run_id).strip() or uuid.uuid4().hex
+    api_stage = str(args.api_stage).strip().strip("/")
+    api_id = str(args.api_id).strip()
+    explicit_ig_ingest_url = ""
+    if api_id and api_stage:
+        explicit_ig_ingest_url = f"https://{api_id}.execute-api.eu-west-2.amazonaws.com/{api_stage}/ingest/push"
 
     command = [
-        sys.executable,
+        resolve_python_executable(),
         str(script_path),
         "--run-control-root",
         str(args.run_control_root),
@@ -137,6 +150,8 @@ def main() -> None:
         str(args.ig_api_name),
         "--api-stage",
         str(args.api_stage),
+        "--ig-ingest-url",
+        explicit_ig_ingest_url,
         "--generated-by",
         str(args.generated_by),
         "--checkpoint-attempt-id",
