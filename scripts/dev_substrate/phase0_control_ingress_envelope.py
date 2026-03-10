@@ -524,6 +524,11 @@ def main() -> None:
         "campaign_start_utc": to_iso_utc(campaign_start),
         "campaign_start_stagger_seconds": campaign_start_stagger_seconds,
         "campaign_start_spread_seconds": campaign_start_spread_seconds,
+        "full_overlap_seconds": {
+            "steady": steady_seconds - campaign_start_spread_seconds,
+            "burst": burst_seconds - campaign_start_spread_seconds,
+            "recovery": recovery_seconds - campaign_start_spread_seconds,
+        },
         "duration_seconds": duration_seconds,
         "rate_plan_per_lane": rate_plan,
         "dispatch_command": dispatch_command,
@@ -548,13 +553,34 @@ def main() -> None:
     if not access_log_group:
         raise RuntimeError("Phase 0.C APIGW access log group unresolved from dispatcher summary")
 
-    scored_offset_seconds = presteady_seconds + campaign_start_spread_seconds
-    steady_start = campaign_start + timedelta(seconds=scored_offset_seconds)
-    steady_end = steady_start + timedelta(seconds=steady_seconds)
-    burst_start = steady_end
-    burst_end = burst_start + timedelta(seconds=burst_seconds)
-    recovery_start = burst_end
-    recovery_end = recovery_start + timedelta(seconds=recovery_seconds)
+    steady_overlap_seconds = float(steady_seconds) - campaign_start_spread_seconds
+    burst_overlap_seconds = float(burst_seconds) - campaign_start_spread_seconds
+    recovery_overlap_seconds = float(recovery_seconds) - campaign_start_spread_seconds
+    overlap_lengths = {
+        "steady": steady_overlap_seconds,
+        "burst": burst_overlap_seconds,
+        "recovery": recovery_overlap_seconds,
+    }
+    invalid_overlaps = [label for label, seconds in overlap_lengths.items() if seconds <= 0.0]
+    if invalid_overlaps:
+        joined = ",".join(invalid_overlaps)
+        raise RuntimeError(
+            f"Phase 0.C scored window invalid because fleet spread leaves no full-overlap window: {joined}"
+        )
+
+    steady_segment_start = campaign_start + timedelta(seconds=presteady_seconds)
+    steady_segment_end = steady_segment_start + timedelta(seconds=steady_seconds)
+    burst_segment_start = steady_segment_end
+    burst_segment_end = burst_segment_start + timedelta(seconds=burst_seconds)
+    recovery_segment_start = burst_segment_end
+    recovery_segment_end = recovery_segment_start + timedelta(seconds=recovery_seconds)
+
+    steady_start = steady_segment_start + timedelta(seconds=campaign_start_spread_seconds)
+    steady_end = steady_segment_end
+    burst_start = burst_segment_start + timedelta(seconds=campaign_start_spread_seconds)
+    burst_end = burst_segment_end
+    recovery_start = recovery_segment_start + timedelta(seconds=campaign_start_spread_seconds)
+    recovery_end = recovery_segment_end
 
     steady_stats = get_stable_apigw_access_log_window_stats(
         logs,
@@ -697,6 +723,11 @@ def main() -> None:
             "campaign_start_utc": to_iso_utc(campaign_start),
             "campaign_start_stagger_seconds": campaign_start_stagger_seconds,
             "campaign_start_spread_seconds": campaign_start_spread_seconds,
+            "full_overlap_seconds": {
+                "steady": steady_overlap_seconds,
+                "burst": burst_overlap_seconds,
+                "recovery": recovery_overlap_seconds,
+            },
             "presteady_seconds": presteady_seconds,
             "presteady_eps": float(args.presteady_eps),
             "steady_seconds": steady_seconds,

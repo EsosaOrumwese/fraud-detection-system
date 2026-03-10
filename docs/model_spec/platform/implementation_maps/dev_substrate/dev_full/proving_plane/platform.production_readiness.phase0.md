@@ -601,6 +601,14 @@ Run shape:
 - `3000 steady / 6000 burst`
 - steady segment + bounded burst segment + bounded recovery segment
 
+Execution note:
+- the burst segment duration is not arbitrary; it must be derived from the live ingress-edge throttle semantics
+- on the current APIGW stage (`3000` rate / `6000` burst token bucket), a long average such as `30 s @ 6000 eps` is not a truthful no-throttle proof gate
+- the burst proof must therefore use a short bounded burst window that still tests the declared `6000` edge without turning the stage token bucket itself into the blocker
+- if staggered per-lane campaign starts are used to avoid fleet-entry shock, each scored segment must be measured only across its **full-overlap** window:
+  - score start = last lane enters the segment
+  - score end = first lane leaves the segment
+
 ### Telemetry sub-ledger for Phase 0.C
 
 #### Metrics / signals to watch
