@@ -202,6 +202,22 @@ flowchart LR
   end
 
   %% =========================================================
+  %% 11. PRODUCTION PATHS
+  %% =========================================================
+  subgraph PATHS["11. Production Paths"]
+    HOTPATH["Hot path<br>WSP -> IG -> Event Bus -> RTDL<br>real-time decision / action / audit"]
+    ADMISSIONPATH["Admission path<br>auth / throttle / dedupe / admit / publish"]
+    CASELABELPATH["Case + label path<br>RTDL -> Case Trigger -> Case Mgmt -> Label Store"]
+    LEARNINGPATH["Learning path<br>archive + labels -> Databricks -> SageMaker -> MLflow"]
+    RECOVERYPATH["Recovery path<br>restart / lag catch-up / stable re-entry"]
+    DEGRADEPATH["Degrade path<br>missing context / stale features / fail-closed / quarantine"]
+    REPLAYPATH["Replay path<br>oracle or archive truth -> bounded rerun -> evidence comparison"]
+    ROLLBACKPATH["Rollback path<br>MLflow promotion corridor -> previous active bundle"]
+    OBSPATH["Observability path<br>logs / metrics / evidence / reports -> operator diagnosis"]
+    COSTPATH["Cost-control path<br>budget / dashboards / teardown / residual control"]
+  end
+
+  %% =========================================================
   %% External boundary
   %% =========================================================
   EXT -->|writes upstream artifacts| ORACLE
@@ -493,6 +509,84 @@ flowchart LR
   BUDGET -->|feeds budget posture into| DASHCOST
 
   %% =========================================================
+  %% Path overlays
+  %% =========================================================
+  HOTPATH -. runs through .-> WSP
+  HOTPATH -. runs through .-> HTTPAPI
+  HOTPATH -. runs through .-> IGLAMBDA
+  HOTPATH -. runs through .-> IGSVC
+  HOTPATH -. runs through .-> MSK
+  HOTPATH -. runs through .-> CSFB
+  HOTPATH -. runs through .-> IEG
+  HOTPATH -. runs through .-> OFP
+  HOTPATH -. runs through .-> DL
+  HOTPATH -. runs through .-> DF
+  HOTPATH -. runs through .-> AL
+  HOTPATH -. runs through .-> DLA
+  HOTPATH -. writes evidence into .-> EVID
+
+  ADMISSIONPATH -. runs through .-> WSP
+  ADMISSIONPATH -. runs through .-> HTTPAPI
+  ADMISSIONPATH -. runs through .-> ALB
+  ADMISSIONPATH -. runs through .-> IGLAMBDA
+  ADMISSIONPATH -. runs through .-> IGSVC
+  ADMISSIONPATH -. uses dedupe state in .-> IGDDB
+  ADMISSIONPATH -. sends poison or retryable failures to .-> IGDLQ
+  ADMISSIONPATH -. appends admit or quarantine receipts to .-> IGRECEIPTS
+  ADMISSIONPATH -. publishes admitted events into .-> MSK
+
+  CASELABELPATH -. begins from .-> TRTDL
+  CASELABELPATH -. begins from .-> TAUDIT
+  CASELABELPATH -. runs through .-> CASETRIG
+  CASELABELPATH -. runs through .-> CM
+  CASELABELPATH -. runs through .-> LS
+  CASELABELPATH -. persists operational truth in .-> AURORA
+  CASELABELPATH -. evidences outcomes in .-> EVID
+
+  LEARNINGPATH -. reads replayable truth from .-> OBJ
+  LEARNINGPATH -. reads label truth from .-> TLABELS
+  LEARNINGPATH -. runs through .-> DBX
+  LEARNINGPATH -. runs through .-> SM
+  LEARNINGPATH -. runs through .-> MLFLOW
+  LEARNINGPATH -. resolves serving authority in .-> REGACTIVE
+  LEARNINGPATH -. feeds active runtime bundle to .-> DF
+
+  RECOVERYPATH -. recovery governed by .-> SFN
+  RECOVERYPATH -. edge recovery observed on .-> HTTPAPI
+  RECOVERYPATH -. ingress recovery observed on .-> IGLAMBDA
+  RECOVERYPATH -. queue or lag recovery observed on .-> MSK
+  RECOVERYPATH -. worker recovery observed on .-> EKS
+  RECOVERYPATH -. restart-to-green evidenced in .-> EVID
+
+  DEGRADEPATH -. advisory or fail-closed posture computed by .-> DL
+  DEGRADEPATH -. enforced in .-> DF
+  DEGRADEPATH -. surfaced through .-> TAUDIT
+  DEGRADEPATH -. quarantine receipts persisted in .-> IGRECEIPTS
+  DEGRADEPATH -. operator evidence stored in .-> EVID
+
+  REPLAYPATH -. reads authoritative upstream basis from .-> ORACLE
+  REPLAYPATH -. reads archived basis from .-> ARCHIVEPATH
+  REPLAYPATH -. re-enters through .-> WSP
+  REPLAYPATH -. bounded rerun governed by .-> SFN
+  REPLAYPATH -. comparison evidence stored in .-> EVID
+
+  ROLLBACKPATH -. governed by .-> MLFLOW
+  ROLLBACKPATH -. records rollback receipts in .-> ROLLBACK
+  ROLLBACKPATH -. updates active bundle resolution in .-> REGACTIVE
+  ROLLBACKPATH -. restored runtime bundle consumed by .-> DF
+
+  OBSPATH -. metrics and logs emitted to .-> CW
+  OBSPATH -. receipts and reports stored in .-> EVID
+  OBSPATH -. control facts emitted by .-> RUNCTL
+  OBSPATH -. reconciliation surfaced in .-> REPORTS
+  OBSPATH -. operational views materialized in .-> DASHOPS
+
+  COSTPATH -. budget policy set by .-> BUDGET
+  COSTPATH -. cost view materialized in .-> DASHCOST
+  COSTPATH -. teardown dispatched by .-> GHA
+  COSTPATH -. evidence of spend and teardown stored in .-> EVID
+
+  %% =========================================================
   %% visual classes
   %% =========================================================
   classDef live fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.4px;
@@ -502,7 +596,7 @@ flowchart LR
   classDef retained fill:#f5f5f5,stroke:#616161,color:#111,stroke-dasharray: 5 3;
   classDef infra fill:#ede7f6,stroke:#4527a0,color:#111,stroke-width:1.4px;
 
-  class GHA,TFCORE,TFSTREAM,TFRUNTIME,TFDML,TFOPS,SFN,CTRLBUS,RUNID,RUNTIMEPATH,RUNCTL,REPORTS,GOVAPPEND,PROMO,ROLLBACK control;
+  class GHA,TFCORE,TFSTREAM,TFRUNTIME,TFDML,TFOPS,SFN,CTRLBUS,RUNID,RUNTIMEPATH,RUNCTL,REPORTS,GOVAPPEND,PROMO,ROLLBACK,HOTPATH,ADMISSIONPATH,CASELABELPATH,LEARNINGPATH,RECOVERYPATH,DEGRADEPATH,REPLAYPATH,ROLLBACKPATH,OBSPATH,COSTPATH control;
   class WSPCLUSTER,WSP,HTTPAPI,APIR1,APIR2,IGLAMBDA,IGSVC_CLUSTER,ALB,TG,IGSVC,MSK,GLUEREG,EKS,NG,NSRTDL,SARTDL,SADEC,CSFB,IEG,OFP,DL,DF,AL,DLA,ARCHIVE,NSCL,SACL,CASETRIG,CM,LS,NSOBS,SAOBS,CW,DASHOPS,DASHCOST,BUDGET,VPCESTS,VPCESSM,VPCELOGS,VPCEECRAPI,VPCEECRDKR,VPCEEC2,VPCEEXECAPI,VPCESQS,VPCES3,VPCEDDB,VPC,PUB1,PUB2,PRIV1,PRIV2 live;
   class IGDDB,IGDLQ,EVID,OBJ,ART,TFSTATE,AURORA,AURW,AURR,ORACLE,ARCHIVEPATH,QUARPATH,GLUEDB store;
   class DBX,DBXBUILD,DBXQUAL,SM,SMPKG,MLFLOW,MSF managed;

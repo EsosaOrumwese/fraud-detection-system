@@ -1,0 +1,187 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["This is a path-centric companion graph, not the full topology map"]
+    LG2["Edges are labeled by production path prefix: HP, AP, CL, LP, RC, DG, RP, RB, OP, CP"]
+    LG3["Nodes are the real implemented dev_full components and stores"]
+  end
+
+  subgraph CONTROL["Control + Run Authority"]
+    GHA["GitHub Actions\nbounded run dispatch"]
+    SFN["Step Functions\nplatform-run orchestrator"]
+    RUNID["Run identity pins\nplatform_run_id / scenario_run_id / trace_id"]
+  end
+
+  subgraph INGRESS["Ingress + Admission"]
+    ORACLE["Oracle store\nread-only replay basis"]
+    WSP["World Streamer Producer (WSP)\nECS/Fargate replay producer"]
+    HTTPAPI["HTTP API Gateway\ningress edge"]
+    ALB["Internal ALB\ningress service edge"]
+    IGLAMBDA["Ingestion Gate (IG) Lambda\nadmission shell"]
+    IGSVC["Ingestion Gate (IG) ECS service\nadmission shell"]
+    IGDDB[("DynamoDB\nIG idempotency ledger")]
+    IGDLQ["SQS DLQ\nretryable / poison boundary"]
+    IGRECEIPTS[("S3 evidence\nIG receipts / quarantine refs")]
+  end
+
+  subgraph BUS["Event Transport"]
+    MSK[("MSK Serverless\nKafka transport")]
+    TTRAFFIC[["fp.bus.traffic.fraud.v1"]]
+    TCTXE[["fp.bus.context.arrival_events.v1"]]
+    TCTXT[["fp.bus.context.arrival_entities.v1"]]
+    TFLOW[["fp.bus.context.flow_anchor.fraud.v1"]]
+    TRTDL[["fp.bus.rtdl.v1"]]
+    TAUDIT[["fp.bus.audit.v1"]]
+    TCASE[["fp.bus.case.triggers.v1"]]
+    TLABELS[["fp.bus.labels.events.v1"]]
+    TOFSREQ[["fp.bus.learning.ofs.requests.v1"]]
+    TOFSEVT[["fp.bus.learning.ofs.events.v1"]]
+    TMFREQ[["fp.bus.learning.mf.requests.v1"]]
+    TMFEVT[["fp.bus.learning.mf.events.v1"]]
+    TREG[["fp.bus.learning.registry.events.v1"]]
+  end
+
+  subgraph RTDL["Real-Time Decision Loop (RTDL)"]
+    CSFB["Context Store Flow Binding (CSFB)"]
+    IEG["Identity Entity Graph (IEG)"]
+    OFP["Online Feature Plane (OFP)"]
+    DL["Degrade Ladder (DL)"]
+    DF["Decision Fabric (DF)"]
+    AL["Action Layer (AL)"]
+    DLA["Decision Log Audit (DLA)"]
+    ARCHIVE["Archive Writer"]
+    AURORA[("Aurora Serverless v2\nRTDL / case / label state")]
+    ARCHIVEPATH[("S3 object store\narchive / replay refs")]
+  end
+
+  subgraph CASELABEL["Case + Label"]
+    CASETRIG["Case Trigger"]
+    CM["Case Management (CM)"]
+    LS["Label Store (LS)"]
+  end
+
+  subgraph LEARN["Learning + Evolution / MLOps"]
+    DBX["Databricks (Offline Feature Plane / OFS)"]
+    SM["SageMaker (Model Factory / MF)"]
+    MLFLOW["MLflow (Model Promotion and Registry / MPR)"]
+    REGACTIVE[("Active bundle / policy truth")]
+    EVID[("S3 evidence bucket\nreports / receipts / comparisons")]
+    DASHOPS["Operations dashboard"]
+    DASHCOST["Cost dashboard"]
+    BUDGET["Monthly budget"]
+  end
+
+  GHA -->|AP-0 dispatch bounded run| SFN
+  SFN -->|AP-1 start replay producer| WSP
+  RUNID -. AP / HP / RP / RC run scope .-> WSP
+  RUNID -. AP / HP / RP / RC run scope .-> IGLAMBDA
+  RUNID -. AP / HP / RP / RC run scope .-> IGSVC
+  RUNID -. HP / RC / DG run scope .-> CSFB
+  RUNID -. HP / RC / DG run scope .-> IEG
+  RUNID -. HP / RC / DG run scope .-> OFP
+  RUNID -. HP / RC / DG run scope .-> DL
+  RUNID -. HP / RC / DG run scope .-> DF
+  RUNID -. HP / RC / DG run scope .-> AL
+  RUNID -. HP / RC / DG run scope .-> DLA
+  RUNID -. CL run scope .-> CASETRIG
+  RUNID -. CL run scope .-> CM
+  RUNID -. CL run scope .-> LS
+  RUNID -. LP / RB run scope .-> DBX
+  RUNID -. LP / RB run scope .-> SM
+  RUNID -. LP / RB run scope .-> MLFLOW
+
+  ORACLE -->|RP-1 select bounded replay basis| WSP
+  WSP -->|HP-1 / AP-2 push ingress traffic| HTTPAPI
+  WSP -->|HP-1b / AP-2b push ingress traffic| ALB
+  HTTPAPI -->|HP-2 invoke| IGLAMBDA
+  ALB -->|HP-2b forward| IGSVC
+  IGLAMBDA -->|AP-3 dedupe / admit / quarantine| IGDDB
+  IGSVC -->|AP-3b dedupe / admit / quarantine| IGDDB
+  IGLAMBDA -->|AP-4 poison or retryable failures| IGDLQ
+  IGLAMBDA -->|AP-5 receipt + quarantine ref| IGRECEIPTS
+  IGSVC -->|AP-5b receipt + quarantine ref| IGRECEIPTS
+  IGLAMBDA -->|HP-3 publish traffic| TTRAFFIC
+  IGLAMBDA -->|HP-3a publish arrival events| TCTXE
+  IGLAMBDA -->|HP-3b publish arrival entities| TCTXT
+  IGLAMBDA -->|HP-3c publish flow anchors| TFLOW
+  IGSVC -->|HP-3d publish traffic| TTRAFFIC
+  IGSVC -->|HP-3e publish arrival events| TCTXE
+  IGSVC -->|HP-3f publish arrival entities| TCTXT
+  IGSVC -->|HP-3g publish flow anchors| TFLOW
+
+  TTRAFFIC -->|HP-4 transport| MSK
+  TCTXE -->|HP-4 transport| MSK
+  TCTXT -->|HP-4 transport| MSK
+  TFLOW -->|HP-4 transport| MSK
+  MSK -->|HP-5 consumed by| CSFB
+  MSK -->|HP-5a consumed by| IEG
+  MSK -->|HP-5b consumed by| OFP
+  CSFB -->|HP-6 joined context| IEG
+  CSFB -->|HP-6a joined context| OFP
+  IEG -->|HP-7 entity / relationship state| AURORA
+  OFP -->|HP-7a online features| AURORA
+  DL -->|DG-1 dependency posture| DF
+  DF -->|HP-8 decision truth| TRTDL
+  DF -->|HP-8a decision audit| TAUDIT
+  AL -->|HP-9 action outcomes| TAUDIT
+  DLA -->|HP-10 lineage audit| TAUDIT
+  ARCHIVE -->|HP-11 immutable archive| ARCHIVEPATH
+  TRTDL -->|HP-12 downstream RTDL truth| CASETRIG
+  TAUDIT -->|HP-12a downstream audit truth| CASETRIG
+
+  CASETRIG -->|CL-1 create case intents| TCASE
+  TCASE -->|CL-2 case work queue| CM
+  CM -->|CL-3 append-only case timeline| AURORA
+  CM -->|CL-4 submit adjudication / label work| LS
+  LS -->|CL-5 append-only label truth| AURORA
+  LS -->|CL-6 publish label events| TLABELS
+
+  ARCHIVEPATH -->|LP-1 replayable runtime truth| DBX
+  TLABELS -->|LP-2 authoritative supervision truth| DBX
+  TOFSREQ -->|LP-3 bounded dataset request| DBX
+  DBX -->|LP-4 publish dataset completion| TOFSEVT
+  TOFSEVT -->|LP-5 train/eval input| SM
+  TMFREQ -->|LP-6 bounded train/eval request| SM
+  SM -->|LP-7 lineage + candidate bundle| MLFLOW
+  SM -->|LP-7a model-factory events| TMFEVT
+  MLFLOW -->|LP-8 registry events| TREG
+  MLFLOW -->|LP-9 active bundle resolution| REGACTIVE
+  REGACTIVE -->|LP-10 runtime active bundle| DF
+
+  DF -->|DG-2 fail-closed or quarantine on insufficiency| TAUDIT
+  IGRECEIPTS -->|DG-3 ingress quarantine evidence| EVID
+  TAUDIT -->|DG-4 decision degrade evidence| EVID
+
+  SFN -->|RC-1 restart / rerun orchestration| EVID
+  MSK -->|RC-2 lag catch-up posture| EVID
+  AURORA -->|RC-3 stable re-entry evidence| EVID
+  DF -->|RC-4 decision recovery evidence| EVID
+
+  ARCHIVEPATH -->|RP-2 archived replay basis| WSP
+  EVID -->|RP-3 compare rerun against bounded evidence| SFN
+
+  MLFLOW -->|RB-1 rollback drill / restore prior active bundle| REGACTIVE
+  REGACTIVE -->|RB-2 restored runtime bundle| DF
+  MLFLOW -->|RB-3 rollback evidence| EVID
+
+  HTTPAPI -->|OP-1 edge metrics| DASHOPS
+  IGLAMBDA -->|OP-2 ingress metrics and logs| DASHOPS
+  MSK -->|OP-3 transport lag and throughput| DASHOPS
+  DF -->|OP-4 decision metrics| DASHOPS
+  AURORA -->|OP-5 state / read-write posture| DASHOPS
+  EVID -->|OP-6 reports / receipts / comparisons| DASHOPS
+
+  BUDGET -->|CP-1 budget envelope| DASHCOST
+  EVID -->|CP-2 spend and teardown evidence| DASHCOST
+  GHA -->|CP-3 teardown or idle action| DASHCOST
+
+  classDef pathnode fill:#fff8e1,stroke:#b26a00,color:#111,stroke-width:1.2px;
+  classDef live fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+  classDef store fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.3px;
+  class GHA,SFN,RUNID,WSP,HTTPAPI,ALB,IGLAMBDA,IGSVC,CSFB,IEG,OFP,DL,DF,AL,DLA,ARCHIVE,CASETRIG,CM,LS,DBX,SM,MLFLOW,DASHOPS,DASHCOST live;
+  class IGDDB,IGDLQ,IGRECEIPTS,MSK,TTRAFFIC,TCTXE,TCTXT,TFLOW,TRTDL,TAUDIT,TCASE,TLABELS,TOFSREQ,TOFSEVT,TMFREQ,TMFEVT,TREG,AURORA,ARCHIVEPATH,REGACTIVE,EVID,BUDGET,ORACLE store;
