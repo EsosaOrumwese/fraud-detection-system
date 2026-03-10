@@ -70,17 +70,10 @@ It's important to note that as you go through the repo, `local-parity`, `dev_min
 ---
 
 ## 4) Implementation notes and logbook
-- Keep implementation notes, but write them like a detailed natural engineering notebook.
+- Write these like a detailed natural engineering notebook.
 - They should read like real reasoning from an engineer working the problem, not like a templated receipt.
-- Record:
-  - what the actual problem is,
-  - why it matters in production,
-  - what options were considered,
-  - what was chosen and why,
-  - what changed,
-  - what the measured impact was,
-  - what still remains.
-- Use the implementation maps as the living reasoning trail.
+- Use it to record your problem solving process. 
+- Use the implementation maps as the living reasoning trail as you work on your working posture
 - Also log actions and decisions in `docs\logbook` with local time. Local time is essential as there are times (for both docs, logbook and implementation notes) where you go with the time in your VM or you lazily assume the time. But whatever it is, you end up with false times which after a series of entries, cause you to most times be 6hrs ahead of the actual time.
 - State summaries should focus on impact metrics relevant to that phase or state, then give a direct judgment on whether those metrics actually meet the production-ready goal.
 
