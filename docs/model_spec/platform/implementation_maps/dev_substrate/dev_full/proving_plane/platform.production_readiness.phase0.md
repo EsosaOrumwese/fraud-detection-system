@@ -74,12 +74,82 @@ This subphase must accomplish:
 3. pin the fail-fast conditions that should stop a bad run early,
 4. confirm the minimum preflight truth needed before any run starts.
 
+### Current preflight truth for Phase 0.A
+
+The currently pinned live external admission path is:
+
+1. `World Streamer Producer (WSP)` ECS/Fargate ephemeral task family:
+   - `fraud-platform-dev-full-wsp-ephemeral`
+2. `HTTP API Gateway v2`:
+   - API `fraud-platform-dev-full-ig-edge`
+   - API ID `pd7rtjze95`
+   - stage `v1`
+   - route `POST /ingest/push`
+3. `Ingress Lambda`:
+   - `fraud-platform-dev-full-ig-handler`
+4. `DynamoDB` idempotency ledger:
+   - `fraud-platform-dev-full-ig-idempotency`
+5. Kafka publish boundary:
+   - bootstrap brokers from `/fraud-platform/dev_full/msk/bootstrap_brokers`
+   - cluster `fraud-platform-dev-full-msk`
+6. `SQS` dead-letter queue:
+   - `fraud-platform-dev-full-ig-dlq`
+
+Important boundary decision:
+- the internal `Ingress ECS service` is **not** the current external front door for `Phase 0`.
+- `API Gateway -> Lambda` is the live external admission path.
+- the internal ECS ingress surface exists, but it must not be treated as the active external boundary for this phase unless explicitly reactivated and repinned into the run method.
+
+Current live operator-visible surfaces:
+- WSP logs:
+  - `/ecs/fraud-platform-dev-full-wsp-ephemeral`
+- Lambda logs:
+  - `/aws/lambda/fraud-platform-dev-full-ig-handler`
+- internal ECS ingress logs:
+  - `/ecs/fraud-platform-dev-full-ig-service`
+- ECS container insights:
+  - `/aws/ecs/containerinsights/fraud-platform-dev-full-ingress/performance`
+- API Gateway stage throttling:
+  - `3000 rate / 6000 burst`
+- Lambda envelope:
+  - `2048 MB`
+  - timeout `30 s`
+  - reserved concurrency `600`
+- DynamoDB table status:
+  - `ACTIVE`
+  - `PAY_PER_REQUEST`
+
+Current telemetry gap discovered in preflight:
+- API Gateway stage `v1` has `DetailedMetricsEnabled = false`
+- no API Gateway access-log group is currently visible
+- because of that, the primary live telemetry for the external ingress path must initially come from:
+  - Lambda logs and Lambda metrics,
+  - DynamoDB idempotency writes,
+  - Kafka publish continuity,
+  - WSP logs,
+  - receipt/quarantine outputs
+- not from rich API Gateway stage-level metrics alone
+
+Current telemetry posture:
+- API Gateway and Lambda metric namespaces are present and queryable in CloudWatch,
+- the queue depth metric for `fraud-platform-dev-full-ig-dlq` is active and currently readable,
+- Lambda and WSP log groups are present,
+- recent datapoints are sparse right now because the plane is not actively running,
+- `Phase 0.B` therefore needs an intentional fresh bounded run to warm the metric and log surfaces before verdicting them.
+
 ### Telemetry sub-ledger for Phase 0.A
 
 #### Live logs
-- `World Streamer Producer (WSP)` live log tail
-- ingress runtime live log tail
-- front-door health / target health events
+- `World Streamer Producer (WSP)`:
+  - `/ecs/fraud-platform-dev-full-wsp-ephemeral`
+- active ingress runtime:
+  - `/aws/lambda/fraud-platform-dev-full-ig-handler`
+- secondary retained ingress runtime, for divergence checks only:
+  - `/ecs/fraud-platform-dev-full-ig-service`
+- front-door and target health events where applicable:
+  - API Gateway stage `v1`
+  - internal ALB `fp-dev-full-ig-svc`
+  - target group `fp-dev-full-ig-svc`
 
 #### Live counters
 - admitted rate
@@ -91,11 +161,31 @@ This subphase must accomplish:
 - quarantine count
 - `p95` / `p99` latency
 
+Current concrete surfaces:
+- API Gateway stage throttling posture
+- Lambda `Invocations`, `Errors`, `Throttles`, `Duration`, `ConcurrentExecutions`
+- DynamoDB idempotency write growth on the active run window
+- SQS DLQ depth on `fraud-platform-dev-full-ig-dlq`
+- WSP sent / success / retry posture from task logs
+- Kafka publish continuity from ingress logs and receipts
+
 #### Boundary-health checks
 - fresh run identity visible through control and ingress
 - dedupe ledger writing for the active run
 - publish continuity visible at the transport boundary
 - run-scoped receipts and quarantine outputs visible
+
+Current concrete checks:
+- API Gateway route `POST /ingest/push` resolves to Lambda integration `sm9ahw3`
+- Lambda environment is pinned to:
+  - `IG_RATE_LIMIT_RPS=3000`
+  - `IG_RATE_LIMIT_BURST=6000`
+  - `IG_IDEMPOTENCY_TABLE=fraud-platform-dev-full-ig-idempotency`
+  - `IG_DLQ_URL=https://sqs.eu-west-2.amazonaws.com/230372904534/fraud-platform-dev-full-ig-dlq`
+  - `KAFKA_BOOTSTRAP_BROKERS_PARAM_PATH=/fraud-platform/dev_full/msk/bootstrap_brokers`
+- operator can resolve:
+  - `/fraud-platform/dev_full/ig/api_key`
+  - `/fraud-platform/dev_full/msk/bootstrap_brokers`
 
 #### Fail-fast conditions
 - no fresh run identity continuity
@@ -103,6 +193,39 @@ This subphase must accomplish:
 - early valid-traffic `5xx` growth
 - early latency-tail blowout
 - receipt/quarantine surfaces not producing attributable run-scoped outputs
+
+Concrete early-stop conditions for Phase 0:
+- the active run is hitting the internal ECS ingress surface instead of `API Gateway -> Lambda`
+- Lambda invocations rise but active-run DynamoDB dedupe writes do not
+- Lambda admits traffic but no active-run publish continuity appears in logs/receipts
+- valid-traffic `5xx` appears early in the bounded window
+- DLQ depth rises for current-run valid traffic
+- WSP is sending but the Lambda log stream remains dark for the active run
+
+### Phase 0.A operator loop
+
+The default operator loop for `Phase 0.B` and `Phase 0.C` is:
+
+1. tail the active ingress Lambda:
+   - `aws logs tail /aws/lambda/fraud-platform-dev-full-ig-handler --follow --region eu-west-2`
+2. tail the active WSP task logs:
+   - `aws logs tail /ecs/fraud-platform-dev-full-wsp-ephemeral --follow --region eu-west-2`
+3. watch API Gateway stage metrics:
+   - `AWS/ApiGateway` for `ApiId=pd7rtjze95`, `Stage=v1`
+4. watch Lambda metrics:
+   - `Invocations`
+   - `Errors`
+   - `Throttles`
+   - `Duration`
+   - `ConcurrentExecutions`
+5. watch SQS DLQ depth:
+   - `ApproximateNumberOfMessagesVisible`
+   - `ApproximateAgeOfOldestMessage`
+6. confirm active-run DDB writes on:
+   - `fraud-platform-dev-full-ig-idempotency`
+7. confirm active-run publish continuity through Lambda log output and receipts
+
+If these surfaces cannot be watched live during the run, the run is not Phase-0-authorized.
 
 Definition of done:
 - the plane can now be observed honestly in real time,
