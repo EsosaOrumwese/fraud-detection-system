@@ -27,6 +27,15 @@ all proven individually, all proven in coupling, and all proven as one platform 
 ## Planning assumptions
 - `dev_full` is already built and wired. This plan hardens and proves it; it does not redesign it from scratch unless a production-blocking flaw forces a repin.
 - The Data Engine remains a black box. The platform works with the data available in the oracle store and through the data-engine interface pack.
+- When a plane depends on understanding the semantics of the incoming data, the agent may inspect only the allowed Data Engine references for understanding:
+  - primary contract: `docs/model_spec/data-engine/interface_pack/data_engine_interface.md`
+  - output inventory and gates: `docs/model_spec/data-engine/interface_pack/engine_outputs.catalogue.yaml`, `docs/model_spec/data-engine/interface_pack/engine_gates.map.yaml`
+  - allowed build/state context:
+    - `docs/model_spec/data-engine/implementation_maps/segment_5B.build_plan.md`
+    - `docs/model_spec/data-engine/implementation_maps/segment_6B.build_plan.md`
+    - `docs/model_spec/data-engine/layer-2/specs/state-flow/5B/state.5B.s5.expanded.md`
+    - `docs/model_spec/data-engine/layer-3/specs/state-flow/6B/state.6B.s5.expanded.md`
+- Those Data Engine docs are for semantic understanding only. They do not change the black-box rule: the platform still consumes the engine through the interface pack and oracle-store outputs, not by editing or re-running engine internals.
 - The graphs in `docs/design/platform/dev_full/graph/` are reflections of implemented truth and readiness progress. They are not substitutes for proof.
 - All runtime validation is AWS-first or managed-surface-first. Local work is limited to code changes, static analysis, artifact preparation, and documentation.
 - No plane is promoted into the working platform unless both the plane and its newly introduced cross-plane paths are production-worthy.
@@ -68,6 +77,18 @@ No soak or long-duration stress run is allowed until:
 ### 4. Graphs reflect reality after proof
 We do not mark a plane or path as working because it exists on a graph.
 We update the graphs only after the proof for that plane or path is complete enough to support the claim.
+
+### 5. Telemetry-first hardening
+No phase may begin execution without an explicit telemetry plan for that phase.
+
+Every phase expansion must define, before the first AWS run:
+- live logs for the active plane and its immediate dependencies,
+- live progress counters for the active plane,
+- live boundary-health checks,
+- fail-fast stop conditions,
+- the minimal hardening artifact set to keep under `runs/`.
+
+The point is to eliminate blind runs and reduce guesswork. If the phase cannot be observed live, the phase is not yet execution-ready.
 
 ---
 
@@ -158,6 +179,123 @@ The set of planes that have passed both plane-ready and network-ready proof and 
 
 ---
 
+## Readiness metric ledger
+This ledger pins the metric families and target posture the platform is working toward.
+
+It exists to remove “looks good” or “seems fine” reasoning from production-readiness claims. Each metric family here must later be tied to live telemetry and phase evidence.
+
+Rules:
+- these targets are the current production-readiness working targets, not permanent universal ceilings,
+- they may be tightened by evidence,
+- they must not be loosened casually just to get a green verdict,
+- where a metric is intentionally fault-injection-dependent, the target applies to healthy bounded runs unless the phase explicitly says otherwise.
+- this ledger is intentionally living: as phases progress and new production-readiness-defining metrics are discovered, the ledger must be expanded in place rather than left implicit in notes or run summaries.
+- phase expansion work must check whether the current ledger is missing any metric family that became materially necessary to judge the plane or cross-plane path honestly; if yes, that metric must be added before the phase can be considered closed.
+
+### Control + Ingress
+
+| Metric | Current target | Evidence surface | Owning phase |
+|---|---|---|---|
+| steady admitted throughput | `>= 3000 eps` | ingress live telemetry + bounded run summary | Phase 0 |
+| burst admitted throughput | `>= 6000 eps` | ingress live telemetry + bounded run summary | Phase 0 |
+| latency p95 | `<= 350 ms` | ingress live telemetry | Phase 0 |
+| latency p99 | `<= 700 ms` | ingress live telemetry | Phase 0 |
+| valid-traffic `4xx` | `0` | ingress live telemetry | Phase 0 |
+| valid-traffic `5xx` | `0` | ingress live telemetry | Phase 0 |
+| duplicate correctness error rate | `0` | dedupe ledger + bounded run summary | Phase 0 |
+| admitted-without-publish count | `0` | ingress + Kafka boundary telemetry | Phase 0 |
+| publish ambiguity unresolved count | `0` | ingress receipts + Kafka boundary telemetry | Phase 0 |
+| bounded recovery time | `<= 180 s` | run summary + live recovery counters | Phase 0 |
+
+### Real-Time Decision Loop (RTDL)
+
+| Metric | Current target | Evidence surface | Owning phase |
+|---|---|---|---|
+| CSFB false-ready rate | `0` | RTDL live telemetry + correctness summary | Phase 1 |
+| IEG checkpoint age p99 | `<= 2 s` | IEG live telemetry | Phase 1 |
+| IEG lag p99 | `<= 2 s` | IEG live telemetry | Phase 1 |
+| IEG backpressure incidents | `0` in healthy bounded runs | IEG live telemetry | Phase 1 |
+| OFP freshness lag p99 | `<= 2 s` | OFP live telemetry | Phase 1 |
+| OFP restart-to-green | `<= 180 s` | OFP recovery telemetry | Phase 1 |
+| false missing-feature rate | `0` | OFP + DF boundary telemetry | Phase 1 |
+| DL false fail-closed rate | `0` | DL reason breakdown | Phase 1 |
+| DF hard fail-closed count | `0` in healthy bounded runs | DF live telemetry | Phase 1 |
+| DF quarantine count | `0` in healthy bounded runs unless ambiguity is intentionally injected | DF live telemetry | Phase 1 |
+| decision latency p95 | `<= 300 ms` | DF / RTDL live telemetry | Phase 1 |
+| decision latency p99 | `<= 600 ms` | DF / RTDL live telemetry | Phase 1 |
+| AL duplicate side-effect error rate | `0` | AL live telemetry | Phase 1 |
+| DLA append failure count | `0` | DLA live telemetry | Phase 1 |
+| DLA replay divergence count | `0` | DLA live telemetry | Phase 1 |
+| Archive Writer write error count | `0` | Archive Writer live telemetry | Phase 1 |
+| Archive Writer payload mismatch count | `0` | Archive validation telemetry | Phase 1 |
+
+### Case + Label Management
+
+| Metric | Current target | Evidence surface | Owning phase |
+|---|---|---|---|
+| CaseTrigger duplicate suppression correctness | `100%` | case/label telemetry + correctness summary | Phase 3 |
+| missed trigger rate | `0` for in-scope case-worthy events in bounded runs | CaseTrigger telemetry | Phase 3 |
+| case-open success rate | `100%` for valid case-worthy events | Case Management telemetry | Phase 3 |
+| duplicate case creation count | `0` | Case Management telemetry | Phase 3 |
+| case-open latency p95 | `<= 5 s` | case/label live telemetry | Phase 3 |
+| invalid case-state transition count | `0` | Case Management telemetry | Phase 3 |
+| append-only timeline violations | `0` | case timeline validation telemetry | Phase 3 |
+| label commit success rate | `100%` for valid bounded inputs | Label Store telemetry | Phase 3 |
+| label commit latency p95 | `<= 10 s` | Label Store telemetry | Phase 3 |
+| duplicate label corruption count | `0` | Label Store telemetry | Phase 3 |
+| conflicting-label visibility | `100%` surfaced, `0` silent overwrite | Label Store telemetry | Phase 3 |
+| future-label leakage count | `0` | label maturity / readback telemetry | Phase 3 |
+
+### Learning + Evolution / MLOps
+
+| Metric | Current target | Evidence surface | Owning phase |
+|---|---|---|---|
+| point-in-time correctness violations | `0` | Databricks dataset validation | Phase 5 |
+| future leakage violations | `0` | Databricks dataset validation | Phase 5 |
+| dataset manifest completeness | `100%` | OFS / Databricks outputs | Phase 5 |
+| dataset build success rate | `100%` for bounded proof windows | Databricks job telemetry | Phase 5 |
+| dataset build duration p95 | `<= 30 min` bounded build window | Databricks job telemetry | Phase 5 |
+| training success rate | `100%` for bounded proof windows | SageMaker job telemetry | Phase 5 |
+| evaluation success rate | `100%` for bounded proof windows | SageMaker job telemetry | Phase 5 |
+| training / evaluation reproducibility | within pinned tolerance for repeated bounded basis | SageMaker + MLflow lineage evidence | Phase 5 |
+| candidate bundle completeness | `100%` | SageMaker / artifact validation | Phase 5 |
+| lineage completeness | `100%` from dataset -> train/eval -> candidate bundle -> active bundle | MLflow / MPR telemetry | Phase 5 |
+| promotion evidence completeness | `100%` | MLflow / MPR telemetry | Phase 5 |
+| rollback success rate | `100%` in bounded drills | MLflow / MPR telemetry | Phase 5 |
+| rollback RTO | `<= 15 min` | rollback drill summary | Phase 5 |
+| rollback RPO | `0` model-version ambiguity | rollback drill summary | Phase 5 |
+| active-bundle resolution correctness | `100%` | runtime + MLflow / MPR cross-check | Phase 6 |
+
+### Operations / Governance / Meta
+
+| Metric | Current target | Evidence surface | Owning phase |
+|---|---|---|---|
+| run identity uniqueness | `100%` | run control telemetry | Phase 7 |
+| receipt completeness | `100%` for required receipts | run control / reporter telemetry | Phase 7 |
+| evidence readback success | `100%` | evidence readback checks | Phase 7 |
+| verdict traceability | `100%` from verdict -> evidence -> run scope | reporter / governance telemetry | Phase 7 |
+| mutation violations on governance facts | `0` | governance append telemetry | Phase 7 |
+| metric freshness | within declared plane budget, no stale critical dashboards | observability telemetry | Phase 7 |
+| critical alert coverage | `100%` for declared failure families | dashboard / alarm validation | Phase 7 |
+| unattributed spend | `0` | cost guardrail telemetry | Phase 7 |
+| residual non-essential compute after idle | `0` | teardown / residual scan | Phase 7 |
+| placeholder handle count | `0` in active runtime path | handle-resolution telemetry | Phase 7 |
+| required secret/handle resolution success | `100%` | control/runtime preflight telemetry | Phase 7 |
+
+### Full-platform cross-plane
+
+| Metric | Current target | Evidence surface | Owning phase |
+|---|---|---|---|
+| run identity continuity across active planes | `100%` | integrated live telemetry | Phase 8 |
+| truth continuity across critical paths | `100%`, no silent handoff break | integrated live telemetry + summaries | Phase 8 |
+| timing continuity across critical paths | all active paths within their declared budgets | integrated live telemetry | Phase 8 |
+| silent starvation count | `0` | integrated live telemetry | Phase 8 |
+| full-platform bounded recovery | `<= 180 s` unless a path declares a tighter budget | integrated recovery telemetry | Phase 8 |
+| explainability / audit completeness | `100%` for accepted decisions and promoted bundles in bounded runs | integrated evidence readback | Phase 8 |
+| stress authorization posture | no red plane, no red critical path, no invalidating telemetry blind spot | integrated stress summary | Phase 9 |
+
+---
+
 ## Current baseline
 The baseline at the start of this plan is:
 - `Control + Ingress`: strongest existing plane and current working-platform member
@@ -224,6 +362,32 @@ Success criteria:
 - receipts remain coherent and attributable
 - recovery remains within the existing bound
 
+Telemetry plan:
+- live logs:
+  - World Streamer Producer (WSP)
+  - Ingress Lambda / ECS admission shell
+  - API edge and target health events
+- live progress counters:
+  - admitted rate
+  - duplicate rate
+  - publish success / retry / ambiguity counts
+  - `4xx` / `5xx`
+  - p95 / p99 latency
+- live boundary health:
+  - run-scope continuity from control into ingress
+  - ingress dedupe ledger writes
+  - Kafka publish continuity and topic movement
+- fail-fast triggers:
+  - early `5xx` or timeout growth above bounded red threshold
+  - duplicate-heavy windows caused by stale run identity
+  - admitted-without-publish evidence
+  - healthy edge requests with no downstream bus movement
+- hardening artifacts:
+  - one run manifest
+  - one live summary
+  - one optional metric snapshot
+  - one implementation-note entry
+
 Definition of done:
 - Control + Ingress is reconfirmed as the working-platform base
 - any regressions are fixed before Phase 1 starts
@@ -289,6 +453,57 @@ Focus metrics:
 - DLA append failure and replay divergence
 - Archive Writer payload mismatch and write failures
 
+Semantic references for this phase:
+- `docs/model_spec/data-engine/interface_pack/data_engine_interface.md`
+  - behavioural stream roles
+  - join map for behavioural streams
+  - time-safe guidance
+  - truth-product boundaries
+- `docs/model_spec/data-engine/implementation_maps/segment_5B.build_plan.md`
+  - upstream arrival realism and civil-time quality expectations for `arrival_events_5B`
+- `docs/model_spec/data-engine/layer-2/specs/state-flow/5B/state.5B.s5.expanded.md`
+  - arrival-layer validation and gate posture
+- `docs/model_spec/data-engine/implementation_maps/segment_6B.build_plan.md`
+  - behavioural stream, overlay, and truth-product realism expectations
+- `docs/model_spec/data-engine/layer-3/specs/state-flow/6B/state.6B.s5.expanded.md`
+  - authoritative 6B outputs, coverage, and validation bundle posture
+
+Telemetry plan:
+- live logs:
+  - Context Store Flow Binding (CSFB)
+  - Identity Entity Graph (IEG)
+  - Online Feature Plane (OFP)
+  - Degrade Ladder (DL)
+  - Decision Fabric (DF)
+  - Action Layer (AL)
+  - Decision Log Audit (DLA)
+  - Archive Writer
+- live progress counters:
+  - current-run participation by component
+  - consumer lag and checkpoint age by component
+  - OFP freshness / feature-ready counters
+  - DL degrade-reason breakdown
+  - DF decision / fail-closed / quarantine breakdown
+  - AL outcome counts
+  - DLA append / unresolved-age posture
+  - Archive Writer write counts and error counts
+- live boundary health:
+  - run-scope adoption in every RTDL worker
+  - behavioural-stream topics moving
+  - OFP materializing run-scoped features
+  - DLA and archive stores receiving current-run writes
+- fail-fast triggers:
+  - no current-run RTDL participation after bounded warm window
+  - lag/checkpoint age crossing early red bounds
+  - OFP freshness or feature readiness staying dark
+  - DF fail-closed or quarantine spiking from a healthy upstream window
+  - DLA append failures or replay divergence appearing early
+- hardening artifacts:
+  - one run manifest
+  - one live summary
+  - one optional RTDL metric snapshot
+  - one implementation-note entry
+
 Definition of done:
 - RTDL is plane-ready
 - all known RTDL semantic, replay, freshness, and lineage defects for the bounded run shape are resolved
@@ -337,6 +552,29 @@ Primary questions:
 - does ingress remain green when RTDL is actually consuming and deciding?
 - does RTDL remain semantically correct under real admission pressure?
 - do the new paths preserve run identity, truth continuity, and timing continuity?
+
+Telemetry plan:
+- live logs:
+  - ingress edge and admission shell
+  - RTDL workers with emphasis on DF, OFP, DLA
+- live progress counters:
+  - admitted rate vs RTDL current-run participation
+  - ingress latency/error posture
+  - RTDL lag / checkpoint / decision counters
+  - DLA append and archive rates
+- live boundary health:
+  - Control -> Ingress run identity continuity
+  - Ingress -> Event Bus publication continuity
+  - Event Bus -> RTDL consumption continuity
+- fail-fast triggers:
+  - healthy ingress with dark RTDL participation
+  - RTDL red despite healthy bus movement and healthy ingress
+  - evidence of stale run scope on either side of the boundary
+- hardening artifacts:
+  - one run manifest
+  - one coupled-network summary
+  - one optional cross-plane metric snapshot
+  - one implementation-note entry
 
 Definition of done:
 - `Control + Ingress + RTDL` becomes the working platform
@@ -396,6 +634,47 @@ Focus metrics:
 - conflicting label visibility
 - future-label leakage
 
+Semantic references for this phase:
+- `docs/model_spec/data-engine/interface_pack/data_engine_interface.md`
+  - truth products
+  - `s4_event_labels_6B`
+  - `s4_flow_truth_labels_6B`
+  - `s4_flow_bank_view_6B`
+  - `s4_case_timeline_6B`
+  - join map from RTDL outputs toward truth products
+- `docs/model_spec/data-engine/implementation_maps/segment_6B.build_plan.md`
+  - truth-label and case-timeline realism expectations
+- `docs/model_spec/data-engine/layer-3/specs/state-flow/6B/state.6B.s5.expanded.md`
+  - authoritative case and label output surfaces and validation posture
+
+Telemetry plan:
+- live logs:
+  - CaseTrigger
+  - Case Management (CM)
+  - Label Store (LS)
+  - immediate RTDL publishers feeding them
+- live progress counters:
+  - trigger intake counts
+  - case-open counts
+  - case-transition counts
+  - label pending / accepted / rejected counts
+  - duplicate suppression and conflict counters
+- live boundary health:
+  - RTDL -> CaseTrigger event movement
+  - case timeline writes
+  - label-store commits and readback
+  - run-scope continuity into case/label outputs
+- fail-fast triggers:
+  - case/label workers healthy but zero current-run participation
+  - duplicate case creation or duplicate label corruption
+  - missing case timeline writes for valid case-worthy traffic
+  - conflicting labels being silently overwritten
+- hardening artifacts:
+  - one run manifest
+  - one case/label live summary
+  - one optional case/label metric snapshot
+  - one implementation-note entry
+
 Definition of done:
 - Case + Label is plane-ready
 - no shadow truth ownership exists between Case Management and Label Store
@@ -443,6 +722,29 @@ Primary questions:
 - does the network still hold when operational review truth is introduced?
 - do cases and labels remain timely, duplicate-safe, and auditable under load?
 - does RTDL output remain usable downstream rather than merely technically present?
+
+Telemetry plan:
+- live logs:
+  - RTDL publishers into CaseTrigger
+  - CaseTrigger
+  - Case Management
+  - Label Store
+- live progress counters:
+  - decision-to-case counts and latency
+  - case-to-label counts and latency
+  - starvation counters across RTDL -> case/label boundaries
+- live boundary health:
+  - RTDL outputs producing case-worthy traffic
+  - case truth and label truth remaining linked to upstream decision truth
+- fail-fast triggers:
+  - RTDL healthy but case/label dark
+  - case activity without label-store truth
+  - regressions in RTDL latency or fail-closed posture caused by the new coupling
+- hardening artifacts:
+  - one run manifest
+  - one coupled-network summary
+  - one optional cross-plane snapshot
+  - one implementation-note entry
 
 Definition of done:
 - `Control + Ingress + RTDL + Case + Label` becomes the working platform
@@ -509,6 +811,43 @@ Focus metrics:
 - promotion evidence completeness
 - rollback success and rollback RTO / RPO
 
+Semantic references for this phase:
+- `docs/model_spec/data-engine/interface_pack/data_engine_interface.md`
+  - truth-product boundaries
+  - time-safe guidance
+  - no-PASS-no-read gate posture
+- `docs/model_spec/data-engine/interface_pack/engine_gates.map.yaml`
+  - gate verification and instance-proof posture for authoritative engine outputs
+- `docs/model_spec/data-engine/implementation_maps/segment_6B.build_plan.md`
+  - labelled runtime truth expectations and downstream training/evaluation suitability
+- `docs/model_spec/data-engine/layer-3/specs/state-flow/6B/state.6B.s5.expanded.md`
+  - 6B validation bundle and `_passed.flag` as world-level learning-read gates
+
+Telemetry plan:
+- live logs:
+  - Databricks job output for the Offline Feature Plane (OFS)
+  - SageMaker training / evaluation job logs for the Model Factory (MF)
+  - MLflow / Model Promotion and Registry (MPR) promotion and rollback events
+- live progress counters:
+  - dataset row counts and build stage progress
+  - train/eval job state and durations
+  - candidate bundle creation progress
+  - promotion / rollback counts and state
+- live boundary health:
+  - authoritative dataset basis present and gated
+  - label truth available with maturity semantics
+  - active-bundle resolution present and readable
+- fail-fast triggers:
+  - point-in-time or leakage violation detected
+  - train/eval running on non-authoritative dataset basis
+  - promotion attempt without complete lineage
+  - rollback path unavailable or unresolved
+- hardening artifacts:
+  - one run manifest
+  - one learning/MLOps live summary
+  - one optional lineage snapshot
+  - one implementation-note entry
+
 Definition of done:
 - Learning + Evolution / MLOps is plane-ready
 - no hidden local or script-only learning path is required for the managed corridor to function
@@ -554,6 +893,27 @@ Primary questions:
 - does the enlarged network preserve truth continuity from runtime to label to dataset to bundle to active runtime?
 - can the platform explain which dataset and bundle influenced a runtime decision?
 - can it roll back without ambiguity?
+
+Telemetry plan:
+- live logs:
+  - Databricks / SageMaker / MLflow plus the runtime consumer of active bundle truth
+- live progress counters:
+  - dataset-build / train-eval / promotion timing
+  - active-bundle resolution status
+  - rollback timing and success
+- live boundary health:
+  - runtime-to-label-to-dataset continuity
+  - promoted bundle visible to runtime
+  - rollback path restoring prior active truth
+- fail-fast triggers:
+  - active bundle not matching promoted truth
+  - runtime cannot resolve the managed bundle
+  - learning lineage complete on paper but unreadable in runtime
+- hardening artifacts:
+  - one run manifest
+  - one coupled-network summary
+  - one optional runtime/learning lineage snapshot
+  - one implementation-note entry
 
 Definition of done:
 - `Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps` becomes the working platform
@@ -606,6 +966,32 @@ Primary questions:
 - is spend attributable and controllable?
 - can the platform safely idle and restart?
 
+Telemetry plan:
+- live logs:
+  - run-control and reporter surfaces
+  - governance append / evidence write surfaces
+  - teardown / residual scan outputs
+- live progress counters:
+  - receipt and evidence emission counts
+  - dashboard freshness
+  - alert fire / clear counts
+  - attributable spend views
+  - residual compute counts
+- live boundary health:
+  - exact run reconstruction possible from current-run evidence
+  - active drift checks reading the same runtime surfaces the platform actually uses
+  - idle/teardown actions visible and reversible
+- fail-fast triggers:
+  - missing run receipts
+  - evidence holes on active run
+  - unattributed spend during active proof
+  - drift detected between live runtime and declared active path
+- hardening artifacts:
+  - one run manifest
+  - one ops/gov live summary
+  - one optional evidence/compliance snapshot
+  - one implementation-note entry
+
 Definition of done:
 - Operations / Governance / Meta is plane-ready
 - all working-platform planes are now governable and operable as one system
@@ -647,6 +1033,26 @@ Primary questions:
 - are there any hidden handoff defects that only appear once all planes are active?
 - is the platform explainable and auditable across the full run story?
 
+Telemetry plan:
+- live logs:
+  - active-plane logs across all working-platform planes
+  - operator-facing governance and evidence surfaces
+- live progress counters:
+  - ingress, RTDL, case/label, learning, and ops/gov summaries in one watch surface
+  - cross-plane path health and timing continuity
+- live boundary health:
+  - all critical cross-plane paths materially participating on the same run
+  - no plane appears green because another plane stopped doing real work
+- fail-fast triggers:
+  - any active plane dark while upstream is hot
+  - any critical cross-plane path loses run identity or truth continuity
+  - observability/evidence defects large enough to invalidate the integrated verdict
+- hardening artifacts:
+  - one run manifest
+  - one integrated live summary
+  - one optional whole-platform metric snapshot
+  - one implementation-note entry
+
 Definition of done:
 - the whole platform is bounded-correct
 - no unresolved red remains that would invalidate later stress authorization
@@ -684,6 +1090,26 @@ Primary questions:
 - does the full platform hold at production shape when the pressure window is widened?
 - do latency tails, fail-closed rates, lineage completeness, case/label throughput, learning lineage, and ops surfaces remain within bounds?
 
+Telemetry plan:
+- live logs:
+  - all active planes with emphasis on the currently tightest bottlenecks
+- live progress counters:
+  - full-platform latency tails
+  - fail-closed / quarantine / lineage / case / label / learning / governance counters
+  - recovery counters during widened pressure
+- live boundary health:
+  - full-platform participation remains real under widened stress
+  - no critical path is silently bypassed or starved
+- fail-fast triggers:
+  - clear early miss of target envelope
+  - tail latency or error posture already beyond recoverable bound
+  - a critical plane stops materially participating
+- hardening artifacts:
+  - one run manifest
+  - one stress live summary
+  - one optional stress metric snapshot
+  - one implementation-note entry
+
 Definition of done:
 - long stress or soak is authorized only if this phase is green
 - if not green, the platform is still not production-ready regardless of how clean the wiring looks
@@ -693,7 +1119,14 @@ Definition of done:
 ## Per-phase operating rules
 These rules apply to every phase above.
 
-### 1. Fail fast
+### 1. Telemetry before execution
+No phase or phase subsection may execute until its telemetry plan is pinned and materially available:
+- log tail,
+- live counters,
+- boundary-health checks,
+- fail-fast conditions.
+
+### 2. Fail fast
 The run stops as soon as the active boundary has enough evidence to show:
 - a correctness defect,
 - a semantic defect,
@@ -701,25 +1134,25 @@ The run stops as soon as the active boundary has enough evidence to show:
 - a deployment drift issue,
 - or an observability defect large enough to invalidate the verdict.
 
-### 2. Fix narrow, rerun narrow
+### 3. Fix narrow, rerun narrow
 When a phase fails:
 - fix the specific defect,
 - rerun the smallest legitimate boundary,
 - do not rerun the whole platform unless the defect actually spans it.
 
-### 3. Keep the platform AWS-real
+### 4. Keep the platform AWS-real
 The runtime proof must happen on the actual platform surfaces:
 - ingress on ingress surfaces,
 - RTDL on RTDL runtime,
 - learning on managed learning surfaces,
 - ops/governance on the real evidence and control surfaces.
 
-### 4. Keep the workspace clean
+### 5. Keep the workspace clean
 - durable evidence goes to `runs/`
 - temporary diagnosis artifacts do not accumulate in repo root
 - notes go to implementation maps and logbook, not ad hoc scratch dumps unless explicitly temporary
 
-### 5. Update reflected artifacts only after proof
+### 6. Update reflected artifacts only after proof
 After a phase is complete, update as needed:
 - network graph reflections,
 - readiness reflections,
@@ -743,3 +1176,9 @@ After a phase is complete, update as needed:
 Proceed with `Phase 0 - Control + Ingress revalidation`.
 
 The purpose of the immediate next action is not to rediscover ingress from scratch. It is to establish the first confirmed member of the working platform under this exact plan so the rest of the platform can be added to a trustworthy base.
+
+Execution order inside Phase 0 is:
+1. pin the Control + Ingress telemetry set and fail-fast conditions,
+2. verify the live resource posture against the current proven envelope,
+3. run the bounded revalidation window,
+4. only then mark Phase 0 green or reopen ingress remediation.
