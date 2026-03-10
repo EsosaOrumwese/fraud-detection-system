@@ -273,6 +273,9 @@ Default CLI entrypoint for this subphase:
   - duration `90 s`
   - expected admitted throughput `3000 eps`
   - early cutoff `45 s`
+- the wrapper must explicitly target the live execute-api ingress URL:
+  - `https://pd7rtjze95.execute-api.eu-west-2.amazonaws.com/v1/ingest/push`
+  - not the retained internal ALB `service_url` parameter
 
 ### Telemetry sub-ledger for Phase 0.B
 
