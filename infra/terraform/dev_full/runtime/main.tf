@@ -825,6 +825,7 @@ resource "aws_lambda_function" "ig_handler" {
       KAFKA_REQUEST_TIMEOUT_MS           = tostring(var.lambda_ig_kafka_request_timeout_ms)
       KAFKA_PUBLISH_RETRIES              = tostring(var.ig_kafka_publish_retries)
       KAFKA_BOOTSTRAP_BROKERS_PARAM_PATH = var.ssm_msk_bootstrap_brokers_path
+      IG_RECEIPT_STORAGE_MODE            = var.lambda_ig_receipt_storage_mode
       IG_HEALTH_BUS_PROBE_MODE           = var.lambda_ig_health_bus_probe_mode
       IG_POLICY_ACTIVATION_AUDIT_MODE    = var.lambda_ig_policy_activation_audit_mode
     }

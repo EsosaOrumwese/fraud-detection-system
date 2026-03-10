@@ -175,3 +175,93 @@ I patched the Lambda entrypoint locally so it now configures:
 - the handler module logger level
 
 This is not live yet, so it does not change the current production judgment. It does matter for the next bounded rerun because once deployed it should finally expose the per-phase timing story that is already being recorded in-process, especially whether the truthful `600`-concurrency red is dominated by `phase.publish_seconds`, receipt work, or a different part of the hot path.
+
+## 2026-03-10 14:07:26 +00:00
+I continued from that telemetry gap instead of treating the `13:38` truthful red as the end of the story. The next bounded run needed better observability first, so I pushed request-level timing telemetry into the live Lambda and then used the resulting runs to separate proving-agent defects from real ingress defects.
+
+First deployment: `phase0_ig_lambda_20260310T135006Z`
+
+- purpose: make the Lambda emit request timing splits (`auth`, `gate`, `admit`, `response`, `total`) so the next bounded `Phase 0.B` run would not stay blind inside the hot path
+- outcome: the code deployed, but the first live rerun immediately exposed a proving-agent defect in the new telemetry helper
+
+Bad bounded rerun: `phase0_20260310T135126Z`
+
+- bounded window result:
+  - admitted throughput collapsed to `30.183 eps`
+  - valid-traffic `5xx = 2206`
+  - all `40` WSP lanes eventually failed with `IG_PUSH_RETRY_EXHAUSTED`
+- this is **not** a platform-runtime verdict
+- CloudWatch and Lambda evidence pinned the cause to the proving change itself:
+  - `NameError: name '_prune_none' is not defined`
+  - the exception was thrown inside the request-timing emitter after successful admission work
+  - API Gateway `5xx` matched Lambda `Errors`
+  - Lambda `Throttles = 0`
+
+That matters methodologically because the run went red for a reason introduced by the hardening agent, not by the ingress platform. I therefore treated `phase0_20260310T135126Z` as invalid proof, fixed the telemetry helper, and redeployed before spending another bounded window.
+
+Second deployment: `phase0_ig_lambda_20260310T135741Z`
+
+- repaired the helper by replacing the bad `_prune_none` reference with a local compacting helper
+- wrapped timing emission so telemetry failure cannot break admission again
+- kept slow-path logging sampled by default so hardening gains visibility without turning the Lambda into a log storm
+- current live Lambda code hash after the repaired deployment:
+  - `oXhYuOAnn1QR3kFu8hoEuGdWPBwCic52eGscCDDQ47g=`
+
+Truthful rerun after repair: `phase0_20260310T135855Z`
+
+- bounded window result:
+  - valid-traffic `4xx = 0`
+  - valid-traffic `5xx = 0`
+  - admitted throughput `1324.508 eps`
+  - API Gateway latency `p95 = 553.894 ms`
+  - API Gateway latency `p99 = 1472.352 ms`
+  - Lambda `Throttles = 0`
+  - Lambda `ConcurrentExecutions` peaked at `581`, then sat well below the reserved `600`
+- production judgment:
+  - the active red is no longer throttling-driven
+  - it is also not the earlier `KAFKA_PUBLISH_TIMEOUT` family from the failed `900`-concurrency probe
+  - the ingress boundary is still materially under-performing, but the failure family is now different and more precise
+
+The new timing telemetry removed the largest remaining blind spot and exposed three concrete latency contributors.
+
+1. Cold-fleet / gate-initialization churn is materially real
+
+- sampled `IG gate initialized` logs for the active run: `525`
+- `init_seconds p50 ≈ 1.38`
+- `init_seconds p95 ≈ 1.414`
+- `init_seconds max ≈ 1.469`
+
+That is a production-readiness-defining signal. It means the current `API Gateway -> Lambda` posture is creating a broad cold execution fleet during the bounded window, and each fresh environment pays roughly `1.4 s` to build the gate. The run is therefore losing latency budget before actual admission work has even started.
+
+2. Successful admits are still slow even after gate construction is separated
+
+- sampled `IG request timing` logs for successful `202 ADMIT` requests showed roughly:
+  - `auth_ms ≈ 45-60`
+  - `gate_ms ≈ 1365-1415`
+  - `admit_ms ≈ 800-900`
+  - `response_ms ≈ negligible`
+  - `total_ms ≈ 2200-2350`
+
+So the remaining ingress red is not only a cold-start problem. Even where the request reaches the admit path successfully, the hot path still spends close to another second inside admission itself.
+
+3. The abnormal WSP lanes in the truthful run are not `5xx`; they are long-running quarantines
+
+- `wsp_lane_01`, `wsp_lane_10`, and `wsp_lane_11` exited because Lambda returned `400` with `decision = QUARANTINE`
+- sampled timing logs for those `400` requests showed:
+  - `gate_ms ≈ 1.36-1.45 s`
+  - `admit_ms ≈ 11-15 s`
+  - total request time `≈ 12.5-16 s`
+
+That points away from front-door instability and toward duplicate/in-flight resolution waiting too long inside the admission path, after which the request fails closed into `QUARANTINE`.
+
+Current engineering judgment from the truthful `13:58` rerun:
+
+- `Phase 0.B` remains red
+- the decisive blockers are now:
+  - cold-start amplification and gate-construction cost on the Lambda fleet
+  - slow admit-path work even on successful first-seen traffic
+  - a smaller but still real duplicate/in-flight resolution path that can wait `11-15 s` and then quarantine valid traffic
+- the next remediation should stay narrow and production-shaped:
+  - reduce or absorb the cold-start / gate-init penalty,
+  - isolate the dominant cost inside `admit_ms`,
+  - pin the exact quarantine reason family for the long duplicate-resolution cases

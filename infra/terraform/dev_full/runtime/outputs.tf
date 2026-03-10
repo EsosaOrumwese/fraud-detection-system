@@ -214,6 +214,7 @@ output "runtime_handle_materialization" {
     LAMBDA_IG_RESERVED_CONCURRENCY        = var.lambda_ig_reserved_concurrency
     LAMBDA_IG_TIMEOUT_SECONDS             = var.lambda_ig_timeout_seconds
     LAMBDA_IG_KAFKA_REQUEST_TIMEOUT_MS    = var.lambda_ig_kafka_request_timeout_ms
+    LAMBDA_IG_RECEIPT_STORAGE_MODE        = var.lambda_ig_receipt_storage_mode
     LAMBDA_IG_HEALTH_BUS_PROBE_MODE       = var.lambda_ig_health_bus_probe_mode
     IG_SERVICE_GUNICORN_KEEPALIVE_SECONDS = var.ig_service_gunicorn_keepalive_seconds
     IG_SERVICE_KAFKA_REQUEST_TIMEOUT_MS   = var.ig_service_kafka_request_timeout_ms

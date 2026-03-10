@@ -74,6 +74,8 @@ _API_KEY_CACHE_LOCK = threading.Lock()
 
 _GATE_CACHE: dict[str, IngestionGate] = {}
 _GATE_CACHE_LOCK = threading.Lock()
+_COLD_START = True
+_COLD_START_LOCK = threading.Lock()
 
 
 def _bundle_root() -> Path:
@@ -113,6 +115,97 @@ def _env_bool(name: str, default: bool) -> bool:
     if value in {"0", "false", "no", "off"}:
         return False
     return default
+
+
+def _slow_request_log_ms() -> float:
+    return max(0.0, _env_float("IG_SLOW_REQUEST_LOG_MS", 1500.0))
+
+
+def _slow_request_sample_rate() -> float:
+    return min(1.0, max(0.0, _env_float("IG_SLOW_REQUEST_SAMPLE_RATE", 0.01)))
+
+
+def _compact_mapping(values: dict[str, Any]) -> dict[str, Any]:
+    return {str(key): value for key, value in values.items() if value is not None}
+
+
+def _consume_cold_start() -> bool:
+    global _COLD_START
+    with _COLD_START_LOCK:
+        cold_start = _COLD_START
+        _COLD_START = False
+        return cold_start
+
+
+def _log_request_timing(
+    *,
+    request_id: str | None,
+    cold_start: bool,
+    method: str,
+    path: str,
+    status_code: int,
+    decision: str,
+    platform_run_id: str,
+    payload: dict[str, Any],
+    correlation_echo: dict[str, Any],
+    body_size: int,
+    remaining_ms: Any,
+    auth_ms: float,
+    gate_ms: float,
+    admit_ms: float,
+    response_ms: float,
+    total_ms: float,
+    force: bool = False,
+) -> None:
+    try:
+        threshold_ms = _slow_request_log_ms()
+        if not force and threshold_ms > 0.0:
+            if max(total_ms, auth_ms, gate_ms, admit_ms, response_ms) < threshold_ms:
+                return
+            sample_rate = _slow_request_sample_rate()
+            if sample_rate <= 0.0:
+                return
+            if sample_rate < 1.0 and not cold_start:
+                sample_key = str(request_id or payload.get("event_id") or payload.get("trace_id") or platform_run_id)
+                if sample_key:
+                    bucket = sum(ord(ch) for ch in sample_key) % 10000
+                    if bucket >= int(sample_rate * 10000):
+                        return
+        payload_summary = {
+            "event_id": payload.get("event_id"),
+            "event_type": payload.get("event_type"),
+            "scenario_run_id": payload.get("scenario_run_id") or payload.get("run_id"),
+            "runtime_lane": payload.get("runtime_lane"),
+            "trace_id": payload.get("trace_id"),
+        }
+        timing_payload = {
+            "event": "ig_request_timing",
+            "request_id": request_id,
+            "cold_start": cold_start,
+            "method": method,
+            "path": path,
+            "status_code": status_code,
+            "decision": decision,
+            "platform_run_id": platform_run_id,
+            "body_size_bytes": body_size,
+            "remaining_ms": remaining_ms,
+            "timings_ms": {
+                "auth": round(auth_ms, 3),
+                "gate": round(gate_ms, 3),
+                "admit": round(admit_ms, 3),
+                "response": round(response_ms, 3),
+                "total": round(total_ms, 3),
+            },
+            "payload": _compact_mapping(payload_summary),
+            "correlation_echo": _compact_mapping(correlation_echo),
+        }
+        LOGGER.warning("IG request timing %s", json.dumps(timing_payload, ensure_ascii=True, sort_keys=True))
+    except Exception:
+        LOGGER.exception(
+            "IG request timing emission failed request_id=%s platform_run_id=%s",
+            request_id,
+            platform_run_id,
+        )
 
 
 def _aws_runtime_config() -> Config:
@@ -697,6 +790,14 @@ def _health_response() -> dict[str, Any]:
 
 
 def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
+    invocation_started = time.perf_counter()
+    cold_start = _consume_cold_start()
+    request_id = str(getattr(_context, "aws_request_id", "") or "") or None
+    auth_ms = 0.0
+    gate_ms = 0.0
+    admit_ms = 0.0
+    response_ms = 0.0
+    remaining_ms = getattr(_context, "get_remaining_time_in_millis", lambda: None)()
     method, path = _normalize_path(event if isinstance(event, dict) else {})
     if (method, path) not in PROTECTED_ROUTES:
         return _response(404, {"error": "route_not_found", "path": path, "method": method})
@@ -705,7 +806,9 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         LOGGER.info("IG health request received")
 
     headers = _extract_headers(event if isinstance(event, dict) else {})
+    auth_started = time.perf_counter()
     auth_context, auth_failure = _authorize(headers)
+    auth_ms = (time.perf_counter() - auth_started) * 1000.0
     if auth_failure is not None:
         return auth_failure
 
@@ -730,7 +833,6 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     correlation_echo = {k: payload.get(k) for k in CORRELATION_FIELDS}
 
     try:
-        remaining_ms = getattr(_context, "get_remaining_time_in_millis", lambda: None)()
         LOGGER.debug(
             "IG request start path=%s method=%s platform_run_id=%s remaining_ms=%s",
             path,
@@ -738,8 +840,13 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             platform_run_id,
             remaining_ms,
         )
+        gate_started = time.perf_counter()
         gate = _gate_for(platform_run_id)
+        gate_ms = (time.perf_counter() - gate_started) * 1000.0
+        admit_started = time.perf_counter()
         decision, receipt = gate.admit_push_with_decision(payload, auth_context=auth_context)
+        admit_ms = (time.perf_counter() - admit_started) * 1000.0
+        response_started = time.perf_counter()
         response_body = {
             "decision": decision.decision,
             "receipt": receipt.payload,
@@ -748,7 +855,27 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             "correlation_echo": correlation_echo,
         }
         status_code = 202 if decision.decision in {"ADMIT", "DUPLICATE"} else 400
-        return _response(status_code, response_body)
+        response = _response(status_code, response_body)
+        response_ms = (time.perf_counter() - response_started) * 1000.0
+        _log_request_timing(
+            request_id=request_id,
+            cold_start=cold_start,
+            method=method,
+            path=path,
+            status_code=status_code,
+            decision=decision.decision,
+            platform_run_id=platform_run_id,
+            payload=payload,
+            correlation_echo=correlation_echo,
+            body_size=body_size,
+            remaining_ms=remaining_ms,
+            auth_ms=auth_ms,
+            gate_ms=gate_ms,
+            admit_ms=admit_ms,
+            response_ms=response_ms,
+            total_ms=(time.perf_counter() - invocation_started) * 1000.0,
+        )
+        return response
     except IngestionError as exc:
         if exc.code in {"PUBLISH_IN_FLIGHT_RETRY", "PUBLISH_AMBIGUOUS_RETRY"}:
             LOGGER.warning(
@@ -757,7 +884,8 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
                 platform_run_id,
                 exc.code,
             )
-            return _response(
+            response_started = time.perf_counter()
+            response = _response(
                 503,
                 {
                     "error": "retry_required",
@@ -766,6 +894,27 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
                     "correlation_echo": correlation_echo,
                 },
             )
+            response_ms = (time.perf_counter() - response_started) * 1000.0
+            _log_request_timing(
+                request_id=request_id,
+                cold_start=cold_start,
+                method=method,
+                path=path,
+                status_code=503,
+                decision=exc.code,
+                platform_run_id=platform_run_id,
+                payload=payload,
+                correlation_echo=correlation_echo,
+                body_size=body_size,
+                remaining_ms=remaining_ms,
+                auth_ms=auth_ms,
+                gate_ms=gate_ms,
+                admit_ms=admit_ms,
+                response_ms=response_ms,
+                total_ms=(time.perf_counter() - invocation_started) * 1000.0,
+                force=True,
+            )
+            return response
         reason = str(exc)
         LOGGER.exception(
             json.dumps(
@@ -778,7 +927,8 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             )
         )
         _send_dlq(payload, reason, headers)
-        return _response(
+        response_started = time.perf_counter()
+        response = _response(
             503,
             {
                 "error": "ingress_publish_failed",
@@ -787,6 +937,27 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
                 "correlation_echo": correlation_echo,
             },
         )
+        response_ms = (time.perf_counter() - response_started) * 1000.0
+        _log_request_timing(
+            request_id=request_id,
+            cold_start=cold_start,
+            method=method,
+            path=path,
+            status_code=503,
+            decision="INGESTION_ERROR",
+            platform_run_id=platform_run_id,
+            payload=payload,
+            correlation_echo=correlation_echo,
+            body_size=body_size,
+            remaining_ms=remaining_ms,
+            auth_ms=auth_ms,
+            gate_ms=gate_ms,
+            admit_ms=admit_ms,
+            response_ms=response_ms,
+            total_ms=(time.perf_counter() - invocation_started) * 1000.0,
+            force=True,
+        )
+        return response
     except Exception as exc:
         reason = str(exc)
         LOGGER.exception(
@@ -800,7 +971,8 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             )
         )
         _send_dlq(payload, reason, headers)
-        return _response(
+        response_started = time.perf_counter()
+        response = _response(
             503,
             {
                 "error": "ingress_publish_failed",
@@ -809,3 +981,24 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
                 "correlation_echo": correlation_echo,
             },
         )
+        response_ms = (time.perf_counter() - response_started) * 1000.0
+        _log_request_timing(
+            request_id=request_id,
+            cold_start=cold_start,
+            method=method,
+            path=path,
+            status_code=503,
+            decision="UNHANDLED_EXCEPTION",
+            platform_run_id=platform_run_id,
+            payload=payload,
+            correlation_echo=correlation_echo,
+            body_size=body_size,
+            remaining_ms=remaining_ms,
+            auth_ms=auth_ms,
+            gate_ms=gate_ms,
+            admit_ms=admit_ms,
+            response_ms=response_ms,
+            total_ms=(time.perf_counter() - invocation_started) * 1000.0,
+            force=True,
+        )
+        return response

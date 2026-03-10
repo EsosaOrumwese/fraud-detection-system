@@ -224,6 +224,11 @@ variable "lambda_ig_kafka_request_timeout_ms" {
   default = 5000
 }
 
+variable "lambda_ig_receipt_storage_mode" {
+  type    = string
+  default = "ddb_hot"
+}
+
 variable "ig_kafka_publish_retries" {
   type    = number
   default = 5

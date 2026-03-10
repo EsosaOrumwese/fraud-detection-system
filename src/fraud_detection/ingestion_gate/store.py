@@ -136,7 +136,16 @@ class ObservedObjectStore:
                 raise
             self._record_failure(operation, exc)
             raise
+        except RuntimeError as exc:
+            if _is_benign_append_conflict(operation, exc):
+                self._record_benign_conflict(operation, exc)
+                raise
+            self._record_failure(operation, exc)
+            raise
         except Exception as exc:
+            if _is_benign_append_conflict(operation, exc):
+                self._record_benign_conflict(operation, exc)
+                raise
             self._record_failure(operation, exc)
             raise
         self._record_success()
@@ -162,6 +171,21 @@ class ObservedObjectStore:
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self.inner, name)
+
+
+def _is_benign_append_conflict(operation: str, exc: Exception) -> bool:
+    if operation != "append_jsonl":
+        return False
+    message = str(exc)
+    if "S3_APPEND_CONFLICT" in message or "ConditionalRequestConflict" in message:
+        return True
+    response = getattr(exc, "response", None)
+    if not isinstance(response, dict):
+        return False
+    error = response.get("Error", {})
+    if not isinstance(error, dict):
+        return False
+    return str(error.get("Code") or "") in {"PreconditionFailed", "412", "ConditionalRequestConflict"}
 
 
 class LocalObjectStore:
@@ -331,7 +355,7 @@ class S3ObjectStore:
                 return ArtifactRef(path=f"s3://{self.bucket}/{key}")
             except ClientError as exc:
                 error_code = exc.response.get("Error", {}).get("Code")
-                if error_code not in {"PreconditionFailed", "412"}:
+                if error_code not in {"PreconditionFailed", "412", "ConditionalRequestConflict"}:
                     raise
                 last_conflict = exc
                 if attempt >= max_attempts:

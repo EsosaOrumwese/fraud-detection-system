@@ -171,6 +171,14 @@ Current drift hazard discovered in preflight:
 - receipt count
 - quarantine count
 - `p95` / `p99` latency
+- Lambda cold-start share
+- gate initialization count / `init_seconds`
+- request timing split:
+  - `auth`
+  - `gate`
+  - `admit`
+  - `response`
+  - total request time
 
 Current concrete surfaces:
 - API Gateway stage throttling posture
@@ -298,6 +306,10 @@ Default CLI entrypoint for this subphase:
 - valid-traffic error rate
 - publish ambiguity / quarantine spike rate
 - abnormal WSP lane tail markers when metadata-only lane capture is used
+- Lambda cold-start rate during the bounded window
+- gate initialization frequency / `init_seconds`
+- request timing split for successful and abnormal requests
+- quarantine reason family for any non-`5xx` abnormal lanes
 
 #### Success posture
 - fresh run ids remain consistent through the active boundary
@@ -312,11 +324,42 @@ Default CLI entrypoint for this subphase:
 - admitted-without-publish evidence
 - contradictory or missing receipt story
 - any unexpected valid-traffic error leakage
+- cold-fleet churn large enough to dominate the latency budget
+- slow admit-path work even when valid traffic is being admitted successfully
+- duplicate/in-flight resolution waiting long enough to turn valid traffic into `QUARANTINE`
 
 Definition of done:
 - fresh bounded correctness is green,
 - there is no stale-scope contamination,
 - the plane is still semantically and operationally coherent before stress.
+
+### Current live `Phase 0.B` status
+
+Fresh execution evidence on `2026-03-10` now separates the remaining blockers cleanly.
+
+Latest truthful bounded rerun:
+
+- execution `phase0_20260310T135855Z`
+- valid-traffic `4xx = 0`
+- valid-traffic `5xx = 0`
+- admitted throughput `1324.508 eps`
+- `p95 = 553.894 ms`
+- `p99 = 1472.352 ms`
+- Lambda `Throttles = 0`
+
+Current judgment:
+
+- `Phase 0.B` is still red
+- the active red is no longer explained by WSP under-drive, Lambda throttling, or the earlier `KAFKA_PUBLISH_TIMEOUT` failure family from the failed `900`-concurrency probe
+- the dominant current blockers are:
+  - broad cold-fleet churn causing hundreds of gate initializations around `1.4 s` each
+  - successful admit-path work still taking roughly `0.8-0.9 s`
+  - a smaller set of long duplicate/in-flight resolution requests taking `11-15 s` and returning `400 QUARANTINE`
+
+One additional note matters for interpretation:
+
+- the immediately prior run `phase0_20260310T135126Z` is not authoritative proof because a newly added telemetry helper threw `NameError: _prune_none` inside the Lambda and created `5xx` on otherwise successful requests
+- that proving-agent defect was repaired and redeployed before the truthful rerun above
 
 ### Phase 0.C - Envelope and recovery proof
 Goal:

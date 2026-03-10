@@ -66,6 +66,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--target-request-rate-eps", type=float, default=3000.0)
     parser.add_argument("--target-burst-seconds", type=float, default=0.25)
     parser.add_argument("--target-initial-tokens", type=float, default=0.25)
+    parser.add_argument("--campaign-start-utc", default="")
+    parser.add_argument("--rate-plan-json", default="")
+    parser.add_argument("--metric-settle-seconds", type=int, default=90)
+    parser.add_argument("--lane-log-mode", choices=("auto", "full", "metadata"), default="auto")
     parser.add_argument("--traffic-output-ids", default="s3_event_stream_with_fraud_6B")
     parser.add_argument(
         "--context-output-ids",
@@ -140,6 +144,14 @@ def main() -> None:
         str(float(args.target_burst_seconds)),
         "--target-initial-tokens",
         str(float(args.target_initial_tokens)),
+        "--campaign-start-utc",
+        str(args.campaign_start_utc),
+        "--rate-plan-json",
+        str(args.rate_plan_json),
+        "--metric-settle-seconds",
+        str(int(args.metric_settle_seconds)),
+        "--lane-log-mode",
+        str(args.lane_log_mode),
         "--traffic-output-ids",
         str(args.traffic_output_ids),
         "--context-output-ids",
