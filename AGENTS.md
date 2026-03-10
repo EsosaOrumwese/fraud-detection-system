@@ -41,7 +41,6 @@ For platform work on `dev_full`, reason in this order:
 - Do not touch or rerun the Data Engine unless the user explicitly asks.
 - Keep the workspace neat:
   - durable run evidence in `runs/`
-  - scratch notes in `scratch_files/`
   - no scattered temp directories or dumped artifacts in repo root
 
 ---
