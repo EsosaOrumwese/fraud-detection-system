@@ -1,0 +1,42 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    L1["Left to right = plane -> current readiness posture -> whole-platform implication"]
+    L2["Green = proven working plane"]
+    L3["Amber = partly proven"]
+    L4["Red = still blocking whole-platform readiness"]
+  end
+
+  subgraph PLANES["Current Plane Readiness Snapshot"]
+    CI["Control + Ingress<br>GREEN<br>current declared envelope proven"]
+    RTDL["RTDL<br>AMBER / RED<br>semantic and recovery blockers remain"]
+    CL["Case + Label<br>AMBER / RED<br>depends on RTDL closure and own stress proof"]
+    LE["Learning + Evolution / MLOps<br>AMBER / RED<br>managed corridor present, not fully validated"]
+    OG["Ops / Gov / Meta<br>AMBER / RED<br>present, not whole-platform certified"]
+  end
+
+  subgraph IMPLICATIONS["Whole-Platform Implication"]
+    W1["Current working platform<br>Control + Ingress only"]
+    W2["Everything else is wired but not yet promoted into the working platform"]
+    W3["Whole platform verdict<br>RED<br>not production-ready as a full system yet"]
+  end
+
+  CI --> W1
+  RTDL --> W2
+  CL --> W2
+  LE --> W2
+  OG --> W2
+  W1 --> W3
+  W2 --> W3
+
+  classDef ok fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.4px;
+  classDef warn fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef bad fill:#ffebee,stroke:#c62828,color:#111,stroke-width:1.3px;
+  class CI,W1 ok;
+  class RTDL,CL,LE,OG,W2 warn;
+  class W3 bad;

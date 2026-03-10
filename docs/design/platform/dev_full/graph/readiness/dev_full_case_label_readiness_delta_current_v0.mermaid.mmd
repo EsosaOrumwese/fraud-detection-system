@@ -1,0 +1,56 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    L1["Left to right = component -> dependency / blocker -> observed status -> readiness posture"]
+    L2["Red = unresolved blocker"]
+    L3["Amber = wired / partly proven but not yet production-closed"]
+    L4["Blue = observed participation or risk statement"]
+  end
+
+  subgraph COMPONENTS["Case + Label Components"]
+    CT["CaseTrigger"]
+    CM["Case Management (CM)"]
+    LS["Label Store (LS)"]
+  end
+
+  subgraph BLOCKERS["Active Case + Label Blockers"]
+    B1["Upstream RTDL is not yet production-closed<br>case and label semantics cannot be trusted as final while RTDL remains amber/red"]
+    B2["Bounded participation exists, but independent production-shaped stress proof is still missing"]
+    B3["Need stronger evidence for duplicate-safe case creation, append-only case truth, and label truth under load"]
+  end
+
+  subgraph IMPACT["Current Observed Impact"]
+    M1["CaseTrigger, Case Management, and Label Store have been wired and exercised in bounded paths"]
+    M2["The plane has not yet been promoted into the working platform because its upstream decision truth is not yet fully trusted"]
+    M3["Operational truth formation is partly proven, not yet production-worthy under declared pressure"]
+  end
+
+  subgraph VERDICT["Current Case + Label Readiness"]
+    V1["Case + Label verdict<br>AMBER / RED<br>wired and partly exercised, not production-closed"]
+    V2["What must happen next<br>close RTDL first<br>then prove case and label semantics, duplicate safety, latency, and append-only truth on bounded AWS runs"]
+  end
+
+  CT --> B1
+  CM --> B2
+  LS --> B3
+  B1 --> M2
+  B2 --> M1
+  B3 --> M3
+  M1 --> V1
+  M2 --> V1
+  M3 --> V1
+  V1 --> V2
+
+  classDef comp fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.3px;
+  classDef defect fill:#ffebee,stroke:#c62828,color:#111,stroke-width:1.3px;
+  classDef metric fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.3px;
+  classDef warn fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  class CT,CM,LS comp;
+  class B1,B2,B3 defect;
+  class M1,M2,M3 metric;
+  class V1,V2 warn;
