@@ -29,6 +29,7 @@ flowchart LR
     D3["Blind spots in live proof<br>phase timings not emitted clearly<br>benign append conflicts looked unhealthy"]
     D4["Proof-boundary instability<br>unsynchronized baseline stays semantically clean but slightly underfills the APIGW steady gate"]
     D5["Invalid proof reshapes<br>synchronized starts create 503/quarantine overload<br>warmed single-bin proof not yet repeatable"]
+    D6["DynamoDB hot-path write amplification<br>idempotency rows carried large inline receipt bodies<br>write cost dominated successful bounded runs"]
   end
 
   subgraph REMEDIATION["Remediation / Posture Changes"]
@@ -36,6 +37,7 @@ flowchart LR
     R2["Repin live Lambda hot path<br>IG_HEALTH_BUS_PROBE_MODE = none"]
     R3["Improve observability and attribution<br>raise Lambda logger hierarchy<br>widen benign append-conflict handling<br>preserve abnormal lane tails<br>record fleet confirmation mode"]
     R4["Close Phase 0.B through proof-boundary discipline<br>freeze the unsynchronized truthful baseline<br>make measurement-start attribution explicit<br>require repeatability before Phase 0.C"]
+    R5["Keep ddb_hot but compact the inline receipt body<br>reject object_store on Lambda at the current envelope<br>reduce write cost without changing the proven ingress shape"]
   end
 
   subgraph IMPACT["Measured Impact"]
@@ -43,6 +45,7 @@ flowchart LR
     M2["Semantic bounded reruns clean<br>phase0_20260310T143110Z = 2999.925 eps<br>phase0_20260310T143801Z = 2999.650 eps<br>4xx = 0 / 5xx = 0<br>p95 approx 49-50 ms / p99 approx 56-57 ms"]
     M3["CloudWatch lag ruled out<br>full-log probe phase0_20260310T145355Z showed about 75 requests missing over 120 s<br>miss concentrated in the first measured minute"]
     M4["Reshaped proofs rejected<br>phase0_20260310T150019Z synchronized start caused 503 / quarantine overload<br>phase0_20260310T153432Z warmup probe near-green once<br>phase0_20260310T154004Z repeat collapsed"]
+    M5["Cost correction proved on the same baseline<br>phase0_20260310T165309Z stayed semantically clean<br>fresh live receipt_payload_json = 392 bytes<br>DDB write pressure dropped to about 488k-540k WRU/min from about 720k WRU/min"]
   end
 
   subgraph VERDICT["Current Verdict"]
@@ -63,12 +66,14 @@ flowchart LR
   EVID --> D4
   WSP --> D5
   EDGE --> D5
+  DDB --> D6
 
   D1 --> R1
   D2 --> R2
   D3 --> R3
   D4 --> R4
   D5 --> R4
+  D6 --> R5
 
   R1 --> M1
   R2 --> M2
@@ -76,11 +81,13 @@ flowchart LR
   R3 --> M3
   R4 --> M3
   R4 --> M4
+  R5 --> M5
 
   M1 --> V1
   M2 --> V1
   M3 --> V3
   M4 --> V3
+  M5 --> V1
   V1 --> V2
   V3 --> V2
   V2 --> V4
@@ -93,9 +100,9 @@ flowchart LR
   classDef caveat fill:#f5f5f5,stroke:#616161,color:#111,stroke-dasharray: 5 3;
 
   class WSP,EDGE,IG,DDB,PUB,EVID comp;
-  class D1,D2,D3,D4,D5 defect;
-  class R1,R2,R3,R4 fix;
-  class M1,M2,M3,M4 metric;
+  class D1,D2,D3,D4,D5,D6 defect;
+  class R1,R2,R3,R4,R5 fix;
+  class M1,M2,M3,M4,M5 metric;
   class V1 ok;
   class V2,V3 defect;
   class V4 caveat;

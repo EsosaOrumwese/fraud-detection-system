@@ -250,6 +250,44 @@ def measurement_start_boundary(active_confirmed_at: datetime, *, warmup_seconds:
     return align_up_to_period(active_confirmed_at + timedelta(seconds=effective_warmup), period_seconds)
 
 
+def summarize_ingress_bins(
+    bins: list[dict[str, Any]],
+    *,
+    expected_eps: float,
+) -> dict[str, Any]:
+    if not bins:
+        return {
+            "bin_count": 0,
+            "shortfall_bin_count": 0,
+            "first_bin": {},
+            "tail_bins": {},
+        }
+    admitted_eps_values = [float(row.get("observed_admitted_eps", 0.0) or 0.0) for row in bins]
+    shortfall_bin_count = sum(1 for value in admitted_eps_values if value < float(expected_eps))
+    first_bin = bins[0]
+    tail_bins = bins[1:]
+    tail_values = [float(row.get("observed_admitted_eps", 0.0) or 0.0) for row in tail_bins]
+    return {
+        "bin_count": len(bins),
+        "shortfall_bin_count": shortfall_bin_count,
+        "first_bin": {
+            "timestamp_utc": first_bin.get("timestamp_utc"),
+            "observed_admitted_eps": float(first_bin.get("observed_admitted_eps", 0.0) or 0.0),
+            "request_count": int(float(first_bin.get("request_count", 0.0) or 0.0)),
+            "admitted_count": int(float(first_bin.get("admitted_count", 0.0) or 0.0)),
+            "4xx_total": int(float(first_bin.get("4xx_total", 0.0) or 0.0)),
+            "5xx_total": int(float(first_bin.get("5xx_total", 0.0) or 0.0)),
+        },
+        "tail_bins": {
+            "count": len(tail_bins),
+            "shortfall_count": sum(1 for value in tail_values if value < float(expected_eps)),
+            "min_observed_admitted_eps": min(tail_values) if tail_values else None,
+            "max_observed_admitted_eps": max(tail_values) if tail_values else None,
+            "avg_observed_admitted_eps": (sum(tail_values) / len(tail_values)) if tail_values else None,
+        },
+    }
+
+
 def build_wsp_command() -> list[str]:
     script = dedent(
         """
@@ -607,6 +645,179 @@ def resolve_ingress_surface(
             "target_group_count": len(target_groups),
         }
     raise RuntimeError(blocker_code(blocker_prefix, "B05_INGRESS_SURFACE_UNRESOLVED", f"unsupported_host:{host}"))
+
+
+def parse_log_group_name_from_arn(log_group_arn: str) -> str:
+    raw = str(log_group_arn or "").strip()
+    if not raw:
+        return ""
+    marker = ":log-group:"
+    if marker not in raw:
+        return ""
+    suffix = raw.split(marker, 1)[1]
+    return suffix.split(":*", 1)[0].strip()
+
+
+def resolve_apigw_access_log_group(apigw: Any, *, api_id: str, stage: str) -> str:
+    if not str(api_id).strip() or not str(stage).strip():
+        return ""
+    try:
+        payload = apigw.get_stage(ApiId=str(api_id).strip(), StageName=str(stage).strip())
+    except (BotoCoreError, ClientError):
+        return ""
+    access_log_settings = payload.get("AccessLogSettings", {}) if isinstance(payload, dict) else {}
+    destination_arn = str(access_log_settings.get("DestinationArn", "")).strip() if isinstance(access_log_settings, dict) else ""
+    return parse_log_group_name_from_arn(destination_arn)
+
+
+def _cwli_scalar(rows: list[list[dict[str, str]]], field_name: str) -> str:
+    for row in rows:
+        for cell in row:
+            if str(cell.get("field", "")).strip() == str(field_name).strip():
+                return str(cell.get("value", "")).strip()
+    return ""
+
+
+def _cwli_float(rows: list[list[dict[str, str]]], field_name: str) -> float | None:
+    text = _cwli_scalar(rows, field_name)
+    if not text:
+        return None
+    try:
+        return float(text)
+    except ValueError:
+        return None
+
+
+def get_apigw_access_log_window_stats(
+    logs: Any,
+    *,
+    log_group_name: str,
+    start_time: datetime,
+    end_time: datetime,
+    route_key: str = "POST /ingest/push",
+    poll_timeout_seconds: int = 45,
+) -> dict[str, Any]:
+    exact_start = start_time.astimezone(timezone.utc)
+    exact_end = end_time.astimezone(timezone.utc)
+    covered_seconds = max(0.0, (exact_end - exact_start).total_seconds())
+    if covered_seconds <= 0.0 or not str(log_group_name).strip():
+        return {
+            "request_count_total": 0.0,
+            "request_4xx_total": 0.0,
+            "request_5xx_total": 0.0,
+            "covered_seconds": covered_seconds,
+            "effective_start_utc": to_iso_utc(exact_start),
+            "effective_end_utc": to_iso_utc(exact_end),
+            "latency_p95_ms": None,
+            "latency_p99_ms": None,
+            "query_status": "SKIPPED",
+            "query_id": "",
+            "records_matched": 0.0,
+            "records_scanned": 0.0,
+            "bytes_scanned": 0.0,
+        }
+    query = dedent(
+        f"""
+        fields @timestamp, status, route_key, response_latency_ms
+        | filter route_key = "{str(route_key).replace('"', '\\"')}"
+        | stats count(*) as request_count_total,
+                sum(if(status >= 400 and status < 500, 1, 0)) as request_4xx_total,
+                sum(if(status >= 500 and status < 600, 1, 0)) as request_5xx_total,
+                pct(response_latency_ms, 95) as latency_p95_ms,
+                pct(response_latency_ms, 99) as latency_p99_ms
+        """
+    ).strip()
+    start_epoch = int(exact_start.timestamp())
+    end_epoch = int(math.ceil(exact_end.timestamp()))
+    started = logs.start_query(
+        logGroupName=str(log_group_name).strip(),
+        startTime=start_epoch,
+        endTime=end_epoch,
+        queryString=query,
+        limit=10,
+    )
+    query_id = str(started.get("queryId", "")).strip()
+    if not query_id:
+        raise RuntimeError("APIGW access-log query started without queryId")
+    deadline = time.time() + max(5, int(poll_timeout_seconds))
+    result: dict[str, Any] = {}
+    while time.time() < deadline:
+        result = logs.get_query_results(queryId=query_id)
+        status = str(result.get("status", "")).strip()
+        if status in {"Complete", "Failed", "Cancelled", "Timeout", "Unknown"}:
+            break
+        time.sleep(2)
+    status = str(result.get("status", "")).strip() or "Unknown"
+    if status != "Complete":
+        raise RuntimeError(f"APIGW access-log query not complete: {status}")
+    rows = list(result.get("results", []) or [])
+    statistics = result.get("statistics", {}) if isinstance(result, dict) else {}
+    request_count_total = float(_cwli_float(rows, "request_count_total") or 0.0)
+    request_4xx_total = float(_cwli_float(rows, "request_4xx_total") or 0.0)
+    request_5xx_total = float(_cwli_float(rows, "request_5xx_total") or 0.0)
+    return {
+        "request_count_total": request_count_total,
+        "request_4xx_total": request_4xx_total,
+        "request_5xx_total": request_5xx_total,
+        "covered_seconds": covered_seconds,
+        "effective_start_utc": to_iso_utc(exact_start),
+        "effective_end_utc": to_iso_utc(exact_end),
+        "latency_p95_ms": _cwli_float(rows, "latency_p95_ms"),
+        "latency_p99_ms": _cwli_float(rows, "latency_p99_ms"),
+        "query_status": status,
+        "query_id": query_id,
+        "records_matched": float(statistics.get("recordsMatched", 0.0) or 0.0),
+        "records_scanned": float(statistics.get("recordsScanned", 0.0) or 0.0),
+        "bytes_scanned": float(statistics.get("bytesScanned", 0.0) or 0.0),
+    }
+
+
+def get_stable_apigw_access_log_window_stats(
+    logs: Any,
+    *,
+    log_group_name: str,
+    start_time: datetime,
+    end_time: datetime,
+    route_key: str = "POST /ingest/push",
+    aligned_metric_count_hint: float = 0.0,
+    min_aligned_match_ratio: float = 0.995,
+    max_attempts: int = 8,
+    retry_sleep_seconds: int = 15,
+    stability_ratio: float = 0.001,
+) -> dict[str, Any]:
+    best: dict[str, Any] | None = None
+    previous_count: float | None = None
+    min_expected_from_aligned = max(0.0, float(aligned_metric_count_hint) * float(min_aligned_match_ratio))
+    for attempt in range(1, max(1, int(max_attempts)) + 1):
+        current = get_apigw_access_log_window_stats(
+            logs,
+            log_group_name=log_group_name,
+            start_time=start_time,
+            end_time=end_time,
+            route_key=route_key,
+        )
+        current["stability_attempt"] = attempt
+        current["aligned_metric_count_hint"] = float(aligned_metric_count_hint)
+        current["min_expected_from_aligned"] = min_expected_from_aligned
+        best = current
+        current_count = float(current.get("request_count_total", 0.0) or 0.0)
+        if current_count >= min_expected_from_aligned > 0.0:
+            current["stability_state"] = "aligned_lag_guard_satisfied"
+            return current
+        if previous_count is not None:
+            growth = current_count - previous_count
+            baseline = max(1.0, previous_count)
+            if growth <= (baseline * float(stability_ratio)):
+                current["stability_state"] = "stable"
+                return current
+        previous_count = current_count
+        current["stability_state"] = "growing"
+        if attempt < int(max_attempts):
+            time.sleep(max(1, int(retry_sleep_seconds)))
+    if best is None:
+        raise RuntimeError("APIGW access-log stability query produced no result")
+    best["stability_state"] = "max_attempts_exhausted"
+    return best
 
 
 def get_ingress_totals(
@@ -990,6 +1201,33 @@ def parse_result_from_logs(events: list[dict[str, Any]]) -> dict[str, Any] | Non
             continue
         if isinstance(payload, dict) and "status" in payload and "engine_run_root" in payload:
             return payload
+    emitted_by_output: dict[str, int] = {}
+    run_id = ""
+    progress_pattern = re.compile(r"output_id=(?P<output_id>\S+)\s+emitted=(?P<emitted>\d+)")
+    run_pattern = re.compile(r"run_id=(?P<run_id>\S+)")
+    for row in events:
+        message = " ".join(str(row.get("message", "")).strip().split())
+        if not message or " emitted=" not in message or "output_id=" not in message:
+            continue
+        match = progress_pattern.search(message)
+        if not match:
+            continue
+        output_id = str(match.group("output_id")).strip()
+        emitted = int(match.group("emitted"))
+        emitted_by_output[output_id] = max(emitted_by_output.get(output_id, 0), emitted)
+        if not run_id:
+            run_match = run_pattern.search(message)
+            if run_match:
+                run_id = str(run_match.group("run_id")).strip()
+    if emitted_by_output:
+        return {
+            "status": "LOG_DERIVED_PROGRESS",
+            "engine_run_root": None,
+            "run_id": run_id or None,
+            "emitted": int(sum(emitted_by_output.values())),
+            "outputs": emitted_by_output,
+            "derived_from": "progress_logs",
+        }
     return None
 
 
@@ -1223,6 +1461,12 @@ def main() -> None:
         blocker_prefix=args.blocker_prefix,
         prior_surface=prior_surface,
     )
+    if str(ingress_surface.get("mode", "")).upper() == "APIGW":
+        ingress_surface["apigw_access_log_group"] = resolve_apigw_access_log_group(
+            apigw,
+            api_id=str(ingress_surface.get("api_id", "")).strip(),
+            stage=str(ingress_surface.get("api_stage", "")).strip(),
+        )
     wsp_checkpoint_dsn = str(args.wsp_checkpoint_dsn).strip()
     if not wsp_checkpoint_dsn:
         aurora_payload = ssm.get_parameters(
@@ -1762,6 +2006,10 @@ def main() -> None:
         except (BotoCoreError, ClientError) as exc:
             metrics_error = f"{type(exc).__name__}:{exc}"
             blockers.append("PR3.S1.WSP.B17_METRIC_BINS_UNREADABLE")
+    ingress_bin_summary = summarize_ingress_bins(
+        ingress_bins,
+        expected_eps=float(args.expected_window_eps),
+    )
 
     stopped_times = [
         datetime.fromisoformat(str(lane["final_status"]["stopped_at_utc"]).replace("Z", "+00:00")).astimezone(timezone.utc)
@@ -1779,13 +2027,75 @@ def main() -> None:
         1.0,
         (datetime.fromisoformat(perf_end.replace("Z", "+00:00")) - active_confirmed_at).total_seconds(),
     )
-    covered_seconds = max(0.0, float(totals.get("covered_seconds", 0.0) or 0.0))
-    request_count_total = max(0.0, totals["count_sum"])
-    request_4xx_total = max(0.0, totals["4xx_sum"])
-    request_5xx_total = max(0.0, totals["5xx_sum"])
-    success_count = max(0.0, request_count_total - request_4xx_total - request_5xx_total)
-    observed_eps = request_count_total / covered_seconds if covered_seconds > 0.0 else 0.0
-    observed_admitted_eps = success_count / covered_seconds if covered_seconds > 0.0 else 0.0
+    aligned_metric_covered_seconds = max(0.0, float(totals.get("covered_seconds", 0.0) or 0.0))
+    aligned_metric_request_count_total = max(0.0, totals["count_sum"])
+    aligned_metric_request_4xx_total = max(0.0, totals["4xx_sum"])
+    aligned_metric_request_5xx_total = max(0.0, totals["5xx_sum"])
+    aligned_metric_success_count = max(
+        0.0,
+        aligned_metric_request_count_total - aligned_metric_request_4xx_total - aligned_metric_request_5xx_total,
+    )
+    aligned_metric_observed_eps = (
+        aligned_metric_request_count_total / aligned_metric_covered_seconds if aligned_metric_covered_seconds > 0.0 else 0.0
+    )
+    aligned_metric_observed_admitted_eps = (
+        aligned_metric_success_count / aligned_metric_covered_seconds if aligned_metric_covered_seconds > 0.0 else 0.0
+    )
+    final_gate_source = "aligned_metric_bins"
+    exact_window_error = ""
+    exact_window_stats: dict[str, Any] | None = None
+    exact_measurement_start_at = measurement_start_at
+    exact_measurement_end_target = measurement_end_at
+    exact_measurement_end_at = min(exact_measurement_end_target, perf_end_dt)
+    if (
+        str(ingress_surface.get("mode", "")).upper() == "APIGW"
+        and str(ingress_surface.get("apigw_access_log_group", "")).strip()
+        and exact_measurement_end_at > exact_measurement_start_at
+    ):
+        try:
+            exact_window_stats = get_stable_apigw_access_log_window_stats(
+                logs,
+                log_group_name=str(ingress_surface.get("apigw_access_log_group", "")).strip(),
+                start_time=exact_measurement_start_at,
+                end_time=exact_measurement_end_at,
+                aligned_metric_count_hint=aligned_metric_request_count_total,
+            )
+        except (BotoCoreError, ClientError, RuntimeError) as exc:
+            exact_window_error = f"{type(exc).__name__}:{exc}"
+    covered_seconds = aligned_metric_covered_seconds
+    request_count_total = aligned_metric_request_count_total
+    request_4xx_total = aligned_metric_request_4xx_total
+    request_5xx_total = aligned_metric_request_5xx_total
+    success_count = aligned_metric_success_count
+    observed_eps = aligned_metric_observed_eps
+    observed_admitted_eps = aligned_metric_observed_admitted_eps
+    if exact_window_stats and float(exact_window_stats.get("covered_seconds", 0.0) or 0.0) > 0.0:
+        final_gate_source = "apigw_access_log_exact_window"
+        covered_seconds = max(0.0, float(exact_window_stats.get("covered_seconds", 0.0) or 0.0))
+        request_count_total = max(0.0, float(exact_window_stats.get("request_count_total", 0.0) or 0.0))
+        request_4xx_total = max(0.0, float(exact_window_stats.get("request_4xx_total", 0.0) or 0.0))
+        request_5xx_total = max(0.0, float(exact_window_stats.get("request_5xx_total", 0.0) or 0.0))
+        success_count = max(0.0, request_count_total - request_4xx_total - request_5xx_total)
+        observed_eps = request_count_total / covered_seconds if covered_seconds > 0.0 else 0.0
+        observed_admitted_eps = success_count / covered_seconds if covered_seconds > 0.0 else 0.0
+        exact_latency_p95 = exact_window_stats.get("latency_p95_ms")
+        exact_latency_p99 = exact_window_stats.get("latency_p99_ms")
+        if exact_latency_p95 is not None:
+            latency_p95_ms = float(exact_latency_p95)
+        if exact_latency_p99 is not None:
+            latency_p99_ms = float(exact_latency_p99)
+    aligned_metric_window = {
+        "request_count_total": int(aligned_metric_request_count_total),
+        "admitted_request_count": int(aligned_metric_success_count),
+        "observed_request_eps": aligned_metric_observed_eps,
+        "observed_admitted_eps": aligned_metric_observed_admitted_eps,
+        "4xx_total": int(aligned_metric_request_4xx_total),
+        "5xx_total": int(aligned_metric_request_5xx_total),
+        "covered_seconds": aligned_metric_covered_seconds,
+        "effective_start_utc": str(totals.get("effective_start_utc", "") or ""),
+        "effective_end_utc": str(totals.get("effective_end_utc", "") or ""),
+        "metric_bin_count": int(totals.get("bin_count", 0) or 0),
+    }
     error_ratio = ((request_4xx_total + request_5xx_total) / request_count_total) if request_count_total > 0.0 else 1.0
     error_4xx_ratio = (request_4xx_total / request_count_total) if request_count_total > 0.0 else 1.0
     error_5xx_ratio = (request_5xx_total / request_count_total) if request_count_total > 0.0 else 1.0
@@ -1845,9 +2155,15 @@ def main() -> None:
             "start_utc": to_iso_utc(active_confirmed_at),
             "active_confirmed_utc": to_iso_utc(active_confirmed_at),
             "fleet_confirmation_mode": fleet_confirmation_mode,
+            "measurement_alignment_mode": (
+                "explicit_campaign_start" if configured_campaign_start is not None else "align_up_from_active_confirmed_plus_warmup"
+            ),
             "warmup_seconds": max(0, int(args.warmup_seconds)),
             "measurement_start_utc": to_iso_utc(measurement_start_at),
             "measurement_target_end_utc": to_iso_utc(measurement_end_at),
+            "exact_measurement_start_utc": to_iso_utc(exact_measurement_start_at),
+            "exact_measurement_target_end_utc": to_iso_utc(exact_measurement_end_target),
+            "exact_measurement_end_utc": to_iso_utc(exact_measurement_end_at),
             "metric_effective_start_utc": str(totals.get("effective_start_utc", "") or ""),
             "metric_effective_end_utc": str(totals.get("effective_end_utc", "") or ""),
             "end_utc": perf_end,
@@ -1856,6 +2172,9 @@ def main() -> None:
             "metric_period_seconds": 60,
             "metric_bin_count": int(totals.get("bin_count", 0) or 0),
             "metric_surface_mode": str(ingress_surface.get("mode", "")).upper(),
+            "fleet_start_to_confirmation_seconds": max(0.0, (active_confirmed_at - active_start).total_seconds()),
+            "fleet_start_to_measurement_start_seconds": max(0.0, (measurement_start_at - active_start).total_seconds()),
+            "confirmation_to_measurement_start_seconds": max(0.0, (measurement_start_at - active_confirmed_at).total_seconds()),
         },
         "campaign": manifest["campaign"],
         "observed": {
@@ -1877,11 +2196,16 @@ def main() -> None:
             "lane_result_count": len(lane_results),
             "lane_log_capture_mode": lane_log_mode,
             "metric_surface_mode": str(ingress_surface.get("mode", "")).upper(),
+            "final_gate_source": final_gate_source,
+            "aligned_metric_window": aligned_metric_window,
+            "exact_window": exact_window_stats,
+            "ingress_bin_summary": ingress_bin_summary,
         },
         "lane_results": lane_results,
         "notes": {
             "telemetry_error": telemetry_error,
             "metrics_error": metrics_error,
+            "exact_window_error": exact_window_error,
             "log_error": log_error,
             "window_stop_reason": "steady window bounded by certification duration",
             "metric_settle_seconds": int(args.metric_settle_seconds),

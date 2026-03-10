@@ -63,13 +63,13 @@ locals {
   core_artifacts_bucket              = var.use_core_remote_state ? try(data.terraform_remote_state.core[0].outputs.s3_bucket_names.artifacts, "fraud-platform-dev-full-artifacts") : "fraud-platform-dev-full-artifacts"
   core_kms_key_arn                   = var.use_core_remote_state ? try(data.terraform_remote_state.core[0].outputs.kms_key_arn, "") : ""
 
-  msk_cluster_arn              = var.use_streaming_remote_state ? try(data.terraform_remote_state.streaming[0].outputs.msk_cluster_arn, var.msk_cluster_arn_fallback) : var.msk_cluster_arn_fallback
-  msk_cluster_suffix           = try(split("cluster/", local.msk_cluster_arn)[1], "")
-  msk_cluster_name             = try(split("/", local.msk_cluster_suffix)[0], "")
-  msk_cluster_uuid             = try(split("/", local.msk_cluster_suffix)[1], "")
-  msk_topic_wildcard_arn       = local.msk_cluster_name != "" && local.msk_cluster_uuid != "" ? "arn:aws:kafka:${var.aws_region}:${data.aws_caller_identity.current.account_id}:topic/${local.msk_cluster_name}/${local.msk_cluster_uuid}/*" : ""
-  msk_group_wildcard_arn       = local.msk_cluster_name != "" && local.msk_cluster_uuid != "" ? "arn:aws:kafka:${var.aws_region}:${data.aws_caller_identity.current.account_id}:group/${local.msk_cluster_name}/${local.msk_cluster_uuid}/*" : ""
-  ig_integration_timeout_ms    = min(30000, floor(var.ig_request_timeout_seconds * 1000))
+  msk_cluster_arn                = var.use_streaming_remote_state ? try(data.terraform_remote_state.streaming[0].outputs.msk_cluster_arn, var.msk_cluster_arn_fallback) : var.msk_cluster_arn_fallback
+  msk_cluster_suffix             = try(split("cluster/", local.msk_cluster_arn)[1], "")
+  msk_cluster_name               = try(split("/", local.msk_cluster_suffix)[0], "")
+  msk_cluster_uuid               = try(split("/", local.msk_cluster_suffix)[1], "")
+  msk_topic_wildcard_arn         = local.msk_cluster_name != "" && local.msk_cluster_uuid != "" ? "arn:aws:kafka:${var.aws_region}:${data.aws_caller_identity.current.account_id}:topic/${local.msk_cluster_name}/${local.msk_cluster_uuid}/*" : ""
+  msk_group_wildcard_arn         = local.msk_cluster_name != "" && local.msk_cluster_uuid != "" ? "arn:aws:kafka:${var.aws_region}:${data.aws_caller_identity.current.account_id}:group/${local.msk_cluster_name}/${local.msk_cluster_uuid}/*" : ""
+  ig_integration_timeout_ms      = min(30000, floor(var.ig_request_timeout_seconds * 1000))
   lambda_ig_remote_package_ready = trimspace(var.lambda_ig_package_s3_bucket) != "" && trimspace(var.lambda_ig_package_s3_key) != "" && trimspace(var.lambda_ig_package_sha256_base64) != ""
 
   irsa_targets = {
@@ -899,13 +899,60 @@ resource "aws_apigatewayv2_route" "ig_health" {
   target    = "integrations/${aws_apigatewayv2_integration.ig_lambda.id}"
 }
 
+resource "aws_cloudwatch_log_group" "ig_api_access" {
+  name              = var.apigw_ig_access_log_group_name
+  retention_in_days = 14
+
+  tags = merge(local.common_tags, {
+    fp_resource = "ig_api_access_logs"
+  })
+}
+
+resource "aws_cloudwatch_log_resource_policy" "ig_api_access" {
+  policy_name = "fraud-platform-dev-full-ig-api-access"
+  policy_document = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowApiGatewayAccessLogs"
+        Effect = "Allow"
+        Principal = {
+          Service = "apigateway.amazonaws.com"
+        }
+        Action = [
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+        ]
+        Resource = "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:${var.apigw_ig_access_log_group_name}:*"
+      }
+    ]
+  })
+}
+
 resource "aws_apigatewayv2_stage" "ig_v1" {
   api_id      = aws_apigatewayv2_api.ig_edge.id
   name        = var.apigw_ig_stage_name
   auto_deploy = true
   default_route_settings {
-    throttling_burst_limit = floor(var.ig_rate_limit_burst)
-    throttling_rate_limit  = var.ig_rate_limit_rps
+    detailed_metrics_enabled = var.apigw_ig_stage_detailed_metrics_enabled
+    throttling_burst_limit   = floor(var.ig_rate_limit_burst)
+    throttling_rate_limit    = var.ig_rate_limit_rps
+  }
+  access_log_settings {
+    destination_arn = aws_cloudwatch_log_group.ig_api_access.arn
+    format = jsonencode({
+      request_id                = "$context.requestId"
+      api_id                    = "$context.apiId"
+      stage                     = "$context.stage"
+      route_key                 = "$context.routeKey"
+      status                    = "$context.status"
+      integration_status        = "$context.integrationStatus"
+      integration_error_message = "$context.integrationErrorMessage"
+      response_latency_ms       = "$context.responseLatency"
+      response_length           = "$context.responseLength"
+      source_ip                 = "$context.identity.sourceIp"
+      request_time              = "$context.requestTime"
+    })
   }
 
   tags = merge(local.common_tags, {

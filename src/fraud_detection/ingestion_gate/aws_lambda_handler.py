@@ -385,6 +385,38 @@ class DdbAdmissionIndex:
     def __post_init__(self) -> None:
         self._table = _DDB_RESOURCE.Table(self.table_name)
 
+    @staticmethod
+    def _compact_receipt_payload_json(receipt_payload: dict[str, Any] | None) -> str:
+        if receipt_payload is None:
+            return ""
+
+        def _pin(name: str) -> str | None:
+            direct = str(receipt_payload.get(name) or "").strip()
+            if direct:
+                return direct
+            pins = receipt_payload.get("pins")
+            if isinstance(pins, dict):
+                pinned = str(pins.get(name) or "").strip()
+                if pinned:
+                    return pinned
+            return None
+
+        summary: dict[str, Any] = {
+            "receipt_id": receipt_payload.get("receipt_id"),
+            "decision": receipt_payload.get("decision"),
+            "event_id": receipt_payload.get("event_id"),
+            "event_type": receipt_payload.get("event_type"),
+            "platform_run_id": _pin("platform_run_id"),
+            "scenario_run_id": _pin("scenario_run_id"),
+            "ts_utc": receipt_payload.get("ts_utc"),
+            "admitted_at_utc": receipt_payload.get("admitted_at_utc"),
+            "schema_version": receipt_payload.get("schema_version"),
+        }
+        reason_codes = receipt_payload.get("reason_codes")
+        if isinstance(reason_codes, list) and reason_codes:
+            summary["reason_codes"] = reason_codes
+        return json.dumps(_compact_mapping(summary), sort_keys=True, ensure_ascii=True, separators=(",", ":"))
+
     def probe(self) -> bool:
         try:
             self._table.load()
@@ -486,9 +518,7 @@ class DdbAdmissionIndex:
             ":eb_published_at_utc": eb_ref.get("published_at_utc"),
         }
         if receipt_ref is not None:
-            payload_json = ""
-            if receipt_payload is not None:
-                payload_json = json.dumps(receipt_payload, sort_keys=True, ensure_ascii=True, separators=(",", ":"))
+            payload_json = self._compact_receipt_payload_json(receipt_payload)
             update_expression += (
                 ", receipt_ref = :receipt_ref, receipt_write_failed = :receipt_write_failed, "
                 "receipt_payload_json = :receipt_payload_json"
@@ -528,9 +558,7 @@ class DdbAdmissionIndex:
         *,
         receipt_payload: dict[str, Any] | None = None,
     ) -> None:
-        payload_json = ""
-        if receipt_payload is not None:
-            payload_json = json.dumps(receipt_payload, sort_keys=True, ensure_ascii=True, separators=(",", ":"))
+        payload_json = self._compact_receipt_payload_json(receipt_payload)
         self._table.update_item(
             Key={self.hash_key_name: dedupe_key},
             UpdateExpression=(

@@ -157,3 +157,64 @@ def test_create_app_honors_configured_log_level(monkeypatch) -> None:
     managed_service.create_app()
 
     assert logging.getLogger("fraud_detection").level == logging.WARNING
+
+
+def test_ddb_admission_index_compacts_inline_receipt_payload(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    class _FakeTable:
+        def update_item(self, **kwargs):
+            captured.update(kwargs)
+
+    monkeypatch.setattr(
+        aws_lambda_handler,
+        "_DDB_RESOURCE",
+        SimpleNamespace(Table=lambda _name: _FakeTable()),
+    )
+
+    index = aws_lambda_handler.DdbAdmissionIndex("fraud-platform-dev-full-ig-idempotency", "dedupe_key")
+    receipt_payload = {
+        "receipt_id": "r1",
+        "decision": "ADMIT",
+        "event_id": "evt-1",
+        "event_type": "s3_event_stream_with_fraud_6B",
+        "platform_run_id": "platform_20260310T000000Z",
+        "scenario_run_id": "scenario-1",
+        "ts_utc": "2026-03-10T16:00:00Z",
+        "admitted_at_utc": "2026-03-10T16:00:00Z",
+        "schema_version": "v1",
+        "pins": {
+            "platform_run_id": "platform_20260310T000000Z",
+            "scenario_run_id": "scenario-1",
+            "manifest_fingerprint": "m" * 64,
+        },
+        "payload_hash": {"algo": "sha256", "hex": "a" * 64},
+        "policy_rev": {"policy_id": "ig_policy", "revision": "dev-full-v0"},
+        "eb_ref": {"topic": "fp.bus.traffic.fraud.v1", "partition": 0, "offset": "123"},
+    }
+
+    index.record_admitted(
+        "dedupe-1",
+        eb_ref={"topic": "fp.bus.traffic.fraud.v1", "partition": 0, "offset": "123", "offset_kind": "kafka_offset", "published_at_utc": "2026-03-10T16:00:00Z"},
+        admitted_at_utc="2026-03-10T16:00:00Z",
+        payload_hash="a" * 64,
+        receipt_ref="ddb://fraud-platform-dev-full-ig-idempotency/dedupe_key/dedupe-1#receipt",
+        receipt_payload=receipt_payload,
+    )
+
+    values = captured["ExpressionAttributeValues"]
+    payload_json = values[":receipt_payload_json"]
+    decoded = json.loads(payload_json)
+
+    assert decoded == {
+        "admitted_at_utc": "2026-03-10T16:00:00Z",
+        "decision": "ADMIT",
+        "event_id": "evt-1",
+        "event_type": "s3_event_stream_with_fraud_6B",
+        "platform_run_id": "platform_20260310T000000Z",
+        "receipt_id": "r1",
+        "scenario_run_id": "scenario-1",
+        "schema_version": "v1",
+        "ts_utc": "2026-03-10T16:00:00Z",
+    }
+    assert len(payload_json.encode("utf-8")) < 512

@@ -480,3 +480,198 @@ Second, the readiness-delta graph was still telling an older green closure story
 - `Phase 0.B` is still open and `Phase 0.C` is blocked.
 
 I regenerated the PNGs immediately after updating the Mermaid sources so the visual artifacts now match the text artifacts. This matters because the graphs are for operator understanding; if they lag behind the notes, they create the same blindness in a different form.
+
+## 2026-03-10 16:34:55 +00:00
+The latest `Phase 0` work changed the problem shape again, but this time in the direction we want.
+
+I first closed the APIGW-side telemetry gap materially, not just on paper:
+
+- updated the live `v1` stage so `DetailedMetricsEnabled = true`
+- created `/aws/apigateway/fraud-platform-dev-full-ig-edge-v1-access`
+- added the missing CloudWatch Logs resource policy so APIGW could actually write there
+- verified delivery with a real `GET /ops/health` call and a live access-log event from `pd7rtjze95_v1-*`
+
+That matters because it gave me the first truthful APIGW-side per-request evidence surface on the exact external boundary I am trying to prove.
+
+I then reran the frozen unsynchronized `40`-lane / `51.2x` baseline three times:
+
+- `phase0_20260310T161236Z`
+- `phase0_20260310T161814Z`
+- `phase0_20260310T162638Z`
+
+All three stayed semantically clean:
+
+- valid-traffic `4xx = 0`
+- valid-traffic `5xx = 0`
+- p95/p99 stayed comfortably inside the Phase 0 budget
+
+But the old minute-aligned APIGW metric gate still rendered them red at:
+
+- `2999.100 eps`
+- `2999.700 eps`
+- `2999.600 eps`
+
+The decisive new result came from comparing that old gate to the exact APIGW access-log window anchored on `active_confirmed_utc`.
+
+For `phase0_20260310T161814Z`:
+
+- `active_confirmed_utc = 2026-03-10T16:19:27.919635Z`
+- exact `120 s` access-log count `= 362874`
+- exact admitted throughput `= 3023.950 eps`
+- exact `p95 ≈ 49.951 ms`
+- exact `p99 ≈ 58.966 ms`
+
+For `phase0_20260310T162638Z`:
+
+- `active_confirmed_utc = 2026-03-10T16:27:55.637278Z`
+- exact `120 s` access-log count `= 362957`
+- exact admitted throughput `= 3024.642 eps`
+- exact `p95 ≈ 49.951 ms`
+- exact `p99 ≈ 56.996 ms`
+
+Those two repeat checks matter more than another minute-bin near miss because they line up with the proving doctrine we already wrote into the plan: steady-state measurement should be anchored to confirmed plane participation, not to a more convenient but slightly distorted launcher artifact.
+
+I also used the full-log `phase0_20260310T161814Z` rerun to get one more attribution layer. The WSP progress logs over the steady minute (`16:20:45` to `16:21:45`) imply about `3003.85 eps` at the source side. That means the current red is not a clean case of the source under-driving ingress either.
+
+So the current truthful judgment is tighter than before:
+
+- the ingress runtime is not the blocker
+- the frozen unsynchronized proof shape is not the blocker
+- the remaining blocker is that the proving harness still verdicts on the older minute-aligned APIGW metric-bin view, even though the now-live exact APIGW access-log surface shows the same run shape clearing the target repeatably
+
+That is a good kind of blocker. It means the next narrow action is no longer another exploratory rerun. It is to codify this exact APIGW access-log steady-state window into the proving harness so the durable run verdict matches the truthful boundary we are now able to observe.
+
+## 2026-03-10 16:59:41 +00:00
+The next `Phase 0` problem was not semantic red on ingress. It was production waste on the same hot path.
+
+The user's cost concern was correct. Live DynamoDB posture showed the idempotency table had become the dominant ingress cost surface:
+
+- table `fraud-platform-dev-full-ig-idempotency`
+- `PAY_PER_REQUEST`
+- about `41.3 GB`
+- about `17.1 M` items
+- cost explorer dominated by `EUW2-WriteRequestUnits`, not by storage
+
+That distinction mattered. If storage had been the cost driver, the remedy would have been retention or table-shape work. It was not. The cost driver was write amplification on the live Lambda hot path.
+
+I confirmed that the live Lambda was still running `IG_RECEIPT_STORAGE_MODE = ddb_hot` and that the idempotency row was carrying the entire receipt body inline in `receipt_payload_json`. The sampled old rows were roughly `2 KB` each, which explains why a supposedly lightweight dedupe table was consuming such a large write surface during bounded `Phase 0` runs.
+
+I first tested the obvious alternative: move the Lambda to `object_store` receipt mode and keep DynamoDB only as the small dedupe ledger. That was a valid production question, so I tried it live rather than speculating.
+
+The result was decisively bad on the current envelope. `phase0_20260310T164435Z` collapsed almost immediately:
+
+- admitted throughput fell to about `65.6 eps`
+- valid traffic began receiving `IG_PUSH_REJECTED`
+- Lambda logs showed `KAFKA_PUBLISH_TIMEOUT`
+- quarantine receipts recorded `PUBLISH_AMBIGUOUS`
+
+That failure was useful because it narrowed the real boundary. The platform is not ready for object-store receipt persistence on the Lambda hot path at the declared `Phase 0` steady envelope. Keeping that change would have reduced DynamoDB cost by breaking the production shape, which is explicitly disallowed by the plan.
+
+So I changed posture rather than forcing the cheaper path. The right remediation is:
+
+- keep the proven fast `ddb_hot` mode,
+- remove the wasteful part of it,
+- preserve the same semantic and latency posture.
+
+I patched `DdbAdmissionIndex` so `receipt_payload_json` now stores only a compact receipt summary instead of the whole payload. The compact live row keeps only the fields needed for run attribution and fast lookup:
+
+- `receipt_id`
+- `decision`
+- `event_id`
+- `event_type`
+- `platform_run_id`
+- `scenario_run_id`
+- `ts_utc`
+- `admitted_at_utc`
+- `schema_version`
+- `reason_codes` only when present
+
+I added a targeted unit test for that serializer, rebuilt the Lambda bundle, redeployed the live function, and reran the frozen `Phase 0.B` baseline as `phase0_20260310T165309Z`.
+
+That rerun behaved the right way:
+
+- `4xx = 0`
+- `5xx = 0`
+- `p95 ≈ 52.0 ms`
+- `p99 ≈ 60.4 ms`
+- no lane collapse
+- no publish ambiguity
+- the only red remained the already-known stale minute-bin throughput gate at `2999.575 eps`
+
+The live DynamoDB evidence also confirmed the cost improvement without changing the proof shape. A fresh admitted row from `platform_20260310T165309Z` now stores a `392`-byte compact receipt body rather than the earlier roughly `2 KB` inline payload. Minute-level `ConsumedWriteCapacityUnits` on the successful rerun sat around `488k` to `540k WRU/min`, versus the earlier successful baseline around `~720k WRU/min`.
+
+So the current judgment is:
+
+- the DynamoDB cost complaint was real
+- the bad part was write amplification, not storage posture
+- `object_store` receipts on Lambda are not yet viable at the declared envelope
+- compact `ddb_hot` receipts materially reduce write cost while preserving the truthful `Phase 0.B` runtime behavior
+- the active blocker for `Phase 0.B` is still the proof-gate codification, not a newly reopened ingress or cost-induced runtime defect
+
+## 2026-03-10 17:58:54 +00:00
+The next round of `Phase 0.B` work changed the blocker again, and this time the change is valuable because it isolates what is left.
+
+I first codified the truthful APIGW-side proof boundary into the dispatcher rather than keeping it as manual analysis:
+
+- APIGW access-log group is now resolved from the live stage
+- the summary records exact APIGW access-log window evidence alongside the older metric-bin view
+- the final gate can now distinguish between the aligned metric view and the exact APIGW log window
+
+That work exposed another methodological defect immediately. The first exact-window implementation anchored the final count on `active_confirmed_utc`, which made the proof depend too heavily on where fleet confirmation happened to land inside the minute. That was not a good steady-state boundary. I repinned the exact-log count to the same aligned steady window as the parent proof and added a lag guard so the dispatcher does not finalize while APIGW access logs are still obviously behind the already-settled metric window.
+
+While doing that I learned something important about the managed telemetry surfaces themselves:
+
+- API Gateway detailed metrics now expose route-level `Count` for `POST /ingest/push`
+- stage-wide `Count` is not clean enough for this phase because it can include other routes
+- exact APIGW access logs are the more truthful per-request surface, but their delivery lag is variable enough that they cannot be snapshotted too early
+
+I then tested several narrow proof shapes against that corrected understanding.
+
+The `warmup_seconds = 60` change was a real improvement. It removed the accidental dependence on minute alignment that had been giving some runs almost no pre-window settle time and other runs nearly a full minute. But it did not close the phase by itself. The warmup-only run `phase0_20260310T171930Z` still came in essentially on the line at `2999.55 eps`, which is too close to treat as a stable proof.
+
+I then tested the next narrow idea: keep the gate at `3000 eps` but bias the WSP source target slightly above it to stop the proof from being source-limited by tiny pacing granularity loss. That candidate shape was:
+
+- `warmup_seconds = 60`
+- `target_request_rate_eps = 3010`
+- exact aligned APIGW log gate
+
+One run on that shape did go green:
+
+- `phase0_20260310T173526Z`
+- `3011.94 eps`
+- `4xx = 0`
+- `5xx = 0`
+- `p95 ≈ 48.0 ms`
+- `p99 ≈ 55.0 ms`
+
+But the repeatability test is what mattered, and that is where the real blocker surfaced.
+
+The repeat `phase0_20260310T174232Z` went materially red again. To stop guessing, I reran the same candidate shape once more with full lane logs as `phase0_20260310T175034Z`. That full-log run gave the missing attribution:
+
+- one lane (`wsp_lane_06`) exited early with `IG_PUSH_REJECTED`
+- ECS marked it `EssentialContainerExited`
+- that lane emitted `0`
+- aggregate WSP progress-derived emitted count still showed the fleet trying to work (`612877`), but the admitted ingress rate collapsed to `2401.22 eps`
+- APIGW still showed `4xx = 0` and `5xx = 0`, so this is not the same as the earlier public-edge overload posture
+
+That changes the truthful engineering judgment again:
+
+- `Phase 0.B` is no longer blocked by the stale minute-bin proof gate
+- it is no longer blocked by the DynamoDB cost posture
+- it is not presently blocked by a generic APIGW semantic defect either
+- it is now blocked by unstable WSP-side lane behavior under the candidate steady-state proof shape, with at least one concrete failing lane showing `IG_PUSH_REJECTED`
+
+So the next narrow action is not another blind throughput rerun. It is to inspect and harden the WSP push/retry path around that lane-level rejection so the bounded `Phase 0.B` proof can become repeatable on the same declared boundary.
+
+## 2026-03-10 18:07:03 +00:00
+I am changing my documentation posture here because the user is right about the failure mode.
+
+The implementation notes should not trail the work as a retrospective summary after several material changes have already happened. They need to move with the work so the current problem shape, the current hypothesis, and the current branch in the road are visible while the phase is still open.
+
+So before I continue `Phase 0.B` remediation I am pinning the next active branch explicitly:
+
+- the unresolved runtime blocker remains the WSP-side lane instability observed as `IG_PUSH_REJECTED`
+- before resuming that remediation, I am inspecting the next major cost surfaces the user called out: `ECS`, `MSK`, and the relational database
+- the purpose is not to weaken the platform or remove needed evidence, but to find spend that is not serving the production-ready goal of the current proving method
+
+I also need to restore branch hygiene while this is in flight. The repo now has enough material change that it should be committed and pushed on the active working branch rather than left only in the local workspace.

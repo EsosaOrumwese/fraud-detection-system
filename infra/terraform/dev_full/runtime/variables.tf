@@ -113,6 +113,16 @@ variable "apigw_ig_stage_name" {
   default = "v1"
 }
 
+variable "apigw_ig_stage_detailed_metrics_enabled" {
+  type    = bool
+  default = true
+}
+
+variable "apigw_ig_access_log_group_name" {
+  type    = string
+  default = "/aws/apigateway/fraud-platform-dev-full-ig-edge-v1-access"
+}
+
 variable "lambda_ig_handler_name" {
   type    = string
   default = "fraud-platform-dev-full-ig-handler"

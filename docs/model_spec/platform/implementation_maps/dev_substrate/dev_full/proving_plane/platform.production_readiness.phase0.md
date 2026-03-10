@@ -418,6 +418,171 @@ The following probes are therefore diagnostic-only and must not be used as promo
 - warmed single-bin runs that are not yet repeatable,
 - target-rate nudges that only move underfill between metric minutes.
 
+### Phase 0.B exact-window proof update as of 2026-03-10
+
+The latest bounded reruns after the APIGW telemetry lock changed the proof judgment again.
+
+What changed first:
+
+- API Gateway stage `v1` was updated live so:
+  - `DetailedMetricsEnabled = true`
+  - access logs now emit to `/aws/apigateway/fraud-platform-dev-full-ig-edge-v1-access`
+- the proving dispatcher now records:
+  - fleet-confirmation mode,
+  - exact measurement-start attribution,
+  - minute-bin shortfall distribution
+
+What the latest frozen-baseline reruns then showed:
+
+- `phase0_20260310T161236Z`
+  - minute-bin APIGW gate still red at `2999.100 eps`
+  - `4xx = 0`
+  - `5xx = 0`
+  - `p95 = 51.747 ms`
+  - `p99 = 59.505 ms`
+- `phase0_20260310T161814Z`
+  - minute-bin APIGW gate still red at `2999.700 eps`
+  - `4xx = 0`
+  - `5xx = 0`
+  - `p95 = 51.203 ms`
+  - `p99 = 59.445 ms`
+- `phase0_20260310T162638Z`
+  - minute-bin APIGW gate still red at `2999.600 eps`
+  - `4xx = 0`
+  - `5xx = 0`
+  - `p95 = 50.296 ms`
+  - `p99 = 58.310 ms`
+
+Those reruns would have left `Phase 0.B` apparently red if the minute-aligned APIGW metric bins were still treated as the only admitted-throughput truth surface.
+
+The new APIGW access-log evidence shows that is not the truthful steady-state gate for this frozen proof shape.
+
+Exact APIGW access-log windows anchored on confirmed fleet participation showed:
+
+- for `phase0_20260310T161814Z`
+  - `active_confirmed_utc = 2026-03-10T16:19:27.919635Z`
+  - exact `120 s` window count `= 362874` successful `202` requests
+  - exact admitted throughput `= 3023.950 eps`
+  - exact `p95 ≈ 49.951 ms`
+  - exact `p99 ≈ 58.966 ms`
+- for `phase0_20260310T162638Z`
+  - `active_confirmed_utc = 2026-03-10T16:27:55.637278Z`
+  - exact `120 s` window count `= 362957` successful `202` requests
+  - exact admitted throughput `= 3024.642 eps`
+  - exact `p95 ≈ 49.951 ms`
+  - exact `p99 ≈ 56.996 ms`
+
+One additional attribution check matters:
+
+- WSP progress logs on `phase0_20260310T161814Z`, measured between `16:20:45` and `16:21:45`, showed aggregate source pacing of about `3003.85 eps`
+- that means the source was not materially under-driving the boundary during the measured steady minute
+
+Current engineering judgment is therefore:
+
+- the frozen unsynchronized bounded baseline is now repeatably semantically clean
+- the exact APIGW access-log window from confirmed fleet participation is repeatably above the declared `3000 eps` steady target
+- the remaining red belongs to the older minute-aligned APIGW metric-bin gate, not to the ingress runtime
+- `Phase 0.B` is now effectively blocked by proof-harness codification, not by an unresolved ingress production defect
+
+That means the next narrow action is:
+
+- codify the exact APIGW access-log steady-state window into the proving harness so the durable run verdict matches the truthful proof boundary already observed live
+- then rerun the same frozen baseline under that codified gate and close `Phase 0.B` if the result stays consistent
+
+### Additional Phase 0.B hardening: DynamoDB hot-path cost correction
+The bounded ingress reruns exposed a second production defect in the same `Phase 0` surface: the idempotency table had become an unnecessarily expensive write sink.
+
+Live posture:
+
+- table `fraud-platform-dev-full-ig-idempotency`
+- `PAY_PER_REQUEST`
+- cost dominated by `WriteRequestUnits`, not storage
+- live Lambda still running `IG_RECEIPT_STORAGE_MODE = ddb_hot`
+- inline `receipt_payload_json` on old rows was roughly `2 KB`
+
+That mattered because the table is not supposed to be a large receipt archive. It is supposed to be the hot admission / dedupe ledger. We were paying production-write cost for receipt detail that was not needed in the hot row.
+
+I tested the obvious alternative first: switch Lambda receipt persistence to `object_store` mode and keep DynamoDB small. That diagnostic was run as `phase0_20260310T164435Z`.
+
+Verdict on that posture:
+
+- rejected for `Phase 0`
+- ingress collapsed to about `65.6 eps`
+- valid traffic began receiving `IG_PUSH_REJECTED`
+- Lambda logs showed `KAFKA_PUBLISH_TIMEOUT`
+- quarantine receipts showed `PUBLISH_AMBIGUOUS`
+
+So object-store receipts are not yet acceptable on the Lambda hot path at the declared steady envelope. That is a cost-saving idea that fails the production-shape rule.
+
+The accepted remediation was narrower:
+
+- restore `ddb_hot`
+- keep the proven fast hot-path write shape
+- replace the inline full receipt body with a compact receipt summary
+
+The compact serializer now keeps only run-attribution and lookup-critical fields. A fresh live admitted row from `platform_20260310T165309Z` shows `receipt_payload_json` reduced to `392` bytes.
+
+Measured impact on the successful rerun `phase0_20260310T165309Z`:
+
+- semantics remained clean: `4xx = 0`, `5xx = 0`
+- latency remained clean: `p95 ≈ 52.0 ms`, `p99 ≈ 60.4 ms`
+- no lane collapse and no publish ambiguity
+- DynamoDB write pressure dropped materially to about `488k` to `540k WRU/min`, versus the earlier successful baseline around `~720k WRU/min`
+
+Judgment:
+
+- this fixes a real production cost defect inside the active `Phase 0` boundary
+- it does not close `Phase 0.B` by itself
+- it is still the right change because it reduces waste without weakening the runtime shape we are trying to prove
+
+### Further Phase 0.B replanning: exact route truth, then source-side instability
+The next set of runs showed that the proof problem had shifted again.
+
+First, API Gateway detailed metrics exposed route-level `Count` for `POST /ingest/push`, while APIGW access logs gave the only truthful per-request route surface. That let the dispatcher move away from the stale stage-wide minute-bin story, but it also exposed another hardening detail: exact APIGW access logs arrive with variable lag. They are truthful, but not instantly complete.
+
+That forced one more `Phase 0.B` posture correction:
+
+- keep the aligned steady-state window as the parent proof window
+- use exact APIGW route logs as the truthful request-count verifier
+- guard against APIGW log-delivery lag before finalizing
+- stop treating `active_confirmed_utc` itself as the exact count window for steady-state proof
+
+I then tested a cleaner steady-state baseline with:
+
+- `warmup_seconds = 60`
+- the same bounded `120 s` correctness window
+
+That was an improvement because it removed the accidental dependence on where fleet confirmation landed inside the minute. But by itself it still only produced a near-threshold result (`phase0_20260310T171930Z` at `2999.55 eps`).
+
+The next narrow correction was to bias the WSP source target slightly above the gate so the proof would not fail on tiny source pacing loss while the ingress gate stayed fixed at `3000 eps`:
+
+- `target_request_rate_eps = 3010`
+- `expected_window_eps = 3000`
+
+One run on that candidate shape did go green:
+
+- `phase0_20260310T173526Z`
+- exact aligned APIGW route count `= 361433`
+- admitted throughput `= 3011.94 eps`
+- `4xx = 0`
+- `5xx = 0`
+
+But the repeatability test reopened the phase. The repeat `phase0_20260310T174232Z` went materially red, and the full-log diagnostic rerun `phase0_20260310T175034Z` finally showed why:
+
+- `wsp_lane_06` exited early
+- lane result reason `= IG_PUSH_REJECTED`
+- ECS stop posture `= EssentialContainerExited`
+- lane emitted `0`
+- run admitted throughput collapsed to about `2401.22 eps`
+- APIGW still showed `4xx = 0` and `5xx = 0`
+
+Current `Phase 0.B` judgment is therefore:
+
+- the proof gate itself is no longer the main blocker
+- the DDB cost defect is no longer the main blocker
+- the active blocker is unstable WSP-side lane behavior under the candidate steady-state proof shape
+- `Phase 0.B` remains open until that lane-level `IG_PUSH_REJECTED` posture is understood, fixed narrowly, and revalidated repeatably
+
 ### Phase 0.C - Envelope and recovery proof
 Goal:
 - prove that the plane still holds the declared envelope and bounded recovery posture.
