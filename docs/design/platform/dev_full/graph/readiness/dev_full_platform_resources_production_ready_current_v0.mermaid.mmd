@@ -1,0 +1,225 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Confirmed production-ready resources only
+%% provisioned / implemented posture, not temporary scale-down posture
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    L1["Only resources that belong to the currently confirmed working platform are shown"]
+    L2["Current working platform = Control + Ingress only"]
+    L3["Node labels use the concrete AWS / managed-service names and key sizing or envelope details"]
+    L4["If a resource or plane is absent, it is not yet promoted into the production-ready network"]
+  end
+
+  subgraph NOTE["Scope"]
+    N1["Provisioned / implemented resource view<br>for the currently confirmed production-ready network<br>not a temporary idled snapshot"]
+  end
+
+  subgraph CONTROL["Control Resources - Confirmed Ready"]
+    GHA["GitHub Actions<br>bounded-run dispatch / workflow control"]
+    SFN["Step Functions<br>fraud-platform-dev-full-platform-run-v0<br>authoritative run orchestration"]
+    CTRLTOPIC["Kafka topic<br>fp.bus.control.v1"]
+    RUNID["Run identity pins<br>platform_run_id / scenario_run_id<br>phase_id / trace_id / config_digest"]
+    RUNCTL["Run control / receipts<br>bounded-run proof story"]
+  end
+
+  subgraph INGRESSEDGE["Ingress Edge Resources - Confirmed Ready"]
+    HTTPAPI["HTTP API Gateway<br>fraud-platform-dev-full-ig-edge<br>API ID ehwznd2uw7<br>stage v1<br>throttle 3000 rps / 6000 burst"]
+    APIRPOST["Route<br>POST /ingest/push"]
+    APIRHEALTH["Route<br>GET /ops/health"]
+    IGLAMBDA["Lambda<br>fraud-platform-dev-full-ig-handler<br>runtime python3.12<br>memory 2048 MB<br>reserved concurrency 600<br>timeout 30 s"]
+    IGLAMBDAENV["Lambda ingress contract<br>request timeout 30 s<br>kafka timeout 5000 ms<br>publish retries 5<br>idempotency TTL 259200 s"]
+    CWLAMBDA["CloudWatch log group<br>/aws/lambda/fraud-platform-dev-full-ig-handler"]
+  end
+
+  subgraph INGRESSSERVICE["Managed Ingress Service Resources - Confirmed Ready"]
+    IGCLUSTER["ECS cluster<br>fraud-platform-dev-full-ingress<br>containerInsights enabled"]
+    ALB["Internal ALB<br>fp-dev-full-ig-svc"]
+    LISTENER["Listener<br>port 80 HTTP"]
+    TG["Target group<br>fp-dev-full-ig-svc<br>target port 8080<br>health path /healthz"]
+    IGSVC["ECS service<br>fraud-platform-dev-full-ig-service<br>launch type Fargate<br>desired count 32"]
+    IGTD["Task definition family<br>fraud-platform-dev-full-ig-service<br>CPU 4096 (4 vCPU)<br>memory 8192 MiB (8 GiB)"]
+    IGPROC["Ingress container runtime<br>gunicorn workers 8<br>threads 8<br>request timeout 30000 ms<br>keepalive 75 s<br>kafka timeout 15000 ms"]
+    CWIG["CloudWatch log group<br>/ecs/fraud-platform-dev-full-ig-service"]
+  end
+
+  subgraph WSP["Replay Producer Resources - Confirmed Ready"]
+    WSPCLUSTER["ECS cluster<br>fraud-platform-dev-full-wsp-ephemeral"]
+    WSPTASK["WSP task family<br>ephemeral bounded replay producer<br>remote AWS compute only"]
+  end
+
+  subgraph TRANSPORT["Event Transport Resources - Confirmed Ready"]
+    MSK["MSK Serverless cluster<br>fraud-platform-dev-full-msk<br>active transport backbone"]
+    GLUEREG["Glue Schema Registry<br>fraud-platform-dev-full<br>compatibility BACKWARD"]
+    TCTRL["Topic<br>fp.bus.control.v1"]
+    TTRAFFIC["Topic<br>fp.bus.traffic.fraud.v1"]
+  end
+
+  subgraph STATE["State / Receipt / Evidence Resources - Confirmed Ready"]
+    DDB["DynamoDB table<br>fraud-platform-dev-full-ig-idempotency<br>hash key dedupe_key<br>TTL field ttl_epoch"]
+    DLQ["SQS queue<br>fraud-platform-dev-full-ig-dlq"]
+    OBJ["S3 object / oracle store<br>fraud-platform-dev-full-object-store"]
+    EVID["S3 evidence bucket<br>fraud-platform-dev-full-evidence"]
+    ART["S3 artifacts bucket<br>fraud-platform-dev-full-artifacts"]
+  end
+
+  subgraph IDENTITY["Identity / Access Resources - Confirmed Ready"]
+    OIDC["GitHub OIDC trust"]
+    ROLETF["IAM identity<br>fraud-dev<br>Terraform / workflow control"]
+    ROLESFN["IAM role<br>fraud-platform-dev-full-stepfunctions-orchestrator"]
+    ROLELAMBDA["IAM role<br>fraud-platform-dev-full-lambda-ig-execution"]
+    ROLEAPIGW["IAM role<br>fraud-platform-dev-full-apigw-ig-invoke"]
+    ROLEDDB["IAM role<br>fraud-platform-dev-full-ddb-ig-idempotency-rw"]
+    ROLEIGEXEC["IAM role<br>fraud-platform-dev-full-ecs-ig-task-execution"]
+    ROLEIGRUN["IAM role<br>fraud-platform-dev-full-ecs-ig-task-runtime"]
+    ROLEWSPEXEC["IAM role<br>fraud-platform-dev-full-ecs-task-exec-wsp"]
+    ROLEWSPRUN["IAM role<br>fraud-platform-dev-full-ecs-task-runtime-wsp"]
+    SSM["SSM Parameter Store<br>IG API key path<br>MSK bootstrap brokers path<br>active ingress handles"]
+  end
+
+  subgraph NETWORK["Network / Placement Resources - Confirmed Ready"]
+    VPC["VPC<br>vpc-0e7f9d89e5d468c06<br>10.70.0.0/16"]
+    PUB1["Public subnet<br>public_01<br>10.70.0.0/20<br>eu-west-2a"]
+    PUB2["Public subnet<br>public_02<br>10.70.16.0/20<br>eu-west-2b"]
+    PRIV1["Private subnet<br>private_01<br>10.70.128.0/20<br>eu-west-2a"]
+    PRIV2["Private subnet<br>private_02<br>10.70.144.0/20<br>eu-west-2b"]
+    VPCESTS["Interface endpoint<br>STS"]
+    VPCESSM["Interface endpoint<br>SSM"]
+    VPCELOGS["Interface endpoint<br>CloudWatch Logs"]
+    VPCEECRAPI["Interface endpoint<br>ECR API"]
+    VPCEECRDKR["Interface endpoint<br>ECR DKR"]
+    VPCEEXECAPI["Interface endpoint<br>execute-api"]
+    VPCESQS["Interface endpoint<br>SQS"]
+    VPCES3["Gateway endpoint<br>S3"]
+    VPCEDDB["Gateway endpoint<br>DynamoDB"]
+  end
+
+  subgraph OBS["Observability / Cost Resources - Confirmed Ready"]
+    CW["CloudWatch<br>logs / metrics / alarms"]
+    DASHOPS["CloudWatch dashboard<br>fraud-platform-dev-full-operations"]
+    DASHCOST["CloudWatch dashboard<br>fraud-platform-dev-full-cost-guardrail"]
+    BUDGET["Budget<br>fraud-platform-dev-full-monthly"]
+  end
+
+  N1 --> CONTROL
+  N1 --> INGRESSEDGE
+  N1 --> INGRESSSERVICE
+  N1 --> WSP
+  N1 --> TRANSPORT
+  N1 --> STATE
+  N1 --> IDENTITY
+  N1 --> NETWORK
+  N1 --> OBS
+
+  GHA -->|authenticates through| OIDC
+  GHA -->|dispatches| SFN
+  GHA -->|assumes control identity| ROLETF
+  SFN -->|executes with| ROLESFN
+  SFN -->|publishes control signals to| CTRLTOPIC
+  CTRLTOPIC -->|is transported by| MSK
+  CTRLTOPIC --> TCTRL
+  SFN -->|writes run-control receipts to| RUNCTL
+  RUNID -->|pins| SFN
+  RUNID -->|pins| WSPTASK
+  RUNID -->|pins| IGLAMBDA
+  RUNID -->|pins| IGSVC
+  RUNCTL -->|stores receipts in| EVID
+
+  WSPCLUSTER -->|runs| WSPTASK
+  WSPTASK -->|reads replay basis from| OBJ
+  WSPTASK -->|uses runtime role| ROLEWSPRUN
+  WSPTASK -->|uses execution role| ROLEWSPEXEC
+  WSPTASK -->|pushes ingress load to| HTTPAPI
+  WSPTASK -->|pushes ingress load to| ALB
+
+  HTTPAPI -->|contains| APIRPOST
+  HTTPAPI -->|contains| APIRHEALTH
+  HTTPAPI -->|invokes through| ROLEAPIGW
+  APIRPOST -->|invokes| IGLAMBDA
+  APIRHEALTH -->|invokes| IGLAMBDA
+  IGLAMBDA -->|executes with| ROLELAMBDA
+  IGLAMBDA -->|uses ingress contract| IGLAMBDAENV
+  IGLAMBDA -->|deduplicates in| DDB
+  IGLAMBDA -->|sends failures to| DLQ
+  IGLAMBDA -->|publishes admitted traffic to| TTRAFFIC
+  IGLAMBDA -->|reads handles from| SSM
+  IGLAMBDA -->|writes logs/metrics to| CWLAMBDA
+
+  IGCLUSTER -->|hosts| IGSVC
+  IGSVC -->|uses task definition| IGTD
+  IGSVC -->|uses runtime role| ROLEIGRUN
+  IGSVC -->|uses execution role| ROLEIGEXEC
+  IGTD -->|defines runtime posture| IGPROC
+  ALB -->|exposes internal service edge on| LISTENER
+  LISTENER -->|forwards to| TG
+  TG -->|targets| IGSVC
+  IGSVC -->|deduplicates in| DDB
+  IGSVC -->|publishes admitted traffic to| TTRAFFIC
+  IGSVC -->|reads handles from| SSM
+  IGSVC -->|writes logs/metrics to| CWIG
+
+  DDB -->|managed by access role| ROLEDDB
+  TTRAFFIC -->|is transported by| MSK
+  TTRAFFIC -->|schema-governed by| GLUEREG
+
+  VPC -->|contains| PUB1
+  VPC -->|contains| PUB2
+  VPC -->|contains| PRIV1
+  VPC -->|contains| PRIV2
+  PUB1 -->|hosts public edge for| HTTPAPI
+  PUB1 -->|hosts public edge for| ALB
+  PUB2 -->|hosts public edge for| HTTPAPI
+  PUB2 -->|hosts public edge for| ALB
+  PRIV1 -->|hosts| IGLAMBDA
+  PRIV1 -->|hosts| IGSVC
+  PRIV1 -->|hosts| WSPTASK
+  PRIV2 -->|hosts| IGLAMBDA
+  PRIV2 -->|hosts| IGSVC
+  PRIV2 -->|hosts| WSPTASK
+  PRIV1 -->|reaches AWS APIs via| VPCESTS
+  PRIV1 -->|reaches AWS APIs via| VPCESSM
+  PRIV1 -->|reaches AWS APIs via| VPCELOGS
+  PRIV1 -->|reaches AWS APIs via| VPCEECRAPI
+  PRIV1 -->|reaches AWS APIs via| VPCEECRDKR
+  PRIV1 -->|reaches AWS APIs via| VPCEEXECAPI
+  PRIV1 -->|reaches AWS APIs via| VPCESQS
+  PRIV1 -->|reaches S3 through| VPCES3
+  PRIV1 -->|reaches DynamoDB through| VPCEDDB
+  PRIV2 -->|reaches AWS APIs via| VPCESTS
+  PRIV2 -->|reaches AWS APIs via| VPCESSM
+  PRIV2 -->|reaches AWS APIs via| VPCELOGS
+  PRIV2 -->|reaches AWS APIs via| VPCEECRAPI
+  PRIV2 -->|reaches AWS APIs via| VPCEECRDKR
+  PRIV2 -->|reaches AWS APIs via| VPCEEXECAPI
+  PRIV2 -->|reaches AWS APIs via| VPCESQS
+  PRIV2 -->|reaches S3 through| VPCES3
+  PRIV2 -->|reaches DynamoDB through| VPCEDDB
+
+  CWLAMBDA -->|feeds| CW
+  CWIG -->|feeds| CW
+  SFN -->|feeds metrics to| CW
+  EVID -->|feeds operational evidence to| DASHOPS
+  CW -->|feeds live posture to| DASHOPS
+  EVID -->|feeds spend/proof evidence to| DASHCOST
+  BUDGET -->|feeds budget posture to| DASHCOST
+
+  classDef note fill:#fff8e1,stroke:#f9a825,color:#111,stroke-width:1.3px;
+  classDef control fill:#e8eaf6,stroke:#3949ab,color:#111,stroke-width:1.3px;
+  classDef ingress fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.3px;
+  classDef transport fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.3px;
+  classDef state fill:#f1f8e9,stroke:#558b2f,color:#111,stroke-width:1.3px;
+  classDef ident fill:#fce4ec,stroke:#ad1457,color:#111,stroke-width:1.3px;
+  classDef net fill:#eceff1,stroke:#455a64,color:#111,stroke-width:1.3px;
+  classDef obs fill:#ede7f6,stroke:#5e35b1,color:#111,stroke-width:1.3px;
+
+  class N1 note;
+  class GHA,SFN,CTRLTOPIC,RUNID,RUNCTL control;
+  class HTTPAPI,APIRPOST,APIRHEALTH,IGLAMBDA,IGLAMBDAENV,CWLAMBDA,IGCLUSTER,ALB,LISTENER,TG,IGSVC,IGTD,IGPROC,CWIG,WSPCLUSTER,WSPTASK ingress;
+  class MSK,GLUEREG,TCTRL,TTRAFFIC transport;
+  class DDB,DLQ,OBJ,EVID,ART state;
+  class OIDC,ROLETF,ROLESFN,ROLELAMBDA,ROLEAPIGW,ROLEDDB,ROLEIGEXEC,ROLEIGRUN,ROLEWSPEXEC,ROLEWSPRUN,SSM ident;
+  class VPC,PUB1,PUB2,PRIV1,PRIV2,VPCESTS,VPCESSM,VPCELOGS,VPCEECRAPI,VPCEECRDKR,VPCEEXECAPI,VPCESQS,VPCES3,VPCEDDB net;
+  class CW,DASHOPS,DASHCOST,BUDGET obs;
