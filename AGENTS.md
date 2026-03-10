@@ -44,7 +44,13 @@ It's important to note that as you go through the repo, `local-parity`, `dev_min
 - Prefer bounded AWS-first runs with fail-fast behavior and precise diagnostics over long expensive blind runs.
 - Make the platform work plane by plane before escalating duration and volume.
 - Most importantly, you have to be dynamic in your approach and your planning. WHen you initially start out with a plan to achieve a goal, at some point in time, after battling errors, you need to pause and ask yourself, what's the error we're facing? is there anything hindering me from solving it? Address it, change your prosture and move. Don't be to rigid with the plan. This doesn't mean changing standards or not acheiveing the goal of that state or phase, but rather adapting a more dynamic approach the helps saves time and cost.
-- The right discipline is not rigid plan-following. It is goal-fixed, method-adaptive execution.
+- The right discipline is not rigid plan-following. It is goal-fixed, method-adaptive execution. This should be the operating posture:
+   - keep the phase goal and standard fixed,
+   - stop when repeated errors suggest we are no longer learning efficiently,
+   - name the actual error class, not just the symptom,
+   - ask what is blocking diagnosis or resolution,
+   - remove that blocker first,
+   - then resume with a changed posture that answers the real question faster and more cheaply.
 - Do not touch or rerun the Data Engine unless the user explicitly asks. Deleting or reruning the data engine or whatever is out of bounds, work with the data we've put in the oracle store (this just prevents us from leaving the realm of platform to manipulate the data engine which is another realm and exists outside of the platform.)
 - While the platform only receives from the oracle store (effectively treating the data engine as a blackbox), the AGENT as the builder has access to the docs that built the data engine and define the data for a better understanding of the data when dealing with planes and components that need a proper understanding of the content of the data e.g. components in the RTDL plane, learning and evolution plane and case management. 
 - That said, while the platform only relies on the interface pack `docs\model_spec\data-engine\interface_pack\data_engine_interface.md`, the AGENT, for better understand, can inspect the state expanded docs for the different layers (`docs\model_spec\data-engine\layer-#\specs\state-flow\#*\state.#*.s#.expanded.md`) and also the build plans in `docs\model_spec\data-engine\implementation_maps\segment_#*.build_plan.md` to see what was actually implemented. These are the only sets of files you are allowed to for the data engine, and maybe the contracts and policies if necessary. You are not allowed to edit it.
