@@ -25,6 +25,7 @@ all proven individually, all proven in coupling, and all proven as one platform 
 ---
 
 ## Planning assumptions
+- Obey the `AGENTS.md`
 - `dev_full` is already built and wired. This plan hardens and proves it; it does not redesign it from scratch unless a production-blocking flaw forces a repin.
 - The Data Engine remains a black box. The platform works with the data available in the oracle store and through the data-engine interface pack.
 - When a plane depends on understanding the semantics of the incoming data, the agent may inspect only the allowed Data Engine references for understanding:
@@ -103,6 +104,53 @@ A plane is added to the working platform only when all of the following are true
 - its evidence is explainable, attributable, and auditable.
 
 If any one of those is false, the plane is not part of the working platform yet.
+
+---
+
+## Road map for phase expansion
+We do not move through this plan by shamelessly and foolishly creating states within a phase that do not really lead toward the goal of that phase and as a whole this plan.
+
+Instead, the road map is:
+
+1. start at the parent phase in this plan,
+2. ask what the goal of that phase is in relation to the goal of this entire plan,
+3. ask how that phase goal can actually be accomplished,
+4. ask what steps are necessary to accomplish that goal,
+5. let those real required steps define the subphases for that phase.
+
+_(Once again, this is not a template but a mindset)_
+
+This means:
+- subphases are not forced into a fixed number,
+- subphases are not created because a runner or workflow suggests another state,
+- subphases are created only because they are necessary to accomplish the goal of the parent phase.
+
+### How each phase is to be expanded
+For every phase, the expansion method is:
+
+1. restate the goal of the phase,
+2. ask what must be true for that phase goal to be genuinely accomplished,
+3. identify the components, paths, and cross-plane relationships that contribute to that goal,
+4. identify which of those contributors need their own focused attention,
+5. derive the subphases from that real work.
+
+This is important because some phases will contain many components and each component may contribute a unique part to the goal of the phase. They should not be lumped together without consideration just because they live in the same plane.
+
+### Telemetry and metric derivation for subphases
+Once the subphases are defined from the real goal of the phase, we then ask:
+- what live telemetry is needed to monitor each subphase honestly?
+- what metrics are we looking for that actually match the goal of that subphase?
+- what progress or red posture would those metrics show?
+
+That telemetry and those metrics should then be added as the subphase ledger for that phase.
+
+### Phase closure rule
+Once the goal of the phase is actually accomplished:
+- close the phase,
+- update the ledger in this plan with what has now been proven,
+- then move to the next phase.
+
+The phase is not complete because its subphases were run. The phase is complete only when its goal, in relation to the entire production-readiness plan, has actually been achieved.
 
 ---
 
