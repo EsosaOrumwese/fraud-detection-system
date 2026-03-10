@@ -1769,3 +1769,50 @@ That closes the last stale state mismatch between:
 - the reflected readiness graphs
 
 `Phase 0` is now closed green in a way that is inspectable remotely, not only recoverable from a local run folder.
+
+## 2026-03-10 22:49:51 +00:00 - Phase 1 opened
+With `Phase 0` closed and pushed, the next move was to open `Phase 1` properly instead of drifting straight into ad hoc RTDL checks.
+
+The first thing I needed from the live platform was not a bounded proof run. It was runtime boundary truth:
+
+- what the active RTDL runtime actually is,
+- whether it is pinned to the current run scope,
+- and whether it is observable enough to support a truthful bounded proof.
+
+Live runtime truth on AWS:
+
+- EKS cluster `fraud-platform-dev-full`
+- namespace `fraud-platform-rtdl`
+- active deployments:
+  - `fp-pr3-csfb`
+  - `fp-pr3-ieg`
+  - `fp-pr3-ofp`
+  - `fp-pr3-dl`
+  - `fp-pr3-df`
+  - `fp-pr3-al`
+  - `fp-pr3-dla`
+  - `fp-pr3-archive-writer`
+- all eight are `1/1` available with no recent restarts
+- all eight are pinned to the same runtime image digest `sha256:687fd3033f9c54df6e9289cff8145f6638206c64c387937dcb8b2da5326f9feb`
+
+The first hard blocker appeared immediately:
+
+- secret `fp-pr3-runtime-secrets` is still pinned to `platform_20260309T164209Z`
+- `ACTIVE_PLATFORM_RUN_ID`, `CSFB_REQUIRED_PLATFORM_RUN_ID`, `IEG_REQUIRED_PLATFORM_RUN_ID`, `OFP_REQUIRED_PLATFORM_RUN_ID`, and `DF_REQUIRED_PLATFORM_RUN_ID` are all still that same old run id
+- deployment labels such as `fp-pr3-df` still carry `fp.platform_run_id=platform_20260309T164209Z`
+
+This means `Phase 1` is not execution-ready yet. Any bounded RTDL run started before repinning would be partly blind because the plane would still be scoped to yesterday's run.
+
+The second finding is that process health also cannot be trusted at face value:
+
+- `fp-pr3-csfb` logs show repeated Kafka consumer socket disconnect / reconnect churn
+- `fp-pr3-df` shows the same consumer churn plus an internal publisher SASL re-authentication principal-change failure
+
+So the RTDL opening posture is now explicit:
+
+- first repin the plane through the intended materialization path
+- then verify rollout and secret adoption
+- then pin the richer `Phase 1` telemetry set
+- only after that run the first bounded RTDL proof
+
+I created `platform.production_readiness.phase1.md` to keep that reasoning from collapsing back into the generic implementation note.
