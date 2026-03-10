@@ -1,0 +1,102 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    L1["Left to right = problem -> remediation -> measured impact -> verdict"]
+    L2["Red = defect or blocker"]
+    L3["Amber = remediation or hardening change"]
+    L4["Blue = measured production metric or proof"]
+    L5["Green = closure or working-plane verdict"]
+    L6["Gray = residual caveat that does not reopen the hot-path closure"]
+  end
+
+  subgraph COMPONENTS["Control + Ingress Components"]
+    WSP["World Streamer Producer (WSP)<br>remote ECS/Fargate replay producer"]
+    EDGE["Ingress edge<br>HTTP API Gateway + internal ALB"]
+    IG["Ingestion Gate (IG)<br>Lambda / ECS admission shell"]
+    DDB["DynamoDB idempotency ledger"]
+    PUB["Kafka publish boundary<br>MSK + schema registry"]
+    EVID["Receipts / quarantine / run evidence"]
+  end
+
+  subgraph DEFECTS["Defects Found"]
+    D1["Stress run reused stale run identity<br>WSP self-deduped its own traffic<br>false low throughput evidence"]
+    D2["Live ingress deployment drift<br>older Lambda package admitted to DDB but did not publish to Kafka<br>downstream starvation"]
+    D3["Ingress envelope was pinned too low for the declared dev_full target<br>edge and handler budget mismatch"]
+    D4["Bounded-run evidence was polluted by harness-side ambiguity<br>receipts and stress deltas were not always honest"]
+  end
+
+  subgraph REMEDIATION["Hardening Changes"]
+    R1["Enforced fresh bounded-run identity per execution<br>stopped stale run reuse in WSP executor"]
+    R2["Repinned live ingress to the authoritative Kafka-publishing implementation<br>restored admit -> publish continuity"]
+    R3["Repinned ingress contract to current declared envelope<br>3000 steady / 6000 burst<br>with corrected Lambda / IG shell posture"]
+    R4["Tightened bounded-run evidence and receipt discipline<br>fail-fast and cleaner attribution"]
+  end
+
+  subgraph IMPACT["Measured Production Impact"]
+    M1["Steady throughput<br>3025.36 eps observed<br>3000 eps target"]
+    M2["Burst throughput<br>6041.65 eps observed<br>6000 eps target"]
+    M3["Latency<br>steady p95 108.05 ms / p99 131.60 ms<br>burst p95 176.65 ms / p99 275.03 ms<br>within 350 / 700 ms budget"]
+    M4["Reliability<br>valid traffic 4xx = 0<br>5xx = 0"]
+    M5["Recovery<br>60 s observed<br>180 s bound"]
+    M6["Publish continuity restored<br>admitted ingress now reaches Kafka and downstream consumers"]
+    M7["Evidence quality improved<br>bounded runs now reflect true pressure rather than self-deduped artifacts"]
+  end
+
+  subgraph VERDICT["Closure"]
+    V1["Control + Ingress plane<br>production-credible at current declared envelope<br>3000 steady / 6000 burst"]
+    V2["Working-plane status<br>keep as strongest proven plane in the platform"]
+    V3["Residual caveat<br>deployment-drift resistance still needs to stay tight<br>but does not negate current hot-path closure"]
+  end
+
+  WSP --> D1
+  EDGE --> D3
+  IG --> D2
+  DDB --> D2
+  PUB --> D2
+  EVID --> D4
+
+  D1 --> R1
+  D2 --> R2
+  D3 --> R3
+  D4 --> R4
+
+  R1 --> M1
+  R1 --> M2
+  R1 --> M7
+  R2 --> M6
+  R2 --> M4
+  R3 --> M1
+  R3 --> M2
+  R3 --> M3
+  R3 --> M5
+  R4 --> M7
+  R4 --> M4
+
+  M1 --> V1
+  M2 --> V1
+  M3 --> V1
+  M4 --> V1
+  M5 --> V1
+  M6 --> V1
+  M7 --> V1
+  V1 --> V2
+  V1 -. with governance caveat .-> V3
+
+  classDef comp fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.3px;
+  classDef defect fill:#ffebee,stroke:#c62828,color:#111,stroke-width:1.3px;
+  classDef fix fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef metric fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.3px;
+  classDef ok fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.4px;
+  classDef caveat fill:#f5f5f5,stroke:#616161,color:#111,stroke-dasharray: 5 3;
+
+  class WSP,EDGE,IG,DDB,PUB,EVID comp;
+  class D1,D2,D3,D4 defect;
+  class R1,R2,R3,R4 fix;
+  class M1,M2,M3,M4,M5,M6,M7 metric;
+  class V1,V2 ok;
+  class V3 caveat;
