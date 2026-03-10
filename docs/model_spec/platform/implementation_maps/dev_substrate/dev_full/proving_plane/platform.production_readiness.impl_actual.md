@@ -75,6 +75,14 @@ Live preflight findings
    - SQS depth on `fraud-platform-dev-full-ig-dlq`
    - WSP logs
    - Kafka continuity inferred from ingress logs/receipts
+6. The front-door health surface is live and self-identifying.
+   - `GET /ops/health` returns `200`
+   - service: `ig-edge`
+   - mode: `apigw_lambda_ddb_kafka`
+   - profile: `dev_full`
+   - envelope:
+     - `rate_limit_rps=3000`
+     - `rate_limit_burst=6000`
 
 Telemetry gap discovered
 - API Gateway stage `v1` currently has `DetailedMetricsEnabled=false`
@@ -98,3 +106,86 @@ Next work
 1. finish the `Phase 0.A` telemetry pinning in the phase doc,
 2. add any remaining preflight checks needed for bounded correctness authorization,
 3. prepare the exact CLI/operator loop for `Phase 0.B`.
+
+## 2026-03-10 11:52 +00:00 - Phase 0.B run-surface decision
+
+Problem
+- `Phase 0.B` now needs a bounded AWS-first correctness run surface, but the existing reusable execution logic still lives in `scripts/dev_substrate/pr3_wsp_replay_dispatch.py` and carries old `PR3` naming and artifact conventions.
+- The question is whether to build a brand-new control/ingress runner immediately or to wrap the existing remote dispatcher in a proving-plane-specific CLI entrypoint.
+
+Why this matters in production
+- The wrong choice here either drags stale `PR3` semantics back into the proving loop or creates unnecessary duplicate execution logic that we would then have to maintain and revalidate separately.
+- The execution core should stay shared where possible, but the operator surface for hardening must speak the current proving-plane language and write to the current proving-plane run roots.
+
+Options considered
+1. Call `pr3_wsp_replay_dispatch.py` directly and accept the old argument names.
+   - Rejected for operator clarity.
+   - It would work technically, but it would keep the proving loop conceptually tied to old `PR3` naming and make logs and notes harder to reason about.
+2. Rewrite a full new remote dispatcher just for `Phase 0`.
+   - Rejected as wasteful right now.
+   - The existing dispatcher already contains the hard part: canonical remote WSP replay against the live ingress edge with bounded thresholds.
+3. Create a thin proving-plane wrapper for `Phase 0.B`.
+   - Chosen.
+   - The wrapper can generate the fresh run ids, redirect outputs into the proving-plane run root, pin the `Phase 0` naming, and preserve the shared remote execution core.
+
+Decision
+- Build a thin `Phase 0` CLI wrapper around the existing remote WSP dispatcher.
+- Keep the execution core shared.
+- Make the operator-facing interface and artifact location proving-plane-native.
+
+Expected result
+- `Phase 0.B` gets a clean CLI entrypoint for bounded Control + Ingress correctness revalidation.
+- We avoid duplicating the remote replay logic.
+- We avoid letting the old `PR3` naming leak back into the active proving method.
+
+Implementation result
+- Added `scripts/dev_substrate/phase0_control_ingress_revalidate.py`.
+- The wrapper:
+  - generates fresh run ids,
+  - writes under `runs/dev_substrate/dev_full/proving_plane/run_control`,
+  - pins `Phase 0` naming on execution and blocker prefixes,
+  - reuses the existing remote WSP replay core rather than cloning it.
+
+## 2026-03-10 11:55 +00:00 - First Phase 0.B launch blocker
+
+Problem
+- The first bounded `Phase 0.B` launch failed before any AWS traffic was generated because the shared remote dispatcher expects the execution root directory to exist already.
+- The new Phase 0 wrapper passed a new execution id but did not pre-create `runs/dev_substrate/dev_full/proving_plane/run_control/<execution_id>/`.
+
+Why this matters in production
+- This is not a platform-runtime defect. It is a hardening-loop defect.
+- If we do not fix it immediately, the proving path remains more fragile than it should be and later phases will pay for the same trivial launch problem again.
+
+Observed failure
+- `RuntimeError: PR3 execution root missing: runs\\dev_substrate\\dev_full\\proving_plane\\run_control\\phase0_<timestamp>`
+
+Decision
+- Fix the wrapper, not the shared dispatcher, because the proving-plane wrapper is the layer that owns the proving-plane run root and naming.
+- The wrapper must pre-create the execution directory before invoking the shared remote replay core.
+
+Next work
+1. patch the wrapper to create the execution root,
+2. rerun the same bounded `Phase 0.B` launch,
+3. continue only after the launch passes this local boundary.
+
+## 2026-03-10 11:59 +00:00 - Second Phase 0.B launch blocker
+
+Problem
+- The second bounded `Phase 0.B` launch passed the missing-directory defect but failed on the next legacy assumption inside `pr3_wsp_replay_dispatch.py`.
+- The shared dispatcher hard-requires `pr3_s0_execution_receipt.json` in the execution root and refuses to start unless that receipt says `PR3_S0_READY`.
+
+Why this matters in production
+- This is still a proving-loop defect, not a Control + Ingress runtime defect.
+- The dispatcher is carrying an old upstream-lock convention from the `PR3` path. If the wrapper does not absorb that legacy assumption, the proving-plane CLI remains unable to launch bounded ingress runs cleanly.
+
+Options considered
+1. Rewrite the shared dispatcher immediately to remove the legacy upstream lock.
+   - Rejected for this phase.
+   - It is broader than the current proving question and would widen the work mid-boundary.
+2. Seed a minimal compatibility receipt in the proving-plane wrapper.
+   - Chosen.
+   - The wrapper owns the translation layer between proving-plane naming and the legacy shared dispatcher, so this is the narrowest correct fix.
+
+Decision
+- The wrapper will create a tiny compatibility `pr3_s0_execution_receipt.json` in the execution root before invoking the shared dispatcher.
+- This is a compatibility shim only. It is not being treated as authority for proving-plane status; it only satisfies the shared dispatcher's historical guard.

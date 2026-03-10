@@ -94,6 +94,11 @@ The currently pinned live external admission path is:
    - cluster `fraud-platform-dev-full-msk`
 6. `SQS` dead-letter queue:
    - `fraud-platform-dev-full-ig-dlq`
+7. front-door health endpoint:
+   - `GET /ops/health`
+   - current response `200`
+   - current mode `apigw_lambda_ddb_kafka`
+   - current declared envelope `3000 / 6000`
 
 Important boundary decision:
 - the internal `Ingress ECS service` is **not** the current external front door for `Phase 0`.
@@ -134,6 +139,7 @@ Current telemetry posture:
 - API Gateway and Lambda metric namespaces are present and queryable in CloudWatch,
 - the queue depth metric for `fraud-platform-dev-full-ig-dlq` is active and currently readable,
 - Lambda and WSP log groups are present,
+- the front-door health endpoint is live and self-reports the expected ingress mode and envelope,
 - recent datapoints are sparse right now because the plane is not actively running,
 - `Phase 0.B` therefore needs an intentional fresh bounded run to warm the metric and log surfaces before verdicting them.
 
@@ -186,6 +192,13 @@ Current concrete checks:
 - operator can resolve:
   - `/fraud-platform/dev_full/ig/api_key`
   - `/fraud-platform/dev_full/msk/bootstrap_brokers`
+- `GET /ops/health` currently returns:
+  - status `ok`
+  - service `ig-edge`
+  - mode `apigw_lambda_ddb_kafka`
+  - profile `dev_full`
+  - `rate_limit_rps=3000`
+  - `rate_limit_burst=6000`
 
 #### Fail-fast conditions
 - no fresh run identity continuity
@@ -248,6 +261,18 @@ Run shape:
 - `100k to 300k` events
 - `2 to 5` minutes
 - same declared envelope where applicable
+
+Default CLI entrypoint for this subphase:
+- `python scripts/dev_substrate/phase0_control_ingress_revalidate.py`
+- this is a thin proving-plane wrapper over the shared remote WSP replay core
+- it writes to:
+  - `runs/dev_substrate/dev_full/proving_plane/run_control/`
+- default bounded correctness posture:
+  - fresh `platform_run_id`
+  - fresh `scenario_run_id`
+  - duration `90 s`
+  - expected admitted throughput `3000 eps`
+  - early cutoff `45 s`
 
 ### Telemetry sub-ledger for Phase 0.B
 
