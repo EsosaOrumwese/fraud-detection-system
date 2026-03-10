@@ -182,6 +182,24 @@ Purpose:
 Why this phase exists:
 - earlier evidence is strong, but the working platform must be established under the exact method this plan will use for every other plane.
 
+Production-readiness anchor:
+- `platform.production_readiness.md -> What makes the Control & Ingress Plane Production Ready?`
+- `platform.production_readiness.md -> What makes the platform as a whole production-ready?`
+- `platform.production_readiness.md -> Production paths that exist in the platform`
+
+Quantitative proof focus:
+- steady and burst throughput at the current declared envelope
+- p95 and p99 ingress latency
+- `4xx` and `5xx` leakage for valid traffic
+- duplicate correctness and publish continuity
+- recovery time after bounded disturbance
+
+Qualitative proof focus:
+- run identity continuity from control into ingress
+- deterministic admission, dedupe, and publish behavior
+- receipt and quarantine truth that remains reconstructable
+- no deployment-drift mismatch between the intended ingress path and the live ingress path
+
 Scope:
 - run control / orchestration
 - run identity propagation
@@ -215,6 +233,24 @@ Definition of done:
 ## Phase 1 - RTDL plane readiness
 Purpose:
 - prove RTDL on its own production criteria using the minimum real upstream dependencies it requires.
+
+Production-readiness anchor:
+- `platform.production_readiness.md -> What makes the Real-Time Decision Loop (RTDL) plane production-ready?`
+- `platform.production_readiness.md -> What makes the platform as a whole production-ready?`
+- `platform.production_readiness.md -> Production paths that exist in the platform`
+
+Quantitative proof focus:
+- consumer lag and checkpoint age
+- feature freshness and restart-to-green time
+- decision latency
+- fail-closed, quarantine, append failure, replay divergence, and archive write-error rates
+
+Qualitative proof focus:
+- context correctness
+- feature correctness
+- fail-closed only for real insufficiency
+- append-only audit and archive truth
+- replay, duplicate, and restart safety for RTDL truth surfaces
 
 Scope:
 - Context Store Flow Binding (CSFB)
@@ -263,6 +299,22 @@ Definition of done:
 Purpose:
 - prove the first real working network beyond Control + Ingress.
 
+Production-readiness anchor:
+- `platform.production_readiness.md -> What makes the platform as a whole production-ready?`
+- `platform.production_readiness.md -> The critical cross-plane paths`
+- `platform.production_readiness.md -> Production paths that exist in the platform`
+
+Quantitative proof focus:
+- ingress throughput and latency under live RTDL consumption
+- RTDL lag, decision latency, and append/archive integrity under real admitted pressure
+- bounded recovery time for the combined network
+
+Qualitative proof focus:
+- Control -> Ingress identity continuity
+- Ingress -> Event Bus publication continuity
+- Event Bus -> RTDL truth continuity
+- no false-green caused by downstream starvation or stale run scope
+
 Scope:
 - existing Control + Ingress working platform
 - full RTDL plane
@@ -295,6 +347,25 @@ Definition of done:
 ## Phase 3 - Case + Label plane readiness
 Purpose:
 - prove Case + Label on its own production criteria using the already-working upstream decision surfaces.
+
+Production-readiness anchor:
+- `platform.production_readiness.md -> What makes the Case & Label Management Plane Production Ready?`
+- `platform.production_readiness.md -> What makes the platform as a whole production-ready?`
+- `platform.production_readiness.md -> Production paths that exist in the platform`
+
+Quantitative proof focus:
+- trigger precision and recall
+- case-open and case-transition latency
+- duplicate case-creation rate
+- label commit latency
+- label idempotency and conflicting-label visibility
+
+Qualitative proof focus:
+- correct escalation from decision truth to case intent
+- append-only case timeline truth
+- append-only label truth
+- strict truth ownership between CaseTrigger, Case Management, and Label Store
+- no future-label leakage
 
 Scope:
 - CaseTrigger
@@ -335,6 +406,23 @@ Definition of done:
 Purpose:
 - prove the enlarged network once Case + Label is attached.
 
+Production-readiness anchor:
+- `platform.production_readiness.md -> What makes the Case & Label Management Plane Production Ready?`
+- `platform.production_readiness.md -> What makes the platform as a whole production-ready?`
+- `platform.production_readiness.md -> The critical cross-plane paths`
+
+Quantitative proof focus:
+- decision-to-case latency
+- case-to-label latency
+- case and label throughput under real upstream pressure
+- starvation count across RTDL -> Case/Label boundaries
+
+Qualitative proof focus:
+- RTDL outputs remain usable as operational truth
+- duplicate-safe case and label formation under load
+- case and label lineage remain linked to upstream RTDL truth
+- no regression of the already-working `Control + Ingress + RTDL` network
+
 Scope:
 - working platform from Phase 2
 - Case + Label plane
@@ -365,6 +453,26 @@ Definition of done:
 ## Phase 5 - Learning + Evolution / MLOps plane readiness
 Purpose:
 - prove the managed learning corridor on its own production criteria.
+
+Production-readiness anchor:
+- `platform.production_readiness.md -> What makes Learning & Evolution Plane Production Ready?`
+- `platform.production_readiness.md -> What makes the platform as a whole production-ready?`
+- `platform.production_readiness.md -> Production paths that exist in the platform`
+
+Quantitative proof focus:
+- dataset build duration and success
+- leakage violations
+- train/eval duration and success
+- candidate bundle completeness
+- promotion evidence completeness
+- rollback success and rollback RTO/RPO
+
+Qualitative proof focus:
+- authoritative runtime and label truth as the only learning basis
+- point-in-time correctness
+- lineage completeness from dataset to candidate bundle
+- deterministic active-bundle resolution through the managed corridor
+- no hidden local or script-only path making learning appear healthy
 
 Scope:
 - `Databricks (Offline Feature Plane / OFS)`
@@ -411,6 +519,22 @@ Definition of done:
 Purpose:
 - prove the platform feedback loop once learning is attached to the working network.
 
+Production-readiness anchor:
+- `platform.production_readiness.md -> What makes Learning & Evolution Plane Production Ready?`
+- `platform.production_readiness.md -> What makes the platform as a whole production-ready?`
+- `platform.production_readiness.md -> The critical cross-plane paths`
+
+Quantitative proof focus:
+- bounded dataset-build, train/eval, and promotion timings within the same proof window
+- active-bundle resolution correctness at runtime
+- rollback execution within declared bounds
+
+Qualitative proof focus:
+- runtime-to-label-to-learning truth continuity
+- learning-to-runtime feedback continuity
+- replay-to-dataset correctness
+- no drift between promoted bundle truth and runtime decision authority
+
 Scope:
 - working platform from Phase 4
 - managed learning corridor from Phase 5
@@ -440,6 +564,25 @@ Definition of done:
 ## Phase 7 - Operations / Governance / Meta readiness
 Purpose:
 - prove the platform can be operated, audited, governed, and cost-controlled with the same rigor that it is executed.
+
+Production-readiness anchor:
+- `platform.production_readiness.md -> What makes the Operations / Governance / Meta layer production-ready?`
+- `platform.production_readiness.md -> What makes the platform as a whole production-ready?`
+- `platform.production_readiness.md -> Production paths that exist in the platform`
+
+Quantitative proof focus:
+- receipt completeness
+- evidence readback success
+- alert coverage and metric freshness
+- cost attribution completeness
+- residual non-essential compute after idle/teardown
+
+Qualitative proof focus:
+- exact run reconstruction
+- verdict traceability back to evidence
+- drift detection before false certification
+- safe idle and restart posture
+- governed, attributable, and bounded operational behavior
 
 Scope:
 - run control and receipts
@@ -473,6 +616,21 @@ Definition of done:
 Purpose:
 - validate the entire working platform as one network before authorizing heavier stress.
 
+Production-readiness anchor:
+- `platform.production_readiness.md -> What makes the platform as a whole production-ready?`
+- `platform.production_readiness.md -> The critical cross-plane paths`
+- `platform.production_readiness.md -> Production paths that exist in the platform`
+
+Quantitative proof focus:
+- bounded integrated throughput, latency, lag, recovery, and error posture across the full network
+- bounded integrated case, label, learning, and governance timings where relevant
+
+Qualitative proof focus:
+- full-platform truth continuity
+- full-platform timing continuity
+- full-platform explainability and auditability
+- no hidden handoff defect across any active plane boundary
+
 Scope:
 - all planes
 - all critical cross-plane paths
@@ -498,6 +656,20 @@ Definition of done:
 ## Phase 9 - Full-platform bounded stress authorization
 Purpose:
 - determine whether the now-working platform deserves a longer stress or soak run.
+
+Production-readiness anchor:
+- `platform.production_readiness.md -> What makes the platform as a whole production-ready?`
+- `platform.production_readiness.md -> Production paths that exist in the platform`
+
+Quantitative proof focus:
+- latency tails under widened pressure
+- fail-closed, quarantine, lineage, case, label, learning, and ops metrics under bounded full-platform stress
+- recovery behavior under widened stress
+
+Qualitative proof focus:
+- the full platform remains semantically trustworthy under the widened pressure window
+- outputs remain meaningful, explainable, and auditable
+- no plane only appears green because another plane silently stopped doing real work
 
 Scope:
 - full platform under the stress authorization slice
