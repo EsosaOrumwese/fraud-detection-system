@@ -4571,4 +4571,44 @@ The accepted next step is therefore narrow:
 - restore `ig_push_concurrency = 2`
 - rerun only the same Phase 4 coupled boundary
 
+## 2026-03-11 19:27:22 +00:00 - Restoring `ig_push_concurrency = 2` exposed a transition-shaping defect, not a new Case + Label regression
+I finished reading the fresh rerun instead of assuming the last correction was enough:
+
+- `execution_id = phase4_case_label_coupled_20260311T174051Z`
+- `platform_run_id = platform_20260311T174051Z`
+- `scenario_run_id = a09fd5565de9a10a429e289ba8d51886`
+
+The outcome is not green:
+
+- steady `2979.367 eps`
+- steady `p99 = 722.864 ms`
+- burst admitted `6863.5 eps` but with `872` API-edge `4xx`
+- recovery admitted `3004.072 eps` but carried `982` early `4xx`
+- Lambda `Throttles = 0`
+- Lambda `Errors = 0`
+- coupled timing still green
+- CaseTrigger, Case Management, and Label Store still materially participate on the same run
+
+That matters because the enlarged network itself is not going dark or semantically drifting. The red posture is still concentrated at the ingress proof boundary.
+
+The steady and burst evidence now tells a more precise story than the earlier "restore the fanout and rerun" hypothesis:
+
+- with `burst_seconds = 30` and `ig_push_concurrency = 2`, steady was green but burst/recovery hit API-edge `429`
+- with `burst_seconds = 2` and `ig_push_concurrency = 1`, burst and recovery turned green but the early steady slice underfilled
+- with `burst_seconds = 2` and `ig_push_concurrency = 2`, the network again carries the retained envelope once settled, but the step-up into steady and then into burst still injects enough edge pressure to create a small steady miss, a narrow `p99` breach, and another burst/recovery `429` pocket
+
+That is not reading like "Case + Label made the working platform unfit." It is reading like a proving-driver transition problem:
+
+- the short burst posture is right
+- the `ig_push_concurrency = 2` steady posture is closer to truth than `1`
+- the remaining defect is in how aggressively the driver seeds rate transitions into the enlarged coupled network
+
+So the next accepted move is to stop bouncing only between `ig_push_concurrency = 1` and `2` and expose the actual transition-shaping controls in the Phase 4 runner:
+
+- pass through `target_burst_seconds`
+- pass through `target_initial_tokens`
+- pass through `short_upward_transition_blend`
+
+Then rerun the same Phase 4 boundary with a narrower burst-token seed and a longer scored-activation settle, because that is now the smallest honest lever that could remove the API-edge reject pocket without lowering the retained envelope or masking a real downstream defect.
+
 That preserves the truthful burst repin while testing whether the steady miss disappears without reintroducing the old API-edge reject pattern.

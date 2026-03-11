@@ -167,9 +167,16 @@ Current coupled-envelope repin:
 - the short-burst rerun removed the `429` burst defect completely, but that fanout reduction overcorrected the first steady window while later steady/recovery minutes returned to the retained envelope
 - the current narrow follow-up is:
   - keep `burst_seconds = 2`
-  - restore `ig_push_concurrency = 2`
-  - rerun the same coupled boundary to confirm whether the remaining red is only a proving-driver steady-ramp defect
-- this still does not lower the target; it is a narrow driver correction so the enlarged network is judged on a truthful coupled burst boundary without artificially starving the steady slice
+  - keep `ig_push_concurrency = 2` for the scored window
+  - treat the remaining red as a transition-shaping defect rather than a broad coupled-network regression
+  - expose and tune the burst-token seeding controls on the same Phase 4 runner
+  - extend the scored-activation settle slightly so the scored steady slice is not polluted by activation residue
+- the latest rerun proved that simply restoring `ig_push_concurrency = 2` is not enough:
+  - steady came back only slightly red at `2979.367 eps`
+  - steady `p99` rose to `722.864 ms`
+  - burst/recovery carried API-edge `429` again (`872` burst, `982` early recovery)
+  - downstream Case + Label participation and coupled timing still stayed green
+- this still does not lower the target; it is a narrow driver correction so the enlarged network is judged on a truthful coupled burst boundary without artificially starving the steady slice or overdriving the edge transition
 
 Candidate proving path now pinned:
 
