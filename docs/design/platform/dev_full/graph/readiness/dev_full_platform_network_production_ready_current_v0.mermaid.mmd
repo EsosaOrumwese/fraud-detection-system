@@ -9,12 +9,12 @@ flowchart LR
   subgraph LEGEND["How to Read This Graph"]
     L1["Only the currently promoted working-platform core is shown"]
     L2["If a plane, component, or path is absent, it is not part of the ready-network claim"]
-    L3["The promoted network now includes RTDL on top of the already-green Control + Ingress base"]
-    L4["Case + Label remains absent as a promoted plane until its own phase closes"]
+    L3["The promoted network now includes RTDL and Case + Label on top of the already-green Control + Ingress base"]
+    L4["Learning and Ops / Gov / Meta remain absent until their own phases close"]
   end
 
   subgraph READYNOTE["Current Working Platform"]
-    NOTE["Currently promoted working-platform core:<br>Control + Ingress + RTDL<br>Phase 0 closed green on 2026-03-10<br>Phase 1 closed green on 2026-03-11<br>Declared envelope: 3000 steady eps / 6000 burst eps"]
+    NOTE["Currently promoted working-platform core:<br>Control + Ingress + RTDL + Case + Label<br>Phase 0 closed green on 2026-03-10<br>Phase 1 closed green on 2026-03-11<br>Phase 3 closed green on 2026-03-11<br>Declared envelope: 3000 steady eps / 6000 burst eps"]
   end
 
   subgraph CONTROL["Control Network - Promoted Core"]
@@ -45,6 +45,12 @@ flowchart LR
     ARCH["Archive Writer"]
   end
 
+  subgraph CASELABEL["Case + Label Network - Promoted Core"]
+    CTRIG["CaseTrigger<br>case-worthy trigger publication"]
+    CM["Case Management<br>append-only case timeline"]
+    LS["Label Store<br>authoritative label truth"]
+  end
+
   subgraph TRANSPORT["Promoted Event Transport Boundary"]
     MSK[("MSK Serverless<br>fraud-platform-dev-full-msk")]
     GLUEREG["Glue Schema Registry<br>fraud-platform-dev-full<br>BACKWARD"]
@@ -65,6 +71,7 @@ flowchart LR
   NOTE --> CONTROL
   NOTE --> INGRESS
   NOTE --> RTDL
+  NOTE --> CASELABEL
   NOTE --> TRANSPORT
 
   GHA -->|authenticates through| OIDC
@@ -79,6 +86,7 @@ flowchart LR
   RUNID -->|pins active run scope for| WSP
   RUNID -->|pins active run scope for| IGLAMBDA
   RUNID -->|pins active run scope for| RTDL
+  RUNID -->|pins active run scope for| CASELABEL
   RUNID -->|pins active run scope for| RUNCTL
 
   WSP -->|pushes ingress load to| HTTPAPI
@@ -103,16 +111,23 @@ flowchart LR
   DL -->|appends decision truth to| DLA
   DL -->|feeds archival evidence to| ARCH
   DL --> TDEC
+  DL -->|emits case-worthy decision truth to| CTRIG
+  CTRIG -->|opens or reuses cases in| CM
+  CM -->|commits authoritative labels to| LS
   ARCH -->|stores evidence in| EVID
   DLA -->|stores proof continuity in| EVID
+  CM -->|stores case evidence in| EVID
+  LS -->|stores label evidence in| EVID
   RUNCTL -->|stores proof receipts in| EVID
 
   IGLAMBDA -->|reads active handles from| SSM
   WSP -->|reads active handles from| SSM
   RTDL -->|reads active handles from| SSM
+  CASELABEL -->|reads active handles from| SSM
   IGLAMBDA -->|emits logs and metrics to| CW
   WSP -->|emits logs to| CW
   RTDL -->|emits logs and metrics to| CW
+  CASELABEL -->|emits logs and metrics to| CW
   SFN -->|emits logs and metrics to| CW
   CW -. exposes operator visibility for .-> RUNCTL
 
@@ -120,6 +135,7 @@ flowchart LR
   classDef control fill:#e8eaf6,stroke:#3949ab,color:#111,stroke-width:1.3px;
   classDef ingress fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.3px;
   classDef rtdl fill:#e0f2f1,stroke:#00695c,color:#111,stroke-width:1.3px;
+  classDef caselabel fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
   classDef transport fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.3px;
   classDef support fill:#f1f8e9,stroke:#558b2f,color:#111,stroke-width:1.3px;
 
@@ -127,5 +143,6 @@ flowchart LR
   class GHA,SFN,CTRLBUS,RUNID,RUNCTL control;
   class WSP,HTTPAPI,IGLAMBDA,IGDLQ,IGDDB,TTRAFFIC ingress;
   class RINTAKE,CSFB,IEG,OFP,DF,DL,DLA,ARCH rtdl;
+  class CTRIG,CM,LS caselabel;
   class MSK,GLUEREG,TCTXA,TCTXE,TFLOW,TDEC transport;
   class OIDC,SSM,OBJ,EVID,CW support;

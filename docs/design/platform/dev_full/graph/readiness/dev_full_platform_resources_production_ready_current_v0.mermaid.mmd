@@ -8,13 +8,13 @@ flowchart LR
 
   subgraph LEGEND["How to Read This Graph"]
     L1["Only resources backing the currently promoted working-platform core are shown"]
-    L2["The current promoted core now includes RTDL on the live EKS runtime"]
-    L3["Case + Label remains absent as a promoted plane until its own phase closes"]
-    L4["Phase 0 closed green on 2026-03-10 and Phase 1 closed green on 2026-03-11 for this promoted core"]
+    L2["The current promoted core now includes RTDL and Case + Label on the live EKS runtime"]
+    L3["Learning and Ops / Gov / Meta remain absent until their own phases close"]
+    L4["Phase 0 closed green on 2026-03-10, Phase 1 on 2026-03-11, and Phase 3 on 2026-03-11 for this promoted core"]
   end
 
   subgraph NOTE["Scope"]
-    N1["Concrete resource view for the promoted Control + Ingress + RTDL core<br>Envelope: 3000 steady eps / 6000 burst eps<br>Current accepted RTDL closure control: 54 lanes / ig_push = 1 / speedup 52.9"]
+    N1["Concrete resource view for the promoted Control + Ingress + RTDL + Case + Label core<br>Envelope: 3000 steady eps / 6000 burst eps<br>Current accepted Phase 3 closure slice: phase3_case_label_20260311T142813Z"]
   end
 
   subgraph CONTROL["Control Resources"]
@@ -64,6 +64,13 @@ flowchart LR
     RTDLIMG["Pinned image family<br>230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-full@sha256:c984..."]
   end
 
+  subgraph CASELABEL["Case + Label Runtime Resources"]
+    NSCASE["Namespace<br>fraud-platform-case-labels"]
+    CASETRIG["Deployment<br>fp-pr3-case-trigger"]
+    CASEMGMT["Deployment<br>fp-pr3-case-mgmt"]
+    LABELSTORE["Deployment<br>fp-pr3-label-store"]
+  end
+
   subgraph STATE["State / Evidence Resources"]
     OBJ["S3 object / oracle store<br>fraud-platform-dev-full-object-store"]
     EVID["S3 evidence bucket<br>fraud-platform-dev-full-evidence"]
@@ -93,6 +100,7 @@ flowchart LR
   N1 --> WSP
   N1 --> TRANSPORT
   N1 --> RTDL
+  N1 --> CASELABEL
   N1 --> STATE
   N1 --> IDENTITY
   N1 --> OBS
@@ -134,6 +142,7 @@ flowchart LR
   GLUEREG -. schema-governs .-> TFLOW
 
   EKS -->|hosts| NSRTDL
+  EKS -->|hosts| NSCASE
   NSRTDL --> CSFB
   NSRTDL --> IEG
   NSRTDL --> OFP
@@ -150,6 +159,12 @@ flowchart LR
   RTDLIMG --> AL
   RTDLIMG --> DLA
   RTDLIMG --> ARCH
+  NSCASE --> CASETRIG
+  NSCASE --> CASEMGMT
+  NSCASE --> LABELSTORE
+  RTDLIMG --> CASETRIG
+  RTDLIMG --> CASEMGMT
+  RTDLIMG --> LABELSTORE
 
   TTRAFFIC -->|feeds promoted RTDL intake boundary| NSRTDL
   TCTXA -->|consumed by| CSFB
@@ -161,8 +176,13 @@ flowchart LR
   DF --> DL
   DL --> DLA
   DL --> ARCH
+  DL --> CASETRIG
+  CASETRIG --> CASEMGMT
+  CASEMGMT --> LABELSTORE
   ARCH -->|stores archive evidence in| EVID
   DLA -->|stores decision continuity in| EVID
+  CASEMGMT -->|stores case evidence in| EVID
+  LABELSTORE -->|stores label evidence in| EVID
 
   CWLAMBDA -->|feeds| CW
   CWWSP -->|feeds| CW
@@ -178,6 +198,7 @@ flowchart LR
   classDef ingress fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.3px;
   classDef transport fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.3px;
   classDef rtdl fill:#e0f2f1,stroke:#00695c,color:#111,stroke-width:1.3px;
+  classDef caselabel fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
   classDef state fill:#f1f8e9,stroke:#558b2f,color:#111,stroke-width:1.3px;
   classDef ident fill:#fce4ec,stroke:#ad1457,color:#111,stroke-width:1.3px;
   classDef obs fill:#ede7f6,stroke:#5e35b1,color:#111,stroke-width:1.3px;
@@ -187,6 +208,7 @@ flowchart LR
   class HTTPAPI,APISTAGE,IGLAMBDA,IGLAMBDAENV,CWLAMBDA,DDB,DLQ,WSPCLUSTER,WSPTASK,CWWSP ingress;
   class MSK,GLUEREG,TCTRL,TTRAFFIC,TCTXA,TCTXE,TFLOW transport;
   class EKS,NSRTDL,CSFB,IEG,OFP,DF,DL,AL,DLA,ARCH,RTDLIMG rtdl;
+  class NSCASE,CASETRIG,CASEMGMT,LABELSTORE caselabel;
   class OBJ,EVID,SSM state;
   class OIDC,ROLETF,ROLESFN,ROLELAMBDA,ROLEAPIGW,ROLEDDB,ROLEWSPEXEC,ROLEWSPRUN ident;
   class CW,DASHOPS,DASHCOST,BUDGET obs;

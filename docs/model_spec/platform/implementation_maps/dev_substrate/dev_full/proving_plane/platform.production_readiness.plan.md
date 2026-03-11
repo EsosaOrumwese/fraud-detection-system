@@ -367,12 +367,12 @@ Rules:
 The baseline now established under this plan is:
 - `Control + Ingress`: promoted working-platform member
 - `RTDL`: promoted working-platform member after fresh-scope Phase 1 closure on `2026-03-11`
-- `Case + Label`: wired, not yet accepted as a production-ready plane
+- `Case + Label`: promoted working-platform member after bounded Phase 3 closure on `2026-03-11`
 - `Learning + Evolution / MLOps`: wired on managed surfaces, not yet accepted as a production-ready plane
 - `Ops / Gov / Meta`: present, not yet accepted as a production-ready plane
 
 That means the current working platform is:
-- `Control + Ingress + RTDL`
+- `Control + Ingress + RTDL + Case + Label`
 
 Everything else remains to be proven under this plan.
 
@@ -767,6 +767,20 @@ Telemetry plan:
 Definition of done:
 - Case + Label is plane-ready
 - no shadow truth ownership exists between Case Management and Label Store
+
+Status:
+- closed green on `2026-03-11`
+
+Closure metrics:
+- closure scope `phase3_case_label_20260311T142813Z`
+- `observed_admitted_eps = 3046.783`
+- `admitted_request_count = 182807`
+- `4xx = 0`
+- `5xx = 0`
+- `latency_p95_ms = 48`
+- `latency_p99_ms = 55`
+- CaseTrigger / Case Management / Label Store integrity deltas all clean on the bounded slice
+- promoted upstream base scored `PASS`
 
 ---
 
@@ -1262,12 +1276,12 @@ After a phase is complete, update as needed:
 ---
 
 ## Immediate next action
-Proceed with `Phase 3 - Case + Label plane readiness`.
+Proceed with `Phase 4 - Working network + Case + Label coupled readiness`.
 
-`Phase 1` closed the RTDL plane and its coupled-network promotion together, so the immediate purpose now shifts to proving the next plane on top of the newly promoted `Control + Ingress + RTDL` base.
+`Phase 3` closed the Case + Label plane on top of the promoted `Control + Ingress + RTDL` base, so the immediate purpose now shifts to proving the enlarged network with the new operational-review truth path attached.
 
 Execution order now is:
-1. pin the Case + Label telemetry set and fail-fast conditions for the promoted upstream decision network,
-2. verify the live case-trigger, case-management, and label-store runtime boundary and its immediate RTDL dependencies,
-3. run bounded plane-readiness proof for Case + Label on the promoted upstream network,
-4. only then decide whether Case + Label is green or remediation must remain open.
+1. pin the coupled Phase 4 telemetry set and fail-fast conditions across RTDL -> CaseTrigger -> Case Management -> Label Store,
+2. verify the live coupled runtime boundary on the promoted `Control + Ingress + RTDL + Case + Label` network,
+3. run bounded coupled-network proof for the enlarged network at the retained ingress envelope,
+4. only then decide whether the enlarged network is green or remediation must remain open.

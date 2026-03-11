@@ -62,7 +62,7 @@ This subphase requires:
 4. fail-fast visibility on duplicate or overwrite defects.
 
 Status:
-- in progress
+- closed green
 
 ### Phase 3.B - Case + Label correctness slice
 Goal:
@@ -77,7 +77,7 @@ This subphase requires:
 5. no future-label leakage or silent overwrite.
 
 Status:
-- not started
+- closed green
 
 ### Phase 3.C - Promotion judgment
 Goal:
@@ -91,7 +91,7 @@ This subphase requires:
 4. truthful readiness graphs and implementation trail.
 
 Status:
-- not started
+- closed green
 
 ## Current telemetry set for active Phase 3.A work
 
@@ -140,31 +140,21 @@ Status:
 - conflicting labels being silently overwritten
 - current-run labels or cases written under stale scope
 
-## Current planning posture
-`Phase 3` is entering at the correct boundary:
+## Current execution posture
+`Phase 3` closed on the narrow bounded executor path rather than by replaying the older all-plane `PR3-S4` bundle.
 
-- upstream `Control + Ingress + RTDL` is now promoted and trustworthy enough to serve as the decision source
-- the Case + Label workers are materially live on the accepted image family
-- the next honest spend is not a broad platform run; it is a bounded Case + Label correctness slice with rich live telemetry
-
-The current execution blocker is now explicit:
-
-- the repo has reusable `S4` proving primitives, but not a current bounded executor that matches the narrower `Phase 3` goal
-- the historical `PR3-S4` rollup still hard-binds learning and ops/governance proof into the same correctness receipt
-- replaying that whole bundle literally would spend money proving planes that `Phase 3` does not own yet
-
-Accepted correction:
-
-- keep the existing bootstrap, runtime snapshot, and WSP replay primitives
-- add a narrow `Phase 3` executor and rollup for the Case + Label plane itself
-- retain the promoted upstream production envelope on the RTDL side, but keep the run short enough to stay in the `100k-250k` decision-bearing slice
-- treat learning and ops/governance as later coupled proofs, not as closure prerequisites for this plane-readiness slice
-
-Execution path now pinned:
+Accepted proving path:
 
 - bounded runner: `scripts/dev_substrate/phase3_case_label_readiness.py`
 - bounded rollup: `scripts/dev_substrate/phase3_case_label_rollup.py`
 - telemetry snapshot summary widened in `scripts/dev_substrate/pr3_runtime_surface_snapshot.py` so the run artifacts retain the active Case + Label counters directly
+
+Promotion result:
+
+- upstream `Control + Ingress + RTDL` stayed trustworthy during the bounded Phase 3 slice
+- the Case + Label workers remained current-run-correct on the accepted image family
+- the bounded scored slice closed green on the promoted upstream path
+- the plane is now promoted into the working platform
 
 ## Current impact metrics
 
@@ -214,6 +204,38 @@ Execution path now pinned:
   - `dedupe_tuple_collision = 0`
   - `payload_hash_mismatch = 0`
 
+### Phase 3 closure proof
+- closure scope:
+  - `execution_id = phase3_case_label_20260311T142813Z`
+  - `platform_run_id = platform_20260311T142813Z`
+  - `scenario_run_id = 4156588de0c1c3555bd56e0e273176ce`
+- ingress / scored slice:
+  - `observed_admitted_eps = 3046.783`
+  - `admitted_request_count = 182807`
+  - `4xx = 0`
+  - `5xx = 0`
+  - `latency_p95_ms = 48`
+  - `latency_p99_ms = 55`
+- Case + Label component deltas:
+  - `case_trigger_triggers_seen_delta = 2276`
+  - `case_trigger_published_delta = 2276`
+  - `case_mgmt_case_triggers_delta = 335`
+  - `case_mgmt_cases_created_delta = 335`
+  - `case_mgmt_timeline_events_appended_delta = 1005`
+  - `case_mgmt_labels_accepted_delta = 335`
+  - `label_store_accepted_delta = 933`
+  - `label_store_timeline_rows_delta = 933`
+- integrity posture:
+  - all tracked quarantine / ambiguity / duplicate / mismatch / pending deltas stayed `0`
+- cross-plane posture:
+  - `control_bootstrap = PASS`
+  - `promoted_upstream_base = PASS`
+  - `case_trigger = PASS`
+  - `case_management = PASS`
+  - `label_store = PASS`
+- receipt:
+  - `phase3_case_label_readiness_receipt.json -> verdict = PHASE3_READY`
+
 ## Phase 3 closure rule
 `Phase 3` closes only when:
 
@@ -225,3 +247,7 @@ Execution path now pinned:
 6. notes, logbook, and readiness graphs all tell the same truthful story.
 
 If any one of those is false, `Phase 3` remains open.
+
+Current judgment:
+- all closure conditions above were met on `2026-03-11`
+- `Case + Label` is now a promoted working-platform member

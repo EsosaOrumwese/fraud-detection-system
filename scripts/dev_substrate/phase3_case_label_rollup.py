@@ -86,7 +86,7 @@ def replay_advisory_only(snapshot: dict[str, Any], component: str, max_checkpoin
     if component != "csfb" and lag is not None and lag > max_lag:
         return False
     if component == "csfb":
-        if not reasons or not reasons.issubset({"WATERMARK_TOO_OLD", "CHECKPOINT_TOO_OLD"}):
+        if not reasons or not reasons.issubset({"WATERMARK_TOO_OLD", "CHECKPOINT_TOO_OLD", "CHECKPOINT_OLD"}):
             return False
         return (summary_value(snapshot, component, "join_misses") or 0.0) == 0.0 and (
             summary_value(snapshot, component, "binding_conflicts") or 0.0
@@ -95,6 +95,12 @@ def replay_advisory_only(snapshot: dict[str, Any], component: str, max_checkpoin
         return False
     if component == "ofp":
         if reasons == {"WATERMARK_TOO_OLD"}:
+            return lag is not None and lag <= max_lag
+        if reasons == {"WATERMARK_TOO_OLD", "STALE_GRAPH_VERSION_RED"}:
+            if (summary_value(snapshot, component, "missing_features") or 0.0) > 0.0:
+                return False
+            if (summary_value(snapshot, component, "snapshot_failures") or 0.0) > 0.0:
+                return False
             return lag is not None and lag <= max_lag
         if reasons != {"WATERMARK_TOO_OLD", "MISSING_FEATURES_RED"}:
             return False

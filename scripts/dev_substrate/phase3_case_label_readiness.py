@@ -276,6 +276,11 @@ def main() -> None:
     ap.add_argument("--prewarm-expected-window-eps", type=float, default=0.0)
     ap.add_argument("--prewarm-ig-push-concurrency", type=int, default=1)
     ap.add_argument("--post-prewarm-settle-seconds", type=int, default=10)
+    ap.add_argument("--scored-activation-duration-seconds", type=int, default=20)
+    ap.add_argument("--scored-activation-target-request-rate-eps", type=float, default=1500.0)
+    ap.add_argument("--scored-activation-expected-window-eps", type=float, default=0.0)
+    ap.add_argument("--scored-activation-ig-push-concurrency", type=int, default=1)
+    ap.add_argument("--post-scored-activation-settle-seconds", type=int, default=10)
     ap.add_argument("--duration-seconds", type=int, default=60)
     ap.add_argument("--warmup-seconds", type=int, default=35)
     ap.add_argument("--sample-period-seconds", type=int, default=15)
@@ -439,6 +444,66 @@ def main() -> None:
                 namespace=args.namespace,
                 case_labels_namespace=args.case_labels_namespace,
             )
+            if int(args.scored_activation_duration_seconds) > 0:
+                scored_activation_dispatch_args = [
+                    "scripts/dev_substrate/pr3_wsp_replay_dispatch.py",
+                    "--run-control-root",
+                    args.run_control_root,
+                    "--pr3-execution-id",
+                    execution_id,
+                    "--state-id",
+                    "P3",
+                    "--window-label",
+                    "phase3_case_label_activation",
+                    "--artifact-prefix",
+                    "phase3_case_label_activation",
+                    "--blocker-prefix",
+                    "PHASE3.CASELABEL.ACTIVATION",
+                    "--region",
+                    args.aws_region,
+                    "--platform-run-id",
+                    platform_run_id,
+                    "--scenario-run-id",
+                    scenario_run_id,
+                    "--checkpoint-attempt-id",
+                    checkpoint_attempt_id,
+                    "--lane-count",
+                    str(args.lane_count),
+                    "--expected-window-eps",
+                    str(args.scored_activation_expected_window_eps),
+                    "--target-request-rate-eps",
+                    str(args.scored_activation_target_request_rate_eps),
+                    "--duration-seconds",
+                    str(args.scored_activation_duration_seconds),
+                    "--warmup-seconds",
+                    "0",
+                    "--early-cutoff-seconds",
+                    "15",
+                    "--early-cutoff-floor-ratio",
+                    "0.5",
+                    "--stream-speedup",
+                    str(args.stream_speedup),
+                    "--output-concurrency",
+                    str(args.output_concurrency),
+                    "--ig-push-concurrency",
+                    str(args.scored_activation_ig_push_concurrency),
+                    "--http-pool-maxsize",
+                    str(args.http_pool_maxsize),
+                    "--traffic-output-ids",
+                    args.traffic_output_ids,
+                    "--context-output-ids",
+                    args.context_output_ids,
+                    "--skip-runtime-identity-probe",
+                    "--allow-runtime-identity-reuse",
+                    "--skip-final-threshold-check",
+                ]
+                run_cmd(scored_activation_dispatch_args)
+                stop_wsp_tasks(
+                    args.aws_region,
+                    root / "phase3_case_label_activation_wsp_cleanup.json",
+                    "Phase3 scored activation WSP cleanup",
+                )
+                time.sleep(max(0, int(args.post_scored_activation_settle_seconds)))
             warm_gate_runtime(
                 execution_id=execution_id,
                 run_control_root=args.run_control_root,
