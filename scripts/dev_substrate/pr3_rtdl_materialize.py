@@ -285,6 +285,24 @@ def resolve_task_image(ecs: Any, *, family: str, region: str) -> str:
     return image
 
 
+def resolve_existing_deployment_image(*, namespace: str, deployment_names: list[str]) -> str:
+    for deployment_name in deployment_names:
+        try:
+            payload = get_json(
+                ["kubectl", "get", "deployment", deployment_name, "-n", namespace, "-o", "json"],
+                timeout=120,
+            )
+        except Exception:
+            continue
+        containers = list(payload.get("spec", {}).get("template", {}).get("spec", {}).get("containers", []) or [])
+        if not containers:
+            continue
+        image = str(containers[0].get("image", "") or "").strip()
+        if image:
+            return image
+    return ""
+
+
 def build_aurora_dsn(*, endpoint: str, username: str, password: str, db_name: str, port: int) -> str:
     return (
         f"postgresql://{quote_plus(username)}:{quote_plus(password)}@"
@@ -882,7 +900,20 @@ def main() -> int:
         resolved_ssm = {}
 
     try:
-        image_uri = str(args.image_uri).strip() or resolve_task_image(ecs, family=args.wsp_task_family, region=args.region)
+        explicit_image_uri = str(args.image_uri).strip()
+        live_rtdl_image_uri = resolve_existing_deployment_image(
+            namespace=namespace,
+            deployment_names=["fp-pr3-ieg", "fp-pr3-ofp", "fp-pr3-dl", "fp-pr3-df"],
+        )
+        if explicit_image_uri:
+            image_uri = explicit_image_uri
+        elif live_rtdl_image_uri:
+            image_uri = live_rtdl_image_uri
+            notes.append(
+                "PR3 runtime materialization reused the currently deployed RTDL image so materialization does not silently roll back plane-local fixes."
+            )
+        else:
+            image_uri = resolve_task_image(ecs, family=args.wsp_task_family, region=args.region)
     except Exception as exc:  # noqa: BLE001
         blockers.append(f"PR3.RUNTIME.B03_IMAGE_UNRESOLVED:{type(exc).__name__}")
         image_uri = ""

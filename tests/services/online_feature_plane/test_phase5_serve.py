@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 from fraud_detection.online_feature_plane.observability import OfpObservabilityReporter
@@ -202,6 +203,26 @@ def test_get_features_surfaces_stale_and_missing_posture_flags(tmp_path) -> None
     assert "core_features" in freshness["stale_groups"]
     assert freshness["missing_groups"] == []
     assert "flow_id:serve-flow-missing" in freshness["missing_feature_keys"]
+
+
+def test_get_features_logs_missing_feature_details(tmp_path, caplog) -> None:
+    service, _ = _build_service(tmp_path)
+    with caplog.at_level(logging.WARNING, logger="fraud_detection.ofp.serve"):
+        response = service.get_features(
+            _request_payload(
+                as_of_time_utc="2026-02-07T17:05:00.123456Z",
+                feature_keys=[
+                    {"key_type": "flow_id", "key_id": "serve-flow-1"},
+                    {"key_type": "flow_id", "key_id": "serve-flow-missing"},
+                ],
+                graph_resolution_mode="none",
+            )
+        )
+
+    assert response["status"] == "OK"
+    assert "OFP missing feature state" in caplog.text
+    assert "flow_id:serve-flow-missing" in caplog.text
+    assert "core_features" not in caplog.text
 
 
 def test_get_features_does_not_count_partial_noncanonical_key_misses_as_missing_features(tmp_path) -> None:

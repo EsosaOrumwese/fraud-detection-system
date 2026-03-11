@@ -1921,3 +1921,214 @@ the health surface now emits `WATERMARK_REPLAY_ADVISORY` and holds `AMBER` inste
 I added a targeted test for that behavior in `tests/services/identity_entity_graph/test_query_surface.py` and reran the focused test file successfully (`5 passed`).
 
 This does not close `Phase 1`. It only removes one misleading health signal so the next RTDL bounded proof can be interpreted more honestly.
+
+## 2026-03-10 23:24:30 +00:00 - Live RTDL truth improved after rollout and reprobe
+I did not want the repo to claim a telemetry correction that only existed on my machine, so I pushed it into the live RTDL runtime immediately.
+
+I built and pushed:
+
+- `230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-full:phase1-rtdl-health-20260310T231501Z`
+- digest `sha256:7ccddd2ab23361de6490d38ca821b52026cd87de7ea08137c42979454cf3c97a`
+
+Then I rolled only the two deployments that materially needed the new code:
+
+- `fp-pr3-ieg`
+- `fp-pr3-dl`
+
+That was deliberate. I did not churn the whole RTDL namespace because the narrow change here lived in `IEG` health derivation and in the `DL` process that interprets that shared surface.
+
+The rerun after rollout was the same cheap probe shape as before:
+
+- execution `phase1_rtdl_probe_20260310T231740Z`
+- `120 s`
+- `100 eps`
+- `4` lanes
+
+That kept the question controlled: did the live health story change materially for the same kind of bounded participation window?
+
+It did.
+
+The strongest proof point is `IEG` itself. The pod-local health artifact is now saying what the runtime is actually doing:
+
+- `mutating_applied = 18253`
+- `events_seen = 18253`
+- `checkpoint_age_seconds = 0.091156`
+- `apply_failure_count = 0`
+- `health_state = AMBER`
+- `health_reasons = ["WATERMARK_REPLAY_ADVISORY"]`
+
+That is the right shape. It is no longer claiming a hard red failure while actively mutating the current run on a fresh checkpoint.
+
+`OFP` is now readable in the same spirit:
+
+- `events_applied = 5422`
+- `events_seen = 5422`
+- `missing_features = 0`
+- `snapshot_failures = 0`
+- `checkpoint_age_seconds = 76.50025`
+- `health_state = AMBER`
+- `health_reasons = ["WATERMARK_REPLAY_ADVISORY"]`
+
+`DL` then stopped telling a contradictory story as well. The latest run-scoped artifact and control event show:
+
+- `decision_mode = NORMAL`
+- `health_state = GREEN`
+- all required signals `OK`
+- posture upshift at `2026-03-10T23:21:51.556161+00:00`
+
+So the RTDL plane is no longer in the earlier state where the active window looked sick because the health surfaces were lying. During the live reprobe, the health story became internally consistent:
+
+- `IEG` current-run mutation visible
+- `OFP` current-run feature processing visible
+- `DL` returned to `NORMAL`
+- `DF` kept producing decisions (`5422`)
+- `DLA` kept appending decision evidence cleanly (`append_success_total = 8182`, `append_failure_total = 0`)
+- archive writer stayed green and emitted concrete S3 archive refs under `platform_20260310T225349Z/archive/events/...`
+
+That means the current open `Phase 1` problem has narrowed again.
+
+I do not think the right next sentence is "RTDL is green." The probe was still only `100 eps`, and the exact APIGW access-log window for that probe came back lower than the aligned bins, so I do not want to overclaim from it.
+
+But I also no longer think the right blocker is "RTDL observability is too contradictory to trust."
+
+The remaining blocker is now cleaner:
+
+- we still need a richer bounded production-shaped RTDL proof,
+- but we now have a much more truthful operator surface to read when that proof runs.
+
+## 2026-03-10 23:57:07 +00:00 - Richer RTDL proof exposed a materializer repin defect
+The fresh richer bounded RTDL run on `platform_20260310T232635Z` did not show a dead plane. It showed a proving-substrate defect that can silently move the plane backward between runs.
+
+Ingress stayed semantically clean on that run:
+
+- exact APIGW access-log window admitted `293479` requests over `120 s` = `2445.658 eps`
+- `4xx = 0`
+- `5xx = 0`
+
+And the downstream RTDL chain materially participated when I inspected the live pod-local artifacts directly:
+
+- `IEG` artifacts existed and recorded `mutating_applied = 17587`
+- `OFP` artifacts existed and recorded `events_applied = 38311`
+- `DF` exported `decisions_total = 3106`, `publish_admit_total = 3106`, `fail_closed_total = 0`
+- `DLA` exported `append_success_total = 10543`, `append_failure_total = 0`, `replay_divergence_total = 0`
+- archive writer was `GREEN` and exported `archived_total = 1717` with concrete S3 refs under `platform_20260310T232635Z/archive/events/...`
+
+So the richer run was not semantically empty.
+
+The real defect appeared when I compared the projector health story against the actual live digest:
+
+- `IEG` pod-local health had regressed to `RED / WATERMARK_TOO_OLD` despite:
+  - `checkpoint_age_seconds = 0.109`
+  - `apply_failure_count = 0`
+  - active mutation on the current run
+- `OFP` pod-local health had also regressed to `RED / WATERMARK_TOO_OLD` despite:
+  - `checkpoint_age_seconds = 0.016344`
+  - `events_applied = 38311`
+- meanwhile `DL` had already recovered back to `NORMAL` with all required signals `OK`
+
+That inconsistency turned out not to be a new RTDL code problem. It was an image-selection problem:
+
+- live RTDL deployments were running `fraud-platform-dev-full@sha256:cde0404e6042...`
+- that is the older `phase0c-20260310T2119Z` shared image
+- the earlier truthful health-fix rollout had used `fraud-platform-dev-full@sha256:7ccddd2ab233...`
+
+So `pr3_rtdl_materialize.py` had been undoing live Phase 1 fixes by default, because when `--image-uri` was omitted it fell back to the ECS WSP task image.
+
+That is not an acceptable default for hardening. It means a fresh materialization can silently roll the plane back onto stale code and corrupt the next proof.
+
+I patched the materializer locally so the image-selection order is now:
+
+1. explicit `--image-uri`
+2. current live RTDL deployment image
+3. ECS WSP task image only as a final fallback
+
+The next correct step is to validate that patch, rematerialize onto a fresh run without losing the fixed digest, and rerun the richer bounded RTDL proof.
+
+## 2026-03-11 00:13:34 +00:00 - Materializer rollback closed; OFP missing-feature red is the new blocker
+I ran the exact next step I had just written down: fresh materialization on a fresh run scope with the fixed digest passed explicitly, then the richer bounded RTDL replay again.
+
+Fresh repinned materialization:
+
+- execution `phase1_rtdl_materialize_20260311T000005Z`
+- `platform_run_id = platform_20260311T000006Z`
+- `scenario_run_id = e72b368ddba3b04545b30417e65fcffd`
+- explicit image:
+  - `fraud-platform-dev-full@sha256:7ccddd2ab23361de6490d38ca821b52026cd87de7ea08137c42979454cf3c97a`
+
+Live deployment templates now confirm the repin defect is actually closed for the active RTDL lane:
+
+- `fp-pr3-ieg` template image = `sha256:7ccddd2...`
+- `fp-pr3-ofp` template image = `sha256:7ccddd2...`
+- `fp-pr3-dl` template image = `sha256:7ccddd2...`
+- `fp-pr3-df`, `fp-pr3-dla`, and `fp-pr3-archive-writer` templates are also on `sha256:7ccddd2...`
+
+Then I reran the richer bounded proof:
+
+- execution `phase1_rtdl_bounded_20260311T000430Z`
+- same shape as the earlier richer proof
+- exact APIGW access-log window admitted `292831` requests over `120 s` = `2440.258 eps`
+- `4xx = 0`
+- `5xx = 0`
+
+That was the right control. It kept the traffic shape steady while removing the materializer rollback defect.
+
+The result is useful because it changes the blocker again.
+
+`IEG` now stayed truthful on the repinned run:
+
+- `health_state = AMBER`
+- `health_reasons = ["WATERMARK_REPLAY_ADVISORY"]`
+- `checkpoint_age_seconds = 0.077472`
+- `mutating_applied = 3781`
+- `apply_failure_count = 0`
+
+So the materializer rollback issue is genuinely closed. The earlier `IEG` false-red regression was not a phantom.
+
+But `OFP` is now the open semantic blocker, and this time it looks real rather than a repin artifact:
+
+- `health_state = RED`
+- `health_reasons = ["WATERMARK_TOO_OLD", "MISSING_FEATURES_RED"]`
+- `events_applied = 5208`
+- `missing_features = 152`
+- derived `missing_feature_rate = 0.029185867895545316`
+- `snapshot_failures = 0`
+- `stale_graph_version = 0`
+
+`DL` remained `NORMAL` with required signals `OK`, and `DLA` / archive continuity are still present:
+
+- `DL health_state = GREEN`
+- `DLA append_success_total = 2494`, `append_failure_total = 0`, `replay_divergence_total = 0`
+- archive writer `health_state = GREEN`
+
+So the blocker is no longer image drift, and it is no longer generic RTDL participation ambiguity.
+
+The blocker is now:
+
+- under the richer RTDL bounded proof, `OFP` is serving enough missing feature requests to trip a real red posture,
+- but the current telemetry still does not tell me which exact feature keys or groups are missing.
+
+That last part matters because I do not want to keep rerunning a real semantic defect while still blind to its exact shape.
+
+So I accepted one more narrow telemetry correction before the next live rerun:
+
+- patched `src/fraud_detection/online_feature_plane/serve.py`
+- added structured warning logs that emit:
+  - `request_id`
+  - `platform_run_id`
+  - `scenario_run_id`
+  - sampled `missing_feature_keys`
+  - sampled `missing_groups`
+  - `posture_flags`
+- added targeted coverage in `tests/services/online_feature_plane/test_phase5_serve.py`
+- targeted validation passed:
+  - `python -m py_compile src/fraud_detection/online_feature_plane/serve.py`
+  - `.venv\Scripts\python.exe -m pytest tests/services/online_feature_plane/test_phase5_serve.py -q`
+  - `6 passed`
+
+That is the current best posture:
+
+- do not pretend `Phase 1` is close just because repin drift is fixed,
+- do not keep rerunning while OFP missing-feature red remains opaque,
+- deploy the OFP missing-key telemetry patch,
+- rerun the richer bounded proof once more,
+- then attribute the missing features to the exact key/group shape instead of a generic counter.

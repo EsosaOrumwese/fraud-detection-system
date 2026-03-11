@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import logging
 from typing import Any, Callable
 
 from .contracts import (
@@ -15,6 +16,8 @@ from .contracts import (
 from .snapshots import OfpSnapshotMaterializer
 
 GraphVersionResolver = Callable[[dict[str, Any]], dict[str, Any] | None]
+
+logger = logging.getLogger("fraud_detection.ofp.serve")
 
 
 @dataclass
@@ -169,6 +172,17 @@ class OfpGetFeaturesService:
             not filtered_features or bool(missing_groups_from_request)
         )
 
+        if missing_feature_keys or missing_groups:
+            logger.warning(
+                "OFP missing feature state request_id=%s platform_run_id=%s scenario_run_id=%s missing_feature_keys=%s missing_groups=%s posture_flags=%s",
+                request_id or "",
+                str(pins.get("platform_run_id") or ""),
+                scenario_run_id,
+                _sample_items(_unique_sorted(missing_feature_keys), limit=12),
+                _sample_items(missing_groups, limit=8),
+                posture_flags,
+            )
+
         if scenario_run_id:
             if count_missing_features:
                 self._safe_increment_metric(
@@ -248,6 +262,13 @@ def _normalize_list(value: Any) -> list[str]:
 
 def _unique_sorted(values: list[str]) -> list[str]:
     return sorted({str(item) for item in values if str(item).strip()})
+
+
+def _sample_items(values: list[str], *, limit: int) -> list[str]:
+    if limit <= 0:
+        return []
+    cleaned = [str(item) for item in values if str(item).strip()]
+    return cleaned[:limit]
 
 
 def _posture_state(

@@ -1415,8 +1415,7 @@ def main() -> None:
 
     root = Path(args.run_control_root)
     pr3_root = root / args.pr3_execution_id
-    if not pr3_root.exists():
-        raise RuntimeError(f"PR3 execution root missing: {pr3_root}")
+    pr3_root.mkdir(parents=True, exist_ok=True)
     compatibility_receipt = pr3_root / "pr3_s0_execution_receipt.json"
     if not compatibility_receipt.exists():
         dump_json(
