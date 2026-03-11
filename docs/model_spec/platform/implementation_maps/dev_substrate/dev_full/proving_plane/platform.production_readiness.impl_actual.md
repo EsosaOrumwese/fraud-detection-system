@@ -3526,3 +3526,22 @@ I kept this as a plane-scoped correction, not another broad repin:
 - learning and ops/governance are not falsely reintroduced as closure prerequisites for this slice
 
 `py_compile` is green on the new and touched scripts, so the next move is no longer local code shaping. It is the first bounded AWS execution on this new path.
+
+## 2026-03-11 10:12:49 +00:00 - The first bounded Phase 3 spend immediately found a local control-console defect, not a platform-runtime defect: direct bootstrap invocation was missing repo package resolution
+The new Phase 3 runner did the right thing here: it failed fast at the first real blindspot instead of letting the rest of the run proceed under a broken control surface.
+
+What materially happened:
+
+- `pr3_rtdl_materialize.py` completed successfully on the new Phase 3 scope
+- the runtime boundary was live and current-run-correct
+- the run then failed before bootstrap because `pr3_control_plane_bootstrap.py` raised `ModuleNotFoundError: No module named 'fraud_detection'`
+
+That is not an AWS runtime defect. It is a local control-console packaging defect. The script assumes repo-package visibility, but direct CLI invocation from this repo path was not seeding the repo root onto `sys.path`.
+
+This is exactly the kind of narrow blocker that should be fixed once and then removed from the path entirely. The correct remediation is:
+
+- patch `pr3_control_plane_bootstrap.py` to seed the repo root on `sys.path` before local package imports
+- make the new Phase 3 runner propagate `PYTHONPATH` to child script invocations so the whole local orchestration chain is stable
+- rerun the exact same bounded Phase 3 slice fresh
+
+The important engineering judgment is that nothing in this failure suggests the Case + Label plane itself is red yet. The failed boundary is the local bootstrap invocation path, and that is the only thing being remediated now.

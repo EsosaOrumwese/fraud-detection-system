@@ -6,12 +6,23 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def child_env() -> dict[str, str]:
+    env = os.environ.copy()
+    existing = str(env.get("PYTHONPATH") or "").strip()
+    root = str(REPO_ROOT)
+    env["PYTHONPATH"] = root if not existing else root + os.pathsep + existing
+    return env
 
 
 def now_utc() -> str:
@@ -23,7 +34,7 @@ def utc_stamp() -> str:
 
 
 def run_cmd(args: list[str]) -> None:
-    subprocess.run([sys.executable, *args], check=True)
+    subprocess.run([sys.executable, *args], check=True, env=child_env())
 
 
 def write_json(path: Path, payload: dict[str, Any]) -> None:
@@ -72,7 +83,7 @@ payload = {{
 }}
 Path({str(receipt_path)!r}).write_text(json.dumps(payload, indent=2) + "\\n", encoding='utf-8')
 """
-    subprocess.run([sys.executable, "-c", code], check=True)
+    subprocess.run([sys.executable, "-c", code], check=True, env=child_env())
 
 
 def wait_dispatch_with_sampling(
@@ -87,7 +98,7 @@ def wait_dispatch_with_sampling(
     warmup_seconds: int,
     sample_period_seconds: int,
 ) -> None:
-    proc = subprocess.Popen([sys.executable, *dispatch_args])
+    proc = subprocess.Popen([sys.executable, *dispatch_args], env=child_env())
     try:
         time.sleep(max(10, int(warmup_seconds)))
         sample_index = 1

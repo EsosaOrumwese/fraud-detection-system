@@ -8,6 +8,7 @@ import hashlib
 import json
 import re
 import subprocess
+import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -15,6 +16,10 @@ from typing import Any
 from urllib.parse import quote_plus
 
 import boto3
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from fraud_detection.scenario_runner.config import load_policy
 from fraud_detection.scenario_runner.storage import build_object_store
