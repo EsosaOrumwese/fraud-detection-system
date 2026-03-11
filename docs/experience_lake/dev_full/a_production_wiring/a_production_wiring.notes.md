@@ -247,3 +247,47 @@ Judgment at this point:
 - the four groups are best treated as four supporting arguments for `A`
 - each path should now be read as a local contribution to one of those supporting arguments
 - this gives a much stronger way to discuss the baseline wiring than listing services or planes in isolation
+
+## 2026-03-11 18:43:22 +00:00 - The first useful A-primer is now in place: the baseline network is being read through shared components with path meaning overlaid on the flows
+The discussion so far has materially changed the posture of this notebook. The baseline wired platform is no longer being approached as a plane inventory or as a giant component map that has to be read all at once. The working interpretation is now:
+
+- the system should first be read through its paths
+- those paths should be grouped by the major kind of work they do for the platform
+- and those groups should be understood by how they contribute to the global goal of `A`
+
+That means the current working structure for `A` is:
+
+- foundational control path
+- primary product paths
+- safety and resilience paths
+- operational and governance paths
+
+This has already clarified two things that were getting mixed together before:
+
+1. planes and paths are not the same thing
+   - planes partition the platform structurally
+   - paths explain what the platform is trying to achieve across those structural partitions
+2. path thinking is the stronger primary lens for `A`
+   - because `A` is trying to prove the baseline platform is a real engineered foundation
+   - and purpose is a better way to prove that than component inventory alone
+
+Another important clarification also landed during this pass: paths do not imply isolated components. Shared components are expected. What changes from one path to another is not the existence of an entirely different service set, but the role those shared components are playing in achieving a different purpose. That was the reason for shifting the simplified graph work away from path-as-boxes and toward shared components with path meaning carried on the connecting flows.
+
+The current baseline asset set supporting that simplification work is:
+
+- `docs/experience_lake/dev_full/a_production_wiring/assets/wired.platform_network_current.mermaid.mmd`
+- `docs/experience_lake/dev_full/a_production_wiring/assets/wired.platform_resources_current.mermaid.mmd`
+- `docs/experience_lake/dev_full/a_production_wiring/assets/wired.path_overlay.network_overview.mermaid.mmd`
+- `docs/experience_lake/dev_full/a_production_wiring/assets/wired.path_overlay.resources_overview.mermaid.mmd`
+
+The overlay graphs are not meant to replace the baseline network/resource references. Their job is only to prime understanding by showing:
+
+- the shared component surfaces
+- the major bundled boundaries
+- and how the different path families traverse overlapping parts of the same baseline system
+
+Judgment at this point:
+
+- the `A` discussion now has a stable purpose-led frame
+- the simplified overlays are good enough to serve as priming views before deeper path-by-path analysis
+- the next useful move is to begin the actual path walk in increasing depth, starting from foundational control and then moving into the primary product paths
