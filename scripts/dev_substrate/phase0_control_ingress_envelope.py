@@ -58,8 +58,17 @@ def resolve_python_executable() -> str:
     return sys.executable
 
 
-def seeded_segment_tokens(*, target_eps: float, burst_seconds: float, minimum_tokens: float) -> float:
-    bucket_capacity = max(0.0, float(target_eps)) * max(0.0, float(burst_seconds))
+def seeded_segment_tokens(
+    *,
+    current_target_eps: float,
+    burst_seconds: float,
+    minimum_tokens: float,
+    previous_target_eps: float | None = None,
+) -> float:
+    reference_target_eps = max(0.0, float(current_target_eps))
+    if previous_target_eps is not None:
+        reference_target_eps = min(reference_target_eps, max(0.0, float(previous_target_eps)))
+    bucket_capacity = reference_target_eps * max(0.0, float(burst_seconds))
     return max(float(minimum_tokens), bucket_capacity)
 
 
@@ -388,54 +397,34 @@ def main() -> None:
     segment_burst_seconds = max(0.0, float(args.target_burst_seconds))
     segment_minimum_tokens = max(0.0, float(args.target_initial_tokens))
     rate_plan: list[dict[str, Any]] = []
-    segment_offset = 0
-    if presteady_seconds > 0:
+    previous_segment_target_eps: float | None = None
+
+    def append_segment(*, start_offset_seconds: int, target_eps: float) -> None:
+        nonlocal previous_segment_target_eps
         rate_plan.append(
             {
-                "start_offset_seconds": segment_offset,
-                "target_eps": presteady_per_lane_eps,
+                "start_offset_seconds": start_offset_seconds,
+                "target_eps": target_eps,
                 "burst_seconds": segment_burst_seconds,
                 "initial_tokens": seeded_segment_tokens(
-                    target_eps=presteady_per_lane_eps,
+                    current_target_eps=target_eps,
                     burst_seconds=segment_burst_seconds,
                     minimum_tokens=segment_minimum_tokens,
+                    previous_target_eps=previous_segment_target_eps,
                 ),
             }
         )
+        previous_segment_target_eps = target_eps
+
+    segment_offset = 0
+    if presteady_seconds > 0:
+        append_segment(start_offset_seconds=segment_offset, target_eps=presteady_per_lane_eps)
         segment_offset += presteady_seconds
-    rate_plan.extend(
-        [
-            {
-                "start_offset_seconds": segment_offset,
-                "target_eps": steady_per_lane_eps,
-                "burst_seconds": segment_burst_seconds,
-                "initial_tokens": seeded_segment_tokens(
-                    target_eps=steady_per_lane_eps,
-                    burst_seconds=segment_burst_seconds,
-                    minimum_tokens=segment_minimum_tokens,
-                ),
-            },
-            {
-                "start_offset_seconds": segment_offset + steady_seconds,
-                "target_eps": burst_per_lane_eps,
-                "burst_seconds": segment_burst_seconds,
-                "initial_tokens": seeded_segment_tokens(
-                    target_eps=burst_per_lane_eps,
-                    burst_seconds=segment_burst_seconds,
-                    minimum_tokens=segment_minimum_tokens,
-                ),
-            },
-            {
-                "start_offset_seconds": segment_offset + steady_seconds + burst_seconds,
-                "target_eps": recovery_per_lane_eps,
-                "burst_seconds": segment_burst_seconds,
-                "initial_tokens": seeded_segment_tokens(
-                    target_eps=recovery_per_lane_eps,
-                    burst_seconds=segment_burst_seconds,
-                    minimum_tokens=segment_minimum_tokens,
-                ),
-            },
-        ]
+    append_segment(start_offset_seconds=segment_offset, target_eps=steady_per_lane_eps)
+    append_segment(start_offset_seconds=segment_offset + steady_seconds, target_eps=burst_per_lane_eps)
+    append_segment(
+        start_offset_seconds=segment_offset + steady_seconds + burst_seconds,
+        target_eps=recovery_per_lane_eps,
     )
     execution_root = Path(args.run_control_root) / execution_id
     execution_root.mkdir(parents=True, exist_ok=True)

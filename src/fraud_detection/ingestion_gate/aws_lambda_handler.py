@@ -76,6 +76,8 @@ _GATE_CACHE: dict[str, IngestionGate] = {}
 _GATE_CACHE_LOCK = threading.Lock()
 _SHARED_BUS = None
 _SHARED_BUS_LOCK = threading.Lock()
+_SHARED_BUS_WARM_ATTEMPTED = False
+_SHARED_BUS_WARM_LOCK = threading.Lock()
 _COLD_START = True
 _COLD_START_LOCK = threading.Lock()
 
@@ -664,6 +666,29 @@ def _shared_bus():
             cached = build_kafka_publisher(client_id=f"ig-{_platform_profile_id()}-lambda")
             _SHARED_BUS = cached
         return cached
+
+
+def _warm_shared_bus_best_effort() -> None:
+    global _SHARED_BUS_WARM_ATTEMPTED
+    if _SHARED_BUS_WARM_ATTEMPTED:
+        return
+    with _SHARED_BUS_WARM_LOCK:
+        if _SHARED_BUS_WARM_ATTEMPTED:
+            return
+        try:
+            _ensure_kafka_bootstrap_env()
+            bus = _shared_bus()
+            warm = getattr(bus, "warm", None)
+            if callable(warm):
+                warm()
+            LOGGER.info("IG shared bus cold-start warm-up succeeded")
+        except Exception as exc:
+            LOGGER.warning("IG shared bus cold-start warm-up deferred detail=%s", str(exc)[:256])
+        finally:
+            _SHARED_BUS_WARM_ATTEMPTED = True
+
+
+_warm_shared_bus_best_effort()
 
 
 def _gate_for(platform_run_id: str) -> IngestionGate:

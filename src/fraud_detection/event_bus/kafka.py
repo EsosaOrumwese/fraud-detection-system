@@ -166,6 +166,11 @@ class KafkaEventBusPublisher:
         _consumer_cls, _kafka_error_cls, producer_cls, _topic_partition_cls = _import_confluent()
         self._producer = producer_cls(_producer_conf(self.config))
 
+    def warm(self) -> None:
+        # Resolve cluster metadata during controlled warm-up so the first live
+        # publish on a fresh worker does not pay producer bootstrap cost.
+        self._producer.list_topics(timeout=max(1.0, self.config.request_timeout_ms / 1000.0))
+
     def publish(self, topic: str, partition_key: str, payload: dict[str, Any]) -> EbRef:
         if not topic:
             raise RuntimeError("KAFKA_TOPIC_MISSING")

@@ -2607,3 +2607,153 @@ That means the next work should stay focused on hot attribution:
 - inspect Lambda / APIGW reason truth for the two rejected lanes
 - compare lane progress against the exact-window throughput deficit
 - change only the surface that explains those two residual rejections before another closure-candidate rerun
+
+## 2026-03-11 05:22:58 +00:00 - Residual fresh-scope red attributed to Lambda cold-start publisher warm-up, not to RTDL semantics
+The post-patch hot evidence is now specific enough that I should stop treating the remaining `Phase 1.B` red as a generic coupled under-drive.
+
+What the current evidence says:
+
+- the two failed WSP lanes still die on `IG_PUSH_REJECTED`, but they do not explain the full throughput miss by themselves
+- the steady tail after the failure spike stays around `~2550 eps`, so a broader surviving-lane under-drive remains
+- a fresh hot component snapshot on `platform_20260311T044725Z` shows RTDL is materially participating now:
+  - `IEG` is alive on truthful replay advisory
+  - decision lane, archive, case management, and label store are all green and writing current-run truth
+  - the current blocker is therefore not "RTDL never formed"
+
+The stronger ingress clue is in the Lambda logs:
+
+- the residual lane event ids still quarantine with `reason=PUBLISH_AMBIGUOUS`
+- many of the same quarantined requests carry `cold_start: true`
+- those quarantines are spread across many Lambda log streams, not just one reused worker
+
+That changes the diagnosis again:
+
+- the shared Kafka publisher fix closed the per-`platform_run_id` rebuild defect on reused workers
+- but a newly scaled cold Lambda worker still pays producer initialization on its first admitted request
+- that first-request publisher warm-up is still landing on the hot request path and producing `PUBLISH_AMBIGUOUS` under fresh-scope scale-out
+
+So the next narrow fix should not touch RTDL and should not widen the harness yet. It should harden the ingress Lambda cold-start path itself:
+
+- warm the shared Kafka publisher during cold start instead of waiting for the first live request to pay that cost
+- keep the producer shared across the process as already accepted
+- then rerun the same fresh-scope closure candidate before changing any throughput target or harness posture again
+
+## 2026-03-11 05:25:40 +00:00 - Ingress cold-start publisher warm-up patch deployed live
+The ingress-only cold-start hardening patch is now live on `fraud-platform-dev-full-ig-handler`.
+
+Accepted code change:
+
+- `KafkaEventBusPublisher.warm()` now forces producer metadata resolution
+- `aws_lambda_handler` now performs a best-effort shared-bus warm-up during Lambda cold start
+- the producer remains process-shared; the new change moves the first metadata/bootstrap cost off the first admitted request path when a fresh worker scales out
+
+Local validation remained narrow:
+
+- `python -m py_compile src/fraud_detection/ingestion_gate/aws_lambda_handler.py src/fraud_detection/event_bus/kafka.py`
+
+Live deploy:
+
+- bundle `runs/dev_substrate/dev_full/road_to_prod/deploy/ig_lambda_bundle_20260311T052400Z.zip`
+- function `fraud-platform-dev-full-ig-handler`
+- live update `2026-03-11 05:25:40 +00:00`
+- live `CodeSha256 = 9sNRPnskG4Ao95dlFwHh3Ef0MAVLzf+eByCv0/HvKHY=`
+- `LastUpdateStatus = Successful`
+
+The next move should stay unchanged in scope:
+
+- rematerialize one more fresh RTDL scope
+- rerun the exact same `Phase 1.B` closure candidate
+- check whether fresh-worker `PUBLISH_AMBIGUOUS` collapses now that producer warm-up is off the first live request path
+
+## 2026-03-11 05:52:14 +00:00 - Fresh-scope cold-start fix exposed a coupled control-shape defect at the burst transition
+The latest fresh closure candidate materially changed the blocker shape again, and the change is important enough that I should stop treating this as a generic RTDL or ingress-runtime red.
+
+Fresh closure candidate after the live Lambda cold-start warm-up patch:
+
+- materialization execution `phase1_rtdl_materialize_20260311T052700Z`
+- closure execution `phase1_rtdl_coupled_envelope_fresh_igpush2_coldwarm_20260311T052700Z`
+- `platform_run_id = platform_20260311T052700Z`
+- `scenario_run_id = 26b1244a90244d55ad8900d03e32a264`
+
+What is now clearly improved:
+
+- WSP dispatcher stayed green:
+  - `REMOTE_WSP_WINDOW_READY`
+  - `open_blockers = 0`
+- broad lane collapse is gone
+- ingress `5xx` remains `0`
+- recovery tail now holds materially above target after the first recovery slice:
+  - recovery bins after `2026-03-11T05:37:32Z` all stay around `3097.8 - 3102.0 eps`
+- RTDL participation is no longer the reason this run is red
+
+What remains red in the scored envelope summary:
+
+- steady admitted `= 2952.833 eps`
+- burst `4xx = 800`
+- recovery `4xx = 930`
+
+The critical new attribution is at the APIGW edge:
+
+- every observed `4xx` in this run is `429`
+- they occur at `2026-03-11 05:37:02Z` and `2026-03-11 05:37:03Z`
+- APIGW reports `integration_status = -`
+- that means the burst/recovery red is now front-door throttling before Lambda integration, not RTDL semantic failure and not Lambda publish ambiguity
+
+Comparing this run to the earlier reused-scope `ig_push_concurrency = 2` diagnostic changes the diagnosis:
+
+- earlier reused-scope candidate `phase1_rtdl_coupled_envelope_igpush2_20260311T023200Z` had:
+  - steady `3065.144 eps`
+  - burst `7189.000 eps`
+  - recovery `2921.500 eps`
+  - `4xx = 0`
+  - `5xx = 0`
+- the same control family now trips `429` immediately after the burst edge once ingress cold-start costs are removed from the hot path
+
+Accepted interpretation:
+
+- the current red is not mainly a new RTDL defect
+- the healthier ingress path is exposing a proof-control defect in the scheduled rate plan
+- each scheduled segment is currently reseeded with the new segment's full bucket capacity
+- that is especially wrong at the `60 eps -> 120 eps` burst transition, because the proof injects the burst segment with a fresh `30` tokens per lane rather than carrying forward only the honest token budget from the previous segment
+- with `50` lanes and `ig_push_concurrency = 2`, that reseeding now produces a front-door overshoot large enough to trip APIGW `429`
+
+So the next narrow fix should stay in the proving harness, not the platform runtime:
+
+- keep the current RTDL image and current ingress Lambda patch pinned
+- keep the same fresh materialized scope if possible
+- correct the scheduled rate-plan transition seeding so upward transitions do not inject artificial tokens
+- rerun the same `Phase 1.B` closure candidate only after that control-shape fix is in place
+
+## 2026-03-11 05:52:14 +00:00 - Scheduled rate-plan transition seeding corrected so the burst edge no longer injects artificial tokens
+The proving-harness fix for the newly exposed burst-edge control defect is now in place in `scripts/dev_substrate/phase0_control_ingress_envelope.py`.
+
+Accepted change:
+
+- segment seeding no longer uses the new segment's full bucket blindly on every transition
+- instead, each new segment now carries forward at most the honest token budget from the previous segment
+- in practical terms for the active coupled proof this changes:
+  - steady segment seed from `15.0` to `7.5`
+  - burst segment seed from `30.0` to `15.0`
+  - recovery segment seed stays at `15.0`
+
+Why this is the right narrow correction:
+
+- the old seeding recreated the limiter with a fresh bucket sized for the higher burst rate
+- that injected tokens that did not exist on the live path just before the segment transition
+- after the ingress cold-start fix removed enough hot-path drag, those synthetic tokens became visible as APIGW `429` at the burst edge
+
+Local validation is complete:
+
+- `python -m py_compile scripts/dev_substrate/phase0_control_ingress_envelope.py`
+- dry-run preview on the active `Phase 1.B` shape shows the corrected per-lane rate plan:
+  - `30 eps` segment seed `= 7.5`
+  - `60 eps` segment seed `= 7.5`
+  - `120 eps` segment seed `= 15.0`
+  - recovery `60 eps` segment seed `= 15.0`
+
+Accepted next posture:
+
+- keep `platform_20260311T052700Z` / `26b1244a90244d55ad8900d03e32a264`
+- rerun the exact same `Phase 1.B` closure candidate on that fresh materialized scope
+- spend on one decisive proof only, because the active question is now clean:
+  - does honest transition seeding remove the APIGW `429` spike while preserving steady / recovery green?
