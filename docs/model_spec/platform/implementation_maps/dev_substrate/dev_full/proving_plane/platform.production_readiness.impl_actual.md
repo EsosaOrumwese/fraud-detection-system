@@ -3545,3 +3545,21 @@ This is exactly the kind of narrow blocker that should be fixed once and then re
 - rerun the exact same bounded Phase 3 slice fresh
 
 The important engineering judgment is that nothing in this failure suggests the Case + Label plane itself is red yet. The failed boundary is the local bootstrap invocation path, and that is the only thing being remediated now.
+
+## 2026-03-11 10:18:11 +00:00 - The bootstrap console defect narrowed again: this repo is `src`-layout, so seeding only the repo root was insufficient; the child path needs `src/`
+The rerun was useful because it proved the earlier fix was directionally correct but not complete.
+
+The same boundary failed again, and that sharpened the diagnosis:
+
+- the local invocation path still could not import `fraud_detection`
+- this repo keeps the importable package under `src/fraud_detection`
+- so putting only the repo root on `sys.path` or `PYTHONPATH` is not enough
+
+That means the real local bootstrap correction is:
+
+- seed both the repo root and `repo/src`
+- keep that fix in both:
+  - `pr3_control_plane_bootstrap.py`
+  - `phase3_case_label_readiness.py`
+
+This is still the same blocker family, not a new platform-runtime failure. The important thing is that the red boundary remains fully local and fully attributable. I am rerunning fresh again only because the fix is now specific enough to justify it.

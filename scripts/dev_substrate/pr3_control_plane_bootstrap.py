@@ -18,8 +18,10 @@ from urllib.parse import quote_plus
 import boto3
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
+SRC_ROOT = REPO_ROOT / "src"
+for candidate in (str(SRC_ROOT), str(REPO_ROOT)):
+    if candidate not in sys.path:
+        sys.path.insert(0, candidate)
 
 from fraud_detection.scenario_runner.config import load_policy
 from fraud_detection.scenario_runner.storage import build_object_store

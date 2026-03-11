@@ -15,13 +15,14 @@ from pathlib import Path
 from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+SRC_ROOT = REPO_ROOT / "src"
 
 
 def child_env() -> dict[str, str]:
     env = os.environ.copy()
     existing = str(env.get("PYTHONPATH") or "").strip()
-    root = str(REPO_ROOT)
-    env["PYTHONPATH"] = root if not existing else root + os.pathsep + existing
+    roots = os.pathsep.join([str(SRC_ROOT), str(REPO_ROOT)])
+    env["PYTHONPATH"] = roots if not existing else roots + os.pathsep + existing
     return env
 
 
