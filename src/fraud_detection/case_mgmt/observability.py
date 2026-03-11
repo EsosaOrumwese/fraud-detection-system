@@ -47,89 +47,125 @@ class CaseMgmtRunReporter:
 
     def collect(self) -> dict[str, Any]:
         with self._connect() as conn:
-            case_rows = _query_all(
+            case_rows = _query_case_rows_for_run(
                 conn,
                 self.backend,
-                "SELECT case_id, pins_json FROM cm_cases ORDER BY case_id ASC",
-                tuple(),
+                platform_run_id=self.platform_run_id,
+                scenario_run_id=self.scenario_run_id,
             )
-            case_ids = {
-                str(row[0])
-                for row in case_rows
-                if _pins_match_run(
-                    _json_to_dict(row[1]),
-                    platform_run_id=self.platform_run_id,
-                    scenario_run_id=self.scenario_run_id,
-                )
-            }
+            case_ids = [str(row[0]) for row in case_rows]
 
-            trigger_rows = _query_all(
+            trigger_rows = _query_all_for_case_ids(
                 conn,
                 self.backend,
-                "SELECT case_trigger_id, case_id FROM cm_case_trigger_intake",
-                tuple(),
+                case_ids,
+                """
+                SELECT case_trigger_id, case_id
+                FROM cm_case_trigger_intake
+                WHERE case_id IN ({case_ids})
+                """,
+                order_by="ORDER BY case_trigger_id ASC",
             )
-            timeline_rows = _query_all(
+            timeline_rows = _query_all_for_case_ids(
                 conn,
                 self.backend,
+                case_ids,
                 """
                 SELECT case_timeline_event_id, case_id, timeline_event_type, source_ref_id, observed_time, event_json
                 FROM cm_case_timeline
-                ORDER BY observed_time ASC, case_timeline_event_id ASC
+                WHERE case_id IN ({case_ids})
                 """,
-                tuple(),
+                order_by="ORDER BY observed_time ASC, case_timeline_event_id ASC",
             )
-            trigger_mismatch_rows = _query_all(
+            trigger_mismatch_rows = _query_all_for_case_ids(
                 conn,
                 self.backend,
-                "SELECT case_trigger_id FROM cm_case_trigger_mismatches",
-                tuple(),
+                case_ids,
+                """
+                SELECT m.case_trigger_id
+                FROM cm_case_trigger_mismatches m
+                INNER JOIN cm_case_trigger_intake t
+                  ON t.case_trigger_id = m.case_trigger_id
+                WHERE t.case_id IN ({case_ids})
+                """,
+                order_by="ORDER BY m.case_trigger_id ASC",
             )
-            timeline_mismatch_rows = _query_all(
+            timeline_mismatch_rows = _query_all_for_case_ids(
                 conn,
                 self.backend,
-                "SELECT case_timeline_event_id FROM cm_case_timeline_mismatches",
-                tuple(),
+                case_ids,
+                """
+                SELECT m.case_timeline_event_id
+                FROM cm_case_timeline_mismatches m
+                INNER JOIN cm_case_timeline t
+                  ON t.case_timeline_event_id = m.case_timeline_event_id
+                WHERE t.case_id IN ({case_ids})
+                """,
+                order_by="ORDER BY m.case_timeline_event_id ASC",
             )
-            label_rows = _query_all_optional(
+            label_rows = _query_all_optional_for_case_ids(
                 conn,
                 self.backend,
-                "SELECT label_assertion_id, case_id, status FROM cm_label_emissions",
-                tuple(),
+                case_ids,
+                """
+                SELECT label_assertion_id, case_id, status
+                FROM cm_label_emissions
+                WHERE case_id IN ({case_ids})
+                """,
+                order_by="ORDER BY label_assertion_id ASC",
             )
-            label_mismatch_rows = _query_all_optional(
+            label_mismatch_rows = _query_all_optional_for_case_ids(
                 conn,
                 self.backend,
-                "SELECT label_assertion_id FROM cm_label_emission_mismatches",
-                tuple(),
+                case_ids,
+                """
+                SELECT m.label_assertion_id
+                FROM cm_label_emission_mismatches m
+                INNER JOIN cm_label_emissions e
+                  ON e.label_assertion_id = m.label_assertion_id
+                WHERE e.case_id IN ({case_ids})
+                """,
+                order_by="ORDER BY m.label_assertion_id ASC",
             )
-            action_rows = _query_all_optional(
+            action_rows = _query_all_optional_for_case_ids(
                 conn,
                 self.backend,
+                case_ids,
                 """
                 SELECT action_idempotency_key, case_id, status, action_outcome_id
                 FROM cm_action_intents
+                WHERE case_id IN ({case_ids})
                 """,
-                tuple(),
+                order_by="ORDER BY action_idempotency_key ASC",
             )
-            action_mismatch_rows = _query_all_optional(
+            action_mismatch_rows = _query_all_optional_for_case_ids(
                 conn,
                 self.backend,
-                "SELECT action_idempotency_key FROM cm_action_intent_mismatches",
-                tuple(),
+                case_ids,
+                """
+                SELECT m.action_idempotency_key
+                FROM cm_action_intent_mismatches m
+                INNER JOIN cm_action_intents a
+                  ON a.action_idempotency_key = m.action_idempotency_key
+                WHERE a.case_id IN ({case_ids})
+                """,
+                order_by="ORDER BY m.action_idempotency_key ASC",
             )
-            evidence_requests = _query_all_optional(
+            evidence_requests = _query_all_optional_for_case_ids(
                 conn,
                 self.backend,
+                case_ids,
                 """
                 SELECT request_id, case_id
                 FROM cm_evidence_resolution_requests
+                WHERE case_id IN ({case_ids})
                 """,
-                tuple(),
+                order_by="ORDER BY request_id ASC",
             )
-            evidence_latest = _query_all_optional(
+            evidence_latest = _query_all_optional_for_case_ids(
                 conn,
                 self.backend,
+                case_ids,
                 """
                 SELECT e.request_id, e.status
                 FROM cm_evidence_resolution_events e
@@ -140,8 +176,11 @@ class CaseMgmtRunReporter:
                 ) latest
                   ON latest.request_id = e.request_id
                  AND latest.max_seq = e.seq
+                INNER JOIN cm_evidence_resolution_requests r
+                  ON r.request_id = e.request_id
+                WHERE r.case_id IN ({case_ids})
                 """,
-                tuple(),
+                order_by="ORDER BY e.request_id ASC",
             )
 
         timeline_by_event_id = {str(row[0]): str(row[1]) for row in timeline_rows}
@@ -664,11 +703,15 @@ def _render_sql_with_params(sql: str, backend: str, params: tuple[Any, ...]) -> 
 
 def _query_all(conn: Any, backend: str, sql: str, params: tuple[Any, ...]) -> list[Any]:
     rendered, ordered_params = _render_sql_with_params(sql, backend, params)
+    return _query_all_raw(conn, backend, rendered, ordered_params)
+
+
+def _query_all_raw(conn: Any, backend: str, sql: str, params: tuple[Any, ...]) -> list[Any]:
     if backend == "sqlite":
-        cur = conn.execute(rendered, ordered_params)
+        cur = conn.execute(sql, params)
         return list(cur.fetchall())
     cur = conn.cursor()
-    cur.execute(rendered, ordered_params)
+    cur.execute(sql, params)
     rows = list(cur.fetchall())
     cur.close()
     return rows
@@ -695,4 +738,78 @@ def _is_missing_table_error(exc: Exception) -> bool:
         or "undefinedtable" in text
         or "relation" in text and "does not exist" in text
     )
+
+
+def _query_case_rows_for_run(
+    conn: Any,
+    backend: str,
+    *,
+    platform_run_id: str,
+    scenario_run_id: str,
+) -> list[Any]:
+    if backend == "postgres":
+        sql = """
+            SELECT case_id, pins_json
+            FROM cm_cases
+            WHERE COALESCE(pins_json::jsonb ->> 'platform_run_id', '') = %s
+              AND COALESCE(pins_json::jsonb ->> 'scenario_run_id', '') = %s
+            ORDER BY case_id ASC
+        """
+        return _query_all_raw(conn, backend, sql, (platform_run_id, scenario_run_id))
+    sql = """
+        SELECT case_id, pins_json
+        FROM cm_cases
+        WHERE COALESCE(json_extract(pins_json, '$.platform_run_id'), '') = ?
+          AND COALESCE(json_extract(pins_json, '$.scenario_run_id'), '') = ?
+        ORDER BY case_id ASC
+    """
+    return _query_all_raw(conn, backend, sql, (platform_run_id, scenario_run_id))
+
+
+def _query_all_for_case_ids(
+    conn: Any,
+    backend: str,
+    case_ids: list[str],
+    sql_template: str,
+    *,
+    order_by: str = "",
+) -> list[Any]:
+    if not case_ids:
+        return []
+    return _query_all_raw(
+        conn,
+        backend,
+        _render_case_id_sql(sql_template, backend, len(case_ids), order_by=order_by),
+        tuple(case_ids),
+    )
+
+
+def _query_all_optional_for_case_ids(
+    conn: Any,
+    backend: str,
+    case_ids: list[str],
+    sql_template: str,
+    *,
+    order_by: str = "",
+) -> list[Any]:
+    try:
+        return _query_all_for_case_ids(conn, backend, case_ids, sql_template, order_by=order_by)
+    except Exception as exc:
+        if _is_missing_table_error(exc):
+            if backend == "postgres" and hasattr(conn, "rollback"):
+                conn.rollback()
+            return []
+        raise
+
+
+def _render_case_id_sql(sql_template: str, backend: str, count: int, *, order_by: str = "") -> str:
+    if count <= 0:
+        raise CaseMgmtObservabilityError("case_ids filter requires at least one value")
+    placeholder = "%s" if backend == "postgres" else "?"
+    in_clause = ", ".join(placeholder for _ in range(count))
+    sql = str(sql_template).replace("{case_ids}", in_clause)
+    tail = str(order_by or "").strip()
+    if tail:
+        sql = f"{sql.strip()}\n{tail}"
+    return sql
 

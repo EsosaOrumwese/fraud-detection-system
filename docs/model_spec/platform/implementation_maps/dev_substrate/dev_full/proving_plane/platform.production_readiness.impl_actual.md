@@ -3590,3 +3590,67 @@ The correct correction is not to weaken the warm gate. It is to invoke it with t
 - but call the shared warm gate as `S4`
 
 That preserves the intended operator logic without spending time rewriting a shared gate for a naming mismatch.
+
+## 2026-03-11 10:44:04 +00:00 - The Phase 3 control-chain blockers are now exhausted enough that the next spend should finally expose the actual Case + Label runtime boundary
+I paused here on purpose before the next AWS spend because the error class has changed. The last three failures were all proving-surface defects:
+
+- missing local package resolution
+- incomplete `src/` path propagation
+- inherited warm-gate naming mismatch
+
+Those are now corrected narrowly in the control console, and none of them say anything yet about whether the Case + Label plane itself is green or red.
+
+That means the execution posture changes again:
+
+- no more local control-chain surgery unless the next run proves a new control defect
+- rerun the exact same bounded Case + Label slice fresh
+- treat the next red result as the first meaningful plane/runtime signal unless it is obviously another orchestration defect
+
+The important thing now is to preserve the question discipline. I am not changing throughput shape, duration, or scope here. I am only removing the last known non-runtime blockers so the next run can answer the real plane-readiness question:
+
+- does the promoted upstream envelope stay materially alive,
+- does CaseTrigger participate current-run-correctly,
+- does Case Management append and label without anomaly drift,
+- does Label Store commit authoritative state without duplicate, pending, or mismatch regressions.
+
+If the rerun goes red, the next diagnosis should finally be about the plane itself rather than the harness around it.
+
+## 2026-03-11 10:52:53 +00:00 - The first true Phase 3 runtime red was not a Case Management contract failure but an observability memory defect: the CM reporter was scanning whole historical tables at idle startup and driving the pod into `OOMKilled`
+The fresh bounded rerun finally answered a real plane question, and the failure is specific enough to fix narrowly.
+
+What the runtime showed:
+
+- `pr3_rtdl_materialize.py` passed
+- control bootstrap passed
+- the shared warm gate now ran at the correct `S4` semantic boundary
+- the only blocker was `PR3.S4.WARM.B02_POD_NOT_READY:fp-pr3-case-mgmt`
+- direct pod inspection then showed `fp-pr3-case-mgmt` had restarted under `OOMKilled` with the current `2Gi` memory limit
+
+The important engineering point is that the logs did not show a contract or wiring failure. The pod reached Kafka connectivity and then died during the idle startup cycle. That narrowed the likely causes sharply.
+
+I traced that boundary into the Case Management worker and found the most plausible memory spike:
+
+- `CaseMgmtWorker.run_once()` always calls `_export()`
+- `_export()` invokes `CaseMgmtRunReporter.collect()`
+- the reporter was querying whole CM tables, then filtering the active run in Python
+- on a shared historical Postgres store, that means idle startup can hydrate unrelated historical rows for:
+  - `cm_cases`
+  - `cm_case_trigger_intake`
+  - `cm_case_timeline`
+  - mismatch tables
+  - optional label/action/evidence tables
+
+That is the wrong posture for a bounded production-shaped worker. The worker should not need to read the whole historical store just to report current-run health at idle startup.
+
+Accepted correction:
+
+- keep the reporter semantics and output contract the same
+- change the reporter queries so they constrain to the active `platform_run_id` / `scenario_run_id` before rows are materialized into Python
+- then only join or filter downstream tables for the active case ids
+
+This is a real plane fix, not a warm-gate weakening and not a blind memory uplift. I validated the code path locally with:
+
+- `py_compile` on the touched files
+- targeted Case Management observability and validation tests
+
+If the next rerun still fails after this fix, then the remaining red will more likely be true runtime sizing or a different Case Management startup path. But the previous blindspot of whole-history reporter scans has now been removed.
