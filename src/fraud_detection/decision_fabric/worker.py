@@ -870,10 +870,8 @@ def _flow_id(envelope: Mapping[str, Any]) -> str | None:
 
 def _feature_keys(candidate: DecisionTriggerCandidate, envelope: Mapping[str, Any]) -> list[dict[str, str]]:
     payload = envelope.get("payload") if isinstance(envelope.get("payload"), Mapping) else {}
-    values: list[tuple[str, str]] = [("event_id", candidate.source_event_id)]
     flow = _flow_id(envelope)
-    if flow:
-        values.append(("flow_id", flow))
+    values: list[tuple[str, str]] = [("flow_id", flow)] if flow else [("event_id", candidate.source_event_id)]
     for key in ("account_id", "customer_id", "card_id", "device_id", "merchant_id"):
         token = str(payload.get(key) or "").strip()
         if token:

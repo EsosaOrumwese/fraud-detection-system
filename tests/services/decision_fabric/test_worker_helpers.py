@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import re
+from types import SimpleNamespace
 
-from fraud_detection.decision_fabric.worker import _flow_id, _utc_now
+from fraud_detection.decision_fabric.worker import _feature_keys, _flow_id, _utc_now
 
 
 def test_worker_flow_id_prefers_explicit_flow_id() -> None:
@@ -21,6 +22,26 @@ def test_worker_flow_id_uses_envelope_flow_id_when_payload_missing() -> None:
 def test_worker_flow_id_does_not_fallback_to_event_id() -> None:
     envelope = {"payload": {"event_id": "evt-1"}}
     assert _flow_id(envelope) is None
+
+
+def test_worker_feature_keys_prefer_flow_id_over_event_id() -> None:
+    candidate = SimpleNamespace(source_event_id="evt-1")
+    envelope = {"payload": {"flow_id": "flow-1", "account_id": "acct-1"}}
+
+    assert _feature_keys(candidate, envelope) == [
+        {"key_type": "flow_id", "key_id": "flow-1"},
+        {"key_type": "account_id", "key_id": "acct-1"},
+    ]
+
+
+def test_worker_feature_keys_fallback_to_event_id_when_flow_id_missing() -> None:
+    candidate = SimpleNamespace(source_event_id="evt-1")
+    envelope = {"payload": {"account_id": "acct-1"}}
+
+    assert _feature_keys(candidate, envelope) == [
+        {"key_type": "event_id", "key_id": "evt-1"},
+        {"key_type": "account_id", "key_id": "acct-1"},
+    ]
 
 
 def test_worker_utc_now_emits_canonical_zulu_timestamp() -> None:

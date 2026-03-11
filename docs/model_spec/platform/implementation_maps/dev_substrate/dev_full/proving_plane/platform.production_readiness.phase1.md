@@ -537,3 +537,101 @@ That build/push step is now done:
 - pushed digest `fraud-platform-dev-full@sha256:759d9ad2302b08b946f29efccd1297f60e5a1ce210c85b0631359f54c6db37eb`
 
 So the next proof window can carry the contract fix onto a fresh scope without further local work in between.
+
+At `2026-03-11 01:27 +00:00` I rechecked the repo/runtime boundary before spending more AWS time. The fresh RTDL scope is already materialized on the graph-contract image:
+
+- `platform_run_id = platform_20260311T003731Z`
+- `scenario_run_id = 9b54e816226249b3ac1066d57bbeda4a`
+- materialization execution `phase1_rtdl_materialize_20260311T003731Z`
+
+So the next narrow step is not another rollout or another code edit. It is the same richer bounded proof shape on this fresh scope, followed immediately by run-scoped inspection of:
+
+- DF warning logs for `OFP missing feature state`
+- OFP health and metrics for the active run id
+- IEG health for the same run id
+- DF reconciliation counts to see whether `GRAPH_VERSION_UNAVAILABLE` disappears or just reveals the next semantic blocker underneath
+
+That preserves the dynamic posture correctly:
+
+- keep the proof shape fixed
+- spend on one decisive run
+- use the new contract fix to answer one question cleanly before considering any further RTDL changes
+
+The rerun on `platform_20260311T003731Z` answered that question clearly.
+
+Fresh richer bounded proof:
+
+- execution `phase1_rtdl_bounded_20260311T012845Z`
+- exact APIGW access-log window admitted `290053` requests over `120 s` = `2417.108 eps`
+- `4xx = 0`
+- `5xx = 0`
+- latency remained inside the ingress budget
+
+The important part is not the admission number by itself. It is what changed underneath it.
+
+What is now closed:
+
+- `IEG` run-scoped health now exports structured `graph_version` payload rather than a bare token
+- `GRAPH_VERSION_UNAVAILABLE` no longer appears in current DF logs
+- `OFP` run-scoped health is no longer red:
+  - `health_state = AMBER`
+  - `health_reasons = ["WATERMARK_REPLAY_ADVISORY"]`
+  - `missing_features = 0`
+  - `snapshot_failures = 0`
+- `DL` is green with all required signals `OK`
+- `DF` is green with no fail-closed or resolver failures
+
+So the graph-version contract defect was real, and it is now materially closed.
+
+The next mismatch is narrower and more subtle. DF warning logs on the same run still show repeated OFP missing-feature warnings, but they are now only:
+
+- `missing_feature_keys = ['event_id:*']`
+- `missing_groups = []`
+- `posture_flags = ['MISSING_FEATURE_STATE']`
+
+That no longer matches the active OFP health surface, which reports zero missing features for the run. The code explains why:
+
+- OFP projector stores feature state using the first key in its `key_precedence` (`flow_id`, then `event_id`)
+- DF currently requests both `event_id` and `flow_id` whenever a flow id exists
+- OFP therefore serves usable flow-keyed features while still warning that the redundant `event_id:*` lookup was absent
+
+That means the remaining OFP log noise is not the same class of blocker as before. It is a DF/OFP request-shape mismatch, not a missing graph version and not a missing feature-group definition.
+
+I also checked the ingress timing surface during the same run because the coupled exact window stayed around `2.4k eps`. The Lambda timing logs show:
+
+- `phase.publish_seconds p95 ~= 0.009 - 0.010 s`
+- `admission_seconds p95 ~= 0.032 - 0.035 s`
+
+So the coupled-window shortfall is not explained by a slow Kafka publish path inside ingress. The next narrow code fix should therefore align DF feature-key requests with OFP key precedence before I spend another runtime rerun.
+
+I accepted that fix locally first because it changes the DF/OFP seam without changing the run shape or the RTDL policy surface.
+
+Accepted local change:
+
+- `src/fraud_detection/decision_fabric/worker.py`
+- when a `flow_id` exists, DF now requests OFP features on `flow_id` as the primary traffic key instead of requesting both `flow_id` and the redundant `event_id`
+- `event_id` remains the fallback only when `flow_id` is absent
+
+That aligns DF request shape with the OFP projector's own key precedence:
+
+- OFP projects traffic on `flow_id` first, then `event_id`
+- the old DF request shape was therefore asking for a second key that the projector was not required to materialize
+
+Targeted local validation passed:
+
+- `python -m py_compile src/fraud_detection/decision_fabric/worker.py`
+- `.venv\Scripts\python.exe -m pytest tests/services/decision_fabric/test_worker_helpers.py -q`
+- `7 passed`
+
+The next live step is to build/push this DF request-key alignment, rematerialize RTDL on a fresh scope, and rerun the same richer bounded proof again.
+
+That build/push step is now complete:
+
+- image tag `phase1-df-feature-keys-20260311T015210Z`
+- pushed digest `fraud-platform-dev-full@sha256:c9846969465366dd1b97cad43b675e72db98ea4b7e46b7a7790c56f9860d320a`
+
+So the next runtime spend can stay narrow:
+
+- rematerialize RTDL on a fresh scope with `sha256:c984696...`
+- rerun the same richer bounded proof shape
+- verify whether the residual `event_id:*` OFP warning noise disappears without reopening the now-closed graph-version blocker

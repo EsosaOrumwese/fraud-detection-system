@@ -2216,3 +2216,92 @@ That is a useful checkpoint because it means the repo state, the implementation 
 - rematerialize RTDL on a fresh scope with `sha256:759d9ad...`
 - rerun the same richer bounded proof
 - verify whether the `GRAPH_VERSION_UNAVAILABLE` flag disappears from OFP logs and whether DF reason codes stop reflecting graph-blind feature degradation
+
+At `2026-03-11 01:27 +00:00` I checked whether any local work still stood between me and the next proof. It does not. The rematerialization has already been completed on:
+
+- `platform_run_id = platform_20260311T003731Z`
+- `scenario_run_id = 9b54e816226249b3ac1066d57bbeda4a`
+- materialization execution `phase1_rtdl_materialize_20260311T003731Z`
+
+So the next move is the simplest truthful one:
+
+- execute the same richer bounded RTDL proof against that exact fresh scope
+- inspect DF/OFP/IEG run-scoped health immediately while the evidence is hot
+- decide whether the graph-version contract fix actually removes the false `GRAPH_VERSION_UNAVAILABLE` posture or merely exposes a remaining true feature-state gap
+
+This is the right place to spend, because another deploy or code change now would be guesswork. The current boundary is ready for a clean answer.
+
+The clean answer from `phase1_rtdl_bounded_20260311T012845Z` is that the graph-version defect is gone, but one smaller DF/OFP seam is still noisy.
+
+The new run came back:
+
+- exact admitted `2417.108 eps`
+- `4xx = 0`
+- `5xx = 0`
+
+More importantly, the semantic surfaces changed in the right direction:
+
+- `IEG` health now carries structured `graph_version`
+- `GRAPH_VERSION_UNAVAILABLE` is absent from fresh DF logs
+- `OFP` health is no longer red and reports `missing_features = 0`
+- `DL` required signals are all `OK`
+- `DF` health is green with `resolver_failures_total = 0` and `fail_closed_total = 0`
+
+So the graph-version contract fix did real work. I do not need another rerun to prove that part.
+
+But DF logs still emit sampled OFP warnings on the same run id, and they have changed shape in a revealing way:
+
+- only `event_id:*` is missing
+- `missing_groups = []`
+- posture is only `MISSING_FEATURE_STATE`
+
+That no longer looks like a missing projector state in the old sense. It looks like a request-shape mismatch:
+
+- OFP projector keys traffic by `flow_id` first, then `event_id`
+- DF currently asks for both keys whenever a flow id exists
+- OFP can therefore return a usable snapshot while still logging the redundant `event_id:*` lookup as absent
+
+That interpretation fits the telemetry perfectly:
+
+- OFP health says usable features are present
+- DF still sees warning noise
+- the warning no longer contains `GRAPH_VERSION_UNAVAILABLE`
+- the missing-key sample is constrained to the redundant key type
+
+I also checked whether the coupled `2417 eps` window was being caused by ingress publish pressure before touching more RTDL code. The live Lambda timing logs say no:
+
+- `phase.publish_seconds p95` stayed around `8.5 - 10 ms`
+- `admission_seconds p95` stayed around `32 - 35 ms`
+
+So ingress publish is not the bottleneck I need to chase next. The next truthful local change is to align DF feature-key requests with the same primary-key posture that OFP uses, then rerun the same bounded proof and see whether the remaining warning noise and fallback-heavy posture collapse.
+
+I made that change locally instead of guessing at a broader runtime tuning move.
+
+The accepted adjustment is in `src/fraud_detection/decision_fabric/worker.py`:
+
+- if `flow_id` exists, DF now requests OFP features on `flow_id` as the primary traffic key
+- `event_id` is only requested when `flow_id` is absent
+- account/customer/card/device/merchant keys are unchanged
+
+Why this is the right fix:
+
+- OFP projector already keys traffic by `flow_id` first according to its configured `key_precedence`
+- the previous DF request set was asking OFP for a redundant `event_id:*` lookup on the same event
+- the repeated warning noise was therefore a contract-shape mismatch between requester and projector, not a missing graph version and not a missing feature-group definition
+
+Targeted validation stayed narrow and passed:
+
+- `python -m py_compile src/fraud_detection/decision_fabric/worker.py`
+- `.venv\Scripts\python.exe -m pytest tests/services/decision_fabric/test_worker_helpers.py -q`
+- `7 passed`
+
+The next runtime spend should now answer a cleaner question:
+
+- after DF stops asking for the redundant `event_id:*` OFP key when `flow_id` already exists, do the warning logs disappear and does the coupled RTDL posture stay semantically clean on the same richer bounded proof shape?
+
+That candidate is built and pushed now:
+
+- tag `phase1-df-feature-keys-20260311T015210Z`
+- digest `fraud-platform-dev-full@sha256:c9846969465366dd1b97cad43b675e72db98ea4b7e46b7a7790c56f9860d320a`
+
+That is enough local/runtime alignment to justify the next spend. I do not need more desk analysis before the next rematerialization.
