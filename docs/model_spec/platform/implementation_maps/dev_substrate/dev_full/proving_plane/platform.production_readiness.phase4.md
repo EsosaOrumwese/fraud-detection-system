@@ -67,7 +67,7 @@ This subphase requires:
 4. attributable timing and continuity across the coupled path.
 
 Status:
-- not started
+- in progress
 
 ### Phase 4.C - Promotion judgment
 Goal:
@@ -154,6 +154,17 @@ Accepted execution path:
 - derive the coupled validation slice from the Phase 3 bounded runner rather than replaying the older broad `PR3-S4` bundle
 - preserve the retained upstream envelope
 - add coupled timing and starvation evidence rather than collapsing back to plane-only metrics
+- keep the bounded burst shape aligned with the last accepted coupled-network proof unless evidence shows that shape itself is invalid
+
+Current coupled-envelope repin:
+
+- the first fresh full Phase 4 rerun proved that the inherited `30 s` burst and higher inline push fanout are the wrong proving shape for this coupled boundary
+- that shape produced API-edge `429` during burst and early recovery while steady, downstream participation, and coupled timing all stayed green
+- the accepted repin is to reuse the already-proven coupled burst posture from the promoted RTDL closure:
+  - short bounded burst segment (`2 s`)
+  - retained `6000 burst eps` target
+  - `ig_push_concurrency = 1`
+- this does not lower the target; it removes an inherited burst-shape defect so the enlarged network is judged on the same truthful coupled standard already accepted upstream
 
 Candidate proving path now pinned:
 

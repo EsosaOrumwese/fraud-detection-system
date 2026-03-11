@@ -4466,3 +4466,50 @@ So the current accepted posture is:
 - rerun the full Phase 4 executor on a fresh scope now that:
   - the post-activation warm gate dependency is removed
   - the coupled timing evidence is materially available and truthful
+
+## 2026-03-11 17:01:17 +00:00 - The first fresh full Phase 4 rerun proved the remaining red is a badly inherited coupled burst shape, not broad Case + Label regression
+I ran the first fresh full Phase 4 executor after removing the stale post-activation warm gate dependency and after wiring the direct timing probe:
+
+- `execution_id = phase4_case_label_coupled_20260311T162418Z`
+- `platform_run_id = platform_20260311T162418Z`
+- `scenario_run_id = eebb343446dd4ce88caa412fa315435f`
+
+The coupled runtime itself stayed materially healthy on this scope:
+
+- pre/post runtime snapshots stayed green on the active pods
+- coupled timing probe passed cleanly:
+  - decision-to-case `p95 = 0.0 s`
+  - case-to-label `p95 ~= 0.164 s`
+- CaseTrigger, Case Management, and Label Store all stayed green on the same scope
+- cost guardrail stayed green
+
+The red was isolated entirely to the envelope summary:
+
+- steady segment green at `3086.044 eps`, `4xx = 0`, `5xx = 0`
+- burst segment red at `3265.500 eps`, `4xx = 10128`, all `429`
+- first recovery bin carried the same reject tail with `4xx = 854`, then recovery went green from `2026-03-11T16:50:30Z`
+
+That reject class matters. The live APIGW access logs show the burst and early-recovery `4xx` are entirely `429`. Lambda `Throttles` stayed `0`, and the current Lambda ingress handler does not return `429` on the accepted path. So this is not a Lambda concurrency collapse and not a semantic downstream failure inside RTDL or Case + Label.
+
+The stronger comparison is against the already accepted coupled burst from Phase 1. The promoted RTDL coupled closure used:
+
+- `burst_seconds = 2`
+- `lane_count = 54`
+- `ig_push_concurrency = 1`
+- the same retained `6000 burst eps` target
+
+and that scope went green at `6227.0 eps` with `4xx = 0`.
+
+The current Phase 4 runner had drifted away from that truthful coupled burst boundary:
+
+- `burst_seconds = 30`
+- `ig_push_concurrency = 2`
+
+That is not just a neutral parameter change. On the enlarged network it creates a materially harsher and differently shaped burst than the last accepted coupled-network proof, while teaching nothing useful about whether Case + Label actually regresses the already-promoted working platform. The result is spend on API-edge `429` rather than information about the new plane attachment.
+
+So the accepted posture change is:
+
+- treat the inherited `30 s` burst as a poor Phase 4 proving shape
+- repin Phase 4 to the short bounded coupled burst that already proved truthful on the promoted upstream network
+- keep the target fixed at `6000 burst eps`
+- rerun only the Phase 4 coupled boundary on that corrected burst posture
