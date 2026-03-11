@@ -3041,3 +3041,74 @@ That means the next honest calibration question is no longer "what burst seed sh
 - can the same total target be redistributed across more lanes while keeping `ig_push_concurrency = 1`, so the ingress edge stays semantically clean and the under-drive collapses without reopening the APIGW `429` blocker?
 
 That is the cheapest next attribution step before spending on a fresh RTDL scope again.
+
+## 2026-03-11 08:01:37 +00:00 - Lane redistribution improved the clean path only up to `54` lanes, so the next question shifts to small source pacing uplift on that best clean posture
+Two more ingress-only calibration runs have now been completed on the clean `ig_push_concurrency = 1` posture.
+
+`54` lanes:
+
+- steady admitted `= 2945.656 eps`
+- burst admitted `= 6410.000 eps`
+- recovery admitted `= 3019.744 eps`
+- `4xx = 0`
+- `5xx = 0`
+
+`60` lanes:
+
+- steady admitted `= 2910.844 eps`
+- burst admitted `= 6799.000 eps`
+- recovery admitted `= 3020.194 eps`
+- `4xx = 0`
+- `5xx = 0`
+
+This is another useful posture change because the lane-redistribution curve is not monotonic:
+
+- moving from `50` clean lanes to `54` helped materially
+- pushing further to `60` lanes made steady worse again
+
+So the current best clean ingress-only posture is:
+
+- `lane_count = 54`
+- `ig_push_concurrency = 1`
+- carry-forward burst seed
+- zero `4xx`
+- zero `5xx`
+- burst and recovery green
+- only steady still short by `~54 eps`
+
+That means the next honest question is no longer "more lanes?" The current best question is whether the remaining shortfall is just source pacing loss on an otherwise truthful edge. The cheapest next test for that is a very small `stream_speedup` uplift on the best clean `54`-lane posture, not another lane-count expansion.
+
+## 2026-03-11 08:15:14 +00:00 - The ingress-side coupled control is now calibrated green enough to stop spending on ingress-only attribution and return to fresh-scope RTDL proof
+The latest ingress-only calibration finally closed the control-distribution question cleanly:
+
+- execution `phase1_control_calibration_burstcarry_igpush1_l54_su522_20260311T080200Z`
+- `platform_run_id = platform_20260311T080216Z`
+- `scenario_run_id = ba3f6565020f4a62a35ce3c8558db48d`
+- `lane_count = 54`
+- `ig_push_concurrency = 1`
+- `stream_speedup = 52.2`
+- carry-forward burst seed retained
+
+Observed verdict:
+
+- steady admitted `= 3031.889 eps`
+- burst admitted `= 6104.500 eps`
+- recovery admitted `= 3018.861 eps`
+- `4xx = 0`
+- `5xx = 0`
+- recovery to sustained green `= 0 s`
+
+That is enough to change the Phase 1 posture again:
+
+- the ingress-side coupled control is no longer the active blocker
+- the short upward burst-transition question is closed enough
+- the `ig_push_concurrency` tradeoff is closed enough
+- the lane-redistribution and source-pacing question is also closed enough
+
+So the next honest spend is no longer another ingress-only calibration. The next honest spend is:
+
+1. fresh RTDL materialization on the current accepted image family,
+2. fresh-scope `Phase 1.B` coupled envelope rerun on this now-calibrated control,
+3. immediate attribution of any remaining `CSFB` / `OFP` / RTDL semantic red on that fresh scope.
+
+That is the correct dynamic shift because the control surface is finally good enough that any fresh red can be attributed back to RTDL rather than to lingering ingress-shape ambiguity.

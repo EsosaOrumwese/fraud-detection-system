@@ -29,8 +29,8 @@ flowchart LR
     B4["Closed blocker<br>ig_push_concurrency = 1 under-drove the coupled proof"]
     B5["Closed blocker<br>fresh-scope producer cold-path caused PUBLISH_AMBIGUOUS / 503 collapse"]
     B6["Closed blocker<br>scheduled burst transition injected synthetic tokens and tripped APIGW 429"]
-    B7["Open blocker<br>current control tradeoff<br>ig_push = 2 reaches target but still causes burst-edge APIGW 429<br>ig_push = 1 stays clean but under-drives"]
-    B8["Open hold<br>reused-scope reseeded rerun is diagnostic-only for coupling<br>fresh scope still required for a verdict"]
+    B7["Closed blocker<br>ingress-side control tradeoff resolved on ingress-only base<br>54 lanes / ig_push = 1 / speedup 52.2 is green"]
+    B8["Open hold<br>fresh-scope coupled RTDL verdict still required<br>reused-scope rerun remains diagnostic-only"]
   end
 
   subgraph POSTURE["Accepted Posture"]
@@ -39,7 +39,7 @@ flowchart LR
     P3["Keep ig_push_concurrency = 2<br>accepted truthful coupled-proof control"]
     P4["Keep shared Kafka publisher patch live on ingress Lambda"]
     P5["Keep corrected burst-transition seeding<br>front-door 429 removed"]
-    P6["Next narrow step<br>redistribute the same total target across more lanes while keeping ig_push = 1"]
+    P6["Next narrow step<br>rematerialize a fresh RTDL scope on the accepted image family"]
     P7["Then rematerialize a fresh RTDL scope and rerun the same coupled envelope honestly"]
   end
 
@@ -52,15 +52,15 @@ flowchart LR
     E6["Fresh-scope post-patch rerun improved materially<br>5xx = 0 / lane failures 50 -> 2 / latency stayed excellent"]
     E7["Reseeded rerun removed front-door rejection<br>4xx = 0 / 5xx = 0 / dispatcher blockers = 0"]
     E8["Reseeded rerun still red on coupled pressure<br>2931.722 steady / 3625.000 burst / 2886.433 recovery<br>but not verdict-eligible because the scope was reused"]
-    E9["Ingress-only carry-forward split<br>ig_push = 2 -> 3001.200 steady / 7074.500 burst / 3016.067 recovery<br>burst 4xx = 408 / recovery 4xx = 488"]
-    E10["Ingress-only carry-forward split<br>ig_push = 1 -> 2936.856 steady / 5593.000 burst / 3018.461 recovery<br>4xx = 0 / 5xx = 0"]
+    E9["Ingress-only calibrated closure candidate<br>54 lanes / ig_push = 1 / speedup 52.2<br>3031.889 steady / 6104.500 burst / 3018.861 recovery / 4xx = 0 / 5xx = 0"]
+    E10["Fresh-scope RTDL question restored<br>with ingress-side control calibrated, the next honest red belongs to RTDL coupling if it reappears"]
   end
 
   subgraph VERDICT["Current Verdict"]
     V1["Phase 1 semantic seam is green enough to stop editing RTDL semantics blindly"]
     V2["Fresh-scope ingress cold-path regression is closed"]
-    V3["Burst-seed search is no longer the main blocker<br>the remaining red is the control-distribution tradeoff"]
-    V4["Phase 1.B still HOLD_REMEDIATE<br>next honest step is lane redistribution on the ingress-only base<br>next honest verdict still requires a fresh scope"]
+    V3["Ingress-side control calibration is green enough to stop spending on ingress-only attribution"]
+    V4["Phase 1.B still HOLD_REMEDIATE<br>next honest verdict requires a fresh RTDL scope on the calibrated control"]
   end
 
   C0 --> B1

@@ -205,30 +205,47 @@ The next honest closure candidate must therefore use:
   - the active blocker is no longer "find the next burst seed"
   - the active blocker is now the control distribution tradeoff between push concurrency and semantic cleanliness
 
+### Latest ingress-only calibrated closure candidate
+- execution:
+  - `phase1_control_calibration_burstcarry_igpush1_l54_su522_20260311T080200Z`
+- control posture:
+  - `lane_count = 54`
+  - `ig_push_concurrency = 1`
+  - `stream_speedup = 52.2`
+  - carry-forward burst seed
+- result:
+  - steady admitted `= 3031.889 eps`
+  - burst admitted `= 6104.500 eps`
+  - recovery admitted `= 3018.861 eps`
+  - `4xx = 0`
+  - `5xx = 0`
+  - recovery to sustained green `= 0 s`
+- accepted interpretation:
+  - ingress-side coupled control is now calibrated cleanly enough for the next fresh RTDL spend
+  - the next honest red, if any, should now belong to fresh RTDL coupling rather than ingress-shape ambiguity
+
 ## Current blocker family
-The active blocker is currently best described as a coupled-proof control distribution tradeoff, not final RTDL semantic failure.
+The active blocker is no longer ingress-side control calibration.
 
-More specifically:
+The current hold is now methodological and RTDL-scoped:
 
-- with the best burst seed so far (`15.0` carry-forward), `ig_push_concurrency = 2` keeps pressure high enough but still causes a small APIGW `429` wave
-- with that same seed, `ig_push_concurrency = 1` keeps the edge semantically clean but under-drives steady and burst
-- so the remaining question is how to redistribute the same total target honestly without reopening APIGW `429`
+- a fresh-scope coupled verdict is still required
+- the earlier reused-scope `CSFB` / `OFP` red posture remains the first RTDL blocker family to test again
+- because the control surface is now calibrated, the next fresh-scope red can be attributed back to RTDL with much higher confidence
 
-That means the next honest question is still at the ingress-control boundary:
+That means the next honest question has shifted back to the coupled RTDL boundary:
 
-- can the same total target be redistributed across more lanes while keeping `ig_push_concurrency = 1`, so the ingress edge stays semantically clean and the current under-drive collapses without reintroducing APIGW `429`?
-
-The earlier reused-scope `CSFB` / `OFP` red posture remains relevant diagnostic evidence, but it is not yet the primary accepted blocker for closure because the coupled control surface has not finished calibration on a fresh verdict-eligible shape.
+- on a fresh materialized scope, does the RTDL-attached network hold the now-calibrated ingress control cleanly, or do `CSFB` / `OFP` / context-path defects reappear under load?
 
 ## Immediate next proof question
 Before the next fresh RTDL materialization, `Phase 1.B` must answer one bounded question:
 
-- can the total target be redistributed across more lanes on the ingress-only base while keeping `ig_push_concurrency = 1`, so the edge stays semantically clean and the current steady / burst under-drive is removed?
+- on a fresh RTDL scope, is the remaining red now genuinely RTDL-semantic rather than ingress-control-induced?
 
 Only after that question is answered cleanly should the phase spend on:
 
 1. fresh RTDL materialization,
-2. fresh coupled closure candidate,
+2. fresh coupled closure candidate on the calibrated control,
 3. fresh-scope attribution of any remaining `CSFB` / `OFP` pressure under load.
 
 ## Phase 1 closure rule
