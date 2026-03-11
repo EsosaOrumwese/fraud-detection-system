@@ -3237,3 +3237,51 @@ The next narrow move should therefore be diagnostic, not promotive:
 - keep this scope as a coupled-control diagnostic surface
 - uplift only `stream_speedup` slightly to recover the `41.267 eps` steady gap
 - if that closes cleanly, rematerialize one more fresh scope and rerun the same control as the actual Phase 1 closure candidate
+
+## 2026-03-11 09:10:54 +00:00 - The smallest honest next spend is a same-scope stream-speedup uplift, because the current red is too small and too clean to justify another rematerialization first
+I checked the exact window math before touching the harness again.
+
+The current fresh-scope shortfall is:
+
+- target steady `= 3000.000 eps`
+- observed steady `= 2958.733 eps`
+- missing `= 41.267 eps`
+
+That gap is only about `1.4%`, while burst and recovery already clear comfortably on the same semantically clean control. So another fresh-scope rematerialization right now would just spend money on the same unanswered control question.
+
+The narrow diagnostic choice is therefore:
+
+- keep `lane_count = 54`
+- keep `ig_push_concurrency = 1`
+- keep `short_upward_transition_blend = 0.0`
+- uplift only `stream_speedup` from `52.2` to `53.0`
+
+This is intentionally diagnostic-only on the current fresh scope. If it closes the steady gap without introducing `4xx`, `5xx`, or recovery instability, then the corrected control becomes the candidate we carry into one final rematerialized fresh-scope closure run.
+
+## 2026-03-11 09:24:57 +00:00 - The same-scope speedup experiment invalidated the shortcut: reused scopes are now contaminating the coupled-control signal, so the next honest spend must return to a new fresh scope
+The same-scope `53.0` uplift did not behave like a narrow control improvement. It collapsed the whole envelope:
+
+- steady admitted `= 2510.189 eps`
+- burst admitted `= 3400.500 eps`
+- recovery admitted `= 2257.172 eps`
+- `4xx = 0`
+- `5xx = 0`
+- latency rose materially (`p95 139.298 ms`, `p99 284.551 ms`)
+
+That shape is important. There is still no rejection at the front door, so the collapse is not APIGW or Lambda refusing traffic. The immediate post-run runtime snapshot shows why this same-scope shortcut is no longer trustworthy:
+
+- `CSFB` checkpoint age rose to `255.689 s`
+- `CSFB` health now carries both `WATERMARK_TOO_OLD` and `CHECKPOINT_OLD`
+- `CSFB` late-context work and apply-failure counts climbed sharply on the reused scope
+- `IEG`, `OFP`, case trigger, case management, and label store still remain materially alive, but the scope is no longer comparable to the first fresh rerun
+
+So the dynamic correction is to stop trying to calibrate on a reused scope. That path now costs money while teaching the wrong lesson.
+
+Accepted posture from here:
+
+- last trustworthy fresh-scope signal: `52.2` was semantically clean but short by only `41.267 eps`
+- same-scope `53.0` is diagnostic evidence that scope reuse distorts the verdict, not evidence that `53.0` is wrong on a fresh scope
+- the next spend must therefore be:
+  - rematerialize a new fresh RTDL scope
+  - run exactly one fresh-scope closure candidate with a narrow uplift near the measured requirement (`stream_speedup = 52.9`)
+  - snapshot immediately and accept or reject that fresh result without looping on the same scope again

@@ -239,21 +239,22 @@ The current hold has therefore shifted again:
 - burst and recovery both stayed green
 - APIGW `request_count_total == admitted_request_count`, so the remaining red is not front-door rejection
 
-The active blocker is now a narrow coupled-control underfill:
+The active blocker is now a narrow fresh-scope closure-control choice:
 
-- the accepted control (`54` lanes / `ig_push = 1` / `stream_speedup = 52.2`) is slightly under-driving the steady window once RTDL is attached
-- this is now best treated as a request-generation calibration issue, not as an RTDL semantic defect
+- the accepted control (`54` lanes / `ig_push = 1` / `stream_speedup = 52.2`) is slightly under-driving the first clean fresh scope
+- same-scope reruns on that platform run are now invalid, because the reused scope degraded and distorted the control signal
+- this is now best treated as a fresh-scope closure calibration issue, not as an RTDL semantic defect
 
 ## Immediate next proof question
 Before spending on the next fresh closure candidate, `Phase 1.B` must answer one bounded question:
 
-- what is the smallest truthful coupled-control uplift that recovers the steady gap without reintroducing `4xx`, `5xx`, or burst/recovery instability?
+- what is the smallest truthful fresh-scope control uplift that recovers the clean `41.267 eps` steady gap without reintroducing `4xx`, `5xx`, or burst/recovery instability?
 
 Only after that question is answered cleanly should the phase spend on:
 
-1. one narrow same-scope coupled-control diagnostic,
-2. one more fresh RTDL materialization,
-3. one fresh-scope coupled closure candidate on the corrected control.
+1. one more fresh RTDL materialization,
+2. one fresh-scope coupled closure candidate on the corrected control,
+3. immediate post-run attribution on that new scope.
 
 ## Phase 1 closure rule
 `Phase 1` closes only when:
