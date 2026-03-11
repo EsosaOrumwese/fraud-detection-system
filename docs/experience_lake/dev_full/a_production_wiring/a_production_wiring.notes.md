@@ -291,3 +291,38 @@ Judgment at this point:
 - the `A` discussion now has a stable purpose-led frame
 - the simplified overlays are good enough to serve as priming views before deeper path-by-path analysis
 - the next useful move is to begin the actual path walk in increasing depth, starting from foundational control and then moving into the primary product paths
+
+## 2026-03-11 20:16:22 +00:00 - The first group-specific extraction has now been made from the baseline wiring: Foundational Control-path is isolated as its own network and resource view
+The next step was to stop working only from the full baseline wiring views and extract the first group-specific slice from them so the path can be interrogated without the rest of the platform crowding the picture.
+
+The extraction was made from:
+
+- `docs/experience_lake/dev_full/a_production_wiring/assets/wired.platform_network_current.mermaid.mmd`
+- `docs/experience_lake/dev_full/a_production_wiring/assets/wired.platform_resources_current.mermaid.mmd`
+
+The resulting control-specific views are:
+
+- `docs/experience_lake/dev_full/a_production_wiring/assets/wired.control_path.network.mermaid.mmd`
+- `docs/experience_lake/dev_full/a_production_wiring/assets/wired.control_path.resources.mermaid.mmd`
+
+These are not intended to be new authority graphs. They are reduced views derived from the baseline wiring so the Foundational Control path can be studied in isolation while still remaining faithful to the original network and resource commitments.
+
+The extraction keeps the control story explicit:
+
+- control entry and delivery surfaces
+- run authority surfaces
+- run identity and runtime-path governance
+- run-control receipts and durable evidence
+- immediate governed downstream boundaries
+
+It intentionally does not expand the downstream internals of ingress, RTDL, case/label, or learning inside this slice because the point right now is not to re-read the whole platform. The point is to see what the control path itself is trying to do and what parts of the wider platform it governs.
+
+With that extraction in place, the active focus of the notebook now shifts from general path framing into detailed inspection of the first group:
+
+- `Foundational Control path`
+
+Judgment at this point:
+
+- the baseline network and resource views are now supporting group-specific extractions cleanly
+- the Foundational Control path has a stable isolated view for questioning its design decisions
+- the next work should stay inside this group long enough to understand its internal subpaths, control laws, tradeoffs, and why they were necessary for `A`
