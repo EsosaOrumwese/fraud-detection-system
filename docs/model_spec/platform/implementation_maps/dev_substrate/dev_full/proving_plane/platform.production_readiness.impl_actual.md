@@ -3112,3 +3112,128 @@ So the next honest spend is no longer another ingress-only calibration. The next
 3. immediate attribution of any remaining `CSFB` / `OFP` / RTDL semantic red on that fresh scope.
 
 That is the correct dynamic shift because the control surface is finally good enough that any fresh red can be attributed back to RTDL rather than to lingering ingress-shape ambiguity.
+
+## 2026-03-11 08:30:17 +00:00 - Fresh RTDL materialization completed live, but the local materializer wrapper hung before writing its receipt
+The next fresh RTDL scope is materially in place on AWS:
+
+- materialization execution intended: `phase1_rtdl_materialize_20260311T081733Z`
+- `platform_run_id = platform_20260311T081733Z`
+- `scenario_run_id = 3bf2429ec6324e1993601b2a578a5914`
+- explicit image pin:
+  - `fraud-platform-dev-full@sha256:c9846969465366dd1b97cad43b675e72db98ea4b7e46b7a7790c56f9860d320a`
+
+Live truth confirms the scope is actually materialized:
+
+- RTDL namespace deployments all `1/1` ready on the explicit digest
+- case/label namespace deployments all `1/1` ready on the explicit digest
+- both `fp-pr3-runtime-secrets` copies now carry `platform_20260311T081733Z`
+
+The defect is therefore local to the control console:
+
+- `pr3_rtdl_materialize.py` hung before writing its summary artifact
+- no evidence suggests a runtime rollback or failed rollout
+- the correct response is to treat this as a wrapper-hang defect, stop the stuck local process, and continue with the now-live fresh scope rather than rerunning the materialization blindly
+
+That means the next honest spend is the fresh-scope coupled envelope itself, using the calibrated ingress control and the already-live fresh RTDL scope.
+
+## 2026-03-11 08:47:01 +00:00 - The fresh-scope coupled green was riding stale RTDL pods because the materializer passed a shorthand digest that kubelet resolved against Docker Hub
+The live rollout inspection changed the blocker immediately and decisively.
+
+What the cluster showed:
+
+- the new ReplicaSets for RTDL and case/label workloads are stuck in `ImagePullBackOff`
+- the old pods remain `Running`, which is why the fresh-scope coupled envelope could still stay green at the ingress edge
+- `kubectl describe pod` on the failed `CSFB` pod shows kubelet trying to pull:
+  - `docker.io/library/fraud-platform-dev-full@sha256:c984...`
+
+That means the current fresh-scope coupled green is not a trustworthy RTDL promotion signal. It rode stale pods serving under fresh secret state.
+
+Root cause:
+
+- `pr3_rtdl_materialize.py` accepts shorthand digest image names such as `fraud-platform-dev-full@sha256:...`
+- Kubernetes then treats that as an unqualified image reference
+- kubelet resolves it against Docker Hub instead of ECR
+
+Accepted fix:
+
+- patch `pr3_rtdl_materialize.py` so the selected image is normalized to the full ECR URI when it is not already fully qualified
+- derive the AWS account via STS and prefix:
+  - `{account}.dkr.ecr.{region}.amazonaws.com/`
+
+Local validation is complete:
+
+- `python -m py_compile scripts/dev_substrate/pr3_rtdl_materialize.py`
+
+So the next fresh scope must be re-materialized again after this fix. The earlier `platform_20260311T081733Z` scope stays useful as a diagnostic that exposed the image-resolution defect, but not as closure evidence.
+
+## 2026-03-11 08:17:33 +00:00 - Fresh-scope RTDL coupling is now the honest next spend, with explicit image pin still treated as mandatory
+Before materializing again I rechecked the materializer risk that had burned this phase earlier. The conclusion stays the same:
+
+- explicit `--image-uri` is still mandatory for fresh RTDL proof
+- the accepted image family for the next spend remains `fraud-platform-dev-full@sha256:c9846969465366dd1b97cad43b675e72db98ea4b7e46b7a7790c56f9860d320a`
+
+The calibrated ingress-side control is now strong enough that this next run should finally answer the right question:
+
+- does RTDL stay green on a fresh scope when the ingress side is no longer contaminating the verdict?
+
+## 2026-03-11 08:53:04 +00:00 - The ECR-normalized rematerialization is now materially serving fresh pods, so the next spend can return to the coupled RTDL proof itself
+The first thing I needed to rule out was another false fresh scope. The repaired materializer is no longer ambiguous at the runtime surface:
+
+- RTDL deployments are all `1/1` available on the full ECR digest
+- case/label deployments are all `1/1` available on the full ECR digest
+- current RTDL pods are all young (`~2 minutes`) and `Running`
+- current case/label pods are all young (`~2 minutes`) and `Running`
+- both `fp-pr3-runtime-secrets` copies decode to `platform_20260311T084731Z`
+
+That is materially different from the earlier shorthand-image failure mode. The cluster is no longer serving stale pods under a fresh secret state.
+
+So the correct dynamic shift is simple:
+
+- stop spending on rollout diagnosis for this scope
+- spend next on the fresh-scope `Phase 1.B` coupled envelope using the already accepted ingress-control calibration
+- take the runtime surface snapshot immediately after the envelope so the RTDL verdict is attributable while the run state is still hot
+
+## 2026-03-11 09:07:21 +00:00 - The fresh-scope coupled rerun proved real RTDL participation, but the remaining red is now a narrow control underfill rather than an RTDL semantic defect
+The repaired fresh scope finally answered the question that had been blocked by the shorthand-image defect.
+
+Fresh-scope coupled envelope:
+
+- execution: `phase1_rtdl_coupled_envelope_fresh_calibrated_ecrfix_20260311T084731Z`
+- `platform_run_id = platform_20260311T084731Z`
+- `scenario_run_id = e3dd6f0a9dee4af194e6eba91e458974`
+- control posture:
+  - `lane_count = 54`
+  - `ig_push_concurrency = 1`
+  - `stream_speedup = 52.2`
+  - `short_upward_transition_blend = 0.0`
+
+Measured verdict:
+
+- steady admitted `= 2958.733 eps`
+- burst admitted `= 6371.500 eps`
+- recovery admitted `= 3015.917 eps`
+- `4xx = 0`
+- `5xx = 0`
+- APIGW `request_count_total == admitted_request_count` across the measured windows
+
+Immediate runtime attribution after the run is strong enough to change the blocker family:
+
+- RTDL and case/label pods are all live on the fresh ECR-backed scope
+- `IEG`, `OFP`, `DL`, case trigger, case management, and label store are materially participating
+- runtime snapshot returned no blocker ids
+- `IEG` stayed clean with `apply_failure_count = 0`
+- `CSFB` shows replay-era watermark age noise, but its checkpoint age stayed healthy and it recorded `join_hits = 3003` with `apply_failures_hard = 0`
+
+That combination matters. Because the front door accepted every request it received and there was no error posture at APIGW, Lambda, or DLQ, this red is not an ingress rejection story and not an RTDL semantic breakage story. It is a request-generation / coupled-control underfill story.
+
+So the blocker changes again:
+
+- closed: "is the fresh RTDL scope really serving?" -> yes
+- closed: "are RTDL components materially participating on the fresh scope?" -> yes
+- open: the accepted coupled control (`54` lanes / `ig_push = 1` / `speedup 52.2`) is still slightly under-driving the steady window once RTDL is attached
+
+The next narrow move should therefore be diagnostic, not promotive:
+
+- keep this scope as a coupled-control diagnostic surface
+- uplift only `stream_speedup` slightly to recover the `41.267 eps` steady gap
+- if that closes cleanly, rematerialize one more fresh scope and rerun the same control as the actual Phase 1 closure candidate

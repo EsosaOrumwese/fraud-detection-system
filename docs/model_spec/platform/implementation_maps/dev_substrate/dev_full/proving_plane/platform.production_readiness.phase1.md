@@ -225,28 +225,35 @@ The next honest closure candidate must therefore use:
   - the next honest red, if any, should now belong to fresh RTDL coupling rather than ingress-shape ambiguity
 
 ## Current blocker family
-The active blocker is no longer ingress-side control calibration.
+The active blocker is no longer fresh-scope RTDL rollout truth.
 
-The current hold is now methodological and RTDL-scoped:
+The repaired ECR-normalized materializer answered that question cleanly:
 
-- a fresh-scope coupled verdict is still required
-- the earlier reused-scope `CSFB` / `OFP` red posture remains the first RTDL blocker family to test again
-- because the control surface is now calibrated, the next fresh-scope red can be attributed back to RTDL with much higher confidence
+- the fresh scope is really serving new pods
+- RTDL and case/label components are materially participating on that fresh scope
+- the coupled rerun stayed semantically clean with `4xx = 0` and `5xx = 0`
 
-That means the next honest question has shifted back to the coupled RTDL boundary:
+The current hold has therefore shifted again:
 
-- on a fresh materialized scope, does the RTDL-attached network hold the now-calibrated ingress control cleanly, or do `CSFB` / `OFP` / context-path defects reappear under load?
+- steady admitted throughput on the fresh coupled rerun came back at `2958.733 eps`
+- burst and recovery both stayed green
+- APIGW `request_count_total == admitted_request_count`, so the remaining red is not front-door rejection
+
+The active blocker is now a narrow coupled-control underfill:
+
+- the accepted control (`54` lanes / `ig_push = 1` / `stream_speedup = 52.2`) is slightly under-driving the steady window once RTDL is attached
+- this is now best treated as a request-generation calibration issue, not as an RTDL semantic defect
 
 ## Immediate next proof question
-Before the next fresh RTDL materialization, `Phase 1.B` must answer one bounded question:
+Before spending on the next fresh closure candidate, `Phase 1.B` must answer one bounded question:
 
-- on a fresh RTDL scope, is the remaining red now genuinely RTDL-semantic rather than ingress-control-induced?
+- what is the smallest truthful coupled-control uplift that recovers the steady gap without reintroducing `4xx`, `5xx`, or burst/recovery instability?
 
 Only after that question is answered cleanly should the phase spend on:
 
-1. fresh RTDL materialization,
-2. fresh coupled closure candidate on the calibrated control,
-3. fresh-scope attribution of any remaining `CSFB` / `OFP` pressure under load.
+1. one narrow same-scope coupled-control diagnostic,
+2. one more fresh RTDL materialization,
+3. one fresh-scope coupled closure candidate on the corrected control.
 
 ## Phase 1 closure rule
 `Phase 1` closes only when:

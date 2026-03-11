@@ -303,6 +303,20 @@ def resolve_existing_deployment_image(*, namespace: str, deployment_names: list[
     return ""
 
 
+def normalize_ecr_image_uri(*, image_uri: str, account_id: str, region: str) -> str:
+    text = str(image_uri or "").strip()
+    if not text:
+        return ""
+    first_segment = text.split("/", 1)[0]
+    if "." in first_segment or ":" in first_segment or first_segment == "localhost":
+        return text
+    acct = str(account_id or "").strip()
+    reg = str(region or "").strip()
+    if not acct or not reg:
+        return text
+    return f"{acct}.dkr.ecr.{reg}.amazonaws.com/{text}"
+
+
 def build_aurora_dsn(*, endpoint: str, username: str, password: str, db_name: str, port: int) -> str:
     return (
         f"postgresql://{quote_plus(username)}:{quote_plus(password)}@"
@@ -889,6 +903,7 @@ def main() -> int:
     ecs = boto3.client("ecs", region_name=args.region)
     ssm = boto3.client("ssm", region_name=args.region)
     iam = boto3.client("iam", region_name=args.region)
+    sts = boto3.client("sts", region_name=args.region)
     lambda_client = boto3.client("lambda", region_name=args.region)
     kafka_client = boto3.client("kafka", region_name=args.region)
     apigw = boto3.client("apigatewayv2", region_name=args.region)
@@ -898,6 +913,12 @@ def main() -> int:
     except RuntimeError as exc:
         blockers.append(f"PR3.RUNTIME.B02_SSM_UNRESOLVED:{exc}")
         resolved_ssm = {}
+
+    try:
+        caller_account_id = str((sts.get_caller_identity() or {}).get("Account", "")).strip()
+    except Exception as exc:  # noqa: BLE001
+        blockers.append(f"PR3.RUNTIME.B02A_ACCOUNT_UNRESOLVED:{type(exc).__name__}")
+        caller_account_id = ""
 
     try:
         explicit_image_uri = str(args.image_uri).strip()
@@ -914,6 +935,7 @@ def main() -> int:
             )
         else:
             image_uri = resolve_task_image(ecs, family=args.wsp_task_family, region=args.region)
+        image_uri = normalize_ecr_image_uri(image_uri=image_uri, account_id=caller_account_id, region=args.region)
     except Exception as exc:  # noqa: BLE001
         blockers.append(f"PR3.RUNTIME.B03_IMAGE_UNRESOLVED:{type(exc).__name__}")
         image_uri = ""
