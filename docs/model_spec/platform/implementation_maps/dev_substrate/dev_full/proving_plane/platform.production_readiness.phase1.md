@@ -270,4 +270,4 @@ Promotion judgment:
 Phase outcome:
 
 - `Control + Ingress + RTDL` is now the promoted working platform
-- the next platform-readiness action moves to `Phase 2 - Control + Ingress + RTDL coupled-network readiness`
+- the master plan's standalone `Phase 2` goal is already satisfied by this coupled closure, so the next unmet platform-readiness action moves to `Phase 3 - Case + Label plane readiness`

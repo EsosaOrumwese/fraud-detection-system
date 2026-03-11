@@ -593,6 +593,13 @@ Definition of done:
 ---
 
 ## Phase 2 - Control + Ingress + RTDL coupled-network readiness
+Status:
+- closed green by completion inside `Phase 1.B` and `Phase 1.C`
+
+Planning note:
+- this phase's goal was satisfied by the fresh-scope RTDL promotion proof that closed on `2026-03-11`
+- no separate standalone rerun is required here, because the coupled-network validation already became the evidence used to promote `Control + Ingress + RTDL` into the working platform
+
 Purpose:
 - prove the first real working network beyond Control + Ingress.
 
@@ -1255,12 +1262,12 @@ After a phase is complete, update as needed:
 ---
 
 ## Immediate next action
-Proceed with `Phase 2 - Control + Ingress + RTDL coupled-network readiness`.
+Proceed with `Phase 3 - Case + Label plane readiness`.
 
-`Phase 1` is now closed green, so the immediate purpose shifts to proving the enlarged working network on top of the newly promoted `Control + Ingress + RTDL` base.
+`Phase 1` closed the RTDL plane and its coupled-network promotion together, so the immediate purpose now shifts to proving the next plane on top of the newly promoted `Control + Ingress + RTDL` base.
 
 Execution order now is:
-1. pin the coupled-network telemetry set and fail-fast conditions for the promoted RTDL-attached network,
-2. verify the live cross-plane paths from Control -> Ingress -> Event Bus -> RTDL under the current promoted control,
-3. run bounded coupled-network validation for the promoted network,
-4. only then decide whether the enlarged working network is green enough to become the accepted source base for `Case + Label`.
+1. pin the Case + Label telemetry set and fail-fast conditions for the promoted upstream decision network,
+2. verify the live case-trigger, case-management, and label-store runtime boundary and its immediate RTDL dependencies,
+3. run bounded plane-readiness proof for Case + Label on the promoted upstream network,
+4. only then decide whether Case + Label is green or remediation must remain open.

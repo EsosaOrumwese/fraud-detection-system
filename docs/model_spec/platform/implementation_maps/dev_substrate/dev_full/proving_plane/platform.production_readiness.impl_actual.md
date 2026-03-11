@@ -3373,3 +3373,85 @@ So the promotion judgment is now honest:
 - `Phase 1` closes green
 - `Control + Ingress + RTDL` is now the promoted working platform
 - the next execution target moves to `Phase 2 - Control + Ingress + RTDL coupled-network readiness`
+
+## 2026-03-11 09:50:24 +00:00 - The master plan needed one dynamic correction: Phase 2 has already been satisfied by the Phase 1 coupled proof, so the next honest move is Phase 3 rather than a duplicate RTDL network rerun
+After closing the RTDL promotion properly, I re-read the master plan entry for `Phase 2`.
+
+Its goal is:
+
+- prove the first real working network beyond Control + Ingress
+- end with `Control + Ingress + RTDL` as the working platform
+
+That goal is already what the fresh `Phase 1.B` coupled closure and `Phase 1.C` promotion judgment accomplished. So a literal separate `Phase 2` rerun would be duplicate spend on a phase whose goal is already met.
+
+This is exactly the kind of place where rigid phase-following would waste time and money. The correct correction is:
+
+- mark `Phase 2` as closed by absorption into the executed `Phase 1` decomposition
+- keep the numbering intact in the master plan for readability
+- move the active execution target to `Phase 3 - Case + Label plane readiness`
+
+## 2026-03-11 09:51:21 +00:00 - Phase 3 is now pinned at the correct starting boundary: promoted upstream decisions, live case/label workers, and authoritative offline truth products for semantic judgment
+Before touching the runtime, I pinned the three things that matter most for Case + Label:
+
+1. the live worker boundary,
+2. the upstream decision source we are allowed to trust,
+3. the offline truth products that define what "correct" means for labels and cases.
+
+Live runtime truth at phase entry:
+
+- namespace `fraud-platform-case-labels`
+- deployments:
+  - `fp-pr3-case-trigger`
+  - `fp-pr3-case-mgmt`
+  - `fp-pr3-label-store`
+- all three are `1/1` available, `Running`, and on the promoted shared image family
+
+Semantic truth pinned from the allowed Data Engine references:
+
+- `s4_event_labels_6B`
+- `s4_flow_truth_labels_6B`
+- `s4_flow_bank_view_6B`
+- `s4_case_timeline_6B`
+
+The important constraint is that these are authoritative offline truth products, not live decision features. So Phase 3 has to prove that the platform's case and label plane produces authoritative truth that is compatible with those products without leaking future knowledge backward into runtime behavior.
+
+I also created the missing phase-specific planning surface:
+
+- `platform.production_readiness.phase3.md`
+
+That doc now carries the live runtime boundary, semantic references, derived subphases, telemetry plan, and closure rule for Case + Label. The next honest step is to build the live telemetry posture on those workers and their immediate RTDL publishers before spending on the first bounded Phase 3 proof slice.
+
+## 2026-03-11 09:53:18 +00:00 - The Case + Label telemetry boundary is now pinned from live worker payloads, and the existing S4 proving harnesses are the right next entrypoint
+I wanted to avoid a fake telemetry plan here, so I pulled the actual emitted counters from the promoted RTDL closure snapshot instead of stopping at generic component names.
+
+The important live metrics are now explicit:
+
+- CaseTrigger:
+  - `triggers_seen`
+  - `published`
+  - `duplicates`
+  - `quarantine`
+  - `publish_ambiguous`
+- Case Management:
+  - `case_triggers`
+  - `cases_created`
+  - `timeline_events`
+  - `timeline_events_appended`
+  - `labels_accepted`
+  - `labels_rejected`
+- Label Store:
+  - `accepted`
+  - `pending`
+  - `rejected`
+  - `duplicate`
+  - `dedupe_tuple_collision`
+  - `payload_hash_mismatch`
+
+I also checked the existing proving surfaces instead of inventing a new harness family:
+
+- `pr3_s4_dependency_drill.py`
+- `pr3_s4_correctness_rollup.py`
+
+That means the next honest Phase 3 work is to understand how those existing S4 proving scripts expect their pre/post snapshots and bounded run inputs to be staged, then drive the first plane-readiness slice through them with the now-pinned telemetry set.
+
+So the platform is not pausing after RTDL promotion. It is moving directly to the next unmet phase goal.
