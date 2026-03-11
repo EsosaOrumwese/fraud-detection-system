@@ -147,6 +147,25 @@ Status:
 - the Case + Label workers are materially live on the accepted image family
 - the next honest spend is not a broad platform run; it is a bounded Case + Label correctness slice with rich live telemetry
 
+The current execution blocker is now explicit:
+
+- the repo has reusable `S4` proving primitives, but not a current bounded executor that matches the narrower `Phase 3` goal
+- the historical `PR3-S4` rollup still hard-binds learning and ops/governance proof into the same correctness receipt
+- replaying that whole bundle literally would spend money proving planes that `Phase 3` does not own yet
+
+Accepted correction:
+
+- keep the existing bootstrap, runtime snapshot, and WSP replay primitives
+- add a narrow `Phase 3` executor and rollup for the Case + Label plane itself
+- retain the promoted upstream production envelope on the RTDL side, but keep the run short enough to stay in the `100k-250k` decision-bearing slice
+- treat learning and ops/governance as later coupled proofs, not as closure prerequisites for this plane-readiness slice
+
+Execution path now pinned:
+
+- bounded runner: `scripts/dev_substrate/phase3_case_label_readiness.py`
+- bounded rollup: `scripts/dev_substrate/phase3_case_label_rollup.py`
+- telemetry snapshot summary widened in `scripts/dev_substrate/pr3_runtime_surface_snapshot.py` so the run artifacts retain the active Case + Label counters directly
+
 ## Current impact metrics
 
 ### Phase-entry runtime truth

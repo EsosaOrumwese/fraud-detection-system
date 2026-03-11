@@ -329,7 +329,15 @@ def pick_summary(component: str, metrics_payload: dict[str, Any], health_payload
         summary.update(
             {
                 "triggers_seen": to_float(metrics.get("triggers_seen")),
+                "published": to_float(metrics.get("published"))
+                if metrics.get("published") is not None
+                else to_float(metrics.get("publish_admitted_total")),
                 "publish_admitted_total": to_float(metrics.get("publish_admitted_total")),
+                "duplicates": to_float(metrics.get("duplicates")),
+                "quarantine": to_float(metrics.get("quarantine"))
+                if metrics.get("quarantine") is not None
+                else to_float(metrics.get("publish_quarantine_total")),
+                "payload_mismatch_total": to_float(metrics.get("payload_mismatch_total")),
                 "publish_quarantine_total": to_float(metrics.get("publish_quarantine_total")),
                 "publish_ambiguous_total": to_float(metrics.get("publish_ambiguous_total")),
                 "replay_mismatch_total": to_float(metrics.get("payload_mismatch_total")),
@@ -341,7 +349,18 @@ def pick_summary(component: str, metrics_payload: dict[str, Any], health_payload
             {
                 "case_triggers": to_float(metrics.get("case_triggers")),
                 "cases_created": to_float(metrics.get("cases_created")),
+                "timeline_events": to_float(metrics.get("timeline_events")),
+                "timeline_events_appended": to_float(metrics.get("timeline_events_appended")),
                 "case_replays": to_float(metrics.get("case_replays")),
+                "label_assertions": to_float(metrics.get("label_assertions")),
+                "labels_pending": to_float(metrics.get("labels_pending")),
+                "labels_accepted": to_float(metrics.get("labels_accepted")),
+                "labels_rejected": to_float(metrics.get("labels_rejected")),
+                "label_status_pending": to_float(metrics.get("label_status_pending")),
+                "label_status_accepted": to_float(metrics.get("label_status_accepted")),
+                "label_status_rejected": to_float(metrics.get("label_status_rejected")),
+                "evidence_pending": to_float(metrics.get("evidence_pending")),
+                "evidence_unavailable": to_float(metrics.get("evidence_unavailable")),
                 "payload_mismatches": to_float(metrics.get("payload_mismatches")),
                 "anomalies_total": to_float(anomalies.get("total")),
             }
@@ -352,7 +371,13 @@ def pick_summary(component: str, metrics_payload: dict[str, Any], health_payload
                 "pending": to_float(metrics.get("pending")),
                 "accepted": to_float(metrics.get("accepted")),
                 "rejected": to_float(metrics.get("rejected")),
+                "duplicate": to_float(metrics.get("duplicate")),
+                "timeline_rows": to_float(metrics.get("timeline_rows")),
+                "payload_hash_mismatch": to_float(metrics.get("payload_hash_mismatch")),
+                "dedupe_tuple_collision": to_float(metrics.get("dedupe_tuple_collision")),
+                "missing_evidence_refs": to_float(metrics.get("missing_evidence_refs")),
                 "reconciliation_anomalies": to_float(metrics.get("reconciliation_anomalies")),
+                "anomalies_total": to_float((health_payload.get("anomalies") or {}).get("total")),
             }
         )
     return summary

@@ -3455,3 +3455,74 @@ I also checked the existing proving surfaces instead of inventing a new harness 
 That means the next honest Phase 3 work is to understand how those existing S4 proving scripts expect their pre/post snapshots and bounded run inputs to be staged, then drive the first plane-readiness slice through them with the now-pinned telemetry set.
 
 So the platform is not pausing after RTDL promotion. It is moving directly to the next unmet phase goal.
+
+## 2026-03-11 09:59:45 +00:00 - The real Phase 3 blocker is now named: the repo lacks a current bounded executor for the Case + Label plane, so the next move is to add a narrow wrapper instead of replaying the old whole-platform S4 bundle
+I stopped reading the old `PR3-S4` harness family once the shape of the problem became clear enough to name precisely.
+
+The problem is not that the platform lacks proving primitives. Those exist already:
+
+- `pr3_control_plane_bootstrap.py`
+- `pr3_runtime_surface_snapshot.py`
+- `pr3_wsp_replay_dispatch.py`
+- `pr3_s4_correctness_rollup.py`
+
+The problem is that the historical `S4` rollup still represents a broader whole-platform correctness proof. It hard-binds:
+
+- bounded runtime correctness,
+- Case + Label participation,
+- learning/evolution proof,
+- ops/governance proof,
+- and several later drills
+
+into one receipt family.
+
+That is no longer the right shape for the current production-readiness plan. `Phase 3` owns the Case + Label plane, not learning and not ops/governance. So replaying the old bundle literally would create the exact kind of waste the current posture is supposed to prevent: proving planes that are not the active question.
+
+The correction is straightforward and production-honest:
+
+- keep the reusable runtime primitives,
+- keep the promoted upstream envelope,
+- keep the run bounded,
+- add a narrow executor + rollup for the Case + Label plane itself,
+- and only then spend on the first correctness slice.
+
+The run shape I am targeting from the master plan is:
+
+- production envelope retained upstream on the promoted `Control + Ingress + RTDL` base,
+- bounded steady slice only,
+- `100k-250k` decision-bearing events,
+- enough duration to force material CaseTrigger / Case Management / Label Store participation without paying for a broad whole-platform campaign.
+
+That means the next work item is code, not more reading:
+
+- add the `Phase 3` bounded executor,
+- add the narrow Case + Label rollup,
+- run the first slice,
+- then judge the real red boundary from live telemetry rather than from historical `S4` assumptions.
+
+## 2026-03-11 10:07:30 +00:00 - The missing Phase 3 execution surface is now in the repo, and the telemetry snapshot was widened so the first bounded slice keeps the right case/label counters without manual archaeology
+I stopped short of the first AWS spend just long enough to put the missing execution surface into the repo cleanly.
+
+The accepted code changes are narrow:
+
+- added `scripts/dev_substrate/phase3_case_label_readiness.py`
+- added `scripts/dev_substrate/phase3_case_label_rollup.py`
+- widened `scripts/dev_substrate/pr3_runtime_surface_snapshot.py` so the summary retains:
+  - CaseTrigger `published`, `duplicates`, `quarantine`, `payload_mismatch_total`
+  - Case Management `timeline_events`, `timeline_events_appended`, `labels_*`, `label_status_*`, `evidence_*`
+  - Label Store `duplicate`, `timeline_rows`, `payload_hash_mismatch`, `dedupe_tuple_collision`, `missing_evidence_refs`, `anomalies_total`
+
+That matters because the first bounded Phase 3 slice should now answer the plane question directly from its own run artifacts:
+
+- did the promoted upstream path stay materially alive,
+- did CaseTrigger participate cleanly,
+- did Case Management append and remain anomaly-free,
+- did Label Store commit authoritative truth without pending, duplicate, or mismatch drift.
+
+I kept this as a plane-scoped correction, not another broad repin:
+
+- the new runner reuses the existing AWS primitives
+- the new rollup scores only the active plane and its immediate upstream path
+- learning and ops/governance are not falsely reintroduced as closure prerequisites for this slice
+
+`py_compile` is green on the new and touched scripts, so the next move is no longer local code shaping. It is the first bounded AWS execution on this new path.
