@@ -64,10 +64,21 @@ def seeded_segment_tokens(
     burst_seconds: float,
     minimum_tokens: float,
     previous_target_eps: float | None = None,
+    segment_duration_seconds: float | None = None,
+    short_upward_transition_blend: float = 1.0 / 3.0,
 ) -> float:
     reference_target_eps = max(0.0, float(current_target_eps))
     if previous_target_eps is not None:
-        reference_target_eps = min(reference_target_eps, max(0.0, float(previous_target_eps)))
+        previous_target = max(0.0, float(previous_target_eps))
+        if (
+            reference_target_eps > previous_target
+            and segment_duration_seconds is not None
+            and float(segment_duration_seconds) <= 5.0
+        ):
+            blend = min(1.0, max(0.0, float(short_upward_transition_blend)))
+            reference_target_eps = previous_target + ((reference_target_eps - previous_target) * blend)
+        elif reference_target_eps < previous_target:
+            reference_target_eps = min(reference_target_eps, previous_target)
     bucket_capacity = reference_target_eps * max(0.0, float(burst_seconds))
     return max(float(minimum_tokens), bucket_capacity)
 
@@ -347,6 +358,7 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--http-pool-maxsize", type=int, default=512)
     ap.add_argument("--target-burst-seconds", type=float, default=0.25)
     ap.add_argument("--target-initial-tokens", type=float, default=0.25)
+    ap.add_argument("--short-upward-transition-blend", type=float, default=(1.0 / 3.0))
     ap.add_argument("--early-cutoff-seconds", type=int, default=60)
     ap.add_argument("--early-cutoff-floor-ratio", type=float, default=0.0)
     ap.add_argument("--metric-settle-seconds", type=int, default=90)
@@ -399,7 +411,7 @@ def main() -> None:
     rate_plan: list[dict[str, Any]] = []
     previous_segment_target_eps: float | None = None
 
-    def append_segment(*, start_offset_seconds: int, target_eps: float) -> None:
+    def append_segment(*, start_offset_seconds: int, target_eps: float, duration_seconds: float) -> None:
         nonlocal previous_segment_target_eps
         rate_plan.append(
             {
@@ -411,6 +423,8 @@ def main() -> None:
                     burst_seconds=segment_burst_seconds,
                     minimum_tokens=segment_minimum_tokens,
                     previous_target_eps=previous_segment_target_eps,
+                    segment_duration_seconds=duration_seconds,
+                    short_upward_transition_blend=float(args.short_upward_transition_blend),
                 ),
             }
         )
@@ -418,13 +432,26 @@ def main() -> None:
 
     segment_offset = 0
     if presteady_seconds > 0:
-        append_segment(start_offset_seconds=segment_offset, target_eps=presteady_per_lane_eps)
+        append_segment(
+            start_offset_seconds=segment_offset,
+            target_eps=presteady_per_lane_eps,
+            duration_seconds=float(presteady_seconds),
+        )
         segment_offset += presteady_seconds
-    append_segment(start_offset_seconds=segment_offset, target_eps=steady_per_lane_eps)
-    append_segment(start_offset_seconds=segment_offset + steady_seconds, target_eps=burst_per_lane_eps)
+    append_segment(
+        start_offset_seconds=segment_offset,
+        target_eps=steady_per_lane_eps,
+        duration_seconds=float(steady_seconds),
+    )
+    append_segment(
+        start_offset_seconds=segment_offset + steady_seconds,
+        target_eps=burst_per_lane_eps,
+        duration_seconds=float(burst_seconds),
+    )
     append_segment(
         start_offset_seconds=segment_offset + steady_seconds + burst_seconds,
         target_eps=recovery_per_lane_eps,
+        duration_seconds=float(recovery_seconds),
     )
     execution_root = Path(args.run_control_root) / execution_id
     execution_root.mkdir(parents=True, exist_ok=True)

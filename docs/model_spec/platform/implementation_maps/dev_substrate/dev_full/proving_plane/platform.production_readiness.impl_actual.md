@@ -2757,3 +2757,287 @@ Accepted next posture:
 - rerun the exact same `Phase 1.B` closure candidate on that fresh materialized scope
 - spend on one decisive proof only, because the active question is now clean:
   - does honest transition seeding remove the APIGW `429` spike while preserving steady / recovery green?
+
+## 2026-03-11 06:13:05 +00:00 - Reseeded rerun removed front-door `429`, but it is not a trustworthy coupled verdict because I reused the same run scope
+The reseeded closure attempt answered one question cleanly and created one methodological correction I have to own explicitly.
+
+Reseeded closure run:
+
+- execution `phase1_rtdl_coupled_envelope_fresh_igpush2_reseed_20260311T052700Z`
+- reused scope:
+  - `platform_run_id = platform_20260311T052700Z`
+  - `scenario_run_id = 26b1244a90244d55ad8900d03e32a264`
+
+What it proved cleanly:
+
+- APIGW `429` is gone
+- `4xx = 0`
+- `5xx = 0`
+- WSP dispatcher remains green with `open_blockers = 0`
+
+What remained red on the ingress envelope:
+
+- steady admitted `= 2931.722 eps`
+- burst admitted `= 3625.000 eps`
+- recovery admitted `= 2886.433 eps`
+- burst `p95 = 429.929 ms`
+- burst `p99 = 1413.919 ms`
+
+The telemetry around that run says the blocker is now honest coupled pressure rather than front-door rejection:
+
+- APIGW `30 s` bins show the burst slice at `2026-03-11 05:58:30Z` with:
+  - `73181` requests / `30 s`
+  - `p95 = 349.7665 ms`
+  - `p99 = 1391.6526 ms`
+  - `4xx = 0`
+  - `5xx = 0`
+- Lambda timing bins for the same run show admission p95 stepping up into the burst / early recovery edge:
+  - `05:58:30Z` bin `admission_p95_avg ~= 0.2959 s`
+  - `admission_p95_max ~= 1.3176 s`
+
+But I should not treat this run as a trustworthy coupled-network verdict, because I reused the same run scope after the earlier fresh closure candidate on that identical `platform_run_id`.
+
+Why that matters:
+
+- ingress idempotency keys include `platform_run_id`
+- rerunning the same scenario on the same run id is therefore not equivalent to a fresh coupled proof
+- the post-run RTDL snapshot confirms that the context / feature path was not fresh for this rerun:
+  - `CSFB` checkpoint max update remained at `2026-03-11 05:55:16 +00`
+  - that is older than the reseeded campaign start `2026-03-11 05:56:00Z`
+  - `CSFB` health is red on `CHECKPOINT_OLD`
+  - `OFP` is red on stale watermark and `missing_features = 38`
+
+So the right judgment is:
+
+- the reseeded run is useful as a narrow ingress-control diagnostic
+- it is not sufficient evidence for a coupled `Phase 1.B` verdict
+
+What I accept from it:
+
+- the earlier burst-edge `429` blocker really was control-shape debt
+- the current remaining coupled blocker is now best treated as RTDL context / feature-path pressure under load
+- the next decisive closure candidate must return to a fresh materialized scope
+
+That means the next posture changes again:
+
+- stop reusing `platform_20260311T052700Z` for closure proof
+- repin the active closure candidate to a fresh materialized scope
+- investigate and, if needed, harden `CSFB` / `OFP` participation before the next fresh coupled rerun
+
+## 2026-03-11 06:28:38 +00:00 - Ingress-only calibration shows the short upward burst transition still needs finer control than the midpoint seed
+Before spending on another fresh RTDL scope I ran a control-only calibration on the trusted `Phase 0` ingress base. That was the correct cheaper move, because I needed to separate front-door shaping from RTDL participation.
+
+Ingress-only calibration run:
+
+- execution `phase1_control_calibration_burstmid_20260311T061700Z`
+- fresh scope:
+  - `platform_run_id = platform_20260311T061508Z`
+  - `scenario_run_id = 96016c99f39343f7842d7868212ece07`
+- calibrated control under test:
+  - steady seed `= 15.0`
+  - burst seed `= 22.5`
+  - recovery seed `= 15.0`
+
+What this answered cleanly:
+
+- the midpoint seed is closer than the original full burst seed
+- but it is still too aggressive for the front door
+
+Observed result:
+
+- steady admitted `= 2986.044 eps`
+- burst admitted `= 6784.000 eps`
+- recovery admitted `= 3005.672 eps`
+- burst `4xx = 800`
+- recovery `4xx = 808`
+- `5xx = 0`
+- burst latency stayed excellent, so this is not a downstream-latency issue on the ingress-only base
+
+Accepted interpretation:
+
+- the front-door control question is now cleanly separated from RTDL
+- the short upward burst transition still injects too much demand at `22.5` tokens
+- the right next move is another narrow control correction, not a fresh RTDL rerun yet
+
+So the current control calibration posture is:
+
+- `30.0` tokens: too high, clear APIGW `429`
+- `22.5` tokens: still too high, smaller APIGW `429`
+- `15.0` tokens: no `429`, but burst under-drives materially
+
+That means the next candidate should move downward from `22.5` toward the no-`429` boundary rather than back upward again. The likely honest target is around `20.0` tokens for the short upward burst segment, while keeping the long steady segment on the already-proven seed.
+
+## 2026-03-11 06:46:55 +00:00 - Phase-doc drift needs correction before the next AWS spend, and the active blocker is still burst-transition calibration rather than a trustworthy RTDL closure verdict
+Before touching the harness again I re-read the active phase docs against the AGENTS posture and found that `platform.production_readiness.phase1.md` has drifted back into notebook behavior. That matters for the same reason stale telemetry matters: it blurs the authority boundary and makes it harder to see what is current plan, what is notebook reasoning, and what is merely retained history.
+
+The correction is straightforward:
+
+- keep implementation reasoning and timestamped engineering trail here and in the logbook
+- keep the phase docs for phase expansion, current planning posture, active impact metrics, and closure rules
+- update the RTDL readiness-delta graph so it reflects the actual current blocker family rather than an overstated stale one
+
+The more important engineering judgment is about the active blocker itself. The current graph shape was leaning too hard toward `CSFB` / `OFP` as though that were already the accepted closure blocker. That is not yet the most truthful posture. The latest trustworthy cheap evidence is still the ingress-only calibration:
+
+- `30.0` burst-transition tokens: clear APIGW `429`
+- `22.5` burst-transition tokens: smaller but still real APIGW `429`
+- `15.0` burst-transition tokens: front door clean, but burst materially under-driven
+
+So the next honest step is still:
+
+- restore the plan/notebook split,
+- reduce the short upward burst-transition seed again,
+- rerun a cheap ingress-only calibration on fresh ids,
+- only spend on the next fresh RTDL materialization once the front-door control surface is truthful enough not to contaminate the coupled verdict.
+
+## 2026-03-11 06:48:56 +00:00 - The short upward burst-transition seed is now narrowed from midpoint to one-third-delta before the next cheap calibration
+The planning/notebook split is corrected now, so the next move returns to the actual blocker rather than more doc cleanup. The harness change is intentionally narrow:
+
+- `scripts/dev_substrate/phase0_control_ingress_envelope.py`
+- short upward transitions no longer use midpoint seeding
+- they now use one-third of the upward delta from the previous segment
+
+For the active control family that changes the burst edge from:
+
+- `60 eps -> 120 eps`
+- midpoint reference `= 90 eps`
+- burst seed `= 22.5`
+
+to:
+
+- one-third-delta reference `= 80 eps`
+- burst seed `= 20.0`
+
+That is the next honest calibration candidate because:
+
+- `22.5` is still visibly too aggressive at the APIGW edge
+- `15.0` keeps the edge clean but under-drives burst materially
+- `20.0` is the cheapest next boundary to test before spending on another fresh RTDL scope
+
+Local validation is clean:
+
+- `python -m py_compile scripts/dev_substrate/phase0_control_ingress_envelope.py`
+- dry-run rate-plan preview now shows:
+  - presteady `7.5`
+  - steady `15.0`
+  - burst `20.0`
+  - recovery `15.0`
+
+The next move is the real ingress-only calibration on fresh ids, not another dry run.
+
+## 2026-03-11 07:03:36 +00:00 - The `20.0`-token burst-transition candidate is still not truthful enough, so the control needs to become parameterized instead of repeatedly recoded
+The fresh ingress-only calibration on the trusted `Phase 0` base is complete:
+
+- execution `phase1_control_calibration_burstthird_20260311T064900Z`
+- `platform_run_id = platform_20260311T064920Z`
+- `scenario_run_id = cb268a880f584dafb53cc420be2b00fc`
+- burst-transition seed under test `= 20.0`
+
+Observed result:
+
+- steady admitted `= 2924.556 eps`
+- burst admitted `= 6702.000 eps`
+- recovery admitted `= 3005.022 eps`
+- burst `4xx = 793`
+- recovery `4xx = 810`
+- `5xx = 0`
+- recovery to sustained green `= 30 s`
+- latency remained excellent across all windows
+
+This changes the posture again in an important way. The move from `22.5` to `20.0` barely changed the APIGW `429` count:
+
+- `22.5` candidate: burst `4xx = 800`, recovery `4xx = 808`
+- `20.0` candidate: burst `4xx = 793`, recovery `4xx = 810`
+
+That is not enough learning for another hardcoded formula rewrite. The more efficient correction is to stop baking the candidate directly into the harness and expose the short upward transition blend as an explicit control parameter. Then the front-door question can be tested honestly without repeated code churn.
+
+The next likely calibration target is no longer another guess between `22.5` and `20.0`. The cleanest next question is whether the previously front-door-clean `15.0` burst-transition seed stays truthful on the ingress-only base itself, because the earlier under-driven `3625 eps` evidence came from a coupled reused-scope RTDL diagnostic and is therefore not a clean front-door baseline.
+
+## 2026-03-11 07:04:49 +00:00 - The burst-transition calibration is now an explicit harness parameter, and the next truthful candidate is the carry-forward `15.0` seed
+The control surface is now parameterized instead of hardcoded again:
+
+- `scripts/dev_substrate/phase0_control_ingress_envelope.py`
+- new CLI control `--short-upward-transition-blend`
+- current default remains the one-third-delta candidate for normal use
+
+That is the right change because the burst-transition question is now an operator-controlled proving question, not a code-shape question. It also reduces the chance of treating each calibration attempt as a new code change that needs its own explanatory overhead.
+
+The immediate dry-run with `--short-upward-transition-blend 0.0` confirms the carry-forward candidate cleanly:
+
+- presteady `7.5`
+- steady `15.0`
+- burst `15.0`
+- recovery `15.0`
+
+So the next live question is finally the clean one:
+
+- on the ingress-only base itself, does the previously front-door-clean `15.0` burst seed remain semantically clean while still telling the truth about burst admission?
+
+## 2026-03-11 07:18:55 +00:00 - The carry-forward `15.0` seed is the best front-door candidate so far, so the next cheap attribution moves to `ig_push_concurrency`
+The ingress-only carry-forward calibration is now complete:
+
+- execution `phase1_control_calibration_burstcarry_20260311T070500Z`
+- `platform_run_id = platform_20260311T070509Z`
+- `scenario_run_id = de7f4410eff74fe58afaf60ee9013a4d`
+- `ig_push_concurrency = 2`
+- burst seed `= 15.0`
+
+Observed result:
+
+- steady admitted `= 3001.200 eps`
+- burst admitted `= 7074.500 eps`
+- recovery admitted `= 3016.067 eps`
+- burst `4xx = 408`
+- recovery `4xx = 488`
+- `5xx = 0`
+- recovery to sustained green `= 30 s`
+
+This is materially better than the `20.0` candidate:
+
+- steady moved from red to green
+- burst `4xx` dropped from `793` to `408`
+- recovery `4xx` dropped from `810` to `488`
+
+But it is still not semantically clean. The important dynamic posture shift is that seed tuning alone is now close to exhausted. The remaining front-door red looks small enough that another seed rewrite is a poor next question. The cheaper and cleaner question is now whether the residual `429` is being amplified by `ig_push_concurrency = 2`.
+
+So the next narrow attribution is:
+
+- hold the same `15.0` carry-forward burst seed
+- change only `ig_push_concurrency`
+- rerun the ingress-only calibration
+
+If `ig_push_concurrency = 1` goes clean on the same seed, then the current residual blocker is not the burst seed itself but the higher push concurrency required by the coupled proof shape.
+
+## 2026-03-11 07:32:06 +00:00 - The active blocker is now a control tradeoff, not a burst-seed search
+The ingress-only concurrency split is now clean enough to change the planning posture again.
+
+Same carry-forward seed, different push concurrency:
+
+- `ig_push_concurrency = 2`
+  - steady admitted `= 3001.200 eps`
+  - burst admitted `= 7074.500 eps`
+  - recovery admitted `= 3016.067 eps`
+  - burst `4xx = 408`
+  - recovery `4xx = 488`
+- `ig_push_concurrency = 1`
+  - steady admitted `= 2936.856 eps`
+  - burst admitted `= 5593.000 eps`
+  - recovery admitted `= 3018.461 eps`
+  - `4xx = 0`
+  - `5xx = 0`
+
+That is the cleanest evidence of the morning so far. It shows:
+
+- the `15.0` carry-forward burst seed is not the primary open question anymore
+- `ig_push_concurrency = 2` keeps overall pressure high enough, but causes a small APIGW `429` wave at the burst edge
+- `ig_push_concurrency = 1` is semantically clean, but under-drives both steady and burst on the ingress-only base
+
+So the current blocker is better described as a control distribution tradeoff:
+
+- higher push concurrency achieves the target but breaches semantic cleanliness
+- lower push concurrency keeps semantic cleanliness but misses throughput
+
+That means the next honest calibration question is no longer "what burst seed should be tried next?" The next honest question is:
+
+- can the same total target be redistributed across more lanes while keeping `ig_push_concurrency = 1`, so the ingress edge stays semantically clean and the under-drive collapses without reopening the APIGW `429` blocker?
+
+That is the cheapest next attribution step before spending on a fresh RTDL scope again.
