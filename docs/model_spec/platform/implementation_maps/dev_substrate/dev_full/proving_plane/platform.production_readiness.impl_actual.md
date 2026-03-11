@@ -4258,3 +4258,46 @@ I then updated the non-note authority surfaces so the repo matches that truth:
   - added a dedicated Phase 3 readiness-delta graph to show the real blocker sequence and accepted remediations
 
 This is the correct stopping boundary for the Phase 3 milestone. The next work is no longer Phase 3 remediation. It is fresh planning and telemetry pinning for `Phase 4`, the coupled-network proof of the enlarged `Control + Ingress + RTDL + Case + Label` platform.
+
+## 2026-03-11 15:06:34 +00:00 - I opened Phase 4 explicitly instead of drifting into coupled work without a fresh boundary, because the next error class will be network-coupling regression rather than the plane-local blockers we just closed
+There was no dedicated `Phase 4` expansion document yet, so I created one before touching a new coupled run shape.
+
+That matters because the working question has changed:
+
+- `Phase 3` asked whether `Case + Label` is production-worthy on the promoted upstream path
+- `Phase 4` asks whether the enlarged network still holds once that downstream operational-review truth path is attached under the retained ingress envelope
+
+I pinned the new Phase 4 boundary in `platform.production_readiness.phase4.md` around:
+
+- ingress edge
+- RTDL runtime
+- Case + Label runtime
+- the coupled `RTDL -> CaseTrigger -> Case Management -> Label Store` path
+
+I also made the next implementation task explicit there:
+
+- do not fall back to the older broad `PR3-S4` bundle
+- derive a dedicated coupled runner and rollup from the now-proven narrow Phase 3 machinery
+- preserve the retained envelope
+- add coupled timing and starvation evidence as first-class proof signals
+
+That is the correct dynamic-posture move here. The last phase closed because the boundary was narrowed honestly. The next phase should start by defining its own truthful coupled boundary rather than quietly inheriting a runner that was shaped for a different question.
+
+## 2026-03-11 15:07:42 +00:00 - I switched the active readiness-delta graph to Phase 4 so the reflected graph layer no longer trails the actual hardening boundary
+After opening `Phase 4`, the active delta graph could not stay on the closed Phase 3 story without becoming misleading.
+
+So I added a new active delta graph:
+
+- `dev_full_case_label_coupled_readiness_delta_current_v0.mermaid.mmd`
+
+It captures the real current posture:
+
+- promoted base entering Phase 4 is now `Control + Ingress + RTDL + Case + Label`
+- the open blocker family is not a known live runtime breakage yet
+- the open blocker family is that a dedicated coupled runner and coupled timing/starvation scoring are not yet materialized
+- the accepted next move is to derive that coupled runner from the narrow Phase 3 path instead of falling back to the older broad bundle
+
+That keeps the graph layer aligned with the actual active question:
+
+- not "is Case + Label green?"
+- but "can the enlarged network stay green under coupled steady / burst / recovery proof?"
