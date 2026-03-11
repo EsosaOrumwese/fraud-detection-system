@@ -643,8 +643,10 @@ The fresh DF-key-aligned scope is now materialized:
 - `scenario_run_id = 5634e71d8cb8470db0c6df5d26e04181`
 - explicit image `fraud-platform-dev-full@sha256:c9846969465366dd1b97cad43b675e72db98ea4b7e46b7a7790c56f9860d320a`
 
+## 2026-03-11 01:46:17 +00:00 - Fresh RTDL scope materialized on the DF-key-aligned image
 Deployment rollout passed cleanly on both namespaces, so the next narrow step is the same richer bounded proof on this fresh scope.
 
+## 2026-03-11 02:12:36 +00:00 - Fresh bounded rerun confirmed the seam fix and reopened the proof-boundary question
 That rerun is now complete:
 
 - execution `phase1_rtdl_bounded_20260311T015650Z`
@@ -696,6 +698,7 @@ That is the correct dynamic posture now:
 - carry the current RTDL image/scope forward unchanged
 - spend the next AWS run on one clean attribution question
 
+## 2026-03-11 02:28:27 +00:00 - Coupled envelope rerun on the accepted Phase 0 control
 That coupled-control rerun has now answered the rate-plan question decisively enough that I should stop treating control shape as the open ambiguity.
 
 Using the exact accepted `Phase 0` common rate plan on the same RTDL materialized scope produced:
@@ -732,6 +735,7 @@ So the next honest question is no longer "is the control shape wrong?" It is:
 
 That is a good narrow diagnostic question because it changes only the proof harness capacity, not the target envelope, not the RTDL image, and not the platform standard.
 
+## 2026-03-11 02:45:23 +00:00 - Narrow WSP inflight-push diagnostic
 That diagnostic is now complete, and it changed the picture again in a useful way.
 
 I reran the exact same coupled envelope with only one change:
@@ -766,3 +770,123 @@ The next truthful move is not another same-scope rerun. It is:
 - rematerialize RTDL on a fresh run scope with the same current image
 - rerun the coupled envelope at `ig_push_concurrency = 2`
 - use that fresh-scope run, not the reused-scope diagnostic, as the closure candidate for this part of `Phase 1`
+
+## 2026-03-11 04:24:31 +00:00 - Fresh-scope closure attempt failed on the control console
+That fresh-scope closure attempt did not fail on the platform. It failed on the control console.
+
+Fresh scope materialized before the attempt:
+
+- materialization execution `phase1_rtdl_materialize_20260311T024700Z`
+- `platform_run_id = platform_20260311T024700Z`
+- `scenario_run_id = 24487e6ef1b34f8381a82242b58cb9df`
+- explicit image unchanged:
+  - `fraud-platform-dev-full@sha256:c9846969465366dd1b97cad43b675e72db98ea4b7e46b7a7790c56f9860d320a`
+
+Fresh closure-candidate attempt:
+
+- execution `phase1_rtdl_coupled_envelope_fresh_igpush2_20260311T025100Z`
+- calibrated `Phase 0` common rate plan retained
+- `ig_push_concurrency = 2` retained
+
+What happened:
+
+- WSP lane task launch started and the runtime manifest was written under the run folder
+- dispatcher polling then died on the local machine with AWS endpoint resolution failure for ECS:
+  - `EndpointConnectionError`
+  - endpoint `https://ecs.eu-west-2.amazonaws.com/`
+  - underlying `getaddrinfo failed`
+
+Why this matters:
+
+- this is not evidence that the RTDL plane went red
+- it is not evidence that the coupled envelope went red
+- it is only evidence that the control console lost the ability to poll the ECS control surface during that attempt
+
+That changes the next move slightly but not the standard:
+
+- do not reuse `platform_20260311T024700Z` as the closure candidate after a broken control-console attempt
+- first restore and verify local AWS endpoint reachability
+- then rematerialize one more fresh scope on the same image
+- rerun the exact same coupled-envelope closure candidate with `ig_push_concurrency = 2`
+
+## 2026-03-11 04:29:49 +00:00 - Fresh RTDL scope rematerialized after control-surface recovery
+The local AWS control surfaces are reachable again, so I rematerialized one more fresh RTDL scope on the same current image rather than reusing the stale closure candidate:
+
+- execution `phase1_rtdl_materialize_20260311T042555Z`
+- `platform_run_id = platform_20260311T042555Z`
+- `scenario_run_id = 2fd964587d5d42e3b8eb418ed58a0917`
+- image unchanged:
+  - `fraud-platform-dev-full@sha256:c9846969465366dd1b97cad43b675e72db98ea4b7e46b7a7790c56f9860d320a`
+
+Rollout passed cleanly, so the next move is unchanged in substance and cleaner in evidence:
+
+- rerun the same calibrated coupled envelope
+- keep `ig_push_concurrency = 2`
+- use this scope as the authoritative closure candidate for the current `Phase 1` posture
+
+## 2026-03-11 04:39:25 +00:00 - Fresh closure candidate went red with ingress-side rejection, not with mild recovery miss
+The rerun on the fresh scope changed the problem shape again:
+
+- execution `phase1_rtdl_coupled_envelope_fresh_igpush2_retry_20260311T043037Z`
+- `platform_run_id = platform_20260311T042555Z`
+- `scenario_run_id = 2fd964587d5d42e3b8eb418ed58a0917`
+- all `50` WSP lanes exited non-zero
+- exact admitted throughput collapsed to `474.519 eps`
+- observed `4xx = 762`
+- observed `5xx = 2222`
+- lane tails show repeated `http_503`, then terminal `IG_PUSH_REJECTED`, with ingress receipts carrying decision `QUARANTINE`
+
+This is materially different from the earlier reused-scope `ig_push_concurrency = 2` diagnostic:
+
+- the earlier run was semantically clean and nearly green except for a narrow recovery miss
+- this fresh run is being actively rejected by the ingress boundary very early in the campaign
+
+So the next step is not another coupled-envelope rerun. The next step is hot-path attribution on the live ingress boundary:
+
+- inspect Lambda logs for the current run id and the 503 window
+- inspect APIGW access logs for reason class and timing
+- verify whether RTDL materially participated before the ingress rejection wave
+
+## 2026-03-11 04:46:25 +00:00 - Fresh-scope ingress ambiguity traced to run-scoped Kafka producer rebuild and patched live
+The ingress-side attribution changed the posture again and usefully.
+
+Live evidence on the failed fresh run:
+
+- Lambda timing records show `decision = QUARANTINE` and `reason.PUBLISH_AMBIGUOUS`
+- `phase.publish_seconds` stretches to roughly `9.85 s`
+- `admission_seconds` stretches to roughly `10.56 s`
+- RTDL downstream participation is effectively absent on this scope:
+  - `DF decisions_total = 0`
+  - `AL intake_total = 0`
+  - case/label metrics remain `0`
+
+So the fresh closure candidate is not failing because the coupled RTDL lane becomes semantically bad. It is failing before the coupled lane materially forms, at the ingress publish boundary.
+
+The source-level reason is specific:
+
+- the Lambda handler caches the ingress gate by `platform_run_id`
+- gate construction also creates a Kafka publisher
+- a fresh `platform_run_id` therefore rebuilds the producer on the hot path even on a warm Lambda worker
+
+That explains the observed split:
+
+- reused-scope `ig_push_concurrency = 2` run was near-green
+- fresh-scope run immediately surfaced `PUBLISH_AMBIGUOUS` and lane collapse
+
+Accepted fix:
+
+- keep the gate run-scoped
+- cache the Kafka publisher separately at process level in `src/fraud_detection/ingestion_gate/aws_lambda_handler.py`
+- deploy the updated ingress Lambda bundle live
+
+Live deploy completed:
+
+- function `fraud-platform-dev-full-ig-handler`
+- updated `2026-03-11 04:46:25 +00:00`
+- live `CodeSha256 = niFETsm49VJEvMX+bNk0pQg7XhBKkwVaTwq/OEZaq3Y=`
+
+Next move:
+
+- materialize another fresh RTDL scope
+- rerun the same coupled-envelope closure candidate
+- check whether the fresh-scope failure collapses back toward the earlier near-green posture

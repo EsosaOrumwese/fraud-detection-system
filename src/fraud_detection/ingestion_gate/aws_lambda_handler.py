@@ -74,6 +74,8 @@ _API_KEY_CACHE_LOCK = threading.Lock()
 
 _GATE_CACHE: dict[str, IngestionGate] = {}
 _GATE_CACHE_LOCK = threading.Lock()
+_SHARED_BUS = None
+_SHARED_BUS_LOCK = threading.Lock()
 _COLD_START = True
 _COLD_START_LOCK = threading.Lock()
 
@@ -648,6 +650,22 @@ def _policy_revision() -> str:
     return str(os.getenv("PLATFORM_CONFIG_REVISION") or "dev-full-v0").strip() or "dev-full-v0"
 
 
+def _shared_bus():
+    global _SHARED_BUS
+    cached = _SHARED_BUS
+    if cached is not None:
+        return cached
+    with _SHARED_BUS_LOCK:
+        cached = _SHARED_BUS
+        if cached is None:
+            # Producer connection warm-up is expensive. Keep it decoupled from
+            # platform_run_id so a fresh run scope does not rebuild Kafka state
+            # on every reused Lambda worker.
+            cached = build_kafka_publisher(client_id=f"ig-{_platform_profile_id()}-lambda")
+            _SHARED_BUS = cached
+        return cached
+
+
 def _gate_for(platform_run_id: str) -> IngestionGate:
     cached = _GATE_CACHE.get(platform_run_id)
     if cached is not None:
@@ -703,7 +721,7 @@ def _gate_for(platform_run_id: str) -> IngestionGate:
             hash_key_name=str(os.getenv("IG_HASH_KEY", "dedupe_key")).strip() or "dedupe_key",
         )
         ops_index = NoopOpsIndex()
-        bus = build_kafka_publisher(client_id=f"ig-{_platform_profile_id()}-lambda")
+        bus = _shared_bus()
         wiring = SimpleNamespace(
             profile_id=_platform_profile_id(),
             policy_rev=policy_rev.revision,
