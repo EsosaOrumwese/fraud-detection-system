@@ -2545,3 +2545,65 @@ The next move is now the honest one:
 - rematerialize a new fresh RTDL scope
 - rerun the exact same coupled-envelope closure candidate
 - see whether the fresh-scope ingress ambiguity collapses now that producer warm-up is decoupled from `platform_run_id`
+
+## 2026-03-11 05:04:03 +00:00 - Fresh-scope rerun improved materially after the ingress producer patch, but Phase 1 is still red
+I reran the same fresh-scope closure candidate after deploying the shared Kafka publisher fix, and the failure class changed in exactly the way the patch predicted.
+
+Fresh scope used for the rerun:
+
+- materialization execution `phase1_rtdl_materialize_20260311T044725Z`
+- `platform_run_id = platform_20260311T044725Z`
+- `scenario_run_id = 358a836a65d7491d8cadc55a3cc7abf7`
+- image unchanged:
+  - `fraud-platform-dev-full@sha256:c9846969465366dd1b97cad43b675e72db98ea4b7e46b7a7790c56f9860d320a`
+
+Closure-candidate rerun:
+
+- execution `phase1_rtdl_coupled_envelope_fresh_igpush2_postfix_20260311T044725Z`
+- same calibrated `Phase 0` common rate plan
+- same `ig_push_concurrency = 2`
+
+What improved immediately:
+
+- the catastrophic fresh-scope `503` wave is gone
+- `5xx = 0`
+- WSP lane failures fell from `50` to `2`
+- Lambda `Errors = 0`
+- Lambda `Throttles = 0`
+- APIGW latency stayed excellent:
+  - steady `p95 = 45.85 ms`
+  - steady `p99 = 82.50 ms`
+  - burst `p95 = 45.00 ms`
+  - recovery `p95 = 45.00 ms`
+
+What is still red:
+
+- steady admitted `= 2272.589 eps`
+- burst admitted `= 4886.000 eps`
+- recovery admitted `= 2558.617 eps`
+- steady `4xx = 129`
+- dispatch blockers `= 2`
+- sustained recovery green was not reached inside the scored `180 s` recovery window
+
+The two residual dispatch blockers are narrow and concrete:
+
+- `wsp_lane_00`
+- `wsp_lane_01`
+
+Both lanes ran materially into the campaign, then died on `IG_PUSH_REJECTED` with quarantine receipts around `2026-03-11 04:54:53Z`. That is a much tighter problem than the pre-patch failure. The ingress patch removed the broad fresh-scope producer cold-path collapse, but it did not fully stabilize the fresh-scope coupled proof.
+
+The remaining judgment is therefore:
+
+- the ingress producer warm-path defect is closed
+- the active `Phase 1` blocker is now a residual fresh-scope rejection / under-drive posture
+- I should not rerun broadly from here
+
+The next narrow question is:
+
+- do `wsp_lane_00` and `wsp_lane_01` explain most of the throughput loss, or is there still a broader under-drive across the surviving `48` lanes?
+
+That means the next work should stay focused on hot attribution:
+
+- inspect Lambda / APIGW reason truth for the two rejected lanes
+- compare lane progress against the exact-window throughput deficit
+- change only the surface that explains those two residual rejections before another closure-candidate rerun

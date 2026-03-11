@@ -589,304 +589,95 @@ The next mismatch is narrower and more subtle. DF warning logs on the same run s
 - `missing_groups = []`
 - `posture_flags = ['MISSING_FEATURE_STATE']`
 
-That no longer matches the active OFP health surface, which reports zero missing features for the run. The code explains why:
+Accepted interpretation for this boundary:
 
-- OFP projector stores feature state using the first key in its `key_precedence` (`flow_id`, then `event_id`)
-- DF currently requests both `event_id` and `flow_id` whenever a flow id exists
-- OFP therefore serves usable flow-keyed features while still warning that the redundant `event_id:*` lookup was absent
+- OFP projector key precedence is `flow_id`, then `event_id`
+- DF had been requesting both keys when `flow_id` already existed
+- the remaining OFP warning noise was therefore a request-shape mismatch, not a missing graph-version or missing-feature-group defect
 
-That means the remaining OFP log noise is not the same class of blocker as before. It is a DF/OFP request-shape mismatch, not a missing graph version and not a missing feature-group definition.
-
-I also checked the ingress timing surface during the same run because the coupled exact window stayed around `2.4k eps`. The Lambda timing logs show:
+Ingress timing on the same run stayed healthy:
 
 - `phase.publish_seconds p95 ~= 0.009 - 0.010 s`
 - `admission_seconds p95 ~= 0.032 - 0.035 s`
 
-So the coupled-window shortfall is not explained by a slow Kafka publish path inside ingress. The next narrow code fix should therefore align DF feature-key requests with OFP key precedence before I spend another runtime rerun.
+So the coupled-window shortfall at that point was not attributable to slow ingress publish behavior.
 
-I accepted that fix locally first because it changes the DF/OFP seam without changing the run shape or the RTDL policy surface.
-
-Accepted local change:
+Accepted remediation for that seam:
 
 - `src/fraud_detection/decision_fabric/worker.py`
-- when a `flow_id` exists, DF now requests OFP features on `flow_id` as the primary traffic key instead of requesting both `flow_id` and the redundant `event_id`
-- `event_id` remains the fallback only when `flow_id` is absent
+- request OFP features on `flow_id` when present
+- keep `event_id` only as the fallback when `flow_id` is absent
 
-That aligns DF request shape with the OFP projector's own key precedence:
-
-- OFP projects traffic on `flow_id` first, then `event_id`
-- the old DF request shape was therefore asking for a second key that the projector was not required to materialize
-
-Targeted local validation passed:
+Targeted validation for that remediation:
 
 - `python -m py_compile src/fraud_detection/decision_fabric/worker.py`
 - `.venv\Scripts\python.exe -m pytest tests/services/decision_fabric/test_worker_helpers.py -q`
 - `7 passed`
 
-The next live step is to build/push this DF request-key alignment, rematerialize RTDL on a fresh scope, and rerun the same richer bounded proof again.
-
-That build/push step is now complete:
+Materialized deployment reference for the accepted seam fix:
 
 - image tag `phase1-df-feature-keys-20260311T015210Z`
 - pushed digest `fraud-platform-dev-full@sha256:c9846969465366dd1b97cad43b675e72db98ea4b7e46b7a7790c56f9860d320a`
 
-So the next runtime spend can stay narrow:
+## Current Phase 1 planning posture
+The live notebook trail for active diagnosis and remediation is kept in `platform.production_readiness.impl_actual.md`. This phase plan holds only the current planning state, active proof boundary, and the impact metrics that decide closure.
 
-- rematerialize RTDL on a fresh scope with `sha256:c984696...`
-- rerun the same richer bounded proof shape
-- verify whether the residual `event_id:*` OFP warning noise disappears without reopening the now-closed graph-version blocker
+### Closed blockers now accepted
+- stale RTDL run-scope repin defect
+- false `IEG` hard-red graph-version contract defect
+- DF/OFP redundant feature-key mismatch
+- coupled-proof control-shape drift caused by using a non-Phase-0 rate plan
+- coupled-proof under-drive caused by `ig_push_concurrency = 1`
+- fresh-scope ingress producer cold-path collapse caused by run-scoped Kafka publisher rebuild
 
-The fresh DF-key-aligned scope is now materialized:
+### Current Phase 1.B status
+`Phase 1.B` remains open.
 
-- materialization execution `phase1_rtdl_materialize_20260311T015540Z`
-- `platform_run_id = platform_20260311T015540Z`
-- `scenario_run_id = 5634e71d8cb8470db0c6df5d26e04181`
-- explicit image `fraud-platform-dev-full@sha256:c9846969465366dd1b97cad43b675e72db98ea4b7e46b7a7790c56f9860d320a`
+The current closure candidate after the ingress producer patch is:
 
-## 2026-03-11 01:46:17 +00:00 - Fresh RTDL scope materialized on the DF-key-aligned image
-Deployment rollout passed cleanly on both namespaces, so the next narrow step is the same richer bounded proof on this fresh scope.
-
-## 2026-03-11 02:12:36 +00:00 - Fresh bounded rerun confirmed the seam fix and reopened the proof-boundary question
-That rerun is now complete:
-
-- execution `phase1_rtdl_bounded_20260311T015650Z`
-- exact APIGW access-log window admitted `287840` requests over `120 s` = `2398.667 eps`
-- `4xx = 0`
-- `5xx = 0`
-
-What matters is what did not regress:
-
-- fresh DF logs no longer show `GRAPH_VERSION_UNAVAILABLE`
-- fresh DF logs no longer show the earlier sampled `OFP missing feature state`
-- `IEG` run-scoped health still carries structured `graph_version`
-- `OFP` remains out of red semantic posture
-- `DL`, case management, and label store remain green on the same run scope
-
-So the RTDL semantic seam work I just did is now materially closed enough for this bounded proof shape:
-
-- graph-version blindness is gone
-- redundant `event_id:*` OFP warning noise is gone
-- the plane is participating and writing current-run truth
-
-The blocker changed again, and this time I do not want to misdiagnose it as an RTDL semantic defect.
-
-The run artifact comparison against the accepted `Phase 0` envelope shows something much simpler:
-
-- current `Phase 1.B` bounded runs use `rate_plan = []`
-- current `Phase 1.B` bounded runs use `measurement_alignment_mode = align_up_from_active_confirmed_plus_warmup`
-- the accepted green `Phase 0.C` control used an explicit scheduled common rate plan with replay-delay bypass:
-  - `campaign_start_utc` pinned explicitly
-  - presteady `30 eps/lane`
-  - steady `60 eps/lane`
-  - burst `120 eps/lane` for `2 s`
-  - recovery back to `60 eps/lane`
-
-That difference matters because the current richer RTDL proof is not actually holding the ingress control boundary constant while the plane under test changes. It is asking WSP to pace mixed traffic and context replay on the plain per-lane limiter with no scheduled common rate plan, and the resulting APIGW surface is stably under-driven around `2.4k eps` even though:
-
-- ingress remains semantically clean
-- Lambda publish timing remains healthy
-- the cleaned RTDL seams remain green
-
-So the most truthful next move is not another local RTDL code change. It is to repin the `Phase 1.B` bounded proof onto the same calibrated production-shaped control that closed `Phase 0`, then ask the real question:
-
-- with the exact `Phase 0` scheduled rate-plan posture reused on the current RTDL materialized scope, does the coupled network still hold the `3000 steady / 6000 burst / recovery` ingress control while RTDL participates semantically?
-
-That is the correct dynamic posture now:
-
-- stop treating every admission shortfall as a new RTDL defect
-- keep the already-proven ingress control shape fixed
-- carry the current RTDL image/scope forward unchanged
-- spend the next AWS run on one clean attribution question
-
-## 2026-03-11 02:28:27 +00:00 - Coupled envelope rerun on the accepted Phase 0 control
-That coupled-control rerun has now answered the rate-plan question decisively enough that I should stop treating control shape as the open ambiguity.
-
-Using the exact accepted `Phase 0` common rate plan on the same RTDL materialized scope produced:
-
-- execution `phase1_rtdl_coupled_envelope_20260311T021400Z`
-- steady `2626.889 eps`
-- burst `3137.500 eps`
-- recovery `2667.428 eps`
-- `4xx = 0`
-- `5xx = 0`
-- recovery back to sustained green within the declared bound, but only after the early recovery bins stayed red on throughput
-
-So the control-shape repin did real work methodologically, but it did not make the coupled shortfall disappear. The shortfall is real on the calibrated production-shaped control as well.
-
-The hot RTDL snapshot on the same run matters just as much:
-
-- `IEG` clean except replay advisory
-- `OFP` remains semantically healthy
-- `DF` / `DL` / case / label surfaces remain green
-- no new semantic blocker reopened on the cleaned RTDL seams
-
-That means the next boundary is narrower again. The coupled run is red on throughput, but not because the plane is semantically broken.
-
-The stronger operator clue is the load-generator/runtime interaction:
-
-- the WSP runner still limits each output stream to `WSP_IG_PUSH_CONCURRENCY` inflight pushes per lane
-- the coupled envelope run still used `ig_push_concurrency = 1`
-- APIGW latency rose materially on the coupled proof (`p95 ~= 120-158 ms`, `p99 ~= 150-191 ms`)
-- Lambda internal publish timing remained healthy and much smaller (`phase.publish_seconds p95 ~= 8-10 ms`, `admission_seconds p95 ~= 37-49 ms`)
-
-So the next honest question is no longer "is the control shape wrong?" It is:
-
-- does the current WSP inflight push limit under-drive the already-correct rate plan once coupled latency rises, even though the platform itself remains semantically healthy?
-
-That is a good narrow diagnostic question because it changes only the proof harness capacity, not the target envelope, not the RTDL image, and not the platform standard.
-
-## 2026-03-11 02:45:23 +00:00 - Narrow WSP inflight-push diagnostic
-That diagnostic is now complete, and it changed the picture again in a useful way.
-
-I reran the exact same coupled envelope with only one change:
-
-- execution `phase1_rtdl_coupled_envelope_igpush2_20260311T023200Z`
-- same RTDL image
-- same current materialized scope
-- same calibrated `Phase 0` common rate plan
-- only `ig_push_concurrency` changed from `1` to `2`
-
-Result:
-
-- steady `3065.144 eps` green
-- burst `7189.000 eps` green
-- recovery `2921.500 eps` still slightly red on the full `180 s` window
-- recovery nevertheless returned to sustained green inside the accepted bound:
-  - sustained green by `150 s`
-  - bound `180 s`
-
-That is too large a movement to dismiss as noise. The earlier broad red posture was not purely a platform-runtime truth. The WSP inflight push cap was materially under-driving the calibrated control once the coupled path raised request service time.
-
-This is exactly why the dynamic posture matters. If I had kept blaming RTDL after the `ig_push_concurrency = 1` run, I would have spent more time editing the wrong surface.
-
-The updated interpretation is:
-
-- the `ig_push_concurrency = 1` coupled envelope was mainly a harness-capacity artifact under the higher-latency coupled regime
-- `ig_push_concurrency = 2` is much closer to a truthful control surface for the same target envelope
-- a small recovery shortfall remains, but it is now narrow enough that I should not treat the plane as broadly red
-
-The next truthful move is not another same-scope rerun. It is:
-
-- rematerialize RTDL on a fresh run scope with the same current image
-- rerun the coupled envelope at `ig_push_concurrency = 2`
-- use that fresh-scope run, not the reused-scope diagnostic, as the closure candidate for this part of `Phase 1`
-
-## 2026-03-11 04:24:31 +00:00 - Fresh-scope closure attempt failed on the control console
-That fresh-scope closure attempt did not fail on the platform. It failed on the control console.
-
-Fresh scope materialized before the attempt:
-
-- materialization execution `phase1_rtdl_materialize_20260311T024700Z`
-- `platform_run_id = platform_20260311T024700Z`
-- `scenario_run_id = 24487e6ef1b34f8381a82242b58cb9df`
-- explicit image unchanged:
-  - `fraud-platform-dev-full@sha256:c9846969465366dd1b97cad43b675e72db98ea4b7e46b7a7790c56f9860d320a`
-
-Fresh closure-candidate attempt:
-
-- execution `phase1_rtdl_coupled_envelope_fresh_igpush2_20260311T025100Z`
+- materialization execution `phase1_rtdl_materialize_20260311T044725Z`
+- closure execution `phase1_rtdl_coupled_envelope_fresh_igpush2_postfix_20260311T044725Z`
+- `platform_run_id = platform_20260311T044725Z`
+- `scenario_run_id = 358a836a65d7491d8cadc55a3cc7abf7`
+- image `fraud-platform-dev-full@sha256:c9846969465366dd1b97cad43b675e72db98ea4b7e46b7a7790c56f9860d320a`
 - calibrated `Phase 0` common rate plan retained
-- `ig_push_concurrency = 2` retained
+- `ig_push_concurrency = 2`
 
-What happened:
+### Current impact metrics
+- steady admitted `= 2272.589 eps`
+- burst admitted `= 4886.000 eps`
+- recovery admitted `= 2558.617 eps`
+- steady `4xx = 129`
+- `5xx = 0`
+- steady `p95 = 45.85 ms`
+- steady `p99 = 82.50 ms`
+- dispatch blockers `= 2`
+- sustained recovery green within the scored `180 s` window: `not achieved`
 
-- WSP lane task launch started and the runtime manifest was written under the run folder
-- dispatcher polling then died on the local machine with AWS endpoint resolution failure for ECS:
-  - `EndpointConnectionError`
-  - endpoint `https://ecs.eu-west-2.amazonaws.com/`
-  - underlying `getaddrinfo failed`
+### Current blocker shape
+The catastrophic fresh-scope ingress ambiguity is no longer the active blocker. After the shared Kafka publisher patch:
 
-Why this matters:
+- the earlier `503` wave disappeared
+- all-lane collapse disappeared
+- only `2` WSP lanes still fail
 
-- this is not evidence that the RTDL plane went red
-- it is not evidence that the coupled envelope went red
-- it is only evidence that the control console lost the ability to poll the ECS control surface during that attempt
+The active blocker is now a narrower fresh-scope residual rejection / under-drive posture:
 
-That changes the next move slightly but not the standard:
+- `wsp_lane_00` failed on `IG_PUSH_REJECTED`
+- `wsp_lane_01` failed on `IG_PUSH_REJECTED`
+- both failures occur materially inside the campaign rather than at lane start
+- APIGW remains semantically clean on `5xx`
+- the remaining question is whether those two lane losses account for most of the throughput deficit, or whether a broader surviving-lane under-drive still exists
 
-- do not reuse `platform_20260311T024700Z` as the closure candidate after a broken control-console attempt
-- first restore and verify local AWS endpoint reachability
-- then rematerialize one more fresh scope on the same image
-- rerun the exact same coupled-envelope closure candidate with `ig_push_concurrency = 2`
+### Immediate next proof question
+Before another closure rerun, `Phase 1.B` must answer one narrow attribution question:
 
-## 2026-03-11 04:29:49 +00:00 - Fresh RTDL scope rematerialized after control-surface recovery
-The local AWS control surfaces are reachable again, so I rematerialized one more fresh RTDL scope on the same current image rather than reusing the stale closure candidate:
+- are the two residual `IG_PUSH_REJECTED` lanes the primary cause of the remaining steady / burst / recovery shortfall?
 
-- execution `phase1_rtdl_materialize_20260311T042555Z`
-- `platform_run_id = platform_20260311T042555Z`
-- `scenario_run_id = 2fd964587d5d42e3b8eb418ed58a0917`
-- image unchanged:
-  - `fraud-platform-dev-full@sha256:c9846969465366dd1b97cad43b675e72db98ea4b7e46b7a7790c56f9860d320a`
+That means the next work stays bounded to:
 
-Rollout passed cleanly, so the next move is unchanged in substance and cleaner in evidence:
+- lane-level rejection attribution on Lambda / APIGW telemetry
+- lane-progress comparison against the exact-window throughput deficit
+- one narrow fix on the surface that explains the residual fresh-scope rejection
 
-- rerun the same calibrated coupled envelope
-- keep `ig_push_concurrency = 2`
-- use this scope as the authoritative closure candidate for the current `Phase 1` posture
-
-## 2026-03-11 04:39:25 +00:00 - Fresh closure candidate went red with ingress-side rejection, not with mild recovery miss
-The rerun on the fresh scope changed the problem shape again:
-
-- execution `phase1_rtdl_coupled_envelope_fresh_igpush2_retry_20260311T043037Z`
-- `platform_run_id = platform_20260311T042555Z`
-- `scenario_run_id = 2fd964587d5d42e3b8eb418ed58a0917`
-- all `50` WSP lanes exited non-zero
-- exact admitted throughput collapsed to `474.519 eps`
-- observed `4xx = 762`
-- observed `5xx = 2222`
-- lane tails show repeated `http_503`, then terminal `IG_PUSH_REJECTED`, with ingress receipts carrying decision `QUARANTINE`
-
-This is materially different from the earlier reused-scope `ig_push_concurrency = 2` diagnostic:
-
-- the earlier run was semantically clean and nearly green except for a narrow recovery miss
-- this fresh run is being actively rejected by the ingress boundary very early in the campaign
-
-So the next step is not another coupled-envelope rerun. The next step is hot-path attribution on the live ingress boundary:
-
-- inspect Lambda logs for the current run id and the 503 window
-- inspect APIGW access logs for reason class and timing
-- verify whether RTDL materially participated before the ingress rejection wave
-
-## 2026-03-11 04:46:25 +00:00 - Fresh-scope ingress ambiguity traced to run-scoped Kafka producer rebuild and patched live
-The ingress-side attribution changed the posture again and usefully.
-
-Live evidence on the failed fresh run:
-
-- Lambda timing records show `decision = QUARANTINE` and `reason.PUBLISH_AMBIGUOUS`
-- `phase.publish_seconds` stretches to roughly `9.85 s`
-- `admission_seconds` stretches to roughly `10.56 s`
-- RTDL downstream participation is effectively absent on this scope:
-  - `DF decisions_total = 0`
-  - `AL intake_total = 0`
-  - case/label metrics remain `0`
-
-So the fresh closure candidate is not failing because the coupled RTDL lane becomes semantically bad. It is failing before the coupled lane materially forms, at the ingress publish boundary.
-
-The source-level reason is specific:
-
-- the Lambda handler caches the ingress gate by `platform_run_id`
-- gate construction also creates a Kafka publisher
-- a fresh `platform_run_id` therefore rebuilds the producer on the hot path even on a warm Lambda worker
-
-That explains the observed split:
-
-- reused-scope `ig_push_concurrency = 2` run was near-green
-- fresh-scope run immediately surfaced `PUBLISH_AMBIGUOUS` and lane collapse
-
-Accepted fix:
-
-- keep the gate run-scoped
-- cache the Kafka publisher separately at process level in `src/fraud_detection/ingestion_gate/aws_lambda_handler.py`
-- deploy the updated ingress Lambda bundle live
-
-Live deploy completed:
-
-- function `fraud-platform-dev-full-ig-handler`
-- updated `2026-03-11 04:46:25 +00:00`
-- live `CodeSha256 = niFETsm49VJEvMX+bNk0pQg7XhBKkwVaTwq/OEZaq3Y=`
-
-Next move:
-
-- materialize another fresh RTDL scope
-- rerun the same coupled-envelope closure candidate
-- check whether the fresh-scope failure collapses back toward the earlier near-green posture
+`Phase 1.B` does not close until the fresh-scope coupled envelope is repeatably green on the calibrated `Phase 0` control with RTDL materially participating and without residual ambiguous lane rejection.

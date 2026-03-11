@@ -6,84 +6,91 @@ config:
 flowchart LR
 
   subgraph LEGEND["How to Read This Graph"]
-    L1["Left to right = RTDL scope -> live blocker -> accepted posture / remediation -> measured impact -> current verdict"]
-    L2["Red = blocker or misleading readiness surface"]
-    L3["Amber = accepted next posture"]
-    L4["Blue = live measured evidence"]
-    L5["Gray = still-open readiness constraint"]
+    L1["Left to right = active RTDL scope -> blocker class -> accepted remediation -> measured impact -> readiness verdict"]
+    L2["Red = current blocker"]
+    L3["Amber = accepted remediation / next proof step"]
+    L4["Blue = measured evidence"]
+    L5["Green = closed blocker or trusted base"]
+    L6["Gray = current readiness hold"]
   end
 
-  subgraph RTDL["RTDL Scope Under Hardening in Phase 1"]
-    C0["Control + Ingress base<br>already proven green"]
-    C1["RTDL runtime boundary<br>EKS namespace fraud-platform-rtdl"]
-    C2["Projectors<br>CSFB / IEG / OFP"]
-    C3["Decision lane<br>DL / DF / AL / DLA / archive"]
+  subgraph RTDL["Phase 1 RTDL Scope Under Hardening"]
+    C0["Control + Ingress base<br>Phase 0 green"]
+    C1["RTDL semantic seam<br>IEG / OFP / DF request contract"]
+    C2["Coupled proof control<br>Phase 0 common rate plan + WSP replay"]
+    C3["Fresh-scope ingress boundary<br>API Gateway -> Lambda -> Kafka publish"]
+    C4["Fresh-scope closure candidate<br>RTDL + coupled envelope"]
   end
 
-  subgraph BLOCKERS["Live Blockers Now Pinned"]
-    B1["Closed blocker<br>RTDL had been pinned to stale run scope platform_20260309T164209Z"]
-    B2["Closed blocker<br>projector health now reports replay advisory instead of false hard red during active bounded replay"]
-    B3["Closed blocker<br>cheap RTDL probe no longer the only evidence; richer bounded proof now exists"]
-    B4["Closed blocker<br>materializer image rollback removed; active RTDL deployments now stay on the fixed digest"]
-    B5["Open blocker<br>OFP is red on the repinned richer run because missing feature pressure is materially high"]
-    B6["Open blocker<br>missing-feature counters are still not specific enough; exact missing keys/groups must be exposed before the next rerun"]
+  subgraph BLOCKERS["Current Readiness Story"]
+    B1["Closed blocker<br>stale run-scope / materializer drift removed"]
+    B2["Closed blocker<br>false graph-version hard red removed"]
+    B3["Closed blocker<br>DF/OFP redundant feature-key mismatch removed"]
+    B4["Closed blocker<br>ig_push_concurrency = 1 under-drove the coupled proof"]
+    B5["Closed blocker<br>fresh-scope producer cold-path caused PUBLISH_AMBIGUOUS / 503 collapse"]
+    B6["Open blocker<br>fresh-scope residual IG_PUSH_REJECTED on wsp_lane_00 and wsp_lane_01"]
+    B7["Open blocker<br>steady / burst / recovery still under target after the cold-path fix"]
   end
 
-  subgraph POSTURE["Accepted Current Posture"]
-    P1["Repin through pr3_rtdl_materialize.py<br>fresh secret + rollout + broker truth"]
-    P2["Use cheap bounded participation probe before richer semantic proof"]
-    P3["Deploy narrow IEG health fix and sample RTDL during the active window<br>then move to a richer production-shaped proof"]
-    P4["Patch materializer image selection<br>prefer explicit image -> current live RTDL image -> ECS WSP image fallback"]
-    P5["Deploy OFP missing-key telemetry<br>then rerun the same richer proof shape once more"]
+  subgraph POSTURE["Accepted Posture"]
+    P1["Keep semantic seam fixes and current RTDL image pinned"]
+    P2["Keep calibrated Phase 0 common rate plan as the control surface"]
+    P3["Keep ig_push_concurrency = 2<br>accepted truthful coupled-proof control"]
+    P4["Keep shared Kafka publisher patch live on ingress Lambda"]
+    P5["Next narrow step<br>attribute the two residual lane rejections on Lambda / APIGW telemetry"]
+    P6["Then rerun the same fresh-scope closure candidate only after the narrow fix"]
   end
 
-  subgraph EVIDENCE["Measured Evidence"]
-    E1["Fresh run scope adopted<br>platform_20260310T225349Z in secret and deployment labels"]
-    E2["Participation and continuity now visible twice<br>phase1_rtdl_probe_20260310T231740Z<br>4xx = 0 / 5xx = 0 / DF decisions_total = 5422 / publish_admit_total = 5422"]
-    E3["Projector truth repaired live<br>IEG health = AMBER with WATERMARK_REPLAY_ADVISORY<br>mutating_applied = 18253 / checkpoint_age_seconds = 0.091156"]
-    E4["Coupled RTDL path visible on the same run<br>DL back to NORMAL with all required signals OK<br>DLA append_success_total = 8182 / archive writer GREEN with archived_total = 17417"]
-    E5["Fresh richer run materially drove RTDL<br>platform_20260310T232635Z<br>DF decisions_total = 3106 / DLA append_success_total = 10543 / archive writer GREEN"]
-    E6["Repinned rerun removed image drift<br>all active RTDL deployment templates now point at sha256:7ccddd2...<br>IEG stayed AMBER on truthful replay advisory"]
-    E7["New blocker on the repinned run<br>OFP health = RED with MISSING_FEATURES_RED<br>events_applied = 5208 / missing_features = 152 / missing_feature_rate = 0.02918"]
-    E8["Coupled RTDL lane still alive on the same repinned run<br>DL = GREEN / DLA append_success_total = 2494 / archive writer GREEN"]
+  subgraph EVIDENCE["Measured Impact"]
+    E1["Semantic seam closure held on fresh scope<br>GRAPH_VERSION_UNAVAILABLE gone<br>event_id:* OFP warning noise gone"]
+    E2["Coupled proof on Phase 0 control with ig_push = 1 stayed red<br>2626.889 steady / 3137.500 burst / 2667.428 recovery"]
+    E3["Changing only ig_push_concurrency to 2 on reused scope nearly closed the proof<br>3065.144 steady / 7189.000 burst / 2921.500 recovery"]
+    E4["Fresh-scope pre-patch collapse<br>474.519 eps / 4xx = 762 / 5xx = 2222 / all 50 lanes failed"]
+    E5["Cold-path fix deployed live on fraud-platform-dev-full-ig-handler<br>shared Kafka publisher decoupled from platform_run_id"]
+    E6["Fresh-scope post-patch rerun improved materially<br>5xx = 0 / lane failures 50 -> 2 / latency stayed excellent"]
+    E7["Fresh-scope post-patch still red<br>2272.589 steady / 4886.000 burst / 2558.617 recovery / 4xx = 129"]
+    E8["Residual failures are concrete, not broad ambiguity<br>wsp_lane_00 + wsp_lane_01 -> IG_PUSH_REJECTED with quarantine receipts"]
   end
 
   subgraph VERDICT["Current Verdict"]
-    V1["Phase 1 execution-readiness repin is green"]
-    V2["RTDL participation and audit/archive continuity are real for the current run"]
-    V3["Phase 1 still not closeable yet<br>image-drift is closed, but OFP missing-feature red is now the active semantic blocker and the next rerun must expose exact missing keys/groups"]
+    V1["Phase 1 semantic seam is green enough to stop editing RTDL semantics blindly"]
+    V2["Fresh-scope ingress cold-path regression is closed"]
+    V3["Phase 1.B still HOLD_REMEDIATE<br>residual fresh-scope rejection / under-drive remains unresolved"]
   end
 
-  C1 --> B1
-  C2 --> B2
-  C3 --> B3
-  C3 --> B4
+  C0 --> B1
+  C1 --> B2
+  C1 --> B3
+  C2 --> B4
   C3 --> B5
-  C2 --> B6
+  C4 --> B6
+  C4 --> B7
 
   B1 --> P1
-  B2 --> P3
-  B3 --> P2
-  B3 --> P3
-  B4 --> P4
-  B5 --> P5
+  B2 --> P1
+  B3 --> P1
+  B4 --> P2
+  B4 --> P3
+  B5 --> P4
   B6 --> P5
+  B7 --> P5
+  P5 --> P6
 
   P1 --> E1
   P2 --> E2
   P3 --> E3
-  P3 --> E4
-  P2 --> E5
+  P4 --> E5
   P4 --> E6
-  P5 --> E7
-  P5 --> E8
+  P6 --> E7
+  P6 --> E8
+  P3 --> E4
 
   E1 --> V1
-  E2 --> V2
+  E5 --> V2
+  E6 --> V2
+  E2 --> V3
   E3 --> V3
   E4 --> V3
-  E5 --> V3
-  E6 --> V3
   E7 --> V3
   E8 --> V3
   V1 --> V2
@@ -95,10 +102,10 @@ flowchart LR
   classDef metric fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.3px;
   classDef caveat fill:#f5f5f5,stroke:#616161,color:#111,stroke-dasharray: 5 3;
 
-  class C0,C1,C2,C3 comp;
-  class B1,B2,B3,B4 defect;
-  class B5,B6 defect;
-  class P1,P2,P3,P4,P5 fix;
+  class C0,C1,C2,C3,C4 comp;
+  class B1,B2,B3,B4,B5 comp;
+  class B6,B7 defect;
+  class P1,P2,P3,P4,P5,P6 fix;
   class E1,E2,E3,E4,E5,E6,E7,E8 metric;
   class V1,V2 comp;
   class V3 caveat;
