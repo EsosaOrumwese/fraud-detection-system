@@ -8,51 +8,66 @@ flowchart LR
 
   subgraph LEGEND["How to Read This Graph"]
     L1["Only resources backing the currently promoted working-platform core are shown"]
-    L2["This is the active external Control + Ingress path accepted today"]
-    L3["Retained internal ALB / ECS ingress resources are intentionally absent from this ready-resource view"]
-    L4["Phase 0 revalidation closed green on 2026-03-10 for this promoted core"]
+    L2["The current promoted core now includes RTDL on the live EKS runtime"]
+    L3["Case + Label remains absent as a promoted plane until its own phase closes"]
+    L4["Phase 0 closed green on 2026-03-10 and Phase 1 closed green on 2026-03-11 for this promoted core"]
   end
 
   subgraph NOTE["Scope"]
-    N1["Concrete resource view for the promoted Control + Ingress core<br>Active external front door: API Gateway -> Lambda<br>Declared envelope: 3000 steady eps / 6000 burst eps"]
+    N1["Concrete resource view for the promoted Control + Ingress + RTDL core<br>Envelope: 3000 steady eps / 6000 burst eps<br>Current accepted RTDL closure control: 54 lanes / ig_push = 1 / speedup 52.9"]
   end
 
   subgraph CONTROL["Control Resources"]
     GHA["GitHub Actions<br>bounded-run dispatch / workflow control"]
     SFN["Step Functions<br>fraud-platform-dev-full-platform-run-v0"]
-    CTRLTOPIC["Kafka topic<br>fp.bus.control.v1"]
     RUNID["Run identity pins<br>platform_run_id / scenario_run_id<br>phase_id / trace_id / config_digest"]
     RUNCTL["Run control / receipts<br>bounded-run proof story"]
   end
 
   subgraph EDGE["Ingress Edge Resources"]
     HTTPAPI["HTTP API Gateway<br>fraud-platform-dev-full-ig-edge<br>API ID pd7rtjze95<br>stage v1<br>throttle 3000 rps / 6000 burst"]
-    APIRPOST["Route<br>POST /ingest/push"]
-    APIRHEALTH["Route<br>GET /ops/health"]
     APISTAGE["Stage posture<br>DetailedMetricsEnabled = true<br>access-log group /aws/apigateway/fraud-platform-dev-full-ig-edge-v1-access"]
     IGLAMBDA["Lambda<br>fraud-platform-dev-full-ig-handler<br>runtime python3.12<br>memory 2048 MB<br>reserved concurrency 600<br>timeout 30 s"]
-    IGLAMBDAENV["Lambda ingress contract<br>IG_HEALTH_BUS_PROBE_MODE = none<br>kafka timeout 5000 ms<br>publish retries 5"]
+    IGLAMBDAENV["Lambda ingress contract<br>kafka timeout 5000 ms<br>publish retries 5"]
     CWLAMBDA["CloudWatch log group<br>/aws/lambda/fraud-platform-dev-full-ig-handler"]
+    DDB["DynamoDB table<br>fraud-platform-dev-full-ig-idempotency<br>TTL field ttl_epoch"]
+    DLQ["SQS queue<br>fraud-platform-dev-full-ig-dlq"]
   end
 
   subgraph WSP["Replay Producer Resources"]
     WSPCLUSTER["ECS cluster<br>fraud-platform-dev-full-wsp-ephemeral"]
-    WSPTASK["WSP task family<br>remote bounded replay producer<br>Phase 0 proof revision :61"]
+    WSPTASK["WSP task family<br>remote bounded replay producer<br>Phase 1 proof family"]
     CWWSP["CloudWatch log group<br>/ecs/fraud-platform-dev-full-wsp-ephemeral"]
   end
 
-  subgraph TRANSPORT["Event Transport Resources"]
+  subgraph TRANSPORT["Transport Resources"]
     MSK["MSK Serverless cluster<br>fraud-platform-dev-full-msk"]
     GLUEREG["Glue Schema Registry<br>fraud-platform-dev-full<br>compatibility BACKWARD"]
     TCTRL["Topic<br>fp.bus.control.v1"]
     TTRAFFIC["Topic<br>fp.bus.traffic.fraud.v1"]
+    TCTXA["Topic<br>fp.bus.context.arrival_events.v1"]
+    TCTXE["Topic<br>fp.bus.context.arrival_entities.v1"]
+    TFLOW["Topic<br>fp.bus.context.flow_anchor.fraud.v1"]
+  end
+
+  subgraph RTDL["RTDL Runtime Resources"]
+    EKS["EKS cluster<br>fraud-platform-dev-full"]
+    NSRTDL["Namespace<br>fraud-platform-rtdl"]
+    CSFB["Deployment<br>fp-pr3-csfb"]
+    IEG["Deployment<br>fp-pr3-ieg"]
+    OFP["Deployment<br>fp-pr3-ofp"]
+    DF["Deployment<br>fp-pr3-df"]
+    DL["Deployment<br>fp-pr3-dl"]
+    AL["Deployment<br>fp-pr3-al"]
+    DLA["Deployment<br>fp-pr3-dla"]
+    ARCH["Deployment<br>fp-pr3-archive-writer"]
+    RTDLIMG["Pinned image family<br>230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-full@sha256:c984..."]
   end
 
   subgraph STATE["State / Evidence Resources"]
-    DDB["DynamoDB table<br>fraud-platform-dev-full-ig-idempotency<br>hash key dedupe_key<br>TTL field ttl_epoch"]
-    DLQ["SQS queue<br>fraud-platform-dev-full-ig-dlq"]
     OBJ["S3 object / oracle store<br>fraud-platform-dev-full-object-store"]
     EVID["S3 evidence bucket<br>fraud-platform-dev-full-evidence"]
+    SSM["SSM Parameter Store<br>/fraud-platform/dev_full/ig/api_key<br>/fraud-platform/dev_full/msk/bootstrap_brokers"]
   end
 
   subgraph IDENTITY["Identity / Access Resources"]
@@ -64,7 +79,6 @@ flowchart LR
     ROLEDDB["IAM role<br>fraud-platform-dev-full-ddb-ig-idempotency-rw"]
     ROLEWSPEXEC["IAM role<br>fraud-platform-dev-full-ecs-task-exec-wsp"]
     ROLEWSPRUN["IAM role<br>fraud-platform-dev-full-ecs-task-runtime-wsp"]
-    SSM["SSM Parameter Store<br>/fraud-platform/dev_full/ig/api_key<br>/fraud-platform/dev_full/msk/bootstrap_brokers"]
   end
 
   subgraph OBS["Observability Resources"]
@@ -78,6 +92,7 @@ flowchart LR
   N1 --> EDGE
   N1 --> WSP
   N1 --> TRANSPORT
+  N1 --> RTDL
   N1 --> STATE
   N1 --> IDENTITY
   N1 --> OBS
@@ -86,13 +101,8 @@ flowchart LR
   GHA -->|dispatches| SFN
   GHA -->|assumes control identity| ROLETF
   SFN -->|executes with| ROLESFN
-  SFN -->|publishes control signals to| CTRLTOPIC
-  CTRLTOPIC -->|is transported by| MSK
-  CTRLTOPIC --> TCTRL
+  SFN -->|pins| RUNID
   SFN -->|writes run-control receipts to| RUNCTL
-  RUNID -->|pins| SFN
-  RUNID -->|pins| WSPTASK
-  RUNID -->|pins| IGLAMBDA
   RUNCTL -->|stores receipts in| EVID
 
   WSPCLUSTER -->|runs| WSPTASK
@@ -100,27 +110,63 @@ flowchart LR
   WSPTASK -->|uses runtime role| ROLEWSPRUN
   WSPTASK -->|uses execution role| ROLEWSPEXEC
   WSPTASK -->|pushes ingress load to| HTTPAPI
+  WSPTASK -->|reads active handles from| SSM
 
-  HTTPAPI -->|contains| APIRPOST
-  HTTPAPI -->|contains| APIRHEALTH
   HTTPAPI -->|uses stage posture| APISTAGE
   HTTPAPI -->|invokes through| ROLEAPIGW
-  APIRPOST -->|invokes| IGLAMBDA
-  APIRHEALTH -->|invokes| IGLAMBDA
+  HTTPAPI -->|invokes| IGLAMBDA
   IGLAMBDA -->|executes with| ROLELAMBDA
   IGLAMBDA -->|uses ingress contract| IGLAMBDAENV
   IGLAMBDA -->|deduplicates in| DDB
   IGLAMBDA -->|sends failures to| DLQ
-  IGLAMBDA -->|publishes admitted traffic to| TTRAFFIC
   IGLAMBDA -->|reads handles from| SSM
-  IGLAMBDA -->|writes logs to| CWLAMBDA
-
+  IGLAMBDA -->|publishes admitted traffic to| TTRAFFIC
   DDB -->|managed by access role| ROLEDDB
-  TTRAFFIC -->|is transported by| MSK
-  TTRAFFIC -->|schema-governed by| GLUEREG
+
+  TCTRL -->|transported by| MSK
+  TTRAFFIC -->|transported by| MSK
+  TCTXA -->|transported by| MSK
+  TCTXE -->|transported by| MSK
+  TFLOW -->|transported by| MSK
+  GLUEREG -. schema-governs .-> TTRAFFIC
+  GLUEREG -. schema-governs .-> TCTXA
+  GLUEREG -. schema-governs .-> TCTXE
+  GLUEREG -. schema-governs .-> TFLOW
+
+  EKS -->|hosts| NSRTDL
+  NSRTDL --> CSFB
+  NSRTDL --> IEG
+  NSRTDL --> OFP
+  NSRTDL --> DF
+  NSRTDL --> DL
+  NSRTDL --> AL
+  NSRTDL --> DLA
+  NSRTDL --> ARCH
+  RTDLIMG --> CSFB
+  RTDLIMG --> IEG
+  RTDLIMG --> OFP
+  RTDLIMG --> DF
+  RTDLIMG --> DL
+  RTDLIMG --> AL
+  RTDLIMG --> DLA
+  RTDLIMG --> ARCH
+
+  TTRAFFIC -->|feeds promoted RTDL intake boundary| NSRTDL
+  TCTXA -->|consumed by| CSFB
+  TCTXE -->|consumed by| CSFB
+  TFLOW -->|consumed by| CSFB
+  CSFB --> IEG
+  IEG --> OFP
+  OFP --> DF
+  DF --> DL
+  DL --> DLA
+  DL --> ARCH
+  ARCH -->|stores archive evidence in| EVID
+  DLA -->|stores decision continuity in| EVID
 
   CWLAMBDA -->|feeds| CW
   CWWSP -->|feeds| CW
+  EKS -->|feeds runtime telemetry to| CW
   SFN -->|feeds metrics to| CW
   EVID -->|feeds operational evidence to| DASHOPS
   CW -->|feeds live posture to| DASHOPS
@@ -131,14 +177,16 @@ flowchart LR
   classDef control fill:#e8eaf6,stroke:#3949ab,color:#111,stroke-width:1.3px;
   classDef ingress fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.3px;
   classDef transport fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.3px;
+  classDef rtdl fill:#e0f2f1,stroke:#00695c,color:#111,stroke-width:1.3px;
   classDef state fill:#f1f8e9,stroke:#558b2f,color:#111,stroke-width:1.3px;
   classDef ident fill:#fce4ec,stroke:#ad1457,color:#111,stroke-width:1.3px;
   classDef obs fill:#ede7f6,stroke:#5e35b1,color:#111,stroke-width:1.3px;
 
   class N1 note;
-  class GHA,SFN,CTRLTOPIC,RUNID,RUNCTL control;
-  class HTTPAPI,APIRPOST,APIRHEALTH,APISTAGE,IGLAMBDA,IGLAMBDAENV,CWLAMBDA,WSPCLUSTER,WSPTASK,CWWSP ingress;
-  class MSK,GLUEREG,TCTRL,TTRAFFIC transport;
-  class DDB,DLQ,OBJ,EVID state;
-  class OIDC,ROLETF,ROLESFN,ROLELAMBDA,ROLEAPIGW,ROLEDDB,ROLEWSPEXEC,ROLEWSPRUN,SSM ident;
+  class GHA,SFN,RUNID,RUNCTL control;
+  class HTTPAPI,APISTAGE,IGLAMBDA,IGLAMBDAENV,CWLAMBDA,DDB,DLQ,WSPCLUSTER,WSPTASK,CWWSP ingress;
+  class MSK,GLUEREG,TCTRL,TTRAFFIC,TCTXA,TCTXE,TFLOW transport;
+  class EKS,NSRTDL,CSFB,IEG,OFP,DF,DL,AL,DLA,ARCH,RTDLIMG rtdl;
+  class OBJ,EVID,SSM state;
+  class OIDC,ROLETF,ROLESFN,ROLELAMBDA,ROLEAPIGW,ROLEDDB,ROLEWSPEXEC,ROLEWSPRUN ident;
   class CW,DASHOPS,DASHCOST,BUDGET obs;

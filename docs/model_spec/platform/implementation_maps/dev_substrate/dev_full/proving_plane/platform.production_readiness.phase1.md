@@ -68,7 +68,7 @@ This subphase requires:
 4. no regression of ingress correctness while RTDL materially participates.
 
 Status:
-- open
+- green
 
 ### Phase 1.C - Promotion judgment
 Goal:
@@ -82,7 +82,7 @@ This subphase requires:
 4. truthful readiness graphs and implementation trail.
 
 Status:
-- not started because `Phase 1.B` is still open.
+- green
 
 ## Current telemetry set for active Phase 1.B work
 
@@ -224,46 +224,50 @@ The next honest closure candidate must therefore use:
   - ingress-side coupled control is now calibrated cleanly enough for the next fresh RTDL spend
   - the next honest red, if any, should now belong to fresh RTDL coupling rather than ingress-shape ambiguity
 
-## Current blocker family
-The active blocker is no longer fresh-scope RTDL rollout truth.
+## Closure judgment
+`Phase 1` is now closed green.
 
-The repaired ECR-normalized materializer answered that question cleanly:
+The final accepted fresh-scope closure candidate was:
 
-- the fresh scope is really serving new pods
-- RTDL and case/label components are materially participating on that fresh scope
-- the coupled rerun stayed semantically clean with `4xx = 0` and `5xx = 0`
+- materialization execution `phase1_rtdl_materialize_20260311T092709Z`
+- coupled execution `phase1_rtdl_coupled_envelope_fresh_closure_su529_20260311T092709Z`
+- `platform_run_id = platform_20260311T092709Z`
+- `scenario_run_id = 61947dc98a734b8093fe938cc562b683`
+- control posture:
+  - `lane_count = 54`
+  - `ig_push_concurrency = 1`
+  - `short_upward_transition_blend = 0.0`
+  - `stream_speedup = 52.9`
 
-The current hold has therefore shifted again:
+Accepted impact metrics:
 
-- steady admitted throughput on the fresh coupled rerun came back at `2958.733 eps`
-- burst and recovery both stayed green
-- APIGW `request_count_total == admitted_request_count`, so the remaining red is not front-door rejection
+- steady admitted `= 3035.833 eps`
+- burst admitted `= 6227.000 eps`
+- recovery admitted `= 3020.050 eps`
+- `4xx = 0`
+- `5xx = 0`
+- recovery to sustained green `= 0 s`
+- ingress latency:
+  - `p95 = 49.951 ms`
+  - `p99 = 58.966 ms`
 
-The active blocker is now a narrow fresh-scope closure-control choice:
+Accepted attribution from the immediate runtime snapshot:
 
-- the accepted control (`54` lanes / `ig_push = 1` / `stream_speedup = 52.2`) is slightly under-driving the first clean fresh scope
-- same-scope reruns on that platform run are now invalid, because the reused scope degraded and distorted the control signal
-- this is now best treated as a fresh-scope closure calibration issue, not as an RTDL semantic defect
+- RTDL and case/label surfaces materially participated on the fresh scope
+- `IEG` remained clean with `apply_failure_count = 0`
+- `CSFB` replay-era watermark advisory remained, but checkpoint age stayed healthy (`39.865 s`) and the component showed live join activity with `apply_failures_hard = 0`
+- archive, decision-lane, and case/label continuity remained materially alive
+- snapshot blocker ids `= []`
 
-## Immediate next proof question
-Before spending on the next fresh closure candidate, `Phase 1.B` must answer one bounded question:
+Promotion judgment:
 
-- what is the smallest truthful fresh-scope control uplift that recovers the clean `41.267 eps` steady gap without reintroducing `4xx`, `5xx`, or burst/recovery instability?
+- the RTDL runtime boundary is now current-run-correct and attributable
+- the semantic seam is green enough on the accepted image family
+- the coupled ingress control is now truthful enough for promotion
+- the fresh-scope coupled envelope is green with RTDL materially participating
+- the RTDL-attached network did not regress the already-green `Control + Ingress` base
 
-Only after that question is answered cleanly should the phase spend on:
+Phase outcome:
 
-1. one more fresh RTDL materialization,
-2. one fresh-scope coupled closure candidate on the corrected control,
-3. immediate post-run attribution on that new scope.
-
-## Phase 1 closure rule
-`Phase 1` closes only when:
-
-1. the RTDL boundary is current-run-correct and observably healthy enough for truthful proof,
-2. the semantic seam is green on the accepted image family,
-3. the coupled ingress control is truthful and no longer the primary source of red posture,
-4. a fresh-scope coupled envelope run is green with RTDL materially participating,
-5. the newly introduced RTDL paths do not regress the already-green `Control + Ingress` base,
-6. notes, logbook, and readiness graphs all tell the same truthful story.
-
-If any one of those is false, `Phase 1` remains open.
+- `Control + Ingress + RTDL` is now the promoted working platform
+- the next platform-readiness action moves to `Phase 2 - Control + Ingress + RTDL coupled-network readiness`

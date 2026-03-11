@@ -6,70 +6,54 @@ config:
 flowchart LR
 
   subgraph LEGEND["How to Read This Graph"]
-    L1["Left to right = active RTDL scope -> blocker class -> accepted remediation -> measured impact -> readiness verdict"]
-    L2["Red = current blocker"]
-    L3["Amber = accepted remediation / next proof step"]
+    L1["Left to right = RTDL scope -> blocker family -> accepted remediation -> measured impact -> readiness verdict"]
+    L2["Red = blocker that existed during active remediation"]
+    L3["Amber = accepted corrective posture"]
     L4["Blue = measured evidence"]
-    L5["Green = closed blocker or trusted base"]
-    L6["Gray = current readiness hold"]
+    L5["Green = closed blocker or promoted verdict"]
   end
 
-  subgraph RTDL["Phase 1 RTDL Scope Under Hardening"]
-    C0["Control + Ingress base<br>Phase 0 green"]
-    C1["RTDL semantic seam<br>IEG / OFP / DF request contract"]
-    C2["Coupled proof control<br>Phase 0 common rate plan + WSP replay"]
-    C3["Fresh-scope ingress boundary<br>API Gateway -> Lambda -> Kafka publish"]
-    C4["Fresh-scope closure candidate<br>RTDL + coupled envelope"]
+  subgraph RTDL["Phase 1 RTDL Scope"]
+    C0["Promoted base entering Phase 1<br>Control + Ingress"]
+    C1["RTDL semantic seam<br>IEG / OFP / DF / DL / archive continuity"]
+    C2["Fresh-scope materialization boundary<br>ECR image -> EKS runtime"]
+    C3["Coupled RTDL proof control<br>54 lanes / ig_push = 1 / truthful burst transition"]
+    C4["Fresh-scope closure candidate<br>RTDL-attached bounded envelope"]
   end
 
-  subgraph BLOCKERS["Current Readiness Story"]
-    B1["Closed blocker<br>stale run-scope / materializer drift removed"]
-    B2["Closed blocker<br>false graph-version hard red removed"]
-    B3["Closed blocker<br>DF/OFP redundant feature-key mismatch removed"]
-    B4["Closed blocker<br>ig_push_concurrency = 1 under-drove the coupled proof"]
-    B5["Closed blocker<br>fresh-scope producer cold-path caused PUBLISH_AMBIGUOUS / 503 collapse"]
-    B6["Closed blocker<br>scheduled burst transition injected synthetic tokens and tripped APIGW 429"]
-    B7["Closed blocker<br>ingress-side control tradeoff resolved on ingress-only base<br>54 lanes / ig_push = 1 / speedup 52.2 is green"]
-    B8["Closed blocker<br>fresh-scope rollout truth restored by ECR-normalized image materialization"]
-    B9["Closed blocker<br>fresh-scope coupled RTDL participation is now attributable on the repaired scope"]
-    B10["Open blocker<br>final closure still needs one more fresh scope<br>same-scope reruns are now statefully misleading"]
+  subgraph BLOCKERS["Blocker Sequence Actually Encountered"]
+    B1["Closed blocker<br>stale run-scope / materializer drift"]
+    B2["Closed blocker<br>false graph-version hard red"]
+    B3["Closed blocker<br>DF/OFP redundant feature-key mismatch"]
+    B4["Closed blocker<br>fresh-scope shorthand image resolved against Docker Hub"]
+    B5["Closed blocker<br>ingress-side control ambiguity"]
+    B6["Closed blocker<br>same-scope reruns became statefully misleading"]
+    B7["Closed blocker<br>fresh-scope coupled closure still required"]
   end
 
-  subgraph POSTURE["Accepted Posture"]
-    P1["Keep semantic seam fixes and current RTDL image pinned"]
-    P2["Keep calibrated Phase 0 common rate plan as the control surface"]
-    P3["Keep ig_push_concurrency = 1<br>accepted semantically clean coupled-proof control"]
-    P4["Keep shared Kafka publisher patch live on ingress Lambda"]
-    P5["Keep corrected burst-transition seeding<br>front-door 429 removed"]
-    P6["Keep the repaired full-ECR materializer path<br>fresh scopes must serve real new pods"]
-    P7["Reject reused-scope calibration now that checkpoint age has degraded the signal"]
-    P8["Next narrow step<br>rematerialize one more fresh RTDL scope"]
-    P9["Then run one fresh closure candidate with a narrow uplift<br>stream_speedup = 52.9"]
+  subgraph POSTURE["Accepted Remediation Path"]
+    P1["Keep semantic seam fixes and accepted RTDL image family pinned"]
+    P2["Normalize materializer image refs to full ECR URI"]
+    P3["Freeze semantically clean coupled control family<br>54 lanes / ig_push = 1"]
+    P4["Reject reused-scope diagnostics once the scope begins to distort the signal"]
+    P5["Spend one more time on a new fresh scope only"]
+    P6["Use the narrow closure uplift<br>stream_speedup = 52.9"]
   end
 
   subgraph EVIDENCE["Measured Impact"]
-    E1["Semantic seam closure held on fresh scope<br>GRAPH_VERSION_UNAVAILABLE gone<br>event_id:* OFP warning noise gone"]
-    E2["Coupled proof on Phase 0 control with ig_push = 1 stayed red<br>2626.889 steady / 3137.500 burst / 2667.428 recovery"]
-    E3["Changing only ig_push_concurrency to 2 on reused scope nearly closed the proof<br>3065.144 steady / 7189.000 burst / 2921.500 recovery"]
-    E4["Fresh-scope pre-patch collapse<br>474.519 eps / 4xx = 762 / 5xx = 2222 / all 50 lanes failed"]
-    E5["Cold-path fix deployed live on fraud-platform-dev-full-ig-handler<br>shared Kafka publisher decoupled from platform_run_id"]
-    E6["Fresh-scope post-patch rerun improved materially<br>5xx = 0 / lane failures 50 -> 2 / latency stayed excellent"]
-    E7["Reseeded rerun removed front-door rejection<br>4xx = 0 / 5xx = 0 / dispatcher blockers = 0"]
-    E8["Reseeded rerun still red on coupled pressure<br>2931.722 steady / 3625.000 burst / 2886.433 recovery<br>but not verdict-eligible because the scope was reused"]
-    E9["Ingress-only calibrated closure candidate<br>54 lanes / ig_push = 1 / speedup 52.2<br>3031.889 steady / 6104.500 burst / 3018.861 recovery / 4xx = 0 / 5xx = 0"]
-    E10["Fresh-scope rollout restored<br>new RTDL and case/label pods are serving on the full ECR digest"]
-    E11["Fresh-scope coupled rerun stayed semantically clean<br>steady 2958.733 / burst 6371.500 / recovery 3015.917 / 4xx = 0 / 5xx = 0"]
-    E12["Immediate runtime snapshot stayed attributable<br>RTDL + case/label materially participating / no blocker ids"]
-    E13["Same-scope 53.0 shortcut collapsed the envelope<br>2510.189 steady / 3400.500 burst / 2257.172 recovery / 4xx = 0 / 5xx = 0"]
-    E14["Same-scope snapshot showed stateful degradation<br>CSFB checkpoint_age = 255.689 s / CHECKPOINT_OLD appeared"]
+    E1["Semantic seam closure held<br>GRAPH_VERSION_UNAVAILABLE gone<br>feature-key mismatch gone"]
+    E2["ECR-normalized materialization restored real fresh pods on the intended digest"]
+    E3["First trustworthy fresh-scope coupled run stayed semantically clean<br>2958.733 steady / 6371.500 burst / 3015.917 recovery / 4xx = 0 / 5xx = 0"]
+    E4["Same-scope 53.0 shortcut degraded badly<br>2510.189 steady / 3400.500 burst / 2257.172 recovery / 4xx = 0 / 5xx = 0"]
+    E5["Same-scope snapshot exposed contamination<br>CSFB checkpoint_age = 255.689 s / CHECKPOINT_OLD appeared"]
+    E6["Final fresh closure candidate held green cleanly<br>3035.833 steady / 6227.000 burst / 3020.050 recovery / 4xx = 0 / 5xx = 0"]
+    E7["Immediate post-run snapshot stayed attributable<br>RTDL + supporting case/label surfaces alive / snapshot blocker ids = []"]
   end
 
-  subgraph VERDICT["Current Verdict"]
-    V1["Phase 1 semantic seam is green enough to stop editing RTDL semantics blindly"]
-    V2["Fresh-scope ingress cold-path regression is closed"]
-    V3["Ingress-side control calibration is green enough to stop spending on ingress-only attribution"]
-    V4["Fresh-scope RTDL participation is now proven enough for attribution"]
-    V5["Phase 1.B still HOLD_REMEDIATE<br>one final fresh-scope closure candidate is required; reused-scope control runs are no longer valid evidence"]
+  subgraph VERDICT["Promotion Verdict"]
+    V1["RTDL boundary is current-run-correct and attributable"]
+    V2["Coupled control is truthful enough for promotion"]
+    V3["Phase 1 green<br>Control + Ingress + RTDL is now the promoted working platform"]
   end
 
   C0 --> B1
@@ -77,66 +61,41 @@ flowchart LR
   C1 --> B3
   C2 --> B4
   C3 --> B5
-  C4 --> B6
+  C3 --> B6
   C4 --> B7
 
   B1 --> P1
   B2 --> P1
   B3 --> P1
   B4 --> P2
-  B4 --> P3
-  B5 --> P4
-  B6 --> P5
-  B7 --> P6
-  B8 --> P6
-  B9 --> P6
-  B10 --> P7
-  P7 --> P8
-  P8 --> P9
+  B5 --> P3
+  B6 --> P4
+  B7 --> P5
+  P5 --> P6
 
   P1 --> E1
   P2 --> E2
   P3 --> E3
+  P4 --> E4
   P4 --> E5
-  P4 --> E6
-  P5 --> E7
-  P6 --> E10
-  P6 --> E11
-  P6 --> E12
-  P7 --> E13
-  P7 --> E14
-  P9 --> E9
-  P3 --> E4
+  P6 --> E6
+  P6 --> E7
 
   E1 --> V1
-  E5 --> V2
+  E2 --> V1
+  E3 --> V2
   E6 --> V2
-  E7 --> V3
-  E10 --> V4
-  E11 --> V4
-  E12 --> V4
-  E13 --> V5
-  E14 --> V5
-  E2 --> V5
-  E3 --> V5
-  E4 --> V5
-  E8 --> V5
-  E9 --> V5
+  E7 --> V1
   V1 --> V2
   V2 --> V3
-  V3 --> V4
-  V4 --> V5
 
   classDef comp fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
   classDef defect fill:#ffebee,stroke:#c62828,color:#111,stroke-width:1.3px;
   classDef fix fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
   classDef metric fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.3px;
-  classDef caveat fill:#f5f5f5,stroke:#616161,color:#111,stroke-dasharray: 5 3;
 
   class C0,C1,C2,C3,C4 comp;
-  class B1,B2,B3,B4,B5,B6,B7,B8,B9 comp;
-  class B10 defect;
-  class P1,P2,P3,P4,P5,P6,P7,P8,P9 fix;
-  class E1,E2,E3,E4,E5,E6,E7,E8,E9,E10,E11,E12,E13,E14 metric;
-  class V1,V2,V3,V4 comp;
-  class V5 caveat;
+  class B1,B2,B3,B4,B5,B6,B7 defect;
+  class P1,P2,P3,P4,P5,P6 fix;
+  class E1,E2,E3,E4,E5,E6,E7 metric;
+  class V1,V2,V3 comp;

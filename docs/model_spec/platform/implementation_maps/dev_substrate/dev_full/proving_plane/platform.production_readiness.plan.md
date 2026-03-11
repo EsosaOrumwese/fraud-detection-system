@@ -364,15 +364,15 @@ Rules:
 ---
 
 ## Current baseline
-The baseline at the start of this plan is:
-- `Control + Ingress`: strongest existing plane and current working-platform member
-- `RTDL`: wired, partly proven, not yet accepted as a production-ready plane under this method
+The baseline now established under this plan is:
+- `Control + Ingress`: promoted working-platform member
+- `RTDL`: promoted working-platform member after fresh-scope Phase 1 closure on `2026-03-11`
 - `Case + Label`: wired, not yet accepted as a production-ready plane
 - `Learning + Evolution / MLOps`: wired on managed surfaces, not yet accepted as a production-ready plane
 - `Ops / Gov / Meta`: present, not yet accepted as a production-ready plane
 
 That means the current working platform is:
-- `Control + Ingress`
+- `Control + Ingress + RTDL`
 
 Everything else remains to be proven under this plan.
 
@@ -1255,12 +1255,12 @@ After a phase is complete, update as needed:
 ---
 
 ## Immediate next action
-Proceed with `Phase 1 - RTDL plane readiness`.
+Proceed with `Phase 2 - Control + Ingress + RTDL coupled-network readiness`.
 
-`Phase 0` is now closed green, so the immediate purpose shifts to proving the next plane on top of a trusted `Control + Ingress` base.
+`Phase 1` is now closed green, so the immediate purpose shifts to proving the enlarged working network on top of the newly promoted `Control + Ingress + RTDL` base.
 
 Execution order now is:
-1. pin the RTDL telemetry set and fail-fast conditions,
-2. verify the live RTDL runtime boundary and its immediate dependency paths from the proven ingress base,
-3. run bounded RTDL plane-readiness proof,
-4. only then decide whether `Phase 1` is green or RTDL remediation must remain open.
+1. pin the coupled-network telemetry set and fail-fast conditions for the promoted RTDL-attached network,
+2. verify the live cross-plane paths from Control -> Ingress -> Event Bus -> RTDL under the current promoted control,
+3. run bounded coupled-network validation for the promoted network,
+4. only then decide whether the enlarged working network is green enough to become the accepted source base for `Case + Label`.

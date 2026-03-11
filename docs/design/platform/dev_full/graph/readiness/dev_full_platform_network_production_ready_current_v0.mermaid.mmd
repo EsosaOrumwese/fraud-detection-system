@@ -9,12 +9,12 @@ flowchart LR
   subgraph LEGEND["How to Read This Graph"]
     L1["Only the currently promoted working-platform core is shown"]
     L2["If a plane, component, or path is absent, it is not part of the ready-network claim"]
-    L3["This graph follows the active external admission path now accepted for Control + Ingress"]
-    L4["Retained internal ALB / ECS ingress surfaces are intentionally absent from the ready graph"]
+    L3["The promoted network now includes RTDL on top of the already-green Control + Ingress base"]
+    L4["Case + Label remains absent as a promoted plane until its own phase closes"]
   end
 
   subgraph READYNOTE["Current Working Platform"]
-    NOTE["Currently promoted working-platform core:<br>Control + Ingress<br>Phase 0 revalidation closed green on 2026-03-10<br>Active external front door: API Gateway -> Lambda<br>Declared envelope: 3000 steady eps / 6000 burst eps"]
+    NOTE["Currently promoted working-platform core:<br>Control + Ingress + RTDL<br>Phase 0 closed green on 2026-03-10<br>Phase 1 closed green on 2026-03-11<br>Declared envelope: 3000 steady eps / 6000 burst eps"]
   end
 
   subgraph CONTROL["Control Network - Promoted Core"]
@@ -28,18 +28,30 @@ flowchart LR
   subgraph INGRESS["Ingress Network - Promoted Core"]
     WSP["World Streamer Producer (WSP)<br>remote ECS/Fargate replay producer"]
     HTTPAPI["HTTP API Gateway<br>fraud-platform-dev-full-ig-edge<br>stage v1 / 3000 rps / 6000 burst"]
-    IGHEALTH["Health contract<br>GET /ops/health<br>mode apigw_lambda_ddb_kafka"]
     IGLAMBDA["Ingress Lambda<br>fraud-platform-dev-full-ig-handler"]
     IGDDB[("DynamoDB idempotency ledger<br>fraud-platform-dev-full-ig-idempotency")]
     IGDLQ["SQS DLQ<br>fraud-platform-dev-full-ig-dlq"]
-    IGREC["Ingress receipts / quarantine refs"]
+    TTRAFFIC[["fp.bus.traffic.fraud.v1"]]
   end
 
-  subgraph TRANSPORT["Event Transport Boundary - Promoted Core"]
+  subgraph RTDL["RTDL Network - Promoted Core"]
+    RINTAKE["RTDL active intake set<br>arrival_events / arrival_entities / flow_anchor.fraud"]
+    CSFB["CSFB<br>context_store_flow_binding"]
+    IEG["IEG<br>identity_entity_graph"]
+    OFP["OFP<br>online_feature_provider"]
+    DF["DF<br>decision function"]
+    DL["Decision Lane<br>decision publication"]
+    DLA["Decision Ledger Append"]
+    ARCH["Archive Writer"]
+  end
+
+  subgraph TRANSPORT["Promoted Event Transport Boundary"]
     MSK[("MSK Serverless<br>fraud-platform-dev-full-msk")]
     GLUEREG["Glue Schema Registry<br>fraud-platform-dev-full<br>BACKWARD"]
-    TCTRL[["fp.bus.control.v1"]]
-    TTRAFFIC[["fp.bus.traffic.fraud.v1"]]
+    TCTXA[["fp.bus.context.arrival_events.v1"]]
+    TCTXE[["fp.bus.context.arrival_entities.v1"]]
+    TFLOW[["fp.bus.context.flow_anchor.fraud.v1"]]
+    TDEC[["RTDL decision / archive outputs"]]
   end
 
   subgraph SUPPORT["Supporting Trust / Evidence - Promoted Core"]
@@ -47,11 +59,12 @@ flowchart LR
     SSM["SSM Parameter Store<br>API key / brokers / active handles"]
     OBJ[("S3 object/oracle store<br>ingress replay basis")]
     EVID[("S3 evidence bucket<br>fraud-platform-dev-full-evidence")]
-    CW["CloudWatch<br>Lambda + WSP logs / metrics"]
+    CW["CloudWatch<br>APIGW / Lambda / WSP / RTDL logs + metrics"]
   end
 
   NOTE --> CONTROL
   NOTE --> INGRESS
+  NOTE --> RTDL
   NOTE --> TRANSPORT
 
   GHA -->|authenticates through| OIDC
@@ -60,43 +73,59 @@ flowchart LR
   SFN -->|writes control receipts to| RUNCTL
   SFN -->|publishes orchestration signals to| CTRLBUS
   CTRLBUS -->|transported by| MSK
-  CTRLBUS --> TCTRL
   SFN -->|starts bounded replay| WSP
 
   OBJ -->|provides replay basis to| WSP
   RUNID -->|pins active run scope for| WSP
   RUNID -->|pins active run scope for| IGLAMBDA
+  RUNID -->|pins active run scope for| RTDL
   RUNID -->|pins active run scope for| RUNCTL
 
   WSP -->|pushes ingress load to| HTTPAPI
   HTTPAPI -->|invokes| IGLAMBDA
-  HTTPAPI -->|exposes| IGHEALTH
-
   IGLAMBDA -->|deduplicates in| IGDDB
+  IGLAMBDA -->|writes failure disposition to| IGDLQ
   IGLAMBDA -->|publishes admitted traffic to| TTRAFFIC
   TTRAFFIC -->|transported by| MSK
   GLUEREG -. enforces schema compatibility for .-> TTRAFFIC
 
-  IGLAMBDA -->|writes failure disposition to| IGDLQ
-  IGLAMBDA -->|writes ingress receipts to| IGREC
+  TTRAFFIC -->|feeds promoted RTDL intake boundary| RINTAKE
+  RINTAKE --> TCTXA
+  RINTAKE --> TCTXE
+  RINTAKE --> TFLOW
+  TCTXA -->|consumed by| CSFB
+  TCTXE -->|consumed by| CSFB
+  TFLOW -->|consumed by| CSFB
+  CSFB -->|binds context for| IEG
+  IEG -->|supplies graph truth to| OFP
+  OFP -->|supplies features to| DF
+  DF -->|emits decisions to| DL
+  DL -->|appends decision truth to| DLA
+  DL -->|feeds archival evidence to| ARCH
+  DL --> TDEC
+  ARCH -->|stores evidence in| EVID
+  DLA -->|stores proof continuity in| EVID
   RUNCTL -->|stores proof receipts in| EVID
-  IGREC -->|stores ingress evidence in| EVID
 
   IGLAMBDA -->|reads active handles from| SSM
   WSP -->|reads active handles from| SSM
+  RTDL -->|reads active handles from| SSM
   IGLAMBDA -->|emits logs and metrics to| CW
   WSP -->|emits logs to| CW
+  RTDL -->|emits logs and metrics to| CW
   SFN -->|emits logs and metrics to| CW
   CW -. exposes operator visibility for .-> RUNCTL
 
   classDef note fill:#fff8e1,stroke:#f9a825,color:#111,stroke-width:1.3px;
   classDef control fill:#e8eaf6,stroke:#3949ab,color:#111,stroke-width:1.3px;
   classDef ingress fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.3px;
+  classDef rtdl fill:#e0f2f1,stroke:#00695c,color:#111,stroke-width:1.3px;
   classDef transport fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.3px;
   classDef support fill:#f1f8e9,stroke:#558b2f,color:#111,stroke-width:1.3px;
 
   class NOTE note;
-  class GHA,SFN,CTRLBUS,RUNID,RUNCTL,TCTRL control;
-  class WSP,HTTPAPI,IGHEALTH,IGLAMBDA,IGDLQ,IGREC,IGDDB ingress;
-  class MSK,GLUEREG,TTRAFFIC transport;
+  class GHA,SFN,CTRLBUS,RUNID,RUNCTL control;
+  class WSP,HTTPAPI,IGLAMBDA,IGDLQ,IGDDB,TTRAFFIC ingress;
+  class RINTAKE,CSFB,IEG,OFP,DF,DL,DLA,ARCH rtdl;
+  class MSK,GLUEREG,TCTXA,TCTXE,TFLOW,TDEC transport;
   class OIDC,SSM,OBJ,EVID,CW support;

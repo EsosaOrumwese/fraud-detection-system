@@ -3282,6 +3282,94 @@ Accepted posture from here:
 - last trustworthy fresh-scope signal: `52.2` was semantically clean but short by only `41.267 eps`
 - same-scope `53.0` is diagnostic evidence that scope reuse distorts the verdict, not evidence that `53.0` is wrong on a fresh scope
 - the next spend must therefore be:
-  - rematerialize a new fresh RTDL scope
-  - run exactly one fresh-scope closure candidate with a narrow uplift near the measured requirement (`stream_speedup = 52.9`)
-  - snapshot immediately and accept or reject that fresh result without looping on the same scope again
+- rematerialize a new fresh RTDL scope
+- run exactly one fresh-scope closure candidate with a narrow uplift near the measured requirement (`stream_speedup = 52.9`)
+- snapshot immediately and accept or reject that fresh result without looping on the same scope again
+
+## 2026-03-11 09:27:09 +00:00 - The fresh closure candidate is now being re-established on a brand-new scope, because Phase 1 needs one clean verdict rather than more contaminated same-scope learning
+The next fresh identity is:
+
+- materialization execution `= phase1_rtdl_materialize_20260311T092709Z`
+- `platform_run_id = platform_20260311T092709Z`
+- `scenario_run_id = 61947dc98a734b8093fe938cc562b683`
+
+The control I am carrying forward into that fresh closure attempt is deliberately narrow:
+
+- preserve `54` lanes
+- preserve `ig_push_concurrency = 1`
+- preserve `short_upward_transition_blend = 0.0`
+- move only to `stream_speedup = 52.9`
+
+That is the cleanest interpretation of the evidence so far:
+
+- `52.2` on the first trustworthy fresh scope was close enough to justify only a minor uplift
+- the same-scope `53.0` collapse taught that reused scopes now distort the signal
+- the next honest answer therefore has to come from a new fresh scope, not from another intra-scope adjustment
+
+## 2026-03-11 09:31:23 +00:00 - The next fresh closure scope is materially live, so there is no longer a rollout question ahead of the Phase 1 candidate run
+The re-materialization completed cleanly:
+
+- execution `= phase1_rtdl_materialize_20260311T092709Z`
+- `platform_run_id = platform_20260311T092709Z`
+- `scenario_run_id = 61947dc98a734b8093fe938cc562b683`
+- `overall_pass = true`
+- rollout blockers `= []`
+
+Live rollout truth from the materializer receipt is exactly what I needed before the next spend:
+
+- RTDL deployments all rolled out successfully on the pinned full ECR image
+- case/label deployments all rolled out successfully on the pinned full ECR image
+- each deployment now has a fresh running pod on the new scope
+
+That means the next run is no longer a diagnostic rollout check. It is the actual fresh-scope closure candidate for `Phase 1.B`, using the narrow uplift chosen from the earlier clean shortfall:
+
+- `lane_count = 54`
+- `ig_push_concurrency = 1`
+- `short_upward_transition_blend = 0.0`
+- `stream_speedup = 52.9`
+
+## 2026-03-11 09:45:06 +00:00 - Phase 1 is now closed green: the fresh `52.9` closure candidate held steady, burst, recovery, and immediate RTDL attribution on a new scope
+The final fresh-scope closure candidate is the first result that satisfies the Phase 1 standard without leaning on reused-scope ambiguity.
+
+Fresh closure candidate:
+
+- materialization execution `= phase1_rtdl_materialize_20260311T092709Z`
+- coupled execution `= phase1_rtdl_coupled_envelope_fresh_closure_su529_20260311T092709Z`
+- `platform_run_id = platform_20260311T092709Z`
+- `scenario_run_id = 61947dc98a734b8093fe938cc562b683`
+- control posture:
+  - `lane_count = 54`
+  - `ig_push_concurrency = 1`
+  - `short_upward_transition_blend = 0.0`
+  - `stream_speedup = 52.9`
+
+Accepted envelope metrics:
+
+- steady admitted `= 3035.833 eps`
+- burst admitted `= 6227.000 eps`
+- recovery admitted `= 3020.050 eps`
+- `4xx = 0`
+- `5xx = 0`
+- recovery to sustained green `= 0 s`
+- latency stayed excellent (`p95 49.951 ms`, `p99 58.966 ms`)
+
+Immediate runtime attribution after the run stayed clean enough to promote:
+
+- snapshot blocker ids `= []`
+- `IEG` remained clean with `apply_failure_count = 0`
+- `CSFB` still carries replay-era watermark age noise, but checkpoint age stayed healthy (`39.865 s`) and the component showed live join activity with `apply_failures_hard = 0`
+- `OFP`, decision lane, archive, and case/label supporting surfaces were all materially alive on the active run
+
+That means the earlier blocker sequence is finally closed in the right order:
+
+- closed: stale-scope / materializer drift
+- closed: shorthand-image / Docker Hub pull defect
+- closed: ingress-only control ambiguity
+- closed: same-scope diagnostic temptation
+- closed: fresh-scope coupled proof
+
+So the promotion judgment is now honest:
+
+- `Phase 1` closes green
+- `Control + Ingress + RTDL` is now the promoted working platform
+- the next execution target moves to `Phase 2 - Control + Ingress + RTDL coupled-network readiness`
