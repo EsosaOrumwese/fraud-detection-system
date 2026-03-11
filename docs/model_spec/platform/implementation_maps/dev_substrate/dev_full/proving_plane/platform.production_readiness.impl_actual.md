@@ -4513,3 +4513,62 @@ So the accepted posture change is:
 - repin Phase 4 to the short bounded coupled burst that already proved truthful on the promoted upstream network
 - keep the target fixed at `6000 burst eps`
 - rerun only the Phase 4 coupled boundary on that corrected burst posture
+
+## 2026-03-11 17:39:19 +00:00 - The short-burst repin fixed the burst problem, but reducing inline IG fanout to `1` overcorrected the steady boundary
+I ran the narrowed rerun on the corrected short burst posture:
+
+- `execution_id = phase4_case_label_coupled_20260311T170237Z`
+- `platform_run_id = platform_20260311T170237Z`
+- `scenario_run_id = c1c0f2a50e989a2473b9aa17a0121db5`
+
+This run answered the burst question cleanly:
+
+- burst is now green at `6102.5 eps`
+- burst `4xx = 0`
+- burst `5xx = 0`
+- recovery is green at `3018.322 eps`
+- sustained recovery green begins immediately at `2026-03-11T17:29:32Z`
+
+Coupled downstream truth also remained clean on the same scope:
+
+- CaseTrigger, Case Management, and Label Store all stayed green
+- coupled timing stayed green
+- cost guardrail stayed green
+
+So the short-burst repin was correct. The earlier `429` story is removed.
+
+The remaining red moved to the front of the envelope:
+
+- steady red at `2614.2 eps`
+- `4xx = 0`
+- `5xx = 0`
+
+The minute bins show why this does not read like a real enlarged-network capacity ceiling:
+
+- `17:28-17:29` steady minute only `2591.617 eps`
+- `17:29-17:30` mixed minute `2812.150 eps`
+- then the network goes healthy and stable:
+  - `17:30-17:31` `2994.4 eps`
+  - `17:31-17:32` `2999.75 eps`
+  - `17:32-17:33` `2999.517 eps`
+
+That pattern is different from a true steady-state failure. The network clearly sustains the retained envelope once it is fully up on the same scope, and it even carries the bounded burst and full recovery without error. What changed between the last two Phase 4 reruns is the inline push fanout:
+
+- first fresh rerun:
+  - `burst_seconds = 30`
+  - `ig_push_concurrency = 2`
+  - steady green, burst red
+- second rerun:
+  - `burst_seconds = 2`
+  - `ig_push_concurrency = 1`
+  - steady red, burst green
+
+So the current problem class is an overcorrection in the proving driver. Reducing `ig_push_concurrency` to `1` removed the burst-edge `429`, but it also starved the early steady ramp enough to make the first steady window fail even though the later minutes prove the coupled network can hold `3000 eps`.
+
+The accepted next step is therefore narrow:
+
+- keep the corrected short burst posture
+- restore `ig_push_concurrency = 2`
+- rerun only the same Phase 4 coupled boundary
+
+That preserves the truthful burst repin while testing whether the steady miss disappears without reintroducing the old API-edge reject pattern.

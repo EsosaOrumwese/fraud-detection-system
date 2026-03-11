@@ -163,8 +163,13 @@ Current coupled-envelope repin:
 - the accepted repin is to reuse the already-proven coupled burst posture from the promoted RTDL closure:
   - short bounded burst segment (`2 s`)
   - retained `6000 burst eps` target
-  - `ig_push_concurrency = 1`
-- this does not lower the target; it removes an inherited burst-shape defect so the enlarged network is judged on the same truthful coupled standard already accepted upstream
+  - initial narrow fanout correction tested with `ig_push_concurrency = 1`
+- the short-burst rerun removed the `429` burst defect completely, but that fanout reduction overcorrected the first steady window while later steady/recovery minutes returned to the retained envelope
+- the current narrow follow-up is:
+  - keep `burst_seconds = 2`
+  - restore `ig_push_concurrency = 2`
+  - rerun the same coupled boundary to confirm whether the remaining red is only a proving-driver steady-ramp defect
+- this still does not lower the target; it is a narrow driver correction so the enlarged network is judged on a truthful coupled burst boundary without artificially starving the steady slice
 
 Candidate proving path now pinned:
 

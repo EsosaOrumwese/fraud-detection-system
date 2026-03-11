@@ -1,0 +1,83 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Simplified baseline network with shared components and path labels on the flows
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    L1["Nodes are shared platform components or bundled boundaries"]
+    L2["Edges are labeled by the path families that traverse the same components"]
+    L3["Path labels are expanded: Admission, Hot/Decision, Case+Label, Learning, Recovery, Degrade, Replay, Rollback, Observability, Cost Control"]
+  end
+
+  DE["External Data Engine"]
+  ORACLE[("Oracle Store")]
+
+  CTRL["Control authority<br>GitHub Actions -> Step Functions -> run identity -> run control"]
+  WSP["Replay producer<br>WSP"]
+  ING["Ingress boundary<br>API GW / ALB -> Lambda / ECS<br>DDB idempotency / DLQ / receipts"]
+  BUS[("Transport boundary<br>MSK + topic truth + schema registry")]
+  RTDL["RTDL runtime<br>CSFB / IEG / OFP / DF / AL / DLA / Archive"]
+  CASE["Case + Label runtime<br>CaseTrigger / CM / LS"]
+  LEARN["Learning corridor<br>Databricks / SageMaker / MLflow"]
+  REG[("Active bundle / registry truth")]
+  EVID[("Evidence / archive / governance truth")]
+  OBS["Observability<br>CloudWatch / dashboards / operator view"]
+  COST["Cost control<br>budget / spend posture / teardown"]
+
+  DE -->|upstream basis| ORACLE
+
+  CTRL -->|Control| WSP
+  CTRL -->|Control| ING
+  CTRL -->|Control| RTDL
+  CTRL -->|Control| CASE
+  CTRL -->|Control| LEARN
+  CTRL -->|Control / Recovery / Cost Control| EVID
+  CTRL -->|Cost Control| COST
+
+  ORACLE -->|Admission / Replay| WSP
+  WSP -->|Admission / Replay| ING
+  ING -->|Hot / Decision| BUS
+  BUS -->|Hot / Decision| RTDL
+  RTDL -->|Case + Label| CASE
+  RTDL -->|Learning| LEARN
+  CASE -->|Learning| LEARN
+  LEARN -->|Rollback| REG
+  REG -->|Learning / Rollback| RTDL
+
+  RTDL -->|Degrade / Recovery / Hot path evidence| EVID
+  CASE -->|Case + Label / Recovery| EVID
+  LEARN -->|Learning / Rollback| EVID
+  ING -->|Admission / Degrade| EVID
+  ORACLE -->|Replay basis| EVID
+
+  ORACLE -->|Replay| WSP
+  EVID -->|Replay comparison| CTRL
+
+  ING -->|Observability| OBS
+  BUS -->|Observability / Recovery| OBS
+  RTDL -->|Observability / Degrade / Recovery| OBS
+  CASE -->|Observability / Recovery| OBS
+  LEARN -->|Observability| OBS
+  EVID -->|Observability / Governance| OBS
+  COST -->|Observability / Cost Control| OBS
+
+  ING -->|Cost Control| COST
+  RTDL -->|Cost Control| COST
+  CASE -->|Cost Control| COST
+  LEARN -->|Cost Control| COST
+  EVID -->|Cost evidence| COST
+
+  classDef ext fill:#f5f5f5,stroke:#616161,color:#111,stroke-width:1.2px;
+  classDef control fill:#e8eaf6,stroke:#3949ab,color:#111,stroke-width:1.3px;
+  classDef runtime fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+  classDef store fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.3px;
+  classDef ops fill:#ede7f6,stroke:#5e35b1,color:#111,stroke-width:1.3px;
+
+  class DE ext;
+  class CTRL control;
+  class WSP,ING,RTDL,CASE,LEARN runtime;
+  class ORACLE,BUS,REG,EVID store;
+  class OBS,COST ops;
