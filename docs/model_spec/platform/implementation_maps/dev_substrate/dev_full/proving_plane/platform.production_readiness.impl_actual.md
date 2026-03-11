@@ -4611,4 +4611,32 @@ So the next accepted move is to stop bouncing only between `ig_push_concurrency 
 
 Then rerun the same Phase 4 boundary with a narrower burst-token seed and a longer scored-activation settle, because that is now the smallest honest lever that could remove the API-edge reject pocket without lowering the retained envelope or masking a real downstream defect.
 
+## 2026-03-11 19:59:26 +00:00 - The first narrowed transition-shaping rerun timed out locally and had to be invalidated before it became quiet spend
+I pushed the runner change and spent on the next bounded rerun with:
+
+- `ig_push_concurrency = 2`
+- `post_scored_activation_settle_seconds = 30`
+- `target_burst_seconds = 0.2`
+
+The scope was:
+
+- `execution_id = phase4_case_label_coupled_20260311T192851Z`
+
+This did not produce a readiness verdict because the local control command hit its timeout before the full Phase 4 runner returned. That would have been easy to misread as a platform fault, but the live state says otherwise:
+
+- prewarm artifacts were written
+- scored activation artifacts were written
+- the main coupled WSP manifest was written
+- the wrapper died before producing `phase4_coupled_envelope_summary.json` or a readiness receipt
+
+More importantly, `54` WSP tasks were still running after the local timeout. That turns this from a harmless CLI issue into a cost-discipline issue. I stopped those tasks immediately and wrote a cleanup receipt under the same execution root so the invalid run is explicit rather than silently lingering.
+
+So the current reading is narrow:
+
+- this run is invalid for readiness judgment
+- the invalidation reason is local control timeout and incomplete artifact closure
+- the narrowed transition-shaping hypothesis is still untested
+
+The next move is not another design change. It is to rerun the exact same narrowed boundary with a longer local timeout so the run can close cleanly and either prove or reject the new shaping posture.
+
 That preserves the truthful burst repin while testing whether the steady miss disappears without reintroducing the old API-edge reject pattern.
