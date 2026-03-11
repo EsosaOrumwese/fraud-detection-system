@@ -314,6 +314,8 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--artifact-prefix", default="phase0c")
     ap.add_argument("--blocker-prefix", default="PHASE0.C.INGRESS")
     ap.add_argument("--window-label", default="envelope")
+    ap.add_argument("--summary-phase", default="PHASE0")
+    ap.add_argument("--ready-verdict", default="PHASE0C_READY")
     ap.add_argument("--platform-run-id", default="")
     ap.add_argument("--scenario-run-id", default="")
     ap.add_argument("--generated-by", default="phase0-control-ingress-envelope")
@@ -444,7 +446,7 @@ def main() -> None:
             {
                 "generated_by": str(args.generated_by),
                 "generated_at_utc": to_iso_utc(now_utc()),
-                "compatibility_mode": "phase0c_wrapper_seed",
+                "compatibility_mode": f"{str(args.artifact_prefix).strip()}_wrapper_seed",
                 "verdict": "PR3_S0_READY",
                 "open_blockers": 0,
             },
@@ -715,12 +717,12 @@ def main() -> None:
         blockers.append(f"DISPATCH_BLOCKERS_PRESENT:count={int(dispatch_summary.get('open_blockers', 0) or 0)}")
 
     envelope_summary = {
-        "phase": "PHASE0",
+        "phase": str(args.summary_phase),
         "state": str(args.state_id),
         "generated_at_utc": to_iso_utc(now_utc()),
         "generated_by": str(args.generated_by),
         "execution_id": execution_id,
-        "verdict": "PHASE0C_READY" if not blockers else "HOLD_REMEDIATE",
+        "verdict": str(args.ready_verdict) if not blockers else "HOLD_REMEDIATE",
         "open_blockers": len(blockers),
         "blocker_ids": sorted(set(blockers)),
         "identity": {

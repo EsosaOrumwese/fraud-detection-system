@@ -2305,3 +2305,113 @@ That candidate is built and pushed now:
 - digest `fraud-platform-dev-full@sha256:c9846969465366dd1b97cad43b675e72db98ea4b7e46b7a7790c56f9860d320a`
 
 That is enough local/runtime alignment to justify the next spend. I do not need more desk analysis before the next rematerialization.
+
+That rematerialization is now done as well:
+
+- execution `phase1_rtdl_materialize_20260311T015540Z`
+- `platform_run_id = platform_20260311T015540Z`
+- `scenario_run_id = 5634e71d8cb8470db0c6df5d26e04181`
+- explicit image `fraud-platform-dev-full@sha256:c9846969465366dd1b97cad43b675e72db98ea4b7e46b7a7790c56f9860d320a`
+
+Rollout passed cleanly, so the next spend is again a single bounded proof run, not another cluster change.
+
+That single rerun has now answered the DF/OFP question cleanly enough that I should stop trying to fix RTDL semantics and instead fix the proof boundary.
+
+`phase1_rtdl_bounded_20260311T015650Z` came back at `2398.667 eps` exact admitted with `4xx = 0` and `5xx = 0`. If I looked only at the ingress count, I could easily waste another cycle blaming RTDL for a throughput problem it may no longer own. I do not want to do that.
+
+So I checked the hot run-scoped surfaces again before touching code:
+
+- `IEG` still exports structured `graph_version`
+- fresh DF logs no longer show `GRAPH_VERSION_UNAVAILABLE`
+- fresh DF logs no longer show the old sampled `OFP missing feature state`
+- `DL`, case management, and label store remain green
+
+That means the local semantic fixes I just carried are doing their job. The plane is not red in the same way anymore.
+
+The stronger clue came from comparing the accepted `Phase 0.C` proof shape to the current `Phase 1.B` shape. The current RTDL bounded proof is still running with:
+
+- `rate_plan = []`
+- `campaign_start_utc = null`
+- `measurement_alignment_mode = align_up_from_active_confirmed_plus_warmup`
+
+while the accepted `Phase 0.C` control that proved the ingress envelope used:
+
+- explicit `campaign_start_utc`
+- scheduled common rate plan
+- replay-delay bypass when that rate plan is present
+- presteady -> steady -> burst -> recovery segments on the same 50-lane fleet
+
+That is not a cosmetic difference. It changes what question the run is actually asking.
+
+Right now the richer RTDL proof is letting WSP pace mixed traffic and context replay on the plain per-lane limiter without the calibrated common rate-plan posture that already closed ingress. Under that shape the APIGW surface is stably under-driven around `2.4k eps`, but the rest of the evidence says:
+
+- ingress semantics are clean
+- Lambda publish timing is healthy
+- the recently fixed RTDL seams remain green
+
+So the next move is not another RTDL code edit and not another blind rerun on the same under-driven control. The next move is to carry the current RTDL image and run scope forward unchanged and repin `Phase 1.B` to the already-accepted `Phase 0` scheduled rate-plan control. That will answer the real question much faster:
+
+- does the coupled RTDL network still hold the proven ingress control when the control shape itself is no longer drifting?
+
+That is the dynamic posture I want here. Keep the standard fixed, but change the method once the error class changes shape.
+
+That repinned run is now done, and I do not need to argue with the result.
+
+The calibrated `Phase 0` common rate plan did not rescue the coupled proof. On `phase1_rtdl_coupled_envelope_20260311T021400Z` the same current RTDL scope came back:
+
+- steady `2626.889 eps`
+- burst `3137.500 eps`
+- recovery `2667.428 eps`
+- `4xx = 0`
+- `5xx = 0`
+
+So the shortfall is no longer explainable as "we used the wrong control shape". That possibility is now closed.
+
+The hot snapshot on the same run is what keeps me from blaming RTDL semantics lazily:
+
+- the cleaned IEG / OFP / DF seam stayed materially healthy
+- `DL`, case management, and label store stayed green
+- no new semantic blocker reopened while the envelope stayed red
+
+That is exactly the kind of split I want to catch early: the platform-under-test can be semantically alive while the proof harness still under-drives the target because the service-time regime changed.
+
+The WSP runner code confirms the next narrow suspect:
+
+- each output stream uses its own push executor
+- inflight pushes per output are capped by `WSP_IG_PUSH_CONCURRENCY`
+- the coupled envelope run used `ig_push_concurrency = 1`
+
+On the same run the latency surfaces changed in a way that makes that cap meaningful:
+
+- APIGW latency rose to roughly `p95 120-158 ms`, `p99 150-191 ms` across steady and burst windows
+- Lambda internal `phase.publish_seconds` stayed around `8-10 ms p95`
+- Lambda internal `admission_seconds` stayed around `37-49 ms p95`
+
+So the next diagnostic should be very small and very explicit:
+
+- keep the exact same current RTDL image and rate plan
+- change only `ig_push_concurrency`
+- rerun the same coupled envelope
+
+If that lifts the control back toward the target, then the current red posture is mainly a harness-capacity artifact under the higher-latency coupled regime. If it does not, then I can stop looking at WSP and start treating the coupled ingress slowdown as a real platform-side throughput issue.
+
+I now have the answer to that exact diagnostic.
+
+Changing only `ig_push_concurrency` from `1` to `2` on the same current RTDL scope moved the coupled envelope from broadly red to almost green:
+
+- steady `3065.144 eps`
+- burst `7189.000 eps`
+- recovery `2921.500 eps`
+- recovery back to sustained green by `150 s` against a `180 s` bound
+- still `4xx = 0`
+- still `5xx = 0`
+
+That is not a subtle effect. It means the previous all-red coupled envelope was not clean evidence of platform incapacity by itself. The harness was materially under-driving the same target once coupled latency rose.
+
+This is why I wanted to hold the target constant and change only one lever. Now the attribution is much sharper:
+
+- `ig_push_concurrency = 1` was too small for a truthful coupled-envelope proof at the current service-time regime
+- `ig_push_concurrency = 2` is much closer to a truthful control surface
+- the remaining issue is a narrow recovery shortfall, not a broad steady/burst failure
+
+I do not want to close on the reused-scope diagnostic run, though. That would be lazy. The correct closure candidate is a fresh materialized scope on the same image with the now-proven better harness posture. Then I can decide whether the remaining recovery miss is real or whether it also collapses when the proof leaves the reused identity behind.

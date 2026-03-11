@@ -635,3 +635,134 @@ So the next runtime spend can stay narrow:
 - rematerialize RTDL on a fresh scope with `sha256:c984696...`
 - rerun the same richer bounded proof shape
 - verify whether the residual `event_id:*` OFP warning noise disappears without reopening the now-closed graph-version blocker
+
+The fresh DF-key-aligned scope is now materialized:
+
+- materialization execution `phase1_rtdl_materialize_20260311T015540Z`
+- `platform_run_id = platform_20260311T015540Z`
+- `scenario_run_id = 5634e71d8cb8470db0c6df5d26e04181`
+- explicit image `fraud-platform-dev-full@sha256:c9846969465366dd1b97cad43b675e72db98ea4b7e46b7a7790c56f9860d320a`
+
+Deployment rollout passed cleanly on both namespaces, so the next narrow step is the same richer bounded proof on this fresh scope.
+
+That rerun is now complete:
+
+- execution `phase1_rtdl_bounded_20260311T015650Z`
+- exact APIGW access-log window admitted `287840` requests over `120 s` = `2398.667 eps`
+- `4xx = 0`
+- `5xx = 0`
+
+What matters is what did not regress:
+
+- fresh DF logs no longer show `GRAPH_VERSION_UNAVAILABLE`
+- fresh DF logs no longer show the earlier sampled `OFP missing feature state`
+- `IEG` run-scoped health still carries structured `graph_version`
+- `OFP` remains out of red semantic posture
+- `DL`, case management, and label store remain green on the same run scope
+
+So the RTDL semantic seam work I just did is now materially closed enough for this bounded proof shape:
+
+- graph-version blindness is gone
+- redundant `event_id:*` OFP warning noise is gone
+- the plane is participating and writing current-run truth
+
+The blocker changed again, and this time I do not want to misdiagnose it as an RTDL semantic defect.
+
+The run artifact comparison against the accepted `Phase 0` envelope shows something much simpler:
+
+- current `Phase 1.B` bounded runs use `rate_plan = []`
+- current `Phase 1.B` bounded runs use `measurement_alignment_mode = align_up_from_active_confirmed_plus_warmup`
+- the accepted green `Phase 0.C` control used an explicit scheduled common rate plan with replay-delay bypass:
+  - `campaign_start_utc` pinned explicitly
+  - presteady `30 eps/lane`
+  - steady `60 eps/lane`
+  - burst `120 eps/lane` for `2 s`
+  - recovery back to `60 eps/lane`
+
+That difference matters because the current richer RTDL proof is not actually holding the ingress control boundary constant while the plane under test changes. It is asking WSP to pace mixed traffic and context replay on the plain per-lane limiter with no scheduled common rate plan, and the resulting APIGW surface is stably under-driven around `2.4k eps` even though:
+
+- ingress remains semantically clean
+- Lambda publish timing remains healthy
+- the cleaned RTDL seams remain green
+
+So the most truthful next move is not another local RTDL code change. It is to repin the `Phase 1.B` bounded proof onto the same calibrated production-shaped control that closed `Phase 0`, then ask the real question:
+
+- with the exact `Phase 0` scheduled rate-plan posture reused on the current RTDL materialized scope, does the coupled network still hold the `3000 steady / 6000 burst / recovery` ingress control while RTDL participates semantically?
+
+That is the correct dynamic posture now:
+
+- stop treating every admission shortfall as a new RTDL defect
+- keep the already-proven ingress control shape fixed
+- carry the current RTDL image/scope forward unchanged
+- spend the next AWS run on one clean attribution question
+
+That coupled-control rerun has now answered the rate-plan question decisively enough that I should stop treating control shape as the open ambiguity.
+
+Using the exact accepted `Phase 0` common rate plan on the same RTDL materialized scope produced:
+
+- execution `phase1_rtdl_coupled_envelope_20260311T021400Z`
+- steady `2626.889 eps`
+- burst `3137.500 eps`
+- recovery `2667.428 eps`
+- `4xx = 0`
+- `5xx = 0`
+- recovery back to sustained green within the declared bound, but only after the early recovery bins stayed red on throughput
+
+So the control-shape repin did real work methodologically, but it did not make the coupled shortfall disappear. The shortfall is real on the calibrated production-shaped control as well.
+
+The hot RTDL snapshot on the same run matters just as much:
+
+- `IEG` clean except replay advisory
+- `OFP` remains semantically healthy
+- `DF` / `DL` / case / label surfaces remain green
+- no new semantic blocker reopened on the cleaned RTDL seams
+
+That means the next boundary is narrower again. The coupled run is red on throughput, but not because the plane is semantically broken.
+
+The stronger operator clue is the load-generator/runtime interaction:
+
+- the WSP runner still limits each output stream to `WSP_IG_PUSH_CONCURRENCY` inflight pushes per lane
+- the coupled envelope run still used `ig_push_concurrency = 1`
+- APIGW latency rose materially on the coupled proof (`p95 ~= 120-158 ms`, `p99 ~= 150-191 ms`)
+- Lambda internal publish timing remained healthy and much smaller (`phase.publish_seconds p95 ~= 8-10 ms`, `admission_seconds p95 ~= 37-49 ms`)
+
+So the next honest question is no longer "is the control shape wrong?" It is:
+
+- does the current WSP inflight push limit under-drive the already-correct rate plan once coupled latency rises, even though the platform itself remains semantically healthy?
+
+That is a good narrow diagnostic question because it changes only the proof harness capacity, not the target envelope, not the RTDL image, and not the platform standard.
+
+That diagnostic is now complete, and it changed the picture again in a useful way.
+
+I reran the exact same coupled envelope with only one change:
+
+- execution `phase1_rtdl_coupled_envelope_igpush2_20260311T023200Z`
+- same RTDL image
+- same current materialized scope
+- same calibrated `Phase 0` common rate plan
+- only `ig_push_concurrency` changed from `1` to `2`
+
+Result:
+
+- steady `3065.144 eps` green
+- burst `7189.000 eps` green
+- recovery `2921.500 eps` still slightly red on the full `180 s` window
+- recovery nevertheless returned to sustained green inside the accepted bound:
+  - sustained green by `150 s`
+  - bound `180 s`
+
+That is too large a movement to dismiss as noise. The earlier broad red posture was not purely a platform-runtime truth. The WSP inflight push cap was materially under-driving the calibrated control once the coupled path raised request service time.
+
+This is exactly why the dynamic posture matters. If I had kept blaming RTDL after the `ig_push_concurrency = 1` run, I would have spent more time editing the wrong surface.
+
+The updated interpretation is:
+
+- the `ig_push_concurrency = 1` coupled envelope was mainly a harness-capacity artifact under the higher-latency coupled regime
+- `ig_push_concurrency = 2` is much closer to a truthful control surface for the same target envelope
+- a small recovery shortfall remains, but it is now narrow enough that I should not treat the plane as broadly red
+
+The next truthful move is not another same-scope rerun. It is:
+
+- rematerialize RTDL on a fresh run scope with the same current image
+- rerun the coupled envelope at `ig_push_concurrency = 2`
+- use that fresh-scope run, not the reused-scope diagnostic, as the closure candidate for this part of `Phase 1`
