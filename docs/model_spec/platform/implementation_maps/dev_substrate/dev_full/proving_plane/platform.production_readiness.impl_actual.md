@@ -4301,3 +4301,168 @@ That keeps the graph layer aligned with the actual active question:
 
 - not "is Case + Label green?"
 - but "can the enlarged network stay green under coupled steady / burst / recovery proof?"
+
+## 2026-03-11 15:12:05 +00:00 - The next blocker is now methodological rather than runtime: we do not yet have a dedicated Phase 4 coupled executor, and the proving layer still does not surface all coupled timing evidence directly
+I paused before spending on AWS because the next run should answer one clear question:
+
+- does the enlarged `Control + Ingress + RTDL + Case + Label` network hold through steady, burst, and recovery while the downstream operational-review path remains materially alive?
+
+The repo was close to that answer, but not yet shaped for it.
+
+What is already usable:
+
+- the narrow `Phase 3` runner already knows how to:
+  - materialize a fresh run scope
+  - bootstrap the control plane
+  - warm the RTDL/Case + Label seam honestly
+  - bracket the bounded run with run-scoped runtime snapshots
+- the `Phase 0` envelope runner already knows how to:
+  - drive truthful steady / burst / recovery on the accepted APIGW boundary
+  - score those ingress windows and recovery bins cleanly
+
+What is missing:
+
+- no dedicated Phase 4 coupled wrapper currently ties those two together on the same pinned run scope
+- the proving layer still lacks first-class coupled timing evidence for all of:
+  - decision-to-case
+  - case-to-label
+
+The starvation side is already materially available through the run-scoped deltas:
+
+- RTDL decisions
+- CaseTrigger participation
+- Case Management case creation / timeline append
+- Label Store commits
+
+But timing is only partially surfaced right now:
+
+- `case_trigger` retains recent run-scoped event timestamps
+- `case_mgmt` and `label_store` retain lifecycle/governance events under the run root
+- those are not yet summarized into the proving receipts directly
+
+So the accepted next correction is:
+
+- build a thin Phase 4 runner that reuses the proven Phase 3 warm/materialize path and then hands the actual steady/burst/recovery traffic to the Phase 0 envelope runner on the same `platform_run_id` and `scenario_run_id`
+- build a thin Phase 4 rollup that scores:
+  - ingress steady / burst / recovery
+  - RTDL + Case + Label participation and integrity
+  - starvation across the coupled path
+- if direct coupled timing still cannot be derived honestly from the existing exported run surfaces, let that remain an explicit telemetry blocker rather than pretending the phase is fully scoreable
+
+## 2026-03-11 15:21:51 +00:00 - The first bounded Phase 4 attempt failed at the reused control-bootstrap seam before any traffic was sent, which is the correct narrow defect to fix first
+The first execution scope was:
+
+- `execution_id = phase4_case_label_coupled_20260311T151746Z`
+- `platform_run_id = platform_20260311T151746Z`
+
+The important thing is where it failed:
+
+- not in ingress
+- not in RTDL
+- not in Case + Label
+- not under steady / burst / recovery traffic at all
+
+It failed during the reused control-bootstrap handoff, because the bootstrap worker is still hard-coded to load:
+
+- `g3a_run_charter.active.json`
+
+while the new Phase 4 runner had written:
+
+- `g4a_run_charter.active.json`
+
+The resulting blocker in `phase4_control_plane_bootstrap.json` is explicit:
+
+- `[Errno 2] No such file or directory: '.../g3a_run_charter.active.json'`
+
+That makes this a proving-harness compatibility defect, not a platform-runtime defect. The narrow correction is to feed the reused bootstrap worker the charter filename it already expects from the Phase 4 runner, rather than broadening the fix prematurely.
+
+## 2026-03-11 16:18:03 +00:00 - The second Phase 4 attempt changed the blocker class again: the coupled runner now reaches live prewarm and activation traffic, but the post-activation warm gate is still enforcing the wrong proof posture
+The rerun scope was:
+
+- `execution_id = phase4_case_label_coupled_20260311T154836Z`
+- `platform_run_id = platform_20260311T154836Z`
+
+The important boundary change is that the runner no longer dies at bootstrap. It materially reached:
+
+- fresh runtime materialization
+- control bootstrap
+- prewarm traffic
+- scored activation traffic
+
+Both bounded activation slices were semantically healthy on the live APIGW edge:
+
+- prewarm exact-window admitted throughput was about `1322 eps`
+- activation exact-window admitted throughput was about `1513 eps`
+- `4xx = 0`
+- `5xx = 0`
+
+So the enlarged network can already carry real coupled traffic on the new run scope. The red did not come from ingress failure or dark downstream participation before traffic.
+
+The actual blocker sits in the reused post-activation warm gate:
+
+- `g3a_s4_runtime_warm_gate.json` stayed red only on `PR3.S4.WARM.B12A_DL_BOOTSTRAP_PENDING`
+- the DL posture had flipped to `FAIL_CLOSED`
+- the reason was `baseline=required_signal_gap:ofp_health;transition=steady_state;profile=prod;scope=scope=GLOBAL`
+
+That is not the same proof posture Phase 3 used successfully. In the accepted Phase 3 closure run, the warm gate passed on the narrow `A02_SCENARIO_TRANSITION_OFP_STALE_GRAPH_ALLOWED` advisory because it was still validating a transition boundary with zero DF activity. Here the runner has already pushed activation traffic through the coupled path, so DF is materially active and the reused warm gate is no longer checking the right thing for a coupled steady/burst/recovery proof.
+
+This means the problem class has changed again:
+
+- not bootstrap compatibility anymore
+- not a demonstrated ingress/runtime regression yet
+- now a methodology defect in the Phase 4 executor
+
+The second live defect is in the rollup itself: `phase4_case_label_coupled_rollup.py` is currently hard-coded to append `PHASE4.B24_TIMING_EVIDENCE_UNAVAILABLE`. That makes Phase 4 permanently non-closable even if the coupled run itself goes green.
+
+So the accepted posture change is:
+
+- stop treating the reused post-activation warm gate as authority for coupled closure
+- repin the Phase 4 runner so activation plus the full bounded envelope are the proof path
+- add direct store-backed timing evidence for:
+  - decision-to-case
+  - case-to-label
+- keep the standard fixed by gating those timings against the already-pinned case/label production targets rather than waving them away
+
+## 2026-03-11 16:22:47 +00:00 - The new timing probe is now truthful enough to use, and it removed two timestamping blindspots that would have sent Phase 4 in the wrong direction
+I built and tested a dedicated `phase4_case_label_timing_probe.py` against the already-executed activation scope:
+
+- `execution_id = phase4_case_label_coupled_20260311T154836Z`
+- `platform_run_id = platform_20260311T154836Z`
+- `scenario_run_id = 35b1dbb982a059543030e1a7ccc0a4ef`
+
+The first version of the probe usefully failed from a reasoning standpoint:
+
+- it treated `cm_case_trigger_intake.observed_time` as the decision-to-case start
+- it treated `cm_case_timeline LABEL_PENDING created_at_utc` as the case-to-label start
+
+That produced a false red story:
+
+- decision-to-case `p95 ~ 68 s`
+- case-to-label `p95 ~ 68 s`
+
+The live store rows showed why that was wrong:
+
+- `cm_cases.created_at_utc` matches `cm_case_trigger_intake.first_seen_at_utc`, so the authoritative processing clock for case open is `first_seen_at_utc -> created_at_utc`, not event-time `observed_time`
+- `cm_label_emissions.first_requested_at_utc` matches the actual CM handshake write attempt, while `cm_case_timeline LABEL_PENDING` was carrying a much earlier event-oriented timestamp
+
+After repinning the probe to those processing clocks, the same already-executed activation scope rescored cleanly:
+
+- decision-to-case:
+  - `count = 257`
+  - `p95 = 0.0 s`
+  - `max = 0.0 s`
+- case-to-label:
+  - `count = 257`
+  - `p95 ~ 0.142 s`
+  - `p99 ~ 0.216 s`
+  - `max ~ 0.349 s`
+
+That is the correction I needed before spending on another Phase 4 run. The coupled timing blocker was not a real runtime defect; it was a timestamp-basis defect in the proving layer.
+
+So the current accepted posture is:
+
+- keep the dedicated timing probe
+- use processing timestamps only for the coupled timing gates
+- rerun the full Phase 4 executor on a fresh scope now that:
+  - the post-activation warm gate dependency is removed
+  - the coupled timing evidence is materially available and truthful
