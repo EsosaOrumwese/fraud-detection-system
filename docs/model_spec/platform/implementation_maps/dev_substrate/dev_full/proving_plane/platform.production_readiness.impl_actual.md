@@ -3563,3 +3563,30 @@ That means the real local bootstrap correction is:
   - `phase3_case_label_readiness.py`
 
 This is still the same blocker family, not a new platform-runtime failure. The important thing is that the red boundary remains fully local and fully attributable. I am rerunning fresh again only because the fix is now specific enough to justify it.
+
+## 2026-03-11 10:28:09 +00:00 - The next blocker was not runtime red but inherited gate-shape drift: the warm gate only allows pre-traffic bootstrap pending as an advisory for `S4+`, while the new runner had been invoking it as `P3`
+The third fresh attempt finally moved fully into the real execution chain, and the next failure taught something useful about the proving method rather than about imports or packaging.
+
+What happened:
+
+- bootstrap completed
+- the active fresh scope was live
+- the run then stopped at `pr3_runtime_warm_gate.py` with only one blocker:
+  - `PR3.P3.WARM.B12A_DL_BOOTSTRAP_PENDING`
+
+The important detail is that this is the exact same pre-traffic bootstrap posture the historical `PR3-S4` warm gate already knows how to treat as advisory when:
+
+- DL is bootstrap-pending before traffic,
+- DF has zero activity,
+- IEG and OFP are still in bootstrap-pending posture,
+- and the run has not started the traffic window yet.
+
+That logic is already implemented in the shared warm gate, but it is keyed on `state_sequence(state_id) >= 4`. By calling the warm gate with `P3`, I had accidentally stepped outside the advisory branch even though the Case + Label plane is exactly the old `S4` runtime boundary in that gate family.
+
+The correct correction is not to weaken the warm gate. It is to invoke it with the matching historical state semantics:
+
+- keep the new Phase 3 executor and rollup names
+- keep the new Phase 3 execution root
+- but call the shared warm gate as `S4`
+
+That preserves the intended operator logic without spending time rewriting a shared gate for a naming mismatch.

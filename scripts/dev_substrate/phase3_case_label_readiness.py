@@ -279,7 +279,7 @@ def main() -> None:
                 "--pr3-execution-id",
                 execution_id,
                 "--state-id",
-                "P3",
+                "S4",
                 "--namespace",
                 args.namespace,
                 "--case-labels-namespace",
