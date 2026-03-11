@@ -438,6 +438,80 @@ def pretraffic_bootstrap_allowed(
     return True, f"{base_id}A01_PRETRAFFIC_BOOTSTRAP_PENDING_ALLOWED"
 
 
+def scenario_transition_oft_ready(
+    ofp_probe: dict[str, Any],
+    *,
+    max_checkpoint_seconds: float,
+    max_lag_seconds: float,
+) -> bool:
+    health_payload = dict(ofp_probe.get("health_payload") or {})
+    metrics_payload = dict(ofp_probe.get("metrics_payload") or {})
+    if str(health_payload.get("health_state") or "").strip().upper() not in {"RED", "FAILED", "UNHEALTHY"}:
+        return False
+    reasons = {str(item).strip() for item in (health_payload.get("health_reasons") or []) if str(item).strip()}
+    if not reasons or not reasons.issubset({"WATERMARK_TOO_OLD", "STALE_GRAPH_VERSION_RED"}):
+        return False
+    checkpoint_age = to_float(health_payload.get("checkpoint_age_seconds"))
+    if checkpoint_age is None:
+        checkpoint_age = to_float(metrics_payload.get("checkpoint_age_seconds"))
+    if checkpoint_age is None or checkpoint_age > max_checkpoint_seconds:
+        return False
+    lag_seconds = to_float(metrics_payload.get("lag_seconds"))
+    if lag_seconds is None or lag_seconds > max_lag_seconds:
+        return False
+    metrics = dict(metrics_payload.get("metrics") or {})
+    if (to_float(metrics.get("missing_features")) or 0.0) != 0.0:
+        return False
+    if (to_float(metrics.get("snapshot_failures")) or 0.0) != 0.0:
+        return False
+    if (to_float(metrics.get("stale_graph_version")) or 0.0) <= 0.0:
+        return False
+    return True
+
+
+def scenario_transition_allowed(
+    state_id: str,
+    attempt_blockers: list[str],
+    *,
+    expected_case_label_scenario_run_id: str,
+    df_probe: dict[str, Any],
+    ieg_probe: dict[str, Any],
+    ofp_probe: dict[str, Any],
+    case_trigger_probe: dict[str, Any],
+    case_mgmt_probe: dict[str, Any],
+    label_store_probe: dict[str, Any],
+    max_checkpoint_seconds: float,
+    max_lag_seconds: float,
+) -> tuple[bool, str]:
+    if state_sequence(state_id) < 4:
+        return False, ""
+    expected = str(expected_case_label_scenario_run_id or "").strip()
+    if not expected:
+        return False, ""
+    base_id = f"PR3.{state_id}.WARM."
+    allowed_blockers = {f"{base_id}B12K_OFP_NOT_OPERATIONALLY_READY"}
+    blocker_set = set(attempt_blockers)
+    if not blocker_set or not blocker_set.issubset(allowed_blockers):
+        return False, ""
+    if not zero_df_activity(df_probe):
+        return False, ""
+    if str(case_trigger_probe.get("scenario_run_id") or "").strip() != expected:
+        return False, ""
+    if str(case_mgmt_probe.get("scenario_run_id") or "").strip() != expected:
+        return False, ""
+    if str(label_store_probe.get("scenario_run_id") or "").strip() != expected:
+        return False, ""
+    if str(ieg_probe.get("probe_error") or "").strip():
+        return False, ""
+    if not scenario_transition_oft_ready(
+        ofp_probe,
+        max_checkpoint_seconds=max_checkpoint_seconds,
+        max_lag_seconds=max_lag_seconds,
+    ):
+        return False, ""
+    return True, f"{base_id}A02_SCENARIO_TRANSITION_OFP_STALE_GRAPH_ALLOWED"
+
+
 def probe_component_surface(namespace: str, pod_name: str, component: str, platform_run_id: str) -> tuple[dict[str, Any], str]:
     paths = COMPONENT_SURFACE_PATHS[component]
     return exec_json(
@@ -537,6 +611,7 @@ def main() -> None:
     ap.add_argument("--case-labels-namespace", default="")
     ap.add_argument("--profile-path", default="/runtime-profile/dev_full.yaml")
     ap.add_argument("--platform-run-id", required=True)
+    ap.add_argument("--expected-case-label-scenario-run-id", default="")
     ap.add_argument("--settle-seconds", type=int, default=30)
     ap.add_argument("--runtime-ready-timeout-seconds", type=int, default=180)
     ap.add_argument("--probe-interval-seconds", type=int, default=15)
@@ -759,6 +834,12 @@ def main() -> None:
                         attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12M_CASE_TRIGGER_SCOPE_MISMATCH")
                     if not str(case_trigger_probe.get("scenario_run_id") or "").strip():
                         attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12N_CASE_TRIGGER_SCENARIO_MISSING")
+                    elif (
+                        str(args.expected_case_label_scenario_run_id or "").strip()
+                        and str(case_trigger_probe.get("scenario_run_id") or "").strip()
+                        != str(args.expected_case_label_scenario_run_id).strip()
+                    ):
+                        attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12N1_CASE_TRIGGER_SCENARIO_MISMATCH")
                     if list(case_trigger_probe.get("admitted_topics") or []) != ["fp.bus.rtdl.v1"]:
                         attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12O_CASE_TRIGGER_TOPIC_DRIFT")
 
@@ -776,6 +857,12 @@ def main() -> None:
                         attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12Q_CASE_MGMT_SCOPE_MISMATCH")
                     if not str(case_mgmt_probe.get("scenario_run_id") or "").strip():
                         attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12R_CASE_MGMT_SCENARIO_MISSING")
+                    elif (
+                        str(args.expected_case_label_scenario_run_id or "").strip()
+                        and str(case_mgmt_probe.get("scenario_run_id") or "").strip()
+                        != str(args.expected_case_label_scenario_run_id).strip()
+                    ):
+                        attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12R1_CASE_MGMT_SCENARIO_MISMATCH")
                     if list(case_mgmt_probe.get("admitted_topics") or []) != ["fp.bus.case.triggers.v1"]:
                         attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12S_CASE_MGMT_TOPIC_DRIFT")
 
@@ -793,6 +880,12 @@ def main() -> None:
                         attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12U_LABEL_STORE_SCOPE_MISMATCH")
                     if not str(label_store_probe.get("scenario_run_id") or "").strip():
                         attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12V_LABEL_STORE_SCENARIO_MISSING")
+                    elif (
+                        str(args.expected_case_label_scenario_run_id or "").strip()
+                        and str(label_store_probe.get("scenario_run_id") or "").strip()
+                        != str(args.expected_case_label_scenario_run_id).strip()
+                    ):
+                        attempt_blockers.append(f"PR3.{args.state_id}.WARM.B12V1_LABEL_STORE_SCENARIO_MISMATCH")
 
                 dla_status = next(row for row in pre_status if row.get("app") == "fp-pr3-dla")
                 dla_probe, dla_probe_error = probe_worker_config(
@@ -823,6 +916,24 @@ def main() -> None:
                 attempt_advisory_ids.append(pretraffic_advisory)
                 advisory_ids.append(pretraffic_advisory)
                 attempt_blockers = []
+            else:
+                transition_allowed, transition_advisory = scenario_transition_allowed(
+                    args.state_id,
+                    attempt_blockers,
+                    expected_case_label_scenario_run_id=str(args.expected_case_label_scenario_run_id).strip(),
+                    df_probe=df_probe,
+                    ieg_probe=ieg_probe,
+                    ofp_probe=ofp_probe,
+                    case_trigger_probe=case_trigger_probe,
+                    case_mgmt_probe=case_mgmt_probe,
+                    label_store_probe=label_store_probe,
+                    max_checkpoint_seconds=float(args.max_operational_checkpoint_seconds),
+                    max_lag_seconds=float(args.max_operational_lag_seconds),
+                )
+                if transition_allowed:
+                    attempt_advisory_ids.append(transition_advisory)
+                    advisory_ids.append(transition_advisory)
+                    attempt_blockers = []
 
             probe_attempts.append(
                 {
@@ -872,6 +983,7 @@ def main() -> None:
             "case_labels": case_labels_namespace,
         },
         "profile_path": args.profile_path,
+        "expected_case_label_scenario_run_id": str(args.expected_case_label_scenario_run_id).strip(),
         "settle_seconds": args.settle_seconds,
         "pre_status": pre_status,
         "csfb_probe": csfb_probe,

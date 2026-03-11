@@ -326,6 +326,7 @@ def pick_summary(component: str, metrics_payload: dict[str, Any], health_payload
             }
         )
     elif component == "case_trigger":
+        reconciliation = dict(health_payload.get("reconciliation_totals", {}) or {})
         summary.update(
             {
                 "triggers_seen": to_float(metrics.get("triggers_seen")),
@@ -337,14 +338,30 @@ def pick_summary(component: str, metrics_payload: dict[str, Any], health_payload
                 "quarantine": to_float(metrics.get("quarantine"))
                 if metrics.get("quarantine") is not None
                 else to_float(metrics.get("publish_quarantine_total")),
-                "payload_mismatch_total": to_float(metrics.get("payload_mismatch_total")),
+                "payload_mismatch_total": to_float(metrics.get("payload_mismatch_total"))
+                if metrics.get("payload_mismatch_total") is not None
+                else to_float(reconciliation.get("payload_mismatch")),
                 "publish_quarantine_total": to_float(metrics.get("publish_quarantine_total")),
-                "publish_ambiguous_total": to_float(metrics.get("publish_ambiguous_total")),
-                "replay_mismatch_total": to_float(metrics.get("payload_mismatch_total")),
+                "publish_ambiguous_total": to_float(metrics.get("publish_ambiguous_total"))
+                if metrics.get("publish_ambiguous_total") is not None
+                else to_float(reconciliation.get("publish_ambiguous")),
+                "replay_mismatch_total": to_float(metrics.get("payload_mismatch_total"))
+                if metrics.get("payload_mismatch_total") is not None
+                else to_float(reconciliation.get("payload_mismatch")),
             }
         )
     elif component == "case_mgmt":
         anomalies = dict(health_payload.get("anomalies", {}) or {})
+        anomaly_lanes = list(anomalies.get("lanes") or [])
+        payload_mismatch_total = to_float(metrics.get("payload_mismatches"))
+        if payload_mismatch_total is None:
+            payload_mismatch_total = float(
+                sum(
+                    int(item.get("count") or 0)
+                    for item in anomaly_lanes
+                    if "PAYLOAD_MISMATCH" in str(item.get("kind") or "").upper()
+                )
+            )
         summary.update(
             {
                 "case_triggers": to_float(metrics.get("case_triggers")),
@@ -361,7 +378,7 @@ def pick_summary(component: str, metrics_payload: dict[str, Any], health_payload
                 "label_status_rejected": to_float(metrics.get("label_status_rejected")),
                 "evidence_pending": to_float(metrics.get("evidence_pending")),
                 "evidence_unavailable": to_float(metrics.get("evidence_unavailable")),
-                "payload_mismatches": to_float(metrics.get("payload_mismatches")),
+                "payload_mismatches": payload_mismatch_total,
                 "anomalies_total": to_float(anomalies.get("total")),
             }
         )

@@ -1386,8 +1386,8 @@ def main() -> int:
             ],
             "cpu_request": "250m",
             "cpu_limit": "1",
-            "mem_request": "512Mi",
-            "mem_limit": "2Gi",
+            "mem_request": "1Gi",
+            "mem_limit": "4Gi",
             "lane": "CASE_LABELS",
         },
         {

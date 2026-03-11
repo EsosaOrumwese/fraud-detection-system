@@ -284,6 +284,12 @@ class CaseMgmtRunReporter:
             "evidence_pending": evidence_pending_total,
             "evidence_forbidden": evidence_forbidden_total,
             "evidence_unavailable": evidence_unavailable_total,
+            "payload_mismatches": (
+                trigger_payload_mismatch_total
+                + timeline_payload_mismatch_total
+                + label_payload_mismatch_total
+                + action_payload_mismatch_total
+            ),
         }
 
         health = _derive_health(

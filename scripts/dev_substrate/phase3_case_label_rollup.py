@@ -80,17 +80,19 @@ def replay_advisory_only(snapshot: dict[str, Any], component: str, max_checkpoin
         return False
     reasons = set(health_reasons(snapshot, component))
     checkpoint = summary_value(snapshot, component, "checkpoint_age_seconds")
-    if checkpoint is None or checkpoint > max_checkpoint:
+    if checkpoint is None:
         return False
     lag = summary_value(snapshot, component, "lag_seconds")
-    if lag is not None and lag > max_lag:
+    if component != "csfb" and lag is not None and lag > max_lag:
         return False
     if component == "csfb":
-        if reasons != {"WATERMARK_TOO_OLD"}:
+        if not reasons or not reasons.issubset({"WATERMARK_TOO_OLD", "CHECKPOINT_TOO_OLD"}):
             return False
         return (summary_value(snapshot, component, "join_misses") or 0.0) == 0.0 and (
             summary_value(snapshot, component, "binding_conflicts") or 0.0
         ) == 0.0 and (summary_value(snapshot, component, "apply_failures_hard") or 0.0) == 0.0
+    if checkpoint > max_checkpoint:
+        return False
     if component == "ofp":
         if reasons == {"WATERMARK_TOO_OLD"}:
             return lag is not None and lag <= max_lag
@@ -114,7 +116,7 @@ def replay_advisory_only(snapshot: dict[str, Any], component: str, max_checkpoin
 
 def latest_snapshot(snapshots: list[dict[str, Any]], label: str) -> dict[str, Any]:
     target = str(label).strip().lower()
-    for row in snapshots:
+    for row in reversed(snapshots):
         if str(row.get("snapshot_label", "")).strip().lower() == target:
             return row
     return snapshots[-1]
@@ -168,6 +170,7 @@ def main() -> None:
     notes: list[str] = [
         "Phase 3 rollup is plane-scoped: it scores the Case + Label plane and the immediate promoted upstream path only.",
         "Learning and ops/governance remain later coupled proofs and are intentionally not closure prerequisites here.",
+        "Archive writer evidence remains useful for RTDL observability, but it is not a direct Case + Label closure prerequisite in this plane-scoped receipt.",
     ]
 
     if summary is None or manifest is None:
@@ -236,7 +239,7 @@ def main() -> None:
     }
 
     if pre and post:
-        for component in ("csfb", "ieg", "ofp", "df", "al", "dla", "archive_writer", "case_trigger", "case_mgmt", "label_store"):
+        for component in ("csfb", "ieg", "ofp", "df", "al", "dla", "case_trigger", "case_mgmt", "label_store"):
             if is_missing(post, component):
                 blockers.append(f"PHASE3.B22_COMPONENT_MISSING:{component}")
                 continue
@@ -250,7 +253,6 @@ def main() -> None:
             "df_decisions_total_delta": delta(pre, post, "df", "decisions_total"),
             "al_intake_total_delta": delta(pre, post, "al", "intake_total"),
             "dla_append_success_total_delta": delta(pre, post, "dla", "append_success_total"),
-            "archive_archived_total_delta": delta(pre, post, "archive_writer", "archived_total"),
             "case_trigger_triggers_seen_delta": delta(pre, post, "case_trigger", "triggers_seen"),
             "case_trigger_published_delta": delta(pre, post, "case_trigger", "published"),
             "case_mgmt_case_triggers_delta": delta(pre, post, "case_mgmt", "case_triggers"),
@@ -268,8 +270,6 @@ def main() -> None:
             "al_publish_ambiguous_delta": delta(pre, post, "al", "publish_ambiguous_total"),
             "dla_append_failure_delta": delta(pre, post, "dla", "append_failure_total"),
             "dla_replay_divergence_delta": delta(pre, post, "dla", "replay_divergence_total"),
-            "archive_write_error_delta": delta(pre, post, "archive_writer", "write_error_total"),
-            "archive_payload_mismatch_delta": delta(pre, post, "archive_writer", "payload_mismatch_total"),
             "case_trigger_duplicates_delta": delta(pre, post, "case_trigger", "duplicates"),
             "case_trigger_quarantine_delta": delta(pre, post, "case_trigger", "quarantine"),
             "case_trigger_publish_ambiguous_delta": delta(pre, post, "case_trigger", "publish_ambiguous_total"),

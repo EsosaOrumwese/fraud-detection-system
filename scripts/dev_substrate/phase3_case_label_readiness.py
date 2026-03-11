@@ -168,6 +168,95 @@ def write_charter(
     write_json(path, payload)
 
 
+def materialize_runtime(
+    *,
+    execution_id: str,
+    platform_run_id: str,
+    scenario_run_id: str,
+    aws_region: str,
+    namespace: str,
+    case_labels_namespace: str,
+) -> None:
+    run_cmd(
+        [
+            "scripts/dev_substrate/pr3_rtdl_materialize.py",
+            "--pr3-execution-id",
+            execution_id,
+            "--platform-run-id",
+            platform_run_id,
+            "--scenario-run-id",
+            scenario_run_id,
+            "--region",
+            aws_region,
+            "--namespace",
+            namespace,
+            "--case-labels-namespace",
+            case_labels_namespace,
+        ]
+    )
+
+
+def warm_gate_runtime(
+    *,
+    execution_id: str,
+    run_control_root: str,
+    namespace: str,
+    case_labels_namespace: str,
+    platform_run_id: str,
+    expected_case_label_scenario_run_id: str,
+) -> None:
+    run_cmd(
+        [
+            "scripts/dev_substrate/pr3_runtime_warm_gate.py",
+            "--run-control-root",
+            run_control_root,
+            "--pr3-execution-id",
+            execution_id,
+            "--state-id",
+            "S4",
+            "--namespace",
+            namespace,
+            "--case-labels-namespace",
+            case_labels_namespace,
+            "--platform-run-id",
+            platform_run_id,
+            "--expected-case-label-scenario-run-id",
+            expected_case_label_scenario_run_id,
+        ]
+    )
+
+
+def capture_snapshot(
+    *,
+    execution_id: str,
+    run_control_root: str,
+    state_id: str,
+    snapshot_label: str,
+    namespace: str,
+    case_labels_namespace: str,
+    platform_run_id: str,
+) -> None:
+    run_cmd(
+        [
+            "scripts/dev_substrate/pr3_runtime_surface_snapshot.py",
+            "--run-control-root",
+            run_control_root,
+            "--pr3-execution-id",
+            execution_id,
+            "--state-id",
+            state_id,
+            "--snapshot-label",
+            snapshot_label,
+            "--namespace",
+            namespace,
+            "--case-labels-namespace",
+            case_labels_namespace,
+            "--platform-run-id",
+            platform_run_id,
+        ]
+    )
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Execute bounded Phase 3 Case + Label readiness.")
     ap.add_argument("--execution-id", default="")
@@ -182,14 +271,19 @@ def main() -> None:
     ap.add_argument("--target-request-rate-eps", type=float, default=3000.0)
     ap.add_argument("--expected-window-eps", type=float, default=3000.0)
     ap.add_argument("--min-processed-events", type=int, default=100000)
+    ap.add_argument("--prewarm-duration-seconds", type=int, default=45)
+    ap.add_argument("--prewarm-target-request-rate-eps", type=float, default=1500.0)
+    ap.add_argument("--prewarm-expected-window-eps", type=float, default=0.0)
+    ap.add_argument("--prewarm-ig-push-concurrency", type=int, default=1)
+    ap.add_argument("--post-prewarm-settle-seconds", type=int, default=10)
     ap.add_argument("--duration-seconds", type=int, default=60)
-    ap.add_argument("--warmup-seconds", type=int, default=15)
+    ap.add_argument("--warmup-seconds", type=int, default=35)
     ap.add_argument("--sample-period-seconds", type=int, default=15)
     ap.add_argument("--early-cutoff-seconds", type=int, default=30)
     ap.add_argument("--early-cutoff-floor-ratio", type=float, default=0.70)
     ap.add_argument("--stream-speedup", type=float, default=52.9)
     ap.add_argument("--output-concurrency", type=int, default=4)
-    ap.add_argument("--ig-push-concurrency", type=int, default=1)
+    ap.add_argument("--ig-push-concurrency", type=int, default=2)
     ap.add_argument("--http-pool-maxsize", type=int, default=512)
     ap.add_argument("--traffic-output-ids", default="s3_event_stream_with_fraud_6B")
     ap.add_argument("--context-output-ids", default="arrival_events_5B,s1_arrival_entities_6B,s3_flow_anchor_with_fraud_6B")
@@ -207,6 +301,11 @@ def main() -> None:
     scenario_run_id = fresh_scenario_run_id(
         execution_id=execution_id,
         window_label=window_label,
+        platform_run_id=platform_run_id,
+    )
+    prewarm_scenario_run_id = fresh_scenario_run_id(
+        execution_id=execution_id,
+        window_label="phase3_case_label_prewarm",
         platform_run_id=platform_run_id,
     )
 
@@ -229,28 +328,23 @@ def main() -> None:
             "window_label": window_label,
             "platform_run_id": platform_run_id,
             "scenario_run_id": scenario_run_id,
+            "prewarm_scenario_run_id": prewarm_scenario_run_id,
             "scenario_id": str(args.scenario_id).strip(),
         },
     )
 
     checkpoint_attempt_id = utc_stamp()
     try:
-        run_cmd(
-            [
-                "scripts/dev_substrate/pr3_rtdl_materialize.py",
-                "--pr3-execution-id",
-                execution_id,
-                "--platform-run-id",
-                platform_run_id,
-                "--scenario-run-id",
-                scenario_run_id,
-                "--region",
-                args.aws_region,
-                "--namespace",
-                args.namespace,
-                "--case-labels-namespace",
-                args.case_labels_namespace,
-            ]
+        initial_runtime_scenario_run_id = (
+            prewarm_scenario_run_id if int(args.prewarm_duration_seconds) > 0 else scenario_run_id
+        )
+        materialize_runtime(
+            execution_id=execution_id,
+            platform_run_id=platform_run_id,
+            scenario_run_id=initial_runtime_scenario_run_id,
+            aws_region=args.aws_region,
+            namespace=args.namespace,
+            case_labels_namespace=args.case_labels_namespace,
         )
         run_cmd(
             [
@@ -271,44 +365,99 @@ def main() -> None:
                 "phase3_control_plane_bootstrap.json",
             ]
         )
-        run_cmd(
-            [
-                "scripts/dev_substrate/pr3_runtime_warm_gate.py",
-                "--run-control-root",
-                args.run_control_root,
-                "--pr3-execution-id",
-                execution_id,
-                "--state-id",
-                "S4",
-                "--namespace",
-                args.namespace,
-                "--case-labels-namespace",
-                args.case_labels_namespace,
-                "--platform-run-id",
-                platform_run_id,
-            ]
+        warm_gate_runtime(
+            execution_id=execution_id,
+            run_control_root=args.run_control_root,
+            namespace=args.namespace,
+            case_labels_namespace=args.case_labels_namespace,
+            platform_run_id=platform_run_id,
+            expected_case_label_scenario_run_id=initial_runtime_scenario_run_id,
         )
-        run_cmd(
-            [
-                "scripts/dev_substrate/pr3_runtime_surface_snapshot.py",
+
+        stop_wsp_tasks(args.aws_region, root / "phase3_case_label_preflight_wsp_cleanup.json", "Phase3 preflight stale WSP cleanup")
+
+        if int(args.prewarm_duration_seconds) > 0:
+            prewarm_dispatch_args = [
+                "scripts/dev_substrate/pr3_wsp_replay_dispatch.py",
                 "--run-control-root",
                 args.run_control_root,
                 "--pr3-execution-id",
                 execution_id,
                 "--state-id",
                 "P3",
-                "--snapshot-label",
-                "pre",
-                "--namespace",
-                args.namespace,
-                "--case-labels-namespace",
-                args.case_labels_namespace,
+                "--window-label",
+                "phase3_case_label_prewarm",
+                "--artifact-prefix",
+                "phase3_case_label_prewarm",
+                "--blocker-prefix",
+                "PHASE3.CASELABEL.PREWARM",
+                "--region",
+                args.aws_region,
                 "--platform-run-id",
                 platform_run_id,
+                "--scenario-run-id",
+                prewarm_scenario_run_id,
+                "--checkpoint-attempt-id",
+                utc_stamp(),
+                "--lane-count",
+                str(args.lane_count),
+                "--expected-window-eps",
+                str(args.prewarm_expected_window_eps),
+                "--target-request-rate-eps",
+                str(args.prewarm_target_request_rate_eps),
+                "--duration-seconds",
+                str(args.prewarm_duration_seconds),
+                "--warmup-seconds",
+                "0",
+                "--early-cutoff-seconds",
+                "15",
+                "--early-cutoff-floor-ratio",
+                "0.5",
+                "--stream-speedup",
+                str(args.stream_speedup),
+                "--output-concurrency",
+                str(args.output_concurrency),
+                "--ig-push-concurrency",
+                str(args.prewarm_ig_push_concurrency),
+                "--http-pool-maxsize",
+                str(args.http_pool_maxsize),
+                "--traffic-output-ids",
+                args.traffic_output_ids,
+                "--context-output-ids",
+                args.context_output_ids,
+                "--skip-runtime-identity-probe",
+                "--allow-runtime-identity-reuse",
+                "--skip-final-threshold-check",
             ]
-        )
+            run_cmd(prewarm_dispatch_args)
+            stop_wsp_tasks(args.aws_region, root / "phase3_case_label_prewarm_wsp_cleanup.json", "Phase3 prewarm WSP cleanup")
+            materialize_runtime(
+                execution_id=execution_id,
+                platform_run_id=platform_run_id,
+                scenario_run_id=scenario_run_id,
+                aws_region=args.aws_region,
+                namespace=args.namespace,
+                case_labels_namespace=args.case_labels_namespace,
+            )
+            warm_gate_runtime(
+                execution_id=execution_id,
+                run_control_root=args.run_control_root,
+                namespace=args.namespace,
+                case_labels_namespace=args.case_labels_namespace,
+                platform_run_id=platform_run_id,
+                expected_case_label_scenario_run_id=scenario_run_id,
+            )
+            time.sleep(max(0, int(args.post_prewarm_settle_seconds)))
 
-        stop_wsp_tasks(args.aws_region, root / "phase3_case_label_preflight_wsp_cleanup.json", "Phase3 preflight stale WSP cleanup")
+        capture_snapshot(
+            execution_id=execution_id,
+            run_control_root=args.run_control_root,
+            state_id="P3",
+            snapshot_label="pre",
+            namespace=args.namespace,
+            case_labels_namespace=args.case_labels_namespace,
+            platform_run_id=platform_run_id,
+        )
 
         dispatch_args = [
             "scripts/dev_substrate/pr3_wsp_replay_dispatch.py",
@@ -376,24 +525,14 @@ def main() -> None:
             sample_period_seconds=max(5, int(args.sample_period_seconds)),
         )
 
-        run_cmd(
-            [
-                "scripts/dev_substrate/pr3_runtime_surface_snapshot.py",
-                "--run-control-root",
-                args.run_control_root,
-                "--pr3-execution-id",
-                execution_id,
-                "--state-id",
-                "P3",
-                "--snapshot-label",
-                "post",
-                "--namespace",
-                args.namespace,
-                "--case-labels-namespace",
-                args.case_labels_namespace,
-                "--platform-run-id",
-                platform_run_id,
-            ]
+        capture_snapshot(
+            execution_id=execution_id,
+            run_control_root=args.run_control_root,
+            state_id="P3",
+            snapshot_label="post",
+            namespace=args.namespace,
+            case_labels_namespace=args.case_labels_namespace,
+            platform_run_id=platform_run_id,
         )
         run_cmd(
             [
