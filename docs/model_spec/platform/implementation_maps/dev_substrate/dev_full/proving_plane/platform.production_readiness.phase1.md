@@ -434,3 +434,106 @@ That telemetry patch should be deployed before the next richer rerun so the next
 
 - which exact OFP keys/groups are going missing under the bounded production-shaped RTDL proof,
 - and whether the fix belongs in OFP snapshot materialization, DF request shape, or feature-definition compatibility.
+
+## OFP telemetry deployment posture before the next rerun
+I do not want the next richer bounded run to answer two questions at once. The open semantic blocker is already narrow:
+
+- `OFP` goes `RED`
+- `missing_feature_rate` is materially non-zero
+- the rest of RTDL is alive enough that the plane is telling me something real
+
+So the next step is not another broad experiment. It is to put the already-built OFP telemetry patch onto the live `fp-pr3-ofp` deployment and keep the rest of the richer proof shape unchanged.
+
+The reason for rolling only `fp-pr3-ofp` is attribution:
+
+- if I change the whole RTDL lane again, I reopen image-drift and coupled-change ambiguity
+- if I change only OFP logging and keep the same richer bounded proof shape, then any new evidence about missing features is directly attributable to the OFP telemetry patch rather than a broader runtime repin
+
+The new image that contains the OFP missing-feature logging patch is:
+
+- `fraud-platform-dev-full@sha256:ea644d7726158c7a13d87a387731daca706029f35011ce943c8196f41ab2aebe`
+
+The next live sequence is therefore:
+
+1. roll `fp-pr3-ofp` only to `sha256:ea644d772615...`
+2. verify rollout completion and live image truth in the namespace
+3. generate a fresh `platform_run_id` / `scenario_run_id`
+4. rerun the richer bounded RTDL proof on the same production-shaped control
+5. read the new OFP warning logs and current-run health artifacts for exact missing feature keys/groups
+
+That is the current dynamic posture:
+
+- do not rerun blind,
+- do not widen the change surface,
+- improve visibility exactly where the red posture still lacks attribution,
+- then fix the actual semantic defect rather than the generic symptom.
+
+The OFP rollout itself is now complete:
+
+- deployment revision `22`
+- `fp-pr3-ofp` template image = `fraud-platform-dev-full@sha256:ea644d7726158c7a13d87a387731daca706029f35011ce943c8196f41ab2aebe`
+
+That closes the cluster-side telemetry deployment step, but it does not by itself create a valid next proof window. The active RTDL runtime identity is still pinned to the older fresh scope:
+
+- `platform_run_id = platform_20260311T000006Z`
+- `scenario_run_id = e72b368ddba3b04545b30417e65fcffd`
+
+So the next step has to be a fresh materialization again, otherwise the next WSP replay would be mixing a new diagnostic question into an old RTDL scope. I am accepting that rematerialization because fresh scope truth matters more than keeping the deployment history cosmetically narrow.
+
+The constraint I am preserving is different:
+
+- the proof shape stays the same
+- the only code delta carried into the fresh scope is the OFP missing-feature telemetry patch
+- the next run still exists to explain the same `OFP` red posture, not to explore a new traffic shape
+
+That fresh rerun on `platform_20260311T001956Z` removed the blindspot completely and changed the diagnosis again.
+
+The missing-feature logs did what they were supposed to do. The repeated shape is now clear:
+
+- OFP serves repeated missing-feature posture on concrete `event_id:*` and `flow_id:*` keys
+- the posture flags are consistently `["GRAPH_VERSION_UNAVAILABLE", "MISSING_FEATURE_STATE"]`
+- `missing_groups` is empty
+- OFP run-scoped health still goes `RED` because `missing_feature_rate = 0.010208087946603848`
+
+That matters because it means the red posture is not a generic feature-group-definition mismatch. `core_features` is configured on both sides. The stronger clue is the graph-version flag.
+
+I then checked the live IEG run-scoped health on the same fresh scope and found that the graph version does exist:
+
+- `graph_version = 43ead213380ff0053dcf8b943fab6b5bfe070a19030cc53894d55476c7cf3630`
+- `health_state = AMBER`
+- `health_reasons = ["WATERMARK_REPLAY_ADVISORY"]`
+- `checkpoint_age_seconds = 0.195907`
+
+So the actual defect is not "IEG has no graph version". The actual defect is an interface-shape mismatch:
+
+- `IdentityGraphQuery.status()` was returning `graph_version` as a bare string
+- DF's graph resolver only accepted a mapping
+- the resolver therefore discarded the real graph version and OFP saw `GRAPH_VERSION_UNAVAILABLE`
+
+That is a much better blocker than the earlier generic missing-feature red. It is attributable and narrow.
+
+Accepted fix:
+
+- patch `src/fraud_detection/identity_entity_graph/query.py` so `status()` returns structured graph-version payload for DF/OFP consumption:
+  - `version_id`
+  - `watermark_ts_utc`
+  - `stream`
+  - `computed_at_utc`
+  - `basis_digest` when available
+- keep the raw token as `graph_version_token` for compatibility
+- add targeted coverage in `tests/services/identity_entity_graph/test_query_surface.py`
+
+Local validation passed:
+
+- `python -m py_compile src/fraud_detection/identity_entity_graph/query.py`
+- `.venv\Scripts\python.exe -m pytest tests/services/identity_entity_graph/test_query_surface.py -q`
+- `6 passed`
+
+The next live step is to build/push this graph-version contract fix, rematerialize RTDL on a fresh scope again, and rerun the same richer bounded proof. If the `GRAPH_VERSION_UNAVAILABLE` flag disappears and OFP missing-feature red collapses with it, then this fix closes the real blocker. If not, the remaining issue will be true feature-state absence rather than graph-resolution blindness.
+
+That build/push step is now done:
+
+- image tag `phase1-ieg-graph-contract-20260311T003455Z`
+- pushed digest `fraud-platform-dev-full@sha256:759d9ad2302b08b946f29efccd1297f60e5a1ce210c85b0631359f54c6db37eb`
+
+So the next proof window can carry the contract fix onto a fresh scope without further local work in between.

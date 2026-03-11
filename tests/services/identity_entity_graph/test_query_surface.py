@@ -140,3 +140,20 @@ def test_health_uses_replay_advisory_when_checkpoint_is_fresh(monkeypatch) -> No
     assert health["state"] == "AMBER"
     assert "WATERMARK_REPLAY_ADVISORY" in health["reasons"]
     assert "WATERMARK_TOO_OLD" not in health["reasons"]
+
+
+def test_status_returns_structured_graph_version_payload(tmp_path) -> None:
+    db_path = tmp_path / "ieg.db"
+    store = build_store(str(db_path), stream_id="ieg.v0")
+    pins = _pins()
+    _apply_event(store, pins, event_id="evt-1", entity_id="entity-1")
+
+    query = IdentityGraphQuery(store, "ieg.v0")
+    result = query.status(scenario_run_id=str(pins["scenario_run_id"]))
+
+    graph_version = result["graph_version"]
+    assert isinstance(graph_version, dict)
+    assert graph_version["version_id"]
+    assert graph_version["stream"] == "ieg.v0"
+    assert graph_version["watermark_ts_utc"] == result["checkpoints"]["watermark_ts_utc"]
+    assert result["graph_version_token"] == graph_version["version_id"]

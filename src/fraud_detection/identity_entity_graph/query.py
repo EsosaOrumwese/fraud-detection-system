@@ -93,7 +93,8 @@ class IdentityGraphQuery:
 
     def status(self, *, scenario_run_id: str) -> dict[str, Any]:
         scope = _graph_scope(self.stream_id)
-        graph_version = self.store.current_graph_version()
+        graph_version_token = self.store.current_graph_version()
+        basis_payload = self.store.graph_basis()
         run_config_digest = self.store.current_run_config_digest()
         failure_count = self.store.apply_failure_count(
             scenario_run_id=scenario_run_id,
@@ -112,7 +113,13 @@ class IdentityGraphQuery:
         )
         return {
             "graph_scope": scope,
-            "graph_version": graph_version,
+            "graph_version": _status_graph_version_payload(
+                graph_version_token=graph_version_token,
+                checkpoints=checkpoints,
+                basis_payload=basis_payload,
+                stream_id=self.stream_id,
+            ),
+            "graph_version_token": graph_version_token,
             "run_config_digest": run_config_digest,
             "integrity_status": integrity_status,
             "apply_failure_count": failure_count,
@@ -393,6 +400,43 @@ def _age_seconds(value: str | None) -> float | None:
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=timezone.utc)
     return max(0.0, (now - parsed).total_seconds())
+
+
+def _status_graph_version_payload(
+    *,
+    graph_version_token: str | None,
+    checkpoints: dict[str, Any] | None,
+    basis_payload: dict[str, Any] | None,
+    stream_id: str,
+) -> dict[str, Any] | None:
+    token = str(graph_version_token or "").strip()
+    if not token:
+        return None
+    checkpoints_payload = checkpoints if isinstance(checkpoints, dict) else {}
+    basis_wrapper = basis_payload if isinstance(basis_payload, dict) else {}
+    basis = basis_wrapper.get("basis") if isinstance(basis_wrapper.get("basis"), dict) else {}
+    watermark_ts_utc = str(
+        checkpoints_payload.get("watermark_ts_utc")
+        or basis.get("watermark_ts_utc")
+        or ""
+    ).strip()
+    payload: dict[str, Any] = {
+        "version_id": token,
+        "stream": str(stream_id),
+    }
+    if watermark_ts_utc:
+        payload["watermark_ts_utc"] = watermark_ts_utc
+    updated_at_utc = str(checkpoints_payload.get("updated_at_utc") or "").strip()
+    if updated_at_utc:
+        payload["computed_at_utc"] = updated_at_utc
+    basis_digest = str(basis.get("basis_digest") or "").strip()
+    if not basis_digest and basis:
+        basis_digest = hashlib.sha256(
+            json.dumps(basis, sort_keys=True, ensure_ascii=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+    if basis_digest:
+        payload["basis_digest"] = basis_digest
+    return payload
 
 
 def _derive_health(

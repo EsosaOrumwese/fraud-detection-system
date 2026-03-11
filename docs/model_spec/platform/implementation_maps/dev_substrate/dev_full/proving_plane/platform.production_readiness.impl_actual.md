@@ -2132,3 +2132,87 @@ That is the current best posture:
 - deploy the OFP missing-key telemetry patch,
 - rerun the richer bounded proof once more,
 - then attribute the missing features to the exact key/group shape instead of a generic counter.
+
+At this point the method matters more than the amount of activity. I already have a richer bounded RTDL proof that is good enough to say the plane is alive and bad enough to say `OFP` is not ready. The waste would be to keep rerunning that same proof while the remaining blindspot is still local to one service.
+
+So the next change surface is intentionally small:
+
+- only `fp-pr3-ofp` should move
+- the runtime change is telemetry-only
+- the richer bounded proof shape stays fixed
+
+I built and pushed the telemetry image for this exact purpose:
+
+- `fraud-platform-dev-full@sha256:ea644d7726158c7a13d87a387731daca706029f35011ce943c8196f41ab2aebe`
+
+The reason I am not rematerializing the whole lane again before seeing the missing keys is straightforward. I already spent time removing one cross-cutting ambiguity from the materializer image selection path. Reopening broad image movement now would muddy the evidence again.
+
+The current execution intent is therefore:
+
+- roll only the live OFP deployment to the telemetry digest,
+- confirm rollout image truth in-cluster,
+- rerun the same richer bounded proof on a fresh scope,
+- harvest exact missing feature keys/groups from OFP logs,
+- then decide whether the defect belongs to feature availability, request shape, or compatibility between DF demand and OFP definitions.
+
+The live namespace step is now done:
+
+- `fp-pr3-ofp` deployment revision advanced to `22`
+- the live template image is `fraud-platform-dev-full@sha256:ea644d7726158c7a13d87a387731daca706029f35011ce943c8196f41ab2aebe`
+
+That is the right midpoint because it proves the telemetry image is available on the actual service that needs it. But I still need a fresh RTDL scope before the next proof window, because the current deployment labels and runtime secrets are still tied to `platform_20260311T000006Z`.
+
+I am deliberately choosing fresh scope over cosmetic narrowness here. A run that mixes old RTDL identity with new OFP telemetry would be harder to reason about than a clean rematerialization on a new scope. The important constraint is not "never rematerialize again". The important constraint is:
+
+- keep the proof shape fixed,
+- keep the semantic question fixed,
+- carry only the telemetry code change that removes the remaining OFP blindspot.
+
+The next rerun made the OFP blindspot pay off immediately.
+
+The stronger diagnosis is now:
+
+- the missing-feature posture is real at the OFP serve surface
+- but the repeated `GRAPH_VERSION_UNAVAILABLE` flag is not caused by a missing live graph version
+- it is caused by a contract mismatch between IEG status and DF/OFP graph-resolution expectations
+
+The live evidence on `platform_20260311T001956Z` is internally consistent once I separate those two ideas:
+
+- OFP health:
+  - `health_state = RED`
+  - `missing_features = 52`
+  - `missing_feature_rate = 0.010208087946603848`
+- DF/OFP runtime logs:
+  - repeated missing keys on `event_id:*` and `flow_id:*`
+  - repeated posture flags `["GRAPH_VERSION_UNAVAILABLE", "MISSING_FEATURE_STATE"]`
+- IEG health on the same run:
+  - `graph_version = 43ead213380ff0053dcf8b943fab6b5bfe070a19030cc53894d55476c7cf3630`
+  - `health_state = AMBER`
+  - `checkpoint_age_seconds = 0.195907`
+
+That combination should not happen if the interfaces were lined up. And the code confirmed why it does happen:
+
+- `IdentityGraphQuery.status()` returned the graph version as a bare string
+- `DecisionFabricWorker._resolve_graph_version()` only accepted a mapping
+- the live graph version was therefore silently discarded before OFP snapshot materialization
+
+This is the kind of defect I want to find before spending more AWS time, because it looks like a semantic red posture from outside but is actually a local contract-shape bug at the RTDL coupling seam.
+
+I accepted the fix at the IEG query boundary rather than hacking around it inside OFP:
+
+- status now returns structured graph-version payload for downstream consumers
+- the raw token is preserved separately as `graph_version_token`
+- targeted coverage was added and passed
+
+That is the next live candidate to deploy, not another blind rerun on the broken graph-version contract.
+
+The candidate is no longer hypothetical. I built and pushed it:
+
+- tag `phase1-ieg-graph-contract-20260311T003455Z`
+- digest `fraud-platform-dev-full@sha256:759d9ad2302b08b946f29efccd1297f60e5a1ce210c85b0631359f54c6db37eb`
+
+That is a useful checkpoint because it means the repo state, the implementation notes, and the live image candidate now describe the same thing. The next step is purely runtime:
+
+- rematerialize RTDL on a fresh scope with `sha256:759d9ad...`
+- rerun the same richer bounded proof
+- verify whether the `GRAPH_VERSION_UNAVAILABLE` flag disappears from OFP logs and whether DF reason codes stop reflecting graph-blind feature degradation
