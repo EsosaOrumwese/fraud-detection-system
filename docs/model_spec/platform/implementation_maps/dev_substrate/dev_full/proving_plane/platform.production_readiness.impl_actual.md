@@ -4639,4 +4639,105 @@ So the current reading is narrow:
 
 The next move is not another design change. It is to rerun the exact same narrowed boundary with a longer local timeout so the run can close cleanly and either prove or reject the new shaping posture.
 
+## 2026-03-11 20:37:11 +00:00 - Lowering `target_burst_seconds` to `0.2` was too aggressive; the right next lever is the short upward transition blend
+I reran the exact narrowed boundary with a long enough local timeout so the scope could close honestly:
+
+- `execution_id = phase4_case_label_coupled_20260311T200027Z`
+- `ig_push_concurrency = 2`
+- `post_scored_activation_settle_seconds = 30`
+- `target_burst_seconds = 0.2`
+
+This run is valid, and it cleanly rejected the previous hypothesis.
+
+The good news is that the coupled semantics stayed healthy:
+
+- no `4xx`
+- no `5xx`
+- coupled timing still green
+- CaseTrigger, Case Management, and Label Store all stayed green
+- later recovery bins returned to the retained envelope
+
+But the envelope itself degraded badly:
+
+- steady `1843.300 eps`
+- steady `p95 = 657.685 ms`
+- steady `p99 = 1588.727 ms`
+- burst `2199.0 eps`
+- burst `p95 = 1413.919 ms`
+- burst `p99 = 1851.900 ms`
+- first recovery bin `2206.5 eps`, then green from `2026-03-11T20:28:02Z`
+
+That matters because it changes the interpretation of the shaping knobs:
+
+- lowering `target_burst_seconds` does not merely soften the burst edge
+- it also cuts the seeded tokens for every segment, including the `1500 -> 3000 eps` steady transition
+- the result is not "healthier burst admission"
+- the result is starvation and queueing latency before the enlarged network gets fully up to rate
+
+So the accepted correction is to reject the `target_burst_seconds = 0.2` posture and move to the narrower lever that fits the evidence better:
+
+- restore `target_burst_seconds = 0.25`
+- keep the longer scored-activation settle
+- keep `ig_push_concurrency = 2`
+- reduce only `short_upward_transition_blend`
+
+That is a better next test because the blend only affects short upward transitions such as the `3000 -> 6000 eps` burst step. It does not starve the normal steady segment. In other words: the next correction should soften the burst step without damaging steady admission.
+
+## 2026-03-11 21:13:45 +00:00 - The blend-only correction did not solve the real blocker; the red is concentrated in the scored `1500 -> 3000 eps` transition
+I ran the next narrower correction with only `short_upward_transition_blend` reduced:
+
+- `execution_id = phase4_case_label_coupled_20260311T203804Z`
+- `ig_push_concurrency = 2`
+- `post_scored_activation_settle_seconds = 30`
+- `target_burst_seconds = 0.25`
+- `short_upward_transition_blend = 0.25`
+
+This completed cleanly and kept the coupled semantics healthy again:
+
+- downstream Case + Label surfaces stayed green
+- coupled timing stayed green
+- Lambda `Errors = 0`
+- Lambda `Throttles = 0`
+
+But the envelope is still red:
+
+- steady `2510.733 eps`
+- steady `p95 = 436.698 ms`
+- steady `p99 = 1315.137 ms`
+- burst admitted `6897.5 eps` but with `864` API-edge `4xx`
+- recovery admitted `3005.372 eps` but with `902` early `4xx`
+
+The important new fact came from the dispatch timing, not just the envelope numbers:
+
+- all WSP lanes were already active by `2026-03-11T21:01:37Z`
+- scored campaign start was `2026-03-11T21:02:30Z`
+- measurement therefore started more than `52 s` after full fleet confirmation
+
+So the low first steady bins are **not** a late-fleet-start artifact.
+
+The ingress bins make the current blocker more explicit:
+
+- `21:03-21:04` at `2182.983 eps` is a mixed `presteady + steady` minute, so it is not the real signal
+- `21:04-21:05` at `2216.600 eps` is the real signal: the first full `3000 eps` steady minute still underfills badly
+- then the path snaps healthy:
+  - `21:06-21:07` `2999.317 eps`
+  - `21:07-21:08` `2999.917 eps`
+
+That means the actual failing boundary is now clearer than before:
+
+- not fleet launch
+- not downstream semantic darkness
+- not Lambda throttling
+- not lack of burst token tuning alone
+- it is the scored `1500 -> 3000 eps` transition under only `60 s` of presteady on the enlarged coupled network
+
+So the next accepted move is to stop chasing tiny burst-token changes in isolation and test the scored ramp directly:
+
+- keep the normal burst shaping posture
+- keep `ig_push_concurrency = 2`
+- keep the longer scored-activation settle
+- increase `presteady_seconds` on the Phase 4 runner
+
+That is still production-honest. It does not reduce the retained `3000 / 6000` targets. It tests whether the enlarged network needs a longer bounded warm ramp before the first scored `3000 eps` steady minute is judged.
+
 That preserves the truthful burst repin while testing whether the steady miss disappears without reintroducing the old API-edge reject pattern.

@@ -176,6 +176,22 @@ Current coupled-envelope repin:
   - steady `p99` rose to `722.864 ms`
   - burst/recovery carried API-edge `429` again (`872` burst, `982` early recovery)
   - downstream Case + Label participation and coupled timing still stayed green
+- the first attempt to soften this with `target_burst_seconds = 0.2` was rejected:
+  - it removed edge rejects, but by starving the enlarged network itself
+  - steady dropped to `1843.300 eps`
+  - burst dropped to `2199.0 eps`
+  - first recovery bin also underfilled before the network later returned to green
+- the accepted next narrow follow-up is now:
+  - restore `target_burst_seconds = 0.25`
+  - keep `ig_push_concurrency = 2`
+  - keep the longer scored-activation settle
+  - treat burst-only tuning as secondary until the scored `1500 -> 3000 eps` transition is honest
+  - increase `presteady_seconds` so the first full steady minute is judged after a truthful bounded ramp on the enlarged network
+- the blend-only follow-up also stayed red:
+  - all lanes were already confirmed more than `50 s` before campaign start
+  - the first full steady minute still underfilled badly
+  - later steady/recovery minutes returned to the retained envelope
+- that means the remaining red is not a fleet-start artifact; it is now pinned as a scored ramp-shape issue under the current `60 s` presteady
 - this still does not lower the target; it is a narrow driver correction so the enlarged network is judged on a truthful coupled burst boundary without artificially starving the steady slice or overdriving the edge transition
 
 Candidate proving path now pinned:
