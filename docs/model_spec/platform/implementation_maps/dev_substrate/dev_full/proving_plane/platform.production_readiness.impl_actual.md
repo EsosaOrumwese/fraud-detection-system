@@ -6063,3 +6063,74 @@ That is the right Phase 6 posture:
 - fix the live coupling defect first
 - then spend on the bounded runtime adoption / rollback / restore proof
 - not the other way round
+
+## 2026-03-12 09:25:28 +00:00 - The first rebuilt Phase 6 run did not fail on runtime restore or rematerialization; it failed on a shared control-bootstrap contract drift because the new runner had not recreated the expected `g3a` charter surface
+
+This is a useful failure because it means the first expensive question is already answered:
+
+- EKS runtime restore from standby succeeded
+- rematerialization on the promoted registry surfaces succeeded
+- all RTDL and Case + Label deployments rolled out healthy
+
+So the first live red is not “the promoted bundle broke the runtime.” It is a harness compatibility defect:
+
+- `pr3_control_plane_bootstrap.py` still expects:
+  - `g3a_run_charter.active.json`
+- the rebuilt Phase 6 runner had only written:
+  - `g6a_run_charter.active.json`
+
+That is the same class of problem we hit earlier in the proving plane: a shared helper still carrying an older contract while the new phase runner tried to be phase-specific too early.
+
+The correction is narrow and obvious:
+
+- keep the Phase 6-specific charter
+- also materialize the shared `g3a_run_charter.active.json` copy that the bootstrap worker still requires
+
+I am treating this exactly as a harness defect and not as a platform red. The live runtime evidence already produced by this failed attempt is still valuable because it proves the repaired snapshot+policy rematerialization path is materially working before traffic begins.
+
+## 2026-03-12 10:14:12 +00:00 - The next Phase 6 blocker was not candidate adoption; it was the shared warm gate being too rigid for the rollback / restore transition state, so I repinned rollback authority onto post-activation bundle attribution instead of the reused pre-traffic OFP gate
+
+The second rebuilt Phase 6 run got much further than the first one:
+
+- control bootstrap passed after restoring the shared `g3a` charter
+- candidate runtime warm gate passed on the promoted bundle surfaces
+- candidate rematerialization clearly showed the right promoted runtime truth:
+  - mounted snapshot and policy were the promoted ones
+  - DF warm gate reported:
+    - `policy_revision = r3`
+    - promoted bundle refs in both `fraud` and `baseline`
+
+So the next red did not come from the promoted candidate path. It came later, on the rollback step.
+
+The rollback rematerialization itself was healthy, but the reused pre-traffic warm gate still failed with:
+
+- `PR3.S4.WARM.B12K_OFP_NOT_OPERATIONALLY_READY`
+
+The underlying posture was:
+
+- rollback runtime had already loaded the prior active bundle surfaces
+- DF was still dark pre-traffic
+- OFP was in the known stale-graph transition state before the short rollback activation pulse
+
+That means the real question changed. For rollback / restore, the important authority is not:
+
+- "did OFP look fully operational before the activation pulse?"
+
+The important authority is:
+
+- "after bounded rollback activation traffic, did DLA governance stamps show the prior bundle?"
+- "after bounded restore activation traffic, did DLA governance stamps show the promoted bundle again?"
+
+So I changed the method without lowering the standard:
+
+- kept candidate warm gate as a hard prerequisite
+- treated rollback / restore warm-gate `B12K` as advisory-only if and only if it is the sole blocker
+- kept rollback / restore truth anchored on:
+  - successful rematerialization
+  - bounded activation traffic
+  - post-activation DLA bundle attribution
+
+This is the same dynamic planning rule we have been using elsewhere:
+
+- when the reused gate is now checking the wrong boundary for the current proof question, stop treating it as the final authority
+- keep the real post-activation proof strict

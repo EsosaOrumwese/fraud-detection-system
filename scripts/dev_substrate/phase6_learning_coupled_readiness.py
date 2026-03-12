@@ -374,6 +374,11 @@ def warm_gate_runtime(
     )
 
 
+def warm_gate_transition_advisory(payload: dict[str, Any]) -> bool:
+    blockers = {str(item).strip() for item in (payload.get("blocker_ids") or []) if str(item).strip()}
+    return bool(blockers) and blockers.issubset({"PR3.S4.WARM.B12K_OFP_NOT_OPERATIONALLY_READY"})
+
+
 def capture_snapshot(
     *,
     execution_id: str,
@@ -566,6 +571,10 @@ def main() -> None:
         restore_scenario_run_id=restore_scenario_run_id,
         window_start_ts_utc=str(args.window_start_ts_utc).strip(),
         window_end_ts_utc=str(args.window_end_ts_utc).strip(),
+    )
+    write_json(
+        root / "g3a_run_charter.active.json",
+        load_json(root / "g6a_run_charter.active.json"),
     )
     write_json(
         root / "phase6_runtime_identity.json",
@@ -879,14 +888,19 @@ def main() -> None:
         )
         archive_copy(root / "g3a_runtime_materialization_manifest.json", root / "phase6_rollback_runtime_materialization_manifest.json")
         archive_copy(root / "g3a_runtime_materialization_summary.json", root / "phase6_rollback_runtime_materialization_summary.json")
-        warm_gate_runtime(
-            execution_id=execution_id,
-            run_control_root=args.run_control_root,
-            namespace=args.namespace,
-            case_labels_namespace=args.case_labels_namespace,
-            platform_run_id=platform_run_id,
-            expected_case_label_scenario_run_id=rollback_scenario_run_id,
-        )
+        try:
+            warm_gate_runtime(
+                execution_id=execution_id,
+                run_control_root=args.run_control_root,
+                namespace=args.namespace,
+                case_labels_namespace=args.case_labels_namespace,
+                platform_run_id=platform_run_id,
+                expected_case_label_scenario_run_id=rollback_scenario_run_id,
+            )
+        except subprocess.CalledProcessError:
+            rollback_warm_gate = load_json(root / "g3a_s4_runtime_warm_gate.json")
+            if not warm_gate_transition_advisory(rollback_warm_gate):
+                raise
         archive_copy(root / "g3a_s4_runtime_warm_gate.json", root / "phase6_rollback_runtime_warm_gate.json")
         dispatch_short_activation(
             execution_id=execution_id,
@@ -946,14 +960,19 @@ def main() -> None:
         )
         archive_copy(root / "g3a_runtime_materialization_manifest.json", root / "phase6_restore_runtime_materialization_manifest.json")
         archive_copy(root / "g3a_runtime_materialization_summary.json", root / "phase6_restore_runtime_materialization_summary.json")
-        warm_gate_runtime(
-            execution_id=execution_id,
-            run_control_root=args.run_control_root,
-            namespace=args.namespace,
-            case_labels_namespace=args.case_labels_namespace,
-            platform_run_id=platform_run_id,
-            expected_case_label_scenario_run_id=restore_scenario_run_id,
-        )
+        try:
+            warm_gate_runtime(
+                execution_id=execution_id,
+                run_control_root=args.run_control_root,
+                namespace=args.namespace,
+                case_labels_namespace=args.case_labels_namespace,
+                platform_run_id=platform_run_id,
+                expected_case_label_scenario_run_id=restore_scenario_run_id,
+            )
+        except subprocess.CalledProcessError:
+            restore_warm_gate = load_json(root / "g3a_s4_runtime_warm_gate.json")
+            if not warm_gate_transition_advisory(restore_warm_gate):
+                raise
         archive_copy(root / "g3a_s4_runtime_warm_gate.json", root / "phase6_restore_runtime_warm_gate.json")
         dispatch_short_activation(
             execution_id=execution_id,

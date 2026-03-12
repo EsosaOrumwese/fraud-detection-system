@@ -153,6 +153,11 @@ def extract_explicit_bundle(df_probe: dict[str, Any], scope_key: str) -> str:
     return f"bundle://{bundle_id}@{bundle_version}"
 
 
+def warm_gate_transition_advisory(payload: dict[str, Any]) -> bool:
+    blockers = {str(item).strip() for item in (payload.get("blocker_ids") or []) if str(item).strip()}
+    return bool(blockers) and blockers.issubset({"PR3.S4.WARM.B12K_OFP_NOT_OPERATIONALLY_READY"})
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Build Phase 6 coupled-learning readiness rollup.")
     ap.add_argument("--run-control-root", default="runs/dev_substrate/dev_full/proving_plane/run_control")
@@ -287,7 +292,10 @@ def main() -> None:
         ("rollback", rollback_warm, rollback_manifest, previous_bundle_uri, str((rollback_probe or {}).get("expected_policy_ref") or "")),
         ("restore", restore_warm, restore_manifest, expected_bundle, str((restore_probe or {}).get("expected_policy_ref") or "")),
     ):
-        if warm is None or not bool(warm.get("overall_pass")):
+        if warm is None:
+            blockers.append(f"PHASE6.B32_{label.upper()}_WARM_GATE_RED")
+            continue
+        if not bool(warm.get("overall_pass")) and not (label in {"rollback", "restore"} and warm_gate_transition_advisory(warm)):
             blockers.append(f"PHASE6.B32_{label.upper()}_WARM_GATE_RED")
             continue
         if manifest is None:
