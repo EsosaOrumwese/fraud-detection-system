@@ -8,13 +8,13 @@ flowchart LR
 
   subgraph LEGEND["How to Read This Graph"]
     L1["Only resources backing the currently promoted working-platform core are shown"]
-    L2["The current promoted core now includes RTDL and Case + Label on the live EKS runtime"]
-    L3["Learning is now plane-ready on 2026-03-12 but remains absent here until Phase 6 coupled proof closes; Ops / Gov / Meta also remain absent"]
-    L4["Phase 0 closed green on 2026-03-10, Phase 1 on 2026-03-11, Phase 3 on 2026-03-11, and Phase 4 on 2026-03-12 for this promoted core"]
+    L2["The current promoted core now includes Learning + Evolution / MLOps on top of the live ingress / EKS runtime"]
+    L3["Managed learning resources are shown only because Phase 6 closed green and the learning corridor is now a promoted member of the working platform"]
+    L4["Ops / Gov / Meta remain absent here until later proof closes"]
   end
 
   subgraph NOTE["Scope"]
-    N1["Concrete resource view for the promoted Control + Ingress + RTDL + Case + Label core<br>Envelope: 3000 steady eps / 6000 burst eps<br>Current accepted Phase 4 coupled closure slice: phase4_case_label_coupled_20260312T003302Z"]
+    N1["Concrete resource view for the promoted Control + Ingress + RTDL + Case + Label + Learning core<br>Envelope: 3000 steady eps / 6000 burst eps<br>Current accepted Phase 6 coupled closure slice: phase6_learning_coupled_20260312T194748Z"]
   end
 
   subgraph CONTROL["Control Resources"]
@@ -36,7 +36,7 @@ flowchart LR
 
   subgraph WSP["Replay Producer Resources"]
     WSPCLUSTER["ECS cluster<br>fraud-platform-dev-full-wsp-ephemeral"]
-    WSPTASK["WSP task family<br>remote bounded replay producer<br>Phase 1 proof family"]
+    WSPTASK["WSP task family<br>remote bounded replay producer"]
     CWWSP["CloudWatch log group<br>/ecs/fraud-platform-dev-full-wsp-ephemeral"]
   end
 
@@ -67,8 +67,20 @@ flowchart LR
   subgraph CASELABEL["Case + Label Runtime Resources"]
     NSCASE["Namespace<br>fraud-platform-case-labels"]
     CASETRIG["Deployment<br>fp-pr3-case-trigger"]
-    CASEMGMT["Deployment<br>fp-pr3-case-mgmt"]
-    LABELSTORE["Deployment<br>fp-pr3-label-store"]
+    CASEMGMT["Deployment<br>fp-pr3-case-mgmt<br>request 2Gi / limit 6Gi"]
+    LABELSTORE["Deployment<br>fp-pr3-label-store<br>request 1Gi / limit 4Gi"]
+  end
+
+  subgraph LEARNING["Learning + Evolution / MLOps Resources"]
+    DBWS["Databricks workspace<br>dbc-d0b53c09-b6fa.cloud.databricks.com"]
+    DBBUILD["Databricks job<br>fraud-platform-dev-full-ofs-build-v0<br>job_id 736420749736071"]
+    DBQUALITY["Databricks job<br>fraud-platform-dev-full-ofs-quality-v0<br>job_id 37768192213816"]
+    DBCRED["Unity Catalog external access<br>fraud_platform_dev_full_object_store_v0<br>credential fraud_platform_dev_full_object_store_ro_v0"]
+    SMTRAIN["SageMaker training<br>prefix fraud-platform-dev-full-mtrain"]
+    SMBATCH["SageMaker batch transform<br>prefix fraud-platform-dev-full-mbatch"]
+    SMPKG["Model package group<br>fraud-platform-dev-full-models"]
+    MLFLOW["Databricks-backed MLflow tracking<br>managed lineage / promotion / rollback"]
+    REGISTRY["Registry bundle truth<br>bundle da1b8f...@v0-29d2b27919a7"]
   end
 
   subgraph STATE["State / Evidence Resources"]
@@ -86,6 +98,8 @@ flowchart LR
     ROLEDDB["IAM role<br>fraud-platform-dev-full-ddb-ig-idempotency-rw"]
     ROLEWSPEXEC["IAM role<br>fraud-platform-dev-full-ecs-task-exec-wsp"]
     ROLEWSPRUN["IAM role<br>fraud-platform-dev-full-ecs-task-runtime-wsp"]
+    ROLESM["IAM role<br>SageMaker execution role"]
+    ROLEDBX["IAM role<br>fraud-platform-dev-full-databricks-cross-account-access"]
   end
 
   subgraph OBS["Observability Resources"]
@@ -101,6 +115,7 @@ flowchart LR
   N1 --> TRANSPORT
   N1 --> RTDL
   N1 --> CASELABEL
+  N1 --> LEARNING
   N1 --> STATE
   N1 --> IDENTITY
   N1 --> OBS
@@ -178,10 +193,34 @@ flowchart LR
   DL --> CASETRIG
   CASETRIG --> CASEMGMT
   CASEMGMT --> LABELSTORE
+
+  DBWS --> DBBUILD
+  DBWS --> DBQUALITY
+  DBWS --> MLFLOW
+  ROLEDBX --> DBCRED
+  DBCRED --> DBBUILD
+  DBCRED --> DBQUALITY
+  OBJ -->|authoritative bounded basis| DBBUILD
+  OBJ -->|quality readback| DBQUALITY
+  DLA -->|runtime decision evidence| DBBUILD
+  CASEMGMT -->|case-linked truth| DBBUILD
+  LABELSTORE -->|authoritative supervision| DBBUILD
+  DBBUILD --> SMTRAIN
+  ROLESM --> SMTRAIN
+  SMTRAIN --> SMBATCH
+  SMTRAIN --> SMPKG
+  SMTRAIN --> MLFLOW
+  SMBATCH --> MLFLOW
+  MLFLOW --> REGISTRY
+  REGISTRY -->|active bundle resolved by| DF
+
   ARCH -->|stores archive evidence in| EVID
   DLA -->|stores decision continuity in| EVID
   CASEMGMT -->|stores case evidence in| EVID
   LABELSTORE -->|stores label evidence in| EVID
+  DBBUILD -->|stores dataset-basis evidence in| EVID
+  SMTRAIN -->|stores train/eval evidence in| EVID
+  MLFLOW -->|stores promotion / rollback evidence in| EVID
 
   CWLAMBDA -->|feeds| CW
   CWWSP -->|feeds| CW
@@ -198,9 +237,10 @@ flowchart LR
   classDef transport fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.3px;
   classDef rtdl fill:#e0f2f1,stroke:#00695c,color:#111,stroke-width:1.3px;
   classDef caselabel fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef learning fill:#ede7f6,stroke:#5e35b1,color:#111,stroke-width:1.3px;
   classDef state fill:#f1f8e9,stroke:#558b2f,color:#111,stroke-width:1.3px;
   classDef ident fill:#fce4ec,stroke:#ad1457,color:#111,stroke-width:1.3px;
-  classDef obs fill:#ede7f6,stroke:#5e35b1,color:#111,stroke-width:1.3px;
+  classDef obs fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
 
   class N1 note;
   class GHA,SFN,RUNID,RUNCTL control;
@@ -208,6 +248,7 @@ flowchart LR
   class MSK,GLUEREG,TCTRL,TTRAFFIC,TCTXA,TCTXE,TFLOW transport;
   class EKS,NSRTDL,CSFB,IEG,OFP,DF,DL,AL,DLA,ARCH,RTDLIMG rtdl;
   class NSCASE,CASETRIG,CASEMGMT,LABELSTORE caselabel;
+  class DBWS,DBBUILD,DBQUALITY,DBCRED,SMTRAIN,SMBATCH,SMPKG,MLFLOW,REGISTRY learning;
   class OBJ,EVID,SSM state;
-  class OIDC,ROLETF,ROLESFN,ROLELAMBDA,ROLEAPIGW,ROLEDDB,ROLEWSPEXEC,ROLEWSPRUN ident;
+  class OIDC,ROLETF,ROLESFN,ROLELAMBDA,ROLEAPIGW,ROLEDDB,ROLEWSPEXEC,ROLEWSPRUN,ROLESM,ROLEDBX ident;
   class CW,DASHOPS,DASHCOST,BUDGET obs;

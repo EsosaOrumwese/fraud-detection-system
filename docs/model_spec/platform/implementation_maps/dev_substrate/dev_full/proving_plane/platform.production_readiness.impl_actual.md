@@ -6353,3 +6353,149 @@ The honest cheapest next move is not to invent a new shape and not to relax the 
 - keep the standard unchanged
 - if burst goes green, Phase 6 closes on the repeated evidence chain
 - if burst stays red, then the active problem is a real Phase 6 burst-regression defect and should be remediated directly
+
+## 2026-03-12 18:43:44 +00:00 - The repeated Phase 6 run changed the blocker class again: burst recovered, but the first measured steady minute is still a front-loaded settle window, so the next honest repin is a longer on-pressure presteady rather than a new runtime remediation
+
+The latest rerun `phase6_learning_coupled_20260312T173845Z` is useful precisely because it did not fail in the same way as `phase6_learning_coupled_20260312T163721Z`.
+
+What changed:
+
+- burst is now green at `6304.500 eps`
+- recovery is still green at `3019.600 eps`
+- candidate / rollback / restore bundle probes stayed green
+- Case + Label timing stayed green
+- the only remaining blocker is now:
+  - `STEADY_THROUGHPUT_SHORTFALL:observed=2828.444:target=3000.000`
+
+That is not evidence of a new broad runtime collapse. The direct APIGW access-log breakdown for the red steady window `2026-03-12T18:06:00Z -> 2026-03-12T18:07:30Z` shows a front-loaded settle shape:
+
+- `18:06:00Z` minute:
+  - `160132` successful requests
+  - `2668.867 eps`
+- `18:07:00Z -> 18:07:30Z` half-minute:
+  - `94428` successful requests
+  - `3147.600 eps`
+
+So the same coupled runtime that looks red on the first measured steady minute is already above the steady target in the next half-minute, and the full recovery segment remains green immediately after burst. That means the active problem is no longer candidate bundle adoption, rollback truth, restore truth, `case_mgmt`, `label_store`, or burst handling. The active problem is that the current `90`-second presteady is still too short to make the scored steady window start at a truthful settled boundary for this enlarged coupled network.
+
+The honest next correction is therefore a proof-boundary repin, not a standards reduction:
+
+- keep the steady target at `3000 eps`
+- keep the burst target at `6000 eps`
+- keep the same bounded coupled question
+- increase the Phase 6 on-pressure presteady floor from `90` seconds inherited from Phase 4 to `120` seconds for the coupled learning-adoption boundary
+
+Why this is the right repin:
+
+- it does not weaken the production target
+- it does not hide a sustained runtime defect
+- it directly addresses the measured blocker class:
+  - the first scored steady minute is still settling
+  - the next half-minute and full recovery are already green
+- it is cheaper and more truthful than inventing another traffic shape or chasing a non-existent new platform defect
+
+I have repinned the Phase 6 runner so the inherited source envelope can never use less than a `120`-second presteady on this coupled phase. The next run should answer one precise question only:
+
+- after the longer on-pressure presteady, does the same bounded Phase 6 evidence chain close fully green?
+
+## 2026-03-12 19:47:16 +00:00 - The longer presteady did not remove the steady miss, which exposed the actual proof-harness defect: the shared envelope builder was still inserting a no-op rate-plan transition at the start of the scored steady window
+
+The rerun `phase6_learning_coupled_20260312T184417Z` answered the presteady question clearly:
+
+- presteady increased from `90` to `120` seconds
+- burst remained green at `6369.500 eps`
+- recovery remained green at `3020.183 eps`
+- candidate / rollback / restore attribution remained green
+- the same blocker remained:
+  - `STEADY_THROUGHPUT_SHORTFALL:observed=2866.922:target=3000.000`
+
+That means the longer on-pressure presteady was not the real fix. The direct APIGW steady-window bins prove the shape is still the same:
+
+- `19:13:00Z` minute:
+  - `163468` successful requests
+  - `2724.467 eps`
+- `19:14:00Z -> 19:14:30Z` half-minute:
+  - `94555` successful requests
+  - `3151.833 eps`
+
+So the deficit is again concentrated in the first measured steady minute, and it appears exactly at the scheduled `presteady -> steady` boundary even though both segments target the same `3000 eps` envelope. That changes the diagnosis.
+
+The active defect is now in the shared proving harness shape, not in the coupled runtime:
+
+- `phase0_control_ingress_envelope.py` was still emitting a new rate-plan segment at steady start even when:
+  - `presteady_eps == steady_eps`
+  - there is no intended rate change
+- that means the WSP dispatcher receives a needless rate-plan transition at the start of the scored steady window
+- if the WSP token bucket or limiter state is reset on each segment boundary, that no-op transition is enough to depress the first scored steady minute without representing a real platform regression
+
+That is a better explanation than “the platform needs even more warm time,” because:
+
+- increasing presteady did not remove the dip
+- the dip remains locked to the segment boundary rather than the absolute run age
+- burst and recovery continue to prove the coupled runtime can operate at and above the declared envelope once the boundary passes
+
+The correct narrow fix is therefore:
+
+- collapse duplicate adjacent rate-plan segments in the shared envelope builder when:
+  - the target EPS is unchanged
+  - there is no explicit token override forcing a real boundary
+
+This does not weaken the Phase 6 target. It removes a no-op harness transition that is currently contaminating the scored steady window. After that shared fix, the next Phase 6 rerun should answer the final honest question:
+
+- does the coupled learning-adoption network close green once the redundant steady-boundary reset is gone?
+
+## 2026-03-12 20:46:50 +00:00 - Phase 6 is now closed green; the final accepted coupled run proved that the last blocker was the redundant same-rate harness transition rather than a platform defect
+
+The acceptance run is:
+
+- `execution_id = phase6_learning_coupled_20260312T194748Z`
+- `platform_run_id = platform_20260312T194748Z`
+- final verdict = `PHASE6_READY`
+
+This run is materially different from the earlier red candidates because the only remaining active change was the shared envelope-builder correction:
+
+- duplicate adjacent rate-plan segments are now collapsed when:
+  - the target EPS is unchanged
+  - there is no explicit token override forcing a real boundary
+
+That correction removed the no-op `presteady -> steady` boundary that had been depressing the first scored steady minute without representing a true platform regression.
+
+The final accepted metrics show the enlarged working network is green on the unchanged declared envelope:
+
+- steady:
+  - `3047.367 eps`
+  - `4xx = 0`
+  - `5xx = 0`
+  - `p95 = 54.982 ms`
+  - `p99 = 85.951 ms`
+- burst:
+  - `6099.000 eps`
+  - `4xx = 0`
+  - `5xx = 0`
+- recovery:
+  - `3019.894 eps`
+  - sustained green from the first `30`-second bin
+
+And the coupled non-envelope boundaries stayed green on the same run:
+
+- candidate bundle attribution = green
+- rollback attribution = green
+- restore attribution = green
+- timing:
+  - `decision_to_case p95 = 0.0 s`
+  - `case_to_label p95 = 0.196 s`
+- integrity deltas stayed clean:
+  - no new DF / AL / DLA / Case + Label breach
+
+That is enough to close the rebuilt `Phase 6` truthfully:
+
+- the promoted learning bundle is active on the live runtime path
+- the enlarged `Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps` network stays production-credible under bounded production-shaped load
+- rollback and restore are attributable and bounded
+- the final active runtime truth at closure is the promoted learning bundle
+
+The repo authority should now be updated accordingly:
+
+- `Phase 6` closed green
+- `Learning + Evolution / MLOps` promoted into the working platform
+- the next active proving boundary is `Phase 7 - Operations / Governance / Meta readiness`

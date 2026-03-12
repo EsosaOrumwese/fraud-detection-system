@@ -163,6 +163,105 @@ This subphase is green only when:
   - it was that runtime rematerialization carried only the registry snapshot while the DF policy still came from the image
 - that repin defect must be fixed before any coupled verdict is accepted.
 
+## Rebuilt execution and accepted closure authority
+
+The rebuilt `Phase 6` did not close on the first apparently promising run. It stayed open until the active blocker class was identified truthfully and removed without weakening the target.
+
+The meaningful rebuilt sequence was:
+
+- `phase6_learning_coupled_20260312T140338Z`
+  - fixed false rollback / restore darkness by introducing fresh rollback and restore run scopes
+  - left real envelope red plus rollup-authority drift
+- `phase6_learning_coupled_20260312T154940Z`
+  - failed fast on real `case_mgmt` `OOMKilled`
+- `phase6_learning_coupled_20260312T155754Z`
+  - confirmed `case_mgmt` repin worked
+  - exposed real `label_store` `OOMKilled`
+- `phase6_learning_coupled_20260312T163721Z`
+  - candidate / rollback / restore probes green
+  - runtime budgets now stable
+  - narrowed remaining blocker to burst only
+- `phase6_learning_coupled_20260312T173845Z`
+  - burst recovered
+  - exposed steady-window dip as the only blocker
+- `phase6_learning_coupled_20260312T184417Z`
+  - longer presteady did not remove the dip
+  - proved the active defect was still in the harness boundary, not the runtime
+- `phase6_learning_coupled_20260312T194748Z`
+  - accepted closure run after the shared envelope builder stopped emitting a no-op same-rate transition at the scored steady boundary
+
+The accepted closure authority is therefore:
+
+- execution:
+  - `phase6_learning_coupled_20260312T194748Z`
+- platform run:
+  - `platform_20260312T194748Z`
+- verdict:
+  - `PHASE6_READY`
+- next phase:
+  - `PHASE7`
+
+## Accepted closure metrics
+
+### Phase 6.B - Coupled runtime bounded proof
+- steady:
+  - `3047.367 eps`
+  - `4xx = 0`
+  - `5xx = 0`
+  - `p95 = 54.982 ms`
+  - `p99 = 85.951 ms`
+- burst:
+  - `6099.000 eps`
+  - `4xx = 0`
+  - `5xx = 0`
+  - `p95 = 47.000 ms`
+  - `p99 = 54.000 ms`
+- recovery:
+  - `3019.894 eps`
+  - `4xx = 0`
+  - `5xx = 0`
+  - sustained green from the first `30`-second recovery bin
+
+### Phase 6.B - Coupled integrity and timing
+- integrity deltas:
+  - `df_hard_fail_closed_delta = 0`
+  - `df_publish_quarantine_delta = 0`
+  - `al_publish_quarantine_delta = 0`
+  - `dla_append_failure_delta = 0`
+  - `case_trigger_quarantine_delta = 0`
+  - `case_mgmt_anomalies_total_delta = 0`
+  - `label_store_pending_delta = 0`
+  - `label_store_rejected_delta = 0`
+- timing:
+  - `decision_to_case p95 = 0.0 s`
+  - `case_to_label p95 = 0.196 s`
+
+### Phase 6.C / 6.D - Runtime attribution and rollback / restore
+- candidate bundle attribution:
+  - green
+  - active runtime bundle matched the promoted Phase 5 bundle
+- rollback attribution:
+  - green
+  - bounded rollback resolved to the prior active bundle without ambiguity
+- restore attribution:
+  - green
+  - final active runtime truth returned to the promoted bundle
+
+### Closure judgment
+
+`Phase 6` is now closed green.
+
+Why this closure is trustworthy:
+
+- the managed learning corridor remained anchored to the accepted `Phase 5` evidence chain
+- the enlarged runtime remained green on ingress, RTDL, Case + Label, timing, integrity, attribution, rollback, and restore
+- the final blocker was removed by correcting a shared proving-harness defect rather than by weakening the target
+- the final accepted run proved the same coupled question on the same declared envelope:
+  - `3000 steady eps`
+  - `6000 burst eps`
+
+That means `Learning + Evolution / MLOps` is no longer just plane-ready. It is now promoted into the working platform as a coupled production-credible member.
+
 ## Phase closure rule
 
 `Phase 6` closes only when:

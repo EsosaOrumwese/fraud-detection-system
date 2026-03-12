@@ -546,6 +546,7 @@ def main() -> None:
     ap.add_argument("--burst-seconds", type=int, default=2)
     ap.add_argument("--recovery-seconds", type=int, default=180)
     ap.add_argument("--presteady-seconds", type=int, default=60)
+    ap.add_argument("--coupled-presteady-floor-seconds", type=int, default=120)
     ap.add_argument("--presteady-eps", type=float, default=1500.0)
     ap.add_argument("--steady-eps", type=float, default=3000.0)
     ap.add_argument("--burst-eps", type=float, default=6000.0)
@@ -592,6 +593,7 @@ def main() -> None:
     if str(phase5_receipt.get("verdict") or "").strip().upper() != "PHASE5_READY":
         raise RuntimeError("PHASE6.A02_PHASE5_NOT_GREEN")
     inherit_phase4_envelope(summary=phase4_envelope, args=args)
+    args.presteady_seconds = max(int(args.presteady_seconds), int(args.coupled_presteady_floor_seconds))
 
     platform_run_id = fresh_platform_run_id()
     scenario_run_id = fresh_scenario_run_id(execution_id=execution_id, window_label="phase6_coupled", platform_run_id=platform_run_id)

@@ -374,11 +374,11 @@ The baseline now established under this plan is:
 - `Control + Ingress`: promoted working-platform member
 - `RTDL`: promoted working-platform member after fresh-scope Phase 1 closure on `2026-03-11`
 - `Case + Label`: promoted working-platform member after bounded Phase 3 plane closure on `2026-03-11` and coupled Phase 4 closure on `2026-03-12`
-- `Learning + Evolution / MLOps`: plane-ready after rebuilt Phase 5 closure on `2026-03-12`, but not yet promoted into the working platform pending coupled Phase 6 proof
+- `Learning + Evolution / MLOps`: promoted working-platform member after rebuilt Phase 5 closure on `2026-03-12` and coupled Phase 6 closure on `2026-03-12`
 - `Ops / Gov / Meta`: present, not yet accepted as a production-ready plane
 
 That means the current working platform is:
-- `Control + Ingress + RTDL + Case + Label`
+- `Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps`
 
 Everything else remains to be proven under this plan.
 
@@ -1335,23 +1335,19 @@ After a phase is complete, update as needed:
 ---
 
 ## Immediate next action
-Proceed with `Phase 6 - Working network + Learning coupled readiness`.
+Proceed with `Phase 7 - Operations / Governance / Meta readiness`.
 
-`Phase 5` is now closed green on the rebuilt standard. The accepted plane-readiness authority is:
+`Phase 6` is now closed green on the rebuilt standard. The accepted coupled closure authority is:
 
-- semantic admission:
-  - `phase5_learning_mlops_20260312T054200Z`
-- bounded OFS dataset basis:
-  - `phase5_ofs_dataset_basis_20260312T054900Z`
-- managed train/eval + lineage + gate / publish / rollback:
-  - `phase5_learning_managed_20260312T071600Z`
+- coupled runtime adoption / rollback / restore:
+  - `phase6_learning_coupled_20260312T194748Z`
 
-The current promoted working platform remains:
+The current promoted working platform is now:
 
-- `Control + Ingress + RTDL + Case + Label`
+- `Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps`
 
 Execution order now is:
-1. keep the accepted `Phase 5` evidence chain fixed,
-2. prove the coupled runtime -> label -> learning -> promoted-bundle -> runtime path on that same chain,
-3. widen runtime-facing cohort visibility enough to judge bundle behaviour beyond aggregate-only optics,
-4. promote Learning into the working platform only if the coupled Phase 6 path is explainable, attributable, and auditable.
+1. keep the accepted `Phase 6` working-platform evidence chain fixed,
+2. open the Operations / Governance / Meta boundary against that enlarged working platform,
+3. prove run reconstruction, evidence readback, alerting, cost discipline, and drift visibility on the live platform,
+4. only then authorize the platform-wide bounded operational proof that follows later in the plan.

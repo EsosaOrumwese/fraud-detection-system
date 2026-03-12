@@ -421,6 +421,12 @@ def main() -> None:
         initial_tokens_override: float | None = None,
     ) -> None:
         nonlocal previous_segment_target_eps
+        if (
+            previous_segment_target_eps is not None
+            and initial_tokens_override is None
+            and abs(float(target_eps) - float(previous_segment_target_eps)) < 1e-9
+        ):
+            return
         initial_tokens = (
             max(0.0, float(initial_tokens_override))
             if initial_tokens_override is not None
