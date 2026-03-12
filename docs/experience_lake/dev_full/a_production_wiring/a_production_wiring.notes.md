@@ -1371,3 +1371,112 @@ At this point, Group 2 has all four real paths interrogated:
 - `Admission and disposition path`
 - `Authoritative bus publication path`
 - `Ingest commit truth path`
+
+## 2026-03-12 09:40:49 +00:00 - Enumerating the real paths in Group 3: `Runtime context formation and decisioning`
+
+I want to pin 6 real paths in the runtime context formation and decisioning group.
+
+I am choosing 6 because, before we get to audit and archive, the current RTDL story already exposes six distinct owned outcomes:
+
+- entity and relationship projection
+- joined context
+- online feature readiness
+- decision guardrail posture
+- decision truth
+- and action or outcome truth
+
+That split also matches the way the RTDL docs separate the context-shaping, projection, feature, guardrail, decision, and action surfaces, while the run-process separately closes RTDL catch-up at `P8` and the decision chain at `P9`.
+
+A second reason this split works is that the current wired system already pins the main seating and semantic constraints for these paths:
+
+- IG publishes the traffic and context family onto the event bus
+- RTDL consumes those topics
+- the baseline wired RTDL path is seated across the RTDL namespace, workers, stores, and downstream handoff topics in the copied wired graphs
+- and live runtime is only allowed to use the time-safe oracle outputs:
+  - `s3_event_stream_with_fraud_6B`
+  - `arrival_events_5B`
+  - `s1_arrival_entities_6B`
+  - `s3_flow_anchor_with_fraud_6B`
+- while truth outputs and future-implying fields are forbidden
+
+I want to pin the 6 real paths in Group 3 like this:
+
+1. `Entity and relationship projection path`
+   - definition:
+     - admitted traffic and context topics -> RTDL entity update logic -> current entity and relationship projection truth
+   - why it is a real path:
+     - this path has its own distinct purpose:
+       - build identity and entity relationship state from admitted platform data
+     - the docs treat projection correctness, lag, checkpoint age, replay determinism, and apply correctness as its own boundary question rather than folding it into decisioning generically
+
+2. `Joined context formation path`
+   - definition:
+     - admitted event family + projected entity and flow state + allowed time-safe context -> joined runtime context surface and readiness truth
+   - why it is a real path:
+     - this path has distinct owned outcome:
+       - not just that projections exist, but that the right joined context exists for the event now being processed
+     - I would not collapse this into projection, because having projections is not the same thing as having correct joined context for this event
+
+3. `Online feature readiness path`
+   - definition:
+     - joined context + current RTDL state -> online feature state and feature availability truth for live decisions
+   - why it is a real path:
+     - this path has distinct owned outcome:
+       - not merely that context exists, but that the decision can actually use the required feature groups with correct freshness and bounded restart behavior
+     - the docs are explicit that partial key coverage, stale feature serving, and false missing-feature states are separate concerns here
+
+4. `Decision guardrail path`
+   - definition:
+     - context, feature, and dependency posture -> adjudicated decision mode such as proceed, quarantine, fail-closed, or advisory posture
+   - why it is a real path:
+     - this path owns the runtime health and dependency posture for decisioning
+     - the docs treat false fail-closed, dependency classification correctness, and recovery-to-normal as distinct responsibility
+     - so this path has its own owned outcome:
+       - safe and explicit decision posture
+
+5. `Decision formation path`
+   - definition:
+     - joined context + online features + active bundle or policy resolution + guardrail posture -> decision truth
+   - why it is a real path:
+     - this path is where the platform actually produces the decision output
+     - the docs make that distinct responsibility:
+       - decisions must be correct for the actual context, feature state, and active bundle or policy in scope
+       - with provenance and explainability complete enough to survive replay and audit
+     - I want to keep active bundle or policy resolution inside this path for `A`, because the larger cross-plane feedback from registry to runtime is whole-platform handoff, while the Group 3 owned outcome here is still that decision truth was formed correctly
+
+6. `Action and outcome emission path`
+   - definition:
+     - decision truth -> action logic and outcome commit or publish -> RTDL outcome truth for downstream use
+   - why it is a real path:
+     - this path owns distinct job after decision formation:
+       - turn decisions into deterministic side effects or outcome surfaces without duplicate corruption or ambiguity leakage
+     - the bus contract helps here:
+       - `fp.bus.rtdl.v1` is the pinned RTDL downstream topic
+       - `DF` and `AL` are the producers
+     - that gives this path concrete handoff boundary
+
+What I do not want to count here:
+
+- the audit append path
+- the archive writer path
+
+Even though the larger RTDL plane includes the decision log and audit corridor and the archive writer, those belong to the next group for this `A` structure:
+
+- `Durable audit, archive, and replay truth`
+
+because they own different obligation family:
+
+- turning runtime behavior into append-only historical truth
+
+I also do not want to make registry-to-runtime active bundle feedback its own Group 3 path right now. That is real cross-plane handoff in the whole-platform story, but inside Group 3's current wired job, the owned outcome I need to interrogate is still the decision formation path that consumes the active bundle or policy at runtime.
+
+So the pinned Group 3 path set is:
+
+1. `Entity and relationship projection path`
+2. `Joined context formation path`
+3. `Online feature readiness path`
+4. `Decision guardrail path`
+5. `Decision formation path`
+6. `Action and outcome emission path`
+
+That is the clean split I want to use before going back down into per-path interrogation.
