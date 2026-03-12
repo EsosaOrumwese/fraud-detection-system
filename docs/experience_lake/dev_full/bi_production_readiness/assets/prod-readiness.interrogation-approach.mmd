@@ -1,0 +1,161 @@
+---
+config:
+  look: neo
+  theme: default
+---
+flowchart TD
+
+    META["Meta goal (implicit)<br/>A serious reviewer infers senior-level ML Platform and MLOps capability"]:::meta
+    AGOAL["A goal (implicit)<br/>Show the current wired platform is a real, intentional, understood engineered system"]:::goal
+    ADONE["A achieved enough<br/>The current wired platform is mapped, bounded, and understood"]:::finish
+    BGOAL["Bi goal (implicit)<br/>Expose the A-mapped wired platform to production-shaped pressure,<br/>reveal the wired-to-ready gaps, justify the bridges,<br/>and make boundaries solid enough for promotion"]:::goal
+
+    META --> AGOAL --> ADONE --> BGOAL
+
+    BSTART["Start Bi interrogation<br/>Use A as the architectural map,<br/>not as something to rediscover"]:::step
+    BGOAL --> BSTART
+
+    BBOUND["Pin the Bi boundary<br/>Stay on readiness questions only:<br/>what breaks under production-shaped pressure,<br/>why it breaks, what gap that reveals,<br/>and what justifiably bridges it"]:::boundary
+    BSTART --> BBOUND
+
+    BFREEZE["Freeze Bi-core evidence surfaces"]:::step
+    BBOUND --> BFREEZE
+
+    subgraph BEVID ["Bi-core evidence surfaces"]
+        direction TB
+        BV1["A map<br/>Groups, paths, owned outcomes, syntheses"]:::surface
+        BV2["Production-readiness implementation note<br/>Primary reasoning authority for what actually happened"]:::surface
+        BV3["Readiness plan + active phase doc<br/>Current goal, targets, closure rule"]:::surface
+        BV4["Accepted green chain<br/>The inherited truth this proof is allowed to rely on"]:::surface
+        BV5["Bi gap register<br/>Boundary, pressure, target, observed,<br/>gap class, bridge, what remains open"]:::register
+    end
+
+    BFREEZE --> BV1
+    BFREEZE --> BV2
+    BFREEZE --> BV3
+    BFREEZE --> BV4
+    BFREEZE --> BV5
+
+    BSELECT["Select the active A-defined object under pressure<br/>One group, one path, or one coupled path"]:::step
+    BV1 --> BSELECT
+
+    subgraph BFRAME ["Bi gap frame"]
+        direction TB
+        BCURR["State the current wired truth<br/>What is true now about this boundary?"]:::step
+        BREADYTRUTH["State the production-ready truth<br/>What would need to be true for this boundary to count as ready?"]:::step
+        BQUESTION["State the readiness question<br/>What exact wired-to-ready gap is this boundary being tested for?"]:::step
+        BCURR --> BREADYTRUTH --> BQUESTION
+    end
+
+    BSELECT --> BCURR
+
+    subgraph BPFAM ["Production-pressure families"]
+        direction TB
+        PF1["Envelope pressure<br/>steady, burst, recovery, latency, lag"]:::pressure
+        PF2["Semantic pressure<br/>no future leakage, no false-ready,<br/>no shadow truth, no false-green"]:::pressure
+        PF3["Coupling pressure<br/>newly attached path stays truthful<br/>inside the enlarged network"]:::pressure
+        PF4["Authority pressure<br/>right source of truth, right active bundle,<br/>right rollup authority"]:::pressure
+        PF5["Observability pressure<br/>fresh telemetry, drift visibility,<br/>active-path fidelity"]:::pressure
+        PF6["Cost pressure<br/>bounded spend, no proof by waste"]:::pressure
+    end
+
+    BPRESS["Select the relevant production pressure<br/>What kind of pressure should reveal this gap truthfully?"]:::step
+    BQUESTION --> BPRESS
+    BPRESS --> PF1
+    BPRESS --> PF2
+    BPRESS --> PF3
+    BPRESS --> PF4
+    BPRESS --> PF5
+    BPRESS --> PF6
+
+    BTARGET["Pin target vs observed frame<br/>Targets, tolerances, fail-fast conditions,<br/>and what would count as a real red"]:::step
+    PF1 --> BTARGET
+    PF2 --> BTARGET
+    PF3 --> BTARGET
+    PF4 --> BTARGET
+    PF5 --> BTARGET
+    PF6 --> BTARGET
+
+    BTELE["Pin telemetry before spend<br/>Live logs, live counters, boundary health,<br/>fail-fast triggers, minimal hardening artifacts"]:::step
+    BTARGET --> BTELE
+
+    BREADY{"Truthful proof shape ready?"}:::decision
+    BTELE --> BREADY
+
+    BPREP["Fix proof-shape / visibility / attribution blindspot first<br/>Do not spend yet"]:::step
+    BREADY -- "No" --> BPREP
+    BPREP --> BTELE
+
+    BRUN["Apply the smallest truthful production-shaped run<br/>Keep the platform AWS-real and keep production shape intact"]:::step
+    BREADY -- "Yes" --> BRUN
+
+    BOBS["Measure target vs observed<br/>What held? What broke?<br/>What stayed green only advisory?"]:::step
+    BRUN --> BOBS
+
+    BGAP["Reveal the wired-to-ready gap<br/>Target, observed, delta,<br/>missing readiness property,<br/>impact on the enlarged network"]:::step
+    BOBS --> BGAP
+
+    BGAPREAL{"Did pressure reveal a real gap?"}:::decision
+    BGAP --> BGAPREAL
+
+    BSOLID["State the solidity verdict<br/>What is now solid?<br/>Why is it solid?<br/>What still remains open?"]:::groupconclusion
+    BGAPREAL -- "No" --> BSOLID
+
+    BCLASS["Classify the gap honestly"]:::step
+    BGAPREAL -- "Yes" --> BCLASS
+
+    subgraph BGAPFAM ["Gap families"]
+        direction TB
+        GF1["Proof-boundary gap<br/>methodology, proof shape, rollup authority,<br/>telemetry / observability defect"]:::gap
+        GF2["Platform-boundary gap<br/>runtime, semantic, coupling, capacity,<br/>authority, or cost defect"]:::gap
+    end
+
+    BCLASS --> GF1
+    BCLASS --> GF2
+
+    BCAND["State candidate bridges<br/>What could close this gap<br/>without weakening production shape?"]:::bridge
+    GF1 --> BCAND
+    GF2 --> BCAND
+
+    BJUST["Choose and justify the bridge<br/>Why this is the least-distorting bridge<br/>from current wired truth toward ready truth"]:::bridge
+    BCAND --> BJUST
+
+    BREC["Record the Bi boundary output<br/>Current wired truth<br/>Ready truth<br/>Gap statement<br/>Chosen bridge<br/>What remains open"]:::step
+    BJUST --> BREC
+    BREC --> BV5
+
+    BRERUN["Rerun the same truthful boundary<br/>Do not invent a new easy shape"]:::step
+    BREC --> BRERUN
+    BRERUN --> BOBS
+
+    BPROM{"Promotion justified?"}:::decision
+    BSOLID --> BPROM
+
+    BUP["Promote the plane or enlarged network<br/>Update the accepted green chain only after explainable proof"]:::step
+    BPROM -- "Yes" --> BUP
+    BPROM -- "No - more pressure still needed" --> BPRESS
+
+    BNEXT{"More A-defined boundaries to pressure?"}:::decision
+    BUP --> BNEXT
+    BNEXT -- "Yes" --> BSELECT
+    BNEXT -- "No" --> BSYN
+
+    BSYN["Bi synthesis<br/>Show which A-defined boundaries were pressured,<br/>what gaps were revealed, how the bridges were justified,<br/>what is now solid, and what remains open before readiness"]:::goal
+
+    BFINAL["Final Bi-supporting claims<br/>The wired platform has been truthfully pressured;<br/>wired-to-ready gaps are explicit;<br/>bridges are justified;<br/>remaining open readiness boundaries are explicit"]:::claims
+    BSYN --> BFINAL
+    BFINAL --> META
+
+    classDef meta fill:#f8d7da,stroke:#b42318,color:#111;
+    classDef goal fill:#d1fadf,stroke:#027a48,color:#111;
+    classDef step fill:#dbeafe,stroke:#1d4ed8,color:#111;
+    classDef boundary fill:#fee2e2,stroke:#b91c1c,color:#111;
+    classDef surface fill:#ecfccb,stroke:#4d7c0f,color:#111;
+    classDef register fill:#fef3c7,stroke:#b45309,color:#111;
+    classDef decision fill:#ede9fe,stroke:#6d28d9,color:#111;
+    classDef pressure fill:#fae8ff,stroke:#a21caf,color:#111;
+    classDef gap fill:#fee2e2,stroke:#c2410c,color:#111;
+    classDef bridge fill:#cffafe,stroke:#0f766e,color:#111;
+    classDef groupconclusion fill:#ffe4e6,stroke:#be123c,color:#111;
+    classDef claims fill:#e0f2fe,stroke:#0369a1,color:#111;
+    classDef finish fill:#f3f4f6,stroke:#374151,color:#111;
