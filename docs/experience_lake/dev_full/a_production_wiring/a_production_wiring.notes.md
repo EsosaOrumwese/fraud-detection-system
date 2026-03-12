@@ -725,3 +725,79 @@ I want to keep the interrogation of this path inside one entry:
 Plainly stated, the `Ready authorization path` exists to make "this run is now ready" an explicit, control-plane-owned, durable fact, and its current design shows that this is deliberate, materially seated, and governance-driven rather than accidental.
 
 The next clean move is the `Canonical traffic admission and bus publication` group, starting with its first real path.
+
+## 2026-03-12 08:50:56 +00:00 - Splitting Group 2 `Canonical traffic admission and bus publication` into its real paths
+
+I would pin 4 real paths in the `Canonical traffic admission and bus publication` group.
+
+That number feels right because this group has four distinct owned outcomes in the current wired system:
+
+- traffic reaches the active ingress boundary
+- traffic receives an admission or disposition decision
+- admitted traffic reaches the authoritative bus topics
+- the whole ingress act is turned into durable ingest truth
+
+The clean Group 2 path set is:
+
+- `Boundary access path`
+- `Admission and disposition path`
+- `Authoritative bus publication path`
+- `Ingest commit truth path`
+
+I want the path breakdown itself to stay inside this single entry:
+
+1. `Boundary access path`
+   - definition:
+     - canonical behavioural traffic -> active ingress endpoint with the pinned auth and route contract -> boundary-accepted request envelope
+   - why it is a real path:
+     - this path turns canonical traffic into a valid request at the active ingress edge
+     - only outputs that are actually allowed to behave as traffic may enter here; the engine contract is explicit that only `behavioural_streams` are canonical traffic, while `traffic_primitives`, `behavioural_context`, `truth_products`, `audit_evidence`, and `ops_telemetry` are not to be treated as business traffic
+     - the current pinned ingress contract exposes the Execute API boundary as the active ingress edge, while the internal ALB path remains retained but non-primary
+     - the ingress URL, ingest path, and API-key contract are all pinned
+     - reaching the right front door under the right contract is a different owned outcome from being admitted, so this deserves its own path
+
+2. `Admission and disposition path`
+   - definition:
+     - boundary-accepted request -> auth / throttling / idempotency / disposition logic -> admit or reject or quarantine or duplicate-safe truth
+   - why it is a real path:
+     - this path turns a boundary-accepted request into explicit ingress truth
+     - the admission path must answer whether traffic can be accepted safely and deterministically through auth, identity, throttling, idempotency, and duplicate-safe handling
+     - the implementation notes make the concrete boundary explicit: the IG Lambda computes a canonical dedupe basis from `(platform_run_id, event_class, event_id)`, writes a DynamoDB idempotency record with TTL and admission metadata, and fail-closes with `503` if the idempotency backend is unavailable
+     - this is distinct from publication because an event can be correctly classified at ingress even before we ask where it was published
+
+3. `Authoritative bus publication path`
+   - definition:
+     - admitted ingress event family -> authoritative publication to pinned traffic and context topics -> bus-visible runtime handoff
+   - why it is a real path:
+     - this path turns an admitted ingress event family into authoritative topic publication
+     - the platform distinguishes traffic and context families:
+       - `fp.bus.traffic.fraud.v1`
+       - `fp.bus.context.arrival_events.v1`
+       - `fp.bus.context.arrival_entities.v1`
+       - `fp.bus.context.flow_anchor.fraud.v1`
+     - the data-engine contract explains why that split exists: behavioural streams are intentionally thin traffic, while arrival/entity/flow-anchor surfaces are context to be joined inside the platform
+     - this is a distinct owned outcome from merely deciding admission, because this is the first place where Group 2 hands truth over to downstream runtime via the event bus
+
+4. `Ingest commit truth path`
+   - definition:
+     - admission + publication outcomes -> receipt summary / quarantine summary / offset-proof materialization -> committed ingest truth
+   - why it is a real path:
+     - this path turns admission and publication activity into durable ingress evidence
+     - the run-process gives this a separate closure point in `P7 INGEST_COMMITTED`: admit/quarantine summaries must be committed, an offset snapshot must be committed in a mode-aware way, and dedupe/anomaly checks must pass
+     - the implementation notes reinforce that this is not optional reporting: they explicitly reject claiming pass from DynamoDB admissions alone, and they keep the lane fail-closed when Kafka offsets are not materially available, recording `IG_ADMISSION_INDEX_PROXY` instead of fabricating broker offsets
+     - publication is not enough; the platform must later be able to prove what ingress did for the run
+
+What I would not count as separate real paths here:
+
+- the retained internal ALB ingress URL is not a real path for `A`, because it is a retained surface and not the active external front door of the current pinned ingress contract
+- direct DynamoDB seed writes are not a real path, because the implementation notes explicitly reject them as bypassing the IG boundary and therefore failing to prove ingress semantics
+- DLQ or quarantine is not a wholly separate canonical group path; it is a disposition and evidence surface inside Group 2, primarily belonging to the admission/disposition path and the ingest commit truth path rather than a standalone primary path
+
+So the pinned Group 2 path set is:
+
+- `Boundary access path`
+- `Admission and disposition path`
+- `Authoritative bus publication path`
+- `Ingest commit truth path`
+
+That is the clean split I want to use. The next step is to take `Boundary access path` and do the same full path-level interrogation used for the three Group 1 paths.
