@@ -5151,3 +5151,49 @@ So the current judgment is:
 - the blindspot that Phase 5 would have started with is now removed
 - the active blocker is no longer telemetry availability
 - the next real task is `Phase 5.B`: a bounded managed-learning proof on top of this now-readable corridor
+
+## 2026-03-12 03:37:17 +00:00 - Phase 5 / 6 plan strengthened to carry semantic truth and MLOps proof, not just managed-surface health
+
+The user called out the exact risk that was starting to matter as we crossed from platform-only hardening into the learning corridor:
+
+- we can accidentally prove that the managed surfaces are healthy while under-proving whether the platform is learning from meaningful, realistic, and admissible truth
+- if that happens, we would have a platform that is operationally credible but semantically weak
+
+I re-read the allowed Data Engine semantic authorities before changing the main plan:
+
+- `docs/model_spec/data-engine/interface_pack/data_engine_interface.md`
+- `docs/model_spec/data-engine/implementation_maps/segment_5B.build_plan.md`
+- `docs/model_spec/data-engine/layer-2/specs/state-flow/5B/state.5B.s5.expanded.md`
+- `docs/model_spec/data-engine/implementation_maps/segment_6B.build_plan.md`
+- `docs/model_spec/data-engine/layer-3/specs/state-flow/6B/state.6B.s5.expanded.md`
+
+The important conclusion from those reads is:
+
+- the interface pack is explicit that downstream platform consumers must distinguish behavioural streams, behavioural context, and truth products
+- the `s4_*` truth products are offline supervision / case truth and must not be treated as live RTDL inputs
+- `6B.S5` is a real downstream learning/eval gate, not just a sealing nicety
+- `5B` still matters because it reinforces the non-ad-hoc, catalogue-driven evidence posture the learning plane should follow when resolving its basis
+
+That means the old Phase 5 framing was too narrow. It asked whether OFS / SageMaker / MLflow could execute correctly, but it did not make the semantic-admissibility burden explicit enough.
+
+I corrected the main plan in `platform.production_readiness.plan.md` so Phase 5 now explicitly requires:
+
+- interface-pack-authorized dataset-basis discipline
+- `6B.S5` green-gated world admission for learning/eval bases that depend on 6B outputs
+- label as-of and maturity correctness as first-class proof
+- supervision coverage and cohort/regime visibility as required evidence
+- offline feature admissibility and no future-derived leakage through convenience joins
+- model-fit reasoning against the actual admitted data, not merely successful training job completion
+
+I also corrected Phase 6 so the coupled-learning proof now explicitly asks whether the full feedback loop remains semantically stable and explainable:
+
+- runtime -> case/label -> dataset -> bundle -> runtime
+- cohort/regime evaluation cannot disappear behind aggregate-only metrics
+- a promoted bundle must remain attributable back to admitted world, label basis, feature basis, and evaluation basis
+
+This is the right posture correction:
+
+- keep `100% Platform`
+- add `100% MLOps`
+- do not weaken the original hardening doctrine
+- make the learning corridor prove both runtime health and semantic truth fitness

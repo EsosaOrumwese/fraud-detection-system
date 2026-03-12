@@ -317,14 +317,20 @@ Rules:
 
 | Metric | Current target | Evidence surface | Owning phase |
 |---|---|---|---|
+| authoritative-world gate compliance | `100%` of bounded proofs use interface-pack-authorized, `6B.S5`-passed worlds only | OFS dataset-basis validation + engine gate evidence | Phase 5 |
+| unauthorized dataset basis count | `0` | OFS dataset manifest validation | Phase 5 |
 | point-in-time correctness violations | `0` | Databricks dataset validation | Phase 5 |
 | future leakage violations | `0` | Databricks dataset validation | Phase 5 |
+| label maturity / as-of policy violations | `0` | OFS label-resolution receipts + dataset validation | Phase 5 |
+| required supervision coverage policy satisfaction | `100%` for declared label families in bounded proof windows | OFS coverage gate + label-resolution diagnostics | Phase 5 |
 | dataset manifest completeness | `100%` | OFS / Databricks outputs | Phase 5 |
 | dataset build success rate | `100%` for bounded proof windows | Databricks job telemetry | Phase 5 |
 | dataset build duration p95 | `<= 30 min` bounded build window | Databricks job telemetry | Phase 5 |
+| offline-learning feature contract violations | `0` | OFS dataset validation + feature contract checks | Phase 5 |
 | training success rate | `100%` for bounded proof windows | SageMaker job telemetry | Phase 5 |
 | evaluation success rate | `100%` for bounded proof windows | SageMaker job telemetry | Phase 5 |
 | training / evaluation reproducibility | within pinned tolerance for repeated bounded basis | SageMaker + MLflow lineage evidence | Phase 5 |
+| bounded subgroup/regime evaluation visibility | `100%` for declared critical cohorts | SageMaker eval outputs + MLflow lineage evidence | Phase 6 |
 | candidate bundle completeness | `100%` | SageMaker / artifact validation | Phase 5 |
 | lineage completeness | `100%` from dataset -> train/eval -> candidate bundle -> active bundle | MLflow / MPR telemetry | Phase 5 |
 | promotion evidence completeness | `100%` | MLflow / MPR telemetry | Phase 5 |
@@ -858,6 +864,7 @@ Definition of done:
 ## Phase 5 - Learning + Evolution / MLOps plane readiness
 Purpose:
 - prove the managed learning corridor on its own production criteria.
+- prove that the managed learning corridor is learning from semantically valid, sealed, point-in-time-correct truth rather than merely producing artifacts on healthy infrastructure.
 
 Production-readiness anchor:
 - `platform.production_readiness.md -> What makes Learning & Evolution Plane Production Ready?`
@@ -866,15 +873,24 @@ Production-readiness anchor:
 
 Quantitative proof focus:
 - dataset build duration and success
+- authoritative-world admission and dataset-basis compliance
 - leakage violations
+- label coverage and maturity-policy satisfaction
 - train/eval duration and success
+- bounded cohort and regime evaluation visibility
 - candidate bundle completeness
 - promotion evidence completeness
 - rollback success and rollback RTO/RPO
 
 Qualitative proof focus:
 - authoritative runtime and label truth as the only learning basis
+- interface-pack discipline: behavioural streams, behavioural context, and truth products must not be mixed casually
+- `6B.S5` green world admission as a hard gate for any training/eval basis that depends on 6B behaviour/labels/cases
 - point-in-time correctness
+- label as-of and maturity correctness
+- supervision fitness: labels, case-linked truth, and regime coverage are materially usable for learning, not merely present
+- feature admissibility: offline features are built from allowed offline surfaces and do not smuggle future-derived or RTDL-unsafe fields into training
+- model-fit discipline: bounded training/evaluation must be interpretable against the actual fraud/legit structure, label families, and cohort behaviour in the admitted data
 - lineage completeness from dataset to candidate bundle
 - deterministic active-bundle resolution through the managed corridor
 - no hidden local or script-only path making learning appear healthy
@@ -886,14 +902,21 @@ Scope:
 
 Dependencies allowed:
 - working platform from Phase 4 as source of runtime and label truth
+- Data Engine interface pack as the only allowed semantic authority for downstream engine consumption
+- `6B` sealed truth products and `6B.S5` validation artefacts for learning/evaluation admission decisions
+- `5B` sealed-input / catalogue posture as the model for evidence discovery and non-ad-hoc dataset resolution
 - managed learning surfaces
 - required evidence and registry surfaces
 
 Run shape:
 - bounded learning slice, not a giant corpus replay
 - enough authoritative runtime truth and label truth to exercise:
+  - world admission and basis gating
   - dataset build semantics
+  - feature and label admissibility
+  - supervision coverage and maturity checks
   - train/eval lineage
+  - cohort-aware evaluation and model-fit reasoning
   - candidate bundle production
   - promotion / rollback / active-bundle resolution
 - typical starting scale:
@@ -901,15 +924,24 @@ Run shape:
   - bounded build and train/eval windows
 
 Primary questions:
+- are admitted worlds and datasets authorized by the interface pack and sealed `6B.S5` gates, or are we learning from ungoverned surfaces?
 - are datasets built from authoritative runtime and label truth only?
 - is point-in-time correctness preserved?
+- are label as-of and maturity rules enforced strongly enough that the supervision basis is trustworthy?
+- do the resulting datasets retain materially useful class, subtype, campaign, and case-linked coverage for bounded learning?
+- are the selected model families and evaluation criteria justified by the actual admitted data rather than by tooling convenience?
 - does SageMaker train/eval from the right basis?
 - does MLflow provide deterministic active-bundle resolution, promotion evidence, and rollback discipline?
 
 Focus metrics:
 - dataset build success / duration / leakage violations
+- authoritative-world admission and dataset-basis compliance
+- label as-of / maturity policy compliance
+- supervision coverage by required label family / cohort
+- offline feature admissibility and contract violations
 - manifest completeness and fingerprint stability
 - training / evaluation success and bounded duration
+- bounded evaluation visibility across critical fraud / legit regimes and cohorts
 - bundle completeness and provenance completeness
 - promotion evidence completeness
 - rollback success and rollback RTO / RPO
@@ -925,6 +957,10 @@ Semantic references for this phase:
   - labelled runtime truth expectations and downstream training/evaluation suitability
 - `docs/model_spec/data-engine/layer-3/specs/state-flow/6B/state.6B.s5.expanded.md`
   - 6B validation bundle and `_passed.flag` as world-level learning-read gates
+- `docs/model_spec/data-engine/implementation_maps/segment_5B.build_plan.md`
+  - sealed-input, catalogue, and non-ad-hoc evidence-discovery discipline
+- `docs/model_spec/data-engine/layer-2/specs/state-flow/5B/state.5B.s5.expanded.md`
+  - bundle / flag / catalogue posture for trustworthy dataset discovery and evidence pinning
 
 Telemetry plan:
 - live logs:
@@ -932,17 +968,26 @@ Telemetry plan:
   - SageMaker training / evaluation job logs for the Model Factory (MF)
   - MLflow / Model Promotion and Registry (MPR) promotion and rollback events
 - live progress counters:
+  - admitted world count vs rejected world count by gate reason
   - dataset row counts and build stage progress
+  - label-family coverage and maturity counters
+  - feature admissibility and leakage-check counters
   - train/eval job state and durations
+  - critical cohort / regime evaluation completion counters
   - candidate bundle creation progress
   - promotion / rollback counts and state
 - live boundary health:
+  - every admitted learning basis resolves through declared dictionary / registry / gate surfaces
   - authoritative dataset basis present and gated
   - label truth available with maturity semantics
+  - offline feature basis remains leakage-safe and contract-valid
   - active-bundle resolution present and readable
 - fail-fast triggers:
+  - any admitted world lacks the required `6B.S5` green gate
   - point-in-time or leakage violation detected
+  - supervision basis falls below declared coverage or maturity policy
   - train/eval running on non-authoritative dataset basis
+  - critical cohort / regime evaluation missing or unreadable
   - promotion attempt without complete lineage
   - rollback path unavailable or unresolved
 - hardening artifacts:
@@ -960,6 +1005,7 @@ Definition of done:
 ## Phase 6 - Working network + Learning coupled readiness
 Purpose:
 - prove the platform feedback loop once learning is attached to the working network.
+- prove that the runtime -> case/label -> learning -> promoted bundle -> runtime loop remains semantically stable, leakage-safe, explainable, and operationally useful once it becomes one coupled network.
 
 Production-readiness anchor:
 - `platform.production_readiness.md -> What makes Learning & Evolution Plane Production Ready?`
@@ -970,11 +1016,15 @@ Quantitative proof focus:
 - bounded dataset-build, train/eval, and promotion timings within the same proof window
 - active-bundle resolution correctness at runtime
 - rollback execution within declared bounds
+- bounded cohort/regime evaluation visibility on the same admitted truth basis
 
 Qualitative proof focus:
 - runtime-to-label-to-learning truth continuity
 - learning-to-runtime feedback continuity
 - replay-to-dataset correctness
+- no semantic drift between authoritative label truth, learning basis, promoted bundle behaviour, and runtime interpretation
+- bounded evidence that model evolution changes something meaningful on valid supervision rather than merely changing versions
+- explainable bundle adoption: the platform can name the admitted world, label basis, feature basis, eval result, and promotion reason behind the active bundle
 - no drift between promoted bundle truth and runtime decision authority
 
 Scope:
@@ -994,24 +1044,33 @@ Run shape:
 
 Primary questions:
 - does the enlarged network preserve truth continuity from runtime to label to dataset to bundle to active runtime?
+- does the enlarged network preserve semantic meaning across that loop, or does the learning corridor reinterpret/flatten the truth in ways the runtime cannot justify?
 - can the platform explain which dataset and bundle influenced a runtime decision?
+- can the platform show that the promoted bundle was trained and evaluated on admissible, mature, coverage-sufficient truth?
+- can the platform surface bounded cohort / regime behaviour so model evolution is not accepted on aggregate-only optics?
 - can it roll back without ambiguity?
 
 Telemetry plan:
 - live logs:
   - Databricks / SageMaker / MLflow plus the runtime consumer of active bundle truth
 - live progress counters:
+  - admitted world / dataset / bundle lineage checkpoints
   - dataset-build / train-eval / promotion timing
+  - cohort/regime evaluation completion and summary counters
   - active-bundle resolution status
   - rollback timing and success
 - live boundary health:
   - runtime-to-label-to-dataset continuity
+  - learning basis remains interface-pack-authorized and `6B.S5`-gated through promotion
   - promoted bundle visible to runtime
+  - runtime decision evidence can be traced back to dataset / label / bundle basis
   - rollback path restoring prior active truth
 - fail-fast triggers:
   - active bundle not matching promoted truth
   - runtime cannot resolve the managed bundle
+  - promoted bundle lacks readable cohort / regime evaluation or admissible basis evidence
   - learning lineage complete on paper but unreadable in runtime
+  - runtime feedback loop is operationally green but semantically unattributable
 - hardening artifacts:
   - one run manifest
   - one coupled-network summary
