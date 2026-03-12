@@ -494,7 +494,7 @@ I want to keep the interrogation of this path inside one entry:
      - stream-view materialization checks passed
      - manifest and contract checks passed
      - canonical external source binding rather than an ad hoc duplicated copy
-   - the run-process pins all of those as PASS requirements for `ORACLE_READY`
+   - the run-process pins all of those as PASS requirements for oracle-source closure
    - the implementation notes and build-plan trail then sharpen the active standard further as `raw -> managed sort -> parity`
    - `truth_view` is also part of the current wired realization story, but the primary closure anchor of this path is the canonical oracle basis plus valid `stream_view` realization
 
@@ -606,7 +606,7 @@ The next clean move is the `Ready authorization path`.
 
 ## 2026-03-12 05:52:46 +00:00 - Path interrogation: `Ready authorization path`
 
-This path exists to turn a run from "eligible to become ready" into "authoritatively declared ready." In the run-process, that is not a soft health signal; it is a formal closure point. `P5 READY_PUBLISHED` only closes when READY is emitted to the control topic, the READY receipt is committed, duplicate or ambiguous READY is prevented, and the commit authority is validated as Step Functions rather than Flink-only compute. The design authority says the same thing in broader architectural language: READY/control stays Kafka-backed, but closure authority stays with Step Functions.
+This path exists to turn a run from "eligible to become ready" into "authoritatively declared ready." In the run-process, that is not a soft health signal; it is a formal closure point. Ready closure only happens when READY is emitted to the control topic, the READY receipt is committed, duplicate or ambiguous READY is prevented, and the commit authority is validated as Step Functions rather than Flink-only compute. The design authority says the same thing in broader architectural language: READY/control stays Kafka-backed, but closure authority stays with Step Functions.
 
 I want to keep the interrogation of this path inside one entry:
 
@@ -620,7 +620,7 @@ I want to keep the interrogation of this path inside one entry:
    - the entry is the narrower and more governed condition defined by the run-process:
      - SR joins and replay prerequisites already pass
      - the control-topic contract is already pinned
-     - the required P5 handle set is resolved
+     - the required ready-closure handle set is resolved
      - the Step Functions authority surface resolves to a real active state machine
    - in executed prechecks, that meant validating run-continuity handoff, resolving the Step Functions handle chain, and confirming the control-topic anchors before READY publication was attempted
 
@@ -670,7 +670,7 @@ I want to keep the interrogation of this path inside one entry:
 
 8. why the design looks like this:
    - the implementation notes make the design reasoning explicit
-   - letting Flink-ready output implicitly close `P5` was rejected
+   - letting Flink-ready output implicitly close the ready gate was rejected
    - allowing dynamic runtime fallback mid-phase for convenience was rejected
    - both were rejected because they weaken deterministic gate closure, evidence attribution, and auditable control-plane ownership
    - so the current shape is intentional: Step Functions remains the sole READY commit authority, and the path must stay single and explicit during the phase
@@ -718,7 +718,7 @@ I want to keep the interrogation of this path inside one entry:
    - constraint-awareness claim:
      - the design knowingly rejects convenience patterns like Flink-only closure or in-phase switching because they would weaken evidence attribution
    - quantified closure claim:
-     - the entry precheck resolved all required P5 handles
+      - the entry precheck resolved all required ready-closure handles
      - the authority surface was active
      - the authoritative READY commit closed green with zero blockers before the rollup advanced the next gate
 
@@ -783,8 +783,8 @@ I want the path breakdown itself to stay inside this single entry:
      - admission + publication outcomes -> receipt summary / quarantine summary / offset-proof materialization -> committed ingest truth
    - why it is a real path:
      - this path turns admission and publication activity into durable ingress evidence
-     - the run-process gives this a separate closure point in `P7 INGEST_COMMITTED`: admit/quarantine summaries must be committed, an offset snapshot must be committed in a mode-aware way, and dedupe/anomaly checks must pass
-     - the implementation notes reinforce that this is not optional reporting: they explicitly reject claiming pass from DynamoDB admissions alone, and they keep the lane fail-closed when Kafka offsets are not materially available, recording `IG_ADMISSION_INDEX_PROXY` instead of fabricating broker offsets
+     - the run-process gives this a separate closure point: admit/quarantine summaries must be committed, an offset snapshot must be committed in a mode-aware way, and dedupe/anomaly checks must pass
+     - the implementation notes reinforce that this is not optional reporting: they explicitly reject claiming pass from DynamoDB admissions alone, and they keep the lane fail-closed when broker offsets are not materially available, recording an explicit admission-index proxy snapshot instead of fabricating broker offsets
      - publication is not enough; the platform must later be able to prove what ingress did for the run
 
 What I would not count as separate real paths here:
@@ -954,7 +954,7 @@ This path exists to turn a request that has already reached the correct ingress 
 - explicitly marked ambiguous or retry-governed
 - or quarantined
 
-That separation is already visible in the docs: the control and ingress plane is supposed to admit valid traffic, reject invalid traffic, deduplicate repeated traffic, and keep failure classes explicit rather than mixing them together. Later, `P7 INGEST_COMMITTED` closes only when admit and quarantine summaries are committed and dedupe and anomaly checks pass, which means disposition truth is first-class thing, not incidental side effect.
+That separation is already visible in the docs: the control and ingress plane is supposed to admit valid traffic, reject invalid traffic, deduplicate repeated traffic, and keep failure classes explicit rather than mixing them together. Later, ingest-commit closure only happens when admit and quarantine summaries are committed and dedupe and anomaly checks pass, which means disposition truth is first-class thing, not incidental side effect.
 
 I want to keep the interrogation of this path inside one entry:
 
@@ -985,7 +985,7 @@ I want to keep the interrogation of this path inside one entry:
    - with run-scoped evidence sufficient for later investigation
    - the bus handoff itself belongs to the next path
    - this path stops at the point where the ingress plane has done its own job and recorded its own truth
-   - that matches both the ingress-shell criteria and the later `P7` closure rule, where admit and quarantine summaries and dedupe checks are committed separately from full downstream proof
+   - that matches both the ingress-shell criteria and the later ingest-commit closure rule, where admit and quarantine summaries and dedupe checks are committed separately from full downstream proof
 
 4. what the path carries:
    - the path carries the minimum objects needed to make ingress truth real rather than implied:
@@ -1026,7 +1026,7 @@ I want to keep the interrogation of this path inside one entry:
    - the design authority pins the default ingress posture as API Gateway plus Lambda plus DynamoDB idempotency store
    - the handles registry pins the live edge contract around `IG_BASE_URL`, `IG_INGEST_PATH`, `IG_AUTH_MODE`, and `SSM_IG_API_KEY_PATH`
    - the implementation notes then make the active runtime posture more specific:
-     - the current IG edge runtime is `apigw_lambda_ddb`
+     - the current IG edge runtime is the API Gateway -> Lambda -> DynamoDB ingress posture
      - the remediation work for active ingress progression was specifically about making the Lambda path persist idempotency and admission records into DynamoDB so the lane could produce non-zero, run-scoped admission truth
 
 8. why the design looks like this:
@@ -1081,12 +1081,12 @@ I want to keep the interrogation of this path inside one entry:
    - intentionality claim:
      - the dedupe boundary and disposition logic are deliberate and explicit, not accidental consequences of downstream publish
    - materialization claim:
-     - the path is concretely seated in the current `apigw_lambda_ddb` posture with DynamoDB-backed idempotency and admission state
+      - the path is concretely seated in the current API Gateway -> Lambda -> DynamoDB ingress posture with DynamoDB-backed idempotency and admission state
    - contract claim:
      - only the right traffic types are eligible, and ingress truth remains ingress truth
    - quantified closure claim:
      - later closure is not vague
-     - `P7` explicitly requires admit and quarantine summaries plus dedupe and anomaly checks, which means this path has named evidence closure downstream in the runbook
+      - the ingest-commit gate explicitly requires admit and quarantine summaries plus dedupe and anomaly checks, which means this path has named evidence closure downstream in the runbook
 
 Plainly stated, the `Admission and disposition path` exists to make ingress truth explicit before event-bus truth begins, and its current design shows that this is deliberate, materially seated, and ownership-aware rather than hand-wavy.
 
@@ -1237,3 +1237,137 @@ I want to keep the interrogation of this path inside one entry:
 Plainly stated, the `Authoritative bus publication path` exists to turn admitted ingress traffic into explicit, semantically correct, contract-governed runtime handoff, and its current design shows that this handoff is deliberate, materially seated, and truth-boundary aware rather than implicit.
 
 The next path is the `Ingest commit truth path`.
+
+## 2026-03-12 09:28:56 +00:00 - Path interrogation: `Ingest commit truth path`
+
+This path exists to turn what ingress did into durable, run-scoped ingest truth. The previous path made bus handoff authoritative; this path makes the results of ingestion committed and reconstructable. In the run-process, that is exactly what the ingest-commit closure means: once active ingestion exists, the platform must commit admit and quarantine summaries, commit an offset snapshot in the correct mode, and pass dedupe and anomaly checks before the phase can close.
+
+I want to keep the interrogation of this path inside one entry:
+
+1. what this path is trying to achieve:
+   - turn what ingress did into durable, run-scoped ingest truth
+   - make ingest results committed and reconstructable rather than merely observed
+   - close ingestion through evidence rather than through an impression that runtime activity probably happened
+
+2. entry:
+   - the entry is not that some requests hit ingress
+   - it is narrower:
+     - active ingestion counters are non-zero
+     - or an explicit empty-run waiver exists
+   - that means this path only begins once ingress has already been live enough to generate meaningful ingest basis
+   - it is therefore downstream of boundary access, downstream of admission and disposition, and downstream of authoritative bus publication
+
+3. owned outcome:
+   - the owned outcome is committed ingest evidence set for this run consisting of:
+     - admit and quarantine summaries
+     - an offset-proof snapshot in the correct evidence mode
+     - and dedupe and anomaly verdict that passes
+   - that is the clean closure of the path
+   - it is not just that ingress probably worked
+   - and it is not yet that RTDL has caught up
+   - it is specifically the point where ingress behavior has been turned into durable ingest truth
+
+4. what the path carries:
+   - this path carries the evidence objects that make ingest reconstructable:
+     - `receipt_summary.json`
+     - `quarantine_summary.json`
+     - `kafka_offsets_snapshot.json`
+     - and the rollup and execution artifacts that declare whether the ingest-commit lane passed or failed
+   - in the current wired posture, it also carries the offset-proof mode itself, because the proof basis depends on the ingress edge mode
+   - the handles registry pins that relationship directly:
+     - the current API Gateway -> Lambda -> DynamoDB ingress posture uses an admission-index proxy proof mode
+     - a direct Kafka ingress edge would use broker topic and partition offsets
+
+5. broad route logic:
+   - run-scoped ingress activity -> managed ingest-commit lane reads authoritative ingress evidence surfaces -> receipt, quarantine, and offset-proof artifacts are built -> ingest-commit verdict is computed and committed
+   - that broad route matters because it shows this is control and evidence path, not hot-path runtime continuation
+   - the implementation notes are explicit that these ingest-commit lanes were added as managed workflow surfaces, are control-plane heavy, and do not introduce long-lived runtime compute
+
+6. logical design reading:
+   - logically, this path shows that the platform treats ingest closure as evidence closure, not just runtime behavior
+   - the system is not satisfied with:
+     - admissions happened in DynamoDB
+     - or messages probably made it to the bus
+   - it requires bounded artifact set that later phases can read as ingest truth
+   - that is why ingest closure has its own phase and its own blockers, rather than being swallowed by streaming activity or RTDL
+
+7. concrete seating in the current wired system:
+   - this path is materially seated in the current wired system
+   - the run-process and handles pin concrete ingest evidence artifacts under the run evidence root:
+     - `evidence/runs/{platform_run_id}/ingest/receipt_summary.json`
+     - `evidence/runs/{platform_run_id}/ingest/quarantine_summary.json`
+     - `evidence/runs/{platform_run_id}/ingest/kafka_offsets_snapshot.json`
+   - the path reads the live ingress basis from the current ingress edge posture and publishes durable truth into those pinned ingest evidence surfaces rather than leaving it trapped in live runtime stores
+   - the proof rule is also concretely seated:
+     - the current ingress posture uses admission-index proxy mode
+     - while a direct Kafka ingress edge would use broker offset mode
+
+8. why the design looks like this:
+   - the design looks like this because the platform explicitly rejected weaker alternatives
+   - the implementation notes are very clear:
+     - claiming ingest-commit pass from DynamoDB admissions alone was rejected
+     - running the lane locally from the operator shell was rejected
+     - and forcing broker topic and partition offsets when the current ingress edge does not materially emit them was also rejected
+   - instead, the chosen design kept fail-closed posture but made offset proof mode-aware
+   - if direct broker offsets are available, use them
+   - if not, and the current edge is the API Gateway -> Lambda -> DynamoDB posture, derive explicit and deterministic admission-index proxy snapshot instead
+   - that is a very deliberate design move:
+     - keep the truth boundary
+     - adapt the proof mode to the actual wired edge
+     - and never silently fabricate broker offsets
+
+9. what larger contracts are shaping this path:
+   - three larger contracts shape it
+   - first, the run-process contract defines the closure rule for ingest commit:
+     - summaries committed
+     - mode-aware offset proof committed
+     - dedupe and anomaly checks passing
+   - second, the handles registry pins the ingress-edge-dependent proof rule
+   - that means the path is not free to invent its own evidence semantics; the proof mode is pinned function of the wired ingress posture
+   - third, the later replay-basis contract depends on this path
+   - learning-input closure explicitly says replay basis must be pinned as origin-offset ranges, and it defines the semantics of admission-index proxy mode versus broker-offset mode
+   - that means this path is not just local bookkeeping; it is upstream of later replayable learning truth
+
+10. trade-offs and constraints:
+   - this path deliberately accepts less pure proof mode in exchange for keeping the current ingress edge and preserving fail-closed semantics
+   - in the current API Gateway -> Lambda -> DynamoDB posture, the ingress edge persists admissions in DynamoDB but does not emit broker topic and partition offsets into stored idempotency rows
+   - the design did not weaken the path into admissions alone are enough
+   - instead, it kept explicit offset proof, but allowed deterministic proxy mode for this edge
+   - that is real design trade-off:
+     - preserve the closure discipline
+     - while admitting the current edge's evidence limitations honestly
+
+11. necessity test:
+   - if this path is removed, the platform still has ingress edge, admission logic, and bus publication, but it loses clean answer to:
+     - what ingest actually committed for this run
+     - what was admitted versus quarantined
+     - what replay basis later lanes should trust
+     - whether dedupe and anomaly checks actually passed
+     - and whether ingest closure is grounded in durable artifacts or only inferred from live stores
+   - that would weaken `A` immediately, because the ingress part of the system would stop looking governed and start looking observational
+   - the docs themselves make this visible by treating missing receipt surfaces and dedupe drift as explicit blockers, not as later debugging concerns
+
+12. what this path proves for `A`:
+   - purpose claim:
+     - the platform has distinct job for turning ingress activity into committed ingest truth, not just letting ingress side effects accumulate
+   - intentionality claim:
+     - the path is deliberately evidence-driven, managed, and fail-closed, rather than best effort
+   - materialization claim:
+     - the path is concretely seated in explicit ingest evidence artifacts and pinned edge-dependent proof rule
+   - contract claim:
+     - the meaning of offset proof is governed by the run-process and the handles registry, and it later feeds the replay-basis semantics for learning input
+   - constraint-awareness claim:
+     - the current ingress posture cannot honestly supply broker offsets, so the system uses explicit proxy mode rather than pretending otherwise
+   - closure signal:
+     - the design enforces the truth boundary rather than treating it as decorative
+     - when offset evidence is not materially available, the path fails closed
+     - and the answer is to correct the proof mode honestly, not to weaken the closure into vagueness
+
+Plainly stated, the `Ingest commit truth path` exists to turn ingress behavior into durable, mode-aware, replay-relevant ingest evidence, and its current design shows that this closure is deliberate, materially seated, and honest about the limits of the current ingress edge rather than hand-wavy.
+
+At this point, Group 2 has all four real paths interrogated:
+
+- `Boundary access path`
+- `Admission and disposition path`
+- `Authoritative bus publication path`
+- `Ingest commit truth path`
