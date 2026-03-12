@@ -627,7 +627,7 @@ I want to keep the interrogation of this path inside one entry:
 3. owned outcome:
    - the owned outcome is an authoritatively ready run, not merely a computed readiness hint
    - concretely, the pass condition is:
-     - READY emitted to `fp.bus.control.v1`
+     - READY emitted to the control topic
      - READY receipt committed with a Step Functions execution reference
      - duplicate or ambiguous READY absent
      - authority proven to be Step Functions
@@ -659,7 +659,7 @@ I want to keep the interrogation of this path inside one entry:
    - that is exactly the kind of thing that makes the current wired system look governed rather than improvised
 
 7. concrete seating in the current wired system:
-   - the control surface is the Kafka control topic `fp.bus.control.v1`
+  - the control surface is the Kafka control topic
    - the control-plane authority is the concrete Step Functions state machine `fraud-platform-dev-full-platform-run-v0`
    - the READY receipt lands in the run evidence surface under the run's S3 evidence root
    - the handle contract pins:
@@ -770,11 +770,11 @@ I want the path breakdown itself to stay inside this single entry:
      - admitted ingress event family -> authoritative publication to pinned traffic and context topics -> bus-visible runtime handoff
    - why it is a real path:
      - this path turns an admitted ingress event family into authoritative topic publication
-     - the platform distinguishes traffic and context families:
-       - `fp.bus.traffic.fraud.v1`
-       - `fp.bus.context.arrival_events.v1`
-       - `fp.bus.context.arrival_entities.v1`
-       - `fp.bus.context.flow_anchor.fraud.v1`
+   - the platform distinguishes traffic and context families:
+      - the fraud traffic topic
+      - the arrival-events context topic
+      - the arrival-entities context topic
+      - the flow-anchor context topic
      - the data-engine contract explains why that split exists: behavioural streams are intentionally thin traffic, while arrival/entity/flow-anchor surfaces are context to be joined inside the platform
      - this is a distinct owned outcome from merely deciding admission, because this is the first place where Group 2 hands truth over to downstream runtime via the event bus
 
@@ -845,9 +845,9 @@ I want to keep the interrogation of this path inside one entry:
    - the engine interface adds the payload-side rule:
      - anything emitted as `behavioural_streams` onto a bus must conform to the canonical event envelope contract
    - the edge-side contract is also explicit:
-     - `IG_AUTH_MODE = "api_key"`
-     - `IG_AUTH_HEADER_NAME = "X-IG-Api-Key"`
-     - `SSM_IG_API_KEY_PATH = "/fraud-platform/dev_full/ig/api_key"`
+     - API-key authentication mode
+     - the `X-IG-Api-Key` header
+     - a pinned secret-backed API key contract
    - health-probe evidence supports the same boundary posture, but the pinned auth contract is already sufficient to show that the ingress runtime expects real key material at the boundary rather than an informal anonymous path
 
 5. broad route logic:
@@ -1022,9 +1022,9 @@ I want to keep the interrogation of this path inside one entry:
    - it also matches the ingress-plane requirement that there be one authoritative dedupe boundary
 
 7. concrete seating in the current wired system:
-   - this path is concretely seated in the current wired runtime, not just described abstractly
-   - the design authority pins the default ingress posture as API Gateway plus Lambda plus DynamoDB idempotency store
-   - the handles registry pins the live edge contract around `IG_BASE_URL`, `IG_INGEST_PATH`, `IG_AUTH_MODE`, and `SSM_IG_API_KEY_PATH`
+  - this path is concretely seated in the current wired runtime, not just described abstractly
+  - the design authority pins the default ingress posture as API Gateway plus Lambda plus DynamoDB idempotency store
+  - the handles registry pins the live edge contract around the active ingress URL, ingest route, authentication mode, and secret-backed API key contract
    - the implementation notes then make the active runtime posture more specific:
      - the current IG edge runtime is the API Gateway -> Lambda -> DynamoDB ingress posture
      - the remediation work for active ingress progression was specifically about making the Lambda path persist idempotency and admission records into DynamoDB so the lane could produce non-zero, run-scoped admission truth
@@ -1059,7 +1059,7 @@ I want to keep the interrogation of this path inside one entry:
    - the later readiness notes show that this became real operational concern:
      - the idempotency table became dominant cost surface when full receipt bodies were stored inline
    - the platform did not solve that by abandoning the ledger boundary
-   - instead, it kept the proven fast `ddb_hot` posture and compacted the stored receipt shape to the minimum fields needed for run attribution and lookup
+  - instead, it kept the proven compact hot-table posture and compacted the stored receipt shape to the minimum fields needed for run attribution and lookup
    - that is a good example of the distinction that matters here:
      - the ownership boundary stayed the same
      - while the concrete implementation was tightened
@@ -1098,7 +1098,7 @@ This path exists to turn ingress truth into authoritative event-bus truth. The p
 
 For traffic that ingress has decided to admit, where does the platform authoritatively hand it off so runtime can begin?
 
-The pinned topic contracts make that answer explicit: the bus surfaces are authoritative, and IG is the producer for the traffic and context topics that feed RTDL. The design authority names Kafka topics as authoritative bus surfaces, and the topic map pins IG as the producer for `fp.bus.traffic.fraud.v1`, `fp.bus.context.arrival_events.v1`, `fp.bus.context.arrival_entities.v1`, and `fp.bus.context.flow_anchor.fraud.v1`.
+The pinned topic contracts make that answer explicit: the bus surfaces are authoritative, and the ingress layer is the producer for the traffic and context topics that feed RTDL. The design authority names Kafka topics as authoritative bus surfaces, and the topic map pins the ingress layer as the producer for the fraud traffic topic, the arrival-events context topic, the arrival-entities context topic, and the flow-anchor context topic.
 
 I want to keep the interrogation of this path inside one entry:
 
@@ -1162,10 +1162,10 @@ I want to keep the interrogation of this path inside one entry:
    - the topic family is pinned by name
    - the bootstrap and schema-registry handles are pinned
    - and the producer and consumer map is pinned as well:
-     - `fp.bus.traffic.fraud.v1` - IG -> RTDL ingress
-     - `fp.bus.context.arrival_events.v1` - IG -> RTDL context
-     - `fp.bus.context.arrival_entities.v1` - IG -> RTDL context
-     - `fp.bus.context.flow_anchor.fraud.v1` - IG -> RTDL join plane
+     - the fraud traffic topic - ingress to RTDL ingress
+     - the arrival-events context topic - ingress to RTDL context
+     - the arrival-entities context topic - ingress to RTDL context
+     - the flow-anchor context topic - ingress to the RTDL join plane
    - so this is not conceptual story like "messages eventually go somewhere"
    - the publish handoff is concretely seated in named managed bus, named topics, named partition rules, and named downstream consumers
 
@@ -1385,7 +1385,7 @@ I am choosing 6 because, before we get to audit and archive, the current RTDL st
 - decision truth
 - and action or outcome truth
 
-That split also matches the way the RTDL docs separate the context-shaping, projection, feature, guardrail, decision, and action surfaces, while the run-process separately closes RTDL catch-up at `P8` and the decision chain at `P9`.
+That split also matches the way the RTDL docs separate the context-shaping, projection, feature, guardrail, decision, and action surfaces, while the run-process separately closes RTDL catch-up and the decision chain as distinct boundaries.
 
 A second reason this split works is that the current wired system already pins the main seating and semantic constraints for these paths:
 
@@ -1451,8 +1451,8 @@ I want to pin the 6 real paths in Group 3 like this:
      - this path owns distinct job after decision formation:
        - turn decisions into deterministic side effects or outcome surfaces without duplicate corruption or ambiguity leakage
      - the bus contract helps here:
-       - `fp.bus.rtdl.v1` is the pinned RTDL downstream topic
-       - `DF` and `AL` are the producers
+       - the RTDL downstream topic is the pinned handoff surface
+       - the decision and action surfaces are the producers
      - that gives this path concrete handoff boundary
 
 What I do not want to count here:
@@ -1480,3 +1480,1625 @@ So the pinned Group 3 path set is:
 6. `Action and outcome emission path`
 
 That is the clean split I want to use before going back down into per-path interrogation.
+
+## 2026-03-12 10:50:57 +00:00 - Path interrogation: `Audit append path`
+
+This path exists to turn decision and action truth into authoritative audit and lineage truth for the real-time lane. Its job is not to form the decision, not to emit the action, and not yet to preserve immutable archive history. Its narrower job is to answer:
+
+Once the platform has decided and acted, where does the authoritative append-only record of that fact get created?
+
+The docs make that boundary explicit. The decision log and audit surface exists to append authoritative audit and lineage truth for the real-time lane, and the decision-chain closure only closes when append-only audit evidence is committed alongside decision and action evidence.
+
+I want to keep the interrogation of this path inside one entry:
+
+1. what this path is trying to achieve:
+   - turn decision and action truth into authoritative audit and lineage truth for the real-time lane
+   - keep this path narrower than decision formation, action emission, and archive preservation
+   - answer where the authoritative append-only record of runtime decisions and outcomes gets created
+
+2. entry:
+   - the entry is not raw RTDL traffic and not generic runtime health
+   - the entry is current-run decision and action truth after the RTDL plane has already crossed its main catch-up boundary
+   - the run-process is clear:
+     - the decision-chain closure opens only after RTDL catch-up closure is green
+     - and then requires three distinct closure elements:
+       - decision lane committed
+       - action and outcome evidence committed
+       - append-only audit evidence committed
+   - so this path begins after Group 3's decision and action paths have already produced their own truth
+
+3. owned outcome:
+   - the owned outcome is append-only audit and lineage truth for the current run and current runtime event chain
+   - that outcome is deliberately narrower than audit consumers saw it and narrower than archive history is preserved
+   - this path closes when the real-time lane has an authoritative audit append, not when that audit truth has later been published or archived
+   - the audit definition itself reinforces that split:
+     - append-only behavior
+     - replay divergence
+     - lineage completeness
+     - unresolved-lineage age
+     - and readback integrity
+     - are the properties of this boundary
+
+4. what the path carries:
+   - this path carries the minimum things needed to make the audit record authoritative rather than decorative:
+     - decision identity
+     - action and outcome identity
+     - run identity
+     - lineage links from decision to outcome to audit artifact
+     - enough provenance for later replay, incident review, and downstream learning support
+   - the RTDL explainability posture is useful here because it shows what must survive into later truth surfaces:
+     - every decision must be traceable to run identity
+     - context surfaces
+     - feature groups
+     - policy and bundle used
+     - action emitted
+     - audit entry appended
+     - and archive and evidence refs
+   - the audit surface then narrows that into its own boundary by requiring lineage completeness from decision to outcome to audit artifact
+
+5. broad route logic:
+   - decision truth + action and outcome truth -> audit append writer -> append-only audit and lineage truth -> later publication and archive consumers
+   - that broad route matters because it shows the audit append surface is not more logging
+   - it is the first place where the hot path becomes an authoritative historical truth boundary
+   - the path stops at append-only audit truth
+   - it does not yet include the later audit-topic handoff or archive preservation
+   - that is exactly why this group is split into separate paths
+
+6. logical design reading:
+   - logically, this path shows that the platform treats audit truth as first-class owned append-only surface, not as something that can be reconstructed later from side effects if needed
+   - that is strong `A`-level design signal
+   - the system is not saying:
+     - if we have the decision and the action, we can probably infer the audit story later
+   - it is saying:
+     - there is dedicated runtime boundary whose job is to append authoritative audit and lineage truth
+     - and the decision chain is not considered committed without it
+   - that makes the current wired system look governed rather than hand-wavy
+
+7. concrete seating in the current wired system:
+   - this path is materially seated in the current wired system
+   - the copied baseline wired graphs show the audit surface as a distinct deployment in the RTDL namespace
+   - they also show required run pins flowing to that surface
+   - the run-process phase map places the decision, action, and audit surfaces together inside the live RTDL decision corridor rather than treating audit as later offline convenience
+   - the broader authority keeps the decision, action, and audit surfaces in the RTDL ownership-logic corridor, with the audit surface retained as distinct ownership-heavy runtime boundary unless semantic parity is proven elsewhere
+   - the live implementation trail also shows the audit surface present in the active RTDL runtime set, and bounded proof snapshots recorded concrete counters such as:
+     - `append_success_total`
+     - `append_failure_total`
+     - `replay_divergence_total`
+
+8. why the design looks like this:
+   - the design looks like this because the platform refuses to let auditability be implied by runtime success
+   - two choices matter here
+   - first, the decision-chain closure explicitly separates decision, action, and audit into three closure elements
+   - that means audit append is not allowed to hide inside generic claim that the hot path passed
+   - second, the audit surface was deliberately not collapsed into managed replacement by default; the broader authority keeps it as custom-runtime until full semantic parity is proven
+   - that tells us the current shape is being driven by truth ownership and append semantics, not just by convenience or simplification pressure
+
+9. what larger contracts are shaping this path:
+   - three larger contracts shape it strongly
+   - first, the audit component contract defines what this boundary must mean:
+     - append-only behavior under replay and duplicate pressure
+     - zero replay divergence on the same bounded basis
+     - lineage completeness
+     - bounded unresolved-lineage age
+     - readback integrity
+   - second, the decision-chain closure contract shapes it from the run-process side:
+     - no decision-chain closure without append-only audit evidence
+   - third, the append-only ownership law shapes it from the global discipline side:
+     - append-only ownership violations are stop-the-line conditions
+   - that is important because it tells us the platform is treating this as hard truth boundary, not soft reporting surface
+
+10. trade-offs and constraints:
+   - this path deliberately adds another explicit truth boundary to the hot path
+   - that costs complexity, because the system must preserve:
+     - append-only discipline
+     - duplicate and replay safety
+     - lineage completeness
+     - unresolved-lineage surfacing
+     - readback integrity
+   - it also explains why the audit surface has not simply been replaced with cheaper generic sink yet:
+     - the authority is prioritizing semantic parity over simplification
+   - but that cost buys something important:
+     - later case handling, evidence sinks, replay, and learning do not need to infer audit history from scattered clues
+     - they can depend on named append-only audit boundary
+
+11. necessity test:
+   - if this path is removed, the platform can still:
+     - ingest traffic
+     - build context
+     - materialize features
+     - classify guardrail posture
+     - form decisions
+     - and emit actions
+   - but it loses clean answer to:
+     - where authoritative runtime audit truth comes from
+     - whether lineage from decision to outcome is durably preserved
+     - whether replay divergence is visible
+     - and whether later reviewers are reading true audit record or just reconstructing history from fragments
+   - that would weaken `A` immediately, because reviewer could fairly say the system has runtime behavior but no explicit owner for the append-only truth that makes that behavior explainable later
+   - the docs themselves state this plainly:
+     - without the audit surface, you may have decisions but not authoritative audit truth
+
+12. what this path proves for `A`:
+   - purpose claim:
+     - the platform has distinct job for appending authoritative runtime audit and lineage truth
+   - intentionality claim:
+     - audit append is required closure element in the decision chain, not optional afterthought
+   - materialization claim:
+     - the audit surface is concrete live runtime workload in the RTDL plane, not just conceptual box
+   - contract claim:
+     - this path is governed by append-only discipline, replay-divergence expectations, lineage completeness, and readback integrity
+   - constraint-awareness claim:
+     - the system already knows this boundary is semantically delicate, which is why the audit surface is retained as custom-runtime until managed replacement can prove full parity
+   - material participation evidence:
+     - in richer bounded RTDL proof after the repin fix, the live runtime recorded `append_success_total = 2494`, `append_failure_total = 0`, and `replay_divergence_total = 0`
+     - that is not, by itself, a full readiness claim for the plane
+     - but it is strong `A`-style evidence that the boundary is real, active, and instrumented, not just drawn on graph
+
+Plainly stated, the `Audit append path` exists to turn runtime decisions and outcomes into authoritative append-only audit truth, and its current design shows that this boundary is deliberate, materially seated, and governed by truth-ownership rules rather than left implicit.
+
+The next path in this group is the `Audit publication and durable reference path`.
+
+## 2026-03-12 10:52:04 +00:00 - Path interrogation: `Audit publication and durable reference path`
+
+This path exists to turn already appended audit truth into downstream-consumable audit truth plus durable audit references. Its job is not to create the append-only audit record, and it is not yet to preserve immutable archive history for replay. Its narrower job is to answer:
+
+Once the audit surface has appended authoritative audit truth, how does that truth become consumable by the rest of the platform in durable, referenceable way?
+
+That is a real boundary in the docs. The copied baseline graph pins the audit topic as an explicit audit handoff surface, with the audit layer publishing into it and downstream operational and evidence-consuming surfaces reading from that side of the network. At the same time, the broader audit authority is clear that durable by-ref evidence remains authoritative and audit-topic publication is a distribution convenience rather than the truth source itself.
+
+I want to keep the interrogation of this path inside one entry:
+
+1. what this path is trying to achieve:
+   - turn already appended audit truth into downstream-consumable audit truth plus durable audit references
+   - keep this path narrower than audit append and narrower than archive preservation
+   - answer how authoritative audit truth becomes consumable by the rest of the platform in durable, referenceable way
+
+2. entry:
+   - the entry is not raw runtime traffic and not the decision itself
+   - the entry is the append-only audit truth that already exists after the decision chain has closed its audit-append requirement
+   - the run-process is explicit that the decision-chain closure only closes when:
+     - decision truth
+     - action and outcome truth
+     - and append-only audit evidence
+     - are all committed
+   - and the audit surface definition says its purpose is to append authoritative audit and lineage truth for the real-time lane
+
+3. owned outcome:
+   - the owned outcome is audit truth that is no longer only appended inside the audit surface, but is now published and referenceable for downstream consumers and evidence surfaces
+   - I want to keep that outcome distinct from archive preservation
+   - the topic contract gives the publication boundary:
+     - the audit topic
+     - with the audit surface as producer
+     - and downstream operational and evidence-consuming side of the network on the other side
+   - the design authority also keeps by-ref evidence contracts authoritative
+   - which means this path is not just send an audit event somewhere, but make audit truth available through explicit handoff surfaces and durable references
+
+4. what the path carries:
+   - this path carries the things needed to make audit publication useful and later reconstructable:
+     - run identity
+     - decision and action lineage
+     - policy, bundle, config, and release identifiers
+     - and the durable by-ref evidence surfaces that later consumers will follow rather than infer
+   - that is grounded in two explicit laws
+   - first, the design authority says every cross-plane output carries the policy, bundle, config, and release identifiers required for replay and audit
+   - second, it says origin-offset and by-ref evidence contracts remain authoritative
+   - so the publication and reference path is carrying more than audit message; it is carrying the traceable reference structure that lets later consumers use audit truth safely
+
+5. broad route logic:
+   - decision and action truth -> append-only audit truth -> audit-topic handoff -> downstream operational and evidence consumers -> durable audit refs and evidence surfaces
+   - that broad route matters because it shows there is real post-append handoff boundary
+   - the current wired system is not treating audit truth as trapped inside the audit surface
+   - it is explicitly handed off and durably surfaced
+   - but the path also keeps the ordering honest:
+     - append-only audit truth comes first
+     - publication and reference distribution happen after that
+     - and durable evidence refs remain the authoritative thing being pointed to rather than replaced by the topic itself
+
+6. logical design reading:
+   - logically, this path shows that the platform treats audit exists and audit is consumable and referenceable as two different truth boundaries
+   - that is strong `A`-level design signal
+   - the system is not saying:
+     - once the audit surface writes, later consumers can figure things out however they want
+   - it is saying:
+     - there is dedicated handoff from append-only audit truth into explicit audit publication and durable evidence and reference surfaces
+   - that separation is visible in the docs themselves:
+     - the audit surface is one component with one purpose
+     - the archive writer is another with a different purpose
+     - and the topic contract explicitly names the audit handoff rather than leaving downstream audit usage implicit
+
+7. concrete seating in the current wired system:
+   - this path is materially seated in the current wired system
+  - the publication side is concretely seated on the audit topic
+   - the copied baseline wired graph shows:
+     - the audit surface publishing lineage audit into that topic
+     - the topic transported by MSK
+     - and the downstream case and evidence-consuming side attached to that audit lane
+   - the durable-reference side is concretely seated on the platform's pinned evidence substrate:
+     - object storage remains the durable truth, evidence, and archive substrate
+     - and by-ref evidence contracts remain authoritative
+   - so this path is not merely conceptual
+   - it has both named bus boundary and named durable evidence substrate
+
+8. why the design looks like this:
+   - the design looks like this because the platform wants the hot path to be explainable later and wants downstream operational work to consume audit truth, not guesses
+   - the audit and lineage framing exists so important decisions can be reconstructed and explained later
+   - the case escalation path explicitly begins from RTDL decision and audit outputs
+   - and the cross-plane provenance law ensures those outputs carry the identity needed for replay and audit
+   - so the current design is trying to guarantee that audit truth is not only written, but actually propagated in a form the rest of the platform can trust
+
+9. what larger contracts are shaping this path:
+   - several larger contracts shape it strongly
+   - the topic continuity contract shapes where audit publication happens and who owns it:
+     - the audit topic
+     - the audit surface as producer
+     - downstream operational and evidence consumers on the other side
+   - the append-only truths law shapes what kind of audit truth may be published at all:
+     - it must remain append-only
+   - the by-ref evidence law shapes how later consumers are supposed to follow evidence:
+     - by durable references, not by informal reconstruction
+   - and the provenance law shapes what must survive the handoff:
+     - policy, bundle, config, and release identifiers for replay and audit
+
+10. trade-offs and constraints:
+   - this path deliberately adds one more explicit boundary after audit append
+   - that costs extra structure:
+     - an audit topic contract
+     - consumer ownership boundaries
+     - durable evidence and reference surfaces
+     - and provenance fields that must survive publication
+   - but that cost buys something important:
+     - later case-handling and evidence and reporting surfaces do not need to reverse-engineer audit history from raw runtime traces or from archive files alone
+     - they can consume explicit audit handoff
+   - the design is therefore choosing clear cross-plane ownership and reconstructability over simpler but blurrier model of append once and let everyone else scrape it
+
+11. necessity test:
+   - if this path is removed, the platform can still:
+     - decide
+     - act
+     - append audit truth
+     - and later archive event history
+   - but it loses clean answer to:
+     - how downstream operational work sees audit truth as an input
+     - how evidence and reporting sinks consume audit truth
+     - where durable audit references come from
+     - and how downstream consumers avoid reconstructing the audit story from scattered internal stores
+   - that would weaken `A` immediately, because reviewer could fairly say the system has audit append but no explicit owner for the distribution and durable referencing of that audit truth across planes
+   - the docs themselves already imply that this handoff matters:
+     - the audit path ends in durable refs and evidence
+     - and the case path begins from RTDL decision and audit outputs
+
+12. what this path proves for `A`:
+   - purpose claim:
+     - the platform has distinct job for turning appended audit truth into consumable audit publication and durable references
+   - intentionality claim:
+     - the handoff is explicit:
+       - named topic
+       - named producer
+       - downstream consumer side
+       - named evidence laws
+     - rather than left implicit
+   - materialization claim:
+     - the path is concretely seated in the audit topic plus object-storage-backed durable evidence surfaces
+   - contract claim:
+     - this path is governed by append-only truth, by-ref evidence, and provenance laws
+   - constraint-awareness claim:
+     - the platform already knows that downstream consumers must not invent their own audit truth, which is why the handoff boundary is explicitly owned
+
+Plainly stated, the `Audit publication and durable reference path` exists to turn append-only audit truth into explicit downstream handoff and durable reference surface, and its current design shows that this boundary is deliberate, materially seated, and cross-plane governed rather than implicit.
+
+The next path in this group is the `Immutable archive preservation path`.
+
+## 2026-03-12 10:57:11 +00:00 - Path interrogation: `Immutable archive preservation path`
+
+Before interrogating the path itself, I want to pin one important nuance:
+
+the archive path has a target posture and a current wired posture, and for `A` I should interrogate the current wired posture honestly.
+
+The broader authority and build-plan target says the archive corridor is meant to be a managed sink or connector to S3 lane, but the current adjudicated wired posture is an ECS MSK batch-consumer-to-S3 route with run-scope proof by object path plus payload readback. That is the object I want to explain in `A`, while still noting that the design intent was managed connector-style archive preservation with replay and offset continuity proof.
+
+I want to keep the interrogation of this path inside one entry:
+
+1. what this path is trying to achieve:
+   - turn runtime event history into durably preserved, immutable archive history that later replay, audit, and learning can trust
+   - keep this path narrower than append-only audit truth and narrower than later replay-basis closure for learning input
+   - answer where the platform preserves runtime events as immutable archive history and refs
+   - the production-readiness definition states that the archive writer exists to durably preserve immutable event history and refs for replay and audit
+   - and the run-process treats archive closure as distinct requirement of RTDL catch-up closure, not as side effect of RTDL being alive
+
+2. entry:
+   - the honest system-design entry is current-run runtime event history that the archive lane is responsible for preserving
+   - that is the system-design answer
+   - but the docs also show important proving nuance:
+     - the archive cutover lane used control-topic probe records as bounded continuity proof
+     - because the lane objective was archive sink cutover plus continuity proof, not full semantic proof of every upstream producer
+   - so the system-design entry is runtime event history, while the cutover proof entry for validation was narrower probe source
+
+3. owned outcome:
+   - the owned outcome is immutable archived event history, under the platform's run-scoped archive surface, with continuity evidence that later consumers can resolve
+   - that is narrower than replay-basis closure and narrower than later learning-input readiness
+   - it closes when runtime history is durably preserved in archive objects under the run-scoped archive prefix, and the lane has enough continuity proof to claim that those objects actually correspond to the source records it was responsible for preserving
+   - the current handles pin:
+     - archive prefix as `archive/{platform_run_id}/events/`
+     - and proof mode as object-path-plus-payload-readback
+
+4. what the path carries:
+   - this path carries:
+     - runtime records to be preserved
+     - run identity
+     - continuity metadata
+     - and enough payload and readback information to prove that what landed in object storage is the right run-scoped archive history
+   - the current closure contract makes that explicit
+   - the archive path is not just write files somewhere
+   - it carries:
+     - proof mode
+     - source topic
+     - starting-position rule
+     - batch and window settings
+     - and run-scope readback strategy
+   - later learning-input closure depends on archive plus replay references being resolved from spine closure, which shows that archive history is not only retained for human inspection but also for later causal replay
+
+5. broad route logic:
+   - runtime or probe source records on MSK -> archive-consumer runtime -> object-storage archive prefix -> run-scoped archive objects with payload and readback continuity proof
+   - that broad route matters because it makes archive preservation real handoff boundary, not just some component also wrote an object
+   - the current wired route is explicitly bus-based, consumer-based, and object-store-targeted, with the archive sink prefix and proof mode pinned in the handles
+
+6. logical design reading:
+   - logically, this path shows that the platform treats immutable runtime history as different from both:
+     - append-only audit truth
+     - and later replay-basis selection for learning
+   - that is strong `A`-level design signal
+   - the system is not saying:
+     - audit append is enough, and replay can infer history later
+   - it is saying:
+     - there is separate archive-preservation boundary whose job is to preserve immutable runtime history and refs in durable object storage
+   - that separation is visible in the docs themselves:
+     - the audit surface has one purpose
+     - the archive writer has another
+     - RTDL catch-up closure requires archive closure evidence
+     - and later learning-input closure depends on archive plus replay references as input
+
+7. concrete seating in the current wired system:
+   - this path is materially seated in the current wired system
+   - the copied baseline wired graphs show:
+     - a live `archive_writer` deployment in the RTDL namespace
+     - the archive writer writing immutable history to the archive prefix
+     - and the archive writer storing archive receipts in evidence
+   - the durable archive substrate is object storage, with archive objects under `archive/{platform_run_id}/events/`
+   - the current runtime handle set pins:
+     - the archive connector mode
+     - the source cluster
+     - the source topic
+     - the batch and window controls
+     - and the run-scope proof mode
+   - the live runtime truth also shows the archive writer as concrete RTDL workload, and later bounded proof notes record the archive writer as green while the rest of the RTDL diagnosis continued
+   - that is strong `A`-style evidence that this path is materially present in the system, not only planned
+
+8. why the design looks like this:
+   - the design looks like this because the platform wanted managed, production-shaped archive sink with explicit continuity proof, but the exact runtime route had to be adjudicated through real constraints
+   - the implementation trail is clear here
+   - the lane tried:
+     - Firehose with MSK source
+     - then Lambda MSK event-source mapping
+   - and both hit real blocker classes or service and runtime constraints
+   - before the lane was closed green after repinning the current mode to ECS batch-consumer to S3
+   - the objective did not change:
+     - preserve run-scoped archive sink semantics
+     - and preserve continuity proof
+   - but the concrete runtime route did
+   - that is why, for `A`, the right story is not only that the authority once wanted managed connector-to-S3
+   - it is that the current wired archive path is the adjudicated route that kept the semantic objective intact under real constraints
+
+9. what larger contracts are shaping this path:
+   - several larger contracts shape it
+   - the design authority says the archive writer is part of the audit and archive runtime posture and must preserve replay and offset continuity proof
+   - the run-process says RTDL catch-up closure cannot close without archive-writer closure evidence and archive closure marker
+   - then later learning-input closure says learning input cannot even begin until archive plus labels plus replay references are resolved from spine closure
+   - so this path is shaped by:
+     - archive preservation
+     - closure evidence
+     - and future replay-resolvability
+     - all at once
+
+10. trade-offs and constraints:
+   - this path deliberately adds one more explicit truth boundary to the runtime side of the platform
+   - that costs:
+     - one more runtime consumer and sink lane
+     - one more object-store continuity proof contract
+     - and one more distinction the platform has to explain
+   - it also forced uncomfortable but honest runtime choices
+   - the lane did not get to declare green on Firehose because the MSK-source path was blocked
+   - and it did not get to declare green on Lambda mapping when probe publication existed but no archive objects were produced
+   - the lane stayed fail-closed until the current route could actually show probe-to-sink continuity
+   - that is very strong design signal, because it means the archive boundary was treated as real rather than decorative
+
+11. necessity test:
+   - if this path is removed, the platform can still:
+     - ingest traffic
+     - make decisions
+     - emit actions
+     - append audit truth
+     - and even produce later governance bundles
+   - but it loses clean answer to:
+     - where immutable runtime history is preserved
+     - what object-backed archive later replay should depend on
+     - how replay and offset continuity is grounded
+     - and whether later learning input is built on actual archived runtime truth or inferred fragments
+   - that would weaken `A` immediately, because reviewer could fairly say the platform has runtime behavior and audit append, but no explicit owner for the immutable event history that later replay and audit rely on
+   - the docs themselves make that dependency explicit by requiring archive closure at RTDL catch-up closure and replay references at learning-input closure
+
+12. what this path proves for `A`:
+   - purpose claim:
+     - the platform has distinct job for preserving immutable runtime history for replay and audit
+   - intentionality claim:
+     - archive preservation is named closure requirement with its own continuity proof, not accidental object-store side effect
+   - materialization claim:
+     - the path is concretely seated in archive prefixes, pinned connector and runtime handles, and a live archive-writer workload
+   - contract claim:
+     - the path is governed by archive closure evidence, replay-reference expectations, and run-scope readback proof
+   - constraint-awareness claim:
+     - the current wired route is the result of fail-closed runtime adjudication across multiple attempted sink modes, not casual implementation detail
+   - material participation evidence:
+     - the archive cutover lane only closed green after probe-to-sink continuity closure under the run-scoped archive prefix
+     - and later richer RTDL proof notes still recorded the archive writer as green while diagnosing other components
+     - that is not full readiness claim for the whole path
+     - but it is strong evidence that the boundary is live, instrumented, and doing real work in the current wired platform
+
+Plainly stated, the `Immutable archive preservation path` exists to turn runtime event history into durable, run-scoped archive truth for replay and audit, and its current design shows that this boundary is deliberate, materially seated, and continuity-aware rather than implicit.
+
+The next path in this group is the `Archive closure and replay-reference path`.
+
+## 2026-03-12 11:03:27 +00:00 - Path interrogation: `Archive closure and replay-reference path`
+
+This path exists to turn preserved archive history into closure-complete, replay-referenceable archive truth. The previous path preserved immutable runtime history under the run-scoped archive surface. This path answers the next question: when does that preserved history become formally closed enough that later replay and learning can rely on it? The run-process makes that boundary explicit in two places. RTDL catch-up closure is not allowed to close without archive-writer closure evidence, and its commit evidence must include an archive closure marker. Then learning-input closure is not allowed to start until archive, labels, and replay references are resolved from spine closure.
+
+I want to keep the interrogation of this path inside one entry:
+
+1. what this path is trying to achieve:
+   - turn preserved archive history into closure-complete, replay-referenceable archive truth
+   - keep this path narrower than the full learning-input basis and narrower than later OFS dataset construction
+   - answer when preserved archive history becomes formally closed enough that later replay and learning can rely on it
+
+2. entry:
+   - the entry is not raw runtime events anymore, and it is not merely that some archive objects exist
+   - the entry is run-scoped archived runtime history plus the continuity metadata needed to prove that this archive surface is the one later lanes should trust
+   - that is why the archive connector handles pin not just the object-store prefix, but also the source topic, starting position, proof mode, and probe mode
+   - the current closure contract expects archive history under `archive/{platform_run_id}/events/`
+   - and uses object-path-plus-payload-readback as the run-scope proof mode
+
+3. owned outcome:
+   - the owned outcome is closed archive surface for the run, with replay-reference continuity explicit enough that downstream learning-input closure can bind to it
+   - this path stops once archive truth is closure-complete and replay-referenceable
+   - the run-process supports that separation:
+     - RTDL catch-up closure closes on the archive closure marker
+     - while learning-input closure later consumes archive plus replay references as part of learning-input readiness
+
+4. what the path carries:
+   - this path carries:
+     - the run-scoped archive object set
+     - the continuity proof that ties the archive sink back to its source records
+     - the archive closure marker
+     - and the replay-reference semantics that later lanes will read as source-offset ranges
+   - those semantics are not left implicit
+  - the run-process says replay basis at learning-input closure must be pinned as source-offset ranges with explicit mode-aware meaning
+   - and the handles registry separately pins the archive connector's proof mode as object-path-plus-payload-readback
+
+5. broad route logic:
+   - run-scoped archive objects plus continuity proof -> archive closure marker -> replay-reference resolution from spine closure -> downstream learning-input lane can trust the archive basis
+   - that broad route matters because it shows the platform is not satisfied with archive exists
+   - it wants second truth boundary:
+     - archive exists
+     - then archive is closure-complete and referenceable for replay
+   - that distinction is exactly what the RTDL catch-up closure and learning-input closure split is doing
+
+6. logical design reading:
+   - logically, this path shows that the platform treats archive preservation and archive usability for replay as different owned truths
+   - that is strong `A`-level design signal
+   - the system is not saying:
+     - once objects land in object storage, later replay can figure it out
+   - it is saying:
+     - there is explicit closure boundary where archive history becomes replay-referenceable
+     - and later learning is blocked until that boundary is satisfied
+
+7. concrete seating in the current wired system:
+   - this path is materially seated in the current wired platform
+   - the archive surface is concretely pinned to `archive/{platform_run_id}/events/`
+   - the current runtime contract for the archive lane is pinned to ECS batch-consumer-to-object-storage posture
+  - with the control topic as the source topic
+   - a run-scope proof mode of object-path-plus-payload-readback
+   - and explicit probe emit mode using ECS MSK producer task
+   - the current archive cutover closure says this lane only closed green after probe-to-sink continuity closure, where admitted probe ids were present in the run-scoped archive objects
+
+8. why the design looks like this:
+   - the design looks like this because the platform refused to equate archive sink wrote objects with archive closure is trustworthy
+   - the run-process requires archive-writer closure evidence at RTDL catch-up closure, not just activity
+   - the later learning-input gate requires archive plus replay references to be resolved from spine closure, not guessed from whatever files happen to be present
+   - and the archive cutover closure shows the same attitude in implementation:
+     - the lane stayed fail-closed until it could prove probe-to-sink continuity under the run-scoped archive prefix
+
+9. what larger contracts are shaping this path:
+   - three larger contracts shape this path strongly
+   - the run-process closure law shapes it through RTDL catch-up closure:
+     - archive-writer closure evidence must be present
+     - and the commit evidence must include archive closure marker
+   - the learning-input law shapes it through learning-input closure:
+     - replay basis must be pinned as source-offset ranges with explicit mode-aware semantics
+     - and learning cannot start until archive, labels, and replay references are resolved from spine closure
+   - the archive connector contract shapes it concretely through the handles:
+     - run-scoped archive prefix
+     - proof mode
+     - source topic
+     - and consumer settings are all pinned rather than left to runtime discovery
+
+10. trade-offs and constraints:
+   - this path deliberately adds another explicit truth boundary after archive writing
+   - that costs more ceremony:
+     - closure evidence
+     - closure marker semantics
+     - replay-reference semantics
+     - and clear distinction between preserved history and replay-ready history
+   - but that cost buys something important:
+     - later learning and replay lanes do not need to infer their basis from ad hoc object inspection
+     - they can depend on named closure outcome
+   - the current archive cutover closure makes this especially clear:
+     - the lane did not go green merely because sink existed
+     - it went green after runtime-path adjudication and probe-to-sink continuity closure
+
+11. necessity test:
+   - if this path is removed, the platform can still:
+     - preserve archive objects
+     - append audit truth
+     - and later attempt replay or learning
+   - but it loses clean answer to:
+     - when the archive became closure-complete
+     - which replay references later lanes should trust
+     - whether replay basis came from spine closure or from informal guess
+     - and whether learning-input closure is anchored to true archive basis or only to object presence
+   - that would weaken `A` immediately, because reviewer could fairly say the platform preserves runtime history but has no explicit owner for turning that history into replay-referenceable basis
+   - the run-process itself rejects that looseness by making archive closure and replay-reference resolution formal gates
+
+12. what this path proves for `A`:
+   - purpose claim:
+     - the platform has distinct job for turning preserved archive history into replay-referenceable closure truth
+   - intentionality claim:
+     - replay references are not inferred opportunistically
+     - they are resolved from spine closure under explicit gate semantics
+   - materialization claim:
+     - the path is concretely seated in the run-scoped archive prefix, the pinned archive connector contract, and the archive-closure marker requirement
+   - contract claim:
+     - this path is governed by archive-closure rules, replay-basis rules, and mode-aware source-offset semantics
+   - constraint-awareness claim:
+     - the current wired route only counts as closed when continuity proof is explicit
+     - which is why the archive cutover lane was pinned to probe-to-sink continuity rather than vague archive looks okay posture
+
+Plainly stated, the `Archive closure and replay-reference path` exists to turn preserved archive history into formally closed, replay-referenceable basis for later learning and replay, and its current design shows that this boundary is deliberate, materially seated, and continuity-aware rather than implicit.
+
+That finishes the per-path interrogation for Group 4.
+
+## 2026-03-12 09:49:59 +00:00 - Path interrogation: `Entity and relationship projection path`
+
+This path exists to turn admitted live platform data into current entity and relationship truth that the rest of RTDL can trust. Its job is not yet to build joined context, not yet to materialize online features, and not yet to make decision. Its job is narrower and more foundational: take the incoming platform data and maintain current identity and entity graph whose state is good enough that downstream context and decision truth are not built on guesswork. The RTDL framing makes that explicit by giving the identity and entity graph surface its own purpose: build identity and entity relationship state from the incoming platform data, and by saying downstream decision truth is polluted if that graph is wrong.
+
+I want to keep the interrogation of this path inside one entry:
+
+1. what this path is trying to achieve:
+   - turn admitted live platform data into current entity and relationship truth that the rest of RTDL can trust
+   - keep this path narrower than joined context, online features, or decisioning
+   - ensure downstream context and decision truth are not built on guesswork about relationships
+
+2. entry:
+   - the entry to this path is not raw engine output in general
+   - it is the admitted traffic and context family already published onto the platform bus from Group 2
+   - in the current wired system, that family is concretely split into:
+     - the fraud traffic topic
+     - arrival-events context
+     - arrival-entities context
+     - flow-anchor context
+   - that split is consistent with the runtime data law:
+     - only the live-runtime-allowed oracle surfaces are permitted in runtime
+     - truth-only and future-implying surfaces are forbidden from live use
+   - the handles registry pins exactly four live-runtime-allowed oracle outputs for runtime:
+     - `s3_event_stream_with_fraud_6B`
+     - `arrival_events_5B`
+     - `s1_arrival_entities_6B`
+     - `s3_flow_anchor_with_fraud_6B`
+
+3. owned outcome:
+   - the owned outcome of this path is current entity and relationship projection truth for the active run
+   - that means this path closes when RTDL has more than raw events
+   - it now has graph and projection state that downstream context formation can read as authoritative current surface
+   - the broader run-process supports this split because RTDL catch-up closure requires inlet and projection closure as part of its pass gate before the decision chain is even allowed to count as committed
+   - and in the current operator surfaces, the entity and graph layer is not treated as black box; it exposes distinct graph-oriented status surface with fields like `graph_version`, checkpoint age, and apply state, which shows this path closes on its own projection truth rather than being just pass-through feed
+
+4. what the path carries:
+   - this path carries the minimum things needed to mutate entity and relationship state deterministically:
+     - admitted traffic and context events
+     - the identity and relationship references inside those events
+     - event-time ordering surfaces
+     - run-scoped correlation
+     - and the platform's rules about which source families are allowed in runtime
+   - it is also shaped by the later semantic-hardening work pinned for `A`
+   - that work says entity relationship posture must be pinned from observed data behavior such as:
+     - joinability
+     - key stability
+     - late-arrival behavior
+   - rather than schema-only assumptions
+   - that is important because it tells us this path is not just syntactic projection
+   - it is meant to carry enough meaning to support real relationship state
+
+5. broad route logic:
+   - admitted traffic and context topics -> RTDL runtime -> entity and graph update logic -> current graph and projection state -> downstream-readable projection truth
+   - that broad route matters because it shows the platform is not treating entity truth as something pre-baked into the event payload
+   - the event bus hands off the admitted event family, the RTDL runtime consumes it, and the entity and graph layer constructs relationship state inside the platform
+   - that route is also concretely bounded by the platform's topic and runtime contracts rather than being implied in-memory continuation
+
+6. logical design reading:
+   - logically, this path shows that the platform treats entity truth as something it computes and owns, not something it merely receives
+   - that is one of the strongest `A`-level design signals in this group
+   - the platform is not saying:
+     - the schema already tells us what the entity relationships are
+   - it is saying:
+     - relationship posture has to be earned from observed data behavior and then projected into current runtime graph
+   - that is exactly why the semantic-hardening work included entity-map candidate hypotheses and why the posture explicitly says entity relationship posture must be pinned from observed data behavior, not schema assumptions
+   - this makes the path clearly intentional rather than accidental
+
+7. concrete seating in the current wired system:
+   - this path is materially seated in the current wired system
+   - in the copied baseline wired graphs, the path is seated across:
+     - the admitted traffic and context topics on the event bus
+     - the RTDL namespace and worker surfaces
+     - the entity and graph and feature surfaces
+     - and the state stores those surfaces write into
+   - concretely, the copied baseline graphs show:
+     - the traffic and context topics consumed by the RTDL runtime
+     - the RTDL namespace running the context, entity and graph, and feature components
+     - and the entity and feature state being written into Aurora
+   - the handles registry also pins the RTDL consumer group and commit policy:
+     - one RTDL consumer group
+     - commit after durable write
+   - that means this path is not only conceptually stream-based; it is concretely realized as event-bus intake plus RTDL worker surfaces plus durable state seating
+   - the broader repo authority also declares managed Flink runtime surfaces for RTDL stream processing, but in this notebook's copied baseline wired view those managed surfaces are retained rather than the primary reader-facing active output path
+
+8. why the design looks like this:
+   - the design looks like this because the platform deliberately chose to make entity and relationship projection first-class RTDL responsibility instead of scattering projection work across generic services or assuming relationships from schema alone
+   - two design choices stand out
+   - first, the path is intentionally seated inside the RTDL runtime and store topology rather than hidden inside downstream context builders
+   - second, the semantic-hardening posture explicitly says entity relationship posture must be pinned from observed data behavior rather than schema-only assumptions
+   - so the current path shape is not random implementation convenience
+   - it is consciously chosen runtime projection design with explicit semantic discipline
+
+9. what larger contracts are shaping this path:
+   - several larger contracts shape this path strongly
+   - the runtime data contract says live runtime may use only the four allowed oracle output families, while truth-only outputs and future-implying fields are forbidden
+   - that constrains what this path is allowed to project from
+   - the semantic-hardening posture then says entity relationship posture must be based on observed data behavior, not schema-only assumptions
+   - and the run-process says RTDL projection closure must be real enough to contribute to RTDL catch-up closure
+   - so this path sits under combination of runtime data law, semantic realism law, and RTDL closure law
+
+10. trade-offs and constraints:
+   - this path deliberately accepts structure and discipline in exchange for cleaner runtime truth
+   - it would be easier to:
+     - collapse entity logic into downstream context builders
+     - assume schema-level relationships
+     - or scatter this work across loosely governed services
+   - but the current design rejects that
+   - it chooses:
+     - one active RTDL runtime posture
+     - explicit runtime-allowed source families
+     - explicit downstream dependence on projection correctness
+   - that adds discipline and constrains shortcuts, but it buys much clearer claim:
+     - entity truth is constructed intentionally inside RTDL
+   - it also means the path inherits stream-runtime constraints such as checkpoint behavior, lag posture, and replay safety rather than being able to hide behind vague eventual-consistency language
+
+11. necessity test:
+   - if this path is removed, the platform can still ingest traffic, still publish to the bus, and still draw downstream boxes like context formation, feature readiness, and decisioning
+   - but it loses clean answer to:
+     - where current entity truth comes from
+     - how relationship state is formed
+     - what downstream context is anchored on
+     - and why later decision truth should be trusted
+   - that is exactly why the entity and graph purpose statement matters so much:
+     - if the entity and graph layer is wrong, entity truth becomes unreliable and every downstream decision is polluted
+   - without this path, the rest of RTDL starts to look like decision system built on unowned relationship assumptions
+   - that would weaken `A` immediately
+
+12. what this path proves for `A`:
+   - purpose claim:
+     - the platform has distinct job for building current entity and relationship truth from admitted live data
+   - intentionality claim:
+     - that truth is constructed in dedicated RTDL projection lane, not left implicit in raw events or schema assumptions
+   - materialization claim:
+     - the path is concretely seated in the event bus, the RTDL runtime surfaces, the RTDL consumer group and commit policy, and the durable state stores behind projection truth
+   - contract claim:
+     - the path is constrained by runtime-allowed output families, no-future rules, and observed-data entity-mapping posture
+   - constraint-awareness claim:
+     - the system knowingly avoids schema-only convenience and keeps projection state as first-class runtime responsibility
+
+Plainly stated, the `Entity and relationship projection path` exists to turn admitted platform events into current graph truth that the rest of RTDL can stand on, and its current design shows that this is deliberate, materially seated, and semantically constrained rather than hand-wavy.
+
+The next clean move is the `Joined context formation path`.
+
+## 2026-03-12 10:02:49 +00:00 - Path interrogation: `Joined context formation path`
+
+This path exists to turn admitted live traffic plus the already projected runtime state into joined context surface that the rest of RTDL can actually use. Its job is not yet to materialize online features, not yet to choose decision posture, and not yet to emit decision. Its narrower job is to answer:
+
+Does the platform now understand enough about this event, in the right time-safe way, to let downstream runtime continue honestly?
+
+The RTDL definition makes that boundary explicit by giving the context-store and flow-binding surface its own purpose:
+
+- create the joined context surface the downstream RTDL graph depends on
+
+while forbidding false-ready from partial or mis-scoped context and forbidding silent missing-context drift from masquerading as later decision problem.
+
+I want to keep the interrogation of this path inside one entry:
+
+1. what this path is trying to achieve:
+   - turn admitted live traffic plus already projected runtime state into joined context surface that the rest of RTDL can actually use
+   - keep this path narrower than feature readiness, decision posture, or decision emission
+   - answer whether the platform now understands enough about this event, in the right time-safe way, to let downstream runtime continue honestly
+
+2. entry:
+   - the entry is not raw oracle data in general, and it is not raw engine traffic alone
+   - the entry is the admitted event family already handed off to the runtime bus from Group 2, interpreted through the platform's pinned join posture
+   - the engine interface says:
+     - traffic is intentionally thin
+     - joins occur inside the platform
+     - the relevant time-safe context surfaces for RTDL are `arrival_events_5B`, `s1_arrival_entities_6B`, and the flow-anchor surfaces
+   - it also gives the binding join map:
+     - event stream to flow anchor
+     - flow anchor to arrival skeleton
+     - arrival skeleton to entity attachments
+   - in the current wired posture, the live-runtime-allowed oracle output set is pinned to exactly four surfaces:
+     - `s3_event_stream_with_fraud_6B`
+     - `arrival_events_5B`
+     - `s1_arrival_entities_6B`
+     - `s3_flow_anchor_with_fraud_6B`
+
+3. owned outcome:
+   - the owned outcome is joined, time-safe runtime context surface with honest readiness posture for downstream RTDL consumers
+   - that outcome is intentionally narrower than features are ready and narrower than decision was formed
+   - it closes when the platform has bound the admitted event into the right arrival, flow, and entity context and can expose that context truthfully to the next RTDL boundaries
+   - that is why the RTDL readiness framing gives joined-context creation its own component purpose and its own failure semantics
+   - and why the run-process later treats inlet and projection closure as part of RTDL catch-up closure before the decision chain is allowed to count as committed
+
+4. what the path carries:
+   - this path carries the objects needed to bind one admitted runtime event into usable context:
+     - the admitted behavioural stream event
+     - the flow-anchor context for that flow
+     - the arrival skeleton for routing, timezone, and arrival context
+     - the arrival-entity attachments
+     - and the current entity and relationship projection state produced by the previous path
+   - it is also constrained by role and join correctness:
+     - the RTDL docs explicitly require correct role references
+     - forbid false-ready from partial or mis-scoped joins
+     - and the interface contract forbids inferring semantics from physical file order and binds joins to declared keys only
+
+5. broad route logic:
+   - admitted event family on the runtime bus -> consume traffic plus allowed context surfaces -> bind them through the pinned join map and current projection state -> expose joined runtime context and readiness truth to the downstream RTDL graph
+   - that broad route matters because it shows that context is not assumed to be pre-baked into the event payload
+   - the engine contract is explicit that traffic stays thin and joins happen inside the platform
+   - and the RTDL framing is explicit that joined context is its own distinct boundary question inside the plane
+
+6. logical design reading:
+   - logically, this path shows that the platform treats context as constructed runtime truth, not as accidental by-product of ingestion and not as something decisioning should just figure out later
+   - that is strong `A`-level design signal
+   - the design is saying:
+     - admitted traffic alone is not enough
+     - the system must deliberately bind flow-level, arrival-level, and entity-level context into joined surface
+     - and it must do so honestly enough that downstream components are not fooled by partial or stale context
+   - that is exactly why the RTDL docs emphasize false-ready, missing-context drift, role-reference correctness, and fanout bounds at this boundary
+
+7. concrete seating in the current wired system:
+   - this path is materially seated in the current wired system
+   - in the copied baseline wired graphs, the path is seated across:
+     - the admitted traffic and context topics on the runtime bus
+     - the RTDL namespace and worker surfaces
+     - the context-store and flow-binding surface
+     - and the downstream handoff from that context surface into the entity and graph and feature surfaces
+   - concretely, the copied baseline graphs show:
+     - the traffic topic consumed by the context-store and flow-binding surface
+     - the arrival-events, arrival-entities, and flow-anchor context topics consumed by that same surface
+     - the RTDL namespace running the context-store and flow-binding component
+     - and the joined context being projected onward to the entity and graph and feature components
+   - that means joined-context formation is not just conceptual logic
+   - it is concretely realized as event-bus intake plus RTDL worker surface plus downstream context handoff
+   - the broader repo authority also declares managed stream-processing surfaces for RTDL, but in this notebook's copied baseline wired view those are retained surfaces rather than the primary reader-facing active output path
+
+8. why the design looks like this:
+   - the design looks like this because the platform deliberately chose thin-traffic, in-platform-join posture
+   - it rejected the easier alternatives:
+     - putting too much context into the traffic payload
+     - using batch-only or future-implying fields like `session_end_utc` or `arrival_count`
+     - or collapsing context truth into downstream feature or decision logic
+   - instead, the interface contract pins time-safe context surfaces and binding join map
+   - while the RTDL framing pins joined-context creation as its own truth boundary with its own false-ready discipline
+   - so the current shape exists because the platform is trying to keep traffic thin, context explicit, and timing semantics honest
+
+9. what larger contracts are shaping this path:
+   - several larger contracts shape this path strongly
+   - the engine interface shapes the semantic side:
+     - only behavioural streams are traffic
+     - joins occur inside the platform
+     - only time-safe context surfaces may be used in RTDL
+     - batch-only truth products and future-implying fields are forbidden for live decisions
+   - the run-process shapes the closure side by giving RTDL inlet and projection closure explicit phase boundary in RTDL catch-up closure
+   - and the RTDL plan shapes the observability side by treating false-ready, join completeness, unmatched joins, and fanout bounds as key proof surfaces for this boundary
+
+10. trade-offs and constraints:
+   - this path deliberately chooses more structure in exchange for cleaner runtime truth
+   - it would be easier to flatten more context into the event, or to let downstream components infer missing context opportunistically
+   - but the current design rejects that, because it would blur the truth boundary and make later errors hard to interpret
+   - the cost of the chosen design is:
+     - more explicit join discipline
+     - more state and projection dependence
+     - stricter readiness semantics
+   - it also forbids apparently convenient inputs like `s1_session_index_6B` in live runtime, because those fields imply future knowledge and would corrupt temporal correctness
+
+11. necessity test:
+   - if this path is removed, the platform can still ingest traffic, still maintain entity projection, and still draw later boxes like online feature readiness, decision guardrail, and decision formation
+   - but it loses clean answer to:
+     - how admitted event becomes the specific runtime context downstream components actually consume
+     - whether the flow, arrival, and entity bindings are complete
+     - whether ready means full context or only partial context
+     - and whether missing context is context problem or decision problem
+   - that is exactly why this path matters:
+     - without it, the rest of RTDL would start looking like decision system built on unowned or implicit context assumptions
+   - that would weaken `A` immediately
+
+12. what this path proves for `A`:
+   - purpose claim:
+     - the platform has distinct job for creating joined runtime context surface before feature or decision work begins
+   - intentionality claim:
+     - context is built from thin traffic plus explicit time-safe join surfaces using pinned join map, not by accident or by payload bloat
+   - materialization claim:
+     - the path is concretely seated in the runtime bus topics, the RTDL namespace and context-store surface, the downstream handoff into the entity and graph and feature surfaces, and the RTDL catch-up phase boundary
+   - contract claim:
+     - the path is constrained by the live-runtime-allowed output set, no-future rules, and join-key discipline
+   - quantified closure claim:
+     - the current runtime context boundary is built from bounded four-surface live-runtime set rather than unbounded or hand-wavy source world
+
+Plainly stated, the `Joined context formation path` exists to turn admitted thin traffic plus current projection state into honest, time-safe runtime context surface, and its current design shows that this is deliberate, materially seated, and semantically governed rather than implicit.
+
+The next clean move is the `Online feature readiness path`.
+
+## 2026-03-12 10:07:16 +00:00 - Path interrogation: `Online feature readiness path`
+
+This path exists to turn already joined runtime context into online feature state that the live decision path can actually use. Its job is not to decide, not to guardrail, and not to append audit truth. Its narrower job is to answer:
+
+Does the platform now have usable feature truth for this event, with honest readiness and freshness semantics, rather than merely having upstream data somewhere?
+
+The RTDL component framing says this directly: the online feature plane exists to materialize online feature state for the live decision path, and it is the place where the data exists becomes the decision can actually use it.
+
+I want to keep the interrogation of this path inside one entry:
+
+1. what this path is trying to achieve:
+   - turn already joined runtime context into online feature state that the live decision path can actually use
+   - keep this path narrower than decisioning, guardrail posture, or audit truth
+   - answer whether the platform now has usable feature truth for this event with honest readiness and freshness semantics
+
+2. entry:
+   - the entry is not raw source data and not traffic alone
+   - for this interrogation, the entry is the event and context state already bound by the earlier RTDL paths:
+     - admitted behavioural traffic
+     - joined context
+     - current entity and relationship state
+   - all of that sits under the runtime data contract that keeps traffic thin and requires context to be joined inside the platform
+   - the engine interface pins the allowed runtime semantic world tightly:
+     - `behavioural_streams` are the traffic side
+     - `arrival_events_5B`, `s1_arrival_entities_6B`, and flow-anchor outputs are context and join surfaces
+     - `s4_*` truth products are not live runtime inputs
+   - the current wired runtime handle set mirrors that by pinning the active required output scope to exactly four oracle outputs:
+     - `s3_event_stream_with_fraud_6B`
+     - `arrival_events_5B`
+     - `s1_arrival_entities_6B`
+     - `s3_flow_anchor_with_fraud_6B`
+
+3. owned outcome:
+   - the owned outcome of this path is feature-ready runtime truth
+   - that means the platform can now say:
+     - which feature groups are available for this event
+     - whether freshness and readiness are real
+     - and whether missing features are truly missing rather than key-shape or partial-coverage artifact
+   - that is why the online feature plane is separate path and not just late step inside decision formation
+   - the docs are explicit that this boundary must not let:
+     - partial key coverage masquerade as total feature absence
+     - freshness truth stay implicit
+     - stale feature serving count as healthy
+     - or fresh state be declared only because the platform forgot older events
+
+4. what the path carries:
+   - this path carries more than raw feature values
+   - it carries:
+     - lookup keys
+     - current projection state
+     - feature-group request semantics
+     - and the freshness and readiness posture that downstream decisioning will rely on
+   - the runtime evidence shows that this is not theoretical
+   - the seam between the online feature plane and decisioning was sensitive to:
+     - graph-version shape
+     - and feature-request key shape
+   - one live diagnosis showed disagreement because graph-version came back in shape that downstream resolution did not accept
+   - another narrowed warning noise to redundant `event_id:*` requests when the projector already keyed traffic by `flow_id` first
+   - that tells us this path carries explicit boundary contracts, not just data blobs
+
+5. broad route logic:
+   - joined runtime context + current entity and relationship state -> online feature materialization and serve surface -> feature-ready truth for the live decision path
+   - the design is therefore not context exists, so decisions can happen
+   - it is:
+     - context must be transformed into feature state
+     - and that transformation has its own owned boundary
+   - the RTDL path framing already distinguishes context formation from the later decision path, and the runtime authority pins a distinct feature boundary rather than burying it inside generic decision worker
+
+6. logical design reading:
+   - logically, this path shows that the platform treats feature truth as different from context truth
+   - that is strong `A`-level design signal
+   - the system is not saying once context exists, the decision can use it
+   - it is saying there is separate boundary where context becomes feature-ready state, and that boundary must be honest about availability, freshness, and missingness
+   - that is exactly why the online feature section focuses on:
+     - required feature-group availability
+     - freshness truth
+     - and false missing-feature posture
+   - as distinct concerns
+
+7. concrete seating in the current wired system:
+   - this path is materially seated in the current wired platform
+   - in the copied baseline wired graphs, the path is seated across:
+     - the runtime bus topics feeding RTDL
+     - the RTDL namespace and worker surfaces
+     - the online feature surface itself
+     - the shared RTDL state stores
+     - and the downstream handoff into the later decision boundary
+   - concretely, the copied baseline graphs show:
+     - the online feature surface running in the RTDL namespace
+     - joined context being projected onward from the context boundary into the online feature and entity surfaces
+     - and online feature state being written into Aurora, with a handle-based read seam to Redis
+   - the broader repo authority also declares managed stream-processing surfaces for RTDL feature materialization, but in this notebook's copied baseline wired view those managed surfaces remain retained rather than the primary reader-facing active output path
+   - this path is therefore not some logic in the middle
+   - it is visible as distinct feature-serving and readiness surface with its own live counters such as applied events, missing-feature signals, snapshot failures, and checkpoint age
+
+8. why the design looks like this:
+   - the design looks like this because the platform deliberately chose to make feature state explicit rather than leaving it implicit inside downstream code
+   - it also pins feature engineering to observed data behavior rather than schema-only assumptions
+   - and when feature defects appeared, they were handled as explicit contract seams:
+     - graph-version payload shape
+     - requester and projector key-shape alignment
+     - missing-key telemetry
+   - rather than being hidden behind vague feature red language
+   - that is the opposite of accidental design
+
+9. what larger contracts are shaping this path:
+   - this path is shaped by three larger contracts
+   - first, the data-engine contract keeps traffic thin and forces the platform to join context internally rather than smuggling truth into the payload
+   - second, the runtime and learning separation contract forbids truth-product leakage and future-only fields from live runtime surfaces:
+     - the runtime path is explicitly past and present only
+     - and `s4_*` truth products are learning-only
+   - third, the RTDL component law says the online feature plane must be semantically correct, time-correct, replay-safe, and observable
+   - that means freshness, checkpoint age, restart behavior, and missing-feature truth are all part of the boundary, not optional diagnostics
+
+10. trade-offs and constraints:
+   - this path deliberately adds one more explicit boundary to the RTDL graph
+   - that costs:
+     - more state
+     - more health and readiness surface
+     - and more requester and projector contract edges
+   - but it buys something important:
+     - the system can distinguish context exists from features are truly usable
+     - and can tell whether a red posture is coming from:
+       - actual missing feature state
+       - freshness issues
+       - or contract-shape mismatch like the graph-version or redundant-key seam already found
+   - that is meaningful trade-off:
+     - more boundary discipline in exchange for less semantic ambiguity
+
+11. necessity test:
+   - if this path is removed, the platform can still ingest traffic, still build joined context, and still draw boxes called decision guardrail and decision formation
+   - but it loses clean answer to crucial runtime questions:
+     - are the required features actually present
+     - are they fresh enough
+     - is missing real, or just partial key coverage
+     - is decisioning failing because inputs are insufficient, or because the online feature plane never made the feature state usable
+   - without this path, decisioning would sit on top of unowned feature boundary
+   - that would weaken `A` immediately, because reviewer could fairly say the system has context and decisions but no explicit owner for the thing that connects them
+
+12. what this path proves for `A`:
+   - purpose claim:
+     - the platform has distinct job for turning context into usable feature state
+   - intentionality claim:
+     - the online feature plane is not accident of downstream code; it is named, contract-governed boundary
+   - materialization claim:
+     - the path is concretely seated in the runtime bus, the RTDL namespace and online feature surface, the bounded four-surface runtime oracle set, the shared state stores, and the live feature-readiness counters
+   - contract claim:
+     - the path is governed by thin-traffic semantics, no-future and runtime-truth separation, and explicit requester and projector compatibility
+   - constraint-awareness claim:
+     - the design already knows this boundary can fail semantically even when the rest of RTDL looks alive, which is why missing-feature truth and key-shape and graph-version seams are surfaced rather than hidden
+   - material participation signal:
+     - not as readiness proof yet, but as participation proof
+     - the online feature surface is visibly processing current-run events and exposing missing-feature, snapshot-failure, and checkpoint-age signals as first-class surfaces rather than hand-waving feature state away
+
+Plainly stated, the `Online feature readiness path` exists to turn joined runtime context into feature state that the live decision path can honestly use, and its current design shows that this boundary is deliberate, materially seated, and contract-governed rather than implicit.
+
+The next clean move is the `Decision guardrail path`.
+
+## 2026-03-12 10:08:43 +00:00 - Path interrogation: `Decision guardrail path`
+
+This path exists to turn upstream RTDL state into decision posture that is safe to act on. Its job is not to build context, not to materialize features, and not to produce the decision itself. Its narrower job is to answer:
+
+Given the current dependency and health posture of the RTDL graph, should the platform proceed normally, hold back, or fail closed?
+
+The RTDL definition makes that boundary explicit: the degrade ladder exists to adjudicate runtime health and dependency posture for decisioning, and it matters because if that guardrail is wrong, the platform either makes unsafe decisions or blocks good traffic for the wrong reason.
+
+I want to keep the interrogation of this path inside one entry:
+
+1. what this path is trying to achieve:
+   - turn upstream RTDL state into decision posture that is safe to act on
+   - keep this path narrower than context formation, feature readiness, or decision formation itself
+   - answer whether the platform should proceed normally, hold back, or fail closed given the current dependency and health posture
+
+2. entry:
+   - the entry is not raw traffic and not raw context alone
+   - the entry is the current RTDL truth surfaces that decisioning depends on:
+     - joined-context readiness
+     - feature readiness and freshness
+     - projection health
+     - checkpoint age
+     - required-signal health
+     - and run-scoped component participation
+   - the RTDL telemetry and proof posture is explicit that the plane should expose exactly those kinds of things:
+     - feature freshness and feature-ready counters
+     - degrade-reason breakdown
+     - run-scope adoption in every RTDL worker
+     - and early fail-fast triggers when feature readiness stays dark or fail-closed spikes from an otherwise healthy upstream window
+
+3. owned outcome:
+   - the owned outcome is adjudicated decision mode for the current run and current event posture
+   - in other words, this path must produce trustworthy answer to whether downstream decisioning should proceed under normal conditions or treat the current posture as insufficiently trusted
+   - the docs show that this is real owned boundary rather than vague mood signal
+   - in bounded proofs, the guardrail has emitted concrete posture such as:
+     - `decision_mode = NORMAL` with required signals `OK`
+     - and in other coupled proofs it has flipped to `FAIL_CLOSED` with explicit reason like `required_signal_gap:ofp_health`
+   - that means the path closes on guardrail judgment, not merely on the existence of upstream component health artifacts
+
+4. what the path carries:
+   - this path carries the signals that determine whether decisioning is trustworthy enough to continue:
+     - required-signal health from upstream RTDL components
+     - checkpoint and freshness posture
+     - dependency-availability posture
+     - run-scoped component participation
+     - and the reasons why component is healthy, advisory, stale, or insufficient
+   - the implementation trail shows why this matters
+   - in one bounded proof, the entity and feature surfaces could be actively processing the current run while still surfacing replay-era watermark advisories, and the guardrail remained `NORMAL` with required signals `OK`
+   - in another proof, the guardrail flipped to `FAIL_CLOSED` on `required_signal_gap:ofp_health`
+   - so this path is clearly carrying more than binary health pings; it is carrying typed dependency posture that has to be interpreted correctly
+
+5. broad route logic:
+   - current RTDL context, feature, and dependency signals -> guardrail classification logic -> decision posture truth -> downstream decision formation consumes that posture
+   - that broad route matters because it separates what upstream surfaces say from what the platform is allowed to do next
+   - the design is not saying that decision formation should infer trustworthiness for itself from every upstream symptom
+   - it is saying there is dedicated guardrail boundary between feature and context truth and actual decision formation
+
+6. logical design reading:
+   - logically, this path shows that the platform treats degrade and insufficiency judgment as first-class runtime truth, not as side effect of decision formation
+   - that is strong `A`-level design signal
+   - the system is not saying:
+     - if the feature or entity surfaces look odd, decisioning will just figure it out
+   - it is saying:
+     - there is dedicated guardrail that distinguishes true dependency outage from semantic-quality advisory and benign lag
+     - and only fails closed when the runtime really lacks sufficient trusted inputs
+   - that is exactly the distinction the guardrail definition insists on
+
+7. concrete seating in the current wired system:
+   - this path is materially seated in the current wired system
+   - the copied baseline wired graphs show active degrade-ladder deployment alongside the context, entity, feature, decision, action, and audit surfaces inside the RTDL namespace
+   - they also show the downstream handoff:
+     - the degrade ladder hands adjudication input to the decision surface
+   - the handles registry keeps an explicit runtime deployment reference for the degrade-ladder surface
+   - so the guardrail is not conceptual box only
+   - it is concrete runtime workload in the live RTDL plane
+
+8. why the design looks like this:
+   - the design looks like this because the platform deliberately refuses to let raw component health or stale artifacts decide the safety posture directly
+   - the implementation trail gives strong examples
+   - when replay-era watermark signals made projector health look red even while current-run mutation and checkpoints were healthy, the fix was not to treat all red surfaces as hard failure
+   - the guardrail recovered to `NORMAL` with required signals `OK`
+   - later, when coupled proof genuinely hit `required_signal_gap:ofp_health`, the guardrail flipped to `FAIL_CLOSED` and the blocker was treated as real
+   - that is exactly the behavior wanted from guardrail:
+     - advisories stay advisories
+     - insufficiency becomes fail-closed
+     - and the distinction is explicit
+
+9. what larger contracts are shaping this path:
+   - this path is shaped by the larger RTDL contract, not by local convenience
+   - the RTDL production-readiness definition says each component must be semantically correct, time-correct, replay-safe, observable, and explainable
+   - for the guardrail specifically, that becomes very specific contract:
+     - it must distinguish outage from advisory
+     - fail closed only on real insufficiency
+     - avoid sticky false-red from stale artifacts
+     - and recover promptly when dependencies recover
+   - the RTDL proof plan then turns that into concrete focus metrics such as false fail-closed rate and degrade-reason breakdown
+
+10. trade-offs and constraints:
+   - this path deliberately adds another explicit boundary to the RTDL graph
+   - that costs complexity, because now the system has to maintain and explain:
+     - upstream health semantics
+     - the guardrail's own classification logic
+     - and the difference between upstream red artifact and true decision-blocking insufficiency
+   - but that complexity buys something important:
+     - decision formation no longer has to invent its own safety posture from scattered upstream clues
+     - and the platform can explain why it proceeded, stayed normal, or failed closed
+   - the implementation notes already show why that matters:
+     - without this boundary, replay-watermark advisories and genuine feature-health gaps would be much easier to confuse
+
+11. necessity test:
+   - if this path is removed, the platform can still ingest traffic, still build projections, still materialize features, and still produce decisions
+   - but it loses clean answer to:
+     - whether the runtime had sufficient trusted inputs at decision time
+     - whether upstream issue was merely advisory or genuinely blocking
+     - why run failed closed
+     - and whether decision formation is failing because the inputs are unsafe or because the guardrail boundary does not exist
+   - that would weaken `A` immediately, because the reviewer could fairly say the platform has no explicit owner for the most important question between feature truth exists and decision is allowed
+
+12. what this path proves for `A`:
+   - purpose claim:
+     - the platform has distinct job for adjudicating dependency posture before decisioning proceeds
+   - intentionality claim:
+     - advisories, insufficiency, and fail-closed are deliberately separated rather than collapsed into one crude red and green status
+   - materialization claim:
+     - the degrade ladder is concrete live runtime workload in the current RTDL plane, not just diagram idea
+   - contract claim:
+     - this path is governed by explicit requirements around false fail-closed, dependency classification correctness, recovery-to-normal, and decision-mode stability
+   - constraint-awareness claim:
+     - the system already knows this boundary can be semantically tricky, which is why the implementation trail keeps distinguishing replay advisory, feature-health insufficiency, and proof-harness defects rather than calling all of them the same thing
+
+Plainly stated, the `Decision guardrail path` exists to turn upstream RTDL state into trustworthy decision posture, and its current design shows that this boundary is deliberate, materially seated, and semantically discriminating rather than hand-wavy.
+
+The next clean move is the `Decision formation path`.
+
+## 2026-03-12 10:10:11 +00:00 - Path interrogation: `Decision formation path`
+
+This path exists to turn live runtime understanding into the actual decision truth of the platform. Its job is not to build context, not to materialize features, and not to decide whether the platform should proceed at all; that was the guardrail path. Its narrower job is to answer:
+
+Given the current context, current feature state, current guardrail posture, and the active runtime bundle or policy, what is the actual decision?
+
+The platform framing makes that boundary explicit. The decision path is defined as:
+
+context -> online features -> active bundle or policy resolution -> decision fabric -> action logic -> decision outcome
+
+and the decision fabric exists to produce the actual decision output from live context, features, and active bundle or policy.
+
+I want to keep the interrogation of this path inside one entry:
+
+1. what this path is trying to achieve:
+   - turn live runtime understanding into actual decision truth of the platform
+   - keep this path narrower than context formation, feature materialization, or guardrail posture
+   - answer what the actual decision is given current context, current feature state, current guardrail posture, and the active runtime bundle or policy
+
+2. entry:
+   - the entry is not raw traffic and not raw RTDL health
+   - the entry is the set of things that make decision legitimately formable:
+     - joined runtime context
+     - online feature readiness
+     - guardrail posture
+     - active runtime bundle or policy resolution
+   - that last part matters
+   - the platform explicitly treats registry-to-runtime feedback as real cross-plane path whose question is whether runtime resolves the right active bundle and includes the right bundle or policy identity in decision provenance
+   - so the decision-formation path begins only once that authority is consumable at runtime, rather than leaving which model or policy was used as afterthought
+
+3. owned outcome:
+   - the owned outcome is decision truth for the current event under the current run, with identity, provenance, and explanation fields complete enough to survive downstream action, audit, and replay
+   - that outcome is deliberately narrower than action and outcome truth and narrower than audit truth
+   - the run-process supports that split clearly:
+     - the decision-chain closure only happens when the decision lane, action and outcome evidence, and append-only audit evidence are all committed
+   - which means the decision itself is only one distinct part of the larger chain
+   - this path therefore closes at decision truth, not at the later side effects
+
+4. what the path carries:
+   - this path carries the minimum things needed to make the decision itself meaningful and reconstructable:
+     - the joined runtime context
+     - the current online feature state
+     - the guardrail posture from the degrade ladder
+     - the resolved active bundle or policy identity
+     - decision identity and provenance fields
+     - explanation fields sufficient for later audit and replay
+   - the decision fabric definition is explicit about what has to be carried across this boundary:
+     - decisions must be correct for the actual context, online features, and active bundle or policy in scope
+     - fail-closed must happen only on real insufficiency or unsafe ambiguity
+     - quarantine must happen only on real ambiguity
+     - and decision identity, provenance, and explanation fields must be complete enough to survive audit and replay
+
+5. broad route logic:
+   - joined context + online features + guardrail posture + active bundle or policy resolution -> decision fabric -> decision truth -> downstream action and audit lanes
+   - that broad route matters because it shows the decision fabric is not merely the model call
+   - it is the point where multiple upstream truths are composed into one runtime judgment
+   - the platform is therefore not saying:
+     - we had some context and some features, so decision naturally happened
+   - it is saying:
+     - there is distinct boundary where runtime inputs plus governed policy and bundle authority become decision truth
+
+6. logical design reading:
+   - logically, this path shows that the platform treats decision truth as first-class owned surface, not as invisible side effect between online features and action logic
+   - that is strong `A`-level design signal
+   - the system is not saying:
+     - actions downstream imply what the decision probably was
+   - it is saying:
+     - the actual decision has its own truth boundary, and that boundary must carry correctness, provenance, explainability, and policy identity explicitly
+   - that is why decision formation is separated from the guardrail, action, and audit surfaces in the RTDL framing, and why the run-process gives the whole decision chain its own closure phase instead of burying it inside generic streaming health
+
+7. concrete seating in the current wired system:
+   - this path is materially seated in the current wired system
+   - the live RTDL runtime posture in the copied baseline wired graphs includes concrete decision deployment alongside the context, entity, feature, guardrail, action, and audit surfaces, all in the active RTDL namespace
+   - that means the decision fabric is not just design box; it is concrete runtime workload in the live RTDL plane
+   - the run-process and earlier implementation notes reinforce that materiality from the proving side too:
+     - the decision-chain closure was expanded into component-granular lanes for decision formation, action, and audit
+     - with separate component proofs emitted rather than one lumped claim that decisioning is fine
+   - that is another strong sign that the decision fabric is treated as its own owned boundary in the current wired system
+
+8. why the design looks like this:
+   - the design looks like this because the platform deliberately refuses to let decision correctness, bundle or policy correctness, and explainability be implied by downstream success
+   - several choices in the docs point that way:
+     - the decision fabric is defined as its own component with its own purpose and proof surfaces
+     - the registry and runtime feedback path explicitly requires that runtime resolve the right active bundle and include bundle or policy identity in decision provenance
+     - the run-process separates RTDL catch-up closure from decision-chain closure, which means the RTDL plane being alive is not enough; the decision chain must still close on its own evidence
+   - so the current shape exists because the platform wants decision truth to be:
+     - explicit
+     - governed
+     - attributable
+     - and replay and audit survivable
+
+9. what larger contracts are shaping this path:
+   - three larger contracts shape this path strongly
+   - first, the RTDL contract shapes the input side:
+     - context must be semantically correct
+     - features must be actually present and fresh
+     - guardrail posture must distinguish advisory from real insufficiency
+   - second, the registry and runtime contract shapes the authority side:
+     - runtime must resolve the right active bundle or policy
+     - promotion and rollback changes must apply deterministically
+     - provenance must include runtime bundle or policy identity
+   - third, the decision-chain closure contract shapes the evidence side:
+     - the decision lane must be committed
+     - action and outcome evidence must be committed
+     - append-only audit evidence must be committed
+   - so this path is not free to invent its own semantics
+   - it is constrained by upstream runtime truth, governed runtime authority, and downstream auditability
+
+10. trade-offs and constraints:
+   - this path deliberately adds one more explicit truth boundary to the RTDL graph
+   - that costs complexity, because now the platform must carry and preserve:
+     - active bundle or policy identity
+     - decision provenance
+     - explanation coverage
+     - fail-closed versus quarantine semantics
+     - and duplicate-safe decision commit discipline
+   - but that complexity buys something important:
+     - the platform can later answer why this decision happened, under what authority, and whether it was the right kind of non-normal outcome
+   - without this boundary, the system might still produce actions, but the actual decision logic would be much harder to defend
+   - the docs make those trade-offs visible by explicitly naming:
+     - fail-closed rate
+     - quarantine rate
+     - hard fail-closed count
+     - decision completeness and provenance completeness
+     - policy and bundle resolution correctness
+     - explainability coverage
+     - duplicate-safe decision commit
+     - as the things that matter here
+
+11. necessity test:
+   - if this path is removed, the platform can still:
+     - ingest traffic
+     - form joined context
+     - materialize features
+     - classify dependency posture
+     - and even emit actions later
+   - but it loses clean answer to:
+     - what the actual decision was
+     - which bundle or policy authority produced it
+     - whether fail-closed or quarantine was semantically correct
+     - whether the decision itself was complete enough to audit
+     - and whether downstream action and audit surfaces are acting on explicit decision truth or inferred behavior
+   - that would weaken `A` immediately, because reviewer could fairly say the system has all the ingredients of decisioning without explicit owner for the most important truth in the RTDL plane:
+     - the decision itself
+
+12. what this path proves for `A`:
+   - purpose claim:
+     - the platform has distinct job for turning context, feature state, guardrail posture, and runtime authority into actual decision truth
+   - intentionality claim:
+     - the decision boundary is explicit and governed, not inferred from downstream action success
+   - materialization claim:
+     - the decision fabric is concrete runtime workload in the live RTDL plane, and the decision lane is treated as its own proofable part of the decision-chain closure
+   - contract claim:
+     - this path is governed by policy and bundle resolution correctness, provenance completeness, explainability coverage, and bounded fail-closed and quarantine semantics
+   - constraint-awareness claim:
+     - the platform already knows this boundary can be semantically wrong even when upstream runtime looks healthy, which is why it treats decision completeness and bundle or policy correctness as first-class concerns rather than assuming them
+
+Plainly stated, the `Decision formation path` exists to turn runtime understanding plus governed runtime authority into explicit decision truth, and its current design shows that this boundary is deliberate, materially seated, and provenance-aware rather than implicit.
+
+The next clean move is the `Action and outcome emission path`.
+
+## 2026-03-12 10:12:19 +00:00 - Path interrogation: `Action and outcome emission path`
+
+This path exists to turn decision truth into action and outcome truth. Its job is not to form the decision itself, and it is not yet the append-only audit path. Its narrower job is to answer:
+
+Once the platform has decided, how does that decision start affecting the rest of the system in a way that is deterministic, duplicate-safe, and attributable?
+
+The readiness definition makes that boundary explicit: the action layer exists to commit and/or publish action and outcome surfaces from decisions, and it matters because this is where decisions begin affecting the rest of the system.
+
+I want to keep the interrogation of this path inside one entry:
+
+1. what this path is trying to achieve:
+   - turn decision truth into action and outcome truth
+   - keep this path narrower than decision formation and narrower than append-only audit truth
+   - answer how a decision begins affecting the rest of the system in a deterministic, duplicate-safe, and attributable way
+
+2. entry:
+   - the entry is not raw traffic, and it is not just generic RTDL health
+   - the entry is decision truth that has already been formed under the current run scope, after the RTDL plane has reached its catch-up boundary and the decision chain is allowed to proceed
+   - the run-process says the decision-chain closure only opens once RTDL catch-up closure is green, and then requires:
+     - the decision lane
+     - the action and outcome evidence
+     - and the append-only audit evidence
+     - as distinct closure elements
+   - that means this path begins after decision formation, not before it
+
+3. owned outcome:
+   - the owned outcome is deterministic action and outcome truth attributable to the right decision, run, bundle, and policy context
+   - this is narrower than audit truth and narrower than case and label truth
+   - it closes when action commits or publishes have happened in the platform's owned way, and when ambiguity has been recorded rather than silently leaked
+   - the readiness definition for the action layer is precise here:
+     - side effects must be duplicate-safe under at-least-once reality
+     - action commits must be deterministic
+     - no ambiguity may leak into operational outcomes without being recorded
+     - and outcomes must remain attributable to the right decision, run, bundle, and policy context
+
+4. what the path carries:
+   - this path carries the decision output plus the identity and provenance needed to make side effects reconstructable later
+   - in the docs, that means at least:
+     - the decision itself
+     - the run context
+     - the policy and bundle context
+     - and the trace from decision to action
+   - the same action-layer section names the concrete proof concerns here as:
+     - action commit success rate
+     - duplicate side-effect error rate
+     - ambiguity and quarantine rate
+     - action latency
+     - and decision-to-action trace completeness
+   - that tells us this boundary is carrying more than a bare allow or deny flag
+
+5. broad route logic:
+   - decision truth -> action layer -> committed and/or published outcome surfaces -> downstream RTDL and cross-plane consumers
+   - that broad route matters because the topic contract makes it concrete:
+      - the RTDL downstream topic is the named handoff surface
+     - and its producers are the decision and action surfaces
+   - which means the action layer is not merely an internal helper after decision formation
+   - it is one of the explicit producers of downstream RTDL truth
+   - that makes this a real handoff boundary rather than a hidden in-process step
+
+6. logical design reading:
+   - logically, this path shows that the platform treats side effects and outcomes as their own truth boundary, not as invisible consequence of decisioning
+   - the system is not saying once decision formation produced a decision, the world will somehow be affected
+   - it is saying there is dedicated layer that owns how decision truth becomes action and outcome truth under the platform's at-least-once and ambiguity rules
+   - that is strong `A`-level design signal because it makes the hot path legible beyond mere scoring
+
+7. concrete seating in the current wired system:
+   - this path is materially seated in the current wired platform
+   - the copied baseline wired graphs show live action deployment alongside the context, entity, feature, guardrail, decision, audit, and archive surfaces in the RTDL namespace
+   - so the action layer is not just design box on graph
+   - it is concrete live workload in the current RTDL plane
+   - the same baseline network also shows the downstream handoff:
+     - the decision and action surfaces publish to the RTDL downstream topic
+   - so the path is visible both as runtime workload and as named downstream transport boundary
+
+8. why the design looks like this:
+   - the design looks like this because the platform refuses to let decision correctness and side-effect correctness collapse into one fuzzy notion that the hot path worked
+   - the run-process separates the decision chain into three closure elements:
+     - decision lane
+     - action and outcome evidence
+     - and append-only audit evidence
+   - which means action and outcome truth is intentionally given its own owned closure
+   - the readiness definition then sharpens why:
+     - duplicate safety
+     - deterministic action commits
+     - ambiguity recording
+     - and trace completeness
+     - are treated as first-class properties rather than operator cleanup after the fact
+
+9. what larger contracts are shaping this path:
+   - three larger contracts shape it
+   - first, the RTDL plane contract says actions and audit outputs must be correct, not just the decisions
+   - second, the action-layer contract says side effects must be duplicate-safe, deterministic, attributable, and ambiguity-aware
+   - third, the bus and topic contract says the decision and action surfaces are explicit producers of the RTDL downstream topic, which means action and outcome emission participates in named downstream handoff rather than undefined local effect
+
+10. trade-offs and constraints:
+   - this path deliberately adds another explicit boundary to the hot path
+   - that costs complexity, because the platform must preserve:
+     - duplicate-safe semantics
+     - ambiguity recording instead of burying it
+     - and decision-to-action attribution
+   - but that complexity buys much stronger system-design property:
+     - later case, label, audit, and replay paths can treat action and outcome truth as something explicit and owned, rather than inferring it from side effects that probably happened
+   - the docs are very clear that this platform is not allowed to mix ambiguity with normal outcomes or depend on operator cleanup to make actions look deterministic
+
+11. necessity test:
+   - if this path is removed, the platform can still ingest traffic, form context, materialize features, classify guardrail posture, and even produce decision
+   - but it loses clean answer to:
+     - what concrete outcome followed from that decision
+     - whether it was committed safely under duplicates and retries
+     - and whether that outcome can be traced back to the right decision, run, bundle, and policy
+   - without this path, the RTDL plane would have decision boundary but no explicit owner for how decisions become platform effects
+   - that would weaken `A` immediately
+
+12. what this path proves for `A`:
+   - purpose claim:
+     - the platform has distinct job for turning decisions into action and outcome truth
+   - intentionality claim:
+     - duplicate safety, ambiguity recording, and attribution are designed properties, not accidental behavior
+   - materialization claim:
+     - the action layer is a live named workload in the current RTDL plane, and action and outcome evidence is required part of the decision-chain closure
+   - contract claim:
+     - this path is governed by duplicate-safe side-effect rules, decision-to-action trace completeness, and the decision-and-action to RTDL-topic contract
+   - constraint-awareness claim:
+     - the platform already knows that side effects are dangerous under at-least-once conditions, which is why the action layer is defined around duplicate safety and ambiguity discipline rather than convenience
+
+Plainly stated, the `Action and outcome emission path` exists to turn decision truth into explicit platform effects that are duplicate-safe, attributable, and ambiguity-aware, and its current design shows that this boundary is deliberate, materially seated, and ownership-aware rather than implicit.
+
+## 2026-03-12 10:47:37 +00:00 - Enumerating the real paths in Group 4: `Durable runtime audit and archive truth`
+
+I want to pin 4 real paths in the durable runtime audit and archive truth group.
+
+That feels like the right split because this group has four distinct owned outcomes in the current wired system:
+
+- append-only audit truth exists
+- audit truth is handed off to the right downstream consumers and evidence surfaces
+- immutable archive history is durably preserved
+- and archive closure produces durable refs that later replay and learning can resolve
+
+The audit and archive surfaces are also explicitly separate RTDL components in the current wired system. The broader authority keeps their posture distinct:
+
+- the decision log and audit surface remains a distinct ownership-heavy runtime corridor
+- while the archive corridor is separately governed around immutable preservation and replay continuity
+
+I want to pin the 4 real paths in Group 4 like this:
+
+1. `Audit append path`
+   - definition:
+     - decision and action truth -> decision log and audit surface -> append-only audit and lineage truth
+   - why it is a real path:
+     - this path has its own distinct purpose:
+       - append authoritative audit and lineage truth for the real-time lane
+     - the decision-chain closure treats append-only audit evidence as a distinct closure requirement
+     - that means the audit entry existing append-only is its own owned outcome, not just part of decisioning or archive
+
+2. `Audit publication and durable reference path`
+   - definition:
+     - appended audit truth -> audit bus and durable audit refs -> downstream operational and evidence consumers
+   - why it is a real path:
+     - this path is distinct from append itself because the topic contract pins an explicit audit handoff topic with the audit surface as producer and downstream operational and evidence consumers on the other side
+     - in the copied baseline wired graph, that downstream handoff is visible through the audit topic and the case-trigger/evidence-consuming side of the network
+     - so there is distinct handoff boundary after append-only audit truth exists
+     - append truth and downstream audit handoff are related, but they are not the same owned outcome
+
+3. `Immutable archive preservation path`
+   - definition:
+     - runtime decision and action event history -> archive writer -> immutable archived event history in object storage
+   - why it is a real path:
+     - this path has its own distinct purpose:
+       - durably preserve immutable event history and refs for replay and audit
+     - that is different from the append-only audit job
+     - in the copied baseline wired graph, the archive writer is a distinct RTDL runtime surface that writes immutable history into the archive prefix and stores archive receipts in evidence
+     - the broader authority also treats the archive corridor as separately governed around replay and offset continuity, which reinforces that archive preservation is its own runtime-owned path rather than just more audit
+
+4. `Archive closure and replay-reference path`
+   - definition:
+     - archived runtime truth + continuity metadata -> archive closure marker + durable replay-ready refs
+   - why it is a real path:
+     - the platform does not stop at files were written
+     - RTDL catch-up closure requires archive-writer closure evidence present and emits archive closure marker
+     - and later learning-input closure requires archive plus labels plus replay references resolved from spine closure before learning input can begin
+     - so there is distinct owned outcome here:
+       - not just preserved archive history, but archive truth that is closure-complete and replay-resolvable
+     - for `A`, I want to stop this path at replay-ready refs, not at the later learning-input pin
+
+What I do not want to count here:
+
+- decision formation
+- action and outcome emission
+
+Those were already closed in Group 3.
+
+I also do not want to count:
+
+- case trigger or case escalation here
+
+even though case handling can consume audit truth, because that belongs to the next group.
+
+And I do not want to count:
+
+- governance append or closure marker here
+
+because that belongs to the later run governance, observability, and evidence-closure group rather than the runtime audit and archive group.
+
+So the pinned Group 4 path set is:
+
+- `Audit append path`
+- `Audit publication and durable reference path`
+- `Immutable archive preservation path`
+- `Archive closure and replay-reference path`
+
+That is the clean split I want to use before going back down into per-path interrogation.
+
+## 2026-03-12 11:07:34 +00:00 - Enumerating the real paths in Group 5: Operational case and label truth
+
+I want to pin 4 real paths in the operational case and label truth group.
+
+That feels like the right split because, even though the plane has only 3 core components, the docs and the live proving notes show 4 distinct owned outcomes inside the group:
+
+- case-intent truth exists
+- append-only case truth exists
+- case truth has been handed off into label-request or label-pending boundary
+- authoritative label truth exists with readback, as-of, and maturity visibility
+
+That split is already latent in the readiness definition, which separates correct escalation, clean truth ownership, bounded latency, and auditability and learning-readiness across the case-trigger surface, case management, and label store. It is also reinforced by the live timing notes, which distinguish first case-trigger intake from case creation, and then distinguish case creation from the later label-request or label-pending handoff. That shows case creation and label handoff are not the same closure point.
+
+I want to pin the 4 real paths in Group 5 like this:
+
+1. `Case-intent escalation path`
+   - definition:
+     - RTDL decision and audit outputs -> case-trigger surface -> case-intent truth and case-trigger handoff
+   - why it is a real path:
+     - this path has its own distinct owned job:
+       - turn decision-worthy and audit-worthy runtime signals into case-intent signals
+     - the plane-level readiness docs treat the first step of escalation separately:
+       - the right RTDL outputs must become the right case-worthy signals before case truth even begins
+     - the copied baseline wired graph also supports this as a real handoff boundary:
+       - the case-trigger topic is pinned as a named transport surface
+       - the case-trigger surface publishes into it
+       - and case management consumes from it
+
+2. `Case creation and timeline append path`
+   - definition:
+     - case-intent truth -> case management -> deterministic case identity plus append-only case timeline truth
+   - why it is a real path:
+     - this path has a distinct owned outcome that is not merely that a case exists
+     - it owns the append-only operational case timeline
+     - the docs are explicit that case identity must be deterministic, case creation idempotent, transitions append-only and auditable, and later reconstruction possible
+     - the implementation notes strengthen this split by showing the authoritative processing clock for case open as intake first-seen to case-created time
+     - that is a real case-truth boundary, not just internal implementation detail
+
+3. `Case-to-label handoff path`
+   - definition:
+     - case or adjudication outcome plus case timeline state -> label request or label-pending handshake -> label-store intake truth
+   - why it is a real path:
+     - case management does not own label truth, but the plane still needs a distinct handoff from case truth into supervision truth
+     - the docs imply that split in two ways:
+       - the whole-plane definition says the right cases must eventually produce authoritative labels
+       - and the coupled-network phase names case management to label store as its own critical cross-plane path
+     - the live timing notes then make the handoff concrete by distinguishing first label request time from the earlier case timeline timestamp
+     - that is exactly the kind of separate owned outcome that qualifies as a real path
+
+4. `Authoritative label commit and visibility path`
+   - definition:
+     - label request or label-intake truth -> label store -> append-only authoritative label truth plus readback, as-of, and maturity visibility
+   - why it is a real path:
+     - this path owns stronger outcome than some label was written
+     - it owns authoritative label truth
+     - the docs are explicit that label assertions must be append-only, idempotent, conflict-visible, provenance-complete, and queryable by as-of and maturity, with future-label leakage at zero
+     - the copied baseline wired graph also gives this path downstream handoff surface:
+       - the label-events topic is pinned as named transport boundary
+       - the label store publishes into it
+       - and later learning and reporting consumers read from that side of the network
+     - that confirms this is not just database write; it is real truth boundary with later consumers
+
+What I do not want to count here:
+
+- the broader RTDL, case, and label auditability path as a separate internal path of this group
+  - that is broader cross-plane path, and the later coupled-network phase already names it separately from the core RTDL -> case-trigger -> case management -> label store chain
+- the later label-truth path into future learning use inside this group
+  - that is later cross-plane handoff, not an owned truth boundary inside the operational case and label plane itself
+
+So the pinned Group 5 path set is:
+
+- `Case-intent escalation path`
+- `Case creation and timeline append path`
+- `Case-to-label handoff path`
+- `Authoritative label commit and visibility path`
+
+That is the clean split I want to use before dropping back down into per-path interrogation.
