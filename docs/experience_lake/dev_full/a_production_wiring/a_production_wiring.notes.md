@@ -801,3 +801,145 @@ So the pinned Group 2 path set is:
 - `Ingest commit truth path`
 
 That is the clean split I want to use. The next step is to take `Boundary access path` and do the same full path-level interrogation used for the three Group 1 paths.
+
+## 2026-03-12 08:58:54 +00:00 - Path interrogation: `Boundary access path`
+
+This path exists to make sure that canonical platform traffic reaches one honest, active ingress boundary rather than some ambiguous or stale front door. In `A` terms, this is not yet the path that decides admit, reject, or quarantine. It is the path that answers a more basic design question:
+
+What is the real external boundary for traffic entering the platform, and how does traffic reach it correctly?
+
+I want to keep the interrogation of this path inside one entry:
+
+1. what this path is trying to achieve:
+   - make sure canonical platform traffic reaches one honest, active ingress boundary rather than an ambiguous or stale front door
+   - answer the basic design question of what the real external traffic boundary is
+   - establish the correct ingress edge before admission semantics begin
+
+2. entry:
+   - the entry is canonical traffic that is actually allowed to behave as traffic plus the correct ingress contract
+   - the data-engine interface is decisive here:
+     - only `behavioural_streams` are eligible for ingestion as production traffic
+     - `traffic_primitives`, `behavioural_context`, `truth_products`, `audit_evidence`, and `ops_telemetry` are explicitly not canonical business traffic
+   - the current traffic policy then narrows that further to the dual-stream default:
+     - `s2_event_stream_baseline_6B`
+     - `s3_event_stream_with_fraud_6B`
+   - so the entry is not "some event-like engine output"
+   - it is:
+     - canonical behavioural traffic -> correct external ingress URL and route -> correct key and material contract
+   - the proving notes also show that boundary targeting had to be made explicit so a stale internal ALB path could not be silently used instead
+
+3. owned outcome:
+   - the owned outcome is:
+     - a request has reached the correct live ingress boundary under the correct route and auth contract, and is now eligible to be processed by the ingress runtime
+   - that is deliberately narrower than "the event was admitted"
+   - admission belongs to the next path
+   - this path closes once traffic is at the right front door, not once the ingress runtime has classified it
+   - the docs support that separation because they pin the active boundary as API Gateway to Lambda, then separately discuss downstream admission semantics, idempotency, and publication continuity as later concerns
+
+4. what the path carries:
+   - canonical behavioural event payloads
+   - the ingress route contract:
+     - stage `v1`
+     - `POST /ingest/push`
+   - the boundary auth and key material expected by the ingress runtime
+   - the engine interface adds the payload-side rule:
+     - anything emitted as `behavioural_streams` onto a bus must conform to the canonical event envelope contract
+   - the edge-side contract is also explicit:
+     - `IG_AUTH_MODE = "api_key"`
+     - `IG_AUTH_HEADER_NAME = "X-IG-Api-Key"`
+     - `SSM_IG_API_KEY_PATH = "/fraud-platform/dev_full/ig/api_key"`
+   - health-probe evidence supports the same boundary posture, but the pinned auth contract is already sufficient to show that the ingress runtime expects real key material at the boundary rather than an informal anonymous path
+
+5. broad route logic:
+   - canonical behavioural stream -> explicit execute-api ingress URL -> stage `v1` -> route `POST /ingest/push` -> IG Lambda boundary
+   - that broad route matters because the design is making a strong statement
+   - the platform should not rely on an operator's memory of a service URL, a retained internal ALB surface, or a vague "ingress exists somewhere" story
+   - the route is meant to be singular and explicit
+   - the proving notes even call the stale ALB path a drift hazard and patch the launcher so it cannot silently fall back there
+
+6. logical design reading:
+   - logically, this path shows that the platform treats the external ingress boundary as a first-class system object
+   - that is important for `A`
+   - the current wired system is not saying:
+     - traffic eventually gets in somehow
+   - it is saying:
+     - traffic enters through this named, active, externally declared boundary
+   - that makes the wiring legible
+   - it also makes the rest of Group 2 meaningful, because admission, disposition, publication, and receipts only make sense if there is first a single honest answer to what the live ingress edge is
+   - the current answer is intentionally singular: the pinned execute-api ingress URL with stage `v1`, route `POST /ingest/push`, and the IG Lambda handler behind it
+
+7. concrete seating in the current wired system:
+   - this path is materially seated in concrete infrastructure, not just described conceptually
+   - the live handles identify:
+     - API name `fraud-platform-dev-full-ig-edge`
+     - ingress URL `https://ehwznd2uw7.execute-api.eu-west-2.amazonaws.com/v1`
+     - route `POST /ingest/push`
+     - Lambda `fraud-platform-dev-full-ig-handler`
+   - the implementation notes also record ingress contract remediation that aligned the runtime to:
+     - `GET /ops/health`
+     - `POST /ingest/push`
+   - later proving work then codified the API Gateway telemetry surface and kept the obsolete internal ingress path out of the accepted active-boundary story
+
+8. why the design looks like this:
+   - the design looks like this because ambiguity at the front door was treated as a real defect, not a cosmetic nuisance
+   - the notes show three important design moves:
+     - old stage and route drift was corrected to restore the canonical endpoint model
+     - the launcher was patched to force the correct execute-api target instead of silently resolving a stale internal service URL
+     - the retained internal ingress stack was treated as a drift hazard because it no longer served the accepted external boundary story
+   - so this shape was not accidental
+   - it is the result of deliberately narrowing ingress to one active front door
+
+9. what larger contracts are shaping this path:
+   - two larger contracts shape this path strongly
+   - first, the data-engine interface shapes the entry side:
+     - only `behavioural_streams` are traffic
+     - non-traffic surfaces must not be treated as business traffic
+     - traffic emitted at ingestion must conform to the canonical event-envelope contract
+   - second, the platform authority shapes the boundary side:
+     - networking is private-by-default, with explicit ingress only where boundary endpoints require it
+     - secret and config access is governed through pinned handles like `/fraud-platform/dev_full/ig/api_key`
+     - every phase uses one active runtime path per phase/run, with fail-closed governance on path selection
+   - so the boundary-access path is shaped both by what traffic is allowed to be and by how the platform is allowed to expose a front door
+
+10. trade-offs and constraints:
+   - this path chooses clarity and governance over convenience
+   - it is more convenient to let old service URLs linger, let helpers resolve whatever endpoint they find, or tolerate multiple ingress surfaces "for now"
+   - but the current design rejects that because it makes the boundary story muddy
+   - the cost of the chosen design is more explicitness:
+     - explicit execute-api target
+     - explicit route
+     - explicit key contract
+     - explicit exclusion of obsolete ingress surfaces from the accepted active-boundary story
+     - explicit telemetry on the real front door
+   - that adds ceremony, but it buys a much cleaner claim:
+     - the platform has one real ingress boundary
+
+11. necessity test:
+   - if this path is removed, Group 2 loses its clean start
+   - traffic might still reach something, but the platform could no longer honestly say:
+     - what its real front door is
+     - whether the old ALB path still counts
+     - whether helpers are proving the active boundary or a stale one
+     - whether boundary evidence and telemetry belong to the right surface
+   - in other words, the system could still have admission logic, bus publication, and receipts, but the boundary those things supposedly begin from would be hand-wavy
+   - that would directly weaken `A`, because a skeptical reviewer could say the ingress story is still ambiguous at the very first hop
+
+12. what this path proves for `A`:
+   - purpose claim:
+     - the platform has a specific job for establishing the correct ingress boundary before admission semantics begin
+   - intentionality claim:
+     - the active external front door is singular and explicitly chosen, not just whatever surface happens to be reachable
+   - materialization claim:
+     - the boundary is concretely seated in the pinned execute-api ingress URL, stage `v1`, route `POST /ingest/push`, and the IG Lambda handler
+   - contract claim:
+     - the entry traffic is constrained by the engine's traffic taxonomy and canonical event-envelope rule
+   - quantified closure claim:
+     - one active external front door
+     - one stage
+     - one route
+     - one handler
+     - with the obsolete internal ingress path explicitly excluded from the accepted active-boundary story
+
+Plainly stated, the `Boundary access path` exists to ensure that canonical traffic reaches one real, explicit, governed ingress edge, and its current design shows that the boundary is deliberate, materially seated, and no longer muddied by stale ingress alternatives.
+
+The next clean move is the `Admission and disposition path`.
