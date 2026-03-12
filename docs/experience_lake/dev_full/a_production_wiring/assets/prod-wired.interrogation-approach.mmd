@@ -1,0 +1,162 @@
+flowchart TD
+
+    META["Meta Goal (implicit)<br/>Lead a serious reviewer to infer senior-level ML Platform / MLOps capability"]:::meta
+    A_GOAL["A Goal (implicit)<br/>Show the current wired platform is a real, intentional,<br/>understood engineered system"]:::goal
+    A_WHY["Why A matters<br/>A must show that the platform is not a random cloud diagram,<br/>but a coherent system whose structure, wiring, and resources are purposeful"]:::note
+
+    META --> A_GOAL
+    A_GOAL --> A_WHY
+
+    START_A["Start here<br/>Interrogate the system design,<br/>not the implementation history,<br/>and not production-readiness proof"]:::step
+    A_WHY --> START_A
+
+    A_BOUNDARY["Pin the boundary of A<br/>Ask design-understanding questions only:<br/>- why does this exist?<br/>- what job does it serve?<br/>- why is it wired this way?<br/>- why these resources?<br/>- what trade-offs and constraints shaped it?<br/><br/>Do not drift into Bi questions:<br/>- will it hold under pressure?<br/>- what broke?<br/>- what had to be hardened?"]:::boundary
+    START_A --> A_BOUNDARY
+
+    A_EVID["Freeze A-core evidence surfaces"]:::step
+    A_BOUNDARY --> A_EVID
+
+    subgraph EVIDENCE ["A-core evidence surfaces"]
+        direction TB
+        EV1["Platform network graph<br/>logical groups, paths, flows, obligations"]:::surface
+        EV2["IaC and resource graph<br/>actual runtimes, resources, dependencies, seating"]:::surface
+        EV3["platform.impl_actual.md<br/>why this wired shape exists"]:::surface
+        EV4["data_engine_interface.md<br/>external semantic, trust, and time-safety laws shaping wiring"]:::surface
+        EV5["Bi parking lot<br/>capture readiness-pressure thoughts without polluting A"]:::surface
+    end
+
+    A_EVID --> EV1
+    A_EVID --> EV2
+    A_EVID --> EV3
+    A_EVID --> EV4
+    A_EVID --> EV5
+
+    GROUP_DERIVE["Derive functional path groups<br/>Do not let Mermaid subgraphs define the story.<br/>Group by system obligation, not diagram cosmetics."]:::step
+    EV1 --> GROUP_DERIVE
+    EV2 --> GROUP_DERIVE
+    EV3 --> GROUP_DERIVE
+    EV4 --> GROUP_DERIVE
+
+    subgraph GROUP_STAGE ["High-level grouping stage"]
+        direction TB
+        G1["Identify path groups<br/>What families of end-to-end system jobs exist?"]:::step
+        G2["State group goal<br/>What obligation does each group satisfy?"]:::step
+        G3["State group necessity<br/>Why must this group exist in the platform at all?"]:::step
+        G4["State group inputs and outputs<br/>What enters, what exits, what changes?"]:::step
+        G5["State governing contracts and laws<br/>What internal or external rules shape this group?"]:::step
+        G6["State broad design choice<br/>What architectural idea is expressed here?"]:::step
+        G1 --> G2 --> G3 --> G4 --> G5 --> G6
+    end
+
+    GROUP_DERIVE --> G1
+
+    GROUP_CHECK{"Is the group definition meaningful?<br/>Do groups reflect system obligations<br/>rather than component buckets?"}:::decision
+    G6 --> GROUP_CHECK
+    GROUP_CHECK -- "No" --> GROUP_DERIVE
+    GROUP_CHECK -- "Yes" --> PATH_ENUM
+
+    PATH_ENUM["Enumerate paths within each group<br/>Only count real end-to-end routes with a clear entry,<br/>job, and outcome"]:::step
+
+    subgraph PATH_STAGE ["Path-level interrogation"]
+        direction TB
+        P1["State path goal<br/>What is this path trying to accomplish?"]:::step
+        P2["Define entry and exit<br/>Where does it start and what outcome does it produce?"]:::step
+        P3["List carried objects<br/>What data, control facts, receipts, identities,<br/>or state transitions move along it?"]:::step
+        P4["Explain broad route<br/>Why this path, and why this route rather than another?"]:::step
+        P5["Read logical path against network graph<br/>What is the intended flow and boundary structure?"]:::step
+        P6["Read concrete realization against IaC graph<br/>What actual runtime, store, trigger, or connector seats the path?"]:::step
+        P7["Read design reasoning from implementation notes<br/>Why these resources, placements, and boundaries?"]:::step
+        P8["Read contract pressure from data interface<br/>What semantic, trust, or time laws forced this wiring?"]:::step
+        P9["State trade-offs and constraints<br/>What did this design optimize for,<br/>and what did it accept or defer?"]:::step
+        P10["Necessity test<br/>If this node, edge, or resource disappeared,<br/>what would become impossible, unsafe, or unjustified?"]:::step
+        P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P10
+    end
+
+    PATH_ENUM --> P1
+
+    TRAVERSE{"Choose traversal style for this path"}:::decision
+    P1 --> TRAVERSE
+    TRAVERSE -- "Along path" --> P2
+    TRAVERSE -- "High to low" --> P2
+    TRAVERSE -- "Raw inspection" --> P2
+
+    PATH_CLAIMS["Extract path-level supporting claims"]:::step
+    P10 --> PATH_CLAIMS
+
+    subgraph CLAIMS_STAGE ["What kinds of claims should emerge?"]
+        direction TB
+        C1["Purpose claim<br/>This path exists for a clear system reason"]:::claim
+        C2["Intentionality claim<br/>This route and realization were chosen, not accidental"]:::claim
+        C3["Materialization claim<br/>The logical path is concretely seated in real resources"]:::claim
+        C4["Contract claim<br/>The path honors required data, trust, time, and identity laws"]:::claim
+        C5["Constraint-awareness claim<br/>Trade-offs and limits are known rather than hidden"]:::claim
+    end
+
+    PATH_CLAIMS --> C1
+    PATH_CLAIMS --> C2
+    PATH_CLAIMS --> C3
+    PATH_CLAIMS --> C4
+    PATH_CLAIMS --> C5
+
+    PROOF_STEP["Qualify and quantify proof"]:::step
+    C1 --> PROOF_STEP
+    C2 --> PROOF_STEP
+    C3 --> PROOF_STEP
+    C4 --> PROOF_STEP
+    C5 --> PROOF_STEP
+
+    subgraph PROOF_STAGE ["Proof mix for A"]
+        direction TB
+        QUALIFY["Qualify the why<br/>Purpose, reasoning, design choice,<br/>trade-offs, constraints"]:::proof
+        QUANTIFY["Quantify the closure<br/>Coverage, boundedness, uniqueness, completeness,<br/>continuity, explicit authorities, explained mappings"]:::proof
+    end
+
+    PROOF_STEP --> QUALIFY
+    PROOF_STEP --> QUANTIFY
+
+    BI_CHECK{"Did this path trigger readiness-pressure thoughts?"}:::decision
+    QUALIFY --> BI_CHECK
+    QUANTIFY --> BI_CHECK
+    BI_CHECK -- "Yes - capture but do not solve here" --> EV5
+    BI_CHECK -- "No" --> PATH_LOOP
+
+    PATH_LOOP{"All paths in this group interrogated?"}:::decision
+    EV5 --> PATH_LOOP
+    PATH_LOOP -- "No" --> PATH_ENUM
+    PATH_LOOP -- "Yes" --> GROUP_SYN
+
+    GROUP_SYN["Synthesize group conclusion<br/>Show this path group is coherent, necessary,<br/>and intentionally designed"]:::groupconclusion
+
+    subgraph A_SYNTH ["A-level synthesis"]
+        direction TB
+        A_SYN["Synthesize A overall<br/>Demonstrate that the current wired platform is:<br/>- bounded into necessary groups<br/>- composed of purposeful paths<br/>- materially realized in resources<br/>- shaped by explicit contracts and laws<br/>- understood with known trade-offs and constraints"]:::goal
+        FINAL_CLAIMS["Final A-supporting claims<br/>1. The platform is a bounded set of necessary system obligations<br/>2. Each major path has a clear job and justification<br/>3. The logical design is materially seated in concrete resources<br/>4. The wiring honors data, trust, time, and control laws<br/>5. Constraints are known, not hidden"]:::claims
+    end
+
+    PATH_LOOP --> GROUP_SYN
+
+    GROUP_LOOP{"All functional path groups covered?"}:::decision
+    GROUP_SYN --> GROUP_LOOP
+    GROUP_LOOP -- "No" --> GROUP_DERIVE
+    GROUP_LOOP -- "Yes" --> A_SYN
+    A_SYN --> FINAL_CLAIMS
+    FINAL_CLAIMS --> META
+
+    A_DONE_CHECK{"A complete enough to support the meta-goal?"}:::decision
+    FINAL_CLAIMS --> A_DONE_CHECK
+
+    A_DONE_CHECK -- "No - unresolved ambiguity, weak purpose, or missing mapping" --> GROUP_DERIVE
+    A_DONE_CHECK -- "Yes - move later to Bi from a clean base" --> A_DONE["A achieved<br/>You now have a systems-design argument,<br/>not a component tour"]:::finish
+
+    classDef meta fill:#f8d7da,stroke:#b42318,color:#111;
+    classDef goal fill:#d1fadf,stroke:#027a48,color:#111;
+    classDef note fill:#fff7d6,stroke:#b54708,color:#111;
+    classDef step fill:#dbeafe,stroke:#1d4ed8,color:#111;
+    classDef boundary fill:#fee2e2,stroke:#b91c1c,color:#111;
+    classDef surface fill:#ecfccb,stroke:#4d7c0f,color:#111;
+    classDef decision fill:#ede9fe,stroke:#6d28d9,color:#111;
+    classDef claim fill:#fae8ff,stroke:#a21caf,color:#111;
+    classDef proof fill:#cffafe,stroke:#0f766e,color:#111;
+    classDef groupconclusion fill:#ffe4e6,stroke:#be123c,color:#111;
+    classDef claims fill:#e0f2fe,stroke:#0369a1,color:#111;
+    classDef finish fill:#f3f4f6,stroke:#374151,color:#111;
