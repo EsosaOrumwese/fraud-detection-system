@@ -1091,3 +1091,149 @@ I want to keep the interrogation of this path inside one entry:
 Plainly stated, the `Admission and disposition path` exists to make ingress truth explicit before event-bus truth begins, and its current design shows that this is deliberate, materially seated, and ownership-aware rather than hand-wavy.
 
 The next path is the `Authoritative bus publication path`.
+
+## 2026-03-12 09:21:41 +00:00 - Path interrogation: `Authoritative bus publication path`
+
+This path exists to turn ingress truth into authoritative event-bus truth. The previous path decides whether an event is admitted, quarantined, rejected, or duplicate-safe. This path answers the next question:
+
+For traffic that ingress has decided to admit, where does the platform authoritatively hand it off so runtime can begin?
+
+The pinned topic contracts make that answer explicit: the bus surfaces are authoritative, and IG is the producer for the traffic and context topics that feed RTDL. The design authority names Kafka topics as authoritative bus surfaces, and the topic map pins IG as the producer for `fp.bus.traffic.fraud.v1`, `fp.bus.context.arrival_events.v1`, `fp.bus.context.arrival_entities.v1`, and `fp.bus.context.flow_anchor.fraud.v1`.
+
+I want to keep the interrogation of this path inside one entry:
+
+1. what this path is trying to achieve:
+   - turn ingress truth into authoritative event-bus truth
+   - answer where admitted traffic is authoritatively handed off so runtime can begin
+   - keep bus handoff truth separate from both admission truth and later ingest-commit truth
+
+2. entry:
+   - the entry is admitted ingress event family that has already crossed the boundary and received admit-worthy disposition
+   - it is not raw source data in general, and it is not yet receipt truth
+   - the data-engine contract is what makes the family structure intelligible:
+     - only `behavioural_streams` are canonical traffic
+     - arrival, entity, and flow-anchor surfaces are context, not traffic
+     - traffic stays thin, and context is joined inside the platform rather than being smuggled into one fat payload
+   - that is why the publish surface is not just one topic
+   - it is family of traffic plus context topics
+
+3. owned outcome:
+   - the owned outcome is that the admitted ingress event family has been authoritatively handed off onto the pinned traffic and context topics that downstream RTDL is supposed to consume
+   - that is narrower than the claim that the platform can later prove offsets and summaries
+   - the durable offset and receipt rollup belongs to the next path, the ingest-commit-truth path
+   - this path closes earlier, at the point where the bus handoff itself is the real truth
+   - the docs support that split cleanly:
+     - the design authority and handles registry pin the topics and producer and consumer roles
+     - the readiness definition says admitted events must be published into the event transport network without ambiguity
+
+4. what the path carries:
+   - this path carries two kinds of things
+   - first, it carries the admitted traffic family:
+     - the canonical fraud traffic stream itself
+     - the associated arrival and context surfaces that downstream RTDL needs
+   - second, it carries the bus-level publication identity:
+     - the pinned topic names
+     - the partition-key rules
+     - the producer and consumer contract
+     - and, when publication is successful enough to be reconstructed later, topic, partition, and offset truth
+   - the topic map pins the concrete topic family and the partition keys:
+     - traffic and context both partition by `merchant_id`
+   - that already tells us this is not arbitrary publish shape but deliberate continuity rule across the ingress-to-context boundary
+
+5. broad route logic:
+   - admitted ingress event family -> IG publish logic -> pinned traffic and context topics on MSK -> bus-visible handoff to RTDL ingress, context, and join consumers
+   - that broad route matters because it shows the platform is not treating admitted as the same thing as downstream can now consume
+   - there is real handoff boundary in between, and it is Kafka and MSK, not hidden in-memory continuation
+   - the design authority is explicit that Kafka topics remain the authoritative bus surfaces, and the topic-continuity appendix pins IG as the producer and RTDL ingress, context, and join planes as the consumers
+
+6. logical design reading:
+   - logically, this path shows that the platform treats publish truth as its own truth boundary, not as casual extension of admission
+   - that is strong `A`-level design signal
+   - the system is not saying:
+     - once ingress says admit, we can assume runtime got it
+   - it is saying:
+     - admit truth and publish truth are different, and the publish boundary must be explicit, authoritative, and reconstructable
+   - that is exactly why the broader readiness language distinguishes admits valid traffic from publishes admitted events into the event transport network without ambiguity, and why truth-ownership boundaries are kept separate across planes
+
+7. concrete seating in the current wired system:
+   - this path is materially seated in concrete runtime and handles
+   - the bus is AWS MSK Serverless
+   - the producer boundary is IG
+   - the topic family is pinned by name
+   - the bootstrap and schema-registry handles are pinned
+   - and the producer and consumer map is pinned as well:
+     - `fp.bus.traffic.fraud.v1` - IG -> RTDL ingress
+     - `fp.bus.context.arrival_events.v1` - IG -> RTDL context
+     - `fp.bus.context.arrival_entities.v1` - IG -> RTDL context
+     - `fp.bus.context.flow_anchor.fraud.v1` - IG -> RTDL join plane
+   - so this is not conceptual story like "messages eventually go somewhere"
+   - the publish handoff is concretely seated in named managed bus, named topics, named partition rules, and named downstream consumers
+
+8. why the design looks like this:
+   - the design looks like this because the platform wants to preserve thin-traffic semantics while still giving RTDL enough context to work correctly
+   - that is why the publish boundary is not just one giant canonical payload topic
+   - the data-engine interface says traffic stays thin, joins happen inside the platform, and context surfaces like arrival events, arrival entities, and flow anchors are not to be treated as traffic
+   - the pinned topic set mirrors that semantic split directly:
+     - one traffic topic
+     - plus context topics feeding different RTDL consumers
+   - that is strong sign that the current bus shape is driven by system meaning, not by incidental implementation convenience
+
+9. what larger contracts are shaping this path:
+   - three larger contracts shape it
+   - first, the data-engine contract shapes what may be published as traffic and what must remain context-only:
+     - only behavioural streams are eligible as traffic
+     - arrival, entity, and flow-anchor surfaces are context for enrichment
+     - truth products and telemetry are not to be published as business traffic
+   - second, the topic and contract continuity law shapes where those things are published and who owns them:
+     - existing dev_min topic contracts remain authoritative unless explicitly repinned
+     - any new topic or schema surface must be pinned in the handles registry first
+   - that means the bus handoff is contract-governed, not ad hoc
+   - third, the ingress and control plane law shapes failure behavior:
+     - Kafka topics are authoritative bus surfaces
+     - the edge must enforce pinned limits
+     - fail-closed posture is part of the platform law
+   - so if publish outcome is ambiguous, the system is not allowed to quietly pretend success
+
+10. trade-offs and constraints:
+   - this path deliberately chooses explicit bus truth over simpler but weaker alternatives
+   - it would be easier to collapse admission and publish into one fuzzy notion of ingress handled it, or to publish only single flattened traffic topic and let downstream reconstruct context however it can
+   - but the current design rejects that
+   - it pays the cost of:
+     - maintaining topic family rather than one topic
+     - keeping producer and consumer contracts explicit
+     - treating publish ambiguity as real error class
+     - requiring schema and contract continuity rather than allowing silent reinterpretation
+   - the runtime notes show that this discipline has real consequences
+   - under more aggressive concurrency probe, the live ingress runtime surfaced `KAFKA_PUBLISH_TIMEOUT` and `PUBLISH_AMBIGUOUS`, and valid traffic was fail-closed into quarantine rather than being silently counted as successfully published
+   - that is important design signal:
+     - the platform would rather block than lie about bus truth
+
+11. necessity test:
+   - if this path is removed, the platform still has:
+     - ingress edge
+     - admission boundary
+     - RTDL components drawn downstream
+   - but it loses the clean truth that connects them
+   - without this path, reviewer could not answer:
+     - where admitted traffic actually enters the runtime network
+     - whether the full event family reached downstream consumers
+     - whether traffic and context separation was preserved
+     - whether publish ambiguity was handled honestly
+     - whether RTDL starvation is publish problem or downstream problem
+   - that would weaken `A` immediately, because the system would start looking like graph with missing ownership boundary between ingress and runtime
+
+12. what this path proves for `A`:
+   - purpose claim:
+     - the platform has distinct job for turning ingress truth into authoritative bus truth
+   - intentionality claim:
+     - the bus handoff is not generic pub/sub; it is semantically split traffic and context family that mirrors the engine's thin-traffic join posture
+   - materialization claim:
+     - the handoff is concretely seated in MSK Serverless, pinned topic names, pinned partition keys, and pinned IG -> RTDL producer and consumer roles
+   - contract claim:
+     - the path is governed by topic continuity, traffic taxonomy, and fail-closed truth-boundary laws
+   - constraint-awareness claim:
+     - publish ambiguity is treated as real boundary defect, not silently absorbed as success
+
+Plainly stated, the `Authoritative bus publication path` exists to turn admitted ingress traffic into explicit, semantically correct, contract-governed runtime handoff, and its current design shows that this handoff is deliberate, materially seated, and truth-boundary aware rather than implicit.
+
+The next path is the `Ingest commit truth path`.
