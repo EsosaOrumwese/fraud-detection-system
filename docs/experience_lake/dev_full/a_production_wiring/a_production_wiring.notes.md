@@ -6522,3 +6522,113 @@ That is a major `A` win, because it shows the current wired system has a genuine
 
 The next step is `overall A synthesis`.
 
+## 2026-03-12 14:29:47 +00:00 - Pre-synthesis reset before `overall A synthesis`
+
+The shape of the notebook is now clear again.
+
+The meta-goal is still implicit:
+
+make a serious reader infer senior-level ML Platform and MLOps capability from the structure of the work, not from self-assertion.
+
+Inside that, `A` is also still implicit:
+
+show that the current wired platform is a real, bounded, intentional, understood engineered system.
+
+And the method chosen for `A` is still the right one:
+
+- not a component tour
+- but an obligation-led systems-design interrogation
+
+That interrogation is now materially complete at the lower levels:
+
+- obligation inventory pinned
+- functional groups derived
+- real paths defined
+- paths interrogated
+- groups synthesized upward
+
+So the next step is no longer discovery.
+
+It is compression into one argument.
+
+The `overall A synthesis` now needs to do four things well:
+
+1. state the single big claim that all 7 groups jointly support
+2. show how the groups together close the main proof categories:
+   - completeness
+   - existence
+   - uniqueness
+   - continuity
+   - safety
+3. preserve the `A` boundary by keeping `Bi` material parked as spillover rather than letting hardening and proof-pressure history take over the story
+4. carry forward unresolved `A` ambiguities honestly, without letting them dissolve the core claim
+
+The lower-level excavation is now sufficient. The remaining task is to compress it into one architecture claim without losing the truth-boundary structure.
+
+So the notebook is ready to move into:
+
+`overall A synthesis`.
+
+## 2026-03-12 14:43:25 +00:00 - `overall A synthesis`
+
+`A` now supports one clear claim:
+
+the current wired platform is a real, bounded, intentional, materially seated full-lifecycle system whose major truth boundaries are explicit, owned, and governable.
+
+It is not just a set of cloud services or a project diagram. It is a managed-first platform with explicit phase closure, explicit evidence, and explicit runtime and evidence roots across spine, learning and evolution, and operational closure under one run and process contract.
+
+The strongest overall story is the end-to-end chain the notebook has now made legible. The platform begins from run legitimacy and source legitimacy, turns only canonical behavioural traffic into governed runtime entry truth, builds real-time decision truth through explicit RTDL boundaries, turns runtime behavior into durable audit and archive truth, turns some of that truth into operational case truth and authoritative label truth, turns archive plus label truth into governed learning and promotion truth, and then closes the whole run through reconstruction, verdict, idle-safe teardown, and cost accountability. That is the current wired architecture `A` has surfaced.
+
+The deepest thing `A` proves is truth-boundary ownership. The platform is not treating data moved as enough. It is explicit that ingress truth stays ingress truth, RTDL decision, action, and lineage truth stays RTDL truth, case truth stays case-management truth, label truth stays label truth, dataset truth stays offline-dataset truth, model-eval truth stays train-and-eval truth, and active model or policy truth stays registry truth. That is the clearest single sign that the current wired system is architected intentionally rather than accreted service by service.
+
+`A` also now proves material existence, not just conceptual design. The current wired platform is seated on explicit managed and runtime surfaces across control, ingress, RTDL, case and label, learning and evolution, and operations and governance. The run and process contract also pins durable evidence roots and requires explicit pass gates plus durable commit evidence for closure. So the architecture described in the notebook is not aspirational; it is attached to concrete runtime and evidence surfaces.
+
+Across the proof categories, `A` is now strong.
+
+It closes `completeness` because it covers all major planes rather than only the hot path:
+
+- control and ingress
+- RTDL
+- case and label
+- learning and evolution
+- operations, governance, and meta
+
+and it ties them together under one closure map.
+
+It closes `existence` because every major boundary is materially seated.
+
+It closes `uniqueness` because the run and process law insists on one active runtime path per phase or run, explicit active-bundle resolution, explicit append-only ownership, and explicit gates and evidence.
+
+It closes `continuity` because the architecture now reads as one causal chain from source world to runtime to supervision to learning to governed activation to run closure.
+
+It closes `safety` because the whole design is fail-closed on the right things:
+
+- no future leakage
+- no silent defaulting
+- no read without pass
+- no shadow truth ownership
+- no phase closure without evidence
+- no advancement on unattributed spend
+
+The remaining `A` ambiguities are now narrower than the core claim.
+
+The main ones are explanatory:
+
+- keeping platform run identity distinct from sealed source-world identity
+- keeping current wired runtime seating distinct from target or retained runtime posture where those differ
+- keeping audit truth, archive truth, replay-reference closure, case truth, label truth, dataset truth, and runtime authority truth separate in the reader-facing story instead of letting them collapse into broader convenience labels
+
+Those are still real synthesis risks, but they no longer overturn the underlying architecture claim. They are now clarity risks rather than existence risks.
+
+So the honest verdict is:
+
+`A` is substantively achieved as a systems-design argument.
+
+That does not mean nothing remains to test. It means the core architectural claim now stands:
+
+the current wired platform is a real, intentional, full-lifecycle engineered system with explicit truth boundaries, explicit runtime and evidence seating, and explicit closure and governance laws.
+
+The next step is the skeptical reviewer pass:
+
+pressure the overall `A` argument by asking whether any major part still looks accidental, hand-wavy, unjustified, or unmapped.
+
