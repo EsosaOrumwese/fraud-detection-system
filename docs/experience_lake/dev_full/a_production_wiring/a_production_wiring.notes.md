@@ -603,3 +603,125 @@ I want to keep the interrogation of this path inside one entry:
 Plainly stated, the `Source realization path` exists to make the external engine world a governed, platform-usable source basis, and its current design shows that this is deliberate, materially seated, ownership-aware, and semantically constrained rather than informal.
 
 The next clean move is the `Ready authorization path`.
+
+## 2026-03-12 05:52:46 +00:00 - Path interrogation: `Ready authorization path`
+
+This path exists to turn a run from "eligible to become ready" into "authoritatively declared ready." In the run-process, that is not a soft health signal; it is a formal closure point. `P5 READY_PUBLISHED` only closes when READY is emitted to the control topic, the READY receipt is committed, duplicate or ambiguous READY is prevented, and the commit authority is validated as Step Functions rather than Flink-only compute. The design authority says the same thing in broader architectural language: READY/control stays Kafka-backed, but closure authority stays with Step Functions.
+
+I want to keep the interrogation of this path inside one entry:
+
+1. what this path is trying to achieve:
+   - turn a run from eligible-to-become-ready into authoritatively declared ready
+   - make readiness a formal closure point rather than a soft health signal
+   - keep readiness under control-plane authority rather than letting compute alone close the gate
+
+2. entry:
+   - the entry is not "the stream lane looks healthy"
+   - the entry is the narrower and more governed condition defined by the run-process:
+     - SR joins and replay prerequisites already pass
+     - the control-topic contract is already pinned
+     - the required P5 handle set is resolved
+     - the Step Functions authority surface resolves to a real active state machine
+   - in executed prechecks, that meant validating run-continuity handoff, resolving the Step Functions handle chain, and confirming the control-topic anchors before READY publication was attempted
+
+3. owned outcome:
+   - the owned outcome is an authoritatively ready run, not merely a computed readiness hint
+   - concretely, the pass condition is:
+     - READY emitted to `fp.bus.control.v1`
+     - READY receipt committed with a Step Functions execution reference
+     - duplicate or ambiguous READY absent
+     - authority proven to be Step Functions
+   - in authoritative execution, that ended with a READY event on the control topic and a committed ready receipt under the run evidence root
+   - later gate advance is downstream consequence, not the primary owned closure of this path
+
+4. what the path carries:
+   - run identity:
+     - `platform_run_id`
+     - `scenario_run_id`
+   - run-scoped READY publication controls:
+     - READY message filter
+     - control-topic partitioning key
+   - the READY signal itself
+   - the Step Functions execution reference that makes the receipt authoritative
+   - the broader run-process also pins the correlation contract around these kinds of transitions, requiring run-scoped identity continuity across orchestrator transitions and evidence emission
+
+5. broad route logic:
+   - SR prerequisites satisfied -> READY computed and published on the control bus -> Step Functions commits READY as control authority -> durable READY receipt becomes the authoritative proof
+   - that broad route matters because it keeps compute and authority separate
+   - Flink or other runtime surfaces may participate in producing the conditions for readiness, but the system is explicitly designed so that compute does not unilaterally close the gate
+   - the control plane closes it
+
+6. logical design reading:
+   - logically, this path shows that the platform treats readiness as an authorization problem, not just a liveness problem
+   - that is an important `A`-level design signal
+   - the platform does not say "the lane emitted something, therefore we are ready"
+   - it says "a run becomes ready only when the control plane, under the single-active-path law, records READY through the pinned authority"
+   - that is exactly the kind of thing that makes the current wired system look governed rather than improvised
+
+7. concrete seating in the current wired system:
+   - the control surface is the Kafka control topic `fp.bus.control.v1`
+   - the control-plane authority is the concrete Step Functions state machine `fraud-platform-dev-full-platform-run-v0`
+   - the READY receipt lands in the run evidence surface under the run's S3 evidence root
+   - the handle contract pins:
+     - `READY_MESSAGE_FILTER = "platform_run_id=={platform_run_id}"`
+     - `KAFKA_PARTITION_KEY_CONTROL = "platform_run_id"`
+     - `SR_READY_COMMIT_RECEIPT_PATH_PATTERN = "evidence/runs/{platform_run_id}/sr/ready_commit_receipt.json"`
+   - this is a very strong `A` signal because the path is not only conceptually designed; it is concretely realized
+
+8. why the design looks like this:
+   - the implementation notes make the design reasoning explicit
+   - letting Flink-ready output implicitly close `P5` was rejected
+   - allowing dynamic runtime fallback mid-phase for convenience was rejected
+   - both were rejected because they weaken deterministic gate closure, evidence attribution, and auditable control-plane ownership
+   - so the current shape is intentional: Step Functions remains the sole READY commit authority, and the path must stay single and explicit during the phase
+   - there is also a second layer of reasoning in the execution trail: when READY publication initially failed, the remediation did not weaken the proof rule, fake a receipt, or shift authority
+   - instead, the system used bounded diagnostics, fixed the publisher defect, and then proved READY publication and receipt cleanly
+   - that matters because it shows the path's design was preserved under friction rather than diluted
+
+9. what larger contracts are shaping this path:
+   - the main shaping pressure here is the platform's own control and evidence law more than the data-engine interface
+   - the run-process requires explicit PASS gates and durable commit evidence for closure
+   - the design authority requires one active runtime path per phase, forbids in-phase switching, and requires Step Functions-backed run-state orchestration
+   - the observability contract requires run-scoped correlation across orchestrator transitions and evidence surfaces
+   - so this path is shaped by the platform's governance law, not just by convenience or local runtime behavior
+
+10. trade-offs and constraints:
+   - this path deliberately adds ceremony and friction
+   - READY cannot be implied
+   - you need:
+     - a control topic
+     - a run-scoped filter
+     - a Step Functions execution reference
+     - duplicate and ambiguity checks
+     - durable evidence
+   - that is more demanding than a looser design, but it buys deterministic gate ownership and cleaner replay/audit semantics
+   - it also constrains implementation choices: in-phase switching is prohibited, and even when publish-path defects appeared, the fix had to preserve the same authority and evidence model rather than bypass it
+
+11. necessity test:
+   - if this path is removed, the platform can still have running components and even source-realized data, but it loses a clean answer to a crucial question:
+     - who said this run was ready, and what makes that claim authoritative?
+   - without this path, readiness collapses into a vague runtime feeling
+   - the platform would lose:
+     - deterministic READY ownership
+     - the committed ready receipt
+     - duplicate and ambiguity discipline
+     - the boundary between compute output and control-plane authorization
+   - that would weaken `A` immediately, because a reviewer could fairly say the wired system is still hand-wavy at the exact moment it claims to become operational
+
+12. what this path proves for `A`:
+   - purpose claim:
+     - the platform has a dedicated job for authorizing readiness, rather than treating readiness as an implicit side effect
+   - intentionality claim:
+     - the route is deliberately control-plane-backed, with Step Functions as sole commit authority
+   - materialization claim:
+     - the path is concretely seated in the control topic, state machine, and S3 receipt surfaces
+   - constraint-awareness claim:
+     - the design knowingly rejects convenience patterns like Flink-only closure or in-phase switching because they would weaken evidence attribution
+   - quantified closure claim:
+     - the entry precheck resolved all required P5 handles
+     - the authority surface was active
+     - the authoritative READY commit closed green with zero blockers before the rollup advanced the next gate
+
+Plainly stated, the `Ready authorization path` exists to make "this run is now ready" an explicit, control-plane-owned, durable fact, and its current design shows that this is deliberate, materially seated, and governance-driven rather than accidental.
+
+The next clean move is the `Canonical traffic admission and bus publication` group, starting with its first real path.
