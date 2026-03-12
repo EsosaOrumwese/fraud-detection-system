@@ -3103,6 +3103,983 @@ So the pinned Group 5 path set is:
 
 That is the clean split I want to use before dropping back down into per-path interrogation.
 
+## 2026-03-12 12:13:34 +00:00 - Path interrogation: `Run reconstruction and receipt closure path`
+
+This path exists to turn the already-closed runtime and learning lanes into an exact run story. Its job is not yet to append governance facts, not yet to publish the final full-platform verdict, and not yet to tear the platform down. Its narrower job is to answer: can the platform reconstruct exactly what happened in this run, from the receipts and closure artifacts produced by the earlier lanes? That is a real owned boundary in the operations, governance, and meta layer. The platform is only considered production-ready when it can support run-identity uniqueness, receipt completeness, evidence readback success, and verdict traceability. Earlier spine observability closure also already treated run report and reconciliation as a distinct owned closure.
+
+I want to keep the interrogation of this path inside one entry:
+
+1. what this path is trying to achieve:
+   - turn already-closed runtime and learning lanes into an exact run story
+   - keep this path narrower than governance append, final verdict publication, and teardown
+   - answer whether the platform can reconstruct exactly what happened in this run from durable receipts and closure artifacts
+
+2. entry:
+   - the entry is not that the platform did some work
+   - the entry is that the earlier closure lanes are already green, and their receipts and evidence surfaces are available for reconciliation
+   - the run-process and closure plans make this concrete by requiring:
+     - earlier spine lanes already closed
+     - closure-input evidence readiness from earlier outputs
+     - reporter runtime identity and lock readiness
+     - single-writer contention proof
+     - and closure-bundle completeness
+   - so this path begins only after the earlier lanes have already produced the receipts they are supposed to produce
+
+3. owned outcome:
+   - the owned outcome is committed run report plus reconciliation truth for this run
+   - that is narrower than governance append and narrower than the final verdict bundle
+   - this path closes when the platform has produced a truthful reconstruction of the run from earlier lane receipts and can show that the receipts are complete, coherent, and readable under one run scope
+   - that is why spine observability closure treats run report and reconciliation as an explicit pass object before later governance and verdict publication layers advance
+
+4. what the path carries:
+   - this path carries the objects needed to reconstruct the run rather than merely narrate it:
+     - run identity and scope continuity
+     - lane-level receipts from the earlier phases
+     - closure-input evidence from the earlier platform lanes
+     - receipt-completeness expectations
+     - readback checks
+     - and reconciliation outputs that compare what each lane claims against what the run actually closed with
+   - the operations and governance proof surfaces make those categories explicit:
+     - receipt completeness
+     - evidence readback success
+     - and verdict traceability from verdict to evidence to run scope
+   - that means this path is carrying not just summaries, but the evidence needed to prove that the run story is complete and attributable
+
+5. broad route logic:
+   - lane receipts and closure artifacts from earlier phases -> reporter and reconciliation corridor -> committed run report plus reconciliation truth
+   - that broad route matters because it shows the platform is not treating run reconstruction as a human afterthought
+   - there is dedicated corridor whose job is to read the earlier closures and turn them into coherent, explicit run story
+   - the spine observability closure plan says this directly:
+     - deterministic run-closeout evidence
+     - run report and reconciliation closure
+     - and single-writer governance posture
+
+6. logical design reading:
+   - logically, this path shows that the platform treats the run happened and the run can be reconstructed exactly as two different truths
+   - that is strong `A`-level design signal
+   - the system is not saying:
+     - the earlier phases are green, so the run story is obvious
+   - it is saying:
+     - there is dedicated closure boundary where the platform must prove that the run is reconstructable from durable receipts and readable evidence
+   - that makes the current wired platform look governed and explorable, not just operational
+
+7. concrete seating in the current wired system:
+   - this path is materially seated in the current wired platform
+   - the copied baseline wired graphs already show concrete run-report and reconciliation surfaces
+   - the closure plans then break the corridor into real operated steps for:
+     - reporter runtime identity and lock readiness
+     - single-writer contention probe
+     - reporter one-shot execution
+     - closure-bundle completeness validation
+     - and run-reconstruction rollup plus handoff publication
+   - the execution trail shows this was not theoretical:
+     - reporter runtime identity and lock readiness closed green
+     - single-writer contention closed green
+     - reporter one-shot execution closed green
+     - closure-bundle completeness closed green
+     - run-reconstruction rollup and handoff publication closed green
+     - and closure sync plus cost-outcome validation closed green
+   - so this path is already real operated closure corridor in the current wired platform, not aspirational reporting idea
+
+8. why the design looks like this:
+   - the design looks like this because the platform refuses two weak shortcuts:
+     - all the earlier lanes were green as proxy for exact run reconstruction
+     - manual operator interpretation as substitute for dedicated reconciliation boundary
+   - that is why the closure plan explicitly required:
+     - closure-input evidence readiness
+     - reporter one-shot execution
+     - single-writer contention proof
+     - closure-bundle completeness
+     - and deterministic run-reconstruction verdict publication
+   - the execution trail reinforces the same intent
+   - the corridor did not close just because the reporter could run once
+   - it had to survive:
+     - lock and readiness checks
+     - single-writer contention proof
+     - closure-bundle completeness
+     - and then explicit run-reconstruction rollup with handoff publication
+   - that is the shape of a system that takes run reconstruction seriously
+
+9. what larger contracts are shaping this path:
+   - several larger contracts shape it strongly
+   - the operations, governance, and meta contract shapes the expectations:
+     - run identity uniqueness
+     - receipt completeness
+     - evidence readback success
+     - verdict traceability
+     - and metric freshness
+   - the run-close contract shapes the closure:
+     - run report and reconciliation committed
+     - governance append closure committed
+     - and non-regression anchor pack emitted
+   - and the design-authority proof law shapes the overall posture:
+     - no section is considered closed without explicit deploy, monitor, fail, recover, rollback, and cost-control proof obligations
+     - and run-scoped correlation and evidence are pinned parts of the meta layer
+
+10. trade-offs and constraints:
+   - this path deliberately adds another formal closure boundary after the main runtime and learning lanes
+   - that costs:
+     - reporter corridor
+     - reconciliation logic
+     - receipt-completeness expectations
+     - evidence-readback checks
+     - single-writer discipline
+     - and another explicit closure verdict
+   - but that cost buys something important
+   - the platform can later answer not just what passed, but:
+     - what exactly happened
+     - under which run scope
+     - with which receipts
+     - and whether the story is complete
+   - that matters directly for the meta-goal
+   - a serious reviewer is much more likely to see engineering ownership when the run can be reconstructed exactly, rather than merely asserted
+
+11. necessity test:
+   - if you remove this path, the platform can still:
+     - ingest traffic
+     - make decisions
+     - append audit truth
+     - create cases and labels
+     - build datasets
+     - train and promote
+   - but it loses a clean answer to:
+     - whether the receipts from those lanes are complete
+     - whether the evidence is readable and coherent under one run scope
+     - whether the earlier closures can be reconstructed exactly
+     - and whether the later verdict is grounded in real reconciliation rather than hand-assembled summary
+   - that would weaken `A` immediately, because reviewer could fairly say the platform has many green lanes but no explicit owner for the exact run story that ties them together
+   - the ops and governance docs reject exactly that looseness by pinning exact run reconstruction as production-readiness concern
+
+12. what this path proves for `A`:
+   - this path supports several `A`-level claims strongly
+   - it supports purpose claim:
+     - the platform has distinct job for turning lane-level receipts into exact run story before governance and final-verdict layers advance
+   - it supports intentionality claim:
+     - run reconstruction is not left to operator memory
+     - it is designed reporter and reconciliation boundary
+   - it supports materialization claim:
+     - this boundary is concretely seated in the run-report and reconciliation corridor, with already executed subphases for lock readiness, one-shot execution, bundle completeness, and rollup
+   - it supports contract claim:
+     - the path is governed by receipt completeness, evidence readback success, verdict traceability, and deterministic run-scope continuity
+   - it supports constraint-awareness claim:
+     - the platform already knows reconstruction can fail through missing receipts, unreadable evidence, writer contention, or incoherent bundle inputs
+     - which is why the closure corridor treated those as explicit blocker families rather than assuming the run could always be summarized later
+
+So, in plain language:
+
+`the run reconstruction and receipt closure path exists to turn earlier lane receipts into an exact, readable, attributable run story, and its current design shows that this boundary is deliberate, materially seated, and reconciliation-driven rather than implicit.`
+
+The next path in this group is the `Governance append and close-marker path`.
+
+## 2026-03-12 12:13:34 +00:00 - Path interrogation: `Governance append and close-marker path`
+
+This path exists to turn run-close reconstruction truth into governance truth that is append-safe and explicitly closed. Its job is not to reconstruct the run, and it is not yet to publish the full final-platform verdict. Its narrower job is to answer: once the platform knows what happened in the run, where does it append that closure truth and how does it mark the run as formally closed? The run-close and observability closure docs make that boundary explicit. Spine observability closure does not close on run report and reconciliation alone; it also requires governance append closure, and its commit evidence includes a governance close marker. The handles and evidence contracts then pin the two concrete surfaces that belong to this path: the governance append log and the closure marker.
+
+I want to keep the interrogation of this path inside one entry:
+
+1. what this path is trying to achieve:
+   - turn run-close reconstruction truth into append-safe governance truth that is explicitly closed
+   - keep this path narrower than run reconstruction and narrower than final-verdict publication
+   - answer where the platform appends closure truth and how it marks the run as formally closed
+
+2. entry:
+   - the entry is not that the platform is done enough
+   - the entry is run report plus reconciliation truth already committed, with the earlier spine lanes already reconciled under one run scope
+   - that is the right boundary because the spine observability closure sequence requires:
+     - run report and reconciliation first
+     - governance append closure next
+     - then non-regression anchors
+     - then later handoff and cost-outcome closure
+   - so this path begins after the exact run story is already known, not before
+
+3. owned outcome:
+   - the owned outcome is append-safe governance truth plus a formal run-close marker under the run evidence scope
+   - that is narrower than the later final-verdict bundle
+   - this path closes when the platform has:
+     - appended the governance record safely
+     - materialized the close marker under the run scope
+     - and verified that both surfaces are schema-correct, run-scope-correct, and order-safe
+   - that is exactly how the closure notes describe the successful lane:
+     - governance append and marker surfaces passed schema, run-scope, and order checks
+     - and the governance append plus closure marker were materialized under the evidence run scope
+
+4. what the path carries:
+   - this path carries the minimum things needed to make closure governance durable rather than merely descriptive:
+     - run identity and run scope
+     - the reconciled closure truth from the previous path
+     - append-log facts that record the closure progression
+     - the formal close-marker object that declares the run closed
+     - and enough publication and readback information to prove those objects are actually present under the authoritative evidence scope
+   - the handles and evidence contracts make the concrete targets explicit:
+     - governance append log under the run-scoped governance surface
+     - governance closure marker under the same run scope
+   - and the closure-verification lane makes the proof object explicit too:
+     - governance append and closure-marker surfaces are verified together with the run-completed closure refs
+
+5. broad route logic:
+   - reconciled run-close truth -> governance append corridor -> append log under run scope -> closure marker under run scope -> later verdict and handoff lanes can trust formal closure
+   - that broad route matters because it shows the platform is not treating closure as:
+     - a report exists, therefore the run is closed
+   - it inserts dedicated governance boundary in between
+   - the closure plan is explicit here:
+     - after run report and reconciliation, the next owned lane is governance append closure and run-close marker
+     - only after that does the phase move on to non-regression pack generation and final spine closure rollup
+
+6. logical design reading:
+   - logically, this path shows that the platform treats run understanding and run closure governance as two different truths
+   - that is strong `A`-level design signal
+   - the system is not saying:
+     - once we can explain the run, closure is obvious
+   - it is saying:
+     - there is dedicated append-safe governance boundary where the platform records and marks closure explicitly
+   - that makes the current wired system look controlled rather than merely observable
+   - it also matches the broader authority style:
+     - no phase is valid without explicit proof obligations
+     - and closure is not allowed to rest on informal operator interpretation
+
+7. concrete seating in the current wired system:
+   - this path is materially seated in the current wired platform
+   - the concrete durable surfaces are pinned in object storage under the run evidence scope:
+     - governance append log
+     - governance closure marker
+   - and this was not merely planned
+   - the governance-closure verification lane is already closed green and records the actual governance projection outputs under the concrete run scope
+   - the same closure note says these surfaces passed schema, run-scope, and order checks
+   - so this boundary is already real operated closure lane in the current wired platform, not just diagram idea
+
+8. why the design looks like this:
+   - the design looks like this because the platform refuses two weak shortcuts:
+     - the run report exists as proxy for formal closure
+     - mutable summary object as substitute for append-safe governance history plus close marker
+   - that is why the closure plan includes dedicated governance-append and closure-marker verification lane
+   - and why its definition of done requires that the governance append log and closure marker are committed and append-safe
+   - the successful governance-closure verification reinforces the same intent
+   - it did not simply check that files existed
+   - it verified schema, run-scope, and ordering coverage before allowing the phase to advance
+   - that is exactly what you would expect from system that wants governance closure to be explicit truth boundary rather than cosmetic artifact
+
+9. what larger contracts are shaping this path:
+   - several larger contracts shape it strongly
+   - the spine observability closure contract shapes the requirement:
+     - run report and reconciliation committed
+     - governance append closure committed
+     - and non-regression anchor pack emitted
+   - the handles and evidence contract shapes the concrete surfaces:
+     - append-log path pattern
+     - close-marker path pattern
+   - the governance-closure execution contract shapes the lane itself:
+     - dedicated verification lane for append and close-marker surfaces
+     - fail-closed blocker family for governance append or closure-marker failure
+   - and the broader design authority shapes the posture behind it:
+     - explicit proof obligations
+     - drift watch on evidence gaps
+     - and post-run audit ritual before advancing
+
+10. trade-offs and constraints:
+   - this path deliberately adds another formal closure boundary after reconstruction
+   - that costs:
+     - append-safe governance mechanics
+     - one more durable evidence surface
+     - one more ordering and run-scope verification step
+     - and one more explicit blocker family
+   - but that cost buys something important
+   - the platform can later answer not just what happened, but:
+     - whether closure was formally recorded
+     - whether closure history is append-safe
+     - whether the run was actually marked closed under the right scope
+     - and whether later verdict and handoff artifacts are built on real closure marker rather than informal assumptions
+   - that matters directly for the meta-goal
+   - serious reviewer will trust system more if closure is explicitly governed and durable, not only summarized
+
+11. necessity test:
+   - if you remove this path, the platform can still:
+     - reconstruct the run
+     - produce receipts
+     - and maybe even publish later verdict
+   - but it loses a clean answer to:
+     - where formal closure was appended
+     - what marks the run as closed
+     - whether closure history is append-safe
+     - and whether later verdict and handoff lanes are building on explicit closure truth or just on the existence of a report
+   - that would weaken `A` immediately, because reviewer could fairly say the platform can explain the run but has no explicit owner for formal governance closure itself
+   - the phase plan rejects exactly that looseness by making governance append and close-marker verification dedicated lane
+
+12. what this path proves for `A`:
+   - this path supports several `A`-level claims strongly
+   - it supports purpose claim:
+     - the platform has distinct job for turning reconstructed run truth into append-safe governance closure before final-verdict publication advances
+   - it supports intentionality claim:
+     - append log and close marker are designed closure objects, not optional reporting extras
+   - it supports materialization claim:
+     - this boundary is concretely seated in named run-scope governance surfaces and already executed governance-closure verification lane
+   - it supports contract claim:
+     - the path is governed by spine observability closure, append-safe governance requirements, explicit path-handle contracts, and fail-closed blocker discipline
+   - it supports constraint-awareness claim:
+     - the platform already knows this boundary can fail through schema drift, unreadable objects, bad run-scope binding, or ordering violations
+     - which is why the governance-closure lane checked those explicitly instead of assuming file exists means closed
+
+So, in plain language:
+
+`the governance append and close-marker path exists to turn reconstructed run truth into explicit, append-safe formal closure under the run scope, and its current design shows that this boundary is deliberate, materially seated, and governance-first rather than implicit.`
+
+The next path in this group is the `Proof-matrix and final-verdict publication path`.
+
+## 2026-03-12 12:13:34 +00:00 - Path interrogation: `Proof-matrix and final-verdict publication path`
+
+This path exists to turn all prior closed platform truth into one explicit final judgment of the whole platform. Its job is not to reconstruct the run, and it is not yet to tear the platform down. Its narrower job is to answer: once every required lane has produced its closure evidence, how does the platform turn that into one blocker-free, evidence-backed final verdict? That is exactly how the full-platform closure boundary is defined. The whole platform only closes when the full source matrix is blocker-free, the six-proof matrix is complete for each major lane, and the final verdict is published. The run-close and verdict contracts name the commit evidence for that boundary as the full-platform verdict bundle.
+
+I want to keep the interrogation of this path inside one entry:
+
+1. what this path is trying to achieve:
+   - turn all prior closed platform truth into one explicit final judgment of the whole platform
+   - keep this path narrower than general platform completion and narrower than teardown and idle-safe closure
+   - answer how the platform turns blocker-free evidence from all required lanes into one final verdict object
+
+2. entry:
+   - the entry is not simply that many things are green
+   - the entry is that all prior required phases have no unresolved blockers, and the source material needed to judge the whole platform is available
+   - that matters because this path is not allowed to invent verdict from partial evidence
+   - the final-phase closure sequence makes that concrete by requiring:
+     - authority and handle closure first
+     - full source matrix closure next
+     - six-proof matrix closure after that
+     - and only then final verdict publication
+
+3. owned outcome:
+   - the owned outcome is published, readable, deterministic full-platform verdict bundle
+   - that is narrower than the broader notion that the program is done and narrower than teardown or idle-safe closure
+   - this path closes when the platform has:
+     - aggregated the authoritative source matrix
+     - proven six-proof completeness for the required lanes
+     - and published one final verdict bundle to the run-scoped truth surface
+   - the final-phase closure definition is explicit that the final verdict bundle must be committed and readable at the run-scoped truth surface
+
+4. what the path carries:
+   - this path carries the minimum things needed to make the final judgment trustworthy rather than hand-wavy:
+     - the full source matrix across earlier closures
+     - the six-proof matrix for each required major lane
+     - closure summaries from the earlier lanes
+     - the verdict bundle itself
+     - and the readback identity needed to prove that what was published is the same object that was generated
+   - that is visible directly in the managed implementation of the verdict lane
+   - the lane resolves scope-complete coverage from the authoritative source-matrix snapshot
+   - appends summary checks from the earlier final-phase steps
+   - publishes the final-verdict bundle both to run-control and to the rendered run-scoped full-verdict path
+   - and then verifies that readback contains the same execution identity
+
+5. broad route logic:
+   - authoritative source summaries -> full source matrix -> six-proof completeness matrix -> deterministic verdict assembly -> published full-verdict bundle at the run-scoped truth surface
+   - that broad route matters because it shows the platform is not treating all green as self-explanatory
+   - it inserts dedicated judgment boundary between:
+     - earlier lane closure
+     - and the whole-platform claim
+   - the final-phase build plan is explicit that this phase is strictly sequenced and fail-closed around exactly those objects:
+     - source matrix
+     - six-proof matrix
+     - final verdict publication
+     - and only later teardown and post-teardown closure
+
+6. logical design reading:
+   - logically, this path shows that the platform treats platform activity, platform closure, and platform judgment as three different truths
+   - that is strong `A`-level design signal
+   - the system is not saying:
+     - because the earlier lanes closed green, the final verdict is obvious
+   - it is saying:
+     - there is dedicated boundary where the platform must prove that every required source is represented, every required proof class is complete, and the final judgment is then published deterministically
+   - that is exactly the kind of systems-design maturity that helps the meta-goal, because it shows that whole-platform claims are not left implicit or rhetorical
+
+7. concrete seating in the current wired system:
+   - this path is materially seated in the current wired platform
+   - at the authority level, the run-close and final-phase contracts assign this boundary to the verdict-aggregator corridor and give it the full-platform closure anchor
+   - at the execution level, the final-phase plan makes final verdict publication its own managed subphase
+   - and the implementation notes show that this lane was actually materialized and executed:
+     - it added a managed final-verdict closure mode
+     - built the final-verdict bundle
+     - published it to both run-control and the rendered full-verdict path
+     - and verified readback identity via execution id
+   - this means the boundary is not just conceptual
+   - it already exists as real operated lane in the current platform
+
+8. why the design looks like this:
+   - the design looks like this because the platform refuses two weak shortcuts:
+     - all upstream phases are green as proxy for valid whole-platform verdict
+     - summary report as substitute for deterministic, scope-complete, proof-complete verdict object
+   - that is why the run-close and verdict contracts hard-pin the three-part pass condition:
+     - full source matrix blocker-free
+     - six-proof matrix complete
+     - final verdict published
+   - the implementation trail reinforces the same intent
+   - the first managed verdict run failed closed because the lane was enforcing the wrong source-row rule against legacy pre-run row
+   - the remediation was not to weaken the verdict boundary
+   - it was to preserve strict checks for normal rows, handle legacy-scoped rows explicitly, and rerun the full lane
+   - that is exactly what serious final-judgment boundary should do
+
+9. what larger contracts are shaping this path:
+   - several larger contracts shape it strongly
+   - the full-platform closure contract defines the immediate rule:
+     - full source matrix blocker-free
+     - six-proof matrix complete
+     - final verdict published
+   - the full-platform proof-matrix law defines what complete means:
+     - for each major lane, the platform must publish proof of deploy, monitor, failure drill, recovery, rollback, and cost-control
+     - no lane may claim closure without that six-part proof set
+   - the final-phase execution contract then shapes the current wired realization:
+     - strict sequencing
+     - fail-closed blocker family for verdict inconsistency or publication failure
+     - final verdict readability at the run-scoped truth surface
+     - and parity checks across the closure summaries
+
+10. trade-offs and constraints:
+   - this path deliberately adds one more formal judgment boundary after all the other major platform work is already done
+   - that costs:
+     - one more source-matrix aggregation step
+     - one more proof-matrix completeness step
+     - one more publication and readback verification step
+     - and another explicit fail-closed blocker family
+   - but that cost buys something important
+   - the platform can later answer not just what each lane claims, but:
+     - whether all required lanes were represented
+     - whether each lane really satisfied all six proof classes
+     - whether the final verdict was internally consistent
+     - and whether the published verdict object is actually the same one the lane generated
+   - that is very strong systems-design move, because it turns full platform green from slogan into governed, verifiable object
+
+11. necessity test:
+   - if you remove this path, the platform can still:
+     - close the spine
+     - close learning
+     - promote a bundle
+     - reconstruct the run
+     - and maybe even produce later operations snapshots
+   - but it loses a clean answer to:
+     - whether the whole platform is actually blocker-free
+     - whether every required proof class is represented
+     - whether the final claim of closure is internally consistent
+     - and whether there is single authoritative final verdict object at all
+   - that would weaken `A` immediately, because reviewer could fairly say the platform has many closure receipts but no explicit owner for whole-platform judgment that ties them together
+   - the run-close and verdict contracts reject exactly that looseness by making the full source matrix, six-proof matrix, and final verdict bundle mandatory
+
+12. what this path proves for `A`:
+   - this path supports several `A`-level claims strongly
+   - it supports purpose claim:
+     - the platform has distinct job for turning all prior closure evidence into one explicit full-platform judgment
+   - it supports intentionality claim:
+     - source-matrix completeness, six-proof completeness, and deterministic verdict publication are designed closure objects, not afterthoughts
+   - it supports materialization claim:
+     - this boundary is concretely seated in the managed verdict-aggregator lane, with real final-verdict bundle and readback identity checks already implemented
+   - it supports contract claim:
+     - the path is governed by full-platform closure, the six-proof matrix law, and explicit verdict publication and readability rules
+   - it supports constraint-awareness claim:
+     - the platform already knows this boundary can fail through missing rows, unreadable summaries, legacy-scope misclassification, or verdict inconsistency
+     - which is why the lane is fail-closed and source-scope-aware rather than permissive
+
+So, in plain language:
+
+`the proof-matrix and final-verdict publication path exists to turn all prior closure evidence into one explicit, evidence-complete whole-platform judgment, and its current design shows that this boundary is deliberate, materially seated, and verdict-governed rather than implicit.`
+
+The next path in this group is the `Drift-visible observability attestation path`.
+
+## 2026-03-12 12:13:34 +00:00 - Path interrogation: `Drift-visible observability attestation path`
+
+This path exists to turn live platform behavior into trustworthy operator visibility and drift-attestation truth. Its job is not to reconstruct the run after the fact, not to append governance closure facts, and not to publish the final whole-platform verdict. Its narrower job is to answer: while the platform is live, can operators see the right runtime surfaces, detect drift before false certification, and trust that what looks green is actually the active path doing real work? That is a real owned boundary in the operations, governance, and meta layer. The platform is only production-ready when it can be operated, observed, audited, reconstructed, cost-controlled, and governed like a real production system, and the final-phase plan makes drift detection before false certification, metric freshness, and critical alert coverage first-class proof objectives rather than optional nice-to-haves.
+
+I want to keep the interrogation of this path inside one entry:
+
+1. what this path is trying to achieve:
+   - turn live platform behavior into trustworthy operator visibility and drift-attestation truth
+   - keep this path narrower than after-the-fact reconstruction, governance closure, and final-verdict publication
+   - answer whether operators can see the right runtime surfaces, detect drift before false certification, and trust that visible green really belongs to the active path
+
+2. entry:
+   - the entry is not that some logs exist
+   - the entry is a working platform with declared active runtime path, the real runtime surfaces that path uses, and an observability and control scope ready to attest those same surfaces live
+   - the final-phase telemetry plan is explicit that this proof runs on top of the already working platform
+   - and that live boundary health must include active drift checks reading the same runtime surfaces the platform actually uses
+   - the broader design authority also pins fail-closed runtime-path governance:
+     - every phase selects exactly one active runtime path
+     - records it in run-control evidence
+     - and forbids in-phase path switching
+
+3. owned outcome:
+   - the owned outcome is observability attestation truth that the active runtime path is visible, fresh, attributable, and drift-checked enough to support safe certification
+   - that outcome is narrower than the final verdict
+   - it closes when the platform can truthfully claim things like:
+     - metric freshness is within budget
+     - critical alert coverage exists for declared failure families
+     - placeholder handle count in the active runtime path is zero
+     - required secret and handle resolution succeeds
+     - and drift between live runtime and declared active path is visible rather than hidden
+
+4. what the path carries:
+   - this path carries the things needed to make live observability authoritative rather than decorative:
+     - run-scoped correlation fields
+     - telemetry from the actual active runtime surfaces
+     - dashboard and alarm state
+     - handle-resolution state for the active path
+     - and durable attestation artifacts such as correlation audits or freshness and coverage checks
+   - those objects are concretely pinned in the handles registry and design authority:
+     - OpenTelemetry is enabled
+     - the correlation mode is pinned
+     - required correlation fields are pinned
+     - a correlation audit surface is pinned
+     - and named dashboards and alarms are pinned for platform operations, cost guardrails, error rate, RTDL lag, and ingress HTTP anomalies
+
+5. broad route logic:
+   - declared active runtime path plus live telemetry, traces, and logs from those same surfaces -> freshness, alert, drift, and handle checks -> observability attestation truth for the run
+   - that broad route matters because it shows the platform is not treating observability as:
+     - there are some dashboards
+   - it is explicitly checking whether live signals come from the same active path the platform claims to be using
+   - whether those signals stay fresh
+   - and whether drift is detectable before false-green certification is allowed
+   - that is exactly how the final-phase telemetry plan phrases live boundary health and fail-fast triggers
+
+6. logical design reading:
+   - logically, this path shows that the platform treats runtime execution truth and runtime visibility truth as two different boundaries
+   - that is strong `A`-level design signal
+   - the system is not saying:
+     - because the platform is running, operators must be able to see it correctly
+   - it is saying:
+     - there is dedicated boundary where visibility itself has to be proven
+     - freshness, alert coverage, drift visibility, correlation continuity, and active-path fidelity all have to be checked as their own truth
+   - that is much more serious operational posture than simply having metrics present
+
+7. concrete seating in the current wired system:
+   - this path is materially seated in the current wired platform
+   - the handles registry pins concrete observability surfaces including:
+     - the platform log-group namespace
+     - the collector surface
+     - the primary metrics and log exporter
+     - required correlation headers and fields
+     - the correlation-audit surface
+     - platform operations and cost dashboards
+     - and critical alarms for platform error rate, RTDL lag, and ingress HTTP anomaly
+   - the implementation trail also shows this was treated as real executed proof boundary, not only static config
+   - the earlier observability proof lane explicitly probed:
+     - the ingress edge
+     - the orchestrator surface
+     - the stream-lane telemetry surface
+     - and the observability lane
+   - it failed closed when ingress correlation-carriage proof and telemetry proof were insufficient
+   - and it repinned the fix to emit structured correlation evidence before rerunning green
+
+8. why the design looks like this:
+   - the design looks like this because the platform refuses two weak shortcuts:
+     - we have dashboards as proxy for trustworthy observability
+     - stale or partial telemetry as proxy for active-path truth
+   - the operations, governance, and meta readiness definition says this plane is not production-ready merely because dashboards, receipts, budgets, or teardown workflows exist
+   - the platform must show that observability is usable for diagnosis and prevention, that drift is visible, and that hidden operational shortcuts are not accepted
+   - the earlier observability implementation history reinforces that intent
+   - when the live ingress boundary lacked correlation-carriage proof, the answer was not to relax the gate
+   - it was to remediate the runtime boundary and rerun the proof
+
+9. what larger contracts are shaping this path:
+   - several larger contracts shape it strongly
+   - the operations, governance, and meta metric contract shapes the closure criteria:
+     - metric freshness
+     - critical alert coverage
+     - placeholder-handle count
+     - required-handle resolution
+     - and drift-detection success
+   - the final-phase telemetry plan shapes how those criteria are observed:
+     - dashboard freshness
+     - alert fire and clear counts
+     - active drift checks on the same runtime surfaces
+     - and fail-fast on drift between live runtime and declared active path
+   - the design authority shapes the instrumentation law:
+     - OpenTelemetry-first
+     - run-scoped correlation continuity across edge, stream processors, orchestrators, custom runtimes, and evidence writers
+     - with fail-closed closure if required correlation fields are missing
+
+10. trade-offs and constraints:
+   - this path deliberately adds another formal boundary on top of already-running lanes
+   - that costs:
+     - more instrumentation
+     - explicit correlation propagation
+     - dashboard and alert validation
+     - freshness checks
+     - active-path drift checks
+     - and handle and secret attestation for the runtime actually in use
+   - but that cost buys something important
+   - the platform can later answer not just what ran, but:
+     - whether operators had truthful live view of what ran
+     - whether alerts covered the right failure families
+     - and whether green-looking system was actually the declared active path rather than stale or wrong surface
+   - that is exactly why the final-phase plan treats drift visibility before certification as qualitative proof objective instead of leaving it implicit
+
+11. necessity test:
+   - if you remove this path, the platform can still:
+     - execute lanes
+     - append governance facts
+     - publish final verdict
+     - and maybe even tear down safely
+   - but it loses a clean answer to:
+     - whether the metrics were fresh
+     - whether alarms covered real critical failures
+     - whether the active runtime path matched the observed surfaces
+     - whether handles and secrets on the live path were actually resolved
+     - and whether operators could have detected drift before falsely certifying the run
+   - that would weaken `A` immediately, because reviewer could fairly say the platform runs and reports, but has no explicit owner for truthful live visibility and drift attestation
+   - the operations, governance, and meta definition rejects exactly that looseness
+
+12. what this path proves for `A`:
+   - this path supports several `A`-level claims strongly
+   - it supports purpose claim:
+     - the platform has distinct job for proving that live operator visibility is fresh, attributable, and aligned to the active runtime path before certification proceeds
+   - it supports intentionality claim:
+     - dashboards, alarms, correlation audits, and drift checks are designed closure objects, not decorative tooling
+   - it supports materialization claim:
+     - this boundary is concretely seated in pinned observability surfaces, named dashboards and alarms, and already executed correlation and telemetry proof lanes
+   - it supports contract claim:
+     - the path is governed by final-phase metric and fail-fast rules, the OpenTelemetry-first correlation law, and the placeholder-handle and required-handle closure rules
+   - it supports constraint-awareness claim:
+     - the platform already knows this boundary can fail through stale metrics, missing observability surfaces, correlation gaps, or active-path drift
+     - which is why those failures were treated as explicit blockers rather than tolerated noise
+
+So, in plain language:
+
+`the drift-visible observability attestation path exists to prove that the live platform can be seen truthfully on the same runtime surfaces it is actually using, and its current design shows that this boundary is deliberate, materially seated, and fail-closed against false visibility rather than implicit.`
+
+The next path in this group is the `Idle-safe teardown and residual-readability path`.
+
+## 2026-03-12 12:13:34 +00:00 - Path interrogation: `Idle-safe teardown and residual-readability path`
+
+This path exists to turn a fully closed platform run into an idle-safe, restart-safe, cost-safe post-run posture. Its job is not to reconstruct the run, not to append governance facts, and not to publish the final verdict bundle. Its narrower job is to answer: once the platform has finished proving itself, can it be brought down to a safe idle state without hidden cost, hidden runtime residue, or broken evidence readability? The run-close and operations contracts make that boundary explicit. After final verdict publication, the platform only closes if non-essential runtime is scaled to zero or destroyed, no forbidden residual resources remain, a budget and cost snapshot is committed, and evidence remains readable post-teardown. The production-readiness definition says the same thing in plane language: the environment must be safely idled or closed without hidden leftovers, with residuals detectable and evidence still usable.
+
+I want to keep the interrogation of this path inside one entry:
+
+1. what this path is trying to achieve:
+   - turn fully closed platform run into idle-safe, restart-safe, cost-safe post-run posture
+   - keep this path narrower than run reconstruction, governance append, and final-verdict publication
+   - answer whether the platform can be brought down to safe idle state without hidden cost, hidden runtime residue, or broken evidence readability
+
+2. entry:
+   - the entry is not that the operator wants to stop spending money
+   - the entry is that the full-platform verdict has already been published, and the platform is now entering the formal teardown and idle-safe closure corridor
+   - that sequencing matters
+   - safe-idle closure is only allowed after final-platform judgment is already published
+   - and the final-phase plan preserves that order exactly:
+     - final verdict publication first
+     - then teardown plan
+     - then teardown execution
+     - then residual risk and post-teardown readability
+     - then post-teardown cost guardrail
+     - then final closure sync
+
+3. owned outcome:
+   - the owned outcome is idle-safe teardown truth
+   - meaning the platform can prove that non-essential runtime has been shut down or destroyed, no forbidden residuals remain, post-teardown evidence is still readable, and the cost posture has been captured
+   - that is narrower than final verdict and narrower than the later cost-to-outcome closure
+   - this path closes when the platform can say:
+     - the live runtime is gone or quiesced
+     - residual risk is bounded or zero
+     - evidence is still readable
+     - and the run is safe to leave idle
+
+4. what the path carries:
+   - this path carries the specific closure objects that make teardown trustworthy rather than anecdotal:
+     - teardown plan truth
+     - teardown execution results
+     - residual scan results
+     - post-teardown evidence readability checks
+     - the teardown snapshot
+     - the cost guardrail snapshot
+     - and the residual scan report that the safe-idle closure names as commit evidence
+   - the final-phase plan makes that corridor concrete by splitting it into:
+     - teardown plan closure
+     - teardown execution closure
+     - residual risk and post-teardown readability closure
+     - and post-teardown cost guardrail closure
+
+5. broad route logic:
+   - final verdict published -> teardown plan -> teardown execution -> residual and readability verification -> post-teardown cost guardrail snapshot -> idle-safe closure truth
+   - that broad route matters because it shows the platform is not treating teardown as:
+     - switch things off and hope
+   - it is dedicated closure corridor with explicit sub-boundaries:
+     - execution of teardown
+     - verification that residuals are gone or acceptable
+     - verification that evidence is still readable
+     - and verification that cost posture is now safe
+
+6. logical design reading:
+   - logically, this path shows that the platform treats successful operation and safe idling as two different truths
+   - that is strong `A`-level design signal
+   - the system is not saying:
+     - because the platform ran correctly, shutting it down safely is obvious
+   - it is saying:
+     - there is dedicated boundary where the platform must prove it can stop, leave no hidden runtime cost behind, and still preserve readable evidence
+   - that is much more mature operational posture than simply having destroy command
+
+7. concrete seating in the current wired system:
+   - this path is materially seated in the current wired platform
+   - at the authority level, safe-idle closure is named run-process phase with explicit pass gates and explicit commit evidence
+   - at the execution level, the final-phase plan makes teardown and idle-safe closure managed sequence
+   - and the implementation trail shows those lanes were actually executed and closed green:
+     - teardown execution closure
+     - residual readability closure
+     - and post-teardown cost guardrail closure
+   - the current operated evidence is especially strong here
+   - the post-build teardown verification records:
+     - idle safe true
+     - residual item count zero
+     - non-essential EKS nodegroups at zero
+     - ECS services with desired count above zero at zero
+     - active EMR runs at zero
+     - active SageMaker endpoints at zero
+   - and it also records run-scoped teardown cost snapshot under the evidence bucket
+   - that is strong `A`-style proof that this boundary is real and materially exercised, not just planned
+
+8. why the design looks like this:
+   - the design looks like this because the platform refuses two weak shortcuts:
+     - final verdict is green as proxy for operationally safe closure
+     - teardown executed as proxy for zero residual cost or readable post-run evidence
+   - that is why the platform split the final phase into explicit teardown steps
+   - and why the safe-idle closure names evidence readability and residual-resource absence as separate pass conditions
+   - the production-readiness definition says the same thing in broader terms:
+     - idle and teardown correctness is about cost, hygiene, and repeatability, not just deletion success
+   - the implementation trail reinforces that same intent
+   - when the user requested post-build pause teardown, the platform did not just assume the environment was idle-safe
+   - it ran the existing managed teardown chain, then separately verified:
+     - residual posture
+     - evidence readability
+     - and cost-guardrail posture
+
+9. what larger contracts are shaping this path:
+   - several larger contracts shape it strongly
+   - the safe-idle closure contract defines the immediate rule:
+     - non-essential runtime scaled to zero or destroyed
+     - no forbidden residual resources
+     - budget and cost snapshot committed
+     - evidence remains readable post-teardown
+   - the operations, governance, and meta production-ready contract sharpens the semantics:
+     - the environment must be safely idled
+     - residual resources must be detectable
+     - restart from idle must not corrupt the platform
+     - and no hidden long-running cost surfaces may remain unintentionally
+   - the budget and teardown posture in the run-process also shapes the boundary:
+     - idle-safe posture is mandatory at run closure
+     - and missing cost-control closure at safe-idle stage is explicitly treated as fail-closed problem
+
+10. trade-offs and constraints:
+   - this path deliberately adds formal post-run boundary after the platform has already finished
+   - that costs:
+     - teardown plan
+     - teardown execution orchestration
+     - residual scan logic
+     - post-teardown readability checks
+     - cost-guardrail snapshots
+     - and one more explicit blocker family
+   - but that cost buys something important
+   - the platform can later answer not just that it worked, but:
+     - whether it can be stopped safely
+     - whether it leaks cost when idle
+     - whether its evidence remains usable after stopping
+     - and whether restart-from-idle is being protected as operational discipline rather than left to luck
+   - that matters directly for the meta-goal, because real production ownership includes knowing how to stop and idle system safely, not only how to run it
+
+11. necessity test:
+   - if you remove this path, the platform can still:
+     - close its runtime planes
+     - publish final verdict
+     - append governance facts
+     - and even publish cost snapshots later
+   - but it loses a clean answer to:
+     - whether the environment is actually idle-safe
+     - whether non-essential compute is really gone
+     - whether residual resources are visible
+     - whether evidence survived teardown readably
+     - and whether post-run cost posture is safe enough to leave unattended
+   - that would weaken `A` immediately, because reviewer could fairly say the platform can run and judge itself, but has no explicit owner for safe stop and safe idle as operational truth
+   - the production-readiness definition rejects exactly that looseness
+
+12. what this path proves for `A`:
+   - this path supports several `A`-level claims strongly
+   - it supports purpose claim:
+     - the platform has distinct job for turning full-platform closure into safe idle posture rather than assuming teardown is trivial
+   - it supports intentionality claim:
+     - teardown, residual scan, evidence readability, and cost guardrail are designed closure objects, not cleanup chores
+   - it supports materialization claim:
+     - this boundary is concretely seated in the safe-idle closure corridor, in the managed teardown chain, and in real evidence artifacts and snapshots already produced by the platform
+   - it supports contract claim:
+     - the path is governed by safe-idle closure, by operations and governance idle-safety requirements, and by explicit residual, cost, and readability conditions
+   - it supports constraint-awareness claim:
+     - the platform already knows this boundary can fail through residual cost risk or unreadable post-teardown evidence
+     - which is why those conditions are named blockers rather than informal operator concerns
+
+So, in plain language:
+
+`the idle-safe teardown and residual-readability path exists to turn a fully closed platform run into a formally safe idle posture with zero unintended runtime residue and readable post-run evidence, and its current design shows that this boundary is deliberate, materially seated, and cost-safe rather than implicit.`
+
+The next path in this group is the `Cost guardrail and cost-to-outcome closure path`.
+
+## 2026-03-12 12:13:34 +00:00 - Path interrogation: `Cost guardrail and cost-to-outcome closure path`
+
+This path exists to turn a fully closed run posture into attributable spend truth. Its job is not to tear the platform down, and it is not to publish the final platform verdict. Its narrower job is to answer: once the run is operationally closed, can the platform prove what it spent, what budget envelope governed that spend, and what proof or risk-retirement outcome that spend actually bought? That is not an accidental reading. The design authority pins a cost-to-outcome operating law: every phase must declare a pre-run spend envelope, every phase closure must publish a cost-to-outcome receipt, and no phase may advance on unattributed spend or spend without material proof outcome. The final closure plan then states that the platform only fully closes when the full-platform verdict and idle-safe posture are followed by explicit cost closure.
+
+I want to keep the interrogation of this path inside one entry:
+
+1. what this path is trying to achieve:
+   - turn fully closed run posture into attributable spend truth
+   - keep this path narrower than teardown truth and narrower than final platform judgment
+   - answer whether the platform can prove what it spent, what budget envelope governed that spend, and what proof or risk-retirement outcome that spend actually bought
+
+2. entry:
+   - the entry is not simply that billing data exists
+   - the entry is that the platform has already published the final verdict, already completed teardown, residual, and readability closure, and the cost-control handles for this phase are resolved
+   - that sequencing is explicit in the final closure plan:
+     - post-teardown cost guardrail closure first
+     - phase budget and cost-outcome closure next
+     - and final closure sync after that
+   - the current execution trail also shows that this boundary only opens when the cost-control handles are actually interpretable
+   - the first cost-outcome closure run failed closed because budget threshold handles were missing or invalid in parsing
+
+3. owned outcome:
+   - the owned outcome is blocker-free cost guardrail snapshot plus committed phase budget envelope and phase cost-to-outcome receipt for the run window
+   - that is narrower than the teardown truth and narrower than the final verdict
+   - this path closes when the platform can say:
+     - the run is idle-safe
+     - the cost snapshot is committed
+     - the budget envelope is committed
+     - the cost-outcome receipt is committed
+     - and the spend is attributable to explicit artifacts and an explicit decision or risk retired
+   - the run-process and handles contracts make that concrete through the required cost snapshot, budget envelope, and receipt fields for phase, execution scope, spend window, spend amount, emitted artifacts, and decision or risk retired
+
+4. what the path carries:
+   - this path carries the control objects that make spend truth auditable rather than anecdotal:
+     - budget thresholds
+     - phase spend envelope
+     - run-scoped teardown cost snapshot
+     - cost-capture scope and currency
+     - spend amount for the closure window
+     - the artifact set emitted in that window
+     - and the statement of what proof or risk was retired by that spend
+   - the handles and cost-control contracts pin those exact surfaces:
+     - cost-guardrail snapshot
+     - phase budget envelope
+     - phase cost-outcome receipt
+     - daily cost posture
+     - and the required receipt fields
+
+5. broad route logic:
+   - post-teardown runtime posture plus cost capture plus pinned budget handles -> cost guardrail snapshot -> phase budget envelope plus cost-outcome receipt -> blocker-free cost closure truth
+   - that broad route matters because it shows the platform is not treating cost as afterthought or monthly dashboard check
+   - it is dedicated closure corridor inside the final phase
+   - sequenced after teardown and readability and before final closure sync
+
+6. logical design reading:
+   - logically, this path shows that the platform treats the run is closed and the spend for that run is attributable and justified as two different truths
+   - that is strong `A`-level design signal
+   - the system is not saying:
+     - because the platform worked, the spend must have been fine
+   - it is saying:
+     - there is dedicated boundary where the platform must prove that spend was bounded, attributable, and tied to explicit proof outcome
+   - that is exactly the production-ready posture the authority pins:
+     - no spend-only progress
+     - no avoidable idle burn
+     - and no phase advancement on unattributed spend
+
+7. concrete seating in the current wired system:
+   - this path is materially seated in the current wired platform
+   - the evidence surfaces are concrete:
+     - run-scoped teardown cost snapshot
+     - run-control phase budget envelope
+     - run-control phase cost-outcome receipt
+   - and this is not only planned
+   - the execution record shows:
+     - post-teardown cost guardrail closure closed green with idle-safe posture, zero residual items, and published run-scoped snapshot
+     - the first cost-outcome closure attempt failed closed because budget threshold handles were missing or invalid in parsing
+     - and then the cost-outcome lane reran green after the numeric-handle parser was fixed
+   - so this boundary is already real operated lane in the current platform, not future accounting idea
+
+8. why the design looks like this:
+   - the design looks like this because the platform refuses two weak shortcuts:
+     - the budget exists somewhere as proxy for cost control
+     - the run is done as proxy for spend being justified
+   - that is why the authority pins full cost-to-outcome law:
+     - pre-run spend envelope
+     - post-run cost-outcome receipt
+     - fail-closed on spend breach
+     - fail-closed on missing proof artifacts
+     - daily cost posture for active windows
+     - and default runtime posture of off when not proving
+   - there is also honest current-wired nuance here
+   - the handles registry preserves explicit cost-capture scope and defer history rather than faking full billing coverage
+   - in other words, the platform prefers declared capture scope to invented completeness
+   - that is the same design attitude seen across the other paths
+
+9. what larger contracts are shaping this path:
+   - several larger contracts shape it strongly
+   - the design-authority cost law shapes the semantics:
+     - every phase must declare its envelope
+     - every phase must emit receipt
+     - spend must map to proof or risk retired
+     - and no phase advances on unattributed spend
+   - the handles contract shapes the concrete object model:
+     - snapshot path
+     - envelope path
+     - receipt path
+     - required receipt fields
+     - and hard-stop-on-missing-outcome posture
+   - the operations, governance, and meta metric contract shapes the proof target:
+     - unattributed spend equals zero
+     - and cost-guardrail telemetry is first-class final-phase metric
+   - and the final closure contract shapes the execution order:
+     - post-teardown cost guardrail first
+     - phase cost-outcome closure next
+     - then final sync
+
+10. trade-offs and constraints:
+   - this path deliberately adds one more formal closure boundary after the platform has already finished
+   - that costs:
+     - budget-envelope generation
+     - cost-capture processing
+     - explicit receipt generation
+     - post-teardown cost snapshotting
+     - and one more fail-closed blocker family
+   - but that cost buys something important
+   - the platform can later answer not just what it spent, but:
+     - what window that spend belonged to
+     - what artifacts were emitted
+     - what proof or risk was retired
+     - whether the spend breached the declared envelope
+     - and whether the run left idle-cost problem behind
+   - that is exactly why the first cost-outcome closure was allowed to fail closed on parsing defect in numeric budget handles instead of being waved through
+   - the platform preferred strict cost truth over fake green
+
+11. necessity test:
+   - if you remove this path, the platform can still:
+     - reconstruct the run
+     - append governance facts
+     - publish the final verdict
+     - and tear down safely
+   - but it loses a clean answer to:
+     - how much this phase or window actually spent
+     - whether that spend was inside the declared envelope
+     - what proof or decision outcome the spend actually bought
+     - whether the run left unattributed spend
+     - and whether the post-run posture is genuinely cost-safe
+   - that would weaken `A` immediately, because reviewer could fairly say the platform can operate and close, but has no explicit owner for spend accountability itself
+   - the authority docs reject exactly that looseness
+
+12. what this path proves for `A`:
+   - this path supports several `A`-level claims strongly
+   - it supports purpose claim:
+     - the platform has distinct job for turning operational closure into attributable spend truth before the run can be considered fully closed
+   - it supports intentionality claim:
+     - cost guardrail snapshot, budget envelope, and cost-outcome receipt are designed closure objects, not finance afterthoughts
+   - it supports materialization claim:
+     - this boundary is concretely seated in pinned run-scoped and run-control evidence surfaces and in already executed managed cost-closure lanes
+   - it supports contract claim:
+     - the path is governed by the cost-to-outcome operating law, the receipt-field contract, the hard-stop-on-missing-outcome rule, and the final-phase unattributed-spend target
+   - it supports constraint-awareness claim:
+     - the platform already knows this boundary can fail through missing handles, invalid threshold parsing, unreadable receipts, or undeclared spend scope
+     - which is why the cost-outcome closure failed closed first and only advanced after the parsing defect was fixed
+
+So, in plain language:
+
+`the cost guardrail and cost-to-outcome closure path exists to turn post-run operational closure into explicit, attributable spend truth, and its current design shows that this boundary is deliberate, materially seated, and fail-closed against unattributed spend rather than implicit.`
+
+That finishes the per-path interrogation for `Group 7`.
+
 ## 2026-03-12 11:12:34 +00:00 - Path interrogation: `Case-intent escalation path`
 
 This path exists to turn RTDL decision-worthy and audit-worthy outputs into case-intent truth. Its job is not yet to create the case record, not yet to append the operational case timeline, and not yet to create label truth. Its narrower job is to answer which RTDL outcomes deserve operational review work at all. The production-readiness definition makes that boundary explicit: the case-trigger surface exists to turn decision-worthy and audit-worthy signals into case-intent signals, and the whole Case + Label plane is only correct if the right RTDL outputs become case-worthy signals before they become cases.
@@ -4708,3 +5685,108 @@ I want to keep the interrogation of this path inside one entry:
 Plainly stated, the `Active-bundle authority feedback path` exists to turn governed promoted registry state into the actual runtime decision authority, and its current design shows that this boundary is deliberate, materially seated, and drift-resistant rather than implicit.
 
 That finishes the per-path interrogation for Group 6.
+
+## 2026-03-12 12:03:37 +00:00 - Enumerating the real paths in Group 7: Run governance and observability closure
+
+For the run governance and observability closure group, I want to pin 6 real paths.
+
+I am not deriving them from tool buckets like dashboards, reporter, or teardown alone. I am deriving them from the owned closure truths this group is supposed to produce:
+
+- exact run reconstruction
+- verdict traceability
+- governed append and closure
+- drift-visible observability
+- idle-safe teardown
+- and attributable spend
+
+That shape is already implicit in the final ops and governance scope, the full-platform closure and teardown gates, the later execution plans, and the pinned handles for governance, cost, and teardown.
+
+1. `Run reconstruction and receipt closure path`
+   - definition:
+     - lane-level receipts and run-control evidence -> reporter and reconciliation corridor -> exact run reconstruction truth
+   - why it is a real path:
+     - the ops and governance plane explicitly asks whether runs can be reconstructed exactly
+     - and its scope includes run control and receipts plus reporter, scorecard, and rollup
+     - the earlier spine observability closure already treated run report plus reconciliation as distinct owned closure
+     - and the final-phase closure still depends on a full source matrix and readable evidence surfaces rather than vague the run looked fine posture
+
+2. `Governance append and close-marker path`
+   - definition:
+     - run-close and reconciliation truth -> governance append surfaces -> append log plus closure-marker truth
+   - why it is a real path:
+     - the platform pins governance append and run-close marker as explicit truth surfaces, not just as details inside summary
+     - the handles registry names the run-scoped governance append log and closure marker
+     - and the earlier observability closure already had dedicated governance-append and closure-marker verification step
+     - that makes this real truth boundary, not just part of verdict bundle
+
+3. `Proof-matrix and final-verdict publication path`
+   - definition:
+     - full source matrix plus six-proof matrix plus closure evidence -> deterministic full-platform verdict bundle
+   - why it is a real path:
+     - the full-platform closure has very specific owned outcome:
+       - full source matrix blocker-free
+       - six-proof matrix complete
+       - final verdict published
+     - the final-phase plan mirrors that exactly with separate closure of source matrix, six-proof matrix, and final verdict publication
+     - so this is clearly distinct closure path:
+       - not ops stuff in general
+       - but path that makes the platform's final judgment explicit and evidence-backed
+
+4. `Drift-visible observability attestation path`
+   - definition:
+     - live runtime surfaces plus OTel correlation plus dashboards, alerts, and freshness checks -> active-path observability and drift-detection truth
+   - why it is a real path:
+     - the ops and governance plane is not only about receipts after the fact
+     - it also asks whether the platform can detect drift before false certification, whether metric freshness is acceptable, whether critical alert coverage exists, and whether the same runtime surfaces the platform actually uses are being watched
+     - the design authority pins OTel-first run-scoped correlation, required correlation fields, and required artifacts
+     - while the readiness ledger and final plan make metric freshness, critical alert coverage, placeholder-handle count, and drift detection between live runtime and declared active path first-class concerns
+
+5. `Idle-safe teardown and residual-readability path`
+   - definition:
+     - final verdict truth -> teardown plan and execution -> residual scan plus post-teardown evidence readability -> idle-safe closure truth
+   - why it is a real path:
+     - the teardown and idle-safe closure is clearly its own owned outcome:
+       - non-essential runtime scaled to zero or destroyed
+       - no forbidden residual resources
+       - evidence remains readable
+       - cost snapshot committed
+     - the final plan then expands that into:
+       - teardown plan
+       - teardown execution
+       - residual risk
+       - and post-teardown readability
+     - so this is not just cleanup
+     - it is real closure path that answers whether the platform can safely idle and restart without leaving hidden cost or unreadable evidence behind
+
+6. `Cost guardrail and cost-to-outcome closure path`
+   - definition:
+     - phase and run activity -> budget envelope plus attributable spend plus cost guardrail snapshots -> cost-to-outcome truth
+   - why it is a real path:
+     - the ops and governance law treats cost as first-class closure object, not sidebar
+     - the handles registry pins cost guardrail snapshots, phase budget envelope, phase cost-outcome receipt, daily cost posture, and residual-scan posture
+     - and both the design authority and build plan say no phase may advance on unattributed spend
+     - the final-phase plan then makes that concrete with post-teardown cost guardrail closure and phase budget plus cost-outcome closure
+     - so this path has distinct owned outcome:
+       - bounded, attributable operational spend linked to actual proof and decision outcomes
+
+What I do not want to count as separate real paths:
+
+- authority and handle closure as its own real path here
+  - it is crucial, but in this group it behaves more like entry and guard condition across the governance corridors than separate truth boundary
+- dashboards, alarms, and metrics as standalone path
+  - they belong inside the drift-visible observability attestation path, because their owned outcome is not that dashboard exists, but runtime-operable observability and drift visibility
+- teardown and cost guardrails collapsed into one path
+  - the docs keep those separate on purpose:
+    - one answers safe idle, residual risk, and evidence readability
+    - the other answers attributable spend, budget, and cost-to-outcome discipline
+
+So the pinned Group 7 path set is:
+
+- `Run reconstruction and receipt closure path`
+- `Governance append and close-marker path`
+- `Proof-matrix and final-verdict publication path`
+- `Drift-visible observability attestation path`
+- `Idle-safe teardown and residual-readability path`
+- `Cost guardrail and cost-to-outcome closure path`
+
+That is the clean split I want to use before dropping back down into per-path interrogation.
