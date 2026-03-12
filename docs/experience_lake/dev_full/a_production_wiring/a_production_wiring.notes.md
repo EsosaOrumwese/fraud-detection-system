@@ -3102,3 +3102,656 @@ So the pinned Group 5 path set is:
 - `Authoritative label commit and visibility path`
 
 That is the clean split I want to use before dropping back down into per-path interrogation.
+
+## 2026-03-12 11:12:34 +00:00 - Path interrogation: `Case-intent escalation path`
+
+This path exists to turn RTDL decision-worthy and audit-worthy outputs into case-intent truth. Its job is not yet to create the case record, not yet to append the operational case timeline, and not yet to create label truth. Its narrower job is to answer which RTDL outcomes deserve operational review work at all. The production-readiness definition makes that boundary explicit: the case-trigger surface exists to turn decision-worthy and audit-worthy signals into case-intent signals, and the whole Case + Label plane is only correct if the right RTDL outputs become case-worthy signals before they become cases.
+
+I want to keep the interrogation of this path inside one entry:
+
+1. what this path is trying to achieve:
+   - turn RTDL decision-worthy and audit-worthy outputs into case-intent truth
+   - keep this path narrower than case creation, case timeline truth, and label truth
+   - answer which RTDL outcomes deserve operational review work at all
+
+2. entry:
+   - the entry is not raw traffic and not generic RTDL liveness
+   - the entry is the subset of RTDL decision and audit outputs that are eligible to become operational review truth
+   - the platform's own path language says the case-escalation path begins from RTDL decision and audit outputs
+   - and the Case + Label readiness plan says the plane is proved only after the already-working upstream decision surfaces feed the case-trigger boundary correctly
+   - that means this path begins only once RTDL has already produced usable decision and audit truth
+
+3. owned outcome:
+   - the owned outcome is case-intent truth and a clean handoff into the case-trigger boundary
+   - that is narrower than a case exists
+   - this path closes when the platform has made explicit, duplicate-safe, replay-stable determination that a given upstream decision or audit signal is case-worthy and has handed that truth to the next boundary
+   - it does not close when case management creates the case; that is the next path
+   - the copied baseline wired graph makes that owned outcome concrete:
+     - the case-trigger topic is a pinned handoff surface
+     - the case-trigger surface publishes into it
+     - and case management consumes from it
+
+4. what the path carries:
+   - this path carries the minimum things needed to make case-intent truth meaningful and later reconstructable:
+     - the upstream RTDL decision or audit signal that made the event case-worthy
+     - run-scope continuity
+     - enough identity to suppress duplicates correctly
+     - and enough boundary provenance that later case-management and audit surfaces can explain why the case exists at all
+   - the surrounding Case + Label contract is explicit that the plane must remain fully auditable, that duplicate and replay behavior must not corrupt truth, and that the live telemetry must preserve RTDL-to-case-trigger event movement and run-scope continuity into case and label outputs
+   - that tells me this path is carrying more than open case please
+   - it is carrying operational truth with continuity obligations
+
+5. broad route logic:
+   - RTDL decision and audit outputs -> case-trigger selection and suppression logic -> case-intent truth -> case-trigger topic -> case-management intake
+   - that broad route matters because it shows the platform is not treating operational review as something case management should infer for itself from all RTDL outputs
+   - there is distinct boundary where the system says:
+     - this RTDL result is case-worthy
+   - that is exactly why the case-trigger topic exists as named handoff surface
+
+6. logical design reading:
+   - logically, this path shows that the platform treats escalation selection as its own truth boundary
+   - that is strong `A`-level design signal
+   - the system is not saying:
+     - once RTDL emits decisions, case management can decide what matters
+   - it is saying:
+     - there is dedicated boundary that owns trigger selection
+     - and that boundary must be correct, duplicate-safe, and stable under replay
+   - that is also how the whole plane preserves truth ownership:
+     - case-trigger owns trigger selection
+     - case management owns case timeline truth
+     - label store owns label truth
+
+7. concrete seating in the current wired system:
+   - this path is materially seated in the current wired system
+   - the copied baseline wired graphs show:
+     - a live case-trigger deployment in the case-and-label namespace
+     - the RTDL downstream topic and the audit topic both feeding the case-trigger surface
+     - the case-trigger surface publishing case intents into the case-trigger topic
+     - and case management consuming from that topic
+   - that means the case-trigger surface is not just a box on the graph
+   - it has a named workload placement and a named downstream topic boundary
+   - the broader authority does repin the decision and case runtime posture toward ECS and Fargate, but in this notebook's copied baseline wired view I want the reader-facing seating to stay with the live deployment topology shown in the baseline graph
+   - the proving notes reinforce that material seating:
+     - the case-and-label plane runner widened the runtime snapshot specifically to retain case-trigger `published`, `duplicates`, `quarantine`, and `payload_mismatch_total`
+   - that means the platform already treats this boundary as first-class observable surface rather than burying it inside case management
+
+8. why the design looks like this:
+   - the design looks like this because the platform wants clean escalation boundary before operational case truth begins
+   - that boundary has to do several things at once:
+     - choose the right upstream decisions and audit events
+     - avoid false-positive case intent
+     - avoid silent misses
+     - suppress duplicate and replayed trigger creation
+     - and remain stable under bounded production pressure
+   - those are exactly the case-trigger requirements you pinned
+   - so the shape is not accidental
+   - it exists because the platform does not want case truth to begin from undifferentiated stream of RTDL output
+   - it wants distinct, owned case-intent surface first
+
+9. what larger contracts are shaping this path:
+   - several larger contracts shape it strongly
+   - the Case + Label component contract shapes what this path must mean:
+     - semantic correctness
+     - ownership correctness
+     - duplicate and replay safety
+     - latency and throughput
+     - auditability
+   - the whole-plane contract shapes why it exists:
+     - the right RTDL outputs become case-worthy signals
+     - those signals become the right cases
+     - and no shadow truth ownership appears between case-trigger, case management, and label store
+   - the topic continuity contract shapes the concrete handoff:
+     - the case-trigger topic
+     - producer = case-trigger surface
+     - consumer = case management
+   - and the phase telemetry contract shapes how it must be observed:
+     - trigger intake counts
+     - duplicate suppression counters
+     - RTDL-to-case-trigger event movement
+     - and fail-fast if case and label workers are healthy but dark for the current run
+
+10. trade-offs and constraints:
+   - this path deliberately adds another explicit truth boundary after RTDL
+   - that costs extra structure:
+     - one more producer and consumer handoff
+     - one more duplicate-suppression surface
+     - one more place where replay semantics must stay clean
+     - and one more thing to observe live
+   - but that cost buys something important:
+     - the system can separate RTDL emitted decision from this decision deserves operational review
+   - without that boundary, case management would either have to infer escalation itself or accept too much upstream noise
+   - the docs are very clear that if case-trigger is wrong, the operational review surface becomes noisy or blind
+   - that is exactly the trade-off this path is trying to control
+
+11. necessity test:
+   - if this path is removed, the platform can still:
+     - ingest traffic
+     - make decisions
+     - append audit truth
+     - and later create cases somehow
+   - but it loses clean answer to:
+     - which RTDL outcomes were truly case-worthy
+     - whether duplicate or replayed RTDL outputs should create new operational work
+     - why case exists at all
+     - and whether case management is receiving operational truth or just flood of undifferentiated machine outputs
+   - that would weaken `A` immediately, because reviewer could fairly say the platform has RTDL truth and case truth, but no explicit owner for the crucial escalation judgment that connects them
+   - the docs themselves say that if case-trigger is wrong, the entire operational review surface becomes noisy or blind
+
+12. what this path proves for `A`:
+   - purpose claim:
+     - the platform has distinct job for converting RTDL decision and audit truth into case-intent truth before case management begins
+   - intentionality claim:
+     - escalation selection is explicitly owned by case-trigger rather than inferred later by case management
+   - materialization claim:
+     - the path is concretely seated in the case-trigger workload and its topic handoff to case management
+   - contract claim:
+     - this path is governed by trigger precision and recall, duplicate suppression, replay safety, and clean truth ownership
+   - constraint-awareness claim:
+     - the platform already knows this boundary can fail by noise, blindness, or duplicate explosion, which is why it is measured directly instead of being hidden inside later case-state behavior
+   - material participation evidence:
+     - the plane-level proving notes explicitly retained case-trigger counters:
+       - `published`
+       - `duplicates`
+       - `quarantine`
+       - `payload_mismatch_total`
+     - and the bounded case-and-label closure recorded clean integrity deltas on large admitted-request slice while upstream base remained pass
+     - that is not the whole argument for `A`
+     - but it is strong evidence that this boundary is not fictional
+     - it is live, measured, and treated as real part of the current wired platform
+
+Plainly stated, the `Case-intent escalation path` exists to turn RTDL decision and audit outputs into explicit case-worthy operational truth, and its current design shows that this boundary is deliberate, materially seated, and ownership-aware rather than implicit.
+
+The next path in this group is the `Case creation and timeline append path`.
+
+## 2026-03-12 11:23:24 +00:00 - Path interrogation: `Case creation and timeline append path`
+
+This path exists to turn case-intent truth into operational case truth. Its job is not to decide which RTDL outputs are case-worthy, and it is not yet to create authoritative label truth. Its narrower job is to answer: once a case-worthy signal exists, how does the platform create a real case and an append-only operational timeline that later operators, auditors, and downstream supervision can trust? The production-readiness definition makes that boundary explicit. Case management exists to own the append-only operational case timeline, and the plane is only correct if case-worthy signals become the right cases and those cases remain reconstructable, auditable, and non-duplicated.
+
+I want to keep the interrogation of this path inside one entry:
+
+1. what this path is trying to achieve:
+   - turn case-intent truth into operational case truth
+   - keep this path narrower than trigger selection and narrower than label truth
+   - answer how the platform creates a real case and an append-only operational timeline that later operators, auditors, and downstream supervision can trust
+
+2. entry:
+   - the entry is not raw RTDL output anymore, and it is not generic operational noise
+   - the entry is case-intent truth that has already been produced by the case-trigger surface and handed off through the case-trigger boundary
+   - that is visible in two places
+   - first, the production paths doc splits the case-escalation path into:
+     - RTDL decision and audit outputs
+     - the case-trigger surface
+     - case creation
+     - case timeline updates
+   - second, the topic contract pins the case-trigger topic with the case-trigger surface as producer and case management as consumer
+   - that makes the input to case management an explicit case-intent handoff rather than inferred side effect
+
+3. owned outcome:
+   - the owned outcome is deterministic case identity plus append-only case timeline truth
+   - that is narrower than later label-request truth and narrower than label truth itself
+   - this path closes when case management has:
+     - created the operational case correctly
+     - done so idempotently under duplicate triggers
+     - and established the append-only case timeline as the authoritative case-truth surface
+   - the case-management definition is very clear here:
+     - production-ready means case identity is deterministic
+     - case creation is idempotent under duplicate triggers
+     - timeline transitions are append-only and auditable
+     - no overwrite-style corruption is hidden behind the latest snapshot
+     - and case state is reconstructable after the fact
+   - it also explicitly says case management does not pretend to own label truth
+
+4. what the path carries:
+   - this path carries the minimum things needed to make operational case truth authoritative rather than cosmetic:
+     - case-intent truth from the upstream trigger boundary
+     - enough incident identity to make case identity deterministic
+     - run and upstream decision continuity
+     - timeline events and transition facts
+     - the evidence needed to reconstruct why the case exists and how it evolved
+   - the telemetry and plan surfaces reinforce that this is what the platform expects to observe here:
+     - case-open counts
+     - case-transition counts
+     - timeline events and timeline appends
+     - duplicate case-creation anomalies
+     - invalid case-state transitions
+     - and run-scope continuity into case outputs
+
+5. broad route logic:
+   - case-intent truth -> case-management intake -> deterministic case creation -> append-only timeline writes -> operational case truth
+   - that broad route matters because it shows the platform is not treating there is a trigger as the same thing as there is now a case
+   - separate boundary owns:
+     - case identity
+     - case creation
+     - timeline append truth
+   - that is why the whole Case + Label plane keeps truth ownership clean:
+     - case-trigger owns trigger selection
+     - case management owns case timeline truth
+     - label store owns label truth
+
+6. logical design reading:
+   - logically, this path shows that the platform treats operational case truth as its own append-only truth system, not as mutable convenience view and not as precursor storage area for labels
+   - that is strong `A`-level design signal
+   - the system is not saying:
+     - once something is case-worthy, case management can just store the latest case state somehow
+   - it is saying:
+     - there is dedicated boundary where case identity becomes real
+     - and where the operational case history is written append-only, auditable, and reconstructable
+   - that is exactly why case management is defined around append-only timeline integrity, duplicate-case-creation at zero, invalid-transition rate at zero, and case reconstruction completeness, rather than around generic case service is up story
+
+7. concrete seating in the current wired system:
+   - this path is materially seated in the current wired platform
+   - the copied baseline wired graphs show:
+     - a live case-management deployment in the case-and-label namespace
+     - the case-trigger topic feeding case management
+     - and case management writing append-only case timeline truth into Aurora
+   - that means operational case truth is seated on concrete workload plus relational truth substrate rather than inside ephemeral stream logic
+   - the broader authority does repin the decision and case runtime posture toward ECS and Fargate with Aurora where required, but in this notebook's copied baseline wired view I want the reader-facing seating to stay with the live deployment and Aurora topology shown in the baseline graph
+   - at the proof and telemetry level, the platform already treats case management as concrete observable boundary:
+     - case-open success rate
+     - duplicate case-creation count
+     - append-only timeline violations
+     - invalid case-state transition count
+     - and case reconstruction completeness
+     - are all pinned metrics for the bounded case-and-label proving work
+   - and later timing work made the case-management boundary even more concrete by identifying the actual processing clocks as:
+     - case-trigger intake first-seen time
+     - and case-created time
+   - showing that these are the authoritative case-open timing surfaces, not rough event-time proxies
+
+8. why the design looks like this:
+   - the design looks like this because the platform does not want operational truth to be:
+     - mutable
+     - duplicated
+     - or collapsed into label truth
+   - that is why case management is explicitly defined around:
+     - deterministic case identity
+     - idempotent case creation
+     - append-only timeline transitions
+     - zero hidden overwrite corruption
+     - reconstruction after the fact
+     - and non-ownership of label truth
+   - the later proving notes around timing reinforce the same design intent
+   - they show that the platform had to distinguish true case-management processing clocks from earlier, misleading event-oriented timestamps
+   - that only matters in system where case creation and timeline append are treated as real operational truth boundaries rather than loose workflow artifacts
+
+9. what larger contracts are shaping this path:
+   - several larger contracts shape it strongly
+   - the Case + Label plane contract shapes what case management is allowed to mean:
+     - semantic correctness
+     - ownership correctness
+     - duplicate and replay safety
+     - latency and throughput
+     - auditability
+   - the whole-plane truth-ownership contract shapes what case management is not allowed to steal:
+     - case-trigger owns trigger selection
+     - case management owns case timeline truth
+     - label store owns label truth
+   - the topic continuity contract shapes the handoff into case management:
+     - the case-trigger topic
+     - producer = case-trigger surface
+     - consumer = case management
+   - and the phase plan and telemetry contract shape how this path must be judged:
+     - duplicate case creation count = 0
+     - case-open success = 100%
+     - append-only timeline violations = 0
+     - case-open latency p95 <= 5 s
+     - invalid state-transition count = 0
+
+10. trade-offs and constraints:
+   - this path deliberately adds stricter truth boundary than simpler workflow system would
+   - that costs:
+     - one more owned service and runtime boundary
+     - deterministic case-identity logic
+     - append-only timeline discipline
+     - duplicate suppression
+     - transition validation
+     - and later reconstruction logic
+   - but that cost buys something important
+   - the platform can later answer not just that a case exists, but:
+     - why it exists
+     - when it was opened
+     - how it evolved
+     - whether it was duplicated
+     - and whether the operational history was mutated or appended
+   - that is exactly the kind of thing operational fraud platform needs if it wants review, audit, and later supervision to rest on trustworthy operational truth instead of mutable snapshots
+
+11. necessity test:
+   - if this path is removed, the platform can still:
+     - generate case-worthy signals
+     - keep RTDL truth
+     - and eventually write labels somehow
+   - but it loses clean answer to:
+     - where operational case identity comes from
+     - whether one incident maps to one case deterministically
+     - how case history is preserved
+     - whether duplicate triggers remint case truth
+     - and how operator or reviewer reconstructs the operational story later
+   - that would weaken `A` immediately, because reviewer could fairly say the platform has escalation and labels, but no explicit owner for operational case truth itself
+   - and the docs are explicit that if case timelines are mutable or inconsistent, review and audit are broken
+
+12. what this path proves for `A`:
+   - purpose claim:
+     - the platform has distinct job for turning case-intent truth into deterministic operational case truth and append-only case history
+   - intentionality claim:
+     - case management is not generic workflow bucket
+     - it is explicitly designed around deterministic case identity, idempotent case creation, and append-only timeline ownership
+   - materialization claim:
+     - this boundary is concretely seated in the case-management workload, the case-trigger handoff, and the Aurora-backed case timeline substrate
+   - contract claim:
+     - this path is governed by duplicate-case-creation at zero, append-only timeline integrity, case reconstruction completeness, and strict non-ownership of label truth
+   - constraint-awareness claim:
+     - the platform already knows this boundary can fail through duplicate creation, invalid transitions, or misleading timestamp bases, which is why those concerns are surfaced explicitly rather than hidden
+   - material participation evidence:
+     - the bounded case-and-label closure metrics say the slice closed green with large admitted-request volume, zero 4xx and 5xx, and clean case-trigger, case-management, and label-store integrity deltas
+     - that is strong evidence that case management is not just declared
+     - it participates as real boundary in the current wired platform
+
+Plainly stated, the `Case creation and timeline append path` exists to turn case-intent truth into deterministic, append-only operational case truth, and its current design shows that this boundary is deliberate, materially seated, and ownership-aware rather than implicit.
+
+The next path in this group is the `Case-to-label handoff path`.
+
+## 2026-03-12 11:27:44 +00:00 - Path interrogation: `Case-to-label handoff path`
+
+This path exists to turn operational case truth into label-request truth. Its job is not to decide which RTDL outputs are case-worthy, and it is not yet to commit authoritative label truth. Its narrower job is to answer: once a case exists and operational adjudication has meaning, how does the platform hand that case truth over into the supervision boundary without blurring ownership? The whole Case + Label plane is only production-ready if the right RTDL outputs become the right cases and those cases can eventually produce authoritative labels, while clean truth ownership requires that case management owns case timeline truth and label store owns label truth. That means there must be a real boundary between them.
+
+I want to keep the interrogation of this path inside one entry:
+
+1. what this path is trying to achieve:
+   - turn operational case truth into label-request truth
+   - keep this path narrower than case truth and narrower than final label truth
+   - answer how the platform hands case truth over into the supervision boundary without blurring ownership
+
+2. entry:
+   - the entry is not raw RTDL output anymore, and it is not just that a case exists somewhere
+   - the entry is a case with authoritative case truth plus the specific adjudication or case-state transition that makes label production appropriate
+   - that is the only reading that fits the plane contract
+   - the coupled-network scope names case management to label store as critical cross-plane path
+   - and the whole-plane definition says cases must be able to eventually produce authoritative labels
+   - that implies transition from case truth into supervision truth
+
+3. owned outcome:
+   - the owned outcome is label-request or label-pending truth at the case-management to label-store boundary
+   - that is narrower than final label truth
+   - this path closes when the platform has made the handoff from operational case truth into label-request truth in way that is:
+     - attributable
+     - duplicate-safe
+     - and timed on the right processing clock
+   - the timing-probe notes make that boundary concrete
+   - they show that the actual case-management handshake write attempt is the real handoff clock, while an earlier label-pending timeline timestamp was only an event-oriented marker
+   - the supporting probe fields make that distinction explicit:
+     - `cm_label_emissions.first_requested_at_utc`
+     - versus `cm_case_timeline LABEL_PENDING created_at_utc`
+   - that is exactly the kind of evidence that proves this is distinct owned boundary rather than labels happen later somehow
+
+4. what the path carries:
+   - this path carries the minimum things needed to make the handoff authoritative rather than fuzzy:
+     - deterministic case identity
+     - the adjudication or case-state outcome that justifies label production
+     - case-lineage continuity back to the upstream RTDL truth
+     - the label-request timing and handshake record
+     - enough provenance for label store to later commit authoritative label truth without having to invent case meaning for itself
+   - the Case + Label plane requirements reinforce that this boundary must preserve:
+     - duplicate and replay safety
+     - auditability
+     - and strict truth ownership
+   - so that case management does not become shadow label system and label store does not become accidental case system
+
+5. broad route logic:
+   - case truth plus adjudication outcome -> case-management label-emission and label-pending handshake -> label-store intake truth -> later authoritative label commit
+   - that broad route matters because it shows the platform is not treating label truth as automatic extension of the case timeline
+   - there is real handoff boundary in between
+   - this is exactly what the timing correction surfaced:
+     - the platform had to distinguish the actual case-management handshake write attempt from the earlier label-pending timeline timestamp
+   - that only matters in system where the handoff itself is treated as real truth boundary
+
+6. logical design reading:
+   - logically, this path shows that the platform treats case truth and label truth as separate owned truths, with explicit transition between them
+   - that is strong `A`-level design signal
+   - the system is not saying:
+     - once case management has case, labels can be treated as just another case field
+   - it is saying:
+     - case management owns case timeline truth
+     - label store owns label truth
+     - and there is distinct handoff where operational truth becomes supervision-request truth
+   - that separation is one of the most important clean truth-ownership laws in the whole Case + Label plane
+
+7. concrete seating in the current wired system:
+   - this path is materially seated in the current wired platform
+   - the copied baseline wired graphs show:
+     - separate case-management and label-store deployments in the case-and-label namespace
+     - case management writing append-only case timeline truth into Aurora
+     - and case management submitting label work to the label-store side of the plane
+   - that means the handoff is seated on distinct workload and persistence surfaces rather than collapsed into one service
+   - the broader authority does repin the case-and-label lane toward separate canonical workloads with Aurora-backed persistence, but in this notebook's copied baseline wired view I want the reader-facing seating to stay with the live separate deployment topology shown in the baseline graph
+   - at the implementation and probe level, the handoff is already materially visible in live stores and timing surfaces:
+     - case-created time
+     - the earlier label-pending case-timeline marker
+     - and the first label-request write attempt
+   - the timing probe explicitly says the real handoff clock is the case-management handshake write attempt, not the earlier event-oriented timeline timestamp
+   - that is very strong `A`-style evidence that the boundary is not fictional
+
+8. why the design looks like this:
+   - the design looks like this because the platform refuses to let case management silently become the label system
+   - that is why:
+     - case management is defined as owning append-only case timeline truth
+     - label store is defined as owning authoritative label truth
+     - and the plane-level definition explicitly says there must be no shadow truth ownership between case management and label store
+   - the timing notes reinforce the same intent
+   - once the platform discovered that the label-pending timeline marker was carrying earlier event-oriented timestamp and not the real handoff time, it repinned the proof to the actual case-management handshake write attempt
+   - that is exactly what system with serious handoff boundary should do
+
+9. what larger contracts are shaping this path:
+   - several larger contracts shape it strongly
+   - the Case + Label plane contract shapes the meaning of the boundary:
+     - cases must eventually produce authoritative labels
+     - duplicate and replay behavior must not corrupt truth
+     - and ownership must remain clean between case management and label store
+   - the coupled-network contract shapes why it matters:
+     - case management to label store is named as critical cross-plane path
+     - case-to-label latency is first-class proof question
+     - and starvation across RTDL-to-case-and-label boundaries is treated as real failure mode
+   - and the future-learning contract shapes what cannot go wrong:
+     - labels must later be authoritative supervision truth
+     - so the case-management to label-store handoff cannot be vague, duplicate-corrupt, or provenance-poor
+
+10. trade-offs and constraints:
+   - this path deliberately adds another explicit boundary to the operational plane
+   - that costs:
+     - one more handoff to govern
+     - one more latency surface
+     - one more place where duplicate and replay safety must hold
+     - and one more place where timing and provenance can be misread if the proof is sloppy
+   - but that cost buys something important
+   - the platform can later answer not just that label exists, but:
+     - which case produced it
+     - when the handoff actually happened
+     - whether case management or label store owned given truth
+     - and whether label production was timely and attributable rather than magically appearing
+   - that is exactly why case-to-label latency and ownership-boundary violations are pinned proof questions for the plane
+
+11. necessity test:
+   - if this path is removed, the platform can still:
+     - generate case-worthy signals
+     - create cases
+     - and later commit labels somehow
+   - but it loses clean answer to:
+     - how case truth becomes supervision truth
+     - who owns the transition
+     - whether case management is mutating label truth indirectly
+     - whether label store is inventing case meaning for itself
+     - and how later learning can trust that label came from the right operational case history
+   - that would weaken `A` immediately, because reviewer could fairly say the platform has cases and labels, but no explicit owner for the boundary that connects them
+   - the plane law rejects exactly that by insisting on clean truth ownership between case management and label store
+
+12. what this path proves for `A`:
+   - purpose claim:
+     - the platform has distinct job for turning operational case truth into label-request truth before authoritative label commit begins
+   - intentionality claim:
+     - case management does not own label truth, and label store does not own case truth
+     - the transition is explicit
+   - materialization claim:
+     - this boundary is visible in separate case-management and label-store workloads, the case-management timeline substrate, and the concrete label-request handshake surfaces
+   - contract claim:
+     - this path is governed by clean truth ownership, case-to-label latency, duplicate and replay safety, and later learning-readiness
+   - constraint-awareness claim:
+     - the platform already knows this boundary can be misread or blurred, which is why the timing proof had to be corrected to the actual handshake write attempt
+
+Plainly stated, the `Case-to-label handoff path` exists to turn operational case truth into explicit supervision-request truth at the case-management to label-store boundary, and its current design shows that this boundary is deliberate, materially seated, and clean on truth ownership rather than implicit.
+
+The next path in this group is the `Authoritative label commit and visibility path`.
+
+## 2026-03-12 11:30:46 +00:00 - Path interrogation: `Authoritative label commit and visibility path`
+
+This path exists to turn label-request truth into authoritative supervision truth. Its job is not to select case-worthy events, not to create the operational case, and not merely to request label. Its narrower job is to answer: once the case side has handed off supervision intent, where does the platform make the label authoritative, durable, and visible in the right temporal way? The platform's own path language makes that boundary explicit. The label-truth path is: case or adjudication outcome -> label assertion -> append-only label commit -> label readback, maturity, and as-of visibility, and the question it answers is whether the platform produces trustworthy labels for future learning and review.
+
+I want to keep the interrogation of this path inside one entry:
+
+1. what this path is trying to achieve:
+   - turn label-request truth into authoritative supervision truth
+   - keep this path narrower than case truth and narrower than later learning use
+   - answer where the platform makes the label authoritative, durable, and visible in the right temporal way
+
+2. entry:
+   - the entry is not raw case data and not generic review happened
+   - the entry is case-to-label handoff truth plus the specific label assertion that is now ready to be committed by the label store
+   - that reading matches both the whole-plane contract and the run-process
+   - the Case + Label plane is only complete when cases can eventually produce authoritative labels
+   - and the case-and-label closure requires not just case timeline closure but also label assertion and acknowledgement closure
+
+3. owned outcome:
+   - the owned outcome is append-only authoritative label truth, with readback, as-of, and maturity visibility strong enough that later review and learning can trust it
+   - that is stronger than label row exists
+   - the label-store definition is explicit:
+     - label assertions must be append-only
+     - provenance must be complete
+     - duplicate writes must be idempotent
+     - conflicting assertions must be explicit instead of silently overwritten
+     - and label truth must be queryable by as-of and maturity so learning does not train on immature or future-visible labels
+   - it also pins future-label leakage at zero as non-negotiable property
+
+4. what the path carries:
+   - this path carries the minimum things needed to make the label authoritative rather than merely present:
+     - the label assertion itself
+     - label identity
+     - provenance linking it back to the case and adjudication boundary
+     - duplicate and conflict semantics
+     - and the temporal visibility semantics needed for readback:
+       - as-of
+       - maturity
+       - and anti-future-leakage posture
+   - that is not inference
+   - it is directly implied by the label-store contract, which requires complete label identity and provenance, explicit conflict visibility, and queryability by as-of and maturity
+   - the later learning-input gate then relies on exactly these kinds of temporal controls, requiring label as-of policy, maturity policy, and future-boundary enforcement before learning input can close
+
+5. broad route logic:
+   - case or adjudication-derived label request -> label store -> append-only label commit -> label readback, maturity, and as-of visibility -> downstream label events for learning and reporting
+   - that broad route matters because it shows that the platform is not treating labels as case-field mutation
+   - it is treating them as separate supervision-truth boundary with its own commit and its own visibility and readback rules
+   - the copied baseline wired graph reinforces that there is also downstream handoff surface:
+     - the label-events topic
+     - with label store publishing into it
+     - and later learning and reporting consumers reading from that side of the network
+
+6. logical design reading:
+   - logically, this path shows that the platform treats label truth as its own first-class supervision system, not as extension of case truth and not as convenience write for later ML work
+   - that is strong `A`-level design signal
+   - the system is not saying:
+     - once case is resolved, we can just attach label somewhere
+   - it is saying:
+     - there is dedicated label-store boundary that owns authoritative label truth
+     - and that truth must be append-only, provenance-complete, conflict-visible, and temporally queryable
+   - that is exactly the clean truth-ownership separation the plane contract insists on:
+     - case management owns case truth
+     - label store owns label truth
+
+7. concrete seating in the current wired system:
+   - this path is materially seated in the current wired platform
+   - the copied baseline wired graphs show:
+     - a live label-store deployment in the case-and-label namespace
+     - the label store writing append-only label timeline truth into Aurora
+     - and the label store publishing label events into the label-events topic
+   - that means authoritative supervision truth is seated on concrete workload, relational truth substrate, and downstream transport boundary rather than hidden inside case management
+   - the broader authority does repin the case-and-label runtime posture toward separate canonical workloads with Aurora-backed persistence, but in this notebook's copied baseline wired view I want the reader-facing seating to stay with the live label-store deployment plus Aurora and label-events topology shown in the baseline graph
+   - the live proving notes also show that the promoted case-and-label runtime set included label store as real deployment on the active scope, and the fresh bounded slice recorded that case-trigger, case management, and label store all stayed green on the plane-local run
+
+8. why the design looks like this:
+   - the design looks like this because the platform refuses to let supervision truth be vague, mutable, or temporally unsafe
+   - that is why label store is defined around:
+     - append-only label assertions
+     - idempotent duplicate handling
+     - explicit conflict visibility
+     - provenance completeness
+     - maturity visibility
+     - and zero future-label leakage
+   - the implementation trail also shows that the Case + Label plane was being hardened specifically to answer whether the label store commits authoritative state without duplicate, pending, or mismatch regressions
+   - that makes the current shape clearly intentional rather than incidental
+
+9. what larger contracts are shaping this path:
+   - several larger contracts shape it strongly
+   - the Case + Label plane contract shapes the meaning of the boundary:
+     - labels must be authoritative supervision truth
+     - duplicate and replay behavior must not corrupt them
+     - and ownership must stay clean between case management and label store
+   - the run-process gate contract shapes the closure:
+     - case-and-label closure requires label assertion and acknowledgement closure and absence of writer-boundary anomalies
+   - the topic continuity contract shapes downstream visibility:
+     - the label-events topic
+     - producer = label store
+     - consumers = learning and reporting
+   - and the learning-input contract shapes the temporal side:
+     - label truth later has to participate in as-of and maturity policies
+     - with future timestamp policy fail-closed
+
+10. trade-offs and constraints:
+   - this path deliberately adds another explicit truth boundary after operational case handling
+   - that costs:
+     - one more owned service, runtime, and relational truth surface
+     - one more duplicate and conflict discipline to maintain
+     - one more temporal visibility layer:
+       - as-of
+       - maturity
+     - and one more place where provenance has to remain complete
+   - but that cost buys something important
+   - the platform can later answer not just that label exists, but:
+     - whether it is authoritative
+     - whether it conflicts with another assertion
+     - whether it was visible at given as-of
+     - whether it was mature enough to use
+     - and whether using it would leak future knowledge
+   - that is exactly why the plane metrics pin:
+     - label commit success
+     - duplicate label corruption = 0
+     - conflicting-label visibility = 100%
+     - and future-label leakage = 0
+
+11. necessity test:
+   - if this path is removed, the platform can still:
+     - create case-worthy signals
+     - open cases
+     - append case timelines
+     - and later build learning datasets somehow
+   - but it loses clean answer to:
+     - where authoritative supervision truth actually comes from
+     - whether duplicate label submissions corrupt truth
+     - whether conflicts are visible
+     - whether learning is reading mature labels or future-visible ones
+     - and whether downstream reporting and learning are consuming label truth or guesses
+   - that would weaken `A` immediately, because reviewer could fairly say the platform has cases and maybe even later ML, but no explicit owner for authoritative supervision truth itself
+   - the docs say this plainly:
+     - if labels are weak, learning is weak no matter how good the models look
+
+12. what this path proves for `A`:
+   - purpose claim:
+     - the platform has distinct job for committing and exposing authoritative label truth, not merely storing case outcomes
+   - intentionality claim:
+     - append-only semantics, explicit conflict visibility, idempotent duplicate handling, and temporal visibility are designed properties, not accidental behavior
+   - materialization claim:
+     - label store is concretely seated in the copied baseline workload, Aurora-backed label timeline substrate, and downstream label-events handoff for learning and reporting visibility
+   - contract claim:
+     - this path is governed by label commit and acknowledgement closure, clean truth ownership, provenance completeness, and no-future-leakage rules
+   - constraint-awareness claim:
+     - the platform already knows this boundary can fail by duplicate corruption, conflict suppression, pending or mismatch regressions, or future-visible labels, which is why those conditions are explicitly surfaced and measured
+
+Plainly stated, the `Authoritative label commit and visibility path` exists to turn supervision requests into append-only, provenance-complete, temporally visible label truth, and its current design shows that this boundary is deliberate, materially seated, and learning-safe rather than implicit.
+
+That finishes the per-path interrogation for Group 5.
