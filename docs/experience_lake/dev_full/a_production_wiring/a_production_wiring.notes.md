@@ -326,3 +326,33 @@ Judgment at this point:
 - the baseline network and resource views are now supporting group-specific extractions cleanly
 - the Foundational Control path has a stable isolated view for questioning its design decisions
 - the next work should stay inside this group long enough to understand its internal subpaths, control laws, tradeoffs, and why they were necessary for `A`
+
+## 2026-03-11 20:20:18 +00:00 - The Foundational Control path belongs inside the platform network because it is the path that turns many runtimes into one governed system
+One necessary clarification before going deeper into this group was to answer why control should even be treated as part of the platform network rather than as something outside it.
+
+The answer is that, in this platform, control is not merely administrative context. It is materially wired into the system through real components and real flows:
+
+- `GitHub Actions` starts bounded execution
+- `Step Functions` provides orchestration authority
+- `run identity` pins scope across downstream planes
+- `runtime path governance` selects the active path for a run
+- `run control / receipts / evidence` preserve the execution story
+- the control topic carries orchestration signals through the transport boundary
+
+That means Foundational Control is not external commentary on the platform. It is a real path in the network that determines how the rest of the network behaves.
+
+This matters directly for `A`. The goal of `A` is not only to show that components exist. It is to show that the wired platform is already a real engineered foundation. The Foundational Control path contributes to that by proving several things at once:
+
+1. the system was designed as one platform rather than many disconnected services
+2. execution was intended to be deterministic and attributable
+3. governance and discipline were already part of the foundation
+4. coherence was not left to operator folklore
+5. every other path could belong to one shared execution story
+
+The key contribution of this group to `A` is therefore that it turns "the platform can do work" into "the platform can do work as one deliberate, governed system". Product paths can show that meaningful work exists, but the Foundational Control path shows that the work belongs to one bounded platform with explicit authority, scope, and evidence continuity.
+
+Judgment at this point:
+
+- Foundational Control is properly understood as a network path, not as extra-network administration
+- it is foundational because it gives the rest of the platform one authoritative execution story
+- this group is one of the strongest supporting arguments for `A` because it helps distinguish an engineered platform from a pile of deployed services
