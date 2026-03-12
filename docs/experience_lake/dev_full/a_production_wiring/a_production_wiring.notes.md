@@ -256,3 +256,41 @@ Judgment at this point:
 - the group stage is now closed
 - the next step is to define what counts as a real path against these groups
 - path enumeration should now start with Group 1: `Run and world-source authority`
+
+## 2026-03-12 05:10:08 +00:00 - Pinning what counts as a real path for `A` before touching Group 1 enumeration
+
+Before splitting Group 1 into candidate routes, I needed to pin what a "real path" actually means in this notebook. If I do not make that explicit first, then any visible route in the network can start pretending to be a path, and the interrogation loses its boundary immediately.
+
+A real path for `A` is not just any visible route in the graph. It is a group-owned, end-to-end route in the current wired platform that satisfies all of these:
+
+1. It has a clear entry surface.
+2. It has a clear job tied to one obligation group.
+3. It has a clear owned outcome:
+   - a commit surface,
+   - an authoritative publication,
+   - or a handoff boundary to the next group.
+4. It is interrogated against the current authoritative wired route for that obligation, not against a mixture of authoritative, fallback, and hypothetical routes.
+5. It obeys the platform's binding laws:
+   - traffic vs context vs truth vs evidence separation,
+   - thin-traffic join posture,
+   - no-future-leakage,
+   - gate-before-read,
+   - deterministic identity and correlation.
+6. It is materially seated in concrete runtime and resource surfaces, not only described abstractly.
+7. It passes a necessity test:
+   remove it, and some platform obligation becomes impossible, unsafe, or unjustified.
+
+The boundary rule I want to keep hard is this:
+
+- a real path for `A` should usually end at the first authoritative group-owned outcome or handoff boundary
+- it should not run across the whole platform as one giant chain
+
+That boundary matters because I want each path to stay owned by one obligation group. The path should stop where the group has done its job and either committed truth or handed off to the next group.
+
+The exclusion rule is equally important:
+
+- if a candidate route does not have a clear entry, clear job, clear owned outcome, governing-law coherence, material seating, and necessity, then it is not yet a real path for `A`
+- it belongs either in the `A` ambiguity register or should be treated as a helper surface, fallback, or component adjacency rather than as a real path
+
+This gives me the right gate before Group 1 enumeration. I now have a bounded test for deciding whether something is a real path, a helper surface, or an unresolved ambiguity.
+
