@@ -294,3 +294,79 @@ The exclusion rule is equally important:
 
 This gives me the right gate before Group 1 enumeration. I now have a bounded test for deciding whether something is a real path, a helper surface, or an unresolved ambiguity.
 
+## 2026-03-12 05:30:32 +00:00 - Splitting Group 1 `Run and world-source authority` into its real paths
+
+After tightening Group 1 against the authority, run-process, handles, implementation-note, and interface surfaces, I think Group 1 should be split into 3 real paths, not 2.
+
+The reason is that Group 1 contains three distinct authoritative outcomes:
+
+- run-boundary legitimacy
+- source-of-stream / oracle realization legitimacy
+- READY authority legitimacy
+
+Those are different owned closures, so they should not be collapsed into one giant "run-to-ready" path.
+
+In the reader-facing notebook I want the path names to stay self-describing rather than repo-dependent. So I will keep the Group 1 path set as:
+
+- `Run legitimization path`
+- `Source realization path`
+- `Ready authorization path`
+
+I want the path breakdown itself to stay inside this single entry:
+
+1. `Run legitimization path`
+   - entry:
+     - operator intent arrives with `platform_run_id`, `scenario_run_id`, and config payload
+   - job:
+     - legitimize the run as a bounded execution, commit the run header once, and bind the run to an auditable config basis
+   - owned outcome:
+     - a committed run header plus committed config digest under the run evidence root; this is the first authoritative closure point for the whole platform
+   - why it is a real path:
+     - it has a clear entry, a clear job, and a clear owned outcome that belongs to Group 1
+     - it is not just "setup"; it is the path that makes the rest of the platform legally and semantically one run rather than loose activity
+     - the run-process pins run-header and config-digest commitment as closure evidence
+     - the authority also requires run config digests to be emitted and validated across runtime and learning lanes
+     - the engine interface gives the broader identity world this run sits inside: `manifest_fingerprint`, `parameter_hash`, `seed`, `scenario_id`, and `run_id`
+
+2. `Source realization path`
+   - entry:
+     - a pinned external oracle source namespace and engine run identity, with the platform treating Oracle as a read-only producer-owned source world
+   - job:
+     - seat that world as the platform's authoritative source-of-stream basis and realize the usable source surfaces through the pinned oracle inlet contract
+   - owned outcome:
+     - canonical oracle-store basis plus managed-sort-derived `stream_view` / `truth_view` surfaces, manifests, receipts, and parity/readability evidence
+   - why it is a real path:
+     - this is not just "some data exists somewhere"
+     - it is the path that makes the source world usable to the platform in a governed way
+     - the authority explicitly says Oracle Store is a warm source-of-stream zone under the `oracle-store/` boundary, separate from archive and evidence, and that platform access is read-only while the producer remains write owner
+     - the handles registry pins the inlet mode as `external_raw_upload_then_managed_sort`, requires managed distributed sort, forbids local execution, and requires sort receipt plus parity checks
+     - the implementation notes reinforce that the active standard is now `raw -> managed sort -> parity`, precisely to remove copy-based ambiguity and keep the source boundary honest
+
+3. `Ready authorization path`
+   - entry:
+     - a run that is already pinned, with source roots and source-realization prerequisites satisfied
+   - job:
+     - turn the run from pinned and source-legitimate into authoritatively ready through the control plane
+   - owned outcome:
+     - READY emitted to the control topic and READY receipt committed with a Step Functions execution reference, with duplicate or ambiguous READY prevented
+   - why it is a real path:
+     - READY is not just a byproduct of compute; it is its own authority closure
+     - the authority explicitly says SR/WSP compute may run, but READY/control remains Kafka-backed and Step-Functions-controlled, and READY closure authority is Step Functions commit evidence
+     - the implementation notes show this was a deliberate repin: Flink-only closure was rejected in favor of Step Functions-only commit authority
+     - the run-process then makes that concrete by requiring READY receipt commitment with a Step Functions execution reference and explicitly rejecting compute-only closure as sufficient
+
+What does not count as its own real path in Group 1:
+
+A few things are visible in the docs but should not be treated as separate real paths here.
+
+- A direct "Flink says READY, therefore we are ready" route is not a real path, because the owned outcome is invalid under the pinned authority. READY only closes when Step Functions commits it.
+- A copy-oracle-locally or read-from-platform-owned-copy route is not a real path, because the source-of-stream contract forbids that as the active standard. The platform is read-only against the canonical source boundary, and the active inlet is external raw upload followed by managed sort.
+- A mid-phase runtime-switch route is not a real path, because single active path per phase/run is pinned as law. Group 1 paths have to be interrogated against the current authoritative route, not a blended active-plus-fallback fantasy route.
+
+So Group 1 is now pinned as:
+
+- `Run legitimization path`
+- `Source realization path`
+- `Ready authorization path`
+
+That is now a clean split. The next honest move is to take `Run legitimization path` and do the full path-level interrogation on it: entry, outcome, carried objects, route logic, concrete seating, design reasoning, constraints, and necessity.
