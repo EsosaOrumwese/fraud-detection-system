@@ -6203,3 +6203,322 @@ That is a major `A` win, because it shows the current wired platform has explici
 
 Next is `Group 5 synthesis`.
 
+## 2026-03-12 14:10:15 +00:00 - Group synthesis: `Operational case and label truth`
+
+Group 5 exists because the platform cannot stop at RTDL made a decision. It also has to turn some of those machine outputs into operational work and then into authoritative supervision truth. The Case and Label plane definition makes that explicit: the plane is only correct when the right RTDL outputs become case-worthy signals, those signals become the right cases, and those cases eventually produce authoritative labels, all while preserving clean truth ownership between the case-trigger surface, case management, and label store.
+
+Taken together, the four paths prove that Group 5 is not workflow after the model. It is a bounded truth system with four distinct owned outcomes:
+
+- the `Case-intent escalation path` proves RTDL decision and audit outputs do not become cases directly; they first become explicit case-intent truth at the case-trigger boundary, with a real handoff surface into case management
+- the `Case creation and timeline append path` proves case-intent truth becomes deterministic operational case truth with an append-only timeline owned by case management, rather than mutable snapshots or duplicate case creation
+- the `Case-to-label handoff path` proves case truth and label truth are not collapsed into one system; there is a distinct case-management to label-store handoff where operational truth becomes supervision-request truth, and later timing corrections make that boundary materially visible rather than rhetorical
+- the `Authoritative label commit and visibility path` proves the label store owns append-only, provenance-complete, as-of and maturity-visible label truth, not just a label row somewhere, and that this truth has downstream visibility through the label-events handoff surface
+
+So the group-level claim is:
+
+the platform turns RTDL outputs into operational case truth and then into authoritative supervision truth through cleanly separated ownership boundaries.
+
+That is a strong `A`-level result, because it shows the current wired system has a genuine operational-truth architecture:
+
+- not just decisions and review
+- but explicit internal truths for escalation, case identity and timeline, label handoff, and authoritative labels
+
+What this group proves for `A`:
+
+The strongest closure in this group is `ownership`, `continuity`, and `safety`.
+
+It closes `ownership` because the plane is explicit about who owns what:
+
+- the case-trigger surface owns trigger selection
+- case management owns append-only case timeline truth
+- the label store owns label truth
+- and the whole plane is only considered green when there is no shadow truth ownership between case management and label store
+
+It closes `continuity` because the chain from RTDL to learning-supervision truth is no longer hand-wavy:
+
+- RTDL decision and audit outputs
+- to case-intent truth
+- to case identity and timeline truth
+- to label-request truth
+- to authoritative label truth
+
+That is exactly the operational bridge the platform needs if later learning is going to trust labels as supervision rather than treating them as arbitrary annotations.
+
+It closes `safety` because the group is governed by non-negotiable truth-discipline rules:
+
+- duplicate triggers must not explode case volume
+- duplicate case creation must be prevented
+- label assertions must be append-only and idempotent
+- conflicting labels must be visible rather than silently overwritten
+- future-label leakage must be zero
+
+It also gives strong `existence` closure because these are not conceptual boundaries only. They are materially seated in:
+
+- concrete case-trigger and label-events handoff surfaces
+- concrete runtime placements for the case-trigger surface, case management, and label store in the current wired substrate
+- and widened plane telemetry retained specifically for case-trigger, case-management, and label-store counters and anomalies
+
+`A` ambiguities to carry upward:
+
+The main `A` ambiguity here is explanatory:
+
+we need to keep very clear the difference between:
+
+- case-intent truth
+- case timeline truth
+- label-request truth
+- authoritative label truth
+
+because the design intentionally separates them, but an outsider could easily collapse them into one vague case-and-label workflow story if we synthesize lazily.
+
+There is also a timing nuance we should state honestly: the plane's later timing work showed that some earlier timestamps were event-oriented rather than the real boundary-processing clocks. That does not weaken `A`, but it means the synthesis should talk about the boundaries using the correct processing clocks rather than whichever timestamps appeared first.
+
+`Bi` spillover to park:
+
+Questions like:
+
+- whether decision-to-case and case-to-label latency stay inside the intended envelopes under larger coupled pressure
+- whether duplicate-safe behavior remains stable under prolonged replay and retry stress
+- whether the bounded plane-ready slice generalizes cleanly to the larger coupled-network proof
+
+belong later in `Bi`.
+
+For `A`, Group 5 only needs to prove that the current wired platform has a real operational-supervision truth system with clean ownership boundaries and explicit handoffs. The performance and harder coupled-pressure argument comes later.
+
+Group 5 verdict:
+
+Group 5 proves that the platform does not merely review decisions informally; it constructs operational case truth and authoritative label truth through bounded, ownership-clean boundaries.
+
+That is a major `A` win, because it shows the current wired system has a genuine operational-supervision architecture:
+
+- not just machine outputs and human review
+- but explicit truths for escalation, case history, supervision handoff, and authoritative labels
+
+Next is `Group 6 synthesis`.
+
+## 2026-03-12 14:18:58 +00:00 - Group synthesis: `Learning, evaluation, and governed activation`
+
+Group 6 exists because the platform cannot stop at runtime truth and label truth. It also has to turn those truths into a governed learning corridor that produces:
+
+- a causal learning basis
+- an authoritative dataset
+- a candidate bundle
+- a governed promotion decision
+- and finally the runtime authority that the decision fabric is supposed to consume
+
+The design authority and readiness docs make that sequence explicit. The learning and evolution plane is pinned to:
+
+- an offline-dataset surface for authoritative offline datasets
+- a managed train and eval surface
+- and an explicit governed promotion, rollback, and activation-authority surface
+
+with a strict temporal-realism contract: runtime lanes must stay causal, learning lanes may only read archive plus truth through explicit replay basis plus feature as-of, label as-of, and label-maturity controls, and any future-timestamp leakage is fail-closed.
+
+Taken together, the five paths prove that Group 6 is not the ML stack in some vague sense. It is a bounded truth system with five distinct owned outcomes:
+
+- the `Learning-input basis path` proves archive truth, label truth, and replay references are not enough by themselves; the platform first pins a causal learning basis with replay basis, as-of, maturity, and anti-leakage controls
+- the `Offline dataset commitment path` proves the offline-dataset corridor does not merely run managed jobs; it commits authoritative dataset truth with deterministic manifests, fingerprints, rollback recipes, and time-bound and leakage audits
+- the `Train / eval and candidate-bundle path` proves the train and eval corridor does not merely produce model artifacts; it produces provenance-complete candidate truth through managed train/eval with explicit leakage, quality, and lineage closure
+- the `Promotion and rollback-governance path` proves the promotion corridor does not treat promotion as boolean flag; it runs governed corridor with explicit promotion evidence, rollback drill truth, bounded rollback objectives, active-resolution checks, and no shadow promotion path
+- the `Active-bundle authority feedback path` proves promoted registry truth is not yet runtime authority until it is deterministically resolved for the runtime that will consume it
+
+So the group-level claim is:
+
+the platform turns authoritative runtime and label truth into governed model-evolution truth, and then turns governed promoted state back into deterministic runtime decision authority.
+
+That is a strong `A`-level result, because it shows the current wired system has a genuine learning-and-activation architecture:
+
+- not just jobs and registries
+- but explicit truths for learning basis, dataset identity, candidate identity, promotion truth, rollback truth, and runtime authority feedback
+
+What this group proves for `A`:
+
+The strongest closure in this group is `continuity`, `safety`, and `uniqueness`.
+
+It closes `continuity` because the learning corridor is not one blur. The chain is explicit:
+
+- archive and runtime truth plus label truth
+- to pinned replay, as-of, and maturity basis
+- to offline dataset truth
+- to train and eval truth
+- to candidate-bundle truth
+- to promotion and rollback truth
+- to active-bundle runtime authority
+
+The cross-plane path definitions split this corridor the same way:
+
+- runtime and case/label truth into learning
+- learning into registry and promotion
+- registry back into runtime authority
+
+It closes `safety` because the group is governed by strict no-shortcut laws:
+
+- no future leakage
+- no hidden placeholder shortcuts
+- no hidden local or script-only learning path
+- no promotion without complete lineage
+- no rollback path that exists only on paper
+- no runtime adoption that drifts silently from promoted registry truth
+
+It closes `uniqueness` because the system pins:
+
+- one replay-basis receipt
+- one immutable dataset fingerprint per basis
+- one candidate bundle per governed train/eval closure
+- one governed promotion corridor
+- one deterministic active-bundle resolution per consuming runtime scope
+
+It also gives strong `existence` closure because these are not abstract ideas. They are materially seated in:
+
+- run-scoped learning-input evidence surfaces
+- Databricks plus Iceberg and Glue for offline dataset commitment
+- SageMaker plus MLflow for train, eval, and candidate lineage
+- the managed promotion corridor with concrete promotion, rollback, and active-resolution artifacts
+- and explicit runtime-facing active-resolution snapshots
+
+`A` ambiguities to carry upward:
+
+The biggest `A` ambiguity here is explanatory:
+
+we need to keep very clear the difference between:
+
+- learning-input truth
+- dataset truth
+- candidate truth
+- promotion truth
+- runtime authority truth
+
+The design intentionally separates these, but an outsider could easily collapse them into one generic ML pipeline story if we synthesize lazily.
+
+There is also a current-wired nuance we should state honestly: the semantic objective of the group is very stable, but some of the managed closure history includes advisory or implementation-specific detail around exact execution shapes. That does not weaken `A`, but it means the synthesis should keep the emphasis on the owned truth boundaries rather than on every tactical execution wrinkle.
+
+`Bi` spillover to park:
+
+Questions like:
+
+- whether managed train/eval durations and success rates stay inside the intended operational envelopes
+- whether rollback recovery targets remain acceptable under repeated promotion pressure
+- whether active-bundle resolution stays stable under broader runtime churn
+- whether the bounded labeled slice scales cleanly to larger learning windows
+
+belong later in `Bi`.
+
+For `A`, Group 6 only needs to prove that the current wired platform has a real, intentional, and materially seated learning-and-activation truth system, not yet that every managed lane has been pressure-proven at the final production envelope.
+
+Group 6 verdict:
+
+Group 6 proves that the platform does not merely train models; it constructs a governed learning-and-activation corridor that turns platform truth into model-evolution truth and then back into runtime decision authority.
+
+That is a major `A` win, because it shows the current wired system has a genuine ML platform architecture:
+
+- not just datasets, jobs, and registry entries
+- but explicit truths for causal basis, dataset identity, candidate bundles, promotion and rollback governance, and deterministic runtime authority
+
+Next is `Group 7 synthesis`.
+
+## 2026-03-12 14:27:34 +00:00 - Group synthesis: `Run governance and observability closure`
+
+Group 7 exists because the platform cannot stop at all the other planes worked. It also has to prove that the run can be operated, observed, reconstructed, governed, closed, idled, and cost-accounted for with the same rigor as execution itself. The operations, governance, and meta definition says that plainly: the platform is only production-ready here when it can be operated, audited, governed, and economically managed, with no hidden drift, no fake receipts, no missing evidence, no unbounded spend, and no unverifiable verdicts.
+
+Taken together, the six paths prove that Group 7 is not the dashboards and cleanup part. It is a bounded closure system with six distinct owned outcomes:
+
+- the `Run reconstruction and receipt closure path` proves earlier lane receipts become an exact run story rather than hand-assembled summary
+- the `Governance append and close-marker path` proves reconstructed closure truth is formally appended and marked closed under run scope, not merely described
+- the `Proof-matrix and final-verdict publication path` proves whole-platform judgment is explicit: full source matrix blocker-free, six-proof matrix complete, final verdict published
+- the `Drift-visible observability attestation path` proves live visibility is tied to the actual active runtime path, with freshness, alert coverage, and drift detection treated as closure truths rather than tooling decoration
+- the `Idle-safe teardown and residual-readability path` proves full-platform closure is not enough; the system must also stop safely, leave no forbidden residuals behind, and keep evidence readable after teardown
+- the `Cost guardrail and cost-to-outcome closure path` proves post-run spend is attributable, budgeted, and tied to explicit proof and risk-retirement outcomes rather than being left as vague cloud billing
+
+So the group-level claim is:
+
+the platform turns execution closure into governed, observable, auditable, idle-safe, and cost-accountable run truth.
+
+That is a strong `A`-level result, because it shows the current wired system has a real operational meta-layer:
+
+- not just that work happened
+- but that work can be reconstructed exactly, judged explicitly, drift-checked live, shut down safely, and economically accounted for
+
+What this group proves for `A`:
+
+The strongest closure in this group is `completeness`, `continuity`, and `safety`.
+
+It closes `completeness` because Group 7 is where the platform proves that closure is not partial. The run-close and final-phase rules require:
+
+- run reconstruction plus governance closure
+- whole-platform judgment with complete source and proof matrices
+- and teardown, residual, readability, and cost closure before the run is fully closed
+
+It closes `continuity` because it ties all prior planes into one exact run story and then carries that story through:
+
+- reconciliation
+- governance append
+- final verdict publication
+- teardown and readability
+- and cost-to-outcome closure
+
+That continuity is reinforced in the design authority too: every lane must produce deploy, monitor, fail, recover, rollback, and cost-control proof, and no full verdict is valid without that six-part set.
+
+It closes `safety` because the whole group is fail-closed on the right things:
+
+- incomplete matrices
+- verdict inconsistency
+- residual cost risk
+- unreadable evidence after teardown
+- unattributed spend
+- and drift between live runtime and the declared active path
+
+It also gives strong `existence` closure because these are not abstract governance ideas. They are materially seated in:
+
+- real reporter and reconciliation lanes
+- real governance append and closure-marker surfaces under the run evidence scope
+- real final-phase closure lanes for source-matrix aggregation, six-proof closure, final verdict publication, teardown, residual readability, and cost closure
+- and pinned observability and cost-control surfaces in the current wired system
+
+`A` ambiguities to carry upward:
+
+The main `A` ambiguity here is explanatory:
+
+we need to keep very clear the difference between:
+
+- run reconstruction truth
+- formal governance closure
+- whole-platform verdict truth
+- live observability attestation
+- idle-safe closure
+- cost accountability
+
+The design intentionally separates these, but an outsider could easily collapse them into one vague operations and reporting story if we synthesize lazily.
+
+There is also one current-wired nuance we should state honestly: some cost capture remains explicitly scoped rather than pretending to be universally complete. The registry keeps cost-capture scope and defer reasons explicit rather than faking full billing coverage, and that honesty is part of the design rather than a weakness.
+
+`Bi` spillover to park:
+
+Questions like:
+
+- whether dashboard freshness and alert behavior remain good enough under longer or noisier production pressure
+- whether teardown and readability remain clean after repeated long-run cycles
+- whether cost envelopes remain acceptable under fuller operational cadence
+- whether drift attestation remains robust across broader coupled proofs
+
+belong later in `Bi`.
+
+For `A`, Group 7 only needs to prove that the current wired platform has a real meta-layer for:
+
+- reconstruction
+- governance closure
+- final judgment
+- observability attestation
+- safe idling
+- and spend accountability
+
+Group 7 verdict:
+
+Group 7 proves that the platform does not merely run and stop; it closes itself as a governed operational system.
+
+That is a major `A` win, because it shows the current wired system has a genuine operational closure architecture:
+
+- not just dashboards, receipts, budgets, or teardown scripts
+- but explicit truths for run reconstruction, formal closure, final judgment, live visibility, safe idling, and cost-to-outcome accountability
+
+The next step is `overall A synthesis`.
+
