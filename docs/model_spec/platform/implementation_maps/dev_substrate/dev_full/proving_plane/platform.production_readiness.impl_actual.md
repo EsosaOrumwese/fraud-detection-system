@@ -5349,3 +5349,63 @@ That means the enlarged working platform is now:
 and the next honest active phase is now:
 
 - `Phase 7 - Operations / Governance / Meta readiness`
+
+## 2026-03-12 04:09:47 +00:00 - Reopening Learning because the previous Phase 5 / 6 closeout was under-expanded and over-promoted relative to the stated production standard
+
+After reviewing the learning closeout against the same standard used for the earlier phases, I do not think the previous `Phase 5` / `Phase 6` promotion should stand as-is.
+
+The problem is not that the recent bounded receipts were fabricated. The problem is that I moved too quickly from:
+
+- useful bounded probes and registry checks
+
+to:
+
+- full plane promotion and coupled-network promotion
+
+without giving Learning the same depth of planning, telemetry evolution, failure analysis, and production-standard proof story that `Phase 0` through `Phase 4` received.
+
+The specific issues are:
+
+- `Phase 5` was not expanded deeply enough from the main plan's actual-goal method
+- the proving story leaned too heavily on retained managed evidence continuity instead of making a deeply justified current-phase proving boundary
+- `Phase 6` was promoted too early instead of being held behind a more mature, honestly closed `Phase 5`
+- the phase docs and graphs read too much like closure receipts and not enough like a full engineering proving trail
+
+So the correct posture change is:
+
+- demote Learning from the promoted working-platform claim for now
+- treat the recent Phase 5 / 6 receipts as exploratory / narrowing evidence, not final promotion authority
+- scrap the current rushed `Phase 5` / `Phase 6` phase-plan surfaces
+- rebuild `Phase 5` from the real goal of the phase using the main-plan expansion method
+- focus solely on `Phase 5` until its own boundary is truly planned and proven
+
+This is not a standards reduction. It is the opposite:
+
+- keep the production-ready standard fixed
+- admit that the learning closeout was under-developed
+- restart the phase planning and execution at the right depth
+
+## 2026-03-12 04:09:47 +00:00 - First rebuilt Phase 5 execution insight: OFS has a direct managed path, but retained MF / MPR execution still defaults to workflow dispatch
+
+After reopening Learning, I re-read the retained managed execution scripts instead of assuming the old learning path could simply be reused.
+
+That immediately exposed an important Phase 5 planning fact:
+
+- `scripts/dev_substrate/m10d_ofs_build_execution.py` drives Databricks directly through the Databricks API and can still fit the CLI-first / managed-surface posture for a bounded OFS build proof
+- `scripts/dev_substrate/m11d_train_eval_execution.py` still dispatches `dev_full_m11_managed.yml` through GitHub workflow dispatch
+- `scripts/dev_substrate/m12d_promotion_commit.py` still dispatches `dev_full_m12_managed.yml` through GitHub workflow dispatch
+
+That means `Phase 5` should not currently be treated as one homogeneous managed-learning proof path.
+
+The real implication for the rebuilt subphases is:
+
+- `Phase 5.A` and `Phase 5.B` can likely move first on the current semantic admission and OFS dataset-basis boundary
+- `Phase 5.C` and `Phase 5.D` need an explicit method judgment:
+  - either justify workflow dispatch as strictly necessary under the current repo/runtime shape,
+  - or repin those stages onto a more direct CLI-first managed-surface path before treating them as promotion-grade proof
+
+This is exactly the kind of under-the-hood distinction the rushed closeout missed:
+
+- the learning corridor is not one uniform boundary
+- different subphases have different execution truths
+- Phase 5 has to be planned around those truths rather than around a convenient single green story

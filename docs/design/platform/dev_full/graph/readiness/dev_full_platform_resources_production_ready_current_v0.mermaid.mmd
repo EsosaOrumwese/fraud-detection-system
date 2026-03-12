@@ -8,13 +8,13 @@ flowchart LR
 
   subgraph LEGEND["How to Read This Graph"]
     L1["Only resources backing the currently promoted working-platform core are shown"]
-    L2["The current promoted core now includes the managed Learning corridor on top of the live RTDL and Case + Label runtime"]
-    L3["Ops / Gov / Meta remains absent until its own phase closes"]
-    L4["Phase 0 closed green on 2026-03-10, Phase 1 on 2026-03-11, Phase 3 on 2026-03-11, Phase 4 on 2026-03-12, and Phase 5/6 on 2026-03-12 for this promoted core"]
+    L2["The current promoted core now includes RTDL and Case + Label on the live EKS runtime"]
+    L3["Learning and Ops / Gov / Meta remain absent until their own phases close"]
+    L4["Phase 0 closed green on 2026-03-10, Phase 1 on 2026-03-11, Phase 3 on 2026-03-11, and Phase 4 on 2026-03-12 for this promoted core"]
   end
 
   subgraph NOTE["Scope"]
-    N1["Concrete resource view for the promoted Control + Ingress + RTDL + Case + Label + Learning core<br>Envelope: 3000 steady eps / 6000 burst eps<br>Accepted runtime source slice: phase4_case_label_coupled_20260312T003302Z<br>Accepted learning slice: phase5_learning_mlops_bound_20260312T035531Z<br>Accepted coupled learning slice: phase6_learning_coupled_20260312T035601Z"]
+    N1["Concrete resource view for the promoted Control + Ingress + RTDL + Case + Label core<br>Envelope: 3000 steady eps / 6000 burst eps<br>Current accepted Phase 4 coupled closure slice: phase4_case_label_coupled_20260312T003302Z"]
   end
 
   subgraph CONTROL["Control Resources"]
@@ -71,21 +71,6 @@ flowchart LR
     LABELSTORE["Deployment<br>fp-pr3-label-store"]
   end
 
-  subgraph LEARNING["Learning / MLOps Managed Resources"]
-    DBX["Databricks workspace<br>dbc-d0b53c09-b6fa.cloud.databricks.com"]
-    OFSBUILD["Databricks job<br>fraud-platform-dev-full-ofs-build-v0<br>job id 736420749736071"]
-    OFSQUAL["Databricks job<br>fraud-platform-dev-full-ofs-quality-v0<br>job id 37768192213816"]
-    DBXPOL["Databricks compute policy<br>serverless-jobs-only"]
-    SMROLE["IAM role<br>fraud-platform-dev-full-sagemaker-execution"]
-    SMTRAIN["SageMaker training prefix<br>fraud-platform-dev-full-mtrain"]
-    SMBATCH["SageMaker batch prefix<br>fraud-platform-dev-full-mbatch"]
-    SMPKG["Model package group<br>fraud-platform-dev-full-models"]
-    SMENDPOINT["SageMaker endpoint handle<br>fraud-platform-dev-full-online-v0"]
-    MLFLOW["MLflow tracking mode<br>databricks"]
-    DFSNAP["DF registry snapshot<br>registry_snapshot_dev_full_v0.yaml"]
-    DFPOL["DF resolution policy<br>registry_resolution_policy_v0.yaml"]
-  end
-
   subgraph STATE["State / Evidence Resources"]
     OBJ["S3 object / oracle store<br>fraud-platform-dev-full-object-store"]
     EVID["S3 evidence bucket<br>fraud-platform-dev-full-evidence"]
@@ -116,7 +101,6 @@ flowchart LR
   N1 --> TRANSPORT
   N1 --> RTDL
   N1 --> CASELABEL
-  N1 --> LEARNING
   N1 --> STATE
   N1 --> IDENTITY
   N1 --> OBS
@@ -181,13 +165,6 @@ flowchart LR
   RTDLIMG --> CASETRIG
   RTDLIMG --> CASEMGMT
   RTDLIMG --> LABELSTORE
-  DBX --> OFSBUILD
-  DBX --> OFSQUAL
-  DBXPOL --> OFSBUILD
-  DBXPOL --> OFSQUAL
-  SMROLE --> SMTRAIN
-  SMROLE --> SMBATCH
-
   TTRAFFIC -->|feeds promoted RTDL intake boundary| NSRTDL
   TCTXA -->|consumed by| CSFB
   TCTXE -->|consumed by| CSFB
@@ -201,31 +178,14 @@ flowchart LR
   DL --> CASETRIG
   CASETRIG --> CASEMGMT
   CASEMGMT --> LABELSTORE
-  LABELSTORE -->|supplies authoritative supervision to| OFSBUILD
-  ARCH -->|supplies runtime archive evidence to| OFSBUILD
-  OFSBUILD -->|gates quality with| OFSQUAL
-  OFSQUAL -->|feeds bounded dataset basis to| SMTRAIN
-  SMTRAIN -->|publishes candidate packages to| SMPKG
-  SMBATCH -->|evaluates candidate against| SMPKG
-  SMPKG -->|governed by| MLFLOW
-  MLFLOW -->|pins active learning truth for| DFSNAP
-  DFPOL -->|governs resolution against| DFSNAP
-  DFSNAP -->|feeds active bundle truth to| DF
-  SMPKG -->|backs runtime handle| SMENDPOINT
   ARCH -->|stores archive evidence in| EVID
   DLA -->|stores decision continuity in| EVID
   CASEMGMT -->|stores case evidence in| EVID
   LABELSTORE -->|stores label evidence in| EVID
-  OFSBUILD -->|stores dataset evidence in| EVID
-  SMTRAIN -->|stores train/eval evidence in| EVID
-  MLFLOW -->|stores promotion/rollback evidence in| EVID
 
   CWLAMBDA -->|feeds| CW
   CWWSP -->|feeds| CW
   EKS -->|feeds runtime telemetry to| CW
-  DBX -->|feeds managed job telemetry to| CW
-  SMTRAIN -->|feeds job telemetry to| CW
-  MLFLOW -->|feeds lineage/promote telemetry to| CW
   SFN -->|feeds metrics to| CW
   EVID -->|feeds operational evidence to| DASHOPS
   CW -->|feeds live posture to| DASHOPS
@@ -238,7 +198,6 @@ flowchart LR
   classDef transport fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.3px;
   classDef rtdl fill:#e0f2f1,stroke:#00695c,color:#111,stroke-width:1.3px;
   classDef caselabel fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
-  classDef learning fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
   classDef state fill:#f1f8e9,stroke:#558b2f,color:#111,stroke-width:1.3px;
   classDef ident fill:#fce4ec,stroke:#ad1457,color:#111,stroke-width:1.3px;
   classDef obs fill:#ede7f6,stroke:#5e35b1,color:#111,stroke-width:1.3px;
@@ -249,7 +208,6 @@ flowchart LR
   class MSK,GLUEREG,TCTRL,TTRAFFIC,TCTXA,TCTXE,TFLOW transport;
   class EKS,NSRTDL,CSFB,IEG,OFP,DF,DL,AL,DLA,ARCH,RTDLIMG rtdl;
   class NSCASE,CASETRIG,CASEMGMT,LABELSTORE caselabel;
-  class DBX,OFSBUILD,OFSQUAL,DBXPOL,SMROLE,SMTRAIN,SMBATCH,SMPKG,SMENDPOINT,MLFLOW,DFSNAP,DFPOL learning;
   class OBJ,EVID,SSM state;
   class OIDC,ROLETF,ROLESFN,ROLELAMBDA,ROLEAPIGW,ROLEDDB,ROLEWSPEXEC,ROLEWSPRUN ident;
   class CW,DASHOPS,DASHCOST,BUDGET obs;

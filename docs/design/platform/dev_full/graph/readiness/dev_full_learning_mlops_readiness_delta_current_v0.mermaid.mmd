@@ -6,47 +6,36 @@ config:
 flowchart LR
 
   subgraph LEGEND["How to Read This Graph"]
-    L1["Left to right = promoted upstream truth -> semantic admission -> managed learning corridor continuity -> coupled runtime resolution -> verdict"]
-    L2["Green = proven and promoted truth"]
-    L3["Blue = managed surfaces or governed runtime-resolution surfaces used in the proof"]
-    L4["Amber = dynamic method correction that removed blindspots before the accepted rerun"]
+    L1["Left to right = promoted upstream truth -> active Phase 5 learning corridor -> current blocker family -> rebuilt execution posture"]
+    L2["Green = already promoted upstream platform truth"]
+    L3["Blue = active managed learning or semantic surfaces being pinned"]
+    L4["Red = open readiness questions or rejected rushed proof posture"]
+    L5["Amber = accepted rebuilt next-step posture"]
   end
 
   subgraph UPSTREAM["Promoted Upstream Truth"]
-    U1["Promoted runtime basis<br>Control + Ingress + RTDL + Case + Label"]
+    U1["Current working platform<br>Control + Ingress + RTDL + Case + Label"]
     U2["Accepted source scope<br>phase4_case_label_coupled_20260312T003302Z"]
-    U3["Authoritative learning basis<br>runtime truth + label truth only"]
+    U3["Authoritative learning basis entering rebuilt Phase 5<br>runtime truth + authoritative labels only"]
   end
 
-  subgraph SEMANTICS["Current Semantic Admission"]
-    S1["Run-facts admission<br>intended outputs limited to s2_event_stream_baseline_6B and s3_event_stream_with_fraud_6B"]
-    S2["6B world gate<br>_passed.flag readable<br>validation status WARN<br>required rails PASS"]
-    S3["Current label truth<br>accepted > 0<br>pending = 0<br>rejected = 0"]
+  subgraph SURFACES["Active Learning Surfaces In Scope"]
+    S1["Semantic admission surfaces<br>interface pack + 6B.S5 gate + current source world"]
+    S2["Databricks / OFS<br>dataset build + quality gate"]
+    S3["SageMaker / MF<br>train / eval / candidate bundle"]
+    S4["MLflow / MPR<br>promotion / rollback / active bundle governance"]
   end
 
-  subgraph MANAGED["Managed Learning Corridor Continuity"]
-    M1["Databricks / OFS readiness and build lineage<br>m10b + m10d green"]
-    M2["SageMaker / MF operability and lineage<br>m11f + m11g green"]
-    M3["Promotion / rollback / active resolution chain<br>m12b + m12c + m12d + m12e + m12f + m12g green"]
-    M4["Governed active bundle ref<br>s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/mf/candidate_bundle.json"]
+  subgraph BLOCKERS["Current Open Blocker Family"]
+    B1["Rejected posture<br>previous Phase 5 / 6 closeout was under-expanded and over-promoted"]
+    B2["Open question<br>what is the smallest honest current-run dataset-basis proof for Learning?"]
+    B3["Open question<br>what fresh managed evidence is required before train/eval and promotion claims are promotion-worthy?"]
   end
 
-  subgraph CORRECTION["Dynamic Proof Correction"]
-    C1["First new Phase 5.B run went red for harness-shape reasons only"]
-    C2["Narrow fixes accepted<br>run-facts role parsing<br>6B validation-path correction<br>local managed-artifact discovery widened truthfully"]
-  end
-
-  subgraph COUPLED["Coupled Runtime Resolution"]
-    R1["Phase 5.B rerun<br>phase5_learning_mlops_bound_20260312T035531Z<br>PHASE5_READY"]
-    R2["Phase 6 coupled proof<br>phase6_learning_coupled_20260312T035601Z<br>PHASE6_READY"]
-    R3["DF registry resolution<br>fraud -> RESOLVED<br>baseline -> RESOLVED"]
-  end
-
-  subgraph VERDICT["Accepted Verdict"]
-    V1["Learning + Evolution / MLOps plane green"]
-    V2["Coupled runtime-resolution path green"]
-    V3["Promoted working platform now includes Learning + Evolution / MLOps"]
-    V4["Next active red surface shifts to Phase 7 Ops / Gov / Meta"]
+  subgraph POSTURE["Rebuilt Phase 5 Posture"]
+    P1["Rebuild the phase from the actual goal, not from the first green-looking receipts"]
+    P2["Treat recent Phase 5 / 6 receipts as exploratory only, not closure authority"]
+    P3["Focus only on Phase 5 until semantic admission, dataset basis, train/eval, and promotion/rollback proof are honestly closed"]
   end
 
   U1 --> U2
@@ -54,31 +43,23 @@ flowchart LR
   U3 --> S1
   U3 --> S2
   U3 --> S3
-  S1 --> C1
-  S2 --> C1
-  S3 --> C1
-  C1 --> C2
-  C2 --> R1
-  S1 --> M1
-  S2 --> M1
-  S3 --> M1
-  M1 --> M2
-  M2 --> M3
-  M3 --> M4
-  M4 --> R1
-  R1 --> R2
-  M4 --> R2
-  R2 --> R3
-  R3 --> V1
-  R3 --> V2
-  V1 --> V3
-  V2 --> V3
-  V3 --> V4
+  U3 --> S4
+  S1 --> B1
+  S2 --> B2
+  S3 --> B3
+  S4 --> B3
+  B1 --> P1
+  B2 --> P2
+  B3 --> P3
+  P1 --> P2
+  P2 --> P3
 
   classDef up fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
   classDef surface fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.3px;
+  classDef defect fill:#ffebee,stroke:#c62828,color:#111,stroke-width:1.3px;
   classDef fix fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
 
-  class U1,U2,U3,S1,S2,S3,V1,V2,V3,V4 up;
-  class M1,M2,M3,M4,R1,R2,R3 surface;
-  class C1,C2 fix;
+  class U1,U2,U3 up;
+  class S1,S2,S3,S4 surface;
+  class B1,B2,B3 defect;
+  class P1,P2,P3 fix;

@@ -1335,16 +1335,16 @@ After a phase is complete, update as needed:
 ---
 
 ## Immediate next action
-Proceed with `Phase 7 - Operations / Governance / Meta readiness`.
+Proceed with the rebuilt `Phase 5 - Learning + Evolution / MLOps plane readiness`.
 
-`Phase 5` closed green on `phase5_learning_mlops_bound_20260312T035531Z`, and `Phase 6` closed green on `phase6_learning_coupled_20260312T035601Z`. The promoted working platform is now:
+The recent rushed `Phase 5` / `Phase 6` receipts remain useful exploratory evidence, but they are no longer being treated as sufficient promotion authority. Learning is therefore reopened until `Phase 5` is re-expanded and re-proved at the same depth and production standard used in the earlier phases.
 
-- `Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps`
+The current promoted working platform remains:
 
-The immediate purpose now shifts to proving that the full promoted platform can be operated, reconstructed, governed, and cost-controlled truthfully rather than merely executed.
+- `Control + Ingress + RTDL + Case + Label`
 
 Execution order now is:
-1. pin the active Ops / Gov / Meta telemetry boundary on the now-promoted working platform,
-2. prove run reconstruction, evidence completeness, drift visibility, and attributable spend on the real control and evidence surfaces,
-3. remediate only the specific operational or governance blindspot that goes red,
-4. only then move into the bounded full-platform integrated validation phase.
+1. rebuild `Phase 5` from the actual phase goal and use that to derive real subphases,
+2. repin the semantic admission and telemetry gate for the current learning basis,
+3. run the smallest honest `Phase 5.B` dataset-basis proof with fail-fast visibility,
+4. only after that proof is trustworthy move deeper into train/eval and promotion / rollback proof inside `Phase 5`.
