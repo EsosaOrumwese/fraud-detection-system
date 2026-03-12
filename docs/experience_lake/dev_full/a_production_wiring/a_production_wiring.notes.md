@@ -5972,3 +5972,234 @@ That is a foundational `A` win, because it shows the current wired platform has 
 
 Next is `Group 3 synthesis`.
 
+## 2026-03-12 13:52:09 +00:00 - Group synthesis: `Runtime context formation and decisioning`
+
+Group 3 exists because the platform cannot stop at admitted traffic. It has to turn admitted live traffic into meaningful, explainable, bounded real-time decision truth. The RTDL framing makes that the core plane question:
+
+can this network turn admitted live traffic into meaningful, explainable, auditable, stable real-time decisions under production load?
+
+And the plane is explicitly composed of the boundaries we interrogated:
+
+- `CSFB`
+- `IEG`
+- `OFP`
+- `DL`
+- `DF`
+- `AL`
+
+Taken together, the six paths prove that Group 3 is not the scoring part in some vague sense. It is a chained runtime truth system:
+
+- `Entity and relationship projection` proves the platform builds current graph truth rather than assuming it from schema or payloads
+- `Joined context formation` proves thin traffic becomes explicit, time-safe runtime context inside the platform rather than arriving pre-fattened
+- `Online feature readiness` proves context is not yet enough; feature truth is its own boundary with readiness and freshness semantics
+- `Decision guardrail` proves the system separates inputs exist from it is safe to proceed, and treats degrade posture as a first-class runtime truth
+- `Decision formation` proves decisions are explicit, provenance-carrying outputs, not merely implied by later actions
+- `Action and outcome emission` proves decisions become deterministic platform effects under their own owned boundary, rather than dissolving into downstream side effects
+
+So the group-level claim is:
+
+the platform turns admitted traffic into governed real-time decision truth through a bounded sequence of owned runtime boundaries.
+
+That is a strong `A`-level result, because it shows the current wired system is not just moving events through services. It is intentionally constructing:
+
+- projection truth
+- context truth
+- feature truth
+- guardrail truth
+- decision truth
+- and action or outcome truth
+
+What this group proves for `A`:
+
+The strongest closure in this group is `continuity`, `existence`, and `safety`.
+
+It closes `continuity` because the runtime path from admitted traffic to emitted action is not one blur. It is explicitly staged:
+
+- traffic and context handoff
+- projection
+- joined context
+- feature readiness
+- guardrail posture
+- decision
+- action and outcome
+
+The run-process reinforces that structure by separating RTDL catch-up closure from decision-chain closure, rather than pretending RTDL is alive automatically means decisioning is closed.
+
+It closes `existence` because these boundaries are materially seated in the current wired RTDL plane, not just diagrammed:
+
+- the runtime oracle scope is bounded to the four allowed live-runtime surfaces
+- the RTDL graph has concrete worker, state, and downstream handoff surfaces
+- the decision-side and projection/context boundaries are visibly seated as distinct runtime components
+- and the RTDL plane has named downstream bus surfaces for the decision and action corridor
+
+It closes `safety` because the whole group is governed by real semantic boundaries:
+
+- no future leakage into runtime
+- no truth-product leakage into live decisioning
+- no false-ready from partial or mis-scoped context
+- no false fail-closed from stale health artifacts
+- no silent confusion between advisory degradation and real insufficiency
+
+It also gives meaningful `uniqueness` closure:
+
+- one active runtime route per phase or run
+- one bounded live-runtime oracle output set
+- and explicit truth ownership between context, feature, guardrail, decision, and action boundaries
+
+`A` ambiguities to carry upward:
+
+The biggest `A` ambiguity here is not whether the plane exists. It clearly does. The ambiguity is how to explain the seating cleanly without making it sound messier than it is.
+
+There are different runtime realizations and retained runtime postures across the RTDL plane. That is a legitimate current design, but in the synthesis we will need to explain it as:
+
+one coherent RTDL plane with different owned runtime boundaries
+
+rather than as an untidy mixed stack. The copied baseline wired view should stay the primary reader-facing object for `A`, while broader managed-stream posture in the repo authority can remain supporting context rather than the main story.
+
+The second ambiguity is cross-plane:
+
+the active bundle and policy authority is consumed inside Group 3, but it is actually owned upstream by the learning and registry group. So in `A` we need to keep saying:
+
+Group 3 consumes runtime authority correctly; it does not own active-bundle truth.
+
+Otherwise we blur Group 3 and Group 6.
+
+`Bi` spillover to park:
+
+Questions like:
+
+- whether RTDL lag, checkpoint age, and latency stay inside full production envelopes
+- whether feature freshness and restart-to-green are good enough under harder pressure
+- whether false fail-closed rate stays low enough under realistic faults
+- whether decision and action tails remain bounded at target throughput
+
+belong later in `Bi`.
+
+For `A`, Group 3 only needs to prove that the current wired platform has a real, bounded, intentional runtime decision graph with explicit truth boundaries and concrete seating. The performance and hardening argument comes later.
+
+Group 3 verdict:
+
+Group 3 proves that the platform does not merely score events; it constructs real-time decision truth through a bounded chain of owned runtime boundaries.
+
+That is a major `A` win, because it shows the current wired system has a genuine decision architecture:
+
+- not just inputs and outputs
+- but explicit internal truths for projection, context, feature readiness, safety posture, decision formation, and action emission
+
+Next is `Group 4 synthesis`.
+
+## 2026-03-12 14:00:30 +00:00 - Group synthesis: `Durable runtime audit and archive truth`
+
+Group 4 exists because the platform cannot stop at the RTDL plane made a decision and emitted an outcome. It also has to create the durable historical truth that later audit, replay, case handling, and learning can trust. The docs make that separation explicit in two ways.
+
+First, the RTDL component model separates the decision log and audit surface and the archive writer as distinct responsibilities: the audit surface exists to append authoritative audit and lineage truth for the real-time lane, while the archive writer exists to durably preserve immutable event history and references for replay and audit.
+
+Second, the run-process keeps the closure points separate:
+
+- the decision chain does not close without append-only audit evidence
+- RTDL catch-up does not close without archive-writer closure evidence
+- and later learning input depends on archive, labels, and replay references already resolved from earlier closure
+
+Taken together, the four paths prove that Group 4 is not logging and storage in some generic sense. It is a bounded truth system with four different owned outcomes:
+
+- the `Audit append path` proves that decision and action truth becomes authoritative append-only audit and lineage truth, rather than being left to later reconstruction
+- the `Audit publication and durable reference path` proves that appended audit truth is not trapped inside the audit writer; it is handed off through the audit bus and durable by-reference evidence surfaces to consumers like case handling and evidence sinks
+- the `Immutable archive preservation path` proves runtime event history is durably preserved as immutable archive history under a real archive sink boundary, not merely left inside runtime stores
+- the `Archive closure and replay-reference path` proves the platform does not treat archive objects exist as sufficient; it explicitly closes archive truth into a replay-referenceable basis that later learning is allowed to trust
+
+So the group-level claim is:
+
+the platform turns runtime decisions and outcomes into durable historical truth that can be reconstructed, published, preserved, and later replayed safely.
+
+That is a strong `A`-level result, because it shows the current wired platform is not just making decisions in the moment. It is intentionally constructing:
+
+- append-only audit truth
+- downstream-consumable audit truth
+- immutable archive history
+- and replay-referenceable archive closure
+
+What this group proves for `A`:
+
+The strongest closure in this group is `continuity`, `existence`, and `safety`.
+
+It closes `continuity` because the path from runtime behavior to later learning is no longer hand-wavy. There is explicit chain from:
+
+- decision and action truth
+- to append-only audit truth
+- to audit publication
+- to archive preservation
+- to archive closure and replay-reference readiness
+
+That continuity is exactly what the run-process is enforcing when it separates decision-chain closure, archive closure, and later learning-input closure instead of collapsing them into one vague history exists story.
+
+It closes `existence` because these are not conceptual boundaries only. They are materially seated in:
+
+- a concrete audit-bus handoff with audit writer to downstream consumers
+- concrete run-scoped archive paths under the archive event surface
+- and a current adjudicated archive-consumer-to-S3 route chosen after fail-closed runtime adjudication
+
+It closes `safety` because the group is governed by real no-shortcut rules:
+
+- append-only audit truth must remain append-safe under replay and duplicate pressure
+- replay divergence must be visible rather than silently tolerated
+- archive payload mismatch and write-error leakage are not allowed to hide under green counters
+- replay references must remain bound to the bounded run truth that was actually processed
+
+It also gives meaningful `uniqueness` closure:
+
+- the audit writer owns append-only runtime audit truth
+- the archive writer owns immutable archived event history
+- later replay and learning consume archive references only after explicit closure
+- and audit publication has named producer and consumer contract instead of diffuse ownership
+
+`A` ambiguities to carry upward:
+
+The biggest `A` ambiguity here is one we should state honestly:
+
+the archive-preservation intent and the current wired archive runtime are not identical by wording. The authority's target posture is connector-to-S3, but the current closed runtime route after adjudication is an archive-consumer-to-S3 route. That is not a weakness for `A`, but it does need to be explained carefully as:
+
+current wired route chosen to preserve the same semantic objective under real runtime constraints
+
+rather than as contradiction.
+
+The second ambiguity is explanatory:
+
+we need to keep very clear the difference between:
+
+- audit truth
+- archive truth
+- replay-referenceable archive closure
+
+because they are deliberately separate in the design, but could easily blur into one historical data story if we synthesize sloppily.
+
+`Bi` spillover to park:
+
+Questions like:
+
+- whether archive latency is good enough under harder sustained production pressure
+- whether unresolved-lineage age remains bounded at the intended envelope
+- whether the current archive runtime route is the one we want to keep at production-readiness level
+- whether payload mismatch and write-error behavior stays acceptable under larger loads
+
+belong later in `Bi`.
+
+For `A`, Group 4 only needs to prove that the current wired platform has a real and intentional historical-truth system:
+
+- append truth
+- publication truth
+- archive truth
+- and replay-reference closure
+
+are all explicit and owned.
+
+Group 4 verdict:
+
+Group 4 proves that the platform does not merely remember what happened informally; it constructs durable historical truth that later audit, replay, case handling, and learning can trust.
+
+That is a major `A` win, because it shows the current wired platform has explicit ownership over the post-decision historical record:
+
+- not just that runtime happened
+- but that runtime was turned into append-only audit truth, immutable archive truth, and replay-referenceable closure
+
+Next is `Group 5 synthesis`.
+
