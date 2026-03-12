@@ -93,3 +93,166 @@ Judgment at this point:
 - the obligation inventory is now pinned at a level that is meaningful for `A`
 - the interrogation can now move from obligation families down into path groups and then into real paths
 - the next useful move is to derive the functional path groups under these obligations rather than jumping straight to components or proving questions
+
+## 2026-03-12 04:50:42 +00:00 - First pass at the functional path groups: define the obligation-led group structure before deriving real paths
+With the obligation inventory pinned, the next move is to define the functional path groups. These groups should still stay above paths and well above components. Their purpose is to organize the interrogation around major system obligations without collapsing back into plane buckets or cloud-product names.
+
+The current first-pass group set is:
+
+1. `Run and world-source authority`
+   - this group covers how a run becomes legitimate at all: world identity, source-of-stream seating, run-state control, and authoritative activation / READY closure
+
+2. `Canonical traffic admission and bus publication`
+   - this group covers how valid traffic enters platform runtime: ingress, idempotency, quarantine/reject logic, and publication to the platform bus
+
+3. `Runtime context formation and decisioning`
+   - this is the core understand-and-decide group: thin-traffic join posture, RTDL-safe context formation, feature/context preparation, and decision/action routing
+
+4. `Durable audit, archive, and replay truth`
+   - this group covers append-only lineage, audit truth, archive persistence, and replay basis so runtime behavior is reconstructable after the fact
+
+5. `Case and label operational truth`
+   - this group covers how runtime outputs become operational review truth: case-worthy signals, case state evolution, and authoritative label truth
+
+6. `Learning, evaluation, and governed activation`
+   - this group covers the runtime-to-offline learning loop and the governed return to runtime authority: OFS dataset build, MF train/eval, and MPR promotion / rollback / active-bundle authority
+
+7. `Run governance, observability, and evidence closure`
+   - this group covers the meta obligation that makes the rest defensible: cross-runtime correlation, run-scoped evidence, blocker/verdict logic, cost-to-outcome, and final closure
+
+The reason these groups are currently preferred is that they:
+
+- align with the full platform lifecycle already latent in the docs
+- preserve obligation-led thinking instead of component naming
+- respect the contract distinction between traffic, context, truth, evidence, and telemetry
+- stay in `A` by asking what the wired system must be able to do, not yet whether it survives production pressure
+
+Just as importantly, this grouping avoids two common failures:
+
+- reducing the platform to realization buckets such as `API Gateway`, `MSK`, `Flink`, `Aurora`, `CM`, or `SageMaker`
+- collapsing audit/archive into generic governance, even though append-only audit and replay truth are first-class design concerns in this system
+
+The current intended interrogation order is:
+
+1. `Run and world-source authority`
+2. `Canonical traffic admission and bus publication`
+3. `Runtime context formation and decisioning`
+4. `Durable audit, archive, and replay truth`
+5. `Case and label operational truth`
+6. `Learning, evaluation, and governed activation`
+7. `Run governance, observability, and evidence closure`
+
+This order follows the actual platform lifecycle while still keeping the meta layers visible.
+
+Judgment at this point:
+
+- the first-pass functional group structure is now pinned
+- it is strong enough to begin downstream path derivation
+- but the group stage is not yet fully closed until each group also has explicit inputs/outputs, governing laws, and broad design choice pinned
+
+## 2026-03-12 04:52:47 +00:00 - Close the functional group stage by pinning obligation, necessity, inputs, outputs, and broad design idea for each group
+The group stage is now closed by pinning the five things each functional group needed:
+
+- obligation satisfied
+- why it must exist
+- what enters
+- what exits
+- the broad design idea
+
+The pinned functional path groups for `A` are now:
+
+1. `Run and world-source authority`
+   - obligation:
+     - establish a legitimate run and a legitimate source-of-stream basis for the whole platform
+   - why it must exist:
+     - `dev_full` is pinned as full-lifecycle, managed-first, no-laptop, with single active runtime path per phase/run, Step Functions as control authority, and Oracle Store as a read-only external source-of-stream boundary
+   - inputs:
+     - run identity and config (`platform_run_id`, `scenario_run_id`, config digest), Oracle/source references, and engine identity tokens such as `manifest_fingerprint`, `parameter_hash`, `seed`, and `scenario_id`
+   - outputs:
+     - committed run header / config basis, authoritative control / READY closure, and a bounded source basis that downstream groups can trust
+   - broad design idea:
+     - the system starts from explicit run legitimacy and source legitimacy, not from ad hoc compute effects or implicit state
+
+2. `Canonical traffic admission and bus publication`
+   - obligation:
+     - accept only the right traffic, under the right rules, and publish it into authoritative platform transport surfaces
+   - why it must exist:
+     - the engine contract distinguishes canonical traffic from join surfaces, truth products, audit evidence, and telemetry, while the platform authority pins a concrete ingress edge, idempotency boundary, quarantine posture, and Kafka topic truth
+   - inputs:
+     - canonical behavioural streams plus ingress envelope / auth / dedupe context
+   - outputs:
+     - admitted traffic, reject / quarantine truth, offset or receipt truth, and authoritative publication onto the platform bus and context topics
+   - broad design idea:
+     - thin traffic is canonicalized at ingress, and admission truth is durable before downstream runtime consumes anything
+
+3. `Runtime context formation and decisioning`
+   - obligation:
+     - turn admitted thin traffic into decisionable runtime truth
+   - why it must exist:
+     - the engine contract explicitly says traffic stays thin, joins happen inside the platform, and only time-safe context may be used for live decisions; the authority then seats stream-native projections and joins in the RTDL plane with Redis / Aurora / custom ownership logic where required
+   - inputs:
+     - admitted behavioural streams, RTDL-safe context surfaces, active bundle / policy identity, and low-latency state or cache where needed
+   - outputs:
+     - context / feature readiness, decisions, actions, and decision-linked runtime truth
+   - broad design idea:
+     - understanding is constructed inside the platform, not smuggled in from a fat event payload or from future-derived truth
+
+4. `Durable audit, archive, and replay truth`
+   - obligation:
+     - make runtime behavior reconstructable, replayable, and defensible after the fact
+   - why it must exist:
+     - append-only truth, origin-offset evidence boundaries, durable evidence refs, archive truth, and replay basis are pinned laws rather than optional reporting conveniences
+   - inputs:
+     - decision, action, lineage, and runtime events from the hot path
+   - outputs:
+     - append-only audit truth, archive refs / immutable history, replay-usable truth surfaces, and durable evidence roots
+   - broad design idea:
+     - the platform does not merely decide; it turns decisions into authoritative historical truth that later audit, replay, learning, and governance can rely on
+
+5. `Case and label operational truth`
+   - obligation:
+     - turn the right runtime outcomes into operational review truth and supervised truth
+   - why it must exist:
+     - the platform is not only a scorer; it also owns case-worthy escalation, case timelines, and authoritative labels with explicit writer boundaries and append-only behavior
+   - inputs:
+     - decision and audit outputs that are eligible to create operational work or supervision truth
+   - outputs:
+     - case triggers, case timeline truth, label commits, and label events for later readback and downstream use
+   - broad design idea:
+     - operational supervision is a first-class truth system, not an afterthought hanging off the side of decisioning
+
+6. `Learning, evaluation, and governed activation`
+   - obligation:
+     - convert replayable runtime truth plus label truth into governed datasets, train/eval outputs, and active runtime authority
+   - why it must exist:
+     - `dev_full` is explicitly full-platform, not runtime-only, and the authority pins OFS, MF, and MPR with causal replay / as-of / maturity controls, Iceberg dataset identity, and explicit promotion / rollback governance
+   - inputs:
+     - archive/runtime truth, authoritative labels, replay basis, `feature_asof_utc`, `label_asof_utc`, maturity controls, and governed config / lineage identities
+   - outputs:
+     - dataset manifests and fingerprints, train/eval artifacts, candidate bundles, promotion / rollback events, and active bundle truth consumable by runtime
+   - broad design idea:
+     - learning is causal, governed, and lineage-bound, and activation is explicit rather than a shadow side effect
+
+7. `Run governance, observability, and evidence closure`
+   - obligation:
+     - make the whole run diagnosable, governable, and closable as one platform story
+   - why it must exist:
+     - `dev_full` pins OTel-first cross-runtime correlation, run-scoped evidence bundles, cost-to-outcome receipts, blocker-free closure, final verdict publication, and idle-safe teardown as hard operating law
+   - inputs:
+     - lane-level telemetry, required correlation fields, proof artifacts, governance events, and cost posture artifacts from the other groups
+   - outputs:
+     - run bundles, non-regression packs, final verdicts, cost-to-outcome receipts, teardown / idle-safe evidence, and the exact story of what happened and why
+   - broad design idea:
+     - the platform is not judged by vague success; it is closed through explicit evidence and governance truth
+
+At this point the group stage is complete enough for the interrogation flow:
+
+- the obligation inventory is bounded
+- the functional path groups are derived from it
+- and each group now carries obligation, necessity, inputs, outputs, and broad design idea
+
+Judgment at this point:
+
+- the group stage is now closed
+- the next step is to define what counts as a real path against these groups
+- path enumeration should now start with Group 1: `Run and world-source authority`
