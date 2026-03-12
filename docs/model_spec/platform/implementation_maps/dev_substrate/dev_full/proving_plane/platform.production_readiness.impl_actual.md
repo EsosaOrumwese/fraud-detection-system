@@ -6019,3 +6019,47 @@ There is now an intentional live standby drift relative to the normal working sh
 - RTDL and Case+Label deployments restored from `0` to their working replica counts
 
 That drift is intentional and correct for cost control between phases. It should not be “fixed” by an incidental Terraform apply before the next active run unless that apply is explicitly part of restoring the runtime for the next phase.
+
+## 2026-03-12 09:18:40 +00:00 - Phase 6 had a real coupling defect before any runtime proof: the rematerialized DF worker could take a mounted snapshot, but it was still loading the registry resolution policy from the image, so active-bundle adoption was not yet a trustworthy live boundary
+
+The first useful Phase 6 pass was not a traffic run. It was a boundary audit.
+
+Three things were immediately wrong for an honest coupled-runtime proof:
+
+- there was no dedicated `platform.production_readiness.phase6.md`, so the phase goal and subphases were not pinned outside the runner code
+- the runtime was still intentionally in standby from the cost pass, which is fine operationally but means Phase 6 has to restore capacity deliberately before spending on proof
+- most importantly, `pr3_rtdl_materialize.py` was only mounting the registry snapshot into the rematerialized runtime profile
+
+That third point is the real engineering blocker. The DF worker resolves active bundle truth from:
+
+- the registry snapshot
+- the registry resolution policy
+
+Before this fix, a Phase 6 run could have shown a promoted snapshot on the mounted profile while the DF policy still came from whatever was baked into the reused image. That is exactly the kind of partial truth that produces fake-green coupled proofs.
+
+So I stopped treating `Phase 6` as “run the old coupled runner again with a new receipt” and corrected the boundary first:
+
+- created `platform.production_readiness.phase6.md` so the phase now has an explicit goal, subphases, telemetry burden, and closure rule
+- patched `pr3_rtdl_materialize.py` so run-scoped DF policy and DF snapshot are both mounted and the run-scoped profile points to both mounted files
+- patched `pr3_runtime_warm_gate.py` so the DF probe now emits:
+  - `registry_policy_ref`
+  - `policy_id`
+  - `policy_revision`
+  - `explicit_fallback_by_scope`
+  - in addition to the already-emitted snapshot facts
+- rebuilt the Phase 6 executor around the real coupled objective instead of the earlier narrow stub:
+  - stage promoted and rollback registry surfaces from the accepted Phase 5 publication
+  - restore the EKS runtime from standby
+  - rematerialize the runtime onto the promoted bundle surfaces
+  - prove bounded candidate adoption on live traffic
+  - prove rollback attribution on live traffic
+  - prove restore attribution on live traffic
+  - then score the phase
+
+I also added a direct runtime bundle-attribution probe rather than relying only on mounted config truth. That probe reads DLA governance stamps on the bounded scenario and checks that the runtime decisions carry exactly the expected bundle and policy identity.
+
+That is the right Phase 6 posture:
+
+- fix the live coupling defect first
+- then spend on the bounded runtime adoption / rollback / restore proof
+- not the other way round

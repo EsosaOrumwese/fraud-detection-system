@@ -376,12 +376,14 @@ def _materialize_run_scoped_profile(
     platform_run_id: str,
     scenario_run_id: str,
     mounted_df_snapshot_ref: str,
+    mounted_df_policy_ref: str,
     mounted_dla_policy_ref: str,
 ) -> dict[str, Any]:
     payload = json.loads(json.dumps(profile_payload))
 
     df_payload = _ensure_mapping(payload, "df")
     df_policy = _ensure_mapping(df_payload, "policy")
+    df_policy["registry_resolution_policy_ref"] = mounted_df_policy_ref
     df_policy["registry_snapshot_ref"] = mounted_df_snapshot_ref
 
     dla_payload = _ensure_mapping(payload, "dla")
@@ -819,6 +821,7 @@ def main() -> int:
     ap.add_argument("--case-labels-namespace", default="")
     ap.add_argument("--profile-path", default="/runtime-profile/dev_full.yaml")
     ap.add_argument("--profile-source-path", default="config/platform/profiles/dev_full.yaml")
+    ap.add_argument("--df-registry-policy-source-path", default="config/platform/df/registry_resolution_policy_v0.yaml")
     ap.add_argument("--df-registry-snapshot-source-path", default="config/platform/df/registry_snapshot_dev_full_v0.yaml")
     ap.add_argument("--dla-intake-policy-source-path", default="config/platform/dla/intake_policy_v0.yaml")
     ap.add_argument("--wsp-task-family", default="fraud-platform-dev-full-wsp-ephemeral")
@@ -1012,6 +1015,9 @@ def main() -> int:
     profile_source_path = Path(args.profile_source_path)
     if not profile_source_path.exists():
         raise RuntimeError(f"profile source path missing: {profile_source_path}")
+    policy_source_path = Path(args.df_registry_policy_source_path)
+    if not policy_source_path.exists():
+        raise RuntimeError(f"DF registry policy source path missing: {policy_source_path}")
     snapshot_source_path = Path(args.df_registry_snapshot_source_path)
     if not snapshot_source_path.exists():
         raise RuntimeError(f"DF registry snapshot source path missing: {snapshot_source_path}")
@@ -1021,6 +1027,7 @@ def main() -> int:
     profile_payload = yaml.safe_load(profile_source_path.read_text(encoding="utf-8"))
     if not isinstance(profile_payload, dict):
         raise RuntimeError(f"profile source path invalid YAML mapping: {profile_source_path}")
+    mounted_policy_ref = str(PurePosixPath(profile_mount_dir) / policy_source_path.name)
     mounted_snapshot_ref = str(PurePosixPath(profile_mount_dir) / snapshot_source_path.name)
     mounted_dla_policy_ref = str(PurePosixPath(profile_mount_dir) / dla_policy_source_path.name)
     profile_payload = _materialize_run_scoped_profile(
@@ -1028,9 +1035,11 @@ def main() -> int:
         platform_run_id=args.platform_run_id,
         scenario_run_id=args.scenario_run_id,
         mounted_df_snapshot_ref=mounted_snapshot_ref,
+        mounted_df_policy_ref=mounted_policy_ref,
         mounted_dla_policy_ref=mounted_dla_policy_ref,
     )
     profile_text = yaml.safe_dump(profile_payload, sort_keys=False)
+    policy_text = policy_source_path.read_text(encoding="utf-8")
     snapshot_text = snapshot_source_path.read_text(encoding="utf-8")
     dla_policy_text = dla_policy_source_path.read_text(encoding="utf-8")
 
@@ -1049,6 +1058,7 @@ def main() -> int:
                 profile_configmap_name,
                 {
                     "dev_full.yaml": profile_text,
+                    policy_source_path.name: policy_text,
                     snapshot_source_path.name: snapshot_text,
                     dla_policy_source_path.name: dla_policy_text,
                 },
@@ -1115,6 +1125,7 @@ def main() -> int:
     }
     pod_config_digest = stable_digest(
         profile_text,
+        policy_text,
         snapshot_text,
         dla_policy_text,
         json.dumps(secret_data, sort_keys=True),
@@ -1462,6 +1473,8 @@ def main() -> int:
         },
         "image_uri": image_uri,
         "profile_path": profile_path_in_container,
+        "df_registry_policy_source_path": str(policy_source_path),
+        "df_registry_policy_mounted_ref": mounted_policy_ref,
         "df_registry_snapshot_source_path": str(snapshot_source_path),
         "df_registry_snapshot_mounted_ref": mounted_snapshot_ref,
         "dla_intake_policy_source_path": str(dla_policy_source_path),

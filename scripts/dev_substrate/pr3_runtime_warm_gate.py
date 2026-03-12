@@ -69,7 +69,7 @@ import json
 import sqlite3
 from pathlib import Path
 
-from fraud_detection.decision_fabric.registry import RegistryScopeKey, RegistrySnapshot
+from fraud_detection.decision_fabric.registry import RegistryResolutionPolicy, RegistryScopeKey, RegistrySnapshot
 from fraud_detection.decision_fabric.worker import load_worker_config
 from fraud_detection.event_bus.kafka import build_kafka_reader
 from fraud_detection.platform_runtime import RUNS_ROOT
@@ -77,6 +77,7 @@ from fraud_detection.platform_runtime import RUNS_ROOT
 profile_path = Path(__import__("os").environ["FP_PROFILE_PATH"])
 cfg = load_worker_config(profile_path)
 snapshot = RegistrySnapshot.load(cfg.registry_snapshot_ref)
+policy = RegistryResolutionPolicy.load(cfg.registry_policy_ref)
 reader = build_kafka_reader(client_id="pr3-df-warm-gate")
 topic = "fp.bus.traffic.fraud.v1"
 partitions = reader.list_partitions(topic)
@@ -106,11 +107,16 @@ required = [
     RegistryScopeKey(environment="dev_full", mode="baseline", bundle_slot="primary").canonical_key(),
 ]
 present = sorted(snapshot.records_by_scope.keys())
+policy_scopes = {scope: dict(bundle_ref) for scope, bundle_ref in policy.explicit_fallback_by_scope.items()}
 print(json.dumps({
     "required_platform_run_id": cfg.required_platform_run_id,
     "scenario_run_id_hint": cfg.scenario_run_id_hint,
     "event_bus_start_position": cfg.event_bus_start_position,
+    "registry_policy_ref": str(cfg.registry_policy_ref),
     "registry_snapshot_ref": str(cfg.registry_snapshot_ref),
+    "policy_id": policy.policy_rev.policy_id,
+    "policy_revision": policy.policy_rev.revision,
+    "explicit_fallback_by_scope": policy_scopes,
     "snapshot_id": snapshot.snapshot_id,
     "snapshot_digest": snapshot.snapshot_digest,
     "required_scopes_present": all(scope in snapshot.records_by_scope for scope in required),
