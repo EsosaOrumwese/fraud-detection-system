@@ -260,6 +260,25 @@ These are starting facts only. They are not closure evidence.
 - therefore the current `Phase 5.B` blocker is now explicit:
   - the managed OFS build source is too shallow for the rebuilt dataset-basis proof
 
+### Current Phase 5.B execution state after the OFS repin
+- the bootstrap-only OFS source blocker is no longer the active blocker
+- the Databricks OFS build / quality sources were repinned to a real bounded current-world probe
+- accepted executions:
+  - `phase5_ofs_dataset_basis_20260312T043900Z`
+    - red because the managed notebook tried raw `boto3` S3 access and serverless Databricks had no AWS credentials
+  - `phase5_ofs_dataset_basis_20260312T045330Z`
+    - red because Spark Connect on the managed notebook surface does not implement `toJSON()`
+  - `phase5_ofs_dataset_basis_20260312T045500Z`
+    - red on the first real managed-storage question
+
+### Current active blocker
+- Databricks serverless cannot read the authoritative object-store basis for the current world
+- the first real failing read is:
+  - `s3://fraud-platform-dev-full-object-store/platform_20260312T003302Z/sr/run_facts_view/76488594c9b8a02bd5c8b2d4c28b71ff.json`
+- the managed notebook runtime is attempting the read with anonymous credentials and gets `403 Forbidden`
+- that means the rebuilt `Phase 5.B` blocker is now:
+  - managed Databricks object-store authorization, not semantic admission and not stubbed OFS source code
+
 ### Important caution on prior exploratory receipts
 - recent exploratory receipts and scripts may still be useful for narrowing and reuse,
 - but they are not to be treated as final `Phase 5` closure authority unless and until the rebuilt subphase structure above is honestly satisfied.
@@ -275,10 +294,10 @@ These are starting facts only. They are not closure evidence.
 ## Current immediate execution order
 
 1. keep the accepted rebuilt `Phase 5.A` execution as the current semantic-admission authority,
-2. replace the stubbed Databricks OFS build / quality source with a truthful bounded current-world dataset-basis proof,
-3. run that bounded managed OFS proof with fail-fast telemetry,
-4. only after `Phase 5.B` is materially green make an explicit method judgment on the current `5.C` / `5.D` workflow dependence,
-5. only after that judgment move deeper into train/eval and promotion / rollback proof.
+2. keep the repinned Databricks OFS build / quality source as the current truthful `Phase 5.B` proving surface,
+3. remediate managed object-store authorization so that Databricks can actually read the authoritative current-world truth basis,
+4. rerun the same bounded OFS proof on that same surface,
+5. only after `Phase 5.B` is materially green make an explicit method judgment on the current `5.C` / `5.D` workflow dependence.
 
 ## Phase closure rule
 

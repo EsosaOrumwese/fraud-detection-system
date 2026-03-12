@@ -21,21 +21,21 @@ flowchart LR
 
   subgraph SURFACES["Active Learning Surfaces In Scope"]
     S1["Rebuilt Phase 5.A accepted gate<br>semantic admission + current source world + managed-surface readability<br>execution_id = phase5_learning_mlops_20260312T041559Z"]
-    S2["Databricks / OFS current managed source<br>ofs_build_v0.py + ofs_quality_v0.py"]
+    S2["Databricks / OFS current managed source<br>ofs_build_v0.py + ofs_quality_v0.py<br>repinned to bounded current-world probe"]
     S3["SageMaker / MF retained later subphase surface<br>train / eval / candidate bundle"]
     S4["MLflow / MPR retained later subphase surface<br>promotion / rollback / active bundle governance"]
   end
 
   subgraph BLOCKERS["Current Open Blocker Family"]
     B1["Closed ambiguity<br>semantic admission is now green on the rebuilt gate"]
-    B2["Active blocker<br>retained Databricks OFS build / quality sources are bootstrap stubs, not real dataset-basis proof"]
+    B2["Active blocker<br>Databricks serverless cannot read the authoritative object-store basis<br>403 Forbidden / anonymous credentials on current-world run_facts and 6B truth surfaces"]
     B3["Deferred later question<br>MF / MPR workflow dependence is judged only after Phase 5.B is materially green"]
   end
 
   subgraph POSTURE["Rebuilt Phase 5 Posture"]
     P1["Keep Phase 5.A as current authority for semantic admission and telemetry"]
-    P2["Repin the Databricks OFS source to a bounded current-world dataset-basis proof"]
-    P3["Do not advance to train/eval or promotion claims until the managed OFS build proves leakage-safe, supervision-usable manifest truth"]
+    P2["Keep the repinned Databricks OFS source and remediate managed object-store authorization on that same boundary"]
+    P3["Do not advance to train/eval or promotion claims until the managed OFS build can actually read current-world truth and then prove leakage-safe, supervision-usable manifest truth"]
   end
 
   U1 --> U2

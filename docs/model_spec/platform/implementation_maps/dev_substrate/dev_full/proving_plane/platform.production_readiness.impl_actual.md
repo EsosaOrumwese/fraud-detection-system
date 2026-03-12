@@ -5484,3 +5484,46 @@ The right next move is not to reuse the old bound rollup and call it good. The r
 - and attributable manifest/lineage outputs
 
 That is the first real Learning implementation defect revealed by the rebuilt phase posture, and it is the next boundary to fix.
+
+## 2026-03-12 04:56:29 +00:00 - Rebuilt Phase 5.B is now pinned to a real Databricks-managed OFS dataset-basis probe, and the current blocker has moved from stubbed source to managed object-store authorization
+
+I replaced the bootstrap-only Databricks OFS sources with a real bounded current-world probe:
+
+- `platform/databricks/dev_full/ofs_build_v0.py`
+- `platform/databricks/dev_full/ofs_quality_v0.py`
+- orchestrated by `scripts/dev_substrate/phase5_ofs_dataset_basis.py`
+
+The new proving boundary is no longer "did the Databricks job start?" It is:
+
+- can the managed OFS surface read the current promoted source world,
+- can it inspect the actual `6B` truth products,
+- can it score bounded dataset-basis parity and time-bound safety against the current `label_asof_utc`.
+
+I executed that rebuilt boundary three times while narrowing the first failures:
+
+- `phase5_ofs_dataset_basis_20260312T043900Z`
+  - red because the notebook used raw `boto3` S3 access and serverless Databricks had no AWS credentials
+- `phase5_ofs_dataset_basis_20260312T045330Z`
+  - red because Spark Connect in the Databricks notebook does not implement `toJSON()`
+- `phase5_ofs_dataset_basis_20260312T045500Z`
+  - red again, now on the first real managed-surface storage access question
+
+The important point is that the first two reds were harness/runtime-surface compatibility defects and were fixed narrowly. The third red is the real Phase 5.B blocker:
+
+- Databricks serverless is trying to read the current source truth with anonymous credentials
+- access to `s3://fraud-platform-dev-full-object-store/...` is forbidden on the managed OFS surface
+- the failure hits immediately on the first required current-world input:
+  - `platform_20260312T003302Z/sr/run_facts_view/76488594c9b8a02bd5c8b2d4c28b71ff.json`
+
+That means the current Learning blocker is now cleanly attributable:
+
+- `Phase 5.A` is green
+- the OFS build/quality source is no longer a stub
+- but the managed Databricks OFS surface still cannot read the authoritative object-store basis it is supposed to learn from
+
+This is a production-grade blocker, not a proving-harness excuse. Under the current serverless-only Databricks posture, the OFS corridor is not yet able to consume the platform's authoritative world and label basis.
+
+The next honest move is not to hide this with local fallback. The next honest move is to treat Databricks object-store authorization as the active Phase 5.B remediation boundary and decide whether that is solved by:
+
+- managed-surface storage authorization / credentialing on Databricks,
+- or a justified repin of the OFS managed execution surface.
