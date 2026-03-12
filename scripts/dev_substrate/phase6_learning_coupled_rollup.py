@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -120,6 +121,26 @@ def replay_advisory_only(snapshot: dict[str, Any], component: str, max_checkpoin
     ) == 0.0
 
 
+def phase6_ofp_stale_graph_advisory(pre: dict[str, Any], post: dict[str, Any], *, max_lag: float) -> bool:
+    reasons = set(health_reasons(post, "ofp"))
+    if reasons != {"WATERMARK_TOO_OLD", "STALE_GRAPH_VERSION_RED"}:
+        return False
+    lag = summary_value(post, "ofp", "lag_seconds")
+    if lag is None or lag > max_lag:
+        return False
+    if (summary_value(post, "ofp", "snapshot_failures") or 0.0) > 0.0:
+        return False
+    pre_missing = summary_value(pre, "ofp", "missing_features")
+    post_missing = summary_value(post, "ofp", "missing_features")
+    if pre_missing is None or post_missing is None or post_missing > pre_missing:
+        return False
+    if (summary_value(post, "df", "missing_context_total") or 0.0) > (summary_value(pre, "df", "missing_context_total") or 0.0):
+        return False
+    if (summary_value(post, "df", "hard_fail_closed_total") or 0.0) > (summary_value(pre, "df", "hard_fail_closed_total") or 0.0):
+        return False
+    return True
+
+
 def latest_snapshot(snapshots: list[dict[str, Any]], label: str) -> dict[str, Any]:
     target = str(label).strip().lower()
     for row in reversed(snapshots):
@@ -146,11 +167,34 @@ def select_snapshots(root: Path, *, state_id: str, platform_run_id: str) -> list
 def extract_explicit_bundle(df_probe: dict[str, Any], scope_key: str) -> str:
     explicit = dict(df_probe.get("explicit_fallback_by_scope") or {})
     bundle_ref = dict(explicit.get(scope_key) or {})
-    bundle_id = str(bundle_ref.get("bundle_id") or "").strip()
+    bundle_id = normalize_bundle_id(
+        str(bundle_ref.get("bundle_id") or "").strip(),
+        bundle_version=str(bundle_ref.get("bundle_version") or "").strip(),
+        registry_ref=str(bundle_ref.get("registry_ref") or "").strip(),
+    )
     bundle_version = str(bundle_ref.get("bundle_version") or "").strip()
     if not bundle_id or not bundle_version:
         return ""
     return f"bundle://{bundle_id}@{bundle_version}"
+
+
+def normalize_bundle_id(bundle_id: str, *, bundle_version: str, registry_ref: str) -> str:
+    text = str(bundle_id or "").strip().lower()
+    if not text:
+        return ""
+    if len(text) == 64 and all(ch in "0123456789abcdef" for ch in text):
+        return text
+    seed = json.dumps(
+        {
+            "legacy_bundle_id": str(bundle_id or "").strip(),
+            "bundle_version": str(bundle_version or "").strip(),
+            "registry_ref": str(registry_ref or "").strip(),
+        },
+        sort_keys=True,
+        ensure_ascii=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(seed.encode("utf-8")).hexdigest()
 
 
 def warm_gate_transition_advisory(payload: dict[str, Any]) -> bool:
@@ -184,6 +228,7 @@ def main() -> None:
             "blocker_ids": ["PHASE6.A00_PHASE5_RECEIPT_MISSING"],
         }
     phase5_summary = load_json(phase5_root / "phase5_learning_managed_summary.json")
+    registry_surface_manifest = load_optional_json(root / "phase6_registry_surface_manifest.json") or {}
 
     envelope = load_optional_json(root / f"{prefix}_envelope_summary.json")
     bootstrap = load_optional_json(root / "phase6_control_plane_bootstrap.json") or {"overall_pass": False}
@@ -200,7 +245,9 @@ def main() -> None:
     charter = load_optional_json(root / "g6a_run_charter.active.json") or {}
 
     expected_bundle = f"bundle://{phase5_summary['governance']['bundle_id']}@{phase5_summary['governance']['bundle_version']}"
-    previous_bundle = dict(phase5_summary.get("governance", {}).get("previous_active_bundle") or {})
+    previous_bundle = dict(registry_surface_manifest.get("previous_bundle") or {})
+    if not previous_bundle:
+        previous_bundle = dict(phase5_summary.get("governance", {}).get("previous_active_bundle") or {})
     previous_bundle_uri = ""
     if previous_bundle.get("bundle_id") and previous_bundle.get("bundle_version"):
         previous_bundle_uri = f"bundle://{previous_bundle['bundle_id']}@{previous_bundle['bundle_version']}"
@@ -244,9 +291,10 @@ def main() -> None:
                 blockers.append(f"PHASE6.B23_COMPONENT_MISSING:{component}")
                 continue
             state = health_state(post, component).upper()
-            if state in {"RED", "FAILED", "UNHEALTHY"} and not replay_advisory_only(
-                post, component, float(args.max_checkpoint_p99_seconds), float(args.max_lag_p99_seconds)
-            ):
+            advisory = replay_advisory_only(post, component, float(args.max_checkpoint_p99_seconds), float(args.max_lag_p99_seconds))
+            if component == "ofp" and not advisory:
+                advisory = phase6_ofp_stale_graph_advisory(pre, post, max_lag=float(args.max_lag_p99_seconds))
+            if state in {"RED", "FAILED", "UNHEALTHY"} and not advisory:
                 blockers.append(f"PHASE6.B24_COMPONENT_HEALTH_RED:{component}:{state}")
 
         metrics = {

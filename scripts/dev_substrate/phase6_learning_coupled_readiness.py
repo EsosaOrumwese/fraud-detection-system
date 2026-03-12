@@ -60,6 +60,38 @@ def load_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def inherit_phase4_envelope(*, summary: dict[str, Any], args: argparse.Namespace) -> None:
+    campaign = dict(summary.get("campaign") or {})
+    rate_plan = list(campaign.get("rate_plan_per_lane") or [])
+    first_step = dict(rate_plan[0]) if rate_plan else {}
+    target_eps = float(first_step.get("target_eps") or 0.0)
+    initial_tokens = float(first_step.get("initial_tokens") or 0.0)
+    burst_step_initial_tokens = campaign.get("burst_step_initial_tokens")
+    if burst_step_initial_tokens is None and len(rate_plan) >= 3:
+        burst_step_initial_tokens = dict(rate_plan[2]).get("initial_tokens")
+    inherited = {
+        "lane_count": int(campaign["lane_count"]) if campaign.get("lane_count") is not None else args.lane_count,
+        "steady_seconds": int(campaign["steady_seconds"]) if campaign.get("steady_seconds") is not None else args.steady_seconds,
+        "burst_seconds": int(campaign["burst_seconds"]) if campaign.get("burst_seconds") is not None else args.burst_seconds,
+        "recovery_seconds": int(campaign["recovery_seconds"]) if campaign.get("recovery_seconds") is not None else args.recovery_seconds,
+        "presteady_seconds": int(campaign["presteady_seconds"]) if campaign.get("presteady_seconds") is not None else args.presteady_seconds,
+        "presteady_eps": float(campaign["presteady_eps"]) if campaign.get("presteady_eps") is not None else args.presteady_eps,
+        "steady_eps": float(campaign["steady_eps"]) if campaign.get("steady_eps") is not None else args.steady_eps,
+        "burst_eps": float(campaign["burst_eps"]) if campaign.get("burst_eps") is not None else args.burst_eps,
+        "stream_speedup": float(campaign["stream_speedup"]) if campaign.get("stream_speedup") is not None else args.stream_speedup,
+        "short_upward_transition_lane_stagger_seconds": float(campaign["short_upward_transition_lane_stagger_seconds"])
+        if campaign.get("short_upward_transition_lane_stagger_seconds") is not None
+        else args.short_upward_transition_lane_stagger_seconds,
+        "burst_step_initial_tokens": float(burst_step_initial_tokens)
+        if burst_step_initial_tokens is not None
+        else args.burst_step_initial_tokens,
+        "target_burst_seconds": float(first_step.get("burst_seconds") or args.target_burst_seconds),
+        "target_initial_tokens": float(initial_tokens / target_eps) if target_eps > 0.0 else float(args.target_initial_tokens),
+    }
+    for key, value in inherited.items():
+        setattr(args, key, value)
+
+
 def archive_copy(src: Path, dest: Path) -> None:
     if not src.exists():
         raise RuntimeError(f"phase6_expected_artifact_missing:{src}")
@@ -273,6 +305,8 @@ def write_charter(
     *,
     execution_id: str,
     platform_run_id: str,
+    rollback_platform_run_id: str,
+    restore_platform_run_id: str,
     source_execution_id: str,
     phase5_execution_id: str,
     scenario_run_id: str,
@@ -298,6 +332,8 @@ def write_charter(
             "source_execution_id": source_execution_id,
             "phase5_execution_id": phase5_execution_id,
             "platform_run_id": platform_run_id,
+            "rollback_platform_run_id": rollback_platform_run_id,
+            "restore_platform_run_id": restore_platform_run_id,
             "scenario_run_id": scenario_run_id,
             "rollback_scenario_run_id": rollback_scenario_run_id,
             "restore_scenario_run_id": restore_scenario_run_id,
@@ -533,6 +569,7 @@ def main() -> None:
     ap.add_argument("--rollback-activation-target-request-rate-eps", type=float, default=1500.0)
     ap.add_argument("--restore-activation-duration-seconds", type=int, default=20)
     ap.add_argument("--restore-activation-target-request-rate-eps", type=float, default=1500.0)
+    ap.add_argument("--candidate-steady-warm-extension-seconds", type=int, default=60)
     ap.add_argument("--cluster-name", default="fraud-platform-dev-full")
     ap.add_argument("--nodegroup-name", default="fraud-platform-dev-full-m6f-workers")
     ap.add_argument("--nodegroup-desired-size", type=int, default=4)
@@ -547,23 +584,35 @@ def main() -> None:
     source_root = Path(args.run_control_root) / str(args.source_execution_id).strip()
     phase5_root = Path(args.run_control_root) / str(args.phase5_execution_id).strip()
     phase4_receipt = load_json(source_root / "phase4_coupled_readiness_receipt.json")
+    phase4_envelope = load_json(source_root / "phase4_coupled_envelope_summary.json")
     phase5_summary = load_json(phase5_root / "phase5_learning_managed_summary.json")
     phase5_receipt = load_json(phase5_root / "phase5_learning_managed_receipt.json")
     if str(phase4_receipt.get("verdict") or "").strip().upper() != "PHASE4_READY":
         raise RuntimeError("PHASE6.A01_SOURCE_PHASE4_NOT_GREEN")
     if str(phase5_receipt.get("verdict") or "").strip().upper() != "PHASE5_READY":
         raise RuntimeError("PHASE6.A02_PHASE5_NOT_GREEN")
+    inherit_phase4_envelope(summary=phase4_envelope, args=args)
 
     platform_run_id = fresh_platform_run_id()
     scenario_run_id = fresh_scenario_run_id(execution_id=execution_id, window_label="phase6_coupled", platform_run_id=platform_run_id)
     prewarm_scenario_run_id = fresh_scenario_run_id(execution_id=execution_id, window_label="phase6_coupled_prewarm", platform_run_id=platform_run_id)
-    rollback_scenario_run_id = fresh_scenario_run_id(execution_id=execution_id, window_label="phase6_coupled_rollback", platform_run_id=platform_run_id)
-    restore_scenario_run_id = fresh_scenario_run_id(execution_id=execution_id, window_label="phase6_coupled_restore", platform_run_id=platform_run_id)
+    time.sleep(1)
+    rollback_platform_run_id = fresh_platform_run_id()
+    rollback_scenario_run_id = fresh_scenario_run_id(
+        execution_id=execution_id, window_label="phase6_coupled_rollback", platform_run_id=rollback_platform_run_id
+    )
+    time.sleep(1)
+    restore_platform_run_id = fresh_platform_run_id()
+    restore_scenario_run_id = fresh_scenario_run_id(
+        execution_id=execution_id, window_label="phase6_coupled_restore", platform_run_id=restore_platform_run_id
+    )
 
     write_charter(
         root / "g6a_run_charter.active.json",
         execution_id=execution_id,
         platform_run_id=platform_run_id,
+        rollback_platform_run_id=rollback_platform_run_id,
+        restore_platform_run_id=restore_platform_run_id,
         source_execution_id=str(args.source_execution_id).strip(),
         phase5_execution_id=str(args.phase5_execution_id).strip(),
         scenario_run_id=scenario_run_id,
@@ -582,6 +631,8 @@ def main() -> None:
             "generated_at_utc": now_utc(),
             "execution_id": execution_id,
             "platform_run_id": platform_run_id,
+            "rollback_platform_run_id": rollback_platform_run_id,
+            "restore_platform_run_id": restore_platform_run_id,
             "scenario_run_id": scenario_run_id,
             "prewarm_scenario_run_id": prewarm_scenario_run_id,
             "rollback_scenario_run_id": rollback_scenario_run_id,
@@ -711,6 +762,7 @@ def main() -> None:
                 stop_wsp_tasks(args.aws_region, root / "phase6_candidate_activation_wsp_cleanup.json", "Phase6 candidate activation WSP cleanup")
                 time.sleep(max(0, int(args.post_scored_activation_settle_seconds)))
             time.sleep(max(0, int(args.post_prewarm_settle_seconds)))
+            time.sleep(max(0, int(args.candidate_steady_warm_extension_seconds)))
 
         capture_snapshot(
             execution_id=execution_id,
@@ -878,7 +930,7 @@ def main() -> None:
         materialize_runtime(
             execution_id=execution_id,
             run_control_root=args.run_control_root,
-            platform_run_id=platform_run_id,
+            platform_run_id=rollback_platform_run_id,
             scenario_run_id=rollback_scenario_run_id,
             aws_region=args.aws_region,
             namespace=args.namespace,
@@ -894,7 +946,7 @@ def main() -> None:
                 run_control_root=args.run_control_root,
                 namespace=args.namespace,
                 case_labels_namespace=args.case_labels_namespace,
-                platform_run_id=platform_run_id,
+                platform_run_id=rollback_platform_run_id,
                 expected_case_label_scenario_run_id=rollback_scenario_run_id,
             )
         except subprocess.CalledProcessError:
@@ -906,7 +958,7 @@ def main() -> None:
             execution_id=execution_id,
             run_control_root=args.run_control_root,
             aws_region=args.aws_region,
-            platform_run_id=platform_run_id,
+            platform_run_id=rollback_platform_run_id,
             scenario_run_id=rollback_scenario_run_id,
             artifact_prefix="phase6_rollback_activation",
             window_label="phase6_rollback_activation",
@@ -929,7 +981,7 @@ def main() -> None:
                 "--execution-id",
                 execution_id,
                 "--platform-run-id",
-                platform_run_id,
+                rollback_platform_run_id,
                 "--scenario-run-id",
                 rollback_scenario_run_id,
                 "--namespace",
@@ -950,7 +1002,7 @@ def main() -> None:
         materialize_runtime(
             execution_id=execution_id,
             run_control_root=args.run_control_root,
-            platform_run_id=platform_run_id,
+            platform_run_id=restore_platform_run_id,
             scenario_run_id=restore_scenario_run_id,
             aws_region=args.aws_region,
             namespace=args.namespace,
@@ -966,7 +1018,7 @@ def main() -> None:
                 run_control_root=args.run_control_root,
                 namespace=args.namespace,
                 case_labels_namespace=args.case_labels_namespace,
-                platform_run_id=platform_run_id,
+                platform_run_id=restore_platform_run_id,
                 expected_case_label_scenario_run_id=restore_scenario_run_id,
             )
         except subprocess.CalledProcessError:
@@ -978,7 +1030,7 @@ def main() -> None:
             execution_id=execution_id,
             run_control_root=args.run_control_root,
             aws_region=args.aws_region,
-            platform_run_id=platform_run_id,
+            platform_run_id=restore_platform_run_id,
             scenario_run_id=restore_scenario_run_id,
             artifact_prefix="phase6_restore_activation",
             window_label="phase6_restore_activation",
@@ -1001,7 +1053,7 @@ def main() -> None:
                 "--execution-id",
                 execution_id,
                 "--platform-run-id",
-                platform_run_id,
+                restore_platform_run_id,
                 "--scenario-run-id",
                 restore_scenario_run_id,
                 "--namespace",

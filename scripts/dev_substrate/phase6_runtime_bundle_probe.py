@@ -87,7 +87,7 @@ governance = store.governance_stamp_summary(
     scenario_run_id=scenario_run_id,
     limit=limit,
 )
-quarantine = store.quarantine_summary(
+quarantine = store.quarantine_reason_counts(
     platform_run_id=platform_run_id,
     scenario_run_id=scenario_run_id,
     limit=min(100, limit),
