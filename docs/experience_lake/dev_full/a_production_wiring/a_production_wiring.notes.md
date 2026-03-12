@@ -3755,3 +3755,956 @@ I want to keep the interrogation of this path inside one entry:
 Plainly stated, the `Authoritative label commit and visibility path` exists to turn supervision requests into append-only, provenance-complete, temporally visible label truth, and its current design shows that this boundary is deliberate, materially seated, and learning-safe rather than implicit.
 
 That finishes the per-path interrogation for Group 5.
+
+## 2026-03-12 11:34:34 +00:00 - Enumerating the real paths in Group 6: Learning, evaluation, and governed activation
+
+Moving to the next group, I want to pin 5 real paths in the learning, evaluation, and governed activation group.
+
+I do not want to collapse it to 3 just because the main managed surfaces are the offline-feature system, model factory, and promotion corridor. The authorities separate learning-input readiness, dataset truth, candidate-bundle truth, promotion and rollback truth, and active-bundle runtime authority as different closure points. The run-process already uses distinct learning-input, dataset, train/eval, and promotion closures, and the production-readiness definition explicitly adds registry-to-runtime feedback as separate critical path. That is why 5 is the clean split.
+
+1. `Learning-input basis path`
+   - definition:
+     - archive truth plus label truth plus replay references -> learning-input readiness basis with as-of, maturity, and anti-leakage controls pinned
+   - why it is a real path:
+     - this path has its own owned outcome:
+       - replay basis pinned
+       - label as-of policy pinned
+       - anti-leakage checks passing
+       - and committed learning-input readiness snapshot
+     - the production-readiness docs also treat RTDL plus Case/Label into Learning as distinct cross-plane path whose question is whether replayable runtime truth plus authoritative labels become trustworthy learning truth
+
+2. `Offline dataset commitment path`
+   - definition:
+     - learning-input-ready basis -> offline-feature build system -> committed offline dataset truth with manifest, fingerprint, rollback recipe, and leakage audit
+   - why it is a real path:
+     - this path owns stronger outcome than some tables were built
+     - the offline-feature plane is where authoritative runtime truth and label truth become authoritative offline dataset truth, with point-in-time correctness and future leakage violations forced to zero
+     - the learning closure requires dataset build completion, committed manifest, committed fingerprint, rollback recipe, and passing time-bound and leakage audit
+
+3. `Train / eval and candidate-bundle path`
+   - definition:
+     - immutable offline-dataset refs -> model factory surfaces -> training and evaluation truth plus candidate bundle with provenance
+   - why it is a real path:
+     - this path owns stronger outcome than job ran
+     - the train-and-eval boundary requires training and evaluation completion, metrics and leakage checks, committed candidate bundle, safe-disable and rollback path, and candidate provenance that includes upstream dataset fingerprint, replay basis, and as-of controls
+     - the production-readiness docs separately call this the train/eval path, whose question is whether the platform can build trustworthy candidate models or policies from governed data
+
+4. `Promotion and rollback-governance path`
+   - definition:
+     - eligible candidate bundle -> promotion corridor -> explicit promotion truth plus rollback drill and rollback bounded-objective truth
+   - why it is a real path:
+     - governed activation is not the same thing as candidate creation
+     - this path has its own owned closure:
+       - promotion corridor event committed
+       - rollback drill executed and recorded
+       - rollback bounded objective measured against pinned recovery handles
+       - active-bundle resolution checks passing
+       - and compatibility fail-closed checks passing
+     - the production-readiness docs separately call this the promotion path, and the implementation and build-plan notes treat promotion receipts and rollback drill reports as first-class truth surfaces
+
+5. `Active-bundle authority feedback path`
+   - definition:
+     - promoted registry truth -> deterministic active-bundle resolution -> runtime-readable decision authority
+   - why it is a real path:
+     - the production-readiness docs explicitly split learning into registry and promotion from registry back into RTDL feedback
+     - that means candidate promoted and runtime now deterministically consumes the right active bundle or policy are not the same owned outcome
+     - the docs are explicit that the platform is only safe when runtime resolves the right active bundle, decision provenance includes bundle and policy identity, and promotion and rollback changes are applied deterministically in runtime
+     - for `A`, I want to stop this path at runtime-readable active-bundle authority, not at Group 3's actual decision consumption
+
+Why I think these 5 are the right split:
+
+They match the actual closure surfaces the docs already use:
+
+- learning-input basis truth
+- dataset truth
+- candidate-bundle truth
+- promotion and rollback truth
+- and active-bundle runtime authority
+
+That gives clean progression from authoritative runtime and label truth, through managed learning, into governed activation, without collapsing materially different truths into one vague Databricks, SageMaker, and MLflow path.
+
+What I do not want to count here:
+
+- raw archive production or label production again
+  - those were already owned by previous groups
+- the later RTDL consumption of the active bundle as new internal path of this group
+  - for this `A` structure, Group 3 already owns runtime decision formation
+- generic observability and governance reporting here
+  - that belongs to the later run governance, observability, and evidence-closure group
+
+So the pinned Group 6 path set is:
+
+- `Learning-input basis path`
+- `Offline dataset commitment path`
+- `Train / eval and candidate-bundle path`
+- `Promotion and rollback-governance path`
+- `Active-bundle authority feedback path`
+
+That is the clean split I want to use before dropping back down into per-path interrogation.
+
+## 2026-03-12 11:39:01 +00:00 - Path interrogation: `Learning-input basis path`
+
+This path exists to turn authoritative runtime and archive truth plus authoritative label truth into learning-input basis that is safe to build datasets from. Its job is not yet to build the offline dataset, not yet to run training and evaluation, and not yet to promote bundle. Its narrower job is to answer: what exact bounded slice of platform truth is learning allowed to use, under what replay basis, and under what temporal controls? That is exactly how the learning-input closure is defined in the run-process: archive, labels, and replay references must already be resolved from spine closure, replay basis must be pinned, label as-of policy must be pinned, anti-leakage checks must pass, and all learning rows must satisfy the active feature-as-of, label-as-of, and maturity rules.
+
+I want to keep the interrogation of this path inside one entry:
+
+1. what this path is trying to achieve:
+   - turn authoritative runtime and archive truth plus authoritative label truth into learning-input basis that is safe to build datasets from
+   - keep this path narrower than offline dataset build, training and evaluation, or promotion
+   - answer what exact bounded slice of platform truth learning is allowed to use, under what replay basis, and under what temporal controls
+
+2. entry:
+   - the entry is not some archive exists and it is not labels exist somewhere
+   - the entry is archive truth plus label truth plus replay references already resolved from the closed spine, under one run scope
+   - the learning-input gate states that explicitly
+   - the master build plan then turns that into the learning-input objective:
+     - replay basis pinned to source-offset ranges
+     - strict as-of and maturity controls
+     - runtime-versus-learning separation
+     - and fail-closed no-future-leakage posture
+
+3. owned outcome:
+   - the owned outcome is committed learning-input basis for the run, with:
+     - replay basis pinned
+     - temporal boundaries pinned
+     - maturity policy pinned
+     - leakage posture pinned
+     - and committed learning window and fingerprint basis
+   - that is narrower than offline dataset and narrower than later training truth
+   - this path closes when the platform can say, in durable and deterministic way:
+     - this is the exact causal slice learning is allowed to use
+   - the offline-dataset path then starts from that outcome and builds the actual dataset
+
+4. what the path carries:
+   - this path carries the specific control objects that make learning input trustworthy rather than vague:
+     - the replay-basis receipt
+     - the learning-input readiness snapshot
+     - the as-of and maturity policy snapshot
+     - the leakage guardrail report
+     - the runtime-versus-learning separation result
+     - and the run-scoped continuity that ties those objects back to the same platform run
+   - that bundle is not inferred
+   - it is visible in the implementation trail
+   - when the later binding proof was prepared, the canonical upstream input set for learning-input closure was explicitly confirmed as:
+     - replay-basis receipt
+     - leakage guardrail report
+     - readiness snapshot
+     - as-of and maturity policy snapshot
+     - runtime-learning separation snapshot
+
+5. broad route logic:
+   - archive truth plus label truth plus replay references -> replay-basis pin -> as-of and maturity pin -> leakage and separation checks -> committed learning-input readiness basis
+   - that broad route matters because it shows the platform is not treating learning input as latest archive plus latest labels
+   - it is inserting dedicated causal-binding boundary first
+   - the learning-input plan is explicit that this lane has to close replay basis, then temporal policy, then leakage guardrails, then runtime and learning separation, then readiness snapshot and verdict
+
+6. logical design reading:
+   - logically, this path shows that the platform treats learning-input truth as its own first-class boundary, not as convenience prelude to dataset build
+   - that is strong `A`-level design signal
+   - the system is not saying:
+     - the offline-feature job will figure out the right rows later
+   - it is saying:
+     - before offline feature build does anything, the platform must explicitly pin replay basis, as-of boundaries, label maturity, and anti-leakage posture
+   - that keeps learning semantically separate from both runtime and raw archive storage
+
+7. concrete seating in the current wired system:
+   - this path is materially seated in the current wired system, but importantly it is seated as control-plane evidence lane, not as heavy compute lane yet
+   - the run-process gives it its own learning-input closure
+   - the implementation trail shows separate executed lanes that published concrete artifacts to both:
+     - run-control evidence roots
+     - and run-scoped learning-input surfaces
+   - for example:
+     - replay-basis closure published a replay-basis receipt into run-control evidence and into the run-scoped learning-input surface
+     - temporal policy closure published as-of and maturity artifacts
+     - leakage evaluation published the leakage guardrail report into the run-scoped learning-input surface
+   - so the honest `A` reading is:
+     - this path is materially seated in managed evidence and control surfaces that define the learning basis before offline dataset build begins
+   - the offline-feature build system becomes the next path
+
+8. why the design looks like this:
+   - the design looks like this because the platform deliberately refuses the common bad shortcut of learning from:
+     - unbounded archive slices
+     - implicit latest labels
+     - unpinned temporal windows
+     - or runtime-only truth surfaces bleeding into learning
+   - the learning and evolution authority pins the temporal-realism contract clearly:
+     - learning lanes may read archive plus truth only through explicit replay basis
+     - explicit feature-as-of
+     - explicit label-as-of
+     - and explicit label-maturity gates
+     - and any future-timestamp leakage is fail-closed
+   - the production-readiness definition says the same thing in plainer operational language:
+     - the learning plane must use the right truth
+     - not future data
+     - not placeholders
+     - and not hidden synthetic shortcuts
+
+9. what larger contracts are shaping this path:
+   - several larger contracts shape it strongly
+   - the run-process contract shapes the gate itself:
+     - archive, labels, and replay references must already be resolved
+     - replay basis must be source-offset ranges with explicit semantics
+     - all rows must satisfy temporal boundaries
+     - and leakage guardrails must pass
+   - the learning-plane authority contract shapes the semantics:
+     - learning may only read archive plus truth through replay basis plus as-of plus maturity gates
+     - and any row violating the active boundary is rejected and recorded
+   - the label-truth contract also shapes it from the supervision side:
+     - labels must already be authoritative
+     - queryable by as-of and maturity
+     - and safe from future-label leakage
+     - or else learning-input truth is already compromised before dataset build begins
+
+10. trade-offs and constraints:
+   - this path deliberately adds full control boundary before offline-feature build
+   - that costs extra ceremony:
+     - replay-basis receipts
+     - temporal policy derivation
+     - maturity policy checks
+     - leakage guardrails
+     - runtime and learning separation checks
+     - and committed readiness snapshots
+   - but that cost buys something important
+   - the platform can later say exactly why this dataset basis was allowed, instead of hiding semantic decisions inside the Databricks job
+   - the implementation notes show that this is not just theory
+   - the learning-input closure was explicitly decomposed into:
+     - replay-basis closure
+     - as-of plus maturity closure
+     - leakage guardrail evaluation
+     - runtime-versus-learning surface separation
+     - readiness snapshot publication
+     - and deterministic verdict
+
+11. necessity test:
+   - if this path is removed, the platform can still:
+     - preserve archive history
+     - commit authoritative labels
+     - and run Databricks jobs later
+   - but it loses clean answer to:
+     - which replay slice learning actually used
+     - what the active feature-as-of and label-as-of values were
+     - whether labels were mature enough
+     - whether runtime-only surfaces leaked into learning
+     - and whether future knowledge was blocked or merely undocumented
+   - that would weaken `A` immediately, because reviewer could fairly say the platform has archive truth and labels and even offline-feature build, but no explicit owner for the causal learning basis that connects them
+   - the run-process and learning-input plan explicitly reject that looseness by making learning-input readiness its own gate
+
+12. what this path proves for `A`:
+   - purpose claim:
+     - the platform has distinct job for turning archive truth, label truth, and replay references into explicit learning-input basis before dataset build begins
+   - intentionality claim:
+     - replay basis, as-of, maturity, and anti-leakage are designed boundaries, not later cleanup rules
+   - materialization claim:
+     - this boundary is concretely seated in executed control-lane artifacts and run-scoped learning-input evidence surfaces
+   - contract claim:
+     - this path is governed by the learning-input closure, by the temporal-causality and no-future-leakage law, and by authoritative label as-of and maturity semantics
+   - constraint-awareness claim:
+     - the platform already knows this boundary can go wrong through unresolved replay basis, future timestamps, leakage, or runtime-learning surface confusion, which is why each one has its own fail-closed lane
+   - material participation evidence:
+     - the current closure trail already records:
+       - replay basis mode = source-offset ranges
+       - one replay-range row
+       - a replay fingerprint
+       - derived feature-as-of
+       - derived label-as-of
+       - derived label-maturity cutoff
+       - leakage rows checked
+       - and boundary violations = 0
+
+Plainly stated, the `Learning-input basis path` exists to turn archive truth, label truth, and replay references into formally pinned causal basis for learning, and its current design shows that this boundary is deliberate, materially seated, and no-future-leakage-aware rather than implicit.
+
+The next path in this group is the `Offline dataset commitment path`.
+
+## 2026-03-12 11:43:24 +00:00 - Path interrogation: `Offline dataset commitment path`
+
+This path exists to turn a pinned learning-input basis into authoritative offline dataset truth. Its job is not to pin replay, as-of, or maturity policy, and it is not yet to run training and evaluation. Its narrower job is to answer: once learning-input truth is pinned, where does the platform commit the actual dataset that later training is allowed to trust? The run-process makes that boundary explicit in the offline-dataset closure: the dataset build completes, manifest is committed, fingerprint is committed, rollback recipe is committed, the manifest encodes replay basis plus feature-as-of, label-as-of, and label-maturity controls, and a time-bound and leakage audit must pass. The production-readiness definition says the same thing in component language: the offline-feature plane exists to build authoritative offline datasets from replayable platform truth and label truth, with point-in-time correctness, future leakage violations at zero, deterministic manifests, and real rollback and rebuild posture.
+
+I want to keep the interrogation of this path inside one entry:
+
+1. what this path is trying to achieve:
+   - turn pinned learning-input basis into authoritative offline dataset truth
+   - keep this path narrower than learning-input closure and narrower than later training and evaluation truth
+   - answer where the platform commits the actual dataset that later training is allowed to trust
+
+2. entry:
+   - the entry is not that Databricks has access to some tables
+   - the entry is a green learning-input basis whose replay references, as-of controls, maturity policy, and anti-leakage posture are already pinned and committed
+   - the run-process is explicit that offline-dataset closure only starts when learning-input closure is green
+   - the active build plan then turns that into input binding and immutability checks
+   - that means the offline-feature plane is not allowed to decide its own basis ad hoc
+   - it must inherit an already-closed, immutable learning-input basis from the prior closure
+
+3. owned outcome:
+   - the owned outcome is committed offline dataset truth, not merely successful Databricks run and not yet candidate model bundle
+   - that outcome includes:
+     - an offline-feature build that completed
+     - a committed dataset manifest
+     - a committed dataset fingerprint
+     - a committed rollback recipe
+     - and a committed time-bound and leakage audit that passed
+   - that is why this path deserves to stand on its own
+   - the train-and-eval path later consumes the immutable dataset artifact from this boundary
+   - it does not redefine dataset truth for itself
+
+4. what the path carries:
+   - this path carries the exact things that make dataset truth reconstructable and defensible:
+     - the replay basis inherited from the learning-input closure
+     - the temporal controls:
+       - feature-as-of
+       - label-as-of
+       - label-maturity
+     - the authoritative runtime, archive, and label basis
+     - the dataset manifest
+     - the dataset fingerprint
+     - the time-bound and leakage audit
+     - and the rollback recipe
+   - the current semantics-realization trail adds an important current-wired nuance here
+   - when the platform moved from generic closure to real-data closure, the offline-feature build was explicitly restricted to real authoritative surfaces, carried forward the replay-basis mode of source-offset ranges, and carried the feature and label as-of plus maturity pins into the manifest and fingerprint
+   - in other words, the path is not just about building rows
+   - it is about carrying semantic controls into dataset truth
+
+5. broad route logic:
+   - green learning-input basis -> offline-feature input binding and immutability checks -> Databricks dataset build -> quality-gate adjudication -> Iceberg and Glue commit verification -> manifest, fingerprint, and time-bound audit publication -> rollback recipe closure
+   - that broad route matters because it shows the platform is not treating the offline-feature plane as one Databricks job
+   - the active build plan decomposes the closure into exactly those owned steps:
+     - input binding
+     - build execution
+     - quality gates
+     - Iceberg and Glue commit verification
+     - manifest and fingerprint publication
+     - rollback recipe closure
+     - and gate rollup
+
+6. logical design reading:
+   - logically, this path shows that the platform treats dataset truth as its own first-class boundary, not as side effect of managed compute
+   - that is strong `A`-level design signal
+   - the system is not saying:
+     - Databricks ran, so the dataset must be fine
+   - it is saying:
+     - before training is allowed, the platform must commit deterministic dataset object with pinned temporal basis, leakage audit, fingerprint, and rollback recipe
+   - that is exactly the distinction the production-readiness definition is pushing:
+     - if the offline-feature plane is wrong, training is running on fiction
+   - so the offline-feature plane must own stronger truth boundary than mere job completion
+
+7. concrete seating in the current wired system:
+   - this path is materially seated in the current wired platform
+   - the copied baseline wired graphs show:
+     - a Databricks workspace as the offline-feature build surface
+     - dedicated Databricks jobs for build and quality
+     - the build job writing dataset tables into the catalog-backed tabular store
+     - dataset manifests written into object storage
+     - and quality receipts written into evidence
+   - that means dataset truth is seated on concrete managed learning substrate, committed tabular storage, and run-scoped evidence surfaces rather than vague notebook output
+   - the current implementation trail makes that materiality even clearer
+   - in the managed closure, the Databricks run completed successfully, catalog readback verified the committed table, and run-scoped offline-feature artifacts were published under the learning evidence surfaces
+   - later, the real-data realization produced a concrete authoritative dataset location with measurable row counts and zero future or leakage violations
+   - that is strong `A`-style evidence that this boundary is real and working on actual platform truth, not just diagrammed
+
+8. why the design looks like this:
+   - the design looks like this because the platform refuses two weak shortcuts:
+     - latest-data shortcuts, where the offline-feature build quietly decides its own temporal basis
+     - and unmanaged file-emission shortcuts, where data appears somewhere without proper dataset truth, metadata, and rollback semantics
+   - the production-readiness definition explicitly rejects both
+   - offline datasets must come from the right truth sources only, respect point-in-time constraints, enforce leakage checks in reality rather than only in principle, produce deterministic manifests, and have real rollback and rebuild recipes
+   - the run-process reinforces that by failing the offline-dataset closure if manifest or fingerprint are missing or if the time-bound and leakage audit fails
+   - the current implementation history reinforces the same intent
+   - diagnostic local runs were allowed for visibility, but the build plan says they were non-authoritative under the no-local-compute rule
+   - the real closure path was managed-only
+   - later, the real-data realization deliberately rewired the offline-feature build to real data surfaces rather than bootstrap or synthetic placeholders
+   - that is exactly the shape expected from system that treats dataset truth seriously
+
+9. what larger contracts are shaping this path:
+   - several larger contracts shape it strongly
+   - the learning-input contract shapes the input side:
+     - replay basis
+     - as-of boundaries
+     - maturity
+     - and anti-leakage must already be pinned before the offline-feature plane can build anything
+   - the offline-feature production-ready contract shapes the dataset side:
+     - point-in-time correctness
+     - future leakage = 0
+     - deterministic manifests
+     - fingerprint stability
+     - and rebuild determinism
+   - the data and storage contract shapes the materialization side:
+     - the learning tabular format is pinned to Apache Iceberg v2 on object storage with the Glue Data Catalog, not unmanaged files
+   - there is also downstream shaping contract:
+     - the train-and-eval path later requires candidate provenance to include the upstream dataset fingerprint plus replay basis and as-of controls
+   - that means this path cannot be vague about dataset identity
+   - model training depends on this boundary being explicit
+
+10. trade-offs and constraints:
+   - this path deliberately adds full governance boundary before training
+   - that costs:
+     - Databricks build orchestration
+     - quality-gate adjudication
+     - Iceberg and Glue verification
+     - manifest and fingerprint synthesis
+     - rollback-recipe authoring
+     - and explicit time-bound and leakage auditing
+   - but that cost buys something important
+   - the platform can later explain exactly what dataset was used, why it was allowed, and how to rebuild or roll back from it, instead of burying those decisions inside notebook or job run
+   - the build plan shows those constraints clearly
+   - the offline-feature closure had to close runtime readiness, input binding, build execution, quality gates, catalog commit verification, and rollback recipe closure as separate obligations
+   - that is more ceremony, but it is what turns we built dataset into we have authoritative dataset truth
+
+11. necessity test:
+   - if this path is removed, the platform can still:
+     - preserve archive truth
+     - commit authoritative labels
+     - pin a learning-input basis
+     - and even run model-training jobs later
+   - but it loses clean answer to:
+     - what dataset training actually used
+     - whether the dataset respected point-in-time rules
+     - whether future leakage was blocked
+     - what the dataset fingerprint was
+     - and how to rebuild or roll back to the exact same dataset basis
+   - that would weaken `A` immediately, because reviewer could fairly say the platform has learning inputs and model jobs, but no explicit owner for dataset truth itself
+   - the production-readiness definition says this plainly:
+     - if the offline-feature plane is wrong, training is running on fiction
+
+12. what this path proves for `A`:
+   - purpose claim:
+     - the platform has distinct job for turning pinned causal learning basis into authoritative dataset truth before any training occurs
+   - intentionality claim:
+     - manifests, fingerprints, rollback recipes, and time-bound and leakage audits are designed closure objects, not optional extras
+   - materialization claim:
+     - this boundary is concretely seated in Databricks, Iceberg and Glue, and run-scoped offline-feature evidence surfaces
+   - contract claim:
+     - the path is governed by offline-dataset closure, by offline-feature point-in-time and no-future-leakage rules, and by deterministic dataset identity requirements
+   - constraint-awareness claim:
+     - the platform already knows this boundary can fail through bad inputs, bad temporal logic, missing metadata, or unmanaged file drift, which is why each one has its own closure lane
+   - material participation evidence:
+     - in the managed closure, the offline-feature build, quality gate, Iceberg and Glue commit, manifest and fingerprint publication, and rollback recipe all closed green
+     - then in the later real-data realization, the platform produced concrete offline dataset with:
+       - `1,838,137` rows
+       - `1,838,137` distinct flows
+       - zero feature-future rows
+       - zero label-future rows
+       - zero immature-label rows
+       - and zero null labels
+     - that is not just readiness rhetoric
+     - it is material evidence that the dataset boundary is real, active, and semantically constrained in the current wired platform
+
+Plainly stated, the `Offline dataset commitment path` exists to turn pinned causal learning basis into authoritative dataset truth, and its current design shows that this boundary is deliberate, materially seated, and no-future-leakage-aware rather than implicit.
+
+The next path in this group is the `Train / eval and candidate-bundle path`.
+
+## 2026-03-12 11:48:54 +00:00 - Path interrogation: `Train / eval and candidate-bundle path`
+
+This path exists to turn an authoritative offline dataset into candidate-model truth. Its job is not to pin the causal learning basis, and it is not yet to promote anything into active runtime authority. Its narrower job is to answer: once the platform has a committed offline dataset, can it run managed training and evaluation and produce candidate bundle that is attributable, reproducible enough, and safe to hand to the promotion corridor? That is exactly how the train-and-eval closure is defined: training and evaluation must complete, metrics and leakage checks must pass, candidate bundle must be committed with provenance, safe-disable and rollback path must be committed, and candidate provenance must include the upstream dataset fingerprint plus replay-basis and as-of controls. The production-readiness definition for the model-factory surface says the same thing in component terms: it exists to run managed training and evaluation and produce candidate bundles, with real metrics tied to the right dataset basis, complete candidate bundles, provenance completeness, and no hidden local or bypass training path.
+
+I want to keep the interrogation of this path inside one entry:
+
+1. what this path is trying to achieve:
+   - turn authoritative offline dataset into candidate-model truth
+   - keep this path narrower than dataset truth and narrower than later promotion truth
+   - answer whether the platform can run managed training and evaluation and produce candidate bundle that is attributable, reproducible enough, and safe to hand to the promotion corridor
+
+2. entry:
+   - the entry is not that SageMaker can start a job
+   - the entry is an immutable offline dataset artifact, already pinned as the only allowed train and eval basis
+   - the run-process makes that entry gate explicit:
+     - train-and-eval closure starts only when the offline dataset artifact is immutable
+   - the build plan then turns that into concrete immutable input binding
+   - that means the model-factory surface is not allowed to decide its own basis or train from moving target
+
+3. owned outcome:
+   - the owned outcome is training and evaluation truth plus provenance-complete candidate bundle that is safe to hand off to promotion, but not yet promoted
+   - that is narrower than active-bundle truth
+   - this path closes when the platform has:
+     - completed train and eval run
+     - metrics and leakage closure
+     - committed candidate bundle
+     - and committed safe-disable and rollback path
+   - promotion itself belongs to the next path
+   - the docs keep that separation clean:
+     - the train-and-eval closure closes on train/eval plus candidate bundle
+     - while the promotion closure begins only when candidate bundle is eligible and then owns promotion, rollback drill, and active-bundle resolution checks
+
+4. what the path carries:
+   - this path carries the objects needed to make the candidate attributable and later governable:
+     - the immutable upstream dataset identity
+     - evaluation metrics
+     - leakage and provenance closure results
+     - MLflow lineage references
+     - the candidate bundle itself
+     - and the safe-disable and rollback references that prove the candidate is operable rather than just produced
+   - that is visible directly in the train-and-eval execution structure
+   - the build plan decomposes the path into:
+     - train and eval execution
+     - leakage, stability, and performance gates
+     - MLflow lineage closure
+     - candidate-bundle publication
+     - and safe-disable and rollback closure
+   - the implementation notes then show the candidate bundle carrying lineage refs to the train-and-eval closure artifacts plus the upstream dataset fingerprint
+   - later closure then verifies reproducibility, run-scope continuity, lineage continuity, and offline-feature rollback refs before allowing the rollup to advance
+
+5. broad route logic:
+   - immutable offline dataset artifact -> SageMaker train and eval -> leakage, stability, and performance gates -> MLflow lineage closure -> candidate-bundle publication -> safe-disable and rollback closure -> deterministic train-and-eval verdict
+   - that broad route matters because it shows the model-factory surface is not one training job
+   - the build plan is explicit that the path is corridor with multiple owned closures:
+     - runtime readiness
+     - immutable input binding
+     - train and eval execution
+     - eval gates
+     - MLflow lineage
+     - candidate publication
+     - safe-disable and rollback
+     - then rollup and handoff
+
+6. logical design reading:
+   - logically, this path shows that the platform treats candidate truth as different from both:
+     - dataset truth
+     - and promotion truth
+   - that is strong `A`-level design signal
+   - the system is not saying:
+     - once SageMaker ran, we effectively have something deployable
+   - it is saying:
+     - there is dedicated boundary where managed train and eval, evaluation truth, lineage truth, candidate-bundle truth, and operability truth have to come together before candidate is even eligible for promotion
+   - that is exactly the distinction in the production paths doc between the train/eval path and the later promotion path
+
+7. concrete seating in the current wired system:
+   - this path is materially seated in the current wired platform
+   - the copied baseline wired graphs show:
+     - SageMaker as the train and eval control surface
+     - MLflow as the tracking and promotion surface
+     - model package group as the candidate-bundle publication surface
+     - and learning request and event topics as the transport edges around that corridor
+   - that means candidate-model truth is seated on concrete managed training substrate, lineage substrate, and candidate publication surface
+   - the run-process phase map and design authority also pin the train-and-eval lane to SageMaker plus MLflow as the canonical managed corridor
+   - the execution notes record real candidate bundle written to the run-scoped learning path, with operability report and later reproducibility and safe-disable artifacts published under the same managed corridor
+
+8. why the design looks like this:
+   - the design looks like this because the platform refuses two weak shortcuts:
+     - training completed as proxy for candidate quality and operability
+     - candidate exists as proxy for lineage and governance completeness
+   - that is why the path explicitly requires:
+     - metrics and leakage gates
+     - MLflow lineage closure
+     - candidate provenance tied back to dataset fingerprint plus replay-basis and as-of controls
+     - and safe-disable and rollback path before train-and-eval closure is considered closed
+   - the build plan goes even further and says closure needs non-gate acceptance objectives such as candidate utility versus baseline or champion, reproducibility on rerun with pinned inputs, and bundle operability with audit-complete lineage and provenance
+
+9. what larger contracts are shaping this path:
+   - several larger contracts shape it strongly
+   - the train-and-eval gate contract shapes the closure object:
+     - train and eval complete
+     - metrics and leakage pass
+     - candidate bundle with provenance
+     - safe-disable and rollback path
+     - and provenance that carries dataset fingerprint plus replay-basis and as-of controls
+   - the model-factory production-ready contract shapes the semantics:
+     - train and eval must use the right offline-feature outputs
+     - be reproducible enough within pinned tolerances
+     - keep metrics tied to the right dataset basis
+     - and avoid hidden local, synthetic, or bypass paths
+   - the cross-plane provenance law shapes what has to survive the boundary at all:
+     - policy, bundle, config, and release identifiers are required for replay and audit
+
+10. trade-offs and constraints:
+   - this path deliberately adds heavy governance boundary before promotion
+   - that costs:
+     - managed train and eval orchestration
+     - explicit eval gates
+     - lineage closure
+     - candidate-bundle publication
+     - reproducibility checks
+     - and safe-disable and rollback closure
+   - but that cost buys something important
+   - the platform can later answer not just that model candidate exists, but:
+     - what dataset basis it came from
+     - what metrics justified it
+     - whether its lineage is complete
+     - whether its bundle is operable
+     - and whether it can be disabled or rolled back safely before promotion
+   - the current implementation trail makes that concrete
+   - the candidate-bundle lane closed green with lineage refs back to train/eval closure plus the offline-feature fingerprint
+   - and the next managed lane explicitly double-read the candidate-bundle digest, checked run-scope and lineage continuity, and verified offline-feature rollback refs before preparing the rollup
+   - there is also honest constraint visible in the current closure history:
+     - one train-and-eval run carried explicit advisory that evaluation had to fall back to local-model evaluation while managed transform quota was unavailable
+   - that advisory had to be tracked rather than hidden
+   - that is useful `A`-style evidence because it shows the platform distinguishes candidate-producing corridor from perfectly advisory-free managed corridor, instead of collapsing them into one vague training worked claim
+
+11. necessity test:
+   - if this path is removed, the platform can still:
+     - preserve archive truth
+     - commit authoritative labels
+     - pin learning-input basis
+     - build offline datasets
+     - and later promote something somehow
+   - but it loses clean answer to:
+     - what candidate was actually built from the governed dataset basis
+     - whether train and eval metrics were tied to the right dataset
+     - whether lineage from dataset to candidate exists
+     - whether the candidate bundle is complete and attributable
+     - and whether there is any pre-promotion safe-disable and rollback discipline
+   - that would weaken `A` immediately, because reviewer could fairly say the platform has datasets and maybe even promotion machinery, but no explicit owner for candidate-model truth itself
+   - the model-factory definition says this plainly:
+     - it is where we have data becomes we have deployable model candidate
+
+12. what this path proves for `A`:
+   - purpose claim:
+     - the platform has distinct job for turning governed dataset truth into candidate-bundle truth before promotion starts
+   - intentionality claim:
+     - train and eval completion, metrics and leakage closure, MLflow lineage, candidate publication, and safe-disable and rollback are designed closure objects, not afterthoughts
+   - materialization claim:
+     - this boundary is concretely seated in the managed SageMaker plus MLflow corridor, with run-scoped candidate-bundle and operability artifacts already emitted
+   - contract claim:
+     - the path is governed by the train-and-eval closure, by model-factory reproducibility and provenance requirements, and by candidate provenance continuity back to the offline-feature fingerprint and replay and as-of controls
+   - constraint-awareness claim:
+     - the platform already knows this boundary can fail through bad metrics, lineage gaps, provenance incompleteness, or managed-eval advisory drift, which is why those are surfaced explicitly rather than buried
+
+Plainly stated, the `Train / eval and candidate-bundle path` exists to turn authoritative dataset truth into provenance-complete, operable candidate bundle, and its current design shows that this boundary is deliberate, materially seated, and governance-aware rather than implicit.
+
+The next path in this group is the `Promotion and rollback-governance path`.
+
+## 2026-03-12 11:53:15 +00:00 - Path interrogation: `Promotion and rollback-governance path`
+
+This path exists to turn a candidate bundle that is already eligible into governed promotion truth. Its job is not to build the candidate, and it is not yet to make runtime consume the active bundle. Its narrower job is to answer: once candidate is good enough to be considered, how does the platform promote it explicitly, prove rollback is real, and prove that the promoted state is governable rather than accidental? The run-process makes that boundary explicit in the promotion closure: promotion corridor event committed, rollback drill executed and recorded, rollback bounded objective within pinned recovery contract, active-bundle resolution checks passing, and compatibility fail-closed checks passing.
+
+I want to keep the interrogation of this path inside one entry:
+
+1. what this path is trying to achieve:
+   - turn eligible candidate bundle into governed promotion truth
+   - keep this path narrower than candidate truth and narrower than runtime consumption of active bundle
+   - answer how the platform promotes candidate explicitly, proves rollback is real, and proves that the promoted state is governable rather than accidental
+
+2. entry:
+   - the entry is not that MLflow exists and not merely that model artifact was produced
+   - the entry is a candidate bundle already made eligible by the previous train and eval path
+   - the run-process says that directly:
+     - promotion closure begins only when the candidate bundle is eligible from the train-and-eval closure
+   - the production-readiness definition says the same thing in plane language:
+     - the learning-to-registry and promotion path begins from datasets becoming train-and-eval results, then candidate bundles, then active model and policy truth
+   - so this path starts only after candidate truth already exists
+
+3. owned outcome:
+   - the owned outcome is governed promotion truth plus rollback-governance truth
+   - that is narrower than runtime consumption
+   - this path closes when the platform has:
+     - explicitly promoted the candidate through the governed corridor
+     - executed and recorded rollback drill truth
+     - measured rollback bounded-objective truth against the pinned recovery contract
+     - passed active-bundle resolution checks
+     - and passed compatibility fail-closed checks
+   - it does not yet close on runtime used the bundle correctly
+   - that is the next path
+   - the promotion closure and MPR readiness definition keep that split very clear:
+     - the promotion corridor owns lineage, promotion evidence, active-bundle resolution, and rollback discipline
+     - runtime consumption belongs to the later registry-to-runtime feedback path
+
+4. what the path carries:
+   - this path carries the control objects that make promotion safe and auditable rather than ceremonial:
+     - the eligible candidate-bundle reference
+     - promotion receipt truth
+     - rollback drill report
+     - rollback bounded-objective measurements
+     - active-resolution snapshot
+     - compatibility-check results
+     - and lineage and provenance that ties the promoted state back to dataset, train and eval, and candidate-bundle truth
+   - that is visible in both the gate and the execution trail
+   - the promotion closure requires promotion receipt plus rollback drill report as commit evidence
+   - while the current promotion build-plan closure adds explicit anchors for:
+     - rollback bounded-restore evidence
+     - active-bundle compatibility checks
+     - post-promotion observation snapshot
+     - governance append evidence
+     - operability and governance acceptance report
+     - and deterministic promotion verdict
+
+5. broad route logic:
+   - eligible candidate bundle -> governed promotion corridor -> explicit promotion event and receipt -> rollback drill and bounded-restore evidence -> active-resolution and compatibility checks -> committed promotion truth
+   - that broad route matters because it shows the platform is not treating promoted as boolean property attached to artifact
+   - it is treating promotion as corridor with proof obligations
+   - the build plan is explicit that the promotion closure is strictly sequenced, fail-closed, and requires promotion safety, rollback realism, post-promotion observation, governance completeness, and operability acceptance before closure
+
+6. logical design reading:
+   - logically, this path shows that the platform treats promotion truth as different from both:
+     - candidate truth
+     - and runtime authority feedback truth
+   - that is strong `A`-level design signal
+   - the system is not saying:
+     - once candidate bundle exists, activation is basically done
+   - it is saying:
+     - there is governed corridor where promotion must become explicit and auditable
+     - rollback must be proven real
+     - and the resulting active state must be checkable before runtime is even allowed to rely on it
+   - the production-readiness definition is very clear on this:
+     - without trustworthy promotion surface, the platform cannot claim safe model operations in production
+
+7. concrete seating in the current wired system:
+   - this path is materially seated in the current wired platform
+   - the copied baseline wired graphs show:
+     - MLflow as the promotion and registry surface
+     - registry events as a named downstream transport surface
+     - promotion receipts and rollback receipts as durable evidence surfaces
+     - and active-bundle resolution truth as distinct runtime-consumed registry surface
+   - that means governed promotion is seated on concrete registry, evidence, and resolution surfaces rather than generic model registry idea
+   - at the execution level, the current wired closure is not abstract
+   - the master build plan says the promotion corridor is done, and its closure anchors include:
+     - promotion receipt committed
+     - rollback drill report committed
+     - rollback bounded-restore objective evidence committed
+     - active-bundle compatibility checks green
+     - post-promotion observation snapshot committed and pass
+     - governance append evidence committed and coherent
+     - operability and governance acceptance report committed and pass
+     - deterministic promotion verdict committed
+   - the implementation trail also shows the active-resolution lane itself as concrete executed subphase with durable artifacts such as active-resolution snapshot, post-promotion observation snapshot, and execution/blocker summaries
+   - that means this boundary is already live managed lane, not just diagrammed aspiration
+
+8. why the design looks like this:
+   - the design looks like this because the platform refuses two weak shortcuts:
+     - promotion succeeded as proxy for safe model operations
+     - the registry says active as proxy for real rollback discipline and runtime compatibility
+   - that is why the path is built around corridor rather than one write
+   - the promotion readiness definition says:
+     - promotion must be explicit and auditable
+     - rollback must work within target recovery contract
+     - lineage must be complete from dataset to train and eval to bundle to active runtime
+     - and no shadow promotion path may exist outside the governed corridor
+   - the current execution trail reinforces that same intent
+   - in the active-resolution closure, the first managed run failed not because the idea of active resolution was wrong, but because the lane read the wrong snapshot shape
+   - the remediation decision was not to weaken the active-resolution gates
+   - it was to keep them strict and fix the source-of-truth wiring so the lane read the authoritative lifecycle and publication artifacts
+   - that is exactly what serious promotion-governance boundary should do
+
+9. what larger contracts are shaping this path:
+   - several larger contracts shape it strongly
+   - the promotion gate contract shapes the closure object:
+     - promotion corridor event committed
+     - rollback drill executed
+     - rollback bounded objective within pinned handles
+     - active-bundle resolution checks pass
+     - compatibility fail-closed checks pass
+   - the promotion-corridor production-ready contract shapes the semantics:
+     - active bundle must resolve deterministically for the runtime that will actually consume it
+     - promotion evidence must be complete
+     - rollback must be real
+     - lineage must be complete
+     - and no shadow promotion path may exist
+   - the execution contract shapes the current wired lane:
+     - strict sequencing
+     - fail-closed blocker families
+     - cost discipline
+     - post-promotion observation
+     - governance completeness
+     - operability acceptance
+     - deterministic handoff publication
+
+10. trade-offs and constraints:
+   - this path deliberately adds heavy governance boundary after candidate creation
+   - that costs:
+     - one more managed corridor
+     - promotion receipts
+     - rollback drill execution
+     - rollback bounded-objective measurement
+     - active-resolution checks
+     - compatibility gates
+     - governance append
+     - and post-promotion observation
+   - but that cost buys something important
+   - the platform can later answer not just that something was promoted, but:
+     - what was promoted
+     - why it was allowed
+     - whether rollback actually worked
+     - whether the restore objective stayed inside contract
+     - whether one active bundle was deterministically resolved per scope
+     - and whether governance and operability evidence remained coherent
+   - that is exactly why the build plan's non-gate acceptance objectives are not only pass or fail chain items, but also promotion safety and rollback realism evidence, post-promotion observation and runtime continuity, governance completeness, and operability acceptance
+
+11. necessity test:
+   - if this path is removed, the platform can still:
+     - preserve archive truth
+     - commit labels
+     - pin learning basis
+     - build datasets
+     - produce candidate bundle
+     - and even make runtime resolve something later
+   - but it loses clean answer to:
+     - whether promotion was explicit and auditable
+     - whether rollback is actually real
+     - whether rollback meets bounded objectives
+     - whether one active bundle is deterministically resolved
+     - whether the promoted state is compatible with runtime expectations
+     - and whether any of this happened through governed corridor rather than shadow path
+   - that would weaken `A` immediately, because reviewer could fairly say the platform has training and maybe even registry state, but no explicit owner for safe model operations governance itself
+   - the promotion-corridor definition says that plainly
+
+12. what this path proves for `A`:
+   - purpose claim:
+     - the platform has distinct job for turning eligible candidate truth into explicit promotion and rollback-governance truth before runtime consumes anything
+   - intentionality claim:
+     - promotion, rollback, active-resolution, compatibility, governance append, and post-promotion observation are designed closure objects, not afterthoughts
+   - materialization claim:
+     - this boundary is concretely seated in the managed promotion corridor, with named promotion closure and closed execution phase plus committed receipts and snapshots
+   - contract claim:
+     - the path is governed by the promotion closure, by deterministic active-resolution and rollback discipline, and by strict no-shadow-promotion rules
+   - constraint-awareness claim:
+     - the platform already knows this boundary can fail through candidate-eligibility issues, rollback evidence gaps, active-resolution wiring drift, compatibility failures, or governance incoherence, which is why the promotion corridor has explicit blocker families for all of them
+   - material participation evidence:
+     - the master closure says this path is already closed green with promotion receipt, rollback drill report, bounded-restore evidence, active-bundle compatibility checks, post-promotion observation, governance append evidence, operability acceptance, and deterministic promotion verdict all committed
+     - that is strong evidence that the promotion-governance boundary is not fictional
+     - it is real operated surface in the current wired platform
+
+Plainly stated, the `Promotion and rollback-governance path` exists to turn eligible candidate bundle into explicit, auditable promotion truth with real rollback discipline and deterministic active-resolution checks, and its current design shows that this boundary is deliberate, materially seated, and governance-first rather than implicit.
+
+The next path in this group is the `Active-bundle authority feedback path`.
+
+## 2026-03-12 11:58:11 +00:00 - Path interrogation: `Active-bundle authority feedback path`
+
+This path exists to turn governed promoted state into runtime decision authority. Its job is not to create the candidate bundle, and it is not to form the decision itself inside the runtime decision fabric. Its narrower job is to answer: once promotion has been committed, how does the platform make the promoted model or policy become the actual authority that runtime is supposed to consume? The production-readiness doc names this boundary directly as the registry-to-RTDL feedback path and defines it as the path where the active promoted model or policy becomes the runtime decision authority. It explicitly includes active resolution, runtime bundle and policy resolution, and later runtime consumption.
+
+I want to keep the interrogation of this path inside one entry:
+
+1. what this path is trying to achieve:
+   - turn governed promoted state into runtime decision authority
+   - keep this path narrower than candidate truth and narrower than runtime decision formation itself
+   - answer how the platform makes the promoted model or policy become the actual authority that runtime is supposed to consume
+
+2. entry:
+   - the entry is not just that a promotion happened
+   - the entry is a candidate bundle that has already crossed the governed promotion corridor and already satisfied promotion and rollback checks
+   - that is the correct starting point because the promotion closure only closes once:
+     - the promotion corridor event is committed
+     - rollback drill is executed and recorded
+     - rollback bounded objective is within contract
+     - active-bundle resolution checks pass
+     - and compatibility fail-closed checks pass
+   - so this path begins after governed promotion truth already exists, and asks what turns that promoted state into runtime-readable authority
+
+3. owned outcome:
+   - the owned outcome is deterministic runtime-readable active bundle or policy authority for the scope that will actually consume it
+   - that outcome is narrower than decision truth
+   - it closes when the platform can say:
+     - which active bundle is authoritative now
+     - that runtime resolution is deterministic for the right scope
+     - that the runtime-facing compatibility and readback checks pass
+     - and that the promoted state is observable enough to be trusted before runtime consumes it
+   - that is exactly how the docs frame it
+   - the activation corridor is defined as the component that owns active-bundle resolution, and the registry-to-RTDL feedback path is considered production-ready only when runtime resolves the right active bundle, decision provenance includes bundle and policy identity, and promotion and rollback changes are applied deterministically
+
+4. what the path carries:
+   - this path carries the control objects that make runtime authority real rather than implied:
+     - the promoted candidate reference
+     - scope information used to prove one-active-per-scope determinism
+     - the registry lifecycle event and publication truth used as the authoritative source of active state
+     - runtime bundle and policy identifiers
+     - and the post-promotion observation state that shows runtime can read the promoted authority coherently
+   - the active-resolution execution notes make that concrete
+   - the lane was explicitly designed to check:
+     - one-active-per-scope determinism
+     - runtime compatibility between candidate bundle serving mode and runtime handles
+     - and post-promotion observation artifact with pass/fail checks and source refs
+   - they also show that these checks had to be aligned to the correct source-of-truth artifacts rather than inferred loosely from older snapshot shape
+   - this path also inherits the broader provenance law:
+     - every cross-plane output must carry the policy, bundle, config, and release identifiers required for replay and audit
+   - which is exactly what makes runtime authority traceable later
+
+5. broad route logic:
+   - promoted registry truth -> active-resolution logic -> deterministic active bundle and policy resolution -> runtime-readable authority surface -> later runtime decision consumption
+   - that broad route matters because it shows the platform is not treating promotion as the same thing as runtime adoption
+   - there is real cross-plane authority boundary in between
+   - the production-readiness doc separates those two boundaries clearly:
+     - learning into registry and promotion gets you to active model and policy truth
+     - registry into RTDL feedback gets that active truth into runtime decision authority
+
+6. logical design reading:
+   - logically, this path shows that the platform treats active model and policy truth as registry truth first, runtime truth second
+   - that is strong `A`-level design signal
+   - the system is not saying:
+     - runtime will just use whatever latest bundle is around
+   - it is saying:
+     - registry-owned active truth must be resolved deterministically
+     - and only then may runtime consume it as decision authority
+   - that fits the broader semantic law in the readiness definition that active model and policy truth stays registry truth, just as case truth stays case-management truth and label truth stays label-store truth
+
+7. concrete seating in the current wired system:
+   - this path is materially seated in the current wired platform
+   - the copied baseline wired graphs show:
+     - MLflow as the registry and promotion surface
+     - registry events as the publication surface
+     - active-bundle and policy resolution truth as distinct runtime-consumed registry surface
+     - and the downstream resolution of the pinned serving handle against that active truth
+   - that means runtime authority is seated on concrete registry, resolution, and publication surfaces rather than generic latest bundle assumption
+   - at the execution level, this boundary is already concretely exercised in the active-resolution checks, which closed green and produced durable artifacts including active-resolution snapshot, post-promotion observation snapshot, and execution summary
+   - the broader promotion closure also requires active-bundle compatibility checks green and post-promotion observation snapshot committed and pass
+   - that means this is not hand-waved future concern
+   - it is already real closed lane in the current platform
+
+8. why the design looks like this:
+   - the design looks like this because the platform refuses two weak shortcuts:
+     - promotion succeeded as proxy for runtime authority
+     - the registry says active as proxy for the actual runtime consuming the right thing
+   - that is why the active-resolution lane exists as its own boundary after promotion and rollback drill
+   - the first execution of that lane failed closed because the code assumed the wrong evidence shape from the promotion snapshot
+   - the remediation decision was not to relax the active-resolution checks
+   - it was to keep them strict and fix the source-of-truth wiring so the lane read the authoritative lifecycle event and publication receipt correctly
+   - that is exactly the behavior you want from serious runtime-authority boundary:
+     - do not weaken the gate
+     - fix the truth source
+
+9. what larger contracts are shaping this path:
+   - several larger contracts shape it strongly
+   - the registry-to-RTDL feedback contract defines the meaning of the boundary:
+     - runtime resolves the right active bundle
+     - decision provenance includes bundle and policy identity
+     - promotion changes are applied deterministically
+     - rollback changes are applied deterministically
+   - the activation-corridor production-ready contract sharpens the authority side:
+     - the active bundle must resolve deterministically for the runtime that will actually consume it
+     - lineage must be complete from dataset to train and eval to bundle to active runtime
+     - and no shadow promotion path may exist outside the governed corridor
+   - the promotion closure shapes the current posture by requiring active-bundle resolution checks and compatibility fail-closed checks before promotion can be considered fully committed
+   - and the broader provenance law shapes what must survive the handoff:
+     - policy, bundle, config, and release identifiers are required for replay and audit across planes
+
+10. trade-offs and constraints:
+   - this path deliberately adds another explicit boundary after promotion
+   - that costs:
+     - one more managed lane
+     - one more set of source-of-truth artifacts
+     - one more compatibility and readback check
+     - one more post-promotion observation surface
+   - but that cost buys something important
+   - the platform can later answer not just what was promoted, but:
+     - what is actually active now
+     - whether runtime resolves that active state deterministically
+     - whether the promoted authority is compatible with the runtime that will consume it
+     - and whether learning and runtime remain in sync
+   - that is exactly why the production-readiness doc says that if this path is weak, learning and runtime drift apart
+
+11. necessity test:
+   - if this path is removed, the platform can still:
+     - preserve archive truth
+     - commit authoritative labels
+     - pin learning basis
+     - build datasets
+     - produce candidate bundle
+     - and even record promotion receipts
+   - but it loses clean answer to:
+     - which active bundle runtime is actually using
+     - whether runtime resolution is deterministic for the right scope
+     - whether rollback changed runtime authority correctly
+     - whether decision provenance can name the right bundle and policy
+     - and whether registry truth and runtime truth are still aligned
+   - that would weaken `A` immediately, because reviewer could fairly say the platform has promotion machinery but no explicit owner for the boundary where registry truth becomes runtime decision authority
+   - the docs themselves call that out as critical cross-plane path and warn that if it is weak, learning and runtime drift apart
+
+12. what this path proves for `A`:
+   - purpose claim:
+     - the platform has distinct job for turning promoted registry truth into runtime-readable decision authority before runtime consumes it
+   - intentionality claim:
+     - active resolution, scope determinism, compatibility, and post-promotion observation are designed closure objects, not afterthoughts
+   - materialization claim:
+     - this boundary is concretely seated in the managed active-resolution lane, with durable snapshots and execution summaries already emitted
+   - contract claim:
+     - the path is governed by the registry-to-RTDL feedback contract, the activation-corridor active-resolution contract, the active-bundle checks in the promotion closure, and the provenance law
+   - constraint-awareness claim:
+     - the platform already knows this boundary can fail through scope ambiguity, wrong artifact-shape assumptions, compatibility mismatch, or shadow-resolution drift, which is why the active-resolution lane kept strict fail-closed logic and remediated the source-of-truth wiring instead of weakening the checks
+
+Plainly stated, the `Active-bundle authority feedback path` exists to turn governed promoted registry state into the actual runtime decision authority, and its current design shows that this boundary is deliberate, materially seated, and drift-resistant rather than implicit.
+
+That finishes the per-path interrogation for Group 6.
