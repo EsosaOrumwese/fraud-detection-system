@@ -370,3 +370,236 @@ So Group 1 is now pinned as:
 - `Ready authorization path`
 
 That is now a clean split. The next honest move is to take `Run legitimization path` and do the full path-level interrogation on it: entry, outcome, carried objects, route logic, concrete seating, design reasoning, constraints, and necessity.
+
+## 2026-03-12 05:40:56 +00:00 - Path interrogation: `Run legitimization path`
+
+This path exists to turn "I want to run the platform" into "this is now one bounded, auditable, authoritative run." In the run-process, that is the first real closure point of the platform. Before daemons are judged healthy, before oracle is judged ready, before ingress is judged ready, the run must already be pinned as a specific run with a specific config basis.
+
+I want to keep the interrogation of this path inside one entry:
+
+1. what this path is trying to achieve:
+   - turn operator intent into one bounded, auditable, authoritative run
+   - make run legitimacy the first real closure point of the platform rather than a side effect discovered later
+   - make later phases hang off a known run basis instead of inventing local run scope for themselves
+
+2. entry:
+   - the entry is operator intent plus explicit identity and config, not "runtime started doing things"
+   - the operator sequence requires `platform_run_id`, `scenario_run_id`, and config payload
+   - execution is also blocked if required handle classes are unresolved, so run legitimization begins from an explicit control contract rather than from best-effort runtime discovery
+
+3. owned outcome:
+   - the owned outcome is a committed run basis
+   - more concretely, the pass condition is: run header committed once, `run_config_digest` committed, and phase evidence root exists
+   - the evidence seating is also pinned rather than improvised at runtime:
+     - `evidence/runs/{platform_run_id}/`
+     - `evidence/runs/{platform_run_id}/run.json`
+     - `evidence/runs/{platform_run_id}/run_pin/run_header.json`
+   - that makes the outcome both semantic and material
+
+4. what the path carries:
+   - `platform_run_id`
+   - `scenario_run_id`
+   - config payload
+   - derived `run_config_digest`
+   - run evidence references
+   - the implementation notes make clear that `platform_run_id` is intentionally explicit and auditable, while `scenario_run_id` is deterministic rather than random, derived from a scenario-equivalence seed tied to oracle/source handles and canonicalization rules
+   - the same notes also make clear that config digest is not decorative; it is part of the authoritative run basis and is recomputed and matched against the seeded scenario-equivalence contract
+
+5. broad route logic:
+   - operator intent -> control-plane entry -> run identity lock -> config digest validation and commit -> durable run evidence surfaces
+   - this is a control-plane path, not a data-plane path
+   - the run-process pins the run-pinned phase to Step Functions run-state entry, and the implementation notes later pin run-lock identity on Step Functions execution posture rather than inventing a separate ad hoc lock authority
+   - the path is therefore not "a service happened to start and therefore the run exists"; it is "the control plane authorized and materialized the run basis, therefore later phases can legitimately exist"
+
+6. logical design reading:
+   - logically, this path says the platform treats run legitimacy as a first-class concern
+   - the system does not jump from "up" to "streaming" or "ready"
+   - it forces a pinned run basis first, with explicit pass gates and durable evidence
+   - the rest of the platform is therefore supposed to hang off a known run, not invent its own local sense of run scope later
+
+7. concrete seating in the current wired system:
+   - the control authority is Step Functions
+   - the runbook names Step Functions as the primary runtime for the run-pinned phase
+   - the broader design authority places Step Functions in the platform orchestration layer rather than treating orchestration as shell glue
+   - the evidence seating is S3, with pinned run-level prefixes and pinned run-pin artifact locations in the handles registry
+   - this path is therefore not conceptual only; it has a concrete control-plane runtime and concrete durable evidence surfaces
+
+8. why the design looks like this:
+   - the implementation notes show that config digest is deliberately committed because otherwise replay provenance becomes ambiguous; digest-changing edits are supposed to force a new `platform_run_id`, not silently mutate the meaning of the existing run
+   - the digest is computed from a canonical payload and checked deterministically, precisely to stop drift between "what this run claims to be" and "what it actually binds to"
+   - run-lock identity was deliberately pinned on orchestrator execution posture instead of inventing a separate lock subsystem, because that preserves a single control authority and avoids authority churn
+
+9. external contract pressure shaping this path:
+   - the data-engine interface reinforces why this path has to be careful about identity
+   - the engine contract distinguishes sealed-world identity (`manifest_fingerprint`, `parameter_hash`, `seed`, `scenario_id`) from execution correlation (`run_id`)
+   - it also explicitly says that run-scoped logging correlation must not mutate the bytes of world outputs whose identity does not include the run
+   - read another way, that pushes the platform toward a run-legitimization posture where run identity is about execution scope, control, and evidence, not about pretending the run itself creates a new source world
+   - the same contract also reinforces immutability and gate-before-read discipline, which fits the "commit once, then treat as authoritative" posture of run pinning
+
+10. trade-offs and constraints:
+   - this path deliberately adds friction
+   - you do not get to "just run it"
+   - you need explicit IDs, explicit config, explicit evidence roots, and explicit handle closure before the run can even start
+   - that is slower and more ceremony-heavy than a looser setup, but it buys auditability, replay provenance, and scope discipline
+   - it also constrains later behavior: the runbook pins single active path per phase/run, prohibits in-phase switching, and treats identity/config drift as a reason to issue a new run rather than quietly mutate the old one
+
+11. necessity test:
+   - if this path is removed, the rest of the platform can still be drawn, but it stops being a serious engineered system
+   - later phases would have no authoritative run basis to bind to, no stable config digest to explain what was actually run, no durable run-root to collect evidence under, and no clean way to distinguish a rerun from an identity mutation
+   - in that world, daemons might still start and traffic might still flow, but the system would look accidental rather than governed
+   - that is exactly the sort of weakness `A` is supposed to expose and reject
+
+12. what this path proves for `A`:
+   - purpose claim:
+     - the platform explicitly treats run legitimacy as a required system job, not an operator habit
+   - intentionality claim:
+     - the basis of the run is established through the control plane, with Step Functions and durable evidence, rather than through accidental runtime side effects
+   - materialization claim:
+     - the evidence surfaces for the path are pinned in S3 path contracts
+   - constraint-awareness claim:
+     - config changes, lock semantics, and handle resolution are treated as hard boundaries, not optional hygiene
+   - quantified closure claim:
+     - one committed run header
+     - one committed config digest
+     - one run evidence root
+     - zero ambiguity about run basis
+
+Plainly stated, the `Run legitimization path` exists to make "this run" a real, governed object before the platform does anything else, and its current design shows that this is deliberate, materially seated, and provenance-aware.
+
+The next clean move is the same treatment for the `Source realization path`.
+
+## 2026-03-12 05:46:49 +00:00 - Path interrogation: `Source realization path`
+
+This path exists to turn an external engine-owned world into a usable, governed source-of-stream basis for the platform. It is not just "put data in a bucket." It has to preserve the producer/platform ownership boundary, materialize the source world into the exact surfaces the platform is allowed to consume, and do so through a production-patterned route rather than a local shortcut.
+
+I want to keep the interrogation of this path inside one entry:
+
+1. what this path is trying to achieve:
+   - turn an external engine-owned world into a usable, governed source-of-stream basis for the platform
+   - preserve the producer/platform ownership boundary while still materializing the source world into platform-readable surfaces
+   - realize the source basis through a production-patterned route rather than a local shortcut
+
+2. entry:
+   - the entry is a declared external oracle source plus the handles needed to realize it
+   - in the current pinned posture, that means a source namespace and engine run id under the oracle-store boundary, a raw input prefix that is declared and readable, and managed stream-sort handles that are resolved before closure can even be attempted
+   - the implementation notes show this was deliberately repinned to `external_raw_upload_then_managed_sort`, with the canonical bucket moved to `fraud-platform-dev-full-object-store` and old dev-min copy remediation explicitly demoted to historical evidence rather than active standard
+
+3. owned outcome:
+   - the owned outcome is not merely "the platform can see some files"
+   - the owned outcome is a canonical oracle basis with usable realized `stream_view` surfaces and proof that they are trustworthy
+   - more concretely, that means:
+     - raw upload receipt
+     - managed stream-sort receipt
+     - required outputs present
+     - stream-view materialization checks passed
+     - manifest and contract checks passed
+     - canonical external source binding rather than an ad hoc duplicated copy
+   - the run-process pins all of those as PASS requirements for `ORACLE_READY`
+   - the implementation notes and build-plan trail then sharpen the active standard further as `raw -> managed sort -> parity`
+   - `truth_view` is also part of the current wired realization story, but the primary closure anchor of this path is the canonical oracle basis plus valid `stream_view` realization
+
+4. what the path carries:
+   - source identity:
+     - oracle source namespace
+     - oracle engine run id
+     - the engine's sealed-world identity model such as `manifest_fingerprint`, `parameter_hash`, `seed`, `scenario_id`, and `run_id`
+   - source materialization inputs:
+     - raw uploaded oracle files under the oracle input prefix
+   - realization outputs and proofs:
+     - `stream_view` surfaces
+     - manifests
+     - stream-sort receipts
+     - parity reports
+     - required-output matrices
+   - the handles registry makes the active required output set and sort-key map explicit, while the data-engine interface pins the identity and immutability rules the path must preserve
+
+5. broad route logic:
+   - external oracle world -> raw upload into oracle-store input boundary -> managed distributed sort -> realized source surfaces with receipts/manifests/parity -> platform-usable source basis
+   - that broad route matters because it shows the platform is not meant to consume arbitrary engine files directly
+   - it is also not meant to generate its own private copy-world informally
+   - the current broad route is governed: external source world first, then an inlet contract, then managed realization, then explicit materialization proof
+   - that is exactly why the implementation notes treat copy-based ambiguity as something to remove, not preserve
+
+6. logical design reading:
+   - logically, this path says the platform treats the engine world as a producer-owned external truth source and then creates a platform-readable realization layer from it
+   - that is a very intentional design choice
+   - it prevents two different kinds of drift:
+     - the platform pretending it owns the oracle world
+     - the platform consuming source data through informal, unreconciled, local transformations
+   - the run-process and authority both pin the Oracle Store posture very clearly: warm source-of-stream zone in S3, platform read-only, producer write-owned, with source realization produced through managed distributed sort
+
+7. concrete seating in the current wired system:
+   - the oracle boundary is in S3 under `oracle-store/{oracle_source_namespace}/{oracle_engine_run_id}/input/`
+   - the implementation notes explicitly repin the canonical bucket and input prefix
+   - the realization step is materially seated in the managed sort lane, with the active contract requiring managed sort and forbidding local sort for the `dev_full` runtime path
+   - the current realized outputs are also concrete, not abstract:
+     - `stream_view/ts_utc/output_id=<output_id>/`
+     - later `truth_view/ts_utc/output_id=<output_id>/` for truth-view preparation in the current wired system
+   - the run-process then makes the expected closure artifacts concrete:
+     - oracle readiness snapshot
+     - required-output matrix
+
+8. why the design looks like this:
+   - the implementation notes make the reasoning very clear
+   - this posture preserves the oracle ownership boundary: producer write-owned, platform read-only
+   - it removes legacy copy-based ambiguity, which would otherwise blur what is canonical and what is merely a convenience mirror
+   - it aligns with the production-pattern law and no-laptop-runtime posture, which is why local sort is forbidden and managed sort is required
+   - it makes the oracle gate fail-closed on receipts and parity, rather than letting "looks readable" count as enough
+   - those are architecture reasons, not performance excuses
+
+9. external contract pressure shaping this path:
+   - the data-engine interface is doing a lot of work here
+   - it pins that world identity is defined by partition tokens and that outputs are immutable for a fixed identity
+   - it distinguishes traffic from join surfaces, truth products, audit evidence, and ops telemetry
+   - it also says "No PASS -> no read," meaning platform components must verify segment gates before treating gated outputs as authoritative
+   - and it pins the platform join posture: traffic stays thin, joins happen inside the platform, and no future-leaking surfaces may be used for RTDL
+   - that means the source realization path cannot be a vague "load everything and figure it out later" path; it has to produce the exact source surfaces the platform will later honor under those semantic rules
+
+10. trade-offs and constraints:
+   - this path deliberately chooses discipline over convenience
+   - it is slower and more ceremony-heavy than an ad hoc local copy or local sort route, because it requires:
+     - a declared oracle source boundary
+     - raw upload receipt
+     - managed sort receipt
+     - manifest readability
+     - required-output checks
+     - parity checks
+   - but that cost buys:
+     - ownership clarity
+     - source legitimacy
+     - materialization legitimacy
+     - replay and audit confidence
+     - production-pattern alignment
+   - the implementation notes also show the constraint side honestly: scheduler capacity issues, driver materialization timeout behavior, and later IAM/KMS permission issues surfaced in the managed sort lane and had to be handled at the IaC/runtime level rather than bypassed with manual shortcuts
+   - that is useful context because it shows the design is not "managed sort because it sounds nice"; it is managed sort despite the friction, because that friction is part of the chosen production-shaped path
+
+11. necessity test:
+   - if this path is removed, the rest of the platform can still be described, but its source basis becomes muddy
+   - without this path:
+     - the platform loses a governed way to turn external engine truth into platform-usable source surfaces
+     - the producer/platform ownership boundary becomes easy to violate
+     - stream-view materialization loses its legitimacy
+     - parity and manifest proof disappear
+     - later runtime joins and learning surfaces rest on a weaker foundation
+   - in plain terms, the platform would still have ingestion, decisioning, and learning boxes, but the source world they depend on would no longer be clearly realized or clearly justified
+   - that would directly weaken `A`
+
+12. what this path proves for `A`:
+   - purpose claim:
+     - the platform has a specific job for realizing the external source world, rather than hand-waving where source truth comes from
+   - intentionality claim:
+     - the route is explicitly external raw upload -> managed sort -> realized source surfaces, not accidental file placement
+   - materialization claim:
+     - the path is concretely seated in S3 oracle-store prefixes, managed sort runtime, and durable materialization/evidence outputs
+   - contract claim:
+     - the path preserves producer/platform ownership boundaries and the engine's identity, immutability, and gate laws
+   - constraint-awareness claim:
+     - copy-based ambiguity, local-sort convenience, and unmanaged shortcuts were explicitly rejected in favor of a stricter production-shaped route
+   - quantified closure claim:
+     - the authoritative repinned full-tree upload recorded `11,465` files and `92,622,942,077` bytes
+     - later stream-view parity evidence was recorded for four required outputs with exact row parity matches
+     - that is not `Bi`-style load proof; it is still `A`-relevant because it shows the path is materially realizing a non-trivial source world, not a toy sample
+
+Plainly stated, the `Source realization path` exists to make the external engine world a governed, platform-usable source basis, and its current design shows that this is deliberate, materially seated, ownership-aware, and semantically constrained rather than informal.
+
+The next clean move is the `Ready authorization path`.
