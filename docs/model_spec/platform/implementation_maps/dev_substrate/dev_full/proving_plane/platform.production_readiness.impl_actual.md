@@ -5197,3 +5197,155 @@ This is the right posture correction:
 - add `100% MLOps`
 - do not weaken the original hardening doctrine
 - make the learning corridor prove both runtime health and semantic truth fitness
+
+## 2026-03-12 03:58:12 +00:00 - Phase 5.B proving method repinned around current-run semantic admission because the retained bounded runners split into two bad extremes
+
+Before spending on the next learning proof, I re-read the retained bounded runners against the strengthened Phase 5 / 6 plan.
+
+That exposed a real method problem:
+
+- `scripts/dev_substrate/pr3_s4_learning_bound.py` is not promotion-safe for this phase because it executes the OFS / MF / MPR workers locally, which violates the managed-corridor requirement we pinned for the learning plane
+- `scripts/dev_substrate/pr3_s4_learning_bound_remote.py` is closer in spirit, but it only packages current-run learning inputs together with older managed M10 / M11 / M12 evidence; it does not explicitly enforce the new interface-pack + `6B.S5` semantic admission posture
+
+That means the right next move is not to keep reusing either runner unchanged.
+
+The actual problem is:
+
+- the current Phase 5.B proving harness is under-expressive for the new standard
+- if I ran it as-is, it could produce a green-looking receipt while still leaving ambiguity around whether the bounded learning proof admitted only semantically valid, sealed `6B` truth
+
+I also checked the live current-run basis before deciding how to repin:
+
+- the Phase 4 bootstrap does carry the current oracle fingerprint, parameter hash, seed, scenario id, and Scenario Runner facts-view ref
+- the current world's `6B` HashGate is materially present at the pinned oracle root:
+  - `_passed.flag` exists for the same manifest fingerprint
+  - `s5_validation_report_6B.json` is readable
+  - the expected `s4_*` truth products are present under the same world
+- the current `6B` report is `overall_status = WARN`, but the visible required truth/coverage rails are green and the warning posture is on realism checks, not on a failed machine gate
+
+So the proving repin is now clear:
+
+- add a new Phase 5.B bounded proof script that starts from the current promoted Phase 4 scope
+- make it fail closed unless:
+  - the learning basis is interface-pack-authorized,
+  - the oracle world is admitted by the pinned `6B.S5` gate posture,
+  - current label truth is present and mature enough for bounded learning,
+  - the retained managed corridor remains readable and attributable
+- then add a Phase 6 coupled proof that cross-checks runtime registry resolution against that same governed bundle truth
+
+This is a method change, not a goal change:
+
+- no standards are being lowered
+- the aim is to remove the harness ambiguity before spending more AWS / managed-surface effort
+
+## 2026-03-12 03:53:55 +00:00 - First bounded Phase 5.B run went red for harness-shape reasons rather than a live learning-corridor defect
+
+I executed the first new bounded Phase 5.B proof on the current promoted Phase 4 scope:
+
+- `execution_id = phase5_learning_mlops_bound_20260312T035327Z`
+
+That first run did exactly what I needed from a telemetry-first proof: it separated real learning readiness risk from mistakes inside the new gate.
+
+The initial blockers were not telling a coherent story about the learning corridor itself:
+
+- `output_roles` was parsed too narrowly even though the live facts-view carried the expected `business_traffic` values
+- the `6B` gate reader assumed a sealed-inputs path that is not materially present in the current world-side validation bundle, even though `_passed.flag`, `index.json`, and `s5_validation_report_6B.json` are present and readable
+- local retained managed-artifact discovery was too strict because it required the execution id to be an exact path part rather than a substring inside the artifact path
+
+That means the right move was not to keep the red receipt as a platform verdict. The actual error class was:
+
+- proving-harness shape error on the new semantic gate
+
+The underlying live facts remained consistent with the intended posture:
+
+- current run-facts resolve only `s2_event_stream_baseline_6B` and `s3_event_stream_with_fraud_6B`
+- both outputs carry the expected `business_traffic` role
+- current world-side `6B` validation is materially present and readable
+- retained managed M10 / M11 / M12 evidence is still available locally
+
+So I corrected the gate narrowly:
+
+- widened local artifact discovery to the actual artifact-path shape
+- accepted the current run-facts `output_roles` shape truthfully
+- repinned the `6B` validation read to the materially present validation bundle instead of an assumed sealed-inputs object
+
+This was the right dynamic posture change:
+
+- keep the Phase 5 standard fixed
+- remove the harness blocker that was preventing honest diagnosis
+- rerun the same bounded learning proof immediately
+
+## 2026-03-12 03:55:51 +00:00 - Phase 5 closed green on current-run semantic admission plus managed-corridor continuity
+
+The corrected bounded proof reran green:
+
+- `execution_id = phase5_learning_mlops_bound_20260312T035531Z`
+- `verdict = PHASE5_READY`
+- `open_blockers = 0`
+
+What this run proved:
+
+- the current admitted learning basis is interface-pack-authorized:
+  - intended outputs are only `s2_event_stream_baseline_6B` and `s3_event_stream_with_fraud_6B`
+  - both resolve as `business_traffic`
+- the current oracle world is admitted by the pinned `6B` gate posture:
+  - `_passed.flag` is readable for manifest fingerprint `76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460`
+  - `s5_validation_report_6B.json` is readable with `overall_status = WARN`
+  - all required machine-gate rails are `PASS`, including:
+    - `REQ_UPSTREAM_HASHGATES`
+    - `REQ_FLOW_EVENT_PARITY`
+    - `REQ_FLOW_LABEL_COVERAGE`
+    - `REQ_CRITICAL_TRUTH_REALISM`
+    - `REQ_CRITICAL_CASE_TIMELINE`
+  - the warning posture stays in realism warnings, not failed required rails
+- current label truth is materially present and clean:
+  - `label_store accepted = 3080`
+  - `label_store pending = 0`
+  - `label_store rejected = 0`
+  - `case_mgmt labels_accepted = 2931`
+- the retained managed learning corridor remains attributable and continuous:
+  - `m10b`, `m10d`, `m11f`, `m11g`, `m12b`, `m12c`, `m12d`, `m12e`, `m12f`, and `m12g` are all green on the retained managed chain
+  - `m12d_registry_lifecycle_event.json` and `m12f_active_resolution_snapshot.json` agree on the active candidate bundle ref:
+    - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/mf/candidate_bundle.json`
+
+This is the honest Phase 5 judgment:
+
+- the plane is green on the now-strengthened proving standard we pinned for the learning corridor in this repo state
+- the important semantic gates are explicit and green
+- the managed corridor remains attributable and governed
+- no hidden local worker execution path was needed for this accepted bounded proof
+
+## 2026-03-12 03:56:08 +00:00 - Phase 6 coupled learning proof closed green on live DF registry resolution
+
+I then executed the coupled proof:
+
+- `execution_id = phase6_learning_coupled_20260312T035601Z`
+- `verdict = PHASE6_READY`
+- `open_blockers = 0`
+
+This proof used the actual Decision Fabric resolver contract rather than a handwritten YAML comparison.
+
+Accepted coupled result:
+
+- `config/platform/df/registry_snapshot_dev_full_v0.yaml` and `config/platform/df/registry_resolution_policy_v0.yaml` load cleanly
+- a truthful posture stamp with:
+  - `allow_ieg = false`
+  - `allowed_feature_groups = core_features`
+  - `allow_model_primary = true`
+  - `allow_model_stage2 = false`
+  - `allow_fallback_heuristics = true`
+  - `action_posture = STEP_UP_ONLY`
+  resolves both runtime scopes cleanly:
+  - `dev_full|fraud|primary| -> RESOLVED`
+  - `dev_full|baseline|primary| -> RESOLVED`
+- both active resolutions point to the same governed candidate bundle ref already accepted in Phase 5:
+  - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/mf/candidate_bundle.json`
+- policy explicit fallbacks and active snapshot truth remain aligned with the same bundle ref
+
+That means the enlarged working platform is now:
+
+- `Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps`
+
+and the next honest active phase is now:
+
+- `Phase 7 - Operations / Governance / Meta readiness`

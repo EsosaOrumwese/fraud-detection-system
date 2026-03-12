@@ -41,7 +41,7 @@ This phase does not close because Databricks, SageMaker, and MLflow exist. It cl
   - `scripts/dev_substrate/m11b_sagemaker_readiness.py`
   - `scripts/dev_substrate/m11f_mlflow_lineage.py`
 - bounded learning runner:
-  - `scripts/dev_substrate/pr3_s4_learning_bound.py`
+  - `scripts/dev_substrate/phase5_learning_mlops_bound.py`
 
 ### Upstream truth allowed into this phase
 - promoted working platform:
@@ -139,6 +139,32 @@ This subphase is green only when:
   - MLflow tracking mode `databricks`
 - the next honest task is now `Phase 5.B`, not more telemetry pinning.
   - run the smallest bounded managed-learning proof on top of the now-readable corridor.
+
+### Current accepted bounded proof result
+- `Phase 5.B` is now green on:
+  - `execution_id = phase5_learning_mlops_bound_20260312T035531Z`
+  - `verdict = PHASE5_READY`
+  - `open_blockers = 0`
+- current semantic admission proved clean on the promoted Phase 4 source scope:
+  - intended outputs restricted to `s2_event_stream_baseline_6B` and `s3_event_stream_with_fraud_6B`
+  - both outputs resolve as `business_traffic`
+  - current `6B` validation gate is readable at the pinned manifest fingerprint
+  - `6B` validation posture:
+    - `overall_status = WARN`
+    - all required machine-gate rails are `PASS`
+  - current label truth remained clean:
+    - `label_store accepted = 3080`
+    - `label_store pending = 0`
+    - `label_store rejected = 0`
+    - `case_mgmt labels_accepted = 2931`
+- retained managed corridor continuity also remained green and attributable across:
+  - `m10b`, `m10d`, `m11f`, `m11g`, `m12b`, `m12c`, `m12d`, `m12e`, `m12f`, `m12g`
+- active managed bundle truth remains pinned at:
+  - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/mf/candidate_bundle.json`
+
+### Current judgment
+- `Phase 5` is closed green.
+- The next honest step after this plane-closure proof is the coupled `Phase 6` runtime-resolution proof, not more isolated learning-plane reruns.
 
 ## Phase 5 closure rule
 `Phase 5` closes only when:

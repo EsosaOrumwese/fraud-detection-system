@@ -9,12 +9,12 @@ flowchart LR
   subgraph LEGEND["How to Read This Graph"]
     L1["Only the currently promoted working-platform core is shown"]
     L2["If a plane, component, or path is absent, it is not part of the ready-network claim"]
-    L3["The promoted network now includes RTDL and coupled Case + Label on top of the already-green Control + Ingress base"]
-    L4["Learning and Ops / Gov / Meta remain absent until their own phases close"]
+    L3["The promoted network now includes Learning + Evolution / MLOps on top of the already-green Control + Ingress + RTDL + Case + Label base"]
+    L4["Ops / Gov / Meta remains absent until its own phase closes"]
   end
 
   subgraph READYNOTE["Current Working Platform"]
-    NOTE["Currently promoted working-platform core:<br>Control + Ingress + RTDL + Case + Label<br>Phase 0 closed green on 2026-03-10<br>Phase 1 closed green on 2026-03-11<br>Phase 3 closed green on 2026-03-11<br>Phase 4 closed green on 2026-03-12<br>Declared envelope: 3000 steady eps / 6000 burst eps"]
+    NOTE["Currently promoted working-platform core:<br>Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps<br>Phase 0 closed green on 2026-03-10<br>Phase 1 closed green on 2026-03-11<br>Phase 3 closed green on 2026-03-11<br>Phase 4 closed green on 2026-03-12<br>Phase 5 and Phase 6 closed green on 2026-03-12<br>Declared envelope: 3000 steady eps / 6000 burst eps"]
   end
 
   subgraph CONTROL["Control Network - Promoted Core"]
@@ -51,6 +51,13 @@ flowchart LR
     LS["Label Store<br>authoritative label truth"]
   end
 
+  subgraph LEARNING["Learning + Evolution / MLOps Network - Promoted Core"]
+    OFS["Offline Feature Plane<br>authoritative dataset admission / build"]
+    MF["Model Factory<br>train / eval / candidate bundle"]
+    MPR["Model Promotion + Registry<br>promotion / rollback / active truth"]
+    DFREG["Decision Fabric registry resolution<br>fraud + baseline scope resolution"]
+  end
+
   subgraph TRANSPORT["Promoted Event Transport Boundary"]
     MSK[("MSK Serverless<br>fraud-platform-dev-full-msk")]
     GLUEREG["Glue Schema Registry<br>fraud-platform-dev-full<br>BACKWARD"]
@@ -72,6 +79,7 @@ flowchart LR
   NOTE --> INGRESS
   NOTE --> RTDL
   NOTE --> CASELABEL
+  NOTE --> LEARNING
   NOTE --> TRANSPORT
 
   GHA -->|authenticates through| OIDC
@@ -114,20 +122,31 @@ flowchart LR
   DL -->|emits case-worthy decision truth to| CTRIG
   CTRIG -->|opens or reuses cases in| CM
   CM -->|commits authoritative labels to| LS
+  LS -->|supplies authoritative supervision to| OFS
+  ARCH -->|supplies runtime archive truth to| OFS
+  OFS -->|materializes bounded datasets for| MF
+  MF -->|publishes governed candidate bundle to| MPR
+  MPR -->|resolves active bundle truth through| DFREG
+  DFREG -->|feeds governed bundle truth back to| DF
   ARCH -->|stores evidence in| EVID
   DLA -->|stores proof continuity in| EVID
   CM -->|stores case evidence in| EVID
   LS -->|stores label evidence in| EVID
+  OFS -->|stores dataset evidence in| EVID
+  MF -->|stores train/eval evidence in| EVID
+  MPR -->|stores promotion/rollback evidence in| EVID
   RUNCTL -->|stores proof receipts in| EVID
 
   IGLAMBDA -->|reads active handles from| SSM
   WSP -->|reads active handles from| SSM
   RTDL -->|reads active handles from| SSM
   CASELABEL -->|reads active handles from| SSM
+  LEARNING -->|reads active handles from| SSM
   IGLAMBDA -->|emits logs and metrics to| CW
   WSP -->|emits logs to| CW
   RTDL -->|emits logs and metrics to| CW
   CASELABEL -->|emits logs and metrics to| CW
+  LEARNING -->|emits logs and metrics to| CW
   SFN -->|emits logs and metrics to| CW
   CW -. exposes operator visibility for .-> RUNCTL
 
@@ -136,6 +155,7 @@ flowchart LR
   classDef ingress fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.3px;
   classDef rtdl fill:#e0f2f1,stroke:#00695c,color:#111,stroke-width:1.3px;
   classDef caselabel fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef learning fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
   classDef transport fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.3px;
   classDef support fill:#f1f8e9,stroke:#558b2f,color:#111,stroke-width:1.3px;
 
@@ -144,5 +164,6 @@ flowchart LR
   class WSP,HTTPAPI,IGLAMBDA,IGDLQ,IGDDB,TTRAFFIC ingress;
   class RINTAKE,CSFB,IEG,OFP,DF,DL,DLA,ARCH rtdl;
   class CTRIG,CM,LS caselabel;
+  class OFS,MF,MPR,DFREG learning;
   class MSK,GLUEREG,TCTXA,TCTXE,TFLOW,TDEC transport;
   class OIDC,SSM,OBJ,EVID,CW support;

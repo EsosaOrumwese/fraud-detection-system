@@ -1335,12 +1335,16 @@ After a phase is complete, update as needed:
 ---
 
 ## Immediate next action
-Proceed with `Phase 5 - Learning + Evolution / MLOps plane readiness`.
+Proceed with `Phase 7 - Operations / Governance / Meta readiness`.
 
-`Phase 4` closed the enlarged `Control + Ingress + RTDL + Case + Label` working network on `2026-03-12`, so the immediate purpose now shifts to proving the managed learning corridor on its own production criteria using authoritative Phase 4 runtime and label truth only.
+`Phase 5` closed green on `phase5_learning_mlops_bound_20260312T035531Z`, and `Phase 6` closed green on `phase6_learning_coupled_20260312T035601Z`. The promoted working platform is now:
+
+- `Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps`
+
+The immediate purpose now shifts to proving that the full promoted platform can be operated, reconstructed, governed, and cost-controlled truthfully rather than merely executed.
 
 Execution order now is:
-1. keep the now-green `Phase 5.A` telemetry boundary fixed across Databricks / OFS, SageMaker / MF, and MLflow / MPR,
-2. run the smallest bounded learning slice that proves dataset build, train/eval, bundle lineage, and promotion / rollback discipline on the real managed surfaces,
-3. if that bounded proof goes red, remediate only the failed managed boundary,
-4. only then decide whether the learning plane is green or remediation must remain open.
+1. pin the active Ops / Gov / Meta telemetry boundary on the now-promoted working platform,
+2. prove run reconstruction, evidence completeness, drift visibility, and attributable spend on the real control and evidence surfaces,
+3. remediate only the specific operational or governance blindspot that goes red,
+4. only then move into the bounded full-platform integrated validation phase.
