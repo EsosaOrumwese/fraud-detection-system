@@ -128,9 +128,17 @@ This subphase is green only when:
   - CaseTrigger / Case Management / Label Store participation green
 
 ### Current accepted starting posture
-- `Phase 5` is not yet execution-green because the managed telemetry gate is not yet pinned in live evidence.
-- The first honest task is not a broad learning run.
-  - It is to pin the concrete Databricks / SageMaker / MLflow surfaces, their live logs, and their fail-fast boundaries for one bounded learning slice.
+- `Phase 5.A` is now green on:
+  - `execution_id = phase5_learning_mlops_20260312T012219Z`
+- pinned managed-surface truth from that gate:
+  - Databricks workspace user `eorumwese@gmail.com`
+  - OFS build job id `736420749736071`
+  - OFS quality job id `37768192213816`
+  - SageMaker execution role trust valid
+  - SageMaker model package group `fraud-platform-dev-full-models` present
+  - MLflow tracking mode `databricks`
+- the next honest task is now `Phase 5.B`, not more telemetry pinning.
+  - run the smallest bounded managed-learning proof on top of the now-readable corridor.
 
 ## Phase 5 closure rule
 `Phase 5` closes only when:

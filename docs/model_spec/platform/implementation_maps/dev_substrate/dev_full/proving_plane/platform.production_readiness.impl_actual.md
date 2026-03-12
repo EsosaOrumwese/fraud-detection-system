@@ -5096,3 +5096,58 @@ So the immediate Phase 5 posture is now pinned correctly:
 - start with telemetry and runtime-boundary truth on the managed corridor
 - verify that the learning lane is reading only authoritative Phase 4 runtime + label truth
 - then run the smallest bounded learning slice that proves dataset build, train/eval, bundle lineage, and promotion / rollback discipline on the real managed surfaces
+
+## 2026-03-12 01:22:53 +00:00 - Phase 5.A telemetry gate is green once the MLflow hosting mode is treated truthfully as a Databricks-managed alias
+I did not reuse the retained `PR3-S4` learning runner as-is for the first Phase 5 pass because it was anchored to old bootstrap and snapshot names plus older managed-lane assumptions. The truthful first move was to add a dedicated Phase 5 telemetry-gate script that starts from the current promoted Phase 4 source boundary:
+
+- `scripts/dev_substrate/phase5_learning_mlops_readiness.py`
+- source scope:
+  - `phase4_case_label_coupled_20260312T003302Z`
+
+The first run failed immediately, but usefully:
+
+- the MLflow tracking URI resolved to `databricks`
+- the initial probe logic treated that like a plain HTTP URL and died with `ValueError: unknown url type`
+
+That was not a platform failure. It was a telemetry-gate defect in my new Phase 5 harness: the probe did not yet understand the actual MLflow hosting mode used on this substrate.
+
+I corrected the gate narrowly:
+
+- treat `tracking_uri = databricks` as a valid Databricks-managed MLflow alias
+- require the Databricks workspace probe to be live for that mode instead of forcing a raw URL probe
+
+Rerunning the same gate on the same source scope then closed cleanly:
+
+- `execution_id = phase5_learning_mlops_20260312T012219Z`
+- `verdict = PHASE5A_READY`
+- `open_blockers = 0`
+
+The managed-surface truth from that run is now pinned:
+
+- Databricks / OFS:
+  - workspace user = `eorumwese@gmail.com`
+  - build job = `fraud-platform-dev-full-ofs-build-v0`
+  - build job id = `736420749736071`
+  - quality job = `fraud-platform-dev-full-ofs-quality-v0`
+  - quality job id = `37768192213816`
+- SageMaker / MF:
+  - execution role matches the pinned handle
+  - role trust includes `sagemaker.amazonaws.com`
+  - model package group `fraud-platform-dev-full-models` is present
+- MLflow / MPR:
+  - tracking URI = `databricks`
+  - probe detail = `DATABRICKS_TRACKING_ALIAS`
+
+The source truth feeding the learning plane is also materially pinned on the same proof:
+
+- `case_mgmt labels_accepted = 2931`
+- `label_store accepted = 3080`
+- `label_store pending = 0`
+- `label_store rejected = 0`
+- `label_asof_utc = 2026-03-12T01:10:38.932670+00:00`
+
+So the current judgment is:
+
+- the blindspot that Phase 5 would have started with is now removed
+- the active blocker is no longer telemetry availability
+- the next real task is `Phase 5.B`: a bounded managed-learning proof on top of this now-readable corridor

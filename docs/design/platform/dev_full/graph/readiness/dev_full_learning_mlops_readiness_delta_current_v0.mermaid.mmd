@@ -26,18 +26,18 @@ flowchart LR
   end
 
   subgraph BLOCKERS["Current Open Blocker Family"]
-    B1["Open blocker<br>managed telemetry and boundary truth are not yet pinned on live evidence for this plane"]
-    B2["Open blocker detail<br>Phase 5 is not execution-green until OFS, MF, and MPR logs/counters/boundary health are readable on one bounded learning slice"]
+    B1["Resolved blocker<br>managed telemetry and boundary truth are now pinned on live evidence for this plane"]
+    B2["Next active blocker family<br>Phase 5.B still needs a bounded managed-learning proof for dataset build, train/eval, lineage, promotion evidence, and rollback discipline"]
   end
 
   subgraph POSTURE["Accepted Phase 5 Posture"]
-    P1["Do not start with a broad learning run"]
-    P2["Pin live logs, counters, boundary health, and fail-fast triggers across OFS -> MF -> MPR"]
-    P3["Then run the smallest bounded learning slice that proves dataset build, train/eval, lineage, promotion evidence, and rollback discipline"]
+    P1["Telemetry gate closed on execution_id phase5_learning_mlops_20260312T012219Z"]
+    P2["Keep the now-pinned Databricks / SageMaker / MLflow surfaces fixed"]
+    P3["Move to the smallest bounded managed-learning proof on top of the promoted Phase 4 truth boundary"]
   end
 
   subgraph TARGET["Next Proof Target"]
-    T1["Phase 5.A telemetry gate green"]
+    T1["Phase 5.A telemetry gate green<br>PHASE5A_READY"]
     T2["Phase 5.B bounded learning proof on authoritative Phase 4 truth"]
     T3["Phase 5 verdict<br>plane-ready or hold-remediate"]
   end
