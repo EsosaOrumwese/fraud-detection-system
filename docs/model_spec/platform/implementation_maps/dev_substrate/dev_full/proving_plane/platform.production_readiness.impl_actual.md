@@ -5937,3 +5937,85 @@ I also added prevention on the infrastructure side:
 - expire noncurrent versions after `7` days
 
 That means the same ingress packaging debris should now stop regrowing silently between hardening passes.
+
+## 2026-03-12 08:58:40 +00:00 - Whole-platform cost review showed the real live waste was stale transient state plus an idle runtime floor, so I reset the ingress ledger and put the EKS runtime into standby
+
+I widened the cost review beyond `Phase 5` artefacts and pulled Cost Explorer daily service splits for `2026-03-07` through `2026-03-11`.
+
+The important finding is that the biggest live costs were not being driven by one thing:
+
+- on `2026-03-07` and `2026-03-08`, `DynamoDB`, `ECS`, `RDS`, `MSK`, and `CloudWatch` were all materially high before the teardown/reset posture
+- by `2026-03-10` and `2026-03-11`, the shape had changed:
+  - `DynamoDB` remained high
+  - `API Gateway` / `Lambda` reflected the active proving traffic
+  - `RDS`, `MSK`, and runtime compute were still materially non-trivial
+  - `S3` cost was being driven more by request volume than by raw stored GB
+
+The usage-type drilldown was what mattered:
+
+- `DynamoDB`:
+  - cost is overwhelmingly `WriteRequestUnits`, not storage
+  - but the table also had a large stale transient-state accumulation:
+    - `ItemCount = 97,745,446`
+    - `TableSizeBytes = 142,509,236,122`
+- `S3`:
+  - recent cost is dominated by `Requests-Tier1`, not timed storage
+- `RDS`:
+  - cost is mainly `Aurora:ServerlessV2Usage` plus `Aurora:StorageIOUsage`, not GB storage
+- runtime compute:
+  - a meaningful part is not only Fargate
+  - it is also the always-on EKS worker floor plus regional data transfer
+
+That led to two direct whole-platform remediations.
+
+First, I recycled the ingress idempotency ledger because it is transient runtime state, not accepted proof evidence:
+
+- verified no live ingress activity in the previous hour:
+  - Lambda invocations: none
+  - DDB consumed writes: `0`
+- deleted and recreated `fraud-platform-dev-full-ig-idempotency` with the same runtime contract:
+  - hash key `dedupe_key`
+  - billing mode `PAY_PER_REQUEST`
+  - TTL attribute `ttl_epoch`
+- post-reset state:
+  - `ItemCount = 0`
+  - `TableSizeBytes = 0`
+
+That immediately removes the stale 97M-row transient-state pile instead of waiting for TTL to catch up unpredictably.
+
+Second, I put the EKS runtime into explicit standby because there was no active proving run but the runtime floor was still burning cost:
+
+- before standby:
+  - nodegroup `fraud-platform-dev-full-m6f-workers` was `desired=4`, `min=2`, `max=8`
+  - all RTDL deployments were still up
+  - case-management and label-store pods were crashlooping
+  - Aurora had roughly `9-10` connections and sat at effectively `~100%` CPU
+- standby action:
+  - live nodegroup scale:
+    - `min=0`
+    - `desired=0`
+    - `max=8`
+  - scaled all platform app deployments to `0`:
+    - namespace `fraud-platform-rtdl`
+    - namespace `fraud-platform-case-labels`
+  - scaled `coredns` to `0` so the last node would not be held alive by the cluster DNS floor alone
+
+Measured post-standby effect:
+
+- the worker floor is draining toward zero
+- Aurora CPU materially dropped from the previous `~100%` plateau to roughly `~17-18%` in the latest samples
+- Aurora `ServerlessDatabaseCapacity` had not yet relaxed below `4.0` ACU in the immediate samples I captured, so that metric still needs recheck later; the CPU drop at least proves the workload pressure is no longer what it was
+
+This is the important operational judgment:
+
+- the stale DDB table was real waste and is now retired
+- the idle EKS runtime floor was real waste and is now in standby
+- Aurora was being kept hot by the runtime floor / crashloop posture; the first post-standby metric samples already show that pressure falling
+
+There is now an intentional live standby drift relative to the normal working shape. Before the next active proving run, the runtime must be restored deliberately:
+
+- nodegroup `fraud-platform-dev-full-m6f-workers` back to working size
+- `coredns` back to normal replicas
+- RTDL and Case+Label deployments restored from `0` to their working replica counts
+
+That drift is intentional and correct for cost control between phases. It should not be “fixed” by an incidental Terraform apply before the next active run unless that apply is explicitly part of restoring the runtime for the next phase.
