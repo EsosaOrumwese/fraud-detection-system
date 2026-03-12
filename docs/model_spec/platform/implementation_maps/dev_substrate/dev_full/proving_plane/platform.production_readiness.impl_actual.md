@@ -4740,4 +4740,359 @@ So the next accepted move is to stop chasing tiny burst-token changes in isolati
 
 That is still production-honest. It does not reduce the retained `3000 / 6000` targets. It tests whether the enlarged network needs a longer bounded warm ramp before the first scored `3000 eps` steady minute is judged.
 
+## 2026-03-11 21:53:59 +00:00 - A longer low-rate presteady did not help; the enlarged network needs target-rate warm exposure before scored steady
+I tested the next ramp hypothesis directly:
+
+- `execution_id = phase4_case_label_coupled_20260311T211531Z`
+- `ig_push_concurrency = 2`
+- `post_scored_activation_settle_seconds = 30`
+- `presteady_seconds = 120`
+- default burst shaping restored
+
+This run also completed cleanly and preserved the coupled semantics:
+
+- downstream Case + Label surfaces green
+- coupled timing green
+- recovery green at `3019.6 eps`
+- no `4xx`
+- no `5xx`
+
+But the steady slice became even more revealing:
+
+- steady `1753.744 eps`
+- steady `p95 = 1123.499 ms`
+- steady `p99 = 1802.055 ms`
+- burst throughput stayed high (`6825.0 eps`) but `p99` breached hard
+
+The minute bins explain why the "just give 1500 more time" hypothesis is wrong:
+
+- `21:41-21:42` still sat at about `1478 eps`
+- `21:42-21:43` still sat at about `1482 eps`
+- then the path only moved materially once the higher-rate portion arrived
+- after that, recovery held cleanly above `3000 eps`
+
+So the new reading is:
+
+- the problem is not insufficient low-rate presteady duration
+- the enlarged network remains effectively in low-rate posture until it has already seen target-rate traffic
+- once target-rate or higher traffic has flowed, the network recovers and then sustains `3000 eps` cleanly
+
+That means the next correction should stop extending the `1500 eps` ramp and instead warm at the retained target:
+
+- keep the same coupled boundary
+- keep `ig_push_concurrency = 2`
+- keep the longer scored-activation settle
+- move the unscored `presteady` segment to `3000 eps`
+
+This is still truthful because it does not lower the target. It changes the warm posture from "longer below target" to "bounded warm exposure at the target we are actually trying to certify."
+
+## 2026-03-11 22:29:36 +00:00 - Target-rate presteady helped, which confirms the remaining blocker is warm-at-target plus burst-edge shaping
+I then moved the unscored presteady to the retained steady target:
+
+- `execution_id = phase4_case_label_coupled_20260311T215527Z`
+- `ig_push_concurrency = 2`
+- `post_scored_activation_settle_seconds = 30`
+- `presteady_eps = 3000`
+
+This is the first correction that improved the right thing without weakening the coupled plane:
+
+- steady improved to `2728.244 eps`
+- steady `p95` improved to `272.261 ms`
+- steady is now only red on throughput and `p99`
+- burst still shows the same edge-reject pocket (`869` `4xx`)
+- recovery remains clean again after the first `30 s`
+
+The minute bins are the key:
+
+- `22:19-22:20` `2572.767 eps`
+- `22:20-22:21` `2836.600 eps`
+- `22:22-22:23` `2999.967 eps`
+- `22:23-22:24` `3000.050 eps`
+
+That means the current read is no longer "we need more time below target." The better interpretation is:
+
+- the enlarged network does benefit from bounded warm exposure at `3000 eps`
+- it still wants a little more target-rate warm time before the scored steady window closes
+- the burst-edge reject pocket is now a separate narrow issue again
+
+So the next combined but still narrow correction is:
+
+- keep `presteady_eps = 3000`
+- lengthen `presteady_seconds` modestly
+- reduce only `short_upward_transition_blend` for the burst step
+
+That preserves the improved target-rate warm posture while softening the burst edge without reintroducing the earlier low-rate starvation mistake.
+
+## 2026-03-11 23:07:13 +00:00 - The combined target-rate warm posture fixed steady; Phase 4 is now blocked only by the burst-edge reject pocket
+I ran the first combined posture that kept the target-rate warm insight and the burst-step softening together:
+
+- `execution_id = phase4_case_label_coupled_20260311T223010Z`
+- `ig_push_concurrency = 2`
+- `post_scored_activation_settle_seconds = 30`
+- `presteady_eps = 3000`
+- `presteady_seconds = 90`
+- `short_upward_transition_blend = 0.25`
+
+This is the cleanest Phase 4 result so far.
+
+What closed:
+
+- steady is now green at `3032.467 eps`
+- steady latency is green (`p95 = 49.642 ms`, `p99 = 78.663 ms`)
+- downstream Case + Label participation stays green
+- coupled timing stays green
+- recovery throughput is green at `3002.250 eps`
+- recovery latency stays green
+
+What remains red:
+
+- burst `4xx = 870`
+- recovery carries `964` `4xx` in the first `30 s`, then turns fully green
+
+The key point is that the blocker stack is now materially smaller than before. We are no longer red on steady admission, steady latency, broad coupled semantics, or downstream participation. We are red on a single ingress-edge behavior around the short `6000 eps` burst step and the first recovery slice after it.
+
+So the current accepted reading of `Phase 4` is:
+
+- the enlarged network itself is now production-worthy on steady and sustained recovery
+- the remaining gap is the burst-edge reject pocket
+- `Phase 4` should now be remediated as a burst/recovery ingress-edge shaping issue only
+
+That is a meaningful narrowing. The next move should be one more burst-edge-only correction on this now-truthful steady baseline, not another broad replan of the whole coupled boundary.
+
 That preserves the truthful burst repin while testing whether the steady miss disappears without reintroducing the old API-edge reject pattern.
+
+## 2026-03-11 23:10:19 +00:00 - Phase 4 is now a pure ingress-edge burst shaping problem; the remaining 4xx pocket is APIGW 429 concentrated in the first two post-burst seconds
+I stopped treating the residual `Phase 4` red as a broad coupled-network ambiguity and checked the live access-log truth directly on the best current baseline:
+
+- `execution_id = phase4_case_label_coupled_20260311T223010Z`
+- `presteady_eps = 3000`
+- `presteady_seconds = 90`
+- `ig_push_concurrency = 2`
+- `short_upward_transition_blend = 0.25`
+
+The acceptance boundary from that run was already clear at a high level:
+
+- steady green at `3032.467 eps`
+- steady latency green
+- downstream `RTDL -> CaseTrigger -> Case Management -> Label Store` participation green
+- coupled timing green
+- recovery sustained green after the first `30 s`
+- only remaining blockers:
+  - burst `4xx = 870`
+  - recovery `4xx = 964`
+
+The remaining question was whether those rejects meant a wider recovery defect or just a burst-edge spillover pocket. The APIGW access-log drill answered that directly:
+
+- all remaining failures are `429`
+- there are no matching `5xx`
+- integration status remains `-`, which matches an edge rejection rather than a Lambda/runtime fault
+- the full `429` distribution is:
+  - `22:57:02Z -> 870`
+  - `22:57:03Z -> 94`
+
+That materially changes the remediation posture. `Phase 4` is no longer blocked by steady truth, downstream starvation, or coupled-path timing. It is blocked by a narrow API-edge token-bucket/reject pocket concentrated in the first two seconds immediately after the `6000 eps` burst step.
+
+So the next correction should remain narrow:
+
+- keep the newly green steady baseline intact
+- keep `presteady_eps = 3000`
+- keep `presteady_seconds = 90`
+- keep `ig_push_concurrency = 2`
+- reduce only the burst-step seed on the short upward transition
+
+The most truthful next probe is therefore to hold the same baseline and drop `short_upward_transition_blend` from `0.25` to `0.0`, because that affects the short `3000 -> 6000 eps` upward seed without reopening steady or recovery semantics outside the first two seconds.
+
+## 2026-03-11 23:52:42 +00:00 - The burst token seed is not enough; the next narrow fix is per-lane microstagger on the short upward burst transition
+I ran the first burst-seed-only correction on the retained green steady baseline:
+
+- `execution_id = phase4_case_label_coupled_20260311T231137Z`
+- `presteady_eps = 3000`
+- `presteady_seconds = 90`
+- `ig_push_concurrency = 2`
+- `short_upward_transition_blend = 0.0`
+
+That run is accepted as a rejected posture, not as the next baseline:
+
+- burst `429` improved only slightly:
+  - previous best red pocket: `870 + 94`
+  - new red pocket: `864 + 22`
+- but the same run reopened steady:
+  - exact scored steady fell to `2745.733 eps`
+
+The important engineering read is not "lower blend broke steady." The limiter code shows `short_upward_transition_blend` only changes the short upward burst segment here because:
+
+- presteady and steady both stay at `3000 eps`
+- only the `3000 -> 6000 eps` segment is an upward short step
+
+So the burst token seed by itself is too weak a lever, and the remaining APIGW `429` pocket is more likely coming from the instantaneous cross-lane burst synchronization than from the seed magnitude alone.
+
+That led to a better narrow correction:
+
+- keep the same coupled boundary
+- keep the same retained burst target (`6000 eps` over `2 s`)
+- keep `ig_push_concurrency = 2`
+- add a proof-harness ability to apply a per-lane microstagger only to the short upward burst transition
+
+I implemented that by extending the bounded proving path:
+
+- `phase0_control_ingress_envelope.py`
+- `phase4_case_label_coupled_readiness.py`
+- `pr3_wsp_replay_dispatch.py`
+
+The new control is:
+
+- `short_upward_transition_lane_stagger_seconds`
+
+Its behavior is intentionally narrow:
+
+- it only rewrites the scheduled rate plan per lane when a short upward step is present
+- it shifts the short upward burst transition and the following tail for each lane by `lane_index * stagger`
+- it does not change the retained steady target
+- it does not change the retained burst target
+- it does not weaken downstream coupled semantics
+
+That is the current accepted posture because the remaining defect is an ingress-edge synchronization problem, not a downstream capacity or semantic problem.
+
+## 2026-03-12 00:32:32 +00:00 - The lane microstagger is informative but not a valid closure path; Phase 4 stays on a fixed global burst window and now moves to a burst-step token override
+I ran the first per-lane microstagger probe on the same retained Phase 4 baseline:
+
+- `execution_id = phase4_case_label_coupled_20260311T235314Z`
+- `presteady_eps = 3000`
+- `presteady_seconds = 90`
+- `ig_push_concurrency = 2`
+- `short_upward_transition_blend = 0.25`
+- `short_upward_transition_lane_stagger_seconds = 0.01`
+
+That run is accepted as useful diagnosis but rejected as a closure posture.
+
+What it proved:
+
+- the burst-second `429` pocket can be reduced materially by spreading the short upward step:
+  - burst `4xx` fell from `870` to `485`
+
+Why it is still rejected:
+
+- the same change pushed the remaining reject pocket across the wall-clock boundary instead of actually removing it
+- the final `429` distribution became:
+  - `00:21:02Z -> 485`
+  - `00:21:03Z -> 484`
+- that means the proof harness is no longer respecting the intended fixed global `2 s` burst / recovery scoring boundary in a truthful way
+
+So the microstagger is not the right Phase 4 closure path. It changes the burst edge in a way that smears part of the burst into recovery on the operator clock, which makes the red pocket harder to score honestly even though the downstream runtime stays healthy.
+
+The accepted next posture is therefore:
+
+- return to the fixed global burst boundary
+- keep `short_upward_transition_lane_stagger_seconds = 0.0`
+- keep the retained green steady baseline
+- reduce the burst-step overshoot without moving the wall-clock burst/recovery boundary
+
+I implemented the next narrower lever for that:
+
+- `burst_step_initial_tokens`
+
+That override applies only to the burst segment in the generated rate plan. It does not touch:
+
+- presteady
+- steady
+- recovery
+- downstream coupled semantics
+- the global burst/recovery scoring boundary
+
+The next truthful probe is to hold the current baseline and set:
+
+- `burst_step_initial_tokens = 0.0`
+
+That should remove the burst-step token preload directly rather than smearing the transition across lanes.
+
+## 2026-03-12 01:12:40 +00:00 - Phase 4 closed green; the remaining red was a stale scoring surface, not a live coupled-network defect
+The decisive Phase 4 run is now:
+
+- `execution_id = phase4_case_label_coupled_20260312T003302Z`
+- `platform_run_id = platform_20260312T003302Z`
+- `scenario_run_id = 9491946f6c82eed929797d2128ec38e8`
+
+The ingress-envelope side of that run is fully green on the enlarged network:
+
+- steady:
+  - `observed_admitted_eps = 3060.177777777778`
+  - `4xx = 0`
+  - `5xx = 0`
+  - `latency_p95_ms = 52.8965`
+  - `latency_p99_ms = 77.4241`
+- burst:
+  - `observed_admitted_eps = 7118.0`
+  - `4xx = 0`
+  - `5xx = 0`
+- recovery:
+  - `observed_admitted_eps = 3018.4333333333334`
+  - `4xx = 0`
+  - `5xx = 0`
+  - sustained green from recovery start with `recovery_seconds_to_sustained_green = 0.0`
+
+The earlier remaining red was not a true runtime loss on the case-label path. It was the rollup still scoring against the pre-refresh snapshot pair after I had already refreshed the run-scoped post snapshot. The current stored post snapshot now shows the real matured downstream state for the same run:
+
+- `case_mgmt labels_accepted = 2931`
+- `label_store accepted = 3080`
+
+That is consistent with the timing probe on the same run, which was already green and proving actual committed labels with subsecond p95:
+
+- `decision_to_case p95 = 0.0 s`
+- `case_to_label p95 = 0.17482505 s`
+
+So the truthful engineering judgment is:
+
+- the ingress-edge blocker is closed by the burst-step token override:
+  - `burst_step_initial_tokens = 0.0`
+- the downstream case-label path is green on the same run
+- the old `PHASE4.B24_LABEL_COMMIT_UNDERCOUNT` receipt was a stale scoring artifact, not a live coupled-network failure
+
+I reran only the smallest honest boundary after the post snapshot had matured:
+
+- `python scripts/dev_substrate/phase4_case_label_coupled_rollup.py --run-control-root runs/dev_substrate/dev_full/proving_plane/run_control --execution-id phase4_case_label_coupled_20260312T003302Z`
+
+That reroll closed cleanly:
+
+- `phase4_coupled_readiness_receipt.json -> verdict = PHASE4_READY`
+- `next_phase = PHASE5`
+- `open_blockers = 0`
+
+That means the coupled working platform is now honestly promoted as:
+
+- `Control + Ingress + RTDL + Case + Label`
+
+with both plane proof and coupled proof complete under this method.
+
+## 2026-03-12 01:13:12 +00:00 - Opening Phase 5 on the managed learning corridor with concrete live handles instead of generic learning language
+With Phase 4 promoted, the next unmet goal is the Learning + Evolution / MLOps plane on its own production criteria.
+
+I re-anchored the first Phase 5 surface from the pinned dev-full handles and the retained bounded-learning scripts instead of inventing a new corridor:
+
+- Databricks / OFS:
+  - `DBX_WORKSPACE_URL = https://dbc-d0b53c09-b6fa.cloud.databricks.com`
+  - `DBX_JOB_OFS_BUILD_V0 = fraud-platform-dev-full-ofs-build-v0`
+  - `DBX_JOB_OFS_QUALITY_GATES_V0 = fraud-platform-dev-full-ofs-quality-v0`
+  - `DBX_COMPUTE_POLICY = serverless-jobs-only`
+  - `DBX_AUTOSCALE_WORKERS = 1-8`
+- SageMaker / MF:
+  - `ROLE_SAGEMAKER_EXECUTION = arn:aws:iam::230372904534:role/fraud-platform-dev-full-sagemaker-execution`
+  - `SM_TRAINING_JOB_NAME_PREFIX = fraud-platform-dev-full-mtrain`
+  - `SM_BATCH_TRANSFORM_JOB_NAME_PREFIX = fraud-platform-dev-full-mbatch`
+  - `SM_MODEL_PACKAGE_GROUP_NAME = fraud-platform-dev-full-models`
+  - `SM_ENDPOINT_NAME = fraud-platform-dev-full-online-v0`
+- MLflow / MPR:
+  - tracking URI path pinned at `SSM_MLFLOW_TRACKING_URI_PATH = /fraud-platform/dev_full/mlflow/tracking_uri`
+
+The existing bounded-learning proving path is already present and should be reused rather than replaced:
+
+- `scripts/dev_substrate/m10b_databricks_readiness.py`
+- `scripts/dev_substrate/m11b_sagemaker_readiness.py`
+- `scripts/dev_substrate/m11f_mlflow_lineage.py`
+- `scripts/dev_substrate/pr3_s4_learning_bound.py`
+- `config/platform/run_operate/packs/dev_full_learning_jobs.v0.yaml`
+
+So the immediate Phase 5 posture is now pinned correctly:
+
+- start with telemetry and runtime-boundary truth on the managed corridor
+- verify that the learning lane is reading only authoritative Phase 4 runtime + label truth
+- then run the smallest bounded learning slice that proves dataset build, train/eval, bundle lineage, and promotion / rollback discipline on the real managed surfaces

@@ -358,7 +358,9 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--http-pool-maxsize", type=int, default=512)
     ap.add_argument("--target-burst-seconds", type=float, default=0.25)
     ap.add_argument("--target-initial-tokens", type=float, default=0.25)
+    ap.add_argument("--burst-step-initial-tokens", type=float, default=-1.0)
     ap.add_argument("--short-upward-transition-blend", type=float, default=(1.0 / 3.0))
+    ap.add_argument("--short-upward-transition-lane-stagger-seconds", type=float, default=0.0)
     ap.add_argument("--early-cutoff-seconds", type=int, default=60)
     ap.add_argument("--early-cutoff-floor-ratio", type=float, default=0.0)
     ap.add_argument("--metric-settle-seconds", type=int, default=90)
@@ -411,21 +413,32 @@ def main() -> None:
     rate_plan: list[dict[str, Any]] = []
     previous_segment_target_eps: float | None = None
 
-    def append_segment(*, start_offset_seconds: int, target_eps: float, duration_seconds: float) -> None:
+    def append_segment(
+        *,
+        start_offset_seconds: int,
+        target_eps: float,
+        duration_seconds: float,
+        initial_tokens_override: float | None = None,
+    ) -> None:
         nonlocal previous_segment_target_eps
+        initial_tokens = (
+            max(0.0, float(initial_tokens_override))
+            if initial_tokens_override is not None
+            else seeded_segment_tokens(
+                current_target_eps=target_eps,
+                burst_seconds=segment_burst_seconds,
+                minimum_tokens=segment_minimum_tokens,
+                previous_target_eps=previous_segment_target_eps,
+                segment_duration_seconds=duration_seconds,
+                short_upward_transition_blend=float(args.short_upward_transition_blend),
+            )
+        )
         rate_plan.append(
             {
                 "start_offset_seconds": start_offset_seconds,
                 "target_eps": target_eps,
                 "burst_seconds": segment_burst_seconds,
-                "initial_tokens": seeded_segment_tokens(
-                    current_target_eps=target_eps,
-                    burst_seconds=segment_burst_seconds,
-                    minimum_tokens=segment_minimum_tokens,
-                    previous_target_eps=previous_segment_target_eps,
-                    segment_duration_seconds=duration_seconds,
-                    short_upward_transition_blend=float(args.short_upward_transition_blend),
-                ),
+                "initial_tokens": initial_tokens,
             }
         )
         previous_segment_target_eps = target_eps
@@ -447,6 +460,9 @@ def main() -> None:
         start_offset_seconds=segment_offset + steady_seconds,
         target_eps=burst_per_lane_eps,
         duration_seconds=float(burst_seconds),
+        initial_tokens_override=(
+            float(args.burst_step_initial_tokens) if float(args.burst_step_initial_tokens) >= 0.0 else None
+        ),
     )
     append_segment(
         start_offset_seconds=segment_offset + steady_seconds + burst_seconds,
@@ -520,6 +536,8 @@ def main() -> None:
         str(max(0.0, float(args.target_burst_seconds))),
         "--target-initial-tokens",
         str(max(0.0, float(args.target_initial_tokens))),
+        "--short-upward-transition-lane-stagger-seconds",
+        str(max(0.0, float(args.short_upward_transition_lane_stagger_seconds))),
         "--campaign-start-utc",
         str(to_iso_utc(campaign_start)),
         "--rate-plan-json",
@@ -572,6 +590,12 @@ def main() -> None:
         },
         "duration_seconds": duration_seconds,
         "rate_plan_per_lane": rate_plan,
+        "burst_step_initial_tokens": (
+            float(args.burst_step_initial_tokens) if float(args.burst_step_initial_tokens) >= 0.0 else None
+        ),
+        "short_upward_transition_lane_stagger_seconds": max(
+            0.0, float(args.short_upward_transition_lane_stagger_seconds)
+        ),
         "dispatch_command": dispatch_command,
     }
     if args.dry_run:
@@ -766,6 +790,12 @@ def main() -> None:
             "lane_count": lane_count,
             "stream_speedup": float(args.stream_speedup),
             "rate_plan_per_lane": rate_plan,
+            "burst_step_initial_tokens": (
+                float(args.burst_step_initial_tokens) if float(args.burst_step_initial_tokens) >= 0.0 else None
+            ),
+            "short_upward_transition_lane_stagger_seconds": max(
+                0.0, float(args.short_upward_transition_lane_stagger_seconds)
+            ),
             "accepted_cost_posture": {
                 "wsp_checkpoint_backend": str(args.wsp_checkpoint_backend),
                 "wsp_checkpoint_root": str(args.wsp_checkpoint_root),

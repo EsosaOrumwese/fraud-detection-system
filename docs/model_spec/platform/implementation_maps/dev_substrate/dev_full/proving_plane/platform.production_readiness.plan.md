@@ -367,7 +367,7 @@ Rules:
 The baseline now established under this plan is:
 - `Control + Ingress`: promoted working-platform member
 - `RTDL`: promoted working-platform member after fresh-scope Phase 1 closure on `2026-03-11`
-- `Case + Label`: promoted working-platform member after bounded Phase 3 closure on `2026-03-11`
+- `Case + Label`: promoted working-platform member after bounded Phase 3 plane closure on `2026-03-11` and coupled Phase 4 closure on `2026-03-12`
 - `Learning + Evolution / MLOps`: wired on managed surfaces, not yet accepted as a production-ready plane
 - `Ops / Gov / Meta`: present, not yet accepted as a production-ready plane
 
@@ -1276,12 +1276,12 @@ After a phase is complete, update as needed:
 ---
 
 ## Immediate next action
-Proceed with `Phase 4 - Working network + Case + Label coupled readiness`.
+Proceed with `Phase 5 - Learning + Evolution / MLOps plane readiness`.
 
-`Phase 3` closed the Case + Label plane on top of the promoted `Control + Ingress + RTDL` base, so the immediate purpose now shifts to proving the enlarged network with the new operational-review truth path attached.
+`Phase 4` closed the enlarged `Control + Ingress + RTDL + Case + Label` working network on `2026-03-12`, so the immediate purpose now shifts to proving the managed learning corridor on its own production criteria using authoritative Phase 4 runtime and label truth only.
 
 Execution order now is:
-1. pin the coupled Phase 4 telemetry set and fail-fast conditions across RTDL -> CaseTrigger -> Case Management -> Label Store,
-2. verify the live coupled runtime boundary on the promoted `Control + Ingress + RTDL + Case + Label` network,
-3. run bounded coupled-network proof for the enlarged network at the retained ingress envelope,
-4. only then decide whether the enlarged network is green or remediation must remain open.
+1. pin the live Phase 5 telemetry set and fail-fast conditions across Databricks / OFS, SageMaker / MF, and MLflow / MPR,
+2. verify that the managed learning corridor is reading only authoritative runtime and label truth from the promoted working platform,
+3. run the smallest bounded learning slice that proves dataset build, train/eval, bundle lineage, and promotion / rollback discipline on the real managed surfaces,
+4. only then decide whether the learning plane is green or remediation must remain open.

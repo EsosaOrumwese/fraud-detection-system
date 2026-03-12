@@ -141,12 +141,7 @@ Status:
 - RTDL latency / fail-closed posture regresses under the new coupling
 
 ## Current execution posture
-`Phase 4` is entering on a materially better boundary than the earlier `PR3-S4` bundle:
-
-- `Control + Ingress + RTDL + Case + Label` is now a promoted working-platform base
-- the narrow Phase 3 executor already proved the downstream seam and current image family
-- the next question is no longer whether the Case + Label plane works at all
-- the next question is whether the enlarged network holds under the retained ingress envelope with the downstream operational-review truth path attached
+`Phase 4` is now materially narrowed. The enlarged network is no longer being treated as broadly red.
 
 Accepted execution path:
 
@@ -154,93 +149,73 @@ Accepted execution path:
 - derive the coupled validation slice from the Phase 3 bounded runner rather than replaying the older broad `PR3-S4` bundle
 - preserve the retained upstream envelope
 - add coupled timing and starvation evidence rather than collapsing back to plane-only metrics
-- keep the bounded burst shape aligned with the last accepted coupled-network proof unless evidence shows that shape itself is invalid
+- keep remediation narrow to the currently evidenced blocker family
 
-Current coupled-envelope repin:
+## Final impact metrics and closure judgment
 
-- the first fresh full Phase 4 rerun proved that the inherited `30 s` burst and higher inline push fanout are the wrong proving shape for this coupled boundary
-- that shape produced API-edge `429` during burst and early recovery while steady, downstream participation, and coupled timing all stayed green
-- the accepted repin is to reuse the already-proven coupled burst posture from the promoted RTDL closure:
-  - short bounded burst segment (`2 s`)
-  - retained `6000 burst eps` target
-  - initial narrow fanout correction tested with `ig_push_concurrency = 1`
-- the short-burst rerun removed the `429` burst defect completely, but that fanout reduction overcorrected the first steady window while later steady/recovery minutes returned to the retained envelope
-- the current narrow follow-up is:
-  - keep `burst_seconds = 2`
-  - keep `ig_push_concurrency = 2` for the scored window
-  - treat the remaining red as a transition-shaping defect rather than a broad coupled-network regression
-  - expose and tune the burst-token seeding controls on the same Phase 4 runner
-  - extend the scored-activation settle slightly so the scored steady slice is not polluted by activation residue
-- the latest rerun proved that simply restoring `ig_push_concurrency = 2` is not enough:
-  - steady came back only slightly red at `2979.367 eps`
-  - steady `p99` rose to `722.864 ms`
-  - burst/recovery carried API-edge `429` again (`872` burst, `982` early recovery)
-  - downstream Case + Label participation and coupled timing still stayed green
-- the first attempt to soften this with `target_burst_seconds = 0.2` was rejected:
-  - it removed edge rejects, but by starving the enlarged network itself
-  - steady dropped to `1843.300 eps`
-  - burst dropped to `2199.0 eps`
-  - first recovery bin also underfilled before the network later returned to green
-- the accepted next narrow follow-up is now:
-  - restore `target_burst_seconds = 0.25`
-  - keep `ig_push_concurrency = 2`
-  - keep the longer scored-activation settle
-  - treat burst-only tuning as secondary until the scored `1500 -> 3000 eps` transition is honest
-  - increase `presteady_seconds` so the first full steady minute is judged after a truthful bounded ramp on the enlarged network
-- the blend-only follow-up also stayed red:
-  - all lanes were already confirmed more than `50 s` before campaign start
-  - the first full steady minute still underfilled badly
-  - later steady/recovery minutes returned to the retained envelope
-- that means the remaining red is not a fleet-start artifact; it is now pinned as a scored ramp-shape issue under the current `60 s` presteady
-- this still does not lower the target; it is a narrow driver correction so the enlarged network is judged on a truthful coupled burst boundary without artificially starving the steady slice or overdriving the edge transition
+### Accepted closure scope
+- `execution_id = phase4_case_label_coupled_20260312T003302Z`
+- `platform_run_id = platform_20260312T003302Z`
+- `scenario_run_id = 9491946f6c82eed929797d2128ec38e8`
 
-Candidate proving path now pinned:
-
-- existing bounded runner base: `scripts/dev_substrate/phase3_case_label_readiness.py`
-- existing runtime snapshot primitive: `scripts/dev_substrate/pr3_runtime_surface_snapshot.py`
-- existing WSP replay dispatcher: `scripts/dev_substrate/pr3_wsp_replay_dispatch.py`
-- next narrow implementation task:
-  - introduce a dedicated `Phase 4` coupled runner and rollup so steady / burst / recovery plus coupled timing can be scored directly without mixing in later learning or ops/governance surfaces
-
-## Current impact metrics entering Phase 4
-
-### Promoted network baseline
-- current working platform:
-  - `Control + Ingress + RTDL + Case + Label`
-- retained envelope:
-  - `3000 steady eps`
-  - `6000 burst eps`
-
-### Most recent accepted closure scope feeding this phase
-- source scope:
-  - `execution_id = phase3_case_label_20260311T142813Z`
-  - `platform_run_id = platform_20260311T142813Z`
-  - `scenario_run_id = 4156588de0c1c3555bd56e0e273176ce`
-- scored ingress slice:
-  - `observed_admitted_eps = 3046.783`
-  - `admitted_request_count = 182807`
+### Final envelope truth on the enlarged network
+- steady:
+  - `observed_admitted_eps = 3060.177777777778`
   - `4xx = 0`
   - `5xx = 0`
-  - `latency_p95_ms = 48`
-  - `latency_p99_ms = 55`
-- coupled downstream participation from the same accepted scope:
-  - `case_trigger_triggers_seen_delta = 2276`
-  - `case_trigger_published_delta = 2276`
-  - `case_mgmt_cases_created_delta = 335`
-  - `case_mgmt_timeline_events_appended_delta = 1005`
-  - `label_store_accepted_delta = 933`
-  - `label_store_timeline_rows_delta = 933`
-- integrity posture from that source scope:
-  - all tracked quarantine / ambiguity / duplicate / mismatch / pending deltas stayed `0`
+  - `latency_p95_ms = 52.8965`
+  - `latency_p99_ms = 77.4241`
+- burst:
+  - `observed_admitted_eps = 7118.0`
+  - `4xx = 0`
+  - `5xx = 0`
+- recovery:
+  - `observed_admitted_eps = 3018.4333333333334`
+  - `4xx = 0`
+  - `5xx = 0`
+  - `recovery_seconds_to_sustained_green = 0.0`
 
-## Phase 4 closure rule
-`Phase 4` closes only when:
+### Final coupled participation and timing truth
+- RTDL participation: green
+- CaseTrigger participation: green
+- Case Management participation: green
+- Label Store participation: green
+- decision-to-case timing: green
+  - `p95 = 0.0 s`
+- case-to-label timing: green
+  - `p95 = 0.17482505 s`
+- Lambda errors: `0`
+- Lambda throttles: `0`
+- DLQ delta: `0`
 
-1. the enlarged runtime boundary is current-run-correct and observably healthy enough for truthful coupled proof,
-2. the retained ingress envelope holds through steady, burst, and recovery on the enlarged network,
-3. RTDL and Case + Label remain materially participating on the same active run scope,
-4. decision-to-case and case-to-label timing remain attributable and acceptable,
-5. the enlarged network does not regress already-promoted behavior,
-6. notes, logbook, plan state, and readiness graphs all tell the same truthful story.
+### Final downstream commit posture
+- refreshed post snapshot on the same run shows:
+  - `case_mgmt labels_accepted = 2931`
+  - `label_store accepted = 3080`
+- final rerolled scorecard shows:
+  - `case_mgmt_labels_accepted_delta = 2747`
+  - `label_store_accepted_delta = 2782`
+- integrity deltas remain `0`
 
-If any one of those is false, `Phase 4` remains open.
+### Closure judgment
+- `Phase 4` is green and closed.
+- The decisive ingress-edge correction was:
+  - `burst_step_initial_tokens = 0.0`
+- The remaining old rollup red was not accepted as a real platform defect.
+  - It was a stale scoring surface that disappeared once the matured post snapshot was rerolled on the same run scope.
+- The working platform is therefore now truthfully promoted as:
+  - `Control + Ingress + RTDL + Case + Label`
+
+## Handoff to Phase 5
+The next unmet goal is `Phase 5 - Learning + Evolution / MLOps plane readiness`.
+
+The accepted handoff inputs are:
+- promoted working platform:
+  - `Control + Ingress + RTDL + Case + Label`
+- authoritative source scope for the newest coupled closure:
+  - `phase4_case_label_coupled_20260312T003302Z`
+- retained proving method:
+  - telemetry first
+  - AWS-real / managed-surface-real execution
+  - bounded proof before stress
+  - fix narrow and rerun narrow

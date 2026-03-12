@@ -1,0 +1,74 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    L1["Left to right = promoted upstream truth -> active managed learning surfaces -> current blocker family -> accepted Phase 5 posture -> next proof target"]
+    L2["Green = already promoted upstream platform truth"]
+    L3["Blue = active managed surfaces now in scope"]
+    L4["Red = current open blocker family"]
+    L5["Amber = accepted next execution posture"]
+  end
+
+  subgraph UPSTREAM["Promoted Upstream Truth"]
+    U1["Current working platform<br>Control + Ingress + RTDL + Case + Label"]
+    U2["Accepted coupled closure scope<br>phase4_case_label_coupled_20260312T003302Z"]
+    U3["Authoritative basis entering Phase 5<br>runtime truth + authoritative labels only"]
+  end
+
+  subgraph SURFACES["Managed Learning Corridor In Scope"]
+    S1["Databricks / OFS<br>workspace dbc-d0b53c09-b6fa.cloud.databricks.com<br>build job fraud-platform-dev-full-ofs-build-v0<br>quality job fraud-platform-dev-full-ofs-quality-v0"]
+    S2["SageMaker / MF<br>role fraud-platform-dev-full-sagemaker-execution<br>training prefix fraud-platform-dev-full-mtrain<br>package group fraud-platform-dev-full-models"]
+    S3["MLflow / MPR<br>tracking URI path /fraud-platform/dev_full/mlflow/tracking_uri<br>promotion and rollback evidence corridor"]
+  end
+
+  subgraph BLOCKERS["Current Open Blocker Family"]
+    B1["Open blocker<br>managed telemetry and boundary truth are not yet pinned on live evidence for this plane"]
+    B2["Open blocker detail<br>Phase 5 is not execution-green until OFS, MF, and MPR logs/counters/boundary health are readable on one bounded learning slice"]
+  end
+
+  subgraph POSTURE["Accepted Phase 5 Posture"]
+    P1["Do not start with a broad learning run"]
+    P2["Pin live logs, counters, boundary health, and fail-fast triggers across OFS -> MF -> MPR"]
+    P3["Then run the smallest bounded learning slice that proves dataset build, train/eval, lineage, promotion evidence, and rollback discipline"]
+  end
+
+  subgraph TARGET["Next Proof Target"]
+    T1["Phase 5.A telemetry gate green"]
+    T2["Phase 5.B bounded learning proof on authoritative Phase 4 truth"]
+    T3["Phase 5 verdict<br>plane-ready or hold-remediate"]
+  end
+
+  U1 --> U2
+  U2 --> U3
+  U3 --> S1
+  U3 --> S2
+  U3 --> S3
+
+  S1 --> B1
+  S2 --> B1
+  S3 --> B2
+
+  B1 --> P1
+  B1 --> P2
+  B2 --> P2
+  P2 --> P3
+
+  P1 --> T1
+  P2 --> T1
+  P3 --> T2
+  T1 --> T2
+  T2 --> T3
+
+  classDef up fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+  classDef surface fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.3px;
+  classDef defect fill:#ffebee,stroke:#c62828,color:#111,stroke-width:1.3px;
+  classDef fix fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+
+  class U1,U2,U3 up;
+  class S1,S2,S3 surface;
+  class B1,B2 defect;
+  class P1,P2,P3,T1,T2,T3 fix;

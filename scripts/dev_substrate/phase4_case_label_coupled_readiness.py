@@ -249,7 +249,9 @@ def main() -> None:
     ap.add_argument("--http-pool-maxsize", type=int, default=512)
     ap.add_argument("--target-burst-seconds", type=float, default=0.25)
     ap.add_argument("--target-initial-tokens", type=float, default=0.25)
+    ap.add_argument("--burst-step-initial-tokens", type=float, default=-1.0)
     ap.add_argument("--short-upward-transition-blend", type=float, default=(1.0 / 3.0))
+    ap.add_argument("--short-upward-transition-lane-stagger-seconds", type=float, default=0.0)
     ap.add_argument("--traffic-output-ids", default="s3_event_stream_with_fraud_6B")
     ap.add_argument("--context-output-ids", default="arrival_events_5B,s1_arrival_entities_6B,s3_flow_anchor_with_fraud_6B")
     ap.add_argument("--wsp-task-cpu", type=int, default=256)
@@ -530,8 +532,12 @@ def main() -> None:
                 str(args.target_burst_seconds),
                 "--target-initial-tokens",
                 str(args.target_initial_tokens),
+                "--burst-step-initial-tokens",
+                str(args.burst_step_initial_tokens),
                 "--short-upward-transition-blend",
                 str(args.short_upward_transition_blend),
+                "--short-upward-transition-lane-stagger-seconds",
+                str(args.short_upward_transition_lane_stagger_seconds),
                 "--traffic-output-ids",
                 args.traffic_output_ids,
                 "--context-output-ids",

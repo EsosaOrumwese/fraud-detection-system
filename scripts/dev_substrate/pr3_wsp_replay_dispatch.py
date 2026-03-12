@@ -1322,6 +1322,41 @@ def require_canonical_platform_run_id(value: str, *, blocker_prefix: str) -> str
     return resolved
 
 
+def lane_staggered_rate_plan(
+    rate_plan: list[dict[str, Any]],
+    *,
+    lane_index: int,
+    lane_stagger_seconds: float,
+) -> list[dict[str, Any]]:
+    stagger = max(0.0, float(lane_stagger_seconds))
+    if stagger <= 0.0 or not rate_plan:
+        return [dict(row) for row in rate_plan]
+    shifted = [dict(row) for row in rate_plan]
+    lane_offset = float(lane_index) * stagger
+    previous_target_eps: float | None = None
+    for idx, row in enumerate(shifted):
+        current_target_eps = max(0.0, float(row.get("target_eps", row.get("rate_per_second", 0.0)) or 0.0))
+        next_offset = None
+        if idx + 1 < len(shifted):
+            next_offset = max(0.0, float(shifted[idx + 1].get("start_offset_seconds", 0.0) or 0.0))
+        current_offset = max(0.0, float(row.get("start_offset_seconds", 0.0) or 0.0))
+        segment_duration = None if next_offset is None else max(0.0, next_offset - current_offset)
+        is_short_upward_step = (
+            previous_target_eps is not None
+            and current_target_eps > previous_target_eps
+            and segment_duration is not None
+            and segment_duration <= 5.0
+        )
+        if is_short_upward_step:
+            for tail_row in shifted[idx:]:
+                tail_row["start_offset_seconds"] = max(
+                    0.0, float(tail_row.get("start_offset_seconds", 0.0) or 0.0) + lane_offset
+                )
+            break
+        previous_target_eps = current_target_eps
+    return shifted
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Dispatch canonical remote WSP replay for a PR3 runtime window.")
     ap.add_argument("--run-control-root", default="runs/dev_substrate/dev_full/road_to_prod/run_control")
@@ -1391,6 +1426,7 @@ def main() -> None:
     ap.add_argument("--target-request-rate-eps", type=float, default=0.0)
     ap.add_argument("--target-burst-seconds", type=float, default=0.25)
     ap.add_argument("--target-initial-tokens", type=float, default=0.25)
+    ap.add_argument("--short-upward-transition-lane-stagger-seconds", type=float, default=0.0)
     ap.add_argument("--campaign-start-utc", default="")
     ap.add_argument("--campaign-start-stagger-seconds", type=float, default=0.0)
     ap.add_argument("--rate-plan-json", default="")
@@ -1614,8 +1650,6 @@ def main() -> None:
         base_env_rows.append(
             {"name": "WSP_CHECKPOINT_FLUSH_EVERY", "value": str(args.wsp_checkpoint_flush_every).strip()}
         )
-    if raw_rate_plan:
-        base_env_rows.append({"name": "WSP_RATE_PLAN_JSON", "value": raw_rate_plan})
     if bool(args.wsp_disable_replay_delay_when_rate_plan):
         base_env_rows.append({"name": "WSP_DISABLE_REPLAY_DELAY_WHEN_RATE_PLAN", "value": "true"})
     command_list = build_wsp_command()
@@ -1632,6 +1666,13 @@ def main() -> None:
             {"name": "WSP_LANE_COUNT", "value": str(lane_count)},
             {"name": "WSP_LANE_INDEX", "value": str(lane_index)},
         ]
+        if raw_rate_plan:
+            lane_rate_plan = lane_staggered_rate_plan(
+                parsed_rate_plan,
+                lane_index=lane_index,
+                lane_stagger_seconds=float(args.short_upward_transition_lane_stagger_seconds),
+            )
+            env_rows.append({"name": "WSP_RATE_PLAN_JSON", "value": json.dumps(lane_rate_plan, separators=(",", ":"))})
         if configured_campaign_start is not None:
             lane_campaign_start = configured_campaign_start + timedelta(seconds=float(lane_index) * campaign_start_stagger_seconds)
             env_rows.append({"name": "WSP_CAMPAIGN_START_UTC", "value": to_iso_utc(lane_campaign_start)})
@@ -1742,6 +1783,9 @@ def main() -> None:
             "http_pool_maxsize": max(16, args.http_pool_maxsize),
             "target_burst_seconds": max(0.0, float(args.target_burst_seconds)),
             "target_initial_tokens": max(0.0, float(args.target_initial_tokens)),
+            "short_upward_transition_lane_stagger_seconds": max(
+                0.0, float(args.short_upward_transition_lane_stagger_seconds)
+            ),
             "campaign_start_utc": str(args.campaign_start_utc).strip() or None,
             "campaign_start_stagger_seconds": campaign_start_stagger_seconds,
             "rate_plan": parsed_rate_plan,

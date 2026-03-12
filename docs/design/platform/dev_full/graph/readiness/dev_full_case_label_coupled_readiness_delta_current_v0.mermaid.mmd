@@ -6,11 +6,11 @@ config:
 flowchart LR
 
   subgraph LEGEND["How to Read This Graph"]
-    L1["Left to right = coupled-network scope -> active blocker family -> accepted posture -> next proof target -> readiness verdict"]
-    L2["Red = currently open blocker family"]
-    L3["Amber = accepted next execution posture"]
-    L4["Blue = current evidence baseline"]
-    L5["Green = promoted network state or later closure verdict"]
+    L1["Left to right = coupled-network scope -> resolved blocker family -> decisive correction -> final evidence -> readiness verdict"]
+    L2["Red = previously open blocker family"]
+    L3["Amber = accepted correction that closed the blocker"]
+    L4["Blue = final evidence baseline"]
+    L5["Green = promoted network state and handoff"]
   end
 
   subgraph COUPLED["Phase 4 Coupled Scope"]
@@ -20,40 +20,40 @@ flowchart LR
     C3["Required coupled proof shape<br>steady + burst + recovery with downstream timing and starvation truth"]
   end
 
-  subgraph BLOCKERS["Current Open Blocker Family"]
-    B1["Open blocker<br>no dedicated Phase 4 coupled runner yet"]
-    B2["Open blocker<br>coupled timing and starvation evidence not yet first-class in the current narrow runner"]
+  subgraph BLOCKERS["Resolved Blocker Family"]
+    B1["Resolved ingress-edge blocker<br>APIGW 429 reject pocket on the short 3000 -> 6000 eps burst edge"]
+    B2["Resolved scoring blocker<br>stale post-snapshot rollup produced a false label undercount red after the matured run had already caught up"]
   end
 
-  subgraph POSTURE["Accepted Posture"]
-    P1["Keep the promoted runtime and image family pinned"]
-    P2["Derive a dedicated coupled runner from the Phase 3 bounded path instead of reusing the older broad PR3-S4 bundle"]
-    P3["Add coupled timing and starvation scoring without weakening the retained ingress envelope"]
+  subgraph POSTURE["Accepted Closing Corrections"]
+    P1["Retain the green steady baseline<br>presteady 3000 eps for 90 s, ig_push_concurrency = 2"]
+    P2["Close the burst edge without moving the scoring boundary<br>burst_step_initial_tokens = 0.0"]
+    P3["Rerun only the smallest honest scoring boundary after the matured post snapshot exists<br>same execution_id, refreshed rollup only"]
   end
 
-  subgraph EVIDENCE["Current Evidence Baseline"]
-    E1["Phase 3 closure source scope<br>3046.783 eps / 182807 admitted / 4xx = 0 / 5xx = 0"]
-    E2["Same source scope proved downstream participation<br>CaseTrigger 2276 / cases 335 / labels accepted 933 / integrity deltas = 0"]
-    E3["What remains unproven is the enlarged network under steady + burst + recovery, not the Case + Label plane itself"]
+  subgraph EVIDENCE["Final Evidence Baseline"]
+    E1["Accepted closure run<br>phase4_case_label_coupled_20260312T003302Z"]
+    E2["Envelope truth<br>steady 3060.178 eps<br>burst 7118.0 eps<br>recovery 3018.433 eps<br>4xx = 0, 5xx = 0"]
+    E3["Downstream truth<br>RTDL + CaseTrigger + Case Mgmt + Label Store green<br>case_to_label p95 = 0.17482505 s<br>refreshed post snapshot: label_store accepted 3080 > case_mgmt labels_accepted 2931"]
   end
 
-  subgraph VERDICT["Current Verdict"]
-    V1["Phase 4 open<br>telemetry and boundary pinned"]
-    V2["Next proof target<br>fresh coupled-network validation slice"]
+  subgraph VERDICT["Final Verdict"]
+    V1["Phase 4 closed green<br>Control + Ingress + RTDL + Case + Label coupled network promoted"]
+    V2["Handoff<br>Proceed to Phase 5 Learning + Evolution / MLOps plane readiness"]
   end
 
   C0 --> B1
   C1 --> B2
-  C2 --> P3
+  C2 --> P1
   C3 --> P2
 
   B1 --> P1
   B1 --> P2
   B2 --> P3
 
-  P1 --> E1
-  P2 --> E3
-  P3 --> E2
+  P1 --> E2
+  P2 --> E1
+  P3 --> E3
 
   E1 --> V1
   E2 --> V1
@@ -65,8 +65,7 @@ flowchart LR
   classDef fix fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
   classDef metric fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.3px;
 
-  class C0,C1,C2,C3 comp;
+  class C0,C1,C2,C3,V1,V2 comp;
   class B1,B2 defect;
   class P1,P2,P3 fix;
   class E1,E2,E3 metric;
-  class V1,V2 comp;
