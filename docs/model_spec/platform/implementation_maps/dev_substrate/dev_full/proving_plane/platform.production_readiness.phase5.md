@@ -311,26 +311,115 @@ These are starting facts only. They are not closure evidence.
 - recent exploratory receipts and scripts may still be useful for narrowing and reuse,
 - but they are not to be treated as final `Phase 5` closure authority unless and until the rebuilt subphase structure above is honestly satisfied.
 
-### Current execution-path constraint already visible
-- retained OFS execution still has a direct Databricks API path and can support a CLI-first managed proof
-- retained MF train/eval and retained MPR promotion still default to GitHub workflow dispatch
-- reading the retained `M11.D` lane also exposed a deeper semantic problem before the execution-surface question:
-  - the current workflow does not actually train on the admitted OFS basis
-  - it synthesizes convenience CSV rows from a fingerprint-derived seed
-  - so it is useful as a managed-surface operability reference only, not as `Phase 5.C` closure authority
-- that means the rebuilt phase should now move on:
-  - semantic admission,
-  - dataset-basis proof,
-  - and then a repin of `Phase 5.C` onto the actual bounded OFS basis before any decision is made about whether workflow dispatch itself is acceptable
+### Phase 5.C / 5.D managed execution state after the repin
+- the retained `M11.D` workflow remains a managed-surface operability reference only:
+  - it still trains on fingerprint-seeded convenience CSV
+  - so it is not accepted closure authority for rebuilt `Phase 5.C`
+- the accepted rebuilt managed runner is now:
+  - `scripts/dev_substrate/phase5_learning_managed_train_eval.py`
+  - it consumes the admitted `Phase 5.B` basis directly from object store
+  - it writes distinct train / validation / test artefacts
+  - it drives SageMaker train/eval on the same bounded basis being claimed
+  - it commits lineage through the Databricks-backed MLflow surface
+  - it validates the governed gate / publish / rollback chain without falling back to the old convenience workflow lane
+
+### Narrow diagnostic executions that materially improved the proving boundary
+- `phase5_learning_managed_20260312T064500Z`
+  - red because the SageMaker execution role lacked object-store `ListBucket` on the admitted bounded-learning prefix
+- `phase5_learning_managed_20260312T065100Z`
+  - red because the runner handed both SageMaker channels one mixed parent prefix instead of distinct train / validation inputs
+- `phase5_learning_managed_20260312T065500Z`
+  - operationally green end to end, but semantically red because the sampled event horizon still exceeded the admitted `feature_asof_utc`
+- those reds are accepted as real boundary-finding steps, not wasted reruns:
+  - first red closed the live IAM gap
+  - second red closed the channel-boundary defect
+  - third red closed the remaining temporal-law defect in sample selection
+
+### Current accepted Phase 5.C / 5.D execution
+- `execution_id = phase5_learning_managed_20260312T071600Z`
+- `verdict = PHASE5_READY`
+- `next_phase = PHASE6`
+- `open_blockers = 0`
+- accepted bounded dataset/train/eval shape:
+  - source scope:
+    - `phase4_case_label_coupled_20260312T003302Z`
+  - semantic admission authority:
+    - `phase5_learning_mlops_20260312T054200Z`
+  - dataset-basis authority:
+    - `phase5_ofs_dataset_basis_20260312T054900Z`
+  - bounded sample:
+    - `selected_rows = 3000`
+    - `train_rows = 1800`
+    - `validation_rows = 600`
+    - `test_rows = 600`
+    - `fraud_rows = 1000`
+    - `campaign_present_rows = 2`
+    - `bounded_campaign_rows = 2`
+- accepted temporal proof:
+  - `feature_asof_utc = 2026-03-05T00:00:00Z`
+  - `event_scan.ts_max_utc = 2026-03-04T22:25:01.492086Z`
+  - the accepted sample stays inside the admitted bounded learning window
+- accepted managed-surface proof:
+  - SageMaker training:
+    - `fraud-platform-dev-full-mtrain-33d02bc931`
+    - `status = Completed`
+  - SageMaker batch transform:
+    - `fraud-platform-dev-full-mbatch-33d02bc931`
+    - `status = Completed`
+  - MLflow lineage:
+    - `tracking_uri = databricks`
+    - `run_id = 4c5b014fd4c1405493f61a25ce6704c7`
+    - `status = FINISHED`
+  - governance:
+    - `gate_decision = PASS`
+    - `publish_decision = ELIGIBLE`
+    - `publication_status = PUBLISHED`
+    - `rollback_validation_status = VALIDATED`
+    - published bundle:
+      - `bundle_id = da1b8f7690cf6cfec4f3f9e7c69df2479d2953fbd00102ad2f7e3ed9c66b943e`
+      - `bundle_version = v0-29d2b27919a7`
+- accepted bounded eval evidence:
+  - overall:
+    - `auc_roc = 0.9104674176699058`
+    - `precision_at_50 = 1.0`
+    - `log_loss = 0.21071451840777855`
+  - bounded cohorts:
+    - `campaign_absent`:
+      - `rows = 600`
+      - `auc_roc = 0.9104674176699058`
+      - `precision_at_50 = 1.0`
+    - `weekday_lt_5`:
+      - `rows = 571`
+      - `auc_roc = 0.888830376940133`
+      - `precision_at_50 = 1.0`
+    - `weekday_ge_5`:
+      - `rows = 29`
+      - `precision_at_50 = 1.0`
+
+### Current Phase 5.E judgment
+- `Phase 5` is green on the rebuilt standard.
+- the accepted evidence chain is now continuous:
+  - promoted Phase 4 runtime + label truth
+  - rebuilt `Phase 5.A` semantic admission
+  - rebuilt `Phase 5.B` bounded OFS dataset basis
+  - rebuilt managed `Phase 5.C / 5.D` train/eval + lineage + gate / publish / rollback
+- the managed learning corridor is therefore plane-ready.
+- it is not yet a promoted working-platform member:
+  - `Phase 6` still has to prove the coupled runtime -> label -> learning -> promoted bundle -> runtime path
+
+### Residual caution carried forward into Phase 6
+- the accepted bounded sample no longer erases the rare campaign regime, but that regime is still sparse in this low-cost proof slice:
+  - `campaign_present_rows = 2`
+- that is acceptable for `Phase 5` because the sample now preserves the rare regime instead of silently dropping it, and the bounded goal here is plane readiness rather than coupled feedback-loop closure
+- `Phase 6` should widen coupled cohort visibility enough to judge runtime-facing bundle behaviour without relying on aggregate-only optics
 
 ## Current immediate execution order
 
-1. keep `phase5_learning_mlops_20260312T054200Z` as the current semantic-admission authority,
-2. keep `phase5_ofs_dataset_basis_20260312T054900Z` as the accepted `Phase 5.B` dataset-basis authority,
-3. keep the codified Databricks storage credential / external location / AWS role repair as the fixed managed-read posture,
-4. repin `Phase 5.C` so train/eval consumes the same admitted bounded OFS basis rather than the retained fingerprint-seeded convenience CSV path,
-5. only after that semantic repin, decide whether the execution surface itself can remain workflow-dispatched or needs a more direct managed path,
-6. then carry the same evidence chain into `Phase 5.D` promotion / rollback / active-truth proof.
+1. keep `phase5_learning_mlops_20260312T054200Z` as the accepted semantic-admission authority,
+2. keep `phase5_ofs_dataset_basis_20260312T054900Z` as the accepted dataset-basis authority,
+3. keep `phase5_learning_managed_20260312T071600Z` as the accepted managed train/eval + governance authority for `Phase 5`,
+4. treat `Learning + Evolution / MLOps` as plane-ready but not yet promoted into the working platform,
+5. move next to `Phase 6` and prove the coupled runtime -> label -> learning -> promoted-bundle -> runtime path on the same evidence chain.
 
 ## Phase closure rule
 

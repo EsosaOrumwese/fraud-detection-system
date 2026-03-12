@@ -374,7 +374,7 @@ The baseline now established under this plan is:
 - `Control + Ingress`: promoted working-platform member
 - `RTDL`: promoted working-platform member after fresh-scope Phase 1 closure on `2026-03-11`
 - `Case + Label`: promoted working-platform member after bounded Phase 3 plane closure on `2026-03-11` and coupled Phase 4 closure on `2026-03-12`
-- `Learning + Evolution / MLOps`: wired on managed surfaces, not yet accepted as a production-ready plane
+- `Learning + Evolution / MLOps`: plane-ready after rebuilt Phase 5 closure on `2026-03-12`, but not yet promoted into the working platform pending coupled Phase 6 proof
 - `Ops / Gov / Meta`: present, not yet accepted as a production-ready plane
 
 That means the current working platform is:
@@ -1335,16 +1335,23 @@ After a phase is complete, update as needed:
 ---
 
 ## Immediate next action
-Proceed with the rebuilt `Phase 5 - Learning + Evolution / MLOps plane readiness`.
+Proceed with `Phase 6 - Working network + Learning coupled readiness`.
 
-The recent rushed `Phase 5` / `Phase 6` receipts remain useful exploratory evidence, but they are no longer being treated as sufficient promotion authority. Learning is therefore reopened until `Phase 5` is re-expanded and re-proved at the same depth and production standard used in the earlier phases.
+`Phase 5` is now closed green on the rebuilt standard. The accepted plane-readiness authority is:
+
+- semantic admission:
+  - `phase5_learning_mlops_20260312T054200Z`
+- bounded OFS dataset basis:
+  - `phase5_ofs_dataset_basis_20260312T054900Z`
+- managed train/eval + lineage + gate / publish / rollback:
+  - `phase5_learning_managed_20260312T071600Z`
 
 The current promoted working platform remains:
 
 - `Control + Ingress + RTDL + Case + Label`
 
 Execution order now is:
-1. rebuild `Phase 5` from the actual phase goal and use that to derive real subphases,
-2. repin the semantic admission and telemetry gate for the current learning basis,
-3. run the smallest honest `Phase 5.B` dataset-basis proof with fail-fast visibility,
-4. only after that proof is trustworthy move deeper into train/eval and promotion / rollback proof inside `Phase 5`.
+1. keep the accepted `Phase 5` evidence chain fixed,
+2. prove the coupled runtime -> label -> learning -> promoted-bundle -> runtime path on that same chain,
+3. widen runtime-facing cohort visibility enough to judge bundle behaviour beyond aggregate-only optics,
+4. promote Learning into the working platform only if the coupled Phase 6 path is explainable, attributable, and auditable.

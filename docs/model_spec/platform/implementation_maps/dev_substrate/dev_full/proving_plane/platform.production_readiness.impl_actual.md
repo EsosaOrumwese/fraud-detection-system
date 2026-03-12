@@ -5711,3 +5711,172 @@ More precisely:
 
 - the retained `M11.D` lane fails the "same admitted basis" rule before it even reaches the workflow-dependence question
 - therefore the next repair is to repin `Phase 5.C` onto the actual bounded OFS basis and only then decide whether the execution surface itself also needs to move off workflow dispatch
+
+## 2026-03-12 06:36:25 +00:00 - The admitted OFS basis is strong enough now that the active work can narrow to one missing proof question: can managed SageMaker train/eval and governed ML lineage stay on that same basis end to end
+
+I stopped before coding again because I wanted to check whether I was about to rebuild too much of the learning corridor instead of fixing only the missing proof boundary.
+
+The answer is no: `Phase 5.C` and `Phase 5.D` do not need a new learning design. They need a truthful managed execution chain built on the basis that is already admitted.
+
+What is already true:
+
+- `Phase 5.A` pins the semantic-admission and temporal law for the promoted `Phase 4` world
+- `Phase 5.B` proves that the bounded OFS slice is materially useful and temporally safe
+- the current admitted slice carries enough live signal to support bounded supervised learning:
+  - `331,506,996` bounded events
+  - `9,806` fraud events in the bounded event slice
+  - `8,315,296` fraud-truth event labels
+  - `4,110` fraud-truth flows
+  - `6` distinct campaigns
+
+So the active problem is no longer data poverty and it is no longer surface reachability.
+
+The missing proof is narrower:
+
+- can I take that admitted basis
+- derive a bounded supervised sample without inventing labels or bypassing the interface-pack / `6B` truth
+- run real SageMaker training and evaluation on that sample
+- log real MLflow lineage on the Databricks-backed managed surface
+- then emit governed candidate / publish / rollback truth on the same evidence chain
+
+That is the correct dynamic narrowing. I am not going to reopen `Phase 5.A/B` or rebuild OFS again unless the new bounded managed lane exposes a real semantic defect there.
+
+## 2026-03-12 06:49:39 +00:00 - The first rebuilt managed Phase 5.C run failed immediately on a real SageMaker role boundary, not on data semantics or train/eval code
+
+I launched the first bounded managed runner as soon as it compiled because the new risk was no longer local code correctness. The risk was whether the actual SageMaker execution role could enter the same object-store basis that Databricks and the local control console were already using.
+
+That first run failed fast in exactly the right place:
+
+- `CreateTrainingJob` never started
+- SageMaker returned a `ValidationException`
+- the concrete IAM blocker was:
+  - `arn:aws:sts::230372904534:assumed-role/fraud-platform-dev-full-sagemaker-execution/SageMaker`
+  - missing `s3:ListBucket` on `arn:aws:s3:::fraud-platform-dev-full-object-store`
+
+That is an infrastructure truth defect, not a learning-semantic defect.
+
+The important judgment is that I should not respond by moving the Phase 5 sample back into the evidence bucket just to get a green train receipt. That would weaken the rebuilt boundary. The admitted learning basis already lives under the object store, and the role should be able to read and write the bounded learning prefixes there.
+
+So the narrow correction is:
+
+- keep the same Phase 5.C runner
+- keep the same admitted sample basis
+- fix the SageMaker execution role so it can:
+  - list the object-store learning prefix
+  - read the bounded phase-5 input CSVs
+  - write the bounded phase-5 training / transform outputs
+
+That is a production-grade fix because it aligns the runtime role with the learning corridor we are actually proving rather than sending the proof back through an older evidence-bucket-only convenience path.
+
+## 2026-03-12 06:54:21 +00:00 - The second Phase 5.C managed failure was a runner boundary defect: both SageMaker channels were pointed at one mixed prefix instead of distinct train and validation prefixes
+
+The SageMaker role fix worked. The second run got far enough to create the training job, so the previous IAM blocker is retired.
+
+The new failure was different:
+
+- SageMaker training started and then failed inside the built-in XGBoost container
+- the runner was still handing both the `train` and `validation` channels the same parent prefix
+- that parent prefix also contained other dataset artefacts for the same execution
+
+That means the problem is not the admitted basis and it is not the managed train/eval surface itself. The problem is that the runner did not keep the channel boundaries honest.
+
+So the narrow correction is to:
+
+- keep the same sampled rows
+- keep the same admitted manifest / plan / thresholds
+- separate the sample artefacts into:
+  - `dataset/train/train.csv`
+  - `dataset/validation/validation.csv`
+  - `dataset/test/test_features.csv`
+  - `dataset/test/test_labels.json`
+- keep failure reasons from SageMaker in the blocker path so the next run does not lose the managed runtime truth if it goes red again
+
+That is another good dynamic correction: the platform boundary stayed fixed, and the proving runner was tightened instead of weakening the learning standard.
+
+## 2026-03-12 07:04:26 +00:00 - The first end-to-end managed green receipt was not accepted because the sampled event horizon still exceeded the admitted Phase 5 feature as-of boundary
+
+The third managed run completed the whole chain:
+
+- SageMaker training succeeded
+- SageMaker batch transform succeeded
+- MLflow lineage committed
+- gate / publish / rollback drill all completed
+
+But reading the summary instead of just accepting the green receipt exposed a real semantic flaw:
+
+- `event_scan.ts_max_utc = 2026-03-31T22:03:53.894440Z`
+- admitted `feature_asof_utc = 2026-03-05T00:00:00Z`
+
+That means the current sample selection was still too loose. It was semantically outside the very time law that `Phase 5.A` and `Phase 5.B` already established.
+
+So that run is useful, but only as a diagnostic proof that:
+
+- the managed surfaces now work end to end
+- the gate / publish / rollback chain is materially live
+
+It is not acceptable closure authority for `Phase 5`, because the bounded training sample still included future events relative to the admitted learning boundary.
+
+The correction is straightforward and narrow:
+
+- over-collect label candidates
+- join them to event rows
+- hard-trim the joined sample to `ts_utc <= feature_asof_utc`
+- only then select the bounded positive / negative sample
+- fail closed if the selected bounded sample still crosses the as-of boundary
+
+That keeps the platform-grade managed proof we just materialized, while restoring the MLOps-grade temporal correctness the phase actually requires.
+
+## 2026-03-12 07:32:48 +00:00 - Phase 5 is now honestly green because the rebuilt managed lane stayed inside the admitted time law and preserved the full evidence chain from bounded dataset basis to published candidate bundle
+
+I accepted the fourth rebuilt managed run as `Phase 5` closure authority:
+
+- `execution_id = phase5_learning_managed_20260312T071600Z`
+- `verdict = PHASE5_READY`
+- `next_phase = PHASE6`
+
+The reason this run is acceptable while the earlier green candidate was not is precise:
+
+- the earlier `065500Z` run proved the managed surfaces were live end to end, but it still let future events through the bounded sample
+- the accepted `071600Z` run kept the same managed corridor and same admitted world, while tightening the selector so the actual sample stayed inside:
+  - `feature_asof_utc = 2026-03-05T00:00:00Z`
+  - `event_scan.ts_max_utc = 2026-03-04T22:25:01.492086Z`
+
+That closes the remaining semantic hole in the rebuilt Phase 5 proof. The accepted evidence chain is now continuous and attributable:
+
+- source runtime + label truth:
+  - `phase4_case_label_coupled_20260312T003302Z`
+- semantic admission:
+  - `phase5_learning_mlops_20260312T054200Z`
+- bounded OFS dataset basis:
+  - `phase5_ofs_dataset_basis_20260312T054900Z`
+- managed train/eval + lineage + governance:
+  - `phase5_learning_managed_20260312T071600Z`
+
+The managed surfaces are materially doing the work being claimed:
+
+- SageMaker training completed:
+  - `fraud-platform-dev-full-mtrain-33d02bc931`
+- SageMaker batch transform completed:
+  - `fraud-platform-dev-full-mbatch-33d02bc931`
+- MLflow lineage finished on the Databricks-backed tracking surface:
+  - `run_id = 4c5b014fd4c1405493f61a25ce6704c7`
+  - `status = FINISHED`
+- governed publish / rollback chain is readable:
+  - `gate_decision = PASS`
+  - `publish_decision = ELIGIBLE`
+  - `publication_status = PUBLISHED`
+  - `rollback_validation_status = VALIDATED`
+
+The bounded eval evidence is strong enough for plane-readiness:
+
+- `auc_roc = 0.9104674176699058`
+- `precision_at_50 = 1.0`
+- `log_loss = 0.21071451840777855`
+
+One caution remains, but it is no longer a closure blocker:
+
+- the rare campaign regime is preserved in the bounded slice instead of being silently erased
+- but it is still sparse:
+  - `campaign_present_rows = 2`
+
+That is acceptable for `Phase 5` because the plane goal is to prove semantic admission, bounded dataset truth, managed train/eval, lineage, and governed promotion mechanics. It is not yet the coupled runtime-feedback proof. The next honest place to carry that caution is `Phase 6`, where runtime-facing cohort visibility has to be widened enough to judge bundle behaviour on the enlarged network rather than on aggregate metrics alone.

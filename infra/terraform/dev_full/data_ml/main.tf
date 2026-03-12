@@ -111,6 +111,34 @@ resource "aws_iam_role_policy" "sagemaker_data_access" {
         ]
       },
       {
+        Sid    = "LearningObjectStoreList"
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket",
+          "s3:GetBucketLocation"
+        ]
+        Resource = "arn:aws:s3:::${var.sagemaker_learning_object_store_bucket}"
+        Condition = {
+          StringLike = {
+            "s3:prefix" = [
+              "platform_*/learning/phase5/*"
+            ]
+          }
+        }
+      },
+      {
+        Sid    = "LearningObjectStoreRW"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:AbortMultipartUpload"
+        ]
+        Resource = [
+          "arn:aws:s3:::${var.sagemaker_learning_object_store_bucket}/platform_*/learning/phase5/*"
+        ]
+      },
+      {
         Sid    = "SageMakerLogsWrite"
         Effect = "Allow"
         Action = [
@@ -129,7 +157,10 @@ resource "aws_iam_role_policy" "sagemaker_data_access" {
           "kms:GenerateDataKey",
           "kms:DescribeKey"
         ]
-        Resource = var.sagemaker_evidence_kms_key_arn
+        Resource = [
+          var.sagemaker_evidence_kms_key_arn,
+          var.sagemaker_learning_object_store_kms_key_arn
+        ]
       }
     ]
   })

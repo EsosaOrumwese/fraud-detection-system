@@ -94,6 +94,16 @@ variable "sagemaker_evidence_kms_key_arn" {
   default = "arn:aws:kms:eu-west-2:230372904534:key/29a7acf2-da57-4b3f-8dd1-d9172d845a5c"
 }
 
+variable "sagemaker_learning_object_store_bucket" {
+  type    = string
+  default = "fraud-platform-dev-full-object-store"
+}
+
+variable "sagemaker_learning_object_store_kms_key_arn" {
+  type    = string
+  default = "arn:aws:kms:eu-west-2:230372904534:key/29a7acf2-da57-4b3f-8dd1-d9172d845a5c"
+}
+
 variable "databricks_object_store_bucket" {
   type    = string
   default = "fraud-platform-dev-full-object-store"

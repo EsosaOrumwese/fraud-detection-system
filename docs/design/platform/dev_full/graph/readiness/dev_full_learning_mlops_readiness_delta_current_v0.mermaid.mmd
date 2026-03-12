@@ -6,10 +6,10 @@ config:
 flowchart LR
 
   subgraph LEGEND["How to Read This Graph"]
-    L1["Left to right = promoted upstream truth -> accepted semantic gate -> accepted bounded OFS basis -> active train/eval and governance boundary"]
+    L1["Left to right = promoted upstream truth -> accepted semantic gate -> accepted bounded OFS basis -> accepted managed train/eval and governance proof -> coupled handoff"]
     L2["Green = already promoted upstream platform truth"]
-    L3["Blue = active managed learning or semantic surfaces being pinned"]
-    L4["Red = open readiness questions or rejected proof posture"]
+    L3["Blue = managed learning surfaces or accepted plane-readiness surfaces"]
+    L4["Red = rejected proof posture that materially improved the boundary"]
     L5["Amber = accepted rebuilt next-step posture"]
   end
 
@@ -22,20 +22,20 @@ flowchart LR
   subgraph SURFACES["Active Learning Surfaces In Scope"]
     S1["Accepted Phase 5.A gate<br>semantic admission + current source world + managed-surface readability<br>execution_id = phase5_learning_mlops_20260312T054200Z"]
     S2["Accepted Phase 5.B dataset-basis proof<br>Databricks / OFS managed source<br>execution_id = phase5_ofs_dataset_basis_20260312T054900Z"]
-    S3["SageMaker / MF retained later subphase surface<br>train / eval / candidate bundle"]
-    S4["MLflow / MPR retained later subphase surface<br>promotion / rollback / active bundle governance"]
+    S3["Accepted Phase 5.C / 5.D managed proof<br>SageMaker train/eval + Databricks-backed MLflow + governed publish / rollback<br>execution_id = phase5_learning_managed_20260312T071600Z"]
+    S4["Plane judgment<br>Learning + Evolution / MLOps is plane-ready<br>not yet promoted pending Phase 6 coupled proof"]
   end
 
-  subgraph BLOCKERS["Current Open Boundary Family"]
-    B1["Closed ambiguity<br>semantic admission is now green on the rebuilt gate"]
-    B2["Closed blocker<br>bounded OFS dataset basis is now green on the promoted Phase 4 time law<br>feature_asof_utc = label_asof_utc = 2026-03-05T00:00:00Z"]
-    B3["Active next boundary<br>Phase 5.C / 5.D still need train/eval proof and promotion / rollback / active-truth proof on the same evidence chain<br>current retained M11.D workflow is not closure authority because it trains on fingerprint-seeded convenience CSV, not the admitted OFS basis"]
+  subgraph REDS["Rejected but Useful Boundaries"]
+    B1["Retired red<br>role lacked object-store ListBucket for admitted learning prefix<br>phase5_learning_managed_20260312T064500Z"]
+    B2["Retired red<br>runner mixed train and validation channels under one prefix<br>phase5_learning_managed_20260312T065100Z"]
+    B3["Retired red<br>first end-to-end green still violated feature as-of time law<br>phase5_learning_managed_20260312T065500Z"]
   end
 
-  subgraph POSTURE["Rebuilt Phase 5 Posture"]
-    P1["Keep Phase 5.A as current authority for semantic admission and telemetry"]
-    P2["Keep the repinned Databricks OFS source and the fixed storage credential / external location / AWS role posture as the accepted Phase 5.B basis"]
-    P3["Advance only by proving MF train/eval and MPR promotion / rollback against the same admitted dataset basis; do not let workflow convenience substitute for evidence-chain truth"]
+  subgraph HANDOFF["Phase 6 Handoff"]
+    P1["Accepted Phase 5 evidence chain<br>Phase 4 source -> 5.A gate -> 5.B dataset basis -> 5.C/D managed proof"]
+    P2["Residual caution carried forward<br>rare campaign regime preserved but sparse in this bounded plane slice<br>campaign_present_rows = 2"]
+    P3["Next required proof<br>coupled runtime -> label -> learning -> promoted bundle -> runtime path with wider runtime-facing cohort visibility"]
   end
 
   U1 --> U2
@@ -44,13 +44,13 @@ flowchart LR
   U3 --> S2
   U3 --> S3
   U3 --> S4
-  S1 --> B1
-  S2 --> B2
-  S3 --> B3
-  S4 --> B3
-  B1 --> P1
-  B2 --> P2
-  B3 --> P3
+  B1 --> S3
+  B2 --> S3
+  B3 --> S3
+  S1 --> P1
+  S2 --> P1
+  S3 --> P1
+  S4 --> P2
   P1 --> P2
   P2 --> P3
 
