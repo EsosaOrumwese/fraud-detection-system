@@ -5817,3 +5817,158 @@ The next concrete entry should therefore be:
 
 `Group 1 synthesis`.
 
+## 2026-03-12 13:28:45 +00:00 - Group synthesis: `Run and world-source authority`
+
+Group 1 exists because, before ingress, RTDL, cases, learning, or verdicts can matter, the platform has to establish three things cleanly: what run this is, what source world it is reading from, and who is allowed to say the platform is ready. The run-process makes those three closure points explicit as `RUN_PINNED`, `ORACLE_READY`, and `READY_PUBLISHED`. The design authority then hard-pins the structure behind them: Oracle Store is a producer-owned, read-only source boundary in S3; `dev_full` is managed-first with no laptop runtime; each phase or run has one active runtime path; and ready closure belongs to Step Functions, not to stream compute alone.
+
+Taken together, the three paths prove that the current wired platform does not begin from accidental compute side effects. The `Run legitimization path` proves execution is bounded by an explicit run header and config digest. The `Source realization path` proves the external engine world is realized through the canonical oracle-store boundary and the repinned raw -> managed sort -> parity posture, rather than through an ad hoc copy world. The `Ready authorization path` proves readiness is a control-plane fact emitted on the control bus and committed with Step Functions authority evidence, not just a symptom of stream compute being alive.
+
+So the group-level claim is:
+
+the platform begins from governed legitimacy.
+
+It knows what run is in scope, what world is in scope, and what authority is allowed to convert prepared into ready. That is already a strong `A`-level result, because it makes the system look like an engineered platform with explicit authority boundaries, not a set of services that happened to start.
+
+What this group proves for `A`:
+
+The strongest closure in this group is `uniqueness` and `safety`.
+
+It closes `uniqueness` because the design insists on:
+
+- one committed run basis
+- one canonical external oracle source boundary
+- one active runtime path per phase or run
+- one ready commit authority
+
+It closes `safety` because these boundaries are fail-closed on:
+
+- run pin or digest mismatch
+- missing raw upload, sort, or parity receipts
+- duplicate or ambiguous ready
+- missing Step Functions authority evidence
+
+It also gives strong `existence` proof, because these are not abstract claims. They are materially seated in:
+
+- Step Functions run-state entry and ready receipt
+- S3 oracle-store prefixes
+- managed-sort handles and receipts
+- run-scoped evidence roots
+
+And it gives meaningful `continuity` proof too: the engine's sealed-world identity (`manifest_fingerprint`, `parameter_hash`, `seed`, `scenario_id`) stays distinct from execution correlation (`run_id` and platform run scope), so the platform can govern execution without pretending that a new run changes world truth.
+
+`A` ambiguities to carry upward:
+
+The main `A` ambiguity here is explanatory, not structural:
+
+we will need to explain very clearly that platform run identity governs execution closure, while engine world identity governs the sealed source world. An outsider could easily blur those two if we are not careful.
+
+There is also an evidential nuance to keep honest: the source-realization design is clearly repinned to the canonical oracle boundary and managed-sort posture, but some refreshed oracle-cycle work is still split across historical closure and next-cycle refresh steps. So in `A`, we should present the current wired design as the main object, and not overstate refreshed certification state where the build plan still records pending follow-on oracle refresh lanes.
+
+`Bi` spillover to park:
+
+Questions like:
+
+- is the oracle and ready corridor fast enough
+- resilient enough
+- or pressure-proof under sustained production conditions
+
+belong later in `Bi`. Group 1 in `A` only needs to prove the legitimacy and authority structure of that corridor itself. The run-process already separates these early authority gates from later streaming, ingest, RTDL, and whole-platform closure gates.
+
+Group 1 verdict:
+
+Group 1 proves that the platform starts from explicit run legitimacy, explicit source legitimacy, and explicit ready authority.
+
+That is a foundational `A` win, because it shows the current wired platform is intentionally governed from the very first boundary rather than merely observed after it starts running.
+
+Next is `Group 2 synthesis`.
+
+## 2026-03-12 13:38:30 +00:00 - Group synthesis: `Canonical traffic admission and bus publication`
+
+Group 2 exists because the platform cannot treat events exist as the same thing as runtime truth has begun. Before RTDL can form context or decisions, the platform has to answer four things cleanly:
+
+- what counts as canonical traffic
+- what is the real ingress boundary
+- how ingress decides admit, reject, quarantine, or duplicate-safe truth
+- and where admitted traffic becomes authoritative bus truth with committed ingest evidence
+
+The data-engine interface and platform authority make those boundaries explicit. Only `behavioural_streams` are canonical business traffic; arrival-events, arrival-entities, and flow-anchor surfaces are join and context surfaces, not traffic, and the platform must keep traffic thin while joining context inside the platform. The current ingress runtime is explicitly pinned to an API edge, a Lambda ingress handler, and DynamoDB-backed idempotency as the default posture, and the topic contract pins the traffic and context bus family rather than leaving downstream handoff vague.
+
+Taken together, the four paths prove that Group 2 is not just ingress. The `Boundary access path` proves there is one real external front door for canonical behavioural traffic, not a muddled mix of stale internal service URLs and edge surfaces. The `Admission and disposition path` proves ingress owns a deterministic truth boundary of its own: events are admitted, rejected, quarantined, or handled duplicate-safely under one canonical dedupe basis rather than being left for downstream consumers to infer later. The `Authoritative bus publication path` proves admitted traffic is handed off into a semantically split traffic and context topic family that matches the thin-traffic join posture of the data-engine contract. And the `Ingest commit truth path` proves the platform does not stop at runtime activity; it turns ingress behavior into committed summaries and mode-aware ingest proof under the ingest-commit closure boundary.
+
+So the group-level claim is:
+
+the platform turns canonical behavioural traffic into governed runtime entry truth.
+
+It knows what traffic is, where it is allowed to enter, how ingress owns its disposition, where admitted traffic is handed to runtime, and how that whole boundary is later committed as durable ingest truth. That is already a strong `A`-level result, because it makes the current wired system look like a platform with explicit ingress ownership, not like a bus that happens to receive events.
+
+What this group proves for `A`:
+
+The strongest closure in this group is `continuity` and `safety`.
+
+It closes `continuity` because the chain from:
+
+- behavioural traffic classification
+- to active ingress edge
+- to admission and disposition truth
+- to authoritative topic publication
+- to committed ingest evidence
+
+is explicit rather than implied. The platform does not jump from traffic reached the edge to RTDL must have seen it. It has separate truths for boundary acceptance, disposition, bus handoff, and ingest closure.
+
+It closes `safety` because the whole group is fail-closed at the right places:
+
+- non-traffic surfaces are forbidden from masquerading as canonical business traffic
+- ingress auth and boundary contract are explicit
+- idempotency-backend failure returns service unavailable instead of silently admitting
+- publish ambiguity is treated as a real blocker
+- and ingest closure refuses to force-pass from admissions alone when broker-facing proof is not materially available
+
+It also gives strong `uniqueness` closure:
+
+- one active ingress edge
+- one authoritative dedupe basis
+- one authoritative traffic and context topic family
+- one explicit mode-aware ingest proof boundary for the current ingress edge
+
+And it gives meaningful `existence` closure because these are not abstract rules. They are materially seated in:
+
+- the active API edge, Lambda ingress handler, and DynamoDB-backed idempotency surface
+- pinned traffic and context topics
+- run-scoped ingest evidence paths
+- and a concrete ingest-commit gate with committed receipt, quarantine, and proof artifacts
+
+`A` ambiguities to carry upward:
+
+The main `A` ambiguity here is explanatory:
+
+we need to keep very clear the difference between:
+
+- boundary truth
+- admission truth
+- publish truth
+- and ingest commit truth
+
+Those are cleanly separated in the design, but they can easily collapse into one vague ingress handled it story if we are not disciplined.
+
+There is also a current-wired nuance we should state honestly: the active ingest proof posture is mode-aware. Under the current API edge plus Lambda plus idempotency posture, ingest closure uses an admission-index proxy rather than direct broker topic and partition offsets, and the platform explicitly rejected pretending otherwise. That is not a weakness for `A`, but it does need to be explained carefully so an outsider sees it as an honest current design boundary rather than a hidden gap.
+
+`Bi` spillover to park:
+
+Questions like:
+
+- whether the current ingress posture remains the right one under heavier production pressure
+- whether the current admission-index proxy proof mode should later give way to direct broker offset proof
+- whether the hot-path cost, throughput, and ambiguity characteristics of this edge are sufficient for production readiness
+
+belong later in `Bi`.
+
+For `A`, Group 2 only needs to prove that the current wired platform has a real ingress truth boundary, a real bus handoff boundary, and a real committed ingest-truth boundary.
+
+Group 2 verdict:
+
+Group 2 proves that the platform does not merely receive events; it governs the transformation from canonical traffic into runtime entry truth.
+
+That is a foundational `A` win, because it shows the current wired platform has explicit ownership over ingress, publication, and ingest evidence rather than letting downstream runtime guess what happened.
+
+Next is `Group 3 synthesis`.
+
