@@ -5585,3 +5585,100 @@ The next honest move is not to relax `PHASE5.B53`. The next move is to repin the
 
 - either derive a proper `feature_asof_utc` / `label_asof_utc` pair from the promoted world and maturity policy,
 - or switch `Phase 5.B` to a bounded as-of slice posture that uses the authoritative label-store as-of surfaces instead of treating the full 6B truth horizon as directly training-safe.
+
+## 2026-03-12 05:41:04 +00:00 - The active Phase 5.B defect is a boundary mismatch between the promoted Phase 4 run window and the raw 6B horizon, so the proof has to build and score the bounded learning slice rather than keep arguing about the full partition
+
+I stopped treating `PHASE5.B53` as a generic "label as-of is wrong" problem and named the actual failure class more precisely: the rebuilt Phase 5.B spec was still asking Databricks to score the full retained `6B` partition, while the proving boundary we are actually allowed to claim is the bounded promoted Phase 4 mission window.
+
+That matters because the current source run already tells us its temporal law:
+
+- `window_end_ts_utc = 2026-03-05T00:00:00Z`
+- `as_of_time_utc = 2026-03-05T00:00:00Z`
+- `label_maturity_lag = 3d`
+
+but the Phase 5.A / Phase 5.B pair had drifted away from that law:
+
+- `Phase 5.A` was still lifting `label_asof_utc` from the wall-clock timestamp of the post-run label-store snapshot
+- `Phase 5.B` was still reading the full `6B` event / case partitions with horizons well beyond the promoted run window
+
+That combination guarantees a red result, but not a useful one. It does not tell us whether the bounded learning slice for the promoted world is safe; it only tells us that the raw oracle horizon is larger than the ad hoc cut we happened to pin.
+
+The correction is therefore methodological and semantic, not cosmetic:
+
+- Phase 5.A now has to carry the bounded temporal contract from the promoted Phase 4 mission binding
+- Phase 5.B now has to build the bounded OFS slice by trimming the raw `6B` partitions to the promoted feature / label horizon before it scores parity, fraud-signal visibility, and maturity usefulness
+- the quality gate must compare the bounded event horizon against `feature_asof_utc`, not compare an unbounded raw partition against a wall-clock label snapshot
+
+I patched the live surfaces accordingly:
+
+- `scripts/dev_substrate/phase5_learning_mlops_readiness.py`
+- `scripts/dev_substrate/phase5_ofs_dataset_basis.py`
+- `platform/databricks/dev_full/ofs_build_v0.py`
+- `platform/databricks/dev_full/ofs_quality_v0.py`
+
+The next honest step is to rerun `Phase 5.A` and `Phase 5.B` on this corrected time-bound law and see whether the bounded learning slice itself is green or whether a narrower semantic blocker remains once the raw-horizon confusion is removed.
+
+## 2026-03-12 05:52:27 +00:00 - The corrected Phase 5 temporal law holds on the real managed boundary; Phase 5.B is now green on the bounded OFS slice and the only thing left in Phase 5 is the train/eval and promotion corridor
+
+I reran the rebuilt gate on the corrected time-bound law instead of carrying forward the stale wall-clock label cut.
+
+First, `Phase 5.A` stayed green under the stricter law:
+
+- `execution_id = phase5_learning_mlops_20260312T054200Z`
+- `feature_asof_utc = 2026-03-05T00:00:00Z`
+- `label_asof_utc = 2026-03-05T00:00:00Z`
+- `label_maturity_lag = 3d`
+
+That confirmed the repin did not just create a convenient story in the OFS notebook; the learning surface gate itself now carries the bounded contract from the promoted Phase 4 mission binding.
+
+Then `Phase 5.B` hit one more narrow non-semantic defect during the rerun:
+
+- the build run itself succeeded
+- but the quality run request came back `HTTP 400`
+- the cause was not Databricks compute failure; it was that I was still trying to pass the full build snapshot through notebook params
+
+I fixed that by changing the build-to-quality handoff to object-store evidence:
+
+- write the build snapshot to:
+  - `s3://fraud-platform-dev-full-object-store/platform_20260312T003302Z/learning/phase5/phase5_ofs_dataset_basis_20260312T054900Z/phase5_build_snapshot.json`
+- let the quality notebook read that ref directly
+
+That removed the control-plane payload-size blindspot and kept the proof on the same managed Databricks boundary.
+
+The accepted rerun is:
+
+- `execution_id = phase5_ofs_dataset_basis_20260312T054900Z`
+- `verdict = PHASE5B_READY`
+- `open_blockers = 0`
+
+The accepted slice now says something materially useful, not just cosmetically green:
+
+- raw event horizon still reaches `2026-04-01T00:01:41.104298Z`
+- but the bounded learning slice trims to the promoted run boundary:
+  - `feature_asof_utc = 2026-03-05T00:00:00Z`
+  - bounded `event_max_ts_utc = 2026-03-05T00:00:00.983649Z`
+  - bounded `case_max_ts_utc = 2026-03-04T23:57:50.567244Z`
+  - `label_maturity_cutoff_utc = 2026-03-02T00:00:00Z`
+
+And the bounded dataset basis remains materially useful after that trim:
+
+- `event_rows = 331,506,996`
+- `event_label_rows = 331,506,996`
+- `flow_label_rows = 175,830`
+- `case_timeline_rows = 23,681`
+- `fraud_event_count = 9,806`
+- `fraud_truth_event_count = 8,315,296`
+- `fraud_truth_flow_count = 4,110`
+- `distinct_campaign_count = 6`
+- `mature_event_rows = 315,700,696`
+- `mature_fraud_event_count = 9,340`
+
+That is the key judgment: the earlier red was not exposing a weak dataset; it was exposing a bad proving boundary. Once the boundary was corrected, the OFS slice proved green without weakening the semantic standard.
+
+So the active Phase 5 work has now genuinely moved on:
+
+- `Phase 5.A` is green on semantic admission and managed-surface readability
+- `Phase 5.B` is green on the bounded OFS dataset basis
+- the remaining work in `Phase 5` is now `Phase 5.C` and `Phase 5.D`:
+  - train / eval on the same admitted basis
+  - promotion / rollback / active-truth proof on the same evidence chain

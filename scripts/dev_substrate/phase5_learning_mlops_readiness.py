@@ -84,6 +84,18 @@ def generated_at(snapshot: dict[str, Any], component: str) -> str:
     return str(payload.get("generated_at_utc") or snapshot.get("generated_at_utc") or "").strip()
 
 
+def parse_maturity_days(value: Any) -> int | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    match = re.fullmatch(r"(?i)(\d+)\s*d", text)
+    if match:
+        return int(match.group(1))
+    if text.isdigit():
+        return int(text)
+    return None
+
+
 def parse_s3_uri(uri: str) -> tuple[str, str]:
     value = str(uri or "").strip()
     if not value.startswith("s3://"):
@@ -212,6 +224,7 @@ def main() -> None:
     ap.add_argument("--source-receipt-name", default="phase4_coupled_readiness_receipt.json")
     ap.add_argument("--source-bootstrap-name", default="phase4_control_plane_bootstrap.json")
     ap.add_argument("--source-snapshot-post-name", default="g3a_p4_component_snapshot_post.json")
+    ap.add_argument("--source-charter-name", default="g4a_run_charter.active.json")
     ap.add_argument("--summary-name", default="phase5_learning_surface_summary.json")
     ap.add_argument("--receipt-name", default="phase5_learning_surface_receipt.json")
     ap.add_argument("--aws-region", default="eu-west-2")
@@ -223,6 +236,7 @@ def main() -> None:
     receipt = load_json(source_root / str(args.source_receipt_name).strip())
     bootstrap = load_json(source_root / str(args.source_bootstrap_name).strip())
     snapshot_post = load_json(source_root / str(args.source_snapshot_post_name).strip())
+    source_charter = load_json(source_root / str(args.source_charter_name).strip())
     registry = parse_registry(REGISTRY_PATH)
 
     blockers: list[str] = []
@@ -242,7 +256,17 @@ def main() -> None:
     label_store_accepted = summary_value(snapshot_post, "label_store", "accepted")
     label_store_pending = summary_value(snapshot_post, "label_store", "pending")
     label_store_rejected = summary_value(snapshot_post, "label_store", "rejected")
-    label_asof_utc = generated_at(snapshot_post, "label_store")
+    runtime_label_generated_at_utc = generated_at(snapshot_post, "label_store")
+    mission_binding = dict(source_charter.get("mission_binding") or {})
+    feature_asof_utc = str(mission_binding.get("as_of_time_utc") or mission_binding.get("window_end_ts_utc") or "").strip()
+    label_maturity_lag = str(mission_binding.get("label_maturity_lag") or "").strip()
+    label_maturity_days = parse_maturity_days(label_maturity_lag)
+    if label_maturity_days is None:
+        try:
+            label_maturity_days = int(registry.get("LEARNING_LABEL_MATURITY_DAYS_DEFAULT"))
+        except (TypeError, ValueError):
+            label_maturity_days = None
+    label_asof_utc = feature_asof_utc
 
     if (case_mgmt_labels or 0.0) <= 0.0:
         blockers.append("PHASE5.A04_CASE_LABEL_TRUTH_MISSING")
@@ -252,6 +276,10 @@ def main() -> None:
         blockers.append(f"PHASE5.A06_LABEL_STORE_PENDING:{int(label_store_pending or 0.0)}")
     if (label_store_rejected or 0.0) > 0.0:
         blockers.append(f"PHASE5.A07_LABEL_STORE_REJECTED:{int(label_store_rejected or 0.0)}")
+    if not feature_asof_utc:
+        blockers.append("PHASE5.A07B_SOURCE_FEATURE_ASOF_UNRESOLVED")
+    if label_maturity_days is None or label_maturity_days <= 0:
+        blockers.append("PHASE5.A07C_LABEL_MATURITY_POLICY_UNRESOLVED")
 
     ssm = boto3.client("ssm", region_name=args.aws_region)
     iam = boto3.client("iam", region_name=args.aws_region)
@@ -391,6 +419,7 @@ def main() -> None:
     notes.append("Phase 5.A is telemetry-first and semantic-admission-first: this gate now scores both managed learning surface readability and whether the current world is admissible through interface-pack and 6B gate truth.")
     notes.append("No learning jobs are dispatched here. The objective is to eliminate blindspots and basis ambiguity before the first bounded dataset-basis proof.")
     notes.append("The rebuilt Phase 5 keeps OFS dataset-basis proof ahead of any acceptance of train/eval or promotion claims.")
+    notes.append("The bounded learning temporal contract is now anchored to the promoted Phase 4 mission binding instead of to the wall-clock time of the post-run label-store snapshot.")
 
     summary = {
         "phase": "PHASE5",
@@ -405,6 +434,7 @@ def main() -> None:
             "receipt_name": str(args.source_receipt_name).strip(),
             "bootstrap_name": str(args.source_bootstrap_name).strip(),
             "snapshot_post_name": str(args.source_snapshot_post_name).strip(),
+            "charter_name": str(args.source_charter_name).strip(),
             "phase4_verdict": str(receipt.get("verdict") or "").strip(),
         },
         "upstream_truth": {
@@ -412,7 +442,17 @@ def main() -> None:
             "label_store_accepted": label_store_accepted,
             "label_store_pending": label_store_pending,
             "label_store_rejected": label_store_rejected,
+            "runtime_label_generated_at_utc": runtime_label_generated_at_utc,
+            "feature_asof_utc": feature_asof_utc,
             "label_asof_utc": label_asof_utc,
+            "label_maturity_lag": label_maturity_lag,
+            "label_maturity_days": label_maturity_days,
+        },
+        "source_temporal_basis": {
+            "window_start_ts_utc": str(mission_binding.get("window_start_ts_utc") or "").strip(),
+            "window_end_ts_utc": str(mission_binding.get("window_end_ts_utc") or "").strip(),
+            "as_of_time_utc": str(mission_binding.get("as_of_time_utc") or "").strip(),
+            "label_maturity_lag": label_maturity_lag,
         },
         "semantic_admission": {
             "facts_view_ref": facts_view_uri,

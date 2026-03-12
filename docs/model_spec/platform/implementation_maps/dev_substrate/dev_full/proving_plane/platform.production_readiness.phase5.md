@@ -230,11 +230,14 @@ These are starting facts only. They are not closure evidence.
   - SageMaker execution role and model package group readable
   - MLflow tracking mode resolved through Databricks
 
-### Rebuilt Phase 5.A accepted execution
-- `execution_id = phase5_learning_mlops_20260312T041559Z`
-- `verdict = PHASE5A_READY`
-- `open_blockers = 0`
-- accepted facts from the rebuilt gate:
+### Rebuilt Phase 5.A accepted executions
+- retained earlier green:
+  - `execution_id = phase5_learning_mlops_20260312T041559Z`
+- current accepted authority after temporal-law repin:
+  - `execution_id = phase5_learning_mlops_20260312T054200Z`
+  - `verdict = PHASE5A_READY`
+  - `open_blockers = 0`
+- accepted facts from the current gate:
   - upstream label truth is materially present and clean:
     - `case_mgmt labels_accepted = 2931`
     - `label_store accepted = 3080`
@@ -246,55 +249,63 @@ These are starting facts only. They are not closure evidence.
   - both intended outputs resolve as `business_traffic`
   - `6B.S5` remains readable with `overall_status = WARN`, but all required machine rails are `PASS`
   - Databricks / SageMaker / MLflow managed surfaces remain materially readable
+  - the bounded learning temporal contract is now pinned from the promoted Phase 4 mission binding instead of from the wall-clock time of the post-run label-store snapshot:
+    - `feature_asof_utc = 2026-03-05T00:00:00Z`
+    - `label_asof_utc = 2026-03-05T00:00:00Z`
+    - `label_maturity_lag = 3d`
 
-### First honest Phase 5.B blocker after the rebuilt gate
-- the retained Databricks OFS build / quality jobs are currently wired to repo-managed source files that are still bootstrap stubs:
-  - `platform/databricks/dev_full/ofs_build_v0.py`
-  - `platform/databricks/dev_full/ofs_quality_v0.py`
-- those sources prove only that the workspace execution surface is alive
-- they do not yet prove:
-  - current-world dataset-basis construction,
-  - leakage / as-of / maturity enforcement,
-  - supervision coverage sufficiency,
-  - or manifest / lineage completeness
-- therefore the current `Phase 5.B` blocker is now explicit:
-  - the managed OFS build source is too shallow for the rebuilt dataset-basis proof
-
-### Current Phase 5.B execution state after the OFS repin
-- the bootstrap-only OFS source blocker is no longer the active blocker
+### Phase 5.B execution state after the OFS repin
+- the bootstrap-only OFS source blocker is retired
 - the Databricks OFS build / quality sources were repinned to a real bounded current-world probe
-- accepted executions:
+- narrow failing executions that materially improved the proving boundary:
   - `phase5_ofs_dataset_basis_20260312T043900Z`
     - red because the managed notebook tried raw `boto3` S3 access and serverless Databricks had no AWS credentials
   - `phase5_ofs_dataset_basis_20260312T045330Z`
     - red because Spark Connect on the managed notebook surface does not implement `toJSON()`
   - `phase5_ofs_dataset_basis_20260312T045500Z`
-    - red on the first real managed-storage question
-
-### Current active blocker
-- managed Databricks object-store authorization is no longer the active blocker
-- that boundary is now fixed and materially proven on the rebuilt OFS path:
+    - red on the first real managed-storage access question
+  - `phase5_ofs_dataset_basis_20260312T051729Z`
+  - `phase5_ofs_dataset_basis_20260312T052250Z`
+    - both red because the proof was still scoring the full raw `6B` horizon against an ad hoc wall-clock label cut
+- fixed managed-read posture now materialized on the same Databricks serverless boundary:
   - storage credential:
     - `fraud_platform_dev_full_object_store_ro_v0`
   - external location:
     - `fraud_platform_dev_full_object_store_v0`
   - live AWS role:
     - `fraud-platform-dev-full-databricks-cross-account-access`
-    - now trusts the Unity Catalog master role + required external ID
-    - now carries read-only object-store + KMS access
-- accepted rebuilt `Phase 5.B` executions after that repair:
-  - `phase5_ofs_dataset_basis_20260312T051729Z`
-  - `phase5_ofs_dataset_basis_20260312T052250Z`
-  - both show:
-    - Databricks build `SUCCESS`
-    - Databricks quality `SUCCESS`
-- the current blocker has therefore narrowed again and is now purely semantic:
-  - `PHASE5.B53_EVENT_HORIZON_EXCEEDS_LABEL_ASOF`
-  - admitted world:
-    - `event_max_ts_utc = 2026-04-01T00:01:41.104298Z`
-  - current pinned label cut:
-    - `label_asof_utc = 2026-03-12T01:10:38.932670+00:00`
-- that means the current OFS dataset basis is still red on time-causal safety, not on managed-surface readability
+    - trusts the Unity Catalog master role + required external ID
+    - carries read-only object-store + KMS access
+- fixed Databricks quality handoff:
+  - the quality notebook now reads the build snapshot from object-store evidence instead of relying on oversized notebook params
+
+### Current accepted Phase 5.B execution
+- `execution_id = phase5_ofs_dataset_basis_20260312T054900Z`
+- `verdict = PHASE5B_READY`
+- `open_blockers = 0`
+- the accepted bounded OFS slice is now explicitly tied to the promoted Phase 4 time law:
+  - `feature_asof_utc = 2026-03-05T00:00:00Z`
+  - `label_asof_utc = 2026-03-05T00:00:00Z`
+  - `label_maturity_cutoff_utc = 2026-03-02T00:00:00Z`
+- accepted bounded slice impact metrics:
+  - `event_rows = 331,506,996`
+  - `event_label_rows = 331,506,996`
+  - `flow_label_rows = 175,830`
+  - `case_timeline_rows = 23,681`
+  - `distinct_case_count = 12,350`
+  - `fraud_event_count = 9,806`
+  - `fraud_truth_event_count = 8,315,296`
+  - `fraud_truth_flow_count = 4,110`
+  - `distinct_campaign_count = 6`
+  - `mature_event_rows = 315,700,696`
+  - `mature_fraud_event_count = 9,340`
+- accepted temporal proof:
+  - raw event horizon still extends to `2026-04-01T00:01:41.104298Z`
+  - bounded event horizon is now trimmed to `2026-03-05T00:00:00.983649Z`
+  - bounded case horizon is now trimmed to `2026-03-04T23:57:50.567244Z`
+- judgment:
+  - the previous `PHASE5.B53` red was a truthful blocker, but it was a boundary-mismatch blocker
+  - once the proof was repinned to the promoted run window and maturity law, the bounded OFS dataset-basis proof turned green on the real learning slice rather than on the raw oracle horizon
 
 ### Important caution on prior exploratory receipts
 - recent exploratory receipts and scripts may still be useful for narrowing and reuse,
@@ -306,16 +317,16 @@ These are starting facts only. They are not closure evidence.
 - that means the rebuilt phase should move first on:
   - semantic admission,
   - dataset-basis proof,
-  - and only then decide whether train/eval and promotion/rollback are to be justified on workflow dispatch or repinned onto a more direct managed path
+  - and now an explicit method judgment on whether `Phase 5.C` and `Phase 5.D` can be accepted on the retained workflow-dispatch lane or need a more direct managed repin
 
 ## Current immediate execution order
 
-1. keep the accepted rebuilt `Phase 5.A` execution as the current semantic-admission authority,
-2. keep the repinned Databricks OFS build / quality source as the current truthful `Phase 5.B` proving surface,
+1. keep `phase5_learning_mlops_20260312T054200Z` as the current semantic-admission authority,
+2. keep `phase5_ofs_dataset_basis_20260312T054900Z` as the accepted `Phase 5.B` dataset-basis authority,
 3. keep the codified Databricks storage credential / external location / AWS role repair as the fixed managed-read posture,
-4. repin the learning time-bound law so `Phase 5.B` uses a truthful `as-of` / maturity slice instead of admitting a full future horizon under an earlier label cut,
-5. rerun the same bounded OFS proof on that corrected semantic boundary,
-6. only after `Phase 5.B` is materially green make an explicit method judgment on the current `5.C` / `5.D` workflow dependence.
+4. decide whether the retained MF train/eval surface can be accepted under workflow dispatch for `Phase 5.C` or whether that is too weak for the production-readiness method,
+5. if the retained lane is acceptable, prove train/eval on the same admitted dataset basis and current-world truth chain,
+6. then carry the same evidence chain into `Phase 5.D` promotion / rollback / active-truth proof.
 
 ## Phase closure rule
 

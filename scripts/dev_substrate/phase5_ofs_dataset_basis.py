@@ -58,6 +58,18 @@ def parse_registry(path: Path) -> dict[str, Any]:
     return out
 
 
+def parse_maturity_days(value: Any) -> int | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    match = re.fullmatch(r"(?i)(\d+)\s*d", text)
+    if match:
+        return int(match.group(1))
+    if text.isdigit():
+        return int(text)
+    return None
+
+
 def parse_s3_uri(uri: str) -> tuple[str, str]:
     value = str(uri or "").strip()
     if not value.startswith("s3://"):
@@ -418,6 +430,7 @@ def main() -> None:
     ap.add_argument("--source-execution-id", default="phase4_case_label_coupled_20260312T003302Z")
     ap.add_argument("--phase5a-summary-name", default="phase5_learning_surface_summary.json")
     ap.add_argument("--source-bootstrap-name", default="phase4_control_plane_bootstrap.json")
+    ap.add_argument("--source-charter-name", default="g4a_run_charter.active.json")
     ap.add_argument("--summary-name", default="phase5_ofs_dataset_basis_summary.json")
     ap.add_argument("--receipt-name", default="phase5_ofs_dataset_basis_receipt.json")
     ap.add_argument("--aws-region", default="eu-west-2")
@@ -432,6 +445,7 @@ def main() -> None:
 
     phase5a_summary = load_json(phase5a_root / str(args.phase5a_summary_name).strip())
     source_bootstrap = load_json(source_root / str(args.source_bootstrap_name).strip())
+    source_charter = load_json(source_root / str(args.source_charter_name).strip())
 
     if not bool(phase5a_summary.get("overall_pass")):
         raise SystemExit("Phase 5.A must be green before Phase 5.B.")
@@ -470,15 +484,27 @@ def main() -> None:
     bootstrap_oracle = dict(source_bootstrap.get("oracle") or {})
     semantic = dict(phase5a_summary.get("semantic_admission") or {})
     upstream_truth = dict(phase5a_summary.get("upstream_truth") or {})
+    mission_binding = dict(source_charter.get("mission_binding") or {})
     facts_view_ref = str(semantic.get("facts_view_ref") or "").strip()
     facts_payload = s3_read_json(s3, facts_view_ref)
     pins = dict(facts_payload.get("pins") or {})
     manifest_fingerprint = str(semantic.get("manifest_fingerprint") or pins.get("manifest_fingerprint") or "").strip()
     parameter_hash = str(pins.get("parameter_hash") or "").strip()
     scenario_id = str(pins.get("scenario_id") or bootstrap_oracle.get("oracle_scenario_id") or "").strip()
+    feature_asof_utc = str(upstream_truth.get("feature_asof_utc") or mission_binding.get("as_of_time_utc") or mission_binding.get("window_end_ts_utc") or "").strip()
     label_asof_utc = str(upstream_truth.get("label_asof_utc") or "").strip()
+    label_maturity_lag = str(upstream_truth.get("label_maturity_lag") or mission_binding.get("label_maturity_lag") or "").strip()
+    label_maturity_days = upstream_truth.get("label_maturity_days")
+    if label_maturity_days in (None, ""):
+        label_maturity_days = parse_maturity_days(label_maturity_lag)
+    try:
+        label_maturity_days = int(label_maturity_days)
+    except (TypeError, ValueError):
+        label_maturity_days = int(registry.get("LEARNING_LABEL_MATURITY_DAYS_DEFAULT") or 0)
     oracle_root = str(semantic.get("oracle_root") or bootstrap_oracle.get("oracle_engine_run_root") or "").strip()
-    if not facts_view_ref or not manifest_fingerprint or not parameter_hash or not scenario_id or not label_asof_utc or not oracle_root:
+    if not label_asof_utc:
+        label_asof_utc = feature_asof_utc
+    if not facts_view_ref or not manifest_fingerprint or not parameter_hash or not scenario_id or not feature_asof_utc or not label_asof_utc or not oracle_root:
         raise SystemExit("Phase 5.B semantic basis unresolved.")
 
     sixb_root = (
@@ -515,8 +541,16 @@ def main() -> None:
         "manifest_fingerprint": manifest_fingerprint,
         "parameter_hash": parameter_hash,
         "scenario_id": scenario_id,
+        "feature_asof_utc": feature_asof_utc,
         "label_asof_utc": label_asof_utc,
-        "label_maturity_days": int(registry.get("LEARNING_LABEL_MATURITY_DAYS_DEFAULT") or 0),
+        "label_maturity_lag": label_maturity_lag,
+        "label_maturity_days": label_maturity_days,
+        "source_temporal_basis": {
+            "window_start_ts_utc": str(mission_binding.get("window_start_ts_utc") or "").strip(),
+            "window_end_ts_utc": str(mission_binding.get("window_end_ts_utc") or "").strip(),
+            "as_of_time_utc": str(mission_binding.get("as_of_time_utc") or "").strip(),
+            "label_maturity_lag": str(mission_binding.get("label_maturity_lag") or "").strip(),
+        },
         "sixb_passed_flag_ref": str(semantic.get("sixb_passed_flag_ref") or "").strip(),
         "sixb_validation_report_ref": str(semantic.get("sixb_validation_report_ref") or "").strip(),
         "allowed_outputs": ["s2_event_stream_baseline_6B", "s3_event_stream_with_fraud_6B"],
@@ -606,10 +640,15 @@ def main() -> None:
     if not build_result_raw:
         raise SystemExit("Phase 5.B build output missing notebook result.")
     build_snapshot = json.loads(build_result_raw)
+    build_snapshot_ref = (
+        f"s3://{object_store_bucket}/"
+        f"{spec['platform_run_id']}/learning/phase5/{args.execution_id}/phase5_build_snapshot.json"
+    )
+    s3_write_json(s3, build_snapshot_ref, build_snapshot)
 
     quality_params = {
         "phase5_spec_json": spec_json,
-        "phase5_build_snapshot_json": json.dumps(build_snapshot, ensure_ascii=True),
+        "phase5_build_snapshot_ref": build_snapshot_ref,
     }
     quality_run = dbx_run_job(
         dbx_workspace_url,
@@ -666,6 +705,7 @@ def main() -> None:
         "overall_pass": len(blocker_ids) == 0,
         "blocker_ids": blocker_ids,
         "spec_ref": str(run_root / "phase5b_ofs_spec.json"),
+        "build_snapshot_ref": build_snapshot_ref,
         "managed_access": managed_access,
         "databricks": {
             "build_job_id": int(build_job.get("job_id") or 0),

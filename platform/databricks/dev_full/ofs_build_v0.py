@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from pyspark.sql import functions as F
 
@@ -63,6 +63,18 @@ def _sample_row(df, columns: list[str]) -> dict:
     return row[0].asDict(recursive=True)
 
 
+def _parse_utc(text: str) -> datetime:
+    value = str(text or "").strip().replace("Z", "+00:00")
+    parsed = datetime.fromisoformat(value)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _iso_utc(dt: datetime) -> str:
+    return dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
 def main() -> None:
     spec_json = _get_param("phase5_spec_json")
     if not spec_json:
@@ -77,22 +89,55 @@ def main() -> None:
     event_labels_path = str(((spec.get("slice_files") or {}).get("event_labels")) or "").strip()
     flow_labels_path = str(((spec.get("slice_files") or {}).get("flow_truth_labels")) or "").strip()
     case_timeline_path = str(((spec.get("slice_files") or {}).get("case_timeline")) or "").strip()
+    feature_asof_utc = str(spec.get("feature_asof_utc") or "").strip()
     label_asof_utc = str(spec.get("label_asof_utc") or "").strip()
+    label_maturity_days = int(spec.get("label_maturity_days") or 0)
 
     if not event_path or not event_labels_path or not flow_labels_path or not case_timeline_path:
         raise RuntimeError("PHASE5B_SLICE_FILES_UNRESOLVED")
+    if not feature_asof_utc or not label_asof_utc:
+        raise RuntimeError("PHASE5B_TEMPORAL_BASIS_UNRESOLVED")
 
-    events_df = spark.read.parquet(event_path)  # type: ignore[name-defined]  # noqa: F821
-    event_labels_df = spark.read.parquet(event_labels_path)  # type: ignore[name-defined]  # noqa: F821
-    flow_labels_df = spark.read.parquet(flow_labels_path)  # type: ignore[name-defined]  # noqa: F821
-    case_timeline_df = spark.read.parquet(case_timeline_path)  # type: ignore[name-defined]  # noqa: F821
+    feature_asof_dt = _parse_utc(feature_asof_utc)
+    label_asof_dt = _parse_utc(label_asof_utc)
+    maturity_cutoff_dt = label_asof_dt - timedelta(days=max(label_maturity_days, 0))
+    maturity_cutoff_utc = _iso_utc(maturity_cutoff_dt)
 
+    raw_events_df = spark.read.parquet(event_path)  # type: ignore[name-defined]  # noqa: F821
+    raw_event_labels_df = spark.read.parquet(event_labels_path)  # type: ignore[name-defined]  # noqa: F821
+    raw_flow_labels_df = spark.read.parquet(flow_labels_path)  # type: ignore[name-defined]  # noqa: F821
+    raw_case_timeline_df = spark.read.parquet(case_timeline_path)  # type: ignore[name-defined]  # noqa: F821
+
+    events_df = raw_events_df.where(F.col("ts_utc") <= F.lit(feature_asof_utc))
+    bounded_event_keys_df = events_df.select("flow_id", "event_seq").dropDuplicates()
+    bounded_flow_keys_df = events_df.select("flow_id").dropDuplicates()
+    event_labels_df = raw_event_labels_df.join(bounded_event_keys_df, on=["flow_id", "event_seq"], how="inner")
+    flow_labels_df = raw_flow_labels_df.join(bounded_flow_keys_df, on=["flow_id"], how="inner")
+    case_timeline_df = raw_case_timeline_df.join(bounded_flow_keys_df, on=["flow_id"], how="inner").where(
+        F.col("ts_utc") <= F.lit(label_asof_utc)
+    )
+    mature_events_df = events_df.where(F.col("ts_utc") <= F.lit(maturity_cutoff_utc))
+
+    raw_event_metrics = raw_events_df.agg(
+        F.count("*").alias("row_count"),
+        F.min("ts_utc").alias("min_ts_utc"),
+        F.max("ts_utc").alias("max_ts_utc"),
+    ).collect()[0]
+    raw_case_metrics = raw_case_timeline_df.agg(
+        F.count("*").alias("row_count"),
+        F.min("ts_utc").alias("min_ts_utc"),
+        F.max("ts_utc").alias("max_ts_utc"),
+    ).collect()[0]
     event_metrics = events_df.agg(
         F.count("*").alias("row_count"),
         F.min("ts_utc").alias("min_ts_utc"),
         F.max("ts_utc").alias("max_ts_utc"),
         F.sum(F.when(F.col("fraud_flag") == True, F.lit(1)).otherwise(F.lit(0))).alias("fraud_event_count"),  # noqa: E712
         F.countDistinct("campaign_id").alias("distinct_campaign_count"),
+    ).collect()[0]
+    mature_event_metrics = mature_events_df.agg(
+        F.count("*").alias("row_count"),
+        F.sum(F.when(F.col("fraud_flag") == True, F.lit(1)).otherwise(F.lit(0))).alias("fraud_event_count"),  # noqa: E712
     ).collect()[0]
     event_label_metrics = event_labels_df.agg(
         F.count("*").alias("row_count"),
@@ -131,8 +176,10 @@ def main() -> None:
                 for row in (validation.get("checks") or [])
                 if isinstance(row, dict)
             },
+            "feature_asof_utc": feature_asof_utc,
             "label_asof_utc": label_asof_utc,
-            "label_maturity_days": int(spec.get("label_maturity_days") or 0),
+            "label_maturity_days": label_maturity_days,
+            "label_maturity_cutoff_utc": maturity_cutoff_utc,
         },
         "slice_files": {
             "events": event_path,
@@ -141,12 +188,22 @@ def main() -> None:
             "case_timeline": case_timeline_path,
         },
         "slice_metrics": {
+            "raw_horizons": {
+                "event_row_count": int(raw_event_metrics["row_count"]),
+                "event_min_ts_utc": str(raw_event_metrics["min_ts_utc"]),
+                "event_max_ts_utc": str(raw_event_metrics["max_ts_utc"]),
+                "case_timeline_row_count": int(raw_case_metrics["row_count"]),
+                "case_min_ts_utc": str(raw_case_metrics["min_ts_utc"]),
+                "case_max_ts_utc": str(raw_case_metrics["max_ts_utc"]),
+            },
             "events": {
                 "row_count": int(event_metrics["row_count"]),
                 "min_ts_utc": str(event_metrics["min_ts_utc"]),
                 "max_ts_utc": str(event_metrics["max_ts_utc"]),
                 "fraud_event_count": int(event_metrics["fraud_event_count"] or 0),
                 "distinct_campaign_count": int(event_metrics["distinct_campaign_count"] or 0),
+                "mature_row_count": int(mature_event_metrics["row_count"] or 0),
+                "mature_fraud_event_count": int(mature_event_metrics["fraud_event_count"] or 0),
                 "schema_fields": _list_schema_fields(events_df),
                 "sample_row": _sample_row(
                     events_df,
@@ -186,7 +243,7 @@ def main() -> None:
         },
         "notes": [
             "This Databricks build source now performs a bounded current-world OFS dataset-basis probe instead of a bootstrap-only liveness marker.",
-            "The build emits current-world slice metrics so the paired quality gate can score admissibility, parity, time-bound safety, and supervision usefulness explicitly.",
+            "The build trims the raw 6B partitions to the promoted Phase 4 feature/label time boundary before scoring training-safety.",
         ],
     }
     print(json.dumps(build_snapshot, ensure_ascii=True))
