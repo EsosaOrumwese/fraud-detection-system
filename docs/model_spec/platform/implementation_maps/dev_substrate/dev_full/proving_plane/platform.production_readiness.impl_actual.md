@@ -5880,3 +5880,60 @@ One caution remains, but it is no longer a closure blocker:
   - `campaign_present_rows = 2`
 
 That is acceptable for `Phase 5` because the plane goal is to prove semantic admission, bounded dataset truth, managed train/eval, lineage, and governed promotion mechanics. It is not yet the coupled runtime-feedback proof. The next honest place to carry that caution is `Phase 6`, where runtime-facing cohort visibility has to be widened enough to judge bundle behaviour on the enlarged network rather than on aggregate metrics alone.
+
+## 2026-03-12 08:41:09 +00:00 - Bounded cost-hygiene pass retired stale rejected learning artefacts and the ingress Lambda zip pile without deleting the accepted green evidence chain
+
+Before moving to `Phase 6`, I treated cost accumulation itself as an engineering boundary instead of letting old proving debris remain in the substrate. The key rule for this pass was:
+
+- delete only clearly stale rejected artefacts
+- keep the accepted green chain and still-useful rollback / registry history
+- add prevention where the same waste would otherwise regrow
+
+The safe live deletes were:
+
+- rejected rebuilt `Phase 5` learning prefixes under the current promoted run:
+  - `phase5_learning_managed_20260312T064500Z`
+  - `phase5_learning_managed_20260312T065100Z`
+  - `phase5_learning_managed_20260312T065500Z`
+  - `phase5_learning_managed_20260312T070500Z`
+- rejected MF train-run prefixes tied to those candidate executions:
+  - `tr_291591bab04d1b11d0d5ab73051e2ba7`
+  - `tr_a3d73e355d7722597313983f57131237`
+- stale SageMaker model resources from the rejected current-run candidates:
+  - `fraud-platform-dev-full-mtrain-model-658803aa7d`
+  - `fraud-platform-dev-full-mtrain-model-b8cada27d7`
+- stale ingress Lambda zip artefacts in `fraud-platform-dev-full-artifacts/artifacts/lambda/ig_handler/`
+  - kept only:
+    - latest retained Git package
+    - latest retained local Phase 0 package
+    - latest retained manual package
+
+Measured result:
+
+- ingress Lambda zip artefact pile:
+  - before: `737.8 MiB`
+  - after: `64.4 MiB`
+  - immediate reduction: about `673.4 MiB`
+- current promoted-run `learning/phase5` working prefix:
+  - before: `3.8 MiB`
+  - after: `790.5 KiB`
+  - immediate reduction: about `3.0 MiB`
+- current promoted-run `mf/train_runs` prefix:
+  - before: `33.9 KiB`
+  - after: `11.4 KiB`
+
+I deliberately did not bulk-delete the many older top-level `platform_*` prefixes in the object store during this pass. There is likely more savings there, but deleting them safely requires a preserve ledger for:
+
+- current promoted source runs
+- any still-needed rollback / registry references
+- any historic green authorities we still want kept on-cloud rather than just in local `runs/`
+
+That broader sweep is a different boundary and should not be guessed at from bucket names alone.
+
+I also added prevention on the infrastructure side:
+
+- new Terraform lifecycle rule on the artifacts bucket for `artifacts/lambda/ig_handler/`
+- expire current objects after `14` days
+- expire noncurrent versions after `7` days
+
+That means the same ingress packaging debris should now stop regrowing silently between hardening passes.
