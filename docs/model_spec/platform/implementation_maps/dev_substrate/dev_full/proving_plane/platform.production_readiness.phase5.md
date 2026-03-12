@@ -272,12 +272,29 @@ These are starting facts only. They are not closure evidence.
     - red on the first real managed-storage question
 
 ### Current active blocker
-- Databricks serverless cannot read the authoritative object-store basis for the current world
-- the first real failing read is:
-  - `s3://fraud-platform-dev-full-object-store/platform_20260312T003302Z/sr/run_facts_view/76488594c9b8a02bd5c8b2d4c28b71ff.json`
-- the managed notebook runtime is attempting the read with anonymous credentials and gets `403 Forbidden`
-- that means the rebuilt `Phase 5.B` blocker is now:
-  - managed Databricks object-store authorization, not semantic admission and not stubbed OFS source code
+- managed Databricks object-store authorization is no longer the active blocker
+- that boundary is now fixed and materially proven on the rebuilt OFS path:
+  - storage credential:
+    - `fraud_platform_dev_full_object_store_ro_v0`
+  - external location:
+    - `fraud_platform_dev_full_object_store_v0`
+  - live AWS role:
+    - `fraud-platform-dev-full-databricks-cross-account-access`
+    - now trusts the Unity Catalog master role + required external ID
+    - now carries read-only object-store + KMS access
+- accepted rebuilt `Phase 5.B` executions after that repair:
+  - `phase5_ofs_dataset_basis_20260312T051729Z`
+  - `phase5_ofs_dataset_basis_20260312T052250Z`
+  - both show:
+    - Databricks build `SUCCESS`
+    - Databricks quality `SUCCESS`
+- the current blocker has therefore narrowed again and is now purely semantic:
+  - `PHASE5.B53_EVENT_HORIZON_EXCEEDS_LABEL_ASOF`
+  - admitted world:
+    - `event_max_ts_utc = 2026-04-01T00:01:41.104298Z`
+  - current pinned label cut:
+    - `label_asof_utc = 2026-03-12T01:10:38.932670+00:00`
+- that means the current OFS dataset basis is still red on time-causal safety, not on managed-surface readability
 
 ### Important caution on prior exploratory receipts
 - recent exploratory receipts and scripts may still be useful for narrowing and reuse,
@@ -295,9 +312,10 @@ These are starting facts only. They are not closure evidence.
 
 1. keep the accepted rebuilt `Phase 5.A` execution as the current semantic-admission authority,
 2. keep the repinned Databricks OFS build / quality source as the current truthful `Phase 5.B` proving surface,
-3. remediate managed object-store authorization so that Databricks can actually read the authoritative current-world truth basis,
-4. rerun the same bounded OFS proof on that same surface,
-5. only after `Phase 5.B` is materially green make an explicit method judgment on the current `5.C` / `5.D` workflow dependence.
+3. keep the codified Databricks storage credential / external location / AWS role repair as the fixed managed-read posture,
+4. repin the learning time-bound law so `Phase 5.B` uses a truthful `as-of` / maturity slice instead of admitting a full future horizon under an earlier label cut,
+5. rerun the same bounded OFS proof on that corrected semantic boundary,
+6. only after `Phase 5.B` is materially green make an explicit method judgment on the current `5.C` / `5.D` workflow dependence.
 
 ## Phase closure rule
 

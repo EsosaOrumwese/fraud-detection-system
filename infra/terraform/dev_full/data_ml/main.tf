@@ -15,6 +15,7 @@ locals {
   )
 
   databricks_trusted_principal_arn = trimspace(var.databricks_trusted_principal_arn) != "" ? trimspace(var.databricks_trusted_principal_arn) : "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+  databricks_self_role_arn         = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.role_databricks_cross_account_access_name}"
 }
 
 data "aws_iam_policy_document" "assume_role_sagemaker" {
@@ -31,8 +32,20 @@ data "aws_iam_policy_document" "assume_role_databricks" {
   statement {
     actions = ["sts:AssumeRole"]
     principals {
-      type        = "AWS"
-      identifiers = [local.databricks_trusted_principal_arn]
+      type = "AWS"
+      identifiers = compact([
+        trimspace(var.databricks_unity_catalog_iam_arn),
+        local.databricks_self_role_arn,
+        trimspace(var.databricks_unity_catalog_iam_arn) == "" ? local.databricks_trusted_principal_arn : "",
+      ])
+    }
+    dynamic "condition" {
+      for_each = trimspace(var.databricks_external_id) != "" ? [1] : []
+      content {
+        test     = "StringEquals"
+        variable = "sts:ExternalId"
+        values   = [trimspace(var.databricks_external_id)]
+      }
     }
   }
 }
@@ -142,6 +155,43 @@ resource "aws_iam_role_policy" "databricks_ssm_read" {
           "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_databricks_token_path}",
           "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_mlflow_tracking_uri_path}"
         ]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "databricks_object_store_read" {
+  name = "${var.role_databricks_cross_account_access_name}-object-store-read"
+  role = aws_iam_role.databricks_cross_account_access.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "ObjectStoreBucketRead"
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket",
+          "s3:GetBucketLocation"
+        ]
+        Resource = "arn:aws:s3:::${var.databricks_object_store_bucket}"
+      },
+      {
+        Sid    = "ObjectStoreObjectRead"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:GetObjectVersion"
+        ]
+        Resource = "arn:aws:s3:::${var.databricks_object_store_bucket}/*"
+      },
+      {
+        Sid    = "ObjectStoreKmsDecrypt"
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:DescribeKey"
+        ]
+        Resource = var.databricks_object_store_kms_key_arn
       }
     ]
   })

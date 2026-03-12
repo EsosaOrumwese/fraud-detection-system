@@ -38,6 +38,16 @@ variable "databricks_trusted_principal_arn" {
   default = ""
 }
 
+variable "databricks_unity_catalog_iam_arn" {
+  type    = string
+  default = "arn:aws:iam::414351767826:role/unity-catalog-prod-UCMasterRole-14S5ZJVKOTYTL"
+}
+
+variable "databricks_external_id" {
+  type    = string
+  default = "0570fe16-6a47-4381-b03d-8510672ff9bf"
+}
+
 variable "ssm_databricks_workspace_url_path" {
   type    = string
   default = "/fraud-platform/dev_full/databricks/workspace_url"
@@ -80,6 +90,16 @@ variable "sagemaker_evidence_bucket" {
 }
 
 variable "sagemaker_evidence_kms_key_arn" {
+  type    = string
+  default = "arn:aws:kms:eu-west-2:230372904534:key/29a7acf2-da57-4b3f-8dd1-d9172d845a5c"
+}
+
+variable "databricks_object_store_bucket" {
+  type    = string
+  default = "fraud-platform-dev-full-object-store"
+}
+
+variable "databricks_object_store_kms_key_arn" {
   type    = string
   default = "arn:aws:kms:eu-west-2:230372904534:key/29a7acf2-da57-4b3f-8dd1-d9172d845a5c"
 }

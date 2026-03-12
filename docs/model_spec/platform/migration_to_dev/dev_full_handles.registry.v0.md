@@ -641,6 +641,8 @@ Allowed tokens in pattern handles:
 * `DBX_AUTO_TERMINATE_MINUTES = 20`
 * `DBX_JOB_OFS_BUILD_V0 = "fraud-platform-dev-full-ofs-build-v0"`
 * `DBX_JOB_OFS_QUALITY_GATES_V0 = "fraud-platform-dev-full-ofs-quality-v0"`
+* `DBX_STORAGE_CREDENTIAL_OBJECT_STORE = "fraud_platform_dev_full_object_store_ro_v0"`
+* `DBX_EXTERNAL_LOCATION_OBJECT_STORE = "fraud_platform_dev_full_object_store_v0"`
 
 ### 9.2 SageMaker handles
 

@@ -158,6 +158,176 @@ def dbx_find_job(base_url: str, token: str, job_name: str) -> dict[str, Any] | N
             return None
 
 
+def dbx_find_storage_credential(base_url: str, token: str, credential_name: str) -> dict[str, Any] | None:
+    payload = dbx_request_json(base_url, token, "GET", "/api/2.1/unity-catalog/storage-credentials")
+    for row in payload.get("storage_credentials", []) or []:
+        if str(row.get("name") or "").strip() == credential_name:
+            return row
+    return None
+
+
+def dbx_create_storage_credential(
+    base_url: str,
+    token: str,
+    *,
+    credential_name: str,
+    role_arn: str,
+    comment: str,
+) -> dict[str, Any]:
+    return dbx_request_json(
+        base_url,
+        token,
+        "POST",
+        "/api/2.1/unity-catalog/storage-credentials",
+        payload={
+            "name": credential_name,
+            "aws_iam_role": {"role_arn": role_arn},
+            "comment": comment,
+            "read_only": True,
+            "skip_validation": True,
+        },
+    )
+
+
+def dbx_find_external_location(base_url: str, token: str, location_name: str) -> dict[str, Any] | None:
+    payload = dbx_request_json(base_url, token, "GET", "/api/2.1/unity-catalog/external-locations")
+    for row in payload.get("external_locations", []) or []:
+        if str(row.get("name") or "").strip() == location_name:
+            return row
+    return None
+
+
+def dbx_create_external_location(
+    base_url: str,
+    token: str,
+    *,
+    location_name: str,
+    url: str,
+    credential_name: str,
+    comment: str,
+) -> dict[str, Any]:
+    return dbx_request_json(
+        base_url,
+        token,
+        "POST",
+        "/api/2.1/unity-catalog/external-locations",
+        payload={
+            "name": location_name,
+            "url": url,
+            "credential_name": credential_name,
+            "comment": comment,
+            "read_only": True,
+            "fallback": False,
+        },
+    )
+
+
+def ensure_databricks_object_store_access(
+    *,
+    iam: Any,
+    s3: Any,
+    base_url: str,
+    token: str,
+    aws_region: str,
+    account_id: str,
+    role_name: str,
+    role_arn: str,
+    object_store_bucket: str,
+    credential_name: str,
+    external_location_name: str,
+) -> dict[str, Any]:
+    storage_credential = dbx_find_storage_credential(base_url, token, credential_name)
+    if storage_credential is None:
+        storage_credential = dbx_create_storage_credential(
+            base_url,
+            token,
+            credential_name=credential_name,
+            role_arn=role_arn,
+            comment="dev_full Phase5 object-store read access",
+        )
+    aws_role = dict(storage_credential.get("aws_iam_role") or {})
+    unity_catalog_iam_arn = str(aws_role.get("unity_catalog_iam_arn") or "").strip()
+    external_id = str(aws_role.get("external_id") or "").strip()
+    if not unity_catalog_iam_arn or not external_id:
+        raise RuntimeError("phase5b_databricks_storage_credential_incomplete")
+
+    trust_doc = {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Principal": {"AWS": [unity_catalog_iam_arn, role_arn]},
+                "Action": "sts:AssumeRole",
+                "Condition": {"StringEquals": {"sts:ExternalId": external_id}},
+            }
+        ],
+    }
+    iam.update_assume_role_policy(RoleName=role_name, PolicyDocument=json.dumps(trust_doc, separators=(",", ":")))
+
+    encryption = s3.get_bucket_encryption(Bucket=object_store_bucket)
+    kms_key_arn = str(
+        (((encryption.get("ServerSideEncryptionConfiguration") or {}).get("Rules") or [{}])[0]
+         .get("ApplyServerSideEncryptionByDefault") or {}).get("KMSMasterKeyID") or ""
+    ).strip()
+    if not kms_key_arn:
+        raise RuntimeError("phase5b_object_store_kms_unresolved")
+
+    data_access_policy = {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "ObjectStoreBucketRead",
+                "Effect": "Allow",
+                "Action": ["s3:ListBucket", "s3:GetBucketLocation"],
+                "Resource": f"arn:aws:s3:::{object_store_bucket}",
+            },
+            {
+                "Sid": "ObjectStoreObjectRead",
+                "Effect": "Allow",
+                "Action": ["s3:GetObject", "s3:GetObjectVersion"],
+                "Resource": f"arn:aws:s3:::{object_store_bucket}/*",
+            },
+            {
+                "Sid": "ObjectStoreKmsDecrypt",
+                "Effect": "Allow",
+                "Action": ["kms:Decrypt", "kms:DescribeKey"],
+                "Resource": kms_key_arn,
+            },
+        ],
+    }
+    iam.put_role_policy(
+        RoleName=role_name,
+        PolicyName=f"{role_name}-object-store-read",
+        PolicyDocument=json.dumps(data_access_policy, separators=(",", ":")),
+    )
+
+    external_location = dbx_find_external_location(base_url, token, external_location_name)
+    if external_location is None:
+        external_location = dbx_create_external_location(
+            base_url,
+            token,
+            location_name=external_location_name,
+            url=f"s3://{object_store_bucket}",
+            credential_name=credential_name,
+            comment="dev_full Phase5 object-store external location",
+        )
+
+    return {
+        "storage_credential_name": credential_name,
+        "storage_credential_id": str(storage_credential.get("id") or "").strip(),
+        "unity_catalog_iam_arn": unity_catalog_iam_arn,
+        "external_id": external_id,
+        "external_location_name": external_location_name,
+        "external_location_id": str(external_location.get("id") or "").strip(),
+        "object_store_bucket": object_store_bucket,
+        "kms_key_arn": kms_key_arn,
+        "role_name": role_name,
+        "role_arn": role_arn,
+        "aws_region": aws_region,
+        "account_id": account_id,
+    }
+
+
 def dbx_run_job(
     base_url: str,
     token: str,
@@ -266,8 +436,10 @@ def main() -> None:
     if not bool(phase5a_summary.get("overall_pass")):
         raise SystemExit("Phase 5.A must be green before Phase 5.B.")
 
+    account_id = str(boto3.client("sts", region_name=args.aws_region).get_caller_identity().get("Account") or "").strip()
     s3 = boto3.client("s3", region_name=args.aws_region)
     ssm = boto3.client("ssm", region_name=args.aws_region)
+    iam = boto3.client("iam", region_name=args.aws_region)
 
     dbx_workspace_url = read_ssm(ssm, str(registry.get("SSM_DATABRICKS_WORKSPACE_URL_PATH") or "").strip(), decrypt=False)
     dbx_token = read_ssm(ssm, str(registry.get("SSM_DATABRICKS_TOKEN_PATH") or "").strip(), decrypt=True)
@@ -275,6 +447,25 @@ def main() -> None:
     object_store_bucket = str(registry.get("S3_OBJECT_STORE_BUCKET") or "").strip()
     if not evidence_bucket or not object_store_bucket:
         raise SystemExit("Evidence/object-store buckets unresolved.")
+    databricks_role_arn = str(registry.get("ROLE_DATABRICKS_CROSS_ACCOUNT_ACCESS") or "").strip()
+    if not databricks_role_arn:
+        raise SystemExit("Databricks cross-account role unresolved.")
+    databricks_role_name = databricks_role_arn.rsplit("/", 1)[-1]
+    storage_credential_name = str(registry.get("DBX_STORAGE_CREDENTIAL_OBJECT_STORE") or "fraud_platform_dev_full_object_store_ro_v0").strip()
+    external_location_name = str(registry.get("DBX_EXTERNAL_LOCATION_OBJECT_STORE") or "fraud_platform_dev_full_object_store_v0").strip()
+    managed_access = ensure_databricks_object_store_access(
+        iam=iam,
+        s3=s3,
+        base_url=dbx_workspace_url,
+        token=dbx_token,
+        aws_region=args.aws_region,
+        account_id=account_id,
+        role_name=databricks_role_name,
+        role_arn=databricks_role_arn,
+        object_store_bucket=object_store_bucket,
+        credential_name=storage_credential_name,
+        external_location_name=external_location_name,
+    )
 
     bootstrap_oracle = dict(source_bootstrap.get("oracle") or {})
     semantic = dict(phase5a_summary.get("semantic_admission") or {})
@@ -393,6 +584,7 @@ def main() -> None:
             "platform_run_id": spec["platform_run_id"],
             "overall_pass": False,
             "blocker_ids": [f"PHASE5.B60_DATABRICKS_BUILD_RUN_RED:{build_run['life_cycle_state']}:{build_run['result_state']}"],
+            "managed_access": managed_access,
             "databricks": {"build_run": build_run, "build_output": build_output},
         }
         receipt = {
@@ -438,6 +630,7 @@ def main() -> None:
             "platform_run_id": spec["platform_run_id"],
             "overall_pass": False,
             "blocker_ids": [f"PHASE5.B61_DATABRICKS_QUALITY_RUN_RED:{quality_run['life_cycle_state']}:{quality_run['result_state']}"],
+            "managed_access": managed_access,
             "databricks": {"build_run": build_run, "build_output": build_output, "quality_run": quality_run, "quality_output": quality_output},
         }
         receipt = {
@@ -473,6 +666,7 @@ def main() -> None:
         "overall_pass": len(blocker_ids) == 0,
         "blocker_ids": blocker_ids,
         "spec_ref": str(run_root / "phase5b_ofs_spec.json"),
+        "managed_access": managed_access,
         "databricks": {
             "build_job_id": int(build_job.get("job_id") or 0),
             "quality_job_id": int(quality_job.get("job_id") or 0),

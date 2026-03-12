@@ -22,10 +22,24 @@ def _get_param(name: str, default: str = "") -> str:
 
 
 def _read_text(path: str) -> str:
+    try:
+        content = dbutils.fs.head(path, 4096)  # type: ignore[name-defined]  # noqa: F821
+        if content is not None:
+            return str(content).strip()
+    except Exception:
+        pass
     rows = spark.read.text(path).limit(1).collect()  # type: ignore[name-defined]  # noqa: F821
-    if not rows:
+    if rows:
+        return str(rows[0][0]).strip()
+    binary_rows = spark.read.format("binaryFile").load(path).limit(1).collect()  # type: ignore[name-defined]  # noqa: F821
+    if not binary_rows:
         raise RuntimeError(f"text_unreadable:{path}")
-    return str(rows[0][0]).strip()
+    content = binary_rows[0].asDict(recursive=True).get("content")
+    if content is None:
+        return ""
+    if isinstance(content, (bytes, bytearray)):
+        return bytes(content).decode("utf-8", errors="replace").strip()
+    return str(content).strip()
 
 
 def _read_json(path: str) -> dict:

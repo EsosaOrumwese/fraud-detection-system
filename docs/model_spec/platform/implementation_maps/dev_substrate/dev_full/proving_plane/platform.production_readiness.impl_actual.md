@@ -5527,3 +5527,61 @@ The next honest move is not to hide this with local fallback. The next honest mo
 
 - managed-surface storage authorization / credentialing on Databricks,
 - or a justified repin of the OFS managed execution surface.
+
+## 2026-03-12 05:24:36 +00:00 - Managed Databricks object-store authorization is now fixed; the active Phase 5.B blocker has narrowed again to a real as-of / leakage boundary
+
+I treated the Databricks storage issue as an engineering boundary, not a vague permissions complaint, and fixed it on the same managed surface instead of routing around it locally.
+
+What changed on the real boundary:
+
+- created a Databricks Unity Catalog storage credential:
+  - `fraud_platform_dev_full_object_store_ro_v0`
+- created the matching external location:
+  - `fraud_platform_dev_full_object_store_v0`
+- repaired the AWS role posture behind that path:
+  - `fraud-platform-dev-full-databricks-cross-account-access`
+  - trust now binds to the Unity Catalog master role and the required external ID
+  - read-only S3 + KMS access for `fraud-platform-dev-full-object-store` is now attached
+
+I then reran the rebuilt `Phase 5.B` probe on the same Databricks serverless boundary and fixed two narrow notebook defects that the managed read exposed:
+
+- `_passed.flag` could not be read through Spark because the notebook first tried a raw S3 access posture and then treated a hidden `_`-prefixed sentinel like a regular Spark text source
+- `ofs_build_v0.py` now reads sentinel text through `dbutils.fs.head(...)` and falls back to Spark only when appropriate
+
+The important judgment is that the original storage blocker is genuinely retired. The latest accepted run:
+
+- `phase5_ofs_dataset_basis_20260312T052250Z`
+
+shows:
+
+- Databricks build run `SUCCESS`
+- Databricks quality run `SUCCESS`
+- managed access surfaces recorded in the run summary:
+  - storage credential id
+  - external location id
+  - UC master role ARN
+  - external ID
+  - object-store bucket
+  - KMS key ARN
+
+Once the managed read path became real, the phase exposed the next truthful blocker immediately:
+
+- `PHASE5.B53_EVENT_HORIZON_EXCEEDS_LABEL_ASOF`
+- current bounded slice:
+  - `event_max_ts_utc = 2026-04-01T00:01:41.104298Z`
+  - `label_asof_utc = 2026-03-12T01:10:38.932670+00:00`
+
+That is no longer a storage defect and no longer a notebook-runtime defect. It is a semantic defect in how the rebuilt phase is currently pinning the learning time boundary.
+
+The current `Phase 5.A` / `Phase 5.B` contradiction is now explicit:
+
+- `Phase 5.A` is deriving `label_asof_utc` from the Phase 4 label-store snapshot timestamp
+- but the bounded OFS world being admitted still spans later event time than that cut
+- the quality gate is therefore correct to fail closed on future leakage risk
+
+This is the right kind of red: the managed path works, and now the remaining blocker is about whether the learning basis is actually time-causal enough to be trusted.
+
+The next honest move is not to relax `PHASE5.B53`. The next move is to repin the learning time-bound law itself:
+
+- either derive a proper `feature_asof_utc` / `label_asof_utc` pair from the promoted world and maturity policy,
+- or switch `Phase 5.B` to a bounded as-of slice posture that uses the authoritative label-store as-of surfaces instead of treating the full 6B truth horizon as directly training-safe.
