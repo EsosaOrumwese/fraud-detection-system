@@ -943,3 +943,151 @@ I want to keep the interrogation of this path inside one entry:
 Plainly stated, the `Boundary access path` exists to ensure that canonical traffic reaches one real, explicit, governed ingress edge, and its current design shows that the boundary is deliberate, materially seated, and no longer muddied by stale ingress alternatives.
 
 The next clean move is the `Admission and disposition path`.
+
+## 2026-03-12 09:14:51 +00:00 - Path interrogation: `Admission and disposition path`
+
+This path exists to turn a request that has already reached the correct ingress boundary into truthful ingress decision. Its job is not "get traffic into the platform somehow." Its job is to decide, deterministically and at the ingress ownership boundary, whether the event is:
+
+- admitted
+- duplicate-safe
+- rejected invalid
+- explicitly marked ambiguous or retry-governed
+- or quarantined
+
+That separation is already visible in the docs: the control and ingress plane is supposed to admit valid traffic, reject invalid traffic, deduplicate repeated traffic, and keep failure classes explicit rather than mixing them together. Later, `P7 INGEST_COMMITTED` closes only when admit and quarantine summaries are committed and dedupe and anomaly checks pass, which means disposition truth is first-class thing, not incidental side effect.
+
+I want to keep the interrogation of this path inside one entry:
+
+1. what this path is trying to achieve:
+   - turn a boundary-valid request into truthful ingress decision
+   - make the ingress ownership boundary decide the event's disposition explicitly rather than leaving it implicit
+   - stop this path at ingress truth rather than letting it collapse into bus publication
+
+2. entry:
+   - the entry to this path is not raw engine data in general
+   - it is request that has already crossed the active front door under the correct route and auth contract, carrying traffic that is actually allowed to behave as traffic
+   - the engine interface is explicit that only `behavioural_streams` are canonical business traffic, and that anything emitted as `behavioural_streams` onto a bus must conform to the canonical event-envelope contract
+   - the current traffic policy is the dual-stream posture:
+     - `s2_event_stream_baseline_6B`
+     - `s3_event_stream_with_fraud_6B`
+   - on the platform side, the current ingress handles pin the active request contract as API Gateway base URL plus `POST /ingest/push` plus `X-IG-Api-Key`
+   - so this path begins only after a boundary-valid traffic request exists
+
+3. owned outcome:
+   - the owned outcome is durable, truthful ingress disposition for this event under this run scope
+   - that means the event is no longer just "in flight at the edge"
+   - it now has ingress truth attached to it:
+     - admitted
+     - duplicate-safe
+     - rejected invalid
+     - quarantined
+     - or explicitly marked ambiguous or retry-governed
+   - with run-scoped evidence sufficient for later investigation
+   - the bus handoff itself belongs to the next path
+   - this path stops at the point where the ingress plane has done its own job and recorded its own truth
+   - that matches both the ingress-shell criteria and the later `P7` closure rule, where admit and quarantine summaries and dedupe checks are committed separately from full downstream proof
+
+4. what the path carries:
+   - the path carries the minimum objects needed to make ingress truth real rather than implied:
+     - run identity: `platform_run_id`
+     - event identity: `event_class`, `event_id`
+     - payload identity: payload hash
+     - dedupe identity: canonical `dedupe_key`
+     - retention and idempotency timing: TTL field
+     - disposition metadata: state, admitted timestamp, and reason codes when present
+   - the implementation notes make this concrete:
+     - the selected IG patch computes deterministic SHA-256 dedupe key from `(platform_run_id, event_class, event_id)`
+     - writes DynamoDB item keyed by that dedupe basis
+     - stores minimal admission metadata
+     - fail-closes with `503` when the idempotency backend is unavailable
+   - the broader identity model from the engine interface also reinforces that execution and run identity and event identity must stay explicit rather than being inferred informally
+
+5. broad route logic:
+   - boundary-accepted request -> IG handler applies ingress contract -> canonical dedupe and admission basis is computed -> authoritative idempotency and admission state is written -> truthful disposition is then returned to the caller and made available for later evidence closure
+   - the key point is that this path closes at disposition truth, not at bus truth
+   - that is why it is separate from the next path
+   - it is also why unknown publish outcome matters here without collapsing this path into publication:
+     - ingress must decide how to classify ambiguity
+     - the readiness criteria are explicit that unknown publish outcomes must become retry-governed or quarantined according to contract and must not be silently marked as success
+   - that is still part of truthful disposition ownership, even though the actual authoritative topic handoff comes next
+
+6. logical design reading:
+   - logically, this path shows that the platform treats ingress truth as its own boundary-owned truth, not just prelude to Kafka
+   - that is important for `A`
+   - the system is not saying:
+     - an event counts as handled once something downstream eventually sees it
+   - it is saying:
+     - the ingress plane itself owns deterministic dedupe and disposition judgment
+   - that matches the broader semantic law in the readiness definition that truth ownership boundaries must be preserved, including the specific rule that ingress truth stays ingress truth
+   - it also matches the ingress-plane requirement that there be one authoritative dedupe boundary
+
+7. concrete seating in the current wired system:
+   - this path is concretely seated in the current wired runtime, not just described abstractly
+   - the design authority pins the default ingress posture as API Gateway plus Lambda plus DynamoDB idempotency store
+   - the handles registry pins the live edge contract around `IG_BASE_URL`, `IG_INGEST_PATH`, `IG_AUTH_MODE`, and `SSM_IG_API_KEY_PATH`
+   - the implementation notes then make the active runtime posture more specific:
+     - the current IG edge runtime is `apigw_lambda_ddb`
+     - the remediation work for active ingress progression was specifically about making the Lambda path persist idempotency and admission records into DynamoDB so the lane could produce non-zero, run-scoped admission truth
+
+8. why the design looks like this:
+   - the current shape is the result of very specific correction
+   - before the patch, `/ingest/push` could return `202` without persisting any run-scoped admission or idempotency record
+   - that was rejected as structurally wrong for the current wired platform because the ingress plane then had no durable proof of its own decision
+   - the alternatives were also rejected for good reasons:
+     - direct DynamoDB seed writes were rejected because they bypass the ingress boundary and would not prove runtime semantics
+     - treating the issue as non-blocking was rejected because it would violate the fail-closed gate contract
+   - so the selected fix was not cosmetic
+   - it was boundary correction:
+     - put truthful admission persistence inside the IG Lambda path itself
+
+9. what larger contracts are shaping this path:
+   - two larger contracts are strongly shaping it
+   - first, the engine interface contract shapes what may even appear at ingress:
+     - only `behavioural_streams` are canonical traffic
+     - canonical traffic must conform to the event-envelope contract
+     - non-traffic surfaces must not be treated as business traffic
+   - second, the platform authority shapes how ingress is allowed to exist:
+     - managed-first ingress posture
+     - explicit dedupe identity and payload-hash anomaly law
+     - explicit truth boundaries
+     - no silent defaults or local or toy substitutes in pinned lanes
+   - so this path is constrained both by what is allowed to enter and by how ingress truth is allowed to be owned
+
+10. trade-offs and constraints:
+   - this path deliberately accepts some hot-path ceremony in exchange for truthfulness
+   - durable dedupe and admission ledger adds write pressure and cost to the ingress hot path
+   - the later readiness notes show that this became real operational concern:
+     - the idempotency table became dominant cost surface when full receipt bodies were stored inline
+   - the platform did not solve that by abandoning the ledger boundary
+   - instead, it kept the proven fast `ddb_hot` posture and compacted the stored receipt shape to the minimum fields needed for run attribution and lookup
+   - that is a good example of the distinction that matters here:
+     - the ownership boundary stayed the same
+     - while the concrete implementation was tightened
+
+11. necessity test:
+   - if this path is removed, the ingress story becomes immediately weaker
+   - the platform might still have front door, and it might still publish some things later, but it would lose clean answer to basic questions:
+     - was this event first-seen or duplicate
+     - was it admitted or quarantined
+     - what run did that decision belong to
+     - was the ingress plane itself behaving truthfully
+     - is downstream starvation publication issue, or was the event never actually admitted
+   - that is exactly why the docs keep returning to explicit disposition classes, dedupe correctness, and durable receipt and quarantine truth
+   - without this path, downstream components would be forced to infer ingress truth after the fact, which would blur ownership and weaken `A`
+
+12. what this path proves for `A`:
+   - purpose claim:
+     - ingress does not merely pass traffic through; it owns deterministic admission and disposition decision
+   - intentionality claim:
+     - the dedupe boundary and disposition logic are deliberate and explicit, not accidental consequences of downstream publish
+   - materialization claim:
+     - the path is concretely seated in the current `apigw_lambda_ddb` posture with DynamoDB-backed idempotency and admission state
+   - contract claim:
+     - only the right traffic types are eligible, and ingress truth remains ingress truth
+   - quantified closure claim:
+     - later closure is not vague
+     - `P7` explicitly requires admit and quarantine summaries plus dedupe and anomaly checks, which means this path has named evidence closure downstream in the runbook
+
+Plainly stated, the `Admission and disposition path` exists to make ingress truth explicit before event-bus truth begins, and its current design shows that this is deliberate, materially seated, and ownership-aware rather than hand-wavy.
+
+The next path is the `Authoritative bus publication path`.
