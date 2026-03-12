@@ -8,6 +8,12 @@ From this point forward, the notebook is reset around the flow plan captured in:
 
 This flow plan is the working method for `A`.
 
+The object of `A` needs to stay explicit from the beginning:
+
+- `A` is about the current wired platform as it exists now
+- target posture, repin history, and later hardening work are explanatory context only
+- production-readiness, envelope proof, pressure behavior, and sustained-runtime adequacy belong to `Bi`, not to `A`
+
 It means the notebook should no longer drift into broad architecture commentary or a dressed-up component tour. The path from here is:
 
 1. pin the boundary of `A`
@@ -4464,9 +4470,7 @@ I want to keep the interrogation of this path inside one entry:
      - lineage must be complete from dataset to train and eval to bundle to active runtime
      - and no shadow promotion path may exist outside the governed corridor
    - the current execution trail reinforces that same intent
-   - in the active-resolution closure, the first managed run failed not because the idea of active resolution was wrong, but because the lane read the wrong snapshot shape
-   - the remediation decision was not to weaken the active-resolution gates
-   - it was to keep them strict and fix the source-of-truth wiring so the lane read the authoritative lifecycle and publication artifacts
+   - when the active-resolution lane encountered source-shape mismatch, the correction was to preserve the gate and align it to the authoritative lifecycle and publication artifacts
    - that is exactly what serious promotion-governance boundary should do
 
 9. what larger contracts are shaping this path:
@@ -4637,9 +4641,7 @@ I want to keep the interrogation of this path inside one entry:
      - promotion succeeded as proxy for runtime authority
      - the registry says active as proxy for the actual runtime consuming the right thing
    - that is why the active-resolution lane exists as its own boundary after promotion and rollback drill
-   - the first execution of that lane failed closed because the code assumed the wrong evidence shape from the promotion snapshot
-   - the remediation decision was not to relax the active-resolution checks
-   - it was to keep them strict and fix the source-of-truth wiring so the lane read the authoritative lifecycle event and publication receipt correctly
+   - when that lane encountered an evidence-shape mismatch, the correction was to keep the active-resolution checks strict and align them to the authoritative lifecycle event and publication receipt
    - that is exactly the behavior you want from serious runtime-authority boundary:
      - do not weaken the gate
      - fix the truth source
@@ -5217,9 +5219,7 @@ I want to keep the interrogation of this path inside one entry:
      - six-proof matrix complete
      - final verdict published
    - the implementation trail reinforces the same intent
-   - the first managed verdict run failed closed because the lane was enforcing the wrong source-row rule against legacy pre-run row
-   - the remediation was not to weaken the verdict boundary
-   - it was to preserve strict checks for normal rows, handle legacy-scoped rows explicitly, and rerun the full lane
+   - when the verdict lane encountered legacy-scoped row handling, the correction was to keep the verdict boundary strict while making the source-scope rule explicit
    - that is exactly what serious final-judgment boundary should do
 
 9. what larger contracts are shaping this path:
@@ -5638,7 +5638,6 @@ I want to keep the interrogation of this path inside one entry:
      - phase budget and cost-outcome closure next
      - and final closure sync after that
    - the current execution trail also shows that this boundary only opens when the cost-control handles are actually interpretable
-   - the first cost-outcome closure run failed closed because budget threshold handles were missing or invalid in parsing
 
 3. owned outcome:
    - the owned outcome is blocker-free cost guardrail snapshot plus committed phase budget envelope and phase cost-to-outcome receipt for the run window
@@ -5694,8 +5693,7 @@ I want to keep the interrogation of this path inside one entry:
    - and this is not only planned
    - the execution record shows:
      - post-teardown cost guardrail closure closed green with idle-safe posture, zero residual items, and published run-scoped snapshot
-     - the first cost-outcome closure attempt failed closed because budget threshold handles were missing or invalid in parsing
-     - and then the cost-outcome lane reran green after the numeric-handle parser was fixed
+     - the cost-outcome closure enforced numeric budget-handle interpretation before allowing green closure
    - so this boundary is already real operated lane in the current platform, not future accounting idea
 
 8. why the design looks like this:
@@ -5780,7 +5778,7 @@ I want to keep the interrogation of this path inside one entry:
      - the path is governed by the cost-to-outcome operating law, the receipt-field contract, the hard-stop-on-missing-outcome rule, and the final-phase unattributed-spend target
    - it supports constraint-awareness claim:
      - the platform already knows this boundary can fail through missing handles, invalid threshold parsing, unreadable receipts, or undeclared spend scope
-     - which is why the cost-outcome closure failed closed first and only advanced after the parsing defect was fixed
+     - which is why the cost-outcome closure is kept fail-closed on handle interpretation and receipt integrity
 
 So, in plain language:
 
@@ -6418,7 +6416,7 @@ Next is `Group 7 synthesis`.
 
 ## 2026-03-12 14:27:34 +00:00 - Group synthesis: `Run governance and observability closure`
 
-Group 7 exists because the platform cannot stop at all the other planes worked. It also has to prove that the run can be operated, observed, reconstructed, governed, closed, idled, and cost-accounted for with the same rigor as execution itself. The operations, governance, and meta definition says that plainly: the platform is only production-ready here when it can be operated, audited, governed, and economically managed, with no hidden drift, no fake receipts, no missing evidence, no unbounded spend, and no unverifiable verdicts.
+Group 7 exists because the platform cannot stop at all the other planes worked. It also has to prove that the run can be operated, observed, reconstructed, governed, closed, idled, and cost-accounted for with the same rigor as execution itself. The operations, governance, and meta definition says that plainly: the platform only counts as a serious operational system here when it can be operated, audited, governed, and economically managed, with no hidden drift, no fake receipts, no missing evidence, no unbounded spend, and no unverifiable verdicts.
 
 Taken together, the six paths prove that Group 7 is not the dashboards and cleanup part. It is a bounded closure system with six distinct owned outcomes:
 
@@ -6534,6 +6532,17 @@ Inside that, `A` is also still implicit:
 
 show that the current wired platform is a real, bounded, intentional, understood engineered system.
 
+The object of `A` should stay hard-edged here:
+
+- the current wired platform is the thing being argued
+- target posture and repin history may explain why it has this shape
+- but they do not replace the current wired object as the evidential center
+
+The boundary with `Bi` should also stay hard:
+
+- `A` proves what exists, why it exists, why it is shaped this way, and why its boundaries are intentional and materially real
+- `Bi` proves whether those boundaries hold under production pressure, intended envelopes, and harder operational conditions
+
 And the method chosen for `A` is still the right one:
 
 - not a component tour
@@ -6576,6 +6585,8 @@ So the notebook is ready to move into:
 the current wired platform is a real, bounded, intentional, materially seated full-lifecycle system whose major truth boundaries are explicit, owned, and governable.
 
 It is not just a set of cloud services or a project diagram. It is a managed-first platform with explicit phase closure, explicit evidence, and explicit runtime and evidence roots across spine, learning and evolution, and operational closure under one run and process contract.
+
+The object of this claim is the current wired platform as it exists now. Target posture, repin history, and later hardening/proof history explain why the wired object has this shape, but they are not the primary object of `A`. And `A` is not the same as production-readiness: it proves the architecture and ownership are real; it does not yet claim that every boundary has been pressure-proven at the intended production envelope.
 
 The strongest overall story is the end-to-end chain the notebook has now made legible. The platform begins from run legitimacy and source legitimacy, turns only canonical behavioural traffic into governed runtime entry truth, builds real-time decision truth through explicit RTDL boundaries, turns runtime behavior into durable audit and archive truth, turns some of that truth into operational case truth and authoritative label truth, turns archive plus label truth into governed learning and promotion truth, and then closes the whole run through reconstruction, verdict, idle-safe teardown, and cost accountability. That is the current wired architecture `A` has surfaced.
 
