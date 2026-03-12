@@ -230,6 +230,36 @@ These are starting facts only. They are not closure evidence.
   - SageMaker execution role and model package group readable
   - MLflow tracking mode resolved through Databricks
 
+### Rebuilt Phase 5.A accepted execution
+- `execution_id = phase5_learning_mlops_20260312T041559Z`
+- `verdict = PHASE5A_READY`
+- `open_blockers = 0`
+- accepted facts from the rebuilt gate:
+  - upstream label truth is materially present and clean:
+    - `case_mgmt labels_accepted = 2931`
+    - `label_store accepted = 3080`
+    - `label_store pending = 0`
+    - `label_store rejected = 0`
+  - intended outputs remain limited to:
+    - `s2_event_stream_baseline_6B`
+    - `s3_event_stream_with_fraud_6B`
+  - both intended outputs resolve as `business_traffic`
+  - `6B.S5` remains readable with `overall_status = WARN`, but all required machine rails are `PASS`
+  - Databricks / SageMaker / MLflow managed surfaces remain materially readable
+
+### First honest Phase 5.B blocker after the rebuilt gate
+- the retained Databricks OFS build / quality jobs are currently wired to repo-managed source files that are still bootstrap stubs:
+  - `platform/databricks/dev_full/ofs_build_v0.py`
+  - `platform/databricks/dev_full/ofs_quality_v0.py`
+- those sources prove only that the workspace execution surface is alive
+- they do not yet prove:
+  - current-world dataset-basis construction,
+  - leakage / as-of / maturity enforcement,
+  - supervision coverage sufficiency,
+  - or manifest / lineage completeness
+- therefore the current `Phase 5.B` blocker is now explicit:
+  - the managed OFS build source is too shallow for the rebuilt dataset-basis proof
+
 ### Important caution on prior exploratory receipts
 - recent exploratory receipts and scripts may still be useful for narrowing and reuse,
 - but they are not to be treated as final `Phase 5` closure authority unless and until the rebuilt subphase structure above is honestly satisfied.
@@ -244,10 +274,10 @@ These are starting facts only. They are not closure evidence.
 
 ## Current immediate execution order
 
-1. repin `Phase 5.A` as a true semantic admission + telemetry gate,
-2. decide the smallest honest `Phase 5.B` dataset-basis proof,
-3. run that bounded proof with fail-fast telemetry,
-4. make an explicit method judgment on the current `5.C` / `5.D` workflow dependence,
+1. keep the accepted rebuilt `Phase 5.A` execution as the current semantic-admission authority,
+2. replace the stubbed Databricks OFS build / quality source with a truthful bounded current-world dataset-basis proof,
+3. run that bounded managed OFS proof with fail-fast telemetry,
+4. only after `Phase 5.B` is materially green make an explicit method judgment on the current `5.C` / `5.D` workflow dependence,
 5. only after that judgment move deeper into train/eval and promotion / rollback proof.
 
 ## Phase closure rule

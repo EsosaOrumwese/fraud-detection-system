@@ -84,6 +84,30 @@ def generated_at(snapshot: dict[str, Any], component: str) -> str:
     return str(payload.get("generated_at_utc") or snapshot.get("generated_at_utc") or "").strip()
 
 
+def parse_s3_uri(uri: str) -> tuple[str, str]:
+    value = str(uri or "").strip()
+    if not value.startswith("s3://"):
+        raise ValueError(f"invalid_s3_uri:{value}")
+    bucket, _, key = value[5:].partition("/")
+    if not bucket or not key:
+        raise ValueError(f"invalid_s3_uri:{value}")
+    return bucket, key
+
+
+def s3_read_json(s3: Any, uri: str) -> dict[str, Any]:
+    bucket, key = parse_s3_uri(uri)
+    body = s3.get_object(Bucket=bucket, Key=key)["Body"].read().decode("utf-8")
+    payload = json.loads(body)
+    if not isinstance(payload, dict):
+        raise ValueError("json_not_object")
+    return payload
+
+
+def s3_read_text(s3: Any, uri: str) -> str:
+    bucket, key = parse_s3_uri(uri)
+    return s3.get_object(Bucket=bucket, Key=key)["Body"].read().decode("utf-8")
+
+
 def find_job_id(base_url: str, token: str, job_name: str) -> int | None:
     page_token = ""
     while True:
@@ -232,6 +256,7 @@ def main() -> None:
     ssm = boto3.client("ssm", region_name=args.aws_region)
     iam = boto3.client("iam", region_name=args.aws_region)
     sm = boto3.client("sagemaker", region_name=args.aws_region)
+    s3 = boto3.client("s3", region_name=args.aws_region)
 
     dbx_workspace_url_path = str(registry.get("SSM_DATABRICKS_WORKSPACE_URL_PATH") or "").strip()
     dbx_token_path = str(registry.get("SSM_DATABRICKS_TOKEN_PATH") or "").strip()
@@ -296,8 +321,76 @@ def main() -> None:
     if not mlflow_probe_ok:
         blockers.append(f"PHASE5.A16_MLFLOW_SURFACE_UNREADABLE:{mlflow_probe_detail}")
 
-    notes.append("Phase 5.A is telemetry-first: this gate scores only whether the managed learning corridor is readable and attributable from the promoted Phase 4 truth boundary.")
-    notes.append("No learning jobs are dispatched here. The objective is to eliminate blindspots before the first bounded learning slice.")
+    oracle_root = str((((bootstrap.get("oracle") or {})).get("oracle_engine_run_root")) or "").strip()
+    manifest_fingerprint = str((((bootstrap.get("oracle") or {})).get("manifest_fingerprint")) or "").strip()
+    object_store_bucket = str(registry.get("S3_OBJECT_STORE_BUCKET") or "").strip()
+    facts_view_ref = str((((bootstrap.get("sr") or {})).get("facts_view_ref")) or "").strip()
+    facts_view_uri = f"s3://{object_store_bucket}/{facts_view_ref.lstrip('/')}" if object_store_bucket and facts_view_ref else ""
+    intended_outputs: list[str] = []
+    output_roles: dict[str, str] = {}
+    if not facts_view_uri:
+        blockers.append("PHASE5.A17_FACTS_VIEW_REF_UNRESOLVED")
+    else:
+        try:
+            run_facts = s3_read_json(s3, facts_view_uri)
+            intended_outputs = [str(item).strip() for item in run_facts.get("intended_outputs", []) if str(item).strip()]
+            for key, value in (run_facts.get("output_roles") or {}).items():
+                name = str(key).strip()
+                if not name:
+                    continue
+                if isinstance(value, dict):
+                    output_roles[name] = str(value.get("role") or "").strip()
+                else:
+                    output_roles[name] = str(value or "").strip()
+        except (BotoCoreError, ClientError, ValueError, KeyError, json.JSONDecodeError):
+            blockers.append("PHASE5.A18_FACTS_VIEW_UNREADABLE")
+    allowed_outputs = {"s2_event_stream_baseline_6B", "s3_event_stream_with_fraud_6B"}
+    if intended_outputs and set(intended_outputs) != allowed_outputs:
+        blockers.append("PHASE5.A19_UNAUTHORIZED_INTENDED_OUTPUTS")
+    if any(output_roles.get(name) != "business_traffic" for name in intended_outputs):
+        blockers.append("PHASE5.A20_OUTPUT_ROLE_MISMATCH")
+
+    sixb_flag_uri = ""
+    validation_uri = ""
+    sixb_flag_hash = ""
+    validation_status = ""
+    validation_checks: dict[str, str] = {}
+    if not oracle_root or not manifest_fingerprint:
+        blockers.append("PHASE5.A21_ORACLE_GATE_BASIS_UNRESOLVED")
+    else:
+        sixb_flag_uri = (
+            f"{oracle_root}/data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag"
+        )
+        validation_uri = (
+            f"{oracle_root}/data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/s5_validation_report_6B.json"
+        )
+        try:
+            sixb_flag_hash = s3_read_text(s3, sixb_flag_uri).strip()
+            validation_report = s3_read_json(s3, validation_uri)
+            validation_status = str(validation_report.get("overall_status") or "").strip().upper()
+            for row in validation_report.get("checks", []) or []:
+                if not isinstance(row, dict):
+                    continue
+                check_name = str(row.get("check_id") or row.get("name") or "").strip()
+                if check_name:
+                    validation_checks[check_name] = str(row.get("result") or row.get("status") or "").strip().upper()
+            if validation_status not in {"PASS", "WARN"}:
+                blockers.append(f"PHASE5.A22_6B_STATUS_RED:{validation_status or 'UNSET'}")
+            for check_name in (
+                "REQ_UPSTREAM_HASHGATES",
+                "REQ_FLOW_EVENT_PARITY",
+                "REQ_FLOW_LABEL_COVERAGE",
+                "REQ_CRITICAL_TRUTH_REALISM",
+                "REQ_CRITICAL_CASE_TIMELINE",
+            ):
+                if validation_checks.get(check_name) != "PASS":
+                    blockers.append(f"PHASE5.A23_6B_REQUIRED_CHECK_RED:{check_name}")
+        except (BotoCoreError, ClientError, ValueError, KeyError, json.JSONDecodeError):
+            blockers.append("PHASE5.A24_6B_GATE_UNREADABLE")
+
+    notes.append("Phase 5.A is telemetry-first and semantic-admission-first: this gate now scores both managed learning surface readability and whether the current world is admissible through interface-pack and 6B gate truth.")
+    notes.append("No learning jobs are dispatched here. The objective is to eliminate blindspots and basis ambiguity before the first bounded dataset-basis proof.")
+    notes.append("The rebuilt Phase 5 keeps OFS dataset-basis proof ahead of any acceptance of train/eval or promotion claims.")
 
     summary = {
         "phase": "PHASE5",
@@ -320,6 +413,18 @@ def main() -> None:
             "label_store_pending": label_store_pending,
             "label_store_rejected": label_store_rejected,
             "label_asof_utc": label_asof_utc,
+        },
+        "semantic_admission": {
+            "facts_view_ref": facts_view_uri,
+            "intended_outputs": intended_outputs,
+            "output_roles": output_roles,
+            "oracle_root": oracle_root,
+            "manifest_fingerprint": manifest_fingerprint,
+            "sixb_passed_flag_ref": sixb_flag_uri,
+            "sixb_passed_flag_sha256_hex": sixb_flag_hash,
+            "sixb_validation_report_ref": validation_uri,
+            "sixb_validation_status": validation_status,
+            "sixb_validation_checks": validation_checks,
         },
         "managed_surfaces": {
             "databricks": {
@@ -350,9 +455,9 @@ def main() -> None:
         },
         "notes": notes,
         "assessment": (
-            "Phase 5.A telemetry gate is green: the managed learning corridor is readable from the promoted Phase 4 truth boundary."
+            "Phase 5.A semantic admission and telemetry gate is green: the current world is admissible and the managed learning corridor is readable from the promoted Phase 4 truth boundary."
             if len(blockers) == 0
-            else "Phase 5.A telemetry gate is not green yet; the first bounded learning slice would still be partly blind or unresolved."
+            else "Phase 5.A semantic admission and telemetry gate is not green yet; the first bounded learning slice would still be blind, basis-ambiguous, or operationally unresolved."
         ),
     }
     receipt_payload = {

@@ -5409,3 +5409,78 @@ This is exactly the kind of under-the-hood distinction the rushed closeout misse
 - the learning corridor is not one uniform boundary
 - different subphases have different execution truths
 - Phase 5 has to be planned around those truths rather than around a convenient single green story
+
+## 2026-03-12 04:17:41 +00:00 - Rebuilt Phase 5.A is now honestly green on semantic admission, current-world truth, and managed-surface readability
+
+I executed the rebuilt `Phase 5.A` gate on the current promoted source scope:
+
+- `execution_id = phase5_learning_mlops_20260312T041559Z`
+- `source_execution_id = phase4_case_label_coupled_20260312T003302Z`
+- `platform_run_id = platform_20260312T003302Z`
+- `verdict = PHASE5A_READY`
+- `open_blockers = 0`
+
+This is materially different from the earlier exploratory receipt because the gate now proves the semantic-admission boundary as well as the managed-surface boundary.
+
+What is now pinned and accepted:
+
+- current upstream label truth is materially present and clean:
+  - `case_mgmt labels_accepted = 2931`
+  - `label_store accepted = 3080`
+  - `label_store pending = 0`
+  - `label_store rejected = 0`
+- the current world is admitted only through the intended `6B` business-traffic surfaces:
+  - `s2_event_stream_baseline_6B`
+  - `s3_event_stream_with_fraud_6B`
+- both intended outputs carry `business_traffic`
+- the current world's `6B.S5` gate is readable and acceptable for learning admission:
+  - `_passed.flag` present
+  - `s5_validation_report_6B.json` readable
+  - `overall_status = WARN`
+  - all required machine-gate rails are `PASS`:
+    - `REQ_UPSTREAM_HASHGATES`
+    - `REQ_FLOW_EVENT_PARITY`
+    - `REQ_FLOW_LABEL_COVERAGE`
+    - `REQ_CRITICAL_TRUTH_REALISM`
+    - `REQ_CRITICAL_CASE_TIMELINE`
+- managed learning surfaces are readable on the current repo/runtime posture:
+  - Databricks workspace URL and user resolved
+  - OFS build job id `736420749736071`
+  - OFS quality job id `37768192213816`
+  - SageMaker execution role trust valid and package group present
+  - MLflow tracking mode resolves correctly as Databricks-backed tracking
+
+That means the rebuilt Learning phase is no longer open on semantic admission ambiguity. `Phase 5.A` is green on the current standard.
+
+## 2026-03-12 04:17:41 +00:00 - The first honest Phase 5.B blocker is not dataset truth; it is that the retained Databricks OFS build and quality sources are still bootstrap stubs
+
+After `Phase 5.A` went green, I stopped treating the retained OFS Databricks path as trustworthy merely because the jobs exist and the control surface is readable. I read the current repo-managed Databricks sources directly:
+
+- `platform/databricks/dev_full/ofs_build_v0.py`
+- `platform/databricks/dev_full/ofs_quality_v0.py`
+
+That exposed a real production-readiness blocker:
+
+- both files are only bootstrap markers
+- neither one performs a current-world OFS dataset-basis build
+- neither one performs bounded leakage, as-of, maturity, supervision-coverage, or manifest-completeness proof
+- therefore the retained Databricks OFS jobs cannot honestly satisfy rebuilt `Phase 5.B` as currently wired
+
+This is an important methodological distinction:
+
+- the Databricks control plane is green
+- the current semantic-admission boundary is green
+- but the active managed OFS execution source is still too shallow to prove the real Phase 5.B goal
+
+So the active blocker is now explicit and narrow:
+
+- `Phase 5.B` is blocked by stubbed Databricks OFS build/quality source, not by missing world truth and not by missing managed-surface readability
+
+The right next move is not to reuse the old bound rollup and call it good. The right next move is to repin the Databricks OFS source to a bounded current-world dataset-basis proof so the managed execution surface actually proves:
+
+- admissible world basis,
+- leakage-safe / as-of-safe dataset construction,
+- supervision coverage truth,
+- and attributable manifest/lineage outputs
+
+That is the first real Learning implementation defect revealed by the rebuilt phase posture, and it is the next boundary to fix.
