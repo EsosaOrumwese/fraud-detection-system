@@ -5682,3 +5682,32 @@ So the active Phase 5 work has now genuinely moved on:
 - the remaining work in `Phase 5` is now `Phase 5.C` and `Phase 5.D`:
   - train / eval on the same admitted basis
   - promotion / rollback / active-truth proof on the same evidence chain
+
+## 2026-03-12 06:02:48 +00:00 - The retained M11 train/eval lane is not yet acceptable closure authority for Phase 5.C because it does not actually train on the admitted OFS basis
+
+I read the retained `dev_full_m11_managed.yml` body instead of assuming that a green managed train/eval receipt would automatically satisfy `Phase 5.C`.
+
+That was the right call. The current `M11.D` workflow is not using the admitted Phase 5 dataset basis at all. It:
+
+- reads the upstream fingerprint
+- derives a deterministic seed from that fingerprint
+- synthesizes convenience CSV rows in the workflow itself
+- trains and evaluates SageMaker on those generated rows
+
+That means the current retained managed lane is useful as a managed-surface operability reference, but it is not acceptable as `Phase 5.C` closure proof under the rebuilt standard. It cannot answer the actual subphase question:
+
+- did train / eval use the same admitted OFS dataset basis we just proved in `Phase 5.B`?
+
+The answer right now is no.
+
+So I am not going to reuse the earlier rushed `Phase 5` closure posture here. The honest judgment is:
+
+- `Phase 5.A` is green
+- `Phase 5.B` is green
+- `Phase 5.C` is now the active blocker
+- the blocker is semantic and methodological, not just "workflow vs CLI"
+
+More precisely:
+
+- the retained `M11.D` lane fails the "same admitted basis" rule before it even reaches the workflow-dependence question
+- therefore the next repair is to repin `Phase 5.C` onto the actual bounded OFS basis and only then decide whether the execution surface itself also needs to move off workflow dispatch

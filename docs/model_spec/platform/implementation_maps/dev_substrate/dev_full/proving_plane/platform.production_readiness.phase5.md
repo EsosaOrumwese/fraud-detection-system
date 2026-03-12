@@ -314,18 +314,22 @@ These are starting facts only. They are not closure evidence.
 ### Current execution-path constraint already visible
 - retained OFS execution still has a direct Databricks API path and can support a CLI-first managed proof
 - retained MF train/eval and retained MPR promotion still default to GitHub workflow dispatch
-- that means the rebuilt phase should move first on:
+- reading the retained `M11.D` lane also exposed a deeper semantic problem before the execution-surface question:
+  - the current workflow does not actually train on the admitted OFS basis
+  - it synthesizes convenience CSV rows from a fingerprint-derived seed
+  - so it is useful as a managed-surface operability reference only, not as `Phase 5.C` closure authority
+- that means the rebuilt phase should now move on:
   - semantic admission,
   - dataset-basis proof,
-  - and now an explicit method judgment on whether `Phase 5.C` and `Phase 5.D` can be accepted on the retained workflow-dispatch lane or need a more direct managed repin
+  - and then a repin of `Phase 5.C` onto the actual bounded OFS basis before any decision is made about whether workflow dispatch itself is acceptable
 
 ## Current immediate execution order
 
 1. keep `phase5_learning_mlops_20260312T054200Z` as the current semantic-admission authority,
 2. keep `phase5_ofs_dataset_basis_20260312T054900Z` as the accepted `Phase 5.B` dataset-basis authority,
 3. keep the codified Databricks storage credential / external location / AWS role repair as the fixed managed-read posture,
-4. decide whether the retained MF train/eval surface can be accepted under workflow dispatch for `Phase 5.C` or whether that is too weak for the production-readiness method,
-5. if the retained lane is acceptable, prove train/eval on the same admitted dataset basis and current-world truth chain,
+4. repin `Phase 5.C` so train/eval consumes the same admitted bounded OFS basis rather than the retained fingerprint-seeded convenience CSV path,
+5. only after that semantic repin, decide whether the execution surface itself can remain workflow-dispatched or needs a more direct managed path,
 6. then carry the same evidence chain into `Phase 5.D` promotion / rollback / active-truth proof.
 
 ## Phase closure rule
