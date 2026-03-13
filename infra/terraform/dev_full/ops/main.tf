@@ -2,6 +2,11 @@ provider "aws" {
   region = var.aws_region
 }
 
+provider "aws" {
+  alias  = "billing"
+  region = "us-east-1"
+}
+
 data "aws_caller_identity" "current" {}
 
 data "aws_iam_role" "github_actions" {
@@ -27,12 +32,13 @@ locals {
         width  = 12
         height = 6
         properties = {
-          title   = "Ingress Lambda Errors and Duration"
+          title   = "Ingress Lambda Errors / Throttles / Duration"
           region  = var.aws_region
           view    = "timeSeries"
           stacked = false
           metrics = [
             ["AWS/Lambda", "Errors", "FunctionName", "fraud-platform-dev-full-ig-handler"],
+            [".", "Throttles", ".", "."],
             [".", "Duration", ".", ".", { stat = "p95", yAxis = "right" }]
           ]
         }
@@ -44,13 +50,49 @@ locals {
         width  = 12
         height = 6
         properties = {
-          title   = "Ingress API Gateway HTTP Anomalies"
+          title   = "Ingress API Gateway Count / 4xx / 5xx"
           region  = var.aws_region
           view    = "timeSeries"
           stacked = false
           metrics = [
+            ["AWS/ApiGateway", "Count", "ApiId", "pd7rtjze95", "Stage", "v1"],
             ["AWS/ApiGateway", "4xx", "ApiId", "pd7rtjze95", "Stage", "v1"],
             [".", "5xx", ".", ".", ".", "."]
+          ]
+        }
+      }
+      ,
+      {
+        type   = "metric"
+        x      = 0
+        y      = 6
+        width  = 12
+        height = 6
+        properties = {
+          title   = "EKS Unschedulable / Scheduler Errors"
+          region  = var.aws_region
+          view    = "timeSeries"
+          stacked = false
+          metrics = [
+            ["AWS/EKS", "scheduler_pending_pods_UNSCHEDULABLE", "ClusterName", "fraud-platform-dev-full"],
+            [".", "scheduler_schedule_attempts_ERROR", ".", "."]
+          ]
+        }
+      },
+      {
+        type   = "metric"
+        x      = 12
+        y      = 6
+        width  = 12
+        height = 6
+        properties = {
+          title   = "EKS API Server 5xx / 429"
+          region  = var.aws_region
+          view    = "timeSeries"
+          stacked = false
+          metrics = [
+            ["AWS/EKS", "apiserver_request_total_5XX", "ClusterName", "fraud-platform-dev-full"],
+            [".", "apiserver_request_total_429", ".", "."]
           ]
         }
       }
@@ -76,11 +118,28 @@ locals {
         }
       },
       {
-        type   = "text"
+        type   = "metric"
         x      = 12
         y      = 0
         width  = 12
         height = 6
+        properties = {
+          title   = "EKS Runtime Residual Risk"
+          region  = var.aws_region
+          view    = "timeSeries"
+          stacked = false
+          metrics = [
+            ["AWS/EKS", "scheduler_pending_pods", "ClusterName", "fraud-platform-dev-full"],
+            [".", "scheduler_pending_pods_UNSCHEDULABLE", ".", "."]
+          ]
+        }
+      },
+      {
+        type   = "text"
+        x      = 0
+        y      = 6
+        width  = 24
+        height = 4
         properties = {
           markdown = join("\n", [
             "# Budget Guardrail",
@@ -88,7 +147,8 @@ locals {
             "- Budget name: `${var.budget_name}`",
             "- Monthly limit: `${var.budget_limit_amount} ${var.budget_limit_unit}`",
             "- Alert thresholds: `${join(", ", [for t in var.budget_alert_thresholds : tostring(t)])}`",
-            "- Notification email: `${var.budget_alert_email}`"
+            "- Notification email: `${var.budget_alert_email}`",
+            "- This dashboard is paired with the bounded Phase 7 idle/restart drill and residual scan."
           ])
         }
       }
@@ -192,6 +252,106 @@ resource "aws_cloudwatch_dashboard" "platform_operations" {
 resource "aws_cloudwatch_dashboard" "cost_guardrail" {
   dashboard_name = var.dashboard_cost_guardrail_name
   dashboard_body = local.cost_guardrail_dashboard_body
+}
+
+resource "aws_cloudwatch_metric_alarm" "ig_lambda_errors" {
+  alarm_name          = "fraud-platform-dev-full-ig-lambda-errors"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  datapoints_to_alarm = 1
+  metric_name         = "Errors"
+  namespace           = "AWS/Lambda"
+  period              = 60
+  statistic           = "Sum"
+  threshold           = 0
+  treat_missing_data  = "notBreaching"
+  dimensions = {
+    FunctionName = "fraud-platform-dev-full-ig-handler"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "ig_lambda_throttles" {
+  alarm_name          = "fraud-platform-dev-full-ig-lambda-throttles"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  datapoints_to_alarm = 1
+  metric_name         = "Throttles"
+  namespace           = "AWS/Lambda"
+  period              = 60
+  statistic           = "Sum"
+  threshold           = 0
+  treat_missing_data  = "notBreaching"
+  dimensions = {
+    FunctionName = "fraud-platform-dev-full-ig-handler"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "ig_apigw_5xx" {
+  alarm_name          = "fraud-platform-dev-full-ig-apigw-5xx"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  datapoints_to_alarm = 1
+  metric_name         = "5xx"
+  namespace           = "AWS/ApiGateway"
+  period              = 60
+  statistic           = "Sum"
+  threshold           = 0
+  treat_missing_data  = "notBreaching"
+  dimensions = {
+    ApiId = "pd7rtjze95"
+    Stage = "v1"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "eks_unschedulable_pods" {
+  alarm_name          = "fraud-platform-dev-full-eks-unschedulable-pods"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  datapoints_to_alarm = 1
+  metric_name         = "scheduler_pending_pods_UNSCHEDULABLE"
+  namespace           = "AWS/EKS"
+  period              = 60
+  statistic           = "Maximum"
+  threshold           = 0
+  treat_missing_data  = "notBreaching"
+  dimensions = {
+    ClusterName = "fraud-platform-dev-full"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "eks_apiserver_5xx" {
+  alarm_name          = "fraud-platform-dev-full-eks-apiserver-5xx"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  datapoints_to_alarm = 1
+  metric_name         = "apiserver_request_total_5XX"
+  namespace           = "AWS/EKS"
+  period              = 60
+  statistic           = "Sum"
+  threshold           = 0
+  treat_missing_data  = "notBreaching"
+  dimensions = {
+    ClusterName = "fraud-platform-dev-full"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "billing_estimated_charges" {
+  provider            = aws.billing
+  alarm_name          = "fraud-platform-dev-full-billing-estimated-charges"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  datapoints_to_alarm = 1
+  metric_name         = "EstimatedCharges"
+  namespace           = "AWS/Billing"
+  period              = 21600
+  statistic           = "Maximum"
+  threshold           = var.budget_limit_amount
+  alarm_description   = "Phase 7 cost guardrail for dev_full bounded hardening."
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    Currency = var.budget_limit_unit
+  }
 }
 
 resource "aws_iam_role_policy" "github_actions_m6f_remote" {

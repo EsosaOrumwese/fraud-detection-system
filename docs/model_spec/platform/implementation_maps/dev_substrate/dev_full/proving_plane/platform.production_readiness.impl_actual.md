@@ -6499,3 +6499,129 @@ The repo authority should now be updated accordingly:
 - `Phase 6` closed green
 - `Learning + Evolution / MLOps` promoted into the working platform
 - the next active proving boundary is `Phase 7 - Operations / Governance / Meta readiness`
+
+## 2026-03-12 23:45:10 +00:00 - Phase 7 opened on the real operational boundary and the first blocker is missing operator coverage, not runtime failure
+
+Before spending on any Phase 7 proof run, I re-anchored on the actual Ops / Gov / Meta truth anchor instead of assuming the later plane would naturally absorb every day-2 responsibility. The boundary is now explicit:
+
+- `Phase 5` / `Phase 6` already own semantic learning correctness and runtime feedback continuity
+- `Phase 7` owns operational reconstructability, evidence readback, dashboards / alarms, cost discipline, idle / restart posture, handle / secret integrity, and drift visibility
+
+The live AWS surface immediately showed two important things:
+
+- the dashboards exist:
+  - `fraud-platform-dev-full-operations`
+  - `fraud-platform-dev-full-cost-guardrail`
+- but the alarm surface is effectively absent on the current `fraud-platform-dev-full` naming boundary
+
+That means the phase does not start red because the runtime is broken. It starts red because the operator surface is incomplete:
+
+- current operations dashboard is still ingress-only
+- cost dashboard exists but does not yet prove runtime residual posture
+- alarm coverage for declared failure families is missing
+
+There is also an operational-cost fact worth capturing immediately: the live runtime is active again after the accepted `Phase 6` closeout:
+
+- nodegroup `fraud-platform-dev-full-m6f-workers` is `min=2`, `desired=4`
+- RTDL and Case + Label deployments are all running
+
+That is not automatically wrong, but it means `Phase 7` must treat cost / idle / restart as a real live engineering boundary rather than as a later documentation exercise.
+
+## 2026-03-12 23:53:52 +00:00 - The first bounded Phase 7 pass closed the old operator-surface blindspot but exposed three proof defects that had to be fixed before the phase could honestly close
+
+After syncing the live CloudWatch operator surface, the first bounded `Phase 7` assessor no longer failed on the original gap. The old red was real and now materially removed:
+
+- operations dashboard is no longer ingress-only
+- cost dashboard now carries residual-runtime risk visibility
+- the missing alarm surface now exists on the live `fraud-platform-dev-full` naming boundary
+
+That first pass still stayed red, but for a much cleaner reason set:
+
+- CSV evidence refs from the accepted `Phase 5` chain were being graded as JSON-only readbacks even though the actual question is readability, not JSON parsing
+- billing freshness was being asked of the CloudWatch `EstimatedCharges` stream rather than of the budget surface that actually governs this phase
+- the live DF runtime drift probe assumed object-style access on registry structures that are partly dict-backed at runtime
+
+Those are proof defects, not platform defects. So the right move was not to widen the phase. It was to fix the bounded assessor itself and rerun the exact same Phase 7 proof boundary.
+
+## 2026-03-12 23:56:33 +00:00 - Once the bounded assessor went green on reconstruction / evidence / observability / drift, the next honest correction was to fail it closed again until the live idle/restart drill existed
+
+The next rerun proved the earlier proof defects were gone:
+
+- exact run reconstruction and evidence readback now went green
+- dashboards and alarms were materially present
+- active handle resolution stayed clean
+- live DF drift readback still matched the promoted bundle and policy
+
+That looked promising, but it was not yet enough to close the phase honestly. The reason is methodological, not cosmetic:
+
+- `Phase 7` explicitly requires safe idle and restart posture
+- the assessor could still go green without any live idle/restart receipt
+
+So I tightened the proof boundary immediately:
+
+- `Phase 7` now fails closed unless `phase7_idle_restart_drill.json` exists and is green
+
+The next rerun turned the phase red again exactly where it should have:
+
+- `PHASE7_C_IDLE_DRILL_MISSING`
+
+That is the correct red. It means the phase boundary is now truthful rather than permissive.
+
+## 2026-03-13 00:02:16 +00:00 - Phase 7 is now closed green after the live idle-to-zero and restore drill reached true zero-node idle, restored the runtime, and the tightened assessor then passed on the same accepted Phase 6 authority
+
+The first live idle drill did not fail because the platform could not idle. It failed because the drill controller used the wrong parameter name on `eks.describe_update`. That still left the runtime half-way through the intended posture:
+
+- RTDL, Case + Label, and `coredns` were at `0`
+- nodegroup scaling was already `min=0`, `desired=0`
+- nodes were draining to zero
+
+The right response there was not to abandon the drill or to call the phase “good enough.” The right response was:
+
+- confirm the platform had actually entered the intended idle boundary
+- wait for true `0`-node idle
+- restore the nodegroup and all pre-drill deployments
+- then rewrite the drill receipt with the real successful idle and restore updates
+
+That is now done. The final accepted `Phase 7` authority is:
+
+- execution:
+  - `phase7_ops_gov_meta_20260312T235900Z`
+- verdict:
+  - `PHASE7_READY`
+
+The decisive acceptance metrics are:
+
+- reconstruction:
+  - `10 / 10` required local evidence files present
+  - `18 / 18` Phase 5 readback refs readable
+- observability:
+  - operations widgets = `4`
+  - cost widgets = `3`
+  - required alarms present = `5 / 5`
+- handles / drift:
+  - required handle resolution = `11 / 11`
+  - placeholder-like active handles = `0`
+  - live DF bundle / policy still matched promoted truth
+- idle / restart:
+  - node count after idle = `0`
+  - nodegroup restored to `min=2`, `desired=4`
+  - RTDL / Case + Label / `coredns` restored to pre-drill counts
+
+That is enough to close `Phase 7` truthfully as a plane-readiness judgment.
+
+It is not enough to promote `Ops / Gov / Meta` into the working platform yet. That still belongs to `Phase 8`, because the final question is no longer whether the ops/gov plane works on its own boundary. The final question is whether the whole platform stays explainable, auditable, and coherent when every plane is active in one bounded integrated run story.
+
+## 2026-03-13 00:06:29 +00:00 - I closed the last repo-to-runtime drift on Phase 7 by codifying the live billing guardrail and fixing the logbook date boundary before cutting the checkpoint
+
+The live operator surface already had the cost guardrail alarm, but the repo still lagged behind it. Leaving that drift in place would have been a small but real Phase 7 contradiction: the plane would be declared green while one of its live bounded corrections remained outside infrastructure truth.
+
+So I took the last narrow cleanup steps before the checkpoint:
+
+- added `fraud-platform-dev-full-billing-estimated-charges` to `infra/terraform/dev_full/ops/main.tf` on the `AWS/Billing` surface in `us-east-1`
+- kept the Phase 7 promotion rule unchanged:
+  - `Ops / Gov / Meta` is plane-ready only
+  - promotion still waits for `Phase 8`
+- moved the final `00:02:16 +00:00` closure event into the correct `2026-03-13` logbook file instead of leaving a next-day entry embedded under `2026-03-12`
+- finalized the dedicated `Phase 7` readiness-delta graph so the user-facing reflection now matches the accepted closure sequence rather than stopping at the raw `.mmd` source
+
+This is not a new proof run and it does not widen the phase. It is the last authority cleanup required so the repo tells the same operational truth that the live AWS boundary already proved.

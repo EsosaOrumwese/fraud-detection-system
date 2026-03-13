@@ -375,7 +375,7 @@ The baseline now established under this plan is:
 - `RTDL`: promoted working-platform member after fresh-scope Phase 1 closure on `2026-03-11`
 - `Case + Label`: promoted working-platform member after bounded Phase 3 plane closure on `2026-03-11` and coupled Phase 4 closure on `2026-03-12`
 - `Learning + Evolution / MLOps`: promoted working-platform member after rebuilt Phase 5 closure on `2026-03-12` and coupled Phase 6 closure on `2026-03-12`
-- `Ops / Gov / Meta`: present, not yet accepted as a production-ready plane
+- `Ops / Gov / Meta`: plane-ready after bounded Phase 7 closure on `2026-03-13`, but not yet promoted into the working platform pending full-platform coupled proof
 
 That means the current working platform is:
 - `Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps`
@@ -1105,6 +1105,11 @@ Qualitative proof focus:
 - drift detection before false certification
 - safe idle and restart posture
 - governed, attributable, and bounded operational behavior
+- ML day-2 monitoring ownership:
+  - data-quality drift visibility on admitted runtime and learning surfaces
+  - active-bundle / model-behaviour monitoring visibility
+  - bounded drift-to-mitigation operator actions and runbooks
+  - audit response continuity from runtime decision -> active bundle -> admitted dataset basis
 
 Scope:
 - run control and receipts
@@ -1116,6 +1121,10 @@ Scope:
 - idle / teardown / residual scan
 - identity / handles / secrets / SSM posture
 - drift detection
+- active learning/runtime operator surfaces:
+  - promoted bundle observability
+  - data-quality / model-behaviour drift readbacks
+  - drift-mitigation control path
 
 Run shape:
 - bounded operational proof on top of the working platform from Phase 6
@@ -1127,6 +1136,7 @@ Primary questions:
 - can drift be detected before false certification happens?
 - is spend attributable and controllable?
 - can the platform safely idle and restart?
+- can operators see and react to learning/runtime drift before it becomes silent model damage?
 
 Telemetry plan:
 - live logs:
@@ -1139,6 +1149,7 @@ Telemetry plan:
   - alert fire / clear counts
   - attributable spend views
   - residual compute counts
+  - data-quality / model-behaviour drift counters where the live platform exposes them
 - live boundary health:
   - exact run reconstruction possible from current-run evidence
   - active drift checks reading the same runtime surfaces the platform actually uses
@@ -1148,6 +1159,7 @@ Telemetry plan:
   - evidence holes on active run
   - unattributed spend during active proof
   - drift detected between live runtime and declared active path
+  - missing critical alert coverage for declared failure families
 - hardening artifacts:
   - one run manifest
   - one ops/gov live summary
@@ -1335,19 +1347,19 @@ After a phase is complete, update as needed:
 ---
 
 ## Immediate next action
-Proceed with `Phase 7 - Operations / Governance / Meta readiness`.
+Proceed with `Phase 8 - Full-platform bounded integrated validation`.
 
-`Phase 6` is now closed green on the rebuilt standard. The accepted coupled closure authority is:
+`Phase 7` is now closed green on the rebuilt standard as a plane-readiness judgment. The accepted bounded closure authority is:
 
-- coupled runtime adoption / rollback / restore:
-  - `phase6_learning_coupled_20260312T194748Z`
+- ops / gov / meta bounded proof:
+  - `phase7_ops_gov_meta_20260312T235900Z`
 
 The current promoted working platform is now:
 
 - `Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps`
 
 Execution order now is:
-1. keep the accepted `Phase 6` working-platform evidence chain fixed,
-2. open the Operations / Governance / Meta boundary against that enlarged working platform,
-3. prove run reconstruction, evidence readback, alerting, cost discipline, and drift visibility on the live platform,
-4. only then authorize the platform-wide bounded operational proof that follows later in the plan.
+1. keep the accepted `Phase 6` working-platform evidence chain and the accepted `Phase 7` plane-readiness evidence fixed,
+2. open the full-platform integrated boundary against that enlarged working platform plus the now-green ops/gov plane,
+3. prove cross-plane truth continuity, timing continuity, explainability, and auditability on one bounded integrated proof story,
+4. only then authorize the bounded full-platform stress decision that follows later in the plan.

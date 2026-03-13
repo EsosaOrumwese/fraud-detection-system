@@ -1,0 +1,74 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    L1["Left to right = accepted working-platform authority -> real Phase 7 blocker family -> decisive correction -> accepted bounded evidence -> readiness judgment"]
+    L2["Green = accepted upstream or closed truth"]
+    L3["Red = real blocker or false-green hazard"]
+    L4["Amber = accepted correction / repin"]
+    L5["Blue = accepted Phase 7 closure evidence"]
+  end
+
+  subgraph UPSTREAM["Accepted Upstream Authority"]
+    U1["Accepted working platform entering Phase 7<br>Control + Ingress + RTDL + Case + Label + Learning"]
+    U2["Accepted coupled source authority<br>phase6_learning_coupled_20260312T194748Z<br>PHASE6_READY"]
+  end
+
+  subgraph DEFECTS["Real Blockers and False-Green Hazards"]
+    D1["Red<br>operator surface incomplete<br>dashboards thin + alarms missing"]
+    D2["Red<br>first bounded assessor still had proof defects<br>CSV refs treated as JSON-only<br>billing freshness taken from wrong surface<br>DF drift probe assumed wrong object shape"]
+    D3["Red false-green hazard<br>assessor could pass without the required live idle/restart drill"]
+    D4["Red<br>first idle drill controller used wrong EKS describe_update parameter"]
+  end
+
+  subgraph FIXES["Accepted Corrections"]
+    F1["Repin operator surface<br>sync expanded dashboards + required metric alarms live"]
+    F2["Fix bounded assessor<br>CSV refs -> readability not JSON-only<br>budget surface -> freshness authority<br>DF drift probe -> dict-backed access"]
+    F3["Tighten gate<br>Phase 7 now fails closed unless phase7_idle_restart_drill.json exists and is green"]
+    F4["Fix drill controller<br>correct EKS update API, wait for true zero-node idle, then restore runtime"]
+  end
+
+  subgraph CLOSURE["Accepted Phase 7 Closure"]
+    C1["Accepted bounded authority<br>phase7_ops_gov_meta_20260312T235900Z<br>PHASE7_READY"]
+    C2["Run reconstruction green<br>10 / 10 local evidence files present<br>18 / 18 Phase 5 refs readable"]
+    C3["Observability green<br>operations widgets = 4<br>cost widgets = 3<br>required alarms = 5 / 5"]
+    C4["Drift + identity green<br>11 / 11 required handles resolved<br>placeholder count = 0<br>live DF bundle / policy still match promoted truth"]
+    C5["Idle / restart green<br>node count after idle = 0<br>runtime restored to pre-drill shape"]
+    C6["Judgment<br>Phase 7 closed green as plane readiness<br>Ops / Gov / Meta not yet promoted<br>Phase 8 remains the coupled promotion boundary"]
+  end
+
+  U1 --> U2
+  U2 --> D1
+  U2 --> D2
+  U2 --> D3
+  U2 --> D4
+  D1 --> F1
+  D2 --> F2
+  D3 --> F3
+  D4 --> F4
+  F1 --> C1
+  F2 --> C1
+  F3 --> C1
+  F4 --> C1
+  C1 --> C2
+  C1 --> C3
+  C1 --> C4
+  C1 --> C5
+  C2 --> C6
+  C3 --> C6
+  C4 --> C6
+  C5 --> C6
+
+  classDef up fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+  classDef defect fill:#ffebee,stroke:#c62828,color:#111,stroke-width:1.3px;
+  classDef fix fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef close fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.3px;
+
+  class U1,U2 up;
+  class D1,D2,D3,D4 defect;
+  class F1,F2,F3,F4 fix;
+  class C1,C2,C3,C4,C5,C6 close;
