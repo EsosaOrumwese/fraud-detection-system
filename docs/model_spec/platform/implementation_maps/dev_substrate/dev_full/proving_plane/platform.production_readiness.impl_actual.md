@@ -6890,3 +6890,25 @@ So the platform state changes materially here:
 - the whole `dev_full` platform is now bounded-correct
 - the next honest question is no longer integrated correctness
 - it is bounded full-platform stress authorization in `Phase 9`
+
+## 2026-03-13 02:20:00 +00:00 - Phase 9 is being opened by widening only the pressure window from the accepted Phase 8 story; I am not widening scope or reintroducing unrelated operator work
+
+The whole platform is already bounded-correct after `Phase 8`.
+
+So `Phase 9` cannot be allowed to drift into a generic rerun. The real question now is narrower and more expensive:
+
+- if I keep the same production envelope and the same full-platform truth path, but hold pressure much longer, does the platform still deserve later long stress or soak?
+
+That means I do **not** want to drag the full `Phase 7` idle drill back into this phase just because it exists. Idle-to-zero answered a real ops/governance question in `Phase 7` and in the integrated `Phase 8` coupling, but it is not the Phase 9 question.
+
+The right widened-stress posture is:
+
+1. reuse the truthful fresh `Phase 6` runtime backbone shape,
+2. widen the steady window to land in the `2M to 5M` admitted-event band,
+3. keep the same bundle-truth and operator-readback challenge alive,
+4. score only the things that matter for stress authorization:
+   - latency tails
+   - participation
+   - integrity
+   - timing continuity
+   - operator challengeability under the widened slice
