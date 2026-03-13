@@ -14,6 +14,9 @@ import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 
 
+RUNBOOK_PATH = "docs/runbooks/dev_full_phase7_ops_gov_runbook.md"
+
+
 def now_utc() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
@@ -160,6 +163,20 @@ def metric_freshness(
     }
 
 
+def dashboard_body(client: Any, name: str) -> dict[str, Any]:
+    return json.loads(str(client.get_dashboard(DashboardName=name).get("DashboardBody") or "{}"))
+
+
+def dashboard_markdown_refs(body: dict[str, Any]) -> list[str]:
+    values: list[str] = []
+    for widget in body.get("widgets") or []:
+        props = dict(widget.get("properties") or {})
+        markdown = str(props.get("markdown") or "").strip()
+        if markdown:
+            values.append(markdown)
+    return values
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Bounded Phase 7 assessment")
     ap.add_argument("--run-control-root", default="runs/dev_substrate/dev_full/proving_plane/run_control")
@@ -193,6 +210,20 @@ def main() -> None:
         blockers.append("PHASE7_C_IDLE_DRILL_MISSING")
     elif not bool(idle_drill.get("overall_pass")):
         blockers.append("PHASE7_C_IDLE_DRILL_NOT_GREEN")
+
+    alert_drill_path = root / "phase7_alert_runbook_drill.json"
+    alert_drill = load_json(alert_drill_path) if alert_drill_path.exists() else None
+    if alert_drill is None:
+        blockers.append("PHASE7_B_ALERT_DRILL_MISSING")
+    elif not bool(alert_drill.get("overall_pass")):
+        blockers.append("PHASE7_B_ALERT_DRILL_NOT_GREEN")
+
+    ml_day2_path = root / "phase7_ml_day2_operator_surface.json"
+    ml_day2 = load_json(ml_day2_path) if ml_day2_path.exists() else None
+    if ml_day2 is None:
+        blockers.append("PHASE7_C_ML_DAY2_SURFACE_MISSING")
+    elif not bool(ml_day2.get("overall_pass")):
+        blockers.append("PHASE7_C_ML_DAY2_SURFACE_NOT_GREEN")
 
     required_local = [
         "phase6_learning_coupled_receipt.json",
@@ -229,24 +260,40 @@ def main() -> None:
     if str(source_receipt.get("verdict") or "").strip() != "PHASE6_READY":
         blockers.append("PHASE7_A_SOURCE_VERDICT_NOT_GREEN")
 
-    operations_dashboard = cw.get_dashboard(DashboardName="fraud-platform-dev-full-operations")
-    cost_dashboard = cw.get_dashboard(DashboardName="fraud-platform-dev-full-cost-guardrail")
-    operations_widgets = list(json.loads(str(operations_dashboard.get("DashboardBody") or "{}")).get("widgets") or [])
-    cost_widgets = list(json.loads(str(cost_dashboard.get("DashboardBody") or "{}")).get("widgets") or [])
-    if len(operations_widgets) < 4:
+    operations_body = dashboard_body(cw, "fraud-platform-dev-full-operations")
+    cost_body = dashboard_body(cw, "fraud-platform-dev-full-cost-guardrail")
+    operations_widgets = list(operations_body.get("widgets") or [])
+    cost_widgets = list(cost_body.get("widgets") or [])
+    operations_markdown = dashboard_markdown_refs(operations_body)
+    cost_markdown = dashboard_markdown_refs(cost_body)
+    if len(operations_widgets) < 5:
         blockers.append("PHASE7_B_OPERATIONS_DASHBOARD_TOO_THIN")
-    if len(cost_widgets) < 2:
+    if len(cost_widgets) < 3:
         blockers.append("PHASE7_B_COST_DASHBOARD_TOO_THIN")
+    if not Path(RUNBOOK_PATH).exists():
+        blockers.append("PHASE7_B_RUNBOOK_MISSING")
+    if not any(RUNBOOK_PATH in text for text in operations_markdown):
+        blockers.append("PHASE7_B_OPERATIONS_RUNBOOK_LINK_MISSING")
+    if not any(RUNBOOK_PATH in text for text in cost_markdown):
+        blockers.append("PHASE7_B_COST_RUNBOOK_LINK_MISSING")
 
     alarms = cw.describe_alarms(AlarmNamePrefix="fraud-platform-dev-full-").get("MetricAlarms") or []
+    alarms_billing = cw_billing.describe_alarms(AlarmNamePrefix="fraud-platform-dev-full-").get("MetricAlarms") or []
     required_alarms = [
         "fraud-platform-dev-full-ig-lambda-errors",
         "fraud-platform-dev-full-ig-lambda-throttles",
         "fraud-platform-dev-full-ig-apigw-5xx",
         "fraud-platform-dev-full-eks-unschedulable-pods",
         "fraud-platform-dev-full-eks-apiserver-5xx",
+        "fraud-platform-dev-full-billing-estimated-charges",
     ]
-    present_alarm_names = sorted(str(row.get("AlarmName") or "").strip() for row in alarms if str(row.get("AlarmName") or "").strip())
+    present_alarm_names = sorted(
+        set(
+            str(row.get("AlarmName") or "").strip()
+            for row in [*alarms, *alarms_billing]
+            if str(row.get("AlarmName") or "").strip()
+        )
+    )
     for name in required_alarms:
         if name not in present_alarm_names:
             blockers.append(f"PHASE7_B_ALARM_MISSING:{name}")
@@ -382,6 +429,8 @@ def main() -> None:
         "observability": {
             "operations_dashboard_widgets": len(operations_widgets),
             "cost_dashboard_widgets": len(cost_widgets),
+            "operations_markdown": operations_markdown,
+            "cost_markdown": cost_markdown,
             "present_alarm_names": present_alarm_names,
             "metric_freshness": freshness,
             "budget_surface_fresh": budget_surface_fresh,
@@ -406,6 +455,8 @@ def main() -> None:
             "latest_cost_window": costs.get("ResultsByTime") or [],
         },
         "idle_restart_drill": idle_drill,
+        "alert_runbook_drill": alert_drill,
+        "ml_day2_operator_surface": ml_day2,
         "overall_pass": len(set(blockers)) == 0,
         "blocker_ids": sorted(set(blockers)),
     }

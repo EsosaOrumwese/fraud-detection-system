@@ -6,11 +6,11 @@ config:
 flowchart LR
 
   subgraph LEGEND["How to Read This Graph"]
-    L1["Left to right = accepted working-platform authority -> real Phase 7 blocker family -> decisive correction -> accepted bounded evidence -> readiness judgment"]
+    L1["Left to right = accepted working-platform authority -> restarted Phase 7 blocker family -> decisive correction -> accepted rebuilt evidence -> readiness judgment"]
     L2["Green = accepted upstream or closed truth"]
-    L3["Red = real blocker or false-green hazard"]
-    L4["Amber = accepted correction / repin"]
-    L5["Blue = accepted Phase 7 closure evidence"]
+    L3["Red = real blocker or withdrawn closure hazard"]
+    L4["Amber = accepted correction / restart action"]
+    L5["Blue = accepted rebuilt Phase 7 closure evidence"]
   end
 
   subgraph UPSTREAM["Accepted Upstream Authority"]
@@ -18,27 +18,30 @@ flowchart LR
     U2["Accepted coupled source authority<br>phase6_learning_coupled_20260312T194748Z<br>PHASE6_READY"]
   end
 
-  subgraph DEFECTS["Real Blockers and False-Green Hazards"]
-    D1["Red<br>operator surface incomplete<br>dashboards thin + alarms missing"]
-    D2["Red<br>first bounded assessor still had proof defects<br>CSV refs treated as JSON-only<br>billing freshness taken from wrong surface<br>DF drift probe assumed wrong object shape"]
-    D3["Red false-green hazard<br>assessor could pass without the required live idle/restart drill"]
-    D4["Red<br>first idle drill controller used wrong EKS describe_update parameter"]
+  subgraph REDS["Restarted Blockers"]
+    D1["Red<br>withdrawn first closure candidate<br>not the same rigor as the stronger earlier phases"]
+    D2["Red<br>operator chain incomplete<br>dashboards + alarms existed<br>but no explicit runbook linkage"]
+    D3["Red<br>alert surface under-proven<br>alarms sat in OK with no real alert-path evidence"]
+    D4["Red<br>ML day-2 actionability too implicit<br>active truth visible but mitigation surfaces under-specified"]
+    D5["Red<br>fresh idle drill controller artifact bug<br>datetime serialization failure"]
   end
 
-  subgraph FIXES["Accepted Corrections"]
-    F1["Repin operator surface<br>sync expanded dashboards + required metric alarms live"]
-    F2["Fix bounded assessor<br>CSV refs -> readability not JSON-only<br>budget surface -> freshness authority<br>DF drift probe -> dict-backed access"]
-    F3["Tighten gate<br>Phase 7 now fails closed unless phase7_idle_restart_drill.json exists and is green"]
-    F4["Fix drill controller<br>correct EKS update API, wait for true zero-node idle, then restore runtime"]
+  subgraph FIXES["Accepted Restart Corrections"]
+    F1["Restart authority cleanly<br>remove rushed phase doc and old readiness-delta graph<br>return master plan to Phase 7 active"]
+    F2["Create explicit operator surface<br>runbook + dashboard markdown linkage"]
+    F3["Execute bounded alert drill<br>fraud-platform-dev-full-ig-lambda-errors<br>record ALARM -> OK in CloudWatch history"]
+    F4["Create explicit ML day-2 surface<br>runtime bundle truth + managed learning truth + rollback/restore authority + allowed mitigations"]
+    F5["Fix idle-drill artifact path<br>keep the same live idle-to-zero / restore boundary"]
   end
 
-  subgraph CLOSURE["Accepted Phase 7 Closure"]
-    C1["Accepted bounded authority<br>phase7_ops_gov_meta_20260312T235900Z<br>PHASE7_READY"]
-    C2["Run reconstruction green<br>10 / 10 local evidence files present<br>18 / 18 Phase 5 refs readable"]
-    C3["Observability green<br>operations widgets = 4<br>cost widgets = 3<br>required alarms = 5 / 5"]
-    C4["Drift + identity green<br>11 / 11 required handles resolved<br>placeholder count = 0<br>live DF bundle / policy still match promoted truth"]
-    C5["Idle / restart green<br>node count after idle = 0<br>runtime restored to pre-drill shape"]
-    C6["Judgment<br>Phase 7 closed green as plane readiness<br>Ops / Gov / Meta not yet promoted<br>Phase 8 remains the coupled promotion boundary"]
+  subgraph CLOSURE["Accepted Rebuilt Phase 7 Closure"]
+    C1["Accepted rebuilt authority<br>phase7_ops_gov_meta_restart_20260313T002459Z<br>PHASE7_READY"]
+    C2["Audit reconstruction green<br>10 / 10 local evidence files present<br>18 / 18 learning refs readable"]
+    C3["Ops governance green<br>operations widgets = 5<br>cost widgets = 3<br>critical alarms = 6 / 6<br>runbook linkage present"]
+    C4["Alert path green<br>live alarm history recorded OK -> ALARM -> OK"]
+    C5["ML day-2 green<br>active bundle and policy match promoted truth<br>managed learning surfaces readable<br>rollback and restore authority explicit"]
+    C6["Idle / cost green<br>node count after idle = 0<br>runtime restored to working shape<br>budget surface and spend attribution readable"]
+    C7["Judgment<br>Phase 7 closed green as plane readiness<br>Ops / Gov / Meta not yet promoted<br>Phase 8 remains the coupled promotion boundary"]
   end
 
   U1 --> U2
@@ -46,22 +49,27 @@ flowchart LR
   U2 --> D2
   U2 --> D3
   U2 --> D4
+  U2 --> D5
   D1 --> F1
   D2 --> F2
   D3 --> F3
   D4 --> F4
+  D5 --> F5
   F1 --> C1
   F2 --> C1
   F3 --> C1
   F4 --> C1
+  F5 --> C1
   C1 --> C2
   C1 --> C3
   C1 --> C4
   C1 --> C5
-  C2 --> C6
-  C3 --> C6
-  C4 --> C6
-  C5 --> C6
+  C1 --> C6
+  C2 --> C7
+  C3 --> C7
+  C4 --> C7
+  C5 --> C7
+  C6 --> C7
 
   classDef up fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
   classDef defect fill:#ffebee,stroke:#c62828,color:#111,stroke-width:1.3px;
@@ -69,6 +77,6 @@ flowchart LR
   classDef close fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.3px;
 
   class U1,U2 up;
-  class D1,D2,D3,D4 defect;
-  class F1,F2,F3,F4 fix;
-  class C1,C2,C3,C4,C5,C6 close;
+  class D1,D2,D3,D4,D5 defect;
+  class F1,F2,F3,F4,F5 fix;
+  class C1,C2,C3,C4,C5,C6,C7 close;

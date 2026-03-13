@@ -95,6 +95,23 @@ locals {
             [".", "apiserver_request_total_429", ".", "."]
           ]
         }
+      },
+      {
+        type   = "text"
+        x      = 0
+        y      = 12
+        width  = 24
+        height = 4
+        properties = {
+          markdown = join("\n", [
+            "# Phase 7 Operator Chain",
+            "",
+            "- Runbook: `docs/runbooks/dev_full_phase7_ops_gov_runbook.md`",
+            "- Owner posture: platform ops / governance proving lane",
+            "- Escalation: stop active proof when correctness, auditability, or active-bundle truth is at risk",
+            "- Critical chain: alert -> dashboard -> runbook -> bounded mitigation -> verification"
+          ])
+        }
       }
     ]
   })
@@ -148,6 +165,7 @@ locals {
             "- Monthly limit: `${var.budget_limit_amount} ${var.budget_limit_unit}`",
             "- Alert thresholds: `${join(", ", [for t in var.budget_alert_thresholds : tostring(t)])}`",
             "- Notification email: `${var.budget_alert_email}`",
+            "- Runbook: `docs/runbooks/dev_full_phase7_ops_gov_runbook.md`",
             "- This dashboard is paired with the bounded Phase 7 idle/restart drill and residual scan."
           ])
         }

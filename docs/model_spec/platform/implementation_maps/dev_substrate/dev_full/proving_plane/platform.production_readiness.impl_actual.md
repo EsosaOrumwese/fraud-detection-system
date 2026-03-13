@@ -6625,3 +6625,154 @@ So I took the last narrow cleanup steps before the checkpoint:
 - finalized the dedicated `Phase 7` readiness-delta graph so the user-facing reflection now matches the accepted closure sequence rather than stopping at the raw `.mmd` source
 
 This is not a new proof run and it does not widen the phase. It is the last authority cleanup required so the repo tells the same operational truth that the live AWS boundary already proved.
+
+## 2026-03-13 00:18:59 +00:00 - I withdrew the first Phase 7 closure candidate entirely because the phase moved too fast, the reflected artifacts had started to anchor me to a patched story, and the repo needed a truthful restart instead of another incremental correction
+
+After re-reading the Phase 7 material against the same standard used in the stronger earlier phases, I do not think the first closure candidate is defensible as "same rigor, same depth, same patience." The problem is not that every individual action was fake. The problem is that I moved from bounded operational proof slices to a closure claim too quickly.
+
+That changes the correct engineering action:
+
+- do not keep patching the existing Phase 7 closure story
+- withdraw it from repo authority
+- remove the user-facing readiness-delta graph that was already reflecting the rushed closure
+- remove the rushed Phase 7 phase doc itself so I am not mentally trapped into editing around the old structure
+- put the master plan back into the truthful state:
+  - `Phase 7` active
+  - `Phase 8` not yet opened
+
+I am deliberately keeping the historical notebook and logbook trail instead of pretending the first attempt never happened. That history matters because it explains why the phase is being restarted:
+
+- the first bounded operational slices remain useful diagnostic evidence
+- the scripts remain reusable if they survive a stricter review
+- but the closure claim and its reflected artifacts are withdrawn
+
+This is the right posture correction under the plan and `AGENTS.md`:
+
+- goal fixed
+- standard unchanged
+- method adapted
+- phase restarted from the real boundary rather than patched around a rushed verdict
+
+## 2026-03-13 00:24:59 +00:00 - The rebuilt Phase 7 boundary immediately proved why the restart was necessary: dashboards and alarms existed, but the live operator chain was still incomplete because runbook linkage and ML day-2 actionability were not explicit enough to be closure authority
+
+I rebuilt the phase from the live operator questions instead of from the withdrawn closure receipt, and the first fresh restart probe changed the engineering picture in a useful way.
+
+What is already materially there on the live boundary:
+
+- CloudWatch dashboards
+- critical alarms
+- budget surface
+- runtime bundle / policy readback
+- idle / restore controller
+
+What was still too weak to claim as Phase 7 closure:
+
+- no explicit runbook linkage on the live dashboards
+- no fresh alert-path evidence beyond alarms sitting in `OK`
+- ML day-2 mitigation path still too implicit:
+  - active bundle truth readable
+  - but mitigation choices and the managed learning surfaces were not yet captured as an operator surface
+- the old assessor could still over-focus on surface presence rather than on operator actionability
+
+That is a better Phase 7 red than the rushed closure story. It is operationally meaningful and it tells me exactly what has to be built next:
+
+- runbook surface
+- alert-to-runbook drill
+- explicit ML day-2 operator-surface proof
+
+## 2026-03-13 00:26:04 +00:00 - The new alert drill closed green immediately, and the new ML day-2 probe failed in a useful way by exposing a probe-shape defect rather than a platform defect
+
+Once the runbook existed and the dashboards were updated to carry that path, the fresh alert drill on `fraud-platform-dev-full-ig-lambda-errors` behaved exactly the way a bounded Phase 7 control-plane drill should:
+
+- CloudWatch recorded `OK -> ALARM`
+- CloudWatch then recorded `ALARM -> OK`
+- both transitions were attributable to the bounded drill
+- the dashboard markdown now points to the runbook
+
+That gave me a materially stronger Phase 7.B proof than the withdrawn first attempt.
+
+The new ML day-2 probe also did the right thing on its first run. It did not collapse on runtime truth:
+
+- active bundle and policy revision matched promoted truth
+- `MLflow tracking_uri = databricks`
+- SageMaker execution role resolved
+- model package group existed
+
+Instead it went red on rollback / restore authority, which turned out to be a probe-shape defect:
+
+- I was reading rollback / restore from `fraud_primary` fields that those retained probes do not actually expose
+- the real rollback / restore authority is already present in the accepted Phase 6 chain:
+  - `previous_bundle`
+  - promoted bundle
+  - expected bundle refs
+
+That is exactly the kind of narrow red I want in a restarted phase.
+
+## 2026-03-13 00:33:43 +00:00 - The rebuilt idle / restore drill reached true zero-node idle and restored the full runtime again; the only defect was a receipt-serialization bug in the drill controller, not a live runtime failure
+
+The fresh restart-scope idle drill was materially valuable because it exercised the operator cost-control path on the same execution scope as the rebuilt alert and ML day-2 proofs.
+
+The live runtime behavior itself was correct:
+
+- nodegroup reached:
+  - `min=0`
+  - `desired=0`
+- node count after idle reached `0`
+- RTDL, Case + Label, and `coredns` all went to `0`
+- restore returned the runtime to:
+  - `min=2`
+  - `desired=4`
+- all active deployments came back cleanly
+
+The controller still failed the first time, but for the right kind of reason:
+
+- JSON serialization on datetime-bearing update payloads
+
+That did not invalidate the live drill. It simply meant the artifact writer was weaker than the platform action it was observing. I fixed that narrow defect and reused the same fresh drill artifact once the write path was correct.
+
+## 2026-03-13 00:34:36 +00:00 - Phase 7 is now closed green on the rebuilt standard because the restarted proof story finally contains the missing control surfaces: runbook linkage, alert-path evidence, explicit ML day-2 mitigation surfaces, and a fresh idle / restore proof on the same execution scope
+
+The accepted rebuilt execution is:
+
+- `phase7_ops_gov_meta_restart_20260313T002459Z`
+
+This closure is materially stronger than the withdrawn candidate for four reasons:
+
+1. I removed the old closure scaffolding before restarting, so this was not a patch-around story.
+2. The dashboards now point at a real Phase 7 runbook rather than stopping at metrics.
+3. The alert path is freshly exercised on the live platform:
+   - `OK -> ALARM -> OK`
+4. The ML day-2 operator surface is now explicit:
+   - active bundle truth
+   - managed learning truth
+   - rollback / restore authority
+   - allowed mitigation actions
+
+The final accepted metrics are strong enough to support a real plane-readiness claim:
+
+- reconstruction:
+  - `10 / 10` required local evidence files present
+  - `18 / 18` accepted learning refs readable
+- observability:
+  - operations widgets = `5`
+  - cost widgets = `3`
+  - critical alarms present = `6 / 6`
+- alert drill:
+  - bounded `ALARM` and `OK` transitions recorded for the chosen critical alarm
+- ML day-2:
+  - active runtime bundle matched promoted truth
+  - policy revision matched promoted truth
+  - managed learning surfaces readable
+  - rollback / restore authority readable
+- cost / idle:
+  - budget surface readable
+  - spend attributable by service family
+  - node count after idle = `0`
+  - runtime restored to pre-drill shape
+- handle integrity:
+  - required handle resolution = `11 / 11`
+  - placeholder-like active handles = `0`
+
+That is enough to close `Phase 7` as a plane-readiness judgment.
+
+It is still not enough to promote `Ops / Gov / Meta` into the working platform. That remains a `Phase 8` question, because the final question is whether the whole platform stays coherent once the ops/gov plane is coupled into one integrated proof story.

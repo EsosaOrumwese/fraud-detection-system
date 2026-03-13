@@ -20,7 +20,7 @@ def now_utc() -> str:
 
 def dump_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+    path.write_text(json.dumps(payload, indent=2, ensure_ascii=True, default=str) + "\n", encoding="utf-8")
 
 
 def run(cmd: list[str], *, timeout: int = 240, check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -182,7 +182,7 @@ def main() -> None:
         "blocker_ids": sorted(set(blockers)),
     }
     dump_json(root / "phase7_idle_restart_drill.json", payload)
-    print(json.dumps(payload, indent=2))
+    print(json.dumps(payload, indent=2, default=str))
     if blockers:
         raise SystemExit(1)
 

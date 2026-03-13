@@ -1,202 +1,253 @@
 # Phase 7 - Operations / Governance / Meta readiness
 
-The goal of `Phase 7` is to prove that the enlarged `dev_full` working platform can be operated, reconstructed, audited, governed, and cost-controlled with the same rigor that it was executed in `Phase 0` through `Phase 6`.
+The goal of `Phase 7` is to prove that the already-promoted working platform can be operated like a real production system after the bounded proof runs are over.
 
-This phase does not close because dashboards exist or because receipts were emitted in earlier phases. It closes only when the live platform can:
+That means more than "dashboards exist" and more than "we can still read old receipts." It means an operator can:
 
-- reconstruct the accepted working-platform run story exactly from durable evidence,
-- justify the accepted verdicts from authoritative readbacks rather than notebook memory,
-- detect drift between declared active truth and live runtime surfaces before false certification,
-- surface critical failure families through usable dashboards and alarms,
-- prove spend is attributable and that the runtime can be idled and restarted safely,
-- and do all of that without leaving ML day-2 monitoring as an ambiguous responsibility.
+- reconstruct the accepted platform story from durable evidence,
+- move from alert -> dashboard -> runbook -> mitigation without guesswork,
+- detect runtime, bundle, and learning-surface drift before silent damage accumulates,
+- prove cost is attributable and bounded by deliberate operator action rather than by luck,
+- and do all of that with the ML day-2 responsibilities made explicit rather than left to a later phase by assumption.
+
+`Phase 7` remains open until that operational story is as defensible as the earlier runtime, case/label, and learning proofs.
 
 ## Why this phase exists in the full plan
 
-`Phase 0` through `Phase 6` proved that the working platform can execute and evolve correctly.
+`Phase 0` through `Phase 6` established that the platform can execute the intended production job on its active runtime surfaces and preserve semantic truth across the promoted planes.
 
-That still leaves the production operations question unanswered:
+That still does not answer the production operations question:
 
-- can the platform be operated like a real production system after the proving run is over?
+- can the platform be operated, governed, and recovered without tribal knowledge once the proving window is over?
 
-`Phase 7` exists to answer that question on the live AWS boundary.
+This phase exists to answer that question on the live AWS and managed-service boundary.
 
 ## What must be true for the phase goal to be genuinely accomplished
 
 `Phase 7` is only genuinely accomplished when all of the following are true:
 
-1. the accepted `Phase 6` run story can be reconstructed exactly from run control, receipts, and evidence refs,
-2. readback from verdict -> receipt -> evidence -> active runtime surface is deterministic and complete,
-3. governance facts used by the platform remain append-only and attributable,
-4. dashboards show the real working-platform operator posture rather than a partial ingress-only slice,
-5. alarms cover the declared critical failure families and can be validated live,
-6. cost posture is attributable enough to identify active waste and residual non-essential compute,
-7. safe idle and restart posture is demonstrable on the live runtime,
-8. active handle / secret / SSM resolution succeeds without placeholder drift,
-9. ML day-2 monitoring ownership is explicit on the same platform:
+1. the accepted `Phase 6` story can be reconstructed exactly from durable evidence and active control-surface truth,
+2. critical alerts are not merely defined but tied to owned runbooks and bounded mitigation actions,
+3. at least one alert/incident path is exercised as a real alert-to-runbook drill rather than assumed from configuration,
+4. ML day-2 monitoring is explicit:
    - active bundle truth is readable,
-   - learning/runtime drift signals are visible where they exist,
-   - operator mitigation surfaces are attributable.
+   - learning/runtime drift surfaces are attributable,
+   - mitigation paths are explicit (`rollback`, `degrade`, `pause learning`, `investigate label/data quality`) where relevant,
+5. governance surfaces are append-only, attributable, and resistant to placeholder / stale-handle drift,
+6. cost is attributable enough to identify waste, and idle / restore discipline is proven on the live runtime,
+7. no major operational blindspot remains around dashboards, alarms, runbooks, drift visibility, or operator response.
 
 If any one of those is false, `Phase 7` is not closed.
 
 ## Components, paths, and cross-plane relationships that contribute to that goal
 
-### Upstream authorities already accepted
+### Upstream authority already accepted
 - working-platform source authority:
   - `execution_id = phase6_learning_coupled_20260312T194748Z`
   - `platform_run_id = platform_20260312T194748Z`
   - `verdict = PHASE6_READY`
 
 ### Active paths in scope
-- run control -> receipt -> scorecard / rollup -> evidence readback
-- accepted verdict -> active runtime path -> declared bundle truth
-- evidence bucket -> dashboards / alarms / operator readback
-- cost guardrail -> idle / teardown -> restart posture
-- SSM / handles / secrets -> live runtime resolution
-- drift readback -> operator diagnosis / mitigation
+- run control -> receipt -> evidence ref -> operator readback
+- accepted learning bundle -> live decision fabric resolution -> operator drift readback
+- CloudWatch alarm -> dashboard -> runbook -> bounded mitigation action
+- budget guardrail -> cost attribution -> idle / restore action
+- SSM / secret / handle resolution -> active runtime and learning surfaces
+- learning/runtime drift visibility -> mitigation choice and verification
 
 ### Live surfaces in scope
-- S3 evidence bucket
-- object store refs used by accepted learning and runtime proof
-- CloudWatch dashboards and alarms
-- EKS nodegroup + RTDL / Case + Label deployments
+- `runs/dev_substrate/dev_full/proving_plane/run_control/*`
+- S3 evidence and object-store refs used by accepted Phase 5 / 6 proof
+- CloudWatch dashboards, alarms, and alarm history
+- AWS Budgets and Cost Explorer
+- EKS nodegroup + RTDL / Case + Label workloads
+- active decision-fabric registry snapshot / policy on the runtime
+- Databricks-managed MLflow alias and SageMaker control-plane surfaces
 - SSM Parameter Store paths used by the live platform
-- run-control artifacts under `runs/dev_substrate/dev_full/proving_plane/run_control`
 
 ## Real subphases derived from the actual work
 
-## Phase 7.A - Run reconstruction and verdict readback
+## Phase 7.A - Audit reconstruction and verdict challenge
 Purpose:
-- prove the accepted `Phase 6` run can be reconstructed exactly from durable evidence.
+- prove the accepted `Phase 6` run story can be reconstructed exactly from durable evidence, not from notebook memory.
 
 This subphase is green only when:
-1. required receipts for the accepted run are present,
-2. evidence refs in the accepted receipts are readable,
-3. the verdict can be traced back to measured evidence without gaps,
-4. no run-scope collision or receipt ambiguity appears.
+1. the required receipts and manifests for the accepted source authority are present,
+2. evidence refs are readable on their real surfaces,
+3. the verdict can be walked from receipt -> evidence -> live bundle/runtime truth without ambiguity,
+4. provenance gaps or run-scope collisions are `0`.
 
-## Phase 7.B - Observability and alert coverage
+## Phase 7.B - Alert-to-runbook operational governance
 Purpose:
-- prove the live operator surfaces show the real working-platform posture and cover critical failure families.
+- prove that critical operational failures can move through a complete operator chain rather than stopping at "an alarm exists."
 
 This subphase is green only when:
-1. operations and cost dashboards are present and materially complete,
-2. metrics are fresh enough to be useful,
-3. alarms exist for the declared critical failure families,
-4. the alert surface is attributable to the same live runtime and ingress path being certified.
+1. dashboards cover the actual working-platform operator surface,
+2. critical alarms exist for the declared failure families,
+3. each critical alarm has explicit runbook / owner / escalation linkage,
+4. at least one alert path is exercised or otherwise evidenced beyond initial `INSUFFICIENT_DATA -> OK`.
 
-## Phase 7.C - Cost, idle, and restart discipline
+## Phase 7.C - ML day-2 monitoring and mitigation ownership
 Purpose:
-- prove the platform can be put into an economical standby posture and restored without hidden leftovers.
+- prove that model/data/platform operations are connected by an explicit operator posture rather than by assumption.
 
 This subphase is green only when:
-1. active cost surfaces are attributable,
-2. residual non-essential compute can be identified,
-3. bounded idle actions are visible and reversible,
-4. restart from idle preserves the declared runtime shape.
+1. active bundle truth is readable from the live runtime,
+2. learning-surface truth is readable from managed control surfaces,
+3. drift and degradation visibility is explicit for the active production path,
+4. mitigation choices are explicit and attributable:
+   - `rollback`,
+   - `degrade`,
+   - `pause promotion / learning`,
+   - `investigate data / label quality`,
+5. the alert / runbook / mitigation chain does not depend on guessed surface names.
 
-## Phase 7.D - Identity, handles, and drift integrity
+## Phase 7.D - Cost governance, idle, and restart discipline
 Purpose:
-- prove the active operational trust model is real and that drift can be detected before false certification.
+- prove that active cost can be attributed, that waste can be identified, and that the runtime can enter and leave standby safely.
+
+This subphase is green only when:
+1. current spend is attributable by service family and active runtime shape,
+2. top waste surfaces are identifiable and actionable,
+3. the budget guardrail is visible and tied to an operator action path,
+4. bounded idle-to-zero and restore are proven on the live runtime,
+5. residual non-essential compute after idle is `0`.
+
+## Phase 7.E - Handle integrity and governance truth
+Purpose:
+- prove that active control paths do not depend on stale, placeholder, or guessed handles.
 
 This subphase is green only when:
 1. required SSM / handle / secret surfaces resolve cleanly,
-2. placeholder handle count on active paths is `0`,
-3. declared active bundle/runtime truth matches live surfaces,
-4. drift readback catches real mismatch classes rather than static file parity only.
+2. placeholder count on active paths is `0`,
+3. repo authority and live runtime authority do not disagree on the active governed path,
+4. missing or guessed control-surface names are treated as blockers rather than papered over.
 
-## Phase 7.E - Phase judgment
+## Phase 7.F - Phase judgment
 Purpose:
 - decide whether `Operations / Governance / Meta` is plane-ready.
 
 This subphase is green only when:
-- the earlier subphases are green,
-- ML day-2 monitoring responsibility is explicit rather than deferred,
-- the platform can be operated, audited, governed, and cost-controlled without guesswork,
-- no major blindspot remains around evidence, alarms, drift, or idle posture.
+- all earlier subphases are green,
+- the operational story is explainable and attributable end to end,
+- the platform can be operated without guesswork,
+- ML day-2 responsibility is explicit and materially supported on the live platform,
+- and no major blindspot remains.
 
 ## Telemetry burden for this phase
 
 - live logs:
   - run-control / reporter surfaces
   - governance append / evidence readback failures
-  - cost / residual-scan actions
-  - drift / resolution checks
+  - alarm history and operator-action surfaces
+  - idle / restore actions
+  - runtime drift and learning-surface readback failures
 - live counters:
-  - receipt counts and evidence readback counts
-  - dashboard freshness
-  - alarm count by failure family
-  - attributable active runtime count and residual idle count
-  - handle resolution successes / failures
+  - receipt completeness and evidence readback counts
+  - dashboard freshness and alarm coverage counts
+  - alert-history / drill evidence counts
+  - handle-resolution successes / failures
+  - attributable spend by service family
+  - idle / restore residual counts
 - live boundary health:
   - exact run reconstruction possible from accepted `Phase 6` evidence
-  - live runtime path matches declared active bundle truth
-  - dashboards and alarms point at the active runtime surfaces
-  - idle / restart actions are visible and reversible
+  - alert -> dashboard -> runbook -> mitigation chain is complete
+  - active runtime bundle truth matches governed truth
+  - cost guardrails are visible and operator-actionable
+  - ML day-2 monitoring does not rely on guessed or absent surfaces
 - fail-fast triggers:
   - missing required receipts or evidence holes
-  - missing critical alarm coverage
-  - unattributed active compute
-  - active-runtime-path drift
-  - placeholder or unresolved required handle on active paths
+  - missing runbook linkage on critical alert families
+  - no real alarm validation evidence
+  - unattributed active compute or missing budget action path
+  - missing / guessed active ML control-surface identity
+  - unresolved placeholder or missing handle on active paths
 
-## Current starting facts entering the phase
+## Current starting facts entering the restarted phase
 
-- accepted source authority is:
+- accepted source authority remains:
   - `phase6_learning_coupled_20260312T194748Z`
   - `platform_20260312T194748Z`
-- live dashboards are present:
+- live dashboards exist:
   - `fraud-platform-dev-full-operations`
   - `fraud-platform-dev-full-cost-guardrail`
-- live dashboards are still too thin for full `Phase 7` closure:
-  - current operations dashboard is ingress-centric only
-  - current cost dashboard shows budget shape but not runtime residual posture
-- live alarm coverage is currently missing on the declared `fraud-platform-dev-full` naming surface
-- the working runtime is currently active:
-  - EKS nodegroup `fraud-platform-dev-full-m6f-workers` at `desired=4`
-  - RTDL and Case + Label deployments running
-- that means the first active blocker is operational-surface incompleteness, not a platform execution defect.
+- live alarms exist on the current naming surface:
+  - ingress Lambda errors / throttles
+  - APIGW `5xx`
+  - EKS unschedulable
+  - EKS apiserver `5xx`
+- but the fresh restart probe shows the old closure logic was too permissive:
+  - the assessor can still describe the surface more easily than it can prove operator actionability
+  - the fresh rerun stayed red only on missing idle-drill freshness, which is itself evidence that the current gate is underpowered for a real Phase 7 closure
+- live dashboard gap:
+  - no explicit runbook / owner / escalation linkage is present on the current dashboard bodies
+- live alert-validation gap:
+  - alarm history currently shows only initial `INSUFFICIENT_DATA -> OK` state changes
+  - no retained alert fire / clear drill evidence exists yet for this restarted phase
+- ML day-2 operator ambiguity is still real:
+  - active runtime bundle truth is readable from the decision fabric
+  - managed learning surfaces are partly readable (`MLflow tracking_uri = databricks`, model package group present)
+  - but obvious operator-facing SSM names for an online endpoint / package-group handle are absent, which means this phase must pin the real governed control surfaces rather than assume them
+- cost posture is visibly hot and attributable:
+  - monthly budget `300 USD`
+  - actual spend already `3142.638 USD`
+  - current daily leaders include `RDS`, `S3`, `MSK`, `DynamoDB`, `Lambda`, `API Gateway`, and EC2-related spend
+
+## Immediate restart posture
+
+The restarted `Phase 7` begins red on real operator-governance gaps, not on runtime throughput:
+
+1. the alert-to-runbook chain is not yet proven,
+2. the ML day-2 mitigation path is not yet explicit enough,
+3. the current Phase 7 assessor is too thin to be closure authority,
+4. the cost guardrail is visible but not yet tied to a fresh bounded operator action drill for this restarted phase.
+
+That means the next work is:
+
+1. tighten the Phase 7 assessor so it fails on the real missing operational controls,
+2. pin or create the missing runbook / mitigation surfaces,
+3. execute fresh bounded Phase 7 proof slices on that stricter boundary,
+4. only then judge whether the plane is actually green.
 
 ## Rebuilt execution and accepted closure authority
 
-The rebuilt `Phase 7` did not close on the first apparently green assessment. It stayed open until the operator-surface proof and the live idle/restart drill were both present and attributable.
+The restarted `Phase 7` did not reuse the withdrawn closure story. It restarted from the live operator boundary and only closed after the stricter subproofs were materially present on the same execution scope.
 
 The meaningful rebuilt sequence was:
 
-- live boundary audit before execution:
-  - dashboards existed
-  - alarm coverage was effectively absent
-  - runtime was active at `desired=4`
-- first bounded `Phase 7` assessor pass:
-  - closed the old dashboard/alarm blind spot after live CloudWatch sync
-  - exposed two proof-harness defects:
-    - CSV evidence refs were being treated as JSON-only readbacks
-    - the runtime drift probe assumed the wrong DF registry object shape
-- second bounded assessor pass:
-  - reconstruction / evidence / observability / drift surfaces all went green
-  - but that revealed a method defect:
-    - the assessor could still go green without the required live idle/restart drill
-- tightened assessor:
-  - `Phase 7` now fails closed unless `phase7_idle_restart_drill.json` exists and is green
-- first idle drill execution:
-  - control script failed on the wrong `eks.describe_update` parameter name
-  - the live runtime still reached the intended idle boundary:
-    - deployments `0`
-    - nodegroup `desired=0`
-    - nodes draining to zero
-- corrected idle drill path:
-  - waited for true zero-node idle
-  - restored nodegroup to `min=2`, `desired=4`
-  - restored RTDL / Case + Label / `coredns`
-  - rewrote the drill receipt with the actual successful idle and restore updates
-- final bounded assessor pass:
-  - accepted closure on the same source authority after the idle/restart proof was present
+- repo authority reset:
+  - rushed Phase 7 phase doc withdrawn
+  - rushed readiness-delta graph removed
+  - master plan reset to `Phase 7 active`
+- fresh operator-boundary audit:
+  - dashboards and alarms existed
+  - but no explicit runbook chain was present on the dashboards
+  - ML day-2 operator responsibility was still under-specified
+- fresh phase doc rebuilt from the actual goal of the plane
+- operator control surfaces created:
+  - dedicated Phase 7 runbook
+  - dashboard markdown linking alert -> runbook -> mitigation posture
+- fresh bounded alert-to-runbook drill:
+  - exercised `fraud-platform-dev-full-ig-lambda-errors`
+  - manual `ALARM -> OK` state transitions recorded in CloudWatch alarm history
+  - runbook linkage materially present on the live dashboards
+- fresh ML day-2 operator-surface probe:
+  - first pass stayed red because rollback / restore authority was being read from the wrong probe shape
+  - narrow fix:
+    - derive rollback from the accepted previous-bundle authority
+    - derive restore from the accepted promoted-bundle authority
+  - rerun closed green on the same execution scope
+- fresh idle / restore drill:
+  - live nodegroup reached true zero-node idle
+  - runtime restored to the pre-drill working shape
+  - a receipt-serialization defect in the drill controller was fixed without changing the live drill boundary
+- final bounded Phase 7 assessor:
+  - accepted closure only after all three restart-scope subproofs were present and green on the same execution authority
 
-The accepted closure authority is therefore:
+The accepted rebuilt closure authority is:
 
 - execution:
-  - `phase7_ops_gov_meta_20260312T235900Z`
+  - `phase7_ops_gov_meta_restart_20260313T002459Z`
 - source working-platform authority:
   - `phase6_learning_coupled_20260312T194748Z`
 - verdict:
@@ -206,69 +257,102 @@ The accepted closure authority is therefore:
 
 ## Accepted closure metrics
 
-### Phase 7.A - Run reconstruction and verdict readback
+### Phase 7.A - Audit reconstruction and verdict challenge
 - required local evidence:
   - `10 / 10` present
-- Phase 5 readback refs:
+- accepted Phase 5 readback refs:
   - `18 / 18` readable
-- source authority:
-  - `Phase 6` receipt remained `PHASE6_READY`
+- verdict traceability:
+  - source authority remained `PHASE6_READY`
+  - active runtime bundle still matched the accepted promoted bundle
 
-### Phase 7.B - Observability and alert coverage
+### Phase 7.B - Alert-to-runbook operational governance
 - dashboards:
-  - operations widgets = `4`
+  - operations widgets = `5`
   - cost widgets = `3`
-- alarm coverage:
+- runbook linkage:
+  - operations dashboard markdown present
+  - cost dashboard markdown present
+  - runbook path = `docs/runbooks/dev_full_phase7_ops_gov_runbook.md`
+- critical alarm coverage:
   - `fraud-platform-dev-full-ig-lambda-errors`
   - `fraud-platform-dev-full-ig-lambda-throttles`
   - `fraud-platform-dev-full-ig-apigw-5xx`
   - `fraud-platform-dev-full-eks-unschedulable-pods`
   - `fraud-platform-dev-full-eks-apiserver-5xx`
+  - `fraud-platform-dev-full-billing-estimated-charges`
+- alert drill:
+  - `fraud-platform-dev-full-ig-lambda-errors`
+  - CloudWatch history recorded:
+    - `OK -> ALARM`
+    - `ALARM -> OK`
+  - drill artifact green on the same execution scope
 - metric freshness:
-  - Lambda duration fresh through `2026-03-12T20:41:00Z`
-  - APIGW count fresh through `2026-03-12T20:41:00Z`
-  - EKS apiserver metric fresh through `2026-03-12T23:56:00Z`
-- budget surface:
-  - readable and fresh
-  - last updated `2026-03-12 19:13:49.687000+00:00`
+  - Lambda duration fresh through `2026-03-12T20:44:00Z`
+  - APIGW count fresh through `2026-03-12T20:44:00Z`
+  - EKS apiserver metric fresh through `2026-03-13T00:29:00Z`
 
-### Phase 7.C - Cost, idle, and restart discipline
-- idle drill:
+### Phase 7.C - ML day-2 monitoring and mitigation ownership
+- active serving truth:
+  - serving mode = `EKS_DECISION_FABRIC_RUNTIME`
+  - active fraud-primary bundle matched promoted truth:
+    - `bundle_id = da1b8f...`
+    - `bundle_version = v0-29d2b27919a7`
+  - policy revision = `r3`
+- managed learning surfaces:
+  - `mlflow_tracking_uri = databricks`
+  - SageMaker execution role resolved
+  - model package group present:
+    - `fraud-platform-dev-full-models`
+  - no active SageMaker endpoint was assumed or required for the current serving path
+- mitigation surfaces:
+  - rollback bundle authority readable
+  - restore bundle authority readable
+  - allowed actions pinned:
+    - `rollback`
+    - `degrade`
+    - `pause_promotion_or_learning`
+    - `investigate_data_or_label_quality`
+
+### Phase 7.D - Cost governance, idle, and restart discipline
+- budget:
+  - name = `fraud-platform-dev-full-monthly`
+  - limit = `300 USD`
+  - actual spend visible = `3142.638 USD`
+- latest daily cost remained attributable by service family, with visible major contributors including:
+  - `RDS`
+  - `S3`
+  - `MSK`
+  - `DynamoDB`
+  - `Lambda`
+  - `API Gateway`
+- idle / restore drill:
   - nodegroup scaled from `min=2`, `desired=4`, `max=8` to `min=0`, `desired=0`, `max=8`
   - node count after idle reached `0`
   - restore returned to `min=2`, `desired=4`, `max=8`
-  - RTDL, Case + Label, and `coredns` restored to their pre-drill replica counts
-- cost visibility:
-  - latest daily cost window remained attributable by service family
-  - active spend remained visible even though the monthly budget was already exceeded
-  - billing guardrail alarm present on the live `AWS/Billing` surface:
-    - `fraud-platform-dev-full-billing-estimated-charges`
+  - RTDL, Case + Label, and `coredns` returned to their pre-drill shape
 
-### Phase 7.D - Identity, handles, and drift integrity
+### Phase 7.E - Handle integrity and governance truth
 - required handle / secret surfaces:
   - resolved `11 / 11`
   - placeholder-like active handles = `0`
-- runtime drift probe:
-  - live DF runtime still mounted:
-    - `registry_snapshot.promoted.yaml`
-    - `registry_resolution_policy.promoted.yaml`
-  - active fraud-primary bundle still matched promoted Phase 5 bundle:
-    - `bundle_id = da1b8f...`
-    - `bundle_version = v0-29d2b27919a7`
-  - policy revision remained `r3`
+- runtime drift readback:
+  - `registry_snapshot.promoted.yaml`
+  - `registry_resolution_policy.promoted.yaml`
+  - live active bundle still matched the accepted promoted authority
 
 ## Closure judgment
 
-`Phase 7` is now closed green as a plane-readiness judgment.
+`Phase 7` is now closed green on the rebuilt standard as a plane-readiness judgment.
 
-Why this closure is trustworthy:
+Why this restarted closure is materially stronger than the withdrawn candidate:
 
-- the accepted `Phase 6` run story can now be reconstructed deterministically from receipts and evidence
-- dashboards and alarms now cover the declared bounded failure families on the live platform
-- the assessor itself was tightened so it could not go green without the required idle/restart proof
-- the live idle/restart drill reached true zero-node idle and restored the runtime back to the accepted working shape
-- active runtime drift readback still matched the promoted learning bundle and policy truth
+- the phase was restarted from a clean authority boundary instead of patched around the old closure story
+- the operator chain now includes a real runbook surface, not just metrics
+- the alert surface was exercised on the live platform, not merely observed in `OK`
+- ML day-2 operator truth and mitigation surfaces are now explicit and attributable
+- the idle / restore drill is fresh on the same execution scope as the final accepted assessor
 
-This does **not** promote `Ops / Gov / Meta` into the working platform yet.
+This still does **not** promote `Ops / Gov / Meta` into the working platform.
 
-That still depends on `Phase 8`, where the plane has to hold as part of the full coupled platform story rather than only on its own plane boundary.
+That promotion still depends on `Phase 8`, where the plane has to hold inside the fully coupled platform story rather than only on its own plane boundary.

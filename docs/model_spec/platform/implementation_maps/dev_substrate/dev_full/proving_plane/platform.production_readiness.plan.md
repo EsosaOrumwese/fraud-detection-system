@@ -375,7 +375,7 @@ The baseline now established under this plan is:
 - `RTDL`: promoted working-platform member after fresh-scope Phase 1 closure on `2026-03-11`
 - `Case + Label`: promoted working-platform member after bounded Phase 3 plane closure on `2026-03-11` and coupled Phase 4 closure on `2026-03-12`
 - `Learning + Evolution / MLOps`: promoted working-platform member after rebuilt Phase 5 closure on `2026-03-12` and coupled Phase 6 closure on `2026-03-12`
-- `Ops / Gov / Meta`: plane-ready after bounded Phase 7 closure on `2026-03-13`, but not yet promoted into the working platform pending full-platform coupled proof
+- `Ops / Gov / Meta`: plane-ready after rebuilt Phase 7 closure on `2026-03-13`, but not yet promoted into the working platform pending full-platform coupled proof
 
 That means the current working platform is:
 - `Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps`
@@ -1349,17 +1349,17 @@ After a phase is complete, update as needed:
 ## Immediate next action
 Proceed with `Phase 8 - Full-platform bounded integrated validation`.
 
-`Phase 7` is now closed green on the rebuilt standard as a plane-readiness judgment. The accepted bounded closure authority is:
+`Phase 7` is now closed green on the rebuilt standard as a plane-readiness judgment. The accepted rebuilt closure authority is:
 
 - ops / gov / meta bounded proof:
-  - `phase7_ops_gov_meta_20260312T235900Z`
+  - `phase7_ops_gov_meta_restart_20260313T002459Z`
 
-The current promoted working platform is now:
+The current promoted working platform remains:
 
 - `Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps`
 
 Execution order now is:
-1. keep the accepted `Phase 6` working-platform evidence chain and the accepted `Phase 7` plane-readiness evidence fixed,
+1. keep the accepted `Phase 6` working-platform evidence chain and the accepted rebuilt `Phase 7` plane-readiness evidence fixed,
 2. open the full-platform integrated boundary against that enlarged working platform plus the now-green ops/gov plane,
 3. prove cross-plane truth continuity, timing continuity, explainability, and auditability on one bounded integrated proof story,
 4. only then authorize the bounded full-platform stress decision that follows later in the plan.
