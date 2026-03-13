@@ -1,15 +1,19 @@
+---
+config:
+  theme: default
+---
 flowchart TD
 
     META["Meta goal (implicit)<br/>A serious reviewer infers senior-level ML Platform and MLOps capability"]:::meta
-    AGOAL["A achieved enough<br/>Current wired platform is real, bounded, and understood"]:::finish
-    BGOAL["Bi goal (implicit)<br/>Expose the A-mapped wired platform to production-shaped pressure,<br/>reveal wired-to-ready gaps, justify the bridges,<br/>and make readiness boundaries solid enough for promotion"]:::goal
+    AGOAL["A achieved enough<br/>Pre-production-pressure network is real, bounded, wired, and understood"]:::finish
+    BGOAL["Bi goal (implicit)<br/>Interrogate how the A network was taken through production pressure<br/>into its production-ready posture,<br/>and extract the reasoning that made that transformation possible"]:::goal
 
     META --> AGOAL --> BGOAL
 
-    BSTART["Start Bi interrogation<br/>Use A as the map,<br/>not as something to rediscover"]:::step
+    BSTART["Start Bi interrogation<br/>Bi is not a component tour,<br/>not a raw phase diary,<br/>and not a future hardening to-do list"]:::step
     BGOAL --> BSTART
 
-    BBOUND["Pin the Bi boundary<br/>Bi asks readiness questions only:<br/>what breaks under production-shaped pressure,<br/>why it breaks, what gap that reveals,<br/>and what justifiably bridges it"]:::boundary
+    BBOUND["Pin the Bi boundary<br/>Bi studies the transformation from A posture to production-ready posture<br/>for the objects that matter most to readiness and to the meta goal"]:::boundary
     BSTART --> BBOUND
 
     BFREEZE["Freeze Bi-core evidence surfaces"]:::step
@@ -17,11 +21,11 @@ flowchart TD
 
     subgraph BEVID["Bi-core evidence surfaces"]
         direction TB
-        BV1["A map<br/>groups, paths, owned outcomes, syntheses"]:::surface
-        BV2["Readiness implementation note<br/>primary reasoning authority for what actually happened"]:::surface
-        BV3["Readiness plan + active phase authority<br/>goal, target, closure rule"]:::surface
-        BV4["Accepted green chain<br/>what this proof is allowed to inherit"]:::surface
-        BV5["Bi gap register<br/>boundary, pressure, target, observed,<br/>gap class, chosen bridge, bridge effect,<br/>promotion scope, what remains open"]:::register
+        BV1["A master note<br/>pre-pressure object meanings,<br/>paths, groups, owned outcomes"]:::surface
+        BV2["Production-readiness implementation note<br/>incremental pressure history,<br/>breakages, bridges, revalidations"]:::surface
+        BV3["Production-readiness plan + phase authorities<br/>what 'ready' meant at each point,<br/>and what closure/promotion was being earned"]:::surface
+        BV4["Production-ready network/resource graphs<br/>final post-pressure posture"]:::surface
+        BV5["Bi notebook ledger<br/>object | A posture | Bi posture | concerns | measures | constraints | trade-offs | bridges | claim"]:::register
     end
 
     BFREEZE --> BV1
@@ -30,124 +34,163 @@ flowchart TD
     BFREEZE --> BV4
     BFREEZE --> BV5
 
-    BSELECT["Select the active A-defined object under pressure<br/>one group, one path, one plane,<br/>or one coupled boundary"]:::step
-    BV1 --> BSELECT
+    BINVENT["Define the interrogation inventory"]:::step
+    BV1 --> BINVENT
+    BV4 --> BINVENT
 
-    subgraph BFRAME["Bi gap frame"]
+    subgraph BINV["Inventory layers"]
         direction TB
-        BCURR["State current wired truth<br/>What is true now about this boundary?"]:::step
-        BREADY["State production-ready truth<br/>What would have to be true for this boundary to count as ready?"]:::step
-        BQUESTION["State exact readiness question<br/>What exact wired-to-ready gap is being tested?"]:::step
-        BCURR --> BREADY --> BQUESTION
+        I1["Primary layer<br/>A-defined objects:<br/>groups, paths, planes, couplings"]:::surface
+        I2["Secondary layer<br/>enlarged-network objects:<br/>the working system after each new plane is attached"]:::surface
     end
 
-    BSELECT --> BCURR
+    BINVENT --> I1
+    BINVENT --> I2
 
-    subgraph BPFAM["Production-pressure families"]
+    BPRIOR["Prioritize which objects deserve full interrogation first"]:::step
+    I1 --> BPRIOR
+    I2 --> BPRIOR
+
+    subgraph BCRIT["Selection criteria"]
         direction TB
-        PF1["Envelope pressure<br/>steady, burst, recovery, latency, lag"]:::pressure
-        PF2["Semantic pressure<br/>no future leakage, no false-ready,<br/>no shadow truth, no false-green"]:::pressure
-        PF3["Coupling pressure<br/>newly attached boundary stays truthful<br/>inside enlarged network"]:::pressure
-        PF4["Authority pressure<br/>right source of truth, right active bundle,<br/>right rollup authority"]:::pressure
-        PF5["Observability pressure<br/>fresh telemetry, drift visibility,<br/>active-path fidelity"]:::pressure
-        PF6["Cost pressure<br/>bounded spend, no proof by waste"]:::pressure
+        C1["central to system truth or control"]:::criteria
+        C2["re-pressured repeatedly as planes were attached"]:::criteria
+        C3["production concern is clear and meaningful"]:::criteria
+        C4["measurement / evidence story is strong"]:::criteria
+        C5["constraint / trade-off reasoning is rich"]:::criteria
+        C6["good payoff for the meta goal"]:::criteria
     end
 
-    BPRESS["Select the relevant production pressure"]:::step
-    BQUESTION --> BPRESS
-    BPRESS --> PF1
-    BPRESS --> PF2
-    BPRESS --> PF3
-    BPRESS --> PF4
-    BPRESS --> PF5
-    BPRESS --> PF6
+    BPRIOR --> C1
+    BPRIOR --> C2
+    BPRIOR --> C3
+    BPRIOR --> C4
+    BPRIOR --> C5
+    BPRIOR --> C6
 
-    BTARGET["Pin target vs observed frame<br/>target, tolerance, fail-fast red,<br/>and what would count as a truthful verdict"]:::step
-    PF1 --> BTARGET
-    PF2 --> BTARGET
-    PF3 --> BTARGET
-    PF4 --> BTARGET
-    PF5 --> BTARGET
-    PF6 --> BTARGET
+    BSELECT["Select one object for interrogation"]:::step
+    C1 --> BSELECT
+    C2 --> BSELECT
+    C3 --> BSELECT
+    C4 --> BSELECT
+    C5 --> BSELECT
+    C6 --> BSELECT
 
-    BTELE["Pin telemetry before spend<br/>live logs, live counters, boundary health,<br/>fail-fast triggers, minimal hardening artifacts"]:::step
-    BTARGET --> BTELE
+    subgraph BFRAME["Object frame"]
+        direction TB
+        APOST["State the A posture<br/>What was this object in the pre-pressure network?"]:::step
+        BPOST["State the final Bi posture<br/>What is this object in the production-ready network?"]:::step
+        BWHY["State why this object matters<br/>Why is it important to readiness and to the meta goal?"]:::step
+        APOST --> BPOST --> BWHY
+    end
 
-    BPROOF{"Truthful proof shape ready?"}:::decision
-    BTELE --> BPROOF
+    BSELECT --> APOST
 
-    BBLIND["Fix proof-shape / attribution / observability blindspot first<br/>Do not spend yet"]:::step
-    BPROOF -- "No" --> BBLIND
-    BBLIND --> BTELE
+    BQUEST["Derive the system-design questions for this object"]:::step
+    BWHY --> BQUEST
 
-    BRUN["Apply the smallest truthful production-shaped run<br/>Keep AWS-real and preserve production shape"]:::step
-    BPROOF -- "Yes" --> BRUN
+    subgraph BQ["System-design interrogation questions"]
+        direction TB
+        Q1["What concerns us about this object under production pressure?"]:::question
+        Q2["Why does that concern matter?"]:::question
+        Q3["How do we measure what we care about?"]:::question
+        Q4["How does the A posture behave under pressure?"]:::question
+        Q5["What defines the production-ready standard here?"]:::question
+        Q6["What constraints shape the solution?"]:::question
+        Q7["What trade-offs are acceptable or unacceptable?"]:::question
+        Q8["Which enlarged-network attachments re-pressured this object?"]:::question
+    end
 
-    BOBS["Measure target vs observed<br/>What held? What broke?<br/>What stayed green only advisory?"]:::step
-    BRUN --> BOBS
+    BQUEST --> Q1
+    BQUEST --> Q2
+    BQUEST --> Q3
+    BQUEST --> Q4
+    BQUEST --> Q5
+    BQUEST --> Q6
+    BQUEST --> Q7
+    BQUEST --> Q8
 
-    BGAP["Reveal the gap<br/>target, observed, delta,<br/>missing readiness property,<br/>impact on boundary / group / enlarged network"]:::step
-    BOBS --> BGAP
+    BCROSS["Map this object to the pressure history<br/>Which phase turns, coupled enlargements, or revalidations materially changed it?"]:::step
+    Q8 --> BCROSS
+    BV2 --> BCROSS
+    BV3 --> BCROSS
 
-    BCLASS0{"What kind of gap is this?"}:::decision
-    BGAP --> BCLASS0
+    BREAD["Read the relevant implementation-note episodes<br/>Not every event, only the turns that changed posture,<br/>revealed a real concern, or forced a meaningful bridge"]:::step
+    BCROSS --> BREAD
 
-    ADEFECT["A correction<br/>pressure exposed that the wired foundation itself<br/>is still wrong or incomplete"]:::gap
-    PDEFECT["Proof-boundary defect<br/>methodology, proof shape, rollup authority,<br/>telemetry / observability defect"]:::gap
-    BIDEFECT["True Bi readiness insufficiency<br/>runtime, semantic, coupling, capacity,<br/>authority, or cost defect"]:::gap
+    BEP["Interrogate the pressure episodes"]:::step
+    BREAD --> BEP
 
-    BCLASS0 --> ADEFECT
-    BCLASS0 --> PDEFECT
-    BCLASS0 --> BIDEFECT
+    subgraph BEPIS["Episode interrogation"]
+        direction TB
+        E1["What surfaced?"]:::episode
+        E2["How was it made visible?<br/>metric, counter, telemetry, behavior, or contradiction"]:::episode
+        E3["What did it actually mean?<br/>system concern, not just symptom"]:::episode
+        E4["What class of challenge was it?<br/>A-foundation issue, proof-boundary issue, or true readiness insufficiency"]:::episode
+        E5["What bridge was accepted?"]:::episode
+        E6["Why was that bridge the right one?"]:::episode
+        E7["What readiness property did it improve?"]:::episode
+        E8["What evidence shows the bridge,<br/>not just the rerun, changed the posture?"]:::episode
+    end
 
-    AFIX["Return to A-boundary correction<br/>Fix the wired object before claiming readiness work"]:::bridge
-    ADEFECT --> AFIX
-    AFIX --> BCURR
+    BEP --> E1
+    BEP --> E2
+    BEP --> E3
+    BEP --> E4
+    BEP --> E5
+    BEP --> E6
+    BEP --> E7
+    BEP --> E8
 
-    BCAND["State candidate bridges<br/>What could close this gap<br/>without weakening production shape?"]:::bridge
-    PDEFECT --> BCAND
-    BIDEFECT --> BCAND
+    BTRANS["Synthesize the object transformation<br/>What had to be resolved to move this object<br/>from its A posture to its final Bi posture?"]:::bridge
+    E1 --> BTRANS
+    E2 --> BTRANS
+    E3 --> BTRANS
+    E4 --> BTRANS
+    E5 --> BTRANS
+    E6 --> BTRANS
+    E7 --> BTRANS
+    E8 --> BTRANS
 
-    BJUST["Choose and justify the bridge<br/>Why this is the least-distorting move<br/>from current wired truth toward ready truth"]:::bridge
-    BCAND --> BJUST
+    BCLAIM["Extract the Bi claim for this object"]:::claims
+    BTRANS --> BCLAIM
 
-    BEFFECT["State the bridge effect explicitly<br/>What readiness property did this bridge improve?<br/>What evidence would show the bridge,<br/>not just the rerun, closed the gap?"]:::bridge
-    BJUST --> BEFFECT
+    subgraph BCLAIMS["Claim mix"]
+        direction TB
+        CL1["readiness-reasoning claim"]:::claim
+        CL2["systems-design judgment claim"]:::claim
+        CL3["measurement / observability claim"]:::claim
+        CL4["constraint / trade-off claim"]:::claim
+        CL5["production-relevant challenge claim"]:::claim
+        CL6["promotion / final-posture claim"]:::claim
+    end
 
-    BREC["Write one Bi boundary output<br/>current truth<br/>ready truth<br/>pressure family<br/>target vs observed<br/>gap class<br/>chosen bridge<br/>bridge effect<br/>what remains open"]:::step
-    BEFFECT --> BREC
-    BREC --> BV5
+    BCLAIM --> CL1
+    BCLAIM --> CL2
+    BCLAIM --> CL3
+    BCLAIM --> CL4
+    BCLAIM --> CL5
+    BCLAIM --> CL6
 
-    BRERUN["Rerun the same truthful boundary<br/>Do not invent a new easy question"]:::step
-    BREC --> BRERUN
-    BRERUN --> BOBS
+    BWRITE["Write the object block into the Bi notebook ledger"]:::step
+    CL1 --> BWRITE
+    CL2 --> BWRITE
+    CL3 --> BWRITE
+    CL4 --> BWRITE
+    CL5 --> BWRITE
+    CL6 --> BWRITE
+    BWRITE --> BV5
 
-    BSOLID{"Boundary now solid enough?"}:::decision
-    BOBS --> BSOLID
+    BNEXT{"More high-value objects to interrogate?"}:::decision
+    BWRITE --> BNEXT
 
-    BSOLIDNOTE["State solidity verdict<br/>what is now solid,<br/>why it is solid,<br/>and what remains open"]:::groupconclusion
-    BSOLID -- "Yes" --> BSOLIDNOTE
-    BSOLID -- "No" --> BCLASS0
-
-    BSCOPE["State promotion scope explicitly<br/>boundary only?<br/>group?<br/>plane?<br/>enlarged working network?"]:::step
-    BSOLIDNOTE --> BSCOPE
-
-    BPROM{"Promotion justified for that scope?"}:::decision
-    BSCOPE --> BPROM
-
-    BUP["Promote into the accepted green chain<br/>only after explainable proof"]:::step
-    BPROM -- "Yes" --> BUP
-    BPROM -- "No" --> BPRESS
-
-    BNEXT{"More A-defined readiness boundaries to interrogate?"}:::decision
-    BUP --> BNEXT
     BNEXT -- "Yes" --> BSELECT
     BNEXT -- "No" --> BSYN
 
-    BSYN["Bi synthesis<br/>Show which A-defined boundaries were pressured,<br/>what gaps were revealed,<br/>how bridges were justified,<br/>what is now solid,<br/>what was promoted,<br/>and what remains open"]:::goal
+    BSYN["Bi synthesis<br/>Show how production pressure transformed the A network<br/>into the production-ready network,<br/>object by object and enlarged-network by enlarged-network"]:::goal
     BSYN --> BFINAL
 
-    BFINAL["Final Bi-supporting claims<br/>The wired platform has been truthfully pressured;<br/>wired-to-ready gaps are explicit;<br/>bridges are justified;<br/>promotion scope is explicit;<br/>and remaining open readiness boundaries are visible"]:::claims
+    BFINAL["Final Bi-supporting claims<br/>The production-ready network was earned through explicit reasoning<br/>about concerns, measures, constraints, trade-offs, and bridges,<br/>not just through green phase receipts"]:::finish
     BFINAL --> META
 
     classDef meta fill:#f8d7da,stroke:#b42318,color:#111;
@@ -157,9 +200,10 @@ flowchart TD
     classDef surface fill:#ecfccb,stroke:#4d7c0f,color:#111;
     classDef register fill:#fef3c7,stroke:#b45309,color:#111;
     classDef decision fill:#ede9fe,stroke:#6d28d9,color:#111;
-    classDef pressure fill:#fae8ff,stroke:#a21caf,color:#111;
-    classDef gap fill:#fee2e2,stroke:#c2410c,color:#111;
+    classDef criteria fill:#fae8ff,stroke:#a21caf,color:#111;
+    classDef question fill:#f3e8ff,stroke:#7c3aed,color:#111;
+    classDef episode fill:#fff7ed,stroke:#ea580c,color:#111;
     classDef bridge fill:#cffafe,stroke:#0f766e,color:#111;
-    classDef groupconclusion fill:#ffe4e6,stroke:#be123c,color:#111;
+    classDef claim fill:#fce7f3,stroke:#be185d,color:#111;
     classDef claims fill:#e0f2fe,stroke:#0369a1,color:#111;
     classDef finish fill:#f3f4f6,stroke:#374151,color:#111;

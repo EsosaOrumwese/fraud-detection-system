@@ -169,3 +169,145 @@ Judgment at this point:
 
 - the `Bi` boundary is now explicit enough to keep the notebook off both sides of the line: it should not drift back into architectural rediscovery, and it should not drift forward into `Bii` proof claims
 - the next entry should freeze the `Bi` evidence surfaces so later pressure work stays tied to the actual reasoning authorities rather than to free-form hardening memory
+
+## 2026-03-13 00:55:59 +00:00 - Freeze the Bi-core evidence surfaces and pin the pressure inventory from A before selecting the first active object
+The next move in the notebook is to freeze the authorities first and only then define the pressure inventory inherited from `A`.
+
+The important posture here is that readiness work may be executed plane by plane, but the reasoning notebook does not need to collapse into plane-tour thinking. The right relationship is:
+
+- `A`-defined objects are the interrogation inventory
+- plane phases are the execution crosswalk
+
+That preserves the same discipline that made `A` useful. `A` stayed obligation-led and path-led rather than component-led, while the readiness plan is explicit that proving proceeds plane-first and then network-coupled. `Bi` needs both, but they should not be confused.
+
+The fixed evidence surfaces for this notebook are:
+
+1. `A map`
+   - the inherited obligation groups, real paths, owned outcomes, and `A` syntheses
+   - this is the architectural map `Bi` is allowed to pressure rather than rediscover
+
+2. `Readiness implementation note`
+   - the primary reasoning authority for what actually happened during readiness work
+   - this is where red classification, proof-boundary separation, and bridge choice are recorded as live engineering judgment rather than reconstructed later
+
+3. `Readiness plan plus active phase authority`
+   - the declared goal, target, run shape, telemetry doctrine, and closure rule for the boundary currently being interpreted
+   - the plan is explicit that graphs reflect truth after proof, not before it, and that planes are promoted only after both plane-ready and coupled-network proof are green
+
+4. `Accepted green chain`
+   - the already accepted working-platform truth that `Bi` is allowed to inherit without casually reopening it
+   - in the current readiness assets, that inherited promoted core is:
+     - `Control + Ingress`
+     - `RTDL`
+     - `Case + Label`
+     - `Learning + Evolution / MLOps`
+   - and `Ops / Gov / Meta` remain absent from the accepted production-ready core until later proof closes
+
+5. `Bi gap register`
+   - an in-note running ledger rather than an external authority artifact
+   - the working fields are:
+     - `boundary | pressure | target | observed | gap class | chosen bridge | bridge effect | promotion scope | what remains open`
+   - this is the notebook control surface that keeps readiness reasoning explicit instead of letting it dissolve into prose memory
+
+The pressure inventory should then be treated in two layers.
+
+The primary layer is the inherited `A` object inventory. These are the actual system-design objects `Bi` should pressure, because they are the real boundaries that `A` already established as owned, necessary, and materially seated.
+
+`Group 1 - Run and world-source authority`
+
+- `Run legitimization path`
+- `Source realization path`
+- `Ready authorization path`
+
+`Group 2 - Canonical traffic admission and bus publication`
+
+- `Boundary access path`
+- `Admission and disposition path`
+- `Authoritative bus publication path`
+- `Ingest commit truth path`
+
+`Group 3 - Runtime context formation and decisioning`
+
+- `Entity and relationship projection path`
+- `Joined context formation path`
+- `Online feature readiness path`
+- `Decision guardrail path`
+- `Decision formation path`
+- `Action and outcome emission path`
+
+`Group 4 - Durable audit, archive, and replay truth`
+
+- `Audit append path`
+- `Audit publication and durable reference path`
+- `Immutable archive preservation path`
+- `Archive closure and replay-reference path`
+
+`Group 5 - Operational case and label truth`
+
+- `Case-intent escalation path`
+- `Case creation and timeline append path`
+- `Case-to-label handoff path`
+- `Authoritative label commit and visibility path`
+
+`Group 6 - Learning, evaluation, and governed activation`
+
+- `Learning-input basis path`
+- `Offline dataset commitment path`
+- `Train / eval and candidate-bundle path`
+- `Promotion and rollback-governance path`
+- `Active-bundle authority feedback path`
+
+`Group 7 - Run governance, observability, and evidence closure`
+
+- `Run reconstruction and receipt closure path`
+- `Governance append and close-marker path`
+- `Proof-matrix and final-verdict publication path`
+- `Drift-visible observability attestation path`
+- `Idle-safe teardown and residual-readability path`
+- `Cost guardrail and cost-to-outcome closure path`
+
+That is the full inherited `A` object inventory. `Bi` should be able to select pressure objects from this list rather than inventing new readiness objects casually.
+
+The secondary layer is the enlarged-network inventory. These are not replacements for the `A` objects. They are the coupled readiness objects that arise because the proving plan works by proving one plane and then proving the enlarged working network that the new plane creates.
+
+The enlarged-network objects to pin are:
+
+1. `Control + Ingress revalidation boundary`
+   - the base working-platform object that readiness work revalidates under bounded production proof
+
+2. `Control + Ingress + RTDL working network`
+   - the first enlarged network beyond the ingress base
+   - this is the coupled readiness object around control, ingress, event transport, RTDL internal hot path, and the newly attached audit and archive boundaries
+
+3. `Control + Ingress + RTDL + Case + Label enlarged network`
+   - the coupled object where RTDL outputs are no longer only runtime-local
+   - the question becomes whether machine outputs remain truthful and operationally usable once review and supervision truth are attached
+
+4. `Control + Ingress + RTDL + Case + Label + Learning enlarged network`
+   - the feedback-loop object
+   - runtime truth, case truth, label truth, learning basis, governed bundle publication, and runtime bundle resolution all have to remain truthful together
+
+5. `Working platform + Ops / Gov / Meta governability`
+   - the object for run reconstruction, verdict traceability, evidence closure, drift detection, cost attribution, and idle or restart safety across the already-working platform
+
+6. `Full-platform bounded integrated validation`
+   - the all-planes active network object before longer stress authorization
+   - this is where cross-plane truth continuity, timing continuity, explainability, and hidden-handoff detection are judged across the full platform
+
+The practical use of this list should stay explicit:
+
+- the notebook should not become `Phase 0`, `Phase 1`, `Phase 2` as its primary reading shape
+- the notebook should stay `A`-object-led
+- the phase plan should be used as the crosswalk that tells us where the proof work for that object actually happened
+
+So the working relation is:
+
+- `A` groups and paths tell us what the object is
+- `Bi` phases tell us where the proof work happened
+- the readiness implementation note tells us how the gap was actually discovered, classified, and bridged
+
+Judgment at this point:
+
+- the notebook now has a frozen authority set and a clear pressure inventory
+- that inventory is broad enough to cover both local readiness boundaries and enlarged-network readiness objects without losing the `A`-led map
+- the next entry should therefore begin `BSELECT`: choose the first active `A`-defined object under pressure rather than drifting into generic phase commentary
