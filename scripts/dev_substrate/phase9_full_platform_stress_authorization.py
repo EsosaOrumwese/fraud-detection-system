@@ -127,6 +127,7 @@ def main() -> None:
             "180",
             "--cost-budget-envelope-usd",
             "45",
+            "--preserve-requested-window",
         ]
     )
     manifest["steps"].append({"step": "phase6_stress_backbone", "execution_id": phase6_execution_id, "completed_at_utc": now_utc()})

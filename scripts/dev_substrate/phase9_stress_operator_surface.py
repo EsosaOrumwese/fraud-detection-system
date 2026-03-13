@@ -128,6 +128,12 @@ def main() -> None:
     phase6_receipt = load_json(source_root / "phase6_learning_coupled_receipt.json")
     phase6_summary = load_json(source_root / "phase6_learning_coupled_summary.json")
     phase6_manifest = load_json(source_root / "phase6_registry_surface_manifest.json")
+    phase5_execution_id = str(phase6_summary.get("source_phase5_execution_id") or "").strip()
+    phase5_summary = (
+        load_json(Path(args.run_control_root) / phase5_execution_id / "phase5_learning_managed_summary.json")
+        if phase5_execution_id
+        else {}
+    )
 
     blockers: list[str] = []
     if str(phase6_receipt.get("verdict") or "").strip() != "PHASE6_READY":
@@ -289,6 +295,11 @@ def main() -> None:
             "ssm_resolution": ssm_resolution,
             "expected_promoted_bundle": dict(phase6_manifest.get("promoted_bundle") or {}),
             "expected_policy_revision": str(phase6_manifest.get("promoted_policy_revision") or ""),
+        },
+        "learning_basis": {
+            "phase5_execution_id": phase5_execution_id,
+            "dataset_sampling": dict(phase5_summary.get("dataset_sampling") or {}),
+            "metrics": dict(phase5_summary.get("metrics") or {}),
         },
         "cost_posture": {
             "budget": {

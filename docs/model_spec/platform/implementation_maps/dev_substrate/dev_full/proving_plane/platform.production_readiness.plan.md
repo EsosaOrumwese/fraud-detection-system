@@ -1249,6 +1249,9 @@ Quantitative proof focus:
 Qualitative proof focus:
 - the full platform remains semantically trustworthy under the widened pressure window
 - outputs remain meaningful, explainable, and auditable
+- RTDL decision and action outputs remain explainable under widened pressure
+- Case + Label truth remains authoritative under widened pressure
+- the active runtime bundle remains tied to a meaningful governed learning basis rather than a hollow green train/eval story
 - no plane only appears green because another plane silently stopped doing real work
 
 Scope:
@@ -1263,6 +1266,7 @@ Run shape:
 Primary questions:
 - does the full platform hold at production shape when the pressure window is widened?
 - do latency tails, fail-closed rates, lineage completeness, case/label throughput, learning lineage, and ops surfaces remain within bounds?
+- do RTDL, Case + Label, and learning/runtime bundle truth still handle the information within the data meaningfully rather than merely continue to emit traffic?
 
 Telemetry plan:
 - live logs:
@@ -1271,13 +1275,18 @@ Telemetry plan:
   - full-platform latency tails
   - fail-closed / quarantine / lineage / case / label / learning / governance counters
   - recovery counters during widened pressure
+  - RTDL decision / action participation
+  - case / label semantic continuity counters
+  - learning-basis / active-bundle continuity readbacks
 - live boundary health:
   - full-platform participation remains real under widened stress
   - no critical path is silently bypassed or starved
+  - RTDL decision truth, case truth, label truth, and active-bundle truth remain attributable on the same widened run story
 - fail-fast triggers:
   - clear early miss of target envelope
   - tail latency or error posture already beyond recoverable bound
   - a critical plane stops materially participating
+  - decision / case / label / bundle meaning becomes unreadable or internally contradictory
 - hardening artifacts:
   - one run manifest
   - one stress live summary

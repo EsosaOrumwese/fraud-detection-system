@@ -6912,3 +6912,221 @@ The right widened-stress posture is:
    - integrity
    - timing continuity
    - operator challengeability under the widened slice
+
+## 2026-03-13 06:15:12 +00:00 - The first Phase 9 spend exposed two truthful blockers: the widened run shape is not yet real, and the current stress scorer is still too thin on semantic handling
+
+The first widened attempt was useful because it failed in a way that tells me exactly what must change before the next AWS spend.
+
+The two blockers are now explicit:
+
+1. the fresh Phase 6 backbone that Phase 9 reuses did **not** actually widen the steady window to the intended stress slice:
+   - the fresh source summary still scored only `covered_seconds = 90.0` for the steady window
+   - that means the first Phase 9 attempt did not yet answer the `10 to 15 minute / 2M to 5M` authorization question honestly
+2. the carried Phase 6 scorecard also flagged:
+   - `PHASE6.B24_COMPONENT_HEALTH_RED:dla:RED`
+   - but the same source summary showed:
+     - `dla_append_success_total_delta = 4325`
+     - `dla_append_failure_delta = 0`
+     - `dla_replay_divergence_delta = 0`
+     - `checkpoint_age_seconds = 2.476468`
+   - so this is not currently reading like a demonstrated DLA integrity failure
+   - it reads like a rollup / advisory classification defect
+
+This changes the correct posture immediately.
+
+The next move is **not** another widened rerun.
+
+The new narrow plan is:
+
+1. fix the Phase 6 envelope inheritance path so Phase 9 can widen duration without silently collapsing back to the old Phase 4 steady window,
+2. fix the carried DLA advisory classification in the Phase 6 rollup so clean DLA replay posture does not falsely block a widened runtime source,
+3. strengthen Phase 9 itself so the stress gate proves not only volume and latency but also semantic handling across:
+   - RTDL decision / action output truth
+   - Case + Label continuity
+   - learning-bundle continuity and evaluation meaning
+4. only after those are true, spend on the next widened AWS slice
+
+This is exactly the dynamic posture the plan calls for:
+
+- keep the Phase 9 standard fixed,
+- stop once the current run stops answering the right question,
+- name the actual blocker class,
+- remove that blocker first,
+- then rerun the smallest legitimate widened boundary.
+
+## 2026-03-13 08:38:16 +00:00 - The widened source is now truthful enough to separate generator under-drive from platform capacity: the burst miss is on the request side, not the admission side
+
+Two widened `Phase 6` source reruns are now enough to stop guessing.
+
+The important pattern is:
+
+- the widened steady window is now real:
+  - `600s` steady
+  - clean semantics
+  - clean RTDL / Case + Label participation
+  - `4xx = 0`
+  - `5xx = 0`
+- the widened recovery window is also clean
+- the only remaining red on the widened source is the `2s` burst step
+
+The key attribution point is:
+
+- on both widened reruns, the burst `request_count_total` exactly matched `admitted_request_count`
+- there was no admission loss, no `4xx`, no `5xx`
+- therefore the burst miss is not currently an ingress capacity or runtime semantic failure
+- it is a **generator burst-transition under-drive**
+
+The current campaign shape explains it:
+
+- lanes are already running at steady rate before the burst
+- the burst step is asking those lanes to double from steady to burst
+- but `burst_step_initial_tokens = 0.0`
+- so the burst transition is entering without the extra token top-up needed to hit the short `2s` burst truthfully
+
+That means the next correct move is another narrow harness correction, not a platform-runtime remediation:
+
+1. keep the widened Phase 9 question unchanged,
+2. keep the widened `600s` steady window unchanged,
+3. add the missing extra burst tokens on the steady -> burst transition,
+4. rerun only the widened source boundary again,
+5. if the burst then goes green, continue the rest of Phase 9 on that truthful widened source
+
+The specific reasoning behind the token correction is:
+
+- the burst step should not start from an empty bucket when it is transitioning from a live steady lane
+- the missing initial token amount is the extra burst demand above the already-running steady demand over the configured burst token horizon
+
+So the next patch is intended to make the widened burst step truthful, not to weaken the gate.
+
+## 2026-03-13 09:48:09 +00:00 - Phase 9 remains open red: semantic handling stayed clean in the widened runs, but long-window stress authorization is still blocked by WSP-side envelope truth
+
+Three widened source runs are now enough to separate what stayed good from what is still unresolved.
+
+What stayed materially good in the widened source runs:
+
+- the full integrated semantic path kept working:
+  - RTDL kept emitting accepted `decision_response` / `action_intent` / `action_outcome` truth on the governed bundle
+  - Case + Label stayed active:
+    - cases created
+    - labels accepted
+    - anomalies / pending / rejected remained `0`
+  - learning/runtime continuity stayed attributable:
+    - active bundle truth still matched the governed promoted bundle
+    - Phase 5 basis and eval refs remained readable
+- when the widened source did hold steady, the runtime semantics stayed clean:
+  - `4xx = 0`
+  - `5xx = 0`
+  - integrity deltas remained `0`
+  - case / label timing stayed bounded
+
+What is still blocking `Phase 9` closure is not semantic corruption inside the platform. It is the **truthfulness of the widened stress source itself**:
+
+- first widened source:
+  - `steady = 3006.173 eps`
+  - `burst = 5882.000 eps`
+  - `recovery = 3015.711 eps`
+- second widened source:
+  - `steady = 3003.818 eps`
+  - `burst = 5473.000 eps`
+  - `recovery = 3018.772 eps`
+- rejected token-top-up experiment:
+  - `steady = 2942.727 eps`
+  - `burst = 5519.500 eps`
+  - `recovery` stayed green
+
+The main judgment now is:
+
+- `Phase 9` is **not** blocked because the platform started making meaningless decisions under volume
+- `Phase 9` is blocked because the current widened WSP-driven source cannot yet prove the declared full-platform stress envelope truthfully and repeatably
+
+That means I am not closing `Phase 9`, and I am not calling the platform long-stress-authorized.
+
+The rejected token-top-up attempt was a real test, but it is not accepted:
+
+- it did not restore burst truth,
+- and it made the widened steady slice worse,
+- so the code change was reverted and the attempt is recorded here only as engineering evidence
+
+The active blocker class is now sharper:
+
+- long-window WSP ramp / burst-transition under-drive on the widened source boundary
+
+The next honest move is to repin that source boundary itself rather than keep spending on repeated full-platform reruns that still start from a non-truthful widened source.
+
+## 2026-03-13 09:53:56 +00:00 - The widened burst miss now points to inherited source seeding rather than general platform weakness; I am testing an explicit hot-lane burst seed instead of another speculative limiter rewrite
+
+The extra readback around the widened burst boundary changed the next move materially.
+
+What the per-second APIGW view now says:
+
+- the short `Phase 6` source that previously closed green really did produce a hot burst:
+  - `01:38:00` -> `4467`
+  - `01:38:01` -> `4325`
+  - `01:38:02` -> `3584`
+- the widened `600s` source is the one that sags at the exact same nominal burst step:
+  - `08:06:30` -> `3876`
+  - `08:06:31` -> `3713`
+  - `08:06:32` -> `3357`
+
+That means the platform-side admission story still is not the issue. The burst requests are lower before the platform even has a chance to reject them.
+
+The important new distinction is that the short and long runs both inherited the same nominal `0.0` `burst_step_initial_tokens`, but only the long run stayed red. So the right conclusion is **not** "zero burst seed is universally wrong". The sharper conclusion is:
+
+- the widened source is entering the short burst step after a long hot steady window and paying a transition tax that the short source tolerated incidentally
+- the previous token-top-up experiment was too blunt because it rewrote the limiter logic itself
+- the better next move is to keep the limiter logic unchanged and repin only the widened source seed explicitly, so the burst step starts from a hot-lane bucket state that matches the actual proving question
+
+That is the current narrow hypothesis:
+
+- the widened source should be rerun with an explicit per-lane `burst_step_initial_tokens` equal to the configured burst bucket capacity for that step
+- this is a source-boundary repin, not a platform-runtime change and not a standards reduction
+
+I patched only the Phase 6 inheritance path so an explicit burst-step override can win over the inherited Phase 4 `0.0` value. The next spend is one narrow widened-source rerun on the unchanged envelope with that explicit seed.
+
+## 2026-03-13 11:02:59 +00:00 - The explicit hot-lane burst seed fixed the long-window burst miss; the remaining red is now a small front-edge steady truth issue
+
+The next widened source rerun was worth the cost because it cleanly separated two different problems.
+
+What improved materially:
+
+- the long-window burst miss is now gone:
+  - `burst_step_initial_tokens = 27.7777777778` per lane
+  - widened burst rose to `6152.000 eps`
+  - recovery stayed green at `3020.106 eps`
+- the semantic story stayed clean again:
+  - no `4xx`
+  - no `5xx`
+  - integrity stayed at `0`
+  - RTDL / Case + Label / governed bundle continuity remained readable
+
+So the earlier blocker class was real:
+
+- the inherited `0.0` burst-step seed was suppressing the widened short burst after the long hot steady
+
+But the rerun also exposed a second, smaller source-truth issue:
+
+- the widened steady window came back at `2995.770 eps`
+- per-second APIGW readback around the scored steady start showed the first roughly `15s` of the scored steady boundary still ramping:
+  - `10:21:30` -> `1419`
+  - `10:21:31` -> `1654`
+  - `10:21:32` -> `1962`
+  - `10:21:33` -> `2116`
+  - `10:21:34` -> `2617`
+  - by `10:21:43` onward it is effectively back at `~3000/s`
+
+That means the active red is no longer a late-run weakness and no longer a burst-transition weakness. It is now a **front-edge steady measurement truth issue** on the widened source:
+
+- the scored steady window is beginning a little too early for this widened source posture
+- the source stabilizes inside the first seconds of the scored steady slice
+
+The next honest move is therefore:
+
+- keep the accepted hot-lane burst seed
+- repin the widened presteady boundary so the scored steady window begins when the widened source is actually stable
+- rerun only the widened source boundary again
+
+This is still a source-truth correction, not a standard reduction:
+
+- the declared `3000 / 6000 / recovery` envelope is unchanged
+- the semantic burden is unchanged
+- I am correcting when the widened source is allowed to start being scored, not lowering what it must achieve once scored

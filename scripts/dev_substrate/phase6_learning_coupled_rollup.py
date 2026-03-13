@@ -75,16 +75,16 @@ def delta(pre: dict[str, Any], post: dict[str, Any], component: str, field: str)
 
 
 def replay_advisory_only(snapshot: dict[str, Any], component: str, max_checkpoint: float, max_lag: float) -> bool:
-    if component not in {"csfb", "ieg", "ofp"}:
+    if component not in {"csfb", "ieg", "ofp", "dla"}:
         return False
-    if health_state(snapshot, component).upper() not in {"RED", "FAILED", "UNHEALTHY"}:
+    if health_state(snapshot, component).upper() not in {"RED", "FAILED", "UNHEALTHY", "AMBER"}:
         return False
     reasons = set(health_reasons(snapshot, component))
     checkpoint = summary_value(snapshot, component, "checkpoint_age_seconds")
     if checkpoint is None:
         return False
     lag = summary_value(snapshot, component, "lag_seconds")
-    if component != "csfb" and lag is not None and lag > max_lag:
+    if component not in {"csfb", "dla"} and lag is not None and lag > max_lag:
         return False
     if component == "csfb":
         if not reasons or not reasons.issubset({"WATERMARK_TOO_OLD", "CHECKPOINT_TOO_OLD", "CHECKPOINT_OLD"}):
@@ -92,6 +92,21 @@ def replay_advisory_only(snapshot: dict[str, Any], component: str, max_checkpoin
         return (summary_value(snapshot, component, "join_misses") or 0.0) == 0.0 and (
             summary_value(snapshot, component, "binding_conflicts") or 0.0
         ) == 0.0 and (summary_value(snapshot, component, "apply_failures_hard") or 0.0) == 0.0
+    if component == "dla":
+        if checkpoint > max_checkpoint:
+            return False
+        if lag is not None and lag > max_lag:
+            return False
+        if reasons not in (
+            {"UNRESOLVED_RED"},
+            {"UNRESOLVED_AMBER"},
+            {"UNRESOLVED_RED", "WATERMARK_TOO_OLD"},
+            {"UNRESOLVED_AMBER", "WATERMARK_TOO_OLD"},
+        ):
+            return False
+        return (summary_value(snapshot, component, "append_failure_total") or 0.0) == 0.0 and (
+            summary_value(snapshot, component, "replay_divergence_total") or 0.0
+        ) == 0.0 and (summary_value(snapshot, component, "append_success_total") or 0.0) > 0.0
     if checkpoint > max_checkpoint:
         return False
     if component == "ofp":

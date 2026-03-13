@@ -39,6 +39,7 @@ def main() -> None:
     phase6_receipt = load_json(source_root / "phase6_learning_coupled_receipt.json")
     phase6_summary = load_json(source_root / "phase6_learning_coupled_summary.json")
     phase6_manifest = load_json(source_root / "phase6_registry_surface_manifest.json")
+    candidate_probe = load_json(source_root / "phase6_candidate_bundle_probe.json")
     alert_drill = load_json(root / "phase7_alert_runbook_drill.json")
     ml_day2 = load_json(root / "phase7_ml_day2_operator_surface.json")
     operator_surface = load_json(root / "phase9_stress_operator_surface.json")
@@ -54,6 +55,8 @@ def main() -> None:
         blockers.append("PHASE9_C_ML_DAY2_NOT_GREEN")
     if not bool(operator_surface.get("overall_pass")):
         blockers.append("PHASE9_C_OPERATOR_SURFACE_NOT_GREEN")
+    if not bool(candidate_probe.get("overall_pass")):
+        blockers.append("PHASE9_B_RTDL_BUNDLE_PROBE_NOT_GREEN")
 
     envelope = dict(phase6_summary.get("envelope") or {})
     windows = dict(envelope.get("windows") or {})
@@ -114,6 +117,39 @@ def main() -> None:
     if str(runtime_probe.get("policy_revision") or "").strip() != str(phase6_manifest.get("promoted_policy_revision") or "").strip():
         blockers.append("PHASE9_C_ACTIVE_POLICY_DRIFT")
 
+    recent_attempts = [dict(row or {}) for row in list(candidate_probe.get("recent_attempts") or [])]
+    accepted_attempts = [row for row in recent_attempts if bool(row.get("accepted"))]
+    event_types = {str(row.get("event_type") or "").strip() for row in accepted_attempts if str(row.get("event_type") or "").strip()}
+    reason_codes = {str(row.get("reason_code") or "").strip() for row in accepted_attempts if str(row.get("reason_code") or "").strip()}
+    if not accepted_attempts:
+        blockers.append("PHASE9_B_RTDL_DECISION_SAMPLE_EMPTY")
+    if "decision_response" not in event_types:
+        blockers.append("PHASE9_B_RTDL_DECISION_RESPONSE_MISSING")
+    if "action_intent" not in event_types:
+        blockers.append("PHASE9_B_RTDL_ACTION_INTENT_MISSING")
+    if reason_codes and reason_codes != {"ACCEPT"}:
+        blockers.append("PHASE9_B_RTDL_REASON_CODE_DRIFT")
+
+    learning_authority = dict(phase6_summary.get("learning_authority") or {})
+    phase5_metrics = dict(learning_authority.get("phase5_metrics") or {})
+    overall_metrics = dict(phase5_metrics.get("overall") or {})
+    cohort_metrics = dict(phase5_metrics.get("cohorts") or {})
+    dataset_sampling = dict((operator_surface.get("learning_basis") or {}).get("dataset_sampling") or {})
+    event_scan = dict(dataset_sampling.get("event_scan") or {})
+    auc_roc = float(overall_metrics.get("auc_roc") or 0.0)
+    precision_at_50 = float(overall_metrics.get("precision_at_50") or 0.0)
+    if int(overall_metrics.get("rows") or 0) <= 0 or int(overall_metrics.get("positives") or 0) <= 0 or int(overall_metrics.get("negatives") or 0) <= 0:
+        blockers.append("PHASE9_B_LEARNING_EVAL_DEGENERATE")
+    if auc_roc <= 0.5:
+        blockers.append("PHASE9_B_LEARNING_AUC_NOT_MEANINGFUL")
+    if precision_at_50 <= 0.5:
+        blockers.append("PHASE9_B_LEARNING_PRECISION_NOT_MEANINGFUL")
+    for cohort in ("weekday_lt_5", "weekday_ge_5", "campaign_absent"):
+        if cohort not in cohort_metrics:
+            blockers.append(f"PHASE9_B_LEARNING_COHORT_MISSING:{cohort}")
+    if int(event_scan.get("campaign_present_rows") or 0) <= 0:
+        blockers.append("PHASE9_B_LEARNING_RARE_REGIME_ERASED")
+
     reconstruction = dict(operator_surface.get("run_reconstruction") or {})
     if int(reconstruction.get("required_local_files_present") or 0) != int(reconstruction.get("required_local_file_total") or 0):
         blockers.append("PHASE9_C_LOCAL_RECONSTRUCTION_INCOMPLETE")
@@ -157,6 +193,18 @@ def main() -> None:
                 "phase5_readable_refs": int(reconstruction.get("readable_phase5_refs") or 0),
                 "post_stress_active_bundle": actual_bundle,
                 "policy_revision": str(runtime_probe.get("policy_revision") or ""),
+            },
+            "semantic_story": {
+                "rtdl_recent_event_types": sorted(event_types),
+                "rtdl_recent_reason_codes": sorted(reason_codes),
+                "accepted_recent_attempts": len(accepted_attempts),
+                "case_trigger_delta": float(component_deltas.get("case_trigger_triggers_seen_delta") or 0.0),
+                "cases_created_delta": float(component_deltas.get("case_mgmt_cases_created_delta") or 0.0),
+                "labels_accepted_delta": float(component_deltas.get("label_store_accepted_delta") or 0.0),
+                "phase5_auc_roc": auc_roc,
+                "phase5_precision_at_50": precision_at_50,
+                "campaign_present_rows": int(event_scan.get("campaign_present_rows") or 0),
+                "feature_asof_utc": str(event_scan.get("feature_asof_utc") or ""),
             },
         },
         "overall_pass": len(set(blockers)) == 0,

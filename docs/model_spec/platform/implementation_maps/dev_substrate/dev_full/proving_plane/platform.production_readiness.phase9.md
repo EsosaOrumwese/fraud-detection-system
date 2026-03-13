@@ -6,7 +6,7 @@ This phase does not exist to rediscover correctness. `Phase 8` already answered 
 
 - when the same full platform is held at production envelope for a materially longer bounded window, do latency tails, integrity, participation, learning continuity, and operator surfaces still stay inside production-credible bounds?
 
-This phase is green only if the widened slice remains semantically trustworthy. A fast-looking run where a critical plane silently goes dark is not acceptable.
+This phase is green only if the widened slice remains semantically trustworthy. A fast-looking run where a critical plane silently goes dark, or where decisions and labels continue to flow but lose meaning, is not acceptable.
 
 ## Why this phase exists in the full plan
 
@@ -34,8 +34,11 @@ So the question here is not "does the system work?" It is:
 4. fail-closed, quarantine, lineage, case, label, learning, and governance counters remain within bounded expectations,
 5. operator surfaces remain live and attributable during the widened slice,
 6. active runtime bundle truth remains continuous through the widened slice,
-7. no plane appears healthy because another plane silently stopped doing real work,
-8. the resulting verdict is strong enough to authorize later longer stress or soak rather than merely repeat bounded correctness.
+7. RTDL continues to emit explainable decision / action truth rather than mere traffic,
+8. Case + Label outputs remain authoritative and anomaly-safe under widened load,
+9. learning truth remains meaningful and runtime bundle continuity stays coupled to that governed basis,
+10. no plane appears healthy because another plane silently stopped doing real work,
+11. the resulting verdict is strong enough to authorize later longer stress or soak rather than merely repeat bounded correctness.
 
 If any one of those is false, `Phase 9` is not closed.
 
@@ -77,7 +80,7 @@ This subphase is green only when:
 
 ## Phase 9.B - Widened full-platform stress slice
 Purpose:
-- prove the full working platform still holds when the bounded pressure window is widened.
+- prove the full working platform still holds when the bounded pressure window is widened and the data still means what the platform says it means.
 
 This subphase is green only when:
 1. a fresh runtime-learning backbone is green,
@@ -85,7 +88,10 @@ This subphase is green only when:
 3. steady / burst / recovery remain green at the unchanged declared envelope,
 4. latency tails remain within the bounded stress posture,
 5. no critical plane goes dark under widened pressure,
-6. integrity and timing continuity remain green.
+6. integrity and timing continuity remain green,
+7. RTDL still shows accepted `decision_response` and `action_intent` truth on the governed active bundle,
+8. Case + Label still turns stressed runtime truth into cases and authoritative labels without anomalies, pending buildup, or rejection drift,
+9. learning-bundle continuity remains tied to a meaningful bounded evaluation basis rather than an unreadable or degenerate training story.
 
 ## Phase 9.C - Stress-time operator and governance challenge
 Purpose:
@@ -96,7 +102,12 @@ This subphase is green only when:
 2. active bundle truth still matches governed learning truth after the widened slice,
 3. evidence readback and run reconstruction remain complete,
 4. critical metrics remain fresh on the live operator surface,
-5. no control-surface handle drift or placeholder regression appears.
+5. no control-surface handle drift or placeholder regression appears,
+6. the operator can still challenge semantic questions, not just infrastructure ones:
+   - which bundle was active?
+   - what decision / action truth was emitted?
+   - were cases and labels still being authored cleanly?
+   - does the active bundle still trace back to a meaningful bounded evaluation basis?
 
 ## Phase 9.D - Stress authorization judgment
 Purpose:
@@ -120,6 +131,9 @@ This subphase is green only when:
   - fail-closed / quarantine / lineage / case / label / learning / governance counters
   - admitted volume and recovery continuity
   - active bundle / policy continuity
+  - RTDL recent decision / action truth
+  - case-to-label continuity
+  - carried learning-quality and cohort visibility readbacks
 - live boundary health:
   - full-platform participation remains real under widened pressure
   - active runtime bundle still matches governed promoted truth
@@ -154,3 +168,45 @@ The immediate posture is:
 4. implementation notes, logbook, plan state, and readiness graphs all tell the same truthful story.
 
 If any one of those is false, `Phase 9` remains open.
+
+## Current live status
+
+`Phase 9` is open and currently red.
+
+What the widened runs have already shown truthfully:
+
+- semantic handling stayed clean across the active full-platform story:
+  - RTDL continued to emit governed decision / action truth
+  - Case + Label continued to create cases and authoritative labels without anomaly, pending, or rejection growth
+  - active runtime bundle truth stayed attributable to the governed learning basis
+- the blocker is not presently “the platform makes meaningless outputs under pressure”
+
+What is still red:
+
+- the widened WSP-driven stress source has not yet proved the declared envelope truthfully and repeatably
+- the strongest remaining miss is now the front edge of the scored steady window, not the widened burst itself
+
+Current widened source evidence:
+
+- `phase6_learning_coupled_20260313T061950Z`
+  - steady `3006.173 eps`
+  - burst `5882.000 eps`
+  - recovery `3015.711 eps`
+- `phase6_learning_coupled_20260313T072902Z`
+  - steady `3003.818 eps`
+  - burst `5473.000 eps`
+  - recovery `3018.772 eps`
+- rejected token-top-up attempt `phase6_learning_coupled_20260313T083846Z`
+  - steady `2942.727 eps`
+  - burst `5519.500 eps`
+  - recovery stayed green
+- explicit hot-lane burst-seed rerun `phase6_learning_coupled_20260313T095425Z`
+  - steady `2995.770 eps`
+  - burst `6152.000 eps`
+  - recovery `3020.106 eps`
+  - per-second APIGW readback showed the first ~`15s` of the scored steady boundary still ramping before stabilizing near `3000/s`
+
+Current judgment:
+
+- `Phase 9` remains open because long-window stress authorization is still blocked by widened-source envelope truth, not by proven semantic corruption inside the platform.
+- the burst-transition blocker has been materially removed; the next narrow correction is the widened presteady / scored-steady boundary so the long-window source is measured only once it is actually stable.

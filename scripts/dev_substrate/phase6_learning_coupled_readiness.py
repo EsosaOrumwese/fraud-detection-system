@@ -66,6 +66,7 @@ def inherit_phase4_envelope(*, summary: dict[str, Any], args: argparse.Namespace
     first_step = dict(rate_plan[0]) if rate_plan else {}
     target_eps = float(first_step.get("target_eps") or 0.0)
     initial_tokens = float(first_step.get("initial_tokens") or 0.0)
+    explicit_burst_step_initial_tokens = float(args.burst_step_initial_tokens)
     burst_step_initial_tokens = campaign.get("burst_step_initial_tokens")
     if burst_step_initial_tokens is None and len(rate_plan) >= 3:
         burst_step_initial_tokens = dict(rate_plan[2]).get("initial_tokens")
@@ -82,9 +83,11 @@ def inherit_phase4_envelope(*, summary: dict[str, Any], args: argparse.Namespace
         "short_upward_transition_lane_stagger_seconds": float(campaign["short_upward_transition_lane_stagger_seconds"])
         if campaign.get("short_upward_transition_lane_stagger_seconds") is not None
         else args.short_upward_transition_lane_stagger_seconds,
-        "burst_step_initial_tokens": float(burst_step_initial_tokens)
-        if burst_step_initial_tokens is not None
-        else args.burst_step_initial_tokens,
+        "burst_step_initial_tokens": explicit_burst_step_initial_tokens
+        if explicit_burst_step_initial_tokens >= 0.0
+        else (
+            float(burst_step_initial_tokens) if burst_step_initial_tokens is not None else args.burst_step_initial_tokens
+        ),
         "target_burst_seconds": float(first_step.get("burst_seconds") or args.target_burst_seconds),
         "target_initial_tokens": float(initial_tokens / target_eps) if target_eps > 0.0 else float(args.target_initial_tokens),
     }
@@ -576,6 +579,7 @@ def main() -> None:
     ap.add_argument("--nodegroup-desired-size", type=int, default=4)
     ap.add_argument("--nodegroup-min-size", type=int, default=2)
     ap.add_argument("--nodegroup-max-size", type=int, default=8)
+    ap.add_argument("--preserve-requested-window", action="store_true")
     args = ap.parse_args()
 
     execution_id = str(args.execution_id).strip() or fresh_execution_id()
@@ -592,7 +596,16 @@ def main() -> None:
         raise RuntimeError("PHASE6.A01_SOURCE_PHASE4_NOT_GREEN")
     if str(phase5_receipt.get("verdict") or "").strip().upper() != "PHASE5_READY":
         raise RuntimeError("PHASE6.A02_PHASE5_NOT_GREEN")
+    requested_window = {
+        "steady_seconds": int(args.steady_seconds),
+        "burst_seconds": int(args.burst_seconds),
+        "recovery_seconds": int(args.recovery_seconds),
+        "presteady_seconds": int(args.presteady_seconds),
+    }
     inherit_phase4_envelope(summary=phase4_envelope, args=args)
+    if bool(args.preserve_requested_window):
+        for key, value in requested_window.items():
+            setattr(args, key, int(value))
     args.presteady_seconds = max(int(args.presteady_seconds), int(args.coupled_presteady_floor_seconds))
 
     platform_run_id = fresh_platform_run_id()
