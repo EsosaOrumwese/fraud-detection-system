@@ -6776,3 +6776,29 @@ The final accepted metrics are strong enough to support a real plane-readiness c
 That is enough to close `Phase 7` as a plane-readiness judgment.
 
 It is still not enough to promote `Ops / Gov / Meta` into the working platform. That remains a `Phase 8` question, because the final question is whether the whole platform stays coherent once the ops/gov plane is coupled into one integrated proof story.
+
+## 2026-03-13 01:06:21 +00:00 - Phase 8 is being opened from a fresh integrated boundary rather than by stacking old green receipts; the right question now is whether one fresh runtime-serving proof plus fresh operator coupling still tells one coherent platform story
+
+The accepted `Phase 6` and rebuilt `Phase 7` closures are still important, but they are not enough to close `Phase 8` by reuse.
+
+The real `Phase 8` posture has to be:
+
+1. generate one fresh bounded runtime-learning backbone,
+2. attach fresh ops/gov proof slices to that same integrated execution scope,
+3. score the whole platform only after those surfaces still agree on:
+   - run identity
+   - bundle truth
+   - timing continuity
+   - explainability
+   - operator actionability
+
+I do not want a giant one-off certification runner here. That would be the same bad posture the main plan is trying to avoid.
+
+So I am building `Phase 8` from the existing truthful boundaries:
+
+- `Phase 6` supplies the fresh runtime-serving backbone
+- `Phase 7` supplies the alert / ML day-2 / idle-to-zero control proofs
+
+The new work is to couple them on one fresh execution scope and then ask a new question:
+
+- do they still describe one platform, or do they only look green when scored separately?
