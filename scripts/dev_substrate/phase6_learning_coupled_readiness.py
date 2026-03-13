@@ -66,12 +66,15 @@ def inherit_phase4_envelope(*, summary: dict[str, Any], args: argparse.Namespace
     first_step = dict(rate_plan[0]) if rate_plan else {}
     target_eps = float(first_step.get("target_eps") or 0.0)
     initial_tokens = float(first_step.get("initial_tokens") or 0.0)
+    explicit_lane_count = args.lane_count
     explicit_burst_step_initial_tokens = float(args.burst_step_initial_tokens)
     burst_step_initial_tokens = campaign.get("burst_step_initial_tokens")
     if burst_step_initial_tokens is None and len(rate_plan) >= 3:
         burst_step_initial_tokens = dict(rate_plan[2]).get("initial_tokens")
     inherited = {
-        "lane_count": int(campaign["lane_count"]) if campaign.get("lane_count") is not None else args.lane_count,
+        "lane_count": int(explicit_lane_count)
+        if explicit_lane_count is not None
+        else (int(campaign["lane_count"]) if campaign.get("lane_count") is not None else args.lane_count),
         "steady_seconds": int(campaign["steady_seconds"]) if campaign.get("steady_seconds") is not None else args.steady_seconds,
         "burst_seconds": int(campaign["burst_seconds"]) if campaign.get("burst_seconds") is not None else args.burst_seconds,
         "recovery_seconds": int(campaign["recovery_seconds"]) if campaign.get("recovery_seconds") is not None else args.recovery_seconds,
@@ -536,7 +539,7 @@ def main() -> None:
     ap.add_argument("--scenario-id", default="baseline_v1")
     ap.add_argument("--window-start-ts-utc", default="2026-02-26T00:00:00Z")
     ap.add_argument("--window-end-ts-utc", default="2026-03-05T00:00:00Z")
-    ap.add_argument("--lane-count", type=int, default=54)
+    ap.add_argument("--lane-count", type=int, default=None)
     ap.add_argument("--prewarm-duration-seconds", type=int, default=45)
     ap.add_argument("--prewarm-target-request-rate-eps", type=float, default=1500.0)
     ap.add_argument("--prewarm-ig-push-concurrency", type=int, default=1)

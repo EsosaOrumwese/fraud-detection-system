@@ -205,8 +205,102 @@ Current widened source evidence:
   - burst `6152.000 eps`
   - recovery `3020.106 eps`
   - per-second APIGW readback showed the first ~`15s` of the scored steady boundary still ramping before stabilizing near `3000/s`
+- widened presteady repin on the same `54`-lane source `phase6_learning_coupled_20260313T110346Z`
+  - steady `3005.513 eps`
+  - burst `5176.500 eps`
+  - recovery `3017.289 eps`
+  - this removed the front-edge steady miss but reintroduced burst under-drive
 
 Current judgment:
 
 - `Phase 9` remains open because long-window stress authorization is still blocked by widened-source envelope truth, not by proven semantic corruption inside the platform.
-- the burst-transition blocker has been materially removed; the next narrow correction is the widened presteady / scored-steady boundary so the long-window source is measured only once it is actually stable.
+- the `54`-lane widened source is now shown to be insufficiently repeatable under narrow timing repins
+- the next narrow correction is source topology itself:
+  - higher lane count at the same total envelope
+  - lower per-lane burden
+  - no relaxation of the platform target
+
+Additional current truth after the first topology repin attempt:
+
+- attempted higher-lane rerun `phase6_learning_coupled_20260313T121323Z`
+  - intended posture:
+    - `lane_count = 60`
+    - `presteady_seconds = 150`
+    - `burst_step_initial_tokens = 25.0`
+  - actual applied posture:
+    - receipt still shows `lane_count = 54`
+    - so the topology repin did not apply
+  - observed metrics on that still-`54`-lane run:
+    - steady `3005.373 eps`
+    - burst `5884.500 eps`
+    - recovery `3019.339 eps`
+  - companion `ofp:RED` on that run is not currently treated as a new runtime blocker:
+    - `lag_seconds = 0.018824`
+    - `checkpoint_age_seconds = 0.018824`
+    - `snapshot_failures = 0`
+    - reasons stayed `WATERMARK_TOO_OLD` + `STALE_GRAPH_VERSION_RED`
+    - runtime participation and semantic continuity remained materially present
+
+So the immediate next correction is not "more retries". It is:
+
+- fix the widened source runner so explicit lane-count repins are not silently re-inherited away
+- then rerun the widened source at a real higher-lane topology before spending on another full `Phase 9` attempt
+
+The next widened source rerun has now answered that question:
+
+- truthful higher-lane rerun `phase6_learning_coupled_20260313T132900Z`
+  - applied posture:
+    - `lane_count = 60`
+    - `presteady_seconds = 150`
+    - `steady_seconds = 600`
+    - `burst_step_initial_tokens = 25.0`
+  - observed metrics:
+    - steady `3006.672 eps`
+    - burst `6538.000 eps`
+    - recovery `3019.306 eps`
+    - `4xx = 0`
+    - `5xx = 0`
+  - semantic participation stayed material:
+    - `df_decisions_total_delta = 9000`
+    - `case_mgmt_cases_created_delta = 2000`
+    - `label_store_accepted_delta = 3199`
+    - integrity counters remained `0`
+    - `decision_to_case p95 = 0.0 s`
+    - `case_to_label p95 = 0.21583285 s`
+  - OFP remained advisory-only:
+    - same `WATERMARK_TOO_OLD + STALE_GRAPH_VERSION_RED`
+    - `lag_seconds <= 0.076574`
+    - `snapshot_failures = 0`
+    - `events_applied` increased materially
+
+So the widened source blocker is now removed. The active `Phase 9` question is no longer "can the source truthfully hold the widened envelope?" It is now the actual phase question:
+
+- does the full stress authorization chain remain green on that widened truthful source when operator challenge and final stress judgment are executed together?
+
+The first full `Phase 9` attempt on that rebuilt wrapper changed that judgment again:
+
+- full authorization attempt `phase9_full_platform_stress_20260313T143700Z`
+  - source backbone `phase6_learning_coupled_20260313T143700Z`
+  - same widened source posture:
+    - `lane_count = 60`
+    - `presteady_seconds = 150`
+    - `burst_step_initial_tokens = 25.0`
+  - fresh backbone result:
+    - steady `3006.123 eps`
+    - burst `5132.500 eps`
+    - recovery `3017.400 eps`
+    - `4xx = 0`
+    - `5xx = 0`
+  - operator-side follow-on result:
+    - alert drill green
+    - ML day-2 operator surface green
+    - `Phase 9` operator surface held only because the source backbone was red:
+      - `PHASE9_C_SOURCE_PHASE6_NOT_GREEN`
+
+So the truthful current judgment is:
+
+- semantic handling remains clean
+- the operator / governance side did not introduce a new blocker
+- the widened source is better but still not repeatable enough at the current `60`-lane posture to anchor final stress authorization
+
+That means `Phase 9` remains open red on **source repeatability**, not on semantic corruption and not on operator-surface failure.

@@ -7130,3 +7130,198 @@ This is still a source-truth correction, not a standard reduction:
 - the declared `3000 / 6000 / recovery` envelope is unchanged
 - the semantic burden is unchanged
 - I am correcting when the widened source is allowed to start being scored, not lowering what it must achieve once scored
+
+## 2026-03-13 12:12:47 +00:00 - Two more widened reruns are enough to stop oscillating inside the same `54`-lane source shape; the next honest repin is source topology, not more retries
+
+The last two widened source reruns gave me the answer I needed, even though neither is yet closable.
+
+Run `phase6_learning_coupled_20260313T095425Z`:
+
+- explicit hot-lane burst seed kept:
+  - steady `2995.770 eps`
+  - burst `6152.000 eps`
+  - recovery `3020.106 eps`
+- interpretation:
+  - burst blocker materially removed
+  - front-edge steady start still not trustworthy enough
+
+Run `phase6_learning_coupled_20260313T110346Z`:
+
+- same hot-lane burst seed plus widened presteady to `150s`:
+  - steady `3005.513 eps`
+  - burst `5176.500 eps`
+  - recovery `3017.289 eps`
+- interpretation:
+  - the extra presteady cured the front-edge steady miss
+  - but the widened burst fell back red again
+
+That means the current problem is no longer “I have not found the right single timing knob”. The current problem is:
+
+- the widened stress source is not repeatable enough at the current `54`-lane topology
+- different narrow timing repins are trading off which edge of the envelope goes red
+
+So the next correct move is to stop oscillating between:
+
+- `54 lanes + 120s presteady + hot burst seed`
+- `54 lanes + 150s presteady + hot burst seed`
+
+and instead repin the source topology itself:
+
+- increase lane count while preserving the same total `3000 / 6000 / recovery` envelope
+- lower the per-lane burden so the widened source does not need such sharp burst / front-edge behavior from each lane
+
+This is still an honest source-boundary correction:
+
+- total target envelope does not move
+- semantics do not move
+- I am changing how the source fans out the same target, not weakening the target
+
+The next spend should therefore be a widened source rerun at a higher lane count, not another retry on the unstable `54`-lane shape.
+
+## 2026-03-13 13:26:24 +00:00 - The first topology repin did not actually happen, so I cannot treat that rerun as evidence about a `60`-lane source; the OFP red on the same run is advisory, not a new platform collapse
+
+I paused before spending again because the last widened rerun looked like it had answered two questions at once, but only one of them was real.
+
+The run `phase6_learning_coupled_20260313T121323Z` was intended to be the first honest topology repin:
+
+- `lane_count = 60`
+- `presteady_seconds = 150`
+- explicit burst seed scaled down to `25.0` per lane
+
+But the receipt still shows `lane_count = 54`. That means the CLI request for `60` lanes was silently overwritten by inherited `Phase 4` campaign values inside `phase6_learning_coupled_readiness.py`. So I do **not** get to read that run as "60 lanes still missed burst". The truthful conclusion is narrower:
+
+- the widened source is still only proven on the inherited `54`-lane topology
+- the first attempted topology repin did not actually apply
+- the next correction has to be in the source runner, not in another AWS rerun
+
+I also checked the companion `PHASE6.B24_COMPONENT_HEALTH_RED:ofp:RED` blocker before treating it as a runtime defect. The post snapshot for the same run shows:
+
+- `lag_seconds = 0.018824`
+- `checkpoint_age_seconds = 0.018824`
+- `snapshot_failures = 0`
+- `events_applied = 38433`
+- health reasons only `WATERMARK_TOO_OLD` and `STALE_GRAPH_VERSION_RED`
+
+That is the same stale-graph advisory pattern I have already accepted as non-invalidating when runtime participation, lag, and failure counters stay clean. It is not a new semantic failure inside OFP, and it is not what is blocking `Phase 9`.
+
+So the current blocker class remains unchanged:
+
+- widened source envelope truth is still red because the topology repin has not yet been tested honestly
+- semantic handling across RTDL, Case + Label, and governed learning continuity remains clean in the widened runs
+
+The next correct move is:
+
+1. patch `phase6_learning_coupled_readiness.py` so an explicit `--lane-count` override wins over inherited `Phase 4` topology,
+2. keep the widened semantic burden unchanged,
+3. rerun only the widened source again at a real higher lane count,
+4. only after that source goes green, resume the rest of `Phase 9`.
+
+## 2026-03-13 14:36:08 +00:00 - The real `60`-lane widened source is green, so the envelope blocker has been removed without weakening semantic burden
+
+The rerun `phase6_learning_coupled_20260313T132900Z` is the first honest topology repin because the runner patch actually let the explicit lane-count override survive inheritance.
+
+Applied widened source posture:
+
+- `lane_count = 60`
+- `presteady_seconds = 150`
+- `steady_seconds = 600`
+- `burst_seconds = 2`
+- `recovery_seconds = 180`
+- `burst_step_initial_tokens = 25.0`
+
+This time the receipt actually reflects the intended topology:
+
+- campaign `lane_count = 60`
+- per-lane steady `50 eps`
+- per-lane burst `100 eps`
+- burst-step seed `25.0`
+
+The widened envelope is now clean:
+
+- steady `3006.672 eps`
+- burst `6538.000 eps`
+- recovery `3019.306 eps`
+- `4xx = 0`
+- `5xx = 0`
+- `p95 <= 49.9511 ms`
+- `p99 <= 61.9878 ms`
+
+Just as important, the semantic burden remained intact while the widened source finally went green:
+
+- `df_decisions_total_delta = 9000`
+- `al_intake_total_delta = 8287`
+- `dla_append_success_total_delta = 13565`
+- `case_trigger_triggers_seen_delta = 10786`
+- `case_mgmt_cases_created_delta = 2000`
+- `label_store_accepted_delta = 3199`
+- all integrity red counters stayed `0`
+- `decision_to_case p95 = 0.0 s`
+- `case_to_label p95 = 0.21583285 s`
+
+The OFP snapshot still shows the same stale-graph advisory surface:
+
+- pre and post both `WATERMARK_TOO_OLD + STALE_GRAPH_VERSION_RED`
+- `lag_seconds <= 0.076574`
+- `snapshot_failures = 0`
+- `missing_features` unchanged at `60`
+- `events_applied` increased from `12981` to `39981`
+
+So I am not reopening OFP. The advisory remained stable while real participation increased, which is exactly the pattern I needed to verify before accepting the widened source.
+
+That changes the current `Phase 9` posture materially:
+
+- the widened source blocker is removed
+- the platform has now shown that it can carry the longer bounded window at the declared production envelope **and** keep RTDL / Case + Label / governed learning continuity materially alive
+
+The next step is no longer another source experiment. The next step is the full `Phase 9` authorization run on this exact proven widened source shape, followed by the operator / governance challenge and final stress rollup.
+
+## 2026-03-13 15:46:12 +00:00 - The first full `Phase 9` spend on the rebuilt wrapper failed for the right reason: the widened `60`-lane source is not yet repeatable enough, and the operator chain did not introduce a new blocker of its own
+
+I spent on the full `Phase 9` chain once the direct widened source went green because that was the right next question. The result is useful, but it changes the posture again.
+
+The `Phase 9` wrapper reused the same widened source shape:
+
+- `lane_count = 60`
+- `presteady_seconds = 150`
+- `burst_step_initial_tokens = 25.0`
+
+This time the fresh backbone `phase6_learning_coupled_20260313T143700Z` came back:
+
+- steady `3006.123 eps`
+- burst `5132.500 eps`
+- recovery `3017.400 eps`
+- `4xx = 0`
+- `5xx = 0`
+
+So the same source topology that had just cleared burst at `6538.000 eps` did **not** repeat cleanly when embedded in the full Phase 9 chain. That means I do not get to treat the earlier green as sufficient authorization truth by itself. The blocker class has sharpened again:
+
+- the widened source is improved materially,
+- but it is still not repeatable enough to anchor full stress authorization honestly.
+
+I also checked whether the later failure came from the operator/governance side instead of the source. It did not. The phase-side drills still went green:
+
+- `phase7_alert_runbook_drill` green
+- `phase7_ml_day2_operator_surface` green
+
+The `Phase 9` operator surface then held only because it correctly refused to treat a red source backbone as valid authority:
+
+- blocker only `PHASE9_C_SOURCE_PHASE6_NOT_GREEN`
+
+So there is no new independent operator defect here. The wrapper simply lacked a fail-fast boundary and kept going after the source was already invalidated. That is a tooling waste issue, not a new platform blocker.
+
+The next correction is therefore two-part:
+
+1. make `phase9_full_platform_stress_authorization.py` fail fast when the source `Phase 6` backbone is red, so future red source runs do not keep spending on downstream challenge steps;
+2. repin the widened source again for repeatability, not just single-run success.
+
+At this point I am no longer asking "did `60` lanes ever work?" They did. The real question is:
+
+- what widened source topology makes the burst step repeatable enough that full stress authorization can be run without gambling on generator variance?
+
+That keeps the standard fixed:
+
+- same declared envelope
+- same semantic burden
+- same Phase 9 operator / governance challenge
+
+Only the source topology still needs another truthful repin.
