@@ -8,13 +8,13 @@ flowchart LR
 
   subgraph LEGEND["How to Read This Graph"]
     L1["Only resources backing the currently promoted working-platform core are shown"]
-    L2["The current promoted core now includes Learning + Evolution / MLOps on top of the live ingress / EKS runtime"]
-    L3["Managed learning resources are shown only because Phase 6 closed green and the learning corridor is now a promoted member of the working platform"]
-    L4["Ops / Gov / Meta remain absent here until later proof closes"]
+    L2["The current promoted resource core now includes the full platform after integrated Phase 8 closure"]
+    L3["Managed learning and ops/governance resources are shown because they are now promoted members of the working platform"]
+    L4["Only resources backing the accepted working-platform claim are shown"]
   end
 
   subgraph NOTE["Scope"]
-    N1["Concrete resource view for the promoted Control + Ingress + RTDL + Case + Label + Learning core<br>Envelope: 3000 steady eps / 6000 burst eps<br>Current accepted Phase 6 coupled closure slice: phase6_learning_coupled_20260312T194748Z"]
+    N1["Concrete resource view for the promoted full dev_full platform<br>Envelope: 3000 steady eps / 6000 burst eps<br>Current accepted integrated closure slice: phase8_full_platform_integrated_20260313T010847Z"]
   end
 
   subgraph CONTROL["Control Resources"]
@@ -102,11 +102,13 @@ flowchart LR
     ROLEDBX["IAM role<br>fraud-platform-dev-full-databricks-cross-account-access"]
   end
 
-  subgraph OBS["Observability Resources"]
+  subgraph OBS["Ops / Gov / Meta Resources"]
     CW["CloudWatch<br>logs / metrics / alarms"]
     DASHOPS["CloudWatch dashboard<br>fraud-platform-dev-full-operations"]
     DASHCOST["CloudWatch dashboard<br>fraud-platform-dev-full-cost-guardrail"]
+    ALARMS["Critical alarms<br>ingress / EKS / billing"]
     BUDGET["Budget<br>fraud-platform-dev-full-monthly"]
+    RUNBOOK["Runbook doc<br>docs/runbooks/dev_full_phase7_ops_gov_runbook.md"]
   end
 
   N1 --> CONTROL
@@ -226,10 +228,14 @@ flowchart LR
   CWWSP -->|feeds| CW
   EKS -->|feeds runtime telemetry to| CW
   SFN -->|feeds metrics to| CW
+  CW -->|materializes| ALARMS
+  ALARMS -->|drive operator action through| RUNBOOK
   EVID -->|feeds operational evidence to| DASHOPS
   CW -->|feeds live posture to| DASHOPS
   EVID -->|feeds spend/proof evidence to| DASHCOST
   BUDGET -->|feeds budget posture to| DASHCOST
+  DASHOPS -->|links to| RUNBOOK
+  DASHCOST -->|links to| RUNBOOK
 
   classDef note fill:#fff8e1,stroke:#f9a825,color:#111,stroke-width:1.3px;
   classDef control fill:#e8eaf6,stroke:#3949ab,color:#111,stroke-width:1.3px;
@@ -251,4 +257,4 @@ flowchart LR
   class DBWS,DBBUILD,DBQUALITY,DBCRED,SMTRAIN,SMBATCH,SMPKG,MLFLOW,REGISTRY learning;
   class OBJ,EVID,SSM state;
   class OIDC,ROLETF,ROLESFN,ROLELAMBDA,ROLEAPIGW,ROLEDDB,ROLEWSPEXEC,ROLEWSPRUN,ROLESM,ROLEDBX ident;
-  class CW,DASHOPS,DASHCOST,BUDGET obs;
+  class CW,DASHOPS,DASHCOST,ALARMS,BUDGET,RUNBOOK obs;

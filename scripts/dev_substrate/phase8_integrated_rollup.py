@@ -23,6 +23,12 @@ def load_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def int_or_default(value: Any, default: int) -> int:
+    if value is None:
+        return default
+    return int(value)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Bounded Phase 8 integrated rollup")
     ap.add_argument("--run-control-root", default="runs/dev_substrate/dev_full/proving_plane/run_control")
@@ -125,7 +131,7 @@ def main() -> None:
         blockers.append("PHASE8_B_ML_DAY2_NOT_GREEN")
     if not bool(idle_drill.get("overall_pass")):
         blockers.append("PHASE8_B_IDLE_DRILL_NOT_GREEN")
-    if int(idle_drill.get("node_count_after_idle") or -1) != 0:
+    if int_or_default(idle_drill.get("node_count_after_idle"), -1) != 0:
         blockers.append("PHASE8_B_IDLE_NOT_ZERO")
     if actual_bundle.get("bundle_id") != expected_bundle.get("bundle_id") or actual_bundle.get("bundle_version") != expected_bundle.get("bundle_version"):
         blockers.append("PHASE8_B_ACTIVE_BUNDLE_DRIFT")

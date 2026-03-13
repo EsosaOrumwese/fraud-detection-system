@@ -6802,3 +6802,91 @@ So I am building `Phase 8` from the existing truthful boundaries:
 The new work is to couple them on one fresh execution scope and then ask a new question:
 
 - do they still describe one platform, or do they only look green when scored separately?
+
+## 2026-03-13 02:11:43 +00:00 - The expensive Phase 8 work came back clean on the real platform boundary; the only red left was self-inflicted in the new integrated rollup gate, not in the platform itself
+
+The fresh integrated execution is:
+
+- `phase8_full_platform_integrated_20260313T010847Z`
+
+And the fresh runtime-serving backbone it rode on is:
+
+- `phase6_learning_coupled_20260313T010847Z`
+
+The important part is that the live AWS proof itself was already green:
+
+- fresh `Phase 6` backbone:
+  - `PHASE6_READY`
+- fresh integrated `Phase 7` slices on the same execution scope:
+  - alert drill green
+  - ML day-2 operator surface green
+  - idle / restore drill green
+  - bounded assessor green
+
+The first `Phase 8` rollup still went red, but for the right reason to fix narrowly:
+
+- `PHASE8_B_IDLE_NOT_ZERO`
+
+That was not a live idle failure. The drill artifact itself already showed:
+
+- node count after idle = `0`
+
+The red came from the new rollup code path treating valid `0` as falsey and converting it to the default red value.
+
+That is precisely the kind of defect I want to remove without thrashing the platform:
+
+- no rerun of the whole integrated proof
+- no weakening of the gate
+- just fix the scorer and rerun the smallest legitimate boundary
+
+## 2026-03-13 02:12:09 +00:00 - Phase 8 is now closed green because the fresh runtime backbone, the fresh integrated operator coupling, and the corrected integrated rollup now all agree on one bounded full-platform story
+
+The accepted integrated closure authority is:
+
+- execution:
+  - `phase8_full_platform_integrated_20260313T010847Z`
+- fresh source runtime backbone:
+  - `phase6_learning_coupled_20260313T010847Z`
+- source platform run:
+  - `platform_20260313T010848Z`
+
+The accepted integrated metrics are materially strong:
+
+- ingress envelope:
+  - steady = `3049.811 eps`
+  - burst = `6188.000 eps`
+  - recovery = `3019.217 eps`
+- runtime participation:
+  - `df_decisions_total_delta = 6439`
+  - `al_intake_total_delta = 5493`
+  - `dla_append_success_total_delta = 6753`
+  - `case_trigger_triggers_seen_delta = 5439`
+  - `case_mgmt_cases_created_delta = 1773`
+  - `label_store_accepted_delta = 2223`
+- integrity:
+  - all bounded integrity deltas remained `0`
+- timing:
+  - `decision_to_case p95 = 0.0 s`
+  - `case_to_label p95 = 0.1982594 s`
+- learning continuity:
+  - active runtime bundle still matched promoted truth
+  - `phase5 auc_roc = 0.9104674176699058`
+  - `phase5 precision_at_50 = 1.0`
+- governance / operator continuity:
+  - required local evidence = `10 / 10`
+  - readable Phase 5 refs = `18 / 18`
+  - critical alarms present = `6`
+  - dashboards remained runbook-linked
+  - node count after idle = `0`
+  - post-restore active runtime bundle still matched promoted truth
+
+That is enough to answer the real `Phase 8` question:
+
+- the platform does still behave as one coherent bounded production system once the ops/governance plane is coupled into the live story
+
+So the platform state changes materially here:
+
+- `Ops / Gov / Meta` is now promoted into the working platform
+- the whole `dev_full` platform is now bounded-correct
+- the next honest question is no longer integrated correctness
+- it is bounded full-platform stress authorization in `Phase 9`

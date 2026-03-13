@@ -171,3 +171,105 @@ The immediate posture is:
 4. implementation notes, logbook, plan state, and readiness graphs all tell the same truthful story.
 
 If any one of those is false, `Phase 8` remains open.
+
+## Rebuilt execution and accepted closure authority
+
+`Phase 8` did not close by simply reusing the accepted `Phase 6` and rebuilt `Phase 7` receipts. It stayed honest to the plan by generating one fresh runtime-learning backbone and then attaching fresh ops/governance proof slices to that same integrated execution scope.
+
+The accepted integrated sequence was:
+
+- fresh runtime backbone:
+  - `phase6_learning_coupled_20260313T010847Z`
+  - verdict `PHASE6_READY`
+- fresh integrated ops/governance coupling on the same execution scope:
+  - `phase8_full_platform_integrated_20260313T010847Z`
+  - alert drill green
+  - ML day-2 operator probe green
+  - idle / restore drill green
+  - bounded Phase 7 assessor green against the fresh Phase 6 backbone
+- first Phase 8 rollup:
+  - red on `PHASE8_B_IDLE_NOT_ZERO`
+  - this was not a platform defect
+  - it was a rollup defect caused by treating the valid `0` node-count idle result as falsey
+- narrow remediation:
+  - corrected the rollup gate
+  - reran only the Phase 8 rollup
+
+The accepted closure authority is therefore:
+
+- integrated execution:
+  - `phase8_full_platform_integrated_20260313T010847Z`
+- fresh source runtime backbone:
+  - `phase6_learning_coupled_20260313T010847Z`
+- fresh source platform run:
+  - `platform_20260313T010848Z`
+- verdict:
+  - `PHASE8_READY`
+- next phase:
+  - `PHASE9`
+
+## Accepted closure metrics
+
+### Phase 8.A - Fresh integrated runtime backbone
+- ingress envelope:
+  - steady = `3049.811 eps`
+  - burst = `6188.000 eps`
+  - recovery = `3019.217 eps`
+  - `4xx = 0`
+  - `5xx = 0`
+- runtime participation:
+  - `df_decisions_total_delta = 6439`
+  - `al_intake_total_delta = 5493`
+  - `dla_append_success_total_delta = 6753`
+  - `case_trigger_triggers_seen_delta = 5439`
+  - `case_mgmt_cases_created_delta = 1773`
+  - `label_store_accepted_delta = 2223`
+- integrity:
+  - all bounded integrity deltas remained `0`
+- timing:
+  - `decision_to_case p95 = 0.0 s`
+  - `case_to_label p95 = 0.1982594 s`
+
+### Phase 8.B - Integrated operator coupling
+- run reconstruction:
+  - required local evidence = `10 / 10`
+  - readable Phase 5 refs = `18 / 18`
+- observability / governance:
+  - critical alarms present = `6`
+  - runbook linkage present on both operations and cost dashboards
+  - metric freshness remained green on Lambda, APIGW, and EKS surfaces
+- ML day-2 operator truth:
+  - post-restore active runtime bundle matched promoted truth:
+    - `da1b8f...@v0-29d2b27919a7`
+  - runtime policy revision remained:
+    - `r3`
+- idle / restore:
+  - node count after idle = `0`
+  - nodegroup restored to pre-drill shape:
+    - `min=2`
+    - `desired=4`
+    - `max=8`
+
+### Phase 8.C - Integrated platform judgment
+- learning truth remained continuous:
+  - `phase5 auc_roc = 0.9104674176699058`
+  - `phase5 precision_at_50 = 1.0`
+  - `phase5 log_loss = 0.21071451840777855`
+- active runtime bundle truth, governance readback, and operator drift probe all agreed on the same promoted bundle
+- no active plane was dark while upstream remained hot
+- no hidden handoff defect appeared once the full platform was scored as one bounded story
+
+## Closure judgment
+
+`Phase 8` is now closed green.
+
+Why this closure is trustworthy:
+
+- the runtime-serving backbone was regenerated fresh instead of borrowed
+- the ops/governance proof slices were rerun on the same integrated execution scope rather than on an older detached proof
+- the only red encountered after the live AWS work completed was a scoring defect in the new Phase 8 rollup, not a platform defect
+- that red was removed by fixing the gate and rerunning only the smallest legitimate boundary
+
+This means the whole `dev_full` platform is now bounded-correct as one integrated production system.
+
+That also means `Ops / Gov / Meta` is no longer only plane-ready. It is now promoted into the working platform as the final coupled production-ready member before widened full-platform stress authorization.

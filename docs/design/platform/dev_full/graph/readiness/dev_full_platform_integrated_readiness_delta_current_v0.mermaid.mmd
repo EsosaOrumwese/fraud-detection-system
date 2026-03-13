@@ -1,0 +1,43 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Active / latest integrated readiness story for the full dev_full platform
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    L1["This graph captures the bounded integrated readiness story for the whole platform"]
+    L2["It shows the real blocker that appeared during Phase 8, the narrow remediation, and the final verdict"]
+    L3["It supplements the implementation notes; it is not the authority by itself"]
+  end
+
+  P6["Fresh Phase 6 backbone<br>phase6_learning_coupled_20260313T010847Z<br>PHASE6_READY"]
+  P7["Fresh integrated Phase 7 coupling<br>phase8_full_platform_integrated_20260313T010847Z<br>alert + ML day-2 + idle / restore + assessor green"]
+  ROLLUPRED["First Phase 8 rollup red<br>PHASE8_B_IDLE_NOT_ZERO"]
+  DEFECT["Real blocker class<br>rollup scorer defect:<br>valid zero-node idle was treated as falsey"]
+  FIX["Narrow remediation<br>fix zero-node idle parsing in phase8_integrated_rollup.py"]
+  RERUN["Rerun boundary<br>Phase 8 rollup only"]
+  P8["Accepted integrated closure<br>phase8_full_platform_integrated_20260313T010847Z<br>PHASE8_READY"]
+
+  METRICS["Accepted integrated metrics<br>steady 3049.811 eps<br>burst 6188.000 eps<br>recovery 3019.217 eps<br>decision->case p95 0.0 s<br>case->label p95 0.1982594 s<br>integrity deltas all 0"]
+  VERDICT["Verdict<br>full platform bounded-correct<br>Ops / Gov / Meta promoted into working platform<br>next: Phase 9 stress authorization"]
+
+  P6 --> P7
+  P7 --> ROLLUPRED
+  ROLLUPRED --> DEFECT
+  DEFECT --> FIX
+  FIX --> RERUN
+  RERUN --> P8
+  P8 --> METRICS
+  METRICS --> VERDICT
+
+  classDef ready fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+  classDef red fill:#ffebee,stroke:#c62828,color:#111,stroke-width:1.3px;
+  classDef amber fill:#fff8e1,stroke:#f9a825,color:#111,stroke-width:1.3px;
+  classDef note fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.3px;
+
+  class P6,P7,P8,VERDICT ready;
+  class ROLLUPRED,DEFECT red;
+  class FIX,RERUN,METRICS amber;
+  class L1,L2,L3 note;
