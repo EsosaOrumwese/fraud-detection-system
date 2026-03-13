@@ -171,136 +171,184 @@ If any one of those is false, `Phase 9` remains open.
 
 ## Current live status
 
-`Phase 9` is open and currently red.
+`Phase 9` is closed green.
 
-What the widened runs have already shown truthfully:
+Accepted stress-authorization authority:
 
-- semantic handling stayed clean across the active full-platform story:
-  - RTDL continued to emit governed decision / action truth
-  - Case + Label continued to create cases and authoritative labels without anomaly, pending, or rejection growth
-  - active runtime bundle truth stayed attributable to the governed learning basis
-- the blocker is not presently “the platform makes meaningless outputs under pressure”
+- full Phase 9 closure run:
+  - `phase9_full_platform_stress_20260313T203100Z`
+- fresh widened runtime-learning backbone behind that closure:
+  - `phase6_learning_coupled_20260313T203100Z`
+- final receipt:
+  - `PHASE9_READY`
+- next authorized state:
+  - `LONG_STRESS_AUTHORIZED`
 
-What is still red:
+## What actually closed the phase
 
-- the widened WSP-driven stress source has not yet proved the declared envelope truthfully and repeatably
-- the strongest remaining miss is now the front edge of the scored steady window, not the widened burst itself
+The final accepted posture did not lower the platform target. It removed the source-repeatability defect by changing source fan-out, not by weakening the platform standard:
 
-Current widened source evidence:
+- `lane_count = 84`
+- `ig_push_concurrency = 1`
+- `presteady_seconds = 150`
+- `steady_seconds = 600`
+- `burst_step_initial_tokens = 17.8571428571`
 
-- `phase6_learning_coupled_20260313T061950Z`
-  - steady `3006.173 eps`
-  - burst `5882.000 eps`
-  - recovery `3015.711 eps`
-- `phase6_learning_coupled_20260313T072902Z`
-  - steady `3003.818 eps`
-  - burst `5473.000 eps`
-  - recovery `3018.772 eps`
-- rejected token-top-up attempt `phase6_learning_coupled_20260313T083846Z`
-  - steady `2942.727 eps`
-  - burst `5519.500 eps`
-  - recovery stayed green
-- explicit hot-lane burst-seed rerun `phase6_learning_coupled_20260313T095425Z`
-  - steady `2995.770 eps`
-  - burst `6152.000 eps`
-  - recovery `3020.106 eps`
-  - per-second APIGW readback showed the first ~`15s` of the scored steady boundary still ramping before stabilizing near `3000/s`
-- widened presteady repin on the same `54`-lane source `phase6_learning_coupled_20260313T110346Z`
-  - steady `3005.513 eps`
-  - burst `5176.500 eps`
-  - recovery `3017.289 eps`
-  - this removed the front-edge steady miss but reintroduced burst under-drive
+That posture matters because earlier attempts showed the real blocker clearly:
 
-Current judgment:
+- `60` lanes was not repeatable enough to anchor full authorization
+- `72` lanes improved the widened source, but still failed on full-repeat burst behavior
+- `ig_push_concurrency = 2` was rejected because it created real `4xx` / `5xx` and recovery damage
 
-- `Phase 9` remains open because long-window stress authorization is still blocked by widened-source envelope truth, not by proven semantic corruption inside the platform.
-- the `54`-lane widened source is now shown to be insufficiently repeatable under narrow timing repins
-- the next narrow correction is source topology itself:
-  - higher lane count at the same total envelope
-  - lower per-lane burden
-  - no relaxation of the platform target
+So the accepted `84`-lane posture is not a lucky pass. It is the final narrow remediation after the actual error class was understood as source repeatability under the widened burst boundary.
 
-Additional current truth after the first topology repin attempt:
+## Final Phase 9 stress story
 
-- attempted higher-lane rerun `phase6_learning_coupled_20260313T121323Z`
-  - intended posture:
-    - `lane_count = 60`
-    - `presteady_seconds = 150`
-    - `burst_step_initial_tokens = 25.0`
-  - actual applied posture:
-    - receipt still shows `lane_count = 54`
-    - so the topology repin did not apply
-  - observed metrics on that still-`54`-lane run:
-    - steady `3005.373 eps`
-    - burst `5884.500 eps`
-    - recovery `3019.339 eps`
-  - companion `ofp:RED` on that run is not currently treated as a new runtime blocker:
-    - `lag_seconds = 0.018824`
-    - `checkpoint_age_seconds = 0.018824`
-    - `snapshot_failures = 0`
-    - reasons stayed `WATERMARK_TOO_OLD` + `STALE_GRAPH_VERSION_RED`
-    - runtime participation and semantic continuity remained materially present
+From `phase9_full_platform_stress_20260313T203100Z`:
 
-So the immediate next correction is not "more retries". It is:
+- admitted total:
+  - `2,360,103` requests
+- widened envelope:
+  - steady `3007.053 eps`
+  - burst `6359.000 eps`
+  - recovery `3017.517 eps`
+- latency:
+  - steady `p95 = 47.9935 ms`
+  - steady `p99 = 59.9765 ms`
 
-- fix the widened source runner so explicit lane-count repins are not silently re-inherited away
-- then rerun the widened source at a real higher-lane topology before spending on another full `Phase 9` attempt
+From the accepted widened backbone `phase6_learning_coupled_20260313T203100Z`:
 
-The next widened source rerun has now answered that question:
+- steady `3008.575 eps`
+- burst `6681.000 eps`
+- recovery `3017.589 eps`
+- `4xx = 0`
+- `5xx = 0`
+- burst `p99 = 151.9405 ms`
 
-- truthful higher-lane rerun `phase6_learning_coupled_20260313T132900Z`
-  - applied posture:
-    - `lane_count = 60`
-    - `presteady_seconds = 150`
-    - `steady_seconds = 600`
-    - `burst_step_initial_tokens = 25.0`
-  - observed metrics:
-    - steady `3006.672 eps`
-    - burst `6538.000 eps`
-    - recovery `3019.306 eps`
-    - `4xx = 0`
-    - `5xx = 0`
-  - semantic participation stayed material:
-    - `df_decisions_total_delta = 9000`
-    - `case_mgmt_cases_created_delta = 2000`
-    - `label_store_accepted_delta = 3199`
-    - integrity counters remained `0`
-    - `decision_to_case p95 = 0.0 s`
-    - `case_to_label p95 = 0.21583285 s`
-  - OFP remained advisory-only:
-    - same `WATERMARK_TOO_OLD + STALE_GRAPH_VERSION_RED`
-    - `lag_seconds <= 0.076574`
-    - `snapshot_failures = 0`
-    - `events_applied` increased materially
+So the widened stress slice held the declared production shape without relaxing throughput or latency expectations.
 
-So the widened source blocker is now removed. The active `Phase 9` question is no longer "can the source truthfully hold the widened envelope?" It is now the actual phase question:
+## Semantic handling under widened pressure
 
-- does the full stress authorization chain remain green on that widened truthful source when operator challenge and final stress judgment are executed together?
+This phase only closes if the platform keeps its meaning under widened pressure. The final accepted run did that.
 
-The first full `Phase 9` attempt on that rebuilt wrapper changed that judgment again:
+### RTDL stayed meaningful
 
-- full authorization attempt `phase9_full_platform_stress_20260313T143700Z`
-  - source backbone `phase6_learning_coupled_20260313T143700Z`
-  - same widened source posture:
-    - `lane_count = 60`
-    - `presteady_seconds = 150`
-    - `burst_step_initial_tokens = 25.0`
-  - fresh backbone result:
-    - steady `3006.123 eps`
-    - burst `5132.500 eps`
-    - recovery `3017.400 eps`
-    - `4xx = 0`
-    - `5xx = 0`
-  - operator-side follow-on result:
-    - alert drill green
-    - ML day-2 operator surface green
-    - `Phase 9` operator surface held only because the source backbone was red:
-      - `PHASE9_C_SOURCE_PHASE6_NOT_GREEN`
+- recent RTDL event types remained:
+  - `action_intent`
+  - `decision_response`
+- recent RTDL reason codes remained:
+  - `ACCEPT`
+- governed active-bundle continuity stayed present while widened traffic was running
 
-So the truthful current judgment is:
+This matters because it shows the platform was still making attributable runtime decisions, not merely moving opaque traffic through the path.
 
-- semantic handling remains clean
-- the operator / governance side did not introduce a new blocker
-- the widened source is better but still not repeatable enough at the current `60`-lane posture to anchor final stress authorization
+### Case + Label remained authoritative
 
-That means `Phase 9` remains open red on **source repeatability**, not on semantic corruption and not on operator-surface failure.
+Runtime-to-case-to-label participation stayed materially present:
+
+- `case_trigger_triggers_seen_delta = 8505`
+- `case_mgmt_cases_created_delta = 2079`
+- `label_store_accepted_delta = 2693`
+
+Timing continuity stayed credible:
+
+- `decision_to_case_p95_seconds = 0.0`
+- `case_to_label_p95_seconds = 0.1976141`
+
+Integrity remained clean:
+
+- `case_mgmt_anomalies_total_delta = 0`
+- `label_store_pending_delta = 0`
+- `label_store_rejected_delta = 0`
+- `case_trigger_quarantine_delta = 0`
+
+So the stressed platform was still turning runtime truth into cases and authoritative labels, not silently stalling or degrading into backlog / anomaly growth.
+
+### Learning and bundle continuity remained meaningful
+
+The active runtime bundle still traced back to the governed learning basis:
+
+- active bundle id:
+  - `da1b8f7690cf6cfec4f3f9e7c69df2479d2953fbd00102ad2f7e3ed9c66b943e`
+- active bundle version:
+  - `v0-29d2b27919a7`
+- policy revision:
+  - `r3`
+- readable Phase 5 references:
+  - `18`
+
+The carried learning-quality basis remained explicit in the same stress story:
+
+- `phase5_auc_roc = 0.9104674176699058`
+- `phase5_precision_at_50 = 1.0`
+- `feature_asof_utc = 2026-03-05T00:00:00Z`
+- `campaign_present_rows = 2`
+
+That means widened runtime pressure did not sever the bundle from the meaningful bounded learning basis already accepted in `Phase 5` and coupled in `Phase 6`.
+
+## Cross-plane participation and integrity
+
+Full-platform participation remained real:
+
+- `df_decisions_total_delta = 9095`
+- `al_intake_total_delta = 6061`
+- `dla_append_success_total_delta = 11066`
+- `case_trigger_triggers_seen_delta = 8505`
+- `case_mgmt_cases_created_delta = 2079`
+- `label_store_accepted_delta = 2693`
+
+Critical integrity deltas stayed at `0`:
+
+- `df_hard_fail_closed_delta`
+- `df_publish_quarantine_delta`
+- `al_publish_quarantine_delta`
+- `dla_append_failure_delta`
+- `dla_replay_divergence_delta`
+- `case_trigger_quarantine_delta`
+- `case_mgmt_anomalies_total_delta`
+- `label_store_pending_delta`
+- `label_store_rejected_delta`
+
+So no plane only appeared green because another plane silently stopped doing real work.
+
+## Operator and governance challenge under stress
+
+The full Phase 9 authorization chain completed, not just the widened backbone:
+
+- `phase7_alert_runbook_drill_receipt.json`
+  - `PHASE7_ALERT_DRILL_READY`
+- `phase7_ml_day2_operator_surface_receipt.json`
+  - `PHASE7_ML_DAY2_READY`
+- `phase9_stress_operator_surface_receipt.json`
+  - `PHASE9_OPERATOR_READY`
+- final stress receipt:
+  - `PHASE9_READY`
+
+The manifest confirms the full chain completed:
+
+1. `phase6_stress_backbone`
+2. `phase7_alert_runbook_drill`
+3. `phase7_ml_day2_operator_surface`
+4. `phase9_stress_operator_surface`
+5. `phase9_stress_rollup`
+
+So the widened stress result stayed challengeable and attributable from the live operator surface rather than depending on a hidden post hoc reconstruction.
+
+## Final judgment
+
+`Phase 9` is green because the full `dev_full` platform proved two things at the same time on one widened bounded stress story:
+
+1. it still holds the declared production shape under materially wider pressure, and
+2. it still handles the information within the data meaningfully across RTDL, Case + Label, and learning/runtime bundle continuity.
+
+That is the required authorization boundary for this plan.
+
+The platform is therefore not just "green on stress." It is authorized for later longer stress / soak because the widened proof showed:
+
+- production-credible throughput and latency,
+- clean integrity and recovery,
+- real cross-plane participation,
+- explainable RTDL decision truth,
+- authoritative case / label truth,
+- continuous governed learning / active-bundle truth,
+- live operator challenge and governance readback.

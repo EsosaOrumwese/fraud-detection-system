@@ -1356,21 +1356,30 @@ After a phase is complete, update as needed:
 ---
 
 ## Immediate next action
-Proceed with `Phase 9 - Full-platform bounded stress authorization`.
+The plan is now closed on the bounded production-readiness standard.
 
-`Phase 8` is now closed green on the rebuilt standard. The accepted integrated closure authority is:
+Accepted final authority:
 
 - full-platform bounded integrated validation:
   - `phase8_full_platform_integrated_20260313T010847Z`
-- fresh runtime backbone coupled into that authority:
-  - `phase6_learning_coupled_20260313T010847Z`
+- full-platform bounded stress authorization:
+  - `phase9_full_platform_stress_20260313T203100Z`
+- fresh widened runtime-learning backbone behind the accepted stress closure:
+  - `phase6_learning_coupled_20260313T203100Z`
 
-The current promoted working platform is now:
+The current promoted working platform is:
 
 - `Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps + Ops / Gov / Meta`
 
-Execution order now is:
-1. keep the accepted `Phase 8` full-platform integrated evidence chain fixed,
-2. widen pressure only to the bounded Phase 9 stress-authorization slice,
-3. preserve the same declared ingress envelope and the same truth / timing / explainability standards,
-4. authorize any later longer stress only if that widened bounded slice remains green.
+Current judgment:
+
+- `dev_full` is production-ready on the bounded authorization standard defined by this plan
+- later longer stress / soak is now authorized because the full platform remained production-credible under widened bounded pressure
+- that authorization is not based on wiring alone; it is based on one continuous stress story where:
+  - throughput, latency, integrity, and recovery stayed green
+  - RTDL decision / action truth remained explainable
+  - Case + Label truth remained authoritative
+  - active runtime bundle truth stayed tied to the governed learning basis
+  - operator and governance challenge stayed live and attributable
+
+Any later longer stress / soak work should therefore begin from the accepted `Phase 9` authority rather than reopening earlier bounded phase questions unless a new defect appears.

@@ -76,6 +76,7 @@ def main() -> None:
     ap.add_argument("--presteady-seconds", type=int, default=120)
     ap.add_argument("--coupled-presteady-floor-seconds", type=int, default=120)
     ap.add_argument("--burst-step-initial-tokens", type=float, default=-1.0)
+    ap.add_argument("--ig-push-concurrency", type=int, default=1)
     args = ap.parse_args()
 
     execution_id = str(args.execution_id).strip() or fresh_execution_id()
@@ -101,6 +102,7 @@ def main() -> None:
             "coupled_presteady_floor_seconds": int(args.coupled_presteady_floor_seconds),
             "lane_count": args.lane_count,
             "burst_step_initial_tokens": float(args.burst_step_initial_tokens),
+            "ig_push_concurrency": int(args.ig_push_concurrency),
             "target_volume_band": "2M to 5M admitted events",
         },
         "steps": [],
@@ -137,6 +139,8 @@ def main() -> None:
         "180",
         "--cost-budget-envelope-usd",
         "45",
+        "--ig-push-concurrency",
+        str(args.ig_push_concurrency),
         "--preserve-requested-window",
     ]
     if args.lane_count is not None:
