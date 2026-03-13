@@ -1,313 +1,108 @@
-## 2026-03-13 00:22:10 +00:00 - Reset the Bi-notebook around what Bi is actually trying to achieve relative to A and the meta-goal
-The first thing to keep explicit in this notebook is that `Bi` is not a restart of `A`, and it is also not yet `Bii`.
+## 2026-03-13 05:13:18 +00:00 - Reset the Bi-notebook around the corrected method: recover the reasoning that transformed the A network into the production-ready network
+The earlier `Bi` framing drifted too close to a live hardening loop:
 
-`A` was the architectural excavation. It established that the current wired `dev_full` platform is a real engineered object: bounded into obligations, composed of necessary groups and paths, materially seated in real runtime and evidence surfaces, and governed by explicit truth boundaries rather than by accidental service adjacency.
+- select an object
+- expose a gap
+- close the gap
+- rerun
+- promote
 
-That means `Bi` begins from a stronger starting point than a normal readiness notebook would. The job here is no longer to rediscover what the platform is. The job is to take the `A`-mapped platform as the current engineered base and expose it to production-shaped pressure so the difference between:
+That is not the real job of this notebook.
 
-- `wired`
-- and `production-ready`
+The proving work has already happened through the bounded readiness phases. The promoted readiness network already exists. The implementation note already records the pressure history, the red classifications, the bridges, the reruns, and the promotion turns that were actually earned. So the notebook does not need to pretend it is standing before readiness work has been done.
 
-becomes explicit, defensible, and engineering-led.
+The real job of `Bi` is different:
 
-So the central question of `Bi` is:
+- recover how the `A` network was taken through production pressure
+- recover what concerns mattered for the objects that actually mattered
+- recover how those concerns were measured and made visible
+- recover what the implementation history showed about insufficiency, proof-shape defects, and bridge choice
+- and recover why the accepted bridges were the right engineering moves from the wired posture toward the production-ready posture
 
-- given the current wired platform that `A` mapped, what does production-shaped pressure reveal as still insufficient, why is that insufficiency real, and what bridge is justified if the platform is to move from engineered base toward production-ready state?
+That means `Bi` is not:
 
-That is why `Bi` has to stay distinct from both sides around it:
+- a component tour
+- a raw phase diary
+- a defect list
+- a replay of the hardening loop as if the outcome were still unknown
+- or merely a description of the final production-ready network
 
-- `A` is about what exists, why it exists, why it is shaped this way, and why it already counts as a serious engineered foundation
-- `Bi` is about what that engineered foundation cannot yet safely claim under readiness pressure, what gaps that reveals, and how those gaps are bridged without weakening production shape
-- `Bii` will be about the later defended proof that the promoted readiness-shaped platform can actually hold as an operational production posture
+It is the reasoning surface for the transformation from:
 
-So the practical relation is:
+- `A posture`
+- to `production-ready posture`
 
-- `A` supplies the architectural map and the owned truth boundaries
-- `Bi` supplies the pressure, gap, bridge, and promotion reasoning
-- `Bii` supplies the bounded operational proof story
+for the objects that matter most to readiness and to the meta-goal.
 
-This matters for the meta-goal because the meta-goal is not achieved by saying:
+That distinction matters because the meta-goal is not satisfied by saying:
 
-- there is a graph
-- there was a hardening loop
-- there were some green runs
+- there was a wired platform
+- then some pressure happened
+- then some phases went green
 
-The meta-goal is achieved when a serious reviewer can infer something harder:
+The meta-goal is served only if a serious reviewer can see something harder and more valuable:
 
-- the platform foundation was understood structurally
-- the gap from wired to ready was reasoned about honestly
-- pressure was applied in a production-shaped way rather than by guesswork
-- design bridges were chosen with engineering judgment rather than convenience
-- and readiness claims were promoted only when their scope and residual uncertainty were explicit
+- the pre-pressure object was understood
+- the relevant production concern was identified
+- the concern was measured in a truthful way
+- the red was classified honestly
+- the accepted bridge preserved production shape and semantic truth
+- and the resulting readiness claim was earned rather than hand-waved
 
-That is the experience signal `Bi` is meant to carry.
+That is the level of engineering judgment `Bi` is supposed to expose.
 
-The notebook therefore needs to keep one controlling posture from the beginning:
-
-- use `A` as the map
-- do not rediscover architecture unless pressure proves the wired foundation itself was wrong
-- ask readiness questions only
-- keep the current wired object as the starting truth
-- treat target posture, repin history, and hardening chronology as explanation, not as the object itself
-- keep `Bii` proof claims out unless they are explicitly being parked for later
-
-The flow plan captured in:
+The updated flow in:
 
 - [prod-readiness.interrogation-approach.mmd](assets/prod-readiness.interrogation-approach.mmd)
 
-is therefore the controlling method for this notebook.
+now matches that corrected posture much better.
+
+It no longer assumes the notebook is doing first-time readiness implementation from scratch. Instead it assumes the notebook is:
+
+- starting from the `A` object map
+- recovering the final post-pressure posture from the readiness network
+- selecting the objects with the richest readiness and meta-goal payoff
+- interrogating the implementation-note episodes that materially changed posture
+- and then extracting the system-design reasoning that explains the transformation
+
+This is also the right way to use the production-readiness implementation note. It is not just a chronology of breakages to summarize. It is the pressure history used to recover the reasoning behind why a boundary mattered, what became questionable under pressure, what telemetry or metric made that concern visible, what constraint or trade-off shaped the solution, and why the chosen bridge was the right one.
+
+The base system also has to remain visible in that story. `Control + Ingress` is the clearest example. It is not a one-time plane that closes and disappears. As later planes were attached, the already-working network had to be re-pressured and re-validated so that the inherited system stayed green under enlarged coupling. That means `Bi` cannot be only a sequence of local plane stories. It has to show how pressure on later enlarged networks kept changing what counted as trustworthy readiness for the already-working base.
+
+So the controlling notebook posture from this point forward is:
+
+- use `A` to recover the pre-pressure object meaning
+- use the readiness plan and phase authorities to recover what `ready` meant for that object under the relevant pressure moment
+- use the implementation note to recover the real concern, the real measurement story, the real challenge class, the real bridge, and the real earned posture
+- use the production-ready graphs only as the final post-pressure shape, not as substitutes for reasoning
+
+This means the notebook should be organized primarily as:
+
+- object under interrogation
+- `A` posture
+- final `Bi` posture
+- why the object mattered
+- what concerns and measurements mattered
+- which pressure episodes changed it
+- what bridges were accepted
+- and what claim that object now supports
+
+not as:
+
+- phase 0
+- phase 1
+- phase 2
+
+and not as:
+
+- defect 1
+- defect 2
+- defect 3
+
+Those remain execution crosswalks and evidential sources, not the primary reader-facing shape of the notebook.
 
 Judgment at this point:
 
-- the `Bi` notebook should be a readiness-pressure and bridge-justification notebook, not another architecture tour
-- its purpose is to make wired-to-ready gaps explicit, classify them honestly, and justify the least-distorting bridges toward production-ready state
-- the next entry should begin by pinning the `Bi` boundary and evidence surfaces under that method before any specific group or path is pressured
-
-## 2026-03-13 00:36:35 +00:00 - Pin the Bi boundary so the notebook stays on readiness questions rather than drifting back into A or forward into Bii
-`Bi` is the reasoning surface for taking the already-mapped current wired platform from `A` and interrogating it as a production-readiness object rather than as an existence object.
-
-`A` already established that the current wired platform is real, bounded, intentional, and materially seated. `Bi` therefore does not re-prove wiring, redraw the platform, or re-argue that the paths exist. It starts from the `A` map and asks what becomes questionable once that wired platform is exposed to production-shaped pressure.
-
-So the central question of `Bi` is:
-
-- given the `A`-mapped wired platform, what exact wired-to-ready gaps are revealed when the system is judged against production-readiness requirements, and what justifiable bridges close those gaps without weakening production shape or semantic truth?
-
-That means `Bi` is about:
-
-- readiness under production-shaped pressure
-- readiness criteria at plane and cross-plane level
-- pressure-led gap discovery
-- honest classification of reds
-- bridge justification
-- bounded proof
-- and promotion only after explainable evidence
-
-The readiness plan is explicit about the method here: prove one plane on its own production criteria, couple it to the already-working network, prove the enlarged network and the new paths it introduces, and only then promote that plane into the working platform. The same plan is explicit that graphs reflect readiness progress after proof; they do not substitute for proof.
-
-Just as importantly, `Bi` is not:
-
-- a rerun of `A`
-- a generic hardening notebook
-- a component tour
-- a target-architecture fantasy
-- or the later `Bii` capstone where the already-readied platform is treated as an operationally proven system
-
-`A` already pinned that production-readiness, envelope proof, pressure behavior, and sustained-runtime adequacy belong here in `Bi`, while `A` remains about the current wired platform as it exists now.
-
-The object of `Bi` needs to stay tight from the beginning:
-
-- the object is not the whole platform in the abstract
-- the object is the set of `A`-defined boundaries, groups, paths, planes, and couplings that must be pressured and judged in order to turn the wired platform into a production-ready platform
-
-So `Bi` inherits:
-
-- the `A` obligation and path map
-- the current wired truth
-- the readiness doctrine in the plan
-- the active phase authority
-- and the implementation note as the reasoning trail of what actually happened under pressure
-
-That inheritance is what keeps the notebook honest. It prevents the readiness story from dissolving into free-floating hardening commentary.
-
-The boundary also needs to say what counts as a valid `Bi` question.
-
-A valid `Bi` question is one that asks, for a concrete `A`-defined boundary:
-
-- what production-ready truth would have to be true here
-- what pressure family reveals whether that is actually true
-- what telemetry and proof shape are needed for a trustworthy verdict
-- what kind of red was exposed
-- whether that red is really a readiness insufficiency, a proof-boundary defect, or an `A`-level wiring defect
-- and what bridge closes it with the least distortion
-
-That posture is not hypothetical. The proving-plane implementation trail already shows it in practice during `Phase 0`: first remove path and target ambiguity, then correct proving-shape defects, then expose a truthful ingress-runtime red, then improve telemetry so later bounded reruns can localize the actual hot-path boundary rather than stay blind.
-
-The pressure families also belong inside the boundary, because they define what `Bi` is allowed to care about:
-
-- envelope pressure
-- semantic pressure
-- coupling pressure
-- authority pressure
-- observability pressure
-- cost pressure
-
-But all of them remain subordinate to the plan's non-negotiable doctrine that production shape is preserved. The plan is explicit that cost reduction may shrink event count, run duration, always-on compute, or repeated reruns, but may not shrink the target throughput, burst expectations, latency expectations, recovery expectations, semantic correctness expectations, or auditability expectations.
-
-The main exclusion rule also has to be pinned early:
-
-- if a red is caused by incorrect wiring, stale active-boundary truth, or a defect that means the supposed `A` foundation is itself wrong, that is not a `Bi` closure; it is an `A` correction
-- if a red is caused by blind telemetry, bad proof shape, attribution ambiguity, or other proving-surface defects, that is not yet a platform readiness verdict; it is a proof-boundary correction inside `Bi`
-- only after those are separated can a red be treated as a true `Bi` readiness insufficiency
-
-Again, the implementation trail already shows this discipline in the first proving phase. Early reds were narrowed away from ingress-runtime failure and toward path drift, under-driving proof shape, or telemetry blindness before the notebook was allowed to treat later reds as truthful runtime blockers.
-
-The execution posture also belongs in the boundary:
-
-`Bi` proceeds by bounded proof, not by long-run hope. It is telemetry-first, graph-after-proof, and narrow-rerun by default. Once a phase has one semantically trustworthy baseline, that baseline should stay fixed while the remaining ambiguity is removed. The readiness plan is explicit that the method is not to keep inventing new run shapes to chase a green receipt; the method is to fix telemetry, attribution, or a narrow runtime defect first, then repeat the same truthful baseline.
-
-The success condition for `Bi` should be pinned just as clearly:
-
-- `Bi` is achieved enough when the wired-to-ready gap is no longer vague
-
-That means:
-
-- the pressured boundaries are explicit
-- the revealed gaps are explicit
-- the gap class is explicit
-- the accepted bridges are justified
-- promotion scope is explicit
-- remaining open readiness debt is explicit
-- and what remains after that is genuinely `Bii` territory rather than hidden `Bi` debt
-
-The readiness plan already gives the right closure standard for that judgment: a plane is promoted only when its component criteria, immediate cross-plane paths, bounded correctness, bounded stress, coupled-network validation, and explainable or auditable evidence are all green.
-
-The shortest clean version is:
-
-> `Bi` is the notebook for interrogating the `A`-mapped wired platform under production-shaped pressure so that wired-to-ready gaps, their true class, their least-distorting bridges, and their promotion implications become explicit enough to support a defensible production-ready claim.
-
-Judgment at this point:
-
-- the `Bi` boundary is now explicit enough to keep the notebook off both sides of the line: it should not drift back into architectural rediscovery, and it should not drift forward into `Bii` proof claims
-- the next entry should freeze the `Bi` evidence surfaces so later pressure work stays tied to the actual reasoning authorities rather than to free-form hardening memory
-
-## 2026-03-13 00:55:59 +00:00 - Freeze the Bi-core evidence surfaces and pin the pressure inventory from A before selecting the first active object
-The next move in the notebook is to freeze the authorities first and only then define the pressure inventory inherited from `A`.
-
-The important posture here is that readiness work may be executed plane by plane, but the reasoning notebook does not need to collapse into plane-tour thinking. The right relationship is:
-
-- `A`-defined objects are the interrogation inventory
-- plane phases are the execution crosswalk
-
-That preserves the same discipline that made `A` useful. `A` stayed obligation-led and path-led rather than component-led, while the readiness plan is explicit that proving proceeds plane-first and then network-coupled. `Bi` needs both, but they should not be confused.
-
-The fixed evidence surfaces for this notebook are:
-
-1. `A map`
-   - the inherited obligation groups, real paths, owned outcomes, and `A` syntheses
-   - this is the architectural map `Bi` is allowed to pressure rather than rediscover
-
-2. `Readiness implementation note`
-   - the primary reasoning authority for what actually happened during readiness work
-   - this is where red classification, proof-boundary separation, and bridge choice are recorded as live engineering judgment rather than reconstructed later
-
-3. `Readiness plan plus active phase authority`
-   - the declared goal, target, run shape, telemetry doctrine, and closure rule for the boundary currently being interpreted
-   - the plan is explicit that graphs reflect truth after proof, not before it, and that planes are promoted only after both plane-ready and coupled-network proof are green
-
-4. `Accepted green chain`
-   - the already accepted working-platform truth that `Bi` is allowed to inherit without casually reopening it
-   - in the current readiness assets, that inherited promoted core is:
-     - `Control + Ingress`
-     - `RTDL`
-     - `Case + Label`
-     - `Learning + Evolution / MLOps`
-   - and `Ops / Gov / Meta` remain absent from the accepted production-ready core until later proof closes
-
-5. `Bi gap register`
-   - an in-note running ledger rather than an external authority artifact
-   - the working fields are:
-     - `boundary | pressure | target | observed | gap class | chosen bridge | bridge effect | promotion scope | what remains open`
-   - this is the notebook control surface that keeps readiness reasoning explicit instead of letting it dissolve into prose memory
-
-The pressure inventory should then be treated in two layers.
-
-The primary layer is the inherited `A` object inventory. These are the actual system-design objects `Bi` should pressure, because they are the real boundaries that `A` already established as owned, necessary, and materially seated.
-
-`Group 1 - Run and world-source authority`
-
-- `Run legitimization path`
-- `Source realization path`
-- `Ready authorization path`
-
-`Group 2 - Canonical traffic admission and bus publication`
-
-- `Boundary access path`
-- `Admission and disposition path`
-- `Authoritative bus publication path`
-- `Ingest commit truth path`
-
-`Group 3 - Runtime context formation and decisioning`
-
-- `Entity and relationship projection path`
-- `Joined context formation path`
-- `Online feature readiness path`
-- `Decision guardrail path`
-- `Decision formation path`
-- `Action and outcome emission path`
-
-`Group 4 - Durable audit, archive, and replay truth`
-
-- `Audit append path`
-- `Audit publication and durable reference path`
-- `Immutable archive preservation path`
-- `Archive closure and replay-reference path`
-
-`Group 5 - Operational case and label truth`
-
-- `Case-intent escalation path`
-- `Case creation and timeline append path`
-- `Case-to-label handoff path`
-- `Authoritative label commit and visibility path`
-
-`Group 6 - Learning, evaluation, and governed activation`
-
-- `Learning-input basis path`
-- `Offline dataset commitment path`
-- `Train / eval and candidate-bundle path`
-- `Promotion and rollback-governance path`
-- `Active-bundle authority feedback path`
-
-`Group 7 - Run governance, observability, and evidence closure`
-
-- `Run reconstruction and receipt closure path`
-- `Governance append and close-marker path`
-- `Proof-matrix and final-verdict publication path`
-- `Drift-visible observability attestation path`
-- `Idle-safe teardown and residual-readability path`
-- `Cost guardrail and cost-to-outcome closure path`
-
-That is the full inherited `A` object inventory. `Bi` should be able to select pressure objects from this list rather than inventing new readiness objects casually.
-
-The secondary layer is the enlarged-network inventory. These are not replacements for the `A` objects. They are the coupled readiness objects that arise because the proving plan works by proving one plane and then proving the enlarged working network that the new plane creates.
-
-The enlarged-network objects to pin are:
-
-1. `Control + Ingress revalidation boundary`
-   - the base working-platform object that readiness work revalidates under bounded production proof
-
-2. `Control + Ingress + RTDL working network`
-   - the first enlarged network beyond the ingress base
-   - this is the coupled readiness object around control, ingress, event transport, RTDL internal hot path, and the newly attached audit and archive boundaries
-
-3. `Control + Ingress + RTDL + Case + Label enlarged network`
-   - the coupled object where RTDL outputs are no longer only runtime-local
-   - the question becomes whether machine outputs remain truthful and operationally usable once review and supervision truth are attached
-
-4. `Control + Ingress + RTDL + Case + Label + Learning enlarged network`
-   - the feedback-loop object
-   - runtime truth, case truth, label truth, learning basis, governed bundle publication, and runtime bundle resolution all have to remain truthful together
-
-5. `Working platform + Ops / Gov / Meta governability`
-   - the object for run reconstruction, verdict traceability, evidence closure, drift detection, cost attribution, and idle or restart safety across the already-working platform
-
-6. `Full-platform bounded integrated validation`
-   - the all-planes active network object before longer stress authorization
-   - this is where cross-plane truth continuity, timing continuity, explainability, and hidden-handoff detection are judged across the full platform
-
-The practical use of this list should stay explicit:
-
-- the notebook should not become `Phase 0`, `Phase 1`, `Phase 2` as its primary reading shape
-- the notebook should stay `A`-object-led
-- the phase plan should be used as the crosswalk that tells us where the proof work for that object actually happened
-
-So the working relation is:
-
-- `A` groups and paths tell us what the object is
-- `Bi` phases tell us where the proof work happened
-- the readiness implementation note tells us how the gap was actually discovered, classified, and bridged
-
-Judgment at this point:
-
-- the notebook now has a frozen authority set and a clear pressure inventory
-- that inventory is broad enough to cover both local readiness boundaries and enlarged-network readiness objects without losing the `A`-led map
-- the next entry should therefore begin `BSELECT`: choose the first active `A`-defined object under pressure rather than drifting into generic phase commentary
+- the `Bi` notebook is now reset around the corrected method
+- the updated flow is the controlling frame for subsequent entries
+- the next entry should freeze the evidence surfaces and define the interrogation inventory from that retrospective readiness-reasoning posture
