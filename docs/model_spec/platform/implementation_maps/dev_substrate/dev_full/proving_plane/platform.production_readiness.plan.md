@@ -258,6 +258,10 @@ Rules:
 - where a metric is intentionally fault-injection-dependent, the target applies to healthy bounded runs unless the phase explicitly says otherwise.
 - this ledger is intentionally living: as phases progress and new production-readiness-defining metrics are discovered, the ledger must be expanded in place rather than left implicit in notes or run summaries.
 - phase expansion work must check whether the current ledger is missing any metric family that became materially necessary to judge the plane or cross-plane path honestly; if yes, that metric must be added before the phase can be considered closed.
+- closure updates in this ledger must remain truthful:
+  - do not pretend every row has a fresh standalone scalar if the accepted authority proved that row as part of a bounded family,
+  - tie each ledger family to the accepted closure run(s) and the key impact metrics that actually justified the verdict,
+  - keep row-level targets as targets unless the accepted phase authority really established a tighter permanent number.
 
 ### Control + Ingress
 
@@ -273,6 +277,22 @@ Rules:
 | admitted-without-publish count | `0` | ingress + Kafka boundary telemetry | Phase 0 |
 | publish ambiguity unresolved count | `0` | ingress receipts + Kafka boundary telemetry | Phase 0 |
 | bounded recovery time | `<= 180 s` | run summary + live recovery counters | Phase 0 |
+
+Current proven ledger status:
+- accepted closure authority:
+  - `phase0_20260310T223332Z`
+- key observed closure metrics:
+  - steady admitted `= 3025.30 eps`
+  - burst admitted `= 6019.50 eps`
+  - recovery admitted `= 3019.21 eps`
+  - `4xx = 0`
+  - `5xx = 0`
+  - Lambda `Errors = 0`
+  - Lambda `Throttles = 0`
+  - DLQ delta `= 0`
+  - recovery to sustained green `= 0 s`
+- ledger judgment:
+  - the Phase 0 control + ingress metric family is proven on the exact APIGW-scored closure authority and remains the working-platform base.
 
 ### Real-Time Decision Loop (RTDL)
 
@@ -296,6 +316,23 @@ Rules:
 | Archive Writer write error count | `0` | Archive Writer live telemetry | Phase 1 |
 | Archive Writer payload mismatch count | `0` | Archive validation telemetry | Phase 1 |
 
+Current proven ledger status:
+- accepted closure authority:
+  - `phase1_rtdl_coupled_envelope_fresh_closure_su529_20260311T092709Z`
+  - fresh scope `platform_20260311T092709Z`
+- key observed closure metrics:
+  - steady admitted `= 3035.833 eps`
+  - burst admitted `= 6227.000 eps`
+  - recovery admitted `= 3020.050 eps`
+  - `4xx = 0`
+  - `5xx = 0`
+  - ingress `p95 = 49.951 ms`
+  - ingress `p99 = 58.966 ms`
+  - `IEG apply_failure_count = 0`
+  - snapshot blocker ids `= []`
+- ledger judgment:
+  - the RTDL metric family is proven on a fresh coupled scope with material RTDL participation and no accepted fail-closed / quarantine / archive integrity regression.
+
 ### Case + Label Management
 
 | Metric | Current target | Evidence surface | Owning phase |
@@ -312,6 +349,25 @@ Rules:
 | duplicate label corruption count | `0` | Label Store telemetry | Phase 3 |
 | conflicting-label visibility | `100%` surfaced, `0` silent overwrite | Label Store telemetry | Phase 3 |
 | future-label leakage count | `0` | label maturity / readback telemetry | Phase 3 |
+
+Current proven ledger status:
+- accepted plane closure authority:
+  - `phase3_case_label_20260311T142813Z`
+  - fresh scope `platform_20260311T142813Z`
+- key observed closure metrics:
+  - admitted `= 3046.783 eps`
+  - `4xx = 0`
+  - `5xx = 0`
+  - `latency_p95_ms = 48`
+  - `latency_p99_ms = 55`
+  - `case_trigger_triggers_seen_delta = 2276`
+  - `case_trigger_published_delta = 2276`
+  - `case_mgmt_cases_created_delta = 335`
+  - `case_mgmt_timeline_events_appended_delta = 1005`
+  - `label_store_accepted_delta = 933`
+  - all tracked quarantine / ambiguity / duplicate / mismatch / pending deltas stayed `0`
+- ledger judgment:
+  - the Case + Label metric family is proven on the bounded plane-ready slice with append-only case truth and authoritative label truth remaining clean.
 
 ### Learning + Evolution / MLOps
 
@@ -339,6 +395,47 @@ Rules:
 | rollback RPO | `0` model-version ambiguity | rollback drill summary | Phase 5 |
 | active-bundle resolution correctness | `100%` | runtime + MLflow / MPR cross-check | Phase 6 |
 
+Current proven ledger status:
+- accepted plane-ready authority:
+  - semantic admission `phase5_learning_mlops_20260312T054200Z`
+  - dataset basis `phase5_ofs_dataset_basis_20260312T054900Z`
+  - managed train/eval + governance `phase5_learning_managed_20260312T071600Z`
+- accepted coupled authority:
+  - `phase6_learning_coupled_20260312T194748Z`
+- key observed closure metrics:
+  - bounded sample:
+    - `selected_rows = 3000`
+    - `train_rows = 1800`
+    - `validation_rows = 600`
+    - `test_rows = 600`
+    - `fraud_rows = 1000`
+    - `campaign_present_rows = 2`
+  - temporal proof:
+    - `feature_asof_utc = 2026-03-05T00:00:00Z`
+    - `event_scan.ts_max_utc = 2026-03-04T22:25:01.492086Z`
+  - managed execution:
+    - SageMaker training `Completed`
+    - SageMaker transform `Completed`
+    - MLflow run `FINISHED`
+    - `gate_decision = PASS`
+    - `publish_decision = ELIGIBLE`
+    - `publication_status = PUBLISHED`
+    - `rollback_validation_status = VALIDATED`
+  - bounded evaluation:
+    - `auc_roc = 0.9104674176699058`
+    - `precision_at_50 = 1.0`
+    - `log_loss = 0.21071451840777855`
+  - coupled runtime resolution:
+    - steady `3047.367 eps`
+    - burst `6099.000 eps`
+    - recovery `3019.894 eps`
+    - `4xx = 0`
+    - `5xx = 0`
+    - `decision_to_case p95 = 0.0 s`
+    - `case_to_label p95 = 0.196 s`
+- ledger judgment:
+  - the learning / evolution metric family is proven both as a managed corridor and as an active runtime bundle-resolution path coupled back into the working network.
+
 ### Operations / Governance / Meta
 
 | Metric | Current target | Evidence surface | Owning phase |
@@ -355,6 +452,28 @@ Rules:
 | placeholder handle count | `0` in active runtime path | handle-resolution telemetry | Phase 7 |
 | required secret/handle resolution success | `100%` | control/runtime preflight telemetry | Phase 7 |
 
+Current proven ledger status:
+- accepted closure authority:
+  - `phase7_ops_gov_meta_restart_20260313T002459Z`
+- key observed closure metrics:
+  - required local evidence `= 10 / 10`
+  - accepted Phase 5 refs readable `= 18 / 18`
+  - critical alarms present `= 6`
+  - alert drill recorded `OK -> ALARM -> OK` on `fraud-platform-dev-full-ig-lambda-errors`
+  - required handle / secret surfaces resolved `= 11 / 11`
+  - placeholder-like active handles `= 0`
+  - node count after idle `= 0`
+  - nodegroup restored to pre-drill shape
+  - visible major spend families remained attributable:
+    - `RDS`
+    - `S3`
+    - `MSK`
+    - `DynamoDB`
+    - `Lambda`
+    - `API Gateway`
+- ledger judgment:
+  - the operations / governance / meta metric family is proven on a rebuilt plane-ready scope with real alert drill evidence, exact run reconstruction, ML day-2 readback, and idle / restore discipline.
+
 ### Full-platform cross-plane
 
 | Metric | Current target | Evidence surface | Owning phase |
@@ -366,6 +485,40 @@ Rules:
 | full-platform bounded recovery | `<= 180 s` unless a path declares a tighter budget | integrated recovery telemetry | Phase 8 |
 | explainability / audit completeness | `100%` for accepted decisions and promoted bundles in bounded runs | integrated evidence readback | Phase 8 |
 | stress authorization posture | no red plane, no red critical path, no invalidating telemetry blind spot | integrated stress summary | Phase 9 |
+
+Current proven ledger status:
+- accepted bounded integrated authority:
+  - `phase8_full_platform_integrated_20260313T010847Z`
+- accepted bounded stress authority:
+  - `phase9_full_platform_stress_20260313T203100Z`
+  - widened backbone `phase6_learning_coupled_20260313T203100Z`
+- key integrated metrics:
+  - Phase 8 steady `= 3049.811 eps`
+  - Phase 8 burst `= 6188.000 eps`
+  - Phase 8 recovery `= 3019.217 eps`
+  - Phase 8 integrity deltas all `0`
+  - Phase 8 `decision_to_case p95 = 0.0 s`
+  - Phase 8 `case_to_label p95 = 0.1982594 s`
+- key stress-authorization metrics:
+  - admitted `= 2,360,103`
+  - steady `= 3007.053 eps`
+  - burst `= 6359.000 eps`
+  - recovery `= 3017.517 eps`
+  - steady `p95 = 47.9935 ms`
+  - steady `p99 = 59.9765 ms`
+  - runtime participation remained material:
+    - `df_decisions_total_delta = 9095`
+    - `al_intake_total_delta = 6061`
+    - `dla_append_success_total_delta = 11066`
+    - `case_trigger_triggers_seen_delta = 8505`
+    - `case_mgmt_cases_created_delta = 2079`
+    - `label_store_accepted_delta = 2693`
+  - critical integrity deltas stayed `0`
+  - active bundle remained attributable to governed learning truth:
+    - `bundle_version = v0-29d2b27919a7`
+    - `policy_revision = r3`
+- ledger judgment:
+  - the full-platform cross-plane metric family is proven both on bounded integrated correctness and on widened bounded stress authorization, including semantic continuity under pressure.
 
 ---
 

@@ -7584,3 +7584,26 @@ My current judgment is therefore stronger than "Phase 9 is green." The plan is n
 
 1. it can hold production-shaped load under the widened bounded window, and
 2. it still handles the information inside the data meaningfully across RTDL, Case + Label, and governed learning/runtime bundle continuity.
+
+## 2026-03-14 03:20:24 +00:00 - The main plan ledger was still target-only, so I updated it with truthful closure-status blocks instead of pretending every row had a new standalone scalar
+
+After the Phase 9 closure I checked the master plan and found that the immediate state and phase narrative were current, but the readiness ledger was still only describing targets and owning phases. That was not wrong, but it was incomplete for a closed plan because it left the plan unable to say, in one place, what had actually been proven.
+
+I did not want to "solve" that by inventing fake precision row by row. Some rows really were proven as a bounded family on the accepted authority run rather than as a fresh standalone scalar. So the correction I made in `platform.production_readiness.plan.md` is deliberate:
+
+- keep the row targets intact as targets,
+- add a closure-status block under each ledger family,
+- tie each family to the accepted closure authority run(s),
+- list the key impact metrics that actually justified the verdict,
+- avoid claiming tighter permanent numbers where the accepted phase never established them.
+
+That gives the plan something it was missing:
+
+- Control + Ingress now points back to the accepted `phase0_20260310T223332Z` closure metrics,
+- RTDL now points back to the accepted fresh-scope `Phase 1` closure metrics,
+- Case + Label now points back to the bounded `Phase 3` closure metrics,
+- Learning / MLOps now points back to the accepted `Phase 5` and `Phase 6` authorities together,
+- Ops / Gov now points back to the rebuilt `Phase 7` operator proof,
+- full-platform cross-plane now points back to `Phase 8` integrated closure plus `Phase 9` widened stress authorization.
+
+The important part is that the ledger now says not just "what we were aiming for" but also "what was actually proven and by which authority," without pretending that the proof was cleaner or more granular than it really was.
