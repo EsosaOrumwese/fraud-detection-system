@@ -25,6 +25,11 @@ on:
         required: false
         default: ""
         type: string
+      capacity_scope:
+        description: "Apply scope (full_envelope|nodegroup_only)"
+        required: true
+        default: "full_envelope"
+        type: string
       evidence_bucket:
         description: "S3 evidence bucket"
         required: true
@@ -45,10 +50,55 @@ on:
         required: true
         default: "6000"
         type: string
+      lambda_ig_memory_mb:
+        description: "Target IG lambda memory size (MB)"
+        required: true
+        default: "2048"
+        type: string
+      lambda_ig_reserved_concurrency:
+        description: "Target IG lambda reserved concurrency"
+        required: true
+        default: "1000"
+        type: string
+      lambda_ig_timeout_seconds:
+        description: "Target IG lambda timeout seconds"
+        required: true
+        default: "30"
+        type: string
+      lambda_ig_kafka_request_timeout_ms:
+        description: "Target IG lambda Kafka publish timeout (ms)"
+        required: true
+        default: "1500"
+        type: string
+      lambda_ig_policy_activation_audit_mode:
+        description: "Target IG policy-activation audit mode"
+        required: true
+        default: "store_only"
+        type: string
+      lambda_ig_package_s3_bucket:
+        description: "Optional remote Lambda package bucket to preserve corrected IG bundle"
+        required: false
+        default: ""
+        type: string
+      lambda_ig_package_s3_key:
+        description: "Optional remote Lambda package key to preserve corrected IG bundle"
+        required: false
+        default: ""
+        type: string
+      lambda_ig_package_sha256_base64:
+        description: "Optional remote Lambda package sha256 (base64) to preserve corrected IG bundle"
+        required: false
+        default: ""
+        type: string
       eks_nodegroup_instance_types_json:
         description: "JSON list of nodegroup instance types"
         required: true
-        default: "[\"t3.xlarge\"]"
+        default: "[\"m6i.xlarge\"]"
+        type: string
+      eks_nodegroup_disk_size_gib:
+        description: "Target nodegroup disk size (GiB)"
+        required: true
+        default: "80"
         type: string
       eks_nodegroup_desired_size:
         description: "Target nodegroup desired size"
@@ -138,12 +188,14 @@ jobs:
           set -euo pipefail
           python - <<'PY'
           import json
+          import os
           from datetime import datetime, timezone
           from pathlib import Path
 
           import boto3
+          from botocore.exceptions import ClientError
 
-          run_dir = Path(__import__("os").environ["RUN_DIR"])
+          run_dir = Path(os.environ["RUN_DIR"])
           outputs = json.loads((run_dir / "terraform_outputs_pre.json").read_text(encoding="utf-8"))
           apigw_id = str(outputs.get("apigw_ig_api_id", {}).get("value", "")).strip()
           lambda_name = str(outputs.get("lambda_ig_handler_name", {}).get("value", "")).strip()
@@ -155,24 +207,60 @@ jobs:
           lam = boto3.client("lambda")
           eks = boto3.client("eks")
 
-          stage_name = __import__("os").environ["APIGW_IG_STAGE_NAME"]
-          stage = apigw.get_stage(ApiId=apigw_id, StageName=stage_name) if apigw_id else {}
+          stage_name = os.environ["APIGW_IG_STAGE_NAME"]
+
+          def safe_call(fn, *, error_code: str):
+              try:
+                  return fn(), None
+              except ClientError as exc:
+                  err = exc.response.get("Error", {})
+                  return None, {
+                      "code": error_code,
+                      "error_type": err.get("Code", exc.__class__.__name__),
+                      "message": str(exc),
+                  }
+
+          iam_read_errors = []
+
+          stage, stage_err = safe_call(
+              lambda: apigw.get_stage(ApiId=apigw_id, StageName=stage_name) if apigw_id else {},
+              error_code="RC2R2-BIAM-APIGW-GET",
+          )
+          if stage_err:
+              iam_read_errors.append(stage_err)
           route = stage.get("DefaultRouteSettings", {}) if isinstance(stage, dict) else {}
 
-          lambda_cfg = lam.get_function_configuration(FunctionName=lambda_name) if lambda_name else {}
-          nodegroup = (
-              eks.describe_nodegroup(clusterName=cluster_name, nodegroupName=nodegroup_name).get("nodegroup", {})
-              if cluster_name and nodegroup_name
-              else {}
+          lambda_cfg, lambda_cfg_err = safe_call(
+              lambda: lam.get_function_configuration(FunctionName=lambda_name) if lambda_name else {},
+              error_code="RC2R2-BIAM-LAMBDA-CONFIG",
           )
+          if lambda_cfg_err:
+              iam_read_errors.append(lambda_cfg_err)
+          lambda_concurrency, lambda_conc_err = safe_call(
+              lambda: lam.get_function_concurrency(FunctionName=lambda_name) if lambda_name else {},
+              error_code="RC2R2-BIAM-LAMBDA-CONCURRENCY",
+          )
+          if lambda_conc_err:
+              iam_read_errors.append(lambda_conc_err)
+          nodegroup, nodegroup_err = safe_call(
+              lambda: (
+                  eks.describe_nodegroup(clusterName=cluster_name, nodegroupName=nodegroup_name).get("nodegroup", {})
+                  if cluster_name and nodegroup_name
+                  else {}
+              ),
+              error_code="RC2R2-BIAM-EKS-NODEGROUP",
+          )
+          if nodegroup_err:
+              iam_read_errors.append(nodegroup_err)
           scaling = nodegroup.get("scalingConfig", {}) if isinstance(nodegroup, dict) else {}
 
           pre = {
               "captured_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
               "phase": "RC2.R2",
-              "execution_id": __import__("os").environ["EXECUTION_ID"],
-              "platform_run_id": __import__("os").environ["PLATFORM_RUN_ID"],
-              "scenario_run_id": __import__("os").environ["SCENARIO_RUN_ID"],
+              "execution_id": os.environ["EXECUTION_ID"],
+              "platform_run_id": os.environ["PLATFORM_RUN_ID"],
+              "scenario_run_id": os.environ["SCENARIO_RUN_ID"],
+              "iam_read_errors": iam_read_errors,
               "apigw": {
                   "api_id": apigw_id,
                   "stage_name": stage_name,
@@ -183,12 +271,13 @@ jobs:
                   "function_name": lambda_name,
                   "memory_size": lambda_cfg.get("MemorySize"),
                   "timeout_seconds": lambda_cfg.get("Timeout"),
-                  "reserved_concurrency": lambda_cfg.get("ReservedConcurrentExecutions"),
+                  "reserved_concurrency": lambda_concurrency.get("ReservedConcurrentExecutions"),
               },
               "eks_m6f_nodegroup": {
                   "cluster_name": cluster_name,
                   "nodegroup_name": nodegroup_name,
                   "instance_types": nodegroup.get("instanceTypes"),
+                  "disk_size_gib": nodegroup.get("diskSize"),
                   "scaling_config": scaling,
                   "status": nodegroup.get("status"),
               },
@@ -201,15 +290,86 @@ jobs:
 
       - name: Apply RC2.R2 capacity envelope uplift (managed terraform)
         shell: bash
+        env:
+          RUN_DIR: ${{ steps.run_meta.outputs.run_dir }}
+          IG_RATE_LIMIT_RPS: ${{ inputs.ig_rate_limit_rps }}
+          IG_RATE_LIMIT_BURST: ${{ inputs.ig_rate_limit_burst }}
+          LAMBDA_IG_MEMORY_MB: ${{ inputs.lambda_ig_memory_mb }}
+          LAMBDA_IG_RESERVED_CONCURRENCY: ${{ inputs.lambda_ig_reserved_concurrency }}
+          LAMBDA_IG_TIMEOUT_SECONDS: ${{ inputs.lambda_ig_timeout_seconds }}
+          LAMBDA_IG_KAFKA_REQUEST_TIMEOUT_MS: ${{ inputs.lambda_ig_kafka_request_timeout_ms }}
+          LAMBDA_IG_POLICY_ACTIVATION_AUDIT_MODE: ${{ inputs.lambda_ig_policy_activation_audit_mode }}
+          LAMBDA_IG_PACKAGE_S3_BUCKET: ${{ inputs.lambda_ig_package_s3_bucket }}
+          LAMBDA_IG_PACKAGE_S3_KEY: ${{ inputs.lambda_ig_package_s3_key }}
+          LAMBDA_IG_PACKAGE_SHA256_BASE64: ${{ inputs.lambda_ig_package_sha256_base64 }}
+          CAPACITY_SCOPE: ${{ inputs.capacity_scope }}
+          EKS_NODEGROUP_INSTANCE_TYPES_JSON: ${{ inputs.eks_nodegroup_instance_types_json }}
+          EKS_NODEGROUP_DISK_SIZE_GIB: ${{ inputs.eks_nodegroup_disk_size_gib }}
+          EKS_NODEGROUP_DESIRED_SIZE: ${{ inputs.eks_nodegroup_desired_size }}
+          EKS_NODEGROUP_MIN_SIZE: ${{ inputs.eks_nodegroup_min_size }}
+          EKS_NODEGROUP_MAX_SIZE: ${{ inputs.eks_nodegroup_max_size }}
         run: |
           set -euo pipefail
-          terraform -chdir="${TF_DIR}" apply -input=false -auto-approve \
-            -var "ig_rate_limit_rps=${{ inputs.ig_rate_limit_rps }}" \
-            -var "ig_rate_limit_burst=${{ inputs.ig_rate_limit_burst }}" \
-            -var "eks_nodegroup_instance_types=${{ inputs.eks_nodegroup_instance_types_json }}" \
-            -var "eks_nodegroup_desired_size=${{ inputs.eks_nodegroup_desired_size }}" \
-            -var "eks_nodegroup_min_size=${{ inputs.eks_nodegroup_min_size }}" \
-            -var "eks_nodegroup_max_size=${{ inputs.eks_nodegroup_max_size }}"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          run_dir = Path(os.environ["RUN_DIR"])
+          capacity_scope = os.environ["CAPACITY_SCOPE"].strip()
+          if capacity_scope not in {"full_envelope", "nodegroup_only"}:
+              raise SystemExit(f"Unsupported CAPACITY_SCOPE: {capacity_scope}")
+          instance_types = json.loads(os.environ["EKS_NODEGROUP_INSTANCE_TYPES_JSON"])
+          if not isinstance(instance_types, list) or not all(isinstance(v, str) for v in instance_types):
+              raise SystemExit("EKS_NODEGROUP_INSTANCE_TYPES_JSON must decode to a JSON string list.")
+
+          payload = {
+              "eks_nodegroup_instance_types": instance_types,
+              "eks_nodegroup_disk_size": int(os.environ["EKS_NODEGROUP_DISK_SIZE_GIB"]),
+              "eks_nodegroup_desired_size": int(os.environ["EKS_NODEGROUP_DESIRED_SIZE"]),
+              "eks_nodegroup_min_size": int(os.environ["EKS_NODEGROUP_MIN_SIZE"]),
+              "eks_nodegroup_max_size": int(os.environ["EKS_NODEGROUP_MAX_SIZE"]),
+          }
+          if capacity_scope == "full_envelope":
+              payload.update({
+                  "ig_rate_limit_rps": int(os.environ["IG_RATE_LIMIT_RPS"]),
+                  "ig_rate_limit_burst": int(os.environ["IG_RATE_LIMIT_BURST"]),
+                  "lambda_ig_memory_size_mb": int(os.environ["LAMBDA_IG_MEMORY_MB"]),
+                  "lambda_ig_reserved_concurrency": int(os.environ["LAMBDA_IG_RESERVED_CONCURRENCY"]),
+                  "lambda_ig_timeout_seconds": int(os.environ["LAMBDA_IG_TIMEOUT_SECONDS"]),
+                  "lambda_ig_kafka_request_timeout_ms": int(os.environ["LAMBDA_IG_KAFKA_REQUEST_TIMEOUT_MS"]),
+                  "lambda_ig_policy_activation_audit_mode": os.environ["LAMBDA_IG_POLICY_ACTIVATION_AUDIT_MODE"],
+              })
+              if (
+                  os.environ["LAMBDA_IG_PACKAGE_S3_BUCKET"]
+                  and os.environ["LAMBDA_IG_PACKAGE_S3_KEY"]
+                  and os.environ["LAMBDA_IG_PACKAGE_SHA256_BASE64"]
+              ):
+                  payload["lambda_ig_package_s3_bucket"] = os.environ["LAMBDA_IG_PACKAGE_S3_BUCKET"]
+                  payload["lambda_ig_package_s3_key"] = os.environ["LAMBDA_IG_PACKAGE_S3_KEY"]
+                  payload["lambda_ig_package_sha256_base64"] = os.environ["LAMBDA_IG_PACKAGE_SHA256_BASE64"]
+
+          tfvars_path = run_dir / "rc2_r2_capacity_uplift.auto.tfvars.json"
+          tfvars_path.write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+          print(tfvars_path.resolve())
+          PY
+          TFVARS_PATH="$(python - <<'PY'
+          import os
+          from pathlib import Path
+          print((Path(os.environ["RUN_DIR"]) / "rc2_r2_capacity_uplift.auto.tfvars.json").resolve())
+          PY
+          )"
+          if [[ "${CAPACITY_SCOPE}" == "nodegroup_only" ]]; then
+            terraform -chdir="${TF_DIR}" apply -input=false -auto-approve \
+              -target=aws_eks_node_group.m6f_workers \
+              -var-file="${TFVARS_PATH}"
+          else
+            terraform -chdir="${TF_DIR}" apply -input=false -auto-approve \
+              -target=aws_apigatewayv2_stage.ig_v1 \
+              -target=aws_lambda_function.ig_handler \
+              -target=aws_eks_node_group.m6f_workers \
+              -var-file="${TFVARS_PATH}"
+          fi
           terraform -chdir="${TF_DIR}" output -json > "${{ steps.run_meta.outputs.run_dir }}/terraform_outputs_post.json"
 
       - name: Build RC2.R2 gate artifacts and publish with readback
@@ -223,6 +383,14 @@ jobs:
           EVIDENCE_BUCKET: ${{ inputs.evidence_bucket }}
           EXPECTED_IG_RATE_LIMIT_RPS: ${{ inputs.ig_rate_limit_rps }}
           EXPECTED_IG_RATE_LIMIT_BURST: ${{ inputs.ig_rate_limit_burst }}
+          EXPECTED_LAMBDA_MEMORY_MB: ${{ inputs.lambda_ig_memory_mb }}
+          EXPECTED_LAMBDA_RESERVED_CONCURRENCY: ${{ inputs.lambda_ig_reserved_concurrency }}
+          EXPECTED_LAMBDA_TIMEOUT_SECONDS: ${{ inputs.lambda_ig_timeout_seconds }}
+          EXPECTED_LAMBDA_KAFKA_REQUEST_TIMEOUT_MS: ${{ inputs.lambda_ig_kafka_request_timeout_ms }}
+          EXPECTED_POLICY_ACTIVATION_AUDIT_MODE: ${{ inputs.lambda_ig_policy_activation_audit_mode }}
+          CAPACITY_SCOPE: ${{ inputs.capacity_scope }}
+          EXPECTED_NODEGROUP_INSTANCE_TYPES_JSON: ${{ inputs.eks_nodegroup_instance_types_json }}
+          EXPECTED_NODEGROUP_DISK_SIZE_GIB: ${{ inputs.eks_nodegroup_disk_size_gib }}
           EXPECTED_NODEGROUP_DESIRED: ${{ inputs.eks_nodegroup_desired_size }}
           EXPECTED_NODEGROUP_MIN: ${{ inputs.eks_nodegroup_min_size }}
           EXPECTED_NODEGROUP_MAX: ${{ inputs.eks_nodegroup_max_size }}
@@ -236,15 +404,26 @@ jobs:
           from pathlib import Path
 
           import boto3
+          from botocore.exceptions import ClientError
 
           run_dir = Path(os.environ["RUN_DIR"])
           exec_id = os.environ["EXECUTION_ID"]
           platform_run_id = os.environ["PLATFORM_RUN_ID"]
           scenario_run_id = os.environ["SCENARIO_RUN_ID"]
+          capacity_scope = os.environ["CAPACITY_SCOPE"].strip()
+          if capacity_scope not in {"full_envelope", "nodegroup_only"}:
+              raise SystemExit(f"Unsupported CAPACITY_SCOPE: {capacity_scope}")
           bucket = os.environ["EVIDENCE_BUCKET"]
           stage_name = os.environ["APIGW_IG_STAGE_NAME"]
           expected_rate = float(os.environ["EXPECTED_IG_RATE_LIMIT_RPS"])
           expected_burst = int(float(os.environ["EXPECTED_IG_RATE_LIMIT_BURST"]))
+          expected_lambda_memory = int(float(os.environ["EXPECTED_LAMBDA_MEMORY_MB"]))
+          expected_lambda_reserved = int(float(os.environ["EXPECTED_LAMBDA_RESERVED_CONCURRENCY"]))
+          expected_lambda_timeout = int(float(os.environ["EXPECTED_LAMBDA_TIMEOUT_SECONDS"]))
+          expected_lambda_kafka_timeout = int(float(os.environ["EXPECTED_LAMBDA_KAFKA_REQUEST_TIMEOUT_MS"]))
+          expected_policy_activation_audit_mode = os.environ["EXPECTED_POLICY_ACTIVATION_AUDIT_MODE"]
+          expected_instance_types = json.loads(os.environ["EXPECTED_NODEGROUP_INSTANCE_TYPES_JSON"])
+          expected_disk_size_gib = int(os.environ["EXPECTED_NODEGROUP_DISK_SIZE_GIB"])
           expected_desired = int(os.environ["EXPECTED_NODEGROUP_DESIRED"])
           expected_min = int(os.environ["EXPECTED_NODEGROUP_MIN"])
           expected_max = int(os.environ["EXPECTED_NODEGROUP_MAX"])
@@ -266,14 +445,47 @@ jobs:
           eks = boto3.client("eks")
           s3 = boto3.client("s3")
 
-          stage = apigw.get_stage(ApiId=apigw_id, StageName=stage_name) if apigw_id else {}
-          route = stage.get("DefaultRouteSettings", {}) if isinstance(stage, dict) else {}
-          lambda_cfg = lam.get_function_configuration(FunctionName=lambda_name) if lambda_name else {}
-          nodegroup = (
-              eks.describe_nodegroup(clusterName=cluster_name, nodegroupName=nodegroup_name).get("nodegroup", {})
-              if cluster_name and nodegroup_name
-              else {}
+          def safe_call(fn, *, error_code: str):
+              try:
+                  return fn(), None
+              except ClientError as exc:
+                  err = exc.response.get("Error", {})
+                  return None, {
+                      "code": error_code,
+                      "error_type": err.get("Code", exc.__class__.__name__),
+                      "message": str(exc),
+                  }
+
+          iam_read_errors = []
+          stage, stage_err = safe_call(
+              lambda: apigw.get_stage(ApiId=apigw_id, StageName=stage_name) if apigw_id else {},
+              error_code="RC2R2-BIAM-APIGW-GET",
           )
+          if stage_err:
+              iam_read_errors.append(stage_err)
+          route = stage.get("DefaultRouteSettings", {}) if isinstance(stage, dict) else {}
+          lambda_cfg, lambda_cfg_err = safe_call(
+              lambda: lam.get_function_configuration(FunctionName=lambda_name) if lambda_name else {},
+              error_code="RC2R2-BIAM-LAMBDA-CONFIG",
+          )
+          if lambda_cfg_err:
+              iam_read_errors.append(lambda_cfg_err)
+          lambda_concurrency, lambda_conc_err = safe_call(
+              lambda: lam.get_function_concurrency(FunctionName=lambda_name) if lambda_name else {},
+              error_code="RC2R2-BIAM-LAMBDA-CONCURRENCY",
+          )
+          if lambda_conc_err:
+              iam_read_errors.append(lambda_conc_err)
+          nodegroup, nodegroup_err = safe_call(
+              lambda: (
+                  eks.describe_nodegroup(clusterName=cluster_name, nodegroupName=nodegroup_name).get("nodegroup", {})
+                  if cluster_name and nodegroup_name
+                  else {}
+              ),
+              error_code="RC2R2-BIAM-EKS-NODEGROUP",
+          )
+          if nodegroup_err:
+              iam_read_errors.append(nodegroup_err)
           scaling = nodegroup.get("scalingConfig", {}) if isinstance(nodegroup, dict) else {}
 
           post = {
@@ -282,6 +494,7 @@ jobs:
               "execution_id": exec_id,
               "platform_run_id": platform_run_id,
               "scenario_run_id": scenario_run_id,
+              "iam_read_errors": iam_read_errors,
               "apigw": {
                   "api_id": apigw_id,
                   "stage_name": stage_name,
@@ -292,28 +505,96 @@ jobs:
                   "function_name": lambda_name,
                   "memory_size": lambda_cfg.get("MemorySize"),
                   "timeout_seconds": lambda_cfg.get("Timeout"),
-                  "reserved_concurrency": lambda_cfg.get("ReservedConcurrentExecutions"),
+                  "reserved_concurrency": lambda_concurrency.get("ReservedConcurrentExecutions"),
+                  "environment": (
+                      lambda_cfg.get("Environment", {}).get("Variables", {})
+                      if isinstance(lambda_cfg.get("Environment"), dict)
+                      else {}
+                  ),
               },
               "eks_m6f_nodegroup": {
                   "cluster_name": cluster_name,
                   "nodegroup_name": nodegroup_name,
                   "instance_types": nodegroup.get("instanceTypes"),
+                  "disk_size_gib": nodegroup.get("diskSize"),
                   "scaling_config": scaling,
                   "status": nodegroup.get("status"),
               },
           }
 
           blockers: list[dict] = []
-          rate_live = post["apigw"].get("throttling_rate_limit")
-          burst_live = post["apigw"].get("throttling_burst_limit")
-          if rate_live is None or float(rate_live) < expected_rate:
-              blockers.append({"code": "RC2R2-B1", "message": f"APIGW throttle rate below target ({rate_live} < {expected_rate})."})
-          if burst_live is None or int(burst_live) < expected_burst:
-              blockers.append({"code": "RC2R2-B1", "message": f"APIGW throttle burst below target ({burst_live} < {expected_burst})."})
+          for err in iam_read_errors:
+              blockers.append({
+                  "code": "RC2R2-BIAM",
+                  "message": f"{err['code']}:{err['error_type']}",
+              })
+          if capacity_scope == "full_envelope":
+              rate_live = post["apigw"].get("throttling_rate_limit")
+              burst_live = post["apigw"].get("throttling_burst_limit")
+              if rate_live is None or float(rate_live) < expected_rate:
+                  blockers.append({"code": "RC2R2-B1", "message": f"APIGW throttle rate below target ({rate_live} < {expected_rate})."})
+              if burst_live is None or int(burst_live) < expected_burst:
+                  blockers.append({"code": "RC2R2-B1", "message": f"APIGW throttle burst below target ({burst_live} < {expected_burst})."})
+
+              lambda_memory_live = post["lambda"].get("memory_size")
+              lambda_timeout_live = post["lambda"].get("timeout_seconds")
+              lambda_reserved_live = post["lambda"].get("reserved_concurrency")
+              lambda_env_live = post["lambda"].get("environment", {})
+              if lambda_memory_live is None or int(lambda_memory_live) < expected_lambda_memory:
+                  blockers.append({
+                      "code": "RC2R2-B1",
+                      "message": f"Lambda memory below target ({lambda_memory_live} < {expected_lambda_memory}).",
+                  })
+              if lambda_timeout_live is None or int(lambda_timeout_live) < expected_lambda_timeout:
+                  blockers.append({
+                      "code": "RC2R2-B1",
+                      "message": f"Lambda timeout below target ({lambda_timeout_live} < {expected_lambda_timeout}).",
+                  })
+              if lambda_reserved_live is None or int(lambda_reserved_live) < expected_lambda_reserved:
+                  blockers.append({
+                      "code": "RC2R2-B1",
+                      "message": f"Lambda reserved concurrency below target ({lambda_reserved_live} < {expected_lambda_reserved}).",
+                  })
+              kafka_timeout_live = lambda_env_live.get("KAFKA_REQUEST_TIMEOUT_MS")
+              if kafka_timeout_live is None or int(kafka_timeout_live) != expected_lambda_kafka_timeout:
+                  blockers.append({
+                      "code": "RC2R2-B1",
+                      "message": (
+                          "Lambda Kafka request timeout drift "
+                          f"({kafka_timeout_live} != {expected_lambda_kafka_timeout})."
+                      ),
+                  })
+              audit_mode_live = lambda_env_live.get("IG_POLICY_ACTIVATION_AUDIT_MODE")
+              if audit_mode_live != expected_policy_activation_audit_mode:
+                  blockers.append({
+                      "code": "RC2R2-B1",
+                      "message": (
+                          "Lambda policy-activation audit mode drift "
+                          f"({audit_mode_live} != {expected_policy_activation_audit_mode})."
+                      ),
+                  })
 
           desired_live = int(scaling.get("desiredSize", -1))
           min_live = int(scaling.get("minSize", -1))
           max_live = int(scaling.get("maxSize", -1))
+          instance_types_live = post["eks_m6f_nodegroup"].get("instance_types") or []
+          disk_size_live = int(post["eks_m6f_nodegroup"].get("disk_size_gib") or -1)
+          if sorted(instance_types_live) != sorted(expected_instance_types):
+              blockers.append({
+                  "code": "RC2R2-B2",
+                  "message": (
+                      "EKS nodegroup instance types drift "
+                      f"(live={instance_types_live}, expected={expected_instance_types})."
+                  ),
+              })
+          if disk_size_live < expected_disk_size_gib:
+              blockers.append({
+                  "code": "RC2R2-B2",
+                  "message": (
+                      "EKS nodegroup disk size below target "
+                      f"({disk_size_live} < {expected_disk_size_gib})."
+                  ),
+              })
           if desired_live < expected_desired or min_live < expected_min or max_live < expected_max:
               blockers.append({
                   "code": "RC2R2-B2",
@@ -328,10 +609,13 @@ jobs:
               "captured_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
               "phase": "RC2.R2",
               "execution_id": exec_id,
+              "capacity_scope": capacity_scope,
               "post_cert_trigger": "after RC2 remediation campaign closure or explicit stop",
               "target_restore_knobs": {
                   "ig_rate_limit_rps": pre.get("apigw", {}).get("throttling_rate_limit"),
                   "ig_rate_limit_burst": pre.get("apigw", {}).get("throttling_burst_limit"),
+                  "eks_nodegroup_instance_types": pre.get("eks_m6f_nodegroup", {}).get("instance_types"),
+                  "eks_nodegroup_disk_size_gib": pre.get("eks_m6f_nodegroup", {}).get("disk_size_gib"),
                   "eks_nodegroup_desired_size": pre.get("eks_m6f_nodegroup", {}).get("scaling_config", {}).get("desiredSize"),
                   "eks_nodegroup_min_size": pre.get("eks_m6f_nodegroup", {}).get("scaling_config", {}).get("minSize"),
                   "eks_nodegroup_max_size": pre.get("eks_m6f_nodegroup", {}).get("scaling_config", {}).get("maxSize"),
@@ -345,11 +629,19 @@ jobs:
               "execution_id": exec_id,
               "platform_run_id": platform_run_id,
               "scenario_run_id": scenario_run_id,
+              "capacity_scope": capacity_scope,
               "pre_change": pre,
               "post_change": post,
               "expected_targets": {
                   "ig_rate_limit_rps": expected_rate,
                   "ig_rate_limit_burst": expected_burst,
+                  "lambda_ig_memory_mb": expected_lambda_memory,
+                  "lambda_ig_reserved_concurrency": expected_lambda_reserved,
+                  "lambda_ig_timeout_seconds": expected_lambda_timeout,
+                  "lambda_ig_kafka_request_timeout_ms": expected_lambda_kafka_timeout,
+                  "lambda_ig_policy_activation_audit_mode": expected_policy_activation_audit_mode,
+                  "eks_nodegroup_instance_types": expected_instance_types,
+                  "eks_nodegroup_disk_size_gib": expected_disk_size_gib,
                   "eks_nodegroup_desired_size": expected_desired,
                   "eks_nodegroup_min_size": expected_min,
                   "eks_nodegroup_max_size": expected_max,
@@ -363,6 +655,7 @@ jobs:
               "execution_id": exec_id,
               "platform_run_id": platform_run_id,
               "scenario_run_id": scenario_run_id,
+              "capacity_scope": capacity_scope,
               "overall_pass": overall_pass,
               "blocker_count": len(blockers),
               "next_gate": "READY_FOR_RC2_R5" if overall_pass else "HOLD_REMEDIATE",
@@ -373,6 +666,7 @@ jobs:
               "execution_id": exec_id,
               "platform_run_id": platform_run_id,
               "scenario_run_id": scenario_run_id,
+              "capacity_scope": capacity_scope,
               "blocker_count": len(blockers),
               "blockers": blockers,
           }
@@ -382,6 +676,7 @@ jobs:
               "execution_id": exec_id,
               "platform_run_id": platform_run_id,
               "scenario_run_id": scenario_run_id,
+              "capacity_scope": capacity_scope,
               "change_set": envelope_snapshot["expected_targets"],
               "verification_ref": f"s3://{bucket}/evidence/dev_full/cert/runtime/{exec_id}/rc2_r2_capacity_envelope_snapshot.json",
               "execution_posture": "MANAGED_WORKFLOW_TERRAFORM_APPLY_ONLY",

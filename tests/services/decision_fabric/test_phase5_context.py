@@ -123,7 +123,7 @@ def _ofp_snapshot() -> dict[str, object]:
         "as_of_time_utc": "2026-02-07T11:00:00Z",
         "feature_groups": [{"name": "core_features", "version": "v1"}],
         "feature_def_policy_rev": {"policy_id": "ofp.features.v0", "revision": "r1", "content_digest": "e" * 64},
-        "features": {},
+        "features": {"flow_id:flow_1": {"core_features": {"amount_1h_sum": 12.5}}},
         "run_config_digest": "f" * 64,
         "freshness": {"state": "GREEN", "flags": [], "stale_groups": [], "missing_groups": []},
     }
@@ -197,17 +197,56 @@ def test_join_wait_and_missing_context() -> None:
         context_refs={},
         feature_keys=[{"key_type": "flow_id", "key_id": "flow_1"}],
     )
-    assert waiting.status == CONTEXT_WAITING
+    assert waiting.status == CONTEXT_READY
+    assert waiting.reasons == ()
 
     missing = acquirer.acquire(
         candidate=_candidate(),
         posture=_posture(allow_ieg=True, allowed_feature_groups=("core_features",)),
         decision_started_at_utc="2026-02-07T11:00:00Z",
-        now_utc="2026-02-07T11:00:01.200Z",
+        now_utc="2026-02-07T11:00:02.100Z",
         context_refs={},
         feature_keys=[{"key_type": "flow_id", "key_id": "flow_1"}],
     )
-    assert missing.status == CONTEXT_MISSING
+    assert missing.status == CONTEXT_READY
+    assert missing.reasons == ()
+
+
+def test_policy_allows_zero_required_context_roles() -> None:
+    policy = _policy()
+    assert policy.revision == "r3"
+    assert policy.required_context_roles == ()
+    assert set(policy.optional_context_roles) == {"arrival_entities", "arrival_events", "flow_anchor"}
+
+
+def test_flow_anchor_only_context_is_ready_when_ofp_features_are_usable() -> None:
+    policy = _policy()
+    snapshot = _ofp_snapshot()
+    snapshot["freshness"] = {
+        "state": "AMBER",
+        "flags": ["MISSING_FEATURE_STATE"],
+        "stale_groups": [],
+        "missing_groups": [],
+        "missing_feature_keys": ["event_id:evt_001"],
+    }
+    stub = StubOfpClient(snapshot=snapshot)
+    acquirer = DecisionContextAcquirer(policy=policy, ofp_client=stub)
+    result = acquirer.acquire(
+        candidate=_candidate(),
+        posture=_posture(allow_ieg=True, allowed_feature_groups=("core_features",)),
+        decision_started_at_utc="2026-02-07T11:00:00Z",
+        now_utc="2026-02-07T11:00:00Z",
+        context_refs={
+            "flow_anchor": {"topic": "fp.bus.context.flow_anchor.fraud.v1", "partition": 0, "offset": "2"},
+        },
+        feature_keys=[
+            {"key_type": "event_id", "key_id": "evt_001"},
+            {"key_type": "flow_id", "key_id": "flow_1"},
+        ],
+    )
+    assert result.status == CONTEXT_READY
+    assert stub.last_payload is not None
+    assert set(result.evidence.context_refs) == {"flow_anchor"}
 
 
 def test_evidence_refs_include_ofp_basis() -> None:
@@ -251,3 +290,93 @@ def test_context_uses_posture_action_posture_before_registry_compatibility() -> 
     )
     assert result.status == CONTEXT_READY
     assert stub.last_payload is not None
+
+
+def test_partial_ofp_key_coverage_is_ready_when_snapshot_has_usable_group_features() -> None:
+    policy = _policy()
+    snapshot = _ofp_snapshot()
+    snapshot["freshness"] = {
+        "state": "AMBER",
+        "flags": ["MISSING_FEATURE_STATE"],
+        "stale_groups": [],
+        "missing_groups": [],
+        "missing_feature_keys": ["event_id:evt_001"],
+    }
+    stub = StubOfpClient(snapshot=snapshot)
+    acquirer = DecisionContextAcquirer(policy=policy, ofp_client=stub)
+    result = acquirer.acquire(
+        candidate=_candidate(),
+        posture=_posture(allow_ieg=True, allowed_feature_groups=("core_features",)),
+        decision_started_at_utc="2026-02-07T11:00:00Z",
+        now_utc="2026-02-07T11:00:00Z",
+        context_refs={
+            "arrival_events": {"topic": "fp.bus.context.arrival_events.v1", "partition": 0, "offset": "1"},
+            "flow_anchor": {"topic": "fp.bus.context.flow_anchor.fraud.v1", "partition": 0, "offset": "2"},
+        },
+        feature_keys=[
+            {"key_type": "event_id", "key_id": "evt_001"},
+            {"key_type": "flow_id", "key_id": "flow_1"},
+        ],
+    )
+    assert result.status == CONTEXT_READY
+
+
+def test_partial_ofp_group_gap_is_ready_when_requested_group_is_served() -> None:
+    policy = _policy()
+    snapshot = _ofp_snapshot()
+    snapshot["freshness"] = {
+        "state": "AMBER",
+        "flags": ["MISSING_FEATURE_GROUP", "MISSING_FEATURE_STATE"],
+        "stale_groups": [],
+        "missing_groups": ["core_features"],
+        "missing_feature_keys": ["event_id:evt_001"],
+    }
+    stub = StubOfpClient(snapshot=snapshot)
+    acquirer = DecisionContextAcquirer(policy=policy, ofp_client=stub)
+    result = acquirer.acquire(
+        candidate=_candidate(),
+        posture=_posture(allow_ieg=True, allowed_feature_groups=("core_features",)),
+        decision_started_at_utc="2026-02-07T11:00:00Z",
+        now_utc="2026-02-07T11:00:00Z",
+        context_refs={
+            "arrival_events": {"topic": "fp.bus.context.arrival_events.v1", "partition": 0, "offset": "1"},
+            "flow_anchor": {"topic": "fp.bus.context.flow_anchor.fraud.v1", "partition": 0, "offset": "2"},
+        },
+        feature_keys=[
+            {"key_type": "event_id", "key_id": "evt_001"},
+            {"key_type": "flow_id", "key_id": "flow_1"},
+        ],
+    )
+    assert result.status == CONTEXT_READY
+    assert result.feature_group_versions == {"core_features": "v1"}
+
+
+def test_missing_ofp_keys_without_any_usable_features_is_fail_closed() -> None:
+    policy = _policy()
+    snapshot = _ofp_snapshot()
+    snapshot["features"] = {}
+    snapshot["freshness"] = {
+        "state": "AMBER",
+        "flags": ["MISSING_FEATURE_STATE"],
+        "stale_groups": [],
+        "missing_groups": [],
+        "missing_feature_keys": ["event_id:evt_001", "flow_id:flow_1"],
+    }
+    stub = StubOfpClient(snapshot=snapshot)
+    acquirer = DecisionContextAcquirer(policy=policy, ofp_client=stub)
+    result = acquirer.acquire(
+        candidate=_candidate(),
+        posture=_posture(allow_ieg=True, allowed_feature_groups=("core_features",)),
+        decision_started_at_utc="2026-02-07T11:00:00Z",
+        now_utc="2026-02-07T11:00:00Z",
+        context_refs={
+            "arrival_events": {"topic": "fp.bus.context.arrival_events.v1", "partition": 0, "offset": "1"},
+            "flow_anchor": {"topic": "fp.bus.context.flow_anchor.fraud.v1", "partition": 0, "offset": "2"},
+        },
+        feature_keys=[
+            {"key_type": "event_id", "key_id": "evt_001"},
+            {"key_type": "flow_id", "key_id": "flow_1"},
+        ],
+    )
+    assert result.status == CONTEXT_MISSING
+    assert "OFP_MISSING_FEATURE:event_id:evt_001" in result.reasons

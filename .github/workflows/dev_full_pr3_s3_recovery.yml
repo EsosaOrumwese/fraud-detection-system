@@ -169,23 +169,22 @@ jobs:
           set -euo pipefail
           RUN_DIR="runs/dev_substrate/dev_full/road_to_prod/run_control/${{ inputs.pr3_execution_id }}"
           mkdir -p "${RUN_DIR}"
-          PRESTRESS_RUN_ID="platform_$(date -u +'%Y%m%dT%H%M%SZ')"
-          RECOVERY_RUN_ID="platform_$(date -u +'%Y%m%dT%H%M%SZ')_r"
-          PRESTRESS_SCENARIO_RUN_ID="$(python - <<'PY'
+          readarray -t RUN_METADATA < <(python - <<'PY'
+          from datetime import datetime, timezone
           import uuid
+          base = datetime.now(timezone.utc).replace(microsecond=0)
+          print(base.strftime("platform_%Y%m%dT%H%M%SZ"))
           print(uuid.uuid4().hex)
+          print(base.strftime("%Y%m%dT%H%M%SZ"))
           PY
-          )"
-          RECOVERY_SCENARIO_RUN_ID="$(python - <<'PY'
-          import uuid
-          print(uuid.uuid4().hex)
-          PY
-          )"
+          )
+          ACTIVE_RUN_ID="${RUN_METADATA[0]}"
+          ACTIVE_SCENARIO_RUN_ID="${RUN_METADATA[1]}"
+          CHECKPOINT_ATTEMPT_ID="${RUN_METADATA[2]}"
           echo "run_dir=${RUN_DIR}" >> "$GITHUB_OUTPUT"
-          echo "prestress_platform_run_id=${PRESTRESS_RUN_ID}" >> "$GITHUB_OUTPUT"
-          echo "recovery_platform_run_id=${RECOVERY_RUN_ID}" >> "$GITHUB_OUTPUT"
-          echo "prestress_scenario_run_id=${PRESTRESS_SCENARIO_RUN_ID}" >> "$GITHUB_OUTPUT"
-          echo "recovery_scenario_run_id=${RECOVERY_SCENARIO_RUN_ID}" >> "$GITHUB_OUTPUT"
+          echo "active_platform_run_id=${ACTIVE_RUN_ID}" >> "$GITHUB_OUTPUT"
+          echo "active_scenario_run_id=${ACTIVE_SCENARIO_RUN_ID}" >> "$GITHUB_OUTPUT"
+          echo "wsp_checkpoint_attempt_id=${CHECKPOINT_ATTEMPT_ID}" >> "$GITHUB_OUTPUT"
 
       - name: Hydrate PR3 upstream evidence from S3
         shell: bash
@@ -196,6 +195,7 @@ jobs:
         run: |
           set -euo pipefail
           for name in \
+            pr3_s0_execution_receipt.json \
             g3a_run_charter.active.json \
             g3a_measurement_surface_map.json \
             pr3_s2_execution_receipt.json; do
@@ -206,16 +206,23 @@ jobs:
           done
 
       - name: Validate strict upstream boundary
+        id: upstream
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
           import json
+          import os
           from pathlib import Path
           path = Path("runs/dev_substrate/dev_full/road_to_prod/run_control/${{ inputs.pr3_execution_id }}/pr3_s2_execution_receipt.json")
           payload = json.loads(path.read_text(encoding="utf-8"))
           if payload.get("verdict") != "PR3_S2_READY" or int(payload.get("open_blockers", 1)) != 0:
               raise SystemExit(f"PR3-S3 strict upstream invalid: {payload.get('verdict')} blockers={payload.get('open_blockers')}")
+          platform_run_id = str(payload.get("platform_run_id") or "").strip()
+          if not platform_run_id:
+              raise SystemExit("PR3-S3 strict upstream missing platform_run_id in PR3-S2 receipt.")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"upstream_platform_run_id={platform_run_id}\n")
           PY
 
       - name: Configure kubeconfig
@@ -227,6 +234,17 @@ jobs:
             --region "${{ inputs.aws_region }}" \
             --name "${{ inputs.eks_cluster_name }}"
 
+      - name: Materialize fresh S3 runtime identity on EKS
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/pr3_rtdl_materialize.py \
+            --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
+            --platform-run-id "${{ steps.meta.outputs.active_platform_run_id }}" \
+            --scenario-run-id "${{ steps.meta.outputs.active_scenario_run_id }}" \
+            --region "${{ inputs.aws_region }}" \
+            --namespace "${{ env.EKS_NAMESPACE }}"
+
       - name: Verify runtime deployments ready
         shell: bash
         run: |
@@ -234,6 +252,199 @@ jobs:
           for deployment in fp-pr3-csfb fp-pr3-ieg fp-pr3-ofp fp-pr3-dl fp-pr3-df fp-pr3-al fp-pr3-dla fp-pr3-archive-writer; do
             kubectl rollout status "deployment/${deployment}" -n "${{ env.EKS_NAMESPACE }}" --timeout=240s
           done
+
+      - name: Drain stale WSP ephemeral tasks before quota packing
+        shell: bash
+        env:
+          AWS_REGION: ${{ inputs.aws_region }}
+          RUN_DIR: ${{ steps.meta.outputs.run_dir }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from datetime import datetime, timezone
+          import json
+          import os
+          from pathlib import Path
+
+          import boto3
+
+          region = os.environ["AWS_REGION"]
+          run_dir = Path(os.environ["RUN_DIR"])
+          cluster = "fraud-platform-dev-full-wsp-ephemeral"
+          ecs = boto3.client("ecs", region_name=region)
+
+          task_arns = ecs.list_tasks(cluster=cluster, desiredStatus="RUNNING").get("taskArns", [])
+          stopped = []
+          if task_arns:
+              described = ecs.describe_tasks(cluster=cluster, tasks=task_arns).get("tasks", [])
+              for task in described:
+                  task_arn = str(task.get("taskArn") or "").strip()
+                  if not task_arn:
+                      continue
+                  ecs.stop_task(
+                      cluster=cluster,
+                      task=task_arn,
+                      reason="PR3-S3 preflight stale WSP cleanup to restore deterministic Fargate headroom",
+                  )
+                  stopped.append(
+                      {
+                          "task_arn": task_arn.rsplit("/", 1)[-1],
+                          "task_definition": str(task.get("taskDefinitionArn") or "").rsplit("/", 1)[-1],
+                          "started_at": task.get("startedAt").isoformat().replace("+00:00", "Z") if task.get("startedAt") else "",
+                          "group": str(task.get("group") or ""),
+                      }
+                  )
+              ecs.get_waiter("tasks_stopped").wait(cluster=cluster, tasks=task_arns, WaiterConfig={"Delay": 6, "MaxAttempts": 30})
+
+          payload = {
+              "generated_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+              "cluster": cluster,
+              "stopped_task_count": len(stopped),
+              "stopped_tasks": stopped,
+          }
+          out_path = run_dir / "g3a_s3_preflight_wsp_cleanup.json"
+          out_path.parent.mkdir(parents=True, exist_ok=True)
+          out_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+          PY
+
+      - name: Compute quota-aware WSP packing
+        id: packing
+        shell: bash
+        env:
+          AWS_REGION: ${{ inputs.aws_region }}
+          RUN_DIR: ${{ steps.meta.outputs.run_dir }}
+          PRESTRESS_LANE_COUNT: ${{ inputs.prestress_lane_count }}
+          RECOVERY_LANE_COUNT: ${{ inputs.recovery_lane_count }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from datetime import datetime, timezone
+          import json
+          import os
+          from pathlib import Path
+
+          import boto3
+
+          region = os.environ["AWS_REGION"]
+          run_dir = Path(os.environ["RUN_DIR"])
+          prestress_lane_count = max(1, int(os.environ["PRESTRESS_LANE_COUNT"]))
+          requested_recovery_lane_count = max(1, int(os.environ["RECOVERY_LANE_COUNT"]))
+          recovery_lane_count = prestress_lane_count
+          cpu_memory_pairs = {
+              256: 1024,
+              512: 1024,
+              1024: 2048,
+          }
+          segment_reserve_cpu_units = {
+              "prestress": 0,
+              "recovery": 1024,
+          }
+
+          ecs = boto3.client("ecs", region_name=region)
+          sq = boto3.client("service-quotas", region_name=region)
+
+          quota = sq.get_service_quota(ServiceCode="fargate", QuotaCode="L-3032A538")["Quota"]
+          quota_vcpu = float(quota["Value"])
+          quota_cpu_units = int(quota_vcpu * 1024)
+
+          cluster_arns = ecs.list_clusters().get("clusterArns", [])
+          task_cpu_cache = {}
+          total_running_cpu_units = 0
+          running_tasks = []
+          for cluster_arn in cluster_arns:
+              cluster_name = cluster_arn.rsplit("/", 1)[-1]
+              task_arns = ecs.list_tasks(cluster=cluster_arn, desiredStatus="RUNNING").get("taskArns", [])
+              if not task_arns:
+                  continue
+              described = ecs.describe_tasks(cluster=cluster_arn, tasks=task_arns).get("tasks", [])
+              for task in described:
+                  task_def_arn = str(task.get("taskDefinitionArn") or "").strip()
+                  if not task_def_arn:
+                      continue
+                  if task_def_arn not in task_cpu_cache:
+                      task_def = ecs.describe_task_definition(taskDefinition=task_def_arn)["taskDefinition"]
+                      task_cpu_cache[task_def_arn] = int(str(task_def.get("cpu") or "0") or "0")
+                  cpu_units = int(task_cpu_cache[task_def_arn])
+                  total_running_cpu_units += cpu_units
+                  running_tasks.append(
+                      {
+                          "cluster": cluster_name,
+                          "task_definition": task_def_arn.rsplit("/", 1)[-1],
+                          "task_arn": str(task.get("taskArn") or "").rsplit("/", 1)[-1],
+                          "cpu_units": cpu_units,
+                          "cpu_vcpu": cpu_units / 1024.0,
+                      }
+                  )
+
+          available_cpu_units = quota_cpu_units - total_running_cpu_units
+          if available_cpu_units < 0:
+              available_cpu_units = 0
+
+          def choose_shape(*, lane_count: int, segment_label: str) -> tuple[int, int, int]:
+              reserve_cpu_units = max(0, int(segment_reserve_cpu_units.get(segment_label, 0)))
+              usable_cpu_units = max(0, available_cpu_units - reserve_cpu_units)
+              selected_cpu = None
+              for cpu_units in sorted(cpu_memory_pairs.keys(), reverse=True):
+                  required_cpu_units = lane_count * cpu_units
+                  if required_cpu_units <= usable_cpu_units:
+                      selected_cpu = cpu_units
+                      break
+              if selected_cpu is None:
+                  raise SystemExit(
+                      "PR3.S3.PACK.B01_FARGATE_HEADROOM_INSUFFICIENT:"
+                      f"segment={segment_label}:available_cpu_units={available_cpu_units}:"
+                      f"reserve_cpu_units={reserve_cpu_units}:usable_cpu_units={usable_cpu_units}:"
+                      f"lane_count={lane_count}:"
+                      f"minimum_required_cpu_units={lane_count * min(cpu_memory_pairs.keys())}"
+                  )
+              return selected_cpu, cpu_memory_pairs[selected_cpu], usable_cpu_units
+
+          prestress_cpu, prestress_memory, prestress_usable_cpu_units = choose_shape(
+              lane_count=prestress_lane_count,
+              segment_label="prestress",
+          )
+          recovery_cpu, recovery_memory, recovery_usable_cpu_units = choose_shape(
+              lane_count=recovery_lane_count,
+              segment_label="recovery",
+          )
+
+          summary = {
+              "generated_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+              "quota_code": "L-3032A538",
+              "quota_vcpu": quota_vcpu,
+              "quota_cpu_units": quota_cpu_units,
+              "available_cpu_units": available_cpu_units,
+              "running_cpu_units": total_running_cpu_units,
+              "running_tasks": running_tasks,
+              "selected_shapes": {
+                  "prestress": {
+                      "lane_count": prestress_lane_count,
+                      "reserve_cpu_units": segment_reserve_cpu_units["prestress"],
+                      "usable_cpu_units": prestress_usable_cpu_units,
+                      "task_cpu_units": prestress_cpu,
+                      "task_memory_mib": prestress_memory,
+                      "total_cpu_units": prestress_lane_count * prestress_cpu,
+                  },
+                  "recovery": {
+                      "requested_lane_count": requested_recovery_lane_count,
+                      "lane_count": recovery_lane_count,
+                      "reserve_cpu_units": segment_reserve_cpu_units["recovery"],
+                      "usable_cpu_units": recovery_usable_cpu_units,
+                      "task_cpu_units": recovery_cpu,
+                      "task_memory_mib": recovery_memory,
+                      "total_cpu_units": recovery_lane_count * recovery_cpu,
+                  },
+              },
+          }
+          out_path = run_dir / "g3a_s3_wsp_packing_summary.json"
+          out_path.parent.mkdir(parents=True, exist_ok=True)
+          out_path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"prestress_task_cpu={prestress_cpu}\n")
+              fh.write(f"prestress_task_memory={prestress_memory}\n")
+              fh.write(f"recovery_task_cpu={recovery_cpu}\n")
+              fh.write(f"recovery_task_memory={recovery_memory}\n")
+          PY
 
       - name: Warm-gate runtime before prestress
         shell: bash
@@ -243,7 +454,7 @@ jobs:
             --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
             --state-id S3 \
             --namespace "${{ env.EKS_NAMESPACE }}" \
-            --platform-run-id "${{ steps.meta.outputs.prestress_platform_run_id }}" \
+            --platform-run-id "${{ steps.meta.outputs.active_platform_run_id }}" \
             --profile-path "/runtime-profile/dev_full.yaml" \
             --settle-seconds 30
 
@@ -258,8 +469,9 @@ jobs:
             --artifact-prefix g3a_s3_prestress \
             --blocker-prefix PR3.S3.PRESTRESS \
             --region "${{ inputs.aws_region }}" \
-            --platform-run-id "${{ steps.meta.outputs.prestress_platform_run_id }}" \
-            --scenario-run-id "${{ steps.meta.outputs.prestress_scenario_run_id }}" \
+            --platform-run-id "${{ steps.meta.outputs.active_platform_run_id }}" \
+            --scenario-run-id "${{ steps.meta.outputs.active_scenario_run_id }}" \
+            --checkpoint-attempt-id "${{ steps.meta.outputs.wsp_checkpoint_attempt_id }}" \
             --lane-count "${{ inputs.prestress_lane_count }}" \
             --expected-window-eps "${{ inputs.prestress_target_burst_eps }}" \
             --target-request-rate-eps "${{ inputs.prestress_target_request_rate_eps }}" \
@@ -273,70 +485,140 @@ jobs:
             --http-pool-maxsize "${{ inputs.prestress_http_pool_maxsize }}" \
             --target-burst-seconds 0.50 \
             --target-initial-tokens 0.50 \
+            --task-cpu "${{ steps.packing.outputs.prestress_task_cpu }}" \
+            --task-memory "${{ steps.packing.outputs.prestress_task_memory }}" \
             --max-latency-p95-ms 350 \
             --max-latency-p99-ms 700 \
             --skip-runtime-identity-probe
 
-      - name: Capture post-prestress snapshot
-        shell: bash
-        run: |
-          set -euo pipefail
-          python scripts/dev_substrate/pr3_runtime_surface_snapshot.py \
-            --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
-            --state-id S3 \
-            --snapshot-label prestress_post \
-            --namespace "${{ env.EKS_NAMESPACE }}" \
-            --platform-run-id "${{ steps.meta.outputs.prestress_platform_run_id }}"
-
-      - name: Run recovery steady with live sampling
+      - name: Run continuous burst-to-recovery campaign with live sampling
         shell: bash
         env:
           PR3_EXECUTION_ID: ${{ inputs.pr3_execution_id }}
-          RECOVERY_PLATFORM_RUN_ID: ${{ steps.meta.outputs.recovery_platform_run_id }}
-          RECOVERY_SCENARIO_RUN_ID: ${{ steps.meta.outputs.recovery_scenario_run_id }}
+          ACTIVE_PLATFORM_RUN_ID: ${{ steps.meta.outputs.active_platform_run_id }}
+          ACTIVE_SCENARIO_RUN_ID: ${{ steps.meta.outputs.active_scenario_run_id }}
+          WSP_CHECKPOINT_ATTEMPT_ID: ${{ steps.meta.outputs.wsp_checkpoint_attempt_id }}
           AWS_REGION: ${{ inputs.aws_region }}
           EKS_NAMESPACE: ${{ env.EKS_NAMESPACE }}
+          PRESTRESS_DURATION_SECONDS: ${{ inputs.prestress_duration_seconds }}
+          RECOVERY_DURATION_SECONDS: ${{ inputs.recovery_duration_seconds }}
+          PRESTRESS_TARGET_REQUEST_RATE_EPS: ${{ inputs.prestress_target_request_rate_eps }}
+          RECOVERY_TARGET_REQUEST_RATE_EPS: ${{ inputs.recovery_target_request_rate_eps }}
+          PRESTRESS_LANE_COUNT: ${{ inputs.prestress_lane_count }}
         run: |
           set -euo pipefail
+          readarray -t CAMPAIGN_METADATA < <(python - <<'PY'
+          from datetime import datetime, timedelta, timezone
+          import json
+          import os
+
+          def align_up(dt, period_seconds=60):
+              ts = int(dt.timestamp())
+              aligned = ((ts + period_seconds - 1) // period_seconds) * period_seconds
+              return datetime.fromtimestamp(aligned, tz=timezone.utc)
+
+          prestress_duration = int(os.environ["PRESTRESS_DURATION_SECONDS"])
+          recovery_duration = int(os.environ["RECOVERY_DURATION_SECONDS"])
+          lane_count = max(1, int(os.environ["PRESTRESS_LANE_COUNT"]))
+          now = datetime.now(timezone.utc)
+          campaign_start = align_up(now + timedelta(seconds=180), 60)
+          prestress_end = campaign_start + timedelta(seconds=prestress_duration)
+          total_duration = prestress_duration + recovery_duration
+          rate_plan = [
+              {
+                  "start_offset_seconds": 0,
+                  "target_eps": float(os.environ["PRESTRESS_TARGET_REQUEST_RATE_EPS"]) / float(lane_count),
+                  "burst_seconds": 0.50,
+                  "initial_tokens": 0.50,
+              },
+              {
+                  "start_offset_seconds": prestress_duration,
+                  "target_eps": float(os.environ["RECOVERY_TARGET_REQUEST_RATE_EPS"]) / float(lane_count),
+                  "burst_seconds": 0.25,
+                  "initial_tokens": 0.25,
+              },
+          ]
+          print(campaign_start.isoformat().replace("+00:00", "Z"))
+          print(prestress_end.isoformat().replace("+00:00", "Z"))
+          print(str(total_duration))
+          print(json.dumps(rate_plan, separators=(",", ":")))
+          PY
+          )
+          CAMPAIGN_START_UTC="${CAMPAIGN_METADATA[0]}"
+          PRESTRESS_POST_UTC="${CAMPAIGN_METADATA[1]}"
+          TOTAL_DURATION_SECONDS="${CAMPAIGN_METADATA[2]}"
+          RATE_PLAN_JSON="${CAMPAIGN_METADATA[3]}"
+          PRESTRESS_CAPTURED=0
           python scripts/dev_substrate/pr3_wsp_replay_dispatch.py \
             --pr3-execution-id "${PR3_EXECUTION_ID}" \
             --state-id S3 \
-            --window-label recovery \
-            --artifact-prefix g3a_s3_recovery \
-            --blocker-prefix PR3.S3.RECOVERY \
+            --window-label burst_recovery_continuous \
+            --artifact-prefix g3a_s3_continuous \
+            --blocker-prefix PR3.S3.CONTINUOUS \
             --region "${AWS_REGION}" \
-            --platform-run-id "${RECOVERY_PLATFORM_RUN_ID}" \
-            --scenario-run-id "${RECOVERY_SCENARIO_RUN_ID}" \
-            --lane-count "${{ inputs.recovery_lane_count }}" \
-            --expected-window-eps "${{ inputs.recovery_target_steady_eps }}" \
-            --target-request-rate-eps "${{ inputs.recovery_target_request_rate_eps }}" \
-            --duration-seconds "${{ inputs.recovery_duration_seconds }}" \
+            --platform-run-id "${ACTIVE_PLATFORM_RUN_ID}" \
+            --scenario-run-id "${ACTIVE_SCENARIO_RUN_ID}" \
+            --checkpoint-attempt-id "${WSP_CHECKPOINT_ATTEMPT_ID}" \
+            --lane-count "${{ inputs.prestress_lane_count }}" \
+            --expected-window-eps "0" \
+            --target-request-rate-eps "${{ inputs.prestress_target_request_rate_eps }}" \
+            --duration-seconds "${TOTAL_DURATION_SECONDS}" \
             --warmup-seconds 0 \
-            --early-cutoff-seconds 120 \
+            --early-cutoff-seconds 99999 \
             --early-cutoff-floor-ratio 0.70 \
-            --stream-speedup "${{ inputs.recovery_stream_speedup }}" \
-            --output-concurrency "${{ inputs.recovery_output_concurrency }}" \
-            --ig-push-concurrency "${{ inputs.recovery_ig_push_concurrency }}" \
-            --http-pool-maxsize "${{ inputs.recovery_http_pool_maxsize }}" \
-            --target-burst-seconds 0.25 \
-            --target-initial-tokens 0.25 \
+            --stream-speedup "${{ inputs.prestress_stream_speedup }}" \
+            --output-concurrency "${{ inputs.prestress_output_concurrency }}" \
+            --ig-push-concurrency "${{ inputs.prestress_ig_push_concurrency }}" \
+            --http-pool-maxsize "${{ inputs.prestress_http_pool_maxsize }}" \
+            --target-burst-seconds 0.50 \
+            --target-initial-tokens 0.50 \
+            --task-cpu "${{ steps.packing.outputs.prestress_task_cpu }}" \
+            --task-memory "${{ steps.packing.outputs.prestress_task_memory }}" \
+            --campaign-start-utc "${CAMPAIGN_START_UTC}" \
+            --rate-plan-json "${RATE_PLAN_JSON}" \
+            --skip-final-threshold-check \
             --max-latency-p95-ms 350 \
             --max-latency-p99-ms 700 \
             --skip-runtime-identity-probe &
-          RECOVERY_PID=$!
+          CAMPAIGN_PID=$!
           SAMPLE_INDEX=1
           sleep 15
-          while kill -0 "${RECOVERY_PID}" 2>/dev/null; do
+          while kill -0 "${CAMPAIGN_PID}" 2>/dev/null; do
+            if [[ "${PRESTRESS_CAPTURED}" -eq 0 ]]; then
+              if python - "${PRESTRESS_POST_UTC}" <<'PY'
+          from datetime import datetime, timezone
+          import sys
+          target = datetime.fromisoformat(sys.argv[1].replace("Z", "+00:00")).astimezone(timezone.utc)
+          raise SystemExit(0 if datetime.now(timezone.utc) >= target else 1)
+          PY
+              then
+                python scripts/dev_substrate/pr3_runtime_surface_snapshot.py \
+                  --pr3-execution-id "${PR3_EXECUTION_ID}" \
+                  --state-id S3 \
+                  --snapshot-label prestress_post \
+                  --namespace "${EKS_NAMESPACE}" \
+                  --platform-run-id "${ACTIVE_PLATFORM_RUN_ID}" || true
+                PRESTRESS_CAPTURED=1
+              fi
+            fi
             python scripts/dev_substrate/pr3_runtime_surface_snapshot.py \
               --pr3-execution-id "${PR3_EXECUTION_ID}" \
               --state-id S3 \
               --snapshot-label "during_${SAMPLE_INDEX}" \
               --namespace "${EKS_NAMESPACE}" \
-              --platform-run-id "${RECOVERY_PLATFORM_RUN_ID}" || true
+              --platform-run-id "${ACTIVE_PLATFORM_RUN_ID}" || true
             SAMPLE_INDEX=$((SAMPLE_INDEX + 1))
             sleep 30
           done
-          wait "${RECOVERY_PID}"
+          wait "${CAMPAIGN_PID}"
+          if [[ "${PRESTRESS_CAPTURED}" -eq 0 ]]; then
+            python scripts/dev_substrate/pr3_runtime_surface_snapshot.py \
+              --pr3-execution-id "${PR3_EXECUTION_ID}" \
+              --state-id S3 \
+              --snapshot-label prestress_post \
+              --namespace "${EKS_NAMESPACE}" \
+              --platform-run-id "${ACTIVE_PLATFORM_RUN_ID}" || true
+          fi
 
       - name: Capture post-recovery snapshot
         if: ${{ always() && steps.kubeconfig.outcome == 'success' }}
@@ -348,7 +630,7 @@ jobs:
             --state-id S3 \
             --snapshot-label post \
             --namespace "${{ env.EKS_NAMESPACE }}" \
-            --platform-run-id "${{ steps.meta.outputs.recovery_platform_run_id }}"
+            --platform-run-id "${{ steps.meta.outputs.active_platform_run_id }}"
 
       - name: Build PR3-S3 recovery rollup
         shell: bash
@@ -357,6 +639,9 @@ jobs:
           python scripts/dev_substrate/pr3_s3_rollup.py \
             --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
             --state-id S3 \
+            --continuous-artifact-prefix g3a_s3_continuous \
+            --burst-duration-seconds "${{ inputs.prestress_duration_seconds }}" \
+            --recovery-duration-seconds "${{ inputs.recovery_duration_seconds }}" \
             --region "${{ inputs.aws_region }}" \
             --expected-burst-eps "${{ inputs.prestress_target_burst_eps }}" \
             --expected-steady-eps "${{ inputs.recovery_target_steady_eps }}" \
@@ -368,6 +653,61 @@ jobs:
             --max-latency-p99-ms 700 \
             --max-lag-p99-seconds 5.0 \
             --max-checkpoint-p99-seconds 30.0
+
+      - name: Drain WSP ephemeral tasks after PR3-S3
+        if: always()
+        shell: bash
+        env:
+          AWS_REGION: ${{ inputs.aws_region }}
+          RUN_DIR: ${{ steps.meta.outputs.run_dir }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from datetime import datetime, timezone
+          import json
+          import os
+          from pathlib import Path
+
+          import boto3
+
+          region = os.environ["AWS_REGION"]
+          run_dir = Path(os.environ["RUN_DIR"])
+          cluster = "fraud-platform-dev-full-wsp-ephemeral"
+          ecs = boto3.client("ecs", region_name=region)
+
+          task_arns = ecs.list_tasks(cluster=cluster, desiredStatus="RUNNING").get("taskArns", [])
+          stopped = []
+          if task_arns:
+              described = ecs.describe_tasks(cluster=cluster, tasks=task_arns).get("tasks", [])
+              for task in described:
+                  task_arn = str(task.get("taskArn") or "").strip()
+                  if not task_arn:
+                      continue
+                  ecs.stop_task(
+                      cluster=cluster,
+                      task=task_arn,
+                      reason="PR3-S3 final cleanup enforcing idle-safe WSP ephemeral posture",
+                  )
+                  stopped.append(
+                      {
+                          "task_arn": task_arn.rsplit("/", 1)[-1],
+                          "task_definition": str(task.get("taskDefinitionArn") or "").rsplit("/", 1)[-1],
+                          "started_at": task.get("startedAt").isoformat().replace("+00:00", "Z") if task.get("startedAt") else "",
+                          "group": str(task.get("group") or ""),
+                      }
+                  )
+              ecs.get_waiter("tasks_stopped").wait(cluster=cluster, tasks=task_arns, WaiterConfig={"Delay": 6, "MaxAttempts": 30})
+
+          payload = {
+              "generated_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+              "cluster": cluster,
+              "stopped_task_count": len(stopped),
+              "stopped_tasks": stopped,
+          }
+          out_path = run_dir / "g3a_s3_final_wsp_cleanup.json"
+          out_path.parent.mkdir(parents=True, exist_ok=True)
+          out_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+          PY
 
       - name: Upload remote artifact backup to S3
         if: always()
@@ -382,6 +722,9 @@ jobs:
         with:
           name: pr3-s3-recovery-${{ inputs.pr3_execution_id }}
           path: |
+            ${{ steps.meta.outputs.run_dir }}/g3a_s3_continuous_wsp_runtime_manifest.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_s3_continuous_wsp_runtime_summary.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_s3_continuous_ingress_bins.json
             ${{ steps.meta.outputs.run_dir }}/g3a_s3_prestress_wsp_runtime_manifest.json
             ${{ steps.meta.outputs.run_dir }}/g3a_s3_prestress_wsp_runtime_summary.json
             ${{ steps.meta.outputs.run_dir }}/g3a_s3_recovery_wsp_runtime_manifest.json
@@ -390,5 +733,7 @@ jobs:
             ${{ steps.meta.outputs.run_dir }}/g3a_scorecard_recovery.json
             ${{ steps.meta.outputs.run_dir }}/g3a_recovery_timeline.json
             ${{ steps.meta.outputs.run_dir }}/g3a_recovery_bound_report.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_s3_preflight_wsp_cleanup.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_s3_final_wsp_cleanup.json
             ${{ steps.meta.outputs.run_dir }}/pr3_s3_execution_receipt.json
           if-no-files-found: warn

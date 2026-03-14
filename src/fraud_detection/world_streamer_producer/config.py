@@ -22,7 +22,20 @@ def _resolve_env(value: str | None) -> str | None:
         return value
     match = _ENV_PATTERN.fullmatch(value.strip())
     if match:
-        return os.getenv(match.group(1)) or ""
+        token = match.group(1)
+        if ":-" in token:
+            key, default = token.split(":-", 1)
+            actual = os.getenv(key, "")
+            return actual if actual.strip() else default
+        return os.getenv(token) or ""
+    return value
+
+
+def _none_if_blank(value: str | None) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, str) and not value.strip():
+        return None
     return value
 
 
@@ -85,8 +98,8 @@ class WspProfile:
         security = wiring.get("security", {})
         retry = wiring.get("wsp_retry", {})
 
-        endpoint = _resolve_env(object_store.get("endpoint"))
-        region = _resolve_env(object_store.get("region"))
+        endpoint = _none_if_blank(_resolve_env(object_store.get("endpoint")))
+        region = _none_if_blank(_resolve_env(object_store.get("region")))
         path_style = object_store.get("path_style")
         if isinstance(path_style, str):
             path_style = path_style.lower() in {"1", "true", "yes"}
@@ -118,9 +131,9 @@ class WspProfile:
             create_if_missing=True,
         )
         control_bus_topic = control_bus.get("topic", "fp.bus.control.v1")
-        control_bus_stream = _resolve_env(control_bus.get("stream"))
-        control_bus_region = _resolve_env(control_bus.get("region"))
-        control_bus_endpoint_url = _resolve_env(control_bus.get("endpoint_url"))
+        control_bus_stream = _none_if_blank(_resolve_env(control_bus.get("stream")))
+        control_bus_region = _none_if_blank(_resolve_env(control_bus.get("region")))
+        control_bus_endpoint_url = _none_if_blank(_resolve_env(control_bus.get("endpoint_url")))
 
         schema_root = wiring.get("schema_root", "docs/model_spec/platform/contracts")
         engine_catalogue_path = wiring.get(
@@ -135,14 +148,17 @@ class WspProfile:
         ig_auth_header = str(security.get("api_key_header") or "X-IG-Api-Key").strip() or "X-IG-Api-Key"
         ig_auth_token = _resolve_env(security.get("wsp_auth_token"))
 
-        checkpoint_backend = checkpoint.get("backend", "file")
+        checkpoint_backend = str(
+            _resolve_env(os.getenv("WSP_CHECKPOINT_BACKEND") or checkpoint.get("backend") or "file")
+        ).strip() or "file"
         checkpoint_root = resolve_run_scoped_path(
-            _resolve_env(checkpoint.get("root") or "runs/fraud-platform/wsp/checkpoints"),
+            _resolve_env(os.getenv("WSP_CHECKPOINT_ROOT") or checkpoint.get("root") or "runs/fraud-platform/wsp/checkpoints"),
             suffix="wsp/checkpoints",
             create_if_missing=True,
         )
-        checkpoint_dsn = _resolve_env(checkpoint.get("dsn"))
-        checkpoint_every = int(checkpoint.get("flush_every", 1))
+        checkpoint_dsn = _resolve_env(os.getenv("WSP_CHECKPOINT_DSN") or checkpoint.get("dsn"))
+        checkpoint_every_raw = os.getenv("WSP_CHECKPOINT_FLUSH_EVERY") or checkpoint.get("flush_every", 1)
+        checkpoint_every = max(1, int(checkpoint_every_raw))
         producer_id = (producer.get("producer_id") or "svc:world_stream_producer").strip()
         producer_allowlist_ref = _resolve_env(
             producer.get("allowlist_ref") or "config/platform/wsp/producer_allowlist_v0.txt"

@@ -1,0 +1,92 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Baseline wired platform: concrete resources for the Foundational Control path
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    L1["This graph isolates the concrete resources that back the Foundational Control path"]
+    L2["The gray nodes are the downstream surfaces that receive run scope or control effects"]
+    L3["The purpose is to show the real resource commitments behind control, not every resource in the platform"]
+  end
+
+  subgraph ENTRY["Control Entry Resources"]
+    GHA["GitHub Actions"]
+    ROLETF["IAM identity<br>fraud-dev"]
+    TFCORE["Terraform stack<br>core"]
+    TFSTREAM["Terraform stack<br>streaming"]
+    TFRUNTIME["Terraform stack<br>runtime"]
+    TFDML["Terraform stack<br>data_ml"]
+    TFOPS["Terraform stack<br>ops"]
+    ECR["ECR repo<br>fraud-platform-dev-full"]
+    TFSTATE[("S3 tfstate bucket<br>fraud-platform-dev-full-tfstate")]
+  end
+
+  subgraph AUTH["Run Authority Resources"]
+    OIDC["GitHub OIDC trust"]
+    SFN["Step Functions<br>fraud-platform-dev-full-platform-run-v0"]
+    ROLESFN["IAM role<br>fraud-platform-dev-full-stepfunctions-orchestrator"]
+    TCTRL["Topic<br>fp.bus.control.v1"]
+    MSK[("MSK Serverless cluster<br>fraud-platform-dev-full-msk")]
+    RUNID["Run identity pins<br>platform_run_id / scenario_run_id<br>phase_id / trace_id / config_digest"]
+    RUNTIMEPATH["Runtime path governance<br>single active path per phase run"]
+  end
+
+  subgraph RECEIPTS["Run Control and Evidence Resources"]
+    EVID[("S3 evidence bucket<br>fraud-platform-dev-full-evidence")]
+    RUNCTL["Run-control receipts<br>bounded-run proof story"]
+    DASHOPS["Operations dashboard<br>fraud-platform-dev-full-operations"]
+  end
+
+  subgraph GOVERNED["Immediate Governed Runtime Surfaces"]
+    WSP["WSP runtime surface<br>ECS/Fargate replay job"]
+    ING["Ingress runtime surface<br>API Gateway / ALB / Lambda / ECS"]
+    RTDL["RTDL runtime surface<br>EKS namespace / deployments"]
+    CASE["Case + Label runtime surface<br>EKS namespace / deployments"]
+    LEARN["Learning runtime surface<br>Databricks / SageMaker / MLflow"]
+  end
+
+  GHA -->|authenticates through| OIDC
+  GHA -->|assumes| ROLETF
+  ROLETF -->|applies| TFCORE
+  ROLETF -->|applies| TFSTREAM
+  ROLETF -->|applies| TFRUNTIME
+  ROLETF -->|applies| TFDML
+  ROLETF -->|applies| TFOPS
+  TFCORE -->|stores state in| TFSTATE
+  TFSTREAM -->|stores state in| TFSTATE
+  TFRUNTIME -->|stores state in| TFSTATE
+  TFDML -->|stores state in| TFSTATE
+  TFOPS -->|stores state in| TFSTATE
+  GHA -->|publishes images to| ECR
+  GHA -->|dispatches| SFN
+
+  SFN -->|executes with| ROLESFN
+  SFN -->|assigns and persists| RUNID
+  SFN -->|enforces| RUNTIMEPATH
+  SFN -->|publishes control signals to| TCTRL
+  TCTRL -->|transported by| MSK
+  SFN -->|writes run-control receipts to| RUNCTL
+  RUNCTL -->|stores durable receipts in| EVID
+  EVID -->|feeds operator reconstruction to| DASHOPS
+
+  RUNID -->|pins run scope for| WSP
+  RUNID -->|pins run scope for| ING
+  RUNID -->|pins run scope for| RTDL
+  RUNID -->|pins run scope for| CASE
+  RUNID -->|pins run scope for| LEARN
+
+  RUNTIMEPATH -->|selects active path for| WSP
+  RUNTIMEPATH -->|selects active path for| ING
+  RUNTIMEPATH -->|selects active path for| RTDL
+  RUNTIMEPATH -->|selects active path for| LEARN
+
+  classDef control fill:#e8eaf6,stroke:#3949ab,color:#111,stroke-width:1.3px;
+  classDef evidence fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.3px;
+  classDef governed fill:#f5f5f5,stroke:#616161,color:#111,stroke-width:1.2px;
+
+  class GHA,ROLETF,TFCORE,TFSTREAM,TFRUNTIME,TFDML,TFOPS,ECR,OIDC,SFN,ROLESFN,TCTRL,RUNID,RUNTIMEPATH,RUNCTL,DASHOPS control;
+  class TFSTATE,MSK,EVID evidence;
+  class WSP,ING,RTDL,CASE,LEARN governed;

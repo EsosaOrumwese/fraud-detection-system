@@ -7,7 +7,6 @@ from dataclasses import dataclass, replace
 import logging
 import os
 from pathlib import Path
-import re
 import time
 from typing import Any
 
@@ -16,6 +15,7 @@ from fraud_detection.postgres_runtime import postgres_threadlocal_connection
 import sqlite3
 import yaml
 
+from fraud_detection.env_tokens import resolve_env_token
 from fraud_detection.platform_runtime import resolve_platform_run_id, resolve_run_scoped_path
 
 from .config import load_intake_policy
@@ -25,7 +25,6 @@ from .storage import DecisionLogAuditIntakeStore, build_storage_layout
 
 
 logger = logging.getLogger("fraud_detection.dla.worker")
-_ENV_PATTERN = re.compile(r"^\$\{([^}:]+)(?::-([^}]*))?\}$")
 
 
 @dataclass(frozen=True)
@@ -225,8 +224,8 @@ def load_worker_config(profile_path: Path) -> DlaWorkerConfig:
     stream_id = _none_if_blank(_resolve_env_token(wiring.get("stream_id") or os.getenv("DLA_STREAM_ID")))
     if not stream_id:
         stream_id = "dla.intake.v0"
-        if platform_run_id:
-            stream_id = f"{stream_id}::{platform_run_id}"
+    if required_platform_run_id and "::" not in stream_id:
+        stream_id = f"{stream_id}::{required_platform_run_id}"
 
     return DlaWorkerConfig(
         profile_path=profile_path,
@@ -255,15 +254,7 @@ def _resolve_platform_run_id() -> str | None:
 
 
 def _resolve_env_token(value: Any) -> Any:
-    if not isinstance(value, str):
-        return value
-    token = value.strip()
-    match = _ENV_PATTERN.fullmatch(token)
-    if not match:
-        return value
-    key = match.group(1)
-    default = match.group(2) or ""
-    return os.getenv(key, default)
+    return resolve_env_token(value)
 
 
 def _none_if_blank(value: Any) -> str | None:
@@ -290,13 +281,34 @@ def _health_thresholds_from_env() -> DecisionLogAuditHealthThresholds:
         except ValueError:
             return default
 
+    def _i_fallback(name: str, fallback_name: str, default: int) -> int:
+        raw = os.getenv(name)
+        if raw in (None, ""):
+            raw = os.getenv(fallback_name)
+        if raw in (None, ""):
+            return default
+        try:
+            return int(raw)
+        except ValueError:
+            return default
+
     return DecisionLogAuditHealthThresholds(
         amber_checkpoint_age_seconds=_f("DLA_HEALTH_AMBER_CHECKPOINT_AGE_SECONDS", 120.0),
         red_checkpoint_age_seconds=_f("DLA_HEALTH_RED_CHECKPOINT_AGE_SECONDS", 300.0),
         amber_quarantine_total=_i("DLA_HEALTH_AMBER_QUARANTINE_TOTAL", 1),
         red_quarantine_total=_i("DLA_HEALTH_RED_QUARANTINE_TOTAL", 25),
-        amber_unresolved_total=_i("DLA_HEALTH_AMBER_UNRESOLVED_TOTAL", 1),
-        red_unresolved_total=_i("DLA_HEALTH_RED_UNRESOLVED_TOTAL", 20),
+        amber_unresolved_stale_seconds=_f("DLA_HEALTH_AMBER_UNRESOLVED_STALE_SECONDS", 60.0),
+        red_unresolved_stale_seconds=_f("DLA_HEALTH_RED_UNRESOLVED_STALE_SECONDS", 240.0),
+        amber_unresolved_stale_total=_i_fallback(
+            "DLA_HEALTH_AMBER_UNRESOLVED_STALE_TOTAL",
+            "DLA_HEALTH_AMBER_UNRESOLVED_TOTAL",
+            1,
+        ),
+        red_unresolved_stale_total=_i_fallback(
+            "DLA_HEALTH_RED_UNRESOLVED_STALE_TOTAL",
+            "DLA_HEALTH_RED_UNRESOLVED_TOTAL",
+            20,
+        ),
         amber_append_failure_total=_i("DLA_HEALTH_AMBER_APPEND_FAILURE_TOTAL", 1),
         red_append_failure_total=_i("DLA_HEALTH_RED_APPEND_FAILURE_TOTAL", 5),
         amber_replay_divergence_total=_i("DLA_HEALTH_AMBER_REPLAY_DIVERGENCE_TOTAL", 1),

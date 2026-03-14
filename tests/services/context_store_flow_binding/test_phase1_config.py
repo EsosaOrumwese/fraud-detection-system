@@ -3,11 +3,13 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+import yaml
 
 from fraud_detection.context_store_flow_binding.config import (
     ContextStoreFlowBindingConfigError,
     load_policy,
 )
+from fraud_detection.context_store_flow_binding.intake import CsfbInletPolicy
 
 
 POLICY_PATH = Path("config/platform/context_store_flow_binding/policy_v0.yaml")
@@ -99,3 +101,36 @@ authoritative_flow_binding_event_types:
     )
     with pytest.raises(ContextStoreFlowBindingConfigError):
         load_policy(bad)
+
+
+def test_inlet_policy_scopes_stream_id_to_required_platform_run_id(tmp_path: Path) -> None:
+    repo_root = Path.cwd()
+    profile_path = tmp_path / "csfb_inlet.yaml"
+    profile_path.write_text(
+        yaml.safe_dump(
+            {
+                "context_store_flow_binding": {
+                    "policy": {
+                        "stream_id": "csfb.v0",
+                        "class_map_ref": str(repo_root / "config/platform/ig/class_map_v0.yaml"),
+                    },
+                    "wiring": {
+                        "projection_db_dsn": str(tmp_path / "csfb.sqlite"),
+                        "event_bus_kind": "file",
+                        "event_bus_root": str(tmp_path / "eb"),
+                        "required_platform_run_id": "platform_20260307T114007Z",
+                        "engine_contracts_root": str(
+                            repo_root / "docs/model_spec/data-engine/interface_pack/contracts"
+                        ),
+                    },
+                }
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+
+    policy = CsfbInletPolicy.load(profile_path)
+
+    assert policy.required_platform_run_id == "platform_20260307T114007Z"
+    assert policy.stream_id == "csfb.v0::platform_20260307T114007Z"

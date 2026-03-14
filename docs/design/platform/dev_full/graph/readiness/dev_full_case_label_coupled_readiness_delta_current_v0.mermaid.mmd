@@ -1,0 +1,71 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    L1["Left to right = coupled-network scope -> resolved blocker family -> decisive correction -> final evidence -> readiness verdict"]
+    L2["Red = previously open blocker family"]
+    L3["Amber = accepted correction that closed the blocker"]
+    L4["Blue = final evidence baseline"]
+    L5["Green = promoted network state and handoff"]
+  end
+
+  subgraph COUPLED["Phase 4 Coupled Scope"]
+    C0["Promoted base entering Phase 4<br>Control + Ingress + RTDL + Case + Label"]
+    C1["Coupled path under proof<br>RTDL -> CaseTrigger -> Case Management -> Label Store"]
+    C2["Retained ingress envelope<br>3000 steady eps / 6000 burst eps"]
+    C3["Required coupled proof shape<br>steady + burst + recovery with downstream timing and starvation truth"]
+  end
+
+  subgraph BLOCKERS["Resolved Blocker Family"]
+    B1["Resolved ingress-edge blocker<br>APIGW 429 reject pocket on the short 3000 -> 6000 eps burst edge"]
+    B2["Resolved scoring blocker<br>stale post-snapshot rollup produced a false label undercount red after the matured run had already caught up"]
+  end
+
+  subgraph POSTURE["Accepted Closing Corrections"]
+    P1["Retain the green steady baseline<br>presteady 3000 eps for 90 s, ig_push_concurrency = 2"]
+    P2["Close the burst edge without moving the scoring boundary<br>burst_step_initial_tokens = 0.0"]
+    P3["Rerun only the smallest honest scoring boundary after the matured post snapshot exists<br>same execution_id, refreshed rollup only"]
+  end
+
+  subgraph EVIDENCE["Final Evidence Baseline"]
+    E1["Accepted closure run<br>phase4_case_label_coupled_20260312T003302Z"]
+    E2["Envelope truth<br>steady 3060.178 eps<br>burst 7118.0 eps<br>recovery 3018.433 eps<br>4xx = 0, 5xx = 0"]
+    E3["Downstream truth<br>RTDL + CaseTrigger + Case Mgmt + Label Store green<br>case_to_label p95 = 0.17482505 s<br>refreshed post snapshot: label_store accepted 3080 > case_mgmt labels_accepted 2931"]
+  end
+
+  subgraph VERDICT["Final Verdict"]
+    V1["Phase 4 closed green<br>Control + Ingress + RTDL + Case + Label coupled network promoted"]
+    V2["Handoff<br>Proceed to Phase 5 Learning + Evolution / MLOps plane readiness"]
+  end
+
+  C0 --> B1
+  C1 --> B2
+  C2 --> P1
+  C3 --> P2
+
+  B1 --> P1
+  B1 --> P2
+  B2 --> P3
+
+  P1 --> E2
+  P2 --> E1
+  P3 --> E3
+
+  E1 --> V1
+  E2 --> V1
+  E3 --> V2
+  V1 --> V2
+
+  classDef comp fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+  classDef defect fill:#ffebee,stroke:#c62828,color:#111,stroke-width:1.3px;
+  classDef fix fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef metric fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.3px;
+
+  class C0,C1,C2,C3,V1,V2 comp;
+  class B1,B2 defect;
+  class P1,P2,P3 fix;
+  class E1,E2,E3 metric;

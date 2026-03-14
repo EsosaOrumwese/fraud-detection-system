@@ -499,8 +499,11 @@ Allowed tokens in pattern handles:
 * `IG_DLQ_MODE = "sqs"`
 * `IG_DLQ_QUEUE_NAME = "fraud-platform-dev-full-ig-dlq"`
 * `IG_REPLAY_MODE = "dlq_replay_workflow"`
-* `IG_RATE_LIMIT_RPS = 200`
-* `IG_RATE_LIMIT_BURST = 400`
+* `IG_RATE_LIMIT_RPS = 3000`
+* `IG_RATE_LIMIT_BURST = 6000`
+* `LAMBDA_IG_MEMORY_MB = 2048`
+* `LAMBDA_IG_RESERVED_CONCURRENCY = 600`
+* `LAMBDA_IG_TIMEOUT_SECONDS = 30`
 
 ### 7.5 Runtime service/deployment handles (legacy EKS fallback refs only)
 
@@ -543,7 +546,7 @@ Allowed tokens in pattern handles:
 * `ARCHIVE_CONNECTOR_RUN_SCOPE_PROOF_MODE = "object_path_plus_payload_readback"`
 * `ARCHIVE_CONNECTOR_PROBE_EMIT_MODE = "ECS_MSK_PRODUCER_TASK"`
 * `ARCHIVE_CONNECTOR_PROBE_ECS_CLUSTER = "fraud-platform-dev-full-wsp-ephemeral"`
-* `ARCHIVE_CONNECTOR_PROBE_TASK_DEFINITION = "fraud-platform-dev-full-wsp-ephemeral:17"`
+* `ARCHIVE_CONNECTOR_PROBE_TASK_DEFINITION = "fraud-platform-dev-full-wsp-ephemeral"` (resolve latest active revision at execution time; do not hardcode stale revisions in probe lanes)
 * `ARCHIVE_CONNECTOR_PROBE_SUBNET_IDS = ["subnet-005205ea65a9027fc","subnet-01fd5f1585bfcca47"]`
 * `ARCHIVE_CONNECTOR_PROBE_SECURITY_GROUP_ID = "sg-01bfefedcd75ec4b2"`
 * `ARCHIVE_CONNECTOR_CONSUMER_TIMEOUT_SECONDS = 180`
@@ -570,7 +573,8 @@ Allowed tokens in pattern handles:
 
 * `SR_RUNTIME = "STEP_FUNCTIONS_PLUS_LAMBDA_JOB"`
 * `SR_READY_COMPUTE_MODE = "control_plane_orchestration_not_flink"`
-* `WSP_RUNTIME = "ECS_FARGATE_RUNTASK_EPHEMERAL"`
+* `WSP_RUNTIME = "ECS_FARGATE_RUN_SCOPED_REPLAY_JOB"`
+* `WSP_RUNTIME_FALLBACK_ALLOWED = "EKS_REPLAY_JOB_EXCEPTION_ONLY"`
 * `WSP_TRIGGER_MODE = "READY_EVENT_TRIGGERED"`
 
 ### 7.8 Runtime control knobs
@@ -637,6 +641,8 @@ Allowed tokens in pattern handles:
 * `DBX_AUTO_TERMINATE_MINUTES = 20`
 * `DBX_JOB_OFS_BUILD_V0 = "fraud-platform-dev-full-ofs-build-v0"`
 * `DBX_JOB_OFS_QUALITY_GATES_V0 = "fraud-platform-dev-full-ofs-quality-v0"`
+* `DBX_STORAGE_CREDENTIAL_OBJECT_STORE = "fraud_platform_dev_full_object_store_ro_v0"`
+* `DBX_EXTERNAL_LOCATION_OBJECT_STORE = "fraud_platform_dev_full_object_store_v0"`
 
 ### 9.2 SageMaker handles
 

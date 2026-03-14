@@ -72,6 +72,7 @@ class AdmissionIndex:
             "state": row[0],
             "payload_hash": row[1],
             "receipt_ref": receipt_ref,
+            "receipt_payload_json": None,
             "receipt_write_failed": bool(row[3]) if row[3] is not None else None,
             "admitted_at_utc": row[4],
             "eb_ref": {
@@ -124,7 +125,10 @@ class AdmissionIndex:
         eb_ref: dict[str, Any],
         admitted_at_utc: str,
         payload_hash: str,
+        receipt_ref: str | None = None,
+        receipt_payload: dict[str, Any] | None = None,
     ) -> None:
+        receipt_ref_value = receipt_ref or ""
         with self._connect() as conn:
             conn.execute(
                 """
@@ -132,6 +136,8 @@ class AdmissionIndex:
                     state = ?,
                     payload_hash = ?,
                     admitted_at_utc = ?,
+                    receipt_ref = CASE WHEN ? != '' THEN ? ELSE receipt_ref END,
+                    receipt_write_failed = CASE WHEN ? != '' THEN 0 ELSE receipt_write_failed END,
                     eb_topic = ?,
                     eb_partition = ?,
                     eb_offset = ?,
@@ -143,6 +149,9 @@ class AdmissionIndex:
                     "ADMITTED",
                     payload_hash,
                     admitted_at_utc,
+                    receipt_ref_value,
+                    receipt_ref_value,
+                    receipt_ref_value,
                     eb_ref.get("topic"),
                     eb_ref.get("partition"),
                     eb_ref.get("offset"),
@@ -170,7 +179,16 @@ class AdmissionIndex:
             )
             conn.commit()
 
-    def record_receipt(self, dedupe_key: str, receipt_ref: str) -> None:
+    def receipt_ref_for(self, dedupe_key: str) -> str:
+        return f"sqlite://{self.path.as_posix()}#{dedupe_key}"
+
+    def record_receipt(
+        self,
+        dedupe_key: str,
+        receipt_ref: str,
+        *,
+        receipt_payload: dict[str, Any] | None = None,
+    ) -> None:
         with self._connect() as conn:
             conn.execute(
                 """

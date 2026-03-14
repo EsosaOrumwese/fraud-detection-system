@@ -14,3 +14,5 @@ This stack materializes M2.G data/ML control surfaces needed for dev_full substr
 Notes:
 - Values are seeded via Terraform variables and can be overridden by environment variables (`TF_VAR_*`) in CI/runtime.
 - This stack is focused on M2 control-surface materialization and role/secret readability contracts, not full Databricks/SageMaker workload deployment.
+- The Databricks cross-account role now also carries read-only object-store + KMS access for the bounded OFS managed build path.
+- The Unity Catalog master role ARN and external ID are explicit Terraform inputs because Databricks managed storage access is not satisfied by workspace URL/token seeding alone.

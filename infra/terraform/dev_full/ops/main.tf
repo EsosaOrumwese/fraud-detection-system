@@ -2,6 +2,11 @@ provider "aws" {
   region = var.aws_region
 }
 
+provider "aws" {
+  alias  = "billing"
+  region = "us-east-1"
+}
+
 data "aws_caller_identity" "current" {}
 
 data "aws_iam_role" "github_actions" {
@@ -17,6 +22,156 @@ locals {
     },
     var.additional_tags
   )
+
+  platform_operations_dashboard_body = jsonencode({
+    widgets = [
+      {
+        type   = "metric"
+        x      = 0
+        y      = 0
+        width  = 12
+        height = 6
+        properties = {
+          title   = "Ingress Lambda Errors / Throttles / Duration"
+          region  = var.aws_region
+          view    = "timeSeries"
+          stacked = false
+          metrics = [
+            ["AWS/Lambda", "Errors", "FunctionName", "fraud-platform-dev-full-ig-handler"],
+            [".", "Throttles", ".", "."],
+            [".", "Duration", ".", ".", { stat = "p95", yAxis = "right" }]
+          ]
+        }
+      },
+      {
+        type   = "metric"
+        x      = 12
+        y      = 0
+        width  = 12
+        height = 6
+        properties = {
+          title   = "Ingress API Gateway Count / 4xx / 5xx"
+          region  = var.aws_region
+          view    = "timeSeries"
+          stacked = false
+          metrics = [
+            ["AWS/ApiGateway", "Count", "ApiId", "pd7rtjze95", "Stage", "v1"],
+            ["AWS/ApiGateway", "4xx", "ApiId", "pd7rtjze95", "Stage", "v1"],
+            [".", "5xx", ".", ".", ".", "."]
+          ]
+        }
+      }
+      ,
+      {
+        type   = "metric"
+        x      = 0
+        y      = 6
+        width  = 12
+        height = 6
+        properties = {
+          title   = "EKS Unschedulable / Scheduler Errors"
+          region  = var.aws_region
+          view    = "timeSeries"
+          stacked = false
+          metrics = [
+            ["AWS/EKS", "scheduler_pending_pods_UNSCHEDULABLE", "ClusterName", "fraud-platform-dev-full"],
+            [".", "scheduler_schedule_attempts_ERROR", ".", "."]
+          ]
+        }
+      },
+      {
+        type   = "metric"
+        x      = 12
+        y      = 6
+        width  = 12
+        height = 6
+        properties = {
+          title   = "EKS API Server 5xx / 429"
+          region  = var.aws_region
+          view    = "timeSeries"
+          stacked = false
+          metrics = [
+            ["AWS/EKS", "apiserver_request_total_5XX", "ClusterName", "fraud-platform-dev-full"],
+            [".", "apiserver_request_total_429", ".", "."]
+          ]
+        }
+      },
+      {
+        type   = "text"
+        x      = 0
+        y      = 12
+        width  = 24
+        height = 4
+        properties = {
+          markdown = join("\n", [
+            "# Phase 7 Operator Chain",
+            "",
+            "- Runbook: `docs/runbooks/dev_full_phase7_ops_gov_runbook.md`",
+            "- Owner posture: platform ops / governance proving lane",
+            "- Escalation: stop active proof when correctness, auditability, or active-bundle truth is at risk",
+            "- Critical chain: alert -> dashboard -> runbook -> bounded mitigation -> verification"
+          ])
+        }
+      }
+    ]
+  })
+
+  cost_guardrail_dashboard_body = jsonencode({
+    widgets = [
+      {
+        type   = "metric"
+        x      = 0
+        y      = 0
+        width  = 12
+        height = 6
+        properties = {
+          title   = "Estimated Charges"
+          region  = "us-east-1"
+          view    = "timeSeries"
+          stacked = false
+          metrics = [
+            ["AWS/Billing", "EstimatedCharges", "Currency", var.budget_limit_unit]
+          ]
+        }
+      },
+      {
+        type   = "metric"
+        x      = 12
+        y      = 0
+        width  = 12
+        height = 6
+        properties = {
+          title   = "EKS Runtime Residual Risk"
+          region  = var.aws_region
+          view    = "timeSeries"
+          stacked = false
+          metrics = [
+            ["AWS/EKS", "scheduler_pending_pods", "ClusterName", "fraud-platform-dev-full"],
+            [".", "scheduler_pending_pods_UNSCHEDULABLE", ".", "."]
+          ]
+        }
+      },
+      {
+        type   = "text"
+        x      = 0
+        y      = 6
+        width  = 24
+        height = 4
+        properties = {
+          markdown = join("\n", [
+            "# Budget Guardrail",
+            "",
+            "- Budget name: `${var.budget_name}`",
+            "- Monthly limit: `${var.budget_limit_amount} ${var.budget_limit_unit}`",
+            "- Alert thresholds: `${join(", ", [for t in var.budget_alert_thresholds : tostring(t)])}`",
+            "- Notification email: `${var.budget_alert_email}`",
+            "- Runbook: `docs/runbooks/dev_full_phase7_ops_gov_runbook.md`",
+            "- This dashboard is paired with the bounded Phase 7 idle/restart drill and residual scan."
+          ])
+        }
+      }
+    ]
+  })
 }
 
 data "aws_iam_policy_document" "assume_role_mwaa" {
@@ -66,50 +221,6 @@ resource "aws_ssm_parameter" "mwaa_webserver_url" {
   })
 }
 
-resource "aws_ssm_parameter" "aurora_endpoint" {
-  name      = var.ssm_aurora_endpoint_path
-  type      = "String"
-  value     = var.aurora_endpoint_seed
-  overwrite = true
-
-  tags = merge(local.common_tags, {
-    fp_resource = "aurora_endpoint"
-  })
-}
-
-resource "aws_ssm_parameter" "aurora_reader_endpoint" {
-  name      = var.ssm_aurora_reader_endpoint_path
-  type      = "String"
-  value     = var.aurora_reader_endpoint_seed
-  overwrite = true
-
-  tags = merge(local.common_tags, {
-    fp_resource = "aurora_reader_endpoint"
-  })
-}
-
-resource "aws_ssm_parameter" "aurora_username" {
-  name      = var.ssm_aurora_username_path
-  type      = "String"
-  value     = var.aurora_username_seed
-  overwrite = true
-
-  tags = merge(local.common_tags, {
-    fp_resource = "aurora_username"
-  })
-}
-
-resource "aws_ssm_parameter" "aurora_password" {
-  name      = var.ssm_aurora_password_path
-  type      = "SecureString"
-  value     = var.aurora_password_seed
-  overwrite = true
-
-  tags = merge(local.common_tags, {
-    fp_resource = "aurora_password"
-  })
-}
-
 resource "aws_ssm_parameter" "redis_endpoint" {
   name      = var.ssm_redis_endpoint_path
   type      = "String"
@@ -128,6 +239,137 @@ resource "aws_cloudwatch_log_group" "runtime_bootstrap" {
   tags = merge(local.common_tags, {
     fp_resource = "runtime_bootstrap_log_group"
   })
+}
+
+resource "aws_budgets_budget" "dev_full_monthly" {
+  count = trimspace(var.budget_alert_email) != "" ? 1 : 0
+
+  name         = var.budget_name
+  budget_type  = "COST"
+  limit_amount = tostring(var.budget_limit_amount)
+  limit_unit   = var.budget_limit_unit
+  time_unit    = "MONTHLY"
+
+  dynamic "notification" {
+    for_each = var.budget_alert_thresholds
+    content {
+      comparison_operator        = "GREATER_THAN"
+      threshold                  = notification.value
+      threshold_type             = "ABSOLUTE_VALUE"
+      notification_type          = "ACTUAL"
+      subscriber_email_addresses = [var.budget_alert_email]
+    }
+  }
+}
+
+resource "aws_cloudwatch_dashboard" "platform_operations" {
+  dashboard_name = var.dashboard_platform_operations_name
+  dashboard_body = local.platform_operations_dashboard_body
+}
+
+resource "aws_cloudwatch_dashboard" "cost_guardrail" {
+  dashboard_name = var.dashboard_cost_guardrail_name
+  dashboard_body = local.cost_guardrail_dashboard_body
+}
+
+resource "aws_cloudwatch_metric_alarm" "ig_lambda_errors" {
+  alarm_name          = "fraud-platform-dev-full-ig-lambda-errors"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  datapoints_to_alarm = 1
+  metric_name         = "Errors"
+  namespace           = "AWS/Lambda"
+  period              = 60
+  statistic           = "Sum"
+  threshold           = 0
+  treat_missing_data  = "notBreaching"
+  dimensions = {
+    FunctionName = "fraud-platform-dev-full-ig-handler"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "ig_lambda_throttles" {
+  alarm_name          = "fraud-platform-dev-full-ig-lambda-throttles"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  datapoints_to_alarm = 1
+  metric_name         = "Throttles"
+  namespace           = "AWS/Lambda"
+  period              = 60
+  statistic           = "Sum"
+  threshold           = 0
+  treat_missing_data  = "notBreaching"
+  dimensions = {
+    FunctionName = "fraud-platform-dev-full-ig-handler"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "ig_apigw_5xx" {
+  alarm_name          = "fraud-platform-dev-full-ig-apigw-5xx"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  datapoints_to_alarm = 1
+  metric_name         = "5xx"
+  namespace           = "AWS/ApiGateway"
+  period              = 60
+  statistic           = "Sum"
+  threshold           = 0
+  treat_missing_data  = "notBreaching"
+  dimensions = {
+    ApiId = "pd7rtjze95"
+    Stage = "v1"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "eks_unschedulable_pods" {
+  alarm_name          = "fraud-platform-dev-full-eks-unschedulable-pods"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  datapoints_to_alarm = 1
+  metric_name         = "scheduler_pending_pods_UNSCHEDULABLE"
+  namespace           = "AWS/EKS"
+  period              = 60
+  statistic           = "Maximum"
+  threshold           = 0
+  treat_missing_data  = "notBreaching"
+  dimensions = {
+    ClusterName = "fraud-platform-dev-full"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "eks_apiserver_5xx" {
+  alarm_name          = "fraud-platform-dev-full-eks-apiserver-5xx"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  datapoints_to_alarm = 1
+  metric_name         = "apiserver_request_total_5XX"
+  namespace           = "AWS/EKS"
+  period              = 60
+  statistic           = "Sum"
+  threshold           = 0
+  treat_missing_data  = "notBreaching"
+  dimensions = {
+    ClusterName = "fraud-platform-dev-full"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "billing_estimated_charges" {
+  provider            = aws.billing
+  alarm_name          = "fraud-platform-dev-full-billing-estimated-charges"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  datapoints_to_alarm = 1
+  metric_name         = "EstimatedCharges"
+  namespace           = "AWS/Billing"
+  period              = 21600
+  statistic           = "Maximum"
+  threshold           = var.budget_limit_amount
+  alarm_description   = "Phase 7 cost guardrail for dev_full bounded hardening."
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    Currency = var.budget_limit_unit
+  }
 }
 
 resource "aws_iam_role_policy" "github_actions_m6f_remote" {
@@ -334,4 +576,285 @@ resource "aws_iam_role_policy" "github_actions_m6f_remote" {
       }
     ]
   })
+}
+
+resource "aws_iam_policy" "github_actions_pr3_runtime" {
+  name = "GitHubActionsPR3RuntimeDevFull"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "PR3ArtifactsBucketList"
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket",
+          "s3:GetBucketLocation"
+        ]
+        Resource = "arn:aws:s3:::${var.github_actions_artifacts_bucket}"
+        Condition = {
+          StringLike = {
+            "s3:prefix" = [
+              "artifacts/lambda/ig_handler",
+              "artifacts/lambda/ig_handler/*"
+            ]
+          }
+        }
+      },
+      {
+        Sid    = "PR3ArtifactsObjectRW"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:AbortMultipartUpload"
+        ]
+        Resource = "arn:aws:s3:::${var.github_actions_artifacts_bucket}/artifacts/lambda/ig_handler/*"
+      },
+      {
+        Sid    = "PR3TfStateBucketList"
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket",
+          "s3:GetBucketLocation"
+        ]
+        Resource = "arn:aws:s3:::fraud-platform-dev-full-tfstate"
+        Condition = {
+          StringLike = {
+            "s3:prefix" = [
+              "dev_full/core/terraform.tfstate",
+              "dev_full/streaming/terraform.tfstate",
+              "dev_full/runtime/terraform.tfstate"
+            ]
+          }
+        }
+      },
+      {
+        Sid    = "PR3TfStateRead"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject"
+        ]
+        Resource = [
+          "arn:aws:s3:::fraud-platform-dev-full-tfstate/dev_full/core/terraform.tfstate",
+          "arn:aws:s3:::fraud-platform-dev-full-tfstate/dev_full/streaming/terraform.tfstate",
+          "arn:aws:s3:::fraud-platform-dev-full-tfstate/dev_full/runtime/terraform.tfstate"
+        ]
+      },
+      {
+        Sid    = "PR3TfStateWrite"
+        Effect = "Allow"
+        Action = [
+          "s3:PutObject",
+          "s3:DeleteObject"
+        ]
+        Resource = "arn:aws:s3:::fraud-platform-dev-full-tfstate/dev_full/runtime/terraform.tfstate"
+      },
+      {
+        Sid    = "PR3OracleStoreBucketRead"
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket",
+          "s3:GetBucketLocation"
+        ]
+        Resource = "arn:aws:s3:::fraud-platform-dev-full-object-store"
+        Condition = {
+          StringLike = {
+            "s3:prefix" = [
+              "oracle-store",
+              "oracle-store/*"
+            ]
+          }
+        }
+      },
+      {
+        Sid    = "PR3OracleStoreObjectRead"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject"
+        ]
+        Resource = "arn:aws:s3:::fraud-platform-dev-full-object-store/oracle-store/*"
+      },
+      {
+        Sid    = "PR3TfLockControl"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:DescribeTable",
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:UpdateItem"
+        ]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/fraud-platform-dev-full-tf-locks"
+      },
+      {
+        Sid    = "PR3IngressReadRefresh"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:DescribeTable",
+          "dynamodb:DescribeContinuousBackups",
+          "dynamodb:DescribeTimeToLive",
+          "dynamodb:ListTagsOfResource",
+          "sqs:GetQueueAttributes",
+          "sqs:ListQueueTags"
+        ]
+        Resource = [
+          "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/fraud-platform-dev-full-ig-idempotency",
+          "arn:aws:sqs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:fraud-platform-dev-full-ig-dlq"
+        ]
+      },
+      {
+        Sid    = "PR3IngressLambdaControl"
+        Effect = "Allow"
+        Action = [
+          "lambda:Get*",
+          "lambda:ListVersionsByFunction",
+          "lambda:CreateFunction",
+          "lambda:Update*",
+          "lambda:PutFunctionConcurrency",
+          "lambda:DeleteFunctionConcurrency",
+          "lambda:TagResource",
+          "lambda:UntagResource"
+        ]
+        Resource = "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:fraud-platform-dev-full-ig-handler"
+      },
+      {
+        Sid    = "PR3IngressLambdaRoleControl"
+        Effect = "Allow"
+        Action = [
+          "iam:GetRole",
+          "iam:PassRole",
+          "iam:AttachRolePolicy",
+          "iam:DetachRolePolicy",
+          "iam:ListAttachedRolePolicies",
+          "iam:PutRolePolicy",
+          "iam:GetRolePolicy",
+          "iam:ListRolePolicies"
+        ]
+        Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/fraud-platform-dev-full-lambda-ig-execution"
+      },
+      {
+        Sid    = "PR3IngressNetworkControl"
+        Effect = "Allow"
+        Action = [
+          "ec2:CreateSecurityGroup",
+          "ec2:DeleteSecurityGroup",
+          "ec2:CreateTags",
+          "ec2:AuthorizeSecurityGroupIngress",
+          "ec2:AuthorizeSecurityGroupEgress",
+          "ec2:RevokeSecurityGroupIngress",
+          "ec2:RevokeSecurityGroupEgress",
+          "ec2:DescribeSecurityGroups",
+          "ec2:DescribeVpcs",
+          "ec2:DescribeSubnets"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "PR3IngressVerifyRead"
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameter"
+        ]
+        Resource = [
+          "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/fraud-platform/dev_full/ig/api_key",
+          "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/fraud-platform/dev_full/msk/bootstrap_brokers"
+        ]
+      },
+      {
+        Sid    = "PR3IngressApigwStageControl"
+        Effect = "Allow"
+        Action = [
+          "apigateway:GET",
+          "apigateway:PATCH"
+        ]
+        Resource = [
+          "arn:aws:apigateway:${var.aws_region}::/apis/ehwznd2uw7",
+          "arn:aws:apigateway:${var.aws_region}::/apis/ehwznd2uw7/*"
+        ]
+      },
+      {
+        Sid    = "PR3RuntimeStepFunctionsRead"
+        Effect = "Allow"
+        Action = [
+          "states:DescribeStateMachine"
+        ]
+        Resource = "arn:aws:states:${var.aws_region}:${data.aws_caller_identity.current.account_id}:stateMachine:fraud-platform-dev-full-platform-run-v0"
+      },
+      {
+        Sid    = "PR3RuntimeEksOidcRead"
+        Effect = "Allow"
+        Action = [
+          "iam:GetOpenIDConnectProvider"
+        ]
+        Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/oidc.eks.${var.aws_region}.amazonaws.com/id/6D0DBB7743A87C0ACB0A4645B431D308"
+      },
+      {
+        Sid    = "PR3RuntimeEksNodegroupControl"
+        Effect = "Allow"
+        Action = [
+          "eks:CreateNodegroup",
+          "eks:DeleteNodegroup",
+          "eks:DescribeNodegroup",
+          "eks:ListNodegroups",
+          "eks:UpdateNodegroupConfig",
+          "eks:UpdateNodegroupVersion",
+          "eks:DescribeUpdate",
+          "eks:ListUpdates",
+          "eks:TagResource",
+          "eks:UntagResource"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "PR3RuntimeEksNodegroupPassRole"
+        Effect = "Allow"
+        Action = [
+          "iam:PassRole",
+          "iam:GetRole"
+        ]
+        Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/fraud-platform-dev-full-eks-nodegroup"
+      },
+      {
+        Sid    = "PR3ManagedFlinkRead"
+        Effect = "Allow"
+        Action = [
+          "kinesisanalytics:ListApplications",
+          "kinesisanalytics:DescribeApplication"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "PR3CloudWatchMetricsRead"
+        Effect = "Allow"
+        Action = [
+          "cloudwatch:GetMetricData",
+          "cloudwatch:GetMetricStatistics",
+          "cloudwatch:ListMetrics"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "PR3ServiceQuotasRead"
+        Effect = "Allow"
+        Action = [
+          "servicequotas:ListServiceQuotas",
+          "servicequotas:GetServiceQuota"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "PR3ElbRuntimeRead"
+        Effect = "Allow"
+        Action = [
+          "elasticloadbalancing:Describe*"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "github_actions_pr3_runtime" {
+  role       = data.aws_iam_role.github_actions.name
+  policy_arn = aws_iam_policy.github_actions_pr3_runtime.arn
 }

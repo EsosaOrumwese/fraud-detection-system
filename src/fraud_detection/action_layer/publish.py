@@ -12,6 +12,10 @@ from typing import Any, Mapping
 import requests
 
 from fraud_detection.ingestion_gate.schemas import SchemaRegistry
+from fraud_detection.platform_internal_publish import (
+    InternalCanonicalEventPublisher,
+    InternalEventPublishError,
+)
 
 from .contracts import ActionOutcome
 
@@ -70,7 +74,7 @@ class ActionLayerIgPublisher:
         payload = dict(envelope)
         self._validate_envelope(payload)
 
-        url = self.ig_ingest_url.rstrip("/") + "/v1/ingest/push"
+        url = _resolve_ig_push_url(self.ig_ingest_url)
         headers: dict[str, str] = {}
         if self.api_key:
             headers[self.api_key_header] = self.api_key
@@ -200,6 +204,15 @@ def _response_text(response: Any) -> str:
     return text[:256]
 
 
+def _resolve_ig_push_url(raw_url: str) -> str:
+    base = str(raw_url or "").strip().rstrip("/")
+    if not base:
+        return "/v1/ingest/push"
+    if base.endswith("/v1/ingest/push"):
+        return base
+    return f"{base}/v1/ingest/push"
+
+
 def _canonicalize_utc_timestamp(value: Any, *, field_name: str) -> str:
     raw = str(value or "").strip()
     if not raw:
@@ -216,3 +229,60 @@ def _canonicalize_utc_timestamp(value: Any, *, field_name: str) -> str:
     else:
         parsed = parsed.astimezone(timezone.utc)
     return parsed.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
+
+@dataclass
+class ActionLayerInternalPublisher:
+    event_bus_kind: str
+    event_bus_root: str
+    event_bus_stream: str | None
+    event_bus_region: str | None
+    event_bus_endpoint_url: str | None
+    class_map_ref: Path | str
+    partitioning_profiles_ref: Path | str
+    engine_contracts_root: Path | str = "docs/model_spec/data-engine/interface_pack/contracts"
+    client_id: str = "al-internal-publisher"
+
+    def __post_init__(self) -> None:
+        self._publisher = InternalCanonicalEventPublisher(
+            event_bus_kind=self.event_bus_kind,
+            event_bus_root=self.event_bus_root,
+            event_bus_stream=self.event_bus_stream,
+            event_bus_region=self.event_bus_region,
+            event_bus_endpoint_url=self.event_bus_endpoint_url,
+            class_map_ref=self.class_map_ref,
+            partitioning_profiles_ref=self.partitioning_profiles_ref,
+            engine_contracts_root=self.engine_contracts_root,
+            client_id=self.client_id,
+        )
+
+    def publish_outcome(self, outcome: ActionOutcome) -> PublishedOutcomeRecord:
+        return self.publish_envelope(build_action_outcome_envelope(outcome))
+
+    def publish_envelope(self, envelope: Mapping[str, Any]) -> PublishedOutcomeRecord:
+        try:
+            result = self._publisher.publish_envelope(envelope)
+        except InternalEventPublishError as exc:
+            raise ActionLayerPublishError(str(exc)) from exc
+        return PublishedOutcomeRecord(
+            outcome_id=str((envelope.get("payload") or {}).get("outcome_id") or ""),
+            event_id=result.event_id,
+            event_type=result.event_type,
+            decision=PUBLISH_ADMIT,
+            receipt={"eb_ref": _eb_ref_receipt(result.eb_ref)},
+            receipt_ref=None,
+            reason_code=None,
+        )
+
+
+def _eb_ref_receipt(eb_ref: Any) -> dict[str, Any]:
+    payload = {
+        "topic": str(getattr(eb_ref, "topic", "") or ""),
+        "partition": getattr(eb_ref, "partition", None),
+        "offset": str(getattr(eb_ref, "offset", "") or ""),
+        "offset_kind": str(getattr(eb_ref, "offset_kind", "") or ""),
+    }
+    published_at_utc = str(getattr(eb_ref, "published_at_utc", "") or "").strip()
+    if published_at_utc:
+        payload["published_at_utc"] = published_at_utc
+    return payload

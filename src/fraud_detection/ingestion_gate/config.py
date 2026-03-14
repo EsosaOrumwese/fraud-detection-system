@@ -58,6 +58,8 @@ class WiringProfile:
     service_token_secrets_env: str = "IG_SERVICE_TOKEN_SECRETS"
     push_rate_limit_per_minute: int = 0
     store_read_failure_threshold: int = 3
+    internal_retry_max_attempts: int = 3
+    internal_retry_backoff_ms: int = 250
 
     @classmethod
     def load(cls, path: Path) -> "WiringProfile":
@@ -177,6 +179,8 @@ class WiringProfile:
             service_token_secrets_env=token_secrets_env or "IG_SERVICE_TOKEN_SECRETS",
             push_rate_limit_per_minute=int(security.get("push_rate_limit_per_minute", 0)),
             store_read_failure_threshold=int(security.get("store_read_failure_threshold", 3)),
+            internal_retry_max_attempts=int(wiring.get("internal_retry_max_attempts", 3)),
+            internal_retry_backoff_ms=int(wiring.get("internal_retry_backoff_ms", 250)),
         )
 
 

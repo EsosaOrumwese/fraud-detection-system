@@ -135,7 +135,10 @@ def test_reconciliation_summary_groups_mode_bundle_action_and_evidence(tmp_path:
     summary = builder.summary(generated_at_utc="2026-02-07T13:31:00.000000Z")
     assert summary["totals"]["decisions_total"] == 3
     assert summary["totals"]["degrade_total"] == 2
+    assert summary["totals"]["step_up_total"] == 1
+    assert summary["totals"]["explicit_fallback_total"] == 0
     assert summary["totals"]["fail_closed_total"] == 1
+    assert summary["totals"]["hard_fail_closed_total"] == 1
     assert summary["totals"]["quarantined_total"] == 1
     assert summary["by_mode"]["NORMAL"] == 1
     assert summary["by_mode"]["SAFE_STOP"] == 1
@@ -177,3 +180,32 @@ def test_reconciliation_parity_proof_pass_and_fail() -> None:
     proof_fail = builder.parity_proof(expected_events=200)
     assert proof_fail.status == "FAIL"
     assert proof_fail.reasons == ("OBSERVED_MISMATCH:20:200",)
+
+
+def test_reconciliation_treats_step_up_fallback_as_non_fail_closed() -> None:
+    builder = DfReconciliationBuilder(
+        platform_run_id="platform_20260207T133000Z",
+        scenario_run_id="a" * 32,
+    )
+    builder.add_record(
+        decision_payload=_decision_payload(
+            decision_id="4" * 32,
+            mode="FAIL_CLOSED",
+            bundle_id="d" * 64,
+            action_kind="STEP_UP",
+            registry_outcome="FALLBACK",
+            reason_codes=(
+                "FALLBACK_EXPLICIT",
+                "FEATURE_GROUP_MISSING:core_features",
+                "CAPABILITY_BLOCK:feature_group=core_features",
+            ),
+        ),
+        publish_decision="ADMIT",
+    )
+
+    summary = builder.summary(generated_at_utc="2026-02-07T13:32:00.000000Z")
+    assert summary["totals"]["decisions_total"] == 1
+    assert summary["totals"]["step_up_total"] == 1
+    assert summary["totals"]["explicit_fallback_total"] == 1
+    assert summary["totals"]["fail_closed_total"] == 0
+    assert summary["totals"]["hard_fail_closed_total"] == 0

@@ -34,6 +34,26 @@ output "ssm_ig_api_key_path" {
   value = aws_ssm_parameter.ig_api_key.name
 }
 
+output "ig_service_cluster_name" {
+  value = var.ig_service_enabled ? aws_ecs_cluster.ig_service[0].name : null
+}
+
+output "ig_service_name" {
+  value = var.ig_service_enabled ? aws_ecs_service.ig_service[0].name : null
+}
+
+output "ig_service_internal_dns_name" {
+  value = var.ig_service_enabled ? aws_lb.ig_service[0].dns_name : null
+}
+
+output "ig_service_url" {
+  value = var.ig_service_enabled ? "http://${aws_lb.ig_service[0].dns_name}/v1/ingest/push" : null
+}
+
+output "ssm_ig_service_url_path" {
+  value = var.ig_service_enabled ? aws_ssm_parameter.ig_service_url[0].name : null
+}
+
 output "sfn_platform_run_orchestrator_arn" {
   value = aws_sfn_state_machine.platform_run_orchestrator.arn
 }
@@ -52,6 +72,35 @@ output "eks_nodegroup_m6f_name" {
 
 output "eks_nodegroup_m6f_status" {
   value = aws_eks_node_group.m6f_workers.status
+}
+
+output "aurora_cluster_identifier" {
+  value = aws_rds_cluster.aurora.cluster_identifier
+}
+
+output "aurora_endpoint" {
+  value = aws_rds_cluster.aurora.endpoint
+}
+
+output "aurora_reader_endpoint" {
+  value = aws_rds_cluster.aurora.reader_endpoint
+}
+
+output "ssm_aurora_endpoint_path" {
+  value = aws_ssm_parameter.aurora_endpoint.name
+}
+
+output "ssm_aurora_reader_endpoint_path" {
+  value = aws_ssm_parameter.aurora_reader_endpoint.name
+}
+
+output "ssm_aurora_username_path" {
+  value = aws_ssm_parameter.aurora_username.name
+}
+
+output "ssm_aurora_password_path" {
+  value     = aws_ssm_parameter.aurora_password.name
+  sensitive = true
 }
 
 output "runtime_interface_vpc_endpoint_ids" {
@@ -133,31 +182,52 @@ output "runtime_handle_materialization" {
     EKS_CLUSTER_ARN                  = aws_eks_cluster.platform.arn
     EKS_NODEGROUP_M6F_NAME           = aws_eks_node_group.m6f_workers.node_group_name
     EKS_NODEGROUP_M6F_STATUS         = aws_eks_node_group.m6f_workers.status
+    AURORA_CLUSTER_IDENTIFIER        = aws_rds_cluster.aurora.cluster_identifier
+    AURORA_ENGINE                    = var.aurora_engine
+    AURORA_MODE                      = "serverless-v2"
+    AURORA_DB_NAME                   = var.aurora_database_name
+    SSM_AURORA_ENDPOINT_PATH         = aws_ssm_parameter.aurora_endpoint.name
+    SSM_AURORA_READER_ENDPOINT_PATH  = aws_ssm_parameter.aurora_reader_endpoint.name
+    SSM_AURORA_USERNAME_PATH         = aws_ssm_parameter.aurora_username.name
     VPC_ENDPOINT_S3_GATEWAY_ID       = aws_vpc_endpoint.runtime_s3_gateway.id
     VPC_ENDPOINT_INTERFACE_IDS = {
       for service, endpoint in aws_vpc_endpoint.runtime_interface :
       service => endpoint.id
     }
-    SFN_PLATFORM_RUN_ORCHESTRATOR_V0   = aws_sfn_state_machine.platform_run_orchestrator.name
-    SR_READY_COMMIT_AUTHORITY          = "step_functions_only"
-    SSM_IG_API_KEY_PATH                = aws_ssm_parameter.ig_api_key.name
-    IG_AUTH_MODE                       = var.ig_auth_mode
-    IG_AUTH_HEADER_NAME                = var.ig_auth_header_name
-    IG_MAX_REQUEST_BYTES               = var.ig_max_request_bytes
-    IG_REQUEST_TIMEOUT_SECONDS         = var.ig_request_timeout_seconds
-    IG_INTERNAL_RETRY_MAX_ATTEMPTS     = var.ig_internal_retry_max_attempts
-    IG_INTERNAL_RETRY_BACKOFF_MS       = var.ig_internal_retry_backoff_ms
-    IG_IDEMPOTENCY_TTL_SECONDS         = var.ig_idempotency_ttl_seconds
-    IG_DLQ_MODE                        = var.ig_dlq_mode
-    IG_DLQ_QUEUE_NAME                  = aws_sqs_queue.ig_dlq.name
-    IG_DLQ_URL                         = aws_sqs_queue.ig_dlq.url
-    IG_REPLAY_MODE                     = var.ig_replay_mode
-    IG_RATE_LIMIT_RPS                  = var.ig_rate_limit_rps
-    IG_RATE_LIMIT_BURST                = var.ig_rate_limit_burst
-    APIGW_IG_STAGE_THROTTLE_RPS        = aws_apigatewayv2_stage.ig_v1.default_route_settings[0].throttling_rate_limit
-    APIGW_IG_STAGE_THROTTLE_BURST      = aws_apigatewayv2_stage.ig_v1.default_route_settings[0].throttling_burst_limit
-    APIGW_IG_INTEGRATION_TIMEOUT_MS    = aws_apigatewayv2_integration.ig_lambda.timeout_milliseconds
-    PHASE_RUNTIME_PATH_MODE            = var.phase_runtime_path_mode
-    PHASE_RUNTIME_PATH_EVIDENCE_TARGET = var.phase_runtime_path_evidence_path_pattern
+    SFN_PLATFORM_RUN_ORCHESTRATOR_V0      = aws_sfn_state_machine.platform_run_orchestrator.name
+    SR_READY_COMMIT_AUTHORITY             = "step_functions_only"
+    SSM_IG_API_KEY_PATH                   = aws_ssm_parameter.ig_api_key.name
+    IG_AUTH_MODE                          = var.ig_auth_mode
+    IG_AUTH_HEADER_NAME                   = var.ig_auth_header_name
+    IG_MAX_REQUEST_BYTES                  = var.ig_max_request_bytes
+    IG_REQUEST_TIMEOUT_SECONDS            = var.ig_request_timeout_seconds
+    IG_INTERNAL_RETRY_MAX_ATTEMPTS        = var.ig_internal_retry_max_attempts
+    IG_INTERNAL_RETRY_BACKOFF_MS          = var.ig_internal_retry_backoff_ms
+    IG_IDEMPOTENCY_TTL_SECONDS            = var.ig_idempotency_ttl_seconds
+    IG_DLQ_MODE                           = var.ig_dlq_mode
+    IG_DLQ_QUEUE_NAME                     = aws_sqs_queue.ig_dlq.name
+    IG_DLQ_URL                            = aws_sqs_queue.ig_dlq.url
+    IG_REPLAY_MODE                        = var.ig_replay_mode
+    IG_RATE_LIMIT_RPS                     = var.ig_rate_limit_rps
+    IG_RATE_LIMIT_BURST                   = var.ig_rate_limit_burst
+    LAMBDA_IG_MEMORY_MB                   = var.lambda_ig_memory_size_mb
+    LAMBDA_IG_RESERVED_CONCURRENCY        = var.lambda_ig_reserved_concurrency
+    LAMBDA_IG_TIMEOUT_SECONDS             = var.lambda_ig_timeout_seconds
+    LAMBDA_IG_KAFKA_REQUEST_TIMEOUT_MS    = var.lambda_ig_kafka_request_timeout_ms
+    LAMBDA_IG_RECEIPT_STORAGE_MODE        = var.lambda_ig_receipt_storage_mode
+    LAMBDA_IG_HEALTH_BUS_PROBE_MODE       = var.lambda_ig_health_bus_probe_mode
+    IG_SERVICE_GUNICORN_KEEPALIVE_SECONDS = var.ig_service_gunicorn_keepalive_seconds
+    IG_SERVICE_KAFKA_REQUEST_TIMEOUT_MS   = var.ig_service_kafka_request_timeout_ms
+    IG_POLICY_ACTIVATION_AUDIT_MODE       = var.lambda_ig_policy_activation_audit_mode
+    APIGW_IG_STAGE_THROTTLE_RPS           = aws_apigatewayv2_stage.ig_v1.default_route_settings[0].throttling_rate_limit
+    APIGW_IG_STAGE_THROTTLE_BURST         = aws_apigatewayv2_stage.ig_v1.default_route_settings[0].throttling_burst_limit
+    APIGW_IG_INTEGRATION_TIMEOUT_MS       = aws_apigatewayv2_integration.ig_lambda.timeout_milliseconds
+    IG_SERVICE_ENABLED                    = var.ig_service_enabled
+    IG_SERVICE_CLUSTER_NAME               = var.ig_service_enabled ? aws_ecs_cluster.ig_service[0].name : null
+    IG_SERVICE_NAME                       = var.ig_service_enabled ? aws_ecs_service.ig_service[0].name : null
+    IG_SERVICE_URL                        = var.ig_service_enabled ? "http://${aws_lb.ig_service[0].dns_name}/v1/ingest/push" : null
+    SSM_IG_SERVICE_URL_PATH               = var.ig_service_enabled ? aws_ssm_parameter.ig_service_url[0].name : null
+    PHASE_RUNTIME_PATH_MODE               = var.phase_runtime_path_mode
+    PHASE_RUNTIME_PATH_EVIDENCE_TARGET    = var.phase_runtime_path_evidence_path_pattern
   }
 }

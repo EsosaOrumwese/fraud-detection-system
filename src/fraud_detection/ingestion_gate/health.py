@@ -5,13 +5,18 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
+import logging
 from pathlib import Path
+import threading
 from typing import Any
 
 from fraud_detection.event_bus import FileEventBusPublisher
 from fraud_detection.platform_runtime import platform_run_prefix
 from .ops_index import OpsIndex
-from .store import ObjectStore
+from .store import ObjectStore, ObservedObjectStore
+
+
+logger = logging.getLogger(__name__)
 
 
 class HealthState(str, Enum):
@@ -52,6 +57,9 @@ class HealthProbe:
         self._last_checked_at: float | None = None
         self._publish_failures: int = 0
         self._read_failures: int = 0
+        self._state_lock = threading.Lock()
+        self._refresh_lock = threading.Lock()
+        self._refresh_thread: threading.Thread | None = None
         if health_path:
             self._health_path = health_path
         else:
@@ -62,10 +70,41 @@ class HealthProbe:
 
     def check(self) -> HealthResult:
         now = datetime.now(tz=timezone.utc)
-        if self._last_checked_at is not None:
-            elapsed = (now.timestamp() - self._last_checked_at)
-            if elapsed < self.probe_interval_seconds and self._last_result is not None:
-                return self._last_result
+        with self._state_lock:
+            last_checked_at = self._last_checked_at
+            last_result = self._last_result
+        if last_checked_at is not None:
+            elapsed = now.timestamp() - last_checked_at
+            if elapsed < self.probe_interval_seconds and last_result is not None:
+                return last_result
+        if last_result is not None:
+            self._start_background_refresh()
+            return last_result
+        return self._refresh_once()
+
+    def _start_background_refresh(self) -> None:
+        with self._state_lock:
+            existing = self._refresh_thread
+            if existing is not None and existing.is_alive():
+                return
+            thread = threading.Thread(
+                target=self._refresh_once,
+                name="ig-health-refresh",
+                daemon=True,
+            )
+            self._refresh_thread = thread
+        thread.start()
+
+    def _refresh_once(self) -> HealthResult:
+        with self._refresh_lock:
+            now = datetime.now(tz=timezone.utc)
+            with self._state_lock:
+                last_checked_at = self._last_checked_at
+                last_result = self._last_result
+            if last_checked_at is not None:
+                elapsed = now.timestamp() - last_checked_at
+                if elapsed < self.probe_interval_seconds and last_result is not None:
+                    return last_result
 
         reasons: list[str] = []
         if not self._store_ok():
@@ -90,15 +129,29 @@ class HealthProbe:
             state = HealthState.GREEN
 
         result = HealthResult(state=state, reasons=reasons, checked_at_utc=now.isoformat())
-        self._last_result = result
-        self._last_checked_at = now.timestamp()
+        with self._state_lock:
+            self._last_result = result
+            self._last_checked_at = now.timestamp()
         return result
 
     def _store_ok(self) -> bool:
+        if isinstance(self.store, ObservedObjectStore):
+            snapshot = self.store.health_snapshot()
+            if snapshot.consecutive_failures <= 0:
+                return True
+            logger.warning(
+                "IG object store observed unhealthy consecutive_failures=%s operation=%s error=%s last_failure_at=%s",
+                snapshot.consecutive_failures,
+                snapshot.last_failure_operation,
+                snapshot.last_failure_error,
+                snapshot.last_failure_at_utc,
+            )
+            return False
         try:
             self.store.write_json(self._health_path, {"ts": datetime.now(tz=timezone.utc).isoformat()})
             return True
         except Exception:
+            logger.exception("IG object store synthetic health probe failed path=%s", self._health_path)
             return False
 
     def _bus_ok(self) -> str | None:
@@ -111,10 +164,10 @@ class HealthProbe:
         if self._publish_failures >= self.max_publish_failures:
             return "BUS_UNHEALTHY"
         if self.bus_probe_mode in {"", "none"}:
-            return "BUS_HEALTH_UNKNOWN"
+            return None
         if self.bus_probe_mode == "describe":
             return self._bus_describe_ok()
-        return "BUS_HEALTH_UNKNOWN"
+        return None
 
     def _bus_describe_ok(self) -> str | None:
         try:

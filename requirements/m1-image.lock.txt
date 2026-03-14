@@ -14,14 +14,21 @@ attrs==25.4.0 \
     # via
     #   jsonschema
     #   referencing
+aws-msk-iam-sasl-signer-python==1.0.2 \
+    --hash=sha256:310eb2db9ca0ff55ed06a24212739b87533e7f1cf6f34e43aabbd97a3b21290e \
+    --hash=sha256:3432d88a7c6db4887ceb1130ebaed0113bfda48b79ea811537add5f1d25fa13f
+    # via -r requirements/m1-image.in
 boto3==1.35.49 \
     --hash=sha256:b660c649a27a6b47a34f6f858f5bd7c3b0a798a16dec8dda7cbebeee80fd1f60 \
     --hash=sha256:ddecb27f5699ca9f97711c52b6c0652c2e63bf6c2bfbc13b819b4f523b4d30ff
-    # via -r requirements/m1-image.in
+    # via
+    #   -r requirements/m1-image.in
+    #   aws-msk-iam-sasl-signer-python
 botocore==1.35.99 \
     --hash=sha256:1eab44e969c39c5f3d9a3104a0836c24715579a455f12b3979a31d7cde51b3c3 \
     --hash=sha256:b22d27b6b617fc2d7342090d6129000af2efd20174215948c0d7ae2da0fab445
     # via
+    #   aws-msk-iam-sasl-signer-python
     #   boto3
     #   s3transfer
 certifi==2026.2.25 \
@@ -146,7 +153,9 @@ charset-normalizer==3.4.4 \
 click==8.3.1 \
     --hash=sha256:12ff4785d337a1bb490bb7e9c2b1ee5da3112e94a8622f26a6c77f5d2fc6842a \
     --hash=sha256:981153a64e25f12d547d3426c367a4857371575ee7ad18df2a6183ab0545b2a6
-    # via flask
+    # via
+    #   aws-msk-iam-sasl-signer-python
+    #   flask
 colorama==0.4.6 \
     --hash=sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44 \
     --hash=sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6
@@ -235,6 +244,10 @@ duckdb==1.4.4 \
 flask==2.2.5 \
     --hash=sha256:58107ed83443e86067e41eff4631b058178191a355886f8e479e347fa1285fdf \
     --hash=sha256:edee9b0a7ff26621bd5a8c10ff484ae28737a2410d99b0bb9a6850c7fb977aa0
+    # via -r requirements/m1-image.in
+gunicorn==23.0.0 \
+    --hash=sha256:ec400d38950de4dfd418cff8328b2c8faed0edb0d517d3394e457c317908ca4d \
+    --hash=sha256:f014447a0101dc57e294f6c18ca6b40227a4c90e9bdb586042628030cba004ec
     # via -r requirements/m1-image.in
 idna==3.11 \
     --hash=sha256:771a87f49d9defaf64091e6e6fe9c18d4833f140bd19464795bc32d966ca37ea \
@@ -448,6 +461,10 @@ orjson==3.11.5 \
     --hash=sha256:ff770589960a86eae279f5d8aa536196ebda8273a2a07db2a54e82b93bc86626 \
     --hash=sha256:ff7877d376add4e16b274e35a3f58b7f37b362abf4aa31863dadacdd20e3a583
     # via -r requirements/m1-image.in
+packaging==26.0 \
+    --hash=sha256:00243ae351a257117b6a241061796684b084ed1c516a08c48a3f7e147a9d80b4 \
+    --hash=sha256:b36f1fef9334a5588b4166f8bcd26a14e521f2b55e6b9de3aaa80d3ff7a37529
+    # via gunicorn
 psutil==6.1.1 \
     --hash=sha256:018aeae2af92d943fdf1da6b58665124897cfc94faa2ca92098838f83e1b1bca \
     --hash=sha256:0bdd4eab935276290ad3cb718e9809412895ca6b5b334f5a9111ee6d9aff9377 \

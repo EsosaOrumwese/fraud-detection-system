@@ -6,10 +6,11 @@ import logging
 import time
 import hashlib
 import json
+import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .config import ClassMap, PolicyRev, SchemaPolicy, WiringProfile
 from fraud_detection.event_bus import EbRef, EventBusPublisher, FileEventBusPublisher
@@ -21,7 +22,6 @@ from .index import AdmissionIndex
 from .metrics import MetricsRecorder
 from .models import AdmissionDecision, Receipt, QuarantineRecord
 from .ops_index import OpsIndex
-from .pg_index import PostgresAdmissionIndex, PostgresOpsIndex, is_postgres_dsn
 from .partitioning import PartitionProfile, PartitioningProfiles
 from .policy_digest import compute_policy_digest
 from .rate_limit import RateLimiter
@@ -29,11 +29,14 @@ from .receipts import ReceiptWriter
 from .security import AuthContext, authorize
 from .schema import SchemaEnforcer
 from .schemas import SchemaRegistry
-from .store import ObjectStore, S3ObjectStore, build_object_store
+from .store import ObjectStore, S3ObjectStore, build_object_store, observe_object_store, unwrap_object_store
 from ..platform_runtime import platform_run_prefix, resolve_platform_run_id
 from ..platform_provenance import runtime_provenance
 from ..platform_governance.anomaly_taxonomy import classify_anomaly
 from ..platform_governance import emit_platform_governance_event
+
+if TYPE_CHECKING:
+    from .pg_index import PostgresAdmissionIndex, PostgresOpsIndex
 
 logger = logging.getLogger(__name__)
 narrative_logger = logging.getLogger("fraud_detection.platform_narrative")
@@ -77,6 +80,36 @@ class IngestionGate:
     api_key_header: str
     push_limiter: RateLimiter
 
+    def _internal_retry_attempts(self) -> int:
+        return max(1, int(getattr(self.wiring, "internal_retry_max_attempts", 1) or 1))
+
+    def _internal_retry_backoff_seconds(self) -> float:
+        return max(0.0, float(getattr(self.wiring, "internal_retry_backoff_ms", 0) or 0) / 1000.0)
+
+    def _retry_idempotent(self, operation: str, fn: Any, /, *args: Any, **kwargs: Any) -> Any:
+        attempts = self._internal_retry_attempts()
+        base_delay = self._internal_retry_backoff_seconds()
+        max_delay = max(base_delay, 2.0)
+        attempt = 0
+        while True:
+            attempt += 1
+            try:
+                return fn(*args, **kwargs)
+            except Exception as exc:
+                if attempt >= attempts:
+                    raise
+                delay = min(max_delay, base_delay * (2 ** (attempt - 1))) if base_delay > 0.0 else 0.0
+                logger.warning(
+                    "IG internal retry operation=%s attempt=%s/%s delay=%.3fs error=%s",
+                    operation,
+                    attempt,
+                    attempts,
+                    delay,
+                    str(exc)[:256],
+                )
+                if delay > 0.0:
+                    time.sleep(delay)
+
     @classmethod
     def build(cls, wiring: WiringProfile) -> "IngestionGate":
         policy = SchemaPolicy.load(Path(wiring.schema_policy_ref))
@@ -97,11 +130,13 @@ class IngestionGate:
             policy=policy,
         )
         contract_registry = SchemaRegistry(Path(wiring.schema_root) / "ingestion_gate")
-        store = build_object_store(
+        store = observe_object_store(
+            build_object_store(
             wiring.object_store_root,
             s3_endpoint_url=wiring.object_store_endpoint,
             s3_region=wiring.object_store_region,
             s3_path_style=wiring.object_store_path_style,
+            )
         )
         run_prefix = platform_run_prefix(create_if_missing=True)
         if not run_prefix:
@@ -159,7 +194,7 @@ class IngestionGate:
         )
 
     def admit_push(self, envelope: dict[str, Any], *, auth_context: AuthContext | None = None) -> Receipt:
-        logger.info("IG admit_push start event_id=%s event_type=%s", envelope.get("event_id"), envelope.get("event_type"))
+        logger.debug("IG admit_push start event_id=%s event_type=%s", envelope.get("event_id"), envelope.get("event_type"))
         decision, receipt = self._admit_event(envelope, auth_context=auth_context)
         if decision.decision == "QUARANTINE":
             raise RuntimeError("QUARANTINED")
@@ -171,7 +206,7 @@ class IngestionGate:
         *,
         auth_context: AuthContext | None = None,
     ) -> tuple[AdmissionDecision, Receipt]:
-        logger.info(
+        logger.debug(
             "IG admit_push(decision) event_id=%s event_type=%s",
             envelope.get("event_id"),
             envelope.get("event_type"),
@@ -202,7 +237,7 @@ class IngestionGate:
         except Exception as exc:  # pragma: no cover - defensive
             logger.exception("IG admission validation error")
             return self._quarantine(envelope, IngestionError("INTERNAL_ERROR"), start, auth_context=auth_context)
-        logger.info(
+        logger.debug(
             "IG validated event_id=%s event_type=%s",
             envelope.get("event_id"),
             envelope.get("event_type"),
@@ -222,10 +257,19 @@ class IngestionGate:
                 return self._quarantine(envelope, IngestionError("PAYLOAD_HASH_MISMATCH"), start, auth_context=auth_context)
             state = existing_row.get("state") or ("ADMITTED" if existing_row.get("eb_ref") else None)
             if state in {"PUBLISH_IN_FLIGHT", "PUBLISH_AMBIGUOUS"}:
-                return self._quarantine(envelope, IngestionError(state), start, auth_context=auth_context)
+                latest = self._wait_for_existing_resolution(dedupe, existing_row)
+                resolved_state = (latest.get("state") if latest else None) or (
+                    "ADMITTED" if latest and latest.get("eb_ref") else None
+                )
+                if resolved_state in {"PUBLISH_IN_FLIGHT", "PUBLISH_AMBIGUOUS"}:
+                    retry_code = "PUBLISH_IN_FLIGHT_RETRY" if resolved_state == "PUBLISH_IN_FLIGHT" else "PUBLISH_AMBIGUOUS_RETRY"
+                    raise IngestionError(retry_code, envelope.get("event_id"))
+                if latest:
+                    existing_row = latest
+                    state = resolved_state
             if state not in {"ADMITTED", None}:
                 return self._quarantine(envelope, IngestionError("ADMISSION_STATE_INVALID", state), start, auth_context=auth_context)
-            logger.info("IG duplicate event_id=%s event_type=%s", event_id, event_type)
+            logger.debug("IG duplicate event_id=%s event_type=%s", event_id, event_type)
             eb_ref = _normalize_eb_ref(existing_row.get("eb_ref"))
             admitted_at_utc = existing_row.get("admitted_at_utc") or (
                 eb_ref.get("published_at_utc") if eb_ref else None
@@ -250,25 +294,33 @@ class IngestionGate:
                 admitted_at_utc=admitted_at_utc,
                 auth_context=auth_context,
             )
-            receipt = Receipt(payload=receipt_payload)
             receipt_id = receipt_payload["receipt_id"]
             self.contract_registry.validate("ingestion_receipt.schema.yaml", receipt_payload)
-            receipt_ref = self.receipt_writer.write_receipt(
+            receipt_ref = self._retry_idempotent(
+                "write_duplicate_receipt",
+                self.receipt_writer.write_receipt,
                 receipt_id,
                 receipt_payload,
                 prefix=self._receipt_prefix(envelope),
             )
             if not existing_row.get("receipt_ref") or existing_row.get("receipt_write_failed"):
-                self.admission_index.record_receipt(dedupe, receipt_ref)
+                self._retry_idempotent(
+                    "record_duplicate_receipt_ref",
+                    self.admission_index.record_receipt,
+                    dedupe,
+                    receipt_ref,
+                    receipt_payload=receipt_payload,
+                )
             self._record_ops_receipt(receipt_payload, receipt_ref)
             self.metrics.record_latency("phase.receipt_seconds", time.perf_counter() - receipt_started)
             self.metrics.record_decision("DUPLICATE")
             self.metrics.record_latency("admission_seconds", time.perf_counter() - start)
             self.metrics.flush_if_due(self._metrics_context(envelope))
-            return decision, receipt
+            return decision, Receipt(payload=receipt_payload, ref=receipt_ref)
 
         dedupe_started = time.perf_counter()
         existing = self.admission_index.lookup(dedupe)
+        self.metrics.record_latency("phase.dedupe_lookup_seconds", time.perf_counter() - dedupe_started)
         self.metrics.record_latency("phase.dedupe_seconds", time.perf_counter() - dedupe_started)
         if existing:
             return _handle_existing(existing)
@@ -278,6 +330,7 @@ class IngestionGate:
         except IngestionError as exc:
             return self._quarantine(envelope, exc, start, auth_context=auth_context)
 
+        inflight_started = time.perf_counter()
         inserted = self.admission_index.record_in_flight(
             dedupe,
             platform_run_id=platform_run_id or "",
@@ -285,6 +338,7 @@ class IngestionGate:
             event_id=event_id,
             payload_hash=payload_hash_hex,
         )
+        self.metrics.record_latency("phase.dedupe_inflight_seconds", time.perf_counter() - inflight_started)
         if not inserted:
             existing = self.admission_index.lookup(dedupe)
             if existing:
@@ -300,29 +354,6 @@ class IngestionGate:
             return self._quarantine(envelope, IngestionError("PUBLISH_AMBIGUOUS"), start, auth_context=auth_context)
         self.health.record_publish_success()
         admitted_at_utc = datetime.now(tz=timezone.utc).isoformat()
-        self.admission_index.record_admitted(dedupe, eb_ref=_eb_ref_payload(eb_ref), admitted_at_utc=admitted_at_utc, payload_hash=payload_hash_hex)
-        logger.info(
-            "IG admitted event_id=%s event_type=%s topic=%s partition=%s offset=%s",
-            envelope.get("event_id"),
-            envelope.get("event_type"),
-            eb_ref.topic,
-            eb_ref.partition,
-            eb_ref.offset,
-        )
-        narrative_logger.info(
-            "IG published to EB event_id=%s topic=%s partition=%s offset=%s",
-            envelope.get("event_id"),
-            eb_ref.topic,
-            eb_ref.partition,
-            eb_ref.offset,
-        )
-        eb_logger.info(
-            "EB publish event_id=%s topic=%s partition=%s offset=%s",
-            envelope.get("event_id"),
-            eb_ref.topic,
-            eb_ref.partition,
-            eb_ref.offset,
-        )
         decision = AdmissionDecision(
             decision="ADMIT",
             reason_codes=[],
@@ -343,22 +374,70 @@ class IngestionGate:
             eb_ref=eb_ref,
             auth_context=auth_context,
         )
-        receipt = Receipt(payload=receipt_payload)
         receipt_id = receipt_payload["receipt_id"]
         self.contract_registry.validate("ingestion_receipt.schema.yaml", receipt_payload)
         try:
-            receipt_ref = self.receipt_writer.write_receipt(
-                receipt_id,
-                receipt_payload,
-                prefix=self._receipt_prefix(envelope),
-            )
+            if self._receipt_storage_mode() == "ddb_hot":
+                receipt_ref = self.admission_index.receipt_ref_for(dedupe)
+                admitted_started = time.perf_counter()
+                self._retry_idempotent(
+                    "record_admitted_hot",
+                    self.admission_index.record_admitted,
+                    dedupe,
+                    eb_ref=_eb_ref_payload(eb_ref),
+                    admitted_at_utc=admitted_at_utc,
+                    payload_hash=payload_hash_hex,
+                    receipt_ref=receipt_ref,
+                    receipt_payload=receipt_payload,
+                )
+                self.metrics.record_latency("phase.dedupe_admitted_seconds", time.perf_counter() - admitted_started)
+                self.metrics.record_latency("phase.receipt_store_seconds", 0.0)
+            else:
+                admitted_started = time.perf_counter()
+                self._retry_idempotent(
+                    "record_admitted",
+                    self.admission_index.record_admitted,
+                    dedupe,
+                    eb_ref=_eb_ref_payload(eb_ref),
+                    admitted_at_utc=admitted_at_utc,
+                    payload_hash=payload_hash_hex,
+                )
+                self.metrics.record_latency("phase.dedupe_admitted_seconds", time.perf_counter() - admitted_started)
+                receipt_ref = self._retry_idempotent(
+                    "store_receipt_object",
+                    self._store_receipt_object,
+                    dedupe,
+                    receipt_payload,
+                    envelope=envelope,
+                )
         except Exception:
-            self.admission_index.mark_receipt_failed(dedupe)
+            self._retry_idempotent("mark_receipt_failed", self.admission_index.mark_receipt_failed, dedupe)
             logger.exception("IG receipt write failed after publish event_id=%s", event_id)
             raise
-        self.admission_index.record_receipt(dedupe, receipt_ref)
+        logger.debug(
+            "IG admitted event_id=%s event_type=%s topic=%s partition=%s offset=%s",
+            envelope.get("event_id"),
+            envelope.get("event_type"),
+            eb_ref.topic,
+            eb_ref.partition,
+            eb_ref.offset,
+        )
+        narrative_logger.debug(
+            "IG published to EB event_id=%s topic=%s partition=%s offset=%s",
+            envelope.get("event_id"),
+            eb_ref.topic,
+            eb_ref.partition,
+            eb_ref.offset,
+        )
+        eb_logger.debug(
+            "EB publish event_id=%s topic=%s partition=%s offset=%s",
+            envelope.get("event_id"),
+            eb_ref.topic,
+            eb_ref.partition,
+            eb_ref.offset,
+        )
         self._record_ops_receipt(receipt_payload, receipt_ref)
-        logger.info(
+        logger.debug(
             "IG receipt stored receipt_id=%s receipt_ref=%s eb_ref=%s",
             receipt_id,
             receipt_ref,
@@ -368,7 +447,27 @@ class IngestionGate:
         self.metrics.record_decision("ADMIT")
         self.metrics.record_latency("admission_seconds", time.perf_counter() - start)
         self.metrics.flush_if_due(self._metrics_context(envelope))
-        return decision, receipt
+        return decision, Receipt(payload=receipt_payload, ref=receipt_ref)
+
+    def _wait_for_existing_resolution(
+        self,
+        dedupe_key: str,
+        existing_row: dict[str, Any],
+    ) -> dict[str, Any]:
+        wait_seconds = max(0.0, float(getattr(self.wiring, "inflight_wait_seconds", 2.0)))
+        poll_seconds = max(0.01, float(getattr(self.wiring, "inflight_poll_seconds", 0.05)))
+        deadline = time.monotonic() + wait_seconds
+        latest = dict(existing_row)
+        while time.monotonic() < deadline:
+            time.sleep(min(poll_seconds, max(0.0, deadline - time.monotonic())))
+            observed = self.admission_index.lookup(dedupe_key)
+            if not observed:
+                continue
+            latest = observed
+            state = observed.get("state") or ("ADMITTED" if observed.get("eb_ref") else None)
+            if state not in {"PUBLISH_IN_FLIGHT", "PUBLISH_AMBIGUOUS"}:
+                return latest
+        return latest
 
     def _quarantine(
         self,
@@ -471,7 +570,7 @@ class IngestionGate:
         )
         self.governance.emit_quarantine_spike(self.metrics.counters.get("decision.QUARANTINE", 0))
         self.metrics.flush_if_due(self._metrics_context(envelope))
-        receipt = Receipt(payload=receipt_payload)
+        receipt = Receipt(payload=receipt_payload, ref=receipt_ref)
         return decision, receipt
 
     def _metrics_context(self, envelope: dict[str, Any]) -> dict[str, Any]:
@@ -495,7 +594,8 @@ class IngestionGate:
         }
 
     def _run_prefix_for(self, platform_run_id: str) -> str:
-        if isinstance(self.store, S3ObjectStore):
+        base_store = unwrap_object_store(self.store)
+        if isinstance(base_store, S3ObjectStore):
             return platform_run_id
         root = Path(self.wiring.object_store_root)
         if root.name == "fraud-platform":
@@ -507,6 +607,39 @@ class IngestionGate:
         if platform_run_id:
             return f"{self._run_prefix_for(platform_run_id)}/ig"
         return self.receipt_writer.prefix
+
+    def _receipt_storage_mode(self) -> str:
+        return str(os.getenv("IG_RECEIPT_STORAGE_MODE", "object_store")).strip().lower() or "object_store"
+
+    def _store_receipt_hot(self, dedupe_key_value: str, receipt_payload: dict[str, Any]) -> str:
+        receipt_store_started = time.perf_counter()
+        receipt_ref = self.admission_index.receipt_ref_for(dedupe_key_value)
+        self.admission_index.record_receipt(
+            dedupe_key_value,
+            receipt_ref,
+            receipt_payload=receipt_payload,
+        )
+        self.metrics.record_latency("phase.receipt_store_seconds", time.perf_counter() - receipt_store_started)
+        return receipt_ref
+
+    def _store_receipt_object(
+        self,
+        dedupe_key_value: str,
+        receipt_payload: dict[str, Any],
+        *,
+        envelope: dict[str, Any],
+    ) -> str:
+        receipt_object_started = time.perf_counter()
+        receipt_ref = self.receipt_writer.write_receipt(
+            receipt_payload["receipt_id"],
+            receipt_payload,
+            prefix=self._receipt_prefix(envelope),
+        )
+        self.metrics.record_latency("phase.receipt_object_seconds", time.perf_counter() - receipt_object_started)
+        receipt_index_started = time.perf_counter()
+        self.admission_index.record_receipt(dedupe_key_value, receipt_ref)
+        self.metrics.record_latency("phase.receipt_index_seconds", time.perf_counter() - receipt_index_started)
+        return receipt_ref
 
     def _validate_envelope(self, envelope: dict[str, Any]) -> None:
         self.schema_enforcer.validate_envelope(envelope)
@@ -586,35 +719,42 @@ class IngestionGate:
         actor_id = auth_context.actor_id if auth_context else "SYSTEM::ingestion_gate"
         source_type = auth_context.source_type if auth_context else "SYSTEM"
         anomaly_category = classify_anomaly(reason_code)
-        emit_platform_governance_event(
-            store=self.store,
-            event_family="CORRIDOR_ANOMALY",
-            actor_id=actor_id,
-            source_type=source_type,
-            source_component="ingestion_gate",
-            platform_run_id=platform_run_id,
-            scenario_run_id=scenario_run_id,
-            manifest_fingerprint=manifest_fingerprint,
-            parameter_hash=parameter_hash,
-            seed=seed,
-            scenario_id=scenario_id,
-            dedupe_key=dedupe_key,
-            details={
-                "boundary": "ingestion_gate",
-                "reason_code": reason_code,
-                "anomaly_category": anomaly_category,
-                "event_id": event_id,
-                "event_type": envelope.get("event_type"),
-                "quarantine_ref": quarantine_ref,
-                "receipt_ref": receipt_ref,
-                "policy_rev": {
-                    "policy_id": self.policy_rev.policy_id,
-                    "revision": self.policy_rev.revision,
-                    "content_digest": self.policy_rev.content_digest,
+        try:
+            emit_platform_governance_event(
+                store=self.store,
+                event_family="CORRIDOR_ANOMALY",
+                actor_id=actor_id,
+                source_type=source_type,
+                source_component="ingestion_gate",
+                platform_run_id=platform_run_id,
+                scenario_run_id=scenario_run_id,
+                manifest_fingerprint=manifest_fingerprint,
+                parameter_hash=parameter_hash,
+                seed=seed,
+                scenario_id=scenario_id,
+                dedupe_key=dedupe_key,
+                details={
+                    "boundary": "ingestion_gate",
+                    "reason_code": reason_code,
+                    "anomaly_category": anomaly_category,
+                    "event_id": event_id,
+                    "event_type": envelope.get("event_type"),
+                    "quarantine_ref": quarantine_ref,
+                    "receipt_ref": receipt_ref,
+                    "policy_rev": {
+                        "policy_id": self.policy_rev.policy_id,
+                        "revision": self.policy_rev.revision,
+                        "content_digest": self.policy_rev.content_digest,
+                    },
+                    "run_config_digest": self.policy_rev.content_digest,
                 },
-                "run_config_digest": self.policy_rev.content_digest,
-            },
-        )
+            )
+        except Exception:
+            logger.exception(
+                "IG governance anomaly emit failed event_id=%s reason=%s",
+                event_id,
+                reason_code,
+            )
 
     def _partitioning(self, envelope: dict[str, Any]) -> tuple[str, PartitionProfile]:
         class_name = self.class_map.class_for(envelope["event_type"])
@@ -706,8 +846,15 @@ class IngestionGate:
         return payload
 
 
+def _is_postgres_dsn(value: str | None) -> bool:
+    text = str(value or "").strip().lower()
+    return text.startswith("postgres://") or text.startswith("postgresql://")
+
+
 def _build_indices(admission_db_path: str) -> tuple[AdmissionIndex | PostgresAdmissionIndex, OpsIndex | PostgresOpsIndex]:
-    if is_postgres_dsn(admission_db_path):
+    if _is_postgres_dsn(admission_db_path):
+        from .pg_index import PostgresAdmissionIndex, PostgresOpsIndex
+
         return PostgresAdmissionIndex(admission_db_path), PostgresOpsIndex(admission_db_path)
     path = Path(admission_db_path)
     return AdmissionIndex(path), OpsIndex(path)
@@ -858,13 +1005,18 @@ def _eb_ref_payload(eb_ref: EbRef) -> dict[str, Any]:
 def _normalize_eb_ref(eb_ref: dict[str, Any] | None) -> dict[str, Any] | None:
     if not eb_ref:
         return None
+    normalized = dict(eb_ref)
     if "offset_kind" not in eb_ref:
-        eb_ref = dict(eb_ref)
-        eb_ref["offset_kind"] = "file_line"
-    if "offset" in eb_ref and eb_ref["offset"] is not None:
-        eb_ref = dict(eb_ref)
-        eb_ref["offset"] = str(eb_ref["offset"])
-    return eb_ref
+        normalized["offset_kind"] = "file_line"
+    if normalized.get("partition") is not None:
+        partition_value = normalized.get("partition")
+        try:
+            normalized["partition"] = int(partition_value)
+        except (TypeError, ValueError):
+            normalized["partition"] = partition_value
+    if normalized.get("offset") is not None:
+        normalized["offset"] = str(normalized["offset"])
+    return normalized
 
 
 def _payload_hash(envelope: dict[str, Any]) -> tuple[dict[str, Any], str]:

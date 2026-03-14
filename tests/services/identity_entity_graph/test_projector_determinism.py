@@ -47,6 +47,7 @@ def _write_profile(
     projection_db: Path,
     platform_run_id: str,
     topics: list[str],
+    event_bus_kind: str = "file",
 ) -> Path:
     repo_root = Path.cwd()
     profile = {
@@ -62,7 +63,7 @@ def _write_profile(
             "wiring": {
                 "profile_id": "test",
                 "projection_db_dsn": str(projection_db),
-                "event_bus_kind": "file",
+                "event_bus_kind": event_bus_kind,
                 "event_bus": {"root": str(bus_root), "topics": topics},
                 "engine_contracts_root": str(repo_root / "docs/model_spec/data-engine/interface_pack/contracts"),
                 "poll_max_records": 100,
@@ -348,3 +349,91 @@ def test_irrelevant_events_emit_run_scoped_health_artifact(tmp_path: Path, monke
     payload = json.loads(health_path.read_text(encoding="utf-8"))
     assert payload["graph_scope"]["platform_run_id"] == platform_run_id
     assert int(payload["metrics"].get("irrelevant", 0)) == 1
+
+
+def test_kafka_projector_consumes_offsets_and_advances_checkpoint(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    platform_run_id = "platform_20260205T000000Z"
+    topic = "fp.bus.context.arrival_events.v1"
+
+    class FakeKafkaReader:
+        def __init__(self) -> None:
+            self.rows = {
+                (topic, 0): [
+                    {
+                        "offset": 0,
+                        "payload": _envelope(
+                            "arrival_events_5B",
+                            "7" * 64,
+                            {"merchant_id": "m1"},
+                            "2026-02-05T00:00:00.000000Z",
+                            _base_pins(platform_run_id),
+                        ),
+                        "published_at_utc": "2026-02-05T00:00:00.000000Z",
+                    },
+                    {
+                        "offset": 1,
+                        "payload": _envelope(
+                            "arrival_events_5B",
+                            "8" * 64,
+                            {"merchant_id": "m2"},
+                            "2026-02-05T00:00:01.000000Z",
+                            _base_pins(platform_run_id),
+                        ),
+                        "published_at_utc": "2026-02-05T00:00:01.000000Z",
+                    },
+                ]
+            }
+
+        def list_partitions(self, topic_name: str) -> list[int]:
+            assert topic_name == topic
+            return [0]
+
+        def read(
+            self,
+            *,
+            topic: str,
+            partition: int,
+            from_offset: int | None,
+            limit: int,
+            start_position: str = "earliest",
+        ) -> list[dict[str, object]]:
+            rows = list(self.rows.get((topic, partition), []))
+            if from_offset is None:
+                start = 0 if start_position == "earliest" else len(rows)
+            else:
+                start = int(from_offset)
+            return [row for row in rows if int(row["offset"]) >= start][:limit]
+
+    monkeypatch.setattr(
+        "fraud_detection.identity_entity_graph.projector.build_kafka_reader",
+        lambda *, client_id: FakeKafkaReader(),
+    )
+
+    profile = _write_profile(
+        tmp_path,
+        bus_root=tmp_path / "unused",
+        projection_db=tmp_path / "ieg_kafka.db",
+        platform_run_id=platform_run_id,
+        topics=[topic],
+        event_bus_kind="kafka",
+    )
+
+    projector = IdentityGraphProjector.build(str(profile))
+    assert projector.run_once() == 2
+    assert projector.run_once() == 0
+
+    with sqlite3.connect(tmp_path / "ieg_kafka.db") as conn:
+        checkpoint = conn.execute(
+            "SELECT next_offset, offset_kind FROM ieg_checkpoints WHERE topic = ? AND partition_id = 0",
+            (topic,),
+        ).fetchone()
+        metrics = conn.execute(
+            "SELECT metric_name, metric_value FROM ieg_metrics WHERE scenario_run_id = ?",
+            ("c" * 32,),
+        ).fetchall()
+
+    assert checkpoint is not None
+    assert str(checkpoint[0]) == "1"
+    assert str(checkpoint[1]) == "kafka_offset"
+    metrics_map = {str(name): int(value) for name, value in metrics}
+    assert metrics_map.get("events_seen") == 2

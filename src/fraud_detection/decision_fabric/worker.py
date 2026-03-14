@@ -33,11 +33,11 @@ from fraud_detection.platform_runtime import RUNS_ROOT, resolve_platform_run_id,
 
 from .checkpoints import CHECKPOINT_COMMITTED, DecisionCheckpointGate
 from .config import load_trigger_policy
-from .context import DecisionContextAcquirer, DecisionContextPolicy
+from .context import CONTEXT_WAITING, DecisionContextAcquirer, DecisionContextPolicy
 from .inlet import DfBusInput, DecisionFabricInlet, DecisionTriggerCandidate
 from .observability import DfRunMetrics
 from .posture import DfPostureResolver, DfPostureStamp
-from .publish import DecisionFabricIgPublisher, DecisionFabricPublishError
+from .publish import DecisionFabricIgPublisher, DecisionFabricInternalPublisher, DecisionFabricPublishError
 from .reconciliation import DfReconciliationBuilder
 from .registry import RegistryResolutionPolicy, RegistryResolver, RegistryScopeKey, RegistrySnapshot
 from .replay import REPLAY_NEW, DecisionReplayLedger
@@ -46,6 +46,8 @@ from .synthesis import DecisionSynthesizer
 
 logger = logging.getLogger("fraud_detection.df.worker")
 _ENV_PATTERN = re.compile(r"^\$\{([^}:]+)(?::-([^}]*))?\}$")
+_DF_ADVANCED = "ADVANCED"
+_DF_BLOCKED = "BLOCKED"
 
 
 @dataclass(frozen=True)
@@ -83,6 +85,9 @@ class DfWorkerConfig:
     environment: str
     bundle_slot: str
     tenant_id: str | None
+    scenario_run_id_hint: str | None
+    partitioning_profiles_ref: Path = Path("config/platform/ig/partitioning_profiles_v0.yaml")
+    publish_mode: str = "ig"
 
 
 class _ConsumerCheckpointStore:
@@ -90,6 +95,7 @@ class _ConsumerCheckpointStore:
         self.path = path
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.stream_id = stream_id
+        self._first_seen_cache: dict[tuple[str, int, str, str], str] = {}
         with sqlite3.connect(self.path) as conn:
             conn.execute(
                 """
@@ -101,6 +107,20 @@ class _ConsumerCheckpointStore:
                     offset_kind TEXT NOT NULL,
                     updated_at_utc TEXT NOT NULL,
                     PRIMARY KEY (stream_id, topic, partition_id)
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS df_worker_wait_state (
+                    stream_id TEXT NOT NULL,
+                    topic TEXT NOT NULL,
+                    partition_id INTEGER NOT NULL,
+                    current_offset TEXT NOT NULL,
+                    offset_kind TEXT NOT NULL,
+                    first_seen_at_utc TEXT NOT NULL,
+                    updated_at_utc TEXT NOT NULL,
+                    PRIMARY KEY (stream_id, topic, partition_id, current_offset, offset_kind)
                 )
                 """
             )
@@ -123,6 +143,88 @@ class _ConsumerCheckpointStore:
         next_offset = str(offset)
         if offset_kind in {"file_line", "kafka_offset"}:
             next_offset = str(int(offset) + 1)
+        self.clear_first_seen(topic=topic, partition=partition, offset=offset, offset_kind=offset_kind)
+        self._write(topic=topic, partition=partition, next_offset=next_offset, offset_kind=offset_kind)
+
+    def defer(self, *, topic: str, partition: int, offset: str, offset_kind: str) -> None:
+        self._write(topic=topic, partition=partition, next_offset=str(offset), offset_kind=offset_kind)
+
+    def bootstrap(self, *, topic: str, partition: int, next_offset: str, offset_kind: str) -> None:
+        self._write(topic=topic, partition=partition, next_offset=str(next_offset), offset_kind=offset_kind)
+
+    def ensure_first_seen(
+        self,
+        *,
+        topic: str,
+        partition: int,
+        offset: str,
+        offset_kind: str,
+        observed_at_utc: str,
+    ) -> str:
+        key = (topic, int(partition), str(offset_kind), str(offset))
+        cached = self._first_seen_cache.get(key)
+        if cached:
+            return cached
+        with sqlite3.connect(self.path) as conn:
+            row = conn.execute(
+                """
+                SELECT first_seen_at_utc
+                FROM df_worker_wait_state
+                WHERE stream_id = ? AND topic = ? AND partition_id = ? AND current_offset = ? AND offset_kind = ?
+                """,
+                (self.stream_id, topic, int(partition), str(offset), str(offset_kind)),
+            ).fetchone()
+            if row is None:
+                conn.execute(
+                    """
+                    INSERT INTO df_worker_wait_state (
+                        stream_id, topic, partition_id, current_offset, offset_kind, first_seen_at_utc, updated_at_utc
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        self.stream_id,
+                        topic,
+                        int(partition),
+                        str(offset),
+                        str(offset_kind),
+                        observed_at_utc,
+                        observed_at_utc,
+                    ),
+                )
+                first_seen = observed_at_utc
+            else:
+                first_seen = str(row[0])
+                conn.execute(
+                    """
+                    UPDATE df_worker_wait_state
+                    SET updated_at_utc = ?
+                    WHERE stream_id = ? AND topic = ? AND partition_id = ? AND current_offset = ? AND offset_kind = ?
+                    """,
+                    (
+                        observed_at_utc,
+                        self.stream_id,
+                        topic,
+                        int(partition),
+                        str(offset),
+                        str(offset_kind),
+                    ),
+                )
+        self._first_seen_cache[key] = first_seen
+        return first_seen
+
+    def clear_first_seen(self, *, topic: str, partition: int, offset: str, offset_kind: str) -> None:
+        key = (topic, int(partition), str(offset_kind), str(offset))
+        self._first_seen_cache.pop(key, None)
+        with sqlite3.connect(self.path) as conn:
+            conn.execute(
+                """
+                DELETE FROM df_worker_wait_state
+                WHERE stream_id = ? AND topic = ? AND partition_id = ? AND current_offset = ? AND offset_kind = ?
+                """,
+                (self.stream_id, topic, int(partition), str(offset), str(offset_kind)),
+            )
+
+    def _write(self, *, topic: str, partition: int, next_offset: str, offset_kind: str) -> None:
         with sqlite3.connect(self.path) as conn:
             conn.execute(
                 """
@@ -134,7 +236,7 @@ class _ConsumerCheckpointStore:
                     offset_kind = excluded.offset_kind,
                     updated_at_utc = excluded.updated_at_utc
                 """,
-                (self.stream_id, topic, int(partition), next_offset, offset_kind, _utc_now()),
+                (self.stream_id, topic, int(partition), str(next_offset), offset_kind, _utc_now()),
             )
 
 
@@ -173,12 +275,25 @@ class DecisionFabricWorker:
             guarded_service=DlGuardedPostureService(base_service=dl_base, health_gate=DlHealthGateController(DlHealthPolicy())),
             max_age_seconds=config.dl_max_age_seconds,
         )
-        self.publisher = DecisionFabricIgPublisher(
-            ig_ingest_url=config.ig_ingest_url,
-            api_key=config.ig_api_key,
-            api_key_header=config.ig_api_key_header,
-            engine_contracts_root=config.engine_contracts_root,
-        )
+        publish_mode = str(config.publish_mode or "ig").strip().lower()
+        if publish_mode == "internal_bus":
+            self.publisher = DecisionFabricInternalPublisher(
+                event_bus_kind=config.event_bus_kind,
+                event_bus_root=config.event_bus_root,
+                event_bus_stream=config.event_bus_stream,
+                event_bus_region=config.event_bus_region,
+                event_bus_endpoint_url=config.event_bus_endpoint_url,
+                class_map_ref=config.class_map_ref,
+                partitioning_profiles_ref=config.partitioning_profiles_ref,
+                engine_contracts_root=config.engine_contracts_root,
+            )
+        else:
+            self.publisher = DecisionFabricIgPublisher(
+                ig_ingest_url=config.ig_ingest_url,
+                api_key=config.ig_api_key,
+                api_key_header=config.ig_api_key_header,
+                engine_contracts_root=config.engine_contracts_root,
+            )
         self.synthesizer = DecisionSynthesizer()
         self.run_config_digest = _sha256(
             {
@@ -202,11 +317,19 @@ class DecisionFabricWorker:
             else None
         )
         self._kafka_reader = build_kafka_reader(client_id=f"df-worker-{config.stream_id}") if config.event_bus_kind == "kafka" else None
+        self._seed_run_scope_from_config()
 
     def run_once(self) -> int:
+        self._prime_consumer_boundaries()
         processed = 0
+        blocked_partitions: set[tuple[str, int, str]] = set()
         for row in self._iter_records():
-            self._process_record(row)
+            key = (str(row["topic"]), int(row["partition"]), str(row["offset_kind"]))
+            if key in blocked_partitions:
+                continue
+            outcome = self._process_record(row)
+            if outcome == _DF_BLOCKED:
+                blocked_partitions.add(key)
             processed += 1
         self._export()
         return processed
@@ -217,7 +340,7 @@ class DecisionFabricWorker:
             if processed == 0:
                 time.sleep(self.config.poll_sleep_seconds)
 
-    def _process_record(self, row: dict[str, Any]) -> None:
+    def _process_record(self, row: dict[str, Any]) -> str:
         topic = str(row["topic"])
         partition = int(row["partition"])
         offset = str(row["offset"])
@@ -234,26 +357,51 @@ class DecisionFabricWorker:
         inlet = self.inlet.evaluate(bus)
         if not inlet.accepted or inlet.candidate is None:
             self.consumer_checkpoints.advance(topic=topic, partition=partition, offset=offset, offset_kind=offset_kind)
-            return
+            return _DF_ADVANCED
         candidate = inlet.candidate
         if self.config.required_platform_run_id and str(candidate.pins.get("platform_run_id") or "") != self.config.required_platform_run_id:
             self.consumer_checkpoints.advance(topic=topic, partition=partition, offset=offset, offset_kind=offset_kind)
-            return
+            return _DF_ADVANCED
         if not self._ensure_scenario(candidate):
             self.consumer_checkpoints.advance(topic=topic, partition=partition, offset=offset, offset_kind=offset_kind)
-            return
+            return _DF_ADVANCED
 
-        started = _utc_now()
+        observed_at_utc = _utc_now()
+        published_at_utc = bus.published_at_utc or candidate.source_eb_ref.published_at_utc
+        # Runtime budgets must follow the first time this worker observed the candidate,
+        # not historical event-time from replayed oracle payloads.
+        started_observed_at_utc = self.consumer_checkpoints.ensure_first_seen(
+            topic=topic,
+            partition=partition,
+            offset=offset,
+            offset_kind=offset_kind,
+            observed_at_utc=observed_at_utc,
+        )
+        started = _decision_started_at(
+            published_at_utc=published_at_utc,
+            observed_at_utc=started_observed_at_utc,
+        )
         posture = self._resolve_posture(candidate)
         context = self.acquirer.acquire(
             candidate=candidate,
             posture=posture,
             decision_started_at_utc=started,
-            now_utc=_utc_now(),
+            now_utc=observed_at_utc,
             context_refs=self._context_refs(candidate, envelope),
             feature_keys=_feature_keys(candidate, envelope),
             compatibility=None,
         )
+        if context.status == CONTEXT_WAITING:
+            self.consumer_checkpoints.defer(topic=topic, partition=partition, offset=offset, offset_kind=offset_kind)
+            logger.info(
+                "DF deferring transient context wait source_event_id=%s topic=%s partition=%s offset=%s reasons=%s",
+                candidate.source_event_id,
+                topic,
+                partition,
+                offset,
+                list(getattr(context, "reasons", ()) or ()),
+            )
+            return _DF_BLOCKED
         registry = self.registry_resolver.resolve(
             scope_key=self._registry_scope(candidate, envelope),
             posture=posture,
@@ -335,6 +483,7 @@ class DecisionFabricWorker:
                 decision_receipt_ref=decision_receipt_ref,
                 action_receipt_refs=action_receipt_refs,
             )
+        return _DF_ADVANCED if commit.status == CHECKPOINT_COMMITTED else _DF_BLOCKED
 
     def _resolve_graph_version(self, request: dict[str, Any]) -> dict[str, Any] | None:
         scenario_run_id = str(((request.get("pins") or {}).get("scenario_run_id") or "")).strip()
@@ -390,16 +539,26 @@ class DecisionFabricWorker:
         )
         if str(response.get("status") or "") != "READY":
             return {}
+        explicit_refs = response.get("context_refs")
+        if isinstance(explicit_refs, Mapping):
+            refs = {
+                str(role): dict(ref)
+                for role, ref in explicit_refs.items()
+                if str(role).strip() and isinstance(ref, Mapping)
+            }
+            if refs:
+                return refs
         refs: dict[str, dict[str, Any]] = {}
         flow_binding = response.get("flow_binding") if isinstance(response.get("flow_binding"), Mapping) else {}
         source_event = flow_binding.get("source_event") if isinstance(flow_binding.get("source_event"), Mapping) else {}
         eb_ref = source_event.get("eb_ref") if isinstance(source_event.get("eb_ref"), Mapping) else {}
+        event_type = str(source_event.get("event_type") or "").strip().lower()
         if eb_ref:
-            refs["arrival_events"] = dict(eb_ref)
-            refs["arrival_entities"] = dict(eb_ref)
-        join_key = response.get("join_frame_key") if isinstance(response.get("join_frame_key"), Mapping) else {}
-        if join_key:
-            refs["flow_anchor"] = dict(join_key)
+            if "flow_anchor" in event_type:
+                refs["flow_anchor"] = dict(eb_ref)
+            elif "arrival" in event_type:
+                refs["arrival_events"] = dict(eb_ref)
+                refs["arrival_entities"] = dict(eb_ref)
         return refs
 
     def _registry_scope(self, candidate: DecisionTriggerCandidate, envelope: Mapping[str, Any]) -> RegistryScopeKey:
@@ -427,6 +586,35 @@ class DecisionFabricWorker:
             self._reconciliation = DfReconciliationBuilder(platform_run_id=platform_run_id, scenario_run_id=scenario_run_id)
             return True
         return self._scenario_run_id == scenario_run_id
+
+    def _seed_run_scope_from_config(self) -> None:
+        platform_run_id = str(self.config.platform_run_id or "").strip()
+        scenario_run_id = str(self.config.scenario_run_id_hint or "").strip()
+        if not platform_run_id or not scenario_run_id or self._scenario_run_id is not None:
+            return
+        self._scenario_run_id = scenario_run_id
+        self._metrics = DfRunMetrics(platform_run_id=platform_run_id, scenario_run_id=scenario_run_id)
+        self._reconciliation = DfReconciliationBuilder(platform_run_id=platform_run_id, scenario_run_id=scenario_run_id)
+
+    def _prime_consumer_boundaries(self) -> None:
+        if self.config.event_bus_kind != "kafka" or self._kafka_reader is None:
+            return
+        for topic in self.trigger_policy.admitted_traffic_topics:
+            for partition in self._kafka_partitions(topic):
+                if self.consumer_checkpoints.next_offset(topic=topic, partition=partition) is not None:
+                    continue
+                start_offset = self._kafka_reader.resolve_start_offset(
+                    topic=topic,
+                    partition=partition,
+                    from_offset=None,
+                    start_position=self.config.event_bus_start_position,
+                )
+                self.consumer_checkpoints.bootstrap(
+                    topic=topic,
+                    partition=partition,
+                    next_offset=str(start_offset),
+                    offset_kind="kafka_offset",
+                )
 
     def _iter_records(self) -> list[dict[str, Any]]:
         if self.config.event_bus_kind == "kinesis":
@@ -604,6 +792,9 @@ def load_worker_config(profile_path: Path) -> DfWorkerConfig:
         registry_snapshot_ref=Path(str(_env(df_policy.get("registry_snapshot_ref") or "config/platform/df/registry_snapshot_local_parity_v0.yaml"))),
         engine_contracts_root=Path(str(_env(df_wiring.get("engine_contracts_root") or "docs/model_spec/data-engine/interface_pack/contracts"))),
         class_map_ref=Path(str(_env(df_wiring.get("class_map_ref") or "config/platform/ig/class_map_v0.yaml"))),
+        partitioning_profiles_ref=Path(
+            str(_env(df_wiring.get("partitioning_profiles_ref") or wiring.get("partitioning_profiles_ref") or "config/platform/ig/partitioning_profiles_v0.yaml"))
+        ),
         event_bus_kind=str(_env(df_wiring.get("event_bus_kind") or wiring.get("event_bus_kind") or "kinesis")).strip().lower(),
         event_bus_root=str(_env(df_wiring.get("event_bus_root") or "runs/fraud-platform/eb")).strip(),
         event_bus_stream=_none_if_blank(_env(df_wiring.get("event_bus_stream") or event_bus.get("stream") or "auto")),
@@ -630,6 +821,10 @@ def load_worker_config(profile_path: Path) -> DfWorkerConfig:
         environment=str(_env(df_wiring.get("environment") or profile_id)).strip(),
         bundle_slot=str(_env(df_wiring.get("bundle_slot") or "primary")).strip(),
         tenant_id=_none_if_blank(_env(df_wiring.get("tenant_id"))),
+        scenario_run_id_hint=_none_if_blank(
+            _env(df_wiring.get("scenario_run_id_hint") or os.getenv("DF_SCENARIO_RUN_ID"))
+        ),
+        publish_mode=str(_env(df_wiring.get("publish_mode") or os.getenv("DF_PUBLISH_MODE") or "ig")).strip().lower(),
     )
 
 
@@ -675,10 +870,8 @@ def _flow_id(envelope: Mapping[str, Any]) -> str | None:
 
 def _feature_keys(candidate: DecisionTriggerCandidate, envelope: Mapping[str, Any]) -> list[dict[str, str]]:
     payload = envelope.get("payload") if isinstance(envelope.get("payload"), Mapping) else {}
-    values: list[tuple[str, str]] = [("event_id", candidate.source_event_id)]
     flow = _flow_id(envelope)
-    if flow:
-        values.append(("flow_id", flow))
+    values: list[tuple[str, str]] = [("flow_id", flow)] if flow else [("event_id", candidate.source_event_id)]
     for key in ("account_id", "customer_id", "card_id", "device_id", "merchant_id"):
         token = str(payload.get(key) or "").strip()
         if token:
@@ -725,6 +918,10 @@ def _latency_ms(started_at_utc: str, ended_at_utc: str) -> float:
     return max(0.0, (end - start).total_seconds() * 1000.0)
 
 
+def _decision_started_at(*, published_at_utc: str | None, observed_at_utc: str) -> str:
+    return observed_at_utc
+
+
 def _sha256(payload: Mapping[str, Any]) -> str:
     return hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=True, separators=(",", ":")).encode("utf-8")).hexdigest()
 
@@ -732,6 +929,16 @@ def _sha256(payload: Mapping[str, Any]) -> str:
 def _none_if_blank(value: Any) -> str | None:
     text = str(value or "").strip()
     return text or None
+
+
+def _parse_rfc3339_or_none(value: Any) -> datetime | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        return datetime.fromisoformat(text.replace("Z", "+00:00")).astimezone(timezone.utc)
+    except ValueError:
+        return None
 
 
 def _utc_now() -> str:

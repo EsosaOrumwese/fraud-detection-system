@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 import hashlib
 import json
+import logging
+import os
 from typing import Any
 
 from fraud_detection.event_bus import EventBusPublisher
@@ -14,6 +16,8 @@ from fraud_detection.platform_provenance import runtime_provenance
 from fraud_detection.platform_governance import emit_platform_governance_event
 from .partitioning import PartitioningProfiles
 from .store import ObjectStore
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -25,6 +29,7 @@ class GovernanceEmitter:
     quarantine_spike_window_seconds: int
     policy_id: str
     prefix: str
+    policy_activation_audit_mode: str = "store_only"
     _quarantine_ts: deque[float] = field(default_factory=deque)
     _last_spike_ts: float | None = None
 
@@ -67,8 +72,9 @@ class GovernanceEmitter:
                 ),
             },
         )
-        envelope = _make_envelope("ig.policy.activation", payload)
-        self._emit_audit(envelope)
+        if self._policy_activation_audit_enabled():
+            envelope = _make_envelope("ig.policy.activation", payload)
+            self._emit_audit_best_effort(envelope, reason="policy_activation")
 
     def emit_quarantine_spike(self, count: int) -> None:
         now = datetime.now(tz=timezone.utc).timestamp()
@@ -88,17 +94,34 @@ class GovernanceEmitter:
             "detected_at_utc": datetime.now(tz=timezone.utc).isoformat(),
         }
         envelope = _make_envelope("ig.quarantine.spike", payload)
-        self._emit_audit(envelope)
+        self._emit_audit_best_effort(envelope, reason="quarantine_spike")
 
     def emit_audit_verification(self, payload: dict[str, Any]) -> None:
         envelope = _make_envelope("ig.audit.verify", payload)
-        self._emit_audit(envelope)
+        self._emit_audit_best_effort(envelope, reason="audit_verification")
 
     def _emit_audit(self, envelope: dict[str, Any]) -> None:
         profile_id = "ig.partitioning.v0.audit"
         partition_key = self.partitioning.derive_key(profile_id, envelope)
         stream = self.partitioning.get(profile_id).stream
         self.bus.publish(stream, partition_key, envelope)
+
+    def _emit_audit_best_effort(self, envelope: dict[str, Any], *, reason: str) -> None:
+        try:
+            self._emit_audit(envelope)
+        except Exception:
+            logger.warning(
+                "IG governance audit emit skipped reason=%s event_type=%s",
+                reason,
+                envelope.get("event_type"),
+                exc_info=True,
+            )
+
+    def _policy_activation_audit_enabled(self) -> bool:
+        raw = str(
+            os.getenv("IG_POLICY_ACTIVATION_AUDIT_MODE", self.policy_activation_audit_mode or "store_only")
+        ).strip().lower()
+        return raw in {"bus", "enabled", "on", "true", "1"}
 
 
 def _make_envelope(event_type: str, payload: dict[str, Any]) -> dict[str, Any]:

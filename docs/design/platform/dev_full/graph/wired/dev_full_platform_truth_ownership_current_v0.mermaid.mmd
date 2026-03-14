@@ -1,0 +1,116 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Green node = truth domain / authoritative ownership boundary"]
+    LG2["Purple node = component that writes or consumes that truth"]
+    LG3[("Blue store = durable store holding the truth by value or by ref")]
+  end
+
+  subgraph OWNERSHIP["dev_full Truth Ownership Graph"]
+    INBOUND["External inbound payload truth<br>owned outside platform"]
+    ORACLE["Oracle-store truth<br>read-only runtime boundary"]
+    IG["Ingress truth<br>admission / idempotency / quarantine"]
+    EB["Event-bus truth<br>topic offsets / replay boundary"]
+    RTDL["RTDL truth<br>context / features / decisions / actions / audit"]
+    CASE["Case truth<br>append-only case timeline"]
+    LABEL["Label truth<br>append-only label assertions"]
+    ARCHIVE["Archive truth<br>immutable event history"]
+    OFS["Dataset truth<br>Databricks-built manifests / tables"]
+    MF["Model-eval truth<br>SageMaker train/eval lineage"]
+    REG["Registry truth<br>MLflow-backed active bundle resolution"]
+    GOV["Governance truth<br>run reports / receipts / append-only facts"]
+
+    DENGINE["Data Engine / upstream producer"]
+    WSP["WSP"]
+    IGLAMBDA["Ingress Lambda"]
+    IGSVC["Ingress ECS service"]
+    DDB[("IG idempotency DDB")]
+    MSK[("MSK Serverless")]
+    CSFB["CSFB"]
+    IEG["IEG"]
+    OFP["OFP"]
+    DF["DF"]
+    AL["AL"]
+    DLA["DLA"]
+    ARCHWR["Archive Writer"]
+    CM["Case Mgmt"]
+    LS["Label Store"]
+    DBX["Databricks (OFS)"]
+    SM["SageMaker (MF)"]
+    MLFLOW["MLflow (MPR)"]
+    EVID[("Evidence bucket")]
+    OBJ[("Object store")]
+    AURORA[("Aurora")]
+  end
+
+  DENGINE -->|owns upstream payload truth for| INBOUND
+  DENGINE -->|writes black-box artifacts into| ORACLE
+  WSP -->|replays inbound payloads for| INBOUND
+  WSP -->|sends traffic through| IGLAMBDA
+  WSP -->|sends traffic through| IGSVC
+
+  IGLAMBDA -->|materializes admit / quarantine truth in| IG
+  IGSVC -->|materializes admit / quarantine truth in| IG
+  IG -->|persisted in| DDB
+  IG -->|publishes admitted events into| MSK
+
+  MSK -->|carries| EB
+  EB -->|consumed by| CSFB
+  EB -->|consumed by| IEG
+  EB -->|consumed by| OFP
+  EB -->|consumed by| DF
+  EB -->|consumed by| AL
+  EB -->|consumed by| DLA
+  EB -->|consumed by| CM
+  EB -->|consumed by| LS
+  EB -->|consumed by| DBX
+  EB -->|consumed by| SM
+
+  CSFB -->|writes joined context into| RTDL
+  IEG -->|writes feature / entity state into| RTDL
+  OFP -->|writes online feature state into| RTDL
+  DF -->|writes decision truth into| RTDL
+  AL -->|writes action truth into| RTDL
+  DLA -->|writes lineage / audit truth into| RTDL
+  RTDL -->|persisted in| AURORA
+  RTDL -->|archived by ref in| OBJ
+
+  CM -->|owns and writes| CASE
+  CASE -->|persisted in| AURORA
+  CASE -->|evidenced in| EVID
+
+  LS -->|owns and writes| LABEL
+  LABEL -->|persisted in| AURORA
+  LABEL -->|archived by ref in| OBJ
+  LABEL -->|evidenced in| EVID
+
+  ARCHWR -->|owns and writes| ARCHIVE
+  ARCHIVE -->|stored in| OBJ
+  ARCHIVE -->|evidenced in| EVID
+
+  DBX -->|owns and writes| OFS
+  OFS -->|stored in| OBJ
+  OFS -->|evidenced in| EVID
+
+  SM -->|owns and writes| MF
+  MLFLOW -->|owns and resolves| REG
+  MF -->|evidenced in| EVID
+
+  REG -->|read by| DF
+  REG -->|evidenced in| EVID
+
+  EVID -->|feeds| GOV
+  OBJ -->|feeds| GOV
+  AURORA -->|feeds| GOV
+
+  classDef owner fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.4px;
+  classDef component fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.4px;
+  classDef store fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.4px;
+  class INBOUND,ORACLE,IG,EB,RTDL,CASE,LABEL,ARCHIVE,OFS,MF,REG,GOV owner;
+  class DENGINE,WSP,IGLAMBDA,IGSVC,CSFB,IEG,OFP,DF,AL,DLA,ARCHWR,CM,LS,DBX,SM,MLFLOW component;
+  class DDB,MSK,EVID,OBJ,AURORA store;

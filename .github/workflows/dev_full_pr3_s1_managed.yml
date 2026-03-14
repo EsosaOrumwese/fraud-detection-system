@@ -1,0 +1,911 @@
+name: dev-full-pr3-s1-managed
+
+on:
+  workflow_dispatch:
+    inputs:
+      execution_mode:
+        description: "steady_harness, materialize_runtime, or remediate_irsa_msk_auth"
+        required: true
+        default: "steady_harness"
+        type: choice
+        options:
+          - steady_harness
+          - materialize_runtime
+          - remediate_irsa_msk_auth
+      aws_region:
+        description: "AWS region"
+        required: true
+        default: "eu-west-2"
+        type: string
+      aws_role_to_assume:
+        description: "OIDC role ARN used by GitHub Actions"
+        required: true
+        type: string
+      pr3_execution_id:
+        description: "Strict PR3 execution id"
+        required: true
+        default: "pr3_20260306T021900Z"
+        type: string
+      platform_run_id:
+        description: "Runtime platform run id (leave blank to mint a fresh attempt id)"
+        required: false
+        default: ""
+        type: string
+      scenario_run_id:
+        description: "Runtime scenario run id (leave blank to mint a fresh attempt id)"
+        required: false
+        default: ""
+        type: string
+      allow_runtime_identity_reuse:
+        description: "Allow reuse of an existing runtime platform_run_id"
+        required: false
+        default: false
+        type: boolean
+      evidence_bucket:
+        description: "Evidence bucket for remote artifact backup"
+        required: true
+        default: "fraud-platform-dev-full-evidence"
+        type: string
+      ig_api_key_ssm_path:
+        description: "SSM path for the IG API key"
+        required: true
+        default: "/fraud-platform/dev_full/ig/api_key"
+        type: string
+      api_id:
+        description: "API Gateway API id"
+        required: true
+        default: "ehwznd2uw7"
+        type: string
+      api_stage:
+        description: "API Gateway stage"
+        required: true
+        default: "v1"
+        type: string
+      eks_cluster_name:
+        description: "EKS cluster name"
+        required: true
+        default: "fraud-platform-dev-full"
+        type: string
+      eks_namespace:
+        description: "EKS namespace for fallback jobs"
+        required: true
+        default: "fraud-platform-rtdl"
+        type: string
+      worker_image_uri:
+        description: "Optional explicit worker image URI; leave blank to resolve from the canonical WSP task family"
+        required: false
+        default: ""
+        type: string
+      lane_count:
+        description: "Number of remote pressure lanes"
+        required: true
+        default: "32"
+        type: string
+      target_steady_eps:
+        description: "Total target steady EPS"
+        required: true
+        default: "3000"
+        type: string
+      target_request_rate_eps:
+        description: "Optional generator setpoint EPS; leave blank to use target_steady_eps"
+        required: false
+        default: ""
+        type: string
+      duration_seconds:
+        description: "Steady window duration in seconds"
+        required: true
+        default: "1800"
+        type: string
+      min_sample_events:
+        description: "Required admitted events"
+        required: true
+        default: "5400000"
+        type: string
+      stream_speedup:
+        description: "Oracle replay speedup multiplier"
+        required: true
+        default: "50.0"
+        type: string
+      ig_push_concurrency:
+        description: "Per-lane concurrent IG pushes"
+        required: true
+        default: "4"
+        type: string
+      target_burst_seconds:
+        description: "Per-lane token-bucket burst allowance in seconds"
+        required: true
+        default: "0.25"
+        type: string
+      target_initial_tokens:
+        description: "Per-lane initial token-bucket fill ratio"
+        required: true
+        default: "0.25"
+        type: string
+      early_cutoff_seconds:
+        description: "Fail-fast evaluation point in seconds"
+        required: true
+        default: "180"
+        type: string
+      early_cutoff_floor_ratio:
+        description: "Minimum admitted EPS ratio required at the fail-fast check"
+        required: true
+        default: "0.70"
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: dev-full-pr3-s1-managed-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  remediate_pr3_irsa_msk_auth:
+    name: Remediate PR3 IRSA MSK auth
+    if: ${{ inputs.execution_mode == 'remediate_irsa_msk_auth' }}
+    runs-on: ubuntu-latest
+    env:
+      ROLE_RTDL_NAME: fraud-platform-dev-full-irsa-rtdl
+      ROLE_DECISION_NAME: fraud-platform-dev-full-irsa-decision-lane
+      PINNED_MSK_CLUSTER_ARN: arn:aws:kafka:eu-west-2:230372904534:cluster/fraud-platform-dev-full-msk/6d6d345b-fb39-4e7b-a245-53525b4648b6-s3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject static AWS credential posture
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${AWS_ACCESS_KEY_ID:-}" || -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+            echo "Static AWS credentials are forbidden; use OIDC role assumption."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ inputs.aws_region }}
+          role-to-assume: ${{ inputs.aws_role_to_assume }}
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: "latest"
+
+      - name: Resolve remediation run directory
+        id: remediation_meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUN_DIR="runs/dev_substrate/dev_full/road_to_prod/run_control/${{ inputs.pr3_execution_id }}/irsa_msk_auth_remediation_$(date -u +'%Y%m%dT%H%M%SZ')"
+          mkdir -p "${RUN_DIR}"
+          echo "run_dir=${RUN_DIR}" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve live MSK policy document
+        shell: bash
+        env:
+          RUN_DIR: ${{ steps.remediation_meta.outputs.run_dir }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          run_dir = Path(os.environ["RUN_DIR"])
+          cluster_arn = str(os.environ["PINNED_MSK_CLUSTER_ARN"]).strip()
+          if "cluster/" not in cluster_arn:
+              raise SystemExit("PINNED_MSK_CLUSTER_ARN_INVALID")
+          cluster_suffix = cluster_arn.split("cluster/", 1)[1]
+          cluster_name, cluster_uuid = cluster_suffix.split("/", 1)
+          account = cluster_arn.split(":", 5)[4]
+          region = os.environ["AWS_REGION"]
+
+          policy = {
+              "Version": "2012-10-17",
+              "Statement": [
+                  {
+                      "Effect": "Allow",
+                      "Action": [
+                          "kafka-cluster:Connect",
+                          "kafka-cluster:DescribeCluster",
+                      ],
+                      "Resource": cluster_arn,
+                  },
+                  {
+                      "Effect": "Allow",
+                      "Action": [
+                          "kafka-cluster:DescribeTopic",
+                          "kafka-cluster:ReadData",
+                          "kafka-cluster:WriteData",
+                      ],
+                      "Resource": f"arn:aws:kafka:{region}:{account}:topic/{cluster_name}/{cluster_uuid}/*",
+                  },
+                  {
+                      "Effect": "Allow",
+                      "Action": [
+                          "kafka-cluster:DescribeGroup",
+                          "kafka-cluster:AlterGroup",
+                      ],
+                      "Resource": f"arn:aws:kafka:{region}:{account}:group/{cluster_name}/{cluster_uuid}/*",
+                  },
+              ],
+          }
+          (run_dir / "irsa_msk_data_plane_policy.json").write_text(
+              json.dumps(policy, indent=2, ensure_ascii=True) + "\n",
+              encoding="utf-8",
+          )
+          (run_dir / "irsa_msk_cluster_resolution.json").write_text(
+              json.dumps(
+                  {
+                      "cluster_name": cluster_name,
+                      "cluster_arn": cluster_arn,
+                      "cluster_uuid": cluster_uuid,
+                      "region": region,
+                      "account": account,
+                  },
+                  indent=2,
+                  ensure_ascii=True,
+              )
+              + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Capture pre-remediation IAM posture
+        shell: bash
+        env:
+          RUN_DIR: ${{ steps.remediation_meta.outputs.run_dir }}
+        run: |
+          set -euo pipefail
+          aws iam get-role-policy \
+            --role-name "${ROLE_RTDL_NAME}" \
+            --policy-name "${ROLE_RTDL_NAME}-ssm-read" \
+            --output json > "${RUN_DIR}/irsa_rtdl_ssm_read_pre.json"
+          aws iam get-role-policy \
+            --role-name "${ROLE_DECISION_NAME}" \
+            --policy-name "${ROLE_DECISION_NAME}-ssm-read" \
+            --output json > "${RUN_DIR}/irsa_decision_lane_ssm_read_pre.json"
+          aws iam list-role-policies \
+            --role-name "${ROLE_RTDL_NAME}" \
+            --output json > "${RUN_DIR}/irsa_rtdl_policy_list_pre.json"
+          aws iam list-role-policies \
+            --role-name "${ROLE_DECISION_NAME}" \
+            --output json > "${RUN_DIR}/irsa_decision_lane_policy_list_pre.json"
+
+      - name: Apply targeted IRSA MSK auth remediation
+        shell: bash
+        env:
+          RUN_DIR: ${{ steps.remediation_meta.outputs.run_dir }}
+        run: |
+          set -euo pipefail
+          aws iam put-role-policy \
+            --role-name "${ROLE_RTDL_NAME}" \
+            --policy-name "${ROLE_RTDL_NAME}-msk-data-plane" \
+            --policy-document "file://${RUN_DIR}/irsa_msk_data_plane_policy.json"
+          aws iam put-role-policy \
+            --role-name "${ROLE_DECISION_NAME}" \
+            --policy-name "${ROLE_DECISION_NAME}-msk-data-plane" \
+            --policy-document "file://${RUN_DIR}/irsa_msk_data_plane_policy.json"
+
+      - name: Configure kubeconfig
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws eks update-kubeconfig \
+            --region "${{ inputs.aws_region }}" \
+            --name "${{ inputs.eks_cluster_name }}"
+
+      - name: Restart affected PR3 runtime deployments
+        shell: bash
+        run: |
+          set -euo pipefail
+          kubectl rollout restart deployment/fp-pr3-ieg -n "${{ inputs.eks_namespace }}"
+          kubectl rollout restart deployment/fp-pr3-ofp -n "${{ inputs.eks_namespace }}"
+          kubectl rollout restart deployment/fp-pr3-df -n "${{ inputs.eks_namespace }}"
+          kubectl rollout restart deployment/fp-pr3-al -n "${{ inputs.eks_namespace }}"
+          kubectl rollout restart deployment/fp-pr3-dla -n "${{ inputs.eks_namespace }}"
+          kubectl rollout restart deployment/fp-pr3-archive-writer -n "${{ inputs.eks_namespace }}"
+          kubectl rollout status deployment/fp-pr3-ieg -n "${{ inputs.eks_namespace }}" --timeout=180s
+          kubectl rollout status deployment/fp-pr3-ofp -n "${{ inputs.eks_namespace }}" --timeout=180s
+          kubectl rollout status deployment/fp-pr3-df -n "${{ inputs.eks_namespace }}" --timeout=180s
+          kubectl rollout status deployment/fp-pr3-al -n "${{ inputs.eks_namespace }}" --timeout=180s
+          kubectl rollout status deployment/fp-pr3-dla -n "${{ inputs.eks_namespace }}" --timeout=180s
+          kubectl rollout status deployment/fp-pr3-archive-writer -n "${{ inputs.eks_namespace }}" --timeout=180s
+          sleep 30
+
+      - name: Capture post-remediation posture and verify auth blockers cleared
+        shell: bash
+        env:
+          RUN_DIR: ${{ steps.remediation_meta.outputs.run_dir }}
+          PR3_EXECUTION_ID: ${{ inputs.pr3_execution_id }}
+        run: |
+          set -euo pipefail
+          aws iam get-role-policy \
+            --role-name "${ROLE_RTDL_NAME}" \
+            --policy-name "${ROLE_RTDL_NAME}-msk-data-plane" \
+            --output json > "${RUN_DIR}/irsa_rtdl_msk_data_plane_post.json"
+          aws iam get-role-policy \
+            --role-name "${ROLE_DECISION_NAME}" \
+            --policy-name "${ROLE_DECISION_NAME}-msk-data-plane" \
+            --output json > "${RUN_DIR}/irsa_decision_lane_msk_data_plane_post.json"
+          kubectl logs deployment/fp-pr3-df -n "${{ inputs.eks_namespace }}" --tail=80 > "${RUN_DIR}/fp_pr3_df_logs_post.txt"
+          kubectl logs deployment/fp-pr3-al -n "${{ inputs.eks_namespace }}" --tail=80 > "${RUN_DIR}/fp_pr3_al_logs_post.txt"
+          kubectl logs deployment/fp-pr3-dla -n "${{ inputs.eks_namespace }}" --tail=80 > "${RUN_DIR}/fp_pr3_dla_logs_post.txt"
+          python - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          run_dir = Path(os.environ["RUN_DIR"])
+          execution_id = os.environ["PR3_EXECUTION_ID"]
+          log_targets = {
+              "df": run_dir / "fp_pr3_df_logs_post.txt",
+              "al": run_dir / "fp_pr3_al_logs_post.txt",
+              "dla": run_dir / "fp_pr3_dla_logs_post.txt",
+          }
+          blockers = []
+          for lane, path in log_targets.items():
+              text = path.read_text(encoding="utf-8") if path.exists() else ""
+              if "SaslAuthenticationFailedError" in text or "Access denied" in text:
+                  blockers.append(f"{lane.upper()}_MSK_AUTH_STILL_DENIED")
+
+          summary = {
+              "captured_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "pr3_execution_id": execution_id,
+              "remediation": "IRSA_MSK_DATA_PLANE",
+              "roles": {
+                  "rtdl": os.environ["ROLE_RTDL_NAME"],
+                  "decision_lane": os.environ["ROLE_DECISION_NAME"],
+              },
+              "log_verification_targets": sorted(log_targets.keys()),
+              "open_blockers": len(blockers),
+              "blocker_ids": blockers,
+              "overall_pass": not blockers,
+          }
+          manifest = {
+              "captured_at_utc": summary["captured_at_utc"],
+              "remediation": summary["remediation"],
+              "artifacts": {
+                  "rtdl_policy": str((run_dir / "irsa_rtdl_msk_data_plane_post.json").resolve()),
+                  "decision_lane_policy": str((run_dir / "irsa_decision_lane_msk_data_plane_post.json").resolve()),
+                  "df_logs": str((run_dir / "fp_pr3_df_logs_post.txt").resolve()),
+                  "al_logs": str((run_dir / "fp_pr3_al_logs_post.txt").resolve()),
+                  "dla_logs": str((run_dir / "fp_pr3_dla_logs_post.txt").resolve()),
+              },
+          }
+          (run_dir / "g3a_runtime_irsa_msk_auth_summary.json").write_text(
+              json.dumps(summary, indent=2, ensure_ascii=True) + "\n",
+              encoding="utf-8",
+          )
+          (run_dir / "g3a_runtime_irsa_msk_auth_manifest.json").write_text(
+              json.dumps(manifest, indent=2, ensure_ascii=True) + "\n",
+              encoding="utf-8",
+          )
+          if blockers:
+              raise SystemExit(1)
+          PY
+
+      - name: Upload workflow artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr3-irsa-msk-auth-remediation-${{ inputs.pr3_execution_id }}
+          path: |
+            ${{ steps.remediation_meta.outputs.run_dir }}/irsa_msk_cluster_resolution.json
+            ${{ steps.remediation_meta.outputs.run_dir }}/irsa_msk_data_plane_policy.json
+            ${{ steps.remediation_meta.outputs.run_dir }}/g3a_runtime_irsa_msk_auth_manifest.json
+            ${{ steps.remediation_meta.outputs.run_dir }}/g3a_runtime_irsa_msk_auth_summary.json
+            ${{ steps.remediation_meta.outputs.run_dir }}/fp_pr3_df_logs_post.txt
+            ${{ steps.remediation_meta.outputs.run_dir }}/fp_pr3_al_logs_post.txt
+            ${{ steps.remediation_meta.outputs.run_dir }}/fp_pr3_dla_logs_post.txt
+          if-no-files-found: warn
+
+  materialize_pr3_runtime:
+    name: Materialize PR3 runtime on EKS
+    if: ${{ inputs.execution_mode == 'materialize_runtime' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject static AWS credential posture
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${AWS_ACCESS_KEY_ID:-}" || -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+            echo "Static AWS credentials are forbidden; use OIDC role assumption."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ inputs.aws_region }}
+          role-to-assume: ${{ inputs.aws_role_to_assume }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: "latest"
+
+      - name: Install runtime dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install boto3 botocore "psycopg[binary]"
+
+      - name: Configure kubeconfig
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws eks update-kubeconfig \
+            --region "${{ inputs.aws_region }}" \
+            --name "${{ inputs.eks_cluster_name }}"
+
+      - name: Materialize runtime
+        env:
+          RAW_PLATFORM_RUN_ID: ${{ inputs.platform_run_id }}
+          RAW_SCENARIO_RUN_ID: ${{ inputs.scenario_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          NOW_UTC="$(date -u +'%Y%m%dT%H%M%SZ')"
+          PLATFORM_RUN_ID="${RAW_PLATFORM_RUN_ID:-}"
+          SCENARIO_RUN_ID="${RAW_SCENARIO_RUN_ID:-}"
+          if [[ -z "${PLATFORM_RUN_ID}" ]]; then
+            PLATFORM_RUN_ID="platform_${NOW_UTC}"
+          fi
+          if [[ -z "${SCENARIO_RUN_ID}" ]]; then
+            SCENARIO_RUN_ID="$(python - <<'PY'
+            import uuid
+            print(uuid.uuid4().hex)
+            PY
+            )"
+          fi
+          if [[ ! "${SCENARIO_RUN_ID}" =~ ^[a-f0-9]{32}$ ]]; then
+            echo "PR3.S1.WSP.B00_INVALID_SCENARIO_RUN_ID:${SCENARIO_RUN_ID}"
+            exit 1
+          fi
+          python scripts/dev_substrate/pr3_rtdl_materialize.py \
+            --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
+            --platform-run-id "${PLATFORM_RUN_ID}" \
+            --scenario-run-id "${SCENARIO_RUN_ID}" \
+            --region "${{ inputs.aws_region }}" \
+            --namespace "${{ inputs.eks_namespace }}" \
+            --ig-api-key-ssm-path "${{ inputs.ig_api_key_ssm_path }}" \
+            --image-uri "${{ inputs.worker_image_uri }}"
+
+      - name: Upload workflow artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr3-runtime-materialization-${{ inputs.pr3_execution_id }}
+          path: |
+            runs/dev_substrate/dev_full/road_to_prod/run_control/${{ inputs.pr3_execution_id }}/g3a_runtime_materialization_manifest.json
+            runs/dev_substrate/dev_full/road_to_prod/run_control/${{ inputs.pr3_execution_id }}/g3a_runtime_materialization_summary.json
+          if-no-files-found: warn
+
+  run_pr3_s1_managed:
+    name: Run PR3-S1 canonical remote WSP replay
+    if: ${{ inputs.execution_mode == 'steady_harness' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject static AWS credential posture
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${AWS_ACCESS_KEY_ID:-}" || -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+            echo "Static AWS credentials are forbidden; use OIDC role assumption."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ inputs.aws_region }}
+          role-to-assume: ${{ inputs.aws_role_to_assume }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: "latest"
+
+      - name: Install runtime dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install boto3 botocore "psycopg[binary]"
+
+      - name: Compute execution metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUN_DIR="runs/dev_substrate/dev_full/road_to_prod/run_control/${{ inputs.pr3_execution_id }}"
+          mkdir -p "${RUN_DIR}"
+          echo "run_dir=${RUN_DIR}" >> "$GITHUB_OUTPUT"
+
+      - name: Bootstrap authoritative PR3 run-control evidence
+        shell: bash
+        env:
+          EVIDENCE_BUCKET: ${{ inputs.evidence_bucket }}
+          PR3_EXECUTION_ID: ${{ inputs.pr3_execution_id }}
+          RUN_DIR: ${{ steps.meta.outputs.run_dir }}
+        run: |
+          set -euo pipefail
+          aws s3 cp \
+            "s3://${EVIDENCE_BUCKET}/evidence/dev_full/run_control/${PR3_EXECUTION_ID}/pr3_s0_execution_receipt.json" \
+            "${RUN_DIR}/pr3_s0_execution_receipt.json"
+          aws s3 cp \
+            "s3://${EVIDENCE_BUCKET}/evidence/dev_full/run_control/${PR3_EXECUTION_ID}/g3a_s1_wsp_runtime_manifest.json" \
+            "${RUN_DIR}/g3a_s1_wsp_runtime_manifest.json" \
+            --no-progress || true
+          test -f "${RUN_DIR}/pr3_s0_execution_receipt.json"
+
+      - name: Configure kubeconfig for PR3 runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws eks update-kubeconfig \
+            --region "${{ inputs.aws_region }}" \
+            --name "${{ inputs.eks_cluster_name }}"
+
+      - name: Verify PR3 runtime readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          kubectl rollout status deployment/fp-pr3-ieg -n "${{ inputs.eks_namespace }}" --timeout=180s
+          kubectl rollout status deployment/fp-pr3-ofp -n "${{ inputs.eks_namespace }}" --timeout=180s
+          kubectl rollout status deployment/fp-pr3-df -n "${{ inputs.eks_namespace }}" --timeout=180s
+          kubectl rollout status deployment/fp-pr3-al -n "${{ inputs.eks_namespace }}" --timeout=180s
+          kubectl rollout status deployment/fp-pr3-dla -n "${{ inputs.eks_namespace }}" --timeout=180s
+          kubectl rollout status deployment/fp-pr3-archive-writer -n "${{ inputs.eks_namespace }}" --timeout=180s
+
+      - name: Resolve fresh runtime identity
+        id: runtime_identity
+        shell: bash
+        env:
+          RAW_PLATFORM_RUN_ID: ${{ inputs.platform_run_id }}
+          RAW_SCENARIO_RUN_ID: ${{ inputs.scenario_run_id }}
+        run: |
+          set -euo pipefail
+          NOW_UTC="$(date -u +'%Y%m%dT%H%M%SZ')"
+          PLATFORM_RUN_ID="${RAW_PLATFORM_RUN_ID:-}"
+          SCENARIO_RUN_ID="${RAW_SCENARIO_RUN_ID:-}"
+          if [[ -z "${PLATFORM_RUN_ID}" ]]; then
+            PLATFORM_RUN_ID="platform_${NOW_UTC}"
+          fi
+          if [[ -z "${SCENARIO_RUN_ID}" ]]; then
+            SCENARIO_RUN_ID="$(python - <<'PY'
+            import uuid
+            print(uuid.uuid4().hex)
+            PY
+            )"
+          fi
+          if [[ ! "${SCENARIO_RUN_ID}" =~ ^[a-f0-9]{32}$ ]]; then
+            echo "PR3.S1.WSP.B00_INVALID_SCENARIO_RUN_ID:${SCENARIO_RUN_ID}"
+            exit 1
+          fi
+          echo "platform_run_id=${PLATFORM_RUN_ID}" >> "$GITHUB_OUTPUT"
+          echo "scenario_run_id=${SCENARIO_RUN_ID}" >> "$GITHUB_OUTPUT"
+
+      - name: Probe runtime identity from inside VPC
+        shell: bash
+        env:
+          EKS_NAMESPACE: ${{ inputs.eks_namespace }}
+          PLATFORM_RUN_ID: ${{ steps.runtime_identity.outputs.platform_run_id }}
+        run: |
+          set -euo pipefail
+          POD_NAME="$(kubectl get pods -n "${EKS_NAMESPACE}" -l app=fp-pr3-df -o jsonpath='{.items[0].metadata.name}')"
+          if [[ -z "${POD_NAME}" ]]; then
+            echo "PR3.S1.WSP.B27_IDENTITY_PROBE_POD_MISSING"
+            exit 1
+          fi
+          kubectl exec -n "${EKS_NAMESPACE}" "${POD_NAME}" -- env PLATFORM_RUN_ID="${PLATFORM_RUN_ID}" python - <<'PY'
+          import json
+          import os
+          import psycopg
+
+          platform_run_id = os.environ["PLATFORM_RUN_ID"].strip()
+          dsn = os.environ["DF_CHECKPOINT_DSN"].strip()
+          if not platform_run_id:
+              raise SystemExit("PR3.S1.WSP.B27_RUNTIME_ID_EMPTY")
+          if not dsn:
+              raise SystemExit("PR3.S1.WSP.B27_DSN_EMPTY")
+
+          counts = {}
+          with psycopg.connect(dsn, autocommit=True) as conn:
+              with conn.cursor() as cur:
+                  for table in ("admissions", "receipts"):
+                      cur.execute("SELECT to_regclass(%s)", (f"public.{table}",))
+                      row = cur.fetchone()
+                      if not row or not row[0]:
+                          counts[table] = 0
+                          continue
+                      cur.execute(f"SELECT COUNT(*) FROM public.{table} WHERE platform_run_id = %s", (platform_run_id,))
+                      value = cur.fetchone()
+                      counts[table] = int(value[0] or 0) if value else 0
+
+          if counts["admissions"] > 0 or counts["receipts"] > 0:
+              raise SystemExit(
+                  "PR3.S1.WSP.B26_RUNTIME_ID_REUSED:"
+                  f"platform_run_id={platform_run_id}:"
+                  f"admissions={counts['admissions']}:"
+                  f"receipts={counts['receipts']}"
+              )
+
+          print(
+              json.dumps(
+                  {
+                      "platform_run_id": platform_run_id,
+                      "probe_mode": "in_vpc_kubectl_exec",
+                      "admissions_count": counts["admissions"],
+                      "receipts_count": counts["receipts"],
+                  },
+                  indent=2,
+              )
+          )
+          PY
+
+      - name: Launch canonical remote WSP replay
+        shell: bash
+        env:
+          AWS_REGION: ${{ inputs.aws_region }}
+          PR3_EXECUTION_ID: ${{ inputs.pr3_execution_id }}
+          PLATFORM_RUN_ID: ${{ steps.runtime_identity.outputs.platform_run_id }}
+          SCENARIO_RUN_ID: ${{ steps.runtime_identity.outputs.scenario_run_id }}
+          RUN_DIR: ${{ steps.meta.outputs.run_dir }}
+          API_ID: ${{ inputs.api_id }}
+          API_STAGE: ${{ inputs.api_stage }}
+          LANE_COUNT: ${{ inputs.lane_count }}
+          TASK_CPU: "256"
+          TASK_MEMORY: "1024"
+          SUBNET_IDS: "subnet-0a7a35898d0ca31a8,subnet-0e9647425f02e2f27"
+          ASSIGN_PUBLIC_IP: "DISABLED"
+          HTTP_POOL_MAXSIZE: "512"
+          TARGET_STEADY_EPS: ${{ inputs.target_steady_eps }}
+          TARGET_REQUEST_RATE_EPS: ${{ inputs.target_request_rate_eps }}
+          DURATION_SECONDS: ${{ inputs.duration_seconds }}
+          EARLY_CUTOFF_SECONDS: ${{ inputs.early_cutoff_seconds }}
+          EARLY_CUTOFF_FLOOR_RATIO: ${{ inputs.early_cutoff_floor_ratio }}
+          STREAM_SPEEDUP: ${{ inputs.stream_speedup }}
+          IG_PUSH_CONCURRENCY: ${{ inputs.ig_push_concurrency }}
+          TARGET_BURST_SECONDS: ${{ inputs.target_burst_seconds }}
+          TARGET_INITIAL_TOKENS: ${{ inputs.target_initial_tokens }}
+          ALLOW_RUNTIME_ID_REUSE: ${{ inputs.allow_runtime_identity_reuse }}
+        run: |
+          set -euo pipefail
+          EXTRA_ARGS=()
+          TARGET_REQUEST_RATE_ARGS=()
+          if [[ "${ALLOW_RUNTIME_ID_REUSE}" == "true" ]]; then
+            EXTRA_ARGS+=(--allow-runtime-identity-reuse)
+          fi
+          if [[ -n "${TARGET_REQUEST_RATE_EPS}" ]]; then
+            TARGET_REQUEST_RATE_ARGS+=(--target-request-rate-eps "${TARGET_REQUEST_RATE_EPS}")
+          fi
+          python scripts/dev_substrate/pr3_s1_wsp_replay_dispatch.py \
+            --pr3-execution-id "${PR3_EXECUTION_ID}" \
+            --region "${AWS_REGION}" \
+            --platform-run-id "${PLATFORM_RUN_ID}" \
+            --scenario-run-id "${SCENARIO_RUN_ID}" \
+            --api-id "${API_ID}" \
+            --api-stage "${API_STAGE}" \
+            --lane-count "${LANE_COUNT}" \
+            --task-cpu "${TASK_CPU}" \
+            --task-memory "${TASK_MEMORY}" \
+            --subnet-ids "${SUBNET_IDS}" \
+            --assign-public-ip "${ASSIGN_PUBLIC_IP}" \
+            --ig-push-concurrency "${IG_PUSH_CONCURRENCY}" \
+            --http-pool-maxsize "${HTTP_POOL_MAXSIZE}" \
+            --expected-steady-eps "${TARGET_STEADY_EPS}" \
+            --duration-seconds "${DURATION_SECONDS}" \
+            --early-cutoff-seconds "${EARLY_CUTOFF_SECONDS}" \
+            --early-cutoff-floor-ratio "${EARLY_CUTOFF_FLOOR_RATIO}" \
+            --stream-speedup "${STREAM_SPEEDUP}" \
+            --target-burst-seconds "${TARGET_BURST_SECONDS}" \
+            --target-initial-tokens "${TARGET_INITIAL_TOKENS}" \
+            --max-latency-p95-ms 350 \
+            --max-latency-p99-ms 700 \
+            --skip-runtime-identity-probe \
+            "${TARGET_REQUEST_RATE_ARGS[@]}" \
+            "${EXTRA_ARGS[@]}"
+
+      - name: Build PR3-S1 steady evidence rollup
+        shell: bash
+        env:
+          RUN_DIR: ${{ steps.meta.outputs.run_dir }}
+          PR3_EXECUTION_ID: ${{ inputs.pr3_execution_id }}
+          API_ID: ${{ inputs.api_id }}
+          API_STAGE: ${{ inputs.api_stage }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          def dump_json(path: Path, payload: dict) -> None:
+              path.write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+
+          run_dir = Path(os.environ["RUN_DIR"])
+          summary = json.loads((run_dir / "g3a_s1_wsp_runtime_summary.json").read_text(encoding="utf-8"))
+          manifest = json.loads((run_dir / "g3a_s1_wsp_runtime_manifest.json").read_text(encoding="utf-8"))
+          generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+          blockers = list(summary.get("blocker_ids", []))
+          overall_pass = int(summary.get("open_blockers", 1) or 0) == 0
+          observed = dict(summary.get("observed", {}))
+          perf = dict(summary.get("performance_window", {}))
+          campaign = dict(summary.get("campaign", {}))
+          metric_surface = dict(manifest.get("ingress", {}).get("metric_surface", {}) or {})
+          metric_surface_mode = str(metric_surface.get("mode", "APIGW") or "APIGW").upper()
+
+          selection = {
+              "phase": "PR3",
+              "state": "S1",
+              "generated_at_utc": generated_at,
+              "generated_by": "github-actions",
+              "version": "1.0.0",
+              "execution_id": os.environ["PR3_EXECUTION_ID"],
+              "runtime_path_requested": "CANONICAL_REMOTE_WSP_REPLAY",
+              "runtime_path_active": "CANONICAL_REMOTE_WSP_REPLAY",
+              "decision_reason": "PR3_S1_CANONICAL_WSP_REPLAY",
+              "overall_pass": overall_pass,
+              "blocker_ids": blockers,
+          }
+          dispatch_manifest = {
+              "phase": "PR3",
+              "state": "S1",
+              "generated_at_utc": generated_at,
+              "generated_by": "github-actions",
+              "version": "1.0.0",
+              "execution_id": os.environ["PR3_EXECUTION_ID"],
+              "runtime_path_active": "CANONICAL_REMOTE_WSP_REPLAY",
+              "dispatch_mode": manifest.get("dispatch_mode", "CANONICAL_REMOTE_WSP_REPLAY"),
+              "cluster": manifest.get("cluster"),
+              "task_definition": manifest.get("task_definition"),
+              "lane_count": manifest.get("lane_count"),
+              "lanes": manifest.get("lanes", []),
+              "campaign": campaign,
+              "identity": manifest.get("identity", {}),
+              "oracle": manifest.get("oracle", {}),
+          }
+          dispatch_summary = {
+              "phase": "PR3",
+              "state": "S1",
+              "generated_at_utc": generated_at,
+              "generated_by": "github-actions",
+              "version": "1.0.0",
+              "execution_id": os.environ["PR3_EXECUTION_ID"],
+              "runtime_path_active": "CANONICAL_REMOTE_WSP_REPLAY",
+              "dispatch_mode": manifest.get("dispatch_mode", "CANONICAL_REMOTE_WSP_REPLAY"),
+              "performance_window": perf,
+              "campaign": campaign,
+              "observed": observed,
+              "blocker_ids": blockers,
+              "overall_pass": overall_pass,
+          }
+          evidence_payload = {
+              "phase": "PR3",
+              "state": "S1",
+              "generated_at_utc": generated_at,
+              "generated_by": "github-actions",
+              "version": "1.0.0",
+              "execution_id": os.environ["PR3_EXECUTION_ID"],
+              "evidence_mode": "CANONICAL_REMOTE_WSP_REPLAY",
+              "measurement_surface": "IG_ADMITTED_EVENTS_PER_SEC",
+              "window": {
+                  "start_utc": perf.get("measurement_start_utc"),
+                  "end_utc": perf.get("end_utc"),
+                  "duration_seconds": perf.get("covered_metric_seconds"),
+              },
+              "sample_size_events": observed.get("admitted_request_count"),
+              "observed_events_per_second": observed.get("observed_admitted_eps"),
+              "error_rate_pct_observed": (float(observed.get("error_rate_ratio", 1.0) or 0.0) * 100.0),
+              "decision_latency_ms_p95": observed.get("latency_p95_ms"),
+              "decision_latency_ms_p99": observed.get("latency_p99_ms"),
+              "latency_derivation_method": observed.get("latency_derivation_method"),
+              "cloudwatch_aggregation": {
+                  "period_seconds": perf.get("metric_period_seconds"),
+                  "metric_surface_mode": metric_surface_mode,
+                  "api_id": os.environ["API_ID"] if metric_surface_mode == "APIGW" else None,
+                  "stage": os.environ["API_STAGE"] if metric_surface_mode == "APIGW" else None,
+                  "load_balancer_dimension": metric_surface.get("load_balancer_dimension") if metric_surface_mode == "ALB" else None,
+                  "target_group_dimension": metric_surface.get("target_group_dimension") if metric_surface_mode == "ALB" else None,
+                  "count_sum": observed.get("request_count_total"),
+                  "4xx_sum": observed.get("4xx_total"),
+                  "5xx_sum": observed.get("5xx_total"),
+                  "metric_bin_count": perf.get("metric_bin_count"),
+              },
+              "managed_lane_aggregation": {
+                  "lane_count": campaign.get("lane_count"),
+                  "target_request_rate_eps": campaign.get("target_request_rate_eps"),
+                  "per_lane_target_eps": campaign.get("per_lane_target_eps"),
+                  "aggregate_cli_emitted": observed.get("aggregate_cli_emitted"),
+              },
+              "overall_pass": overall_pass,
+              "source_notes": [
+                  "runtime_path_active=CANONICAL_REMOTE_WSP_REPLAY",
+                  f"throughput_derived_from_AWS/{'ApplicationELB' if metric_surface_mode == 'ALB' else 'ApiGateway'}_count_minus_4xx_5xx",
+                  f"latency_derived_from_AWS/{'ApplicationELB_TargetResponseTime' if metric_surface_mode == 'ALB' else 'ApiGateway_Latency'}_weighted_by_count",
+              ],
+          }
+          evidence_summary = {
+              "phase": "PR3",
+              "state": "S1",
+              "generated_at_utc": generated_at,
+              "generated_by": "github-actions",
+              "version": "1.0.0",
+              "execution_id": os.environ["PR3_EXECUTION_ID"],
+              "verdict": "FRESH_EVIDENCE_READY" if overall_pass else "HOLD_REMEDIATE",
+              "blocker_count": len(blockers),
+              "blockers": blockers,
+              "evidence_ref": f"runs/dev_substrate/dev_full/road_to_prod/run_control/{os.environ['PR3_EXECUTION_ID']}/g3a_steady_evidence_managed.json",
+          }
+
+          dump_json(run_dir / "g3a_s1_managed_runtime_path_selection.json", selection)
+          dump_json(run_dir / "g3a_s1_managed_dispatch_manifest.json", dispatch_manifest)
+          dump_json(run_dir / "g3a_s1_managed_dispatch_summary.json", dispatch_summary)
+          dump_json(run_dir / "g3a_steady_evidence_managed.json", evidence_payload)
+          dump_json(run_dir / "g3a_steady_evidence_managed_summary.json", evidence_summary)
+
+          print(json.dumps({"dispatch_summary": dispatch_summary, "evidence_summary": evidence_summary}, indent=2))
+          if blockers:
+              sys.exit(1)
+          PY
+
+      - name: Upload remote artifact backup to S3
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws s3 sync "${{ steps.meta.outputs.run_dir }}/" "s3://${{ inputs.evidence_bucket }}/evidence/dev_full/run_control/${{ inputs.pr3_execution_id }}/" --no-progress || true
+          aws s3 cp "${{ steps.meta.outputs.run_dir }}/g3a_s1_managed_runtime_path_selection.json" "s3://${{ inputs.evidence_bucket }}/evidence/dev_full/run_control/${{ inputs.pr3_execution_id }}/road_to_prod/pr3_s1_managed/g3a_s1_managed_runtime_path_selection.json" || true
+          aws s3 cp "${{ steps.meta.outputs.run_dir }}/g3a_s1_managed_dispatch_manifest.json" "s3://${{ inputs.evidence_bucket }}/evidence/dev_full/run_control/${{ inputs.pr3_execution_id }}/road_to_prod/pr3_s1_managed/g3a_s1_managed_dispatch_manifest.json" || true
+          aws s3 cp "${{ steps.meta.outputs.run_dir }}/g3a_s1_managed_dispatch_summary.json" "s3://${{ inputs.evidence_bucket }}/evidence/dev_full/run_control/${{ inputs.pr3_execution_id }}/road_to_prod/pr3_s1_managed/g3a_s1_managed_dispatch_summary.json" || true
+          aws s3 cp "${{ steps.meta.outputs.run_dir }}/g3a_steady_evidence_managed.json" "s3://${{ inputs.evidence_bucket }}/evidence/dev_full/run_control/${{ inputs.pr3_execution_id }}/road_to_prod/pr3_s1_managed/g3a_steady_evidence_managed.json" || true
+          aws s3 cp "${{ steps.meta.outputs.run_dir }}/g3a_steady_evidence_managed_summary.json" "s3://${{ inputs.evidence_bucket }}/evidence/dev_full/run_control/${{ inputs.pr3_execution_id }}/road_to_prod/pr3_s1_managed/g3a_steady_evidence_managed_summary.json" || true
+          aws s3 cp "${{ steps.meta.outputs.run_dir }}/g3a_s1_wsp_runtime_manifest.json" "s3://${{ inputs.evidence_bucket }}/evidence/dev_full/run_control/${{ inputs.pr3_execution_id }}/road_to_prod/pr3_s1_managed/g3a_s1_wsp_runtime_manifest.json" || true
+          aws s3 cp "${{ steps.meta.outputs.run_dir }}/g3a_s1_wsp_runtime_summary.json" "s3://${{ inputs.evidence_bucket }}/evidence/dev_full/run_control/${{ inputs.pr3_execution_id }}/road_to_prod/pr3_s1_managed/g3a_s1_wsp_runtime_summary.json" || true
+
+      - name: Cleanup fallback resources
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Canonical WSP replay uses bounded ECS tasks and self-stops them; no synthetic fallback resources to clean."
+
+      - name: Upload workflow artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr3-s1-managed-${{ inputs.pr3_execution_id }}
+          path: |
+            ${{ steps.meta.outputs.run_dir }}/g3a_s1_managed_runtime_path_selection.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_s1_managed_dispatch_manifest.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_s1_managed_dispatch_summary.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_steady_evidence_managed.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_steady_evidence_managed_summary.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_s1_wsp_runtime_manifest.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_s1_wsp_runtime_summary.json
+          if-no-files-found: warn
+

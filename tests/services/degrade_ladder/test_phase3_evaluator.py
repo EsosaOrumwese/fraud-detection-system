@@ -188,7 +188,7 @@ def test_hysteresis_blocks_upshift_before_quiet_period() -> None:
     assert "upshift_held_quiet_period" in (decision.reason or "")
 
 
-def test_hysteresis_allows_one_rung_upshift_after_quiet_period() -> None:
+def test_hysteresis_restores_baseline_after_quiet_period() -> None:
     profile, policy_rev = _profile()
     scope_key = resolve_scope(scope_kind="GLOBAL").scope_key
     decision = evaluate_posture(
@@ -200,8 +200,8 @@ def test_hysteresis_allows_one_rung_upshift_after_quiet_period() -> None:
         posture_seq=6,
         prior_decision=_prior_decision(mode="FAIL_CLOSED", decided_at_utc="2026-02-07T03:05:00.000000Z"),
     )
-    assert decision.mode == "DEGRADED_2"
-    assert "upshift_one_rung:FAIL_CLOSED->DEGRADED_2" in (decision.reason or "")
+    assert decision.mode == "NORMAL"
+    assert "upshift_to_baseline:FAIL_CLOSED->NORMAL" in (decision.reason or "")
 
 
 def test_hysteresis_accumulates_held_elapsed_across_iterations() -> None:
@@ -226,8 +226,51 @@ def test_hysteresis_accumulates_held_elapsed_across_iterations() -> None:
             reason=prior_reason,
         ),
     )
+    assert decision.mode == "NORMAL"
+    assert "upshift_to_baseline:FAIL_CLOSED->NORMAL" in (decision.reason or "")
+
+
+def test_hysteresis_restores_partial_baseline_after_quiet_period() -> None:
+    profile, policy_rev = _profile()
+    scope_key = resolve_scope(scope_kind="GLOBAL").scope_key
+    snapshot = build_signal_snapshot(
+        [
+            _sample(name="ofp_health", observed_at_utc="2026-02-07T03:05:40.000000Z", scope_key=scope_key),
+            _sample(name="ieg_health", observed_at_utc="2026-02-07T03:05:40.000000Z", scope_key=scope_key),
+            _sample(name="eb_consumer_lag", observed_at_utc="2026-02-07T03:05:40.000000Z", scope_key=scope_key),
+            _sample(name="registry_health", observed_at_utc="2026-02-07T03:05:40.000000Z", scope_key=scope_key),
+            _sample(name="posture_store_health", observed_at_utc="2026-02-07T03:05:40.000000Z", scope_key=scope_key),
+            _sample(
+                name="control_publish_health",
+                observed_at_utc="2026-02-07T03:05:40.000000Z",
+                scope_key=scope_key,
+                status="ERROR",
+            ),
+        ],
+        scope_key=scope_key,
+        decision_time_utc="2026-02-07T03:06:30.000000Z",
+        required_signal_names=[
+            "ofp_health",
+            "ieg_health",
+            "eb_consumer_lag",
+            "registry_health",
+            "posture_store_health",
+        ],
+        optional_signal_names=["control_publish_health"],
+        required_max_age_seconds=120,
+    )
+
+    decision = evaluate_posture(
+        profile=profile,
+        policy_rev=policy_rev,
+        snapshot=snapshot,
+        decision_time_utc="2026-02-07T03:06:30.000000Z",
+        scope_key=scope_key,
+        posture_seq=8,
+        prior_decision=_prior_decision(mode="FAIL_CLOSED", decided_at_utc="2026-02-07T03:05:00.000000Z"),
+    )
     assert decision.mode == "DEGRADED_2"
-    assert "upshift_one_rung:FAIL_CLOSED->DEGRADED_2" in (decision.reason or "")
+    assert "upshift_to_baseline:FAIL_CLOSED->DEGRADED_2" in (decision.reason or "")
 
 
 def test_downshift_is_immediate_when_baseline_is_worse() -> None:

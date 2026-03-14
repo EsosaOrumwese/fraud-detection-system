@@ -32,6 +32,8 @@ class OfpHealthThresholds:
     red_checkpoint_age_seconds: float = 300.0
     amber_missing_features: int = 1
     red_missing_features: int = 10
+    amber_missing_feature_rate: float = 0.001
+    red_missing_feature_rate: float = 0.005
     amber_stale_graph_version: int = 1
     red_stale_graph_version: int = 10
     amber_snapshot_failures: int = 1
@@ -67,6 +69,8 @@ class OfpObservabilityReporter:
             red_checkpoint_age_seconds=_env_float("OFP_HEALTH_RED_CHECKPOINT_AGE_SECONDS", 300.0),
             amber_missing_features=_env_int("OFP_HEALTH_AMBER_MISSING_FEATURES", 1),
             red_missing_features=_env_int("OFP_HEALTH_RED_MISSING_FEATURES", 10),
+            amber_missing_feature_rate=_env_float("OFP_HEALTH_AMBER_MISSING_FEATURE_RATE", 0.001),
+            red_missing_feature_rate=_env_float("OFP_HEALTH_RED_MISSING_FEATURE_RATE", 0.005),
             amber_stale_graph_version=_env_int("OFP_HEALTH_AMBER_STALE_GRAPH_VERSION", 1),
             red_stale_graph_version=_env_int("OFP_HEALTH_RED_STALE_GRAPH_VERSION", 10),
             amber_snapshot_failures=_env_int("OFP_HEALTH_AMBER_SNAPSHOT_FAILURES", 1),
@@ -84,6 +88,7 @@ class OfpObservabilityReporter:
         watermark_age_seconds = _age_seconds(checkpoints.get("watermark_ts_utc"))
         checkpoint_age_seconds = _age_seconds(checkpoints.get("updated_at_utc"))
         lag_seconds = checkpoint_age_seconds
+        derived_metrics = _derive_runtime_metrics(counters)
 
         health = _derive_health(
             counters=counters,
@@ -98,6 +103,7 @@ class OfpObservabilityReporter:
             "scenario_run_id": scenario_run_id,
             "run_config_digest": self.profile.policy.run_config_digest,
             "metrics": counters,
+            "derived_metrics": derived_metrics,
             "checkpoints": checkpoints,
             "watermark_age_seconds": watermark_age_seconds,
             "checkpoint_age_seconds": checkpoint_age_seconds,
@@ -120,6 +126,7 @@ class OfpObservabilityReporter:
             "scenario_run_id": payload["scenario_run_id"],
             "run_config_digest": payload["run_config_digest"],
             "metrics": payload["metrics"],
+            "derived_metrics": payload["derived_metrics"],
             "checkpoints": payload["checkpoints"],
             "watermark_age_seconds": payload["watermark_age_seconds"],
             "checkpoint_age_seconds": payload["checkpoint_age_seconds"],
@@ -132,6 +139,7 @@ class OfpObservabilityReporter:
             "scenario_run_id": payload["scenario_run_id"],
             "run_config_digest": payload["run_config_digest"],
             "checkpoints": payload["checkpoints"],
+            "derived_metrics": payload["derived_metrics"],
             "watermark_age_seconds": payload["watermark_age_seconds"],
             "checkpoint_age_seconds": payload["checkpoint_age_seconds"],
             "health_state": payload["health_state"],
@@ -160,13 +168,24 @@ def _derive_health(
 ) -> dict[str, Any]:
     state = "GREEN"
     reasons: list[str] = []
+    derived_metrics = _derive_runtime_metrics(counters)
+    watermark_replay_advisory = _is_watermark_replay_advisory(
+        counters=counters,
+        checkpoint_age_seconds=checkpoint_age_seconds,
+        watermark_age_seconds=watermark_age_seconds,
+        thresholds=thresholds,
+    )
 
     if watermark_age_seconds is None:
         reasons.append("WATERMARK_MISSING")
         state = "AMBER"
     elif watermark_age_seconds >= thresholds.red_watermark_age_seconds:
-        reasons.append("WATERMARK_TOO_OLD")
-        state = "RED"
+        if watermark_replay_advisory:
+            reasons.append("WATERMARK_REPLAY_ADVISORY")
+            state = "AMBER"
+        else:
+            reasons.append("WATERMARK_TOO_OLD")
+            state = "RED"
     elif watermark_age_seconds >= thresholds.amber_watermark_age_seconds:
         reasons.append("WATERMARK_OLD")
         state = "AMBER"
@@ -185,11 +204,16 @@ def _derive_health(
     missing_features = int(counters.get("missing_features", 0))
     stale_graph_version = int(counters.get("stale_graph_version", 0))
     snapshot_failures = int(counters.get("snapshot_failures", 0))
+    missing_feature_severity = _missing_feature_severity(
+        missing_features=missing_features,
+        event_basis=int(derived_metrics["event_basis"]),
+        thresholds=thresholds,
+    )
 
-    if missing_features >= thresholds.red_missing_features:
+    if missing_feature_severity == "RED":
         reasons.append("MISSING_FEATURES_RED")
         state = "RED"
-    elif missing_features >= thresholds.amber_missing_features and state != "RED":
+    elif missing_feature_severity == "AMBER" and state != "RED":
         reasons.append("MISSING_FEATURES_AMBER")
         state = "AMBER"
 
@@ -208,6 +232,71 @@ def _derive_health(
         state = "AMBER"
 
     return {"state": state, "reasons": reasons}
+
+
+def _derive_runtime_metrics(counters: Mapping[str, int]) -> dict[str, Any]:
+    event_basis = max(
+        int(counters.get("events_applied", 0) or 0),
+        int(counters.get("events_seen", 0) or 0),
+    )
+    missing_features = int(counters.get("missing_features", 0) or 0)
+    missing_feature_rate = None
+    if event_basis > 0:
+        missing_feature_rate = float(missing_features) / float(event_basis)
+    return {
+        "event_basis": event_basis,
+        "missing_feature_rate": missing_feature_rate,
+    }
+
+
+def _missing_feature_severity(
+    *,
+    missing_features: int,
+    event_basis: int,
+    thresholds: OfpHealthThresholds,
+) -> str | None:
+    if missing_features <= 0:
+        return None
+    if event_basis <= 0:
+        if missing_features >= thresholds.red_missing_features:
+            return "RED"
+        if missing_features >= thresholds.amber_missing_features:
+            return "AMBER"
+        return None
+    rate = float(missing_features) / float(event_basis)
+    if missing_features >= thresholds.red_missing_features and rate >= thresholds.red_missing_feature_rate:
+        return "RED"
+    if missing_features >= thresholds.amber_missing_features and rate >= thresholds.amber_missing_feature_rate:
+        return "AMBER"
+    return None
+
+
+def _is_watermark_replay_advisory(
+    *,
+    counters: Mapping[str, int],
+    checkpoint_age_seconds: float | None,
+    watermark_age_seconds: float | None,
+    thresholds: OfpHealthThresholds,
+) -> bool:
+    if watermark_age_seconds is None or checkpoint_age_seconds is None:
+        return False
+    if watermark_age_seconds < thresholds.red_watermark_age_seconds:
+        return False
+    if checkpoint_age_seconds > thresholds.amber_checkpoint_age_seconds:
+        return False
+    snapshot_failures = int(counters.get("snapshot_failures", 0) or 0)
+    stale_graph_version = int(counters.get("stale_graph_version", 0) or 0)
+    if snapshot_failures > 0 or stale_graph_version > 0:
+        return False
+    derived = _derive_runtime_metrics(counters)
+    if int(derived["event_basis"]) <= 0:
+        return False
+    missing_severity = _missing_feature_severity(
+        missing_features=int(counters.get("missing_features", 0) or 0),
+        event_basis=int(derived["event_basis"]),
+        thresholds=thresholds,
+    )
+    return missing_severity is None
 
 
 def _parse_ts(value: str | None) -> datetime | None:

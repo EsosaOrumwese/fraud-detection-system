@@ -1,0 +1,192 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Currently promoted working-platform network only
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    L1["Only the currently promoted working-platform core is shown"]
+    L2["If a plane, component, or path is absent, it is not part of the ready-network claim"]
+    L3["The promoted network now includes the full platform, including Ops / Gov / Meta, after final Phase 9 bounded stress closure"]
+    L4["If a plane, component, or path is absent here, it is not part of the working-platform claim"]
+  end
+
+  subgraph READYNOTE["Current Working Platform"]
+    NOTE["Currently promoted working platform:<br>Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps + Ops / Gov / Meta<br>Phase 0 closed green on 2026-03-10<br>Phase 1 closed green on 2026-03-11<br>Phase 3 closed green on 2026-03-11<br>Phase 4 closed green on 2026-03-12<br>Phase 5 closed green on 2026-03-12<br>Phase 6 closed green on 2026-03-12<br>Phase 7 rebuilt green on 2026-03-13<br>Phase 8 closed green on 2026-03-13<br>Phase 9 closed green on 2026-03-13<br>Declared envelope: 3000 steady eps / 6000 burst eps<br>Bounded longer-stress authorization now granted<br>Live runtime may be intentionally idled for review without changing the accepted readiness claim"]
+  end
+
+  subgraph CONTROL["Control Network - Promoted Core"]
+    GHA["GitHub Actions<br>bounded-run dispatch / workflow control"]
+    SFN["Step Functions<br>platform-run orchestration"]
+    CTRLBUS[["fp.bus.control.v1"]]
+    RUNID["Run identity pins<br>platform_run_id / scenario_run_id<br>phase_id / trace_id / config_digest"]
+    RUNCTL["Run control<br>receipts / reconciliation / proof story"]
+  end
+
+  subgraph INGRESS["Ingress Network - Promoted Core"]
+    WSP["World Streamer Producer (WSP)<br>remote ECS/Fargate replay producer"]
+    HTTPAPI["HTTP API Gateway<br>fraud-platform-dev-full-ig-edge<br>stage v1 / 3000 rps / 6000 burst"]
+    IGLAMBDA["Ingress Lambda<br>fraud-platform-dev-full-ig-handler"]
+    IGDDB[("DynamoDB idempotency ledger<br>fraud-platform-dev-full-ig-idempotency")]
+    IGDLQ["SQS DLQ<br>fraud-platform-dev-full-ig-dlq"]
+    TTRAFFIC[["fp.bus.traffic.fraud.v1"]]
+  end
+
+  subgraph RTDL["RTDL Network - Promoted Core"]
+    RINTAKE["RTDL active intake set<br>arrival_events / arrival_entities / flow_anchor.fraud"]
+    CSFB["CSFB<br>context_store_flow_binding"]
+    IEG["IEG<br>identity_entity_graph"]
+    OFP["OFP<br>online_feature_provider"]
+    DF["DF<br>decision function"]
+    DL["Decision Lane<br>decision publication"]
+    DLA["Decision Ledger Append"]
+    ARCH["Archive Writer"]
+  end
+
+  subgraph CASELABEL["Case + Label Network - Promoted Core"]
+    CTRIG["CaseTrigger<br>case-worthy trigger publication"]
+    CM["Case Management<br>append-only case timeline"]
+    LS["Label Store<br>authoritative label truth"]
+  end
+
+  subgraph LEARNING["Learning + Evolution / MLOps - Promoted Core"]
+    OFS["Offline Feature Plane<br>Databricks / OFS bounded dataset basis"]
+    MF["Model Factory<br>SageMaker train / eval"]
+    MPR["Model Promotion & Registry<br>MLflow-backed lineage + governed bundle publication"]
+    ACTIVEBUNDLE["Active bundle truth<br>promoted learning bundle resolved on runtime path"]
+  end
+
+  subgraph OPSGOV["Ops / Gov / Meta - Promoted Core"]
+    OPSDASH["Ops dashboards / alarms<br>live operator watch surface"]
+    RUNBOOK["Runbook chain<br>alert -> dashboard -> mitigation"]
+    DRIFTCHK["Runtime drift + evidence readback<br>bundle / policy / receipt challenge"]
+    IDLECTRL["Idle / restore / cost-control path"]
+  end
+
+  subgraph TRANSPORT["Promoted Event Transport Boundary"]
+    MSK[("MSK Serverless<br>fraud-platform-dev-full-msk")]
+    GLUEREG["Glue Schema Registry<br>fraud-platform-dev-full<br>BACKWARD"]
+    TCTXA[["fp.bus.context.arrival_events.v1"]]
+    TCTXE[["fp.bus.context.arrival_entities.v1"]]
+    TFLOW[["fp.bus.context.flow_anchor.fraud.v1"]]
+    TDEC[["RTDL decision / archive outputs"]]
+  end
+
+  subgraph SUPPORT["Supporting Trust / Evidence - Promoted Core"]
+    OIDC["GitHub OIDC trust"]
+    SSM["SSM Parameter Store<br>API key / brokers / active handles"]
+    OBJ[("S3 object/oracle store<br>ingress replay basis + learning basis / registry")]
+    EVID[("S3 evidence bucket<br>fraud-platform-dev-full-evidence")]
+    CW["CloudWatch<br>APIGW / Lambda / WSP / RTDL logs + metrics"]
+  end
+
+  NOTE --> CONTROL
+  NOTE --> INGRESS
+  NOTE --> RTDL
+  NOTE --> CASELABEL
+  NOTE --> LEARNING
+  NOTE --> OPSGOV
+  NOTE --> TRANSPORT
+
+  GHA -->|authenticates through| OIDC
+  GHA -->|dispatches| SFN
+  SFN -->|assigns and persists| RUNID
+  SFN -->|writes control receipts to| RUNCTL
+  SFN -->|publishes orchestration signals to| CTRLBUS
+  CTRLBUS -->|transported by| MSK
+  SFN -->|starts bounded replay| WSP
+
+  OBJ -->|provides replay basis to| WSP
+  RUNID -->|pins active run scope for| WSP
+  RUNID -->|pins active run scope for| IGLAMBDA
+  RUNID -->|pins active run scope for| RTDL
+  RUNID -->|pins active run scope for| CASELABEL
+  RUNID -->|pins active run scope for| LEARNING
+  RUNID -->|pins active run scope for| RUNCTL
+
+  WSP -->|pushes ingress load to| HTTPAPI
+  HTTPAPI -->|invokes| IGLAMBDA
+  IGLAMBDA -->|deduplicates in| IGDDB
+  IGLAMBDA -->|writes failure disposition to| IGDLQ
+  IGLAMBDA -->|publishes admitted traffic to| TTRAFFIC
+  TTRAFFIC -->|transported by| MSK
+  GLUEREG -. enforces schema compatibility for .-> TTRAFFIC
+
+  TTRAFFIC -->|feeds promoted RTDL intake boundary| RINTAKE
+  RINTAKE --> TCTXA
+  RINTAKE --> TCTXE
+  RINTAKE --> TFLOW
+  TCTXA -->|consumed by| CSFB
+  TCTXE -->|consumed by| CSFB
+  TFLOW -->|consumed by| CSFB
+  CSFB -->|binds context for| IEG
+  IEG -->|supplies graph truth to| OFP
+  OFP -->|supplies features to| DF
+  DF -->|emits decisions to| DL
+  DL -->|appends decision truth to| DLA
+  DL -->|feeds archival evidence to| ARCH
+  DL --> TDEC
+  DL -->|emits case-worthy decision truth to| CTRIG
+  CTRIG -->|opens or reuses cases in| CM
+  CM -->|commits authoritative labels to| LS
+
+  DLA -->|provides runtime decision evidence to| OFS
+  CM -->|provides case-linked truth to| OFS
+  LS -->|provides authoritative supervision to| OFS
+  OFS -->|builds bounded learning basis for| MF
+  MF -->|commits train/eval evidence to| MPR
+  MPR -->|publishes governed active bundle truth as| ACTIVEBUNDLE
+  ACTIVEBUNDLE -->|resolved by live runtime for| DF
+
+  ACTIVEBUNDLE -->|challenged by operator drift checks in| DRIFTCHK
+  RUNCTL -->|reconstructed through| DRIFTCHK
+  EVID -->|read back by| DRIFTCHK
+  CW -->|feeds live operator view in| OPSDASH
+  OPSDASH -->|links operator action chain to| RUNBOOK
+  RUNBOOK -->|authorizes bounded standby / restore through| IDLECTRL
+  IDLECTRL -->|returns active runtime to governed truth for| DF
+  IDLECTRL -->|returns case/label path to governed truth for| CM
+
+  ARCH -->|stores evidence in| EVID
+  DLA -->|stores proof continuity in| EVID
+  CM -->|stores case evidence in| EVID
+  LS -->|stores label evidence in| EVID
+  OFS -->|stores dataset-basis evidence in| EVID
+  MF -->|stores train/eval evidence in| EVID
+  MPR -->|stores promotion / rollback evidence in| EVID
+  RUNCTL -->|stores proof receipts in| EVID
+
+  IGLAMBDA -->|reads active handles from| SSM
+  WSP -->|reads active handles from| SSM
+  RTDL -->|reads active handles from| SSM
+  CASELABEL -->|reads active handles from| SSM
+  LEARNING -->|reads active handles from| SSM
+  IGLAMBDA -->|emits logs and metrics to| CW
+  WSP -->|emits logs to| CW
+  RTDL -->|emits logs and metrics to| CW
+  CASELABEL -->|emits logs and metrics to| CW
+  LEARNING -->|emits managed telemetry to| CW
+  SFN -->|emits logs and metrics to| CW
+  CW -. exposes operator visibility for .-> RUNCTL
+
+  classDef note fill:#fff8e1,stroke:#f9a825,color:#111,stroke-width:1.3px;
+  classDef control fill:#e8eaf6,stroke:#3949ab,color:#111,stroke-width:1.3px;
+  classDef ingress fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.3px;
+  classDef rtdl fill:#e0f2f1,stroke:#00695c,color:#111,stroke-width:1.3px;
+  classDef caselabel fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef learning fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.3px;
+  classDef transport fill:#ede7f6,stroke:#5e35b1,color:#111,stroke-width:1.3px;
+  classDef support fill:#f1f8e9,stroke:#558b2f,color:#111,stroke-width:1.3px;
+  classDef opsgov fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+
+  class NOTE note;
+  class GHA,SFN,CTRLBUS,RUNID,RUNCTL control;
+  class WSP,HTTPAPI,IGLAMBDA,IGDLQ,IGDDB,TTRAFFIC ingress;
+  class RINTAKE,CSFB,IEG,OFP,DF,DL,DLA,ARCH rtdl;
+  class CTRIG,CM,LS caselabel;
+  class OFS,MF,MPR,ACTIVEBUNDLE learning;
+  class OPSDASH,RUNBOOK,DRIFTCHK,IDLECTRL opsgov;
+  class MSK,GLUEREG,TCTXA,TCTXE,TFLOW,TDEC transport;
+  class OIDC,SSM,OBJ,EVID,CW support;

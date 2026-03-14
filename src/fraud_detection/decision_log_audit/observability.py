@@ -23,8 +23,10 @@ class DecisionLogAuditHealthThresholds:
     red_checkpoint_age_seconds: float = 300.0
     amber_quarantine_total: int = 1
     red_quarantine_total: int = 25
-    amber_unresolved_total: int = 1
-    red_unresolved_total: int = 20
+    amber_unresolved_stale_seconds: float = 60.0
+    red_unresolved_stale_seconds: float = 240.0
+    amber_unresolved_stale_total: int = 1
+    red_unresolved_stale_total: int = 20
     amber_append_failure_total: int = 1
     red_append_failure_total: int = 5
     amber_replay_divergence_total: int = 1
@@ -69,6 +71,14 @@ class DecisionLogAuditObservabilityReporter:
             platform_run_id=self.platform_run_id,
             scenario_run_id=self.scenario_run_id,
         )
+        lineage_age_summary = _lineage_age_summary(
+            chains=self.store.list_lineage_chains_by_run_scope(
+                platform_run_id=self.platform_run_id,
+                scenario_run_id=self.scenario_run_id,
+                limit=200000,
+            ),
+            thresholds=self.thresholds,
+        )
         checkpoints = self.store.checkpoint_summary()
         quarantine_reasons = self.store.quarantine_reason_counts(
             platform_run_id=self.platform_run_id,
@@ -89,6 +99,7 @@ class DecisionLogAuditObservabilityReporter:
         health = _derive_health(
             metrics=metrics,
             checkpoint_age_seconds=checkpoint_age_seconds,
+            lineage_age_summary=lineage_age_summary,
             thresholds=self.thresholds,
         )
         return {
@@ -105,6 +116,7 @@ class DecisionLogAuditObservabilityReporter:
                 "lineage": {
                     "resolved_total": int(metrics.get("lineage_resolved_total", 0)),
                     "unresolved_total": int(metrics.get("lineage_unresolved_total", 0)),
+                    "unresolved_age_seconds": lineage_age_summary,
                 },
                 "anomaly_lanes": quarantine_reasons,
                 "recent_attempts": recent_attempts,
@@ -179,6 +191,7 @@ def _derive_health(
     *,
     metrics: Mapping[str, int],
     checkpoint_age_seconds: float | None,
+    lineage_age_summary: Mapping[str, Any],
     thresholds: DecisionLogAuditHealthThresholds,
 ) -> dict[str, Any]:
     state = "GREEN"
@@ -197,6 +210,8 @@ def _derive_health(
 
     quarantine_total = int(metrics.get("quarantine_total", 0))
     unresolved_total = int(metrics.get("lineage_unresolved_total", 0))
+    amber_stale_total = int(lineage_age_summary.get("stale_over_amber_total", 0))
+    red_stale_total = int(lineage_age_summary.get("stale_over_red_total", 0))
     append_failure_total = int(metrics.get("append_failure_total", 0))
     replay_divergence_total = int(metrics.get("replay_divergence_total", 0))
 
@@ -208,13 +223,15 @@ def _derive_health(
         if state != "RED":
             state = "AMBER"
 
-    if unresolved_total >= thresholds.red_unresolved_total:
+    if red_stale_total >= thresholds.red_unresolved_stale_total:
         reasons.append("UNRESOLVED_RED")
         state = "RED"
-    elif unresolved_total >= thresholds.amber_unresolved_total:
+    elif amber_stale_total >= thresholds.amber_unresolved_stale_total:
         reasons.append("UNRESOLVED_AMBER")
         if state != "RED":
             state = "AMBER"
+    elif unresolved_total > 0:
+        reasons.append("UNRESOLVED_IN_FLIGHT")
 
     if append_failure_total >= thresholds.red_append_failure_total:
         reasons.append("APPEND_FAILURE_RED")
@@ -269,6 +286,46 @@ def _age_seconds(value: str | None) -> float | None:
     return max(0.0, (datetime.now(tz=timezone.utc) - ts).total_seconds())
 
 
+def _lineage_age_summary(
+    *,
+    chains: list[Any],
+    thresholds: DecisionLogAuditHealthThresholds,
+) -> dict[str, Any]:
+    ages = sorted(
+        age for age in (_age_seconds(getattr(chain, "updated_at_utc", None)) for chain in chains if getattr(chain, "chain_status", "") == "UNRESOLVED")
+        if age is not None
+    )
+    if not ages:
+        return {
+            "p50": None,
+            "p95": None,
+            "max": None,
+            "stale_over_amber_total": 0,
+            "stale_over_red_total": 0,
+        }
+    return {
+        "p50": round(_percentile(ages, 0.50), 3),
+        "p95": round(_percentile(ages, 0.95), 3),
+        "max": round(ages[-1], 3),
+        "stale_over_amber_total": sum(1 for age in ages if age >= thresholds.amber_unresolved_stale_seconds),
+        "stale_over_red_total": sum(1 for age in ages if age >= thresholds.red_unresolved_stale_seconds),
+    }
+
+
+def _percentile(values: list[float], pct: float) -> float:
+    if not values:
+        return 0.0
+    if len(values) == 1:
+        return float(values[0])
+    idx = (len(values) - 1) * max(0.0, min(1.0, pct))
+    lo = int(idx)
+    hi = min(lo + 1, len(values) - 1)
+    if lo == hi:
+        return float(values[lo])
+    frac = idx - lo
+    return float(values[lo] + (values[hi] - values[lo]) * frac)
+
+
 def _utc_now() -> str:
     return datetime.now(tz=timezone.utc).isoformat()
 
@@ -296,4 +353,3 @@ _SENSITIVE_KEY_MARKERS: tuple[str, ...] = (
     "refresh_token",
     "lease_token",
 )
-

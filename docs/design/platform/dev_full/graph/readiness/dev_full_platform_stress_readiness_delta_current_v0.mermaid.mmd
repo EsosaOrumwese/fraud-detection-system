@@ -1,0 +1,42 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Final Phase 9 full-platform bounded stress authorization story
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    L1["This graph captures the final Phase 9 stress-authorization story"]
+    L2["It shows the blocker class, the accepted narrow remediation, and the final verdict"]
+    L3["It supplements the implementation notes; it is not the authority by itself"]
+  end
+
+  P8["Accepted Phase 8 authority<br>full platform bounded-correct"]
+  RED1["Rejected posture<br>60 and 72 lane source repeats<br>burst repeatability not stable enough"]
+  RED2["Rejected posture<br>72 lanes + ig_push_concurrency 2<br>4xx/5xx reopened<br>recovery collapsed"]
+  FIX["Accepted narrow remediation<br>84 lanes<br>ig_push_concurrency 1<br>same declared envelope<br>lower per-lane burden"]
+  BACKBONE["Accepted widened backbone<br>phase6_learning_coupled_20260313T203100Z<br>steady 3008.575 eps<br>burst 6681.000 eps<br>recovery 3017.589 eps<br>4xx 0 / 5xx 0"]
+  SEM["Semantic handling stayed meaningful<br>RTDL decision/action truth live<br>Case + Label authoring live<br>active bundle still tied to Phase 5 basis<br>integrity deltas 0"]
+  OPS["Stress-time operator challenge green<br>alert drill green<br>ML day-2 surface green<br>Phase 9 operator surface green"]
+  READY["Final verdict<br>phase9_full_platform_stress_20260313T203100Z<br>PHASE9_READY<br>LONG_STRESS_AUTHORIZED"]
+
+  P8 --> RED1
+  P8 --> RED2
+  RED1 --> FIX
+  RED2 --> FIX
+  FIX --> BACKBONE
+  BACKBONE --> SEM
+  BACKBONE --> OPS
+  SEM --> READY
+  OPS --> READY
+
+  classDef ready fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+  classDef red fill:#ffebee,stroke:#c62828,color:#111,stroke-width:1.3px;
+  classDef amber fill:#fff8e1,stroke:#f9a825,color:#111,stroke-width:1.3px;
+  classDef note fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.3px;
+
+  class P8,BACKBONE,SEM,OPS,READY ready;
+  class RED2 red;
+  class RED1,FIX amber;
+  class L1,L2,L3 note;

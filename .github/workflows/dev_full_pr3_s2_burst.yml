@@ -12,6 +12,16 @@ on:
         description: "OIDC role ARN used by GitHub Actions"
         required: true
         type: string
+      platform_image_uri:
+        description: "Optional explicit immutable platform image URI (repo@sha256:...)"
+        required: false
+        default: ""
+        type: string
+      ingress_image_uri:
+        description: "Optional explicit immutable ingress image URI (repo@sha256:...). Defaults to the resolved platform image."
+        required: false
+        default: ""
+        type: string
       pr3_execution_id:
         description: "Strict PR3 execution id"
         required: true
@@ -21,6 +31,26 @@ on:
         description: "Strict upstream PR2 execution id"
         required: true
         default: "pr2_20260305T200521Z"
+        type: string
+      upstream_m13_execution_id:
+        description: "Strict upstream M13 closure execution id"
+        required: true
+        default: "m13_stress_s5_20260305T111321Z"
+        type: string
+      upstream_m14e_cutover_execution_id:
+        description: "Strict upstream M14E cutover execution id"
+        required: true
+        default: "m14e_msf_cutover_20260305T113525Z"
+        type: string
+      upstream_m14e_projection_execution_id:
+        description: "Strict upstream M14E projection execution id"
+        required: true
+        default: "m14e_rtdl_projection_20260305T114720Z"
+        type: string
+      upstream_m14f_archive_execution_id:
+        description: "Strict upstream M14F archive execution id"
+        required: true
+        default: "m14f_archive_connector_20260302T051741Z"
         type: string
       evidence_bucket:
         description: "Evidence bucket for remote artifact backup"
@@ -32,20 +62,10 @@ on:
         required: true
         default: "fraud-platform-dev-full"
         type: string
-      eks_namespace:
-        description: "EKS namespace for PR3 runtime"
-        required: true
-        default: "fraud-platform-rtdl"
-        type: string
-      worker_image_uri:
-        description: "Optional explicit worker image URI"
-        required: false
-        default: ""
-        type: string
       lane_count:
         description: "Number of remote WSP burst lanes"
         required: true
-        default: "80"
+        default: "32"
         type: string
       target_burst_eps:
         description: "Certified burst EPS target"
@@ -62,28 +82,43 @@ on:
         required: true
         default: "300"
         type: string
-      min_sample_events:
-        description: "Required admitted events"
+      warmup_seconds:
+        description: "Same-run warmup before certification measurement begins"
         required: true
-        default: "1800000"
+        default: "90"
         type: string
       stream_speedup:
         description: "Oracle replay speedup multiplier"
         required: true
-        default: "102.4"
+        default: "180"
         type: string
       ig_push_concurrency:
         description: "Per-lane concurrent IG pushes"
         required: true
+        default: "16"
+        type: string
+      output_concurrency:
+        description: "Concurrent output streams per WSP lane"
+        required: true
         default: "4"
+        type: string
+      http_pool_maxsize:
+        description: "HTTP connection pool size per WSP lane"
+        required: true
+        default: "1024"
+        type: string
+      wsp_task_cpu:
+        description: "Fargate CPU units per WSP burst lane"
+        required: true
+        default: "512"
+        type: string
+      wsp_task_memory:
+        description: "Fargate memory MiB per WSP burst lane"
+        required: true
+        default: "2048"
         type: string
       target_burst_seconds:
         description: "Per-lane token-bucket burst allowance in seconds"
-        required: true
-        default: "0.50"
-        type: string
-      target_initial_tokens:
-        description: "Per-lane initial token-bucket fill ratio"
         required: true
         default: "0.50"
         type: string
@@ -91,11 +126,6 @@ on:
         description: "Fail-fast evaluation point in seconds"
         required: true
         default: "120"
-        type: string
-      early_cutoff_floor_ratio:
-        description: "Minimum admitted EPS ratio required at fail-fast check"
-        required: true
-        default: "0.70"
         type: string
 
 permissions:
@@ -110,6 +140,8 @@ jobs:
   run_pr3_s2_burst:
     name: Run PR3-S2 burst and backpressure proof
     runs-on: ubuntu-latest
+    env:
+      EKS_NAMESPACE: fraud-platform-rtdl
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -153,10 +185,75 @@ jobs:
           set -euo pipefail
           RUN_DIR="runs/dev_substrate/dev_full/road_to_prod/run_control/${{ inputs.pr3_execution_id }}"
           mkdir -p "${RUN_DIR}"
+          mkdir -p "${RUN_DIR}/upstream_support"
           NOW_UTC="$(date -u +'%Y%m%dT%H%M%SZ')"
+          SCENARIO_RUN_ID="$(python - <<'PY'
+          import uuid
+          print(uuid.uuid4().hex)
+          PY
+          )"
+          if [[ ! "${SCENARIO_RUN_ID}" =~ ^[a-f0-9]{32}$ ]]; then
+            echo "PR3.S2.WSP.B00_INVALID_SCENARIO_RUN_ID:${SCENARIO_RUN_ID}"
+            exit 1
+          fi
           echo "run_dir=${RUN_DIR}" >> "$GITHUB_OUTPUT"
+          echo "support_dir=${RUN_DIR}/upstream_support" >> "$GITHUB_OUTPUT"
           echo "platform_run_id=platform_${NOW_UTC}" >> "$GITHUB_OUTPUT"
-          echo "scenario_run_id=scenario_${NOW_UTC,,}" >> "$GITHUB_OUTPUT"
+          echo "scenario_run_id=${SCENARIO_RUN_ID}" >> "$GITHUB_OUTPUT"
+
+      - name: Hydrate strict upstream evidence from S3
+        shell: bash
+        env:
+          EVIDENCE_BUCKET: ${{ inputs.evidence_bucket }}
+          PR2_EXECUTION_ID: ${{ inputs.upstream_pr2_execution_id }}
+          M13_EXECUTION_ID: ${{ inputs.upstream_m13_execution_id }}
+          M14E_CUTOVER_EXECUTION_ID: ${{ inputs.upstream_m14e_cutover_execution_id }}
+          M14E_PROJECTION_EXECUTION_ID: ${{ inputs.upstream_m14e_projection_execution_id }}
+          M14F_ARCHIVE_EXECUTION_ID: ${{ inputs.upstream_m14f_archive_execution_id }}
+          RUN_DIR: ${{ steps.meta.outputs.run_dir }}
+          SUPPORT_DIR: ${{ steps.meta.outputs.support_dir }}
+        run: |
+          set -euo pipefail
+          PR2_DIR="runs/dev_substrate/dev_full/road_to_prod/run_control/${PR2_EXECUTION_ID}"
+          mkdir -p "${PR2_DIR}"
+          for name in \
+            pr2_s3_execution_receipt.json \
+            pr2_execution_summary.json \
+            pr2_runtime_numeric_contract.rc2s.active.yaml \
+            pr2_opsgov_numeric_contract.rc2s.active.yaml \
+            pr2_activation_validation_matrix.json \
+            pr2_deferred_scope_register.json \
+            pr2_runbook_index.json; do
+            aws s3 cp \
+              "s3://${EVIDENCE_BUCKET}/evidence/dev_full/run_control/${PR2_EXECUTION_ID}/${name}" \
+              "${PR2_DIR}/${name}" \
+              --no-progress
+          done
+
+          aws s3 cp \
+            "s3://${EVIDENCE_BUCKET}/evidence/dev_full/run_control/${M13_EXECUTION_ID}/m13_execution_summary.json" \
+            "${SUPPORT_DIR}/m13_execution_summary.json" \
+            --no-progress
+          aws s3 cp \
+            "s3://${EVIDENCE_BUCKET}/evidence/dev_full/run_control/${M14E_CUTOVER_EXECUTION_ID}/m14e_msf_cutover_execution_summary.json" \
+            "${SUPPORT_DIR}/m14e_msf_cutover_execution_summary.json" \
+            --no-progress
+          aws s3 cp \
+            "s3://${EVIDENCE_BUCKET}/evidence/dev_full/run_control/${M14E_PROJECTION_EXECUTION_ID}/m14e_execution_summary.json" \
+            "${SUPPORT_DIR}/m14e_execution_summary.json" \
+            --no-progress
+          aws s3 cp \
+            "s3://${EVIDENCE_BUCKET}/evidence/dev_full/run_control/${M14E_PROJECTION_EXECUTION_ID}/m14e_rtdl_projection_snapshot.json" \
+            "${SUPPORT_DIR}/m14e_rtdl_projection_snapshot.json" \
+            --no-progress
+          aws s3 cp \
+            "s3://${EVIDENCE_BUCKET}/evidence/dev_full/run_control/${M14F_ARCHIVE_EXECUTION_ID}/m14f_execution_summary.json" \
+            "${SUPPORT_DIR}/m14f_execution_summary.json" \
+            --no-progress
+          aws s3 cp \
+            "s3://${EVIDENCE_BUCKET}/evidence/dev_full/run_control/${M14F_ARCHIVE_EXECUTION_ID}/m14f_archive_connector_snapshot.json" \
+            "${SUPPORT_DIR}/m14f_archive_connector_snapshot.json" \
+            --no-progress
 
       - name: Refresh PR3-S0 authority artifacts on corrected runtime surfaces
         shell: bash
@@ -164,15 +261,552 @@ jobs:
           set -euo pipefail
           python scripts/dev_substrate/pr3_s0_executor.py \
             --upstream-pr2-execution-id "${{ inputs.upstream_pr2_execution_id }}" \
-            --pr3-execution-id "${{ inputs.pr3_execution_id }}"
+            --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
+            --m13-summary-ref "${{ steps.meta.outputs.support_dir }}/m13_execution_summary.json" \
+            --m14e-cutover-summary-ref "${{ steps.meta.outputs.support_dir }}/m14e_msf_cutover_execution_summary.json" \
+            --m14e-projection-summary-ref "${{ steps.meta.outputs.support_dir }}/m14e_execution_summary.json" \
+            --m14e-projection-snapshot-ref "${{ steps.meta.outputs.support_dir }}/m14e_rtdl_projection_snapshot.json" \
+            --m14f-archive-summary-ref "${{ steps.meta.outputs.support_dir }}/m14f_execution_summary.json" \
+            --m14f-archive-snapshot-ref "${{ steps.meta.outputs.support_dir }}/m14f_archive_connector_snapshot.json"
 
       - name: Configure kubeconfig
+        id: kubeconfig
         shell: bash
         run: |
           set -euo pipefail
           aws eks update-kubeconfig \
             --region "${{ inputs.aws_region }}" \
             --name "${{ inputs.eks_cluster_name }}"
+
+      - name: Resolve current-branch immutable platform image
+        id: platform_image
+        shell: bash
+        env:
+          ECR_REPO_NAME: fraud-platform-dev-full
+          ECR_REPO_URI: 230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-full
+          FALLBACK_TASK_FAMILY: fraud-platform-dev-full-wsp-ephemeral
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          import sys
+
+          def fail(message):
+              print(message, file=sys.stderr, flush=True)
+              raise SystemExit(message)
+
+          repo_name = os.environ["ECR_REPO_NAME"]
+          repo_uri = os.environ["ECR_REPO_URI"]
+          fallback_family = os.environ["FALLBACK_TASK_FAMILY"]
+          region = "${{ inputs.aws_region }}"
+          git_sha = "${{ github.sha }}"
+          explicit_image_uri = "${{ inputs.platform_image_uri }}".strip()
+          tag_prefix = f"git-{git_sha}-run-"
+
+          if explicit_image_uri:
+              image_uri = explicit_image_uri
+              digest = image_uri.rsplit("@", 1)[-1] if "@" in image_uri else ""
+              if not digest.startswith("sha256:"):
+                  fail(f"Explicit platform_image_uri is not digest-pinned: {image_uri}")
+              resolution_mode = "explicit_input"
+          else:
+              proc = subprocess.run(
+                  [
+                      "aws",
+                      "ecr",
+                      "describe-images",
+                      "--repository-name",
+                      repo_name,
+                      "--filter",
+                      "tagStatus=TAGGED",
+                      "--region",
+                      region,
+                      "--output",
+                      "json",
+                  ],
+                  check=True,
+                  capture_output=True,
+                  text=True,
+              )
+              payload = json.loads(proc.stdout or "{}")
+              matches = []
+              for row in payload.get("imageDetails", []):
+                  tags = row.get("imageTags") or []
+                  if any(str(tag).startswith(tag_prefix) for tag in tags):
+                      matches.append(row)
+
+              resolution_mode = "sha_match"
+              if matches:
+                  matches.sort(key=lambda row: row.get("imagePushedAt", ""), reverse=True)
+                  selected = matches[0]
+                  digest = str(selected.get("imageDigest", "")).strip()
+                  if not digest.startswith("sha256:"):
+                      fail(f"Invalid image digest resolved for SHA {git_sha}: {digest!r}")
+                  image_uri = f"{repo_uri}@{digest}"
+              else:
+                  changed_proc = subprocess.run(
+                      ["git", "show", "--name-only", "--pretty=", "HEAD"],
+                      check=True,
+                      capture_output=True,
+                      text=True,
+                  )
+                  changed_paths = [line.strip() for line in changed_proc.stdout.splitlines() if line.strip()]
+                  allowed_prefixes = (
+                      ".github/workflows/",
+                      "docs/",
+                      "infra/terraform/",
+                  )
+                  if not changed_paths or not all(path.startswith(allowed_prefixes) for path in changed_paths):
+                      fail(
+                          "No immutable image found for current branch SHA and commit is not image-neutral; "
+                          f"changed_paths={changed_paths}"
+                      )
+                  git_tagged_rows = []
+                  for row in payload.get("imageDetails", []):
+                      tags = [str(tag).strip() for tag in (row.get("imageTags") or []) if str(tag).strip()]
+                      if any(tag.startswith("git-") for tag in tags):
+                          git_tagged_rows.append(row)
+                  if git_tagged_rows:
+                      git_tagged_rows.sort(key=lambda row: row.get("imagePushedAt", ""), reverse=True)
+                      selected = git_tagged_rows[0]
+                      digest = str(selected.get("imageDigest", "")).strip()
+                      if not digest.startswith("sha256:"):
+                          fail(
+                              f"Latest immutable git-tagged package resolved without a valid digest: {digest!r}"
+                          )
+                      image_uri = f"{repo_uri}@{digest}"
+                      resolution_mode = "latest_git_tagged_digest"
+                  else:
+                      task_def_proc = subprocess.run(
+                          [
+                              "aws",
+                              "ecs",
+                              "describe-task-definition",
+                              "--task-definition",
+                              fallback_family,
+                              "--region",
+                              region,
+                              "--output",
+                              "json",
+                          ],
+                          check=True,
+                          capture_output=True,
+                          text=True,
+                      )
+                      task_def_payload = json.loads(task_def_proc.stdout or "{}")
+                      containers = list((task_def_payload.get("taskDefinition") or {}).get("containerDefinitions") or [])
+                      images = [str(container.get("image", "")).strip() for container in containers if str(container.get("image", "")).strip()]
+                      if not images:
+                          fail(
+                              "No immutable image found for current branch SHA, latest git-tagged package missing, "
+                              "and fallback task family has no active image."
+                          )
+                      image_uri = images[0]
+                      digest = image_uri.rsplit("@", 1)[-1] if "@" in image_uri else ""
+                      if not digest.startswith("sha256:"):
+                          if ":" not in image_uri.rsplit("/", 1)[-1]:
+                              fail(
+                                  "Fallback image is not pinned by digest and does not expose a resolvable tag."
+                              )
+                          repo_part, image_tag = image_uri.rsplit(":", 1)
+                          repo_name_fallback = repo_part.rsplit("/", 1)[-1]
+                          tag_lookup_proc = subprocess.run(
+                              [
+                                  "aws",
+                                  "ecr",
+                                  "describe-images",
+                                  "--repository-name",
+                                  repo_name_fallback,
+                                  "--image-ids",
+                                  f"imageTag={image_tag}",
+                                  "--region",
+                                  region,
+                                  "--output",
+                                  "json",
+                              ],
+                              check=True,
+                              capture_output=True,
+                              text=True,
+                          )
+                          tag_lookup_payload = json.loads(tag_lookup_proc.stdout or "{}")
+                          image_details = list(tag_lookup_payload.get("imageDetails") or [])
+                          if not image_details:
+                              fail(
+                                  f"Fallback image tag could not be resolved to a digest: {image_uri}"
+                              )
+                          digest = str(image_details[0].get("imageDigest", "")).strip()
+                          if not digest.startswith("sha256:"):
+                              fail(
+                                  f"Fallback image tag resolved without a valid digest: {image_uri}"
+                              )
+                          image_uri = f"{repo_part}@{digest}"
+                      resolution_mode = "task_family_fallback"
+
+          print(
+              json.dumps(
+                  {
+                      "image_resolution_mode": resolution_mode,
+                      "image_digest": digest,
+                      "image_uri": image_uri,
+                  },
+                  sort_keys=True,
+              ),
+              flush=True,
+          )
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"image_digest={digest}\n")
+              fh.write(f"image_uri={image_uri}\n")
+              fh.write(f"image_resolution_mode={resolution_mode}\n")
+          PY
+
+      - name: Repin WSP ECS family to resolved image
+        id: repin_wsp_family
+        shell: bash
+        env:
+          TASK_FAMILY: fraud-platform-dev-full-wsp-ephemeral
+          IMAGE_URI: ${{ steps.platform_image.outputs.image_uri }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          import tempfile
+
+          family = os.environ["TASK_FAMILY"]
+          image_uri = os.environ["IMAGE_URI"]
+          region = "${{ inputs.aws_region }}"
+
+          def aws_json(args):
+              proc = subprocess.run(
+                  ["aws", *args, "--region", region, "--output", "json"],
+                  check=True,
+                  capture_output=True,
+                  text=True,
+              )
+              return json.loads(proc.stdout or "{}")
+
+          describe = aws_json(["ecs", "describe-task-definition", "--task-definition", family, "--include", "TAGS"])
+          task_def = describe["taskDefinition"]
+          current_images = [str(cd.get("image", "")).strip() for cd in task_def.get("containerDefinitions", [])]
+          if current_images and all(img == image_uri for img in current_images):
+              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+                  fh.write(f"task_definition_arn={task_def['taskDefinitionArn']}\n")
+                  fh.write("registered_new_revision=false\n")
+              raise SystemExit(0)
+
+          allowed_fields = [
+              "family",
+              "taskRoleArn",
+              "executionRoleArn",
+              "networkMode",
+              "containerDefinitions",
+              "volumes",
+              "placementConstraints",
+              "requiresCompatibilities",
+              "cpu",
+              "memory",
+              "pidMode",
+              "ipcMode",
+              "proxyConfiguration",
+              "inferenceAccelerators",
+              "ephemeralStorage",
+              "runtimePlatform",
+          ]
+          register_payload = {key: task_def[key] for key in allowed_fields if key in task_def}
+          containers = list(register_payload.get("containerDefinitions") or [])
+          for container in containers:
+              container["image"] = image_uri
+          register_payload["containerDefinitions"] = containers
+          tags = describe.get("tags") or []
+          if tags:
+              register_payload["tags"] = tags
+
+          with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as tmp:
+              json.dump(register_payload, tmp)
+              tmp.write("\n")
+              tmp_path = tmp.name
+
+          proc = subprocess.run(
+              [
+                  "aws",
+                  "ecs",
+                  "register-task-definition",
+                  "--region",
+                  region,
+                  "--cli-input-json",
+                  f"file://{tmp_path}",
+                  "--output",
+                  "json",
+              ],
+              check=True,
+              capture_output=True,
+              text=True,
+          )
+          registered = json.loads(proc.stdout or "{}")
+          task_definition_arn = str(registered.get("taskDefinition", {}).get("taskDefinitionArn", "")).strip()
+          if not task_definition_arn:
+              raise SystemExit("Task-definition repin did not return a taskDefinitionArn.")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"task_definition_arn={task_definition_arn}\n")
+              fh.write("registered_new_revision=true\n")
+          PY
+
+      - name: Repin live ingress ECS service to resolved image
+        id: repin_ingress_service
+        shell: bash
+        env:
+          ECS_CLUSTER: fraud-platform-dev-full-ingress
+          ECS_SERVICE: fraud-platform-dev-full-ig-service
+          IMAGE_URI: ${{ inputs.ingress_image_uri != '' && inputs.ingress_image_uri || steps.platform_image.outputs.image_uri }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          import tempfile
+
+          region = "${{ inputs.aws_region }}"
+          cluster = os.environ["ECS_CLUSTER"]
+          service = os.environ["ECS_SERVICE"]
+          image_uri = os.environ["IMAGE_URI"]
+          digest = image_uri.rsplit("@", 1)[-1] if "@" in image_uri else ""
+          if not digest.startswith("sha256:"):
+              raise SystemExit(f"Ingress image must be digest-pinned: {image_uri}")
+
+          def aws_json(args):
+              proc = subprocess.run(
+                  ["aws", *args, "--region", region, "--output", "json"],
+                  check=True,
+                  capture_output=True,
+                  text=True,
+              )
+              return json.loads(proc.stdout or "{}")
+
+          service_desc = aws_json(["ecs", "describe-services", "--cluster", cluster, "--services", service])
+          services = service_desc.get("services") or []
+          if not services:
+              raise SystemExit(f"ECS service not found: {cluster}/{service}")
+          service_row = services[0]
+          task_definition = str(service_row.get("taskDefinition") or "").strip()
+          if not task_definition:
+              raise SystemExit(f"ECS service {cluster}/{service} has no task definition.")
+          task_def_desc = aws_json(["ecs", "describe-task-definition", "--task-definition", task_definition, "--include", "TAGS"])
+          task_def = dict(task_def_desc.get("taskDefinition") or {})
+          current_images = [str(cd.get("image") or "").strip() for cd in list(task_def.get("containerDefinitions") or [])]
+          task_definition_arn = str(task_def.get("taskDefinitionArn") or "").strip()
+
+          if current_images and all(image == image_uri for image in current_images):
+              subprocess.run(
+                  ["aws", "ecs", "wait", "services-stable", "--cluster", cluster, "--services", service, "--region", region],
+                  check=True,
+                  capture_output=True,
+                  text=True,
+              )
+              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+                  fh.write(f"task_definition_arn={task_definition_arn}\n")
+                  fh.write("registered_new_revision=false\n")
+              raise SystemExit(0)
+
+          allowed_fields = [
+              "family",
+              "taskRoleArn",
+              "executionRoleArn",
+              "networkMode",
+              "containerDefinitions",
+              "volumes",
+              "placementConstraints",
+              "requiresCompatibilities",
+              "cpu",
+              "memory",
+              "pidMode",
+              "ipcMode",
+              "proxyConfiguration",
+              "inferenceAccelerators",
+              "ephemeralStorage",
+              "runtimePlatform",
+          ]
+          register_payload = {key: task_def[key] for key in allowed_fields if key in task_def}
+          containers = list(register_payload.get("containerDefinitions") or [])
+          for container in containers:
+              container["image"] = image_uri
+          register_payload["containerDefinitions"] = containers
+          tags = task_def_desc.get("tags") or []
+          if tags:
+              register_payload["tags"] = tags
+
+          with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as tmp:
+              json.dump(register_payload, tmp)
+              tmp.write("\n")
+              tmp_path = tmp.name
+
+          registered = aws_json(["ecs", "register-task-definition", "--cli-input-json", f"file://{tmp_path}"])
+          new_task_definition_arn = str((registered.get("taskDefinition") or {}).get("taskDefinitionArn") or "").strip()
+          if not new_task_definition_arn:
+              raise SystemExit("Ingress repin did not return a new task definition arn.")
+
+          subprocess.run(
+              [
+                  "aws", "ecs", "update-service",
+                  "--cluster", cluster,
+                  "--service", service,
+                  "--task-definition", new_task_definition_arn,
+                  "--force-new-deployment",
+                  "--region", region,
+                  "--output", "json",
+              ],
+              check=True,
+              capture_output=True,
+              text=True,
+          )
+          subprocess.run(
+              ["aws", "ecs", "wait", "services-stable", "--cluster", cluster, "--services", service, "--region", region],
+              check=True,
+              capture_output=True,
+              text=True,
+          )
+
+          verified = aws_json(["ecs", "describe-services", "--cluster", cluster, "--services", service])
+          verified_service = (verified.get("services") or [{}])[0]
+          verified_task_definition = str(verified_service.get("taskDefinition") or "").strip()
+          if verified_task_definition != new_task_definition_arn:
+              raise SystemExit(
+                  "Ingress service did not converge to the repinned task definition: "
+                  f"expected={new_task_definition_arn} observed={verified_task_definition}"
+              )
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"task_definition_arn={new_task_definition_arn}\n")
+              fh.write("registered_new_revision=true\n")
+          PY
+
+      - name: Right-size ingress fleet for PR3 burst quota posture
+        shell: bash
+        env:
+          ECS_CLUSTER: fraud-platform-dev-full-ingress
+          ECS_SERVICE: fraud-platform-dev-full-ig-service
+          AUTHORITY_TARGET_DESIRED_COUNT: "32"
+          MIN_PROVEN_INGRESS_COUNT: "31"
+          RUN_DIR: ${{ steps.meta.outputs.run_dir }}
+          LANE_COUNT: ${{ inputs.lane_count }}
+          WSP_TASK_CPU: ${{ inputs.wsp_task_cpu }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import math
+          import os
+          import subprocess
+
+          region = "${{ inputs.aws_region }}"
+          cluster = os.environ["ECS_CLUSTER"]
+          service = os.environ["ECS_SERVICE"]
+          authority_target = int(os.environ["AUTHORITY_TARGET_DESIRED_COUNT"])
+          min_proven = int(os.environ["MIN_PROVEN_INGRESS_COUNT"])
+          run_dir = os.environ["RUN_DIR"]
+          lane_count = int(os.environ["LANE_COUNT"])
+          wsp_task_cpu_units = int(os.environ["WSP_TASK_CPU"])
+
+          def aws_json(args):
+              proc = subprocess.run(
+                  ["aws", *args, "--region", region, "--output", "json"],
+                  check=True,
+                  capture_output=True,
+                  text=True,
+              )
+              return json.loads(proc.stdout or "{}")
+
+          quota_payload = aws_json(["service-quotas", "list-service-quotas", "--service-code", "fargate"])
+          quota_rows = quota_payload.get("Quotas") or []
+          quota_value = None
+          for row in quota_rows:
+              quota_name = str(row.get("QuotaName") or "")
+              if quota_name == "Fargate On-Demand vCPU resource count":
+                  quota_value = float(row.get("Value") or 0.0)
+                  break
+          if quota_value is None or quota_value <= 0:
+              raise SystemExit("Could not resolve Fargate On-Demand vCPU quota.")
+
+          current = aws_json(["ecs", "describe-services", "--cluster", cluster, "--services", service])
+          row = (current.get("services") or [{}])[0]
+          current_desired = int(row.get("desiredCount") or 0)
+          task_definition_arn = str(row.get("taskDefinition") or "").strip()
+          if not task_definition_arn:
+              raise SystemExit(f"ECS service {cluster}/{service} has no active task definition.")
+          task_definition = aws_json(["ecs", "describe-task-definition", "--task-definition", task_definition_arn])
+          task_cpu_units = int(str((task_definition.get("taskDefinition") or {}).get("cpu") or "0"))
+          if task_cpu_units <= 0:
+              raise SystemExit(f"Could not resolve ingress task cpu for {task_definition_arn}.")
+
+          ig_task_vcpu = task_cpu_units / 1024.0
+          wsp_lane_vcpu = wsp_task_cpu_units / 1024.0
+          reserved_wsp_vcpu = lane_count * wsp_lane_vcpu
+          quota_limited_ingress = math.floor((quota_value - reserved_wsp_vcpu) / ig_task_vcpu)
+          target_desired = min(authority_target, quota_limited_ingress)
+
+          if target_desired < min_proven:
+              raise SystemExit(
+                  "PR3.S2.WSP.B02_FARGATE_QUOTA_HEADROOM_INSUFFICIENT:"
+                  f"quota_vcpu={quota_value}"
+                  f":reserved_wsp_vcpu={reserved_wsp_vcpu}"
+                  f":ig_task_vcpu={ig_task_vcpu}"
+                  f":computed_ingress_desired={target_desired}"
+                  f":minimum_required={min_proven}"
+              )
+
+          if current_desired != target_desired:
+              subprocess.run(
+                  [
+                      "aws",
+                      "ecs",
+                      "update-service",
+                      "--cluster",
+                      cluster,
+                      "--service",
+                      service,
+                      "--desired-count",
+                      str(target_desired),
+                      "--region",
+                      region,
+                      "--output",
+                      "json",
+                  ],
+                  check=True,
+                  capture_output=True,
+                  text=True,
+              )
+          subprocess.run(
+              ["aws", "ecs", "wait", "services-stable", "--cluster", cluster, "--services", service, "--region", region],
+              check=True,
+                  capture_output=True,
+                  text=True,
+              )
+          verified = aws_json(["ecs", "describe-services", "--cluster", cluster, "--services", service])
+          verified_row = (verified.get("services") or [{}])[0]
+          verified_desired = int(verified_row.get("desiredCount") or 0)
+          verified_running = int(verified_row.get("runningCount") or 0)
+          if verified_desired != target_desired or verified_running != target_desired:
+              raise SystemExit(
+                  f"Ingress right-size did not converge. desired={verified_desired} running={verified_running} expected={target_desired}"
+              )
+          snapshot = {
+              "authority_target_desired_count": authority_target,
+              "minimum_proven_ingress_count": min_proven,
+              "fargate_on_demand_vcpu_quota": quota_value,
+              "reserved_wsp_lane_vcpu": reserved_wsp_vcpu,
+              "ingress_task_vcpu": ig_task_vcpu,
+              "quota_limited_ingress_count": quota_limited_ingress,
+              "selected_ingress_desired_count": target_desired,
+              "current_desired_before_change": current_desired,
+              "verified_desired_after_change": verified_desired,
+              "verified_running_after_change": verified_running,
+          }
+          with open(os.path.join(run_dir, "g3a_s2_fargate_quota_posture.json"), "w", encoding="utf-8") as fh:
+              json.dump(snapshot, fh, indent=2)
+              fh.write("\n")
+          PY
 
       - name: Materialize fresh PR3 runtime identity on EKS
         shell: bash
@@ -183,16 +817,28 @@ jobs:
             --platform-run-id "${{ steps.meta.outputs.platform_run_id }}" \
             --scenario-run-id "${{ steps.meta.outputs.scenario_run_id }}" \
             --region "${{ inputs.aws_region }}" \
-            --namespace "${{ inputs.eks_namespace }}" \
-            --image-uri "${{ inputs.worker_image_uri }}"
+            --namespace "${{ env.EKS_NAMESPACE }}" \
+            --image-uri "${{ steps.platform_image.outputs.image_uri }}"
 
       - name: Verify fresh runtime readiness
         shell: bash
         run: |
           set -euo pipefail
-          for deployment in fp-pr3-ieg fp-pr3-ofp fp-pr3-df fp-pr3-al fp-pr3-dla fp-pr3-archive-writer; do
-            kubectl rollout status "deployment/${deployment}" -n "${{ inputs.eks_namespace }}" --timeout=240s
+          for deployment in fp-pr3-csfb fp-pr3-ieg fp-pr3-ofp fp-pr3-dl fp-pr3-df fp-pr3-al fp-pr3-dla fp-pr3-archive-writer; do
+            kubectl rollout status "deployment/${deployment}" -n "${{ env.EKS_NAMESPACE }}" --timeout=240s
           done
+
+      - name: Warm-gate runtime before burst injection
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/pr3_runtime_warm_gate.py \
+            --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
+            --state-id S2 \
+            --namespace "${{ env.EKS_NAMESPACE }}" \
+            --platform-run-id "${{ steps.meta.outputs.platform_run_id }}" \
+            --profile-path "/runtime-profile/dev_full.yaml" \
+            --settle-seconds 30
 
       - name: Capture pre-burst runtime snapshot
         shell: bash
@@ -202,7 +848,7 @@ jobs:
             --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
             --state-id S2 \
             --snapshot-label pre \
-            --namespace "${{ inputs.eks_namespace }}" \
+            --namespace "${{ env.EKS_NAMESPACE }}" \
             --platform-run-id "${{ steps.meta.outputs.platform_run_id }}"
 
       - name: Run canonical burst window with live runtime sampling
@@ -212,17 +858,22 @@ jobs:
           PLATFORM_RUN_ID: ${{ steps.meta.outputs.platform_run_id }}
           SCENARIO_RUN_ID: ${{ steps.meta.outputs.scenario_run_id }}
           AWS_REGION: ${{ inputs.aws_region }}
-          EKS_NAMESPACE: ${{ inputs.eks_namespace }}
+          EKS_NAMESPACE: ${{ env.EKS_NAMESPACE }}
           LANE_COUNT: ${{ inputs.lane_count }}
           TARGET_BURST_EPS: ${{ inputs.target_burst_eps }}
           TARGET_REQUEST_RATE_EPS: ${{ inputs.target_request_rate_eps }}
           DURATION_SECONDS: ${{ inputs.duration_seconds }}
+          WARMUP_SECONDS: ${{ inputs.warmup_seconds }}
           STREAM_SPEEDUP: ${{ inputs.stream_speedup }}
+          OUTPUT_CONCURRENCY: ${{ inputs.output_concurrency }}
           IG_PUSH_CONCURRENCY: ${{ inputs.ig_push_concurrency }}
+          HTTP_POOL_MAXSIZE: ${{ inputs.http_pool_maxsize }}
+          WSP_TASK_CPU: ${{ inputs.wsp_task_cpu }}
+          WSP_TASK_MEMORY: ${{ inputs.wsp_task_memory }}
           TARGET_BURST_SECONDS: ${{ inputs.target_burst_seconds }}
-          TARGET_INITIAL_TOKENS: ${{ inputs.target_initial_tokens }}
+          TARGET_INITIAL_TOKENS: 0.50
           EARLY_CUTOFF_SECONDS: ${{ inputs.early_cutoff_seconds }}
-          EARLY_CUTOFF_FLOOR_RATIO: ${{ inputs.early_cutoff_floor_ratio }}
+          EARLY_CUTOFF_FLOOR_RATIO: "0.70"
         run: |
           set -euo pipefail
           python scripts/dev_substrate/pr3_wsp_replay_dispatch.py \
@@ -238,14 +889,17 @@ jobs:
             --expected-window-eps "${TARGET_BURST_EPS}" \
             --target-request-rate-eps "${TARGET_REQUEST_RATE_EPS}" \
             --duration-seconds "${DURATION_SECONDS}" \
+            --warmup-seconds "${WARMUP_SECONDS}" \
             --early-cutoff-seconds "${EARLY_CUTOFF_SECONDS}" \
             --early-cutoff-floor-ratio "${EARLY_CUTOFF_FLOOR_RATIO}" \
             --stream-speedup "${STREAM_SPEEDUP}" \
+            --output-concurrency "${OUTPUT_CONCURRENCY}" \
             --ig-push-concurrency "${IG_PUSH_CONCURRENCY}" \
+            --http-pool-maxsize "${HTTP_POOL_MAXSIZE}" \
             --target-burst-seconds "${TARGET_BURST_SECONDS}" \
             --target-initial-tokens "${TARGET_INITIAL_TOKENS}" \
-            --task-cpu "256" \
-            --task-memory "1024" \
+            --task-cpu "${WSP_TASK_CPU}" \
+            --task-memory "${WSP_TASK_MEMORY}" \
             --max-latency-p95-ms 350 \
             --max-latency-p99-ms 700 \
             --skip-runtime-identity-probe &
@@ -264,7 +918,7 @@ jobs:
           wait "${BURST_PID}"
 
       - name: Capture post-burst runtime snapshot
-        if: always()
+        if: ${{ always() && steps.kubeconfig.outcome == 'success' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -272,7 +926,7 @@ jobs:
             --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
             --state-id S2 \
             --snapshot-label post \
-            --namespace "${{ inputs.eks_namespace }}" \
+            --namespace "${{ env.EKS_NAMESPACE }}" \
             --platform-run-id "${{ steps.meta.outputs.platform_run_id }}"
 
       - name: Build PR3-S2 burst rollup

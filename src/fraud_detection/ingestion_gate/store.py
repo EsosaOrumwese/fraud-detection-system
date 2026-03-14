@@ -6,15 +6,62 @@ import json
 import os
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Protocol
 from urllib.parse import urlparse
+
+
+def _env_int(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    value = value.strip()
+    if not value:
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return default
+
+
+def _botocore_config(*, path_style: bool | None = None):
+    from botocore.config import Config
+
+    max_pool_connections = max(16, _env_int("IG_AWS_MAX_POOL_CONNECTIONS", 256))
+    connect_timeout = max(1, _env_int("IG_AWS_CONNECT_TIMEOUT_SECONDS", 2))
+    read_timeout = max(connect_timeout, _env_int("IG_AWS_READ_TIMEOUT_SECONDS", 5))
+    retries = {
+        "max_attempts": max(1, _env_int("IG_AWS_MAX_ATTEMPTS", 3)),
+        "mode": os.getenv("IG_AWS_RETRY_MODE", "standard").strip() or "standard",
+    }
+    extra: dict[str, Any] = {
+        "connect_timeout": connect_timeout,
+        "read_timeout": read_timeout,
+        "retries": retries,
+        "max_pool_connections": max_pool_connections,
+    }
+    if path_style:
+        extra["s3"] = {"addressing_style": "path"}
+    return Config(**extra)
 
 
 @dataclass(frozen=True)
 class ArtifactRef:
     path: str
     digest: str | None = None
+
+
+@dataclass(frozen=True)
+class StoreHealthSnapshot:
+    last_success_at_utc: str | None = None
+    last_failure_at_utc: str | None = None
+    last_failure_operation: str | None = None
+    last_failure_error: str | None = None
+    consecutive_failures: int = 0
+    last_benign_conflict_at_utc: str | None = None
+    last_benign_conflict_operation: str | None = None
+    last_benign_conflict_error: str | None = None
 
 
 class ObjectStore(Protocol):
@@ -35,6 +82,110 @@ class ObjectStore(Protocol):
 
     def exists(self, relative_path: str) -> bool:
         ...
+
+
+class ObservedObjectStore:
+    def __init__(self, inner: ObjectStore) -> None:
+        self.inner = inner
+        self._last_success_at_utc: str | None = None
+        self._last_failure_at_utc: str | None = None
+        self._last_failure_operation: str | None = None
+        self._last_failure_error: str | None = None
+        self._consecutive_failures = 0
+        self._last_benign_conflict_at_utc: str | None = None
+        self._last_benign_conflict_operation: str | None = None
+        self._last_benign_conflict_error: str | None = None
+
+    def write_json(self, relative_path: str, payload: dict[str, Any]) -> ArtifactRef:
+        return self._observe("write_json", lambda: self.inner.write_json(relative_path, payload))
+
+    def write_json_if_absent(self, relative_path: str, payload: dict[str, Any]) -> ArtifactRef:
+        return self._observe("write_json_if_absent", lambda: self.inner.write_json_if_absent(relative_path, payload))
+
+    def read_json(self, relative_path: str) -> dict[str, Any]:
+        return self._observe("read_json", lambda: self.inner.read_json(relative_path))
+
+    def write_text(self, relative_path: str, content: str) -> ArtifactRef:
+        return self._observe("write_text", lambda: self.inner.write_text(relative_path, content))
+
+    def append_jsonl(self, relative_path: str, records: Iterable[dict[str, Any]]) -> ArtifactRef:
+        buffered = list(records)
+        return self._observe("append_jsonl", lambda: self.inner.append_jsonl(relative_path, buffered))
+
+    def exists(self, relative_path: str) -> bool:
+        return self._observe("exists", lambda: self.inner.exists(relative_path))
+
+    def health_snapshot(self) -> StoreHealthSnapshot:
+        return StoreHealthSnapshot(
+            last_success_at_utc=self._last_success_at_utc,
+            last_failure_at_utc=self._last_failure_at_utc,
+            last_failure_operation=self._last_failure_operation,
+            last_failure_error=self._last_failure_error,
+            consecutive_failures=self._consecutive_failures,
+            last_benign_conflict_at_utc=self._last_benign_conflict_at_utc,
+            last_benign_conflict_operation=self._last_benign_conflict_operation,
+            last_benign_conflict_error=self._last_benign_conflict_error,
+        )
+
+    def _observe(self, operation: str, fn: Any) -> Any:
+        try:
+            value = fn()
+        except FileExistsError as exc:
+            if operation == "write_json_if_absent":
+                self._record_benign_conflict(operation, exc)
+                raise
+            self._record_failure(operation, exc)
+            raise
+        except RuntimeError as exc:
+            if _is_benign_append_conflict(operation, exc):
+                self._record_benign_conflict(operation, exc)
+                raise
+            self._record_failure(operation, exc)
+            raise
+        except Exception as exc:
+            if _is_benign_append_conflict(operation, exc):
+                self._record_benign_conflict(operation, exc)
+                raise
+            self._record_failure(operation, exc)
+            raise
+        self._record_success()
+        return value
+
+    def _record_success(self) -> None:
+        self._last_success_at_utc = datetime.now(tz=timezone.utc).isoformat()
+        self._consecutive_failures = 0
+
+    def _record_failure(self, operation: str, exc: Exception) -> None:
+        self._last_failure_at_utc = datetime.now(tz=timezone.utc).isoformat()
+        self._last_failure_operation = operation
+        self._last_failure_error = f"{type(exc).__name__}:{exc}"
+        self._consecutive_failures += 1
+
+    def _record_benign_conflict(self, operation: str, exc: Exception) -> None:
+        now = datetime.now(tz=timezone.utc).isoformat()
+        self._last_success_at_utc = now
+        self._last_benign_conflict_at_utc = now
+        self._last_benign_conflict_operation = operation
+        self._last_benign_conflict_error = f"{type(exc).__name__}:{exc}"
+        self._consecutive_failures = 0
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self.inner, name)
+
+
+def _is_benign_append_conflict(operation: str, exc: Exception) -> bool:
+    if operation != "append_jsonl":
+        return False
+    message = str(exc)
+    if "S3_APPEND_CONFLICT" in message or "ConditionalRequestConflict" in message:
+        return True
+    response = getattr(exc, "response", None)
+    if not isinstance(response, dict):
+        return False
+    error = response.get("Error", {})
+    if not isinstance(error, dict):
+        return False
+    return str(error.get("Code") or "") in {"PreconditionFailed", "412", "ConditionalRequestConflict"}
 
 
 class LocalObjectStore:
@@ -111,18 +262,14 @@ class S3ObjectStore:
         path_style: bool | None = None,
     ) -> None:
         import boto3
-        from botocore.config import Config
 
         self.bucket = bucket
         self.prefix = prefix.strip("/")
-        config = None
-        if path_style:
-            config = Config(s3={"addressing_style": "path"})
         self._client = boto3.client(
             "s3",
             endpoint_url=endpoint_url,
             region_name=region_name,
-            config=config,
+            config=_botocore_config(path_style=path_style),
         )
 
     def _key(self, relative_path: str) -> str:
@@ -174,37 +321,48 @@ class S3ObjectStore:
         from botocore.exceptions import ClientError
 
         key = self._key(relative_path)
-        existing = ""
-        etag = None
-        if self.exists(relative_path):
-            response = self._client.get_object(Bucket=self.bucket, Key=key)
-            existing = response["Body"].read().decode("utf-8")
-            etag = response.get("ETag")
         lines = []
         for record in records:
             line = json.dumps(record, sort_keys=True, ensure_ascii=True, separators=(",", ":"))
             lines.append(line)
-        content = existing + "".join(line + "\n" for line in lines)
-        try:
-            if etag:
-                self._client.put_object(
-                    Bucket=self.bucket,
-                    Key=key,
-                    Body=content.encode("utf-8"),
-                    IfMatch=etag,
-                )
-            else:
-                self._client.put_object(
-                    Bucket=self.bucket,
-                    Key=key,
-                    Body=content.encode("utf-8"),
-                    IfNoneMatch="*",
-                )
-        except ClientError as exc:
-            error_code = exc.response.get("Error", {}).get("Code")
-            if error_code in {"PreconditionFailed", "412"}:
-                raise RuntimeError("S3_APPEND_CONFLICT") from exc
-            raise
+        append_block = "".join(line + "\n" for line in lines)
+        max_attempts = max(1, _env_int("IG_OBJECT_STORE_APPEND_MAX_ATTEMPTS", 5))
+        sleep_seconds = max(0.0, _env_int("IG_OBJECT_STORE_APPEND_BACKOFF_MS", 50) / 1000.0)
+        last_conflict: ClientError | None = None
+        for attempt in range(1, max_attempts + 1):
+            existing = ""
+            etag = None
+            if self.exists(relative_path):
+                response = self._client.get_object(Bucket=self.bucket, Key=key)
+                existing = response["Body"].read().decode("utf-8")
+                etag = response.get("ETag")
+            content = existing + append_block
+            try:
+                if etag:
+                    self._client.put_object(
+                        Bucket=self.bucket,
+                        Key=key,
+                        Body=content.encode("utf-8"),
+                        IfMatch=etag,
+                    )
+                else:
+                    self._client.put_object(
+                        Bucket=self.bucket,
+                        Key=key,
+                        Body=content.encode("utf-8"),
+                        IfNoneMatch="*",
+                    )
+                return ArtifactRef(path=f"s3://{self.bucket}/{key}")
+            except ClientError as exc:
+                error_code = exc.response.get("Error", {}).get("Code")
+                if error_code not in {"PreconditionFailed", "412", "ConditionalRequestConflict"}:
+                    raise
+                last_conflict = exc
+                if attempt >= max_attempts:
+                    break
+                time.sleep(sleep_seconds * attempt)
+        if last_conflict is not None:
+            raise RuntimeError("S3_APPEND_CONFLICT") from last_conflict
         return ArtifactRef(path=f"s3://{self.bucket}/{key}")
 
     def exists(self, relative_path: str) -> bool:
@@ -245,3 +403,15 @@ def build_object_store(
             path_style=path_style,
         )
     return LocalObjectStore(Path(root))
+
+
+def observe_object_store(store: ObjectStore) -> ObservedObjectStore:
+    if isinstance(store, ObservedObjectStore):
+        return store
+    return ObservedObjectStore(store)
+
+
+def unwrap_object_store(store: ObjectStore) -> ObjectStore:
+    if isinstance(store, ObservedObjectStore):
+        return store.inner
+    return store

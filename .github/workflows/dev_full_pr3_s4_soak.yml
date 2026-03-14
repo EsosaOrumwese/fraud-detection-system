@@ -1,7 +1,7 @@
-name: dev-full-pr3-s4-soak
+name: dev-full-pr3-s4-correctness
 
 run-name: >-
-  PR3 S4 soak (${{
+  PR3 S4 correctness (${{
     inputs.pr3_execution_id
   }}, ref=${{
     inputs.code_ref
@@ -26,6 +26,11 @@ on:
         required: true
         default: "cert-platform"
         type: string
+      platform_image_uri:
+        description: "Optional explicit immutable platform image URI (repo@sha256:...)"
+        required: false
+        default: ""
+        type: string
       pr3_execution_id:
         description: "Strict PR3 execution id"
         required: true
@@ -42,29 +47,29 @@ on:
         default: "fraud-platform-dev-full"
         type: string
       lane_count:
-        description: "Remote WSP soak lane count"
+        description: "Remote WSP correctness lane count"
         required: true
-        default: "32"
+        default: "8"
         type: string
       target_steady_eps:
-        description: "Soak EPS target"
+        description: "Bounded correctness EPS target"
         required: true
-        default: "3000"
+        default: "600"
         type: string
       target_request_rate_eps:
-        description: "Generator setpoint EPS"
+        description: "Bounded correctness generator setpoint EPS"
         required: true
-        default: "3030"
+        default: "660"
         type: string
       duration_seconds:
-        description: "Soak duration seconds"
+        description: "Bounded correctness duration seconds"
         required: true
-        default: "1800"
+        default: "180"
         type: string
       warmup_seconds:
-        description: "Same-run warmup before certification measurement begins"
+        description: "Same-run warmup before bounded correctness measurement begins"
         required: true
-        default: "120"
+        default: "30"
         type: string
       stream_speedup:
         description: "Oracle replay speedup multiplier"
@@ -102,7 +107,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: dev-full-pr3-s4-soak-${{ github.ref_name }}
+  group: dev-full-pr3-s4-correctness-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -110,7 +115,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
-      EKS_NAMESPACE: fraud-platform-rtdl
+      RTDL_NAMESPACE: fraud-platform-rtdl
+      CASE_LABELS_NAMESPACE: fraud-platform-case-labels
+      LEARNING_NAMESPACE: fraud-platform-learning
+      PYTHONPATH: src
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -148,7 +156,18 @@ jobs:
         run: |
           set -euo pipefail
           python -m pip install --upgrade pip
-          python -m pip install boto3 botocore "psycopg[binary]" pyyaml
+          python -m pip install \
+            boto3 \
+            botocore \
+            "psycopg[binary]" \
+            pyyaml \
+            pydantic \
+            pydantic-settings \
+            jsonschema \
+            referencing \
+            kafka-python \
+            confluent-kafka \
+            aws-msk-iam-sasl-signer-python
 
       - name: Compute execution metadata
         id: meta
@@ -159,17 +178,14 @@ jobs:
           mkdir -p "${RUN_DIR}"
           readarray -t RUN_METADATA < <(python - <<'PY'
           from datetime import datetime, timezone
-          import uuid
           base = datetime.now(timezone.utc).replace(microsecond=0)
           print(base.strftime("platform_%Y%m%dT%H%M%SZ"))
-          print(uuid.uuid4().hex)
           print(base.strftime("%Y%m%dT%H%M%SZ"))
           PY
           )
           echo "run_dir=${RUN_DIR}" >> "$GITHUB_OUTPUT"
           echo "active_platform_run_id=${RUN_METADATA[0]}" >> "$GITHUB_OUTPUT"
-          echo "active_scenario_run_id=${RUN_METADATA[1]}" >> "$GITHUB_OUTPUT"
-          echo "wsp_checkpoint_attempt_id=${RUN_METADATA[2]}" >> "$GITHUB_OUTPUT"
+          echo "wsp_checkpoint_attempt_id=${RUN_METADATA[1]}" >> "$GITHUB_OUTPUT"
 
       - name: Hydrate PR3 upstream evidence from S3
         shell: bash
@@ -208,12 +224,49 @@ jobs:
           PY
 
       - name: Configure kubeconfig
+        id: kubeconfig
         shell: bash
         run: |
           set -euo pipefail
           aws eks update-kubeconfig \
             --region "${{ inputs.aws_region }}" \
             --name "${{ inputs.eks_cluster_name }}"
+
+      - name: Bootstrap active run through Scenario Runner
+        shell: bash
+        env:
+          PLATFORM_RUN_ID: ${{ steps.meta.outputs.active_platform_run_id }}
+          ACTIVE_PLATFORM_RUN_ID: ${{ steps.meta.outputs.active_platform_run_id }}
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/pr3_control_plane_bootstrap.py \
+            --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
+            --platform-run-id "${{ steps.meta.outputs.active_platform_run_id }}" \
+            --aws-region "${{ inputs.aws_region }}" \
+            --namespace "${{ env.RTDL_NAMESPACE }}" \
+            --image-uri "${{ inputs.platform_image_uri }}"
+
+      - name: Expose bootstrap outputs
+        id: bootstrap
+        shell: bash
+        env:
+          RUN_DIR: ${{ steps.meta.outputs.run_dir }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          payload = json.loads((Path(os.environ["RUN_DIR"]) / "g3a_control_plane_bootstrap.json").read_text(encoding="utf-8"))
+          if not payload.get("overall_pass"):
+              raise SystemExit(f"PR3.B20_CONTROL_BOOTSTRAP_FAIL:{payload.get('blocker_ids')}")
+          sr = payload.get("sr") or {}
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"active_scenario_run_id={payload['scenario_run_id']}\n")
+              fh.write(f"status_ref={sr.get('status_ref', '')}\n")
+              fh.write(f"facts_view_ref={sr.get('facts_view_ref', '')}\n")
+          PY
 
       - name: Materialize fresh S4 runtime identity on EKS
         shell: bash
@@ -222,9 +275,10 @@ jobs:
           python scripts/dev_substrate/pr3_rtdl_materialize.py \
             --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
             --platform-run-id "${{ steps.meta.outputs.active_platform_run_id }}" \
-            --scenario-run-id "${{ steps.meta.outputs.active_scenario_run_id }}" \
+            --scenario-run-id "${{ steps.bootstrap.outputs.active_scenario_run_id }}" \
             --region "${{ inputs.aws_region }}" \
-            --namespace "${{ env.EKS_NAMESPACE }}"
+            --namespace "${{ env.RTDL_NAMESPACE }}" \
+            --image-uri "${{ inputs.platform_image_uri }}"
 
       - name: Verify runtime deployments ready
         shell: bash
@@ -238,26 +292,30 @@ jobs:
             fp-pr3-df \
             fp-pr3-al \
             fp-pr3-dla \
-            fp-pr3-archive-writer \
+            fp-pr3-archive-writer; do
+            kubectl rollout status "deployment/${deployment}" -n "${{ env.RTDL_NAMESPACE }}" --timeout=300s
+          done
+          for deployment in \
             fp-pr3-case-trigger \
             fp-pr3-case-mgmt \
             fp-pr3-label-store; do
-            kubectl rollout status "deployment/${deployment}" -n "${{ env.EKS_NAMESPACE }}" --timeout=300s
+            kubectl rollout status "deployment/${deployment}" -n "${{ env.CASE_LABELS_NAMESPACE }}" --timeout=300s
           done
 
-      - name: Warm-gate runtime before soak
+      - name: Warm-gate runtime before correctness
         shell: bash
         run: |
           set -euo pipefail
           python scripts/dev_substrate/pr3_runtime_warm_gate.py \
             --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
             --state-id S4 \
-            --namespace "${{ env.EKS_NAMESPACE }}" \
+            --namespace "${{ env.RTDL_NAMESPACE }}" \
+            --case-labels-namespace "${{ env.CASE_LABELS_NAMESPACE }}" \
             --platform-run-id "${{ steps.meta.outputs.active_platform_run_id }}" \
             --profile-path "/runtime-profile/dev_full.yaml" \
             --settle-seconds 30
 
-      - name: Capture pre-soak runtime snapshot
+      - name: Capture pre-correctness runtime snapshot
         shell: bash
         run: |
           set -euo pipefail
@@ -265,10 +323,94 @@ jobs:
             --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
             --state-id S4 \
             --snapshot-label pre \
-            --namespace "${{ env.EKS_NAMESPACE }}" \
+            --namespace "${{ env.RTDL_NAMESPACE }}" \
+            --case-labels-namespace "${{ env.CASE_LABELS_NAMESPACE }}" \
             --platform-run-id "${{ steps.meta.outputs.active_platform_run_id }}"
 
-      - name: Drain stale WSP ephemeral tasks before soak
+      - name: Repin WSP task family to explicit immutable image
+        if: ${{ inputs.platform_image_uri != '' }}
+        id: repin_wsp_taskdef
+        shell: bash
+        env:
+          IMAGE_URI: ${{ inputs.platform_image_uri }}
+          TASK_FAMILY: fraud-platform-dev-full-wsp-ephemeral
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          import tempfile
+
+          region = "${{ inputs.aws_region }}"
+          family = os.environ["TASK_FAMILY"]
+          image_uri = os.environ["IMAGE_URI"].strip()
+          if "@" not in image_uri or not image_uri.rsplit("@", 1)[-1].startswith("sha256:"):
+              raise SystemExit(f"PR3.S4.RUNTIME.B00_IMAGE_NOT_DIGEST_PINNED:{image_uri}")
+
+          def aws_json(args):
+              proc = subprocess.run(
+                  ["aws", *args, "--region", region, "--output", "json"],
+                  check=True,
+                  capture_output=True,
+                  text=True,
+              )
+              return json.loads(proc.stdout or "{}")
+
+          describe = aws_json(["ecs", "describe-task-definition", "--task-definition", family, "--include", "TAGS"])
+          task_def = dict(describe.get("taskDefinition") or {})
+          containers = list(task_def.get("containerDefinitions") or [])
+          if not containers:
+              raise SystemExit(f"PR3.S4.RUNTIME.B01_TASKDEF_EMPTY:{family}")
+          current_images = [str(row.get("image") or "").strip() for row in containers]
+          current_taskdef_arn = str(task_def.get("taskDefinitionArn") or "").strip()
+          if current_images and all(current == image_uri for current in current_images):
+              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+                  fh.write(f"task_definition_arn={current_taskdef_arn}\n")
+                  fh.write("registered_new_revision=false\n")
+              raise SystemExit(0)
+
+          allowed_fields = [
+              "family",
+              "taskRoleArn",
+              "executionRoleArn",
+              "networkMode",
+              "containerDefinitions",
+              "volumes",
+              "placementConstraints",
+              "requiresCompatibilities",
+              "cpu",
+              "memory",
+              "pidMode",
+              "ipcMode",
+              "proxyConfiguration",
+              "inferenceAccelerators",
+              "ephemeralStorage",
+              "runtimePlatform",
+          ]
+          register_payload = {key: task_def[key] for key in allowed_fields if key in task_def}
+          for container in containers:
+              container["image"] = image_uri
+          register_payload["containerDefinitions"] = containers
+          tags = describe.get("tags") or []
+          if tags:
+              register_payload["tags"] = tags
+
+          with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as tmp:
+              json.dump(register_payload, tmp)
+              tmp.write("\n")
+              tmp_path = tmp.name
+
+          registered = aws_json(["ecs", "register-task-definition", "--cli-input-json", f"file://{tmp_path}"])
+          task_definition_arn = str((registered.get("taskDefinition") or {}).get("taskDefinitionArn") or "").strip()
+          if not task_definition_arn:
+              raise SystemExit("PR3.S4.RUNTIME.B02_WSP_TASKDEF_REPIN_EMPTY")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"task_definition_arn={task_definition_arn}\n")
+              fh.write("registered_new_revision=true\n")
+          PY
+
+      - name: Drain stale WSP ephemeral tasks before correctness
         shell: bash
         env:
           AWS_REGION: ${{ inputs.aws_region }}
@@ -297,7 +439,7 @@ jobs:
                   ecs.stop_task(
                       cluster=cluster,
                       task=task_arn,
-                      reason="PR3-S4 preflight stale WSP cleanup to restore deterministic Fargate headroom",
+                      reason="PR3-S4 preflight stale WSP cleanup to restore deterministic correctness headroom",
                   )
                   stopped.append({"task_arn": task_arn.rsplit('/', 1)[-1]})
               ecs.get_waiter("tasks_stopped").wait(cluster=cluster, tasks=task_arns, WaiterConfig={"Delay": 6, "MaxAttempts": 30})
@@ -307,25 +449,26 @@ jobs:
               "stopped_task_count": len(stopped),
               "stopped_tasks": stopped,
           }
-          (run_dir / "g3a_s4_preflight_wsp_cleanup.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+          (run_dir / "g3a_correctness_preflight_wsp_cleanup.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
           PY
 
-      - name: Run soak campaign with live sampling
+      - name: Run bounded correctness campaign with live sampling
         shell: bash
         env:
           PR3_EXECUTION_ID: ${{ inputs.pr3_execution_id }}
           ACTIVE_PLATFORM_RUN_ID: ${{ steps.meta.outputs.active_platform_run_id }}
-          ACTIVE_SCENARIO_RUN_ID: ${{ steps.meta.outputs.active_scenario_run_id }}
+          ACTIVE_SCENARIO_RUN_ID: ${{ steps.bootstrap.outputs.active_scenario_run_id }}
           WSP_CHECKPOINT_ATTEMPT_ID: ${{ steps.meta.outputs.wsp_checkpoint_attempt_id }}
           AWS_REGION: ${{ inputs.aws_region }}
-          EKS_NAMESPACE: ${{ env.EKS_NAMESPACE }}
+          EKS_NAMESPACE: ${{ env.RTDL_NAMESPACE }}
+          CASE_LABELS_NAMESPACE: ${{ env.CASE_LABELS_NAMESPACE }}
         run: |
           set -euo pipefail
           python scripts/dev_substrate/pr3_wsp_replay_dispatch.py \
             --pr3-execution-id "${PR3_EXECUTION_ID}" \
             --state-id S4 \
-            --window-label soak \
-            --artifact-prefix g3a_s4 \
+            --window-label correctness \
+            --artifact-prefix g3a_correctness \
             --blocker-prefix PR3.S4.WSP \
             --region "${AWS_REGION}" \
             --platform-run-id "${ACTIVE_PLATFORM_RUN_ID}" \
@@ -336,7 +479,7 @@ jobs:
             --target-request-rate-eps "${{ inputs.target_request_rate_eps }}" \
             --duration-seconds "${{ inputs.duration_seconds }}" \
             --warmup-seconds "${{ inputs.warmup_seconds }}" \
-            --early-cutoff-seconds 600 \
+            --early-cutoff-seconds 120 \
             --early-cutoff-floor-ratio 0.70 \
             --stream-speedup "${{ inputs.stream_speedup }}" \
             --output-concurrency "${{ inputs.output_concurrency }}" \
@@ -358,14 +501,15 @@ jobs:
               --state-id S4 \
               --snapshot-label "during_${SAMPLE_INDEX}" \
               --namespace "${EKS_NAMESPACE}" \
+              --case-labels-namespace "${CASE_LABELS_NAMESPACE}" \
               --platform-run-id "${ACTIVE_PLATFORM_RUN_ID}" || true
             SAMPLE_INDEX=$((SAMPLE_INDEX + 1))
-            sleep 60
+            sleep 30
           done
           wait "${CAMPAIGN_PID}"
 
-      - name: Capture post-soak runtime snapshot
-        if: ${{ always() }}
+      - name: Capture post-correctness runtime snapshot
+        if: ${{ always() && steps.bootstrap.conclusion == 'success' && steps.kubeconfig.conclusion == 'success' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -373,30 +517,60 @@ jobs:
             --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
             --state-id S4 \
             --snapshot-label post \
-            --namespace "${{ env.EKS_NAMESPACE }}" \
+            --namespace "${{ env.RTDL_NAMESPACE }}" \
+            --case-labels-namespace "${{ env.CASE_LABELS_NAMESPACE }}" \
             --platform-run-id "${{ steps.meta.outputs.active_platform_run_id }}"
 
-      - name: Build PR3-S4 soak rollup
-        if: ${{ always() }}
+      - name: Run PR3-S4 bounded learning proof
+        shell: bash
+        env:
+          PLATFORM_RUN_ID: ${{ steps.meta.outputs.active_platform_run_id }}
+          ACTIVE_PLATFORM_RUN_ID: ${{ steps.meta.outputs.active_platform_run_id }}
+          ACTIVE_SCENARIO_RUN_ID: ${{ steps.bootstrap.outputs.active_scenario_run_id }}
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/pr3_s4_learning_bound_remote.py \
+            --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
+            --platform-run-id "${{ steps.meta.outputs.active_platform_run_id }}" \
+            --scenario-run-id "${{ steps.bootstrap.outputs.active_scenario_run_id }}" \
+            --aws-region "${{ inputs.aws_region }}" \
+            --namespace "${{ env.LEARNING_NAMESPACE }}" \
+            --service-account-name learning \
+            --image-uri "${{ inputs.platform_image_uri }}"
+
+      - name: Run PR3-S4 dependency degrade drill
         shell: bash
         run: |
           set -euo pipefail
-          python scripts/dev_substrate/pr3_s4_rollup.py \
+          python scripts/dev_substrate/pr3_s4_dependency_drill.py \
             --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
             --state-id S4 \
-            --artifact-prefix g3a_s4 \
-            --expected-soak-eps "${{ inputs.target_steady_eps }}" \
-            --min-processed-events 5400000 \
-            --max-error-rate-ratio 0.002 \
-            --max-4xx-ratio 0.002 \
-            --max-5xx-ratio 0.0 \
-            --max-latency-p95-ms 350 \
-            --max-latency-p99-ms 700 \
-            --max-lag-p99-seconds 5.0 \
-            --max-checkpoint-p99-seconds 30.0 \
-            --budget-envelope-usd 250.0
+            --artifact-prefix g3a_correctness \
+            --namespace "${{ env.RTDL_NAMESPACE }}" \
+            --platform-run-id "${{ steps.meta.outputs.active_platform_run_id }}" \
+            --profile-path "/runtime-profile/dev_full.yaml"
 
-      - name: Drain WSP ephemeral tasks after PR3-S4
+      - name: Run PR3-S4 schema evolution drill
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/pr3_s4_schema_drill.py \
+            --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
+            --state-id S4 \
+            --artifact-prefix g3a_correctness
+
+      - name: Run PR3-S4 bounded ops and governance proof
+        shell: bash
+        env:
+          PLATFORM_RUN_ID: ${{ steps.meta.outputs.active_platform_run_id }}
+          ACTIVE_PLATFORM_RUN_ID: ${{ steps.meta.outputs.active_platform_run_id }}
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/pr3_s4_ops_gov_bound.py \
+            --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
+            --platform-run-id "${{ steps.meta.outputs.active_platform_run_id }}"
+
+      - name: Drain WSP ephemeral tasks after PR3-S4 correctness
         if: always()
         shell: bash
         env:
@@ -436,8 +610,43 @@ jobs:
               "stopped_task_count": len(stopped),
               "stopped_tasks": stopped,
           }
-          (run_dir / "g3a_s4_final_wsp_cleanup.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+          (run_dir / "g3a_correctness_final_wsp_cleanup.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
           PY
+
+      - name: Build PR3-S4 correctness cost and idle-safe receipts
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/pr3_s4_cost_guardrail.py \
+            --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
+            --state-id S4 \
+            --artifact-prefix g3a_correctness \
+            --aws-region "${{ inputs.aws_region }}" \
+            --cluster fraud-platform-dev-full-wsp-ephemeral \
+            --wsp-task-cpu "${{ inputs.wsp_task_cpu }}" \
+            --wsp-task-memory "${{ inputs.wsp_task_memory }}" \
+            --receipt-path g3a_correctness_cost_receipt.json \
+            --budget-envelope-usd 50.0
+
+      - name: Build PR3-S4 correctness rollup
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/pr3_s4_correctness_rollup.py \
+            --pr3-execution-id "${{ inputs.pr3_execution_id }}" \
+            --state-id S4 \
+            --artifact-prefix g3a_correctness \
+            --expected-correctness-eps "${{ inputs.target_steady_eps }}" \
+            --min-processed-events 50000 \
+            --max-error-rate-ratio 0.002 \
+            --max-4xx-ratio 0.002 \
+            --max-5xx-ratio 0.0 \
+            --max-latency-p95-ms 350 \
+            --max-latency-p99-ms 700 \
+            --max-lag-p99-seconds 5.0 \
+            --max-checkpoint-p99-seconds 30.0
 
       - name: Upload PR3-S4 artifacts
         if: always()
@@ -446,11 +655,11 @@ jobs:
           name: dev-full-pr3-s4-${{ inputs.pr3_execution_id }}
           if-no-files-found: error
           path: |
-            ${{ steps.meta.outputs.run_dir }}/g3a_s4_*.json
-            ${{ steps.meta.outputs.run_dir }}/g3a_scorecard_soak.json
-            ${{ steps.meta.outputs.run_dir }}/g3a_soak_drift_report.json
-            ${{ steps.meta.outputs.run_dir }}/g3a_cohort_manifest.json
-            ${{ steps.meta.outputs.run_dir }}/g3a_cohort_results.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_correctness_*.json
             ${{ steps.meta.outputs.run_dir }}/g3a_drill_*.json
-            ${{ steps.meta.outputs.run_dir }}/g3a_runtime_cost_receipt.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_soak_authorization.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_control_plane_bootstrap.json
+            ${{ steps.meta.outputs.run_dir }}/g3a_sr_wiring.dev_full.yaml
+            ${{ steps.meta.outputs.run_dir }}/g3a_learning_*.json
             ${{ steps.meta.outputs.run_dir }}/pr3_s4_execution_receipt.json
+

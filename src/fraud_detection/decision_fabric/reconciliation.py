@@ -107,6 +107,8 @@ class DfReconciliationBuilder:
         run_config_digests = sorted({str(item.get("run_config_digest") or "") for item in self._records if item.get("run_config_digest")})
 
         fail_closed_count = sum(1 for item in self._records if _is_fail_closed_record(item))
+        step_up_count = sum(1 for item in self._records if str(item.get("action_kind") or "").strip().upper() == "STEP_UP")
+        explicit_fallback_count = sum(1 for item in self._records if _is_explicit_fallback_record(item))
         degrade_count = sum(1 for item in self._records if _is_degrade_record(item))
         quarantined_count = sum(1 for item in self._records if str(item.get("publish_decision") or "") == "QUARANTINE")
 
@@ -128,7 +130,10 @@ class DfReconciliationBuilder:
             "totals": {
                 "decisions_total": len(self._records),
                 "degrade_total": degrade_count,
+                "step_up_total": step_up_count,
+                "explicit_fallback_total": explicit_fallback_count,
                 "fail_closed_total": fail_closed_count,
+                "hard_fail_closed_total": fail_closed_count,
                 "quarantined_total": quarantined_count,
             },
             "by_mode": by_mode,
@@ -237,7 +242,26 @@ def _is_degrade_record(record: Mapping[str, Any]) -> bool:
     return any(item.startswith("DEGRADE_") or item.startswith("CONTEXT_") for item in reasons)
 
 
+def _is_explicit_fallback_record(record: Mapping[str, Any]) -> bool:
+    action_kind = str(record.get("action_kind") or "").strip().upper()
+    if action_kind != "STEP_UP":
+        return False
+    registry_outcome = str(record.get("registry_outcome") or "").strip().upper()
+    reasons = tuple(str(item) for item in list(record.get("reason_codes") or []))
+    if registry_outcome == "FALLBACK":
+        return True
+    return any(
+        item == "FALLBACK_EXPLICIT"
+        or item.startswith("FALLBACK_")
+        or item.startswith("CAPABILITY_BLOCK:")
+        or item.startswith("CAPABILITY_MISMATCH:")
+        for item in reasons
+    )
+
+
 def _is_fail_closed_record(record: Mapping[str, Any]) -> bool:
+    if _is_explicit_fallback_record(record):
+        return False
     mode = str(record.get("mode") or "").strip().upper()
     if mode in {"FAIL_CLOSED", "BLOCKED"}:
         return True

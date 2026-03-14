@@ -254,6 +254,78 @@ def test_phase3_payload_hash_mismatch_records_failure_and_advances_checkpoint(tm
     assert join_frame_count == 1
 
 
+def test_phase3_run_scoped_stream_id_ignores_stale_global_checkpoints(tmp_path: Path) -> None:
+    platform_run_id = "platform_20260307T114007Z"
+    pins = _pins(platform_run_id)
+    bus_root = tmp_path / "eb"
+    db_path = tmp_path / "csfb.sqlite"
+    topic_arrival = "fp.bus.context.arrival_events.v1"
+    publisher = FileEventBusPublisher(bus_root)
+    publisher.publish(
+        topic_arrival,
+        "pk",
+        _envelope(
+            pins=pins,
+            event_id="7" * 64,
+            event_type="arrival_events_5B",
+            ts_utc="2026-03-07T11:49:16.000000Z",
+            payload={"merchant_id": "m-9", "arrival_seq": 42},
+        ),
+    )
+
+    stale_policy_path = tmp_path / "stale_policy.yaml"
+    _write_policy(
+        stale_policy_path,
+        projection_db=db_path,
+        bus_root=bus_root,
+        required_platform_run_id="platform_20260307T090843Z",
+        context_topics=[topic_arrival],
+        context_event_classes=["context_arrival"],
+    )
+    stale_inlet = ContextStoreFlowBindingInlet.build(str(stale_policy_path))
+    stale_inlet.store.advance_checkpoint(
+        topic=topic_arrival,
+        partition_id=0,
+        next_offset="999999",
+        offset_kind="file_line",
+        watermark_ts_utc="2026-03-07T09:08:43.000000Z",
+    )
+
+    fresh_policy_path = tmp_path / "fresh_policy.yaml"
+    _write_policy(
+        fresh_policy_path,
+        projection_db=db_path,
+        bus_root=bus_root,
+        required_platform_run_id=platform_run_id,
+        context_topics=[topic_arrival],
+        context_event_classes=["context_arrival"],
+    )
+
+    inlet = ContextStoreFlowBindingInlet.build(str(fresh_policy_path))
+    assert inlet.policy.stream_id == "csfb.v0::platform_20260307T114007Z"
+    assert inlet.run_once() == 1
+
+    with sqlite3.connect(db_path) as conn:
+        current_run_frames = conn.execute(
+            "SELECT COUNT(*) FROM csfb_join_frames WHERE stream_id = ? AND platform_run_id = ?",
+            ("csfb.v0::platform_20260307T114007Z", platform_run_id),
+        ).fetchone()[0]
+        stale_checkpoint = conn.execute(
+            "SELECT next_offset FROM csfb_join_checkpoints WHERE stream_id = ? AND topic = ? AND partition_id = 0",
+            ("csfb.v0::platform_20260307T090843Z", topic_arrival),
+        ).fetchone()
+        fresh_checkpoint = conn.execute(
+            "SELECT next_offset FROM csfb_join_checkpoints WHERE stream_id = ? AND topic = ? AND partition_id = 0",
+            ("csfb.v0::platform_20260307T114007Z", topic_arrival),
+        ).fetchone()
+
+    assert current_run_frames == 1
+    assert stale_checkpoint is not None
+    assert str(stale_checkpoint[0]) == "999999"
+    assert fresh_checkpoint is not None
+    assert str(fresh_checkpoint[0]) == "1"
+
+
 def test_phase3_missing_and_late_context_are_machine_readable(tmp_path: Path) -> None:
     platform_run_id = "platform_20260207T000300Z"
     pins = _pins(platform_run_id)

@@ -1,0 +1,175 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = identity, network, or operational control surface"]
+    LG2[("Round store = persistent state store")]
+    LG3["Dashed edge = retained or handle-only relationship"]
+  end
+
+  subgraph ISO["dev_full Identity / State / Ops Graph"]
+    subgraph IDENTITY["Identity / Trust"]
+      OIDC["GitHub OIDC trust"]
+      SSM["SSM Parameter Store<br>service URLs / handles / endpoints / credentials"]
+      ROLETF["fraud-dev<br>Terraform apply identity"]
+      ROLEBASE["runtime-platform-base"]
+      ROLENODE["eks-nodegroup role"]
+      ROLEFLINK["flink-execution role"]
+      ROLELAMBDA["lambda-ig-execution role"]
+      ROLEAPIGW["apigw-ig-invoke role"]
+      ROLEDDB["ddb-ig-idempotency-rw role"]
+      ROLESFN["stepfunctions-orchestrator role"]
+      ROLEECSEXEC["ecs-ig-task-execution role"]
+      ROLEECSRUNTIME["ecs-ig-task-runtime role"]
+      ROLEWSPEXEC["wsp task-exec role"]
+      ROLEWSPRUN["wsp task-runtime role"]
+      ROLEIRSARTDL["irsa-rtdl role"]
+      ROLEIRSADEC["irsa-decision-lane role"]
+      ROLEIRSACL["irsa-case-labels role"]
+      ROLEIRSAOBS["irsa-obs-gov role"]
+      ROLEDBX["databricks cross-account role"]
+      ROLESM["sagemaker execution role"]
+      ROLEMWAA["mwaa-execution role<br>role only, MWAA environment not materialized"]
+    end
+
+    subgraph STATE["State / Storage"]
+      TFSTATE[("S3 tfstate bucket")]
+      OBJ[("S3 object store / oracle store")]
+      ART[("S3 artifacts bucket")]
+      EVID[("S3 evidence bucket")]
+      ORACLE["oracle-store prefix"]
+      ARCHIVEPATH["archive prefix"]
+      QUARPATH["quarantine prefix"]
+      AURORA[("Aurora Serverless v2")]
+      AURW["writer endpoint"]
+      AURR["reader endpoint"]
+      REDISH["Redis endpoint handle<br>SSM-backed handle only, no live Redis resource shown here"]
+      IGDDB[("DynamoDB<br>IG idempotency ledger")]
+      IGDLQ["SQS DLQ"]
+    end
+
+    subgraph OPS["Operational"]
+      VPC["VPC<br>10.70.0.0/16"]
+      PUB1["public_01<br>eu-west-2a"]
+      PUB2["public_02<br>eu-west-2b"]
+      PRIV1["private_01<br>eu-west-2a"]
+      PRIV2["private_02<br>eu-west-2b"]
+      VPCESTS["VPCe STS"]
+      VPCESSM["VPCe SSM"]
+      VPCELOGS["VPCe Logs"]
+      VPCEECRAPI["VPCe ECR API"]
+      VPCEECRDKR["VPCe ECR DKR"]
+      VPCEEC2["VPCe EC2"]
+      VPCEEXECAPI["VPCe execute-api"]
+      VPCESQS["VPCe SQS"]
+      VPCES3["GW endpoint S3"]
+      VPCEDDB["GW endpoint DynamoDB"]
+      CW["CloudWatch"]
+      DASHOPS["operations dashboard"]
+      DASHCOST["cost-guardrail dashboard"]
+      BUDGET["monthly budget"]
+      HTTPAPI["HTTP API Gateway"]
+      IGLAMBDA["Ingress Lambda"]
+      ALB["Internal ALB"]
+      IGSVC["Ingress ECS service"]
+      EKS["EKS cluster"]
+      MSK["MSK Serverless"]
+      MSF["Managed Flink<br>retained surface only, not current active processing path"]
+      SM["SageMaker"]
+    end
+  end
+
+  OIDC -->|trusts workflow assumption of| ROLETF
+  OIDC -->|trusts workflow assumption of| ROLEBASE
+  OIDC -->|trusts workflow assumption of| ROLENODE
+  OIDC -->|trusts workflow assumption of| ROLEFLINK
+  OIDC -->|trusts workflow assumption of| ROLELAMBDA
+  OIDC -->|trusts workflow assumption of| ROLEAPIGW
+  OIDC -->|trusts workflow assumption of| ROLEDDB
+  OIDC -->|trusts workflow assumption of| ROLESFN
+  OIDC -->|trusts workflow assumption of| ROLEECSEXEC
+  OIDC -->|trusts workflow assumption of| ROLEECSRUNTIME
+  OIDC -->|trusts workflow assumption of| ROLEWSPEXEC
+  OIDC -->|trusts workflow assumption of| ROLEWSPRUN
+  OIDC -->|trusts workflow assumption of| ROLEIRSARTDL
+  OIDC -->|trusts workflow assumption of| ROLEIRSADEC
+  OIDC -->|trusts workflow assumption of| ROLEIRSACL
+  OIDC -->|trusts workflow assumption of| ROLEIRSAOBS
+  OIDC -->|trusts workflow assumption of| ROLEDBX
+  OIDC -->|trusts workflow assumption of| ROLESM
+  OIDC -->|trusts workflow assumption of| ROLEMWAA
+
+  SSM -->|provides handles to| HTTPAPI
+  SSM -->|provides handles to| IGLAMBDA
+  SSM -->|provides handles to| IGSVC
+  SSM -->|provides handles to| AURORA
+  SSM -->|provides handles to| REDISH
+  SSM -->|provides handles to| SM
+  ROLETF -->|applies infrastructure into| TFSTATE
+  ROLEBASE -->|administers| EKS
+  ROLENODE -->|backs compute for| EKS
+  ROLEFLINK -->|executes| MSF
+  ROLELAMBDA -->|executes| IGLAMBDA
+  ROLEAPIGW -->|invokes| HTTPAPI
+  ROLEDDB -->|writes| IGDDB
+  ROLEECSEXEC -->|starts tasks for| IGSVC
+  ROLEECSRUNTIME -->|runs task code for| IGSVC
+  ROLESM -->|executes| SM
+
+  VPC -->|contains| PUB1
+  VPC -->|contains| PUB2
+  VPC -->|contains| PRIV1
+  VPC -->|contains| PRIV2
+  PRIV1 -->|reaches AWS APIs through| VPCESTS
+  PRIV1 -->|reaches AWS APIs through| VPCESSM
+  PRIV1 -->|reaches AWS APIs through| VPCELOGS
+  PRIV1 -->|reaches AWS APIs through| VPCEECRAPI
+  PRIV1 -->|reaches AWS APIs through| VPCEECRDKR
+  PRIV1 -->|reaches AWS APIs through| VPCEEC2
+  PRIV1 -->|reaches AWS APIs through| VPCEEXECAPI
+  PRIV1 -->|reaches AWS APIs through| VPCESQS
+  PRIV1 -->|reaches AWS APIs through| VPCES3
+  PRIV1 -->|reaches AWS APIs through| VPCEDDB
+  PRIV2 -->|reaches AWS APIs through| VPCESTS
+  PRIV2 -->|reaches AWS APIs through| VPCESSM
+  PRIV2 -->|reaches AWS APIs through| VPCELOGS
+  PRIV2 -->|reaches AWS APIs through| VPCEECRAPI
+  PRIV2 -->|reaches AWS APIs through| VPCEECRDKR
+  PRIV2 -->|reaches AWS APIs through| VPCEEC2
+  PRIV2 -->|reaches AWS APIs through| VPCEEXECAPI
+  PRIV2 -->|reaches AWS APIs through| VPCESQS
+  PRIV2 -->|reaches AWS APIs through| VPCES3
+  PRIV2 -->|reaches AWS APIs through| VPCEDDB
+  PUB1 -->|exposes edge for| ALB
+  PUB2 -->|exposes edge for| ALB
+
+  OBJ -->|contains| ORACLE
+  OBJ -->|contains| ARCHIVEPATH
+  OBJ -->|contains| QUARPATH
+  AURORA -->|serves writes through| AURW
+  AURORA -->|serves reads through| AURR
+  CW -->|observes| HTTPAPI
+  CW -->|observes| IGLAMBDA
+  CW -->|observes| ALB
+  CW -->|observes| IGSVC
+  CW -->|observes| EKS
+  CW -->|observes| MSK
+  CW -->|observes| MSF
+  CW -->|observes| AURORA
+  CW -->|observes| SM
+  CW -->|materializes| DASHOPS
+  CW -->|materializes| DASHCOST
+  BUDGET -->|feeds budget posture into| DASHCOST
+
+  classDef infra fill:#ede7f6,stroke:#4527a0,color:#111,stroke-width:1.4px;
+  classDef store fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.4px;
+  classDef ops fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.4px;
+  classDef retained fill:#f5f5f5,stroke:#616161,color:#111,stroke-dasharray: 5 3;
+  class OIDC,SSM,ROLETF,ROLEBASE,ROLENODE,ROLEFLINK,ROLELAMBDA,ROLEAPIGW,ROLEDDB,ROLESFN,ROLEECSEXEC,ROLEECSRUNTIME,ROLEWSPEXEC,ROLEWSPRUN,ROLEIRSARTDL,ROLEIRSADEC,ROLEIRSACL,ROLEIRSAOBS,ROLEDBX,ROLESM infra;
+  class TFSTATE,OBJ,ART,EVID,ORACLE,ARCHIVEPATH,QUARPATH,AURORA,AURW,AURR,REDISH,IGDDB,IGDLQ store;
+  class VPC,PUB1,PUB2,PRIV1,PRIV2,VPCESTS,VPCESSM,VPCELOGS,VPCEECRAPI,VPCEECRDKR,VPCEEC2,VPCEEXECAPI,VPCESQS,VPCES3,VPCEDDB,CW,DASHOPS,DASHCOST,BUDGET,HTTPAPI,IGLAMBDA,ALB,IGSVC,EKS,MSK,SM ops;
+  class ROLEMWAA,MSF retained;

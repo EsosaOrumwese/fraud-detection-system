@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import logging
 from typing import Any, Callable
 
 from .contracts import (
@@ -15,6 +16,8 @@ from .contracts import (
 from .snapshots import OfpSnapshotMaterializer
 
 GraphVersionResolver = Callable[[dict[str, Any]], dict[str, Any] | None]
+
+logger = logging.getLogger("fraud_detection.ofp.serve")
 
 
 @dataclass
@@ -149,8 +152,6 @@ class OfpGetFeaturesService:
         if _is_after(as_of_time_utc, graph_watermark_ts):
             posture_flags.append("STALE_GRAPH_VERSION")
 
-        if missing_feature_keys:
-            missing_groups = _unique_sorted(missing_groups + requested_group_names)
         if missing_groups_from_request:
             missing_groups = _unique_sorted(missing_groups + missing_groups_from_request)
 
@@ -167,8 +168,23 @@ class OfpGetFeaturesService:
             "missing_groups": missing_groups,
             "missing_feature_keys": _unique_sorted(missing_feature_keys),
         }
+        count_missing_features = bool(missing_feature_keys) and (
+            not filtered_features or bool(missing_groups_from_request)
+        )
+
+        if missing_feature_keys or missing_groups:
+            logger.warning(
+                "OFP missing feature state request_id=%s platform_run_id=%s scenario_run_id=%s missing_feature_keys=%s missing_groups=%s posture_flags=%s",
+                request_id or "",
+                str(pins.get("platform_run_id") or ""),
+                scenario_run_id,
+                _sample_items(_unique_sorted(missing_feature_keys), limit=12),
+                _sample_items(missing_groups, limit=8),
+                posture_flags,
+            )
+
         if scenario_run_id:
-            if missing_feature_keys:
+            if count_missing_features:
                 self._safe_increment_metric(
                     scenario_run_id=scenario_run_id,
                     metric_name="missing_features",
@@ -248,14 +264,23 @@ def _unique_sorted(values: list[str]) -> list[str]:
     return sorted({str(item) for item in values if str(item).strip()})
 
 
+def _sample_items(values: list[str], *, limit: int) -> list[str]:
+    if limit <= 0:
+        return []
+    cleaned = [str(item) for item in values if str(item).strip()]
+    return cleaned[:limit]
+
+
 def _posture_state(
     *,
     missing_feature_keys: list[str],
     missing_groups: list[str],
     posture_flags: list[str],
 ) -> str:
-    if missing_feature_keys or missing_groups:
+    if missing_groups:
         return "RED"
+    if missing_feature_keys:
+        return "AMBER"
     if posture_flags:
         return "AMBER"
     return "GREEN"

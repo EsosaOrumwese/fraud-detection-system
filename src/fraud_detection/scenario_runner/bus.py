@@ -8,6 +8,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from fraud_detection.event_bus.kafka import build_kafka_publisher
+
 
 @dataclass(frozen=True)
 class PublishedMessage:
@@ -16,6 +18,8 @@ class PublishedMessage:
     path: str | None = None
     sequence_number: str | None = None
     shard_id: str | None = None
+    partition: int | None = None
+    offset: str | None = None
 
 
 class FileControlBus:
@@ -82,4 +86,37 @@ class KinesisControlBus:
             message_id=message_id,
             sequence_number=response.get("SequenceNumber"),
             shard_id=response.get("ShardId"),
+        )
+
+
+class KafkaControlBus:
+    def __init__(self, *, client_id: str = "scenario-runner-control-bus") -> None:
+        self._publisher = build_kafka_publisher(client_id=client_id)
+
+    def publish(
+        self,
+        topic: str,
+        payload: dict[str, Any],
+        message_id: str,
+        attributes: dict[str, str] | None = None,
+        partition_key: str | None = None,
+    ) -> PublishedMessage:
+        envelope = {
+            "topic": topic,
+            "message_id": message_id,
+            "published_at_utc": datetime.now(tz=timezone.utc).isoformat(),
+            "attributes": attributes or {},
+            "partition_key": partition_key,
+            "payload": payload,
+        }
+        ref = self._publisher.publish(
+            topic=topic,
+            partition_key=partition_key or message_id,
+            payload=envelope,
+        )
+        return PublishedMessage(
+            topic=topic,
+            message_id=message_id,
+            partition=ref.partition,
+            offset=ref.offset,
         )

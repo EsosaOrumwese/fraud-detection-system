@@ -1,0 +1,158 @@
+flowchart TD
+
+    META["Meta goal (implicit)<br/>A serious reviewer infers senior-level ML Platform and MLOps capability"]:::meta
+    AGOAL["A goal (implicit)<br/>Show the current wired platform is a real, intentional, understood engineered system"]:::goal
+    START["Start A interrogation<br/>Build a systems-design argument, not a component tour"]:::step
+
+    META --> AGOAL --> START
+
+    BOUND["Pin the A boundary<br/>Ask design-understanding questions only;<br/>do not drift into readiness or production-proof questions"]:::boundary
+    START --> BOUND
+
+    EFREEZE["Freeze A-core evidence surfaces"]:::step
+    BOUND --> EFREEZE
+
+    subgraph EVID ["A-core evidence surfaces"]
+        direction TB
+        EV1["Platform network graph<br/>Interrogated object at logical path level"]:::surface
+        EV2["IaC resource graph<br/>Interrogated object at concrete seating level"]:::surface
+        EV3["platform.impl_actual.md<br/>Explains design reasoning and trade-offs"]:::surface
+        EV4["data_engine_interface.md<br/>Constrains what wiring is valid"]:::surface
+        EV5["Bi parking lot<br/>Readiness-pressure thoughts only"]:::register
+        EV6["A ambiguity register<br/>Unclear purpose, authority, mapping, or necessity"]:::register
+    end
+
+    EFREEZE --> EV1
+    EFREEZE --> EV2
+    EFREEZE --> EV3
+    EFREEZE --> EV4
+    EFREEZE --> EV5
+    EFREEZE --> EV6
+
+    OINV["Build obligation inventory<br/>What minimum system obligations must exist for dev_full<br/>to count as a serious wired platform foundation?"]:::step
+    EV1 --> OINV
+    EV2 --> OINV
+    EV3 --> OINV
+    EV4 --> OINV
+
+    OCHK{"Obligation inventory bounded enough?"}:::decision
+    OINV --> OCHK
+    OCHK -- "No" --> OINV
+    OCHK -- "Yes" --> GDER
+
+    subgraph GROUPS ["Group stage"]
+        direction TB
+        GDER["Derive functional path groups<br/>From obligations, not Mermaid layout"]:::step
+        G1["For each group ask<br/>What obligation does it satisfy?"]:::step
+        G2["Why must it exist?<br/>What enters? What exits?<br/>What broad design idea does it express?"]:::step
+        GDER --> G1 --> G2
+    end
+
+    PATHRULE["Define a real path<br/>A real path has entry, job, outcome, and necessity"]:::step
+    G2 --> PATHRULE
+
+    PENUM["Enumerate only real paths inside each group"]:::step
+    PATHRULE --> PENUM
+
+    subgraph PATHS ["Per-path interrogation"]
+        direction TB
+        P1["State path goal<br/>What is this path trying to accomplish?"]:::step
+        P2["Define entry and outcome<br/>Where does it start and what does it produce?"]:::step
+        P3["List carried objects and state changes<br/>What data, control facts, identities, or receipts move?"]:::step
+        P4["Explain the route<br/>Why this path and why this broad route?"]:::step
+        P5["Read logical flow in the network graph"]:::step
+        P6["Read concrete seating in the IaC graph"]:::step
+        P7["Read design reasoning in implementation notes"]:::step
+        P8["Read wiring law in the data interface contract"]:::step
+        P9["State trade-offs and constraints<br/>What did this design optimize for, accept, or defer?"]:::step
+        P10["Run the necessity test<br/>If this disappeared, what becomes impossible, unsafe, or unjustified?"]:::step
+        P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P10
+    end
+
+    PENUM --> P1
+
+    CLAIMS["Extract path-level claims"]:::step
+    P10 --> CLAIMS
+
+    subgraph CLAIMTYPES ["Claim types produced by A"]
+        direction TB
+        C1["Purpose claim<br/>This path exists for a clear system reason"]:::claim
+        C2["Intentionality claim<br/>This route and realization were chosen, not accidental"]:::claim
+        C3["Materialization claim<br/>The logical path is concretely seated in real resources"]:::claim
+        C4["Contract claim<br/>The path honors required data, trust, time, and identity laws"]:::claim
+        C5["Constraint-awareness claim<br/>Trade-offs and limits are known rather than hidden"]:::claim
+    end
+
+    CLAIMS --> C1
+    CLAIMS --> C2
+    CLAIMS --> C3
+    CLAIMS --> C4
+    CLAIMS --> C5
+
+    PROOF["Back each claim with proof"]:::step
+    C1 --> PROOF
+    C2 --> PROOF
+    C3 --> PROOF
+    C4 --> PROOF
+    C5 --> PROOF
+
+    subgraph APROOF ["A-proof mix"]
+        direction TB
+        QUAL["Qualify the why<br/>Purpose, design reasoning, trade-offs, constraints"]:::proof
+        QUANT["Quantify the closure<br/>Completeness, existence, uniqueness, continuity, safety"]:::proof
+    end
+
+    PROOF --> QUAL
+    PROOF --> QUANT
+
+    AAMB{"Any unresolved A ambiguity?"}:::decision
+    QUAL --> AAMB
+    QUANT --> AAMB
+    AAMB -- "Yes" --> EV6
+    AAMB -- "No" --> BIPRESS
+
+    BIPRESS{"Any readiness-pressure thought?"}:::decision
+    EV6 --> BIPRESS
+    BIPRESS -- "Yes" --> EV5
+    BIPRESS -- "No" --> PEND
+
+    PEND["Path conclusion<br/>This path is purposeful, justified, materially seated, and law-constrained"]:::groupconclusion
+    EV5 --> PEND
+    BIPRESS --> PEND
+
+    PLOOP{"All real paths in this group covered?"}:::decision
+    PEND --> PLOOP
+    PLOOP -- "No" --> PENUM
+    PLOOP -- "Yes" --> GSYN
+
+    GSYN["Group synthesis<br/>Show the group is necessary, coherent, and intentionally designed;<br/>list unresolved A ambiguities explicitly"]:::groupconclusion
+
+    GLOOP{"All functional path groups covered?"}:::decision
+    GSYN --> GLOOP
+    GLOOP -- "No" --> G1
+    GLOOP -- "Yes" --> ASYN
+
+    ASYN["A synthesis<br/>Show the platform is bounded into necessary obligations,<br/>composed of purposeful paths, materially realized,<br/>constrained by explicit laws, and understood with known trade-offs"]:::goal
+
+    FINAL["Final A-supporting claims<br/>The platform is bounded, purposeful, materially seated,<br/>law-constrained, and explicitly limited where needed"]:::claims
+    ASYN --> FINAL
+    FINAL --> META
+
+    SKEPTIC{"Adversarial check<br/>Would a skeptical reviewer still see any major part as accidental,<br/>hand-wavy, unjustified, or unmapped?"}:::decision
+    FINAL --> SKEPTIC
+
+    SKEPTIC -- "Yes" --> EV6
+    SKEPTIC -- "No" --> ADONE["A achieved<br/>We now have a systems-design argument that supports the meta-goal"]:::finish
+
+    classDef meta fill:#f8d7da,stroke:#b42318,color:#111;
+    classDef goal fill:#d1fadf,stroke:#027a48,color:#111;
+    classDef step fill:#dbeafe,stroke:#1d4ed8,color:#111;
+    classDef boundary fill:#fee2e2,stroke:#b91c1c,color:#111;
+    classDef surface fill:#ecfccb,stroke:#4d7c0f,color:#111;
+    classDef register fill:#fef3c7,stroke:#b45309,color:#111;
+    classDef decision fill:#ede9fe,stroke:#6d28d9,color:#111;
+    classDef claim fill:#fae8ff,stroke:#a21caf,color:#111;
+    classDef proof fill:#cffafe,stroke:#0f766e,color:#111;
+    classDef groupconclusion fill:#ffe4e6,stroke:#be123c,color:#111;
+    classDef claims fill:#e0f2fe,stroke:#0369a1,color:#111;
+    classDef finish fill:#f3f4f6,stroke:#374151,color:#111;

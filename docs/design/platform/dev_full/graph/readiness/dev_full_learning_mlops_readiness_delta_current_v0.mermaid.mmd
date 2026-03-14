@@ -1,0 +1,78 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    L1["Left to right = promoted upstream platform truth -> accepted Phase 5 plane authority -> real coupled blockers -> accepted remediations -> promoted working-platform closure"]
+    L2["Green = already accepted production truth"]
+    L3["Red = real blocker or rejected proof boundary"]
+    L4["Amber = accepted remediation or repin"]
+    L5["Blue = coupled learning/runtime closure authority"]
+  end
+
+  subgraph UPSTREAM["Accepted Upstream Authority"]
+    U1["Working platform entering rebuilt Phase 6<br>Control + Ingress + RTDL + Case + Label"]
+    U2["Accepted Phase 5 evidence chain<br>5.A semantic admission<br>5.B bounded OFS basis<br>5.C/D managed train/eval + lineage + governed publish / rollback"]
+    U3["Promoted learning bundle entering Phase 6<br>bundle_id = da1b8f...<br>bundle_version = v0-29d2b27919a7"]
+  end
+
+  subgraph DEFECTS["Real Blockers Uncovered During Rebuilt Phase 6"]
+    D1["Red 6.A<br>runtime mounted promoted snapshot but stale in-image DF policy"]
+    D2["Red 6.B<br>candidate warm gate -> case_mgmt OOMKilled"]
+    D3["Red 6.B<br>next rerun -> label_store OOMKilled"]
+    D4["Red 6.B<br>rollback prior-bundle authority drift + legacy bundle-id normalization mismatch"]
+    D5["Red 6.B<br>steady-window miss survived longer presteady<br>root cause = no-op same-rate rate-plan transition at scored steady boundary"]
+  end
+
+  subgraph FIXES["Accepted Remediations"]
+    F1["Repin 6.A<br>run-scoped promoted registry policy + snapshot both mounted live"]
+    F2["Repin 6.B<br>case_mgmt budget -> 2Gi request / 6Gi limit"]
+    F3["Repin 6.B<br>label_store budget -> 1Gi request / 4Gi limit"]
+    F4["Repin 6.C / 6.D<br>fresh rollback / restore run scopes + rollback bundle normalization in rollup"]
+    F5["Repin 6.B shared harness<br>collapse duplicate adjacent same-rate segments when no token override is required"]
+  end
+
+  subgraph CLOSURE["Accepted Coupled Closure"]
+    C1["Accepted Phase 6 closure run<br>phase6_learning_coupled_20260312T194748Z"]
+    C2["Bounded coupled metrics<br>steady 3047.367 eps<br>burst 6099.000 eps<br>recovery 3019.894 eps<br>4xx = 0 / 5xx = 0"]
+    C3["Coupled timing + integrity green<br>decision_to_case p95 = 0.0 s<br>case_to_label p95 = 0.196 s<br>no new integrity breach"]
+    C4["Candidate / rollback / restore attribution green<br>final active truth = promoted learning bundle"]
+    C5["Judgment<br>Phase 6 closed green<br>Learning + Evolution / MLOps promoted into working platform"]
+  end
+
+  U1 --> U2
+  U2 --> U3
+  U3 --> D1
+  U3 --> D2
+  U3 --> D3
+  U3 --> D4
+  U3 --> D5
+  D1 --> F1
+  D2 --> F2
+  D3 --> F3
+  D4 --> F4
+  D5 --> F5
+  F1 --> C1
+  F2 --> C1
+  F3 --> C1
+  F4 --> C1
+  F5 --> C1
+  C1 --> C2
+  C1 --> C3
+  C1 --> C4
+  C2 --> C5
+  C3 --> C5
+  C4 --> C5
+
+  classDef up fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+  classDef defect fill:#ffebee,stroke:#c62828,color:#111,stroke-width:1.3px;
+  classDef fix fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef close fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.3px;
+
+  class U1,U2,U3 up;
+  class D1,D2,D3,D4,D5 defect;
+  class F1,F2,F3,F4,F5 fix;
+  class C1,C2,C3,C4,C5 close;

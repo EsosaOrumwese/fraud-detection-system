@@ -35,7 +35,14 @@ from .execution import (
 from .idempotency import AL_DROP_DUPLICATE, AL_EXECUTE, ActionIdempotencyGate
 from .observability import ActionLayerRunMetrics
 from .policy import AlPolicyBundle, load_policy_bundle
-from .publish import ActionLayerIgPublisher, ActionLayerPublishError, PublishedOutcomeRecord, PUBLISH_AMBIGUOUS, build_action_outcome_envelope
+from .publish import (
+    ActionLayerIgPublisher,
+    ActionLayerInternalPublisher,
+    ActionLayerPublishError,
+    PublishedOutcomeRecord,
+    PUBLISH_AMBIGUOUS,
+    build_action_outcome_envelope,
+)
 from .replay import ActionOutcomeReplayLedger
 from .storage import ActionLedgerStore, ActionOutcomeStore
 
@@ -59,6 +66,7 @@ class AlWorkerConfig:
     poll_sleep_seconds: float
     stream_id: str
     platform_run_id: str | None
+    scenario_run_id: str | None
     required_platform_run_id: str | None
     ig_ingest_url: str
     ig_api_key: str | None
@@ -68,6 +76,10 @@ class AlWorkerConfig:
     replay_dsn: str
     checkpoint_dsn: str
     consumer_checkpoint_path: Path
+    class_map_ref: Path = Path("config/platform/ig/class_map_v0.yaml")
+    partitioning_profiles_ref: Path = Path("config/platform/ig/partitioning_profiles_v0.yaml")
+    engine_contracts_root: Path = Path("docs/model_spec/data-engine/interface_pack/contracts")
+    publish_mode: str = "ig"
 
 
 class _ConsumerCheckpointStore:
@@ -142,15 +154,34 @@ class ActionLayerWorker:
         self.replay = ActionOutcomeReplayLedger(config.replay_dsn)
         self.checkpoints = ActionCheckpointGate(config.checkpoint_dsn)
         self.idempotency = ActionIdempotencyGate(store=self.ledger_store)
-        self.publisher = ActionLayerIgPublisher(
-            ig_ingest_url=config.ig_ingest_url,
-            api_key=config.ig_api_key,
-            api_key_header=config.ig_api_key_header,
-        )
+        publish_mode = str(config.publish_mode or "ig").strip().lower()
+        if publish_mode == "internal_bus":
+            self.publisher = ActionLayerInternalPublisher(
+                event_bus_kind=config.event_bus_kind,
+                event_bus_root=config.event_bus_root,
+                event_bus_stream=config.event_bus_stream,
+                event_bus_region=config.event_bus_region,
+                event_bus_endpoint_url=config.event_bus_endpoint_url,
+                class_map_ref=config.class_map_ref,
+                partitioning_profiles_ref=config.partitioning_profiles_ref,
+                engine_contracts_root=config.engine_contracts_root,
+            )
+        else:
+            self.publisher = ActionLayerIgPublisher(
+                ig_ingest_url=config.ig_ingest_url,
+                api_key=config.ig_api_key,
+                api_key_header=config.ig_api_key_header,
+            )
         self.executor = _NoOpEffectExecutor()
         self.consumer_checkpoints = _ConsumerCheckpointStore(config.consumer_checkpoint_path, config.stream_id)
         self._scenario_run_id: str | None = None
         self._metrics: ActionLayerRunMetrics | None = None
+        if config.platform_run_id and config.scenario_run_id:
+            self._scenario_run_id = config.scenario_run_id
+            self._metrics = ActionLayerRunMetrics(
+                platform_run_id=config.platform_run_id,
+                scenario_run_id=config.scenario_run_id,
+            )
         self._file_reader = EventBusReader(Path(config.event_bus_root)) if config.event_bus_kind == "file" else None
         self._kinesis_reader = (
             KinesisEventBusReader(
@@ -349,7 +380,11 @@ class ActionLayerWorker:
                 checkpoint = self.consumer_checkpoints.next_offset(topic=topic, partition=partition)
                 from_sequence = checkpoint[0] if checkpoint else None
                 start_position = self.config.event_bus_start_position
-                if checkpoint is None and self.config.required_platform_run_id:
+                if (
+                    checkpoint is None
+                    and self.config.required_platform_run_id
+                    and str(start_position).strip().lower() != "latest"
+                ):
                     start_position = "trim_horizon"
                 for row in self._kinesis_reader.read(
                     stream_name=stream,
@@ -384,7 +419,11 @@ class ActionLayerWorker:
                 start_position = "earliest"
                 if checkpoint is None and self.config.event_bus_start_position == "latest":
                     start_position = "latest"
-                if checkpoint is None and self.config.required_platform_run_id:
+                if (
+                    checkpoint is None
+                    and self.config.required_platform_run_id
+                    and self.config.event_bus_start_position != "latest"
+                ):
                     start_position = "earliest"
                 for record in self._kafka_reader.read(
                     topic=topic,
@@ -492,6 +531,7 @@ def load_worker_config(profile_path: Path) -> AlWorkerConfig:
         poll_sleep_seconds=max(0.05, float(_env(al_wiring.get("poll_sleep_seconds") or 0.5))),
         stream_id=stream_id,
         platform_run_id=platform_run_id,
+        scenario_run_id=_none_if_blank(_env(al_wiring.get("scenario_run_id") or os.getenv("AL_SCENARIO_RUN_ID"))),
         required_platform_run_id=_none_if_blank(_env(al_wiring.get("required_platform_run_id") or os.getenv("AL_REQUIRED_PLATFORM_RUN_ID") or platform_run_id)),
         ig_ingest_url=str(_env(al_wiring.get("ig_ingest_url") or wiring.get("ig_ingest_url") or os.getenv("IG_INGEST_URL") or "http://127.0.0.1:8081")).strip(),
         ig_api_key=_none_if_blank(_env(al_wiring.get("ig_api_key") or os.getenv("AL_IG_API_KEY") or security.get("al_auth_token") or security.get("wsp_auth_token"))),
@@ -501,6 +541,12 @@ def load_worker_config(profile_path: Path) -> AlWorkerConfig:
         replay_dsn=_locator(al_wiring.get("replay_dsn"), "action_layer/al_replay.sqlite"),
         checkpoint_dsn=_locator(al_wiring.get("checkpoint_dsn"), "action_layer/al_checkpoints.sqlite"),
         consumer_checkpoint_path=checkpoint_path,
+        class_map_ref=Path(str(_env(al_wiring.get("class_map_ref") or wiring.get("class_map_ref") or "config/platform/ig/class_map_v0.yaml"))),
+        partitioning_profiles_ref=Path(
+            str(_env(al_wiring.get("partitioning_profiles_ref") or wiring.get("partitioning_profiles_ref") or "config/platform/ig/partitioning_profiles_v0.yaml"))
+        ),
+        engine_contracts_root=Path(str(_env(al_wiring.get("engine_contracts_root") or "docs/model_spec/data-engine/interface_pack/contracts"))),
+        publish_mode=str(_env(al_wiring.get("publish_mode") or os.getenv("AL_PUBLISH_MODE") or "ig")).strip().lower(),
     )
 
 

@@ -1,0 +1,84 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Simplified baseline resource view with shared resource bundles and path labels on the flows
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    L1["Nodes are bundled resource surfaces, not individual resources"]
+    L2["Edges are labeled by the path families that use those same resource bundles"]
+    L3["Path labels are expanded: Admission, Hot/Decision, Case+Label, Learning, Recovery, Degrade, Replay, Rollback, Observability, Cost Control"]
+  end
+
+  OBJ[("S3 object store<br>oracle / archive basis")]
+  CTRL["Control resources<br>GitHub Actions / Terraform / Step Functions / ECR"]
+  WSPR["Replay resources<br>ECS/Fargate WSP"]
+  INGR["Ingress resources<br>API Gateway / ALB / Lambda / ECS<br>DynamoDB / SQS"]
+  TRAN[("Transport resources<br>MSK Serverless / Glue Registry")]
+  RTDLR["RTDL resources<br>EKS namespace + RTDL deployments"]
+  CASER["Case + Label resources<br>EKS namespace + CaseTrigger / CM / LS"]
+  LEARNR["Learning resources<br>Databricks / Glue DB / SageMaker / MLflow"]
+  REGR[("Registry / active bundle truth")]
+  GOVR[("Evidence resources<br>S3 evidence / archive / run-control receipts")]
+  OBSR["Observability resources<br>CloudWatch / operations dashboard"]
+  COSTR["Cost resources<br>budget / cost dashboard / idle-safe receipts"]
+  SHARED["Shared substrate<br>VPC / endpoints / IAM / IRSA / SSM / Aurora / tfstate"]
+
+  SHARED -->|substrate| CTRL
+  SHARED -->|substrate| WSPR
+  SHARED -->|substrate| INGR
+  SHARED -->|substrate| RTDLR
+  SHARED -->|substrate| CASER
+  SHARED -->|substrate| LEARNR
+  SHARED -->|substrate| OBSR
+  SHARED -->|substrate| COSTR
+
+  CTRL -->|Control| WSPR
+  CTRL -->|Control| INGR
+  CTRL -->|Control| RTDLR
+  CTRL -->|Control| CASER
+  CTRL -->|Control| LEARNR
+  CTRL -->|Control / Recovery / Cost Control| GOVR
+  CTRL -->|Cost Control| COSTR
+
+  OBJ -->|Admission / Replay| WSPR
+  WSPR -->|Admission / Replay| INGR
+  INGR -->|Hot / Decision| TRAN
+  TRAN -->|Hot / Decision| RTDLR
+  RTDLR -->|Case + Label| CASER
+  RTDLR -->|Learning| LEARNR
+  CASER -->|Learning| LEARNR
+  LEARNR -->|Rollback| REGR
+  REGR -->|Learning / Rollback| RTDLR
+
+  INGR -->|Admission / Degrade| GOVR
+  RTDLR -->|Hot / Decision / Degrade / Recovery| GOVR
+  CASER -->|Case + Label / Recovery| GOVR
+  LEARNR -->|Learning / Rollback| GOVR
+  OBJ -->|Replay basis| GOVR
+
+  INGR -->|Observability| OBSR
+  TRAN -->|Observability / Recovery| OBSR
+  RTDLR -->|Observability / Degrade / Recovery| OBSR
+  CASER -->|Observability / Recovery| OBSR
+  LEARNR -->|Observability| OBSR
+  GOVR -->|Observability / Governance| OBSR
+  COSTR -->|Observability / Cost Control| OBSR
+
+  INGR -->|Cost Control| COSTR
+  RTDLR -->|Cost Control| COSTR
+  CASER -->|Cost Control| COSTR
+  LEARNR -->|Cost Control| COSTR
+  GOVR -->|Cost evidence| COSTR
+
+  classDef control fill:#e8eaf6,stroke:#3949ab,color:#111,stroke-width:1.3px;
+  classDef runtime fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+  classDef store fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.3px;
+  classDef ops fill:#ede7f6,stroke:#5e35b1,color:#111,stroke-width:1.3px;
+
+  class CTRL control;
+  class WSPR,INGR,RTDLR,CASER,LEARNR runtime;
+  class OBJ,TRAN,REGR,GOVR,SHARED store;
+  class OBSR,COSTR ops;

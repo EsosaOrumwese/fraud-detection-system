@@ -51,6 +51,13 @@ def _resolve_bool(value: Any, *, default: bool) -> bool:
             return False
     return default
 
+def _resolve_start_position(value: Any) -> str:
+    token = str(_resolve_env(value) or "trim_horizon").strip().lower()
+    if token not in {"trim_horizon", "latest"}:
+        raise ValueError("IEG event_bus.start_position must be one of: trim_horizon, latest")
+    return token
+
+
 @dataclass(frozen=True)
 class IegPolicy:
     classification_ref: str
@@ -72,6 +79,7 @@ class IegWiring:
     event_bus_stream: str | None
     event_bus_region: str | None
     event_bus_endpoint_url: str | None
+    event_bus_start_position: str
     event_bus_topics: list[str]
     schema_root: str
     engine_contracts_root: str
@@ -189,6 +197,12 @@ class IegProfile:
         event_bus_stream = _resolve_env(event_bus.get("stream"))
         event_bus_region = _resolve_env(event_bus.get("region"))
         event_bus_endpoint_url = _resolve_env(event_bus.get("endpoint_url"))
+        event_bus_start_position = _resolve_start_position(
+            wiring.get("event_bus_start_position")
+            or event_bus.get("start_position")
+            or os.getenv("IEG_EVENT_BUS_START_POSITION")
+            or "trim_horizon"
+        )
         event_bus_topics = _load_topics(event_bus, base_dir=path.parent)
 
         schema_root = wiring.get("schema_root", "docs/model_spec/platform/contracts")
@@ -243,6 +257,7 @@ class IegProfile:
                 event_bus_stream=event_bus_stream,
                 event_bus_region=event_bus_region,
                 event_bus_endpoint_url=event_bus_endpoint_url,
+                event_bus_start_position=event_bus_start_position,
                 event_bus_topics=event_bus_topics,
                 schema_root=schema_root,
                 engine_contracts_root=engine_contracts_root,

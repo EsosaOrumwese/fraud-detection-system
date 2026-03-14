@@ -49,7 +49,7 @@ Out of scope:
 | Repin handle freeze | M14.A | explicit handle matrix, unresolved count = 0 |
 | M5 stream-sort move | M14.B | managed sort receipt + parity report |
 | SR move (SFN+Lambda/job) | M14.C | READY parity bundle + idempotency continuity |
-| WSP move (Fargate task) | M14.D | envelope/retry/dedupe parity snapshot |
+| WSP move (distributed replay job) | M14.D | envelope/retry/dedupe parity snapshot |
 | IEG/OFP move (Managed Flink) | M14.E | branch-separated metrics + lag/offset continuity |
 | Archive connector cutover | M14.F | offset continuity + S3 sink parity proof |
 | AL/Case/Label move | M14.G | contract parity receipts for AL/CaseTrigger/CM/LS |
@@ -77,7 +77,7 @@ Required freeze-set handles and pinned values:
 3. `ORACLE_STREAM_SORT_EMR_SERVERLESS_APP` (non-placeholder)
 4. `SR_RUNTIME = "STEP_FUNCTIONS_PLUS_LAMBDA_JOB"`
 5. `SR_READY_COMPUTE_MODE = "control_plane_orchestration_not_flink"`
-6. `WSP_RUNTIME = "ECS_FARGATE_RUNTASK_EPHEMERAL"`
+6. `WSP_RUNTIME = "ECS_FARGATE_RUN_SCOPED_REPLAY_JOB"`
 7. `WSP_TRIGGER_MODE = "READY_EVENT_TRIGGERED"`
 8. `FLINK_RUNTIME_PATH_ACTIVE = "MSF_MANAGED"`
 9. `FLINK_APP_RTDL_IEG_OFP_V0` (non-placeholder)
@@ -219,7 +219,7 @@ Runtime budget:
 
 ### M14.D - WSP Runtime Materialization
 Goal:
-1. Materialize WSP on `ECS/Fargate` ephemeral task with contract parity.
+1. Materialize WSP as a run-scoped `ECS/Fargate` distributed replay job with contract parity.
 
 Entry conditions:
 1. `M14.C` is pass (`ADVANCE_TO_M14_D`, `M14.D_READY`).
@@ -246,15 +246,14 @@ Entry conditions:
 
 Execution steps:
 1. Build deterministic `m14d_execution_id` and local run root under `runs/dev_substrate/dev_full/m14/<execution_id>/`.
-2. Materialize/verify ECS ephemeral lane primitives:
-   - ECS cluster,
-   - task-execution role,
-   - task-runtime role,
-   - task definition (WSP entrypoint command override).
-3. Start one Fargate runtask using run-scoped `platform_run_id` and bounded event cap.
-4. Wait terminal task status and capture container exit code + log stream reference.
+2. Materialize/verify managed WSP stream-lane primitives:
+   - managed Flink application or explicit `EKS_FLINK_OPERATOR` fallback ref,
+   - execution role,
+   - runtime spec / job ref for WSP lane entrypoint.
+3. Start one run-scoped managed WSP stream lane using bounded event cap.
+4. Wait terminal job/application status and capture runtime reference + log evidence.
 5. Validate contract parity and lane outcomes:
-   - WSP runtime pins equal expected (`ECS_FARGATE_RUNTASK_EPHEMERAL`, `READY_EVENT_TRIGGERED`),
+   - WSP runtime pins equal expected (`ECS_FARGATE_RUN_SCOPED_REPLAY_JOB`, `READY_EVENT_TRIGGERED`),
    - retry knobs in launch profile match pinned values,
    - IG admission evidence exists for run-scoped `platform_run_id` in idempotency table.
 6. Publish local + durable artifacts:
@@ -268,7 +267,7 @@ Blockers:
 3. `M14-B6` artifact publication/readback failure.
 
 DoD:
-- [x] WSP lane executes on ECS/Fargate runtask and task exits successfully.
+- [x] WSP lane executes as a run-scoped ECS/Fargate replay job and exits successfully.
 - [x] envelope/retry contract parity checks pass against pinned handles.
 - [x] run-scoped IG admission evidence is present and non-zero for the lane run id.
 - [x] local + durable `m14d_*` artifacts are readable.
@@ -751,18 +750,20 @@ M14 closes only when:
    - `WSP_RUNTIME = ECS_FARGATE_RUNTASK_EPHEMERAL` (pinned),
    - `WSP_TRIGGER_MODE = READY_EVENT_TRIGGERED` (pinned),
    - retry posture pinned and honored (`max_attempts=5`, `backoff_ms=500`, `stop_on_nonretryable=true`).
-3. Run-scoped admission proof is non-zero and tied to lane run id:
+3. Historical note:
+   - this closure snapshot reflects the pre-2026-03-06 WSP ECS materialization posture and is no longer the active authority after managed-WSP repin.
+4. Run-scoped admission proof is non-zero and tied to lane run id:
    - run id: `platform_20260302T032223Z`,
    - table: `fraud-platform-dev-full-ig-idempotency`,
    - admissions: `admitted_count > 0` (summary shows `blocker_count=0`).
-4. WSP task result proof:
+5. WSP task result proof:
    - `s3://fraud-platform-dev-full-object-store/oracle-store/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/m14d_runtime/m14d_wsp_materialization_20260302T032223Z/wsp_task_result.json`,
    - task returned `status=STREAMED`, `returncode=0`.
-5. Local artifacts:
+6. Local artifacts:
    - `runs/dev_substrate/dev_full/m14/m14d_wsp_materialization_20260302T032223Z/m14d_wsp_materialization_snapshot.json`,
    - `runs/dev_substrate/dev_full/m14/m14d_wsp_materialization_20260302T032223Z/m14d_blocker_register.json`,
    - `runs/dev_substrate/dev_full/m14/m14d_wsp_materialization_20260302T032223Z/m14d_execution_summary.json`.
-6. Durable run-control artifacts:
+7. Durable run-control artifacts:
    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14d_wsp_materialization_20260302T032223Z/m14d_wsp_materialization_snapshot.json`,
    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14d_wsp_materialization_20260302T032223Z/m14d_blocker_register.json`,
    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m14d_wsp_materialization_20260302T032223Z/m14d_execution_summary.json`.

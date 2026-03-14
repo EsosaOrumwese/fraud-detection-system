@@ -218,6 +218,27 @@ resource "aws_s3_bucket_versioning" "core" {
   }
 }
 
+resource "aws_s3_bucket_lifecycle_configuration" "artifacts" {
+  bucket = aws_s3_bucket.core["artifacts"].id
+
+  rule {
+    id     = "lambda-ig-handler-artifacts-retention"
+    status = "Enabled"
+
+    filter {
+      prefix = "artifacts/lambda/ig_handler/"
+    }
+
+    expiration {
+      days = var.artifacts_lambda_ig_handler_expiration_days
+    }
+
+    noncurrent_version_expiration {
+      noncurrent_days = var.artifacts_lambda_ig_handler_noncurrent_expiration_days
+    }
+  }
+}
+
 resource "aws_s3_bucket_server_side_encryption_configuration" "core" {
   for_each = aws_s3_bucket.core
 

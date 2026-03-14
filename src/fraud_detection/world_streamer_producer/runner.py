@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, as_completed, wait
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -11,6 +11,7 @@ import os
 import json
 import logging
 import random
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -19,6 +20,7 @@ from urllib.parse import urlparse
 import boto3
 from botocore.config import Config
 import requests
+from requests.adapters import HTTPAdapter
 import yaml
 
 from fraud_detection.ingestion_gate.catalogue import OutputCatalogue
@@ -54,6 +56,87 @@ class StreamResult:
     output_ids: list[str] | None = None
 
 
+class _TokenBucketRateLimiter:
+    def __init__(self, *, rate_per_second: float, burst_seconds: float, initial_tokens: float) -> None:
+        self._rate = max(0.0, float(rate_per_second))
+        burst_window = max(0.0, float(burst_seconds))
+        self._capacity = max(1.0, self._rate * burst_window) if self._rate > 0.0 else 0.0
+        seeded = max(0.0, float(initial_tokens))
+        self._tokens = min(self._capacity, seeded) if self._capacity > 0.0 else 0.0
+        self._updated_at = time.monotonic()
+        self._lock = threading.Lock()
+
+    def enabled(self) -> bool:
+        return self._rate > 0.0 and self._capacity > 0.0
+
+    def acquire(self, tokens: float = 1.0) -> None:
+        if not self.enabled():
+            return
+        need = max(0.0, float(tokens))
+        while True:
+            sleep_for = 0.0
+            with self._lock:
+                now = time.monotonic()
+                elapsed = max(0.0, now - self._updated_at)
+                if elapsed > 0.0:
+                    self._tokens = min(self._capacity, self._tokens + elapsed * self._rate)
+                    self._updated_at = now
+                if self._tokens >= need:
+                    self._tokens -= need
+                    return
+                deficit = need - self._tokens
+                sleep_for = deficit / self._rate if self._rate > 0.0 else 0.0
+            time.sleep(min(max(sleep_for, 0.001), 1.0))
+
+
+class _ScheduledTokenBucketRateLimiter:
+    def __init__(self, *, campaign_start_utc: datetime, segments: list[dict[str, float]]) -> None:
+        self._campaign_start_utc = campaign_start_utc.astimezone(timezone.utc)
+        self._segments = sorted(segments, key=lambda row: float(row.get("start_offset_seconds", 0.0) or 0.0))
+        self._active_index: int | None = None
+        self._active_limiter: _TokenBucketRateLimiter | None = None
+        self._lock = threading.Lock()
+
+    def _sleep_until_campaign_start(self) -> None:
+        while True:
+            remaining = (self._campaign_start_utc - datetime.now(timezone.utc)).total_seconds()
+            if remaining <= 0.0:
+                return
+            time.sleep(min(max(remaining, 0.05), 1.0))
+
+    def _segment_for_elapsed(self, elapsed_seconds: float) -> tuple[int, dict[str, float]]:
+        selected_index = 0
+        for idx, segment in enumerate(self._segments):
+            if elapsed_seconds >= float(segment.get("start_offset_seconds", 0.0) or 0.0):
+                selected_index = idx
+            else:
+                break
+        return selected_index, self._segments[selected_index]
+
+    def acquire(self, tokens: float = 1.0) -> None:
+        self._sleep_until_campaign_start()
+        elapsed_seconds = max(0.0, (datetime.now(timezone.utc) - self._campaign_start_utc).total_seconds())
+        selected_index, segment = self._segment_for_elapsed(elapsed_seconds)
+        with self._lock:
+            if selected_index != self._active_index or self._active_limiter is None:
+                self._active_index = selected_index
+                self._active_limiter = _TokenBucketRateLimiter(
+                    rate_per_second=float(segment.get("target_eps", 0.0) or 0.0),
+                    burst_seconds=float(segment.get("burst_seconds", 0.25) or 0.25),
+                    initial_tokens=float(segment.get("initial_tokens", 0.25) or 0.25),
+                )
+                logger.info(
+                    "WSP scheduled limiter segment=%s start_offset_seconds=%.3f target_eps=%.6f burst_seconds=%.3f initial_tokens=%.3f",
+                    selected_index,
+                    float(segment.get("start_offset_seconds", 0.0) or 0.0),
+                    float(segment.get("target_eps", 0.0) or 0.0),
+                    float(segment.get("burst_seconds", 0.25) or 0.25),
+                    float(segment.get("initial_tokens", 0.25) or 0.25),
+                )
+            limiter = self._active_limiter
+        limiter.acquire(tokens)
+
+
 class WorldStreamProducer:
     def __init__(self, profile: WspProfile) -> None:
         self.profile = profile
@@ -67,6 +150,16 @@ class WorldStreamProducer:
         self._producer_id = profile.wiring.producer_id
         self._producer_allowlist_ref = profile.wiring.producer_allowlist_ref
         self._producer_allowlist: set[str] | None = None
+        self._http_local = threading.local()
+        self._lane_count, self._lane_index = _resolve_lane_config()
+        self._rate_limiter = _build_rate_limiter(self._lane_count, self._lane_index)
+        self._bypass_replay_delay_for_scheduled_rate_plan = _should_bypass_replay_delay_for_scheduled_rate_plan()
+        if self._bypass_replay_delay_for_scheduled_rate_plan:
+            logger.info(
+                "WSP replay delay bypass active lane=%s/%s reason=scheduled_rate_plan_proof_mode",
+                self._lane_index,
+                self._lane_count,
+            )
 
     def stream_engine_world(
         self,
@@ -174,7 +267,8 @@ class WorldStreamProducer:
                 output_ids=chosen_outputs,
             )
         except IngestionError as exc:
-            logger.warning("WSP stream failed reason=%s", exc.code)
+            detail = f" detail={exc.detail}" if getattr(exc, "detail", "") else ""
+            logger.warning("WSP stream failed reason=%s%s", exc.code, detail)
             return StreamResult(
                 resolved_root, scenario_value, "FAILED", 0, exc.code, output_ids=chosen_outputs
             )
@@ -492,9 +586,17 @@ class WorldStreamProducer:
                     envelope["trace_id"] = pack_key
                 if engine_release and not envelope.get("span_id"):
                     envelope["span_id"] = engine_release
+                event_id = str(envelope.get("event_id", "")).strip()
+                if event_id and not _lane_accepts_event(event_id, self._lane_count, self._lane_index):
+                    continue
                 current_ts = _parse_ts(envelope.get("ts_utc"))
                 if last_ts and current_ts:
-                    delay = _delay_seconds(last_ts, current_ts, speedup)
+                    delay = _replay_delay_seconds(
+                        last_ts,
+                        current_ts,
+                        speedup,
+                        bypass=self._bypass_replay_delay_for_scheduled_rate_plan,
+                    )
                     if delay > 0:
                         time.sleep(delay)
                 if current_ts:
@@ -554,6 +656,7 @@ class WorldStreamProducer:
         )
         emitted_total = 0
         speedup = self.profile.policy.stream_speedup
+        _wait_for_campaign_start_if_configured()
         checkpoint_every = max(1, self.profile.wiring.checkpoint_every)
         progress_every = max(1, int(os.getenv("WSP_PROGRESS_EVERY", "1000")))
         progress_seconds = max(1.0, float(os.getenv("WSP_PROGRESS_SECONDS", "30")))
@@ -565,12 +668,15 @@ class WorldStreamProducer:
                 output_parallelism = 1
         else:
             output_parallelism = len(output_ids) if len(output_ids) > 1 else 1
+        checkpoint_attempt_id = _resolve_checkpoint_attempt_id()
         checkpoint_pack_key = _checkpoint_scope_key(
             pack_key=pack_key,
             platform_run_id=platform_run_id,
             scenario_run_id=scenario_run_id,
+            lane_count=self._lane_count,
+            lane_index=self._lane_index,
+            attempt_id=checkpoint_attempt_id,
         )
-
         def _save_checkpoint(cursor: CheckpointCursor, *, reason: str) -> None:
             checkpoint_store.save(cursor)
             append_session_event(
@@ -581,6 +687,7 @@ class WorldStreamProducer:
                     "pack_key_base": pack_key,
                     "platform_run_id": platform_run_id,
                     "scenario_run_id": scenario_run_id,
+                    "checkpoint_attempt_id": checkpoint_attempt_id or None,
                     "output_id": cursor.output_id,
                     "last_file": cursor.last_file,
                     "last_row_index": cursor.last_row_index,
@@ -623,12 +730,14 @@ class WorldStreamProducer:
                 raise IngestionError("STREAM_VIEW_OUTPUT_MISMATCH", output_id)
 
             narrative_logger.info(
-                "WSP stream start run_id=%s output_id=%s max_events=%s speedup=%.2f concurrency=%s",
+                "WSP stream start run_id=%s output_id=%s max_events=%s speedup=%.2f concurrency=%s lane=%s/%s",
                 run_id,
                 output_id,
                 max_events_output if max_events_output is not None else "all",
                 speedup,
                 output_parallelism,
+                self._lane_index,
+                self._lane_count,
             )
 
             files = _list_stream_view_files(store)
@@ -636,100 +745,182 @@ class WorldStreamProducer:
                 raise IngestionError("STREAM_VIEW_EMPTY", output_id)
             files = sorted([path for path in files if path.endswith(".parquet")])
             cursor = checkpoint_store.load(checkpoint_pack_key, output_id)
+            if cursor:
+                files = [path for path in files if path >= cursor.last_file]
             last_ts: datetime | None = None
             emitted_output = 0
             last_progress_time = time.monotonic()
             last_progress_emitted = 0
-            for file_path in files:
-                for row_index, row in _read_stream_view_rows_with_index(
-                    file_path,
-                    endpoint=self.profile.wiring.object_store_endpoint,
-                    region=self.profile.wiring.object_store_region,
-                    path_style=self.profile.wiring.object_store_path_style,
+            push_concurrency = max(1, int(os.getenv("WSP_IG_PUSH_CONCURRENCY", "1") or "1"))
+            next_sequence = 0
+            next_checkpoint_sequence = 0
+            pending_by_future: dict[Future[None], tuple[int, CheckpointCursor, str, int, str | None]] = {}
+            checkpoint_ready: dict[int, CheckpointCursor] = {}
+            last_checkpoint_cursor: CheckpointCursor | None = cursor
+
+            def _emit_progress(*, file_path_current: str, row_index_current: int, ts_current: str | None) -> None:
+                nonlocal last_progress_time, last_progress_emitted
+                if (
+                    emitted_output - last_progress_emitted >= progress_every
+                    or (time.monotonic() - last_progress_time) >= progress_seconds
                 ):
-                    if cursor and _should_skip(cursor, file_path, row_index):
-                        continue
-                    payload = _payload_from_stream_row(row)
-                    entry = self._catalogue.get(output_id)
-                    pins = {
-                        "manifest_fingerprint": world_key.manifest_fingerprint,
-                        "parameter_hash": world_key.parameter_hash,
-                        "scenario_id": world_key.scenario_id,
-                        "seed": world_key.seed,
-                        "run_id": run_id,
-                    }
-                    event_id = derive_engine_event_id(output_id, entry.primary_key, payload, pins)
-                    ts_utc = row.get("ts_utc")
-                    envelope = {
-                        "event_id": event_id,
-                        "event_type": output_id,
-                        "schema_version": "v1",
-                        "ts_utc": _normalize_ts(ts_utc),
-                        "manifest_fingerprint": world_key.manifest_fingerprint,
-                        "parameter_hash": world_key.parameter_hash,
-                        "seed": world_key.seed,
-                        "scenario_id": world_key.scenario_id,
-                        "run_id": run_id,
-                        "platform_run_id": platform_run_id,
-                        "scenario_run_id": scenario_run_id,
-                        "producer": producer_id,
-                        "payload": payload,
-                    }
-                    if pack_key and not envelope.get("trace_id"):
-                        envelope["trace_id"] = pack_key
-                    if engine_release and not envelope.get("span_id"):
-                        envelope["span_id"] = engine_release
-                    current_ts = _parse_ts(envelope.get("ts_utc"))
-                    if last_ts and current_ts:
-                        delay = _delay_seconds(last_ts, current_ts, speedup)
-                        if delay > 0:
-                            time.sleep(delay)
-                    if current_ts:
-                        last_ts = current_ts
-                    self._push_to_ig(envelope)
-                    emitted_output += 1
-                    cursor = CheckpointCursor(
-                        pack_key=checkpoint_pack_key,
-                        output_id=output_id,
-                        last_file=file_path,
-                        last_row_index=row_index,
-                        last_ts_utc=envelope.get("ts_utc"),
+                    logger.info(
+                        "WSP stream_view progress output_id=%s emitted=%s last_file=%s row=%s ts=%s",
+                        output_id,
+                        emitted_output,
+                        file_path_current,
+                        row_index_current,
+                        ts_current,
                     )
-                    if emitted_output % checkpoint_every == 0:
-                        _save_checkpoint(cursor, reason="periodic_flush")
-                    if (
-                        emitted_output - last_progress_emitted >= progress_every
-                        or (time.monotonic() - last_progress_time) >= progress_seconds
+                    last_progress_time = time.monotonic()
+                    last_progress_emitted = emitted_output
+
+            def _record_completion(
+                *,
+                sequence: int,
+                cursor_done: CheckpointCursor,
+                file_path_done: str,
+                row_index_done: int,
+                ts_done: str | None,
+            ) -> None:
+                nonlocal emitted_output, next_checkpoint_sequence, last_checkpoint_cursor
+                emitted_output += 1
+                checkpoint_ready[sequence] = cursor_done
+                while next_checkpoint_sequence in checkpoint_ready:
+                    last_checkpoint_cursor = checkpoint_ready.pop(next_checkpoint_sequence)
+                    next_checkpoint_sequence += 1
+                    if next_checkpoint_sequence % checkpoint_every == 0 and last_checkpoint_cursor is not None:
+                        _save_checkpoint(last_checkpoint_cursor, reason="periodic_flush")
+                _emit_progress(
+                    file_path_current=file_path_done,
+                    row_index_current=row_index_done,
+                    ts_current=ts_done,
+                )
+
+            def _drain_push_futures(*, executor: ThreadPoolExecutor, force: bool) -> None:
+                if not pending_by_future:
+                    return
+                while pending_by_future and (force or len(pending_by_future) >= push_concurrency):
+                    done, _ = wait(list(pending_by_future.keys()), return_when=FIRST_COMPLETED)
+                    for future in done:
+                        sequence, cursor_done, file_path_done, row_index_done, ts_done = pending_by_future.pop(future)
+                        try:
+                            future.result()
+                        except Exception:
+                            for pending in pending_by_future:
+                                pending.cancel()
+                            executor.shutdown(wait=False, cancel_futures=True)
+                            raise
+                        _record_completion(
+                            sequence=sequence,
+                            cursor_done=cursor_done,
+                            file_path_done=file_path_done,
+                            row_index_done=row_index_done,
+                            ts_done=ts_done,
+                        )
+                    if not force:
+                        break
+
+            push_executor = ThreadPoolExecutor(max_workers=push_concurrency)
+            try:
+                for file_path in files:
+                    start_row_index = 0
+                    if cursor and file_path == cursor.last_file:
+                        start_row_index = max(0, int(cursor.last_row_index) + 1)
+                    for row_index, row in _read_stream_view_rows_with_index(
+                        file_path,
+                        endpoint=self.profile.wiring.object_store_endpoint,
+                        region=self.profile.wiring.object_store_region,
+                        path_style=self.profile.wiring.object_store_path_style,
+                        start_row_index=start_row_index,
                     ):
-                        logger.info(
-                            "WSP stream_view progress output_id=%s emitted=%s last_file=%s row=%s ts=%s",
-                            output_id,
-                            emitted_output,
+                        payload = _payload_from_stream_row(row)
+                        entry = self._catalogue.get(output_id)
+                        pins = {
+                            "manifest_fingerprint": world_key.manifest_fingerprint,
+                            "parameter_hash": world_key.parameter_hash,
+                            "scenario_id": world_key.scenario_id,
+                            "seed": world_key.seed,
+                            "run_id": run_id,
+                        }
+                        event_id = derive_engine_event_id(output_id, entry.primary_key, payload, pins)
+                        if not _lane_accepts_event(event_id, self._lane_count, self._lane_index):
+                            continue
+                        ts_utc = row.get("ts_utc")
+                        envelope = {
+                            "event_id": event_id,
+                            "event_type": output_id,
+                            "schema_version": "v1",
+                            "ts_utc": _normalize_ts(ts_utc),
+                            "manifest_fingerprint": world_key.manifest_fingerprint,
+                            "parameter_hash": world_key.parameter_hash,
+                            "seed": world_key.seed,
+                            "scenario_id": world_key.scenario_id,
+                            "run_id": run_id,
+                            "platform_run_id": platform_run_id,
+                            "scenario_run_id": scenario_run_id,
+                            "producer": producer_id,
+                            "payload": payload,
+                        }
+                        if pack_key and not envelope.get("trace_id"):
+                            envelope["trace_id"] = pack_key
+                        if engine_release and not envelope.get("span_id"):
+                            envelope["span_id"] = engine_release
+                        current_ts = _parse_ts(envelope.get("ts_utc"))
+                        if last_ts and current_ts:
+                            delay = _replay_delay_seconds(
+                                last_ts,
+                                current_ts,
+                                speedup,
+                                bypass=self._bypass_replay_delay_for_scheduled_rate_plan,
+                            )
+                            if delay > 0:
+                                time.sleep(delay)
+                        if current_ts:
+                            last_ts = current_ts
+                        cursor_candidate = CheckpointCursor(
+                            pack_key=checkpoint_pack_key,
+                            output_id=output_id,
+                            last_file=file_path,
+                            last_row_index=row_index,
+                            last_ts_utc=envelope.get("ts_utc"),
+                        )
+                        future = push_executor.submit(self._push_to_ig, envelope)
+                        pending_by_future[future] = (
+                            next_sequence,
+                            cursor_candidate,
                             file_path,
                             row_index,
                             envelope.get("ts_utc"),
                         )
-                        last_progress_time = time.monotonic()
-                        last_progress_emitted = emitted_output
-                    if max_events_output is not None and emitted_output >= max_events_output:
-                        if cursor:
-                            _save_checkpoint(cursor, reason="max_events")
-                        narrative_logger.info(
-                            "WSP stream stop run_id=%s output_id=%s emitted=%s reason=max_events",
-                            run_id,
-                            output_id,
-                            emitted_output,
-                        )
-                        return emitted_output
-                if cursor:
-                    _save_checkpoint(cursor, reason="file_complete")
-            if cursor:
-                _save_checkpoint(cursor, reason="output_complete")
+                        next_sequence += 1
+                        _drain_push_futures(executor=push_executor, force=False)
+                        if max_events_output is not None and next_sequence >= max_events_output:
+                            _drain_push_futures(executor=push_executor, force=True)
+                            if last_checkpoint_cursor:
+                                _save_checkpoint(last_checkpoint_cursor, reason="max_events")
+                            narrative_logger.info(
+                                "WSP stream stop run_id=%s output_id=%s emitted=%s reason=max_events",
+                                run_id,
+                                output_id,
+                                emitted_output,
+                            )
+                            return emitted_output
+                    _drain_push_futures(executor=push_executor, force=True)
+                    if last_checkpoint_cursor:
+                        _save_checkpoint(last_checkpoint_cursor, reason="file_complete")
+                _drain_push_futures(executor=push_executor, force=True)
+            finally:
+                push_executor.shutdown(wait=True, cancel_futures=False)
+            if last_checkpoint_cursor:
+                _save_checkpoint(last_checkpoint_cursor, reason="output_complete")
             narrative_logger.info(
-                "WSP stream complete run_id=%s output_id=%s emitted=%s",
+                "WSP stream complete run_id=%s output_id=%s emitted=%s lane=%s/%s",
                 run_id,
                 output_id,
                 emitted_output,
+                self._lane_index,
+                self._lane_count,
             )
             return emitted_output
 
@@ -774,7 +965,7 @@ class WorldStreamProducer:
         if not envelope.get("schema_version"):
             envelope["schema_version"] = "v1"
         payload = _json_safe(envelope)
-        url = self.profile.wiring.ig_ingest_url.rstrip("/")
+        url = _resolve_ig_push_url(self.profile.wiring.ig_ingest_url)
         max_attempts = max(1, int(self.profile.wiring.ig_retry_max_attempts))
         base_delay = max(0, int(self.profile.wiring.ig_retry_base_delay_ms)) / 1000.0
         max_delay = max(base_delay, int(self.profile.wiring.ig_retry_max_delay_ms) / 1000.0)
@@ -783,10 +974,12 @@ class WorldStreamProducer:
             headers[self.profile.wiring.ig_auth_header] = self.profile.wiring.ig_auth_token
         attempt = 0
         last_error: str | None = None
+        session = self._http_session()
         while attempt < max_attempts:
             attempt += 1
+            self._rate_limiter.acquire()
             try:
-                response = requests.post(f"{url}/v1/ingest/push", json=payload, headers=headers, timeout=30)
+                response = session.post(url, json=payload, headers=headers, timeout=30)
             except requests.Timeout:
                 last_error = "timeout"
                 retryable = True
@@ -815,6 +1008,18 @@ class WorldStreamProducer:
                 envelope.get("event_id"),
             )
             time.sleep(delay + jitter)
+
+    def _http_session(self) -> requests.Session:
+        session = getattr(self._http_local, "session", None)
+        if session is not None:
+            return session
+        pool_maxsize = max(16, int(os.getenv("WSP_HTTP_POOL_MAXSIZE", "256")))
+        adapter = HTTPAdapter(pool_connections=pool_maxsize, pool_maxsize=pool_maxsize, max_retries=0)
+        session = requests.Session()
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+        self._http_local.session = session
+        return session
 
     def _ensure_producer_allowed(self) -> str | None:
         if not self._producer_id:
@@ -848,7 +1053,7 @@ def _gate_templates(gate_map: dict[str, Any]) -> dict[str, str]:
 def _merge_outputs(traffic_outputs: list[str], context_outputs: list[str]) -> list[str]:
     merged: list[str] = []
     seen: set[str] = set()
-    for item in traffic_outputs + context_outputs:
+    for item in context_outputs + traffic_outputs:
         if item in seen:
             continue
         seen.add(item)
@@ -871,6 +1076,98 @@ def _json_safe(value: Any) -> Any:
     if isinstance(value, list):
         return [_json_safe(v) for v in value]
     return value
+
+
+def _env_float(name: str, default: float = 0.0) -> float:
+    raw = str(os.getenv(name, "")).strip()
+    if not raw:
+        return float(default)
+    try:
+        return float(raw)
+    except ValueError:
+        logger.warning("WSP invalid float env name=%s value=%s", name, raw)
+        return float(default)
+
+
+def _build_rate_limiter(lane_count: int, lane_index: int) -> _TokenBucketRateLimiter:
+    raw_rate_plan = str(os.getenv("WSP_RATE_PLAN_JSON", "")).strip()
+    raw_campaign_start = str(os.getenv("WSP_CAMPAIGN_START_UTC", "")).strip()
+    raw_rate_plan_start = str(os.getenv("WSP_RATE_PLAN_START_UTC", "")).strip() or raw_campaign_start
+    if raw_rate_plan and raw_rate_plan_start:
+        try:
+            campaign_start_utc = datetime.fromisoformat(raw_rate_plan_start.replace("Z", "+00:00")).astimezone(timezone.utc)
+            payload = json.loads(raw_rate_plan)
+            if isinstance(payload, list):
+                segments: list[dict[str, float]] = []
+                for row in payload:
+                    if not isinstance(row, dict):
+                        continue
+                    segments.append(
+                        {
+                            "start_offset_seconds": max(0.0, float(row.get("start_offset_seconds", 0.0) or 0.0)),
+                            "target_eps": max(0.0, float(row.get("target_eps", row.get("rate_per_second", 0.0)) or 0.0)),
+                            "burst_seconds": max(0.0, float(row.get("burst_seconds", 0.25) or 0.25)),
+                            "initial_tokens": max(0.0, float(row.get("initial_tokens", 0.25) or 0.25)),
+                        }
+                    )
+                if segments:
+                    logger.info(
+                        "WSP scheduled limiter active lane=%s/%s rate_plan_start_utc=%s lane_start_utc=%s segments=%s",
+                        lane_index,
+                        lane_count,
+                        campaign_start_utc.isoformat().replace("+00:00", "Z"),
+                        raw_campaign_start or None,
+                        json.dumps(segments, sort_keys=True),
+                    )
+                    return _ScheduledTokenBucketRateLimiter(
+                        campaign_start_utc=campaign_start_utc,
+                        segments=segments,
+                    )
+        except Exception as exc:
+            logger.warning("WSP scheduled limiter parse failed lane=%s/%s error=%s", lane_index, lane_count, str(exc))
+    target_eps = max(0.0, _env_float("WSP_TARGET_EPS", 0.0))
+    burst_seconds = max(0.0, _env_float("WSP_TARGET_BURST_SECONDS", 0.25))
+    initial_tokens = max(0.0, _env_float("WSP_TARGET_INITIAL_TOKENS", 0.25))
+    limiter = _TokenBucketRateLimiter(
+        rate_per_second=target_eps,
+        burst_seconds=burst_seconds,
+        initial_tokens=initial_tokens,
+    )
+    if limiter.enabled():
+        logger.info(
+            "WSP rate limiter active lane=%s/%s target_eps=%.6f burst_seconds=%.3f initial_tokens=%.3f",
+            lane_index,
+            lane_count,
+            target_eps,
+            burst_seconds,
+            initial_tokens,
+        )
+    return limiter
+
+
+def _wait_for_campaign_start_if_configured() -> None:
+    raw_campaign_start = str(os.getenv("WSP_CAMPAIGN_START_UTC", "")).strip()
+    if not raw_campaign_start:
+        return
+    try:
+        campaign_start_utc = datetime.fromisoformat(raw_campaign_start.replace("Z", "+00:00")).astimezone(timezone.utc)
+    except ValueError:
+        logger.warning("WSP campaign start invalid value=%s", raw_campaign_start)
+        return
+    while True:
+        remaining = (campaign_start_utc - datetime.now(timezone.utc)).total_seconds()
+        if remaining <= 0.0:
+            return
+        time.sleep(min(max(remaining, 0.05), 1.0))
+
+
+def _resolve_ig_push_url(raw_url: str) -> str:
+    base = str(raw_url or "").strip().rstrip("/")
+    if not base:
+        return "/v1/ingest/push"
+    if base.endswith("/v1/ingest/push"):
+        return base
+    return f"{base}/v1/ingest/push"
 
 
 def _path_exists(path: str, *, endpoint: str | None, region: str | None, path_style: bool | None) -> bool:
@@ -950,6 +1247,19 @@ def _delay_seconds(prev: datetime, current: datetime, speedup: float) -> float:
     return delta / speedup
 
 
+def _replay_delay_seconds(prev: datetime, current: datetime, speedup: float, *, bypass: bool) -> float:
+    if bypass:
+        return 0.0
+    return _delay_seconds(prev, current, speedup)
+
+
+def _should_bypass_replay_delay_for_scheduled_rate_plan() -> bool:
+    raw_toggle = str(os.getenv("WSP_DISABLE_REPLAY_DELAY_WHEN_RATE_PLAN", "")).strip().lower()
+    if raw_toggle not in {"1", "true", "yes", "on"}:
+        return False
+    return bool(str(os.getenv("WSP_RATE_PLAN_JSON", "")).strip())
+
+
 def _read_run_receipt(engine_root: str, profile: WspProfile) -> dict[str, Any]:
     if engine_root.startswith("s3://"):
         parsed = urlparse(engine_root)
@@ -979,10 +1289,55 @@ def _fallback_pack_key(engine_root: str) -> str:
     return hashlib.sha256(engine_root.encode("utf-8")).hexdigest()
 
 
-def _checkpoint_scope_key(*, pack_key: str, platform_run_id: str, scenario_run_id: str) -> str:
-    # Keep checkpoint scope run-bound so new platform runs never resume prior offsets.
-    payload = "|".join((pack_key, platform_run_id, scenario_run_id))
+def _checkpoint_scope_key(
+    *,
+    pack_key: str,
+    platform_run_id: str,
+    scenario_run_id: str,
+    lane_count: int = 1,
+    lane_index: int = 0,
+    attempt_id: str = "",
+) -> str:
+    # Keep checkpoint scope run-bound while allowing certification reruns to opt into a fresh namespace.
+    payload = "|".join(
+        (
+            pack_key,
+            platform_run_id,
+            scenario_run_id,
+            str(lane_count),
+            str(lane_index),
+            str(attempt_id).strip(),
+        )
+    )
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _resolve_checkpoint_attempt_id() -> str:
+    return str(os.getenv("WSP_CHECKPOINT_ATTEMPT_ID", "")).strip()
+
+
+def _resolve_lane_config() -> tuple[int, int]:
+    raw_count = str(os.getenv("WSP_LANE_COUNT", "1")).strip()
+    raw_index = str(os.getenv("WSP_LANE_INDEX", "0")).strip()
+    try:
+        lane_count = max(1, int(raw_count))
+    except ValueError:
+        lane_count = 1
+    try:
+        lane_index = int(raw_index)
+    except ValueError:
+        lane_index = 0
+    if lane_index < 0 or lane_index >= lane_count:
+        raise IngestionError("WSP_LANE_CONFIG_INVALID", f"lane_index={lane_index} lane_count={lane_count}")
+    return lane_count, lane_index
+
+
+def _lane_accepts_event(event_id: str, lane_count: int, lane_index: int) -> bool:
+    if lane_count <= 1:
+        return True
+    digest = hashlib.sha256(str(event_id).encode("utf-8")).digest()
+    bucket = int.from_bytes(digest[:8], byteorder="big", signed=False) % lane_count
+    return bucket == lane_index
 
 
 def _should_skip(cursor: CheckpointCursor, path: str, row_index: int) -> bool:
@@ -1049,10 +1404,29 @@ def _read_stream_view_rows_with_index(
     endpoint: str | None,
     region: str | None,
     path_style: bool | None,
+    start_row_index: int = 0,
 ) -> Any:
-    import pyarrow as pa
     import pyarrow.fs as fs
     import pyarrow.parquet as pq
+
+    effective_start_row = max(0, int(start_row_index))
+
+    def _yield_from_parquet(parquet: Any) -> Any:
+        row_index = 0
+        batch_size = int(os.getenv("WSP_STREAM_VIEW_BATCH_SIZE", "1024"))
+        for batch in parquet.iter_batches(batch_size=batch_size):
+            batch_rows = int(batch.num_rows)
+            batch_end = row_index + batch_rows
+            if batch_end <= effective_start_row:
+                row_index = batch_end
+                continue
+            slice_offset = max(0, effective_start_row - row_index)
+            current_row_index = row_index + slice_offset
+            materialized = batch.slice(slice_offset) if slice_offset else batch
+            for row in materialized.to_pylist():
+                yield current_row_index, row
+                current_row_index += 1
+            row_index = batch_end
 
     if path.startswith("s3://"):
         parsed = urlparse(path)
@@ -1078,19 +1452,11 @@ def _read_stream_view_rows_with_index(
         key = parsed.path.lstrip("/")
         with filesystem.open_input_file(f"{parsed.netloc}/{key}") as handle:
             parquet = pq.ParquetFile(handle)
-            row_index = 0
-            for batch in parquet.iter_batches(batch_size=int(os.getenv("WSP_STREAM_VIEW_BATCH_SIZE", "1024"))):
-                for row in batch.to_pylist():
-                    yield row_index, row
-                    row_index += 1
+            yield from _yield_from_parquet(parquet)
         return
     local_path = Path(path)
     parquet = pq.ParquetFile(local_path)
-    row_index = 0
-    for batch in parquet.iter_batches(batch_size=int(os.getenv("WSP_STREAM_VIEW_BATCH_SIZE", "1024"))):
-        for row in batch.to_pylist():
-            yield row_index, row
-            row_index += 1
+    yield from _yield_from_parquet(parquet)
     return
 
 

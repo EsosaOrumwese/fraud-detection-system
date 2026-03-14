@@ -28,11 +28,40 @@ COPY docs/model_spec/data-engine/interface_pack/contracts/engine_output_locator.
 COPY docs/model_spec/data-engine/interface_pack/contracts/gate_receipt.schema.yaml /app/docs/model_spec/data-engine/interface_pack/contracts/gate_receipt.schema.yaml
 COPY docs/model_spec/data-engine/interface_pack/contracts/instance_proof_receipt.schema.yaml /app/docs/model_spec/data-engine/interface_pack/contracts/instance_proof_receipt.schema.yaml
 COPY docs/model_spec/data-engine/interface_pack/contracts/run_receipt.schema.yaml /app/docs/model_spec/data-engine/interface_pack/contracts/run_receipt.schema.yaml
-COPY docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml /app/docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml
-COPY docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml /app/docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml
+COPY docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml /app/docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml
+COPY docs/model_spec/data-engine/layer-2/specs/contracts/5B /app/docs/model_spec/data-engine/layer-2/specs/contracts/5B
+COPY docs/model_spec/data-engine/layer-3/specs/contracts/6B /app/docs/model_spec/data-engine/layer-3/specs/contracts/6B
 
 RUN python -m pip install --no-cache-dir "pip==25.0.1" && \
     python -m pip install --no-index --find-links=/app/requirements/wheelhouse --require-hashes -r /app/requirements/m1-image.lock.txt
+
+RUN python - <<'PY'
+from pathlib import Path
+
+from fraud_detection.ingestion_gate.config import SchemaPolicy
+from fraud_detection.ingestion_gate.schema import SchemaEnforcer
+from fraud_detection.ingestion_gate.schemas import SchemaRegistry
+
+root = Path("/app")
+policy = SchemaPolicy.load(root / "config/platform/ig/schema_policy_v0.yaml")
+enforcer = SchemaEnforcer(
+    envelope_registry=SchemaRegistry(root / "docs/model_spec/data-engine/interface_pack/contracts"),
+    payload_registry_root=root,
+    policy=policy,
+)
+
+refs = sorted(
+    {
+        str(entry.payload_schema_ref).strip()
+        for entry in policy.policies
+        if getattr(entry, "payload_schema_ref", None)
+    }
+)
+for ref in refs:
+    enforcer._resolve_payload_schema(ref)
+
+print(f"Resolved {len(refs)} IG payload schema refs successfully.")
+PY
 
 RUN adduser --disabled-password --gecos "" --home /home/appuser appuser && \
     chown -R appuser:appuser /app
