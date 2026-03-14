@@ -8,13 +8,13 @@ flowchart LR
 
   subgraph LEGEND["How to Read This Graph"]
     L1["Only resources backing the currently promoted working-platform core are shown"]
-    L2["The current promoted resource core now includes the full platform after integrated Phase 8 closure"]
+    L2["The current promoted resource core now includes the full platform after final Phase 9 bounded stress closure"]
     L3["Managed learning and ops/governance resources are shown because they are now promoted members of the working platform"]
     L4["Only resources backing the accepted working-platform claim are shown"]
   end
 
   subgraph NOTE["Scope"]
-    N1["Concrete resource view for the promoted full dev_full platform<br>Envelope: 3000 steady eps / 6000 burst eps<br>Current accepted integrated closure slice: phase8_full_platform_integrated_20260313T010847Z"]
+    N1["Concrete resource view for the promoted full dev_full platform<br>Envelope: 3000 steady eps / 6000 burst eps<br>Current accepted bounded stress authority: phase9_full_platform_stress_20260313T203100Z<br>Fresh widened backbone: phase6_learning_coupled_20260313T203100Z<br>Live runtime may be intentionally idled for review; that standby posture does not change the accepted readiness claim"]
   end
 
   subgraph CONTROL["Control Resources"]
@@ -52,6 +52,7 @@ flowchart LR
 
   subgraph RTDL["RTDL Runtime Resources"]
     EKS["EKS cluster<br>fraud-platform-dev-full"]
+    NODEGROUP["Managed nodegroup<br>fraud-platform-dev-full-m6f-workers<br>m6i.xlarge<br>review standby: min 0 / desired 0 / max 8"]
     NSRTDL["Namespace<br>fraud-platform-rtdl"]
     CSFB["Deployment<br>fp-pr3-csfb"]
     IEG["Deployment<br>fp-pr3-ieg"]
@@ -69,6 +70,11 @@ flowchart LR
     CASETRIG["Deployment<br>fp-pr3-case-trigger"]
     CASEMGMT["Deployment<br>fp-pr3-case-mgmt<br>request 2Gi / limit 6Gi"]
     LABELSTORE["Deployment<br>fp-pr3-label-store<br>request 1Gi / limit 4Gi"]
+  end
+
+  subgraph DATASTATE["Runtime data-state resources"]
+    AURORA["Aurora PostgreSQL cluster<br>fraud-platform-dev-full-aurora<br>serverless v2 0.5 to 4 ACU<br>review standby: stopping"]
+    AURORAWRITER["Writer instance<br>fraud-platform-dev-full-aurora-writer-1<br>db.serverless"]
   end
 
   subgraph LEARNING["Learning + Evolution / MLOps Resources"]
@@ -117,6 +123,7 @@ flowchart LR
   N1 --> TRANSPORT
   N1 --> RTDL
   N1 --> CASELABEL
+  N1 --> DATASTATE
   N1 --> LEARNING
   N1 --> STATE
   N1 --> IDENTITY
@@ -160,6 +167,9 @@ flowchart LR
 
   EKS -->|hosts| NSRTDL
   EKS -->|hosts| NSCASE
+  EKS -->|scales through| NODEGROUP
+  NODEGROUP -->|supplies runtime capacity to| NSRTDL
+  NODEGROUP -->|supplies runtime capacity to| NSCASE
   NSRTDL --> CSFB
   NSRTDL --> IEG
   NSRTDL --> OFP
@@ -195,6 +205,16 @@ flowchart LR
   DL --> CASETRIG
   CASETRIG --> CASEMGMT
   CASEMGMT --> LABELSTORE
+  AURORA --> AURORAWRITER
+  CSFB -->|reads/writes runtime state in| AURORA
+  IEG -->|reads/writes runtime state in| AURORA
+  OFP -->|reads/writes runtime state in| AURORA
+  DF -->|reads/writes runtime state in| AURORA
+  DL -->|reads/writes runtime state in| AURORA
+  DLA -->|reads/writes runtime state in| AURORA
+  CASETRIG -->|reads/writes case-trigger state in| AURORA
+  CASEMGMT -->|reads/writes case state in| AURORA
+  LABELSTORE -->|reads/writes label state in| AURORA
 
   DBWS --> DBBUILD
   DBWS --> DBQUALITY
@@ -244,6 +264,7 @@ flowchart LR
   classDef rtdl fill:#e0f2f1,stroke:#00695c,color:#111,stroke-width:1.3px;
   classDef caselabel fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
   classDef learning fill:#ede7f6,stroke:#5e35b1,color:#111,stroke-width:1.3px;
+  classDef datastate fill:#f9fbe7,stroke:#827717,color:#111,stroke-width:1.3px;
   classDef state fill:#f1f8e9,stroke:#558b2f,color:#111,stroke-width:1.3px;
   classDef ident fill:#fce4ec,stroke:#ad1457,color:#111,stroke-width:1.3px;
   classDef obs fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
@@ -254,6 +275,7 @@ flowchart LR
   class MSK,GLUEREG,TCTRL,TTRAFFIC,TCTXA,TCTXE,TFLOW transport;
   class EKS,NSRTDL,CSFB,IEG,OFP,DF,DL,AL,DLA,ARCH,RTDLIMG rtdl;
   class NSCASE,CASETRIG,CASEMGMT,LABELSTORE caselabel;
+  class AURORA,AURORAWRITER datastate;
   class DBWS,DBBUILD,DBQUALITY,DBCRED,SMTRAIN,SMBATCH,SMPKG,MLFLOW,REGISTRY learning;
   class OBJ,EVID,SSM state;
   class OIDC,ROLETF,ROLESFN,ROLELAMBDA,ROLEAPIGW,ROLEDDB,ROLEWSPEXEC,ROLEWSPRUN,ROLESM,ROLEDBX ident;

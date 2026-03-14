@@ -7670,3 +7670,37 @@ I also made the caveat explicit because it matters:
 - so I did not quietly import an older validated-pack baseline count and present it as current authority.
 
 That means the new plan section is narrower than a "full oracle inventory," but it is truthful. It gives the user a concrete volume anchor for the actually accepted hardening world without smuggling in non-current numbers.
+
+## 2026-03-14 03:47:14 +00:00 - Before broader teardown, I corrected the production-ready network/resource graphs to distinguish accepted readiness authority from the live review-standby posture
+
+The user asked to tear the stack down while reviewing the work, but first wanted the readiness graphs in `docs/design/platform/dev_full/graph/readiness/` to be correct. That boundary matters because the final accepted claim is still the same:
+
+- `Phase 9` is the bounded stress authority
+- the working platform remains the full promoted `dev_full` platform
+
+But the live runtime posture has now changed intentionally for cost control during review:
+
+- the EKS managed nodegroup `fraud-platform-dev-full-m6f-workers` is at `min=0 / desired=0 / max=8`
+- all RTDL and Case + Label deployments are scaled to `0/0`
+- `coredns` is scaled to `0/0`
+- the Aurora cluster `fraud-platform-dev-full-aurora` is in `stopping`
+
+That is not a contradiction. It is the exact distinction we needed the graphs to carry:
+
+1. accepted readiness authority,
+2. current live runtime posture.
+
+So I corrected the two long-lived readiness graphs accordingly:
+
+- the network graph now explicitly says the final promoted platform stands on `Phase 9` bounded stress closure and that runtime may be intentionally idled for review without changing the accepted readiness claim
+- the resource graph now reflects the same final authority and also the live review-standby posture for:
+  - the EKS nodegroup
+  - the Aurora cluster
+
+I also wrote a durable standby snapshot into:
+
+- `runs/dev_substrate/dev_full/proving_plane/run_control/review_standby_20260314T034714Z/review_standby_summary.json`
+
+so the repo keeps one small machine-readable record of the review standby boundary instead of leaving that evidence only in transient CLI output.
+
+The reason I wanted this written explicitly is that teardown periods can otherwise create false historical confusion later: someone reads the graphs, sees a green full-platform claim, then looks at the cloud console and sees zero pods and a stopping database. The graphs now make that relationship explicit instead of forcing an inference.
