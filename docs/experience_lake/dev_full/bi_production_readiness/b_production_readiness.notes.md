@@ -558,3 +558,217 @@ That is a much stronger `Bi` claim, because it shows the path was not made ready
 - and what counts as an honest closure surface
 
 The next clean move is the `path transformation synthesis`: what had to be resolved to move `Boundary access path` from its `A` posture to its final `Bi` posture.
+
+## 2026-03-14 16:58:24 +00:00 - Collapse the Boundary access path episode interrogation into a transformation synthesis that states what actually changed the boundary story
+`Boundary access path` - `transformation synthesis`
+
+This synthesis stays scoped to the things that actually changed the boundary story. That means not everything that ever touched ingress, but the specific concerns that had to be resolved for this path to move from:
+
+- `A posture`: one declared external front door for canonical traffic
+- `Bi posture`: one production-ready, telemetry-backed, drift-cleared external front door that can be judged honestly under pressure
+
+1. `The boundary had to stop being merely declared and become single and provable`
+
+In `A`, the path already said the platform had one real external ingress boundary: execute-api `v1 -> POST /ingest/push -> IG Lambda`, with the retained internal ALB path excluded from the accepted story. But under `Bi`, that was not enough. The proving wrapper could still fall back to the stale SSM ALB URL unless the execute-api target was passed explicitly, and even the health path was only truthful when exercised with the real API key. So the first thing that had to be resolved was boundary ambiguity. The path became production-ready only after the live proof was forced onto the execute-api edge and the health contract was treated as a real keyed boundary, not as a casual anonymous probe.
+
+2. `The first red had to be separated into proof-shape truth versus boundary truth`
+
+Once the right front door was forced, the first bounded run did something very important for this path: it showed that the edge itself was not yet the culprit. `4xx`, `5xx`, Lambda errors, throttles, and DLQ delta all stayed clean while throughput missed badly, and the lane evidence showed the source was under-driving the declared edge. That mattered because it changed the reasoning standard for the path. The question was no longer whether ingress was broken, but whether the platform was even being proved on a truthful source posture. So part of this path's transformation was learning to reject a false red that came from the harness, not the boundary.
+
+3. `Then the path had to survive the moment when the red did become real`
+
+After the source posture was strengthened, the path stopped being blocked by harness weakness and started exposing genuine live-edge trouble: first the `BUS_UNHEALTHY` probe mode defect, then, under the naive `900`-concurrency probe, `KAFKA_PUBLISH_TIMEOUT -> PUBLISH_AMBIGUOUS` on valid traffic. For this path, the lesson was not to raise concurrency until the number went green. The lesson was that the front door could not be considered ready if brute remediation made the edge semantically worse. So the accepted posture kept the truthful `600`-concurrency baseline and treated semantic cleanliness as more important than cosmetic throughput. That is a real part of the path transformation, even though the deeper publish and admission details belong more centrally to neighboring paths. They mattered here because they determined whether the claimed front door was still an honest one.
+
+4. `The boundary also had to become observable on its own terms`
+
+A declared front door is not production-ready if it can only be judged indirectly. This path had to gain its own truthful edge-side evidence. That happened in two layers. First, proving-agent blindness had to be removed: the request-timing helper itself initially broke the rerun and had to be fixed before any new evidence could be trusted. Second, the external edge gained a real APIGW-side telemetry surface: detailed route metrics, an actual access-log group, the required log resource policy, and verified delivery from the live stage. That changed the path from front door with some downstream signals to front door with direct per-request evidence on the exact surface it claims to own.
+
+5. `Its fail-closed behavior had to become truthful to the boundary, not just strict`
+
+Another thing that had to be resolved was false sickness at the edge. The bounded runs showed benign governance append contention being misread as object-store unhealth, which then caused valid traffic to fail closed through `IG_UNHEALTHY:OBJECT_STORE_UNHEALTHY`. That is not production-readiness; that is a boundary whose health semantics are lying. The accepted bridge broadened the benign exception family so append-conflict shapes were no longer treated as front-door sickness. After that fix, the edge became semantically clean on the bounded correctness shape. So one necessary transformation here was from strict fail-closed to truthful fail-closed.
+
+6. `The path then had to move from a coarse proof surface to the correct proof surface`
+
+Once runtime semantics were clean, the remaining blocker lived in the proof boundary itself. The old minute-aligned APIGW metric gate kept rendering the path red by a hair even while the exact APIGW access-log window on the same edge showed it clearing target repeatedly. That is a critical `Bi` move: the path did not become ready because the metric was nudged. It became ready because the proof surface was corrected. The exact APIGW access-log window, anchored to confirmed participation and then codified into the proving harness, became the accepted truth surface for the boundary. This changed the path from almost green on a coarse view to truthfully green on the exact edge it claims to own.
+
+7. `Finally, the accepted story had to be reconciled with the live graph and live cost posture`
+
+Even after the edge was truthfully green, the path was not fully transformed until the retained internal ingress drift was removed. The old ALB / ECS / SSM ingress surface was still materially present and still visible in older readiness reflections, even though it no longer served the accepted external boundary. That had to be reconciled away: fresh Lambda artifact pinned, ALB destroyed, stale SSM URL removed, ingress ECS cluster made inactive, APIGW telemetry codified in Terraform, duplicate log-policy ownership removed, and graphs regenerated so they stopped overclaiming the obsolete ingress path. Only then did the path become not just green enough, but single-owned, governable, and remotely inspectable.
+
+`What had to be resolved, in plain terms`
+
+The shortest honest synthesis is:
+
+To move `Boundary access path` from `A posture` to `Bi posture`, the platform had to resolve seven things:
+
+1. boundary ambiguity
+2. harness under-drive being mistaken for edge failure
+3. real runtime edge weakness without accepting a semantically worse fix
+4. lack of direct edge observability
+5. false fail-closed health classification
+6. a coarse proof boundary that mis-scored an otherwise healthy edge
+7. retained ingress drift that kept the accepted story from matching the live network
+
+`What the final Bi posture of this path now means`
+
+The final `Bi` posture of `Boundary access path` is not just that API Gateway exists. It is:
+
+one explicit APIGW front door, one truthful keyed boundary contract, one codified APIGW telemetry and access-log proof surface, no retained internal-ingress ambiguity in the accepted live story, and a closure verdict earned on the exact external edge rather than on a looser proxy.
+
+`What claim this path supports toward the meta goal`
+
+The strongest claim this path now supports is:
+
+you did not merely expose an endpoint and later get a green receipt; you reasoned the platform from an ambiguous, partially blind ingress story into a single, governable, externally provable boundary, and you did it by separating boundary truth, runtime truth, proof truth, and drift truth rather than collapsing them together.
+
+The next flow move is to extract the `Bi claim mix` for this path.
+
+## 2026-03-14 17:08:37 +00:00 - Extract the Bi claim mix for the Boundary access path so the argument states exactly what this path now proves
+For `Boundary access path`, the `Bi claim mix` is this.
+
+1. `Readiness-reasoning claim`
+
+This path shows that readiness was earned by separating different kinds of red correctly: first boundary-truth drift, then harness under-drive, then genuine runtime insufficiency, then proof-boundary distortion. The path did not become ready because an endpoint happened to exist and later turned green; it became ready because the work kept narrowing the question until the live edge was being judged on the right boundary and the right proof surface.
+
+2. `Systems-design judgment claim`
+
+This path proves judgment about what the front door really is. In `A`, the path already claimed one explicit execute-api ingress boundary for canonical behavioural traffic rather than a vague story that ingress exists somewhere. In `Bi`, that claim was made operationally true by forcing the execute-api target, treating the stale ALB or SSM fallback as a real drift hazard, and later removing the retained internal ingress surface from the accepted live network and graph story.
+
+3. `Measurement and observability claim`
+
+This path shows that readiness improved by improving how the edge could be known, not just by changing runtime code. The work repaired the broken timing helper, enabled APIGW detailed metrics, created and verified the APIGW access-log surface, and then repinned steady-state judgment from the coarse minute-bin APIGW view to the exact APIGW access-log window on the live boundary. That is a strong `Bi` claim because it shows the edge could not be called ready until the proof surface itself became truthful.
+
+4. `Constraint and trade-off claim`
+
+This path shows that the accepted bridges were chosen under real constraints, not convenience. The work refused the easy but wrong moves: it rejected proving through the stale internal ingress surface, rejected treating the under-driven source as an ingress red, rejected the `900`-concurrency probe once it produced `PUBLISH_AMBIGUOUS`, and rejected synchronized or unstable warmed reshapes as promotion baselines. Instead, it froze the semantically trustworthy unsynchronized baseline and kept production shape and semantic cleanliness fixed while tightening proof.
+
+5. `Production-relevant challenge claim`
+
+This path demonstrates that the challenges were genuinely production-shaped: live boundary drift, false proof from helper fallback, real throughput miss under a declared envelope, misclassified health causing false fail-closed behavior, and a coarse scoring surface that could keep an actually healthy edge artificially red. Those are not toy bugs. They are the kinds of issues that make a front door untrustworthy in practice unless someone can classify them correctly and choose the right bridge.
+
+6. `Promotion and final-posture claim`
+
+This path now supports a clear final claim: the platform has one explicit, governable, externally provable front door. The final accepted posture is `API Gateway -> Lambda` on `POST /ingest/push`, with APIGW-side telemetry and exact-window access-log proof codified, no retained internal-ingress ambiguity in the accepted story, and steady-state closure proven on the live boundary at `3018.458 eps` with `4xx = 0`, `5xx = 0`, and low latency. The readiness plan then treats `Control + Ingress` as reconfirmed working-platform base.
+
+The shortest compressed version is:
+
+`Boundary access path` supports the claim that you can reason a platform's front door into production readiness by making the boundary singular, the evidence truthful, the fail-closed behavior honest, and the closure verdict rest on the exact edge the platform actually owns.
+
+The next flow move is to write the `ledger block` for this path.
+
+## 2026-03-14 17:18:42 +00:00 - Open the Admission and disposition path by pinning its A posture, Bi posture, and why ingress-owned disposition truth mattered under pressure
+`Object`
+
+`Admission and disposition path`
+Parent group: `Canonical traffic admission and bus publication`
+Main secondary object it lives inside: `Control + Ingress` as the re-pressured working-platform base.
+Later re-pressured inside enlarged networks where ingress had to stay green under RTDL and beyond, but its home object is still the Control + Ingress base.
+
+`A posture`
+
+In `A`, this path is the ingress-owned route that turns a boundary-valid request into truthful ingress disposition. Its job is not yet to prove publication and not yet to commit ingest evidence. Its narrower owned outcome is that ingress itself decides, deterministically and durably, whether the event is:
+
+- admitted
+- duplicate-safe
+- rejected invalid
+- quarantined
+- or explicitly marked ambiguous or retry-governed
+
+`A` makes this concrete in three important ways:
+
+- the entry is already a valid request at the active front door, carrying traffic that is actually allowed to behave as traffic
+- the IG Lambda computes the canonical dedupe basis from `(platform_run_id, event_class, event_id)`
+- it writes DynamoDB-backed idempotency and admission state and fail-closes with `503` if that backend is unavailable
+
+So the `A` posture is:
+
+boundary-valid request -> deterministic ingress-owned disposition truth -> durable run-scoped admission state
+
+`Bi posture`
+
+In `Bi`, this same path becomes the production-ready admission boundary: not just a place where ingress loosely classifies requests, but a boundary that can survive production pressure while keeping:
+
+- duplicate correctness
+- deterministic disposition
+- publish ambiguity handled honestly
+- semantically clean fail-closed behavior
+- and a cost posture that does not destroy the truth boundary
+
+The final pressure history shows that this path's ready posture was not earned by removing the admission ledger or relaxing fail-closed rules. Instead, it was tightened:
+
+- the live hot path kept the DDB-backed truth boundary
+- weaker cost postures on the Lambda hot path were rejected when they broke the declared production shape
+- the wasteful part of the retained posture was later compacted by shrinking inline receipt payloads rather than abandoning the ledger itself
+- and `Phase 0` finally closed green with duplicate correctness, publish continuity, coherent receipts, and repeatable bounded proof on the accepted baseline
+
+So the `Bi` posture is not different path, different truth. It is:
+
+the same ingress-owned disposition boundary, now made production-ready through truthful dedupe and disposition ownership, semantically honest fail-closed behavior, and a tightened hot-path cost shape that preserved the boundary instead of weakening it
+
+`Why this object matters`
+
+This path matters because without it the platform loses its clean answer to basic ingress-truth questions:
+
+- was this event first-seen or duplicate?
+- was it admitted or quarantined?
+- what run did that decision belong to?
+- was downstream starvation a publish or runtime issue, or was the event never truly admitted in the first place?
+
+That is why `A` treats it as a distinct real path rather than collapsing it into bus publication. And that is why it has strong `Bi` value for the meta goal: it shows the work was not satisfied with traffic reached ingress and later something happened. It preserved ingress-owned truth as its own production-readiness concern and then reasoned through the cost, semantic, and measurement issues needed to keep that truth boundary intact under pressure.
+
+So, in one line:
+
+`Admission and disposition path` is the path that turns a valid request at the real front door into durable ingress-owned truth, and in `Bi` it becomes the production-ready admission boundary that remains deterministic, duplicate-safe, semantically honest, and cost-tightened without surrendering its truth boundary.
+
+The next step in the flow is to derive the `system-design questions` for this path.
+
+## 2026-03-14 17:28:11 +00:00 - Derive the system-design questions for the Admission and disposition path so the later pressure history answers the right ingress-truth problem
+For `Admission and disposition path`, these are the system-design questions to pin before mapping the pressure episodes.
+
+`Admission and disposition path` - `system-design questions`
+
+1. `What counts as truthful ingress disposition at all?`
+
+The first question is: what exact decision is ingress supposed to own before bus truth begins? For this path, the owned outcome is not that the event got into the platform somehow. It is durable, run-scoped ingress truth: admitted, duplicate-safe, rejected invalid, quarantined, or explicitly marked ambiguous or retry-governed. That is the boundary this path exists to defend.
+
+2. `What makes the dedupe boundary authoritative here?`
+
+This path has to ask: what identity makes two ingress attempts the same event for this run, and who owns that answer? The current design pins that boundary inside ingress itself through a deterministic SHA-256 dedupe basis from `(platform_run_id, event_class, event_id)`, persisted in the DDB idempotency and admission store with TTL and minimal admission metadata. So the question is not just whether dedupe exists, but whether the dedupe identity is explicit, deterministic, and ingress-owned.
+
+3. `How do we know ingress truth is durable rather than implied?`
+
+A core question for this path is: does ingress merely return `202`, or does it actually persist its own decision truth? This mattered enough that the earlier posture where `/ingest/push` could return `202` without any run-scoped admission or idempotency record was explicitly rejected as structurally wrong. The selected fix was to make truthful admission persistence happen inside the IG Lambda path itself, not through a bypass.
+
+4. `How do we keep this path separate from bus publication without making ambiguity invisible?`
+
+This is one of the most important questions for the path: where does admission truth stop, and where does bus truth begin? The path closes at ingress disposition truth, not at topic publication. But it still has to classify ambiguous downstream outcomes honestly. The `A` note is explicit that unknown publish outcomes must become retry-governed or quarantined according to contract and must not be silently marked as success. So the question is: how does ingress own ambiguity classification without collapsing the whole path into the next publication path?
+
+5. `What does production-ready mean specifically for this path?`
+
+For `Bi`, the path-specific readiness question is: can ingress keep deterministic admission, duplicate correctness, ambiguity honesty, and fail-closed discipline under the declared envelope? The production-readiness plan makes that concrete for Control + Ingress through duplicate correctness, publish continuity, valid-traffic `4xx` and `5xx = 0`, receipt and quarantine truth, and repeatable proof on the same truthful run shape. So this path is not production-ready just because it writes a ledger; it is ready only when that ledger-backed disposition boundary remains truthful under pressure.
+
+6. `How should we measure whether the path is actually behaving correctly?`
+
+This path needs its own measurement questions: what tells us admission truth is real and stable? The readiness plan already points to the right families: admitted rate, duplicate rate, publish success or retry or ambiguity counts, ingress dedupe-ledger writes, admitted-without-publish evidence, and coherent receipt or quarantine truth. Those are the measures that let this path be judged as an ingress-truth boundary rather than as a vague side effect of later runtime activity.
+
+7. `What constraints must not be violated while hardening this path?`
+
+This path is constrained by two big laws. First, only canonical behavioural traffic may appear here, and it must obey the canonical event-envelope contract. Second, ingress truth must remain ingress truth: no silent defaults, no bypasses, no toy substitutes, and no pushing the ownership of admission truth into some downstream plane. That is why direct DDB seed writes were rejected even when they could have made counters look better.
+
+8. `What trade-off is acceptable here, and what trade-off is not?`
+
+This path deliberately accepts hot-path ceremony in exchange for truthfulness. Durable dedupe and admission persistence add write pressure and cost to the ingress hot path. But the design says that is acceptable if it preserves the truth boundary. The readiness history later shows the right kind of hardening move: when the DDB idempotency table became the dominant cost surface because full receipt bodies were stored inline, the accepted bridge was not to abandon the ledger boundary; it was to keep the proven `ddb_hot` posture and compact the stored receipt shape to the minimum needed for attribution and lookup. That is a very important `Bi` question for this path: what can be tightened without weakening ownership truth?
+
+9. `Under enlarged-network pressure, what should stay true about this path?`
+
+Once later planes attach, this path has to answer: does ingress still decide admission and disposition truth cleanly, or does enlarged coupling make that truth blur? A good example from the readiness history is the fresh-scope coupled red where ingress was quarantining with `PUBLISH_AMBIGUOUS` before meaningful RTDL participation had even formed. That mattered because it showed the coupled problem was still being resolved at the ingress publish and admission boundary, not downstream in RTDL semantics. So a standing system-design question for this path is whether enlarged-network re-pressure is revealing a real ingress-owned truth problem or a downstream issue that should not be charged to ingress disposition.
+
+10. `What does this path need to prove for the meta goal?`
+
+The strongest claim this path should support is not that idempotency existed. It is: the platform treated ingress-owned decision truth as a first-class production-readiness boundary, preserved that truth under pressure, and tightened cost and implementation shape without surrendering the ownership boundary. That is the kind of reasoning a serious reviewer would recognize as engineering judgment rather than just implementation effort.
+
+Compressed into one line:
+
+For `Admission and disposition path`, the system-design interrogation is about whether ingress can own deterministic, durable, duplicate-safe, ambiguity-honest decision truth under pressure, and whether every hardening move preserved that truth boundary rather than weakening it for convenience.
+
+The next move in the flow is to map this path to the `pressure episodes` that actually changed its posture.
