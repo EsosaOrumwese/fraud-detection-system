@@ -303,3 +303,81 @@ Judgment at this point:
 - the primary interrogation inventory is fixed
 - the enlarged-network inventory is fixed
 - and the notebook can now move to the next step in the flow: prioritize which objects have the richest readiness and meta-goal payoff
+
+## 2026-03-14 14:23:40 +00:00 - Build the two-layer interrogation matrix so Bi stays complete while still having a strong opening order
+The right matrix for `Bi` is full-coverage, with primary and secondary ranked separately, and with ranking used only for interrogation order, depth, and meta-goal payoff, not for inclusion.
+
+That means:
+
+- the inventory remains complete
+- ranking does not decide what gets to exist
+- ranking decides what opens first, what gets the deepest treatment, and where the strongest reader-facing payoff sits
+
+The legend for the matrix is:
+
+- `Order` = suggested notebook sequence, not exclusion
+- `Depth` = how much standalone notebook weight the object should get
+- `Meta-goal payoff` = how strongly the object helps a serious reviewer infer senior-level readiness reasoning
+
+The primary-layer matrix inherits the `A` object map. Groups and paths remain the default interrogation unit. Specific path sets for Groups 1-3, 5, and 6 are already pinned in `A`; Group 4 carries its existing `A` path naming forward unchanged; Group 7 keeps its inherited `A` path set, but should stay group-first in `Bi` unless the pressure history proves that finer path granularity is worth the extra notebook weight.
+
+`Primary-layer matrix`
+
+| Order | Primary object | Default unit | Path coverage | Depth | Meta-goal payoff | Why this order |
+| --- | --- | --- | --- | --- | --- | --- |
+| `P1` | `Canonical traffic admission and bus publication` | `group/path` | `Boundary access`; `Admission and disposition`; `Authoritative bus publication`; `Ingest commit truth` | `Deep` | `Very high` | Best opening primary object because it sits directly on the re-pressured base, carries the clearest measurement story, and immediately shows that `Bi` is about trustworthy ingress and runtime handoff rather than “the system existed.” |
+| `P2` | `Runtime context formation and decisioning` | `group/path` | `Entity and relationship projection`; `Joined context formation`; `Online feature readiness`; `Decision guardrail`; `Decision formation`; `Action and outcome emission` | `Deep` | `Very high` | This is the runtime hot path where semantic correctness, fail-closed honesty, and real decision or action meaning live. |
+| `P3` | `Case and label operational truth` | `group/path` | `Case-intent escalation`; `Case creation and timeline append`; `Case-to-label handoff`; `Authoritative label commit and visibility` | `Deep` | `Very high` | Strong production story: operational review truth, supervision truth, timing truth, duplicate safety, and downstream learning relevance. |
+| `P4` | `Learning, evaluation, and governed activation` | `group/path` | `Learning-input basis`; `Offline dataset commitment`; `Train / eval and candidate-bundle`; `Promotion and rollback-governance`; `Active-bundle authority feedback` | `Deep` | `Very high` | Probably the richest single corridor for semantics, governance, and “why this bridge was the right one” reasoning. |
+| `P5` | `Run governance, observability, and evidence closure` | `group first` | Keep group-level first; drop to inherited `A` path granularity only where the pressure history proves distinct treatment is worth it | `Deep` | `Very high` | Strong recruiter-facing payoff: run reconstruction, verdict traceability, drift visibility, alert coverage, cost discipline, and idle or restart safety. |
+| `P6` | `Durable audit, archive, and replay truth` | `group/path` | Carry the already-pinned `A` audit/archive/replay path set forward unchanged | `Medium` | `High` | Very important, but often best interrogated in relation to RTDL, Case + Label, and Learning rather than opened before them. |
+| `P7` | `Run and world-source authority` | `group/path` | `Run legitimization`; `Source realization`; `Ready authorization` | `Medium` | `High` | Still in scope, but more of its strongest existence argument already lives in `A`; bring it forward where production pressure materially changed or constrained later readiness claims. |
+
+The secondary-layer matrix comes from the readiness plan's enlarged-network method and the current promoted readiness baseline: prove a plane, then prove the enlarged network it creates, then promote. In the current accepted ready core, the full platform is now promoted through the completed readiness plan, including `Ops / Gov / Meta`. The secondary-layer objects therefore describe the enlarged-network reasoning surfaces that were traversed on the way to that full production-ready posture, not still-open current exclusions from the accepted baseline.
+
+`Secondary-layer matrix`
+
+| Order | Secondary object | Default unit | Depth | Meta-goal payoff | Why this order |
+| --- | --- | --- | --- | --- | --- |
+| `S1` | `Control + Ingress as the re-pressured working-platform base` | `enlarged-network object` | `Deep` | `Very high` | Best opening secondary object because it keeps the inherited base visible and shows that later readiness was not just “new planes went green”; the already-working system had to stay green under repeated enlarged coupling. |
+| `S2` | `Control + Ingress + RTDL` | `enlarged-network object` | `Deep` | `Very high` | First real enlarged production network beyond ingress. Good place to show how runtime participation, timing, and continuity became materially production-shaped. |
+| `S3` | `Control + Ingress + RTDL + Case + Label` | `enlarged-network object` | `Deep` | `Very high` | Excellent for showing how operational-review truth changed what counted as trustworthy readiness for the already-working runtime base. |
+| `S4` | `Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps` | `enlarged-network object` | `Deep` | `Very high` | Strongest feedback-loop object: runtime truth, case/label truth, learning basis, promotion, rollback, and active-bundle runtime authority. |
+| `S5` | `Working platform + Ops / Gov / Meta operational closure` | `enlarged-network object` | `Deep` | `Very high` | Moves the story from “system runs” to “system can be operated, audited, governed, reconstructed, idled safely, and cost-accounted for,” and shows how the full platform earned a true operational closure posture rather than only runtime correctness. |
+| `S6` | `Full-platform bounded integrated validation` | `capstone enlarged-network object` | `Deep` | `High` | The coherent-whole proof: truth continuity, timing continuity, no hidden handoff defect, and one explainable platform story. |
+| `S7` | `Full-platform bounded stress authorization` | `capstone enlarged-network object` | `Deep` | `Very high` | Final readiness capstone. Strong meta-goal payoff because it shows the platform remained semantically meaningful and operationally attributable under widened bounded pressure, not just technically alive. |
+
+Nothing in this matrix is out of scope. It only tells us:
+
+- what to open first
+- what gets a full standalone object block
+- what can be partly carried inside stronger neighboring objects
+- and where the strongest reader-facing payoff sits
+
+So the notebook remains complete, but not flat.
+
+The cleanest opening pair is:
+
+- `Secondary S1` - `Control + Ingress` as the re-pressured base
+- `Primary P1` - `Canonical traffic admission and bus publication`
+
+That is the best start because the corrected `Bi` method already identifies `Control + Ingress` as the clearest example of a base object that stayed visible and had to be revalidated as later planes were attached.
+
+The working object-block shape from here should be:
+
+- `A posture`
+- `Bi posture`
+- `why it mattered`
+- `concern`
+- `measurement`
+- `pressure episodes`
+- `constraints / trade-offs`
+- `accepted bridge`
+- `claim`
+
+Judgment at this point:
+
+- the inventory is now complete and non-negotiable
+- prioritization is now separated cleanly from inclusion
+- primary and secondary layers are ranked independently
+- the next step is to open the first selected pair rather than continuing to refine the inventory abstractly
