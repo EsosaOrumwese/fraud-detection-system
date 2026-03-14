@@ -7607,3 +7607,34 @@ That gives the plan something it was missing:
 - full-platform cross-plane now points back to `Phase 8` integrated closure plus `Phase 9` widened stress authorization.
 
 The important part is that the ledger now says not just "what we were aiming for" but also "what was actually proven and by which authority," without pretending that the proof was cleaner or more granular than it really was.
+
+## 2026-03-14 03:27:52 +00:00 - The main plan needed a real cost snapshot, not just generic cost-discipline language, so I added the AWS daily service matrix directly from Cost Explorer
+
+The user asked for a daily/service cost breakdown and then asked for it to be added to the main plan. That was a good correction because the plan already talks about cost discipline as a production-readiness dimension, but it did not yet carry a concrete bounded snapshot of what the hardening work had actually cost by day and by service.
+
+I queried AWS Cost Explorer directly using:
+
+- metric `UnblendedCost`
+- granularity `DAILY`
+- group-by `SERVICE`
+- window `2026-03-01` through `2026-03-13`
+
+and then added that result into `platform.production_readiness.plan.md` as a dated cost snapshot rather than leaving it in chat only.
+
+The reason I wanted the full matrix in the plan is that the shape matters more than one total:
+
+- `DynamoDB` is still the largest AWS accumulator month-to-date
+- `ECS`, `MSK`, `Lambda`, `RDS`, `API Gateway`, and `S3` remain the next material families
+- the March `9` drop is visible directly in the daily totals, which makes the teardown / rebuild effect explicit inside the plan rather than relying on memory
+
+I also carried the caveat honestly:
+
+- the CE response still marked all queried days as `Estimated=true`
+- the section is AWS-only and does not pretend to be a universal cross-platform billing truth
+
+That means the main plan now contains:
+
+1. the production-readiness method,
+2. the proved readiness authority,
+3. the ledger targets plus closure-status blocks,
+4. and a bounded real billing snapshot for the hardening window.

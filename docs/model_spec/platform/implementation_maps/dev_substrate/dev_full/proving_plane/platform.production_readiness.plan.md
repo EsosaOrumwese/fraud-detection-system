@@ -1536,3 +1536,114 @@ Current judgment:
   - operator and governance challenge stayed live and attributable
 
 Any later longer stress / soak work should therefore begin from the accepted `Phase 9` authority rather than reopening earlier bounded phase questions unless a new defect appears.
+
+---
+
+## AWS cost snapshot (`2026-03-01` to `2026-03-13`)
+
+This snapshot is included because production readiness in this repo explicitly includes cost discipline, and the phase work materially changed the cost profile over time.
+
+Source:
+- AWS Cost Explorer
+- metric: `UnblendedCost`
+- granularity: `DAILY`
+- group-by: `SERVICE`
+- query window: `2026-03-01` through `2026-03-13`
+
+Caveat:
+- all returned days were still marked `Estimated=true` at query time
+- this is AWS-only and does not pretend to cover non-AWS control planes unless separately captured
+
+### Daily totals
+
+| Date | Total USD | Estimated |
+|---|---:|---|
+| 2026-03-01 | `668.81` | `true` |
+| 2026-03-02 | `38.18` | `true` |
+| 2026-03-03 | `33.43` | `true` |
+| 2026-03-04 | `34.82` | `true` |
+| 2026-03-05 | `33.34` | `true` |
+| 2026-03-06 | `196.21` | `true` |
+| 2026-03-07 | `619.83` | `true` |
+| 2026-03-08 | `564.86` | `true` |
+| 2026-03-09 | `190.50` | `true` |
+| 2026-03-10 | `275.10` | `true` |
+| 2026-03-11 | `533.49` | `true` |
+| 2026-03-12 | `317.49` | `true` |
+| 2026-03-13 | `302.72` | `true` |
+
+### Service totals so far
+
+| Service | Total USD |
+|---|---:|
+| Amazon DynamoDB | `858.61` |
+| Tax | `634.80` |
+| Amazon Elastic Container Service | `434.71` |
+| Amazon Managed Streaming for Apache Kafka | `358.42` |
+| AWS Lambda | `275.76` |
+| Amazon Relational Database Service | `261.95` |
+| Amazon API Gateway | `243.99` |
+| Amazon Simple Storage Service | `234.68` |
+| AmazonCloudWatch | `186.67` |
+| Amazon Elastic Compute Cloud - Compute | `143.59` |
+| EC2 - Other | `71.57` |
+| Amazon Virtual Private Cloud | `46.93` |
+| Amazon Elastic Container Service for Kubernetes | `29.82` |
+| Amazon Kinesis | `11.77` |
+| Amazon Elastic Load Balancing | `6.29` |
+| Amazon Elastic MapReduce | `3.74` |
+| Amazon Athena | `1.74` |
+| Amazon Kinesis Analytics | `1.74` |
+| AWS Key Management Service | `0.93` |
+| AWS Cost Explorer | `0.56` |
+| Amazon EC2 Container Registry (ECR) | `0.46` |
+| Amazon SageMaker | `0.05` |
+
+### Daily breakdown by major service
+
+| Date | DynamoDB | ECS | MSK | Lambda | RDS | API GW | S3 | CloudWatch | EC2 Compute | EC2 Other |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 2026-03-01 | `0.00` | `0.00` | `21.00` | `0.00` | `1.76` | `0.00` | `0.25` | `0.00` | `4.02` | `0.00` |
+| 2026-03-02 | `0.28` | `0.07` | `21.21` | `0.00` | `1.75` | `0.00` | `0.49` | `0.00` | `4.53` | `0.00` |
+| 2026-03-03 | `0.10` | `0.00` | `21.25` | `0.00` | `1.76` | `0.00` | `0.28` | `0.00` | `4.54` | `0.00` |
+| 2026-03-04 | `0.01` | `0.00` | `22.57` | `0.00` | `1.75` | `0.00` | `0.28` | `0.00` | `4.53` | `0.00` |
+| 2026-03-05 | `0.00` | `0.00` | `22.59` | `0.00` | `1.75` | `0.00` | `0.31` | `0.00` | `2.06` | `0.00` |
+| 2026-03-06 | `29.71` | `23.90` | `24.48` | `12.67` | `9.63` | `36.81` | `20.02` | `17.49` | `14.81` | `0.01` |
+| 2026-03-07 | `213.30` | `175.22` | `42.13` | `0.00` | `52.86` | `0.00` | `34.31` | `71.55` | `18.36` | `0.36` |
+| 2026-03-08 | `261.69` | `155.69` | `42.00` | `0.00` | `52.87` | `0.00` | `6.60` | `13.18` | `18.95` | `3.57` |
+| 2026-03-09 | `47.84` | `22.07` | `25.75` | `9.19` | `16.53` | `2.00` | `18.92` | `16.03` | `14.14` | `9.89` |
+| 2026-03-10 | `77.04` | `9.42` | `30.23` | `59.86` | `8.81` | `42.20` | `15.37` | `13.40` | `5.10` | `5.71` |
+| 2026-03-11 | `119.42` | `23.71` | `35.48` | `100.14` | `32.58` | `82.79` | `56.88` | `28.09` | `21.31` | `23.59` |
+| 2026-03-12 | `42.73` | `11.69` | `29.07` | `44.54` | `46.90` | `34.87` | `51.60` | `11.53` | `20.48` | `15.00` |
+| 2026-03-13 | `66.49` | `12.94` | `20.66` | `49.35` | `32.99` | `45.32` | `29.38` | `15.40` | `10.75` | `13.44` |
+
+### Other services by day
+
+| Date | VPC | EKS | Kinesis | ELB | KMS | Cost Explorer | ECR | SageMaker | Tax |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 2026-03-01 | `2.11` | `2.40` | `0.65` | `0.00` | `0.03` | `0.00` | `0.00` | `0.00` | `634.80` |
+| 2026-03-02 | `2.11` | `2.40` | `0.96` | `0.00` | `0.03` | `0.01` | `0.00` | `0.00` | `0.00` |
+| 2026-03-03 | `2.11` | `2.40` | `0.96` | `0.00` | `0.03` | `0.00` | `0.00` | `0.00` | `0.00` |
+| 2026-03-04 | `2.11` | `2.40` | `0.96` | `0.00` | `0.03` | `0.18` | `0.00` | `0.00` | `0.00` |
+| 2026-03-05 | `2.11` | `2.40` | `0.96` | `1.04` | `0.03` | `0.05` | `0.01` | `0.01` | `0.00` |
+| 2026-03-06 | `3.20` | `2.40` | `0.96` | `0.00` | `0.05` | `0.00` | `0.02` | `0.00` | `0.00` |
+| 2026-03-07 | `5.57` | `2.40` | `0.96` | `2.61` | `0.14` | `0.00` | `0.04` | `0.00` | `0.00` |
+| 2026-03-08 | `4.02` | `2.14` | `0.96` | `3.09` | `0.04` | `0.00` | `0.06` | `0.00` | `0.00` |
+| 2026-03-09 | `4.17` | `2.28` | `0.96` | `0.59` | `0.07` | `0.00` | `0.07` | `0.00` | `0.00` |
+| 2026-03-10 | `4.24` | `2.40` | `0.96` | `0.00` | `0.14` | `0.16` | `0.07` | `0.00` | `0.00` |
+| 2026-03-11 | `5.89` | `2.40` | `0.96` | `0.00` | `0.16` | `0.00` | `0.07` | `0.00` | `0.00` |
+| 2026-03-12 | `5.42` | `2.40` | `0.96` | `0.00` | `0.10` | `0.09` | `0.07` | `0.03` | `0.00` |
+| 2026-03-13 | `3.87` | `1.40` | `0.56` | `0.00` | `0.07` | `0.07` | `0.04` | `0.00` | `0.00` |
+
+### Cost judgment from this snapshot
+
+- the biggest month-to-date AWS accumulator is `Amazon DynamoDB`
+- the next material cost families are:
+  - `Amazon Elastic Container Service`
+  - `Amazon Managed Streaming for Apache Kafka`
+  - `AWS Lambda`
+  - `Amazon Relational Database Service`
+  - `Amazon API Gateway`
+  - `Amazon Simple Storage Service`
+- `2026-03-09` reflects the materially lower post-teardown / rebuild day compared with the heavier `2026-03-07`, `2026-03-08`, `2026-03-11`, `2026-03-12`, and `2026-03-13` hardening windows
+- the `Tax` line on `2026-03-01` is a billing artifact, not a runtime service family
