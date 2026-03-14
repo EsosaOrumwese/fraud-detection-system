@@ -97,8 +97,10 @@ def test_registry_resolution_policy_load_is_stable() -> None:
     policy_a = RegistryResolutionPolicy.load(path)
     policy_b = RegistryResolutionPolicy.load(path)
     assert policy_a.policy_rev.policy_id == "df.registry_resolution.v0"
-    assert policy_a.policy_rev.revision == "r1"
+    assert policy_a.policy_rev.revision == "r2"
     assert policy_a.content_digest == policy_b.content_digest
+    assert "dev_full|fraud|primary|" in policy_a.explicit_fallback_by_scope
+    assert "dev_full|baseline|primary|" in policy_a.explicit_fallback_by_scope
 
 
 def test_snapshot_rejects_duplicate_scope_records() -> None:

@@ -348,9 +348,10 @@ def _json_dump(value: Any) -> str | None:
 
 
 def _iter_store_json(store: Any, prefix: str) -> list[tuple[dict[str, Any], str]]:
-    from .store import LocalObjectStore, S3ObjectStore
+    from .store import LocalObjectStore, S3ObjectStore, unwrap_object_store
 
     results: list[tuple[dict[str, Any], str]] = []
+    store = unwrap_object_store(store)
     if isinstance(store, LocalObjectStore):
         root = store.root / prefix
         if root.exists():

@@ -5,15 +5,263 @@ policy:
   partitioning_profile_id: ig.partitioning.v0.traffic
   require_gate_pass: true
   stream_speedup: 1
+  traffic_output_ids_ref: config/platform/wsp/traffic_outputs_v0.yaml
+  context_output_ids_ref: config/platform/wsp/context_fraud_outputs_v0.yaml
+  context_output_ids_baseline_ref: config/platform/wsp/context_baseline_outputs_v0.yaml
 wiring:
   object_store:
     root: s3://fraud-platform-dev-full-object-store
     endpoint: ${OBJECT_STORE_ENDPOINT}
     region: ${OBJECT_STORE_REGION}
     path_style: false
+  event_bus_kind: kafka
+  event_bus:
+    stream: ${KAFKA_BOOTSTRAP_SERVERS}
+    region: ${KAFKA_AWS_REGION}
+    endpoint_url: ${KAFKA_ENDPOINT_URL}
+  health_bus_probe_mode: describe
+  oracle_root: ${ORACLE_ROOT:-s3://fraud-platform-dev-full-object-store}
+  oracle_engine_run_root: ${ORACLE_ENGINE_RUN_ROOT:-}
+  oracle_scenario_id: ${ORACLE_SCENARIO_ID:-}
+  oracle_stream_view_root: ${ORACLE_STREAM_VIEW_ROOT:-}
+  ig_ingest_url: ${IG_INGEST_URL:-https://ehwznd2uw7.execute-api.eu-west-2.amazonaws.com/v1/ingest/push}
+  control_bus:
+    kind: kafka
+    topic: fp.bus.control.v1
+  wsp_checkpoint:
+    backend: postgres
+    dsn: ${WSP_CHECKPOINT_DSN:-}
+    flush_every: 100
+  wsp_retry:
+    max_attempts: 5
+    base_delay_ms: 250
+    max_delay_ms: 5000
+  wsp_producer:
+    producer_id: svc:world_stream_producer
+    allowlist_ref: config/platform/wsp/producer_allowlist_v0.txt
+  security:
+    auth_mode: api_key
+    api_key_header: X-IG-Api-Key
+    auth_allowlist:
+      - world_stream_producer
+      - platform_run_reporter
+      - decision_fabric
+      - action_layer
+    wsp_auth_token: ${IG_API_KEY:-}
+    push_rate_limit_per_minute: 0
+    store_read_failure_threshold: 3
+ieg:
+  policy:
+    classification_ref: config/platform/ieg/classification_v0.yaml
+    identity_hints_ref: config/platform/ieg/identity_hints_v0.yaml
+    retention_ref: config/platform/ieg/retention_v0.yaml
+    class_map_ref: config/platform/ig/class_map_v0.yaml
+    partitioning_profiles_ref: config/platform/ig/partitioning_profiles_v0.yaml
+    graph_stream_id: ieg.v0
+  wiring:
+    required_platform_run_id: ${IEG_REQUIRED_PLATFORM_RUN_ID}
+    projection_db_dsn: ${IEG_PROJECTION_DSN}
+    event_bus_kind: kafka
+    event_bus:
+      stream: ${KAFKA_BOOTSTRAP_SERVERS}
+      region: ${KAFKA_AWS_REGION}
+      endpoint_url: ${KAFKA_ENDPOINT_URL}
+      topics_ref: config/platform/ieg/topics_v0.yaml
+      start_position: latest
+    engine_contracts_root: docs/model_spec/data-engine/interface_pack/contracts
+    poll_max_records: 500
+    poll_sleep_seconds: 0.1
+    checkpoint_every: 1
+    max_inflight: 500
+    batch_size: 100
 ofp:
   policy:
+    stream_id: ofp.v0
     features_ref: config/platform/ofp/features_v0.yaml
+    feature_group_name: core_features
+    feature_group_version: v1
+    key_precedence:
+      - flow_id
+      - event_id
+    amount_fields:
+      - amount
+  wiring:
+    required_platform_run_id: ${OFP_REQUIRED_PLATFORM_RUN_ID}
+    projection_db_dsn: ${OFP_PROJECTION_DSN}
+    snapshot_index_dsn: ${OFP_SNAPSHOT_INDEX_DSN}
+    snapshot_store_root: s3://fraud-platform-dev-full-object-store
+    snapshot_store_endpoint: ${OBJECT_STORE_ENDPOINT}
+    snapshot_store_region: ${OBJECT_STORE_REGION}
+    snapshot_store_path_style: false
+    event_bus_kind: kafka
+    event_bus:
+      stream: ${KAFKA_BOOTSTRAP_SERVERS}
+      region: ${KAFKA_AWS_REGION}
+      endpoint_url: ${KAFKA_ENDPOINT_URL}
+      topics_ref: config/platform/ofp/topics_v0.yaml
+      start_position: latest
+    engine_contracts_root: docs/model_spec/data-engine/interface_pack/contracts
+    poll_max_records: 500
+    poll_sleep_seconds: 0.1
+    event_bus_start_position: latest
+context_store_flow_binding:
+  policy:
+    stream_id: csfb.v0
+    class_map_ref: config/platform/ig/class_map_v0.yaml
+    context_event_classes:
+      - context_arrival
+      - context_arrival_entities
+      - context_flow_baseline
+      - context_flow_fraud
+  wiring:
+    required_platform_run_id: ${CSFB_REQUIRED_PLATFORM_RUN_ID}
+    projection_db_dsn: ${CSFB_PROJECTION_DSN}
+    event_bus_kind: kafka
+    event_bus:
+      stream: ${KAFKA_BOOTSTRAP_SERVERS}
+      region: ${KAFKA_AWS_REGION}
+      endpoint_url: ${KAFKA_ENDPOINT_URL}
+      topics_ref: config/platform/context_store_flow_binding/topics_v0.yaml
+      start_position: latest
+    engine_contracts_root: docs/model_spec/data-engine/interface_pack/contracts
+    poll_max_records: 500
+    poll_sleep_seconds: 0.1
+dl:
+  policy:
+    profiles_ref: config/platform/dl/policy_profiles_v0.yaml
+    profile_id: prod
+  wiring:
+    stream_id: dl.v0
+    scope_kind: GLOBAL
+    store_dsn: ${DL_POSTURE_DSN}
+    outbox_dsn: ${DL_OUTBOX_DSN}
+    ops_dsn: ${DL_OPS_DSN}
+    max_age_seconds: 120
+    poll_seconds: 1.0
+df:
+  policy:
+    trigger_policy_ref: config/platform/df/trigger_policy_v0.yaml
+    context_policy_ref: config/platform/df/context_policy_v0.yaml
+    registry_resolution_policy_ref: config/platform/df/registry_resolution_policy_v0.yaml
+    registry_snapshot_ref: config/platform/df/registry_snapshot_dev_full_v0.yaml
+  wiring:
+    stream_id: df.v0
+    required_platform_run_id: ${DF_REQUIRED_PLATFORM_RUN_ID}
+    event_bus_kind: kafka
+    event_bus_stream: ${KAFKA_BOOTSTRAP_SERVERS}
+    event_bus_region: ${KAFKA_AWS_REGION}
+    event_bus_endpoint_url: ${KAFKA_ENDPOINT_URL}
+    event_bus_start_position: latest
+    poll_max_records: 500
+    poll_sleep_seconds: 0.1
+    environment: dev_full
+    bundle_slot: primary
+    replay_dsn: ${DF_REPLAY_DSN}
+    checkpoint_dsn: ${DF_CHECKPOINT_DSN}
+al:
+  policy:
+    authz_policy_ref: config/platform/al/policy_v0.yaml
+  wiring:
+    stream_id: al.v0
+    required_platform_run_id: ${AL_REQUIRED_PLATFORM_RUN_ID}
+    event_bus_kind: kafka
+    event_bus_stream: ${KAFKA_BOOTSTRAP_SERVERS}
+    event_bus_region: ${KAFKA_AWS_REGION}
+    event_bus_endpoint_url: ${KAFKA_ENDPOINT_URL}
+    event_bus_start_position: latest
+    admitted_topics:
+      - fp.bus.rtdl.v1
+    poll_max_records: 500
+    poll_sleep_seconds: 0.1
+    ledger_dsn: ${AL_LEDGER_DSN}
+    outcomes_dsn: ${AL_OUTCOMES_DSN}
+    replay_dsn: ${AL_REPLAY_DSN}
+    checkpoint_dsn: ${AL_CHECKPOINT_DSN}
+dla:
+  policy:
+    intake_policy_ref: config/platform/dla/intake_policy_v0.yaml
+    storage_policy_ref: config/platform/dla/storage_policy_v0.yaml
+    storage_profile_id: prod
+  wiring:
+    stream_id: dla.intake.v0
+    required_platform_run_id: ${DLA_REQUIRED_PLATFORM_RUN_ID}
+    index_locator: ${DLA_INDEX_DSN}
+    event_bus_kind: kafka
+    event_bus_stream: ${KAFKA_BOOTSTRAP_SERVERS}
+    event_bus_region: ${KAFKA_AWS_REGION}
+    event_bus_endpoint_url: ${KAFKA_ENDPOINT_URL}
+    event_bus_start_position: latest
+    poll_max_records: 500
+    poll_sleep_seconds: 0.2
+case_trigger:
+  policy:
+    trigger_policy_ref: config/platform/case_trigger/trigger_policy_v0.yaml
+  wiring:
+    stream_id: case_trigger.v0
+    required_platform_run_id: ${CASE_TRIGGER_REQUIRED_PLATFORM_RUN_ID:-${ACTIVE_PLATFORM_RUN_ID:-}}
+    event_bus_kind: kafka
+    event_bus_stream: ${KAFKA_BOOTSTRAP_SERVERS}
+    event_bus_region: ${KAFKA_AWS_REGION}
+    event_bus_endpoint_url: ${KAFKA_ENDPOINT_URL}
+    event_bus_start_position: latest
+    admitted_topics:
+      - fp.bus.rtdl.v1
+    poll_max_records: 500
+    poll_sleep_seconds: 0.2
+    replay_dsn: ${CASE_TRIGGER_REPLAY_DSN:-}
+    checkpoint_dsn: ${CASE_TRIGGER_CHECKPOINT_DSN:-}
+    publish_store_dsn: ${CASE_TRIGGER_PUBLISH_STORE_DSN:-}
+    platform_store_root: s3://fraud-platform-dev-full-object-store
+    object_store_endpoint: ${OBJECT_STORE_ENDPOINT}
+    object_store_region: ${OBJECT_STORE_REGION}
+    object_store_path_style: false
+case_mgmt:
+  policy:
+    label_emission_policy_ref: config/platform/case_mgmt/label_emission_policy_v0.yaml
+  wiring:
+    stream_id: case_mgmt.v0
+    required_platform_run_id: ${CASE_MGMT_REQUIRED_PLATFORM_RUN_ID:-${ACTIVE_PLATFORM_RUN_ID:-}}
+    event_bus_kind: kafka
+    event_bus_stream: ${KAFKA_BOOTSTRAP_SERVERS}
+    event_bus_region: ${KAFKA_AWS_REGION}
+    event_bus_endpoint_url: ${KAFKA_ENDPOINT_URL}
+    event_bus_start_position: latest
+    admitted_topics:
+      - fp.bus.case.triggers.v1
+    poll_max_records: 500
+    poll_sleep_seconds: 0.2
+    locator: ${CASE_MGMT_LOCATOR:-}
+    label_store_locator: ${LABEL_STORE_LOCATOR:-}
+    default_label_type: fraud_disposition
+    default_label_value: FRAUD_SUSPECTED
+    default_source_type: AUTO
+    default_actor_id: SYSTEM::case_mgmt_worker
+label_store:
+  wiring:
+    stream_id: label_store.v0
+    locator: ${LABEL_STORE_LOCATOR:-}
+    required_platform_run_id: ${LABEL_STORE_REQUIRED_PLATFORM_RUN_ID:-${ACTIVE_PLATFORM_RUN_ID:-}}
+    scenario_run_id: ${LABEL_STORE_SCENARIO_RUN_ID:-}
+    poll_seconds: 2.0
+archive_writer:
+  policy:
+    policy_ref: config/platform/archive_writer/policy_v0.yaml
+  wiring:
+    stream_id: archive_writer.v0
+    required_platform_run_id: ${ARCHIVE_WRITER_REQUIRED_PLATFORM_RUN_ID}
+    ledger_dsn: ${ARCHIVE_WRITER_LEDGER_DSN}
+    event_bus_kind: kafka
+    event_bus_stream: ${KAFKA_BOOTSTRAP_SERVERS}
+    event_bus_region: ${KAFKA_AWS_REGION}
+    event_bus_endpoint_url: ${KAFKA_ENDPOINT_URL}
+    event_bus_start_position: latest
+    topics_ref: config/platform/archive_writer/topics_v0.yaml
+    platform_store_root: s3://fraud-platform-dev-full-object-store
+    object_store_endpoint: ${OBJECT_STORE_ENDPOINT}
+    object_store_region: ${OBJECT_STORE_REGION}
+    object_store_path_style: false
+    poll_max_records: 500
+    poll_sleep_seconds: 0.2
 ofs:
   policy:
     launcher_policy_ref: config/platform/ofs/launcher_policy_v0.yaml

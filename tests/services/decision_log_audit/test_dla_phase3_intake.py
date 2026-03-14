@@ -24,6 +24,9 @@ from fraud_detection.decision_log_audit.intake import (
 from fraud_detection.decision_log_audit.storage import DecisionLogAuditIntakeStore
 
 
+DLA_TOPIC = "fp.bus.rtdl.v1"
+
+
 def _policy():
     return load_intake_policy(Path("config/platform/dla/intake_policy_v0.yaml"))
 
@@ -108,7 +111,7 @@ def test_phase3_inlet_accepts_valid_decision_response() -> None:
     inlet = DecisionLogAuditInlet(_policy())
     result = inlet.evaluate(
         DlaBusInput(
-            topic="fp.bus.traffic.fraud.v1",
+            topic=DLA_TOPIC,
             partition=0,
             offset="100",
             offset_kind="kinesis_sequence",
@@ -128,7 +131,7 @@ def test_phase3_inlet_rejects_unknown_event_family() -> None:
     envelope["event_type"] = "arrival_events_5B"
     result = inlet.evaluate(
         DlaBusInput(
-            topic="fp.bus.traffic.fraud.v1",
+            topic=DLA_TOPIC,
             partition=0,
             offset="100",
             offset_kind="kinesis_sequence",
@@ -147,7 +150,7 @@ def test_phase3_inlet_enforces_run_scope_before_event_family() -> None:
     envelope["platform_run_id"] = "platform_20260207T102701Z"
     result = inlet.evaluate(
         DlaBusInput(
-            topic="fp.bus.traffic.fraud.v1",
+            topic=DLA_TOPIC,
             partition=0,
             offset="100",
             offset_kind="kinesis_sequence",
@@ -164,7 +167,7 @@ def test_phase3_inlet_rejects_incomplete_payload_contract() -> None:
     envelope["payload"] = {"decision_kind": "txn_disposition"}
     result = inlet.evaluate(
         DlaBusInput(
-            topic="fp.bus.traffic.fraud.v1",
+            topic=DLA_TOPIC,
             partition=0,
             offset="100",
             offset_kind="kinesis_sequence",
@@ -187,7 +190,7 @@ def test_phase3_processor_does_not_advance_checkpoint_when_quarantine_write_fail
 
     result = processor.process_record(
         DlaBusInput(
-            topic="fp.bus.traffic.fraud.v1",
+            topic=DLA_TOPIC,
             partition=0,
             offset="0",
             offset_kind="file_line",
@@ -196,7 +199,7 @@ def test_phase3_processor_does_not_advance_checkpoint_when_quarantine_write_fail
     )
     assert result.reason_code == DLA_INTAKE_WRITE_FAILED
     assert result.checkpoint_advanced is False
-    assert store.get_checkpoint(topic="fp.bus.traffic.fraud.v1", partition=0) is None
+    assert store.get_checkpoint(topic=DLA_TOPIC, partition=0) is None
 
 
 def test_phase3_processor_does_not_advance_checkpoint_when_candidate_write_fails(tmp_path: Path, monkeypatch) -> None:
@@ -211,7 +214,7 @@ def test_phase3_processor_does_not_advance_checkpoint_when_candidate_write_fails
 
     result = processor.process_record(
         DlaBusInput(
-            topic="fp.bus.traffic.fraud.v1",
+            topic=DLA_TOPIC,
             partition=0,
             offset="0",
             offset_kind="file_line",
@@ -220,7 +223,7 @@ def test_phase3_processor_does_not_advance_checkpoint_when_candidate_write_fails
     )
     assert result.reason_code == DLA_INTAKE_WRITE_FAILED
     assert result.checkpoint_advanced is False
-    assert store.get_checkpoint(topic="fp.bus.traffic.fraud.v1", partition=0) is None
+    assert store.get_checkpoint(topic=DLA_TOPIC, partition=0) is None
 
 
 def test_phase3_processor_advances_checkpoint_for_quarantine_path(tmp_path: Path) -> None:
@@ -230,8 +233,8 @@ def test_phase3_processor_advances_checkpoint_for_quarantine_path(tmp_path: Path
 
     result = processor.process_record(
         DlaBusInput(
-            topic="fp.bus.traffic.fraud.v1",
             partition=0,
+            topic=DLA_TOPIC,
             offset="0",
             offset_kind="file_line",
             payload={"bad": "envelope"},
@@ -239,7 +242,7 @@ def test_phase3_processor_advances_checkpoint_for_quarantine_path(tmp_path: Path
     )
     assert result.accepted is False
     assert result.checkpoint_advanced is True
-    checkpoint = store.get_checkpoint(topic="fp.bus.traffic.fraud.v1", partition=0)
+    checkpoint = store.get_checkpoint(topic=DLA_TOPIC, partition=0)
     assert checkpoint is not None
     assert checkpoint.next_offset == "1"
 
@@ -252,7 +255,7 @@ def test_phase3_processor_run_scope_mismatch_skips_quarantine_and_advances_check
 
     result = processor.process_record(
         DlaBusInput(
-            topic="fp.bus.traffic.fraud.v1",
+            topic=DLA_TOPIC,
             partition=0,
             offset="0",
             offset_kind="file_line",
@@ -265,7 +268,7 @@ def test_phase3_processor_run_scope_mismatch_skips_quarantine_and_advances_check
     assert result.write_status == DLA_INTAKE_RUN_SCOPE_SKIPPED
     assert result.checkpoint_advanced is True
 
-    checkpoint = store.get_checkpoint(topic="fp.bus.traffic.fraud.v1", partition=0)
+    checkpoint = store.get_checkpoint(topic=DLA_TOPIC, partition=0)
     assert checkpoint is not None
     assert checkpoint.next_offset == "1"
 
@@ -283,7 +286,7 @@ def test_phase3_processor_routes_hash_mismatch_to_quarantine_and_advances_checkp
 
     first = processor.process_record(
         DlaBusInput(
-            topic="fp.bus.traffic.fraud.v1",
+            topic=DLA_TOPIC,
             partition=0,
             offset="0",
             offset_kind="file_line",
@@ -292,7 +295,7 @@ def test_phase3_processor_routes_hash_mismatch_to_quarantine_and_advances_checkp
     )
     second = processor.process_record(
         DlaBusInput(
-            topic="fp.bus.traffic.fraud.v1",
+            topic=DLA_TOPIC,
             partition=0,
             offset="1",
             offset_kind="file_line",
@@ -323,7 +326,7 @@ def test_phase3_intake_metrics_snapshot_counts_accepted_attempts(tmp_path: Path)
     scenario_run_id = "001e5209754de3e6332eb3e100d420ee"
 
     accepted = store.record_intake_attempt(
-        topic="fp.bus.traffic.fraud.v1",
+        topic=DLA_TOPIC,
         partition=0,
         offset="0",
         offset_kind="file_line",
@@ -338,7 +341,7 @@ def test_phase3_intake_metrics_snapshot_counts_accepted_attempts(tmp_path: Path)
         detail=None,
     )
     rejected = store.record_intake_attempt(
-        topic="fp.bus.traffic.fraud.v1",
+        topic=DLA_TOPIC,
         partition=0,
         offset="1",
         offset_kind="file_line",

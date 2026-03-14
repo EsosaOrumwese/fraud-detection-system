@@ -240,11 +240,7 @@ def _apply_hysteresis(
     if elapsed_seconds < quiet_seconds:
         return current_mode, f"upshift_held_quiet_period:{elapsed_seconds}s<{quiet_seconds}s"
 
-    candidate_index = current_index - 1
-    if candidate_index < baseline_index:
-        candidate_index = baseline_index
-    next_mode = MODE_SEQUENCE[candidate_index]
-    return next_mode, f"upshift_one_rung:{current_mode}->{next_mode}"
+    return baseline_mode, f"upshift_to_baseline:{current_mode}->{baseline_mode}"
 
 
 def _held_elapsed_seconds(

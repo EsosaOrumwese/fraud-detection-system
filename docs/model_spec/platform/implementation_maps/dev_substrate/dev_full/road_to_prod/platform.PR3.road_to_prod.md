@@ -1,0 +1,707 @@
+# Dev Full Road To Production-Ready - PR3 G3A Runtime Operational Certification Pack
+_As of 2026-03-06_
+
+## 0) Purpose
+`PR3` is the runtime operational certification pack (`G3A`) for `dev_full`.
+
+`PR3` is fail-closed. It cannot pass unless:
+1. runtime scorecard windows complete under the mandatory ladder `correctness -> stress -> soak`,
+2. required runtime metrics are measured on declared surfaces with required distributions and minima,
+3. mandatory cohorts and runtime drills are executed with claimable artifacts,
+4. runtime cost posture and idle-safe closure evidence are complete,
+5. final verdict is deterministic with `open_blockers=0`.
+
+## 1) Binding Authorities
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.road_to_prod.plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/road_to_prod/platform.PR2.road_to_prod.md`
+3. `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_s3_execution_receipt.json`
+4. `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_execution_summary.json`
+5. `docs/model_spec/platform/pre-design_decisions/dev-full_road-to-production-ready.md` (Section `10A`, Appendix `A`, Appendix `B`, Appendix `C`)
+6. `docs/model_spec/data-engine/interface_pack/` (boundary contract; engine internals out-of-scope)
+
+## 2) Scope Boundary
+In scope:
+1. strict preflight and run binding from `PR2_S3_READY`,
+2. canonical runtime scorecard execution across `steady`, `burst`, `recovery`, then bounded whole-platform correctness, then bounded stress, then conditional soak,
+3. runtime cohort realism execution and reporting (`duplicates`, `out-of-order`, `hot-key`, `payload extremes`, `mixed event types`),
+4. mandatory runtime drill execution and bundling (`replay integrity`, `lag recovery`, `schema evolution`, `dependency degrade`, `cost guardrail`),
+5. deterministic runtime evidence index and verdict emission,
+6. closure of `TGT-08` (runtime threshold families) and `TGT-09` (archive sink design + backpressure posture).
+
+Out of scope:
+1. promotion corridor and rollback governance certification (`PR4/G3B`),
+2. full go-live rehearsal mission closure (`PR5/G4`),
+3. data-engine internal implementation changes.
+
+## 3) PR3 Exit Standard (Hard)
+`PR3` can close only if all conditions are true:
+1. `S0..S5` receipts are present/readable with deterministic run root paths,
+2. scorecard windows complete with required durations and sample minima, and no long soak evidence is claimed before bounded correctness and bounded stress are both green,
+3. required runtime metric families pass `RC2-S` thresholds on correct measurement surfaces,
+4. cohort artifacts are complete and cohort deltas are published,
+5. all mandatory runtime drills pass recovery bounds and integrity checks,
+6. `g3a_runtime_evidence_index.json` is complete/readable and references all required artifacts,
+7. `g3a_runtime_verdict.json` has `overall_pass=true` and `open_blockers=0`,
+8. `pr3_execution_summary.json` emits `verdict=PR4_READY`, `next_gate=PR4_READY`,
+9. `TGT-08` and `TGT-09` are moved to `PINNED` with explicit closure artifacts.
+
+## 4) Capability Lanes (Mandatory PR3 Coverage)
+`PR3` must explicitly cover all lanes below:
+1. Authority/handles lane:
+   - bind strict upstream from `PR2_S3_READY`; bind active numeric contract refs.
+2. Identity/IAM lane:
+   - verify runtime identity has required read/write permissions for evidence and sinks.
+3. Network/runtime lane:
+   - verify declared injection-path claim scope and critical dependency reachability.
+4. Data store lane:
+   - verify deterministic control root and required state/sink write-read surfaces.
+5. Messaging lane:
+   - verify throughput/lag measurement surfaces and cohort routing remain in declared scope.
+6. Secrets lane:
+   - no secrets or capability tokens in docs/evidence bundles.
+7. Observability/evidence lane:
+   - emit scorecards, health reports, drill reports, evidence index, and verdict files.
+8. Rollback/rerun lane:
+   - every blocker maps to an exact rerun boundary; no rerun-the-world.
+9. Teardown/idle lane:
+   - runtime cost guardrail and idle-safe verification artifacts required for closure.
+10. Budget lane:
+    - enforce runtime and spend envelopes; fail closed on unattributed spend.
+
+## 5) Execution Posture (Performance + Cost Discipline)
+1. No local orchestration:
+   - local machine is for planning and artifact validation only, not runtime certification orchestration.
+2. Evidence-first determinism:
+   - reuse pinned contracts and deterministic run roots; no ad hoc artifact paths.
+3. Injection-path integrity:
+   - `via_IG` remains the production claim path; any `via_MSK` slice must be explicitly scoped and non-overclaimed.
+4. Anti-gaming discipline:
+   - enforce profile durations, sample minima, cohort presence, and distribution reporting.
+5. Profile-scoped remediation:
+   - rerun only failed boundary profile or drill.
+6. Cost-control enforcement:
+   - require attributable spend outputs and explicit idle-safe closure evidence.
+7. Soak authorization discipline:
+   - soak is never the first discovery boundary for a state,
+   - bounded correctness on the whole participating platform must pass first,
+   - bounded stress must pass second,
+   - only then may a long-duration soak be executed and claimed.
+
+## 6) PR3 State Plan (`S0..S5`)
+
+### S0 - Preflight, Charter Freeze, And Entry Lock
+Objective:
+1. bind strict upstream and freeze runtime certification contract inputs before load execution.
+
+Required actions:
+1. validate upstream `PR2` receipt (`PR2_S3_READY`, `open_blockers=0`),
+2. freeze `G3A` run charter (`window`, `injection_path`, `RC2-S`, budgets, cohort contract refs),
+3. freeze measurement-surface map for required runtime metrics,
+4. run dependency preflight (`IG`, `MSK`, `Flink`, `Aurora`, `Redis`, sink path, evidence store),
+5. emit archive sink design decision and backpressure test intent (`TGT-09` closure seed).
+
+Outputs:
+1. `pr3_entry_lock.json`
+2. `g3a_run_charter.active.json`
+3. `g3a_measurement_surface_map.json`
+4. `g3a_preflight_snapshot.json`
+5. `g3a_archive_sink_design_decision.json`
+6. `pr3_s0_execution_receipt.json`
+
+Pass condition:
+1. upstream lock, charter freeze, surface map, and preflight all pass with no unresolved dependency blocker.
+
+Fail-closed blockers:
+1. `PR3.B01_ENTRY_LOCK_MISSING`
+2. `PR3.B02_UPSTREAM_PR2_NOT_READY`
+3. `PR3.B03_CHARTER_INCOMPLETE`
+4. `PR3.B04_MEASUREMENT_SURFACE_MAP_MISSING`
+5. `PR3.B05_PREFLIGHT_DEPENDENCY_UNREADY`
+6. `PR3.B06_ARCHIVE_SINK_DESIGN_UNPINNED`
+
+S0 planning expansion (execution checklist):
+1. authority lock:
+   - require `pr2_s3_execution_receipt.json` and `pr2_execution_summary.json` coherence.
+2. scope lock:
+   - freeze RC2-S only; RC2-L remains non-blocking stretch scope.
+3. metric lock:
+   - each required metric row includes surface, unit, threshold, and query reference.
+4. dependency lock:
+   - include ready/unready map with explicit remediation owner per failure.
+5. publication lock:
+   - emit readable S0 findings summary in PR3 doc + main plan + logbook.
+
+### S1 - Steady Profile Certification Window
+Objective:
+1. certify steady-state runtime behavior under `RC2-S.steady` profile.
+
+Required actions:
+1. execute steady window at pinned rate/duration with required minima,
+2. collect runtime scorecard and component-health distributions on declared surfaces,
+3. validate threshold families for steady profile (`latency`, `errors/timeouts`, `lag`, `checkpoint`, `throughput`),
+4. emit profile receipt with runtime and cost posture.
+
+Outputs:
+1. `g3a_scorecard_steady.json`
+2. `g3a_component_health_steady.json`
+3. `g3a_steady_sample_minima_receipt.json`
+4. `pr3_s1_execution_receipt.json`
+
+Pass condition:
+1. steady profile meets sample minima and required steady thresholds on valid measurement surfaces.
+
+Fail-closed blockers:
+1. `PR3.B07_STEADY_PROFILE_NOT_EXECUTED`
+2. `PR3.B08_STEADY_SAMPLE_MINIMA_FAIL`
+3. `PR3.B09_STEADY_SURFACE_SCOPE_MISMATCH`
+4. `PR3.B10_STEADY_THRESHOLD_BREACH`
+5. `PR3.B11_STEADY_SCORECARD_INCOMPLETE`
+
+S1 planning expansion (execution checklist):
+1. profile lock:
+   - steady rate/duration/min-processed from active charter only.
+2. metric lock:
+   - report required p50/p95/p99 distributions where applicable.
+3. surface lock:
+   - enforce declared boundary surfaces; no proxy-only substitutions.
+4. closure lock:
+   - all steady threshold breaches must emit blocker records with rerun boundary.
+5. runtime-shape lock:
+   - keep `READY` control semantics as a compatibility proof,
+   - use real remote `WSP` replay as the steady-window injector,
+   - do not certify `S1` from synthetic HTTP loaders.
+
+### S2 - Burst Profile And Backpressure Certification Window
+Objective:
+1. certify burst behavior, bounded degradation, and archive/backpressure posture.
+
+Required actions:
+1. execute burst window at pinned burst profile,
+2. capture lag growth, error/timeout posture, checkpoint pressure, and sink backlog behavior,
+3. validate burst thresholds and bounded-degrade behavior per contract,
+4. emit archive sink backpressure report for `TGT-09`.
+
+Outputs:
+1. `g3a_scorecard_burst.json`
+2. `g3a_component_health_burst.json`
+3. `g3a_burst_backpressure_report.json`
+4. `g3a_archive_sink_backpressure_report.json`
+5. `pr3_s2_execution_receipt.json`
+
+Pass condition:
+1. burst profile satisfies burst thresholds or declared bounded-degrade policy with deterministic evidence.
+
+Fail-closed blockers:
+1. `PR3.B12_BURST_PROFILE_NOT_EXECUTED`
+2. `PR3.B13_BURST_SURFACE_SCOPE_MISMATCH`
+3. `PR3.B14_BURST_THRESHOLD_BREACH`
+4. `PR3.B15_BACKPRESSURE_POSTURE_UNPROVEN`
+5. `PR3.B16_ARCHIVE_SINK_BACKPRESSURE_FAIL`
+
+S2 planning expansion (execution checklist):
+1. burst lock:
+   - enforce burst duration and min events from charter.
+2. backpressure lock:
+   - include run-scoped EKS worker samples throughout the active burst window, not just a single post-window read.
+   - authoritative downstream surfaces for this state are:
+     - `RUNSCOPED_IEG_BACKPRESSURE_HITS`,
+     - `RUNSCOPED_OFP_LAG_SECONDS`,
+     - `RUNSCOPED_IEG_OFP_DLA_CHECKPOINT_AGE_SECONDS`,
+     - `RUNSCOPED_ARCHIVE_BACKLOG_EVENTS`,
+     - `RUNSCOPED_DF_AL_PUBLISH_QUARANTINE_TOTAL`.
+3. archive lock:
+   - map archive sink design assumptions to observed burst behavior from `seen_total`, `archived_total`, `payload_mismatch_total`, and `write_error_total`.
+   - backlog visibility is mandatory; silent sink pressure is a blocker.
+4. rerun lock:
+   - burst-only failures rerun `S2`; no full-chain rerun.
+5. threshold lock:
+   - ingress burst target remains `6000 eps` on the same canonical remote `WSP -> IG` path.
+   - hot-path burst thresholds remain fail-closed at `p95<=350 ms`, `p99<=700 ms`, `5xx=0`, and `error_rate<=0.002`.
+   - bounded-degrade still forbids red worker health, new `DF/AL` quarantine/fail-closed growth, new `DLA` append/replay divergence growth, and new archive write/payload mismatch growth.
+6. runtime-shape lock:
+   - materialize a fresh `platform_run_id` / `scenario_run_id` on the EKS runtime before every `S2` execution.
+   - do not certify burst from ingress-only evidence or from inactive MSF/Flink placeholders.
+
+### S3 - Recovery Profile Certification Window
+Objective:
+1. certify recovery-to-stable bounds after burst pressure.
+
+Required actions:
+1. execute recovery profile and monitor return-to-stable behavior,
+2. measure recovery bounds for lag, latency, and error normalization,
+3. emit recovery timeline with threshold crossing timestamps.
+
+Outputs:
+1. `g3a_scorecard_recovery.json`
+2. `g3a_recovery_bound_report.json`
+3. `g3a_recovery_timeline.json`
+4. `pr3_s3_execution_receipt.json`
+
+Pass condition:
+1. all required recovery bounds are met with complete timeline evidence.
+
+Fail-closed blockers:
+1. `PR3.B17_RECOVERY_PROFILE_NOT_EXECUTED`
+2. `PR3.B18_RECOVERY_BOUND_BREACH`
+3. `PR3.B19_RECOVERY_EVIDENCE_INCOMPLETE`
+4. `PR3.B20_STABLE_DEFINITION_UNSATISFIED`
+
+S3 planning expansion (execution checklist):
+1. stable-definition lock:
+   - enforce pinned stable criteria for lag/latency/error normalization.
+   - pin recovery stable definition as:
+     - admitted throughput `>= 3000 eps` on `IG_ADMITTED_EVENTS_PER_SEC`,
+     - `4xx_ratio <= 0.002`, `5xx_ratio = 0`, `error_rate_ratio <= 0.002`,
+     - `p95 <= 350 ms`, `p99 <= 700 ms`,
+     - `ofp.lag_seconds p99 <= 5.0 s`,
+     - `max(ieg/ofp/dla checkpoint_age_seconds) p99 <= 30.0 s`,
+     - `DF fail_closed/quarantine`, `AL quarantine/ambiguous`, `DLA append_failure/replay_divergence`, and `archive_writer write_error/payload_mismatch` deltas all remain `0`,
+     - `DL decision_mode = NORMAL` with no bad required signals.
+2. bound lock:
+   - all recovery limits must include observed and threshold values.
+   - recovery bound remains `180 s`; `stable_utc - recovery_start_utc` must be `<= 180 s`.
+3. causality lock:
+   - timeline must provide deterministic ordering of mitigation and stabilization events.
+   - `stable_utc` is the first sampled instant at or after recovery start where all stable-definition checks pass and all later samples in the window remain green.
+4. identity lock:
+   - `S3` runs as one continuous campaign on one active `platform_run_id` / `scenario_run_id`: burst segment first, recovery segment second.
+   - the WSP fleet stays alive across the segment boundary; `S3` must not stop and relaunch the injector between burst and recovery because that would contaminate the recovery bound with source-restart overhead.
+   - rate changes are applied by a scheduled in-flight traffic-shape transition, not by run-scope churn.
+5. sampling lock:
+   - capture runtime snapshots every `30 s` across the recovery window so the `180 s` bound yields enough samples to prove stabilization timing rather than just end-state posture.
+
+### S4 - Bounded Whole-Platform Correctness Gate Plus Soak Authorization
+Objective:
+1. prove the whole participating platform can complete one bounded integrated run with correct cross-plane behavior before any long-duration soak is authorized.
+
+Required actions:
+1. execute a bounded integrated correctness window on one active run scope and verify the whole participating platform is materially alive:
+   - `WSP`, `IG`, `CSFB`, `IEG`, `OFP`, `DL`, `DF`, `AL`, `DLA`, `archive_writer`, `case_trigger`, `case_mgmt`, `label_store`,
+   - learning/evolution and ops/gov surfaces must be explicitly scored as either materially exercised or explicitly unresolved for this boundary; omission is not allowed,
+2. fail fast on any scope/wiring/semantic defect before long-duration execution,
+3. execute the mandatory short dependency/schema/replay/cost drills needed to validate the correctness boundary cheaply,
+4. emit a soak-authorization decision that is `PASS` only if the bounded correctness boundary is green with zero unresolved blockers.
+
+Outputs:
+1. `g3a_correctness_scorecard.json`
+2. `g3a_correctness_component_snapshot.json`
+3. `g3a_correctness_cross_plane_report.json`
+4. `g3a_drill_replay_integrity.json`
+5. `g3a_drill_lag_recovery.json`
+6. `g3a_drill_schema_evolution.json`
+7. `g3a_drill_dependency_degrade.json`
+8. `g3a_drill_cost_guardrail.json`
+9. `g3a_correctness_cost_receipt.json`
+10. `g3a_soak_authorization.json`
+11. `pr3_s4_execution_receipt.json`
+
+Pass condition:
+1. the bounded correctness window is green on the whole participating platform, mandatory cheap drills pass with bounds/integrity evidence, and `g3a_soak_authorization.json` records `authorized=true`.
+
+Fail-closed blockers:
+1. `PR3.B20_CONTROL_BOOTSTRAP_FAIL`
+2. `PR3.B21_CORRECTNESS_WINDOW_NOT_EXECUTED`
+3. `PR3.B22_CROSS_PLANE_PARTICIPATION_UNPROVEN`
+4. `PR3.B23_REQUIRED_COHORT_DELTA_UNPROVEN`
+5. `PR3.B24_REPLAY_OR_INTEGRITY_DRILL_FAIL`
+6. `PR3.B25_LAG_RECOVERY_DRILL_FAIL`
+7. `PR3.B26_SCHEMA_OR_DEPENDENCY_DRILL_FAIL`
+8. `PR3.B27_COST_GUARDRAIL_OR_IDLESAFE_FAIL`
+9. `PR3.B28_SOAK_NOT_AUTHORIZED`
+10. `PR3.B29_LEARNING_BOUND_FAIL`
+11. `PR3.B30_OPS_GOV_BOUND_FAIL`
+
+S4 planning expansion (execution checklist):
+1. correctness lock:
+   - the first S4 boundary is bounded and cheap by design; it exists to catch whole-platform wiring/scope/semantic defects before any long-duration burn.
+   - if the bounded correctness window is not green, soak is blocked automatically.
+2. cohort lock:
+   - include all mandatory cohorts needed to prove whole-platform semantic participation; publish cohort-specific metric deltas.
+3. drill lock:
+   - each drill output must include scenario, expected behavior, observed timeline, recovery bound, integrity checks.
+   - default to the cheapest drill shape that can falsify the defect precisely before authorizing any expensive run.
+4. cost lock:
+   - require attributable spend and idle-safe evidence in correctness/drill outputs.
+   - if correctness fails early, the state exits immediately without soak authorization.
+5. run-scope lock:
+   - every participating consumer must bind to the active `platform_run_id` and `scenario_run_id` on the same bounded window.
+   - `scenario_run_id` for the S4 correctness window is no longer synthetic; it must come from the Scenario Runner bootstrap executed on the same active `platform_run_id`.
+   - the S4 correctness rollup must fail closed unless `g3a_control_plane_bootstrap.json` proves `sr/run_status` and `sr/run_facts_view` exist and are `READY`.
+   - any lane whose durable checkpoints live in a shared external store must scope that checkpoint identity by the active run before `S4` can be claimed.
+   - if a profile explicitly pins `event_bus_start_position=latest` for a pre-traffic correctness launch, the runtime must honor that pin rather than silently replay inherited backlog.
+   - if run-scope isolation is not provable, `S4` is red even if hot-path throughput looks green.
+6. cross-plane lock:
+   - `S4` cannot be adjudicated from `WSP/IG/RTDL` alone.
+   - live case/label participation must be measured on the same `platform_run_id` through:
+     - `case_trigger` trigger intake / replay integrity,
+     - `case_mgmt` case creation + anomaly posture,
+     - `label_store` accepted/rejected/pending posture under writer-boundary semantics.
+   - if the case/label plane is absent from the live runtime boundary, `S4` is red until the runtime shape is corrected.
+7. learning-scope lock:
+   - `OFS/MF/MPR` and the broader learning/evolution plane are not silently treated as green inside `S4`.
+   - bounded learning proof in `S4` must execute the real `OFS -> MF -> MPR` corridor on the same run scope, using run-scoped archive plus label truth rather than a proxy-only indicator.
+   - the correctness digest must state explicitly whether learning/evolution and ops/gov surfaces were materially exercised in this boundary or remain unresolved for the current pack.
+   - unresolved learning/evolution surfaces remain blockers to whole-platform correctness claimability unless explicitly deferred by active phase design.
+8. ops/gov lock:
+   - the S4 correctness window must emit a run-scoped ops/gov receipt, not only static drill proxies.
+   - `g3a_correctness_ops_gov_summary.json` must prove active-run observability roots and run-scoped conformance receipt upload under `obs/`.
+9. authorization lock:
+   - no soak dispatch from `S4` unless `g3a_soak_authorization.json` is green.
+
+### S5 - Bounded Stress Window, Conditional Soak, Runtime Pack Rollup, And Gate Handoff
+Objective:
+1. execute the short harder-pressure stress window after correctness is green, run the long soak only if stress stays green, then emit deterministic `G3A` pack verdict and handoff posture to `PR4`.
+
+Required actions:
+1. execute bounded higher-pressure stress window with fail-fast enabled,
+2. authorize and execute long-duration soak only if the stress window is green,
+3. compile consolidated runtime scorecard report,
+4. build runtime evidence index with all required artifact refs/readback states,
+5. compute blocker register from `S0..S5`,
+6. emit runtime verdict and phase summary,
+7. set `next_gate=PR4_READY` only when `open_blockers=0`.
+
+Outputs:
+1. `g3a_scorecard_report.md`
+2. `g3a_runtime_evidence_index.json`
+3. `g3a_runtime_verdict.json`
+4. `pr3_blocker_register.json`
+5. `pr3_execution_summary.json`
+6. `pr3_s5_execution_receipt.json`
+
+Pass condition:
+1. runtime pack verdict is `PASS`, `open_blockers=0`, evidence index is complete/readable, handoff is `PR4_READY`, and any claimed soak was preceded by green correctness and stress windows.
+
+Fail-closed blockers:
+1. `PR3.B29_STRESS_WINDOW_NOT_EXECUTED`
+2. `PR3.B30_STRESS_WINDOW_FAIL`
+3. `PR3.B31_RUNTIME_EVIDENCE_INDEX_MISSING`
+4. `PR3.B32_RUNTIME_VERDICT_INCOHERENT`
+5. `PR3.B33_OPEN_BLOCKERS_NONZERO`
+6. `PR3.B34_NEXT_GATE_NOT_PR4_READY`
+7. `PR3.B35_UNATTRIBUTED_RUNTIME_SPEND`
+
+S5 planning expansion (execution checklist):
+1. rollup lock:
+   - include scorecard windows, cohort artifacts, and drill artifacts in evidence index.
+2. verdict lock:
+   - `PASS` allowed only when all required checks are green with zero open blockers.
+   - soak evidence is ignored for closure if correctness or stress authorization was bypassed.
+3. target lock:
+   - mark `TGT-08` and `TGT-09` as `PINNED` only when supporting closure artifacts are present.
+4. cross-plane digest lock:
+   - readable findings must include impact-metric rows for:
+     - ingress/runtime spine,
+     - case/label plane,
+     - learning/evolution scope posture,
+     - cost and idle-safe closure.
+   - any plane not materially exercised must be called out explicitly in the digest and blocker register; omission is not allowed.
+
+## 7) PR3 Artifact Contract
+Deterministic control root:
+1. `runs/dev_substrate/dev_full/road_to_prod/run_control/<pr3_execution_id>/`
+
+Required artifacts:
+1. `pr3_entry_lock.json`
+2. `g3a_run_charter.active.json`
+3. `g3a_measurement_surface_map.json`
+4. `g3a_preflight_snapshot.json`
+5. `g3a_archive_sink_design_decision.json`
+6. `g3a_scorecard_steady.json`
+7. `g3a_component_health_steady.json`
+8. `g3a_steady_sample_minima_receipt.json`
+9. `g3a_scorecard_burst.json`
+10. `g3a_component_health_burst.json`
+11. `g3a_burst_backpressure_report.json`
+12. `g3a_archive_sink_backpressure_report.json`
+13. `g3a_scorecard_recovery.json`
+14. `g3a_recovery_bound_report.json`
+15. `g3a_recovery_timeline.json`
+16. `g3a_correctness_scorecard.json`
+17. `g3a_correctness_component_snapshot.json`
+18. `g3a_correctness_cross_plane_report.json`
+19. `g3a_control_plane_bootstrap.json`
+20. `g3a_correctness_learning_summary.json`
+21. `g3a_correctness_ops_gov_summary.json`
+22. `g3a_soak_authorization.json`
+23. `g3a_scorecard_soak.json` (only if correctness and stress are both green)
+24. `g3a_soak_drift_report.json` (only if correctness and stress are both green)
+25. `g3a_cohort_manifest.json`
+26. `g3a_cohort_results.json`
+27. `g3a_drill_replay_integrity.json`
+28. `g3a_drill_lag_recovery.json`
+26. `g3a_drill_schema_evolution.json`
+27. `g3a_drill_dependency_degrade.json`
+28. `g3a_drill_cost_guardrail.json`
+29. `g3a_correctness_cost_receipt.json`
+30. `g3a_runtime_cost_receipt.json`
+31. `g3a_scorecard_report.md`
+32. `g3a_runtime_evidence_index.json`
+33. `g3a_runtime_verdict.json`
+34. `pr3_blocker_register.json`
+35. `pr3_execution_summary.json`
+36. `pr3_s0_execution_receipt.json`
+37. `pr3_s1_execution_receipt.json`
+38. `pr3_s2_execution_receipt.json`
+39. `pr3_s3_execution_receipt.json`
+40. `pr3_s4_execution_receipt.json`
+41. `pr3_s5_execution_receipt.json`
+
+Schema minimums:
+1. every JSON artifact includes: `phase`, `state`, `generated_at_utc`, `generated_by`, `version`,
+2. every state receipt includes:
+   - `elapsed_minutes`,
+   - `runtime_budget_minutes`,
+   - `attributable_spend_usd`,
+   - `cost_envelope_usd`,
+   - `advisory_ids`,
+3. `g3a_runtime_evidence_index.json` includes:
+   - `run_charter_ref`,
+   - `scorecard_artifacts`,
+   - `cohort_artifacts`,
+   - `drill_artifacts`,
+   - `query_definition_refs`,
+   - `open_blockers`,
+4. `g3a_runtime_verdict.json` includes:
+   - `overall_pass`,
+   - `verdict`,
+   - `open_blockers`,
+   - `blocker_ids`,
+   - `next_gate`,
+5. `pr3_execution_summary.json` includes:
+   - `verdict`,
+   - `next_gate`,
+   - `open_blockers`,
+   - `blocker_ids`,
+   - `target_closure_refs`.
+
+## 8) Runtime And Cost Budgets (PR3)
+Runtime budget:
+1. `S0 <= 20 min`
+2. `S1 <= 60 min`
+3. `S2 <= 25 min`
+4. `S3 <= 25 min`
+5. `S4 <= 180 min`
+6. `S5 <= 20 min`
+7. Total `<= 330 min`
+
+Cost budget:
+1. run charter must declare `budget_envelope_usd` before `S1` starts,
+2. each state receipt must emit attributable spend,
+3. `S4` must emit `g3a_runtime_cost_receipt.json` with unit-cost fields and budget adherence posture,
+4. unattributed spend or missing cost fields are fail-closed (`PR3.B35_UNATTRIBUTED_RUNTIME_SPEND`).
+
+## 9) Rerun Discipline
+1. Rerun only failed boundary state:
+   - entry lock/preflight blockers -> `S0`,
+   - steady profile blockers -> `S1`,
+   - burst/backpressure blockers -> `S2`,
+   - recovery bound blockers -> `S3`,
+   - soak/cohort/drill blockers -> targeted drill rerun inside `S4` (or `S4` profile rerun if profile-level defect),
+   - rollup/verdict/index blockers -> `S5`.
+2. No full-chain rerun for documentation/index defects.
+3. Preserve failed artifacts with attempt lineage; do not overwrite closure history.
+4. No threshold drift-to-pass without explicit rationale in implementation map and logbook.
+
+## 10) PR3 Definition Of Done Checklist
+1. `S0..S5` executed with deterministic artifacts under `runs/`.
+2. Scorecard windows (`steady`, `burst`, `recovery`, `soak`) complete with required minima and threshold checks.
+3. Required runtime metric families are complete on correct measurement surfaces.
+4. Mandatory cohorts are included and cohort results are published.
+5. Mandatory runtime drills are complete and pass bounds/integrity checks.
+6. `TGT-08` and `TGT-09` are closed with explicit artifacts.
+7. `g3a_runtime_verdict.json` has `overall_pass=true` and `open_blockers=0`.
+8. `pr3_execution_summary.json` has `verdict=PR4_READY`, `next_gate=PR4_READY`.
+
+## 11) Execution Record
+Status:
+1. `IN_PROGRESS` (`S0` complete; `S1` reopened under strict canonical rerun and remains the active remediation boundary).
+
+Strict upstream lock for first execution:
+1. `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_s3_execution_receipt.json`
+2. `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_execution_summary.json`
+
+Active control root:
+1. `runs/dev_substrate/dev_full/road_to_prod/run_control/pr3_20260306T021900Z/`
+2. Latest pointer:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr3_latest.json` (`latest_state=S1`).
+
+State closure:
+1. `S0` executed from strict upstream:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr2_20260305T200521Z/pr2_s3_execution_receipt.json`.
+2. `S0` receipt:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr3_20260306T021900Z/pr3_s0_execution_receipt.json`.
+3. `S0` verdict:
+   - `PR3_S0_READY`, `open_blockers=0`, `next_state=PR3-S1`.
+4. `S1` receipt:
+   - `runs/dev_substrate/dev_full/road_to_prod/run_control/pr3_20260306T021900Z/pr3_s1_execution_receipt.json`.
+5. `S1` verdict:
+   - historic receipt remains present from the earlier calibration pass,
+   - active truth boundary is now the canonical rerun evidence:
+     - `g3a_s1_wsp_runtime_summary.json`
+     - `g3a_steady_evidence_managed_summary.json`
+   - current verdict: `HOLD_REMEDIATE`, `open_blockers=144`, `next_state=PR3-S1`.
+
+### 11.0 Active Production-Correction Note
+1. `PR3-S1` is not being treated as a simple rerun blocker anymore.
+2. The active defect is a runtime-architecture mismatch:
+   - current proof path diverged from the real `WSP`,
+   - some authority surfaces implied `WSP` should be a managed Flink app,
+   - the repo's actual `WSP` is a Python oracle-backed HTTP replay producer into `IG`.
+3. Production-grade remediation is therefore pinned as:
+   - correct the `WSP` runtime model,
+   - use the real remote `WSP` path with `stream_speedup`,
+   - keep `Managed Flink` scoped to `IEG/OFP/RTDL` stream-processing lanes.
+4. `PR3-S1` must not claim closure from the synthetic pressure harness.
+
+### 11.1 PR3-S0 Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Gate outcome | `PR3_S0_READY`, `open_blockers=0`, `next_state=PR3-S1` | S0 preflight closed fail-closed and unblocks steady-window execution. |
+| Strict upstream lock | `PR2_S3_READY` and `PR3_READY` coherence checks all true | PR3 started from the exact required upstream boundary with no gate ambiguity. |
+| Charter freeze | `via_IG`, `RC2-S`, budget `250.0`, profiles `steady/burst/recovery/soak` pinned | Runtime certification scope and budget are now explicitly bound before pressure execution. |
+| Measurement surfaces | required runtime metric surface map emitted with canonical throughput and latency boundaries | PR3 has explicit measurement-surface governance and avoids proxy-only claim drift. |
+| Dependency preflight | `8/8` evidence-only preflight checks passed (`M13`, `M14E`, `M14F`, runbook index, owner bindings, distribution policy) | Runtime path readiness is evidenced without local orchestration side effects. |
+| Archive sink design posture | archive sink decision pinned for PR3 validation (`TGT-09`), sink parity shows no missing event ids | Archive/backpressure validation can proceed deterministically in `S2/S4` without design drift. |
+| Target posture update | `TGT-08` and `TGT-09` moved to `IN_PROGRESS` in S0 receipt | Required G3A targets are actively routed with explicit evidence refs. |
+| Runtime and cost posture | `elapsed=0.0 min` (budget `20`), `attributable_spend_usd=0.0` (envelope `250.0`) | S0 stayed minute-scale and spend-neutral as an evidence preflight step. |
+| Advisory continuity | `PR2.S1.CN01_BURST_SHAPER_REQUIRED` carried forward | Burst proof constraint remains explicit for `PR3-S1` and cannot be silently ignored. |
+
+### 11.2 PR3-S1 Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Gate outcome | strict rerun `22793503797` returned `PR3_S1_READY`, `open_blockers=0`, `next_state=PR3-S2` | S1 steady certification is now closed on the canonical remote `WSP -> IG` path. |
+| Steady goal vs observed throughput | target `3000.0 eps`; observed admitted throughput `3025.3556 eps` | The corrected ingress edge and calibrated remote replay now clear the steady production floor with margin. |
+| Sample minima | bounded steady minimum `540,000` events; observed admitted `544,564` | The 180-second certification window contains enough first-admission volume to make the claim statistically credible for S1. |
+| Error posture | `4xx_total=0`, `5xx_total=0`, `error_rate_pct_observed=0.0` | The prior residual ELB leak is gone and S1 now closes with a clean error surface. |
+| Latency posture | weighted ALB target-response latency `p95=108.05 ms`, `p99=131.60 ms` against maxima `350/700 ms` | Tail latency remains comfortably green at the certified steady rate. |
+| Measurement posture | authoritative measurement surface `IG_ADMITTED_EVENTS_PER_SEC` from ALB counts minus `4xx/5xx`; `metric_bin_count=3` over a settled `180s` window | The acceptance math is now tied to the correct production ingress surface rather than to proxy or partial-bin math. |
+| Replay-shape posture | `40` remote WSP lanes, `stream_speedup=51.2`, generator setpoint `3030.0 eps`, no synthetic local injector | The closure proof is on the real remote producer boundary and remains production-coherent. |
+| Runtime posture | corrected ingress fleet on task definition `fraud-platform-dev-full-ig-service:14` with explicit Gunicorn keepalive `75s` | The fix that removed the last reliability leak is materially present in the certified edge, not just noted in docs. |
+| Goal-level conclusion | S1 is production-credible and closed; PR3 can advance to burst/backpressure proof in `S2` | Further PR3 work belongs to the next state, not more steady remediation. |
+
+### 11.9 PR3-S1 Final Closure Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Final passing run | workflow run `22793503797` from branch head `f08cb80bf905adefa02f314c046aed8c47b797f4` | S1 closure is pinned to a concrete, auditable run after the ingress keepalive remediation. |
+| Certified impact metrics | throughput `3025.3556 eps`; admitted events `544,564`; `4xx=0`; `5xx=0`; `p95=108.05 ms`; `p99=131.60 ms` | The steady window now meets the production-ready bar across throughput, reliability, and latency at the same time. |
+| Fix sequence that mattered | private-runtime correction -> missing `logs` endpoint -> stale runtime refresh -> ingress keepalive pin -> final setpoint calibration to `3030 eps` | The passing result came from removing real runtime defects, not from weakening the gate. |
+| What changed vs the last red run | keepalive pin removed the residual 5xx leak; final setpoint uplift closed the remaining `7.7 eps` gap | The last S1 problems were narrow and were solved directly at their true fault lines. |
+| Remaining PR3 work | `S2` burst/backpressure, `S3` recovery, `S4` soak/drills/cost, `S5` runtime-pack rollup | `TGT-08` is not fully closed yet, but steady-state runtime proof is no longer the limiting lane. |
+
+### 11.10 PR3-S2 Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Gate outcome | warmed strict rerun `22802974989` returned `HOLD_REMEDIATE`, `open_blockers=1`, `next_state=PR3-S2` | `S2` is still open, but only one production blocker remains. |
+| Burst goal vs observed throughput | target admitted throughput `6000.0 eps`; observed admitted throughput `4554.7 eps`; request throughput `4554.7 eps` | The platform accepted everything it was sent, but the canonical replay fleet still under-drove the burst contract by about `1445 eps`. |
+| Window volume | `1,366,410` admitted requests over the measured `300 s` burst window after `90 s` warmup | The burst proof is statistically meaningful, but not yet strong enough to certify the required burst envelope. |
+| Error posture | `4xx_total=0`, `5xx_total=0`, `error_rate_ratio=0.0` | Ingress reliability is now re-proved for `S2`; the red state is no longer caused by request rejection or request drops. |
+| Latency posture | weighted ALB latency `p95=129.93 ms`, `p99=179.73 ms` against maxima `350/700 ms` | Tail latency remains comfortably inside the production budget at the current burst density. |
+| RTDL correctness posture | `DF fail_closed delta=0`, `DF quarantine delta=0`, `AL ambiguity/quarantine deltas=0`, archive writer error delta `0` | The earlier decision-plane and archive correctness defects have been cleared on the same burst run. |
+| Stream-processing freshness posture | `IEG` backpressure delta `0`, `OFP lag p95=0.017 s`, `DLA checkpoint age p95=1.109 s` | The managed downstream surfaces stayed materially healthy during the burst window and are not the reason the state remains open. |
+| Production conclusion | `S2` is no longer a mixed-quality state; it is a throughput-only miss on the canonical remote replay path | Next work must focus on source-driving and replay-fleet tuning, not on ingress capacity or fail-closed policy changes. |
+
+### 11.3 PR3-S1 Runtime-Correction Findings (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Problem actual | active `PR3-S1` path used fresh telemetry plus a synthetic remote pressure harness, not the real `WSP` | The current execution path is insufficient for a production-grade steady certification claim. |
+| WSP runtime reality | `WSP` implementation is Python oracle-backed HTTP replay with `stream_speedup` support | `WSP` is an ingress replay producer, not a Flink transform application. |
+| Authority drift | some docs say `WSP` is `ECS/Fargate`; later pins say `MSF_MANAGED_PRIMARY` | The control surface is internally inconsistent and must be corrected before canonical rerun. |
+| Live runtime posture | only RTDL managed Flink app exists; no live `WSP` managed Flink app exists | Searching for a `WSP` MSF app is solving the wrong problem. |
+| Production-grade direction | treat `WSP` as distributed remote replay service; keep Managed Flink for `IEG/OFP/RTDL` only | This preserves the real producer boundary while keeping stream processing on the correct managed substrate. |
+| S1 proof split | keep `READY` as control compatibility proof, but drive steady throughput from real remote `WSP` replay | This avoids collapsing the throughput gate into a control-bus implementation detail. |
+| Smoke-chain outcome | canonical lane now exposed and cleared sequential blockers in the right order: public-subnet bootstrap drift, missing private `logs` endpoint, then stale runtime-image code | The road-to-prod pass is now measuring the real runtime chain rather than guessing at one defect. |
+| Current active blocker | remote ECS task still runs an older image digest that does not include the latest `WSP` loader fix | More reruns of the current task definition would be wasteful and non-informative. |
+| Rerun implication | bounded smoke is deferred until the WSP runtime image is refreshed with the validated fixes; full `PR3-S1` remains blocked after that until smoke is clean | Next work is runtime-image refresh first, then bounded smoke, then steady certification. |
+
+### 11.4 PR3-S1 Bounded Smoke Recovery Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Hot-path correction outcome | bounded canonical rerun verdict `REMOTE_WSP_WINDOW_READY`, `open_blockers=0` | The ingress edge is no longer broken at the contract/dependency layer. |
+| Request/admit posture | `60` requests observed, `60` admitted, `1.0 eps` admitted throughput | Real WSP traffic now traverses `WSP -> IG -> DDB -> Kafka` cleanly on the canonical source path. |
+| Error posture | `error_rate=0.0`, `4xx=0`, `5xx=0` | The previous systemic 503 failure is resolved. |
+| Latency posture | `p95=129.13 ms`, `p99=152.32 ms` against smoke maxima `2000/4000 ms` | The repaired edge is comfortably inside the bounded smoke corridor and ready for throughput scaling. |
+| Defects cleared | DynamoDB idempotency timeout and missing transitive schema refs are both resolved in the live edge | PR3-S1 no longer needs correctness triage before throughput calibration. |
+| Remaining state goal | bounded smoke green is necessary but not sufficient; S1 still requires `3000 eps steady` evidence | The remaining work is calibration/capacity proof, not semantic repair. |
+
+### 11.5 PR3-S1 Capacity-Bound Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Account concurrency ceiling | AWS regional Lambda quota is `400`, leaving a maximum legal single-function reservation of `360` after the mandatory unreserved floor | The current account cannot host the originally repinned `1000` reserved-concurrency envelope, so certification on this path is quota-bound as well as runtime-bound. |
+| Quota action | quota increase request to `1500` concurrent executions submitted; status `PENDING` | The production target is now backed by an explicit cloud-capacity uplift request rather than hidden as an assumption. |
+| Max-feasible bounded run | bounded rerun at `reserved_concurrency=360`, `memory=2048 MB` admitted `423060` requests over the 180-second window | The ingress edge remains materially functional under the strongest legal Lambda posture in this account. |
+| Steady throughput posture | `observed_admitted_eps=2350.333` against the `3000 eps` target | The current Lambda path in this account is close but still not certifiable at the required steady target. |
+| Error posture | `error_rate=4.2047%`, `5xx_total=18568`, `4xx_total=1` | Residual failure is now almost entirely `503` pressure, not validation drift or duplicate-path breakage. |
+| Latency posture | `p95=351.865 ms`, `p99=870.573 ms` against maxima `350/700 ms` | Tail latency is now near the line at `p95` but still above the production gate, which is consistent with residual concurrency pressure rather than a broken hot path. |
+| Comparative gain | throughput improved from `1591.678 eps` at `300` concurrency to `2350.333 eps` at `360` concurrency | The path responds materially to capacity uplift, which argues that the remaining miss is a capacity-governance problem rather than a hidden semantic defect. |
+| Decision implication | more reruns on the same account-limited Lambda posture are low-value; next work is quota uplift and/or service-backed ingress materialization | PR3-S1 should now pivot toward removing the account ceiling, not repeating the same bounded evidence loop. |
+
+### 11.6 PR3-S1 Service-Edge Decision Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Production question | account-limited Lambda proof plateaued at `2350.333 eps` with the legal ceiling already applied | Waiting for quota alone is not a sufficient production-hardening strategy. |
+| Existing service option | repo contains a real Flask IG service, but its default runtime path uses `IG_ADMISSION_DSN`/Aurora-backed indices | Promoting that path unchanged would move the hot idempotency boundary onto Aurora without enough throughput proof. |
+| Preserved hot-path semantics | current managed edge already proves `DDB idempotency + S3 receipts/governance + Kafka publish` semantics | These semantics are the safer scaling base for the ingress trust boundary. |
+| Chosen correction | promote IG to a horizontally scaled ECS/Fargate service but reuse the managed-edge DDB/Kafka request logic rather than the older Postgres-backed service path | This removes the Lambda regional ceiling without weakening the trust boundary or inventing a different ingestion contract. |
+| Runtime placement | `WSP` stays a remote replay producer; `Managed Flink` stays downstream on `IEG/OFP/RTDL`; only the IG request-execution shell changes | The graph stays production-coherent instead of conflating stream processing with the ingress producer edge. |
+| Active next step | materialize reusable managed-edge HTTP service + ALB/ECS ingress endpoint, then rerun bounded `PR3-S1` from the same strict root | PR3 remains at `S1`; the open work is architecture correction followed by fresh evidence, not threshold waiver. |
+
+### 11.7 PR3-S1 Strict Rerun Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Gate outcome | strict rerun `22789024407` returned `HOLD_REMEDIATE`, `open_blockers=2` | `S1` is materially close, but still not certifiable. |
+| Throughput posture | target `3000.0 eps`; observed admitted throughput `2610.900 eps`; admitted count `4,699,620` over `1800 s` | The platform handled a large realistic steady window, but the real WSP replay width still under-drove the target by `389.1 eps`. |
+| Error posture | `4xx=0`, `5xx=26`, `5xx_rate_ratio=0.000006` | Failure is now rare, but strict production readiness still requires zero leaked `5xx` in the certified window. |
+| Latency posture | `p95=106.9998 ms`, `p99=141.5351 ms` against `350/700 ms` maxima | Tail latency is comfortably green; the residual defect is not latency saturation. |
+| Ingress fleet posture | ECS ingress stayed `32/32` healthy; CPU roughly `22%..25%` avg, `~31%` max; memory `~7.2%..7.9%` | The ingress plane itself still has substantial headroom and is not the limiting resource. |
+| Host-health posture | ALB healthy hosts stayed `32`, unhealthy hosts stayed `0` | The residual `5xx` leak is not caused by task churn or target health loss. |
+| Fault signature | sparse tail stalls exist while averages stay low; WSP/IG duplicate traces are consistent with retries after small transient failures | The remaining `5xx` leak looks like transient downstream publish/receipt instability rather than systemic platform overload. |
+| Config/code drift found | retry pins `IG_INTERNAL_RETRY_MAX_ATTEMPTS` and `IG_INTERNAL_RETRY_BACKOFF_MS` exist in env/Terraform but are not meaningfully wired into the admission hot path | The current resilience posture is weaker in reality than the pinned runtime contract suggests. |
+| Production conclusion | `S1` must stay open until both the resilience leak and the steady-volume shortfall are closed | The correct fix is hot-path resilience hardening plus wider horizontal WSP replay, not waivers or blind vertical scaling. |
+
+### 11.8 PR3-S1 Fresh-Identity Root-Cause Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Gate outcome | strict rerun `22790499579` returned `HOLD_REMEDIATE`, `open_blockers=4` | The corrected ingress rollout still leaves `S1` open, but the blocker mix now needs a more exact interpretation. |
+| Measured impact metrics | observed request/admitted throughput `2242.2 eps`; `5xx_total=43`; weighted ALB latency `p95=803 ms`, `p99=1113 ms` | On the surface this looks like a steady-capacity miss, but the supporting evidence shows the lane is no longer measuring fresh-admission behavior. |
+| Fleet posture | ECS ingress remained `32/32` healthy; ALB healthy hosts stayed `32`; ECS CPU mostly `14%..26%`; memory `7%..8%` | The managed ingress fleet is not obviously saturated, so blind scaling would be guesswork. |
+| Error source | ALB `ELB_5XX` dominates while target `5xx` is only `5` and target connection errors are absent | Most failures are timeout/edge-side misses rather than explicit application `5xx` responses. |
+| Request-mix evidence | live IG task logs show summaries such as `admit=12 duplicate=898 quarantine=0` during the steady window | The lane is spending most of its work on duplicate processing, not first-seen admission. |
+| Hot-path timing evidence | duplicate-heavy workers show `phase.receipt_seconds p95≈1.374s` and `admission_seconds p95≈1.382s` while fresh-publish timings stay tiny (`publish p95≈9 ms`) | The measured tail is being driven by duplicate receipt persistence, not by the fresh-admission publish path. |
+| Root cause | PR3-S1 kept reusing `platform_run_id=platform_20260223T184232Z`; IG dedupe key is `platform_run_id + event_class + event_id` | IG is behaving correctly; the rerun identity contract is wrong for fresh steady certification. |
+| Production-grade remediation | keep oracle-store inputs fixed, preserve stable event identities, but assign a fresh runtime `platform_run_id` and `scenario_run_id` per certification attempt | This preserves production semantics without clearing dedupe state and returns the lane to the real question: first-seen steady admission under load. |
+| Phase implication | `S1` cannot close off the current duplicate-heavy rerun, and the next valid rerun boundary is still `PR3-S1` | The immediate task is tooling correction plus a fresh-identity rerun, not threshold waiver or random capacity scaling. |
+### 11.9 PR3-S2 RTDL Semantic Remediation Summary (Pre-Rerun)
+| Area | Current measured state | Interpretation |
+| --- | --- | --- |
+| Burst ingress posture | last strict burst run admitted `6041.653 eps` with `4xx=0`, `5xx=0`, `p95=176.65 ms`, `p99=275.03 ms` | The `6000 eps` burst contract is now physically proven on the canonical path; ingress is no longer the active blocker. |
+| Remaining blocker set | only `PR3.S2.B15_DF_FAIL_CLOSED_NONZERO:delta=2.0` and `PR3.S2.B15_DF_QUARANTINE_NONZERO:delta=2.0` remained open | `S2` is now a pure RTDL semantic-correctness state, not a mixed throughput/reliability state. |
+| CSFB defect | live blocked flows showed `READY` responses with incomplete or mislabelled role refs (`arrival_entities` exposed as `arrival_events`, or only `flow_anchor`) | DF was consuming a false-ready context surface, so missing-context verdicts were partly synthetic. |
+| OFP defect | live OFP snapshots contained `core_features:v1` on `flow_id` while freshness still reported `missing_groups=[core_features]` because `event_id` state was absent | DF was being fed a false feature-group-absence signal even when the requested group was materially available. |
+| DF classification correction | DF now keeps fail-closed on truly missing groups/unavailable OFP/no usable features, but no longer fails simply because OFP reports partial key coverage while serving the requested feature group | The fail-closed policy remains strict while aligning to the real serving semantics used in production. |
+| Local validation evidence | targeted remediation suites passed: `11` CSFB tests and `19` OFP/DF tests (`30` total) | The read-surface correction is locally stable and bounded before the next strict rerun. |
+| Production verdict | `PR3-S2` remains open until a fresh strict rerun proves `DF fail_closed delta=0` and `DF quarantine delta=0` on the same `6000 eps` boundary | The state is close, but not yet certifiable until the semantic fix is re-proved live. |
+
+### 11.11 PR3-S2 Closure Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Gate outcome | strict rerun `22811242551` returned `PR3_S2_READY`, `open_blockers=0`, `next_state=PR3-S3` | `S2` is now closed and can legally hand off to recovery certification. |
+| Burst goal vs observed throughput | target admitted throughput `6000.0 eps`; observed admitted throughput `6051.86 eps`; request throughput `6051.86 eps` | The platform now clears the required production burst contract on the canonical remote `WSP -> IG` path. |
+| Error posture | `4xx_total=0`, `5xx_total=0`, `error_rate_ratio=0.0` | Burst closure is not masking request rejection or transport instability. |
+| Latency posture | weighted ALB latency `p95=146.91 ms`, `p99=394.43 ms` against maxima `350/700 ms` | The hot-path latency budget remains comfortably green at the closed burst rate. |
+| RTDL/backpressure posture | `IEG backpressure/apply_failure delta=0`; `DF fail_closed/quarantine delta=0`; `AL quarantine/ambiguous delta=0`; `DLA append/replay divergence delta=0` | The RTDL plane remained materially healthy under burst and is no longer the active blocker surface. |
+| Archive sink posture | archive write-error delta `0`, payload-mismatch delta `0`, and archived count stable across late snapshots | `TGT-09` burst/backpressure evidence is clean for this state; the sink did not degrade silently under the certified load. |
+| Boundary-quality check | selected counter window ended `51.6 s` before nominal measurement end, but `during_9` (`+5.7 s`) and `post` preserved the same zero-growth RTDL/archive counters | The green verdict is not hiding a late-window blocker spike and remains claimable. |
+| Production conclusion | `S2` is production-credible and closed; remaining PR3 work belongs to recovery, soak/drills, and final pack rollup | Additional burst remediation would be drift unless a later state reveals a new regression. |
+
+### 11.12 PR3-S3 Closure Findings Summary (Readable)
+| Area | What was found | Interpretation |
+| --- | --- | --- |
+| Gate outcome | strict rerun `22814568179` returned `PR3_S3_READY`, `open_blockers=0`, `next_state=PR3-S4` | `S3` is now legally closed on its own recovery contract and can hand off to soak/drill execution. |
+| Prestress impact metrics | target burst throughput `6000 eps`; observed admitted throughput `6032.03 eps`; `4xx=0`, `5xx=0`; weighted ALB latency `p95=164.69 ms`, `p99=237.81 ms` | The continuous campaign preserved the already-proven burst contract while removing the old injector-restart artifact. |
+| Recovery impact metrics | target steady-recovery throughput `3000 eps`; observed admitted throughput `6027.23 eps`; `4xx=0`, `5xx=0`; weighted ALB latency `p95=165.31 ms`, `p99=242.82 ms` | Recovery is materially green and exceeds the pinned throughput floor without error leakage. |
+| Recovery bound | `stable_utc=2026-03-08T05:40:00Z`; `recovery_seconds=60.0`; bound `<=180.0 s` | The platform recovered to a stable green envelope within one minute, comfortably inside the recovery SLO. |
+| RTDL integrity posture | `ofp lag p99=0.054 s`; `checkpoint p99=1.097 s`; `DF fail_closed/quarantine`, `AL quarantine/ambiguous`, `DLA append/replay divergence`, and `archive_writer write_error/payload_mismatch` deltas all remained `0` in the certified window | The RTDL hot path stayed semantically stable during and after the burst-recovery transition; no hidden degrade signal surfaced in the measured recovery window. |
+| Harness hygiene posture | preflight WSP cleanup stopped `0` tasks; final WSP cleanup stopped `0` tasks; earlier stranded-fleet defect was remediated before this rerun | The state is now measured on a deterministic and idle-safe injector surface rather than on leaked Fargate capacity. |
+| Whole-platform scope note | `S3` evidence is strong for the runtime spine and RTDL-recovery surface, but it does not by itself close case/label management or learning/evolution production readiness | `S3` is green as a state, not as a whole-platform verdict; those other planes must still be exercised and scored in later states/packs. |
+| Production conclusion | `S3` is production-credible and closed; the next valid work is `S4` soak/drills with explicit cross-plane impact reporting | The correct next move is not more recovery tuning, but broader state coverage and final PR3 pack closure. |

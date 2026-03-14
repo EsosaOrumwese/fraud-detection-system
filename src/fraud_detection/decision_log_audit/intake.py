@@ -538,7 +538,11 @@ class DecisionLogAuditBusConsumer:
                 checkpoint = self.store.get_checkpoint(topic=topic, partition=partition)
                 from_sequence = checkpoint.next_offset if checkpoint else None
                 start_position = self.runtime.event_bus_start_position
-                if checkpoint is None and self.policy.required_platform_run_id:
+                if (
+                    checkpoint is None
+                    and self.policy.required_platform_run_id
+                    and str(start_position).strip().lower() != "latest"
+                ):
                     start_position = "trim_horizon"
                 records = self._kinesis_reader.read(
                     stream_name=stream,
@@ -574,7 +578,11 @@ class DecisionLogAuditBusConsumer:
                     except Exception:
                         from_offset = None
                 start_position = self.runtime.event_bus_start_position
-                if checkpoint is None and self.policy.required_platform_run_id:
+                if (
+                    checkpoint is None
+                    and self.policy.required_platform_run_id
+                    and str(start_position).strip().lower() != "latest"
+                ):
                     start_position = "earliest"
                 records = self._kafka_reader.read(
                     topic=topic,

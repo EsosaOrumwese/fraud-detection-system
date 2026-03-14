@@ -3,7 +3,7 @@ policy_id: dla.intake.v0
 revision: r1
 intake:
   admitted_topics:
-    - fp.bus.traffic.fraud.v1
+    - fp.bus.rtdl.v1
   event_allowlist:
     - event_type: decision_response
       schema_versions: [v1]

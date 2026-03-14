@@ -227,7 +227,7 @@ def test_phase7_monitored_20_event_pass_records_join_hits_and_ready_query(tmp_pa
     inlet = ContextStoreFlowBindingInlet.build(str(profile_path))
     assert inlet.run_once() == 60
 
-    reporter = CsfbObservabilityReporter.build(locator=projection_db, stream_id="csfb.v0")
+    reporter = CsfbObservabilityReporter.build(locator=projection_db, stream_id=inlet.policy.stream_id)
     metrics = reporter.collect(platform_run_id=platform_run_id, scenario_run_id=str(pins["scenario_run_id"]))
     assert metrics["metrics"]["join_hits"] == 20
     assert metrics["metrics"]["join_misses"] == 0
@@ -269,7 +269,7 @@ def test_phase7_monitored_200_event_pass_is_checkpoint_stable_on_repoll(tmp_path
     inlet = ContextStoreFlowBindingInlet.build(str(profile_path))
     assert inlet.run_once() == 600
 
-    reporter = CsfbObservabilityReporter.build(locator=projection_db, stream_id="csfb.v0")
+    reporter = CsfbObservabilityReporter.build(locator=projection_db, stream_id=inlet.policy.stream_id)
     first = reporter.collect(platform_run_id=platform_run_id, scenario_run_id=str(pins["scenario_run_id"]))
     first_digest = str((first.get("applied_offset_basis") or {}).get("basis_digest") or "")
     assert first["metrics"]["join_hits"] == 200

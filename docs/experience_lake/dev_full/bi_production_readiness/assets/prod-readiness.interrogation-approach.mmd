@@ -1,0 +1,209 @@
+---
+config:
+  theme: default
+---
+flowchart TD
+
+    META["Meta goal (implicit)<br/>A serious reviewer infers senior-level ML Platform and MLOps capability"]:::meta
+    AGOAL["A achieved enough<br/>Pre-production-pressure network is real, bounded, wired, and understood"]:::finish
+    BGOAL["Bi goal (implicit)<br/>Interrogate how the A network was taken through production pressure<br/>into its production-ready posture,<br/>and extract the reasoning that made that transformation possible"]:::goal
+
+    META --> AGOAL --> BGOAL
+
+    BSTART["Start Bi interrogation<br/>Bi is not a component tour,<br/>not a raw phase diary,<br/>and not a future hardening to-do list"]:::step
+    BGOAL --> BSTART
+
+    BBOUND["Pin the Bi boundary<br/>Bi studies the transformation from A posture to production-ready posture<br/>for the objects that matter most to readiness and to the meta goal"]:::boundary
+    BSTART --> BBOUND
+
+    BFREEZE["Freeze Bi-core evidence surfaces"]:::step
+    BBOUND --> BFREEZE
+
+    subgraph BEVID["Bi-core evidence surfaces"]
+        direction TB
+        BV1["A master note<br/>pre-pressure object meanings,<br/>paths, groups, owned outcomes"]:::surface
+        BV2["Production-readiness implementation note<br/>incremental pressure history,<br/>breakages, bridges, revalidations"]:::surface
+        BV3["Production-readiness plan + phase authorities<br/>what 'ready' meant at each point,<br/>and what closure/promotion was being earned"]:::surface
+        BV4["Production-ready network/resource graphs<br/>final post-pressure posture"]:::surface
+        BV5["Bi notebook ledger<br/>object | A posture | Bi posture | concerns | measures | constraints | trade-offs | bridges | claim"]:::register
+    end
+
+    BFREEZE --> BV1
+    BFREEZE --> BV2
+    BFREEZE --> BV3
+    BFREEZE --> BV4
+    BFREEZE --> BV5
+
+    BINVENT["Define the interrogation inventory"]:::step
+    BV1 --> BINVENT
+    BV4 --> BINVENT
+
+    subgraph BINV["Inventory layers"]
+        direction TB
+        I1["Primary layer<br/>A-defined objects:<br/>groups, paths, planes, couplings"]:::surface
+        I2["Secondary layer<br/>enlarged-network objects:<br/>the working system after each new plane is attached"]:::surface
+    end
+
+    BINVENT --> I1
+    BINVENT --> I2
+
+    BPRIOR["Prioritize which objects deserve full interrogation first"]:::step
+    I1 --> BPRIOR
+    I2 --> BPRIOR
+
+    subgraph BCRIT["Selection criteria"]
+        direction TB
+        C1["central to system truth or control"]:::criteria
+        C2["re-pressured repeatedly as planes were attached"]:::criteria
+        C3["production concern is clear and meaningful"]:::criteria
+        C4["measurement / evidence story is strong"]:::criteria
+        C5["constraint / trade-off reasoning is rich"]:::criteria
+        C6["good payoff for the meta goal"]:::criteria
+    end
+
+    BPRIOR --> C1
+    BPRIOR --> C2
+    BPRIOR --> C3
+    BPRIOR --> C4
+    BPRIOR --> C5
+    BPRIOR --> C6
+
+    BSELECT["Select one object for interrogation"]:::step
+    C1 --> BSELECT
+    C2 --> BSELECT
+    C3 --> BSELECT
+    C4 --> BSELECT
+    C5 --> BSELECT
+    C6 --> BSELECT
+
+    subgraph BFRAME["Object frame"]
+        direction TB
+        APOST["State the A posture<br/>What was this object in the pre-pressure network?"]:::step
+        BPOST["State the final Bi posture<br/>What is this object in the production-ready network?"]:::step
+        BWHY["State why this object matters<br/>Why is it important to readiness and to the meta goal?"]:::step
+        APOST --> BPOST --> BWHY
+    end
+
+    BSELECT --> APOST
+
+    BQUEST["Derive the system-design questions for this object"]:::step
+    BWHY --> BQUEST
+
+    subgraph BQ["System-design interrogation questions"]
+        direction TB
+        Q1["What concerns us about this object under production pressure?"]:::question
+        Q2["Why does that concern matter?"]:::question
+        Q3["How do we measure what we care about?"]:::question
+        Q4["How does the A posture behave under pressure?"]:::question
+        Q5["What defines the production-ready standard here?"]:::question
+        Q6["What constraints shape the solution?"]:::question
+        Q7["What trade-offs are acceptable or unacceptable?"]:::question
+        Q8["Which enlarged-network attachments re-pressured this object?"]:::question
+    end
+
+    BQUEST --> Q1
+    BQUEST --> Q2
+    BQUEST --> Q3
+    BQUEST --> Q4
+    BQUEST --> Q5
+    BQUEST --> Q6
+    BQUEST --> Q7
+    BQUEST --> Q8
+
+    BCROSS["Map this object to the pressure history<br/>Which phase turns, coupled enlargements, or revalidations materially changed it?"]:::step
+    Q8 --> BCROSS
+    BV2 --> BCROSS
+    BV3 --> BCROSS
+
+    BREAD["Read the relevant implementation-note episodes<br/>Not every event, only the turns that changed posture,<br/>revealed a real concern, or forced a meaningful bridge"]:::step
+    BCROSS --> BREAD
+
+    BEP["Interrogate the pressure episodes"]:::step
+    BREAD --> BEP
+
+    subgraph BEPIS["Episode interrogation"]
+        direction TB
+        E1["What surfaced?"]:::episode
+        E2["How was it made visible?<br/>metric, counter, telemetry, behavior, or contradiction"]:::episode
+        E3["What did it actually mean?<br/>system concern, not just symptom"]:::episode
+        E4["What class of challenge was it?<br/>A-foundation issue, proof-boundary issue, or true readiness insufficiency"]:::episode
+        E5["What bridge was accepted?"]:::episode
+        E6["Why was that bridge the right one?"]:::episode
+        E7["What readiness property did it improve?"]:::episode
+        E8["What evidence shows the bridge,<br/>not just the rerun, changed the posture?"]:::episode
+    end
+
+    BEP --> E1
+    BEP --> E2
+    BEP --> E3
+    BEP --> E4
+    BEP --> E5
+    BEP --> E6
+    BEP --> E7
+    BEP --> E8
+
+    BTRANS["Synthesize the object transformation<br/>What had to be resolved to move this object<br/>from its A posture to its final Bi posture?"]:::bridge
+    E1 --> BTRANS
+    E2 --> BTRANS
+    E3 --> BTRANS
+    E4 --> BTRANS
+    E5 --> BTRANS
+    E6 --> BTRANS
+    E7 --> BTRANS
+    E8 --> BTRANS
+
+    BCLAIM["Extract the Bi claim for this object"]:::claims
+    BTRANS --> BCLAIM
+
+    subgraph BCLAIMS["Claim mix"]
+        direction TB
+        CL1["readiness-reasoning claim"]:::claim
+        CL2["systems-design judgment claim"]:::claim
+        CL3["measurement / observability claim"]:::claim
+        CL4["constraint / trade-off claim"]:::claim
+        CL5["production-relevant challenge claim"]:::claim
+        CL6["promotion / final-posture claim"]:::claim
+    end
+
+    BCLAIM --> CL1
+    BCLAIM --> CL2
+    BCLAIM --> CL3
+    BCLAIM --> CL4
+    BCLAIM --> CL5
+    BCLAIM --> CL6
+
+    BWRITE["Write the object block into the Bi notebook ledger"]:::step
+    CL1 --> BWRITE
+    CL2 --> BWRITE
+    CL3 --> BWRITE
+    CL4 --> BWRITE
+    CL5 --> BWRITE
+    CL6 --> BWRITE
+    BWRITE --> BV5
+
+    BNEXT{"More high-value objects to interrogate?"}:::decision
+    BWRITE --> BNEXT
+
+    BNEXT -- "Yes" --> BSELECT
+    BNEXT -- "No" --> BSYN
+
+    BSYN["Bi synthesis<br/>Show how production pressure transformed the A network<br/>into the production-ready network,<br/>object by object and enlarged-network by enlarged-network"]:::goal
+    BSYN --> BFINAL
+
+    BFINAL["Final Bi-supporting claims<br/>The production-ready network was earned through explicit reasoning<br/>about concerns, measures, constraints, trade-offs, and bridges,<br/>not just through green phase receipts"]:::finish
+    BFINAL --> META
+
+    classDef meta fill:#f8d7da,stroke:#b42318,color:#111;
+    classDef goal fill:#d1fadf,stroke:#027a48,color:#111;
+    classDef step fill:#dbeafe,stroke:#1d4ed8,color:#111;
+    classDef boundary fill:#fee2e2,stroke:#b91c1c,color:#111;
+    classDef surface fill:#ecfccb,stroke:#4d7c0f,color:#111;
+    classDef register fill:#fef3c7,stroke:#b45309,color:#111;
+    classDef decision fill:#ede9fe,stroke:#6d28d9,color:#111;
+    classDef criteria fill:#fae8ff,stroke:#a21caf,color:#111;
+    classDef question fill:#f3e8ff,stroke:#7c3aed,color:#111;
+    classDef episode fill:#fff7ed,stroke:#ea580c,color:#111;
+    classDef bridge fill:#cffafe,stroke:#0f766e,color:#111;
+    classDef claim fill:#fce7f3,stroke:#be185d,color:#111;
+    classDef claims fill:#e0f2fe,stroke:#0369a1,color:#111;
+    classDef finish fill:#f3f4f6,stroke:#374151,color:#111;

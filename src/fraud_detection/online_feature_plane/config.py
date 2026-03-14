@@ -145,11 +145,7 @@ class OfpProfile:
         event_bus_stream = _resolve_env(event_bus.get("stream"))
         event_bus_region = _resolve_env(event_bus.get("region"))
         event_bus_endpoint_url = _resolve_env(event_bus.get("endpoint_url"))
-        event_bus_start_position = str(
-            _resolve_env(event_bus.get("start_position") or os.getenv("OFP_EVENT_BUS_START_POSITION") or "trim_horizon")
-        ).strip().lower()
-        if event_bus_start_position not in {"trim_horizon", "latest"}:
-            raise ValueError("OFP event_bus.start_position must be one of: trim_horizon, latest")
+        event_bus_start_position = _event_bus_start_position(wiring=wiring, event_bus=event_bus)
         topics = _load_topics(event_bus, base_dir=path.parent)
         if not topics:
             raise ValueError("OFP requires at least one event bus topic")
@@ -234,6 +230,20 @@ def _resolve_env(value: str | None) -> str | None:
     if not match:
         return value
     return os.getenv(match.group(1), "")
+
+
+def _event_bus_start_position(*, wiring: dict[str, Any], event_bus: dict[str, Any]) -> str:
+    value = str(
+        _resolve_env(
+            wiring.get("event_bus_start_position")
+            or event_bus.get("start_position")
+            or os.getenv("OFP_EVENT_BUS_START_POSITION")
+            or "trim_horizon"
+        )
+    ).strip().lower()
+    if value not in {"trim_horizon", "latest"}:
+        raise ValueError("OFP event_bus.start_position must be one of: trim_horizon, latest")
+    return value
 
 
 def _resolve_ref(value: str | None, *, base_dir: Path) -> Path:

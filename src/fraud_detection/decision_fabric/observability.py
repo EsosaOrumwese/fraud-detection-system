@@ -49,9 +49,15 @@ class DfRunMetrics:
 
         reasons = tuple(str(item) for item in list(normalized.get("reason_codes") or []))
         decision_obj = _mapping_or_empty(normalized.get("decision"))
+        action_kind = str(decision_obj.get("action_kind") or "").strip().upper()
         degrade_mode = str(_mapping_or_empty(normalized.get("degrade_posture")).get("mode") or "").strip().upper()
         context_status = str(decision_obj.get("context_status") or "").strip().upper()
         registry_outcome = str(decision_obj.get("registry_outcome") or "").strip().upper()
+        explicit_fallback = _is_explicit_fallback(
+            action_kind=action_kind,
+            registry_outcome=registry_outcome,
+            reason_codes=reasons,
+        )
 
         if _is_degrade(
             degrade_mode=degrade_mode,
@@ -60,12 +66,22 @@ class DfRunMetrics:
             reason_codes=reasons,
         ):
             self.counters["degrade_total"] += 1
+        if action_kind == "STEP_UP":
+            self.counters["step_up_total"] += 1
+        if explicit_fallback:
+            self.counters["explicit_fallback_total"] += 1
         if _is_missing_context(context_status=context_status, reason_codes=reasons):
             self.counters["missing_context_total"] += 1
         if _is_resolver_failure(registry_outcome=registry_outcome, reason_codes=reasons):
             self.counters["resolver_failures_total"] += 1
-        if _is_fail_closed(degrade_mode=degrade_mode, reason_codes=reasons):
+        if _is_fail_closed(
+            action_kind=action_kind,
+            degrade_mode=degrade_mode,
+            registry_outcome=registry_outcome,
+            reason_codes=reasons,
+        ):
             self.counters["fail_closed_total"] += 1
+            self.counters["hard_fail_closed_total"] += 1
 
         if publish_decision:
             normalized_publish = str(publish_decision).strip().upper()
@@ -179,7 +195,34 @@ def _is_resolver_failure(*, registry_outcome: str, reason_codes: tuple[str, ...]
     )
 
 
-def _is_fail_closed(*, degrade_mode: str, reason_codes: tuple[str, ...]) -> bool:
+def _is_explicit_fallback(
+    *,
+    action_kind: str,
+    registry_outcome: str,
+    reason_codes: tuple[str, ...],
+) -> bool:
+    if action_kind != "STEP_UP":
+        return False
+    if registry_outcome == "FALLBACK":
+        return True
+    return any(
+        item == "FALLBACK_EXPLICIT"
+        or item.startswith("FALLBACK_")
+        or item.startswith("CAPABILITY_BLOCK:")
+        or item.startswith("CAPABILITY_MISMATCH:")
+        for item in reason_codes
+    )
+
+
+def _is_fail_closed(
+    *,
+    action_kind: str,
+    degrade_mode: str,
+    registry_outcome: str,
+    reason_codes: tuple[str, ...],
+) -> bool:
+    if _is_explicit_fallback(action_kind=action_kind, registry_outcome=registry_outcome, reason_codes=reason_codes):
+        return False
     if degrade_mode in {"FAIL_CLOSED", "BLOCKED"}:
         return True
     return any("FAIL_CLOSED" in item for item in reason_codes)
@@ -208,9 +251,12 @@ def _utc_now() -> str:
 _REQUIRED_COUNTERS = (
     "decisions_total",
     "degrade_total",
+    "step_up_total",
+    "explicit_fallback_total",
     "missing_context_total",
     "resolver_failures_total",
     "fail_closed_total",
+    "hard_fail_closed_total",
     "publish_admit_total",
     "publish_duplicate_total",
     "publish_quarantine_total",

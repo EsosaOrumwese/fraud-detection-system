@@ -107,3 +107,39 @@ def test_phase2_apply_checkpoint_rolls_back_on_conflict(tmp_path: Path) -> None:
     checkpoint = store.get_checkpoint(topic="fp.bus.context.flow_anchors.v1", partition_id=0)
     assert checkpoint is not None
     assert checkpoint.next_offset == "2"
+
+
+def test_phase2_record_apply_failure_is_idempotent_for_duplicate_replay(tmp_path: Path) -> None:
+    db_path = tmp_path / "csfb.sqlite"
+    store = build_store(locator=db_path, stream_id="csfb")
+
+    first = store.record_apply_failure(
+        reason_code="JOIN_FRAME_PAYLOAD_HASH_MISMATCH",
+        details={"event_type": "arrival_events_5B", "mode": "replay"},
+        platform_run_id="platform_20260207T000000Z",
+        scenario_run_id="a" * 32,
+        topic="fp.bus.context.arrival_events.v1",
+        partition_id=0,
+        offset="9",
+        offset_kind="file_line",
+        event_id="deadbeef" * 8,
+        event_type="arrival_events_5B",
+    )
+    second = store.record_apply_failure(
+        reason_code="JOIN_FRAME_PAYLOAD_HASH_MISMATCH",
+        details={"event_type": "arrival_events_5B", "mode": "replay"},
+        platform_run_id="platform_20260207T000000Z",
+        scenario_run_id="a" * 32,
+        topic="fp.bus.context.arrival_events.v1",
+        partition_id=0,
+        offset="9",
+        offset_kind="file_line",
+        event_id="deadbeef" * 8,
+        event_type="arrival_events_5B",
+    )
+
+    assert first == second
+    with sqlite3.connect(str(db_path)) as conn:
+        rows = conn.execute("SELECT COUNT(*) FROM csfb_join_apply_failures").fetchone()
+    assert rows is not None
+    assert int(rows[0]) == 1

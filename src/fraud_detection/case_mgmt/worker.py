@@ -9,13 +9,13 @@ import json
 import logging
 import os
 from pathlib import Path
-import re
 import sqlite3
 import time
 from typing import Any, Mapping
 
 import yaml
 
+from fraud_detection.env_tokens import resolve_env_token
 from fraud_detection.event_bus import EventBusReader
 from fraud_detection.event_bus.kafka import build_kafka_reader
 from fraud_detection.event_bus.kinesis import KinesisEventBusReader
@@ -29,7 +29,6 @@ from fraud_detection.label_store import LabelStoreWriterBoundary
 
 
 logger = logging.getLogger("fraud_detection.case_mgmt.worker")
-_ENV_PATTERN = re.compile(r"^\$\{([^}:]+)(?::-([^}]*))?\}$")
 
 
 @dataclass(frozen=True)
@@ -48,6 +47,7 @@ class CaseMgmtWorkerConfig:
     stream_id: str
     platform_run_id: str | None
     required_platform_run_id: str | None
+    scenario_run_id: str | None
     locator: str
     label_store_locator: str
     consumer_checkpoint_path: Path
@@ -134,6 +134,7 @@ class CaseMgmtWorker:
             else None
         )
         self._kafka_reader = build_kafka_reader(client_id=f"case-mgmt-worker-{config.stream_id}") if config.event_bus_kind == "kafka" else None
+        self._seed_run_scope_from_config()
 
     def run_once(self) -> int:
         processed = 0
@@ -234,6 +235,12 @@ class CaseMgmtWorker:
             self._scenario_run_id = scenario_run_id
             return True
         return self._scenario_run_id == scenario_run_id
+
+    def _seed_run_scope_from_config(self) -> None:
+        scenario_run_id = str(self.config.scenario_run_id or "").strip()
+        if not scenario_run_id or self._scenario_run_id is not None:
+            return
+        self._scenario_run_id = scenario_run_id
 
     def _iter_records(self) -> list[dict[str, Any]]:
         if self.config.event_bus_kind == "kinesis":
@@ -406,6 +413,14 @@ def load_worker_config(profile_path: Path) -> CaseMgmtWorkerConfig:
                 or platform_run_id
             )
         ),
+        scenario_run_id=_none_if_blank(
+            _env(
+                cm_wiring.get("scenario_run_id")
+                or os.getenv("CASE_MGMT_SCENARIO_RUN_ID")
+                or os.getenv("ACTIVE_SCENARIO_RUN_ID")
+                or os.getenv("LABEL_STORE_SCENARIO_RUN_ID")
+            )
+        ),
         locator=_locator(cm_wiring.get("locator"), "case_mgmt/case_mgmt.sqlite"),
         label_store_locator=_locator(cm_wiring.get("label_store_locator"), "label_store/writer.sqlite"),
         consumer_checkpoint_path=checkpoint_path,
@@ -417,13 +432,7 @@ def load_worker_config(profile_path: Path) -> CaseMgmtWorkerConfig:
 
 
 def _env(value: Any) -> Any:
-    if not isinstance(value, str):
-        return value
-    token = value.strip()
-    match = _ENV_PATTERN.fullmatch(token)
-    if not match:
-        return value
-    return os.getenv(match.group(1), match.group(2) or "")
+    return resolve_env_token(value)
 
 
 def _locator(value: Any, suffix: str) -> str:

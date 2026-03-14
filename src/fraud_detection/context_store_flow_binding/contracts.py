@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Mapping
 import re
 
@@ -190,6 +190,7 @@ class QueryResponse:
     flow_id: str | None = None
     join_frame_key: JoinFrameKey | None = None
     flow_binding: FlowBindingRecord | None = None
+    context_refs: dict[str, dict[str, Any]] = field(default_factory=dict)
     evidence_refs: tuple[dict[str, str], ...] = ()
 
     @classmethod
@@ -210,6 +211,7 @@ class QueryResponse:
         join_frame_key = JoinFrameKey.from_mapping(join_frame_key_raw) if join_frame_key_raw is not None else None
         flow_binding_raw = mapped.get("flow_binding")
         flow_binding = FlowBindingRecord.from_mapping(flow_binding_raw) if flow_binding_raw is not None else None
+        context_refs = _normalize_context_refs(mapped.get("context_refs"))
         evidence_refs = _normalize_evidence_refs(mapped.get("evidence_refs"))
         return cls(
             request_id=request_id,
@@ -220,6 +222,7 @@ class QueryResponse:
             flow_id=flow_id,
             join_frame_key=join_frame_key,
             flow_binding=flow_binding,
+            context_refs=context_refs,
             evidence_refs=evidence_refs,
         )
 
@@ -237,6 +240,11 @@ class QueryResponse:
             payload["join_frame_key"] = self.join_frame_key.as_dict()
         if self.flow_binding is not None:
             payload["flow_binding"] = self.flow_binding.as_dict()
+        if self.context_refs:
+            payload["context_refs"] = {
+                str(role): dict(ref)
+                for role, ref in sorted(self.context_refs.items())
+            }
         if self.evidence_refs:
             payload["evidence_refs"] = [dict(item) for item in self.evidence_refs]
         return payload
@@ -368,3 +376,14 @@ def _normalize_evidence_refs(value: Any) -> tuple[dict[str, str], ...]:
         ref = _require_non_empty_str(mapped.get("ref"), f"query_response.evidence_refs[{index}].ref")
         refs.append({"kind": kind, "ref": ref})
     return tuple(refs)
+
+
+def _normalize_context_refs(value: Any) -> dict[str, dict[str, Any]]:
+    if value in (None, ""):
+        return {}
+    mapped = _as_mapping(value, "query_response.context_refs")
+    refs: dict[str, dict[str, Any]] = {}
+    for role, raw_ref in mapped.items():
+        name = _require_non_empty_str(role, "query_response.context_refs.role")
+        refs[name] = _normalize_eb_ref(raw_ref, f"query_response.context_refs[{name}]")
+    return refs

@@ -118,8 +118,42 @@ def test_health_thresholds_support_env_overrides(monkeypatch) -> None:
 
     health = query_module._derive_health(
         failure_count=0,
+        metrics=None,
         watermark_age_seconds=15.0,
         checkpoint_age_seconds=0.0,
     )
     assert health["state"] == "AMBER"
     assert "WATERMARK_LAGGING" in health["reasons"]
+
+
+def test_health_uses_replay_advisory_when_checkpoint_is_fresh(monkeypatch) -> None:
+    monkeypatch.setenv("IEG_HEALTH_RED_WATERMARK_AGE_SECONDS", "20")
+    monkeypatch.setenv("IEG_HEALTH_AMBER_CHECKPOINT_AGE_SECONDS", "120")
+
+    health = query_module._derive_health(
+        failure_count=0,
+        metrics={"events_seen": 6922, "mutating_applied": 6922},
+        watermark_age_seconds=60.0,
+        checkpoint_age_seconds=0.08,
+    )
+
+    assert health["state"] == "AMBER"
+    assert "WATERMARK_REPLAY_ADVISORY" in health["reasons"]
+    assert "WATERMARK_TOO_OLD" not in health["reasons"]
+
+
+def test_status_returns_structured_graph_version_payload(tmp_path) -> None:
+    db_path = tmp_path / "ieg.db"
+    store = build_store(str(db_path), stream_id="ieg.v0")
+    pins = _pins()
+    _apply_event(store, pins, event_id="evt-1", entity_id="entity-1")
+
+    query = IdentityGraphQuery(store, "ieg.v0")
+    result = query.status(scenario_run_id=str(pins["scenario_run_id"]))
+
+    graph_version = result["graph_version"]
+    assert isinstance(graph_version, dict)
+    assert graph_version["version_id"]
+    assert graph_version["stream"] == "ieg.v0"
+    assert graph_version["watermark_ts_utc"] == result["checkpoints"]["watermark_ts_utc"]
+    assert result["graph_version_token"] == graph_version["version_id"]

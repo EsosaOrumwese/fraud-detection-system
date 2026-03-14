@@ -186,3 +186,37 @@ def test_correction_is_append_only_with_supersede_link() -> None:
     assert corrected["decision_id"] != original["decision_id"]
     assert corrected["decision"]["supersedes_decision_id"] == original["decision_id"]
     assert "CORRECTION" in corrected["reason_codes"]
+
+
+def test_short_bundle_ids_are_normalized_to_hex64() -> None:
+    synthesizer = DecisionSynthesizer()
+    registry_result = _registry_result()
+    registry_result = RegistryResolutionResult(
+        outcome=registry_result.outcome,
+        scope_key=registry_result.scope_key,
+        bundle_ref={
+            "bundle_id": "40d27a4c62e2438e",
+            "bundle_version": "m11g_candidate_bundle_20260227T081200Z",
+            "registry_ref": "s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/mf/candidate_bundle.json",
+        },
+        resolved_via=registry_result.resolved_via,
+        reason_codes=registry_result.reason_codes,
+        registry_event_id=registry_result.registry_event_id,
+        compatibility=registry_result.compatibility,
+        policy_rev=registry_result.policy_rev,
+        snapshot_digest=registry_result.snapshot_digest,
+        basis_digest=registry_result.basis_digest,
+    )
+    artifacts = synthesizer.synthesize(
+        candidate=_candidate(),
+        posture=_posture(),
+        registry_result=registry_result,
+        context_result=_context_result(),
+        run_config_digest="5" * 64,
+        decided_at_utc="2026-02-07T11:00:00.100000Z",
+        requested_at_utc="2026-02-07T11:00:00.100000Z",
+    )
+    bundle_id = artifacts.decision_payload["bundle_ref"]["bundle_id"]
+    assert len(bundle_id) == 64
+    assert all(ch in "0123456789abcdef" for ch in bundle_id)
+    assert artifacts.decision_payload["bundle_ref"]["bundle_version"] == "m11g_candidate_bundle_20260227T081200Z"

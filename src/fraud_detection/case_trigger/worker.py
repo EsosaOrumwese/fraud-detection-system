@@ -9,13 +9,13 @@ import json
 import logging
 import os
 from pathlib import Path
-import re
 import sqlite3
 import time
 from typing import Any, Mapping
 
 import yaml
 
+from fraud_detection.env_tokens import resolve_env_token
 from fraud_detection.event_bus import EventBusReader
 from fraud_detection.event_bus.kafka import build_kafka_reader
 from fraud_detection.event_bus.kinesis import KinesisEventBusReader
@@ -30,6 +30,7 @@ from .publish import (
     PUBLISH_AMBIGUOUS,
     PUBLISH_QUARANTINE,
     CaseTriggerIgPublisher,
+    CaseTriggerInternalPublisher,
     PublishedCaseTriggerRecord,
 )
 from .reconciliation import CaseTriggerReconciliationBuilder
@@ -38,7 +39,6 @@ from .storage import CaseTriggerPublishStore
 
 
 logger = logging.getLogger("fraud_detection.case_trigger.worker")
-_ENV_PATTERN = re.compile(r"^\$\{([^}:]+)(?::-([^}]*))?\}$")
 
 
 @dataclass(frozen=True)
@@ -57,6 +57,7 @@ class CaseTriggerWorkerConfig:
     stream_id: str
     platform_run_id: str | None
     required_platform_run_id: str | None
+    scenario_run_id: str | None
     event_class: str
     ig_ingest_url: str
     ig_api_key: str | None
@@ -71,6 +72,10 @@ class CaseTriggerWorkerConfig:
     object_store_path_style: bool
     environment: str
     config_revision: str
+    class_map_ref: Path = Path("config/platform/ig/class_map_v0.yaml")
+    partitioning_profiles_ref: Path = Path("config/platform/ig/partitioning_profiles_v0.yaml")
+    engine_contracts_root: Path = Path("docs/model_spec/data-engine/interface_pack/contracts")
+    publish_mode: str = "ig"
 
 
 class _ConsumerCheckpointStore:
@@ -144,12 +149,26 @@ class CaseTriggerWorker:
         self.replay = CaseTriggerReplayLedger(config.replay_dsn)
         self.checkpoints = CaseTriggerCheckpointGate(config.checkpoint_dsn)
         self.publish_store = CaseTriggerPublishStore(locator=config.publish_store_dsn)
-        self.publisher = CaseTriggerIgPublisher(
-            ig_ingest_url=config.ig_ingest_url,
-            api_key=config.ig_api_key,
-            api_key_header=config.ig_api_key_header,
-            publish_store=self.publish_store,
-        )
+        publish_mode = str(config.publish_mode or "ig").strip().lower()
+        if publish_mode == "internal_bus":
+            self.publisher = CaseTriggerInternalPublisher(
+                event_bus_kind=config.event_bus_kind,
+                event_bus_root=config.event_bus_root,
+                event_bus_stream=config.event_bus_stream,
+                event_bus_region=config.event_bus_region,
+                event_bus_endpoint_url=config.event_bus_endpoint_url,
+                class_map_ref=config.class_map_ref,
+                partitioning_profiles_ref=config.partitioning_profiles_ref,
+                engine_contracts_root=config.engine_contracts_root,
+                publish_store=self.publish_store,
+            )
+        else:
+            self.publisher = CaseTriggerIgPublisher(
+                ig_ingest_url=config.ig_ingest_url,
+                api_key=config.ig_api_key,
+                api_key_header=config.ig_api_key_header,
+                publish_store=self.publish_store,
+            )
         self.consumer_checkpoints = _ConsumerCheckpointStore(config.consumer_checkpoint_path, config.stream_id)
         self._scenario_run_id: str | None = None
         self._metrics: CaseTriggerRunMetrics | None = None
@@ -177,6 +196,7 @@ class CaseTriggerWorker:
             )
         except Exception as exc:
             logger.warning("CaseTrigger governance store disabled: %s", str(exc)[:256])
+        self._seed_run_scope_from_config()
 
     def run_once(self) -> int:
         processed = 0
@@ -393,6 +413,30 @@ class CaseTriggerWorker:
             return True
         return self._scenario_run_id == scenario_run_id
 
+    def _seed_run_scope_from_config(self) -> None:
+        platform_run_id = str(self.config.platform_run_id or "").strip()
+        scenario_run_id = str(self.config.scenario_run_id or "").strip()
+        if not platform_run_id or not scenario_run_id or self._scenario_run_id is not None:
+            return
+        self._scenario_run_id = scenario_run_id
+        self._metrics = CaseTriggerRunMetrics(
+            platform_run_id=platform_run_id,
+            scenario_run_id=scenario_run_id,
+        )
+        self._reconciliation = CaseTriggerReconciliationBuilder(
+            platform_run_id=platform_run_id,
+            scenario_run_id=scenario_run_id,
+        )
+        if self._governance_store is not None:
+            self._governance = CaseTriggerGovernanceEmitter(
+                store=self._governance_store,
+                platform_run_id=platform_run_id,
+                scenario_run_id=scenario_run_id,
+                source_component="case_trigger",
+                environment=self.config.environment,
+                config_revision=self.config.config_revision,
+            )
+
     def _iter_records(self) -> list[dict[str, Any]]:
         if self.config.event_bus_kind == "kinesis":
             return self._read_kinesis()
@@ -487,8 +531,6 @@ class CaseTriggerWorker:
                         )
                         continue
                     payload = record.get("payload") if isinstance(record.get("payload"), Mapping) else {}
-                    if isinstance(payload.get("payload"), Mapping):
-                        payload = dict(payload.get("payload") or {})
                     rows.append(
                         {
                             "topic": topic,
@@ -605,6 +647,13 @@ def load_worker_config(profile_path: Path) -> CaseTriggerWorkerConfig:
                 or platform_run_id
             )
         ),
+        scenario_run_id=_none_if_blank(
+            _env(
+                ct_wiring.get("scenario_run_id")
+                or os.getenv("CASE_TRIGGER_SCENARIO_RUN_ID")
+                or os.getenv("ACTIVE_SCENARIO_RUN_ID")
+            )
+        ),
         event_class=str(_env(ct_wiring.get("event_class") or "traffic_fraud")).strip(),
         ig_ingest_url=str(
             _env(
@@ -637,6 +686,12 @@ def load_worker_config(profile_path: Path) -> CaseTriggerWorkerConfig:
         object_store_path_style=object_path_style_value in {"1", "true", "yes"},
         environment=str(_env(ct_wiring.get("environment") or profile_id)).strip(),
         config_revision=str(_env(payload.get("policy", {}).get("policy_rev") if isinstance(payload.get("policy"), Mapping) else "local-parity-v0")).strip() or "local-parity-v0",
+        class_map_ref=Path(str(_env(ct_wiring.get("class_map_ref") or wiring.get("class_map_ref") or "config/platform/ig/class_map_v0.yaml"))),
+        partitioning_profiles_ref=Path(
+            str(_env(ct_wiring.get("partitioning_profiles_ref") or wiring.get("partitioning_profiles_ref") or "config/platform/ig/partitioning_profiles_v0.yaml"))
+        ),
+        engine_contracts_root=Path(str(_env(ct_wiring.get("engine_contracts_root") or "docs/model_spec/data-engine/interface_pack/contracts"))),
+        publish_mode=str(_env(ct_wiring.get("publish_mode") or os.getenv("CASE_TRIGGER_PUBLISH_MODE") or "ig")).strip().lower(),
     )
 
 
@@ -658,13 +713,7 @@ def _audit_ref(*, payload: Mapping[str, Any], event_type: str) -> str:
 
 
 def _env(value: Any) -> Any:
-    if not isinstance(value, str):
-        return value
-    token = value.strip()
-    match = _ENV_PATTERN.fullmatch(token)
-    if not match:
-        return value
-    return os.getenv(match.group(1), match.group(2) or "")
+    return resolve_env_token(value)
 
 
 def _locator(value: Any, suffix: str) -> str:

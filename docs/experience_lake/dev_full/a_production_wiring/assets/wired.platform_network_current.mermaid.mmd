@@ -1,0 +1,511 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% dev_full implemented distributed platform network
+%% current implemented/provisioned dev_full platform topology
+flowchart LR
+
+  EXT["External Data Engine<br>black-box upstream producer<br>feeds oracle-store only"]
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active platform component / control surface"]
+    LG2[("Round store = durable state / truth store")]
+    LG3["Dashed edge = retained, pinned, or indirect relationship"]
+    LG4["Edge labels describe the exact contract:<br>dispatches / publishes / consumes / writes / reads / resolves"]
+  end
+
+  %% =========================================================
+  %% 1. CONTROL NETWORK
+  %% =========================================================
+  subgraph CONTROL["1. Control Network"]
+    GHA["GitHub Actions<br>workflow dispatch / bounded runs / teardown"]
+    TFCORE["Terraform stack<br>core"]
+    TFSTREAM["Terraform stack<br>streaming"]
+    TFRUNTIME["Terraform stack<br>runtime"]
+    TFDML["Terraform stack<br>data_ml"]
+    TFOPS["Terraform stack<br>ops"]
+    ECR["ECR repo<br>fraud-platform-dev-full"]
+    SFN["Step Functions<br>fraud-platform-dev-full-platform-run-v0"]
+    CTRLBUS[["fp.bus.control.v1"]]
+    RUNID["Run identity pins<br>platform_run_id / scenario_run_id<br>phase_id / trace_id / config_digest"]
+    RUNTIMEPATH["Runtime path governance<br>single active path per phase run"]
+  end
+
+  %% =========================================================
+  %% 2. INGRESS NETWORK
+  %% =========================================================
+  subgraph INGRESS["2. Ingress Network"]
+    WSPCLUSTER["ECS cluster<br>fraud-platform-dev-full-wsp-ephemeral"]
+    WSP["WSP replay producer<br>ECS/Fargate ephemeral task"]
+    HTTPAPI["HTTP API Gateway<br>fraud-platform-dev-full-ig-edge<br>stage v1<br>3000 rps / 6000 burst"]
+    APIR1["Route<br>POST /ingest/push"]
+    APIR2["Route<br>GET /ops/health"]
+    IGLAMBDA["Ingress Lambda<br>fraud-platform-dev-full-ig-handler<br>python3.12<br>Kafka-capable handler"]
+    IGSVC_CLUSTER["ECS cluster<br>fraud-platform-dev-full-ingress"]
+    ALB["Internal ALB<br>fp-dev-full-ig-svc<br>internal-fp-dev-full-ig-svc-1208840173.eu-west-2.elb.amazonaws.com"]
+    TG["Target group<br>fp-dev-full-ig-svc"]
+    IGSVC["Ingress ECS service<br>fraud-platform-dev-full-ig-service<br>task def :24"]
+    IGDDB[("DynamoDB<br>fraud-platform-dev-full-ig-idempotency")]
+    IGDLQ["SQS DLQ<br>fraud-platform-dev-full-ig-dlq"]
+    IGRECEIPTS["IG receipts / quarantine refs"]
+  end
+
+  %% =========================================================
+  %% 3. EVENT TRANSPORT NETWORK
+  %% =========================================================
+  subgraph TRANSPORT["3. Event Transport Network"]
+    MSK[("MSK Serverless<br>fraud-platform-dev-full-msk<br>ACTIVE")]
+    GLUEREG["Glue Schema Registry<br>fraud-platform-dev-full<br>BACKWARD"]
+    TTRAFFIC[["fp.bus.traffic.fraud.v1"]]
+    TCTXE[["fp.bus.context.arrival_events.v1"]]
+    TCTXT[["fp.bus.context.arrival_entities.v1"]]
+    TFLOW[["fp.bus.context.flow_anchor.fraud.v1"]]
+    TRTDL[["fp.bus.rtdl.v1"]]
+    TAUDIT[["fp.bus.audit.v1"]]
+    TCASE[["fp.bus.case.triggers.v1"]]
+    TLABELS[["fp.bus.labels.events.v1"]]
+    TOFSREQ[["fp.bus.learning.ofs.requests.v1"]]
+    TOFSEVT[["fp.bus.learning.ofs.events.v1"]]
+    TMFREQ[["fp.bus.learning.mf.requests.v1"]]
+    TMFEVT[["fp.bus.learning.mf.events.v1"]]
+    TREG[["fp.bus.learning.registry.events.v1"]]
+  end
+
+  %% =========================================================
+  %% 4. REAL-TIME DECISION NETWORK
+  %% =========================================================
+  subgraph RTDL["4. Real-Time Decision Network"]
+    EKS["EKS cluster<br>fraud-platform-dev-full"]
+    NG["Nodegroup<br>fraud-platform-dev-full-m6f-workers"]
+    NSRTDL["Namespace<br>fraud-platform-rtdl"]
+    SARTDL["ServiceAccount<br>rtdl"]
+    SADEC["ServiceAccount<br>decision-lane"]
+    CSFB["Deployment<br>fp-pr3-csfb"]
+    IEG["Deployment<br>fp-pr3-ieg"]
+    OFP["Deployment<br>fp-pr3-ofp"]
+    DL["Deployment<br>fp-pr3-dl"]
+    DF["Deployment<br>fp-pr3-df"]
+    AL["Deployment<br>fp-pr3-al"]
+    DLA["Deployment<br>fp-pr3-dla"]
+    ARCHIVE["Deployment<br>fp-pr3-archive-writer"]
+    MSF["Managed Flink app<br>fraud-platform-dev-full-rtdl-ieg-ofp-v0<br>status READY only<br>retained surface, not current active output path"]
+  end
+
+  %% =========================================================
+  %% 5. CASE / LABEL TRUTH NETWORK
+  %% =========================================================
+  subgraph CASELABEL["5. Case / Label Truth Network"]
+    NSCL["Namespace<br>fraud-platform-case-labels"]
+    SACL["ServiceAccount<br>case-labels"]
+    CASETRIG["Deployment<br>fp-pr3-case-trigger"]
+    CM["Deployment<br>fp-pr3-case-mgmt"]
+    LS["Deployment<br>fp-pr3-label-store"]
+  end
+
+  %% =========================================================
+  %% 6. LEARNING / EVOLUTION NETWORK
+  %% =========================================================
+  subgraph LEARN["6. Learning / Evolution Network"]
+    DBX["Databricks (OFS)<br>dataset build / replay materialization"]
+    DBXBUILD["Job<br>fraud-platform-dev-full-ofs-build-v0"]
+    DBXQUAL["Job<br>fraud-platform-dev-full-ofs-quality-v0"]
+    GLUEDB[("Glue DBs<br>fraud_platform_dev_full_ofs<br>fraud_platform_dev_full_m15")]
+    SM["SageMaker (MF)<br>train / eval / candidate bundle"]
+    SMPKG["Model package group<br>fraud-platform-dev-full-models"]
+    SMENDPT["Serving endpoint handle<br>fraud-platform-dev-full-online-v0<br>pinned reference only, not current active serving path"]
+    MLFLOW["MLflow (MPR)<br>databricks-managed tracking URI<br>/Shared/fraud-platform/dev_full/mlflow_exp_v0"]
+    REGACTIVE["Active bundle / policy resolution<br>runtime-consumed registry truth"]
+  end
+
+  %% =========================================================
+  %% 7. GOVERNANCE / PROVENANCE NETWORK
+  %% =========================================================
+  subgraph GOV["7. Governance / Provenance Network"]
+    NSOBS["Namespace<br>fraud-platform-obs-gov"]
+    SAOBS["ServiceAccount<br>obs-gov"]
+    EVID[("S3 evidence bucket<br>fraud-platform-dev-full-evidence")]
+    RUNCTL["Run control<br>conformance / receipts"]
+    PROMO["Promotion receipts"]
+    ROLLBACK["Rollback drill receipts"]
+    GOVAPPEND["Governance append<br>immutable run facts"]
+    REPORTS["Run reports<br>reconciliation / non-regression packs"]
+  end
+
+  %% =========================================================
+  %% 8. IDENTITY / TRUST NETWORK
+  %% =========================================================
+  subgraph IDENTITY["8. Identity / Trust Network"]
+    OIDC["GitHub OIDC trust"]
+    SSM["SSM Parameter Store<br>service URLs / handles / endpoints / credentials"]
+    ROLETF["fraud-dev<br>Terraform apply identity"]
+    ROLEBASE["fraud-platform-dev-full-runtime-platform-base"]
+    ROLENODE["fraud-platform-dev-full-eks-nodegroup"]
+    ROLEFLINK["fraud-platform-dev-full-flink-execution"]
+    ROLELAMBDA["fraud-platform-dev-full-lambda-ig-execution"]
+    ROLEAPIGW["fraud-platform-dev-full-apigw-ig-invoke"]
+    ROLEDDB["fraud-platform-dev-full-ddb-ig-idempotency-rw"]
+    ROLESFN["fraud-platform-dev-full-stepfunctions-orchestrator"]
+    ROLEECSEXEC["fraud-platform-dev-full-ecs-ig-task-execution"]
+    ROLEECSRUNTIME["fraud-platform-dev-full-ecs-ig-task-runtime"]
+    ROLEWSPEXEC["fraud-platform-dev-full-ecs-task-exec-wsp"]
+    ROLEWSPRUN["fraud-platform-dev-full-ecs-task-runtime-wsp"]
+    ROLEIRSARTDL["fraud-platform-dev-full-irsa-rtdl"]
+    ROLEIRSADEC["fraud-platform-dev-full-irsa-decision-lane"]
+    ROLEIRSACL["fraud-platform-dev-full-irsa-case-labels"]
+    ROLEIRSAOBS["fraud-platform-dev-full-irsa-obs-gov"]
+    ROLEDBX["fraud-platform-dev-full-databricks-cross-account-access"]
+    ROLESM["fraud-platform-dev-full-sagemaker-execution"]
+    ROLEMWAA["fraud-platform-dev-full-mwaa-execution<br>IAM role only; MWAA environment not materialized"]
+  end
+
+  %% =========================================================
+  %% 9. STATE / STORAGE NETWORK
+  %% =========================================================
+  subgraph STATE["9. State / Storage Network"]
+    TFSTATE[("S3 tfstate bucket<br>fraud-platform-dev-full-tfstate")]
+    OBJ[("S3 object store / oracle store<br>fraud-platform-dev-full-object-store")]
+    ART[("S3 artifacts bucket<br>fraud-platform-dev-full-artifacts")]
+    ORACLE["oracle-store/ prefix<br>read-only runtime boundary"]
+    ARCHIVEPATH["archive/ prefix"]
+    QUARPATH["quarantine/ prefix"]
+    AURORA[("Aurora Serverless v2<br>fraud-platform-dev-full-aurora<br>aurora-postgresql<br>min 0.5 / max 4 ACU")]
+    AURW["writer endpoint"]
+    AURR["reader endpoint"]
+    REDISH["Redis endpoint handle in SSM<br>handle exists, no live ElastiCache resource currently observed"]
+  end
+
+  %% =========================================================
+  %% 10. OPERATIONAL NETWORK
+  %% =========================================================
+  subgraph OPS["10. Operational Network"]
+    VPC["VPC<br>vpc-0e7f9d89e5d468c06<br>10.70.0.0/16"]
+    PUB1["public_01<br>subnet-08e1946cfe334701b<br>10.70.0.0/20<br>eu-west-2a"]
+    PUB2["public_02<br>subnet-0b2ca93fb063d5454<br>10.70.16.0/20<br>eu-west-2b"]
+    PRIV1["private_01<br>subnet-05eb1723a67aae130<br>10.70.128.0/20<br>eu-west-2a"]
+    PRIV2["private_02<br>subnet-01a14f74b3ee05cd2<br>10.70.144.0/20<br>eu-west-2b"]
+    VPCESTS["VPC endpoint<br>STS"]
+    VPCESSM["VPC endpoint<br>SSM"]
+    VPCELOGS["VPC endpoint<br>CloudWatch Logs"]
+    VPCEECRAPI["VPC endpoint<br>ECR API"]
+    VPCEECRDKR["VPC endpoint<br>ECR DKR"]
+    VPCEEC2["VPC endpoint<br>EC2"]
+    VPCEEXECAPI["VPC endpoint<br>execute-api"]
+    VPCESQS["VPC endpoint<br>SQS"]
+    VPCES3["Gateway endpoint<br>S3"]
+    VPCEDDB["Gateway endpoint<br>DynamoDB"]
+    CW["CloudWatch<br>logs / metrics / alarms"]
+    DASHOPS["Dashboard<br>fraud-platform-dev-full-operations"]
+    DASHCOST["Dashboard<br>fraud-platform-dev-full-cost-guardrail"]
+    BUDGET["Budget<br>fraud-platform-dev-full-monthly"]
+  end
+
+  %% =========================================================
+  %% External boundary
+  %% =========================================================
+  EXT -->|writes upstream artifacts| ORACLE
+
+  %% =========================================================
+  %% Control edges
+  %% =========================================================
+  GHA -->|applies| TFCORE
+  GHA -->|applies| TFSTREAM
+  GHA -->|applies| TFRUNTIME
+  GHA -->|applies| TFDML
+  GHA -->|applies| TFOPS
+  GHA -->|dispatches| SFN
+  GHA -->|authenticates through| OIDC
+  GHA -->|publishes images to| ECR
+  GHA -->|writes execution receipts| RUNCTL
+  TFCORE -->|stores state in| TFSTATE
+  TFSTREAM -->|stores state in| TFSTATE
+  TFRUNTIME -->|stores state in| TFSTATE
+  TFDML -->|stores state in| TFSTATE
+  TFOPS -->|stores state in| TFSTATE
+  RUNID -. required pins .-> SFN
+  RUNID -. required pins .-> WSP
+  RUNID -. required pins .-> IGLAMBDA
+  RUNID -. required pins .-> IGSVC
+  RUNID -. required pins .-> CSFB
+  RUNID -. required pins .-> IEG
+  RUNID -. required pins .-> OFP
+  RUNID -. required pins .-> DL
+  RUNID -. required pins .-> DF
+  RUNID -. required pins .-> AL
+  RUNID -. required pins .-> DLA
+  RUNID -. required pins .-> CASETRIG
+  RUNID -. required pins .-> CM
+  RUNID -. required pins .-> LS
+  RUNID -. required pins .-> DBX
+  RUNID -. required pins .-> SM
+  RUNID -. required pins .-> MLFLOW
+  RUNID -. required pins .-> REPORTS
+  RUNTIMEPATH -. selection rule .-> SFN
+  RUNTIMEPATH -. selection rule .-> IGLAMBDA
+  RUNTIMEPATH -. selection rule .-> IGSVC
+  RUNTIMEPATH -. selection rule .-> MSF
+  SFN -->|publishes orchestration signals to| CTRLBUS
+  SFN -->|writes run-control facts to| RUNCTL
+  SFN -->|stores control receipts in| EVID
+  CTRLBUS -->|transported by| MSK
+  SFN -->|starts replay producer| WSP
+
+  %% =========================================================
+  %% Ingress edges
+  %% =========================================================
+  WSPCLUSTER -->|runs| WSP
+  WSP -->|pushes ingress load to| HTTPAPI
+  WSP -->|pushes ingress load to| ALB
+  HTTPAPI -->|routes POST ingest traffic| APIR1
+  HTTPAPI -->|routes health checks| APIR2
+  APIR1 -->|invokes| IGLAMBDA
+  APIR2 -->|invokes| IGLAMBDA
+  ALB -->|forwards to| TG
+  IGSVC_CLUSTER -->|hosts| IGSVC
+  TG -->|targets| IGSVC
+  IGLAMBDA -->|writes idempotency state to| IGDDB
+  IGLAMBDA -->|sends failures to| IGDLQ
+  IGLAMBDA -->|emits admit / quarantine receipts| IGRECEIPTS
+  IGLAMBDA -->|publishes admitted traffic to| TTRAFFIC
+  IGLAMBDA -->|publishes arrival events to| TCTXE
+  IGLAMBDA -->|publishes arrival entities to| TCTXT
+  IGLAMBDA -->|publishes flow anchors to| TFLOW
+  IGSVC -->|writes idempotency state to| IGDDB
+  IGSVC -->|emits admit / quarantine receipts| IGRECEIPTS
+  IGSVC -->|publishes admitted traffic to| TTRAFFIC
+  IGSVC -->|publishes arrival events to| TCTXE
+  IGSVC -->|publishes arrival entities to| TCTXT
+  IGSVC -->|publishes flow anchors to| TFLOW
+  IGRECEIPTS -->|stores receipts in| EVID
+  IGRECEIPTS -->|stores quarantined payload refs in| QUARPATH
+
+  %% =========================================================
+  %% Transport edges
+  %% =========================================================
+  MSK -->|schemas governed by| GLUEREG
+  TTRAFFIC -->|transported by| MSK
+  TCTXE -->|transported by| MSK
+  TCTXT -->|transported by| MSK
+  TFLOW -->|transported by| MSK
+  TRTDL -->|transported by| MSK
+  TAUDIT -->|transported by| MSK
+  TCASE -->|transported by| MSK
+  TLABELS -->|transported by| MSK
+  TOFSREQ -->|transported by| MSK
+  TOFSEVT -->|transported by| MSK
+  TMFREQ -->|transported by| MSK
+  TMFEVT -->|transported by| MSK
+  TREG -->|transported by| MSK
+
+  %% =========================================================
+  %% RTDL edges
+  %% =========================================================
+  VPC -->|contains| PUB1
+  VPC -->|contains| PUB2
+  VPC -->|contains| PRIV1
+  VPC -->|contains| PRIV2
+  PRIV1 -->|hosts worker plane| EKS
+  PRIV2 -->|hosts worker plane| EKS
+  NG -->|scales compute for| EKS
+  EKS -->|contains| NSRTDL
+  NSRTDL -->|binds identity| SARTDL
+  NSRTDL -->|binds identity| SADEC
+  NSRTDL -->|runs| CSFB
+  NSRTDL -->|runs| IEG
+  NSRTDL -->|runs| OFP
+  NSRTDL -->|runs| DL
+  NSRTDL -->|runs| DF
+  NSRTDL -->|runs| AL
+  NSRTDL -->|runs| DLA
+  NSRTDL -->|runs| ARCHIVE
+  TTRAFFIC -->|consumed by| CSFB
+  TCTXE -->|consumed by| CSFB
+  TCTXT -->|consumed by| CSFB
+  TFLOW -->|consumed by| CSFB
+  CSFB -->|projects joined context to| IEG
+  CSFB -->|projects joined context to| OFP
+  IEG -->|writes feature / entity state to| AURORA
+  OFP -->|writes online feature state to| AURORA
+  OFP -. reads endpoint handle from .-> REDISH
+  DL -->|hands adjudication input to| DF
+  DF -->|publishes decisions to| TRTDL
+  DF -->|publishes decision audit to| TAUDIT
+  AL -->|publishes action outcomes to| TAUDIT
+  DLA -->|publishes lineage audit to| TAUDIT
+  ARCHIVE -->|writes immutable history to| ARCHIVEPATH
+  ARCHIVEPATH -->|stored in| OBJ
+  ARCHIVE -->|stores archive receipts in| EVID
+  IEG -. retained managed stream parity .-> MSF
+  OFP -. retained managed stream parity .-> MSF
+
+  %% =========================================================
+  %% Case/label edges
+  %% =========================================================
+  EKS -->|contains| NSCL
+  NSCL -->|binds identity| SACL
+  NSCL -->|runs| CASETRIG
+  NSCL -->|runs| CM
+  NSCL -->|runs| LS
+  TRTDL -->|consumed by| CASETRIG
+  TAUDIT -->|consumed by| CASETRIG
+  CASETRIG -->|publishes case intents to| TCASE
+  TCASE -->|consumed by| CM
+  CM -->|writes append-only case timeline to| AURORA
+  CM -->|submits label work to| LS
+  LS -->|writes append-only label timeline to| AURORA
+  LS -->|publishes label events to| TLABELS
+  TLABELS -->|evidenced in| EVID
+  TLABELS -->|archived by ref in| OBJ
+
+  %% =========================================================
+  %% Learning / evolution edges
+  %% =========================================================
+  ORACLE -->|stored inside| OBJ
+  OBJ -->|replayed by| DBX
+  TLABELS -->|consumed by| DBX
+  TOFSREQ -->|consumed by| DBX
+  DBX -->|runs| DBXBUILD
+  DBX -->|runs| DBXQUAL
+  DBXBUILD -->|writes dataset tables to| GLUEDB
+  DBXBUILD -->|writes dataset manifests to| OBJ
+  DBXQUAL -->|stores quality receipts in| EVID
+  DBX -->|publishes OFS completion to| TOFSEVT
+  TOFSEVT -->|consumed by| SM
+  TMFREQ -->|consumed by| SM
+  SM -->|writes train/eval lineage to| MLFLOW
+  SM -->|publishes model-factory events to| TMFEVT
+  SM -->|publishes bundles to| SMPKG
+  SMPKG -. candidate / promoted bundle lineage .-> MLFLOW
+  SMENDPT -. pinned serving handle resolved by .-> REGACTIVE
+  TMFEVT -->|captured by| MLFLOW
+  MLFLOW -->|publishes registry events to| TREG
+  MLFLOW -->|writes promotion receipts to| PROMO
+  MLFLOW -->|writes rollback receipts to| ROLLBACK
+  MLFLOW -->|resolves active bundle truth in| REGACTIVE
+  REGACTIVE -->|read by| DF
+
+  %% =========================================================
+  %% Governance / provenance edges
+  %% =========================================================
+  EKS -->|contains| NSOBS
+  NSOBS -->|binds identity| SAOBS
+  RUNCTL -->|materializes| REPORTS
+  RUNCTL -->|appends immutable facts to| GOVAPPEND
+  RUNCTL -->|stores control receipts in| EVID
+  PROMO -->|stored in| EVID
+  ROLLBACK -->|stored in| EVID
+  GOVAPPEND -->|stored in| EVID
+
+  %% =========================================================
+  %% Identity / trust edges
+  %% =========================================================
+  OIDC -->|trusts workflow assumption of| ROLETF
+  OIDC -->|trusts workflow assumption of| ROLEBASE
+  OIDC -->|trusts workflow assumption of| ROLENODE
+  OIDC -->|trusts workflow assumption of| ROLEFLINK
+  OIDC -->|trusts workflow assumption of| ROLELAMBDA
+  OIDC -->|trusts workflow assumption of| ROLEAPIGW
+  OIDC -->|trusts workflow assumption of| ROLEDDB
+  OIDC -->|trusts workflow assumption of| ROLESFN
+  OIDC -->|trusts workflow assumption of| ROLEECSEXEC
+  OIDC -->|trusts workflow assumption of| ROLEECSRUNTIME
+  OIDC -->|trusts workflow assumption of| ROLEWSPEXEC
+  OIDC -->|trusts workflow assumption of| ROLEWSPRUN
+  OIDC -->|trusts workflow assumption of| ROLEIRSARTDL
+  OIDC -->|trusts workflow assumption of| ROLEIRSADEC
+  OIDC -->|trusts workflow assumption of| ROLEIRSACL
+  OIDC -->|trusts workflow assumption of| ROLEIRSAOBS
+  OIDC -->|trusts workflow assumption of| ROLEDBX
+  OIDC -->|trusts workflow assumption of| ROLESM
+  OIDC -->|trusts workflow assumption of| ROLEMWAA
+
+  SSM -->|provides handles to| HTTPAPI
+  SSM -->|provides handles to| IGLAMBDA
+  SSM -->|provides handles to| IGSVC
+  SSM -->|provides handles to| AURORA
+  SSM -->|provides handles to| REDISH
+  SSM -->|provides handles to| DBX
+  SSM -->|provides handles to| MLFLOW
+  SSM -->|provides handles to| SM
+  ROLETF -->|applies| TFCORE
+  ROLETF -->|applies| TFSTREAM
+  ROLETF -->|applies| TFRUNTIME
+  ROLETF -->|applies| TFDML
+  ROLETF -->|applies| TFOPS
+  ROLESFN -->|executes| SFN
+  ROLELAMBDA -->|executes| IGLAMBDA
+  ROLEAPIGW -->|invokes| HTTPAPI
+  ROLEDDB -->|writes| IGDDB
+  ROLEECSEXEC -->|starts tasks for| IGSVC
+  ROLEECSRUNTIME -->|runs task code for| IGSVC
+  ROLEWSPEXEC -->|starts tasks for| WSP
+  ROLEWSPRUN -->|runs task code for| WSP
+  ROLEFLINK -->|executes| MSF
+  ROLENODE -->|backs compute for| NG
+  ROLEBASE -->|administers| EKS
+  ROLEIRSARTDL -->|bound to| SARTDL
+  ROLEIRSADEC -->|bound to| SADEC
+  ROLEIRSACL -->|bound to| SACL
+  ROLEIRSAOBS -->|bound to| SAOBS
+  ROLEDBX -->|cross-account access for| DBX
+  ROLESM -->|executes| SM
+
+  %% =========================================================
+  %% Operational edges
+  %% =========================================================
+  PRIV1 -->|reaches AWS APIs through| VPCESTS
+  PRIV1 -->|reaches AWS APIs through| VPCESSM
+  PRIV1 -->|reaches AWS APIs through| VPCELOGS
+  PRIV1 -->|reaches AWS APIs through| VPCEECRAPI
+  PRIV1 -->|reaches AWS APIs through| VPCEECRDKR
+  PRIV1 -->|reaches AWS APIs through| VPCEEC2
+  PRIV1 -->|reaches AWS APIs through| VPCEEXECAPI
+  PRIV1 -->|reaches AWS APIs through| VPCESQS
+  PRIV1 -->|reaches AWS APIs through| VPCES3
+  PRIV1 -->|reaches AWS APIs through| VPCEDDB
+  PRIV2 -->|reaches AWS APIs through| VPCESTS
+  PRIV2 -->|reaches AWS APIs through| VPCESSM
+  PRIV2 -->|reaches AWS APIs through| VPCELOGS
+  PRIV2 -->|reaches AWS APIs through| VPCEECRAPI
+  PRIV2 -->|reaches AWS APIs through| VPCEECRDKR
+  PRIV2 -->|reaches AWS APIs through| VPCEEC2
+  PRIV2 -->|reaches AWS APIs through| VPCEEXECAPI
+  PRIV2 -->|reaches AWS APIs through| VPCESQS
+  PRIV2 -->|reaches AWS APIs through| VPCES3
+  PRIV2 -->|reaches AWS APIs through| VPCEDDB
+  PUB1 -->|exposes public edge for| ALB
+  PUB2 -->|exposes public edge for| ALB
+  AURORA -->|serves writes through| AURW
+  AURORA -->|serves reads through| AURR
+  CW -->|observes| SFN
+  CW -->|observes| HTTPAPI
+  CW -->|observes| IGLAMBDA
+  CW -->|observes| ALB
+  CW -->|observes| IGSVC
+  CW -->|observes| EKS
+  CW -->|observes| MSF
+  CW -->|observes| AURORA
+  CW -->|observes| MSK
+  CW -->|observes| SM
+  CW -->|materializes| DASHOPS
+  CW -->|materializes| DASHCOST
+  BUDGET -->|feeds budget posture into| DASHCOST
+
+  %% =========================================================
+  %% visual classes
+  %% =========================================================
+  classDef live fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.4px;
+  classDef store fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.4px;
+  classDef managed fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.4px;
+  classDef control fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.4px;
+  classDef retained fill:#f5f5f5,stroke:#616161,color:#111,stroke-dasharray: 5 3;
+  classDef infra fill:#ede7f6,stroke:#4527a0,color:#111,stroke-width:1.4px;
+
+  class GHA,TFCORE,TFSTREAM,TFRUNTIME,TFDML,TFOPS,SFN,CTRLBUS,RUNID,RUNTIMEPATH,RUNCTL,REPORTS,GOVAPPEND,PROMO,ROLLBACK control;
+  class WSPCLUSTER,WSP,HTTPAPI,APIR1,APIR2,IGLAMBDA,IGSVC_CLUSTER,ALB,TG,IGSVC,MSK,GLUEREG,EKS,NG,NSRTDL,SARTDL,SADEC,CSFB,IEG,OFP,DL,DF,AL,DLA,ARCHIVE,NSCL,SACL,CASETRIG,CM,LS,NSOBS,SAOBS,CW,DASHOPS,DASHCOST,BUDGET,VPCESTS,VPCESSM,VPCELOGS,VPCEECRAPI,VPCEECRDKR,VPCEEC2,VPCEEXECAPI,VPCESQS,VPCES3,VPCEDDB,VPC,PUB1,PUB2,PRIV1,PRIV2 live;
+  class IGDDB,IGDLQ,EVID,OBJ,ART,TFSTATE,AURORA,AURW,AURR,ORACLE,ARCHIVEPATH,QUARPATH,GLUEDB store;
+  class DBX,DBXBUILD,DBXQUAL,SM,SMPKG,MLFLOW,MSF managed;
+  class SMENDPT,ROLEMWAA,REDISH retained;
+  class OIDC,SSM,ROLETF,ROLEBASE,ROLENODE,ROLEFLINK,ROLELAMBDA,ROLEAPIGW,ROLEDDB,ROLESFN,ROLEECSEXEC,ROLEECSRUNTIME,ROLEWSPEXEC,ROLEWSPRUN,ROLEIRSARTDL,ROLEIRSADEC,ROLEIRSACL,ROLEIRSAOBS,ROLEDBX,ROLESM infra;
+

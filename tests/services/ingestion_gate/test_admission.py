@@ -1,9 +1,12 @@
 from pathlib import Path
 import json
+from decimal import Decimal
 
 import pytest
 
 from fraud_detection.ingestion_gate.admission import IngestionGate
+from fraud_detection.ingestion_gate.errors import IngestionError
+from fraud_detection.ingestion_gate.aws_lambda_handler import NoopOpsIndex
 from fraud_detection.ingestion_gate.config import WiringProfile
 
 
@@ -161,6 +164,16 @@ def test_duplicate_does_not_republish(tmp_path: Path) -> None:
     bus_log = tmp_path / "bus" / "fp.bus.traffic.v1" / "partition=0.jsonl"
     assert bus_log.exists()
     assert len(bus_log.read_text(encoding="utf-8").splitlines()) == 1
+    health_marker = (
+        tmp_path
+        / "store"
+        / "fraud-platform"
+        / envelope["platform_run_id"]
+        / "ig"
+        / "health"
+        / "last_probe.json"
+    )
+    assert not health_marker.exists()
 
 
 def test_push_with_run_scoped_pins_does_not_require_ready(tmp_path: Path) -> None:
@@ -242,6 +255,91 @@ def test_publish_ambiguous_quarantines_and_marks_state(tmp_path: Path, monkeypat
     assert anomalies[0]["details"].get("reason_code") == "PUBLISH_AMBIGUOUS"
 
 
+def test_inflight_duplicate_waits_for_resolution_and_returns_duplicate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from fraud_detection.ingestion_gate.admission import _payload_hash
+
+    gate = _build_gate(tmp_path)
+    envelope = _envelope("evt-inflight-duplicate")
+    payload_hash = _payload_hash(envelope)[1]
+    eb_ref = {
+        "topic": "fp.bus.traffic.v1",
+        "partition": 2,
+        "offset": "19",
+        "offset_kind": "kafka_offset",
+        "published_at_utc": "2026-03-06T22:31:00+00:00",
+    }
+    rows = iter(
+        [
+            {
+                "state": "PUBLISH_IN_FLIGHT",
+                "payload_hash": payload_hash,
+                "receipt_ref": "",
+                "receipt_write_failed": False,
+                "admitted_at_utc": None,
+                "eb_ref": None,
+                "platform_run_id": envelope["platform_run_id"],
+                "event_class": gate.class_map.class_for(envelope["event_type"]),
+                "event_id": envelope["event_id"],
+            },
+            {
+                "state": "ADMITTED",
+                "payload_hash": payload_hash,
+                "receipt_ref": "s3://bucket/existing.json",
+                "receipt_write_failed": False,
+                "admitted_at_utc": "2026-03-06T22:31:01+00:00",
+                "eb_ref": eb_ref,
+                "platform_run_id": envelope["platform_run_id"],
+                "event_class": gate.class_map.class_for(envelope["event_type"]),
+                "event_id": envelope["event_id"],
+            },
+        ]
+    )
+
+    monkeypatch.setattr(gate.admission_index, "lookup", lambda _dedupe: next(rows))
+    object.__setattr__(gate.wiring, "inflight_wait_seconds", 0.02)
+    object.__setattr__(gate.wiring, "inflight_poll_seconds", 0.001)
+
+    decision, receipt = gate.admit_push_with_decision(envelope)
+
+    assert decision.decision == "DUPLICATE"
+    assert receipt.payload["decision"] == "DUPLICATE"
+    assert receipt.payload["eb_ref"]["offset"] == "19"
+
+
+def test_inflight_duplicate_unresolved_raises_retryable_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from fraud_detection.ingestion_gate.admission import _payload_hash
+
+    gate = _build_gate(tmp_path)
+    envelope = _envelope("evt-inflight-retry")
+    payload_hash = _payload_hash(envelope)[1]
+    row = {
+        "state": "PUBLISH_IN_FLIGHT",
+        "payload_hash": payload_hash,
+        "receipt_ref": "",
+        "receipt_write_failed": False,
+        "admitted_at_utc": None,
+        "eb_ref": None,
+        "platform_run_id": envelope["platform_run_id"],
+        "event_class": gate.class_map.class_for(envelope["event_type"]),
+        "event_id": envelope["event_id"],
+    }
+
+    monkeypatch.setattr(gate.admission_index, "lookup", lambda _dedupe: dict(row))
+    object.__setattr__(gate.wiring, "inflight_wait_seconds", 0.01)
+    object.__setattr__(gate.wiring, "inflight_poll_seconds", 0.001)
+
+    with pytest.raises(IngestionError) as excinfo:
+        gate.admit_push_with_decision(envelope)
+
+    assert excinfo.value.code == "PUBLISH_IN_FLIGHT_RETRY"
+
+
 def test_policy_activation_emits_platform_governance_event(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     run_id = "platform_20260101T000000Z"
     monkeypatch.setenv("PLATFORM_RUN_ID", run_id)
@@ -266,3 +364,75 @@ def test_policy_activation_emits_platform_governance_event(tmp_path: Path, monke
     assert policy_events
     provenance = policy_events[-1].get("provenance") or {}
     assert provenance.get("service_release_id") == "dev-local"
+
+
+def test_duplicate_path_normalizes_decimal_eb_ref(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from fraud_detection.ingestion_gate.admission import _payload_hash
+
+    gate = _build_gate(tmp_path)
+    envelope = _envelope("evt-ddb-duplicate")
+
+    payload_hash = _payload_hash(envelope)[1]
+
+    existing_row = {
+        "state": "ADMITTED",
+        "payload_hash": payload_hash,
+        "receipt_ref": "s3://bucket/existing.json",
+        "receipt_write_failed": False,
+        "admitted_at_utc": "2026-03-06T18:26:34.000000+00:00",
+        "eb_ref": {
+            "topic": "fp.bus.traffic.v1",
+            "partition": Decimal("4"),
+            "offset": Decimal("12"),
+            "offset_kind": "kafka_offset",
+            "published_at_utc": "2026-03-06T18:26:34.000000+00:00",
+        },
+        "platform_run_id": envelope["platform_run_id"],
+        "event_class": gate.class_map.class_for(envelope["event_type"]),
+        "event_id": envelope["event_id"],
+    }
+
+    monkeypatch.setattr(gate.admission_index, "lookup", lambda _dedupe: dict(existing_row))
+
+    decision, receipt = gate.admit_push_with_decision(envelope)
+
+    assert decision.decision == "DUPLICATE"
+    assert receipt.payload["decision"] == "DUPLICATE"
+    eb_ref = receipt.payload["eb_ref"]
+    assert eb_ref["partition"] == 4
+    assert eb_ref["offset"] == "12"
+
+
+def test_noop_ops_index_exposes_health_contract() -> None:
+    index = NoopOpsIndex()
+    assert index.probe() is True
+    assert index.lookup_event("evt-1") is None
+
+
+def test_quarantine_survives_governance_emit_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    gate = _build_gate(tmp_path, required_pins=["manifest_fingerprint", "run_id"])
+    envelope = _envelope("evt-governance-fail")
+    envelope.pop("run_id", None)
+
+    def _boom(*_args, **_kwargs):
+        raise RuntimeError("governance corridor unavailable")
+
+    monkeypatch.setattr("fraud_detection.ingestion_gate.admission.emit_platform_governance_event", _boom)
+
+    decision, receipt = gate.admit_push_with_decision(envelope)
+
+    assert decision.decision == "QUARANTINE"
+    assert receipt.payload["decision"] == "QUARANTINE"
+    receipt_path = (
+        tmp_path
+        / "store"
+        / "fraud-platform"
+        / envelope["platform_run_id"]
+        / "ig"
+        / "receipts"
+        / f"{receipt.payload['receipt_id']}.json"
+    )
+    assert receipt_path.exists()

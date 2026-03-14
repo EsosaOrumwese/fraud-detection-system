@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
+from fraud_detection.event_bus.kafka import build_kafka_reader
 from fraud_detection.scenario_runner.schemas import SchemaRegistry
 
 logger = logging.getLogger(__name__)
@@ -151,4 +152,80 @@ class KinesisControlBusReader:
                 if not records:
                     break
                 iterator = next_iterator
+        return messages
+
+
+class KafkaControlBusReader:
+    def __init__(
+        self,
+        topic: str,
+        *,
+        registry: SchemaRegistry | None = None,
+        max_records: int = 1000,
+        start_position: str = "earliest",
+        client_id: str = "wsp-control-bus",
+    ) -> None:
+        self.topic = topic
+        self.registry = registry
+        self.max_records = max_records
+        self.start_position = start_position
+        self._reader = build_kafka_reader(client_id=client_id)
+        self._next_offset_by_partition: dict[int, int] = {}
+
+    def iter_ready_messages(self) -> Iterable[ReadyMessage]:
+        messages: list[ReadyMessage] = []
+        partitions = self._reader.list_partitions(self.topic)
+        for partition in partitions:
+            rows = self._reader.read(
+                topic=self.topic,
+                partition=partition,
+                from_offset=self._next_offset_by_partition.get(partition),
+                limit=self.max_records,
+                start_position=self.start_position,
+            )
+            if rows:
+                last_offset = rows[-1].get("offset")
+                try:
+                    self._next_offset_by_partition[partition] = int(last_offset) + 1
+                except Exception:
+                    pass
+            for row in rows:
+                envelope = row.get("payload") or {}
+                if envelope.get("topic") != self.topic:
+                    continue
+                payload = envelope.get("payload") or {}
+                if self.registry:
+                    try:
+                        self.registry.validate("run_ready_signal.schema.yaml", payload)
+                    except ValueError as exc:
+                        logger.warning(
+                            "WSP control bus payload invalid topic=%s partition=%s error=%s",
+                            self.topic,
+                            partition,
+                            str(exc),
+                        )
+                        continue
+                run_id = payload.get("run_id")
+                facts_view_ref = payload.get("facts_view_ref")
+                bundle_hash = payload.get("bundle_hash")
+                message_id = envelope.get("message_id")
+                if not all([run_id, facts_view_ref, bundle_hash, message_id]):
+                    logger.warning(
+                        "WSP control bus missing fields topic=%s partition=%s offset=%s",
+                        self.topic,
+                        partition,
+                        row.get("offset"),
+                    )
+                    continue
+                messages.append(
+                    ReadyMessage(
+                        message_id=message_id,
+                        run_id=run_id,
+                        facts_view_ref=facts_view_ref,
+                        bundle_hash=bundle_hash,
+                        payload=payload,
+                        envelope=envelope,
+                        source_path=Path(f"kafka://{self.topic}/{partition}/{row.get('offset')}"),
+                    )
+                )
         return messages

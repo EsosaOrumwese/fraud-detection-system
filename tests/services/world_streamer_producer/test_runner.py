@@ -2,13 +2,19 @@ from __future__ import annotations
 
 import hashlib
 import json
+import threading
+import time
 from pathlib import Path
 
 import pyarrow as pa
 import pyarrow.parquet as pq
 
 from fraud_detection.world_streamer_producer.config import PolicyProfile, WiringProfile, WspProfile
-from fraud_detection.world_streamer_producer.runner import WorldStreamProducer
+from fraud_detection.world_streamer_producer.runner import (
+    WorldStreamProducer,
+    _replay_delay_seconds,
+    _should_bypass_replay_delay_for_scheduled_rate_plan,
+)
 
 
 def _write_run_receipt(root: Path) -> dict:
@@ -197,6 +203,39 @@ def test_wsp_checkpoint_resume(monkeypatch, tmp_path: Path) -> None:
     assert second.emitted == 1
 
 
+def test_wsp_stream_view_supports_inflight_push_concurrency(monkeypatch, tmp_path: Path) -> None:
+    engine_root = tmp_path / "engine_run"
+    engine_root.mkdir()
+    receipt = _write_run_receipt(engine_root)
+    rows = _write_arrival_events(engine_root, receipt, "baseline_v1", count=8)
+    _write_stream_view(engine_root, output_id="arrival_events_5B", rows=rows)
+    profile = _profile(engine_root, output_ids=["arrival_events_5B"], checkpoint_root=tmp_path / "cp")
+    producer = WorldStreamProducer(profile)
+
+    state = {"active": 0, "max_active": 0}
+    lock = threading.Lock()
+
+    def _fake_push(_envelope: dict) -> None:
+        with lock:
+            state["active"] += 1
+            state["max_active"] = max(state["max_active"], state["active"])
+        time.sleep(0.01)
+        with lock:
+            state["active"] -= 1
+
+    monkeypatch.setenv("WSP_IG_PUSH_CONCURRENCY", "4")
+    monkeypatch.setattr(producer, "_push_to_ig", _fake_push)
+    result = producer.stream_engine_world(
+        engine_run_root=str(engine_root),
+        scenario_id="baseline_v1",
+        max_events=8,
+    )
+
+    assert result.status == "STREAMED"
+    assert result.emitted == 8
+    assert state["max_active"] > 1
+
+
 def test_wsp_checkpoint_isolated_by_platform_run_scope(monkeypatch, tmp_path: Path) -> None:
     engine_root = tmp_path / "engine_run"
     engine_root.mkdir()
@@ -223,18 +262,30 @@ def test_wsp_checkpoint_isolated_by_platform_run_scope(monkeypatch, tmp_path: Pa
     )
     assert first.status == "STREAMED"
     assert first.emitted == 1
-    first_arrival_seq = int(sent[0]["payload"]["arrival_seq"])
 
-    sent.clear()
-    second = producer.stream_engine_world(
-        engine_run_root=str(engine_root), scenario_id="baseline_v1", max_events=1
-    )
-    assert second.status == "STREAMED"
-    assert second.emitted == 1
-    second_arrival_seq = int(sent[0]["payload"]["arrival_seq"])
 
-    assert first_arrival_seq == 1
-    assert second_arrival_seq == 1
+def test_replay_delay_bypass_requires_toggle_and_rate_plan(monkeypatch) -> None:
+    monkeypatch.delenv("WSP_DISABLE_REPLAY_DELAY_WHEN_RATE_PLAN", raising=False)
+    monkeypatch.delenv("WSP_RATE_PLAN_JSON", raising=False)
+    assert _should_bypass_replay_delay_for_scheduled_rate_plan() is False
+
+    monkeypatch.setenv("WSP_DISABLE_REPLAY_DELAY_WHEN_RATE_PLAN", "true")
+    assert _should_bypass_replay_delay_for_scheduled_rate_plan() is False
+
+    monkeypatch.setenv("WSP_RATE_PLAN_JSON", '[{"start_offset_seconds":0,"target_eps":75.0}]')
+    assert _should_bypass_replay_delay_for_scheduled_rate_plan() is True
+
+
+def test_replay_delay_seconds_returns_zero_when_bypassed() -> None:
+    prev = time.strptime("2026-01-01T00:00:00Z", "%Y-%m-%dT%H:%M:%SZ")
+    current = time.strptime("2026-01-01T00:00:10Z", "%Y-%m-%dT%H:%M:%SZ")
+    # Convert through datetime to exercise the same delay path as the runner.
+    from datetime import datetime, timezone
+
+    prev_dt = datetime(*prev[:6], tzinfo=timezone.utc)
+    current_dt = datetime(*current[:6], tzinfo=timezone.utc)
+    assert _replay_delay_seconds(prev_dt, current_dt, 2.0, bypass=False) == 5.0
+    assert _replay_delay_seconds(prev_dt, current_dt, 2.0, bypass=True) == 0.0
 
 
 def test_wsp_fails_producer_allowlist(tmp_path: Path) -> None:

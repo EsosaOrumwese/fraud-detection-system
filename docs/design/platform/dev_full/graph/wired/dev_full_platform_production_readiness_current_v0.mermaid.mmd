@@ -1,0 +1,51 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% dev_full production-readiness state graph
+%% reflects current implemented plane status and measured evidence as of 2026-03-09
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    L1["Node title = plane or whole-platform gate"]
+    L2["Each node lists: state, confidence, active scope, targets, observed evidence, blocker class, and next closure action"]
+    L3["Green = production-ready at current declared envelope"]
+    L4["Amber = implemented and partially proven, but not yet production-ready"]
+    L5["Red = blocking production readiness or integrated certification"]
+    L6["Dashed edge = dependency or promotion order, not direct runtime traffic"]
+  end
+
+  CONTROL["Control + Ingress<br>State: READY<br>Confidence: high<br>Scope: bounded correctness + bounded stress proved at declared envelope<br>Targets:<br>- steady eps >= 3000<br>- burst eps >= 6000<br>- p95 <= 350 ms<br>- p99 <= 700 ms<br>- 4xx = 0, 5xx = 0<br>Observed:<br>- steady 3025.36 / 3000 eps<br>- burst 6041.65 / 6000 eps<br>- steady latency 108.05 / 131.60 ms p95/p99<br>- burst latency 176.65 / 275.03 ms p95/p99<br>- 4xx=0, 5xx=0<br>Blocker class: none at current envelope<br>Next action: hold this plane stable while downstream planes are qualified"] 
+
+  RTDL["RTDL<br>State: PARTIAL<br>Confidence: medium<br>Scope: bounded correctness + burst/recovery evidence; dedicated plane closure still open<br>Targets:<br>- DF fail_closed delta = 0<br>- DF quarantine delta = 0<br>- AL ambiguity/quarantine delta = 0<br>- DLA append/replay divergence delta = 0<br>- archive write/payload mismatch delta = 0<br>- OFP lag p99 <= 2 s<br>- checkpoint age bounded<br>Observed:<br>- DF/AL/DLA/archive deltas = 0 in certified burst-recovery window<br>- OFP lag p99 0.054 / 2.0 s<br>- checkpoint p99 1.097 s<br>- bounded runs also showed DF hard_fail_closed_total = 0 and DL=GREEN in later drills<br>Blocker class: semantic + plane-closure evidence<br>Next action: run RTDL as its own bounded AWS plane and close stress without leaning on old PR-state shortcuts"] 
+
+  CASELABEL["Case + Label Management<br>State: PARTIAL<br>Confidence: medium-low<br>Scope: bounded correctness / participation proved on top of live runtime; no independent stress closure yet<br>Targets:<br>- deterministic case creation<br>- duplicate-safe case triggering<br>- append-only case timeline<br>- append-only label truth<br>- bounded case-open and label-commit latency<br>- zero silent starvation<br>Observed:<br>- bounded AWS runs reached case/label green<br>- same-run participation present in later bounded S5 notes<br>- no 4xx/5xx spill noted in bounded case/label path<br>Blocker class: stress-scale evidence gap<br>Next action: run dedicated bounded AWS case/label lane with explicit latency, dedupe, and starvation metrics"] 
+
+  LEARNING["Learning + Evolution / MLOps<br>State: PARTIAL<br>Confidence: medium-low<br>Scope: managed-surface readiness restored; production MLOps closure not yet complete<br>Targets:<br>- Databricks = OFS authoritative runtime<br>- SageMaker = MF authoritative runtime<br>- MLflow = MPR authoritative runtime surface<br>- point-in-time correctness<br>- lineage completeness<br>- promotion + rollback auditable<br>- no bootstrap-placeholder evidence accepted<br>Observed:<br>- Databricks jobs present = 2<br>- SageMaker probes passed = 2<br>- managed learning corridor restored<br>- learning proof repinned away from ad hoc EKS path to Databricks/SageMaker/MLflow<br>Blocker class: semantic + MLOps evidence gap<br>Next action: close real-data OFS/MF/MPR behavior with lineage, promotion, rollback, and load-tolerant managed execution"] 
+
+  OPSGOV["Ops / Gov / Meta<br>State: PARTIAL<br>Confidence: medium-low<br>Scope: restored and readable; not yet finally certified under integrated production behavior<br>Targets:<br>- evidence completeness<br>- same-run reconstruction<br>- alerting coverage<br>- cost attribution completeness<br>- drift visibility<br>- immutable governance append<br>Observed:<br>- PREPR restored ops/gov closure surfaces<br>- evidence roots readable<br>- dashboards, budget, and obs-gov IRSA restored<br>- bounded run-control and governance receipts exist<br>Blocker class: operational certification gap<br>Next action: close the plane under integrated multi-plane bounded runs after RTDL, case/label, and learning are independently hardened"] 
+
+  WHOLE["Whole Platform<br>State: NOT READY<br>Confidence: high<br>Scope: integrated readiness<br>Targets:<br>- every plane independently production-worthy<br>- integrated bounded correctness green<br>- integrated bounded stress green<br>- soak authorized only after both are green<br>- meaningful, explainable, auditable decisions under load<br>Observed:<br>- Control + Ingress = ready<br>- RTDL = materially improved but not independently closed<br>- Case + Label = bounded proof only<br>- Learning + Evolution = managed corridor restored but not closed<br>- Ops/Gov = restored but not certified<br>Blocker class: integrated readiness blocked by unresolved plane closures<br>Next action: qualify planes one by one on AWS, then return to integrated stress and later soak"] 
+
+  CONTROL -. prerequisite plane .-> RTDL
+  RTDL -. provides runtime truth to .-> CASELABEL
+  CASELABEL -. provides label truth to .-> LEARNING
+  RTDL -. provides replayable decision truth to .-> LEARNING
+  CONTROL -. provides run-control and evidence cadence to .-> OPSGOV
+  RTDL -. feeds operational evidence to .-> OPSGOV
+  CASELABEL -. feeds operational evidence to .-> OPSGOV
+  LEARNING -. feeds operational evidence to .-> OPSGOV
+  CONTROL -. must be green before .-> WHOLE
+  RTDL -. must be green before .-> WHOLE
+  CASELABEL -. must be green before .-> WHOLE
+  LEARNING -. must be green before .-> WHOLE
+  OPSGOV -. must be green before .-> WHOLE
+
+  classDef ready fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.4px;
+  classDef partial fill:#fff8e1,stroke:#ef6c00,color:#111,stroke-width:1.4px;
+  classDef blocked fill:#ffebee,stroke:#c62828,color:#111,stroke-width:1.4px;
+
+  class CONTROL ready;
+  class RTDL,CASELABEL,LEARNING,OPSGOV partial;
+  class WHOLE blocked;

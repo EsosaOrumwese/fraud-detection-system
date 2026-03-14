@@ -1,158 +1,146 @@
-# AGENTS.md - Router for the Closed-World Enterprise Fraud System
-_As of 2026-01-23_
+# AGENTS.md - dev_full platform hardening router
+_As of 2026-03-10_
 
-Use this to orient yourself before touching code. It captures what is in scope, what to read first, and where the detailed routers live. Ensure to read this file to the end before routing away
-
----
-
-## 0) Scope (current focus)
-- **Build status:** Data Engine is sealed + green; treat it as a **black box** for platform work. Use `docs\model_spec\data-engine\interface_pack\` as the boundary contract.
-- **Current focus:** Dev substrate promotion (`local_parity -> dev`) for the platform while preserving existing rails/contracts and truth ownership boundaries.
-- **Engine code:** Only touch the engine if explicitly requested; if so, follow `packages\engine\AGENTS.md`.
+Read this before touching platform code.
 
 ---
 
-## 0.5) Collaboration posture (designer + implementer)
-The AGENT is expected to **lead the design and implementation**, not wait for steering. With the entire view of the platform in mind (having read ALL the component design authority notes and the implementation decision taking so far), the AGENT is expect
-
-- **Drive the process:** propose concrete production ready options, surface risks/edge cases, and ask for confirmation only on material decisions with the aim of reaching the goal of building the interconnected, fully-functional, and production ready platform.
-- **Assume the role of a top MLOps/DevOps/Data Scientist:** Don't just give boring and single sentence responses but intelligent ones that drive towards the goal as painted in the reading docs
-- **Internalize the design:** We're building for production so ensure to understand and internalize the network graph design painted by all the components.
-- **Always have a detailed implementation phased plan**: As you are the designer and implementer, you know how to start from zero, to the end. So when its time for implementation, always have a game plan that you are 100% sure on and that you stick to till implementation. This doesn't mean the plan is rigid. It is expected to be dynamic and to be improved on and expanded on, phase by phase, as implementation proceeds so as to not be handwavy on details but to nail it down succinctly. This is so that, by the end of the implementation, we should have a plan that explicitly shows the build steps/road map used. Active living docs reside in: `docs\model_spec\platform\implementation_maps\dev_substrate\{TRACK}\{COMP}.build_plan.md` where `{TRACK}` is `dev_min` or `dev_full`.
-- **Living plan = progressive elaboration**: Start with Phase 1..Phase X only. When entering a phase, break it into sections with a clear "definition of done" checklist. If a section is still too broad, break it into components and add DoD checklists there. Do not attempt to enumerate every step at project start; expand detail only as each phase begins and evolves. 
-- **No halfbaked phases**: We do NOT progress to the next phase until it is rock solid and hardened. No halfbaked phases or sections for any reason what so ever. We're not aiming for "minimal function durability" but a hardened implementation!
-
----
-
-## 1) Reading order (not that strict anymore. more laid back. If you feel its important, read it. Else, skip)
-Read these in order before modifying code so you share the project context:
-1. `docs\model_spec\platform\platform-wide\platform_blueprint_notes_v0.md`
-   * New component (WSP) to replace data engine (as it now exists outside the platform): `docs\model_spec\platform\component-specific\world_streamer_producer.design-authority.md`. This trumps all other assumptions of the data engine as a vertex in the network
-2. `docs\model_spec\platform\platform-wide\deployment_tooling_notes_v0.md`
-3. `docs\model_spec\data-engine\interface_pack`
-4. Platform narratives (in this order):
-   - `docs\model_spec\platform\narrative\narrative_control_and_ingress.md`
-   - `docs\model_spec\platform\narrative\narrative_real-time_decision_loop.md`
-   - `docs\model_spec\platform\narrative\narrative_label_and_case.md`
-   - `docs\model_spec\platform\narrative\narrative_learning_and_evolution.md`
-   - `docs\model_spec\platform\narrative\narrative_observability_and_governance.md`
-5. Component design-authority for the component you are touching (in `docs\model_spec\platform\component-specific\`). [Attempts to view the entire platform as a graph network with focus on interconnection as well as function, so pay attention to that]
-6. Implementation decisions taken so far:
-   - Active track: `docs\model_spec\platform\implementation_maps\dev_substrate\{TRACK}\{COMP}.impl_actual.md` (`{TRACK}` = `dev_min` or `dev_full`)
-   - Baseline history: `docs\model_spec\platform\implementation_maps\local_parity\{COMP}.impl_actual.md`
-7. Scan the entire repo for an understanding of what has already be laid down.
-7. If touching the Data Engine, then and only then follow `packages\engine\AGENTS.md` [USER has to explicitly state this].
-
-_Note: while the platform narratives are merely conceptual, the other docs in `platform-wide` and `component-specific` are not. However, that doesn't mean they're rigid or binding specifications. They mere attempt to paint the kind of design that will be needed. You (AGENT) as the implementer and design are free to design and implement based on the design intent (and this may not have been fully capture in those "design authority" docs)_
+## 1) Scope
+- The Data Engine is sealed and green. Treat it as a black box for platform work.
+- The active focus is `dev_full` platform hardening toward real production readiness.
+- The platform already exists on the `dev_full` track. Do not redesign it from scratch unless a production-grade repin is genuinely required.
+- Build for the full platform, not only the spine. That includes:
+  - control and ingress,
+  - RTDL,
+  - case and label management,
+  - learning and evolution,
+  - MLOps surfaces,
+  - ops/governance/meta layers.
+- Our focus is discussed in `docs\model_spec\platform\implementation_maps\dev_substrate\dev_full\proving_plane\`
 
 ---
 
-## 2) Test-yourself policy (no prescribed runner)
-- Own your test plan; build tests according to the design validation and not just random stuff. 
-- Record the test plan and results in each PR or working log entry.
+## 2) Primary docs for contextual understanding of direction we are heading 
+For platform work on `dev_full`, read in this order:
+1. `docs\model_spec\platform\implementation_maps\dev_substrate\dev_full\proving_plane\platform.production_readiness.md`
+2. The relevant phase plans under `docs\model_spec\platform\implementation_maps\dev_substrate\dev_full\proving_plane\`
+3. The active `dev_full` implementation maps under `docs\model_spec\platform\implementation_maps\dev_substrate\dev_full\proving_plane\`
+
+And very much related, is the experience we are trying to acquire in this project
+* `docs\experience_lake\recruiter-expectation_MLOps.md`
+* `docs\experience_lake\recruiter-expectation_MLPlatformEngr.md`
+* `docs\experience_lake\platform-production-standard.md`
+
+It's important to note that as you go through the repo, `local-parity`, `dev_min` are all profiles or substrates we have moved from and are now in making `dev_full` production hardened (this is different from `prod_target` as that doesn't mean our production target but rather an endgame substrate that we could hit if we want to push things much further. ). Surely you can find and infer the meaning of what these mean from this repo
+---
+
+## 3) Working posture
+- Work autonomously for long stretches. Do not stop for routine blockers you can analyze and resolve yourself. Most problems are solvable, you just have to give it the time to assess it.
+- This mindset should remain with you: In achieving our goals, you would encounter problems/blockers/issues/etc across all planes and the platform as a whole. These are issues, when found you should take your time analyzing it and resolving it without adding more points of failure or sacrificing on our goals. Don't be too scared to then stop the long run to report the blocker as there are undoubtably a lot of problems that cover the entire implementation of this platform across all planes, meta players, components and their infrastructure.
+- The current platform might use resources or decisions that are not the very best or would hinder our production standard, you have the autonomy to decide how to approach that, ensure to note it though in your own road-to-production notes.
+- Choose the option that best serves production reality, not the option that only gets a green receipt fastest.
+- I want the AGENT to focus heavily on problem finding and resolving to avoid the number of trial and errors. This involves high level of reasoning to identify problems surrounding and issue, and most important why they're problems, tests to catch points of breakage and then coming up with proven solutions to resolve such problems. This isn't a template I'm giving you but a mindset because as we build this network in incremental stages, points of failures increase and so identifying this beforehand and resolving it avoids excess time wasted in back and forths.
+- Treat each problem as an engineering problem to be understood, narrowed, fixed, and revalidated.
+- Prefer bounded AWS-first runs with fail-fast behavior and precise diagnostics over long expensive blind runs.
+- Make the platform work plane by plane before escalating duration and volume.
+- Most importantly, you have to be dynamic in your approach and your planning. WHen you initially start out with a plan to achieve a goal, at some point in time, after battling errors, you need to pause and ask yourself, what's the error we're facing? is there anything hindering me from solving it? Address it, change your prosture and move. Don't be to rigid with the plan. This doesn't mean changing standards or not acheiveing the goal of that state or phase, but rather adapting a more dynamic approach the helps saves time and cost.
+- The right discipline is not rigid plan-following. It is goal-fixed, method-adaptive execution. This should be the operating posture:
+   - keep the phase goal and standard fixed,
+   - stop when repeated errors suggest we are no longer learning efficiently,
+   - name the actual error class, not just the symptom,
+   - ask what is blocking diagnosis or resolution,
+   - remove that blocker first,
+   - then resume with a changed posture that answers the real question faster and more cheaply.
+- Do not touch or rerun the Data Engine unless the user explicitly asks. Deleting or reruning the data engine or whatever is out of bounds, work with the data we've put in the oracle store (this just prevents us from leaving the realm of platform to manipulate the data engine which is another realm and exists outside of the platform.)
+- While the platform only receives from the oracle store (effectively treating the data engine as a blackbox), the AGENT as the builder has access to the docs that built the data engine and define the data for a better understanding of the data when dealing with planes and components that need a proper understanding of the content of the data e.g. components in the RTDL plane, learning and evolution plane and case management. 
+- That said, while the platform only relies on the interface pack `docs\model_spec\data-engine\interface_pack\data_engine_interface.md`, the AGENT, for better understand, can inspect the state expanded docs for the different layers (`docs\model_spec\data-engine\layer-#\specs\state-flow\#*\state.#*.s#.expanded.md`) and also the build plans in `docs\model_spec\data-engine\implementation_maps\segment_#*.build_plan.md` to see what was actually implemented. These are the only sets of files you are allowed to for the data engine, and maybe the contracts and policies if necessary. You are not allowed to edit it.
+- Keep the workspace neat:
+  - durable run evidence in `runs/`
+  - no scattered temp directories or dumped artifacts in repo root
+
+
+### 3A) Approach to Hardening + Confirmation of Platform Readiness
+- I noticed that our former approach to production readiness suffered from two ends: i. ensuring platform readiness/hardening before running expensive certification and ii. blind debugging and guesswork to identify problems.
+- The first is solved with our approach in `docs\model_spec\platform\implementation_maps\dev_substrate\dev_full\proving_plane\platform.production_readiness.md` as we're not running expensive stress and soak tests until we can confirm the full platform is production ready.
+- The second is one where we need to anticipate and ensure it doesn't happen. For the production readiness, we will move to CLI-first, AWS-first executions with rich live telemetry, minimal artificats and fast iterations. Focus is on the "rich live telemetry".
+- For now, stop using GitHub workflows as the default execution surface unless structly needed. Use CLI-driven execution for active hardening:
+   - local command starts the bounded run but the runtime remains on AWS / managed surfaces
+   - local machine is only control console, log/metric viewer and command orchestrator.
+   - this avoids local compute dependence while still giving us real operator visibility
+- This means that when working on every phase, indepth reasoning has to be given into the provision of a hardened live debugging posture so we have complete visibility, with no blindspots, of what we're hardening. Before every plane begins and as we harden and work in that plane, we need to develop our rich telemetry set. This should keep on evolving and we shouldn't just stick with what we think is enough as we need complete visibility for better problem analysis:
+   - Live logs only for the active plane and immediate dependencies. Example (in no way limited to these) ingress service, RTDL workers under work, case/label workers under work, managed job logs when on learning
+   - Live progress counters e.g. admitted rate, downstream participation, lag/checkpoint age, fail-closed/quarantine deltas, append/write deltas, case/label deltas, learning job state, etc. It shouldn't be limited to this
+   - Live boundary health: "are the correct run ids present?", "are the right topics moving?", "are the right stores being written?", "is the plane materially participating?"
+   - Fail-fast triggers: "if the active signals go red early, stop the run early and inspect immediately"
+- Minimize artifacts during hardening: I do think we produced too many artifacts for the hardening phase. During hardening, artifacts should be reduced, instead focus on the telemetry
+- Ensure all these are kept in an organized folder and not all over the place. runs/ is sufficient. Prune dead runs or fault ones so we don't accumulate excessive runs
+- Ensure that every phase, sub-phase, task you embark on starts with identifying the neccesary telemtry to aid your understanding of the task. With live telemetry in place you can proceed with your hardening, problem identifying and resolution due to the complete sight you have.
+---
+
+## 4) Implementation notes and logbook
+- Write these like a detailed natural engineering notebook.
+- They should read like real reasoning from an engineer working the problem, not like a templated receipt.
+- Use it to record your problem solving process. 
+- Use the implementation maps as the living reasoning trail as you work on your working posture
+- Also log actions and decisions in `docs\logbook` with local time. Local time is essential as there are times (for both docs, logbook and implementation notes) where you go with the time in your VM or you lazily assume the time. But whatever it is, you end up with false times which after a series of entries, cause you to most times be 6hrs ahead of the actual time.
+- State summaries should focus on impact metrics relevant to that phase or state, then give a direct judgment on whether those metrics actually meet the production-ready goal.
+
+### 4A) Network Graphs
+Note: This only applies when we are production hardening the platform and not elsewhere. The implementation notes is your decisions capturing notes, while the network graphs which are derived explanatory graphs from our current state and not truth/binding docs are more for the USER'S understanding of the current state of the platform.
+- Understanding the purpose of the graphs in `docs\design\platform\dev_full\graph\readiness` is linked to the incremental network hardening posture taken in `docs\model_spec\platform\implementation_maps\dev_substrate\dev_full\proving_plane\platform.production_readiness.plan.md`.
+- It should be your focus that but as we move to each plane, tackling problems in it and then attaching the plane to the current hardened network to verify paths and connections, the graphs should regularly be updated even though it's not hardened so the USER can understand what problems exist and where. 
+   - Control and Ingress plane showcase this mindset. It highlights the phase 0 C&I green network (`dev_full_platform_network_production_ready_current_v0.mermaid.mmd`), as well as the readiness delta (`dev_full_control_ingress_readiness_delta_current_v0.mermaid.png`)
+   - It doesn't replace the implementation note or try to fit in as much detail but for its purposes, it tries to reflect the current status of the platform at that phase for the USER and supplement the notes. This doesn't mean the graph is a lazy summary or simplification or a dumbing down of the actual process.
+- So basically I need three graphs as we work on each phase:
+   *  Production-Ready Network Graph: a topology graph of the currently confirmed production-ready working platform that only includes planes, components, paths, and supporting surfaces that are already proven and promoted into the working platform. Essentially a derived readiness graph that shows only the currently confirmed working platform. It grows phase by phase as new planes and coupled paths are proven and promoted. Absence means “not yet confirmed production-ready.”
+   * Production-Ready Resource Graph: a concrete resource view of the currently confirmed production-ready working platform that shows the actual AWS / managed resources, names, sizing, and key runtime posture for the confirmed working platform. Essentially a derived readiness graph that shows the concrete provisioned resources backing the currently confirmed working platform, including actual cloud names and key sizing/runtime posture, so the operator can map readiness claims directly to the cloud console.
+   * Readiness-Delta Graph: a derived explanatory graph for the currently active plane or coupled network under hardening. It captures the live readiness story as component/scope -> blocker -> remediation or unresolved issue -> measured impact -> readiness verdict. It should be created and updated during active remediation, then finalized or removed based on usefulness once the plane closes.
 
 ---
 
-## 2.5) Drift Sentinel Law (binding)
-This is a hard law for platform work. The AGENT must behave as a design-intent sentinel, not just a code editor.
-
-- **Design-intent awareness is mandatory:** before and during implementation, the AGENT must continuously align changes against:
-  - `docs\model_spec\platform\component-specific\flow-narrative-platform-design.md`,
-  - active phase DoD in `docs\model_spec\platform\implementation_maps\dev_substrate\{TRACK}\platform.build_plan.md` or the component specific build plans in `docs\model_spec\platform\implementation_maps\dev_substrate\{TRACK}\`,
-  - pinned decisions in relevant `docs\model_spec\platform\pre-design_decisions` files.
-These are the intended design flow of the platform as well as pinned decisions. A study of it, as well as discussions with the USER, can lead the AGENT to an understanding of how the platform should operate
-- **Continuous drift assessment is mandatory:** at each substantial step, the AGENT must ask and answer. And most especially after each full run of the platform, the AGENT must assess the live stream flow:
-  - does this preserve the intended component graph and ownership boundaries?
-  - does this leave any intended runtime flow partial, matrix-only, or orphaned without explicit gate acceptance?
-  - does this contradict a pinned decision, flow narrative, or runbook posture?
-- **Fail-closed escalation protocol on detected/suspected drift:**
-  - **STOP implementation** (do not continue as if green),
-  - alert the user immediately with severity, impacted components/planes, and runtime consequences,
-  - wait for explicit user go/no-go direction before proceeding with remediation. And that direction must align with the flow else also escalate
-- **No silent drift acceptance:** any designed-flow vs runtime-posture mismatch is a blocker unless explicitly accepted by the user with a recorded rationale.
-- **Bias-to-warning rule:** if uncertain whether a mismatch is material, treat it as material and escalate.
-- **Rigorously inspect the full platform run:** Once the USER asks for a full live stream run, once done, we should evaluate every aspect of it to make sure there's no silent drift whatsoever
-- **Decision-completeness law (fail-closed):** when the USER says "proceed" to a phase/option/command, the AGENT MUST first verify that all required decisions/inputs for that scope are explicitly pinned. If any hole remains, the AGENT MUST stop execution and report the unresolved items to the USER (no defaults, no assumptions, no improvisation). The AGENT must keep doing this until the unresolved set is closed and only then proceed.
-- **Phase-coverage law (anti-cram, fail-closed):** before execution starts for any phase, the AGENT MUST explicitly expose all required capability lanes for that phase (authority/handles, identity/IAM, network, data stores, messaging, secrets, observability/evidence, rollback/rerun, teardown, budget as applicable). The AGENT MUST NOT force work into an assumed fixed number of sections/sub-phases; the plan must expand until closure-grade coverage is achieved. If any missing lane/hole is discovered at any point, execution MUST pause and the AGENT must report unresolved items to the USER and continue only after explicit closure.
-- **Branch-governance law (user-controlled, binding):**
-  - Before any branch-history operation, the AGENT MUST stop and obtain explicit USER go-ahead. Covered operations include: branch create/switch/delete, merge, rebase, cherry-pick, reset, cross-branch push, PR create/merge, and any workflow dispatch that depends on a branch other than the active one.
-  - The AGENT MUST request the USER's branch method first (or ask the USER to confirm the existing method), then restate the exact planned sequence using concrete branch names and expected outcomes.
-  - After restating the plan, the AGENT MUST wait for explicit USER confirmation before executing any covered operation.
-  - If confirmation is not explicit, execution remains blocked (fail-closed). No improvisation, no branch hopping, and no "best-effort" recovery is allowed.
-  - If the USER is actively working with another agent/project, the AGENT MUST assume cross-branch operations are unsafe and remain blocked until USER confirms a safe sequence.
-  - Default posture: stay on the active branch and avoid cross-branch operations unless the above protocol is completed.
-  - **Commit-scope law (hard bound):** The AGENT MUST NOT create commits except for GitHub Actions workflow files (for example under `.github/workflows/`) unless the USER gives explicit one-time approval for a broader commit scope.
-  - If a commit is required for workflow execution, the AGENT MUST stage only the workflow file(s) and explicitly exclude all non-workflow files.
-  - If non-workflow files are modified during implementation, the AGENT MUST leave them uncommitted and hand them to the USER for review/commit unless explicit approval is provided.
----
-
-## 2.6) Performance-First Law (binding, platformwide)
-This is a hard law for all implementation work (platform services, pipelines, joins, batch states, and tooling).
-
-- **Pre-implementation performance design is mandatory:** before coding, the AGENT must document expected complexity, candidate data structures, search/join strategy, memory/IO model, and rejected alternatives with rationale.
-- **No "wait-it-out" execution posture:** long runtimes are implementation defects until proven otherwise. The AGENT must optimize code paths before accepting slow runs.
-- **Algorithmic efficiency before resource scaling:** prefer better data structures, search/index strategy, join strategy, vectorization, streaming/chunking, and I/O layout over throwing CPU/RAM at the problem.
-- **Single-process efficient baseline first:** design for fast deterministic execution without requiring parallelism. Parallelism is optional and secondary, never the default crutch.
-- **Runtime-budget gates are mandatory:** each phase/state must carry explicit runtime budgets and measured elapsed evidence. "Hours" for a single state/segment is unacceptable unless explicitly approved by the USER with rationale recorded.
-- **Performance gate blocks implementation/remediation:** do not proceed past design or tuning steps unless measured runtime evidence shows improvement over baseline and movement toward (or achievement of) the minute-scale budget.
-- **Logging is budgeted:** keep required auditability, but cap log frequency/volume to avoid material runtime drag. Use heartbeat/progress checkpoints with practical cadence and make high-cardinality/per-event logs opt-in.
-- **Determinism and quality are non-negotiable:** performance work must preserve deterministic artifacts and target statistical realism; optimization cannot degrade correctness or contract compliance.
-- **Fail-closed on unexplained regressions:** if runtime materially regresses or stalls, stop and perform bottleneck analysis (hot path, I/O wait, memory pressure, external tool latency) before proceeding.
-- **Definition of done includes speed:** a phase is not complete unless both quality targets and runtime targets are met (or explicit USER waiver is recorded).
+## 5) Performance and cost discipline
+- Production readiness includes throughput, latency, consistency, explainability, recovery, and cost discipline.
+- Do not use large long runs to discover basic correctness defects.
+- It best to have a detailed methology for capturing and monitoring ongoing runs live so we aren't stuck in the dark when running to know when to kill a process or to properly debug a consistently failed issue.
+- Before a more expensive run, first prove the platform or plane works on a bounded production-shaped run.
+- Scale pressure gradually:
+  1. bounded correctness,
+  2. bounded stress,
+  3. soak only after the earlier gates are genuinely green.
+- If a run is expensive, it must answer a clear question.
+- If a resource is idle, scale it down or stop it where possible without destroying needed substrate.
+- As we run/test/harden our platform, we tend to accumalate a huge amount of data in storage (either databases, buckets, registries, etc.). Routine flushing of these would prove cost effective.
 
 ---
 
-## 2.7) Cost-Control Law (binding, platformwide)
-This is a hard law for all platform implementation and execution work. "Green" is invalid if spend discipline is missing.
-
-- **Cost efficiency is a first-class acceptance criterion:** success means "works correctly" and "works without avoidable spend."
-- **Cost-to-outcome proof is mandatory per phase:** each active phase must publish a spend envelope before execution and a closure receipt that maps spend to concrete proof/decision outcomes.
-- **Default idle-safe posture is mandatory:** non-active runtime lanes must remain stopped (`desired_count=0` or equivalent).
-- **Ephemeral execution over always-on is default:** use one-shot/job posture for non-daemon lanes unless explicit always-on justification is pinned.
-- **Auto-teardown is mandatory for dev windows:** idle environments must have bounded lifetime and deterministic teardown path.
-- **Right-sizing is mandatory:** CPU/memory/storage must be tuned from observed usage (p95/p99 posture), not generous static defaults.
-- **Cross-platform billing visibility is mandatory:** daily posture must include all active cost surfaces for the track (at minimum AWS; plus Confluent/Databricks when in scope).
-- **Fail-closed on unattributed or unexplained spend:** if cost appears without a mapped lane/outcome, stop phase advancement and remediate before proceeding.
-- **Cost exceptions require explicit USER approval:** any temporary cost waiver must be time-bounded, reasoned, and recorded in build plan + implementation map + logbook.
-
----
-
-## Platform implementation maps (mandatory, detail-first)
-- For any platform component work, create/append a component implementation map at:
-  `docs\model_spec\platform\implementation_maps\dev_substrate\{TRACK}\{COMP}.impl_actual.md`.
-- **Scope separation (platform vs component impl_actual):**
-  - `dev_substrate\{TRACK}\platform.impl_actual.md` records **platform-wide** decisions that affect multiple components, shared rails/semantics, substrate choices, environment ladder, or phase sequencing for the active track.
-  - `dev_substrate\{TRACK}\{COMP}.impl_actual.md` records **component-specific** decisions, for example: mechanics, file paths, invariants, tests, and interface details for that component only.
-  - `local_parity\*.md` remains the immutable baseline/history track and should only receive append-only routing continuity notes.
-- Each entry MUST be detailed and auditable. Explicit detail is highly appreciated, but the plan itself must be explicit and stepwise. No vague "we will implement" phrasing and no skipped rationale.
-- The implementation map is a running **brainstorming notebook**. As you reason through a problem, capture the full thought process (e.g. assumptions, alternatives, decision criteria, edge cases, intended mechanics, etc). Do this **during** the design, not just before/after. The goal is to make the entire reasoning trail reviewable later, not a minimal recap.
-- This is NOT a two-time update doc. Append entries repeatedly while you are actively thinking and deciding. If you explore multiple approaches or adjust your plan mid-stream, record each thread as it happens so the reader can see the full evolution of the decision process.
-- The plan MUST include: exact inputs/authorities, file paths, algorithm or data-flow choices, invariants to enforce, logging points, security plan, performance considerations, deployment/environment/production considerations and validation/testing steps.
-- Before implementing any change, append a detailed plan entry that captures your full thought process: the problem, alternatives considered, the decision and why, and the exact steps you intend to take. Do this *before* coding so the record reflects the real decision path (not a retrospective summary).
-- For every decision or review during implementation (no matter how small), append another entry describing the reasoning and the outcome. If you realize a missing decision later, append a corrective entry rather than rewriting history.
-- If you are about to implement a change and the in-progress reasoning is not captured yet, stop and append a new entry first. The map must mirror the live design process, not a reconstructed summary.
-- If a plan changes, append a new entry describing the change and why. Never delete or rewrite prior entries.
-- Log every decision and action as it happens in `docs/logbook` with local time. The logbook if necessary can reference the matching implementation-map entry (or note that one was added) but the implementation-map doesn't replace the logbook as it's concern is with implementation decisions with regards to a component.
-- If you are unsure, stop and add a detailed plan entry first, then proceed.
-
-## Extra information
-- Stay proactive: surface TODOs, challenge suspect contract assumptions, and suggest stronger designs where appropriate.
-- Keep in mind that you're building for production 
-- Keep `pyproject.toml` aligned with any new dependencies you introduce.
-- Ensure to check truly large files into git LFS.
-- **Sensitive artifacts and credentials (platformwide):** Runtime artifacts/logs may include capability tokens, lease tokens, or other secrets. Never commit these or paste them into implementation maps, build plans, or logbooks. If a run creates such artifacts, explicitly alert the user so they can decide whether to delete or quarantine them.
-- Log every decision and action in `docs\logbook` with local time (create the day file if needed).
+## 6) Branches, commits, and PR review
+- Do not improvise branch history operations.
+- The normal active working branch is the current off-`dev` branch, for example `cert-platform`.
+- Workflow-only promotion path:
+  1. create a single workflow-only commit on the current working branch,
+  2. merge that commit path into `dev`,
+  3. open a PR from `dev` to `main`,
+  4. wait for Copilot/Codex reviewers to comment (maybe 4/5 minutes),
+  5. address or explicitly respond to every review point,
+  6. wait briefly to confirm no further review issues remain (same time as above),
+  7. merge the PR,
+  8. merge `main` back into `dev`,
+  9. merge `dev` back into the working branch.
+- Ensure your PR is formatted properly and contains essential information needed for the reviewer to understand the commits in there. Formatting is essential as its GitHub markdown and it could appear messy if care is not taken
+- Do not merge the whole working branch when only workflow changes are intended.
+- Do not create commits except when the user has approved that scope. If the approval is workflow-only, stage only workflow files.
+- Within prompt/chat, the user will give explicit context for commits + pushes and merges. Most times in long run works.
+- In long runs, you are expected to commit and push your work at regular intervals (at the the normal active working branch which we have state above) so that from whereever the USER is, the USER is able to observe the repo and the notes to see what you're doing. So choose what frequency works for you and won't hinder your problem solving (maybe every 20mins or after every milestone or after solving a problem, its up to you.) However, don't mess up my branches. You are only allowed to merge the commits for workflows (I approve of this) but it should be done according to how we discussed.
 
 ---
 
-## Implementation doctrine (binding for every agent)
-- **Treat the platform pins as law.** ContextPins + canonical envelope, by‑ref artifacts, no‑PASS‑no‑read, idempotency, append‑only truths, deterministic registry resolution, and explicit degrade posture are non‑negotiable.
-- **Respect truth ownership boundaries.** SR owns run readiness + join surface; IG owns admission decisions; EB owns replay offsets; Engine owns world artifacts; DLA owns audit truth; Label Store owns labels; Registry owns ACTIVE bundle resolution; AL owns side‑effects/outcomes.
-- **Fail closed when compatibility is unknown.** If schema version, bundle compatibility, or gate evidence is missing/invalid, reject/quarantine rather than guessing.
-- **Build for at‑least‑once reality.** All side effects and state transitions must be safe under duplicates and replay; idempotency keys and append‑only histories are required.
-- **Make provenance first‑class.** Every cross‑component output must carry the pins, policy/bundle version, and evidence refs needed for replay and audit.
-- **Engineer for throughput as a first-class property.** Every implementation must target minute-scale runtime under expected workload, with explicit profiling evidence and justified tradeoffs.
+## 7) Testing posture
+- Own the test plan.
+- Test according to the real design and production intent, not random runner convenience.
+- Prefer live AWS validation for platform runtime truth.
+- Keep tests and runs targeted so failures are easy to localize.
 
-_This router stays deliberately light on mechanics so it evolves slowly while the project grows._
+---
 
-
+## 8) Final reminder
+The job is not to prove the platform is merely wired. The job is to make sure the full `dev_full` platform can operate as a production system under meaningful load while producing meaningful, explainable, auditable outcomes.

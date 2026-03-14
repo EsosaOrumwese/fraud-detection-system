@@ -93,7 +93,8 @@ class IdentityGraphQuery:
 
     def status(self, *, scenario_run_id: str) -> dict[str, Any]:
         scope = _graph_scope(self.stream_id)
-        graph_version = self.store.current_graph_version()
+        graph_version_token = self.store.current_graph_version()
+        basis_payload = self.store.graph_basis()
         run_config_digest = self.store.current_run_config_digest()
         failure_count = self.store.apply_failure_count(
             scenario_run_id=scenario_run_id,
@@ -106,12 +107,19 @@ class IdentityGraphQuery:
         checkpoint_age = _age_seconds(checkpoints.get("updated_at_utc"))
         health = _derive_health(
             failure_count=failure_count,
+            metrics=metrics,
             watermark_age_seconds=watermark_age,
             checkpoint_age_seconds=checkpoint_age,
         )
         return {
             "graph_scope": scope,
-            "graph_version": graph_version,
+            "graph_version": _status_graph_version_payload(
+                graph_version_token=graph_version_token,
+                checkpoints=checkpoints,
+                basis_payload=basis_payload,
+                stream_id=self.stream_id,
+            ),
+            "graph_version_token": graph_version_token,
             "run_config_digest": run_config_digest,
             "integrity_status": integrity_status,
             "apply_failure_count": failure_count,
@@ -394,8 +402,49 @@ def _age_seconds(value: str | None) -> float | None:
     return max(0.0, (now - parsed).total_seconds())
 
 
+def _status_graph_version_payload(
+    *,
+    graph_version_token: str | None,
+    checkpoints: dict[str, Any] | None,
+    basis_payload: dict[str, Any] | None,
+    stream_id: str,
+) -> dict[str, Any] | None:
+    token = str(graph_version_token or "").strip()
+    if not token:
+        return None
+    checkpoints_payload = checkpoints if isinstance(checkpoints, dict) else {}
+    basis_wrapper = basis_payload if isinstance(basis_payload, dict) else {}
+    basis = basis_wrapper.get("basis") if isinstance(basis_wrapper.get("basis"), dict) else {}
+    watermark_ts_utc = str(
+        checkpoints_payload.get("watermark_ts_utc")
+        or basis.get("watermark_ts_utc")
+        or ""
+    ).strip()
+    payload: dict[str, Any] = {
+        "version_id": token,
+        "stream": str(stream_id),
+    }
+    if watermark_ts_utc:
+        payload["watermark_ts_utc"] = watermark_ts_utc
+    updated_at_utc = str(checkpoints_payload.get("updated_at_utc") or "").strip()
+    if updated_at_utc:
+        payload["computed_at_utc"] = updated_at_utc
+    basis_digest = str(basis.get("basis_digest") or "").strip()
+    if not basis_digest and basis:
+        basis_digest = hashlib.sha256(
+            json.dumps(basis, sort_keys=True, ensure_ascii=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+    if basis_digest:
+        payload["basis_digest"] = basis_digest
+    return payload
+
+
 def _derive_health(
-    *, failure_count: int, watermark_age_seconds: float | None, checkpoint_age_seconds: float | None
+    *,
+    failure_count: int,
+    metrics: dict[str, Any] | None,
+    watermark_age_seconds: float | None,
+    checkpoint_age_seconds: float | None,
 ) -> dict[str, Any]:
     amber_watermark_age = _env_float("IEG_HEALTH_AMBER_WATERMARK_AGE_SECONDS", 120.0)
     red_watermark_age = _env_float("IEG_HEALTH_RED_WATERMARK_AGE_SECONDS", 300.0)
@@ -403,6 +452,15 @@ def _derive_health(
     red_checkpoint_age = _env_float("IEG_HEALTH_RED_CHECKPOINT_AGE_SECONDS", 300.0)
     amber_failures = _env_int("IEG_HEALTH_AMBER_APPLY_FAILURES", 1)
     red_failures = _env_int("IEG_HEALTH_RED_APPLY_FAILURES", 100)
+    counters = metrics if isinstance(metrics, dict) else {}
+    replay_advisory = _is_watermark_replay_advisory(
+        metrics=counters,
+        failure_count=failure_count,
+        watermark_age_seconds=watermark_age_seconds,
+        checkpoint_age_seconds=checkpoint_age_seconds,
+        amber_checkpoint_age_seconds=amber_checkpoint_age,
+        red_watermark_age_seconds=red_watermark_age,
+    )
 
     reasons: list[str] = []
     state = "GREEN"
@@ -411,8 +469,12 @@ def _derive_health(
         reasons.append("WATERMARK_MISSING")
         state = "AMBER"
     elif watermark_age_seconds >= red_watermark_age:
-        reasons.append("WATERMARK_TOO_OLD")
-        state = "RED"
+        if replay_advisory:
+            reasons.append("WATERMARK_REPLAY_ADVISORY")
+            state = "AMBER"
+        else:
+            reasons.append("WATERMARK_TOO_OLD")
+            state = "RED"
     elif watermark_age_seconds >= amber_watermark_age:
         reasons.append("WATERMARK_LAGGING")
         state = "AMBER"
@@ -435,6 +497,28 @@ def _derive_health(
         state = "AMBER"
 
     return {"state": state, "reasons": reasons}
+
+
+def _is_watermark_replay_advisory(
+    *,
+    metrics: dict[str, Any],
+    failure_count: int,
+    watermark_age_seconds: float | None,
+    checkpoint_age_seconds: float | None,
+    amber_checkpoint_age_seconds: float,
+    red_watermark_age_seconds: float,
+) -> bool:
+    if failure_count > 0:
+        return False
+    if watermark_age_seconds is None or checkpoint_age_seconds is None:
+        return False
+    if watermark_age_seconds < red_watermark_age_seconds:
+        return False
+    if checkpoint_age_seconds > amber_checkpoint_age_seconds:
+        return False
+    events_seen = int(metrics.get("events_seen", 0) or 0)
+    mutating_applied = int(metrics.get("mutating_applied", 0) or 0)
+    return max(events_seen, mutating_applied) > 0
 
 
 def _env_float(name: str, default: float) -> float:

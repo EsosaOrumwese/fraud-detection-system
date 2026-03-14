@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import hashlib
 import json
+import logging
 import os
 from pathlib import Path
 from typing import Any
@@ -31,6 +32,8 @@ EVENT_FAMILIES: frozenset[str] = frozenset(
         "RUN_REPORT_GENERATED",
     }
 )
+
+LOGGER = logging.getLogger(__name__)
 
 
 class PlatformGovernanceError(ValueError):
@@ -64,19 +67,34 @@ class PlatformGovernanceWriter:
     def emit(self, event: GovernanceEvent) -> dict[str, Any] | None:
         payload = _normalize_event(event)
         marker_path = _marker_path(self.store, payload["pins"]["platform_run_id"], payload["event_id"])
+        event_path = _event_path(self.store, payload["pins"]["platform_run_id"], payload["event_id"])
         marker_payload = {
             "event_id": payload["event_id"],
             "event_family": payload["event_family"],
             "ts_utc": payload["ts_utc"],
         }
         try:
-            self.store.write_json_if_absent(marker_path, marker_payload)
+            self.store.write_json_if_absent(event_path, payload)
         except FileExistsError:
             return None
-        self.store.append_jsonl(
-            _events_path(self.store, payload["pins"]["platform_run_id"]),
-            [payload],
-        )
+        try:
+            self.store.write_json_if_absent(marker_path, marker_payload)
+        except FileExistsError:
+            pass
+        try:
+            self.store.append_jsonl(
+                _events_path(self.store, payload["pins"]["platform_run_id"]),
+                [payload],
+            )
+        except Exception as exc:
+            if "S3_APPEND_CONFLICT" not in str(exc):
+                raise
+            LOGGER.warning(
+                "Governance projection append deferred platform_run_id=%s event_id=%s reason=%s",
+                payload["pins"]["platform_run_id"],
+                payload["event_id"],
+                str(exc)[:256],
+            )
         return payload
 
     def query(
@@ -87,11 +105,46 @@ class PlatformGovernanceWriter:
         limit: int | None = None,
     ) -> list[dict[str, Any]]:
         run_id = _required(platform_run_id, "platform_run_id")
+        family_filter = event_family.strip().upper() if event_family else None
+        items = self._event_payloads(run_id=run_id)
+        if family_filter:
+            items = [
+                payload
+                for payload in items
+                if str(payload.get("event_family") or "").upper() == family_filter
+            ]
+        if limit is not None and limit > 0:
+            return items[-limit:]
+        return items
+
+    def _event_payloads(self, *, run_id: str) -> list[dict[str, Any]]:
+        items = self._event_payloads_from_objects(run_id=run_id)
+        if items:
+            return items
+        return self._event_payloads_from_projection(run_id=run_id)
+
+    def _event_payloads_from_objects(self, *, run_id: str) -> list[dict[str, Any]]:
+        if not hasattr(self.store, "list_files"):
+            return []
+        try:
+            files = list(getattr(self.store, "list_files")(_events_dir(self.store, run_id)))
+        except Exception:
+            return []
+        items: list[dict[str, Any]] = []
+        for file_path in sorted(files):
+            payload = _read_store_json(self.store, file_path)
+            if payload:
+                items.append(payload)
+        items.sort(key=lambda item: (str(item.get("ts_utc") or ""), str(item.get("event_id") or "")))
+        return items
+
+    def _event_payloads_from_projection(self, *, run_id: str) -> list[dict[str, Any]]:
+        if not hasattr(self.store, "read_text"):
+            return []
         path = _events_path(self.store, run_id)
         if not self.store.exists(path):
             return []
         text = self.store.read_text(path)
-        family_filter = event_family.strip().upper() if event_family else None
         items: list[dict[str, Any]] = []
         for line in text.splitlines():
             line = line.strip()
@@ -101,11 +154,9 @@ class PlatformGovernanceWriter:
                 payload = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            if family_filter and str(payload.get("event_family") or "").upper() != family_filter:
-                continue
-            items.append(payload)
-        if limit is not None and limit > 0:
-            return items[-limit:]
+            if isinstance(payload, dict):
+                items.append(payload)
+        items.sort(key=lambda item: (str(item.get("ts_utc") or ""), str(item.get("event_id") or "")))
         return items
 
 
@@ -240,6 +291,14 @@ def _events_path(store: ObjectStore, platform_run_id: str) -> str:
     return f"{_run_prefix_for_store(store, platform_run_id)}/obs/governance/events.jsonl"
 
 
+def _events_dir(store: ObjectStore, platform_run_id: str) -> str:
+    return f"{_run_prefix_for_store(store, platform_run_id)}/obs/governance/events"
+
+
+def _event_path(store: ObjectStore, platform_run_id: str, event_id: str) -> str:
+    return f"{_run_prefix_for_store(store, platform_run_id)}/obs/governance/events/{event_id}.json"
+
+
 def _marker_path(store: ObjectStore, platform_run_id: str, event_id: str) -> str:
     return f"{_run_prefix_for_store(store, platform_run_id)}/obs/governance/markers/{event_id}.json"
 
@@ -304,3 +363,28 @@ def _provenance_from_details(details: dict[str, Any]) -> dict[str, Any] | None:
     if not payload.get("service_release_id") or not payload.get("environment"):
         return None
     return payload
+
+
+def _read_store_json(store: ObjectStore, path: str) -> dict[str, Any]:
+    try:
+        if isinstance(store, S3ObjectStore):
+            payload = store.read_json(_s3_relative_path(store, path))
+        else:
+            payload = store.read_json(path)
+    except Exception:
+        return {}
+    return dict(payload) if isinstance(payload, dict) else {}
+
+
+def _s3_relative_path(store: S3ObjectStore, absolute_path: str) -> str:
+    text = str(absolute_path or "").strip()
+    if not text.startswith("s3://"):
+        return text
+    prefix = f"s3://{store.bucket}/"
+    if not text.startswith(prefix):
+        return text
+    key = text[len(prefix) :]
+    store_prefix = f"{store.prefix}/" if store.prefix else ""
+    if store_prefix and key.startswith(store_prefix):
+        return key[len(store_prefix) :]
+    return key

@@ -83,6 +83,16 @@ variable "s3_force_destroy" {
   default = false
 }
 
+variable "artifacts_lambda_ig_handler_expiration_days" {
+  type    = number
+  default = 14
+}
+
+variable "artifacts_lambda_ig_handler_noncurrent_expiration_days" {
+  type    = number
+  default = 7
+}
+
 variable "kms_key_alias_platform" {
   type    = string
   default = "alias/fraud-platform-dev-full"
@@ -97,4 +107,3 @@ variable "role_eks_runtime_platform_base" {
   type    = string
   default = "fraud-platform-dev-full-runtime-platform-base"
 }
-

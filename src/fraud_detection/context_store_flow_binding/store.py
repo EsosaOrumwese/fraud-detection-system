@@ -756,30 +756,35 @@ class ContextStoreFlowBindingStore:
         ).hexdigest()[:32]
 
         def work(conn: Any) -> str:
-            self._execute(
-                conn,
-                """
-                INSERT INTO csfb_join_apply_failures (
-                    failure_id, stream_id, platform_run_id, scenario_run_id,
-                    topic, partition_id, "offset", offset_kind, event_id, event_type,
-                    reason_code, details_json, recorded_at_utc
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-                """,
-                (
-                    failure_id,
-                    self.stream_id,
-                    platform_run_id,
-                    scenario_run_id,
-                    topic,
-                    partition_id,
-                    offset,
-                    offset_kind,
-                    event_id,
-                    event_type,
-                    _non_empty(reason_code, "reason_code"),
-                    _canonical_json(details),
-                ),
-            )
+            try:
+                self._execute(
+                    conn,
+                    """
+                    INSERT INTO csfb_join_apply_failures (
+                        failure_id, stream_id, platform_run_id, scenario_run_id,
+                        topic, partition_id, "offset", offset_kind, event_id, event_type,
+                        reason_code, details_json, recorded_at_utc
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    """,
+                    (
+                        failure_id,
+                        self.stream_id,
+                        platform_run_id,
+                        scenario_run_id,
+                        topic,
+                        partition_id,
+                        offset,
+                        offset_kind,
+                        event_id,
+                        event_type,
+                        _non_empty(reason_code, "reason_code"),
+                        _canonical_json(details),
+                    ),
+                )
+            except Exception as exc:
+                if _is_duplicate_key_error(self.backend, exc):
+                    return failure_id
+                raise
             return failure_id
 
         return self._run_in_tx(work)
@@ -1088,6 +1093,15 @@ def _parse_days(value: Any, field_name: str) -> int | None:
     if parsed < 0:
         raise ContextStoreFlowBindingStoreError(f"{field_name} must be >= 0")
     return parsed
+
+
+def _is_duplicate_key_error(backend: str, exc: Exception) -> bool:
+    if backend == "sqlite" and isinstance(exc, sqlite3.IntegrityError):
+        message = str(exc).upper()
+        return "UNIQUE" in message or "PRIMARY KEY" in message
+    if backend == "postgres" and getattr(exc, "sqlstate", "") == "23505":
+        return True
+    return False
 
 
 def _normalize_source_event(source_event: Mapping[str, Any]) -> dict[str, Any]:

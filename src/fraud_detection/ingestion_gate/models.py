@@ -17,6 +17,7 @@ class AdmissionDecision:
 @dataclass(frozen=True)
 class Receipt:
     payload: dict[str, Any]
+    ref: str | None = None
 
 
 @dataclass(frozen=True)

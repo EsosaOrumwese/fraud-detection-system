@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import json
 from pathlib import Path
 
@@ -19,6 +20,7 @@ def _build_worker(
     monkeypatch: pytest.MonkeyPatch,
     run_id: str,
     include_component_health: bool,
+    include_operate_status: bool = True,
 ) -> DegradeLadderWorker:
     runs_root = tmp_path / "runs" / "fraud-platform"
     monkeypatch.setattr("fraud_detection.degrade_ladder.worker.RUNS_ROOT", runs_root)
@@ -27,17 +29,26 @@ def _build_worker(
     if include_component_health:
         _write_json(
             run_root / "online_feature_plane" / "health" / "last_health.json",
-            {"health_state": "GREEN"},
+            {"health_state": "GREEN", "lag_seconds": 0.25, "checkpoint_age_seconds": 0.25},
         )
         _write_json(
             run_root / "identity_entity_graph" / "health" / "last_health.json",
-            {"health_state": "GREEN"},
+            {"health_state": "GREEN", "checkpoint_age_seconds": 0.5},
+        )
+        _write_json(
+            run_root / "context_store_flow_binding" / "health" / "last_health.json",
+            {"health_state": "GREEN", "checkpoint_age_seconds": 0.75},
+        )
+        _write_json(
+            run_root / "decision_log_audit" / "health" / "last_health.json",
+            {"health_state": "GREEN", "checkpoint_age_seconds": 0.1},
         )
 
-    _write_json(
-        runs_root / "operate" / "local_parity_rtdl_core_v0" / "status" / "last_status.json",
-        {"processes": [{"process_id": "ofp_projector", "readiness": {"ready": True}}]},
-    )
+    if include_operate_status:
+        _write_json(
+            runs_root / "operate" / "local_parity_rtdl_core_v0" / "status" / "last_status.json",
+            {"processes": [{"process_id": "ofp_projector", "readiness": {"ready": True}}]},
+        )
     registry_snapshot = tmp_path / "registry_snapshot.yaml"
     registry_snapshot.write_text("snapshot_id: snap-1\n", encoding="utf-8")
 
@@ -56,6 +67,7 @@ def _build_worker(
         outbox_max_attempts=3,
         outbox_backoff_seconds=1,
         platform_run_id=run_id,
+        scenario_run_id="scenario-run-1",
         registry_snapshot_ref=registry_snapshot,
     )
     return DegradeLadderWorker(config=config)
@@ -96,6 +108,8 @@ def test_worker_marks_health_red_when_required_signals_missing(tmp_path: Path, m
         run_id=run_id,
         include_component_health=False,
     )
+    worker._worker_started_at = datetime(2026, 2, 9, 22, 1, 0, tzinfo=timezone.utc)
+    monkeypatch.setattr("fraud_detection.degrade_ladder.worker._utc_now", lambda: "2026-02-09T22:05:00+00:00")
 
     payload = worker.run_once()
     assert payload["mode"] == "FAIL_CLOSED"
@@ -107,3 +121,267 @@ def test_worker_marks_health_red_when_required_signals_missing(tmp_path: Path, m
     assert "REQUIRED_SIGNAL_NOT_OK" in health["reason_codes"]
     assert "ofp_health" in health["bad_required_signals"]
     assert "ieg_health" in health["bad_required_signals"]
+
+
+def test_worker_uses_remote_component_lag_when_operate_status_missing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_id = "platform_20260209T220200Z"
+    worker = _build_worker(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        run_id=run_id,
+        include_component_health=True,
+        include_operate_status=False,
+    )
+
+    payload = worker.run_once()
+
+    assert payload["mode"] == "NORMAL"
+    assert payload["run_observability"]["health_state"] == "GREEN"
+
+
+def test_worker_treats_missing_remote_surfaces_as_bootstrap_pending_for_fresh_run(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_id = "platform_20260209T220300Z"
+    monkeypatch.setattr("fraud_detection.degrade_ladder.worker._utc_now", lambda: "2026-02-09T22:03:20+00:00")
+    worker = _build_worker(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        run_id=run_id,
+        include_component_health=False,
+        include_operate_status=False,
+    )
+
+    payload = worker.run_once()
+
+    assert payload["mode"] == "NORMAL"
+    assert payload["run_observability"]["health_state"] == "GREEN"
+
+
+def test_worker_bootstrap_grace_tracks_worker_start_not_stale_run_id(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_id = "platform_20260209T220300Z"
+    ticks = iter(
+        [
+            "2026-02-09T22:10:00+00:00",
+            "2026-02-09T22:10:20+00:00",
+            "2026-02-09T22:10:20+00:00",
+        ]
+    )
+    monkeypatch.setattr("fraud_detection.degrade_ladder.worker._utc_now", lambda: next(ticks))
+    worker = _build_worker(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        run_id=run_id,
+        include_component_health=False,
+        include_operate_status=False,
+    )
+
+    payload = worker.run_once()
+
+    assert payload["mode"] == "NORMAL"
+    assert payload["run_observability"]["health_state"] == "GREEN"
+
+
+def test_worker_uses_shared_store_surfaces_when_remote_pod_files_are_absent(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_id = "platform_20260209T220400Z"
+    worker = _build_worker(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        run_id=run_id,
+        include_component_health=False,
+        include_operate_status=False,
+    )
+    worker._worker_started_at = datetime(2026, 2, 9, 22, 0, 0, tzinfo=timezone.utc)
+    monkeypatch.setattr("fraud_detection.degrade_ladder.worker._utc_now", lambda: "2026-02-09T22:05:00+00:00")
+    worker._shared_csfb_snapshot = lambda: {"checkpoint_age_seconds": 0.25}
+    worker._shared_ieg_status = lambda: {"checkpoint_age_seconds": 0.4, "apply_failure_count": 0}
+    worker._shared_ofp_status = lambda: {"checkpoint_age_seconds": 0.3, "metrics": {"missing_features": 0, "snapshot_failures": 0}}
+
+    payload = worker.run_once()
+
+    assert payload["mode"] == "NORMAL"
+    assert payload["required_signal_states"]["eb_consumer_lag"] == "OK"
+    assert payload["required_signal_states"]["ieg_health"] == "OK"
+    assert payload["required_signal_states"]["ofp_health"] == "OK"
+
+
+def test_worker_allows_replay_recovered_ofp_transient_snapshot_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_id = "platform_20260209T220450Z"
+    worker = _build_worker(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        run_id=run_id,
+        include_component_health=False,
+        include_operate_status=False,
+    )
+    worker._worker_started_at = datetime(2026, 2, 9, 22, 0, 0, tzinfo=timezone.utc)
+    monkeypatch.setattr("fraud_detection.degrade_ladder.worker._utc_now", lambda: "2026-02-09T22:05:00+00:00")
+    worker._shared_csfb_snapshot = lambda: {"checkpoint_age_seconds": 0.25}
+    worker._shared_ieg_status = lambda: {"checkpoint_age_seconds": 0.4, "apply_failure_count": 0}
+    worker._shared_ofp_status = lambda: {
+        "checkpoint_age_seconds": 0.3,
+        "health_reasons": ["WATERMARK_TOO_OLD"],
+        "metrics": {
+            "events_applied": 1200,
+            "events_seen": 1200,
+            "missing_features": 0,
+            "snapshot_failures": 1,
+            "stale_graph_version": 0,
+        },
+    }
+
+    payload = worker.run_once()
+
+    assert payload["mode"] == "NORMAL"
+    assert payload["required_signal_states"]["ofp_health"] == "OK"
+
+
+def test_worker_keeps_ofp_fail_closed_when_snapshot_failure_is_active_red(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_id = "platform_20260209T220451Z"
+    worker = _build_worker(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        run_id=run_id,
+        include_component_health=False,
+        include_operate_status=False,
+    )
+    worker._worker_started_at = datetime(2026, 2, 9, 22, 0, 0, tzinfo=timezone.utc)
+    monkeypatch.setattr("fraud_detection.degrade_ladder.worker._utc_now", lambda: "2026-02-09T22:05:00+00:00")
+    worker._shared_csfb_snapshot = lambda: {"checkpoint_age_seconds": 0.25}
+    worker._shared_ieg_status = lambda: {"checkpoint_age_seconds": 0.4, "apply_failure_count": 0}
+    worker._shared_ofp_status = lambda: {
+        "checkpoint_age_seconds": 0.3,
+        "health_reasons": ["WATERMARK_TOO_OLD", "SNAPSHOT_FAILURES_RED"],
+        "metrics": {
+            "events_applied": 1200,
+            "events_seen": 1200,
+            "missing_features": 0,
+            "snapshot_failures": 5,
+            "stale_graph_version": 0,
+        },
+    }
+
+    payload = worker.run_once()
+
+    assert payload["mode"] == "FAIL_CLOSED"
+    assert payload["required_signal_states"]["ofp_health"] == "ERROR"
+
+
+def test_worker_allows_single_ofp_missing_feature_as_decision_local_not_plane_global(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_id = "platform_20260209T220452Z"
+    worker = _build_worker(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        run_id=run_id,
+        include_component_health=False,
+        include_operate_status=False,
+    )
+    worker._worker_started_at = datetime(2026, 2, 9, 22, 0, 0, tzinfo=timezone.utc)
+    monkeypatch.setattr("fraud_detection.degrade_ladder.worker._utc_now", lambda: "2026-02-09T22:05:00+00:00")
+    worker._shared_csfb_snapshot = lambda: {"checkpoint_age_seconds": 0.25}
+    worker._shared_ieg_status = lambda: {"checkpoint_age_seconds": 0.4, "apply_failure_count": 0}
+    worker._shared_ofp_status = lambda: {
+        "checkpoint_age_seconds": 0.3,
+        "health_reasons": ["WATERMARK_TOO_OLD"],
+        "metrics": {
+            "events_applied": 148280,
+            "events_seen": 148280,
+            "missing_features": 1,
+            "snapshot_failures": 0,
+            "stale_graph_version": 0,
+        },
+    }
+
+    payload = worker.run_once()
+
+    assert payload["mode"] == "NORMAL"
+    assert payload["required_signal_states"]["ofp_health"] == "OK"
+
+
+def test_worker_keeps_ofp_fail_closed_when_missing_features_hit_material_red_threshold(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_id = "platform_20260209T220453Z"
+    worker = _build_worker(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        run_id=run_id,
+        include_component_health=False,
+        include_operate_status=False,
+    )
+    worker._worker_started_at = datetime(2026, 2, 9, 22, 0, 0, tzinfo=timezone.utc)
+    monkeypatch.setattr("fraud_detection.degrade_ladder.worker._utc_now", lambda: "2026-02-09T22:05:00+00:00")
+    worker._shared_csfb_snapshot = lambda: {"checkpoint_age_seconds": 0.25}
+    worker._shared_ieg_status = lambda: {"checkpoint_age_seconds": 0.4, "apply_failure_count": 0}
+    worker._shared_ofp_status = lambda: {
+        "checkpoint_age_seconds": 0.3,
+        "health_reasons": ["WATERMARK_TOO_OLD", "MISSING_FEATURES_RED"],
+        "derived_metrics": {
+            "event_basis": 1000,
+            "missing_feature_rate": 0.01,
+        },
+        "metrics": {
+            "events_applied": 1000,
+            "events_seen": 1000,
+            "missing_features": 10,
+            "snapshot_failures": 0,
+            "stale_graph_version": 0,
+        },
+    }
+
+    payload = worker.run_once()
+
+    assert payload["mode"] == "FAIL_CLOSED"
+    assert payload["required_signal_states"]["ofp_health"] == "ERROR"
+
+
+def test_worker_records_shared_surface_errors_when_authoritative_reader_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from fraud_detection.identity_entity_graph.query import IdentityGraphQuery
+
+    run_id = "platform_20260209T220500Z"
+    worker = _build_worker(
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+        run_id=run_id,
+        include_component_health=True,
+        include_operate_status=False,
+    )
+
+    def _boom(profile_path: str) -> IdentityGraphQuery:
+        raise ValueError("IEG shared surface unavailable")
+
+    monkeypatch.setattr(IdentityGraphQuery, "from_profile", staticmethod(_boom))
+
+    payload = worker.run_once()
+
+    assert payload["mode"] == "NORMAL"
+
+    health_path = tmp_path / "runs" / "fraud-platform" / run_id / "degrade_ladder" / "health" / "last_health.json"
+    metrics_path = tmp_path / "runs" / "fraud-platform" / run_id / "degrade_ladder" / "metrics" / "last_metrics.json"
+    health = json.loads(health_path.read_text(encoding="utf-8"))
+    metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+    assert health["shared_surface_errors"]["identity_entity_graph"] == "IEG shared surface unavailable"
+    assert metrics["shared_surface_errors"]["identity_entity_graph"] == "IEG shared surface unavailable"

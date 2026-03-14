@@ -1,0 +1,100 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Baseline wired platform: Foundational Control path only
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    L1["This graph isolates the Foundational Control path from the baseline wired platform"]
+    L2["It shows the control-entry, run-identity, runtime-path-governance, and run-control/evidence subpaths"]
+    L3["Gray nodes are governed downstream surfaces touched by control, not the full downstream internals"]
+  end
+
+  subgraph ENTRY["Control Entry and Delivery"]
+    GHA["GitHub Actions<br>workflow dispatch / bounded runs / teardown"]
+    TFCORE["Terraform stack<br>core"]
+    TFSTREAM["Terraform stack<br>streaming"]
+    TFRUNTIME["Terraform stack<br>runtime"]
+    TFDML["Terraform stack<br>data_ml"]
+    TFOPS["Terraform stack<br>ops"]
+    ECR["ECR repo<br>runtime image publication"]
+  end
+
+  subgraph AUTH["Run Authority"]
+    SFN["Step Functions<br>platform-run orchestration"]
+    CTRLBUS[["fp.bus.control.v1"]]
+    RUNID["Run identity pins<br>platform_run_id / scenario_run_id<br>phase_id / trace_id / config_digest"]
+    RUNTIMEPATH["Runtime path governance<br>single active path per phase run"]
+  end
+
+  subgraph RECEIPTS["Run Control and Evidence"]
+    RUNCTL["Run control<br>conformance / receipts / handoff packs"]
+    EVID[("Evidence bucket<br>durable control receipts")]
+    REPORTS["Run reports<br>reconciliation / non-regression packs"]
+  end
+
+  subgraph GOVERNED["Governed Downstream Surfaces"]
+    WSP["Replay producer"]
+    ING["Ingress boundary"]
+    RTDL["RTDL boundary"]
+    CASE["Case + Label boundary"]
+    LEARN["Learning boundary"]
+    GOV["Ops / Gov reporting boundary"]
+  end
+
+  subgraph SUPPORT["Supporting Trust and State"]
+    OIDC["GitHub OIDC trust"]
+    TFSTATE[("Terraform state bucket")]
+    MSK[("MSK transport for control topic")]
+  end
+
+  GHA -->|authenticates through| OIDC
+  GHA -->|applies| TFCORE
+  GHA -->|applies| TFSTREAM
+  GHA -->|applies| TFRUNTIME
+  GHA -->|applies| TFDML
+  GHA -->|applies| TFOPS
+  GHA -->|publishes images to| ECR
+  GHA -->|dispatches authoritative run to| SFN
+
+  TFCORE -->|stores state in| TFSTATE
+  TFSTREAM -->|stores state in| TFSTATE
+  TFRUNTIME -->|stores state in| TFSTATE
+  TFDML -->|stores state in| TFSTATE
+  TFOPS -->|stores state in| TFSTATE
+
+  SFN -->|assigns and persists| RUNID
+  SFN -->|enforces| RUNTIMEPATH
+  SFN -->|publishes orchestration signals to| CTRLBUS
+  CTRLBUS -->|transported by| MSK
+  SFN -->|writes run-control facts to| RUNCTL
+  RUNCTL -->|stores durable receipts in| EVID
+  RUNCTL -->|materializes rollups into| REPORTS
+  REPORTS -->|stored in| EVID
+
+  RUNID -->|pins run scope for| WSP
+  RUNID -->|pins run scope for| ING
+  RUNID -->|pins run scope for| RTDL
+  RUNID -->|pins run scope for| CASE
+  RUNID -->|pins run scope for| LEARN
+  RUNID -->|pins run scope for| GOV
+
+  RUNTIMEPATH -->|selects active path for| WSP
+  RUNTIMEPATH -->|selects active path for| ING
+  RUNTIMEPATH -->|selects active path for| RTDL
+  RUNTIMEPATH -->|selects active path for| LEARN
+
+  RUNCTL -->|feeds control continuity to| GOV
+  EVID -->|feeds auditable run story to| GOV
+
+  classDef control fill:#e8eaf6,stroke:#3949ab,color:#111,stroke-width:1.3px;
+  classDef evidence fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.3px;
+  classDef support fill:#f1f8e9,stroke:#558b2f,color:#111,stroke-width:1.3px;
+  classDef governed fill:#f5f5f5,stroke:#616161,color:#111,stroke-width:1.2px;
+
+  class GHA,TFCORE,TFSTREAM,TFRUNTIME,TFDML,TFOPS,ECR,SFN,CTRLBUS,RUNID,RUNTIMEPATH,RUNCTL,REPORTS control;
+  class EVID,TFSTATE,MSK evidence;
+  class OIDC support;
+  class WSP,ING,RTDL,CASE,LEARN,GOV governed;

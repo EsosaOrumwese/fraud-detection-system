@@ -67,8 +67,8 @@ class DecisionContextPolicy:
         roles = payload.get("context_roles") or {}
         if not isinstance(roles, Mapping):
             raise DecisionContextError("context_roles must be a mapping")
-        required_roles = _non_empty_list(roles.get("required"), "context_roles.required")
-        optional_roles = _unique_list(roles.get("optional"))
+        required_roles = _string_list(roles.get("required"), "context_roles.required", allow_empty=True)
+        optional_roles = _string_list(roles.get("optional"), "context_roles.optional", allow_empty=True)
 
         ofp = payload.get("ofp") or {}
         if not isinstance(ofp, Mapping):
@@ -462,10 +462,23 @@ class DecisionContextAcquirer:
 
             missing_groups = _to_list((ofp_snapshot.get("freshness") or {}).get("missing_groups"))
             missing_keys = _to_list((ofp_snapshot.get("freshness") or {}).get("missing_feature_keys"))
-            missing_reasons = [
-                *(f"OFP_MISSING_GROUP:{name}" for name in missing_groups),
-                *(f"OFP_MISSING_FEATURE:{name}" for name in missing_keys),
+            has_usable_features = _snapshot_has_usable_features(ofp_snapshot)
+            requested_group_names = {name for name, _ in requirements.feature_groups}
+            served_group_names = set(feature_group_versions)
+            effective_missing_groups = [
+                name
+                for name in missing_groups
+                if not (
+                    has_usable_features
+                    and name in requested_group_names
+                    and name in served_group_names
+                )
             ]
+            missing_reasons = [
+                *(f"OFP_MISSING_GROUP:{name}" for name in effective_missing_groups),
+            ]
+            if not has_usable_features:
+                missing_reasons.extend(f"OFP_MISSING_FEATURE:{name}" for name in missing_keys)
             if missing_reasons:
                 return DecisionContextResult(
                     status=CONTEXT_MISSING,
@@ -637,16 +650,13 @@ def _positive_int(value: Any, field_name: str) -> int:
     return number
 
 
-def _non_empty_list(value: Any, field_name: str) -> list[str]:
-    if not isinstance(value, list) or not value:
-        raise DecisionContextError(f"{field_name} must be a non-empty list")
-    return [str(item).strip() for item in value if str(item).strip()]
-
-
-def _unique_list(value: Any) -> list[str]:
+def _string_list(value: Any, field_name: str, *, allow_empty: bool) -> list[str]:
     if not isinstance(value, list):
-        return []
-    return sorted({str(item).strip() for item in value if str(item).strip()})
+        raise DecisionContextError(f"{field_name} must be a list")
+    values = sorted({str(item).strip() for item in value if str(item).strip()})
+    if not values and not allow_empty:
+        raise DecisionContextError(f"{field_name} must not be empty")
+    return values
 
 
 def _to_list(value: Any) -> list[str]:
@@ -659,6 +669,11 @@ def _coerce_mapping(value: Any) -> dict[str, Any] | None:
     if isinstance(value, Mapping):
         return dict(value)
     return None
+
+
+def _snapshot_has_usable_features(snapshot: Mapping[str, Any]) -> bool:
+    features = snapshot.get("features")
+    return isinstance(features, Mapping) and bool(features)
 
 
 def _canonical_json(value: Mapping[str, Any]) -> str:

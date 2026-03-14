@@ -28,7 +28,7 @@ from fraud_detection.scenario_runner.schemas import SchemaRegistry
 from fraud_detection.scenario_runner.storage import LocalObjectStore, ObjectStore, S3ObjectStore
 
 from .config import WspProfile
-from .control_bus import FileControlBusReader, KinesisControlBusReader, ReadyMessage
+from .control_bus import KafkaControlBusReader, FileControlBusReader, KinesisControlBusReader, ReadyMessage
 from .runner import StreamResult, WorldStreamProducer
 
 logger = logging.getLogger(__name__)
@@ -76,6 +76,11 @@ class ReadyConsumerRunner:
                 profile.wiring.control_bus_topic,
                 region=profile.wiring.control_bus_region,
                 endpoint_url=profile.wiring.control_bus_endpoint_url,
+                registry=self._sr_registry,
+            )
+        elif kind == "kafka":
+            self._reader = KafkaControlBusReader(
+                profile.wiring.control_bus_topic,
                 registry=self._sr_registry,
             )
         elif kind == "file":

@@ -60,9 +60,9 @@ def test_push_retries_on_429(tmp_path, monkeypatch) -> None:
         status = 429 if calls["count"] < 3 else 200
         return SimpleNamespace(status_code=status, text="rate limit")
 
-    monkeypatch.setattr(requests, "post", fake_post)
     import fraud_detection.world_streamer_producer.runner as wsp_runner
 
+    monkeypatch.setattr(producer, "_http_session", lambda: SimpleNamespace(post=fake_post))
     monkeypatch.setattr(wsp_runner.time, "sleep", lambda *_args, **_kwargs: None)
 
     producer._push_to_ig({"event_id": "evt-1"})
@@ -78,7 +78,7 @@ def test_push_rejects_non_retryable_4xx(tmp_path, monkeypatch) -> None:
         calls["count"] += 1
         return SimpleNamespace(status_code=400, text="bad request")
 
-    monkeypatch.setattr(requests, "post", fake_post)
+    monkeypatch.setattr(producer, "_http_session", lambda: SimpleNamespace(post=fake_post))
 
     with pytest.raises(IngestionError) as excinfo:
         producer._push_to_ig({"event_id": "evt-2"})

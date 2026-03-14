@@ -1,0 +1,12 @@
+policy_id: mf.train.policy.v0
+revision: r7
+feature_definition_set:
+  feature_set_id: core_features
+  feature_set_version: v1
+expected_manifest_schema_version: learning.dataset_manifest.v0
+split_strategy: time_based
+seed_policy:
+  recipe: mf.phase4.seed.v0
+  base_seed: 31
+leakage:
+  expected_label_rule: observed_time<=label_asof_utc

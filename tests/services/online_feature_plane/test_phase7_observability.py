@@ -234,3 +234,43 @@ def test_phase7_build_applies_env_threshold_overrides(tmp_path, monkeypatch) -> 
 
     assert reporter.thresholds.amber_checkpoint_age_seconds == 777.0
     assert reporter.thresholds.red_checkpoint_age_seconds == 999.0
+
+
+def test_phase7_replay_window_keeps_small_missing_feature_ratio_out_of_red(tmp_path, monkeypatch) -> None:
+    profile_path, _ = _setup_profile(tmp_path, write_event=False)
+    reporter = OfpObservabilityReporter.build(str(profile_path))
+
+    metrics = {
+        "snapshots_built": 1,
+        "snapshot_failures": 0,
+        "events_applied": 103736,
+        "events_seen": 103736,
+        "duplicates": 0,
+        "stale_graph_version": 0,
+        "missing_features": 59,
+    }
+    checkpoints = {
+        "watermark_ts_utc": "2026-03-08T11:00:00.000000Z",
+        "updated_at_utc": "2026-03-08T14:59:59.950000Z",
+    }
+    monkeypatch.setattr(reporter.store, "metrics_summary", lambda scenario_run_id: metrics)
+    monkeypatch.setattr(reporter.store, "checkpoints_summary", lambda: checkpoints)
+    monkeypatch.setattr(
+        "fraud_detection.online_feature_plane.observability.datetime",
+        type(
+            "_FixedDateTime",
+            (),
+            {
+                "now": staticmethod(lambda tz=None: datetime(2026, 3, 8, 15, 0, 0, tzinfo=timezone.utc)),
+                "fromisoformat": staticmethod(datetime.fromisoformat),
+            },
+        ),
+    )
+
+    summary = reporter.collect(scenario_run_id=str(_pins()["scenario_run_id"]))
+
+    assert summary["derived_metrics"]["event_basis"] == 103736
+    assert summary["derived_metrics"]["missing_feature_rate"] == pytest.approx(59 / 103736)
+    assert summary["health_state"] == "AMBER"
+    assert "WATERMARK_REPLAY_ADVISORY" in summary["health_reasons"]
+    assert "MISSING_FEATURES_RED" not in summary["health_reasons"]

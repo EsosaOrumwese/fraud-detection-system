@@ -10,7 +10,6 @@ context_store_flow_binding:
     context_topics:
       - fp.bus.context.arrival_events.v1
       - fp.bus.context.arrival_entities.v1
-      - fp.bus.context.flow_anchor.baseline.v1
       - fp.bus.context.flow_anchor.fraud.v1
   wiring:
     projection_db_dsn: runs/fraud-platform/context_store_flow_binding/csfb.sqlite

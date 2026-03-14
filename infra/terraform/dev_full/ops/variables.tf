@@ -133,3 +133,38 @@ variable "github_actions_evidence_bucket" {
   type    = string
   default = "fraud-platform-dev-full-evidence"
 }
+
+variable "budget_name" {
+  type    = string
+  default = "fraud-platform-dev-full-monthly"
+}
+
+variable "budget_limit_amount" {
+  type    = number
+  default = 300
+}
+
+variable "budget_limit_unit" {
+  type    = string
+  default = "USD"
+}
+
+variable "budget_alert_thresholds" {
+  type    = list(number)
+  default = [120, 210, 270]
+}
+
+variable "budget_alert_email" {
+  type    = string
+  default = "eorumwese@gmail.com"
+}
+
+variable "dashboard_platform_operations_name" {
+  type    = string
+  default = "fraud-platform-dev-full-operations"
+}
+
+variable "dashboard_cost_guardrail_name" {
+  type    = string
+  default = "fraud-platform-dev-full-cost-guardrail"
+}

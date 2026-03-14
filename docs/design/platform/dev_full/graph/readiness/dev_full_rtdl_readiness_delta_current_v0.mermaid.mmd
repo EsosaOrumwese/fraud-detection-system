@@ -1,0 +1,101 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    L1["Left to right = RTDL scope -> blocker family -> accepted remediation -> measured impact -> readiness verdict"]
+    L2["Red = blocker that existed during active remediation"]
+    L3["Amber = accepted corrective posture"]
+    L4["Blue = measured evidence"]
+    L5["Green = closed blocker or promoted verdict"]
+  end
+
+  subgraph RTDL["Phase 1 RTDL Scope"]
+    C0["Promoted base entering Phase 1<br>Control + Ingress"]
+    C1["RTDL semantic seam<br>IEG / OFP / DF / DL / archive continuity"]
+    C2["Fresh-scope materialization boundary<br>ECR image -> EKS runtime"]
+    C3["Coupled RTDL proof control<br>54 lanes / ig_push = 1 / truthful burst transition"]
+    C4["Fresh-scope closure candidate<br>RTDL-attached bounded envelope"]
+  end
+
+  subgraph BLOCKERS["Blocker Sequence Actually Encountered"]
+    B1["Closed blocker<br>stale run-scope / materializer drift"]
+    B2["Closed blocker<br>false graph-version hard red"]
+    B3["Closed blocker<br>DF/OFP redundant feature-key mismatch"]
+    B4["Closed blocker<br>fresh-scope shorthand image resolved against Docker Hub"]
+    B5["Closed blocker<br>ingress-side control ambiguity"]
+    B6["Closed blocker<br>same-scope reruns became statefully misleading"]
+    B7["Closed blocker<br>fresh-scope coupled closure still required"]
+  end
+
+  subgraph POSTURE["Accepted Remediation Path"]
+    P1["Keep semantic seam fixes and accepted RTDL image family pinned"]
+    P2["Normalize materializer image refs to full ECR URI"]
+    P3["Freeze semantically clean coupled control family<br>54 lanes / ig_push = 1"]
+    P4["Reject reused-scope diagnostics once the scope begins to distort the signal"]
+    P5["Spend one more time on a new fresh scope only"]
+    P6["Use the narrow closure uplift<br>stream_speedup = 52.9"]
+  end
+
+  subgraph EVIDENCE["Measured Impact"]
+    E1["Semantic seam closure held<br>GRAPH_VERSION_UNAVAILABLE gone<br>feature-key mismatch gone"]
+    E2["ECR-normalized materialization restored real fresh pods on the intended digest"]
+    E3["First trustworthy fresh-scope coupled run stayed semantically clean<br>2958.733 steady / 6371.500 burst / 3015.917 recovery / 4xx = 0 / 5xx = 0"]
+    E4["Same-scope 53.0 shortcut degraded badly<br>2510.189 steady / 3400.500 burst / 2257.172 recovery / 4xx = 0 / 5xx = 0"]
+    E5["Same-scope snapshot exposed contamination<br>CSFB checkpoint_age = 255.689 s / CHECKPOINT_OLD appeared"]
+    E6["Final fresh closure candidate held green cleanly<br>3035.833 steady / 6227.000 burst / 3020.050 recovery / 4xx = 0 / 5xx = 0"]
+    E7["Immediate post-run snapshot stayed attributable<br>RTDL + supporting case/label surfaces alive / snapshot blocker ids = []"]
+  end
+
+  subgraph VERDICT["Promotion Verdict"]
+    V1["RTDL boundary is current-run-correct and attributable"]
+    V2["Coupled control is truthful enough for promotion"]
+    V3["Phase 1 green<br>Control + Ingress + RTDL is now the promoted working platform"]
+  end
+
+  C0 --> B1
+  C1 --> B2
+  C1 --> B3
+  C2 --> B4
+  C3 --> B5
+  C3 --> B6
+  C4 --> B7
+
+  B1 --> P1
+  B2 --> P1
+  B3 --> P1
+  B4 --> P2
+  B5 --> P3
+  B6 --> P4
+  B7 --> P5
+  P5 --> P6
+
+  P1 --> E1
+  P2 --> E2
+  P3 --> E3
+  P4 --> E4
+  P4 --> E5
+  P6 --> E6
+  P6 --> E7
+
+  E1 --> V1
+  E2 --> V1
+  E3 --> V2
+  E6 --> V2
+  E7 --> V1
+  V1 --> V2
+  V2 --> V3
+
+  classDef comp fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+  classDef defect fill:#ffebee,stroke:#c62828,color:#111,stroke-width:1.3px;
+  classDef fix fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef metric fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.3px;
+
+  class C0,C1,C2,C3,C4 comp;
+  class B1,B2,B3,B4,B5,B6,B7 defect;
+  class P1,P2,P3,P4,P5,P6 fix;
+  class E1,E2,E3,E4,E5,E6,E7 metric;
+  class V1,V2,V3 comp;

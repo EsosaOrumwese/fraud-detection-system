@@ -15,7 +15,7 @@ from typing import Any
 
 import logging as _logging
 from .authority import EquivalenceRegistry, LeaseManager, RunHandle, build_authority_store
-from .bus import FileControlBus, KinesisControlBus
+from .bus import FileControlBus, KafkaControlBus, KinesisControlBus
 from .catalogue import OutputCatalogue, OutputEntry
 from .config import PolicyProfile, WiringProfile
 from .evidence import (
@@ -837,6 +837,8 @@ class ScenarioRunner:
 
     def _build_control_bus(self, wiring: WiringProfile):
         kind = (wiring.control_bus_kind or "file").lower()
+        if kind == "kafka":
+            return KafkaControlBus(client_id="scenario-runner-control-bus")
         if kind == "kinesis":
             if not wiring.control_bus_stream:
                 raise RuntimeError("control_bus_stream required for kinesis")

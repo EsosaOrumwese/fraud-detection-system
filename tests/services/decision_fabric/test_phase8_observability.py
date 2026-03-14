@@ -12,6 +12,7 @@ def _decision_payload(
     *,
     decision_id: str,
     mode: str = "NORMAL",
+    action_kind: str = "ALLOW",
     context_status: str = "CONTEXT_READY",
     registry_outcome: str = "RESOLVED",
     reason_codes: tuple[str, ...] = tuple(),
@@ -64,7 +65,7 @@ def _decision_payload(
             },
         },
         "decision": {
-            "action_kind": "ALLOW",
+            "action_kind": action_kind,
             "context_status": context_status,
             "registry_outcome": registry_outcome,
         },
@@ -114,9 +115,12 @@ def test_run_metrics_tracks_required_counters_and_latency_percentiles(tmp_path: 
     snapshot = metrics.snapshot(generated_at_utc="2026-02-07T13:01:00.000000Z")
     assert snapshot["metrics"]["decisions_total"] == 4
     assert snapshot["metrics"]["degrade_total"] == 3
+    assert snapshot["metrics"]["step_up_total"] == 0
+    assert snapshot["metrics"]["explicit_fallback_total"] == 0
     assert snapshot["metrics"]["missing_context_total"] == 2
     assert snapshot["metrics"]["resolver_failures_total"] == 1
     assert snapshot["metrics"]["fail_closed_total"] == 1
+    assert snapshot["metrics"]["hard_fail_closed_total"] == 1
     assert snapshot["metrics"]["publish_admit_total"] == 1
     assert snapshot["metrics"]["publish_duplicate_total"] == 1
     assert snapshot["metrics"]["publish_quarantine_total"] == 1
@@ -141,3 +145,34 @@ def test_run_metrics_fails_closed_on_run_scope_mismatch() -> None:
     bad["pins"]["platform_run_id"] = "platform_other"
     with pytest.raises(ValueError, match="platform_run_id mismatch"):
         metrics.record_decision(decision_payload=bad, latency_ms=1.0)
+
+
+def test_run_metrics_tracks_step_up_fallback_without_counting_hard_fail_closed() -> None:
+    metrics = DfRunMetrics(
+        platform_run_id="platform_20260207T130000Z",
+        scenario_run_id="d" * 32,
+    )
+    metrics.record_decision(
+        decision_payload=_decision_payload(
+            decision_id="6" * 32,
+            mode="FAIL_CLOSED",
+            action_kind="STEP_UP",
+            context_status="CONTEXT_BLOCKED",
+            registry_outcome="FALLBACK",
+            reason_codes=(
+                "FALLBACK_EXPLICIT",
+                "FEATURE_GROUP_MISSING:core_features",
+                "CAPABILITY_BLOCK:feature_group=core_features",
+            ),
+        ),
+        latency_ms=11.0,
+        publish_decision="ADMIT",
+    )
+
+    snapshot = metrics.snapshot(generated_at_utc="2026-02-07T13:02:00.000000Z")
+    assert snapshot["metrics"]["decisions_total"] == 1
+    assert snapshot["metrics"]["degrade_total"] == 1
+    assert snapshot["metrics"]["step_up_total"] == 1
+    assert snapshot["metrics"]["explicit_fallback_total"] == 1
+    assert snapshot["metrics"]["fail_closed_total"] == 0
+    assert snapshot["metrics"]["hard_fail_closed_total"] == 0
