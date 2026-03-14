@@ -7638,3 +7638,35 @@ That means the main plan now contains:
 2. the proved readiness authority,
 3. the ledger targets plus closure-status blocks,
 4. and a bounded real billing snapshot for the hardening window.
+
+## 2026-03-14 03:34:18 +00:00 - I added an authoritative counts snapshot to the main plan, but only from the accepted promoted-pack evidence instead of mixing current authority with older reference-pack numbers
+
+The user asked for the authoritative counts breakdown to be added to the plan as well. The right answer here was not "dump every large count I can find in the repo." It was to separate:
+
+- counts that are truly pinned by the accepted promoted-pack authority,
+- from counts that are merely available in older validated packs or older diagnostic evidence.
+
+The accepted source I used is the rebuilt `Phase 5.B` authority `phase5_ofs_dataset_basis_20260312T054900Z`, because that is where the current promoted current-world slice was actually bounded, scored, and accepted. That artifact gives me a trustworthy current-world count story for:
+
+- `s3_event_stream_with_fraud_6B`
+- `s4_event_labels_6B`
+- `s4_flow_truth_labels_6B`
+- `s4_case_timeline_6B`
+- and the bounded/raw horizon relationship behind them
+
+So I added those counts directly into the main plan, including:
+
+- bounded current-world fraud-stream rows `331,506,996`
+- raw fraud-stream horizon rows `473,383,388`
+- bounded event-label rows `331,506,996`
+- bounded flow-truth-label rows `175,830`
+- bounded case-timeline rows `23,681`
+- distinct case count `12,350`
+
+I also made the caveat explicit because it matters:
+
+- the platform default traffic posture is still dual-stream (`s2` baseline + `s3` fraud-overlay),
+- but the accepted promoted-pack closure artifact does not itself pin the exact current baseline-stream count,
+- so I did not quietly import an older validated-pack baseline count and present it as current authority.
+
+That means the new plan section is narrower than a "full oracle inventory," but it is truthful. It gives the user a concrete volume anchor for the actually accepted hardening world without smuggling in non-current numbers.

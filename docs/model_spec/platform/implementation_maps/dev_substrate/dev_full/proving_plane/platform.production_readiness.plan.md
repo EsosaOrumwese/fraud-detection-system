@@ -1647,3 +1647,54 @@ Caveat:
   - `Amazon Simple Storage Service`
 - `2026-03-09` reflects the materially lower post-teardown / rebuild day compared with the heavier `2026-03-07`, `2026-03-08`, `2026-03-11`, `2026-03-12`, and `2026-03-13` hardening windows
 - the `Tax` line on `2026-03-01` is a billing artifact, not a runtime service family
+
+---
+
+## Authoritative counts snapshot
+
+This section captures the authoritative dataset and truth-volume counts that were actually pinned by accepted closure evidence. It exists so the main plan can talk concretely about the size of the world the platform has been hardening against.
+
+Source of truth for the active promoted-pack counts below:
+- accepted `Phase 5.B` authority:
+  - `phase5_ofs_dataset_basis_20260312T054900Z`
+- accepted semantic basis:
+  - promoted current-world slice
+  - `feature_asof_utc = 2026-03-05T00:00:00Z`
+  - `label_asof_utc = 2026-03-05T00:00:00Z`
+
+Caveat:
+- the platform default traffic policy is still dual-stream:
+  - `s2_event_stream_baseline_6B`
+  - `s3_event_stream_with_fraud_6B`
+- but the accepted promoted-pack closure artifact pins exact current-world counts here only for the fraud-overlay stream and the associated truth products
+- do not silently treat older validated-pack baseline counts as authoritative for the currently promoted pack unless that pack is pinned explicitly
+
+### Current promoted-pack bounded counts
+
+| Surface | Scope | Count |
+|---|---|---:|
+| `s3_event_stream_with_fraud_6B` | bounded promoted current-world slice | `331,506,996` |
+| `s4_event_labels_6B` | bounded promoted current-world slice | `331,506,996` |
+| `s4_flow_truth_labels_6B` | bounded promoted current-world slice | `175,830` |
+| `s4_case_timeline_6B` | bounded promoted current-world slice | `23,681` |
+| distinct cases | bounded promoted current-world slice | `12,350` |
+| mature events | bounded promoted current-world slice | `315,700,696` |
+| mature fraud events | bounded promoted current-world slice | `9,340` |
+| fraud-marked events | bounded promoted current-world slice | `9,806` |
+| fraud-truth events | bounded promoted current-world slice | `8,315,296` |
+| fraud-truth flows | bounded promoted current-world slice | `4,110` |
+| distinct campaigns | bounded promoted current-world slice | `6` |
+
+### Raw-horizon counts behind that bounded slice
+
+| Surface | Scope | Count |
+|---|---|---:|
+| `s3_event_stream_with_fraud_6B` | raw full horizon behind the bounded slice | `473,383,388` |
+| `s4_case_timeline_6B` | raw full horizon behind the bounded slice | `45,463` |
+
+### Count judgment
+
+- the currently promoted hardening world is materially large even before any later longer stress / soak work
+- the bounded accepted learning/current-world slice already carries hundreds of millions of event rows
+- the raw fraud-overlay horizon behind that same accepted slice is larger still at `473,383,388` rows
+- these counts are sufficient to reason concretely about ingestion duration, storage pressure, truth-surface size, and cost posture without pretending the whole oracle pack has one single count
