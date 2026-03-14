@@ -7639,6 +7639,29 @@ That means the main plan now contains:
 3. the ledger targets plus closure-status blocks,
 4. and a bounded real billing snapshot for the hardening window.
 
+## 2026-03-14 07:20:41 +00:00 - The cost snapshot needed total columns, not just breakdown tables, so I corrected the plan to expose the authoritative totals directly in the daily matrices
+
+The user was right to call this out. I had added the AWS cost snapshot into the main plan, but the two daily service-breakout tables still behaved like analyst scratch tables: they showed the named service families, but they did not carry the daily total in the table itself. That forced the reader to jump back to the daily totals section or to manually reconcile the numbers.
+
+I corrected that in `platform.production_readiness.plan.md` by:
+
+- adding a window-total row to the `Daily totals` section
+- adding an `All services total` row to `Service totals so far`
+- adding a `Daily total USD` column to:
+  - `Daily breakdown by major service`
+  - `Other services by day`
+
+I also added the caveat that those two matrices are convenience breakouts rather than exhaustive daily service inventories. That matters because a few low-cost families were intentionally not expanded column-by-column, so a visible per-row service sum may differ slightly from the authoritative daily total due to:
+
+- omitted low-cost services
+- Cost Explorer rounding
+
+That leaves the cost section in a better state:
+
+- the detailed service families are still readable,
+- the authoritative totals are now visible inside the tables,
+- and the small reconciliation gap is explained instead of silently ignored.
+
 ## 2026-03-14 03:34:18 +00:00 - I added an authoritative counts snapshot to the main plan, but only from the accepted promoted-pack evidence instead of mixing current authority with older reference-pack numbers
 
 The user asked for the authoritative counts breakdown to be added to the plan as well. The right answer here was not "dump every large count I can find in the repo." It was to separate:
