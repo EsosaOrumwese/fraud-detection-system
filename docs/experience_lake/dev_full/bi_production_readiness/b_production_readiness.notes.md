@@ -106,3 +106,200 @@ Judgment at this point:
 - the `Bi` notebook is now reset around the corrected method
 - the updated flow is the controlling frame for subsequent entries
 - the next entry should freeze the evidence surfaces and define the interrogation inventory from that retrospective readiness-reasoning posture
+
+## 2026-03-14 14:10:01 +00:00 - Freeze the Bi evidence surfaces and pin the interrogation inventory before choosing the first object
+These are the fixed authorities for the `Bi` notebook. They are not interchangeable. Each one answers a different class of question, and together they make up the evidence stack for the retrospective readiness-reasoning method.
+
+`A master note`
+
+This is the authority for the pre-production-pressure object meaning:
+
+- what the platform had to do as a wired system
+- what the obligation groups are
+- what the real paths are
+- what each path or group was trying to achieve
+- and what counted as the `A` posture of the object before production pressure changed it
+
+`A` is explicitly path-led, obligation-led, and above component naming. That is why it remains the correct source for the inherited object meanings in `Bi`.
+
+`Final production-readiness implementation note`
+
+This is the authority for the pressure history:
+
+- what actually became questionable under pressure
+- what breakages or blind spots surfaced
+- how they were classified
+- what bridge was accepted
+- why that bridge was chosen
+- and how the object's posture changed as later planes were attached and the network was re-pressured
+
+This is the main reasoning trail for `Bi`, not background material.
+
+`Final production-readiness plan and phase authorities`
+
+This is the authority for the readiness standard:
+
+- what `ready` meant
+- what the proving method was
+- what scope each phase was trying to prove
+- what telemetry and metrics mattered
+- and what promotion or closure meant
+
+The plan is explicit that the method is plane-first and then coupled-network, with the enlarged network proven before promotion.
+
+`Final production-ready network and resource graphs`
+
+These are the authority for the final post-pressure posture, but only as reflections of accepted truth. They show what the production-ready network became after pressure. They do not substitute for the reasoning. The plan is explicit that graphs reflect reality after proof; they do not create the claim on their own.
+
+`Bi notebook ledger`
+
+This is the in-note control surface maintained while writing. It is not an external authority file. Its job is to keep each object block disciplined.
+
+The pinned ledger shape is:
+
+`object | A posture | Bi posture | why it matters | concern | measurement | pressure episodes | constraints | trade-offs | accepted bridge | bridge effect | claim`
+
+That matches the corrected `Bi` notebook shape now pinned above.
+
+So the frozen evidence stack behaves like this:
+
+- `A` tells us what the object was before pressure
+- the implementation note tells us what pressure revealed and how posture changed
+- the plan tells us what standard the object was being judged against
+- the graphs tell us what the object became after accepted proof
+- the ledger tells us how the argument will be written cleanly
+
+That is the frozen evidence stack for the notebook.
+
+The interrogation inventory should then be split into two layers.
+
+The primary layer is the default interrogation inventory. It comes from `A`, because `A` is where the platform's pre-pressure object meanings were pinned. These are the default units to interrogate in `Bi`. The default order remains groups and paths, not planes.
+
+The seven primary objects are:
+
+1. `Run and world-source authority`
+2. `Canonical traffic admission and bus publication`
+3. `Runtime context formation and decisioning`
+4. `Durable audit, archive, and replay truth`
+5. `Case and label operational truth`
+6. `Learning, evaluation, and governed activation`
+7. `Run governance, observability, and evidence closure`
+
+These are the right primary objects because they stay above components, below the meta-goal, and preserve the distinctions the platform actually cares about: traffic, context, truth, evidence, governance, and runtime authority.
+
+Where `A` already pinned real paths cleanly, `Bi` should inherit them directly rather than inventing new object names.
+
+`Group 1 - Run and world-source authority`
+
+- `Run legitimization path`
+- `Source realization path`
+- `Ready authorization path`
+
+`Group 2 - Canonical traffic admission and bus publication`
+
+- `Boundary access path`
+- `Admission and disposition path`
+- `Authoritative bus publication path`
+- `Ingest commit truth path`
+
+`Group 3 - Runtime context formation and decisioning`
+
+- `Entity and relationship projection path`
+- `Joined context formation path`
+- `Online feature readiness path`
+- `Decision guardrail path`
+- `Decision formation path`
+- `Action and outcome emission path`
+
+`Group 4 - Durable audit, archive, and replay truth`
+
+- `Audit append path`
+- `Audit publication and durable reference path`
+- `Immutable archive preservation path`
+- `Archive closure and replay-reference path`
+
+`Group 5 - Case and label operational truth`
+
+- `Case-intent escalation path`
+- `Case creation and timeline append path`
+- `Case-to-label handoff path`
+- `Authoritative label commit and visibility path`
+
+`Group 6 - Learning, evaluation, and governed activation`
+
+- `Learning-input basis path`
+- `Offline dataset commitment path`
+- `Train / eval and candidate-bundle path`
+- `Promotion and rollback-governance path`
+- `Active-bundle authority feedback path`
+
+`Group 7 - Run governance, observability, and evidence closure`
+
+- `Run reconstruction and receipt closure path`
+- `Governance append and close-marker path`
+- `Proof-matrix and final-verdict publication path`
+- `Drift-visible observability attestation path`
+- `Idle-safe teardown and residual-readability path`
+- `Cost guardrail and cost-to-outcome closure path`
+
+For `Bi`, the handling rule for Group 7 is slightly different from the other groups:
+
+- inherit the full path set from `A`
+- but default to group-level interrogation first
+- and only drop to individual path interrogation where the pressure history makes that extra granularity necessary for the argument
+
+That keeps the inventory honest without inventing unnecessary path-level `Bi` work just because the readiness phase was rich.
+
+The secondary layer is the enlarged-network inventory. These are not replacements for the primary objects. They are the network-scale objects needed because the readiness work was done by proving a plane and then proving the enlarged network once that plane was attached.
+
+The secondary objects are:
+
+1. `Control + Ingress` as the re-pressured working-platform base
+2. `Control + Ingress + RTDL` as the first enlarged working network
+3. `Control + Ingress + RTDL + Case + Label` as the next enlarged network
+4. `Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps` as the feedback-loop enlarged network
+5. `Working platform + Ops / Gov / Meta` as the operable and governable whole-system object
+6. `Full-platform bounded integrated validation`
+7. `Full-platform bounded stress authorization`
+
+These matter because some of the most important `Bi` reasoning does not live inside one local path. It lives in what happened when an already-working base had to stay green under enlarged coupling. `Control + Ingress` is the clearest example of that repeated re-pressure.
+
+The operating rule for the inventory is therefore:
+
+- use the primary layer to name the object in system-design terms
+- use the secondary layer when the real readiness question lived at enlarged-network scope
+- use planes only where the proving history and the claim were genuinely plane-granular
+- and use phases only as execution crosswalks and evidential sources, not as the notebook's main reading shape
+
+The prioritization rule needs to stay separate from the inventory itself.
+
+There is no need to prioritize for inclusion. The inventory is not a highlight reel. If an object materially contributed to the transformation from `A posture` to readiness posture, it remains part of `Bi`.
+
+So prioritization is allowed to do only three things:
+
+- determine interrogation order
+- determine depth of treatment
+- determine meta-goal payoff and reader emphasis
+
+It is not allowed to decide what gets to exist in the notebook's object universe.
+
+That means the two layers should also be ranked separately, because they are doing different jobs:
+
+- the primary layer names the inherited system-design objects
+- the secondary layer names the enlarged-network readiness objects created by coupling and re-pressure
+
+The practical reading rule is:
+
+- keep the full inventory in scope
+- rank only for sequence and emphasis
+- treat paths as the default interrogation unit inside the primary layer
+- but allow group-level or enlarged-network-level interrogation first where the real readiness question clearly lived there rather than inside one local path
+
+This keeps the notebook complete without pretending every object needs the same amount of space, and it prevents the `Bi` story from collapsing into either a flat inventory dump or a selectively impressive highlight reel.
+
+Judgment at this point:
+
+- the evidence surfaces are now frozen
+- the primary interrogation inventory is fixed
+- the enlarged-network inventory is fixed
+- and the notebook can now move to the next step in the flow: prioritize which objects have the richest readiness and meta-goal payoff
