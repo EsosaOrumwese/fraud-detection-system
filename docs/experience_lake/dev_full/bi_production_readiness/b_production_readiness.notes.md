@@ -1436,6 +1436,391 @@ That is a much stronger final posture than a generic case flow worked story.
 
 The next clean move is the object frame for `Case-to-label handoff path`.
 
+## 2026-03-15 20:36:12 +00:00 - Open the Case-to-label handoff path by pinning its A posture, Bi posture, and why supervision-request truth is its own boundary between case truth and label truth
+For `Case-to-label handoff path`, the object frame should stay on supervision-request truth at the Case Management and Label Store boundary, not drift backward into case creation or forward into authoritative label commit.
+
+`Case-to-label handoff path`
+
+`Object`
+
+Parent group: `Case and label operational truth`.
+
+Main secondary object it lives inside: the `Case + Label` plane as a plane-ready operational-truth object.
+
+The first enlarged-network object that materially re-pressures it is `Control + Ingress + RTDL + Case + Label`, because that is where the handoff from Case Management into Label Store stops being only an internal plane seam and must remain timely, duplicate-safe, and operationally trustworthy under real upstream RTDL pressure. The coupled Phase 4 boundary names this path explicitly as `Case Management -> Label Store` inside the wider `RTDL -> CaseTrigger -> Case Management -> Label Store` chain.
+
+`A posture`
+
+In `A`, this path exists to turn operational case truth into label-request and supervision-request truth. Its job is not to decide which RTDL outputs are case-worthy, and it is not yet to create authoritative label truth. Its narrower job is:
+
+case or adjudication outcome plus case timeline state -> label request and label-pending handshake -> label-store intake truth.
+
+The `A` note is explicit that this is a real path because Case Management does not own label truth, but the plane still needs a distinct handoff from case truth into supervision truth. The same note also says the path is governed by clean truth ownership, case-to-label latency, duplicate and replay safety, and later learning-readiness.
+
+So the `A` posture is:
+
+append-only operational case truth -> explicit label-request handshake at the Case Management and Label Store boundary -> label-intake truth for later authoritative commit.
+
+A key design detail already pinned in `A` is that the real handoff boundary is not the earlier `LABEL_PENDING` timeline marker alone; it is the concrete label-request handshake surface. That matters because it keeps case truth and label truth from blurring together.
+
+`Bi posture`
+
+In `Bi`, this path becomes the production-ready supervision-request handoff boundary. That means it is no longer enough that cases eventually produce labels somewhere downstream. The path has to support a stronger claim:
+
+- the right case and adjudication truths become the right label requests
+- the handoff to Label Store is timely on the authoritative handshake clock
+- duplicate or replay-shaped handoff corruption is absent
+- and later coupled proof can still say that case truth is turning into supervision-request truth cleanly under real upstream pressure
+
+The plane-ready and coupled readiness authorities make that operational by tracking case and label throughput, duplicate suppression, label pending, accepted, and rejected counts, and `case_to_label` latency under the enlarged network.
+
+The implementation history gives the crucial posture change for this object: the first timing proof was wrong because it treated `cm_case_timeline LABEL_PENDING created_at_utc` as the case-to-label start. Live store rows showed that the authoritative case-to-label clock is the actual Case Management handshake write attempt in `cm_label_emissions.first_requested_at_utc`. That correction is exactly what turns this path from label handoff exists somewhere in the workflow into label handoff is a truthful, measurable boundary.
+
+So the `Bi` posture is:
+
+a production-ready case-to-label handoff boundary where operational case truth becomes explicit supervision-request truth on the real `Case Management -> Label Store` handshake surface, measured on the correct processing clock and clean enough that downstream authoritative label commit can trust it.
+
+`Why this object matters`
+
+This path matters because without it the platform can still have:
+
+- case-worthy escalation truth
+- deterministic case identity
+- and later authoritative label rows
+
+but it loses the clean answer to a crucial operational question:
+
+how did operational case truth become supervision-request truth at all?
+
+That is exactly why the `A` note calls this a real path and insists on clean truth ownership: Case Management owns case truth, Label Store owns label truth, and this handoff is the distinct seam between them. It is also why the timing proof had to be corrected to the actual handshake write attempt instead of the earlier timeline marker.
+
+So, in one line:
+
+`Case-to-label handoff path` is the path that turns append-only operational case truth into explicit supervision-request truth at the Case Management and Label Store boundary, and in `Bi` it becomes the production-ready handoff whose timing, ownership, and downstream usability are strong enough for authoritative label truth to begin cleanly.
+
+The next step in the flow is to derive the `system-design questions` for this path.
+
+## 2026-03-15 20:43:28 +00:00 - Derive the system-design questions for the Case-to-label handoff path so later pressure history stays on supervision-request truth at the handoff seam
+For `Case-to-label handoff path`, the system-design questions should stay on supervision-request truth at the `Case Management -> Label Store` seam, not drift backward into case creation and timeline truth or forward into authoritative label commit.
+
+`Case-to-label handoff path` - `system-design questions`
+
+1. `What exactly counts as case-to-label handoff truth here?`
+
+This path is not satisfied merely because a case exists or because a label later appears. Its owned outcome is explicit supervision-request truth: a case and adjudication outcome and current case timeline state become a real label-request handshake that Label Store can intake. The `A`-side notes make clear that the real boundary is the handshake itself, not the earlier `LABEL_PENDING` timeline marker alone.
+
+2. `Why is this a separate path from case creation and from authoritative label commit?`
+
+The platform deliberately separates:
+
+- case truth owned by Case Management
+- the handoff from case truth into supervision-request truth
+- and authoritative label truth owned by Label Store
+
+That split matters because otherwise later label rows would blur whether the problem lived in case logic, in the handoff seam, or in label commit itself.
+
+3. `What is the allowed entry into this path, and why is it constrained?`
+
+The entry is not raw RTDL output and not generic case workflow state. It is case or adjudication outcome plus current case timeline state that is already valid enough to justify a supervision request. That keeps the handoff grounded in operational case truth rather than inferred downstream behavior.
+
+4. `What must this path carry so the handoff is attributable rather than ad hoc?`
+
+It must carry enough to justify and later reconstruct the supervision request:
+
+- the case or adjudication outcome that triggered it
+- case identity and timeline context
+- run-scope continuity back to upstream RTDL truth
+- and the concrete handshake write into the label-emission surface
+
+The timing notes make this especially clear by distinguishing the real handshake timestamp from the earlier case timeline marker.
+
+5. `What makes the handoff authoritative rather than merely labels probably followed cases?`
+
+The key question is whether there is a real `Case Management -> Label Store` boundary with its own truth surface. The docs imply this in two ways:
+
+- the whole-plane definition says the right cases must eventually produce authoritative labels
+- and the coupled-network phase names `Case Management -> Label Store` as its own critical path
+
+That means the handoff is a first-class boundary, not an internal side effect.
+
+6. `What does production-ready mean specifically for this path?`
+
+For this path, production-ready means the right cases generate the right supervision requests on the real handshake surface, duplicate and replay corruption is absent, and `case_to_label` timing is measured on the authoritative handshake clock. The coupled proof makes case-to-label counts and latency first-class, and the implementation notes show the handoff had to be judged on `cm_label_emissions.first_requested_at_utc`, not on the earlier `LABEL_PENDING` timeline timestamp.
+
+7. `How do we know the path is healthy rather than merely downstream labels eventually appearing?`
+
+The path needs its own evidence surfaces:
+
+- case-to-label counts
+- case-to-label latency
+- Label Store pending, rejected, and mismatch posture
+- and starvation across `RTDL -> Case and Label`
+
+These are the metrics that let the platform judge the handoff as a boundary, not just infer it from later label existence.
+
+8. `How do we distinguish a handoff defect from a later Label Store commit defect?`
+
+This path has to stay bounded. The question is whether Case Management turned the right case truth into the right supervision-request handshake at all, before Label Store decides whether it can commit authoritative label truth. That is why the docs keep `Case Management -> Label Store` separate from `Authoritative label commit and visibility path`.
+
+9. `What constraints shape this path and stop easy shortcuts?`
+
+The handoff is constrained by:
+
+- clean truth ownership between Case Management and Label Store
+- duplicate and replay safety
+- and truthful timing and lineage back to upstream RTDL truth
+
+That means the platform cannot let a case timeline flag stand in for the actual handoff, and it cannot let Label Store fix a weak or ambiguous supervision-request seam after the fact.
+
+10. `What trade-off is the design accepting?`
+
+The design accepts more explicit seam complexity in exchange for cleaner supervision truth. It would be simpler to infer handoff from case state or from eventual label rows, but the platform instead pays for a dedicated handshake boundary so it can later explain:
+
+- why a label request existed
+- when it was first requested
+- and whether duplicate and replay behavior corrupted that request
+
+11. `How does enlarged-network pressure re-ask the question?`
+
+Once the full `Control + Ingress + RTDL + Case + Label` network is in play, the question is no longer only can a case request a label. It becomes does the handoff remain timely, duplicate-safe, and starvation-free under real upstream RTDL pressure, with `Case Management -> Label Store` still behaving as a clean operational-truth seam? The coupled proof names that path and those timing and starvation concerns explicitly.
+
+12. `What does this path need to prove for the meta goal?`
+
+The strongest claim is not labels eventually came from cases. It is: the platform could turn operational case truth into explicit supervision-request truth on the right boundary, measure that handoff on the right clocks, and preserve clean ownership between case truth and authoritative label truth under bounded production pressure.
+
+Compressed into one line:
+
+For `Case-to-label handoff path`, the system-design interrogation is about whether operational case truth becomes explicit, timely, duplicate-safe supervision-request truth at the real `Case Management -> Label Store` handshake boundary, and whether that handoff remains measurable and ownership-clean enough for authoritative label truth to begin correctly under bounded production pressure.
+
+The next move is to map this path to the `pressure episodes` that actually changed its posture.
+
+## 2026-03-15 20:50:37 +00:00 - Map the pressure episodes that changed the Case-to-label handoff path from a designed seam into a truthful supervision-request boundary
+For `Case-to-label handoff path`, the pressure history that actually changed its posture is best read as a story about when case truth became a truthful, measurable supervision-request boundary, not just when labels later appeared.
+
+`Pressure episodes that changed this path's posture`
+
+1. `The path began as an explicitly owned handoff boundary, not an inferred later effect`
+
+The starting posture from `A` already matters. This path was not allowed to hide inside Case Management or Label Store. It was explicitly owned as the seam where operational case truth becomes supervision-request truth, with clean ownership boundaries, duplicate and replay safety, and case-to-label latency already pinned as contract concerns. Just as importantly, `A` already warned that the real handoff boundary is not the earlier `LABEL_PENDING` timeline marker alone; it is the concrete label-request handshake surface. That gives the path a real starting posture to be pressured later, instead of leaving it to be inferred from downstream label rows.
+
+2. `The path then became measurable on its own terms in Phase 3`
+
+A major posture change happened when the Case and Label plane was given a truthful plane-ready proving surface. The Phase 3 telemetry plan explicitly retained:
+
+- label pending, accepted, and rejected counts
+- duplicate suppression and conflict counters
+- label-store commits and readback
+- run-scope continuity into case and label outputs
+
+That changed the path from the handoff should exist into the handoff is now a measurable production-readiness boundary.
+
+3. `The bounded Phase 3 closure proved the handoff was already plane-ready`
+
+The accepted Phase 3 closure then changed posture again. The plane closed green on `phase3_case_label_20260311T142813Z` with clean CaseTrigger, Case Management, and Label Store integrity deltas on the bounded slice, and the proven ledger records `label_store_accepted_delta = 933` while all tracked quarantine, ambiguity, duplicate, mismatch, and pending deltas stayed `0`. For this path, that is the first real proof that the `Case Management -> Label Store` seam was already clean enough, duplicate-safe enough, and owned enough to close the plane.
+
+4. `Opening the coupled proof changed the path from a plane-local handoff into a coupled cross-plane operational-truth boundary`
+
+Once the coupled proof opened, the question changed. The path was no longer only can Case Management request labels correctly on its own bounded slice. It became part of the enlarged-network question:
+
+- does `Case Management -> Label Store` remain timely and duplicate-safe
+- under real upstream RTDL pressure
+- with case and label truth still linked to upstream decision truth
+
+That changed the path's meaning from a plane-local supervision seam into a cross-plane operational-truth boundary inside `RTDL -> CaseTrigger -> Case Management -> Label Store`.
+
+5. `The first coupled timing probe exposed the crucial defect: the path was being judged on the wrong clock`
+
+This is the most important posture-changing episode for this path. The first dedicated coupled timing probe treated:
+
+- `cm_case_timeline LABEL_PENDING created_at_utc` as the case-to-label start
+
+That produced a false red story with `case_to_label p95 ~ 68 s`. The live store rows then showed the actual handoff truth:
+
+- the authoritative case-to-label clock is `cm_label_emissions.first_requested_at_utc`, which matches the real Case Management handshake write attempt
+- not the earlier event-oriented `LABEL_PENDING` timeline marker
+
+That changed the path from handoff exists but appears catastrophically slow into handoff is now being measured on its real supervision-request boundary. This is the decisive moment where the path becomes truthfully measurable rather than merely present.
+
+6. `After correcting the timing basis, the first fresh full coupled rerun proved the handoff was already operationally consumable downstream`
+
+Once the stale post-activation warm-gate dependency was removed and the timing probe was repinned to the real processing clocks, the first fresh full coupled rerun showed:
+
+- `case_to_label p95 ~= 0.164 s`
+- CaseTrigger, Case Management, and Label Store all stayed green on the same scope
+- and the remaining red lived in the inherited burst-envelope shape, not in the case and label runtime itself
+
+That is the moment where this path stopped being under question and became operationally consumable downstream supervision-request truth on a truthful coupled boundary.
+
+7. `Later enlarged-network pressure strengthened the path again by proving non-regression under the larger working platform`
+
+The path's final strengthening came later, once the platform enlarged again around promoted learning and runtime authority. The accepted later coupled metrics still showed:
+
+- `label_store_pending_delta = 0`
+- `label_store_rejected_delta = 0`
+- `case_to_label p95 = 0.196 s`
+
+and later the full-platform integrated authority still held:
+
+- `case_to_label p95 = 0.1982594 s`
+
+That matters because the path is no longer merely good enough on the first Case and Label coupled proof. It has now proven it remains non-regressed under the larger working platform.
+
+`What this mapping says in one line`
+
+`Case-to-label handoff path` moved from an explicitly owned but initially only conceptual supervision-request seam into a measurable plane-ready handoff boundary, then into a coupled cross-plane operational-truth boundary whose real handshake clock had to be discovered and used before it could be judged honestly, and finally into a stable non-regressed supervision-request seam under the larger working platform.
+
+The next flow move is to interrogate these episodes one by one.
+
+## 2026-03-15 20:58:44 +00:00 - Interrogate the key episodes that turned the Case-to-label handoff path into a truthful supervision-request boundary
+For `Case-to-label handoff path`, the important question is not did labels later exist. It is whether operational case truth became explicit supervision-request truth on the right boundary, and whether that handoff was being judged on the right proof surface and the right clock. The `A`-side notes already pin that the real seam is the `Case Management -> Label Store` handshake, not the earlier `LABEL_PENDING` timeline marker, and that clean truth ownership between case truth and label truth is the reason this path exists at all.
+
+`Case-to-label handoff path` - `episode interrogation`
+
+`Episode 1 - the path first had to become a measurable boundary, not just a conceptual seam`
+
+What surfaced first was a proof-surface insufficiency, not a runtime handoff bug. The initial Case and Label proving shape was too broad and did not preserve the right case and label counters for this specific seam. The accepted correction was to add the narrow Phase 3 executor and rollup, and widen the runtime snapshot so it retained the right CaseTrigger, Case Management, and Label Store counters rather than forcing the user to infer the handoff from later label rows. System-design-wise, that changed the path from the handoff should exist into the handoff is now directly judgeable as its own readiness boundary. The class of challenge here was measurement-layer and proving-surface defect. The accepted bridge improved boundary observability.
+
+`Episode 2 - once measurable, the path proved it could already carry clean plane-local supervision-request truth`
+
+The bounded Phase 3 closure is the first real readiness proof for this path. The accepted closure authority records the plane green on `phase3_case_label_20260311T142813Z`, with `4xx = 0`, `5xx = 0`, `case_trigger_published_delta = 2276`, `label_store_accepted_delta = 933`, and all tracked quarantine, ambiguity, duplicate, mismatch, and pending deltas staying `0`. For this path, that matters because it is the first time the platform can say: the case boundary is already turning the right case truths into clean label-request and supervision-request truth on its own bounded slice. The class of challenge here is true plane-ready proof, and it is green. The readiness property improved here was bounded duplicate-safe handoff correctness.
+
+`Episode 3 - opening the coupled proof changed the path from a plane-local handoff into a coupled cross-plane operational-truth boundary`
+
+The next important change was not a local handoff bug; it was a change in what the path now had to prove. Once the coupled proof opened, the path was no longer only can cases request labels correctly on their own. It became part of the enlarged-network question:
+
+- does `Case Management -> Label Store` remain timely and duplicate-safe
+- under real upstream RTDL pressure
+- with case and label truth still linked to upstream decision truth
+
+That changes the path from a plane-local supervision seam into a cross-plane operational-truth boundary inside `RTDL -> CaseTrigger -> Case Management -> Label Store`. The class of challenge here is enlarged-network promotion. The accepted bridge was the dedicated coupled proof shape, which asked the right question instead of reusing a broader or later proof family. That improved coupled-boundary legitimacy.
+
+`Episode 4 - the first coupled timing probe proved the path was being judged on the wrong clock`
+
+This is the decisive pressure episode for this path. The first timing probe usefully failed:
+
+- it treated `cm_case_timeline LABEL_PENDING created_at_utc` as the case-to-label start
+- and produced a false red story of `case_to_label p95 ~ 68 s`
+
+The live store rows showed why that was wrong:
+
+- the authoritative handoff clock is `cm_label_emissions.first_requested_at_utc`
+- because that is the actual Case Management handshake write attempt into the label-emission surface
+- while `LABEL_PENDING` was carrying a much earlier event-oriented timestamp
+
+That changed the path from handoff exists but appears catastrophically slow into handoff is now being judged on its real supervision-request boundary. The class of challenge here was timestamp-basis defect in the proving layer, not a semantic defect in the handoff itself. The accepted bridge was to repin the probe to the correct processing clock. That improved truthful handoff timing evidence.
+
+`Episode 5 - once the clock was corrected, the path proved it was already operationally consumable downstream`
+
+After the timing correction and removal of the stale post-activation warm-gate dependency, the first fresh full coupled rerun materially changed the posture of the path:
+
+- `case_to_label p95 ~= 0.164 s`
+- CaseTrigger, Case Management, and Label Store all stayed green on the same scope
+- and the remaining red lived in the inherited burst-envelope `429` pocket, not in the case and label runtime itself
+
+For this path, that is decisive. It proves the `Case Management -> Label Store` handoff itself was already operationally consumable downstream; the open issue was no longer can the handoff work, but is the proving envelope shaped correctly? The class of challenge here is proof-envelope and method, not handoff semantics. The accepted bridge was to repin the burst posture rather than misdiagnose the handoff. That improved the path's coupled operational usability.
+
+`Episode 6 - later enlarged-network pressure strengthened the path again by proving non-regression under the larger working platform`
+
+The final important episode is that this handoff did not just pass once and disappear. Under the later enlarged learning-coupled runtime, the accepted metrics still showed:
+
+- `label_store_pending_delta = 0`
+- `label_store_rejected_delta = 0`
+- `case_to_label p95 = 0.196 s`
+
+That matters because the path is no longer merely good on the first Case and Label coupled proof. It has now been shown to remain non-regressed under the larger working platform. The class of challenge here is later enlarged-network non-regression, and it is green. The readiness property improved here was stable supervision-request truth under a larger platform.
+
+`What this interrogation says about the path`
+
+The real story of `Case-to-label handoff path` is not:
+
+> cases existed, and later labels appeared.
+
+It is:
+
+> the platform first made the supervision-request seam measurable on its own terms, then proved it clean on a bounded plane slice, then re-asked it as a coupled operational-truth boundary, discovered that the first timing proof was using the wrong boundary clock, corrected that to the real handshake surface, and finally showed that the same seam remained timely and non-regressed under the larger working platform.
+
+The next clean move is the `object transformation synthesis` for this path.
+
+## 2026-03-15 21:05:13 +00:00 - Synthesize how the Case-to-label handoff path moved from a designed supervision seam into a production-ready request-truth boundary
+`Case-to-label handoff path` - `transformation synthesis`
+
+In `A`, this path already had a precise job: turn operational case truth into explicit supervision-request truth at the real `Case Management -> Label Store` seam. It was deliberately kept separate from case creation and timeline truth and from authoritative label commit truth, because the platform wanted one explicit boundary where it could answer: how did case truth become label-request truth at all? The `A`-side notes are explicit that the real seam is the label-request handshake, not the earlier `LABEL_PENDING` timeline marker, and that this boundary is governed by clean ownership, duplicate and replay safety, and case-to-label latency.
+
+To reach its `Bi` posture, the first thing that had to be resolved was boundary observability. The path could not remain only a conceptual seam inside the plane. That is why the proving work introduced the narrow Phase 3 executor and rollup and retained the right case and label counters so this handoff could be judged on its own terms rather than inferred from later label rows. That changed the path from the handoff should exist into the handoff is now directly measurable as a readiness boundary.
+
+Once it was measurable, the next thing that had to be resolved was whether it was plane-ready on its own bounded slice. The accepted Phase 3 closure is what first earns that claim. The authoritative plan records the bounded closure on `phase3_case_label_20260311T142813Z`, with clean CaseTrigger, Case Management, and Label Store integrity deltas and `label_store_accepted_delta = 933` while all tracked quarantine, ambiguity, duplicate, mismatch, and pending deltas stayed `0`. For this path specifically, that is the first proof that operational case truth was already becoming clean supervision-request truth on its own bounded slice.
+
+The next transformation came when the coupled proof opened. At that point the question changed materially. The path was no longer only can cases request labels correctly on their own. It became part of the enlarged-network question: does `Case Management -> Label Store` remain timely, duplicate-safe, and starvation-free when the full `RTDL -> CaseTrigger -> Case Management -> Label Store` chain is under real upstream pressure? That upgraded the path from a plane-local supervision seam into a cross-plane operational-truth boundary.
+
+But the first coupled work did not yet answer that question truthfully. The next thing that had to be resolved was proof validity around the seam. The first coupled attempts first exposed proving-surface defects, and then the first timing probe produced a false-red story because it used the wrong clock: it treated the earlier `LABEL_PENDING` case-timeline timestamp as the start of the handoff. The live store rows showed the real answer: the authoritative case-to-label clock is the actual Case Management handshake write attempt in `cm_label_emissions.first_requested_at_utc`. That is the decisive transformation step for this object. The path moved from handoff exists but appears catastrophically slow into handoff is now being judged on its real supervision-request boundary.
+
+Once that timing-basis defect was removed, the first fresh full coupled rerun showed the real state of the path. The coupled chain stayed green, `case_to_label p95` was low, and the remaining red lived in the inherited burst-envelope shape rather than in the case and label seam itself. That is the moment where this path stopped being under question and became operationally consumable downstream supervision-request truth on a truthful coupled boundary.
+
+Finally, later enlarged-network pressure strengthened the path again by proving non-regression under the larger working platform. The later accepted coupled and integrated metrics still showed `label_store_pending_delta = 0`, `label_store_rejected_delta = 0`, and healthy `case_to_label p95` values under the enlarged platform. That matters because the path is no longer merely good on the first Case and Label coupled proof. It has now been shown to remain stable once the working platform enlarged further.
+
+So the clean synthesis is this:
+
+To move `Case-to-label handoff path` from its `A` posture to its `Bi` posture, the platform had to resolve five things:
+
+- make the supervision-request seam a measurable boundary rather than only a design claim
+- prove that the seam was plane-ready on its own bounded slice
+- upgrade it into a coupled cross-plane operational-truth boundary once the enlarged network was in play
+- correct the timestamp basis so the handoff was judged on the real handshake surface rather than on an earlier workflow marker
+- and then prove the same seam remained non-regressed under the larger working platform
+
+That yields the final `Bi` posture of the path:
+
+a production-ready case-to-label handoff boundary where operational case truth becomes explicit, timely, duplicate-safe supervision-request truth on the real `Case Management -> Label Store` handshake surface, and where that seam remains stable enough for authoritative label truth to begin cleanly under the enlarged platform.
+
+The next clean move is to extract the `Bi claim mix` for this path.
+
+## 2026-03-15 21:11:42 +00:00 - Extract the Bi claim mix for the Case-to-label handoff path so the notebook states exactly what supervision-request-boundary judgment this work now supports
+For `Case-to-label handoff path`, the `Bi claim mix` is this.
+
+`Bi claim mix`
+
+1. `Readiness-reasoning claim`
+
+This path supports the claim that you can reason supervision-request truth as its own production-readiness boundary, instead of letting later label rows stand in for it. The platform first made the `Case Management -> Label Store` seam measurable on its own terms, then proved it clean on the bounded Phase 3 slice, then re-asked it under coupled Phase 4 pressure, and only accepted the coupled claim after correcting the proving surface to the real handshake clock.
+
+2. `Systems-design judgment claim`
+
+This path supports the claim that you understood case truth, supervision-request truth, and authoritative label truth as three different things. In the `A`-side design, Case Management owns case truth, this path owns the handoff into supervision truth, and Label Store owns authoritative label truth. That is a strong systems-design claim because it prevents later label presence from blurring where the actual seam lives.
+
+3. `Measurement / evidence claim`
+
+This path supports the claim that you made the handoff directly measurable rather than inferred. The key move was discovering that the first timing probe was using the wrong boundary clock, then repinning it from the earlier `LABEL_PENDING` timeline marker to the real handshake timestamp `cm_label_emissions.first_requested_at_utc`. After that correction, the same activation scope rescored cleanly, which means the seam became measurable on the right evidence surface.
+
+4. `Constraint / trade-off claim`
+
+This path supports the claim that you chose truthful seam measurement over easy green narratives. When the first coupled timing probe made case-to-label look catastrophically slow, the accepted response was not to blame Label Store or to drop the metric. It was to fix the timestamp basis so the handoff was judged on the real `Case Management -> Label Store` handshake surface. That is a real trade-off in favor of stronger truth, not faster closure.
+
+5. `Production-relevant challenge claim`
+
+This path supports the claim that the challenges were genuinely production-shaped, not toy workflow bugs. The important issues were:
+
+- absence of a truthful seam-specific proving surface at first
+- coupled-proof defects that prevented the seam from being exercised honestly
+- and wrong timestamp bases that made supervision-request handoff look catastrophically slow when the runtime itself was healthy
+
+Those are exactly the kinds of issues that matter when deciding whether case truth is becoming authoritative supervision-request truth cleanly enough for downstream labeling to trust.
+
+6. `Promotion / final-posture claim`
+
+This path supports the claim that the final ready posture is not merely labels appeared after cases. It is:
+
+- the `Case Management -> Label Store` seam became a measurable plane-ready boundary
+- the coupled proof showed clean case-to-label timing on the right handshake clock
+- and the later enlarged-platform authorities still held `label_store_pending_delta = 0`, `label_store_rejected_delta = 0`, with `case_to_label p95` staying bounded in Phase 6 and the full-platform integrated authority
+
+That is a much stronger final posture than a generic label flow worked story.
+
+`Compressed Bi claim`
+
+`Case-to-label handoff path` shows that you can turn operational case truth into explicit, timely, duplicate-safe supervision-request truth on the real `Case Management -> Label Store` handshake boundary and then prove that same seam remains clean and non-regressed as the larger working platform depends on it.
+
+The next clean move is the object frame for `Authoritative label commit and visibility path`.
+
 ## 2026-03-15 16:39:48 +00:00 - Derive the system-design questions for the Decision formation path so later pressure history stays on decision truth itself
 For `Decision formation path`, the system-design questions should stay on decision truth itself, not drift backward into guardrail posture or forward into action emission.
 
