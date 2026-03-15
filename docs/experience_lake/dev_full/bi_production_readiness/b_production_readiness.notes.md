@@ -1034,3 +1034,302 @@ Compressed into one line:
 For `Authoritative bus publication path`, the system-design interrogation is about whether admitted ingress truth becomes explicit, semantically split, contract-governed, ambiguity-honest event-bus truth that downstream RTDL can actually trust under production pressure.
 
 The next move is to map this path to the `pressure episodes` that actually changed its posture.
+
+## 2026-03-15 09:12:44 +00:00 - Map the posture-changing pressure history for the Authoritative bus publication path before interrogating the key episodes
+For `Authoritative bus publication path`, the posture-changing pressure history maps like this.
+
+Only the episodes that changed what this path meant or how it could be judged belong here, not every ingress or RTDL event around it.
+
+`Pressure episodes that changed this path's posture`
+
+1. `The path began as a separate truth boundary, not as a side effect of admission`
+
+This is the inherited structural starting point from `A`, and it matters because it defines what later pressure is actually allowed to test. The path already had a distinct owned outcome: admitted ingress traffic and its pinned context family are authoritatively handed off onto the fraud traffic topic plus the arrival-events, arrival-entities, and flow-anchor context topics. That separation matters because it keeps admit truth, publish truth, and ingest-commit truth from collapsing into one vague story that ingress succeeded.
+
+2. `Under truthful Phase 0 pressure, this path first became a real readiness problem rather than a merely assumed handoff`
+
+Once the ingress boundary and source posture were made truthful enough, stronger bounded runs exposed a genuine publish-side red. The key event was the `900`-concurrency probe: instead of yielding a cleaner result, it produced `IG_PUSH_REJECTED`, repeated `PUBLISH_AMBIGUOUS`, and concrete `KAFKA_PUBLISH_TIMEOUT` on valid traffic. That changed the posture of this path because it proved that authoritative bus handoff could not be treated as ingress admitted, therefore bus truth is fine. The handoff itself was now a real readiness object with its own failure mode.
+
+3. `The path then gained an explicit measurement doctrine`
+
+The final readiness plan materially changes this path by making publish continuity a first-class success criterion rather than an implied symptom. For `Phase 0`, the plan pins:
+
+- `publish success / retry / ambiguity counts`
+- `Kafka publish continuity and topic movement`
+- `admitted-without-publish evidence`
+- and the fail-fast trigger of healthy edge requests with no downstream bus movement
+
+This is a posture change because the path stops being producer code exists and becomes a boundary with named proof surfaces and named failure signatures.
+
+4. `By the accepted Phase 0 closeout, the path's local publish semantics were no longer the active blocker`
+
+The closeout doctrine for `Phase 0` is very important for this path. The plan explicitly says that the semantically trustworthy unsynchronized bounded run shape is the accepted baseline, and that the remaining blocker at that point is proof-boundary stability at the steady admitted-throughput gate, not a currently active ingress semantic defect. For this path, that means something very specific: after the earlier publish ambiguity and hot-path fixes, the authoritative bus handoff was no longer being treated as an open local semantic red. The remaining work had moved to how the healthy baseline was scored, not to whether ingress could hand traffic onto the bus honestly.
+
+5. `Once RTDL was attached, this path stopped being only an ingress-local claim and became a cross-plane continuity claim`
+
+This is the biggest change in meaning for the path. In `Phase 2`, or more precisely in the coupled-network question later absorbed into the fresh `Phase 1` closure, the plan upgrades the question from local publish continuity to enlarged-network continuity:
+
+- `Ingress -> Event Bus publication continuity`
+- `Event Bus -> RTDL truth continuity`
+- and no false-green caused by downstream starvation or stale run scope
+
+That changes the posture of the path profoundly. It is no longer enough for ingress to publish without ambiguity. The bus handoff must now remain truthful while RTDL is actually consuming, deciding, and appending downstream truth.
+
+6. `The coupled-network proving method then made dark downstream participation a first-class red for this path`
+
+The Phase 2 telemetry and fail-fast posture show the next real shift. The path is now judged partly by whether current-run RTDL participation appears on the other side of the bus. The plan names:
+
+- admitted rate vs current-run RTDL participation
+- behavioural-stream topic movement
+- and fail-fast on healthy ingress with dark RTDL participation or stale run scope across the boundary
+
+That means the path is no longer measured only by producer-side counters. It becomes a transport-to-consumption continuity object. That is a richer, more production-ready posture than messages were probably emitted.
+
+7. `By fresh-scope RTDL promotion closure, this path had become a proven working-network handoff`
+
+The final accepted fresh coupled closure posture matters here because it shows the path is no longer open just because it once had publish ambiguity. The readiness plan records the RTDL family as proven on a fresh coupled scope with:
+
+- steady `3035.833 eps`
+- burst `6227.000 eps`
+- recovery `3020.050 eps`
+- `4xx = 0`
+- `5xx = 0`
+- and, crucially, material RTDL participation with no accepted fail-closed, quarantine, or archive integrity regression
+
+For this path, that is the moment where authoritative bus publication stops being only a local ingress story and becomes part of the accepted working-platform continuity from ingress to runtime.
+
+`What this mapping says in one line`
+
+`Authoritative bus publication path` became production-ready because the platform turned it from an assumed producer step into a measurable, ambiguity-honest, cross-plane continuity boundary: first by exposing publish ambiguity as a real local red, then by pinning explicit publish and topic-movement proof, and finally by proving that the handoff remained truthful once RTDL was actually consuming current-run traffic.
+
+The next move in the flow is to interrogate these episodes one by one.
+
+## 2026-03-15 09:24:19 +00:00 - Interrogate the key episodes for the Authoritative bus publication path so the handoff is judged as its own truth boundary
+For `Authoritative bus publication path`, the important interrogation is not whether Kafka existed. It is whether the platform learned to treat bus handoff as its own truth boundary, then proved that boundary first locally and later as a cross-plane continuity boundary once RTDL was attached.
+
+`Episode 1 - the handoff had to become a named truth boundary, not an assumed continuation of admission`
+
+What surfaced at the design level is that admitted traffic was too easy to talk about as if runtime automatically had it. The `A` note explicitly resists that. It says this path closes earlier than offset proof and later than admission truth: admitted ingress traffic plus its context family must be authoritatively handed onto the pinned MSK topics, and that handoff is its own owned outcome. System-design-wise, this means the platform refuses the weak shortcut of equating ingress admitted with runtime can now consume. The class of challenge here is boundary-definition clarity, and the accepted bridge is the explicit topic-family contract: fraud traffic plus arrival and context topics, pinned producer and consumer ownership, pinned partition-key rules, and explicit separation from both admission truth and ingest-commit truth. That is the move that made this path interrogable at all.
+
+`Episode 2 - under real Control + Ingress pressure, the path exposed a genuine local readiness red`
+
+Once the ingress edge and source posture became truthful enough, the path stopped being an abstract Kafka handoff and started showing live failure. The key evidence came from the aggressive `Phase 0` attempts: `KAFKA_PUBLISH_TIMEOUT`, `PUBLISH_AMBIGUOUS`, `PUBLISH_IN_FLIGHT_RETRY`, and `PUBLISH_AMBIGUOUS_RETRY` surfaced on valid traffic, with `IG_PUSH_REJECTED` and quarantines appearing when the source posture over-drove the synchronous publish path. System-design-wise, this is the moment the handoff becomes a true readiness object: ingress can admit traffic cleanly while the publication boundary is still not promotion-safe. The class of challenge here is a true readiness insufficiency at the bus handoff, not a mere front-door defect. The accepted bridge was not to keep pushing the more aggressive posture. The right move was to reject that as a promotion candidate, step back to a semantically trustworthy baseline, and treat the publication boundary as something that had to stay ambiguity-honest under pressure rather than cosmetically faster. That preserved the most important readiness property of this path: honest publication truth rather than implied success.
+
+`Episode 3 - the path then had to become measurable as a handoff boundary, not inferred from later symptoms`
+
+The next important change was not in producer code but in the proof doctrine. The final readiness plan makes publish continuity a first-class Control + Ingress criterion and names the exact surfaces that matter for this path: publish success or retry or ambiguity counts, Kafka publish continuity and topic movement, admitted-without-publish evidence, and the fail-fast trigger of healthy edge traffic with no downstream bus movement. This is a genuine posture change for the path. Before that, one could still talk about bus handoff loosely through ingress health or later runtime behavior. After that, the path had its own measurement language. The class of challenge here is proof-boundary insufficiency: a handoff boundary is not ready if you cannot tell whether publishes are continuous, ambiguous, or dark. The accepted bridge was to judge the path on these explicit continuity surfaces rather than on vague messages probably moved reasoning. That improved the readiness property of measurable publication continuity.
+
+`Episode 4 - once RTDL was attached, the path changed meaning: it became a cross-plane continuity object`
+
+This is the biggest transformation for the path. In `Phase 0`, the main question is local: did ingress hand admitted traffic into the event transport boundary without ambiguity? In `Phase 2`, that is no longer enough. The plan upgrades the question to `Ingress -> Event Bus publication continuity` and `Event Bus -> RTDL truth continuity`, with fail-fast on healthy ingress plus dark RTDL participation or stale run scope across the boundary. That means the path is no longer just producer-side Kafka correctness. It becomes the first runtime-entry continuity boundary of the enlarged network. The class of challenge here is an enlarged-network readiness challenge: the same bus handoff must now stay truthful when a real downstream runtime is expected to consume current-run traffic. The accepted bridge is not a code patch on the producer alone; it is the move to fresh-scope coupled proving with explicit current-run participation and continuity checks on both sides of the handoff. That improved the readiness property of cross-plane truth continuity, not merely local publish success.
+
+`Episode 5 - false green had to be ruled out before this path could be promoted as cross-plane truth`
+
+The hardest and most important episode for this path is that healthy ingress plus a superficially green coupled run still did not necessarily mean the bus handoff was proven. The implementation note shows exactly why: one fresh-scope coupled green was riding stale RTDL pods because the materializer used a shorthand digest that kubelet resolved against Docker Hub. In other words, ingress could stay healthy while the supposed downstream consumer side of the handoff was not actually fresh. System-design-wise, this is crucial: `Authoritative bus publication path` cannot be called ready as a cross-plane boundary if the consumption side is stale or the scope is reused. The class of challenge here is a proof-boundary or coupling-authority defect, not local producer failure. The accepted bridge was to normalize image references to full ECR URIs, rematerialize on a genuinely fresh scope, and refuse to count the stale-pod run as closure evidence. That was the right bridge because it corrected the truth of the coupled boundary rather than inflating confidence from ingress-side health alone. The evidence that posture changed is strong: after rematerialization, all relevant RTDL deployments were actually serving fresh images on a fresh run scope, so later continuity claims could be trusted.
+
+`Episode 6 - the final closure proved that the handoff was not only local-publish-clean but downstream-meaningful`
+
+The final fresh-scope RTDL closure is where this path reaches its `Bi` posture. The accepted closure run held steady, burst, and recovery green with `4xx = 0`, `5xx = 0`, excellent ingress latency, and immediate current-run RTDL attribution clean enough to promote. The plan then explicitly treats the `Phase 2` question as satisfied by that fresh-scope RTDL promotion proof, because the coupled-network validation already proved `Control + Ingress + RTDL` as a working platform member. For this path, that means something very specific: authoritative bus publication is no longer only that publishing happened without ambiguity. It is now that the bus handoff remains continuous, current-run, and consumption-meaningful when RTDL is actually live on the other side. The class of challenge is now closed. The accepted bridge that made this possible was fresh-scope materialization plus the calibrated coupled-envelope proof, not another producer-local tweak. The readiness property improved here is promotable cross-plane handoff truth.
+
+`What this interrogation says about the path`
+
+So the real story of `Authoritative bus publication path` is not:
+
+> ingress published to Kafka and later RTDL went green.
+
+It is:
+
+> the platform first made bus publication a named truth boundary, then exposed real ambiguity and publish-pressure defects at that boundary, then gave that boundary its own continuity metrics, then upgraded it into a cross-plane continuity object once RTDL was attached, and finally refused false coupled greens until fresh-scope RTDL consumption proved that the handoff was actually current-run and downstream-meaningful.
+
+The next clean move is the `object transformation synthesis` for this path.
+
+## 2026-03-15 09:33:58 +00:00 - Collapse the Authoritative bus publication path episode interrogation into a transformation synthesis that states what changed the handoff boundary itself
+`Authoritative bus publication path` - `transformation synthesis`
+
+In `A`, this path already had a very specific meaning: it turned admitted ingress truth into authoritative event-bus truth. It was not the same as admission, and it was not yet committed ingest evidence. Its owned outcome was narrower and cleaner: admitted traffic plus its pinned context family had to be handed off onto the named MSK traffic and context topics so downstream runtime could begin from an explicit bus boundary rather than from an implied in-memory continuation.
+
+To reach its `Bi` posture, that bus handoff had to stop being merely a declared topology fact and become a production-ready continuity boundary.
+
+The first thing that had to be resolved was conceptual but important: the platform had to keep publish truth distinct from both admission truth and ingest-commit truth. That separation was already present in `A`, but under readiness pressure it became more than a design nicety. It became the reason this path could be judged honestly at all. If admitted had been allowed to stand in for runtime can now consume, there would have been no real way to reason about publication ambiguity, dark topic movement, or downstream starvation. So the path's transformation begins by preserving that boundary as its own object of judgment.
+
+Then the path had to survive the moment when publish continuity became a real local red rather than an assumed success. Under stronger `Phase 0` pressure, the aggressive posture surfaced `KAFKA_PUBLISH_TIMEOUT`, `PUBLISH_AMBIGUOUS`, and related publish retry or ambiguity shapes on valid traffic. That mattered because it showed the wrong bridge very clearly: it was not enough that ingress had admitted traffic; the handoff itself could still be non-promotion-safe. The path therefore had to become ambiguity-honest. It could not treat producer tried to send as equivalent to runtime entry truth now exists.
+
+Once that was visible, the path also had to gain an explicit measurement doctrine. The final readiness plan is important here because it changes the path from Kafka probably moved into a boundary with named proof surfaces: publish success or retry or ambiguity counts, Kafka publish continuity and topic movement, admitted-without-publish evidence, and fail-fast on healthy ingress with no downstream bus movement. That is a real transformation. Before this, publication could still have been talked about loosely through ingress health or later runtime symptoms. After this, the handoff itself had a truthful evidence surface.
+
+The biggest shift in meaning came once RTDL was attached. At that point, the path stopped being only a local ingress publication claim and became a cross-plane continuity claim. In `Phase 2`, the plan upgrades the object from publish continuity into the event transport boundary to the coupled-network questions of `Ingress -> Event Bus publication continuity` and `Event Bus -> RTDL truth continuity`, with explicit concern for false green from downstream starvation or stale run scope. That means the path's final `Bi` posture is not just producer-side Kafka correctness. It is that the bus handoff remains truthful once there is a real downstream runtime expected to consume current-run traffic.
+
+That enlarged-network posture also forced one of the most important reasoning corrections for this object: a coupled green was not enough if the downstream side of the boundary was stale. The implementation trail around the fresh-scope RTDL closure makes this clear. The accepted answer could not come from reused-scope ambiguity; it had to come from a new fresh scope with materially live rematerialization and immediate current-run RTDL attribution. That is exactly the kind of correction that matters for this path: the platform refused to call the bus handoff ready unless the consumer side of the continuity claim was actually fresh and current-run.
+
+The clean synthesis is this:
+
+To move `Authoritative bus publication path` from its `A` posture to its `Bi` posture, the platform had to resolve five things:
+
+- keep bus publication as its own truth boundary rather than letting it collapse into admission or later evidence
+- surface and respect real publish ambiguity under pressure
+- give the handoff an explicit continuity-measurement doctrine
+- upgrade the path from local producer truth to cross-plane runtime-entry truth once RTDL was attached
+- and refuse false coupled closure until fresh-scope downstream participation made the handoff genuinely current-run and consumption-meaningful
+
+That yields the final `Bi` posture of the path:
+
+a production-ready event-bus handoff boundary where admitted traffic and pinned context are published onto explicit authoritative topics with ambiguity handled honestly, continuity measured explicitly, and downstream RTDL consumption proven on a fresh current-run scope rather than merely assumed
+
+And that is why this path contributes strongly to the meta goal: it shows that Kafka publication was not treated as a generic transport step. It was treated as a truth boundary that had to be reasoned locally, measured explicitly, and then reproven as a coupled runtime-entry boundary once the network enlarged.
+
+## 2026-03-15 09:43:31 +00:00 - Extract the Bi claim mix for the Authoritative bus publication path so the argument states exactly what this handoff now proves
+For `Authoritative bus publication path`, the `Bi claim mix` is this.
+
+1. `Readiness-reasoning claim`
+
+This path supports the claim that a handoff boundary can be reasoned to readiness by treating publish truth as its own object, not as a side effect of admission, and then by upgrading that object from a local ingress publication question into a cross-plane continuity question once RTDL is attached. The key reasoning move was to refuse closure both when local publish ambiguity was still live and when a coupled green could still be explained by stale downstream scope.
+
+2. `Systems-design judgment claim`
+
+This path supports the claim that the bus handoff was understood as a semantically split, contract-governed runtime-entry boundary. The work kept it distinct from both admission truth and ingest-commit truth, and it preserved the topic-family split of fraud traffic plus arrival-events, arrival-entities, and flow-anchor context rather than flattening everything into one convenience payload stream. That is a strong systems-design judgment claim because it shows the platform's thin-traffic and in-platform-join law was preserved while still making runtime entry explicit.
+
+3. `Measurement and observability claim`
+
+This path supports the claim that the handoff was made measurable enough to judge honestly. The readiness authority did not leave this as Kafka probably moved. It pinned publish success or retry or ambiguity counts, Kafka topic movement, admitted-without-publish evidence, and later, in the coupled network, current-run RTDL participation and fail-fast on healthy ingress with dark downstream participation. That means publication continuity became an evidence surface rather than an assumption.
+
+4. `Constraint and trade-off claim`
+
+This path supports the claim that truthful continuity was preferred over convenient closure. The work did not let ingress stayed green stand in for runtime entry truth was proven, and it did not accept a fresh-scope coupled green once it became clear the downstream RTDL pods were stale because the materializer had normalized the image incorrectly. The accepted bridge was to repair image resolution, rematerialize on a genuinely fresh scope, and only then spend on the coupled proof again. That is a real trade-off claim: more friction, but a much stronger boundary truth.
+
+5. `Production-relevant challenge claim`
+
+This path supports the claim that the challenges were genuinely production-shaped. Locally, the handoff surfaced real `KAFKA_PUBLISH_TIMEOUT` and `PUBLISH_AMBIGUOUS` pressure under the wrong ingress posture, which proved that admitted and published meaningfully were not the same thing. Later, the coupled-network proof surfaced the opposite kind of risk: a seemingly green handoff that was not trustworthy because downstream participation was being served by stale pods under a fresh secret state. Those are real handoff-boundary problems, not toy bugs.
+
+6. `Promotion and final-posture claim`
+
+This path supports the claim that the final ready posture is not merely that ingress publishes to Kafka. It is: admitted traffic and pinned context are handed onto authoritative bus surfaces in a way that is ambiguity-honest, explicitly measured, and proven to remain current-run and downstream-meaningful once RTDL is actually live on the other side. That is why the fresh-scope RTDL promotion proof could serve as the evidence for closing the `Phase 2` question and promoting `Control + Ingress + RTDL` into the working platform.
+
+`Compressed Bi claim`
+
+`Authoritative bus publication path` shows that event-bus publication can be turned from an assumed producer step into a production-ready, measurable, ambiguity-honest runtime-entry boundary, and then reproven as cross-plane continuity once real downstream consumption exists.
+
+The next move is the `ledger block` for this path, then `Ingest commit truth path`.
+
+## 2026-03-15 09:52:40 +00:00 - Open the Ingest commit truth path by pinning its A posture, Bi posture, and why mode-aware ingest evidence mattered under pressure
+`Object`
+
+`Ingest commit truth path`
+Parent group: `Canonical traffic admission and bus publication`
+Main secondary object it lives inside: `Control + Ingress` as the re-pressured working-platform base.
+This path stays primarily a `Control + Ingress` object even after RTDL is attached, because its owned outcome is still ingest evidence closure rather than runtime consumption itself.
+
+`A posture`
+
+In `A`, this path exists so the platform does not stop at ingress admitted traffic or publication was attempted. Its job is to turn ingress behavior into durable ingest truth under a distinct ingest-commit boundary. The group synthesis already says this explicitly: after boundary access, admission and disposition, and authoritative bus publication, the fourth owned outcome is that the whole ingress act is turned into durable ingest truth.
+
+That `A` posture has three important properties:
+
+- it is later than admission truth and later than bus publication truth
+- it owns receipt, quarantine, and offset-proof style closure rather than runtime-entry truth
+- it is meant to make ingress behavior reconstructable and attributable at run scope, not merely observable in transient counters
+
+So the `A` posture is:
+
+ingress activity already happened -> admit or quarantine outcomes plus offset proof are committed -> the run now has durable ingest evidence rather than only live ingress behavior
+
+`Bi posture`
+
+In `Bi`, this path becomes the production-ready ingest-evidence boundary. That means it is no longer enough that ingress can write some receipts somewhere. The path has to support a stronger claim:
+
+- admit and quarantine summaries are committed reliably
+- offset proof is committed in a mode-aware way
+- the proof is truthful to the actual edge and runtime posture
+- and the platform does not fabricate stronger broker-level evidence than the current substrate can honestly provide
+
+The final run-process authority makes that exact contract explicit for `P7 INGEST_COMMITTED`:
+
+- commit admit and quarantine summaries
+- commit an offset snapshot
+- and do so in a mode-aware way:
+  - `KAFKA_TOPIC_PARTITION_OFFSETS`, or
+  - `IG_ADMISSION_INDEX_PROXY` when `IG_EDGE_MODE=apigw_lambda_ddb`
+
+That matters because the implementation trail shows this path was initially fail-closed: the first managed ingest-commit run found that Kafka topic and partition offsets were not materially populated, so the path refused to force-pass from DDB admissions alone. The accepted remediation was not to fake stronger evidence; it was to keep the current `apigw_lambda_ddb` posture honest and close on deterministic `IG_ADMISSION_INDEX_PROXY` mode instead.
+
+So the `Bi` posture is:
+
+a production-ready ingest-commit boundary where admit or quarantine summaries and offset proof are durably committed in the strongest truthful mode the active ingress path actually supports, with fail-closed honesty when stronger evidence is unavailable
+
+`Why this object matters`
+
+This path matters because without it, Group 2 could say:
+
+- traffic reached the right edge
+- ingress decided admit, reject, or quarantine
+- and publication was attempted
+
+but it still could not answer cleanly:
+
+- what ingest evidence was actually committed for this run
+- whether admit or quarantine truth is reconstructable after the fact
+- whether offset proof exists in a mode that matches the live edge
+- and whether a later reader is looking at real committed ingest closure or just transient runtime behavior
+
+That gives it strong `Bi` value for the meta goal, because the important reasoning here is not that more artifacts were added. It is that the platform refused to overclaim evidential strength. It treated ingest-commit proof as its own readiness boundary and kept it truthful to the real substrate posture.
+
+So, in one line:
+
+`Ingest commit truth path` is the path that turns completed ingress behavior into durable run-scoped ingest evidence, and in `Bi` it becomes the production-ready ingest-commit boundary that closes on truthful, mode-aware proof rather than fabricated stronger evidence.
+
+The next step in the flow is to derive the `system-design questions` for this path.
+
+## 2026-03-15 10:02:07 +00:00 - Derive the system-design questions for the Ingest commit truth path so the later pressure history stays on durable closure and truthful proof mode
+For `Ingest commit truth path`, the system-design questions should stay on durable ingest closure and truthful proof mode, not on generic receipts or generic Kafka evidence.
+
+`Ingest commit truth path` - `system-design questions`
+
+1. `What exactly counts as ingest commit truth here?`
+
+The first question is: what is this path actually trying to commit? This path is later than admission truth and later than authoritative bus publication. Its owned outcome is that what ingress did becomes durable, run-scoped ingest evidence: admit or quarantine summaries plus offset-proof closure, so ingestion is reconstructable rather than merely inferred from transient runtime behavior. `A` is explicit that Group 2 should not stop at runtime activity probably happened; it should end in committed ingest evidence.
+
+2. `Why must this path stay distinct from both publication truth and later runtime truth?`
+
+This path has to ask: why is publication not enough, and why is RTDL participation not enough? Because admitted and published still do not tell you what ingest evidence was durably committed for the run. The group synthesis makes this separation a core design law: boundary truth, admission truth, publish truth, and ingest-commit truth are distinct closure points, and collapsing them would weaken continuity and safety immediately.
+
+3. `What makes the proof here truthful rather than overclaimed?`
+
+This is the central `Bi` question for this path: what is the strongest evidence the current ingress substrate can honestly support? The run-process already answers this in a mode-aware way. `P7 INGEST_COMMITTED` passes only if admit or quarantine summaries are committed and the offset snapshot is committed in the correct mode: direct `KAFKA_TOPIC_PARTITION_OFFSETS`, or `IG_ADMISSION_INDEX_PROXY` when the active edge is `apigw_lambda_ddb`. So the path's proof boundary is not Kafka-looking evidence somehow exists; it is the strongest honest mode for this active edge is explicitly declared and committed.
+
+4. `What should happen when stronger broker-facing proof is not materially available?`
+
+This path has to ask: does the platform force-pass anyway, or fail closed? The implementation history makes the answer very clear. The first managed ingest-commit run failed because Kafka topic and partition offsets were not materially populated. The path explicitly rejected claim `P7` pass from DDB admissions alone as a weaker silent downgrade. So a defining system-design question here is whether the platform has the discipline to refuse fabricated strength when the active substrate cannot honestly provide it.
+
+5. `How do we keep the path truthful to the active edge without understating what the platform can prove?`
+
+This is the follow-on question to the previous one: if direct broker offsets are unavailable, what is the right truthful fallback? The accepted answer was not to give up on ingest proof. It was to make the offset-proof mode explicitly mode-aware: use direct Kafka offsets when present, otherwise derive deterministic proxy evidence from run-scoped admissions when the current edge is `apigw_lambda_ddb`. The key design point is that the proxy mode remains explicit, never silent, and still declares deterministic topic or partition fields and basis.
+
+6. `How do we measure whether ingest closure is actually good enough?`
+
+The right measurement questions are already pinned in `P7`:
+
+- were admit or quarantine summaries committed
+- was offset proof committed in the correct mode
+- and did dedupe or anomaly checks pass?
+
+The committed evidence is likewise explicit: receipt summary, quarantine summary, and offset proof. So this path is judged by closure evidence quality, not by loose traffic counters or later runtime behavior.
+
+7. `What constraints shape this path and stop it from becoming fake closure?`
+
+Three constraints matter most here. First, the path must stay faithful to the active edge mode. Second, it must remain fail-closed when stronger evidence is unavailable. Third, it must not let the operator quietly swap in a stronger-looking proof just to satisfy a gate. The implementation note makes all three explicit: no force-pass from admissions alone, no local shell closure, and no pretending Kafka offsets exist when the edge does not materially emit them.
+
+8. `What trade-off is the design accepting?`
+
+This path chooses honest evidential strength over cosmetically stronger but false certainty. It would be easier to demand Kafka topic and partition offsets unconditionally and either fail forever or fake them; it would also be easier to treat DDB admissions alone as close enough. The chosen trade-off is subtler and better: preserve fail-closed discipline, but allow the strongest truthful proof mode that matches the current edge, and make that mode explicit in both handles and run-process authority.
+
+9. `What makes this a production-readiness question rather than only an A-level design explanation?`
+
+`A` already pinned this path as a real closure point and noted the explanatory nuance: the current wired platform uses a mode-aware ingest proof boundary and explicitly rejects pretending the current edge has direct broker offsets when it does not. `Bi` picks up exactly where that nuance becomes a readiness concern: is the current mode still acceptable under pressure, or does the platform need a stronger substrate before claiming production-ready ingest closure? The fail-closed managed ingest-commit blocker and subsequent mode-aware remediation are the concrete pressure-history answer.
+
+10. `What does this path need to prove for the meta goal?`
+
+The strongest claim here is not that more receipts were written. It is: the platform treated ingest evidence as its own production-readiness boundary and refused to overclaim proof strength; it closed only when the strongest truthful, edge-matched proof mode was explicit, committed, and blocker-free. That is exactly the kind of judgment that reads as production-grade engineering rather than notebook optimism.
+
+Compressed into one line:
+
+For `Ingest commit truth path`, the system-design interrogation is about whether completed ingress behavior becomes durable, reconstructable, mode-aware ingest evidence, and whether the platform is disciplined enough to close only on the strongest proof the active edge can honestly support.
+
+The next move is to map this path to the `pressure episodes` that actually changed its posture.
