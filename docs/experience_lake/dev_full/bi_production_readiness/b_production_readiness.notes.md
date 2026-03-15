@@ -1821,6 +1821,849 @@ That is a much stronger final posture than a generic label flow worked story.
 
 The next clean move is the object frame for `Authoritative label commit and visibility path`.
 
+## 2026-03-15 21:19:04 +00:00 - Open the Authoritative label commit and visibility path by pinning its A posture, Bi posture, and why authoritative supervision truth is its own temporal ownership boundary
+For `Authoritative label commit and visibility path`, the object frame should stay on authoritative supervision truth itself, not drift backward into the `Case Management -> Label Store` request seam or forward into later learning-input assembly.
+
+`Authoritative label commit and visibility path`
+
+`Object`
+
+Parent group: `Case and label operational truth`.
+
+Main secondary object it lives inside: the `Case + Label` plane as a plane-ready operational-truth object.
+
+The first enlarged-network object that materially re-pressures it is `Control + Ingress + RTDL + Case + Label`, because once the downstream operational-review chain is attached to the promoted RTDL base, label truth is no longer only a local Label Store property. It becomes part of the larger question whether the enlarged network can carry operational case truth all the way into authoritative supervision truth, with the coupled scope explicitly keeping both the `RTDL -> CaseTrigger -> Case Management -> Label Store` chain and the label-truth path into future learning use in view.
+
+`A posture`
+
+In `A`, this path exists to turn label-request truth into authoritative supervision truth. It is deliberately narrower than case creation and timeline truth, and narrower than later learning use. Its owned outcome is not merely a label row exists. It is append-only authoritative label truth with provenance, conflict visibility, readback, and the temporal visibility needed for later review and learning: `as_of`, maturity, and no-future-leakage posture. The `A` note is explicit that Label Store owns this boundary, that Case Management does not own label truth, and that the label-events handoff gives this truth a downstream visibility surface rather than leaving it hidden inside case state.
+
+So the `A` posture is:
+
+case-to-label handoff truth plus the specific label assertion -> append-only label commit inside Label Store -> authoritative label truth with readback, `as_of`, and maturity visibility.
+
+That `A` posture already carries the key contract disciplines the later readiness work will have to preserve: idempotent duplicate handling, explicit conflict visibility, provenance completeness, and future-label leakage pinned to zero.
+
+`Bi posture`
+
+In `Bi`, this path becomes the production-ready authoritative-label boundary. That means it is no longer enough that labels appear after cases or that Label Store looks alive. The path has to support a stronger claim:
+
+- authoritative label commits actually close on the real writer boundary
+- duplicate label writes remain idempotent instead of corrupting truth
+- conflicting assertions are explicit instead of silently overwritten
+- label truth is readable back with complete provenance
+- temporal visibility is strong enough for later learning use:
+- `as_of`
+- maturity
+- no future-visible label leakage
+- and the Case and Label closure can honestly say label assertion and acknowledgement closure passed, with writer-boundary anomalies absent
+
+The first thing that had to change to earn that posture was measurability. The initial proving surface was too coarse to let this boundary stand on its own terms, so the bounded Phase 3 executor and snapshot were widened to retain Label Store-specific counters and anomaly surfaces such as duplicate, payload-hash mismatch, dedupe-tuple collision, missing evidence refs, and total anomalies. That changed the path from Label Store should own authoritative truth into Label Store is now directly judgeable as a readiness boundary.
+
+Once measurable, the bounded Phase 3 closure is what first makes the stronger claim believable. The accepted plane-ready closure on `phase3_case_label_20260311T142813Z` records the Case and Label plane green on the promoted upstream base, with clean CaseTrigger, Case Management, and Label Store integrity deltas and no shadow-truth ownership accepted between Case Management and Label Store. For this path specifically, that is the first credible proof that authoritative label truth is not just designed well in `A`; it is already committing cleanly enough to count as a bounded production-ready supervision boundary on its own plane slice.
+
+The path then changes meaning again once the platform enlarges beyond the plane-local proof. The coupled and later learning-facing phases force label truth to remain trustworthy as an input to the bigger system, not just as an internal Label Store artifact. That is where the visibility part of the path becomes more important: later learning input readiness explicitly requires pinned label `as_of` policy, maturity policy, anti-leakage checks, and zero future-boundary breach, while the later learning-facing proofs keep `label_store_pending` and `label_store_rejected` at `0` and pin a real `label_asof_utc` instead of treating labels as timeless latest-state data.
+
+So the `Bi` posture is:
+
+a production-ready supervision-truth boundary where Label Store commits append-only, provenance-complete, duplicate-safe, temporally queryable label truth, and where that truth remains clean enough to survive bounded plane proof, enlarged-network coupling, and later learning-facing use without collapsing ownership, hiding conflicts, or leaking future label visibility.
+
+`Why this object matters`
+
+This object matters because it is the point where the platform stops saying cases may eventually yield labels and starts being able to say where authoritative supervision truth actually comes from. If this boundary is weak, then later learning can still look sophisticated while training on label rows that are mutable, unprovenanced, conflict-blind, or temporally unsafe. The readiness docs say this plainly: if labels are weak, learning is weak no matter how good the models look.
+
+It also matters strongly for the meta goal, because the important engineering work here is not that there was a label table or a label service. It is that the platform had to treat label truth as its own first-class temporal and ownership boundary, then make that boundary measurable, then prove it on a bounded slice, and then keep it honest when the larger platform started depending on it for later learning and integrated closure. That is exactly the kind of production-readiness reasoning `Bi` is supposed to surface.
+
+So, in one line:
+
+`Authoritative label commit and visibility path` is the path that turns supervision-request truth into authoritative, append-only, temporally visible label truth, and in `Bi` it becomes the production-ready supervision boundary whose commit, provenance, conflict handling, and `as_of` and maturity semantics are strong enough that later review and learning can trust it under the enlarged working platform.
+
+The next step in the flow is to derive the `system-design questions` for this path.
+
+## 2026-03-15 21:26:18 +00:00 - Derive the system-design questions for the Authoritative label commit and visibility path so later pressure history stays on authoritative supervision truth itself
+For `Authoritative label commit and visibility path`, the system-design questions should stay on authoritative supervision truth itself, not drift backward into the `Case Management -> Label Store` request seam or forward into offline dataset construction. The `A` note makes that boundary explicit: this path turns label-request truth into append-only, provenance-complete, temporally visible label truth owned by `Label Store`, with `as_of`, maturity, and no-future-leakage semantics pinned as part of the path itself.
+
+`Authoritative label commit and visibility path` - `system-design questions`
+
+1. `What exactly counts as authoritative label truth here?`
+
+This path is not satisfied merely because a label row exists somewhere or because a later learning job can find a label-like value. Its owned outcome is stronger: append-only authoritative label truth with complete provenance, explicit duplicate and conflict semantics, and readback that is queryable by `as_of` and maturity. That is the exact boundary the `A` note pins, and it is also the production-ready definition the readiness note gives for `Label Store`.
+
+2. `Why is this a separate path from case-to-label handoff and from learning-input basis?`
+
+The platform deliberately separates three different truths:
+
+- supervision-request truth at the `Case Management -> Label Store` seam
+- authoritative label truth committed by `Label Store`
+- later learning-input basis that reads label truth under additional time-bound rules
+
+That split matters because otherwise a later readable label would blur whether the problem lived in the handoff seam, in the authoritative commit boundary, or in the later learning-basis construction. The `A` note pins the first split directly, and the readiness material pins the later learning basis as a separate governed object with its own `label_asof_utc` and maturity rules.
+
+3. `What is the allowed entry into this path, and why is it constrained?`
+
+The entry is not raw case data and not generic adjudication happened. It is case-to-label handoff truth plus the specific label assertion that is now ready to be committed by `Label Store`. That keeps the path grounded in explicit upstream supervision-request truth instead of letting label truth appear as an unowned side effect. The `A` note says this directly when it defines the entry as the handoff plus the concrete assertion ready to be committed.
+
+4. `What must this path carry so label truth is attributable rather than merely present?`
+
+It must carry enough to make the label authoritative instead of just visible:
+
+- label identity
+- the label assertion itself
+- provenance linking back to case and adjudication boundaries
+- duplicate and conflict semantics
+- and the temporal visibility needed for readback:
+- `as_of`
+- maturity
+- anti-future-leakage posture
+
+The `A` note explicitly says those are not inferred extras; they are part of the path because later learning gates rely on exactly those temporal controls.
+
+5. `What makes the commit authoritative rather than merely a label exists?`
+
+The key question is whether there is a real label-truth boundary with its own owned closure. For this path, authoritative means:
+
+- append-only commit
+- provenance-complete write
+- idempotent duplicate handling
+- explicit conflict visibility
+- durable readback on the owned `Label Store` boundary
+
+That is why the production-readiness definition for `Label Store` does not stop at label commit success; it also pins idempotency correctness, conflicting-label visibility, provenance completeness, maturity visibility, and future-label leakage `= 0`.
+
+6. `What does production-ready mean specifically for this path?`
+
+For this path, production-ready means authoritative label commits close cleanly on the real writer boundary, duplicate writes do not corrupt truth, conflicting assertions are visible instead of silently overwritten, and label truth is queryable strongly enough that later review and learning can trust it. The readiness definition states this explicitly for `Label Store`, and the whole `Case + Label` plane then raises it to a cross-plane requirement by insisting labels must be authoritative supervision truth that remains duplicate-safe, auditable, and learning-trustworthy.
+
+7. `How do we know duplicate and conflict behavior is correct rather than hidden by last-write-wins?`
+
+This path has to ask whether repeated submissions and conflicting assertions stay visible as label-truth facts instead of being silently collapsed into one latest-state row. That is why the `A` note treats idempotent duplicate handling and explicit conflict visibility as design properties, and why the readiness metrics pin `duplicate label commit corruption = 0` and `conflicting label visibility = 100%` instead of only checking whether some commit succeeded.
+
+8. `How do we know label visibility is temporally correct rather than just latest-state readable?`
+
+The important question is not only whether a label can be read back, but whether it can be read back correctly for a bounded time view:
+
+- what was visible at a given `as_of`
+- whether the label was mature enough
+- whether using it would leak future knowledge
+
+The `A` note already pins those semantics inside the path, and the later learning-readiness work proves why that matters by treating `label_asof_utc`, maturity lag, and future-boundary enforcement as hard gates rather than soft documentation.
+
+9. `How do we distinguish a label-commit defect from an upstream handoff defect or a downstream learning-basis defect?`
+
+This path has to stay bounded. The question here is whether `Label Store` turned valid supervision-request truth into authoritative label truth correctly, before later dataset-building or train and eval logic begins. Upstream, `Case Management -> Label Store` owns whether the right request arrived on the right handshake. Downstream, learning basis owns whether only the right labels are read under the right time-bound law. This path sits in between and owns authoritative label truth itself.
+
+10. `What constraints shape this path and stop easy shortcuts?`
+
+The path is constrained by:
+
+- clean truth ownership: `Case Management` does not become a shadow label system
+- append-only discipline
+- provenance completeness
+- explicit conflict visibility
+- queryability by `as_of` and maturity
+- zero future-label leakage
+
+Those are not optional hygiene rules. They are the conditions that stop the platform from taking shortcuts like mutating labels in place, overwriting conflicts, or using latest-state reads as if they were time-causal supervision truth.
+
+11. `What trade-off is the design accepting?`
+
+The platform accepts an extra explicit truth boundary, an extra owned service, and extra temporal and readback complexity in exchange for much stronger supervision truth. It would be simpler to let case systems attach a mutable outcome field and let later learning treat that as label truth. Instead, the platform pays the cost of explicit `Label Store` ownership, append-only semantics, provenance, duplicate and conflict discipline, and time-bound readback so it can later answer not just does a label exist, but is it authoritative, mature, conflict-visible, and safe to use at this time boundary? The `A` note states that trade-off directly.
+
+12. `How does enlarged-network pressure re-ask the question?`
+
+Once the larger working platform is in play, the question is no longer only whether `Label Store` can commit labels locally. It becomes whether authoritative label truth remains strong enough to survive later coupled use:
+
+- downstream operational review still closes cleanly
+- later learning basis uses the right `label_asof_utc`
+- maturity policy remains honest
+- and future-boundary checks still fail closed when the time law is wrong
+
+The learning-readiness implementation note makes this very concrete: when the bounded learning slice used the wrong `label_asof_utc` basis, the platform treated that as a real semantic blocker, not as a storage or notebook nuisance.
+
+13. `What does this path need to prove for the meta goal?`
+
+The strongest claim is not we had a label table or even we committed labels. It is: the platform had a dedicated supervision-truth boundary, made that boundary authoritative and temporally explicit, and then preserved that truth strongly enough that later review and learning could trust it without hidden overwrite, hidden conflict suppression, or future leakage. That is exactly the kind of readiness reasoning that makes this read like senior engineering judgment rather than a service inventory.
+
+Compressed into one line:
+
+For `Authoritative label commit and visibility path`, the system-design interrogation is about whether supervision-request truth becomes append-only, provenance-complete, conflict-visible, temporally queryable authoritative label truth at the right `Label Store` boundary, and whether that truth remains strong enough for later review and learning to trust without future leakage or ownership blur.
+
+The next move is to map this path to the `pressure episodes` that actually changed its posture.
+
+## 2026-03-15 21:34:22 +00:00 - Map the pressure episodes that changed the Authoritative label commit and visibility path from a designed Label Store boundary into learning-safe supervision truth
+For `Authoritative label commit and visibility path`, the posture-changing history is less about discovering a new handshake clock and more about forcing label truth itself to become independently judgeable, runtime-stable, and later learning-safe. In `A`, the path is already pinned as append-only, provenance-complete, conflict-visible, duplicate-safe, and queryable by `as_of` and maturity, but `Bi` is where those properties stop being only design claims and start becoming earned readiness properties.
+
+`Authoritative label commit and visibility path` - `pressure episodes that changed its posture`
+
+1. `The path first had to become a scored label-truth boundary, not just a well-described Label Store design`
+
+The first posture change was that the path stopped living only as `A`-side boundary language and became something the Case and Label proof was explicitly prepared to judge. The Phase 3 telemetry plan makes that concrete: label pending, accepted, and rejected counts, duplicate and conflict counters, Label Store commit and readback surfaces, and fail-fast triggers for duplicate corruption or conflicting labels being silently overwritten all became part of the proving surface. That matters because before this, the platform could still describe authoritative label truth, but it could not yet judge that truth on its own terms during a bounded run.
+
+2. `The first bounded plane closure proved the boundary was already clean as authoritative supervision truth on its own slice`
+
+The accepted Phase 3 closure is the first real readiness proof for this path. The Case and Label plane closed green on `phase3_case_label_20260311T142813Z`, with `4xx = 0`, `5xx = 0`, clean CaseTrigger, Case Management, and Label Store integrity deltas, and explicit plane-ready closure on the bounded slice. For this path, that is the moment where Label Store is supposed to own authoritative label truth becomes the platform has already shown bounded authoritative label truth can close cleanly without shadow ownership or visible writer-boundary anomaly on the plane-local slice. The class of challenge here is true plane-ready proof.
+
+3. `Opening the coupled proof changed the path from a plane-local label boundary into a cross-plane supervision-truth boundary`
+
+Once the coupled Case and Label proof opened, the meaning of this path changed materially. It was no longer only can Label Store commit labels correctly on its own plane. It became part of the enlarged-network question inside `RTDL -> CaseTrigger -> Case Management -> Label Store`, with the coupled scope explicitly keeping both the case and label chain and the label-truth path into future learning use in view. That changed the path from a local label-commit boundary into a cross-plane supervision-truth boundary whose label truth now had to remain timely, duplicate-safe, lineage-linked to upstream decision truth, and still trustworthy once the larger working network depended on it.
+
+4. `Enlarged learning-coupled pressure then exposed the first direct runtime defect at the boundary: Label Store itself became the active memory bottleneck`
+
+The next real posture change was not methodological. It was runtime truth. In the enlarged learning-coupled runs, once `case_mgmt` had been lifted and stabilized, the next failing boundary was `label_store` itself. The implementation notes are explicit: `label_store` crashed with `CrashLoopBackOff` and `OOMKilled` at `512Mi request / 2Gi limit`, and the accepted bridge was to repin only that worker to `1Gi request / 4Gi limit`. That matters because the path moved here from authoritative label truth is semantically clean if the component stays alive to authoritative label truth can now remain alive on the enlarged network after the real runtime budget defect at the writer boundary was found and corrected. This is the first episode where the path's runtime seating itself had to be hardened, not just its proof surface.
+
+5. `Learning-input closure turned the visibility side of the path from design intent into a fail-closed temporal law`
+
+The next posture shift is semantic and temporal rather than purely runtime. The learning-input readiness work made `as_of`, maturity, and no-future-leakage conditions concrete and fail-closed. The implementation trail pins `LEARNING_LABEL_ASOF_REQUIRED=true`, `LEARNING_LABEL_MATURITY_DAYS_DEFAULT=30`, `LEARNING_FUTURE_TIMESTAMP_POLICY=fail_closed`, derives a real `label_asof_utc` and maturity cutoff, and enforces temporal invariants before learning can advance. That changes the path from labels are authoritative and readable into labels are authoritative and temporally safe enough for learning to trust. In other words, the visibility part of the path stopped meaning only later readback exists and started meaning later learning cannot consume immature or future-visible supervision truth.
+
+6. `Later coupled and full-platform proofs strengthened the path again by proving non-regression under the larger working platform`
+
+The final strengthening episode is non-regression under later enlarged-network pressure. Once the platform had enlarged around learning and then the wider integrated platform, the same label boundary kept showing material accepted-label activity without reopening pending, rejected, or timing regressions. The learning-facing corridor records `label_store accepted = 3080`, `pending = 0`, `rejected = 0`, and a pinned `label_asof_utc`. Later full-platform integrated and stress authorities still record material `label_store_accepted_delta` and stable `case_to_label p95` on the larger working platform. That matters because the path is no longer merely good enough on the first Case and Label plane proof. It has now shown that authoritative label truth remains non-regressed once the working platform enlarges around runtime bundle authority, learning use, and later full-platform pressure.
+
+`What this mapping says in one line`
+
+`Authoritative label commit and visibility path` moved from a deliberately designed append-only label-truth boundary into a measurable plane-ready authoritative supervision boundary, then into an enlarged-network label boundary that had to survive a real runtime memory defect, and finally into a temporally explicit learning-safe supervision boundary whose non-regression was proven again under the larger working platform.
+
+The next clean move is to interrogate these episodes one by one.
+
+## 2026-03-15 21:41:27 +00:00 - Interrogate the key episodes that turned the Authoritative label commit and visibility path into an earned supervision-truth boundary
+For `Authoritative label commit and visibility path`, the important question is not whether labels later appear somewhere in the platform. It is whether supervision-request truth becomes authoritative label truth at the right owned boundary, and whether that truth stays append-only, provenance-complete, conflict-visible, duplicate-safe, and temporally safe for later learning use. That is the boundary `A` already pinned, and `Bi` has to show how that boundary was actually earned under readiness pressure.
+
+`Authoritative label commit and visibility path` - `episode interrogation`
+
+`Episode 1 - the path first had to become a measurable label-truth boundary, not just a well-described Label Store design`
+
+What surfaced first was a proof-surface problem, not a label-runtime bug. The Phase 3 readiness surface had to explicitly carry label pending, accepted, and rejected counts, duplicate and conflict counters, Label Store commit and readback health, and fail-fast triggers for duplicate corruption or silently overwritten conflicting labels. System-design-wise, that matters because before this, the path could still be described correctly, but it could not yet be judged on its own terms. The accepted bridge was to make authoritative label truth a first-class bounded proof surface rather than letting it hide inside broader Case and Label activity. The readiness property improved here was boundary observability: Label Store stopped being the place labels probably end up and became a directly judgeable supervision-truth boundary.
+
+`Episode 2 - the first bounded plane closure proved the boundary was already clean as authoritative supervision truth on its own slice`
+
+The next real turn was the accepted bounded Phase 3 closure. The Case and Label plane closed green on `phase3_case_label_20260311T142813Z` with `observed_admitted_eps = 3046.783`, `4xx = 0`, `5xx = 0`, clean CaseTrigger, Case Management, and Label Store integrity deltas, and an explicit no-shadow-truth-ownership outcome between Case Management and Label Store. That matters because this is the first point where the path stops being only a design claim from `A` and becomes a plane-ready authoritative label boundary. The class of challenge here is true bounded readiness proof, not design interpretation. The accepted closure improved the path's status from intentionally designed authoritative label truth to already clean enough to count as authoritative supervision truth on a bounded plane-local slice.
+
+`Episode 3 - opening the coupled proof changed the path from a plane-local label boundary into a cross-plane supervision-truth boundary`
+
+Once the coupled Case and Label proof opened, the meaning of this path changed materially. It was no longer enough that Label Store could commit labels correctly on its own plane. The enlarged scope explicitly became `RTDL -> CaseTrigger -> Case Management -> Label Store`, plus the label-truth path into future learning use, with proof questions around case-to-label latency, throughput under real upstream pressure, starvation, auditability, and whether case and label truth stayed linked to upstream RTDL truth. System-design-wise, that means the path was re-asked as part of the working network, not just as a local component seam. The accepted bridge here was the coupled-network validation slice and the cross-plane telemetry plan, which forced label truth to stay legitimate under real upstream coupling instead of being judged only in isolation. The readiness property improved here was cross-plane label-truth legitimacy.
+
+`Episode 4 - enlarged coupled pressure then exposed a real runtime defect at the writer boundary itself`
+
+The next important turn was no longer methodological. It was runtime truth. In the enlarged learning-coupled proof, once `case_mgmt` had been lifted and stabilized, the next under-sized Case and Label surface exposed by the implementation history was `label_store` itself: repeated `OOMKilled` and restart instability, with the warm gate correctly blocking unstable restarts during settle. The accepted bridge was deliberately narrow: repin only `fp-pr3-label-store` from `512Mi request / 2Gi limit` to `1Gi request / 4Gi limit`. System-design-wise, that matters because the path moved here from authoritative label truth is semantically clean if the service remains up to the writer boundary itself is now honestly seated in a runtime budget that can keep authoritative label truth alive on the enlarged network. The readiness property improved here was runtime seating stability for the label-truth boundary.
+
+`Episode 5 - the visibility side of the path then became a fail-closed temporal law, not just readback existence`
+
+The next posture shift was semantic and temporal. Production-ready Label Store truth is not only labels commit successfully; it is also that label truth is queryable by `as_of` and maturity so learning does not train on immature or future-visible labels. The handle and policy surfaces make that explicit: `LEARNING_LABEL_ASOF_REQUIRED = true`, `LEARNING_LABEL_MATURITY_DAYS_DEFAULT = 30`, and `LEARNING_FUTURE_TIMESTAMP_POLICY = fail_closed`. The later implementation closure proves those rules are not decorative: it derives a real `label_asof_utc`, a real maturity cutoff, and enforces future-boundary and maturity invariants as hard checks. System-design-wise, that changes the visibility side of the path from labels can be read back later into labels are temporally explicit enough to be trusted as supervision truth at the right time boundary. The readiness property improved here was learning-safe temporal visibility.
+
+`Episode 6 - later enlarged-network proof strengthened the path again by proving non-regression under the larger working platform`
+
+The final important turn is that, after the label-store runtime lift and the later learning-coupled enlargement, this path stopped being an active blocker and instead became part of the accepted larger-platform truth. The managed learning corridor source truth records `label_store accepted = 3080`, `label_store pending = 0`, `label_store rejected = 0`, and a pinned `label_asof_utc`. Later, after the label-store repin and rollback-bundle normalization, the remaining Phase 6 blocker is narrowed to burst envelope repeatability rather than label-truth instability. That matters because the path is no longer merely good enough on the first Case and Label plane proof. It has now shown that authoritative label truth remains stable and non-regressed once the platform enlarges around learning, rollback, and bundle-resolution authority. The readiness property improved here was non-regressed authoritative label truth on the larger working platform.
+
+`What this interrogation says about the path`
+
+`Authoritative label commit and visibility path` was not made ready because labels existed in a store somewhere. It became ready because the platform first made authoritative label truth independently measurable, then proved it on a bounded Case and Label slice, then re-asked it under real cross-plane coupling, then fixed a genuine writer-boundary runtime defect, then converted visibility into fail-closed `as_of` and maturity semantics for learning safety, and finally showed that the same boundary stayed non-regressed under the larger learning-coupled working platform. That is what turns the path from a good design idea in `A` into an earned production-ready supervision-truth boundary in `Bi`.
+
+The next clean move is the `object transformation synthesis` for this path.
+
+## 2026-03-15 21:48:36 +00:00 - Synthesize how the Authoritative label commit and visibility path moved from a designed Label Store seam into an earned supervision-truth boundary
+`Authoritative label commit and visibility path` - `transformation synthesis`
+
+In `A`, this path already had a very specific job: turn case-side supervision-request truth into authoritative label truth at a boundary owned by `Label Store`, not by `Case Management` and not by later learning code. The `A` note keeps that boundary narrow on purpose: append-only label commit, complete provenance, duplicate-safe and conflict-visible behavior, and readback that is queryable by `as_of` and maturity so later review and learning do not consume vague latest-state labels. The production-readiness authority says the same thing in simpler terms: label truth must be append-only, provenance-complete, idempotent under duplicate writes, explicit under conflicting writes, and safe against future-label leakage.
+
+To reach its `Bi` posture, the first thing that had to be resolved was boundary observability. The path could not remain only a well-described Label Store seam in `A`; it had to become judgeable on its own terms during bounded proof. That is why the Phase 3 execution surface and runtime snapshot were widened to retain Label Store-specific counters such as duplicate, payload-hash mismatch, dedupe-tuple collision, missing evidence refs, and anomaly totals. That changed the path from the platform says it owns authoritative labels here into the platform can now score whether authoritative label truth is actually being committed cleanly on this boundary.
+
+Once the boundary was measurable, the next thing that had to be resolved was whether it could be plane-ready on its own bounded slice. The accepted Phase 3 closure is the first point where that claim is earned rather than assumed. The Case and Label plane closed green on `phase3_case_label_20260311T142813Z` with `4xx = 0`, `5xx = 0`, clean integrity deltas across `CaseTrigger`, `Case Management`, and `Label Store`, and a material accepted-label delta on the bounded slice. For this path specifically, that means the platform had already shown that label-request truth could become authoritative label truth cleanly enough to count as bounded production-ready supervision truth, not merely a design intent carried over from `A`.
+
+The next transformation came when the coupled Case and Label proof opened. At that point the object was no longer only can Label Store commit labels correctly on its own plane. The plan explicitly widened the scope to the enlarged network and kept the label-truth path into future learning use in view. That changed the meaning of the path materially: the label boundary now had to remain trustworthy not only as a local writer seam, but as a cross-plane supervision-truth boundary whose outputs remained linked to upstream RTDL and case truth and were strong enough to be consumed later by the learning corridor.
+
+Then the path hit its first clearly attributable runtime seating defect. Under the enlarged learning-coupled proof, once `case_mgmt` had been lifted, the next under-sized surface was `label_store` itself. The implementation note is explicit that repeated `OOMKilled` evidence made this a real runtime-budget problem, and the accepted bridge was narrow: repin only `fp-pr3-label-store` from `512Mi / 2Gi` to `1Gi / 4Gi`. That mattered because the path moved here from authoritative label truth is semantically well-defined to the actual writer boundary now has enough runtime budget to stay alive under the enlarged working platform. In `Bi`, that is a real posture change, not a small ops tweak.
+
+After that, the visibility side of the path had to be strengthened from labels can be read back later into a fail-closed temporal law. The temporal controls already existed in the platform handles and earlier implementation trail: `LEARNING_LABEL_ASOF_REQUIRED = true`, `LEARNING_LABEL_MATURITY_DAYS_DEFAULT = 30`, and `LEARNING_FUTURE_TIMESTAMP_POLICY = fail_closed`, with `label_asof_utc` derived and enforced alongside maturity cutoff rules. What changed in the production-readiness proof is that these were no longer just handles or earlier lane logic. The managed learning proof refused to accept an apparently green end-to-end run when the selected sample still exceeded the admitted `feature_asof_utc`, and only accepted closure once the bounded sample stayed inside the admitted time law. That is the decisive moment where label visibility stopped meaning merely readable later and became temporally trustworthy enough for learning.
+
+Once those semantic and runtime defects were removed, later enlarged-network proof strengthened the path again by showing non-regression under the larger working platform. The learning-coupled corridor pinned `label_store accepted = 3080`, `pending = 0`, `rejected = 0`, and a real `label_asof_utc`, while later integrated full-platform proof still showed material `label_store_accepted_delta` with all bounded integrity deltas at zero. That matters because the path is no longer merely good enough on the first Case and Label slice. It has now been shown to remain authoritative, temporally governed, and operationally clean once the platform enlarged around learning, promotion, rollback, and integrated full-platform proof.
+
+### `What had to be resolved`
+
+To move `Authoritative label commit and visibility path` from its `A` posture to its `Bi` posture, the platform had to resolve five things: first, make authoritative label truth measurable on its own boundary rather than inferred from later downstream behavior; second, prove that the Label Store boundary was already plane-ready and clean on a bounded Case and Label slice; third, upgrade the object from a local label seam into a cross-plane supervision-truth boundary once future learning use became part of the active question; fourth, correct the writer boundary's runtime seating after direct `OOMKilled` evidence; and fifth, convert visibility from mere readback into fail-closed `as_of` and maturity law, then show that same boundary stayed non-regressed under later enlarged-platform proof.
+
+### `Final Bi posture`
+
+The final `Bi` posture of this path is:
+
+a production-ready supervision-truth boundary where case-side supervision requests become append-only, provenance-complete, duplicate-safe, conflict-visible, temporally queryable authoritative label truth at the owned `Label Store` boundary, and where that label truth remains runtime-stable, learning-safe, and non-regressed enough for later review, dataset construction, and larger integrated platform proofs to trust.
+
+### `Why this matters for the meta goal`
+
+This object helps the meta goal because it shows that you did not merely have labels in a table or labels available for ML later. You reasoned the platform until it could answer harder questions cleanly: where authoritative supervision truth actually lives, how duplicate and conflicting assertions are handled without silent corruption, how temporal visibility is enforced so learning does not consume future or immature labels, and how that same truth boundary survives real runtime and enlarged-network pressure. That reads as production-readiness judgment, not as a generic data-pipeline story.
+
+The next clean move is the `Bi claim mix` for this path.
+
+## 2026-03-15 21:55:02 +00:00 - Extract the Bi claim mix for the Authoritative label commit and visibility path so the notebook states exactly what supervision-truth judgment this work now supports
+For `Authoritative label commit and visibility path`, the `Bi` claim mix is this.
+
+`Bi claim mix`
+
+1. `Readiness-reasoning claim`
+
+This path supports the claim that you can reason authoritative supervision truth as its own production-readiness boundary, not as something that can be inferred later from case closure or learning success. The ready posture was earned by first making Label Store truth directly judgeable, then proving it on the bounded Case and Label slice, then re-asking it under enlarged coupled pressure, and finally carrying it forward into learning-safe temporal closure.
+
+2. `Systems-design judgment claim`
+
+This path supports the claim that you understood case truth, supervision-request truth, and authoritative label truth as three different things with different owners. In the `A` design, `Case Management` does not become a shadow label system, `Label Store` owns label truth, and that truth must be append-only, provenance-complete, duplicate-safe, conflict-visible, and queryable by `as_of` and maturity rather than treated as a mutable latest-state convenience.
+
+3. `Measurement / evidence claim`
+
+This path supports the claim that you made authoritative label truth directly measurable rather than inferred. The proving surface retained label pending, accepted, and rejected counts, duplicate and conflict counters, and Label Store commit and readback health; the bounded plane closure then closed green on `phase3_case_label_20260311T142813Z`; later learning-coupled proof pinned `label_store accepted = 3080`, `label_store pending = 0`, `label_store rejected = 0`, and a concrete `label_asof_utc`.
+
+4. `Constraint / trade-off claim`
+
+This path supports the claim that you chose stronger truth discipline over easier implementation. Instead of letting case state or a mutable case outcome stand in for supervision truth, the platform pays for an explicit Label Store boundary, append-only semantics, explicit conflict handling, and fail-closed `as_of` and maturity law; and when runtime seating failed, the accepted bridge was a narrow `label_store` memory repin rather than weakening the boundary model or blurring ownership.
+
+5. `Production-relevant challenge claim`
+
+This path supports the claim that the challenges were genuinely production-shaped. The important problems were not can we insert a label row; they were absence of a seam-specific proving surface at first, a real `label_store` `CrashLoopBackOff` and `OOMKilled` memory defect once the enlarged learning-coupled network exposed the next active writer boundary, and the need to prove temporal visibility strongly enough that learning could not consume immature or future-visible labels.
+
+6. `Promotion / final-posture claim`
+
+This path supports the claim that the final ready posture is not merely labels got written after cases. It is: authoritative label truth became a measurable plane-ready boundary, the writer boundary stayed stable after the targeted memory lift, temporal visibility became hard fail-closed law for learning use, and later enlarged-network authorities still carried clean label acceptance with zero pending and rejected drift while the integrated platform kept case-to-label timing bounded.
+
+`Compressed Bi claim`
+
+`Authoritative label commit and visibility path` shows that you can turn supervision-request truth into append-only, provenance-complete, duplicate-safe, conflict-visible, temporally governed label truth at the owned `Label Store` boundary and then prove that same supervision boundary remains runtime-stable, learning-safe, and non-regressed as the larger platform depends on it.
+
+## 2026-03-15 22:04:11 +00:00 - Open the Learning-input basis path by pinning its A posture, Bi posture, and why causal learning basis is its own governed admission boundary
+For `Learning-input basis path`, the object frame should stay on causal learning basis itself, not drift backward into archive-closure mechanics or forward into offline dataset build.
+
+`Learning-input basis path`
+
+`Object`
+
+Parent group: `Learning, evaluation, and governed activation`.
+
+Main secondary object it lives inside: the `Learning + Evolution / MLOps` plane as a plane-ready governed-learning object. The readiness plan treats that plane as its own proof surface, with explicit Phase 5 closure around semantic admission, dataset-basis compliance, temporal correctness, and managed learning continuity.
+
+The first enlarged-network object that materially re-pressures it is `Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps`, because that is the first point where runtime truth plus authoritative label truth have to become trustworthy learning truth inside the active feedback loop, not merely remain available as separate upstream surfaces. The `Bi` matrix pins `S4` as the strongest feedback-loop object, and the readiness plan names the critical cross-plane path here as `RTDL + Label truth -> Learning`, with the enlarged-network question being whether truth continuity holds from runtime to label to dataset to bundle to active runtime.
+
+`A posture`
+
+In `A`, this path exists to turn authoritative runtime and archive truth plus authoritative label truth into learning-input basis that is safe to build datasets from. Its job is not yet to build the offline dataset, not yet to run train and eval, and not yet to promote anything. Its narrower job is to answer: what exact bounded slice of platform truth is learning allowed to use, under what replay basis, and under what temporal controls? The `A` note is explicit that the entry is not some archive exists and not labels exist somewhere; it is archive truth plus label truth plus replay references already resolved from the closed spine, under one run scope.
+
+So the `A` posture is:
+
+archive truth plus label truth plus replay references -> replay-basis pin plus `as_of` and maturity pin plus leakage and separation checks -> committed learning-input basis for the run.
+
+That `A` posture already carries the key disciplines that later readiness work has to preserve: replay basis pinned, label `as_of` policy pinned, maturity policy pinned, anti-leakage posture pinned, and a committed learning window and fingerprint basis. The run-process says the same thing operationally at `P12`: archive and labels and replay references resolved from spine closure, label `as_of` policy pinned, anti-leakage checks passing, replay basis pinned as explicit `origin_offset` ranges, learning input window and fingerprint basis committed, and all learning rows staying inside `feature_asof_utc`, `label_asof_utc`, and maturity law.
+
+`Bi posture`
+
+In `Bi`, this path becomes the production-ready causal-admission boundary for learning. That means it is no longer enough that the platform has archive history, authoritative labels, or readable managed learning services. The path now has to support a stronger claim:
+
+- the admitted learning basis is interface-pack-authorized rather than pulled from ungoverned surfaces
+- the current world is admitted by the pinned `6B.S5` gate posture rather than merely being present in object storage
+- current label truth is materially present and mature enough for learning use
+- replay basis, `feature_asof_utc`, `label_asof_utc`, and maturity rules are explicit and fail-closed
+- and the later managed learning corridor consumes that same governed basis rather than silently widening it
+
+That stronger posture is exactly what the rebuilt Phase 5 trail established. The learning corridor was repinned so the bounded proof would fail closed unless the learning basis was interface-pack-authorized, the oracle world was admitted by the pinned `6B.S5` gate, current label truth was present and mature enough, and the retained managed corridor remained attributable. The accepted semantic-admission trail then records the current learning basis as authorized only through `s2_event_stream_baseline_6B` and `s3_event_stream_with_fraud_6B`, with readable `_passed.flag` and `s5_validation_report_6B.json`, clean label truth, and later accepted temporal anchors `feature_asof_utc = 2026-03-05T00:00:00Z` and `label_asof_utc = 2026-03-05T00:00:00Z` carried into the accepted learning chain.
+
+So the `Bi` posture is:
+
+a production-ready learning-input boundary where runtime and archive truth, authoritative labels, replay basis, and time law are explicitly admitted into the managed learning corridor, and where only interface-pack-authorized, `6B.S5`-admitted, time-safe, mature supervision truth is allowed to become the causal basis for later dataset and model work.
+
+`Why this object matters`
+
+This object matters because it is the point where the platform stops saying we have archive truth and labels, so Databricks can build something and starts being able to say what exact causal slice learning is allowed to consume. If this boundary is weak, then later dataset manifests, train and eval receipts, promotion evidence, and active-bundle resolution can all look sophisticated while still resting on ungoverned or future-leaking basis. The `A` note says this plainly in its necessity test: without this path, the platform loses a clean answer to which replay slice learning used, what the active feature and label `as_of` values were, whether labels were mature enough, whether runtime-only surfaces leaked into learning, and whether future knowledge was actually blocked.
+
+It also matters strongly for the meta goal, because this is where the platform shows that learning is not the ML stack in some vague sense. It is a governed causal boundary. The readiness plan makes that concrete by pinning authoritative-world gate compliance, point-in-time correctness, future leakage violations, and label `as_of` and maturity compliance as first-class Learning + Evolution metrics. That is the kind of readiness reasoning that makes this read like serious ML platform judgment rather than we also had Databricks and SageMaker.
+
+So, in one line:
+
+`Learning-input basis path` is the path that turns archive truth, authoritative label truth, and replay references into formally pinned causal learning basis, and in `Bi` it becomes the production-ready admission boundary that proves the managed learning corridor is learning only from interface-pack-authorized, time-safe, mature, and attributable platform truth.
+
+The next clean move is to derive the `system-design questions` for this path.
+
+## 2026-03-15 22:11:43 +00:00 - Derive the system-design questions for the Learning-input basis path so later pressure history stays on causal learning admission itself
+For `Learning-input basis path`, the system-design interrogation should stay on causal learning admission itself: whether archive truth, label truth, and replay references become a formally pinned basis that learning is allowed to use. It should not drift backward into archive closure mechanics, and it should not drift forward into offline dataset build, train and eval, or promotion. The `A` note splits those later boundaries on purpose, and the run-process makes `P12 LEARNING_INPUT_READY` its own closure before dataset commitment begins.
+
+`Learning-input basis path` - `system-design questions`
+
+1. `What exactly counts as learning-input basis here?`
+
+This path is not satisfied because archive files exist, labels exist somewhere, or Databricks can reach storage. Its owned outcome is narrower and stronger: archive truth plus label truth plus replay references become a learning-input readiness basis with replay basis pinned, label `as_of` policy pinned, anti-leakage checks passing, and a committed readiness snapshot. That is the explicit path definition in `A`, and the run-process encodes the same closure at `P12`.
+
+2. `Why is this a separate path from archive closure and from offline dataset commitment?`
+
+The platform separates learning-input readiness from dataset truth on purpose. `A` explicitly says Group 6 contains distinct closure points for learning-input readiness, dataset truth, candidate-bundle truth, promotion and rollback truth, and active-bundle runtime authority. That matters because otherwise a later green Databricks or SageMaker run would blur whether the real boundary was the causal basis, the dataset commit, or the model lane.
+
+3. `What is the allowed entry into this path, and why is it constrained?`
+
+The entry is not current world data is in object storage. It is archive truth plus authoritative label truth plus replay references already resolved from spine closure under one run scope. The run-process says `P12` only opens once archive and labels and replay references are resolved from the spine, and the `A` note treats exactly that bundle as the proper entry.
+
+4. `What is the owned outcome of this path before dataset build is allowed to begin?`
+
+The owned outcome is a committed causal basis for learning, not a built dataset and not a trained model. In practice that means: replay basis pinned, `feature_asof_utc` and `label_asof_utc` pinned, maturity policy pinned, anti-leakage checks passing, and a committed learning-input readiness snapshot that later dataset work must inherit rather than redefine.
+
+5. `What must this path carry so the basis is causal and attributable rather than just readable?`
+
+It has to carry the evidence objects that make the basis reconstructable: replay-basis receipt, readiness snapshot, `as_of` and maturity policy snapshot, leakage guardrail report, runtime-vs-learning separation result, run-scoped continuity, and the basis fingerprinting material that ties later dataset work back to this exact input closure. The earlier implementation trail pins these objects explicitly.
+
+6. `What makes the basis authoritative rather than the managed learning stack can see some files?`
+
+The basis is authoritative only if it resolves through the declared semantic and gate surfaces, not through ad hoc storage reads or hidden local paths. The readiness authority for Learning + Evolution requires authoritative-world gate compliance, unauthorized dataset basis count `= 0`, and fail-fast behavior if admitted learning basis does not resolve through declared dictionary, registry, or gate surfaces. That is why the managed OFS proof later treats can Databricks read the current authoritative world and score dataset-basis parity against the current `label_asof_utc` as a real boundary question, not an infrastructure convenience question.
+
+7. `What exactly is the replay basis here, and why must it be pinned?`
+
+Replay basis is not vague historical data. At `P12`, replay basis must be pinned as `origin_offset` ranges with explicit semantics. In `IG_ADMISSION_INDEX_PROXY` mode those offsets are event-time epoch-second boundaries; in `KAFKA_TOPIC_PARTITION_OFFSETS` mode they are broker topic and partition offsets; and any time-window selector must be translated to offsets and recorded. The implementation notes then strengthen this by requiring replay-basis rows to be non-empty and parseable and by checking parity across run-control and run-scoped replay receipts.
+
+8. `How are feature-as-of, label-as-of, and maturity actually derived and enforced?`
+
+These are not supposed to be freeform job parameters. The implementation notes pin a causal derivation rule: derive `feature_asof_utc` from the replay basis, set `label_asof_utc` to the same boundary for the strict causal baseline at this phase, and derive `label_maturity_cutoff_utc` from `LEARNING_LABEL_MATURITY_DAYS_DEFAULT`. Required handles must be concrete, and the future timestamp policy must remain `fail_closed`.
+
+9. `How do we know no-future-leakage is enforced fail-closed instead of being audited after the fact?`
+
+The run-process makes that law explicit: all learning rows must satisfy `event_ts_utc <= feature_asof_utc` and `label_observed_ts <= label_asof_utc`, with maturity policy applied, and any future-boundary breach is a blocker. The implementation notes reinforce that the future timestamp policy itself is pinned to `fail_closed`, not to warn-only or post hoc interpretation.
+
+10. `How do we distinguish a learning-input-basis defect from an offline-dataset-build defect?`
+
+This path has to stay bounded. Its question is whether the platform admitted the right causal basis at all. The next path, `Offline dataset commitment path`, owns something different: input binding and immutability checks, Databricks dataset build, manifest and fingerprint publication, rollback recipe, and time-bound and leakage audit on the committed dataset object. If those boundaries are blurred, every later green dataset or train run can hide that the causal basis itself was weak.
+
+11. `What constraints shape this path and stop easy shortcuts?`
+
+The main constraints are: no ungated world basis, no hidden local or script-only learning path, no future leakage, no casual mixing of runtime surfaces into learning, and no ad hoc OFS decision about what basis to use. The readiness plan is explicit that train and eval on a non-authoritative dataset basis is fail-fast red, and that every admitted learning basis must resolve through the declared authority surfaces.
+
+12. `What trade-off is the design accepting?`
+
+The platform is accepting more ceremony and more gates before learning can begin. It would be much easier to let the offline-feature plane discover a useful slice of data and move on. Instead, the system pays for replay receipts, temporal anchors, maturity policy, leakage guardrails, separation checks, and authoritative-world admission before a single dataset is committed. The cost is extra closure work; the gain is causal defensibility and later explainability.
+
+13. `How does enlarged-network pressure re-ask the question?`
+
+Once Learning + Evolution is coupled back into the working platform, the question is no longer only was a causal basis pinned. It becomes does runtime -> label truth -> learning -> promotion -> runtime still preserve truth continuity? The coupled-readiness plan says exactly that: the feedback loop must remain semantically stable, leakage-safe, explainable, and operationally useful, and the platform must be able to name the admitted world, label basis, feature basis, eval result, and promotion reason behind active runtime authority.
+
+14. `What does this path need to prove for the meta goal?`
+
+The strongest claim is not that the platform had Databricks, SageMaker, or MLflow. It is that before any of those managed surfaces do work, the platform can name the exact causal slice of truth learning is allowed to use, prove that slice is authoritative and time-safe, and fail closed when it is not. That is what makes this read like senior ML platform judgment instead of an ML pipeline exists story.
+
+Compressed into one line:
+
+For `Learning-input basis path`, the system-design interrogation is about whether archive truth, authoritative label truth, and replay references become a formally pinned, fail-closed, time-safe causal basis for learning, and whether that basis is authoritative enough that every later dataset, model, and promoted runtime bundle can be traced back to one admitted world and one admitted temporal boundary.
+
+The next clean move is to map this path to the `pressure episodes` that actually changed its posture.
+
+## 2026-03-15 22:18:52 +00:00 - Map the pressure episodes that changed the Learning-input basis path from a named design boundary into a causal-admission boundary
+For `Learning-input basis path`, the pressure history is less about one runtime crash and more about forcing the platform to answer a harder question correctly: what exact slice of platform truth is learning actually allowed to use? In `A`, the path is already defined narrowly as archive truth plus authoritative label truth plus replay references becoming a committed learning-input basis with replay, `as_of`, maturity, and anti-leakage law pinned. In `Bi`, the pressure episodes are the ones that turned that from a design claim into an earned causal-admission boundary.
+
+## `Learning-input basis path` - `pressure episodes that changed its posture`
+
+### 1. The path first had to become a `semantic-admission boundary`, not just the learning stack can see data
+
+The first real posture change was that this path stopped being a vague OFS and Databricks readiness idea and became an explicit admission gate. The rebuilt Phase 5 posture made it fail closed unless the learning basis was interface-pack-authorized, the current oracle world was admitted by the pinned `6B` gate posture, current label truth was present and mature enough, and the managed corridor was still readable and attributable. That changed the path from archive and labels probably exist into learning basis must be admitted through named authority surfaces.
+
+### 2. The first bounded proof exposed that the `gate itself was malformed`, not yet a truthful current-basis proof
+
+The first bounded Phase 5.B run did not fail because Databricks, SageMaker, or MLflow had already proved the path false. It failed because the new semantic gate was still reading the basis incorrectly: `output_roles` were parsed too narrowly, the `6B` gate reader assumed the wrong validation path shape, and managed-artifact discovery was too strict. That is an important pressure episode for this object because it changed the posture from current learning basis is probably admissible to the basis is not admissible until the gate can read the right world and the right outputs correctly.
+
+### 3. Once that gate was corrected, the path stopped being current world data and became a `narrow authorized basis`
+
+After the correction, the bounded proof went green only by narrowing the admitted basis to the intended interface-pack outputs: `s2_event_stream_baseline_6B` and `s3_event_stream_with_fraud_6B`, both carrying the expected `business_traffic` role, with the current `6B` validation bundle materially present and machine-gate readable. That is a real posture change. The object is no longer whatever the managed corridor can reach; it is now the specifically authorized world basis for learning on this run.
+
+### 4. Temporal law had to become `explicit and fail-closed`, not just implied by current run
+
+This path also changed posture once `feature_asof_utc`, `label_asof_utc`, maturity, and no-future-leakage stopped being background intentions and became hard admission law. Earlier learning-input readiness already pinned that all learning rows must stay inside `feature_asof_utc`, `label_asof_utc`, and maturity law, with the future-timestamp policy fail-closed and the replay basis explicitly recorded. That matters because it turns the learning basis from authorized current data into causal current data. Without that step, the path would still be a managed-read boundary, not a trustworthy learning boundary.
+
+### 5. Current label truth had to become `materially usable supervision truth`, not merely a downstream artifact
+
+A further posture change came from the label side. The bounded proof does not admit the learning basis on abstract label availability; it admits it only when current label truth is materially present and clean enough to support learning use. The accepted Phase 5 basis pins `label_store accepted = 3080`, `pending = 0`, `rejected = 0`, with `case_mgmt labels_accepted = 2931`. That changes the path from the world is authorized to the world plus supervision truth is materially ready for bounded learning.
+
+### 6. The path then had to prove that the `managed corridor remains attributable` to that same admitted basis
+
+The final posture change for this object is that the admitted basis cannot disappear behind healthy managed jobs. The bounded learning proof required the retained managed corridor to remain attributable and continuous on top of the same admitted world and label basis. That is why the green result explicitly carried the current semantic admission together with managed continuity across the retained `m10*`, `m11*`, and `m12*` evidence chain and a governed candidate-bundle reference. At that point the path stops being we admitted a basis and becomes we admitted a basis that the managed learning corridor can actually carry forward without breaking attribution.
+
+## `What this mapping says in one line`
+
+`Learning-input basis path` moved from a named design boundary into a production-ready causal-admission boundary by becoming explicitly authority-gated, then correctly world-scoped, then time-law-bound, then supervision-clean, and finally attributable through the managed learning corridor itself.
+
+The next clean move is to interrogate these episodes one by one.
+
+## 2026-03-15 22:25:31 +00:00 - Interrogate the key episodes that turned the Learning-input basis path into an earned causal-admission boundary
+## `Learning-input basis path` - `episode interrogation`
+
+For this path, the important question is not whether Databricks later built a dataset or whether SageMaker later trained a model. It is whether the platform first turned archive truth, authoritative label truth, and replay references into one admitted causal basis that learning was actually allowed to use. That is already the `A` boundary, and the run-process keeps it separate at `P12 LEARNING_INPUT_READY` before any dataset commitment begins.
+
+`Episode 1 - the path first had to become a semantic-admission boundary, not just managed learning can see data`
+
+What surfaced first was not a data-semantic defect in the admitted world itself. It was that the retained bounded runners were not yet proving the right thing. One path still executed parts of the learning lane locally, which violates the managed-corridor rule for this phase, while the other mixed current-run learning inputs with older managed evidence without explicitly enforcing the interface-pack plus `6B.S5` admission posture. System-design-wise, that meant the path was still too loose: it could have produced a green-looking result without proving that learning had admitted only semantically authorized world truth. The accepted bridge was to repin the bounded Phase 5 proof so it would fail closed unless the learning basis was interface-pack-authorized, the oracle world was admitted by the pinned `6B.S5` gate posture, current label truth was present and mature enough, and the retained managed corridor remained readable and attributable. That changed the path from learning inputs exist into learning basis must be explicitly admitted.
+
+`Episode 2 - the first bounded red showed the semantic gate itself was malformed, not that the current world was inadmissible`
+
+Once the rebuilt bounded proof ran, the first red still did not mean the basis is wrong. The implementation note is explicit that the gate was misreading the current basis: `output_roles` was parsed too narrowly, the `6B` reader assumed the wrong validation-bundle path, and local managed-artifact discovery was too strict. That mattered because otherwise the path would have been blamed for a red that was actually coming from the proving gate misreading the live current world. The accepted bridge was narrow and correct: widen artifact discovery to the real path shape, accept the current `output_roles` truthfully, repin the `6B` validation read to the materially present validation bundle, and rerun the same bounded proof. The readiness property improved here was truthful semantic admission, not changed data.
+
+`Episode 3 - once the gate was corrected, the path stopped being current world data and became one narrow authorized basis`
+
+The corrected rerun is the first real posture change for the object itself. The accepted bounded proof recorded that the current admitted learning basis is interface-pack-authorized, with intended outputs only `s2_event_stream_baseline_6B` and `s3_event_stream_with_fraud_6B`, both carrying the expected `business_traffic` role, and with the current world admitted by the pinned `6B` gate posture through readable `_passed.flag` and `s5_validation_report_6B.json` plus passing required machine rails. System-design-wise, that is the moment where the path ceases to mean Databricks can reach the current world and starts to mean learning is allowed to consume this specifically authorized current world. The readiness property improved here was authoritative world scoping.
+
+`Episode 4 - temporal law then had to become active and fail-closed instead of remaining only a background handle policy`
+
+The next real posture change came when the platform stopped treating `feature_asof_utc`, `label_asof_utc`, maturity, and no-future-leakage as background configuration and started enforcing them as the actual causal law of the admitted basis. The earlier learning-input trail had already pinned the intended rule: replay basis must be the temporal source of truth, `feature_asof_utc` is derived from replay, `label_asof_utc` is held equal to it for strict causality at this stage, maturity cutoff is derived from the pinned maturity-days handle, and future-timestamp policy remains `fail_closed`. But the rebuilt Phase 5 proof exposed that the current method had drifted away from that law: `Phase 5.A` was lifting `label_asof_utc` from a wall-clock label-store snapshot, while `Phase 5.B` was still reading full `6B` partitions beyond the promoted run window. The accepted bridge was to carry the promoted Phase 4 temporal contract forward explicitly, repin both `feature_asof_utc` and `label_asof_utc` to `2026-03-05T00:00:00Z`, and trim the OFS slice to the bounded promoted horizon. That is the moment the path becomes not just an authorized world basis, but a causal world basis.
+
+`Episode 5 - current label truth had to become materially usable supervision truth, not just a downstream artifact that happened to exist`
+
+This path also changed posture when supervision truth stopped being abstract. The green semantic-admission proof did not merely say labels exist somewhere. It required that current label truth be materially present and clean: `label_store accepted = 3080`, `pending = 0`, `rejected = 0`, and `case_mgmt labels_accepted = 2931`. That matters because an authorized world with no materially usable authoritative label truth is still not a trustworthy learning-input basis. The accepted bridge here was not to synthesize labels, bypass label truth, or downgrade the standard; it was to require the same authoritative label boundary already earned upstream to be present and clean at learning admission time. The readiness property improved here was supervision-clean causal basis.
+
+`Episode 6 - the managed learning corridor then had to remain attributable to that same admitted basis`
+
+The final posture change for this object is that the admitted basis could not disappear behind healthy managed jobs. The accepted semantic-admission closure already carried retained managed continuity on the same chain: `m10b`, `m10d`, `m11f`, `m11g`, `m12b`, `m12c`, `m12d`, `m12e`, `m12f`, and `m12g` were all green on the retained managed path, with registry-lifecycle and active-resolution snapshots still attributable. That same requirement is visible earlier in the learning-input binding work, where the platform treated replay-basis receipt, leakage guardrail report, readiness snapshot, `as_of` and maturity policy snapshot, and runtime-learning separation snapshot as the canonical input surfaces whose continuity had to be checked before advancing. System-design-wise, that means the path's final readiness posture is not only one causal basis was admitted, but also the managed learning corridor stayed tied to that same admitted basis instead of silently widening or replacing it. The readiness property improved here was corridor attribution continuity.
+
+`What this interrogation says about the path`
+
+The real transformation of `Learning-input basis path` is not:
+
+> archive truth and labels existed, and later the learning phase went green.
+
+It is:
+
+> the platform turned learning input into a real causal-admission boundary, then made that boundary capable of naming one authorized current world, one bounded replay-derived time law, one materially usable supervision basis, and one attributable managed learning chain, and only then allowed later dataset and model work to count.
+
+That is what turns this path from a good `A` design idea into an earned `Bi` production-ready boundary.
+
+The next clean move is the `object transformation synthesis` for this path.
+
+## 2026-03-15 22:32:18 +00:00 - Synthesize how the Learning-input basis path moved from a designed learning-readiness seam into an earned causal-admission boundary
+## `Learning-input basis path` - `transformation synthesis`
+
+In `A`, this path already had a narrow and important job: turn archive truth, authoritative label truth, and replay references into a learning-input readiness basis that is safe to build datasets from. It was never supposed to mean Databricks can read some files, and it was deliberately kept narrower than offline dataset commitment, train and eval, or promotion. Its owned outcome was already pinned as replay basis, `as_of`, maturity, and anti-leakage closure, with `P12 LEARNING_INPUT_READY` standing as its own gate before later learning work could begin.
+
+To reach its `Bi` posture, the first thing that had to be resolved was authority of basis, not model quality. The path could not remain the managed learning stack can see current-world data. It had to become a fail-closed semantic-admission boundary. That is why the rebuilt Phase 5 posture required the learning basis to be interface-pack-authorized, the current oracle world to be admitted by the pinned `6B.S5` gate posture, current label truth to be materially present and mature enough, and the retained managed corridor to remain readable and attributable. That changed the object from learning has inputs into learning is only allowed to start from named, governed, admissible platform truth.
+
+Once that boundary was defined correctly, the next thing that had to be resolved was whether the gate itself was reading the world truthfully. The first bounded Phase 5.B red did not actually show that the live current world was inadmissible. It showed that the new semantic gate was malformed: `output_roles` was parsed too narrowly, the `6B` validation reader assumed the wrong path shape, and retained managed-artifact discovery was too strict. The accepted bridge was to correct the gate narrowly while keeping the standard fixed. That matters in `Bi` because it means the path did not move forward by weakening the requirement; it moved forward by making the proving surface honest enough to judge the object correctly.
+
+After that correction, the path changed posture again because the admitted basis became narrow, named, and world-scoped. The corrected bounded proof accepted only `s2_event_stream_baseline_6B` and `s3_event_stream_with_fraud_6B`, both carrying the expected `business_traffic` role, with the current `6B` validation bundle materially present and machine-gate readable. That is the moment where the object stops meaning current-world data is present and starts meaning this exact current world is the authorized learning basis for this run. In `Bi`, that is a real transformation from loose availability into governed basis identity.
+
+The next transformation was even more important: the basis had to become causal, not merely authorized. Earlier learning-input closure had already pinned the intended temporal law: replay basis is the source of truth, `feature_asof_utc` is derived from replay, `label_asof_utc` is held equal to it for strict causality at this stage, maturity cutoff is derived from the pinned maturity policy, and future-timestamp policy remains `fail_closed`. But the rebuilt managed proof then exposed that a seemingly green end-to-end run was still semantically wrong because the sampled event horizon exceeded the admitted `feature_asof_utc`. The accepted fix was not to excuse the run; it was to tighten sample selection until the actual managed sample stayed inside the admitted time law. That is the decisive change where the object becomes not just authorized learning basis, but time-safe causal learning basis.
+
+The path also had to resolve whether current label truth was materially usable supervision truth, not just something that existed somewhere downstream. The accepted semantic-admission proof carried concrete label-state evidence: `label_store accepted = 3080`, `pending = 0`, `rejected = 0`, and `case_mgmt labels_accepted = 2931`. That matters because an admitted world without materially present, authoritative, mature supervision truth is still not a trustworthy learning-input basis. The object therefore had to absorb the upstream label-truth boundary as a real prerequisite, not as a convenient assumption.
+
+Finally, the path had to prove corridor attribution continuity. It was not enough to admit a good basis and then let the managed corridor blur away from it. The accepted closure kept the evidence chain continuous: semantic admission, bounded OFS dataset basis, then managed train and eval plus governance all remained attributable on the same admitted world and time boundary. The plan's accepted Phase 5 ledger reflects exactly that progression, with semantic admission, dataset basis, and managed train and eval recorded as separate but continuous authorities. That changes the object from one good basis was admitted into the managed learning corridor remained tied to that same admitted basis as it advanced.
+
+### `What had to be resolved`
+
+To move `Learning-input basis path` from its `A` posture to its `Bi` posture, the platform had to resolve five things: first, make learning input an explicit semantic-admission boundary rather than a vague managed-read boundary; second, correct the proving gate so basis authority was judged truthfully rather than through harness-shape errors; third, narrow the admitted basis to one authorized current world and one authorized interface-pack output set; fourth, enforce replay-derived `feature_asof_utc`, `label_asof_utc`, maturity, and fail-closed future-boundary law strongly enough to reject even a superficially green managed run; and fifth, show that materially usable label truth and the later managed corridor both remained attributable to that same admitted causal basis.
+
+### `Final Bi posture`
+
+The final `Bi` posture of this path is:
+
+a production-ready causal-admission boundary where archive truth, authoritative label truth, and replay references become one formally pinned, interface-pack-authorized, `6B.S5`-admitted, replay-derived, maturity-governed learning basis, and where that basis remains materially supervised, no-future-leakage-safe, and continuously attributable as the managed learning corridor advances into later dataset and model work.
+
+### `Why this matters for the meta goal`
+
+This object helps the meta goal because it shows that you did not treat learning readiness as we have Databricks, SageMaker, and MLflow. You forced the platform to answer harder questions first: which world learning is allowed to use, why that world is the right one, how its temporal boundary is derived, how future leakage is blocked fail-closed, and how later managed work stays tied to that same admitted basis. That reads as serious ML platform production-readiness judgment rather than generic ML pipeline assembly.
+
+The next clean move is the `Bi claim mix` for this path.
+
+## 2026-03-15 22:39:07 +00:00 - Extract the Bi claim mix for the Learning-input basis path so the notebook states exactly what causal-admission judgment this work now supports
+For `Learning-input basis path`, the `Bi` claim mix is this.
+
+`Bi claim mix`
+
+1. `Readiness-reasoning claim`
+
+This path supports the claim that you can reason learning input itself as a production-readiness boundary, instead of letting later dataset success or managed ML job health stand in for it. The platform first made learning basis an explicit semantic-admission gate, then narrowed that gate to one authorized current world, then forced replay-derived `as_of`, maturity, and anti-leakage law to become fail-closed, and only then accepted managed-corridor continuity on top of that same basis. That is exactly the kind of readiness reasoning `Bi` is supposed to surface.
+
+2. `Systems-design judgment claim`
+
+This path supports the claim that you understood learning-input truth as distinct from offline dataset truth, candidate-bundle truth, and promotion truth. In `A`, the owned outcome is already separate: replay basis pinned, label `as_of` policy pinned, anti-leakage checks passing, and a committed learning-input readiness snapshot before dataset build begins. That is a strong systems-design claim because it means the platform does not let Databricks, SageMaker, or MLflow decide the causal basis ad hoc.
+
+3. `Measurement / evidence claim`
+
+This path supports the claim that you made causal learning basis directly measurable rather than inferred. The evidence surfaces already pin replay-basis rows and fingerprint, derived `feature_asof_utc`, derived `label_asof_utc`, derived maturity cutoff, leakage rows checked, and boundary violations `= 0`; later the readiness plan and implementation trail add explicit semantic-admission receipts, `6B.S5` gate readability, current label-state evidence, and the accepted temporal proof where `event_scan.ts_max_utc` stays inside the admitted `feature_asof_utc` boundary.
+
+4. `Constraint / trade-off claim`
+
+This path supports the claim that you chose causal discipline over easier managed-ML convenience. The platform pays for replay receipts, basis fingerprints, `6B.S5` world admission, interface-pack-only authority, label maturity and `as_of` rules, and `fail_closed` future-boundary law before a dataset can even be committed. That is more ceremony than simply pointing OFS at current files and training, but it buys a basis that is attributable, auditable, and semantically defensible.
+
+5. `Production-relevant challenge claim`
+
+This path supports the claim that the challenges were genuinely production-shaped. The important problems were not toy ML issues. They were: a malformed semantic gate that misread the current world and current outputs, the need to distinguish harness-shape errors from real basis defects, and a managed end-to-end green run that still had to be rejected because the sampled event horizon exceeded the admitted `feature_asof_utc` boundary. That is exactly the kind of semantic and evidential pressure a serious ML platform has to handle.
+
+6. `Promotion / final-posture claim`
+
+This path supports the claim that the final ready posture is not merely the learning stack became usable. It is: one interface-pack-authorized, `6B.S5`-admitted world became the causal learning basis; replay-derived temporal law stayed fail-closed; current label truth was materially present and clean; the bounded OFS basis inherited that same admission; and the accepted managed corridor stayed attributable from semantic admission through dataset basis to managed train and eval and then into coupled runtime bundle resolution. That is a much stronger final posture than Databricks, SageMaker, and MLflow all worked.
+
+`Compressed Bi claim`
+
+`Learning-input basis path` shows that you can turn archive truth, authoritative label truth, and replay references into one formally pinned, interface-pack-authorized, time-safe, mature, fail-closed causal basis for learning, and then prove that the same admitted basis remains attributable all the way through the managed learning corridor and back into governed runtime authority.
+
+The next clean move is `Offline dataset commitment path` with its `object frame`.
+
+## 2026-03-15 22:46:54 +00:00 - Open the Offline dataset commitment path by pinning its A posture, Bi posture, and why authoritative OFS dataset truth is its own boundary after learning-input admission
+For `Offline dataset commitment path`, the object frame should stay on authoritative offline dataset truth itself, not drift backward into learning-input admission and not drift forward into train and eval or candidate-bundle truth. The `A` note splits those closures on purpose, and the run-process keeps `P13 OFS_DATASET_COMMITTED` separate from both `P12 LEARNING_INPUT_READY` and `P14 MF_EVAL_COMMITTED`.
+
+`Offline dataset commitment path`
+
+`Object`
+
+Parent group: `Learning, evaluation, and governed activation`.
+
+Main secondary object it lives inside: the `Learning + Evolution / MLOps` plane as a plane-ready offline-dataset-truth object. In the run-process, that boundary is exactly `P13 OFS_DATASET_COMMITTED`, where the owned closure is no longer only learning basis is admitted, but the OFS dataset itself is now committed with manifest, fingerprint, rollback recipe, and passing time-bound and leakage audit.
+
+The first enlarged-network object that materially re-pressures it is `Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps`, because that is the first point where replayable runtime truth and authoritative label truth must not only be admitted for learning, but must become a committed offline dataset object that later train and eval, promotion, and runtime feedback all depend on. The readiness plan makes that coupling explicit by naming `replay-to-dataset path` as one of the critical cross-plane paths once learning is attached to the working platform.
+
+`A posture`
+
+In `A`, this path exists to turn a pinned learning-input basis into authoritative offline dataset truth. Its job is not to decide the causal basis, and it is not yet to produce a candidate model. Its narrower job is to answer: once the learning basis is already pinned, where does the platform commit the actual dataset that later training is allowed to trust? The `A` note is explicit that the entry is a green learning-input basis whose replay references, `feature_asof_utc`, `label_asof_utc`, maturity policy, and anti-leakage posture are already committed, and that the offline-feature plane is not allowed to choose its own basis ad hoc.
+
+So the `A` posture is:
+
+green learning-input basis -> offline-feature input binding and immutability checks -> Databricks build and quality gate -> Iceberg and Glue commit verification -> committed offline dataset truth with manifest, fingerprint, rollback recipe, and time-bound and leakage audit.
+
+That `A` posture already carries the key contract disciplines the later readiness work has to preserve: the manifest must encode replay basis plus `feature_asof_utc`, `label_asof_utc`, and `label_maturity_days`; the dataset fingerprint must be committed; rollback recipe must be real; and time-bound and leakage audit must pass. The run-process pins those exact closure objects at `P13`.
+
+`Bi posture`
+
+In `Bi`, this path becomes the production-ready offline dataset commitment boundary. That means it is no longer enough that Databricks can run, tables can be written, or some bounded slice can be inspected. The path now has to support a stronger claim:
+
+- the OFS corridor builds on the already-admitted learning basis rather than inventing a fresh one
+- the managed offline-feature surface can actually read authoritative current-world truth
+- the committed dataset remains bounded by the admitted replay and time law
+- the dataset object is published with deterministic manifest and fingerprint
+- rollback recipe is real
+- and the emitted dataset truth is strong enough that later train and eval consumes an immutable, authoritative dataset rather than a convenient latest-state slice
+
+The implementation trail shows exactly why that stronger posture matters. The first rebuilt `Phase 5.B` red was not the dataset is semantically bad; it was that the old Databricks source was still too shallow to prove the real boundary, and once rebuilt against the real managed OFS surface, the next live blocker became authoritative object-store access on the managed Databricks side. Later, after the time-law correction was carried through from the promoted learning basis, the bounded OFS slice closed green on `phase5_ofs_dataset_basis_20260312T054900Z`, with the raw horizon trimmed back to the admitted run boundary and the bounded dataset basis still materially useful at scale. That is the point where the path stops meaning managed OFS is present and starts meaning managed OFS can commit authoritative bounded dataset truth on the real basis.
+
+So the `Bi` posture is:
+
+a production-ready dataset-truth boundary where an already-admitted causal learning basis becomes a managed OFS dataset object with deterministic manifest, committed fingerprint, real rollback recipe, and passing time-bound and leakage audit, and where that dataset remains bounded by the admitted replay and temporal law strongly enough that later MF and MPR work can trust it as authoritative input.
+
+`Why this object matters`
+
+This object matters because it is the point where the platform stops saying learning has an admitted basis and starts being able to say where authoritative offline dataset truth actually lives. If this boundary is weak, then later train and eval, candidate-bundle lineage, promotion evidence, and runtime feedback can all look sophisticated while still resting on a dataset that was built from the wrong truth sources, on the wrong time horizon, or without real deterministic manifest and rollback semantics. The readiness definition says this plainly: if OFS is wrong, MF is training on fiction.
+
+It also matters strongly for the meta goal, because the engineering judgment here is not we had Databricks. It is that the platform refused weak shortcuts:
+
+- no latest-data shortcut
+- no unmanaged file-emission shortcut
+- no ad hoc OFS basis selection
+- no acceptance of a green managed surface if the bounded time law was still wrong
+
+So, in one line:
+
+`Offline dataset commitment path` is the path that turns an already-admitted learning basis into authoritative offline dataset truth, and in `Bi` it becomes the production-ready OFS boundary that proves later model work is training on a deterministic, replay-bounded, leakage-safe, rollback-governed dataset rather than on convenient managed output.
+
+The next clean move is to derive the `system-design questions` for this path.
+
+## 2026-03-15 22:54:02 +00:00 - Derive the system-design questions for the Offline dataset commitment path so later pressure history stays on authoritative OFS dataset truth itself
+For `Offline dataset commitment path`, the system-design interrogation should stay on authoritative dataset truth itself: whether an already-admitted learning basis becomes one committed offline dataset object that later training is allowed to trust. It should not drift backward into learning-input admission, and it should not drift forward into train and eval or candidate-bundle truth. The `A` note and the run-process both keep those as separate closure points on purpose.
+
+`Offline dataset commitment path` - `system-design questions`
+
+1. `What exactly counts as offline dataset truth here?`
+
+This path is not satisfied because Databricks ran or because some tables appeared in storage. Its owned outcome is stronger: an OFS dataset build completes, a dataset manifest is committed, a dataset fingerprint is committed, a rollback recipe is committed, and a time-bound and leakage audit passes. That is the explicit `P13 OFS_DATASET_COMMITTED` closure, and the `A` note treats that as the real owned outcome of the path.
+
+2. `Why is this a separate path from learning-input basis and from train and eval?`
+
+The platform separates these on purpose. `P12` owns causal admission of the learning basis; `P13` owns authoritative dataset truth; `P14` owns training and evaluation and candidate-bundle truth. That matters because otherwise a later green training run could blur whether the real issue was the admitted basis, the committed dataset object, or the model lane.
+
+3. `What is the allowed entry into this path, and why is it constrained?`
+
+The entry is not Databricks has access to some tables. It is a green learning-input basis whose replay references, `feature_asof_utc`, `label_asof_utc`, maturity policy, and anti-leakage posture are already pinned and committed. The `A` note is explicit that OFS is not allowed to decide its basis ad hoc; it must inherit an already-closed immutable basis from the prior closure.
+
+4. `What is the owned outcome before training is allowed to begin?`
+
+The owned outcome is one immutable offline dataset artifact that later MF work must consume rather than redefine. That means committed manifest, committed fingerprint, committed rollback recipe, and a passed time-bound and leakage audit, with the later train and eval path taking the dataset artifact from this boundary as immutable input.
+
+5. `What must the dataset object carry so it is reconstructable and defensible?`
+
+This path has to carry the things that make dataset truth attributable: replay basis inherited from the learning-input closure, `feature_asof_utc`, `label_asof_utc`, `label_maturity_days`, authoritative runtime and archive and label basis, manifest, fingerprint, time-bound and leakage audit, and rollback recipe. The `A` note says directly that this path is not just about building rows; it is about carrying semantic controls into dataset truth.
+
+6. `What makes the dataset authoritative rather than the managed OFS surface wrote some output?`
+
+Authority here means the dataset is built from the right truth sources only, respects point-in-time constraints, enforces future-leakage checks in reality, publishes deterministic and complete manifest and fingerprint surfaces, and has a real rollback and rebuild posture. The production-readiness definition states this explicitly for OFS, and the run-process makes these pass gates rather than optional extras.
+
+7. `How do we know the offline-feature plane is using the right basis rather than inventing a fresh one?`
+
+This path has to ask whether OFS is still building on the already-admitted basis instead of silently widening or replacing it. The `A` note says OFS must inherit the green learning-input basis, and the readiness plan reinforces that admitted worlds and datasets must be authorized by interface-pack discipline and sealed `6B.S5` gates rather than ungoverned surfaces.
+
+8. `How do we know point-in-time correctness and no-future leakage are preserved in the committed dataset object itself?`
+
+The key question is not only whether the input basis was causal, but whether the emitted dataset still respects that law. The run-process requires the manifest to encode replay basis plus `feature_asof_utc`, `label_asof_utc`, and `label_maturity_days`, and it requires a time-bound and leakage audit to pass. The production-readiness definition makes point-in-time correctness and future leakage `= 0` first-class OFS concerns.
+
+9. `What role do manifest and fingerprint play beyond metadata convenience?`
+
+They are not decorative metadata. They are how the platform gives the dataset a deterministic identity that later MF and MPR can trace back to one governed dataset basis. The `A` note treats manifest and fingerprint publication as closure objects, and the run-process blocks `P13` if they are missing.
+
+10. `Why is rollback recipe part of dataset truth rather than a later governance concern?`
+
+Because this path is not only about successful build; it is about committed dataset truth that can be governed, replaced, or restored without ambiguity. The `A` note and `P13` closure both make rollback recipe part of the owned outcome, which means dataset truth is not complete until the platform can say how that committed dataset would be rolled back or rebuilt.
+
+11. `How do we distinguish an OFS dataset defect from a learning-input-basis defect or a train and eval defect?`
+
+This path has to stay bounded. Its question is whether the platform committed the right dataset object from the already-admitted basis. Upstream, learning-input basis owns whether the causal slice was admitted correctly at all. Downstream, MF owns whether training and evaluation use the immutable dataset artifact correctly. This path sits in between and owns authoritative dataset truth itself.
+
+12. `What constraints shape this path and stop easy shortcuts?`
+
+The main constraints are: no latest-data shortcut, no unmanaged file-emission shortcut, no hidden local fallback, no ad hoc OFS basis selection, and no acceptance of a green managed surface if the dataset is not semantically bounded. The `A` note explicitly rejects those shortcuts, and the readiness plan says admitted datasets must come from authoritative runtime and label truth only.
+
+13. `What trade-off is the design accepting?`
+
+The platform is accepting more ceremony and more proof objects before training can begin. Instead of treating Databricks job success as enough, it pays for input binding, immutability checks, quality gates, Iceberg and Glue commit verification, manifest and fingerprint publication, rollback recipe closure, and time-bound and leakage audit. The cost is more closure work; the gain is a deterministic dataset object that later model work can trust.
+
+14. `How does enlarged-network pressure re-ask the question?`
+
+Once Learning + Evolution is attached to the working platform, this is no longer only can Databricks build a dataset. It becomes can runtime truth and label truth survive conversion into authoritative offline dataset truth strongly enough that later bundle, promotion, and runtime feedback remain attributable to the right dataset basis? The readiness notes explicitly frame the enlarged learning corridor that way: runtime -> case and label -> dataset -> bundle -> runtime.
+
+15. `What does this path need to prove for the meta goal?`
+
+The strongest claim is not that the platform had Databricks or that it produced a big table. It is that before training was allowed, the platform committed one deterministic, replay-bounded, leakage-safe dataset object from governed runtime and label truth, with enough manifest, fingerprint, and rollback discipline that later train and eval and promotion can be defended as operating on authoritative data rather than convenience output.
+
+Compressed into one line:
+
+For `Offline dataset commitment path`, the system-design interrogation is about whether an already-admitted causal learning basis becomes one authoritative offline dataset object with deterministic identity, point-in-time correctness, zero future leakage, and real rollback semantics, and whether later model work can trust that object without redefining dataset truth for itself.
+
+The next clean move is to map this path to the `pressure episodes` that actually changed its posture.
+
+## 2026-03-15 23:01:26 +00:00 - Map the pressure episodes that changed the Offline dataset commitment path from a stubbed managed surface into a real OFS dataset-truth boundary
+For `Offline dataset commitment path`, the posture-changing history is less about whether learning has an admissible basis and more about whether the managed offline-feature corridor can turn that already-admitted basis into authoritative dataset truth on the real managed surface. In `A`, this path was already defined as: green learning-input basis -> input binding and immutability checks -> Databricks build -> quality gate -> Iceberg and Glue commit verification -> manifest, fingerprint, rollback recipe, and time-bound and leakage audit closure. `Bi` is where that stopped being a design story and became an earned managed dataset boundary.
+
+## `Offline dataset commitment path` - `pressure episodes that changed its posture`
+
+### 1. The path first had to stop being a managed jobs exist story and become a real dataset-truth boundary
+
+The first real posture change was that the retained Databricks OFS path stopped being trusted merely because the control plane was readable and the job IDs resolved. After `Phase 5.A` went green, the implementation notes explicitly record that the repo-managed Databricks OFS build and quality sources were still bootstrap stubs, so they could not honestly prove the real `Phase 5.B` goal. That changed the path from managed OFS is present into the path is still blocked until the managed OFS source itself becomes a real bounded dataset-basis proof.
+
+### 2. Rebuilding the path exposed two narrow compatibility defects before the real managed boundary could even be asked
+
+Once the bootstrap sources were replaced with a real bounded current-world OFS probe, the first two reds were not yet dataset-semantics reds. The first run failed because the notebook used raw `boto3` S3 access and Databricks serverless had no AWS credentials. The second failed because Spark Connect on the managed Databricks surface does not implement `toJSON()`. Those defects mattered because they changed the posture from the path is stubbed to the path is now real enough that managed-surface compatibility can block it, and they had to be cleared before the platform could reach the honest dataset-truth question.
+
+### 3. The first honest managed blocker was authoritative object-store authorization
+
+After those compatibility defects were cleared, the first truly production-relevant blocker appeared: Databricks serverless still could not read the authoritative object-store basis it was supposed to build from. The notes pin this clearly as the first real `Phase 5.B` blocker after the stub phase: the managed OFS surface tried to read the current promoted source world anonymously and failed immediately on required current-world inputs under `s3://fraud-platform-dev-full-object-store/...`. That changed the path from the Databricks source is finally real into the managed OFS corridor still cannot consume the platform's authoritative basis.
+
+### 4. Temporal law then had to be repinned from raw retained horizon to the promoted mission horizon
+
+The next posture change was semantic, not infrastructural. The notes explicitly say the rebuilt `Phase 5.B` spec was still asking Databricks to score the full retained `6B` partitions, while the proving boundary that could honestly be claimed was only the bounded promoted Phase 4 mission window. At the same time, `Phase 5.A` was still lifting `label_asof_utc` from a wall-clock label-store snapshot rather than carrying the promoted mission's bounded time law. The accepted correction was to repin both `Phase 5.A` and `Phase 5.B` to the promoted temporal contract: `feature_asof_utc = 2026-03-05T00:00:00Z`, `label_asof_utc = 2026-03-05T00:00:00Z`, `label_maturity_lag = 3d`, and to trim the raw OFS slice to that promoted horizon before scoring parity and quality. That changed the path from managed OFS can read the world into managed OFS is now building a bounded, causal dataset truth rather than an unbounded retained-world slice.
+
+### 5. The build-to-quality handoff had to become evidence-linked instead of notebook-payload-driven
+
+After the temporal law was corrected, the next blocker was again narrow but real: the build run itself succeeded, but the quality run request came back `HTTP 400` because the system was still trying to pass the full build snapshot through notebook parameters. The accepted bridge was to move the handoff to object-store evidence: write the build snapshot to the authoritative S3 learning evidence path and let the quality notebook read that reference directly. That changed the path from a fragile notebook-payload control surface into a more production-shaped managed dataset corridor where the quality stage consumed durable evidence by reference instead of oversized inline control-plane payloads.
+
+### 6. The accepted bounded OFS slice finally proved the path as a real managed dataset-truth boundary
+
+The final posture-changing episode is the accepted rerun itself: `phase5_ofs_dataset_basis_20260312T054900Z` with `verdict = PHASE5B_READY` and `open_blockers = 0`. The important point is not only that the run went green. It is that the accepted slice remained materially useful after being trimmed to the promoted time law: the raw event horizon still extended far past the mission window, but the bounded slice was cut back to the promoted `feature_asof_utc` and `label_asof_utc` boundary and still retained large event, flow-label, and case-timeline volumes with meaningful fraud signal. That is the point where the path stopped being Databricks jobs and OFS logic exist and became the managed OFS corridor can commit a bounded, causally valid dataset basis that is strong enough for downstream training and evaluation to trust.
+
+## `What this mapping says in one line`
+
+`Offline dataset commitment path` moved from a bootstrap-only managed surface into a real dataset-truth boundary by first becoming a genuine OFS proof path, then clearing compatibility and authorization blockers, then repinning itself to the promoted time law instead of the raw retained horizon, then replacing fragile notebook-payload handoff with durable evidence handoff, and finally proving that the managed OFS corridor could commit a materially useful bounded dataset slice on the authoritative platform basis.
+
+The next clean move is to interrogate these episodes one by one.
+
+## 2026-03-15 23:08:47 +00:00 - Interrogate the key episodes that turned the Offline dataset commitment path into an earned OFS dataset-truth boundary
+## `Offline dataset commitment path` - `episode interrogation`
+
+For `Offline dataset commitment path`, the important question is not whether Databricks later ran successfully. It is whether an already-admitted learning basis became authoritative dataset truth at its own owned boundary, with manifest, fingerprint, rollback recipe, and time-bound and leakage closure strong enough that later training would be forced to consume that dataset rather than redefine dataset truth for itself. That is the boundary `A` already pins, and `P13 OFS_DATASET_COMMITTED` makes the same closure explicit in the run-process.
+
+`Episode 1 - the path first had to stop being a managed jobs exist story and become a real dataset-truth boundary`
+
+What surfaced first was not that the dataset itself was semantically wrong. It was that the retained Databricks OFS build and quality sources were still only bootstrap markers, so a green control plane could not honestly prove `Phase 5.B`. System-design-wise, that matters because this path is supposed to own dataset truth, not mere managed-job existence. If the active OFS source is too shallow to prove bounded dataset-basis construction, then the platform still does not know whether later model work is training on governed runtime and label truth or on a convenient surrogate. The accepted bridge was to replace the bootstrap-only OFS sources with a real bounded current-world dataset-basis probe on the managed Databricks surface. That changed the path from Databricks is there into the OFS corridor is now actually being asked to prove authoritative dataset truth.
+
+`Episode 2 - once rebuilt, the path had to clear two narrow managed-surface compatibility defects before the real boundary could even be asked`
+
+After the source was rebuilt, the first two reds still were not dataset-semantics reds. The first run failed because the notebook tried raw `boto3` S3 access and serverless Databricks had no AWS credentials for that posture. The second failed because Spark Connect on the managed notebook surface does not implement `toJSON()`. These matter in `Bi` because the path had now become real enough for managed-surface compatibility to block it, but the platform still had not yet reached the honest dataset-truth question. The accepted bridges were narrow: fix the notebook and runtime-surface mismatch without weakening the boundary itself. That improved the path's posture from rebuilt but still blocked by shallow execution assumptions to now able to reach the real managed dataset boundary.
+
+`Episode 3 - the first honest managed blocker was authoritative object-store authorization`
+
+Once those compatibility issues were removed, the next red finally belonged to the path itself. Databricks serverless was trying to read the current promoted source world anonymously and was forbidden on the first required authoritative object-store input. That is a materially different class of problem. It means the OFS corridor was no longer blocked by notebook shape or API quirks; it was blocked by the fact that the managed OFS surface could not yet consume the authoritative world it was supposed to build from. The accepted bridge stayed on the same managed boundary: Unity Catalog storage credential, external location, and repaired AWS cross-account trust and S3+KMS posture for the object-store path. That changed the path from real dataset-truth proof exists but cannot read its basis into the managed OFS surface can now actually read the authoritative runtime and label world it claims to build from.
+
+`Episode 4 - temporal law then had to be repinned from the raw retained horizon to the promoted mission horizon`
+
+The next posture change was semantic rather than infrastructural. The rebuilt `Phase 5.B` was still asking Databricks to score the full retained `6B` partitions, while the actual proving boundary the platform was allowed to claim was only the bounded promoted Phase 4 mission window. At the same time, `Phase 5.A` had drifted into lifting `label_asof_utc` from a wall-clock label-store snapshot instead of carrying the promoted mission's bounded law forward. That meant the red result was guaranteed, but not useful: it would only prove that an unbounded raw horizon is larger than a later ad hoc cut. The accepted bridge was to carry the promoted temporal contract forward explicitly - `feature_asof_utc = 2026-03-05T00:00:00Z`, `label_asof_utc = 2026-03-05T00:00:00Z`, `label_maturity_lag = 3d` - and then trim the OFS slice to that promoted bounded horizon before scoring parity and usefulness. That changed the path from managed OFS can read the world into managed OFS is now committing a causally bounded dataset object rather than a larger retained-world slice.
+
+`Episode 5 - the build-to-quality handoff had to become evidence-linked instead of notebook-payload-driven`
+
+After the temporal law was corrected, the next blocker was again narrow but real. The build run itself succeeded, but the quality run request came back `HTTP 400` because the corridor was still trying to pass the full build snapshot through notebook parameters. System-design-wise, that matters because this path is supposed to produce durable dataset truth, not a fragile notebook-control artifact. The accepted bridge was to move the handoff to object-store evidence: write the build snapshot to the authoritative learning evidence path and let the quality notebook read that durable reference directly. That changed the path from a brittle notebook-payload chain into a more production-shaped managed dataset corridor where quality adjudication consumed build evidence by reference. The readiness property improved here was evidence-linked managed closure rather than transient control-plane coupling.
+
+`Episode 6 - the accepted bounded rerun finally proved the path as a real managed dataset-truth boundary`
+
+The final posture-changing episode is the accepted rerun itself: `phase5_ofs_dataset_basis_20260312T054900Z` with `PHASE5B_READY` and `open_blockers = 0`. The important point is not only that it went green. It is that the slice stayed materially useful after the boundary was tightened to the promoted mission law. The raw event horizon still extended well beyond the promoted window, but the bounded slice trimmed to `feature_asof_utc = 2026-03-05T00:00:00Z`, with bounded event and case maxima inside that law, and still retained large event, flow-label, case-timeline, and fraud-truth volumes. That is the moment where the path stops meaning managed OFS jobs and tables exist and becomes the managed OFS corridor can commit a bounded, causally valid, materially useful dataset basis that later MF work is justified in trusting.
+
+`What this interrogation says about the path`
+
+The real transformation of `Offline dataset commitment path` is not:
+
+> the learning basis was green, Databricks ran, and later there was a dataset.
+
+It is:
+
+> the platform first forced OFS to become a real dataset-truth boundary instead of a shallow managed-job surface, then cleared the managed-surface compatibility defects that were hiding the real question, then fixed authoritative object-store access on the same managed boundary, then repinned the dataset to the promoted causal time law, then moved build-to-quality handoff onto durable evidence, and only then accepted a bounded managed OFS slice as authoritative dataset truth.
+
+That is what turns this path from a strong `A` design idea into an earned `Bi` production-ready boundary.
+
+The next clean move is the `object transformation synthesis` for this path.
+
+## 2026-03-15 23:15:54 +00:00 - Synthesize how the Offline dataset commitment path moved from a designed OFS seam into an earned dataset-truth boundary
+## `Offline dataset commitment path` - `transformation synthesis`
+
+In `A`, this path already had a narrow and important job: turn a green learning-input basis into authoritative offline dataset truth. It was never supposed to mean Databricks can read some files, and it was deliberately kept narrower than learning-input admission and narrower than later train and eval truth. Its owned outcome was already pinned as a committed dataset object with manifest, fingerprint, rollback recipe, and passing time-bound and leakage audit, with `P13 OFS_DATASET_COMMITTED` standing as its own closure before training is allowed to begin.
+
+To reach its `Bi` posture, the first thing that had to be resolved was whether OFS was even proving the right boundary. After `Phase 5.A` went green on semantic admission, the implementation note is explicit that the retained Databricks OFS build and quality sources were still only bootstrap markers. That meant the managed OFS lane could not honestly prove the real dataset boundary yet. The accepted bridge was not to treat job existence as enough, but to replace those bootstrap-only sources with a real bounded current-world OFS dataset-basis probe. That changed the object from managed OFS surfaces exist into managed OFS is now actually being asked to prove authoritative dataset truth.
+
+Once the path was rebuilt, the next thing that had to be resolved was managed-surface truthfulness. The first two reds were not dataset-semantics reds at all: the rebuilt notebook first failed because it used raw `boto3` S3 access on Databricks serverless, and then because Spark Connect on that surface does not implement `toJSON()`. After those narrow fixes, the first honest blocker appeared: the managed Databricks OFS surface still could not read the authoritative current-world object-store basis it was supposed to build from. The accepted bridge stayed on the same managed boundary: create the Unity Catalog storage credential and external location, repair the AWS cross-account trust and S3/KMS posture, and keep the proof on Databricks serverless rather than routing around it locally. That mattered because the path moved here from the notebook is rebuilt to the real managed OFS surface can now consume the authoritative platform basis it claims to build from.
+
+After that, the path had to be made causally bounded, not merely readable. The real semantic defect was that the rebuilt `Phase 5.B` was still reading the full retained `6B` partitions, while the actual proving boundary the platform was allowed to claim was only the promoted Phase 4 mission horizon. In parallel, the paired `Phase 5.A` path had drifted into lifting `label_asof_utc` from a wall-clock label snapshot instead of carrying the promoted time law forward. The accepted bridge was to repin the OFS boundary to the promoted temporal contract: `feature_asof_utc = 2026-03-05T00:00:00Z`, `label_asof_utc = 2026-03-05T00:00:00Z`, and `label_maturity_lag = 3d`, then trim the raw OFS slice to that admitted horizon before judging parity, fraud-signal visibility, and usefulness. That is the decisive change where the object becomes not just managed dataset basis, but managed dataset basis bounded by the admitted causal law.
+
+The next transformation was about how dataset truth is handed off inside the managed corridor. After the temporal repin, the build itself succeeded, but the quality run still failed with `HTTP 400` because the corridor was trying to pass the full build snapshot through notebook parameters. The accepted bridge was to move that handoff onto durable object-store evidence: write the build snapshot under the authoritative learning evidence path and have the quality notebook read that reference directly. That changed the path from a brittle notebook-payload chain into a more production-shaped managed dataset corridor where build and quality remain linked by durable evidence rather than oversized control-plane parameters.
+
+With those defects removed, the bounded rerun finally changed the object's posture for real. The accepted `phase5_ofs_dataset_basis_20260312T054900Z` authority closed green with `open_blockers = 0`. What matters is not only that it went green, but that it remained materially useful after being cut back to the promoted causal horizon: bounded `event_max_ts_utc` and `case_max_ts_utc` stayed inside the admitted `feature_asof_utc` and `label_asof_utc` law, while the bounded slice still retained large event, label, flow-truth, case-timeline, and fraud-truth volumes. That is the moment where the path stops meaning Databricks jobs and tables exist and becomes the managed OFS corridor can commit a bounded, causally valid, materially useful dataset basis on authoritative platform truth.
+
+That bounded real-data closure also sits on top of a stronger dataset-governance posture already pinned by the path contract itself: the committed dataset boundary is not just rows, but deterministic manifest, fingerprint, rollback recipe, and passing time-bound and leakage audit. The run-process keeps those as mandatory `P13` closure objects, and the earlier OFS closure trail already materialized run-scoped manifest, fingerprint, and time-bound audit with future-breach count `0`. So the final `Bi` reading of this object is not simply bounded OFS basis passed. It is that the platform now has a production-ready dataset-truth boundary whose managed real-data slice has been causally proved and whose dataset object is governed strongly enough to be handed to later MF work as authoritative input.
+
+### `What had to be resolved`
+
+To move `Offline dataset commitment path` from its `A` posture to its `Bi` posture, the platform had to resolve five things: first, make OFS a real dataset-truth boundary rather than a shallow managed-job surface; second, clear the narrow managed-surface compatibility and authorization defects that were hiding the real boundary question; third, repin the dataset to the promoted replay and time law instead of the raw retained horizon; fourth, move build-to-quality handoff onto durable evidence rather than notebook payload; and fifth, prove that the bounded managed OFS slice remains materially useful after being trimmed to the admitted causal window, while still satisfying the stronger manifest, fingerprint, rollback, and leakage discipline the path already required.
+
+### `Final Bi posture`
+
+The final `Bi` posture of this path is:
+
+a production-ready offline-dataset-truth boundary where an already-admitted causal learning basis becomes a managed OFS dataset object on authoritative platform truth, with deterministic manifest, committed fingerprint, real rollback recipe, and passing time-bound and leakage law, and where that dataset remains bounded by the admitted replay and temporal contract strongly enough that later MF and MPR work can trust it as authoritative input rather than as convenient managed output.
+
+### `Why this matters for the meta goal`
+
+This object helps the meta goal because it shows that you did not treat OFS as we have Databricks, therefore we have datasets. You forced the platform to answer harder questions first: whether the managed surface is actually proving dataset truth rather than just existing, whether it can read the authoritative world through the correct managed boundary, whether the dataset is bounded by the admitted causal law rather than by raw retained horizon, and whether later model work is inheriting one governed dataset object instead of inventing its own basis. That reads as production-readiness judgment, not as managed-ML tooling talk.
+
+The next clean move is the `Bi claim mix` for this path.
+
+## 2026-03-15 23:22:14 +00:00 - Extract the Bi claim mix for the Offline dataset commitment path so the notebook states exactly what authoritative dataset-truth judgment this work now supports
+For `Offline dataset commitment path`, the `Bi` claim mix is this.
+
+`Bi claim mix`
+
+1. `Readiness-reasoning claim`
+
+This path supports the claim that you can reason offline dataset truth itself as a production-readiness boundary, instead of letting later training success or managed-job health stand in for it. The platform first insisted that `P13 OFS_DATASET_COMMITTED` was its own closure with manifest, fingerprint, rollback recipe, and time-bound and leakage audit, then rebuilt the managed OFS lane until it could actually prove that boundary on the real Databricks surface.
+
+2. `Systems-design judgment claim`
+
+This path supports the claim that you understood learning-input basis, dataset truth, and train and eval truth as three different objects with different owners. In `A`, the OFS path is already explicitly narrower than learning-input admission and narrower than later candidate-bundle truth: OFS must inherit a green causal basis, commit one immutable dataset object, and hand that object forward so later MF work does not redefine dataset truth for itself.
+
+3. `Measurement / evidence claim`
+
+This path supports the claim that you made authoritative dataset truth directly measurable rather than inferred. The run-process requires committed manifest, committed fingerprint, committed rollback recipe, and passing time-bound and leakage audit; the readiness ledger then pins dataset-manifest completeness, point-in-time correctness, future leakage `= 0`, dataset build success, and authoritative-world gate compliance as explicit Phase 5 metrics; and the accepted plane-ready authority includes the bounded dataset-basis closure `phase5_ofs_dataset_basis_20260312T054900Z`.
+
+4. `Constraint / trade-off claim`
+
+This path supports the claim that you chose dataset governance over easier managed-ML convenience. The platform refused shortcuts like Databricks can read some files, so the dataset must be fine, refused ad hoc basis selection inside OFS, and even when the build-to-quality handoff broke, the accepted bridge was to move the corridor onto durable object-store evidence rather than keep passing large notebook payloads. That is more ceremony than a quick managed-job story, but it buys deterministic dataset identity and a defendable rollback-ready object.
+
+5. `Production-relevant challenge claim`
+
+This path supports the claim that the challenges were genuinely production-shaped. The important blockers were not toy data issues. They were: the retained OFS build and quality lane still being bootstrap stubs, managed-surface compatibility defects (`boto3` on serverless and Spark Connect `toJSON()`), real authoritative object-store authorization on the Databricks managed boundary, repinning the dataset to the promoted temporal contract instead of the raw retained horizon, and replacing fragile notebook-payload handoff with durable evidence-linked closure.
+
+6. `Promotion / final-posture claim`
+
+This path supports the claim that the final ready posture is not merely the OFS surface became usable. It is: one already-admitted causal basis became a managed OFS dataset object bounded by the promoted `feature_asof_utc` and `label_asof_utc` law, materially useful after that trim, and governed by the stronger dataset-truth contract of manifest, fingerprint, rollback recipe, and leakage-safe closure. That is why later Learning + Evolution proof can legitimately treat the dataset as authoritative upstream truth rather than as convenience output from managed compute.
+
+`Compressed Bi claim`
+
+`Offline dataset commitment path` shows that you can take an already-admitted causal learning basis and force it through a real managed OFS boundary until it becomes one authoritative dataset object with deterministic identity, replay- and time-law-bounded semantics, leakage-safe closure, and rollback-ready governance, so later model work is training on governed dataset truth rather than on whatever managed output happened to appear.
+
+The next clean move is `Train / eval and candidate-bundle path` with its `object frame`.
+
 ## 2026-03-15 16:39:48 +00:00 - Derive the system-design questions for the Decision formation path so later pressure history stays on decision truth itself
 For `Decision formation path`, the system-design questions should stay on decision truth itself, not drift backward into guardrail posture or forward into action emission.
 
