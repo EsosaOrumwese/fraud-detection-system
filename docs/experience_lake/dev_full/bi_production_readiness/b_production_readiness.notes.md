@@ -772,3 +772,265 @@ Compressed into one line:
 For `Admission and disposition path`, the system-design interrogation is about whether ingress can own deterministic, durable, duplicate-safe, ambiguity-honest decision truth under pressure, and whether every hardening move preserved that truth boundary rather than weakening it for convenience.
 
 The next move in the flow is to map this path to the `pressure episodes` that actually changed its posture.
+
+## 2026-03-14 17:38:29 +00:00 - Map the pressure-history spine for the Admission and disposition path so the later interrogation stays on the real posture changes
+For `Admission and disposition path`, the pressure-history spine that actually changed its posture looks like this.
+
+`Pressure episodes that changed this path's posture`
+
+1. `The path had to move from admission is implied to admission is durably owned by ingress`
+
+Strictly speaking, this is the inherited correction that explains why the path exists in its current `A` posture at all. Before the correction, `/ingest/push` could return `202` without persisting any run-scoped admission or idempotency record. That was rejected because ingress would then have no durable proof of its own decision. The selected correction was to make the IG Lambda compute the canonical dedupe basis, write the DynamoDB-backed admission and idempotency state itself, and fail closed if that backend was unavailable. That is the structural starting point for every later `Bi` episode on this path.
+
+2. `Once the front door was truthful, this path stopped being a generic ingress story and became a real hot-path disposition story`
+
+After the stale-boundary ambiguity and source under-drive were removed, the first truthful `Phase 0.B` runtime red showed that the ingress edge was materially functioning but not yet ready at the declared envelope. The important thing for this path is what happened when concurrency was naively pushed upward: at `900` reserved concurrency the system surfaced `IG_PUSH_REJECTED`, repeated `PUBLISH_AMBIGUOUS`, and `KAFKA_PUBLISH_TIMEOUT`, with quarantine artifacts carrying `reason_codes=[\"PUBLISH_AMBIGUOUS\"]`. That changed the posture of this path because it proved that just pushing harder would corrupt ingress-owned disposition truth rather than improve it. The path therefore had to stay on the semantically clean `600`-concurrency baseline instead of taking the superficially more aggressive but less truthful route.
+
+3. `The path then became attributable enough to show that duplicate or in-flight resolution itself was part of the blocker`
+
+Once request-timing telemetry was repaired, the red stopped being opaque. Successful admits were still slow, but the more interesting signal for this path was that some abnormal lanes were not dying on `5xx`; they were returning `400` with `decision = QUARANTINE`, and the timing logs showed `admit_ms` stretching to `11-15 s`. That matters because it revealed a specifically disposition-path concern: duplicate or in-flight resolution was taking too long and then failing closed into quarantine. In other words, the hot path was not only slow in the abstract; the ingress ownership boundary was sometimes unable to classify quickly enough without degrading into long-running quarantine outcomes.
+
+4. `The path had to stop failing closed for the wrong reason`
+
+The next real posture change came when benign governance append contention was being misread as boundary sickness. The live red showed `Governance projection append deferred ... reason=S3_APPEND_CONFLICT`, but the health observer was also treating the live `ClientError ... ConditionalRequestConflict` shape as object-store unhealth, which then caused valid traffic to fail closed through `IG_UNHEALTHY:OBJECT_STORE_UNHEALTHY`. This was important for `Admission and disposition path` because it meant ingress disposition truth was being polluted by a neighboring failure family. The accepted bridge broadened the benign exception family to include both the in-process and live S3 conflict shapes. After that, the ingress runtime became semantically clean under the bounded correctness slice, and the active blocker moved away from disposition semantics and back toward the proof surface.
+
+5. `The path then hit a real production constraint: durable ingress truth was too expensive in its current receipt shape`
+
+The next posture-changing episode was cost, but not cosmetic cost. The idempotency table had become the dominant ingress cost surface because full receipt bodies were stored inline in `receipt_payload_json`. That is exactly the kind of constraint this path is supposed to surface: durable ingress-owned truth is valuable, but it cannot be allowed to become careless write amplification on the hot path. The important thing is the bridge that was rejected and the bridge that was accepted. Moving to `object_store` receipt mode looked attractive, but on the live envelope it collapsed almost immediately and reintroduced `IG_PUSH_REJECTED` and `PUBLISH_AMBIGUOUS`, so it was not promotion-safe. The accepted bridge instead kept the proven `ddb_hot` posture and compacted the stored receipt body down to the minimum fields needed for run attribution and lookup. That changed the path from truthful but operationally wasteful to truthful and materially tighter without surrendering ingress ownership of disposition truth.
+
+6. `After those fixes, the path's remaining blocker stopped being semantic and became proof-boundary calibration`
+
+A very important posture change for this path is that, after the health-classification fix and the hot-table compaction, the remaining red was no longer that admission or disposition was broken. The plan itself records that the `Phase 0` closeout posture was now one semantically trustworthy unsynchronized bounded baseline with duplicate correctness, publish continuity, and coherent receipt or quarantine truth still intact; the remaining blocker was proof-boundary stability at the steady admitted-throughput gate, not an active ingress semantic defect. That matters because it changes the meaning of later work: once the path's semantics were clean, the notebook should stop describing every subsequent red as an admission-path defect. The path had already changed posture by then.
+
+7. `The final ready posture was earned when those semantics stayed clean all the way through Control + Ingress closure`
+
+The final closure evidence matters for this path too. The accepted `Phase 0` authority records steady, burst, and recovery all green, with `4xx = 0`, `5xx = 0`, Lambda errors and throttles at `0`, DLQ delta at `0`, and the Control + Ingress metric family proven on the exact APIGW-scored closure authority. For `Admission and disposition path`, the key point is not just that throughput went green. It is that the path's owned concerns — deterministic admission, duplicate correctness, publish continuity, and coherent receipt or quarantine truth — survived all the later proof corrections and remained intact at closure. That is what makes its final `Bi` posture production-ready rather than merely less broken than before.
+
+`What this mapping says in one line`
+
+`Admission and disposition path` became production-ready because the platform progressively turned ingress-owned decision truth from a structurally fragile and operationally expensive hot-path boundary into one that was durable, duplicate-safe, ambiguity-honest, semantically clean, and cost-tightened, and then proved that those properties survived the full bounded Control + Ingress closure story.
+
+The next flow move is to interrogate these episodes one by one.
+
+## 2026-03-14 17:49:18 +00:00 - Interrogate the core posture-changing episodes for the Admission and disposition path instead of flattening every ingress event into one story
+For `Admission and disposition path`, the interrogation should stay on the core episodes that actually changed the path's posture, not every ingress-related event in the notebook.
+
+`Episode 1 - ingress disposition had to become a real truth boundary, not an implied side effect`
+
+What surfaced originally was a structural defect: `/ingest/push` could return `202` without persisting any run-scoped admission or idempotency record. System-design-wise, that meant ingress had no durable proof of its own decision. This is not just a missing counter; it breaks the whole point of the path, because `Admission and disposition path` is supposed to end with ingress-owned truth before publication truth begins. The class of challenge here is an `A`-foundation defect carried into `Bi`, not a late proving nuance. The accepted bridge was to make the IG Lambda itself compute the canonical dedupe basis from `(platform_run_id, event_class, event_id)`, write the DynamoDB idempotency and admission item with TTL and minimal metadata, and fail closed with `503` when the backend write fails. That was the right bridge because it preserved the ownership boundary instead of faking progress through direct DDB seed writes or treating the defect as non-blocking. The readiness property improved here was durable, ingress-owned disposition truth.
+
+`Episode 2 - once the harness stopped under-driving the edge, the path exposed a real readiness insufficiency`
+
+After the execute-api boundary and stronger WSP posture were made truthful, the next red was no longer that ingress was not being hit hard enough. At `600` reserved concurrency, the live path stayed semantically clean but still missed the steady envelope badly; when concurrency was naively raised to `900`, the system started producing `IG_PUSH_REJECTED`, `KAFKA_PUBLISH_TIMEOUT`, `PUBLISH_AMBIGUOUS`, and quarantine artifacts carrying `reason_codes=[\"PUBLISH_AMBIGUOUS\"]`. For this path, that is the decisive engineering moment where a true readiness insufficiency appears: the disposition boundary is not yet able to preserve both envelope and semantic cleanliness under the more aggressive posture. The accepted bridge was not to keep the higher concurrency. The right move was to keep the semantically trustworthy `600`-concurrency baseline and treat the hot path as the object needing narrower diagnosis. That improved semantic honesty under pressure: the path refused a bridge that made throughput look more ambitious while actually making disposition truth worse.
+
+`Episode 3 - the path then became attributable enough to show where disposition was actually going bad`
+
+The next meaningful turn was observability. The first request-timing deployment itself broke the proof with a helper `NameError`, so that run had to be rejected as invalid. After repairing and redeploying the timing helper, the next truthful rerun showed something much more useful: successful `202 ADMIT` requests were already spending roughly `1.3-1.4 s` in gate construction and another `0.8-0.9 s` in admission work, while some abnormal lanes were not failing on `5xx` at all; they were returning `400` with `decision = QUARANTINE`, with `admit_ms` stretching to roughly `11-15 s`. System-design-wise, this matters because it changed the path from red but opaque to red and attributable, and it showed that the path's own duplicate or in-flight resolution behavior could wait too long and then fail closed into quarantine. The class of challenge here is first a proof-boundary defect because the telemetry emitter broke the proof, then a true path-local diagnostic revelation. The accepted bridge was to fix the timing helper, ensure timing emission could not break admission again, and use the new telemetry to narrow the real disposition problem instead of continuing broad ingress speculation. That improved explainability of ingress-owned decision truth.
+
+`Episode 4 - fail-closed behavior had to become truthful to the path rather than merely strict`
+
+The next posture-changing episode was not throughput in the abstract but health semantics. Fresh bounded runs showed that benign governance append contention (`S3_APPEND_CONFLICT` / live `ConditionalRequestConflict`) was being interpreted as `IG_UNHEALTHY:OBJECT_STORE_UNHEALTHY`, which caused valid traffic to fail closed for the wrong reason. For `Admission and disposition path`, this is a serious systems-design issue: ingress disposition truth was being polluted by a neighboring failure family that did not actually mean the admission boundary was sick. The class of challenge is a semantic health-classification defect inside readiness. The accepted bridge was to broaden the benign exception family to include both the in-process and live store-conflict shapes (`S3_APPEND_CONFLICT`, `ConditionalRequestConflict`, `PreconditionFailed/412`). That was the right bridge because it did not weaken fail-closed discipline in general; it made fail-closed behavior truthful to the boundary actually being judged. The evidence that posture changed is strong: after the fix, the bounded reruns became semantically clean and landed essentially on target, with `4xx = 0`, `5xx = 0`, and low latency, which means the active blocker moved away from disposition semantics and back toward the proof surface.
+
+`Episode 5 - the path then hit a real production constraint: durable ingress truth was too expensive in its current form`
+
+Once the path's semantics were clean, the next material issue was cost, but not cosmetic cost. Live evidence showed the idempotency table had become the dominant ingress cost surface because full receipt bodies were being stored inline in `receipt_payload_json`, driving heavy DynamoDB write amplification. That matters for this path because durable ingress-owned truth is essential, but the way it is materialized on the hot path must still be operationally sane. The class of challenge here is a production constraint inside readiness, not a semantic defect. The wrong bridge was tested explicitly: moving the Lambda to `object_store` receipt mode. On the live envelope that collapsed almost immediately into `IG_PUSH_REJECTED`, `KAFKA_PUBLISH_TIMEOUT`, and `PUBLISH_AMBIGUOUS`, so it was not promotion-safe. The accepted bridge instead kept the proven `ddb_hot` posture and compacted the stored receipt shape down to the minimum fields needed for run attribution and lookup. That was the right bridge because it tightened the implementation while preserving the ownership boundary. The evidence is exactly what `Bi` wants: after compaction, the rerun stayed semantically clean (`4xx = 0`, `5xx = 0`, low latency, no lane collapse), while fresh rows shrank from roughly `~2 KB` to about `392` bytes and write consumption dropped materially. That improved cost-tight durability, not just raw bill appearance.
+
+`Episode 6 - after those fixes, the active blocker moved out of the path and into the proof boundary`
+
+This is the important closing turn for the path. After the health-classification fix and the receipt compaction, the remaining red was no longer that admission or disposition was broken. The semantically trustworthy unsynchronized baseline had duplicate correctness, publish continuity, and coherent receipt or quarantine truth still intact; what remained open was how steady-state throughput was being scored. The implementation notes are very explicit that `Phase 0` needed a methodological correction at this point: freeze the semantically trustworthy baseline, stop spending on proof-shape churn, and tighten telemetry around the same truthful run shape instead of reopening ingress-runtime remediation blindly. For this path, that means the class of challenge had become a proof-boundary defect, not a local semantic defect. The accepted bridge was to stop treating every near miss as an admission-path failure and instead move closure work onto the truthful APIGW-side proof surface and exact-window codification. That improved judgment discipline: the path was no longer being over-remediated after its own local readiness properties had already been earned.
+
+`Episode 7 - the path's final ready posture was confirmed when the cheaper proving posture still held the same admission truth`
+
+The final important interrogation point is that the path was not closed merely because the proof boundary was later corrected. It was closed because, once the accepted cost cleanup was in place, the real frozen `Phase 0.B` baseline still held on the exact-window APIGW gate with `open_blockers = 0`, `3018.458 eps`, `4xx = 0`, `5xx = 0`, and low latency. That matters specifically for `Admission and disposition path` because it shows the cost tightening did not reopen duplicate correctness, publish continuity, or coherent receipt or quarantine truth. The readiness property improved here is stability of the owned truth boundary under the accepted production-ready posture, not merely one lucky green run.
+
+`What this interrogation says about the path`
+
+So the real transformation of `Admission and disposition path` is not:
+
+> ingress wrote to DynamoDB and later the phase turned green.
+
+It is:
+
+> the platform turned ingress disposition into a real, durable truth boundary, then proved that this boundary could stay duplicate-safe, ambiguity-honest, semantically clean, and materially cheaper without surrendering ownership truth, and then stopped attributing later proof-boundary problems back to a path whose semantics had already been earned.
+
+The next clean move is the `path transformation synthesis` for `Admission and disposition path`.
+
+## 2026-03-14 18:02:11 +00:00 - Collapse the Admission and disposition path episode interrogation into a transformation synthesis that states what actually changed the owned truth boundary
+`Admission and disposition path` - `transformation synthesis`
+
+This path began in `A` as the boundary that turns a boundary-valid request into durable ingress-owned disposition truth: admitted, duplicate-safe, rejected invalid, quarantined, or explicitly marked ambiguous or retry-governed, with the dedupe basis and admission state persisted in the IG Lambda to DynamoDB posture rather than inferred later downstream. `A` is very explicit that this path stops at ingress truth, not at bus truth, and that the DDB-backed admission ledger exists to keep ingress truth ingress-owned.
+
+To reach its `Bi` posture, that same boundary had to survive production pressure without giving up the thing that made it meaningful in `A`: ingress ownership of decision truth.
+
+The first thing that had to be resolved was structural, not performance-related. The older posture where `/ingest/push` could return `202` without persisting any run-scoped admission or idempotency record was rejected as fundamentally wrong, because ingress then had no durable proof of its own decision. The accepted correction was to compute the canonical dedupe key from `(platform_run_id, event_class, event_id)`, persist the admission or idempotency item in DynamoDB with TTL and minimal metadata, and fail closed if that write path is unavailable. That is the real starting point of the transformation: the path became a truth boundary, not just a runtime behavior.
+
+Under bounded production pressure, the next thing that had to be resolved was whether this truth boundary could stay semantically honest at the declared envelope. Once harness under-drive was corrected, the path exposed a real readiness insufficiency: the naive higher-concurrency posture produced `IG_PUSH_REJECTED`, `KAFKA_PUBLISH_TIMEOUT`, and `PUBLISH_AMBIGUOUS`, with quarantine artifacts recording the ambiguity rather than pretending success. That mattered because it showed the wrong bridge very clearly. The path could not be made more ready by pushing harder if that corrupted ingress-owned disposition truth. So a key part of the transformation was learning to preserve the semantically trustworthy baseline rather than accepting a cosmetically more aggressive but less truthful one.
+
+Then the path had to become diagnosable on its own terms. Once timing telemetry was repaired, the work could distinguish between successful admits that were merely expensive and abnormal cases where duplicate or in-flight resolution stretched for many seconds and then failed closed into quarantine. That changed the path from hot and red into attributably red, which is important for `Bi`: not because observability is the path itself, but because this path could not be reasoned into readiness without showing what was actually slow or semantically wrong inside the ingress-owned disposition boundary.
+
+Another major resolution was health semantics. The path was still failing closed for the wrong reason when benign governance append contention was being interpreted as object-store unhealth, which then poisoned ingress disposition as `IG_UNHEALTHY:OBJECT_STORE_UNHEALTHY`. That had to be corrected so fail-closed behavior stayed strict and truthful to the actual boundary being judged. Broadening the benign exception family to include the live conflict shapes changed the path materially: after that, the same bounded runs became semantically clean, which means the active problem was no longer that ingress disposition semantics were wrong.
+
+Once the path was semantically clean, a different production constraint became the real problem: cost amplification on the hot path. The idempotency table had become the dominant ingress cost surface because full receipt bodies were stored inline in `receipt_payload_json`. That is exactly the kind of `Bi`-relevant challenge this path is supposed to surface. Durable ingress truth is necessary, but the form it takes on the hot path must still be production-sane. The attractive alternative, shifting to `object_store` receipt mode, was tested live and failed decisively, collapsing into `IG_PUSH_REJECTED`, `KAFKA_PUBLISH_TIMEOUT`, and `PUBLISH_AMBIGUOUS`. So the correct bridge was not to weaken the ledger boundary, but to keep the proven `ddb_hot` posture and compact the stored receipt shape to the minimum fields needed for run attribution and lookup. That is a very strong transformation signal: the ownership boundary stayed the same while the implementation was tightened materially.
+
+After those fixes, the remaining red was no longer local to the path's semantics. The notes are clear that the semantically trustworthy unsynchronized baseline still preserved duplicate correctness, publish continuity, and coherent receipt or quarantine truth; what remained open was how the steady-state proof was being scored. That matters because it marks the end of the path's transformation proper. From that point onward, continuing to treat every red as an admission or disposition defect would have been bad reasoning. The path's local semantic readiness properties had already been earned; the blocker had moved to the proof boundary.
+
+The clean synthesis is this:
+
+To move `Admission and disposition path` from its `A` posture to its `Bi` posture, the platform had to resolve five things:
+
+- make admission truth durable rather than implied
+- keep that truth semantically honest under pressure
+- make long-running duplicate or in-flight disposition behavior attributable
+- correct false fail-closed health semantics
+- and tighten the hot-path cost shape without abandoning ingress ownership of truth
+
+That gives the final `Bi` posture of the path:
+
+a production-ready admission boundary where ingress still owns deterministic, durable, duplicate-safe, ambiguity-honest disposition truth, but now does so with truthful health semantics and a materially tighter hot-path cost posture
+
+And that is exactly why this path contributes well to the meta goal: it shows that the work did not merely add idempotency or reduce DynamoDB cost. It reasoned through what this boundary is allowed to own, what it must never lie about, and which implementation changes preserved the truth boundary versus which ones would have weakened it.
+
+## 2026-03-14 18:11:33 +00:00 - Extract the Bi claim mix for the Admission and disposition path so the argument states exactly what this path now proves
+For `Admission and disposition path`, the `Bi claim mix` is this.
+
+1. `Readiness-reasoning claim`
+
+This path supports the claim that a boundary can be reasoned to readiness by separating structural truth, runtime insufficiency, and proof-boundary issues instead of collapsing them together. The path began with a structurally wrong posture where ingress could return `202` without durable admission truth, then exposed a real runtime insufficiency under stronger pressure, then later moved into proof-boundary rather than local semantic blockage once the path itself had become semantically clean. That is exactly the kind of reasoning `Bi` is supposed to surface.
+
+2. `Systems-design judgment claim`
+
+This path supports the claim that ingress disposition was understood as its own truth boundary, not as a side effect of publication or later downstream behavior. The work preserved ingress ownership of dedupe and disposition truth inside the IG Lambda to DynamoDB path, rejected the earlier posture where admission was implied, and kept the path bounded at ingress truth rather than letting it blur into bus truth. That is a strong systems-design judgment claim because it shows this path's ownership boundary was understood clearly.
+
+3. `Measurement and observability claim`
+
+This path supports the claim that the work did not just fix reds; it made the boundary measurable enough to be judged honestly. Request-timing telemetry and later lane-level evidence changed the path from ingress is red into a much more precise statement: where successful admits were expensive, where duplicate or in-flight resolution stretched too long, where valid traffic was being quarantined, and when the remaining blocker had moved out of local disposition semantics into the proof boundary. That is an important `Bi` claim because it shows the quality of judgment improved, not only the runtime.
+
+4. `Constraint and trade-off claim`
+
+This path supports the claim that production posture could be tightened without weakening the truth boundary. The major example is the hot-path cost issue: the idempotency table became the dominant cost surface because full receipt payloads were being stored inline. The tempting alternative, switching the Lambda to `object_store` receipt mode, was tested and rejected because it collapsed the live envelope into `IG_PUSH_REJECTED`, `KAFKA_PUBLISH_TIMEOUT`, and `PUBLISH_AMBIGUOUS`. The accepted bridge kept the proven `ddb_hot` truth boundary and compacted only the receipt shape. That is a real trade-off claim: ownership stayed the same while implementation got materially tighter.
+
+5. `Production-relevant challenge claim`
+
+This path supports the claim that the challenges faced here were genuinely production-relevant, not toy defects. The path had to survive:
+
+- concurrency-induced `PUBLISH_AMBIGUOUS` on valid traffic
+- long-running duplicate or in-flight disposition behavior
+- false fail-closed health semantics caused by misclassified object-store contention
+- and a hot-path cost posture that was operationally wasteful even after semantics were clean
+
+Those are exactly the kinds of issues that matter when deciding whether an ingress-owned decision boundary is actually trustworthy under pressure.
+
+6. `Promotion and final-posture claim`
+
+This path supports the claim that the final ready posture is not merely that idempotency exists. It is: ingress owns deterministic, durable, duplicate-safe, ambiguity-honest disposition truth under the accepted production shape, with truthful health classification and a materially tighter hot-path cost posture. By the time the bounded `Phase 0` baseline was frozen and closed, the plan's own closeout posture treated the remaining blocker as proof-boundary stability rather than an active ingress semantic defect, which means this path's local readiness properties had already been earned.
+
+`Compressed Bi claim`
+
+`Admission and disposition path` shows that ingress-owned decision truth can be turned from a structurally weak and operationally wasteful boundary into a production-ready boundary that remains deterministic, duplicate-safe, ambiguity-honest, semantically clean, and cost-disciplined without surrendering ownership truth for convenience.
+
+The next clean move is the `ledger block` for this path, then `Authoritative bus publication path`.
+
+## 2026-03-14 18:22:06 +00:00 - Open the Authoritative bus publication path by pinning its A posture, Bi posture, and why runtime-entry handoff truth mattered under pressure
+`Object`
+
+`Authoritative bus publication path`
+Parent group: `Canonical traffic admission and bus publication`
+Main secondary object it lives inside: `Control + Ingress` as the re-pressured working-platform base.
+The first enlarged-network object that materially re-pressures it is `Control + Ingress + RTDL`, because that is where bus publication continuity stops being only an ingress-local claim and becomes a live handoff claim into runtime consumption.
+
+`A posture`
+
+In `A`, this path exists to turn admitted ingress truth into authoritative bus truth. Its entry is not raw source data and not receipt truth; it is the admitted ingress event family that has already crossed the boundary and received admit-worthy disposition. Its owned outcome is that this admitted family is authoritatively handed off onto the pinned traffic and context topics that downstream RTDL is supposed to consume.
+
+That `A` posture has four important features:
+
+- the path is explicitly narrower than admission truth and narrower than ingest-commit truth
+- it hands off not one undifferentiated blob, but a traffic and context topic family
+- the family is semantically pinned: thin canonical fraud traffic plus arrival-events, arrival-entities, and flow-anchor context surfaces
+- the topic contracts and partition-key rules are explicit, with ingress as the producer for those bus surfaces
+
+So the `A` posture is:
+
+admitted ingress event family -> authoritative publication to pinned traffic and context topics -> bus-visible runtime handoff
+
+`Bi posture`
+
+In `Bi`, this path becomes the production-ready event-bus handoff boundary. That means it is no longer enough that ingress tries to publish. The path has to support a stronger claim:
+
+- publish continuity into the event transport boundary remains intact under the declared ingress envelope
+- ambiguity is surfaced honestly rather than being silently treated as success
+- healthy ingress requests are not allowed to coexist with dark downstream bus movement
+- and later coupled proof shows that the bus handoff remains truthful when RTDL is actually consuming and deciding
+
+So the final ready posture is:
+
+a production-ready bus publication boundary where admitted traffic and its pinned context family are handed off onto the event transport network with continuity, topic movement, and downstream-consumable truth preserved under bounded pressure
+
+`Why this object matters`
+
+This path matters because it is the first point where ingress truth becomes runtime-entry truth. Without it, the platform can say an event was admitted, but it cannot yet say where runtime was authoritatively supposed to pick it up. That is why `A` keeps it distinct from both:
+
+- `Admission and disposition path`
+- `Ingest commit truth path`
+
+It also matters strongly for the meta goal, because the production-readiness plan makes publish continuity a first-class Control + Ingress criterion and then upgrades it again into a cross-plane continuity question once RTDL is attached:
+
+- in `Phase 0`, ingress must keep publish continuity into the event transport boundary intact
+- in `Phase 2`, the enlarged network must preserve `Ingress -> Event Bus publication continuity` and `Event Bus -> RTDL truth continuity` under real admission pressure
+
+So, in one line:
+
+`Authoritative bus publication path` is the path that turns admitted ingress truth into authoritative event-bus truth, and in `Bi` it becomes the production-ready handoff boundary where traffic and context publication remains continuous, honest, and downstream-meaningful under bounded production pressure.
+
+The next step in the flow is to derive the `system-design questions` for this path.
+
+## 2026-03-14 18:31:14 +00:00 - Derive the system-design questions for the Authoritative bus publication path so the later pressure history answers the real handoff problem
+For `Authoritative bus publication path`, the system-design questions should stay on the bus handoff boundary itself, not a generic Kafka health checklist.
+
+`Authoritative bus publication path` - `system-design questions`
+
+1. `What exactly counts as authoritative bus truth here?`
+
+The key question is where ingress truth stops and bus truth begins. This path is not about deciding admit or reject or quarantine, and it is not yet about committed ingest evidence. Its owned outcome is narrower: admitted ingress traffic is authoritatively handed off onto the pinned event-bus surfaces that downstream RTDL is supposed to consume.
+
+2. `Why is the publish surface a topic family rather than one undifferentiated payload stream?`
+
+This path has to explain why the platform publishes a semantically split family: fraud traffic plus arrival-events, arrival-entities, and flow-anchor context topics. The answer comes from the engine and runtime contract: behavioural traffic stays thin, while context is joined inside the platform rather than being smuggled into one fat payload.
+
+3. `What makes the handoff authoritative rather than merely messages were probably sent?`
+
+The question is not whether ingress executed some producer call. It is whether admitted traffic and its pinned context family were handed off onto the named MSK topics under explicit producer and consumer contracts and partition-key rules, so downstream runtime has one authoritative entry point.
+
+4. `How do we keep publish truth separate from both admission truth and ingest-commit truth?`
+
+This path needs a very clean boundary. Admission truth belongs to the previous path. Durable offset or receipt rollup belongs to the next path. This path closes earlier, at the point where the bus handoff itself is the truth that matters. That separation is important because otherwise admitted and runtime can now consume become falsely treated as the same thing.
+
+5. `What counts as production-ready continuity for this handoff?`
+
+In `Phase 0`, the plan makes publish continuity into the event transport boundary a first-class success criterion for Control + Ingress. In `Phase 2`, the same concern becomes cross-plane: `Ingress -> Event Bus publication continuity` and `Event Bus -> RTDL truth continuity` must both hold once RTDL is actually consuming. So this path has to ask not just whether ingress published, but whether the handoff remained continuous and downstream-meaningful under production pressure.
+
+6. `How do we measure whether the handoff is healthy and honest?`
+
+The right measurement questions here are the ones already pinned in the readiness plan: publish success or retry or ambiguity counts, topic movement, admitted-without-publish evidence, and the stronger fail-fast trigger of healthy edge requests with no downstream bus movement. These are the metrics that judge the handoff as a boundary, not just ingress in general.
+
+7. `How is ambiguity supposed to be handled at this boundary?`
+
+A key systems question for this path is whether ambiguous publish outcomes are treated honestly. The design says the platform is not allowed to quietly pretend success when publish outcome is unclear. That is why publish ambiguity is a real error class and why later readiness language keeps publish continuity and admitted-without-publish count separate from raw ingress success.
+
+8. `What constraints shape the path and stop it from becoming ad hoc pub/sub?`
+
+Three constraints matter here: topic continuity must stay pinned unless explicitly repinned; only the right surfaces may be published as traffic versus context; and producer or consumer ownership must stay explicit. This means the platform cannot casually flatten the family into one convenience topic or silently reinterpret topic meaning just because runtime would find that easier.
+
+9. `What trade-off is the design accepting?`
+
+This path deliberately chooses explicit bus truth over simpler but weaker alternatives. It pays the complexity cost of a topic family, explicit contracts, and fail-closed ambiguity handling so that downstream starvation, dark consumers, or handoff defects can be reasoned about honestly. That is a strong `Bi`-relevant design question because it shows the system values truth-boundary clarity over convenience.
+
+10. `How does enlarged-network pressure re-ask the question?`
+
+Once RTDL is attached, the question is no longer just whether ingress published onto Kafka. It becomes whether the publish boundary remained truthful once the bus had a real consumer and real runtime truth depended on it. That is why `Phase 2` asks about `Ingress -> Event Bus publication continuity`, `Event Bus -> RTDL truth continuity`, and stale-run-scope or dark-participation defects. This path therefore has to be read both as a local handoff path and as the first cross-plane runtime-entry truth boundary.
+
+Compressed into one line:
+
+For `Authoritative bus publication path`, the system-design interrogation is about whether admitted ingress truth becomes explicit, semantically split, contract-governed, ambiguity-honest event-bus truth that downstream RTDL can actually trust under production pressure.
+
+The next move is to map this path to the `pressure episodes` that actually changed its posture.
