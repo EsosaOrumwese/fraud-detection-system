@@ -449,6 +449,1698 @@ So the object frame, in one line, is:
 
 The next step in the flow is to derive the `system-design questions` for this path.
 
+## 2026-03-15 18:01:06 +00:00 - Derive the system-design questions for the Action and outcome emission path so later pressure history stays on operational output truth
+For `Action and outcome emission path`, the system-design questions should stay on operational output truth, not drift backward into decision formation or forward into audit and archive.
+
+`Action and outcome emission path` - `system-design questions`
+
+1. `What exactly counts as action and outcome truth here?`
+
+This path is not satisfied merely because a decision exists. Its owned outcome is that decision truth becomes deterministic side effects or outcome truth on the pinned RTDL downstream handoff surface, without duplicate corruption or ambiguity leakage.
+
+2. `Why is this a separate path from decision formation?`
+
+The platform deliberately separates what was the decision from what operational output did that decision produce? That keeps decision truth from being inferred later from side effects and keeps side effects from being treated as the decision itself. The `A`-side path set makes that split explicit.
+
+3. `What is the allowed entry into this path, and why is it constrained?`
+
+The entry is committed decision truth plus active runtime authority, not raw RTDL traffic and not generic runtime health. This path begins only after the decision boundary has already formed decision truth under the right bundle or policy posture.
+
+4. `What makes the emitted output authoritative rather than merely observable?`
+
+The path has to answer whether the emitted outcome is a named, pinned handoff surface that downstream systems can trust, not just an internal `DF` or `AL` side effect. The `A` note pins the RTDL downstream topic as that concrete handoff surface.
+
+5. `What does production-ready mean specifically for this path?`
+
+For this path, production-ready means action and outcome evidence is committed as part of committed decision-chain closure, and the emitted RTDL outputs remain non-regressed and usable downstream. That closure boundary is explicit that decision, action and outcome, and audit must all commit together for final closure.
+
+6. `How do we know downstream operational consumers are receiving usable truth rather than just technical emissions?`
+
+Once Case and Label are attached, the question becomes whether RTDL outputs remain usable as operational truth. That is why the coupled readiness plan names decision-to-case latency, case-to-label latency, throughput under real upstream pressure, and starvation across RTDL to Case and Label boundaries as first-class proof surfaces.
+
+7. `How do we distinguish a decision-output defect from a downstream case and label defect?`
+
+This path has to stay bounded. The question is whether RTDL emitted usable output truth at all, before CaseTrigger, Case Management, or Label Store begin to mutate that truth into their own domains. That is why the coupled plan explicitly treats RTDL to CaseTrigger as a cross-plane path rather than collapsing all downstream behavior back into RTDL output.
+
+8. `What constraints shape this path and stop easy shortcuts?`
+
+The path is constrained by the decision-chain closure law: action and outcome evidence cannot be hand-waved, and later audit closure still remains separate. So the system cannot treat decision exists as enough, and it cannot let later audit append or case creation stand in for action and outcome commitment.
+
+9. `What trade-off is the design accepting?`
+
+The design accepts more explicit boundary complexity in exchange for cleaner operational truth. It would be simpler to let downstream case or audit consumers infer what happened from later records, but the platform instead creates a direct output boundary so decision consequences are explicit before later consumers touch them.
+
+10. `How does enlarged-network pressure re-ask the question?`
+
+Once Case and Label are attached, the question is no longer only did RTDL emit an output. It becomes did that output remain usable enough that downstream case and label workers stayed materially alive, duplicate-safe, timely, and non-starved? That is exactly the coupled-network question the later readiness plan asks.
+
+11. `What does this path need to prove for the meta goal?`
+
+The strongest claim is not the platform emitted events. It is: the platform could turn committed decision truth into deterministic, downstream-usable operational output truth, and then prove that downstream planes could rely on that truth without ambiguity or starvation. That is what makes this boundary read like production-readiness judgment rather than message passing.
+
+Compressed into one line:
+
+For `Action and outcome emission path`, the system-design interrogation is about whether committed decision truth becomes deterministic, attributable, downstream-usable RTDL output truth, and whether that output remains strong enough to serve as real operational input for later case, label, audit, and replay boundaries.
+
+The next move is to map this path to the `pressure episodes` that actually changed its posture.
+
+## 2026-03-15 18:16:18 +00:00 - Map the pressure episodes that changed the Action and outcome emission path from an internal RTDL output lane into downstream-usable operational truth
+For `Action and outcome emission path`, the pressure history that actually changed its posture is mostly a story about when RTDL output stopped being implicit side effect and became operationally trustworthy downstream truth.
+
+`Pressure episodes that changed this path's posture`
+
+1. `The path first became a separate closure boundary, not a hidden consequence of decisioning`
+
+The first important posture change is structural. The run-process does not let RTDL catch-up imply that decision consequences are already proven. It separates committed decision-chain closure, and that gate requires three distinct closures:
+
+1. decision lane committed
+2. action and outcome evidence committed
+3. append-only audit evidence committed
+
+That matters because it changes the path from if decisions exist, outputs probably happened into a gate-owning boundary with its own evidence and failure mode.
+
+2. `The bounded downstream plane then made the path observable as operational truth, not just logically present`
+
+Before coupled proof, the important change was that the bounded downstream runner and widened runtime snapshot made the downstream operational path measurable from its own artifacts:
+
+- RTDL publishers feeding CaseTrigger
+- CaseTrigger `published`, `duplicates`, `quarantine`, and `payload_mismatch_total`
+- Case Management and Label Store counters tied to upstream RTDL truth
+
+This changed the path from decision and output exists on paper and in the RTDL topic contract into decision and output can now be judged as a real upstream operational source for downstream review truth.
+
+3. `The bounded downstream slice then proved the path was plane-ready as upstream operational truth`
+
+The bounded downstream closure is the first time this path is effectively proven in practice. CaseTrigger, Case Management, and Label Store integrity deltas all stayed clean on the bounded slice, and the promoted upstream base scored pass. That matters because it shows RTDL outputs were already usable enough for downstream operational review truth to participate cleanly under bounded pressure, even before the enlarged-network coupled proof.
+
+4. `Opening the coupled downstream proof changed the path from plane-local output truth into a cross-plane operational boundary`
+
+The next real posture change was methodological and architectural at the same time. The coupled downstream phase was opened explicitly around the enlarged `Control + Ingress + RTDL + Case + Label` network, with the key qualitative question:
+
+do RTDL outputs remain usable as operational truth rather than merely technically present?
+
+This changed the path's meaning. It was no longer enough that RTDL emitted something CaseTrigger could sometimes consume; now the action and output boundary had to hold under steady, burst, and recovery while downstream operational-review truth stayed materially alive.
+
+5. `The first two coupled attempts showed the path had not yet been truthfully pressured, because the proving layer was still wrong`
+
+The first coupled attempt failed at the reused control-bootstrap seam before any traffic was sent, so it taught nothing about RTDL outputs under real downstream pressure. The second attempt reached fresh materialization, prewarm, and scored activation traffic, and the notes explicitly say the enlarged network could already carry real coupled traffic on the new run scope. But the reused post-activation warm gate was still being treated as authority even though it was now checking the wrong proof posture for a coupled steady, burst, and recovery certification. That means the open problem was methodological, not that the action and output boundary itself had failed. The path changed posture here because it stopped being maybe the outputs are bad and became the outputs are live, but the harness is not asking the right question yet.
+
+6. `The dedicated timing probe then made the path's downstream usability truthfully measurable`
+
+This is one of the biggest posture-changing episodes for the path. The first timing probe produced a false red story:
+
+- decision-to-case `p95 ~ 68 s`
+- case-to-label `p95 ~ 68 s`
+
+The live store rows showed why that was wrong:
+
+- the case-open clock must be `first_seen_at_utc -> created_at_utc`, not `observed_time`
+- the case-to-label clock must be the case-management handshake write attempt, not the earlier `LABEL_PENDING` timeline timestamp
+
+That changed the path from downstream operational truth exists but its latency story is misleading into downstream operational truth can now be measured on the correct processing clocks. In other words, the output boundary became operationally interpretable, not just operationally present.
+
+7. `The first fresh full coupled rerun then proved the path was already operationally consumable downstream`
+
+After removing the stale warm-gate dependency and correcting the timing basis, the first fresh full coupled rerun showed:
+
+- pre and post runtime snapshots green
+- `decision_to_case p95 = 0.0 s`
+- `case_to_label p95 ~= 0.164 s`
+- CaseTrigger, Case Management, and Label Store all green on the same scope
+- cost guardrail green
+
+The only red left was in the burst envelope, where API-edge `429`s showed the inherited burst shape had drifted away from the already-proven truthful coupled burst. That matters because it proves the action and output path itself was not the active blocker anymore. RTDL outputs were already operationally usable downstream; the remaining problem was the proving envelope, not the output truth boundary.
+
+8. `Later learning-coupled pressure strengthened the path again by proving it stayed clean under promoted runtime and transition drills`
+
+In the learning-coupled proof, the coupled runtime bounded slice explicitly tracked integrity deltas on the output side:
+
+- `al_publish_quarantine_delta = 0`
+- `case_trigger_quarantine_delta = 0`
+- `case_mgmt_anomalies_total_delta = 0`
+- `label_store_pending_delta = 0`
+- `label_store_rejected_delta = 0`
+
+while `decision_to_case p95 = 0.0 s` and `case_to_label p95 = 0.196 s`.
+
+That changed the posture of the path from operationally consumable downstream on the promoted RTDL base into still non-regressed and downstream-usable under the promoted learning and runtime authority, rollback and restore drills, and the final coupled platform. The important point is that no new action and output integrity breach appeared when the working platform enlarged again.
+
+`What this mapping says in one line`
+
+`Action and outcome emission path` moved from a distinct but mostly internal RTDL output boundary into a production-ready cross-plane operational truth boundary by becoming observable through its own downstream effects, then truthfully measurable through correct timing evidence, then proving that its outputs remained usable downstream under coupled Case and Label pressure, and finally holding that same cleanliness under later learning-coupled runtime pressure.
+
+The next move in the flow is to interrogate these episodes one by one.
+
+## 2026-03-15 18:31:40 +00:00 - Interrogate the key episodes that turned the Action and outcome emission path into a downstream-usable operational truth boundary
+For `Action and outcome emission path`, the key interrogation is not did downstream systems eventually do something? It is whether RTDL decision truth became deterministic, operationally usable output truth at the right boundary, and whether later red signals actually belonged to that boundary or to the proving layer around it. The `A`-side path is already explicit that this boundary owns the step from decision truth to committed or published outcome surfaces on the RTDL downstream topic, with duplicate safety and ambiguity handling as first-class properties.
+
+`Episode interrogation`
+
+1. `The path first had to become a distinct closure boundary, not a hidden consequence of decisioning`
+
+What surfaced first was a design and closure issue, not a runtime bug. The run-process refuses to let RTDL catch-up imply that action and outcome truth already exists; committed decision-chain closure only closes when decision truth, action and outcome evidence, and append-only audit evidence all commit together. System-design-wise, that matters because it means this path is a real truth boundary with its own closure, not a vague assumption that once `DF` decided, the rest probably happened. The class of challenge here is boundary-definition and closure-authority discipline. The accepted bridge is the explicit decision-chain closure model itself, and it is the right one because it forces the platform to prove output truth directly instead of reading it indirectly from later case activity or audit append. The readiness property improved here is explicit action and output closure authority.
+
+2. `The path then became observable as real operational truth, not merely logical downstream consequence`
+
+The next change happened when the downstream operational-review work made RTDL outputs directly measurable from their downstream effects. The bounded downstream telemetry plan pinned live logs and counters for `CaseTrigger`, `Case Management`, `Label Store`, and the immediate RTDL publishers feeding them, with boundary-health checks around RTDL to CaseTrigger movement and fail-fast on RTDL healthy but case and label dark. System-design-wise, this changed the path from we know RTDL should publish something to we can now judge whether RTDL outputs are materially serving downstream operational review truth. The class of challenge is observability and operational-consumability enablement. The accepted bridge was to define the downstream operational-review telemetry around RTDL output movement itself, not just around downstream plane internals. That improved downstream observability of emitted output truth.
+
+3. `The bounded downstream closure proved the path was already plane-ready as upstream operational truth`
+
+The next meaningful turn is that the bounded downstream slice stayed semantically healthy with clean CaseTrigger, Case Management, and Label Store integrity deltas on a large admitted-request slice, and the promoted upstream base scored pass. This matters because it shows the action and output path had already crossed a real threshold: RTDL output was not merely present, it was already usable enough for downstream operational truth to participate cleanly under bounded load. The class of challenge here is true readiness proof for the path at plane-ready level. The accepted closure is important because it says the path was not open merely due to downstream consumers existing; it was already operationally consumable upstream truth before the enlarged-network coupled proof even began. The readiness property improved here is bounded operational usability of RTDL output.
+
+4. `Opening the coupled downstream proof changed the path from a local RTDL output seam into a cross-plane operational boundary`
+
+The biggest change in meaning came when the coupled downstream proof was opened. The plan explicitly reframed the question as: once Case and Label are attached under the retained ingress envelope, do RTDL outputs remain usable as operational truth rather than merely technically present? That changed the path's posture because the object was no longer only did RTDL emit an output. It became does that output remain timely, starvation-free, lineage-safe, and duplicate-safe when real downstream operational-review truth depends on it? The class of challenge here is enlarged-network promotion: the same path is now being judged as a cross-plane operational truth boundary. The accepted bridge was to create a dedicated coupled runner and coupled timing and starvation evidence rather than quietly inheriting an older broad bundle. That improved coupled-network legitimacy of the path.
+
+5. `The first two coupled attempts proved the path had not yet been truthfully pressured, because the proving layer was wrong`
+
+The first coupled attempt failed before any traffic was sent because of the reused control-bootstrap seam, so it told us nothing about RTDL outputs under downstream load. The second attempt materially carried prewarm and scored activation traffic, but the reused post-activation warm gate was still being treated as authority even though the implementation notes say it was now checking the wrong proof posture for a coupled steady, burst, and recovery certification. System-design-wise, that matters because the open issue was not yet a defect in emitted RTDL output truth. It was a methodology defect in how the boundary was being proven. The accepted bridge was therefore not fix RTDL outputs; it was stop using the wrong warm gate as authority, preserve the retained envelope, and add coupled timing and starvation as first-class proof signals. That improved the path's proof-boundary validity.
+
+6. `The dedicated timing probe then made downstream usability measurable on the right clock`
+
+The next important turn was timing truth. The first coupled timing probe made decision-to-case and case-to-label latency look catastrophically bad, but the implementation trail showed that was because the probe was using the wrong clocks: event-time `observed_time` and `LABEL_PENDING` timeline stamps instead of the authoritative `first_seen_at_utc -> created_at_utc` case-open clock and the actual case-management handshake write attempt for label timing. That means the red was not the output path is slow. It was a timestamp-basis defect in the proving layer. The accepted bridge was to repin the coupled timing probe to the correct processing timestamps and keep those timings as explicit coupled proof signals. That improved the path's truthful operational timing evidence.
+
+7. `The first fresh full coupled rerun proved the path was already operationally consumable downstream, and the remaining red lived in the envelope`
+
+After the timing correction and removal of the stale post-activation warm-gate dependency, the fresh full coupled rerun showed the downstream chain staying materially healthy on the same scope:
+
+- decision-to-case `p95 = 0.0 s`
+- case-to-label `p95 ~= 0.164 s`
+- CaseTrigger, Case Management, and Label Store all stayed green
+- cost guardrail stayed green
+
+The only remaining red was the badly inherited coupled burst shape producing API-edge `429`s, which the notes explicitly treat as a proving-shape problem rather than a semantic downstream failure in RTDL or Case and Label. System-design-wise, that is a decisive change for this path: it proves the action and output boundary itself was not the active blocker anymore. The accepted bridge was to repin the coupled phase to the short bounded coupled burst that had already proven truthful on the promoted upstream network. That improved coupled operational consumability of the path.
+
+8. `Later learning-coupled pressure strengthened the path again by proving it stayed clean under promoted runtime and transition drills`
+
+The final important episode is that the path remained clean under the learning-coupled proof, even after the network enlarged again to include promoted learning and runtime authority plus rollback and restore drills. The accepted closure metrics show:
+
+- `al_publish_quarantine_delta = 0`
+- `case_trigger_quarantine_delta = 0`
+- `case_mgmt_anomalies_total_delta = 0`
+- `label_store_pending_delta = 0`
+- `label_store_rejected_delta = 0`
+- `decision_to_case p95 = 0.0 s`
+- `case_to_label p95 = 0.196 s`
+
+That matters because the path is no longer merely coupled-clean on the promoted RTDL base. It is now still non-regressed and downstream-usable under promoted learning and runtime authority, candidate, rollback, and restore attribution drills, and the final coupled platform. The class of challenge here is later enlarged-network non-regression, and it is green. The accepted closure strengthens the path's final posture as stable downstream-usable operational truth.
+
+`What this interrogation says about the path`
+
+`Action and outcome emission path` was not made ready because decisions existed and later downstream systems seemed to work. It became ready because the platform first made action and output truth a separate closure boundary, then made it observable through real downstream operational-review movement, then corrected proving-layer timing and warm-gate defects until the path's downstream usability could be judged honestly, and finally showed that the same emitted truth stayed clean under later learning-coupled runtime pressure as well.
+
+The next clean move is the `object transformation synthesis` for this path.
+
+## 2026-03-15 18:46:55 +00:00 - Synthesize how the Action and outcome emission path moved from an internal RTDL consequence lane into a production-ready downstream operational truth boundary
+`Action and outcome emission path` - `transformation synthesis`
+
+In `A`, this path already had a narrow and important job: turn committed decision truth into deterministic RTDL output truth on the pinned downstream handoff surface. It was deliberately kept separate from decision formation and separate from later audit and archive truth, because the platform wanted one explicit place where it could answer: what operational consequence did this decision actually emit for downstream consumers?
+
+To reach its `Bi` posture, the first thing that had to be resolved was closure authority. RTDL catch-up or decision commit alone could not be allowed to imply that downstream-usable output truth already existed. That is why the run-process made committed decision-chain closure explicit and required the triplet of:
+
+- committed decision lane
+- committed action and outcome evidence
+- committed append-only audit evidence
+
+This changed the path from outputs probably happened after the decision into a distinct, gate-owning output-truth boundary.
+
+The next thing that had to be resolved was observability of downstream operational truth. Once Case and Label came into scope, the platform could no longer be satisfied with RTDL publishes somewhere. It had to make RTDL outputs measurable through their downstream effects: CaseTrigger movement, Case Management mutation, Label Store progression, and fail-fast on RTDL healthy but case and label dark. That changed the path from a logically present runtime seam into an observable operational-review input boundary.
+
+After that, the path had to prove it was already usable downstream on a bounded slice. The bounded downstream closure mattered because downstream integrity deltas stayed clean and the promoted upstream base scored pass. That was the first real proof that RTDL output was not merely emitted, but already usable enough for downstream operational truth to participate without corruption or starvation under bounded pressure.
+
+Then the path's meaning changed again when the coupled downstream proof opened. At that point the question was no longer only did RTDL emit usable outputs on its own, but do those outputs remain usable as operational truth once Case and Label are attached under the retained ingress envelope? That upgraded the path from a plane-local output seam into a cross-plane operational truth boundary. The output had to remain timely, lineage-safe, non-starving, and duplicate-safe once real downstream consumers depended on it.
+
+The next set of changes were not in the output semantics themselves, but in how the path was being judged. The first coupled attempts taught that the action and output boundary had not yet been truthfully pressured:
+
+- first because the reused control-bootstrap seam failed before any traffic was sent
+- then because the reused post-activation warm gate was still being treated as authority even after live activation traffic had already flowed through the coupled network
+
+That mattered because the open problem was not yet RTDL outputs are bad. It was the proving layer is still asking the wrong question. The accepted bridge was to remove those proving-surface defects, preserve the retained envelope, and promote coupled timing and starvation evidence into first-class proof signals. That changed the path from downstream truth maybe broken into downstream truth now being measured on the right proof boundary.
+
+The timing probe then produced the next decisive transformation. The first version made decision-to-case and case-to-label look catastrophically slow, but the live records showed that the probe was using the wrong clocks. The authoritative case-open clock was `first_seen_at_utc -> created_at_utc`, not event-time `observed_time`, and the authoritative case-to-label clock was the actual case-management handshake write attempt, not the earlier `LABEL_PENDING` timeline timestamp. That changed the path from operationally present but operationally mismeasured into operationally present and now measured on truthful processing clocks. In `Bi` terms, the output boundary became operationally interpretable, not just operationally live.
+
+Once those proof-surface defects were removed, the first fresh full coupled rerun showed the real posture of the path:
+
+- decision-to-case `p95 = 0.0 s`
+- case-to-label `p95 ~= 0.164 s`
+- CaseTrigger, Case Management, and Label Store all stayed green
+- and the only remaining red lived in the inherited burst envelope, not in the downstream output chain itself
+
+That is the moment where this path stopped being under question and became operationally consumable downstream truth. The output boundary itself was no longer the blocker; the proving envelope was.
+
+Finally, later learning-coupled pressure strengthened the path again by proving non-regression under a larger working platform. In the learning-coupled proof, the action and output side stayed clean while the platform exercised promoted runtime authority and transition drills:
+
+- `al_publish_quarantine_delta = 0`
+- `case_trigger_quarantine_delta = 0`
+- `case_mgmt_anomalies_total_delta = 0`
+- `label_store_pending_delta = 0`
+- `label_store_rejected_delta = 0`
+- and downstream timing stayed clean
+
+That mattered because the path was no longer only coupled-clean on the promoted RTDL base. It had now proven that its output truth remained usable downstream even after the network enlarged again around promoted learning and runtime authority.
+
+`What had to be resolved`
+
+To move `Action and outcome emission path` from its `A` posture to its `Bi` posture, the platform had to resolve five things:
+
+1. make action and output truth a distinct closure boundary rather than an implied consequence of decisioning
+2. make RTDL outputs observable as real downstream operational truth
+3. prove that output truth was already boundedly usable downstream before enlarged-network certification
+4. correct warm-gate and timing-basis defects so the coupled path was judged on the right proof surface
+5. prove the same path remained non-regressed under later learning-coupled runtime pressure
+
+`Final Bi posture`
+
+The final `Bi` posture of this path is:
+
+a production-ready output boundary where committed decision truth becomes deterministic, downstream-usable RTDL operational truth, and where that emitted truth remains observable, timely, non-starving, and non-regressed enough to support later case, label, audit, and larger coupled-platform proofs
+
+`Why this matters for the meta goal`
+
+This object serves the meta goal well because it shows that you did not merely publish events after decisions. You reasoned the platform until it could truthfully answer:
+
+- what operational output a decision produced
+- whether downstream consumers could actually rely on that output
+- whether the measurement of that reliance was using the right clocks
+- and whether the same output boundary stayed clean as the platform enlarged
+
+## 2026-03-15 19:03:42 +00:00 - Extract the Bi claim mix for the Action and outcome emission path so the notebook states exactly what downstream operational-truth judgment this work now supports
+For `Action and outcome emission path`, the `Bi claim mix` is this.
+
+`Bi claim mix`
+
+1. `Readiness-reasoning claim`
+
+This path supports the claim that you can reason output truth as its own production-readiness boundary, rather than treating it as an automatic consequence of decision formation. The run-process explicitly separates `P9 DECISION_CHAIN_COMMITTED`, and later coupled work kept testing whether RTDL outputs were actually usable operational truth downstream or whether the proving layer was still asking the wrong question.
+
+2. `Systems-design judgment claim`
+
+This path supports the claim that you understood action and output emission as distinct from both decision formation and later audit and archive truth. In the `A`-side design, the path's owned outcome is deterministic RTDL downstream output truth on the pinned handoff surface, not merely some downstream system eventually changed state. That is a strong systems-design claim because it preserves a clean boundary between:
+
+- what the decision was
+- what output it emitted
+- and what later consumers or evidence systems did with that output
+
+3. `Measurement / evidence claim`
+
+This path supports the claim that you made downstream usability measurable on the right evidence surfaces. The important proof surfaces were not just CaseTrigger moved. They became:
+
+- starvation across `RTDL -> Case and Label` boundaries
+- `decision_to_case` latency
+- `case_to_label` latency
+- and the integrity deltas on CaseTrigger, Case Management, and Label Store
+
+That is what turned the path from output probably worked into a boundary that could be judged as real downstream operational truth.
+
+4. `Constraint / trade-off claim`
+
+This path supports the claim that you chose truthful downstream timing and coupled proof over easy green narratives. When the first timing probe made decision-to-case and case-to-label look catastrophically slow, the accepted response was not to accept those timings as reality and not to drop the metric; it was to fix the timestamp basis so the path was being judged on the right clocks. Likewise, when the reused post-activation warm gate was still being treated as authority, the correction was to repin the coupled proof posture rather than blame the output path itself. That is a real trade-off claim: more discipline, less convenient closure.
+
+5. `Production-relevant challenge claim`
+
+This path supports the claim that the challenges were genuinely production-shaped. The important problems were not toy emit and publish bugs. They were things like:
+
+- proving-layer defects that made the coupled output boundary look red before it was actually exercised
+- wrong timestamp bases making downstream operational timing look catastrophically wrong
+- and the need to prove that RTDL outputs remained usable as real operational truth once downstream Case and Label planes depended on them
+
+Those are exactly the kinds of issues that matter when deciding whether runtime outputs are trustworthy enough for downstream consumers.
+
+6. `Promotion / final-posture claim`
+
+This path supports the claim that the final ready posture is not merely events were emitted after decisions. It is:
+
+- action and outcome evidence became part of `P9` committed decision-chain truth
+- RTDL outputs proved operationally usable downstream with clean timing
+- and that same downstream cleanliness remained intact later under the enlarged learning-coupled runtime, with integrity deltas still at zero
+
+That is a much stronger final posture than a generic publisher worked story. It is committed, observable, downstream-usable operational truth.
+
+`Compressed Bi claim`
+
+`Action and outcome emission path` shows that you can turn committed decision truth into deterministic, downstream-usable operational output truth and then prove that same output truth remains timely, non-starving, and non-regressed as the platform enlarges around it.
+
+The next clean move is the ledger block, then Group 4.
+
+## 2026-03-15 19:11:28 +00:00 - Open the Case-intent escalation path by pinning its A posture, Bi posture, and why case-worthiness judgment is its own operational-review truth boundary
+For `Case-intent escalation path`, the object frame should stay on case-worthiness judgment itself, not drift backward into RTDL output truth or forward into case creation and timeline state.
+
+`Case-intent escalation path`
+
+`Object`
+
+Parent group: `Case and label operational truth`.
+
+Main secondary object it lives inside: the `Case + Label` plane as a plane-ready operational-truth object.
+
+The first enlarged-network object that materially re-pressures it is `Control + Ingress + RTDL + Case + Label`, because that is where RTDL outputs stop being only runtime truth and must remain usable as operational review truth downstream. The Phase 4 plan names this enlarged cross-plane path explicitly as `RTDL -> CaseTrigger -> Case Management -> Label Store`.
+
+`A posture`
+
+In `A`, this path exists to turn RTDL decision and audit outputs into explicit case-worthy operational truth before case management begins. Its job is not yet to create the case, not yet to append the case timeline, and not yet to commit authoritative label truth. Its narrower job is:
+
+RTDL decision and audit truth -> case-trigger judgment -> case-intent truth.
+
+The `A` note is explicit that this boundary exists because otherwise a reviewer could fairly say the platform has RTDL truth and case truth, but no explicit owner for the crucial escalation judgment that connects them. It also says that if CaseTrigger is wrong, the whole operational review surface becomes noisy or blind.
+
+So the `A` posture is:
+
+RTDL decision and audit outputs + case-worthiness logic -> explicit case-intent truth, owned by CaseTrigger rather than inferred later by Case Management.
+
+The `A` note also pins the key contract qualities of that boundary: trigger precision and recall, duplicate suppression, replay safety, and clean truth ownership.
+
+`Bi posture`
+
+In `Bi`, this path becomes the production-ready case-escalation boundary. That means it is no longer enough that RTDL emits some outputs and CaseTrigger publishes something sometimes. The path has to support a stronger claim:
+
+- the right RTDL outputs become the right case intents
+- duplicate-safe trigger formation holds under bounded load
+- current-run participation is visible
+- the path is measurable through its own trigger counters and downstream integrity deltas
+- and later coupled proof can still say RTDL outputs remain usable as operational truth rather than merely technically present
+
+The Phase 3 plane-ready plan makes CaseTrigger duplicate suppression correctness and missed-trigger rate first-class metrics, and the coupled Phase 4 plan upgrades the qualitative question to whether RTDL outputs remain usable as operational truth under load.
+
+The implementation history shows the live boundary was treated that way: the Phase 3 runner widened the runtime snapshot to retain CaseTrigger counters like `published`, `duplicates`, `quarantine`, and `payload_mismatch_total`, precisely so the plane could be judged on the real trigger boundary rather than inferred from later case state. Then the accepted Phase 3 closure recorded clean CaseTrigger, Case Management, and Label Store integrity deltas on a large bounded slice with the promoted upstream base still `PASS`.
+
+So the `Bi` posture is:
+
+a production-ready case-escalation boundary where RTDL outputs are converted into explicit, duplicate-safe, current-run case-intent truth, and that case-intent truth is strong enough to serve as the first operational-review handoff in the enlarged network.
+
+`Why this object matters`
+
+This path matters because it is the place where the platform stops being only a runtime decision system and becomes an operational review system. If this boundary is weak, then downstream case creation can still happen, but the platform loses the clean answer to:
+
+- which RTDL outputs were actually case-worthy
+- whether case intent was chosen correctly or noisily
+- whether missed or duplicate escalations belong to CaseTrigger or to later case-state logic
+- and whether operational review truth is grounded in upstream RTDL truth or merely inferred afterward
+
+The `A` note states this directly by saying the path exists so the escalation judgment is explicitly owned instead of being hidden inside later case-state behavior.
+
+It also has strong `Bi` value because the readiness plan makes this boundary measurable in exactly the right production terms:
+
+- trigger intake
+- duplicate suppression
+- case-worthy participation
+- starvation across `RTDL -> Case and Label`
+- and later qualitative proof that RTDL outputs remain usable as operational truth
+
+So, in one line:
+
+`Case-intent escalation path` is the path that turns RTDL decision and audit truth into explicit case-worthy operational truth, and in `Bi` it becomes the production-ready escalation boundary whose trigger correctness, duplicate safety, and downstream usability are strong enough for the rest of the operational-review system to trust.
+
+The next step in the flow is to derive the `system-design questions` for this path.
+
+## 2026-03-15 19:18:06 +00:00 - Derive the system-design questions for the Case-intent escalation path so later pressure history stays on case-worthy operational truth
+For `Case-intent escalation path`, the system-design questions should stay on case-worthy operational truth, not drift forward into case creation and timeline truth or label truth.
+
+`Case-intent escalation path` - `system-design questions`
+
+1. `What exactly counts as case-intent truth here?`
+
+This path is not satisfied merely because RTDL emitted outputs or because a case later exists. Its owned outcome is narrower: RTDL decision-worthy and audit-worthy outputs become explicit case-worthy operational truth before case management begins. The `A` note is explicit that this boundary exists so the escalation judgment is owned by CaseTrigger rather than being inferred later by Case Management.
+
+2. `Why is this a separate path from case creation?`
+
+The platform is deliberately separating which RTDL outputs deserve operational review at all from how a real case record and timeline are created. That split matters because otherwise later case state would be forced to stand in for escalation correctness, and the docs explicitly warn that if CaseTrigger is wrong, the whole operational-review surface becomes noisy or blind.
+
+3. `What is the allowed entry into this path, and why is it constrained?`
+
+The entry is not generic RTDL traffic and not raw downstream operational noise. It is RTDL decision and audit truth that is already good enough to be considered case-worthy, passed through the explicit `RTDL -> CaseTrigger` boundary the coupled plan names. That keeps the escalation judgment grounded in upstream runtime truth rather than in later case-state side effects.
+
+4. `What must this path carry so escalation is attributable rather than ad hoc?`
+
+It must carry enough signal to justify why a downstream review action should exist at all: trigger-worthy decision and audit posture, run-scope continuity, duplicate-safe trigger identity, and the handoff into CaseTrigger's own counters and topic boundary. That is why the proving notes retain CaseTrigger surfaces such as `triggers_seen`, `published`, `duplicates`, `quarantine`, and `payload_mismatch_total` instead of inferring escalation from later case rows.
+
+5. `What does production-ready mean specifically for this path?`
+
+For this path, production-ready means the right RTDL outputs create the right case intents, duplicate suppression is correct, missed trigger rate is zero for in-scope case-worthy events in bounded runs, and current-run participation is visible on the `RTDL -> CaseTrigger` boundary. Those are explicit focus metrics and primary questions in the Case and Label readiness plan.
+
+6. `How do we know the path is producing the right case intents rather than just producing some triggers?`
+
+The key judgment surface here is not mere activity but trigger precision and recall, duplicate suppression correctness, and the relationship between RTDL decision-bearing traffic and CaseTrigger publication on the bounded slice. The readiness plan makes those first-class metrics instead of leaving them implicit in later case-open counts.
+
+7. `How do we distinguish a case-intent escalation defect from a downstream Case Management defect?`
+
+This path has to stay bounded. The question is whether the right RTDL outputs were converted into the right case-worthy intents at all, before Case Management decides whether it can open, append, or transition the case correctly. That is why the coupled plan keeps `RTDL -> CaseTrigger` separate from `CaseTrigger -> Case Management` and later downstream paths.
+
+8. `What constraints shape this path and stop easy shortcuts?`
+
+The path is constrained by clean truth ownership, replay safety, and duplicate suppression. The `A` note is explicit that the contract here is governed by trigger precision and recall, duplicate suppression, replay safety, and ownership clarity; the plane is only correct if the right RTDL outputs become case-worthy signals before they become cases. That means the platform cannot let Case Management silently fix a bad escalation boundary after the fact.
+
+9. `What trade-off is the design accepting?`
+
+The design accepts another explicit truth boundary in exchange for a cleaner operational-review story. It would be simpler to let cases appear later and infer that escalation must have been correct, but the platform instead pays the complexity cost of a dedicated CaseTrigger boundary so it can later explain why a case-worthy signal existed, whether it duplicated, and whether it starved.
+
+10. `How does enlarged-network pressure re-ask the question?`
+
+Once the full `Control + Ingress + RTDL + Case + Label` network is in play, the question is no longer only did CaseTrigger fire. It becomes do RTDL outputs remain usable as operational truth under load, with starvation across `RTDL -> Case and Label` boundaries, duplicate-safe case and label formation, and lineage back to RTDL truth still intact? The coupled Phase 4 plan names exactly that.
+
+11. `What does this path need to prove for the meta goal?`
+
+The strongest claim is not we had a CaseTrigger service. It is: the platform could explicitly own the escalation judgment from RTDL truth into operational-review truth, measure whether the right decisions became the right case intents, and preserve that correctness under bounded downstream coupling rather than hiding it inside later case-state behavior.
+
+Compressed into one line:
+
+For `Case-intent escalation path`, the system-design interrogation is about whether RTDL decision and audit truth becomes explicit, duplicate-safe, case-worthy operational truth at the right boundary, and whether that escalation remains measurable and trustworthy enough for downstream case handling to rely on under bounded production pressure.
+
+The next move is to map this path to the `pressure episodes` that actually changed its posture.
+
+## 2026-03-15 19:25:18 +00:00 - Map the pressure episodes that changed the Case-intent escalation path from an owned trigger seam into coupled operational-review truth
+For `Case-intent escalation path`, the pressure history that actually changed its posture is best read as a story about when RTDL outputs became explicit, measurable, and later coupled operational-review truth, not just when cases started appearing.
+
+`Pressure episodes that changed this path's posture`
+
+1. `The path began as an explicit owned boundary, not an inferred later effect`
+
+The starting posture from `A` already matters here. This path was not allowed to hide inside Case Management. It was explicitly owned by CaseTrigger, with the job of turning RTDL decision and audit truth into case-worthy operational truth before case creation begins. The `A`-side design also pins the quality bar for that boundary: trigger precision and recall, duplicate suppression, replay safety, and clean truth ownership. That gives the path a real starting posture to be pressured, rather than leaving escalation as something to infer later from case rows.
+
+2. `The path then became measurable on its own terms, not just visible through later case state`
+
+A major posture change happened when the missing Phase 3 execution surface was added and the runtime snapshot was widened to retain the right CaseTrigger counters: `published`, `duplicates`, `quarantine`, and `payload_mismatch_total`. That matters because before this, the path could still have been described, but not truthfully judged from its own run artifacts. After this correction, the escalation boundary stopped being we assume the right decisions became cases and became a boundary with its own measurable output truth.
+
+3. `The first real plane-ready proof showed the path was already clean on the bounded slice`
+
+The next posture-changing episode is the actual bounded Phase 3 closure. The plan records the accepted closure scope `phase3_case_label_20260311T142813Z` with:
+
+- `observed_admitted_eps = 3046.783`
+- `4xx = 0`
+- `5xx = 0`
+- CaseTrigger, Case Management, and Label Store integrity deltas all clean
+- promoted upstream base scored `PASS`
+
+For this path, that means the escalation boundary crossed from now measurable to plane-ready as upstream operational truth. The right RTDL outputs were becoming the right case intents without duplicate, quarantine, or mismatch drift on the bounded slice.
+
+4. `Opening the coupled Case and Label proof changed the path from a plane-local trigger boundary into a coupled cross-plane operational-truth boundary`
+
+Once the coupled proof opened, the meaning of the path changed. The question was no longer only did CaseTrigger form the right case intents on its own. It became does the enlarged `Control + Ingress + RTDL + Case + Label` network still hold, with RTDL outputs remaining usable as operational truth? The plan makes this explicit through the coupled cross-plane path `RTDL -> CaseTrigger -> Case Management -> Label Store`, plus `decision_to_case` latency, starvation counts, and the qualitative question of whether RTDL outputs remain operationally usable rather than merely technically present. That changed the path from a plane-local escalation seam into a working-network operational truth boundary.
+
+5. `The first coupled attempts proved the path had not yet been truthfully pressured, because the proving layer was still wrong`
+
+The next posture change is methodological. The first coupled work did not reveal a runtime case-escalation defect; it revealed that the proving surface was not yet shaped correctly for the coupled question. The notes explicitly say there was no dedicated coupled executor yet, and later that the coupled timing blocker was not a real runtime defect but a timestamp-basis defect in the proving layer. That matters for this path because it prevents a bad interpretation: the absence of clean coupled evidence at this point was not evidence that the escalation boundary was wrong. It was evidence that the boundary had not yet been truthfully exercised on the right clocks and the right runner.
+
+6. `The first fresh full coupled rerun then proved the path was already operationally consumable downstream`
+
+After the stale post-activation warm-gate dependency was removed and the timing probe was corrected to use the right processing clocks, the fresh full coupled rerun materially changed the status of this path. The notes record:
+
+- `decision_to_case p95 = 0.0 s`
+- `case_to_label p95 ~= 0.164 s`
+- CaseTrigger, Case Management, and Label Store all stayed green on the same scope
+- the only red left lived in the inherited burst envelope, not in the coupled Case and Label runtime itself
+
+That means the case-intent escalation boundary had now moved from operationally meaningful but not yet truthfully pressured to operationally consumable downstream truth on a fresh coupled scope.
+
+7. `Later enlarged-network pressure strengthened the path again by proving it stayed clean under promoted learning and runtime authority`
+
+The path's final strengthening comes later, in the enlarged learning-coupled runtime. The accepted coupled integrity and timing metrics show:
+
+- `case_trigger_quarantine_delta = 0`
+- `case_mgmt_anomalies_total_delta = 0`
+- `decision_to_case p95 = 0.0 s`
+- `case_to_label p95 = 0.196 s`
+
+That matters because it shows the escalation boundary did not just work on the first coupled Case and Label proof; it remained non-regressed once the platform enlarged again around promoted learning and runtime authority, rollback and restore drills, and the final working platform. So the path's posture is now stronger than coupled-clean once. It is stable downstream operational truth under later enlarged-network pressure.
+
+`What this mapping says in one line`
+
+`Case-intent escalation path` moved from an explicitly owned but initially only conceptual escalation boundary into a measurable plane-ready CaseTrigger truth boundary, and then into a coupled cross-plane operational-review boundary whose downstream usability was proven on fresh timing-correct scopes and later shown to remain non-regressed under the larger working platform.
+
+The next flow move is to interrogate these episodes one by one.
+
+## 2026-03-15 19:33:54 +00:00 - Interrogate the key episodes that turned the Case-intent escalation path into a trustworthy operational-review handoff
+For `Case-intent escalation path`, the key interrogation is not did downstream cases exist. It is whether the platform explicitly and correctly turned the right RTDL outputs into case-worthy operational truth, and whether that escalation boundary can be trusted on its own terms before later case-state behavior begins. The `A`-side design already makes that boundary explicit by giving CaseTrigger ownership of escalation judgment rather than hiding it inside later Case Management behavior.
+
+`Case-intent escalation path` - `episode interrogation`
+
+`Episode 1 - the path first had to become a measurable boundary, not just a conceptual handoff`
+
+What surfaced first was not a runtime semantic defect in CaseTrigger itself, but a measurement defect in the plane. The initial problem was that the historical proving surfaces were too broad and did not retain the right CaseTrigger evidence for the active question. The accepted correction was to add a narrow Phase 3 executor and rollup, and to widen the runtime snapshot so it kept the right CaseTrigger counters: `published`, `duplicates`, `quarantine`, and `payload_mismatch_total`, rather than forcing the user to infer escalation correctness from later case rows. System-design-wise, that changed the path from escalation is designed into escalation is now judgeable as its own boundary. The class of challenge here was proof-surface insufficiency, not escalation semantics. The accepted bridge improved boundary observability.
+
+`Episode 2 - once measurable, the path proved it could already carry clean plane-local case intent under bounded load`
+
+The first bounded Phase 3 closure then changed the posture again. The plan's closure authority records the accepted plane-ready slice with:
+
+- `observed_admitted_eps = 3046.783`
+- `4xx = 0`
+- `5xx = 0`
+- and clean CaseTrigger, Case Management, and Label Store integrity deltas on the bounded slice
+
+For this path, that matters because it is the first time the platform can say: the right RTDL outputs are becoming case-worthy operational truth cleanly enough that downstream review systems can participate without duplicate, quarantine, or mismatch drift. The class of challenge here is true plane-ready proof for the escalation boundary. The accepted closure improved the path's bounded trigger correctness and duplicate-safe escalation truth.
+
+`Episode 3 - opening the coupled Case and Label proof changed the path from a plane-local trigger seam into a coupled operational-truth boundary`
+
+The next important change was architectural and methodological together. The coupled proof explicitly re-asks the question at enlarged-network level:
+
+- do RTDL outputs remain usable as operational truth
+- do cases and labels remain timely and duplicate-safe
+- is there starvation across `RTDL -> Case and Label` boundaries
+
+That changes the meaning of this path. It is no longer enough that CaseTrigger can publish cleanly on its own bounded slice. The escalation boundary is now judged as the first cross-plane operational-review handoff in the enlarged `Control + Ingress + RTDL + Case + Label` network. The class of challenge here is enlarged-network promotion. The accepted bridge is the dedicated coupled-network proof shape rather than reusing the old broad whole-platform rollup. That improved cross-plane legitimacy of the path.
+
+`Episode 4 - the first coupled attempts showed the path had not yet been truthfully pressured, because the proving layer was still wrong`
+
+The first coupled attempts are important precisely because they did not yet tell us that CaseTrigger was semantically bad. The implementation notes show:
+
+- the initial coupled work failed at proving-surface and control-console defects before the coupled boundary was honestly exercised
+- and later, the first timing probe made downstream latency look catastrophically wrong because it used the wrong clocks
+
+That matters because it changes the interpretation of early red. The open issue was not Case-intent escalation is broken under coupling. It was methodology defect: first the wrong proving surface, then a timestamp-basis defect in the probe. The accepted bridges were to fix the executor shape and then repin the timing probe to the correct processing clocks. That improved the path's truthful exercisability and timing interpretability, not yet its semantics.
+
+`Episode 5 - once timing truth was corrected, the path proved it was already operationally consumable downstream`
+
+After the timing probe was corrected, the first fresh full coupled rerun materially changed the posture of the path:
+
+- `decision_to_case p95 = 0.0 s`
+- `case_to_label p95 ~= 0.164 s`
+- CaseTrigger, Case Management, and Label Store all stayed green on the same scope
+- the only red left was the inherited burst-envelope problem, not a semantic downstream failure inside the case and label chain
+
+For `Case-intent escalation path`, that is decisive. It proves the escalation boundary itself was already operationally consumable downstream; the remaining blocker lived in the proving envelope, not in whether CaseTrigger was turning the right RTDL truths into case-worthy signals. The class of challenge here is proof-envelope and method, not escalation correctness. The accepted bridge was to repin the burst shape to the already-proven truthful coupled burst. That improved the path's coupled operational usability.
+
+`Episode 6 - later enlarged-network pressure strengthened the path again by proving it stayed clean under a larger working platform`
+
+The final important episode is that the path remained clean even after the platform enlarged again around promoted learning and runtime authority. The later accepted metrics still show:
+
+- `case_trigger_quarantine_delta = 0`
+- `case_mgmt_anomalies_total_delta = 0`
+- `decision_to_case p95 = 0.0 s`
+- `case_to_label p95 = 0.196 s`
+
+That matters because the escalation boundary is no longer merely good enough on the first coupled Case and Label proof. It has now been shown to remain non-regressed under a larger working platform, with no new CaseTrigger corruption or starvation reappearing when the network enlarged again. The class of challenge here is later enlarged-network non-regression, and it is green. That improved the path's final posture as stable operational-review truth.
+
+`What this interrogation says about the path`
+
+The real story of `Case-intent escalation path` is not:
+
+> RTDL outputs existed, and later cases appeared.
+
+It is:
+
+> the platform first made escalation a measurable CaseTrigger-owned boundary, then proved it clean on its own bounded slice, then re-asked it as a coupled operational-truth handoff, corrected the proving and timing surfaces around that handoff, and finally showed that the same escalation boundary remained downstream-usable and non-regressed as the working platform enlarged.
+
+The next clean move is the `object transformation synthesis` for this path.
+
+## 2026-03-15 19:41:36 +00:00 - Synthesize how the Case-intent escalation path moved from a designed CaseTrigger seam into a production-ready operational-review boundary
+`Case-intent escalation path` - `transformation synthesis`
+
+In `A`, this path already had a very specific and necessary job: turn RTDL decision and audit truth into explicit case-worthy operational truth before case management begins. It was deliberately kept separate from case creation and from label truth so the platform could cleanly answer a question that would otherwise be buried inside later case state: which upstream RTDL outputs were actually worthy of operational review, and who owned that escalation judgment? The `A` note is explicit that this boundary is seated in CaseTrigger, governed by trigger precision and recall, duplicate suppression, replay safety, and clean truth ownership.
+
+To reach its `Bi` posture, the first thing that had to be resolved was boundary observability. The path could not remain merely well-described in the design docs; it had to become judgeable on its own terms. That is why the production-readiness work introduced a dedicated Phase 3 execution and widened the runtime snapshot to preserve the right CaseTrigger counters: `published`, `duplicates`, `quarantine`, and `payload_mismatch_total`, instead of forcing the reader to infer escalation correctness later from case rows. That changed the path from escalation is a designed seam into escalation is a measurable runtime truth boundary.
+
+Once the boundary was measurable, the next thing that had to be resolved was whether it could be plane-ready on its own bounded slice. The accepted Phase 3 closure is what first earns that claim. On `phase3_case_label_20260311T142813Z`, the plane closed green with admitted throughput around `3046.783 eps`, no `4xx` or `5xx`, and clean CaseTrigger, Case Management, and Label Store integrity deltas on the bounded slice. For this path specifically, that means RTDL outputs were already becoming the right case intents cleanly enough that downstream review truth could participate without duplicate, quarantine, or mismatch drift. The path had now moved from measurable to boundedly correct and duplicate-safe.
+
+The next transformation came when the coupled Case and Label proof opened. At that point the question changed materially: the path was no longer only a plane-local trigger seam. The enlarged-network proof explicitly reframed it as a cross-plane operational-truth boundary inside `Control + Ingress + RTDL + Case + Label`, with the critical path named as `RTDL -> CaseTrigger -> Case Management -> Label Store`. That matters because it upgrades the object from does CaseTrigger form the right intents to do RTDL outputs remain usable enough, timely enough, and starvation-free enough that downstream operational review can still trust them under load?
+
+But the first coupled work did not immediately answer that question truthfully. The next thing that had to be resolved was proof validity around the coupled boundary. The first coupled attempt failed before any traffic was sent because of the reused control-bootstrap seam; later, the first timing probe made decision-to-case and case-to-label latency look catastrophically wrong because it used the wrong clocks. Those were not semantic failures of the escalation boundary itself. They were methodology defects in the proving layer. The accepted bridges were therefore not fix CaseTrigger semantics, but derive a truthful coupled runner and repin the timing probe to the authoritative processing clocks. That changed the path from operationally meaningful but not yet truthfully pressured into operationally meaningful and now judged on the right proof surface.
+
+Once those methodology defects were removed, the first fresh full coupled rerun showed the real state of the path. Decision-to-case timing was effectively zero, case-to-label timing stayed low, CaseTrigger, Case Management, and Label Store stayed green, and the only remaining red lived in the inherited burst envelope rather than in the case and label chain. That is the decisive transformation moment for this object: the escalation boundary itself had become operationally consumable downstream truth. The path was no longer the blocker; the envelope proof shape was.
+
+Finally, later enlarged-network pressure strengthened the path again by proving non-regression under a larger working platform. The accepted later coupled metrics still held `case_trigger_quarantine_delta = 0`, `case_mgmt_anomalies_total_delta = 0`, and clean decision-to-case and case-to-label timing while the platform enlarged around learning and runtime authority and later full-platform proofs. That matters because the path is no longer merely good on the first coupled Case and Label proof. It has now been shown to remain stable operational-review truth under the larger working platform.
+
+`What had to be resolved`
+
+To move `Case-intent escalation path` from its `A` posture to its `Bi` posture, the platform had to resolve five things:
+
+1. make escalation a measurable CaseTrigger-owned boundary rather than an inference from later case state
+2. prove that the boundary was plane-ready and duplicate-safe on its own bounded slice
+3. upgrade it into a coupled cross-plane operational-truth boundary once Case and Label were attached
+4. correct the proving and timing surfaces so the coupled path was judged on the right runner and the right clocks
+5. then show that the same escalation boundary remained non-regressed under the larger working platform
+
+`Final Bi posture`
+
+The final `Bi` posture of this path is:
+
+a production-ready escalation boundary where RTDL decision and audit truth becomes explicit, duplicate-safe, current-run case-intent truth, and where that case-intent truth remains measurable, timely, starvation-free, and operationally usable enough for downstream review systems to trust under the enlarged working platform.
+
+`Why this matters for the meta goal`
+
+This object helps the meta goal because it shows that you did not merely have case creation downstream. You reasoned the platform until it could cleanly answer:
+
+- which RTDL outputs were actually case-worthy
+- whether that escalation judgment was measurable on its own terms
+- whether downstream review systems could rely on it
+- and whether the same escalation boundary stayed trustworthy as the platform enlarged
+
+## 2026-03-15 19:48:11 +00:00 - Extract the Bi claim mix for the Case-intent escalation path so the notebook states exactly what escalation-boundary judgment this work now supports
+For `Case-intent escalation path`, the `Bi claim mix` is this.
+
+`Bi claim mix`
+
+1. `Readiness-reasoning claim`
+
+This path supports the claim that you can reason escalation truth as its own production-readiness boundary, instead of letting later case state stand in for it. The platform first made CaseTrigger measurable on its own terms, then proved the bounded plane slice clean, then re-asked the question at enlarged-network level, and only accepted downstream usability after the proving surface and timing basis were corrected.
+
+2. `Systems-design judgment claim`
+
+This path supports the claim that you understood case-worthy operational truth as distinct from both RTDL decision truth and case creation truth. In `A`, the escalation judgment is explicitly owned by CaseTrigger, with trigger precision and recall, duplicate suppression, replay safety, and ownership clarity pinned as the contract of the boundary. That is a strong systems-design claim because it means the platform does not hide escalation correctness inside later case rows.
+
+3. `Measurement / evidence claim`
+
+This path supports the claim that you made escalation directly measurable rather than inferred. The widened Phase 3 snapshot retained the right CaseTrigger counters: `published`, `duplicates`, `quarantine`, and `payload_mismatch_total`, and the later coupled proofs measured starvation across `RTDL -> Case and Label`, plus truthful `decision_to_case` and `case_to_label` timing once the timestamp basis was corrected. That made the escalation boundary observable on its own terms.
+
+4. `Constraint / trade-off claim`
+
+This path supports the claim that you chose truthful downstream proof over easy green narratives. When the first coupled timing probe made the boundary look catastrophically slow, the accepted response was not to blame CaseTrigger or to drop the metric; it was to fix the timestamp basis so the path was judged on authoritative processing clocks. Likewise, when the inherited coupled burst shape created red `429`s, the accepted correction was to repin the proving shape rather than reinterpret the escalation boundary as semantically broken.
+
+5. `Production-relevant challenge claim`
+
+This path supports the claim that the challenges were genuinely production-shaped. The important issues were not toy trigger bugs. They were:
+
+- the absence of a truthful plane-scoped proving surface at first
+- coupled-proof defects that prevented the boundary from being exercised honestly
+- incorrect timestamp bases that made downstream timing look catastrophically wrong
+- and later the need to show the same escalation boundary stayed clean under a larger working platform
+
+Those are real operational-review boundary problems, not cosmetic test issues.
+
+6. `Promotion / final-posture claim`
+
+This path supports the claim that the final ready posture is not merely cases appeared downstream. It is:
+
+- CaseTrigger became a measurable and plane-ready escalation boundary
+- RTDL outputs remained usable as operational truth when Case and Label were coupled in
+- downstream timing proved clean on the corrected clocks
+- and later enlarged-network proof still kept `case_trigger_quarantine_delta = 0`, `case_mgmt_anomalies_total_delta = 0`, `decision_to_case p95 = 0.0 s`, and `case_to_label p95 = 0.196 s`
+
+That is a much stronger final posture than a generic case flow worked story.
+
+`Compressed Bi claim`
+
+`Case-intent escalation path` shows that you can turn RTDL decision and audit truth into explicit, duplicate-safe, measurable case-worthy operational truth and then prove that same escalation boundary remains timely, starvation-free, and non-regressed once downstream review systems and the larger working platform depend on it.
+
+The next clean move is the ledger block, then `Case creation and timeline append path`.
+
+## 2026-03-15 16:39:48 +00:00 - Derive the system-design questions for the Decision formation path so later pressure history stays on decision truth itself
+For `Decision formation path`, the system-design questions should stay on decision truth itself, not drift backward into guardrail posture or forward into action emission.
+
+`Decision formation path` - `system-design questions`
+
+1. `What exactly counts as decision truth here?`
+
+This path is not about whether the platform is allowed to decide, and it is not about whether actions later happened. Its owned outcome is the actual decision truth for the current event under the current run, formed from live context, live feature state, guardrail posture, and the active runtime bundle or policy. The `A` note is explicit that this boundary exists so the platform can answer what the decision was, under what authority, with provenance and explanation complete enough to survive replay and audit.
+
+2. `Why is this a separate path from decision guardrail and action emission?`
+
+The platform deliberately refuses to let decision correctness be implied either by upstream safety posture or by downstream success. Guardrail answers whether the runtime is sufficiently trusted to proceed; this path answers what the actual decision is once that condition is met; later paths turn decision truth into side effects, audit, case, and label consequences. That separation is what keeps safe to decide, decision formed, and downstream acted from collapsing into one vague runtime story.
+
+3. `What is the allowed entry into this path, and why is it constrained?`
+
+The entry is only the set of things that make decision legitimately formable: joined runtime context, online feature readiness, guardrail posture, and active runtime bundle or policy resolution. That last part matters because the platform treats registry-to-runtime feedback as a real authority seam: the runtime must resolve the right active bundle or policy and include that identity in decision provenance. Decision truth is therefore constrained by upstream runtime truth, governed runtime authority, and downstream auditability.
+
+4. `What must this path carry so the decision is attributable rather than merely executable?`
+
+It must carry more than a class label or score. The path has to preserve bundle or policy identity, decision provenance, explanation coverage, fail-closed versus quarantine semantics, and duplicate-safe decision commit discipline. The `A` note treats these as part of the path's carried state and constraints, because without them the platform could still emit actions while losing the clean answer to why this decision happened and whether it was the right kind of non-normal outcome.
+
+5. `What does production-ready mean specifically for this path?`
+
+For this path, production-ready means the decision lane is non-regressed and committed, and that the committed decision can survive into the rest of the decision chain with action and outcome evidence and append-only audit evidence present. The run-process makes that boundary explicit at `P9 DECISION_CHAIN_COMMITTED`, where those three conditions define the pass gate. So this path is not ready merely because a model executed; it is ready when decision truth is committed as decision-chain truth.
+
+6. `How do we know the runtime resolved the right decision authority, rather than merely some authority?`
+
+A core question here is whether the decision was formed under the right active bundle or policy, not just any bundle that happened to be loaded. The `A` note makes this a first-class concern: runtime must resolve the correct active bundle or policy, promotion and rollback must apply deterministically, and provenance must include that runtime authority identity. That means this path has to judge authority resolution as part of decision correctness, not as a registry detail outside the decision boundary.
+
+7. `How do we distinguish a true decision-boundary defect from downstream success or downstream failure?`
+
+This path exists precisely because downstream success must not be allowed to imply decision correctness, and downstream failure must not be allowed to obscure where the decision truth boundary actually broke. The run-process separates RTDL catch-up from committed decision-chain closure, and later coupled work separates RTDL outputs remaining usable as operational truth from the downstream case and label paths that consume them. So a central question is whether a problem belongs to decision truth itself, to later action and audit commitment, or to still later case and label coupling.
+
+8. `How should we measure whether the path is actually healthy and complete?`
+
+The design does not leave this to intuition. It explicitly names the things that matter here: fail-closed rate, quarantine rate, hard fail-closed count, decision completeness and provenance completeness, policy or bundle resolution correctness, explainability coverage, and duplicate-safe decision commit. Those are the surfaces that let the platform say decision truth is complete and governed, not merely present.
+
+9. `What constraints shape this path and prevent easy shortcuts?`
+
+This path is constrained by three larger contracts: the RTDL contract on the input side, the registry and runtime authority contract on the authority side, and the decision-chain closure contract on the evidence side. That means it cannot invent its own semantics casually. Context must be semantically correct, features must actually be present and fresh, guardrail posture must distinguish advisory from real insufficiency, runtime must resolve the right active bundle or policy, and the resulting decision must still survive committed action and outcome plus append-only audit evidence.
+
+10. `What trade-off is the design accepting here?`
+
+The design deliberately adds another explicit truth boundary to RTDL, which costs complexity because the platform must carry authority identity, decision provenance, explanation coverage, non-normal-outcome semantics, and duplicate-safe commit discipline. But that complexity buys something important: the platform can later answer why this decision happened, under what authority, and whether it was the right kind of fail-closed or quarantine result, instead of relying on downstream behavior as a proxy for decision truth.
+
+11. `How does enlarged-network pressure re-ask the question?`
+
+Once later planes are attached, the question is no longer only did a decision commit. It becomes does the same decision truth remain usable as operational truth downstream? The later coupled readiness plan for `Control + Ingress + RTDL + Case + Label` makes that explicit through decision-to-case latency, case and label throughput under real upstream pressure, and the qualitative requirement that RTDL outputs remain usable as operational truth rather than merely technically present.
+
+12. `What does this path need to prove for the meta goal?`
+
+The strongest claim is not that there was a decision fabric service. It is: the platform could turn live runtime understanding plus governed runtime authority into explicit, committed, attributable decision truth that is complete enough to survive action, audit, replay, and downstream coupling. That is what makes this boundary read like production-readiness judgment rather than component ownership.
+
+Compressed into one line:
+
+For `Decision formation path`, the system-design interrogation is about whether runtime context, features, guardrail posture, and active bundle or policy authority become explicit decision truth that is governed, committed, attributable, and still usable enough to survive later action, audit, and enlarged-network coupling.
+
+The next move is to map this path to the `pressure episodes` that actually changed its posture.
+
+## 2026-03-15 16:53:17 +00:00 - Map the pressure episodes that changed the Decision formation path from an internal RTDL lane into an operationally consumable and later authority-attributed decision boundary
+For `Decision formation path`, the pressure history that actually changed its posture is not mainly a story about model scores or inference speed. It is a story about when decision truth became explicit, trustworthy, operationally consumable, and later attributable to the correct runtime authority.
+
+`Pressure episodes that changed this path's posture`
+
+1. `The path first became a separate closure boundary, not a hidden side effect of RTDL liveness`
+
+The first important posture change is structural. The run-process does not let RTDL catch-up imply decision correctness. It separates RTDL catch-up from committed decision-chain closure, and that later boundary only passes when the decision lane is non-regressed and committed, action and outcome evidence is committed, and append-only audit evidence is committed. That matters because it changes the path from RTDL probably made decisions into decision truth is a distinct closure boundary with its own evidence bundle.
+
+2. `The path then became operationally consumable truth, not just committed decision truth`
+
+Once Case and Label were brought into scope, the later readiness plan re-asked the question at enlarged-network level. It no longer cared only that decisions committed; it cared whether RTDL outputs remain usable as operational truth, and it made decision-to-case latency one of the explicit coupled proof metrics. That changed the posture of this path because decision truth was no longer judged only inside RTDL. It became the upstream operational truth that downstream case and label planes had to consume without starvation or semantic ambiguity.
+
+3. `The first coupled attempt showed the path had not yet been truthfully pressured, because no traffic even reached the decision boundary`
+
+The first bounded coupled attempt failed during the reused control-bootstrap seam before any traffic was sent. The implementation note is explicit that the failure was:
+
+- not in ingress
+- not in RTDL
+- not in Case and Label
+- not under steady, burst, or recovery traffic at all
+
+That changed the path's posture because it showed the decision boundary had not yet actually been put under coupled proof. The open issue was a proving-harness compatibility defect, not a decision-formation runtime defect. So the path remained conceptually important but not yet materially exercised under the new enlarged-network question.
+
+4. `The second coupled attempt then showed the path could already carry live activation traffic, but the old warm gate was checking the wrong question`
+
+The next rerun materially reached:
+
+- fresh runtime materialization
+- control bootstrap
+- prewarm traffic
+- scored activation traffic
+
+Both bounded activation slices were semantically healthy on the live APIGW edge. But the reused post-activation warm gate still stayed red, and `DL` had flipped to `FAIL_CLOSED` on `required_signal_gap:ofp_health`. The implementation note then makes the crucial correction: this was not yet a demonstrated ingress or runtime regression. The runner had already pushed activation traffic through the coupled path, so the reused warm gate was no longer checking the right proof posture for a steady, burst, and recovery certification with materially active `DF`. That changed the posture of this path because it proved decision formation was now live in the coupled network, but the old proof surface was misreading it.
+
+5. `The timing probe then made the path's downstream operational truth measurable on the right clock`
+
+Once the warm-gate dependency was removed, the next real change for this path was the dedicated timing probe. Its first version produced a false red story:
+
+- decision-to-case `p95 ~ 68 s`
+- case-to-label `p95 ~ 68 s`
+
+The live store rows showed why that was wrong:
+
+- the authoritative case-open clock is `first_seen_at_utc -> created_at_utc`, not event-time `observed_time`
+- the authoritative case-to-label clock is the actual case-management handshake write attempt, not the earlier `LABEL_PENDING` timeline timestamp
+
+That matters because it changed the path from decision truth exists and is consumed somehow into decision truth now has a truthful operational timing basis when it crosses into downstream case handling. The issue was not a slow decision boundary; it was a timestamp-basis defect in the proving layer.
+
+6. `The first fresh full coupled rerun then proved the path was already operationally usable downstream`
+
+After the timing correction, the fresh full coupled rerun showed:
+
+- coupled timing probe passed cleanly
+- decision-to-case `p95 = 0.0 s`
+- case-to-label `p95 ~= 0.164 s`
+- CaseTrigger, Case Management, and Label Store all stayed green
+
+The only red left was in the envelope summary, specifically a badly inherited coupled burst shape that produced API-edge `429` responses. That changed the posture of `Decision formation path` because it proved the decision boundary itself was not the active coupled blocker. Decision truth was already operationally consumable enough for downstream case handling; the open issue had moved to the proving envelope, not the decision boundary.
+
+7. `Later learning-coupled pressure reopened the path at a deeper level: runtime attribution to the correct active bundle`
+
+The next major posture shift for this path happens in the learning-coupled proof. That phase explicitly scopes a new subphase: runtime decision attribution proof, and the definition says it is green only when active runtime decisions for the bounded run carry the promoted bundle truth in the actual DLA governance stamps, with one bounded bundle identity and one bounded policy identity present for the main scenario and no DLA attribution ambiguity. That changes the path from decision truth is committed and operationally consumable into decision truth is also attributable to the correct governed runtime authority.
+
+8. `The first learning-coupled attempt showed that duplicate ingress scope could make the decision boundary look dark even when the bundle transition logic was correct`
+
+The first learning-coupled attempt then exposed a subtle problem: rollback and restore transition slices could not reuse the same `platform_run_id` as the candidate run and still expect new downstream evidence. Ingress would accept the request shape but collapse it as duplicate traffic before RTDL and DLA could restamp alternate-bundle truth. That changed the posture of the decision path because it proved that correct runtime attribution is not only about bundle resolution; it also depends on fresh decision-bearing traffic scope reaching DLA. The accepted bridge was to give candidate, rollback, and restore each their own fresh run scope.
+
+9. `The corrected learning-coupled rerun then proved the path could carry candidate, rollback, and restore decision attribution truth`
+
+With fresh candidate, rollback, and restore scopes, the rerun materially improved the picture:
+
+- candidate bundle attribution green
+- rollback bundle attribution green
+- restore bundle attribution green
+- control, integrity, and downstream participation all stayed healthy
+
+That changed the path's posture because it proved runtime decision truth could now be attributed correctly across not just one active promoted state, but also rollback and re-restore transitions. Decision formation was no longer merely committed; it was governed-runtime attributable.
+
+10. `The final correction was a rollup-authority defect, not a runtime decision defect`
+
+Even after the candidate, rollback, and restore probes themselves were green, the learning-coupled rollup still drifted because it read the older `previous_active_bundle` value from a retained earlier governance record instead of using the truthful staged registry surface for the current phase. That matters because the open problem was no longer the decision boundary or its attribution probes; it was which authority the receipt layer was using to summarize them. The accepted bridge was to repin rollback judgment to the staged registry surface, which turned runtime attribution truth into receipt truth. That final shift matters because it completed the path's move from runtime decisions can be attributed correctly to the platform's formal evidence chain now tells the same truthful story.
+
+`What this mapping says in one line`
+
+`Decision formation path` moved from a distinct but mostly internal decision boundary, into an operationally consumable downstream truth boundary, and then into a governed-runtime attribution boundary whose candidate, rollback, and restore decisions had to be proven on fresh scopes and summarized under the correct registry authority.
+
+The next move in the flow is to interrogate these episodes one by one.
+
+## 2026-03-15 17:08:12 +00:00 - Interrogate the key episodes that turned the Decision formation path from an internal RTDL lane into explicit, operationally consumable, and later authority-attributed decision truth
+I’m treating the important episodes as the ones that changed what decision truth meant or how it could be trusted, not every downstream case or label event.
+
+`Episode interrogation`
+
+1. `Decision truth first became a distinct closure boundary`
+
+What surfaced first is structural: the platform does not let RTDL catch-up imply decision correctness. The run-process separates committed decision-chain closure, and that gate only closes when the decision lane is committed, action and outcome evidence is committed, and append-only audit evidence is committed. System-design-wise, that means decision truth is its own owned boundary, not a side effect of RTDL liveness. The class of challenge here is closure-boundary definition, not runtime failure. The accepted bridge is the explicit decision-chain triplet closure, and it is the right bridge because it forces the platform to prove decision truth directly instead of inferring it from RTDL was alive. The readiness property improved here is explicit decision-chain closure authority.
+
+2. `The path then became operationally consumable truth, not just committed truth`
+
+The next meaningful pressure came when Case and Label were introduced. The plan stopped asking only did a decision commit and started asking whether RTDL outputs remain usable as operational truth downstream, with decision-to-case latency, case-to-label latency, and starvation across the RTDL to Case and Label boundary all becoming first-class proof surfaces. That changes the meaning of the path: decision truth is no longer only an internal RTDL fact; it is now something downstream operational planes must be able to consume without semantic drift. The class of challenge is enlarged-network usability, not local model execution. The accepted bridge is the coupled-network proof shape for that phase, and it is right because it checks the path at the first place where decision truth becomes operationally consequential. The readiness property improved here is downstream operational consumability of decision truth.
+
+3. `The first coupled attempt proved the path had not yet been truthfully pressured`
+
+The first bounded coupled attempt is important precisely because it did not tell us anything about decision truth under load. It failed at the reused control-bootstrap seam before any traffic was sent, because the runner wrote `g4a_run_charter.active.json` while the reused bootstrap worker still expected `g3a_run_charter.active.json`. System-design-wise, that means the decision boundary had not yet been exercised; the open issue was a proving-harness compatibility defect, not a decision-formation runtime defect. The accepted bridge was to fix the charter handoff rather than broaden the diagnosis prematurely. That improved truthful exercisability of the path: the platform could now actually put the decision boundary under coupled proof.
+
+4. `The second coupled attempt showed live decision traffic was already flowing, but the old warm gate was asking the wrong question`
+
+The rerun then reached fresh materialization, bootstrap, prewarm traffic, and scored activation traffic. Both bounded activation slices were semantically healthy on the live APIGW edge, but the reused post-activation warm gate still stayed red and `DL` had flipped to `FAIL_CLOSED` on `required_signal_gap:ofp_health`. The implementation note makes the crucial correction: this was not yet a demonstrated ingress or runtime regression. The runner had already pushed activation traffic through the coupled path, so the reused warm gate was now enforcing the wrong proof posture for a coupled steady, burst, and recovery certification. The class of challenge here is methodology defect masquerading as decision-path failure. The accepted bridge was to stop treating that reused warm gate as authority and repin the coupled phase so activation plus the full bounded envelope became the proof path. That improved proof-boundary correctness for the decision path.
+
+5. `The timing probe then showed the next red was in measurement, not in the decision boundary itself`
+
+Once the stale warm-gate dependency was removed, the first dedicated timing probe produced a false-red story:
+
+- decision-to-case `p95 ~ 68 s`
+- case-to-label `p95 ~ 68 s`
+
+The live store rows showed why that was wrong:
+
+- the authoritative case-open clock is `first_seen_at_utc -> created_at_utc`, not event-time `observed_time`
+- the authoritative case-to-label clock is the actual case-management handshake write attempt, not the earlier `LABEL_PENDING` timeline timestamp
+
+That means the open issue was a timestamp-basis defect in the proving layer, not a slow decision boundary. The accepted bridge was to repin the timing probe to the correct processing timestamps and keep timing as an explicit coupled proof surface. That improved truthful operational timing evidence for the path.
+
+6. `The first fresh full coupled rerun proved decision truth was already operationally usable downstream`
+
+After the timing correction, the fresh full coupled rerun showed:
+
+- decision-to-case `p95 = 0.0 s`
+- case-to-label `p95 ~= 0.164 s`
+- CaseTrigger, Case Management, and Label Store all stayed green
+
+The only red left was in the envelope summary, specifically a badly inherited burst shape producing API-edge `429`s. That matters because it shows the decision boundary itself was not the active blocker anymore. Decision truth was already operationally consumable enough for downstream case handling; the remaining problem had moved to the proving envelope, not the decision path. The class of challenge here is proof-shape and envelope, not decision semantics. The accepted bridge was to repin the coupled phase to the short burst posture already proven upstream. That improved operational downstream usability of decision truth.
+
+7. `The learning-coupled proof reopened the path at a deeper level: runtime attribution to the correct active bundle`
+
+The next major change in posture happens in the learning-coupled proof. That phase explicitly creates a new subphase, runtime decision attribution proof, and says it is green only when active runtime decisions for the bounded run carry the promoted bundle truth in DLA governance stamps, with one bounded bundle identity, one bounded policy identity, and no attribution ambiguity. System-design-wise, that upgrades the path from decision truth is committed and downstream-usable to decision truth is also attributable to the correct governed runtime authority. The class of challenge is runtime authority attribution. The accepted bridge is to pressure the live runtime on that question directly, not just infer attribution from promotion state. That improved governed runtime attribution of decision truth.
+
+8. `The first learning-coupled attempt showed duplicate ingress scope could make decision truth look dark for the wrong reason`
+
+The first learning-coupled attempt then exposed a subtle boundary problem: short rollback and restore slices could not reuse the same `platform_run_id` as the candidate run and still expect new downstream evidence. Ingress would accept the request shape, but collapse it as duplicate traffic before RTDL and DLA could restamp alternate bundle truth. That means the open issue was not incorrect bundle resolution in runtime. It was that the decision-bearing traffic never became fresh enough to produce new attribution evidence. The class of challenge here is scope-validity and duplicate-ingress defect. The accepted bridge was to give candidate, rollback, and restore each their own fresh run scope and record them explicitly in the run charter. That improved attribution reachability for the path.
+
+9. `The corrected learning-coupled rerun proved candidate, rollback, and restore decision attribution truth`
+
+With fresh candidate, rollback, and restore scopes, the rerun materially improved the picture:
+
+- candidate bundle attribution green
+- rollback bundle attribution green
+- restore bundle attribution green
+- control, integrity, and downstream participation all stayed healthy
+
+This is where the path changes from decision truth may be committed into decision truth can be attributed correctly across promotion, rollback, and restore transitions. The class of challenge is now runtime attribution proof, and it is green. The accepted bridge demonstrably changed posture because the earlier darkness disappeared once fresh ingress scopes were used. That improved bounded transition attribution truth for the decision path.
+
+10. `The final defect was not in runtime decision truth, but in which authority the rollup trusted`
+
+Even after the attribution probes themselves were green, the learning-coupled rollup still drifted because it was reading the older `previous_active_bundle` value from a retained earlier governance record instead of the truthful staged registry surface for the current phase. That means the remaining issue was not runtime decision formation or runtime attribution. It was a rollup-authority defect in the evidence layer. The accepted bridge was to repin rollback judgment to the staged registry surface, so receipt truth and runtime truth finally agreed. That improved evidence-chain coherence for the path: not just runtime decided correctly, but the formal summary now tells the same truthful story.
+
+`What this interrogation says about the path`
+
+`Decision formation path` was not made ready because a decision was produced and later downstream things worked. It became ready because the platform first made decision truth a separate closure boundary, then proved it was operationally consumable downstream, then corrected proof and timing surfaces so that usability could be judged honestly, and later reopened the path at the governed-runtime layer until candidate, rollback, and restore decision attribution were all proven and summarized under the correct authority.
+
+The next clean move is the `object transformation synthesis` for this path.
+
+## 2026-03-15 17:21:34 +00:00 - Synthesize how the Decision formation path moved from an internal RTDL decision lane into explicit, operationally consumable, and authority-attributed decision truth
+`Decision formation path` - `transformation synthesis`
+
+In `A`, this path already had a precise job: turn joined context, online feature state, guardrail posture, and active bundle or policy authority into explicit decision truth. It was intentionally separate from guardrail classification and separate from downstream action emission, because the platform wanted a clean boundary where it could answer: what was the decision, under what authority, with what provenance and explanation?
+
+To reach its `Bi` posture, the first thing that had to be resolved was closure authority. Decision truth could not remain an implied side effect of RTDL catch-up. That is why the run-process separates RTDL catch-up from committed decision-chain closure, and why that later boundary requires the decision lane, action and outcome evidence, and append-only audit evidence all to be committed. This changed the path from RTDL probably made decisions into a distinct, gate-owning decision-truth boundary.
+
+The next thing that had to be resolved was operational downstream usability. Once Case and Label entered scope, decision truth was no longer only an internal RTDL fact; it had to remain usable as operational truth downstream. The important correction here was not a change to the decision algorithm itself, but to the proving surface around it. The first coupled attempts showed that some apparent red belonged to the proof posture, not the decision boundary: the reused post-activation warm gate was checking the wrong thing, and the first timing probe was using the wrong clocks, `observed_time` and `LABEL_PENDING`, rather than the authoritative case-open and handshake timestamps. After those corrections, the fresh full coupled rerun showed the decision boundary was already operationally consumable downstream, with clean decision-to-case and case-to-label timing while the remaining issue had moved to the envelope, not the decision path.
+
+Then the path had to become not just committed and operationally consumable, but governed-runtime attributable. That is the deeper transformation introduced in the learning-coupled proof. The notebook explicitly reopened the path around runtime decision attribution: active runtime decisions had to carry the promoted bundle truth in DLA governance stamps, and this had to hold not just for the candidate state but also for rollback and restore transitions. The first attempt showed that duplicate ingress scope could make the boundary look dark for the wrong reason, because reused `platform_run_id` values prevented fresh downstream attribution evidence from being produced. The accepted bridge was to give candidate, rollback, and restore their own fresh scopes. Once that was done, the path's posture changed materially: candidate, rollback, and restore decision attribution all went green.
+
+Finally, the last thing that had to be resolved was evidence-chain authority coherence. Even after runtime attribution itself was green, the learning-coupled rollup could still tell the wrong story because it was reading the retained earlier governance surface instead of the truthful staged registry surface for the current phase. That mattered because the open problem was no longer decision formation and no longer decision attribution; it was which authority the summary layer trusted. Repinning rollback judgment to the staged registry surface completed the transformation: runtime truth and receipt truth now agreed.
+
+`What had to be resolved`
+
+To move `Decision formation path` from its `A` posture to its `Bi` posture, the platform had to resolve five things:
+
+1. make decision truth a distinct committed closure boundary
+2. prove that decision truth remained operationally usable downstream
+3. separate decision-boundary defects from proof and timing-surface defects
+4. prove runtime attribution truth across candidate, rollback, and restore
+5. align the receipt and rollup authority with the same runtime truth the path had already earned
+
+`Final Bi posture`
+
+The final `Bi` posture of the path is:
+
+a production-ready decision boundary where runtime context, features, guardrail posture, and active bundle or policy authority become explicit committed decision truth that is operationally consumable downstream, attributable across promotion, rollback, and restore transitions, and summarized under the correct governing authority
+
+`Why this matters for the meta goal`
+
+This object serves the meta goal well because it shows that you did not merely have a decision fabric. You reasoned the platform until it could answer, truthfully and governably:
+
+- what the decision was
+- whether downstream systems could trust it
+- which runtime authority produced it
+- and whether the formal evidence chain told the same story as the live runtime
+
+## 2026-03-15 17:34:58 +00:00 - Extract the Bi claim mix for the Decision formation path so the notebook states exactly what decision-truth judgment this work now supports
+For `Decision formation path`, the `Bi` claim mix should stay on explicit decision truth, operational usability, governed runtime attribution, and evidence-chain coherence rather than generic model execution.
+
+`Bi claim mix`
+
+1. `Readiness-reasoning claim`
+
+This path supports the claim that you can reason decision truth as its own production-readiness boundary rather than letting RTDL liveness or downstream success stand in for it. The platform explicitly separates committed decision-chain closure from RTDL catch-up, and later coupled and learning-coupled work kept rechecking whether the decision boundary itself was actually what was red, or whether the proving or timing surface was lying about it.
+
+2. `Systems-design judgment claim`
+
+This path supports the claim that you understood decision formation as distinct from both guardrail posture and downstream action or case handling. In `A`, the path is explicitly: joined context + online features + guardrail posture + active bundle or policy authority -> decision truth. That is a strong systems-design claim because it shows the platform does not let safe to proceed, decision formed, and downstream acted blur into one vague runtime story.
+
+3. `Measurement and evidence claim`
+
+This path supports the claim that you made decision truth measurable and attributable, not merely executable. The key proof surfaces were:
+
+- the committed decision, action, and audit triplet
+- truthful downstream timing evidence, `decision_to_case` and `case_to_label`
+- runtime attribution in DLA governance stamps
+- and later rollback and restore attribution truth
+
+That matters because the path was not accepted on a model ran. It was accepted on committed, explainable, operationally consumable evidence.
+
+4. `Constraint and trade-off claim`
+
+This path supports the claim that you chose truthful proof over easy closure. In the coupled case-handling proof, the platform refused to treat the reused post-activation warm gate as authority once it became clear that activation traffic had already flowed and the gate was checking the wrong proof posture. In the learning-coupled attribution proof, it refused to reuse the same `platform_run_id` for candidate, rollback, and restore once that was shown to collapse fresh downstream attribution into duplicate ingress truth. Those are real trade-off decisions: more effort and stricter method, but much stronger claims.
+
+5. `Production-relevant challenge claim`
+
+This path supports the claim that the challenges were genuinely production-shaped. The important issues were not toy inference bugs. They were things like:
+
+- a warm-gate or executor methodology defect masquerading as `FAIL_CLOSED`
+- incorrect timestamp bases making downstream operational timing look catastrophically wrong
+- duplicate ingress scope making rollback and restore attribution look dark for the wrong reason
+- and a rollup reading the wrong governance authority even after runtime attribution itself was green
+
+Those are the kinds of boundary and evidence problems that matter in real platform readiness work.
+
+6. `Promotion and final-posture claim`
+
+This path supports the claim that the final ready posture is not merely decisions existed. It is:
+
+- decision truth was committed under the decision-chain closure boundary
+- decision truth was operationally consumable downstream with truthful timing
+- candidate, rollback, and restore runtime attribution all went green
+- and the final active runtime truth returned to the promoted bundle under the correct rollup authority
+
+That is a much stronger final posture than the decision fabric worked. It is committed, attributable, transition-safe decision truth.
+
+`Compressed Bi claim`
+
+`Decision formation path` shows that you can turn runtime understanding plus governed runtime authority into explicit, committed, downstream-usable decision truth and then prove that same truth remains attributable across promotion, rollback, restore, and the formal evidence chain itself.
+
+The next clean move is the ledger block, then `Action and outcome emission path`.
+
+## 2026-03-15 17:47:22 +00:00 - Open the Action and outcome emission path by pinning its A posture, Bi posture, and why decision outputs are their own downstream-usable truth boundary
+`Object`
+
+`Action and outcome emission path`
+Parent group: `Runtime context formation and decisioning`
+Main secondary object it lives inside: the RTDL plane as a plane-ready runtime object.
+The first enlarged-network object that materially re-pressures it is `Control + Ingress + RTDL + Case + Label`, because that is where RTDL outputs stop being only internal runtime emissions and must remain usable as operational truth downstream.
+
+`A posture`
+
+In `A`, this path exists to turn decision truth into deterministic side effects or outcome truth for downstream use. It is deliberately narrower than decision formation and deliberately stops before audit append and archive preservation, which belong to the next group. Its owned job is:
+
+decision truth -> action logic and outcome commit or publish -> RTDL outcome truth for downstream use
+
+The `A` note is explicit that this path owns the step after decision formation: turn decisions into deterministic side effects or outcome surfaces without duplicate corruption or ambiguity leakage, using the pinned RTDL downstream topic as the concrete handoff surface.
+
+So the `A` posture is:
+
+committed decision truth + active runtime authority -> action logic and outcome emission -> RTDL downstream outcome truth on the pinned handoff surface
+
+That is already a distinct truth boundary in `A`, not something to be inferred later from case activity or audit records.
+
+`Bi posture`
+
+In `Bi`, this path becomes the production-ready decision-output boundary. That means it is no longer enough that decisions committed somewhere in RTDL. The path has to support a stronger claim:
+
+- action and outcome evidence are committed as part of the decision chain
+- the emitted RTDL outputs remain non-regressed and usable downstream
+- downstream consumers can rely on them as operational truth rather than merely technical emissions
+- and the path remains clean enough that later case and label coupling can prove decision-to-case and case-to-label behavior without starvation or ambiguity
+
+The run-process makes this explicit at `P9 DECISION_CHAIN_COMMITTED`, where pass requires:
+
+1. decision lane non-regressed and committed
+2. action and outcome evidence committed
+3. append-only audit evidence committed
+
+So the `Bi` posture is:
+
+a production-ready action and output boundary where decision truth is turned into committed, downstream-usable RTDL outcome truth, and that outcome truth remains strong enough to serve as the upstream operational input for later Case and Label coupling
+
+The later readiness plan reinforces this by making RTDL outputs remain usable as operational truth a first-class qualitative question once Case and Label are attached.
+
+`Why this object matters`
+
+This path matters because without it the platform can still:
+
+- ingest traffic
+- form context
+- materialize features
+- classify guardrail posture
+- and even form decision truth
+
+but it cannot answer a crucial production question:
+
+what did the platform actually emit as the operational consequence of that decision, and can downstream systems trust that output as deterministic runtime truth?
+
+That is why the `A` note keeps this path distinct from audit append and archive truth. The platform does not want downstream operational consumers to infer action and outcome truth indirectly from later evidence surfaces. It wants a direct boundary where decision truth becomes operational output truth.
+
+It also has strong `Bi` value because later coupled readiness explicitly asks whether RTDL outputs remain usable downstream rather than merely technically present, and it uses fail-fast triggers like RTDL healthy but case and label dark to test exactly that. So this path is where runtime decisioning first becomes operationally consequential truth.
+
+So, in one line:
+
+`Action and outcome emission path` is the path that turns committed decision truth into deterministic RTDL output truth for downstream use, and in `Bi` it becomes the production-ready output boundary whose action and outcome evidence is committed and whose emitted truth remains usable enough to support later case, label, audit, and replay coupling.
+
+The next step in the flow is to derive the `system-design questions` for this path.
+
+## 2026-03-15 15:14:09 +00:00 - Derive the system-design questions for the Decision guardrail path so later pressure history stays on decision-posture truth
+For `Decision guardrail path`, the system-design questions should stay on decision posture truth, not drift backward into feature readiness or forward into actual decision formation.
+
+`Decision guardrail path` - `system-design questions`
+
+1. `What exactly counts as guardrail truth here?`
+
+This path is not about producing the decision itself. Its owned outcome is adjudicated decision mode for the current run and current event posture: should the platform proceed normally, hold back, or fail closed? The `A` note is explicit that the path closes on guardrail judgment, not merely on upstream health artifacts existing somewhere.
+
+2. `Why is this a separate path from decision formation?`
+
+The system is deliberately saying that decision formation must not infer its own safety posture from scattered upstream symptoms. Instead, there is a dedicated boundary between upstream RTDL truth and actual decision formation. That is what lets the platform answer was the runtime sufficiently trusted to decide before asking what is the decision?
+
+3. `What is the allowed entry into this path, and why is it constrained?`
+
+The entry is not raw traffic and not raw context alone. It is the current RTDL dependency posture that decisioning actually depends on: joined-context readiness, feature readiness and freshness, projection health, checkpoint age, required-signal health, and run-scoped component participation. The readiness plan pins these as first-class RTDL proof surfaces, and the `A` note says the guardrail carries exactly those typed dependency signals.
+
+4. `What must the path carry so that decision posture is explainable rather than hand-wavy?`
+
+It must carry more than binary health pings. It carries typed reasons why a dependency is healthy, advisory, stale, or insufficient, plus the required-signal health and run-scoped participation needed to justify the eventual `decision_mode`. That is why the `A` note treats degrade-reason breakdown and fail-fast triggers as part of the path's entry and carried state.
+
+5. `What does production-ready mean specifically for this path?`
+
+For guardrail, production-ready means advisories stay advisories, true insufficiency becomes `FAIL_CLOSED`, stale artifacts do not create sticky false-red posture, and the path recovers promptly when dependencies recover. The RTDL plan turns that into concrete focus metrics such as `DL` false fail-closed rate and degrade-reason breakdown.
+
+6. `How do we distinguish advisory posture from real decision-blocking insufficiency?`
+
+This is the central question for the path. The implementation trail already shows both sides of the distinction: in one bounded RTDL proof, upstream replay-era advisories existed while the guardrail stayed `decision_mode = NORMAL` with required signals `OK`; in another coupled proof, the guardrail flipped to `FAIL_CLOSED` with explicit reason `required_signal_gap:ofp_health`, and that blocker was treated as real. The path therefore exists to make that distinction explicit and reliable.
+
+7. `How do we know a fail-closed posture is coming from the runtime and not from the proving method?`
+
+Later coupled history makes this question unavoidable. In the enlarged-network executor, `DL` flipped to `FAIL_CLOSED` on `required_signal_gap:ofp_health`, but the notes explicitly classify the reused post-activation warm gate as a methodology defect in the executor, not yet a demonstrated ingress or runtime regression. So the guardrail path must also discriminate between true runtime insufficiency and a proving layer that is checking the wrong boundary.
+
+8. `What constraints shape the path and stop easy shortcuts?`
+
+This path is constrained by the RTDL production-readiness law: semantically correct, time-correct, replay-safe, observable, and explainable. For guardrail specifically, that becomes: distinguish outage from advisory, fail closed only on real insufficiency, avoid sticky false-red from stale artifacts, and recover promptly when dependencies recover. That means the system cannot simply flatten all upstream red into one crude stop condition, nor can it suppress real insufficiency just to keep the plane green.
+
+9. `What trade-off is the design accepting here?`
+
+The design accepts more explicit boundary complexity in exchange for clearer safety truth. It costs another runtime boundary, more upstream-health semantics, and more classification logic to explain. But that buys something important: decision formation no longer has to invent its own safety posture from scattered clues, and the platform can explain why it stayed normal or why it failed closed.
+
+10. `How does enlarged-network pressure re-ask the question?`
+
+Once downstream planes are attached, the question is no longer only is `DL` healthy on its own. It becomes does the same guardrail still classify dependence correctly when coupled proof includes real activation traffic, downstream activity, and new proof shapes? The enlarged-network warm-gate episode is the clearest example: the same `required_signal_gap:ofp_health` label meant something different there because the reused warm gate was checking the wrong proof posture for a coupled steady, burst, and recovery run.
+
+11. `What does this path need to prove for the meta goal?`
+
+The strongest claim is not that there was a degrade ladder service. It is: the platform could classify upstream dependency posture carefully enough to keep advisories from causing false fail-closed, while still failing closed explicitly when the runtime really lacked sufficiently trusted inputs. That is exactly the kind of production-readiness judgment `Bi` is meant to expose.
+
+Compressed into one line:
+
+For `Decision guardrail path`, the system-design interrogation is about whether upstream RTDL dependency posture becomes trustworthy decision posture, and whether the platform can distinguish advisory from true insufficiency without confusing runtime defects with proof-harness or stale-artifact defects.
+
+The next move is to map this path to the `pressure episodes` that actually changed its posture.
+
+## 2026-03-15 15:27:36 +00:00 - Map the pressure episodes that changed the Decision guardrail path by forcing a clearer definition of what really justifies fail-closed
+For `Decision guardrail path`, the pressure history that actually changed its posture is mostly a story about what counts as a real reason to fail closed.
+
+This path did not mature mainly through big code changes inside the degrade ladder itself. It matured through repeated pressure that forced the platform to distinguish:
+
+- advisory from insufficiency
+- active-window truth from post-window idle behavior
+- runtime red from proof-harness red
+- and reused proof posture from the actual boundary being certified
+
+`Pressure episodes that changed this path's posture`
+
+1. `The path first proved that replay-era advisories do not automatically justify fail-closed`
+
+In the bounded RTDL participation probe, the upstream projector and feature surfaces could still carry replay-era watermark advisory posture, but the guardrail itself stayed:
+
+- `decision_mode = NORMAL`
+- `health_state = GREEN`
+- all required signals `OK`
+
+That changed the path's posture because it proved the guardrail was not simply mirroring upstream red-looking artifacts. It was already discriminating between upstream looks advisory or noisy and decisioning is genuinely unsafe.
+
+2. `The next pressure episode showed that post-window idle decay is not the same thing as active-window insufficiency`
+
+The same probe also revealed an important timing distinction. `DL` did not fail closed during the active participation window; the first fail-closed transition came later, after the pulse stopped and shared RTDL checkpoints stopped advancing, with the first transition being `required_signal_gap:eb_consumer_lag`. That changed the posture of the path because it forced the platform to distinguish:
+
+- active-window guardrail truth
+- from later idle and post-window red
+
+So the path stopped being `DL` went red at some point and became when did it go red, under what activity posture, and should that count as boundary failure?
+
+3. `Live replay-advisory hardening then made the guardrail's NORMAL posture materially trustworthy`
+
+After the `IEG` replay-advisory patch was rolled into live RTDL and reproved, the health story became internally consistent:
+
+- `IEG` current-run mutation visible
+- `OFP` current-run feature processing visible
+- and `DL` returned to `NORMAL` with all required signals `OK`
+
+This changed the path's posture from guardrail may be normal, but upstream health is too contradictory to trust into guardrail normality is now materially supported by a more truthful upstream health story. That is an important maturity step for this path.
+
+4. `On the promoted upstream path, the guardrail then proved that some OFP red posture was still only advisory`
+
+A later fresh enlarged-network run showed `OFP` red on `WATERMARK_TOO_OLD` plus `STALE_GRAPH_VERSION_RED`, with low lag and checkpoint age, zero snapshot failures, and low missing-feature count. Crucially, on that same run:
+
+- `DL decision_mode = NORMAL`
+- all required signals `OK`
+- `DF hard_fail_closed_total = 0`
+
+That changed the path's posture again. It showed that even once the upstream path was promoted and the runner shape changed, the guardrail could still keep a narrowed replay and staleness posture in the advisory bucket rather than overreacting into fail-closed.
+
+5. `The later coupled proof then showed the opposite case: FAIL_CLOSED can appear, but the reason itself still has to be interrogated`
+
+In the later coupled proof, the reused post-activation warm gate showed:
+
+- `DL posture = FAIL_CLOSED`
+- reason `baseline=required_signal_gap:ofp_health;transition=steady_state;profile=prod;scope=scope=GLOBAL`
+
+At first glance, that looked like the real insufficiency becomes fail-closed case. But the implementation notes then make the critical correction: this was not yet a demonstrated ingress or runtime regression. The coupled runner had already carried live prewarm and activation traffic semantically cleanly; the actual problem was that the reused warm gate was enforcing the wrong proof posture for a coupled steady, burst, and recovery certification. That changed the guardrail path in a very important way: it proved the path must also distinguish runtime insufficiency from methodology defects that happen to surface as fail-closed.
+
+6. `The accepted posture change was therefore not teach DL to stay green, but teach the proving layer not to misread DL`
+
+The accepted correction in the later coupled proof was:
+
+- stop treating the reused post-activation warm gate as authority
+- repin the runner so activation plus the full bounded envelope are the proof path
+- add direct store-backed timing evidence
+- keep the standard fixed
+
+That matters because the guardrail boundary was not fixed by muting fail-closed. It was strengthened by making sure `FAIL_CLOSED` would only be judged on the right proof posture. So the path became more trustworthy not because it failed closed less, but because the platform became stricter about what evidence is allowed to trigger or validate a fail-closed verdict.
+
+`What this mapping says in one line`
+
+`Decision guardrail path` moved from a correctly wired but still partly context-dependent safety surface into a production-ready guardrail boundary by proving three things in sequence: replay and advisory posture can remain `NORMAL`, post-window or stale artifacts must not be confused with active-window insufficiency, and even a `FAIL_CLOSED` verdict must be interrogated to decide whether it reflects true runtime insufficiency or the wrong proof posture.
+
+The next flow move is to interrogate these episodes one by one.
+
+## 2026-03-15 15:41:12 +00:00 - Interrogate the key episodes that made the Decision guardrail path semantically discriminating enough to trust under bounded and coupled proof
+For `Decision guardrail path`, the real question is not did `DL` ever go red. It is:
+
+when the guardrail says `NORMAL` or `FAIL_CLOSED`, is that posture actually describing runtime sufficiency truth, or is it being contaminated by replay noise, idle decay, or the proving method itself?
+
+The `A`-side design already pins that this path exists to keep advisories, insufficiency, and fail-closed posture distinct rather than collapsing them into one crude health color.
+
+`Episode interrogation`
+
+1. `Replay-era advisories did not automatically justify fail-closed`
+
+What surfaced first was that upstream RTDL surfaces could look concerning while the guardrail itself remained `NORMAL`. During the bounded RTDL participation probe, `IEG` and `OFP` still carried replay-era watermark-age signals, but `DL` stayed `NORMAL` with all required signals `OK` through the active probe window. System-design-wise, that matters because it proves the guardrail was not merely mirroring upstream red-looking artifacts. It was already distinguishing advisory posture from true decision-blocking insufficiency. The class of challenge here was interpretation pressure, not a guardrail defect. The accepted posture was to keep `NORMAL`, because the active-window runtime still had sufficiently trusted inputs. That improved the path's discrimination credibility.
+
+2. `Post-window idle decay had to be separated from active-window insufficiency`
+
+The same probe then exposed a second, subtler issue: `DL` did eventually flip away from `NORMAL`, but not during the active proof window. The first fail-closed transition happened later, after the pulse stopped and checkpoints aged out, with the first transition being `required_signal_gap:eb_consumer_lag`; `ofp_health` only turned `ERROR` after `OFP` checkpoint age also aged out. That matters because it changes what the red means. It is not the guardrail was wrong during active processing. It is post-window idle behavior is being reported as insufficiency after the proof slice has ended. The class of challenge here is proof-boundary interpretation, not a live guardrail misclassification. The correct bridge was conceptual at this stage: separate active-window proof from post-window idle posture before judging `DL` semantics. That improved the path's temporal correctness.
+
+3. `Once upstream operator truth improved, NORMAL became materially trustworthy rather than merely plausible`
+
+After the replay-advisory correction was rolled into the live RTDL runtime, the upstream story stopped contradicting the guardrail. `IEG` now reported `AMBER` with `WATERMARK_REPLAY_ADVISORY` while actively mutating the current run on a fresh checkpoint, `OFP` became readable in the same spirit, and `DL` returned to `NORMAL` with all required signals `OK`. This is a genuine posture change for the guardrail path. Before this, `NORMAL` could still look suspicious because the operator story around it was contradictory. After this, the path's `NORMAL` posture became supported by a more truthful upstream dependency story. The class of challenge here was upstream operator-truth hardening, not a `DL` code defect. The accepted bridge was right because it did not teach `DL` to ignore dependency state; it made dependency state truthful enough that `DL`'s `NORMAL` posture could be trusted. That improved explainable normality.
+
+4. `On the promoted upstream path, the guardrail proved that some OFP red posture was still only advisory`
+
+A later fresh enlarged-network run re-asked the same question in a harder setting. `OFP` now showed `health_reasons = ["WATERMARK_TOO_OLD", "STALE_GRAPH_VERSION_RED"]`, with low lag and checkpoint age, `snapshot_failures = 0`, and low but non-zero `missing_features`. On that same run, `DL` still stayed `NORMAL`, all required signals were `OK`, and `DF hard_fail_closed_total = 0`. This is a very important guardrail episode. It shows that, even after the upstream path had been promoted and the runner shape changed, the guardrail could still classify that OFP posture as advisory rather than decision-blocking insufficiency. The class of challenge here is advisory-versus-insufficiency classification under enlarged-network pressure. The accepted posture stayed `NORMAL`, because the runtime still had sufficiently trusted inputs for decisioning. That improved the path's robustness under enlarged-network pressure.
+
+5. `Later, FAIL_CLOSED did appear, but the verdict itself still had to be interrogated`
+
+The most important later pressure episode is the one where `DL` did flip to `FAIL_CLOSED` with explicit reason `required_signal_gap:ofp_health` during the reused post-activation warm gate in the later coupled proof. At first glance, this looks like the clean real insufficiency becomes fail-closed case the path is meant to produce. But the implementation note then makes the critical correction: the coupled runner had already carried live prewarm and activation traffic semantically cleanly on the new run scope, and the actual problem was that the reused warm gate was enforcing the wrong proof posture for a coupled steady, burst, and recovery certification. So for the guardrail path, this is not simply `DL` was right to fail closed because the runtime was unhealthy. It is a more subtle episode: a true fail-closed verdict surfaced inside a methodology defect. The class of challenge here is proof-harness and methodology defect masquerading as runtime insufficiency. The accepted bridge was not to teach `DL` to stay green. It was to stop treating the reused post-activation warm gate as authority and repin the executor to activation plus the full bounded envelope as the proof path. That improved the path's verdict integrity: fail-closed would only count when judged on the correct boundary.
+
+6. `The mature posture of the path is that even FAIL_CLOSED must be evidence-checked, not merely honored`
+
+This is the deepest transformation for the guardrail path. The system started by proving that replay-era advisories do not automatically justify fail-closed. It then proved that post-window idle decay is not the same as active-window insufficiency. Later it showed that some upstream red posture on the promoted path is still advisory. And finally, when a concrete `FAIL_CLOSED` verdict did appear, it refused to accept that verdict blindly until it knew whether the proof posture itself was valid. That means the path's final production-ready reading is stronger than the degrade ladder sometimes stays normal and sometimes fails closed. It is:
+
+the platform can justify why the guardrail stayed normal, why it would fail closed, and when even a fail-closed verdict should be treated as a proving-method defect rather than as runtime truth.
+
+That is exactly the kind of semantically discriminating boundary the `A` note says this path is supposed to be.
+
+`What this interrogation says about the path`
+
+`Decision guardrail path` was not made ready because `DL` went normal here, then fail-closed there. It became ready because the platform progressively taught the guardrail to distinguish advisory posture from true insufficiency, active-window truth from post-window idle decay, and runtime insufficiency from methodology defects that happen to surface as `FAIL_CLOSED`.
+
+The next clean move is the `object transformation synthesis` for this path.
+
+## 2026-03-15 15:58:44 +00:00 - Synthesize how the Decision guardrail path moved from a bounded design boundary into a production-ready decision-posture classifier
+`Decision guardrail path` - `transformation synthesis`
+
+In `A`, this path already had a sharp and bounded job: turn upstream RTDL dependency posture into decision posture that is safe to act on. It was deliberately narrower than context formation, narrower than feature readiness, and narrower than decision formation itself. Its owned outcome was not that a health color exists, but an adjudicated decision mode for the active run and current event posture: proceed normally, hold back, or fail closed, based on typed dependency truth rather than vague runtime mood.
+
+To reach its `Bi` posture, that boundary had to become not just conceptually clear, but production-ready under bounded replay-shaped and later coupled-network pressure.
+
+The first thing that had to be resolved was advisory-versus-insufficiency discrimination. Early bounded RTDL proofs showed that upstream projector and feature surfaces could still carry replay-era watermark advisories while the guardrail itself stayed `decision_mode = NORMAL` with all required signals `OK`. That mattered because it proved the path was not merely reflecting upstream red-looking artifacts. The guardrail was already doing the thing it was designed to do in `A`: keep advisory posture from automatically turning into unsafe fail-closed behavior. That is the first major transformation step for this object. It moved from degrade ladder exists to the platform can show why normality was still justified.
+
+The next thing that had to be resolved was temporal truth. The same bounded probe also showed that the first fail-closed transition did not happen during the active proof window; it happened later, after the pulse stopped and shared RTDL checkpoints stopped advancing, with the first transition tied to `required_signal_gap:eb_consumer_lag`. That changed the meaning of red for this path. The platform now had to distinguish:
+
+- active-window decision posture
+- from post-window idle decay
+
+That matters because a guardrail is not production-ready if it cannot tell the difference between the runtime lacked trusted inputs while traffic mattered and the proof slice ended and the plane aged out afterward. So a second transformation step was turning the guardrail into a time-correct boundary, not just a dependency-sensitive one.
+
+Then the path had to become materially trustworthy in its normal posture, not merely plausible. Once the replay-advisory corrections were rolled into the live RTDL runtime, the upstream story stopped contradicting the guardrail: projector and feature surfaces became more truthful under bounded replay, while `DL` returned to `NORMAL` with required signals `OK`. That changed the path from normality that might still be hiding upstream confusion into normality supported by a cleaner, more truthful dependency story. In `Bi` terms, the guardrail stopped being merely a classifier and became an explainable classifier.
+
+Later enlarged-network pressure re-asked the same question in a harder form. On the promoted upstream path, `OFP` carried a later red posture, but `DL` still stayed `NORMAL` with required signals `OK`, and downstream hard fail-closed totals remained zero. That was important because it proved the guardrail could still keep a narrowed upstream posture in the advisory bucket even after the network had enlarged and the runner shape had changed. So the transformation of the path includes not only it can stay normal under advisories, but also it can keep doing that under a more coupled proof surface.
+
+The most important later transformation came when `FAIL_CLOSED` did finally appear. In the reused post-activation warm gate of the later coupled proof, `DL` flipped to `FAIL_CLOSED` with explicit reason `required_signal_gap:ofp_health`. At first glance, that looks like the clean guardrail-success story: a real insufficiency becomes fail-closed. But the implementation trail then makes the crucial correction: this was not yet a demonstrated ingress or runtime regression. The coupled runner had already carried live prewarm and activation traffic semantically cleanly; the actual issue was that the reused warm gate was enforcing the wrong proof posture for a coupled steady, burst, and recovery certification. That is a very deep maturity step for this path. It means the platform learned that even a concrete `FAIL_CLOSED` verdict must itself be interrogated: is it describing runtime insufficiency, or is it describing a methodology defect in the proving layer?
+
+That led to the decisive posture change: the accepted correction was not to teach `DL` to stay green, and not to weaken the standard. It was to stop treating the reused post-activation warm gate as authority, repin the later coupled runner so activation plus the full bounded envelope became the proof path, and add direct store-backed timing evidence while keeping the target fixed. In other words, the guardrail boundary became production-ready not because it failed closed less, but because the platform became stricter about what evidence is allowed to trigger and validate a fail-closed judgment.
+
+`What had to be resolved`
+
+To move `Decision guardrail path` from its `A` posture to its `Bi` posture, the platform had to resolve five things:
+
+1. prove that replay-era advisory posture does not automatically justify fail-closed
+2. separate active-window insufficiency from post-window idle decay
+3. make `NORMAL` materially trustworthy by cleaning the upstream dependency story
+4. preserve advisory-versus-insufficiency discrimination under enlarged-network pressure
+5. teach the platform that even a `FAIL_CLOSED` verdict must be judged against the correct proof posture, not accepted blindly just because the label looks severe
+
+`Final Bi posture`
+
+The final `Bi` posture of the path is:
+
+a production-ready guardrail boundary where typed upstream dependency truth becomes trustworthy decision posture, replay and stale-artifact advisories do not automatically force closure, real insufficiency can still become explicit `FAIL_CLOSED`, and even fail-closed verdicts are only accepted when they are produced on the correct proof boundary
+
+`Why this matters for the meta goal`
+
+This object contributes strongly to the meta goal because it shows that you did not merely build a degrade ladder service. You reasoned the platform into a state where it can explain:
+
+- why it stayed normal
+- why it would fail closed
+- and when a fail-closed result is actually telling you more about the proving method than about the runtime itself
+
+The next clean move is to extract the `Bi claim mix` for this path.
+
+## 2026-03-15 16:11:03 +00:00 - Extract the Bi claim mix for the Decision guardrail path so the notebook states exactly what safety-boundary judgment this work now supports
+For `Decision guardrail path`, the `Bi` claim mix should stay on advisory versus insufficiency, temporal correctness, and verdict integrity rather than collapsing everything into normal or fail-closed color changes.
+
+`Bi claim mix`
+
+1. `Readiness-reasoning claim`
+
+This path supports the claim that you can reason a safety boundary to readiness by separating advisory posture, true insufficiency, post-window idle decay, and proof-harness defects instead of collapsing them into one generic red. The pressure history showed all four: replay-era advisories while `DL` stayed `NORMAL`, later idle-driven red after the active slice ended, a true `FAIL_CLOSED` label on `required_signal_gap:ofp_health`, and then the further correction that this label was being surfaced through the wrong enlarged-network proof posture rather than a demonstrated runtime regression.
+
+2. `Systems-design judgment claim`
+
+This path supports the claim that you understood decision posture as its own first-class runtime truth boundary, not as something decision formation should infer from scattered upstream symptoms. The `A`-side design is explicit that the owned outcome is adjudicated `decision_mode` for the current run and event posture, with advisories, insufficiency, and fail-closed deliberately separated rather than collapsed into one crude health color.
+
+3. `Measurement and observability claim`
+
+This path supports the claim that you made the guardrail explainable enough to trust. The path does not only look at binary health pings; it carries required-signal health, checkpoint and freshness posture, dependency availability, run-scoped participation, and typed reasons for why an upstream surface is healthy, advisory, stale, or insufficient. That is what made it possible to show, for example, that replay-era watermark advisories could coexist with `decision_mode = NORMAL`, and later that a fail-closed verdict still needed to be checked against the proving posture that produced it.
+
+4. `Constraint and trade-off claim`
+
+This path supports the claim that you chose truthful safety classification over easy green narratives. The design adds an explicit guardrail boundary, which costs complexity because the platform must maintain upstream-health semantics, degrade-reason breakdown, false fail-closed discipline, and recovery-to-normal rules. But that complexity buys something critical: decisioning no longer invents its own safety posture, and the platform can explain why it stayed normal or why it failed closed. Later, that same discipline shows up again when the notes refuse to accept the reused post-activation warm gate as authority just because it produced a severe-looking `FAIL_CLOSED` label.
+
+5. `Production-relevant challenge claim`
+
+This path supports the claim that the challenges were genuinely production-shaped. The important issues were not toy health colors. They were things like replay-era advisories that could have caused false fail-closed if interpreted crudely, post-window idle aging that could be mistaken for active-window insufficiency, and a coupled enlarged-network proof where `DL` reported `required_signal_gap:ofp_health` even though the actual defect was in the reused warm-gate methodology. Those are exactly the kinds of issues a real platform guardrail has to classify correctly.
+
+6. `Promotion and final-posture claim`
+
+This path supports the claim that the final ready posture is not merely `DL` usually stayed green. It is that typed upstream dependency truth became trustworthy decision posture, replay and stale advisories did not automatically force closure, real insufficiency could still surface as explicit `FAIL_CLOSED`, and even fail-closed verdicts were only accepted when they were produced on the correct proof boundary. That is a much stronger final posture than a simple health-service claim.
+
+`Compressed Bi claim`
+
+`Decision guardrail path` shows that you can turn a degrade and safety surface into a production-ready decision-posture boundary by teaching the platform to distinguish advisory from insufficiency, active-window truth from idle decay, and real fail-closed runtime posture from fail-closed results produced by the wrong proving method.
+
+The next clean move is the ledger block, then `Decision formation path`.
+
+## 2026-03-15 16:26:27 +00:00 - Open the Decision formation path by pinning its A posture, Bi posture, and why explicit decision truth is its own production-readiness boundary
+`Object`
+
+`Decision formation path`
+Parent group: `Runtime context formation and decisioning`
+Main secondary object it lives inside: the RTDL plane as a plane-ready runtime object.
+The first enlarged-network object that materially re-pressures it is `Control + Ingress + RTDL`, because that is where decision truth first has to hold on a live coupled runtime base. A later enlarged-network object that re-asks the question is `Control + Ingress + RTDL + Case + Label`, where the same decision truth must remain usable as upstream operational truth for decision-to-case and case-to-label coupling.
+
+`A posture`
+
+In `A`, this path exists to turn live runtime understanding into the actual decision truth of the platform. It is not there to build context, not to materialize features, and not to decide whether the platform should proceed at all; that belongs to the guardrail path. Its narrower job is to answer:
+
+given the current joined context, current online feature state, current guardrail posture, and the active runtime bundle or policy, what is the actual decision?
+
+The entry is therefore the set of things that make decision legitimately formable:
+
+- joined runtime context
+- online feature readiness
+- guardrail posture
+- and the resolved active bundle or policy identity
+
+That last part matters because the platform explicitly treats registry-to-runtime feedback as a real authority path; decision truth is only valid once the runtime can actually resolve and carry the right active bundle or policy identity.
+
+So the `A` posture is:
+
+joined context + online features + guardrail posture + active bundle or policy resolution -> decision fabric -> decision truth with provenance and explanation fields complete enough for downstream action, audit, and replay
+
+`Bi posture`
+
+In `Bi`, this path becomes the production-ready decision-truth boundary. That means it is no longer enough that a model ran or that later downstream actions existed. The path has to support a stronger claim:
+
+- decision truth is explicitly committed as its own lane
+- it remains non-regressed once RTDL itself is green
+- provenance and explanation survive into the committed decision chain
+- and later enlarged-network proofs can still treat RTDL outputs as usable operational truth rather than merely technical emissions
+
+The run-process makes that boundary explicit at `P9 DECISION_CHAIN_COMMITTED`, where the pass gate requires: decision lane non-regressed and committed, action and outcome evidence committed, and append-only audit evidence committed.
+
+So the `Bi` posture is:
+
+a production-ready decision boundary where context, feature state, guardrail posture, and runtime bundle or policy authority become explicit committed decision truth, and that decision truth is strong enough to remain usable downstream in the larger coupled network
+
+The later Case + Label readiness plan reinforces that by treating RTDL outputs remain usable as operational truth and decision-to-case latency as first-class cross-plane questions.
+
+`Why this object matters`
+
+This path matters because without it the platform can still ingest traffic, form context, materialize features, classify dependency posture, and even emit downstream actions, but it loses the clean answer to the most important runtime question:
+
+what was the actual decision, under what authority, with what provenance and explanation, and was that decision itself complete enough to survive downstream action, audit, and replay?
+
+That is why the platform deliberately refuses to let downstream success imply decision correctness. The design wants decision truth to be:
+
+- explicit
+- governed
+- attributable
+- and replay and audit survivable
+
+That gives this object very high `Bi` value, because it shows the platform is not satisfied with the model path exists. It insists on decision truth as its own production-readiness boundary.
+
+So, in one line:
+
+`Decision formation path` is the path that turns runtime context, feature state, guardrail posture, and active bundle or policy authority into explicit decision truth, and in `Bi` it becomes the production-ready decision boundary whose output is committed, attributable, and usable enough to survive later action, audit, and downstream coupled proofs.
+
+The next step in the flow is to derive the `system-design questions` for this path.
+
+## 2026-03-15 14:05:37 +00:00 - Derive the system-design questions for the Online feature readiness path so later pressure history stays on feature-ready runtime truth
+For `Online feature readiness path`, the system-design questions should stay on feature-ready runtime truth, not drift backward into joined context or forward into decisioning.
+
+`Online feature readiness path` - `system-design questions`
+
+1. `What exactly counts as feature-ready truth here?`
+
+This path is not satisfied merely because context exists or because some feature worker is alive. Its owned outcome is that the platform can now say, for this event, which feature groups are actually available, whether freshness and readiness are real, and whether missingness is truly missing rather than a key-shape or partial-coverage artifact.
+
+2. `Why is this a separate path from joined context?`
+
+The key question is not do we understand the event, but has that understanding become usable feature state for the live decision path? The `A` note is explicit that the platform deliberately separates context truth from feature-ready truth, so downstream decisioning does not sit on unowned feature assumptions.
+
+3. `What is the allowed entry into this path, and why is it constrained?`
+
+The entry is not raw source data and not traffic alone. It is admitted behavioural traffic, joined context, and current entity and relationship state, all under the runtime contract that keeps traffic thin, forces joins inside the platform, and forbids learning-only or future-implying truth products from live runtime use.
+
+4. `What must this path carry in order to make feature state genuinely usable?`
+
+This path carries more than feature values. It carries lookup keys, current projection state, feature-group request semantics, and the freshness and readiness posture that downstream decisioning will rely on. That matters because the evidence already showed this boundary is sensitive to graph-version shape and requester or projector key shape, which means this is a real contract seam, not just a blob of values.
+
+5. `What does production-ready mean specifically for this path?`
+
+For this path, production-ready means usable features are materially available on the active run, freshness is honest, missingness is interpreted correctly, and restart-to-green and checkpoint behavior are bounded enough for the accepted RTDL slice. The readiness plan names `OFP` freshness, feature availability, and restart-to-green as first-class proof concerns.
+
+6. `How do we know the path is failing because features are really unavailable, rather than because the contract seam is wrong?`
+
+This is one of the central questions for the path. The implementation trail shows that one apparent `OFP` and `DF` red was not the graph version is actually unavailable; it was a contract mismatch where `IdentityGraphQuery.status()` returned graph version as a bare string while downstream resolution expected a mapping. That means this path has to distinguish true feature absence from contract-shape defects at the `OFP` and `DF` seam.
+
+7. `How do we know missing-feature posture is real rather than key-shape noise?`
+
+The later telemetry made this even sharper: after the graph-version contract was fixed, the remaining sampled `OFP` warning noise narrowed to redundant `event_id:*` requests while the projector already keyed by `flow_id` first, with `missing_groups = []` and usable features still present. So a core question is whether missing-feature posture reflects real absent feature state or merely request-shape mismatch and redundant key demand.
+
+8. `What is the right bridge when the path is semantically healthy but the warm gate or proof shape is too rigid?`
+
+The later enlarged-network history shows that `OFP` could look red in the pretraffic transition state even while `missing_features = 0`, `snapshot_failures = 0`, and checkpoint and lag freshness remained healthy. The accepted diagnosis there was not plane unhealthy and not rollup too strict in general, but that the warm gate was too rigid for the split prewarm and scored transition state. So this path has to ask when a red belongs to the feature boundary itself and when it belongs to the proving layer's interpretation of a transitional state.
+
+9. `What constraints shape this path and stop easy shortcuts?`
+
+This path is constrained by three things: the thin-traffic and in-platform-join law, the no-future and runtime-versus-learning separation law, and the RTDL law that feature readiness must be semantically correct, time-correct, replay-safe, and observable. That means the platform cannot fix `OFP` reds by smuggling richer truth into the payload, by using learning-only truth products, or by hiding freshness truth behind a green decision surface.
+
+10. `What trade-off is the design accepting?`
+
+The design accepts more explicit boundary discipline in exchange for less semantic ambiguity. It costs more state, more readiness surface, and more requester or projector contract edges, but it buys something critical: the platform can tell whether a red posture comes from actual missing feature state, freshness problems, or contract-shape mismatch such as the graph-version or redundant-key seams already found.
+
+11. `How does enlarged-network pressure re-ask the question?`
+
+Once downstream planes are attached, the question is no longer only is `OFP` healthy on its own. It becomes does `OFP` stay truthful on the promoted upstream path when the runner shape changes and downstream coupled proof depends on it? The later enlarged-network history shows exactly that: `OFP` developed a new freshness defect, `STALE_GRAPH_VERSION_RED`, on the promoted upstream path when the bounded runner was repinned, and the notes explicitly rejected hiding that red just to get a faster green receipt.
+
+12. `What does this path need to prove for the meta goal?`
+
+The strongest claim is not that there was an online feature service. It is: the platform could turn joined runtime context into usable feature truth, detect when feature reds were really contract-shape defects or proof-shape defects rather than true absence, and still refuse to smooth away a real later freshness red just to get a convenient green. That is production-readiness judgment, not just component ownership.
+
+Compressed into one line:
+
+For `Online feature readiness path`, the system-design interrogation is about whether joined runtime context becomes feature state the decision path can honestly use, and whether availability, freshness, and missingness are being judged truthfully rather than through contract-shape noise or transitional proof artifacts.
+
+The next move is to map this path to the `pressure episodes` that actually changed its posture.
+
+## 2026-03-15 14:19:54 +00:00 - Map the pressure episodes that changed the Online feature readiness path through seam diagnosis, feature-readiness truth, and later freshness reopening
+For `Online feature readiness path`, the pressure history that actually changed its posture is mainly a seam, freshness, and proof-truth history, not a generic feature service was slow story.
+
+`Pressure episodes that changed this path's posture`
+
+1. `The path first became readable rather than merely present`
+
+Before `OFP` became the real blocker, the earlier RTDL health work made the path newly interpretable. After the narrow `IEG` and `DL` replay-advisory rollout and reprobe, `OFP` was no longer telling a hard-contradictory story: it showed active processing with `events_applied`, `events_seen`, `missing_features = 0`, `snapshot_failures = 0`, and `health_state = AMBER` with `WATERMARK_REPLAY_ADVISORY`. That changed the path from feature boundary exists but its health story is too noisy to trust into feature boundary is now visible enough that later reds can be interpreted as real semantic issues.
+
+2. `The richer bounded RTDL proof then exposed OFP as a real semantic blocker`
+
+Once the materializer rollback defect was removed and the richer bounded RTDL proof was rerun on the fixed digest, `OFP` became the open semantic blocker in a way that looked real rather than accidental:
+
+- `health_state = RED`
+- `health_reasons = ["WATERMARK_TOO_OLD", "MISSING_FEATURES_RED"]`
+- `missing_features = 152`
+- `snapshot_failures = 0`
+- `stale_graph_version = 0`
+
+That changed the path's posture from readable and currently acceptable to the active feature-readiness boundary is now genuinely red under richer production-shaped proof.
+
+3. `The next pressure episode was a telemetry blindspot, not yet a new runtime fix`
+
+At that point the platform deliberately did not keep rerunning the same proof blindly. Instead, it rolled only `OFP` to a telemetry image, kept the proof shape fixed, and fresh-scoped the rerun so the remaining blindspot could be removed without broad image churn. That changed the path's posture because `OFP` moved from real red but opaque to real red with exact missing-key and group evidence available. In `Bi` terms, this is where the path became diagnosable enough to support a truthful bridge choice.
+
+4. `The telemetry rerun proved the first major OFP red was partly a contract-shape defect, not pure feature absence`
+
+The fresh-scope telemetry rerun then exposed the stronger diagnosis:
+
+- `OFP` health was red with real missing-feature posture
+- but repeated `GRAPH_VERSION_UNAVAILABLE` was not caused by a missing live graph version
+- it was caused by a contract mismatch:
+  - `IdentityGraphQuery.status()` returned graph version as a bare string
+  - `DecisionFabricWorker._resolve_graph_version()` only accepted a mapping
+  - so the live graph version was silently discarded before `OFP` snapshot materialization
+
+That changed the path's posture from missing features are just missing to one important part of the red is actually a seam defect between `IEG` status and `DF` and `OFP` expectations. The accepted bridge was to fix the `IEG` query boundary rather than hack around it inside `OFP`.
+
+5. `After that fix, the graph-version red disappeared and the path became semantically healthier but still noisy`
+
+The next fresh bounded rerun answered that question cleanly:
+
+- `GRAPH_VERSION_UNAVAILABLE` disappeared
+- `OFP` health was no longer red
+- `missing_features = 0`
+- `DL` and `DF` stayed green
+
+But `DF` logs still showed sampled `OFP` warning noise:
+
+- only `event_id:*` missing
+- `missing_groups = []`
+- posture only `MISSING_FEATURE_STATE`
+
+That changed the path's posture again: the earlier graph-version seam was genuinely closed, but one smaller `DF` and `OFP` seam remained. So the path moved from red because of a major graph-version contract bug to usable feature truth is present, but requester and projector key-shape mismatch still creates warning noise.
+
+6. `The next bridge proved the remaining OFP seam was a request-shape mismatch`
+
+The implementation trail then narrowed the remaining noise:
+
+- `OFP` projector keys traffic by `flow_id` first, then `event_id`
+- `DF` was asking for both keys whenever `flow_id` existed
+- so `OFP` could return a usable snapshot while still warning that the redundant `event_id:*` lookup was absent
+
+The accepted bridge was to align `DF` with the same primary-key posture `OFP` already used:
+
+- request `OFP` features on `flow_id` when present
+- use `event_id` only when `flow_id` is absent
+
+That changed the path's posture from feature boundary semantically healthy but warning-noisy to feature boundary with its requester and projector contract aligned.
+
+7. `The fresh rerun after DF and OFP key-shape alignment closed the semantic seam`
+
+After fresh rematerialization on the DF-key-aligned image, the next bounded rerun answered the `OFP` seam question cleanly enough that the notes explicitly stopped treating RTDL semantics as the active blocker:
+
+- `GRAPH_VERSION_UNAVAILABLE` remained absent
+- fresh `DF` logs no longer showed the old sampled `OFP` missing-feature state
+- `OFP` no longer looked semantically red
+- the remaining problem shifted to the proof boundary because the richer RTDL bounded proof was still under-driven relative to the accepted Phase 0 control shape
+
+That changed the path's posture from still semantically under question to semantically clean enough that `OFP` is no longer the thing to fix.
+
+8. `Later enlarged-network pressure then reopened the path for a different reason: real freshness regression`
+
+The path did not simply stay closed forever. Later, on the promoted upstream path inside the enlarged-network proof, `OFP` developed a new freshness defect rather than the older graph-version or key-shape seam:
+
+- `health_reasons = ["WATERMARK_TOO_OLD", "STALE_GRAPH_VERSION_RED"]`
+- lag and checkpoint age stayed low
+- `snapshot_failures = 0`
+- `missing_features = 11`
+- while `DL` and `DF` remained healthy
+
+That matters because it changed the posture of the path again: now the open question was not are feature contracts aligned, but does `OFP` stay fresh on the promoted upstream path under the changed runner shape? That is a real later production-pressure reopening of the path, not just residual noise.
+
+`What this mapping says in one line`
+
+`Online feature readiness path` moved from a readable but still weakly diagnosed feature boundary, to a genuinely red feature boundary, to a semantically cleaned-up boundary after graph-version and requester or projector key-shape seams were fixed, and was later reopened under enlarged-network pressure by a different, real freshness defect rather than by the old seam bugs.
+
+The next flow move is to interrogate these episodes one by one.
+
+## 2026-03-15 14:33:42 +00:00 - Interrogate the key episodes that turned the Online feature readiness path from a readable seam into a semantically cleaned feature boundary and later reopened it on a different freshness defect
+For `Online feature readiness path`, the point of the interrogation is not did `OFP` ever go red. It is what the red actually meant for feature-ready truth, and how the platform separated real feature absence, contract-shape defects, request-shape noise, and later genuine freshness regression.
+
+`Episode interrogation`
+
+1. `The path first had to become readable enough to judge`
+
+The first important turn is that `OFP` stopped being just another RTDL component with vague health and became a boundary that could be read meaningfully. After the earlier replay-advisory work, `OFP` could show active processing with `events_applied`, `events_seen`, `missing_features = 0`, `snapshot_failures = 0`, and `health_state = AMBER` under `WATERMARK_REPLAY_ADVISORY`. System-design-wise, that matters because the path was no longer blocked by raw operator contradiction. It became a feature boundary whose later reds could be treated as potentially real semantic questions rather than as generic RTDL confusion. The class of challenge here was operator-truth calibration, not feature-readiness failure.
+
+2. `The richer bounded proof then exposed OFP as a real semantic blocker`
+
+Once the materializer rollback defect was closed and the richer bounded RTDL proof was rerun on the repinned scope, `OFP` became the actual open semantic blocker: `health_state = RED`, `health_reasons = ["WATERMARK_TOO_OLD", "MISSING_FEATURES_RED"]`, `missing_features = 152`, `snapshot_failures = 0`, and `stale_graph_version = 0`. That is a very important change in posture. It means the path moved from readable and currently acceptable to the live feature boundary is red for a reason that looks materially real. The class of challenge here was a true readiness insufficiency at the feature boundary, not merely noise from elsewhere in RTDL.
+
+3. `Before fixing runtime semantics, the path had to become more diagnosable`
+
+The next move was not another blind rerun. Only `OFP` was rolled to a telemetry image, and the proof shape was kept fixed while a fresh scope was required before the next run. That is important because it shows the platform was not yet treating the red as obviously missing features. It first removed the remaining `OFP` blindspot by harvesting exact missing keys and groups from `OFP` logs. The class of challenge here was diagnostic insufficiency. The accepted bridge was to add telemetry narrow enough to distinguish feature-availability defects from request-shape or compatibility defects. That improved the path's diagnosability, not yet its runtime semantics.
+
+4. `The first major OFP red was partly a contract-shape defect, not pure feature absence`
+
+The telemetry rerun then changed the meaning of the red. The stronger diagnosis was that the missing-feature posture was real at the `OFP` serve surface, but the repeated `GRAPH_VERSION_UNAVAILABLE` flag was not caused by a missing live graph version. On the same run, `IEG` health exposed a real `graph_version`, yet downstream `OFP` and `DF` still behaved as if it were absent. The reason was a contract mismatch: `IdentityGraphQuery.status()` returned graph version as a bare string while `DecisionFabricWorker._resolve_graph_version()` only accepted a mapping, so the live graph version was silently discarded before `OFP` snapshot materialization. System-design-wise, this is exactly the kind of seam `Bi` must surface: the path looked semantically red from outside, but part of that redness was actually a contract-shape bug at the `OFP` and `DF` boundary. The class of challenge here was seam and contract defect, not pure feature unavailability. The accepted bridge was to fix the query boundary rather than hack around the symptom inside `OFP`.
+
+5. `Once that seam was fixed, the path became healthier, but one smaller requester and projector seam remained`
+
+After the graph-version contract fix was built, pushed, rematerialized, and reproved on a fresh scope, the main graph-version defect disappeared: `GRAPH_VERSION_UNAVAILABLE` vanished from fresh `DF` logs, `OFP` health was no longer red, `missing_features = 0`, and `DL` and `DF` stayed green. That is a real posture change. But the path was not yet perfectly clean. The remaining `DF` and `OFP` warning noise narrowed to a very specific shape: only `event_id:*` was missing, `missing_groups = []`, and the posture was only `MISSING_FEATURE_STATE`. That meant the old graph-version seam was genuinely closed, but one smaller seam still remained. The class of challenge here was no longer graph-version compatibility; it was request-shape mismatch.
+
+6. `The next accepted bridge aligned DF demand with OFP's real keying logic`
+
+The remaining warning noise was then traced to a mismatch between requester and projector posture: `OFP` keyed traffic by `flow_id` first, then `event_id`, while `DF` was still asking for both keys whenever `flow_id` existed. `OFP` could therefore return a usable snapshot while still logging the redundant `event_id:*` lookup as absent. The accepted bridge was to make `DF` request `OFP` features on `flow_id` when present and only fall back to `event_id` when `flow_id` is absent. That is a very strong `Bi` move for this path. It shows the platform did not just suppress warnings; it aligned the requester and projector contract so the warning stopped being produced for the wrong reason. The class of challenge here was request-shape and contract alignment, and the readiness property improved was truthful missingness semantics.
+
+7. `After the seam fixes, the path stopped being the active semantic blocker, and the remaining issue moved to the proof boundary`
+
+The fresh bounded rerun after `DF` and `OFP` key-shape alignment showed that the local semantic seam was now closed enough that the notes explicitly stopped treating RTDL semantics as the active blocker. `IEG` still exported structured `graph_version`, fresh `DF` logs no longer showed the old sampled `OFP` missing-feature state, and `DL`, case management, and label store remained green. The run still underdrove around `2398.667 eps`, but the notebook explicitly resisted blaming RTDL semantics for that. The class of challenge had moved to the proof boundary, not the `OFP` semantic boundary. That matters because it marks the end of the first main transformation for this path: `OFP` was no longer the thing that needed fixing.
+
+8. `Later enlarged-network pressure reopened the path for a different reason: real freshness regression`
+
+The path did not stay closed forever. Later, on the promoted upstream path inside the enlarged-network proof, `OFP` developed a new red that was materially different from the earlier graph-version and key-shape seams. The fresh run showed `health_reasons = ["WATERMARK_TOO_OLD", "STALE_GRAPH_VERSION_RED"]`, with lag and checkpoint age still low, `snapshot_failures = 0`, and `missing_features` low but non-zero. The notes are explicit that this was not the old replay-advisory false red accepted in Phase 1. It was a new `OFP` freshness defect on the promoted upstream path when the bounded runner was repinned. That changes the path's posture again: it is reopened not because the earlier seams were unresolved, but because later enlarged-network pressure created a new real freshness question. The platform's response is the part that matters most for `Bi`: it explicitly rejects hiding `STALE_GRAPH_VERSION_RED` just to get a faster green receipt. That is a very strong readiness-judgment signal.
+
+`What this interrogation says about the path`
+
+`Online feature readiness path` was not made ready because `OFP` was red, then some bugs were fixed, then it went green. It became ready because the platform first made feature readiness readable, then discovered that the initial `OFP` red was partly a graph-version contract defect, then removed a smaller `DF` and `OFP` request-shape seam, then recognized when the path had stopped being the active semantic blocker, and later reopened it only when enlarged-network pressure surfaced a genuinely new freshness defect while refusing to smooth that red away dishonestly.
+
+The next clean move is the `object transformation synthesis` for this path.
+
+## 2026-03-15 14:47:58 +00:00 - Extract the Bi claim mix for the Online feature readiness path so the notebook states exactly what feature-boundary judgment this work now supports
+For `Online feature readiness path`, the `Bi` claim mix should stay on true feature absence versus seam defects, request-shape noise, and later real freshness regression rather than collapsing every `OFP` red into one story.
+
+`Bi claim mix`
+
+1. `Readiness-reasoning claim`
+
+This path supports the claim that you can reason a feature boundary to readiness by separating true feature absence, contract-shape defects, request-shape noise, and later genuine freshness regression instead of treating every `OFP` red as the same problem. The pressure history shows exactly that progression: first a real `MISSING_FEATURES_RED`, then discovery of the graph-version contract mismatch, then `DF` and `OFP` key-shape alignment, and later a distinct `STALE_GRAPH_VERSION_RED` reopening on the promoted upstream path.
+
+2. `Systems-design judgment claim`
+
+This path supports the claim that you understood online feature readiness as its own first-class runtime truth boundary, not as a side effect of joined context and not as something decisioning should quietly absorb. The `A` note already pins this boundary around usable feature truth, freshness, and honest missingness semantics, and the `Bi` work preserved that framing by fixing the graph-version seam at the query boundary and then aligning `DF` request shape with `OFP`'s real keying posture rather than papering over the symptom inside downstream code.
+
+3. `Measurement and observability claim`
+
+This path supports the claim that you made feature readiness measurable enough to judge honestly. The important move was not generic telemetry, but learning to read the right `OFP` surfaces together: `missing_features`, `snapshot_failures`, `stale_graph_version`, checkpoint and lag posture, and the later `DF` and `OFP` sampled warnings. That is what let the platform distinguish features are truly absent from graph version was silently discarded and later from redundant `event_id:*` demand is creating warning noise even though usable features are present.
+
+4. `Constraint and trade-off claim`
+
+This path supports the claim that you chose boundary honesty over convenient closure. The design keeps traffic thin, keeps joins inside the platform, and forces feature readiness to be judged on real availability and freshness instead of payload inflation or downstream guesswork. The later `Bi` work shows the same discipline again: when a new upstream freshness defect appeared, the notes explicitly rejected hiding `STALE_GRAPH_VERSION_RED` just to get a faster green receipt. That is a real trade-off claim: slower closure, but a much stronger truth boundary.
+
+5. `Production-relevant challenge claim`
+
+This path supports the claim that the challenges were genuinely production-shaped, not toy feature-service bugs. The important blockers were:
+
+- a real missing-feature red under richer bounded proof
+- a graph-version contract mismatch across the `IEG -> DF/OFP` seam
+- requester and projector key-shape mismatch causing misleading missing-feature warnings
+- and later a real freshness regression on the promoted upstream path
+
+Those are exactly the kinds of issues that matter in a live feature-serving boundary, because they determine whether decisions are being made on usable, current feature truth or on misclassified absence or staleness.
+
+6. `Promotion and final-posture claim`
+
+This path supports the claim that the final ready posture is not merely `OFP` eventually looked healthy. It is that joined runtime context became usable feature truth with graph-version and requester and projector seams aligned, missingness interpreted honestly, and the path no longer treated as the active semantic blocker once those seams were closed. Just as importantly, later enlarged-network pressure showed that the platform could reopen the path for a new real freshness issue without confusing that with the already-closed seam defects. That is a much stronger final-posture claim than a simple green receipt.
+
+`Compressed Bi claim`
+
+`Online feature readiness path` shows that you can turn feature serving from a readable but semantically ambiguous boundary into a production-ready feature-truth boundary by distinguishing true absence from seam defects, aligning requester and projector contracts, and still preserving honesty when a later real freshness defect appears on the promoted upstream path.
+
+The next clean move is the ledger block, then `Decision guardrail path`.
+
+## 2026-03-15 15:00:52 +00:00 - Open the Decision guardrail path by pinning its A posture, Bi posture, and why typed decision-posture judgment is a distinct RTDL truth boundary
+`Object`
+
+`Decision guardrail path`
+Parent group: `Runtime context formation and decisioning`
+Main secondary object it lives inside: the RTDL plane as a plane-ready runtime object.
+The first enlarged-network object that materially re-pressures it is `Control + Ingress + RTDL`, because once RTDL is attached to the working ingress base, guardrail posture stops being an internal RTDL-only concern and becomes part of the first coupled runtime-truth boundary. Later enlarged-network proofs re-ask the same question again when downstream coupling changes what counts as trustworthy insufficiency versus advisory posture.
+
+`A posture`
+
+In `A`, this path exists to turn upstream RTDL state into decision posture that is safe to act on. Its job is not to build context, not to materialize features, and not to produce the decision itself. Its narrower job is to answer:
+
+given the current dependency and health posture of the RTDL graph, should the platform proceed normally, hold back, or fail closed?
+
+The `A` note makes that boundary very explicit:
+
+- the entry is the current RTDL truth surfaces that decisioning depends on: joined-context readiness, feature readiness and freshness, projection health, checkpoint age, required-signal health, and run-scoped participation
+- the owned outcome is adjudicated decision mode for the current run and current event posture
+- and the path closes on guardrail judgment, not merely on the existence of upstream health artifacts
+
+In bounded proofs it already emitted concrete posture such as `decision_mode = NORMAL` with required signals `OK`, and in other coupled proofs it flipped to `FAIL_CLOSED` with an explicit reason like `required_signal_gap:ofp_health`.
+
+So the `A` posture is:
+
+current RTDL context, feature, and dependency signals -> guardrail classification logic -> decision posture truth -> downstream decision formation consumes that posture
+
+`Bi posture`
+
+In `Bi`, this path becomes the production-ready decision-posture boundary. That means it is no longer enough that a degrade-ladder workload exists or that raw upstream component health is visible. The path has to support a stronger claim:
+
+- advisories stay advisories
+- real insufficiency becomes `FAIL_CLOSED`
+- stale artifacts do not create sticky false-red posture
+- and the guardrail recovers promptly when dependencies recover
+
+The `A` note already says this is exactly the contract shaping the path, and the RTDL readiness plan turns it into concrete focus metrics like false fail-closed rate and degrade-reason breakdown.
+
+The pressure history makes the final posture very clear. In one bounded proof, replay-era watermark advisories on upstream projector and feature surfaces did not force the path closed; the guardrail remained `NORMAL` with required signals `OK`. In a later coupled proof, when the runtime genuinely hit `required_signal_gap:ofp_health`, the guardrail flipped to `FAIL_CLOSED`, and that blocker was treated as real rather than hand-waved away. In the later enlarged-network proof, the notes explicitly classify the reused post-activation warm-gate red as a methodology defect in the executor, not as a demonstrated runtime regression, which again shows the path is supposed to discriminate between true insufficiency and bad proving posture.
+
+So the `Bi` posture is:
+
+a production-ready guardrail boundary where decision posture is derived from typed upstream dependency truth, replay and advisory artifacts do not automatically force closure, real insufficiency does force `FAIL_CLOSED`, and the resulting posture remains explainable enough that later coupled proofs can tell runtime defect from proof-shape defect
+
+`Why this object matters`
+
+This path matters because it is the place where RTDL stops being context and features exist and becomes the platform is actually allowed to decide. If this boundary is weak, two bad outcomes become likely:
+
+- the platform makes unsafe decisions because upstream insufficiency is under-classified
+- or it blocks good traffic because advisory or stale artifacts are over-classified as hard failure
+
+That is why the `A` note treats it as a distinct path and why it has very high `Bi` value for the meta goal. It shows the platform is not letting decision formation figure safety out from scattered clues. It created a dedicated boundary that can explain why it proceeded, why it stayed normal, or why it failed closed. That is strong production-readiness judgment, not just component ownership.
+
+So, in one line:
+
+`Decision guardrail path` is the path that turns upstream RTDL dependency posture into trustworthy decision posture, and in `Bi` it becomes the production-ready guardrail boundary that distinguishes advisory from true insufficiency and only fails closed when the runtime really lacks sufficiently trusted inputs.
+
+The next step in the flow is to derive the `system-design questions` for this path.
+
 ## 2026-03-15 12:44:21 +00:00 - Derive the system-design questions for the Joined context formation path so later pressure history stays on event-specific runtime context truth
 For `Joined context formation path`, the questions should stay on event-specific runtime context truth, not drift backward into projection or forward into features and decisioning.
 
@@ -641,6 +2333,48 @@ This path supports the claim that the final ready posture is not merely `CSFB` s
 `Joined context formation path` shows that you can turn joined runtime context from a correctly wired but not yet truthfully judged surface into a production-ready boundary by making current-run context real, keeping the join surface measurable, rejecting reused-scope distortion, and teaching the platform to distinguish replay-age advisory posture from true joined-context failure.
 
 The next clean move is the ledger block, then `Online feature readiness path`.
+
+## 2026-03-15 13:50:41 +00:00 - Open the Online feature readiness path by pinning its A posture, Bi posture, and why usable feature truth is a distinct runtime boundary inside RTDL
+`Object`
+
+`Online feature readiness path`
+Parent group: `Runtime context formation and decisioning`
+Main secondary object it lives inside: the RTDL plane as a plane-ready runtime object.
+The first enlarged-network object that materially re-pressures it is `Control + Ingress + RTDL`, because once RTDL is attached to the working ingress base, feature readiness stops being only an internal RTDL concern and becomes part of the first coupled runtime-truth boundary. Later enlarged-network pressure re-asks the question again when downstream planes are attached and OFP freshness has to remain truthful on the promoted upstream path.
+
+`A posture`
+
+In `A`, this path exists to turn already joined runtime context into online feature state that the live decision path can actually use. It is deliberately narrower than decisioning, guardrail posture, or audit truth. Its owned outcome is feature-ready runtime truth: which feature groups are available for this event, whether freshness and readiness are real, and whether missing features are truly missing rather than a key-shape or partial-coverage artifact. The `A` note is explicit that this boundary must not let partial key coverage masquerade as total feature absence, must not leave freshness implicit, and must not let stale feature serving count as healthy.
+
+So the `A` posture is:
+
+joined runtime context plus current entity and relationship state -> online feature materialization and serve surface -> feature-ready truth for the live decision path
+
+It carries more than raw feature values: lookup keys, current projection state, feature-group request semantics, and the freshness and readiness posture that downstream decisioning will rely on. The `A` note already records that this seam was sensitive to both graph-version shape and feature-request key shape, which means this path owns explicit interface contracts rather than just data blobs.
+
+`Bi posture`
+
+In `Bi`, this path becomes the production-ready online-feature boundary. That means it is no longer enough that the `Online Feature Plane (OFP)` is alive or that some features exist somewhere. The path has to support a stronger claim: usable feature truth is materially available on the active run, freshness and readiness semantics are honest, missingness is interpreted correctly, and contract-shape defects are not mistaken for true feature absence. The RTDL readiness plan makes this explicit by naming feature freshness, feature availability, and restart-to-green as first-class Phase 1 proof concerns.
+
+The pressure history shows the shape of that production-ready posture. After the earlier RTDL image and materializer rollback defect was closed, `OFP` became the real semantic blocker on the richer bounded proof: `health_state = RED`, `health_reasons = ["WATERMARK_TOO_OLD", "MISSING_FEATURES_RED"]`, `missing_features = 152`, while `stale_graph_version = 0`. That exposed a genuine feature-readiness problem rather than generic RTDL participation ambiguity. The next live telemetry correction then revealed that one repeated posture flag, `GRAPH_VERSION_UNAVAILABLE`, was not caused by a missing live graph version at all, but by a contract mismatch: `IdentityGraphQuery.status()` returned graph version as a bare string while downstream `OFP` and `DF` resolution expected a mapping. The accepted fix was to correct that contract at the `IEG` query boundary rather than hack around it inside `OFP`. After the fix, the fresh-scope green Phase 1 closure held with `OFP health_state = AMBER`, `health_reasons = ["WATERMARK_REPLAY_ADVISORY"]`, `stale_graph_version = 0`, and `missing_features = 0`.
+
+So the `Bi` posture is:
+
+a production-ready online-feature boundary where joined runtime context becomes usable feature truth for the active run, graph-version and request-shape seams are aligned, freshness and readiness are honest, and replay-era advisory posture is no longer confused with real feature unavailability
+
+Later enlarged-network pressure correctly re-opened this path when `OFP` developed a new freshness defect on the promoted upstream path, `STALE_GRAPH_VERSION_RED`, under a changed runner shape, and the notes explicitly refused the dishonest move of hiding that red just to get a faster green receipt.
+
+`Why this object matters`
+
+This path matters because it is the boundary where RTDL stops being context exists and becomes the decision can actually use feature truth for this event now. If this boundary is weak, downstream decisioning can look alive while acting on stale, incomplete, or contract-misaligned feature state. The `A` note says this directly: the online feature plane exists so the platform can say whether it now has usable feature truth for the event, with honest readiness and freshness semantics, rather than merely having upstream data somewhere.
+
+It also matters strongly for the meta goal, because the important engineering work here is not that there was a feature service. It is that the platform had to reason through feature availability truth, freshness truth, graph-version seam correctness, feature-request key-shape noise, and replay-advisory versus real freshness regression, and then preserve honesty when later enlarged-network pressure reintroduced a real OFP freshness problem instead of smoothing it away. That is exactly the kind of production-readiness judgment `Bi` is meant to expose.
+
+So, in one line:
+
+`Online feature readiness path` is the path that turns joined runtime context into feature state the live decision path can honestly use, and in `Bi` it becomes the production-ready feature boundary whose availability, freshness, and contract-shape semantics are strong enough that downstream decisioning can trust it under bounded production pressure.
+
+The next step in the flow is to derive the `system-design questions` for this path.
 
 ## 2026-03-14 16:36:52 +00:00 - Derive the system-design questions for the Boundary access path so the later pressure history answers the right boundary problem
 For `Boundary access path`, these are the system-design questions to pin before mapping the pressure episodes.
