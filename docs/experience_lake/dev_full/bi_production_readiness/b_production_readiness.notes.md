@@ -1132,6 +1132,310 @@ That is a much stronger final posture than a generic case flow worked story.
 
 The next clean move is the ledger block, then `Case creation and timeline append path`.
 
+## 2026-03-15 19:55:04 +00:00 - Open the Case creation and timeline append path by pinning its A posture, Bi posture, and why append-only case truth is its own operational-review boundary
+For `Case creation and timeline append path`, the object frame should stay on operational case truth itself, not drift backward into escalation judgment or forward into authoritative label truth.
+
+`Case creation and timeline append path`
+
+`Object`
+
+Parent group: `Case and label operational truth`.
+
+Main secondary object it lives inside: the `Case + Label` plane as a plane-ready operational-truth object.
+
+The first enlarged-network object that materially re-pressures it is `Control + Ingress + RTDL + Case + Label`, because that is where case truth stops being only a plane-local concern and must remain timely, duplicate-safe, and auditable under real upstream pressure from RTDL. The Phase 4 scope names the critical cross-plane path explicitly as `CaseTrigger -> Case Management`, inside the wider `RTDL -> CaseTrigger -> Case Management -> Label Store` chain.
+
+`A posture`
+
+In `A`, this path exists to turn case-intent truth into operational case truth. Its job is not to decide which RTDL outputs are case-worthy, which belongs to `Case-intent escalation path`, and it is not yet to create authoritative label truth. Its narrower job is to answer: once a case-worthy signal exists, how does the platform create a real case and an append-only operational timeline that later operators, auditors, and downstream supervision can trust? The `A` note is explicit that this boundary is owned by Case Management, not by CaseTrigger and not by Label Store.
+
+So the `A` posture is:
+
+case-intent truth from the upstream trigger boundary -> deterministic case identity plus append-only case timeline truth -> operational case truth owned by Case Management.
+
+The `A` note makes the contract very clear: case identity must be deterministic, case creation must be idempotent under duplicate triggers, timeline transitions must be append-only and auditable, no overwrite-style corruption can hide behind the latest snapshot, and case state must be reconstructable after the fact. It also states that Case Management does not pretend to own label truth.
+
+`Bi posture`
+
+In `Bi`, this path becomes the production-ready operational case boundary. That means it is no longer enough that cases can be opened somehow. The path has to support a stronger claim:
+
+- the right case-intent truths become the right cases
+- duplicate case creation is prevented
+- case-open and case-transition behavior stay timely and correct
+- the case timeline remains append-only and reconstructable
+- and later coupled proof can still say that case truth remains linked to upstream RTDL truth under load
+
+The Phase 3 readiness plan makes those exact concerns first-class: trigger precision and recall upstream, then case-open success, duplicate case creation count, invalid case-state transitions, and append-only timeline integrity.
+
+The implementation and closure posture reinforce that this is not hypothetical. The bounded Phase 3 slice closed green with large admitted-request volume and clean CaseTrigger, Case Management, and Label Store integrity deltas, which means this path was not only designed but materially exercised. Then the coupled proof upgraded the question: not just whether Case Management works on its own, but whether cases remain timely, duplicate-safe, and auditable under load once the enlarged network is in play.
+
+So the `Bi` posture is:
+
+a production-ready case-truth boundary where case-intent truth becomes deterministic, idempotent, append-only operational case truth, and that case truth remains timely, reconstructable, and linked to upstream RTDL truth under enlarged-network pressure.
+
+`Why this object matters`
+
+This path matters because without it the platform can still escalate the right RTDL outputs into case-worthy signals, but it cannot answer a crucial operational-review question:
+
+once a case-worthy signal exists, how is it turned into a real case and an authoritative append-only case history rather than a mutable workflow snapshot or duplicate case noise?
+
+The `A` note says this directly: Case Management is not a generic workflow bucket. It is the explicit owner of deterministic case identity and append-only timeline truth.
+
+It also has strong `Bi` value because the readiness plan measures exactly the right production questions here: case-open success, duplicate case creation, invalid transitions, append-only timeline integrity, and later, under enlarged coupling, whether cases remain timely and auditable under real upstream pressure. That makes this boundary more than CRUD over case rows; it is the operational-truth seam where review work becomes reconstructable and trustworthy.
+
+So, in one line:
+
+`Case creation and timeline append path` is the path that turns case-intent truth into deterministic, append-only operational case truth, and in `Bi` it becomes the production-ready case boundary whose identity, idempotency, timeline integrity, and downstream auditability are strong enough for the enlarged operational-review system to trust.
+
+The next step in the flow is to derive the `system-design questions` for this path.
+
+## 2026-03-15 20:02:21 +00:00 - Derive the system-design questions for the Case creation and timeline append path so later pressure history stays on operational case truth
+For `Case creation and timeline append path`, the system-design questions should stay on operational case truth, not drift backward into escalation judgment or forward into label truth.
+
+`Case creation and timeline append path` - `system-design questions`
+
+1. `What exactly counts as operational case truth here?`
+
+This path is not satisfied merely because a case-worthy signal exists. Its owned outcome is deterministic case identity plus append-only case timeline truth that later operators, auditors, and downstream supervision can trust. The `A` note is explicit that Case Management owns this boundary and that the path closes only when the right case exists, idempotently, with an authoritative append-only timeline rather than a mutable snapshot.
+
+2. `Why is this a separate path from case-intent escalation?`
+
+The platform deliberately separates which RTDL outputs are case-worthy from how those case-worthy signals become real cases and timeline truth. That distinction matters because otherwise later case rows would have to stand in for escalation correctness, and you would lose the clean answer to whether the problem was bad trigger selection or bad case creation and timeline handling.
+
+3. `What is the allowed entry into this path, and why is it constrained?`
+
+The entry is not raw RTDL output and not generic operational noise. It is case-intent truth already produced by the CaseTrigger boundary and handed off through the pinned CaseTrigger topic into Case Management. That matters because it keeps case creation grounded in explicit upstream escalation truth rather than inferred side effects.
+
+4. `What must this path carry so case truth is attributable rather than cosmetic?`
+
+It must carry enough to make case truth authoritative: case-intent truth from the upstream trigger boundary, enough incident identity to make case identity deterministic, run and upstream decision continuity, timeline events and transition facts, and the evidence needed to reconstruct why the case exists and how it evolved. The note ties that directly to the expected telemetry for this boundary: case-open counts, case-transition counts, timeline events and appends, duplicate-case anomalies, invalid transitions, and run-scope continuity into case outputs.
+
+5. `What does production-ready mean specifically for this path?`
+
+For this path, production-ready means case-open success is `100%` for valid case-worthy events, duplicate case creation stays at `0`, invalid state transitions stay at `0`, and append-only timeline violations stay at `0`. Those are explicit plane-ready metrics, not nice-to-have qualities.
+
+6. `How do we know case identity is deterministic and idempotent rather than just usually correct?`
+
+This path has to answer whether repeated or duplicate triggers still converge onto the same case truth instead of creating duplicate cases or diverging timelines. That is why duplicate case creation count is a first-class metric and why the `A` note says this path is governed by deterministic case identity and idempotent case creation under duplicate triggers.
+
+7. `How do we know the timeline is append-only and reconstructable rather than just the latest row looking plausible?`
+
+The core question is whether the case timeline preserves append-only transition truth and remains reconstructable after the fact, rather than hiding overwrite-style corruption behind the latest snapshot. The `A` note makes this one of the defining contracts of the boundary, and the plane-ready plan turns append-only timeline violations into an explicit proof metric.
+
+8. `How do we distinguish a case-creation and timeline defect from a later label defect?`
+
+This path has to stay bounded. Case Management owns deterministic case identity and append-only case timeline truth; Label Store owns authoritative label truth. The notes are explicit that there must be no shadow truth ownership between them. So the system-design question is whether an issue belongs to case creation and timeline truth itself or to the later case-to-label and label-commit boundaries.
+
+9. `What constraints shape this path and stop easy shortcuts?`
+
+This boundary is constrained by duplicate safety, append-only truth, reconstructability, and clean ownership. That means the platform cannot let Case Management silently mutate label truth, cannot allow overwrites to masquerade as clean state transitions, and cannot accept the latest case row looks fine as sufficient evidence.
+
+10. `What trade-off is the design accepting?`
+
+The design accepts more explicit workflow and state machinery in exchange for cleaner operational truth. It would be simpler to treat case state as a mutable workflow bucket and infer history later, but the platform instead pays the cost of deterministic identity, idempotent creation, append-only timeline ownership, and explicit telemetry so it can later explain which case exists, why it exists, and how it evolved.
+
+11. `How does enlarged-network pressure re-ask the question?`
+
+Once the full `Control + Ingress + RTDL + Case + Label` network is in play, the question is no longer only can Case Management open and append cases. It becomes do cases remain timely, duplicate-safe, and auditable under real upstream pressure, with `decision_to_case` latency, starvation, and lineage back to RTDL truth still intact? The coupled proof names those as first-class proof questions.
+
+12. `What does this path need to prove for the meta goal?`
+
+The strongest claim is not we had a case-management service. It is: the platform could turn case-intent truth into deterministic, append-only, reconstructable operational case truth, measure that boundary directly, and keep it correct under bounded and later coupled pressure rather than hiding errors inside later workflow state.
+
+Compressed into one line:
+
+For `Case creation and timeline append path`, the system-design interrogation is about whether case-intent truth becomes deterministic, idempotent, append-only operational case truth at the right boundary, and whether that case truth remains reconstructable, timely, and ownership-clean enough for the enlarged operational-review system to trust under bounded production pressure.
+
+The next move is to map this path to the `pressure episodes` that actually changed its posture.
+
+## 2026-03-15 20:09:27 +00:00 - Map the pressure episodes that changed the Case creation and timeline append path from a designed Case Management seam into coupled operational case truth
+For `Case creation and timeline append path`, the pressure history that actually changed its posture is best read as the moment the platform stopped treating a case exists as good enough and started proving deterministic, append-only, downstream-usable case truth on the right boundary.
+
+`Pressure episodes that changed this path's posture`
+
+1. `The path first had to become a measurable boundary, not just a design claim`
+
+The first real change was not a Case Management runtime bug. It was the addition of a narrow Phase 3 executor and rollup and the widening of the runtime snapshot so the path could be judged on its own terms: case-open counts, case-transition counts, duplicate-case anomalies, invalid transitions, and append-only timeline writes. That changed the path from Case Management is supposed to own append-only case truth into Case Management is now a directly measurable production-readiness boundary.
+
+2. `The bounded Phase 3 closure proved the path was plane-ready on its own slice`
+
+The accepted Phase 3 closure then changed posture again. On the bounded plane-ready slice, the plan records `case_mgmt_cases_created_delta = 335`, `case_mgmt_timeline_events_appended_delta = 1005`, with all tracked duplicate, ambiguity, mismatch, and pending deltas clean and the promoted upstream base still `PASS`. For this path, that is the first real proof that case-intent truth was becoming deterministic, append-only operational case truth cleanly enough to close the plane.
+
+3. `Opening the coupled Case and Label proof changed the path from a plane-local case boundary into a coupled operational-truth boundary`
+
+Once the coupled proof was opened, the question was no longer only can Case Management create and append cases correctly. It became does the enlarged `Control + Ingress + RTDL + Case + Label` network still hold, with `CaseTrigger -> Case Management` remaining timely, starvation-free, duplicate-safe, and linked to upstream RTDL truth? That changed the meaning of the path from a plane-local operational boundary into a cross-plane one.
+
+4. `The first coupled attempts showed the path had not yet been truthfully pressured, because the proving layer was wrong`
+
+The early coupled work did not yet show that Case Management was semantically failing. The implementation trail says the next blocker was methodological: there was no dedicated coupled executor yet, and later the timing probe produced a false red story because it used `cm_case_trigger_intake.observed_time` and `cm_case_timeline LABEL_PENDING created_at_utc` instead of the authoritative processing clocks. That means the open issue was not case creation and timeline append is broken under coupling. It was the path is being judged on the wrong runner and the wrong clocks.
+
+5. `The timing correction changed the path from operationally present but mismeasured into truthfully measurable downstream case truth`
+
+The dedicated timing probe then corrected those clocks to `first_seen_at_utc -> created_at_utc` for case open and to the real Case Management handshake write attempt for case-to-label timing. After repinning to those processing timestamps, the same activation scope rescored cleanly with `decision_to_case p95 = 0.0 s` and low case-to-label latency. That changed the posture of this path because it made the operational case boundary measurable on the right time basis rather than through misleading event-time proxies.
+
+6. `The first fresh full coupled rerun proved the path was already coupled-clean, and the remaining red lived in the envelope, not in case truth`
+
+After removing the stale post-activation warm-gate dependency and wiring the truthful timing probe, the first fresh full coupled rerun showed CaseTrigger, Case Management, and Label Store all green on the same scope, with `decision_to_case p95 = 0.0 s` and `case_to_label p95 ~= 0.164 s`. The only red left was the inherited burst-envelope `429` pocket, not a semantic downstream failure in Case Management. That is the decisive posture change for this path: it became operationally consumable case truth under coupled proof, and it stopped being the active blocker.
+
+7. `Later enlarged-network pressure strengthened the path again by proving non-regression under a larger working platform`
+
+The path then stayed clean under later enlarged-network pressure. The accepted later coupled metrics still recorded `case_mgmt_anomalies_total_delta = 0`, with `decision_to_case p95 = 0.0 s` and `case_to_label p95 = 0.196 s` on the enlarged learning-coupled working platform. That matters because the path is no longer merely good enough on the first Case and Label coupled proof. It has now proven it remains non-regressed when the platform enlarges again around promoted runtime and learning authority.
+
+So, in one sentence:
+
+`Case creation and timeline append path` moved from an explicitly owned but initially only measurable Case Management boundary into a plane-ready append-only case-truth boundary, and then into a coupled cross-plane operational case boundary whose timing, idempotency, and timeline integrity were proven on the correct clocks and remained non-regressed under the larger working platform.
+
+The next flow move is to interrogate these episodes one by one.
+
+## 2026-03-15 20:16:02 +00:00 - Interrogate the key episodes that turned the Case creation and timeline append path into trustworthy operational case truth
+For `Case creation and timeline append path`, the important question is not did cases later exist. It is whether, once case-intent truth exists, the platform turned it into deterministic, append-only, reconstructable case truth at the right boundary, and whether that boundary was being judged on the right proof surface. That is exactly why `A` keeps this path separate from escalation and from label truth.
+
+`Case creation and timeline append path` - `episode interrogation`
+
+`Episode 1 - the path first had to become a measurable boundary, not just a design claim`
+
+What surfaced first was a proof-surface defect, not a Case Management runtime bug. The historical `S4` proving family was too broad; it mixed Case and Label with later learning and ops and governance questions, so it could not answer the plane question directly. The accepted bridge was to add a narrow Phase 3 executor and rollup and widen the runtime snapshot so the path could be judged on its own terms: case-open counts, case-transition counts, duplicate-case anomalies, append-only timeline activity, and the linked CaseTrigger and Label Store integrity surfaces. That changed the path from Case Management is supposed to own case truth into Case Management is now a directly measurable readiness boundary. The readiness property improved here was boundary observability.
+
+`Episode 2 - once measurable, the path proved it could already carry clean plane-local case truth`
+
+The bounded Phase 3 closure is the first real readiness proof for this path. The accepted closure authority records the plane green with `case_mgmt_cases_created_delta = 335`, `case_mgmt_timeline_events_appended_delta = 1005`, no `4xx` or `5xx`, and all tracked integrity deltas clean on the bounded slice while the promoted upstream base still scored `PASS`. For this path, that matters because it is the first time the platform can say: case-intent truth is becoming deterministic, idempotent, append-only case truth cleanly enough to close the plane. The class of challenge here is true plane-ready proof, and it is green. The readiness property improved here was bounded append-only case correctness.
+
+`Episode 3 - opening the coupled proof changed the path from a plane-local case boundary into a coupled operational-truth boundary`
+
+The next change was not a local Case Management defect; it was a change in what the path now had to prove. Once the coupled proof opened, the path stopped being judged only as can Case Management create and append cases correctly and became part of the cross-plane question: do RTDL outputs remain usable as operational truth when Case and Label are attached under real upstream pressure? The coupled plan makes this explicit through the `RTDL -> CaseTrigger -> Case Management -> Label Store` chain, `decision_to_case` latency, starvation across `RTDL -> Case and Label`, and the requirement that case truth remain linked to upstream RTDL truth. That changed the path from a plane-local operational boundary into a working-network case-truth boundary. The class of challenge here is enlarged-network promotion.
+
+`Episode 4 - the first coupled attempts showed the path had not yet been truthfully pressured, because the proving layer was still wrong`
+
+The early coupled work did not yet show that case creation and timeline truth was semantically broken. The first coupled attempt failed before any traffic was sent because of the reused control-bootstrap seam; later, the first timing probe made the path look catastrophically slow because it used the wrong clocks. That means the open issue was not Case Management is broken under coupling. It was a methodology defect: first no truthful coupled executor, then a timestamp-basis defect in the proving layer. The accepted bridges were to fix the coupled executor shape and then repin timing to authoritative processing clocks. That improved the path's truthful exercisability and timing interpretability, not yet its local semantics.
+
+`Episode 5 - the timing correction changed the path from operationally present but mismeasured into truthfully measurable downstream case truth`
+
+This is one of the most important episodes for the path. The first timing probe told a false story:
+
+- `decision_to_case p95 ~ 68 s`
+- `case_to_label p95 ~ 68 s`
+
+The live store rows showed why that was wrong:
+
+- the authoritative case-open clock is `first_seen_at_utc -> created_at_utc`, not event-time `observed_time`
+- the authoritative case-to-label clock is the actual Case Management handshake write attempt, not the earlier `LABEL_PENDING` timeline timestamp
+
+So the red was not case creation and timeline append is too slow. It was a timestamp-basis defect in the proving layer. The accepted bridge was to repin the probe to those processing timestamps. After that correction, the same already-executed activation scope rescored cleanly. That changed the path from downstream case truth exists but looks catastrophically slow into downstream case truth is now measurable on the right clocks. The readiness property improved here was truthful operational timing evidence.
+
+`Episode 6 - the first fresh full coupled rerun proved the path was already coupled-clean, and the remaining red lived in the envelope`
+
+After removing the stale post-activation warm-gate dependency and wiring the truthful timing probe, the first fresh full coupled rerun showed:
+
+- `decision_to_case p95 = 0.0 s`
+- `case_to_label p95 ~= 0.164 s`
+- CaseTrigger, Case Management, and Label Store all stayed green on the same scope
+- the only red left was the inherited burst-envelope `429` pocket, not a semantic downstream failure in the case and label chain
+
+For this path, that is decisive. It proves the case-creation and timeline boundary itself was already operationally consumable downstream; the remaining problem lived in the proving envelope, not in case truth. The class of challenge here is proof-envelope and method, not case semantics. The accepted bridge was to repin the burst shape to the already-proven truthful coupled burst. That improved the path's coupled operational usability.
+
+`Episode 7 - later enlarged-network pressure strengthened the path again by proving non-regression under a larger working platform`
+
+The final important episode is that this path remained clean when the platform enlarged again around promoted learning and runtime authority. The accepted later metrics still recorded `case_mgmt_anomalies_total_delta = 0`, with `decision_to_case p95 = 0.0 s` and `case_to_label p95 = 0.196 s` on the enlarged working platform. That matters because the path is no longer merely good on the first coupled Case and Label proof. It has now been shown to remain non-regressed under the larger working platform. The class of challenge here is later enlarged-network non-regression, and it is green. The readiness property improved here was stable operational case truth under a larger platform.
+
+`What this interrogation says about the path`
+
+The real story of `Case creation and timeline append path` is not:
+
+> cases appeared downstream, so the case path must be fine.
+
+It is:
+
+> the platform first made case truth measurable on its own terms, then proved it clean on a bounded plane slice, then re-asked it as a coupled operational-review boundary, corrected the proving and timing surfaces around that boundary, and finally showed the same case-truth path stayed non-regressed as the working platform enlarged.
+
+The next clean move is the `object transformation synthesis` for this path.
+
+## 2026-03-15 20:23:19 +00:00 - Synthesize how the Case creation and timeline append path moved from a designed Case Management seam into a production-ready operational case-truth boundary
+`Case creation and timeline append path` - `transformation synthesis`
+
+In `A`, this path already had a precise job: turn case-intent truth into operational case truth. It was deliberately narrower than trigger selection and narrower than label truth. Its owned outcome was not a workflow row exists, but deterministic case identity plus append-only case timeline truth that remains idempotent under duplicate triggers, reconstructable after the fact, and cleanly owned by Case Management rather than silently shared with Label Store.
+
+To reach its `Bi` posture, the first thing that had to be resolved was boundary observability. The path could not stay as a strong design claim only. That is why the proving work introduced a narrow Phase 3 executor and rollup and widened the runtime snapshot so Case Management could be judged on its own terms: case-open counts, case-transition counts, duplicate-case anomalies, invalid transitions, and timeline appends. That changed the path from Case Management is supposed to own append-only case truth into Case Management is now a directly measurable readiness boundary.
+
+Once the boundary was measurable, the next thing that had to be resolved was whether it was plane-ready on its own bounded slice. The accepted Phase 3 closure is what first earns that claim. The authoritative closure records `phase3_case_label_20260311T142813Z` with admitted throughput `3046.783 eps`, `4xx = 0`, `5xx = 0`, and clean CaseTrigger, Case Management, and Label Store integrity deltas on the bounded slice. That matters for this path because it is the first real proof that case-intent truth was becoming deterministic, append-only case truth cleanly enough to close the plane.
+
+The next transformation came when the coupled proof opened. At that point the question changed materially. The path was no longer only can Case Management open and append cases correctly. It became part of the enlarged-network question: does the `CaseTrigger -> Case Management` boundary remain timely, duplicate-safe, and starvation-free when the full `Control + Ingress + RTDL + Case + Label` network is under real upstream pressure? That changed the path from a plane-local operational boundary into a cross-plane operational-truth boundary.
+
+But the first coupled work did not answer that question truthfully yet. The next thing that had to be resolved was proof validity around the coupled boundary. The early coupled attempts first exposed the absence of a dedicated truthful coupled executor, and then the first timing probe made case handling look catastrophically slow because it used the wrong clocks: event-oriented `observed_time` and `LABEL_PENDING` timestamps instead of the authoritative processing clocks `first_seen_at_utc -> created_at_utc` and the actual Case Management handshake write attempt. That meant the open issue was not a semantic failure of case creation and timeline append; it was a proving-layer defect. The accepted bridges were to derive the dedicated coupled runner and then repin the timing probe to the correct processing timestamps.
+
+Once those proving defects were removed, the first fresh full coupled rerun showed the real state of the path. The coupled chain stayed green, `decision_to_case p95 = 0.0 s`, `case_to_label p95 ~= 0.164 s`, and the remaining red lived in the inherited burst-envelope shape rather than in Case Management semantics. That is the decisive transformation point for this object: the case-creation and timeline boundary itself had become operationally consumable downstream truth. It was no longer the active blocker.
+
+Finally, later enlarged-network pressure strengthened the path again by proving non-regression under the larger working platform. The accepted later coupled metrics still recorded `case_mgmt_anomalies_total_delta = 0`, `decision_to_case p95 = 0.0 s`, and `case_to_label p95 = 0.196 s` once the platform had enlarged around promoted learning and runtime authority. That matters because the path is no longer merely good enough on the first coupled Case and Label proof. It has now been shown to remain stable under the larger working platform.
+
+`What had to be resolved`
+
+To move `Case creation and timeline append path` from its `A` posture to its `Bi` posture, the platform had to resolve five things:
+
+1. make case truth a measurable boundary rather than only a design claim
+2. prove that the boundary was plane-ready and append-only on its own bounded slice
+3. upgrade it into a coupled operational-truth boundary once downstream review truth depended on it
+4. correct the coupled proving and timing surfaces so the path was judged on the right runner and the right clocks
+5. then prove the same boundary remained non-regressed under the larger working platform
+
+`Final Bi posture`
+
+The final `Bi` posture of this path is:
+
+a production-ready case boundary where case-intent truth becomes deterministic, idempotent, append-only operational case truth, and where that case truth remains timely, reconstructable, and downstream-usable enough to survive enlarged-network pressure without duplicate or timeline-corruption drift.
+
+That is the real transformation. It was not cases appeared downstream. It was:
+
+the platform turned case creation and timeline append from an explicitly owned but initially only measurable boundary into a production-ready operational case-truth boundary whose identity, append-only timeline, timing, and non-regression were all proven on truthful coupled evidence.
+
+The next clean move is to extract the `Bi claim mix` for this path.
+
+## 2026-03-15 20:29:51 +00:00 - Extract the Bi claim mix for the Case creation and timeline append path so the notebook states exactly what operational case-truth judgment this work now supports
+For `Case creation and timeline append path`, the `Bi claim mix` is this.
+
+`Bi claim mix`
+
+1. `Readiness-reasoning claim`
+
+This path supports the claim that you can reason operational case truth as its own production-readiness boundary, instead of letting later case rows stand in for it. The platform first made Case Management measurable on its own terms with a narrow Phase 3 executor and rollup, then proved the bounded slice green, then re-asked the same boundary under coupled pressure, and only accepted the coupled claim after fixing the proving runner and the timing basis.
+
+2. `Systems-design judgment claim`
+
+This path supports the claim that you understood case creation and timeline truth as distinct from both case-intent escalation and label truth. In the `A`-side design, Case Management owns deterministic case identity and append-only timeline truth, while CaseTrigger owns escalation judgment and Label Store owns label truth. That clean ownership split is exactly what prevents later workflow state from blurring where the actual defect lives.
+
+3. `Measurement / evidence claim`
+
+This path supports the claim that you made case truth directly measurable, not inferred. The widened Phase 3 snapshot retained the right Case Management surfaces, and the readiness ledger pinned the right metrics: case-open success, duplicate case creation, invalid transitions, and append-only timeline violations. Later, the coupled timing probe was corrected onto the authoritative processing clocks, which made downstream case timing truthful rather than merely event-time plausible.
+
+4. `Constraint / trade-off claim`
+
+This path supports the claim that you chose truthful coupled proof over easy closure. When the first coupled timing probe made the path look catastrophically slow, the accepted response was not to blame Case Management or drop the metric. It was to fix the timestamp basis so the boundary was judged on `first_seen_at_utc -> created_at_utc` and the actual Case Management handshake write attempt, then rerun the same coupled question honestly. That is a real trade-off in favor of better truth, not faster green.
+
+5. `Production-relevant challenge claim`
+
+This path supports the claim that the challenges were genuinely production-shaped, not toy workflow bugs. The important issues were:
+
+- the lack of a truthful plane-scoped proving surface at first
+- coupled-proof defects that prevented the boundary from being exercised honestly
+- and wrong timestamp bases that made downstream case handling look catastrophically slow when the runtime itself was healthy
+
+Those are exactly the kinds of issues that matter when deciding whether operational case truth is trustworthy under load.
+
+6. `Promotion / final-posture claim`
+
+This path supports the claim that the final ready posture is not merely cases appeared downstream. It is:
+
+- Case Management became a measurable plane-ready boundary
+- case truth proved clean on the bounded slice
+- the coupled Case and Label proof showed clean decision-to-case timing on the right clocks
+- and the same boundary later stayed non-regressed on the larger working platform
+
+That is a much stronger final posture than a generic case flow worked story.
+
+`Compressed Bi claim`
+
+`Case creation and timeline append path` shows that you can turn case-intent truth into deterministic, append-only, reconstructable operational case truth and then prove that same case boundary remains measurable, timely, duplicate-safe, and non-regressed once the larger operational-review network depends on it.
+
+The next clean move is the object frame for `Case-to-label handoff path`.
+
 ## 2026-03-15 16:39:48 +00:00 - Derive the system-design questions for the Decision formation path so later pressure history stays on decision truth itself
 For `Decision formation path`, the system-design questions should stay on decision truth itself, not drift backward into guardrail posture or forward into action emission.
 
