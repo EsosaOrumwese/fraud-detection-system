@@ -449,6 +449,199 @@ So the object frame, in one line, is:
 
 The next step in the flow is to derive the `system-design questions` for this path.
 
+## 2026-03-15 12:44:21 +00:00 - Derive the system-design questions for the Joined context formation path so later pressure history stays on event-specific runtime context truth
+For `Joined context formation path`, the questions should stay on event-specific runtime context truth, not drift backward into projection or forward into features and decisioning.
+
+`Joined context formation path` - `system-design questions`
+
+1. `What exactly counts as joined runtime context here?`
+
+This path is not satisfied merely because projections exist. Its owned outcome is that the admitted event now has the right joined context for this event now: thin traffic plus projected entity and flow state plus the allowed time-safe context surfaces, bound through the pinned join map into an explicit runtime context surface.
+
+2. `Why is this a separate path from entity projection?`
+
+The question is not do we have graph state, but does this event have the correct bound context right now? The `A` note is explicit that having projections is not the same thing as having correct joined context for the event currently being processed, which is why this path is kept distinct from `Entity and relationship projection path`.
+
+3. `What is the allowed entry into this path, and why is it constrained?`
+
+The entry is the admitted event family plus current projected entity and flow state and only the time-safe runtime-allowed context surfaces. That constraint exists because the platform deliberately keeps traffic thin, performs joins inside the platform, and forbids future-implying or batch-only truth products from live runtime use.
+
+4. `What must this path prove before downstream RTDL can trust it?`
+
+It has to prove that flow, arrival, and entity bindings are sufficiently complete and current for the active event, and that ready means actual usable joined context rather than vague upstream availability. The `A` note names false-ready, join completeness, unmatched joins, and fanout bounds as key proof surfaces for this boundary.
+
+5. `How do we measure whether joined context is actually forming correctly on the active run?`
+
+The measurement story here is not generic pod health. The important signals are whether current-run join activity is present, whether `join_misses`, `binding_conflicts`, and `apply_failures_hard` stay at zero or within accepted bounds, and whether checkpoint freshness remains healthy enough for the accepted RTDL slice. The later RTDL receipts explicitly use those `CSFB`-side fields to decide whether joined-context work is truly unhealthy or only replay-aged.
+
+6. `What does production-ready mean specifically for this path?`
+
+For this path, production-ready means the joined-context worker is materially active on the current run, hard join defects are absent, checkpoint age is bounded enough for the accepted slice, and the path is not being falsely condemned by replay-era watermark age alone. The final fresh-scope Phase 1 closure still noted `CSFB` replay-era watermark noise, but checkpoint age stayed healthy and live join activity remained present, which is exactly the kind of posture this path has to distinguish.
+
+7. `How do we distinguish a real context failure from replay-era operator noise?`
+
+This is one of the central system-design questions for the path. The implementation trail shows that `CSFB` could present `WATERMARK_TOO_OLD` and `CHECKPOINT_OLD` while `join_misses = 0`, `binding_conflicts = 0`, `apply_failures_hard = 0`, and checkpoint age remained within an operationally acceptable band. So the question is whether the operator story is truthfully describing a broken context boundary or merely replay-aged posture on an otherwise healthy joined-context worker.
+
+8. `What is the right bridge when the operator surface is too harsh but the path's runtime truth is acceptable?`
+
+The accepted pattern in the implementation notes was not to weaken the RTDL standard and not to ignore health. It was to reclassify specific replay-aged shapes as advisory only when hard defect indicators remained zero and freshness stayed within the bounded threshold. That tells us a key design question for this path is how to make operator semantics replay-aware without turning real context failure into greenwash.
+
+9. `What constraints and trade-offs shape this boundary?`
+
+The path deliberately chooses more structure in exchange for cleaner runtime truth. It rejects flattening more context into the event or letting downstream components infer missing context opportunistically. The cost is stricter join discipline, more state and projection dependence, and stricter readiness semantics; the benefit is that later paths do not sit on unowned or implicit context assumptions.
+
+10. `How does enlarged-network pressure re-ask the question?`
+
+Once RTDL is coupled into the working platform, the question is no longer only is `CSFB` alive. It becomes does the enlarged network preserve current-run joined context truth well enough that later feature and decision surfaces can trust it? That is why reused-scope calibration became unacceptable and why the final answer had to come from a genuinely fresh scope rather than another contaminated same-scope adjustment.
+
+11. `What does this path need to prove for the meta goal?`
+
+The strongest claim is not that there was a context builder. It is: the platform could turn thin traffic plus projected state into trustworthy event-specific runtime context, detect when the health story was overstating failure, and tighten the operator semantics without weakening the actual readiness standard. That is exactly the kind of judgment that reads as production-readiness engineering rather than component ownership.
+
+Compressed into one line:
+
+For `Joined context formation path`, the system-design interrogation is about whether admitted thin traffic plus projected state becomes event-specific, time-safe, operator-honest runtime context that downstream RTDL can actually trust under bounded production pressure.
+
+The next move is to map this path to the `pressure episodes` that actually changed its posture.
+
+## 2026-03-15 12:57:03 +00:00 - Map the pressure episodes that changed the Joined context formation path through scope-validity, replay-age interpretation, and fresh-scope closure discipline
+For `Joined context formation path`, the pressure history is best read as a scope-validity and operator-truth story, not mainly as a hard join algorithm broke story.
+
+`Pressure episodes that changed this path's posture`
+
+1. `The path first had to become a real current-run object`
+
+Before the joined-context boundary could be judged honestly, the RTDL plane itself was still stale-scope: secrets and deployment labels were pinned to the previous `platform_run_id`, so any bounded run would have been partly blind about whether current-run context was actually being formed. The materialization step closed that blocker by repinning the live RTDL scope through the intended runtime path, not by ad hoc cluster edits. That changed the path from context may still belong to yesterday's run into joined context is now a real active-run readiness object.
+
+2. `On the first trustworthy fresh scope, the path proved it was materially alive, but only with replay-era advisory noise`
+
+Once the fresh ECR-backed scope was genuinely serving, the coupled RTDL proof showed that `CSFB` was not the active semantic blocker: checkpoint age stayed healthy, join activity was present, and `apply_failures_hard = 0`, yet `CSFB` still carried replay-era watermark noise. That changed the posture of the path because it established the crucial split: joined context was working, but the operator surface still needed to be read as advisory under bounded historical replay rather than as a hard runtime failure.
+
+3. `The same-scope speedup shortcut then taught that reused scopes distort the joined-context verdict`
+
+The diagnostic uplift from `52.2` to `53.0` on the same scope collapsed the envelope, and the post-run snapshot showed exactly why it could not be trusted as a clean joined-context verdict: `CSFB` checkpoint age rose sharply to `255.689 s`, `health_reasons` now included both `WATERMARK_TOO_OLD` and `CHECKPOINT_OLD`, and late-context and apply-failure work climbed on the reused scope. That changed the path's posture because it proved the next honest answer had to come from a new fresh scope, not from further same-scope tuning.
+
+4. `The final fresh-scope closure candidate is where the path actually became promotable`
+
+After rematerialization onto `platform_20260311T092709Z`, the final coupled closure candidate held steady, burst, and recovery green, and the immediate runtime attribution stayed clean enough to promote. For `CSFB`, the important detail is that it still carried replay-era watermark-age noise, but checkpoint age stayed healthy (`39.865 s`), live join activity was present, and `apply_failures_hard = 0`. That changed the path from joined context with advisory operator noise into joined context whose advisory posture is now bounded and acceptable inside a proven fresh-scope closure.
+
+5. `Later enlarged-network pressure did not reopen the path semantically, but it did expose a receipt and rollup lag behind the already-proven truth`
+
+When the later enlarged-network run was inspected end to end, `CSFB` still looked red at first glance, but the post snapshot showed it was red only on replay-age reasons: `WATERMARK_TOO_OLD`, `CHECKPOINT_OLD`, with `join_misses = 0`, `binding_conflicts = 0`, and `apply_failures_hard = 0`. That meant the path's underlying runtime truth had already been proven, and the remaining defect was now in the closure-receipt and advisory logic rather than in joined-context formation itself. The accepted correction was to extend `CSFB` advisory matching so `CHECKPOINT_OLD` is treated the same way as `CHECKPOINT_TOO_OLD`. That strengthened the path's operator-truth semantics under later enlarged-network pressure without reopening the core path semantics.
+
+So, in one sentence:
+
+`Joined context formation path` moved from a correctly wired but not yet trustworthily judged context surface into a production-ready joined-context boundary by resolving stale-scope ambiguity, proving that replay-age noise was advisory rather than semantic failure, rejecting reused-scope calibration as misleading, and finally closing on a genuinely fresh scope where live join activity and hard-defect absence were both visible.
+
+The next flow move is to interrogate these episodes one by one.
+
+## 2026-03-15 13:09:18 +00:00 - Interrogate the key episodes that turned the Joined context formation path into a trustworthily judged fresh-scope context boundary
+For `Joined context formation path`, the key interrogation is not did `CSFB` ever go red. It is what those reds actually meant for event-specific joined-context truth, and which of them were path defects versus proof-scope or rollup-semantics defects.
+
+`Episode interrogation`
+
+1. `The path first had to become a real current-run object`
+
+What surfaced first was a scope-validity problem, not a join-quality problem. Before the next honest RTDL answer could be taken seriously, the platform had to rematerialize onto a genuinely fresh scope with fresh running pods on the pinned full ECR image. Until that happened, any judgment about joined context would still be contaminated by the possibility that `CSFB` was serving yesterday's scope under today's labels. The accepted bridge was therefore fresh rematerialization, not more tuning on an ambiguous scope. What changed here was the path's current-run legitimacy: it became a real active-run readiness object rather than a stale-scope suspicion.
+
+2. `The first trustworthy fresh-scope probe showed the path was alive, but its operator story was harsher than its runtime truth`
+
+On the first trustworthy fresh ECR-backed coupled run, `CSFB` still showed replay-era watermark-age noise, but the more important signals said the path was materially healthy enough to matter: checkpoint age stayed healthy, `join_hits = 3003`, and `apply_failures_hard = 0`. System-design-wise, that means joined context was actually forming for the active run; the active concern was not context is failing to form, but the operator surface still makes replay-aged posture look more catastrophic than the runtime truth warrants. The class of challenge here is therefore operator-truth and interpretation, not a hard joined-context defect. The accepted move was to treat this as a live, narrow control shortfall rather than reopen `CSFB` semantics prematurely. That improved the path's truthful interpretability.
+
+3. `The same-scope uplift proved that reused scopes distort the joined-context verdict`
+
+The next episode changed the meaning of the path again. The same-scope `53.0` uplift collapsed the envelope, and the post-run snapshot showed why that result could not be trusted as a clean judgment of joined-context readiness: `CSFB` checkpoint age jumped to `255.689 s`, `health_reasons` now included both `WATERMARK_TOO_OLD` and `CHECKPOINT_OLD`, and late-context and apply-failure work rose on the reused scope. The important point is that this did not prove joined-context semantics were newly broken; it proved the proving surface was now contaminated by scope reuse. So the class of challenge was proof-boundary and closure-validity, not a local path regression. The accepted bridge was to stop calibrating on a reused scope and return to one new fresh-scope closure attempt. That improved the path's closure validity.
+
+4. `The final fresh-scope closure showed the path could be promoted with advisory replay noise but no hard join defect`
+
+The genuinely fresh closure candidate on `platform_20260311T092709Z` is where this path's ready posture was actually earned. The run held the RTDL family green, and for `CSFB` the important detail was very specific: replay-era watermark noise remained, but checkpoint age stayed healthy at `39.865 s`, live join activity was present, and `apply_failures_hard = 0`. That means the path reached a stronger and more realistic posture than all noise disappeared. It reached production-readiness under bounded replay, where advisory replay-age signals are tolerated so long as hard join defects remain absent and active-run context formation is still materially visible. The class of challenge is closed here. The bridge that made this promotable was not a last-minute `CSFB` code change; it was the insistence on fresh-scope proof and the refusal to mistake reused-scope collapse for semantic failure. That improved the path's bounded fresh-scope readiness.
+
+5. `Later enlarged-network pressure showed the runtime truth was already proven, but the receipt and advisory logic lagged behind it`
+
+When the later enlarged-network run was inspected end to end, `CSFB` still looked red at first glance, but the post snapshot showed it was red only on replay-age reasons: `WATERMARK_TOO_OLD`, `CHECKPOINT_OLD`, with `join_misses = 0`, `binding_conflicts = 0`, `apply_failures_hard = 0`, and no evidence of current seam corruption. That means the path's runtime truth was already clean, and the remaining problem lived in how the receipt and rollup logic classified that posture. The class of challenge here is rollup-semantics and advisory-matching defect, not a joined-context runtime defect. The accepted bridge was to extend `csfb` advisory matching so `CHECKPOINT_OLD` is treated the same way as `CHECKPOINT_TOO_OLD`. That strengthened the path's operator-truth semantics under enlarged-network pressure without reopening the underlying context boundary.
+
+`What this interrogation says about the path`
+
+`Joined context formation path` was not made ready because `CSFB` was red, then later it looked less red. It became ready because the platform first made joined context a genuinely current-run object, then learned that replay-age operator noise was not the same thing as context failure, then proved that reused scopes distort the verdict, then closed the path only on a genuinely fresh scope where live join activity and hard-defect absence were both visible, and later tightened the advisory semantics so receipts matched already-proven runtime truth.
+
+The next clean move is the `object transformation synthesis` for this path.
+
+## 2026-03-15 13:24:11 +00:00 - Synthesize how the Joined context formation path moved from a correctly wired context surface into a truthfully production-ready bounded replay-aware boundary
+`Joined context formation path` - `transformation synthesis`
+
+In `A`, this path already had a clear job: turn admitted thin traffic plus current projection state into explicit, time-safe runtime context for the event being processed now. The point was to stop RTDL from relying on payload bloat or downstream guesswork. `A` explicitly frames this boundary as the place where the platform answers whether the event has the right joined context now, rather than merely having projections somewhere upstream.
+
+To reach its `Bi` posture, that boundary had to become not just well-designed, but truthfully production-ready under bounded replay-shaped pressure.
+
+The first thing that had to be resolved was current-run legitimacy. Before any healthy or unhealthy verdict could matter, the path had to stop being a stale-scope suspicion. The RTDL scope had to be rematerialized cleanly so that joined-context work was actually attributable to the active run rather than to yesterday's pods or labels. That changed the path from context may exist somewhere in RTDL to joined context is now a real current-run object.
+
+Once that happened, the next thing that had to be resolved was operator-truth honesty. The early fresh-scope coupled proof showed `Context Store Flow Binding (CSFB)` was materially alive: checkpoint age stayed healthy, join activity was present, and hard apply-failure signals were absent. Yet the component still surfaced replay-era watermark-age noise as though it were a hard runtime failure. That meant the joined-context boundary was not mainly semantically broken; it was being misdescribed by an overly harsh operator story under bounded historical replay.
+
+The accepted bridge was not to weaken the standard and not to ignore health. It was to change the meaning of the health surface: replay-era watermark-age posture could be treated as advisory when hard defect indicators remained zero and checkpoint freshness stayed within the bounded slice. That changed the path from joined context that looks red even while it is working to joined context that can be judged honestly under replay-shaped proof.
+
+Then a different problem had to be resolved: closure validity under scope reuse. The same-scope uplift taught that reused scopes distort the joined-context verdict. That mattered because the path could no longer be closed from an ambiguous reused identity. The next honest answer had to come from a genuinely fresh scope, not another intra-scope adjustment. That is a real transformation step for this object: it established that fresh-scope validity is part of joined-context truth, not just deployment hygiene.
+
+The final fresh-scope closure is where the path actually reached its ready posture. On the accepted fresh scope, `CSFB` still carried replay-era watermark noise, but the important facts were now stable and promotable: checkpoint age remained healthy, live join activity was present, and `apply_failures_hard = 0`. That is a stronger and more realistic end state than all noise disappeared. It means the boundary became production-ready as a bounded, replay-aware joined-context surface, not as a cosmetically silent one.
+
+Later enlarged-network pressure did not reopen the core semantics of the path, but it did expose that the receipt and advisory logic lagged behind the already-proven runtime truth. In the later fresh run, `CSFB` was effectively red only on replay-age reasons such as `WATERMARK_TOO_OLD` and `CHECKPOINT_OLD`, while `join_misses = 0`, `binding_conflicts = 0`, and `apply_failures_hard = 0`. The accepted correction was therefore narrow: extend advisory matching so the receipt logic classifies that posture truthfully rather than over-reporting it as runtime failure. That strengthened the path's operator-truth semantics without reopening its underlying joined-context boundary.
+
+`What had to be resolved`
+
+To move `Joined context formation path` from its `A` posture to its `Bi` posture, the platform had to resolve five things:
+
+1. current-run legitimacy - joined context had to be proven on a genuinely active run, not a stale-scope shadow
+2. operator-truth honesty - replay-age noise had to stop masquerading as hard joined-context failure
+3. fresh-scope validity - reused-scope calibration had to be rejected as an untrustworthy closure basis
+4. fresh-scope closure - the path had to be reproved on a genuinely fresh scope where live join activity and hard-defect absence were both visible
+5. advisory and receipt alignment - later rollup logic had to catch up with the runtime truth already established for replay-aged but healthy joined-context posture
+
+`Final Bi posture`
+
+The final `Bi` posture of this path is:
+
+a production-ready joined-context boundary where admitted thin traffic plus projected state becomes event-specific runtime context on the active run, with healthy enough checkpoint and freshness posture for the accepted RTDL slice, hard join defects absent, and replay-age noise treated as advisory rather than as false runtime failure
+
+That is the real transformation. It was not `CSFB` went from red to green. It was:
+
+the platform turned joined context from a correctly wired but not yet truthfully judged surface into a production-ready boundary whose runtime truth, scope truth, and operator truth were all made coherent enough for downstream RTDL to trust
+
+The next clean move is to extract the `Bi claim mix` for this path.
+
+## 2026-03-15 13:36:26 +00:00 - Extract the Bi claim mix for the Joined context formation path so the notebook states exactly what runtime-context judgment this boundary now supports
+For `Joined context formation path`, the `Bi` claim mix should stay on scope-validity, operator-truth, event-specific context ownership, and fresh-scope closure discipline rather than generic `CSFB` redness.
+
+`Bi claim mix`
+
+1. `Readiness-reasoning claim`
+
+This path supports the claim that you can reason a runtime boundary to readiness by separating scope-validity, operator-truth, and actual joined-context failure instead of collapsing them into one generic red. The key sequence was: make the path genuinely current-run, realize that replay-age noise was overstating failure, reject reused-scope learning once it started contaminating the verdict, and then only accept closure from a genuinely fresh scope.
+
+2. `Systems-design judgment claim`
+
+This path supports the claim that you understood joined context as its own first-class runtime truth boundary, not as a side effect of projection and not as something downstream components should infer opportunistically. The `A` note is explicit that the platform deliberately keeps traffic thin, performs joins inside the platform, and treats joined runtime context as the place where the event gets the specific time-safe context it is allowed to act on now.
+
+3. `Measurement and observability claim`
+
+This path supports the claim that you made joined-context truth measurable enough to judge honestly. The important move was not generic logging; it was learning to read the right context-boundary surfaces together: healthy checkpoint age, live join activity, `join_misses`, `binding_conflicts`, and `apply_failures_hard`. That is what let you see that `CSFB` could still carry replay-age noise while the joined-context boundary itself was materially alive and hard-defect-free on the active run.
+
+4. `Constraint and trade-off claim`
+
+This path supports the claim that you chose boundary discipline and replay-aware truthfulness over convenience. The design rejects flattening more context into the event or letting downstream logic infer missing context loosely, because that would blur ownership and make later failures harder to interpret. In readiness, the same discipline appears again: replay-age posture is treated as advisory only when hard defect indicators remain clean, rather than being either ignored entirely or overstated as hard runtime failure.
+
+5. `Production-relevant challenge claim`
+
+This path supports the claim that the challenges were genuinely production-shaped. The important blockers were not toy join bugs. They were things like stale-scope ambiguity, reused-scope contamination of the verdict, replay-era operator noise that could make healthy joined-context work look broken, and later receipt or advisory logic lagging behind already-proven runtime truth. Those are exactly the kinds of issues that make a context boundary hard to judge in a real platform.
+
+6. `Promotion and final-posture claim`
+
+This path supports the claim that the final ready posture is not merely `CSFB` stopped being red. It is that event-specific joined context was materially forming on the active run, checkpoint posture stayed healthy enough for the accepted RTDL slice, hard join defects remained absent, and the remaining replay-age noise was correctly treated as advisory rather than as semantic breakage. That is why the fresh-scope Phase 1 closure could carry `CSFB` with replay-era watermark-age noise and still promote the RTDL family honestly.
+
+`Compressed Bi claim`
+
+`Joined context formation path` shows that you can turn joined runtime context from a correctly wired but not yet truthfully judged surface into a production-ready boundary by making current-run context real, keeping the join surface measurable, rejecting reused-scope distortion, and teaching the platform to distinguish replay-age advisory posture from true joined-context failure.
+
+The next clean move is the ledger block, then `Online feature readiness path`.
+
 ## 2026-03-14 16:36:52 +00:00 - Derive the system-design questions for the Boundary access path so the later pressure history answers the right boundary problem
 For `Boundary access path`, these are the system-design questions to pin before mapping the pressure episodes.
 
@@ -499,6 +692,223 @@ Compressed into one line:
 For `Boundary access path`, the system-design interrogation is about proving that one explicit, contract-correct, telemetry-backed external front door was established and kept truthful under production pressure, rather than letting the whole ingress story rest on stale routes, weak evidence, or convenient ambiguity.
 
 The next move in the flow is to map this path to the `pressure episodes` that actually changed its posture.
+
+## 2026-03-15 11:41:18 +00:00 - Map the pressure episodes that changed the Entity and relationship projection path through scope-validity, operator-truth, and fresh-scope closure corrections
+For `Entity and relationship projection path`, the pressure history is narrower than the ingress paths. The posture did not change mainly through hot-path throughput tuning. It changed through a sequence of scope-validity, operator-truth, and fresh-scope closure corrections around the `IEG` surface, which is exactly consistent with what the Phase 1 plan cared about for RTDL: lag, checkpoint age, backpressure, and truthful current-run participation.
+
+`Pressure episodes that changed this path's posture`
+
+1. `The path first had to become a real current-run object rather than a stale-scope suspicion`
+
+Before any finer judgment could matter, the stale-scope blocker had to go. Once rematerialization pinned the runtime secrets and deployment labels to `platform_20260310T225349Z`, the next bounded RTDL probe could finally be read as a live-path result rather than old pods lingering underneath a new run. That changed the path's posture from projection might be stale or mis-scoped to projection is now a real active-run readiness object.
+
+2. `The first truthful probe showed the path was actively mutating, but the operator surface was lying about it`
+
+The 120-second, 100-eps probe showed that `IEG` was materially alive on the current run: `mutating_applied = 6922`, `events_seen = 6922`, `checkpoint_age_seconds = 0.080539`, and `apply_failure_count = 0`. But the pod-local health artifact still reported hard `RED` with `WATERMARK_TOO_OLD`. That is the first real pressure episode for this path, because it exposed the key defect: the projection lane itself was healthy enough to mutate the active run, but the health semantics made it look broken. So the path changed from we need to know whether the graph is alive to the graph is alive, but the operator truth for bounded historical replay is wrong.
+
+3. `The next pressure episode was a narrow operator-truth bridge, not a runtime repin`
+
+The accepted fix was not to relax RTDL standards and not to ignore health. It was to patch `IEG` health derivation so that when the event watermark is historically old but the checkpoint is fresh, `apply_failure_count = 0`, and the graph is actively mutating, the surface emits `WATERMARK_REPLAY_ADVISORY` and holds `AMBER` instead of falsely going hard `RED`. This is a true posture change for the path. It moved from projection truth hidden behind a false-red health surface to projection truth expressed through replay-aware operator semantics.
+
+4. `That bridge only became real once it was rolled into the live runtime and reproved`
+
+The patch was then pushed into the live RTDL runtime, but only for the deployments that materially mattered to this truth problem: `fp-pr3-ieg` and `fp-pr3-dl`. The reprobe on the same cheap participation shape then showed the changed live posture: `mutating_applied = 18253`, `events_seen = 18253`, `checkpoint_age_seconds = 0.091156`, `apply_failure_count = 0`, and now `health_state = AMBER` with `WATERMARK_REPLAY_ADVISORY`. `DL` also stopped telling a contradictory story and returned to `NORMAL`. That means the path's posture genuinely changed in the live platform, not just in local code.
+
+5. `After operator truth improved, the next blocker was not the path itself but closure validity on fresh scope`
+
+The history then showed a different kind of risk: reused scopes and false fresh-scope greens could distort the verdict. The notes explicitly record that the same-scope `53.0` experiment taught that reused scopes were contaminating the signal and that the next honest answer had to come from a new fresh scope, not another intra-scope adjustment. For this path, that matters because current-run mutation is only trustworthy if the pods, image, and scope are genuinely fresh. So the posture changed from operator truth is fixed to operator truth is fixed, but closure still requires fresh-scope validity.
+
+6. `The false fresh-scope coupled green then exposed a second scope-validity defect: stale pods under fresh secret state`
+
+A supposedly fresh-scope coupled green turned out to be untrustworthy because the materializer had passed a shorthand digest that kubelet resolved against Docker Hub, leaving the new ReplicaSets stuck in `ImagePullBackOff` while old pods stayed `Running`. That is a major pressure-history event for this path because it showed the platform could have mistaken old projection pods for fresh current-run truth. The accepted bridge was to normalize the image reference to the full ECR URI and rematerialize again. That changed the path's posture from fresh-scope closure candidate exists to fresh-scope closure is now materially trustworthy at the runtime surface.
+
+7. `The final posture change came when the genuinely fresh scope closed green and IEG stayed clean enough to promote`
+
+After the ECR-normalized rematerialization, the next fresh scope was materially live, and the final fresh-scope closure candidate on `platform_20260311T092709Z` satisfied the Phase 1 standard without reused-scope ambiguity. At that closure point, `IEG` remained clean with `apply_failure_count = 0`, checkpoint age stayed healthy, and the broader RTDL family was materially alive on the active run. That is the moment when `Entity and relationship projection path` stopped being projection with patched operator truth and became part of the accepted production-ready RTDL posture.
+
+So, in one sentence:
+
+`Entity and relationship projection path` moved from a correctly wired but not-yet-trustworthy runtime projection surface into a production-ready one by resolving three things in order: stale-scope ambiguity, false-red operator semantics for bounded replay, and false fresh-scope closure caused by stale pods, until current-run graph mutation became both real and truthfully observable on a genuinely fresh scope.
+
+The next move in the flow is to interrogate these episodes one by one.
+
+## 2026-03-15 11:55:08 +00:00 - Interrogate the key episodes that made the Entity and relationship projection path current-run, operator-honest, and fresh-scope trustworthy
+For `Entity and relationship projection path`, the important thing is that the red posture was not mainly the graph is wrong. It was mostly about whether the platform could tell the truth about a graph lane that was already processing the current run, and then whether that truthful posture could survive a genuinely fresh-scope proof. The RTDL plan itself makes this path's readiness concerns explicit through `IEG` lag, checkpoint age, backpressure, and apply-failure discipline, while the `A` note makes clear that this path exists to produce current entity and relationship truth that downstream context and decisions can trust.
+
+`Episode interrogation`
+
+1. `The path first had to become a real current-run object`
+
+What surfaced first was not a graph-semantic defect but a scope-validity defect. Before the first bounded RTDL probe could be trusted, the RTDL plane was still pinned to an older `platform_run_id` in secrets and deployment labels, so any result would have been partly blind about whether the graph was actually mutating for the current run. The materialization step closed that blocker by repinning the live runtime to the fresh run scope and aligning runtime wiring and labels to it. System-design-wise, that changed the path from projection might still belong to yesterday's run into projection is now a real active-run readiness object. The class of challenge here was proof-boundary and scope-validity, not path semantics. The accepted bridge was the intended RTDL materialization path, not manual cluster edits. That improved the readiness property of current-run legitimacy.
+
+2. `The first truthful probe showed the graph was alive, but the health surface was lying`
+
+Once the path became a real current-run object, the first bounded probe exposed the next defect very cleanly. `IEG` was visibly mutating the active run: `mutating_applied = 6922`, `events_seen = 6922`, `checkpoint_age_seconds = 0.080539`, and `apply_failure_count = 0`. But the pod-local health artifact still reported `RED` with `WATERMARK_TOO_OLD`. That is the crucial systems-design split for this object: the projection lane itself was healthy enough to mutate current-run truth, but the operator surface made it look broken because the event watermark was historical. The class of challenge was therefore operator-truth and proof-boundary defect, not a runtime projection defect. The accepted bridge was not to relax standards or ignore health, but to narrow the health semantics to the proving method actually in use. That improved truthful observability of projection state.
+
+3. `The right bridge was replay-aware health semantics, not a runtime repin`
+
+The accepted fix here was very specific. The platform patched `IEG` health so that when the event watermark is historically old, but the checkpoint is fresh, `apply_failure_count = 0`, and current-run mutation is actively happening, the surface emits `WATERMARK_REPLAY_ADVISORY` and holds `AMBER` rather than falsely going hard `RED`. That is a very important `Bi` move for this path. It shows that the platform did not try to greenwash the graph; it corrected the meaning of health under bounded historical replay. The class of challenge stayed operator-truth, and the bridge improved the readiness property of explainable replay-aware health semantics.
+
+4. `The bridge only counted once it was live, and the reprobe proved that it changed the path's posture`
+
+The next episode mattered because the notebook is not about local fixes; it is about production-ready posture. The replay-advisory patch was pushed into the live RTDL runtime, and only the two deployments that materially needed it were rolled: `fp-pr3-ieg` and `fp-pr3-dl`. The reprobe then showed the path's live posture had actually changed: `IEG` now reported `mutating_applied = 18253`, `events_seen = 18253`, `checkpoint_age_seconds = 0.091156`, `apply_failure_count = 0`, and `health_state = AMBER` with `WATERMARK_REPLAY_ADVISORY`; `DL` also stopped telling a contradictory story and returned to `NORMAL`. System-design-wise, that is where the path stopped being projection truth hidden behind a false-red health surface and became projection truth expressed through a live, truthful operator surface. The class of challenge was still operator-truth, but now closed in the live system.
+
+5. `Richer proof then exposed a new defect: fresh materialization could silently roll the path back`
+
+Once operator truth was fixed, the richer bounded proof changed the problem again. The path was still materially alive - `IEG` was mutating the current run and `apply_failure_count` stayed at `0` - but the projector health story regressed back to `RED / WATERMARK_TOO_OLD`. The important discovery was that this was not a new graph-code problem. It was an image-selection problem: `pr3_rtdl_materialize.py` could fall back to the older ECS WSP task image and silently roll fresh materializations back onto stale code. For this path, that is a serious proving-substrate defect. A projection lane cannot be called ready on fresh scope if fresh materialization can undo the very operator-truth fix that made its health readable. The accepted bridge was to patch materializer image-selection order so it prefers explicit image, then current live RTDL deployment image, and only then the ECS WSP task image as a final fallback. That improved the readiness property of fresh-scope validity.
+
+6. `Fresh-scope validity had to be real, not nominal`
+
+After the materializer fix, the platform moved to a genuinely fresh scope and treated that as the authoritative closure route rather than continuing to reason from reused-scope runs. That matters because the notes explicitly say the next honest answer had to come from a new fresh scope, not from another intra-scope adjustment. For this path, that means current-run graph truth had to be freshly materialized and freshly observed, not inherited from reused identity. This episode is less about a new graph bug and more about a closure-validity rule: the path's final readiness claim must come from a scope that is materially fresh. The class of challenge was proof-boundary and closure-validity discipline. The bridge was to insist on fresh-scope rematerialization before the final closure attempt.
+
+7. `The final fresh-scope closure is where the path actually became promotable`
+
+The final closure candidate on `platform_20260311T092709Z` is where this path's `Bi` posture is really earned. The run held the RTDL family green on a fresh coupled scope, with `steady = 3035.833 eps`, `burst = 6227.000 eps`, `recovery = 3020.050 eps`, `4xx = 0`, `5xx = 0`, `IEG apply_failure_count = 0`, and no open snapshot blockers. That is the moment where `Entity and relationship projection path` stops being projection with a patched health story and becomes part of the accepted production-ready RTDL posture. The class of challenge is now closed. The bridge that made it promotable was not another graph-code change at this point; it was the combination of truthful replay-aware operator semantics and genuinely fresh-scope proof. That improved the final readiness property of current-run, checkpoint-bounded, operator-honest projection truth.
+
+`What this interrogation says about the path`
+
+`Entity and relationship projection path` was not made ready because the graph was red, then patched, then RTDL went green. It became ready because the platform first made projection truth current-run and attributable, then discovered that the operator surface was falsely calling healthy bounded replay red, corrected that semantics in the live system, then removed a fresh-materialization rollback defect that could silently invalidate the path's health story, and only after that accepted a genuinely fresh-scope closure where `IEG` remained live, mutable, checkpoint-bounded, and failure-free.
+
+The next clean move is the `object transformation synthesis` for this path.
+
+## 2026-03-15 12:06:14 +00:00 - Synthesize how the Entity and relationship projection path moved from a well-designed RTDL boundary into a truthfully production-ready projection surface
+`Entity and relationship projection path` - `transformation synthesis`
+
+In `A`, this path already had a narrow, non-negotiable job: turn admitted live platform data into current entity and relationship truth that downstream RTDL can trust. It was deliberately kept narrower than joined context, online feature readiness, or decisioning, because the platform wanted one explicit place where current graph truth is built rather than letting later paths infer relationship state opportunistically.
+
+To reach its `Bi` posture, that path had to become not just well-designed, but truthfully production-ready under bounded RTDL pressure.
+
+The first thing that had to be resolved was current-run legitimacy. Before the first trustworthy RTDL probe, the question was not yet is projection healthy, but is this even the current run? The fresh materialization and run-scope repin were what turned the path from a correctly wired RTDL idea into a real active-run readiness object. Without that, later health or checkpoint judgments would have been partly meaningless.
+
+Once that legitimacy was in place, the next thing that had to be resolved was operator-truth honesty. The early bounded probe showed something very important: `IEG` was actively mutating the current run, `checkpoint_age_seconds` was effectively zero, and `apply_failure_count = 0`, yet the pod-local health surface still reported hard `RED / WATERMARK_TOO_OLD`. That meant the path's actual runtime truth and its operator story were out of alignment. The path was not mainly broken; it was being misdescribed.
+
+The accepted bridge was not to lower standards or ignore health, but to make the health semantics replay-aware. When the event watermark is historical but the checkpoint is fresh, the graph is actively mutating, and there are no apply failures, the correct surface is `AMBER / WATERMARK_REPLAY_ADVISORY`, not hard red. Once that patch was rolled into the live `IEG` and `DL` runtime and reproved, the path's posture changed materially: projection truth was no longer hidden behind a falsely catastrophic health signal.
+
+After that, the next problem was no longer local graph semantics. It was fresh-scope validity. A richer RTDL proof showed that the path could still be silently rolled backward because the materializer could prefer the wrong image source and rematerialize stale code. That is a major `Bi`-relevant shift: the question became not can `IEG` mutate the run, but can fresh materialization be trusted not to invalidate the very health story we just fixed? The accepted bridge was to fix image-selection order, then later fix the shorthand-digest problem by normalizing the image to the full ECR URI so that a fresh scope really meant fresh pods, not stale pods under fresh secret state.
+
+Only after that did the path reach its final closure posture. The final fresh-scope Phase 1 candidate on `platform_20260311T092709Z` is what actually made the path promotable: the scope was materially live, the deployments were genuinely fresh, and the accepted closure run held the RTDL envelope green with `IEG apply_failure_count = 0` and no runtime blocker ids on the active run. At that point, this path stopped being projection with a corrected health story and became part of the accepted production-ready RTDL surface.
+
+`What had to be resolved, in plain terms`
+
+To move `Entity and relationship projection path` from its `A` posture to its `Bi` posture, the platform had to resolve four things:
+
+1. make the path a real current-run object rather than a stale-scope suspicion
+2. make the operator story truthful to bounded historical replay
+3. prevent fresh materialization from silently rolling the path back onto stale code
+4. prove the corrected path on a genuinely fresh scope rather than on reused or falsely fresh runtime state
+
+`Final Bi posture`
+
+The final `Bi` posture of the object is:
+
+a production-ready projection boundary where current entity and relationship truth is actively mutating on the current run, checkpoint-bounded enough for the accepted RTDL slice, described by replay-aware health semantics rather than false hard-red operator noise, and proven on a genuinely fresh runtime scope
+
+`Why this matters for the meta goal`
+
+This object helps the meta goal because it shows that you were not merely running an entity graph service. You were able to distinguish runtime truth, operator-truth defects, and rollout-validity defects, and reason the path into a production-ready state without weakening the standard.
+
+## 2026-03-15 12:18:02 +00:00 - Extract the Bi claim mix for the Entity and relationship projection path so the notebook states exactly what judgment this RTDL truth boundary now supports
+For `Entity and relationship projection path`, the `Bi` claim mix should stay on current-run legitimacy, projection truth, operator-honest observation, and fresh-scope validity rather than drifting into generic RTDL liveness.
+
+`Bi claim mix`
+
+1. `Readiness-reasoning claim`
+
+This path supports the claim that you can reason a runtime-truth boundary to readiness by separating current-run legitimacy, operator-truth defects, and fresh-scope validity defects instead of treating every red as the graph is broken. The pressure history shows exactly that progression: first make the path truly current-run, then correct the false-red replay health semantics, then remove rollout and materialization defects that could silently invalidate a fresh-scope verdict.
+
+2. `Systems-design judgment claim`
+
+This path supports the claim that you understood entity and relationship projection as its own first-class runtime truth boundary, not as an implementation detail hidden inside later context or feature work. The `A` note is explicit that downstream context and decision truth become polluted if this graph truth is wrong, and the `Bi` work preserved that framing rather than collapsing projection into generic RTDL liveness.
+
+3. `Measurement and observability claim`
+
+This path supports the claim that you made projection truth measurable enough to judge honestly. The important move was not add more logs in the abstract; it was learning to read the right surfaces together: `mutating_applied`, `events_seen`, `checkpoint_age_seconds`, and `apply_failure_count`, then noticing that those surfaces could show healthy active-run mutation while the pod-local health artifact still reported `RED / WATERMARK_TOO_OLD`. That is strong `Bi` evidence because it shows you improved the truthfulness of the operator story, not just the runtime behavior.
+
+4. `Constraint and trade-off claim`
+
+This path supports the claim that you chose truthful replay-aware semantics over cosmetically simpler health rules. The accepted bridge did not weaken the RTDL standard and did not suppress health. It narrowed the meaning of health for bounded historical replay: when the checkpoint is fresh, apply failures are zero, and current-run mutation is active, the surface should hold `AMBER / WATERMARK_REPLAY_ADVISORY` rather than falsely declaring hard red. That is a real trade-off in favor of more honest operator meaning rather than more dramatic dashboards.
+
+5. `Production-relevant challenge claim`
+
+This path supports the claim that the challenges were genuinely production-shaped, not notebook-only. The major blockers were not toy bugs inside the graph algorithm. They were the kinds of defects that really matter in readiness work: stale-scope ambiguity, rollout or materializer rollback onto stale image, false fresh-scope greens, and misleading health semantics that could make a healthy active-run projector look broken. Those are exactly the kinds of issues a real platform engineer has to classify correctly before a runtime surface can be trusted.
+
+6. `Promotion and final-posture claim`
+
+This path supports the claim that the final ready posture is not merely the entity graph service ran. It is that current entity and relationship truth was live on the active run, checkpoint-bounded enough for the accepted RTDL slice, no longer hidden behind false-red replay semantics, and finally proven on a genuinely fresh scope clean enough to promote with the rest of the RTDL family. That is why the final fresh-scope Phase 1 closure could treat `IEG apply_failure_count = 0` and the broader RTDL participation story as part of an accepted green promotion.
+
+`Compressed Bi claim`
+
+`Entity and relationship projection path` shows that you can reason a graph and projection surface into production readiness by making current-run mutation real, making operator health truthful to bounded replay, and refusing to accept fresh-scope closure until rollout and materialization truth are also clean.
+
+The next clean move is the ledger block, then `Joined context formation path`.
+
+## 2026-03-15 12:31:16 +00:00 - Open the Joined context formation path by pinning its A posture, Bi posture, and why event-specific joined runtime context is a distinct RTDL truth boundary
+`Object`
+
+`Joined context formation path`
+Parent group: `Runtime context formation and decisioning`
+Main secondary object it lives inside: the RTDL plane as a plane-ready runtime object.
+The first enlarged-network object that materially re-pressures it is `Control + Ingress + RTDL`, because once RTDL is attached to the already-working ingress base, joined context stops being only an internal RTDL concern and becomes part of the first coupled runtime truth boundary.
+
+`A posture`
+
+In `A`, this path exists to turn admitted thin traffic plus current projection state into an honest, time-safe joined runtime context surface. Its owned outcome is not merely that projections exist, and not yet that features or decisions exist. Its narrower job is to bind:
+
+- the admitted behavioural-stream event
+- flow-anchor context
+- arrival-events context
+- arrival-entities context
+- and the current entity and relationship projection state
+
+through the pinned join map so downstream RTDL consumes explicit runtime context rather than implicit payload assumptions. The `A` note is very explicit that this path is distinct because having projections is not the same thing as having the right joined context for this event now.
+
+So the `A` posture is:
+
+admitted event family plus projected entity and flow state plus allowed time-safe context -> joined runtime context surface and readiness truth for the active event
+
+`Bi posture`
+
+In `Bi`, this path becomes the production-ready joined-context boundary inside RTDL. That means it is no longer enough that context workers are alive or that some joins are happening somewhere. The path has to support a stronger claim:
+
+- joined context is being formed for the current run
+- join completeness and unmatched-join posture stay bounded enough for the accepted RTDL slice
+- checkpoint and freshness posture are healthy enough to trust the context surface
+- false-red replay-age semantics do not cause healthy joined-context work to look broken
+- and later coupled proofs do not mistake replay-era advisory posture for actual current-run context failure
+
+The `A` note already foreshadows this by naming false-ready, join completeness, unmatched joins, and fanout bounds as key proof surfaces for this boundary.
+
+The final readiness history shows the most important posture change for this path: by fresh-scope Phase 1 closure, `Context Store Flow Binding (CSFB)` was no longer treated as a hard component red when the only remaining reasons were replay-age reasons such as `WATERMARK_TOO_OLD` and `CHECKPOINT_OLD`, with `join_misses = 0`, `binding_conflicts = 0`, `apply_failures_hard = 0`, and a healthy checkpoint age under the accepted slice. The later rollup correction explicitly reclassified that posture as advisory rather than true runtime breakage. Then the final fresh-scope Phase 1 closure kept `CSFB` alive with replay-era watermark noise only, while checkpoint age stayed healthy and live join activity remained present.
+
+So the `Bi` posture is:
+
+a production-ready joined-context boundary where event-specific runtime context is materially formed for the active run, join-related hard defects remain absent, checkpoint and freshness posture are bounded enough for the accepted RTDL slice, and replay-age operator noise is no longer misread as true context failure
+
+`Why this object matters`
+
+This path matters because it is the boundary where RTDL stops being traffic plus projection exist and becomes the specific context this event is allowed to act on now. If this boundary is weak, the platform cannot answer:
+
+- whether the flow, arrival, and entity bindings are complete
+- whether ready means full context or partial context
+- whether missingness is a context problem or a later feature or decision problem
+- and whether downstream behavior is being built on unowned or implicit context assumptions
+
+The `A` note makes that necessity case very explicitly.
+
+It also matters strongly for the meta goal, because the production-readiness work here is not that there was a context service. It is that the platform had to reason about:
+
+- thin-traffic and in-platform-join semantics
+- replay-safe and time-safe context surfaces
+- false-red versus real context failure
+- and what counts as truthful closure for a joined-context boundary under bounded historical replay
+
+That is exactly the kind of runtime-readiness judgment `Bi` is meant to expose.
+
+So, in one line:
+
+`Joined context formation path` is the path that turns admitted thin traffic plus current projection state into explicit, time-safe runtime context for the event being processed, and in `Bi` it becomes the production-ready joined-context boundary whose join completeness, checkpoint health, and replay-aware operator semantics are strong enough that downstream RTDL can trust it under bounded production pressure.
+
+The next step in the flow is to derive the `system-design questions` for this path.
 
 ## 2026-03-14 16:46:13 +00:00 - Interrogate the posture-changing pressure episodes for the Boundary access path before collapsing them into one transformation story
 For `Boundary access path`, the pressure episodes worth interrogating are the ones that changed:
@@ -1034,6 +1444,288 @@ Compressed into one line:
 For `Authoritative bus publication path`, the system-design interrogation is about whether admitted ingress truth becomes explicit, semantically split, contract-governed, ambiguity-honest event-bus truth that downstream RTDL can actually trust under production pressure.
 
 The next move is to map this path to the `pressure episodes` that actually changed its posture.
+
+## 2026-03-15 10:24:18 +00:00 - Map the pressure episodes that changed the Ingest commit truth path from planned closure into an honest mode-aware evidence boundary
+For `Ingest commit truth path`, the posture-changing pressure history is tighter than the earlier ingress paths. This path did not get reshaped by lots of envelope tuning. It changed posture through a smaller number of evidence-boundary decisions.
+
+`Pressure episodes that changed this path's posture`
+
+1. `The path had to stop being planned closure later and become an executable managed readiness boundary`
+
+At the start of ingest-commit closure, the path was conceptually pinned but not yet executable in a production-ready way. The frozen design and implementation notes make that clear: the current API Gateway -> Lambda -> DynamoDB edge persisted admissions in DynamoDB, but the ingest-commit boundary still had to be materialized as a managed execution surface with explicit run-root artifacts and fail-closed verdicts. That changed the path's posture immediately. It became a real readiness object rather than a design boundary that could be satisfied later through operator interpretation or local shell work.
+
+2. `The first managed closure run proved stronger broker-facing evidence did not actually exist`
+
+The first managed ingest-commit closeout run did not fail because receipt or quarantine summaries were missing. It failed because the stronger broker-facing offset proof was not materially present on the active edge. The evidence basis was still proxy-mode rather than direct broker topic and partition offsets. That mattered because it forced the real question for this path into the open: what is the strongest ingest-commit proof the active edge can honestly support? The path's posture changed from ingest closure should probably just pass into ingest closure is a distinct proof-strength boundary and the current evidence is insufficient.
+
+3. `The blocker had to propagate upward instead of being quietly neutralized`
+
+The next posture-changing move was governance, not a new runtime defect. Once the first managed closure run showed that stronger offset evidence was unavailable, the blocker was allowed to hold the readiness story rather than being absorbed into later green work. That matters because it proves ingest-commit closure is not nice-to-have reporting. It is gate-owning closure truth. The platform refused to let a weak ingest proof boundary disappear into broader ingress success.
+
+4. `The key engineering decision was not to fake Kafka strength and not to weaken the gate`
+
+This is the central posture change for the path. The notes are explicit about what was rejected:
+
+- do not claim ingest-commit pass from DynamoDB admissions alone
+- do not pretend broker topic and partition offsets exist when they do not
+- do not bypass the boundary by closing it informally from the operator shell
+
+Instead, the path kept fail-closed discipline but made the proof mode explicit and edge-matched:
+
+- use `KAFKA_TOPIC_PARTITION_OFFSETS` when real broker offsets are materially present
+- use `IG_ADMISSION_INDEX_PROXY` when the active edge is `apigw_lambda_ddb` and deterministic proxy proof is the strongest truthful basis
+
+That changed the path from Kafka offsets are the only acceptable proof into the path closes on the strongest truthful proof mode the active edge can actually support, with the mode declared explicitly and never silently downgraded.
+
+5. `The path became production-ready when proxy proof was made explicit, deterministic, and committed`
+
+Once the remediation locked the proxy mode in honestly, the path changed materially. It did not close by pretending it was stronger than it was. It closed because the proxy basis was made explicit, deterministic, committed under the run evidence root, and accepted as the truthful ingest-commit surface for the current edge. That is the moment the path became a production-ready evidence boundary rather than an unresolved mismatch between the runbook and the substrate.
+
+6. `The final posture was strengthened further when mode-aware proof became stable platform law`
+
+The final readiness posture does not leave this as a one-off workaround. The design and later closure semantics carry the distinction forward: broker-offset mode and admission-index proxy mode have different meanings, and that meaning is explicit rather than buried. That matters because it turns the ingest-commit boundary from a local closure trick into stable platform truth that later replay and learning surfaces can inherit without confusion. The path's final posture is therefore not just ingest-commit passed. It is ingest-commit proof mode became explicit platform law.
+
+What this mapping says in one line:
+
+`Ingest commit truth path` became production-ready because the platform turned ingest closure from a vague expectation that stronger Kafka-looking evidence should exist into a managed, fail-closed, mode-aware evidence boundary that closes only on the strongest truthful proof the active ingress edge can actually support.
+
+The next move in the flow is to interrogate these episodes one by one.
+
+## 2026-03-15 10:36:11 +00:00 - Interrogate the key episodes that turned the Ingest commit truth path into a real gate-owning closure boundary
+For `Ingest commit truth path`, the important interrogation is not that receipts were added somewhere. It is that ingest commit became a managed closure boundary, failed closed when stronger proof was unavailable, and then closed only after the proof mode was made explicit and truthful to the active edge.
+
+`Episode interrogation`
+
+1. `The path had to become a managed closure boundary, not a conceptual afterthought`
+
+What surfaced first was that ingest-commit closure did not yet exist as a real managed readiness surface. The path was declared in architecture, but it still needed executable managed closure, emitted ingest evidence under the run root, and an explicit fail-closed verdict surface. System-design-wise, that meant the path was still declared rather than governed. The class of challenge here was a proof-boundary and execution-surface defect, not a runtime data-path defect. The accepted bridge was to materialize a managed ingest-commit closure surface with remote execution, durable artifacts, and fail-closed semantics instead of closing the boundary through local shell work or informal operator interpretation. That was the right bridge because it turned ingest commit into a real gate-owning boundary rather than a design promise. The readiness property improved here was managed closure authority.
+
+2. `The first managed closure run proved the path was failing closed for the right reason`
+
+What surfaced in the first managed ingest-commit closure run was not missing summaries, but insufficient offset-proof strength. The committed evidence showed that the active basis was still proxy mode rather than direct broker topic and partition offsets. That matters because it exposed the real design question for this path: what is the strongest ingest-commit proof the active edge can honestly support? The class of challenge here was a true readiness insufficiency at the evidence boundary, not a cosmetic missing file. The path refused to treat DynamoDB admissions alone as enough. That fail-closed outcome was the correct one, because it proved the platform would not silently weaken the ingest-proof gate just to keep phase progress moving. The readiness property strengthened here was evidential honesty.
+
+3. `The blocker had to propagate upward so the path became a real gate, not a tolerated weakness`
+
+The next important turn was governance, not a new technical defect. Once the first managed closure run showed that stronger offset evidence was unavailable, the blocker was allowed to hold the readiness story rather than being absorbed into later green work. System-design-wise, that means ingest commit was not being treated as supporting evidence that could be cleaned up later. It was being treated as phase-owning closure truth. The class of challenge here was governance and gate-authority enforcement. The accepted bridge was not a code patch yet, but a decision posture: let the blocker stand, let it propagate, and force the next work to answer the proof-strength question explicitly. That improved readiness seriousness. This path now clearly mattered enough to stop upstream advancement.
+
+4. `The key engineering move was to make proof mode explicit, not to fake Kafka strength`
+
+This is the central episode for the path. The remediation choice was clear:
+
+- do not force-pass from DynamoDB admissions alone
+- do not fabricate broker topic and partition offsets
+- do not repin the entire ingress edge just to satisfy the ingest-commit gate
+
+Instead, the path kept fail-closed discipline but made offset proof mode-aware:
+
+- use `KAFKA_TOPIC_PARTITION_OFFSETS` when real broker offsets are materially present
+- use `IG_ADMISSION_INDEX_PROXY` when the active edge is `apigw_lambda_ddb` and deterministic proxy proof is the strongest truthful basis
+
+System-design-wise, this is the moment the path stopped asking why Kafka offsets were absent and started asking the more honest question: what is the strongest truthful proof matched to the active edge? The class of challenge here is a truth-boundary calibration defect. The accepted bridge was right because it neither weakened the gate nor overclaimed substrate strength. It preserved fail-closed posture while explicitly declaring the proof mode. The readiness property improved here was mode-aware evidential strength.
+
+5. `The path became ready only when proxy proof was explicit, deterministic, and materially committed`
+
+After the remediation lock, the reruns changed posture materially. The path did not close by pretending it now had broker offsets. It closed because the proxy basis became explicit, deterministic, committed under the run evidence root, and accepted as the truthful ingest-commit surface for the current edge. That matters because the exact blocker that had previously held the phase disappeared only after the mode-aware implementation made the proof basis both explicit and material. The class of challenge here is now closed. The readiness property improved here was committed ingest closure on truthful proof mode.
+
+6. `The proof mode then became stable platform law, not just one successful workaround`
+
+The last important interrogation point is that the change was not left as an implementation quirk. The rule was pinned into the handles registry and the run-process authority: ingest-commit closure explicitly allows broker-offset mode or admission-index proxy mode depending on edge posture, and later replay-basis semantics carry that same distinction forward. System-design-wise, that means the path's closure mode became reusable platform truth, not just a one-off exception that happened to pass once. The class of challenge here is authority codification. The accepted bridge was right because it turned an implementation-era remediation into a declared platform law that later planes could inherit without confusion. The readiness property improved here was stable semantic continuity of ingest proof across downstream use.
+
+What this interrogation says about the path:
+
+`Ingest commit truth path` was not made ready because receipts were added and then a gate turned green. It became ready because the platform first turned ingest commit into a managed gate-owning closure boundary, then proved that the active edge could not honestly support broker-offset closure, then refused to weaken the gate, then made proof mode explicit and edge-matched, and finally codified that mode so ingest evidence remained truthful and reusable downstream.
+
+The next clean move is the `object transformation synthesis` for this path.
+
+## 2026-03-15 10:49:32 +00:00 - Synthesize how the Ingest commit truth path moved from careful design nuance into a governed production-ready evidence boundary
+`Ingest commit truth path` - `transformation synthesis`
+
+In `A`, this path already had a clear and narrow meaning: it turned completed ingress behavior into durable ingest evidence. It sat later than admission truth and later than authoritative bus publication, and its owned outcome was explicit: receipt summary, quarantine summary, and mode-aware offset-proof materialization so the run could later prove what ingress actually did instead of relying on transient runtime behavior or vague recollection. `A` also already pinned the crucial nuance: under the current `apigw_lambda_ddb` edge, ingest closure was mode-aware, and the platform explicitly rejected pretending that direct broker topic and partition offsets existed when they did not.
+
+To reach its `Bi` posture, that design had to stop being merely a careful explanation and become a managed, gate-owning closure boundary.
+
+The first thing that had to be resolved was execution authority. The path could not remain a conceptual closure point with no managed lane, no emitted ingest artifacts, and no explicit phase authority. That is why the ingest-commit gate had to be materialized as a remote managed closure surface with fail-closed artifacts and upstream propagation. This changed the path from we know what ingest commit should mean into ingest commit is now a real readiness gate that can block progress.
+
+The next thing that had to be resolved was proof-strength honesty. The first managed closure run did not fail because summaries were missing; it failed because the offset snapshot was not materially populated with broker topic and partition offsets. The evidence showed the current posture was still proxy-only rather than broker-offset closure. That mattered because it forced the real systems question for this path into the open:
+
+what is the strongest ingest-commit proof the active edge can honestly support?
+
+The platform did the right thing here. It did not force-pass from DynamoDB admissions alone, and it did not treat a proxy-only snapshot as if it were already broker-strength closure. That is the first major `Bi` move for this object: fail closed on evidence strength rather than quietly weakening the gate.
+
+Then the path had to become not only fail-closed, but governance-serious. Once the blocker was allowed to propagate upward and hold readiness progress, ingest commit stopped being supporting evidence that could be tidied later. It became true gate-owning closure truth. Production readiness now had to answer the proof-mode problem rather than walk around it.
+
+The central transformation came next: the platform had to move from an implicit expectation of Kafka-offset proof to an explicit mode-aware proof law. The accepted bridge was not to fabricate stronger evidence, not to repin the whole ingress edge, and not to call DynamoDB admissions close enough. Instead, the platform pinned a rule:
+
+- if direct Kafka `eb_ref` offsets are materially present, use `KAFKA_TOPIC_PARTITION_OFFSETS`
+- otherwise, for `IG_EDGE_MODE=apigw_lambda_ddb`, use explicit deterministic `IG_ADMISSION_INDEX_PROXY` proof
+
+That is the decisive posture change for this object. The path stopped being broker offsets are the ideal and everything else is awkward and became the strongest truthful proof mode must be explicitly matched to the active edge. That is a much stronger production-readiness stance.
+
+After that, the path became production-ready only when the proxy mode itself was made explicit, deterministic, and materially populated. The remediation rerun did not merely say green. It made the proxy proof basis concrete enough to support closure on its own terms. That matters because the path did not close by pretending it had stronger broker evidence than it did. It closed because its own truthful proof mode had been made concrete enough to support closure.
+
+Finally, the posture was strengthened again when this mode-aware rule stopped being just one successful remediation and became stable platform authority. The handles registry pinned the proof mode by ingress-edge relationship, the run-process pinned ingest-commit closure as explicitly mode-aware, and later replay-basis semantics carried the same distinction forward into downstream truth. That means the path's final `Bi` posture is not just ingest-commit passed once. It is ingest-commit proof mode became explicit platform law that later learning and replay semantics can inherit safely.
+
+`What had to be resolved, in plain terms`
+
+To move `Ingest commit truth path` from its `A` posture to its `Bi` posture, the platform had to resolve five things:
+
+1. execution authority - the path had to become a managed closure boundary, not just a design intention
+2. proof-strength honesty - the platform had to fail closed when broker-strength evidence was not materially present
+3. gate seriousness - the blocker had to propagate upward rather than being absorbed informally
+4. mode-aware truth - the strongest honest proof had to be declared per active ingress edge rather than assumed
+5. authority codification - the chosen proof mode had to become stable platform law, not a one-off workaround
+
+`Final Bi posture`
+
+The final `Bi` posture of this path is:
+
+a production-ready ingest-commit boundary where completed ingress behavior becomes durable, reconstructable, mode-aware ingest evidence, and where closure rests on the strongest proof the active edge can honestly support rather than on fabricated stronger evidence
+
+`Why this matters for the meta goal`
+
+This object supports a strong engineering-judgment claim:
+
+you did not just add more receipts or more artifacts; you treated evidential strength itself as a production-readiness boundary, refused to overclaim broker-level proof, and turned a potentially vague ingest-closure story into an explicit, governed, edge-matched proof law
+
+The next clean move is to extract the `Bi claim mix` for this path.
+
+## 2026-03-15 11:02:03 +00:00 - Extract the Bi claim mix for the Ingest commit truth path so the notebook states exactly what engineering judgment this boundary now supports
+For `Ingest commit truth path`, the `Bi` claim mix should stay on evidential strength, closure truth, and edge-matched proof rather than drifting back into generic receipt language.
+
+`Bi claim mix`
+
+1. `Readiness-reasoning claim`
+
+This path supports the claim that you can reason a closure boundary to readiness by treating evidential strength itself as a production-readiness problem. The path did not close when summaries merely existed; it only became ready once the platform distinguished between a weak implied closure and a truthful, explicitly declared proof mode matched to the active edge. The first managed ingest-commit closure red, followed by the explicit mode-aware remediation, is exactly the kind of reasoning `Bi` is meant to surface.
+
+2. `Systems-design judgment claim`
+
+This path supports the claim that you understood ingest commit truth as its own boundary, distinct from both admission truth and bus publication truth. In `A`, the path already sat later than both and owned durable ingest closure; in `Bi`, that same boundary was preserved rather than collapsed into DynamoDB admissions are probably enough or Kafka-style proof should just exist somehow. That is a strong systems-design judgment claim because it shows you knew what this path was allowed to own and what kind of proof was legitimate for it.
+
+3. `Measurement and evidence claim`
+
+This path supports the claim that you made ingest closure measurable and auditable in the right way. The governing surface is not vague telemetry; it is the explicit ingest-commit evidence contract: receipt summary, quarantine summary, and offset proof in the correct mode. The key readiness move was then to make that proof mode materially populated and inspectable, rather than leaving it as an implicit assumption behind the gate.
+
+4. `Constraint and trade-off claim`
+
+This path supports the claim that you preferred truthful proof over cosmetically stronger but false certainty. The platform refused three tempting shortcuts:
+
+- it did not force-pass from DynamoDB admissions alone
+- it did not pretend broker topic and partition offsets existed when they did not
+- it did not repin the whole ingress edge just to satisfy the ingest-commit gate
+
+Instead, it chose the strongest truthful edge-matched proof mode and made that choice explicit. That is exactly the kind of trade-off reasoning a serious reviewer would want to see.
+
+5. `Production-relevant challenge claim`
+
+This path supports the claim that the challenge was genuinely production-shaped, not a paperwork issue. The platform had a real mismatch between the proof strength the gate wanted and the proof strength the active `apigw_lambda_ddb` edge could honestly emit. The fact that this became a managed blocker that propagated upward, rather than something quietly ignored, is what makes it read like real readiness engineering rather than a documentation refinement.
+
+6. `Promotion and final-posture claim`
+
+This path supports the claim that the final ready posture is not merely ingest-commit passed. It is that completed ingress behavior now closes into durable, reconstructable, mode-aware ingest evidence, with the proof mode declared, materialized, and later codified as reusable platform law. That is why the path's final posture carries forward cleanly into later learning and replay semantics instead of remaining a one-off gate workaround.
+
+`Compressed Bi claim`
+
+`Ingest commit truth path` shows that you can turn ingest closure from a vague expectation that some evidence exists into a production-ready, managed, fail-closed, edge-matched proof boundary that closes only on the strongest evidence the active substrate can honestly support.
+
+The next clean move is the ledger block, then we open the next group.
+
+## 2026-03-15 11:18:44 +00:00 - Open the Entity and relationship projection path by pinning its A posture, Bi posture, and why projection truth is the first real RTDL runtime-understanding boundary
+`Object`
+
+`Entity and relationship projection path`
+Parent group: `Runtime context formation and decisioning`
+Main secondary object it lives inside: the RTDL plane as a plane-ready runtime object.
+The first enlarged-network object that materially re-pressures it is `Control + Ingress + RTDL`, because once RTDL is attached to the already-working ingress base, projection truth stops being only an internal RTDL concern and becomes part of the first real coupled working network.
+
+`A posture`
+
+In `A`, this path exists to turn admitted live platform data into current entity and relationship truth that the rest of RTDL can trust. Its job is deliberately narrower than joined context, online features, or decisioning. It takes the admitted traffic and context family from Group 2 and maintains current graph and projection state so downstream runtime is not built on guesswork about relationships. The `A` note is very explicit that without this path the rest of RTDL would start looking like a decision system built on unowned relationship assumptions.
+
+So the `A` posture is:
+
+admitted traffic plus allowed runtime context family -> current entity and relationship projection truth for the active run -> authoritative graph state that downstream context formation can stand on
+
+`Bi posture`
+
+In `Bi`, this path becomes the production-ready projection boundary inside RTDL. That means it is no longer enough that an entity or graph lane exists. The path has to support a stronger claim:
+
+- current-run participation is visible
+- projection mutation is actually happening on the active run
+- checkpoint and lag posture are bounded enough for the declared RTDL proof shape
+- apply failures are absent in healthy bounded runs
+- and the operator health story is truthful enough that bounded historical replay is not falsely reported as hard runtime failure
+
+The RTDL readiness plan pins these as first-class Phase 1 concerns through `IEG` lag, checkpoint age, backpressure, and false-ready or false-red semantics.
+
+The implementation trail shows the most important posture change for this object: the path's runtime truth became more honest once the `IEG` health surface stopped reporting hard `RED` on `WATERMARK_TOO_OLD` while the graph was actively mutating the current run on a fresh checkpoint. After the patch, the live surface held `AMBER` with `WATERMARK_REPLAY_ADVISORY` instead, while showing `mutating_applied = events_seen`, `checkpoint_age_seconds` near zero, and `apply_failure_count = 0`. Then the fresh-scope RTDL closure proved the family green with `IEG apply_failure_count = 0` and no accepted fail-closed, quarantine, or archive-integrity regression.
+
+So the `Bi` posture is:
+
+a production-ready projection surface where current entity and relationship truth is not just present, but current-run, materially mutating, checkpoint-bounded enough for the accepted RTDL slice, and no longer hidden behind misleading hard-red replay semantics
+
+`Why this object matters`
+
+This path matters because it is the first place inside Group 3 where RTDL stops being traffic came in and starts becoming runtime understanding. If this projection boundary is wrong, later context, features, and decisions are polluted even if downstream boxes are all technically alive. That is exactly why the `A` note gives it its own path and why the Phase 1 readiness focus includes `IEG` lag, checkpoint age, backpressure, and projection-truth correctness rather than treating `IEG` as a hidden implementation detail.
+
+So, in one line:
+
+`Entity and relationship projection path` is the path that turns admitted traffic and context into current graph truth for RTDL, and in `Bi` it becomes the production-ready projection boundary whose current-run mutation, checkpoint health, and operator-truth semantics are strong enough that downstream runtime can trust it under bounded production pressure.
+
+## 2026-03-15 11:29:27 +00:00 - Derive the system-design questions for the Entity and relationship projection path so later pressure history stays on projection truth rather than bleeding into downstream RTDL paths
+For `Entity and relationship projection path`, the questions should stay on projection truth itself, not bleed forward into joined context, online features, or decisioning. In `A`, this path exists to turn admitted live platform data into current entity and relationship truth that the rest of RTDL can trust; in `Bi`, it is judged through current-run participation, lag and checkpoint posture, backpressure, and truthful operator semantics under bounded replay.
+
+`Entity and relationship projection path` - `system-design questions`
+
+1. `What exactly counts as current entity and relationship truth here?`
+
+The first question is whether this path is really producing authoritative current graph and projection state for the active run, rather than merely consuming events and leaving downstream components to infer relationship truth for themselves. This path is narrower than joined context, features, or decisioning; its owned outcome is the graph and projection surface that those later paths must trust.
+
+2. `What is the allowed entry into this path, and why is it constrained that way?`
+
+This path does not start from arbitrary engine outputs. It starts from the admitted traffic and context family already published from Group 2: fraud traffic, arrival-events context, arrival-entities context, and flow-anchor context. That entry is constrained by the runtime data law: only live-runtime-allowed surfaces may be used, truth-only and future-implying surfaces are forbidden, and joins must respect declared keys rather than inferred row order.
+
+3. `What must this path carry in order to mutate graph state deterministically?`
+
+The path has to carry identity and relationship references, event-time ordering surfaces, run-scoped correlation, and the platform's rules about which source families are allowed in runtime. The question is not just does it have data, but does it have the minimum deterministic basis needed to form current entity and relationship state without schema-only guesswork?
+
+4. `How do we know the path is producing current-run projection truth rather than just showing generic component liveness?`
+
+This is why the path's operator surfaces matter. The right question is whether the active run is materially mutating the graph: fields like `mutating_applied`, `events_seen`, `graph_version`, `checkpoint_age_seconds`, and `apply_failure_count` exist precisely so the platform can say projection truth is current-run and live, not merely that a pod is up.
+
+5. `What does production-ready mean specifically for this path?`
+
+For this path, production-ready means current-run participation is visible, checkpoint and lag posture are bounded enough for the accepted RTDL slice, backpressure does not become a healthy-run norm, apply failures stay at zero in healthy bounded runs, and downstream RTDL is not being built on stale or false projection truth. The RTDL readiness ledger pins exactly these families for `IEG`: lag, checkpoint age, and backpressure, and the plane-level definition of done requires RTDL semantic, replay, freshness, and lineage defects to be resolved for the bounded run shape.
+
+6. `How do we distinguish a real runtime red from a misleading replay-era operator red?`
+
+This is one of the most important questions for this object. The implementation history shows that `IEG` could report hard `RED / WATERMARK_TOO_OLD` even while the checkpoint was fresh, `apply_failure_count = 0`, and current-run mutation was actively happening. So a central system-design question for this path is whether the operator health surface is truthful for bounded historical replay, or whether it is falsely making active projection look broken.
+
+7. `What is the right bridge when operator truth is wrong but runtime truth is healthy?`
+
+The accepted answer for `IEG` was not to ignore health entirely and not to loosen the phase standard. It was to qualify the health semantics: when the event watermark is historically old but the checkpoint is fresh and the graph is actively mutating with no apply failures, the surface should emit `WATERMARK_REPLAY_ADVISORY` and hold `AMBER`, not hard `RED`. So the deeper question is whether the platform can preserve strictness while still making the operator story explainable.
+
+8. `What constraints shape this path and prevent easy shortcuts?`
+
+This path deliberately rejects schema-only convenience, implicit relationship inference, and scattered ownership. It chooses one active RTDL runtime posture, explicit runtime-allowed source families, and explicit downstream dependence on projection correctness. That means it inherits stream-runtime constraints - checkpoint behavior, lag posture, replay safety - instead of hiding behind vague eventual-consistency language.
+
+9. `What trade-off is the design accepting here?`
+
+The design accepts more structure and more stateful discipline in exchange for cleaner runtime truth. It would be easier to collapse entity logic into downstream context builders or assume relationships from schema shape, but the chosen design keeps projection as a first-class RTDL responsibility. The cost is stricter readiness semantics and more sensitivity to lag, checkpoint, and replay behavior; the benefit is that downstream context and decision truth are not built on unowned relationship assumptions.
+
+10. `How does enlarged-network pressure re-ask the question?`
+
+Once RTDL is attached to `Control + Ingress`, this path is no longer only an internal RTDL concern. The question becomes whether the combined network preserves `Event Bus -> RTDL truth continuity`, current-run adoption, and timing continuity without false green from stale scope or dark participation. That is why the coupled-network plan explicitly asks whether ingress stays green when RTDL is actually consuming and deciding, and whether the new paths preserve run identity, truth continuity, and timing continuity.
+
+11. `What does this path need to prove for the meta goal?`
+
+The strongest claim is not that there is an entity graph service. It is: the platform can construct current entity and relationship truth intentionally inside RTDL, detect when operator health is lying about that truth, and correct the health semantics without weakening the actual runtime standard. That is the kind of reasoning that reads as production-readiness judgment rather than component ownership.
+
+Compressed into one line:
+
+For `Entity and relationship projection path`, the system-design interrogation is about whether admitted traffic and context become authoritative current graph truth for the active run, and whether that truth remains measurable, bounded, and operator-honest enough that downstream RTDL can trust it under bounded production pressure.
+
+The next move in the flow is to map this path to the `pressure episodes` that actually changed its posture.
 
 ## 2026-03-15 09:12:44 +00:00 - Map the posture-changing pressure history for the Authoritative bus publication path before interrogating the key episodes
 For `Authoritative bus publication path`, the posture-changing pressure history maps like this.
