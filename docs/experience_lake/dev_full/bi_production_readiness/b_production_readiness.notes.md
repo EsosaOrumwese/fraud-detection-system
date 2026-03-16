@@ -3523,7 +3523,812 @@ This path supports the claim that the final ready posture is not merely promotio
 
 `Active-bundle authority feedback path` shows that you can take governed promoted state and force it all the way through the registry-to-runtime seam until one deterministic active bundle or policy becomes the actual runtime authority for the consuming scope, with candidate, rollback, and restore transitions all attributable in live runtime evidence and summarized under the correct registry authority rather than inferred from stale promotion metadata.
 
-The next clean move is the ledger block for Group 6.
+The next clean move is the `Run reconstruction and receipt closure path` object frame for Group 7.
+
+## 2026-03-16 16:44:37 +00:00 - Open the Run reconstruction and receipt closure path by pinning its A posture, Bi posture, and why exact run reconstruction is the first Group 7 continuity boundary
+For `Bi`, Group 7 is inherited from `A`, handled group-first by default, but since the notebook is explicitly descending here, the right first path to open is `Run reconstruction and receipt closure path`.
+
+## `Run reconstruction and receipt closure path`
+
+### `Object`
+
+Parent group: `Run governance, observability, and evidence closure`.
+
+Main secondary object it lives inside: `Working platform + Ops / Gov / Meta` as the operable and governable whole-system object. That is the right enlarged-network seat because Phase 7 is explicitly the point where the platform has to prove it can be operated, audited, governed, reconstructed, and cost-controlled on top of the already-working platform from Phase 6, not just that individual execution planes ran.
+
+The first enlarged-network object that materially re-pressures it is therefore the Phase 7 working platform itself: `Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps + Ops / Gov / Meta`. This is where exact run reconstruction stops being a nice reporting idea and becomes a production-readiness question with explicit operator-facing proof obligations.
+
+### `A posture`
+
+In `A`, this path exists to turn earlier lane receipts into an exact, readable, attributable run story rather than a hand-assembled summary. It is deliberately narrower than governance append, narrower than final-verdict publication, and narrower than teardown or cost closure. Its job is: once the earlier run has produced its lane receipts, where does the platform reconcile them into one exact run story under one run scope? The `A` note states that plainly, and Group 7's group-level argument reinforces that reconstruction is the first continuity step before governance append, verdict publication, teardown, and cost closure.
+
+So the `A` posture is:
+
+earlier lane receipts and closure inputs under one run scope -> run report plus reconciliation -> exact run story.
+
+That `A` posture already carries the core constraints the later readiness work has to preserve: the path must be reconciliation-driven, single-run-scope, exact rather than hand-assembled, and materially seated in real reporter and reconciliation lanes rather than in narrative summary.
+
+### `Bi posture`
+
+In `Bi`, this path becomes the production-ready `run-reconstruction boundary`. That means it is no longer enough that receipts exist somewhere in S3 or that an operator could probably piece the story together. The path now has to support a stronger claim:
+
+* run reconstruction is possible from current-run evidence itself,
+* receipt completeness is high enough for reconstruction to be exact,
+* evidence readback is successful enough that the reconstructed story is durable rather than aspirational,
+* verdict traceability back to evidence and run scope is explicit,
+* and the reconstruction corridor closes under single-writer and closure-bundle discipline rather than loose summary assembly.
+
+That stronger posture is exactly what the spine and ops closure lanes were built to prove. `M8` exists to close `P11 SPINE_OBS_GOV_CLOSED` with deterministic run-closeout evidence, and it explicitly makes run report plus reconciliation the first planned lane before governance append, non-regression pack, handoff, and cost-outcome closure. Its DoD then requires that run report and reconciliation are committed locally and durably. Later, the rebuilt Phase 7 ledger states that the operations, governance, and meta metric family is proven on a rebuilt plane-ready scope with exact run reconstruction as one of the reasons that closure is trusted.
+
+So the `Bi` posture is:
+
+a production-ready run-reconstruction boundary where current-run receipts and evidence become one exact, durable, traceable run story under single-writer and run-scope discipline, strong enough that later governance append, verdict publication, and operational readback can build on it rather than reconstruct around it.
+
+### `Why this object matters`
+
+This object matters because it is the point where the platform stops saying `we emitted receipts` and starts being able to say what exactly happened in this run. If this boundary is weak, then later governance append, proof-matrix closure, final verdict, teardown judgment, and cost-to-outcome closure are all forced to stand on a partially reconstructed or hand-assembled story. Group 7's own `A` synthesis says continuity in this group begins exactly here: run reconstruction first, then governance append, then final verdict, then teardown and cost closure.
+
+It also matters strongly for the meta goal, because this is not reporting. It is where the platform proves it can close execution as an auditable operational system. Phase 7 asks that question directly: can runs be reconstructed exactly, can verdicts be justified from evidence, and can the platform be governed as one system? The accepted ledger closes that family green on rebuilt plane-ready authority.
+
+So, in one line:
+
+`Run reconstruction and receipt closure path` is the path that turns earlier lane receipts into one exact run story in `A`, and in `Bi` it becomes the production-ready reconstruction boundary that proves current-run evidence is complete, readable, and traceable enough for the rest of Group 7 to build on truthfully.
+
+The next clean move is the `system-design questions` for this path.
+
+## 2026-03-16 16:45:25 +00:00 - Derive the system-design questions for the Run reconstruction and receipt closure path so later pressure history stays on exact run-story reconstruction itself
+For `Run reconstruction and receipt closure path`, the system-design interrogation should stay on exact run-story reconstruction itself: whether earlier lane receipts become one authoritative, readable, attributable run story under a single run scope. It should not drift forward into governance append, final-verdict publication, teardown, or cost closure. Group 7 separates those on purpose, and both the `A` note and the run and build plans treat run report plus reconciliation as the first owned closure before the rest of Group 7 continues.
+
+## `Run reconstruction and receipt closure path` - `system-design questions`
+
+1. `What exactly counts as run reconstruction truth here?`
+
+This path is not satisfied because `the phase went green` or because there are receipts somewhere in S3. Its owned outcome is stronger: earlier lane receipts become one exact run story through committed run report plus reconciliation truth. The `A` note says that directly, and the `M8 / P11` closure keeps run report plus reconciliation as the first explicit planned lane and DoD anchor.
+
+2. `Why is this a separate path from governance append, final verdict, teardown, and cost closure?`
+
+The platform separates these on purpose. Group 7's six-path definition says run reconstruction proves the run can be reconstructed exactly; governance append proves that reconstructed truth is formally appended and marked closed; final-verdict publication proves whole-platform judgment is explicit; teardown and cost closure prove different things again. Without this split, closure collapses into one vague ops and reporting story.
+
+3. `What is the allowed entry into this path, and why is it constrained?`
+
+The entry is not generic observability data and not a hand-picked operator summary. It is earlier lane receipts and closure inputs under one run scope. The build plan makes that concrete in `M8.C` as closure-input evidence readiness from `P5..P10` outputs, and the group-level `A` note says reconstruction starts only once prior planes can be tied into one exact run story.
+
+4. `What is the owned outcome before governance append is allowed to begin?`
+
+The owned outcome is one committed run report plus reconciliation truth, not yet the append log or close marker. The build plan is explicit about that ordering: run report and reconciliation comes first, then governance append closure and run-close marker, then later rollup and handoff.
+
+5. `What must this path carry so the run story is exact rather than merely plausible?`
+
+It has to carry the current run identity, the lane receipts from earlier closures, readable evidence references, reconciliation outputs, and the linkage from later verdict back to evidence and run scope. The Phase 7 readiness definition makes those requirements explicit through `run identity uniqueness`, `receipt completeness`, `evidence readback success`, and `verdict traceability`.
+
+6. `What makes run reconstruction authoritative rather than an operator-written summary?`
+
+Authority here means the run story is produced through the dedicated reporter and reconciliation corridor under one-shot and single-writer discipline, not by a person reading logs after the fact. The `A` note and the `M8` plan both pin that shape directly: reporter runtime identity and lock readiness, single-writer contention proof, reporter one-shot execution, closure-bundle completeness, and only then run-reconstruction rollup.
+
+7. `Why is single-writer contention proof part of reconstruction truth?`
+
+Because the platform is not only asking whether a reporter can run; it is asking whether the closeout story can be produced without writer ambiguity. `M8.D` exists specifically for single-writer contention discipline, and the path-level `A` note says exact reconstruction is supposed to come from a governed corridor, not from competing or mixed closeout writers.
+
+8. `How do we know receipt completeness and evidence readback are strong enough for exact reconstruction?`
+
+This path has to ask whether enough receipts are actually present and readable to reconstruct the run truthfully. The readiness plan pins those as first-class Phase 7 metrics, and the accepted Phase 7 closure records `required local evidence = 10 / 10` and `accepted Phase 5 refs readable = 18 / 18`, which is exactly the kind of evidence this path exists to own.
+
+9. `What role does verdict traceability play here if final verdict publication is a later path?`
+
+This path does not publish the final verdict, but it still has to ensure the later verdict can be traced back to evidence and run scope. The readiness plan includes `verdict traceability` as a Phase 7 metric because the reconstructed run story must already be strong enough to support later judgment. That is part of why this path comes before final-verdict publication in Group 7.
+
+10. `How do we distinguish a reconstruction defect from a governance-append defect or a final-verdict defect?`
+
+This path has to stay bounded. Its question is whether the platform can reconstruct the exact run story from durable receipts and readable evidence. The next path owns formal governance append and close-marker truth; the later path owns proof-matrix and final-verdict publication truth. If those boundaries blur, a later green governance append or verdict could hide the fact that the underlying run story was still only partially reconstructable.
+
+11. `What constraints shape this path and stop easy shortcuts?`
+
+The strongest constraints are: one run scope, one reporter corridor, single-writer discipline, closure-input evidence readiness, closure-bundle completeness, durable publication, and readback verification. The build plan encodes these as explicit `M8.B..M8.F` lanes and `M8-B*` blocker families, which is how the platform prevents `looks good enough` closure from counting.
+
+12. `What trade-off is the design accepting?`
+
+The platform is accepting more closeout ceremony and more proof objects before it will claim the run is reconstructable. It would be easier to let operators summarize what happened from dashboards and receipts manually. Instead, the system pays for reporter identity and lock readiness, single-writer proof, closure-bundle completeness, durable publication, and readback checks so the run story is reconstructable by governed evidence rather than by memory.
+
+13. `How does enlarged-network pressure re-ask the question?`
+
+Once the platform reaches the Phase 7 `Ops / Gov / Meta` object, the question is no longer only `can the spine close`. It becomes `can the working platform be reconstructed, governed, observed, idled, and cost-accounted for as one operational story`. The accepted Phase 7 ledger makes that explicit by calling out exact run reconstruction as part of the rebuilt plane-ready closure, alongside observability, ML day-2 readback, and idle and restore discipline.
+
+14. `What does this path need to prove for the meta goal?`
+
+The strongest claim is not that the platform emitted receipts. It is that the platform can take the receipts of prior execution and turn them into one exact, readable, attributable run story under a governed corridor, so later governance closure, verdict publication, and operational review are building on truth rather than on patched narrative. That is what makes this read like serious platform-operations judgment instead of `we also had dashboards and logs`.
+
+Compressed into one line:
+
+For `Run reconstruction and receipt closure path`, the system-design interrogation is about whether earlier lane receipts become one exact, durable, run-scoped story through a governed reporter-and-reconciliation corridor, with enough completeness, readback, and traceability that the rest of Group 7 can build on it truthfully rather than reconstruct around it.
+
+The next clean move is to map this path to the `pressure episodes` that actually changed its posture.
+
+## 2026-03-16 16:45:57 +00:00 - Map the pressure episodes that changed the Run reconstruction and receipt closure path from inherited closeout logic into a production-ready reconstruction boundary
+For `Run reconstruction and receipt closure path`, the posture-changing history is not mainly about whether prior phases had receipts. It is about whether those receipts could be turned into one exact run story through a governed closeout corridor, and later whether that same reconstruction truth could survive the stricter `Ops / Gov / Meta` readiness boundary instead of remaining only an inherited `P11` artifact.
+
+## `Run reconstruction and receipt closure path` - `pressure episodes that changed its posture`
+
+### 1. The path first had to become a real closure corridor, not a reporting afterthought
+
+The first posture change was structural. In `A`, this path already existed to turn earlier lane receipts into an exact run story, but in the execution plan it only became real once `M8 / P11` was defined as a dedicated closeout corridor with explicit prerequisite lanes: reporter runtime identity, closure-input evidence readiness, single-writer contention proof, reporter one-shot execution, closure-bundle completeness, rollup verdict, and closure sync. That changed the path from `the run can probably be summarized` into `run reconstruction is its own governed boundary`.
+
+### 2. Single-writer governance had to become real before reconstruction could count as truth
+
+The next posture change was that reconstruction stopped being merely `a reporter can run` and became `only one writer can close the run truthfully`. `M8.D` only closed after the lock surface was made executable enough to prove real advisory-lock behavior: writer-1 acquired the lock, writer-2 was denied with an explicit fail-closed signal, and post-release reacquire succeeded. That is a real shift for this object, because the run story stopped being potentially multi-writer or narrative and became governed by single-writer discipline.
+
+### 3. The reporter then had to become a real managed runtime lane, not a stub or local fallback
+
+Once single-writer discipline was earned, the path still was not ready because the reporter lane itself was only stub-level. `M8.E` had to be expanded into an execution-grade managed one-shot corridor on EKS, and the first real attempts failed for runtime reasons that mattered to the boundary itself: the runtime image rejected the pinned lock backend, and then the reporter failed on missing Aurora-side receipts tables. The accepted bridges were narrow and truth-preserving: keep the pinned backend visible in evidence while injecting `db_advisory_lock` as the effective runtime compatibility shim, and add one-shot pre-run DDL bootstrap for the required tables. That changed the path from `the reporter concept exists` into `the reporter can actually produce governed reconstruction artifacts on the managed runtime surface`.
+
+### 4. Closure-bundle completeness then changed the path from `reporter ran` into exact reconstruction truth
+
+Even after the reporter ran, the object was not yet strong enough. `M8.F` is where the path's meaning changed again: the validator proved that all required closure bundle artifacts were present, readable, parseable, run-scoped correctly, and reconciliation-coherent. The authoritative pass explicitly checked `7 / 7` required bundle artifacts, run-scope conformance, closure-ref coherence, and reconciliation status, check, and delta coherence. That is the point where the path stops meaning `we emitted some closeout artifacts` and becomes `the run story is reconstructable exactly from a coherent closure bundle`.
+
+### 5. Rollup and handoff then changed the path from bundle completeness into deterministic reconstruction judgment
+
+The next posture change came in `M8.I` and `M8.J`. `M8.I` first failed on unreadable reference surfaces and a non-secret false positive, which meant the corridor still could not publish reconstruction truth deterministically. The accepted remediation was to project `run_report` and `reconciliation` deterministically from object-store source truth into the evidence contract refs and harden the scanner. Then `M8.J` closed only once contract parity was complete across `14 / 14` required artifacts and the cost and outcome closure plus handoff pack were committed. That changed the path from `the reconstruction bundle is internally coherent` into `the reconstructed run story is now publishable, verdict-bearing, and handoff-safe under deterministic closure rules`.
+
+### 6. Later Phase 7 work strengthened the path again by making exact reconstruction a decisive readiness metric on the larger ops, gov, and meta object
+
+The final posture shift happened later, when this path stopped being only an `M8 / P11` spine closure fact and was re-asked inside the rebuilt `Phase 7 Ops / Gov / Meta` proof. The first candidate assessor still had proof defects, including grading CSV evidence refs as if JSON parsing were required, but once those bounded assessor defects were corrected, exact run reconstruction and evidence readback went green. The final accepted `Phase 7` authority then treated reconstruction as a decisive plane-ready metric, with `10 / 10` required local evidence present and `18 / 18` accepted Phase 5 references readable. That changed the path from `spine closeout can reconstruct the run` into `the ops, gov, and meta plane can now treat exact run reconstruction as one of its accepted readiness truths`.
+
+## `What this mapping says in one line`
+
+`Run reconstruction and receipt closure path` moved from a correctly designed reconciliation idea into a production-ready reconstruction boundary by first becoming its own governed closeout corridor, then earning single-writer discipline, then making the reporter real on the managed runtime surface, then proving closure-bundle completeness, then publishing deterministic reconstruction judgment and handoff, and finally surviving the stricter `Phase 7` ops, gov, and meta proof as an accepted exact-reconstruction truth.
+
+The next clean move is to interrogate these episodes one by one.
+
+## 2026-03-16 16:46:29 +00:00 - Interrogate the key episodes that turned the Run reconstruction and receipt closure path into an earned exact-reconstruction boundary
+## `Run reconstruction and receipt closure path` - `episode interrogation`
+
+For this path, the important question is not whether prior lanes emitted receipts or whether later governance and verdict surfaces eventually went green. It is whether those earlier lane receipts became one exact, attributable run story through a governed reconstruction corridor under one run scope. That is already how Group 7 defines the path in `A`, and it is also exactly how `M8 / P11` defines its first owned closure: run report plus reconciliation before governance append, later rollup, and later cost closure.
+
+### `Episode 1 - the path first had to become a real closure corridor, not a reporting afterthought`
+
+What surfaced first was a boundary-definition defect. The platform could not let run reconstruction remain an informal reporting layer after execution. That is why `M8` was expanded into its own strict closeout corridor with explicit prerequisite lanes and a fixed `M8.A..J` sequence, and why run report and reconciliation was pinned as the first planned lane before governance append, non-regression, rollup, and cost closure. System-design-wise, that matters because the path stopped being `operators can probably summarize what happened` and became `exact run reconstruction is its own owned truth boundary`. The accepted bridge here was corridor formalization itself. The readiness property improved here was `owned reconstruction closure`.
+
+### `Episode 2 - single-writer governance had to become real before reconstruction could count as truth`
+
+Once the corridor existed, the next pressure point was writer discipline. Reconstruction could not be treated as authoritative until the platform proved that only one writer could close the run story for a given run scope. The fail-first `M8.D` execution exposed that the original Aurora lock surface was still seeded and non-routable; the accepted bridge was to materialize the concrete Aurora lock endpoint and repin the SSM endpoint paths to those real RDS surfaces, then rerun the same contention probe. The green rerun then proved the actual closure fact pattern: writer-1 acquired the run-scoped lock, writer-2 was denied fail-closed, and post-release reacquire succeeded. The class of challenge here is single-writer truth discipline, not generic database connectivity. The readiness property improved here was `authoritative single-writer reconstruction truth`.
+
+### `Episode 3 - the reporter then had to become a real managed runtime lane, not a stub or local fallback`
+
+After single-writer discipline was earned, the path still was not ready because the reconstruction corridor still needed a real reporter runtime on the managed surface. `M8.E` is where that changed. The platform deliberately kept the lane managed-first and refused local reporter compute as closure proof, so the reporter had to run as an EKS one-shot job. The fail-first chain matters here because it shows the boundary becoming real in stages: first the active image rejected `REPORTER_LOCK_BACKEND=aurora_advisory_lock`, then the reporter failed on missing Aurora-side receipts tables, then the IRSA role lacked the KMS envelope permissions needed for SSE-KMS object writes. The accepted bridges stayed narrow and truth-preserving: inject the effective runtime backend while retaining the pinned backend in evidence, bootstrap the required tables one-shot before execution, and extend the IRSA role for object-store S3 and KMS on the same managed path. Only after that did the authoritative one-shot run close green with lock acquire and release proof and `7 / 7` required closure artifacts readable. The class of challenge here is managed-runtime realization of the reconstruction boundary. The readiness property improved here was `managed reporter execution that can actually produce governed reconstruction artifacts`.
+
+### `Episode 4 - closure-bundle completeness then changed the path from the reporter ran into exact reconstruction truth`
+
+Even with a green reporter run, the object was still too weak if the resulting closure artifacts were partial, malformed, or not actually coherent as one run story. That is what `M8.F` changed. The validator was deliberately built against the current authoritative object-store run-close surface and then required all the things this path actually owns: required objects readable and parseable, run-scope conformance, `run_completed` closure-ref coherence, and reconciliation pass, check-map, and delta coherence. The green closure on `M8.F` matters because it is the moment where the path stops meaning `the reporter emitted some artifacts` and becomes `the run story is reconstructable exactly from a coherent closure bundle`. The class of challenge here is bundle completeness and reconciliation coherence. The accepted bridge was to validate against the real implemented closure surface rather than a looser intended contract. The readiness property improved here was `exact reconstruction truth from a coherent closure bundle`.
+
+### `Episode 5 - rollup and handoff then changed the path from bundle completeness into deterministic reconstruction judgment`
+
+The next pressure point was that an internally coherent bundle still does not by itself produce a deterministic judged run story. `M8.I` and `M8.J` are the posture-changing episodes here. The first `M8.I` run failed on two things that matter exactly to this path: unreadable `run_report_ref` and `reconciliation_ref` at the handoff surface, and a false-positive non-secret violation caused by policy metadata values. The accepted bridge was not to weaken the gate. It was to project `run_report` and `reconciliation` deterministically from the object-store source truth into the evidence-path contract refs and to harden the non-secret scanner so policy metadata lists no longer masquerade as secret leakage. That allowed `M8.I` to publish a deterministic `P11` verdict and `m9_handoff_pack.json`. Then `M8.J` strengthened the same object again by proving `14 / 14` contract parity and closing the phase-level cost and outcome receipt plus closure sync. The class of challenge here is deterministic publication and handoff-safe reconstruction judgment, not just internal bundle coherence. The readiness property improved here was `publishable, verdict-bearing, handoff-safe run reconstruction truth`.
+
+### `Episode 6 - later Phase 7 work strengthened the path again by making exact reconstruction a decisive readiness metric on the larger ops, gov, and meta object`
+
+The final important turn is that this path did not remain only an old `M8 / P11` spine-closeout fact. It was re-asked later at the stricter `Ops / Gov / Meta` readiness boundary. The first rushed Phase 7 closure candidate was explicitly withdrawn because the phase had moved too fast and the reflected artifacts had started to anchor the work to a patched story instead of a truthful one. That restart matters because it proves the platform would not let a weaker operational proof inherit authority merely because earlier artifacts existed. The rebuilt Phase 7 closure then treated exact run reconstruction as one of the decisive accepted truths on the plane-ready scope, with `10 / 10` required local evidence present and `18 / 18` accepted Phase 5 refs readable. The class of challenge here is later enlarged-object operational proof, not spine-closeout housekeeping. The accepted bridge was a truthful restart and rebuild of the Phase 7 boundary, not incremental patching around the earlier story. The readiness property improved here was `exact reconstruction promoted into accepted ops, gov, and meta readiness truth`.
+
+### `What this interrogation says about the path`
+
+So the real transformation of `Run reconstruction and receipt closure path` is not:
+
+> the platform emitted receipts, a reporter ran, and later a closeout summary existed.
+
+It is:
+
+> the platform first made exact reconstruction its own governed closeout corridor, then made single-writer discipline real, then made the reporter real on the managed runtime surface, then proved closure-bundle completeness, then turned that bundle into a deterministic judged and handoff-safe run story, and finally proved that same exact-reconstruction truth again at the stricter Phase 7 ops, gov, and meta boundary.
+
+That is what turns the path from a strong `A` design idea into an earned `Bi` production-ready boundary.
+
+The next clean move is the `object transformation synthesis` for this path.
+
+## 2026-03-16 16:47:16 +00:00 - Synthesize how the Run reconstruction and receipt closure path moved from a designed closeout idea into an earned exact-reconstruction boundary
+## `Run reconstruction and receipt closure path` - `object transformation synthesis`
+
+In `A`, this path already had a narrow and important job: turn earlier lane receipts into one exact run story. It was never supposed to mean `ops has some receipts somewhere`, and it was deliberately kept narrower than governance append, final-verdict publication, teardown, or cost closure. Its owned outcome was already pinned as `run report + reconciliation`, and the `M8 / P11` build plan freezes that exact ordering by making run report and reconciliation the first planned lane before governance append, rollup, and closure sync.
+
+To reach its `Bi` posture, the first thing that had to be resolved was whether run reconstruction was even being treated as its own governed boundary. The platform could not leave it as an after-the-fact reporting convenience. That is why `M8` became a strict closeout corridor with explicit prerequisite lanes, fixed `M8.A..J` sequencing, fail-closed blocker families, and a hard DoD that requires run report plus reconciliation to be committed locally and durably. That changed the object from `the run can probably be summarized` into `exact reconstruction is now an owned closure boundary`.
+
+Once that corridor existed, the next thing that had to be resolved was single-writer truth discipline. Reconstruction could not count as authoritative until the platform proved only one writer could close the run story for a given run scope. The managed `M8.D` contention probe is where that became real: it closed only after the lock surface was materially routable and the probe proved writer-1 acquire, writer-2 deny, and post-release reacquire on the same governed corridor. That changed the object from `a reporter may run` into `the run story is governed by one writer rather than by competing closeout paths`.
+
+After single-writer discipline, the path still was not ready because the reporter lane itself had to become a real managed runtime lane, not a stub or local fallback. `M8.E` is where that transformation happened. The first fail-first attempts exposed the real managed-runtime blockers: the active image rejected the pinned lock backend, then the reporter failed on missing Aurora-side receipts tables, then the IRSA role lacked KMS envelope permissions for SSE-KMS object writes. The accepted bridges stayed narrow and truth-preserving: keep the managed-first posture, inject the effective advisory-lock compatibility shim while retaining the pinned handle in evidence, bootstrap the required tables one-shot, and extend IRSA permissions on the same managed path. The authoritative closure then proved one-shot reporter execution on EKS plus `7 / 7` required closure artifact readability. That changed the object from `the reporter concept exists` into `the managed runtime can actually emit governed reconstruction artifacts`.
+
+Even then, the object was still too weak if the emitted artifacts were only present and not coherent as one run story. `M8.F` is where the path changed posture again. The validator enforced exactly the things this path owns: required closure artifacts readable and parseable, run-scope conformance, `run_completed` closure-ref coherence, and reconciliation `status / checks / deltas` coherence. The green result on `m8f_p11_closure_bundle_20260226T061917Z` is the moment where the path stops meaning `the reporter emitted artifacts` and becomes `the run story is reconstructable exactly from a coherent closure bundle`.
+
+The next transformation was from bundle coherence into deterministic judged reconstruction truth. `M8.I` first failed because `run_report_ref` and `reconciliation_ref` were unreadable at the contract surface and because the handoff scanner treated policy metadata as a secret leak. The accepted remediation was not to weaken the gate. It was to project `run_report` and `reconciliation` deterministically from object-store source truth into the evidence-path contract refs and harden the scanner while keeping strict non-secret rules on operational payloads. That let `M8.I` close with a deterministic `P11` verdict and `m9_handoff_pack.json`, and `M8.J` then strengthened the same object again by proving `14 / 14` contract parity and closing cost and outcome plus closure sync. That changed the path from `the reconstruction bundle is internally coherent` into `the reconstructed run story is now publishable, verdict-bearing, and handoff-safe`.
+
+The final transformation came later, when this path stopped being only an old `M8 / P11` fact and was re-asked inside the stricter `Phase 7 Ops / Gov / Meta` boundary. The rebuilt Phase 7 plane does not merely inherit reconstruction as a historical artifact; it treats exact run reconstruction as one of its decisive readiness truths, alongside alert drill evidence, ML day-2 readback, and idle and restore discipline. The accepted `phase7_ops_gov_meta_restart_20260313T002459Z` authority records `10 / 10` required local evidence present and `18 / 18` accepted Phase 5 refs readable, and the readiness ledger explicitly judges the plane green with `exact run reconstruction` named as part of the accepted story. That changed the object from `spine closeout can reconstruct the run` into `run reconstruction is now strong enough to support the larger ops, gov, and meta plane as accepted readiness truth`.
+
+### `What had to be resolved`
+
+To move `Run reconstruction and receipt closure path` from its `A` posture to its `Bi` posture, the platform had to resolve five things: first, make run reconstruction its own strict closeout corridor rather than a reporting afterthought; second, make single-writer contention discipline real; third, make the reporter real on the managed runtime surface; fourth, prove closure-bundle completeness and reconciliation coherence; and fifth, turn that coherent bundle into deterministic verdict-bearing, handoff-safe reconstruction truth that later survived the stricter `Phase 7` ops, gov, and meta proof.
+
+### `Final Bi posture`
+
+The final `Bi` posture of this path is:
+
+a production-ready run-reconstruction boundary where current-run receipts and closure evidence become one exact, durable, traceable run story under single-writer and managed-reporter discipline, with enough bundle completeness, readback strength, and verdict traceability that later governance append, verdict publication, and ops, gov, and meta review can build on it rather than reconstruct around it.
+
+### `Why this matters for the meta goal`
+
+This object helps the meta goal because it shows that you did not treat operational closeout as `we had receipts and some observability`. You forced the platform to answer harder questions first: who is allowed to close the run story, whether the reporter can actually reconstruct it on the managed surface, whether the closure bundle is coherent enough to make the run exact rather than plausible, and whether later ops, gov, and meta judgment is building on durable run truth instead of on patched narrative. That reads like serious platform-operations judgment, not like post hoc reporting.
+
+The next clean move is the `Bi claim mix` for this path.
+
+## 2026-03-16 16:47:47 +00:00 - Extract the Bi claim mix for the Run reconstruction and receipt closure path so the notebook states exactly what reconstruction judgment this work now supports
+## `Run reconstruction and receipt closure path` - `Bi claim mix`
+
+1. `Readiness-reasoning claim`
+
+This path supports the claim that you can reason exact run reconstruction itself as a production-readiness boundary, instead of letting `the run emitted receipts` or `operators can probably piece it together later` stand in for it. The build plan makes run report plus reconciliation the first owned closure inside `M8 / P11`, and the Phase 7 readiness plan later treats exact run reconstruction as a decisive ops, gov, and meta truth rather than optional reporting.
+
+2. `Systems-design judgment claim`
+
+This path supports the claim that you understood run reconstruction truth, governance append truth, final-verdict truth, and cost and teardown truth as different objects with different owners. Group 7 is explicitly split that way in `A`, and this path's owned job is narrower: turn earlier lane receipts into one exact run story before governance append and later verdict surfaces advance.
+
+3. `Measurement / evidence claim`
+
+This path supports the claim that you made reconstruction truth directly measurable rather than inferred. The readiness plan pins `run identity uniqueness`, `receipt completeness`, `evidence readback success`, and `verdict traceability` as explicit Phase 7 metrics, and the accepted closure authority records `10 / 10` required local evidence present plus `18 / 18` accepted Phase 5 refs readable. Earlier `M8` closure also required `7 / 7` closure-bundle artifacts readable and later `14 / 14` contract parity before handoff-safe closeout counted.
+
+4. `Constraint / trade-off claim`
+
+This path supports the claim that you chose governed reconstruction discipline over easy post hoc summarization. The platform refused shortcuts like operator memory, multi-writer closeout, local-only reporter behavior, partial closure bundles, or loose handoff refs. Instead it paid for reporter identity and lock readiness, single-writer contention proof, managed one-shot execution, closure-bundle completeness validation, deterministic contract projection, and durable readback parity before claiming the run was reconstructable.
+
+5. `Production-relevant challenge claim`
+
+This path supports the claim that the challenges were genuinely production-shaped. The hard parts were not `can we write a summary JSON`. They were: proving single-writer lock truth on the real Aurora lock surface, making the reporter work as a managed EKS one-shot lane instead of a stub or local fallback, repairing missing receipts-table reality, extending IRSA and KMS permissions for durable publish, and fixing deterministic contract refs plus scanner behavior so rollup and handoff could close truthfully. That is exactly the kind of operational closeout pressure a real platform has to survive.
+
+6. `Final-posture claim`
+
+This path supports the claim that the final ready posture is not merely receipts existed and a reporter ran. It is: one run-scoped, single-writer, managed reporter-and-reconciliation corridor produced a coherent closure bundle, that bundle closed under deterministic rollup and handoff, and the same exact-reconstruction truth was later strong enough to count again at the stricter Phase 7 ops, gov, and meta boundary. That means later governance append, verdict publication, and operational review are building on governed run truth rather than reconstructing around missing closure logic.
+
+`Compressed Bi claim`
+
+`Run reconstruction and receipt closure path` shows that you can take earlier lane receipts and force them through a single-writer, managed reporter-and-reconciliation corridor until they become one exact, durable, traceable run story with deterministic handoff and later ops/gov/meta-grade readback strength, so the rest of Group 7 is building on governed closure truth rather than on patched narrative.
+
+The next clean move is the object frame for `Governance append and close-marker path`.
+
+## 2026-03-16 16:48:18 +00:00 - Open the Governance append and close-marker path by pinning its A posture, Bi posture, and why formal governance closure is its own Group 7 boundary after reconstruction
+For `Governance append and close-marker path`, the object frame should stay on formal governance closure itself: where reconstructed run truth is appended durably and where the run is explicitly marked closed. It should not drift backward into run reconstruction, and it should not drift forward into final-verdict publication or cost and teardown closure. The `A` note makes that boundary explicit, and the `M8 / P11` plan keeps governance append closure and run-close marker as its own lane after run report plus reconciliation.
+
+## `Governance append and close-marker path`
+
+### `Object`
+
+Parent group: `Run governance, observability, and evidence closure`.
+
+Main secondary object it lives inside: `Working platform + Ops / Gov / Meta` as the operable and governable whole-system object. That is the right enlarged-network seat because this path is not about one component's local write; it is about whether the whole run can be formally closed under governance truth once reconstruction already exists.
+
+The first enlarged-network object that materially re-pressures it is the Phase 7 `Ops / Gov / Meta` plane itself: `Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps + Ops / Gov / Meta`. That is the first point where governance closure stops being only a spine closeout concern and becomes part of the larger question of whether the working platform is explainable, auditable, and closable as one governed operational story.
+
+### `A posture`
+
+In `A`, this path exists to turn run-close reconstruction truth into append-safe governance truth that is explicitly closed. Its job is not to reconstruct the run, and it is not yet to publish the full final-platform verdict. Its narrower job is: once the platform already knows what happened in the run, where does it append that closure truth, and how does it mark the run as formally closed? The `A` note says that directly.
+
+So the `A` posture is:
+
+reconstructed run truth -> append-safe governance log -> explicit close marker under the correct run scope.
+
+That `A` posture already carries the key disciplines later readiness work has to preserve: append-safe history rather than mutable summary overwrite, explicit close marker rather than informal `done` implication, and verification of schema, run-scope, and ordering rather than mere file existence. The `A` note is explicit that the design rejects two shortcuts: letting the run report act as a proxy for formal closure, and using a mutable summary object instead of append-safe governance history plus a close marker.
+
+### `Bi posture`
+
+In `Bi`, this path becomes the production-ready formal governance-closure boundary. That means it is no longer enough that the run was reconstructed or that some governance files exist under the evidence prefix. The path now has to support a stronger claim:
+
+* governance append actually closes on the authoritative surfaces,
+* the closure marker is materially committed,
+* append history remains schema-valid, run-scoped, and ordered,
+* later rollup and handoff are building on explicit closure truth rather than on the mere existence of a run report,
+* and the corridor fails closed if append or closure-marker truth is weak.
+
+That stronger posture is exactly what `M8.H` proved. The authoritative closure records `m8h_p11_governance_close_marker_20260226T063647Z` as green, with source-truth verification of object-store governance append plus marker surfaces, schema, run-scope, and order coverage checks, and materialized governance projection outputs for `append_log.jsonl` and `closure_marker.json` under the run scope. That is the moment where the path stops meaning `closure can probably be inferred` and becomes `formal governance closure is now an executed and verified truth boundary`.
+
+The later Phase 7 ops, gov, and meta authority then strengthens the same object again. The rebuilt accepted closure treats the plane as green only once the governance and evidence family is materially trustworthy, with exact run reconstruction, evidence readback, alert coverage, idle and restore discipline, and handle resolution all green on the same plane-ready scope. That means governance closure is no longer only an inherited `P11` artifact; it is part of the accepted ops, gov, and meta readiness story.
+
+So the `Bi` posture is:
+
+a production-ready governance-closure boundary where reconstructed run truth becomes append-safe, explicitly closed governance truth on the authoritative append-log and close-marker surfaces, strong enough that later verdict publication and handoff can rely on formal closure rather than reconstruct around it.
+
+### `Why this object matters`
+
+This object matters because it is the point where the platform stops saying `we can explain what happened` and starts being able to say the run is formally closed. If this boundary is weak, the platform may still reconstruct the run and even publish later verdicts, but it loses the clean answer to:
+
+* where closure truth was appended,
+* what marks the run as formally closed,
+* whether closure history is append-safe,
+* and whether later verdict and handoff surfaces are building on real closure truth or just on the existence of a report.
+
+It also matters strongly for the meta goal, because this is not cosmetic ops metadata. It is where the platform proves it can formalize closure as governed truth rather than leave it as an operator interpretation. That reads like serious platform-operations judgment, not `we generated some summaries`.
+
+So, in one line:
+
+`Governance append and close-marker path` is the path that turns reconstructed run truth into append-safe, explicitly closed governance truth in `A`, and in `Bi` it becomes the production-ready formal-closure boundary that proves later verdict and handoff are building on real governance closure rather than on inferred completion.
+
+The next clean move is the `system-design questions` for this path.
+
+## 2026-03-16 16:48:46 +00:00 - Derive the system-design questions for the Governance append and close-marker path so later pressure history stays on formal governance closure itself
+For `Governance append and close-marker path`, the system-design interrogation should stay on formal governance closure itself: whether reconstructed run truth becomes append-safe governance truth and is explicitly marked closed under the correct run scope. It should not drift backward into run reconstruction, and it should not drift forward into proof-matrix and final-verdict publication, teardown, or cost closure. The `A` note and the `M8` plan both separate that boundary explicitly.
+
+## `Governance append and close-marker path` - `system-design questions`
+
+1. `What exactly counts as formal governance-closure truth here?`
+
+This path is not satisfied because a run report exists or because operators can explain what happened. Its owned outcome is stronger: reconstructed run truth is appended safely into the governance surface, and a formal close marker is committed under the run evidence scope. The `A` note states that directly, and the `M8` DoD requires both the append log and the closure marker to be committed and append-safe.
+
+2. `Why is this a separate path from run reconstruction and from final-verdict publication?`
+
+The platform separates these on purpose. Reconstruction proves the run story can be recovered exactly; this path proves that reconstructed truth is formally appended and marked closed; the later verdict path proves whole-platform judgment is explicit. Group 7's own group-level synthesis says those are distinct owned truths, not one vague ops and reporting function.
+
+3. `What is the allowed entry into this path, and why is it constrained?`
+
+The entry is not `the platform is probably done enough`. The entry is run report plus reconciliation truth already committed, with earlier spine lanes reconciled under one run scope. The `A` note says this plainly, and the `M8` planned-lane ordering says run report and reconciliation must come first, with governance append and close marker only after that.
+
+4. `What is the owned outcome before later rollup and verdict are allowed to advance?`
+
+The owned outcome is append-safe governance truth plus a formal close marker, not yet the final-platform verdict. This path closes when the governance record is appended safely, the close marker is materialized under the run scope, and both surfaces are verified for schema, run-scope, and ordering correctness. The successful `M8.H` lane is described in exactly those terms.
+
+5. `What must this path carry so closure is durable rather than merely descriptive?`
+
+It has to carry run identity and run scope, the reconciled closure truth from the previous path, append-log facts recording closure progression, the formal close-marker object, and enough publication and readback information to prove those objects are actually present on the authoritative evidence surface. The `A` note lists that carried set directly.
+
+6. `What makes governance append authoritative rather than we wrote a JSON somewhere?`
+
+Authority here means governance closure is written through the dedicated verification lane against the authoritative append-log and close-marker surfaces, with schema, run-scope, and order coverage checks rather than mere file existence. The notes are explicit that the successful lane did not simply check that files existed; it verified schema, run-scope, and ordering before allowing advancement.
+
+7. `Why are append-safe history and explicit close marker both required?`
+
+Because the platform rejects two weak shortcuts: treating the run report as a proxy for formal closure, or using a mutable summary object instead of append-safe governance history plus close marker. The `A` note says this is exactly why the plan includes a dedicated governance-append and closure-marker verification lane. Without both, later closure truth could still be ambiguous or overwrite-prone.
+
+8. `Why do schema, run-scope, and ordering checks matter so much here?`
+
+Because this path is about durable governance truth, not about object presence. If append history is malformed, out of order, or under the wrong run scope, later verdict and handoff surfaces may still look coherent while actually building on weak closure truth. That is why `M8.H` is defined around schema, run-scope, and order coverage, and why the `A` note treats those checks as what makes formal closure a real truth boundary rather than a cosmetic artifact.
+
+9. `What makes the close marker authoritative rather than a convenience flag?`
+
+The close marker is the object that says the run is formally closed under the right run scope. It is not just a UI hint. The `A` note treats it as one of the two concrete surfaces that belong to this path, and `M8.H` only goes green once the governance append and closure-marker surfaces are both materially projected under the evidence run scope.
+
+10. `How do we distinguish a governance-closure defect from a reconstruction defect or a final-verdict defect?`
+
+This path has to stay bounded. Upstream, run reconstruction owns whether the exact run story exists at all. Downstream, final-verdict publication owns whole-platform judgment and proof-matrix closure. This path sits in between and owns whether reconstructed truth was formally appended and marked closed under governed evidence surfaces. If those boundaries blur, a later green verdict could hide that formal closure never actually happened.
+
+11. `What constraints shape this path and stop easy shortcuts?`
+
+The strongest constraints are append-safe history, one run scope, schema correctness, ordering correctness, explicit marker materialization, and fail-closed blocker families for governance append or closure-marker failure. The `M8` blocker taxonomy and DoD encode those constraints directly.
+
+12. `What trade-off is the design accepting?`
+
+The platform is accepting another formal closure boundary after reconstruction. That costs append-safe governance mechanics, another durable evidence surface, ordering and run-scope verification, and another explicit blocker family. But it buys something important: later reviewers can answer not only what happened, but whether closure was formally recorded, whether history is append-safe, whether the run was marked closed under the right scope, and whether later verdict and handoff artifacts are building on real closure truth. The `A` note says that trade-off directly.
+
+13. `How does enlarged-network pressure re-ask the question?`
+
+Once the platform reaches the rebuilt `Ops / Gov / Meta` boundary, the question is no longer only `can the spine close formally`. It becomes `can the working platform be reconstructed, governed, observed, idled, and judged as one operational story`. That is why the accepted Phase 7 authority treats the governance and evidence family as part of the rebuilt plane-ready truth, not as an old inherited `M8` artifact only.
+
+14. `What does this path need to prove for the meta goal?`
+
+The strongest claim is not that the platform generated governance files. It is that the platform can take reconstructed run truth and turn it into explicit formal closure on authoritative surfaces, so later verdict, handoff, and operational review are building on governed closure truth rather than on implied completion. That reads like serious operational-governance judgment rather than post hoc documentation.
+
+Compressed into one line:
+
+For `Governance append and close-marker path`, the system-design interrogation is about whether reconstructed run truth becomes append-safe, explicitly closed governance truth under the correct run scope, with enough schema, run-scope, and order discipline that later verdict and handoff are building on formal closure rather than on inferred completion.
+
+The next clean move is to map this path to the `pressure episodes` that actually changed its posture.
+
+## 2026-03-16 16:49:17 +00:00 - Map the pressure episodes that changed the Governance append and close-marker path from an implied closeout idea into a verified formal-closure boundary
+For `Governance append and close-marker path`, the posture-changing history is shorter and cleaner than some of the earlier Group 6 paths. The main pressure was not repeated runtime failure. It was forcing formal closure to stop being implied by reconstruction and to become its own verified governance truth boundary. In `A`, the path was already defined narrowly as reconstructed run truth -> append-safe governance history -> explicit close marker. In `Bi`, the path changed posture when that closure became execution-grade, source-truth-verified, contract-normalized, and later strong enough to count again inside the rebuilt `Ops / Gov / Meta` proof.
+
+## `Governance append and close-marker path` - `pressure episodes that changed its posture`
+
+### 1. The path first had to stop being implied by run reconstruction and become a distinct formal-closure boundary
+
+The first posture change was structural. The platform could not let `the run was reconstructed` serve as a proxy for `the run is formally closed`. The `A` note is explicit that this path exists precisely to reject that shortcut, and the `M8` plan made it a separate owned lane after run report plus reconciliation and before later rollup and handoff. That changed the object from `closure can probably be inferred once the story exists` into `formal closure is its own truth boundary`.
+
+### 2. Source-truth governance surfaces then had to be distinguished from downstream evidence-path contract surfaces
+
+The next posture change was more subtle but important. The platform already had governance source truth on object-store surfaces, but that alone was not enough for this boundary to count as closed under the evidence contract the later lanes expected. The `M8.H` expansion makes that explicit: first validate source-of-truth governance append and marker surfaces on object-store, then materialize deterministic governance projections at the handle-contract evidence paths. That changed the path from `governance facts exist somewhere` into `governance closure can now be made both source-truthful and contract-consumable without blurring ownership`.
+
+### 3. `M8.H` then had to become an execution-grade verification lane rather than a stub-level closure note
+
+Once that distinction was clear, the path still was not ready until it became a real validator lane. The implementation notes record exactly that step: `M8.H` was expanded from stub to execution-grade with fail-closed checks for upstream gate validity, object-store governance source truth, append ordering, schema, run-scope, marker coverage, deterministic projection, and post-write readback. That is a real posture change, because the path stopped being a design intention about append-safe closure and became a governed executable corridor that could fail honestly.
+
+### 4. The green `M8.H` execution changed the path from formal closure should exist into formal closure is now materially true on the run scope
+
+The decisive posture change came with the green `M8.H` execution itself: `m8h_p11_governance_close_marker_20260226T063647Z`. The closure did not just confirm file existence. It verified that `run_completed` was readable and coherent, that `events.jsonl` was parseable and run-scoped with required closure facts present, that marker coverage was complete, that append ordering was non-decreasing, and then projected both `append_log.jsonl` and `closure_marker.json` under the evidence run scope. That changed the object from `closure can be described formally` into `formal governance closure is now an executed and verified truth boundary`.
+
+### 5. Later rebuilt `Phase 7` work strengthened the path again by treating governance closure as part of accepted ops, gov, and meta readiness, not just inherited `M8` history
+
+The final strengthening episode came later, when this path stopped being only a historical `M8 / P11` closure fact and was re-asked inside the rebuilt `Phase 7 Ops / Gov / Meta` proof. The accepted readiness ledger treats the governance and evidence family as part of the rebuilt plane-ready scope, alongside exact reconstruction, evidence readback, alert coverage, idle and restore discipline, and handle resolution. That matters because the object is no longer merely `the spine once wrote append-safe closure artifacts`. It is now part of the accepted statement that the working platform can close itself as a governed operational system.
+
+## `What this mapping says in one line`
+
+`Governance append and close-marker path` moved from a correctly designed formal-closure idea into a production-ready governance boundary by first becoming its own distinct truth surface, then separating source-truth governance from downstream evidence-path contract needs, then becoming a fail-closed validator lane, then proving append-safe close-marker truth on the authoritative run scope, and finally being strong enough to count again inside the rebuilt `Ops / Gov / Meta` acceptance story.
+
+The next clean move is to interrogate these episodes one by one.
+
+## 2026-03-16 16:49:52 +00:00 - Interrogate the key episodes that turned the Governance append and close-marker path into an earned formal-closure boundary
+## `Governance append and close-marker path` - `episode interrogation`
+
+For this path, the important question is not whether the platform can explain what happened in the run. It is whether that reconstructed run truth becomes formally closed governance truth on the right surfaces, under the right run scope, in a way later verdict and handoff can actually rely on. That is already the `A` boundary: reconstructed run truth must become append-safe governance truth plus an explicit close marker, and the design explicitly rejects two weak shortcuts: treating the run report as a proxy for formal closure, or using a mutable summary object instead of append-safe governance history plus a close marker.
+
+### `Episode 1 - the path first had to stop being implied by run reconstruction and become a distinct formal-closure boundary`
+
+What surfaced first was a boundary-definition problem. The platform could not let `the run story exists` stand in for `the run is formally closed`. That is why the `A` note isolates this as its own path, and why the `M8` sequence places governance append closure and run-close marker after run report plus reconciliation and before later rollup and handoff. System-design-wise, that matters because the object stops being a narrative consequence of reconstruction and becomes an owned closure boundary with its own truth surfaces. The accepted bridge here was structural: make governance append and close-marker verification its own dedicated lane rather than folding it into reconstruction or later verdicting. The readiness property improved here was `owned formal-closure truth`.
+
+### `Episode 2 - source-truth governance surfaces then had to be separated from downstream evidence-path contract surfaces`
+
+The next posture change was more subtle. It was not enough that governance append facts and close-marker truth already existed somewhere on the object-store source surfaces. For this path to count as closed under the platform's own closure contract, those truths also had to become contract-consumable at the run-scoped evidence paths. The `M8.H` plan is explicit about this dual requirement: first verify source-truth governance append and marker surfaces, then materialize handle-contract projections under the evidence run scope. That changes the path from `governance closure facts exist` into `governance closure is now both source-truthful and contract-readable without blurring ownership`. The readiness property improved here was `source-truth plus contract-truth alignment`.
+
+### `Episode 3 - M8.H then had to become an execution-grade verification lane rather than a stub-level closure note`
+
+Once that distinction was clear, the path still was not ready until it became a real fail-closed validator lane. The implementation trail records exactly that expansion: `M8.H` was widened from stub to execution-grade with checks for upstream gate validity, object-store governance source truth, append ordering, schema, run-scope, marker coverage, deterministic projection, and post-write readback. That matters because the path stopped being a design note about how closure should work and became a governed executable lane that could fail honestly if closure truth was weak. The accepted bridge was not a looser summary or a docs-only marker; it was the execution-grade verifier itself. The readiness property improved here was `governance-closure executability`.
+
+### `Episode 4 - the green M8.H execution changed the path from formal closure should exist into formal closure is materially true on this run scope`
+
+The decisive posture change came with the green `M8.H` execution: `m8h_p11_governance_close_marker_20260226T063647Z`. What matters is not merely that it passed. It passed by verifying the things this path actually owns: object-store governance append and marker source truth, `run_completed` closure refs, schema, run-scope, and order coverage, and then deterministic materialization of `append_log.jsonl` and `closure_marker.json` under the evidence run scope. That is the moment where the path stops meaning `we can describe formal closure` and becomes `formal governance closure is now an executed, verified, durable truth boundary`. The readiness property improved here was `materially verified append-safe closure under the run scope`.
+
+### `Episode 5 - later rebuilt Phase 7 work strengthened the path again by making governance closure part of accepted ops, gov, and meta readiness rather than only inherited M8 history`
+
+The final strengthening episode came later, when this path stopped being only an old `M8 / P11` artifact and was re-asked inside the rebuilt `Phase 7 Ops / Gov / Meta` plane. The accepted Phase 7 authority does not just inherit closure blindly; it treats the governance and evidence family as part of the rebuilt plane-ready truth, alongside exact run reconstruction, evidence readback, alert drill evidence, ML day-2 readback, idle and restore discipline, and handle integrity. The accepted closure authority `phase7_ops_gov_meta_restart_20260313T002459Z` records `10 / 10` required local evidence present and `18 / 18` accepted Phase 5 refs readable, and judges the plane green as a rebuilt operational story rather than as a patched carry-forward. That changes the path from `the spine once wrote append-safe closure artifacts` into `formal governance closure is now strong enough to support the larger ops, gov, and meta readiness claim`. The readiness property improved here was `formal closure promoted into accepted working-platform governance truth`.
+
+### `What this interrogation says about the path`
+
+So the real transformation of `Governance append and close-marker path` is not:
+
+> the run was reconstructed, and later some governance files existed.
+
+It is:
+
+> the platform first made formal closure its own owned boundary, then separated source-truth governance from downstream evidence-contract needs, then made closure verification execution-grade and fail-closed, then materially proved append-safe close-marker truth on the authoritative run scope, and finally showed that same governance-closure truth was strong enough to count again at the rebuilt `Ops / Gov / Meta` readiness boundary.
+
+That is what turns the path from a strong `A` design idea into an earned `Bi` production-ready boundary.
+
+The next clean move is the `object transformation synthesis` for this path.
+
+## 2026-03-16 16:50:21 +00:00 - Synthesize how the Governance append and close-marker path moved from a designed formal-closure idea into an earned governance-closure boundary
+## `Governance append and close-marker path` - `object transformation synthesis`
+
+In `A`, this path already had a narrow and important job: turn reconstructed run truth into append-safe governance truth that is explicitly closed. It was never supposed to mean `the run report exists, so closure can be inferred`, and it was deliberately kept narrower than run reconstruction and narrower than later final-verdict publication. Its owned outcome was already pinned as governance append plus formal close marker under the run scope, and the design explicitly rejected the two weak substitutes: treating the run report as proxy for closure, or using a mutable summary object instead of append-safe governance history plus close marker.
+
+To reach its `Bi` posture, the first thing that had to be resolved was whether formal closure was actually being treated as its own boundary. The platform could not let reconstruction truth imply closure truth. That is why the `M8 / P11` plan made governance append closure and run-close marker its own planned lane after run report plus reconciliation, with its own blocker family and DoD anchor. That changed the object from `the run can be explained` into `the run must also be formally closed under governed evidence surfaces`.
+
+Once that boundary existed, the next thing that had to be resolved was the split between governance source truth and downstream evidence-contract truth. It was not enough that governance append and close-marker facts existed somewhere on object-store surfaces. For this path to count as ready, those same truths also had to become contract-consumable under the run-scoped evidence paths that later rollup and handoff lanes read. The `M8.H` lane made that split explicit: verify source-truth governance append and marker surfaces first, then materialize deterministic governance projections under the evidence run scope. That changed the object from `closure facts exist` into `closure facts are now both source-truthful and contract-readable without blurring ownership`.
+
+After that, the path still was not ready until `M8.H` became an execution-grade, fail-closed verifier rather than a closure note. The implementation trail says exactly that: the lane was expanded to enforce upstream-gate validity, append ordering, schema, run-scope, marker coverage, deterministic projection, and post-write readback. That matters because the path stopped being a design intention about how formal closure should work and became a real managed lane that could fail honestly if governance closure was weak.
+
+The decisive transformation came with the green `m8h_p11_governance_close_marker_20260226T063647Z` execution. What matters is not just that it passed, but how it passed: object-store governance append and marker surfaces and `run_completed` closure refs passed schema, run-scope, and ordering checks, and then `append_log.jsonl` plus `closure_marker.json` were materialized under the evidence run scope. That is the moment where the path stops meaning `formal closure should exist` and becomes `formal governance closure is now materially true on this run scope`.
+
+The final strengthening came later, when this path stopped being only an old `M8 / P11` fact and was re-asked inside the rebuilt `Phase 7 Ops / Gov / Meta` boundary. The first rushed Phase 7 closure story was explicitly withdrawn because it had moved too fast and was anchoring the repo to a patched narrative rather than a truthful one. The rebuilt accepted closure then treated the governance and evidence family as part of the plane-ready truth, alongside exact run reconstruction, evidence readback, runbook-linked operator surfaces, and idle and restore discipline. That changed the object from `the spine once wrote append-safe closure artifacts` into `formal governance closure is strong enough to support the larger working-platform ops, gov, and meta readiness story`.
+
+### `What had to be resolved`
+
+To move `Governance append and close-marker path` from its `A` posture to its `Bi` posture, the platform had to resolve four things: first, make formal closure its own owned boundary rather than a by-product of reconstruction; second, separate source-truth governance surfaces from downstream evidence-contract needs; third, make governance append and close-marker verification execution-grade and fail-closed; and fourth, prove that the same formal-closure truth was strong enough to count again inside the rebuilt `Ops / Gov / Meta` readiness boundary.
+
+### `Final Bi posture`
+
+The final `Bi` posture of this path is:
+
+a production-ready governance-closure boundary where reconstructed run truth becomes append-safe, explicitly closed governance truth on the authoritative append-log and close-marker surfaces, with schema, run-scope, and ordering discipline strong enough that later rollup, verdict publication, and handoff are building on formal closure rather than inferring completion from the mere existence of a report.
+
+### `Why this matters for the meta goal`
+
+This object helps the meta goal because it shows that you did not stop at `the platform can explain what happened`. You forced the platform to answer the harder governance question: where was closure truth appended, what marks the run as formally closed, and can later operational judgment rely on that closure as governed truth rather than patched narrative? That reads like serious platform-operations judgment, because it proves closure is not just descriptive; it is formally governed and durable.
+
+The next clean move is the `Bi claim mix` for this path.
+
+## 2026-03-16 16:50:51 +00:00 - Extract the Bi claim mix for the Governance append and close-marker path so the notebook states exactly what formal-closure judgment this work now supports
+## `Governance append and close-marker path` - `Bi claim mix`
+
+1. `Readiness-reasoning claim`
+
+This path supports the claim that you can reason formal run closure itself as a production-readiness boundary, instead of letting `the run was reconstructed` or `some governance files existed` stand in for it. The path only counts once reconstructed run truth is appended safely, a formal close marker is materialized, and both surfaces are verified strongly enough that later lanes can rely on them.
+
+2. `Systems-design judgment claim`
+
+This path supports the claim that you understood run reconstruction truth, governance-closure truth, and final-verdict truth as three different objects with different owners. In `A`, this path begins only after run report and reconciliation are already closed, and it stops before later verdict publication. That is strong systems-design judgment because it prevents `the run can be explained` from being treated as `the run is formally closed`.
+
+3. `Measurement / evidence claim`
+
+This path supports the claim that you made formal closure directly measurable and verifiable rather than inferred. The decisive proof surfaces were the authoritative `M8.H` closure and the later rebuilt Phase 7 ledger: `M8.H` closed green only after object-store governance append and marker source truth, `run_completed` closure refs, schema, run-scope, and order checks, and deterministic projection to `append_log.jsonl` plus `closure_marker.json` all passed; later Phase 7 still treated governance and evidence closure as part of the accepted ops, gov, and meta readiness family.
+
+4. `Constraint / trade-off claim`
+
+This path supports the claim that you chose append-safe governed closure over easier descriptive closure. The design explicitly rejects two shortcuts: treating the run report as a proxy for closure, and using a mutable summary object instead of append-safe governance history plus a close marker. The price is another formal lane, another durable surface, and schema, run-scope, and order verification; the gain is that later verdict and handoff are building on formal closure truth rather than inferred completion.
+
+5. `Production-relevant challenge claim`
+
+This path supports the claim that the challenges were genuinely production-shaped. The hard part was not `write another JSON file`. It was separating source-truth governance surfaces from downstream evidence-path contract surfaces, then making `M8.H` an execution-grade, fail-closed verifier that could prove append ordering, schema correctness, run-scope correctness, marker coverage, deterministic projection, and post-write readback. That is the kind of closure discipline a real governed platform needs, not documentation polish.
+
+6. `Final-posture claim`
+
+This path supports the claim that the final ready posture is not merely the platform can explain the run. It is: reconstructed run truth became append-safe, explicitly closed governance truth on the authoritative append-log and close-marker surfaces; that closure was verified through `M8.H`; and later rebuilt Phase 7 still counted the governance and evidence family as accepted plane-ready truth on the larger ops, gov, and meta object. That is a much stronger final posture than `closure artifacts existed`.
+
+`Compressed Bi claim`
+
+`Governance append and close-marker path` shows that you can take reconstructed run truth and force it through a dedicated fail-closed governance-closure corridor until it becomes append-safe, explicitly closed, contract-readable run truth under the correct run scope, so later verdict and handoff are building on formal closure rather than on inferred completion.
+
+The next clean move is the object frame for `Proof-matrix and final-verdict publication path`.
+
+## 2026-03-16 16:51:25 +00:00 - Open the Proof-matrix and final-verdict publication path by pinning its A posture, Bi posture, and why whole-platform judgment is its own Group 7 boundary after formal closure
+For `Proof-matrix and final-verdict publication path`, the object frame should stay on whole-platform judgment itself. It should not drift backward into governance append and close-marker closure, and it should not drift forward into teardown, residual-readability, or cost closure. Group 7 and the final-phase contracts separate those boundaries explicitly: this path owns `full source matrix`, `six-proof matrix`, and `final verdict publication`; only later do teardown and post-teardown closure begin.
+
+## `Proof-matrix and final-verdict publication path`
+
+### `Object`
+
+Parent group: `Run governance, observability, and evidence closure`.
+
+Main secondary object it lives inside: `Working platform + Ops / Gov / Meta` as the operable and governable whole-system object. That is the right immediate seat because this path is where the platform stops being merely reconstructable and governable and becomes explicitly judged as a coherent whole. Group 7's own summary says this path exists so whole-platform judgment is explicit: full source matrix blocker-free, six-proof matrix complete, final verdict published.
+
+The first enlarged-network object that materially re-pressures it is `Full-platform bounded integrated validation`, because that is the first point where the platform is no longer only proving that the working platform can be operated and closed. It must now prove that all required lanes and proof classes can be brought together into one coherent, blocker-free whole-platform claim before any later teardown or post-run closure is allowed. The readiness matrix and the `P16` contract both make that whole-platform judgment role explicit.
+
+### `A posture`
+
+In `A`, this path exists to turn all prior closed platform truth into one explicit final judgment of the whole platform. Its job is not to reconstruct the run, and it is not yet to tear the platform down. Its narrower job is to answer: once every required lane has produced closure evidence, how does the platform turn that into one blocker-free, evidence-backed final verdict? The `A` note states that directly.
+
+So the `A` posture is:
+
+authoritative source summaries -> full source matrix -> six-proof completeness matrix -> deterministic verdict assembly -> published full-verdict bundle at the run-scoped truth surface.
+
+That `A` posture already carries the key disciplines later readiness work has to preserve: the source matrix must be blocker-free, the six-proof matrix must be complete for each required lane, the verdict must be deterministic, and the published verdict object must be the same one the lane generated rather than a looser summary surrogate. The `A` note is explicit that the design rejects two weak shortcuts: `all upstream phases are green` as proxy for valid whole-platform verdict, and summary report as substitute for a deterministic, scope-complete, proof-complete verdict object.
+
+### `Bi posture`
+
+In `Bi`, this path becomes the production-ready whole-platform judgment boundary. That means it is no longer enough that many earlier lanes closed green, or that closure summaries exist somewhere. The path now has to support a stronger claim:
+
+* the authoritative full source matrix is genuinely blocker-free,
+* the six-proof matrix is complete for each required major lane,
+* verdict assembly is deterministic and fail-closed,
+* the final verdict is published both to run-control and to the run-scoped truth surface,
+* readback identity proves that the published object is the same verdict the lane actually generated,
+* and source-scope edge cases are handled without weakening the judgment boundary.
+
+That stronger posture is exactly what the final-phase `M13.D` lane proved. The first run failed because the verdict lane treated legacy pre-run rows as if they had to satisfy the same summary-pass rules as ordinary rows. The accepted remediation did not weaken the verdict boundary; it made the source-scope rule explicit while preserving strict checks for non-legacy rows. The green rerun then published `m13d_final_verdict_bundle.json` in run-control and `full_platform/final_verdict.json` on the run-scoped truth surface, with readback identity verified through `execution_id` and deterministic verdict fields. That is the point where the path stops meaning `whole-platform green can probably be inferred` and becomes `whole-platform judgment is now an executed, deterministic, published truth boundary`.
+
+So the `Bi` posture is:
+
+a production-ready whole-platform judgment boundary where all required lane closures are assembled into one blocker-free source matrix, one complete six-proof matrix, and one deterministic final-verdict bundle published at the run-scoped truth surface, strong enough that later teardown and cost closure are building on explicit whole-platform judgment rather than inferring it.
+
+### `Why this object matters`
+
+This object matters because it is the point where the platform stops saying `many important things closed green` and starts being able to say the whole platform is now explicitly judged. If this boundary is weak, the system can still close the spine, close learning, promote a bundle, reconstruct the run, and even carry later ops and governance surfaces, but it loses the clean answer to:
+
+* whether the whole platform is actually blocker-free,
+* whether every required proof class is represented,
+* whether the final closure claim is internally consistent,
+* and whether there is one single authoritative final verdict object at all.
+
+It also matters strongly for the meta goal, because the engineering judgment here is not `we had lots of green receipts`. It is that the platform treats activity, closure, and judgment as three different truths, and forces the whole-platform claim through its own explicit, fail-closed verdict boundary. That reads like serious systems and operations judgment, not like retrospective storytelling.
+
+So, in one line:
+
+`Proof-matrix and final-verdict publication path` is the path that turns prior closed platform truth into one explicit final-platform judgment in `A`, and in `Bi` it becomes the production-ready verdict boundary that proves whole-platform closure is blocker-free, proof-complete, deterministic, and published as one authoritative object rather than inferred from many green lanes.
+
+The next clean move is the `system-design questions` for this path.
+
+## 2026-03-16 16:52:24 +00:00 - Derive the system-design questions for the Proof-matrix and final-verdict publication path so later pressure history stays on whole-platform judgment itself
+For `Proof-matrix and final-verdict publication path`, the system-design interrogation should stay on whole-platform judgment itself: whether prior closed platform truth becomes one blocker-free, proof-complete, deterministic final verdict. It should not drift backward into governance append and close-marker closure, and it should not drift forward into teardown or post-run cost closure. Group 7 and the `P16 / M13.D` contracts separate those boundaries on purpose.
+
+## `Proof-matrix and final-verdict publication path` - `system-design questions`
+
+1. `What exactly counts as whole-platform judgment truth here?`
+
+This path is not satisfied because many earlier lanes are green or because a summary says the platform is done. Its owned outcome is stricter: the full source matrix is blocker-free, the six-proof matrix is complete for each required major lane, and the final verdict is published as the commit evidence for `P16 FULL_PLATFORM_CLOSED`. That is the direct pass contract for this boundary.
+
+2. `Why is this a separate path from governance closure and from teardown?`
+
+The platform separates these on purpose. Governance append and close-marker truth says the run is formally closed under governance surfaces; this path says the whole platform has been judged; teardown only begins after that judgment is published. The `A` note is explicit that final-platform judgment is its own dedicated boundary between earlier closure and later teardown.
+
+3. `What is the allowed entry into this path, and why is it constrained?`
+
+The entry is not `the operator thinks enough evidence exists`. It is the set of prior authoritative closure surfaces already produced by earlier lanes, with `P1..P15` free of unresolved blockers and with the final-phase sequence already at `M13.D` after `M13.A` authority and handle closure, `M13.B` full source matrix closure, and `M13.C` six-proof matrix closure. That matters because final judgment is not allowed to compensate for missing upstream closure.
+
+4. `What is the owned outcome before teardown is allowed to begin?`
+
+The owned outcome is one deterministic final-verdict bundle published both to run-control and to the run-scoped full-verdict truth surface, with readback identity verified. Teardown starts only after that verdict exists and is coherent. The `M13.D` contract and the run-process both say this directly.
+
+5. `What must this path carry so the final verdict is attributable rather than rhetorical?`
+
+It has to carry the authoritative `M13.B` source-matrix snapshot, the `M13.C` six-proof completeness truth, the appended summary checks for `M13.A..C`, the deterministic verdict fields, and the publication and readback identity linking the published `final_verdict.json` back to the exact `m13d_final_verdict_bundle.json` execution. The `A` note and the implementation contract both pin those objects.
+
+6. `What makes the source matrix authoritative rather than a stitched summary of phase status?`
+
+Authority here means the matrix is built from the authoritative closure surfaces, under explicit row logic, with fail-closed handling for unreadable, missing, or inconsistent rows. The implementation notes for `M13.B` and `M13.D` make that explicit, including dual-source policy for legacy rows and fail-closed `M13-B4` on unreadable or inconsistent summary rows.
+
+7. `What does six-proof completeness actually mean here?`
+
+It means that for each major lane, the platform has explicit proof of deploy, monitor, failure drill, recovery, rollback, and cost-control. The proof-matrix law says no lane closes without all six, and this path has to assemble that completeness into whole-platform judgment rather than assuming that `green enough` lane summaries imply it.
+
+8. `Why is deterministic verdict publication required instead of a final summary report?`
+
+Because this path exists precisely to reject the shortcut `all upstream phases are green, so the final verdict is obvious`. The design insists on a deterministic, scope-complete, proof-complete verdict object, published through its own managed lane and read back by identity. The `A` note calls out that shortcut explicitly as something this boundary refuses.
+
+9. `What makes publication authoritative rather than just a file got written?`
+
+Publication is authoritative only if the same final-verdict bundle is produced in run-control, published again to the rendered run-scoped full-verdict path, and then read back with the same `execution_id` and deterministic verdict fields. The `M13.D` implementation contract and green closure pin exactly that behavior.
+
+10. `Why does source-scope handling matter so much in this path?`
+
+Because whole-platform judgment can be invalidated either by being too permissive or by being incorrectly strict on legacy rows. The first `M13.D` red is the concrete example: it failed because the lane enforced `overall_pass=true` on all rows, even where `legacy_pre_run_scope` rows were intentionally accepted under `M13.B`. The accepted remediation kept strict checks for non-legacy rows while making the source-scope rule explicit. That is exactly the kind of source-scope discipline serious final judgment needs.
+
+11. `How do we know this path is judging the whole platform rather than just replaying upstream summaries?`
+
+Because the path does not stop at row collection. It resolves `M1..M12` coverage from the authoritative source matrix, appends the immediate `M13.A..C` checks, enforces completeness and consistency rules, then publishes one deterministic final-verdict bundle. That means earlier closures are inputs, not substitutes, for whole-platform judgment.
+
+12. `How do we distinguish a final-verdict defect from a governance-closure defect or a teardown defect?`
+
+This path has to stay bounded. Governance closure owns whether the run was formally appended and marked closed. This path owns whether the whole platform is blocker-free, proof-complete, and deterministically judged. Teardown owns whether the platform is safely idled afterward. If those boundaries blur, a later green teardown could hide that explicit whole-platform judgment never truly closed.
+
+13. `What constraints shape this path and stop easy shortcuts?`
+
+The strongest constraints are: strict `M13` sequencing, fail-closed blocker families for incomplete matrix or verdict inconsistency, scope-complete row coverage, six-proof completeness, deterministic publication contract, and readback identity. The build plan and run-process encode these directly as `M13-B2`, `M13-B3`, `M13-B4`, plus the `P16` blockers.
+
+14. `What trade-off is the design accepting?`
+
+The platform is accepting another formal judgment corridor after all the earlier closure work. That costs matrix aggregation, proof-completeness closure, source-scope handling, deterministic publication, and identity readback. But it buys something important: the platform can answer not just `did many things close green`, but `is the whole platform actually blocker-free, proof-complete, and explicitly judged under one authoritative verdict object`. The `A` note frames that trade-off directly.
+
+15. `How does enlarged-network pressure re-ask the question?`
+
+Once the platform reaches full-platform bounded integrated validation, the question is no longer only `can each major lane close`. It becomes `can those closures be assembled into one coherent whole-platform judgment without hidden gaps, unreadable legacy rows, or missing proof classes`. That is exactly why `P16` exists as its own gate before teardown.
+
+16. `What does this path need to prove for the meta goal?`
+
+The strongest claim is not that the platform had lots of green receipts. It is that the platform can take all prior closure truth and force it through one fail-closed judgment boundary until the whole-platform claim is explicit, blocker-free, proof-complete, deterministic, and published as one authoritative object. That reads like serious systems and operations judgment, not retrospective storytelling.
+
+Compressed into one line:
+
+For `Proof-matrix and final-verdict publication path`, the system-design interrogation is about whether all prior closed platform truth becomes one blocker-free source matrix, one proof-complete six-proof matrix, and one deterministic published final-verdict object, with enough scope, identity, and consistency discipline that teardown and later review are building on explicit whole-platform judgment rather than inferring it from many green lanes.
+
+The next clean move is to map this path to the `pressure episodes` that actually changed its posture.
+
+## 2026-03-16 16:53:51 +00:00 - Map the pressure episodes that changed the Proof-matrix and final-verdict publication path from a designed verdict idea into an executed whole-platform judgment boundary
+For `Proof-matrix and final-verdict publication path`, the posture-changing history is not mainly about whether many earlier lanes were green. It is about whether those earlier closures could be turned into one explicit whole-platform judgment without missing sources, missing proof classes, or loose verdict logic. In `A`, this path was already defined as: authoritative source summaries -> full source matrix -> six-proof completeness matrix -> deterministic verdict assembly -> published full-verdict bundle. In `Bi`, the episodes that mattered are the ones that turned that design into an executed judgment boundary.
+
+## `Proof-matrix and final-verdict publication path` - `pressure episodes that changed its posture`
+
+### 1. The path first had to stop being implied by many green lanes and become a distinct whole-platform judgment corridor
+
+The first posture change was structural. The platform could not let `lots of upstream phases are green` stand in for `the whole platform has been judged`. That is why `P16` is a separate gate with its own pass law, and why `M13` is strictly sequenced around source-matrix closure, six-proof closure, and deterministic final-verdict publication before teardown begins. That changed the path from `whole-platform green can probably be inferred` into `whole-platform judgment is its own owned truth boundary`.
+
+### 2. The path then had to solve a real source-truth problem: earlier closures were not uniformly readable in one authoritative shape
+
+The next posture change came when `M13.B` had to build the source matrix honestly. The implementation trail is explicit that the earlier phase summaries were not all uniformly durable-readable in the same shape: `M1` had no run-control durable summary object, older `M3/M4` durable objects were KMS-inaccessible, and `M2` closure existed in a different local evidence shape. The accepted bridge was not to pretend those rows were fine. It was to implement an explicit dual-source policy: durable S3 summary first, repo-anchored fallback only for known legacy surfaces, with every fallback recorded per row. That changed the path from `source truth exists somewhere` into `there is now an authoritative full source matrix with explicit source-mode handling`.
+
+### 3. Six-proof completeness then had to become an explicit closure object rather than a vague assumption about lane quality
+
+After source coverage was made explicit, the next posture shift was that proof completeness itself became its own judged object. `M13.C` did not merely inherit upstream `PASS` states; it closed only once the six-proof matrix was complete enough to advance to `M13.D`. That matters because the path moved from `all required sources are represented` to `all required proof classes are represented too`, which is exactly the difference between platform activity and whole-platform judgment.
+
+### 4. The first final-verdict run exposed that judgment logic was still too naive about source scope
+
+The next pressure episode was the first `M13.D` red. It did not fail because the platform was actually not ready. It failed because the verdict lane was still enforcing `overall_pass=true` on every source row, even though `M13.B` had already intentionally accepted some rows under `legacy_pre_run_scope`. That is a real posture-changing episode for this object because it forced the path to distinguish strict judgment from wrongly scoped strictness. The class of challenge here is source-scope discipline in whole-platform judgment.
+
+### 5. The accepted remediation preserved strictness but made whole-platform judgment source-scope-aware
+
+The accepted bridge is what really changed the path. The system did not relax the verdict boundary into `legacy rows are always fine`. Instead, it kept strict checks for non-legacy rows, and for legacy rows it required: source readability, upstream `M13.B` row pass, and expected verdict and next-gate checks where pinned. The implementation explicitly propagated `legacy_scope_reason` and `upstream_row_pass`, and gated hard summary-pass enforcement with `enforce_summary_pass = not legacy_scope_reason`. That changed the path from `final verdict logic is overly crude` into `final verdict logic is now scope-aware without becoming permissive`.
+
+### 6. The green rerun then changed the path from whole-platform verdict should exist into whole-platform verdict is now materially published and identity-verified
+
+The decisive posture change came with the green `M13.D` rerun. The important thing is not just that it passed. It passed by publishing `m13d_final_verdict_bundle.json` in run-control, publishing the rendered run-scoped `full_platform/final_verdict.json`, and then verifying readback identity through the same `execution_id`, deterministic verdict, deterministic next gate, and scope-complete fields. That is the moment where the path stops meaning `we can say the platform is green` and becomes `the platform has one authoritative, deterministic, published whole-platform judgment object`.
+
+### 7. Later M13 closure strengthened the path again by proving the verdict remained coherent after the later teardown and cost lanes
+
+The final strengthening episode came at `M13.J`. By that point, the path was no longer just `the final verdict was once published`. The later closure sync proved parity across `M13.A..M13.I`, confirmed non-gate acceptance including final-verdict readability and post-teardown and cost continuity, and closed `M13` completely green on the managed lane. That matters because the path is no longer merely `M13.D went green`. It has now shown that whole-platform judgment stayed coherent and readable after the later teardown, readability, and cost lanes also closed.
+
+## `What this mapping says in one line`
+
+`Proof-matrix and final-verdict publication path` moved from a correctly designed final-judgment idea into a production-ready whole-platform judgment boundary by first becoming its own explicit corridor, then solving uneven source-truth readability through managed source-matrix closure, then making six-proof completeness explicit, then correcting verdict logic to handle legacy source scope without weakening strictness, and finally publishing one deterministic verdict object whose identity and coherence remained intact through full `M13` closure.
+
+The next clean move is to interrogate these episodes one by one.
+
+## 2026-03-16 16:54:28 +00:00 - Interrogate the key episodes that turned the Proof-matrix and final-verdict publication path into an earned whole-platform judgment boundary
+## `Proof-matrix and final-verdict publication path` - `episode interrogation`
+
+For this path, the important question is not whether many upstream lanes had already gone green. It is whether those earlier closures could be turned into one explicit whole-platform judgment that was blocker-free, proof-complete, deterministic, and published as the authoritative final verdict before teardown began. That is already the `A` boundary, and it is exactly how `P16 FULL_PLATFORM_CLOSED` defines the owned closure.
+
+`Episode 1 - the path first had to stop being implied by many green lanes and become a distinct whole-platform judgment corridor`
+
+What surfaced first was a boundary-definition defect. The platform could not let `many upstream phases are green` stand in for `the whole platform has been judged`. That is why `P16` exists as its own gate, and why `M13` was pinned as a strict sequence: source matrix, six-proof matrix, deterministic final-verdict publication, and only then teardown. System-design-wise, that matters because the object stopped being a narrative conclusion drawn from lots of prior success and became its own owned judgment corridor. The accepted bridge here was structural: formalize `M13 / P16` as a separate fail-closed lane rather than inferring whole-platform closure from prior rollups. The readiness property improved here was `owned whole-platform judgment truth`.
+
+`Episode 2 - the path then had to solve a real source-truth problem: earlier closures were not uniformly readable in one authoritative shape`
+
+Once the corridor existed, the next pressure point was source coverage honesty. `M13.B` could not simply assume all prior phase summaries were uniformly available in the same durable shape. The implementation trail makes that explicit: `M1` had no run-control durable summary object, legacy `M3/M4` summaries were unreadable under historical KMS state, and `M2` closure truth lived in a different local evidence shape. The accepted bridge was not to hide that unevenness. It was to build an explicit dual-source policy: durable S3 summary first, repo-anchored fallback only for known legacy surfaces, and every fallback recorded per row. That changed the object from `source truth exists somewhere` into `the full source matrix now has an explicit, governed source-mode model`. The readiness property improved here was `authoritative source-matrix coverage with explicit legacy handling`.
+
+`Episode 3 - six-proof completeness then had to become an explicit closure object rather than a vague assumption about lane quality`
+
+After source coverage was made honest, the next pressure episode was that proof completeness itself had to stop being implied. The platform did not allow source-row presence to stand in for whole-platform proof sufficiency. `M13.C` had to close explicitly on the six-proof matrix, and only then was `M13.D` allowed to begin. System-design-wise, that changes the path from `all major lanes are represented` into `all major lanes are represented with the full proof class set the platform requires`. That is the difference between closure activity and real whole-platform judgment. The accepted bridge was to make six-proof completeness its own explicit judged object before final verdict logic ran. The readiness property improved here was `proof-complete judgment input`, not merely source-complete input.
+
+`Episode 4 - the first final-verdict run exposed that judgment logic was still too naive about source scope`
+
+The first `M13.D` run failed for an important reason: the verdict lane was still enforcing `overall_pass=true` on every source row, even though `M13.B` had already intentionally accepted some rows under `legacy_pre_run_scope`. That matters because the red did not show the whole platform was actually not ready. It showed that the final-judgment logic was still too crude about source scope. System-design-wise, this is the moment where the object had to distinguish strictness from wrongly scoped strictness. The accepted bridge was not to relax the verdict boundary generally. It was to make scope rules explicit. The readiness property improved here was `scope-aware whole-platform judgment` rather than blanket summary enforcement.
+
+`Episode 5 - the accepted remediation preserved strictness but made whole-platform judgment source-scope-aware`
+
+The remediation is what really changed the posture of the object. The system kept strict checks for non-legacy rows, but for rows marked with `legacy_scope_reason` it required source readability, upstream `M13.B` row pass, and expected verdict and next-gate checks where pinned. It also propagated `legacy_scope_reason` and `upstream_row_pass` directly into the `M13.D` row logic and made hard summary-pass enforcement conditional on whether the row was actually legacy-scoped. That matters because the path did not become permissive; it became correctly strict. The accepted bridge preserved the integrity of the verdict boundary while making it truthful about historical source modes. The readiness property improved here was `strict but source-scope-correct final judgment logic`.
+
+`Episode 6 - the green rerun then changed the path from whole-platform verdict should exist into whole-platform verdict is now materially published and identity-verified`
+
+The decisive posture change came with the green `M13.D` rerun. What matters is not just that it passed. It passed by publishing `m13d_final_verdict_bundle.json` in run-control, publishing the rendered run-scoped `full_platform/final_verdict.json`, and then verifying readback identity through the same `execution_id`, deterministic verdict, deterministic next-gate, and scope-complete fields. That is the moment where the path stops meaning `we can probably say the platform is green` and becomes `the platform now has one authoritative whole-platform verdict object`. The accepted bridge therefore changed the path from an intended final judgment into a materially published, identity-verified final judgment boundary. The readiness property improved here was `deterministic published whole-platform verdict truth`.
+
+`Episode 7 - later M13 closure strengthened the path again by proving the verdict remained coherent after the later teardown and cost lanes`
+
+The final strengthening episode came later, at `M13.J`. By that point the path was no longer merely `M13.D once went green`. The later closure sync proved parity across `M13.A..M13.I`, and the non-gate acceptance checks explicitly included final verdict readability, post-teardown guardrail continuity, and phase cost-outcome continuity. That matters because the object is no longer merely a one-time publication event. It has now shown that the whole-platform verdict remained coherent and readable even after the later teardown and cost lanes also closed. The accepted bridge here was not a fresh redesign of the verdict boundary, but later coherence proof that strengthened its final posture. The readiness property improved here was `durable whole-platform judgment coherence through full M13 closure`.
+
+### `What this interrogation says about the path`
+
+So the real transformation of `Proof-matrix and final-verdict publication path` is not:
+
+> lots of upstream lanes were green, and later a final summary was written.
+
+It is:
+
+> the platform first made whole-platform judgment its own strict corridor, then solved uneven source-truth readability through an explicit source-matrix policy, then made six-proof completeness explicit, then corrected final-judgment logic so it stayed strict while becoming source-scope-aware, then published one deterministic verdict object with verified identity, and finally proved that the same verdict remained coherent through the rest of full `M13` closure.
+
+That is what turns the path from a strong `A` design idea into an earned `Bi` production-ready boundary.
+
+The next clean move is the `object transformation synthesis` for this path.
+
+## 2026-03-16 16:55:23 +00:00 - Synthesize how the Proof-matrix and final-verdict publication path moved from a designed verdict idea into an earned whole-platform judgment boundary
+## `Proof-matrix and final-verdict publication path` - `object transformation synthesis`
+
+In `A`, this path already had a narrow and important job: turn all prior closed platform truth into one explicit whole-platform judgment. It was never supposed to mean `lots of earlier lanes are green, so the final verdict is obvious`, and it was deliberately kept narrower than governance append and narrower than later teardown. Its owned outcome was already pinned as: authoritative source summaries -> full source matrix -> six-proof completeness matrix -> deterministic verdict assembly -> published full-verdict bundle at the run-scoped truth surface. The design is explicit that it rejects two weak shortcuts: treating upstream green as proxy for valid whole-platform verdict, and treating a summary report as substitute for a deterministic, scope-complete, proof-complete verdict object.
+
+To reach its `Bi` posture, the first thing that had to be resolved was whether whole-platform judgment was actually being treated as its own truth boundary. The platform could not leave final judgment as a narrative inference from many earlier green lanes. That is why `P16` exists as its own gate, and why the final-phase plan turned `M13` into a strict sequence: `M13.B` full source matrix closure, `M13.C` six-proof matrix closure, `M13.D` deterministic final-verdict publication, and only then the later teardown and cost lanes. That changed the object from `the platform looks green overall` into `whole-platform judgment is now an owned fail-closed corridor`.
+
+Once that corridor existed, the next thing that had to be resolved was source-truth honesty. `M13.B` exposed that earlier closure surfaces were not uniformly readable in one authoritative shape: `M1` had no run-control durable summary in S3, legacy `M3/M4` durable objects were unreadable because their KMS state had decayed, and `M2` closure truth lived in a different local evidence shape. The accepted bridge was not to hide that unevenness. It was to implement an explicit dual-source policy: durable S3 summary first, repo-anchored fallback only for known legacy surfaces, with every fallback recorded per row and `legacy_pre_run_scope` carried explicitly where required. That changed the object from `source truth exists somewhere` into `the whole-platform judgment now has an authoritative source matrix with explicit source-mode discipline`.
+
+After source coverage was made honest, the path had to be made proof-complete, not merely source-complete. That is what `M13.C` changed. The platform did not allow source-row presence to stand in for judgment sufficiency. Six-proof completeness became its own explicit closure object before verdict logic could run. This mattered because the path moved from `all major lanes are represented` into `all major lanes are represented with the proof classes the platform requires for serious closure`. In other words, the object stopped being a source-aggregation story and became a real whole-platform judgment input.
+
+Even then, the first final-verdict run showed the object was still not ready, because the judgment logic was too naive about source scope. The first `M13.D` red did not prove the platform was actually not ready. It failed because the verdict lane enforced `overall_pass=true` on every source row, even though `M13.B` had already intentionally accepted some rows under `legacy_pre_run_scope`. The accepted remediation did not weaken the boundary. It preserved strict checks for non-legacy rows, and for legacy rows it required source readability, upstream `M13.B` row pass, and expected verdict and next-gate checks where pinned. It also propagated `legacy_scope_reason` and `upstream_row_pass` directly into the verdict row logic. That changed the object from `final judgment is strict but crude` into `final judgment is strict and source-scope-aware`.
+
+The decisive posture change came with the green `M13.D` rerun. What matters is not simply that it passed. It passed by producing `m13d_final_verdict_bundle.json` in run-control, publishing the same bundle to the rendered run-scoped `full_platform/final_verdict.json` from `FULL_VERDICT_PATH_PATTERN`, and then verifying readback identity through the same `execution_id`, deterministic verdict, deterministic next gate, and scope-complete fields. That is the moment where the path stops meaning `we can now say the platform is green` and becomes `the platform now has one authoritative, deterministic, identity-verified whole-platform verdict object`.
+
+The final strengthening came later, when this path stopped being only an `M13.D` publication fact and was re-proved through full `M13` closure. `M13.J` did not just say the phase was done. It verified parity across `M13.A..M13.I`, and its non-gate acceptance explicitly included final verdict readability, post-teardown guardrail continuity, and phase cost-outcome continuity before closing `M13` fully green. That changed the object from `the final verdict was once published` into `the whole-platform judgment remained coherent and readable through the rest of final-phase closure`.
+
+### `What had to be resolved`
+
+To move `Proof-matrix and final-verdict publication path` from its `A` posture to its `Bi` posture, the platform had to resolve five things: first, make whole-platform judgment its own fail-closed corridor rather than an inference from many green lanes; second, solve uneven source-truth readability through an explicit source-matrix policy; third, make six-proof completeness an explicit judged input before verdict assembly; fourth, correct final-verdict logic so it stayed strict while becoming source-scope-aware; and fifth, publish one deterministic verdict object whose identity and coherence survived later full `M13` closure.
+
+### `Final Bi posture`
+
+The final `Bi` posture of this path is:
+
+a production-ready whole-platform judgment boundary where all prior closed platform truth becomes one blocker-free source matrix, one proof-complete six-proof matrix, and one deterministic final-verdict bundle published at the run-scoped truth surface, with scope, identity, and consistency discipline strong enough that later teardown and review are building on explicit whole-platform judgment rather than inferring it.
+
+### `Why this matters for the meta goal`
+
+This object helps the meta goal because it shows that you did not stop at `many parts of the platform closed green`. You forced the platform to answer the harder judgment question: is the whole platform actually blocker-free, proof-complete, source-scope-correct, and published as one authoritative verdict object? That reads like serious systems and operations judgment, because it proves the platform treats activity, closure, and judgment as different truths and only makes the whole-platform claim after passing its own dedicated verdict boundary.
+
+The next clean move is the `Bi claim mix` for this path.
+
+## 2026-03-16 16:57:39 +00:00 - Extract the Bi claim mix for the Proof-matrix and final-verdict publication path so the notebook states exactly what whole-platform judgment this work now supports
+## `Proof-matrix and final-verdict publication path` - `Bi claim mix`
+
+1. `Readiness-reasoning claim`
+
+This path supports the claim that you can reason whole-platform judgment itself as a production-readiness boundary, instead of letting `many upstream lanes are green` stand in for it. `P16` only closes when the full source matrix is blocker-free, the six-proof matrix is complete for each major lane, and the final verdict is published; the final-phase plan then enforces that as its own strict `M13` corridor before teardown begins.
+
+2. `Systems-design judgment claim`
+
+This path supports the claim that you understood platform activity, platform closure, and platform judgment as three different truths with different owners. In `A`, this boundary exists precisely because earlier closure evidence is not allowed to become whole-platform judgment implicitly; the platform insists on a dedicated verdict-aggregator corridor that proves source coverage, proof completeness, and deterministic judgment explicitly.
+
+3. `Measurement / evidence claim`
+
+This path supports the claim that you made whole-platform judgment directly measurable and attributable rather than rhetorical. The decisive evidence surfaces are explicit: the blocker-free source matrix, the six-proof completeness matrix, and the published `m13d_final_verdict_bundle.json` plus run-scoped `full_platform/final_verdict.json`, with readback identity verified by the same `execution_id`, deterministic verdict, and deterministic next gate. Later `M13.J` strengthens that again by requiring final-verdict readability and parity through full phase closure.
+
+4. `Constraint / trade-off claim`
+
+This path supports the claim that you chose strict whole-platform judgment over easy `green enough` closure. The platform refused two shortcuts the `A` note calls out directly: treating all upstream green as proxy for valid whole-platform verdict, and treating a summary report as a substitute for a deterministic, scope-complete, proof-complete verdict object. When the first `M13.D` run hit legacy-scoped row handling, the accepted bridge did not weaken the verdict boundary; it kept strict checks for non-legacy rows while making source-scope rules explicit for legacy rows.
+
+5. `Production-relevant challenge claim`
+
+This path supports the claim that the challenges were genuinely production-shaped. The hard problems were not presentation problems. They were: uneven source-truth readability across legacy and current closures, six-proof completeness needing to become an explicit judged object, and verdict logic needing to stay strict while becoming source-scope-correct. That is exactly the kind of final-judgment pressure a serious platform has to survive before it can honestly claim `the whole system is closed green`.
+
+6. `Final-posture claim`
+
+This path supports the claim that the final ready posture is not merely the platform looks finished. It is: one authoritative source matrix was assembled with explicit legacy handling, one six-proof matrix was closed as complete, one deterministic final-verdict bundle was published and identity-verified, and that same verdict remained readable and coherent through full `M13` closure. That means later teardown and post-run review are building on explicit whole-platform judgment rather than inferring it from many green lanes.
+
+`Compressed Bi claim`
+
+`Proof-matrix and final-verdict publication path` shows that you can take all prior closure truth and force it through a dedicated fail-closed judgment corridor until it becomes one blocker-free, proof-complete, deterministic, identity-verified whole-platform verdict object, so later teardown and review are operating on explicit platform judgment rather than on accumulated green receipts.
+
+The next clean move is the object frame for `Drift-visible observability attestation path`.
 
 ## 2026-03-15 16:39:48 +00:00 - Derive the system-design questions for the Decision formation path so later pressure history stays on decision truth itself
 For `Decision formation path`, the system-design questions should stay on decision truth itself, not drift backward into guardrail posture or forward into action emission.
