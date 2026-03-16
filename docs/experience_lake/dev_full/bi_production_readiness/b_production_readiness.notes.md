@@ -4330,6 +4330,541 @@ This path supports the claim that the final ready posture is not merely the plat
 
 The next clean move is the object frame for `Drift-visible observability attestation path`.
 
+## 2026-03-16 18:07:08 +00:00 - Open the Drift-visible observability attestation path by pinning its A posture, Bi posture, and why live visibility is its own Group 7 boundary after final judgment
+## `Drift-visible observability attestation path` - `object frame`
+
+### `Object`
+
+Parent group: `Run governance, observability, and evidence closure`.
+
+This object sits inside the Group 7 family that turns execution closure into governed, observable, auditable, idle-safe, and cost-accountable run truth. Within that family, this particular path owns truthful live visibility rather than reconstruction, governance append, final verdict, teardown, or cost closure. In the `Bi` ranking logic, it belongs under the high-payoff `P5` object family and becomes especially important again once the enlarged `Ops / Gov / Meta` boundary is rebuilt and later coupled into the full platform story.
+
+### `A posture`
+
+In `A`, this path already has a narrow but serious job: turn live platform behavior into trustworthy operator visibility and drift-attestation truth. Its job is not to reconstruct the run after the fact, not to append governance closure facts, and not to publish the final verdict. Its entry is also stricter than `some logs exist`. The entry is a working platform with one declared active runtime path, live telemetry from the same runtime surfaces that path actually uses, and an observability and control scope able to attest freshness, alert coverage, correlation continuity, handle resolution, and active-path drift before certification.
+
+That `A` posture is already materially seated. The path carries run-scoped correlation fields, telemetry from the actual active runtime surfaces, dashboard and alarm state, handle-resolution state, and durable attestation artifacts such as correlation audits and freshness and coverage checks. The current wired platform also pins the needed surfaces explicitly: OpenTelemetry-first correlation, required fields and headers, a correlation-audit surface, operations and cost dashboards, and critical alarms for platform error rate, RTDL lag, and ingress HTTP anomalies. Even before `Bi`, the earlier observability proof lane had already treated this as a real fail-closed boundary: it probed ingress, orchestrator, stream-lane telemetry, and the observability lane, then failed closed when correlation-carriage proof was insufficient and only went green after the runtime emitted structured correlation evidence.
+
+So the `A` posture is:
+
+declared active runtime path + live telemetry, traces, and logs from those same surfaces + correlation, freshness, alert, and handle checks -> observability attestation truth for the run.
+
+### `Bi posture`
+
+In `Bi`, this object becomes the production-ready live-visibility boundary for the rebuilt `Ops / Gov / Meta` plane. The question stops being `do dashboards and alarms exist?` and becomes `can operators trust live green on the active path, detect drift before false certification, and act through a real operator surface?` That is why the restarted Phase 7 work did not accept a shallow closure story. It explicitly re-anchored the plane around operational reconstructability, evidence readback, dashboards and alarms, cost discipline, idle and restart posture, handle and secret integrity, and drift visibility. When the first bounded Phase 7 pass found dashboards but incomplete operator surfaces, the right response was not to weaken the claim; it was to restart the phase, rebuild the operator boundary, and tighten the proof surface.
+
+The rebuilt `Bi` posture added the missing things that make observability production-ready rather than decorative: real alert coverage on the live naming boundary, runbook-linked dashboards, a bounded `OK -> ALARM -> OK` drill on `fraud-platform-dev-full-ig-lambda-errors`, explicit ML day-2 operator readback and mitigation surfaces, zero placeholder-like active handles, full required handle and secret resolution, and a fail-closed idle and restart proof on the same accepted operational scope. The accepted Phase 7 authority then closed green with `10 / 10` required local evidence present, `18 / 18` accepted Phase 5 refs readable, `6` critical alarms present, `11 / 11` required handle and secret surfaces resolved, placeholder-like active handles at `0`, and node count after idle at `0`.
+
+That same object is then strengthened again in the coupled platform story. Phase 8 does not reopen observability as a standalone tooling topic; it carries it forward as operator continuity on the live integrated platform. The accepted integrated closure still requires runbook-linked dashboards, readable phase refs, critical alarms present, and post-restore active runtime truth matching promoted bundle truth. So in `Bi`, this path is no longer `we have metrics`. It is `the live platform is visibly, attributable, drift-checkably operable on the same active runtime path the platform claims to be using, and that operator truth remains coherent when coupled into the full platform`.
+
+So the `Bi` posture is:
+
+a production-ready observability-attestation boundary where the declared active runtime path is live-visible, fresh, attributable, alert-covered, handle-clean, and drift-checkable enough to support safe certification and real operator action, first on the rebuilt `Ops / Gov / Meta` plane and then again when that plane is coupled into the integrated platform.
+
+### `Why this object matters`
+
+This object matters because if it is weak, the platform can still execute, reconstruct the run, append governance facts, and even publish a final verdict while operators remain blind to whether the live boundary is fresh, correctly attributed, or drifting away from the declared active path. That is exactly the looseness `A` rejects. The platform treats runtime execution truth and runtime visibility truth as different owned boundaries, and this path is the one that forces the second boundary to become explicit.
+
+It also matters strongly for the meta goal. This is not `nice dashboards`. It is evidence that you understood the harder production question: how do you stop false-green certification when telemetry is stale, alerts are missing, handles are unresolved, or the observed surface is no longer the surface doing the real work? The readiness ledger makes that concrete by requiring no stale critical dashboards, `100%` critical alert coverage, `0` placeholder-like active handles, and `100%` required handle and secret resolution on the accepted ops and governance plane. That reads as serious operational judgment rather than tooling decoration.
+
+So, in one line:
+
+`Drift-visible observability attestation path` is the boundary where `the platform is running` stops being enough, and `operators have truthful, fresh, attributable, drift-visible sight of the actual active runtime path` becomes its own production-readiness claim.
+
+The next clean move is the `system-design questions` and `pressure episodes` mapping for this path.
+
+## 2026-03-16 18:19:44 +00:00 - Derive the system-design questions for the Drift-visible observability attestation path so later pressure history stays on truthful live visibility of the declared active runtime path
+For `Drift-visible observability attestation path`, the system-design interrogation should stay on truthful live visibility of the declared active runtime path. It should not drift backward into run reconstruction, and it should not drift forward into governance close-marker, final-verdict publication, teardown, or cost closure. The `A` note makes that boundary explicit, and the readiness definitions keep freshness, alert coverage, handle integrity, and drift visibility as their own proof family.
+
+## `Drift-visible observability attestation path` - `system-design questions`
+
+1. `What exactly counts as observability-attestation truth here?`
+
+This path is not satisfied because logs exist or because a dashboard renders. Its owned outcome is stronger: the active runtime path is visible, fresh, attributable, and drift-checked enough that certification can rely on it. The `A` note states that directly, and the Ops / Gov / Meta readiness contract turns the same idea into concrete proof criteria such as metric freshness, critical alert coverage, placeholder-handle absence, required handle and secret resolution, and drift-detection success.
+
+2. `Why is this a separate path from run reconstruction, governance closure, and final-verdict publication?`
+
+The platform deliberately refuses to let `we can explain the run later` stand in for `operators could see the live platform truthfully while it was running`. Reconstruction, governance append, and final verdict all happen on different owned boundaries. This path is narrower: while the system is live, can operators see the right surfaces, trust that green belongs to the real active path, and catch drift before false certification? That separation is one of the strongest design signals in Group 7, because it means runtime execution truth and runtime visibility truth are treated as different owned truths.
+
+3. `What is the allowed entry into this path, and why is it constrained?`
+
+The entry is not `some telemetry exists`. The entry is a working platform with one declared active runtime path, the real runtime surfaces that path uses, and an observability and control scope ready to attest those same surfaces live. That matters because the design authority pins one active runtime path per phase and run, records it in run-control evidence, and forbids in-phase path switching. So this path begins only once there is a specific live boundary to attest, not a vague collection of tools floating around the system.
+
+4. `What must this path carry so live visibility is attributable rather than decorative?`
+
+It has to carry more than charts. The `A` note says this path must carry run-scoped correlation fields, telemetry from the actual active runtime surfaces, dashboard and alarm state, handle-resolution state for the live path, and durable attestation artifacts such as correlation audits and freshness and coverage checks. That is why the observability surfaces are pinned as designed closure objects: OTel-first correlation, required correlation fields, a correlation-audit surface, and named dashboards and alarms for platform operations, cost, ingress anomalies, and RTDL lag.
+
+5. `What does production-ready mean specifically for this path?`
+
+For this path, production-ready means the platform can prove that live observability is good enough for safe operation and safe certification, not just that telemetry exists. In the plan ledger that becomes: metric freshness within budget, no stale critical dashboards, critical alert coverage for declared failure families, zero placeholder-like active handles on the active path, and full required secret and handle resolution. The accepted Phase 7 closure made that concrete with `6` critical alarms present, a recorded `OK -> ALARM -> OK` drill on `fraud-platform-dev-full-ig-lambda-errors`, `11 / 11` required handle and secret surfaces resolved, and `0` placeholder-like active handles.
+
+6. `How do we know a red posture here is real runtime red rather than wrong-surface, stale-telemetry, or drift red?`
+
+This is one of the central questions of the path. The platform explicitly rejects two weak shortcuts: `we have dashboards, therefore observability is trustworthy` and `stale or partial telemetry is good enough to stand in for active-path truth`. The earlier observability proof lane already treated this as a fail-closed issue: it probed the ingress edge, orchestrator surface, stream-lane telemetry surface, and observability lane, then failed closed when correlation-carriage and telemetry proof were insufficient, and only reran green after the runtime emitted structured correlation evidence. So this path must always ask whether a red came from the runtime itself or from the observability boundary lying about the runtime.
+
+7. `How do we know the observed surface is the actual active runtime path rather than a stale or retained one?`
+
+The path has to ask whether live signals come from the same surface the platform claims to be using. That is why the broad route logic in the `A` note is so strict: declared active runtime path plus telemetry, traces, and logs from those same surfaces, then freshness, alert, drift, and handle checks, then observability-attestation truth. The production-readiness definition sharpens the same concern into drift-detection and closure-integrity criteria such as active-runtime-path clarity, stale-deployment detection, and `wrong-surface certification count = 0`. This question is therefore not cosmetic; it is what stops the platform from certifying the wrong deployed thing.
+
+8. `How do we know run-scoped correlation continuity survives across the live path strongly enough for diagnosis and proof?`
+
+This path must ask whether the operator can follow one run coherently across edge, stream processors, orchestrators, custom runtimes, and evidence writers. The design authority makes that an instrumentation law, not a convenience: OpenTelemetry-first, required correlation fields pinned, correlation audit surface pinned, and fail-closed closure if those required fields are missing. That is important because a system can look `observable` while still being unusable for diagnosis if its live metrics, logs, and evidence refs do not actually belong to one coherent run story.
+
+9. `How do we know dashboards and alerts are operationally useful rather than decorative?`
+
+The path should ask whether observability helps operators diagnose, recover, and prevent failure, not merely watch graphs. The readiness definitions say the dashboard and alarm boundary is only production-ready when metrics are fresh, alert coverage matches real failure families, false negatives are not tolerated, and operators can actually use the surfaces for diagnosis. The accepted Phase 7 closure then made that standard concrete by requiring real critical alarms and recording an actual fire-and-clear drill rather than accepting passive alarm existence as enough.
+
+10. `Why are handle resolution, secret resolution, and identity posture part of this path rather than separate config hygiene?`
+
+Because the platform treats operational trust-model failures as first-class causes of fake-green. The readiness definitions are explicit that many `platform bugs` are really identity and config bugs, and the Ops / Gov / Meta ledger therefore includes placeholder handle count and required secret and handle resolution as closure metrics for the same plane. For this observability path, that matters because you cannot trust live telemetry and operator readback if the runtime you are observing is still running on unresolved, placeholder, or drifted handles. So live visibility truth includes attesting the live path's handle and secret posture, not merely reading graphs about it.
+
+11. `What larger contracts, costs, and constraints shape this path?`
+
+This path is shaped by three big contracts at once. The Ops / Gov / Meta metric contract shapes the closure criteria: freshness, alert coverage, placeholder-handle count, required-handle resolution, and drift detection. The telemetry plan shapes how those criteria are observed: dashboard freshness, alert fire and clear counts, active drift checks on the same runtime surfaces, and fail-fast on live-vs-declared-path mismatch. And the instrumentation law shapes how those signals are produced: OTel-first, run-scoped correlation continuity, explicit audits. The cost of all this is real: more instrumentation, more correlation propagation, more alert validation, more freshness checks, more active-path drift checks, and more live handle and secret attestation. But that cost buys something important: the platform can later answer not just `what ran`, but `whether operators had a truthful live view of what ran`.
+
+12. `What would break if this path were weak or missing?`
+
+If this path were weak, the platform could still execute workloads, reconstruct the run later, append governance facts, publish a final verdict, and maybe even idle safely. But it would lose the clean answer to whether metrics were fresh, whether alarms covered real critical failure families, whether the observed surfaces matched the declared active runtime path, whether the live path's handles and secrets were actually resolved, and whether operators could have caught drift before falsely certifying the run. That is exactly why the `A` note treats this as a necessary path rather than decorative tooling. Without it, the platform would look runnable and reportable, but not truthfully operable.
+
+`Compressed system-design reading`
+
+This path is really asking one hard question in several forms:
+
+**Can the live platform be seen truthfully on the same runtime surfaces it is actually using, with fresh metrics, real alert coverage, intact correlation, resolved live handles, and visible drift before certification is allowed?**
+
+The next clean move is the `pressure episodes` for this path.
+
+## 2026-03-16 19:25:10 +00:00 - Map the pressure history that changed the Drift-visible observability attestation path from instrumentation presence into truthful live-visibility closure
+For this path, the pressure history is not mainly `we added dashboards`.
+It is a staircase where the platform keeps refusing weaker substitutes for truthful live visibility:
+
+correlation truth -> live surface completeness -> assessor correctness -> operator actionability -> exercised alert path -> ML day-2 and active-path integrity -> accepted closure.
+
+## `Drift-visible observability attestation path` - `pressure history`
+
+1. **Inherited precursor pressure before `Bi`: observability was already fail-closed on correlation-carriage and telemetry truth.**
+This path enters `Bi` with a real prehistory. The `A` note says the earlier observability proof lane explicitly probed the ingress edge, orchestrator surface, stream-lane telemetry surface, and observability lane; it then failed closed when ingress correlation-carriage and telemetry proof were insufficient, and only reran green after the runtime emitted structured correlation evidence. That means the object does not begin `Bi` as `nice-to-have monitoring`. It begins as a boundary already trained to reject fake-green visibility.
+
+2. **Phase 7 opening pressure: the runtime was live, but the operator surface was still incomplete.**
+The first real `Bi` pressure on this path comes when Ops / Gov / Meta is reopened from the live AWS boundary. What surfaced was not `the platform is broken`. It was that observability truth was still too weak to support closure: the operations dashboard was still ingress-only, the cost dashboard did not yet prove residual-runtime risk, and the alarm surface was effectively absent on the live `fraud-platform-dev-full` naming boundary. That is the first major `Bi` re-pressure of this object: surface existence and live operator truth were not yet the same thing.
+
+3. **First bounded pass pressure: several reds were proof defects, not platform defects.**
+Once the live operator surface improved, the next pressure came from the assessor itself. The first bounded Phase 7 pass stayed red because CSV evidence refs were being graded as JSON-only readbacks, billing freshness was being checked against the CloudWatch `EstimatedCharges` stream instead of the budget surface that actually governs the phase, and the live drift probe assumed object-style access on structures that were partly dict-backed at runtime. This matters directly for this path because it proves one of its hardest questions: a red at the observability boundary can come from a lying proof surface, not from a lying runtime. The accepted response was to fix the bounded assessor and rerun the same proof boundary, not widen the claim.
+
+4. **Restart pressure: dashboards and alarms still were not enough because the operator chain was incomplete.**
+The first closure candidate was then withdrawn entirely. On the rebuilt Phase 7 boundary, the live surfaces already included dashboards, alarms, budget surface, runtime bundle and policy readback, and idle and restore controller, but the path still was not closure-worthy because runbook linkage was missing, fresh alert-path evidence did not yet exist, and ML day-2 mitigation remained too implicit. This is the point where the pressure history becomes sharper: the object is no longer being asked `do you have visibility?` but `can an operator actually move from signal to action on the live boundary?`
+
+5. **Exercised alert-path pressure: the path had to prove live alert usability, not passive alarm presence.**
+Once the runbook existed and the dashboards were updated to carry that link, the fresh alert drill on `fraud-platform-dev-full-ig-lambda-errors` produced the right bounded control-plane evidence: `OK -> ALARM -> OK`, with both transitions attributable to the drill, and the dashboard markdown pointing to the runbook. This is the first strongly positive observability-specific pressure resolution in `Bi`: the platform moved from `alarms exist` to `the alert path is exercised, attributable, and operator-usable on the real live surface`.
+
+6. **ML day-2 and active-path pressure: the path had to prove readback integrity, not just metric freshness.**
+The new ML day-2 probe is important because it shows the object expanding from classical monitoring into runtime-authority visibility. The probe did not fail because active runtime truth was wrong: active bundle and policy revision matched promoted truth, `MLflow tracking_uri = databricks`, the SageMaker execution role resolved, and the model package group existed. It failed because rollback and restore authority was being read from the wrong probe shape. In parallel, the accepted closure metrics kept handle and secret integrity inside the same proof family: `11 / 11` required handle and secret surfaces resolved and `0` placeholder-like active handles. So this pressure episode says the path now owns not only dashboards and alerts, but live-path identity truth and operator readback truth as well.
+
+7. **Accepted closure pressure: the path closed only when visibility became fresh, attributable, drift-aware, and operator-actionable.**
+The accepted rebuilt Phase 7 closure authority is strong precisely because it does not collapse back to `we have observability`. The ledger closes with real alert drill evidence, exact run reconstruction, ML day-2 readback, required handle and secret resolution, `0` placeholder-like active handles, and the broader Ops / Gov / Meta metric family including metric freshness and critical alert coverage. For this specific object, the key meaning is: the live platform can now be seen on the same active runtime surfaces it actually uses, with fresh metrics, real alert coverage, runbook linkage, clean live handles, and enough drift visibility to block false certification.
+
+## `Compressed reading`
+
+So the pressure history for this path is:
+
+* first, prove correlation and telemetry are real
+* then, prove the live operator surface is actually complete
+* then, separate proof-defect red from platform-defect red
+* then, force runbook linkage and actionability
+* then, exercise the alert path live
+* then, force ML day-2 and active-path readback integrity
+* then, accept closure only when the platform is truthfully visible, not merely instrumented
+
+The next clean move is `episode interrogation` for each of those pressure episodes: which ones were runtime defects, which were proof-boundary defects, and which were operator-chain defects.
+
+## 2026-03-16 19:25:39 +00:00 - Interrogate the key episodes that turned the Drift-visible observability attestation path into an earned live-visibility boundary
+## `Drift-visible observability attestation path` - `episode interrogation`
+
+The point of this section is to stop flattening every red into `observability was weak` or `the runtime was weak`. For this path, the useful question is always: what kind of truth boundary actually failed? The `A` note already pins the owned boundary tightly: this path exists to prove that the live platform can be seen truthfully on the same runtime surfaces it is actually using, with freshness, alert, drift, correlation, and handle checks before certification. So the interrogation has to separate live-path red from proof-surface red, and both from operator-chain incompleteness.
+
+### 1. `Phase 7` opened red on the live operator surface
+
+**Classification:** `operator-surface incompleteness`, not runtime failure.
+
+The first red did not say the platform could not run. It said the live operator boundary was still too weak to support truthful observability-attestation: the operations dashboard was still ingress-only, the cost dashboard did not yet prove residual-runtime posture, and the alarm surface was effectively absent on the live `fraud-platform-dev-full` naming boundary. That is exactly the right kind of red for this object, because the path owns live visibility truth, not just runtime existence. The accepted response was therefore to improve the live operator surface itself, not to reopen runtime semantics.
+
+### 2. The first bounded `Phase 7` pass exposed three reds
+
+**Classification:** `proof-boundary defects`, not platform defects.
+
+Once the operator surface was materially present, the next reds came from the assessor: CSV evidence refs were being judged as JSON-only readbacks, billing freshness was being checked against the wrong CloudWatch stream rather than the budget surface that actually governs the phase, and the live drift probe assumed object-style access on structures that were partly dict-backed at runtime. None of those say the active runtime path was invisible or drifting; they say the proof boundary was misreading reality. The correct response was to fix the assessor and rerun the exact same boundary, not to widen the phase or invent a runtime story that the evidence did not support.
+
+### 3. The assessor then went green before idle and restart proof existed
+
+**Classification:** `closure-boundary overreach`, not observability success.
+
+After the bounded assessor went green on reconstruction, evidence readback, observability, and drift checks, the next honest move was to fail the phase closed again because no live idle and restart drill existed yet. That red belongs primarily to the broader `Ops / Gov / Meta` closure, not to observability in isolation. But it matters here because it prevents this object from over-claiming. In other words: truthful live visibility is necessary, but it is not by itself enough to close the plane. The accepted response was to tighten the boundary immediately and require the missing receipt rather than letting a partial green masquerade as full closure.
+
+### 4. The first `Phase 7` closure candidate was withdrawn
+
+**Classification:** `methodological / authority defect`, not live-platform regression.
+
+The later withdrawal of the first closure candidate is important because it shows the red was no longer in the runtime or in one dashboard. The defect was in the closure story itself: the phase had moved too quickly, the reflected artifacts had started to anchor the notebook to a patched narrative, and the right engineering action was to withdraw the closure claim entirely and restart from the real boundary. For this path, that matters because the platform is explicitly refusing to accept `good enough-looking observability` as closure authority.
+
+### 5. The rebuilt `Phase 7` boundary still stayed red
+
+**Classification:** `operator-chain incompleteness`, not visibility-surface absence.
+
+On the restart, the live boundary already had dashboards, critical alarms, budget surface, runtime bundle and policy readback, and the idle and restore controller. But the phase still stayed red because the operator chain was incomplete: there was no explicit runbook linkage on the live dashboards, no fresh alert-path evidence beyond alarms sitting in `OK`, and the ML day-2 mitigation path was still too implicit to count as an operator surface. This is a different red from the opening one. The first red was `surface incomplete`. This one is `surface exists, but operator actionability is still under-specified`. The accepted next work was therefore exactly the right trio: runbook surface, alert-to-runbook drill, and explicit ML day-2 operator proof.
+
+### 6. The alert drill went green immediately
+
+**Classification:** `positive operator-chain proof`, not mere alarm existence.
+
+This episode is where the path stops being decorative. Once the runbook existed and the dashboards pointed to it, the bounded drill on `fraud-platform-dev-full-ig-lambda-errors` produced `OK -> ALARM -> OK`, and both transitions were attributable to the drill. That matters because it converts `alarm configured` into `alert path exercised and operator-usable on the live boundary`. So this is not just a resolved defect; it is the first direct proof that the observability path now supports signal-to-action behavior.
+
+### 7. The new ML day-2 probe failed on rollback and restore authority
+
+**Classification:** `probe-shape defect`, not active-runtime-authority defect.
+
+This is one of the strongest episodes in the whole path because it proves the notebook is classifying reds correctly. The probe did not fail because the live runtime authority was wrong. The active bundle and policy revision matched promoted truth, `MLflow tracking_uri` was `databricks`, the SageMaker execution role resolved, and the model package group existed. The red came from the probe trying to read rollback and restore authority from fields that those retained probes do not actually expose. The correct fix was therefore to correct the probe to read authority from the accepted Phase 6 chain, not to `repair` a runtime that was already correct.
+
+### 8. The idle and restore drill then failed first on receipt serialization
+
+**Classification:** `artifact-writer defect in an adjacent path`, not an observability defect.
+
+This episode belongs more naturally to `Idle-safe teardown and residual-readability path`, and that distinction matters. The live action itself was correct: node count after idle reached `0`, the nodegroup restored to pre-drill shape, and active deployments came back cleanly. The failure was in JSON serialization on datetime-bearing update payloads in the controller. For this observability path, the lesson is boundary discipline: do not steal a neighboring path's red and misclassify it as observability weakness. The right response was to fix the writer and reuse the same fresh drill artifact, not to reopen the live visibility story.
+
+### 9. Accepted closure
+
+**Classification:** `the object is now truthfully green`.
+
+By accepted closure, the path has earned a materially stronger claim than `we have dashboards`. The rebuilt closure records real alert drill evidence, exact run reconstruction, explicit ML day-2 readback, `11 / 11` required handle and secret surfaces resolved, `0` placeholder-like active handles, and the broader Phase 7 observability metrics of freshness and critical alert coverage. That means the remaining ambiguity classes have been burned down in the right order: surface incompleteness, proof-boundary misreads, operator-chain gaps, and probe-shape defects were all separated rather than blurred together. What is left is a truthful green on the actual active runtime path.
+
+### `Compressed reading`
+
+The real value of this interrogation is that it shows most reds on this path were not `the platform cannot be seen`. They were:
+
+* incomplete operator surface
+* proof-boundary defects
+* closure-authority overreach
+* operator-chain incompleteness
+* probe-shape defects
+* and one neighboring artifact-writer defect that had to be kept in its own path
+
+That is exactly what makes the final green meaningful. The path did not become strong because more dashboards were added. It became strong because the notebook kept asking, episode by episode, what kind of red this actually is, and only accepted closure once truthful live visibility, operator actionability, and active-path fidelity all lined up on the same boundary.
+
+The next clean move is `transformation synthesis` for this object.
+
+## 2026-03-16 19:26:15 +00:00 - Synthesize how the Drift-visible observability attestation path moved from designed visibility truth into an earned operator-trust boundary
+## `Drift-visible observability attestation path` - `transformation synthesis`
+
+The transformation is not that the platform `got observability`.
+`A` already had that boundary. The transformation is that this boundary moved from a designed, materially seated visibility truth into a production-ready operator-trust boundary that could survive rebuilt `Ops / Gov / Meta` closure without hiding behind dashboards, stale proofs, or decorative telemetry. In `A`, the path already owned a serious question: can operators see the live platform on the same runtime surfaces it is actually using, with correlation, freshness, alert, drift, and handle checks before certification? The handles, route logic, and earlier fail-closed correlation proof already made that boundary real.
+
+What `Bi` changed first was the operational meaning of that boundary. In `A`, the path proved the platform refused weak substitutes such as `dashboards exist` or `some telemetry is present`. In `Bi`, the same path had to become trustworthy enough for a rebuilt production-ready plane to close on it. That forced a stronger standard: the operator surface had to be live, runbook-linked, alert-exercised, handle-clean, and explicit about active-path drift rather than merely instrumented. The accepted rebuilt Phase 7 closure captures that new standard directly: critical alarms present, real alert drill evidence, full required handle and secret resolution, zero placeholder-like active handles, and node-count-after-idle closure on the same rebuilt scope.
+
+The second part of the transformation is that `Bi` purified the boundary by separating kinds of red that `A` only implied conceptually. Under pressure, this path kept revealing that many reds were not `observability failure` in the simple sense. Some were proof-boundary defects, such as misreading CSV evidence refs as JSON-only or checking billing freshness against the wrong surface. Some were operator-chain defects, such as having dashboards and alarms but no runbook linkage or no exercised alert path. Some were probe-shape defects, such as reading rollback and restore authority from fields the retained probe did not actually expose. The path became production-ready not by accumulating more tooling, but by repeatedly classifying those reds correctly and refusing false closure until the live visibility boundary itself became trustworthy.
+
+So the core transformation can be stated like this:
+
+* in `A`, the path proved visibility is its own truth boundary
+* in `Bi`, the path proved that truth boundary can be trusted operationally
+
+That is a real change in level. The path starts as `the platform has deliberate observability law and surfaces`. It ends as `the platform has a live operator-truth boundary that can support certification because active-path fidelity, freshness, alert coverage, correlation continuity, and live handle integrity are now all enforced on the same production-ready scope`.
+
+Another way to say it is that the owned outcome stayed the same, but the evidence standard changed dramatically. In `A`, the owned outcome was observability-attestation truth for the run. In `Bi`, that same owned outcome became much harder to earn: not just `the active path is visible`, but `the active path is visible in a way that operators can trust, act on, and certify against without being tricked by stale dashboards, silent alert gaps, unresolved live handles, or wrong-surface drift`. That is why the rebuilt closure had to include a real `OK -> ALARM -> OK` drill, explicit ML day-2 readback, runbook-linked dashboards, and handle and secret hygiene rather than stopping at graphs and metrics.
+
+So the synthesized transformation is:
+
+**`Drift-visible observability attestation path` transformed from a wired-system claim that visibility is deliberate, fail-closed, and materially seated into a production-ready claim that the live platform is truthfully visible, operator-usable, drift-checkable, and certification-safe on the same active runtime path it actually uses.**
+
+Or even tighter:
+
+**`A`: observability is a real boundary.  
+`Bi`: that boundary is now strong enough to trust.**
+
+The next clean move is extracting the `claim mix` for this object.
+
+## 2026-03-16 19:26:38 +00:00 - Extract the Bi claim mix for the Drift-visible observability attestation path so the notebook states exactly what live-visibility judgment this work now supports
+## `Drift-visible observability attestation path` - `Bi claim mix`
+
+For this path, the `Bi` claim mix is this.
+
+### `Bi claim mix`
+
+1. `Readiness-reasoning claim`
+
+This path supports the claim that you can reason live visibility itself as a production-readiness boundary, instead of letting `the platform is running` or `dashboards exist` stand in for it. The `A` note already pins the owned outcome narrowly: the active runtime path must be visible, fresh, attributable, and drift-checked enough to support safe certification. `Bi` then hardens that into a real readiness standard by tying it to explicit Phase 7 criteria such as metric freshness, critical alert coverage, required handle and secret resolution, zero placeholder-like active handles, and visible drift before false certification is allowed.
+
+2. `Systems-design judgment claim`
+
+This path supports the claim that you made a serious systems-design distinction between runtime execution truth and runtime visibility truth. The platform does not assume that because a path is running, operators must therefore be seeing it correctly. It creates a separate owned boundary for live observability, with its own carried objects, contracts, and failure classes. That is strong design judgment because it keeps observability from collapsing into reconstruction, governance append, or final verdict publication, and it forces the system to answer a harder question: whether green belongs to the real active path rather than to a stale or partial surface.
+
+3. `Measurement-and-proof-discipline claim`
+
+This path supports the claim that you do not treat observability as a cosmetic tooling layer. You forced it into a bounded proof surface with explicit checks for correlation continuity, dashboard freshness, critical alarm coverage, handle and secret integrity, and drift visibility. The pressure history matters here: the path stayed red multiple times not because the runtime was dead, but because the proof boundary was misreading reality or the operator chain was incomplete. That shows measurement discipline rather than dashboard enthusiasm. The rebuilt closure ledger then makes the proof concrete: `10 / 10` required local evidence present, `18 / 18` accepted refs readable, `6` critical alarms present, `11 / 11` required handle and secret surfaces resolved, and `0` placeholder-like active handles.
+
+4. `Operator-readiness claim`
+
+This path supports the claim that you pushed observability from surface presence to operator actionability. The restarted Phase 7 boundary proved that dashboards, alarms, budget surfaces, and bundle readback were not enough on their own. Closure only became defensible once the dashboards linked to a real runbook, the critical alarm path was exercised end-to-end, the ML day-2 surface made mitigation and rollback and restore authority readable, and the live platform could be idled and restored on the same execution scope. That is a much stronger operational claim than `we had metrics`.
+
+5. `Production-relevant challenge claim`
+
+This path supports the claim that the hard problems were genuinely production-shaped. The important reds were not presentation defects. They were: incomplete live operator surface, proof-boundary defects that could falsely blame the platform, operator-chain gaps between alert and action, probe-shape defects around ML day-2 authority, and the risk of certifying the wrong or unresolved active path. That is exactly the kind of challenge a serious platform has to survive before anyone should trust `observability is green`.
+
+6. `Constraint-and-trade-off claim`
+
+This path supports the claim that you accepted real cost and complexity in order to get truthful live visibility. The `A` note is explicit that this boundary costs more instrumentation, explicit correlation propagation, dashboard and alert validation, freshness checks, active-path drift checks, and live handle and secret attestation. `Bi` then shows that you kept that stricter posture instead of weakening it into `surface exists, so we're done`. That is good production-readiness judgment: the platform pays extra operational discipline so it can later answer whether operators had a truthful view of what actually ran.
+
+7. `Final-posture claim`
+
+This path supports the claim that the final ready posture is not merely `the platform looks monitored`. It is: the live platform is visible on the same active runtime path it is actually using; critical alarms exist and are exercised; the dashboards are tied to a real runbook; ML day-2 readback and rollback and restore authority are explicit; required handle and secret surfaces resolve cleanly; placeholder-like active handles are absent; and the plane can still reach true zero-node idle and restore cleanly. That is why the rebuilt closure authority is strong enough to support a real plane-readiness claim for `Ops / Gov / Meta`, even though promotion into the larger working platform still waits for the integrated Phase 8 proof.
+
+8. `Meta-goal claim`
+
+This path supports the meta goal because it makes a reviewer infer that you did not treat observability as a recruiter-facing garnish. You treated it as a fail-closed production boundary with its own truth, its own red classes, and its own closure discipline. The path shows judgment in three especially senior-looking ways: you separated runtime red from proof red, you separated visibility from reconstruction and verdict, and you refused closure until the live operator chain could actually move from signal to action. That reads as production-readiness reasoning, not as `I added CloudWatch dashboards`.
+
+### `Compressed Bi claim`
+
+`Drift-visible observability attestation path` shows that you can take observability from `the platform emits signals` to a dedicated fail-closed operator-truth boundary where the active runtime path is fresh, attributable, alert-covered, runbook-linked, handle-clean, drift-visible, and safe enough to certify against without being fooled by stale surfaces, incomplete operator chains, or wrong-surface green.
+
+The next clean move is the next object in this Group 7 sequence.
+
+## 2026-03-16 19:27:06 +00:00 - Open the Idle-safe teardown and residual-readability path by pinning its A posture, Bi posture, and why safe stop is its own Group 7 boundary after final judgment
+## `Idle-safe teardown and residual-readability path` - `object frame`
+
+### `Object`
+
+Parent group: `Run governance, observability, and evidence closure`.
+
+This object sits inside the Group 7 family that turns a successful run into governed closure rather than just `the platform finished`. Within that family, it owns safe stop and safe idle truth. Its job is not to reconstruct the run, not to append governance facts, not to prove live visibility, and not to publish the final verdict. Its narrower responsibility is: once the platform has already reached a valid closure point, can it be brought down to an idle-safe posture without hidden residual compute, hidden cost leakage, or broken evidence readability? That boundary is already explicit in `A`, in the run-process phase model, and in the production-readiness definition for idle, teardown, and residual scan.
+
+### `A posture`
+
+In `A`, this path is already a real, materially seated closure corridor rather than a vague `destroy things later` idea. The entry is intentionally strict: the full-platform verdict has already been published, and only then does the platform enter the teardown corridor. The route is also explicit: final verdict first, then teardown plan, then teardown execution, then residual-risk and post-teardown readability checks, then post-teardown cost guardrail, then final closure sync. The owned outcome is `idle-safe teardown truth`: non-essential runtime is shut down or quiesced, forbidden residuals are absent, evidence remains readable after teardown, and the cost posture has been captured.
+
+That `A` posture is not only conceptual. The current wired system already seated it concretely in the final run-process phases and in the managed `M13` chain. The build plan pins `FULL_PLATFORM_CLOSED` before `TEARDOWN_IDLE_SAFE`, and the final verdict and teardown corridor is explicitly split into `M13.E` plan closure, `M13.F` teardown execution, `M13.G` residual risk plus post-teardown readability, `M13.H` post-teardown cost guardrail, and `M13.J` final closure sync. The implementation trail also shows those closures were actually executed green, including `M13.G` with residual count `0` and readability checks passing, `M13.H` with `idle_safe=true`, `residual_item_count=0`, and a run-scoped teardown cost snapshot published, and `M13.J` with final acceptance over the idle-safe and cost-outcome surfaces.
+
+So the `A` posture is:
+
+final verdict published -> managed teardown corridor -> residual and readability verification -> post-teardown cost guardrail -> idle-safe closure truth.
+
+The important `A`-level design reading is that the platform treats successful operation and safe idling as different truths. It refuses two weak shortcuts: final verdict as a proxy for safe closure, and teardown execution as a proxy for residual-zero and readable-evidence closure.
+
+### `Bi posture`
+
+In `Bi`, this object stops being only an end-of-run final corridor and becomes a production-ready live idle and restore boundary for the `Ops / Gov / Meta` plane and then for the integrated working platform. The readiness definition sharpens the object directly: the environment must be safely idled or closed without hidden leftovers, residual resources must be detectable, restart from idle must not corrupt the platform, and no hidden long-running cost surfaces may remain unintentionally. In the Phase 7 metric ledger that becomes concrete as `residual non-essential compute after idle = 0`, together with attributable spend and handle integrity on the active runtime path.
+
+The pressure history shows how much stronger that `Bi` posture is than the `A` corridor alone. Phase 7 was tightened so it failed closed unless a live idle and restart drill existed and was green. The first red after that tightening was exactly the right one: `PHASE7_C_IDLE_DRILL_MISSING`. Then the live idle drill reached the intended posture: nodegroup `min=0`, `desired=0`, node count after idle `0`, RTDL, Case and Label, and `coredns` all at `0`, and restore returned the runtime to pre-drill shape. The first controller failure was not a live runtime failure but a narrow artifact-writer and parameter defect, which was fixed without weakening the boundary. The rebuilt Phase 7 closure then explicitly included `node count after idle = 0`, runtime restored to pre-drill shape, spend attributable by service family, and handle integrity still clean.
+
+That is the first big `Bi` transformation: the path is no longer just `can the final verdict corridor tear down cleanly?` It becomes `can the live working platform be brought to true zero-node idle and restored again on a truthful operator boundary, without hidden residuals, without hidden spend, and without corrupting active runtime truth?` The integrated Phase 8 closure strengthens the same posture again by coupling it back into the whole platform story: `node count after idle = 0` and post-restore active runtime bundle still matched promoted truth on the fresh integrated execution scope. That means the object is no longer isolated final-phase hygiene; it has become part of the platform's integrated bounded-correct story.
+
+A second `Bi` strengthening comes from the explicit guard and enforcement posture. The implementation history adds a dedicated idle-teardown guard workflow that detects idle from heartbeat state, checks live runtime surfaces, supports bounded modes like `observe_only`, `stop_services`, and `dispatch_m13_teardown`, rejects static credentials, uses OIDC-only auth, blocks mutating modes on active-run lock heuristics, and emits blocker-coded run-scoped evidence. That matters because it turns this object from `a teardown procedure exists` into `the platform has an operational control surface for idle-cost drift and teardown enforcement`.
+
+So the `Bi` posture is:
+
+a production-ready idle and restore boundary where the live platform can be driven to true idle, residual non-essential compute can be proven zero, post-idle evidence and readback remain usable, major spend remains attributable, restart restores the working runtime cleanly, and the same truth still holds when the ops and governance plane is coupled back into the integrated platform.
+
+### `Why this object matters`
+
+This object matters because without it the platform can still look impressive on the happy path: it can execute workloads, publish verdicts, append governance facts, and expose dashboards. But it loses a clean answer to whether it can be stopped safely. The `A` note says that directly: remove this path and the reviewer can fairly say the platform can run and judge itself, but has no explicit owner for safe stop and safe idle as operational truth. That is exactly the looseness the production-readiness definition rejects.
+
+It also matters because it carries a very production-shaped distinction that weaker systems usually miss: `the platform worked` is not the same thing as `the platform can now be left alone safely`. This path forces the second question into the proof surface. That is why its contracts care about residual detection, stale workload count, restart-from-idle correctness, cost guardrails, readable post-teardown evidence, and live spend attribution by service family.
+
+For the meta goal, this is one of the more senior-looking objects in the whole notebook. It shows that you did not treat operations as `keep it running`. You treated stop posture, residual hygiene, economic safety, and restart integrity as first-class production boundaries. The rebuilt Phase 7 story makes that especially clear: the plane was not allowed to close until live idle and restore proof existed, and the later Phase 8 integrated story kept that same boundary alive rather than forgetting it once the plane itself was green.
+
+So, in one line:
+
+`Idle-safe teardown and residual-readability path` is the boundary where the platform proves it can stop as intentionally as it can run. It starts in `A` as a real managed teardown corridor, and in `Bi` it becomes a production-ready live idle and restore truth boundary strong enough to support plane-ready and integrated-platform claims.
+
+The next clean move is deriving the `system-design questions` for this object.
+
+## 2026-03-16 19:27:41 +00:00 - Derive the system-design questions for the Idle-safe teardown and residual-readability path so later pressure history stays on safe post-run state as its own boundary
+For this object, the system-design interrogation should stay on safe post-run state as an owned truth boundary. It should not drift backward into final-verdict publication, and it should not drift sideways into generic cost reporting. The `A` note is very explicit: this path exists to answer whether, after the platform has already finished proving itself, it can be brought down to a safe idle state without hidden cost, hidden runtime residue, or broken evidence readability. The run-process and production-readiness docs then sharpen the same thing into deterministic shutdown, residual detection, restart-from-idle correctness, and no hidden long-running cost surfaces.
+
+## `Idle-safe teardown and residual-readability path` - `system-design questions`
+
+1. `What exactly counts as idle-safe teardown truth here?`
+
+This path is not satisfied because resources were `stopped` or because a teardown command ran. Its owned outcome is stronger: non-essential runtime is scaled to zero or destroyed, forbidden residuals are absent or explicitly bounded, post-teardown evidence is still readable, and the cost posture has been captured. That is the closure meaning pinned in `A`, in `P17`, and in the `M13` plan.
+
+2. `Why is this a separate path from final verdict publication and later cost-outcome closure?`
+
+Because the platform deliberately rejects two shortcuts: `the final verdict was green, so safe stop is implied`, and `teardown executed, so cost and evidence posture must be fine`. The `A` note says that directly, and the final corridor splits the boundary into teardown plan, teardown execution, residual and readability closure, cost guardrail, and only then final sync. So this path exists because successful operation and safe idling are treated as different truths.
+
+3. `Why is the entry to this path constrained to after full-platform verdict publication?`
+
+The entry is not `the operator wants to save money`. The entry is that `FULL_PLATFORM_CLOSED` has already been achieved. That sequencing matters because the platform wants safe-idle truth to be about closing an already-judged run, not about stopping an unfinished one and calling that closure. The run-process makes that order explicit: `P16 FULL_PLATFORM_CLOSED` first, then `P17 TEARDOWN_IDLE_SAFE`. The `A` note mirrors the same corridor ordering.
+
+4. `What objects must this path carry so teardown is trustworthy rather than anecdotal?`
+
+It has to carry more than a yes and no flag. The `A` note pins the carried objects: teardown plan truth, teardown execution results, residual scan results, post-teardown evidence readability checks, teardown snapshot, cost guardrail snapshot, and the residual scan report named as commit evidence. The `M13` sequence then makes those carried objects operational by splitting them across `M13.E`, `M13.F`, `M13.G`, and `M13.H`.
+
+5. `What does production-ready mean specifically for this path?`
+
+For this path, production-ready means the environment can be safely idled or closed without hidden leftovers, residual resources are detectable, restart from idle does not corrupt the platform, and no hidden long-running cost surfaces remain unintentionally. The production-readiness doc turns that into concrete metrics like teardown success rate, residual detection completeness, residual risk count, restart-from-idle correctness, and stale workload count `= 0`. The Phase 7 metrics then sharpen the live plane version of that into `residual non-essential compute after idle = 0`.
+
+6. `How do we know teardown success is real rather than just command success?`
+
+This path must ask whether the platform merely issued teardown or whether it actually reached a safe post-run posture. That is why the `M13` managed corridor does not stop at `M13.F teardown execution`; it insists on `M13.G residual risk + post-teardown readability closure` and `M13.H post-teardown cost guardrail closure`. In other words, command success is not accepted as the owned outcome. Residual absence, evidence readability, and cost guardrail posture are separate proof surfaces.
+
+7. `How do we know evidence still survives teardown readably enough for audit and proof?`
+
+This is one of the defining questions of the path. The `A` note explicitly says the path closes only if evidence remains readable post-teardown, and the `M13` blocker family names unreadable post-teardown evidence as its own fail-closed class, `M13-B8`. The managed `M13.G` lane then made readability a first-class closure artifact by publishing `m13g_post_teardown_readability_snapshot.json` and failing closed if retained, full-verdict, or upstream evidence surfaces were unreadable.
+
+8. `How do we know residual risk is actually gone rather than hidden?`
+
+The path must ask whether non-essential compute and other costly leftovers are really gone, not merely out of sight. That is why the residual scan is a named closure object, and why the post-build verification in `A` records concrete surfaces such as non-essential EKS nodegroups at zero, ECS services with desired count above zero at zero, active EMR runs at zero, and active SageMaker endpoints at zero. The live readiness version of the same question later becomes `node count after idle = 0` on the rebuilt Ops / Gov / Meta plane.
+
+9. `Why is restart-from-idle part of this path rather than a separate availability topic?`
+
+Because the production-readiness definition does not let `we can turn it off` stand in for `we can return from idle safely`. It explicitly says restart from idle must not corrupt the platform. So the path is not only about stop posture; it is about whether stop posture remains operationally repeatable. That is why the `Bi` story later tightens into idle and restore drills rather than stopping at static teardown proof.
+
+10. `How do we know live idle enforcement is safe and not itself a source of corruption?`
+
+This question becomes important once the object moves from the `M13` final corridor into the Phase 7 live ops boundary. The idle guard implementation shows the intended answer: observe idle from heartbeat state, check real runtime surfaces, keep safe modes (`observe_only`, `stop_services`, `dispatch_m13_teardown`), reject static credentials, require OIDC, require explicit upstream IDs for teardown dispatch, and block mutating modes on active-run lock heuristics. So the system is deliberately asking how to enforce idle posture without guessing, racing an active run, or dispatching ambiguous teardown.
+
+11. `What larger contracts, costs, and constraints shape this path?`
+
+Several larger contracts shape it. The immediate safe-idle contract requires non-essential runtime scaled to zero or destroyed, no forbidden residual resources, committed budget and cost snapshot, and readable post-teardown evidence. The Ops / Gov / Meta readiness contract sharpens that into idle safety, residual detectability, restart correctness, and no hidden long-running cost surfaces. And the broader cost-control law in the run process says missing cost-control closure at safe-idle stage is fail-closed. The trade-off is deliberate: extra teardown planning, execution orchestration, residual scanning, readability checks, cost snapshots, and one more blocker family. But that cost buys the right proof: not just that the platform ran, but that it can be left alone safely afterward.
+
+12. `What would break if this path were weak or missing?`
+
+If this path were weak, the platform could still execute workloads, publish a final verdict, append governance facts, and maybe even report costs later. But it would lose a clean answer to whether the environment is actually idle-safe, whether non-essential compute is really gone, whether residuals are visible, whether evidence survived teardown readably, and whether post-run cost posture is safe enough to leave unattended. The `A` note says that directly: remove this path and the system can run and judge itself, but no longer has an explicit owner for safe stop and safe idle as operational truth.
+
+### `Compressed system-design reading`
+
+This path is really asking one hard question in several forms:
+
+**After the platform has already proven the run, can it be taken to a truly safe idle state, with residuals gone or bounded, evidence still readable, cost posture captured, restart still safe, and no hidden compute or spend left behind?**
+
+The next clean move is mapping this object to the `pressure history`.
+
+## 2026-03-16 19:28:18 +00:00 - Map the pressure history that changed the Idle-safe teardown and residual-readability path from terminal teardown hygiene into a live idle and restore readiness boundary
+For `Idle-safe teardown and residual-readability path`, the pressure history is not mainly `we added teardown`. It is the path moving from an `A`-level terminal managed teardown corridor into a `Bi`-level live idle and restore readiness boundary that had to be re-pressured on the working platform. In `A`, the path already starts only after final verdict, then moves through teardown plan, teardown execution, residual and readability verification, post-teardown cost guardrail, and only then into idle-safe closure truth. That means the object enters `Bi` with a serious prehistory rather than as a blank ops convenience.
+
+The first part of that pressure history is the inherited `M13` corridor itself. Even before `Bi` reopens the object, the final-run closure chain already had to prove real teardown truth under pressure. `M13.F` first failed closed on missing teardown-facing IAM permissions, then closed green after the permissions were repaired. After that, `M13.G` closed green with `residual_item_count=0` and readable post-teardown evidence, and `M13.H` closed green with `idle_safe=true`, `residual_item_count=0`, and `run_scoped_snapshot_published=true`. So the inherited platform had already learned one important lesson: final verdict is not enough; safe idle has to survive concrete teardown execution, residual verification, readability verification, and cost-guardrail publication.
+
+`Bi` then reopens the same object under a stricter production-ready question. The readiness definition no longer asks only `can the end-of-run teardown corridor close?` It asks whether the environment can be safely idled without hidden leftovers, whether residuals are detectable, whether restart from idle is correct, and whether stale workload count can be forced to zero. That is the conceptual jump that turns the object from terminal closure hygiene into live operational readiness.
+
+The next pressure event is where the `Bi` story really starts: the rebuilt `Ops / Gov / Meta` plane initially allowed the assessor to go green without any live idle and restart receipt. That was judged too weak, so the proof boundary was tightened immediately. The phase was repinned to fail closed unless `phase7_idle_restart_drill.json` existed and was green, and the very next rerun turned red with `PHASE7_C_IDLE_DRILL_MISSING`. That is a very important pressure moment for this object, because it marks the exact point where `we know how to tear down at the end` stopped being acceptable as a substitute for `we can prove live idle and restore on the active plane`.
+
+Once that live boundary existed, the first real idle drill exposed the next class of pressure. The platform itself did not fail to idle; the drill controller failed on the wrong parameter name for `eks.describe_update`. The runtime had already entered the intended boundary: RTDL, Case and Label, and `coredns` were at zero, the nodegroup was already at `min=0` and `desired=0`, and nodes were draining toward zero. So this red matters because it was not `the platform cannot idle`. It was `the proof controller is weaker than the platform action it is trying to observe`.
+
+The next pressure episode strengthened that conclusion. On the rebuilt restart-scope drill, the live platform reached true zero-node idle and restored correctly: nodegroup `min=0`, `desired=0`, node count after idle `0`, RTDL, Case and Label, and `coredns` all at zero, then restore back to `min=2`, `desired=4` with active deployments returning cleanly. The first defect there was again not a runtime inability to idle, but a controller-side JSON serialization bug on datetime-bearing payloads. So the path kept revealing the same pattern: the live platform action was stronger than the proof writer around it.
+
+That is why the accepted rebuilt `Phase 7` closure is such a meaningful point in the pressure history. The object does not close because `some teardown logic exists`. It closes because the fresh operator boundary now contains the missing live proof: budget surface readable, spend attributable by service family, node count after idle `= 0`, and runtime restored to pre-drill shape, all on the same rebuilt execution scope. At that point the path has transformed from an inherited `M13` terminal corridor into a real plane-readiness claim about live idle and restore posture.
+
+The last part of the pressure history is carry-forward and operationalization. `Phase 8` keeps the same object alive inside the integrated platform story: node count after idle remains `0`, and post-restore active runtime bundle truth still matches promoted truth on the integrated boundary. And outside the bounded proof itself, the implementation trail adds a dedicated idle guard workflow with `observe_only`, `stop_services`, and `dispatch_m13_teardown` modes, OIDC-only auth, heartbeat-based idle detection, and active-run lock blocking. That shows the object no longer lives only as a certification receipt; it is becoming an actual operational control surface against idle-cost drift.
+
+So the compressed reading is:
+
+**this path begins in `A` as a managed final-run teardown corridor, then `Bi` re-pressures it into a live idle and restore truth boundary, first by refusing closure without a real idle receipt, then by separating controller defects from true runtime inability, then by proving true zero-node idle plus clean restore on the active plane, and finally by carrying that same safe-idle truth into the integrated platform and into a standing operational guard surface.**
+
+The next clean move is `episode interrogation` for this path.
+
+## 2026-03-16 19:48:46 +00:00 - Interrogate the key episodes that turned the Idle-safe teardown and residual-readability path into an earned live idle and restore boundary
+## `Idle-safe teardown and residual-readability path` - `episode interrogation`
+
+The point here is to stop flattening every red into `shutdown failure`. This object has a narrower owned boundary than that. The `A` note fixes it clearly: after final verdict, the platform must prove that non-essential runtime is gone or quiesced, residual risk is bounded or zero, evidence remains readable, and the run is safe to leave idle. It also says this boundary exists because successful operation and safe idling are different truths.
+
+### 1. `M13.F` first attempt failed closed
+
+**Classification:** `execution-authority defect`, not idle-safety semantic failure.
+
+The first inherited red on this path was not `the platform cannot stop safely`. It was that the managed teardown executor lacked the required EKS and SageMaker actions to perform the teardown boundary it already owned. That is a control-surface and permission failure on the executor, not a proof that the platform's safe-idle semantics were wrong. The corrective action was therefore authority repair, not a redesign of the path.
+
+### 2. `M13.G` and `M13.H` then closed green
+
+**Classification:** `positive inherited corridor proof`, not just planning intent.
+
+This matters because it means the path did not enter `Bi` as a theoretical closure lane. The inherited managed corridor had already proved residual-readability closure and post-teardown cost-guardrail closure with `residual_item_count=0`, `idle_safe=true`, and a published run-scoped teardown cost snapshot. So by the time `Bi` reopens the object, the system already knows how to perform end-of-run safe-idle closure under a formal managed sequence.
+
+### 3. `PHASE7_C_IDLE_DRILL_MISSING`
+
+**Classification:** `closure-boundary truth correction`, not platform regression.
+
+The first real `Bi` red on this object came from tightening the boundary, not from a newly broken runtime. The assessor could still go green without any live idle and restart receipt, so the proof boundary was corrected to fail closed unless `phase7_idle_restart_drill.json` existed and was green. The resulting `PHASE7_C_IDLE_DRILL_MISSING` red is exactly the right kind of red: it says the plane did not yet have live idle and restore proof, even though the older inherited `M13` corridor existed. That is a truthfulness improvement in the readiness boundary, not a regression in platform behavior.
+
+### 4. First live idle drill failed on `eks.describe_update` parameter shape
+
+**Classification:** `controller defect`, not runtime inability to idle.
+
+This episode is one of the strongest in the path because it cleanly separates platform action from proof and control weakness. The drill controller used the wrong parameter name on `eks.describe_update`, but the platform had already entered the intended idle posture: RTDL, Case and Label, and `coredns` were at `0`, the nodegroup was already at `min=0`, `desired=0`, and nodes were draining toward zero. So the right interpretation is not `idle posture failed`. It is `the controller observing and writing the drill was weaker than the live idle action itself`.
+
+### 5. The first `Phase 7` closure candidate was withdrawn
+
+**Classification:** `method / closure-authority defect`, not safe-idle regression.
+
+This is not a red inside teardown mechanics, but it absolutely matters for this path. The first closure candidate was withdrawn because the phase had moved too quickly and the reflected artifacts had started to anchor the notebook to a patched story. For this object, that means the earlier idle and restart proof was not allowed to stand merely because some bounded slices existed. The phase was restarted from the real operator boundary. That is important because it proves the notebook is not willing to let a partially convincing idle story close the plane.
+
+### 6. Rebuilt idle and restore drill failed first on receipt serialization
+
+**Classification:** `artifact-writer defect`, not live runtime failure.
+
+On the rebuilt boundary, the live runtime behavior was already correct: the nodegroup reached `min=0`, `desired=0`, node count after idle reached `0`, RTDL, Case and Label, and `coredns` all went to `0`, and restore returned the runtime to `min=2`, `desired=4` with active deployments back cleanly. The red was a JSON serialization defect on datetime-bearing update payloads. So once again, the drill says the platform action is stronger than the artifact writer around it. This is exactly the kind of narrow red a good `Bi` notebook should surface instead of misclassifying as `idle is broken`.
+
+### 7. Accepted rebuilt `Phase 7` closure
+
+**Classification:** `the object is now truthfully green` on the rebuilt plane boundary.
+
+By accepted rebuilt closure, this path has crossed the line from inherited terminal-teardown competence to real live idle and restore readiness. The final accepted metrics include `node count after idle = 0`, runtime restored to pre-drill shape, spend attributable by service family, `11 / 11` required handle and secret surfaces resolved, and `0` placeholder-like active handles. That is why the plan ledger can now treat residual non-essential compute after idle as proven on the rebuilt plane-ready scope.
+
+### 8. `M13.I` first attempt failed closed on budget-handle parsing
+
+**Classification:** `adjacent-path cost-outcome defect`, not this path's red.
+
+This one is worth naming because it shows good boundary discipline. `M13.I` failed on invalid budget-threshold handle parsing, but that belongs to the later phase cost-outcome closure, not to `Idle-safe teardown and residual-readability path` itself. This path ends with residual and readability and post-teardown cost-guardrail truth; it does not own the later phase budget outcome parser. Calling `M13.I` a teardown-path failure would blur exactly the boundary the `A` note worked hard to pin.
+
+### 9. Idle guard workflow added afterward
+
+**Classification:** `positive operationalization / control-surface strengthening`, not rescue of a failed semantic boundary.
+
+The later idle guard work is not the reason this path became green, but it is still part of the episode reading. It adds a standing operational control surface around the same boundary: heartbeat-based idle detection, `observe_only`, `stop_services`, and `dispatch_m13_teardown` modes, OIDC-only auth, required upstream IDs for teardown dispatch, and active-run lock blocking of mutating modes. That is not `proof by workflow existence`. It is the platform taking a now-proven safe-idle boundary and turning it into an enforceable ongoing control against idle-cost drift.
+
+### `Compressed reading`
+
+Most reds on this path were not `the platform cannot stop safely`. They were:
+
+* executor authority defects
+* closure-boundary permissiveness
+* controller defects
+* artifact-writer defects
+* methodological closure overreach
+* and one adjacent cost-outcome parser defect that had to be kept outside the path
+
+That is exactly why the final green matters. The object did not become strong because teardown existed. It became strong because the notebook kept separating live idle truth from the tools and receipts trying to observe or close it, and only accepted closure once true zero-node idle, readable retained evidence, attributable spend, and clean restore all lined up on the same rebuilt operator boundary.
+
+## 2026-03-16 19:49:18 +00:00 - Synthesize how the Idle-safe teardown and residual-readability path moved from a designed teardown corridor into an earned live idle and restore boundary
+## `Idle-safe teardown and residual-readability path` - `transformation synthesis`
+
+The transformation is not that the platform suddenly learned how to shut down.
+`A` already had a real managed teardown corridor. In `A`, this object was already a deliberately bounded closure path that only began after full-platform verdict publication, then moved through teardown planning, teardown execution, residual and readability verification, post-teardown cost guardrail, and only then into final closure sync. So the starting point was already stronger than `we added a shutdown step`. It was: safe idle is its own owned truth, separate from both successful runtime execution and final verdict publication.
+
+What `Bi` changed first was the operational level of that truth. In `A`, the path mainly lived as a terminal managed corridor at the end of the run. The inherited `M13` chain had already proved that corridor could work: teardown execution was repaired when authority was missing, residual and readability checks then closed green, and post-teardown cost guardrail closure recorded `idle_safe=true` with `residual_item_count=0`. But `Bi` refused to let that inherited end-of-run capability stand in for production-readiness. It re-asked a harder question: can the live working platform be driven to safe idle and brought back again on the active operator boundary, not just torn down correctly at the very end of one managed run?
+
+That is the core transformation. The object moves from terminal teardown closure to live idle and restore readiness. The first decisive step in that transformation was tightening the proof boundary so the rebuilt `Ops / Gov / Meta` plane could not close without an explicit live idle and restart receipt. That is why `PHASE7_C_IDLE_DRILL_MISSING` was such an important red: it marked the moment when `we know how to tear down at the end` stopped being enough. From then on, this object had to prove true zero-node idle on the live plane, residual non-essential compute after idle had to reach zero, runtime had to restore to pre-drill shape, and that whole story had to sit on the same truthful operator boundary as spend attribution and handle integrity.
+
+A second major part of the transformation is that `Bi` purified the meaning of red on this path. Under pressure, the live platform repeatedly showed it was stronger than the surrounding proof and control surfaces: first the controller used the wrong `eks.describe_update` parameter shape even though the platform had already entered the intended idle posture; later the rebuilt drill hit a JSON serialization defect even though node count after idle had already reached zero and restore had already returned the runtime cleanly. That matters because the notebook did not lazily report these as `idle posture failed`. It separated controller defects, artifact-writer defects, and closure-boundary permissiveness from true runtime inability. The object therefore became production-ready not by adding more shutdown machinery, but by repeatedly proving that the safe-idle boundary itself was real and that surrounding tooling defects would not be mistaken for runtime truth.
+
+The final part of the transformation is that the object stops being only a closing corridor and starts becoming an ongoing operational control surface. The later idle guard workflow is important here: heartbeat-based idle detection, bounded modes like `observe_only`, `stop_services`, and `dispatch_m13_teardown`, OIDC-only auth, and active-run lock blocking mean the platform is no longer just able to end safely once. It is building a standing guard against idle-cost drift and unsafe teardown dispatch. So the object's final `Bi` shape is broader and more production-shaped than its `A` form: not just `can we close safely at the end?` but `can we deliberately idle the live platform, prove the absence of forbidden residuals, preserve readable evidence, attribute spend, restore cleanly, and govern that posture continuously?`
+
+So the synthesized transformation is:
+
+**`Idle-safe teardown and residual-readability path` transformed from a wired-system claim that safe stop exists as a real managed closure corridor into a production-ready claim that the live platform can be brought to true idle, left without hidden residual compute or unreadable evidence, restored cleanly, and governed as an ongoing operational boundary rather than a one-off shutdown ritual.**
+
+Or tighter:
+
+**`A`: safe idle is a real terminal closure truth.  
+`Bi`: that truth is now strong enough to trust on the live platform.**
+
+## 2026-03-16 19:49:44 +00:00 - Extract the Bi claim for the Idle-safe teardown and residual-readability path so the notebook states exactly what safe-idle judgment this work now supports
+## `Idle-safe teardown and residual-readability path` - `Bi claim`
+
+**This object supports the claim that you took safe stop from a wired end-of-run teardown corridor and turned it into a production-ready live idle and restore boundary: the platform can be driven to true idle without hidden non-essential runtime left behind, without losing readable evidence, with spend still attributable, and then restored cleanly without corrupting the active platform story.** In `A`, the path already owned safe-idle teardown truth as a distinct boundary after final verdict, with explicit teardown, residual, readability, and cost-guardrail subclosures rather than `switch things off and hope`.
+
+What makes that a `Bi` claim rather than just an `A` claim is the readiness hardening: production-readiness explicitly requires deterministic shutdown, detectable residuals, restart-from-idle correctness, and no hidden long-running cost surfaces, and Phase 7 was tightened to fail closed until a live idle and restart receipt existed. The rebuilt proof then closed only after the platform reached `node count after idle = 0`, restored the nodegroup to pre-drill shape, kept major spend attributable, and preserved clean handle integrity.
+
+So the clean `Bi` reading is:
+
+**You proved not just that the platform can run and judge itself, but that it can be left in a safe, economically controlled, operationally repeatable post-run state and brought back again on the real live platform boundary.** That same truth was then carried into the integrated platform proof, where idle-to-zero and post-restore runtime truth still held after `Ops / Gov / Meta` was coupled into the full platform story.
+
 ## 2026-03-15 16:39:48 +00:00 - Derive the system-design questions for the Decision formation path so later pressure history stays on decision truth itself
 For `Decision formation path`, the system-design questions should stay on decision truth itself, not drift backward into guardrail posture or forward into action emission.
 
