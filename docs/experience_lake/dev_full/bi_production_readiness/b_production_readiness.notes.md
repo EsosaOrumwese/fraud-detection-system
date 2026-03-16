@@ -2664,6 +2664,650 @@ This path supports the claim that the final ready posture is not merely the OFS 
 
 The next clean move is `Train / eval and candidate-bundle path` with its `object frame`.
 
+## 2026-03-15 23:29:18 +00:00 - Open the Train / eval and candidate-bundle path by pinning its A posture, Bi posture, and why candidate truth is its own governed boundary after dataset commitment
+For `Train / eval and candidate-bundle path`, the object frame should stay on candidate-bundle truth itself, not drift backward into dataset commitment and not drift forward into governed promotion or active-bundle runtime authority. The `A` note separates those boundaries on purpose, and the run-process keeps `P14 MF_EVAL_COMMITTED` distinct from both `P13 OFS_DATASET_COMMITTED` and `P15 MPR_PROMOTION_COMMITTED`.
+
+`Train / eval and candidate-bundle path`
+
+`Object`
+
+Parent group: `Learning, evaluation, and governed activation`.
+
+Main secondary object it lives inside: the `Learning + Evolution / MLOps` plane as a plane-ready candidate-truth object. In the `Bi` ordering this sits inside `P4`, and the path itself is one of the five owned Group 6 closures that the notes deliberately keep separate: learning-input truth, dataset truth, candidate truth, promotion truth, and active runtime authority.
+
+The first enlarged-network object that materially re-pressures it is `Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps`, because that is the first point where authoritative runtime truth and label truth have already become dataset truth, and the platform now has to prove that model-evolution truth itself is governed and attributable before any promotion claim is allowed. The `Bi` matrix pins that `S4` object as the strongest feedback-loop surface, and the readiness plan describes the same enlarged network as the runtime -> label -> learning -> registry and promotion -> runtime corridor whose continuity has to remain explainable and semantically stable.
+
+`A posture`
+
+In `A`, this path exists to turn authoritative dataset truth into candidate-bundle truth. Its job is not to choose the learning basis, and it is not yet to promote anything. Its narrower job is to answer: once the platform has one immutable governed dataset, where does it build the candidate it might later promote, and how does it prove that candidate is tied to the right dataset, the right evaluation, and the right lineage? The `A` note is explicit that the owned outcome is stronger than training ran: it is training and evaluation truth plus a provenance-complete candidate bundle, with explicit leakage, quality, lineage, and pre-promotion safe-disable and rollback closure.
+
+So the `A` posture is:
+
+immutable offline-dataset refs -> managed MF train and eval surfaces -> metrics and leakage closure -> MLflow lineage -> candidate bundle with provenance and pre-promotion operability truth.
+
+That `A` posture already carries the key contract disciplines the later readiness work has to preserve: train and eval must run from the immutable `P13` dataset artifact, metrics and leakage checks must pass, candidate provenance must include upstream dataset fingerprint plus replay-basis and `as_of` controls, and the path must emit safe-disable and rollback truth before promotion begins. The run-process pins those exact closure objects at `P14`.
+
+`Bi posture`
+
+In `Bi`, this path becomes the production-ready candidate-bundle-truth boundary. That means it is no longer enough that SageMaker launched, evaluation produced numbers, or MLflow logged a run. The path now has to support a stronger claim:
+
+- the managed train and eval corridor really consumes the immutable `P13` dataset basis rather than a hidden or looser substitute
+- training and evaluation complete on the managed MF surface
+- metrics and leakage checks are real and tied to that governed dataset basis
+- MLflow lineage is complete enough to trace dataset -> train and eval -> candidate bundle
+- the candidate bundle is committed with provenance
+- and pre-promotion operability closure exists through the safe-disable and rollback path rather than being deferred into vague later governance
+
+That is exactly the stronger posture the Phase 5 managed trail was rebuilding. The implementation notes make the proving question explicit: can the platform take the admitted basis, derive a bounded supervised sample without bypassing the governing truth surfaces, run real SageMaker training and evaluation, log real MLflow lineage on the managed surface, and then emit governed candidate, publish, and rollback truth on the same evidence chain? The first rebuilt red failed on a real SageMaker role boundary, the next on channel-boundary honesty, and the finally accepted managed closure `phase5_learning_managed_20260312T071600Z` only counted once the bounded sample stayed inside the admitted temporal law while preserving the continuous evidence chain from dataset basis to published candidate truth.
+
+So the `Bi` posture is:
+
+a production-ready candidate-truth boundary where one immutable governed dataset becomes one managed SageMaker and MLflow train-and-eval closure with real metrics, leakage and lineage discipline, and where that closure emits a provenance-complete, operable candidate bundle that later promotion is allowed to consider but does not yet supersede into runtime authority.
+
+`Why this object matters`
+
+This object matters because it is the point where the platform stops saying we have an authoritative dataset and starts being able to say where candidate model truth actually lives. If this boundary is weak, then later promotion and runtime adoption can still look sophisticated while resting on a candidate whose training basis, evaluation basis, lineage, or operability story is unclear. The `A` note states the necessity test directly: without this path, the platform loses the clean answer to what candidate was built from the governed dataset, whether train and eval metrics were tied to the right dataset, whether lineage from dataset to candidate exists, whether the candidate bundle is complete and attributable, and whether there is any pre-promotion safe-disable and rollback discipline.
+
+It also matters strongly for the meta goal, because the engineering judgment here is not we had SageMaker and MLflow. It is that the platform treated candidate truth as its own governed boundary: not just model artifacts, but dataset-bound evaluation truth, provenance-complete bundle truth, explicit lineage closure, and pre-promotion operability truth. The readiness docs say this plainly too: Model Factory is where we have data becomes we have a deployable model candidate, and production-ready MF means the inputs are the right OFS outputs, evaluation is tied to the right basis, candidate bundles are complete and attributable, and no hidden local or bypass training path exists.
+
+So, in one line:
+
+`Train / eval and candidate-bundle path` is the path that turns authoritative offline dataset truth into provenance-complete, operable candidate truth, and in `Bi` it becomes the production-ready MF boundary that proves later promotion is evaluating a real governed candidate bundle rather than a managed-job artifact with weak lineage.
+
+The next clean move is to derive the `system-design questions` for this path.
+
+## 2026-03-15 23:36:47 +00:00 - Derive the system-design questions for the Train / eval and candidate-bundle path so later pressure history stays on candidate-model truth itself
+For `Train / eval and candidate-bundle path`, the system-design interrogation should stay on candidate-model truth itself: whether one immutable governed dataset becomes one attributable, evaluable, operable candidate bundle that promotion is later allowed to consider. It should not drift backward into dataset commitment, and it should not drift forward into promotion and rollback-governance or active-bundle runtime authority. The run-process and the `A` note both keep those closures separate on purpose.
+
+`Train / eval and candidate-bundle path` - `system-design questions`
+
+1. `What exactly counts as candidate-model truth here?`
+
+This path is not satisfied because SageMaker started a job, because MLflow has a run, or because a model artifact exists somewhere. Its owned outcome is stronger: training and evaluation complete, metrics and leakage checks pass, candidate bundle is committed with provenance, safe-disable and rollback path is committed, and candidate provenance carries the upstream dataset fingerprint plus replay-basis and `as_of` controls. That is the explicit `P14 MF_EVAL_COMMITTED` closure.
+
+2. `Why is this a separate path from dataset truth and from promotion truth?`
+
+The platform splits these on purpose. `P13` owns authoritative dataset truth, `P14` owns train and eval plus candidate truth, and `P15` owns governed promotion and rollback truth. The `A` note is explicit that the system is not saying once SageMaker ran, we effectively have something deployable; it is saying there is a dedicated boundary where evaluation truth, lineage truth, candidate-bundle truth, and operability truth must come together before the candidate is even eligible for promotion.
+
+3. `What is the allowed entry into this path, and why is it constrained?`
+
+The entry is not SageMaker can start a job. It is an immutable offline dataset artifact from `P13`, already pinned as the only allowed train and eval basis. The run-process makes that entry gate explicit, and the `A` note says the MF surface is not allowed to decide its own basis or train from a moving target.
+
+4. `What is the owned outcome before promotion is allowed to begin?`
+
+The owned outcome is training and evaluation truth plus a provenance-complete candidate bundle that is safe to hand off to the promotion corridor, but is not yet promoted. That means the path must close on train and eval completion, metrics and leakage closure, candidate publication, and safe-disable and rollback closure. Promotion itself belongs to the next path.
+
+5. `What must this path carry so the candidate is attributable rather than just produced?`
+
+It has to carry the immutable upstream dataset identity, evaluation metrics, leakage and provenance results, MLflow lineage references, the candidate bundle itself, and the safe-disable and rollback references that show the candidate is operable rather than merely emitted. The `A` note says the candidate bundle later carries lineage refs back to the train and eval closure artifacts plus the upstream dataset fingerprint, and the next managed lane checks run-scope continuity and lineage continuity before advancing.
+
+6. `What makes the train and eval corridor authoritative rather than SageMaker and MLflow are present?`
+
+Authority here means the managed corridor is doing the real work on the real governed basis: SageMaker train and eval runs complete on the admitted sample, MLflow lineage closes on the managed tracking surface, and the resulting candidate, publish, and rollback truth stays on the same evidence chain. The readiness notes make that proving question explicit, and the accepted `phase5_learning_managed_20260312T071600Z` closure is only accepted because the corridor stayed attributable from bounded dataset basis through train and eval, lineage, publish, and rollback validation.
+
+7. `How do we know this path uses the right dataset basis rather than a hidden local, synthetic, or bypass basis?`
+
+This is one of the most important questions. The implementation trail explicitly rejected the retained managed lane as Phase 5.C authority because it was synthesizing convenience CSV rows inside the workflow instead of training on the admitted OFS dataset basis. The corrected path then rebuilt the managed lane around the actual admitted sample and kept tightening runner defects without weakening the boundary. That is exactly the production-ready MF rule too: no hidden local, synthetic, or bypass training path exists.
+
+8. `How do we know the managed surfaces are really doing the work rather than helper scripts secretly making the lane green?`
+
+The platform's production-readiness definition says managed surfaces must do the real work where they are supposed to do it, and helper scripts may orchestrate or probe but must not secretly be the thing making the plane function. The accepted Phase 5 closure then proves that on the actual managed corridor: SageMaker training completed, SageMaker batch transform completed, MLflow lineage finished on the Databricks-backed tracking surface, and governed publish and rollback status remained readable on the same chain.
+
+9. `How do we know train and eval metrics are tied to the right governed dataset basis?`
+
+This path has to ask whether evaluation truth belongs to the immutable `P13` dataset artifact rather than to some looser or widened sample. That is why candidate provenance must include upstream dataset fingerprint plus replay-basis and `as_of` controls, and why the first end-to-end managed green receipt was rejected when the sampled event horizon exceeded the admitted `feature_asof_utc`. The accepted run only counted once the sample stayed inside the admitted time law.
+
+10. `How do we know the train and eval runner itself keeps the basis honest?`
+
+The managed lane exposed real runner-boundary defects that mattered to candidate truth. First, the SageMaker execution role lacked the required S3 access on the authoritative object-store basis. Then both `train` and `validation` channels were pointed at one mixed prefix instead of distinct prefixes. Both defects were corrected narrowly while keeping the same admitted basis fixed. That matters because it shows the platform is treating runner honesty as part of candidate-truth integrity, not as mere plumbing.
+
+11. `What makes lineage closure sufficient here?`
+
+The path needs lineage that is complete enough to trace dataset -> train and eval -> candidate bundle, and later into governed promotion and runtime authority. The readiness plan pins `lineage completeness = 100%` from dataset to candidate bundle to active bundle as an explicit Phase 5 metric, and the `A` note says MLflow lineage closure is one of the designed closure objects of this path, not a convenience artifact.
+
+12. `Why is safe-disable and rollback part of candidate truth rather than something to worry about only after promotion?`
+
+Because the platform does not treat candidate exists as enough. The path explicitly requires safe-disable and rollback closure before train-and-eval is considered closed, and the build plan makes this its own sub-phase before the final `P14` verdict. That means candidate truth includes pre-promotion operability, not just performance or artifact existence.
+
+13. `How do we distinguish a train and eval defect from a dataset defect or a promotion defect?`
+
+This path has to stay bounded. Upstream, `Offline dataset commitment path` owns whether the right immutable dataset object exists at all. Downstream, `Promotion and rollback-governance path` owns whether a good candidate is promoted explicitly and rollback is real. This path sits in between and owns whether the immutable dataset becomes a candidate bundle with real metrics, real lineage, and pre-promotion operability truth. The docs keep those boundaries clean in both the phase map and the `A` note.
+
+14. `What constraints shape this path and stop easy shortcuts?`
+
+The main constraints are: immutable input binding from `P13`, metrics and leakage gates, lineage closure, candidate provenance back to dataset fingerprint plus replay and `as_of` controls, reproducibility within pinned tolerances, and no hidden local or bypass lane. The build plan adds that closure needs more than gate-pass; it also needs candidate utility vs baseline and champion, rerun reproducibility with pinned inputs, and bundle operability with audit-complete lineage and provenance.
+
+15. `What trade-off is the design accepting?`
+
+The platform is accepting a heavier governance boundary before promotion. That costs managed train and eval orchestration, explicit eval gates, lineage closure, candidate publication, reproducibility checks, and safe-disable and rollback closure. But that cost buys the ability to answer harder questions later: what dataset basis the candidate came from, what metrics justified it, whether its lineage is complete, whether its bundle is operable, and whether it can be disabled or rolled back safely before promotion.
+
+16. `How does enlarged-network pressure re-ask the question?`
+
+Once the learning corridor feeds back into the larger platform, the question is no longer just can SageMaker build a candidate. It becomes whether runtime truth -> dataset truth -> candidate truth -> later promotion and runtime authority remains continuous and explainable. The readiness plan makes that enlarged feedback-loop explicit, and the accepted plane-ready ledger already treats managed train and eval plus governance as one link in that continuity chain before coupled runtime proof begins.
+
+17. `What does this path need to prove for the meta goal?`
+
+The strongest claim is not that the platform had SageMaker and MLflow. It is that before promotion was allowed, the platform could take one immutable governed dataset, run managed train and eval on that exact basis, keep metrics and lineage tied to it, emit a provenance-complete candidate bundle, and carry enough operability truth that the next promotion lane starts from a governed candidate rather than from a vague model artifact. That is what makes this read like senior ML platform judgment rather than managed-service assembly.
+
+Compressed into one line:
+
+For `Train / eval and candidate-bundle path`, the system-design interrogation is about whether one immutable governed dataset becomes one managed, lineage-complete, reproducible-enough, leakage-disciplined, pre-promotion-operable candidate bundle, and whether that candidate can be traced back to the exact dataset fingerprint, replay basis, and `as_of` law it claims to come from.
+
+The next clean move is to map this path to the `pressure episodes` that actually changed its posture.
+
+## 2026-03-15 23:44:51 +00:00 - Map the pressure episodes that changed the Train / eval and candidate-bundle path from a managed corridor into governed candidate truth
+For `Train / eval and candidate-bundle path`, the posture-changing history is less about did a model train and more about whether the platform could turn one immutable governed dataset into candidate truth that was still honest on basis, time law, lineage, publication, and operability before promotion began. In `A`, this boundary was already separate from both dataset truth and promotion truth, and `P14` already defined it as train and eval completion plus metrics and leakage closure, candidate bundle with provenance, and safe-disable and rollback closure.
+
+`Train / eval and candidate-bundle path` - `pressure episodes that changed its posture`
+
+1. `The path first had to stop being treated as a generic managed learning is working story and become a distinct candidate-truth corridor`
+
+The path's first posture change was methodological. The notes explicitly rejected treating Phase 5 as one homogeneous managed-learning proof and split the corridor so that semantic admission, dataset truth, candidate truth, and later promotion truth were not collapsed into one green story. That matters because candidate truth only becomes real once the platform asks whether SageMaker plus MLflow plus bundle publication are proving one governed candidate, not merely whether managed services are readable.
+
+2. `The first rebuilt managed run failed on a real SageMaker role boundary`
+
+The first true `Phase 5.C` run failed before training could even start because the SageMaker execution role could not list the authoritative object-store bucket that held the admitted learning basis. That changed the path from managed MF surfaces are present to managed MF still cannot consume the authoritative dataset basis it claims to train from. The accepted bridge was narrow and important: fix the runtime role on the same object-store basis, not move the sample back to an easier evidence-bucket path.
+
+3. `The next failure proved runner honesty mattered, not just service readiness`
+
+Once the SageMaker role was fixed, the next red came from the train and eval runner itself: both `train` and `validation` channels were pointed at one mixed parent prefix. That meant the path was no longer blocked by role access or by the managed service being down; it was blocked because the proving runner was not keeping dataset-channel boundaries honest. The accepted bridge was to keep the same admitted basis and split the sample into explicit train, validation, and test artefacts rather than weakening the boundary.
+
+4. `The first end-to-end green run was rejected because candidate truth was still outside the admitted time law`
+
+The third rebuilt managed run completed the whole corridor end to end, but the summary showed the sampled event horizon still exceeded the admitted `feature_asof_utc`. That changed the path from managed train and eval plus publish plus rollback chain is live to candidate truth is still semantically invalid because the bounded sample is not inside the admitted causal boundary. The accepted bridge was to hard-trim the joined sample to the admitted `as_of` law and fail closed if it still crossed the boundary.
+
+5. `The accepted managed closure turned the path into a real plane-ready candidate boundary`
+
+The next run, `phase5_learning_managed_20260312T071600Z`, was accepted because it kept the same managed corridor and same admitted world while tightening the sample so `event_scan.ts_max_utc` stayed inside the admitted `feature_asof_utc`. At that point the evidence chain became continuous and attributable from source runtime and label truth, through semantic admission and bounded OFS dataset basis, into managed train and eval plus lineage plus governance, with SageMaker training and batch transform completed, MLflow lineage finished, and publish and rollback validation readable. That is the moment where the path stops being managed surfaces work and becomes the platform has real candidate truth on the governed basis.
+
+6. `The path then had to become lineage-complete under a strict no-fallback MLflow contract`
+
+Even after managed train and eval closure, candidate truth was not yet complete enough for this boundary until lineage itself was forced into a strict contract. The first strict `M11.F` rerun failed because the stale remote handle pointed MLflow at the wrong experiment path, which proved that lineage completeness could still drift even when the corridor otherwise looked green. Only after the canonical experiment-path handle was pinned and the strict rerun closed green did the path change from candidate may exist with lineage into candidate truth is closed on the exact managed lineage surface it claims to use.
+
+7. `Candidate truth then became a real published bundle rather than a train and eval result`
+
+The next posture change came with `M11.G`. The managed lane published a run-scoped `candidate_bundle.json`, carried a deterministic candidate id, tied its lineage back to `M11.D/E/F` plus the `M10` fingerprint, and passed operability checks such as model artifact readability, train and transform completion posture, serving-handle pinning, and package-group materialization. That changed the path from train and eval and lineage are green into the platform has a provenance-complete candidate bundle that later promotion can actually consume.
+
+8. `The final posture change was pre-promotion operability truth`
+
+The last important turn was `M11.H`. The path did not close on bundle publication alone; it also required safe-disable and rollback and bounded reproducibility closure. The managed lane double-read the candidate bundle and got a stable SHA256, verified run-scope and lineage continuity, confirmed OFS rollback refs were readable, and published a run-scoped rollback-drill artifact. That changed the path from candidate bundle exists into candidate bundle is operable and safe enough to hand to promotion without promotion having to discover basic rollback truth for the first time.
+
+`What this mapping says in one line`
+
+`Train / eval and candidate-bundle path` moved from a correctly designed but not-yet-earned managed corridor into a production-ready candidate-truth boundary by resolving, in order: authoritative object-store access, runner channel honesty, causal time-law correctness, strict lineage closure, candidate publication with provenance, and pre-promotion safe-disable and rollback operability.
+
+The next clean move is to interrogate these episodes one by one.
+
+## 2026-03-15 23:52:33 +00:00 - Interrogate the key episodes that turned the Train / eval and candidate-bundle path into an earned candidate-truth boundary
+## `Train / eval and candidate-bundle path` - `episode interrogation`
+
+For this path, the key question is not whether SageMaker, MLflow, or later promotion machinery ever went green. It is whether one immutable governed dataset became candidate truth on its own boundary: managed train and eval on the right basis, metrics and leakage closure tied to that basis, lineage that stays complete, a published candidate bundle that is actually attributable, and safe-disable and rollback truth before promotion starts. That is already how `A` defines the object, and it is also how `P14 MF_EVAL_COMMITTED` defines the closure.
+
+### 1. `The path first had to become a distinct candidate-truth corridor, not just a generic managed learning is working story`
+
+The first important shift was methodological. The platform did not allow `P14` to collapse into Learning is green. The build plan splits the lane into train and eval runtime readiness, immutable input binding, evaluation gates, MLflow lineage, candidate publication, and safe-disable and rollback, and the `A` note says the same thing in design terms: this boundary exists to turn governed dataset truth into candidate-bundle truth before promotion begins. System-design-wise, that matters because it establishes that candidate truth is its own owned object, not a by-product of dataset truth or later promotion truth.
+
+### 2. `The first rebuilt managed run failed on a real SageMaker role boundary`
+
+Once the corridor was treated as its own object, the first true managed `Phase 5.C` run failed in the right place: `CreateTrainingJob` never started because the SageMaker execution role lacked `s3:ListBucket` on the authoritative object-store basis. That is a real posture change because the path stopped being managed MF is present and became managed MF still cannot enter the authoritative dataset basis it claims to train from. The accepted bridge was narrow and production-shaped: keep the same bounded sample basis and fix the SageMaker execution role on that same object-store path, rather than moving the proof back to an easier evidence-bucket convenience surface.
+
+### 3. `The next failure proved runner honesty mattered, not just service readiness`
+
+After the role was fixed, the next managed red came from the runner boundary itself: both `train` and `validation` channels were pointed at one mixed parent prefix that also contained other dataset artifacts. That matters because it shows the candidate-truth boundary was now being challenged on runner integrity, not merely on IAM or on the service being up. The accepted bridge again stayed narrow: keep the same admitted manifest, same sampled rows, and same thresholds, but split the artifacts into explicit `train`, `validation`, and `test` objects so the runner stops smuggling ambiguity into train and eval truth.
+
+### 4. `The first end-to-end green run was rejected because candidate truth was still outside the admitted time law`
+
+The third rebuilt managed run completed the whole corridor end to end: SageMaker training succeeded, SageMaker batch transform succeeded, MLflow lineage committed, and gate and publish and rollback all completed. But it still did not count as closure authority, because the sampled event horizon exceeded the admitted `feature_asof_utc` boundary. That is a decisive moment for this path: the platform refused to let a superficially green managed corridor stand in for semantically valid candidate truth. The accepted bridge was to over-collect label candidates, join them to event rows, hard-trim the joined sample to `ts_utc <= feature_asof_utc`, and fail closed if the selected sample still crossed the time law.
+
+### 5. `The accepted managed closure turned the path into a real plane-ready candidate boundary`
+
+The next run, `phase5_learning_managed_20260312T071600Z`, is where the path actually changed posture. It kept the same admitted world and same managed corridor, but tightened the selector so the actual sample stayed inside `feature_asof_utc = 2026-03-05T00:00:00Z`, with `event_scan.ts_max_utc = 2026-03-04T22:25:01.492086Z`. At that point the evidence chain became continuous and attributable from source runtime and label truth, through semantic admission and bounded OFS dataset basis, into managed train and eval plus lineage plus governance. That is the moment where the object stops meaning the managed surfaces work and becomes the platform has real candidate truth on the governed basis.
+
+### 6. `The path then had to become lineage-complete under a strict no-fallback MLflow contract`
+
+Even after accepted managed closure, candidate truth was still incomplete until lineage itself was forced into a stricter contract. The first `M11.F` green used a fallback experiment path while the registry still pinned a different path, which was useful but not final. The strict no-fallback rerun then failed closed on `experiment_id_missing`, making the drift explicit. Only after the canonical handle pin was published and the strict rerun closed green did the path become lineage-complete on the exact managed MLflow surface it claimed to use. That matters because candidate truth here is not just train and eval success; it is train and eval truth plus lineage truth that survives strict handle discipline.
+
+### 7. `Candidate truth then became a real published bundle rather than merely a train and eval result`
+
+The next posture change came with `M11.G`. The corridor did not stop at training passed and lineage exists. It published a run-scoped `candidate_bundle.json`, carried a deterministic candidate id, tied lineage back to `M11.D/E/F` plus the `M10` fingerprint, and passed operability checks such as model artifact readability, train and transform completion posture, serving-handle pinning, and package-group materialization. That changed the path from managed train and eval plus lineage are green into the platform now has a provenance-complete candidate bundle that later promotion can actually consume.
+
+### 8. `The final posture change was pre-promotion operability truth`
+
+The last important turn was `M11.H`. The path did not close on bundle publication alone. It also required safe-disable and rollback closure and bounded reproducibility proof. The managed lane double-read the candidate bundle and got a stable SHA256, verified run-scope continuity and lineage continuity, confirmed OFS rollback references were readable, and published a run-scoped rollback-drill artifact. That changed the path from candidate bundle exists into candidate bundle is operable and safe enough to hand to promotion without promotion having to discover basic rollback truth for the first time.
+
+### `What this interrogation says about the path`
+
+So the real transformation of `Train / eval and candidate-bundle path` is not:
+
+> SageMaker trained a model, MLflow logged it, and later a candidate existed.
+
+It is:
+
+> the platform first forced candidate truth to be a distinct governed corridor, then cleared authoritative-basis access, then fixed runner channel honesty, then rejected a false green that violated the admitted time law, then accepted a bounded managed closure on the governed basis, then forced strict lineage closure, then published a provenance-complete candidate bundle, and finally proved pre-promotion safe-disable and rollback truth.
+
+That is what turns the path from a strong `A` design idea into an earned `Bi` production-ready boundary.
+
+The next clean move is the `object transformation synthesis` for this path.
+
+## 2026-03-16 00:00:41 +00:00 - Synthesize how the Train / eval and candidate-bundle path moved from a designed MF seam into an earned candidate-truth boundary
+## `Train / eval and candidate-bundle path` - `object transformation synthesis`
+
+In `A`, this path already had a narrow and important job: turn one immutable governed dataset into candidate-bundle truth. It was never supposed to mean SageMaker can launch or MLflow has a run. It was deliberately narrower than dataset truth and narrower than later promotion truth. Its owned outcome was already pinned as training and evaluation closure plus metrics and leakage gates, MLflow lineage closure, candidate-bundle publication, and safe-disable and rollback closure, with `P14 MF_EVAL_COMMITTED` standing as its own boundary before promotion is even allowed to start.
+
+To reach its `Bi` posture, the first thing that had to be resolved was whether the corridor was actually proving candidate truth rather than just showing that managed learning services were alive. The rebuilt `Phase 5.C` framing made that explicit: the real question was whether the platform could take the admitted basis, derive a bounded supervised sample without bypassing the governing truth surfaces, run real SageMaker training and evaluation on that sample, log real MLflow lineage on the managed tracking surface, and then emit governed candidate, publish, and rollback truth on the same evidence chain. That changed the object from managed learning exists into candidate truth is now being asked to prove itself as its own governed boundary.
+
+Once that boundary was asked honestly, the next thing that had to be resolved was authoritative basis access and runner honesty. The first rebuilt managed run failed before training even started because the SageMaker execution role could not list the authoritative object-store bucket holding the admitted basis. After that role defect was fixed, the next run failed for a different reason: both `train` and `validation` channels were still pointed at one mixed parent prefix instead of distinct dataset-channel artifacts. Those two episodes matter because they moved the path from managed MF is present to managed MF can now actually enter the authoritative basis and keep the candidate-building runner honest about what it is consuming.
+
+After basis access and channel integrity were fixed, the path still was not ready, because the first end-to-end green candidate was semantically false. The corridor completed training, batch transform, lineage, publish, and rollback chain, but the sampled event horizon still exceeded the admitted `feature_asof_utc`. The accepted bridge was not to excuse that green run. It was to over-collect label candidates, join them to event rows, hard-trim the sample to the admitted time law, and fail closed if the selected sample still crossed that boundary. That is the decisive change where the object becomes not just managed candidate corridor, but managed candidate corridor that is still bound to the same causal law as the admitted dataset basis.
+
+The accepted `phase5_learning_managed_20260312T071600Z` closure is where the path's posture changed for real. It kept the same managed corridor and the same admitted world, but tightened the selector so the actual sample stayed inside `feature_asof_utc = 2026-03-05T00:00:00Z`, with `event_scan.ts_max_utc = 2026-03-04T22:25:01.492086Z`. At that point the evidence chain became continuous and attributable from source runtime and label truth, through semantic admission and bounded OFS dataset basis, into managed train and eval plus lineage plus governance. The managed surfaces were materially doing the work being claimed: SageMaker training completed, SageMaker batch transform completed, MLflow lineage finished on the Databricks-backed tracking surface, and the governed publish and rollback chain was readable. That is the moment where the object stops meaning the managed surfaces work and becomes the platform has real candidate truth on the governed basis.
+
+Even then, candidate truth was still incomplete until strict lineage closure was earned. The earlier MLflow lane had gone green with a fallback experiment path, but the strict no-fallback rerun failed closed because the remote registry handle still pointed at the wrong experiment path. Only after the canonical experiment-path pin was published and the strict rerun closed green did lineage become complete on the exact managed surface the platform claimed to use. That changed the object from candidate may exist with lineage into candidate truth is closed on the canonical managed lineage surface, without hidden fallback.
+
+Then the object had to move from train and eval result into actual candidate-bundle truth. `M11.G` published a run-scoped `candidate_bundle.json`, carried a deterministic candidate id, tied lineage back to `M11.D/E/F` plus the upstream `M10` fingerprint, passed model-operability checks, and materialized the model package group. That is the point where the corridor stops meaning train and eval and lineage are green and becomes the platform now has a provenance-complete candidate bundle that later promotion can actually consume.
+
+The final transformation was pre-promotion operability truth. `M11.H` did not allow the object to close on bundle publication alone. It required bounded reproducibility and safe-disable and rollback closure: read the candidate bundle twice and verify stable SHA256, verify run-scope and lineage continuity, confirm OFS rollback references are readable, and publish a run-scoped rollback-drill artifact for the MPR path. That changed the object from candidate bundle exists into candidate bundle is operable and safe enough to hand to promotion without promotion having to discover rollback truth for the first time.
+
+### `What had to be resolved`
+
+To move `Train / eval and candidate-bundle path` from its `A` posture to its `Bi` posture, the platform had to resolve six things: first, make candidate truth a distinct governed corridor rather than a generic managed-learning story; second, fix authoritative-basis access on the real SageMaker boundary; third, correct runner channel honesty without weakening the basis; fourth, reject a false green and repin the bounded sample to the admitted time law; fifth, force strict MLflow lineage closure on the canonical experiment path; and sixth, turn train and eval closure into a provenance-complete, reproducibility-checked, rollback-aware candidate bundle before promotion begins.
+
+### `Final Bi posture`
+
+The final `Bi` posture of this path is:
+
+a production-ready candidate-truth boundary where one immutable governed dataset becomes one managed SageMaker and MLflow train-and-eval closure under the admitted replay and `as_of` law, with real metrics, leakage and lineage discipline, a provenance-complete published candidate bundle, and pre-promotion safe-disable and rollback truth strong enough that the next promotion corridor is evaluating a governed candidate rather than a vague model artifact.
+
+### `Why this matters for the meta goal`
+
+This object helps the meta goal because it shows that you did not treat MF as we have SageMaker and MLflow, therefore we have candidate models. You forced the platform to answer harder questions first: can the managed corridor read the authoritative basis; is the train and eval runner honest about the sample it consumes; does the candidate stay inside the admitted time law; is lineage strict rather than fallback-soft; and is the published candidate already operable and rollback-aware before promotion begins. That reads as production-readiness judgment, not as managed-service assembly.
+
+The next clean move is the `Bi claim mix` for this path.
+
+## 2026-03-16 00:07:12 +00:00 - Extract the Bi claim mix for the Train / eval and candidate-bundle path so the notebook states exactly what candidate-truth judgment this work now supports
+For `Train / eval and candidate-bundle path`, the `Bi` claim mix is this.
+
+`Bi claim mix`
+
+1. `Readiness-reasoning claim`
+
+This path supports the claim that you can reason candidate truth itself as a production-readiness boundary, instead of letting SageMaker trained or MLflow has a run stand in for it. The run-process makes `P14 MF_EVAL_COMMITTED` its own gate, with distinct closure on train and eval completion, metrics and leakage checks, candidate-bundle provenance, and safe-disable and rollback readiness before promotion begins. That is exactly the posture the `A` note also pins: candidate truth is its own owned object, not a side effect of dataset truth or a premature form of promotion truth.
+
+2. `Systems-design judgment claim`
+
+This path supports the claim that you understood immutable dataset truth, candidate-bundle truth, and promotion truth as three different things with different owners. In `A`, the entry is explicitly the immutable `P13` dataset artifact, and the path owns managed train and eval, evaluation truth, lineage truth, candidate publication, and pre-promotion operability truth. The production-readiness definition says the same thing from the platform side: MF is where governed data becomes a deployable candidate, while MPR owns promotion evidence, active resolution, and rollback discipline later.
+
+3. `Measurement / evidence claim`
+
+This path supports the claim that you made candidate truth directly measurable and attributable rather than inferred. The run-process requires MF eval report, MLflow run references, candidate-bundle receipt, and leakage and provenance closure checks for `P14`, while the build plan expands that into reproducibility, model-operability, provenance, candidate publication, and rollback-safe evidence. The implementation trail then shows the corridor being judged on exactly those surfaces, not on vague training worked language.
+
+4. `Constraint / trade-off claim`
+
+This path supports the claim that you chose governed candidate truth over easier managed-ML convenience. The platform refused shortcuts like moving the sample back to an easier bucket, letting one mixed prefix serve as both train and validation truth, accepting a green run that violated the admitted `feature_asof_utc`, or relying on fallback MLflow lineage when the canonical experiment path was wrong. The accepted bridges stayed narrow while keeping the same admitted basis and the same standard fixed.
+
+5. `Production-relevant challenge claim`
+
+This path supports the claim that the challenges were genuinely production-shaped. The important blockers were not toy model issues. They were: SageMaker execution-role access to the authoritative object-store basis, runner channel honesty between train and validation, a false end-to-end green that still crossed the admitted time law, strict lineage closure on the canonical managed MLflow surface, and pre-promotion rollback-safe operability. That is the kind of challenge set a real ML platform has to survive before promotion can be taken seriously.
+
+6. `Promotion / final-posture claim`
+
+This path supports the claim that the final ready posture is not merely the managed training stack became usable. It is: one immutable governed dataset became one managed SageMaker and MLflow train-and-eval closure under the admitted replay and `as_of` law; lineage became strict on the canonical surface; a run-scoped candidate bundle was published with provenance; and safe-disable and rollback truth was committed before the promotion corridor started. That means later promotion is evaluating a governed candidate bundle, not a vague model artifact.
+
+`Compressed Bi claim`
+
+`Train / eval and candidate-bundle path` shows that you can take one immutable governed dataset and force it through a real managed SageMaker and MLflow corridor until it becomes one lineage-complete, provenance-complete, pre-promotion-operable candidate bundle under the admitted replay and time law, so later promotion is deciding on governed candidate truth rather than on whatever model artifact happened to exist.
+
+The next clean move is the object frame for `Promotion and rollback-governance path`.
+
+## 2026-03-16 00:14:53 +00:00 - Open the Promotion and rollback-governance path by pinning its A posture, Bi posture, and why governed promotion truth is its own boundary before runtime authority
+For `Promotion and rollback-governance path`, the object frame should stay on governed promotion truth itself, not drift backward into candidate-bundle truth and not drift forward into runtime consumption of the active bundle. The `A` note is explicit that this path starts only once candidate truth already exists, and that runtime consumption belongs to the next path, `Active-bundle authority feedback`.
+
+`Promotion and rollback-governance path`
+
+`Object`
+
+Parent group: `Learning, evaluation, and governed activation`.
+
+Main secondary object it lives inside: the `Learning + Evolution / MLOps` plane as a plane-ready promotion-truth object. Group 6 is explicitly split into five different truth boundaries, and this one is the fourth: learning basis, dataset truth, candidate truth, promotion and rollback truth, then runtime authority truth.
+
+The first enlarged-network object that materially re-pressures it is `Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps`, because that is the first point where the platform is no longer only producing governed candidates; it is now trying to close the full feedback loop through registry and promotion and back toward runtime authority. The `Bi` matrix names that enlarged object as the strongest feedback-loop surface, and the Phase 6 plan says the coupled question explicitly includes `Learning -> Registry / Promotion`, `Registry -> RTDL feedback`, and the rollback path.
+
+`A posture`
+
+In `A`, this path exists to turn an eligible candidate bundle into governed promotion truth. Its job is not to build the candidate, and it is not yet to make runtime consume the active bundle. Its narrower job is to answer: once the candidate is good enough to be considered, how does the platform promote it explicitly, prove rollback is real, and prove the promoted state is governable rather than accidental? The `A` note states that directly, and the run-process makes the same boundary explicit at `P15 MPR_PROMOTION_COMMITTED`.
+
+So the `A` posture is:
+
+eligible candidate bundle -> governed promotion corridor -> explicit promotion event and receipt -> rollback drill and bounded-restore evidence -> active-resolution and compatibility checks -> committed promotion truth.
+
+That `A` posture already carries the key disciplines the later readiness work has to preserve: promotion must be explicit and auditable, rollback must be real and measured against pinned recovery handles, active-bundle resolution checks must pass, compatibility must fail closed, and there must be no shadow promotion path outside the governed corridor. The production-readiness definition for MPR says the same thing more generally: promotion is explicit and auditable, rollback works within target `RTO/RPO`, lineage is complete from dataset to train and eval to bundle to active runtime, and no shadow promotion path exists.
+
+`Bi posture`
+
+In `Bi`, this path becomes the production-ready promotion-governance boundary. That means it is no longer enough that MLflow exists, that a candidate bundle was published, or that some registry state changed. The path now has to support a stronger claim:
+
+- promotion really commits through the governed corridor
+- the promotion receipt is durable and auditable
+- rollback is not paper-only but executed and recorded
+- rollback bounded-objective truth is measured against pinned recovery handles
+- active-bundle resolution checks pass on the same governed chain
+- compatibility checks fail closed
+- and the whole promotion lane can close with governance completeness and deterministic verdict rather than merely a registry state change
+
+That stronger posture is exactly what the `M12 / P15` build-plan closure expands. The build plan turns `P15` into a strict managed corridor: authority and handle closure, candidate eligibility, compatibility precheck, promotion commit, rollback drill, ACTIVE resolution, governance append, deterministic verdict, cost-outcome closure, and handoff. It also pins non-gate acceptance objectives beyond mere gate-chain pass: promotion safety, rollback realism, post-promotion observation and runtime continuity, governance completeness, and operability acceptance.
+
+So the `Bi` posture is:
+
+a production-ready promotion-truth boundary where an eligible candidate bundle becomes an explicitly promoted, auditable, rollback-governed registry state through one fail-closed managed corridor, with measured rollback bounded-objective truth, passing active-resolution and compatibility checks, and enough governance completeness that the next runtime-authority path can consume promoted truth rather than infer it.
+
+`Why this object matters`
+
+This object matters because it is the point where the platform stops saying we have a candidate bundle and starts being able to say where governed activation truth actually lives. If this boundary is weak, the platform can still have datasets, train and eval receipts, candidate bundles, and even some later runtime bundle behavior, but it loses the clean answer to:
+
+- whether promotion was explicit
+- whether rollback was real
+- whether rollback was bounded by the pinned contract
+- whether active resolution was checked under the governed corridor
+- and whether there is any shadow promotion path outside the official one
+
+It also matters strongly for the meta goal, because the engineering judgment here is not we had MLflow or the registry changed version. It is that the platform treats promotion as a corridor with proof obligations rather than as a boolean flag attached to an artifact. The `A` notes say that directly, and the build plan reinforces it by making promotion receipt, rollback drill report, bounded-restore evidence, active-bundle compatibility, governance append, post-promotion observation, and deterministic verdict all part of the owned closure.
+
+So, in one line:
+
+`Promotion and rollback-governance path` is the path that turns an eligible candidate bundle into governed promotion truth, and in `Bi` it becomes the production-ready MPR boundary that proves promotion is explicit, rollback is real and bounded, active resolution is checked, and the promoted state is governable rather than accidental.
+
+The next clean move is to derive the `system-design questions` for this path.
+
+## 2026-03-16 00:21:44 +00:00 - Derive the system-design questions for the Promotion and rollback-governance path so later pressure history stays on governed promotion truth itself
+For `Promotion and rollback-governance path`, the system-design interrogation should stay on promotion truth itself: whether an eligible candidate bundle becomes one explicitly promoted, rollback-governed, auditable state through the governed corridor. It should not drift backward into candidate-bundle truth, and it should not drift forward into runtime actually consuming the active bundle. The `A` note and the run-process keep those boundaries separate on purpose.
+
+`Promotion and rollback-governance path` - `system-design questions`
+
+1. `What exactly counts as governed promotion truth here?`
+
+This path is not satisfied because a registry value changed, because MLflow exists, or because a model artifact has a newer version. Its owned outcome is stronger: the promotion corridor event is committed, rollback drill is executed and recorded, rollback bounded-objective truth is measured against the pinned recovery contract, active-bundle resolution checks pass, and compatibility fail-closed checks pass. That is the explicit `P15` pass gate, and the `A` note pins the same narrower owned outcome.
+
+2. `Why is this a separate path from candidate truth and from runtime authority feedback?`
+
+The platform separates these on purpose. Candidate truth belongs to `P14`; promotion and rollback truth belongs to `P15`; runtime consumption of active-bundle truth belongs to the next path. The `A` note says this directly: governed activation is not the same thing as candidate creation, and promoted registry truth becoming runtime-readable authority is not the same owned outcome as promotion closure itself.
+
+3. `What is the allowed entry into this path, and why is it constrained?`
+
+The entry is not a model exists and not MLflow has runs. The entry is an eligible candidate bundle already closed by the previous path. The run-process states that directly at `P15`, and the `A` note repeats it: this corridor starts only after candidate truth already exists. That constraint matters because it stops promotion from becoming a compensating mechanism for weak candidate truth.
+
+4. `What is the owned outcome before runtime is allowed to claim authority from it?`
+
+The owned outcome is governed promotion truth plus rollback-governance truth, not yet runtime consumed the bundle correctly. This path closes when promotion is explicit and auditable, rollback drill truth is real, bounded-objective truth is measured, active-resolution and compatibility checks pass, and governance evidence is coherent. Runtime consumption belongs to the later registry-to-runtime authority path.
+
+5. `What must this path carry so promotion is attributable rather than ceremonial?`
+
+It has to carry the eligible candidate reference, promotion receipt, rollback drill report, rollback bounded-objective measurements, active-resolution snapshot, compatibility results, and lineage and provenance tying the promoted state back to dataset, train and eval, and candidate truth. The `A` note lists those as the core carried objects, and the build plan expands them into post-promotion observation, governance append, operability acceptance, and deterministic verdict artifacts.
+
+6. `What makes promotion authoritative rather than the registry changed?`
+
+Authority here means the state change happened through the governed corridor with explicit evidence and fail-closed sequencing, not through an informal side path or a human edit. The build plan makes `M12` a strict managed sequence with no skipping, fail-closed blocker families, and a deterministic `P15` verdict. The readiness definition says the same thing at the higher level: promotion must be explicit and auditable, not implied.
+
+7. `How do we know rollback is real rather than paper-only?`
+
+This path has to ask whether rollback was actually executed and measured, not merely described. `P15` requires rollback drill execution and recorded evidence, and the build plan makes rollback drill execution plus bounded-restore objective evidence first-class `M12` anchors. The readiness plan also pins rollback success rate, rollback RTO, and rollback RPO as explicit learning and promotion metrics, which means rollback truth is part of the boundary itself.
+
+8. `What does rollback bounded-objective truth mean here?`
+
+It does not mean simply rollback finished eventually. It means rollback is measured against pinned handles and target contracts: `MPR_ROLLBACK_RTO_TARGET_SECONDS`, `MPR_ROLLBACK_RTO_HARD_MAX_SECONDS`, and `MPR_ROLLBACK_RPO_TARGET_EVENTS`. The path therefore has to judge not only whether rollback exists, but whether restore stayed inside the declared bounded contract.
+
+9. `Why are active-bundle resolution checks part of this path if runtime consumption is the next path?`
+
+Because this path owns promotion-governance truth, which includes proving that the promoted state resolves correctly on the governance side before runtime claims actual operational authority from it. The `A` note keeps that split clear: active-resolution checks belong here as part of promotion closure, while runtime using the bundle correctly belongs to the next path. So this path asks whether the corridor produced a deterministically resolvable active state, not whether runtime decisioning already consumed it correctly.
+
+10. `What makes compatibility fail-closed checks necessary here?`
+
+Because promotion is not safe merely because a candidate is good. The platform must also show the promoted state is compatible with the governed runtime expectations, and fail closed if it is not. The `P15` pass gate includes compatibility fail-closed checks directly, and the build plan turns compatibility precheck into its own strict `M12.C` lane before promotion commit proceeds.
+
+11. `How do we know there is no shadow promotion path?`
+
+This is one of the core governance questions of the object. The `A` note says the path exists precisely so the platform can answer whether promotion happened through the governed corridor rather than some shadow route. The production-readiness definition says the same thing more generally: promotion must be explicit, rollback real, and active-bundle resolution deterministic, which only has real meaning if side-path promotion is disallowed.
+
+12. `What role do governance append and post-promotion observation play here?`
+
+They are not decorative reporting. They are part of what makes the promoted state governable rather than accidental. The build plan includes governance append closure, post-promotion observation snapshot, operability and governance acceptance, and deterministic verdict as part of the `M12` closure. So this path is not only about committing promotion and rollback facts; it is about publishing them into a coherent governance surface that can support later review and handoff.
+
+13. `Why is deterministic verdict and handoff part of the path rather than just project bookkeeping?`
+
+Because this path is a governed corridor, not a loose collection of actions. The build plan explicitly requires `P15` rollup and verdict coherence, handoff publication, and cost-outcome closure before the corridor is considered closed. That means promotion truth is not complete until the platform can say, deterministically, what the corridor concluded and what the next boundary is allowed to consume.
+
+14. `How do we distinguish a promotion-governance defect from a candidate defect or a runtime-authority defect?`
+
+This path has to stay bounded. Upstream, the previous path owns whether the candidate is real, attributable, and operable enough to be eligible. Downstream, the next path owns whether runtime actually resolves and consumes the active bundle or policy correctly. This path sits in between and owns whether eligible candidate truth becomes explicit, rollback-governed, compatibility-checked, auditable promotion truth.
+
+15. `What constraints shape this path and stop easy shortcuts?`
+
+The main constraints are: strict sequence, fail-closed blocker families, immutable `M11` entry basis, explicit promotion receipt, rollback drill evidence, bounded-restore measurement, active-resolution checks, governance completeness, post-promotion observation, and cost-to-outcome closure. The build plan is explicit that `M12` cannot skip phases and cannot advance on unattributed spend or missing governance evidence.
+
+16. `What trade-off is the design accepting?`
+
+The platform is accepting a heavy governance boundary after candidate creation. That costs another managed corridor, promotion receipts, rollback drill execution, bounded-restore measurement, active-resolution checks, governance append, post-promotion observation, and operability acceptance. But that cost buys the ability to answer much stronger questions later: what was promoted, why it was allowed, whether rollback actually worked, whether restore stayed inside contract, whether one active bundle was deterministically resolved, and whether governance evidence stayed coherent.
+
+17. `What does this path need to prove for the meta goal?`
+
+The strongest claim is not that the registry changed or that MLflow has promotion metadata. It is that before runtime is allowed to treat a bundle as active authority, the platform can prove promotion was explicit, rollback was real and bounded, compatibility was checked fail-closed, active resolution was verified on the governed side, and the promoted state was appended into a coherent governance trail. That is what makes this read like serious ML platform operations judgment rather than artifact versioning.
+
+Compressed into one line:
+
+For `Promotion and rollback-governance path`, the system-design interrogation is about whether an eligible candidate bundle becomes one explicitly promoted, auditable, rollback-governed state through a strict fail-closed corridor, with measured bounded-restore truth, deterministic active-resolution checks, and coherent governance evidence, before runtime is allowed to claim authority from it.
+
+The next clean move is to map this path to the `pressure episodes` that actually changed its posture.
+
+## 2026-03-16 00:31:12 +00:00 - Map the pressure episodes that changed the Promotion and rollback-governance path from a designed corridor into earned promotion truth
+For `Promotion and rollback-governance path`, the posture-changing history is not mainly about whether the platform had a registry or whether a candidate bundle already existed. It is about whether the platform could turn eligible candidate truth into governed promotion truth through a strict, fail-closed corridor with explicit promotion evidence, real rollback discipline, deterministic active resolution, and coherent governance closure. In `A`, that boundary was already defined narrowly; in `Bi`, the pressure episodes are the ones that turned that boundary from a good design into an earned operated corridor.
+
+## `Promotion and rollback-governance path` - `pressure episodes that changed its posture`
+
+### 1. The path first had to become a distinct promotion-governance corridor, not just the registry changed after candidate creation
+
+The first posture change was structural. The platform did not let promotion remain an implied tail of train and eval. The `A` notes already split Group 6 into five distinct truths, and the build plan then expanded `M12` into its own strict corridor with sequenced subphases, fail-closed blocker families, and non-gate acceptance objectives such as promotion safety, rollback realism, post-promotion observation, governance completeness, and operability acceptance. That changed the path from candidate exists, so promotion probably follows into promotion-governance is its own owned truth boundary.
+
+### 2. The corridor then had to prove that promotion starts from an explicitly governed entry, not just from any model artifact that looks promotable
+
+The next posture change was entry discipline. `P15` already says the entry gate is an eligible candidate bundle from `P14`, and the build plan made that concrete by forcing `M12` to begin with authority and handle closure, candidate eligibility precheck, and compatibility gate checks before promotion commit is even allowed. The progression snapshot shows `M12.A`, `M12.B`, and `M12.C` all closing green in sequence. That matters because the path moved here from candidate bundle exists to only a candidate that passes governed eligibility and compatibility prechecks is even allowed to enter the promotion corridor.
+
+### 3. Promotion then had to become explicit event truth, not an inferred registry side effect
+
+A further posture change came when the corridor was forced to own explicit promotion truth itself. The run-process already defines `P15` around a committed promotion corridor event, and the `A` notes insist that this path exists to prove promotion is explicit and auditable rather than accidental. The build plan keeps `M12.D` as its own promotion-event-commit lane and the `P15` DoD anchors require the promotion receipt to be committed. That changes the object from a state changed somewhere in registry surfaces into promotion happened through an explicit governed event with its own receipt.
+
+### 4. Rollback then changed the path from promotion history into bounded restore truth
+
+The next major posture shift is `M12.E`. The path could not count as ready just because promotion committed. It had to prove rollback was real and measured. The build plan and run-process both pin rollback drill execution and bounded-objective evidence as required closure objects, and the progression snapshot shows `M12.E rollback drill execution` closed green with a committed rollback drill report and a pass verdict. That changed the path from promotion succeeded into promotion lives inside a corridor where rollback is exercised and bounded against the pinned restore contract.
+
+### 5. Active resolution then changed promotion truth into deterministically governable promoted state
+
+After rollback truth was earned, the path changed posture again at `M12.F`. At this point the question was no longer only can we promote and roll back. It became does the promoted state resolve deterministically as one active bundle per consuming scope, with compatibility checks passing on the governed side? The implementation trail for `M12.F` explicitly records one-active-per-scope deterministic resolution, promoted lifecycle status and run-scope parity, candidate-bundle hash stability, serving-mode alignment, topic and schema compatibility alignment, and model-artifact readability. That changed the path from promotion-plus-rollback history into a promoted state that is actually governable and resolvable before runtime authority is allowed to claim it.
+
+### 6. Governance append then made the promoted state durable, ordered, and reviewable rather than merely successful once
+
+The next posture shift is `M12.G`. The path did not stop at active resolution. It had to prove that promotion, rollback, and active-resolution facts were appended into the governance surface coherently. The implementation notes for `M12.G` pin exactly that: append log readability and parseability, required event-set presence, non-decreasing ordering, no duplicate event ids, run-scope consistency, readable evidence refs, and preservation of prior append history. The build-plan progression then shows `M12.G governance append closure` closed green with a governance append snapshot and an operability acceptance report. That changed the path from the promotion corridor worked into the promotion corridor left a coherent governance trail that later review can trust.
+
+### 7. Deterministic rollup and handoff finally changed the corridor into closed promotion-governance truth
+
+The final posture change came when the corridor stopped being a set of passed substeps and became one deterministic governed verdict. The build plan makes this explicit: `M12.H` performs the `P15` rollup and verdict, while the full `M12` DoD anchors require deterministic `P15` verdict and handoff pack. The progression snapshot shows `M12.H P15 gate rollup + M13 handoff` closed green, and the corridor as a whole is marked done only once the promotion receipt, rollback drill, bounded-restore evidence, active-bundle compatibility checks, post-promotion observation, governance append, operability acceptance, and deterministic verdict are all committed. That changed the path from several promotion-related surfaces went green into one closed promotion-governance truth surface now exists.
+
+## `What this mapping says in one line`
+
+`Promotion and rollback-governance path` moved from a correctly designed promotion concept into a production-ready governance boundary by first becoming its own strict corridor, then enforcing candidate eligibility and compatibility as governed entry, then making promotion explicit, then turning rollback into bounded restore truth, then proving deterministic active resolution, then appending that state coherently into governance evidence, and finally closing it under one deterministic `P15` verdict.
+
+The next clean move is to interrogate these episodes one by one.
+
+## 2026-03-16 00:39:28 +00:00 - Interrogate the key episodes that turned the Promotion and rollback-governance path into an earned governed corridor
+## `Promotion and rollback-governance path` - `episode interrogation`
+
+For this path, the important question is not whether a candidate bundle existed or whether some registry surface changed. It is whether an eligible candidate bundle became explicit, auditable, rollback-governed promotion truth through the owned corridor, before runtime was allowed to treat anything as active authority. That is already how `A` defines the path, and it is also exactly how `P15 MPR_PROMOTION_COMMITTED` defines its pass gate.
+
+### `Episode 1 - the path first had to become a distinct promotion-governance corridor, not just the registry changed after candidate creation`
+
+What surfaced first was a boundary-definition problem. The platform could not let promotion remain an implied tail of candidate creation. That is why `M12` was expanded into its own strict corridor: fixed sequence, fail-closed blocker families, explicit DoD anchors, and non-gate acceptance objectives such as promotion safety, rollback realism, post-promotion observation, governance completeness, and operability acceptance. System-design-wise, that matters because promotion stops being a vague side effect of the learning lane and becomes its own governed truth boundary. The accepted bridge here was not code first; it was corridor formalization itself. The readiness property improved here was owned promotion-governance closure.
+
+### `Episode 2 - the corridor then had to prove that promotion starts from governed entry, not just any model artifact that looks promotable`
+
+The next posture change was entry discipline. `P15` already says promotion begins only when the candidate is eligible from `P14`, and the executed corridor made that concrete with `M12.A` authority and handle closure, `M12.B` candidate eligibility, and `M12.C` compatibility precheck, all closing green before promotion commit was allowed to start. That matters because the path moved here from a candidate exists to only a candidate that has crossed governed eligibility and compatibility checks is allowed into the promotion corridor. The accepted bridge was the strict `A -> B -> C` gate sequence rather than a direct jump to registry mutation. The readiness property improved here was governed entry discipline.
+
+### `Episode 3 - promotion then had to become explicit event truth, not an inferred registry side effect`
+
+The next pressure episode changed the meaning of promotion itself. The first green `M12.D` closure already made promotion explicit by emitting a promotion receipt and publication evidence, but that still was not considered strong enough. User direction repinned `M12.D` to require strict transport proof: broker ACK (`topic/partition/offset`) plus consumer readback payload-hash match. The earlier receipt-only closure was retained as historical evidence, but it was deliberately judged insufficient for advancement under the stricter contract. That matters because the path moved from promotion receipt exists to promotion happened through an explicit governed transport event and can be proven as such. The accepted bridge was to reopen `M12.D`, add the stricter gate, and rerun until `m12d_broker_transport_proof.json` existed. The readiness property improved here was transport-backed explicit promotion truth.
+
+### `Episode 4 - rollback then changed the path from promotion history into bounded restore truth`
+
+Once explicit promotion truth existed, the path still was not ready. `M12.E` had to prove that rollback was not paper-only. The executed rollback lane checked strict `M12.D` continuity, readability of the promotion receipt, stable double-read hash of the candidate bundle, run-scope parity, and readability and pass posture of the OFS rollback recipe and rollback drill report. The lane then closed green and published the run-scoped rollback drill report plus the bounded-restore evidence. System-design-wise, that matters because the path moved from we promoted something to promotion lives inside a corridor where restore can be executed and measured against the pinned contract. The accepted bridge was the managed rollback-drill lane itself, not a narrative assurance. The readiness property improved here was real rollback and bounded-restore truth.
+
+### `Episode 5 - active resolution then changed promotion truth into deterministically governable promoted state`
+
+After rollback, the corridor still had to prove that the promoted state resolved correctly. The first `M12.F` run failed on `M12-B6`, not because promotion or rollback were false, but because the lane was reading the wrong evidence shape from `M12.D`. It incorrectly assumed older rich fields in `m12d_promotion_commit_snapshot.json`, which produced false negatives on one-active-per-scope and runtime compatibility. The accepted bridge was to keep the gates strict and fix the source-of-truth wiring: resolve lifecycle and publication artifacts from `m12d_execution_summary.json`, and then rerun. The green closure then verified one-active-per-scope determinism, promoted lifecycle status and run-scope parity, candidate hash stability, serving-mode alignment, topic and schema compatibility, and model-artifact readability. That changed the path from promotion plus rollback happened into the promoted state is deterministically resolvable and compatibility-safe on the governed side. The readiness property improved here was deterministic active-resolution truth.
+
+### `Episode 6 - governance append then made the promoted state durable, ordered, and reviewable rather than merely successful once`
+
+The corridor then had to prove that promotion-governance facts were not just true once, but appended coherently into the governance surface. `M12.G` pinned exactly what that meant: readable and parseable JSONL append log, required M12 governance event set present, non-decreasing ordering by `ts_utc`, no duplicate `event_id`, run-scope consistency, readable evidence refs, and preservation of prior events when adding the new M12 events. The lane closed green and emitted both the governance append snapshot and the operability acceptance report. That matters because the path moved from the promotion corridor worked to the promotion corridor left a coherent governance trail that later review can trust. The accepted bridge was to make governance append its own strict managed lane. The readiness property improved here was governance coherence and durability.
+
+### `Episode 7 - deterministic rollup and verdict finally changed the corridor into closed promotion-governance truth`
+
+The final posture shift came when the corridor stopped being a set of green substeps and became one deterministic `P15` verdict. `M12.H` was materialized as a managed lane that had to roll up `M12.A..G` in strict order, enforce the expected next-gate ladder, check run-scope parity, emit `m12h_p15_gate_verdict.json`, and publish `m13_handoff_pack.json`. The green result then recorded `p15_verdict = ADVANCE_TO_P16` and `p15_next_gate = M13_READY`. That matters because the path moved from promotion-related surfaces passed to one closed promotion-governance truth now exists and can hand off deterministically. The accepted bridge was the strict rollup lane itself, not an informal summary. The readiness property improved here was deterministic corridor verdict and handoff truth.
+
+### `What this interrogation says about the path`
+
+So the real transformation of `Promotion and rollback-governance path` is not:
+
+> a candidate existed, the registry changed, and rollback was mentioned somewhere.
+
+It is:
+
+> the platform first made promotion its own strict corridor, then enforced governed entry, then turned promotion into explicit transport-backed event truth, then proved rollback as bounded restore truth, then proved deterministic active resolution, then appended the whole state coherently into governance evidence, and finally closed it under one deterministic `P15` verdict.
+
+That is what turns the path from a strong `A` design idea into an earned `Bi` production-ready boundary.
+
+The next clean move is the `object transformation synthesis` for this path.
+
+## 2026-03-16 00:47:28 +00:00 - Synthesize how the Promotion and rollback-governance path moved from a designed MPR seam into an earned promotion-truth boundary
+## `Promotion and rollback-governance path` - `object transformation synthesis`
+
+In `A`, this path already had a narrow and important job: turn an eligible candidate bundle into governed promotion truth. It was never supposed to mean the registry changed and it was never supposed to mean runtime is already consuming the right active bundle. Its owned outcome was already pinned as: explicit promotion through the governed corridor, executed rollback drill, measured rollback bounded-objective truth against the pinned recovery contract, passing active-bundle resolution checks, and passing compatibility fail-closed checks. That is exactly the boundary the run-process later freezes at `P15 MPR_PROMOTION_COMMITTED`.
+
+To reach its `Bi` posture, the first thing that had to be resolved was corridor ownership. Promotion could not remain an implied tail of train and eval. The build plan therefore turned `M12 / P15` into its own strict managed corridor with fixed sequencing, fail-closed blocker families, and non-gate acceptance objectives around promotion safety, rollback realism, post-promotion observation, governance completeness, and operability acceptance. That changed the object from candidate exists, so promotion probably follows into promotion-governance is its own owned truth boundary.
+
+Once that corridor existed, the next thing that had to be resolved was governed entry discipline. Promotion was not allowed to start from any artifact that looked promotable. The corridor first had to close `M12.A` authority and handle closure, then `M12.B` candidate eligibility, then `M12.C` compatibility precheck before promotion commit was even allowed to begin. That matters because the path moved here from candidate bundle exists to only a candidate that has crossed governed eligibility and compatibility checks is allowed into the promotion corridor.
+
+After that, promotion itself had to become explicit event truth, not an inferred registry side effect. The first `M12.D` closure already committed a promotion receipt, but under the stricter later pin that was judged insufficient by itself. The corridor was repinned to require broker transport proof and consumer readback parity, and only the strict rerun counted as the real closure. That is the decisive move where the object stops meaning some promotion state was written and starts meaning promotion happened through an explicit governed event that can be transport-proved.
+
+Once promotion was explicit, the path still was not ready because rollback had to become bounded restore truth, not paper-only reassurance. `M12.E` executed the rollback drill, recorded the rollback drill report, and closed on the same corridor with rollback bounded-objective evidence tied to the pinned `RTO/RPO` contract. That changed the object from promotion succeeded into promotion lives inside a corridor where restore is exercised and measured against the declared recovery law.
+
+Then the promoted state itself had to become deterministically governable. The first `M12.F` run failed not because promotion or rollback were false, but because active-resolution was reading the wrong evidence shape from the strict `M12.D` artifacts. The accepted bridge was to keep the active-resolution gate strict and repin it to the authoritative lifecycle and publication artifacts instead of weakening the check. The green rerun then proved one-active-per-scope determinism, promoted lifecycle parity, candidate-bundle hash stability, serving alignment, schema and topic compatibility, and model-artifact readability. That is the point where the path stops being promotion-plus-rollback history and becomes a promoted state that is actually resolvable and governable before runtime is allowed to claim it.
+
+After that, the corridor had to prove governance durability and coherence. `M12.G` appended the required promotion, rollback, and active-resolution events into the governance surface, while checking parseability, ordering, duplicate-free event identity, run-scope consistency, readable evidence refs, and preservation of existing append history. That changed the object from the corridor worked once into the corridor left a coherent governance trail that later review can trust.
+
+The final transformation was deterministic verdict and handoff truth. `M12.H` rolled up `A..G` in strict order, enforced the expected next-gate ladder, checked run-scope parity, emitted `m12h_p15_gate_verdict.json`, and published `m13_handoff_pack.json`. That is the moment where the corridor stops being a collection of successful substeps and becomes one closed `P15` promotion-governance truth surface with a deterministic verdict.
+
+### `What had to be resolved`
+
+To move `Promotion and rollback-governance path` from its `A` posture to its `Bi` posture, the platform had to resolve six things: first, make promotion its own strict corridor rather than an implied tail of candidate creation; second, enforce governed entry through handle, eligibility, and compatibility closure; third, turn promotion into transport-backed explicit event truth; fourth, turn rollback into executed bounded-restore truth; fifth, prove deterministic active-resolution on the governed side without weakening the gate; and sixth, append the whole state into coherent governance evidence and close it under one deterministic `P15` verdict.
+
+### `Final Bi posture`
+
+The final `Bi` posture of this path is:
+
+a production-ready promotion-governance boundary where an eligible candidate bundle becomes an explicitly promoted, auditable, rollback-governed registry state through one strict fail-closed corridor, with measured bounded-restore truth, deterministic active-resolution and compatibility checks, coherent governance append evidence, and a deterministic `P15` verdict that the next runtime-authority path is allowed to consume rather than infer.
+
+### `Why this matters for the meta goal`
+
+This object helps the meta goal because it shows that you did not treat promotion as set active and move on. You forced the platform to answer harder operational questions first: what exactly was promoted, whether the promotion event itself is explicit and provable, whether rollback is real and inside contract, whether one active bundle resolves deterministically per scope, whether compatibility is checked before runtime consumption, and whether the full state is preserved in a coherent governance trail. That reads like serious ML platform operations judgment rather than simple model versioning.
+
+The next clean move is the `Bi claim mix` for this path.
+
+## 2026-03-16 00:54:36 +00:00 - Extract the Bi claim mix for the Promotion and rollback-governance path so the notebook states exactly what promotion-truth judgment this work now supports
+## `Promotion and rollback-governance path` - `Bi claim mix`
+
+1. `Readiness-reasoning claim`
+
+This path supports the claim that you can reason promotion truth itself as a production-readiness boundary, instead of letting the registry changed stand in for it. The corridor is deliberately strict: governed entry, explicit promotion commit, rollback drill, active-resolution checks, governance append, and deterministic verdict all have to close before runtime authority is allowed to advance.
+
+2. `Systems-design judgment claim`
+
+This path supports the claim that you understood candidate truth, promotion truth, and runtime-authority truth as three different objects with different owners. In `A`, the entry is an eligible candidate bundle, the owned outcome is explicit promotion plus rollback-governed state, and actual runtime consumption is deliberately deferred to the next path.
+
+3. `Measurement / evidence claim`
+
+This path supports the claim that you made promotion-governance truth directly measurable and auditable rather than inferred. The corridor emits specific evidence objects: promotion receipt, rollback drill report, bounded-restore evidence, active-resolution evidence, governance append evidence, and a deterministic `P15` verdict plus handoff pack.
+
+4. `Constraint / trade-off claim`
+
+This path supports the claim that you chose stricter governance over easy promotion convenience. The corridor was repinned so receipt-only promotion no longer counted without broker transport proof and consumer readback parity, and later active-resolution was not weakened when evidence-shape drift caused false negatives; the gate stayed strict and the source-of-truth wiring was corrected instead.
+
+5. `Production-relevant challenge claim`
+
+This path supports the claim that the challenges were genuinely production-shaped. The hard parts were not mark model active; they were proving promotion as a transport-backed event, proving rollback against a bounded restore contract, proving one-active-per-scope deterministic resolution plus compatibility, and maintaining an ordered, duplicate-free governance append trail that later review can trust.
+
+6. `Promotion / final-posture claim`
+
+This path supports the claim that the final ready posture is not merely a promoted registry value exists. It is: one eligible candidate became an explicitly promoted, transport-backed state inside a strict corridor; rollback drill and bounded-restore evidence were committed; one-active-per-scope resolution and compatibility closed green; governance append remained coherent; and the corridor closed under one deterministic `P15` verdict and handoff.
+
+`Compressed Bi claim`
+
+`Promotion and rollback-governance path` shows that you can take an eligible candidate bundle and force it through a strict fail-closed corridor until it becomes one explicitly promoted, audited, rollback-governed, deterministically resolvable state with coherent governance evidence, so the runtime side is allowed to consume promoted truth rather than infer it.
+
+The next clean move is the object frame for `Active-bundle authority feedback path`.
+
+## 2026-03-16 01:03:18 +00:00 - Open the Active-bundle authority feedback path by pinning its A posture, Bi posture, and why runtime-readable active authority is its own boundary after promotion
+For `Active-bundle authority feedback path`, the object frame should stay on runtime-readable governed authority itself, not drift backward into promotion-governance truth and not drift forward into RTDL decision formation. The `A` notes are explicit that this path starts only after governed promotion truth already exists, and stops at runtime-readable active authority rather than collapsing into Group 3's later decision-consumption boundary.
+
+`Active-bundle authority feedback path`
+
+`Object`
+
+Parent group: `Learning, evaluation, and governed activation`.
+
+Main secondary object it lives inside: the `Learning + Evolution / MLOps` plane as a plane-ready runtime-authority-truth object. Group 6 is explicitly split into five distinct truths, and this is the fifth: learning basis truth, dataset truth, candidate truth, promotion truth, then runtime authority truth. The authorities keep that split because promoted registry state and runtime-readable decision authority are not the same owned outcome.
+
+The first enlarged-network object that materially re-pressures it is `Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps`, because that is the first point where the feedback loop is no longer only learning-side governance. It becomes the live question of whether promoted bundle truth is actually visible and attributable in the runtime that will consume it. The readiness plan states that enlarged-network question directly: preserve continuity from runtime to label to dataset to bundle to active runtime, ensure the promoted bundle is visible to runtime, ensure runtime decision evidence can be traced back to dataset and label and bundle basis, and ensure rollback restores prior active truth. A later enlarged-network object that re-asks the question is the fully integrated platform, where the accepted Phase 8 story explicitly includes active runtime bundle still matched promoted truth and post-restore active runtime bundle still matched promoted truth.
+
+`A posture`
+
+In `A`, this path exists to turn governed promoted state into runtime decision authority. Its job is not to create the candidate bundle, and it is not to form the decision itself inside RTDL. Its narrower job is to answer: once promotion has already been committed and rollback discipline has already been proven, how does the platform make the promoted model or policy become the actual authority runtime is supposed to consume? The `A` note defines the path exactly that way: promoted registry truth -> deterministic active-bundle resolution -> runtime-readable decision authority.
+
+So the `A` posture is:
+
+governed promoted state -> deterministic active-bundle or policy resolution -> runtime-readable active authority for the scope that will actually consume it.
+
+That `A` posture already carries the key contract disciplines later readiness work has to preserve: one-active-per-scope determinism, runtime-facing compatibility and readback checks, bundle and policy identity visible enough for decision provenance, and promotion and rollback changes applied deterministically in runtime rather than only inside registry surfaces. The production-readiness definition says the same thing at plane level: the active bundle must be resolved deterministically for the runtime that will actually consume it, runtime must consume the right active bundle, and lineage must stay complete from dataset to train and eval to bundle to active runtime.
+
+`Bi posture`
+
+In `Bi`, this path becomes the production-ready runtime-authority boundary. That means it is no longer enough that promotion committed, rollback passed, or registry state looks coherent. The path now has to support a stronger claim:
+
+- the promoted bundle or policy is actually visible to runtime on the correct scope
+- runtime resolution is deterministic for that consuming scope
+- runtime-facing readback and compatibility remain green
+- runtime decision evidence is attributable to the promoted bundle truth
+- rollback and restore transitions produce fresh, attributable prior-bundle and re-promoted-bundle truth
+- and the evidence layer summarizes those transitions under the correct staged registry authority rather than a stale carried-forward field
+
+That stronger posture is exactly what the learning-coupled and later operator and integrated trails established. The implementation notes show the corridor being reopened at the right boundary: candidate, rollback, and restore transition slices needed fresh run scopes so DLA could restamp alternate-bundle truth; once those scopes were fresh, candidate bundle attribution, rollback bundle attribution, and restore bundle attribution all went green; and the final remaining defect was not runtime resolution itself, but that the rollup was reading the wrong `previous_active_bundle` authority until it was repinned to the staged registry surface. Later, the Phase 7 ML day-2 probe and Phase 8 integrated closure both reaffirmed the same runtime-authority fact pattern: active bundle and policy revision matched promoted truth, and post-restore active runtime bundle still matched promoted truth.
+
+So the `Bi` posture is:
+
+a production-ready runtime-authority boundary where governed promoted state becomes deterministic runtime bundle or policy authority on the consuming scope, and where candidate, rollback, and restore transitions remain attributable in live runtime evidence strongly enough that decision provenance and operator readback can trust the same active-bundle truth the promotion corridor declared.
+
+`Why this object matters`
+
+This object matters because it is the point where the platform stops saying we promoted a candidate and starts being able to say what runtime actually consumed. If this boundary is weak, then the platform can still have candidate truth, promotion receipts, rollback drill truth, and registry metadata, while losing the clean answer to:
+
+- which bundle or policy was actually authoritative for the runtime scope
+- whether rollback and restore changed runtime authority deterministically
+- whether decision provenance carried the right bundle identity
+- and whether operators can read the same active truth the governance corridor claims is live
+
+It also matters strongly for the meta goal, because the engineering judgment here is not MLflow promoted something or the registry has an active version. It is that the platform treated registry-to-runtime feedback as its own truth boundary, then proved that boundary through fresh candidate, rollback, and restore attribution, and later kept that truth coherent in operator readback and integrated full-platform proof. That reads like governed ML and runtime operations judgment rather than artifact versioning.
+
+So, in one line:
+
+`Active-bundle authority feedback path` is the path that turns governed promoted state into deterministic runtime-readable decision authority, and in `Bi` it becomes the production-ready registry-to-runtime boundary that proves live runtime is consuming the right governed bundle or policy across candidate, rollback, and restore transitions.
+
+The next clean move is to derive the `system-design questions` for this path.
+
 ## 2026-03-15 16:39:48 +00:00 - Derive the system-design questions for the Decision formation path so later pressure history stays on decision truth itself
 For `Decision formation path`, the system-design questions should stay on decision truth itself, not drift backward into guardrail posture or forward into action emission.
 
