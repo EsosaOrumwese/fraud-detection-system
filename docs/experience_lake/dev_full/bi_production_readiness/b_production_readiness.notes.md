@@ -3308,6 +3308,223 @@ So, in one line:
 
 The next clean move is to derive the `system-design questions` for this path.
 
+## 2026-03-16 01:10:24 +00:00 - Derive the system-design questions for the Active-bundle authority feedback path so later pressure history stays on runtime-readable governed authority itself
+For `Active-bundle authority feedback path`, the system-design interrogation should stay on runtime-readable governed authority itself: whether promoted registry truth becomes the actual active bundle or policy truth the consuming runtime can read and trust. It should not drift backward into promotion-governance closure, and it should not drift forward into Group 3 decision formation. The `A` notes keep those three boundaries separate on purpose.
+
+`Active-bundle authority feedback path` - `system-design questions`
+
+1. `What exactly counts as runtime-authority truth here?`
+
+This path is not satisfied because a candidate was promoted, because a registry record exists, or because runtime later emitted some decision. Its owned outcome is narrower and stronger: one governed promoted state becomes one deterministic, runtime-readable active bundle or policy authority for the scope that will actually consume it. That is the direct `A` definition of the path.
+
+2. `Why is this a separate path from promotion-governance truth and from decision formation truth?`
+
+The platform deliberately refuses to collapse promotion happened, runtime can read what is active, and a decision was formed into one vague story. Promotion truth belongs to the prior Group 6 path, runtime-readable active authority belongs here, and actual decision formation belongs later in Group 3. The `A` notes say that split explicitly.
+
+3. `What is the allowed entry into this path, and why is it constrained?`
+
+The entry is not some latest model artifact exists. It is governed promoted state that has already crossed the promotion corridor and already satisfied promotion and rollback checks. That matters because runtime authority is not allowed to compensate for weak promotion truth; it inherits promotion truth as a fixed input.
+
+4. `What is the owned outcome before decision formation begins?`
+
+The owned outcome is deterministic runtime-readable active authority, not yet the downstream decision that uses it. This path closes when the platform can say which active bundle or policy is authoritative now, on what consuming scope, under what registry-owned truth, with runtime-facing readback and compatibility still green. Decision formation starts only after that.
+
+5. `What must this path carry so active authority is attributable rather than merely assumed?`
+
+It has to carry the promoted candidate reference, scope information proving one-active-per-scope determinism, the registry lifecycle event and publication truth as the authoritative source of active state, runtime bundle and policy identifiers, and post-promotion observation state. The `A` notes are explicit that these are the objects that make runtime authority real rather than implied.
+
+6. `What makes active resolution authoritative rather than registry says active somewhere?`
+
+Authority here means more than a registry value. The path has to prove deterministic resolution for the runtime that will actually consume it, using the right lifecycle and publication artifacts, with runtime-facing compatibility and readback checks on top. The production-readiness definition says the active bundle must be resolvable deterministically for runtime, and the `A` notes insist runtime truth comes second to registry truth, not the other way around.
+
+7. `How do we know one-active-per-scope determinism is real rather than just an intention?`
+
+This path has to ask whether one and only one active bundle resolves for the consuming runtime scope. The active-resolution lane was explicitly designed to check one-active-per-scope determinism, and the path carries the scope information needed to prove it. Without that, active becomes ambiguous the moment there are rollback or restore transitions.
+
+8. `Why are runtime-facing compatibility and readback checks part of this path?`
+
+Because promoted truth is not enough unless the consuming runtime can read and use it coherently. The active-resolution lane checks serving-mode alignment, runtime handle compatibility, model-artifact readability, and a dedicated post-promotion observation artifact. Those checks belong here because they prove the promoted state has become runtime-readable authority, not just registry metadata.
+
+9. `Why are candidate, rollback, and restore transitions part of this path instead of only the promotion path?`
+
+Because runtime authority has to remain attributable across those transitions, not only at the first promoted state. The later implementation trail shows the path being re-asked exactly there: candidate, rollback, and restore all needed fresh run scopes so downstream evidence could restamp alternate bundle truth rather than collapse under duplicate traffic. That means transition truth is part of runtime-authority truth itself.
+
+10. `What is the authoritative source of runtime bundle truth during rollback and restore?`
+
+This is a critical systems-design question because the implementation notes found a real rollup-authority defect here. For rollback judgment, the truthful authority was the staged registry surface, not the stale `previous_active_bundle` value carried forward in older governance records. So this path has to ask not only whether runtime saw some bundle, but whether it used the correct authority surface to decide what was active now.
+
+11. `How do we know runtime evidence is reading the same active truth that the promotion corridor declared?`
+
+This path has to prove continuity between promotion-side truth and runtime-side truth. The learning plane's production-ready definition explicitly requires complete lineage from dataset to train and eval to bundle to active runtime, and the runtime-authority path exists so the system can answer whether runtime consumed the right active bundle rather than just some available one.
+
+12. `How do we distinguish a runtime-authority defect from a promotion-governance defect or from a decision-formation defect?`
+
+This path has to stay bounded. Upstream, promotion-governance owns whether the bundle was promoted explicitly, rollback-governed, and governance-complete. Downstream, decision formation owns whether the runtime used the resolved authority correctly to make the right decision. This path sits in between and owns whether promoted state became deterministic, readable, attributable runtime authority at all.
+
+13. `What constraints shape this path and stop easy shortcuts?`
+
+The strongest constraint is the platform's truth-ownership law: active model and policy truth stays registry truth first, runtime truth second. So the system explicitly rejects runtime will just use whatever latest bundle is around. It also inherits the broader provenance law that every cross-plane output must carry policy, bundle, config, and release identifiers required for replay and audit.
+
+14. `What trade-off is the design accepting?`
+
+The platform is accepting extra registry-to-runtime ceremony before decisioning can claim authority. That means active-resolution logic, publication truth, readback, compatibility checks, post-promotion observation, and transition attribution all happen before runtime authority is treated as real. It is more work than a latest version wins pattern, but it buys traceable, replay-safe runtime authority.
+
+15. `How does enlarged-network pressure re-ask the question?`
+
+Once learning feeds back into the larger working platform, the question is no longer only can registry resolve an active bundle. It becomes whether runtime can stay aligned with promoted truth across candidate, rollback, and restore transitions, and whether the full feedback loop remains explainable from runtime to label to dataset to bundle back to active runtime. The readiness notes make that enlarged-network continuity requirement explicit.
+
+16. `What does this path need to prove for the meta goal?`
+
+The strongest claim is not that a model was promoted. It is that before runtime decisions claim governed model authority, the platform can show exactly which bundle or policy was active for the consuming scope, why that was the authoritative one, how rollback and restore changed that truth, and how runtime evidence stayed aligned with registry truth across those transitions. That is what makes this read like serious ML and runtime operations judgment rather than version bookkeeping.
+
+Compressed into one line:
+
+For `Active-bundle authority feedback path`, the system-design interrogation is about whether governed promoted state becomes one deterministic, runtime-readable active bundle or policy authority for the consuming scope, and whether that authority remains attributable and aligned with registry truth across candidate, rollback, and restore transitions before decision formation is allowed to rely on it.
+
+The next clean move is to map this path to the `pressure episodes` that actually changed its posture.
+
+## 2026-03-16 01:18:03 +00:00 - Map the pressure episodes that changed the Active-bundle authority feedback path from an inferential seam into runtime-authority truth
+For `Active-bundle authority feedback path`, the posture-changing history is not mainly about whether a candidate bundle existed or whether promotion-governance closed. It is about whether governed promoted state actually became runtime-readable authority for the consuming scope, and whether that authority stayed attributable across candidate, rollback, and restore transitions rather than being inferred from registry state alone. In `A`, the path is already pinned that narrowly: promoted registry truth -> deterministic active-bundle resolution -> runtime-readable decision authority.
+
+## `Active-bundle authority feedback path` - `pressure episodes that changed its posture`
+
+### 1. `The path first had to become a distinct registry-to-runtime authority boundary, not an implied tail of promotion`
+
+The first posture change was structural. Group 6 does not let candidate promoted and runtime now consumes the right active bundle collapse into one vague activation story. The `A` notes pin `Active-bundle authority feedback path` as its own fifth path, after promotion-governance and before Group 3 decision formation, and the readiness plan separately tracks active-bundle resolution correctness as its own metric with runtime plus MLflow and MPR cross-checks. That changed the path from promotion probably implies runtime authority into registry-to-runtime authority is its own owned truth boundary.
+
+### 2. `The learning-coupled proof then reopened the path at the deeper question: runtime attribution to the correct active bundle`
+
+The next major posture change happened when the learning-coupled proof stopped being satisfied by promotion truth alone and explicitly created a runtime-attribution question. The `Bi` notes say this directly: the coupled phase only counts as green when active runtime decisions for the bounded run carry the promoted bundle truth in DLA governance stamps, with one bounded bundle identity, one bounded policy identity, and no attribution ambiguity. System-design-wise, that upgrades the path from the promoted state exists to runtime is now being pressured to prove it is reading the right governed authority. The class of challenge here is runtime authority attribution. The accepted bridge was to pressure the live runtime on that question directly rather than infer authority from registry state.
+
+### 3. `The first learning-coupled attempt showed that duplicate ingress scope could make the runtime-authority path look dark for the wrong reason`
+
+The first attempt then exposed a subtle but important boundary problem. Short rollback and restore slices could not reuse the same `platform_run_id` as the candidate slice and still expect fresh downstream evidence. Ingress would accept the request shape, but collapse it as duplicate traffic before RTDL and DLA could restamp alternate-bundle truth. That means the open issue was not that bundle resolution in runtime was wrong. It was that the path had no fresh decision-bearing traffic scope with which to prove alternate authority states. The class of challenge here is scope-validity and duplicate-ingress defect. The accepted bridge was to give candidate, rollback, and restore their own fresh run scopes and record them explicitly in the run charter.
+
+### 4. `The corrected learning-coupled rerun then proved candidate, rollback, and restore runtime-authority truth`
+
+With fresh candidate, rollback, and restore scopes, the rerun materially improved the picture: candidate bundle attribution went green, rollback bundle attribution went green, restore bundle attribution went green, and control, integrity, and downstream participation stayed healthy. That is the point where the path changes from runtime authority may exist, but transition truth is dark into runtime bundle authority is now attributable across promotion, rollback, and restore transitions. The class of challenge here is bounded transition attribution proof, and it is green. The accepted bridge demonstrably changed posture because the earlier darkness disappeared once fresh ingress scopes were used.
+
+### 5. `The final defect was not in runtime authority itself, but in which authority the rollup trusted`
+
+Even after the runtime attribution probes themselves were green, the learning-coupled rollup still drifted because it read the older `previous_active_bundle` value from a retained earlier governance record instead of using the truthful staged registry surface for the current phase. The implementation notes make the correction explicit: the rollback bundle probe and the live `phase6_registry_surface_manifest.json` agreed on the real prior active runtime bundle, so the remaining issue was not runtime resolution or runtime attribution; it was a rollup-authority defect in the evidence layer. The accepted bridge was to repin rollback judgment to the staged registry surface so receipt truth and runtime truth finally agreed. That changed the path from runtime authority is green but the formal summary is wrong into the evidence chain now tells the same authority story as the live runtime.
+
+### 6. `Later operator and integrated proofs strengthened the path again by showing that active runtime truth stayed aligned with promoted truth`
+
+The last strengthening episodes came after the core Phase 6 correction. The Phase 7 ML day-2 probe recorded that active bundle and policy revision matched promoted truth, and the later Phase 7 closure still recorded that the live DF bundle and policy matched promoted truth. Then the accepted full integrated closure strengthened the claim again by recording that the active runtime bundle still matched promoted truth and that the post-restore active runtime bundle still matched promoted truth. That matters because the path is no longer merely Phase 6 attribution went green once. It has now shown that runtime-readable authority stays aligned with promoted truth under operator readback and under full integrated platform proof, including restore. The class of challenge here is later enlarged-network non-regression and operator-readback truth, and it is green.
+
+## `What this mapping says in one line`
+
+`Active-bundle authority feedback path` moved from a correctly designed but still partly inferential registry-to-runtime seam into a production-ready runtime-authority boundary by first becoming its own explicit object, then being re-asked as live runtime attribution, then clearing duplicate-scope darkness with fresh candidate, rollback, and restore scopes, then correcting the rollup to trust staged registry truth, and finally proving that live runtime and operator readback still matched promoted truth across restore and integrated full-platform closure.
+
+The next clean move is to interrogate these episodes one by one.
+
+## 2026-03-16 01:27:11 +00:00 - Interrogate the key episodes that turned the Active-bundle authority feedback path into an earned runtime-authority boundary
+## `Active-bundle authority feedback path` - `episode interrogation`
+
+For this path, the important question is not whether promotion closed or whether runtime later emitted decisions. It is whether governed promoted state actually became runtime-readable authority for the consuming scope, and whether that authority stayed attributable across candidate, rollback, and restore transitions. `A` already pins the path that narrowly: promoted registry truth -> deterministic active-bundle or policy resolution -> runtime-readable authority surface -> later decision consumption.
+
+`Episode 1 - the path first had to become a distinct registry-to-runtime authority boundary, not an implied tail of promotion`
+
+What surfaced first was a boundary-definition issue. The platform does not allow candidate promoted and runtime now reads the right active bundle to blur into one vague activation story. `A` makes this the fifth Group 6 path, after promotion-governance and before decision formation, and the readiness definition separately treats active-bundle resolution correctness and runtime consumption of the right active bundle as their own production-ready concern. System-design-wise, that matters because the platform is not allowed to treat a registry-side active state as if runtime authority automatically follows from it. The accepted bridge here was to keep active resolution, one-active-per-scope checks, runtime compatibility, and post-promotion observation as their own owned closure surface. The readiness property improved here was owned runtime-authority closure.
+
+`Episode 2 - the learning-coupled proof then reopened the path at the live-runtime attribution question`
+
+The next major posture change came when the learning-coupled phase stopped being satisfied by promotion truth alone and explicitly created a runtime-attribution question. That phase only counts green when bounded runtime decisions carry the promoted bundle truth in DLA governance stamps, with one bounded bundle identity, one bounded policy identity, and no attribution ambiguity. System-design-wise, that upgrades the path from promoted state exists to live runtime must prove it is reading the right governed authority. The class of challenge here is runtime authority attribution, and the accepted bridge was to pressure the live runtime on that question directly instead of inferring runtime authority from promotion state. The readiness property improved here was governed runtime attribution of active authority.
+
+`Episode 3 - the first learning-coupled attempt showed duplicate ingress scope could make the path look dark for the wrong reason`
+
+What surfaced next was not incorrect bundle resolution in runtime. It was a scope-validity defect in the proof itself. Short rollback and restore slices could not reuse the same `platform_run_id` as the candidate run and still expect fresh downstream evidence, because ingress would accept the request shape but collapse it as duplicate traffic before RTDL and DLA could restamp alternate-bundle truth. That means the open issue was not that runtime failed to switch authority correctly; it was that the decision-bearing traffic never became fresh enough to produce new attribution evidence. The accepted bridge was to give candidate, rollback, and restore their own fresh run scopes and record all three explicitly in the run charter. The readiness property improved here was attribution reachability across transition states.
+
+`Episode 4 - the corrected rerun then proved candidate, rollback, and restore runtime-authority truth`
+
+With fresh candidate, rollback, and restore scopes, the corrected rerun materially improved the picture: candidate bundle attribution went green, rollback bundle attribution went green, restore bundle attribution went green, and control, integrity, and downstream participation all stayed healthy. This is the point where the path changes from runtime authority may exist, but transition truth is dark into runtime authority is attributable across promotion, rollback, and restore transitions. The class of challenge here is bounded transition-attribution proof, and it is green. The accepted bridge demonstrably changed posture because the earlier darkness disappeared once fresh ingress scopes were used. The readiness property improved here was bounded transition attribution truth for runtime authority.
+
+`Episode 5 - the final defect was not in runtime authority itself, but in which authority the rollup trusted`
+
+Even after the runtime-attribution probes themselves were green, the rollup still drifted because it was reading the older `previous_active_bundle` value from a retained earlier governance record instead of using the truthful staged registry surface for the current phase. That means the remaining issue was no longer runtime resolution or runtime attribution. It was a rollup-authority defect in the evidence layer. The accepted bridge was to repin rollback judgment to the staged registry surface, so receipt truth and runtime truth finally agreed. That changed the path from runtime authority is correct but the formal summary is wrong into the evidence chain now tells the same authority story as the live runtime. The readiness property improved here was evidence-chain coherence for runtime-authority truth.
+
+`Episode 6 - later operator and integrated proofs strengthened the path again by showing runtime authority stayed aligned with promoted truth`
+
+The final strengthening episodes came later. The ML day-2 operator surface showed that active runtime bundle and policy revision matched promoted truth, and that rollback and restore authority remained readable. Then the fresh integrated full-platform closure strengthened the claim again by recording that the active runtime bundle still matched promoted truth and that the post-restore active runtime bundle still matched promoted truth. That matters because the path is no longer merely Phase 6 attribution turned green once. It has now shown that runtime-readable authority stays aligned with promoted truth under later operator readback and under integrated full-platform proof, including restore. The class of challenge here is later enlarged-network non-regression and operator-readback truth, and it is green. The readiness property improved here was durable non-regression of runtime authority truth.
+
+`What this interrogation says about the path`
+
+So the real transformation of `Active-bundle authority feedback path` is not:
+
+> promotion happened, so runtime probably used the right bundle.
+
+It is:
+
+> the platform first made registry-to-runtime authority its own explicit boundary, then forced live runtime attribution to prove that boundary, then corrected duplicate-scope proof darkness so candidate, rollback, and restore transitions produced fresh authority evidence, then corrected the rollup to trust the staged registry surface, and finally showed that operator readback and integrated full-platform proof still agreed with promoted runtime truth.
+
+That is what turns the path from a strong `A` design idea into an earned `Bi` production-ready boundary.
+
+The next clean move is the `object transformation synthesis` for this path.
+
+## 2026-03-16 01:36:19 +00:00 - Synthesize how the Active-bundle authority feedback path moved from a designed registry-to-runtime seam into an earned runtime-authority boundary
+## `Active-bundle authority feedback path` - `object transformation synthesis`
+
+In `A`, this path already had a narrow and important job: turn governed promoted state into runtime-readable decision authority. It was never supposed to mean promotion happened, so runtime must now be using the right bundle, and it was never supposed to mean the decision fabric already formed the decision correctly. Its owned outcome was narrower: one promoted state becomes one deterministically resolved active bundle or policy for the consuming runtime scope. The `A` note is explicit that promoted registry truth is not yet runtime authority until that resolution happens, and the production-readiness definition says the same thing at plane level: the active bundle must be resolved deterministically for the runtime that actually consumes it, and runtime must consume the right active bundle.
+
+To reach its `Bi` posture, the first thing that had to be resolved was whether this was even being treated as its own truth boundary. The platform could not leave registry-to-runtime feedback as an implied tail of promotion. That is why the path was kept separate from both `Promotion and rollback-governance path` and the later `Decision formation path`, and why the later readiness work explicitly reopened the question at the runtime-attribution layer instead of assuming that promotion truth automatically meant runtime-authority truth. That changed the object from the registry says something is active into the platform is now being asked to prove what runtime is actually reading as active authority.
+
+Once that boundary was asked honestly, the next thing that had to be resolved was transition-attribution reachability. The first learning-coupled attempt showed that candidate, rollback, and restore slices could not reuse the same `platform_run_id` and still expect fresh downstream evidence. Ingress would accept the shape but collapse it as duplicate traffic before RTDL and DLA could restamp alternate-bundle truth. That mattered because the open issue was not incorrect bundle resolution in runtime. It was that the proof had no fresh decision-bearing traffic with which to show runtime authority changing across states. The accepted bridge was to give candidate, rollback, and restore their own fresh run scopes. That is the move that changed the path from runtime authority may exist, but transition truth is dark into runtime authority can now be probed honestly across promotion, rollback, and restore.
+
+After that correction, the rerun materially changed the object's posture. Candidate bundle attribution went green, rollback bundle attribution went green, restore bundle attribution went green, and control, integrity, and downstream participation all stayed healthy. That is the point where the path stops meaning promoted state exists plus runtime probably uses it and becomes runtime bundle authority is actually attributable across active-state transitions. In `Bi`, that is a real transformation: the platform now had fresh runtime evidence that the consuming side could distinguish candidate-state authority, rollback-state authority, and restore-state authority rather than carrying one stale authority story through all three.
+
+Even then, the path was not finished, because the next defect was not in runtime authority itself. It was in which authority the rollup trusted. The implementation notes make that explicit: the runtime probes and the `phase6_registry_surface_manifest.json` agreed on the real prior active runtime bundle, but the rollup was still reading an older `previous_active_bundle` value from retained earlier governance history. The accepted bridge was to repin rollback judgment to the staged registry surface for the current phase. That is decisive for the object because it changes it from runtime authority is correct but the formal summary is wrong into runtime authority truth and receipt truth now tell the same story. In other words, the path had to become not just runtime-correct, but evidence-chain coherent.
+
+Once fresh transition attribution and rollup authority were corrected, later operator and integrated proof strengthened the path again by showing non-regression under larger working-platform use. The explicit ML day-2 operator surface then recorded that active bundle and policy revision matched promoted truth, and the later integrated platform proof recorded that the active runtime bundle still matched promoted truth and that the post-restore active runtime bundle still matched promoted truth. That matters because the path is no longer merely Phase 6 attribution once turned green. It has now shown that runtime-readable authority stays aligned with promoted truth under later operator readback and later full integrated platform proof, including restore.
+
+### `What had to be resolved`
+
+To move `Active-bundle authority feedback path` from its `A` posture to its `Bi` posture, the platform had to resolve four things: first, make registry-to-runtime authority a distinct owned boundary rather than an implied consequence of promotion; second, reopen that boundary at the live runtime-attribution level and give candidate, rollback, and restore fresh scopes so alternate authority states could actually be stamped into runtime evidence; third, correct the evidence-layer rollup so it trusted the current staged registry authority rather than stale carried-forward fields; and fourth, show that the same runtime-authority truth remained aligned with promoted truth later under operator readback and integrated full-platform proof.
+
+### `Final Bi posture`
+
+The final `Bi` posture of this path is:
+
+a production-ready runtime-authority boundary where governed promoted state becomes one deterministically resolved active bundle or policy for the consuming runtime scope, and where candidate, rollback, and restore transitions are all attributable in live runtime evidence and summarized under the correct staged registry authority, with later operator and integrated proofs still showing that runtime truth matches promoted truth.
+
+### `Why this matters for the meta goal`
+
+This object serves the meta goal well because it shows that you did not stop at we promoted a candidate or even the registry has an active version. You forced the platform to answer the harder runtime question: what was actually authoritative for the consuming runtime, how did that truth change under rollback and restore, and did the formal evidence layer tell the same story as live runtime behavior? That reads like serious ML and runtime operations judgment, because it proves you were not only governing promotion, but governing the last mile where promoted truth becomes live operational authority.
+
+The next clean move is the `Bi claim mix` for this path.
+
+## 2026-03-16 01:44:56 +00:00 - Extract the Bi claim mix for the Active-bundle authority feedback path so the notebook states exactly what runtime-authority judgment this work now supports
+## `Active-bundle authority feedback path` - `Bi claim mix`
+
+1. `Readiness-reasoning claim`
+
+This path supports the claim that you can reason runtime authority itself as a production-readiness boundary, instead of letting the bundle was promoted stand in for runtime is now reading the right governed authority. In `A`, the path is already defined as governed promoted state becoming deterministic runtime decision authority, and in the readiness plan the live question is explicit: the promoted bundle must be visible to runtime, runtime decision evidence must be traceable back to dataset and label and bundle basis, and rollback must restore prior active truth.
+
+2. `Systems-design judgment claim`
+
+This path supports the claim that you understood promotion truth, runtime-authority truth, and decision truth as three different things with different owners. The `A` note is explicit that this path is narrower than decision formation and starts only after governed promotion truth already exists; its owned outcome is deterministic runtime-readable active bundle or policy authority for the consuming scope, not merely a registry state change and not yet the later decision itself.
+
+3. `Measurement / evidence claim`
+
+This path supports the claim that you made runtime authority directly measurable and attributable rather than assumed. The carried proof objects are concrete: promoted candidate reference, scope information for one-active-per-scope determinism, registry lifecycle and publication truth, runtime bundle and policy identifiers, and post-promotion observation state. Later live operator and integrated proofs then confirmed that active bundle and policy revision matched promoted truth, rollback and restore authority was readable, and post-restore active runtime bundle still matched promoted truth.
+
+4. `Constraint / trade-off claim`
+
+This path supports the claim that you chose registry-to-runtime truth discipline over easy latest bundle wins convenience. The design explicitly treats active model and policy truth as registry truth first and runtime truth second, requires deterministic one-active-per-scope resolution, and rejects loose inference from older snapshot shape. The later `Bi` work kept that discipline: when candidate, rollback, and restore attribution first looked dark, the accepted bridge was fresh run scopes; when the probes were green but the rollup still drifted, the accepted bridge was to repin judgment to the staged registry surface rather than weaken the authority rule.
+
+5. `Production-relevant challenge claim`
+
+This path supports the claim that the challenges were genuinely production-shaped. The hard parts were not can runtime read a version number. They were: proving live runtime attribution to the correct active bundle, preventing duplicate-ingress scope from making rollback and restore look dark for the wrong reason, and fixing a rollup-authority defect where the evidence layer trusted an older carried-forward bundle field instead of the truthful staged registry surface. Those are exactly the kinds of cross-plane authority problems that matter in a real governed ML and runtime system.
+
+6. `Promotion / final-posture claim`
+
+This path supports the claim that the final ready posture is not merely promotion was successful. It is: governed promoted state became deterministic runtime-readable active authority on the consuming scope; candidate, rollback, and restore transitions became attributable in live runtime evidence; the evidence layer was repinned to the correct staged registry authority; and later operator and integrated full-platform proofs still showed that runtime truth matched promoted truth, including after restore.
+
+`Compressed Bi claim`
+
+`Active-bundle authority feedback path` shows that you can take governed promoted state and force it all the way through the registry-to-runtime seam until one deterministic active bundle or policy becomes the actual runtime authority for the consuming scope, with candidate, rollback, and restore transitions all attributable in live runtime evidence and summarized under the correct registry authority rather than inferred from stale promotion metadata.
+
+The next clean move is the ledger block for Group 6.
+
 ## 2026-03-15 16:39:48 +00:00 - Derive the system-design questions for the Decision formation path so later pressure history stays on decision truth itself
 For `Decision formation path`, the system-design questions should stay on decision truth itself, not drift backward into guardrail posture or forward into action emission.
 
