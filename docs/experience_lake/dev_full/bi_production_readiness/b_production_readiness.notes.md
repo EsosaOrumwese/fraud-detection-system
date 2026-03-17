@@ -4865,6 +4865,261 @@ So the clean `Bi` reading is:
 
 **You proved not just that the platform can run and judge itself, but that it can be left in a safe, economically controlled, operationally repeatable post-run state and brought back again on the real live platform boundary.** That same truth was then carried into the integrated platform proof, where idle-to-zero and post-restore runtime truth still held after `Ops / Gov / Meta` was coupled into the full platform story.
 
+## 2026-03-16 23:18:34 +00:00 - Open the Cost guardrail and cost-to-outcome closure path by pinning its A posture, Bi posture, and why attributable spend is its own Group 7 boundary after technical closure
+## `Cost guardrail and cost-to-outcome closure path` - `object frame`
+
+### `Object`
+
+Parent group: `Run governance, observability, and evidence closure`.
+
+This object sits inside the Group 7 family that turns a run from `it happened` into a governed, auditable, closable platform story. Within that family, its owned job is attributable spend truth. It does not own the final verdict, it does not own teardown execution, and it is not just a general budgeting backdrop. Its narrower responsibility is: once the platform has spent money to run, what exactly was spent, what envelope governed that spend, and what proof or risk-retirement outcome did that spend buy? In other words, this is the boundary where cost stops being ambient cloud noise and becomes explicit platform truth.
+
+### `A posture`
+
+In `A`, this path is already real, narrow, and materially seated. The wired platform does not treat cost discipline as a loose operational preference. The run-process pins it as an operating law: no phase may begin unless a phase spend envelope is recorded, and no phase may close without a cost-to-outcome receipt that says what was spent, what artifacts were emitted, and what decision or risk was retired. Phase advancement is fail-closed if spend is consumed without material proof outcome. That means this path already exists in the wired system as a real closure corridor, not as a future optimization idea.
+
+The `A` note makes the object even sharper. This path begins only after the platform has already crossed the heavier closure boundaries: full-platform verdict has been published, teardown and residual-readability posture have already been established, and the required cost-control handles are resolved. Its owned outcome is not merely `billing data exists`. Its owned outcome is blocker-free cost closure truth: a committed cost guardrail snapshot, a committed phase budget envelope, and a committed phase cost-to-outcome receipt. The note is explicit that this is a separate truth from teardown itself. Successful shutdown does not automatically mean the platform has explained or justified the spend it incurred.
+
+That `A` posture is also materially seated in concrete artifacts and handles. The handles registry pins this path's evidence surfaces directly: a cost guardrail snapshot path, a phase budget envelope path, a phase cost-outcome receipt path, and a daily cost posture path. It also hard-pins the discipline itself: phase envelopes are required, phase cost-outcome receipts are required, and phase progression must hard-stop if spend exists without a material outcome. The required receipt fields are concrete and reviewer-legible: phase identifiers, time window, spend amount and currency, artifacts emitted, and the decision or risk retired.
+
+And this is not only policy language. The implementation history shows the path already operating as part of the wired platform. The cost-to-outcome law was deliberately pinned across design authority, run-process, and handles so that every phase needed pre-run spend envelope and post-run cost-outcome receipt, with fail-closed advancement if the receipt was missing. Later, the actual implementation lanes emitted concrete cost artifacts for live phases, including `M12.I` on the learning corridor and `M13.H/I` on the final closeout corridor. So the `A` posture is: cost accountability already exists as a real operating boundary in the wired platform, not as commentary added after the fact.
+
+So the `A` posture is:
+
+full-platform closure already achieved -> teardown and residual readability already established -> cost handles resolved -> cost guardrail snapshot + budget envelope + cost-to-outcome receipt -> blocker-free attributable spend truth.
+
+The important `A` reading is that the platform treats technical closure and economic closure as different truths, and forces both to become explicit.
+
+### `Bi posture`
+
+In `Bi`, this object stops being only a terminal closure lane and becomes a live production-readiness cost accountability boundary inside the rebuilt `Ops / Gov / Meta` plane and then inside the integrated working platform. The readiness plan makes that jump visible. In the Operations and Governance and Meta ledger, cost discipline is one of the actual readiness families, not background admin: `unattributed spend = 0` is a pinned target, and the accepted closure records that the platform's visible major spend families remained attributable across RDS, S3, MSK, DynamoDB, Lambda, and API Gateway. That is a much stronger posture than `we exported a cost file after shutdown`.
+
+The implementation history reinforces that strengthening. By the time the rebuilt Phase 7 plane is being treated as production-ready, the object is no longer only `can we publish a budget receipt after teardown?` It is part of a broader live discipline that includes cost review, idle-cost posture, runtime waste detection, and attribution of spend to real platform families. The readiness implementation explicitly treats cost discipline as part of the Ops and Gov and Meta boundary, alongside observability, evidence readback, idle and restart posture, and handle integrity. That means the `Bi` version of this path is no longer only retrospective bookkeeping. It is now part of the answer to whether the live platform is being run responsibly enough to deserve production-ready claims.
+
+A second strengthening in `Bi` is that the object begins to expose operational waste and attribution problems as engineering defects rather than finance-only concerns. The broader readiness work found that stale transient state, idle runtime floor, and poorly attributed spend were meaningful platform defects. The accepted plane closure therefore did not stop at `budget handles parse`. It required the live platform to show that major spend remained attributable and that post-idle posture actually collapsed non-essential runtime instead of quietly burning money in the background. In other words, the path moves from `cost is recorded` to `cost is explainable, bounded, and tied to real platform state`.
+
+So the `Bi` posture is:
+
+a production-ready cost accountability boundary where the live platform must not only emit cost artifacts, but also keep spend attributable, keep unattributed spend at zero, expose waste and idle-floor defects honestly, and show that the money consumed by a phase or plane actually bought a real proof or risk-retirement outcome.
+
+### `Why this object matters`
+
+This object matters because without it the platform can still look technically impressive. It can run, score, append audit truth, publish verdicts, and even shut down cleanly. But it loses a clean answer to one of the most senior-looking operational questions: what did this run cost, why was that spend acceptable, and what did the platform actually buy with it? The `A` note is very explicit that this is why the path exists. Without it, cost remains ambient cloud residue rather than owned platform truth.
+
+It also matters because it forces a distinction many weaker systems blur: `the platform worked` is not the same thing as `the spend was attributable, bounded, and justified`. This path is where that second claim becomes explicit. It makes the platform answer whether spend is drifting without proof, whether cost surfaces remain unattributed, whether a phase burned money without closing risk, and whether final closeout includes economic accountability rather than only technical receipts. That is a very strong production-readiness signal.
+
+For the meta goal, this is one of the most important senior-engineer objects in Group 7. It shows that you did not treat cost as post hoc reporting or recruiter garnish. You treated it as part of the closure law of the platform itself. The build plan makes that binding at the program level: no spend-only progress, no closure without cost-to-outcome receipt, and no avoidable idle spend. That is much closer to real platform ownership than to ordinary project narration.
+
+So, in one line:
+
+`Cost guardrail and cost-to-outcome closure path` is the boundary where platform spend becomes attributable, justified, and closure-worthy rather than merely observable. It starts in `A` as a real cost-accountability law in the wired platform, and in `Bi` it strengthens into a live production-readiness boundary that judges whether spend remains attributable and whether the platform is buying real proof instead of just burning budget.
+
+The next clean move is deriving the `system-design questions` for this object.
+
+## 2026-03-16 23:19:12 +00:00 - Derive the system-design questions for the Cost guardrail and cost-to-outcome closure path so later pressure history stays on attributable spend truth
+For this object, the system-design interrogation should stay on attributable spend truth. It should not drift into generic budget commentary, and it should not collapse back into teardown. The narrower question is: once the run is already technically closed and idle-safe, can the platform prove what it spent, what envelope governed that spend, and what proof or risk-retirement outcome that spend actually bought? In `Bi`, that broadens into whether spend remains attributable on the live platform and whether unattributed spend stays at zero.
+
+## `Cost guardrail and cost-to-outcome closure path` - `system-design questions`
+
+1. **What exactly counts as cost-closure truth here?**
+This path is not satisfied because billing data exists somewhere. Its owned outcome is stronger: a blocker-free cost guardrail snapshot, a committed phase budget envelope, and a committed phase cost-to-outcome receipt for the run window, with spend attributable to explicit artifacts and an explicit decision or risk retired. That is the core definition the `A` note pins for this path.
+
+2. **Why is this a separate path from teardown truth and final platform judgment?**
+The platform deliberately treats `the run is closed` and `the spend for that run is attributable and justified` as two different truths. Teardown proves safe idle, residual absence, and readable evidence; this path proves bounded, attributable, justified spend. The docs explicitly reject two shortcuts: `the budget exists somewhere, so cost control is fine`, and `the run is done, so spend must have been justified`.
+
+3. **Is this only a final closeout corridor, or is it a law every phase must obey?**
+It is both a final closure corridor and a global operating law. The run-process says no phase may start without a recorded spend envelope, every phase closure must publish a cost-to-outcome receipt, and phase advancement fails closed if spend was consumed without material proof outcome. The build plan repeats the same law: no spend-only progress, no unattributed spend, and no closure without a cost-to-outcome receipt. So this path is not `finance at the end`; it is a phase-governance law that also has a final closeout form.
+
+4. **What is the legitimate entry into this path?**
+The entry is not simply that a cloud bill is queryable. The entry is that the platform has already published the final verdict, already completed teardown, residual, and readability closure, and has the cost-control handles resolved and interpretable. The `A` note is explicit that the ordering is post-teardown cost guardrail first, then phase budget and cost-outcome closure, then final closure sync.
+
+5. **What must this path carry so spend truth is auditable rather than anecdotal?**
+It must carry more than one cost number. The pinned carried objects are budget thresholds, the phase spend envelope, run-scoped teardown cost snapshot, cost-capture scope and currency, spend amount for the closure window, the artifact set emitted in that window, and the statement of what proof or risk was retired by that spend. The handles registry and run-process make those surfaces concrete through path patterns and required receipt fields.
+
+6. **What does production-ready mean specifically for this path?**
+In `Bi`, this path stops being `we emitted a receipt` and becomes `the live platform keeps spend attributable and challengeable`. The readiness plan pins `unattributed spend = 0` for the `Ops / Gov / Meta` family, and the accepted rebuilt Phase 7 proof records that visible major spend families remained attributable across `RDS`, `S3`, `MSK`, `DynamoDB`, `Lambda`, and `API Gateway`. So production-ready meaning here is not only receipt publication; it is live attribution discipline on the working platform.
+
+7. **How do we know spend is attributable rather than ambient, partial, or invented?**
+A major design question for this path is whether the platform is honest about capture scope. The docs explicitly prefer declared capture scope over fake completeness. The handles registry pins `COST_CAPTURE_SCOPE = aws_only_pre_m11_databricks_cost_deferred`, and the wiring note says the platform preserves explicit cost-capture scope and defer history rather than inventing full billing coverage. That means the question is not `did we capture everything?` but `did we truthfully declare what was and was not in scope?`
+
+8. **How do we know cost discipline is enforced before and at closure rather than reported afterwards?**
+This path must ask whether spend control is actually part of the control law. The answer in the docs is yes: the run-process requires a pre-run spend envelope, the build plan blocks progression on unattributed spend, and live lanes like `M7` and `M12.I` perform explicit budget-handle checks, Cost Explorer capture, hard-stop validation, receipt emission, and fail-closed blocking on mismatches. So the path is governed by enforcement, not by after-the-fact reporting.
+
+9. **How do we know the money bought real proof or risk-retirement outcome?**
+This is the central system-design question of the path. The receipt contract requires not just spend amount, but also proof artifacts emitted and the decision or risk retired by that spend. That is why the law is worded as cost-to-outcome rather than cost-only. The platform is trying to force a reviewer-legible answer to: what closure, artifact, or risk retirement did this spend produce?
+
+10. **Why is avoidable idle spend and waste part of this path rather than separate housekeeping?**
+Because the cost law is not only about the active phase window. The docs pin `no avoidable idle burn`, default runtime posture of off when not proving, and daily cross-platform cost posture during active windows. The readiness hardening then turns that into real engineering work: cost-hygiene cleanup of stale artifacts, identification of an idle runtime floor, and stand-by and idle actions to stop silent background cost accumulation. So the path must ask about economic safety after proving, not just spend during proving.
+
+11. **What larger contracts and trade-offs shape this path?**
+Several larger contracts shape it at once. The phase law requires envelope-before-execution and receipt-at-closure. The program law requires cost-control proof for each major lane. The stop-the-line law says any phase that consumed spend without an accepted cost-to-outcome receipt is a halt condition. And the trade-off is explicit: more budget-envelope generation, cost-capture processing, receipt generation, daily posture tracking, and another fail-closed blocker family. The platform accepts that extra ceremony because it wants economic closure to be as explicit as technical closure.
+
+12. **What would break if this path were weak or missing?**
+The platform could still run, produce decisions, publish verdicts, and even shut down cleanly. But it would lose clean answers to: what the run cost, what envelope governed that spend, whether spend remained attributable, whether idle burn was avoided, and what proof or risk-retirement outcome the platform actually bought with that money. That would weaken the platform's closure story immediately, because technical success would no longer imply economically governed success.
+
+### `Compressed system-design reading`
+
+This path is really asking one hard question in several forms:
+
+**Can the platform make economic closure as explicit, attributable, and fail-closed as technical closure, so that spend is bounded by an envelope, tied to real proof outcome, visible in live attribution, honest about capture scope, and not quietly leaking through idle burn or unattributed cost?**
+
+The next clean move is mapping this object to the `pressure history`.
+
+## 2026-03-16 23:19:49 +00:00 - Map the pressure history that changed the Cost guardrail and cost-to-outcome closure path from terminal receipt discipline into a live cost-accountability boundary
+## `Cost guardrail and cost-to-outcome closure path` - `pressure history`
+
+The pressure history for this object is not mainly `we added cost receipts`. It is a two-stage story. First, the wired platform made cost closure a real boundary in its own right: post-teardown cost guardrail first, then phase budget plus cost-outcome closure, then only after that final sync. At the same time, the run law made cost discipline global rather than optional: no phase starts without an envelope, and no phase advances if spend was consumed without material proof outcome.
+
+The first pressure on the path therefore happens before the final closeout corridor. The platform had already forced this discipline into earlier major lanes: `M11` required a phase budget envelope and cost-outcome receipt with no progression on unattributed spend, and `M12` carried the same rule into the promotion and rollback corridor. In practical terms, `M12.I` is the first clear proof that this object was already an operated lane rather than a theoretical final-phase idea: it parsed the budget and cost handles, captured AWS month-to-date spend via Cost Explorer, emitted the budget envelope and cost-outcome receipt, and closed green with `aws_mtd_cost_amount=134.5162173637 USD`.
+
+The next pressure point is the inherited `M13` final-close corridor. The build plan had already split the endgame carefully: `M13.H` for post-teardown cost guardrail closure, then `M13.I` for phase budget plus cost-outcome closure. `M13.H` closed green only after idle-safe posture and residual-zero posture were already true and a run-scoped teardown cost snapshot had been published. So the object entered its final corridor with a real upstream dependency: cost truth was not allowed to float free from safe-idle truth.
+
+The first real red on the terminal corridor then came in `M13.I`, and it is a very revealing one. The path did not fail because the platform lacked spend data or because the run was economically out of control. It failed closed on handle interpretation: the numeric budget pins were stored as unquoted numeric values, but the workflow helper was still reading them through a string-only path, so all budget values came through as null and the phase correctly raised `M13-B10`. That is exactly the sort of red the `A` note said this path must be willing to surface: missing or invalid threshold interpretation is a cost-truth defect, and fake-green would have been worse than red. The fix was narrow: patch numeric parsing only, keep fail-closed behavior for invalid values, and the rerun then closed green with the numeric budget pins verified.
+
+That completes the inherited `A`-to-early-`Bi` bridge: the path begins as a terminal cost-closure corridor and proves it will fail closed on receipt and handle integrity rather than silently inventing cost truth. But `Bi` then re-pressures the same object much more aggressively by widening it from `post-run cost closure` into `live operational cost discipline`. The first clear sign of that is the bounded cost-hygiene pass before `Phase 6`: stale rejected learning artefacts, stale SageMaker model resources, and the ingress Lambda zip pile were treated as engineering waste, not as harmless bucket clutter, and explicit prevention was added so the same debris would not silently regrow.
+
+The next pressure episode made the live waste shape even clearer. A whole-platform cost review showed that the problem was not one big bill in the abstract, but a real operating posture problem: stale transient state in the ingress idempotency table, plus an idle EKS runtime floor that was still burning money and keeping Aurora hot. The response was operational rather than rhetorical: recycle the stale DDB ledger because it is transient runtime state, not proof evidence; then put the EKS runtime into explicit standby by scaling the nodegroup and deployments to zero. That is a major widening of the path's meaning. It is no longer only `publish a receipt after teardown`. It is now `treat cost waste and idle burn as live platform defects worth remediating before more proof spend`.
+
+That widened meaning is then made formal when `Phase 7` opens. The rebuilt `Ops / Gov / Meta` plane explicitly says that cost discipline belongs inside the plane alongside observability, idle and restart posture, handle integrity, and drift visibility. The phase opens red not because the runtime is broken, but because the operator surface is incomplete: the operations dashboard is still ingress-only, the cost dashboard does not yet prove residual-runtime posture, and alarm coverage is missing. This is the point where the object stops being only a final-closeout lane and becomes a live reviewer-facing readiness concern.
+
+The first bounded `Phase 7` pass then removes the original blindspot: the operations dashboard is no longer ingress-only, the cost dashboard now carries residual-runtime risk visibility, and the live alarm surface exists on the accepted naming boundary. But the phase still refuses to close because safe idle and restart proof has not yet been exercised. That matters for this object because it shows cost truth is being bound to the live operator chain: it is not enough that a dashboard exists; the platform must also prove it can idle down truthfully and come back again.
+
+The accepted rebuilt `Phase 7` closure is the final major pressure resolution for this path. At that point the cost object is no longer just `budget handles parsed and receipt published`. The rebuilt proof explicitly includes a readable budget surface, spend attributable by service family, and fresh idle-to-zero and restore proof on the same execution scope. That is the moment the path becomes a real production-readiness boundary instead of a terminal bookkeeping corridor. The later plan snapshot then carries the same live cost truth forward in reviewer-facing form by showing the daily service-family shape directly, with `DynamoDB` still the largest month-to-date accumulator and `ECS`, `MSK`, `Lambda`, `RDS`, `API Gateway`, and `S3` as the next material families.
+
+So the compressed reading is:
+
+**this path starts as a fail-closed post-run cost-closure corridor, proves itself first through earlier phase receipts and then through the `M13.H -> M13.I` endgame, and is then re-pressured in `Bi` until cost becomes a live operational boundary: stale spend is cleaned up, idle burn is treated as a real defect, residual-runtime cost visibility becomes part of the operator plane, and final plane-ready closure requires readable budget truth plus spend attributable by service family rather than just a finance-style receipt.**
+
+The next clean move is `episode interrogation` for this path.
+
+## 2026-03-16 23:20:20 +00:00 - Interrogate the key episodes that turned the Cost guardrail and cost-to-outcome closure path into an earned cost-accountability boundary
+## `Cost guardrail and cost-to-outcome closure path` - `episode interrogation`
+
+The point here is to stop flattening every red into `cost was bad` or `billing existed`. This object owns a narrower truth boundary: once the run is already operationally closed, can the platform prove what it spent, what envelope governed that spend, and what proof or risk-retirement outcome that spend bought? The `A` note pins that boundary explicitly, and the run and process authority makes it fail-closed at both phase entry and phase advancement.
+
+### 1. The first pressure was making cost discipline a real law, not a reporting afterthought
+
+**Classification:** `boundary formalization`, not runtime pressure.
+
+Before this path could even be interrogated properly, the platform had to stop treating budget as soft commentary. The implementation history records the deliberate decision to encode cost-to-outcome as hard law across policy, run execution, and handle contracts, so every phase now needs a spend envelope and a post-run receipt, and phase advancement fails closed if spend lacks material proof outcome. That is not yet `cost green`; it is the move that made later reds meaningful.
+
+### 2. `M12.I` proved the path was already an operated lane before final closeout
+
+**Classification:** `positive governed-lane proof`, not endgame bookkeeping.
+
+The next important episode is positive, not red. `M12.I` already materialized a managed cost-outcome lane that parsed budget and cost handles, captured AWS month-to-date spend via Cost Explorer, emitted the budget envelope and cost-outcome receipt, and closed green with `aws_mtd_cost_amount=134.5162173637 USD`. That matters because it proves the object was live earlier in the platform, not invented only for `M13` cleanup.
+
+### 3. `M13.H` established the correct entry posture for terminal cost closure
+
+**Classification:** `upstream dependency proved`, not spend-justification complete.
+
+The green `M13.H` closure is not the same as full cost-to-outcome truth, but it is the correct upstream dependency for it. By that point the platform had already proved `idle_safe=true`, `residual_item_count=0`, and a published run-scoped teardown cost snapshot. So the path's terminal entry was honest: cost closure only opens after safe-idle posture and residual-zero posture are already real. That is exactly the sequencing the `A` note says this path requires.
+
+### 4. The first real red in `M13.I` was a handle-interpretation defect, not uncontrolled spend
+
+**Classification:** `proof-boundary / handle-interpretation defect`, not economic failure.
+
+The first fail-closed `M13.I` run did not say `the platform cannot explain its spend`. It failed because the workflow helper read numeric budget pins through a string-only path, so all threshold values came through as null and the lane correctly raised `M13-B10`. This is a very important red for the object because it proves the platform preferred strict cost truth over fake green. It would not let unreadable budget handles masquerade as valid closure.
+
+### 5. The `M13.I` rerun closed green only after numeric-budget truth was repaired
+
+**Classification:** `truthful terminal closure`, not lenient retry success.
+
+The rerun is meaningful because the fix was narrow and the contract stayed strict. The workflow helper was patched to parse raw numeric handles directly, then the rerun closed green and explicitly verified the budget pins as `300.0 / 120.0 / 210.0 / 270.0`. So the platform did not widen the contract; it repaired the interpreter until the same cost-truth boundary could pass honestly.
+
+### 6. The next pressure widened the object from receipt publication to cost accumulation is an engineering boundary
+
+**Classification:** `waste-retirement intervention`, not cosmetic housekeeping.
+
+In `Bi`, one of the strongest posture changes is the bounded cost-hygiene pass. Instead of leaving stale proving debris in place, the platform explicitly retired rejected learning artefacts, stale SageMaker model resources, and the ingress Lambda zip pile, with measured reductions like `737.8 MiB -> 64.4 MiB` on the Lambda artefact pile, and added lifecycle prevention so the same waste would stop regrowing. This is not a billing report; it is the object starting to treat waste itself as engineering drift.
+
+### 7. The whole-platform cost review then found the real live waste shape
+
+**Classification:** `live runtime waste diagnosis`, not finance-only commentary.
+
+The next pressure was more production-shaped. Cost Explorer review showed that the problem was not `cloud is expensive` in the abstract. The real live waste was a huge stale ingress idempotency table (`97,745,446` items, `142,509,236,122` bytes) plus an idle EKS worker floor keeping Aurora hot. The response was to recycle the stale DDB ledger back to zero and put the EKS runtime into explicit standby, which immediately dropped Aurora CPU from about `~100%` to roughly `~17-18%` in the first samples. That is a strong episode because it turns cost truth into platform-state diagnosis rather than accounting narration.
+
+### 8. `Phase 7` opened red because live cost visibility was still incomplete
+
+**Classification:** `operator-surface incompleteness`, not runtime spend chaos.
+
+When the object moved into the rebuilt `Ops / Gov / Meta` plane, the red was no longer about whether receipts existed. It was that the live cost and operator boundary was still incomplete: the operations dashboard was still ingress-only, the cost dashboard did not yet prove residual-runtime posture, and alarm coverage was missing, while the live runtime was active again with the EKS nodegroup at `min=2`, `desired=4`. So the platform rightly treated cost discipline as a live operational boundary, not a later documentation exercise.
+
+### 9. The first bounded `Phase 7` pass exposed proof defects, not spend-attribution failure
+
+**Classification:** `proof-boundary defects`, not cost-boundary semantic failure.
+
+Once the live operator surface improved, the next reds came from the assessor itself. The important one for this path is that billing freshness was being judged against CloudWatch `EstimatedCharges` instead of the budget surface that actually governs the phase. Alongside the CSV readback and drift-probe issues, that showed the proof boundary was still misreading live truth. The right move was therefore to fix the bounded assessor, not to widen the cost claim or pretend the platform itself had failed.
+
+### 10. The accepted rebuilt `Phase 7` closure made cost accountability a live plane-readiness claim
+
+**Classification:** `truthfully green live cost boundary`, not just terminal receipt success.
+
+By accepted rebuilt closure, the object had clearly widened beyond end-of-run receipts. The plane was green only once the budget surface was readable, spend was attributable by service family, node count after idle was `0`, runtime restored to pre-drill shape, and handle integrity stayed clean. That is the decisive `Bi` move for this path: cost truth is no longer only `we published envelope + receipt after teardown`. It is now `the live platform's spend is attributable, challengeable, and tied to idle and restoration truth on the operator boundary`.
+
+### `Compressed reading`
+
+Most of the important reds on this path were not `we spent too much money`. They were:
+
+* boundary-definition problems
+* handle-interpretation and proof-boundary defects
+* live waste surfaces that had not yet been retired
+* operator-surface incompleteness
+* and assessor mistakes about which cost surface actually governs the phase
+
+That is exactly why the final green matters. The object did not become strong because receipts existed. It became strong because the notebook kept separating attributable spend truth from the tools, surfaces, and live runtime posture trying to prove it, and only accepted closure once spend envelope, receipt integrity, waste retirement, service-family attribution, and idle-safe cost posture all lined up on the same truthful boundary.
+
+The next clean move is the `transformation synthesis` for this object.
+
+## 2026-03-16 23:20:56 +00:00 - Synthesize how the Cost guardrail and cost-to-outcome closure path moved from designed receipt discipline into an earned live cost-accountability boundary
+## `Cost guardrail and cost-to-outcome closure path` - `transformation synthesis`
+
+The transformation is not that the platform suddenly started caring about cost.
+`A` already made this a real closure boundary. In `A`, the path is already a distinct post-run corridor: after final verdict and after teardown, residual, and readability closure, the platform still is not fully closed until it commits a cost guardrail snapshot, a phase budget envelope, and a phase cost-to-outcome receipt. That means the starting posture was already strong: technical closure and economic closure were treated as different truths, and the platform already refused the shortcut of `the run is done, so the spend must have been fine`.
+
+What `Bi` changes first is the operational level of that truth. In `A`, this object is mainly a terminal cost-closure corridor that proves post-run spend can be made attributable and contract-clean. The inherited execution trail already showed that: `M13.H` closed green only after idle-safe and residual-zero posture were real, and `M13.I` then enforced phase budget and receipt integrity, even failing closed on numeric budget-handle interpretation before allowing green closure. So the object already knew how to reject fake-green cost truth.
+
+`Bi` then widens the same boundary from terminal receipt correctness into live production-readiness cost accountability. That widening happens in two linked moves. First, the path keeps its strictness: it still prefers narrow truthful closure over lenient green, which is why the first `M13.I` red was repaired by fixing numeric-handle parsing instead of loosening the contract. Second, the path stops being only `did we publish the receipt?` and becomes `is the live platform burning money honestly, visibly, and for real proof outcomes?` That is the real shift in level.
+
+The next part of the transformation is that `Bi` turns cost from a closure artifact into an engineering pressure surface. The readiness history does not leave cost in the final corridor. It starts treating stale proving debris, stale transient state, and idle runtime floor as platform defects worth remediating directly. The bounded cost-hygiene pass retires stale rejected learning artifacts, stale SageMaker resources, and the ingress Lambda zip pile, with explicit measured reduction. Then the whole-platform cost review finds the more serious live waste shape: a huge stale ingress idempotency ledger and an idle EKS runtime floor still keeping other services hot. The response is operational, not narrative: reset the transient ingress ledger to zero and put the EKS runtime into standby. That means the object has changed from `record spend after the run` into `shape runtime posture so the platform is not quietly wasting spend while claiming readiness`.
+
+That widening is what makes the later `Ops / Gov / Meta` posture meaningful. By the time the rebuilt plane closes, cost is no longer just one more receipt in the endgame. It is part of the live plane-ready claim: `unattributed spend = 0`, visible major spend families remain attributable, and that cost truth lives on the same rebuilt operator boundary as alert proof, handle integrity, and idle and restore discipline. In other words, `Bi` does not merely add more cost artifacts. It makes cost challengeable on the live platform.
+
+So the core transformation can be stated like this:
+
+* in `A`, the path proves economic closure is its own explicit truth boundary
+* in `Bi`, the path proves that boundary can govern the live platform, not just the final receipt
+
+That is a real change in level. The object starts as `the platform can close spend explicitly after a run`. It ends as `the platform can keep spend attributable, expose waste honestly, prevent silent idle burn, and tie money consumed on the live platform back to real proof or risk-retirement outcomes`.
+
+Another way to say it is that the owned outcome stays recognizable, but the evidence standard gets much harder. In `A`, the platform needs a run-scoped guardrail snapshot, a budget envelope, and a receipt. In `Bi`, that same path has to survive three harder questions at once:
+
+* can the receipt and handle boundary still fail closed honestly?
+* can the platform detect and remove live waste instead of just reporting it later?
+* can the rebuilt operator plane still show major spend as attributable rather than ambient cloud residue?
+
+Once those three are true, the path is no longer just a bookkeeping lane. It has become a production-readiness boundary.
+
+So the synthesized transformation is:
+
+**`Cost guardrail and cost-to-outcome closure path` transformed from a wired-system claim that post-run spend must be explicitly bounded, attributable, and linked to proof outcome into a production-ready claim that the live platform can keep spend attributable, retire waste instead of hiding it, preserve zero unattributed spend on the rebuilt operator plane, and justify what the platform is buying with its runtime cost rather than merely reporting what it spent.**
+
+Or tighter:
+
+**`A`: cost accountability is a real closure truth.  
+`Bi`: that truth now governs the live platform.**
+
+## 2026-03-16 23:21:24 +00:00 - Extract the Bi claim for the Cost guardrail and cost-to-outcome closure path so the notebook states exactly what cost-accountability judgment this work now supports
+## `Cost guardrail and cost-to-outcome closure path` - `Bi claim`
+
+This object supports the claim that you turned cost discipline from a post-run receipt corridor into a live production-readiness boundary. In the wired platform, the path already exists to turn a fully closed run into attributable spend truth through a cost guardrail snapshot, a phase budget envelope, and a phase cost-to-outcome receipt. What makes it a `Bi` claim is that this same boundary now governs the platform while it is being operated: spend is not allowed to sit as ambient cloud residue, phase progress is not allowed on unattributed or spend-only consumption, and economic closure is treated as part of platform truth rather than a finance afterthought.
+
+The clean `Bi` reading is: **you proved that the platform can keep its runtime cost attributable, bounded, and explainable on the live operator boundary, not just summarize spend after teardown**. The rebuilt Operations / Governance / Meta readiness target pins `unattributed spend = 0`, and the accepted Phase 7 closure records that visible major spend families remained attributable across `RDS`, `S3`, `MSK`, `DynamoDB`, `Lambda`, and `API Gateway`. So the reviewer-facing claim is not `we had budget numbers`. It is: **the platform can show what it is spending, keep that spend tied to real proof outcomes, and refuse green closure when cost truth is missing or blurry.**
+
+A tighter one-line version for the notebook is:
+
+**`Cost guardrail and cost-to-outcome closure path` shows that you moved cost from passive reporting into active platform discipline: spend must stay attributable, tied to explicit proof or risk-retirement outcome, and clean enough on the live platform to support a real production-readiness claim rather than a vague `the system worked` story.**
+
 ## 2026-03-15 16:39:48 +00:00 - Derive the system-design questions for the Decision formation path so later pressure history stays on decision truth itself
 For `Decision formation path`, the system-design questions should stay on decision truth itself, not drift backward into guardrail posture or forward into action emission.
 
