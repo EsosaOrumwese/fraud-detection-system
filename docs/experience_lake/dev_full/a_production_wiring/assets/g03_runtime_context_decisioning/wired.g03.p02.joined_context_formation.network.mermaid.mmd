@@ -1,0 +1,44 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 3 / Path 2
+%% Joined context formation path
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active path seat or owned context closure"]
+    LG2[("Round node = constrained source family or declared context truth")]
+    LG3["This graph closes at joined, time-safe runtime context readiness, before feature readiness begins"]
+  end
+
+  subgraph ENTRY["Runtime-allowed admitted family"]
+    TTRAFFIC[("fp.bus.traffic.fraud.v1")]
+    TCTXE[("fp.bus.context.arrival_events.v1")]
+    TCTXT[("fp.bus.context.arrival_entities.v1")]
+    TFLOW[("fp.bus.context.flow_anchor.fraud.v1")]
+    PROJ[("Current entity / relationship projection truth")]
+    ALLOWED[("Allowed time-safe join surfaces only<br>arrival_events_5B<br>s1_arrival_entities_6B<br>s3_flow_anchor_with_fraud_6B")]
+  end
+
+  subgraph PATH["Runtime context formation and decisioning / Path 2"]
+    CSFB["Context-store and flow-binding surface"]
+    JOINMAP["Pinned join map<br>event stream -> flow anchor<br>flow anchor -> arrival skeleton<br>arrival skeleton -> entity attachments"]
+    READY["Joined context readiness discipline<br>no false-ready from partial or mis-scoped context"]
+    OUTCOME["Owned outcome<br>joined, time-safe runtime context surface with honest readiness posture"]
+    IEG["Entity / graph downstream consumer"]
+    OFP["Online feature downstream consumer"]
+  end
+
+  TTRAFFIC -->|admitted traffic enters context binding through| CSFB
+  TCTXE -->|arrival-event context enters context binding through| CSFB
+  TCTXT -->|arrival-entity context enters context binding through| CSFB
+  TFLOW -->|flow-anchor context enters context binding through| CSFB
+  PROJ -->|supplies current projection state to| CSFB
+  ALLOWED -->|constrains what context surfaces runtime may use for| CSFB
+  JOINMAP -->|governs binding correctness for| CSFB
+  READY -->|governs honest readiness posture for| CSFB
+  CSFB -->|closes this path as| OUTCOME
+  OUTCOME -->|hands joined runtime context to| IEG
+  OUTCOME -->|hands joined runtime context to| OFP

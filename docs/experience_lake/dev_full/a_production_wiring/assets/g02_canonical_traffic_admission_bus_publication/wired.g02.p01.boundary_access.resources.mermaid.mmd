@@ -1,0 +1,42 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 2 / Path 1
+%% Boundary access path - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or control surface"]
+    LG2[("Round node = durable handle or declared boundary seat")]
+    LG3["Dashed edge = present but explicitly excluded stale route"]
+  end
+
+  ENTRY["Canonical behavioural traffic<br>WSP / external caller using canonical traffic only"]
+
+  subgraph EDGE["Active ingress boundary resources"]
+    URL[("Execute-api ingress URL<br>https://ehwznd2uw7.execute-api.eu-west-2.amazonaws.com/v1")]
+    HTTPAPI["HTTP API<br>fraud-platform-dev-full-ig-edge"]
+    STAGE["Stage<br>v1"]
+    ROUTE["Route<br>POST /ingest/push"]
+    IGLAMBDA["Lambda<br>fraud-platform-dev-full-ig-handler"]
+    APIKEY["Pinned API key handle<br>/fraud-platform/dev_full/ig/api_key"]
+    SSM["SSM Parameter Store"]
+  end
+
+  subgraph EXCLUDED["Retained but excluded boundary alternative"]
+    ALB["Internal ALB<br>fp-dev-full-ig-svc"]
+    IGSVC["ECS service<br>fraud-platform-dev-full-ig-service"]
+  end
+
+  ENTRY -->|targets the live external ingress URL| URL
+  URL -->|resolves to| HTTPAPI
+  HTTPAPI -->|serves| STAGE
+  STAGE -->|contains| ROUTE
+  ROUTE -->|invokes| IGLAMBDA
+  SSM -->|provides secret-backed contract for| APIKEY
+  APIKEY -->|authorizes boundary request into| ROUTE
+
+  ALB -. no longer counts as the accepted external front door .-> IGSVC
+  ALB -. explicitly excluded from active boundary proof .-> ROUTE

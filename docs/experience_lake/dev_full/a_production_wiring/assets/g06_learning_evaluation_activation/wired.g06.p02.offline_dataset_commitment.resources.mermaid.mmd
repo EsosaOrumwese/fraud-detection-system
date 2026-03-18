@@ -1,0 +1,38 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 6 / Path 2
+%% Offline dataset commitment path - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource, job, or active offline-dataset seat"]
+    LG2[("Round node = durable dataset-truth or downstream learning handoff surface")]
+    LG3["This graph names the concrete seats that materially realize authoritative offline dataset commitment in the current wired platform"]
+  end
+
+  subgraph ENTRY["Pinned learning basis resources"]
+    BASIS["Learning-input readiness closure\nreplay/as-of/maturity/leakage pinned"]
+  end
+
+  subgraph PATH["Offline dataset commitment resources"]
+    DBX["Databricks workspace"]
+    DBXBUILD["Databricks job\nfraud-platform-dev-full-ofs-build-v0"]
+    GLUEDB[("Glue DB\nfraud_platform_dev_full_ofs")]
+    OBJ[("S3 bucket\nfraud-platform-dev-full-object-store")]
+    EVID[("S3 bucket\nfraud-platform-dev-full-evidence")]
+    DATASET["Offline dataset-truth closure\nmanifest + fingerprint + rollback recipe"]
+    TOFSEVT[("Topic\nfp.bus.learning.ofs.events.v1")]
+    SM["Later handoff\nSageMaker control surface"]
+  end
+
+  BASIS -->|opens dataset build in| DBX
+  DBX -->|runs| DBXBUILD
+  DBXBUILD -->|writes authoritative dataset tables to| GLUEDB
+  DBXBUILD -->|writes manifests / fingerprints / rollback artifacts to| OBJ
+  DBXBUILD -->|stores leakage and closure evidence in| EVID
+  DBXBUILD -->|materially closes dataset truth as| DATASET
+  DATASET -->|later signals OFS completion through| TOFSEVT
+  TOFSEVT -->|later feeds| SM

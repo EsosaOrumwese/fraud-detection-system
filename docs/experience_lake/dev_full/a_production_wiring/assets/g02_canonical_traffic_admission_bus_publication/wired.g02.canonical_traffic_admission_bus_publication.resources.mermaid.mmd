@@ -1,0 +1,93 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 2 synthesis
+%% Canonical traffic admission and bus publication - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active control/evidence seat"]
+    LG2[("Round node = durable resource or authoritative topic")]
+    LG3["Dashed edge = present but explicitly excluded stale route"]
+  end
+
+  ENTRY["Canonical behavioural traffic<br>WSP / external caller"]
+
+  subgraph EDGE["Ingress boundary resources"]
+    URL[("Execute-api ingress URL<br>https://ehwznd2uw7.execute-api.eu-west-2.amazonaws.com/v1")]
+    HTTPAPI["HTTP API<br>fraud-platform-dev-full-ig-edge"]
+    ROUTE["Route<br>POST /ingest/push"]
+    APIKEY["Pinned API key handle<br>/fraud-platform/dev_full/ig/api_key"]
+    SSM["SSM Parameter Store"]
+    IGLAMBDA["Lambda<br>fraud-platform-dev-full-ig-handler"]
+    ALB["Internal ALB<br>fp-dev-full-ig-svc"]
+    IGSVC["ECS service<br>fraud-platform-dev-full-ig-service"]
+  end
+
+  subgraph INGRESS["Ingress truth resources"]
+    IGDDB[("DynamoDB table<br>fraud-platform-dev-full-ig-idempotency")]
+    IGDLQ["SQS queue<br>fraud-platform-dev-full-ig-dlq"]
+    IGRECEIPTS["IG receipts / quarantine refs"]
+  end
+
+  subgraph BUS["Authoritative bus handoff resources"]
+    TTRAFFIC[("Topic<br>fp.bus.traffic.fraud.v1")]
+    TCTXE[("Topic<br>fp.bus.context.arrival_events.v1")]
+    TCTXT[("Topic<br>fp.bus.context.arrival_entities.v1")]
+    TFLOW[("Topic<br>fp.bus.context.flow_anchor.fraud.v1")]
+    MSK[("MSK Serverless cluster<br>fraud-platform-dev-full-msk")]
+    GLUEREG["Glue Schema Registry<br>fraud-platform-dev-full"]
+    CSFB["Deployment<br>fp-pr3-csfb"]
+  end
+
+  subgraph COMMIT["Committed ingest truth resources"]
+    RUNCTL["Run control<br>conformance / receipts"]
+    MODE["Pinned proof mode<br>admission-index proxy for current ingress edge"]
+    EVID[("S3 bucket<br>fraud-platform-dev-full-evidence")]
+    RECEIPT["receipt_summary.json"]
+    QUARANTINE["quarantine_summary.json"]
+    OFFSETS["kafka_offsets_snapshot.json"]
+    VERDICT["Ingest-commit verdict"]
+  end
+
+  ENTRY -->|targets the live external ingress URL| URL
+  URL -->|resolves to| HTTPAPI
+  SSM -->|provides secret-backed contract for| APIKEY
+  APIKEY -->|authorizes boundary request into| ROUTE
+  HTTPAPI -->|serves| ROUTE
+  ROUTE -->|invokes| IGLAMBDA
+
+  IGLAMBDA -->|writes ingress truth to| IGDDB
+  IGLAMBDA -->|sends failure-class overflow to| IGDLQ
+  IGLAMBDA -->|emits receipts and quarantine refs to| IGRECEIPTS
+
+  IGLAMBDA -->|publishes to| TTRAFFIC
+  IGLAMBDA -->|publishes to| TCTXE
+  IGLAMBDA -->|publishes to| TCTXT
+  IGLAMBDA -->|publishes to| TFLOW
+  TTRAFFIC -->|transported by| MSK
+  TCTXE -->|transported by| MSK
+  TCTXT -->|transported by| MSK
+  TFLOW -->|transported by| MSK
+  MSK -->|schemas governed by| GLUEREG
+  TTRAFFIC -->|consumed by| CSFB
+  TCTXE -->|consumed by| CSFB
+  TCTXT -->|consumed by| CSFB
+  TFLOW -->|consumed by| CSFB
+
+  IGDDB -->|supplies admission basis to| RUNCTL
+  IGRECEIPTS -->|supplies receipt and quarantine basis to| RUNCTL
+  MODE -->|governs offset-proof semantics for| RUNCTL
+  RUNCTL -->|commits| RECEIPT
+  RUNCTL -->|commits| QUARANTINE
+  RUNCTL -->|commits| OFFSETS
+  RUNCTL -->|commits| VERDICT
+  RECEIPT -->|stored in| EVID
+  QUARANTINE -->|stored in| EVID
+  OFFSETS -->|stored in| EVID
+  VERDICT -->|stored in| EVID
+
+  ALB -. explicitly excluded from active boundary proof .-> IGSVC
+  ALB -. stale internal route does not count as the accepted front door .-> ROUTE

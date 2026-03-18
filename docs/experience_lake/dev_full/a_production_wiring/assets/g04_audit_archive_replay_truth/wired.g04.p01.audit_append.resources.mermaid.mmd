@@ -1,0 +1,36 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 4 / Path 1
+%% Audit append path - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active runtime seat"]
+    LG2[("Round node = append-only audit truth or downstream handoff seat")]
+    LG3["This graph names the concrete seats that materially realize append-only audit truth"]
+  end
+
+  subgraph ENTRY["Runtime truth basis"]
+    DF["Deployment<br>fp-pr3-df"]
+    AL["Deployment<br>fp-pr3-al"]
+  end
+
+  subgraph RTDL["Audit append runtime resources"]
+    EKS["EKS cluster<br>fraud-platform-dev-full"]
+    NSRTDL["Namespace<br>fraud-platform-rtdl"]
+    SADEC["ServiceAccount<br>decision-lane"]
+    DLA["Deployment<br>fp-pr3-dla"]
+    CONTRACT["Audit append contract seam<br>append-only / replay-divergence / lineage completeness"]
+    TAUDIT[("Topic<br>fp.bus.audit.v1")]
+  end
+
+  EKS -->|contains| NSRTDL
+  NSRTDL -->|binds identity| SADEC
+  NSRTDL -->|runs| DLA
+  DF -->|supplies decision truth to| DLA
+  AL -->|supplies action/outcome truth to| DLA
+  CONTRACT -->|governs authoritative append behavior for| DLA
+  DLA -->|publishes lineage audit onward to| TAUDIT

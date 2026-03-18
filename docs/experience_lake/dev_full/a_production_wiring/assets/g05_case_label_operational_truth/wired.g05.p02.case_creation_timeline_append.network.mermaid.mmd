@@ -1,0 +1,32 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 5 / Path 2
+%% Case creation and timeline append path
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active path seat, contract, or owned case-truth closure"]
+    LG2[("Round node = named handoff or operational case-truth surface")]
+    LG3["This graph closes at deterministic operational case truth with append-only timeline, before case-to-label handoff begins"]
+  end
+
+  subgraph ENTRY["Case-intent basis"]
+    INTENT[("Case-intent truth")]
+    TCASE[("Case-trigger handoff seat\nfp.bus.case.triggers.v1")]
+  end
+
+  subgraph PATH["Case and label operational truth / Path 2"]
+    CM["Case-management boundary\ndeterministic case creation\nappend-only timeline ownership"]
+    CONTRACT["Case-management contracts\nidempotent case creation\nduplicate-trigger safety\nappend-only timeline discipline\nclean operational truth ownership"]
+    CASE[("Owned outcome\ndeterministic operational case truth")]
+    TIMELINE[("Owned outcome\nappend-only operational case timeline")]
+  end
+
+  INTENT -->|is handed into| CM
+  TCASE -->|delivers case-intent handoff into| CM
+  CONTRACT -->|governs case creation and timeline append for| CM
+  CM -->|closes case identity and operational ownership as| CASE
+  CM -->|closes append-only operational history as| TIMELINE

@@ -1,0 +1,34 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 7 / Path 4
+%% Drift-visible observability attestation path
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active path seat, control, or owned observability-attestation closure"]
+    LG2[("Round node = live runtime basis or downstream handoff surface")]
+    LG3["This graph closes at observability attestation truth for the active runtime path, before teardown and post-run cost closure begin"]
+  end
+
+  subgraph ENTRY["Live active-path basis"]
+    ACTIVE[("Declared active runtime path")]
+    TELEMETRY[("Live telemetry from the same runtime surfaces\nlogs / metrics / traces / alerts")]
+    RUNID[("Run-scoped correlation continuity")]
+  end
+
+  subgraph PATH["Run governance and observability closure / Path 4"]
+    ATTEST["Observability attestation corridor\nfreshness checks\ncritical alert coverage\ncorrelation continuity\nhandle / secret resolution\nactive-path drift checks"]
+    CONTRACT["Observability contracts\nmetric freshness within budget\nplaceholder handles = 0\nrequired handles resolve\ndrift visible before false certification\nOpenTelemetry-first correlation law"]
+    OBS[("Owned outcome\nobservability attestation truth")]
+    TEARDOWN[("Later handoff\nidle-safe teardown and residual-readability path")]
+  end
+
+  ACTIVE -->|declares the runtime surfaces that must be attested by| ATTEST
+  TELEMETRY -->|feeds live operator visibility into| ATTEST
+  RUNID -->|pins attributable correlation through| ATTEST
+  CONTRACT -->|governs live attestation closure for| ATTEST
+  ATTEST -->|closes trustworthy active-path visibility as| OBS
+  OBS -->|later supports safe closeout into| TEARDOWN

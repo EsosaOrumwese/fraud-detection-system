@@ -1,0 +1,32 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 5 / Path 3
+%% Case-to-label handoff path
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active path seat, contract, or owned supervision-request closure"]
+    LG2[("Round node = operational or supervision handoff surface")]
+    LG3["This graph closes at label-request truth on the case-management to label-store boundary, before authoritative label commit begins"]
+  end
+
+  subgraph ENTRY["Operational case basis"]
+    CASE[("Operational case truth")]
+    TIMELINE[("Append-only case timeline truth")]
+  end
+
+  subgraph PATH["Case and label operational truth / Path 3"]
+    CM["Case-management to label boundary\nlabel-request / label-pending handoff"]
+    CONTRACT["Case-to-label contracts\nclean truth ownership\ncase truth stays with case management\nlabel truth begins only at label-store boundary\nrequest continuity and replay-safe handoff"]
+    REQUEST[("Owned outcome\nlabel-request / label-pending truth")]
+    LS[("Later handoff\nlabel-store intake")]
+  end
+
+  CASE -->|feeds operational case basis into| CM
+  TIMELINE -->|feeds adjudication timeline basis into| CM
+  CONTRACT -->|governs supervision-request handoff for| CM
+  CM -->|closes explicit supervision-request basis as| REQUEST
+  REQUEST -->|later feeds intake into| LS

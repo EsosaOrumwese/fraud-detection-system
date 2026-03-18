@@ -1,0 +1,34 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 6 / Path 1
+%% Learning-input basis path
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active path seat, control, or owned learning-input closure"]
+    LG2[("Round node = authoritative basis or downstream handoff surface")]
+    LG3["This graph closes at pinned causal learning-input basis, before offline dataset commitment begins"]
+  end
+
+  subgraph ENTRY["Closed spine basis"]
+    ARCHIVE[("Archive truth + replay references")]
+    LABEL[("Authoritative label truth")]
+  end
+
+  subgraph PATH["Learning, evaluation, and governed activation / Path 1"]
+    REPLAY["Replay-basis pin\nsource-offset ranges\nmode-aware semantics"]
+    TEMPORAL["Temporal policy pin\nfeature as-of\nlabel as-of\nlabel maturity"]
+    GUARD["Anti-leakage and separation guardrails\nno future visibility\nruntime-learning separation\nfail-closed on unresolved basis"]
+    BASIS[("Owned outcome\ncommitted learning-input readiness basis")]
+    OFS[("Later handoff\noffline dataset commitment path")]
+  end
+
+  ARCHIVE -->|supplies replayable runtime basis into| REPLAY
+  LABEL -->|supplies authoritative supervision basis into| REPLAY
+  REPLAY -->|pins bounded source basis for| TEMPORAL
+  TEMPORAL -->|pins temporal realism for| GUARD
+  GUARD -->|closes learning-safe causal basis as| BASIS
+  BASIS -->|later feeds committed offline dataset build into| OFS

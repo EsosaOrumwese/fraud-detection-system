@@ -1,0 +1,32 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 6 / Path 5
+%% Active-bundle authority feedback path
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active path seat, control, or owned runtime-authority closure"]
+    LG2[("Round node = governed promoted state or downstream runtime-consumption surface")]
+    LG3["This graph closes at runtime decision authority, before the decision fabric actually forms decisions"]
+  end
+
+  subgraph ENTRY["Governed promoted basis"]
+    PROMOTION[("Committed promotion truth")]
+    GOV[("Rollback-governance truth")]
+  end
+
+  subgraph PATH["Learning, evaluation, and governed activation / Path 5"]
+    ACTIVE["Active-resolution corridor\ndeterministic active-bundle and policy resolution"]
+    CHECKS["Runtime-authority controls\nscope determinism\ncompatibility closure\npost-promotion observation\nprovenance continuity into runtime"]
+    AUTH[("Owned outcome\nruntime decision authority")]
+    DF[("Later handoff\ndecision-fabric consumption")]
+  end
+
+  PROMOTION -->|supplies governed promoted state into| ACTIVE
+  GOV -->|supplies rollback-safe governance basis into| ACTIVE
+  CHECKS -->|govern runtime authority resolution for| ACTIVE
+  ACTIVE -->|closes deterministic runtime-readable authority as| AUTH
+  AUTH -->|later is consumed by| DF

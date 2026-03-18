@@ -1,0 +1,32 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 7 / Path 2
+%% Governance append and close-marker path - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active governance-close seat"]
+    LG2[("Round node = durable governance surface or downstream handoff")]
+    LG3["This graph names the concrete seats that materially realize append-safe governance closure in the current wired platform"]
+  end
+
+  subgraph ENTRY["Reconciled closure resources"]
+    REPORTS["Run reports\nreconciliation / non-regression packs"]
+    EVID[("S3 bucket\nfraud-platform-dev-full-evidence")]
+  end
+
+  subgraph PATH["Governance append and close-marker resources"]
+    GOVAPPEND["Governance append\nimmutable run facts"]
+    APPEND[("Governance append log\nrun-scoped append-safe closure truth")]
+    MARKER[("Governance close marker\nformal run-close object under run scope")]
+    RUNCTL["Later handoff\nfinal verdict publication corridor"]
+  end
+
+  REPORTS -->|feed reconciled run-close truth into| GOVAPPEND
+  EVID -->|provides run-scoped evidence surface for| GOVAPPEND
+  GOVAPPEND -->|materializes append-safe closure into| APPEND
+  GOVAPPEND -->|materializes formal run-close state into| MARKER
+  MARKER -->|later gates verdict publication through| RUNCTL

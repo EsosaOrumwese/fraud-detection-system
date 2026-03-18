@@ -1,0 +1,39 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 3 / Path 5
+%% Decision formation path
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active path seat or owned decision closure"]
+    LG2[("Round node = upstream runtime truth or runtime-consumed authority surface")]
+    LG3["This graph closes at explicit decision truth, before action and audit lanes begin"]
+  end
+
+  subgraph ENTRY["Decision-formable inputs"]
+    CONTEXT[("Joined runtime context")]
+    FEATURES[("Feature-ready runtime truth")]
+    POSTURE[("Adjudicated decision posture")]
+    AUTH[("Runtime-consumed active bundle / policy authority<br>owned upstream, consumed here")]
+  end
+
+  subgraph PATH["Runtime context formation and decisioning / Path 5"]
+    DF["Decision Fabric<br>composes runtime inputs into decision truth"]
+    CONTRACT["Decision boundary contracts<br>bundle/policy correctness<br>fail-closed vs quarantine semantics<br>provenance + explainability completeness"]
+    DECISION[("Owned outcome<br>decision truth")]
+    FIELDS["Owned outcome fields<br>decision identity / provenance / explanation"]
+    DOWNSTREAM["Downstream action and audit lanes<br>consume decision truth later"]
+  end
+
+  CONTEXT -->|supplies joined context to| DF
+  FEATURES -->|supplies usable feature state to| DF
+  POSTURE -->|supplies adjudicated guardrail posture to| DF
+  AUTH -->|supplies governed runtime authority to| DF
+  CONTRACT -->|governs explicit decision formation for| DF
+  DF -->|closes this path as| DECISION
+  DF -->|materializes decision identity, provenance, and explanation as| FIELDS
+  DECISION -->|hands explicit decision truth to| DOWNSTREAM
+  FIELDS -->|travel with decision truth into| DOWNSTREAM

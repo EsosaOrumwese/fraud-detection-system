@@ -1,0 +1,34 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 5 / Path 1
+%% Case-intent escalation path
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active path seat, contract, or owned case-intent closure"]
+    LG2[("Round node = named handoff or operational truth surface")]
+    LG3["This graph closes at explicit case-intent truth and handoff, before case creation or label truth begins"]
+  end
+
+  subgraph ENTRY["RTDL escalation basis"]
+    DECISION[("Decision-worthy RTDL outputs")]
+    AUDIT[("Audit-worthy RTDL outputs")]
+  end
+
+  subgraph PATH["Case and label operational truth / Path 1"]
+    CASETRIG["Case-trigger boundary\nselection and suppression logic"]
+    CONTRACT["Case-trigger contracts\ntrigger precision / recall\nduplicate suppression\nreplay safety\nclean truth ownership"]
+    INTENT[("Owned outcome\ncase-intent truth")]
+    TCASE[("Case-trigger handoff seat\nfp.bus.case.triggers.v1")]
+    CM[("Later handoff\ncase-management intake")]
+  end
+
+  DECISION -->|feeds case-worthy decision signals into| CASETRIG
+  AUDIT -->|feeds case-worthy audit signals into| CASETRIG
+  CONTRACT -->|governs selection and suppression for| CASETRIG
+  CASETRIG -->|closes explicit escalation basis as| INTENT
+  INTENT -->|is handed off through| TCASE
+  TCASE -->|later feeds intake into| CM

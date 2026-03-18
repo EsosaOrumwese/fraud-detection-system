@@ -1,0 +1,34 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 4 / Path 2
+%% Audit publication and durable reference path - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active handoff seat"]
+    LG2[("Round node = durable reference or evidence resource")]
+    LG3["This graph names the concrete seats that materially realize audit publication plus durable references"]
+  end
+
+  subgraph ENTRY["Append-only audit basis"]
+    DLA["Deployment<br>fp-pr3-dla"]
+  end
+
+  subgraph HANDOFF["Audit publication and durable reference resources"]
+    TAUDIT[("Topic<br>fp.bus.audit.v1")]
+    MSK[("MSK Serverless cluster<br>fraud-platform-dev-full-msk")]
+    CASETRIG["Deployment<br>fp-pr3-case-trigger"]
+    EVID[("S3 bucket<br>fraud-platform-dev-full-evidence")]
+    OBJ[("S3 bucket<br>fraud-platform-dev-full-object-store")]
+    REFS["Durable by-ref audit references<br>authoritative evidence-following surfaces"]
+  end
+
+  DLA -->|publishes lineage audit into| TAUDIT
+  TAUDIT -->|transported by| MSK
+  TAUDIT -->|consumed by| CASETRIG
+  TAUDIT -->|resolves downstream by-reference consumption into| REFS
+  REFS -->|anchored in| EVID
+  REFS -->|anchored in| OBJ

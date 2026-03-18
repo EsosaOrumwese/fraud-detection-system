@@ -1,0 +1,33 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 6 / Path 5
+%% Active-bundle authority feedback path - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource, control surface, or active runtime-authority seat"]
+    LG2[("Round node = durable registry / runtime-consumption surface")]
+    LG3["This graph names the concrete seats that materially realize feedback from promoted registry state into runtime authority"]
+  end
+
+  subgraph ENTRY["Governed promotion resources"]
+    MLFLOW["MLflow tracking surface\nDatabricks-managed"]
+    PROMO[("Promotion receipts")]
+    ROLLBACK[("Rollback drill receipts")]
+  end
+
+  subgraph PATH["Active-bundle authority feedback resources"]
+    REGACTIVE[("Active bundle / policy resolution\nruntime-consumed registry truth")]
+    AUTH["Runtime-authority closure\ndeterministic active bundle / policy truth"]
+    DF["Deployment\nfp-pr3-df"]
+    EVID[("S3 bucket\nfraud-platform-dev-full-evidence")]
+  end
+
+  PROMO -->|stored in| EVID
+  ROLLBACK -->|stored in| EVID
+  MLFLOW -->|materializes active promoted state into| REGACTIVE
+  REGACTIVE -->|materially closes runtime authority as| AUTH
+  AUTH -->|is read by| DF

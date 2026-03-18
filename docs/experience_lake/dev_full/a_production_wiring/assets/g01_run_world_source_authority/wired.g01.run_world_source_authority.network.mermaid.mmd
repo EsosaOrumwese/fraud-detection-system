@@ -1,0 +1,51 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 1 synthesis
+%% Run and world-source authority
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active authority surface or path-owned closure"]
+    LG2[("Round node = durable truth / evidence / source boundary")]
+    LG3["This graph synthesizes the three real Group 1 paths only"]
+  end
+
+  subgraph G1["Group 1 - Run and world-source authority"]
+    OP["Operator intent<br>bounded platform run"]
+    GHA["GitHub Actions<br>dispatch surface"]
+    SFN["Step Functions<br>run and READY authority"]
+    RUNPIN["Closure point<br>RUN_PINNED"]
+    ORACLE[("Oracle Store<br>producer-owned / platform read-only")]
+    SORT["Managed distributed sort realization"]
+    ORREADY["Closure point<br>ORACLE_READY"]
+    CTRLBUS[("fp.bus.control.v1")]
+    READY["Closure point<br>READY_PUBLISHED"]
+    EVID[("Run-scoped evidence root")]
+    NONAUTH["Compute-only READY candidate<br>non-authoritative"]
+  end
+
+  CLAIM["Group claim<br>the platform begins from governed legitimacy"]
+
+  OP -->|submits bounded run intent to| GHA
+  GHA -->|dispatches authoritative run start into| SFN
+  SFN -->|commits explicit run basis as| RUNPIN
+  RUNPIN -->|recorded under| EVID
+
+  ORACLE -->|seated through canonical inlet contract into| SORT
+  SORT -->|realizes canonical source world as| ORREADY
+  ORREADY -->|recorded under| EVID
+
+  RUNPIN -->|hands legitimate run scope to| SFN
+  ORREADY -->|hands source-legitimate basis to| SFN
+  SFN -->|publishes authoritative READY to| CTRLBUS
+  CTRLBUS -->|closes control-plane readiness as| READY
+  READY -->|recorded under| EVID
+
+  NONAUTH -. present but insufficient to close READY .-> READY
+
+  RUNPIN -->|together prove| CLAIM
+  ORREADY -->|together prove| CLAIM
+  READY -->|together prove| CLAIM

@@ -1,0 +1,37 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 3 / Path 6
+%% Action and outcome emission path
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active path seat or owned action/outcome closure"]
+    LG2[("Round node = explicit downstream handoff seat or owned outcome truth")]
+    LG3["This graph closes at deterministic, attributable action/outcome truth, before append-only audit ownership begins"]
+  end
+
+  subgraph ENTRY["Decision truth basis"]
+    DECISION[("Decision truth")]
+    FIELDS[("Decision identity / provenance / explanation")]
+  end
+
+  subgraph PATH["Runtime context formation and decisioning / Path 6"]
+    AL["Action Layer<br>owns decision-to-effect transition"]
+    CONTRACT["Action boundary contracts<br>duplicate-safe side effects<br>ambiguity recording<br>decision-to-action attribution"]
+    OUTCOME[("Owned outcome<br>deterministic action and outcome truth")]
+    AMBIG[("Owned outcome field<br>ambiguity recorded, not silently leaked")]
+    DOWNSTREAM["Downstream consumers<br>RTDL / cross-plane consumers later"]
+    TAUDIT[("Current wired publication seat<br>fp.bus.audit.v1")]
+  end
+
+  DECISION -->|hands explicit decision truth to| AL
+  FIELDS -->|travel with decision truth into| AL
+  CONTRACT -->|governs duplicate-safe and attributable effect formation for| AL
+  AL -->|closes this path as| OUTCOME
+  AL -->|records non-normal ambiguity posture as| AMBIG
+  OUTCOME -->|hands outcome truth to| DOWNSTREAM
+  AMBIG -->|travels with downstream outcome truth to| DOWNSTREAM
+  AL -->|currently publishes action outcome visibility to| TAUDIT

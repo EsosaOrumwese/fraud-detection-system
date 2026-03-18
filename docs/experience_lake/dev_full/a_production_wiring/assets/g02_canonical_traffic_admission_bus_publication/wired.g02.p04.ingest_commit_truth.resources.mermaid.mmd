@@ -1,0 +1,44 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 2 / Path 4
+%% Ingest commit truth path - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active control/evidence seat"]
+    LG2[("Round node = durable storage resource")]
+    LG3["This graph stays on current wired ingest evidence closure and names the pinned artifact set"]
+  end
+
+  ENTRY["Run-scoped ingress activity<br>or explicit empty-run waiver"]
+
+  subgraph BASIS["Ingress evidence basis resources"]
+    IGDDB[("DynamoDB table<br>fraud-platform-dev-full-ig-idempotency")]
+    IGRECEIPTS["IG receipts / quarantine refs"]
+    RUNCTL["Run control<br>conformance / receipts"]
+    MODE["Pinned proof mode<br>admission-index proxy for current ingress edge"]
+  end
+
+  subgraph EVIDENCE["Committed ingest evidence resources"]
+    EVID[("S3 bucket<br>fraud-platform-dev-full-evidence")]
+    RECEIPT["evidence/runs/{platform_run_id}/ingest/receipt_summary.json"]
+    QUARANTINE["evidence/runs/{platform_run_id}/ingest/quarantine_summary.json"]
+    OFFSETS["evidence/runs/{platform_run_id}/ingest/kafka_offsets_snapshot.json"]
+    VERDICT["Ingest-commit rollup / execution verdict"]
+  end
+
+  ENTRY -->|begins ingest-commit closure through| RUNCTL
+  IGDDB -->|supplies admission basis to| RUNCTL
+  IGRECEIPTS -->|supplies receipt and quarantine basis to| RUNCTL
+  MODE -->|governs offset-proof semantics for| RUNCTL
+  RUNCTL -->|commits| RECEIPT
+  RUNCTL -->|commits| QUARANTINE
+  RUNCTL -->|commits| OFFSETS
+  RUNCTL -->|commits| VERDICT
+  RECEIPT -->|stored in| EVID
+  QUARANTINE -->|stored in| EVID
+  OFFSETS -->|stored in| EVID
+  VERDICT -->|stored in| EVID

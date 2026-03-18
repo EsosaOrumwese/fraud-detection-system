@@ -1,0 +1,38 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 6 / Path 3
+%% Train / eval and candidate-bundle path - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource, job, or active candidate-bundle seat"]
+    LG2[("Round node = durable lineage / package / downstream handoff surface")]
+    LG3["This graph names the concrete seats that materially realize managed train/eval and candidate-bundle closure in the current wired platform"]
+  end
+
+  subgraph ENTRY["Authoritative dataset resources"]
+    GLUEDB[("Glue DB\nfraud_platform_dev_full_ofs")]
+    OBJ[("S3 bucket\nfraud-platform-dev-full-object-store")]
+  end
+
+  subgraph PATH["Train/eval and candidate-bundle resources"]
+    SM["SageMaker control surface"]
+    TMFEVT[("Topic\nfp.bus.learning.mf.events.v1")]
+    MLFLOW["MLflow tracking surface\nDatabricks-managed"]
+    SMPKG[("Model package group\nfraud-platform-dev-full-models")]
+    EVID[("S3 bucket\nfraud-platform-dev-full-evidence")]
+    CAND["Candidate-bundle closure\nprovenance-complete and eligible for promotion corridor"]
+    SAFE["Safe-disable / rollback closure\npre-promotion operability proof"]
+  end
+
+  GLUEDB -->|supplies authoritative dataset basis into| SM
+  OBJ -->|supplies dataset manifests and fingerprints into| SM
+  SM -->|publishes train/eval lineage into| MLFLOW
+  SM -->|publishes candidate bundles to| SMPKG
+  SM -->|publishes model-factory events to| TMFEVT
+  MLFLOW -->|materially closes candidate truth as| CAND
+  MLFLOW -->|stores operability and rollback evidence in| EVID
+  MLFLOW -->|materially closes safe-disable / rollback as| SAFE

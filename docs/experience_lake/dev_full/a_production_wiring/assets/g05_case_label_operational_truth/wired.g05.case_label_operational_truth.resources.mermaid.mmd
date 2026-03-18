@@ -1,0 +1,48 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 5 synthesis
+%% Case and label operational truth - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active operational-truth seat"]
+    LG2[("Round node = topic or durable operational / supervision substrate")]
+    LG3["This graph names the concrete seats that realize case-intent, case truth, supervision-request truth, and authoritative label truth in the current wired platform"]
+  end
+
+  subgraph ENTRY["RTDL downstream sources"]
+    TRTDL[("Topic\nfp.bus.rtdl.v1")]
+    TAUDIT[("Topic\nfp.bus.audit.v1")]
+    MSK[("MSK Serverless cluster\nfraud-platform-dev-full-msk")]
+  end
+
+  subgraph G5["Concrete Group 5 seats"]
+    CASETRIG["Deployment\nfp-pr3-case-trigger"]
+    TCASE[("Topic\nfp.bus.case.triggers.v1")]
+    CM["Deployment\nfp-pr3-case-mgmt"]
+    LS["Deployment\nfp-pr3-label-store"]
+    TLABELS[("Topic\nfp.bus.labels.events.v1")]
+    AURORA[("Aurora cluster\nfraud-platform-dev-full-aurora")]
+    INTENT["Case-intent closure\nselection-safe and replay-safe handoff"]
+    CASE["Operational case-truth closure\ndeterministic case identity + timeline"]
+    REQUEST["Supervision-request closure\nlabel-request / label-pending truth"]
+    LABEL["Authoritative label-truth closure\nappend-only + provenance-complete + temporally visible"]
+  end
+
+  TRTDL -->|transported by| MSK
+  TAUDIT -->|transported by| MSK
+  MSK -->|feeds RTDL outputs into| CASETRIG
+  CASETRIG -->|publishes explicit case intents to| TCASE
+  CASETRIG -->|materially closes escalation as| INTENT
+  TCASE -->|transported by| MSK
+  TCASE -->|consumed by| CM
+  CM -->|writes operational case truth to| AURORA
+  CM -->|materially closes case truth as| CASE
+  CM -->|hands supervision requests into| LS
+  CM -->|materially closes case-to-label handoff as| REQUEST
+  LS -->|writes authoritative label truth to| AURORA
+  LS -->|publishes downstream label events to| TLABELS
+  LS -->|materially closes label truth as| LABEL

@@ -1,0 +1,50 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 3 / Path 2
+%% Joined context formation path - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active runtime seat"]
+    LG2[("Round node = constrained source family or declared context truth")]
+    LG3["This graph names the concrete seats that materially realize joined runtime context"]
+  end
+
+  subgraph ENTRY["Admitted runtime intake resources"]
+    TTRAFFIC[("Topic<br>fp.bus.traffic.fraud.v1")]
+    TCTXE[("Topic<br>fp.bus.context.arrival_events.v1")]
+    TCTXT[("Topic<br>fp.bus.context.arrival_entities.v1")]
+    TFLOW[("Topic<br>fp.bus.context.flow_anchor.fraud.v1")]
+    PROJ[("Current entity / relationship projection truth")]
+    ALLOWED[("Runtime-allowed join surfaces<br>arrival_events_5B<br>s1_arrival_entities_6B<br>s3_flow_anchor_with_fraud_6B")]
+  end
+
+  subgraph RTDL["Context formation runtime resources"]
+    EKS["EKS cluster<br>fraud-platform-dev-full"]
+    NSRTDL["Namespace<br>fraud-platform-rtdl"]
+    SARTDL["ServiceAccount<br>rtdl"]
+    CSFB["Deployment<br>fp-pr3-csfb"]
+    JOINMAP["Pinned join posture<br>join by declared keys only<br>no file-order inference"]
+    READY["Context readiness discipline<br>false-ready and missing-context guarded"]
+    IEG["Deployment<br>fp-pr3-ieg"]
+    OFP["Deployment<br>fp-pr3-ofp"]
+  end
+
+  EKS -->|contains| NSRTDL
+  NSRTDL -->|binds identity| SARTDL
+  NSRTDL -->|runs| CSFB
+  NSRTDL -->|runs| IEG
+  NSRTDL -->|runs| OFP
+  TTRAFFIC -->|consumed by| CSFB
+  TCTXE -->|consumed by| CSFB
+  TCTXT -->|consumed by| CSFB
+  TFLOW -->|consumed by| CSFB
+  PROJ -->|supplies current projection state to| CSFB
+  ALLOWED -->|constrains runtime-readable join surfaces for| CSFB
+  JOINMAP -->|governs binding semantics for| CSFB
+  READY -->|governs context readiness posture for| CSFB
+  CSFB -->|projects joined runtime context to| IEG
+  CSFB -->|projects joined runtime context to| OFP

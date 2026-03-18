@@ -1,0 +1,41 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 3 / Path 3
+%% Online feature readiness path
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active path seat or owned feature-readiness closure"]
+    LG2[("Round node = durable feature truth or constrained runtime seam")]
+    LG3["This graph closes at feature-ready runtime truth, before guardrail or decision formation begins"]
+  end
+
+  subgraph ENTRY["Context and projection basis"]
+    CONTEXT["Joined runtime context surface"]
+    PROJ[("Current entity / relationship projection truth")]
+    ALLOWED[("Bounded runtime semantic world<br>s3_event_stream_with_fraud_6B<br>arrival_events_5B<br>s1_arrival_entities_6B<br>s3_flow_anchor_with_fraud_6B<br>no `s4_*` truth products")]
+  end
+
+  subgraph PATH["Runtime context formation and decisioning / Path 3"]
+    OFP["Online feature materialization and serve surface"]
+    CONTRACT["Feature boundary contracts<br>lookup keys / feature-group requests<br>graph-version shape / requester-projector compatibility"]
+    READY["Feature readiness discipline<br>availability / freshness / missingness<br>no false missing-feature or stale-healthy posture"]
+    AURORA[("Online feature state")]
+    REDISH[("Redis handle seam<br>present as read handle, not live Redis resource")]
+    OUTCOME["Owned outcome<br>feature-ready runtime truth the live decision path can honestly use"]
+    MSF["Retained managed stream parity surface<br>not primary active output path"]
+  end
+
+  CONTEXT -->|hands joined runtime context to| OFP
+  PROJ -->|supplies current projection state to| OFP
+  ALLOWED -->|constrains runtime-readable semantic inputs for| OFP
+  CONTRACT -->|governs requester and projector compatibility for| OFP
+  READY -->|governs honest availability and freshness posture for| OFP
+  OFP -->|writes online feature state to| AURORA
+  OFP -. reads handle from .-> REDISH
+  AURORA -->|closes this path as| OUTCOME
+  REDISH -->|contributes serve seam to| OUTCOME
+  OFP -. retained parity relation only .-> MSF

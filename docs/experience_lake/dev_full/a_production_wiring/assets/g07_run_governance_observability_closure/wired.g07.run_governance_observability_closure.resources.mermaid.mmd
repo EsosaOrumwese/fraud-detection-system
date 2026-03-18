@@ -1,0 +1,50 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 7 synthesis
+%% Run governance and observability closure - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active closure seat"]
+    LG2[("Round node = durable governance / observability / cost truth surface")]
+    LG3["This graph names the concrete seats that realize run reconstruction, governance closure, verdict publication, observability attestation, safe idle, and spend accountability"]
+  end
+
+  subgraph G7["Concrete Group 7 seats"]
+    RUNCTL["Run control\nconformance / receipts"]
+    REPORTS["Run reports\nreconciliation / non-regression packs"]
+    GOVAPPEND["Governance append\nimmutable run facts"]
+    EVID[("S3 bucket\nfraud-platform-dev-full-evidence")]
+    CW["CloudWatch\nlogs / metrics / alarms"]
+    DASHOPS["CloudWatch dashboard\nfraud-platform-dev-full-operations"]
+    DASHCOST["CloudWatch dashboard\nfraud-platform-dev-full-cost-guardrail"]
+    SFN["Step Functions\nfraud-platform-dev-full-platform-run-v0"]
+    BUDGETRES["Budget\nfraud-platform-dev-full-monthly"]
+
+    REPORT["Run-reconstruction closure"]
+    APPEND["Governance-close closure"]
+    VERDICT["Final-verdict closure"]
+    OBS["Observability-attestation closure"]
+    IDLE["Safe-idle closure"]
+    COST["Cost-to-outcome closure"]
+  end
+
+  RUNCTL -->|materially closes run reconstruction through| REPORT
+  REPORT -->|materializes readable run story through| REPORTS
+  REPORTS -->|feed governed closeout into| APPEND
+  GOVAPPEND -->|materially closes formal governance state as| APPEND
+  APPEND -->|feeds whole-platform judgment through| VERDICT
+  EVID -->|supplies readable evidence basis into| VERDICT
+  VERDICT -->|feeds live attestation context into| OBS
+  CW -->|supplies live telemetry into| OBS
+  DASHOPS -->|supplies operational views into| OBS
+  OBS -->|stores attestation artifacts in| EVID
+  VERDICT -->|opens managed teardown through| SFN
+  SFN -->|materially closes safe-idle posture as| IDLE
+  IDLE -->|feeds post-run spend closure into| COST
+  DASHCOST -->|supplies cost guardrail posture into| COST
+  BUDGETRES -->|supplies budget envelope basis into| COST
+  COST -->|stores attributable spend truth through| RUNCTL

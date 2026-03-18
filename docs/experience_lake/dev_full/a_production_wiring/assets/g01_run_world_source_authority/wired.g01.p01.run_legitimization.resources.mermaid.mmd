@@ -1,0 +1,46 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 1 / Path 1
+%% Run legitimization path - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or control identity"]
+    LG2[("Round node = durable storage resource")]
+    LG3["This graph shows only the resources that materially seat the run-legitimization path"]
+  end
+
+  OP["Operator session / dispatch intent"]
+
+  subgraph CONTROL["Control resources"]
+    GHA["GitHub Actions"]
+    SFN["Step Functions<br>fraud-platform-dev-full-platform-run-v0"]
+    RUNCTL["Run control<br>conformance / receipts"]
+    EVID[("S3 evidence bucket<br>fraud-platform-dev-full-evidence")]
+  end
+
+  subgraph IDENTITY["Identity resources"]
+    OIDC["GitHub OIDC trust"]
+    ROLETF["IAM identity<br>fraud-dev"]
+    ROLESFN["IAM role<br>fraud-platform-dev-full-stepfunctions-orchestrator"]
+  end
+
+  subgraph OUTCOME["Committed path outcome"]
+    HEADER["Run header artifact<br>run metadata committed once"]
+    DIGEST["Config digest artifact<br>auditable config basis"]
+  end
+
+  OP -->|initiates bounded run dispatch| GHA
+  GHA -->|authenticates through| OIDC
+  OIDC -->|trusts workflow assumption of| ROLETF
+  GHA -->|dispatches| SFN
+  ROLESFN -->|executes| SFN
+  SFN -->|writes run-control facts to| RUNCTL
+  RUNCTL -->|stores receipts in| EVID
+  RUNCTL -->|commits| HEADER
+  RUNCTL -->|commits| DIGEST
+  HEADER -->|stored under run evidence root in| EVID
+  DIGEST -->|stored under run evidence root in| EVID

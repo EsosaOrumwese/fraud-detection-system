@@ -1,0 +1,61 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 6 synthesis
+%% Learning, evaluation, and governed activation - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active learning/activation seat"]
+    LG2[("Round node = durable learning/activation truth or downstream runtime-consumption surface")]
+    LG3["This graph names the concrete seats that realize the governed learning-and-activation corridor in the current wired platform"]
+  end
+
+  subgraph ENTRY["Authoritative basis resources"]
+    OBJ[("S3 bucket\nfraud-platform-dev-full-object-store")]
+    EVID[("S3 bucket\nfraud-platform-dev-full-evidence")]
+    TLABELS[("Topic\nfp.bus.labels.events.v1")]
+    MSK[("MSK Serverless cluster\nfraud-platform-dev-full-msk")]
+  end
+
+  subgraph G6["Concrete Group 6 seats"]
+    DBX["Databricks workspace"]
+    DBXBUILD["Databricks job\nfraud-platform-dev-full-ofs-build-v0"]
+    GLUEDB[("Glue DB\nfraud_platform_dev_full_ofs")]
+    SM["SageMaker control surface"]
+    MLFLOW["MLflow tracking surface\nDatabricks-managed"]
+    SMPKG[("Model package group\nfraud-platform-dev-full-models")]
+    PROMO[("Promotion receipts")]
+    ROLLBACK[("Rollback drill receipts")]
+    REGACTIVE[("Active bundle / policy resolution\nruntime-consumed registry truth")]
+    DF["Deployment\nfp-pr3-df"]
+
+    BASIS["Learning-input basis closure\nreplay / as-of / maturity / leakage pinned"]
+    DATASET["Offline dataset closure\nmanifest + fingerprint + rollback recipe"]
+    CAND["Candidate-bundle closure\nprovenance-complete + operable"]
+    GOV["Promotion-governance closure\npromotion + rollback + compatibility"]
+    AUTH["Runtime-authority closure\ndeterministic active bundle / policy truth"]
+  end
+
+  TLABELS -->|transported by| MSK
+  OBJ -->|supplies archive truth into| DBX
+  EVID -->|supplies closure evidence into| DBX
+  TLABELS -->|supplies label truth into| DBX
+  DBX -->|materially closes learning basis as| BASIS
+  DBX -->|runs| DBXBUILD
+  DBXBUILD -->|writes authoritative dataset tables to| GLUEDB
+  DBXBUILD -->|writes manifests / fingerprints / rollback artifacts to| OBJ
+  DBXBUILD -->|materially closes dataset truth as| DATASET
+  GLUEDB -->|feeds authoritative dataset basis into| SM
+  OBJ -->|supplies dataset manifests and fingerprints into| SM
+  SM -->|publishes lineage into| MLFLOW
+  SM -->|publishes candidate bundles to| SMPKG
+  MLFLOW -->|materially closes candidate truth as| CAND
+  MLFLOW -->|writes explicit promotion truth to| PROMO
+  MLFLOW -->|writes rollback-governance truth to| ROLLBACK
+  MLFLOW -->|materially closes promotion governance as| GOV
+  MLFLOW -->|materializes active promoted state into| REGACTIVE
+  REGACTIVE -->|materially closes runtime authority as| AUTH
+  AUTH -->|is read by| DF

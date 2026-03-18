@@ -1,0 +1,33 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 1 / Path 3
+%% Ready authorization path
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active authority surface or owned outcome"]
+    LG2[("Round node = durable topic or evidence truth")]
+    LG3["Dashed edge = explicitly excluded non-authoritative route"]
+  end
+
+  PINNED["Pinned run + source-legitimate basis<br>run header committed + source realization satisfied"]
+
+  subgraph PATH["Run and world-source authority / Path 3"]
+    SFN["Step Functions<br>authoritative READY closure"]
+    CTRLBUS[("fp.bus.control.v1")]
+    READY["Owned outcome<br>READY published"]
+    READYREC["Owned outcome<br>READY receipt with Step Functions execution reference"]
+    EVID[("Run evidence root<br>S3 evidence bucket")]
+    MSF["Compute-only READY candidate<br>non-authoritative"]
+  end
+
+  PINNED -->|hands ready-eligibility to control authority| SFN
+  SFN -->|publishes READY to| CTRLBUS
+  CTRLBUS -->|carries authoritative closure as| READY
+  SFN -->|commits READY receipt with execution reference as| READYREC
+  READY -->|recorded under| EVID
+  READYREC -->|stored under| EVID
+  MSF -. rejected: compute-only READY is insufficient .-> READY

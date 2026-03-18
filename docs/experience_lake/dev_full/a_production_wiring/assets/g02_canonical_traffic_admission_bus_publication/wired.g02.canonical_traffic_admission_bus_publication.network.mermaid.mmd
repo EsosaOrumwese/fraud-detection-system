@@ -1,0 +1,53 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 2 synthesis
+%% Canonical traffic admission and bus publication
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active path seat or owned closure"]
+    LG2[("Round node = durable truth, authoritative bus, or evidence store")]
+    LG3["Dashed edge = explicitly excluded stale route"]
+  end
+
+  subgraph G2["Group 2 - Canonical traffic admission and bus publication"]
+    TRAFFIC["Canonical behavioural traffic<br>behavioural_streams only"]
+    CONTRACT["Active ingress contract<br>execute-api base URL<br>stage v1<br>POST /ingest/push<br>X-IG-Api-Key"]
+    HTTPAPI["Active external ingress boundary"]
+    ALBSTALE["Retained internal ingress surface<br>stale boundary alternative"]
+    DISPOSITION["Ingress disposition boundary<br>dedupe + admit / reject / quarantine / ambiguous truth"]
+    IGDDB[("Ingress idempotency + admission truth")]
+    TTRAFFIC[("Traffic topic")]
+    TCTX[("Context topic family")]
+    BUSHANDOFF["Closure point<br>authoritative runtime bus handoff"]
+    RUNCTL["Ingest-commit closure"]
+    EVID[("Run-scoped ingest evidence root")]
+    INGEST["Closure point<br>committed ingest truth"]
+  end
+
+  CLAIM["Group claim<br>the platform turns canonical behavioural traffic into governed runtime entry truth"]
+
+  TRAFFIC -->|must enter through| CONTRACT
+  CONTRACT -->|lands at| HTTPAPI
+  HTTPAPI -->|hands boundary-valid request into| DISPOSITION
+  DISPOSITION -->|writes ingress truth into| IGDDB
+
+  IGDDB -->|authoritative admitted traffic publishes to| TTRAFFIC
+  IGDDB -->|authoritative admitted context publishes to| TCTX
+  TTRAFFIC -->|together close| BUSHANDOFF
+  TCTX -->|together close| BUSHANDOFF
+
+  IGDDB -->|supplies admission basis to| RUNCTL
+  BUSHANDOFF -->|supplies publish basis to| RUNCTL
+  RUNCTL -->|commits receipt, quarantine, offset-proof, and verdict under| EVID
+  EVID -->|closes as| INGEST
+
+  ALBSTALE -. explicitly excluded from the accepted active-boundary story .-> HTTPAPI
+
+  HTTPAPI -->|together prove| CLAIM
+  DISPOSITION -->|together prove| CLAIM
+  BUSHANDOFF -->|together prove| CLAIM
+  INGEST -->|together prove| CLAIM

@@ -1,0 +1,32 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 4 / Path 1
+%% Audit append path
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active path seat or owned audit-append closure"]
+    LG2[("Round node = append-only audit truth or downstream handoff seat")]
+    LG3["This graph closes at append-only audit and lineage truth, before audit publication or archive preservation begins"]
+  end
+
+  subgraph ENTRY["Runtime truth basis"]
+    DECISION[("Decision truth")]
+    OUTCOME[("Action / outcome truth")]
+  end
+
+  subgraph PATH["Durable runtime audit and archive truth / Path 1"]
+    DLA["Decision Log and Audit surface<br>append writer for real-time lane"]
+    CONTRACT["Audit-append contracts<br>append-only discipline<br>replay divergence visible<br>lineage completeness / readback integrity"]
+    AUDIT[("Owned outcome<br>append-only audit and lineage truth")]
+    TAUDIT[("Downstream audit handoff seat<br>fp.bus.audit.v1")]
+  end
+
+  DECISION -->|supplies decision truth to| DLA
+  OUTCOME -->|supplies action/outcome truth to| DLA
+  CONTRACT -->|governs authoritative append behavior for| DLA
+  DLA -->|closes this path as| AUDIT
+  AUDIT -->|later feeds downstream audit publication into| TAUDIT

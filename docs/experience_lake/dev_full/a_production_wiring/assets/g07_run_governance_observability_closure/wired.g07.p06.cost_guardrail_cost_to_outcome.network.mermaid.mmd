@@ -1,0 +1,36 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 7 / Path 6
+%% Cost guardrail and cost-to-outcome closure path
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active path seat, control, or owned cost-closure object"]
+    LG2[("Round node = post-run cost basis or closure surface")]
+    LG3["This graph closes at attributable spend truth for the run window, after safe idle and before final closure sync"]
+  end
+
+  subgraph ENTRY["Post-run cost basis"]
+    IDLE[("Idle-safe teardown truth")]
+    SNAP[("Run-scoped teardown cost snapshot")]
+    HANDLES[("Resolved budget and cost-control handles")]
+  end
+
+  subgraph PATH["Run governance and observability closure / Path 6"]
+    GUARD["Cost-guardrail corridor\npost-teardown cost capture\nwindowed spend reading\nbudget-envelope interpretation"]
+    CONTRACT["Cost-to-outcome contracts\npre-run spend envelope\nreceipt fields complete\nunattributed spend = 0\nproof or risk retired explicit\nfail-closed on missing outcome or bad handle parsing"]
+    BUDGET[("Owned outcome\ncommitted phase budget envelope")]
+    RECEIPT[("Owned outcome\nphase cost-to-outcome receipt")]
+    CLOSE[("Later handoff\nfinal closure sync")]
+  end
+
+  IDLE -->|opens post-run cost closure through| GUARD
+  SNAP -->|supplies run-window spend basis into| GUARD
+  HANDLES -->|supply budget and capture scope into| GUARD
+  CONTRACT -->|governs attributable spend closure for| GUARD
+  GUARD -->|closes bounded spend governance as| BUDGET
+  GUARD -->|closes attributable spend truth as| RECEIPT
+  RECEIPT -->|later supports final closure sync through| CLOSE

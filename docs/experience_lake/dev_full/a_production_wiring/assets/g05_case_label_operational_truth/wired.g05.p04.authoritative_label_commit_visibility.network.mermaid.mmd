@@ -1,0 +1,34 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 5 / Path 4
+%% Authoritative label commit and visibility path
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active path seat, contract, or owned label-truth closure"]
+    LG2[("Round node = durable label-truth or downstream visibility surface")]
+    LG3["This graph closes at authoritative label truth with readback, as-of, and maturity visibility, before learning-input basis begins"]
+  end
+
+  subgraph ENTRY["Supervision-request basis"]
+    REQUEST[("Label-request / label-intake truth")]
+    ASSERTION[("Specific label assertion\nready to be committed")]
+  end
+
+  subgraph PATH["Case and label operational truth / Path 4"]
+    LS["Label-store boundary\nappend-only authoritative label commit"]
+    CONTRACT["Label-store contracts\nappend-only and idempotent commits\nconflict-visible\nprovenance-complete\nqueryable by as-of and maturity"]
+    LABEL[("Owned outcome\nauthoritative label truth")]
+    VIS[("Owned outcome\nlabel readback + as-of + maturity visibility")]
+    TLABELS[("Downstream handoff seat\nfp.bus.labels.events.v1")]
+  end
+
+  REQUEST -->|feeds supervision-request basis into| LS
+  ASSERTION -->|feeds commit-ready label assertion into| LS
+  CONTRACT -->|governs authoritative commit behavior for| LS
+  LS -->|closes append-only supervision truth as| LABEL
+  LS -->|closes temporal readback visibility as| VIS
+  LABEL -->|later publishes downstream label events through| TLABELS

@@ -1,0 +1,43 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 3 / Path 4
+%% Decision guardrail path - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active runtime seat"]
+    LG2[("Round node = upstream RTDL truth surface or adjudicated posture")]
+    LG3["This graph names the concrete seats that materially realize guardrail posture"]
+  end
+
+  subgraph ENTRY["Upstream RTDL inputs"]
+    CSFB["Deployment<br>fp-pr3-csfb"]
+    IEG["Deployment<br>fp-pr3-ieg"]
+    OFP["Deployment<br>fp-pr3-ofp"]
+    READY[("Live RTDL telemetry surfaces<br>feature-ready / freshness / checkpoint age<br>required-signal health / run participation")]
+  end
+
+  subgraph RTDL["Guardrail runtime resources"]
+    EKS["EKS cluster<br>fraud-platform-dev-full"]
+    NSRTDL["Namespace<br>fraud-platform-rtdl"]
+    SARTDL["ServiceAccount<br>rtdl"]
+    DL["Deployment<br>fp-pr3-dl"]
+    CLASSIFY["Guardrail classification discipline<br>false fail-closed guarded<br>recovery-to-normal explicit"]
+    MODE[("Decision posture output<br>NORMAL / FAIL_CLOSED / advisory posture")]
+    DF["Deployment<br>fp-pr3-df"]
+  end
+
+  EKS -->|contains| NSRTDL
+  NSRTDL -->|binds identity| SARTDL
+  NSRTDL -->|runs| DL
+  NSRTDL -->|runs| DF
+  CSFB -->|supplies joined-context readiness basis to| DL
+  IEG -->|supplies projection health basis to| DL
+  OFP -->|supplies feature readiness and freshness basis to| DL
+  READY -->|supplies live dependency posture to| DL
+  CLASSIFY -->|governs semantic posture judgment for| DL
+  DL -->|materializes adjudicated decision posture as| MODE
+  DL -->|hands adjudication input to| DF

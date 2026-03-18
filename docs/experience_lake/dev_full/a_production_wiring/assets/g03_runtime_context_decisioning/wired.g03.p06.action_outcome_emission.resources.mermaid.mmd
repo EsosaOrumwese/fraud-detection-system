@@ -1,0 +1,38 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 3 / Path 6
+%% Action and outcome emission path - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active runtime seat"]
+    LG2[("Round node = explicit downstream handoff or owned outcome truth")]
+    LG3["This graph names the concrete seats that materially realize action/outcome truth without collapsing into Group 4 audit ownership"]
+  end
+
+  subgraph ENTRY["Decision truth basis"]
+    DF["Deployment<br>fp-pr3-df"]
+    TRTDL[("Topic<br>fp.bus.rtdl.v1")]
+  end
+
+  subgraph RTDL["Action and outcome runtime resources"]
+    EKS["EKS cluster<br>fraud-platform-dev-full"]
+    NSRTDL["Namespace<br>fraud-platform-rtdl"]
+    SADEC["ServiceAccount<br>decision-lane"]
+    AL["Deployment<br>fp-pr3-al"]
+    CONTRACT["Action contract seam<br>duplicate-safe semantics<br>ambiguity recording<br>decision-to-action trace completeness"]
+    TAUDIT[("Topic<br>fp.bus.audit.v1")]
+    CONSUMERS["Later RTDL / cross-plane consumers"]
+  end
+
+  EKS -->|contains| NSRTDL
+  NSRTDL -->|binds identity| SADEC
+  NSRTDL -->|runs| AL
+  DF -->|supplies explicit decision truth to| AL
+  TRTDL -->|carries current decision publication basis into later consumers| CONSUMERS
+  CONTRACT -->|governs deterministic, attributable effect formation for| AL
+  AL -->|publishes action outcomes to| TAUDIT
+  AL -->|hands deterministic action/outcome truth to| CONSUMERS

@@ -1,0 +1,34 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 6 / Path 3
+%% Train / eval and candidate-bundle path
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active path seat, control, or owned candidate-bundle closure"]
+    LG2[("Round node = authoritative train/eval truth or downstream handoff surface")]
+    LG3["This graph closes at provenance-complete candidate-bundle truth with safe-disable and rollback path, before promotion begins"]
+  end
+
+  subgraph ENTRY["Authoritative dataset basis"]
+    DATASET[("Committed offline dataset truth")]
+  end
+
+  subgraph PATH["Learning, evaluation, and governed activation / Path 3"]
+    MF["Model-factory boundary\nmanaged train and evaluation"]
+    GATES["Train/eval controls\nmetrics and leakage checks pass\nstability / quality gates close\ncandidate provenance carries dataset fingerprint\nreplay-basis and as-of controls"]
+    MLFLOW["Lineage closure\nmanaged tracking and candidate publication"]
+    CAND[("Owned outcome\nprovenance-complete candidate bundle")]
+    SAFE[("Owned outcome\nsafe-disable and rollback path")]
+    PROMO[("Later handoff\npromotion and rollback-governance path")]
+  end
+
+  DATASET -->|feeds authoritative dataset basis into| MF
+  GATES -->|govern train/eval closure for| MF
+  MF -->|hands managed lineage and candidate publication into| MLFLOW
+  MLFLOW -->|closes operable candidate truth as| CAND
+  MLFLOW -->|closes pre-promotion disable/rollback operability as| SAFE
+  CAND -->|later feeds eligible candidate into| PROMO

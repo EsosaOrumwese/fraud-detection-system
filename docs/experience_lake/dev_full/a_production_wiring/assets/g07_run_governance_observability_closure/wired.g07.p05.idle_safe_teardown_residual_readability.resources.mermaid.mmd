@@ -1,0 +1,32 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 7 / Path 5
+%% Idle-safe teardown and residual-readability path - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active safe-idle closure seat"]
+    LG2[("Round node = teardown/readability basis or downstream handoff")]
+    LG3["This graph names the concrete seats that materially realize safe idle, residual verification, and post-teardown readability in the current wired platform"]
+  end
+
+  subgraph ENTRY["Post-verdict resources"]
+    FULL[("Full-platform verdict bundle")]
+    EVID[("S3 bucket\nfraud-platform-dev-full-evidence")]
+  end
+
+  subgraph PATH["Safe-idle teardown resources"]
+    SFN["Step Functions\nfraud-platform-dev-full-platform-run-v0"]
+    IDLE["Safe-idle closure\nteardown execution + residual-zero / bounded + readability retained"]
+    SNAP[("Teardown and residual snapshots\nrun-scoped post-teardown truth")]
+    DASHCOST["Later handoff\ncost guardrail / cost-to-outcome closure"]
+  end
+
+  FULL -->|opens managed teardown chain through| SFN
+  EVID -->|supplies post-teardown readability basis into| IDLE
+  SFN -->|materially closes safe-idle posture as| IDLE
+  IDLE -->|materializes residual and readability snapshots as| SNAP
+  SNAP -->|later feeds cost closure through| DASHCOST

@@ -1,0 +1,33 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 2 / Path 1
+%% Boundary access path
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active path seat or owned closure"]
+    LG2[("Round node = durable / declared boundary truth")]
+    LG3["Dashed edge = explicitly excluded stale or non-authoritative route"]
+  end
+
+  ENTRY["Canonical behavioural traffic<br>dual-stream default<br>s2_event_stream_baseline_6B + s3_event_stream_with_fraud_6B"]
+
+  subgraph PATH["Canonical traffic admission and bus publication / Path 1"]
+    CONTRACT["Ingress contract<br>execute-api base URL<br>stage v1<br>POST /ingest/push<br>X-IG-Api-Key"]
+    HTTPAPI["HTTP API Gateway<br>named active external front door"]
+    ROUTE["Route closure<br>stage v1 -> POST /ingest/push"]
+    IGLAMBDA["IG Lambda boundary<br>fraud-platform-dev-full-ig-handler"]
+    OUTCOME["Owned outcome<br>request has reached the correct live ingress boundary<br>and is now eligible for ingress processing"]
+    ALBSTALE["Retained internal ingress surface<br>stale boundary alternative"]
+  end
+
+  ENTRY -->|must target the correct external ingress contract through| CONTRACT
+  CONTRACT -->|lands at the named active boundary| HTTPAPI
+  HTTPAPI -->|narrows boundary access through| ROUTE
+  ROUTE -->|invokes the live ingress boundary| IGLAMBDA
+  IGLAMBDA -->|closes this path as| OUTCOME
+
+  ALBSTALE -. explicitly excluded from the accepted active-boundary story .-> OUTCOME

@@ -1,0 +1,42 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 3 / Path 5
+%% Decision formation path - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active runtime seat"]
+    LG2[("Round node = upstream runtime truth or runtime-consumed authority surface")]
+    LG3["This graph names the concrete seats that materially realize explicit decision truth"]
+  end
+
+  subgraph ENTRY["Decision-formable runtime inputs"]
+    CSFB["Deployment<br>fp-pr3-csfb"]
+    OFP["Deployment<br>fp-pr3-ofp"]
+    DL["Deployment<br>fp-pr3-dl"]
+    REGACTIVE[("Active bundle / policy resolution<br>runtime-consumed registry truth")]
+  end
+
+  subgraph RTDL["Decision formation runtime resources"]
+    EKS["EKS cluster<br>fraud-platform-dev-full"]
+    NSRTDL["Namespace<br>fraud-platform-rtdl"]
+    SADEC["ServiceAccount<br>decision-lane"]
+    DF["Deployment<br>fp-pr3-df"]
+    CONTRACT["Decision contract seam<br>bundle / policy identity<br>provenance completeness<br>explainability coverage"]
+    TRTDL[("Topic<br>fp.bus.rtdl.v1")]
+    TAUDIT[("Topic<br>fp.bus.audit.v1")]
+  end
+
+  EKS -->|contains| NSRTDL
+  NSRTDL -->|binds identity| SADEC
+  NSRTDL -->|runs| DF
+  CSFB -->|supplies joined context basis to| DF
+  OFP -->|supplies feature-ready basis to| DF
+  DL -->|supplies adjudicated posture to| DF
+  REGACTIVE -->|supplies runtime-consumed bundle/policy authority to| DF
+  CONTRACT -->|governs explicit decision formation for| DF
+  DF -->|publishes decisions to| TRTDL
+  DF -->|publishes decision audit to| TAUDIT
