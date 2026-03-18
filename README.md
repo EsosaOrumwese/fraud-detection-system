@@ -12,7 +12,7 @@ This repository contains:
 ![Dev Full Platform Overview](docs\design\platform\dev_full\graph\wired\dev_full_platform_overview_v2.mermaid.png)
 
 Source graph:
-- `docs/design/platform/dev_full/graph/dev_full_platform_overview_v2.mermaid.mmd`
+- `docs\design\platform\dev_full\graph\wired\dev_full_platform_overview_v2.mermaid.png`
 
 ## What This Platform Does
 
