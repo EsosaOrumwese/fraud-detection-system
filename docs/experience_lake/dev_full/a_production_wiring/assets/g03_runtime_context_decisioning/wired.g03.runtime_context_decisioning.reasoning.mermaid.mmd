@@ -1,0 +1,103 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph WHY["1. Why this group exists"]
+    W1["The platform cannot stop at admitted traffic"]
+    W2["It has to turn admitted live traffic into meaningful, explainable, bounded real-time decision truth"]
+    W3["The RTDL framing makes that the core plane question: can this network turn admitted live traffic into meaningful, explainable, auditable, stable real-time decisions under production load?"]
+    W4["The plane is explicitly composed of the boundaries we interrogated: CSFB, IEG, OFP, DL, DF, and AL"]
+  end
+
+  subgraph PATHS["2. Why the six paths are justified together"]
+    P1["Entity and relationship projection"]
+    P2["Joined context formation"]
+    P3["Online feature readiness"]
+    P4["Decision guardrail"]
+    P5["Decision formation"]
+    P6["Action and outcome emission"]
+    P7["Projection proves the platform builds current graph truth rather than assuming it from schema or payloads"]
+    P8["Joined context proves thin traffic becomes explicit time-safe runtime context inside the platform rather than arriving pre-fattened"]
+    P9["Online feature readiness proves context is not yet enough; feature truth is its own boundary with readiness and freshness semantics"]
+    P10["Decision guardrail proves the system separates inputs exist from it is safe to proceed, and treats degrade posture as a first-class runtime truth"]
+    P11["Decision formation proves decisions are explicit provenance-carrying outputs rather than being implied later by actions"]
+    P12["Action and outcome emission proves decisions become deterministic platform effects under their own owned boundary rather than dissolving into downstream side effects"]
+    P13["Taken together, the six paths prove Group 3 is a chained runtime truth system rather than the scoring part in some vague sense"]
+  end
+
+  subgraph CLAIM["3. Group-level claim"]
+    G1["The platform turns admitted traffic into governed real-time decision truth through a bounded sequence of owned runtime boundaries"]
+    G2["The current wired system is intentionally constructing projection truth, context truth, feature truth, guardrail truth, decision truth, and action or outcome truth"]
+    G3["That makes the system look like a genuine decision architecture rather than events merely moving through services"]
+  end
+
+  subgraph PROOF["4. What this group proves for A"]
+    A1["Strongest closure: continuity, existence, and safety"]
+    A2["Continuity closes because the runtime path from admitted traffic to emitted action is explicitly staged: traffic/context handoff, projection, joined context, feature readiness, guardrail posture, decision, and action/outcome"]
+    A3["The run-process reinforces that structure by separating RTDL catch-up closure from decision-chain closure rather than pretending RTDL alive automatically means decisioning is closed"]
+    A4["Existence closes because these boundaries are materially seated in the current wired RTDL plane: bounded live-runtime oracle scope, concrete worker/state/downstream handoff surfaces, distinct decision-side and projection/context components, and named downstream bus surfaces"]
+    A5["Safety closes because the whole group is governed by real semantic boundaries: no future leakage into runtime, no truth-product leakage into live decisioning, no false-ready from partial or mis-scoped context, no false fail-closed from stale health artifacts, and no silent confusion between advisory degradation and real insufficiency"]
+    A6["It also gives meaningful uniqueness closure: one active runtime route per phase or run, one bounded live-runtime oracle output set, and explicit truth ownership between context, feature, guardrail, decision, and action boundaries"]
+  end
+
+  subgraph AMBIG["5. A ambiguities to carry upward"]
+    M1["The biggest A ambiguity is not whether the plane exists; it clearly does"]
+    M2["The ambiguity is how to explain the seating cleanly without making it sound messier than it is"]
+    M3["There are different runtime realizations and retained runtime postures across the RTDL plane"]
+    M4["That should be explained as one coherent RTDL plane with different owned runtime boundaries rather than as an untidy mixed stack"]
+    M5["The copied baseline wired view should stay the primary reader-facing object for A, while broader managed-stream posture remains supporting context"]
+    M6["The second ambiguity is cross-plane: active bundle and policy authority is consumed inside Group 3 but actually owned upstream by the learning and registry group"]
+    M7["So in A we need to keep saying Group 3 consumes runtime authority correctly; it does not own active-bundle truth"]
+  end
+
+  subgraph PARK["6. Bi spillover to park"]
+    B1["Questions about RTDL lag, checkpoint age, latency, feature freshness, restart-to-green, false fail-closed rate under realistic faults, and decision/action tails under target throughput belong later in Bi"]
+    B2["For A, Group 3 only needs to prove that the current wired platform has a real, bounded, intentional runtime decision graph with explicit truth boundaries and concrete seating"]
+  end
+
+  subgraph VERDICT["7. Group verdict"]
+    V1["Group 3 proves that the platform does not merely score events; it constructs real-time decision truth through a bounded chain of owned runtime boundaries"]
+    V2["This is a major A win because the current wired system has a genuine decision architecture: not just inputs and outputs, but explicit internal truths for projection, context, feature readiness, safety posture, decision formation, and action emission"]
+  end
+
+  W1 --> W2 --> W3 --> W4
+  W4 --> P1
+  W4 --> P2
+  W4 --> P3
+  W4 --> P4
+  W4 --> P5
+  W4 --> P6
+  P1 --> P7
+  P2 --> P8
+  P3 --> P9
+  P4 --> P10
+  P5 --> P11
+  P6 --> P12
+  P7 --> P13
+  P8 --> P13
+  P9 --> P13
+  P10 --> P13
+  P11 --> P13
+  P12 --> P13
+
+  P13 --> G1 --> G2 --> G3
+
+  G3 --> A1 --> A2 --> A3 --> A4 --> A5 --> A6
+  A6 --> M1 --> M2 --> M3 --> M4 --> M5 --> M6 --> M7
+  A6 --> B1 --> B2
+  M7 --> V1
+  B2 --> V1
+  V1 --> V2
+
+  classDef base fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.2px;
+  classDef spine fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef reason fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.2px;
+  classDef close fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+
+  class W1,W2,W3,W4,P1,P2,P3,P4,P5,P6,P7,P8,P9,P10,P11,P12 base;
+  class P13,G1,G2,G3 spine;
+  class A1,A2,A3,A4,A5,A6,M1,M2,M3,M4,M5,M6,M7,B1,B2 reason;
+  class V1,V2 close;

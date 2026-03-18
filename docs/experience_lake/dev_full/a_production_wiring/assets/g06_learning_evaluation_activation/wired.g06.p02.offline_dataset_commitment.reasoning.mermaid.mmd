@@ -1,0 +1,168 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph INTENT["1. Path objective"]
+    G1["Turn a pinned learning-input basis into authoritative offline dataset truth"]
+    G2["Keep this path narrower than learning-input closure and narrower than later training and evaluation truth"]
+    G3["Answer where the platform commits the actual dataset that later training is allowed to trust"]
+  end
+
+  subgraph ENTRY["2. Entry basis"]
+    E1["The entry is not that Databricks has access to some tables"]
+    E2["The entry is a green learning-input basis whose replay references, as-of controls, maturity policy, and anti-leakage posture are already pinned and committed"]
+    E3["The run-process is explicit that offline-dataset closure only starts when learning-input closure is green"]
+    E4["The active build plan turns that into input binding and immutability checks"]
+    E5["So the offline-feature plane is not allowed to decide its own basis ad hoc; it must inherit an already-closed immutable learning-input basis"]
+  end
+
+  subgraph SPINE["5. Broad route logic"]
+    R1["Green learning-input basis"]
+    R2["Offline-feature input binding and immutability checks"]
+    R3["Databricks dataset build"]
+    R4["Quality-gate adjudication"]
+    R5["Iceberg and Glue commit verification"]
+    R6["Manifest, fingerprint, and time-bound audit publication"]
+    R7["Rollback recipe closure"]
+  end
+
+  subgraph CARRIES["4. What the path carries"]
+    C1["Replay basis inherited from the learning-input closure"]
+    C2["Temporal controls: feature-as-of, label-as-of, and label-maturity"]
+    C3["Authoritative runtime, archive, and label basis"]
+    C4["Dataset manifest"]
+    C5["Dataset fingerprint"]
+    C6["Time-bound and leakage audit"]
+    C7["Rollback recipe"]
+    C8["Current-wired nuance: the real-data realization carried replay-basis mode of source-offset ranges and carried feature/label as-of plus maturity pins into the manifest and fingerprint"]
+  end
+
+  subgraph LOGIC["6. Logical design reading"]
+    L1["The platform treats dataset truth as its own first-class boundary, not as a side effect of managed compute"]
+    L2["The system is not saying Databricks ran, so the dataset must be fine"]
+    L3["It is saying before training is allowed, the platform must commit a deterministic dataset object with pinned temporal basis, leakage audit, fingerprint, and rollback recipe"]
+    L4["If the offline-feature plane is wrong, training is running on fiction"]
+    L5["So the offline-feature plane must own stronger truth boundary than mere job completion"]
+  end
+
+  subgraph SEATING["7. Concrete seating in the current wired system"]
+    S1["This path is materially seated in the current wired platform"]
+    S2["The copied baseline wired graphs show a Databricks workspace as the offline-feature build surface and dedicated Databricks jobs for build and quality"]
+    S3["The build job writes dataset tables into the catalog-backed tabular store"]
+    S4["Dataset manifests are written into object storage and quality receipts into evidence"]
+    S5["That means dataset truth is seated on concrete managed learning substrate, committed tabular storage, and run-scoped evidence surfaces rather than vague notebook output"]
+    S6["The current implementation trail makes that even clearer: managed closure completed, catalog readback verified the committed table, and run-scoped offline-feature artifacts were published under learning evidence surfaces"]
+    S7["Later the real-data realization produced a concrete authoritative dataset location with measurable row counts and zero future or leakage violations"]
+    S8["That is strong A-style evidence that this boundary is real and working on actual platform truth, not just diagrammed"]
+  end
+
+  subgraph RATIONALE["8. Why the design looks like this"]
+    Y1["The platform refuses two weak shortcuts: latest-data shortcuts where the offline-feature build quietly decides its own temporal basis, and unmanaged file-emission shortcuts where data appears somewhere without proper dataset truth, metadata, and rollback semantics"]
+    Y2["The production-readiness definition explicitly rejects both"]
+    Y3["Offline datasets must come from the right truth sources only, respect point-in-time constraints, enforce leakage checks in reality, produce deterministic manifests, and have real rollback and rebuild recipes"]
+    Y4["The run-process reinforces that by failing the offline-dataset closure if manifest or fingerprint are missing or if the time-bound and leakage audit fails"]
+    Y5["The implementation history reinforces the same intent: diagnostic local runs were non-authoritative, the real closure path was managed-only, and later real-data realization deliberately rewired the build to real data surfaces rather than synthetic placeholders"]
+  end
+
+  subgraph CONTRACT["9. What larger contracts are shaping this path"]
+    X1["The learning-input contract shapes the input side: replay basis, as-of boundaries, maturity, and anti-leakage must already be pinned before the offline-feature plane can build anything"]
+    X2["The offline-feature production-ready contract shapes the dataset side: point-in-time correctness, future leakage = 0, deterministic manifests, fingerprint stability, and rebuild determinism"]
+    X3["The data and storage contract shapes the materialization side: the learning tabular format is pinned to Apache Iceberg v2 on object storage with the Glue Data Catalog, not unmanaged files"]
+    X4["The downstream train-and-eval contract requires candidate provenance to include upstream dataset fingerprint plus replay basis and as-of controls, so this path cannot be vague about dataset identity"]
+  end
+
+  subgraph TRADEOFFS["10. Trade-offs and constraints"]
+    T1["This path deliberately adds a full governance boundary before training"]
+    T2["That costs Databricks build orchestration, quality-gate adjudication, Iceberg and Glue verification, manifest and fingerprint synthesis, rollback-recipe authoring, and explicit time-bound and leakage auditing"]
+    T3["But that cost buys the ability to explain exactly what dataset was used, why it was allowed, and how to rebuild or roll back from it, instead of burying those decisions inside notebook or job run"]
+    T4["The build plan shows those constraints clearly: runtime readiness, input binding, build execution, quality gates, catalog commit verification, and rollback recipe closure are separate obligations"]
+    T5["That is more ceremony, but it is what turns we built dataset into we have authoritative dataset truth"]
+  end
+
+  subgraph NECESSITY["11. Necessity test"]
+    N1["If this path is removed, the platform can still preserve archive truth, commit authoritative labels, pin a learning-input basis, and even run model-training jobs later"]
+    N2["But it loses a clean answer to what dataset training actually used"]
+    N3["It loses a clean answer to whether the dataset respected point-in-time rules"]
+    N4["It loses a clean answer to whether future leakage was blocked in the committed dataset artifact itself"]
+    N5["It loses a clean answer to how the dataset can be rebuilt or rolled back deterministically"]
+    N6["That would weaken A immediately because the platform would have learning inputs and later models without an explicit dataset-truth boundary between them"]
+    N7["The architecture rejects that by making dataset truth an owned boundary before train-and-eval begins"]
+  end
+
+  subgraph CLOSURE["3. Owned outcome and 12. What this path proves for A"]
+    O1["Offline-feature build completed"]
+    O2["Committed dataset manifest and fingerprint exist"]
+    O3["Committed time-bound and leakage audit passed"]
+    O4["Committed rollback recipe exists"]
+    O5["Owned outcome: committed authoritative offline dataset truth"]
+    A1["Purpose claim:<br/>the platform has a distinct job for turning pinned learning-input basis into authoritative offline dataset truth before train-and-eval begins"]
+    A2["Intentionality claim:<br/>the offline-feature plane does not decide its own basis and does not collapse truth into job completion; it commits deterministic dataset identity and controls"]
+    A3["Materialization claim:<br/>this boundary is concretely seated in Databricks build and quality jobs, Iceberg and Glue-backed tabular storage, object-storage manifests, and run-scoped evidence surfaces"]
+    A4["Contract claim:<br/>this path is governed by point-in-time correctness, future leakage at zero, deterministic manifests, fingerprint stability, rebuild determinism, and explicit upstream dataset identity"]
+    A5["Constraint-awareness claim:<br/>the platform already knows dataset truth can be faked by latest-data shortcuts, unmanaged files, or synthetic placeholders, which is why input binding, commit verification, and rollback closure are explicit"]
+    A6["A-level meaning:<br/>the platform commits a real authoritative dataset object for later training rather than treating offline learning data as incidental byproduct of a managed job"]
+  end
+
+  G1 --> G2 --> G3 --> E1
+  E1 --> E2 --> E3 --> E4 --> E5
+  E5 --> R1 --> R2 --> R3 --> R4 --> R5 --> R6 --> R7
+
+  R1 --> C1
+  R1 --> C2
+  R2 --> C3
+  R6 --> C4 --> C5
+  R4 --> C6
+  R7 --> C7
+  R6 --> C8
+
+  R1 --> L1
+  L1 --> L2 --> L3 --> L4 --> L5
+
+  R3 --> S1
+  S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7 --> S8
+
+  R4 --> Y1
+  Y1 --> Y2 --> Y3 --> Y4 --> Y5
+
+  R5 --> X1
+  X1 --> X2 --> X3 --> X4
+
+  L5 --> T1
+  T1 --> T2 --> T3 --> T4 --> T5
+
+  R3 --> O1
+  R6 --> O2
+  R4 --> O3
+  R7 --> O4
+  O1 --> O5
+  O2 --> O5
+  O3 --> O5
+  O4 --> O5
+
+  T5 --> N1
+  N1 --> N2 --> N3 --> N4 --> N5 --> N6 --> N7
+
+  O5 --> A1
+  O5 --> A2
+  O5 --> A3
+  X4 --> A4
+  T5 --> A5
+  N7 --> A6
+  A1 --> A6
+  A2 --> A6
+  A3 --> A6
+  A4 --> A6
+  A5 --> A6
+
+  classDef base fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.2px;
+  classDef spine fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef reason fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.2px;
+  classDef close fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+
+  class G1,G2,G3,E1,E2,E3,E4,E5,C1,C2,C3,C4,C5,C6,C7,C8,S1,S2,S3,S4,S5,S6,S7,S8 base;
+  class R1,R2,R3,R4,R5,R6,R7 spine;
+  class L1,L2,L3,L4,L5,Y1,Y2,Y3,Y4,Y5,X1,X2,X3,X4,T1,T2,T3,T4,T5,N1,N2,N3,N4,N5,N6,N7 reason;
+  class O1,O2,O3,O4,O5,A1,A2,A3,A4,A5,A6 close;

@@ -1,0 +1,91 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph WHY["1. Why this group exists"]
+    W1["The platform cannot stop at RTDL made a decision"]
+    W2["It also has to turn some of those machine outputs into operational work and then into authoritative supervision truth"]
+    W3["The Case and Label plane is only correct when the right RTDL outputs become case-worthy signals, those signals become the right cases, and those cases eventually produce authoritative labels"]
+    W4["That whole corridor has to preserve clean truth ownership between the case-trigger surface, case management, and label store"]
+  end
+
+  subgraph PATHS["2. Why the four paths are justified together"]
+    P1["Case-intent escalation path"]
+    P2["Case creation and timeline append path"]
+    P3["Case-to-label handoff path"]
+    P4["Authoritative label commit and visibility path"]
+    P5["Case-intent escalation proves RTDL decision and audit outputs do not become cases directly; they first become explicit case-intent truth at the case-trigger boundary with a real handoff surface into case management"]
+    P6["Case creation and timeline append proves case-intent truth becomes deterministic operational case truth with an append-only timeline owned by case management rather than mutable snapshots or duplicate case creation"]
+    P7["Case-to-label handoff proves case truth and label truth are not collapsed into one system; there is a distinct case-management to label-store handoff where operational truth becomes supervision-request truth, and later timing corrections make that boundary materially visible"]
+    P8["Authoritative label commit and visibility proves the label store owns append-only, provenance-complete, as-of and maturity-visible label truth with downstream visibility through the label-events handoff surface"]
+    P9["Taken together, the four paths prove Group 5 is a bounded truth system with four distinct owned outcomes rather than workflow after the model"]
+  end
+
+  subgraph CLAIM["3. Group-level claim"]
+    G1["The platform turns RTDL outputs into operational case truth and then into authoritative supervision truth through cleanly separated ownership boundaries"]
+    G2["The current wired system has explicit internal truths for escalation, case identity and timeline, label handoff, and authoritative labels"]
+    G3["That makes the system look like a genuine operational-supervision architecture rather than informal review after machine output"]
+  end
+
+  subgraph PROOF["4. What this group proves for A"]
+    A1["Strongest closure: ownership, continuity, and safety"]
+    A2["Ownership closes because the plane is explicit about who owns what: case-trigger owns trigger selection, case management owns append-only case timeline truth, label store owns label truth, and the plane is only green when there is no shadow truth ownership between case management and label store"]
+    A3["Continuity closes because the chain from RTDL to learning-supervision truth is explicit: RTDL decision and audit outputs to case-intent truth to case identity and timeline truth to label-request truth to authoritative label truth"]
+    A4["That is exactly the operational bridge the platform needs if later learning is going to trust labels as supervision rather than arbitrary annotations"]
+    A5["Safety closes because duplicate triggers must not explode case volume, duplicate case creation must be prevented, label assertions must be append-only and idempotent, conflicting labels must be visible rather than silently overwritten, and future-label leakage must be zero"]
+    A6["It also gives strong existence closure because these boundaries are materially seated in concrete case-trigger and label-events handoff surfaces, concrete runtime placements for case-trigger, case management, and label store, and widened plane telemetry retained for their counters and anomalies"]
+  end
+
+  subgraph AMBIG["5. A ambiguities to carry upward"]
+    M1["The main A ambiguity is explanatory"]
+    M2["We need to keep very clear the difference between case-intent truth, case timeline truth, label-request truth, and authoritative label truth"]
+    M3["The design intentionally separates them, but an outsider could easily collapse them into one vague case-and-label workflow story if synthesized lazily"]
+    M4["There is also a timing nuance to state honestly: later timing work showed some earlier timestamps were event-oriented rather than the real boundary-processing clocks"]
+    M5["That does not weaken A, but the synthesis should talk about the boundaries using the correct processing clocks rather than whichever timestamps appeared first"]
+  end
+
+  subgraph PARK["6. Bi spillover to park"]
+    B1["Questions about decision-to-case and case-to-label latency under larger coupled pressure, duplicate-safe behavior under prolonged replay and retry stress, and whether the bounded plane-ready slice generalizes cleanly to the larger coupled-network proof belong later in Bi"]
+    B2["For A, Group 5 only needs to prove that the current wired platform has a real operational-supervision truth system with clean ownership boundaries and explicit handoffs"]
+  end
+
+  subgraph VERDICT["7. Group verdict"]
+    V1["Group 5 proves that the platform does not merely review decisions informally; it constructs operational case truth and authoritative label truth through bounded, ownership-clean boundaries"]
+    V2["This is a major A win because the current wired system has a genuine operational-supervision architecture: not just machine outputs and human review, but explicit truths for escalation, case history, supervision handoff, and authoritative labels"]
+  end
+
+  W1 --> W2 --> W3 --> W4
+  W4 --> P1
+  W4 --> P2
+  W4 --> P3
+  W4 --> P4
+  P1 --> P5
+  P2 --> P6
+  P3 --> P7
+  P4 --> P8
+  P5 --> P9
+  P6 --> P9
+  P7 --> P9
+  P8 --> P9
+
+  P9 --> G1 --> G2 --> G3
+
+  G3 --> A1 --> A2 --> A3 --> A4 --> A5 --> A6
+  A6 --> M1 --> M2 --> M3 --> M4 --> M5
+  A6 --> B1 --> B2
+  M5 --> V1
+  B2 --> V1
+  V1 --> V2
+
+  classDef base fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.2px;
+  classDef spine fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef reason fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.2px;
+  classDef close fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+
+  class W1,W2,W3,W4,P1,P2,P3,P4,P5,P6,P7,P8 base;
+  class P9,G1,G2,G3 spine;
+  class A1,A2,A3,A4,A5,A6,M1,M2,M3,M4,M5,B1,B2 reason;
+  class V1,V2 close;

@@ -1,0 +1,177 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph INTENT["1. Path objective"]
+    G1["Turn admitted live traffic plus already projected runtime state into joined context surface that the rest of RTDL can actually use"]
+    G2["Keep this path narrower than feature readiness, decision posture, or decision emission"]
+    G3["Answer whether the platform now understands enough about this event, in the right time-safe way, to let downstream runtime continue honestly"]
+  end
+
+  subgraph ENTRY["2. Entry basis"]
+    E1["The entry is not raw oracle data in general"]
+    E2["It is the admitted event family already handed off to the runtime bus from Group 2"]
+    E3["Traffic is intentionally thin and joins occur inside the platform"]
+    E4["The relevant time-safe context surfaces for RTDL are arrival_events_5B, s1_arrival_entities_6B, and the flow-anchor surfaces"]
+    E5["The binding join map is pinned: event stream -> flow anchor -> arrival skeleton -> entity attachments"]
+    E6["The live-runtime-allowed oracle output set is pinned to exactly four surfaces: s3_event_stream_with_fraud_6B, arrival_events_5B, s1_arrival_entities_6B, s3_flow_anchor_with_fraud_6B"]
+  end
+
+  subgraph SPINE["5. Broad route logic"]
+    R1["Admitted event family on the runtime bus"]
+    R2["Consume traffic plus allowed context surfaces"]
+    R3["Bind them through the pinned join map and current projection state"]
+    R4["Expose joined runtime context"]
+    R5["Readiness truth for the downstream RTDL graph"]
+  end
+
+  subgraph CARRIES["4. What the path carries"]
+    C1["Admitted behavioural stream event"]
+    C2["Flow-anchor context for that flow"]
+    C3["Arrival skeleton for routing, timezone, and arrival context"]
+    C4["Arrival-entity attachments"]
+    C5["Current entity and relationship projection state produced by the previous path"]
+    C6["Role and join correctness requirements"]
+    C7["False-ready from partial or mis-scoped joins is forbidden"]
+    C8["The interface contract forbids inferring semantics from physical file order and binds joins to declared keys only"]
+  end
+
+  subgraph LOGIC["6. Logical design reading"]
+    L1["The platform treats context as constructed runtime truth, not as an accidental by-product of ingestion"]
+    L2["It is also not something decisioning should just figure out later"]
+    L3["Admitted traffic alone is not enough"]
+    L4["The system must deliberately bind flow-level, arrival-level, and entity-level context into joined surface"]
+    L5["It must do so honestly enough that downstream components are not fooled by partial or stale context"]
+    L6["That is why the RTDL docs emphasize false-ready, missing-context drift, role-reference correctness, and fanout bounds at this boundary"]
+  end
+
+  subgraph SEATING["7. Concrete seating in the current wired system"]
+    S1["The path is seated across admitted traffic and context topics on the runtime bus"]
+    S2["The RTDL namespace and worker surfaces consume those topics"]
+    S3["The context-store and flow-binding surface sits inside the RTDL namespace"]
+    S4["The traffic topic is consumed by the context-store and flow-binding surface"]
+    S5["Arrival-events, arrival-entities, and flow-anchor context topics are consumed by that same surface"]
+    S6["Joined context is projected onward to the entity and graph and feature components"]
+    S7["This is concretely realized as event-bus intake plus RTDL worker surface plus downstream context handoff"]
+    S8["Managed stream-processing surfaces remain retained in the broader repo authority rather than the primary reader-facing active output path in this notebook's copied baseline wired view"]
+  end
+
+  subgraph RATIONALE["8. Why the design looks like this"]
+    Y1["The platform deliberately chose thin-traffic, in-platform-join posture"]
+    Y2["It rejected putting too much context into the traffic payload"]
+    Y3["It rejected using batch-only or future-implying fields like session_end_utc or arrival_count"]
+    Y4["It rejected collapsing context truth into downstream feature or decision logic"]
+    Y5["Instead, the interface contract pins time-safe context surfaces and the binding join map"]
+    Y6["The RTDL framing pins joined-context creation as its own truth boundary with its own false-ready discipline"]
+    Y7["The current shape exists because the platform is trying to keep traffic thin, context explicit, and timing semantics honest"]
+  end
+
+  subgraph CONTRACT["9. What larger contracts are shaping this path"]
+    X1["The engine interface shapes the semantic side"]
+    X2["Only behavioural streams are traffic"]
+    X3["Joins occur inside the platform"]
+    X4["Only time-safe context surfaces may be used in RTDL"]
+    X5["Batch-only truth products and future-implying fields are forbidden for live decisions"]
+    X6["The run-process shapes the closure side by giving RTDL inlet and projection closure explicit phase boundary in RTDL catch-up closure"]
+    X7["The RTDL plan shapes the observability side by treating false-ready, join completeness, unmatched joins, and fanout bounds as key proof surfaces for this boundary"]
+    X8["So this path is strongly shaped by time-safety law, closure law, and boundary-specific observability law"]
+  end
+
+  subgraph TRADEOFFS["10. Trade-offs and constraints"]
+    T1["This path deliberately chooses more structure in exchange for cleaner runtime truth"]
+    T2["It would be easier to flatten more context into the event or let downstream components infer missing context opportunistically"]
+    T3["The current design rejects that because it would blur the truth boundary and make later errors hard to interpret"]
+    T4["The cost is more explicit join discipline, more state and projection dependence, and stricter readiness semantics"]
+    T5["It also forbids apparently convenient inputs like s1_session_index_6B in live runtime because those fields imply future knowledge and would corrupt temporal correctness"]
+  end
+
+  subgraph NECESSITY["11. Necessity test"]
+    N1["If this path is removed, the platform can still ingest traffic, maintain entity projection, and draw later boxes like online feature readiness, decision guardrail, and decision formation"]
+    N2["But it loses a clean answer to how admitted event becomes the specific runtime context downstream components actually consume"]
+    N3["It also loses a clean answer to whether the flow, arrival, and entity bindings are complete"]
+    N4["It becomes unclear whether ready means full context or only partial context"]
+    N5["It becomes unclear whether missing context is a context problem or a decision problem"]
+    N6["Without this path, the rest of RTDL would start looking like a decision system built on unowned or implicit context assumptions"]
+    N7["That would weaken A immediately"]
+  end
+
+  subgraph CLOSURE["3. Owned outcome and 12. What this path proves for A"]
+    O1["Joined, time-safe runtime context surface exists"]
+    O2["The admitted event is bound into the right arrival, flow, and entity context"]
+    O3["Readiness posture is honest for downstream RTDL consumers"]
+    O4["Owned outcome: joined runtime context and readiness truth for downstream RTDL use"]
+    A1["Purpose claim:<br/>the platform has a distinct job for creating joined runtime context surface before feature or decision work begins"]
+    A2["Intentionality claim:<br/>context is built from thin traffic plus explicit time-safe join surfaces using a pinned join map"]
+    A3["Materialization claim:<br/>the path is concretely seated in the runtime bus topics, the RTDL namespace and context-store surface, the downstream handoff into the entity and graph and feature surfaces, and the RTDL catch-up phase boundary"]
+    A4["Contract claim:<br/>the path is constrained by the live-runtime-allowed output set, no-future rules, and join-key discipline"]
+    A5["Quantified closure claim:<br/>the current runtime context boundary is built from a bounded four-surface live-runtime set rather than an unbounded or hand-wavy source world"]
+    A6["A-level meaning:<br/>the platform turns thin admitted traffic into honest, time-safe runtime context rather than leaving downstream RTDL to guess what context exists"]
+  end
+
+  G1 --> G2 --> G3 --> E1
+  E1 --> E2 --> E3 --> E4 --> E5 --> E6
+  E6 --> R1 --> R2 --> R3 --> R4 --> R5
+
+  R1 --> C1
+  R2 --> C2
+  R2 --> C3
+  R2 --> C4
+  R3 --> C5
+  R3 --> C6 --> C7 --> C8
+
+  R1 --> L1
+  R2 --> L2
+  R3 --> L3
+  R4 --> L4
+  R5 --> L5 --> L6
+
+  R1 --> S1
+  R2 --> S2 --> S3
+  S3 --> S4
+  S3 --> S5
+  R4 --> S6 --> S7 --> S8
+
+  R3 --> Y1
+  Y1 --> Y2 --> Y3 --> Y4 --> Y5 --> Y6 --> Y7
+
+  R1 --> X1
+  X1 --> X2 --> X3 --> X4 --> X5
+  R5 --> X6 --> X7 --> X8
+
+  L6 --> T1
+  T1 --> T2 --> T3 --> T4 --> T5
+
+  R5 --> O1
+  R5 --> O2
+  R5 --> O3
+  O1 --> O4
+  O2 --> O4
+  O3 --> O4
+
+  T5 --> N1
+  N1 --> N2 --> N3 --> N4 --> N5 --> N6 --> N7
+
+  O4 --> A1
+  O4 --> A2
+  O4 --> A3
+  X8 --> A4
+  O4 --> A5
+  N7 --> A6
+  A1 --> A6
+  A2 --> A6
+  A3 --> A6
+  A4 --> A6
+  A5 --> A6
+
+  classDef base fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.2px;
+  classDef spine fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef reason fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.2px;
+  classDef close fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+
+  class G1,G2,G3,E1,E2,E3,E4,E5,E6,C1,C2,C3,C4,C5,C6,C7,C8,S1,S2,S3,S4,S5,S6,S7,S8 base;
+  class R1,R2,R3,R4,R5 spine;
+  class L1,L2,L3,L4,L5,L6,Y1,Y2,Y3,Y4,Y5,Y6,Y7,X1,X2,X3,X4,X5,X6,X7,X8,T1,T2,T3,T4,T5,N1,N2,N3,N4,N5,N6,N7 reason;
+  class O1,O2,O3,O4,A1,A2,A3,A4,A5,A6 close;

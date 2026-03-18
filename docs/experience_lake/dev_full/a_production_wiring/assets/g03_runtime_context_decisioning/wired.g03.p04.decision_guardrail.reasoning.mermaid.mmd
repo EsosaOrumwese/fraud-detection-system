@@ -1,0 +1,160 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph INTENT["1. Path objective"]
+    G1["Turn upstream RTDL state into decision posture that is safe to act on"]
+    G2["Keep this path narrower than context formation, feature readiness, or decision formation itself"]
+    G3["Answer whether the platform should proceed normally, hold back, or fail closed given the current dependency and health posture"]
+  end
+
+  subgraph ENTRY["2. Entry basis"]
+    E1["The entry is not raw traffic and not raw context alone"]
+    E2["The entry is the current RTDL truth surfaces that decisioning depends on"]
+    E3["Those include joined-context readiness, feature readiness and freshness, projection health, checkpoint age, required-signal health, and run-scoped component participation"]
+    E4["RTDL telemetry and proof posture explicitly require these surfaces: feature freshness and feature-ready counters, degrade-reason breakdown, run-scope adoption in every RTDL worker, and early fail-fast triggers when feature readiness stays dark or fail-closed spikes from an otherwise healthy upstream window"]
+  end
+
+  subgraph SPINE["5. Broad route logic"]
+    R1["Current RTDL context, feature, and dependency signals"]
+    R2["Guardrail classification logic"]
+    R3["Decision posture truth"]
+    R4["Downstream decision formation consumes that posture"]
+    R5["Guardrail boundary stands between upstream RTDL truth and actual decision formation"]
+  end
+
+  subgraph CARRIES["4. What the path carries"]
+    C1["Required-signal health from upstream RTDL components"]
+    C2["Checkpoint and freshness posture"]
+    C3["Dependency-availability posture"]
+    C4["Run-scoped component participation"]
+    C5["Typed reasons why a component is healthy, advisory, stale, or insufficient"]
+    C6["The guardrail has emitted concrete posture such as decision_mode = NORMAL with required signals OK"]
+    C7["In other proofs it has flipped to FAIL_CLOSED with explicit reason like required_signal_gap:ofp_health"]
+    C8["So the path carries typed dependency posture, not just binary health pings"]
+  end
+
+  subgraph LOGIC["6. Logical design reading"]
+    L1["The platform treats degrade and insufficiency judgment as first-class runtime truth, not as a side effect of decision formation"]
+    L2["The system is not saying if the feature or entity surfaces look odd, decisioning will just figure it out"]
+    L3["There is a dedicated guardrail that distinguishes true dependency outage from semantic-quality advisory and benign lag"]
+    L4["It only fails closed when the runtime really lacks sufficient trusted inputs"]
+    L5["That is exactly the distinction the guardrail definition insists on"]
+  end
+
+  subgraph SEATING["7. Concrete seating in the current wired system"]
+    S1["The copied baseline wired graphs show active degrade-ladder deployment inside the RTDL namespace alongside context, entity, feature, decision, action, and audit surfaces"]
+    S2["The degrade ladder hands adjudication input to the decision surface"]
+    S3["The handles registry keeps an explicit runtime deployment reference for the degrade-ladder surface"]
+    S4["So the guardrail is concrete runtime workload in the live RTDL plane, not just a conceptual box"]
+  end
+
+  subgraph RATIONALE["8. Why the design looks like this"]
+    Y1["The platform deliberately refuses to let raw component health or stale artifacts decide safety posture directly"]
+    Y2["When replay-era watermark signals made projector health look red even while current-run mutation and checkpoints were healthy, the fix was not to treat all red surfaces as hard failure"]
+    Y3["The guardrail recovered to NORMAL with required signals OK"]
+    Y4["Later, when coupled proof genuinely hit required_signal_gap:ofp_health, the guardrail flipped to FAIL_CLOSED and the blocker was treated as real"]
+    Y5["That is the desired behavior: advisories stay advisories, insufficiency becomes fail-closed, and the distinction is explicit"]
+  end
+
+  subgraph CONTRACT["9. What larger contracts are shaping this path"]
+    X1["The path is shaped by the larger RTDL contract rather than by local convenience"]
+    X2["Each RTDL component must be semantically correct, time-correct, replay-safe, observable, and explainable"]
+    X3["For the guardrail specifically: it must distinguish outage from advisory, fail closed only on real insufficiency, avoid sticky false-red from stale artifacts, and recover promptly when dependencies recover"]
+    X4["The RTDL proof plan turns that into concrete focus metrics such as false fail-closed rate and degrade-reason breakdown"]
+  end
+
+  subgraph TRADEOFFS["10. Trade-offs and constraints"]
+    T1["This path deliberately adds another explicit boundary to the RTDL graph"]
+    T2["That costs complexity because the system has to maintain and explain upstream health semantics, the guardrail's own classification logic, and the difference between upstream red artifact and true decision-blocking insufficiency"]
+    T3["But that complexity buys something important"]
+    T4["Decision formation no longer has to invent its own safety posture from scattered upstream clues"]
+    T5["The platform can explain why it proceeded, stayed normal, or failed closed"]
+    T6["Without this boundary, replay-watermark advisories and genuine feature-health gaps would be much easier to confuse"]
+  end
+
+  subgraph NECESSITY["11. Necessity test"]
+    N1["If this path is removed, the platform can still ingest traffic, build projections, materialize features, and produce decisions"]
+    N2["But it loses a clean answer to whether the runtime had sufficient trusted inputs at decision time"]
+    N3["It loses a clean answer to whether an upstream issue was merely advisory or genuinely blocking"]
+    N4["It loses a clean answer to why the run failed closed"]
+    N5["It loses a clean answer to whether decision formation is failing because the inputs are unsafe or because the guardrail boundary does not exist"]
+    N6["That would weaken A immediately because the platform would have no explicit owner for the most important question between feature truth exists and decision is allowed"]
+  end
+
+  subgraph CLOSURE["3. Owned outcome and 12. What this path proves for A"]
+    O1["Adjudicated decision mode for the current run and current event posture"]
+    O2["Trustworthy answer to whether downstream decisioning should proceed normally or treat the current posture as insufficiently trusted"]
+    O3["Concrete posture has been emitted, such as NORMAL with required signals OK or FAIL_CLOSED with explicit reason"]
+    O4["Owned outcome: decision posture truth"]
+    A1["Purpose claim:<br/>the platform has a distinct job for adjudicating dependency posture before decisioning proceeds"]
+    A2["Intentionality claim:<br/>advisories, insufficiency, and fail-closed are deliberately separated rather than collapsed into one crude red/green status"]
+    A3["Materialization claim:<br/>the degrade ladder is concrete live runtime workload in the current RTDL plane"]
+    A4["Contract claim:<br/>this path is governed by explicit requirements around false fail-closed, dependency classification correctness, recovery-to-normal, and decision-mode stability"]
+    A5["Constraint-awareness claim:<br/>the system already knows this boundary can be semantically tricky, which is why the implementation trail keeps distinguishing replay advisory, feature-health insufficiency, and proof-harness defects rather than calling all of them the same thing"]
+    A6["A-level meaning:<br/>the platform has an explicit owner for whether runtime truth is sufficiently trusted for decisioning to proceed"]
+  end
+
+  G1 --> G2 --> G3 --> E1
+  E1 --> E2 --> E3 --> E4
+  E4 --> R1 --> R2 --> R3 --> R4 --> R5
+
+  R1 --> C1
+  R1 --> C2
+  R1 --> C3
+  R1 --> C4
+  R2 --> C5
+  C5 --> C6 --> C7 --> C8
+
+  R1 --> L1
+  R2 --> L2
+  R3 --> L3
+  R4 --> L4
+  R5 --> L5
+
+  R2 --> S1
+  S1 --> S2 --> S3 --> S4
+
+  R2 --> Y1
+  Y1 --> Y2 --> Y3 --> Y4 --> Y5
+
+  R3 --> X1
+  X1 --> X2 --> X3 --> X4
+
+  L5 --> T1
+  T1 --> T2 --> T3 --> T4 --> T5 --> T6
+
+  R3 --> O1
+  R3 --> O2
+  R3 --> O3
+  O1 --> O4
+  O2 --> O4
+  O3 --> O4
+
+  T6 --> N1
+  N1 --> N2 --> N3 --> N4 --> N5 --> N6
+
+  O4 --> A1
+  O4 --> A2
+  O4 --> A3
+  X4 --> A4
+  T6 --> A5
+  N6 --> A6
+  A1 --> A6
+  A2 --> A6
+  A3 --> A6
+  A4 --> A6
+  A5 --> A6
+
+  classDef base fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.2px;
+  classDef spine fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef reason fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.2px;
+  classDef close fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+
+  class G1,G2,G3,E1,E2,E3,E4,C1,C2,C3,C4,C5,C6,C7,C8,S1,S2,S3,S4 base;
+  class R1,R2,R3,R4,R5 spine;
+  class L1,L2,L3,L4,L5,Y1,Y2,Y3,Y4,Y5,X1,X2,X3,X4,T1,T2,T3,T4,T5,T6,N1,N2,N3,N4,N5,N6 reason;
+  class O1,O2,O3,O4,A1,A2,A3,A4,A5,A6 close;

@@ -1,0 +1,97 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph WHY["1. Why this group exists"]
+    W1["The platform cannot stop at runtime truth and label truth"]
+    W2["It also has to turn those truths into a governed learning corridor that produces a causal learning basis, an authoritative dataset, a candidate bundle, a governed promotion decision, and finally the runtime authority the decision fabric is supposed to consume"]
+    W3["The design authority and readiness docs make that sequence explicit"]
+    W4["The learning and evolution plane is pinned to an offline-dataset surface, a managed train and eval surface, and an explicit governed promotion, rollback, and activation-authority surface"]
+    W5["It is governed by a strict temporal-realism contract: runtime stays causal, learning only reads archive plus truth through replay basis, feature as-of, label as-of, and label-maturity controls, and any future-timestamp leakage is fail-closed"]
+  end
+
+  subgraph PATHS["2. Why the five paths are justified together"]
+    P1["Learning-input basis path"]
+    P2["Offline dataset commitment path"]
+    P3["Train / eval and candidate-bundle path"]
+    P4["Promotion and rollback-governance path"]
+    P5["Active-bundle authority feedback path"]
+    P6["Learning-input basis proves archive truth, label truth, and replay references are not enough by themselves; the platform first pins a causal learning basis with replay basis, as-of, maturity, and anti-leakage controls"]
+    P7["Offline dataset commitment proves the offline-dataset corridor does not merely run managed jobs; it commits authoritative dataset truth with deterministic manifests, fingerprints, rollback recipes, and time-bound and leakage audits"]
+    P8["Train / eval and candidate-bundle proves the train and eval corridor does not merely produce model artifacts; it produces provenance-complete candidate truth through managed train/eval with explicit leakage, quality, and lineage closure"]
+    P9["Promotion and rollback-governance proves the promotion corridor does not treat promotion as a boolean flag; it runs a governed corridor with explicit promotion evidence, rollback drill truth, bounded rollback objectives, active-resolution checks, and no shadow promotion path"]
+    P10["Active-bundle authority feedback proves promoted registry truth is not yet runtime authority until it is deterministically resolved for the runtime that will consume it"]
+    P11["Taken together, the five paths prove Group 6 is a bounded truth system with five distinct owned outcomes rather than the ML stack in some vague sense"]
+  end
+
+  subgraph CLAIM["3. Group-level claim"]
+    G1["The platform turns authoritative runtime and label truth into governed model-evolution truth, and then turns governed promoted state back into deterministic runtime decision authority"]
+    G2["The current wired system has explicit truths for learning basis, dataset identity, candidate identity, promotion truth, rollback truth, and runtime authority feedback"]
+    G3["That makes the system look like a genuine learning-and-activation architecture rather than jobs and registries loosely connected together"]
+  end
+
+  subgraph PROOF["4. What this group proves for A"]
+    A1["Strongest closure: continuity, safety, and uniqueness"]
+    A2["Continuity closes because the learning corridor is explicit: archive and runtime truth plus label truth to pinned replay/as-of/maturity basis to offline dataset truth to train and eval truth to candidate-bundle truth to promotion and rollback truth to active-bundle runtime authority"]
+    A3["The cross-plane definitions split the corridor the same way: runtime and case/label truth into learning, learning into registry and promotion, registry back into runtime authority"]
+    A4["Safety closes because there is no future leakage, no hidden placeholder shortcuts, no hidden local or script-only learning path, no promotion without complete lineage, no rollback path that exists only on paper, and no runtime adoption that drifts silently from promoted registry truth"]
+    A5["Uniqueness closes because the system pins one replay-basis receipt, one immutable dataset fingerprint per basis, one candidate bundle per governed train/eval closure, one governed promotion corridor, and one deterministic active-bundle resolution per consuming runtime scope"]
+    A6["It also gives strong existence closure because these are materially seated in run-scoped learning-input evidence surfaces, Databricks plus Iceberg and Glue, SageMaker plus MLflow, the managed promotion corridor with concrete promotion, rollback, and active-resolution artifacts, and explicit runtime-facing active-resolution snapshots"]
+  end
+
+  subgraph AMBIG["5. A ambiguities to carry upward"]
+    M1["The biggest A ambiguity is explanatory"]
+    M2["We need to keep very clear the difference between learning-input truth, dataset truth, candidate truth, promotion truth, and runtime authority truth"]
+    M3["The design intentionally separates these, but an outsider could easily collapse them into one generic ML pipeline story if synthesized lazily"]
+    M4["There is also a current-wired nuance to state honestly: the semantic objective of the group is very stable, but some managed closure history includes advisory or implementation-specific detail around exact execution shapes"]
+    M5["That does not weaken A, but the synthesis should keep the emphasis on the owned truth boundaries rather than every tactical execution wrinkle"]
+  end
+
+  subgraph PARK["6. Bi spillover to park"]
+    B1["Questions about managed train/eval durations and success rates, rollback recovery targets under repeated promotion pressure, active-bundle resolution stability under broader runtime churn, and whether the bounded labeled slice scales cleanly to larger learning windows belong later in Bi"]
+    B2["For A, Group 6 only needs to prove that the current wired platform has a real, intentional, and materially seated learning-and-activation truth system, not yet that every managed lane has been pressure-proven at the final production envelope"]
+  end
+
+  subgraph VERDICT["7. Group verdict"]
+    V1["Group 6 proves that the platform does not merely train models; it constructs a governed learning-and-activation corridor that turns platform truth into model-evolution truth and then back into runtime decision authority"]
+    V2["This is a major A win because the current wired system has a genuine ML platform architecture: not just datasets, jobs, and registry entries, but explicit truths for causal basis, dataset identity, candidate bundles, promotion and rollback governance, and deterministic runtime authority"]
+  end
+
+  W1 --> W2 --> W3 --> W4 --> W5
+  W5 --> P1
+  W5 --> P2
+  W5 --> P3
+  W5 --> P4
+  W5 --> P5
+  P1 --> P6
+  P2 --> P7
+  P3 --> P8
+  P4 --> P9
+  P5 --> P10
+  P6 --> P11
+  P7 --> P11
+  P8 --> P11
+  P9 --> P11
+  P10 --> P11
+
+  P11 --> G1 --> G2 --> G3
+
+  G3 --> A1 --> A2 --> A3 --> A4 --> A5 --> A6
+  A6 --> M1 --> M2 --> M3 --> M4 --> M5
+  A6 --> B1 --> B2
+  M5 --> V1
+  B2 --> V1
+  V1 --> V2
+
+  classDef base fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.2px;
+  classDef spine fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef reason fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.2px;
+  classDef close fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+
+  class W1,W2,W3,W4,W5,P1,P2,P3,P4,P5,P6,P7,P8,P9,P10 base;
+  class P11,G1,G2,G3 spine;
+  class A1,A2,A3,A4,A5,A6,M1,M2,M3,M4,M5,B1,B2 reason;
+  class V1,V2 close;

@@ -1,0 +1,101 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph WHY["1. Why this group exists"]
+    W1["The platform cannot stop at all the other planes worked"]
+    W2["It also has to prove that the run can be operated, observed, reconstructed, governed, closed, idled, and cost-accounted for with the same rigor as execution itself"]
+    W3["The operations, governance, and meta definition says the platform only counts as a serious operational system when it can be operated, audited, governed, and economically managed"]
+    W4["That means no hidden drift, no fake receipts, no missing evidence, no unbounded spend, and no unverifiable verdicts"]
+  end
+
+  subgraph PATHS["2. Why the six paths are justified together"]
+    P1["Run reconstruction and receipt closure path"]
+    P2["Governance append and close-marker path"]
+    P3["Proof-matrix and final-verdict publication path"]
+    P4["Drift-visible observability attestation path"]
+    P5["Idle-safe teardown and residual-readability path"]
+    P6["Cost guardrail and cost-to-outcome closure path"]
+    P7["Run reconstruction proves earlier lane receipts become an exact run story rather than a hand-assembled summary"]
+    P8["Governance append and close-marker proves reconstructed closure truth is formally appended and marked closed under run scope rather than merely described"]
+    P9["Proof-matrix and final-verdict publication proves whole-platform judgment is explicit: full source matrix blocker-free, six-proof matrix complete, and final verdict published"]
+    P10["Drift-visible observability attestation proves live visibility is tied to the actual active runtime path, with freshness, alert coverage, and drift detection treated as closure truths rather than tooling decoration"]
+    P11["Idle-safe teardown and residual-readability proves full-platform closure is not enough; the system must also stop safely, leave no forbidden residuals behind, and keep evidence readable after teardown"]
+    P12["Cost guardrail and cost-to-outcome closure proves post-run spend is attributable, budgeted, and tied to explicit proof and risk-retirement outcomes rather than left as vague cloud billing"]
+    P13["Taken together, the six paths prove Group 7 is a bounded closure system with six distinct owned outcomes rather than the dashboards and cleanup part"]
+  end
+
+  subgraph CLAIM["3. Group-level claim"]
+    G1["The platform turns execution closure into governed, observable, auditable, idle-safe, and cost-accountable run truth"]
+    G2["The current wired system can be reconstructed exactly, judged explicitly, drift-checked live, shut down safely, and economically accounted for"]
+    G3["That makes the system look like a real operational meta-layer rather than work merely happening and later being described"]
+  end
+
+  subgraph PROOF["4. What this group proves for A"]
+    A1["Strongest closure: completeness, continuity, and safety"]
+    A2["Completeness closes because the run-close and final-phase rules require run reconstruction plus governance closure, whole-platform judgment with complete source and proof matrices, and teardown, residual, readability, and cost closure before the run is fully closed"]
+    A3["Continuity closes because Group 7 ties all prior planes into one exact run story and then carries that story through reconciliation, governance append, final verdict publication, teardown and readability, and cost-to-outcome closure"]
+    A4["That continuity is reinforced by the design authority too: every lane must produce deploy, monitor, fail, recover, rollback, and cost-control proof, and no full verdict is valid without that six-part set"]
+    A5["Safety closes because the whole group is fail-closed on incomplete matrices, verdict inconsistency, residual cost risk, unreadable evidence after teardown, unattributed spend, and drift between live runtime and the declared active path"]
+    A6["It also gives strong existence closure because these are materially seated in real reporter and reconciliation lanes, real governance append and closure-marker surfaces, real final-phase closure lanes for matrices, verdict publication, teardown, readability, and cost closure, and pinned observability and cost-control surfaces"]
+  end
+
+  subgraph AMBIG["5. A ambiguities to carry upward"]
+    M1["The main A ambiguity is explanatory"]
+    M2["We need to keep very clear the difference between run reconstruction truth, formal governance closure, whole-platform verdict truth, live observability attestation, idle-safe closure, and cost accountability"]
+    M3["The design intentionally separates these, but an outsider could easily collapse them into one vague operations and reporting story if we synthesize lazily"]
+    M4["There is also one current-wired nuance to state honestly: some cost capture remains explicitly scoped rather than pretending to be universally complete"]
+    M5["The registry keeps cost-capture scope and defer reasons explicit rather than faking full billing coverage, and that honesty is part of the design rather than a weakness"]
+  end
+
+  subgraph PARK["6. Bi spillover to park"]
+    B1["Questions about dashboard freshness and alert behavior under longer or noisier pressure, teardown and readability after repeated long-run cycles, cost envelopes under fuller operational cadence, and drift attestation across broader coupled proofs belong later in Bi"]
+    B2["For A, Group 7 only needs to prove that the current wired platform has a real meta-layer for reconstruction, governance closure, final judgment, observability attestation, safe idling, and spend accountability"]
+  end
+
+  subgraph VERDICT["7. Group verdict"]
+    V1["Group 7 proves that the platform does not merely run and stop; it closes itself as a governed operational system"]
+    V2["This is a major A win because the current wired system has a genuine operational closure architecture: not just dashboards, receipts, budgets, or teardown scripts, but explicit truths for run reconstruction, formal closure, final judgment, live visibility, safe idling, and cost-to-outcome accountability"]
+  end
+
+  W1 --> W2 --> W3 --> W4
+  W4 --> P1
+  W4 --> P2
+  W4 --> P3
+  W4 --> P4
+  W4 --> P5
+  W4 --> P6
+  P1 --> P7
+  P2 --> P8
+  P3 --> P9
+  P4 --> P10
+  P5 --> P11
+  P6 --> P12
+  P7 --> P13
+  P8 --> P13
+  P9 --> P13
+  P10 --> P13
+  P11 --> P13
+  P12 --> P13
+
+  P13 --> G1 --> G2 --> G3
+
+  G3 --> A1 --> A2 --> A3 --> A4 --> A5 --> A6
+  A6 --> M1 --> M2 --> M3 --> M4 --> M5
+  A6 --> B1 --> B2
+  M5 --> V1
+  B2 --> V1
+  V1 --> V2
+
+  classDef base fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.2px;
+  classDef spine fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef reason fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.2px;
+  classDef close fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+
+  class W1,W2,W3,W4,P1,P2,P3,P4,P5,P6,P7,P8,P9,P10,P11,P12 base;
+  class P13,G1,G2,G3 spine;
+  class A1,A2,A3,A4,A5,A6,M1,M2,M3,M4,M5,B1,B2 reason;
+  class V1,V2 close;

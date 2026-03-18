@@ -1,0 +1,163 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph INTENT["1. Path objective"]
+    G1["Turn case-intent truth into operational case truth"]
+    G2["Keep this path narrower than trigger selection and narrower than label truth"]
+    G3["Answer how the platform creates a real case and an append-only operational timeline that later operators, auditors, and downstream supervision can trust"]
+  end
+
+  subgraph ENTRY["2. Entry basis"]
+    E1["The entry is not raw RTDL output anymore and it is not generic operational noise"]
+    E2["The entry is case-intent truth already produced by the case-trigger surface and handed off through the case-trigger boundary"]
+    E3["The production paths doc splits the case-escalation path into RTDL decision/audit outputs, case-trigger surface, case creation, and case timeline updates"]
+    E4["The topic contract pins the case-trigger topic with case-trigger as producer and case management as consumer"]
+    E5["So the input to case management is an explicit case-intent handoff rather than an inferred side effect"]
+  end
+
+  subgraph SPINE["5. Broad route logic"]
+    R1["Case-intent truth"]
+    R2["Case-management intake"]
+    R3["Deterministic case creation"]
+    R4["Append-only timeline writes"]
+    R5["Operational case truth"]
+  end
+
+  subgraph CARRIES["4. What the path carries"]
+    C1["Case-intent truth from the upstream trigger boundary"]
+    C2["Enough incident identity to make case identity deterministic"]
+    C3["Run and upstream decision continuity"]
+    C4["Timeline events and transition facts"]
+    C5["Evidence needed to reconstruct why the case exists and how it evolved"]
+    C6["The platform expects to observe case-open counts, case-transition counts, timeline events/appends, duplicate case-creation anomalies, invalid case-state transitions, and run-scope continuity into case outputs"]
+  end
+
+  subgraph LOGIC["6. Logical design reading"]
+    L1["The platform treats operational case truth as its own append-only truth system"]
+    L2["It is not a mutable convenience view and not a precursor storage area for labels"]
+    L3["There is a dedicated boundary where case identity becomes real"]
+    L4["The operational case history is written append-only, auditable, and reconstructable"]
+    L5["That is why case management is defined around append-only timeline integrity, duplicate-case-creation at zero, invalid-transition rate at zero, and case reconstruction completeness rather than a generic case-service-up story"]
+  end
+
+  subgraph SEATING["7. Concrete seating in the current wired system"]
+    S1["The copied baseline wired graphs show a live case-management deployment in the case-and-label namespace"]
+    S2["The case-trigger topic feeds case management"]
+    S3["Case management writes append-only case timeline truth into Aurora"]
+    S4["So operational case truth is seated on concrete workload plus relational truth substrate rather than inside ephemeral stream logic"]
+    S5["The platform already treats case management as a concrete observable boundary through case-open success rate, duplicate case-creation count, append-only timeline violations, invalid case-state transition count, and case reconstruction completeness"]
+    S6["Later timing work identified the actual processing clocks as case-trigger intake first-seen time and case-created time, showing these are authoritative case-open timing surfaces rather than rough event-time proxies"]
+  end
+
+  subgraph RATIONALE["8. Why the design looks like this"]
+    Y1["The platform does not want operational truth to be mutable, duplicated, or collapsed into label truth"]
+    Y2["That is why case management is explicitly defined around deterministic case identity, idempotent case creation, append-only timeline transitions, zero hidden overwrite corruption, reconstruction after the fact, and non-ownership of label truth"]
+    Y3["The later proving notes around timing reinforce the same design intent"]
+    Y4["They show that the platform had to distinguish true case-management processing clocks from earlier misleading event-oriented timestamps"]
+    Y5["That only matters in a system where case creation and timeline append are treated as real operational truth boundaries rather than loose workflow artifacts"]
+  end
+
+  subgraph CONTRACT["9. What larger contracts are shaping this path"]
+    X1["The Case + Label plane contract shapes what case management is allowed to mean: semantic correctness, ownership correctness, duplicate and replay safety, latency and throughput, and auditability"]
+    X2["The whole-plane truth-ownership contract shapes what case management is not allowed to steal: case-trigger owns trigger selection, case management owns case timeline truth, label store owns label truth"]
+    X3["The topic continuity contract shapes the handoff into case management: case-trigger topic, producer = case-trigger surface, consumer = case management"]
+    X4["The phase plan and telemetry contract shapes how this path must be judged: duplicate case creation count = 0, case-open success = 100%, append-only timeline violations = 0, case-open latency p95 <= 5 s, invalid state-transition count = 0"]
+  end
+
+  subgraph TRADEOFFS["10. Trade-offs and constraints"]
+    T1["This path deliberately adds a stricter truth boundary than a simpler workflow system would"]
+    T2["That costs one more owned service/runtime boundary, deterministic case-identity logic, append-only timeline discipline, duplicate suppression, transition validation, and later reconstruction logic"]
+    T3["But that cost buys the ability to answer not just that a case exists, but why it exists, when it was opened, how it evolved, whether it was duplicated, and whether the operational history was mutated or appended"]
+    T4["That is exactly the kind of operational truth a fraud platform needs if review, audit, and later supervision are to rest on trustworthy operational history rather than mutable snapshots"]
+  end
+
+  subgraph NECESSITY["11. Necessity test"]
+    N1["If this path is removed, the platform can still generate case-worthy signals, keep RTDL truth, and eventually write labels somehow"]
+    N2["But it loses a clean answer to where operational case identity comes from"]
+    N3["It loses a clean answer to whether one incident maps to one case deterministically"]
+    N4["It loses a clean answer to how case history is preserved and whether duplicate triggers remint case truth"]
+    N5["It loses a clean answer to how an operator or reviewer reconstructs the operational story later"]
+    N6["That would weaken A immediately because the platform would have escalation and labels, but no explicit owner for operational case truth itself"]
+    N7["If case timelines are mutable or inconsistent, review and audit are broken"]
+  end
+
+  subgraph CLOSURE["3. Owned outcome and 12. What this path proves for A"]
+    O1["Deterministic case identity exists"]
+    O2["Case creation is idempotent under duplicate triggers"]
+    O3["The append-only case timeline is now the authoritative case-truth surface"]
+    O4["Owned outcome: deterministic operational case truth plus append-only case history"]
+    A1["Purpose claim:<br/>the platform has a distinct job for turning case-intent truth into deterministic operational case truth and append-only case history"]
+    A2["Intentionality claim:<br/>case management is not a generic workflow bucket; it is explicitly designed around deterministic case identity, idempotent case creation, and append-only timeline ownership"]
+    A3["Materialization claim:<br/>this boundary is concretely seated in the case-management workload, the case-trigger handoff, and the Aurora-backed case timeline substrate"]
+    A4["Contract claim:<br/>this path is governed by duplicate-case-creation at zero, append-only timeline integrity, case reconstruction completeness, and strict non-ownership of label truth"]
+    A5["Constraint-awareness claim:<br/>the platform already knows this boundary can fail through duplicate creation, invalid transitions, or misleading timestamp bases, which is why those concerns are surfaced explicitly rather than hidden"]
+    A6["Material participation evidence:<br/>the bounded case-and-label closure metrics say the slice closed green with large admitted-request volume, zero 4xx and 5xx, and clean case-trigger, case-management, and label-store integrity deltas"]
+    A7["A-level meaning:<br/>case-intent truth becomes deterministic, append-only operational case truth rather than leaving operational review to mutate ad hoc workflow state"]
+  end
+
+  G1 --> G2 --> G3 --> E1
+  E1 --> E2 --> E3 --> E4 --> E5
+  E5 --> R1 --> R2 --> R3 --> R4 --> R5
+
+  R1 --> C1
+  R2 --> C2
+  R2 --> C3
+  R4 --> C4
+  R5 --> C5 --> C6
+
+  R1 --> L1
+  R2 --> L2
+  R3 --> L3
+  R4 --> L4
+  R5 --> L5
+
+  R2 --> S1
+  S1 --> S2 --> S3 --> S4
+  S4 --> S5 --> S6
+
+  R3 --> Y1
+  Y1 --> Y2 --> Y3 --> Y4 --> Y5
+
+  R4 --> X1
+  X1 --> X2 --> X3 --> X4
+
+  L5 --> T1
+  T1 --> T2 --> T3 --> T4
+
+  R5 --> O1
+  R5 --> O2
+  R5 --> O3
+  O1 --> O4
+  O2 --> O4
+  O3 --> O4
+
+  T4 --> N1
+  N1 --> N2 --> N3 --> N4 --> N5 --> N6 --> N7
+
+  O4 --> A1
+  O4 --> A2
+  O4 --> A3
+  X4 --> A4
+  T4 --> A5
+  S6 --> A6
+  N7 --> A7
+  A1 --> A7
+  A2 --> A7
+  A3 --> A7
+  A4 --> A7
+  A5 --> A7
+  A6 --> A7
+
+  classDef base fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.2px;
+  classDef spine fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef reason fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.2px;
+  classDef close fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+
+  class G1,G2,G3,E1,E2,E3,E4,E5,C1,C2,C3,C4,C5,C6,S1,S2,S3,S4,S5,S6 base;
+  class R1,R2,R3,R4,R5 spine;
+  class L1,L2,L3,L4,L5,Y1,Y2,Y3,Y4,Y5,X1,X2,X3,X4,T1,T2,T3,T4,N1,N2,N3,N4,N5,N6,N7 reason;
+  class O1,O2,O3,O4,A1,A2,A3,A4,A5,A6,A7 close;

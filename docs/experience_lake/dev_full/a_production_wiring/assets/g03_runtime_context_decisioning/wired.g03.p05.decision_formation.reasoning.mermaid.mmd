@@ -1,0 +1,160 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph INTENT["1. Path objective"]
+    G1["Turn live runtime understanding into the actual decision truth of the platform"]
+    G2["Keep this path narrower than context formation, feature materialization, or guardrail posture"]
+    G3["Answer what the actual decision is given current context, current feature state, current guardrail posture, and the active runtime bundle or policy"]
+  end
+
+  subgraph ENTRY["2. Entry basis"]
+    E1["The entry is not raw traffic and not raw RTDL health"]
+    E2["The entry is the set of things that make decision legitimately formable: joined runtime context, online feature readiness, guardrail posture, and active runtime bundle or policy resolution"]
+    E3["Registry-to-runtime feedback is a real cross-plane path whose question is whether runtime resolves the right active bundle and includes the right bundle or policy identity in decision provenance"]
+    E4["The decision-formation path begins only once that authority is consumable at runtime"]
+  end
+
+  subgraph SPINE["5. Broad route logic"]
+    R1["Joined context + online features + guardrail posture + active bundle or policy resolution"]
+    R2["Decision fabric"]
+    R3["Decision truth"]
+    R4["Downstream action and audit lanes"]
+    R5["Decision boundary is owned rather than inferred"]
+  end
+
+  subgraph CARRIES["4. What the path carries"]
+    C1["Joined runtime context"]
+    C2["Current online feature state"]
+    C3["Guardrail posture from the degrade ladder"]
+    C4["Resolved active bundle or policy identity"]
+    C5["Decision identity and provenance fields"]
+    C6["Explanation fields sufficient for later audit and replay"]
+    C7["Decisions must be correct for the actual context, online features, and active bundle or policy in scope"]
+    C8["Fail-closed must happen only on real insufficiency or unsafe ambiguity, quarantine only on real ambiguity, and decision identity/provenance/explanation must be complete enough to survive audit and replay"]
+  end
+
+  subgraph LOGIC["6. Logical design reading"]
+    L1["The platform treats decision truth as a first-class owned surface, not as an invisible side effect between online features and action logic"]
+    L2["The system is not saying actions downstream imply what the decision probably was"]
+    L3["The actual decision has its own truth boundary"]
+    L4["That boundary must carry correctness, provenance, explainability, and policy identity explicitly"]
+    L5["That is why decision formation is separated from guardrail, action, and audit surfaces and why the run-process gives the whole decision chain its own closure phase"]
+  end
+
+  subgraph SEATING["7. Concrete seating in the current wired system"]
+    S1["The live RTDL runtime posture includes concrete decision deployment alongside context, entity, feature, guardrail, action, and audit surfaces in the active RTDL namespace"]
+    S2["The decision fabric is concrete runtime workload in the live RTDL plane"]
+    S3["The decision-chain closure was expanded into component-granular lanes for decision formation, action, and audit"]
+    S4["Separate component proofs are emitted rather than one lumped claim that decisioning is fine"]
+    S5["That is strong evidence that the decision fabric is treated as its own owned boundary in the current wired system"]
+  end
+
+  subgraph RATIONALE["8. Why the design looks like this"]
+    Y1["The platform deliberately refuses to let decision correctness, bundle/policy correctness, and explainability be implied by downstream success"]
+    Y2["The decision fabric is defined as its own component with its own purpose and proof surfaces"]
+    Y3["The registry and runtime feedback path explicitly requires that runtime resolve the right active bundle and include bundle or policy identity in decision provenance"]
+    Y4["The run-process separates RTDL catch-up closure from decision-chain closure, so the RTDL plane being alive is not enough; the decision chain must still close on its own evidence"]
+    Y5["The platform wants decision truth to be explicit, governed, attributable, and replay/audit survivable"]
+  end
+
+  subgraph CONTRACT["9. What larger contracts are shaping this path"]
+    X1["The RTDL contract shapes the input side: context must be semantically correct, features must be actually present and fresh, and guardrail posture must distinguish advisory from real insufficiency"]
+    X2["The registry and runtime contract shapes the authority side: runtime must resolve the right active bundle or policy, promotion and rollback changes must apply deterministically, and provenance must include runtime bundle or policy identity"]
+    X3["The decision-chain closure contract shapes the evidence side: the decision lane, action and outcome evidence, and append-only audit evidence must all be committed"]
+    X4["So this path is constrained by upstream runtime truth, governed runtime authority, and downstream auditability"]
+  end
+
+  subgraph TRADEOFFS["10. Trade-offs and constraints"]
+    T1["This path deliberately adds one more explicit truth boundary to the RTDL graph"]
+    T2["That costs complexity because the platform must carry and preserve active bundle or policy identity, decision provenance, explanation coverage, fail-closed versus quarantine semantics, and duplicate-safe decision commit discipline"]
+    T3["But that complexity buys the ability to answer why this decision happened, under what authority, and whether it was the right kind of non-normal outcome"]
+    T4["Without this boundary, the system might still produce actions, but the actual decision logic would be much harder to defend"]
+    T5["The docs make those trade-offs visible through fail-closed rate, quarantine rate, hard fail-closed count, decision completeness and provenance completeness, policy and bundle resolution correctness, explainability coverage, and duplicate-safe decision commit"]
+  end
+
+  subgraph NECESSITY["11. Necessity test"]
+    N1["If this path is removed, the platform can still ingest traffic, form joined context, materialize features, classify dependency posture, and even emit actions later"]
+    N2["But it loses a clean answer to what the actual decision was"]
+    N3["It loses a clean answer to which bundle or policy authority produced it"]
+    N4["It loses a clean answer to whether fail-closed or quarantine was semantically correct"]
+    N5["It loses a clean answer to whether the decision itself was complete enough to audit and whether downstream action/audit surfaces are acting on explicit decision truth or inferred behavior"]
+    N6["That would weaken A immediately because the system would have all the ingredients of decisioning without explicit owner for the most important truth in the RTDL plane: the decision itself"]
+  end
+
+  subgraph CLOSURE["3. Owned outcome and 12. What this path proves for A"]
+    O1["Decision truth for the current event under the current run"]
+    O2["Identity, provenance, and explanation fields are complete enough to survive downstream action, audit, and replay"]
+    O3["This path closes at decision truth, not at the later side effects"]
+    O4["Owned outcome: explicit decision truth"]
+    A1["Purpose claim:<br/>the platform has a distinct job for turning context, feature state, guardrail posture, and runtime authority into actual decision truth"]
+    A2["Intentionality claim:<br/>the decision boundary is explicit and governed, not inferred from downstream action success"]
+    A3["Materialization claim:<br/>the decision fabric is concrete runtime workload in the live RTDL plane, and the decision lane is treated as its own proofable part of the decision-chain closure"]
+    A4["Contract claim:<br/>this path is governed by policy and bundle resolution correctness, provenance completeness, explainability coverage, and bounded fail-closed and quarantine semantics"]
+    A5["Constraint-awareness claim:<br/>the platform already knows this boundary can be semantically wrong even when upstream runtime looks healthy, which is why it treats decision completeness and bundle or policy correctness as first-class concerns rather than assuming them"]
+    A6["A-level meaning:<br/>the RTDL plane has an explicit owner for the actual decision itself rather than leaving the most important runtime truth to be inferred from later effects"]
+  end
+
+  G1 --> G2 --> G3 --> E1
+  E1 --> E2 --> E3 --> E4
+  E4 --> R1 --> R2 --> R3 --> R4 --> R5
+
+  R1 --> C1
+  R1 --> C2
+  R1 --> C3
+  R1 --> C4
+  R2 --> C5 --> C6
+  C6 --> C7 --> C8
+
+  R1 --> L1
+  R2 --> L2
+  R3 --> L3
+  R4 --> L4
+  R5 --> L5
+
+  R2 --> S1
+  S1 --> S2 --> S3 --> S4 --> S5
+
+  R2 --> Y1
+  Y1 --> Y2 --> Y3 --> Y4 --> Y5
+
+  R3 --> X1
+  X1 --> X2 --> X3 --> X4
+
+  L5 --> T1
+  T1 --> T2 --> T3 --> T4 --> T5
+
+  R3 --> O1
+  R3 --> O2
+  R3 --> O3
+  O1 --> O4
+  O2 --> O4
+  O3 --> O4
+
+  T5 --> N1
+  N1 --> N2 --> N3 --> N4 --> N5 --> N6
+
+  O4 --> A1
+  O4 --> A2
+  O4 --> A3
+  X4 --> A4
+  T5 --> A5
+  N6 --> A6
+  A1 --> A6
+  A2 --> A6
+  A3 --> A6
+  A4 --> A6
+  A5 --> A6
+
+  classDef base fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.2px;
+  classDef spine fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef reason fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.2px;
+  classDef close fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+
+  class G1,G2,G3,E1,E2,E3,E4,C1,C2,C3,C4,C5,C6,C7,C8,S1,S2,S3,S4,S5 base;
+  class R1,R2,R3,R4,R5 spine;
+  class L1,L2,L3,L4,L5,Y1,Y2,Y3,Y4,Y5,X1,X2,X3,X4,T1,T2,T3,T4,T5,N1,N2,N3,N4,N5,N6 reason;
+  class O1,O2,O3,O4,A1,A2,A3,A4,A5,A6 close;

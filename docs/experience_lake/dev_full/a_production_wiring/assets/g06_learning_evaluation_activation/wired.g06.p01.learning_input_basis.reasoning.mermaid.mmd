@@ -1,0 +1,161 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph INTENT["1. Path objective"]
+    G1["Turn authoritative runtime and archive truth plus authoritative label truth into learning-input basis that is safe to build datasets from"]
+    G2["Keep this path narrower than offline dataset build, training and evaluation, and promotion"]
+    G3["Answer what exact bounded slice of platform truth learning is allowed to use, under what replay basis, and under what temporal controls"]
+  end
+
+  subgraph ENTRY["2. Entry basis"]
+    E1["The entry is not merely that some archive exists and it is not merely that labels exist somewhere"]
+    E2["The entry is archive truth plus label truth plus replay references already resolved from the closed spine, under one run scope"]
+    E3["The learning-input gate states the same requirements explicitly: replay basis pinned to source-offset ranges, strict as-of and maturity controls, runtime-versus-learning separation, and fail-closed no-future-leakage posture"]
+    E4["So the path begins only after runtime and supervision truth are already authoritative and replay-referenceable"]
+  end
+
+  subgraph SPINE["5. Broad route logic"]
+    R1["Archive truth plus label truth plus replay references"]
+    R2["Replay-basis pin"]
+    R3["As-of and maturity pin"]
+    R4["Leakage and runtime-learning separation checks"]
+    R5["Committed learning-input readiness basis"]
+  end
+
+  subgraph CARRIES["4. What the path carries"]
+    C1["Replay-basis receipt"]
+    C2["Learning-input readiness snapshot"]
+    C3["As-of and maturity policy snapshot"]
+    C4["Leakage guardrail report"]
+    C5["Runtime-versus-learning separation result"]
+    C6["Run-scoped continuity tying those control objects back to the same platform run"]
+    C7["The canonical upstream input set was explicitly confirmed in the implementation trail rather than inferred later"]
+  end
+
+  subgraph LOGIC["6. Logical design reading"]
+    L1["The platform treats learning-input truth as its own first-class boundary, not as a convenience prelude to dataset build"]
+    L2["The system is not saying the offline-feature job will figure out the right rows later"]
+    L3["It is saying replay basis, as-of boundaries, label maturity, and anti-leakage posture must be pinned before offline build does anything"]
+    L4["That keeps learning semantically separate from both runtime and raw archive storage"]
+    L5["This is strong A-level design signal because the platform is making causal learning-input truth explicit"]
+  end
+
+  subgraph SEATING["7. Concrete seating in the current wired system"]
+    S1["This path is materially seated in the current wired system, but seated as a control-plane evidence lane rather than as a heavy compute lane"]
+    S2["The run-process gives it its own learning-input closure"]
+    S3["The implementation trail shows separate executed lanes publishing concrete artifacts into run-control evidence roots and run-scoped learning-input surfaces"]
+    S4["Replay-basis closure published a replay-basis receipt into both run-control evidence and the run-scoped learning-input surface"]
+    S5["Temporal policy closure published as-of and maturity artifacts"]
+    S6["Leakage evaluation published the leakage guardrail report into the run-scoped learning-input surface"]
+    S7["So the honest A reading is that the path is materially seated in managed evidence and control surfaces that define learning basis before offline dataset build begins"]
+  end
+
+  subgraph RATIONALE["8. Why the design looks like this"]
+    Y1["The platform deliberately refuses the common shortcut of learning from unbounded archive slices, implicit latest labels, unpinned temporal windows, or runtime-only surfaces bleeding into learning"]
+    Y2["The learning and evolution authority pins the temporal-realism contract clearly: archive plus truth may only be read through explicit replay basis, explicit feature-as-of, explicit label-as-of, and explicit label-maturity gates"]
+    Y3["Any future-timestamp leakage is fail-closed"]
+    Y4["The production-readiness definition says the same thing in plainer language: the learning plane must use the right truth, not future data, not placeholders, and not hidden synthetic shortcuts"]
+    Y5["That is why the design inserts a causal-binding boundary before any offline dataset build begins"]
+  end
+
+  subgraph CONTRACT["9. What larger contracts are shaping this path"]
+    X1["The run-process contract shapes the gate itself: archive, labels, and replay references must already be resolved; replay basis must be source-offset ranges with explicit semantics; all rows must satisfy temporal boundaries; and leakage guardrails must pass"]
+    X2["The learning-plane authority contract shapes the semantics: learning may only read archive plus truth through replay basis plus as-of plus maturity gates, and any row violating the active boundary is rejected and recorded"]
+    X3["The label-truth contract shapes the supervision side: labels must already be authoritative, queryable by as-of and maturity, and safe from future-label leakage"]
+    X4["Otherwise learning-input truth is compromised before dataset build even begins"]
+  end
+
+  subgraph TRADEOFFS["10. Trade-offs and constraints"]
+    T1["This path deliberately adds a full control boundary before offline-feature build"]
+    T2["That costs replay-basis receipts, temporal policy derivation, maturity policy checks, leakage guardrails, runtime-learning separation checks, and committed readiness snapshots"]
+    T3["But that cost buys the ability to say exactly why a dataset basis was allowed, instead of hiding semantic decisions inside the Databricks job"]
+    T4["The implementation notes show this is not theory: the learning-input closure was explicitly decomposed into replay-basis closure, as-of plus maturity closure, leakage guardrail evaluation, runtime-versus-learning separation, readiness snapshot publication, and deterministic verdict"]
+  end
+
+  subgraph NECESSITY["11. Necessity test"]
+    N1["If this path is removed, the platform can still preserve archive history, commit authoritative labels, and run Databricks jobs later"]
+    N2["But it loses a clean answer to which replay slice learning actually used"]
+    N3["It loses a clean answer to what the active feature-as-of and label-as-of values were"]
+    N4["It loses a clean answer to whether labels were mature enough"]
+    N5["It loses a clean answer to whether runtime-only surfaces leaked into learning"]
+    N6["That would weaken A immediately because the platform would have archive truth, label truth, and later datasets without an explicit causal-binding boundary between them"]
+    N7["The architecture rejects exactly that by pinning learning-input truth before offline feature build begins"]
+  end
+
+  subgraph CLOSURE["3. Owned outcome and 12. What this path proves for A"]
+    O1["Replay basis is pinned"]
+    O2["Temporal boundaries and maturity policy are pinned"]
+    O3["Leakage posture and runtime-learning separation are pinned"]
+    O4["Committed learning window and fingerprint basis exist for the run"]
+    O5["Owned outcome: committed learning-input basis for the run"]
+    A1["Purpose claim:<br/>the platform has a distinct job for turning authoritative runtime and supervision truth into a bounded learning-input basis before dataset build begins"]
+    A2["Intentionality claim:<br/>learning input is not whatever the offline job happens to read; it is explicitly governed by replay basis, temporal boundaries, maturity policy, and leakage posture"]
+    A3["Materialization claim:<br/>this boundary is concretely seated in run-control evidence roots and run-scoped learning-input artifacts rather than being left as a hidden convention inside Databricks"]
+    A4["Contract claim:<br/>this path is governed by replay-basis closure, temporal-causality rules, label as-of and maturity semantics, leakage guardrails, and runtime-versus-learning separation"]
+    A5["Constraint-awareness claim:<br/>the platform already knows this boundary can fail through unresolved replay basis, future timestamps, leakage, or runtime-learning surface confusion, which is why each has its own explicit closure object"]
+    A6["A-level meaning:<br/>the platform makes causal learning-input truth explicit before offline build, instead of letting learning semantics emerge implicitly from archive and label storage"]
+  end
+
+  G1 --> G2 --> G3 --> E1
+  E1 --> E2 --> E3 --> E4
+  E4 --> R1 --> R2 --> R3 --> R4 --> R5
+
+  R2 --> C1
+  R5 --> C2
+  R3 --> C3
+  R4 --> C4
+  R4 --> C5
+  R5 --> C6 --> C7
+
+  R1 --> L1
+  L1 --> L2 --> L3 --> L4 --> L5
+
+  R2 --> S1
+  S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7
+
+  R3 --> Y1
+  Y1 --> Y2 --> Y3 --> Y4 --> Y5
+
+  R4 --> X1
+  X1 --> X2 --> X3 --> X4
+
+  L5 --> T1
+  T1 --> T2 --> T3 --> T4
+
+  R2 --> O1
+  R3 --> O2
+  R4 --> O3
+  R5 --> O4
+  O1 --> O5
+  O2 --> O5
+  O3 --> O5
+  O4 --> O5
+
+  T4 --> N1
+  N1 --> N2 --> N3 --> N4 --> N5 --> N6 --> N7
+
+  O5 --> A1
+  O5 --> A2
+  O5 --> A3
+  X4 --> A4
+  T4 --> A5
+  N7 --> A6
+  A1 --> A6
+  A2 --> A6
+  A3 --> A6
+  A4 --> A6
+  A5 --> A6
+
+  classDef base fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.2px;
+  classDef spine fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef reason fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.2px;
+  classDef close fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+
+  class G1,G2,G3,E1,E2,E3,E4,C1,C2,C3,C4,C5,C6,C7,S1,S2,S3,S4,S5,S6,S7 base;
+  class R1,R2,R3,R4,R5 spine;
+  class L1,L2,L3,L4,L5,Y1,Y2,Y3,Y4,Y5,X1,X2,X3,X4,T1,T2,T3,T4,N1,N2,N3,N4,N5,N6,N7 reason;
+  class O1,O2,O3,O4,O5,A1,A2,A3,A4,A5,A6 close;

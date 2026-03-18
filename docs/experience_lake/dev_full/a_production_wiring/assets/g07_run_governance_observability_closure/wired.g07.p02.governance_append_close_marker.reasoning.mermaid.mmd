@@ -1,0 +1,155 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph INTENT["1. Path objective"]
+    G1["Turn run-close reconstruction truth into governance truth that is append-safe and explicitly closed"]
+    G2["Keep this path narrower than run reconstruction and narrower than final-verdict publication"]
+    G3["Answer where the platform appends closure truth and how it marks the run as formally closed"]
+  end
+
+  subgraph ENTRY["2. Entry basis"]
+    E1["The entry is not that the platform is done enough"]
+    E2["The entry is run report plus reconciliation truth already committed, with the earlier spine lanes already reconciled under one run scope"]
+    E3["The spine observability closure sequence requires run report and reconciliation first, governance append closure next, then non-regression anchors, then later handoff and cost-outcome closure"]
+    E4["So this path begins after the exact run story is already known, not before"]
+  end
+
+  subgraph SPINE["5. Broad route logic"]
+    R1["Reconciled run-close truth"]
+    R2["Governance append corridor"]
+    R3["Append log under run scope"]
+    R4["Closure marker under run scope"]
+    R5["Later verdict and handoff lanes can trust formal closure"]
+  end
+
+  subgraph CARRIES["4. What the path carries"]
+    C1["Run identity and run scope"]
+    C2["Reconciled closure truth from the previous path"]
+    C3["Append-log facts that record the closure progression"]
+    C4["The formal close-marker object that declares the run closed"]
+    C5["Publication and readback information proving those objects are actually present under the authoritative evidence scope"]
+    C6["The handles and evidence contracts pin the concrete targets: governance append log under the run-scoped governance surface and governance closure marker under the same run scope"]
+    C7["The governance-closure verification lane proves append and close-marker surfaces together with the run-completed closure refs"]
+  end
+
+  subgraph LOGIC["6. Logical design reading"]
+    L1["The platform treats run understanding and run closure governance as two different truths"]
+    L2["The system is not saying once we can explain the run, closure is obvious"]
+    L3["It is saying there is a dedicated append-safe governance boundary where the platform records and marks closure explicitly"]
+    L4["That makes the current wired system look controlled rather than merely observable"]
+    L5["It also matches the broader authority style: no phase is valid without explicit proof obligations, and closure is not allowed to rest on informal operator interpretation"]
+  end
+
+  subgraph SEATING["7. Concrete seating in the current wired system"]
+    S1["This path is materially seated in the current wired platform"]
+    S2["The concrete durable surfaces are pinned in object storage under the run evidence scope: governance append log and governance closure marker"]
+    S3["This was not merely planned: the governance-closure verification lane is already closed green and records the actual governance projection outputs under the concrete run scope"]
+    S4["The same closure note says these surfaces passed schema, run-scope, and order checks"]
+    S5["So this boundary is already a real operated closure lane in the current wired platform, not just a diagram idea"]
+  end
+
+  subgraph RATIONALE["8. Why the design looks like this"]
+    Y1["The platform refuses two weak shortcuts: the run report exists as proxy for formal closure, and a mutable summary object as substitute for append-safe governance history plus close marker"]
+    Y2["That is why the closure plan includes a dedicated governance-append and closure-marker verification lane"]
+    Y3["Its definition of done requires that the governance append log and closure marker are committed and append-safe"]
+    Y4["The successful governance-closure verification reinforces the same intent: it did not simply check that files existed; it verified schema, run-scope, and ordering coverage before allowing the phase to advance"]
+    Y5["That is exactly what you would expect from a system that wants governance closure to be an explicit truth boundary rather than a cosmetic artifact"]
+  end
+
+  subgraph CONTRACT["9. What larger contracts are shaping this path"]
+    X1["The spine observability closure contract shapes the requirement: run report and reconciliation committed, governance append closure committed, and non-regression anchor pack emitted"]
+    X2["The handles and evidence contract shapes the concrete surfaces: append-log path pattern and close-marker path pattern"]
+    X3["The governance-closure execution contract shapes the lane itself: dedicated verification lane for append and close-marker surfaces and fail-closed blocker family for governance append or closure-marker failure"]
+    X4["The broader design authority shapes the posture: explicit proof obligations, drift watch on evidence gaps, and post-run audit ritual before advancing"]
+  end
+
+  subgraph TRADEOFFS["10. Trade-offs and constraints"]
+    T1["This path deliberately adds another formal closure boundary after reconstruction"]
+    T2["That costs append-safe governance mechanics, one more durable evidence surface, one more ordering and run-scope verification step, and one more explicit blocker family"]
+    T3["But that cost buys the ability to answer not just what happened, but whether closure was formally recorded, whether closure history is append-safe, whether the run was actually marked closed under the right scope, and whether later verdict and handoff artifacts are built on real closure marker rather than informal assumptions"]
+    T4["That matters directly for the meta-goal because a serious reviewer will trust the system more if closure is explicitly governed and durable, not only summarized"]
+  end
+
+  subgraph NECESSITY["11. Necessity test"]
+    N1["If this path is removed, the platform can still reconstruct the run, produce receipts, and maybe even publish a later verdict"]
+    N2["But it loses a clean answer to where formal closure was appended"]
+    N3["It loses a clean answer to what marks the run as closed"]
+    N4["It loses a clean answer to whether closure history is append-safe"]
+    N5["It loses a clean answer to whether later verdict and handoff lanes are building on explicit closure truth or just on the existence of a report"]
+    N6["That would weaken A immediately because the platform could explain the run but would have no explicit owner for formal governance closure itself"]
+    N7["The phase plan rejects exactly that looseness by making governance append and close-marker verification a dedicated lane"]
+  end
+
+  subgraph CLOSURE["3. Owned outcome and 12. What this path proves for A"]
+    O1["Append-safe governance truth exists"]
+    O2["Formal run-close marker exists under the run evidence scope"]
+    O3["Both surfaces are schema-correct, run-scope-correct, and order-safe"]
+    O4["Owned outcome: append-safe governance truth plus formal run-close marker"]
+    A1["Purpose claim:<br/>the platform has a distinct job for turning reconstructed run truth into append-safe governance closure before final-verdict publication advances"]
+    A2["Intentionality claim:<br/>append log and close marker are designed closure objects, not optional reporting extras"]
+    A3["Materialization claim:<br/>this boundary is concretely seated in named run-scope governance surfaces and an already executed governance-closure verification lane"]
+    A4["Contract claim:<br/>this path is governed by append-log and close-marker surface contracts, dedicated governance verification, run-scope correctness, ordering correctness, and append-safe closure obligations"]
+    A5["Constraint-awareness claim:<br/>the platform already knows a run report is not the same as formal closure, which is why close-marker and governance append verification are explicit proof objects rather than assumptions"]
+    A6["A-level meaning:<br/>the platform does not merely understand a run; it can record and mark closure formally under governed durable surfaces"]
+  end
+
+  G1 --> G2 --> G3 --> E1
+  E1 --> E2 --> E3 --> E4
+  E4 --> R1 --> R2 --> R3 --> R4 --> R5
+
+  R1 --> C1
+  R1 --> C2
+  R2 --> C3
+  R4 --> C4
+  R4 --> C5 --> C6 --> C7
+
+  R1 --> L1
+  L1 --> L2 --> L3 --> L4 --> L5
+
+  R2 --> S1
+  S1 --> S2 --> S3 --> S4 --> S5
+
+  R2 --> Y1
+  Y1 --> Y2 --> Y3 --> Y4 --> Y5
+
+  R4 --> X1
+  X1 --> X2 --> X3 --> X4
+
+  L5 --> T1
+  T1 --> T2 --> T3 --> T4
+
+  R3 --> O1
+  R4 --> O2
+  R4 --> O3
+  O1 --> O4
+  O2 --> O4
+  O3 --> O4
+
+  T4 --> N1
+  N1 --> N2 --> N3 --> N4 --> N5 --> N6 --> N7
+
+  O4 --> A1
+  O4 --> A2
+  O4 --> A3
+  X4 --> A4
+  T4 --> A5
+  N7 --> A6
+  A1 --> A6
+  A2 --> A6
+  A3 --> A6
+  A4 --> A6
+  A5 --> A6
+
+  classDef base fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.2px;
+  classDef spine fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef reason fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.2px;
+  classDef close fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+
+  class G1,G2,G3,E1,E2,E3,E4,C1,C2,C3,C4,C5,C6,C7,S1,S2,S3,S4,S5 base;
+  class R1,R2,R3,R4,R5 spine;
+  class L1,L2,L3,L4,L5,Y1,Y2,Y3,Y4,Y5,X1,X2,X3,X4,T1,T2,T3,T4,N1,N2,N3,N4,N5,N6,N7 reason;
+  class O1,O2,O3,O4,A1,A2,A3,A4,A5,A6 close;

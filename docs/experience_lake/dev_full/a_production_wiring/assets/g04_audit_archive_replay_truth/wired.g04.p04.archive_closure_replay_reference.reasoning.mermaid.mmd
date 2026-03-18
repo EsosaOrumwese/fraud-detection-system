@@ -1,0 +1,159 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph INTENT["1. Path objective"]
+    G1["Turn preserved archive history into closure-complete, replay-referenceable archive truth"]
+    G2["Keep this path narrower than the full learning-input basis and narrower than later OFS dataset construction"]
+    G3["Answer when preserved archive history becomes formally closed enough that later replay and learning can rely on it"]
+  end
+
+  subgraph ENTRY["2. Entry basis"]
+    E1["The entry is not raw runtime events anymore"]
+    E2["It is not merely that some archive objects exist"]
+    E3["The entry is run-scoped archived runtime history plus the continuity metadata needed to prove that this archive surface is the one later lanes should trust"]
+    E4["The archive connector handles pin not just the object-store prefix, but also the source topic, starting position, proof mode, and probe mode"]
+    E5["The current closure contract expects archive history under archive/{platform_run_id}/events/ and uses object-path-plus-payload-readback as the run-scope proof mode"]
+  end
+
+  subgraph SPINE["5. Broad route logic"]
+    R1["Run-scoped archive objects plus continuity proof"]
+    R2["Archive closure marker"]
+    R3["Replay-reference resolution from spine closure"]
+    R4["Downstream learning-input lane can trust the archive basis"]
+    R5["Archive truth becomes closure-complete and replay-referenceable"]
+  end
+
+  subgraph CARRIES["4. What the path carries"]
+    C1["The run-scoped archive object set"]
+    C2["The continuity proof that ties the archive sink back to its source records"]
+    C3["The archive closure marker"]
+    C4["The replay-reference semantics that later lanes will read as source-offset ranges"]
+    C5["Replay basis at learning-input closure must be pinned as source-offset ranges with explicit mode-aware meaning"]
+    C6["The handles registry separately pins the archive connector's proof mode as object-path-plus-payload-readback"]
+  end
+
+  subgraph LOGIC["6. Logical design reading"]
+    L1["The platform treats archive preservation and archive usability for replay as different owned truths"]
+    L2["The system is not saying once objects land in object storage, later replay can figure it out"]
+    L3["There is an explicit closure boundary where archive history becomes replay-referenceable"]
+    L4["Later learning is blocked until that boundary is satisfied"]
+    L5["That is strong A-level design signal"]
+  end
+
+  subgraph SEATING["7. Concrete seating in the current wired system"]
+    S1["The archive surface is concretely pinned to archive/{platform_run_id}/events/"]
+    S2["The current runtime contract for the archive lane is pinned to ECS batch-consumer-to-object-storage posture"]
+    S3["The control topic is the source topic"]
+    S4["The run-scope proof mode is object-path-plus-payload-readback"]
+    S5["Explicit probe emit mode uses ECS MSK producer task"]
+    S6["The current archive cutover closure says the lane only closed green after probe-to-sink continuity closure, where admitted probe ids were present in the run-scoped archive objects"]
+  end
+
+  subgraph RATIONALE["8. Why the design looks like this"]
+    Y1["The platform refused to equate archive sink wrote objects with archive closure is trustworthy"]
+    Y2["The run-process requires archive-writer closure evidence at RTDL catch-up closure, not just activity"]
+    Y3["The later learning-input gate requires archive plus replay references to be resolved from spine closure, not guessed from whatever files happen to be present"]
+    Y4["The archive cutover closure shows the same attitude in implementation: the lane stayed fail-closed until it could prove probe-to-sink continuity under the run-scoped archive prefix"]
+  end
+
+  subgraph CONTRACT["9. What larger contracts are shaping this path"]
+    X1["The run-process closure law shapes it through RTDL catch-up closure: archive-writer closure evidence must be present and commit evidence must include archive closure marker"]
+    X2["The learning-input law shapes it through learning-input closure: replay basis must be pinned as source-offset ranges with explicit mode-aware semantics, and learning cannot start until archive, labels, and replay references are resolved from spine closure"]
+    X3["The archive connector contract shapes it concretely through the pinned run-scoped archive prefix, proof mode, source topic, and consumer settings"]
+    X4["So this path is governed by archive-closure rules, replay-basis rules, and mode-aware source-offset semantics"]
+  end
+
+  subgraph TRADEOFFS["10. Trade-offs and constraints"]
+    T1["This path deliberately adds another explicit truth boundary after archive writing"]
+    T2["That costs more ceremony: closure evidence, closure marker semantics, replay-reference semantics, and a clear distinction between preserved history and replay-ready history"]
+    T3["But that cost buys something important: later learning and replay lanes do not need to infer their basis from ad hoc object inspection"]
+    T4["They can depend on a named closure outcome"]
+    T5["The archive cutover closure makes this especially clear: the lane did not go green merely because the sink existed; it went green after runtime-path adjudication and probe-to-sink continuity closure"]
+  end
+
+  subgraph NECESSITY["11. Necessity test"]
+    N1["If this path is removed, the platform can still preserve archive objects, append audit truth, and later attempt replay or learning"]
+    N2["But it loses a clean answer to when the archive became closure-complete"]
+    N3["It loses a clean answer to which replay references later lanes should trust"]
+    N4["It loses a clean answer to whether replay basis came from spine closure or from informal guess"]
+    N5["It loses a clean answer to whether learning-input closure is anchored to true archive basis or only to object presence"]
+    N6["That would weaken A immediately because the system would preserve runtime history but have no explicit owner for turning that history into replay-referenceable basis"]
+    N7["The run-process itself rejects that looseness by making archive closure and replay-reference resolution formal gates"]
+  end
+
+  subgraph CLOSURE["3. Owned outcome and 12. What this path proves for A"]
+    O1["Closed archive surface for the run"]
+    O2["Replay-reference continuity is explicit enough that downstream learning-input closure can bind to it"]
+    O3["This path stops once archive truth is closure-complete and replay-referenceable"]
+    O4["Owned outcome: replay-referenceable archive truth"]
+    A1["Purpose claim:<br/>the platform has a distinct job for turning preserved archive history into replay-referenceable closure truth"]
+    A2["Intentionality claim:<br/>replay references are not inferred opportunistically; they are resolved from spine closure under explicit gate semantics"]
+    A3["Materialization claim:<br/>the path is concretely seated in the run-scoped archive prefix, the pinned archive connector contract, and the archive-closure marker requirement"]
+    A4["Contract claim:<br/>this path is governed by archive-closure rules, replay-basis rules, and mode-aware source-offset semantics"]
+    A5["Constraint-awareness claim:<br/>the current wired route only counts as closed when continuity proof is explicit, which is why the archive cutover lane was pinned to probe-to-sink continuity rather than vague archive looks okay posture"]
+    A6["A-level meaning:<br/>preserved archive history becomes formally trustworthy replay basis instead of leaving later learning and replay to guess from object presence"]
+  end
+
+  G1 --> G2 --> G3 --> E1
+  E1 --> E2 --> E3 --> E4 --> E5
+  E5 --> R1 --> R2 --> R3 --> R4 --> R5
+
+  R1 --> C1
+  R1 --> C2
+  R2 --> C3
+  R3 --> C4
+  C4 --> C5 --> C6
+
+  R1 --> L1
+  R2 --> L2
+  R3 --> L3
+  R4 --> L4
+  R5 --> L5
+
+  R1 --> S1
+  S1 --> S2 --> S3 --> S4 --> S5 --> S6
+
+  R2 --> Y1
+  Y1 --> Y2 --> Y3 --> Y4
+
+  R3 --> X1
+  X1 --> X2 --> X3 --> X4
+
+  L5 --> T1
+  T1 --> T2 --> T3 --> T4 --> T5
+
+  R5 --> O1
+  R5 --> O2
+  R5 --> O3
+  O1 --> O4
+  O2 --> O4
+  O3 --> O4
+
+  T5 --> N1
+  N1 --> N2 --> N3 --> N4 --> N5 --> N6 --> N7
+
+  O4 --> A1
+  O4 --> A2
+  O4 --> A3
+  X4 --> A4
+  T5 --> A5
+  N7 --> A6
+  A1 --> A6
+  A2 --> A6
+  A3 --> A6
+  A4 --> A6
+  A5 --> A6
+
+  classDef base fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.2px;
+  classDef spine fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef reason fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.2px;
+  classDef close fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+
+  class G1,G2,G3,E1,E2,E3,E4,E5,C1,C2,C3,C4,C5,C6,S1,S2,S3,S4,S5,S6 base;
+  class R1,R2,R3,R4,R5 spine;
+  class L1,L2,L3,L4,L5,Y1,Y2,Y3,Y4,X1,X2,X3,X4,T1,T2,T3,T4,T5,N1,N2,N3,N4,N5,N6,N7 reason;
+  class O1,O2,O3,O4,A1,A2,A3,A4,A5,A6 close;

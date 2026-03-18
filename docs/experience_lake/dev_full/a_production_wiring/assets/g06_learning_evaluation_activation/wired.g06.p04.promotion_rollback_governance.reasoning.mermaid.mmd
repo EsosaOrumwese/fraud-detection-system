@@ -1,0 +1,161 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph INTENT["1. Path objective"]
+    G1["Turn an eligible candidate bundle into governed promotion truth"]
+    G2["Keep this path narrower than candidate truth and narrower than runtime consumption of the active bundle"]
+    G3["Answer how the platform promotes candidate explicitly, proves rollback is real, and proves the promoted state is governable rather than accidental"]
+  end
+
+  subgraph ENTRY["2. Entry basis"]
+    E1["The entry is not that MLflow exists and not merely that a model artifact was produced"]
+    E2["The entry is a candidate bundle already made eligible by the previous train-and-eval path"]
+    E3["The run-process says that directly: promotion closure begins only when the candidate bundle is eligible from the train-and-eval closure"]
+    E4["The production-readiness definition says the same thing in plane language: datasets become train-and-eval results, then candidate bundles, then active model and policy truth"]
+    E5["So this path starts only after candidate truth already exists"]
+  end
+
+  subgraph SPINE["5. Broad route logic"]
+    R1["Eligible candidate bundle"]
+    R2["Governed promotion corridor"]
+    R3["Explicit promotion event and receipt"]
+    R4["Rollback drill and bounded-restore evidence"]
+    R5["Active-resolution and compatibility checks"]
+    R6["Committed promotion truth"]
+  end
+
+  subgraph CARRIES["4. What the path carries"]
+    C1["Eligible candidate-bundle reference"]
+    C2["Promotion receipt truth"]
+    C3["Rollback drill report"]
+    C4["Rollback bounded-objective measurements"]
+    C5["Active-resolution snapshot"]
+    C6["Compatibility-check results"]
+    C7["Lineage and provenance tying promoted state back to dataset, train/eval, and candidate-bundle truth"]
+    C8["The closure also anchors rollback bounded-restore evidence, post-promotion observation snapshot, governance append evidence, operability/governance acceptance report, and deterministic promotion verdict"]
+  end
+
+  subgraph LOGIC["6. Logical design reading"]
+    L1["The platform treats promotion truth as different from both candidate truth and runtime authority feedback truth"]
+    L2["The system is not saying once a candidate bundle exists, activation is basically done"]
+    L3["It is saying there is a governed corridor where promotion must become explicit and auditable, rollback must be proven real, and the resulting active state must be checkable before runtime is even allowed to rely on it"]
+    L4["The production-readiness definition is clear: without trustworthy promotion surface, the platform cannot claim safe model operations in production"]
+    L5["This is strong A-level design signal because promotion is treated as an owned governance boundary rather than a registry toggle"]
+  end
+
+  subgraph SEATING["7. Concrete seating in the current wired system"]
+    S1["This path is materially seated in the current wired platform"]
+    S2["The copied baseline wired graphs show MLflow as the promotion and registry surface"]
+    S3["Registry events are a named downstream transport surface"]
+    S4["Promotion receipts and rollback receipts are durable evidence surfaces"]
+    S5["Active-bundle resolution truth is a distinct runtime-consumed registry surface"]
+    S6["That means governed promotion is seated on concrete registry, evidence, and resolution surfaces rather than a generic model-registry idea"]
+    S7["The master build plan says the promotion corridor is done and its closure anchors include promotion receipt, rollback drill report, bounded-restore evidence, active-bundle compatibility checks, post-promotion observation snapshot, governance append evidence, operability/governance acceptance report, and deterministic promotion verdict"]
+    S8["The implementation trail also shows the active-resolution lane itself as a concrete executed subphase with durable artifacts such as active-resolution snapshot, post-promotion observation snapshot, and execution/blocker summaries"]
+    S9["That means this boundary is already a live managed lane, not a diagrammed aspiration"]
+  end
+
+  subgraph RATIONALE["8. Why the design looks like this"]
+    Y1["The platform refuses two weak shortcuts: promotion succeeded as proxy for safe model operations, and the registry says active as proxy for real rollback discipline and runtime compatibility"]
+    Y2["That is why the path is built around a corridor rather than one write"]
+    Y3["The promotion readiness definition says promotion must be explicit and auditable, rollback must work within target recovery contract, lineage must be complete from dataset to train/eval to bundle to active runtime, and no shadow promotion path may exist outside the governed corridor"]
+    Y4["The current execution trail reinforces that same intent: when the active-resolution lane encountered source-shape mismatch, the correction was to preserve the gate and align it to authoritative lifecycle and publication artifacts"]
+    Y5["That is exactly what a serious promotion-governance boundary should do"]
+  end
+
+  subgraph CONTRACT["9. What larger contracts are shaping this path"]
+    X1["The promotion gate contract shapes the closure object: promotion corridor event committed, rollback drill executed, rollback bounded objective within pinned handles, active-bundle resolution checks pass, compatibility fail-closed checks pass"]
+    X2["The promotion-corridor production-ready contract shapes the semantics: active bundle must resolve deterministically for the runtime that will consume it, promotion evidence must be complete, rollback must be real, lineage must be complete, and no shadow promotion path may exist"]
+    X3["The execution contract shapes the current wired lane: strict sequencing, fail-closed blocker families, cost discipline, post-promotion observation, governance completeness, operability acceptance, and deterministic handoff publication"]
+    X4["The later runtime-feedback path depends on this one being explicit: runtime consumption is separate from promotion governance"]
+  end
+
+  subgraph TRADEOFFS["10. Trade-offs and constraints"]
+    T1["This path deliberately adds a heavy governance boundary after candidate creation"]
+    T2["That costs one more managed corridor, promotion receipts, rollback drill execution, rollback bounded-objective measurement, active-resolution checks, compatibility gates, governance append evidence, and post-promotion observation"]
+    T3["But that cost buys the ability to prove promotion was explicit, rollback was real, the promoted state was compatible, and the active state was governable before runtime depended on it"]
+    T4["The current wired trail makes that concrete because the promotion corridor carries durable evidence and acceptance artifacts rather than ending at a registry write"]
+    T5["This is the price of making active model state auditable and operable instead of accidental"]
+  end
+
+  subgraph NECESSITY["11. Necessity test"]
+    N1["If this path is removed, the platform can still preserve archive truth, commit authoritative labels, build datasets, produce candidate bundles, and even record registry state somehow"]
+    N2["But it loses a clean answer to whether promotion was explicit and governed"]
+    N3["It loses a clean answer to whether rollback was real within the recovery contract"]
+    N4["It loses a clean answer to whether active-bundle resolution and compatibility were checked before runtime consumption"]
+    N5["It loses a clean answer to whether the promoted state is auditable and tied back to candidate, train/eval, and dataset lineage"]
+    N6["That would weaken A immediately because the platform would have active-looking registry state without an explicit promotion-governance boundary"]
+    N7["The architecture rejects that by making governed promotion truth and rollback-governance truth explicit before runtime feedback begins"]
+  end
+
+  subgraph CLOSURE["3. Owned outcome and 12. What this path proves for A"]
+    O1["Promotion corridor event and receipt committed"]
+    O2["Rollback drill and bounded-objective evidence committed"]
+    O3["Active-resolution and compatibility checks passed"]
+    O4["Governed promotion truth plus rollback-governance truth committed"]
+    A1["Purpose claim:<br/>the platform has a distinct job for turning eligible candidate truth into governed promotion truth before runtime authority feedback begins"]
+    A2["Intentionality claim:<br/>promotion is not a registry side effect; it is an explicit governed corridor with rollback, compatibility, observation, and governance obligations"]
+    A3["Materialization claim:<br/>this boundary is concretely seated in MLflow/registry surfaces, durable promotion and rollback evidence, active-resolution artifacts, and deterministic promotion verdict surfaces"]
+    A4["Contract claim:<br/>this path is governed by explicit promotion receipts, rollback bounded-objective evidence, deterministic active-bundle resolution, compatibility fail-closed checks, lineage completeness, and no shadow promotion path"]
+    A5["Constraint-awareness claim:<br/>the platform already knows registry-active is not enough, which is why rollback realism, active-resolution checks, and post-promotion observation are explicit closure objects instead of assumptions"]
+    A6["A-level meaning:<br/>the platform turns candidate-model truth into governable promoted state through an explicit promotion corridor rather than collapsing governance into a registry write"]
+  end
+
+  G1 --> G2 --> G3 --> E1
+  E1 --> E2 --> E3 --> E4 --> E5
+  E5 --> R1 --> R2 --> R3 --> R4 --> R5 --> R6
+
+  R1 --> C1
+  R3 --> C2
+  R4 --> C3 --> C4
+  R5 --> C5 --> C6
+  R6 --> C7 --> C8
+
+  R1 --> L1
+  L1 --> L2 --> L3 --> L4 --> L5
+
+  R2 --> S1
+  S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7 --> S8 --> S9
+
+  R3 --> Y1
+  Y1 --> Y2 --> Y3 --> Y4 --> Y5
+
+  R5 --> X1
+  X1 --> X2 --> X3 --> X4
+
+  L5 --> T1
+  T1 --> T2 --> T3 --> T4 --> T5
+
+  R3 --> O1
+  R4 --> O2
+  R5 --> O3
+  R6 --> O4
+
+  T5 --> N1
+  N1 --> N2 --> N3 --> N4 --> N5 --> N6 --> N7
+
+  O4 --> A1
+  O4 --> A2
+  O4 --> A3
+  X4 --> A4
+  T5 --> A5
+  N7 --> A6
+  A1 --> A6
+  A2 --> A6
+  A3 --> A6
+  A4 --> A6
+  A5 --> A6
+
+  classDef base fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.2px;
+  classDef spine fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef reason fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.2px;
+  classDef close fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+
+  class G1,G2,G3,E1,E2,E3,E4,E5,C1,C2,C3,C4,C5,C6,C7,C8,S1,S2,S3,S4,S5,S6,S7,S8,S9 base;
+  class R1,R2,R3,R4,R5,R6 spine;
+  class L1,L2,L3,L4,L5,Y1,Y2,Y3,Y4,Y5,X1,X2,X3,X4,T1,T2,T3,T4,T5,N1,N2,N3,N4,N5,N6,N7 reason;
+  class O1,O2,O3,O4,A1,A2,A3,A4,A5,A6 close;

@@ -1,0 +1,95 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph WHY["1. Why this group exists"]
+    W1["The platform cannot treat events exist as the same thing as runtime truth has begun"]
+    W2["Before RTDL can form context or decisions, the platform has to answer four things cleanly"]
+    W3["What counts as canonical traffic"]
+    W4["What is the real ingress boundary"]
+    W5["How ingress decides admit, reject, quarantine, or duplicate-safe truth"]
+    W6["Where admitted traffic becomes authoritative bus truth with committed ingest evidence"]
+    W7["The data-engine interface and platform authority make those boundaries explicit: behavioural_streams are canonical traffic, context surfaces are join/context only, traffic stays thin, ingress is pinned to API edge plus Lambda plus DynamoDB idempotency, and the topic contract pins the traffic/context family"]
+  end
+
+  subgraph PATHS["2. Why the four paths are justified together"]
+    P1["Boundary access path"]
+    P2["Admission and disposition path"]
+    P3["Authoritative bus publication path"]
+    P4["Ingest commit truth path"]
+    P5["Boundary access proves there is one real external front door for canonical behavioural traffic rather than a muddled mix of stale internal service URLs and edge surfaces"]
+    P6["Admission and disposition proves ingress owns a deterministic truth boundary: admitted, rejected, quarantined, or duplicate-safe under one canonical dedupe basis rather than being inferred later by downstream consumers"]
+    P7["Authoritative bus publication proves admitted traffic is handed off into a semantically split traffic and context topic family that matches the thin-traffic join posture of the data-engine contract"]
+    P8["Ingest commit truth proves the platform does not stop at runtime activity; it turns ingress behavior into committed summaries and mode-aware ingest proof under the ingest-commit closure boundary"]
+    P9["Taken together, the four paths prove Group 2 is not just ingress but a governed runtime-entry obligation family"]
+  end
+
+  subgraph CLAIM["3. Group-level claim"]
+    G1["The platform turns canonical behavioural traffic into governed runtime entry truth"]
+    G2["It knows what traffic is, where it is allowed to enter, how ingress owns its disposition, where admitted traffic is handed to runtime, and how that whole boundary is later committed as durable ingest truth"]
+    G3["That makes the current wired system look like a platform with explicit ingress ownership rather than a bus that happens to receive events"]
+  end
+
+  subgraph PROOF["4. What this group proves for A"]
+    A1["Strongest closure: continuity and safety"]
+    A2["Continuity closes because the chain from behavioural traffic classification to active ingress edge to admission and disposition truth to authoritative topic publication to committed ingest evidence is explicit rather than implied"]
+    A3["The platform does not jump from traffic reached the edge to RTDL must have seen it; it has separate truths for boundary acceptance, disposition, bus handoff, and ingest closure"]
+    A4["Safety closes because non-traffic surfaces are forbidden from masquerading as canonical business traffic, ingress auth and boundary contract are explicit, idempotency-backend failure returns service unavailable instead of silently admitting, publish ambiguity is treated as a real blocker, and ingest closure refuses to force-pass from admissions alone when broker-facing proof is not materially available"]
+    A5["It also gives strong uniqueness closure: one active ingress edge, one authoritative dedupe basis, one authoritative traffic and context topic family, and one explicit mode-aware ingest proof boundary for the current ingress edge"]
+    A6["It also gives meaningful existence closure because these are materially seated in the active API edge, Lambda ingress handler, DynamoDB-backed idempotency surface, pinned traffic/context topics, run-scoped ingest evidence paths, and a concrete ingest-commit gate with committed receipt, quarantine, and proof artifacts"]
+  end
+
+  subgraph AMBIG["5. A ambiguities to carry upward"]
+    M1["The main A ambiguity here is explanatory"]
+    M2["We need to keep very clear the difference between boundary truth, admission truth, publish truth, and ingest commit truth"]
+    M3["Those are cleanly separated in the design but can easily collapse into one vague ingress handled it story if we are not disciplined"]
+    M4["There is also a current-wired nuance to state honestly: the active ingest proof posture is mode-aware"]
+    M5["Under the current API edge plus Lambda plus idempotency posture, ingest closure uses an admission-index proxy rather than direct broker topic and partition offsets, and the platform explicitly rejected pretending otherwise"]
+    M6["That is not a weakness for A, but it does need to be explained carefully so an outsider sees it as an honest current design boundary rather than a hidden gap"]
+  end
+
+  subgraph PARK["6. Bi spillover to park"]
+    B1["Questions about whether the current ingress posture remains right under heavier production pressure, whether admission-index proxy proof should later give way to direct broker offset proof, and whether hot-path cost, throughput, and ambiguity characteristics are sufficient belong later in Bi"]
+    B2["For A, Group 2 only needs to prove that the current wired platform has a real ingress truth boundary, a real bus handoff boundary, and a real committed ingest-truth boundary"]
+  end
+
+  subgraph VERDICT["7. Group verdict"]
+    V1["Group 2 proves that the platform does not merely receive events; it governs the transformation from canonical traffic into runtime entry truth"]
+    V2["This is a foundational A win because it shows the current wired platform has explicit ownership over ingress, publication, and ingest evidence rather than letting downstream runtime guess what happened"]
+  end
+
+  W1 --> W2 --> W3 --> W4 --> W5 --> W6 --> W7
+  W7 --> P1
+  W7 --> P2
+  W7 --> P3
+  W7 --> P4
+  P1 --> P5
+  P2 --> P6
+  P3 --> P7
+  P4 --> P8
+  P5 --> P9
+  P6 --> P9
+  P7 --> P9
+  P8 --> P9
+
+  P9 --> G1 --> G2 --> G3
+
+  G3 --> A1 --> A2 --> A3 --> A4 --> A5 --> A6
+  A6 --> M1 --> M2 --> M3 --> M4 --> M5 --> M6
+  A6 --> B1 --> B2
+  M6 --> V1
+  B2 --> V1
+  V1 --> V2
+
+  classDef base fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.2px;
+  classDef spine fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef reason fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.2px;
+  classDef close fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+
+  class W1,W2,W3,W4,W5,W6,W7,P1,P2,P3,P4,P5,P6,P7,P8 base;
+  class P9,G1,G2,G3 spine;
+  class A1,A2,A3,A4,A5,A6,M1,M2,M3,M4,M5,M6,B1,B2 reason;
+  class V1,V2 close;

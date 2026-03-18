@@ -1,0 +1,88 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph WHY["1. Why this group exists"]
+    W1["Before ingress, RTDL, cases, learning, or verdicts can matter, the platform has to establish three things cleanly"]
+    W2["What run this is"]
+    W3["What source world it is reading from"]
+    W4["Who is allowed to say the platform is ready"]
+    W5["The run-process makes those closure points explicit as RUN_PINNED, ORACLE_READY, and READY_PUBLISHED"]
+    W6["The design authority hard-pins the structure behind them: Oracle Store is producer-owned and read-only in S3, dev_full is managed-first with no laptop runtime, each phase/run has one active runtime path, and ready closure belongs to Step Functions rather than stream compute alone"]
+  end
+
+  subgraph PATHS["2. Why the three paths are justified together"]
+    P1["Run legitimization path"]
+    P2["Source realization path"]
+    P3["Ready authorization path"]
+    P4["Run legitimization proves execution is bounded by an explicit run header and config digest"]
+    P5["Source realization proves the external engine world is realized through the canonical oracle-store boundary and repinned raw -> managed sort -> parity posture rather than through an ad hoc copy world"]
+    P6["Ready authorization proves readiness is a control-plane fact emitted on the control bus and committed with Step Functions authority evidence, not just a symptom of stream compute being alive"]
+    P7["Taken together, the three paths prove the current wired platform does not begin from accidental compute side effects"]
+  end
+
+  subgraph CLAIM["3. Group-level claim"]
+    G1["The platform begins from governed legitimacy"]
+    G2["It knows what run is in scope, what world is in scope, and what authority is allowed to convert prepared into ready"]
+    G3["That makes the system look like an engineered platform with explicit authority boundaries rather than a set of services that happened to start"]
+  end
+
+  subgraph PROOF["4. What this group proves for A"]
+    A1["Strongest closure: uniqueness and safety"]
+    A2["Uniqueness closes because the design insists on one committed run basis, one canonical external oracle source boundary, one active runtime path per phase or run, and one ready commit authority"]
+    A3["Safety closes because these boundaries fail closed on run pin or digest mismatch, missing raw upload/sort/parity receipts, duplicate or ambiguous ready, and missing Step Functions authority evidence"]
+    A4["It also gives strong existence proof because these claims are materially seated in Step Functions run-state entry and ready receipt, S3 oracle-store prefixes, managed-sort handles and receipts, and run-scoped evidence roots"]
+    A5["It also gives meaningful continuity proof because the engine's sealed-world identity stays distinct from execution correlation, so the platform can govern execution without pretending that a new run changes world truth"]
+  end
+
+  subgraph AMBIG["5. A ambiguities to carry upward"]
+    M1["The main A ambiguity here is explanatory, not structural"]
+    M2["We need to explain clearly that platform run identity governs execution closure while engine world identity governs the sealed source world"]
+    M3["An outsider could easily blur those two if we are not careful"]
+    M4["There is also an evidential nuance to keep honest: the source-realization design is clearly repinned to the canonical oracle boundary and managed-sort posture, but refreshed oracle-cycle work is still split across historical closure and next-cycle refresh steps"]
+    M5["So in A, we should present the current wired design as the main object and not overstate refreshed certification state where the build plan still records pending follow-on oracle refresh lanes"]
+  end
+
+  subgraph PARK["6. Bi spillover to park"]
+    B1["Questions about whether the oracle and ready corridor is fast enough, resilient enough, or pressure-proof under sustained production conditions belong later in Bi"]
+    B2["Group 1 in A only needs to prove the legitimacy and authority structure of that corridor itself"]
+    B3["The run-process already separates these early authority gates from later streaming, ingest, RTDL, and whole-platform closure gates"]
+  end
+
+  subgraph VERDICT["7. Group verdict"]
+    V1["Group 1 proves that the platform starts from explicit run legitimacy, explicit source legitimacy, and explicit ready authority"]
+    V2["This is a foundational A win because it shows the current wired platform is intentionally governed from the very first boundary rather than merely observed after it starts running"]
+  end
+
+  W1 --> W2 --> W3 --> W4 --> W5 --> W6
+  W5 --> P1
+  W5 --> P2
+  W5 --> P3
+  P1 --> P4
+  P2 --> P5
+  P3 --> P6
+  P4 --> P7
+  P5 --> P7
+  P6 --> P7
+
+  P7 --> G1 --> G2 --> G3
+
+  G3 --> A1 --> A2 --> A3 --> A4 --> A5
+  A5 --> M1 --> M2 --> M3 --> M4 --> M5
+  A5 --> B1 --> B2 --> B3
+  M5 --> V1
+  B3 --> V1
+  V1 --> V2
+
+  classDef base fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.2px;
+  classDef spine fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef reason fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.2px;
+  classDef close fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+
+  class W1,W2,W3,W4,W5,W6,P1,P2,P3,P4,P5,P6 base;
+  class P7,G1,G2,G3 spine;
+  class A1,A2,A3,A4,A5,M1,M2,M3,M4,M5,B1,B2,B3 reason;
+  class V1,V2 close;

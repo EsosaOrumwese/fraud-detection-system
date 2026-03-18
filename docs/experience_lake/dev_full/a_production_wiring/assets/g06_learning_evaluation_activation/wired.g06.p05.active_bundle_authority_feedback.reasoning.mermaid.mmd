@@ -1,0 +1,161 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph INTENT["1. Path objective"]
+    G1["Turn governed promoted state into runtime decision authority"]
+    G2["Keep this path narrower than candidate truth and narrower than runtime decision formation itself"]
+    G3["Answer how the platform makes the promoted model or policy become the actual authority that runtime is supposed to consume"]
+  end
+
+  subgraph ENTRY["2. Entry basis"]
+    E1["The entry is not just that a promotion happened"]
+    E2["The entry is a candidate bundle that has already crossed the governed promotion corridor and already satisfied promotion and rollback checks"]
+    E3["The promotion closure closes only once the promotion corridor event is committed, rollback drill is executed and recorded, rollback bounded objective is within contract, active-bundle resolution checks pass, and compatibility fail-closed checks pass"]
+    E4["So this path begins after governed promotion truth already exists and asks what turns that promoted state into runtime-readable authority"]
+  end
+
+  subgraph SPINE["5. Broad route logic"]
+    R1["Promoted registry truth"]
+    R2["Active-resolution logic"]
+    R3["Deterministic active bundle and policy resolution"]
+    R4["Runtime-readable authority surface"]
+    R5["Later runtime decision consumption"]
+  end
+
+  subgraph CARRIES["4. What the path carries"]
+    C1["Promoted candidate reference"]
+    C2["Scope information used to prove one-active-per-scope determinism"]
+    C3["Registry lifecycle event and publication truth as the authoritative source of active state"]
+    C4["Runtime bundle and policy identifiers"]
+    C5["Post-promotion observation state showing runtime can read the promoted authority coherently"]
+    C6["Active-resolution checks for one-active-per-scope determinism, runtime compatibility between candidate serving mode and runtime handles, and post-promotion observation artifacts with pass/fail checks and source refs"]
+    C7["Cross-plane provenance identifiers for policy, bundle, config, and release needed for replay and audit"]
+  end
+
+  subgraph LOGIC["6. Logical design reading"]
+    L1["The platform treats active model and policy truth as registry truth first, runtime truth second"]
+    L2["The system is not saying runtime will just use whatever latest bundle is around"]
+    L3["It is saying registry-owned active truth must be resolved deterministically and only then may runtime consume it as decision authority"]
+    L4["That fits the broader semantic law that active model and policy truth stays registry truth, just as case truth stays case-management truth and label truth stays label-store truth"]
+    L5["This is strong A-level design signal because the registry-to-runtime authority boundary is explicit rather than implied"]
+  end
+
+  subgraph SEATING["7. Concrete seating in the current wired system"]
+    S1["This path is materially seated in the current wired platform"]
+    S2["The copied baseline wired graphs show MLflow as the registry and promotion surface"]
+    S3["Registry events are the publication surface"]
+    S4["Active-bundle and policy resolution truth is a distinct runtime-consumed registry surface"]
+    S5["The downstream resolution of the pinned serving handle against that active truth is explicitly represented"]
+    S6["That means runtime authority is seated on concrete registry, resolution, and publication surfaces rather than a generic latest-bundle assumption"]
+    S7["At the execution level this boundary is already concretely exercised in the active-resolution checks, which closed green and produced durable artifacts including active-resolution snapshot, post-promotion observation snapshot, and execution summary"]
+    S8["The broader promotion closure also requires active-bundle compatibility checks green and post-promotion observation snapshot committed and pass"]
+    S9["So this is not a hand-waved future concern; it is already a real closed lane in the current platform"]
+  end
+
+  subgraph RATIONALE["8. Why the design looks like this"]
+    Y1["The platform refuses two weak shortcuts: promotion succeeded as proxy for runtime authority, and the registry says active as proxy for the runtime actually consuming the right thing"]
+    Y2["That is why the active-resolution lane exists as its own boundary after promotion and rollback drill"]
+    Y3["When that lane encountered an evidence-shape mismatch, the correction was to keep the active-resolution checks strict and align them to the authoritative lifecycle event and publication receipt"]
+    Y4["That is exactly the behavior wanted from a serious runtime-authority boundary: do not weaken the gate; fix the truth source"]
+  end
+
+  subgraph CONTRACT["9. What larger contracts are shaping this path"]
+    X1["The registry-to-RTDL feedback contract defines the meaning of the boundary: runtime resolves the right active bundle, decision provenance includes bundle and policy identity, promotion changes are applied deterministically, and rollback changes are applied deterministically"]
+    X2["The activation-corridor production-ready contract sharpens the authority side: the active bundle must resolve deterministically for the runtime that will consume it, lineage must be complete from dataset to train/eval to bundle to active runtime, and no shadow promotion path may exist outside the governed corridor"]
+    X3["The promotion closure shapes the current posture by requiring active-bundle resolution checks and compatibility fail-closed checks before promotion can be considered fully committed"]
+    X4["The broader provenance law requires policy, bundle, config, and release identifiers to survive the handoff for replay and audit across planes"]
+  end
+
+  subgraph TRADEOFFS["10. Trade-offs and constraints"]
+    T1["This path deliberately adds another explicit boundary after promotion"]
+    T2["That costs one more managed lane, one more set of source-of-truth artifacts, one more compatibility and readback check, and one more post-promotion observation surface"]
+    T3["But that cost buys the ability to answer not just what was promoted, but what is actually active now, whether runtime resolves that active state deterministically, whether the promoted authority is compatible with the runtime that will consume it, and whether learning and runtime remain in sync"]
+    T4["That is exactly why the production-readiness doc says if this path is weak, learning and runtime drift apart"]
+  end
+
+  subgraph NECESSITY["11. Necessity test"]
+    N1["If this path is removed, the platform can still preserve archive truth, commit authoritative labels, pin learning basis, build datasets, produce candidate bundles, and even record promotion receipts"]
+    N2["But it loses a clean answer to which active bundle runtime is actually using"]
+    N3["It loses a clean answer to whether runtime resolution is deterministic for the right scope"]
+    N4["It loses a clean answer to whether rollback changed runtime authority correctly"]
+    N5["It loses a clean answer to whether decision provenance can name the right bundle and policy"]
+    N6["It loses a clean answer to whether registry truth and runtime truth are still aligned"]
+    N7["That would weaken A immediately because the platform would have promotion machinery but no explicit owner for the boundary where registry truth becomes runtime decision authority"]
+    N8["The docs themselves call that out as a critical cross-plane path and warn that if it is weak, learning and runtime drift apart"]
+  end
+
+  subgraph CLOSURE["3. Owned outcome and 12. What this path proves for A"]
+    O1["Deterministic runtime-readable active bundle or policy authority exists for the scope that will actually consume it"]
+    O2["Runtime-facing compatibility and readback checks pass"]
+    O3["The promoted state is observable enough to be trusted before runtime consumes it"]
+    O4["Owned outcome: deterministic runtime decision authority resolved from governed promoted state"]
+    A1["Purpose claim:<br/>the platform has a distinct job for turning promoted registry truth into runtime-readable decision authority before runtime consumes it"]
+    A2["Intentionality claim:<br/>registry-owned active truth is not the same thing as runtime adoption; it must be resolved deterministically into runtime authority"]
+    A3["Materialization claim:<br/>this boundary is concretely seated in registry publication, active-resolution checks, runtime-facing compatibility surfaces, and post-promotion observation artifacts"]
+    A4["Contract claim:<br/>this path is governed by deterministic active-bundle resolution, bundle/policy provenance in decisioning, deterministic application of promotion and rollback changes, compatibility fail-closed checks, and cross-plane provenance continuity"]
+    A5["Constraint-awareness claim:<br/>the platform already knows registry-active is not enough for runtime authority, which is why active-resolution checks stay strict and are aligned to the right source-of-truth artifacts"]
+    A6["A-level meaning:<br/>the platform has an explicit owner for the boundary where governed registry truth becomes runtime decision authority, instead of letting runtime adoption drift implicitly from promotion state"]
+  end
+
+  G1 --> G2 --> G3 --> E1
+  E1 --> E2 --> E3 --> E4
+  E4 --> R1 --> R2 --> R3 --> R4 --> R5
+
+  R1 --> C1
+  R2 --> C2
+  R1 --> C3
+  R3 --> C4
+  R4 --> C5
+  R2 --> C6
+  R4 --> C7
+
+  R1 --> L1
+  L1 --> L2 --> L3 --> L4 --> L5
+
+  R2 --> S1
+  S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7 --> S8 --> S9
+
+  R2 --> Y1
+  Y1 --> Y2 --> Y3 --> Y4
+
+  R3 --> X1
+  X1 --> X2 --> X3 --> X4
+
+  L5 --> T1
+  T1 --> T2 --> T3 --> T4
+
+  R3 --> O1
+  R4 --> O2
+  R4 --> O3
+  O1 --> O4
+  O2 --> O4
+  O3 --> O4
+
+  T4 --> N1
+  N1 --> N2 --> N3 --> N4 --> N5 --> N6 --> N7 --> N8
+
+  O4 --> A1
+  O4 --> A2
+  O4 --> A3
+  X4 --> A4
+  T4 --> A5
+  N8 --> A6
+  A1 --> A6
+  A2 --> A6
+  A3 --> A6
+  A4 --> A6
+  A5 --> A6
+
+  classDef base fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.2px;
+  classDef spine fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef reason fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.2px;
+  classDef close fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+
+  class G1,G2,G3,E1,E2,E3,E4,C1,C2,C3,C4,C5,C6,C7,S1,S2,S3,S4,S5,S6,S7,S8,S9 base;
+  class R1,R2,R3,R4,R5 spine;
+  class L1,L2,L3,L4,L5,Y1,Y2,Y3,Y4,X1,X2,X3,X4,T1,T2,T3,T4,N1,N2,N3,N4,N5,N6,N7,N8 reason;
+  class O1,O2,O3,O4,A1,A2,A3,A4,A5,A6 close;

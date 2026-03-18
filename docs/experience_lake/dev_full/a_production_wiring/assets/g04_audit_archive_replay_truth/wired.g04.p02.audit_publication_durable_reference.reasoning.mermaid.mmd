@@ -1,0 +1,162 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph INTENT["1. Path objective"]
+    G1["Turn already appended audit truth into downstream-consumable audit truth plus durable audit references"]
+    G2["Keep this path narrower than audit append and narrower than archive preservation"]
+    G3["Answer how authoritative audit truth becomes consumable by the rest of the platform in durable, referenceable way"]
+  end
+
+  subgraph ENTRY["2. Entry basis"]
+    E1["The entry is not raw runtime traffic and not the decision itself"]
+    E2["The entry is the append-only audit truth that already exists after the decision chain has closed its audit-append requirement"]
+    E3["The run-process is explicit that decision truth, action/outcome truth, and append-only audit evidence are all already committed"]
+    E4["The audit surface purpose is already to append authoritative audit and lineage truth for the real-time lane"]
+  end
+
+  subgraph SPINE["5. Broad route logic"]
+    R1["Decision and action truth"]
+    R2["Append-only audit truth"]
+    R3["Audit-topic handoff"]
+    R4["Downstream operational and evidence consumers"]
+    R5["Durable audit refs and evidence surfaces"]
+  end
+
+  subgraph CARRIES["4. What the path carries"]
+    C1["Run identity"]
+    C2["Decision and action lineage"]
+    C3["Policy, bundle, config, and release identifiers"]
+    C4["Durable by-ref evidence surfaces that later consumers will follow rather than infer"]
+    C5["Every cross-plane output carries the policy, bundle, config, and release identifiers required for replay and audit"]
+    C6["Origin-offset and by-ref evidence contracts remain authoritative"]
+    C7["So this path carries more than an audit message; it carries the traceable reference structure that lets later consumers use audit truth safely"]
+  end
+
+  subgraph LOGIC["6. Logical design reading"]
+    L1["The platform treats audit exists and audit is consumable and referenceable as two different truth boundaries"]
+    L2["The system is not saying once the audit surface writes, later consumers can figure things out however they want"]
+    L3["There is a dedicated handoff from append-only audit truth into explicit audit publication and durable evidence/reference surfaces"]
+    L4["The audit surface, archive surface, and topic handoff are separated by purpose rather than blurred together"]
+    L5["That is strong A-level design signal"]
+  end
+
+  subgraph SEATING["7. Concrete seating in the current wired system"]
+    S1["The publication side is concretely seated on the audit topic"]
+    S2["The copied baseline wired graph shows the audit surface publishing lineage audit into that topic"]
+    S3["The topic is transported by MSK"]
+    S4["The downstream case and evidence-consuming side is attached to that audit lane"]
+    S5["The durable-reference side is concretely seated on the platform's pinned evidence substrate"]
+    S6["Object storage remains the durable truth, evidence, and archive substrate"]
+    S7["By-ref evidence contracts remain authoritative"]
+    S8["So the path has both named bus boundary and named durable evidence substrate"]
+  end
+
+  subgraph RATIONALE["8. Why the design looks like this"]
+    Y1["The platform wants the hot path to be explainable later and wants downstream operational work to consume audit truth, not guesses"]
+    Y2["The audit and lineage framing exists so important decisions can be reconstructed and explained later"]
+    Y3["The case escalation path explicitly begins from RTDL decision and audit outputs"]
+    Y4["The cross-plane provenance law ensures those outputs carry the identity needed for replay and audit"]
+    Y5["So the current design is trying to guarantee that audit truth is not only written, but actually propagated in a form the rest of the platform can trust"]
+  end
+
+  subgraph CONTRACT["9. What larger contracts are shaping this path"]
+    X1["The topic continuity contract shapes where audit publication happens and who owns it"]
+    X2["The audit topic is the named handoff surface, with the audit surface as producer and downstream operational/evidence consumers on the other side"]
+    X3["The append-only truths law shapes what kind of audit truth may be published at all: it must remain append-only"]
+    X4["The by-ref evidence law shapes how later consumers are supposed to follow evidence: by durable references, not by informal reconstruction"]
+    X5["The provenance law shapes what must survive the handoff: policy, bundle, config, and release identifiers for replay and audit"]
+  end
+
+  subgraph TRADEOFFS["10. Trade-offs and constraints"]
+    T1["This path deliberately adds one more explicit boundary after audit append"]
+    T2["That costs extra structure: an audit topic contract, consumer ownership boundaries, durable evidence/reference surfaces, and provenance fields that must survive publication"]
+    T3["But that cost buys something important: later case-handling, evidence, and reporting surfaces do not need to reverse-engineer audit history from raw runtime traces or archive files alone"]
+    T4["They can consume explicit audit handoff"]
+    T5["The design chooses clear cross-plane ownership and reconstructability over a simpler but blurrier model of append once and let everyone else scrape it"]
+  end
+
+  subgraph NECESSITY["11. Necessity test"]
+    N1["If this path is removed, the platform can still decide, act, append audit truth, and later archive event history"]
+    N2["But it loses a clean answer to how downstream operational work sees audit truth as an input"]
+    N3["It loses a clean answer to how evidence and reporting sinks consume audit truth"]
+    N4["It loses a clean answer to where durable audit references come from"]
+    N5["It loses a clean answer to how downstream consumers avoid reconstructing the audit story from scattered internal stores"]
+    N6["That would weaken A immediately because the system would have audit append but no explicit owner for the distribution and durable referencing of that audit truth across planes"]
+  end
+
+  subgraph CLOSURE["3. Owned outcome and 12. What this path proves for A"]
+    O1["Audit truth is no longer only appended inside the audit surface"]
+    O2["It is now published and referenceable for downstream consumers and evidence surfaces"]
+    O3["Append-only audit truth comes first; publication and reference distribution happen after that"]
+    O4["Durable evidence refs remain the authoritative thing being pointed to rather than being replaced by the topic itself"]
+    O5["Owned outcome: explicit audit publication and durable reference surface"]
+    A1["Purpose claim:<br/>the platform has a distinct job for turning appended audit truth into consumable audit publication and durable references"]
+    A2["Intentionality claim:<br/>the handoff is explicit: named topic, named producer, downstream consumer side, and named evidence laws"]
+    A3["Materialization claim:<br/>the path is concretely seated in the audit topic plus object-storage-backed durable evidence surfaces"]
+    A4["Contract claim:<br/>this path is governed by append-only truth, by-ref evidence, and provenance laws"]
+    A5["Constraint-awareness claim:<br/>the platform already knows downstream consumers must not invent their own audit truth, which is why the handoff boundary is explicitly owned"]
+    A6["A-level meaning:<br/>append-only audit truth becomes explicit downstream handoff and durable reference structure instead of remaining trapped inside one runtime surface"]
+  end
+
+  G1 --> G2 --> G3 --> E1
+  E1 --> E2 --> E3 --> E4
+  E4 --> R1 --> R2 --> R3 --> R4 --> R5
+
+  R3 --> C1
+  R3 --> C2
+  R3 --> C3
+  R5 --> C4
+  C4 --> C5 --> C6 --> C7
+
+  R2 --> L1
+  R3 --> L2
+  R4 --> L3
+  R5 --> L4 --> L5
+
+  R3 --> S1
+  S1 --> S2 --> S3 --> S4
+  R5 --> S5 --> S6 --> S7 --> S8
+
+  R4 --> Y1
+  Y1 --> Y2 --> Y3 --> Y4 --> Y5
+
+  R3 --> X1
+  X1 --> X2 --> X3 --> X4 --> X5
+
+  L5 --> T1
+  T1 --> T2 --> T3 --> T4 --> T5
+
+  R5 --> O1
+  R5 --> O2
+  O1 --> O3
+  O2 --> O3
+  O3 --> O4 --> O5
+
+  T5 --> N1
+  N1 --> N2 --> N3 --> N4 --> N5 --> N6
+
+  O5 --> A1
+  O5 --> A2
+  O5 --> A3
+  X5 --> A4
+  T5 --> A5
+  N6 --> A6
+  A1 --> A6
+  A2 --> A6
+  A3 --> A6
+  A4 --> A6
+  A5 --> A6
+
+  classDef base fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.2px;
+  classDef spine fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef reason fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.2px;
+  classDef close fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+
+  class G1,G2,G3,E1,E2,E3,E4,C1,C2,C3,C4,C5,C6,C7,S1,S2,S3,S4,S5,S6,S7,S8 base;
+  class R1,R2,R3,R4,R5 spine;
+  class L1,L2,L3,L4,L5,Y1,Y2,Y3,Y4,Y5,X1,X2,X3,X4,X5,T1,T2,T3,T4,T5,N1,N2,N3,N4,N5,N6 reason;
+  class O1,O2,O3,O4,O5,A1,A2,A3,A4,A5,A6 close;
