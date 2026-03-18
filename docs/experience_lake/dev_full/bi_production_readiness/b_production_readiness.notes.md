@@ -10211,7 +10211,7 @@ This object is not changed by every Phase 8 event. It is changed only by the epi
 
 `S6 - pressure episodes that actually changed its posture`
 
-1. `Phase 8 had to be opened from a fresh integrated boundary rather than by stacking earlier green receipts`
+### 1. `Phase 8 had to be opened from a fresh integrated boundary rather than by stacking earlier green receipts`
 
 This is the first real posture-changing episode for `S6`.
 
@@ -10225,7 +10225,7 @@ Because `S6` stopped being `the platform has many green things` and became:
 
 ---
 
-2. `The first integrated red showed that the live platform could already be green while the integrated verdict was still wrong`
+### 2. `The first integrated red showed that the live platform could already be green while the integrated verdict was still wrong`
 
 The next posture-changing episode is the first important integrated red.
 
@@ -10245,7 +10245,7 @@ That is one of the most important posture changes in the object, because `S6` is
 
 ---
 
-3. `The accepted bridge was to fix the smallest legitimate integrated boundary, not rerun or weaken the whole proof`
+### 3. `The accepted bridge was to fix the smallest legitimate integrated boundary, not rerun or weaken the whole proof`
 
 Once that false integrated red was identified, the next posture-changing episode was the bridge choice itself.
 
@@ -10270,7 +10270,7 @@ Because `S6` stopped being `the integrated proof is still blocked` and became:
 
 ---
 
-4. `S6 closed only when the fresh runtime backbone, fresh integrated operator coupling, and corrected integrated rollup all agreed on one bounded full-platform story`
+### 4. `S6 closed only when the fresh runtime backbone, fresh integrated operator coupling, and corrected integrated rollup all agreed on one bounded full-platform story`
 
 This is the decisive closure episode for `S6`.
 
@@ -10300,7 +10300,7 @@ Because this is the moment `S6` stops being `integrated validation we are still 
 
 ---
 
-5. `After S6 closed, the next honest question changed completely`
+### 5. `After S6 closed, the next honest question changed completely`
 
 The last posture-changing episode is not another red. It is the state change created by closure.
 
@@ -10315,7 +10315,7 @@ That means `S6` is a true capstone object. It does not leave the platform in an 
 
 ---
 
-`What this mapping says in one line`
+## `What this mapping says in one line`
 
 `S6` became production-ready not because more planes existed, but because the platform refused to stack local greens, exposed and corrected a false integrated red at the rollup boundary, and then closed only when the fresh runtime backbone, fresh operator coupling, and corrected integrated verdict all agreed on one bounded whole-platform story.
 
@@ -10335,7 +10335,7 @@ Yes. For `S6`, the interrogation has to stay on the **integrated whole-platform 
 
 `S6 - episode interrogation`
 
-`Episode 1 - integrated validation had to become a fresh whole-platform proof rather than stacked green reuse`
+### `Episode 1 - integrated validation had to become a fresh whole-platform proof rather than stacked green reuse`
 
 **What surfaced**
 
@@ -10368,7 +10368,7 @@ Because it preserved production shape and object meaning. It did not replace the
 
 ---
 
-`Episode 2 - the first integrated red showed the platform could already be green while the integrated verdict surface was still wrong`
+### `Episode 2 - the first integrated red showed the platform could already be green while the integrated verdict surface was still wrong`
 
 **What surfaced**
 
@@ -10415,7 +10415,7 @@ Because the stronger truth had already been established: the live integrated pla
 
 ---
 
-`Episode 3 - corrected integrated closure turned S6 into bounded whole-platform correctness rather than many local greens`
+### `Episode 3 - corrected integrated closure turned S6 into bounded whole-platform correctness rather than many local greens`
 
 **What surfaced**
 
@@ -10467,7 +10467,7 @@ Because it answered the real `S6` question directly. It did not close on separat
 
 ---
 
-`Episode 4 - closure then had to change the next question, or S6 would drift into pointless re-litigation`
+### `Episode 4 - closure then had to change the next question, or S6 would drift into pointless re-litigation`
 
 **What surfaced**
 
@@ -10502,7 +10502,7 @@ Because the whole platform was already bounded-correct after `S6`. The next hone
 
 ---
 
-`What this interrogation says about S6`
+## `What this interrogation says about S6`
 
 So the real story of `S6` is not:
 
@@ -10735,7 +10735,7 @@ The important thing is that `S7` is **not** changed by every widened run, every 
 
 `S7 - pressure episodes that actually changed its posture`
 
-1. `S7 only truly opened once S6 closed and changed the question`
+### 1. `S7 only truly opened once S6 closed and changed the question`
 
 The first posture-changing episode is the handoff from `S6`.
 
@@ -10751,7 +10751,7 @@ That is the first real change in posture. `S7` becomes a **stress-authorization*
 
 ---
 
-2. `The first widened attempts showed that the stress question itself was still malformed`
+### 2. `The first widened attempts showed that the stress question itself was still malformed`
 
 The next real posture-changing episode was when the first widened attempts proved that the widened run shape was **not yet a trustworthy stress-authorization question**.
 
@@ -10779,7 +10779,7 @@ That is a major posture change.
 
 ---
 
-3. `S7 then separated proof-surface red from real platform red`
+### 3. `S7 then separated proof-surface red from real platform red`
 
 This is the most important middle episode.
 
@@ -10800,7 +10800,7 @@ That is why the implementation history for this object matters so much. The poin
 
 ---
 
-4. `The accepted Phase 9 authority finally turned S7 into an earned authorization`
+### 4. `The accepted Phase 9 authority finally turned S7 into an earned authorization`
 
 This is the decisive closure episode.
 
@@ -10824,7 +10824,7 @@ That is the real posture change:
 
 ---
 
-5. `After closure, S7 changed the next allowed question`
+### 5. `After closure, S7 changed the next allowed question`
 
 The last posture-changing episode is what happens **after** the accepted bounded stress authority closes.
 
@@ -10846,7 +10846,7 @@ That is the final posture change. `S7` is complete only once it changes the plat
 
 ---
 
-`What actually changed S7, in one line`
+## `What actually changed S7, in one line`
 
 So the real `S7` transformation is:
 
@@ -10874,7 +10874,7 @@ This object is **not** re-asking whether the platform is integrated; `S6` alread
 
 `S7 - episode interrogation`
 
-`Episode 1 - S7 first became a real object only when the question changed after S6`
+### `Episode 1 - S7 first became a real object only when the question changed after S6`
 
 **What surfaced**
 
@@ -10902,7 +10902,7 @@ Because it preserved the integrity of `S6`. It did not let `Phase 9` silently re
 
 ---
 
-`Episode 2 - the first widened attempt proved the widened question itself was still malformed`
+### `Episode 2 - the first widened attempt proved the widened question itself was still malformed`
 
 **What surfaced**
 
@@ -10930,7 +10930,7 @@ Because it corrected the proof boundary before spending again, instead of blamin
 
 ---
 
-`Episode 3 - once the widened source became real enough, the semantic path stayed clean and the blocker moved outside the platform`
+### `Episode 3 - once the widened source became real enough, the semantic path stayed clean and the blocker moved outside the platform`
 
 **What surfaced**
 
@@ -10966,7 +10966,7 @@ Because it targeted the actual failure surface. The platform was not the thing l
 
 ---
 
-`Episode 4 - the real blocker then became repeatability of the widened source topology, not one more timing knob`
+### `Episode 4 - the real blocker then became repeatability of the widened source topology, not one more timing knob`
 
 **What surfaced**
 
@@ -11006,7 +11006,7 @@ Because it removed the real blocker without lowering the platform target. The no
 
 ---
 
-`Episode 5 - the final accepted stress authority turned S7 into an earned authorization state`
+### `Episode 5 - the final accepted stress authority turned S7 into an earned authorization state`
 
 **What surfaced**
 
@@ -11073,7 +11073,7 @@ Because it answered the real `S7` question directly. It did not close on `the ru
 
 ---
 
-`What this interrogation says about S7`
+## `What this interrogation says about S7`
 
 The real story of `S7` is not:
 
@@ -11155,97 +11155,3 @@ Yes. For `S7`, the `Bi` claim mix is this.
 `S7` shows that you can take an already-bounded-correct full platform and turn widened stress into an **earned authorization object**: not just `run it harder,` but prove that under a wider production-shaped pressure window the platform still carries semantic meaning, cross-plane participation, governed bundle truth, operator challengeability, and bounded recovery strongly enough that later longer stress and soak is now deserved rather than guessed.
 
 The next clean move is the `S7 overall synthesis role in Bi` if you want to close the secondary layer properly.
-
-## 2026-03-18 09:46:21 +00:00 - Close the secondary layer with an overall Bi synthesis that states what the notebook now proves about the platform as a whole
-Yes. I treated the updated `b_production_readiness.notes.md` as the current `Bi` authority before synthesizing this.
-
-`overall Bi synthesis`
-
-`Bi` now supports one clear claim:
-
-the platform is no longer just a **real wired system** as proven in `A`; it is now an **earned production-ready system** whose major truth boundaries have been taken through production pressure, measured honestly, corrected through the right bridges, and promoted into one bounded working platform. The end state is not a pile of green phases. It is a working platform made of `Control + Ingress`, `RTDL`, `Case + Label`, `Learning + Evolution / MLOps`, and `Ops / Gov / Meta`, then proven again as one coherent full platform in bounded integrated validation and bounded stress authorization.
-
-The object of `Bi` is therefore very specific. It is **not** a component tour, **not** a raw phase diary, **not** a defect list, and **not** a replay of implementation as though the outcome were still unknown. It is the reasoning surface for the transformation from **`A posture`** to **production-ready posture**, using `A` for pre-pressure meaning, the readiness plan for what `ready` meant, the implementation note for pressure history and bridge choice, and the final graphs only as reflections of accepted truth.
-
-That is what makes `Bi` valuable for the meta-goal. A serious reviewer is not meant to infer only that `a platform exists` or that `some phases passed.` They are meant to see something harder: the pre-pressure object was understood, the right concern was identified, the concern was measured truthfully, red was classified honestly, the accepted bridge preserved production shape and semantic truth, and the resulting readiness claim was earned. That is the exact standard the notebook reset itself around.
-
-`What Bi is proving overall`
-
-If `A` proved that the current wired platform is a real, bounded, intentionally architected full-lifecycle system, then `Bi` proves the stronger next claim:
-
-that same system can be taken through bounded production-shaped pressure without losing truth-boundary ownership, semantic meaning, operational accountability, or causal ML discipline. In other words, `Bi` proves not just that the platform is well designed, but that its important boundaries have been made **trustworthy under pressure**.
-
-The deepest thing `Bi` proves is that readiness was not earned by `making things green.` It was earned by repeatedly separating different classes of red correctly:
-
-* true runtime insufficiency versus harness or proof-shape defects
-* advisory posture versus real insufficiency
-* local plane correctness versus enlarged-network continuity
-* runtime truth versus receipt or rollup misclassification
-* semantic correctness versus cost or runtime-seating defects
-* and, later, bounded integrated correctness versus bounded stress authorization
-
-So the strongest overall `Bi` story is this:
-
-the platform began as a wired but still pre-pressure object; `Control + Ingress` had to become a singular, telemetry-backed, semantically honest base; `RTDL` had to become current-run, replay-aware, semantically discriminating runtime truth; `Case + Label` had to turn runtime outputs into operational review truth and authoritative supervision truth on the right handoff boundaries; `Learning + Evolution / MLOps` had to turn archive plus label truth into a governed causal learning corridor and then back into active runtime authority; `Ops / Gov / Meta` had to make the whole thing reconstructable, operable, auditable, and cost-accountable; then the full promoted platform had to prove itself first as one coherent integrated system and finally as one semantically trustworthy stressed system under widened bounded pressure.
-
-`Why the two-layer structure matters`
-
-`Bi` stays complete by keeping two layers alive at once.
-
-The **primary layer** preserves the inherited system-design objects from `A`: run and world-source authority, canonical admission and bus publication, runtime context and decisioning, durable audit and archive and replay truth, case and label operational truth, learning and evaluation and governed activation, and run governance and observability and evidence closure. That keeps the notebook above components and aligned to truth ownership.
-
-The **secondary layer** is what lets `Bi` tell the real readiness story: `Control + Ingress`, then `Control + Ingress + RTDL`, then `+ Case + Label`, then `+ Learning + Evolution / MLOps`, then `Working platform + Ops / Gov / Meta`, and finally the two capstones `S6` and `S7`. This matters because the most important readiness reasoning did not live inside isolated local paths. It lived in what happened when an already-working base had to stay green under enlarged coupling.
-
-That is also why `P6` and `P7` were not dropped, but de-escalated as immediate standalone openings. They remain in scope, but more of their strongest `Bi` value is carried forward inside enlarged-network reasoning rather than in separate deep reopenings.
-
-`What changed from A posture to Bi posture`
-
-At the highest level, `Bi` transformed each major boundary like this:
-
-`Control + Ingress` stopped being a merely wired entry system and became a **re-pressured working-platform base** with one explicit front door, durable ingress-owned truth, measurable and ambiguity-honest bus handoff, and mode-aware ingest closure that refuses to overclaim evidential strength.
-
-`RTDL` stopped being a correctly wired runtime plane and became a **production-ready runtime-truth system**: current-run projection truth, replay-aware joined context, feature readiness that distinguishes true absence from contract-seam defects, guardrail posture that distinguishes advisory from real insufficiency, committed decision truth, and downstream-usable action and output truth.
-
-`Case + Label` stopped being a downstream workflow plane and became a **production-ready operational-review and supervision-truth system**: explicit case-intent escalation, deterministic append-only case truth, a truthful case-to-label handoff measured on the right clock, and authoritative label truth that is append-only, provenance-complete, conflict-visible, and later learning-safe.
-
-`Learning + Evolution / MLOps` stopped being `managed ML tooling exists` and became a **governed causal learning corridor**: one admitted world, one replay-derived time law, one mature supervision basis, one dataset basis, one candidate-bundle corridor, one promotion and rollback corridor, and one runtime-active bundle authority tied back to governed learning truth.
-
-`Ops / Gov / Meta` stopped being supporting infrastructure and became the thing that makes the whole platform **operable and explainable as one system**: receipts, reconstruction, evidence readback, alert drills, idle-safe restore, cost-to-outcome closure, and full operator challengeability.
-
-`The capstone of Bi`
-
-The notebook's capstone is very clear.
-
-`S6` proved that the promoted working platform is not just a stack of separately green planes, but **one bounded coherent production system**. `Phase 8` explicitly asks whether all active planes and critical cross-plane paths can participate on one run identity, one truth-continuity story, one timing-continuity story, with no hidden handoff defect and enough explainability and auditability to trust the verdict. The accepted authority says that question is now answered yes.
-
-`S7` then proved the next, narrower thing: that this already-bounded-correct platform remains **production-credible under widened bounded pressure**, strong enough that later longer stress or soak is now authorized rather than guessed. The accepted stress authority records not just throughput and latency, but that RTDL decision and action truth, Case + Label truth, active-bundle attribution, and operator challengeability all remained materially alive on the same stress story.
-
-That is why the final plan judgment can say `dev_full` is production-ready on the bounded authorization standard defined by the plan, and that any later longer stress or soak should begin from the accepted `Phase 9` authority rather than reopening earlier bounded questions unless a new defect appears.
-
-`What Bi now closes`
-
-So, in proof terms, `Bi` now closes the following major things.
-
-It closes **readiness completeness**, because every promoted plane and the full cross-plane family are now proven in bounded form, not just the hot path.
-
-It closes **truth continuity**, because the plan now has accepted proof on ingress, RTDL, case and label, learning and runtime authority, governance, and full-platform cross-plane continuity rather than isolated local success.
-
-It closes **semantic credibility under pressure**, because the final bounded integrated and bounded stress authorities explicitly keep semantic burden alive: decisions, actions, case creation, labels, and active-bundle attribution all remained material under load.
-
-It closes **operational credibility**, because the working platform is not just runtime-correct; it is now governable, reconstructable, alertable, evidence-backed, idle-safe, and cost-accountable as one system.
-
-And it closes **causal ML continuity**, because the feedback loop is no longer `train something and deploy it.` It is runtime truth -> authoritative labels -> admitted causal basis -> governed dataset, model, and promotion corridor -> active bundle back into runtime, with the active runtime bundle still attributable to the bounded learning basis at full-platform scale.
-
-`The boundary of Bi`
-
-`Bi` still stops at the right place.
-
-It does **not** claim endless production soak already happened. It claims bounded readiness and bounded stress authorization are now earned strongly enough that later longer stress or soak is justified from the accepted `Phase 9` authority. That keeps `Bi` distinct from the later operational-proof layer you framed earlier on the whiteboards.
-
-So the clean one-paragraph synthesis is this:
-
-`Bi` now proves that the architecture surfaced in `A` was not only real but pressure-worthy: its major truth boundaries were taken through bounded production-shaped pressure, the right concerns were identified and measured honestly, false reds were separated from real runtime defects, accepted bridges preserved production shape and semantic truth, the already-working base stayed trustworthy under repeated enlarged coupling, and the final promoted platform was proven both as one coherent bounded production system and as one semantically trustworthy stressed system under widened pressure. That is why the notebook can now support the stronger claim that `dev_full` is production-ready on the bounded authorization standard of the plan.
-
-A tighter one-line version for the notebook ledger is:
-
-**`Bi` proves that the real wired platform from `A` has been transformed into an earned bounded production-ready platform: each major truth boundary was pressure-proven honestly, the already-working base survived enlarged coupling, the full promoted network became bounded-correct, and widened bounded stress then authorized later longer production-style pressure.**
