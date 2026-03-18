@@ -8189,3 +8189,53 @@ The plan now carries both the refreshed cost table and the explanatory write-up.
 - someone reading the plan can see the raw numbers
 - someone reading the notebook can understand why the expensive days happened
 - the cost story now distinguishes legacy spend, valid proving spend, and standing-substrate drift instead of flattening them together
+
+## 2026-03-18 15:55:58 +00:00 - After re-reading the wider notebook trail from `dev_min` through `dev_full`, I corrected my own cost framing because I had compressed too much of the pre-proving-plane history into oversimplified categories
+
+The user was right to challenge the first explanation. I had rebuilt the cost story mostly from the proving-plane notes plus Cost Explorer, and that made the early March window read too much like:
+
+- passive background spend,
+- then "legacy" broad spend,
+- then the real production-readiness spend.
+
+That is too simple for this repo.
+
+After re-reading the wider implementation-map trail, the better execution lineage is:
+
+1. `dev_min` had already closed green on `2026-02-22`; so March is not migration noise, it is `dev_full` post-build hardening.
+2. `dev_full` entered March from `M15_COMPLETE_GREEN` into explicit certification handoff:
+   - runtime-cert `RC*`
+   - ops/gov-cert `OC*`
+3. The repo then pivoted deliberately:
+   - into `stress_test`
+   - then into `road_to_prod`
+   - and only later into the proving-plane method that finally closed `Phase 0..9`.
+
+That means the early March cost is not just "old way vs new way." It is the cost of learning and repinning the actual production claim surface.
+
+The biggest specific correction is the March 1-5 window. My earlier wording made it sound mostly like retained substrate floor plus finance noise. That is incomplete. Yes, there was a substrate floor and yes, `Tax` dominated March 1. But March 2 was already runtime certification work, with:
+
+- scrapped and quarantined `RC0` attempts
+- fresh `RC0/RC1` progression
+- `RC2` hold/remediation work
+
+and March 3 onward includes the explicit stress-test-first pivot. March 5 then carries the creation and hardening of the `road_to_prod` authority itself. So that early window is "post-`M15` certification entry plus methodology formation," not just "background."
+
+The second correction is the March 6-9 window. Calling it "legacy" hides too much of what the repo was actually doing. The `road_to_prod` notes show that this era was where the platform was actively learning:
+
+- which ingress edge was the truthful claim edge
+- which learning corridor was really authoritative
+- which replay / checkpoint / identity semantics made stress evidence claimable
+- when managed ingress ECS/ALB was the right proving seat versus APIGW/Lambda
+
+That cost was expensive, but it was not random or merely obsolete. It was the cost of discovering the wrong proving surfaces and then repinning them.
+
+The third correction is that the final proving-plane era should still be treated as the accepted closure cost, but only with the explicit acknowledgement that it stands on top of the earlier cert/stress/road-to-prod learning. The proving-plane method did not appear from nowhere; it was the repo's refined response to those earlier failure modes.
+
+So the cost story is now better stated as:
+
+- post-build `dev_full` certification and methodology-formation cost,
+- then road-to-prod repin and claim-surface discovery cost,
+- then proving-plane closure cost.
+
+That is a more faithful explanation of what the implementation notes actually show.

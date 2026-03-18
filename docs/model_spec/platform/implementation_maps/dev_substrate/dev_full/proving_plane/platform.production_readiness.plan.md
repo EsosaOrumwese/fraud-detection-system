@@ -1645,25 +1645,47 @@ Cost-table note:
 
 ### Cost interpretation by era
 
-#### `2026-03-01` to `2026-03-05` - retained substrate and pre-proving background spend
+The repo history says this window should not be flattened into a simple "before methodology" and "after methodology" split. The real execution lineage was:
 
-This window is not the real proving-plane execution yet. It is mostly standing substrate and finance noise:
+- `dev_min` had already closed green on `2026-02-22`
+- `dev_full` then moved into post-`M15` certification work (`runtime_cert` / `ops_gov_cert`)
+- the team then pivoted through `stress_test` and `road_to_prod` authority formation
+- only after those lessons and failures did the proving-plane method become the final active closure surface
+
+So the cost explanation below follows that lineage rather than pretending the pre-`Phase 0` days were just passive background noise.
+
+#### `2026-03-01` to `2026-03-05` - post-`M15` certification entry, certification resets, and methodology formation
+
+This window contains three different things at once:
+
+- standing `dev_full` substrate cost that survived build closure
+- runtime-cert execution and non-claimable resets under the `RC*` track
+- the program pivot from certification-first into `stress_test`, then into `road_to_prod`
+
+Numbers:
 
 - total for this era: `882.16 USD`
-- `Tax = 708.38 USD` on `2026-03-01`; that is a billing artifact, not runtime platform work
-- the real runtime floor in this era was modest and stable:
+- of that, `Tax = 708.38 USD` on `2026-03-01`, which is a billing artifact rather than runtime platform work
+- the technical cost floor in the same window was still real:
   - `MSK = 108.62 USD`
   - `EC2 Compute = 19.68 USD`
   - `EKS = 12.00 USD`
   - `VPC = 10.56 USD`
   - `RDS = 8.78 USD`
-- interpretation:
-  - the platform was still carrying a standing substrate before the proving-plane method was fully engaged
-  - this is exactly the kind of floor that later teardown and standby work were meant to control
 
-#### `2026-03-06` to `2026-03-09` - transition from older proving posture into the real production-readiness method
+Truthful interpretation:
 
-This is the most expensive non-green window and should be read as mixed spend:
+- this was not yet the proving-plane run, but it was not "nothing" either
+- `2026-03-02` belongs to the runtime-cert campaign launched from `cert_handoff.md`, including scrapped and then clean `RC0/RC1/RC2` attempts
+- `2026-03-03` belongs to the explicit stress-test pivot, where the repo moved away from a looser throughput framing toward a stress/bottleneck-first hardening posture
+- `2026-03-05` belongs to the road-to-prod authority formation (`PR0..PR5`) where the mission-intent closure rules were being written down, not yet the final proving-plane execution
+- the cost floor in this era is therefore part standing substrate, part cert experimentation, and part authority-building overhead
+
+#### `2026-03-06` to `2026-03-09` - road-to-prod `PR*` execution and repin learning before the proving-plane reset
+
+This is the expensive transition era, but it should be described more precisely than "legacy" or "broad old posture." It is the window where the repo was actively learning what the right production boundary actually was.
+
+Numbers:
 
 - total for this era: `1571.40 USD`
 - dominant families:
@@ -1673,17 +1695,25 @@ This is the most expensive non-green window and should be read as mixed spend:
   - `RDS = 131.89 USD`
   - `CloudWatch = 118.25 USD`
   - `S3 = 79.85 USD`
-- truthful interpretation:
-  - this era includes legacy `road_to_prod` and adjacent pre-green proving receipts that helped expose the shape of the real ingress/runtime boundary but did not yet benefit from the full phase-first hardening method
-  - `2026-03-07` and `2026-03-08` are the clearest examples of costly pre-methodology pressure:
-    - large `DynamoDB` write spend from the ingress hot-path receipt posture before the compact-row remediation
-    - large `ECS` spend from WSP replay / Fargate runtime while the proof shape was still being tightened
-    - large `RDS` and `CloudWatch` spend from heavier checkpoint / IO / log volume
-  - `2026-03-09` dropping to `190.50 USD` is the visible break in posture after teardown / rebuild / narrowing; it marks the point where cost discipline started to materially bite
 
-#### `2026-03-10` to `2026-03-13` - actual proving-plane execution from Phase 0 through bounded full-platform closure
+Truthful interpretation:
 
-This is the cost that most honestly belongs to the production-readiness run itself.
+- this era is dominated by `road_to_prod` execution, especially `PR3` bounded runtime/coupled/stress work
+- the repo notes in `platform.road_to_prod.impl_actual.md` show this was the period where the team was actively repinning:
+  - authoritative ingress semantics
+  - managed versus runner-local learning paths
+  - WSP / replay boundaries
+  - stress identity and idempotency measurement correctness
+  - managed ingress ECS / ALB versus APIGW / Lambda at different proving boundaries
+- the large `DynamoDB` and `ECS` costs in `2026-03-07` and `2026-03-08` therefore were not random waste; they were the bill for proving that earlier ingress / replay / stress surfaces were either wrong for the claim or too expensive for what they were teaching
+- `CloudWatch` was also high because this was still a period of live instrumentation and failure-shape discovery, not yet the later telemetry-tightened posture
+- `2026-03-09 = 190.50 USD` is still the key inflection point, but more precisely it marks the moment where fail-closed repins and boundary corrections started to reduce spend before the proving-plane reset
+
+#### `2026-03-10` to `2026-03-13` - proving-plane execution from `Phase 0` through bounded full-platform stress authorization
+
+This is still the cost window that most honestly belongs to the accepted production-readiness closure, but it should be understood as the result of everything the earlier tracks taught, not as an unrelated clean-room run.
+
+Numbers:
 
 - total for this era: `1647.82 USD`
 - dominant families:
@@ -1693,20 +1723,24 @@ This is the cost that most honestly belongs to the production-readiness run itse
   - `S3 = 170.41 USD`
   - `RDS = 142.94 USD`
   - `MSK = 130.19 USD`
-- day-level interpretation:
-  - `2026-03-10` (`275.10 USD`) was mainly `Phase 0` ingress hardening:
-    - truthful APIGW -> Lambda proof windows
-    - active diagnosis of the ingress hot path
-    - live `DynamoDB` cost investigation and the compact-`ddb_hot` remediation
-  - `2026-03-11` (`533.49 USD`) was the heaviest coupled-plane execution day inside the green path:
-    - `DynamoDB`, `Lambda`, and `API Gateway` all rose together because the platform was no longer just admitting traffic; it was proving live coupled participation across more of the network
-    - `S3` and `RDS` also rose materially, which matches the object-store, evidence, and checkpoint / Aurora pressure seen during that expansion
-  - `2026-03-12` (`317.49 USD`) shifted more of the spend mix toward learning surfaces and cost cleanup:
-    - `S3` and `RDS` led the day, which is consistent with bounded learning basis work, Databricks / OFS materialization, and storage-heavy evaluation paths
-    - this was also the day where explicit whole-platform cost hygiene was applied before moving on
-  - `2026-03-13` (`521.75 USD`) is the bounded integrated / stress authorization day:
-    - `DynamoDB`, `Lambda`, `API Gateway`, `RDS`, and `S3` all remained materially high because all promoted planes were now participating together under widened bounded pressure
-    - this is not idle waste; it is the cost of the full-platform proof that underwrites the final green judgment
+
+Day-level interpretation:
+
+- `2026-03-10` (`275.10 USD`) is where the proving-plane method finally took over the active authority surface:
+  - `Phase 0` pinned the truthful external ingress edge
+  - the earlier DynamoDB hot-row amplification defect was investigated and corrected inside the live ingress boundary
+  - stale retained ingress topology was removed instead of left as silent drift
+- `2026-03-11` (`533.49 USD`) is the day where the platform began paying for real coupled-plane proof under the new posture:
+  - more of the working network was materially participating
+  - the high `Lambda + API Gateway + DynamoDB` mix belongs to truthful ingress + coupled network proof rather than to earlier stress-harness exploration
+  - `S3` and `RDS` rising with it is consistent with object-store/evidence/checkpoint pressure from that expanded boundary
+- `2026-03-12` (`317.49 USD`) is both a learning-plane day and a cost-discipline day:
+  - `S3` and `RDS` leading the day matches the bounded learning basis and managed-surface materialization story better than a simple "more storage" explanation
+  - this is also the day where whole-platform cost hygiene became an active execution concern rather than an afterthought
+- `2026-03-13` (`521.75 USD`) is the integrated validation and bounded stress authorization day:
+  - by then all promoted planes were participating together
+  - the cost is therefore the cost of the final bounded full-platform claim, not just of raw ingress traffic
+  - this is the most defensible "production-readiness spend" day in the entire window
 
 ### Service-family explanation
 
@@ -1725,10 +1759,15 @@ The top service families in this window each mean something different operationa
 
 ### Cost judgment from this snapshot
 
-- the most expensive *runtime* family in the whole window was `Amazon DynamoDB`, not because storage was large, but because the ingress hot path originally wrote too much per request
-- `2026-03-07` and `2026-03-08` are the clearest examples of expensive transition-era spend that taught us how to harden the platform but were not yet the mature production-readiness method
-- `2026-03-10` through `2026-03-13` is the most honest view of what the bounded production-readiness execution actually cost
-- `2026-03-09` is the key inflection day because it shows the cost impact of narrowing the posture and tearing down / rebuilding instead of continuing with the broader earlier shape
+- the most expensive *runtime* family in the whole window was `Amazon DynamoDB`, not because storage was large, but because multiple hardening eras exercised ingress receipt/idempotency behavior before the final compact-row correction
+- the pre-`Phase 0` March window should not be dismissed as generic "legacy" spend:
+  - it contains runtime certification attempts,
+  - stress-test-first authority formation,
+  - road-to-prod `PR*` repins,
+  - and the learning that made the final proving-plane method possible
+- `2026-03-10` through `2026-03-13` remains the clearest bounded estimate of the accepted production-readiness execution cost, because that is where the proving-plane authority actually closed the platform
+- `2026-03-09` remains the key inflection day, but its meaning is sharper now:
+  - it reflects the cumulative effect of repinning away from wrong or overly broad proving surfaces before the final proving-plane run started
 - the `Tax` line on `2026-03-01` is a billing artifact, not a runtime service family
 
 ---
